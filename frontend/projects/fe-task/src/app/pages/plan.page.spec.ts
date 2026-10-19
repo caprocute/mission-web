@@ -81,12 +81,12 @@ describe('PlanPage (SCR-0402)', () => {
     expect(all).not.toContain('Thêm từ danh mục');
   });
 
-  it('kỳ đã duyệt chỉ đọc, có nút Tạo điều chỉnh khi được phép', async () => {
+  it('kỳ chờ duyệt chỉ đọc, có lối sang màn phê duyệt khi được phép', async () => {
     const el = await render('.tbl tbody tr', () => true, { plan: 'plan-2026-q4' });
-    expect(text(el.querySelector('.sub'))).toContain('DA_DUYET');
-    expect(buttons(el, '.actions')).toEqual(['Tạo điều chỉnh']);
+    expect(text(el.querySelector('.sub'))).toContain('CHO_DUYET');
+    expect(buttons(el, '.actions')).toEqual(['Xem xét và duyệt']);
     TestBed.resetTestingModule();
-    const ro = await render('.tbl tbody tr', (k) => k !== 'SCR-0402.dieu-chinh', {
+    const ro = await render('.tbl tbody tr', (k) => !k.startsWith('SCR-0403'), {
       plan: 'plan-2026-q4',
     });
     expect(buttons(ro, '.actions')).toEqual([]);
