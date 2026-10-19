@@ -12,7 +12,7 @@
 | Cỡ việc | L (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-015 |
 | Truy vết | QT-16 → SCR-1601 → `/api/v1/analytics` → SVC-15 (Cube, Superset nhúng) |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Xong, chờ gộp |
 
 ## 1. Mục tiêu
 
