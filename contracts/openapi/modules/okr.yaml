@@ -1765,11 +1765,19 @@ components:
         metricType: { $ref: '#/components/schemas/OkrMetricType' }
         unit: { type: string, maxLength: 32, description: 'Đơn vị đo: %, người, hồ sơ, ngày, lần, mốc' }
         baselineValue: { type: [number, 'null'] }
-        targetValue: { type: number }
+        targetValue:
+          type: [number, 'null']
+          description: >-
+            Chỉ tiêu. Chỉ được `null` khi KR còn `NHAP` (bản nháp lưu tự động của SCR-0202 có thể chưa nhập);
+            máy chủ chặn trình khi thiếu (BR-02-04).
         currentValue: { type: [number, 'null'], description: Giá trị từ check-in gần nhất }
         direction: { $ref: '#/components/schemas/OkrDirection' }
         weight: { type: number, minimum: 0, maximum: 1, description: 'Trọng số trong mục tiêu, từ 0 đến 1' }
-        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        dueDate:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Date'
+            - type: 'null'
+          description: Hạn. Chỉ được `null` khi KR còn `NHAP`; máy chủ chặn trình khi thiếu (BR-02-04).
         verifier: { $ref: '../common/common.yaml#/components/schemas/Ref' }
         owner:
           $ref: '../common/common.yaml#/components/schemas/Ref'
@@ -1815,9 +1823,12 @@ components:
           description: Tổng số nhiệm vụ liên kết, có thể nhiều hơn số phần tử `linkedWork`.
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
     OkrKeyResultInput:
-      description: KR khi soạn (SCR-0202 trường 7-16).
+      description: >-
+        KR khi soạn (SCR-0202 trường 7-16). Khi mục tiêu còn `NHAP`, bản nháp được lưu dù thiếu `targetValue`
+        hoặc `dueDate` (gửi `null` hoặc bỏ trường); khi trình, máy chủ kiểm lại đủ trường theo BR-02-04 và
+        trả 422. Lưu KR thiếu hai trường này khi mục tiêu không còn `NHAP` cũng trả 422.
       type: object
-      required: [title, unit, targetValue, weight, dueDate, verifierPersonId]
+      required: [title, unit, weight, verifierPersonId]
       properties:
         id:
           $ref: '../common/common.yaml#/components/schemas/Uuid'
@@ -1828,12 +1839,16 @@ components:
           description: Mặc định `SO_LUONG` khi vắng (suy luận; SCR-0202 không có trường này).
         unit: { type: string, minLength: 1, maxLength: 32 }
         baselineValue: { type: number, default: 0 }
-        targetValue: { type: number }
+        targetValue: { type: [number, 'null'] }
         direction:
           $ref: '#/components/schemas/OkrDirection'
           description: Mặc định `TANG` khi vắng (suy luận).
         weight: { type: number, minimum: 0, maximum: 1 }
-        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        dueDate:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Date'
+            - type: 'null'
+          description: Mặc định ngày cuối kỳ khi vắng (TL-02a SCR-0202 trường 13).
         verifierPersonId:
           $ref: '../common/common.yaml#/components/schemas/Uuid'
           description: Người xác nhận, khác chủ sở hữu KR.

@@ -745,13 +745,15 @@ export interface components {
       /** @description Đơn vị đo: %, người, hồ sơ, ngày, lần, mốc */
       unit: string;
       baselineValue?: number | null;
-      targetValue: number;
+      /** @description Chỉ tiêu. Chỉ được `null` khi KR còn `NHAP` (bản nháp lưu tự động của SCR-0202 có thể chưa nhập); máy chủ chặn trình khi thiếu (BR-02-04). */
+      targetValue: number | null;
       /** @description Giá trị từ check-in gần nhất */
       currentValue?: number | null;
       direction?: components['schemas']['OkrDirection'];
       /** @description Trọng số trong mục tiêu, từ 0 đến 1 */
       weight: number;
-      dueDate: components['schemas']['Date'];
+      /** @description Hạn. Chỉ được `null` khi KR còn `NHAP`; máy chủ chặn trình khi thiếu (BR-02-04). */
+      dueDate: components['schemas']['Date'] | null;
       verifier?: components['schemas']['Ref'];
       /** @description Chủ sở hữu KR, người check-in (suy luận: TL-02 SCR-0002 nhắc `okr.key_result.owner_id` nhưng TL-03 không có cột này). */
       owner?: components['schemas']['Ref'];
@@ -783,7 +785,7 @@ export interface components {
       linkedTaskCount?: number;
       rowVersion: components['schemas']['RowVersion'];
     };
-    /** @description KR khi soạn (SCR-0202 trường 7-16). */
+    /** @description KR khi soạn (SCR-0202 trường 7-16). Khi mục tiêu còn `NHAP`, bản nháp được lưu dù thiếu `targetValue` hoặc `dueDate` (gửi `null` hoặc bỏ trường); khi trình, máy chủ kiểm lại đủ trường theo BR-02-04 và trả 422. Lưu KR thiếu hai trường này khi mục tiêu không còn `NHAP` cũng trả 422. */
     OkrKeyResultInput: {
       /** @description Có khi sửa KR đã có trong `PUT /okr/objectives/{id}`. */
       id?: components['schemas']['Uuid'];
@@ -793,11 +795,12 @@ export interface components {
       unit: string;
       /** @default 0 */
       baselineValue: number;
-      targetValue: number;
+      targetValue?: number | null;
       /** @description Mặc định `TANG` khi vắng (suy luận). */
       direction?: components['schemas']['OkrDirection'];
       weight: number;
-      dueDate: components['schemas']['Date'];
+      /** @description Mặc định ngày cuối kỳ khi vắng (TL-02a SCR-0202 trường 13). */
+      dueDate?: components['schemas']['Date'] | null;
       /** @description Người xác nhận, khác chủ sở hữu KR. */
       verifierPersonId: components['schemas']['Uuid'];
       dataSource?: string;
