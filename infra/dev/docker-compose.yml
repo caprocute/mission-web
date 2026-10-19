@@ -114,6 +114,10 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_PROXY_HEADERS: xforwarded
       WEB_ORIGIN: ${WEB_PUBLIC_URL:-http://localhost:35200}
+      # WEB-056: realm-mission.json đọc mật khẩu tài khoản thử, khoá OTP thử và secret client từ biến môi trường
+      KC_TEST_USER_PASSWORD: ${KC_TEST_USER_PASSWORD:?}
+      KC_TEST_OTP_SECRET: ${KC_TEST_OTP_SECRET:?}
+      MISSION_CORE_CLIENT_SECRET: ${MISSION_CORE_CLIENT_SECRET:?}
     volumes:
       - ./keycloak/realm-mission.json:/opt/keycloak/data/import/realm-mission.json:ro
     ports:

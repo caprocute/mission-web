@@ -10,7 +10,7 @@ Hạ tầng dev chạy bằng Docker Compose với tên project `mission-dev`, m
 
 | Profile | Thành phần | Ghi chú |
 |---|---|---|
-| `core` | PostgreSQL 17, Valkey 8, Keycloak 26.4, MinIO, Mailpit | Realm `mission`; bucket minh chứng có Object Lock |
+| `core` | PostgreSQL 17, Valkey 8, Keycloak 26.4, MinIO, Mailpit | Realm `mission` (11 vai trò theo ma trận, 10 tài khoản thử, OTP theo vai trò AAL2, WEB-056); bucket minh chứng có Object Lock |
 | `events` | Kafka 3.9 chế độ KRaft, Apicurio Registry 3.0, Debezium Connect 3.1, Kafka UI | 26 topic theo danh mục EVT; Connect chỉ nghe trên giao diện cục bộ |
 | `search` | OpenSearch 2.19 | Chỉ nghe trên giao diện cục bộ |
 | `analytics` | ClickHouse 25.3 | Dữ liệu dashboard |
@@ -23,6 +23,8 @@ PostgreSQL có cơ sở dữ liệu `mission` với một schema cho mỗi modul
 Cách chạy theo README: sinh tệp biến môi trường bằng `scripts/gen-env.sh`, bật `docker compose --profile core up -d`, thêm các profile `events`, `observability` khi cần, rồi kiểm tra bằng `scripts/health.sh`. Dữ liệu lưu qua bind mount theo biến `DATA_DIR`. Để không chiếm tài nguyên máy dùng chung, log container giới hạn 3 tệp 20 MB, Kafka giữ dữ liệu 72 giờ, Valkey giới hạn 512 MB.
 
 APISIX ở dev có hai tuyến: `/api/v1/*` chuyển tới mission-core chạy trên máy phát triển, gắn `X-Request-Id` và giới hạn 600 request mỗi 60 giây theo địa chỉ nguồn, trả 429 khi vượt; `/*` chuyển tới container web. Ở dev, ứng dụng web mặc định chạy với `AUTH_ENABLED=false` và `USE_MOCK_API=true`, nên giao diện dùng được trước khi có backend.
+
+Realm `mission` đọc ba biến bí mật từ `infra/dev/.env`: `KC_TEST_USER_PASSWORD` (mật khẩu chung của tài khoản thử), `KC_TEST_OTP_SECRET` (khoá TOTP thử để kiểm thử tự động sinh mã OTP) và `MISSION_CORE_CLIENT_SECRET`. Keycloak chỉ nhập realm khi realm chưa tồn tại, nên mỗi lần sửa `realm-mission.json` phải xoá realm cũ rồi tạo lại container theo mục "Nạp lại realm" trong `infra/dev/README.md`; thao tác này chỉ đụng container `keycloak` của project `mission-dev`.
 
 ## Đóng gói ứng dụng web
 
