@@ -1331,6 +1331,14 @@ components:
         taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         qualityLevel: { $ref: '../common/common.yaml#/components/schemas/QualityLevel' }
         delayDays: { type: integer, minimum: 0 }
+        delayFactor:
+          type: number
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: >-
+            Hệ số C quy đổi từ `delayDays` theo bảng tiến độ của Policy Pack hồ sơ đang ghim; máy chủ tính,
+            client không gửi (SCR-0902 trường 5, suy luận tên trường).
     AppraisalSelfAssessment:
       description: Phiếu tự đánh giá hiện hành (`appraisal.self_assessment` cùng mức `TU_DE_XUAT`).
       type: object
@@ -1367,6 +1375,13 @@ components:
         claims:
           type: array
           items: { $ref: '#/components/schemas/AppraisalTaskClaim' }
+        claimedScore:
+          type: [number, 'null']
+          readOnly: true
+          description: >-
+            Điểm tự tính theo B, C cán bộ tự nhận, thẻ "Điểm tự tính (theo minh chứng nộp)" của SCR-0902 trường 4.
+            Máy chủ (SVC-07) tính bằng cùng công thức Policy Pack với điểm chính thức nhưng thay B, C bằng
+            `claims`; không phải ảnh chụp điểm bất biến; `null` khi phiếu chưa có `claims` (suy luận tên trường).
         contentHash: { $ref: '#/components/schemas/AppraisalHash' }
         savedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
         submittedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
@@ -1619,6 +1634,22 @@ components:
         c: { type: number, minimum: 0, maximum: 1 }
         kpi: { type: number, minimum: 0, maximum: 1 }
         exceedsTarget: { type: boolean }
+        acceptanceId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Lần nghiệm thu quyết định B, C của dòng (`product.acceptance.id`).
+        acceptanceNote:
+          type: string
+          maxLength: 500
+          description: >-
+            Căn cứ điều chỉnh B, C so với tự nhận, ghép từ `product.acceptance` (ví dụ "B: phải sửa nội dung
+            cơ bản (biên bản nghiệm thu 18/12)"); SCR-0902 trường 5 (suy luận tên trường).
+        evidenceId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Minh chứng đã được nghiệm thu, mở bằng `GET /evidences/{id}/versions/{v}`.
+        evidenceVersionNo:
+          type: integer
+          minimum: 1
+          description: Số phiên bản minh chứng đã nghiệm thu, đi cùng `evidenceId`.
     AppraisalScoreGroup:
       description: Một nhóm nhiệm vụ (then chốt, thường xuyên) với KPI nhóm và điểm (BR-09-03).
       type: object
