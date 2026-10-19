@@ -190,7 +190,7 @@ const etag = (n: number) => ({ ETag: `"${n}"` });
 
 function ifMatch(v: StoredVersion, req: MockRequest): MockResponse | null {
   const h = req.headers.get('If-Match');
-  if (!h) return problem(428, 'Thiếu If-Match');
+  if (!h) return problem(428, 'Thiếu thông tin phiên bản dữ liệu. Vui lòng tải lại trang.');
   return h.replace(/"/g, '') === String(v.rowVersion)
     ? null
     : problem(409, 'Phiên bản minh chứng vừa được cập nhật ở nơi khác. Vui lòng tải lại.', {
@@ -276,9 +276,13 @@ function saveVersion(req: MockRequest): MockResponse {
   const conflict = ifMatch(v, req);
   if (conflict) return conflict;
   if (v.status !== 'NHAP')
-    return problem(409, 'Phiên bản đã nộp không sửa được (BR-07-01).', {
-      code: 'PRODUCT-409-INVALID-STATE',
-    });
+    return problem(
+      409,
+      'Phiên bản đã nộp không sửa được; đồng chí nộp phiên bản mới nếu cần bổ sung.',
+      {
+        code: 'PRODUCT-409-INVALID-STATE',
+      },
+    );
   const d = req.body as EvidenceVersionDraft;
   const errors = validateDraft(d);
   if (errors.length) return problem(422, 'Dữ liệu không hợp lệ', { errors });
@@ -317,11 +321,11 @@ function submit(req: MockRequest): MockResponse {
       code: 'FILE-422-INFECTED',
     });
   if (o && o.scanStatus !== 'SACH')
-    return problem(422, 'Tệp chưa quét xong mã độc, chưa nộp được (BR-07-04).', {
+    return problem(422, 'Tệp chưa quét xong mã độc nên chưa nộp được.', {
       code: 'FILE-422-NOT-SCANNED',
     });
   if (o?.dedup?.duplicate && (v.reuseJustification ?? '').length < 20)
-    return problem(422, 'Thiếu giải trình dùng lại minh chứng (BR-07-03)', {
+    return problem(422, 'Thiếu giải trình dùng lại minh chứng', {
       errors: [{ field: 'reuseJustification', message: 'Ghi giải trình từ 20 đến 1.000 ký tự' }],
     });
   const at = now();
@@ -360,7 +364,7 @@ function reviewerGuard(e: StoredEvidence, v: StoredVersion): MockResponse | null
       code: 'PRODUCT-403-SELF-REVIEW',
       detail:
         v.submittedBy?.id === MOCK_ME.id
-          ? 'BR-07-06: người nghiệm thu phải khác người nộp và người phối hợp.'
+          ? 'Người nghiệm thu phải khác người nộp và người phối hợp.'
           : undefined,
     });
   return null;
@@ -442,13 +446,14 @@ function accept(req: MockRequest): MockResponse {
     });
   // BR-07-11: xác nhận nghiệm thu cần MFA trong 15 phút
   if (!mockSession.recentMfa()) {
-    const r = problem(401, 'Cần xác thực bước lên trước khi xác nhận nghiệm thu', {
+    const r = problem(401, 'Cần xác thực nhiều lớp trước khi xác nhận nghiệm thu', {
       type: 'https://datatracker.ietf.org/doc/html/rfc9470',
       code: 'insufficient_user_authentication',
     });
     r.headers = {
       ...r.headers,
       'WWW-Authenticate':
+        // ui-text-ok: tiêu đề HTTP theo RFC 9470, không hiện lên màn hình
         'Bearer error="insufficient_user_authentication", acr_values="aal2", max_age=900',
     };
     return r;
@@ -526,7 +531,7 @@ function scorePreview(req: MockRequest): MockResponse {
     b: b.qualityLevel,
     c: round(c),
     kpi: round((1 + b.qualityLevel! + c) / 3),
-    policyVersion: 'KHOI_DANG v2.0',
+    policyVersion: 'Bộ quy định đánh giá Khối Đảng, phiên bản 2.0',
   });
 }
 
@@ -535,10 +540,10 @@ function scorePreview(req: MockRequest): MockResponse {
 function createUpload(req: MockRequest): MockResponse {
   const body = req.body as FileUploadCreate;
   if (body.declaredSize > 50 * 1024 * 1024)
-    return problem(413, 'Tệp vượt 50 MB', { code: 'FILE-413-TOO-LARGE' });
+    return problem(413, 'Tệp vượt quá 50 MB', { code: 'FILE-413-TOO-LARGE' });
   if (!/^[0-9a-f]{64}$/.test(body.declaredSha256 ?? ''))
     return problem(422, 'Dữ liệu không hợp lệ', {
-      errors: [{ field: 'declaredSha256', message: 'Mã băm SHA-256 không hợp lệ' }],
+      errors: [{ field: 'declaredSha256', message: 'Mã kiểm tra toàn vẹn của tệp không hợp lệ' }],
     });
   const u: StoredUpload = {
     uploadId: uuid('c2'),
@@ -579,7 +584,7 @@ function putPart(req: MockRequest): MockResponse {
   if (mockSession.takeUploadFailure(n)) return problem(503, 'Mất kết nối khi gửi phần tệp');
   const size = req.body instanceof Blob ? req.body.size : 0;
   if (size > u.partSize)
-    return problem(413, 'Phần vượt kích thước', { code: 'FILE-413-PART-TOO-LARGE' });
+    return problem(413, 'Phần tệp vượt kích thước cho phép', { code: 'FILE-413-PART-TOO-LARGE' });
   const part = { partNo: n, size, etag: `"p${n}-${u.uploadId.slice(-6)}"` };
   u.parts.set(n, part);
   return ok(part);

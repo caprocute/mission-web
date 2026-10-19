@@ -72,7 +72,7 @@ describe('EvidenceReviewPage (SCR-0703)', () => {
     const { el } = await render();
     expect(text(el.querySelector('.top .chip'))).toBe('Đang nghiệm thu');
     expect(text(el.querySelector('.sub'))).toContain('người thực hiện Nguyễn Văn An');
-    expect(text(el.querySelector('.files'))).toContain('đã kiểm toàn vẹn');
+    expect(text(el.querySelector('.files'))).toContain('đã kiểm tra toàn vẹn');
     expect(text(el.querySelector('.msg.warn'))).toContain('NV-2026-Q3-0088');
     expect(el.querySelectorAll('.tbl tbody tr')).toHaveLength(3);
     // MSG-07-09: chưa đánh giá đủ tiêu chuẩn thì chưa chọn được mức
