@@ -2,7 +2,6 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
 import { ROUTES } from './evidence.routes';
-import { EvidenceHomePage } from './pages/evidence-home.page';
 
 describe('fe-evidence', () => {
   it('dựng router-outlet cho tuyến', async () => {
@@ -15,12 +14,10 @@ describe('fe-evidence', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('router-outlet')).not.toBeNull();
   });
 
-  it('tuyến gốc trỏ tới trang khung có tiêu đề tiếng Việt', async () => {
-    expect(ROUTES[0].path).toBe('');
-    const fixture = TestBed.createComponent(EvidenceHomePage);
-    fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent).toBe(
-      'Sản phẩm và minh chứng',
-    );
+  it('tuyến gốc là danh sách minh chứng, `:id` là SCR-0701', () => {
+    expect(ROUTES.map((r) => [r.path, r.title])).toEqual([
+      ['', 'Sản phẩm và minh chứng'],
+      [':id', 'Nộp minh chứng'],
+    ]);
   });
 });
