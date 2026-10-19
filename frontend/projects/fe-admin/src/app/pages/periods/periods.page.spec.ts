@@ -85,7 +85,7 @@ describe('PeriodsPage (SCR-0801)', () => {
     const info = text(el.querySelector('.info'));
     expect(info).toContain('Thông báo 21-TB/ĐUK');
     expect(info).toContain('Phạm Quang Huy');
-    expect(info).toContain('CK-2026Q3');
+    expect(info).toContain('Đã khởi chạy');
     expect(text(el.querySelector('.cards'))).toContain('298.760');
     expect(el.querySelectorAll('.steps tbody tr')).toHaveLength(6);
     expect(text(el.querySelector('.steps tbody tr.cur'))).toContain('2. Tính điểm hàng loạt');
@@ -100,7 +100,7 @@ describe('PeriodsPage (SCR-0801)', () => {
     const el = await render((k) => k === 'SCR-0801.xem');
     expect(text(el.querySelector('.head'))).not.toContain('Tạo kỳ');
     expect(text(el.querySelector('.controls'))).not.toContain('Tạm dừng');
-    expect(text(el.querySelector('.controls'))).not.toContain('Huỷ và bù trừ');
+    expect(text(el.querySelector('.controls'))).not.toContain('Huỷ và hoàn tác');
   });
 
   it('phê duyệt lệnh Quý IV: MSG-08-01; khởi chạy bị chặn vì người khởi chạy trùng người duyệt', async () => {
@@ -126,7 +126,7 @@ describe('PeriodsPage (SCR-0801)', () => {
     const el = await render();
     await pick(el, 'Tháng 9/2026');
     await press(el, 'Khởi chạy');
-    await until(el, 'p-message', has('Đã khởi chạy saga khoá kỳ Tháng 9/2026'));
+    await until(el, 'p-message', has('Đã khởi chạy tiến trình khoá kỳ Tháng 9/2026'));
     await until(el, '.pitem.sel', has('Đang khoá'));
     const cur = await until(el, '.steps tbody tr.cur');
     expect(text(cur)).toContain('Tính điểm hàng loạt');
@@ -139,15 +139,15 @@ describe('PeriodsPage (SCR-0801)', () => {
     const box = await until(el, '.cancelbox');
     expect(text(box)).toContain('Hoàng Đức Dũng');
     expect(text(box)).toContain('sai sót cấu hình trọng số khối 3');
-    await press(el, 'Duyệt huỷ và bù trừ');
-    await until(el, 'p-message', has('saga đang bù trừ theo thứ tự ngược'));
-    await until(el, '.row-head .status', has('Đang bù trừ'));
-    await until(el, '.steps tbody tr', has('Đã bù trừ'));
+    await press(el, 'Duyệt huỷ và hoàn tác');
+    await until(el, 'p-message', has('hệ thống đang hoàn tác theo thứ tự ngược'));
+    await until(el, '.row-head .status', has('Đang hoàn tác'));
+    await until(el, '.steps tbody tr', has('Đã hoàn tác'));
   });
 
   it('đề nghị huỷ Quý III: lý do ngắn báo lỗi trường, đủ dài thì MSG-08-05', async () => {
     const el = await render();
-    await press(el, 'Huỷ và bù trừ toàn bộ');
+    await press(el, 'Huỷ và hoàn tác toàn bộ');
     const area = (await until(el, '#cc-reason')) as HTMLTextAreaElement;
     area.value = 'sai';
     area.dispatchEvent(new Event('input'));
@@ -156,7 +156,7 @@ describe('PeriodsPage (SCR-0801)', () => {
     area.value = 'Sai trọng số khối 3 trong Policy Pack';
     area.dispatchEvent(new Event('input'));
     await press(el, 'Gửi đề nghị huỷ');
-    await until(el, 'p-message', has('Đề nghị huỷ và bù trừ cần người duyệt thứ hai'));
+    await until(el, 'p-message', has('Đề nghị huỷ và hoàn tác cần người duyệt thứ hai'));
     expect(text(await until(el, '.cancelbox'))).toContain('Cán bộ thử nghiệm');
   });
 });

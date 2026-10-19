@@ -72,14 +72,14 @@ export const MSG_08_03 = (n: number) =>
 export const MSG_08_04 = (step: number, at: string) =>
   `Bước ${step} đang chậm hơn ngân sách. Dự kiến hoàn tất ${at}.`;
 /** MSG-08-05; hợp đồng chưa trả tên người duyệt thứ hai nên ghi theo vai trò (wiki/14). */
-export const MSG_08_05 = (name = 'người duyệt thứ hai (AC-09)') =>
-  `Đề nghị huỷ và bù trừ cần người duyệt thứ hai. Đã gửi tới ${name}.`;
+export const MSG_08_05 = (name = 'người duyệt thứ hai') =>
+  `Đề nghị huỷ và hoàn tác cần người duyệt thứ hai. Đã gửi tới ${name}.`;
 /** MSG-08-07 */
 export const MSG_08_07 = (period: string, at: string) =>
   `Kỳ ${period} đã khoá lúc ${at}. Hồ sơ đánh giá đã sẵn sàng cho bước tự đánh giá.`;
 /** MSG-08-08 */
 export const MSG_08_08 = (period: string) =>
-  `Saga đã bù trừ toàn bộ. Kỳ ${period} trở về trạng thái mở.`;
+  `Đã hoàn tác toàn bộ. Kỳ ${period} trở về trạng thái Đang mở.`;
 
 const STEP_ICON: Record<PeriodLockStepStatus, string> = {
   CHO: 'pi pi-circle',
@@ -125,7 +125,9 @@ const timeOf = (iso?: string | null) => {
     <header class="head">
       <div>
         <h1>Kỳ đánh giá và khoá kỳ</h1>
-        <p class="muted">Saga khoá kỳ "chot-ky" · workflow-service (SVC-06), config (MOD-08)</p>
+        <p class="muted">
+          Lịch kỳ đánh giá, lệnh khoá kỳ và theo dõi tiến trình khoá kỳ của đơn vị.
+        </p>
       </div>
       @if (can('SCR-0801.tao-ky')) {
         <div class="actions">
@@ -212,12 +214,12 @@ const timeOf = (iso?: string | null) => {
                 </dd>
               </div>
               <div>
-                <dt>Policy Pack ghim</dt>
+                <dt>Bộ quy định đánh giá áp dụng</dt>
                 <dd>
                   @for (pk of p.pinnedPolicyPacks ?? []; track pk.packVersionId) {
-                    <span class="chip">{{ pk.packCode }} v{{ pk.version }}</span>
+                    <span class="chip">{{ flowLabel[pk.flow] }}, phiên bản {{ pk.version }}</span>
                   } @empty {
-                    <span class="muted">Chưa ghim</span>
+                    <span class="muted">Chưa xác định</span>
                   }
                 </dd>
               </div>
@@ -244,7 +246,7 @@ const timeOf = (iso?: string | null) => {
                     @if (o.approvedBy) {
                       {{ o.approvedBy.name }} · {{ dateTimeOr(o.approvedAt) }}
                     } @else {
-                      <span class="muted">Chờ lãnh đạo (AC-04) phê duyệt</span>
+                      <span class="muted">Chờ lãnh đạo phê duyệt</span>
                     }
                   </dd>
                 </div>
@@ -254,13 +256,10 @@ const timeOf = (iso?: string | null) => {
                     <dd>{{ o.startedBy.name }} · {{ dateTimeOr(o.startedAt) }}</dd>
                   </div>
                 }
+                <!-- mã saga, khoá chống lặp (BR-08-08) là mã nội bộ: không hiện -->
                 <div>
-                  <dt>Mã saga</dt>
-                  <dd class="mono">{{ o.sagaId ?? 'Chưa khởi chạy' }}</dd>
-                </div>
-                <div>
-                  <dt>Khoá chống lặp</dt>
-                  <dd class="mono">{{ o.idempotencyKey }}</dd>
+                  <dt>Tiến trình khoá kỳ</dt>
+                  <dd>{{ o.sagaId ? 'Đã khởi chạy' : 'Chưa khởi chạy' }}</dd>
                 </div>
               } @else if (p.lockedAt) {
                 <div>
@@ -307,9 +306,9 @@ const timeOf = (iso?: string | null) => {
             <section class="box" aria-labelledby="h-saga">
               <div class="row-head">
                 <h2 id="h-saga" class="h">
-                  Tiến trình saga {{ s.templateKey }}
+                  Tiến trình khoá kỳ
                   @if (s.templateVersion) {
-                    phiên bản {{ s.templateVersion }}
+                    (quy trình phiên bản {{ s.templateVersion }})
                   }
                 </h2>
                 <span class="status" [class]="'status ' + sagaTone(s.sagaStatus)" role="status">{{
@@ -345,7 +344,7 @@ const timeOf = (iso?: string | null) => {
                   <p class="label">Dự kiến hoàn tất</p>
                   <p class="big">{{ time(s.estimatedFinishAt) || '—' }}</p>
                   @if (s.budgetFinishAt) {
-                    <p class="muted small">ngân sách NFR-06: {{ time(s.budgetFinishAt) }}</p>
+                    <p class="muted small">thời hạn cho phép: {{ time(s.budgetFinishAt) }}</p>
                   }
                 </div>
               </div>
@@ -359,7 +358,7 @@ const timeOf = (iso?: string | null) => {
               <div class="scroll">
                 <table class="tbl steps">
                   <caption class="sr-only">
-                    Sáu bước saga khoá kỳ và hành động bù trừ
+                    Sáu bước của tiến trình khoá kỳ và việc hoàn tác
                   </caption>
                   <thead>
                     <tr>
@@ -367,7 +366,7 @@ const timeOf = (iso?: string | null) => {
                       <th scope="col">Trạng thái</th>
                       <th scope="col">Thời gian</th>
                       <th scope="col">Kết quả</th>
-                      <th scope="col">Bù trừ</th>
+                      <th scope="col">Hoàn tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -408,7 +407,9 @@ const timeOf = (iso?: string | null) => {
                               st.compensationAction
                             }}</span>
                             @if (st.compensatedAt) {
-                              <span class="block">Đã bù trừ {{ time(st.compensatedAt) }}</span>
+                              <span class="block"
+                                >Đã hoàn tác lúc {{ time(st.compensatedAt) }}</span
+                              >
                             }
                           } @else {
                             <span class="muted">Không có</span>
@@ -421,16 +422,16 @@ const timeOf = (iso?: string | null) => {
               </div>
 
               @if (s.cancelRequest; as c) {
-                <div class="cancelbox" role="region" aria-label="Đề nghị huỷ và bù trừ">
+                <div class="cancelbox" role="region" aria-label="Đề nghị huỷ và hoàn tác">
                   <p>
-                    <strong>Đề nghị huỷ và bù trừ toàn bộ</strong> của đồng chí
+                    <strong>Đề nghị huỷ và hoàn tác toàn bộ</strong> của đồng chí
                     {{ c.requestedBy.name }} lúc {{ dateTime(c.requestedAt) }}, chờ người duyệt thứ
                     hai.
                   </p>
                   <p class="small">Lý do: {{ c.reason }}</p>
                   @if (can('SCR-0801.duyet-huy')) {
                     <p-button
-                      label="Duyệt huỷ và bù trừ"
+                      label="Duyệt huỷ và hoàn tác"
                       icon="pi pi-replay"
                       severity="danger"
                       [loading]="busy() === 'approveCancel'"
@@ -441,7 +442,7 @@ const timeOf = (iso?: string | null) => {
               }
 
               @if (active(s)) {
-                <div class="controls" role="group" aria-label="Điều khiển saga">
+                <div class="controls" role="group" aria-label="Điều khiển tiến trình khoá kỳ">
                   @if (can('SCR-0801.dieu-khien')) {
                     @if (s.sagaStatus === 'DANG_CHAY' && !s.pauseRequested) {
                       <p-button
@@ -476,7 +477,7 @@ const timeOf = (iso?: string | null) => {
                   }
                   @if (can('SCR-0801.de-nghi-huy') && s.cancellable && !s.cancelRequest) {
                     <p-button
-                      label="Huỷ và bù trừ toàn bộ"
+                      label="Huỷ và hoàn tác toàn bộ"
                       icon="pi pi-times"
                       severity="danger"
                       [outlined]="true"
@@ -485,7 +486,7 @@ const timeOf = (iso?: string | null) => {
                   }
                   @if (!simple()) {
                     <p-button
-                      label="Xem BPMN"
+                      label="Xem sơ đồ quy trình"
                       icon="pi pi-sitemap"
                       severity="secondary"
                       [text]="true"
@@ -494,12 +495,13 @@ const timeOf = (iso?: string | null) => {
                   }
                 </div>
                 <p class="muted small">
-                  Huỷ và bù trừ toàn bộ cần người duyệt thứ hai (AC-09) và chỉ cho phép trước khi
-                  bước 4 hoàn tất (BR-08-09); sau đó chỉ còn đường mở lại hậu kiểm.
+                  <!-- AC-09, BR-08-09 -->
+                  Huỷ và hoàn tác toàn bộ cần người duyệt thứ hai và chỉ thực hiện được trước khi
+                  bước 4 hoàn tất; sau đó chỉ còn cách mở lại hậu kiểm.
                 </p>
               } @else if (!simple()) {
                 <p-button
-                  label="Xem BPMN"
+                  label="Xem sơ đồ quy trình"
                   icon="pi pi-sitemap"
                   severity="secondary"
                   [text]="true"
@@ -524,7 +526,7 @@ const timeOf = (iso?: string | null) => {
                     <tbody>
                       @for (f of failures.value(); track f.profileId) {
                         <tr>
-                          <td>{{ f.person?.name ?? f.profileId }}</td>
+                          <td>{{ f.person?.name ?? 'Chưa xác định' }}</td>
                           <td>{{ f.unit?.name }}</td>
                           <td>{{ f.error }}</td>
                           <td class="num">{{ f.attempts }}</td>
@@ -574,9 +576,7 @@ const timeOf = (iso?: string | null) => {
                     <span class="nowrap time">{{ dateTime(e.at) }}</span>
                     <span>
                       {{ e.event }}
-                      @if (e.evt) {
-                        <span class="chip">{{ e.evt }}</span>
-                      }
+                      <!-- e.evt (mã EVT) chỉ dùng tra cứu, không hiện -->
                       @if (e.actor) {
                         <span class="muted small"> · {{ e.actor.name }}</span>
                       }
@@ -632,7 +632,8 @@ const timeOf = (iso?: string | null) => {
         (ngModelChange)="plannedLockAt.set($event)"
       />
       <p class="muted small">
-        Lệnh được gửi lãnh đạo (AC-04) phê duyệt; người duyệt phải khác người lập.
+        <!-- AC-04, BR-08-01 -->
+        Lệnh được gửi lãnh đạo phê duyệt; người phê duyệt phải khác người lập.
       </p>
       <ng-template #footer>
         <p-button label="Huỷ" severity="secondary" [text]="true" (onClick)="dialog.set(null)" />
@@ -646,7 +647,7 @@ const timeOf = (iso?: string | null) => {
     </p-dialog>
 
     <p-dialog
-      header="Huỷ và bù trừ toàn bộ"
+      header="Huỷ và hoàn tác toàn bộ"
       [modal]="true"
       [visible]="dialog() === 'cancel'"
       (visibleChange)="!$event && dialog.set(null)"
@@ -654,8 +655,9 @@ const timeOf = (iso?: string | null) => {
       closeAriaLabel="Đóng"
     >
       <p>
-        Saga sẽ bù trừ theo thứ tự ngược từ bước cao nhất đã hoàn tất và kỳ trở về trạng thái mở. Đề
-        nghị cần người duyệt thứ hai (AC-09) duyệt.
+        <!-- AC-09 -->
+        Hệ thống sẽ hoàn tác lần lượt từ bước gần nhất đã hoàn tất và kỳ trở về trạng thái Đang mở.
+        Đề nghị cần người duyệt thứ hai đồng ý.
       </p>
       <label for="cc-reason">Lý do huỷ</label>
       <textarea
@@ -682,7 +684,7 @@ const timeOf = (iso?: string | null) => {
     </p-dialog>
 
     <p-dialog
-      header="Sơ đồ tiến trình saga"
+      header="Sơ đồ quy trình khoá kỳ"
       [modal]="true"
       [visible]="dialog() === 'diagram'"
       (visibleChange)="!$event && dialog.set(null)"
@@ -691,14 +693,13 @@ const timeOf = (iso?: string | null) => {
     >
       @if (diagram(); as d) {
         <p class="muted small">
-          Mẫu {{ d.templateKey }} phiên bản {{ d.templateVersion }}. Trình xem BPMN chưa được nhúng;
-          danh sách dưới đây là các hoạt động của sơ đồ và trạng thái của chúng.
+          Quy trình khoá kỳ phiên bản {{ d.templateVersion }}: các bước của quy trình và trạng thái
+          hiện tại.
         </p>
         <ol class="bpmn">
           @for (a of activities(d); track a.id) {
             <li [class]="'act-' + a.state">
-              <span class="mono">{{ a.id }}</span> · {{ a.name }} ·
-              <strong>{{ a.label }}</strong>
+              {{ a.name }} · <strong>{{ a.label }}</strong>
             </li>
           }
         </ol>
@@ -1223,7 +1224,7 @@ export class PeriodsPage {
   }
 
   protected dateOr(d?: string | null) {
-    return d ? fmtDate(d) : 'theo Policy Pack';
+    return d ? fmtDate(d) : 'theo bộ quy định đánh giá';
   }
 
   protected dateTimeOr(d?: string | null) {
@@ -1306,7 +1307,7 @@ export class PeriodsPage {
   protected async approveOrder(p: Period) {
     const o = p.currentLockOrder;
     if (!o) return;
-    if (!(await this.stepUp('Phê duyệt lệnh khoá kỳ cần xác thực nhiều lớp (MFA).'))) return;
+    if (!(await this.stepUp('Phê duyệt lệnh khoá kỳ cần xác thực nhiều lớp.'))) return;
     const res = await this.run('approve', () => this.api.approveLockOrder(p.id, o));
     if (!res) return;
     const from = res.plannedLockAt ? fmtDateTime(res.plannedLockAt) : 'bây giờ';
@@ -1317,34 +1318,34 @@ export class PeriodsPage {
   protected async start(p: Period) {
     const o = p.currentLockOrder;
     if (!o) return;
-    if (!(await this.stepUp('Khởi chạy saga khoá kỳ cần xác thực nhiều lớp (MFA).'))) return;
+    if (!(await this.stepUp('Khởi chạy tiến trình khoá kỳ cần xác thực nhiều lớp.'))) return;
     const res = await this.run('start', () => this.api.start(p.id, o));
     if (!res) return;
     if (res.job.status === 'THAT_BAI') {
       this.actionError.set(res.job.problem?.detail ?? 'Chưa thể khởi chạy: bước 0 không đạt.');
       return;
     }
-    this.notice.set(`Đã khởi chạy saga khoá kỳ ${p.name}. Tiến trình cập nhật tự động.`);
+    this.notice.set(`Đã khởi chạy tiến trình khoá kỳ ${p.name}. Tiến độ được cập nhật tự động.`);
     this.periods.reload();
   }
 
   protected async pause(p: Period, s: PeriodLockProgress) {
-    if (!(await this.stepUp('Tạm dừng saga khoá kỳ cần xác thực nhiều lớp (MFA).'))) return;
+    if (!(await this.stepUp('Tạm dừng tiến trình khoá kỳ cần xác thực nhiều lớp.'))) return;
     const res = await this.run('pause', () => this.api.pause(p.id, s.lockOrder));
     if (!res) return;
-    this.notice.set('Saga sẽ dừng khi bước hiện tại hoàn tất.');
+    this.notice.set('Tiến trình sẽ dừng khi bước hiện tại hoàn tất.');
     this.reloadSaga();
   }
 
   protected async resume(p: Period, s: PeriodLockProgress) {
     const res = await this.run('resume', () => this.api.resume(p.id, s.lockOrder));
     if (!res) return;
-    this.notice.set('Saga tiếp tục chạy.');
+    this.notice.set('Tiến trình khoá kỳ tiếp tục chạy.');
     this.reloadSaga();
   }
 
   protected async retry(p: Period) {
-    if (!(await this.stepUp('Chạy lại hồ sơ lỗi cần xác thực nhiều lớp (MFA).'))) return;
+    if (!(await this.stepUp('Chạy lại hồ sơ lỗi cần xác thực nhiều lớp.'))) return;
     const res = await this.run('retry', () => this.api.retryFailed(p.id));
     if (!res) return;
     this.notice.set('Đã tạo lô mới cho các hồ sơ lỗi.');
@@ -1355,7 +1356,7 @@ export class PeriodsPage {
     const p = this.selected();
     const s = this.pr();
     if (!p || !s) return;
-    if (!(await this.stepUp('Đề nghị huỷ saga khoá kỳ cần xác thực nhiều lớp (MFA).'))) return;
+    if (!(await this.stepUp('Đề nghị huỷ tiến trình khoá kỳ cần xác thực nhiều lớp.'))) return;
     const res = await this.run('cancel', () =>
       this.api.requestCancel(p.id, s.lockOrder, this.cancelReason().trim()),
     );
@@ -1366,10 +1367,10 @@ export class PeriodsPage {
   }
 
   protected async approveCancel(p: Period, s: PeriodLockProgress) {
-    if (!(await this.stepUp('Duyệt huỷ và bù trừ cần xác thực nhiều lớp (MFA).'))) return;
+    if (!(await this.stepUp('Duyệt huỷ và hoàn tác cần xác thực nhiều lớp.'))) return;
     const res = await this.run('approveCancel', () => this.api.approveCancel(p.id, s.lockOrder));
     if (!res) return;
-    this.notice.set('Đã duyệt huỷ; saga đang bù trừ theo thứ tự ngược.');
+    this.notice.set('Đã duyệt huỷ; hệ thống đang hoàn tác theo thứ tự ngược.');
     this.reloadSaga();
   }
 

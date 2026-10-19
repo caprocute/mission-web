@@ -52,22 +52,23 @@ function periodOut(f: PeriodFixture): Period {
 
 function ifMatch(order: PeriodLockOrder, req: MockRequest): MockResponse | null {
   const h = req.headers.get('If-Match');
-  if (!h) return problem(428, 'Thiếu If-Match');
+  if (!h) return problem(428, 'Thiếu thông tin phiên bản dữ liệu. Vui lòng tải lại trang.');
   if (h.replace(/"/g, '') !== String(order.rowVersion))
-    return problem(412, 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại', {
+    return problem(412, 'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại.', {
       code: 'PRECONDITION_FAILED',
     });
   return null;
 }
 
 function stepUpRequired(action: string): MockResponse {
-  const r = problem(401, `Cần xác thực bước lên trước khi ${action}`, {
+  const r = problem(401, `Cần xác thực nhiều lớp trước khi ${action}.`, {
     type: 'https://datatracker.ietf.org/doc/html/rfc9470',
     code: 'insufficient_user_authentication',
   });
   r.headers = {
     ...r.headers,
     'WWW-Authenticate':
+      // ui-text-ok: tiêu đề HTTP theo RFC 9470, không hiện lên màn hình
       'Bearer error="insufficient_user_authentication", acr_values="aal2", max_age=900',
   };
   return r;
@@ -155,15 +156,15 @@ function tick(f: PeriodFixture): void {
     cur.resultSummary = {
       note: `${profiles.toLocaleString('vi-VN')} hồ sơ đã tính, không còn hồ sơ lỗi`,
     };
-    log(s, 'Bước 2 hoàn tất, phát DiemDaTinh.', 'EVT-10');
+    log(s, 'Bước 2 hoàn tất: đã tính điểm toàn bộ hồ sơ.', 'EVT-10');
   } else if (cur.stepNo === 3) {
     cur.resultSummary = { note: 'Đã sinh biểu mẫu và bảng chấm điểm theo đơn vị' };
-    log(s, 'Bước 3 hoàn tất, phát HoSoSoDaSinh.', 'EVT-17');
+    log(s, 'Bước 3 hoàn tất: đã sinh biểu mẫu và bảng chấm điểm.', 'EVT-17');
   } else if (cur.stepNo === 4) {
     cur.resultSummary = { note: 'Đã ký số niêm phong các bảng tổng hợp bằng chứng thư tổ chức' };
-    log(s, 'Bước 4 hoàn tất, phát KySoDaHoanTat.', 'EVT-18');
+    log(s, 'Bước 4 hoàn tất: đã ký số các bảng tổng hợp.', 'EVT-18');
   } else if (cur.stepNo === 5) {
-    cur.resultSummary = { note: 'Kỳ chuyển DA_KHOA, sổ cái đã niêm phong' };
+    cur.resultSummary = { note: 'Kỳ chuyển sang trạng thái Đã khoá, sổ cái đã niêm phong' };
   }
   cur.status = 'DAT';
   cur.finishedAt = at;
@@ -176,12 +177,12 @@ function tick(f: PeriodFixture): void {
     f.period.rowVersion++;
     f.order!.status = 'HOAN_TAT';
     f.order!.rowVersion++;
-    log(s, `Kỳ ${f.period.name} chuyển DA_KHOA, sổ cái đã niêm phong.`, 'EVT-19');
+    log(s, `Kỳ ${f.period.name} chuyển sang trạng thái Đã khoá, sổ cái đã niêm phong.`, 'EVT-19');
     return;
   }
   if (s.pauseRequested) {
     s.status = 'CHO_SU_KIEN';
-    log(s, `Bước ${cur.stepNo} hoàn tất; saga tạm dừng theo cờ tạm dừng.`);
+    log(s, `Bước ${cur.stepNo} hoàn tất; tiến trình tạm dừng theo yêu cầu.`);
     return;
   }
   startStep(s, cur.stepNo + 1);
@@ -208,7 +209,7 @@ function compensateOne(f: PeriodFixture): void {
     target.status = 'DA_BU_TRU';
     target.compensatedAt = at;
     target.finishedAt ??= at;
-    log(s, `Bù trừ bước ${target.stepNo}: ${STEP_DEFS[target.stepNo].compensation}.`);
+    log(s, `Hoàn tác bước ${target.stepNo}: ${STEP_DEFS[target.stepNo].compensation}.`);
     if (target.stepNo !== 1) return;
   }
   s.status = 'DA_BU_TRU';
@@ -217,7 +218,7 @@ function compensateOne(f: PeriodFixture): void {
   f.period.rowVersion++;
   f.order!.status = 'DA_HUY';
   f.order!.rowVersion++;
-  log(s, `Saga đã bù trừ toàn bộ. Kỳ ${f.period.name} trở về trạng thái mở.`);
+  log(s, `Đã hoàn tác toàn bộ. Kỳ ${f.period.name} trở về trạng thái Đang mở.`);
 }
 
 function job(type: string, status: Job['status'], extra: Partial<Job> = {}): MockResponse {
@@ -249,12 +250,14 @@ function list(req: MockRequest): MockResponse {
 function create(req: MockRequest): MockResponse {
   const body = req.body as PeriodCreate;
   const errors: { field: string; message: string }[] = [];
-  if (!body?.name?.trim()) errors.push({ field: 'name', message: 'Nhập tên kỳ' });
-  if (!body?.code?.trim()) errors.push({ field: 'code', message: 'Nhập mã kỳ' });
-  if (!body?.startDate) errors.push({ field: 'startDate', message: 'Chọn ngày bắt đầu' });
-  if (!body?.endDate) errors.push({ field: 'endDate', message: 'Chọn ngày kết thúc' });
+  if (!body?.name?.trim()) errors.push({ field: 'name', message: 'Đồng chí chưa nhập tên kỳ.' });
+  if (!body?.code?.trim()) errors.push({ field: 'code', message: 'Đồng chí chưa nhập mã kỳ.' });
+  if (!body?.startDate)
+    errors.push({ field: 'startDate', message: 'Đồng chí chưa chọn ngày bắt đầu.' });
+  if (!body?.endDate)
+    errors.push({ field: 'endDate', message: 'Đồng chí chưa chọn ngày kết thúc.' });
   if (body?.startDate && body?.endDate && body.endDate < body.startDate)
-    errors.push({ field: 'endDate', message: 'Ngày kết thúc phải sau ngày bắt đầu' });
+    errors.push({ field: 'endDate', message: 'Ngày kết thúc phải sau ngày bắt đầu.' });
   if (errors.length) return problem(422, 'Dữ liệu không hợp lệ', { errors });
   const overlap = ensure().find(
     (f) =>
@@ -264,7 +267,7 @@ function create(req: MockRequest): MockResponse {
       body.startDate <= f.period.endDate,
   );
   if (overlap)
-    return problem(409, 'Kỳ chồng lấn với kỳ cùng loại đã có', {
+    return problem(409, 'Kỳ trùng thời gian với một kỳ cùng loại đã có', {
       code: 'PERIOD-409-OVERLAP',
       detail: `Trùng thời gian với ${overlap.period.name}.`,
     });
@@ -289,7 +292,7 @@ function create(req: MockRequest): MockResponse {
     pinnedPolicyPacks: structuredClone(ensure()[0].period.pinnedPolicyPacks ?? []),
     warnings:
       lock && lock > limit
-        ? ['Ngày khoá dự kiến muộn hơn tham số của Policy Pack (ngày 10 tháng sau).']
+        ? ['Ngày khoá dự kiến muộn hơn mốc của bộ quy định đánh giá (ngày 10 tháng sau).']
         : [],
     rowVersion: 1,
   };
@@ -301,13 +304,15 @@ function createOrder(req: MockRequest): MockResponse {
   const f = find(req);
   if (isResponse(f)) return f;
   if (f.period.status !== 'MO' && f.period.status !== 'MO_LAI_HAU_KIEM')
-    return problem(409, `Kỳ ${f.period.name} không ở trạng thái mở`, { code: 'PERIOD-409-STATUS' });
+    return problem(409, `Kỳ ${f.period.name} không ở trạng thái Đang mở`, {
+      code: 'PERIOD-409-STATUS',
+    });
   if (f.order && f.order.status !== 'DA_HUY')
-    return problem(409, 'Kỳ đã có lệnh khoá kỳ còn hiệu lực', { code: 'PERIOD-409-ORDER-EXISTS' });
+    return problem(409, 'Kỳ đã có lệnh khoá kỳ còn hiệu lực.', { code: 'PERIOD-409-ORDER-EXISTS' });
   const body = req.body as PeriodLockOrderCreate;
   if (!body?.basisDoc?.trim())
     return problem(422, 'Dữ liệu không hợp lệ', {
-      errors: [{ field: 'basisDoc', message: 'Nhập văn bản căn cứ' }],
+      errors: [{ field: 'basisDoc', message: 'Đồng chí chưa nhập văn bản căn cứ.' }],
     });
   const year = f.period.code.slice(0, 4);
   f.order = {
@@ -334,15 +339,15 @@ function approveOrder(req: MockRequest): MockResponse {
   const f = find(req);
   if (isResponse(f)) return f;
   const o = f.order;
-  if (!o || o.id !== req.pathParams['oid']) return problem(404, 'Không tìm thấy lệnh khoá kỳ');
+  if (!o || o.id !== req.pathParams['oid']) return problem(404, 'Không tìm thấy lệnh khoá kỳ.');
   if (o.status !== 'CHO_DUYET')
-    return problem(409, 'Lệnh khoá kỳ không ở trạng thái chờ phê duyệt', {
+    return problem(409, 'Lệnh khoá kỳ không ở trạng thái Chờ phê duyệt', {
       code: 'PERIOD-409-STATUS',
     });
   const conflict = ifMatch(o, req);
   if (conflict) return conflict;
   if (o.requestedBy.id === ME.id)
-    return samePerson('BR-08-01: người phê duyệt lệnh phải khác người lập lệnh.');
+    return samePerson('Người phê duyệt lệnh phải khác người lập lệnh.'); // BR-08-01
   if (!mockSession.recentMfa()) return stepUpRequired('phê duyệt lệnh khoá kỳ');
   o.status = 'DA_DUYET';
   o.approvedBy = ME;
@@ -354,7 +359,7 @@ function approveOrder(req: MockRequest): MockResponse {
 function progress(req: MockRequest): MockResponse {
   const f = find(req);
   if (isResponse(f)) return f;
-  if (!f.saga || !f.order) return problem(404, 'Kỳ chưa có saga khoá kỳ');
+  if (!f.saga || !f.order) return problem(404, 'Kỳ chưa có tiến trình khoá kỳ.');
   tick(f);
   return ok(progressOut(f), etag(f.order.rowVersion));
 }
@@ -364,15 +369,16 @@ function start(req: MockRequest): MockResponse {
   if (isResponse(f)) return f;
   const o = f.order;
   const body = req.body as { lockOrderId?: string };
-  if (!o || o.id !== body?.lockOrderId) return problem(404, 'Không tìm thấy lệnh khoá kỳ');
-  if (sagaActive(f)) return job('PERIOD_LOCK', 'DANG_CHAY', { message: 'Saga đang chạy' });
+  if (!o || o.id !== body?.lockOrderId) return problem(404, 'Không tìm thấy lệnh khoá kỳ.');
+  if (sagaActive(f))
+    return job('PERIOD_LOCK', 'DANG_CHAY', { message: 'Tiến trình khoá kỳ đang chạy' });
   if (o.status !== 'DA_DUYET')
-    return problem(409, 'Lệnh khoá kỳ chưa được phê duyệt', { code: 'PERIOD-409-STATUS' });
+    return problem(409, 'Lệnh khoá kỳ chưa được phê duyệt.', { code: 'PERIOD-409-STATUS' });
   const conflict = ifMatch(o, req);
   if (conflict) return conflict;
   if (o.approvedBy?.id === ME.id)
-    return samePerson('BR-08-01: người khởi chạy phải khác người phê duyệt lệnh.');
-  if (!mockSession.recentMfa()) return stepUpRequired('khởi chạy saga khoá kỳ');
+    return samePerson('Người khởi chạy phải khác người phê duyệt lệnh.'); // BR-08-01
+  if (!mockSession.recentMfa()) return stepUpRequired('khởi chạy tiến trình khoá kỳ');
   const backlog = f.period.milestones?.acceptanceBacklogDeadline;
   const today = nowIso().slice(0, 10);
   if (backlog && backlog >= today) {
@@ -432,32 +438,37 @@ function start(req: MockRequest): MockResponse {
     status: 'DAT_CO_CANH_BAO',
     startedAt: at,
     finishedAt: at,
-    resultSummary: { note: '9 minh chứng còn DA_NOP không được tính trong kỳ' },
+    resultSummary: {
+      note: '9 minh chứng ở trạng thái Đã nộp, chưa được nghiệm thu, không được tính trong kỳ',
+    },
   };
   s.steps[1] = {
     ...s.steps[1],
     status: 'DAT',
     startedAt: at,
     finishedAt: at,
-    resultSummary: { note: 'Kỳ chuyển DANG_KHOA, đã phát EVT-09' },
+    resultSummary: { note: 'Kỳ chuyển sang trạng thái Đang khoá' },
   };
   startStep(s, 2);
   f.saga = s;
   log(
     s,
-    `Khởi chạy saga ${SAGA_TEMPLATE.key} phiên bản ${SAGA_TEMPLATE.version}, khoá chống lặp ${o.idempotencyKey}.`,
+    `Khởi chạy tiến trình khoá kỳ theo quy trình phiên bản ${SAGA_TEMPLATE.version}.`,
     null,
     ME,
   );
-  log(s, 'Bước 0 đạt có cảnh báo: 9 minh chứng còn DA_NOP không được tính trong kỳ.');
-  log(s, `Kỳ ${f.period.name} chuyển DANG_KHOA, phát KyDaKhoa.`, 'EVT-09');
+  log(
+    s,
+    'Bước 0 đạt, có cảnh báo: 9 minh chứng ở trạng thái Đã nộp, chưa được nghiệm thu, không được tính trong kỳ.',
+  );
+  log(s, `Kỳ ${f.period.name} chuyển sang trạng thái Đang khoá.`, 'EVT-09');
   return job('PERIOD_LOCK', 'DANG_CHAY', { message: 'Bước 2: tính điểm hàng loạt' });
 }
 
 function withSaga(req: MockRequest): { f: PeriodFixture; s: SagaFixture } | MockResponse {
   const f = find(req);
   if (isResponse(f)) return f;
-  if (!f.saga || !f.order) return problem(404, 'Kỳ chưa có saga khoá kỳ');
+  if (!f.saga || !f.order) return problem(404, 'Kỳ chưa có tiến trình khoá kỳ.');
   return { f, s: f.saga };
 }
 
@@ -466,13 +477,13 @@ function pause(req: MockRequest): MockResponse {
   if ('status' in hit) return hit;
   const { f, s } = hit;
   if (s.status !== 'DANG_CHAY')
-    return problem(409, 'Saga không chạy', { code: 'PERIOD-409-SAGA-NOT-RUNNING' });
+    return problem(409, 'Tiến trình khoá kỳ không chạy.', { code: 'PERIOD-409-SAGA-NOT-RUNNING' });
   const conflict = ifMatch(f.order!, req);
   if (conflict) return conflict;
-  if (!mockSession.recentMfa()) return stepUpRequired('tạm dừng saga');
+  if (!mockSession.recentMfa()) return stepUpRequired('tạm dừng tiến trình khoá kỳ');
   s.pauseRequested = true;
   f.order!.rowVersion++;
-  log(s, 'Đặt cờ tạm dừng sau bước hiện tại.', null, ME);
+  log(s, 'Yêu cầu tạm dừng sau bước hiện tại.', null, ME);
   return ok(progressOut(f), etag(f.order!.rowVersion));
 }
 
@@ -481,11 +492,11 @@ function resume(req: MockRequest): MockResponse {
   if ('status' in hit) return hit;
   const { f, s } = hit;
   if (!s.pauseRequested || !['DANG_CHAY', 'CHO_SU_KIEN'].includes(s.status))
-    return problem(409, 'Saga không ở trạng thái tạm dừng', {
+    return problem(409, 'Tiến trình khoá kỳ không ở trạng thái tạm dừng.', {
       code: 'PERIOD-409-SAGA-NOT-RUNNING',
     });
   if (s.cancelRequest)
-    return problem(409, 'Đang có đề nghị huỷ chờ duyệt thứ hai', {
+    return problem(409, 'Đang có đề nghị huỷ chờ người duyệt thứ hai.', {
       code: 'PERIOD-409-CANCEL-PENDING',
     });
   const conflict = ifMatch(f.order!, req);
@@ -499,7 +510,7 @@ function resume(req: MockRequest): MockResponse {
     startStep(s, (last?.stepNo ?? -1) + 1);
   }
   f.order!.rowVersion++;
-  log(s, 'Gỡ cờ tạm dừng, saga chạy tiếp.', null, ME);
+  log(s, 'Bỏ tạm dừng, tiến trình chạy tiếp.', null, ME);
   return ok(progressOut(f), etag(f.order!.rowVersion));
 }
 
@@ -508,7 +519,7 @@ function retryFailed(req: MockRequest): MockResponse {
   if ('status' in hit) return hit;
   const { s } = hit;
   if (!s.failures.length)
-    return problem(409, 'Không có hồ sơ lỗi', { code: 'PERIOD-409-NO-FAILURE' });
+    return problem(409, 'Không có hồ sơ lỗi.', { code: 'PERIOD-409-NO-FAILURE' });
   if (!mockSession.recentMfa()) return stepUpRequired('chạy lại hồ sơ lỗi');
   const ids = (req.body as { profileIds?: string[] })?.profileIds;
   const retried = ids?.length ? s.failures.filter((x) => ids.includes(x.profileId)) : s.failures;
@@ -532,27 +543,33 @@ function requestCancel(req: MockRequest): MockResponse {
   const { f, s } = hit;
   const p = progressOut(f);
   if (!p.cancellable)
-    return problem(409, 'Đã quá điểm không quay lại, không thể huỷ và bù trừ', {
+    return problem(409, 'Bước 4 đã hoàn tất, không thể huỷ và hoàn tác', {
       code: 'PERIOD-409-POINT-OF-NO-RETURN',
       detail:
-        'BR-08-09: chỉ huỷ và bù trừ được trước khi bước 4 hoàn tất; sau đó dùng mở lại hậu kiểm.',
+        // BR-08-09
+        'Chỉ huỷ và hoàn tác được trước khi bước 4 hoàn tất; sau đó dùng chức năng mở lại hậu kiểm.',
     });
   if (s.cancelRequest)
-    return problem(409, 'Đã có đề nghị huỷ chờ duyệt thứ hai', {
+    return problem(409, 'Đã có đề nghị huỷ chờ người duyệt thứ hai.', {
       code: 'PERIOD-409-CANCEL-PENDING',
     });
   const reason = (req.body as { reason?: string })?.reason?.trim() ?? '';
   if (reason.length < 10)
     return problem(422, 'Dữ liệu không hợp lệ', {
-      errors: [{ field: 'reason', message: 'Lý do huỷ cần ít nhất 10 ký tự' }],
+      errors: [{ field: 'reason', message: 'Lý do huỷ cần ít nhất 10 ký tự.' }],
     });
   const conflict = ifMatch(f.order!, req);
   if (conflict) return conflict;
-  if (!mockSession.recentMfa()) return stepUpRequired('đề nghị huỷ saga');
+  if (!mockSession.recentMfa()) return stepUpRequired('đề nghị huỷ tiến trình khoá kỳ');
   s.cancelRequest = { requestedBy: ME, requestedAt: nowIso(), reason };
   s.pauseRequested = true;
   f.order!.rowVersion++;
-  log(s, `Đề nghị huỷ và bù trừ toàn bộ, đã gửi tới ${SECOND_APPROVER.name}.`, 'EVT-21', ME);
+  log(
+    s,
+    `Đề nghị huỷ và hoàn tác toàn bộ, đã gửi tới đồng chí ${SECOND_APPROVER.name}.`,
+    'EVT-21',
+    ME,
+  );
   return ok(progressOut(f), etag(f.order!.rowVersion));
 }
 
@@ -561,18 +578,18 @@ function approveCancel(req: MockRequest): MockResponse {
   if ('status' in hit) return hit;
   const { f, s } = hit;
   if (!s.cancelRequest)
-    return problem(409, 'Không có đề nghị huỷ chờ duyệt', { code: 'PERIOD-409-STATUS' });
+    return problem(409, 'Không có đề nghị huỷ chờ duyệt.', { code: 'PERIOD-409-STATUS' });
   const conflict = ifMatch(f.order!, req);
   if (conflict) return conflict;
   if (s.cancelRequest.requestedBy.id === ME.id)
-    return samePerson('BR-08-09: người duyệt thứ hai phải khác người đề nghị huỷ.');
-  if (!mockSession.recentMfa()) return stepUpRequired('duyệt huỷ và bù trừ');
+    return samePerson('Người duyệt thứ hai phải khác người đề nghị huỷ.'); // BR-08-09
+  if (!mockSession.recentMfa()) return stepUpRequired('duyệt huỷ và hoàn tác');
   s.cancelRequest = null;
   s.pauseRequested = false;
   s.status = 'DANG_BU_TRU';
   f.order!.rowVersion++;
-  log(s, 'Duyệt thứ hai đề nghị huỷ; saga bù trừ theo thứ tự ngược.', null, ME);
-  return job('PERIOD_UNLOCK', 'DANG_CHAY', { message: 'Đang bù trừ' });
+  log(s, 'Người duyệt thứ hai đã duyệt đề nghị huỷ; đang hoàn tác theo thứ tự ngược.', null, ME);
+  return job('PERIOD_UNLOCK', 'DANG_CHAY', { message: 'Đang hoàn tác' });
 }
 
 function page<T>(req: MockRequest, pick: (s: SagaFixture) => T[]): MockResponse {
@@ -591,6 +608,7 @@ function diagram(req: MockRequest): MockResponse {
     templateKey: SAGA_TEMPLATE.key,
     templateVersion: SAGA_TEMPLATE.version,
     bpmnXml:
+      // ui-text-ok: nội dung tệp sơ đồ, không hiện lên màn hình
       '<?xml version="1.0" encoding="UTF-8"?><definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"/>',
     activeActivityIds: ids((x) => x.status === 'DANG_CHAY'),
     completedActivityIds: ids((x) => x.status === 'DAT' || x.status === 'DAT_CO_CANH_BAO'),
