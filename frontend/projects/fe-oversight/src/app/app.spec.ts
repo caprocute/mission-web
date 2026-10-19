@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
+import { OVERSIGHT_CAN } from './oversight-permissions';
 import { ROUTES } from './oversight.routes';
 import { OversightHomePage } from './pages/oversight-home.page';
 
@@ -17,6 +18,9 @@ describe('fe-oversight', () => {
 
   it('tuyến gốc trỏ tới trang khung có tiêu đề tiếng Việt', async () => {
     expect(ROUTES[0].path).toBe('');
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), { provide: OVERSIGHT_CAN, useValue: () => true }],
+    });
     const fixture = TestBed.createComponent(OversightHomePage);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent).toBe(

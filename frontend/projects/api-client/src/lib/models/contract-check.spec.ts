@@ -13,9 +13,11 @@
  */
 import type { components as DossiersContract } from '../generated/dossiers';
 import type { components as OrgContract } from '../generated/org';
+import type { operations as OversightOps } from '../generated/oversight';
 import type { components as PlatformContract } from '../generated/platform';
 import type { components as TasksContract, operations as TasksOps } from '../generated/tasks';
 import type * as Catalog from './catalog';
+import type * as Ledger from './ledger';
 import type * as Org from './org';
 import type * as OrgSync from './org-sync';
 import type * as Plan from './plan';
@@ -134,11 +136,24 @@ export type ContractCheck = [
   Expect<Compatible<Task.MyTasksPage, TasksContract['schemas']['MyTasksPage']>>,
   Expect<Compatible<Task.ProgressBatchItem, TasksContract['schemas']['ProgressBatchItem']>>,
   Expect<Compatible<Task.TaskRegistration, TasksContract['schemas']['TaskRegistration']>>,
+  // ledger.ts ↔ oversight.yaml (thân yêu cầu viết tay, WEB-043)
+  Expect<
+    Compatible<
+      Ledger.LedgerVerifyRunInput,
+      OversightOps['createLedgerVerifyRun']['requestBody']['content']['application/json']
+    >
+  >,
+  Expect<
+    Compatible<
+      Ledger.LedgerExportInput,
+      OversightOps['createLedgerExport']['requestBody']['content']['application/json']
+    >
+  >,
 ];
 
 describe('model viết tay và hợp đồng OpenAPI', () => {
   it('tương thích kiểu (kiểm lúc biên dịch, xem ContractCheck)', () => {
-    const checked: ContractCheck['length'] = 76;
+    const checked: ContractCheck['length'] = 78;
     expect(checked).toBeGreaterThan(0);
   });
 });

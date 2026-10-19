@@ -645,3 +645,18 @@ export const PERIODS_MOCK: MockModule = {
     { method: 'POST', pattern: '/api/v1/periods/:id/lock/cancel/approve', handle: approveCancel },
   ],
 };
+
+/** Tra trạng thái và nhãn kỳ cho giả lập khác (QT-13 chỉ mở lại kỳ `DA_KHOA`, WEB-043). */
+export function mockPeriodInfo(
+  id: string,
+):
+  | { ref: { id: string; label: string; startDate: string; endDate: string }; status: string }
+  | undefined {
+  const p = ensure().find((f) => f.period.id === id)?.period;
+  return p
+    ? {
+        ref: { id: p.id, label: p.name, startDate: p.startDate, endDate: p.endDate },
+        status: p.status,
+      }
+    : undefined;
+}
