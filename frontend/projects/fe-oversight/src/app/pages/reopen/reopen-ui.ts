@@ -24,7 +24,10 @@ export function scopeSummary(r: ReopenRequest): string {
   return r.scope === 'TOAN_KY' ? 'Toàn kỳ' : `${REOPEN_SCOPE_LABEL[r.scope]} (${n})`;
 }
 
-/** Bảng dữ liệu được phép mở (TL-03; danh sách gợi ý của màn hình tạo, suy luận) và cột của từng bảng. */
+/**
+ * Bảng dữ liệu được phép mở (TL-03; danh sách gợi ý của màn hình tạo, suy luận) và cột của từng bảng. Màn
+ * hình gọi mỗi bảng là một "nhóm dữ liệu" và mỗi cột là một nội dung được phép sửa, không hiện tên bảng.
+ */
 export const EDITABLE_TABLES: {
   table: string;
   label: string;
@@ -32,20 +35,24 @@ export const EDITABLE_TABLES: {
 }[] = [
   {
     table: 'product.acceptance',
-    label: 'Kết quả nghiệm thu (product.acceptance)',
+    label: 'Kết quả nghiệm thu',
     fields: [
-      { key: 'c_factor', label: 'Hệ số C' },
-      { key: 'quality_level', label: 'Mức chất lượng' },
+      { key: 'c_factor', label: 'Tiến độ (C)' },
+      { key: 'quality_level', label: 'Chất lượng (B)' },
       { key: 'revision_cause', label: 'Nguyên nhân chỉnh sửa' },
       { key: 'is_objective_revision', label: 'Chỉnh sửa do nguyên nhân khách quan' },
     ],
   },
   {
     table: 'appraisal.self_assessment',
-    label: 'Phiếu tự đánh giá (appraisal.self_assessment)',
+    label: 'Phiếu tự đánh giá',
     fields: [{ key: 'structured_data', label: 'Số liệu có cấu trúc của phiếu' }],
   },
 ];
+
+export function tableLabel(table: string): string {
+  return EDITABLE_TABLES.find((t) => t.table === table)?.label ?? 'Dữ liệu khác';
+}
 
 export function fieldLabel(table: string, key: string): string {
   return (

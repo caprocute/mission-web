@@ -44,7 +44,7 @@ const FILTERS: Record<View, ReopenRequestFilter> = {
         @if (!simple()) {
           <p class="muted">
             Kỳ đã khoá chỉ được mở lại trong phạm vi giới hạn khi hai người có thẩm quyền khác nhau
-            cùng phê duyệt (QT-13).
+            cùng phê duyệt.
           </p>
         }
       </div>

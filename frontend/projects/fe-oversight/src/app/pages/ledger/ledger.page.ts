@@ -23,13 +23,20 @@ import {
   LEDGER_AGGREGATE_TYPE_LABEL,
   LEDGER_ANCHOR_TARGET_LABEL,
   LEDGER_DEFAULT_RANGE_DAYS,
+  LEDGER_EVENT_TYPE_LABEL,
+  LEDGER_FIELD_LABEL,
   LEDGER_PARTITIONS,
+  LEDGER_VALUE_LABEL,
   LEDGER_VERIFY_KIND_LABEL,
   LedgerApi,
   LedgerEntry,
   LedgerEntryFilter,
   LedgerVerifyKind,
   LedgerVerifyRun,
+  PERIOD_STATUS_LABEL,
+  RATING_LEVEL_LABEL,
+  REOPEN_STATUS_LABEL,
+  TASK_STATUS_LABEL,
   shortLedgerHash,
   verifyRunIdOf,
 } from '@vt/api-client';
@@ -48,35 +55,35 @@ const isoDate = (d: Date) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
 
-/** Topic sự kiện hay tra (danh sách gợi ý theo bảng EVT của baseline, suy luận). */
-const EVENT_TYPES = [
-  'task.task.assigned.v1',
-  'task.task.accepted.v1',
-  'task.task.progress.v1',
-  'product.evidence.submitted.v1',
-  'product.evidence.accepted.v1',
-  'appraisal.self_assessment.submitted.v1',
-  'appraisal.score.computed.v1',
-  'appraisal.appraisal.completed.v1',
-  'appraisal.decision.signed.v1',
-  'config.period.locked.v1',
-  'oversight.complaint.submitted.v1',
-  'oversight.complaint.concluded.v1',
-  'oversight.reopen_request.created.v1',
-  'oversight.reopen_request.approved.v1',
-  'ledger.seal.created.v1',
-];
+/** Topic sự kiện hay tra (danh sách gợi ý theo bảng EVT của baseline, suy luận), hiện bằng tên thao tác. */
+const EVENT_TYPES = Object.keys(LEDGER_EVENT_TYPE_LABEL);
 
-/** Giá trị trước, sau trong `metadata` thành chuỗi ngắn: "c: 0,85; quality: KHA". */
-function values(v: unknown): string {
+/** Nhãn trạng thái theo loại đối tượng (`status` trong `metadata`). */
+const STATUS_LABEL_BY_TYPE: Record<string, Record<string, string>> = {
+  task: TASK_STATUS_LABEL,
+  period: PERIOD_STATUS_LABEL,
+  reopen_request: REOPEN_STATUS_LABEL,
+};
+
+/** Một giá trị trong `metadata` bằng lời: trạng thái, mức xếp loại, mã kết luận theo bảng nhãn. */
+function valueText(aggregateType: string, key: string, x: unknown): string {
+  if (x === null || x === undefined) return 'chưa có';
+  if (typeof x === 'number') return x.toLocaleString('vi-VN');
+  const v = String(x);
+  if (key === 'status')
+    return STATUS_LABEL_BY_TYPE[aggregateType]?.[v] ?? LEDGER_VALUE_LABEL[v] ?? v;
+  if (key === 'level' || key === 'selfLevel')
+    return RATING_LEVEL_LABEL[v as keyof typeof RATING_LEVEL_LABEL] ?? v;
+  return LEDGER_VALUE_LABEL[v] ?? v;
+}
+
+/** Giá trị trước, sau trong `metadata` thành chuỗi ngắn: "Tiến độ (C): 0,85; Chất lượng (B): 0,75". */
+function values(aggregateType: string, v: unknown): string {
   if (v === undefined) return '—';
   if (v === null) return 'chưa có';
-  if (typeof v !== 'object') return typeof v === 'number' ? v.toLocaleString('vi-VN') : String(v);
+  if (typeof v !== 'object') return valueText(aggregateType, '', v);
   return Object.entries(v as Record<string, unknown>)
-    .map(
-      ([k, x]) =>
-        `${k}: ${x === null ? 'chưa có' : typeof x === 'number' ? x.toLocaleString('vi-VN') : String(x)}`,
-    )
+    .map(([k, x]) => `${LEDGER_FIELD_LABEL[k] ?? k}: ${valueText(aggregateType, k, x)}`)
     .join('; ');
 }
 
@@ -90,16 +97,17 @@ function values(v: unknown): string {
         <h1>Sổ cái và kiểm tra toàn vẹn</h1>
         @if (!simple()) {
           <p class="muted">
-            Sổ cái chỉ ghi thêm: {{ partitions }} phân vùng chuỗi băm, niêm phong gốc Merkle mỗi giờ
-            bằng chữ ký số và dấu thời gian RFC 3161, bản neo do bên thứ ba giữ. Mọi lần tra cứu đều
-            được ghi sổ cái.
+            Sổ cái ghi lại mọi thay đổi của dữ liệu đánh giá và không cho phép sửa, xoá. Các bản ghi
+            được nối thành chuỗi kiểm tra toàn vẹn chia thành {{ partitions }} phân vùng; mỗi giờ sổ
+            cái được niêm phong bằng chữ ký số và dấu thời gian được chứng thực, bản sao niêm phong
+            (bản neo) do cơ quan độc lập lưu giữ. Mọi lần tra cứu cũng được ghi vào sổ cái.
           </p>
         }
       </div>
       <div class="actions">
         @if (can('SCR-1302.xuat')) {
           <p-button
-            label="Xuất bằng chứng (JSON và chữ ký)"
+            label="Xuất tệp bằng chứng (kèm chữ ký số)"
             severity="contrast"
             [outlined]="true"
             [loading]="exporting()"
@@ -167,7 +175,7 @@ function values(v: unknown): string {
           />
         </div>
         <div class="f">
-          <label for="lg-evt">Loại sự kiện</label>
+          <label for="lg-evt">Thao tác</label>
           <p-select
             inputId="lg-evt"
             name="eventType"
@@ -221,10 +229,10 @@ function values(v: unknown): string {
                   <tr>
                     <th scope="col">Bản ghi</th>
                     <th scope="col">Thời điểm</th>
-                    <th scope="col">Sự kiện</th>
+                    <th scope="col">Thao tác</th>
                     <th scope="col">Người thực hiện</th>
-                    <th scope="col">Trước</th>
-                    <th scope="col">Sau</th>
+                    <th scope="col">Giá trị trước</th>
+                    <th scope="col">Giá trị sau</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -236,22 +244,30 @@ function values(v: unknown): string {
                           class="link"
                           [attr.aria-pressed]="selectedId() === e.id"
                           [attr.aria-label]="
-                            'Xem bản ghi ' + e.seqNo + ' phân vùng ' + e.chainPartition
+                            'Xem bản ghi số ' + e.seqNo + ', phân vùng ' + e.chainPartition
                           "
                           (click)="select(e)"
                         >
-                          {{ e.chainPartition }}·{{ e.seqNo }}
+                          Số {{ e.seqNo }}
                         </button>
+                        @if (!simple()) {
+                          <span class="small muted block">Phân vùng {{ e.chainPartition }}</span>
+                        }
                         @if (isBroken(e)) {
-                          <span class="bad small block">băm không khớp</span>
+                          <span class="bad small block">Nội dung đã bị sửa</span>
                         }
                       </td>
                       <td class="nowrap">{{ dt(e.occurredAt) }}</td>
                       <td class="evt">
-                        <span class="mono">{{ e.eventType }}</span>
+                        {{ eventLabel(e.eventType) }}
                         @if (!simple()) {
-                          <button type="button" class="link small block" (click)="filterBy(e)">
-                            {{ typeLabel(e.aggregateType) }} {{ e.aggregateId }}
+                          <button
+                            type="button"
+                            class="link small block"
+                            title="Xem các bản ghi của đối tượng này"
+                            (click)="filterBy(e)"
+                          >
+                            {{ subject(e) }}
                           </button>
                         }
                       </td>
@@ -285,25 +301,28 @@ function values(v: unknown): string {
         @if (run(); as r) {
           <section class="box" aria-labelledby="c-h">
             <h2 id="c-h" class="h">
-              <span class="num" aria-hidden="true">3</span> Kết quả kiểm tra chuỗi băm
-              @if (r.firstMismatch?.chainPartition !== undefined) {
-                phân vùng {{ r.firstMismatch?.chainPartition }}
-              }
+              <span class="num" aria-hidden="true">3</span> Kết quả kiểm tra toàn vẹn{{
+                r.firstMismatch?.chainPartition !== undefined
+                  ? ', phân vùng ' + r.firstMismatch?.chainPartition
+                  : ''
+              }}
             </h2>
             @if (!r.finishedAt) {
               <p class="muted" role="status">
-                Đang kiểm tra {{ r.code }}: đã quét {{ int(r.entriesChecked) }} bản ghi…
+                Đang kiểm tra lần {{ r.code }}: đã kiểm tra {{ int(r.entriesChecked) }} bản ghi…
               </p>
             } @else if (r.mismatches > 0 && r.firstMismatch; as m) {
-              <ol class="chain" aria-label="Các mắt chuỗi quanh vị trí sai">
+              <ol class="chain" aria-label="Các bản ghi liền kề vị trí sai lệch">
                 @for (c of r.chain ?? []; track c.seqNo) {
                   <li [class.bad-box]="!c.matches">
-                    <strong>Bản ghi {{ c.seqNo }}</strong>
-                    <span class="mono small">prev {{ hash(c.prevHash) }}</span>
-                    <span class="mono small"
-                      >hash {{ hash(c.storedHash) }}
+                    <strong>Bản ghi số {{ c.seqNo }}</strong>
+                    <span class="small"
+                      >Mã của bản ghi trước: <span class="mono">{{ hash(c.prevHash) }}</span></span
+                    >
+                    <span class="small"
+                      >Mã kiểm tra: <span class="mono">{{ hash(c.storedHash) }}</span>
                       @if (!c.matches) {
-                        ≠ tính lại {{ hash(c.recomputedHash) }}
+                        ≠ tính lại <span class="mono">{{ hash(c.recomputedHash) }}</span>
                       }
                     </span>
                     <span class="small" [class.bad]="!c.matches">{{
@@ -313,15 +332,17 @@ function values(v: unknown): string {
                 }
               </ol>
               <p-message severity="error">
-                Phát hiện chuỗi băm bị phá vỡ tại bản ghi {{ m.seqNo }} của phân vùng
-                {{ m.chainPartition }}. Đã tạo cảnh báo mức Cao và khoá ghi phân vùng.
+                Phát hiện sổ cái mất toàn vẹn tại bản ghi số {{ m.seqNo }} của phân vùng
+                {{ m.chainPartition }}. Hệ thống đã tạo cảnh báo mức Cao và tạm khoá ghi phân vùng
+                này.
               </p-message>
               @if (!simple()) {
                 <p class="small">
-                  Nội dung bản ghi {{ m.seqNo }} đã bị sửa sau khi ghi.
+                  Nội dung bản ghi số {{ m.seqNo }} đã bị sửa sau khi ghi.
                   @if (m.anchorMatches) {
-                    Gốc Merkle của niêm phong chứa bản ghi giữ băm gốc {{ hash(m.storedHash) }} và
-                    khớp bản neo, nên giá trị ban đầu vẫn chứng minh được.
+                    Niêm phong chứa bản ghi này vẫn giữ mã kiểm tra ban đầu
+                    <span class="mono">{{ hash(m.storedHash) }}</span> và khớp với bản neo, nên vẫn
+                    chứng minh được giá trị ban đầu.
                   }
                   @if (m.entryId) {
                     <button type="button" class="link" (click)="selectId(m.entryId)">
@@ -360,8 +381,8 @@ function values(v: unknown): string {
           }
           @if (run(); as r) {
             <dl class="meta">
-              <dt>Mã</dt>
-              <dd>{{ r.code ?? r.id }}</dd>
+              <dt>Mã lần kiểm tra</dt>
+              <dd>{{ r.code ?? '—' }}</dd>
               <dt>Loại</dt>
               <dd>{{ verifyKind[r.verifyKind] }}</dd>
               <dt>Phạm vi</dt>
@@ -372,14 +393,14 @@ function values(v: unknown): string {
                     : 'Phân vùng ' + r.chainPartition
                 }}
               </dd>
-              <dt>Bản ghi</dt>
+              <dt>Số bản ghi</dt>
               <dd>{{ int(r.entriesChecked) }}</dd>
               @if (r.sealsChecked !== undefined) {
-                <dt>Niêm phong</dt>
+                <dt>Số niêm phong</dt>
                 <dd>{{ int(r.sealsChecked) }}</dd>
               }
               <dt>Thời gian chạy</dt>
-              <dd>{{ r.finishedAt ? seconds(r) + ' giây' : 'đang chạy' }}</dd>
+              <dd>{{ r.finishedAt ? seconds(r) + ' giây' : 'Đang kiểm tra' }}</dd>
               <dt>Kết quả</dt>
               <dd [class.bad]="r.mismatches > 0">
                 @if (r.finishedAt) {
@@ -408,7 +429,9 @@ function values(v: unknown): string {
                 />
               </div>
               <div class="f">
-                <label for="lg-vpart">Phân vùng (bỏ trống: cả {{ partitions }})</label>
+                <label for="lg-vpart"
+                  >Phân vùng (để trống để kiểm tra cả {{ partitions }} phân vùng)</label
+                >
                 <input
                   pInputText
                   type="number"
@@ -441,13 +464,13 @@ function values(v: unknown): string {
           } @else if (detail.value(); as d) {
             <dl class="meta">
               <dt>Bản ghi</dt>
-              <dd>{{ d.chainPartition }}·{{ d.seqNo }} · {{ dt(d.recordedAt) }}</dd>
-              <dt>Băm</dt>
+              <dd>Số {{ d.seqNo }}, phân vùng {{ d.chainPartition }} · {{ dt(d.recordedAt) }}</dd>
+              <dt>Mã kiểm tra</dt>
               <dd class="mono" [title]="d.entryHash">{{ hash(d.entryHash, 8) }}</dd>
               @if (!simple()) {
-                <dt>Băm trước</dt>
+                <dt>Mã của bản ghi trước</dt>
                 <dd class="mono" [title]="d.prevHash">{{ hash(d.prevHash, 8) }}</dd>
-                <dt>Băm nội dung</dt>
+                <dt>Mã kiểm tra nội dung</dt>
                 <dd class="mono" [title]="d.payloadHash">{{ hash(d.payloadHash, 8) }}</dd>
               }
             </dl>
@@ -455,22 +478,20 @@ function values(v: unknown): string {
               <h3 class="h3">Niêm phong {{ dt(s.windowStart) }}–{{ time(s.windowEnd) }}</h3>
               <dl class="meta">
                 <dt>Mã niêm phong</dt>
-                <dd class="mono">{{ s.id }}</dd>
-                <dt>Gốc Merkle</dt>
                 <dd class="mono" [title]="s.tenantRoot">{{ hash(s.tenantRoot, 8) }}</dd>
                 @if (s.cellRoot && !simple()) {
-                  <dt>Gốc cell</dt>
+                  <dt>Mã niêm phong của cụm máy chủ</dt>
                   <dd class="mono" [title]="s.cellRoot">{{ hash(s.cellRoot, 8) }}</dd>
                 }
-                <dt>Chữ ký</dt>
+                <dt>Chữ ký số</dt>
                 <dd [class.bad]="s.signatureValid === false">
                   {{ s.signatureValid === false ? 'Không hợp lệ' : 'Hợp lệ' }}
                 </dd>
                 <dt>Dấu thời gian</dt>
                 <dd>
-                  RFC 3161 · {{ dt(s.tsaGenTime) }}
+                  {{ dt(s.tsaGenTime) }}, được chứng thực
                   @if (s.tsaLate) {
-                    <span class="warn">(dấu thời gian trễ)</span>
+                    <span class="warn">(gắn bù do dịch vụ chứng thực phản hồi chậm)</span>
                   }
                 </dd>
               </dl>
@@ -489,10 +510,12 @@ function values(v: unknown): string {
                 </ul>
               }
             } @else {
-              <p class="muted">Bản ghi chưa được niêm phong; niêm phong gốc Merkle chạy mỗi giờ.</p>
+              <p class="muted">Bản ghi chưa được niêm phong; sổ cái được niêm phong mỗi giờ.</p>
             }
           } @else {
-            <p class="muted">Chọn một bản ghi trong bảng để xem băm, niêm phong và bản neo.</p>
+            <p class="muted">
+              Chọn một bản ghi trong bảng để xem mã kiểm tra, niêm phong và bản neo.
+            </p>
           }
         </section>
       </aside>
@@ -712,7 +735,7 @@ export class LedgerPage {
   ];
   protected readonly eventTypes = [
     { value: '', label: 'Tất cả' },
-    ...EVENT_TYPES.map((e) => ({ value: e, label: e })),
+    ...EVENT_TYPES.map((e) => ({ value: e, label: LEDGER_EVENT_TYPE_LABEL[e] })),
   ];
   protected readonly verifyKinds = (
     Object.keys(LEDGER_VERIFY_KIND_LABEL) as LedgerVerifyKind[]
@@ -749,7 +772,7 @@ export class LedgerPage {
   protected readonly runOptions = computed(() =>
     this.runs().map((r) => ({
       value: r.id,
-      label: `${r.code ?? r.id} · ${fmtDateTime(r.startedAt)}${r.finishedAt ? (r.mismatches ? ' · phá vỡ' : ' · khớp') : ' · đang chạy'}`,
+      label: `${r.code ? r.code + ' · ' : ''}${fmtDateTime(r.startedAt)}${r.finishedAt ? (r.mismatches ? ' · phát hiện sai lệch' : ' · toàn vẹn') : ' · đang kiểm tra'}`,
     })),
   );
   protected readonly newKind = signal<LedgerVerifyKind>('TOAN_BO');
@@ -853,9 +876,7 @@ export class LedgerPage {
           const id = verifyRunIdOf(job);
           if (!id) {
             this.running.set(false);
-            this.notice.set(
-              'Đã tạo tác vụ kiểm tra toàn vẹn; kết quả có ở danh sách lần kiểm tra.',
-            );
+            this.notice.set('Đã bắt đầu kiểm tra toàn vẹn; kết quả sẽ hiện ở mục Lần kiểm tra.');
             return;
           }
           this.poll(id);
@@ -912,11 +933,12 @@ export class LedgerPage {
       .subscribe({
         next: ({ job }) => {
           this.exporting.set(false);
-          // MSG-13-07; tệp tải về ở `job.resultLocation` khi job hoàn tất
+          // MSG-13-07 (bỏ tên công cụ dòng lệnh `ledger-verify` khỏi câu hiển thị); tệp tải về ở
+          // `job.resultLocation` khi job hoàn tất
           this.notice.set(
             job.status === 'HOAN_TAT'
-              ? 'Tệp bằng chứng đã sẵn sàng. Có thể kiểm tra độc lập bằng công cụ dòng lệnh ledger-verify.'
-              : 'Đang chuẩn bị tệp bằng chứng; hệ thống sẽ thông báo khi xong.',
+              ? 'Tệp bằng chứng đã sẵn sàng. Cơ quan kiểm tra có thể dùng công cụ kiểm tra sổ cái để đối chiếu tệp một cách độc lập.'
+              : 'Đang chuẩn bị tệp bằng chứng; hệ thống sẽ thông báo khi hoàn tất.',
           );
         },
         error: (e) => {
@@ -931,13 +953,19 @@ export class LedgerPage {
     return !!m && m.chainPartition === e.chainPartition && m.seqNo === e.seqNo;
   }
   protected before(e: LedgerEntry) {
-    return values((e.metadata as { before?: unknown } | undefined)?.before);
+    return values(e.aggregateType, (e.metadata as { before?: unknown } | undefined)?.before);
   }
   protected after(e: LedgerEntry) {
-    return values((e.metadata as { after?: unknown } | undefined)?.after);
+    return values(e.aggregateType, (e.metadata as { after?: unknown } | undefined)?.after);
   }
-  protected typeLabel(t: string) {
-    return LEDGER_AGGREGATE_TYPE_LABEL[t] ?? t;
+  protected eventLabel(t: string) {
+    return LEDGER_EVENT_TYPE_LABEL[t] ?? 'Thao tác khác';
+  }
+  /** Loại và tên đối tượng; không hiện `aggregateId` nội bộ, tên lấy từ `metadata.aggregateLabel` khi có. */
+  protected subject(e: LedgerEntry) {
+    const type = LEDGER_AGGREGATE_TYPE_LABEL[e.aggregateType] ?? 'Đối tượng';
+    const name = (e.metadata as { aggregateLabel?: unknown } | undefined)?.aggregateLabel;
+    return typeof name === 'string' && name ? `${type}: ${name}` : type;
   }
   protected hash(h?: string | null, n = 4) {
     return shortLedgerHash(h, n);
