@@ -1,0 +1,83 @@
+{
+  "$comment": "Biểu mẫu động đã phát hành theo khoá (GET /api/v1/ui/forms/{key}/current). mau-1b: phần tự đề xuất mức xếp loại của phiếu tự đánh giá (SCR-0901 trường 9 đến 12); khoá trường trùng tên trường của AppraisalSelfAssessmentInput. Quy tắc CEL dùng ctx.mucThamKhao (mức hệ thống tham khảo, trường 8) và ctx.soMinhChung (số minh chứng đã xác nhận được gắn).",
+  "forms": {
+    "mau-1b": {
+      "formKey": "mau-1b",
+      "version": "3",
+      "status": "DA_PHAT_HANH",
+      "schemaJson": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": ["selfRatingCode", "content"],
+        "properties": {
+          "selfRatingCode": {
+            "type": "string",
+            "title": "Mức tự đề xuất",
+            "oneOf": [
+              { "const": "HTXSNV", "title": "Hoàn thành xuất sắc nhiệm vụ" },
+              { "const": "HTTNV", "title": "Hoàn thành tốt nhiệm vụ" },
+              { "const": "HTNV", "title": "Hoàn thành nhiệm vụ" },
+              { "const": "KHTNV", "title": "Không hoàn thành nhiệm vụ" }
+            ],
+            "x-classification": "C1"
+          },
+          "breakthrough": {
+            "type": "string",
+            "title": "Giải pháp đột phá",
+            "description": "Bắt buộc khi đề xuất mức Hoàn thành xuất sắc nhiệm vụ, kèm ít nhất một minh chứng đã được xác nhận.",
+            "maxLength": 2000,
+            "x-classification": "C2"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Giải trình khi khác mức tham khảo",
+            "description": "Bắt buộc khi mức tự đề xuất khác mức hệ thống tham khảo, từ 20 đến 2.000 ký tự.",
+            "maxLength": 2000,
+            "x-classification": "C2"
+          },
+          "content": {
+            "type": "string",
+            "title": "Ưu điểm, hạn chế, hướng khắc phục",
+            "maxLength": 2000,
+            "x-classification": "C2"
+          }
+        }
+      },
+      "uiJson": {
+        "widgets": {
+          "selfRatingCode": "vt.input.catalog",
+          "breakthrough": "vt.input.textarea",
+          "reason": "vt.input.textarea",
+          "content": "vt.input.textarea"
+        }
+      },
+      "celRules": [
+        {
+          "field": "content",
+          "expr": "size(content) > 0",
+          "message": "Vui lòng nhập ưu điểm, hạn chế, hướng khắc phục.",
+          "serverOnly": false
+        },
+        {
+          "field": "reason",
+          "expr": "selfRatingCode == ctx.mucThamKhao || (size(reason) >= 20 && size(reason) <= 2000)",
+          "message": "Mức tự đề xuất khác mức hệ thống tham khảo. Đồng chí cần ghi giải trình từ 20 đến 2.000 ký tự trước khi nộp.",
+          "serverOnly": false
+        },
+        {
+          "field": "breakthrough",
+          "expr": "selfRatingCode != 'HTXSNV' || (size(breakthrough) > 0 && ctx.soMinhChung > 0)",
+          "message": "Đề xuất mức Hoàn thành xuất sắc nhiệm vụ cần mô tả giải pháp đột phá và gắn ít nhất một minh chứng đã được xác nhận.",
+          "serverOnly": false
+        }
+      ],
+      "policyPack": {
+        "packVersionId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0f01",
+        "packCode": "dang",
+        "version": "2.0"
+      },
+      "updatedAt": "2026-12-20T09:00:00+07:00",
+      "rowVersion": 3
+    }
+  }
+}

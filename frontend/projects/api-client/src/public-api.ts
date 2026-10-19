@@ -26,6 +26,8 @@ export * from './lib/models/plan';
 export * from './lib/plan-api';
 export * from './lib/models/okr';
 export * from './lib/okr-api';
+export * from './lib/models/ui-form';
+export * from './lib/ui-form-api';
 export * from './lib/models/source-doc';
 export * from './lib/source-doc-api';
 export * from './lib/ai-api';
