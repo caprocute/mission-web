@@ -13,9 +13,7 @@ export interface CheckinListRow {
   selector: 'vt-checkin-list',
   template: `
     <section class="box" aria-labelledby="l-h">
-      <h2 id="l-h" class="sec">
-        <span class="num" aria-hidden="true">1</span> KR của tôi cần check-in
-      </h2>
+      <h2 id="l-h" class="sec">KR của tôi cần check-in</h2>
       @if (!rows().length) {
         <p class="muted" role="status">
           Đồng chí chưa có KR nào thuộc mục tiêu đã duyệt trong kỳ này.
