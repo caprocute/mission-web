@@ -1,0 +1,371 @@
+@let p = profile();
+@let rs = rows();
+<header class="head">
+  <div>
+    <h1>Thẩm định hồ sơ đánh giá{{ rs[0] ? ' · ' + rs[0].period.label : '' }}</h1>
+    @if (page.hasValue()) {
+      <p class="sub">
+        {{ rs[0]?.orgUnit?.name }}{{ rs[0] ? ' · ' : '' }}{{ rs.length
+        }}{{ nextCursor() ? '+' : '' }} hồ sơ
+        {{ status() === 'CHO_THAM_DINH' ? 'chờ thẩm định' : 'trong danh sách' }}
+        @if (dueDate() && status() === 'CHO_THAM_DINH') {
+          · hạn thẩm định {{ dmy(dueDate()) }}
+        }
+      </p>
+    }
+  </div>
+  <div class="acts">
+    <label class="filter">
+      <span>Lọc</span>
+      <select (change)="setStatus($any($event.target).value)">
+        @for (f of filters; track f.value) {
+          <option [value]="f.value" [selected]="f.value === status()">{{ f.label }}</option>
+        }
+      </select>
+    </label>
+    @if (can('SCR-0902.xuat') && !simple()) {
+      <button type="button" class="btn" [disabled]="!!busy() || !rs.length" (click)="exportList()">
+        {{ busy() === 'export' ? 'Đang xuất…' : 'Xuất danh sách' }}
+      </button>
+    }
+  </div>
+</header>
+
+@if (exportUrl()) {
+  <p class="msg">
+    Đã xuất danh sách hàng đợi (không gồm trường C2).
+    <a #exportLink [href]="exportUrl()" download="hang-doi-tham-dinh.xlsx"
+      >Tải tệp danh sách (XLSX)</a
+    >
+  </p>
+}
+@if (notice()) {
+  <p class="msg ok" role="status">{{ notice() }}</p>
+}
+@if (error()) {
+  <p class="msg err" role="alert">{{ error() }}</p>
+}
+
+<div class="layout" [class.simple]="simple()">
+  <section class="card queue" aria-labelledby="queue-title">
+    <h2 id="queue-title">Hàng đợi thẩm định</h2>
+    @if (page.error()) {
+      <p class="msg err" role="alert">Không tải được hàng đợi thẩm định. Vui lòng thử lại.</p>
+    } @else if (page.hasValue() && !rs.length) {
+      <p class="empty">Không có hồ sơ nào trong danh sách này.</p>
+    } @else if (!rs.length) {
+      <p class="empty" role="status">Đang tải hàng đợi…</p>
+    } @else {
+      <div class="qhead" aria-hidden="true">
+        <span>Cán bộ</span><span>Điểm HT</span><span>Tự đề xuất</span>
+      </div>
+      <ul class="qlist">
+        @for (r of rs; track r.id) {
+          <li>
+            <a
+              class="qrow"
+              [class.on]="rowSelected(r)"
+              [routerLink]="id() ? ['..', r.id] : [r.id]"
+              [attr.aria-current]="rowSelected(r) ? 'true' : null"
+            >
+              <span class="who">
+                <strong>{{ r.person.name }}</strong>
+                <span class="muted">{{ r.jobTitle }}</span>
+                @for (h of r.anomalyHints ?? []; track h.code) {
+                  <span class="hint-tag">{{ h.label }}</span>
+                }
+              </span>
+              <span class="num">{{ vn(r.totalScore) }}</span>
+              <span
+                class="badge"
+                [attr.title]="r.levels.selfProposed ? levelLabel[r.levels.selfProposed] : null"
+              >
+                {{ r.levels.selfProposed ?? 'Trống' }}
+              </span>
+            </a>
+          </li>
+        }
+      </ul>
+      @if (nextCursor()) {
+        <button type="button" class="btn more" [disabled]="page.isLoading()" (click)="loadMore()">
+          Tải thêm hồ sơ
+        </button>
+      }
+    }
+  </section>
+
+  <div class="detail">
+    @if (loaded.error()) {
+      <p class="msg err" role="alert">Không mở được hồ sơ này hoặc đồng chí không có quyền xem.</p>
+    } @else if (!p) {
+      @if (selectedId()) {
+        <p class="msg" role="status">Đang tải hồ sơ…</p>
+      }
+    } @else {
+      <section class="card" aria-labelledby="who-title">
+        <div class="who-head">
+          <div>
+            <h2 id="who-title">{{ p.person.name }}{{ p.jobTitle ? ' · ' + p.jobTitle : '' }}</h2>
+            @if (p.submissionSignature; as sig) {
+              <p class="muted">
+                Nộp {{ vnTime(p.submittedAt ?? sig.signedAt) }} · đã ký số
+                {{ providerLabel[sig.provider] ?? sig.provider }}
+                @if (sig.contentHash) {
+                  · băm phiếu <code>{{ shortHash(sig.contentHash) }}</code>
+                }
+                @if (sig.valid === false) {
+                  · <strong class="bad">chữ ký không hợp lệ</strong>
+                }
+              </p>
+            } @else if (p.noSelfAssessment) {
+              <p class="muted">Quá hạn, cán bộ không nộp phiếu tự đánh giá.</p>
+            }
+          </div>
+          <div class="tags">
+            <span class="state">{{ p.status }}</span>
+            @for (h of p.anomalyHints ?? []; track h.code) {
+              <span class="suggest"
+                >Gợi ý: {{ h.label.toLowerCase() }} (không thay đổi kết quả)</span
+              >
+            }
+          </div>
+        </div>
+        <ol class="steps" aria-label="Các bước của hồ sơ đánh giá">
+          @for (s of steps; track s; let i = $index) {
+            <li
+              [class.on]="i === stepIndex()"
+              [class.done]="i < stepIndex()"
+              [attr.aria-current]="i === stepIndex() ? 'step' : null"
+            >
+              <span class="n" aria-hidden="true">{{ i + 1 }}</span> {{ s }}
+            </li>
+          }
+        </ol>
+        <div class="stats">
+          <div class="stat">
+            <span class="label">Điểm tự tính (theo minh chứng nộp)</span>
+            <span class="big">{{ claimedScore() !== undefined ? vn(claimedScore()) : '—' }}</span>
+          </div>
+          <div class="stat accent">
+            <span class="label">Điểm sau thẩm định</span>
+            <span class="big red">{{ view() ? vn(view()!.snapshot.totalScore) : '…' }}</span>
+            @if (scoreDiff(); as d) {
+              <span class="muted"
+                >{{ d > 0 ? '+' : '−' }}{{ vn(d > 0 ? d : -d) }} do điều chỉnh B, C</span
+              >
+            }
+          </div>
+          <div class="stat">
+            <span class="label">Tiêu chí chung</span>
+            @if (criteria(); as c) {
+              <span class="mid">{{ criteriaLabel[c.level] }}</span>
+              <span class="muted">{{ c.met }}/{{ c.items.length }} tiêu chí</span>
+            } @else {
+              <span class="mid">—</span>
+            }
+          </div>
+          <div class="stat">
+            <span class="label">Mức hệ thống tính</span>
+            <span class="mid">{{ auto() ?? '…' }}</span>
+            @if (view()?.snapshot?.downgradeReasons?.[0]; as d) {
+              <span class="muted">{{ d.text }}</span>
+            }
+          </div>
+        </div>
+      </section>
+
+      @if (!simple()) {
+        <section class="card" aria-labelledby="cmp-title">
+          <h2 id="cmp-title">So sánh tự đánh giá và thẩm định · nhiệm vụ then chốt</h2>
+          @if (scores.error()) {
+            <p class="msg" role="status">Chưa có kết quả tính điểm của hồ sơ này.</p>
+          } @else {
+            <div class="scroll">
+              <table>
+                <caption class="sr-only">
+                  B, C cán bộ tự nhận khi nộp minh chứng và B, C do người nghiệm thu ghi
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Nhiệm vụ</th>
+                    <th scope="col" class="r">B tự</th>
+                    <th scope="col" class="r">B thẩm định</th>
+                    <th scope="col" class="r">C tự</th>
+                    <th scope="col" class="r">C thẩm định</th>
+                    <th scope="col">Căn cứ điều chỉnh</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of compare(); track r.taskId) {
+                    <tr>
+                      <th scope="row">
+                        {{ r.title }}
+                        <a class="ev" routerLink="/evidence" [queryParams]="{ task: r.taskId }">
+                          Mở minh chứng<span class="sr-only"> của nhiệm vụ {{ r.title }}</span>
+                        </a>
+                      </th>
+                      <td class="r">{{ vn(r.selfB, 2) }}</td>
+                      <td class="r b" [class.bad]="r.diffB">{{ vn(r.b, 2) }}</td>
+                      <td class="r">{{ vn(r.selfC, 2) }}</td>
+                      <td class="r b" [class.bad]="r.diffC">{{ vn(r.c, 2) }}</td>
+                      <td [class.bad]="!r.matched" [class.muted]="r.matched">{{ r.note }}</td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="6">Hồ sơ không có nhiệm vụ then chốt.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+      }
+
+      @if (appraised(); as a) {
+        <section class="card" aria-labelledby="done-title">
+          <h2 id="done-title">Kết luận thẩm định</h2>
+          <p>
+            Mức thẩm định <strong>{{ levelLabel[a.ratingCode] }} ({{ a.ratingCode }})</strong>, do
+            {{ a.actor.name }} ký lúc {{ vnTime(a.signedAt ?? a.proposedAt) }}.
+          </p>
+          @if (a.comment) {
+            <p class="muted">{{ a.comment }}</p>
+          }
+          @if (a.reason) {
+            <p class="muted">Lý do khác mức tự đề xuất: {{ a.reason }}</p>
+          }
+        </section>
+      } @else if (p.status === 'CHO_THAM_DINH' && (can('SCR-0902.ky') || can('SCR-0902.tra-lai'))) {
+        <div class="decide" [class.simple]="simple()">
+          <section class="card" aria-labelledby="conc-title">
+            <h2 id="conc-title">Kết luận thẩm định</h2>
+            <label class="field" for="f-rating">Mức thẩm định <span class="req">*</span></label>
+            <select
+              id="f-rating"
+              [disabled]="!canSign()"
+              (change)="rating.set($any($event.target).value)"
+            >
+              @for (l of levels; track l) {
+                <option [value]="l" [selected]="l === rating()">
+                  {{ levelLabel[l] }} ({{ l }})
+                </option>
+              }
+            </select>
+            <label class="field" for="f-comment"
+              >Nhận xét thẩm định <span class="req">*</span></label
+            >
+            <textarea
+              id="f-comment"
+              rows="4"
+              maxlength="4000"
+              [value]="comment()"
+              [disabled]="!canSign()"
+              [attr.aria-invalid]="shown('comment') ? 'true' : null"
+              [attr.aria-describedby]="shown('comment') ? 'e-comment h-comment' : 'h-comment'"
+              (input)="comment.set($any($event.target).value)"
+              (blur)="touch('comment')"
+            ></textarea>
+            <p id="h-comment" class="muted small">Mã hoá trường C2 · tối đa 4.000 ký tự</p>
+            @if (shown('comment'); as m) {
+              <p id="e-comment" class="field-err">{{ m }}</p>
+            }
+          </section>
+
+          <section class="card" aria-labelledby="act-title">
+            <h2 id="act-title">{{ differs() ? 'Giải trình bắt buộc' : 'Ký thẩm định' }}</h2>
+            @if (differs()) {
+              <p class="warn" role="status">
+                {{ msg0906 }} Mức thẩm định {{ rating() }}, mức tự đề xuất {{ self() }}.
+              </p>
+              <label class="field" for="f-reason"
+                >Lý do khác mức tự đề xuất <span class="req">*</span></label
+              >
+              <textarea
+                id="f-reason"
+                rows="3"
+                maxlength="2000"
+                [value]="reason()"
+                [disabled]="!canSign()"
+                [attr.aria-invalid]="shown('reason') ? 'true' : null"
+                [attr.aria-describedby]="shown('reason') ? 'e-reason' : null"
+                (input)="reason.set($any($event.target).value)"
+                (blur)="touch('reason')"
+              ></textarea>
+              @if (shown('reason'); as m) {
+                <p id="e-reason" class="field-err">{{ m }}</p>
+              }
+            } @else {
+              <p class="muted">
+                Mức thẩm định trùng mức tự đề xuất{{ self() ? ' (' + self() + ')' : '' }}, không cần
+                giải trình. Ký số cần xác thực nhiều lớp (MFA).
+              </p>
+            }
+
+            @if (returnOpen()) {
+              <div class="return-box">
+                <label class="field" for="f-return"
+                  >Lý do trả lại bổ sung <span class="req">*</span></label
+                >
+                <textarea
+                  #returnBox
+                  id="f-return"
+                  rows="3"
+                  maxlength="2000"
+                  [value]="returnReason()"
+                  [attr.aria-invalid]="returnTried() && returnError() ? 'true' : null"
+                  [attr.aria-describedby]="
+                    returnTried() && returnError() ? 'e-return h-return' : 'h-return'
+                  "
+                  (input)="returnReason.set($any($event.target).value)"
+                  (keydown.escape)="cancelReturn()"
+                ></textarea>
+                <p id="h-return" class="muted small">
+                  Hồ sơ về bước tự đánh giá, giữ nguyên các bản ghi cũ. Đã trả lại
+                  {{ p.returnCount ?? 0 }}/{{ p.returnLimit ?? 2 }} lần.
+                </p>
+                @if (returnTried() && returnError(); as m) {
+                  <p id="e-return" class="field-err">{{ m }}</p>
+                }
+                <div class="row-acts">
+                  <button type="button" class="btn" (click)="cancelReturn()">Huỷ</button>
+                  <button type="button" class="btn" [disabled]="!!busy()" (click)="confirmReturn()">
+                    {{ busy() === 'return' ? 'Đang trả lại…' : 'Xác nhận trả lại' }}
+                  </button>
+                </div>
+              </div>
+            }
+
+            <div class="row-acts end">
+              @if (canReturn() && !returnOpen()) {
+                <button
+                  id="btn-return"
+                  type="button"
+                  class="btn"
+                  [disabled]="!!busy()"
+                  (click)="openReturn()"
+                >
+                  Trả lại bổ sung
+                </button>
+              }
+              @if (can('SCR-0902.ky')) {
+                <button
+                  type="button"
+                  class="btn primary"
+                  [disabled]="!!busy() || signing() || !canSign()"
+                  (click)="sign()"
+                >
+                  {{ signing() ? 'Đang chờ ký…' : 'Ký số và chuyển đề xuất' }}
+                </button>
+              }
+            </div>
+          </section>
+        </div>
+      } @else if (p.status === 'TU_DANH_GIA') {
+        <p class="msg">
+          Hồ sơ đang ở bước tự đánh giá (cán bộ đang soạn hoặc bổ sung theo yêu cầu).
+        </p>
+      }
+    }
+  </div>
+</div>

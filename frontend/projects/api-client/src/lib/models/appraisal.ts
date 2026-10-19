@@ -29,6 +29,35 @@ export type AppraisalRatingExplanation = Schemas['AppraisalRatingExplanation'];
 export type AppraisalScoreView = Schemas['AppraisalScoreView'];
 export type AppraisalScoreTraceStep = Schemas['AppraisalScoreTraceStep'];
 export type AppraisalScoreTrace = Schemas['AppraisalScoreTrace'];
+export type RatingLevelKind = Schemas['RatingLevelKind'];
+export type AppraisalRatingLevels = Schemas['AppraisalRatingLevels'];
+export type AppraisalAnomalyHint = Schemas['AppraisalAnomalyHint'];
+export type AppraisalSignature = Schemas['AppraisalSignature'];
+export type AppraisalReviewInput = Schemas['AppraisalReviewInput'];
+export type AppraisalReturnInput = Schemas['AppraisalReturnInput'];
+export type AppraisalExportInput = Schemas['AppraisalExportInput'];
+
+/**
+ * B, C cán bộ tự nhận cho một nhiệm vụ (`self_assessment.claims_json`, SCR-0902 trường 5). Hợp đồng chỉ
+ * có `delayDays`; `delayFactor` (hệ số C tự nhận đã quy đổi theo Policy Pack) là phần mở rộng của dữ
+ * liệu giả lập chờ hợp đồng bổ sung (wiki/14).
+ */
+export type AppraisalTaskClaim = Schemas['AppraisalTaskClaim'] & { delayFactor?: number };
+
+/**
+ * Phiếu tự đánh giá kèm phần mở rộng chờ hợp đồng cho SCR-0902 (wiki/14): `claimedScore` là điểm tự
+ * tính theo B, C cán bộ tự nhận (thẻ "Điểm tự tính", trường 4).
+ */
+export type AppraisalSelfAssessmentView = Omit<AppraisalSelfAssessment, 'claims'> & {
+  claims?: AppraisalTaskClaim[];
+  claimedScore?: number;
+};
+
+/**
+ * Dòng nhiệm vụ của ảnh chụp điểm kèm `acceptanceNote`: căn cứ điều chỉnh lấy từ `product.acceptance`
+ * khi B hoặc C nghiệm thu khác tự nhận (SCR-0902 trường 5), phần mở rộng chờ hợp đồng (wiki/14).
+ */
+export type AppraisalScoreTaskLineView = AppraisalScoreTaskLine & { acceptanceNote?: string };
 
 /** Yêu cầu xem trước biểu mẫu của SVC-11 (`POST /dossiers/forms/preview`, dossiers.yaml). */
 export type DossierFormPreviewRequest = DossierComponents['schemas']['DossierFormPreviewRequest'];
