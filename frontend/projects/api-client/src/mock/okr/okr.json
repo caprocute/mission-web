@@ -1,5 +1,5 @@
 {
-  "$comment": "Fixture module okr (/api/v1/okr): KR của đơn vị trong kỳ để liên kết nhiệm vụ (SCR-0501 trường 7). WEB-021 mở rộng cho cây OKR.",
+  "$comment": "Fixture module okr (/api/v1/okr). keyResults: KR để liên kết nhiệm vụ (SCR-0501 trường 7, WEB-028). Phần còn lại: cây mục tiêu SCR-0201 (WEB-021) của Ban Tổ chức Đảng uỷ khối theo mockup TL-02 Hình 7.3; đơn vị 'u-duk' sinh cây lớn để thử ảo hoá.",
   "keyResults": [
     {
       "id": "kr-1-1",
@@ -21,5 +21,574 @@
       "code": "KR 2.1",
       "title": "100% hồ sơ xử lý trực tuyến"
     }
-  ]
+  ],
+  "unit": {
+    "id": "u-btc",
+    "name": "Ban Tổ chức Đảng uỷ khối"
+  },
+  "periods": [
+    {
+      "id": "p-2026-q3",
+      "label": "Quý III/2026",
+      "startDate": "2026-07-01",
+      "endDate": "2026-09-30",
+      "status": "DA_KHOA"
+    },
+    {
+      "id": "p-2026-q4",
+      "label": "Quý IV/2026",
+      "startDate": "2026-10-01",
+      "endDate": "2026-12-31",
+      "status": "MO",
+      "weekNo": 4,
+      "weekCount": 13
+    },
+    {
+      "id": "p-2027-q1",
+      "label": "Quý I/2027",
+      "startDate": "2027-01-01",
+      "endDate": "2027-03-31",
+      "status": "MO"
+    }
+  ],
+  "currentPeriodId": "p-2026-q4",
+  "bases": [
+    {
+      "id": "b-nq-dh",
+      "basisKind": "NGHI_QUYET",
+      "docNumber": null,
+      "title": "Nghị quyết Đại hội Đảng bộ khối nhiệm kỳ 2025–2030"
+    },
+    {
+      "id": "b-ctr-03",
+      "basisKind": "CHUONG_TRINH",
+      "docNumber": "03-CTr/ĐUK",
+      "title": "Chương trình công tác năm 2026 của Đảng uỷ khối"
+    }
+  ],
+  "parent": {
+    "id": "o-duk-1",
+    "code": "O-ĐUK-1",
+    "title": "Xây dựng tổ chức đảng trong sạch, vững mạnh",
+    "unitName": "Đảng uỷ khối",
+    "status": "DA_DUYET"
+  },
+  "recommendedMax": 3,
+  "objectives": {
+    "p-2026-q3": [
+      {
+        "id": "o-q3-1",
+        "code": "O1",
+        "title": "Hoàn thành kiểm điểm, xếp loại giữa nhiệm kỳ",
+        "tier": 1,
+        "ownerType": "TAP_THE",
+        "ownerUnitName": "Ban Tổ chức Đảng uỷ khối",
+        "ownerPersonName": null,
+        "parentObjectiveId": null,
+        "status": "DONG",
+        "approvedAt": "2026-07-07T08:00:00+07:00",
+        "versionNo": 1,
+        "overLimitReason": null,
+        "keyResults": [
+          {
+            "id": "kr-q3-1",
+            "objectiveId": "o-q3-1",
+            "code": "KR 1.1",
+            "title": "100% tổ chức đảng hoàn thành kiểm điểm giữa nhiệm kỳ",
+            "unit": "%",
+            "baselineValue": 0,
+            "targetValue": 100,
+            "currentValue": 96,
+            "weight": 1,
+            "dueDate": "2026-09-30",
+            "verifierName": "Trưởng ban",
+            "dataSource": null,
+            "valueNote": "44/46 tổ chức",
+            "confidence": "CAO",
+            "riskFlag": "BINH_THUONG",
+            "lastCheckinAt": "2026-09-25T10:00:00+07:00",
+            "ownerName": "Nguyễn Văn An",
+            "viewerIsOwner": true,
+            "latestBlocker": null,
+            "linkedWork": [],
+            "linkedTaskCount": 0
+          }
+        ]
+      }
+    ],
+    "p-2026-q4": [
+      {
+        "id": "o-1",
+        "code": "O1",
+        "title": "Nâng cao chất lượng tổ chức đảng và đảng viên",
+        "tier": 1,
+        "ownerType": "TAP_THE",
+        "ownerUnitName": "Ban Tổ chức Đảng uỷ khối",
+        "ownerPersonName": null,
+        "parentObjectiveId": "o-duk-1",
+        "status": "DA_DUYET",
+        "approvedAt": "2026-10-08T09:15:00+07:00",
+        "versionNo": 1,
+        "overLimitReason": null,
+        "keyResults": [
+          {
+            "id": "kr-1-1",
+            "objectiveId": "o-1",
+            "code": "KR 1.1",
+            "title": "Kết nạp đảng viên mới ≥ 3% tổng số đảng viên đầu kỳ (500)",
+            "unit": "%",
+            "baselineValue": 0,
+            "targetValue": 3,
+            "currentValue": 2.4,
+            "weight": 0.4,
+            "dueDate": "2026-12-31",
+            "verifierName": "Trưởng ban",
+            "dataSource": "CSDL đảng viên",
+            "valueNote": "12/500 đảng viên",
+            "confidence": "CAO",
+            "riskFlag": "BINH_THUONG",
+            "lastCheckinAt": "2026-10-12T08:00:00+07:00",
+            "ownerName": "Nguyễn Văn An",
+            "viewerIsOwner": true,
+            "latestBlocker": null,
+            "linkedWork": [
+              {
+                "id": "t-0011",
+                "kind": "TASK",
+                "code": "NV-2026-Q4-0011",
+                "title": "Thẩm định hồ sơ kết nạp đợt 2",
+                "percent": 40
+              }
+            ],
+            "linkedTaskCount": 3
+          },
+          {
+            "id": "kr-1-2",
+            "objectiveId": "o-1",
+            "code": "KR 1.2",
+            "title": "100% hồ sơ đề nghị kết nạp được thẩm định đúng hạn",
+            "unit": "%",
+            "baselineValue": 0,
+            "targetValue": 100,
+            "currentValue": 72,
+            "weight": 0.3,
+            "dueDate": "2026-12-31",
+            "verifierName": "Trưởng ban",
+            "dataSource": null,
+            "valueNote": "18/25 hồ sơ",
+            "confidence": "CAO",
+            "riskFlag": "BINH_THUONG",
+            "lastCheckinAt": "2026-10-12T16:20:00+07:00",
+            "ownerName": "Trần Thị Bình",
+            "viewerIsOwner": false,
+            "latestBlocker": null,
+            "linkedWork": [],
+            "linkedTaskCount": 2
+          },
+          {
+            "id": "kr-1-3",
+            "objectiveId": "o-1",
+            "code": "KR 1.3",
+            "title": "≥ 90% tổ chức đảng xếp loại \"Hoàn thành tốt nhiệm vụ\" trở lên",
+            "unit": "%",
+            "baselineValue": 0,
+            "targetValue": 90,
+            "currentValue": 32.6,
+            "weight": 0.3,
+            "dueDate": "2026-12-31",
+            "verifierName": "Phó Trưởng ban thường trực",
+            "dataSource": null,
+            "valueNote": "15/46 tổ chức (32,6%)",
+            "confidence": "THAP",
+            "riskFlag": "THEO_DOI",
+            "lastCheckinAt": "2026-10-12T15:05:00+07:00",
+            "ownerName": "Nguyễn Văn An",
+            "viewerIsOwner": true,
+            "latestBlocker": "2 chi bộ chưa hoàn thành kiểm điểm giữa kỳ; đề nghị Văn phòng hỗ trợ lịch hội nghị.",
+            "linkedWork": [
+              {
+                "id": "ct-2026-04",
+                "kind": "PROGRAM",
+                "code": "CT-2026-04",
+                "title": "Nâng chất lượng sinh hoạt chi bộ",
+                "percent": 55
+              },
+              {
+                "id": "t-0012",
+                "kind": "TASK",
+                "code": "NV-2026-Q4-0012",
+                "title": "Hướng dẫn kiểm điểm chi bộ",
+                "percent": 70
+              },
+              {
+                "id": "t-0013",
+                "kind": "TASK",
+                "code": "NV-2026-Q4-0013",
+                "title": "Kiểm tra 2 chi bộ yếu",
+                "percent": 30
+              }
+            ],
+            "linkedTaskCount": 9
+          }
+        ]
+      },
+      {
+        "id": "o-2",
+        "code": "O2",
+        "title": "Đẩy mạnh chuyển đổi số trong công tác tổ chức",
+        "tier": 1,
+        "ownerType": "TAP_THE",
+        "ownerUnitName": "Ban Tổ chức Đảng uỷ khối",
+        "ownerPersonName": null,
+        "parentObjectiveId": "o-duk-1",
+        "status": "DA_DUYET",
+        "approvedAt": "2026-10-08T09:20:00+07:00",
+        "versionNo": 1,
+        "overLimitReason": null,
+        "keyResults": [
+          {
+            "id": "kr-2-1",
+            "objectiveId": "o-2",
+            "code": "KR 2.1",
+            "title": "100% đảng viên được cập nhật hồ sơ trên CSDL đảng viên",
+            "unit": "%",
+            "baselineValue": 0,
+            "targetValue": 100,
+            "currentValue": 68,
+            "weight": 0.5,
+            "dueDate": "2026-12-31",
+            "verifierName": "Trưởng ban",
+            "dataSource": "CSDL đảng viên",
+            "valueNote": "340/500 hồ sơ",
+            "confidence": "TRUNG_BINH",
+            "riskFlag": "BINH_THUONG",
+            "lastCheckinAt": "2026-10-16T10:00:00+07:00",
+            "ownerName": "Lê Minh Châu",
+            "viewerIsOwner": false,
+            "latestBlocker": null,
+            "linkedWork": [
+              {
+                "id": "t-0021",
+                "kind": "TASK",
+                "code": "NV-2026-Q4-0021",
+                "title": "Rà soát hồ sơ đảng viên khối cơ quan",
+                "percent": 65
+              }
+            ],
+            "linkedTaskCount": 4
+          },
+          {
+            "id": "kr-2-2",
+            "objectiveId": "o-2",
+            "code": "KR 2.2",
+            "title": "Đề án chuyển đổi số khối được Thường trực Đảng uỷ thông qua trước 15/12/2026",
+            "unit": "mốc",
+            "baselineValue": 0,
+            "targetValue": 12,
+            "currentValue": 4,
+            "weight": 0.5,
+            "dueDate": "2026-12-15",
+            "verifierName": "Trưởng ban",
+            "dataSource": null,
+            "valueNote": "4/12 mốc của đề án",
+            "confidence": "TRUNG_BINH",
+            "riskFlag": "BINH_THUONG",
+            "lastCheckinAt": "2026-10-16T11:30:00+07:00",
+            "ownerName": "Lê Minh Châu",
+            "viewerIsOwner": false,
+            "latestBlocker": null,
+            "linkedWork": [],
+            "linkedTaskCount": 2
+          }
+        ]
+      },
+      {
+        "id": "o-1-a",
+        "code": "O1.1",
+        "title": "Nâng chất lượng sinh hoạt chi bộ ở 46 tổ chức cơ sở đảng",
+        "tier": 2,
+        "ownerType": "TAP_THE",
+        "ownerUnitName": "Phòng Tổ chức cơ sở đảng",
+        "ownerPersonName": null,
+        "parentObjectiveId": "o-1",
+        "status": "DA_DUYET",
+        "approvedAt": "2026-10-09T14:00:00+07:00",
+        "versionNo": 1,
+        "overLimitReason": null,
+        "keyResults": [
+          {
+            "id": "kr-1a-1",
+            "objectiveId": "o-1-a",
+            "code": "KR 1.1.1",
+            "title": "46/46 chi bộ tổ chức sinh hoạt chuyên đề trong quý",
+            "unit": "chi bộ",
+            "baselineValue": 0,
+            "targetValue": 46,
+            "currentValue": 30,
+            "weight": 0.5,
+            "dueDate": "2026-12-31",
+            "verifierName": "Trưởng phòng",
+            "dataSource": null,
+            "valueNote": null,
+            "confidence": "TRUNG_BINH",
+            "riskFlag": "BINH_THUONG",
+            "lastCheckinAt": "2026-10-15T09:00:00+07:00",
+            "ownerName": "Phạm Quốc Dũng",
+            "viewerIsOwner": false,
+            "latestBlocker": null,
+            "linkedWork": [],
+            "linkedTaskCount": 0
+          },
+          {
+            "id": "kr-1a-2",
+            "objectiveId": "o-1-a",
+            "code": "KR 1.1.2",
+            "title": "≥ 80% chi bộ được xếp loại sinh hoạt tốt",
+            "unit": "%",
+            "baselineValue": 0,
+            "targetValue": 80,
+            "currentValue": 41,
+            "weight": 0.5,
+            "dueDate": "2026-12-31",
+            "verifierName": "Trưởng phòng",
+            "dataSource": null,
+            "valueNote": null,
+            "confidence": "THAP",
+            "riskFlag": "THEO_DOI",
+            "lastCheckinAt": "2026-10-15T09:10:00+07:00",
+            "ownerName": "Phạm Quốc Dũng",
+            "viewerIsOwner": false,
+            "latestBlocker": null,
+            "linkedWork": [],
+            "linkedTaskCount": 0
+          }
+        ]
+      },
+      {
+        "id": "o-1-a-1",
+        "code": "O1.1.a",
+        "title": "Hướng dẫn, kiểm tra kiểm điểm 12 chi bộ được phân công",
+        "tier": 3,
+        "ownerType": "CA_NHAN",
+        "ownerUnitName": "Phòng Tổ chức cơ sở đảng",
+        "ownerPersonName": "Nguyễn Văn An",
+        "parentObjectiveId": "o-1-a",
+        "status": "NHAP",
+        "approvedAt": null,
+        "versionNo": 1,
+        "overLimitReason": null,
+        "keyResults": [
+          {
+            "id": "kr-1a1-1",
+            "objectiveId": "o-1-a-1",
+            "code": "KR a.1",
+            "title": "12/12 chi bộ hoàn thành kiểm điểm giữa kỳ đúng hạn",
+            "unit": "chi bộ",
+            "baselineValue": 0,
+            "targetValue": 12,
+            "currentValue": null,
+            "weight": 1,
+            "dueDate": "2026-12-31",
+            "verifierName": "Trưởng phòng",
+            "dataSource": null,
+            "valueNote": null,
+            "confidence": null,
+            "riskFlag": "BINH_THUONG",
+            "lastCheckinAt": null,
+            "ownerName": "Nguyễn Văn An",
+            "viewerIsOwner": true,
+            "latestBlocker": null,
+            "linkedWork": [],
+            "linkedTaskCount": 0
+          }
+        ]
+      },
+      {
+        "id": "o-2-a",
+        "code": "O2.1",
+        "title": "Số hoá 100% hồ sơ đảng viên khối cơ quan",
+        "tier": 2,
+        "ownerType": "TAP_THE",
+        "ownerUnitName": "Phòng Đảng viên",
+        "ownerPersonName": null,
+        "parentObjectiveId": "o-2",
+        "status": "CHO_DUYET",
+        "approvedAt": null,
+        "versionNo": 2,
+        "overLimitReason": null,
+        "keyResults": [
+          {
+            "id": "kr-2a-1",
+            "objectiveId": "o-2-a",
+            "code": "KR 2.1.1",
+            "title": "500/500 hồ sơ đảng viên được số hoá và đối chiếu",
+            "unit": "hồ sơ",
+            "baselineValue": 0,
+            "targetValue": 500,
+            "currentValue": 340,
+            "weight": 0.6,
+            "dueDate": "2026-12-31",
+            "verifierName": "Trưởng phòng",
+            "dataSource": "CSDL đảng viên",
+            "valueNote": null,
+            "confidence": null,
+            "riskFlag": "BINH_THUONG",
+            "lastCheckinAt": null,
+            "ownerName": "Hoàng Thu Hà",
+            "viewerIsOwner": false,
+            "latestBlocker": null,
+            "linkedWork": [],
+            "linkedTaskCount": 0
+          },
+          {
+            "id": "kr-2a-2",
+            "objectiveId": "o-2-a",
+            "code": "KR 2.1.2",
+            "title": "Sai lệch dữ liệu sau đối chiếu ≤ 1%",
+            "unit": "%",
+            "baselineValue": 5,
+            "targetValue": 1,
+            "currentValue": null,
+            "weight": 0.4,
+            "dueDate": "2026-12-31",
+            "verifierName": "Trưởng phòng",
+            "dataSource": null,
+            "valueNote": null,
+            "confidence": null,
+            "riskFlag": "BINH_THUONG",
+            "lastCheckinAt": null,
+            "ownerName": "Hoàng Thu Hà",
+            "viewerIsOwner": false,
+            "latestBlocker": null,
+            "linkedWork": [],
+            "linkedTaskCount": 0
+          }
+        ]
+      }
+    ],
+    "p-2027-q1": []
+  },
+  "peerLinks": {
+    "p-2026-q4": [
+      {
+        "id": "l-1",
+        "fromLabel": "O2 · KR 2.1",
+        "fromKeyResultId": "kr-2-1",
+        "peerUnitName": "Văn phòng Đảng uỷ khối",
+        "peerCode": "O1",
+        "peerTitle": "Vận hành CSDL đảng viên"
+      }
+    ]
+  },
+  "checkins": {
+    "kr-1-3": [
+      {
+        "id": "c-13-4",
+        "checkinAt": "2026-10-12T15:05:00+07:00",
+        "weekLabel": "Tuần 4",
+        "value": 32.6,
+        "confidence": "THAP",
+        "blockerNote": "2 chi bộ chưa hoàn thành kiểm điểm giữa kỳ; đề nghị Văn phòng hỗ trợ lịch hội nghị.",
+        "highlights": null,
+        "channel": "WEB",
+        "status": "DA_GUI"
+      },
+      {
+        "id": "c-13-3",
+        "checkinAt": "2026-10-05T16:00:00+07:00",
+        "weekLabel": "Tuần 3",
+        "value": 26.1,
+        "confidence": "TRUNG_BINH",
+        "blockerNote": null,
+        "highlights": "Thêm 3 tổ chức hoàn thành tự đánh giá.",
+        "channel": "WEB",
+        "status": "DA_GUI"
+      },
+      {
+        "id": "c-13-2",
+        "checkinAt": "2026-10-01T09:30:00+07:00",
+        "weekLabel": "Tuần 2",
+        "value": null,
+        "confidence": "TRUNG_BINH",
+        "blockerNote": "Chưa có số liệu xếp loại, chờ hướng dẫn.",
+        "highlights": null,
+        "channel": "WEB",
+        "status": "DA_GUI"
+      }
+    ],
+    "kr-1-1": [
+      {
+        "id": "c-11-4",
+        "checkinAt": "2026-10-12T08:00:00+07:00",
+        "weekLabel": "Tuần 4",
+        "value": 2.4,
+        "confidence": "CAO",
+        "blockerNote": null,
+        "highlights": "Kết nạp thêm 2 đảng viên.",
+        "channel": "TICH_HOP",
+        "status": "DA_GUI"
+      },
+      {
+        "id": "c-11-3",
+        "checkinAt": "2026-10-05T08:00:00+07:00",
+        "weekLabel": "Tuần 3",
+        "value": 2.0,
+        "confidence": "CAO",
+        "blockerNote": null,
+        "highlights": null,
+        "channel": "TICH_HOP",
+        "status": "DA_GUI"
+      }
+    ],
+    "kr-1-2": [
+      {
+        "id": "c-12-4",
+        "checkinAt": "2026-10-12T16:20:00+07:00",
+        "weekLabel": "Tuần 4",
+        "value": 72,
+        "confidence": "CAO",
+        "blockerNote": null,
+        "highlights": null,
+        "channel": "WEB",
+        "status": "DA_GUI"
+      }
+    ],
+    "kr-2-1": [
+      {
+        "id": "c-21-5",
+        "checkinAt": "2026-10-16T10:00:00+07:00",
+        "weekLabel": "Tuần 5",
+        "value": 68,
+        "confidence": "TRUNG_BINH",
+        "blockerNote": "Một số chi bộ chưa cập nhật ảnh thẻ.",
+        "highlights": null,
+        "channel": "WEB",
+        "status": "DA_GUI"
+      },
+      {
+        "id": "c-21-4",
+        "checkinAt": "2026-10-09T10:00:00+07:00",
+        "weekLabel": "Tuần 4",
+        "value": 61,
+        "confidence": "TRUNG_BINH",
+        "blockerNote": null,
+        "highlights": null,
+        "channel": "WEB",
+        "status": "DA_GUI"
+      }
+    ],
+    "kr-2-2": [
+      {
+        "id": "c-22-5",
+        "checkinAt": "2026-10-16T11:30:00+07:00",
+        "weekLabel": "Tuần 5",
+        "value": 4,
+        "confidence": "TRUNG_BINH",
+        "blockerNote": null,
+        "highlights": "Hoàn thành khảo sát hiện trạng.",
+        "channel": "WEB",
+        "status": "DA_GUI"
+      }
+    ]
+  }
 }
