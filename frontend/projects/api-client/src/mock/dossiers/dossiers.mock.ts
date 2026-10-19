@@ -73,6 +73,7 @@ function preview(body: Partial<DossierFormPreviewRequest> | null): MockResponse 
 
 /** Mẫu 1B đã ký của hồ sơ giả lập (`signedFormId` trong `appraisals/rating-sheet.ts`). */
 const SIGNED_FORMS: Record<string, string[]> = {
+  // ui-text-ok: khoá tra cứu của dữ liệu giả lập, không hiển thị
   '01928f3e-7b1a-7c3e-9a51-3f2d9c1b0f45': [
     FORM_NAME['MAU_1B'],
     'Can bo: Tran Minh Hoang - Quy III/2026',
@@ -101,7 +102,7 @@ export const DOSSIERS_MOCK: MockModule = {
           body: miniPdf(lines, false),
           headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': 'attachment; filename="MAU_1B-Q3-2026.pdf"',
+            'Content-Disposition': 'attachment; filename="Mau-1B-Quy-III-2026.pdf"',
           },
         };
       },

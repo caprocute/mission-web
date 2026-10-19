@@ -54,9 +54,9 @@ const MSG_09_02 =
 const MSG_09_06 =
   'Mức thẩm định khác mức tự đề xuất. Theo Điều 16 Quy định 366, đồng chí cần ghi lý do trước khi ký.';
 const MSG_09_08 =
-    // BR-09-03
-    legalRef: 'Phụ lục A3; Bảng chấm điểm',
-const MSG_09_12 = 'Mức đề xuất khác mức thẩm định. Vui lòng ghi lý do (khoản 16.3 Điều 16 Quy định 366).';
+  'Đồng chí không thể thẩm định hồ sơ này vì đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (Phụ lục 4, mục V.1).';
+const MSG_09_12 =
+  'Mức đề xuất khác mức thẩm định. Vui lòng ghi lý do (khoản 16.3 Điều 16 Quy định 366).';
 const MSG_PROPOSAL_SOD =
   'Đồng chí không thể đề xuất mức cho hồ sơ này vì đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (Phụ lục 4, mục V.1).';
 const MSG_09_03 =
