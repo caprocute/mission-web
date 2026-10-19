@@ -1,6 +1,7 @@
 import { Component, computed, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
+  AssigneeRef,
   PLAN_RECURRENCE_LABEL,
   PlanItem,
   PlanRecurrence,
@@ -44,7 +45,7 @@ const GROUPS = (Object.keys(TASK_GROUP_LABEL) as TaskGroup[]).map((value) => ({
     @let i = item();
     <section class="editor" [attr.aria-labelledby]="'ed-h'">
       <h3 id="ed-h">
-        Sửa dòng {{ i.itemNo }}
+        Sửa dòng {{ i.lineNo }}
         <span class="muted small">
           @if (i.catalogItemCode) {
             · từ danh mục {{ i.catalogItemCode }}
@@ -107,7 +108,7 @@ const GROUPS = (Object.keys(TASK_GROUP_LABEL) as TaskGroup[]).map((value) => ({
             optionLabel="label"
             optionValue="value"
             placeholder="Chọn đơn vị"
-            [ngModel]="i.leadUnitId ?? null"
+            [ngModel]="i.leadAssignee.id || null"
             (ngModelChange)="setLead($event)"
             styleClass="w"
           />
@@ -122,8 +123,8 @@ const GROUPS = (Object.keys(TASK_GROUP_LABEL) as TaskGroup[]).map((value) => ({
               optionValue="value"
               display="chip"
               placeholder="Không có"
-              [ngModel]="i.coUnitIds"
-              (ngModelChange)="set({ coUnitIds: $event })"
+              [ngModel]="coIds()"
+              (ngModelChange)="setCo($event)"
               styleClass="w"
             />
           </div>
@@ -144,8 +145,8 @@ const GROUPS = (Object.keys(TASK_GROUP_LABEL) as TaskGroup[]).map((value) => ({
             inputId="pi-qty"
             [min]="0"
             [maxFractionDigits]="2"
-            [ngModel]="i.plannedQuantity"
-            (ngModelChange)="set({ plannedQuantity: $event })"
+            [ngModel]="i.quantity"
+            (ngModelChange)="set({ quantity: $event ?? 0 })"
             styleClass="w"
           />
         </div>
@@ -155,7 +156,7 @@ const GROUPS = (Object.keys(TASK_GROUP_LABEL) as TaskGroup[]).map((value) => ({
             pInputText
             id="pi-unit"
             maxlength="32"
-            [ngModel]="i.unit"
+            [ngModel]="i.unit ?? ''"
             (ngModelChange)="set({ unit: $event })"
           />
         </div>
@@ -180,8 +181,20 @@ const GROUPS = (Object.keys(TASK_GROUP_LABEL) as TaskGroup[]).map((value) => ({
               id="pi-due"
               [min]="periodStart()"
               [max]="periodEnd()"
-              [ngModel]="i.dueDate ?? ''"
-              (ngModelChange)="set({ dueDate: $event || undefined })"
+              [ngModel]="i.dueDate"
+              (ngModelChange)="set({ dueDate: $event || periodEnd() })"
+            />
+          </div>
+        }
+        @if (adjusting()) {
+          <div class="f wide">
+            <label for="pi-reason">Lý do thay đổi (bắt buộc với dòng thêm, sửa)</label>
+            <input
+              pInputText
+              id="pi-reason"
+              maxlength="500"
+              [ngModel]="i.changeReason ?? ''"
+              (ngModelChange)="set({ changeReason: $event || undefined })"
             />
           </div>
         }
@@ -274,6 +287,8 @@ export class PlanItemEditor {
   readonly periodStart = input<string>('');
   readonly periodEnd = input<string>('');
   readonly simple = input(false);
+  /** Phiên bản điều chỉnh: mỗi dòng thêm, sửa ghi lý do (BR-04-10). */
+  readonly adjusting = input(false);
   /** Lỗi, cảnh báo của dòng từ "Kiểm tra kế hoạch". */
   readonly messages = input<string[]>([]);
   readonly changed = output<PlanItem>();
@@ -289,18 +304,29 @@ export class PlanItemEditor {
     })),
   ];
   protected readonly coOptions = computed(() =>
-    this.units().filter((u) => u.value !== this.item().leadUnitId),
+    this.units().filter((u) => u.value !== this.item().leadAssignee.id),
   );
+  protected readonly coIds = computed(() => (this.item().coAssignees ?? []).map((c) => c.id));
 
   protected set(patch: Partial<PlanItem>) {
     this.changed.emit({ ...this.item(), ...patch });
   }
-  protected setLead(id: string) {
-    this.set({ leadUnitId: id, coUnitIds: this.item().coUnitIds.filter((c) => c !== id) });
+  private unitRef(id: string): AssigneeRef {
+    return { kind: 'UNIT', id, name: this.units().find((u) => u.value === id)?.label ?? '' };
   }
+  protected setLead(id: string) {
+    this.set({
+      leadAssignee: this.unitRef(id),
+      coAssignees: (this.item().coAssignees ?? []).filter((c) => c.id !== id),
+    });
+  }
+  protected setCo(ids: string[]) {
+    this.set({ coAssignees: ids.map((id) => this.unitRef(id)) });
+  }
+  /** Dòng "Hằng tháng" vẫn mang hạn cuối kỳ vì hợp đồng bắt buộc `dueDate`. */
   protected setRecurrence(v: string) {
     this.set(
-      v ? { recurrence: v as PlanRecurrence, dueDate: undefined } : { recurrence: undefined },
+      v ? { recurrence: v as PlanRecurrence, dueDate: this.periodEnd() } : { recurrence: null },
     );
   }
 }
