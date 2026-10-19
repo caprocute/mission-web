@@ -12,11 +12,13 @@ Công việc được chia thành năm luồng chạy song song, mỗi luồng l
 |---|---|---|---|
 | Nền tảng | `mission-web` (nhánh `main`) | fe-shell, thư viện `@vt/*`, CI, triển khai | WEB-001..WEB-015, WEB-020, WEB-051..WEB-053, WEB-059, WEB-060 |
 | Phân quyền | `phan-quyen` | xuyên suốt | WEB-054..WEB-058 |
-| Màn hình nghiệp vụ (giao việc, kế hoạch) | `man-hinh` | fe-task, tuyến `/plans`, fe-evidence | WEB-025..WEB-031, WEB-032, WEB-033 (nhận thêm 19/10) |
+| Màn hình nghiệp vụ (giao việc, kế hoạch) | `man-hinh` | fe-task, tuyến `/plans`, fe-evidence, fe-oversight | WEB-025..WEB-031, WEB-032, WEB-033, WEB-034, WEB-042..WEB-044 (nhận thêm 19/10) |
 | Màn hình OKR, minh chứng, đánh giá | `okr-danh-gia` | fe-okr, fe-appraisal, fe-dossier | WEB-021..WEB-024, WEB-035..WEB-041, WEB-049 |
-| Màn hình giám sát, điều hành, cấu hình | `giam-sat-cau-hinh` | fe-oversight, fe-dashboard, fe-config-studio, fe-admin | WEB-016..WEB-019, WEB-034, WEB-042..WEB-048, WEB-050, WEB-061, WEB-062 |
+| Màn hình giám sát, điều hành, cấu hình | `giam-sat-cau-hinh` | fe-dashboard, fe-config-studio, fe-admin | WEB-016..WEB-019, WEB-045..WEB-048, WEB-050, WEB-061, WEB-062 |
 
 Nền tảng mà các luồng màn hình cần đã có trên `main`: WEB-001 (lint, test), WEB-003 (ngân sách), WEB-006 (đăng nhập, chọn phân công, step-up), WEB-007 (api-client sinh từ OpenAPI, JobTracker), WEB-008 (mock API), WEB-015 (khung 8 remote, cổng dev 4202–4209), WEB-054 (bảng quyền `can()`). WEB-010 (form engine) đang làm; các task dùng biểu mẫu động (WEB-022, WEB-035, WEB-045, WEB-050) làm phần khung trước, nối form engine khi WEB-010 lên `main`.
+
+Cân lại 19/10/2026: luồng Màn hình nghiệp vụ đã xong phần được giao nên nhận thêm WEB-034 (khoá kỳ), WEB-042 (khiếu nại), WEB-043 (mở lại kỳ, sổ cái) và WEB-044 (trung tâm cảnh báo), tức toàn bộ remote fe-oversight. Luồng Giám sát, điều hành, cấu hình giữ fe-dashboard, fe-config-studio, fe-admin và WEB-019; nếu luồng này đã lỡ bắt đầu một task vừa chuyển đi thì báo lại để giữ task đó.
 
 Mỗi luồng chỉ sửa trong remote và thư viện của mình. Khi buộc phải sửa tệp dùng chung (`fe-shell/src/app/app.routes.ts`, `layout/nav.ts`, `package.json`, `angular.json`, `@vt/api-client/src/public-api.ts`), sửa tối thiểu và ghi rõ trong báo cáo để luồng Nền tảng xử lý xung đột khi gộp. Mục menu theo ma trận phân quyền do WEB-055 (luồng Phân quyền) gắn. Model và client mới trong `@vt/api-client` đặt theo tệp riêng của module (`models/<module>.ts`, `<module>-api.ts`, `mock/<module>/`) để hạn chế xung đột.
 
