@@ -103,7 +103,12 @@ const dedupIndex = () =>
     submittedAt: string;
   }[];
 
-type TaskRefFixture = { code: string; name: string; dueDate: string; lateWorkingDays: number };
+interface TaskRefFixture {
+  code: string;
+  name: string;
+  dueDate: string;
+  lateWorkingDays: number;
+}
 const extraTasks = fixture.taskRefs as Record<string, TaskRefFixture>;
 
 function taskRef(id: string) {

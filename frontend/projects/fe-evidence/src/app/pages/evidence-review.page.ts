@@ -238,7 +238,7 @@ const fmtDateTime = (iso?: string | null) => {
                 <dl class="meta">
                   <dt>Quyết định</dt>
                   <dd>{{ statusLabel[a.decision] }}</dd>
-                  @if (a.qualityLevel != null) {
+                  @if (a.qualityLevel !== null && a.qualityLevel !== undefined) {
                     <dt>Mức B</dt>
                     <dd>{{ fmt(a.qualityLevel) }}</dd>
                   }
