@@ -1,0 +1,161 @@
+import {
+  HttpClient,
+  HttpErrorResponse,
+  provideHttpClient,
+  withInterceptors,
+} from '@angular/common/http';
+import { TestBed } from '@angular/core/testing';
+import { firstValueFrom } from 'rxjs';
+import { AppraisalApi } from '../../lib/appraisal-api';
+import { idempotencyInterceptor } from '../../lib/interceptors';
+import { Job } from '../../lib/models/job';
+import { DEFAULT_RUNTIME_CONFIG, RUNTIME_CONFIG } from '../../lib/runtime-config';
+import { MOCK_API_OPTIONS, mockApiInterceptor } from '../mock-api.interceptor';
+import { resetMockData } from '../mock-registry';
+import { mockSession, mockStepUp, setMockEsignOutage } from '../mock-session';
+import { criteriaLevel } from './appraisals.mock';
+
+/** WEB-035: giả lập MOD-04 cho SCR-0901 (lưu nháp, quy tắc nộp, step-up, ký qua job, chuyển luồng). */
+function setup() {
+  resetMockData();
+  mockSession.reset();
+  TestBed.configureTestingModule({
+    providers: [
+      provideHttpClient(withInterceptors([idempotencyInterceptor, mockApiInterceptor])),
+      { provide: RUNTIME_CONFIG, useValue: DEFAULT_RUNTIME_CONFIG },
+      {
+        provide: MOCK_API_OPTIONS,
+        useValue: { minDelayMs: 0, maxDelayMs: 0, pageQuery: () => '' },
+      },
+    ],
+  });
+  return { api: TestBed.inject(AppraisalApi), http: TestBed.inject(HttpClient) };
+}
+
+async function errorOf(p: Promise<unknown>): Promise<HttpErrorResponse> {
+  try {
+    await p;
+  } catch (e) {
+    return e as HttpErrorResponse;
+  }
+  throw new Error('không có lỗi');
+}
+
+const P = '01928f3e-7b1a-7c3e-9a51-3f2d9c1b';
+const DANG = P + '0a01';
+const OTHER = P + '0a21';
+const EVIDENCE = '0192a1b2-0000-7000-8000-000000000901';
+const CONTENT = 'Ưu điểm: hoàn thành đúng hạn; hạn chế: chậm một báo cáo chuyên đề.';
+
+describe('appraisals mock (WEB-035)', () => {
+  it('BR-09-05: quy đổi tỷ lệ đáp ứng ra mức tiêu chí chung', () => {
+    expect(criteriaLevel(1)).toBe('THUC_HIEN_TOT');
+    expect(criteriaLevel(8 / 9)).toBe('CO_BAN_DAM_BAO');
+    expect(criteriaLevel(0.9)).toBe('DAM_BAO');
+    expect(criteriaLevel(5 / 9)).toBe('KHONG_DAM_BAO');
+  });
+
+  it('hồ sơ của tôi có hai luồng; chuyển luồng lấy ảnh chụp của hồ sơ luồng kia', async () => {
+    const { api } = setup();
+    const mine = await firstValueFrom(api.myProfiles());
+    expect(mine.items.map((r) => [r.flow, r.totalScore, r.autoRatingCode])).toEqual([
+      ['DANG', 91.2, 'HTTNV'],
+      ['NHA_NUOC', 91.8, 'HTXSNV'],
+    ]);
+    const nn = await firstValueFrom(api.scores(DANG, 'NHA_NUOC'));
+    expect(nn.snapshot).toMatchObject({
+      flow: 'NHA_NUOC',
+      kpiScore: 63.8,
+      generalCriteriaScore: 28,
+    });
+    const trace = await firstValueFrom(api.scoreTrace(DANG, { taskId: P + '0c02' }));
+    expect(trace.steps[0].explanation).toBe(
+      'KPI = (A + B + C) / 3 = (1 + 0,5 + 0,85) / 3 = 0,783.',
+    );
+  });
+
+  it('lưu nháp cập nhật tiêu chí chung và ETag; If-Match cũ trả 409; hồ sơ người khác 403', async () => {
+    const { api } = setup();
+    const p = await firstValueFrom(api.profile(DANG));
+    const criteria = [{ criteriaCode: 'TCC-03', met: false }];
+    const saved = await firstValueFrom(api.saveSelfAssessment(p, { criteria, content: 'Nháp' }));
+    expect(saved.rowVersion).toBe(p.rowVersion + 1);
+    expect(saved.generalCriteria![0]).toMatchObject({ level: 'CO_BAN_DAM_BAO' });
+    expect(saved.selfAssessment?.content).toBe('Nháp');
+    const stale = await errorOf(firstValueFrom(api.saveSelfAssessment(p, { content: 'x' })));
+    expect([stale.status, stale.error.code]).toEqual([409, 'APPRAISAL-409-VERSION-CONFLICT']);
+    const other = await firstValueFrom(api.profile(OTHER));
+    const denied = await errorOf(firstValueFrom(api.saveSelfAssessment(other, { content: 'x' })));
+    expect(denied.status).toBe(403);
+  });
+
+  it('nộp: MSG-09-02 khi khác mức không giải trình, MSG-09-03 khi HTXSNV thiếu minh chứng, 401 khi chưa MFA', async () => {
+    const { api } = setup();
+    let p = await firstValueFrom(api.profile(DANG));
+    p = await firstValueFrom(
+      api.saveSelfAssessment(p, { selfRatingCode: 'HTNV', content: CONTENT, reason: 'ngắn' }),
+    );
+    let e = await errorOf(firstValueFrom(api.submit(p, { signProvider: 'MYSIGN' })));
+    expect([e.status, e.error.code]).toEqual([422, 'APPRAISAL-422-REASON-REQUIRED']);
+    p = await firstValueFrom(
+      api.saveSelfAssessment(p, { selfRatingCode: 'HTXSNV', breakthrough: 'Giải pháp' }),
+    );
+    e = await errorOf(firstValueFrom(api.submit(p, { signProvider: 'MYSIGN' })));
+    expect(e.error.code).toBe('APPRAISAL-422-BREAKTHROUGH-REQUIRED');
+    p = await firstValueFrom(api.saveSelfAssessment(p, { selfRatingCode: 'HTTNV' }));
+    e = await errorOf(firstValueFrom(api.submit(p, { signProvider: 'MYSIGN' })));
+    expect(e.status).toBe(401);
+    expect(e.headers.get('WWW-Authenticate')).toContain('insufficient_user_authentication');
+  });
+
+  it('ký số: 202 + job, lần hỏi thứ hai hồ sơ sang CHO_THAM_DINH với mức TU_DE_XUAT', async () => {
+    const { api, http } = setup();
+    let p = await firstValueFrom(api.profile(DANG));
+    p = await firstValueFrom(
+      api.saveSelfAssessment(p, {
+        selfRatingCode: 'HTXSNV',
+        breakthrough: 'Đưa phần mềm thẩm định hồ sơ quy hoạch vào sử dụng.',
+        breakthroughEvidenceIds: [EVIDENCE],
+        reason: 'Giải pháp số hoá được đơn vị ghi nhận bằng quyết định.',
+        content: CONTENT,
+      }),
+    );
+    mockStepUp();
+    const { location, job } = await firstValueFrom(
+      api.submit(p, { signProvider: 'MYSIGN', formCode: 'MAU_1B' }),
+    );
+    expect(job.status).toBe('CHO');
+    expect((await firstValueFrom(http.get<Job>(location))).status).toBe('DANG_CHAY');
+    expect((await firstValueFrom(http.get<Job>(location))).status).toBe('HOAN_TAT');
+    const after = await firstValueFrom(api.profile(DANG));
+    expect(after.status).toBe('CHO_THAM_DINH');
+    expect(after.ratingTrail.at(-1)).toMatchObject({
+      levelKind: 'TU_DE_XUAT',
+      ratingCode: 'HTXSNV',
+      differsFromPrev: true,
+    });
+    const again = await errorOf(firstValueFrom(api.saveSelfAssessment(after, { content: 'x' })));
+    expect(again.error.code).toBe('APPRAISAL-409-INVALID-STATUS');
+  });
+
+  it('ký lỗi: job THAT_BAI, hồ sơ giữ TU_DANH_GIA (MSG-09-05); xem trước Mẫu 1B trả PDF', async () => {
+    const { api, http } = setup();
+    let p = await firstValueFrom(api.profile(DANG));
+    p = await firstValueFrom(
+      api.saveSelfAssessment(p, { selfRatingCode: 'HTTNV', content: CONTENT }),
+    );
+    mockStepUp();
+    setMockEsignOutage(true);
+    const { location } = await firstValueFrom(api.submit(p, { signProvider: 'MYSIGN' }));
+    await firstValueFrom(http.get<Job>(location));
+    const failed = await firstValueFrom(http.get<Job>(location));
+    expect(failed.status).toBe('THAT_BAI');
+    expect(failed.problem?.title).toBe('Dịch vụ ký số từ xa không phản hồi');
+    expect((await firstValueFrom(api.profile(DANG))).status).toBe('TU_DANH_GIA');
+    const pdf = await firstValueFrom(
+      api.previewForm({ formCode: 'MAU_1B', sourceModule: 'appraisal', sourceRefId: DANG }),
+    );
+    expect(pdf.type).toBe('application/pdf');
+    expect((await pdf.text()).startsWith('%PDF-1.4')).toBe(true);
+  });
+});

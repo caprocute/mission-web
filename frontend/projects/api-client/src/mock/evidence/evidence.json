@@ -1,5 +1,5 @@
 {
-  "$comment": "Fixture module products/files (MOD-03, SVC-08) cho SCR-0701 (WEB-032), theo Hình 8.13 TL-02: NV-2026-Q4-0142 có phiên bản 1 bị yêu cầu bổ sung và phiên bản 2 đang soạn với phụ lục trùng mã băm. `dedupIndex` là chỉ mục khử trùng trong tenant; tệp có nội dung `So lieu tong hop cac chi bo quy III/2026\\n` trùng với NV-2026-Q3-0088.",
+  "$comment": "Fixture module products/files (MOD-03, SVC-08) cho SCR-0701 (WEB-032), theo Hình 8.13 TL-02: NV-2026-Q4-0142 có phiên bản 1 bị yêu cầu bổ sung và phiên bản 2 đang soạn với phụ lục trùng mã băm. `dedupIndex` là chỉ mục khử trùng trong tenant; tệp có nội dung `So lieu tong hop cac chi bo quy III/2026\\n` trùng với NV-2026-Q3-0088. Minh chứng 0901 (DA_XAC_NHAN) phục vụ giải pháp đột phá của SCR-0901 (WEB-035).",
   "reviewerName": "Lê Minh Châu",
   "deliverables": [
     {
@@ -250,6 +250,31 @@
           ],
           "hasPriorRevisionRequest": true,
           "rowVersion": 2
+        }
+      ]
+    },
+    {
+      "id": "0192a1b2-0000-7000-8000-000000000901",
+      "deliverableId": "0192a1b0-0000-7000-8000-000000000901",
+      "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c03",
+      "title": "QĐ 112-QĐ/ĐUK ngày 12/11/2026 đưa phần mềm thẩm định hồ sơ quy hoạch vào sử dụng",
+      "sourceType": "VAN_BAN",
+      "externalDocRef": "112-QĐ/ĐUK",
+      "rowVersion": 2,
+      "versions": [
+        {
+          "versionNo": 1,
+          "status": "DA_XAC_NHAN",
+          "source": "VAN_BAN_HE_THONG",
+          "sourceDocRef": "112-QĐ/ĐUK",
+          "docNumber": "112-QĐ/ĐUK",
+          "docDate": "2026-11-12",
+          "docSummary": "Quyết định đưa phần mềm thẩm định hồ sơ quy hoạch cán bộ vào sử dụng",
+          "submittedAt": "2026-11-13T09:00:00+07:00",
+          "attestedAt": "2026-11-13T09:00:00+07:00",
+          "decidedAt": "2026-11-14T10:00:00+07:00",
+          "decidedByName": "Lê Minh Châu",
+          "rowVersion": 3
         }
       ]
     }

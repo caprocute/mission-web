@@ -40,6 +40,8 @@ export * from './lib/models/org-tree';
 export * from './lib/org-tree-api';
 export * from './lib/models/period';
 export * from './lib/period-api';
+export * from './lib/models/appraisal';
+export * from './lib/appraisal-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
 export {
   failMockIntegrityOnce,
