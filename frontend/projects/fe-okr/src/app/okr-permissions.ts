@@ -12,7 +12,11 @@ export type OkrPermissionKey =
   | 'SCR-0202.soan-don-vi'
   | 'SCR-0202.soan-ca-nhan'
   | 'SCR-0202.ai-soat'
-  | 'SCR-0202.trinh';
+  | 'SCR-0202.trinh'
+  | 'SCR-0203.xem'
+  | 'SCR-0203.duyet'
+  | 'SCR-0203.tra-lai'
+  | 'SCR-0203.duyet-lo';
 
 /**
  * Hàm hỏi "vai trò hiện tại có thể có quyền này không", nối vào `can()` của `@vt/auth` (WEB-054).

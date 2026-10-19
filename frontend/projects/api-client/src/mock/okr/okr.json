@@ -705,7 +705,9 @@
       "code": "O3",
       "periodId": "p-2026-q4",
       "ownerType": "TAP_THE",
-      "basisIds": ["b-kh-05"],
+      "basisIds": [
+        "b-kh-05"
+      ],
       "parentObjectiveId": "o-duk-1",
       "title": "Nâng chất lượng sinh hoạt chi bộ khối cơ quan",
       "overLimitReason": null,
@@ -844,9 +846,32 @@
     "policy": {
       "version": "okr-policy 2026.4",
       "recommendedMax": 3,
-      "vagueWords": ["tăng cường", "đẩy mạnh", "kịp thời", "nâng cao", "chú trọng", "quan tâm"],
-      "taskVerbs": ["tổ chức", "ban hành", "xây dựng", "triển khai", "họp", "tập huấn"],
-      "units": ["%", "người", "hồ sơ", "ngày", "lần", "mốc", "chi bộ", "tổ chức"],
+      "vagueWords": [
+        "tăng cường",
+        "đẩy mạnh",
+        "kịp thời",
+        "nâng cao",
+        "chú trọng",
+        "quan tâm"
+      ],
+      "taskVerbs": [
+        "tổ chức",
+        "ban hành",
+        "xây dựng",
+        "triển khai",
+        "họp",
+        "tập huấn"
+      ],
+      "units": [
+        "%",
+        "người",
+        "hồ sơ",
+        "ngày",
+        "lần",
+        "mốc",
+        "chi bộ",
+        "tổ chức"
+      ],
       "rules": [
         {
           "id": "O-TEN",
@@ -990,13 +1015,658 @@
         "Kiểm tra 100% chi bộ trực thuộc trước 31/12/2026",
         "≥ 95% kiến nghị sau kiểm tra được khắc phục đúng hạn"
       ],
-      "sources": ["PL 1 dự thảo (định nghĩa KR)", "Kế hoạch 05-KH/ĐUK mục II.3"]
+      "sources": [
+        "PL 1 dự thảo (định nghĩa KR)",
+        "Kế hoạch 05-KH/ĐUK mục II.3"
+      ]
     },
     {
       "match": "tổ chức",
       "issue": "giống một nhiệm vụ (Tầng 3)",
-      "rewrites": ["≥ 90% chi bộ áp dụng kết luận của hội nghị sơ kết trong quý"],
-      "sources": ["PL 1 dự thảo (KR không đồng nhất với nhiệm vụ)"]
+      "rewrites": [
+        "≥ 90% chi bộ áp dụng kết luận của hội nghị sơ kết trong quý"
+      ],
+      "sources": [
+        "PL 1 dự thảo (KR không đồng nhất với nhiệm vụ)"
+      ]
     }
-  ]
+  ],
+  "reviews": {
+    "$comment": "Hàng chờ phê duyệt OKR (SCR-0203, WEB-023) của Phó Bí thư Thường trực. Bộ của Ban Tổ chức (đơn vị của fixture) dựng động từ mục tiêu CHO_DUYET; các bộ dưới đây là của đơn vị khác.",
+    "viewer": {
+      "id": "p-son",
+      "name": "Đinh Văn Sơn"
+    },
+    "reviewer": {
+      "name": "Đinh Văn Sơn",
+      "title": "Phó Bí thư Thường trực"
+    },
+    "workflow": {
+      "code": "duyet-okr",
+      "version": 2
+    },
+    "dueDates": {
+      "p-2026-q4": "2026-10-10",
+      "p-2027-q1": "2027-01-08",
+      "p-2026-q3": "2026-07-10"
+    },
+    "sets": {
+      "p-2026-q4": [
+        {
+          "id": "rs-btg",
+          "unit": {
+            "id": "u-btg",
+            "name": "Ban Tuyên giáo"
+          },
+          "submittedAt": "2026-10-05T09:20:00+07:00",
+          "submittedBy": "Phạm Thu Hà",
+          "viewerIsAuthor": false,
+          "objectives": [
+            {
+              "id": "o-btg-1",
+              "code": "O1",
+              "title": "Nâng cao hiệu quả công tác tuyên truyền nghị quyết",
+              "parentCode": "O-ĐUK-1",
+              "versionNo": 1,
+              "rowVersion": 2,
+              "check": {
+                "tone": "DAT",
+                "label": "Có căn cứ"
+              },
+              "keyResults": [
+                {
+                  "id": "kr-btg-1-1",
+                  "code": "KR 1.1",
+                  "title": "100% chi bộ tổ chức học tập nghị quyết trong 30 ngày",
+                  "targetText": "100%",
+                  "weight": 0.5,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-btg-1-2",
+                  "code": "KR 1.2",
+                  "title": "≥ 95% đảng viên hoàn thành bài thu hoạch đạt yêu cầu",
+                  "targetText": "95%",
+                  "weight": 0.3,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-btg-1-3",
+                  "code": "KR 1.3",
+                  "title": "≥ 12 tin, bài trên trang thông tin của Đảng uỷ khối",
+                  "targetText": "12 tin, bài",
+                  "weight": 0.2,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "o-btg-2",
+              "code": "O2",
+              "title": "Nắm bắt kịp thời tư tưởng của cán bộ, đảng viên",
+              "parentCode": "O-ĐUK-1",
+              "versionNo": 1,
+              "rowVersion": 2,
+              "check": {
+                "tone": "DAT",
+                "label": "Có căn cứ"
+              },
+              "keyResults": [
+                {
+                  "id": "kr-btg-2-1",
+                  "code": "KR 2.1",
+                  "title": "100% chi bộ gửi báo cáo tình hình tư tưởng đúng hạn",
+                  "targetText": "100%",
+                  "weight": 0.5,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-btg-2-2",
+                  "code": "KR 2.2",
+                  "title": "Thời gian tổng hợp báo cáo tư tưởng ≤ 5 ngày",
+                  "targetText": "5 ngày",
+                  "weight": 0.3,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-btg-2-3",
+                  "code": "KR 2.3",
+                  "title": "100% vụ việc dư luận được xử lý trong 7 ngày",
+                  "targetText": "100%",
+                  "weight": 0.2,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "rs-ubkt",
+          "unit": {
+            "id": "u-ubkt",
+            "name": "Uỷ ban Kiểm tra"
+          },
+          "submittedAt": "2026-10-06T08:45:00+07:00",
+          "submittedBy": "Nguyễn Văn Khánh",
+          "viewerIsAuthor": false,
+          "objectives": [
+            {
+              "id": "o-ubkt-1",
+              "code": "O1",
+              "title": "Nâng cao hiệu lực công tác kiểm tra, giám sát",
+              "parentCode": "O-ĐUK-2",
+              "versionNo": 1,
+              "rowVersion": 2,
+              "check": {
+                "tone": "DAT",
+                "label": "Có căn cứ"
+              },
+              "keyResults": [
+                {
+                  "id": "kr-ubkt-1-1",
+                  "code": "KR 1.1",
+                  "title": "Kiểm tra 100% tổ chức đảng theo kế hoạch quý",
+                  "targetText": "100%",
+                  "weight": 0.6,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-ubkt-1-2",
+                  "code": "KR 1.2",
+                  "title": "≥ 95% kiến nghị sau kiểm tra được khắc phục đúng hạn",
+                  "targetText": "95%",
+                  "weight": 0.4,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "o-ubkt-2",
+              "code": "O2",
+              "title": "Giải quyết dứt điểm đơn thư tố cáo",
+              "parentCode": "O-ĐUK-2",
+              "versionNo": 1,
+              "rowVersion": 2,
+              "check": {
+                "tone": "DAT",
+                "label": "Có căn cứ"
+              },
+              "keyResults": [
+                {
+                  "id": "kr-ubkt-2-1",
+                  "code": "KR 2.1",
+                  "title": "100% đơn thư thuộc thẩm quyền được giải quyết đúng hạn",
+                  "targetText": "100%",
+                  "weight": 0.5,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-ubkt-2-2",
+                  "code": "KR 2.2",
+                  "title": "Thời gian giải quyết trung bình ≤ 45 ngày",
+                  "targetText": "45 ngày",
+                  "weight": 0.3,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-ubkt-2-3",
+                  "code": "KR 2.3",
+                  "title": "0 vụ việc khiếu nại vượt cấp",
+                  "targetText": "0 vụ việc",
+                  "weight": 0.2,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "rs-vp",
+          "unit": {
+            "id": "u-vp",
+            "name": "Văn phòng Đảng uỷ"
+          },
+          "submittedAt": "2026-10-06T15:10:00+07:00",
+          "submittedBy": "Đinh Văn Sơn",
+          "viewerIsAuthor": true,
+          "objectives": [
+            {
+              "id": "o-vp-1",
+              "code": "O1",
+              "title": "Chuyển đổi số hồ sơ, văn bản của Đảng uỷ",
+              "parentCode": "O-ĐUK-3",
+              "versionNo": 1,
+              "rowVersion": 2,
+              "check": {
+                "tone": "DAT",
+                "label": "Có căn cứ"
+              },
+              "keyResults": [
+                {
+                  "id": "kr-vp-1-1",
+                  "code": "KR 1.1",
+                  "title": "100% văn bản đi được ký số",
+                  "targetText": "100%",
+                  "weight": 0.5,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-vp-1-2",
+                  "code": "KR 1.2",
+                  "title": "≥ 90% hồ sơ lưu trữ được số hoá",
+                  "targetText": "90%",
+                  "weight": 0.3,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-vp-1-3",
+                  "code": "KR 1.3",
+                  "title": "Thời gian luân chuyển văn bản ≤ 1 ngày",
+                  "targetText": "1 ngày",
+                  "weight": 0.2,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "o-vp-2",
+              "code": "O2",
+              "title": "Bảo đảm điều kiện hoạt động của Đảng uỷ",
+              "parentCode": "O-ĐUK-1",
+              "versionNo": 1,
+              "rowVersion": 2,
+              "check": {
+                "tone": "DAT",
+                "label": "Có căn cứ"
+              },
+              "keyResults": [
+                {
+                  "id": "kr-vp-2-1",
+                  "code": "KR 2.1",
+                  "title": "100% hội nghị được chuẩn bị tài liệu trước 3 ngày",
+                  "targetText": "100%",
+                  "weight": 0.6,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-vp-2-2",
+                  "code": "KR 2.2",
+                  "title": "0 sự cố mất an toàn thông tin",
+                  "targetText": "0 sự cố",
+                  "weight": 0.4,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "o-vp-3",
+              "code": "O3",
+              "title": "Nâng chất lượng tham mưu tổng hợp",
+              "parentCode": "O-ĐUK-1",
+              "versionNo": 1,
+              "rowVersion": 2,
+              "check": {
+                "tone": "DAT",
+                "label": "Có căn cứ"
+              },
+              "keyResults": [
+                {
+                  "id": "kr-vp-3-1",
+                  "code": "KR 3.1",
+                  "title": "100% báo cáo định kỳ gửi đúng hạn",
+                  "targetText": "100%",
+                  "weight": 0.5,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-vp-3-2",
+                  "code": "KR 3.2",
+                  "title": "≥ 90% đề xuất được Thường trực chấp thuận",
+                  "targetText": "90%",
+                  "weight": 0.5,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "o-vp-4",
+              "code": "O4",
+              "title": "Thực hiện tốt công tác tài chính đảng",
+              "parentCode": "O-ĐUK-1",
+              "versionNo": 1,
+              "rowVersion": 2,
+              "check": {
+                "tone": "DAT",
+                "label": "Có căn cứ"
+              },
+              "keyResults": [
+                {
+                  "id": "kr-vp-4-1",
+                  "code": "KR 4.1",
+                  "title": "100% chi bộ nộp đảng phí đúng kỳ",
+                  "targetText": "100%",
+                  "weight": 0.4,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-vp-4-2",
+                  "code": "KR 4.2",
+                  "title": "Quyết toán ngân sách trước 15/01/2027",
+                  "targetText": "1 mốc",
+                  "weight": 0.3,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-vp-4-3",
+                  "code": "KR 4.3",
+                  "title": "0 sai sót phát hiện qua kiểm tra tài chính",
+                  "targetText": "0 sai sót",
+                  "weight": 0.3,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "rs-dua",
+          "unit": {
+            "id": "u-dua",
+            "name": "Đảng uỷ Cơ quan A"
+          },
+          "submittedAt": "2026-10-06T16:30:00+07:00",
+          "submittedBy": "Trần Quốc Bảo",
+          "viewerIsAuthor": false,
+          "objectives": [
+            {
+              "id": "o-dua-1",
+              "code": "O1",
+              "title": "Nâng chất lượng sinh hoạt chi bộ",
+              "parentCode": "O-ĐUK-1",
+              "versionNo": 1,
+              "rowVersion": 2,
+              "check": {
+                "tone": "DAT",
+                "label": "Có căn cứ"
+              },
+              "keyResults": [
+                {
+                  "id": "kr-dua-1-1",
+                  "code": "KR 1.1",
+                  "title": "100% chi bộ sinh hoạt chuyên đề hằng quý",
+                  "targetText": "100%",
+                  "weight": 0.5,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-dua-1-2",
+                  "code": "KR 1.2",
+                  "title": "≥ 90% đảng viên dự sinh hoạt đầy đủ",
+                  "targetText": "90%",
+                  "weight": 0.5,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "o-dua-2",
+              "code": "O2",
+              "title": "Phát triển đảng viên mới",
+              "parentCode": "O-ĐUK-1",
+              "versionNo": 1,
+              "rowVersion": 2,
+              "check": {
+                "tone": "DAT",
+                "label": "Có căn cứ"
+              },
+              "keyResults": [
+                {
+                  "id": "kr-dua-2-1",
+                  "code": "KR 2.1",
+                  "title": "Kết nạp ≥ 6 đảng viên mới",
+                  "targetText": "6 người",
+                  "weight": 0.6,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-dua-2-2",
+                  "code": "KR 2.2",
+                  "title": "100% quần chúng ưu tú được bồi dưỡng",
+                  "targetText": "100%",
+                  "weight": 0.4,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "o-dua-3",
+              "code": "O3",
+              "title": "Chuẩn bị nhân sự đại hội chi bộ",
+              "parentCode": "O-ĐUK-2",
+              "versionNo": 1,
+              "rowVersion": 2,
+              "check": {
+                "tone": "DAT",
+                "label": "Có căn cứ"
+              },
+              "keyResults": [
+                {
+                  "id": "kr-dua-3-1",
+                  "code": "KR 3.1",
+                  "title": "100% chi bộ có phương án nhân sự được thẩm định",
+                  "targetText": "100%",
+                  "weight": 0.6,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-dua-3-2",
+                  "code": "KR 3.2",
+                  "title": "Hoàn thành đại hội chi bộ trước 31/12/2026",
+                  "targetText": "1 mốc",
+                  "weight": 0.4,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "rs-dub",
+          "unit": {
+            "id": "u-dub",
+            "name": "Đảng uỷ Cơ quan B"
+          },
+          "submittedAt": "2026-10-07T10:05:00+07:00",
+          "submittedBy": "Vũ Thị Lan",
+          "viewerIsAuthor": false,
+          "objectives": [
+            {
+              "id": "o-dub-1",
+              "code": "O1",
+              "title": "Củng cố tổ chức cơ sở đảng",
+              "parentCode": "O-ĐUK-1",
+              "versionNo": 1,
+              "rowVersion": 2,
+              "check": {
+                "tone": "DAT",
+                "label": "Có căn cứ"
+              },
+              "keyResults": [
+                {
+                  "id": "kr-dub-1-1",
+                  "code": "KR 1.1",
+                  "title": "Đẩy mạnh công tác kiểm tra chi bộ trực thuộc",
+                  "targetText": "10 lần",
+                  "weight": 0.5,
+                  "link": null,
+                  "check": {
+                    "tone": "CANH_BAO",
+                    "label": "KR mơ hồ"
+                  }
+                },
+                {
+                  "id": "kr-dub-1-2",
+                  "code": "KR 1.2",
+                  "title": "100% chi bộ xếp loại hoàn thành tốt nhiệm vụ trở lên",
+                  "targetText": "100%",
+                  "weight": 0.5,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "o-dub-2",
+              "code": "O2",
+              "title": "Phát huy vai trò đoàn thể",
+              "parentCode": "O-ĐUK-1",
+              "versionNo": 1,
+              "rowVersion": 2,
+              "check": {
+                "tone": "DAT",
+                "label": "Có căn cứ"
+              },
+              "keyResults": [
+                {
+                  "id": "kr-dub-2-1",
+                  "code": "KR 2.1",
+                  "title": "100% tổ chức đoàn thể có chương trình phối hợp",
+                  "targetText": "100%",
+                  "weight": 0.5,
+                  "link": null,
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                },
+                {
+                  "id": "kr-dub-2-2",
+                  "code": "KR 2.2",
+                  "title": "≥ 80% đoàn viên tham gia phong trào thi đua",
+                  "targetText": "80%",
+                  "weight": 0.5,
+                  "link": "Ban Tuyên giáo · O1 (ngang)",
+                  "check": {
+                    "tone": "DAT",
+                    "label": "Đo được"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
 }
