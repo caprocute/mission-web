@@ -70,9 +70,15 @@ Giai đoạn này phục vụ QT-09 đến QT-13: tự đánh giá theo Mẫu 1B
 
 Giai đoạn cuối gồm trung tâm cảnh báo, Config Studio (công thức CEL, bảng quyết định, test case vàng, cấu hình luồng duyệt theo mẫu tham số thay vì vẽ BPMN tự do, đúng tinh thần giải quyết điểm nghẽn G2), bảng điều hành lãnh đạo nhúng Superset, trình dựng dashboard, trợ lý AI, studio giao diện tenant và biểu mẫu động, plugin chuyên ngành mẫu, cùng hai đợt kiểm chứng tổng thể về hiệu năng và an toàn thông tin (OWASP ZAP, ASVS mức 2).
 
+### Phân quyền (xuyên giai đoạn, WEB-054..WEB-058)
+
+Phân quyền không thuộc riêng giai đoạn nào vì mọi màn hình đều phải ẩn hiện chức năng theo vai trò và xử lý đúng lỗi từ chối của máy chủ. Mô hình phân quyền của nền tảng (RBAC theo mười hai tác nhân AC cộng ABAC theo tenant, cây tổ chức, luồng, trạng thái đối tượng và mức dữ liệu, quyết định cuối cùng ở OPA phía máy chủ) được tóm tắt ở `wiki/15-phan-quyen.md`, còn ma trận chức năng theo từng SCR, ma trận API, ma trận mức dữ liệu và danh sách ràng buộc tách vai trò, bốn mắt, step-up nằm ở `wiki/15a-ma-tran-phan-quyen.md`. Ma trận có một nguồn dữ liệu duy nhất là `docs/phan-quyen/ma-tran.json`; script `docs/phan-quyen/gen_matrix.py` sinh từ đó các bảng của wiki/15a và tệp Excel `docs/phan-quyen/ma-tran-phan-quyen.xlsx` để người phụ trách nghiệp vụ rà soát.
+
+Năm task hiện thực ma trận ở phía web. WEB-054 sinh bảng quyền TypeScript từ `ma-tran.json` và cung cấp `can()`, `*vtCan`, `permissionGuard` trong `@vt/auth`, nên làm ngay sau WEB-006. WEB-055 áp bảng quyền vào menu, tuyến và nút của shell và các remote đã có, đồng thời sửa các chỗ đang chặn quá chặt so với TL-02. WEB-056 đồng bộ realm Keycloak dev với ma trận (vai trò, claim ngữ cảnh, MFA theo vai trò, tài khoản thử theo vai trò). WEB-057 dựng kiểm thử Playwright đối chiếu ma trận theo từng vai trò và từng tuyến. WEB-058 là màn hình quản trị phân công vai trò và uỷ quyền; bộ TL có dữ liệu (`config.role_binding`) nhưng chưa có SCR và API, nên task này bắt đầu bằng đề xuất bổ sung thiết kế. Mọi task màn hình từ WEB-016 đến WEB-050 có thêm tiêu chí hoàn thành về ẩn hiện đúng ma trận và hiển thị lỗi 403 đúng MSG.
+
 ## 6. Cách tổ chức công việc cho AI agent
 
-Toàn bộ khối lượng được chia thành 53 task trong `docs/tasks/`, mỗi task đủ nhỏ để một agent làm trọn trong một phiên (cỡ S khoảng nửa ngày, M khoảng một ngày, L khoảng hai ngày và nên tách nhỏ thêm khi bắt đầu). Mỗi task card có cùng cấu trúc: khối quy định chung bắt buộc đọc, bảng thuộc tính (giai đoạn, cỡ, phụ thuộc, truy vết), mục tiêu, đầu vào bắt buộc đọc, phạm vi, ngoài phạm vi, danh sách tệp được phép sửa, tiêu chí hoàn thành và yêu cầu báo cáo.
+Toàn bộ khối lượng được chia thành 58 task trong `docs/tasks/`, mỗi task đủ nhỏ để một agent làm trọn trong một phiên (cỡ S khoảng nửa ngày, M khoảng một ngày, L khoảng hai ngày và nên tách nhỏ thêm khi bắt đầu). Mỗi task card có cùng cấu trúc: khối quy định chung bắt buộc đọc, bảng thuộc tính (giai đoạn, cỡ, phụ thuộc, truy vết), mục tiêu, đầu vào bắt buộc đọc, phạm vi, ngoài phạm vi, danh sách tệp được phép sửa, tiêu chí hoàn thành và yêu cầu báo cáo.
 
 Việc nhắc quy định chung được bảo đảm bằng ba lớp, để không phụ thuộc vào trí nhớ của người giao việc. Lớp thứ nhất là khối "0. Quy định chung" nằm ngay đầu mọi task card, trỏ về `AGENTS.md` và tóm tắt những quy tắc hay bị quên. Lớp thứ hai là hook `SessionStart` trong `.claude/settings.json`: mỗi phiên Claude Code mở trong repo sẽ tự in `docs/tasks/_NHAC-QUY-DINH.md`, còn `CLAUDE.md` nạp sẵn `AGENTS.md` và mục lục wiki. Lớp thứ ba dành cho agent khác: lệnh `./scripts/agent-task.sh WEB-xxx` ghép `AGENTS.md` và task card thành một prompt duy nhất để dán vào bất kỳ công cụ nào.
 
@@ -114,4 +120,4 @@ Server dev 14.232.210.125 chạy hạ tầng dùng chung bằng Docker Compose v
 
 ## 11. Tài liệu liên quan
 
-`AGENTS.md` (quy định chung), `docs/tasks/README.md` (danh mục task), `wiki/README.md` (mục lục tri thức), `infra/dev/README.md` (hạ tầng dev), và bộ TL gốc trong `/mnt/project-files/kien-truc-okr-kpi/`.
+`AGENTS.md` (quy định chung), `docs/tasks/README.md` (danh mục task), `wiki/README.md` (mục lục tri thức), `wiki/15-phan-quyen.md` và `wiki/15a-ma-tran-phan-quyen.md` (phân quyền và ma trận), `infra/dev/README.md` (hạ tầng dev), và bộ TL gốc trong `/mnt/project-files/kien-truc-okr-kpi/`.

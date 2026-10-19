@@ -48,7 +48,12 @@ Bảng dưới liệt kê các điểm mà hai hay nhiều nguồn ghi khác nha
 | Thư viện trong baseline 5.2 | Baseline không liệt kê `@vt/api-client`, `@vt/e2ee` | Đã dùng `@vt/api-client`; cần bổ sung vào baseline |
 | Phiên bản registry | TL-01 và mã: semver (`2.4.0`, `^2.4.0`); TL-02, TL-03: dạng lịch (`v2026.3`) | Giữ semver trong mã; cần chốt cách ánh xạ |
 | Tên cột `config.ui_pack_version`, `config.form_schema` | TL-03 giữ hai bộ tên (`tokens` và `tokens_json`, `layouts` và `layout_json`, `form_code` và `form_key`, `json_schema` và `schema_json`) | Frontend không đọc bảng trực tiếp; theo hợp đồng API |
-| Tên vai trò | TL-01 Phụ lục C dùng tên khác (ví dụ `staff`, `org_officer`, `policy_approver`); baseline và mã: 11 vai trò như `member` | Theo baseline và realm dev |
+| Tên vai trò | TL-01 Phụ lục C dùng `staff`, `org_officer`, `policy_approver`; ví dụ Rego TL-01 dùng `LANH_DAO`; mục mở lại kỳ TL-01 nhắc `PERIOD_REOPEN_APPROVER`; baseline và mã: 11 vai trò như `member` | Theo baseline và realm dev; ánh xạ `staff` → `member`, `policy_approver` → `decider` theo SCR-1503, `org_officer` tách theo chức năng (xem [trang 15](15-phan-quyen.md)) |
+| Vai trò thực hiện một số thao tác | TL-01 Phụ lục C: `org_officer` khởi động khoá kỳ, đề nghị mở lại kỳ, tạo hội nghị, đóng gói hồ sơ; `policy_approver` phát hành Policy Pack; `decider` cấp trên trả lời khiếu nại; `second_approver` là người duyệt duy nhất của mở lại kỳ. TL-02: AC-02 khởi chạy khoá kỳ (SCR-0801); AC-07, AC-10 tạo yêu cầu mở lại kỳ, AC-08 duyệt thứ nhất, AC-09 duyệt thứ hai (SCR-1301); AC-08 ký phê duyệt Policy Pack (SCR-1503); AC-07 xử lý, AC-08 ký trả lời khiếu nại (SCR-1202) | Ma trận [15a](15a-ma-tran-phan-quyen.md) theo TL-02 vì là đặc tả màn hình; cần chốt để OPA và giao diện khớp nhau |
+| Vai trò bắt buộc AAL2 | BR-00-01: `appraiser`, `decider`, `second_approver`, `tenant_admin`, `platform_admin`; TL-01: thêm lãnh đạo, người phê duyệt, cán bộ tổ chức; TL-04 SEC-13: MFA với mọi người dùng | Giao diện không tự quyết; xử lý 401 step-up khi máy chủ yêu cầu; WEB-056 cấu hình theo BR-00-01 ở dev |
+| Cửa sổ step-up | BR-00-02: MFA trong vòng 15 phút trước thao tác; TL-01: `auth_time` không quá 5 phút | Không gắn cứng; xử lý 401 `insufficient_user_authentication` |
+| Tên claim ngữ cảnh | TL-01: `tenant_id`, `cell`; TL-02 QT-00: `org`, `roles`; realm dev và `SessionService`: `tenant`, `unit_id`, vai trò ở `realm_access.roles` | Giữ tên của mã tới khi chốt (WEB-056) |
+| Đường dẫn quản lý tenant | TL-02 SCR-0101, SCR-0102: `/api/v1/config/tenants`; TL-01 Phụ lục C: `/registry/tenants` | Theo TL-02 tới khi có OpenAPI (WEB-007) |
 | Mã SEC trong chú thích mã | `session.service.ts` ghi SEC-15, SEC-54 cho `state` và `nonce`; TL-04: đúng là SEC-17 | Sửa chú thích khi làm WEB-006 |
 | Kiểm thuộc tính SDUI | TL-01 nêu Ajv; mã tự viết bộ lọc vì CSP không có `'unsafe-eval'` | Giữ bộ lọc tự viết hoặc Ajv biên dịch trước lúc build |
 | Đỉnh người dùng task cell lớn | Baseline bản cũ, TL-02: 80 đến 110 lượt/giây; TL-01, baseline 3.1: 133 đến 150 lượt/giây | Dùng số lớn hơn khi định cỡ thử tải |
@@ -56,7 +61,7 @@ Bảng dưới liệt kê các điểm mà hai hay nhiều nguồn ghi khác nha
 
 ## Khoảng trống trong mã so với thiết kế
 
-Các điểm sau không phải mâu thuẫn mà là phần thiết kế chưa được hiện thực, cần biết để không tưởng nhầm là đã có. `UiPackLoader` chưa kiểm chữ ký UI Pack (`TODO(ADR-05)`, task WEB-009) và chưa đọc manifest plugin; chưa gọi API phân giải registry phía máy chủ. Chưa có Faro và OTel web (WEB-011), chưa có chế độ nhúng `<vt-okr-app>` (WEB-013). Chưa có CSP, HSTS, Trusted Types trong `nginx.conf` (WEB-014). Ngân sách trong `angular.json` còn mặc định 500 kB và 1 MB thay vì 250 KB và 180 KB gzip (WEB-003). Chưa có luồng chọn phân công, xử lý 401 step-up (WEB-006). Tuỳ chọn chế độ người cao tuổi lưu trong `localStorage` thay vì cấu hình theo người dùng ở máy chủ. `angular-oauth2-oidc` có thể đang lưu token vào `sessionStorage` (xem [trang 07](07-xac-thuc-phan-quyen.md)).
+Các điểm sau không phải mâu thuẫn mà là phần thiết kế chưa được hiện thực, cần biết để không tưởng nhầm là đã có. `UiPackLoader` chưa kiểm chữ ký UI Pack (`TODO(ADR-05)`, task WEB-009) và chưa đọc manifest plugin; chưa gọi API phân giải registry phía máy chủ. Chưa có Faro và OTel web (WEB-011), chưa có chế độ nhúng `<vt-okr-app>` (WEB-013). Chưa có CSP, HSTS, Trusted Types trong `nginx.conf` (WEB-014). Ngân sách trong `angular.json` còn mặc định 500 kB và 1 MB thay vì 250 KB và 180 KB gzip (WEB-003). Chưa có luồng chọn phân công, xử lý 401 step-up (WEB-006). Tuỳ chọn chế độ người cao tuổi lưu trong `localStorage` thay vì cấu hình theo người dùng ở máy chủ. `angular-oauth2-oidc` có thể đang lưu token vào `sessionStorage` (xem [trang 07](07-xac-thuc-phan-quyen.md)). Chặn tuyến hiện tại theo tuyến cha quá chặt so với ma trận phân quyền: `/admin` chặn AC-04, AC-07, AC-09, AC-10 dù SCR-0103, SCR-0801 cho họ xem hoặc duyệt, `/config-studio` chặn AC-08 dù SCR-1503 cho ký phê duyệt, `/dashboard` chặn AC-07 dù SCR-1603 cho xem (WEB-055).
 
 ## Câu hỏi mở cần người phụ trách trả lời
 
@@ -70,11 +75,14 @@ Câu hỏi một là biểu mẫu MRC: baseline mục 2 ghi giả định rằng
 
 Câu hỏi năm là chốt các điểm lệch kỹ thuật trong bảng trên, ưu tiên mã lỗi xung đột, thời hạn token, đường dẫn việc của tôi và cách giữ `Idempotency-Key` khi thử lại, vì chúng ảnh hưởng trực tiếp tới `@vt/api-client` và `@vt/auth` ở GĐ0.
 
+Câu hỏi sáu là bổ sung thiết kế cho quản trị phân quyền: bộ TL có bảng `config.role_binding` (vai trò có phạm vi, thời hạn, người duyệt thứ hai cho vai trò nhạy cảm) và có quy định duyệt thay, nghiệm thu thay, check-in thay, nhưng không có SCR, API, BR hay MSG cho màn hình cấp, thu hồi vai trò và uỷ quyền. Cần người phụ trách cấp mã trước khi làm pha 2 của WEB-058. Cùng nhóm này còn ba điểm nhỏ: nhiều ràng buộc tách vai trò chưa có MSG riêng (BR-04-08, BR-06-08, BR-07-06, BR-08-01, BR-15-09, BR-14-08, danh sách ở bảng ràng buộc của trang 15a), nguồn không nêu vai trò của "thư ký tổng hợp" ở SCR-0904 và của chủ trì hội nghị ở SCR-1101, và nguồn không nêu ai là người duyệt UI Pack ở SCR-1801 (ma trận tạm ghi `tenant_admin` khác người soạn, đánh dấu suy luận).
+
 ## Liên quan
 
 - [README của wiki](README.md)
 - [Tổng quan hệ thống](01-tong-quan-he-thong.md)
 - [Quy ước API](06-quy-uoc-api.md)
 - [Xác thực và phân quyền](07-xac-thuc-phan-quyen.md)
+- [Phân quyền](15-phan-quyen.md) và [Ma trận phân quyền](15a-ma-tran-phan-quyen.md)
 - [Bảo mật frontend](08-bao-mat-frontend.md)
 - [Hạ tầng dev và triển khai](12-ha-tang-dev-va-trien-khai.md)

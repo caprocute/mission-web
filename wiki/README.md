@@ -6,7 +6,7 @@ Wiki này gom tri thức cần thiết để phát triển phân hệ web của 
 
 ## Cách dùng
 
-Người mới vào dự án nên đọc theo thứ tự trang 01, 02, 04, 10, rồi đọc trang theo việc đang làm. AI agent làm task trong `docs/tasks/` đọc `AGENTS.md` trước (quy định bắt buộc, `CLAUDE.md` tự nạp cả `AGENTS.md` và trang này), sau đó đọc các trang wiki mà task liệt kê ở mục "Đầu vào bắt buộc đọc". Khi cần biết một màn hình làm gì, tra mã SCR trong trang 05a hoặc 05b; khi gặp từ lạ, tra trang 13; khi thấy hai nguồn nói khác nhau, xem trang 14 trước khi tự quyết định.
+Người mới vào dự án nên đọc theo thứ tự trang 01, 02, 04, 10, rồi đọc trang theo việc đang làm. AI agent làm task trong `docs/tasks/` đọc `AGENTS.md` trước (quy định bắt buộc, `CLAUDE.md` tự nạp cả `AGENTS.md` và trang này), sau đó đọc các trang wiki mà task liệt kê ở mục "Đầu vào bắt buộc đọc". Khi cần biết một màn hình làm gì, tra mã SCR trong trang 05a hoặc 05b; khi cần biết vai trò nào được thấy hay làm một chức năng, tra trang 15a; khi gặp từ lạ, tra trang 13; khi thấy hai nguồn nói khác nhau, xem trang 14 trước khi tự quyết định.
 
 ## Mục lục
 
@@ -27,6 +27,8 @@ Người mới vào dự án nên đọc theo thứ tự trang 01, 02, 04, 10, r
 | [12-ha-tang-dev-va-trien-khai.md](12-ha-tang-dev-va-trien-khai.md) | Hạ tầng dev bằng Docker Compose, đóng gói nginx, khác biệt với production, GitOps, lộ trình |
 | [13-thuat-ngu.md](13-thuat-ngu.md) | Thuật ngữ kiến trúc, frontend, API, bảo mật và nghiệp vụ đánh giá |
 | [14-quyet-dinh-va-cau-hoi-mo.md](14-quyet-dinh-va-cau-hoi-mo.md) | ADR liên quan web, quyết định đã chốt, điểm lệch giữa nguồn, câu hỏi mở |
+| [15-phan-quyen.md](15-phan-quyen.md) | Nguyên tắc phân quyền RBAC và ABAC, mô hình vai trò AC, phạm vi dữ liệu, mức dữ liệu, tách vai trò, bốn mắt, step-up, hiện thực từng tầng, cấp và thu hồi quyền |
+| [15a-ma-tran-phan-quyen.md](15a-ma-tran-phan-quyen.md) | Ma trận phân quyền chức năng theo SCR × AC-01..AC-12, ma trận API, mức dữ liệu, ràng buộc; sinh từ `docs/phan-quyen/ma-tran.json` |
 
 ## Quy tắc cập nhật wiki
 

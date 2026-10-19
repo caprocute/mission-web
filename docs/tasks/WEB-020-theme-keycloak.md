@@ -23,6 +23,7 @@ Làm theme đăng nhập Keycloak theo SCR-0001 (SSO, VNeID, MFA), dùng token m
 - wiki/07-xac-thuc-phan-quyen.md
 - wiki/03-giao-dien-theo-tenant.md
 - TL-02 QT-00 SCR-0001
+- wiki/15a-ma-tran-phan-quyen.md (các dòng của SCR-0001)
 
 ## 3. Phạm vi công việc
 
@@ -41,6 +42,7 @@ Làm theme đăng nhập Keycloak theo SCR-0001 (SSO, VNeID, MFA), dùng token m
 ## 6. Tiêu chí hoàn thành
 
 - Theme hiển thị trên Keycloak dev với tài khoản thử.
+- Ẩn/hiện chức năng đúng ma trận phân quyền cho mọi vai trò liên quan; thao tác bị chặn ở máy chủ vẫn hiển thị lỗi 403 đúng MSG.
 - Báo cáo cuối task theo AGENTS.md mục 6; wiki được cập nhật nếu có tri thức mới.
 
 ## 7. Báo cáo

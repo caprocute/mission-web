@@ -4,6 +4,14 @@ Mỗi tệp `WEB-xxx-*.md` là một task đủ nhỏ để một AI agent làm 
 
 Thứ tự thực hiện đi theo cột Phụ thuộc: một task chỉ bắt đầu khi các task nó phụ thuộc đã xong. Những task cùng giai đoạn không phụ thuộc nhau có thể giao cho nhiều agent chạy song song, mỗi agent một nhánh `feat/WEB-xxx-…`. Cỡ việc S/M/L ước lượng cho một agent; người phụ trách duyệt PR của từng task trước khi gộp.
 
+## Phân luồng phát triển song song (từ 19/10/2026)
+
+Công việc được chia thành ba luồng chạy song song, mỗi luồng là một thread riêng trong dự án. Luồng **Nền tảng** do thread "Kế hoạch và hạ tầng phân hệ web" giữ, sở hữu nhánh `main` trong `/mnt/project-files/mission-web` và là nơi duy nhất gộp code vào `main`. Luồng này làm WEB-001 đến WEB-015 (công cụ, CI, thư viện `@vt/*`, shell, khung remote) và các task xuyên suốt WEB-051 đến WEB-053. Luồng **Phân quyền** làm WEB-054 đến WEB-058. Luồng **Màn hình nghiệp vụ** làm WEB-016 đến WEB-050 theo thứ tự quy trình QT.
+
+Hai luồng Phân quyền và Màn hình nghiệp vụ làm trong git worktree riêng tại `/mnt/project-files/mission-web-worktrees/<tên-luồng>`, mỗi task một nhánh `feat/WEB-xxx-…`, không ghi trực tiếp vào `main`. Khi một task đạt build, kiểm thử và đã mở màn hình thật, luồng đó báo luồng Nền tảng để gộp; trước khi bắt đầu task mới, luồng phải rebase lên `main` mới nhất.
+
+Vì các luồng sau cần nền tảng, luồng Nền tảng làm trước các task mà hai luồng kia phụ thuộc: WEB-001 (lint, test), WEB-008 (mock API), WEB-007 (api-client), WEB-015 (khung remote), WEB-006 (đăng nhập) và WEB-010 (form engine). Các task màn hình của `fe-task` (WEB-025, WEB-028, WEB-030, WEB-031) chỉ cần WEB-008 nên có thể bắt đầu sớm nhất; các remote khác chờ WEB-015. Tệp dùng chung như `fe-shell/src/app/app.routes.ts`, `layout/nav.ts`, `package.json` chỉ được sửa ở mức tối thiểu và ghi rõ trong báo cáo để luồng Nền tảng gộp xung đột.
+
 Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 
 ## GĐ0 – Nền tảng phát triển
@@ -83,6 +91,18 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-051](WEB-051-plugin-chuyen-nganh.md) | Plugin chuyên ngành mẫu và manifest theo tenant | M | WEB-015 | Chưa bắt đầu |
 | [WEB-052](WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | WEB-003, WEB-011 | Chưa bắt đầu |
 | [WEB-053](WEB-053-danh-gia-attt.md) | Đánh giá ATTT frontend: OWASP ZAP và ASVS mức 2 | M | WEB-014 | Chưa bắt đầu |
+
+## Phân quyền (xuyên giai đoạn)
+
+Nhóm này hiện thực ma trận phân quyền ở [wiki/15a](../../wiki/15a-ma-tran-phan-quyen.md) cho phía giao diện và môi trường dev. Nguồn dữ liệu duy nhất là `docs/phan-quyen/ma-tran.json`; wiki/15a và tệp `docs/phan-quyen/ma-tran-phan-quyen.xlsx` được sinh từ đó bằng `python3 docs/phan-quyen/gen_matrix.py`. WEB-054 nên làm ngay sau WEB-006 để các task màn hình từ GĐ1 trở đi dùng được `can()` và `*vtCan`; mọi task màn hình đều có tiêu chí ẩn hiện chức năng đúng ma trận.
+
+| Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
+|---|---|---|---|---|
+| [WEB-054](WEB-054-bang-quyen-frontend.md) | Bảng quyền phía giao diện sinh từ ma trận (`can()`, `*vtCan`, `permissionGuard`) | M | WEB-001, WEB-006 | Chưa bắt đầu |
+| [WEB-055](WEB-055-ap-ma-tran-shell-remote.md) | Áp ma trận vào menu, tuyến và nút của shell và các remote hiện có | M | WEB-054, WEB-015 | Chưa bắt đầu |
+| [WEB-056](WEB-056-dong-bo-realm-keycloak.md) | Đồng bộ realm Keycloak dev với ma trận (vai trò, claim, MFA theo vai trò, tài khoản thử) | M | WEB-006, WEB-054 | Chưa bắt đầu |
+| [WEB-057](WEB-057-kiem-thu-ma-tran-playwright.md) | Kiểm thử Playwright đối chiếu ma trận: vai trò × tuyến | M | WEB-055, WEB-056 | Chưa bắt đầu |
+| [WEB-058](WEB-058-quan-tri-vai-tro-uy-quyen.md) | Quản trị phân công vai trò và uỷ quyền (chưa có SCR, cần bổ sung thiết kế) | L | WEB-018, WEB-054, quyết định thiết kế | Chờ thiết kế |
 
 ## Màn hình không thuộc phân hệ web
 
