@@ -101,7 +101,7 @@ export interface paths {
     put?: never;
     /**
      * Ký số và nộp phiếu tự đánh giá
-     * @description Kiểm tra đủ trường và quy tắc (giải trình khi mức tự đề xuất khác mức tham khảo, giải pháp đột phá kèm minh chứng `DA_XAC_NHAN` khi tự đề xuất HTXSNV), chốt `content_hash` của phiếu, tạo yêu cầu ký ở SVC-10 rồi trả 202. Hồ sơ chỉ chuyển `CHO_THAM_DINH` khi nhận EVT-18 (BR-09-15); trong lúc chờ, hồ sơ giữ `TU_DANH_GIA`. Thay cho `POST /appraisals/{id}/self-assessment` của TL-01 Phụ lục C (điểm chốt AP-01). Lỗi 422 mã `APPRAISAL-422-REASON-REQUIRED` (MSG-09-02), `APPRAISAL-422-BREAKTHROUGH-REQUIRED` (MSG-09-03); ký lỗi báo qua job với MSG-09-05.
+     * @description Kiểm tra đủ trường và quy tắc (giải trình khi mức tự đề xuất khác mức tham khảo, giải pháp đột phá kèm minh chứng `DA_XAC_NHAN` khi tự đề xuất HTXSNV), chốt `content_hash` của phiếu, tạo yêu cầu ký ở SVC-10 rồi trả 202. Hồ sơ chỉ chuyển `CHO_THAM_DINH` khi nhận EVT-18 (BR-09-15); trong lúc chờ, hồ sơ giữ `TU_DANH_GIA`. Thay cho `POST /appraisals/{id}/self-assessment` của TL-01 Phụ lục C (điểm chốt AP-01). Lỗi 422 mã `APPRAISAL-422-REASON-REQUIRED` (MSG-09-02), `APPRAISAL-422-BREAKTHROUGH-REQUIRED` (MSG-09-03); ký lỗi báo qua job với MSG-09-05. Theo dõi ký: `Location` trỏ `/jobs/{id}` (loại `ESIGN`, suy luận); job ở `DANG_CHAY` trong lúc chờ người ký xác nhận trên ứng dụng ký số, chuyển `HOAN_TAT` khi nhận EVT-18 và hồ sơ đã sang `CHO_THAM_DINH`, với `resultLocation` là `/appraisals/profiles/{id}`; chuyển `THAT_BAI` kèm `problem` (MSG-09-05) khi ký lỗi, bị từ chối hoặc hết hạn, hồ sơ giữ `TU_DANH_GIA` và nộp lại được với `Idempotency-Key` mới. Client không gọi `POST /esign/requests` riêng.
      */
     post: operations['submitAppraisalSelfAssessment'];
     delete?: never;

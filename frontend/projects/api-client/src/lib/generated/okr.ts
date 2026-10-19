@@ -13,7 +13,7 @@ export interface paths {
     };
     /**
      * Danh sách mục tiêu theo kỳ và đơn vị
-     * @description Trả các mục tiêu của đơn vị (hoặc của cá nhân) trong kỳ, kèm KR và tiến độ, phục vụ ba chế độ xem cây, bảng và bản đồ liên kết của SCR-0201. Máy chủ lọc theo phạm vi ABAC: thành viên đơn vị xem mục tiêu của đơn vị mình; `leader` xem cả cây cấp dưới. Khi `view=tree` mỗi mục tiêu kèm `keyResults` và `peerLinks`; khi `view=table` chỉ kèm `keyResults`; khi `view=map` nên dùng `GET /okr/alignment`.
+     * @description Trả các mục tiêu của đơn vị (hoặc của cá nhân) trong kỳ, kèm KR và tiến độ, phục vụ ba chế độ xem cây, bảng và bản đồ liên kết của SCR-0201. Máy chủ lọc theo phạm vi ABAC: thành viên đơn vị xem mục tiêu của đơn vị mình; `leader` xem cả cây cấp dưới. Khi `view=tree` mỗi mục tiêu kèm `keyResults` và `peerLinks`; khi `view=table` chỉ kèm `keyResults`; khi `view=map` nên dùng `GET /okr/alignment`. Màn hình SCR-0201 dựng cây bằng `GET /okr/tree` (một lần gọi kèm ngữ cảnh kỳ, căn cứ, mục tiêu cấp trên); thao tác này phục vụ danh sách phân trang và lọc.
      */
     get: operations['listOkrObjectives'];
     put?: never;
@@ -404,6 +404,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/okr/tree': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Cây mục tiêu của đơn vị trong kỳ kèm ngữ cảnh màn hình
+     * @description Dữ liệu dựng chế độ xem cây của SCR-0201 trong một lần gọi: kỳ đang xem và các kỳ chọn được, căn cứ, mục tiêu cấp trên, ngưỡng khuyến nghị số mục tiêu (BR-02-01, tham số Policy Pack), mọi mục tiêu của đơn vị (phẳng, nối bằng `parentObjective`) kèm KR và các liên kết ngang. Bỏ `unit` thì lấy đơn vị của ngữ cảnh làm việc; bỏ `period` thì lấy kỳ đang `MO`. Tách khỏi `GET /okr/objectives?view=tree` để mỗi thao tác trả đúng một lược đồ (suy luận đường dẫn; TL-02a SCR-0201 ghi chung `/okr/objectives?unit=&period=&view=tree`).
+     */
+    get: operations['getOkrTree'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/okr/compose-context': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Ngữ cảnh soạn mục tiêu (SCR-0202)
+     * @description (suy luận) Dữ liệu SCR-0202 cần khi mở: kỳ và các kỳ chưa khoá soạn được (trường 5), căn cứ (trường 1), mục tiêu cấp trên chọn được (trường 2, BR-02-02), số mục tiêu đã có của chủ thể trong kỳ không tính mục tiêu đang sửa (BR-02-01), người xác nhận KR chọn được (trường 14), cờ bật trợ lý AI và bộ quy tắc soát CEL của Policy Pack đang áp dụng. Trình duyệt chạy các quy tắc này chỉ để phản hồi tức thì; máy chủ chạy lại khi lưu và khi trình (AGENTS.md quy tắc 6).
+     */
+    get: operations['getOkrComposeContext'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/okr/reviews': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Hàng chờ phê duyệt OKR của người duyệt trong kỳ
+     * @description (suy luận) Dữ liệu vùng 1 và vùng 2 của SCR-0203: các bộ OKR đơn vị cấp dưới đã trình và đang chờ người gọi duyệt (kể cả duyệt thay theo uỷ quyền), mỗi bộ kèm mục tiêu, KR và kết quả kiểm tra tự động tính lại khi đọc (không lưu). Số bộ bị chặn bởi số đơn vị trực thuộc nên trả một lần, không phân trang. `viewerIsAuthor = true` báo trước BR-02-08 (người soạn không tự duyệt); máy chủ vẫn kiểm lại khi gọi `approve`.
+     */
+    get: operations['listOkrReviews'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -500,10 +560,9 @@ export interface components {
       docNumber?: string;
       title: string;
     };
-    /** @description Một kết quả của bộ kiểm tra tự động MOD-01 (tính lại mỗi lần đọc, không lưu; SCR-0203 trường 3). Mã mức `DAT`, `CANH_BAO`, `LOI_CHAN` là suy luận từ nhãn "Đạt, cảnh báo, lỗi". */
+    /** @description Một kết quả của bộ kiểm tra tự động MOD-01 (tính lại mỗi lần đọc, không lưu; SCR-0203 trường 3). */
     OkrCheckResult: {
-      /** @enum {string} */
-      level: 'DAT' | 'CANH_BAO' | 'LOI_CHAN';
+      level: components['schemas']['OkrCheckLevel'];
       /** @description Mã quy tắc, ví dụ `BR-02-05` */
       rule: string;
       /** @description Mã thông điệp TL-02, ví dụ `MSG-02-05` */
@@ -712,6 +771,16 @@ export interface components {
       myDraftCheckin?: components['schemas']['OkrCheckin'];
       /** @description Hạn check-in của chu kỳ hiện tại (suy luận). */
       nextCheckinDue?: components['schemas']['Date'];
+      /** @description Mục tiêu chứa KR; có trong `GET /okr/key-results/{id}` (SCR-0301 vùng 2). */
+      objective?: components['schemas']['OkrObjectiveRef'];
+      /** @description Người gọi là chủ sở hữu hoặc người được giao check-in thay (máy chủ tính; suy luận). */
+      viewerIsOwner?: boolean;
+      /** @description Ghi chú vướng mắc của check-in gần nhất, hiện ở SCR-0201 trường 6 (suy luận). */
+      latestBlocker?: string | null;
+      /** @description Một số chương trình, nhiệm vụ liên kết để hiển thị (SCR-0201 trường 6, SCR-0301 vùng 5); có trong `GET /okr/tree` và `GET /okr/key-results/{id}`. */
+      linkedWork?: components['schemas']['OkrLinkedWork'][];
+      /** @description Tổng số nhiệm vụ liên kết, có thể nhiều hơn số phần tử `linkedWork`. */
+      linkedTaskCount?: number;
       rowVersion: components['schemas']['RowVersion'];
     };
     /** @description KR khi soạn (SCR-0202 trường 7-16). */
@@ -760,6 +829,8 @@ export interface components {
     OkrKeyResultPage: {
       items: components['schemas']['OkrKeyResultListItem'][];
       nextCursor: components['schemas']['NextCursor'];
+      /** @description Kỳ của danh sách, để dựng tiêu đề SCR-0301 (tuần, kỳ) (suy luận). */
+      period?: components['schemas']['OkrPeriodInfo'];
       /** @description Có khi `needCheckin=true`. */
       counts?: {
         needCheckin?: number;
@@ -905,6 +976,189 @@ export interface components {
       edges: components['schemas']['OkrAlignmentEdge'][];
     };
     /**
+     * @description Mức của một kết quả kiểm tra tự động MOD-01. Mã `DAT`, `CANH_BAO`, `LOI_CHAN` là suy luận từ nhãn "Đạt, cảnh báo, lỗi" của SCR-0203 trường 3.
+     * @enum {string}
+     */
+    OkrCheckLevel: 'DAT' | 'CANH_BAO' | 'LOI_CHAN';
+    /** @description Kỳ kèm trạng thái và vị trí tuần hiện tại để dựng tiêu đề SCR-0201, SCR-0203, SCR-0301 (ví dụ "Quý IV/2026 · Tuần 4/13"). `weekNo`, `weekCount` vắng với kỳ chưa bắt đầu (suy luận). */
+    OkrPeriodInfo: components['schemas']['PeriodRef'] & {
+      status: components['schemas']['PeriodStatus'];
+      weekNo?: number;
+      weekCount?: number;
+    };
+    /** @description Người chọn được kèm chức danh, ví dụ người xác nhận KR (SCR-0202 trường 14) hay người duyệt. */
+    OkrPersonOption: {
+      id: components['schemas']['Uuid'];
+      name: string;
+      /** @description Chức danh */
+      title?: string;
+    };
+    /** @description Chương trình hoặc nhiệm vụ gắn với KR qua `okr.okr_link` (SCR-0201 trường 6, SCR-0301 vùng 5), kèm tiến độ do module sở hữu cung cấp (suy luận). */
+    OkrLinkedWork: {
+      id: components['schemas']['Uuid'];
+      /** @enum {string} */
+      kind: 'PROGRAM' | 'TASK';
+      /** @description Mã hiển thị, ví dụ `NV-2027-Q1-0012` */
+      code: string;
+      title: string;
+      progress?: number;
+    };
+    /** @description Liên kết ngang của cây mục tiêu, đã ghép nhãn hai đầu để hiển thị (SCR-0201 trường 5). */
+    OkrPeerLink: {
+      id: components['schemas']['Uuid'];
+      /** @description Đầu của đơn vị đang xem, ví dụ "O2 · KR 2.1" */
+      fromLabel: string;
+      /** @description KR đầu nguồn; `null` khi liên kết đặt ở mức mục tiêu. */
+      fromKeyResultId?: components['schemas']['Uuid'] | null;
+      peerUnitName: string;
+      peerCode: string;
+      peerTitle: string;
+    };
+    /** @description Cây mục tiêu của một đơn vị trong kỳ kèm ngữ cảnh SCR-0201 (`GET /okr/tree`). */
+    OkrTree: {
+      period: components['schemas']['OkrPeriodInfo'];
+      /** @description Các kỳ chọn được ở bộ lọc kỳ. */
+      periods: components['schemas']['OkrPeriodInfo'][];
+      unit: components['schemas']['Ref'];
+      /** @description Đơn vị đang xem là đơn vị trong ngữ cảnh làm việc của người gọi (máy chủ tính theo token). */
+      viewerOwnUnit: boolean;
+      bases: components['schemas']['OkrBasisRef'][];
+      /** @description Mục tiêu cấp trên mà cây này phân rã từ; `null` ở đơn vị cao nhất. */
+      parent: components['schemas']['OkrObjectiveRef'] | null;
+      /** @description Số mục tiêu khuyến nghị tối đa mỗi kỳ (BR-02-01, tham số Policy Pack). */
+      recommendedMax: number;
+      /** @description Mọi mục tiêu của cây, phẳng, nối bằng `parentObjective.id`; mỗi mục tiêu kèm `keyResults`. */
+      objectives: components['schemas']['OkrObjective'][];
+      peerLinks: components['schemas']['OkrPeerLink'][];
+    };
+    /** @description Quy tắc soát OKR viết bằng CEL trong Policy Pack (QT-02 bước 4). `scope` cho biết biểu thức chạy trên `objective` hay trên từng `kr`; `message` có thể chứa chỗ trống `{tên}` lấy từ biến cùng tên của ngữ cảnh. `serverOnly = true` thì trình duyệt không chạy (cần dữ liệu máy chủ, ví dụ so trùng nhiệm vụ của BR-02-06). */
+    OkrRule: {
+      id: string;
+      /** @description Mã quy tắc nghiệp vụ, ví dụ `BR-02-05` */
+      br: string;
+      /** @enum {string} */
+      scope: 'objective' | 'kr';
+      /**
+       * @description `CHAN` chặn trình duyệt, `CANH_BAO` chỉ cảnh báo (cột "Xử lý" của bảng BR TL-02a).
+       * @enum {string}
+       */
+      severity: 'CHAN' | 'CANH_BAO';
+      /** @description Biểu thức CEL điều kiện áp dụng */
+      when: string;
+      /** @description Biểu thức CEL phải đúng */
+      assert: string;
+      message: string;
+      /** @description Nhãn khi đạt cho danh sách kiểm tra trước khi trình */
+      passLabel?: string;
+      /** @default false */
+      serverOnly: boolean;
+    };
+    /** @description Tham số soát OKR của Policy Pack đang áp dụng cho tenant (suy luận cách đóng gói). */
+    OkrPolicy: {
+      /** @description Phiên bản Policy Pack */
+      version: string;
+      /** @description BR-02-01 */
+      recommendedMax: number;
+      /** @description Từ mơ hồ (BR-02-05), ví dụ "tăng cường", "đẩy mạnh". */
+      vagueWords: string[];
+      /** @description Động từ mở đầu KR giống nhiệm vụ (BR-02-06), ví dụ "tổ chức", "ban hành". */
+      taskVerbs: string[];
+      /** @description Đơn vị đo gợi ý (SCR-0202 trường 9). */
+      units: string[];
+      rules: components['schemas']['OkrRule'][];
+    };
+    /** @description Mục tiêu cấp trên chọn được (SCR-0202 trường 2). */
+    OkrParentOption: components['schemas']['OkrObjectiveRef'] & {
+      periodId: components['schemas']['Uuid'];
+    };
+    /** @description Ngữ cảnh soạn mục tiêu của đơn vị trong kỳ (`GET /okr/compose-context`, SCR-0202). */
+    OkrComposeContext: {
+      period: components['schemas']['OkrPeriodInfo'];
+      /** @description Kỳ chưa khoá soạn được (trường 5). */
+      periods: components['schemas']['OkrPeriodInfo'][];
+      unit: components['schemas']['Ref'];
+      /** @description Đơn vị cao nhất của tenant, không bắt buộc mục tiêu cấp trên (BR-02-02). */
+      isTopLevel: boolean;
+      bases: components['schemas']['OkrBasisRef'][];
+      parentOptions: components['schemas']['OkrParentOption'][];
+      /** @description Số mục tiêu đã có của chủ thể trong kỳ, không tính mục tiêu đang sửa (BR-02-01). */
+      existingCount: number;
+      /** @description Người xác nhận KR chọn được (trường 14). */
+      verifiers: components['schemas']['OkrPersonOption'][];
+      /** @description Người gọi, để mặc định người xác nhận khác chủ sở hữu. */
+      me: components['schemas']['Ref'];
+      /** @description Tenant bật trợ lý AI soát OKR (AC-12) */
+      aiEnabled: boolean;
+      policy: components['schemas']['OkrPolicy'];
+    };
+    /** @description Kết quả kiểm tra rút gọn một dòng của SCR-0203 trường 3 (tính lại khi đọc, không lưu). */
+    OkrReviewCheck: {
+      level: components['schemas']['OkrCheckLevel'];
+      /** @description Nhãn ngắn như "Có căn cứ", "Đo được", "Gần giống NV-2027-Q1-0012", "Vượt 3 O" */
+      label: string;
+    };
+    OkrReviewKr: {
+      id: components['schemas']['Uuid'];
+      code: string;
+      title: string;
+      /** @description Chỉ tiêu kèm đơn vị đo, ví dụ "3 %" */
+      targetText: string;
+      weight: number;
+      /** @description Nhãn liên kết lên mục tiêu hoặc KR cấp trên; `null` khi chưa liên kết. */
+      link: string | null;
+      check: components['schemas']['OkrReviewCheck'];
+    };
+    OkrReviewObjective: {
+      id: components['schemas']['Uuid'];
+      code: string;
+      title: string;
+      /** @description Mã mục tiêu cấp trên */
+      parentCode: string | null;
+      versionNo: number;
+      /** @description Gửi lại trong `If-Match` khi phê duyệt hoặc trả lại. */
+      rowVersion: components['schemas']['RowVersion'];
+      check: components['schemas']['OkrReviewCheck'];
+      /** @description Toàn bộ kết quả kiểm tra chi tiết (tuỳ chọn, như `OkrObjective.checks`). */
+      checks?: components['schemas']['OkrCheckResult'][];
+      keyResults: components['schemas']['OkrReviewKr'][];
+    };
+    /** @description Một bộ OKR của đơn vị cấp dưới đã trình, đang chờ người gọi duyệt (SCR-0203 vùng 1). */
+    OkrReviewSet: {
+      /** @description Mã bộ trình duyệt, ổn định trong kỳ (suy luận; dùng mã phiên `duyet-okr` hoặc tổ hợp đơn vị và kỳ). */
+      id: string;
+      unit: components['schemas']['Ref'];
+      periodId: components['schemas']['Uuid'];
+      submittedAt: components['schemas']['DateTime'];
+      submittedBy: components['schemas']['Ref'];
+      /** @description Lần trình duyệt */
+      versionNo: number;
+      objectiveCount: number;
+      krCount: number;
+      summary: components['schemas']['OkrReviewCheck'];
+      /** @description Số kết quả `LOI_CHAN` */
+      blockingCount: number;
+      /** @description Số kết quả `CANH_BAO` */
+      warningCount: number;
+      /** @description Người gọi là người soạn bộ này nên không được duyệt (BR-02-08, MSG-02-11). */
+      viewerIsAuthor: boolean;
+      objectives: components['schemas']['OkrReviewObjective'][];
+    };
+    /** @description Hàng chờ phê duyệt OKR của người gọi trong kỳ (`GET /okr/reviews`, SCR-0203). */
+    OkrReviewQueue: {
+      period: components['schemas']['OkrPeriodInfo'];
+      periods: components['schemas']['OkrPeriodInfo'][];
+      /** @description Hạn duyệt sớm nhất trong hàng chờ; vắng khi hàng chờ rỗng. */
+      dueDate?: components['schemas']['Date'];
+      reviewer: components['schemas']['OkrPersonOption'];
+      /** @description Quy trình `duyet-okr` đang áp dụng (`flowable` process definition). */
+      workflow: {
+        /** @example duyet-okr */
+        code: string;
+        version: number;
+      };
+      items: components['schemas']['OkrReviewSet'][];
+    };
+    /**
      * Format: uuid
      * @description Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).
      * @example 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a77
@@ -985,6 +1239,11 @@ export interface components {
       problem?: components['schemas']['ProblemDetails'];
       updatedAt?: components['schemas']['DateTime'];
     };
+    /**
+     * @description Trạng thái kỳ `config.period.status` (baseline mục 9.1).
+     * @enum {string}
+     */
+    PeriodStatus: 'MO' | 'DANG_KHOA' | 'DA_KHOA' | 'MO_LAI_HAU_KIEM';
   };
   responses: {
     /** @description Lỗi khác theo RFC 9457. */
@@ -1881,6 +2140,93 @@ export interface operations {
           'application/json': components['schemas']['OkrBasisPage'];
         };
       };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getOkrTree: {
+    parameters: {
+      query?: {
+        /** @description Mã kỳ đánh giá (`config.period.id`). */
+        period?: components['parameters']['PeriodId'];
+        /** @description Đơn vị (`org.org_unit.id`); máy chủ kiểm phạm vi theo ABAC. */
+        unit?: components['parameters']['UnitId'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Cây mục tiêu và ngữ cảnh. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OkrTree'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getOkrComposeContext: {
+    parameters: {
+      query?: {
+        /** @description Mã kỳ đánh giá (`config.period.id`). */
+        period?: components['parameters']['PeriodId'];
+        /** @description Mục tiêu đang sửa; vắng khi soạn mới. */
+        objective?: components['schemas']['Uuid'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Ngữ cảnh soạn. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OkrComposeContext'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listOkrReviews: {
+    parameters: {
+      query?: {
+        /** @description Mã kỳ đánh giá (`config.period.id`). */
+        period?: components['parameters']['PeriodId'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Hàng chờ duyệt. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OkrReviewQueue'];
+        };
+      };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       default: components['responses']['Problem'];
