@@ -2,6 +2,8 @@ import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import {
+  DATA_CENTER_LABEL,
+  TENANCY_MODEL_LABEL,
   TENANT_ONBOARDING_STATUSES,
   TENANT_SECTOR_LABEL,
   TENANT_STATUS_LABEL,
@@ -9,7 +11,7 @@ import {
   TenantStatus,
 } from '@vt/api-client';
 import { MessageModule } from 'primeng/message';
-import { errorText, fmtDate, fmtInt } from '../admin-ui';
+import { errorText, fmtDate, fmtDateTime, fmtInt } from '../admin-ui';
 import { MSG_01_02 } from './tenants.page';
 
 const FLOW_LABEL = { DANG: 'Đảng', NHA_NUOC: 'Nhà nước' } as const;
@@ -22,20 +24,20 @@ const DOMAIN_KIND_LABEL = {
 /**
  * Chi tiết tenant, mở từ nút "Chi tiết" của SCR-0101. TL-02 không vẽ màn hình riêng nên trang chỉ đọc:
  * thông tin tenant lấy từ `GET /config/tenants/{id}` (`ConfigTenant`), tên miền lấy từ
- * `GET /registry/tenants/{id}` (`RegistryTenant`). Hợp đồng chưa có nhật ký trạng thái
- * (`registry.tenant_status_log`) và tên UI Pack nên trang chưa hiện hai phần đó (wiki/14).
+ * `GET /registry/tenants/{id}` (`RegistryTenant`); nhật ký trạng thái (`registry.tenant_status_log`)
+ * và UI Pack lấy từ `ConfigTenant.statusLog`, `ConfigTenant.uiPack`.
  */
 @Component({
   selector: 'vt-tenant-detail-page',
   imports: [RouterLink, MessageModule],
   template: `
     <nav class="crumb" aria-label="Đường dẫn">
-      <a routerLink="..">Danh sách tenant</a> /
+      <a routerLink="..">Danh sách đơn vị triển khai</a> /
       <span aria-current="page">{{ t()?.name ?? 'Chi tiết' }}</span>
     </nav>
     @if (tenant.error()) {
       <p-message severity="error" styleClass="msg">
-        <span>{{ err(tenant.error(), 'Không tải được tenant.') }}</span>
+        <span>{{ err(tenant.error(), 'Không tải được thông tin đơn vị triển khai.') }}</span>
         <button type="button" class="link" (click)="tenant.reload()">Thử lại</button>
       </p-message>
     } @else if (t(); as t) {
@@ -48,21 +50,21 @@ const DOMAIN_KIND_LABEL = {
       }
       <div class="cols">
         <section class="box" aria-labelledby="info-title">
-          <h2 id="info-title" class="h">Thông tin tenant</h2>
+          <h2 id="info-title" class="h">Thông tin đơn vị triển khai</h2>
           <dl>
             <dt>Mã</dt>
             <dd>{{ t.code }}</dd>
             <dt>Trạng thái</dt>
             <dd>{{ status(t.status) }}</dd>
-            <dt>Nhóm khách hàng</dt>
+            <dt>Khối, lĩnh vực</dt>
             <dd>{{ t.sector ? sector(t.sector) : '—' }}</dd>
             <dt>Luồng đánh giá</dt>
             <dd>{{ flows() }}</dd>
-            <dt>Cell, mô hình</dt>
+            <dt>Cụm máy chủ, mức cô lập</dt>
             <dd>
-              {{ t.cellCode ?? '—' }} · {{ t.tenancyModel ?? '—' }}
+              {{ t.cellCode ?? '—' }} · {{ t.tenancyModel ? modelLabel[t.tenancyModel] : '—' }}
               @if (t.dataRegion) {
-                · vùng dữ liệu {{ t.dataRegion }}
+                · vùng lưu dữ liệu {{ dc(t.dataRegion) }}
               }
             </dd>
             <dt>Tài khoản</dt>
@@ -72,8 +74,10 @@ const DOMAIN_KIND_LABEL = {
                 · dự kiến {{ int(t.expectedAccounts) }}
               }
             </dd>
-            <dt>Policy Pack đang gắn</dt>
+            <dt>Bộ quy định đánh giá</dt>
             <dd>{{ packs() || 'Chưa gắn' }}</dd>
+            <dt>Bộ giao diện</dt>
+            <dd>{{ t.uiPack ? uiPack(t.uiPack) : 'Chưa gắn' }}</dd>
             <dt>Hợp đồng</dt>
             <dd>
               {{ t.contractRef ?? '—' }}
@@ -104,10 +108,31 @@ const DOMAIN_KIND_LABEL = {
               }
             </ul>
           </section>
+          <section class="box" aria-labelledby="log-title">
+            <h2 id="log-title" class="h">Nhật ký trạng thái</h2>
+            @if (t.statusLog?.length) {
+              <ol class="log">
+                @for (l of t.statusLog; track l.id) {
+                  <li>
+                    <span class="muted">{{ dateTime(l.changedAt) }}</span> ·
+                    @if (l.fromStatus) {
+                      {{ status(l.fromStatus) }} →
+                    }
+                    {{ status(l.toStatus) }}
+                    @if (l.reason) {
+                      <span class="muted"> · {{ l.reason }}</span>
+                    }
+                  </li>
+                }
+              </ol>
+            } @else {
+              <p class="muted">Chưa có thay đổi trạng thái.</p>
+            }
+          </section>
         </div>
       </div>
     } @else {
-      <p class="muted" aria-busy="true">Đang tải tenant…</p>
+      <p class="muted" aria-busy="true">Đang tải thông tin đơn vị triển khai…</p>
     }
   `,
   styles: `
@@ -158,7 +183,8 @@ const DOMAIN_KIND_LABEL = {
     dd {
       margin: 0;
     }
-    ul {
+    ul,
+    .log {
       margin: 0;
       padding-left: 20px;
       display: grid;
@@ -205,7 +231,8 @@ export class TenantDetailPage {
   );
   protected readonly packs = computed(() =>
     (this.t()?.policyBindings ?? [])
-      .map((b) => (b.version ? `${b.packCode ?? b.packVersionId} v${b.version}` : b.packCode))
+      .filter((b) => !!b.packCode)
+      .map((b) => (b.version ? `${b.packCode} v${b.version}` : b.packCode))
       .join(' + '),
   );
   protected readonly onboarding = computed(() => {
@@ -220,10 +247,15 @@ export class TenantDetailPage {
   );
 
   protected readonly domainKind = DOMAIN_KIND_LABEL;
+  protected readonly modelLabel = TENANCY_MODEL_LABEL;
+  protected dc = (code: string) => DATA_CENTER_LABEL[code] ?? code;
   protected readonly int = fmtInt;
   protected readonly date = fmtDate;
+  protected readonly dateTime = fmtDateTime;
   protected readonly err = errorText;
   protected readonly msg = MSG_01_02;
   protected status = (s: TenantStatus) => TENANT_STATUS_LABEL[s];
   protected sector = (s: string) => TENANT_SECTOR_LABEL[s] ?? s;
+  protected uiPack = (p: { name: string; version: string }) =>
+    p.version ? `${p.name} v${p.version}` : p.name;
 }

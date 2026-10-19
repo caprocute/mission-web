@@ -109,12 +109,12 @@ describe('ReopenDetailPage (SCR-1301)', () => {
     const el = await render(ReopenDetailPage, () => true, 'rr-2026-007');
     await until(el, '.tbl tbody tr', has('91,2'));
     expect(text(el.querySelector('h1'))).toContain('MLK-2026-007 Chờ người duyệt thứ hai');
-    expect(text(el.querySelector('#scope-h')!.parentElement)).toContain('Hệ số C');
+    expect(text(el.querySelector('#scope-h')!.parentElement)).toContain('Tiến độ (C)');
     expect(text(el.querySelector('.slots'))).toContain('Ngô Thanh Tâm');
     expect(text(el.querySelector('.slots'))).toContain('Đang chờ duyệt');
     expect(text(el.querySelector('.decide'))).toContain('Duyệt lượt thứ hai');
     type(el, '#dec-comment', 'Đồng ý mở lại một hồ sơ.');
-    await press(el, 'Xác thực và phê duyệt');
+    await press(el, 'Xác thực nhiều lớp và duyệt');
     const ok = await until(el, 'p-message', has('đủ hai phê duyệt'));
     expect(text(ok)).toContain('Kỳ Quý II/2026 được mở lại trong phạm vi 1 đối tượng');
     expect(text(el.querySelector('h1'))).toContain('Đã đủ hai phê duyệt');
@@ -125,7 +125,7 @@ describe('ReopenDetailPage (SCR-1301)', () => {
     const el = await render(ReopenDetailPage, () => true, 'rr-2026-009');
     await until(el, '.decide');
     type(el, '#dec-comment', 'Đồng ý mở lại phiếu tự đánh giá.');
-    await press(el, 'Xác thực và phê duyệt');
+    await press(el, 'Xác thực nhiều lớp và duyệt');
     const err = await until(el, 'p-message', has('Hai người duyệt phải là hai người khác nhau'));
     expect(text(err)).toContain('khác người tạo yêu cầu');
   });

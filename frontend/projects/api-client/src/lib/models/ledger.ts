@@ -44,6 +44,7 @@ export interface LedgerExportInput {
   includeVerifyRunId?: string;
 }
 
+/** Loại kiểm tra (TL-03 mục 8: đầu chuỗi 15 phút, niêm phong mỗi giờ, toàn bộ hằng tuần, lưu trữ hằng quý). */
 export const LEDGER_VERIFY_KIND_LABEL: Record<LedgerVerifyKind, string> = {
   DAU_CHUOI: 'Các bản ghi mới nhất',
   NIEM_PHONG: 'Các bản niêm phong',
@@ -53,10 +54,11 @@ export const LEDGER_VERIFY_KIND_LABEL: Record<LedgerVerifyKind, string> = {
 
 export const LEDGER_ACTOR_KIND_LABEL: Record<LedgerActorKind, string> = {
   NGUOI: 'Người dùng',
-  DICH_VU: 'Dịch vụ',
+  DICH_VU: 'Hệ thống (xử lý tự động)',
   HE_THONG: 'Hệ thống',
 };
 
+/** Nơi giữ bản neo (`anchor_target`): `CELL_KHAC` là cell khác, `OBJECT_LOCK` là kho đối tượng khoá ghi. */
 export const LEDGER_ANCHOR_TARGET_LABEL: Record<LedgerAnchorReceipt['anchorTarget'], string> = {
   CELL_KHAC: 'Trung tâm dữ liệu dự phòng',
   KHO_VPTW: 'Kho lưu trữ VPTW',

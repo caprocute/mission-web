@@ -74,7 +74,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
   ],
   template: `
     @if (!can('SCR-0402.xem')) {
-      <p class="msg warn">Anh/chị không có quyền xem kế hoạch quý của đơn vị.</p>
+      <p class="msg warn">Đồng chí không có quyền xem kế hoạch quý của đơn vị.</p>
     } @else if (ws.error()) {
       <p class="msg err" role="alert">{{ loadError() }}</p>
     } @else if (ws.value(); as w) {
@@ -83,13 +83,8 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
         <div>
           <h1>Kế hoạch công tác {{ v.period.label }}</h1>
           <p class="muted sub">
-            {{ v.unitName }} · Bảng 1 PL 1 · phiên bản {{ v.versionNo }} ·
-            <p-tag
-              [value]="v.status"
-              [severity]="statusSeverity(v.status)"
-              [title]="statusLabel(v.status)"
-            />
-            <span class="sr-only">{{ statusLabel(v.status) }}</span>
+            {{ v.unitName }} · Bảng 1, Phụ lục 1 · phiên bản {{ v.versionNo }} ·
+            <p-tag [value]="statusLabel(v.status)" [severity]="statusSeverity(v.status)" />
           </p>
           <div class="pickers">
             <label for="pl-period" class="sr-only">Kỳ</label>
@@ -187,8 +182,8 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
               >Hạn phê duyệt kế hoạch là <strong>{{ date(deadline()) }}</strong
               >. Còn {{ v.workingDaysToDeadline }} ngày làm việc.
               @if (!simple()) {
-                (Hết tuần thứ 2 của tháng đầu quý, tham số Policy Pack. Quá hạn, hệ thống báo người
-                đứng đầu và ghi nhận vào dấu hiệu bất thường.)
+                (Hạn là hết tuần thứ 2 của tháng đầu quý theo bộ quy định đánh giá của đơn vị. Nếu
+                quá hạn, hệ thống báo người đứng đầu và ghi nhận là dấu hiệu bất thường.)
               }
             </span>
           </p>
@@ -199,7 +194,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
       } @else if (v.status === 'CHO_DUYET') {
         <p class="msg info">
           Đã gửi duyệt lúc {{ summary()?.submittedAt | date: 'dd/MM/yyyy HH:mm' }}; nội dung đã
-          khoá. Mã băm phiên bản: <code class="hash">{{ v.contentHash }}</code>
+          khoá. Mã kiểm tra toàn vẹn: <code class="hash">{{ v.contentHash }}</code>
         </p>
       } @else if (v.status === 'DA_DUYET') {
         <p class="msg ok">
@@ -373,8 +368,8 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
                 (onClick)="addBlank()"
               />
               <span class="muted small"
-                >Điểm của việc lấy từ danh mục (Bảng 3); việc ngoài danh mục cần cấp duyệt chấm
-                điểm.</span
+                >Điểm của việc lấy từ danh mục (Bảng 3, Phụ lục 1); việc ngoài danh mục cần cấp
+                duyệt chấm điểm.</span
               >
             </div>
           }
@@ -408,18 +403,19 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
             </table>
             @if (v.groupWeights.policyPackName) {
               <p class="small">
-                Policy Pack <strong>{{ v.groupWeights.policyPackName }}</strong>
+                Bộ quy định đánh giá <strong>{{ v.groupWeights.policyPackName }}</strong>
                 @if (v.groupWeights.policyPackVersion) {
-                  phiên bản {{ v.groupWeights.policyPackVersion }}
+                  · phiên bản {{ v.groupWeights.policyPackVersion }}
                 }
                 @if (v.groupWeights.flow) {
-                  · luồng {{ v.groupWeights.flow === 'DANG' ? 'Đảng' : 'Nhà nước' }}
+                  · đánh giá theo quy định của
+                  {{ v.groupWeights.flow === 'DANG' ? 'Đảng' : 'Nhà nước' }}
                 }
               </p>
             }
             @if (!simple()) {
               <p class="muted small">
-                Tỷ trọng do cấp có thẩm quyền quyết định, cấu hình trong Policy Pack của đơn vị.
+                Tỷ trọng do cấp có thẩm quyền quyết định trong bộ quy định đánh giá của đơn vị.
               </p>
             }
           </section>
@@ -463,7 +459,8 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
         closeAriaLabel="Đóng"
         [style]="{ width: 'min(600px, 95vw)' }"
       >
-        <p class="muted">Một dòng đề xuất cho mỗi KR đã duyệt chưa có nhiệm vụ (BR-04-07).</p>
+        <!-- BR-04-07 -->
+        <p class="muted">Một dòng đề xuất cho mỗi KR đã duyệt chưa có nhiệm vụ.</p>
         @for (s of suggestions(); track $index) {
           <div class="sg">
             <p-checkbox
@@ -543,8 +540,8 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
         [style]="{ width: 'min(520px, 95vw)' }"
       >
         <p>
-          Dòng "{{ removing()?.title }}" có trong phiên bản đã duyệt; bỏ dòng cần ghi lý do
-          (BR-04-10).
+          <!-- BR-04-10 -->
+          Dòng "{{ removing()?.title }}" có trong phiên bản đã duyệt; bỏ dòng cần ghi lý do.
         </p>
         <div class="field">
           <label for="rm-reason">Lý do bỏ dòng (bắt buộc)</label>

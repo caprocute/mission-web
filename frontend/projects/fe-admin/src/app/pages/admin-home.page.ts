@@ -7,25 +7,43 @@ import { ADMIN_CAN } from '../admin-permissions';
   selector: 'vt-admin-home-page',
   imports: [RouterLink],
   template: `
-    <h1>Quản trị tenant</h1>
-    @if (can('SCR-0103.xem') || can('SCR-0104.xem') || can('SCR-0801.xem')) {
+    <h1>Quản trị</h1>
+    @if (
+      can('SCR-0103.xem') ||
+      can('SCR-0104.xem') ||
+      can('SCR-0801.xem') ||
+      can('SCR-0105.xem') ||
+      can('SCR-0107.xem')
+    ) {
       <ul class="links">
         @if (can('SCR-0103.xem')) {
           <li>
-            <a routerLink="org">Cây tổ chức</a> · xem, nhập và thay đổi cơ cấu theo thời gian hiệu
-            lực
+            <a routerLink="org">Cây tổ chức</a>: xem, nhập và thay đổi cơ cấu tổ chức theo thời gian
+            hiệu lực
           </li>
         }
         @if (can('SCR-0104.xem')) {
           <li>
-            <a routerLink="org/sync">Đồng bộ nhân sự</a> · theo dõi lần đồng bộ, đối soát dữ liệu
-            lệch
+            <a routerLink="org/sync">Đồng bộ nhân sự</a>: theo dõi các lần đồng bộ, đối soát dữ liệu
+            nhân sự bị lệch
+          </li>
+        }
+        @if (can('SCR-0105.xem')) {
+          <li>
+            <a routerLink="access">Vai trò theo đơn vị</a>: cấp, duyệt thứ hai, thu hồi vai trò có
+            thời hạn
+          </li>
+        }
+        @if (can('SCR-0107.xem')) {
+          <li>
+            <a routerLink="access/delegations">Uỷ quyền khi vắng mặt</a>: duyệt thay, nghiệm thu
+            thay, check-in KR thay có thời hạn
           </li>
         }
         @if (can('SCR-0801.xem')) {
           <li>
-            <a routerLink="periods">Kỳ đánh giá</a> · lịch kỳ, lệnh khoá kỳ và tiến trình saga khoá
-            kỳ
+            <a routerLink="periods">Kỳ đánh giá</a>: lịch kỳ đánh giá, lệnh khoá kỳ và tiến trình
+            khoá kỳ
           </li>
         }
       </ul>

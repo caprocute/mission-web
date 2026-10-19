@@ -38,10 +38,15 @@ export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
 /**
  * Đọc `/config.json` trước khi bootstrap. Gọi trong main.ts để cấu hình có mặt
  * trước khi bất kỳ provider nào cần đến nó.
+ *
+ * `source` có thể là phản hồi đã được gửi từ trước (WEB-052): shell bắt đầu tải `config.json`
+ * ngay trong main.ts, song song với `initFederation`, thay vì chờ tới khi nạp xong bootstrap.
  */
-export async function loadRuntimeConfig(url = '/config.json'): Promise<RuntimeConfig> {
+export async function loadRuntimeConfig(
+  source: string | Promise<Response> = '/config.json',
+): Promise<RuntimeConfig> {
   try {
-    const res = await fetch(url, { cache: 'no-cache' });
+    const res = await (typeof source === 'string' ? fetch(source, { cache: 'no-cache' }) : source);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const cfg = (await res.json()) as Partial<RuntimeConfig>;
     return { ...DEFAULT_RUNTIME_CONFIG, ...cfg, auth: { ...DEFAULT_RUNTIME_CONFIG.auth, ...cfg.auth } };

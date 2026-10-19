@@ -6,6 +6,7 @@ import {
   RegistryTenant,
   TENANT_ONBOARDING_STATUSES,
   TENANT_STATUS_LABEL,
+  TENANCY_MODEL_LABEL,
   TenancyModel,
   TenantExportRequest,
   TenantRow,
@@ -51,6 +52,13 @@ const packId = (name: string) =>
     .toString()
     .padStart(12, '0')}`;
 
+/** Tách "tên vX.Y" của UI Pack thành `{ name, version }` theo `ConfigTenant.uiPack`. */
+function uiPackRef(p: string): ConfigTenant['uiPack'] {
+  if (!p) return undefined;
+  const m = /^(.*) v(\d+(?:\.\d+)*)$/.exec(p);
+  return m ? { name: m[1], version: m[2] } : { name: p, version: '' };
+}
+
 function detail(t: StoredTenant): ConfigTenant {
   const bindings = t.policyPacks.map((p) => {
     const m = /^(.*) v(\d+(?:\.\d+)*)$/.exec(p);
@@ -78,6 +86,14 @@ function detail(t: StoredTenant): ConfigTenant {
     domain: t.domain,
     dataRegion: t.dataRegion,
     policyBindings: bindings,
+    uiPack: uiPackRef(t.uiPack),
+    statusLog: t.statusLog.map((l, i) => ({
+      id: `${t.id}-log-${t.statusLog.length - i}`,
+      fromStatus: l.from ?? null,
+      toStatus: l.to,
+      reason: l.reason ?? '',
+      changedAt: l.at,
+    })),
     status: t.status,
     onboardingStep: TENANT_ONBOARDING_STATUSES.includes(t.status) ? (t.onboardingStep ?? 1) : null,
     rowVersion: t.rowVersion,
@@ -185,14 +201,14 @@ function startExport(r: MockRequest): MockResponse {
   const rows = filtered((r.body ?? {}) as TenantExportRequest);
   const csv = [
     [
-      'Tenant',
+      'Đơn vị triển khai',
       'Mã',
       'Tên miền',
-      'Cell',
-      'Mô hình',
+      'Cụm máy chủ',
+      'Mức cô lập',
       'Tài khoản',
-      'Policy Pack',
-      'UI Pack',
+      'Bộ quy định đánh giá',
+      'Bộ giao diện',
       'Trạng thái',
     ],
     ...rows.map((t) => [
@@ -200,7 +216,7 @@ function startExport(r: MockRequest): MockResponse {
       t.code,
       t.domain,
       t.cellCode,
-      t.tenancyModel,
+      TENANCY_MODEL_LABEL[t.tenancyModel],
       t.accountCount,
       t.policyPacks.join(' + '),
       t.uiPack,
@@ -220,7 +236,7 @@ function startExport(r: MockRequest): MockResponse {
 
 function exportJob(r: MockRequest): MockResponse {
   const e = exports.get(r.pathParams['jobId']);
-  if (!e) return problem(404, 'Không tìm thấy tác vụ xuất');
+  if (!e) return problem(404, 'Không tìm thấy yêu cầu xuất danh sách.');
   e.polls++;
   const id = e.job.id;
   e.job =
@@ -230,16 +246,16 @@ function exportJob(r: MockRequest): MockResponse {
           type: 'EXPORT',
           status: 'HOAN_TAT',
           progress: 100,
-          message: 'Đã tạo tệp danh sách tenant',
+          message: 'Đã tạo tệp danh sách đơn vị triển khai',
           resultLocation: `/api/v1/config/tenants/exports/${id}/file`,
         }
-      : { id, type: 'EXPORT', status: 'DANG_CHAY', progress: 50, message: 'Đang tổng hợp' };
+      : { id, type: 'EXPORT', status: 'DANG_CHAY', progress: 50, message: 'Đang tổng hợp dữ liệu' };
   return ok(e.job);
 }
 
 function exportFile(r: MockRequest): MockResponse {
   const e = exports.get(r.pathParams['jobId']);
-  if (!e || e.job.status !== 'HOAN_TAT') return problem(404, 'Tệp xuất chưa sẵn sàng');
+  if (!e || e.job.status !== 'HOAN_TAT') return problem(404, 'Tệp xuất chưa sẵn sàng.');
   // BOM để Excel đọc đúng tiếng Việt có dấu
   return {
     status: 200,
@@ -266,7 +282,7 @@ export const TENANTS_MOCK: MockModule = {
       pattern: '/api/v1/config/tenants/:id',
       handle: (r) => {
         const t = load().find((x) => x.id === r.pathParams['id']);
-        if (!t) return problem(404, 'Không tìm thấy tenant');
+        if (!t) return problem(404, 'Không tìm thấy đơn vị triển khai.');
         return ok(detail(t));
       },
     },
@@ -275,7 +291,7 @@ export const TENANTS_MOCK: MockModule = {
       pattern: '/api/v1/registry/tenants/:id',
       handle: (r) => {
         const t = load().find((x) => x.id === r.pathParams['id']);
-        return t ? ok(registry(t)) : problem(404, 'Không tìm thấy tenant');
+        return t ? ok(registry(t)) : problem(404, 'Không tìm thấy đơn vị triển khai.');
       },
     },
   ],

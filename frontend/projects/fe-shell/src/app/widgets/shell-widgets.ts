@@ -4,6 +4,8 @@ import {
   MyTasksTodaySlot,
   OkrProgressSlot,
   PendingApprovalsSlot,
+  loadAnnouncementWidget,
+  loadMyTasksTodayWidget,
 } from './widget-slots';
 
 /**
@@ -17,6 +19,8 @@ export const SHELL_WIDGETS: RegistryEntry[] = [
     name: 'vt.widget.myTasksToday',
     since: '2.0.0',
     load: () => Promise.resolve(MyTasksTodaySlot),
+    // tải trước widget thật trong remote ngay khi có bố cục (WEB-052); lỗi do ô giữ chỗ xử lý
+    prefetch: () => void loadMyTasksTodayWidget().catch(() => undefined),
     propsSchema: {
       type: 'object',
       additionalProperties: false,
@@ -43,6 +47,7 @@ export const SHELL_WIDGETS: RegistryEntry[] = [
     name: 'vt.widget.announcement',
     since: '2.1.0',
     load: () => Promise.resolve(AnnouncementSlot),
+    prefetch: () => void loadAnnouncementWidget().catch(() => undefined),
     propsSchema: {
       type: 'object',
       additionalProperties: false,

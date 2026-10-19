@@ -100,7 +100,7 @@ describe('PlanPage (SCR-0402)', () => {
 
   it('kỳ chờ duyệt chỉ đọc, có lối sang màn phê duyệt khi được phép', async () => {
     const el = await render('.tbl tbody tr', () => true, { plan: 'plan-2026-q4' });
-    expect(text(el.querySelector('.sub'))).toContain('CHO_DUYET');
+    expect(text(el.querySelector('.sub'))).toContain('Chờ duyệt');
     expect(buttons(el, '.actions')).toEqual(['Xem xét và duyệt']);
     TestBed.resetTestingModule();
     const ro = await render('.tbl tbody tr', (k) => !k.startsWith('SCR-0403'), {
@@ -131,7 +131,7 @@ describe('PlanPage (SCR-0402)', () => {
     await new Promise((r) => setTimeout(r, 20));
     click(dialog, 'Tạo điều chỉnh');
     await until(el, '.sub', (e) => text(e).includes('phiên bản 3'));
-    expect(text(el.querySelector('.sub'))).toContain('NHAP');
+    expect(text(el.querySelector('.sub'))).toContain('Nháp');
     (el.querySelector('[aria-label="Sửa dòng 1"]') as HTMLElement).click();
     await until(el, '#pi-qty');
     const qty = el.querySelector('#pi-qty') as HTMLInputElement;

@@ -1,7 +1,7 @@
 /*
  * SCR-1302 "Tra cứu sổ cái và kiểm tra toàn vẹn" (QT-13 bước 2, 3; TL-02 Hình 11.8) — đối chiếu đặc tả:
  * Tác nhân AC-10 (`inspector`), AC-07 xem trong phạm vi đơn vị; web máy tính. Đường vào: menu "Giám sát ›
- *   Sổ cái"; liên kết từ SCR-1301 (`?aggregateType=&aggregateId=`) và SCR-1401.
+ *   Sổ cái"; liên kết từ SCR-1301 (`?aggregateType=&aggregateId=`) và SCR-1401 (`?entryId=`).
  * Trường: 1 đối tượng (loại và mã); 2 khoảng thời gian (mặc định 90 ngày gần nhất, tối đa 2 năm); 3 loại sự
  *   kiện (topic EVT); 4 bảng bản ghi (mã, thời điểm, sự kiện, người, trước, sau; phân trang con trỏ; trường
  *   C2 đã che); 5 kết quả chuỗi (prev, hash, khớp); 6 lần kiểm tra (mã, phạm vi, thời gian chạy, kết quả);
@@ -134,7 +134,7 @@ const isoDate = (d: Date) => {
           />
         </div>
         <div class="f">
-          <label for="lg-evt">Loại sự kiện</label>
+          <label for="lg-evt">Thao tác</label>
           <p-select
             inputId="lg-evt"
             name="eventType"
@@ -173,10 +173,10 @@ const isoDate = (d: Date) => {
                   <tr>
                     <th scope="col">Bản ghi</th>
                     <th scope="col">Thời điểm</th>
-                    <th scope="col">Sự kiện</th>
+                    <th scope="col">Thao tác</th>
                     <th scope="col">Người thực hiện</th>
-                    <th scope="col">Trước</th>
-                    <th scope="col">Sau</th>
+                    <th scope="col">Giá trị trước</th>
+                    <th scope="col">Giá trị sau</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -323,14 +323,14 @@ const isoDate = (d: Date) => {
                     : 'Một phần dữ liệu'
                 }}
               </dd>
-              <dt>Bản ghi</dt>
+              <dt>Số bản ghi</dt>
               <dd>{{ int(r.entriesChecked) }}</dd>
               @if (r.sealsChecked !== undefined) {
-                <dt>Niêm phong</dt>
+                <dt>Số niêm phong</dt>
                 <dd>{{ int(r.sealsChecked) }}</dd>
               }
               <dt>Thời gian chạy</dt>
-              <dd>{{ r.finishedAt ? seconds(r) + ' giây' : 'đang chạy' }}</dd>
+              <dd>{{ r.finishedAt ? seconds(r) + ' giây' : 'Đang kiểm tra' }}</dd>
               <dt>Kết quả</dt>
               <dd [class.bad]="r.mismatches > 0">
                 @if (r.finishedAt) {
@@ -383,7 +383,7 @@ const isoDate = (d: Date) => {
             >
               <dt>Bản ghi</dt>
               <dd>Số {{ d.seqNo }} · {{ dt(d.recordedAt) }}</dd>
-              <dt>Sự kiện</dt>
+              <dt>Thao tác</dt>
               <dd>{{ event(d.eventType) }}</dd>
             </dl>
             @if (d.seal; as s) {
@@ -397,7 +397,7 @@ const isoDate = (d: Date) => {
                 <dd>
                   {{ dt(s.tsaGenTime) }}
                   @if (s.tsaLate) {
-                    <span class="warn">(dấu thời gian trễ)</span>
+                    <span class="warn">(gắn bù do dịch vụ chứng thực phản hồi chậm)</span>
                   }
                 </dd>
               </dl>
@@ -684,7 +684,8 @@ export class LedgerPage {
   protected readonly running = signal(false);
 
   // vùng 5
-  protected readonly selectedId = signal<string | null>(null);
+  // SCR-1401 "Mở sổ cái" truyền `?entryId=` để mở sẵn bản ghi
+  protected readonly selectedId = signal<string | null>(this.query.get('entryId'));
   protected readonly detail = rxResource({
     params: () => this.selectedId() ?? undefined,
     stream: ({ params }) => this.api.entry(params),
@@ -780,9 +781,7 @@ export class LedgerPage {
           const id = verifyRunIdOf(job);
           if (!id) {
             this.running.set(false);
-            this.notice.set(
-              'Đã tạo tác vụ kiểm tra toàn vẹn; kết quả có ở danh sách lần kiểm tra.',
-            );
+            this.notice.set('Đã bắt đầu kiểm tra toàn vẹn; kết quả sẽ hiện ở mục Lần kiểm tra.');
             return;
           }
           this.poll(id);
@@ -839,7 +838,8 @@ export class LedgerPage {
       .subscribe({
         next: ({ job }) => {
           this.exporting.set(false);
-          // MSG-13-07; tệp tải về ở `job.resultLocation` khi job hoàn tất
+          // MSG-13-07 (bỏ tên công cụ dòng lệnh `ledger-verify` khỏi câu hiển thị); tệp tải về ở
+          // `job.resultLocation` khi job hoàn tất
           this.notice.set(
             job.status === 'HOAN_TAT'
               ? 'Tệp bằng chứng đã sẵn sàng; tệp có chữ ký số để cơ quan kiểm tra đối chiếu độc lập.'

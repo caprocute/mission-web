@@ -75,11 +75,11 @@ import { formatDate } from '../../task-ui';
     @if (!simple()) {
       <section class="box">
         <h2 class="h">Sau khi giao</h2>
+        <!-- Giao việc phát sự kiện NhiemVuDaGiao (EVT-04) để gửi thông báo -->
         <p>
-          Nhiệm vụ chuyển trạng thái <strong>Đã giao</strong>, phát sự kiện NhiemVuDaGiao (EVT-04);
-          người chủ trì và phối hợp nhận thông báo. Nhiệm vụ chuyển sang
-          <strong>Đang thực hiện</strong> khi người chủ trì bấm Nhận việc hoặc cập nhật tiến độ lần
-          đầu.
+          Nhiệm vụ chuyển sang trạng thái <strong>Đã giao</strong>; người chủ trì và người phối hợp
+          nhận được thông báo. Nhiệm vụ chuyển sang <strong>Đang thực hiện</strong> khi người chủ
+          trì bấm Nhận việc hoặc cập nhật tiến độ lần đầu.
         </p>
       </section>
 

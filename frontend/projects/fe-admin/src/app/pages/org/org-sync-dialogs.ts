@@ -75,8 +75,8 @@ const STYLES = `
       closeAriaLabel="Đóng"
     >
       <p class="muted">
-        {{ row().sourceValueMasked }} · {{ row().externalId }}. Chọn hồ sơ của đúng người; một mã
-        ngoài chỉ gắn với một hồ sơ nội bộ.
+        {{ row().sourceValueMasked }} · {{ row().externalId }}. Chọn hồ sơ của đúng người; mỗi mã
+        tại nguồn chỉ gắn với một hồ sơ trên hệ thống.
       </p>
       <form class="row" role="search" (ngSubmit)="q.set(text().trim())">
         <label class="sr-only" for="map-q">Tìm cán bộ</label>
@@ -90,7 +90,7 @@ const STYLES = `
         <p-button type="submit" label="Tìm" severity="contrast" [outlined]="true" />
       </form>
       <fieldset>
-        <legend>Hồ sơ trên nền tảng</legend>
+        <legend>Hồ sơ trên hệ thống</legend>
         @for (p of people.value()?.items ?? []; track p.id) {
           <label class="opt">
             <input type="radio" name="cand" [checked]="pick() === p.id" (change)="pick.set(p.id)" />
@@ -244,7 +244,7 @@ export class OrgSyncAssignDialog {
         this.busy.set(false);
         const fe = fieldErrors(toProblem(e));
         this.fe.set(fe);
-        this.error.set(Object.keys(fe).length ? null : errorText(e, 'Không giao được.'));
+        this.error.set(Object.keys(fe).length ? null : errorText(e, 'Không giao xử lý được.'));
       },
     });
   }

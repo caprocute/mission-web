@@ -79,14 +79,14 @@ export const routes: Routes = [
         path: 'config-studio',
         canMatch: [permissionGuard(...K.configStudio)],
         loadChildren: remoteRoutes('feConfigStudio'),
-        title: 'Config Studio',
+        title: 'Cấu hình nghiệp vụ',
       },
       // fe-admin: QT-01, QT-08 (SCR-0101 … SCR-0104, SCR-0801)
       {
         path: 'admin',
         canMatch: [permissionGuard(...K.admin)],
         loadChildren: remoteRoutes('feAdmin'),
-        title: 'Quản trị tenant',
+        title: 'Quản trị',
       },
       {
         path: 'khong-co-quyen',

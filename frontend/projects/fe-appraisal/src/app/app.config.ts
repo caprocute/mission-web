@@ -8,6 +8,7 @@ import {
   mockApiInterceptor,
 } from '@vt/api-client';
 import { provideDesignSystem } from '@vt/design-system';
+import { provideFormEngine } from '@vt/form-engine';
 import { ROUTES } from './appraisal.routes';
 
 /** Chạy độc lập với cấu hình mặc định và mock API; trong shell, cấu hình do shell cung cấp. */
@@ -18,6 +19,7 @@ export const appConfig: ApplicationConfig = {
     // mockApiInterceptor đứng cuối chuỗi interceptor (WEB-008)
     provideHttpClient(withFetch(), withInterceptors([idempotencyInterceptor, mockApiInterceptor])),
     provideDesignSystem(),
+    provideFormEngine(),
     { provide: RUNTIME_CONFIG, useValue: DEFAULT_RUNTIME_CONFIG },
   ],
 };

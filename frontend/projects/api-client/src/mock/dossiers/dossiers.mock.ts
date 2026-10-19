@@ -5,7 +5,8 @@ import { MockModule, MockResponse, problem } from '../mock-router';
  * Giả lập SVC-11 docgen dưới `/api/v1/dossiers` (dossiers.yaml). Hiện chỉ có "Xem trước" biểu mẫu
  * (`POST /dossiers/forms/preview`) cho SCR-0901 "Xem trước Mẫu 1B" (WEB-035): trả một tệp PDF một trang
  * có dấu "BAN NHAP". Bản giả lập dùng phông chuẩn Helvetica nên bỏ dấu tiếng Việt; bản thật do SVC-11
- * sinh từ mẫu `docgen.template`. Các màn hình QT-11 (SCR-1101, SCR-1102) bổ sung tuyến khi làm.
+ * sinh từ mẫu `docgen.template`. Tải tệp biểu mẫu đã ký (`GET /dossiers/forms/{id}/file`) cho SCR-0903
+ * "Tải Mẫu 1B" (WEB-037): biểu mẫu nào có trong `SIGNED_FORMS` thì trả PDF, còn lại 404. Các màn hình QT-11 (SCR-1101, SCR-1102) bổ sung tuyến khi làm.
  */
 
 const FORM_NAME: Record<string, string> = {
@@ -24,12 +25,13 @@ const ascii = (s: string) =>
     .replace(/([()\\])/g, '\\$1');
 
 /** Dựng PDF 1.4 tối giản: một trang A4, các dòng chữ; tính đúng bảng `xref`. */
-export function miniPdf(lines: string[]): Blob {
+export function miniPdf(lines: string[], draft = true): Blob {
   const text = lines
     .map((l, i) => `BT /F1 ${i === 0 ? 16 : 11} Tf 56 ${780 - i * 22} Td (${ascii(l)}) Tj ET`)
     .join('\n');
+  // ui-text-ok: lệnh vẽ dấu "BẢN NHÁP" trong tệp PDF mẫu, không phải văn bản giao diện
   const stamp = 'BT /F1 48 Tf 0.85 g 140 420 Td (BAN NHAP) Tj ET';
-  const content = `${stamp}\n${text}`;
+  const content = draft ? `${stamp}\n${text}` : text;
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
@@ -69,6 +71,16 @@ function preview(body: Partial<DossierFormPreviewRequest> | null): MockResponse 
   };
 }
 
+/** Mẫu 1B đã ký của hồ sơ giả lập (`signedFormId` trong `appraisals/rating-sheet.ts`). */
+const SIGNED_FORMS: Record<string, string[]> = {
+  '01928f3e-7b1a-7c3e-9a51-3f2d9c1b0f45': [
+    FORM_NAME['MAU_1B'],
+    'Can bo: Tran Minh Hoang - Quy III/2026',
+    'Ket qua xep loai: Hoan thanh tot nhiem vu',
+    'Da ky so quyet dinh ngay 12/10/2026.',
+  ],
+};
+
 export const DOSSIERS_MOCK: MockModule = {
   name: 'dossiers',
   reset: () => undefined,
@@ -77,6 +89,22 @@ export const DOSSIERS_MOCK: MockModule = {
       method: 'POST',
       pattern: '/api/v1/dossiers/forms/preview',
       handle: (req) => preview(req.body as Partial<DossierFormPreviewRequest> | null),
+    },
+    {
+      method: 'GET',
+      pattern: '/api/v1/dossiers/forms/:id/file',
+      handle: (req) => {
+        const lines = SIGNED_FORMS[req.pathParams['id']];
+        if (!lines) return problem(404, 'Không tìm thấy biểu mẫu');
+        return {
+          status: 200,
+          body: miniPdf(lines, false),
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'attachment; filename="MAU_1B-Q3-2026.pdf"',
+          },
+        };
+      },
     },
   ],
 };

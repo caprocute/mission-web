@@ -5,7 +5,7 @@ import { OVERSIGHT_CAN } from '../oversight-permissions';
 
 /**
  * Trang đầu của remote fe-oversight: lối vào các màn hình giám sát, hậu kiểm theo quyền (wiki/15a).
- * SCR-1201, SCR-1202 do WEB-042 dựng, SCR-1301, SCR-1302 do WEB-043 dựng; cảnh báo (SCR-1401) còn chờ.
+ * SCR-1201, SCR-1202 do WEB-042 dựng, SCR-1301, SCR-1302 do WEB-043 dựng, SCR-1401 do WEB-044 dựng.
  */
 @Component({
   selector: 'vt-oversight-home-page',
@@ -31,10 +31,23 @@ import { OVERSIGHT_CAN } from '../oversight-permissions';
           <span>Lập, tính thử và phê duyệt yêu cầu mở lại kỳ đã khoá với hai người duyệt.</span>
         </li>
       }
+      @if (can('SCR-1401.xem')) {
+        <li>
+          <a routerLink="alerts">Cảnh báo bất thường</a>
+          <span>Xem chuỗi truy vết, xác nhận hợp lệ, giao kiểm tra và kết luận các cảnh báo.</span>
+        </li>
+      } @else if (can('SCR-1401.nguong')) {
+        <li>
+          <a routerLink="alert-thresholds">Ngưỡng phát hiện bất thường</a>
+          <span>Điều chỉnh ngưỡng của tám dấu hiệu bất thường, lưu phiên bản có lý do.</span>
+        </li>
+      }
       @if (can('SCR-1302.tra-cuu')) {
         <li>
           <a routerLink="ledger">Sổ cái và kiểm tra toàn vẹn</a>
-          <span>Tra cứu lịch sử thay đổi, kiểm tra tính toàn vẹn của dữ liệu đánh giá.</span>
+          <span
+            >Tra cứu lịch sử thay đổi dữ liệu đánh giá và kiểm tra tính toàn vẹn của sổ cái.</span
+          >
         </li>
       }
     </ul>
@@ -73,6 +86,7 @@ export class OversightHomePage {
   }
   protected canReopen() {
     return (['tao', 'duyet-1', 'duyet-2', 'tu-choi', 'huy'] as const).some((k) =>
+      // ui-text-ok: khoá quyền, không hiện lên màn hình
       this.can(`SCR-1301.${k}`),
     );
   }

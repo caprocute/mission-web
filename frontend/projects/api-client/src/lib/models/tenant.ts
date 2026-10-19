@@ -17,7 +17,7 @@ export const TENANT_STATUS_LABEL: Record<TenantStatus, string> = {
   SAN_SANG: 'Chờ kích hoạt',
   DANG_VAN_HANH: 'Đang vận hành',
   TAM_NGUNG: 'Tạm ngừng',
-  DANG_CHUYEN_CELL: 'Đang chuyển cell',
+  DANG_CHUYEN_CELL: 'Đang chuyển cụm máy chủ',
   DA_CHAM_DUT: 'Đã chấm dứt',
 };
 
@@ -32,6 +32,27 @@ export const TENANT_ONBOARDING_STATUSES: readonly TenantStatus[] = [
 export type TenancyModel = ConfigSchemas['TenancyModel'];
 
 export const TENANCY_MODELS: readonly TenancyModel[] = ['silo', 'bridge', 'pool'];
+
+/** Tên hiển thị của mô hình thuê bao (wiki/16, bảng từ thay thế): mức cô lập dữ liệu. */
+export const TENANCY_MODEL_LABEL: Record<TenancyModel, string> = {
+  silo: 'Cụm riêng',
+  bridge: 'CSDL riêng',
+  pool: 'Dùng chung',
+};
+
+/** Trung tâm dữ liệu, vùng lưu dữ liệu (`registry.cell.primary_dc`, `dataRegion`). */
+export const DATA_CENTER_LABEL: Record<string, string> = {
+  HOALAC: 'Hoà Lạc',
+  PHIANAM: 'Phía Nam',
+  TAICHO: 'Tại chỗ',
+};
+
+/** Trạng thái cell (`registry.cell.status`). */
+export const CELL_STATUS_LABEL: Record<CellInfo['status'], string> = {
+  HOAT_DONG: 'Hoạt động',
+  BAO_TRI: 'Bảo trì',
+  NGUNG: 'Ngừng',
+};
 
 /** Một dòng của bảng tenant SCR-0101 (vùng 2), trường 1–8 (`ConfigTenantRow`). */
 export type TenantRow = ConfigSchemas['ConfigTenantRow'];

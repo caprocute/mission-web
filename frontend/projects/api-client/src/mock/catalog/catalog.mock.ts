@@ -232,7 +232,7 @@ function updateItem(r: MockRequest): MockResponse {
   if (!c || !cur) return problem(404, 'Không tìm thấy mục danh mục');
   if (c.status === 'HET_HIEU_LUC') return problem(409, 'Phiên bản đã hết hiệu lực, không sửa được');
   const ifMatch = r.headers.get('If-Match');
-  if (!ifMatch) return problem(428, 'Thiếu If-Match');
+  if (!ifMatch) return problem(428, 'Thiếu thông tin phiên bản dữ liệu. Vui lòng tải lại trang.');
   if (ifMatch.replace(/"/g, '') !== String(cur.rowVersion))
     return problem(409, 'Mục vừa được người khác cập nhật. Vui lòng tải lại.');
   const b = (r.body ?? {}) as CatalogItemInput;
@@ -288,7 +288,7 @@ function importExcel(r: MockRequest): MockResponse {
 function importJob(r: MockRequest): MockResponse {
   load();
   const j = jobs.get(r.pathParams['jobId']);
-  if (!j) return problem(404, 'Không tìm thấy tác vụ nhập');
+  if (!j) return problem(404, 'Không tìm thấy lượt nhập tệp');
   // lần hỏi đầu còn đang xử lý, lần sau xong
   if (j.polls++ > 0 && j.job.status === 'DANG_XU_LY')
     j.job = { ...j.job, status: 'XONG', finishedAt: new Date().toISOString() };
@@ -298,7 +298,7 @@ function importJob(r: MockRequest): MockResponse {
 function importErrors(r: MockRequest): MockResponse {
   load();
   const j = jobs.get(r.pathParams['jobId']);
-  if (!j) return problem(404, 'Không tìm thấy tác vụ nhập');
+  if (!j) return problem(404, 'Không tìm thấy lượt nhập tệp');
   const rows = [
     'dong,ly_do',
     ...j.job.errorGroups.flatMap((g, k) =>

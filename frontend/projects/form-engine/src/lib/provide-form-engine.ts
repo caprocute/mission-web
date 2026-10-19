@@ -1,4 +1,4 @@
-import { makeEnvironmentProviders } from '@angular/core';
+import { Provider, makeEnvironmentProviders } from '@angular/core';
 import { FormlyFieldConfig, provideFormlyCore } from '@ngx-formly/core';
 import {
   VtCatalogField,
@@ -46,28 +46,39 @@ const VALIDATION_MESSAGES: { name: string; message: string | Msg }[] = [
 ];
 
 /**
- * Đăng ký Formly với các widget `vt.input.*`, khung trường dễ truy cập và thông báo lỗi tiếng Việt
- * (ADR-05 lớp 3). Không nạp bộ kiểu PrimeNG của Formly để gói tải đầu nhỏ; widget dùng biến CSS
+ * Provider của Formly với các widget `vt.input.*`, khung trường dễ truy cập và thông báo lỗi tiếng
+ * Việt (ADR-05 lớp 3). Không nạp bộ kiểu PrimeNG của Formly để gói tải đầu nhỏ; widget dùng biến CSS
  * của PrimeNG và design system nên theo theme tenant và chế độ cao tuổi.
+ *
+ * `VtFormComponent` tự khai báo các provider này ở cấp component (WEB-052), nên Formly,
+ * `@angular/forms` và `@vt/form-engine` chỉ được tải khi một màn hình nạp lười thật sự dùng
+ * `<vt-form>`, không nằm trong lần tải đầu của shell.
+ */
+export function formEngineProviders(): Provider {
+  return provideFormlyCore({
+    wrappers: [
+      { name: 'vt-field', component: VtFormFieldWrapper },
+      { name: 'vt-section', component: VtFormSectionWrapper },
+      // tên cũ trước WEB-010, giữ để không vỡ cấu hình đã có
+      { name: 'panel', component: VtFormSectionWrapper },
+    ],
+    types: [
+      { name: 'vt-text', component: VtTextField, wrappers: ['vt-field'] },
+      { name: 'vt-score', component: VtScoreField, wrappers: ['vt-field'] },
+      { name: 'vt-textarea', component: VtTextareaField, wrappers: ['vt-field'] },
+      { name: 'vt-date', component: VtDateField, wrappers: ['vt-field'] },
+      { name: 'vt-catalog', component: VtCatalogField, wrappers: ['vt-field'] },
+      { name: 'vt-checkbox', component: VtCheckboxField },
+    ],
+    validationMessages: VALIDATION_MESSAGES,
+  });
+}
+
+/**
+ * Đăng ký Formly ở cấp môi trường (ứng dụng hoặc tuyến). Không bắt buộc vì `<vt-form>` đã tự có
+ * provider; chỉ dùng khi màn hình dựng `formly-form` trực tiếp. Không gọi trong `app.config` của
+ * shell để trang chủ không tải Formly (WEB-052).
  */
 export function provideFormEngine() {
-  return makeEnvironmentProviders([
-    provideFormlyCore({
-      wrappers: [
-        { name: 'vt-field', component: VtFormFieldWrapper },
-        { name: 'vt-section', component: VtFormSectionWrapper },
-        // tên cũ trước WEB-010, giữ để không vỡ cấu hình đã có
-        { name: 'panel', component: VtFormSectionWrapper },
-      ],
-      types: [
-        { name: 'vt-text', component: VtTextField, wrappers: ['vt-field'] },
-        { name: 'vt-score', component: VtScoreField, wrappers: ['vt-field'] },
-        { name: 'vt-textarea', component: VtTextareaField, wrappers: ['vt-field'] },
-        { name: 'vt-date', component: VtDateField, wrappers: ['vt-field'] },
-        { name: 'vt-catalog', component: VtCatalogField, wrappers: ['vt-field'] },
-        { name: 'vt-checkbox', component: VtCheckboxField },
-      ],
-      validationMessages: VALIDATION_MESSAGES,
-    }),
-  ]);
+  return makeEnvironmentProviders([formEngineProviders()]);
 }

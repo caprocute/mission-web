@@ -369,7 +369,8 @@ function seedHistory(): HistoryRow[] {
       effectiveOn: MERGE,
       recordedAt: '2025-02-28T16:20:00+07:00',
       title: 'Hợp nhất',
-      detail: 'Sở Nội vụ + chức năng lao động của Sở LĐ-TB&XH · 214 phân công chuyển tự động',
+      detail:
+        'Sở Nội vụ và chức năng lao động của Sở Lao động – Thương binh và Xã hội; 214 phân công được chuyển theo',
       orderNo: '512/QĐ-UBND',
     },
     {

@@ -48,7 +48,7 @@ function rangeError(from?: string | null, to?: string | null): MockResponse | nu
         errors: [{ field: 'from', message: 'Ngày bắt đầu phải trước ngày kết thúc.' }],
       });
     if (t - f > LEDGER_MAX_RANGE_DAYS * DAY)
-      return problem(422, 'Khoảng thời gian tối đa 2 năm mỗi lần tra cứu', {
+      return problem(422, 'Mỗi lần tra cứu chỉ được chọn khoảng thời gian tối đa 2 năm.', {
         code: 'LEDGER-422-RANGE-TOO-LONG',
         errors: [{ field: 'from', message: 'Chọn khoảng thời gian không quá 2 năm.' }],
       });
@@ -84,7 +84,7 @@ function list(req: MockRequest): MockResponse {
 
 function detail(req: MockRequest): MockResponse {
   const e = entries.find((x) => x.id === req.pathParams['id']);
-  if (!e) return problem(404, 'Không tìm thấy bản ghi sổ cái');
+  if (!e) return problem(404, 'Không tìm thấy bản ghi sổ cái.');
   const t = new Date(e.occurredAt);
   t.setMinutes(0, 0, 0);
   const windowStart = t.toISOString();
@@ -115,13 +115,13 @@ function detail(req: MockRequest): MockResponse {
           {
             id: `anc-vptw-${e.id}`,
             anchorTarget: 'KHO_VPTW',
-            receipt: `Biên nhận số ${e.seqNo}/VPTW đã ký bằng chứng thư Cơ quan giám sát`,
+            receipt: `Biên nhận số ${e.seqNo}/VPTW, ký bằng chứng thư số của cơ quan giám sát`,
             anchoredAt: new Date(Date.parse(windowEnd) + 300_000).toISOString(),
           },
           {
             id: `anc-tsa-${e.id}`,
             anchorTarget: 'TSA_DOC_LAP',
-            receipt: 'Viettel-CA · RFC 3161',
+            receipt: 'Dấu thời gian được chứng thực của Viettel-CA',
             anchoredAt: new Date(Date.parse(windowEnd) + 120_000).toISOString(),
           },
         ]
@@ -140,7 +140,7 @@ function listRuns(req: MockRequest): MockResponse {
 
 function getRun(req: MockRequest): MockResponse {
   const r = runs.find((x) => x.id === req.pathParams['id']);
-  if (!r) return problem(404, 'Không tìm thấy lần kiểm tra');
+  if (!r) return problem(404, 'Không tìm thấy lần kiểm tra.');
   const left = pending.get(r.id);
   if (left !== undefined) {
     if (left <= 1) {
@@ -210,7 +210,7 @@ function startRun(req: MockRequest): MockResponse {
   const part = b.chainPartition;
   if (part != null && (!Number.isInteger(part) || part < 0 || part > 63))
     return problem(422, 'Dữ liệu không hợp lệ', {
-      errors: [{ field: 'chainPartition', message: 'Phân vùng từ 0 đến 63.' }],
+      errors: [{ field: 'chainPartition', message: 'Phân vùng là số từ 0 đến 63.' }],
     });
   const err = rangeError(b.rangeFrom, b.rangeTo);
   if (err) return err;
@@ -237,7 +237,7 @@ function startRun(req: MockRequest): MockResponse {
     type: 'LEDGER_VERIFY',
     status: 'DANG_CHAY',
     progress: 0,
-    message: 'Đang tính lại chuỗi băm theo phân vùng',
+    message: 'Đang kiểm tra toàn vẹn sổ cái',
     resultLocation: `/api/v1/ledger/verify-runs/${run.id}`,
     updatedAt: now.toISOString(),
   });
@@ -256,7 +256,7 @@ function startExport(req: MockRequest): MockResponse {
     type: 'EXPORT',
     status: 'HOAN_TAT',
     progress: 100,
-    message: 'Tệp bằng chứng đã sẵn sàng',
+    message: 'Tệp bằng chứng đã sẵn sàng.',
     resultLocation: `/api/v1/files/${crypto.randomUUID()}`,
     updatedAt: new Date().toISOString(),
   });

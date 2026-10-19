@@ -5,7 +5,7 @@
   "cells": [
     {
       "code": "CELL-HCM",
-      "name": "Cell Thành phố Hồ Chí Minh",
+      "name": "Cụm máy chủ Thành phố Hồ Chí Minh",
       "primaryDc": "PHIANAM",
       "tenancyModel": "silo",
       "status": "HOAT_DONG",
@@ -15,7 +15,7 @@
     },
     {
       "code": "CELL-HN",
-      "name": "Cell Thành phố Hà Nội",
+      "name": "Cụm máy chủ Thành phố Hà Nội",
       "primaryDc": "HOALAC",
       "tenancyModel": "silo",
       "status": "HOAT_DONG",
@@ -25,7 +25,7 @@
     },
     {
       "code": "CELL-DTW",
-      "name": "Cell khối Đảng Trung ương",
+      "name": "Cụm máy chủ khối Đảng Trung ương",
       "primaryDc": "HOALAC",
       "tenancyModel": "silo",
       "status": "HOAT_DONG",
@@ -35,7 +35,7 @@
     },
     {
       "code": "CELL-G1",
-      "name": "Cell nhóm tỉnh 1",
+      "name": "Cụm máy chủ nhóm tỉnh 1",
       "primaryDc": "HOALAC",
       "tenancyModel": "bridge",
       "status": "HOAT_DONG",
@@ -45,7 +45,7 @@
     },
     {
       "code": "CELL-G2",
-      "name": "Cell nhóm tỉnh 2",
+      "name": "Cụm máy chủ nhóm tỉnh 2",
       "primaryDc": "HOALAC",
       "tenancyModel": "bridge",
       "status": "HOAT_DONG",
@@ -55,7 +55,7 @@
     },
     {
       "code": "CELL-G3",
-      "name": "Cell nhóm tỉnh 3",
+      "name": "Cụm máy chủ nhóm tỉnh 3",
       "primaryDc": "PHIANAM",
       "tenancyModel": "bridge",
       "status": "HOAT_DONG",
@@ -65,7 +65,7 @@
     },
     {
       "code": "CELL-G4",
-      "name": "Cell nhóm tỉnh 4",
+      "name": "Cụm máy chủ nhóm tỉnh 4",
       "primaryDc": "PHIANAM",
       "tenancyModel": "bridge",
       "status": "HOAT_DONG",
@@ -75,7 +75,7 @@
     },
     {
       "code": "CELL-SH",
-      "name": "Cell dùng chung (pool)",
+      "name": "Cụm máy chủ dùng chung",
       "primaryDc": "PHIANAM",
       "tenancyModel": "pool",
       "status": "HOAT_DONG",
@@ -85,7 +85,7 @@
     },
     {
       "code": "CELL-NB",
-      "name": "Cell thí điểm",
+      "name": "Cụm máy chủ thí điểm",
       "primaryDc": "PHIANAM",
       "tenancyModel": "bridge",
       "status": "BAO_TRI",
@@ -212,7 +212,7 @@
     },
     {
       "id": "t-tanphu",
-      "code": "tanphu_dn",
+      "code": "tanphudn",
       "name": "Đảng uỷ xã Tân Phú (Đồng Nai)",
       "domain": "tanphu-dn.okr.viettel.vn",
       "cellCode": "CELL-SH",
@@ -231,7 +231,7 @@
     },
     {
       "id": "t-bvdk-camau",
-      "code": "bvdk_camau",
+      "code": "bvdkcamau",
       "name": "Bệnh viện Đa khoa tỉnh Cà Mau",
       "domain": "bvdk-camau.okr.viettel.vn",
       "cellCode": "CELL-G4",
@@ -270,7 +270,7 @@
     },
     {
       "id": "t-truong-thpt-hue",
-      "code": "thpt_quochoc",
+      "code": "thptquochoc",
       "name": "Trường THPT Quốc Học Huế",
       "domain": "quochoc.okr.viettel.vn",
       "cellCode": "CELL-SH",
@@ -339,18 +339,18 @@
         "at": "@today-1T14:20:00+07:00",
         "from": "DANG_CAP_PHAT",
         "to": "DANG_CAU_HINH",
-        "reason": "Saga cấp phát hoàn tất"
+        "reason": "Hoàn tất cấp phát hạ tầng"
       },
       {
         "at": "@today-1T13:05:00+07:00",
         "from": "KHOI_TAO",
         "to": "DANG_CAP_PHAT",
-        "reason": "Xác nhận cell CELL-G2, mô hình bridge"
+        "reason": "Xác nhận cụm máy chủ CELL-G2, mức cô lập CSDL riêng"
       },
       {
         "at": "@today-2T09:30:00+07:00",
         "to": "KHOI_TAO",
-        "reason": "Khai báo tenant"
+        "reason": "Khai báo đơn vị triển khai"
       }
     ],
     "t-ninhbinh": [
@@ -473,7 +473,7 @@
       "idps": [
         {
           "kind": "KEYCLOAK_ORG",
-          "name": "Organization \"thainguyen\"",
+          "name": "Không gian đăng nhập \"thainguyen\"",
           "status": "DAT"
         },
         {
@@ -508,12 +508,12 @@
       "idps": [
         {
           "kind": "KEYCLOAK_ORG",
-          "name": "Organization \"quangngai\"",
+          "name": "Không gian đăng nhập \"quangngai\"",
           "status": "DAT"
         },
         {
           "kind": "OIDC",
-          "name": "IdP tỉnh Quảng Ngãi",
+          "name": "Hệ thống đăng nhập tỉnh Quảng Ngãi",
           "url": "https://sso.quangngai.gov.vn/realms/cbcc",
           "status": "DAT"
         }

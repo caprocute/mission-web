@@ -24,6 +24,7 @@ import {
   SOURCE_SYSTEM_LABEL,
   SimilarTask,
   SourceDocApi,
+  TASK_STATUS_LABEL,
   TaskApi,
   TaskSuggestion,
   TaskSuggestionFields,
@@ -67,9 +68,8 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
           <p class="crumb"><a routerLink="/tasks/documents">Văn bản đến</a> / {{ d.docNumber }}</p>
           <h1>Tạo nhiệm vụ từ văn bản chỉ đạo</h1>
           <p class="muted">
-            Văn bản nhận từ {{ system(d.sourceSystem) }} qua integration-gateway ·
-            {{ suggestions().length }} nhiệm vụ do AI trích, {{ pending().length }} chờ người xác
-            nhận
+            Văn bản nhận từ {{ system(d.sourceSystem) }} · {{ suggestions().length }} nhiệm vụ do AI
+            trích, {{ pending().length }} nhiệm vụ chờ xác nhận
           </p>
         </div>
         <div class="actions">
@@ -117,7 +117,8 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
             {{ d.docNumber }} · {{ date(d.docDate) }}
             <p-tag [value]="system(d.sourceSystem)" severity="info" />
             <span class="muted small"
-              >· nhận {{ d.receivedAt | date: 'dd/MM HH:mm' }} · {{ d.format }}</span
+              >· nhận lúc {{ d.receivedAt | date: 'dd/MM HH:mm' }} · văn bản điện tử
+              {{ d.format }}</span
             >
           </h2>
           <div class="paper">
@@ -159,7 +160,7 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
               <span class="ai-label"
                 >Nội dung do AI tạo
                 @if (x && !simple()) {
-                  · mô hình {{ x.model }} · trích lúc {{ x.extractedAt | date: 'dd/MM HH:mm' }}
+                  · trích lúc {{ x.extractedAt | date: 'dd/MM HH:mm' }}
                 }
               </span>
             </h2>
@@ -300,7 +301,7 @@ type Busy = 'confirm' | 'merge' | 'reject' | 'assign' | 'dismiss' | null;
         [intro]="
           'Nhiệm vụ ' +
           indexOf(selected()) +
-          ' sẽ không được tạo. Quyết định và lý do được ghi vết.'
+          ' sẽ không được tạo. Quyết định và lý do được lưu lại để tra cứu.'
         "
         confirmLabel="Bỏ nhiệm vụ"
         [busy]="busy() === 'reject'"
@@ -615,11 +616,7 @@ export class FromDocumentPage {
     return x.toFixed(2).replace('.', ',');
   }
   protected statusOf(t: SimilarTask) {
-    return t.status === 'DANG_THUC_HIEN'
-      ? 'đang thực hiện'
-      : t.status === 'DA_GIAO'
-        ? 'đã giao'
-        : t.status;
+    return TASK_STATUS_LABEL[t.status].toLowerCase();
   }
   protected indexOf(s: TaskSuggestion | null) {
     return s ? this.suggestions().indexOf(s) + 1 : 0;

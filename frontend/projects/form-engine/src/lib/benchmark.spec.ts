@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { JSONSchema7 } from 'json-schema';
+import { JSONSchema7 } from './json-schema';
 import { evaluateRules } from './cel-rule-evaluator';
 import { FormRule, FormUi } from './form-rule';
 import { provideFormEngine } from './provide-form-engine';

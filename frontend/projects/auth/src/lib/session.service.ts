@@ -73,7 +73,7 @@ const CONTEXT_KEY = 'vt.assignment';
 
 const DEV_USER: VtUser = {
   id: 'dev-user',
-  name: 'Cán bộ thử nghiệm',
+  name: 'Nguyễn Văn Minh',
   email: 'dev@mission.local',
   tenant: 'default',
   unitId: 'phong-tong-hop',

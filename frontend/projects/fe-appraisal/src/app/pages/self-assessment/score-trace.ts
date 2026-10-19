@@ -30,7 +30,8 @@ const RULE: Record<string, string> = {
         <button type="button" class="close" (click)="closed.emit()">Đóng</button>
       </div>
       <p class="meta">
-        Policy Pack {{ t.policyVersion }} · {{ t.engineVersion }} · {{ t.steps.length }} bước
+        <!-- Phiên bản bộ máy tính điểm (engineVersion) chỉ dùng tra cứu nội bộ, không hiện. -->
+        Bộ quy định đánh giá {{ t.policyVersion }} · {{ t.steps.length }} bước tính
       </p>
       <ol>
         @for (s of t.steps; track s.stepNo) {

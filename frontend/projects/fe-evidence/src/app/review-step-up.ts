@@ -27,7 +27,7 @@ export const REVIEW_STEP_UP = new InjectionToken<() => Promise<boolean>>('vt.fe-
           await session.requireStepUp(
             'aal2',
             MAX_AGE_SEC,
-            'Xác nhận nghiệm thu là căn cứ tính điểm; vui lòng xác thực nhiều lớp (MFA) trước khi xác nhận.',
+            'Xác nhận nghiệm thu là căn cứ tính điểm; đồng chí vui lòng xác thực nhiều lớp trước khi xác nhận.',
           );
         } catch {
           return false;

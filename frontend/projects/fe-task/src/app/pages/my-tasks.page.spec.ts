@@ -27,6 +27,8 @@ async function render(can: (k: string) => boolean = () => true) {
       { provide: TASK_CAN, useValue: can },
     ],
   });
+  // trang có khối @defer (hộp cập nhật hàng loạt, WEB-052) nên phải biên dịch trước khi dựng
+  await TestBed.compileComponents();
   const fixture = TestBed.createComponent(MyTasksPage);
   fixture.autoDetectChanges();
   // chờ chunk mock-registry nạp lười và phản hồi giả lập

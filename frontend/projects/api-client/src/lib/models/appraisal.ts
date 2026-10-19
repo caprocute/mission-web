@@ -10,6 +10,19 @@ type Schemas = components['schemas'];
 export type RatingLevel = Schemas['RatingLevel'];
 export type AppraisalFlow = Schemas['Flow'];
 export type AppraisalProfileStatus = Schemas['AppraisalProfileStatus'];
+
+/** Tên trạng thái hồ sơ đánh giá hiển thị cho người dùng. */
+export const APPRAISAL_STATUS_LABEL: Record<AppraisalProfileStatus, string> = {
+  CHUA_LAP: 'Chưa lập',
+  TU_DANH_GIA: 'Đang tự đánh giá',
+  CHO_THAM_DINH: 'Chờ thẩm định',
+  DA_THAM_DINH: 'Đã thẩm định',
+  CHO_QUYET_DINH: 'Chờ quyết định',
+  DA_QUYET_DINH: 'Đã có quyết định',
+  DA_KY_SO: 'Đã ký số',
+  DA_KHOA: 'Đã khoá',
+  KHIEU_NAI: 'Đang giải quyết khiếu nại',
+};
 export type GeneralCriteriaLevel = Schemas['GeneralCriteriaLevel'];
 export type GeneralCriteriaItem = Schemas['GeneralCriteriaItem'];
 export type GeneralCriteriaResult = Schemas['GeneralCriteriaResult'];
@@ -34,6 +47,8 @@ export type AppraisalRatingLevels = Schemas['AppraisalRatingLevels'];
 export type AppraisalAnomalyHint = Schemas['AppraisalAnomalyHint'];
 export type AppraisalSignature = Schemas['AppraisalSignature'];
 export type AppraisalReviewInput = Schemas['AppraisalReviewInput'];
+export type AppraisalProposalInput = Schemas['AppraisalProposalInput'];
+export type AppraisalDowngradeReason = Schemas['AppraisalDowngradeReason'];
 export type AppraisalReturnInput = Schemas['AppraisalReturnInput'];
 export type AppraisalExportInput = Schemas['AppraisalExportInput'];
 
@@ -59,6 +74,13 @@ export type AppraisalSelfAssessmentView = Omit<AppraisalSelfAssessment, 'claims'
  */
 export type AppraisalScoreTaskLineView = AppraisalScoreTaskLine & { acceptanceNote?: string };
 
+/**
+ * Hồ sơ kèm `signedFormId`: mã biểu mẫu Mẫu 1B đã ký của hồ sơ (`dossier.form_instance`), để SCR-0903
+ * "Tải Mẫu 1B" gọi `GET /dossiers/forms/{id}/file`. Hợp đồng chưa có cách lấy mã này từ hồ sơ nên đây là
+ * phần mở rộng của dữ liệu giả lập chờ hợp đồng bổ sung (wiki/14).
+ */
+export type AppraisalProfileView = AppraisalProfile & { signedFormId?: string | null };
+
 /** Yêu cầu xem trước biểu mẫu của SVC-11 (`POST /dossiers/forms/preview`, dossiers.yaml). */
 export type DossierFormPreviewRequest = DossierComponents['schemas']['DossierFormPreviewRequest'];
 
@@ -83,4 +105,25 @@ export const GENERAL_CRITERIA_LEVEL_LABEL: Record<GeneralCriteriaLevel, string> 
 export const APPRAISAL_FLOW_LABEL: Record<AppraisalFlow, string> = {
   DANG: 'Luồng Đảng',
   NHA_NUOC: 'Luồng Nhà nước',
+};
+
+/** Nhãn trạng thái hồ sơ đánh giá (baseline mục 9.1, TL-02 QT-09). */
+export const APPRAISAL_PROFILE_STATUS_LABEL: Record<AppraisalProfileStatus, string> = {
+  CHUA_LAP: 'Chưa lập',
+  TU_DANH_GIA: 'Đang tự đánh giá',
+  CHO_THAM_DINH: 'Chờ thẩm định',
+  DA_THAM_DINH: 'Đã thẩm định',
+  CHO_QUYET_DINH: 'Chờ quyết định',
+  DA_QUYET_DINH: 'Đã quyết định',
+  DA_KY_SO: 'Đã ký số',
+  DA_KHOA: 'Đã khoá',
+  KHIEU_NAI: 'Đang khiếu nại',
+};
+
+/** Nhãn loại mức xếp loại theo bước (`appraisal.rating_proposal.level_kind`). */
+export const RATING_LEVEL_KIND_LABEL: Record<RatingLevelKind, string> = {
+  TU_DE_XUAT: 'Tự đề xuất',
+  THAM_DINH: 'Thẩm định',
+  DE_XUAT: 'Quản lý đề xuất',
+  QUYET_DINH: 'Quyết định',
 };

@@ -96,7 +96,7 @@ const options = <K extends string>(m: Record<K, string>) =>
           />
         </div>
         <div>
-          <label for="bl-kind">Theo đánh giá của đồng chí</label>
+          <label for="bl-kind">Tính chất nguyên nhân (theo đồng chí)</label>
           <p-select
             inputId="bl-kind"
             [options]="kindOptions"

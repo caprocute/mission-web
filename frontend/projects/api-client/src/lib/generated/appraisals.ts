@@ -765,6 +765,13 @@ export interface components {
       lockedAt?: components['schemas']['DateTime'];
       appraiser?: components['schemas']['Ref'];
       decider?: components['schemas']['Ref'];
+      /**
+       * Format: uuid
+       * @description Mã `dossier.form_instance` (trạng thái `DA_KY`) của phiếu Mẫu 1B hoặc Mẫu 2 của hồ sơ đã ký kèm quyết định, để tải bằng `GET /dossiers/forms/{id}/file` (nút "Tải Mẫu 1B (PDF/A)" của SCR-0903); `null` khi chưa có quyết định hoặc chưa ký xong.
+       */
+      readonly signedFormId?: string | null;
+      /** @description Mã mẫu của `signedFormId` (`dossier.form_instance.form_code`), ví dụ `MAU_1B`, `MAU_2`. */
+      readonly signedFormCode?: string | null;
       /** @description Kết quả tiêu chí chung theo từng bước đã có. */
       generalCriteria?: components['schemas']['GeneralCriteriaResult'][];
       selfAssessment?: components['schemas']['AppraisalSelfAssessment'] | null;
@@ -1302,7 +1309,7 @@ export interface components {
         'application/problem+json': components['schemas']['ProblemDetails'];
       };
     };
-    /** @description OPA từ chối theo RBAC/ABAC hoặc quy tắc tách vai trò (PL 4 V.1). */
+    /** @description OPA từ chối theo RBAC/ABAC hoặc quy tắc tách vai trò (Phụ lục 4, mục V.1). */
     Forbidden: {
       headers: {
         [name: string]: unknown;

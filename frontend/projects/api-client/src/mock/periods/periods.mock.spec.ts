@@ -221,7 +221,7 @@ describe('mock periods – SCR-0801 (WEB-034)', () => {
     expect(pr.lockOrder.status).toBe('DA_HUY');
     expect((await firstValueFrom(api.get('p-2026m08'))).status).toBe('MO');
     expect((await firstValueFrom(api.events('p-2026m08')))[0].event).toContain(
-      'trở về trạng thái mở',
+      'trở về trạng thái Đang mở',
     );
   });
 

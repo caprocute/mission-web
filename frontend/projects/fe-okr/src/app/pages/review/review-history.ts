@@ -23,9 +23,7 @@ const ACTION: Record<OkrHistoryAction, string> = {
     @let s = set();
     @let q = queue();
     <section class="box" aria-labelledby="h-h">
-      <h2 id="h-h" class="sec">
-        <span class="num" aria-hidden="true">5</span> Lịch sử luồng duyệt
-      </h2>
+      <h2 id="h-h" class="sec">Lịch sử luồng duyệt</h2>
       <ol class="tl">
         @for (e of entries(); track $index) {
           <li class="ok">
@@ -47,8 +45,8 @@ const ACTION: Record<OkrHistoryAction, string> = {
         <p class="muted">Chưa tải được lịch sử lưu, trình của bộ này.</p>
       }
       <p class="muted note">
-        Luồng mẫu "{{ q.workflow.code }}" v{{ q.workflow.version }}, tham số theo tenant. Người
-        trình không được tự duyệt.
+        Quy trình phê duyệt OKR phiên bản {{ q.workflow.version }}, áp dụng theo quy định của đơn
+        vị. Người trình không được tự duyệt.
       </p>
     </section>
   `,

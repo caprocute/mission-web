@@ -188,8 +188,7 @@ const fmtC = (c: number) => c.toFixed(2).replace('.', ',');
 
       <span class="lbl">Tài liệu kèm theo</span>
       <p class="muted small">
-        Đính kèm tệp (PDF, ảnh, ≤ 20 MB) sẽ dùng chung dịch vụ tệp của màn hình nộp minh chứng; hiện
-        có thể ghi số, ký hiệu văn bản vào lý do.
+        Nếu có văn bản liên quan, đồng chí ghi số, ký hiệu văn bản vào phần lý do chi tiết.
       </p>
 
       @if (preview.value(); as p) {
@@ -204,13 +203,13 @@ const fmtC = (c: number) => c.toFixed(2).replace('.', ',');
           <div class="consequence" aria-live="polite">
             <div class="obj">
               <strong>Nếu được chấp nhận là khách quan:</strong> hạn tính điểm đổi thành
-              {{ date(p.objective.scoreDueDate) }}; hoàn thành đúng hạn mới thì C =
+              {{ date(p.objective.scoreDueDate) }}; hoàn thành đúng hạn mới thì hệ số tiến độ (C) =
               {{ c(p.objective.c) }}.
             </div>
             <div class="subj">
               <strong>Nếu bị đánh giá là chủ quan:</strong> hạn tính điểm giữ
               {{ date(p.subjective.scoreDueDate) }}; hoàn thành {{ date(d.newDueDate) }} là chậm
-              {{ p.subjective.delayDays }} ngày làm việc, C = 1 − 0,05 ×
+              {{ p.subjective.delayDays }} ngày làm việc, hệ số tiến độ (C) = 1 − 0,05 ×
               {{ p.subjective.delayDays }} = {{ c(p.subjective.c) }}.
             </div>
           </div>
@@ -414,7 +413,7 @@ export class ChangeRequestDialog {
   protected readonly approver = computed(() => {
     const p = this.preview.hasValue() ? this.preview.value() : undefined;
     return p?.overThreshold
-      ? `${p.escalateToName ?? 'cấp trên'} (vượt ngưỡng)`
+      ? `${p.escalateToName ?? 'cấp trên'} (do vượt số lần gia hạn)`
       : `${this.task().assignerName} (người giao việc)`;
   });
 

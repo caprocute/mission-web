@@ -131,7 +131,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                     ; đã khoá lại lúc {{ dt(r.relockedAt) }}
                   }
                 } @else {
-                  Đến {{ dt(r.openUntil) }} (tính theo lịch làm việc của cơ quan, kể từ khi đủ phê
+                  Đến {{ dt(r.openUntil) }} (tính theo lịch làm việc của đơn vị khi đủ hai phê
                   duyệt)
                 }
               </dd>
@@ -157,6 +157,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                       [attr.data-table]="it.table"
                     >
                       <td>
+                        <!-- không hiện profileId, unitId, recordId nội bộ; hợp đồng chưa có tên đối tượng -->
                         @if (it.profileId) {
                           Hồ sơ đánh giá
                           @if (r.basis?.code) {
@@ -166,6 +167,9 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                           {{ unitName(it.unitId) }}
                         } @else {
                           Toàn kỳ
+                        }
+                        @if (it.recordId && !simple()) {
+                          <span class="block small muted">Chỉ bản ghi được chỉ định</span>
                         }
                       </td>
                       <td>{{ table(it.table) }}</td>
@@ -187,7 +191,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
               <span class="num" aria-hidden="true">3</span> Lý do mở lại
             </h2>
             <p class="reason">{{ r.reason }}</p>
-            <h3 class="h3" id="impact-h">Ảnh hưởng dự kiến (tính thử, chưa ghi)</h3>
+            <h3 class="h3" id="impact-h">Ảnh hưởng dự kiến (tính thử, chưa áp dụng)</h3>
             @if (impact.isLoading()) {
               <p class="muted">Đang tính thử…</p>
             } @else if (impact.error()) {
@@ -197,8 +201,8 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                 <thead>
                   <tr>
                     <th scope="col">Chỉ tiêu</th>
-                    <th scope="col">Trước</th>
-                    <th scope="col">Sau</th>
+                    <th scope="col">Hiện tại</th>
+                    <th scope="col">Sau điều chỉnh</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -215,7 +219,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                     </tr>
                   }
                   <tr>
-                    <td>Biểu mẫu cần sinh lại</td>
+                    <td>Số biểu mẫu cần lập lại</td>
                     <td colspan="2">{{ im.formsToRegenerate ?? 0 }}</td>
                   </tr>
                 </tbody>
@@ -257,7 +261,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                   </div>
                   @if (s.approval; as a) {
                     <div class="small muted">
-                      {{ dt(a.decidedAt) }} · đã xác thực ·
+                      {{ dt(a.decidedAt) }} · đã xác thực nhiều lớp ·
                       {{ a.decision === 'DONG_Y' ? 'đã ký số phê duyệt' : 'đã ký số từ chối' }}
                     </div>
                     @if (a.comment) {
@@ -269,8 +273,9 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
             </ol>
             @if (!simple()) {
               <p class="small muted">
-                Hai người duyệt phải khác nhau, khác người tạo yêu cầu và chưa tham gia thẩm định,
-                quyết định hồ sơ bị mở. Không có cách hạ xuống một người duyệt.
+                <!-- BR-13-02, BR-13-03 -->
+                Hai người duyệt phải là hai người khác nhau, khác người tạo yêu cầu và chưa tham gia
+                thẩm định, quyết định hồ sơ được mở lại. Yêu cầu luôn cần đủ hai người duyệt.
               </p>
             }
           </section>
@@ -311,7 +316,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                   />
                 }
                 <p-button
-                  label="Xác thực và phê duyệt"
+                  label="Xác thực nhiều lớp và duyệt"
                   [loading]="busy() === 'approve'"
                   [disabled]="!!busy() || !commentOk()"
                   (onClick)="decide('approve')"
@@ -329,7 +334,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
         closeAriaLabel="Đóng"
         [style]="{ width: 'min(520px, 95vw)' }"
       >
-        <p>Yêu cầu {{ r.code }} sẽ đóng và không ai duyệt tiếp được.</p>
+        <p>Yêu cầu {{ r.code }} sẽ được đóng và không thể duyệt tiếp.</p>
         <label for="cc-reason">Lý do huỷ (bắt buộc, 10–2.000 ký tự)</label>
         <textarea
           pTextarea
@@ -633,7 +638,7 @@ export class ReopenDetailPage {
     return tableLabel(t);
   }
   protected fields(table: string, keys?: string[]) {
-    return keys?.length ? keys.map((k) => fieldLabel(table, k)).join(', ') : 'Mọi trường';
+    return keys?.length ? keys.map((k) => fieldLabel(table, k)).join(', ') : 'Mọi nội dung';
   }
   protected slotState(r: ReopenRequest, s: ReopenApproverSlot): string {
     if (s.approval?.decision === 'DONG_Y') return 'Đã duyệt';
@@ -692,12 +697,13 @@ export class ReopenDetailPage {
   }
 
   private doneText(kind: 'approve' | 'reject', r: ReopenRequest): string {
-    if (kind === 'reject') return `Đã từ chối yêu cầu ${r.code}; người tạo được thông báo.`;
+    if (kind === 'reject')
+      return `Đã từ chối yêu cầu ${r.code}; người tạo yêu cầu đã được thông báo.`;
     if (r.status === 'CHO_DUYET_2')
-      return `Đã ghi phê duyệt thứ nhất cho ${r.code}; yêu cầu chuyển người duyệt thứ hai.`;
+      return `Đã ghi nhận phê duyệt thứ nhất cho yêu cầu ${r.code}; yêu cầu được chuyển tới người duyệt thứ hai.`;
     // MSG-13-03
-    const n = r.scope === 'TOAN_KY' ? 'toàn kỳ' : String(r.scopeIds?.length ?? 0);
-    return `Yêu cầu ${r.code} đã đủ hai phê duyệt. Kỳ ${r.period.label} được mở lại trong phạm vi ${n} đối tượng đến ${fmtDateTime(r.openUntil)}.`;
+    const n = r.scope === 'TOAN_KY' ? 'toàn kỳ' : `${r.scopeIds?.length ?? 0} đối tượng`;
+    return `Yêu cầu ${r.code} đã đủ hai phê duyệt. Kỳ ${r.period.label} được mở lại trong phạm vi ${n} đến ${fmtDateTime(r.openUntil)}.`;
   }
 
   private fail(e: unknown) {
@@ -705,7 +711,7 @@ export class ReopenDetailPage {
     const p = toProblem(e);
     this.error.set(
       p.status === 412 || p.status === 409
-        ? `${errorText(e)} Tải lại trang để xem trạng thái mới nhất.`
+        ? `${errorText(e)} Thông tin yêu cầu đã được tải lại theo trạng thái mới nhất.`
         : errorText(e),
     );
     if (p.status === 412 || p.status === 409) this.req.reload();

@@ -12,13 +12,13 @@ Công việc được chia thành năm luồng chạy song song, mỗi luồng l
 |---|---|---|---|
 | Nền tảng | `mission-web` (nhánh `main`) | fe-shell, thư viện `@vt/*`, CI, triển khai | WEB-001..WEB-015, WEB-020, WEB-051..WEB-053, WEB-059, WEB-060 |
 | Phân quyền | `phan-quyen` | xuyên suốt | WEB-054..WEB-058 |
-| Màn hình nghiệp vụ (giao việc, kế hoạch) | `man-hinh` | fe-task, tuyến `/plans`, fe-evidence, fe-oversight | WEB-025..WEB-031, WEB-032, WEB-033, WEB-034, WEB-042..WEB-044 (nhận thêm 19/10) |
+| Màn hình nghiệp vụ (giao việc, kế hoạch) | `man-hinh` | fe-task, tuyến `/plans`, fe-evidence, fe-oversight, fe-dashboard | WEB-025..WEB-031, WEB-032, WEB-033, WEB-034, WEB-042..WEB-044, WEB-047, WEB-048 (nhận thêm 19/10) |
 | Màn hình OKR, minh chứng, đánh giá | `okr-danh-gia` | fe-okr, fe-appraisal, fe-dossier | WEB-021..WEB-024, WEB-035..WEB-041, WEB-049 |
-| Màn hình giám sát, điều hành, cấu hình | `giam-sat-cau-hinh` | fe-dashboard, fe-config-studio, fe-admin | WEB-016..WEB-019, WEB-045..WEB-048, WEB-050, WEB-061, WEB-062 |
+| Màn hình giám sát, điều hành, cấu hình | `giam-sat-cau-hinh` | fe-config-studio, fe-admin | WEB-016..WEB-019, WEB-045, WEB-046, WEB-050, WEB-061, WEB-062 |
 
 Nền tảng mà các luồng màn hình cần đã có trên `main`: WEB-001 (lint, test), WEB-003 (ngân sách), WEB-006 (đăng nhập, chọn phân công, step-up), WEB-007 (api-client sinh từ OpenAPI, JobTracker), WEB-008 (mock API), WEB-015 (khung 8 remote, cổng dev 4202–4209), WEB-054 (bảng quyền `can()`). WEB-010 (form engine) đang làm; các task dùng biểu mẫu động (WEB-022, WEB-035, WEB-045, WEB-050) làm phần khung trước, nối form engine khi WEB-010 lên `main`.
 
-Cân lại 19/10/2026: luồng Màn hình nghiệp vụ đã xong phần được giao nên nhận thêm WEB-034 (khoá kỳ), WEB-042 (khiếu nại), WEB-043 (mở lại kỳ, sổ cái) và WEB-044 (trung tâm cảnh báo), tức toàn bộ remote fe-oversight. Luồng Giám sát, điều hành, cấu hình giữ fe-dashboard, fe-config-studio, fe-admin và WEB-019; nếu luồng này đã lỡ bắt đầu một task vừa chuyển đi thì báo lại để giữ task đó.
+Cân lại 19/10/2026: luồng Màn hình nghiệp vụ đã xong phần được giao nên nhận thêm WEB-034 (khoá kỳ), WEB-042 (khiếu nại), WEB-043 (mở lại kỳ, sổ cái) và WEB-044 (trung tâm cảnh báo), tức toàn bộ remote fe-oversight; lần cân thứ hai cùng ngày chuyển tiếp WEB-047 và WEB-048 (remote fe-dashboard). Luồng Giám sát, điều hành, cấu hình giữ fe-dashboard, fe-config-studio, fe-admin và WEB-019; nếu luồng này đã lỡ bắt đầu một task vừa chuyển đi thì báo lại để giữ task đó.
 
 Mỗi luồng chỉ sửa trong remote và thư viện của mình. Khi buộc phải sửa tệp dùng chung (`fe-shell/src/app/app.routes.ts`, `layout/nav.ts`, `package.json`, `angular.json`, `@vt/api-client/src/public-api.ts`), sửa tối thiểu và ghi rõ trong báo cáo để luồng Nền tảng xử lý xung đột khi gộp. Mục menu theo ma trận phân quyền do WEB-055 (luồng Phân quyền) gắn. Model và client mới trong `@vt/api-client` đặt theo tệp riêng của module (`models/<module>.ts`, `<module>-api.ts`, `mock/<module>/`) để hạn chế xung đột.
 
@@ -79,7 +79,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 |---|---|---|---|---|
 | [WEB-035](WEB-035-tu-danh-gia.md) | SCR-0901 Phiếu tự đánh giá | L | WEB-010, WEB-015 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-035-tu-danh-gia`) |
 | [WEB-036](WEB-036-tham-dinh.md) | SCR-0902 Thẩm định | L | WEB-035 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-036-tham-dinh`, cần gộp sau WEB-035) |
-| [WEB-037](WEB-037-phieu-xep-loai.md) | SCR-0903 Phiếu xếp loại có giải thích | M | WEB-036 | Chưa bắt đầu |
+| [WEB-037](WEB-037-phieu-xep-loai.md) | SCR-0903 Phiếu xếp loại có giải thích | M | WEB-036 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-037-phieu-xep-loai`) |
 | [WEB-038](WEB-038-quyet-dinh-hang-loat.md) | SCR-0904 Quyết định xếp loại hàng loạt và ký số | L | WEB-037 | Chưa bắt đầu |
 | [WEB-039](WEB-039-xep-loai-nam.md) | SCR-1001 Xếp loại năm và SCR-1002 Phân nhóm triển vọng | M | WEB-037 | Chưa bắt đầu |
 | [WEB-040](WEB-040-hoi-nghi-kiem-diem.md) | SCR-1101 Hội nghị kiểm điểm | M | WEB-015 | Chưa bắt đầu |
@@ -91,7 +91,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 
 | Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
-| [WEB-044](WEB-044-trung-tam-canh-bao.md) | SCR-1401 Trung tâm cảnh báo | M | WEB-015 | Chưa bắt đầu |
+| [WEB-044](WEB-044-trung-tam-canh-bao.md) | SCR-1401 Trung tâm cảnh báo | M | WEB-015 | Xong, chờ gộp (nhánh `feat/WEB-044-canh-bao`, dựng trên WEB-042) |
 | [WEB-045](WEB-045-studio-cong-thuc.md) | SCR-1501 Config Studio – công thức và SCR-1502 Bảng quyết định | L | WEB-010, WEB-015 | Chưa bắt đầu |
 | [WEB-046](WEB-046-test-vang-luong-duyet.md) | SCR-1503 Chạy test case vàng và SCR-1504 Cấu hình luồng duyệt | M | WEB-045 | Chưa bắt đầu |
 | [WEB-047](WEB-047-bang-dieu-hanh.md) | SCR-1601 Bảng điều hành lãnh đạo và SCR-1603 Đi xuống tới minh chứng | L | WEB-015 | Chưa bắt đầu |
@@ -99,7 +99,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-049](WEB-049-tro-ly-ai.md) | SCR-1701 Trợ lý AI soạn OKR và soát KR | M | WEB-022 | Chưa bắt đầu |
 | [WEB-050](WEB-050-studio-giao-dien.md) | SCR-1801 Cấu hình giao diện tenant và SCR-1802 Trình dựng biểu mẫu động | L | WEB-004, WEB-009, WEB-010 | Chưa bắt đầu |
 | [WEB-051](WEB-051-plugin-chuyen-nganh.md) | Plugin chuyên ngành mẫu và manifest theo tenant | M | WEB-015 | Chưa bắt đầu |
-| [WEB-052](WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | WEB-003, WEB-011 | Chưa bắt đầu |
+| [WEB-052](WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | WEB-003, WEB-011 | Làm một phần (nhánh `feat/WEB-052-toi-uu-hieu-nang`): `/` 729→578 KB, LCP 8,3→6,6 s; `/tasks` 798→607 KB, LCP 9,2→6,7 s; vẫn chưa đạt ngân sách 250 KB và 2,5 s, chưa có k6 browser (xem wiki/09) |
 | [WEB-053](WEB-053-danh-gia-attt.md) | Đánh giá ATTT frontend: OWASP ZAP và ASVS mức 2 | M | WEB-014 | Chưa bắt đầu |
 
 ## Phân quyền (xuyên giai đoạn)
@@ -112,7 +112,7 @@ Nhóm này hiện thực ma trận phân quyền ở [wiki/15a](../../wiki/15a-m
 | [WEB-055](WEB-055-ap-ma-tran-shell-remote.md) | Áp ma trận vào menu, tuyến và nút của shell và các remote hiện có | M | WEB-054, WEB-015 | Xong, chờ gộp (nhánh `feat/WEB-055-ap-ma-tran`) |
 | [WEB-056](WEB-056-dong-bo-realm-keycloak.md) | Đồng bộ realm Keycloak dev với ma trận (vai trò, claim, MFA theo vai trò, tài khoản thử) | M | WEB-006, WEB-054 | Xong, chờ gộp (nhánh `feat/WEB-056-dong-bo-realm-keycloak`); nạp lên server dev sau khi gộp |
 | [WEB-057](WEB-057-kiem-thu-ma-tran-playwright.md) | Kiểm thử Playwright đối chiếu ma trận: vai trò × tuyến | M | WEB-055, WEB-056 | Xong, chờ gộp (nhánh `feat/WEB-057-kiem-thu-ma-tran`, dựng trên WEB-055) |
-| [WEB-058](WEB-058-quan-tri-vai-tro-uy-quyen.md) | Quản trị phân công vai trò và uỷ quyền (chưa có SCR, cần bổ sung thiết kế) | L | WEB-018, WEB-054, quyết định thiết kế | Pha 1 xong (đề xuất `docs/phan-quyen/de-xuat-quan-tri-vai-tro.md`), chờ duyệt và cấp mã |
+| [WEB-058](WEB-058-quan-tri-vai-tro-uy-quyen.md) | Quản trị phân công vai trò và uỷ quyền (chưa có SCR, cần bổ sung thiết kế) | L | WEB-018, WEB-054, quyết định thiết kế | Xong pha 2 (19/10/2026): đề xuất đã duyệt, SCR-0105..0107 trên dữ liệu giả lập, chờ gộp |
 
 ## Phát sinh trong quá trình làm
 
