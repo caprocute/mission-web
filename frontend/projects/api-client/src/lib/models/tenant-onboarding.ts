@@ -12,18 +12,18 @@ export const TENANT_FLOW_LABEL: Record<TenantFlow, string> = {
 export type KekMode = 'RIENG' | 'DUNG_CHUNG';
 
 export const KEK_MODE_LABEL: Record<KekMode, string> = {
-  RIENG: 'Khoá riêng theo tenant trong HSM',
-  DUNG_CHUNG: 'Khoá dùng chung của cell',
+  RIENG: 'Khoá riêng của đơn vị, lưu trong thiết bị HSM',
+  DUNG_CHUNG: 'Khoá dùng chung của cụm máy chủ',
 };
 
 /** Loại IdP (`registry.tenant_idp`, SCR-0102 trường 12). */
 export type IdpKind = 'KEYCLOAK_ORG' | 'OIDC' | 'SAML' | 'LDAP' | 'VNEID';
 
 export const IDP_KIND_LABEL: Record<IdpKind, string> = {
-  KEYCLOAK_ORG: 'Organization trong Keycloak của cell',
-  OIDC: 'OIDC',
-  SAML: 'SAML',
-  LDAP: 'LDAP liên kết',
+  KEYCLOAK_ORG: 'Hệ thống đăng nhập dùng chung của cụm máy chủ',
+  OIDC: 'Liên kết chuẩn OpenID Connect',
+  SAML: 'Liên kết chuẩn SAML2',
+  LDAP: 'Liên kết thư mục LDAP',
   VNEID: 'VNeID',
 };
 
@@ -42,7 +42,7 @@ export type HrSource = 'CBCCVC' | 'DANG_VIEN' | 'SCIM';
 export const HR_SOURCE_LABEL: Record<HrSource, string> = {
   CBCCVC: 'CSDL CBCCVC qua NDXP',
   DANG_VIEN: 'CSDL đảng viên',
-  SCIM: 'SCIM 2.0 từ IdP',
+  SCIM: 'Đồng bộ tài khoản tự động từ hệ thống đăng nhập',
 };
 
 /**
@@ -163,21 +163,21 @@ export const CHECK_RESULT_LABEL: Record<OnboardingCheck['result'], string> = {
 
 /** Các bước con của saga cấp phát (QT-01 bước 4), máy chủ ghi tên bước vào `Job.message`. */
 export const PROVISION_STEPS = [
-  'Tạo CSDL hoặc đăng ký tenant_id',
-  'Tạo khoá KEK trong HSM',
-  'Tạo Organization trong Keycloak',
+  'Tạo vùng lưu trữ dữ liệu của đơn vị',
+  'Tạo khoá mã hoá dữ liệu',
+  'Tạo không gian đăng nhập của đơn vị',
   'Đăng ký tên miền',
   'Cấp chứng chỉ TLS',
-  'Sao chép Policy Pack và UI Pack xuống cell',
+  'Cài đặt bộ quy định đánh giá và bộ giao diện của đơn vị',
   'Tạo lịch nghỉ mặc định',
 ] as const;
 
 /** Sáu bước của trình hướng dẫn (SCR-0102 vùng 1). */
 export const ONBOARDING_STEPS = [
-  'Thông tin tenant',
-  'Cell và mô hình',
-  'Policy Pack, UI Pack',
-  'Định danh',
+  'Thông tin đơn vị',
+  'Cụm máy chủ và mức cô lập',
+  'Bộ quy định đánh giá, bộ giao diện',
+  'Đăng nhập',
   'Tổ chức, nhân sự',
   'Kiểm tra, kích hoạt',
 ] as const;

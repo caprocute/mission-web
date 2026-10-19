@@ -19,20 +19,20 @@ export const ROUTES: Routes = [
     path: '',
     canActivate: [platformHome],
     loadComponent: () => import('./pages/admin-home.page').then((m) => m.AdminHomePage),
-    title: 'Quản trị tenant',
+    title: 'Quản trị',
   },
   {
     path: 'tenants',
     canActivate: [permissionGuard('SCR-0101.xem')],
     loadComponent: () => import('./pages/tenants.page').then((m) => m.TenantsPage),
-    title: 'Danh sách tenant',
+    title: 'Danh sách đơn vị triển khai',
   },
   {
     path: 'tenants/new',
     canActivate: [permissionGuard('SCR-0102.buoc-1-3')],
     loadComponent: () =>
       import('./pages/tenant-onboarding.page').then((m) => m.TenantOnboardingPage),
-    title: 'Khởi tạo tenant',
+    title: 'Khởi tạo đơn vị triển khai',
   },
   {
     // mở lại bản nháp `?step=n`; bước 4, 5 do quản trị tenant (AC-02) làm, AC-01 theo dõi
@@ -40,7 +40,7 @@ export const ROUTES: Routes = [
     canActivate: [permissionGuard('SCR-0102.buoc-4-5')],
     loadComponent: () =>
       import('./pages/tenant-onboarding.page').then((m) => m.TenantOnboardingPage),
-    title: 'Khởi tạo tenant',
+    title: 'Khởi tạo đơn vị triển khai',
   },
   {
     path: 'org',
@@ -64,7 +64,7 @@ export const ROUTES: Routes = [
     path: 'tenants/:id',
     canActivate: [permissionGuard('SCR-0101.xem')],
     loadComponent: () => import('./pages/tenant-detail.page').then((m) => m.TenantDetailPage),
-    title: 'Chi tiết tenant',
+    title: 'Chi tiết đơn vị triển khai',
   },
 ];
 

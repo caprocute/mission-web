@@ -6,7 +6,7 @@
   "cells": [
     {
       "code": "CELL-HCM",
-      "name": "Cell Thành phố Hồ Chí Minh",
+      "name": "Cụm máy chủ Thành phố Hồ Chí Minh",
       "primaryDc": "PHIANAM",
       "tenancyModel": "silo",
       "status": "HOAT_DONG",
@@ -16,7 +16,7 @@
     },
     {
       "code": "CELL-HN",
-      "name": "Cell Thành phố Hà Nội",
+      "name": "Cụm máy chủ Thành phố Hà Nội",
       "primaryDc": "HOALAC",
       "tenancyModel": "silo",
       "status": "HOAT_DONG",
@@ -26,7 +26,7 @@
     },
     {
       "code": "CELL-DTW",
-      "name": "Cell khối Đảng Trung ương",
+      "name": "Cụm máy chủ khối Đảng Trung ương",
       "primaryDc": "HOALAC",
       "tenancyModel": "silo",
       "status": "HOAT_DONG",
@@ -36,7 +36,7 @@
     },
     {
       "code": "CELL-G1",
-      "name": "Cell nhóm tỉnh 1",
+      "name": "Cụm máy chủ nhóm tỉnh 1",
       "primaryDc": "HOALAC",
       "tenancyModel": "bridge",
       "status": "HOAT_DONG",
@@ -46,7 +46,7 @@
     },
     {
       "code": "CELL-G2",
-      "name": "Cell nhóm tỉnh 2",
+      "name": "Cụm máy chủ nhóm tỉnh 2",
       "primaryDc": "HOALAC",
       "tenancyModel": "bridge",
       "status": "HOAT_DONG",
@@ -56,7 +56,7 @@
     },
     {
       "code": "CELL-G3",
-      "name": "Cell nhóm tỉnh 3",
+      "name": "Cụm máy chủ nhóm tỉnh 3",
       "primaryDc": "PHIANAM",
       "tenancyModel": "bridge",
       "status": "HOAT_DONG",
@@ -66,7 +66,7 @@
     },
     {
       "code": "CELL-G4",
-      "name": "Cell nhóm tỉnh 4",
+      "name": "Cụm máy chủ nhóm tỉnh 4",
       "primaryDc": "PHIANAM",
       "tenancyModel": "bridge",
       "status": "HOAT_DONG",
@@ -76,7 +76,7 @@
     },
     {
       "code": "CELL-SH",
-      "name": "Cell dùng chung (pool)",
+      "name": "Cụm máy chủ dùng chung",
       "primaryDc": "PHIANAM",
       "tenancyModel": "pool",
       "status": "HOAT_DONG",
@@ -86,7 +86,7 @@
     },
     {
       "code": "CELL-NB",
-      "name": "Cell thí điểm",
+      "name": "Cụm máy chủ thí điểm",
       "primaryDc": "PHIANAM",
       "tenancyModel": "bridge",
       "status": "BAO_TRI",
@@ -343,12 +343,12 @@
     {
       "kind": "LICH",
       "tenantId": "t-quangngai",
-      "text": "Quảng Ngãi: kích hoạt 22/10 sau khi ký hợp đồng."
+      "text": "Quảng Ngãi: kích hoạt ngày 22/10 sau khi ký hợp đồng."
     },
     {
       "kind": "LOI",
       "tenantId": "t-bvdk-camau",
-      "text": "Cà Mau: khoá JWKS của IdP bệnh viện hết hạn 25/10."
+      "text": "Cà Mau: khoá xác thực đăng nhập của bệnh viện hết hạn ngày 25/10."
     }
   ],
   "statusLog": {
@@ -357,18 +357,18 @@
         "at": "@today-1T14:20:00+07:00",
         "from": "DANG_CAP_PHAT",
         "to": "DANG_CAU_HINH",
-        "reason": "Saga cấp phát hoàn tất"
+        "reason": "Hoàn tất cấp phát hạ tầng"
       },
       {
         "at": "@today-1T13:05:00+07:00",
         "from": "KHOI_TAO",
         "to": "DANG_CAP_PHAT",
-        "reason": "Xác nhận cell CELL-G2, mô hình bridge"
+        "reason": "Xác nhận cụm máy chủ CELL-G2, mức cô lập CSDL riêng"
       },
       {
         "at": "@today-2T09:30:00+07:00",
         "to": "KHOI_TAO",
-        "reason": "Khai báo tenant"
+        "reason": "Khai báo đơn vị triển khai"
       }
     ],
     "t-ninhbinh": [
@@ -491,7 +491,7 @@
       "idps": [
         {
           "kind": "KEYCLOAK_ORG",
-          "name": "Organization \"thainguyen\"",
+          "name": "Không gian đăng nhập \"thainguyen\"",
           "status": "DAT"
         },
         {
@@ -526,12 +526,12 @@
       "idps": [
         {
           "kind": "KEYCLOAK_ORG",
-          "name": "Organization \"quangngai\"",
+          "name": "Không gian đăng nhập \"quangngai\"",
           "status": "DAT"
         },
         {
           "kind": "OIDC",
-          "name": "IdP tỉnh Quảng Ngãi",
+          "name": "Hệ thống đăng nhập tỉnh Quảng Ngãi",
           "url": "https://sso.quangngai.gov.vn/realms/cbcc",
           "status": "DAT"
         }

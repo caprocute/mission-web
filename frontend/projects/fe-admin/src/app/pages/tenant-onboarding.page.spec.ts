@@ -57,7 +57,7 @@ function type(el: HTMLElement, name: string, value: string) {
 describe('TenantOnboardingPage (SCR-0102)', () => {
   it('bước 1: chỉ cho tiếp tục khi đủ trường bắt buộc, lưu sinh hồ sơ rồi chuyển bước 2', async () => {
     const { el, fixture, navigate } = await render();
-    expect(text(el.querySelector('h1'))).toBe('Khởi tạo tenant');
+    expect(text(el.querySelector('h1'))).toBe('Khởi tạo đơn vị triển khai');
     expect(button(el, 'Tiếp tục')?.disabled).toBe(true);
     type(el, 'name', 'Tỉnh Hà Giang');
     type(el, 'code', 'hagiang');
@@ -81,7 +81,7 @@ describe('TenantOnboardingPage (SCR-0102)', () => {
     await until(el, 'button', () => button(el, 'Tiếp tục')?.disabled === false);
     button(el, 'Tiếp tục')!.click();
     await until(el, '.tbl tbody tr.sel');
-    expect(text(el.querySelector('.hint'))).toContain('Gợi ý của hệ thống: pool');
+    expect(text(el.querySelector('.hint'))).toContain('Gợi ý của hệ thống: Dùng chung');
     expect(text(el.querySelector('.tbl tbody tr.sel'))).toContain('CELL-SH');
     const silo = el.querySelector('input[name="model"][value="silo"]') as HTMLInputElement;
     expect(silo.disabled).toBe(false);
@@ -107,7 +107,7 @@ describe('TenantOnboardingPage (SCR-0102)', () => {
     button(el, 'Kích hoạt')!.click();
     await until(el, '.okbox');
     expect(text(el.querySelector('.okbox'))).toContain('đang vận hành');
-    expect(text(el)).toContain('Đã kích hoạt tenant Tỉnh Quảng Ngãi');
+    expect(text(el)).toContain('Đã kích hoạt đơn vị Tỉnh Quảng Ngãi');
   });
 
   it('ẩn Huỷ và Kích hoạt theo quyền; Huỷ cần xác nhận tại chỗ', async () => {
