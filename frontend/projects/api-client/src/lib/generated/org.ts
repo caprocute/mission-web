@@ -123,6 +123,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/org/units/search': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Tìm đơn vị trong cây tại một thời điểm
+     * @description (suy luận đường dẫn) Ô tìm đơn vị ở vùng 1 của SCR-0103: tìm theo mã hoặc tên (không phân biệt dấu) trên phiên bản đơn vị có hiệu lực tại `asOf`, ghi nhận tại `recordedAsOf`, trả kèm chuỗi tổ tiên từ gốc để mở cây tới đúng nút. Tách khỏi `GET /org/units` vì thao tác đó phục vụ chọn đơn vị theo phạm vi người dùng (SCR-0501), không có trục thời gian.
+     */
+    get: operations['searchOrgUnits'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/org/units/{id}': {
     parameters: {
       query?: never;
@@ -184,6 +204,70 @@ export interface paths {
      * @description Thành lập, đổi tên, sáp nhập, hợp nhất, chia tách, giải thể kèm ngày hiệu lực và văn bản căn cứ. Máy chủ ghi `org.org_change_order` và sinh phiên bản mới cho các đơn vị bị tác động; phân công chuyển theo phát EVT-15. Thay đổi có hiệu lực tương lai được giữ ở `NHAP` tới ngày hiệu lực.
      */
     post: operations['changeOrgUnit'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/units/{id}/history': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Lịch sử phiên bản của đơn vị
+     * @description (suy luận đường dẫn) Vùng 4 "Lịch sử thay đổi" của SCR-0103: các phiên bản của đơn vị trên trục hiệu lực, mới nhất trước, kèm quyết định thay đổi và thời điểm ghi nhận (BR-01-06, không ghi đè lịch sử). `recordedAsOf` giới hạn các phiên bản đã ghi nhận tới thời điểm đó; bỏ trống là hiện tại. Phiên bản đã bị thay thế trên trục ghi nhận (đính chính) có `recordedTo`.
+     */
+    get: operations['listOrgUnitHistory'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/units/{id}/assignments': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Cán bộ của đơn vị tại thời điểm
+     * @description (suy luận đường dẫn) Vùng 3 của SCR-0103 (trường 13): phân công `org.assignment` thuộc đơn vị có hiệu lực tại `asOf`, ghi nhận tại `recordedAsOf`. Không chứa dữ liệu C2.
+     */
+    get: operations['listOrgUnitAssignments'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/subject-groups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Danh mục khối đối tượng đánh giá
+     * @description (suy luận đường dẫn) Chín khối đối tượng theo PL 2A (`org.subject_group`) cho ô chọn "Khối đối tượng" (SCR-0103 trường 7, BR-01-05). Danh mục nhỏ nên trả một lần; `asOf` lọc khối còn hiệu lực.
+     */
+    get: operations['listSubjectGroups'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -473,6 +557,72 @@ export interface components {
       assignmentCount?: number;
       rowVersion: components['schemas']['RowVersion'];
     };
+    /** @description Đơn vị khớp tìm kiếm kèm chuỗi tổ tiên để mở cây. */
+    OrgUnitSearchHit: {
+      id: components['schemas']['Uuid'];
+      code: string;
+      name: string;
+      unitType: components['schemas']['OrgUnitType'];
+      /** @description Tổ tiên từ gốc tới cha trực tiếp tại thời điểm hỏi; rỗng khi là gốc. */
+      ancestors: {
+        id: components['schemas']['Uuid'];
+        code?: string;
+        name: string;
+      }[];
+    };
+    /** @description Một phiên bản đơn vị trên hai trục thời gian, cho vùng "Lịch sử thay đổi". */
+    OrgUnitVersion: {
+      versionId: components['schemas']['Uuid'];
+      code: string;
+      name: string;
+      parentName?: string;
+      subjectGroupName?: string;
+      validFrom: components['schemas']['Date'];
+      /** Format: date */
+      validTo?: string | null;
+      recordedFrom: components['schemas']['DateTime'];
+      /**
+       * Format: date-time
+       * @description Có khi phiên bản đã bị đính chính trên trục ghi nhận.
+       */
+      recordedTo?: string | null;
+      recordedByName?: string;
+      changeType?: components['schemas']['OrgChangeType'];
+      /** @description Quyết định làm phát sinh phiên bản; vắng với sửa thông tin không cần quyết định. */
+      changeOrder?: {
+        id: components['schemas']['Uuid'];
+        orderNo: string;
+        orderDate?: components['schemas']['Date'];
+        signedDocRef?: string;
+      };
+      /** @description Tên trường đổi so với phiên bản trước, ví dụ `name`, `parentId` (suy luận) */
+      changedFields?: string[];
+    };
+    /** @description Phân công thuộc đơn vị tại thời điểm hỏi (SCR-0103 trường 13). */
+    OrgUnitAssignment: {
+      id: components['schemas']['Uuid'];
+      personId: components['schemas']['Uuid'];
+      personName: string;
+      jobTitleName: string;
+      kind: components['schemas']['AssignmentKind'];
+      branch?: components['schemas']['Branch'];
+      validFrom: components['schemas']['Date'];
+      /** Format: date */
+      validTo?: string | null;
+    };
+    /** @description Khối đối tượng đánh giá (`org.subject_group`, PL 2A). */
+    SubjectGroup: {
+      id: components['schemas']['Uuid'];
+      /** @example K1 */
+      code: string;
+      name: string;
+      /** @enum {string} */
+      flow: 'DANG' | 'NHA_NUOC' | 'CA_HAI';
+      description?: string;
+      validFrom?: components['schemas']['Date'];
+      /** Format: date */
+      validTo?: string | null;
+    };
     OrgTreeNode: {
       id: components['schemas']['Uuid'];
       code?: string;
@@ -713,6 +863,15 @@ export interface components {
     };
     /** @description Không tìm thấy, hoặc đối tượng nằm ngoài phạm vi người gọi (không lộ sự tồn tại). */
     NotFound: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetails'];
+      };
+    };
+    /** @description Yêu cầu sai cú pháp hoặc tham số không hợp lệ. */
+    BadRequest: {
       headers: {
         [name: string]: unknown;
       };
@@ -976,6 +1135,41 @@ export interface operations {
       default: components['responses']['Problem'];
     };
   };
+  searchOrgUnits: {
+    parameters: {
+      query: {
+        /** @description Mã hoặc tên đơn vị, tối thiểu 2 ký tự. */
+        q: string;
+        /** @description Ngày trên trục hiệu lực (`valid_from`/`valid_to`); bỏ trống là hôm nay. */
+        asOf?: components['parameters']['AsOf'];
+        /** @description Thời điểm trên trục ghi nhận (`recorded_from`/`recorded_to`); bỏ trống là hiện tại. */
+        recordedAsOf?: components['parameters']['RecordedAsOf'];
+        tree?: components['schemas']['OrgTreeKind'];
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Các đơn vị khớp, xếp theo độ khớp; không phân trang tiếp. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['OrgUnitSearchHit'][];
+          };
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      default: components['responses']['Problem'];
+    };
+  };
   getOrgUnit: {
     parameters: {
       query?: {
@@ -1106,6 +1300,107 @@ export interface operations {
       403: components['responses']['Forbidden'];
       409: components['responses']['Conflict'];
       422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listOrgUnitHistory: {
+    parameters: {
+      query?: {
+        /** @description Thời điểm trên trục ghi nhận (`recorded_from`/`recorded_to`); bỏ trống là hiện tại. */
+        recordedAsOf?: components['parameters']['RecordedAsOf'];
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Một trang phiên bản. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['OrgUnitVersion'][];
+            nextCursor: components['schemas']['NextCursor'];
+          };
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listOrgUnitAssignments: {
+    parameters: {
+      query?: {
+        /** @description Ngày trên trục hiệu lực (`valid_from`/`valid_to`); bỏ trống là hôm nay. */
+        asOf?: components['parameters']['AsOf'];
+        /** @description Thời điểm trên trục ghi nhận (`recorded_from`/`recorded_to`); bỏ trống là hiện tại. */
+        recordedAsOf?: components['parameters']['RecordedAsOf'];
+        /** @description Từ khoá tìm kiếm, không phân biệt dấu. */
+        q?: components['parameters']['Q'];
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Một trang phân công. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['OrgUnitAssignment'][];
+            nextCursor: components['schemas']['NextCursor'];
+          };
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listSubjectGroups: {
+    parameters: {
+      query?: {
+        /** @description Ngày trên trục hiệu lực (`valid_from`/`valid_to`); bỏ trống là hôm nay. */
+        asOf?: components['parameters']['AsOf'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Danh mục khối đối tượng. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['SubjectGroup'][];
+          };
+        };
+      };
+      401: components['responses']['Unauthorized'];
       default: components['responses']['Problem'];
     };
   };

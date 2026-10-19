@@ -233,6 +233,51 @@ paths:
         scope: Tn
         source: 'TL-02a SCR-0103 "Xem tại ngày"'
 
+  /org/units/search:
+    get:
+      tags: [Cây tổ chức]
+      operationId: searchOrgUnits
+      summary: Tìm đơn vị trong cây tại một thời điểm
+      description: >-
+        (suy luận đường dẫn) Ô tìm đơn vị ở vùng 1 của SCR-0103: tìm theo mã hoặc tên (không phân biệt dấu)
+        trên phiên bản đơn vị có hiệu lực tại `asOf`, ghi nhận tại `recordedAsOf`, trả kèm chuỗi tổ tiên từ
+        gốc để mở cây tới đúng nút. Tách khỏi `GET /org/units` vì thao tác đó phục vụ chọn đơn vị theo phạm
+        vi người dùng (SCR-0501), không có trục thời gian.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Mã hoặc tên đơn vị, tối thiểu 2 ký tự.
+          schema: { type: string, minLength: 2, maxLength: 100 }
+        - $ref: '#/components/parameters/AsOf'
+        - $ref: '#/components/parameters/RecordedAsOf'
+        - name: tree
+          in: query
+          schema: { $ref: '#/components/schemas/OrgTreeKind' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Các đơn vị khớp, xếp theo độ khớp; không phân trang tiếp.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrgUnitSearchHit' }
+        '400': { $ref: '../common/common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        roles: [tenant_admin, leader, manager, inspector, appraiser]
+        scope: Tn
+        source: 'TL-02a SCR-0103 vùng 1 (suy luận đường dẫn)'
+
   /org/units/{id}:
     parameters:
       - $ref: '../common/common.yaml#/components/parameters/IdPath'
@@ -368,6 +413,121 @@ paths:
         aal: 2
         rules: [BR-01-07, BR-01-08]
         source: 'TL-02a SCR-0103 "Thay đổi tổ chức"'
+
+  /org/units/{id}/history:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Cây tổ chức]
+      operationId: listOrgUnitHistory
+      summary: Lịch sử phiên bản của đơn vị
+      description: >-
+        (suy luận đường dẫn) Vùng 4 "Lịch sử thay đổi" của SCR-0103: các phiên bản của đơn vị trên trục
+        hiệu lực, mới nhất trước, kèm quyết định thay đổi và thời điểm ghi nhận (BR-01-06, không ghi đè lịch
+        sử). `recordedAsOf` giới hạn các phiên bản đã ghi nhận tới thời điểm đó; bỏ trống là hiện tại. Phiên
+        bản đã bị thay thế trên trục ghi nhận (đính chính) có `recordedTo`.
+      parameters:
+        - $ref: '#/components/parameters/RecordedAsOf'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang phiên bản.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrgUnitVersion' }
+                  nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        roles: [tenant_admin, leader, manager, inspector, appraiser]
+        scope: Tn
+        rules: [BR-01-06]
+        source: 'TL-02a SCR-0103 vùng 4, trường 9, 10; TL-03 `org.org_unit`, `org.org_change_order` (suy luận đường dẫn)'
+
+  /org/units/{id}/assignments:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Cây tổ chức]
+      operationId: listOrgUnitAssignments
+      summary: Cán bộ của đơn vị tại thời điểm
+      description: >-
+        (suy luận đường dẫn) Vùng 3 của SCR-0103 (trường 13): phân công `org.assignment` thuộc đơn vị có
+        hiệu lực tại `asOf`, ghi nhận tại `recordedAsOf`. Không chứa dữ liệu C2.
+      parameters:
+        - $ref: '#/components/parameters/AsOf'
+        - $ref: '#/components/parameters/RecordedAsOf'
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang phân công.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrgUnitAssignment' }
+                  nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        roles: [tenant_admin, appraiser, manager, leader]
+        scope: Đv
+        rules: [BR-01-08]
+        source: 'TL-02a SCR-0103 vùng 3, trường 13 (suy luận đường dẫn)'
+
+  /org/subject-groups:
+    get:
+      tags: [Tra cứu]
+      operationId: listSubjectGroups
+      summary: Danh mục khối đối tượng đánh giá
+      description: >-
+        (suy luận đường dẫn) Chín khối đối tượng theo PL 2A (`org.subject_group`) cho ô chọn "Khối đối tượng"
+        (SCR-0103 trường 7, BR-01-05). Danh mục nhỏ nên trả một lần; `asOf` lọc khối còn hiệu lực.
+      parameters:
+        - $ref: '#/components/parameters/AsOf'
+      responses:
+        '200':
+          description: Danh mục khối đối tượng.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/SubjectGroup' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        roles: [tenant_admin, leader, manager, inspector, appraiser]
+        scope: Tn
+        rules: [BR-01-05]
+        source: 'TL-02a SCR-0103 trường 7; TL-03 `org.subject_group` (suy luận đường dẫn)'
 
   /org/imports:
     post:
@@ -881,6 +1041,84 @@ components:
             recordedByName: { type: string }
             assignmentCount: { type: integer }
             rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    OrgUnitSearchHit:
+      description: Đơn vị khớp tìm kiếm kèm chuỗi tổ tiên để mở cây.
+      type: object
+      required: [id, code, name, unitType, ancestors]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string }
+        name: { type: string }
+        unitType: { $ref: '#/components/schemas/OrgUnitType' }
+        ancestors:
+          type: array
+          description: Tổ tiên từ gốc tới cha trực tiếp tại thời điểm hỏi; rỗng khi là gốc.
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+              code: { type: string }
+              name: { type: string }
+    OrgUnitVersion:
+      description: Một phiên bản đơn vị trên hai trục thời gian, cho vùng "Lịch sử thay đổi".
+      type: object
+      required: [versionId, code, name, validFrom, recordedFrom]
+      properties:
+        versionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string }
+        name: { type: string }
+        parentName: { type: string }
+        subjectGroupName: { type: string }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        validTo: { type: [string, 'null'], format: date }
+        recordedFrom: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        recordedTo:
+          type: [string, 'null']
+          format: date-time
+          description: Có khi phiên bản đã bị đính chính trên trục ghi nhận.
+        recordedByName: { type: string }
+        changeType: { $ref: '#/components/schemas/OrgChangeType' }
+        changeOrder:
+          type: object
+          description: Quyết định làm phát sinh phiên bản; vắng với sửa thông tin không cần quyết định.
+          required: [id, orderNo]
+          properties:
+            id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+            orderNo: { type: string }
+            orderDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+            signedDocRef: { type: string }
+        changedFields:
+          type: array
+          description: 'Tên trường đổi so với phiên bản trước, ví dụ `name`, `parentId` (suy luận)'
+          items: { type: string }
+    OrgUnitAssignment:
+      description: Phân công thuộc đơn vị tại thời điểm hỏi (SCR-0103 trường 13).
+      type: object
+      required: [id, personId, personName, jobTitleName, kind, validFrom]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        personName: { type: string }
+        jobTitleName: { type: string }
+        kind: { $ref: '#/components/schemas/AssignmentKind' }
+        branch: { $ref: '../common/common.yaml#/components/schemas/Branch' }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        validTo: { type: [string, 'null'], format: date }
+    SubjectGroup:
+      description: Khối đối tượng đánh giá (`org.subject_group`, PL 2A).
+      type: object
+      required: [id, code, name, flow]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 16, examples: [K1] }
+        name: { type: string, maxLength: 255 }
+        flow:
+          type: string
+          enum: [DANG, NHA_NUOC, CA_HAI]
+        description: { type: string }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        validTo: { type: [string, 'null'], format: date }
     OrgTreeNode:
       type: object
       required: [id, name, unitType, hasChildren]
