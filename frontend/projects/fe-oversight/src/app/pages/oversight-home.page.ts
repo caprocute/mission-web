@@ -22,13 +22,15 @@ import { OVERSIGHT_CAN } from '../oversight-permissions';
       @if (can('SCR-1302.tra-cuu')) {
         <li>
           <a routerLink="ledger">Sổ cái và kiểm tra toàn vẹn</a>
-          <span>Tra cứu lịch sử thay đổi, kiểm tra chuỗi băm, niêm phong Merkle và bản neo.</span>
+          <span
+            >Tra cứu lịch sử thay đổi dữ liệu đánh giá và kiểm tra tính toàn vẹn của sổ cái.</span
+          >
         </li>
       }
     </ul>
+    <!-- khiếu nại, giải trình (SCR-1201, SCR-1202) và cảnh báo bất thường (SCR-1401) còn chờ -->
     <p-message severity="info">
-      Khiếu nại, giải trình (SCR-1201, SCR-1202) và cảnh báo bất thường (SCR-1401) đang được phát
-      triển.
+      Chức năng khiếu nại, giải trình và cảnh báo bất thường đang được chuẩn bị đưa vào sử dụng.
     </p-message>
   `,
   styles: `
@@ -62,6 +64,7 @@ export class OversightHomePage {
   protected readonly can = inject(OVERSIGHT_CAN);
   protected canReopen() {
     return (['tao', 'duyet-1', 'duyet-2', 'tu-choi', 'huy'] as const).some((k) =>
+      // ui-text-ok: khoá quyền, không hiện lên màn hình
       this.can(`SCR-1301.${k}`),
     );
   }
