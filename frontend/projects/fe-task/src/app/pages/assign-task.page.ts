@@ -288,7 +288,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                   pInputText
                   class="full"
                   maxlength="500"
-                  placeholder="Văn bản hoặc chỉ đạo ghi rõ (BR-05-09)"
+                  placeholder="Ghi rõ văn bản hoặc ý kiến chỉ đạo làm căn cứ"
                   [ngModel]="f.basis ?? ''"
                   (ngModelChange)="set('basis', $event)"
                 />
@@ -371,7 +371,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
             @if (!bulk()) {
               <div class="grid2">
                 <div>
-                  <label for="as-lead">Chủ trì (đúng một) <span class="req">*</span></label>
+                  <label for="as-lead">Người chủ trì <span class="req">*</span></label>
                   <p-select
                     inputId="as-lead"
                     [options]="leadOptions()"
@@ -427,7 +427,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                   (ngModelChange)="set('dueDate', $event || undefined)"
                 />
                 @if (check.value()?.workingDays; as n) {
-                  <small class="muted">{{ n }} ngày làm việc · theo lịch nghỉ của tenant</small>
+                  <small class="muted">{{ n }} ngày làm việc (đã trừ ngày nghỉ, ngày lễ)</small>
                 }
               </div>
               <div>
@@ -446,7 +446,9 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
                   styleClass="full"
                   appendTo="body"
                 />
-                <small class="muted">Khác người chủ trì và người phối hợp (PL 4 V.1)</small>
+                <small class="muted"
+                  >Khác người chủ trì và người phối hợp (Phụ lục 4, mục V.1)</small
+                >
               </div>
               @if (!simple()) {
                 <div>
@@ -632,7 +634,7 @@ function groupByUnit(persons: OrgPerson[], exclude: string[] = []) {
           </dl>
           <p class="muted small">
             Nếu là cùng một công việc, không giao nhiệm vụ mới; muốn đổi hạn hoặc sản phẩm của nhiệm
-            vụ cũ thì dùng đề nghị điều chỉnh (QT-06).
+            vụ cũ thì gửi đề nghị điều chỉnh nhiệm vụ đó.
           </p>
         }
       </p-drawer>
@@ -907,11 +909,16 @@ export class AssignTaskPage {
       label: `Cán bộ · ${g.label}`,
       items: g.items.map((i) => ({
         ...i,
+        // ui-text-ok: khoá giá trị của ô chọn, không hiện lên màn hình
         value: `PERSON:${i.value}`,
         label: i.label.split(' · ')[0],
       })),
     }));
-    const units = (this.units.value() ?? []).map((u) => ({ value: `UNIT:${u.id}`, label: u.name }));
+    const units = (this.units.value() ?? []).map((u) => ({
+      // ui-text-ok: khoá giá trị của ô chọn, không hiện lên màn hình
+      value: `UNIT:${u.id}`,
+      label: u.name,
+    }));
     return [{ label: 'Đơn vị', items: units }, ...people];
   });
   protected readonly coKeys = computed(() =>

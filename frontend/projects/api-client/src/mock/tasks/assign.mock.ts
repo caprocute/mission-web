@@ -233,11 +233,12 @@ function sanitize(body: unknown): TaskDraft {
 
 const etag = (d: TaskDraft) => ({ ETag: `"${d.rowVersion}"` });
 const findDraft = (id: string) => store().find((d) => d.id === id);
-const notFound = (id: string) => problem(404, 'Không tìm thấy nhiệm vụ', { detail: id });
+const notFound = () =>
+  problem(404, 'Không tìm thấy nhiệm vụ', { detail: 'Nhiệm vụ không tồn tại hoặc đã bị xoá.' });
 
 function ifMatch(d: TaskDraft, req: MockRequest): MockResponse | null {
   const v = req.headers.get('If-Match');
-  if (!v) return problem(428, 'Thiếu If-Match');
+  if (!v) return problem(428, 'Thiếu thông tin phiên bản dữ liệu. Vui lòng tải lại trang.');
   return v.replace(/"/g, '') === String(d.rowVersion)
     ? null
     : problem(409, 'Nhiệm vụ vừa được người khác cập nhật. Vui lòng tải lại.');
@@ -273,7 +274,7 @@ function create(req: MockRequest): MockResponse {
 
 function update(req: MockRequest): MockResponse {
   const cur = findDraft(req.pathParams['id']);
-  if (!cur) return notFound(req.pathParams['id']);
+  if (!cur) return notFound();
   const conflict = ifMatch(cur, req);
   if (conflict) return conflict;
   if (cur.status !== 'NHAP')
@@ -292,7 +293,7 @@ function update(req: MockRequest): MockResponse {
 
 function remove(req: MockRequest): MockResponse {
   const cur = findDraft(req.pathParams['id']);
-  if (!cur) return notFound(req.pathParams['id']);
+  if (!cur) return notFound();
   const conflict = ifMatch(cur, req);
   if (conflict) return conflict;
   if (cur.status !== 'NHAP') return problem(409, 'Chỉ huỷ được nhiệm vụ nháp');
@@ -303,7 +304,7 @@ function remove(req: MockRequest): MockResponse {
 /** Giao việc: máy chủ chạy lại toàn bộ kiểm tra; lỗi chặn trả 422 kèm MSG-05-01, MSG-05-02. */
 function assign(req: MockRequest): MockResponse {
   const cur = findDraft(req.pathParams['id']);
-  if (!cur) return notFound(req.pathParams['id']);
+  if (!cur) return notFound();
   const conflict = ifMatch(cur, req);
   if (conflict) return conflict;
   if (cur.status !== 'NHAP') return problem(409, 'Nhiệm vụ đã được giao');
