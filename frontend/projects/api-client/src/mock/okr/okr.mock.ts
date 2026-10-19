@@ -159,7 +159,8 @@ function largeObjectives(): Objective[] {
 function buildTree(req: MockRequest) {
   const periodId = req.params.get('period') ?? fixture.currentPeriodId;
   const period = periods.find((p) => p.id === periodId);
-  if (!period) return problem(404, 'Không tìm thấy kỳ đánh giá', { detail: `Kỳ ${periodId}` });
+  if (!period)
+    return problem(404, 'Không tìm thấy kỳ đánh giá', { detail: 'Vui lòng chọn kỳ khác.' });
   const unitId = req.params.get('unit') ?? fixture.unit.id;
   const large = unitId === OKR_LARGE_UNIT_ID;
   if (!large && unitId !== fixture.unit.id) {
@@ -568,7 +569,11 @@ function applyDecision(
 
 function decide(req: MockRequest, decision: 'DUYET' | 'TRA_LAI') {
   const ifMatch = req.headers.get('If-Match');
-  if (!ifMatch) return problem(428, 'Thiếu If-Match');
+  if (!ifMatch)
+    return problem(
+      428,
+      'Dữ liệu trên màn hình đã cũ. Vui lòng tải lại rồi thực hiện lại thao tác.',
+    );
   const body = (req.body ?? {}) as OkrReviewDecisionBody;
   if (decision === 'TRA_LAI' && !body.comment?.trim()) {
     return problem(422, 'Vui lòng nhập ý kiến khi trả lại.', { code: 'OKR-422-COMMENT-REQUIRED' });
@@ -643,7 +648,7 @@ export const OKR_MOCK: MockModule = {
       handle: (req) =>
         req.params.get('view') === 'tree'
           ? buildTree(req)
-          : problem(400, 'Chế độ xem chưa hỗ trợ trong dữ liệu giả lập'),
+          : problem(400, 'Chế độ xem này chưa được hỗ trợ.'),
     },
     ...checkinRoutes(objectivesState),
     {
@@ -709,14 +714,22 @@ export const OKR_MOCK: MockModule = {
         const cur = draftsState().get(req.pathParams['id']);
         if (!cur) return problem(404, 'Không tìm thấy mục tiêu');
         const ifMatch = req.headers.get('If-Match');
-        if (!ifMatch) return problem(428, 'Thiếu If-Match');
+        if (!ifMatch)
+          return problem(
+            428,
+            'Dữ liệu trên màn hình đã cũ. Vui lòng tải lại rồi thực hiện lại thao tác.',
+          );
         if (ifMatch.replace(/"/g, '') !== String(cur.rowVersion)) {
           return problem(409, 'Mục tiêu vừa được người khác cập nhật. Vui lòng tải lại.');
         }
         if (cur.status !== 'NHAP') {
-          return problem(409, 'Mục tiêu đã trình hoặc đã duyệt không sửa tại chỗ (BR-02-10)', {
-            code: 'OKR-409-NOT-DRAFT',
-          });
+          return problem(
+            409, // BR-02-10
+            'Mục tiêu đã trình hoặc đã được duyệt nên không sửa trực tiếp được.',
+            {
+              code: 'OKR-409-NOT-DRAFT',
+            },
+          );
         }
         const body = req.body as ObjectiveDraft;
         const n = Number(cur.code.slice(1)) || 1;
@@ -744,7 +757,7 @@ export const OKR_MOCK: MockModule = {
           return problem(409, 'Mục tiêu không ở trạng thái nháp', { code: 'OKR-409-NOT-DRAFT' });
         const errors = serverCheck(cur);
         if (errors.length) {
-          return problem(422, 'Bộ OKR còn lỗi chặn trình duyệt', {
+          return problem(422, 'Bộ OKR còn lỗi cần sửa trước khi trình.', {
             code: 'OKR-422-RULES',
             errors: errors.map((message) => ({ field: '', message })),
           });
@@ -849,7 +862,7 @@ export const OKR_MOCK: MockModule = {
           type: 'EXPORT',
           status: 'HOAN_TAT',
           progress: 100,
-          message: 'Đã sinh tệp theo mẫu báo cáo OKR',
+          message: 'Đã tạo tệp báo cáo OKR theo mẫu.',
           resultLocation: `/api/v1/okr/exports/${id}/file`,
         });
         return { status: 202, body: null, headers: { Location: `/api/v1/okr/exports/${id}` } };
@@ -860,7 +873,7 @@ export const OKR_MOCK: MockModule = {
       pattern: '/api/v1/okr/exports/:id',
       handle: (req) => {
         const job = exportJobs.get(req.pathParams['id']);
-        return job ? ok(job) : problem(404, 'Không tìm thấy tác vụ xuất mẫu');
+        return job ? ok(job) : problem(404, 'Không tìm thấy yêu cầu xuất báo cáo.');
       },
     },
   ],

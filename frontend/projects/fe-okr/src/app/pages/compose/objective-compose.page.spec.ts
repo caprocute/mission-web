@@ -87,7 +87,7 @@ describe('ObjectiveComposePage (SCR-0202)', () => {
     expect(text(el.querySelector('.head'))).toContain('bản nháp 3');
     expect(field(el, 'Nội dung KR 3.1').value).toContain('100% chi bộ');
     expect(text(el.querySelector('.foot'))).toContain('Tổng trọng số: 100%');
-    expect(text(el.querySelector('.foot'))).toContain('2 lỗi chặn trình duyệt');
+    expect(text(el.querySelector('.foot'))).toContain('2 lỗi cần sửa trước khi trình');
     expect(text(el.querySelector('.foot'))).toContain('1 cảnh báo');
     expect(text(el.querySelector('table.kr'))).toContain('KPI mơ hồ: "tăng cường" không đo được.');
     expect(text(el.querySelector('table.kr'))).toContain('KR 3.4 giống một nhiệm vụ');
@@ -122,7 +122,7 @@ describe('ObjectiveComposePage (SCR-0202)', () => {
     type(field(el, 'Hạn KR 3.3'), '2026-12-31');
     choose(field(el, 'Người xác nhận KR 3.3') as unknown as HTMLSelectElement, 1);
     await tick();
-    expect(text(el.querySelector('.foot'))).not.toContain('lỗi chặn');
+    expect(text(el.querySelector('.foot'))).not.toContain('lỗi cần sửa');
     const submit = button(el, 'Trình phê duyệt')!;
     expect(submit.disabled).toBe(false);
     submit.click();
@@ -191,7 +191,7 @@ describe('ObjectiveComposePage (SCR-0202)', () => {
         return firstValueFrom(api.submitObjective('o-3'));
       },
     );
-    expect(text(el)).toContain('không sửa tại chỗ (BR-02-10)');
+    expect(text(el)).toContain('nên không sửa trực tiếp được');
     expect(buttons(el)).not.toContain('Lưu nháp');
     expect(field(el, 'Nội dung KR 3.1').closest('fieldset')!.disabled).toBe(true);
   });
