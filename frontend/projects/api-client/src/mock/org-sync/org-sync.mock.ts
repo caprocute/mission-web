@@ -149,14 +149,14 @@ const MATCH = 'Số định danh cá nhân (băm HMAC) + ngày sinh';
  * Phân bố như Hình 6.10 (chức vụ 168, đơn vị 121, không khớp người 74) cộng đảng tịch 47 và hai
  * dòng kiêm nhiệm, trạng thái: tổng 412 mục.
  */
-const PLAN: [string, number][] = [
+const PLAN: [OrgDiscrepancy['field'], number][] = [
   ['job_title_id', 167],
   ['org_unit_id', 120],
   [FIELD_PERSON_MATCH, 73],
   ['party_membership', 47],
 ];
 
-function base(i: number, field: string, severity: DiscrepancySeverity): OrgDiscrepancy {
+function base(i: number, field: OrgDiscrepancy['field'], severity: DiscrepancySeverity): OrgDiscrepancy {
   const run = field === 'party_membership' ? runs[1] : runs[2];
   return {
     id: uuid('01928f3e-d100', i),
