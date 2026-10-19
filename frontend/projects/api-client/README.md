@@ -2,6 +2,16 @@
 
 Cấu hình chạy, interceptor, Problem Details (RFC 9457), phân trang con trỏ và client API của mission-core.
 
+## Hợp đồng OpenAPI, lỗi, xung đột, tác vụ dài (WEB-007)
+
+- Kiểu sinh từ `frontend/tools/openapi/mission-core.openapi.yaml` bằng openapi-typescript (chỉ kiểu, không mã chạy):
+  `npm run api:gen` ghi `src/lib/generated/mission-core.ts`, `npm run api:check` báo lệch (CI). Không sửa tay tệp sinh.
+- `apiUrl('/tasks/{id}', { id })` dựng `/api/v1/...` có kiểm kiểu theo hợp đồng.
+- `toProblem`, `isConcurrencyConflict`, `fieldErrors`; `ProblemPresenter` (toast qua `MessageService`, MSG theo `code`
+  khai bằng `provideProblemMessages`); `<vt-field-error>`; `<vt-conflict-notice>` cho 409/412.
+- `JobTracker.track(location)` theo dõi 202 + `Location: /api/v1/jobs/{id}` (thăm dò giãn cách, `Retry-After`,
+  trộn được luồng SSE); `<vt-job-progress>` hiển thị tiến trình. Chi tiết ở wiki/06.
+
 ## Dữ liệu giả lập (WEB-008)
 
 Client (như `TaskApi`) luôn gọi HTTP thật. Khi `useMockApi` bật trong `/config.json`,

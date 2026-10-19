@@ -12,6 +12,10 @@ Phiên bản nằm trong đường dẫn (`v1`). Khi có `v2`, bản cũ đượ
 
 Trình duyệt chỉ biết một gốc API của cell (khoá `apiBaseUrl` trong `/config.json`), vì mọi service đều đứng sau APISIX (SVC-01). APISIX kết thúc TLS, chạy WAF Coraza với OWASP CRS, kiểm JWT qua JWKS của Keycloak trong cell (lưu đệm khoảng 10 phút theo TL-01) và claim `cell`, giới hạn tốc độ, rồi gắn `X-Tenant-Id` cho upstream. Frontend không tự gửi `X-Tenant-Id`. Thời gian chờ đọc ở cổng là 10 giây cho mọi API đồng bộ (TL-04), nên API nào có thể chạy lâu hơn đều phải theo mẫu tác vụ nền.
 
+## Sinh kiểu từ hợp đồng OpenAPI
+
+Từ WEB-007, kiểu dữ liệu của `@vt/api-client` sinh từ tệp OpenAPI 3.1 của mission-core lúc build bằng `openapi-typescript`. Công cụ này được chọn vì chỉ sinh kiểu TypeScript, không sinh mã chạy và không cần đánh giá mã lúc chạy (hợp với CSP ở quy tắc 5), nên không tốn byte nào trong gói tải; client vẫn là lớp Angular viết tay dùng `HttpClient`, nhờ vậy giữ nguyên chuỗi interceptor. Hợp đồng nằm ở `frontend/tools/openapi/mission-core.openapi.yaml`; khi mission-core chưa phát hành bản thật, đây là tệp mẫu viết tay cho `/api/v1/tasks` và `/api/v1/jobs/{id}`. Chạy `npm run api:gen` để sinh lại `projects/api-client/src/lib/generated/mission-core.ts` (đã định dạng Prettier, có `eslint-disable` vì là mã sinh), còn `npm run api:check` báo lỗi khi tệp đã commit lệch với hợp đồng, dùng làm cổng trong CI. Không sửa tay tệp sinh. Kiểu nghiệp vụ như `TaskSummary`, `TaskDetail`, `ProblemDetails`, `Job` là bí danh của `components['schemas'][...]`, và hàm `apiUrl('/tasks/{id}', { id })` dựng đường dẫn `/api/v1/...` có kiểm tên đường dẫn và tham số lúc biên dịch.
+
 ## Header của mỗi request
 
 | Header | Khi nào | Giá trị | Ai gắn trong mã |
@@ -42,7 +46,11 @@ Cần phân biệt xung đột ghi với các lỗi 409 mang nghĩa nghiệp v�
 
 Mọi lỗi trả về dạng Problem Details (RFC 9457). TL-01 mở rộng thêm trường `code` dạng `<MODULE>-<HTTP>-<TÊN>` và `traceId`, cùng mảng `errors[]` cho lỗi theo trường. Ví dụ trong TL-01 có `status` 409, `code` `TASK-409-PERIOD-LOCKED` cho trường hợp ghi vào kỳ đã khoá. TL-02 ví dụ `type` trỏ tới mã quy tắc nghiệp vụ dạng `.../errors/BR-04-03` và quy định giao diện ánh xạ lỗi sang thông báo MSG.
 
-Kiểu `ProblemDetails` trong `@vt/api-client` có `type`, `title`, `status`, `detail`, `instance`, `code`, `errors` (mỗi phần tử có `field`, `message`) và `traceId`. Hàm `toProblem()` chuyển mọi lỗi HTTP về kiểu này, kể cả khi máy chủ không trả body đúng dạng. Quy tắc hiển thị do wiki khuyến nghị, dựa trên TL-02: lỗi có `errors[]` hiện ở cạnh từng trường; lỗi có `code` ánh xạ được sang MSG thì hiện văn bản của MSG; các lỗi còn lại hiện `title` kèm `traceId` để người dùng báo cho bộ phận hỗ trợ.
+Kiểu `ProblemDetails` trong `@vt/api-client` có `type`, `title`, `status`, `detail`, `instance`, `code`, `errors` (mỗi phần tử có `field`, `message`) và `traceId`. Hàm `toProblem()` chuyển mọi lỗi HTTP về kiểu này, kể cả khi máy chủ không trả body đúng dạng (body là chuỗi JSON, trang HTML của cổng, mất mạng với `status` 0); khi đó tiêu đề tiếng Việt được dựng theo mã HTTP. Quy tắc hiển thị dựa trên TL-02: lỗi có `errors[]` hiện ở cạnh từng trường; lỗi có `code` ánh xạ được sang MSG thì hiện văn bản của MSG; các lỗi còn lại hiện `title` kèm `traceId` để người dùng báo cho bộ phận hỗ trợ.
+
+WEB-007 hiện thực quy tắc này bằng `ProblemPresenter`. Hàm `describe(err)` trả `message`, `fields` (bảng trường sang lỗi), `conflict` và `traceId`; hàm `present(err)` làm thêm việc hiện toast qua `MessageService` của PrimeNG. Toast mặc định không bật cho lỗi theo trường và xung đột ghi, vì hai loại này hiện ngay trên màn hình. Mỗi remote khai bảng mã lỗi sang văn bản MSG của mình bằng `provideProblemMessages({ 'TASK-409-PERIOD-LOCKED': '...' })`. Lỗi theo trường hiện bằng `<vt-field-error [problem]="p" field="percent" />`. Toast chỉ hiện khi shell đã cung cấp `MessageService` và đặt `<p-toast>`, việc này thuộc WEB-012; trước đó `present()` vẫn trả kết quả để màn hình tự hiện.
+
+Hàm `isConcurrencyConflict()` coi là xung đột ghi khi gặp 412, 409 có `type` kết thúc bằng `concurrent-modification`, hoặc 409 không có `code` (hay `code` chứa CONFLICT, CONCURRENT, VERSION). 409 mang `code` nghiệp vụ như `TASK-409-PERIOD-LOCKED` không phải xung đột ghi. Khi có xung đột, màn hình giữ nguyên bản người dùng đang sửa, tự tải bản mới rồi đặt `<vt-conflict-notice [mine] [theirs] [fields]>`: component này hiện bảng khác biệt (chỉ các trường đã đổi) cùng hai nút "Tải lại bản mới" và "Giữ bản của tôi và lưu lại" (gửi lại với `rowVersion` mới), đúng yêu cầu của TL-02 là không bao giờ tự tải lại làm mất dữ liệu.
 
 ## Phân trang
 
@@ -51,6 +59,8 @@ Danh sách phân trang theo con trỏ (cursor), `limit` tối đa 200; TL-02 đ�
 ## Tác vụ dài và theo dõi tiến độ
 
 Tác vụ nặng (khoá kỳ, ký lô, xuất Excel, sinh biểu mẫu, chạy test vàng, kiểm tra toàn vẹn) trả `202 Accepted` kèm `Location: /api/v1/jobs/{id}` trong vòng 200 ms (NFR-03, SLO-ASYNC). Giao diện theo dõi bằng `GET /api/v1/jobs/{id}` hoặc nhận cập nhật qua SSE `GET /api/v1/notifications/stream` của notification-service (SVC-12). SCR-0904 và SCR-0801 là ví dụ điển hình: tiến độ ký lô và saga khoá kỳ cập nhật qua SSE, người dùng có thể đóng màn hình mà tác vụ vẫn chạy (MSG-09-15). TL-04 PERF-22 kiểm tra 60.000 kết nối SSE với độ trễ phân phát p95 ≤ 2 giây và nối lại ≤ 10 giây.
+
+Trong mã, `jobLocation(res)` đọc `Location` của phản hồi 202 (gọi API với `observe: 'response'`), rồi `JobTracker.track(location)` thăm dò `GET /api/v1/jobs/{id}` với giãn cách 1 s, 2 s, 4 s tới tối đa 10 s, theo `Retry-After` khi máy chủ gửi, thử lại tối đa ba lần khi mất mạng, 429 hoặc 5xx, báo lỗi ngay với 4xx khác, chỉ phát khi trạng thái hoặc tiến độ đổi và hoàn tất sau trạng thái kết thúc. Tuỳ chọn `events$` nhận luồng đẩy (SSE của SVC-12 khi WEB-012 dựng xong) để trộn với thăm dò, thăm dò vẫn chạy làm dự phòng. `<vt-job-progress [job]>` hiển thị thanh tiến trình có tên truy cập, trạng thái bằng chữ và lời nhắc có thể đóng màn hình. Lược đồ `Job` (`id`, `type`, `status`, `progress`, `message`, `resultLocation`, `problem`) và các trạng thái `CHO`, `DANG_CHAY`, `HOAN_TAT`, `THAT_BAI`, `DA_HUY` là giả định của WEB-007, dùng lại giá trị đã có trong TL-03, vì TL chưa đặc tả lược đồ job; cần đối chiếu khi mission-core có hợp đồng thật.
 
 ## Giới hạn và mã trạng thái đặc biệt
 
@@ -94,6 +104,7 @@ Danh sách dưới chỉ liệt kê; phân tích và đề xuất nằm ở [Quy
 | Phiên bản UUID của `Idempotency-Key` | TL-01: UUIDv7; mã: UUID v4 |
 | Phương thức cập nhật tiến độ | TL-01 mục 4: `PATCH /api/v1/tasks/{id}/progress`; TL-02 và mã: `POST` |
 | Danh sách "việc của tôi" | TL-02 SCR-0503: `/api/v1/tasks?assignee=me`; ma trận TL-02: `/api/v1/tasks/my`; mã: `/api/v1/tasks/mine` |
+| Lược đồ `/api/v1/jobs/{id}` | TL chưa đặc tả; hợp đồng mẫu WEB-007 tự đặt trạng thái `CHO`, `DANG_CHAY`, `HOAN_TAT`, `THAT_BAI`, `DA_HUY` |
 
 ## Liên quan
 
