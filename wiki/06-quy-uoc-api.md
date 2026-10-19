@@ -22,7 +22,7 @@ Trình duyệt chỉ biết một gốc API của cell (khoá `apiBaseUrl` trong
 | `If-Match` | Mọi cập nhật một đối tượng đã có | ETag = `row_version` của đối tượng | Client API gắn theo từng lời gọi |
 | `If-None-Match` | Đọc tài nguyên có ETag (UI Pack, dữ liệu ít đổi) | ETag lần trước | Theo thiết kế; UI Pack hiện dùng so sánh phiên bản |
 
-Thứ tự interceptor trong `fe-shell/src/app/app.config.ts` là `apiBaseUrlInterceptor`, `authInterceptor`, `idempotencyInterceptor`, `traceparentInterceptor`. `apiBaseUrlInterceptor` chỉ ghép gốc API vào đường dẫn bắt đầu bằng `/api/v1/` khi `apiBaseUrl` khác `/api`; vì vậy component và client luôn viết đường dẫn tương đối dạng `/api/v1/...`, không tự ghép tên miền.
+Thứ tự interceptor trong `fe-shell/src/app/app.config.ts` là `apiBaseUrlInterceptor`, `authInterceptor`, `idempotencyInterceptor`, `traceparentInterceptor`, `mockApiInterceptor`; interceptor giả lập đứng cuối để thấy request đúng như khi đi ra mạng. `apiBaseUrlInterceptor` chỉ ghép gốc API vào đường dẫn bắt đầu bằng `/api/v1/` khi `apiBaseUrl` khác `/api`; vì vậy component và client luôn viết đường dẫn tương đối dạng `/api/v1/...`, không tự ghép tên miền.
 
 ## Chống ghi trùng: Idempotency-Key
 
@@ -75,7 +75,13 @@ Theo TL-01, shell gọi `GET /api/v1/registry/resolve?tenant=` để biết tena
 
 ## Dữ liệu giả lập
 
-Trong giai đoạn đầu, frontend phát triển với mock API (quyết định đã chốt, xem trang 14). Khi `useMockApi` bật trong `/config.json`, client API trả dữ liệu từ thư mục `mock/` của `@vt/api-client` với độ trễ giả lập 100 đến 200 ms; khi tắt, cùng client gọi API thật. Quy tắc cho người viết client mới: mock và thật phải dùng chung kiểu dữ liệu, mock phải mô phỏng cả các hành vi quan trọng như tăng `rowVersion` sau khi ghi và chuyển trạng thái đúng bảng chuyển của baseline mục 9.1 (ví dụ `DA_GIAO` sang `DANG_THUC_HIEN` khi có cập nhật tiến độ đầu tiên, như `TaskApi` đang làm).
+Trong giai đoạn đầu, frontend phát triển với mock API (quyết định đã chốt, xem trang 14). Từ WEB-008, client API (như `TaskApi`) luôn gọi HTTP thật, không còn rẽ nhánh theo `useMockApi`. Khi `useMockApi` bật trong `/config.json`, `mockApiInterceptor` của `@vt/api-client` (đứng cuối chuỗi interceptor) chặn request có đường dẫn `/api/v1/...` và trả dữ liệu giả lập thay vì gọi mạng; request ngoài `/api/v1/` như `config.json`, UI Pack hay `remoteEntry.json` đi qua bình thường. Nhờ vậy `Idempotency-Key`, `If-Match` và lỗi RFC 9457 chạy đúng đường như với máy chủ thật. Mã giả lập nằm trong chunk nạp lười `mock-registry` nên không vào gói tải đầu; dữ liệu sống trong bộ nhớ, tải lại trang là về dữ liệu ban đầu. Chưa giả lập SSE và WebSocket.
+
+Dữ liệu tổ chức theo module API trong `src/mock/<module>/`: tệp `<module>.json` chứa fixture, tệp `<module>.mock.ts` khai các tuyến (phương thức, mẫu đường dẫn như `/api/v1/tasks/:id/progress`) và hành vi; module mới phải được thêm vào mảng `MOCK_MODULES` trong `mock-registry.ts`. Ngày trong fixture viết dạng tương đối `@today+2` hay `@today-3T08:30:00Z` và được quy đổi theo ngày chạy, để các trạng thái như "quá hạn" hay "còn N ngày" luôn đúng ngữ cảnh.
+
+Fixture phải mô phỏng các hành vi quan trọng của máy chủ: `If-Match` khác `rowVersion` hiện tại trả 409; dữ liệu sai trả 422 kèm `errors[]` theo trường; cùng `Idempotency-Key` và cùng nội dung trả lại nguyên kết quả lần đầu, cùng khoá mà khác nội dung trả 422; tăng `rowVersion` sau khi ghi và chuyển trạng thái đúng bảng chuyển của baseline mục 9.1 (ví dụ `DA_GIAO` sang `DANG_THUC_HIEN` khi có cập nhật tiến độ đầu tiên). Mock và thật dùng chung kiểu dữ liệu.
+
+Để thử giao diện ở trạng thái lỗi và chậm, thêm vào URL trang `?mock-error=409`, `?mock-error=422` hoặc `?mock-error=500` (cũng nhận tham số `mock-error` trên chính request). Mã 409, 412 và 422 chỉ áp cho lệnh ghi (`POST`, `PUT`, `PATCH`, `DELETE`), còn 500, 503 và các mã khác áp cho mọi request `/api/v1/`; lỗi ép trả Problem Details có `code` dạng `MOCK-409`. Độ trễ mặc định 100 đến 200 ms, đổi bằng `?mock-delay=<ms>` trên URL trang hoặc token `MOCK_API_OPTIONS` (kiểm thử đặt 0).
 
 ## Các điểm lệch cần chốt
 

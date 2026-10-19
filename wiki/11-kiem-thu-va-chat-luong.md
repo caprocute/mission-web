@@ -10,15 +10,17 @@ Bảng dưới liệt kê các loại kiểm thử theo TL-01 và TL-04, kèm hi
 
 | Loại | Công cụ | Phạm vi | Hiện trạng |
 |---|---|---|---|
-| Đơn vị | Vitest qua `@angular/build:unit-test`, jsdom | Hàm thuần, service, component | Đã cấu hình; mới có `app.spec.ts` sinh mặc định |
+| Đơn vị | Vitest qua `@angular/build:unit-test`, jsdom | Hàm thuần, service, component | Đã có (WEB-001): spec cho `@vt/design-system`, `@vt/form-engine`, `@vt/api-client` (giả lập), `app.spec.ts` của hai ứng dụng |
 | Hợp đồng | Pact (frontend là bên tiêu dùng) | Hợp đồng frontend với API mission-core | Chưa có |
 | Đầu cuối | Playwright, khoảng 40 hành trình chính | Luồng nghiệp vụ trên trình duyệt thật | Chưa có |
 | Giao diện theo token | Storybook, Playwright chụp ảnh, axe-core | Component registry × 4 bộ token | Chưa có (WEB-005) |
-| Hiệu năng trang | Lighthouse CI, WebPageTest 4G | PERF-21 mỗi bản build | Chưa có (WEB-003) |
+| Hiệu năng trang | Lighthouse CI, WebPageTest 4G | PERF-21 mỗi bản build | Đã cấu hình (WEB-003), số đo chưa đạt |
 | Tải | k6 | PERF-22 đến PERF-24 | Chưa có |
 | Bảo mật động | OWASP ZAP | SEC-40, ASVS mức 2 | Chưa có (WEB-053) |
 
-Kiểm thử đơn vị nên tập trung vào phần có logic: `flattenTokens` và `tokensToCss` của `@vt/design-system`, `evaluateRules` và `lintRules` của `@vt/form-engine`, bộ lọc thuộc tính và bộ đánh giá CEL của `@vt/sdui-renderer`, interceptor và `toProblem` của `@vt/api-client`, hàm `statusSeverity` và `daysLeft` của `fe-task`. Task WEB-001 yêu cầu ít nhất một bộ test mẫu cho `@vt/design-system` và `@vt/form-engine`, cùng ESLint với quy tắc cấm gắn `innerHTML`, cấm `bypassSecurityTrust*`, bắt buộc standalone và ưu tiên `inject()`, và các script `lint`, `format:check`, `test:all`, `build:all`.
+Kiểm thử đơn vị nên tập trung vào phần có logic: `flattenTokens` và `tokensToCss` của `@vt/design-system`, `evaluateRules` và `lintRules` của `@vt/form-engine`, bộ lọc thuộc tính và bộ đánh giá CEL của `@vt/sdui-renderer`, interceptor và `toProblem` của `@vt/api-client`, hàm `statusSeverity` và `daysLeft` của `fe-task`. WEB-001 đã dựng ESLint (`eslint.config.js`) với quy tắc cấm gắn `innerHTML`, `outerHTML`, cấm `bypassSecurityTrust*`, `eval`, `new Function`, NgModule mới, bắt buộc standalone và ưu tiên `inject()`, cùng bộ quy tắc truy cập cho template. Các lệnh kiểm chứng chạy trong `frontend/`: `npm run lint`, `npm run test:all` (Vitest cho mọi project có spec), `npm run build:all`, `npm run format:check` (còn đỏ do mã cũ cho tới WEB-060), `npm run perf:prepare` và `npm run perf:lhci` (Lighthouse CI, xem [Hiệu năng và trải nghiệm](09-hieu-nang-va-trai-nghiem.md)).
+
+Hai bẫy khi viết test cho ứng dụng: target `test` phải trỏ `buildTarget` sang `<app>:esbuild:development` vì builder `unit-test` không chạy với builder `native-federation`, và builder báo lỗi khi project không có spec nào. Test chạm tới HTTP dùng `mockApiInterceptor` với `MOCK_API_OPTIONS` đặt độ trễ 0 và gọi `resetMockData()` trước mỗi test (xem `mock-api.interceptor.spec.ts`); interceptor giả lập luôn đứng cuối chuỗi interceptor. Khi kiểm component dùng `rxResource`, nhớ thử cả trạng thái lỗi vì `value()` ném lỗi ở trạng thái này.
 
 ## Kiểm thử luật CEL dùng chung
 
