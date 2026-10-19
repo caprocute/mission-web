@@ -134,7 +134,9 @@ export const MSG_01_02 = (tenant: string, step: number) =>
         <ul class="warnbox notices" aria-label="Tenant đang khởi tạo">
           @for (t of o.onboarding; track t.id) {
             <li>
-              <a [routerLink]="t.id">{{ msg0102(t.name, t.step) }}</a>
+              <a [routerLink]="[t.id, 'onboarding']" [queryParams]="{ step: t.step }">{{
+                msg0102(t.name, t.step)
+              }}</a>
             </li>
           }
         </ul>

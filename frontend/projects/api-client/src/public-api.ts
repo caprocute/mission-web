@@ -32,6 +32,7 @@ export * from './lib/models/source-doc';
 export * from './lib/source-doc-api';
 export * from './lib/ai-api';
 export * from './lib/models/tenant';
+export * from './lib/models/tenant-onboarding';
 export * from './lib/tenant-api';
 export * from './lib/okr-progress';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
