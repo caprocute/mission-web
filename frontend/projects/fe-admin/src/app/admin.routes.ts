@@ -53,6 +53,8 @@ export const ROUTES: Routes = [
     canActivate: [permissionGuard('SCR-0801.xem')],
     loadComponent: () => import('./pages/periods/periods.page').then((m) => m.PeriodsPage),
     title: 'Kỳ đánh giá và khoá kỳ',
+  },
+  {
     path: 'org/sync',
     canActivate: [permissionGuard('SCR-0104.xem')],
     loadComponent: () => import('./pages/org/org-sync.page').then((m) => m.OrgSyncPage),
