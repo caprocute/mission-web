@@ -4,6 +4,14 @@ Mỗi tệp `WEB-xxx-*.md` là một task đủ nhỏ để một AI agent làm 
 
 Thứ tự thực hiện đi theo cột Phụ thuộc: một task chỉ bắt đầu khi các task nó phụ thuộc đã xong. Những task cùng giai đoạn không phụ thuộc nhau có thể giao cho nhiều agent chạy song song, mỗi agent một nhánh `feat/WEB-xxx-…`. Cỡ việc S/M/L ước lượng cho một agent; người phụ trách duyệt PR của từng task trước khi gộp.
 
+## Phân luồng phát triển song song (từ 19/10/2026)
+
+Công việc được chia thành ba luồng chạy song song, mỗi luồng là một thread riêng trong dự án. Luồng **Nền tảng** do thread "Kế hoạch và hạ tầng phân hệ web" giữ, sở hữu nhánh `main` trong `/mnt/project-files/mission-web` và là nơi duy nhất gộp code vào `main`. Luồng này làm WEB-001 đến WEB-015 (công cụ, CI, thư viện `@vt/*`, shell, khung remote) và các task xuyên suốt WEB-051 đến WEB-053. Luồng **Phân quyền** làm WEB-054 đến WEB-058. Luồng **Màn hình nghiệp vụ** làm WEB-016 đến WEB-050 theo thứ tự quy trình QT.
+
+Hai luồng Phân quyền và Màn hình nghiệp vụ làm trong git worktree riêng tại `/mnt/project-files/mission-web-worktrees/<tên-luồng>`, mỗi task một nhánh `feat/WEB-xxx-…`, không ghi trực tiếp vào `main`. Khi một task đạt build, kiểm thử và đã mở màn hình thật, luồng đó báo luồng Nền tảng để gộp; trước khi bắt đầu task mới, luồng phải rebase lên `main` mới nhất.
+
+Vì các luồng sau cần nền tảng, luồng Nền tảng làm trước các task mà hai luồng kia phụ thuộc: WEB-001 (lint, test), WEB-008 (mock API), WEB-007 (api-client), WEB-015 (khung remote), WEB-006 (đăng nhập) và WEB-010 (form engine). Các task màn hình của `fe-task` (WEB-025, WEB-028, WEB-030, WEB-031) chỉ cần WEB-008 nên có thể bắt đầu sớm nhất; các remote khác chờ WEB-015. Tệp dùng chung như `fe-shell/src/app/app.routes.ts`, `layout/nav.ts`, `package.json` chỉ được sửa ở mức tối thiểu và ghi rõ trong báo cáo để luồng Nền tảng gộp xung đột.
+
 Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 
 ## GĐ0 – Nền tảng phát triển
