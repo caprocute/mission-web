@@ -56,7 +56,7 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
   imports: [DatePipe, FormsModule, RouterLink, ButtonModule, SelectButtonModule, TextareaModule],
   template: `
     @if (!can('SCR-0403.so-sanh')) {
-      <p class="msg warn">Anh/chị không có quyền xem xét kế hoạch của đơn vị.</p>
+      <p class="msg warn">Đồng chí không có quyền xem xét kế hoạch của đơn vị.</p>
     } @else if (review.error()) {
       <p class="msg err" role="alert">{{ loadError() }}</p>
     } @else if (review.value(); as d) {
@@ -228,8 +228,8 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
           @if (d.base && !simple()) {
             <p class="msg info note">
               Việc đã có minh chứng được xác nhận không được bỏ khỏi kế hoạch. Hạn của việc đang
-              thực hiện không đổi qua điều chỉnh kế hoạch; muốn đổi hạn dùng đề nghị gia hạn (QT-06)
-              để giữ đúng cách tính tiến độ.
+              thực hiện không đổi qua điều chỉnh kế hoạch; muốn đổi hạn, người thực hiện gửi đề nghị
+              gia hạn để giữ đúng cách tính tiến độ.
             </p>
           }
         </section>
@@ -262,11 +262,11 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
               <dt>Hiệu lực</dt>
               <dd>Từ ngày duyệt; không hồi tố</dd>
               @if (!simple()) {
-                <dt>Mã băm v{{ t.versionNo }}</dt>
+                <dt>Mã kiểm tra toàn vẹn</dt>
                 <dd>
-                  <code class="hash" [title]="t.contentHash ?? ''"
-                    >sha256: {{ shortHash(t.contentHash ?? undefined) }}</code
-                  >
+                  <code class="hash" [title]="t.contentHash ?? ''">{{
+                    shortHash(t.contentHash ?? undefined)
+                  }}</code>
                 </dd>
               }
             </dl>
@@ -313,11 +313,11 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
               @if (stepUp()) {
                 <div class="msg warn" role="alert">
                   <span
-                    >Duyệt kế hoạch là mốc ký số pháp lý. Phiên đăng nhập đã quá 15 phút kể từ lần
-                    xác thực gần nhất; vui lòng xác thực bước lên (MFA) rồi ký.</span
+                    >Duyệt kế hoạch là thao tác ký số có giá trị pháp lý. Đã quá 15 phút kể từ lần
+                    xác thực gần nhất; đồng chí vui lòng xác thực nhiều lớp rồi ký.</span
                   >
                   <p-button
-                    label="Xác thực MFA"
+                    label="Xác thực nhiều lớp"
                     size="small"
                     [loading]="busy() === 'stepup'"
                     (onClick)="doStepUp()"
@@ -368,8 +368,8 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
               @if (can('SCR-0403.duyet-ky') && !simple()) {
                 <p class="muted small">
                   <span class="num sm" aria-hidden="true">5</span>
-                  Duyệt kế hoạch là mốc ký số pháp lý; yêu cầu xác thực bước lên (MFA) nếu phiên
-                  đăng nhập quá 15 phút.
+                  Duyệt kế hoạch là thao tác ký số có giá trị pháp lý; hệ thống yêu cầu xác thực
+                  nhiều lớp nếu đã quá 15 phút kể từ lần xác thực gần nhất.
                 </p>
               }
             </section>
@@ -802,7 +802,7 @@ export class PlanReviewPage {
     this.sign.set(null);
     if (!steppedUp && !(await this.stepUpFn().catch(() => false))) {
       this.busy.set(null);
-      this.error.set('Cần xác thực nhiều lớp (MFA) để ký số. Bấm "Duyệt và ký số" để thử lại.');
+      this.error.set('Cần xác thực nhiều lớp để ký số. Bấm "Duyệt và ký số" để thử lại.');
       return;
     }
     const no = d.version.versionNo;
@@ -838,7 +838,7 @@ export class PlanReviewPage {
     const ok = await this.stepUpFn().catch(() => false);
     this.busy.set(null);
     if (!ok) {
-      this.error.set('Chưa xác thực bước lên được. Vui lòng thử lại.');
+      this.error.set('Chưa xác thực nhiều lớp được. Vui lòng thử lại.');
       return;
     }
     this.stepUp.set(false);
