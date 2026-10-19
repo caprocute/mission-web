@@ -262,7 +262,7 @@ function merge(req: MockRequest): MockResponse {
 
 function reject(req: MockRequest): MockResponse {
   const hit = locate(req.pathParams['id']);
-  if (!hit) return problem(404, 'Không tìm thấy gợi ý');
+  if (!hit) return problem(404, 'Không tìm thấy nhiệm vụ trích');
   const b = (req.body ?? {}) as { decision?: string; reason?: string };
   if (b.decision !== 'BO_QUA') return problem(422, 'Quyết định không hợp lệ');
   if (!b.reason?.trim())

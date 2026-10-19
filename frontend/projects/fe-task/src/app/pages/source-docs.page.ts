@@ -32,8 +32,8 @@ type Filter = SourceDocStatus | 'TAT_CA';
       <p-message severity="warn" text="Chức năng này dành cho lãnh đạo đơn vị nhận văn bản." />
     } @else {
       <p class="muted">
-        Văn bản chỉ đạo nhận qua hệ thống văn phòng điện tử. AI trích nhiệm vụ để người giao xác
-        nhận từng nhiệm vụ trước khi giao.
+        Văn bản chỉ đạo nhận từ hệ thống quản lý văn bản điện tử. Hệ thống dùng AI trích các nhiệm
+        vụ trong văn bản; người giao việc xác nhận từng nhiệm vụ trước khi giao.
       </p>
       <p-selectbutton
         [options]="filters"
@@ -176,8 +176,9 @@ export class SourceDocsPage {
   protected state(d: SourceDocSummary): { label: string; severity: TagSeverity } {
     if (d.status !== 'CHO_XU_LY')
       return { label: SOURCE_DOC_STATUS_LABEL[d.status], severity: 'secondary' };
-    if (d.extraction === 'KHONG_TRICH_DUOC') return { label: 'Không trích được', severity: 'warn' };
-    if (d.extraction === 'DANG_TRICH') return { label: 'AI đang trích', severity: 'info' };
+    if (d.extraction === 'KHONG_TRICH_DUOC')
+      return { label: 'Không trích được nhiệm vụ', severity: 'warn' };
+    if (d.extraction === 'DANG_TRICH') return { label: 'Đang trích nhiệm vụ', severity: 'info' };
     return d.pendingCount
       ? { label: 'Chờ xác nhận', severity: 'info' }
       : { label: 'Chờ giao', severity: 'info' };
