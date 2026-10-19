@@ -29,12 +29,12 @@ function setup(current: VtUser | null, allowInferred = true) {
 }
 
 describe('bảng quyền sinh từ ma trận', () => {
-  it('có đủ 152 khoá chức năng web, đúng dạng SCR-qqnn.<khoá>', () => {
-    expect(PERMISSION_KEYS.length).toBe(152);
+  it('có đủ 162 khoá chức năng web, đúng dạng SCR-qqnn.<khoá>', () => {
+    expect(PERMISSION_KEYS.length).toBe(162);
     for (const k of PERMISSION_KEYS) expect(k).toMatch(/^SCR-\d{4}\.[a-z0-9-]+$/);
   });
 
-  it('không chứa vai trò ngoài 10 vai trò người dùng AC-01..AC-10', () => {
+  it('không chứa vai trò ngoài 10 vai trò người dùng AC-01..AC-10 và vai trò con', () => {
     const allowed = new Set([
       'platform_admin',
       'tenant_admin',
@@ -46,6 +46,7 @@ describe('bảng quyền sinh từ ma trận', () => {
       'decider',
       'second_approver',
       'inspector',
+      'wf_template_author',
     ]);
     for (const cell of Object.values(PERMISSION_TABLE)) {
       for (const t of cell.split(' ').filter(Boolean))
@@ -64,6 +65,13 @@ describe('bảng quyền sinh từ ma trận', () => {
   it('SCR-0801.duyet-lenh dành cho leader (người phê duyệt lệnh khoá kỳ)', () => {
     expect(rolesCan(['leader'], 'SCR-0801.duyet-lenh')).toBe(true);
     expect(rolesCan(['tenant_admin'], 'SCR-0801.duyet-lenh')).toBe(false);
+  });
+
+  it('SCR-1505 chỉ dành cho vai trò con wf_template_author, không cho mọi platform_admin', () => {
+    expect(rolesCan(['platform_admin'], 'SCR-1505.soan')).toBe(false);
+    expect(rolesCan(['platform_admin', 'wf_template_author'], 'SCR-1505.soan')).toBe(true);
+    expect(rolesFor('SCR-1505.phe-duyet')).toEqual(['second_approver']);
+    expect(rolesCan(['platform_admin'], 'SCR-1506.xem')).toBe(true);
   });
 
   it('chức năng chỉ hệ thống hoặc AI tham gia không cho vai trò người dùng nào', () => {
