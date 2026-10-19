@@ -128,6 +128,6 @@ describe('EvidenceSubmitPage (SCR-0701)', () => {
     const el = await render((k) => k === 'SCR-0701.xem', true);
     expect(button(el, 'Lưu nháp')).toBeUndefined();
     expect(el.querySelector('#file-in')).toBeNull();
-    expect([...el.querySelectorAll('.tbl th')].map(text)).not.toContain('SHA-256');
+    expect([...el.querySelectorAll('.tbl th')].map(text)).not.toContain('Mã kiểm tra toàn vẹn');
   });
 });

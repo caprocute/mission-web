@@ -93,7 +93,7 @@ const fmtSize = (n?: number | null) =>
   imports: [FormsModule, RouterLink, ButtonModule],
   template: `
     @if (!can('SCR-0701.xem')) {
-      <p class="msg warn">Anh/chị không có quyền xem minh chứng.</p>
+      <p class="msg warn">Đồng chí không có quyền xem minh chứng.</p>
     } @else if (evidence.error()) {
       <p class="msg err" role="alert">{{ loadError() }}</p>
     } @else if (evidence.value(); as e) {
@@ -163,37 +163,30 @@ const fmtSize = (n?: number | null) =>
             </h2>
             <fieldset class="sources" [disabled]="!editable()">
               <legend class="sr-only">Nguồn minh chứng</legend>
+              <!-- prettier-ignore -->
               <label class="src" [class.on]="source() === 'VAN_BAN_HE_THONG'">
-                <input
-                  type="radio"
-                  name="src"
-                  value="VAN_BAN_HE_THONG"
-                  [ngModel]="source()"
-                  (ngModelChange)="source.set($event)"
-                />
+                <!-- ui-text-ok: giá trị của ô chọn, không hiện lên màn hình -->
+                <input type="radio" name="src" value="VAN_BAN_HE_THONG" [ngModel]="source()" (ngModelChange)="source.set($event)" />
                 <span>
                   <strong>Văn bản đã ban hành</strong>
-                  <span class="muted small">Lấy từ vOffice, không tải lại</span>
+                  <span class="muted small">Lấy từ vOffice, không cần tải lại tệp</span>
                 </span>
               </label>
+              <!-- prettier-ignore -->
               <label class="src" [class.on]="source() === 'TAI_LEN'">
-                <input
-                  type="radio"
-                  name="src"
-                  value="TAI_LEN"
-                  [ngModel]="source()"
-                  (ngModelChange)="source.set($event)"
-                />
+                <!-- ui-text-ok: giá trị của ô chọn, không hiện lên màn hình -->
+                <input type="radio" name="src" value="TAI_LEN" [ngModel]="source()" (ngModelChange)="source.set($event)" />
                 <span>
                   <strong>Tải tệp lên</strong>
                   <span class="muted small">PDF, DOCX, XLSX, ảnh ≤ 50 MB</span>
                 </span>
               </label>
               <label class="src off">
+                <!-- ui-text-ok: giá trị của ô chọn, không hiện lên màn hình -->
                 <input type="radio" name="src" value="LIEN_KET" disabled />
                 <span>
                   <strong>Đường dẫn hệ thống nguồn</strong>
-                  <span class="muted small">CSDL đảng viên, LGSP (chưa hỗ trợ)</span>
+                  <span class="muted small">CSDL đảng viên, LGSP · chưa áp dụng</span>
                 </span>
               </label>
             </fieldset>
@@ -215,7 +208,7 @@ const fmtSize = (n?: number | null) =>
                 @if (!elderly() && d.signerName) {
                   <p class="muted small">
                     {{ d.signatureValid === false ? 'Chữ ký số không hợp lệ' : 'Đã ký số' }} bởi
-                    {{ d.signerName }} · tệp do vOffice cung cấp qua SVC-13
+                    {{ d.signerName }} · tệp do vOffice cung cấp
                   </p>
                 }
               } @else if (editable()) {
@@ -265,7 +258,7 @@ const fmtSize = (n?: number | null) =>
                       <th scope="col">Tệp</th>
                       <th scope="col">Dung lượng</th>
                       @if (!elderly()) {
-                        <th scope="col">SHA-256</th>
+                        <th scope="col">Mã kiểm tra toàn vẹn</th>
                       }
                       <th scope="col">Quét mã độc</th>
                       @if (editable()) {
@@ -348,9 +341,7 @@ const fmtSize = (n?: number | null) =>
                     Kéo thả tệp vào đây hoặc
                     <label for="file-in" class="link">chọn tệp</label>
                     @if (!elderly()) {
-                      <span class="muted">
-                        · mã băm được tính ngay trên trình duyệt và kiểm lại ở máy chủ</span
-                      >
+                      <span class="muted"> · hệ thống kiểm tra toàn vẹn tệp ngay khi tải lên</span>
                     }
                   </span>
                   <input
@@ -446,7 +437,7 @@ const fmtSize = (n?: number | null) =>
           </section>
 
           <section class="box" aria-labelledby="sep-h">
-            <h2 class="h" id="sep-h">Trạng thái tách biệt</h2>
+            <h2 class="h" id="sep-h">Trạng thái nhiệm vụ và minh chứng</h2>
             <dl class="meta">
               <dt>Thực hiện</dt>
               <dd>
@@ -785,8 +776,8 @@ export class EvidenceSubmitPage {
   }
 
   protected progressText(p: UploadProgress) {
-    if (p.phase === 'BAM') return 'Đang tính mã băm SHA-256 trên trình duyệt…';
-    if (p.phase === 'HOAN_TAT') return 'Máy chủ đang kiểm lại mã băm…';
+    if (p.phase === 'BAM') return 'Đang tính mã kiểm tra toàn vẹn của tệp…';
+    if (p.phase === 'HOAN_TAT') return 'Hệ thống đang kiểm tra lại tính toàn vẹn của tệp…';
     const pct = p.totalBytes ? Math.round((p.sentBytes / p.totalBytes) * 100) : 0;
     return p.retrying
       ? `Mất kết nối, đang tải tiếp (${pct}%)…`
