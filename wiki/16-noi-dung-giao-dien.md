@@ -49,6 +49,18 @@ Bảng sau là cách gọi thống nhất trên giao diện cho các khái niệ
 | Hệ số A, B, C của công thức điểm | Khối lượng (A), Chất lượng (B), Tiến độ (C) |
 | SL duyệt/KH | Số lượng được nghiệm thu / kế hoạch |
 | Check-in | Giữ "check-in" (thuật ngữ OKR chuẩn, TL-02 dùng), có thể ghi "cập nhật tiến độ" trong câu hướng dẫn |
+| Mã băm (`entry_hash`, `prev_hash`, `payload_hash`, mã băm phiếu) | Mã kiểm tra, mã của bản ghi trước, mã kiểm tra nội dung, mã kiểm tra toàn vẹn |
+| Gốc Merkle (của tenant, của cell) | Mã niêm phong, mã niêm phong của cụm máy chủ |
+| Bản neo (anchor), `OBJECT_LOCK` | Giữ "bản neo" kèm giải thích là bản sao niêm phong do cơ quan độc lập giữ; kho lưu trữ chống ghi đè |
+| Chuỗi băm bị phá vỡ | Sổ cái mất toàn vẹn, nội dung đã bị sửa |
+| Topic, loại sự kiện sổ cái | Thao tác (ví dụ "Giao nhiệm vụ") |
+| Tác nhân `DICH_VU` | Hệ thống (xử lý tự động) |
+| Bảng, cột được mở lại | Nhóm dữ liệu, nội dung được phép sửa |
+| Ghi vào sổ cái (check-in) | Được lưu vết, không sửa được sau khi gửi |
+| Tầng 2, tầng 3 của cây mục tiêu | Cấp phòng, ban; cá nhân |
+| Phiên bản Policy Pack (`policyVersion`) | "Bộ quy định đánh giá <tên>, phiên bản x.y" |
+| Lỗi chặn trình duyệt | Lỗi cần sửa trước khi trình (tránh nhầm với "trình duyệt" web) |
+| Thiếu `If-Match` (428), xung đột phiên bản | "Dữ liệu trên màn hình đã cũ. Đồng chí vui lòng tải lại rồi thực hiện lại thao tác." |
 
 Bảng được bổ sung khi gặp khái niệm mới; khi bổ sung, sửa luôn mục tương ứng ở [Thuật ngữ](13-thuat-ngu.md) nếu có.
 
