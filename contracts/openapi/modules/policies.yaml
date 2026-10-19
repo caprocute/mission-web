@@ -1,0 +1,2555 @@
+# Hợp đồng OpenAPI 3.1 của MOD-05 `policy` (WEB-063, ADR-32 trong BS-02).
+# Nguồn:
+#   - Baseline mục 9 (EVT-13, EVT-18, EVT-21), 9.1 (trạng thái phiên bản Policy Pack), 10 (AC-01..AC-12), 13 (quy ước API).
+#   - TL-01 Phụ lục C mục "Policy Pack (MOD-05)" (part-14 dòng 437-442); TL-01 part-05a dòng 447 (tiền tố /api/v1/policies).
+#   - TL-02b QT-15 (part-04): bảng bước, trạng thái, BR-15-01..BR-15-14, SCR-1501, SCR-1502, SCR-1503, SCR-1504
+#     (bảng trường, bảng chức năng, MSG-15-01..MSG-15-10); TL-02b part-02 SCR-1002 (tiêu chí phân nhóm triển vọng,
+#     BR-10-07, BR-10-09); TL-02b part-06 (ma trận QT-15 → API `/policies/packs`, `/policies/test-cases`,
+#     `/policies/workflow-templates`).
+#   - BS-01 (bổ sung, đã duyệt 19/10/2026): SCR-1505 thư viện và trình soạn mẫu luồng, SCR-1506 giám sát tiến trình
+#     theo mẫu, vòng đời `wf_template` mở rộng, `wf_template_rollout`, cột mới của `wf_binding`.
+#   - TL-03 part-04 schema `policy` (policy_pack, policy_pack_version, policy_rule, decision_table, golden_test_case,
+#     test_run, test_case_result, policy_binding); TL-03 part-07 schema `flowable` (wf_template, wf_binding,
+#     wf_task_projection); TL-03 part-06 `appraisal.prospect_group.group_code`.
+#   - Ma trận phân quyền `docs/phan-quyen/ma-tran.json` (SCR-1501..SCR-1506, SCR-1002, module `policies`).
+# Điểm chốt riêng của tệp này (PC-xx) được ghi trong `info.description`.
+openapi: 3.1.0
+info:
+  title: Mission – Policy Pack và Config Studio (MOD-05)
+  version: 1.0.0-draft.1
+  description: |
+    Hợp đồng API của MOD-05 `policy`: gói Policy Pack và phiên bản, quy tắc CEL, bảng quyết định DMN 1.4,
+    test case vàng và lần chạy kiểm thử, so sánh phiên bản và tác động, trình duyệt, phê duyệt và phát hành
+    (người duyệt khác người soạn, AAL2, ký số), phân giải gói hiệu lực cho client nội bộ, tiêu chí phân nhóm
+    triển vọng, tham số luồng duyệt (`flowable.wf_binding`) và thư viện mẫu luồng (`flowable.wf_template`, do
+    SVC-06 sở hữu dữ liệu nhưng cấu hình qua Config Studio).
+
+    Vòng đời phiên bản (baseline mục 9.1): `NHAP` → `DANG_KIEM_THU` → `DAT_KIEM_THU` → `CHO_PHE_DUYET` →
+    `DA_PHAT_HANH` → `NGUNG`. Mọi sửa nội dung khi đang `DAT_KIEM_THU` đưa phiên bản về `NHAP` (MSG-15-03);
+    từ `CHO_PHE_DUYET` trở đi nội dung bị đóng băng (trigger TL-03).
+
+    Điểm chốt khi ghép nguồn:
+
+    | Mã | Chủ đề | Nguồn ghi khác nhau | Hợp đồng chọn |
+    |---|---|---|---|
+    | PC-01 | Tiền tố đường dẫn phiên bản | TL-01 PL C: `/policies/{id}/versions/{v}/...`; TL-02b SCR-1501..1504: `/policies/packs/{id}/versions/{v}/...` | `/policies/packs/{id}/versions/{v}/...`; `GET /policies` của PL C thành `GET /policies/packs` (TL-02b chi tiết hơn, tách được `/policies/test-cases`, `/policies/workflow-templates`) |
+    | PC-02 | Phê duyệt phát hành | TL-01 PL C: `POST .../publish`, vai trò `policy_approver`; TL-02b SCR-1503: `POST .../approve` (202), AC-08 | `POST .../approve` trả 202, vai trò `decider` (AC-08 của baseline mục 10) |
+    | PC-03 | Định danh phiên bản `{v}` | TL-03: semver ba phần `2.1.0`; TL-02b ghi `v2.1`, `base=2.0` | Chuỗi semver ba phần đúng CHECK của TL-03 |
+    | PC-04 | Vòng đời mẫu luồng | TL-03: `NHAP`, `HIEU_LUC`, `NGUNG`; BS-01: thêm `DAT_KIEM_THU`, `CHO_PHE_DUYET` | Theo BS-01 |
+    | PC-05 | Mẫu luồng: chọn mẫu (SCR-1504) và soạn mẫu (SCR-1505, SCR-1506) | TL-02b SCR-1504 và part-06: `/policies/workflow-templates/{key}/versions/{v}`; ma trận và BS-01 (suy luận): `/workflow/templates`, `/workflow/instances` | Tệp này chỉ giữ hai thao tác đọc của SCR-1504 dưới `/policies/workflow-templates` (danh mục `HIEU_LUC` và khai báo tham số, phạm vi tenant); SCR-1505, SCR-1506 nằm ở platform.yaml dưới `/workflow/...` (SVC-06 sở hữu `wf_template`) |
+    | PC-06 | So sánh tác động | TL-01 PL C gộp vào `test-runs`; TL-02b không có nút riêng | Trường `compareWithVersion` khi tạo lần chạy và khối `impact` trong kết quả (suy luận) |
+servers:
+  - url: /api/v1
+security:
+  - keycloak: []
+tags:
+  - name: Gói chính sách
+    description: Danh sách gói Policy Pack, phiên bản, nhân bản phiên bản nháp, so sánh phiên bản (SCR-1501).
+  - name: Quy tắc và bảng quyết định
+    description: Quy tắc CEL, tham số, bảng quyết định DMN 1.4 và xem trước với hồ sơ mẫu (SCR-1501, SCR-1502).
+  - name: Kiểm thử
+    description: Test case vàng, lần chạy kiểm thử trên cel-java và cel-js, kiểm thử thuộc tính (SCR-1503).
+  - name: Phê duyệt và phát hành
+    description: Gửi phê duyệt, ký số phê duyệt, từ chối, thu hồi và phát hành lại sau lỗi saga (SCR-1501, SCR-1503).
+  - name: Phân giải và tra cứu
+    description: Gói hiệu lực cho client nội bộ và tiêu chí phân nhóm triển vọng cho QT-10 (SCR-1002).
+  - name: Luồng duyệt
+    description: Tham số luồng duyệt theo mẫu (`flowable.wf_binding`) và mô phỏng luồng (SCR-1504).
+  - name: Mẫu luồng
+    description: Danh mục mẫu luồng đã phát hành và khai báo tham số để chọn ở SCR-1504 (chỉ đọc; trình soạn mẫu ở workflow-service).
+
+paths:
+  # ───────────────────────────── Gói và phiên bản ─────────────────────────────
+  /policies/packs:
+    get:
+      tags: [Gói chính sách]
+      operationId: listPolicyPacks
+      summary: Danh sách gói Policy Pack và phiên bản
+      description: |
+        Trả các gói mà người gọi được xem trong tenant (gói gốc toàn cục đã đồng bộ và gói riêng của tenant), mỗi
+        gói kèm tóm tắt các phiên bản gần nhất. Tương ứng `GET /policies` của TL-01 Phụ lục C (điểm chốt PC-01).
+      parameters:
+        - name: flow
+          in: query
+          description: Lọc theo luồng đánh giá.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        - name: origin
+          in: query
+          description: Lọc theo nguồn gói.
+          schema: { $ref: '#/components/schemas/PolicyPackOrigin' }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang danh sách gói.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyPackList' }
+              examples:
+                mac-dinh:
+                  value:
+                    items:
+                      - id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+                        code: khoi-dang/quy-dinh-moi
+                        name: Quy định đánh giá khối Đảng (dự thảo Quy định mới)
+                        sector: KHOI_DANG
+                        flow: DANG
+                        origin: GOC_TOAN_CUC
+                        parentPackId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a00
+                        legalBasis: QĐ 366-QĐ/TW; dự thảo Quy định mới về đánh giá cán bộ
+                        versions:
+                          - id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4b21
+                            policyPackId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+                            version: 2.1.0
+                            status: NHAP
+                            changeNote: Đổi cách đếm ngày chậm theo ngày làm việc của tenant
+                            createdAt: '2026-10-12T09:00:00+07:00'
+                            rowVersion: 6
+                          - id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4b20
+                            policyPackId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+                            version: 2.0.0
+                            status: DA_PHAT_HANH
+                            effectiveFrom: '2026-10-01'
+                            goldenPassRate: 1
+                            publishedAt: '2026-09-20T15:10:00+07:00'
+                            changeNote: Phiên bản đầu theo dự thảo Quy định mới
+                            createdAt: '2026-09-01T08:00:00+07:00'
+                            rowVersion: 11
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1501]
+        owner: MOD-05
+        roles: [policy_author, tenant_admin, decider]
+        scope: Tn
+        source: TL-01 PL C `GET /policies`; ma trận SCR-1501.soan (AC-02 R), module policies (AC-08 GET)
+
+  /policies/packs/{id}:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+    get:
+      tags: [Gói chính sách]
+      operationId: getPolicyPack
+      summary: Xem một gói Policy Pack
+      description: Thông tin gói và tóm tắt các phiên bản, dùng cho thanh gói trên Config Studio.
+      responses:
+        '200':
+          description: Gói và tóm tắt phiên bản.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyPack' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1501, SCR-1502, SCR-1503, SCR-1504]
+        owner: MOD-05
+        roles: [policy_author, tenant_admin, decider]
+        scope: Tn
+        source: TL-02b SCR-1501 bảng trường dòng 1 (suy luận đường dẫn)
+
+  /policies/packs/{id}/versions:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+    get:
+      tags: [Gói chính sách]
+      operationId: listPolicyPackVersions
+      summary: Danh sách phiên bản của gói
+      parameters:
+        - name: status
+          in: query
+          description: Lọc theo trạng thái phiên bản.
+          schema: { $ref: '#/components/schemas/PolicyPackVersionStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang danh sách phiên bản, mới nhất trước.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyPackVersionList' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1501]
+        owner: MOD-05
+        roles: [policy_author, tenant_admin, decider]
+        scope: Tn
+        source: TL-01 PL C `GET /policies` (gói và phiên bản)
+    post:
+      tags: [Gói chính sách]
+      operationId: createPolicyPackVersion
+      summary: Nhân bản thành phiên bản nháp mới
+      description: |
+        Tạo phiên bản `NHAP` kế thừa toàn bộ quy tắc, bảng quyết định, tham số và tham số luồng duyệt của phiên bản
+        nguồn (QT-15 bước 1). Với gói kế thừa của tenant, chỉ quy tắc có `overridable = true` của gói gốc được sửa
+        về sau (BR-15-13).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyPackVersionCreate' }
+            examples:
+              nhan-ban:
+                value:
+                  baseVersion: 2.0.0
+                  version: 2.1.0
+                  changeNote: Đổi cách đếm ngày chậm theo ngày làm việc của tenant
+      responses:
+        '201':
+          description: Đã tạo phiên bản nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyPackVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        '422':
+          description: |
+            Dữ liệu không hợp lệ. Mã lỗi: `POLICY-422-VERSION-EXISTS` (số phiên bản đã có),
+            `COMMON-422-VALIDATION` (thiếu ghi chú thay đổi, sai định dạng semver).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1501]
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        rules: [BR-15-13]
+        source: TL-01 PL C `POST /policies/{id}/versions`; TL-02b QT-15 bước 1
+
+  /policies/packs/{id}/versions/{v}:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+    get:
+      tags: [Gói chính sách]
+      operationId: getPolicyPackVersion
+      summary: Xem chi tiết một phiên bản
+      description: Thông tin phiên bản, manifest tham số, kết quả kiểm thử gần nhất, chữ ký và các gắn kỳ hiệu lực.
+      responses:
+        '200':
+          description: Chi tiết phiên bản.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyPackVersion' }
+              examples:
+                dang-soan:
+                  $ref: '#/components/examples/PolicyPackVersionDraft'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1501, SCR-1502, SCR-1503, SCR-1504]
+        owner: MOD-05
+        roles: [policy_author, tenant_admin, decider]
+        scope: Tn
+        source: TL-03 `policy.policy_pack_version`; TL-02b SCR-1501 thanh gói (suy luận đường dẫn)
+
+  /policies/packs/{id}/versions/{v}/diff:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+    get:
+      tags: [Gói chính sách]
+      operationId: diffPolicyPackVersions
+      summary: So sánh hai phiên bản
+      description: |
+        Trả khác biệt quy tắc, tham số, bảng quyết định và tham số luồng duyệt giữa phiên bản `{v}` và phiên bản
+        `base` (nút "So sánh v2.0" ở SCR-1501; báo cáo khác biệt khi phê duyệt ở SCR-1503).
+      parameters:
+        - name: base
+          in: query
+          required: true
+          description: Phiên bản gốc để so sánh (semver, xem PC-03).
+          schema: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$', examples: ['2.0.0'] }
+      responses:
+        '200':
+          description: Danh sách khác biệt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyVersionDiff' }
+              examples:
+                doi-loai-ngay:
+                  value:
+                    base: 2.0.0
+                    target: 2.1.0
+                    changes:
+                      - kind: PARAM
+                        key: kpi_nhiem_vu
+                        path: params.loai_ngay
+                        before: NGAY_LICH
+                        after: NGAY_LAM_VIEC
+                      - kind: RULE
+                        key: C
+                        path: expression
+                        before: max(0.0, 1.0 - 0.05 * double(ngay_cham))
+                        after: max(0.0, 1.0 - 0.05 * double(ngay_cham_chu_quan))
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1501, SCR-1503]
+        owner: MOD-05
+        roles: [policy_author, decider]
+        scope: Tn
+        source: TL-02b SCR-1501 "So sánh v2.0"; QT-15 bước 9
+
+  # ───────────────────────────── Quy tắc và bảng quyết định ─────────────────────────────
+  /policies/packs/{id}/versions/{v}/rules:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+    get:
+      tags: [Quy tắc và bảng quyết định]
+      operationId: listPolicyRules
+      summary: Danh sách quy tắc CEL của phiên bản
+      description: Trả toàn bộ quy tắc theo `evalOrder` (số quy tắc mỗi phiên bản nhỏ nên không phân trang).
+      responses:
+        '200':
+          description: Danh sách quy tắc.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/PolicyRule' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1501, SCR-1502]
+        owner: MOD-05
+        roles: [policy_author, tenant_admin, decider]
+        scope: Tn
+        source: TL-03 `policy.policy_rule` (suy luận đường dẫn)
+
+  /policies/packs/{id}/versions/{v}/rules/{key}:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+      - $ref: '#/components/parameters/RuleKey'
+    get:
+      tags: [Quy tắc và bảng quyết định]
+      operationId: getPolicyRule
+      summary: Xem một quy tắc CEL
+      responses:
+        '200':
+          description: Quy tắc.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyRule' }
+              examples:
+                kpi:
+                  $ref: '#/components/examples/PolicyRuleKpi'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1501, SCR-1502]
+        owner: MOD-05
+        roles: [policy_author, tenant_admin, decider]
+        scope: Tn
+        source: TL-03 `policy.policy_rule`
+    put:
+      tags: [Quy tắc và bảng quyết định]
+      operationId: savePolicyRule
+      summary: Lưu nháp quy tắc và tham số
+      description: |
+        Kiểm tra kiểu CEL bằng cel-java với khai báo biến của ngữ cảnh tính điểm (BR-15-01), kiểm tra tổng điểm tối
+        đa nhóm (BR-15-05) rồi lưu. Cho phép khi phiên bản ở `NHAP` hoặc `DAT_KIEM_THU`; nếu đang `DAT_KIEM_THU`
+        thì phiên bản về `NHAP` và phản hồi có `statusReverted = true` để giao diện hiện MSG-15-03. Dùng cho quy tắc
+        công thức (SCR-1501) và quy tắc `muc_cuoi`, `nguoi_dung_dau` (SCR-1502).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyRuleUpdate' }
+            examples:
+              kpi:
+                value:
+                  expression: (math.least(double(nv.so_luong_duyet) / double(nv.ke_hoach), 1.0) + nv.muc_chat_luong + math.greatest(0.0, 1.0 - tham_so.tru_tien_do * double(nv.ngay_cham_chu_quan))) / 3.0
+                  resultType: DECIMAL
+                  rounding: { digits: 3, mode: NUA_LEN }
+                  legalRef: PL 3 mục 2
+                  evalOrder: 10
+                  params:
+                    tru_tien_do: 0.05
+                    loai_ngay: NGAY_LAM_VIEC
+                    cach_tinh_chat_luong: NAM_MUC_PL3
+      responses:
+        '200':
+          description: Đã lưu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyRuleSaved' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: |
+            Không có quyền. Mã lỗi: `COMMON-403-OUT-OF-SCOPE`, `POLICY-403-NOT-OVERRIDABLE` (tenant sửa quy tắc gói gốc
+            không đánh dấu cho phép điều chỉnh, BR-15-13).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: |
+            Xung đột. Mã lỗi: `POLICY-409-VERSION-CONFLICT`, `POLICY-409-VERSION-FROZEN` (phiên bản từ
+            `CHO_PHE_DUYET` trở đi hoặc `DANG_KIEM_THU`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: |
+            Không hợp lệ. Mã lỗi: `POLICY-422-CEL-TYPE` (MSG-15-01, kèm `errors[]` theo khối),
+            `POLICY-422-GROUP-SUM` (MSG-15-02), `COMMON-422-VALIDATION` (tham số ngoài miền, ví dụ mức trừ tiến độ
+            ngoài 0,00 đến 0,20).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+              examples:
+                sai-tong:
+                  value:
+                    type: https://okrkpi.vn/problems/validation
+                    title: Dữ liệu chưa hợp lệ
+                    status: 422
+                    code: POLICY-422-GROUP-SUM
+                    msg: MSG-15-02
+                    detail: Tổng điểm tối đa các nhóm là 95, phải bằng 100.
+                    errors: [{ field: params.diem_toi_da, message: 'Tổng điểm tối đa các nhóm là 95, phải bằng 100.', rule: BR-15-05 }]
+                    traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1501, SCR-1502]
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        rules: [BR-15-01, BR-15-02, BR-15-03, BR-15-05, BR-15-13]
+        source: TL-02b SCR-1501 "Lưu nháp"; SCR-1502 bảng trường dòng 6, 7
+
+  /policies/packs/{id}/versions/{v}/decision-tables:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+    get:
+      tags: [Quy tắc và bảng quyết định]
+      operationId: listDecisionTables
+      summary: Danh sách bảng quyết định của phiên bản
+      responses:
+        '200':
+          description: Danh sách bảng quyết định.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/DecisionTable' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1502]
+        owner: MOD-05
+        roles: [policy_author, tenant_admin, decider]
+        scope: Tn
+        source: TL-03 `policy.decision_table` (suy luận đường dẫn)
+
+  /policies/packs/{id}/versions/{v}/decision-tables/{key}:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+      - $ref: '#/components/parameters/TableKey'
+    get:
+      tags: [Quy tắc và bảng quyết định]
+      operationId: getDecisionTable
+      summary: Xem một bảng quyết định
+      responses:
+        '200':
+          description: Bảng quyết định dạng JSON (định nghĩa DMN XML lấy ở `/dmn`).
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DecisionTable' }
+              examples:
+                xep-loai:
+                  $ref: '#/components/examples/DecisionTableXepLoai'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1502]
+        owner: MOD-05
+        roles: [policy_author, tenant_admin, decider]
+        scope: Tn
+        source: TL-03 `policy.decision_table`
+    put:
+      tags: [Quy tắc và bảng quyết định]
+      operationId: saveDecisionTable
+      summary: Lưu nháp bảng quyết định
+      description: |
+        Kiểm tra cú pháp FEEL của cột đầu vào, điều khoản và giải thích bắt buộc mỗi dòng (BR-15-06), biến của mẫu
+        câu giải thích (MSG-15-05), rồi sinh lại `dmn_xml` và `dmn_hash`. Chỉ khi phiên bản ở `NHAP` theo bảng chức
+        năng SCR-1502; dòng bị che theo hit policy FIRST được trả trong `warnings` (MSG-15-04), không chặn lưu.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionTableUpdate' }
+      responses:
+        '200':
+          description: Đã lưu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DecisionTableSaved' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: 'Xung đột. Mã lỗi: `POLICY-409-VERSION-CONFLICT`, `POLICY-409-VERSION-FROZEN` (phiên bản không ở `NHAP`).'
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: |
+            Không hợp lệ. Mã lỗi: `POLICY-422-FEEL` (cú pháp FEEL hoặc kiểu không khớp khai báo),
+            `POLICY-422-TEMPLATE-VAR` (MSG-15-05), `COMMON-422-VALIDATION` (thiếu điều khoản, giải thích, độ dài).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1502]
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        rules: [BR-15-06, BR-15-13]
+        source: TL-02b SCR-1502 "Lưu nháp"
+
+  /policies/packs/{id}/versions/{v}/decision-tables/{key}/dmn:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+      - $ref: '#/components/parameters/TableKey'
+    get:
+      tags: [Quy tắc và bảng quyết định]
+      operationId: exportDecisionTableDmn
+      summary: Xuất bảng quyết định dạng DMN 1.4 XML
+      responses:
+        '200':
+          description: Tệp DMN 1.4 (`dmn_xml`).
+          headers:
+            Content-Disposition:
+              description: Tên tệp tải về, ví dụ `attachment; filename="xep_loai-2.1.0.dmn"`.
+              schema: { type: string }
+          content:
+            application/xml:
+              schema: { type: string }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1502]
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        source: TL-02b SCR-1502 "Xuất DMN XML"
+
+  /policies/packs/{id}/versions/{v}/evaluate:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+    post:
+      tags: [Quy tắc và bảng quyết định]
+      operationId: evaluatePolicyVersion
+      summary: Xem trước với hồ sơ mẫu
+      description: |
+        Tính thử một ca trong bộ vàng bằng cel-java và DMN trên máy chủ (SVC-07), trả điểm, mức và vết tính. Trình
+        duyệt tự tính lại bằng cel-js để so sánh; khác nhau thì hiện MSG-15-07. Không ghi dữ liệu nghiệp vụ.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyEvaluateRequest' }
+            examples:
+              tc017:
+                value: { caseCode: TC-017 }
+      responses:
+        '200':
+          description: Kết quả tính thử.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyEvaluateResult' }
+              examples:
+                tc017:
+                  value:
+                    caseCode: TC-017
+                    engine: CEL_JAVA
+                    outputs:
+                      kpi_nhiem_vu: 0.783
+                      diem_nhom_then_chot: 63.6
+                      diem_nhom_thuong_xuyen: 27.6
+                      diem: 91.2
+                    ratingLevel: HTTNV
+                    explanation: Thiếu điều kiện mức trên (tỷ lệ việc vượt 22% < 30%), chuyển mức liền kề theo QĐ Điều 11 · PL 6 §12.
+                    trace:
+                      - { ruleKey: kpi_nhiem_vu, value: 0.783 }
+                      - { ruleKey: diem, value: 91.2 }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '422':
+          description: 'Không hợp lệ. Mã lỗi: `POLICY-422-CASE-NOT-GOLDEN` (ca không thuộc bộ vàng), `POLICY-422-CEL-TYPE`.'
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1501]
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        source: TL-02b SCR-1501 "Xem trước"
+
+  # ───────────────────────────── Kiểm thử ─────────────────────────────
+  /policies/packs/{id}/versions/{v}/test-runs:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+    get:
+      tags: [Kiểm thử]
+      operationId: listPolicyTestRuns
+      summary: Lịch sử chạy kiểm thử của phiên bản
+      description: Mặc định 10 lần gần nhất theo SCR-1503 bảng trường dòng 6; lần mới nhất trước.
+      parameters:
+        - name: limit
+          in: query
+          description: Số lần chạy mỗi trang, tối đa 200.
+          schema: { type: integer, minimum: 1, maximum: 200, default: 10 }
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang lịch sử chạy.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyTestRunList' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1503]
+        owner: MOD-05
+        roles: [policy_author, decider]
+        scope: Tn
+        source: TL-02b SCR-1503 bảng trường dòng 6
+    post:
+      tags: [Kiểm thử]
+      operationId: runPolicyTests
+      summary: Chạy bộ test case vàng
+      description: |
+        Chạy toàn bộ ca `DA_DUYET` của bộ vàng trên cel-java và cel-js, cùng kiểm thử thuộc tính. Phiên bản chuyển
+        `NHAP` → `DANG_KIEM_THU`, rồi `DAT_KIEM_THU` khi 100% ca đạt và hai engine khớp, ngược lại về `NHAP`
+        (BR-15-07). Khi có `compareWithVersion`, lần chạy kèm so sánh tác động với phiên bản đó (PC-06). Theo dõi
+        bằng `Location` (`Job.type = TEST_RUN`); `resultLocation` trỏ tới lần chạy.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyTestRunCreate' }
+            examples:
+              co-so-sanh:
+                value: { compareWithVersion: 2.0.0, propertyDatasets: 10000 }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: |
+            Xung đột. Mã lỗi: `POLICY-409-VERSION-CONFLICT`, `POLICY-409-TEST-RUNNING` (đang có lần chạy),
+            `POLICY-409-VERSION-FROZEN` (phiên bản đã `CHO_PHE_DUYET` trở đi).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: 'Không hợp lệ. Mã lỗi: `POLICY-422-CEL-TYPE` (còn biểu thức sai kiểu, điều kiện chuyển `DANG_KIEM_THU`).'
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1501, SCR-1502, SCR-1503]
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        rules: [BR-15-07]
+        source: TL-01 PL C `POST /policies/{id}/versions/{v}/test-runs`; TL-02b SCR-1501, SCR-1502, SCR-1503 "Chạy test case", "Chạy lại"
+
+  /policies/packs/{id}/versions/{v}/test-runs/{runId}:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+      - $ref: '#/components/parameters/RunId'
+    get:
+      tags: [Kiểm thử]
+      operationId: getPolicyTestRun
+      summary: Xem kết quả một lần chạy
+      description: Bốn thẻ số liệu, bảng ca, chi tiết lỗi và so sánh tác động (nếu có) của một lần chạy (SCR-1503).
+      responses:
+        '200':
+          description: Kết quả lần chạy.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyTestRun' }
+              examples:
+                lan-14:
+                  $ref: '#/components/examples/PolicyTestRunPassed'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1503]
+        owner: MOD-05
+        roles: [policy_author, decider]
+        scope: Tn
+        source: TL-03 `policy.test_run`, `policy.test_case_result`; TL-02b SCR-1503 bảng trường dòng 2-7
+
+  /policies/test-cases:
+    get:
+      tags: [Kiểm thử]
+      operationId: listGoldenTestCases
+      summary: Danh sách ca kiểm thử vàng của gói
+      description: Kèm tóm tắt bộ test (mã bộ, số ca, người ký, ngày ký) cho dòng phụ của SCR-1503.
+      parameters:
+        - name: pack
+          in: query
+          required: true
+          description: Gói Policy Pack (`policy.policy_pack.id`); ca vàng gắn với gói, không gắn với phiên bản.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: status
+          in: query
+          description: Lọc theo trạng thái ca.
+          schema: { $ref: '#/components/schemas/GoldenTestCaseStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang danh sách ca.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GoldenTestCaseList' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1501, SCR-1503]
+        owner: MOD-05
+        roles: [policy_author, decider]
+        scope: Tn
+        source: TL-02b part-06 `/api/v1/policies/test-cases`; SCR-1503 bảng trường dòng 1; SCR-1501 bảng trường dòng 10
+    post:
+      tags: [Kiểm thử]
+      operationId: createGoldenTestCase
+      summary: Thêm ca kiểm thử
+      description: |
+        Tạo ca mới ở trạng thái `NHAP` (chờ ký duyệt). Ca chỉ được tính vào tỷ lệ đạt sau khi người phụ trách nghiệp
+        vụ ký duyệt (BR-15-08). Dữ liệu đầu vào là dữ liệu giả lập, không chứa dữ liệu cá nhân thật.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GoldenTestCaseCreate' }
+      responses:
+        '201':
+          description: Đã tạo ca kiểm thử.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GoldenTestCase' }
+              examples:
+                tc149:
+                  $ref: '#/components/examples/GoldenTestCaseNew'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422':
+          description: 'Không hợp lệ. Mã lỗi: `POLICY-422-CASE-CODE-EXISTS`, `COMMON-422-VALIDATION`.'
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1503]
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        rules: [BR-15-08]
+        source: TL-02b SCR-1503 "Thêm ca kiểm thử"
+
+  /policies/test-cases/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Kiểm thử]
+      operationId: getGoldenTestCase
+      summary: Xem một ca kiểm thử
+      responses:
+        '200':
+          description: Ca kiểm thử.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GoldenTestCase' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1503]
+        owner: MOD-05
+        roles: [policy_author, decider]
+        scope: Tn
+        source: TL-03 `policy.golden_test_case`
+
+  /policies/test-cases/{id}/approve:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Kiểm thử]
+      operationId: approveGoldenTestCase
+      summary: Ký duyệt ca kiểm thử vào bộ vàng
+      description: |
+        (suy luận) Người phụ trách nghiệp vụ ký số trên `input` và `expected` của ca, chuyển ca `NHAP` → `DA_DUYET`
+        (BR-15-08). TL-02b chỉ nêu "ca mới cần người phụ trách nghiệp vụ ký duyệt"; vai trò thực hiện chưa có trong
+        ma trận, hợp đồng tạm gán `decider` và cần xác nhận. Người ký khác người tạo ca.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyDecisionComment' }
+      responses:
+        '200':
+          description: Ca đã vào bộ vàng.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GoldenTestCase' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: 'Không có quyền. Mã lỗi: `POLICY-403-SAME-AUTHOR` (người ký trùng người tạo ca).'
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1503]
+        owner: MOD-05
+        roles: [decider]
+        scope: Tn
+        aal: 2
+        fourEyes: true
+        rules: [BR-15-08]
+        source: TL-02b QT-15 bước 6, BR-15-08; TL-03 `golden_test_case.approved_by`, `signature` (suy luận đường dẫn)
+
+  # ───────────────────────────── Phê duyệt và phát hành ─────────────────────────────
+  /policies/packs/{id}/versions/{v}/submit:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+    post:
+      tags: [Phê duyệt và phát hành]
+      operationId: submitPolicyPackVersion
+      summary: Gửi phê duyệt phát hành
+      description: |
+        Chọn kỳ hiệu lực trong tương lai và phạm vi áp dụng, khởi động mẫu duyệt phát hành; phiên bản
+        `DAT_KIEM_THU` → `CHO_PHE_DUYET`, phát EVT-21 tới người phê duyệt (BR-15-07, BR-15-10).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyPackSubmit' }
+            examples:
+              quy-1-2027:
+                value:
+                  effectivePeriodId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4c27
+                  scopes:
+                    - { flow: DANG, subjectGroupId: null, orgUnitId: null }
+                  note: Áp dụng cho toàn tenant từ Quý I/2027.
+      responses:
+        '200':
+          description: Đã gửi phê duyệt.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyPackVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: |
+            Xung đột. Mã lỗi: `POLICY-409-VERSION-CONFLICT`, `POLICY-409-NOT-TESTED` (chưa `DAT_KIEM_THU`, MSG-15-06),
+            `POLICY-409-PERIOD-LOCKED` (kỳ hiệu lực đã khoá hoặc không ở tương lai, BR-15-10).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1501, SCR-1503]
+        owner: MOD-05
+        evt: [EVT-21]
+        roles: [policy_author]
+        scope: Tn
+        rules: [BR-15-07, BR-15-10]
+        source: TL-01 PL C `POST /policies/{id}/versions/{v}/submit`; TL-02b SCR-1501, SCR-1503 "Gửi phê duyệt phát hành"
+
+  /policies/packs/{id}/versions/{v}/approve:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+    post:
+      tags: [Phê duyệt và phát hành]
+      operationId: approvePolicyPackVersion
+      summary: Ký số phê duyệt và phát hành
+      description: |
+        Người phê duyệt (AC-08, khác người soạn) ký số trên `content_hash` qua SVC-10 rồi khởi động saga phát hành
+        của SVC-06: gắn `policy_binding` với kỳ hiệu lực, đồng bộ xuống các cell, nạp vào scoring-service, kích hoạt
+        `wf_binding`. Xong saga thì phiên bản `DA_PHAT_HANH` và phát EVT-13 (giao diện hiện MSG-15-08); saga lỗi thì
+        bù trừ và giữ `CHO_PHE_DUYET`. Thay cho `POST /policies/{id}/versions/{v}/publish` của TL-01 PL C (PC-02).
+        Theo dõi bằng `Location` (`Job.type = POLICY_PUBLISH`).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyPackApprove' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: 'Không có quyền. Mã lỗi: `POLICY-403-SAME-AUTHOR` (người phê duyệt trùng người soạn, BR-15-09).'
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: 'Xung đột. Mã lỗi: `POLICY-409-VERSION-CONFLICT`, `POLICY-409-NOT-PENDING` (phiên bản không ở `CHO_PHE_DUYET`).'
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1503]
+        owner: MOD-05
+        evt: [EVT-18, EVT-13]
+        roles: [decider]
+        scope: Tn
+        aal: 2
+        fourEyes: true
+        rules: [BR-15-09, BR-15-10, BR-15-14]
+        source: TL-02b SCR-1503 "Ký số phê duyệt"; TL-01 PL C `publish` (PC-02)
+
+  /policies/packs/{id}/versions/{v}/reject:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+    post:
+      tags: [Phê duyệt và phát hành]
+      operationId: rejectPolicyPackVersion
+      summary: Từ chối phát hành có ý kiến
+      description: Phiên bản `CHO_PHE_DUYET` → `NHAP`, bắt buộc ý kiến (QT-15 bước 9, bảng trạng thái).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyDecisionReason' }
+            examples:
+              thieu-ca:
+                value: { reason: Cần bổ sung ca kiểm thử cho trường hợp ngày nghỉ bù trùng ngày lễ trước khi phát hành. }
+      responses:
+        '200':
+          description: Đã từ chối, phiên bản về nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyPackVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1503]
+        owner: MOD-05
+        evt: [EVT-21]
+        roles: [decider]
+        scope: Tn
+        source: TL-02b QT-15 bước 9 "từ chối có ý kiến"; bảng trạng thái (suy luận đường dẫn và EVT-21 báo người soạn)
+
+  /policies/packs/{id}/versions/{v}/revoke:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+    post:
+      tags: [Phê duyệt và phát hành]
+      operationId: revokePolicyPackVersion
+      summary: Thu hồi phiên bản đã phát hành
+      description: |
+        Người phê duyệt thu hồi phiên bản `DA_PHAT_HANH` khi phát hiện sai sót trước kỳ hiệu lực; phiên bản chuyển
+        `NGUNG`, phiên bản trước tiếp tục áp dụng. Không thu hồi được khi kỳ hiệu lực đã khoá (`is_frozen`); khi kỳ
+        đã bắt đầu, phải phát hành phiên bản sửa (TL-02b QT-15 "Ngoại lệ và xử lý").
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyDecisionReason' }
+      responses:
+        '200':
+          description: Đã thu hồi.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyPackVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: 'Xung đột. Mã lỗi: `POLICY-409-VERSION-CONFLICT`, `POLICY-409-PERIOD-STARTED` (kỳ hiệu lực đã bắt đầu), `POLICY-409-PERIOD-LOCKED`.'
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1503]
+        owner: MOD-05
+        evt: [EVT-13]
+        roles: [decider]
+        scope: Tn
+        aal: 2
+        rules: [BR-15-10]
+        source: TL-02b QT-15 "Ngoại lệ và xử lý", bảng trạng thái `DA_PHAT_HANH` → `NGUNG` (suy luận đường dẫn; EVT-13 phát lại để cell nạp phiên bản trước)
+
+  /policies/packs/{id}/versions/{v}/republish:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+    post:
+      tags: [Phê duyệt và phát hành]
+      operationId: republishPolicyPackVersion
+      summary: Phát hành lại sau khi saga lỗi
+      description: |
+        Chạy lại saga phát hành cho phiên bản đã ký nhưng saga bù trừ (vẫn `CHO_PHE_DUYET`, có chữ ký). Không cần
+        ký lại nếu `content_hash` không đổi. Theo dõi bằng `Location` (`Job.type = POLICY_PUBLISH`).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: 'Xung đột. Mã lỗi: `POLICY-409-VERSION-CONFLICT`, `POLICY-409-NOT-SIGNED` (chưa có chữ ký hợp lệ trên nội dung hiện tại).'
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1503]
+        owner: MOD-05
+        evt: [EVT-13]
+        roles: [policy_author]
+        scope: Tn
+        source: TL-02b QT-15 "Ngoại lệ và xử lý" ("BA bấm phát hành lại mà không cần ký lại") (suy luận đường dẫn)
+
+  # ───────────────────────────── Phân giải và tra cứu ─────────────────────────────
+  /policies/resolve:
+    get:
+      tags: [Phân giải và tra cứu]
+      operationId: resolvePolicyPack
+      summary: Phân giải gói hiệu lực cho kỳ
+      description: |
+        Client nội bộ (SVC-07, SVC-06, MOD-04) tra phiên bản Policy Pack áp cho tổ hợp tenant, kỳ, luồng, khối và
+        đơn vị theo `policy.policy_binding` (khớp cụ thể nhất trước). Trả mã băm và tham chiếu gói đã ký để bên gọi
+        kiểm tra toàn vẹn trước khi dùng.
+      security:
+        - serviceClient: []
+      parameters:
+        - name: tenant
+          in: query
+          required: true
+          description: Tenant (`tenant_id`).
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: period
+          in: query
+          required: true
+          description: Kỳ đánh giá (`config.period.id`).
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: flow
+          in: query
+          required: true
+          description: Luồng đánh giá.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        - name: subjectGroup
+          in: query
+          description: Khối đối tượng (suy luận; cột `subject_group_id` của `policy_binding`).
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+      responses:
+        '200':
+          description: Phiên bản hiệu lực.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResolvedPolicyPack' }
+              examples:
+                quy-iv:
+                  value:
+                    policyPackId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+                    code: khoi-dang/quy-dinh-moi
+                    versionId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4b20
+                    version: 2.0.0
+                    contentHash: 9f2c4e1b7a6d3f08c5e2b1a49d7f6e3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e
+                    bundleObjectKey: policy-cell-nb/khoi-dang/quy-dinh-moi/2.0.0.bundle
+                    bindingId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4d01
+                    frozen: false
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404':
+          description: 'Không có gói nào gắn cho tổ hợp này. Mã lỗi: `POLICY-404-NO-BINDING`.'
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-15]
+        scr: []
+        owner: MOD-05
+        roles: [service_client]
+        scope: N
+        source: TL-01 PL C `GET /policies/resolve?tenant=&period=&flow=` (Client nội bộ)
+
+  /policies/packs/{id}/prospect-criteria:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+    get:
+      tags: [Phân giải và tra cứu]
+      operationId: getProspectCriteria
+      summary: Tiêu chí phân nhóm triển vọng
+      description: |
+        Tiêu chí bốn nhóm triển vọng theo PL 5 trong phiên bản hiệu lực của gói (hoặc phiên bản chỉ định), kèm tham
+        số `phan_nhom.mo_o_ky_quy` (BR-10-07) và mức xếp loại không được vào từng nhóm (BR-10-09). Mở từ ngăn
+        "Xem tiêu chí PL 5" của SCR-1002.
+      parameters:
+        - name: version
+          in: query
+          description: Phiên bản cụ thể; bỏ trống là phiên bản đang phát hành.
+          schema: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
+      responses:
+        '200':
+          description: Tiêu chí nhóm.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProspectCriteria' }
+              examples:
+                pl5:
+                  value:
+                    policyPackId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+                    version: 2.0.0
+                    openInQuarter: false
+                    legalRef: QĐ khoản 12.1.5; PL 5
+                    groups:
+                      - groupCode: NHOM_1
+                        name: Nhóm 1 – Có triển vọng phát triển cao
+                        criteria: Hoàn thành xuất sắc nhiệm vụ nhiều năm liền, có khả năng đảm nhiệm vị trí cao hơn.
+                        excludedRatingLevels: [KHTNV]
+                        excludeReassignmentFlag: true
+                      - groupCode: NHOM_4
+                        name: Nhóm 4 – Cần bố trí lại
+                        criteria: Không hoàn thành nhiệm vụ hoặc không đáp ứng yêu cầu vị trí đang đảm nhiệm.
+                        excludedRatingLevels: []
+                        excludeReassignmentFlag: false
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-10]
+        scr: [SCR-1002]
+        owner: MOD-05
+        roles: [leader, appraiser]
+        scope: Đv
+        rules: [BR-10-07, BR-10-09]
+        source: TL-02b SCR-1002 "Xem tiêu chí PL 5"; ma trận SCR-1002.xem
+
+  # ───────────────────────────── Luồng duyệt (SCR-1504) ─────────────────────────────
+  /policies/packs/{id}/versions/{v}/workflow-bindings:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+    get:
+      tags: [Luồng duyệt]
+      operationId: listWorkflowBindings
+      summary: Danh sách tham số luồng duyệt của phiên bản
+      responses:
+        '200':
+          description: Các bản ghi `wf_binding` thuộc phiên bản.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/WorkflowBinding' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1504]
+        owner: MOD-05
+        roles: [policy_author, decider]
+        scope: Tn
+        source: TL-02b SCR-1504 (suy luận đường dẫn danh sách)
+
+  /policies/packs/{id}/versions/{v}/workflow-bindings/{key}:
+    parameters:
+      - $ref: '#/components/parameters/PackId'
+      - $ref: '#/components/parameters/PackVersion'
+      - $ref: '#/components/parameters/ProcessKind'
+    get:
+      tags: [Luồng duyệt]
+      operationId: getWorkflowBinding
+      summary: Xem tham số luồng duyệt theo loại quy trình
+      responses:
+        '200':
+          description: Bản ghi `wf_binding`.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowBinding' }
+              examples:
+                ho-so-danh-gia:
+                  $ref: '#/components/examples/WorkflowBindingHoSo'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1504]
+        owner: MOD-05
+        roles: [policy_author, decider]
+        scope: Tn
+        source: TL-03 `flowable.wf_binding`
+    put:
+      tags: [Luồng duyệt]
+      operationId: saveWorkflowBinding
+      summary: Lưu tham số luồng duyệt
+      description: |
+        Lưu `wf_binding` nháp thuộc phiên bản Policy Pack đang soạn, kiểm tra `params` theo `paramSchema` của mẫu,
+        chạy linter và bộ test của mẫu với tham số này (BR-15-11, BR-15-12). Kỳ bắt đầu phải chưa khoá. Tham số
+        được phát hành cùng Policy Pack. Lần lưu đầu dùng `If-Match: "0"` (suy luận).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkflowBindingUpdate' }
+      responses:
+        '200':
+          description: Đã lưu, kèm kết quả linter và test mẫu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowBinding' }
+              examples:
+                ho-so-danh-gia:
+                  $ref: '#/components/examples/WorkflowBindingHoSo'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: 'Xung đột. Mã lỗi: `POLICY-409-VERSION-CONFLICT`, `POLICY-409-VERSION-FROZEN`, `POLICY-409-PERIOD-LOCKED` (kỳ bắt đầu đã khoá).'
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: |
+            Không hợp lệ. Mã lỗi: `POLICY-422-WF-PARAMS` (MSG-15-09: tham số sai khai báo mẫu, linter hoặc test mẫu
+            không đạt), `POLICY-422-CEL-TYPE` (điều kiện bỏ qua cấp), `POLICY-422-TEMPLATE-NOT-ACTIVE` (mẫu chưa
+            `HIEU_LUC`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1504]
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        rules: [BR-15-11, BR-15-12]
+        source: TL-02b SCR-1504 "Lưu tham số"
+
+  /policies/workflow-bindings/simulate:
+    post:
+      tags: [Luồng duyệt]
+      operationId: simulateWorkflowBinding
+      summary: Mô phỏng luồng với tham số
+      description: |
+        Chạy mẫu với tham số trên engine Flowable thử (không phải engine của cell) cho một số hồ sơ mẫu, trả xem
+        trước các bước sinh ra, nhãn linter và kết quả test của mẫu. Không ghi `wf_binding`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkflowSimulateRequest' }
+      responses:
+        '200':
+          description: Kết quả mô phỏng.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowSimulateResult' }
+              examples:
+                bon-cap:
+                  value:
+                    steps:
+                      - { stepKey: TU_DANH_GIA, name: Tự đánh giá, role: member, signRequired: true, batchSign: false, skippable: false }
+                      - { stepKey: THAM_DINH, name: Thẩm định, role: appraiser, signRequired: true, batchSign: false, skippable: false }
+                      - { stepKey: DE_XUAT, name: Đề xuất, role: manager, signRequired: false, batchSign: false, skippable: true }
+                      - { stepKey: QUYET_DINH, name: Quyết định, role: decider, signRequired: true, batchSign: true, skippable: false }
+                    lint:
+                      passed: true
+                      issues: []
+                    templateTests: { passed: 42, total: 42 }
+                    sampleRuns:
+                      - { sample: 'Chuyên viên, mức thẩm định bằng mức tự đề xuất', skippedSteps: [DE_XUAT], endState: KHOA_HO_SO }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422':
+          description: 'Không hợp lệ. Mã lỗi: `POLICY-422-WF-PARAMS` (MSG-15-09).'
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1504]
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        rules: [BR-15-12]
+        source: TL-02b SCR-1504 "Mô phỏng luồng"
+
+  # ───────────────────────────── Mẫu luồng (SCR-1504, SCR-1505, SCR-1506) ─────────────────────────────
+  /policies/workflow-templates:
+    get:
+      tags: [Mẫu luồng]
+      operationId: listPolicyWorkflowTemplates
+      summary: Danh mục mẫu luồng để chọn khi cấu hình luồng duyệt
+      description: |
+        Danh mục mẫu luồng đã phát hành (`HIEU_LUC`) phù hợp loại quy trình, cho vùng 1 của SCR-1504. Chỉ đọc. Thư
+        viện đầy đủ mọi trạng thái, trình soạn, kiểm thử, phê duyệt, triển khai mẫu (SCR-1505) và giám sát tiến
+        trình (SCR-1506) thuộc workflow-service ở `/workflow/templates`, `/workflow/instances` (platform.yaml, PC-05).
+      parameters:
+        - name: processKind
+          in: query
+          description: Lọc theo loại quy trình mà mẫu phục vụ (suy luận).
+          schema: { type: string, maxLength: 32 }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang danh mục mẫu.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyWorkflowTemplateList' }
+              examples:
+                thu-vien:
+                  value:
+                    items:
+                      - key: duyet-ho-so-danh-gia
+                        name: Duyệt hồ sơ đánh giá
+                        versionNo: 3
+                        status: HIEU_LUC
+                        processKind: DANH_GIA
+                        testCount: 42
+                      - key: duyet-ke-hoach-quy
+                        name: Duyệt kế hoạch quý
+                        versionNo: 2
+                        status: HIEU_LUC
+                        processKind: KE_HOACH_QUY
+                        testCount: 28
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1504]
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        source: TL-02b part-06 `/api/v1/policies/workflow-templates`; SCR-1504 vùng 1, bảng trường dòng 1 (PC-05)
+  /policies/workflow-templates/{key}/versions/{v}:
+    parameters:
+      - $ref: '#/components/parameters/TemplateKey'
+      - $ref: '#/components/parameters/TemplateVersion'
+    get:
+      tags: [Mẫu luồng]
+      operationId: getPolicyWorkflowTemplateVersion
+      summary: Tải khai báo tham số của mẫu luồng
+      description: |
+        Trả khai báo tham số (`paramSchema`, JSON Schema, cột `param_schema` của BS-01) để sinh biểu mẫu tham số
+        trên SCR-1504, cùng các bước xem trước của mẫu. Không trả BPMN XML (chỉ có ở `/workflow/templates/{id}`
+        cho phạm vi nền tảng).
+      responses:
+        '200':
+          description: Phiên bản mẫu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyWorkflowTemplateVersion' }
+              examples:
+                v3:
+                  $ref: '#/components/examples/PolicyWorkflowTemplateV3'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1504]
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        source: TL-02b SCR-1504 "Chọn mẫu" `GET /api/v1/policies/workflow-templates/{key}/versions/{v}`
+
+components:
+  securitySchemes:
+    keycloak:
+      $ref: '../common/common.yaml#/components/securitySchemes/keycloak'
+    serviceClient:
+      $ref: '../common/common.yaml#/components/securitySchemes/serviceClient'
+  parameters:
+    PackId:
+      name: id
+      in: path
+      required: true
+      description: Gói Policy Pack (`policy.policy_pack.id`).
+      schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    PackVersion:
+      name: v
+      in: path
+      required: true
+      description: Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03).
+      schema: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$', examples: ['2.1.0'] }
+    RuleKey:
+      name: key
+      in: path
+      required: true
+      description: Khoá quy tắc `rule_key`, ví dụ `kpi_nhiem_vu`, `A`, `muc_cuoi`, `nguoi_dung_dau`, `nhom`.
+      schema: { type: string, pattern: '^[A-Za-z0-9_.]{1,64}$' }
+    TableKey:
+      name: key
+      in: path
+      required: true
+      description: Khoá bảng quyết định `table_key`, ví dụ `xep_loai`, `tieu_chi_chung`.
+      schema: { type: string, pattern: '^[A-Za-z0-9_.]{1,64}$' }
+    RunId:
+      name: runId
+      in: path
+      required: true
+      description: Lần chạy kiểm thử (`policy.test_run.id`).
+      schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    ProcessKind:
+      name: key
+      in: path
+      required: true
+      description: Loại quy trình của `wf_binding` (`process_kind`), ví dụ `DANH_GIA`, `KE_HOACH_QUY` (suy luận khoá).
+      schema: { type: string, pattern: '^[A-Z0-9_]{1,32}$' }
+    TemplateKey:
+      name: key
+      in: path
+      required: true
+      description: Mã mẫu luồng (`wf_template.template_code`), ví dụ `duyet-ho-so-danh-gia`.
+      schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,64}$' }
+    TemplateVersion:
+      name: v
+      in: path
+      required: true
+      description: Số phiên bản mẫu (`wf_template.version_no`).
+      schema: { type: integer, minimum: 1 }
+
+  schemas:
+    # ───── Liệt kê ─────
+    PolicyPackVersionStatus:
+      description: Trạng thái phiên bản Policy Pack (baseline mục 9.1; CHECK `ck_policy_pack_version__status`).
+      type: string
+      enum: [NHAP, DANG_KIEM_THU, DAT_KIEM_THU, CHO_PHE_DUYET, DA_PHAT_HANH, NGUNG]
+    PolicyPackOrigin:
+      description: Nguồn gói (`policy_pack.origin`).
+      type: string
+      enum: [GOC_TOAN_CUC, TENANT]
+    PolicyRuleResultType:
+      description: Kiểu kết quả của quy tắc (`policy_rule.result_type`).
+      type: string
+      enum: [DECIMAL, BOOLEAN, STRING]
+    DecisionHitPolicy:
+      description: Hit policy DMN 1.4 được hỗ trợ (`decision_table.hit_policy`).
+      type: string
+      enum: [FIRST, UNIQUE, PRIORITY]
+    GoldenTestCaseStatus:
+      description: Trạng thái ca kiểm thử vàng; chỉ ca `DA_DUYET` được tính vào tỷ lệ đạt.
+      type: string
+      enum: [NHAP, DA_DUYET, NGUNG]
+    GoldenTestCaseSource:
+      description: Nguồn ca kiểm thử (`golden_test_case.source`).
+      type: string
+      enum: [KHACH_HANG, BA, VAN_BAN]
+    PolicyTestRunResult:
+      description: Kết luận lần chạy (`test_run.result`).
+      type: string
+      enum: [DAT, KHONG_DAT, DANG_CHAY]
+    PolicyEngine:
+      description: Engine thực thi CEL (`test_run.engine`).
+      type: string
+      enum: [CEL_JAVA, CEL_JS]
+    PolicyProspectGroupCode:
+      description: Mã nhóm triển vọng (`appraisal.prospect_group.group_code`, PL 5).
+      type: string
+      enum: [NHOM_1, NHOM_2, NHOM_3, NHOM_4]
+    WorkflowBindingStatus:
+      description: Trạng thái bản ghi `wf_binding` (cột bổ sung của BS-01).
+      type: string
+      enum: [NHAP, HIEU_LUC, NGUNG]
+    # ───── Gói và phiên bản ─────
+    PolicyPack:
+      description: Gói Policy Pack (`policy.policy_pack`) kèm tóm tắt phiên bản.
+      type: object
+      required: [id, code, name, flow, origin]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 100, description: 'Mã gói, ví dụ `khoi-dang/quy-dinh-moi`.' }
+        name: { type: string, maxLength: 255 }
+        sector: { type: string, maxLength: 24, description: Nhóm khách hàng. }
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        origin: { $ref: '#/components/schemas/PolicyPackOrigin' }
+        parentPackId:
+          description: Gói được kế thừa.
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        legalBasis: { type: string, description: Văn bản căn cứ. }
+        versions:
+          description: Tóm tắt các phiên bản gần nhất, mới nhất trước (suy luận số lượng do máy chủ chọn).
+          type: array
+          items: { $ref: '#/components/schemas/PolicyPackVersionSummary' }
+    PolicyPackList:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PolicyPack' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    PolicyPackVersionSummary:
+      description: Tóm tắt một phiên bản (`policy.policy_pack_version`).
+      type: object
+      required: [id, policyPackId, version, status, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        policyPackId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        version: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
+        status: { $ref: '#/components/schemas/PolicyPackVersionStatus' }
+        effectiveFrom:
+          description: Ngày bắt đầu của kỳ hiệu lực.
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Date'
+            - type: 'null'
+        goldenPassRate:
+          description: Tỷ lệ ca vàng đạt của lần chạy gần nhất, 1 nghĩa là 100%.
+          type: [number, 'null']
+          minimum: 0
+          maximum: 1
+        publishedAt:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        changeNote: { type: string, description: Ghi chú thay đổi. }
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        createdBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    PolicyPackVersionList:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PolicyPackVersionSummary' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    PolicyPackVersion:
+      description: Chi tiết phiên bản Policy Pack.
+      allOf:
+        - $ref: '#/components/schemas/PolicyPackVersionSummary'
+        - type: object
+          properties:
+            packCode: { type: string, description: 'Mã gói, để hiển thị thanh gói.' }
+            manifest:
+              description: Tham số chung, quy tắc làm tròn, nhãn hiển thị, tham chiếu điều khoản (`manifest`).
+              type: object
+              additionalProperties: true
+            contentHash:
+              description: SHA-256 dạng chuẩn hoá của quy tắc, DMN và manifest, mã hex; có từ `DAT_KIEM_THU`.
+              type: [string, 'null']
+            lastTestRunId:
+              oneOf:
+                - $ref: '../common/common.yaml#/components/schemas/Uuid'
+                - type: 'null'
+            approvedBy:
+              oneOf:
+                - $ref: '../common/common.yaml#/components/schemas/Ref'
+                - type: 'null'
+            approvedAt:
+              oneOf:
+                - $ref: '../common/common.yaml#/components/schemas/DateTime'
+                - type: 'null'
+            signedAt:
+              oneOf:
+                - $ref: '../common/common.yaml#/components/schemas/DateTime'
+                - type: 'null'
+            sourceVersionId:
+              description: Phiên bản gốc toàn cục nếu nhân bản từ kho gốc.
+              oneOf:
+                - $ref: '../common/common.yaml#/components/schemas/Uuid'
+                - type: 'null'
+            bindings:
+              description: Các gắn kỳ hiệu lực (`policy.policy_binding`).
+              type: array
+              items: { $ref: '#/components/schemas/PolicyBinding' }
+    PolicyPackVersionCreate:
+      type: object
+      required: [baseVersion, changeNote]
+      properties:
+        baseVersion:
+          description: Phiên bản nguồn để nhân bản (thường là phiên bản đang phát hành).
+          type: string
+          pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+        version:
+          description: Số phiên bản mới; bỏ trống thì máy chủ tăng số phụ (suy luận).
+          type: string
+          pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+        changeNote: { type: string, minLength: 1, maxLength: 2000 }
+    PolicyBinding:
+      description: Gắn phiên bản cho tổ hợp tenant, kỳ, luồng, khối, đơn vị (`policy.policy_binding`).
+      type: object
+      required: [id, period, flow, isFrozen]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        period: { $ref: '../common/common.yaml#/components/schemas/PeriodRef' }
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        subjectGroupId:
+          description: Khối đối tượng; null là mọi khối.
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        orgUnitId:
+          description: Đơn vị phạm vi; null là toàn tenant.
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        isFrozen: { type: boolean, description: 'true khi kỳ đã `DA_KHOA`; không đổi phiên bản được nữa.' }
+    PolicyVersionDiff:
+      type: object
+      required: [base, target, changes]
+      properties:
+        base: { type: string }
+        target: { type: string }
+        changes:
+          type: array
+          items:
+            type: object
+            required: [kind, key]
+            properties:
+              kind:
+                description: Loại thành phần thay đổi (suy luận).
+                type: string
+                enum: [RULE, PARAM, DECISION_TABLE, WORKFLOW_BINDING, MANIFEST]
+              key: { type: string, description: '`rule_key`, `table_key` hoặc `process_kind`.' }
+              path: { type: string, description: 'Đường dẫn trường trong thành phần, dạng chấm.' }
+              change:
+                type: string
+                enum: [THEM, SUA, XOA]
+                description: Kiểu thay đổi (suy luận).
+              before: { description: Giá trị cũ. }
+              after: { description: Giá trị mới. }
+
+    # ───── Quy tắc và bảng quyết định ─────
+    PolicyRounding:
+      description: Quy tắc làm tròn (`policy_rule.rounding`).
+      type: object
+      required: [digits, mode]
+      properties:
+        digits: { type: integer, minimum: 0, maximum: 6 }
+        mode: { type: string, description: 'Kiểu làm tròn, ví dụ `NUA_LEN` (TL-02b SCR-1501).', examples: [NUA_LEN] }
+    PolicyRule:
+      description: Quy tắc CEL (`policy.policy_rule`).
+      type: object
+      required: [id, ruleKey, expression, resultType, evalOrder, overridable, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        ruleKey: { type: string, maxLength: 64 }
+        expression: { type: string, description: Biểu thức CEL. }
+        resultType: { $ref: '#/components/schemas/PolicyRuleResultType' }
+        rounding: { $ref: '#/components/schemas/PolicyRounding' }
+        legalRef: { type: string, maxLength: 200, description: 'Điều khoản căn cứ, ví dụ "PL 3 mục 2".' }
+        evalOrder: { type: integer, description: Thứ tự đánh giá. }
+        params:
+          description: |
+            Tham số của quy tắc (`params_json`), khoá là tên biến CEL. Khoá đã biết (TL-02b SCR-1501):
+            `cach_tinh_chat_luong` (`NAM_MUC_PL3`, `TRU_25_MOI_LAN`), `tru_tien_do` (0,00 đến 0,20),
+            `loai_ngay` (`NGAY_LAM_VIEC`, `NGAY_LICH`), `ly_do_tra_lai`, `lam_tron`, `diem_toi_da` (quy tắc `nhom`),
+            `nam.cach_tinh`, `phan_nhom.mo_o_ky_quy`.
+          type: object
+          additionalProperties: true
+        overridable: { type: boolean, description: Tenant được điều chỉnh tham số của quy tắc này (BR-15-13). }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    PolicyRuleUpdate:
+      type: object
+      required: [expression, resultType]
+      properties:
+        expression: { type: string, minLength: 1, maxLength: 20000 }
+        resultType: { $ref: '#/components/schemas/PolicyRuleResultType' }
+        rounding: { $ref: '#/components/schemas/PolicyRounding' }
+        legalRef: { type: string, maxLength: 200 }
+        evalOrder: { type: integer }
+        params:
+          type: object
+          additionalProperties: true
+        overridable: { type: boolean, description: Chỉ có nghĩa với gói gốc toàn cục. }
+    PolicyRuleSaved:
+      description: Quy tắc sau khi lưu, kèm trạng thái phiên bản.
+      allOf:
+        - $ref: '#/components/schemas/PolicyRule'
+        - type: object
+          required: [versionStatus, statusReverted]
+          properties:
+            versionStatus: { $ref: '#/components/schemas/PolicyPackVersionStatus' }
+            statusReverted: { type: boolean, description: 'true khi phiên bản vừa từ `DAT_KIEM_THU` về `NHAP` (MSG-15-03).' }
+    DecisionInput:
+      description: Khai báo cột đầu vào của bảng (suy luận từ bảng trường SCR-1502).
+      type: object
+      required: [name, type]
+      properties:
+        name: { type: string, description: 'Tên biến ngữ cảnh, ví dụ `diem`, `ty_le_viec_vuot`.' }
+        label: { type: string }
+        type: { type: string, enum: [number, string, boolean], description: Kiểu dữ liệu FEEL. }
+    DecisionRule:
+      description: Một dòng của bảng DMN (`rules_json`).
+      type: object
+      required: [inputs, ratingLevel, clause, explanation]
+      properties:
+        inputs:
+          description: Biểu thức FEEL đơn giản theo tên cột; ô trống (`-` hoặc bỏ khoá) nghĩa là bất kỳ.
+          type: object
+          additionalProperties: { type: string }
+        ratingLevel: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        clause: { type: string, minLength: 1, maxLength: 100, description: Điều khoản căn cứ. }
+        explanation: { type: string, minLength: 1, maxLength: 200, description: Giải thích ngắn. }
+    DecisionTable:
+      description: Bảng quyết định DMN 1.4 (`policy.decision_table`).
+      type: object
+      required: [id, tableKey, hitPolicy, inputs, rules, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        tableKey: { type: string, maxLength: 64 }
+        hitPolicy: { $ref: '#/components/schemas/DecisionHitPolicy' }
+        legalRef: { type: string, maxLength: 200 }
+        inputs:
+          type: array
+          items: { $ref: '#/components/schemas/DecisionInput' }
+        rules:
+          type: array
+          items: { $ref: '#/components/schemas/DecisionRule' }
+        explanationTemplates:
+          description: Mẫu câu giải thích (`explanation_templates_json`), khoá là mã mẫu; mỗi mẫu tối đa 1.000 ký tự.
+          type: object
+          additionalProperties: { type: string, maxLength: 1000 }
+        dmnHash: { type: string, description: 'Băm định nghĩa DMN, mã hex.' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    DecisionTableUpdate:
+      type: object
+      required: [hitPolicy, inputs, rules]
+      properties:
+        hitPolicy: { $ref: '#/components/schemas/DecisionHitPolicy' }
+        legalRef: { type: string, maxLength: 200 }
+        inputs:
+          type: array
+          items: { $ref: '#/components/schemas/DecisionInput' }
+        rules:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/DecisionRule' }
+        explanationTemplates:
+          type: object
+          additionalProperties: { type: string, maxLength: 1000 }
+    DecisionTableSaved:
+      allOf:
+        - $ref: '#/components/schemas/DecisionTable'
+        - type: object
+          properties:
+            warnings:
+              description: Cảnh báo không chặn lưu, ví dụ dòng bị che theo hit policy FIRST (MSG-15-04).
+              type: array
+              items:
+                type: object
+                required: [msg, message]
+                properties:
+                  msg: { type: string, examples: [MSG-15-04] }
+                  message: { type: string }
+                  row: { type: integer, minimum: 1 }
+                  shadowedBy: { type: integer, minimum: 1 }
+    PolicyEvaluateRequest:
+      type: object
+      required: [caseCode]
+      properties:
+        caseCode: { type: string, maxLength: 64, description: 'Mã ca trong bộ vàng (chỉ ca của bộ vàng, SCR-1501 dòng 10).' }
+    PolicyEvaluateResult:
+      type: object
+      required: [caseCode, engine, outputs]
+      properties:
+        caseCode: { type: string }
+        engine: { $ref: '#/components/schemas/PolicyEngine' }
+        outputs:
+          description: Giá trị các quy tắc theo `rule_key`.
+          type: object
+          additionalProperties: true
+        ratingLevel: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        explanation: { type: string, description: Lời giải thích sinh từ mẫu câu. }
+        trace:
+          description: Vết tính theo thứ tự đánh giá.
+          type: array
+          items:
+            type: object
+            required: [ruleKey]
+            properties:
+              ruleKey: { type: string }
+              value: { description: Giá trị tính được. }
+
+    # ───── Kiểm thử ─────
+    GoldenTestCase:
+      description: Ca kiểm thử vàng (`policy.golden_test_case`), gắn với gói.
+      type: object
+      required: [id, policyPackId, caseCode, description, input, expected, source, status, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        policyPackId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        caseCode: { type: string, maxLength: 64 }
+        description: { type: string }
+        input:
+          description: Dữ liệu đầu vào giả lập (C1, không chứa dữ liệu cá nhân thật).
+          type: object
+          additionalProperties: true
+        expected:
+          description: Kết quả mong đợi (điểm, mức, lý do hạ mức).
+          type: object
+          additionalProperties: true
+        legalRef: { type: [string, 'null'], maxLength: 200 }
+        source: { $ref: '#/components/schemas/GoldenTestCaseSource' }
+        status: { $ref: '#/components/schemas/GoldenTestCaseStatus' }
+        note: { type: string, description: 'Ghi chú sai lệch khi kỳ vọng còn tranh cãi (TL-02b QT-15 ngoại lệ, suy luận).' }
+        approvedBy:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Ref'
+            - type: 'null'
+        approvedAt:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        signed: { type: boolean, description: Đã có chữ ký số trên `input` và `expected`. }
+        createdBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    GoldenTestCaseCreate:
+      type: object
+      required: [policyPackId, caseCode, description, input, expected, source]
+      properties:
+        policyPackId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        caseCode: { type: string, minLength: 1, maxLength: 64 }
+        description: { type: string, minLength: 1, maxLength: 2000 }
+        input:
+          type: object
+          additionalProperties: true
+        expected:
+          type: object
+          additionalProperties: true
+        legalRef: { type: string, maxLength: 200 }
+        source: { $ref: '#/components/schemas/GoldenTestCaseSource' }
+        note: { type: string, maxLength: 2000 }
+    GoldenTestSuite:
+      description: Tóm tắt bộ test vàng của gói (SCR-1503 dòng 1; suy luận vì TL-03 không có bảng bộ test).
+      type: object
+      required: [total]
+      properties:
+        code: { type: string, examples: [bo-ca-mau-ban-to-chuc-v3] }
+        total: { type: integer, minimum: 0, description: Số ca `DA_DUYET`. }
+        pending: { type: integer, minimum: 0, description: Số ca chờ ký duyệt. }
+        approvedBy: { type: string, description: Tên cơ quan hoặc người ký duyệt bộ. }
+        approvedAt:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+    GoldenTestCaseList:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        suite: { $ref: '#/components/schemas/GoldenTestSuite' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/GoldenTestCase' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    PolicyTestRunCreate:
+      type: object
+      properties:
+        compareWithVersion:
+          description: Phiên bản dùng để so sánh tác động (PC-06, suy luận).
+          type: string
+          pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+        propertyDatasets:
+          description: Số bộ dữ liệu ngẫu nhiên cho kiểm thử thuộc tính (suy luận tham số).
+          type: integer
+          minimum: 0
+          maximum: 100000
+          default: 10000
+    PolicyTestRunSummary:
+      description: Tóm tắt lần chạy (`policy.test_run`).
+      type: object
+      required: [id, policyPackVersionId, version, result, total, passed, failed, engineMatch, startedAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        runNo: { type: integer, minimum: 1, description: 'Số thứ tự lần chạy trong gói, ví dụ #14 (suy luận).' }
+        policyPackVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        version: { type: string }
+        result: { $ref: '#/components/schemas/PolicyTestRunResult' }
+        engines:
+          type: array
+          items: { $ref: '#/components/schemas/PolicyEngine' }
+        total: { type: integer, minimum: 0 }
+        passed: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        engineMatch: { type: boolean, description: cel-java và cel-js cho cùng kết quả ở mọi ca. }
+        engineMatchedCount: { type: integer, minimum: 0, description: 'Số ca hai engine khớp (thẻ "Khớp hai engine", suy luận).' }
+        startedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        finishedAt:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        durationMs: { type: [integer, 'null'], minimum: 0 }
+        createdBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+    PolicyTestRunList:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PolicyTestRunSummary' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    PolicyTestCaseResult:
+      description: Kết quả một ca (`policy.test_case_result`).
+      type: object
+      required: [goldenTestCaseId, caseCode, passed]
+      properties:
+        goldenTestCaseId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        caseCode: { type: string }
+        description: { type: string }
+        expected:
+          type: object
+          additionalProperties: true
+        actual:
+          description: Kết quả cel-java.
+          type: object
+          additionalProperties: true
+        actualJs:
+          description: Kết quả cel-js khi khác cel-java (MSG-15-07).
+          type: [object, 'null']
+          additionalProperties: true
+        passed: { type: boolean }
+        engineMatch: { type: boolean }
+        diff:
+          description: Khác biệt so với mong đợi.
+          type: [object, 'null']
+          additionalProperties: true
+    PolicyPropertyResult:
+      description: Kết quả kiểm thử thuộc tính (`property_result_json`).
+      type: object
+      required: [datasets, violations]
+      properties:
+        datasets: { type: integer, minimum: 0 }
+        invariants:
+          type: array
+          items: { type: string }
+          examples: [['0 <= diem && diem <= 100', 'C >= 0']]
+        violations: { type: integer, minimum: 0 }
+    PolicyImpact:
+      description: So sánh tác động với một phiên bản khác trên bộ ca (PC-06, suy luận).
+      type: object
+      required: [baseVersion, changedRatingCount]
+      properties:
+        baseVersion: { type: string }
+        changedScoreCount: { type: integer, minimum: 0, description: Số ca có điểm khác. }
+        changedRatingCount: { type: integer, minimum: 0, description: Số ca có mức xếp loại khác. }
+        lockedPeriodNote: { type: string, description: 'Ghi chú tính lại kỳ đã khoá, ví dụ "Không áp dụng".' }
+    PolicyTestRun:
+      description: Kết quả đầy đủ một lần chạy.
+      allOf:
+        - $ref: '#/components/schemas/PolicyTestRunSummary'
+        - type: object
+          properties:
+            propertyResult: { $ref: '#/components/schemas/PolicyPropertyResult' }
+            cases:
+              type: array
+              items: { $ref: '#/components/schemas/PolicyTestCaseResult' }
+            configDiff:
+              description: Khác biệt cấu hình so với lần chạy trước (thẻ chi tiết lỗi SCR-1503).
+              oneOf:
+                - $ref: '#/components/schemas/PolicyVersionDiff'
+                - type: 'null'
+            impact:
+              oneOf:
+                - $ref: '#/components/schemas/PolicyImpact'
+                - type: 'null'
+
+    # ───── Phê duyệt và phát hành ─────
+    PolicyPackSubmit:
+      type: object
+      required: [effectivePeriodId, scopes]
+      properties:
+        effectivePeriodId:
+          description: Kỳ hiệu lực trong tương lai, chưa khoá (BR-15-10).
+          allOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+        scopes:
+          description: Phạm vi áp dụng; mỗi phần tử sinh một `policy_binding` khi phát hành.
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [flow]
+            properties:
+              flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+              subjectGroupId:
+                oneOf:
+                  - $ref: '../common/common.yaml#/components/schemas/Uuid'
+                  - type: 'null'
+              orgUnitId:
+                oneOf:
+                  - $ref: '../common/common.yaml#/components/schemas/Uuid'
+                  - type: 'null'
+        note: { type: string, maxLength: 2000 }
+    PolicyPackApprove:
+      type: object
+      properties:
+        comment: { type: string, maxLength: 2000 }
+        esignSessionId:
+          description: Phiên ký số đã mở ở SVC-10 (`/esign`), nếu ký từ xa cần xác nhận trên thiết bị (suy luận).
+          allOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+    PolicyDecisionReason:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 10, maxLength: 2000, description: Ý kiến bắt buộc. }
+    PolicyDecisionComment:
+      type: object
+      properties:
+        comment: { type: string, maxLength: 2000 }
+
+    # ───── Phân giải và tra cứu ─────
+    ResolvedPolicyPack:
+      type: object
+      required: [policyPackId, code, versionId, version, contentHash, bindingId, frozen]
+      properties:
+        policyPackId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string }
+        versionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        version: { type: string }
+        contentHash: { type: string, description: 'SHA-256 đã ký, mã hex; bên gọi tính lại và so trước khi dùng.' }
+        bundleObjectKey: { type: string, description: Khoá gói đã ký trên Ceph của cell. }
+        bindingId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        frozen: { type: boolean, description: 'Kỳ đã khoá, phiên bản không đổi được nữa.' }
+    ProspectCriteria:
+      type: object
+      required: [policyPackId, version, openInQuarter, groups]
+      properties:
+        policyPackId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        version: { type: string }
+        openInQuarter: { type: boolean, description: 'Tham số `phan_nhom.mo_o_ky_quy` (BR-10-07).' }
+        legalRef: { type: string }
+        groups:
+          type: array
+          items:
+            type: object
+            required: [groupCode, name, criteria]
+            properties:
+              groupCode: { $ref: '#/components/schemas/PolicyProspectGroupCode' }
+              name: { type: string }
+              criteria: { type: string, description: Tiêu chí theo PL 5. }
+              excludedRatingLevels:
+                description: Mức xếp loại năm không được đưa vào nhóm (BR-10-09).
+                type: array
+                items: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+              excludeReassignmentFlag: { type: boolean, description: Người có cờ bố trí lại không được vào nhóm (BR-10-09). }
+
+    # ───── Luồng duyệt ─────
+    WorkflowLintResult:
+      description: Kết quả linter mẫu luồng (bốn quy tắc chống mạng nhện của TL-01 và giới hạn tải của BS-01).
+      type: object
+      required: [passed, issues]
+      properties:
+        passed: { type: boolean }
+        issues:
+          type: array
+          items:
+            type: object
+            required: [rule, message]
+            properties:
+              rule: { type: string, description: 'Mã quy tắc linter, ví dụ `max-call-activity-depth`.' }
+              elementId: { type: string, description: Phần tử BPMN vi phạm. }
+              severity: { type: string, enum: [error, warning] }
+              message: { type: string }
+    WorkflowTestSummary:
+      type: object
+      required: [passed, total]
+      properties:
+        passed: { type: integer, minimum: 0 }
+        total: { type: integer, minimum: 0 }
+    WorkflowBindingScope:
+      description: Phạm vi áp dụng (`scope_json` và các cột khoá của `wf_binding`).
+      type: object
+      required: [fromPeriodId]
+      properties:
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        subjectGroupId:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        periodType: { type: string, maxLength: 8, description: 'Loại kỳ, ví dụ `QUY`, `NAM`.' }
+        fromPeriodId:
+          description: Kỳ bắt đầu, phải chưa khoá.
+          allOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+    WorkflowBinding:
+      description: Tham số luồng duyệt theo mẫu (`flowable.wf_binding`).
+      type: object
+      required: [id, processKind, templateKey, templateVersionNo, scope, params, status, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        processKind: { type: string, maxLength: 32 }
+        templateKey: { type: string }
+        templateVersionNo: { type: integer, minimum: 1 }
+        scope: { $ref: '#/components/schemas/WorkflowBindingScope' }
+        params:
+          description: Tham số truyền vào tiến trình (`params_json`), hợp lệ theo `paramSchema` của mẫu.
+          type: object
+          additionalProperties: true
+        status: { $ref: '#/components/schemas/WorkflowBindingStatus' }
+        versionNo: { type: integer, minimum: 1, description: Phiên bản bản ghi (BS-01). }
+        lint: { $ref: '#/components/schemas/WorkflowLintResult' }
+        templateTests: { $ref: '#/components/schemas/WorkflowTestSummary' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    WorkflowBindingUpdate:
+      type: object
+      required: [templateKey, templateVersionNo, scope, params]
+      properties:
+        templateKey: { type: string, maxLength: 64 }
+        templateVersionNo: { type: integer, minimum: 1 }
+        scope: { $ref: '#/components/schemas/WorkflowBindingScope' }
+        params:
+          type: object
+          additionalProperties: true
+    WorkflowSimulateRequest:
+      type: object
+      required: [templateKey, templateVersionNo, params]
+      properties:
+        templateKey: { type: string, maxLength: 64 }
+        templateVersionNo: { type: integer, minimum: 1 }
+        params:
+          type: object
+          additionalProperties: true
+        samples:
+          description: Mã hồ sơ mẫu dùng để chạy thử; bỏ trống thì dùng bộ mẫu mặc định của mẫu luồng (suy luận).
+          type: array
+          maxItems: 20
+          items: { type: string }
+    WorkflowStepPreview:
+      type: object
+      required: [stepKey, name]
+      properties:
+        stepKey: { type: string }
+        name: { type: string }
+        role: { type: string, description: Vai trò baseline mục 10 xử lý bước. }
+        signRequired: { type: boolean }
+        batchSign: { type: boolean }
+        skippable: { type: boolean, description: Bước có điều kiện bỏ qua. }
+    WorkflowSimulateResult:
+      type: object
+      required: [steps, lint]
+      properties:
+        steps:
+          type: array
+          items: { $ref: '#/components/schemas/WorkflowStepPreview' }
+        lint: { $ref: '#/components/schemas/WorkflowLintResult' }
+        templateTests: { $ref: '#/components/schemas/WorkflowTestSummary' }
+        sampleRuns:
+          type: array
+          items:
+            type: object
+            required: [sample, endState]
+            properties:
+              sample: { type: string }
+              skippedSteps:
+                type: array
+                items: { type: string }
+              endState: { type: string }
+
+    # ───── Mẫu luồng (chỉ đọc cho SCR-1504) ─────
+    PolicyWorkflowTemplateSummary:
+      description: Một mẫu luồng đã phát hành trong danh mục chọn mẫu của SCR-1504 (`flowable.wf_template`).
+      type: object
+      required: [key, versionNo, status]
+      properties:
+        key: { type: string, description: '`template_code`, ví dụ `duyet-ho-so-danh-gia`.' }
+        name: { type: string, description: 'Tên hiển thị (suy luận; TL-03 chưa có cột).' }
+        versionNo: { type: integer, minimum: 1 }
+        status:
+          description: Trạng thái mẫu; danh mục này chỉ trả `HIEU_LUC`.
+          type: string
+          enum: [HIEU_LUC]
+        processKind: { type: string, description: 'Loại quy trình phục vụ (suy luận).' }
+        testCount: { type: integer, minimum: 0, description: Số test của mẫu. }
+    PolicyWorkflowTemplateList:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PolicyWorkflowTemplateSummary' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    PolicyWorkflowTemplateVersion:
+      description: Khai báo tham số và bước xem trước của một phiên bản mẫu luồng, dùng cho SCR-1504.
+      allOf:
+        - $ref: '#/components/schemas/PolicyWorkflowTemplateSummary'
+        - type: object
+          required: [paramSchema]
+          properties:
+            paramSchema:
+              description: Khai báo tham số dạng JSON Schema (`param_schema`, BS-01), sinh biểu mẫu SCR-1504.
+              type: object
+              additionalProperties: true
+            previewSteps:
+              type: array
+              items: { $ref: '#/components/schemas/WorkflowStepPreview' }
+  examples:
+    PolicyPackVersionDraft:
+      summary: Phiên bản 2.1.0 đang soạn
+      value:
+        id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4b21
+        policyPackId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+        packCode: khoi-dang/quy-dinh-moi
+        version: 2.1.0
+        status: NHAP
+        effectiveFrom: null
+        goldenPassRate: 0.9932
+        changeNote: Đổi cách đếm ngày chậm theo ngày làm việc của tenant
+        manifest:
+          lam_tron: { chu_so: 1, kieu: NUA_LEN }
+          ke_thua: QĐ 366 v1.4 → dự thảo Quy định mới v2.x
+        contentHash: null
+        lastTestRunId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4f13
+        approvedBy: null
+        approvedAt: null
+        signedAt: null
+        sourceVersionId: null
+        bindings: []
+        createdAt: '2026-10-12T09:00:00+07:00'
+        createdBy: { id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4e01, name: Nguyễn Thị Lan }
+        rowVersion: 6
+    PolicyRuleKpi:
+      summary: Quy tắc KPI nhiệm vụ
+      value:
+        id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f5a01
+        ruleKey: kpi_nhiem_vu
+        expression: (math.least(double(nv.so_luong_duyet) / double(nv.ke_hoach), 1.0) + nv.muc_chat_luong + math.greatest(0.0, 1.0 - tham_so.tru_tien_do * double(nv.ngay_cham_chu_quan))) / 3.0
+        resultType: DECIMAL
+        rounding: { digits: 3, mode: NUA_LEN }
+        legalRef: PL 3 mục 2
+        evalOrder: 10
+        params:
+          tru_tien_do: 0.05
+          loai_ngay: NGAY_LAM_VIEC
+          cach_tinh_chat_luong: NAM_MUC_PL3
+        overridable: true
+        rowVersion: 4
+    DecisionTableXepLoai:
+      summary: Bảng xếp loại cá nhân
+      value:
+        id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f5b01
+        tableKey: xep_loai
+        hitPolicy: FIRST
+        legalRef: QĐ Điều 11; PL 6 §12
+        inputs:
+          - { name: diem, label: Điểm, type: number }
+          - { name: ty_le_viec_vuot, label: Tỷ lệ việc vượt, type: number }
+          - { name: muc_tieu_chi_chung, label: Mức tiêu chí chung, type: string }
+          - { name: loai_tru, label: Cờ loại trừ, type: boolean }
+        rules:
+          - inputs: { loai_tru: 'true' }
+            ratingLevel: KHTNV
+            clause: QĐ Điều 11.2.4
+            explanation: Thuộc trường hợp loại trừ.
+          - inputs: { diem: '>= 90', ty_le_viec_vuot: '>= 0.3', muc_tieu_chi_chung: '"XUAT_SAC"', loai_tru: 'false' }
+            ratingLevel: HTXSNV
+            clause: QĐ Điều 11 · PL 6 §12
+            explanation: Đủ điều kiện mức hoàn thành xuất sắc.
+          - inputs: { diem: '>= 80', loai_tru: 'false' }
+            ratingLevel: HTTNV
+            clause: QĐ Điều 11 · PL 6 §12
+            explanation: Thiếu điều kiện mức trên, chuyển mức liền kề.
+        explanationTemplates:
+          ha_muc: 'Không đạt {muc_tren} vì {dieu_kien_thieu} = {gia_tri} (ngưỡng {nguong}), theo {dieu_khoan}.'
+        dmnHash: 5b1e8c0a9d7f6e3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c
+        rowVersion: 3
+    PolicyTestRunPassed:
+      summary: Lần chạy 14 đạt 148/148
+      value:
+        id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4f14
+        runNo: 14
+        policyPackVersionId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4b21
+        version: 2.1.0
+        result: DAT
+        engines: [CEL_JAVA, CEL_JS]
+        total: 148
+        passed: 148
+        failed: 0
+        engineMatch: true
+        engineMatchedCount: 148
+        startedAt: '2026-10-16T14:02:10+07:00'
+        finishedAt: '2026-10-16T14:02:17+07:00'
+        durationMs: 6800
+        propertyResult:
+          datasets: 10000
+          invariants: ['0 <= diem && diem <= 100', 'C >= 0']
+          violations: 0
+        cases:
+          - goldenTestCaseId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f6017
+            caseCode: TC-017
+            description: Hạ mức do thiếu 30% việc vượt
+            expected: { muc: HTTNV, diem: 91.2 }
+            actual: { muc: HTTNV, diem: 91.2 }
+            actualJs: null
+            passed: true
+            engineMatch: true
+            diff: null
+          - goldenTestCaseId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f6077
+            caseCode: TC-077
+            description: Ngày lễ không tính ngày chậm
+            expected: { C: 0.9 }
+            actual: { C: 0.9 }
+            actualJs: null
+            passed: true
+            engineMatch: true
+            diff: null
+        configDiff: null
+        impact:
+          baseVersion: 2.0.0
+          changedScoreCount: 12
+          changedRatingCount: 1
+          lockedPeriodNote: Không áp dụng, v2.1 chỉ hiệu lực từ Quý I/2027.
+    GoldenTestCaseNew:
+      summary: Ca kiểm thử mới chờ ký duyệt
+      value:
+        id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f6149
+        policyPackId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+        caseCode: TC-149
+        description: Ngày nghỉ bù trùng ngày lễ không tính ngày chậm
+        input: { nv: { ke_hoach: 4, so_luong_duyet: 4, muc_chat_luong: 1, ngay_cham_chu_quan: 0 } }
+        expected: { C: 1.0 }
+        legalRef: PL 3; PL A4
+        source: BA
+        status: NHAP
+        approvedBy: null
+        approvedAt: null
+        signed: false
+        createdBy: { id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4e01, name: Nguyễn Thị Lan }
+        rowVersion: 0
+    WorkflowBindingHoSo:
+      summary: Tham số luồng duyệt hồ sơ đánh giá khối Đảng
+      value:
+        id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f7001
+        processKind: DANH_GIA
+        templateKey: duyet-ho-so-danh-gia
+        templateVersionNo: 3
+        scope:
+          flow: DANG
+          subjectGroupId: null
+          periodType: QUY
+          fromPeriodId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4c27
+        params:
+          so_cap: 4
+          cap:
+            - { buoc: TU_DANH_GIA, vai_tro: member, ky_so: true }
+            - { buoc: THAM_DINH, vai_tro: appraiser, don_vi: BAN_TO_CHUC, ky_so: true }
+            - { buoc: DE_XUAT, vai_tro: manager, bo_qua_khi: "nguoi_duoc_danh_gia.chuc_danh in ['CHUYEN_VIEN'] && muc_tham_dinh == muc_tu_de_xuat" }
+            - { buoc: QUYET_DINH, vai_tro: decider, ky_lo: true, ky_so: true }
+          thoi_han_moi_buoc: P3D_LV
+          nhac_truoc: P1D_LV
+          khi_qua_han: CHUYEN_CAP_PHO_UY_QUYEN
+        status: NHAP
+        versionNo: 1
+        lint: { passed: true, issues: [] }
+        templateTests: { passed: 42, total: 42 }
+        rowVersion: 2
+    PolicyWorkflowTemplateV3:
+      summary: Mẫu duyệt hồ sơ đánh giá phiên bản 3
+      value:
+        key: duyet-ho-so-danh-gia
+        name: Duyệt hồ sơ đánh giá
+        versionNo: 3
+        status: HIEU_LUC
+        processKind: DANH_GIA
+        testCount: 42
+        paramSchema:
+          type: object
+          required: [so_cap, cap, thoi_han_moi_buoc, khi_qua_han]
+          properties:
+            so_cap: { type: integer, minimum: 2, maximum: 4, default: 4 }
+            thoi_han_moi_buoc: { type: string, default: P3D_LV }
+            nhac_truoc: { type: string, default: P1D_LV }
+            khi_qua_han: { type: string, enum: [NHAC_LAI, CHUYEN_CAP_PHO_UY_QUYEN, CHUYEN_CAP_TREN] }
+        previewSteps:
+          - { stepKey: TU_DANH_GIA, name: Tự đánh giá, role: member, signRequired: true, batchSign: false, skippable: false }
+          - { stepKey: THAM_DINH, name: Thẩm định, role: appraiser, signRequired: true, batchSign: false, skippable: false }
+          - { stepKey: DE_XUAT, name: Đề xuất, role: manager, signRequired: false, batchSign: false, skippable: true }
+          - { stepKey: QUYET_DINH, name: Quyết định, role: decider, signRequired: true, batchSign: true, skippable: false }

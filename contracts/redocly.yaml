@@ -1,0 +1,31 @@
+# Cấu hình Redocly CLI cho hợp đồng OpenAPI (WEB-063). Chạy: npm run lint
+extends:
+  - recommended
+rules:
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-summary: error
+  operation-4xx-response: error
+  no-server-trailing-slash: error
+  info-license: off
+  info-license-url: off
+  security-defined: error
+  no-unused-components: off
+  operation-2xx-response: error
+  rule/x-mission-required:
+    subject:
+      type: Operation
+      property: x-mission
+    assertions:
+      defined: true
+    message: Mỗi thao tác phải có x-mission (qt, scr, owner, roles) để truy vết và đối chiếu ma trận phân quyền.
+    severity: error
+  rule/write-needs-idempotency:
+    subject:
+      type: Operation
+      filterInParentKeys: [post, put, patch, delete]
+      property: parameters
+    assertions:
+      defined: true
+    message: Thao tác ghi phải khai tham số Idempotency-Key.
+    severity: error
