@@ -91,6 +91,21 @@ export function formatDate(iso: string, withYear = false): string {
   return withYear ? `${d}/${m}/${y}` : `${d}/${m}`;
 }
 
+const VN_TIME = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** "dd/mm HH:mm" theo giờ Việt Nam, không phụ thuộc múi giờ của máy (lịch sử luồng duyệt). */
+export function formatDateTime(iso: string): string {
+  const p = Object.fromEntries(VN_TIME.formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+  return `${p['day']}/${p['month']} ${p['hour']}:${p['minute']}`;
+}
+
 export const BASIS_KIND_LABEL: Record<BasisKind, string> = {
   NGHI_QUYET: 'Nghị quyết',
   KET_LUAN: 'Kết luận',

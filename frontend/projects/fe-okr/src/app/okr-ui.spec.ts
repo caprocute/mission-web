@@ -1,5 +1,6 @@
 import { KeyResult, Objective, krProgress, objectiveProgressPct } from '@vt/api-client';
 import {
+  formatDateTime,
   defaultKr,
   descendantCount,
   formatValue,
@@ -119,5 +120,12 @@ describe('okr-ui (SCR-0201)', () => {
     const list = [obj('a', null, [kr({ id: 'x' }), kr({ id: 'y', confidence: 'THAP' })])];
     expect(defaultKr(list)?.id).toBe('y');
     expect(defaultKr([])).toBeNull();
+  });
+});
+
+describe('formatDateTime (SCR-0203 lịch sử luồng duyệt)', () => {
+  it('hiện giờ Việt Nam, không phụ thuộc múi giờ máy', () => {
+    expect(formatDateTime('2026-10-05T09:20:00+07:00')).toBe('05/10 09:20');
+    expect(formatDateTime('2026-10-05T02:20:00Z')).toBe('05/10 09:20');
   });
 });

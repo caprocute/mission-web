@@ -317,3 +317,93 @@ export interface OkrSubmitResult {
   reviewerName: string;
   dueDate: string;
 }
+
+/** Kết quả kiểm tra tự động một dòng của SCR-0203 (MOD-01 tính lại khi mở, không lưu). */
+export type OkrCheckTone = 'DAT' | 'CANH_BAO' | 'LOI';
+
+export interface OkrReviewCheck {
+  tone: OkrCheckTone;
+  /** Nhãn ngắn như "Có căn cứ", "Đo được", "Gần giống NV-2027-Q1-0012", "Vượt 3 O". */
+  label: string;
+}
+
+/** Một KR trong bộ OKR chờ duyệt. */
+export interface OkrReviewKr {
+  id: string;
+  code: string;
+  title: string;
+  /** Chỉ tiêu kèm đơn vị đo, ví dụ "100%", "3 ngày". */
+  targetText: string;
+  /** Trọng số 0–1. */
+  weight: number;
+  /** Liên kết cấp trên hoặc ngang của KR, ví dụ "Văn phòng · O1 (ngang)". */
+  link: string | null;
+  check: OkrReviewCheck;
+}
+
+/** Một mục tiêu trong bộ OKR chờ duyệt (`okr.objective` ở `CHO_DUYET`). */
+export interface OkrReviewObjective {
+  id: string;
+  code: string;
+  title: string;
+  parentCode: string | null;
+  versionNo: number;
+  /** ETag gửi trong `If-Match` khi phê duyệt, trả lại. */
+  rowVersion: number;
+  check: OkrReviewCheck;
+  keyResults: OkrReviewKr[];
+}
+
+/**
+ * Một bộ OKR chờ duyệt: các mục tiêu `CHO_DUYET` của một đơn vị trong kỳ, tương ứng các user task
+ * `duyet-okr` của người duyệt (SCR-0203 vùng 1, 2).
+ */
+export interface OkrReviewSet {
+  id: string;
+  unit: { id: string; name: string };
+  periodId: string;
+  submittedAt: string;
+  submittedBy: string;
+  versionNo: number;
+  objectiveCount: number;
+  krCount: number;
+  /** Nhãn tổng hợp ở hàng chờ: "Đạt", "1 cảnh báo", "Vượt 3 O", "KR mơ hồ". */
+  summary: OkrReviewCheck;
+  blockingCount: number;
+  warningCount: number;
+  /** Người xem là người soạn bộ này: không được duyệt (BR-02-08, MSG-02-11). */
+  viewerIsAuthor: boolean;
+  objectives: OkrReviewObjective[];
+}
+
+/** Hàng chờ phê duyệt OKR của người dùng trong kỳ (SCR-0203). */
+export interface OkrReviewQueue {
+  period: OkrPeriod;
+  periods: OkrPeriod[];
+  /** Hạn duyệt theo lịch kỳ. */
+  dueDate: string;
+  reviewer: { name: string; title: string };
+  /** Mẫu luồng và phiên bản đang áp dụng, ví dụ "duyet-okr" v2. */
+  workflow: { code: string; version: number };
+  items: OkrReviewSet[];
+}
+
+export type OkrHistoryAction =
+  'TAO' | 'LUU_NHAP' | 'TRINH' | 'RUT_LAI' | 'DUYET' | 'TRA_LAI' | 'DONG';
+
+/** Một mốc lịch sử mục tiêu (`GET /api/v1/okr/objectives/{id}/history`). */
+export interface OkrHistoryEntry {
+  at: string;
+  action: OkrHistoryAction;
+  versionNo: number;
+  status?: ObjectiveStatus;
+  actor: { id: string; name: string };
+  comment?: string;
+  aiAssisted?: boolean;
+}
+
+/** Ý kiến khi phê duyệt hoặc trả lại (`OkrApproveRequest`, `OkrReturnRequest`). */
+export interface OkrReviewDecisionBody {
+  comment?: string;
+  notifyPeers: boolean;
+}

@@ -131,6 +131,15 @@ const ROW_HEIGHT = 52;
               (onClick)="exportReport()"
             />
           }
+          @if (can('SCR-0203.xem')) {
+            <p-button
+              label="Phê duyệt OKR"
+              icon="pi pi-check-square"
+              severity="contrast"
+              [outlined]="true"
+              (onClick)="openReview()"
+            />
+          }
           @if (canAdd()) {
             <p-button label="Mục tiêu" icon="pi pi-plus" (onClick)="addObjective()" />
           }
@@ -541,7 +550,7 @@ export class OkrTreePage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly theme = inject(ThemeService);
-  private readonly can = inject(OKR_CAN);
+  protected readonly can = inject(OKR_CAN);
 
   protected readonly views = VIEWS;
   protected readonly rowHeight = ROW_HEIGHT;
@@ -666,6 +675,11 @@ export class OkrTreePage {
       relativeTo: this.route,
       queryParams: { period: this.data()?.period.id },
     });
+  }
+
+  /** Hàng chờ SCR-0203 của người duyệt (`leader`). */
+  protected openReview() {
+    this.router.navigate(['phe-duyet'], { relativeTo: this.route });
   }
 
   protected editObjective(o: Objective) {

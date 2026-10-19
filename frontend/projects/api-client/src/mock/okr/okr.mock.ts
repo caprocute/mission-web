@@ -11,7 +11,13 @@ import {
   OkrComposeContext,
   OkrPeerLink,
   OkrPeriod,
+  OkrHistoryEntry,
   OkrPolicy,
+  OkrReviewCheck,
+  OkrReviewDecisionBody,
+  OkrReviewObjective,
+  OkrReviewQueue,
+  OkrReviewSet,
   OkrTree,
 } from '../../lib/models/okr';
 import { krProgress, objectiveProgressPct } from '../../lib/okr-progress';
@@ -38,6 +44,21 @@ const objectivesState = () =>
     string,
     ObjectiveFixture[]
   >);
+type StaticSet = Omit<
+  OkrReviewSet,
+  | 'periodId'
+  | 'versionNo'
+  | 'objectiveCount'
+  | 'krCount'
+  | 'summary'
+  | 'blockingCount'
+  | 'warningCount'
+>;
+/** Bộ OKR chờ duyệt của đơn vị khác theo kỳ, và lịch sử duyệt ghi thêm (WEB-023). */
+let reviewSets: Record<string, StaticSet[]> | null = null;
+const reviewLog = new Map<string, OkrHistoryEntry[]>();
+const reviewState = () =>
+  (reviewSets ??= structuredClone(fixture.reviews.sets) as unknown as Record<string, StaticSet[]>);
 const draftsState = () =>
   (drafts ??= new Map(
     Object.entries(structuredClone(fixture.drafts) as unknown as Record<string, ObjectiveDetail>),
@@ -142,7 +163,10 @@ function buildTree(req: MockRequest) {
   const unitId = req.params.get('unit') ?? fixture.unit.id;
   const large = unitId === OKR_LARGE_UNIT_ID;
   if (!large && unitId !== fixture.unit.id) {
-    return problem(403, 'Đồng chí không có quyền xem mục tiêu của đơn vị này');
+    const reviewed = reviewUnitTree(unitId, period);
+    return reviewed
+      ? ok(reviewed)
+      : problem(403, 'Đồng chí không có quyền xem mục tiêu của đơn vị này');
   }
   const byPeriod = objectivesState();
   const objectives = large
@@ -290,6 +314,304 @@ function composeContext(req: MockRequest) {
   return ok(ctx);
 }
 
+/**
+ * Cây chỉ đọc của đơn vị cấp dưới có bộ OKR trong hàng chờ (SCR-0203 "Xem cây"): người duyệt `leader`
+ * xem được cây cấp dưới. Trạng thái lấy theo quyết định đã ghi (còn trong hàng chờ là `CHO_DUYET`).
+ */
+function reviewUnitTree(unitId: string, period: OkrPeriod): OkrTree | null {
+  const sets = (fixture.reviews.sets as unknown as Record<string, StaticSet[]>)[period.id] ?? [];
+  const set = sets.find((x) => x.unit.id === unitId);
+  if (!set) return null;
+  const status = (id: string): Objective['status'] => {
+    const last = reviewLog.get(id)?.[0];
+    return last ? (last.action === 'DUYET' ? 'DA_DUYET' : 'NHAP') : 'CHO_DUYET';
+  };
+  const objectives: Objective[] = set.objectives.map((o) => ({
+    id: o.id,
+    code: o.code,
+    title: o.title,
+    tier: 1,
+    ownerType: 'TAP_THE',
+    ownerUnitName: set.unit.name,
+    ownerPersonName: null,
+    parentObjectiveId: null,
+    status: status(o.id),
+    progressPct: 0,
+    approvedAt: null,
+    versionNo: o.versionNo,
+    overLimitReason: null,
+    keyResults: o.keyResults.map((k) => ({
+      id: k.id,
+      objectiveId: o.id,
+      code: k.code,
+      title: k.title,
+      unit: '',
+      baselineValue: null,
+      targetValue: null,
+      currentValue: null,
+      weight: k.weight,
+      progress: 0,
+      dueDate: period.endDate,
+      verifierName: '',
+      dataSource: null,
+      valueNote: k.targetText,
+      confidence: null,
+      riskFlag: 'BINH_THUONG',
+      lastCheckinAt: null,
+      ownerName: set.submittedBy,
+      viewerIsOwner: false,
+      latestBlocker: null,
+      linkedWork: [],
+      linkedTaskCount: 0,
+    })),
+  }));
+  return {
+    period,
+    periods,
+    unit: set.unit,
+    viewerOwnUnit: false,
+    bases: [],
+    parent: null,
+    recommendedMax: fixture.recommendedMax,
+    objectives,
+    peerLinks: [],
+  };
+}
+
+const REVIEW_OK: OkrReviewCheck = { tone: 'DAT', label: 'Đạt' };
+
+function dueDateOf(periodId: string): string {
+  const dues = fixture.reviews.dueDates as Record<string, string>;
+  return dues[periodId] ?? periods.find((p) => p.id === periodId)!.startDate;
+}
+
+/** Bộ OKR của Ban Tổ chức (đơn vị của fixture): mục tiêu tầng 1 đang `CHO_DUYET`, kiểm tra lại từ Policy Pack. */
+function ownUnitSet(periodId: string): StaticSet | null {
+  const policy = fixture.compose.policy as OkrPolicy;
+  const list = (objectivesState()[periodId] ?? []).filter(
+    (o) => o.tier === 1 && o.status === 'CHO_DUYET',
+  );
+  if (!list.length) return null;
+  const parentCode = (id: string | null) =>
+    fixture.compose.parentOptions.find((p) => p.id === id)?.code ?? null;
+  const objectives: OkrReviewObjective[] = list.map((o) => {
+    const d = draftsState().get(o.id);
+    return {
+      id: o.id,
+      code: o.code,
+      title: o.title,
+      parentCode: parentCode(o.parentObjectiveId),
+      versionNo: o.versionNo,
+      rowVersion: d?.rowVersion ?? 1,
+      check:
+        (d?.basisIds.length ?? 1) > 0
+          ? { tone: 'DAT', label: 'Có căn cứ' }
+          : { tone: 'LOI', label: 'Thiếu căn cứ' },
+      keyResults: o.keyResults.map((k) => {
+        const t = k.title.toLocaleLowerCase('vi');
+        const check: OkrReviewCheck = policy.vagueWords.some((w) => t.includes(w))
+          ? { tone: 'CANH_BAO', label: 'KR mơ hồ' }
+          : policy.taskVerbs.some((v) => t.startsWith(v + ' '))
+            ? { tone: 'CANH_BAO', label: 'Giống nhiệm vụ' }
+            : { tone: 'DAT', label: 'Đo được' };
+        return {
+          id: k.id,
+          code: k.code,
+          title: k.title,
+          targetText:
+            k.targetValue === null ? '—' : `${k.targetValue}${k.unit === '%' ? '%' : ' ' + k.unit}`,
+          weight: k.weight,
+          link: null,
+          check,
+        };
+      }),
+    };
+  });
+  const author = draftsState().get(list[0].id)?.authorName ?? fixture.compose.me.name;
+  return {
+    id: `rs-${fixture.unit.id}`,
+    unit: { id: fixture.unit.id, name: fixture.unit.name },
+    submittedAt: draftsState().get(list[0].id)?.updatedAt ?? new Date().toISOString(),
+    submittedBy: author,
+    viewerIsAuthor: author === fixture.reviews.viewer.name,
+    objectives,
+  };
+}
+
+/** Bổ sung số đếm và nhãn tổng hợp của hàng chờ ("Đạt", "n cảnh báo", "Vượt 3 O", "KR mơ hồ"). */
+function summarize(s: StaticSet, periodId: string): OkrReviewSet {
+  const checks = s.objectives.flatMap((o) => [o.check, ...o.keyResults.map((k) => k.check)]);
+  const blocking = checks.filter((c) => c.tone === 'LOI').length;
+  const over = s.objectives.length > fixture.compose.policy.recommendedMax;
+  const warnings = checks.filter((c) => c.tone === 'CANH_BAO').length + (over ? 1 : 0);
+  const vague = checks.some((c) => c.label === 'KR mơ hồ');
+  const summary: OkrReviewCheck = blocking
+    ? { tone: 'LOI', label: `${blocking} lỗi` }
+    : over
+      ? { tone: 'CANH_BAO', label: `Vượt ${fixture.compose.policy.recommendedMax} O` }
+      : vague
+        ? { tone: 'CANH_BAO', label: 'KR mơ hồ' }
+        : warnings
+          ? { tone: 'CANH_BAO', label: `${warnings} cảnh báo` }
+          : REVIEW_OK;
+  return {
+    ...s,
+    periodId,
+    versionNo: Math.max(...s.objectives.map((o) => o.versionNo)),
+    objectiveCount: s.objectives.length,
+    krCount: s.objectives.reduce((n, o) => n + o.keyResults.length, 0),
+    summary,
+    blockingCount: blocking,
+    warningCount: warnings,
+  };
+}
+
+function reviewQueue(req: MockRequest) {
+  const periodId = req.params.get('period') ?? fixture.currentPeriodId;
+  const period = periods.find((p) => p.id === periodId);
+  if (!period) return problem(404, 'Không tìm thấy kỳ đánh giá');
+  const own = ownUnitSet(periodId);
+  const sets = [...(own ? [own] : []), ...(reviewState()[periodId] ?? [])]
+    .filter((x) => x.objectives.length > 0)
+    .map((x) => summarize(x, periodId))
+    .sort((a, b) => a.submittedAt.localeCompare(b.submittedAt));
+  const queue: OkrReviewQueue = {
+    period,
+    periods,
+    dueDate: dueDateOf(periodId),
+    reviewer: fixture.reviews.reviewer,
+    workflow: fixture.reviews.workflow,
+    items: sets,
+  };
+  return ok(queue);
+}
+
+/** Thực hiện duyệt hoặc trả lại một mục tiêu; dùng chung cho thao tác đơn và lô. */
+function applyDecision(
+  id: string,
+  rowVersion: number | null,
+  decision: 'DUYET' | 'TRA_LAI',
+  body: OkrReviewDecisionBody,
+): { status: number; title?: string; code?: string } {
+  const viewer = fixture.reviews.viewer;
+  const entry = (versionNo: number): OkrHistoryEntry => ({
+    at: new Date().toISOString(),
+    action: decision,
+    versionNo,
+    status: decision === 'DUYET' ? 'DA_DUYET' : 'NHAP',
+    actor: viewer,
+    ...(body.comment ? { comment: body.comment } : {}),
+  });
+  // Bộ của đơn vị khác
+  for (const list of Object.values(reviewState())) {
+    for (const set of list) {
+      const i = set.objectives.findIndex((o) => o.id === id);
+      if (i < 0) continue;
+      const o = set.objectives[i];
+      if (set.viewerIsAuthor && decision === 'DUYET') {
+        return {
+          status: 403,
+          title: 'Đồng chí là người soạn bộ OKR này nên không thể phê duyệt.',
+          code: 'OKR-403-SELF-APPROVAL',
+        };
+      }
+      if (rowVersion !== null && rowVersion !== o.rowVersion) {
+        return {
+          status: 409,
+          title: 'Mục tiêu vừa được cập nhật, vui lòng tải lại.',
+          code: 'OKR-409-VERSION-CONFLICT',
+        };
+      }
+      set.objectives.splice(i, 1);
+      reviewLog.set(id, [entry(o.versionNo), ...(reviewLog.get(id) ?? [])]);
+      return { status: 200 };
+    }
+  }
+  // Mục tiêu của Ban Tổ chức (soạn ở SCR-0202)
+  const d = draftsState().get(id);
+  if (!d) return { status: 404, title: 'Không tìm thấy mục tiêu' };
+  if (d.status !== 'CHO_DUYET') {
+    return {
+      status: 409,
+      title: 'Mục tiêu không ở trạng thái chờ duyệt',
+      code: 'OKR-409-INVALID-STATE',
+    };
+  }
+  if (decision === 'DUYET' && d.authorName === viewer.name) {
+    return {
+      status: 403,
+      title: 'Đồng chí là người soạn bộ OKR này nên không thể phê duyệt.',
+      code: 'OKR-403-SELF-APPROVAL',
+    };
+  }
+  if (rowVersion !== null && rowVersion !== d.rowVersion) {
+    return {
+      status: 409,
+      title: 'Mục tiêu vừa được cập nhật, vui lòng tải lại.',
+      code: 'OKR-409-VERSION-CONFLICT',
+    };
+  }
+  const next: ObjectiveDetail = {
+    ...d,
+    status: decision === 'DUYET' ? 'DA_DUYET' : 'NHAP',
+    rowVersion: d.rowVersion + 1,
+  };
+  draftsState().set(id, next);
+  syncTree(next);
+  if (decision === 'DUYET') {
+    const node = objectivesState()[d.periodId]?.find((o) => o.id === id);
+    if (node) node.approvedAt = new Date().toISOString();
+  }
+  reviewLog.set(id, [entry(d.versionNo), ...(reviewLog.get(id) ?? [])]);
+  return { status: 200 };
+}
+
+function decide(req: MockRequest, decision: 'DUYET' | 'TRA_LAI') {
+  const ifMatch = req.headers.get('If-Match');
+  if (!ifMatch) return problem(428, 'Thiếu If-Match');
+  const body = (req.body ?? {}) as OkrReviewDecisionBody;
+  if (decision === 'TRA_LAI' && !body.comment?.trim()) {
+    return problem(422, 'Vui lòng nhập ý kiến khi trả lại.', { code: 'OKR-422-COMMENT-REQUIRED' });
+  }
+  const r = applyDecision(req.pathParams['id'], Number(ifMatch.replace(/"/g, '')), decision, body);
+  if (r.status !== 200) return problem(r.status, r.title ?? 'Lỗi', r.code ? { code: r.code } : {});
+  return ok({ id: req.pathParams['id'], status: decision === 'DUYET' ? 'DA_DUYET' : 'NHAP' });
+}
+
+/** Lịch sử gốc: lần lưu nháp, lần trình của mục tiêu (trước các quyết định ghi trong `reviewLog`). */
+function baseHistory(id: string): OkrHistoryEntry[] | null {
+  for (const list of Object.values(
+    fixture.reviews.sets as unknown as Record<string, StaticSet[]>,
+  )) {
+    const set = list.find((x) => x.objectives.some((o) => o.id === id));
+    if (set) {
+      const actor = { id: `p-${set.unit.id}`, name: set.submittedBy };
+      return [
+        { at: set.submittedAt, action: 'TRINH', versionNo: 1, status: 'CHO_DUYET', actor },
+        { at: set.submittedAt, action: 'LUU_NHAP', versionNo: 1, status: 'NHAP', actor },
+      ];
+    }
+  }
+  const d = draftsState().get(id);
+  if (!d) return null;
+  const actor = { id: fixture.compose.me.id, name: d.authorName };
+  const saved: OkrHistoryEntry = {
+    at: d.updatedAt,
+    action: 'LUU_NHAP',
+    versionNo: d.versionNo,
+    status: 'NHAP',
+    actor,
+    comment: `Bản nháp ${d.draftNo}`,
+    aiAssisted: d.keyResults.some((k) => k.contentSource !== 'HUMAN'),
+  };
+  return d.status === 'NHAP'
+    ? [saved]
+    : [
+        { at: d.updatedAt, action: 'TRINH', versionNo: d.versionNo, status: 'CHO_DUYET', actor },
+        saved,
+      ];
+}
+
 const exportJobs = new Map<string, Job>();
 
 /**
@@ -302,6 +624,8 @@ export const OKR_MOCK: MockModule = {
     exportJobs.clear();
     objectivesByPeriod = null;
     drafts = null;
+    reviewSets = null;
+    reviewLog.clear();
   },
   routes: [
     {
@@ -443,7 +767,7 @@ export const OKR_MOCK: MockModule = {
         return ok({
           status: 'CHO_DUYET',
           reviewerName: `${fixture.compose.reviewer.title} ${fixture.compose.reviewer.name}`,
-          dueDate: period.startDate.slice(0, 8) + '10',
+          dueDate: dueDateOf(period.id),
         });
       },
     },
@@ -467,6 +791,59 @@ export const OKR_MOCK: MockModule = {
           }
         }
         return ok(out);
+      },
+    },
+    {
+      method: 'GET',
+      pattern: '/api/v1/okr/reviews',
+      handle: (req) => reviewQueue(req),
+    },
+    {
+      method: 'POST',
+      pattern: '/api/v1/okr/objectives/:id/approve',
+      handle: (req) => decide(req, 'DUYET'),
+    },
+    {
+      method: 'POST',
+      pattern: '/api/v1/okr/objectives/:id/return',
+      handle: (req) => decide(req, 'TRA_LAI'),
+    },
+    {
+      method: 'POST',
+      pattern: '/api/v1/okr/objectives/approve-batch',
+      handle: (req) => {
+        const body = req.body as OkrReviewDecisionBody & {
+          items: { id: string; rowVersion: number }[];
+        };
+        if (!body.items?.length || body.items.length > 200) {
+          return problem(422, 'Danh sách duyệt hàng loạt phải có từ 1 đến 200 mục');
+        }
+        const results = body.items.map((it) => {
+          const r = applyDecision(it.id, it.rowVersion, 'DUYET', body);
+          return { id: it.id, status: r.status };
+        });
+        const okCount = results.filter((r) => r.status === 200).length;
+        const id = `batch-${crypto.randomUUID().slice(0, 8)}`;
+        exportJobs.set(id, {
+          id,
+          type: 'OKR_APPROVE_BATCH',
+          status: 'HOAN_TAT',
+          progress: 100,
+          message: `Đã phê duyệt ${okCount}/${results.length} mục tiêu`,
+          resultLocation: `/api/v1/okr/exports/${id}/result`,
+        });
+        return { status: 202, body: null, headers: { Location: `/api/v1/okr/exports/${id}` } };
+      },
+    },
+    {
+      method: 'GET',
+      pattern: '/api/v1/okr/objectives/:id/history',
+      handle: (req) => {
+        const id = req.pathParams['id'];
+        const base = baseHistory(id);
+        if (!base) return problem(404, 'Không tìm thấy mục tiêu');
+        const items = [...(reviewLog.get(id) ?? []), ...base];
+        return ok({ items, nextCursor: null });
       },
     },
     {

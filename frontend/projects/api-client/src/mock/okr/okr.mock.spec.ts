@@ -169,3 +169,92 @@ describe('mock okr – SCR-0202 (WEB-022)', () => {
     expect(r.suggestions[0].sources.length).toBeGreaterThan(0);
   });
 });
+
+describe('mock okr – SCR-0203 (WEB-023)', () => {
+  beforeEach(() => resetMockData());
+
+  const err = (p: Promise<unknown>) =>
+    p.then(
+      () => {
+        throw new Error('cần lỗi');
+      },
+      (e: HttpErrorResponse) => e,
+    );
+
+  it('hàng chờ: bộ OKR theo đơn vị với số O/KR và nhãn kiểm tra tổng hợp', async () => {
+    const q = await firstValueFrom(setup().reviewQueue());
+    expect(q.period.id).toBe('p-2026-q4');
+    expect(q.reviewer.name).toBe('Đinh Văn Sơn');
+    const byUnit = Object.fromEntries(q.items.map((s) => [s.unit.name, s]));
+    expect(byUnit['Ban Tuyên giáo'].summary).toEqual({ tone: 'DAT', label: 'Đạt' });
+    expect(byUnit['Văn phòng Đảng uỷ'].summary.label).toBe('Vượt 3 O');
+    expect(byUnit['Văn phòng Đảng uỷ'].viewerIsAuthor).toBe(true);
+    expect(byUnit['Đảng uỷ Cơ quan B'].summary.label).toBe('KR mơ hồ');
+    expect(byUnit['Uỷ ban Kiểm tra'].krCount).toBe(5);
+    expect(byUnit['Ban Tổ chức Đảng uỷ khối']).toBeUndefined();
+  });
+
+  it('bộ của Ban Tổ chức xuất hiện sau khi trình ở SCR-0202 và duyệt được, cây chuyển DA_DUYET', async () => {
+    const api = setup();
+    const d = await firstValueFrom(api.objective('o-3'));
+    const krs = d.keyResults.filter((k) => k.code !== 'KR 3.3');
+    krs[0] = { ...krs[0], weight: 0.7 };
+    await firstValueFrom(api.saveObjective('o-3', d.rowVersion, { ...d, keyResults: krs }));
+    await firstValueFrom(api.submitObjective('o-3'));
+    const q = await firstValueFrom(api.reviewQueue());
+    const own = q.items.find((s) => s.unit.name === 'Ban Tổ chức Đảng uỷ khối')!;
+    expect(own.objectives.map((o) => o.code)).toEqual(['O3']);
+    expect(own.objectives[0].keyResults.at(-1)?.check.label).toBe('Giống nhiệm vụ');
+    const o = own.objectives[0];
+    await firstValueFrom(api.approveObjective(o.id, o.rowVersion, { notifyPeers: true }));
+    const tree = await firstValueFrom(api.tree());
+    expect(tree.objectives.find((x) => x.id === 'o-3')?.status).toBe('DA_DUYET');
+    const h = await firstValueFrom(api.history('o-3'));
+    expect(h.items.map((x) => x.action)).toEqual(['DUYET', 'TRINH', 'LUU_NHAP']);
+  });
+
+  it('tự duyệt bị chặn 403 (BR-02-08); trả lại thiếu ý kiến 422 (BR-02-09); phiên bản cũ 409', async () => {
+    const api = setup();
+    const q = await firstValueFrom(api.reviewQueue());
+    const vp = q.items.find((s) => s.viewerIsAuthor)!.objectives[0];
+    const self = await err(
+      firstValueFrom(api.approveObjective(vp.id, vp.rowVersion, { notifyPeers: true })),
+    );
+    expect(self.status).toBe(403);
+    expect(self.error.code).toBe('OKR-403-SELF-APPROVAL');
+    const btg = q.items.find((s) => s.unit.name === 'Ban Tuyên giáo')!.objectives[0];
+    const noComment = await err(
+      firstValueFrom(api.returnObjective(btg.id, btg.rowVersion, { notifyPeers: true })),
+    );
+    expect(noComment.status).toBe(422);
+    const stale = await err(
+      firstValueFrom(api.approveObjective(btg.id, 99, { notifyPeers: true })),
+    );
+    expect(stale.status).toBe(409);
+    await firstValueFrom(
+      api.returnObjective(btg.id, btg.rowVersion, {
+        comment: 'Bổ sung căn cứ',
+        notifyPeers: false,
+      }),
+    );
+    const h = await firstValueFrom(api.history(btg.id));
+    expect(h.items[0]).toMatchObject({ action: 'TRA_LAI', comment: 'Bổ sung căn cứ' });
+  });
+
+  it('duyệt hàng loạt trả 202 và job ghi số mục đã duyệt; bộ hết mục tiêu rời hàng chờ', async () => {
+    const api = setup();
+    const q = await firstValueFrom(api.reviewQueue());
+    const set = q.items.find((s) => s.unit.name === 'Uỷ ban Kiểm tra')!;
+    const res = await firstValueFrom(
+      api.approveBatch(
+        set.objectives.map((o) => ({ id: o.id, rowVersion: o.rowVersion })),
+        { notifyPeers: true },
+      ),
+    );
+    expect(res.status).toBe(202);
+    const job = await firstValueFrom(TestBed.inject(JobTracker).track(jobLocation(res)!));
+    expect(job.message).toBe('Đã phê duyệt 2/2 mục tiêu');
+    const after = await firstValueFrom(api.reviewQueue());
+    expect(after.items.some((s) => s.unit.name === 'Uỷ ban Kiểm tra')).toBe(false);
+  });
+});

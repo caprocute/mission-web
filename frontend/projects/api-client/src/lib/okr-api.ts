@@ -9,6 +9,9 @@ import {
   ObjectiveDetail,
   ObjectiveDraft,
   OkrComposeContext,
+  OkrHistoryEntry,
+  OkrReviewDecisionBody,
+  OkrReviewQueue,
   OkrSubmitResult,
   OkrTree,
   OkrTreeView,
@@ -17,7 +20,8 @@ import {
 /**
  * Client `/api/v1/okr` (MOD-01). WEB-028 dùng danh sách KR để liên kết nhiệm vụ; WEB-021 thêm cây
  * mục tiêu SCR-0201, lịch sử check-in và xuất mẫu báo cáo; WEB-022 thêm soạn, lưu nháp, trình
- * phê duyệt mục tiêu (SCR-0202) và trợ lý AI soát KR. Khi `useMockApi` bật, dữ liệu từ `mock/okr/`.
+ * phê duyệt mục tiêu (SCR-0202) và trợ lý AI soát KR; WEB-023 thêm hàng chờ, phê duyệt, trả lại,
+ * duyệt hàng loạt và lịch sử luồng duyệt (SCR-0203). Khi `useMockApi` bật, dữ liệu từ `mock/okr/`.
  */
 @Injectable({ providedIn: 'root' })
 export class OkrApi {
@@ -122,5 +126,54 @@ export class OkrApi {
         targetValue: k.targetValue,
       })),
     });
+  }
+
+  /** Hàng chờ phê duyệt OKR của người dùng trong kỳ (SCR-0203 vùng 1, 2; đường dẫn giả định, xem wiki/14). */
+  reviewQueue(period?: string): Observable<OkrReviewQueue> {
+    const params = period ? new HttpParams().set('period', period) : undefined;
+    return this.http.get<OkrReviewQueue>('/api/v1/okr/reviews', { params });
+  }
+
+  /** Phê duyệt một mục tiêu: `CHO_DUYET` → `DA_DUYET`, phát EVT-01; 403 `OKR-403-SELF-APPROVAL` khi tự duyệt. */
+  approveObjective(
+    id: string,
+    rowVersion: number,
+    body: OkrReviewDecisionBody,
+  ): Observable<unknown> {
+    return this.http.post(`/api/v1/okr/objectives/${encodeURIComponent(id)}/approve`, body, {
+      headers: { 'If-Match': `"${rowVersion}"` },
+    });
+  }
+
+  /** Trả lại để sửa: `CHO_DUYET` → `NHAP`, ý kiến bắt buộc (BR-02-09, 422 `OKR-422-COMMENT-REQUIRED`). */
+  returnObjective(
+    id: string,
+    rowVersion: number,
+    body: OkrReviewDecisionBody,
+  ): Observable<unknown> {
+    return this.http.post(`/api/v1/okr/objectives/${encodeURIComponent(id)}/return`, body, {
+      headers: { 'If-Match': `"${rowVersion}"` },
+    });
+  }
+
+  /** Duyệt hàng loạt các bộ đủ điều kiện, mỗi mục một giao dịch (202 + Location tới job). */
+  approveBatch(
+    items: { id: string; rowVersion: number }[],
+    body: OkrReviewDecisionBody,
+  ): Observable<HttpResponse<unknown>> {
+    return this.http.post(
+      '/api/v1/okr/objectives/approve-batch',
+      { ...body, items },
+      {
+        observe: 'response',
+      },
+    );
+  }
+
+  /** Lịch sử phiên bản và luồng duyệt của mục tiêu, mới nhất trước. */
+  history(id: string): Observable<CursorPage<OkrHistoryEntry>> {
+    return this.http.get<CursorPage<OkrHistoryEntry>>(
+      `/api/v1/okr/objectives/${encodeURIComponent(id)}/history`,
+    );
   }
 }
