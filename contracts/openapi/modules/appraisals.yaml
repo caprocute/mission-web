@@ -1,0 +1,2284 @@
+# Hợp đồng OpenAPI 3.1 của MOD-04 `appraisal` (kèm phần đọc điểm, giải thích, vết tính của SVC-07
+# mà giao diện gọi qua tiền tố `/appraisals`). WEB-063, ADR-32 (BS-02).
+#
+# Nguồn:
+#   - Baseline mục 7 (EVT-04, EVT-09, EVT-10, EVT-11, EVT-12, EVT-18, EVT-21, EVT-25), mục 9 (schema
+#     `appraisal`), mục 9.1 (trạng thái hồ sơ đánh giá, RatingLevel, Flow), mục 10 (vai trò AC), mục 13.
+#   - TL-01 Phụ lục C "Đánh giá, xếp loại (MOD-04, SVC-07)" (TL-01/part-14.md); TL-01 mục 5 bảng
+#     tiền tố API (part-05a.md).
+#   - TL-02b QT-09 (SCR-0901, SCR-0902, SCR-0903, SCR-0904; BR-09-01..BR-09-17; MSG-09-01..MSG-09-16),
+#     QT-10 (SCR-1001, SCR-1002; BR-10-01..BR-10-10; MSG-10-01..MSG-10-07), QT-12 SCR-1202 (tính thử),
+#     QT-18 SCR-1803 (luồng rút gọn tự đánh giá); bảng liên kết thiết kế TL-02b/part-06.md.
+#   - TL-02a QT-07 SCR-0703 (xem trước điểm khi nghiệm thu).
+#   - TL-03 schema `appraisal` (appraisal_profile, general_criteria_result, self_assessment,
+#     score_snapshot, rating_proposal, rating_explanation, annual_rating, prospect_group,
+#     batch_decision) và schema `scoring` (score_result, score_trace); `config.period.kind`.
+#   - Ma trận phân quyền `docs/phan-quyen/ma-tran.json` (SCR-0703, SCR-0901..SCR-0904, SCR-1001,
+#     SCR-1002, SCR-1202; dòng API `appraisals`).
+#
+# Điểm chốt riêng của tệp này (ngoài HD-01..HD-06 của README):
+#   - AP-01: dùng kiểu đường dẫn TL-02b `/appraisals/profiles/{id}/...` và `/appraisals/batch-decisions`
+#     thay cho `/appraisals/{id}/...` và `/appraisals/decisions/batch` của TL-01 Phụ lục C.
+#   - AP-02: quyết định một hồ sơ (`POST /appraisals/{id}/decision` của PL C) gộp vào quyết định lô
+#     (lô 1 hồ sơ), không tạo đường dẫn riêng.
+#   - AP-03: `GET /appraisals?period=&flow=` (PL C, hồ sơ của tôi) thành `GET /appraisals/profiles/mine`,
+#     theo cùng lý do HD-04; `GET /appraisals/profiles` dành cho hàng đợi theo đơn vị.
+#   - AP-04: `GET /appraisals/{id}/score` (PL C) thành `GET /appraisals/profiles/{id}/scores?flow=`.
+#   - AP-05: mọi thao tác ghi lên hồ sơ dùng ETag của `appraisal_profile.row_version`.
+openapi: 3.1.0
+info:
+  title: Mission – Đánh giá, xếp loại (MOD-04)
+  version: 1.0.0-draft.1
+  description: >-
+    Hồ sơ đánh giá theo kỳ và luồng (`DANG`, `NHA_NUOC`), phiếu tự đánh giá, thẩm định, đề xuất,
+    quyết định xếp loại hàng loạt có ký số, phiếu xếp loại có giải thích, xếp loại năm liên thông
+    quý–năm và phân nhóm triển vọng. Điểm số do SVC-07 scoring-service tính và chụp thành ảnh chụp
+    bất biến; hợp đồng không có thao tác nào ghi điểm (BR-09-16). Ý chí con người được lưu thành bốn
+    mức riêng `TU_DE_XUAT`, `THAM_DINH`, `DE_XUAT`, `QUYET_DINH` (BR-09-12).
+
+
+    Trạng thái hồ sơ (baseline mục 9.1): `CHUA_LAP` → `TU_DANH_GIA` → `CHO_THAM_DINH` →
+    `DA_THAM_DINH` → `CHO_QUYET_DINH` → `DA_QUYET_DINH` → `DA_KY_SO` → `DA_KHOA`; nhánh
+    `KHIEU_NAI`. Các bước ký số chỉ hoàn tất khi nhận EVT-18 (BR-09-15), nên thao tác ký trả 202.
+
+
+    Mọi thao tác ghi lên một hồ sơ dùng chung ETag của hồ sơ (`appraisal_profile.row_version`):
+    lưu nháp, nộp, trả lại, thẩm định, đề xuất đều gửi `If-Match` bằng ETag đọc được ở
+    `GET /appraisals/profiles/{id}`. Nhận xét, giải trình, lý do là dữ liệu C2 (mã hoá trường ở
+    máy chủ, ADR-06) và đi trong hợp đồng ở dạng rõ qua TLS cho người có quyền.
+servers:
+  - url: /api/v1
+security:
+  - keycloak: []
+tags:
+  - name: Hồ sơ đánh giá
+    description: Danh sách, chi tiết hồ sơ đánh giá theo kỳ và luồng; hàng đợi thẩm định và quyết định.
+  - name: Tự đánh giá
+    description: Phiếu tự đánh giá của cán bộ (SCR-0901, SCR-1803), lưu nháp và ký số nộp.
+  - name: Thẩm định và đề xuất
+    description: Thẩm định, trả lại bổ sung (SCR-0902) và ghi mức đề xuất của quản lý (SCR-0903).
+  - name: Điểm và giải thích
+    description: >-
+      Ảnh chụp điểm, câu giải thích hạ mức, vết tính của SVC-07; xem trước và tính thử không lưu.
+  - name: Quyết định hàng loạt
+    description: Quyết định xếp loại và ký lô tới 1.000 hồ sơ (SCR-0904).
+  - name: Xếp loại năm
+    description: Tổng hợp bốn quý, liên thông quý–năm, đề xuất bố trí lại (SCR-1001).
+  - name: Phân nhóm triển vọng
+    description: Bảng phân nhóm bốn nhóm theo PL 5, lưu nháp và trình tập thể (SCR-1002).
+  - name: Nội bộ
+    description: Thao tác cho client nội bộ (scoring-service) và giám sát (tính lại, xuất danh sách).
+
+paths:
+  /appraisals/profiles/mine:
+    get:
+      tags: [Hồ sơ đánh giá]
+      operationId: listMyAppraisalProfiles
+      summary: Hồ sơ đánh giá của tôi
+      description: >-
+        Danh sách hồ sơ đánh giá của người đang đăng nhập theo kỳ và luồng (thẻ "Tự đánh giá quý"
+        trên SCR-0002, menu Đánh giá › Phiếu tự đánh giá). Thay cho `GET /appraisals?period=&flow=`
+        của TL-01 Phụ lục C (điểm chốt AP-03).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '#/components/parameters/FlowQuery'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Danh sách hồ sơ của tôi.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalProfilePage' }
+              examples:
+                quy-iv:
+                  $ref: '#/components/examples/AppraisalProfilePageMine'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-10]
+        scr: [SCR-0901, SCR-1803]
+        owner: MOD-04
+        roles: [member]
+        scope: B
+        source: TL-01 PL C (GET /appraisals?period=&flow=); TL-02b SCR-0901 Đường vào
+
+  /appraisals/profiles:
+    get:
+      tags: [Hồ sơ đánh giá]
+      operationId: listAppraisalProfiles
+      summary: Danh sách hồ sơ đánh giá theo đơn vị (hàng đợi thẩm định, quyết định)
+      description: >-
+        Hàng đợi thẩm định (SCR-0902, mặc định `status=CHO_THAM_DINH`, sắp theo hạn) và danh sách
+        hồ sơ chờ quyết định (SCR-0904, `status=CHO_QUYET_DINH`) trong phạm vi ABAC cây tổ chức của
+        người gọi. Mỗi dòng có bốn mức đã đưa ra và gợi ý bất thường (dấu hiệu số 1 của QT-14) để
+        người dùng không phải mở từng hồ sơ. Phân bố mức trên SCR-0904 tính ở client từ danh sách.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '#/components/parameters/FlowQuery'
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - name: status
+          in: query
+          description: Lọc theo trạng thái hồ sơ; lặp tham số để chọn nhiều giá trị.
+          style: form
+          explode: true
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/AppraisalProfileStatus' }
+        - name: includeSubunits
+          in: query
+          description: Gồm cả cây đơn vị cấp dưới của `unit` (suy luận, phục vụ bộ lọc khối trên SCR-0904).
+          schema: { type: boolean, default: true }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang hồ sơ.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalProfilePage' }
+              examples:
+                cho-quyet-dinh:
+                  $ref: '#/components/examples/AppraisalProfilePageQueue'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09]
+        scr: [SCR-0902, SCR-0904]
+        owner: MOD-04
+        roles: [appraiser, decider]
+        scope: Cd
+        rules: [BR-09-14]
+        source: TL-02b SCR-0902 trường 1–2; SCR-0904 trường 1–3; TL-02b part-06 bảng liên kết
+
+  /appraisals/profiles/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Hồ sơ đánh giá]
+      operationId: getAppraisalProfile
+      summary: Chi tiết hồ sơ đánh giá
+      description: >-
+        Chi tiết hồ sơ gồm trạng thái, tiêu chí chung, phiếu tự đánh giá hiện hành, vết bốn mức và
+        thông tin chữ ký. Trường C2 chỉ trả cho người được xem theo OPA; việc đọc trường C2 được ghi
+        nhật ký truy cập. Hồ sơ năm có thêm `quarterRatings`. Trả `ETag` dùng cho mọi thao tác ghi
+        lên hồ sơ.
+      responses:
+        '200':
+          description: Hồ sơ đánh giá.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalProfile' }
+              examples:
+                cho-tham-dinh:
+                  $ref: '#/components/examples/AppraisalProfileSample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-10]
+        scr: [SCR-0901, SCR-0902, SCR-0903, SCR-1803]
+        owner: MOD-04
+        roles: [member, manager, appraiser, decider]
+        scope: B (member); Đv (manager); Cd (appraiser, decider)
+        rules: [BR-09-14]
+        source: TL-02b SCR-0902 "Chọn hồ sơ trong hàng đợi"; SCR-1803 "Bắt đầu"
+
+  /appraisals/profiles/{id}/self-assessment:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    put:
+      tags: [Tự đánh giá]
+      operationId: saveAppraisalSelfAssessment
+      summary: Lưu nháp phiếu tự đánh giá
+      description: >-
+        Lưu tiêu chí chung, mức tự đề xuất, giải pháp đột phá, giải trình và nội dung ưu điểm,
+        hạn chế (trường 2, 9 đến 12 của SCR-0901). Lưu nháp không kiểm tra đủ trường bắt buộc; kiểm
+        tra đầy đủ chạy khi nộp. Giao diện tự lưu 30 giây một lần, mỗi lần dùng `Idempotency-Key`
+        mới và `If-Match` mới nhất. Chỉ chủ hồ sơ, khi hồ sơ ở `TU_DANH_GIA`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppraisalSelfAssessmentInput' }
+            examples:
+              nhap:
+                value:
+                  criteria:
+                    - { criteriaCode: TCC-01, met: true }
+                    - { criteriaCode: TCC-02, met: true }
+                  selfRatingCode: HTXSNV
+                  breakthrough: Đề xuất và triển khai quy trình tổng hợp báo cáo tuần trên nền tảng số, rút thời gian tổng hợp từ 3 ngày còn nửa ngày.
+                  breakthroughEvidenceIds: [01928f3e-7b1a-7c3e-9a51-3f2d9c1b0e11]
+                  reason: Đơn vị đánh giá cao giải pháp số hoá báo cáo nên tôi đề nghị mức xuất sắc.
+                  content: Hoàn thành đúng hạn các nhiệm vụ then chốt; còn chậm một báo cáo chuyên đề do chủ quan.
+      responses:
+        '200':
+          description: Đã lưu nháp; trả hồ sơ cập nhật.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalProfile' }
+              examples:
+                da-luu:
+                  $ref: '#/components/examples/AppraisalProfileSample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-10, QT-18]
+        scr: [SCR-0901, SCR-1803]
+        owner: MOD-04
+        roles: [member]
+        scope: B
+        rules: [BR-09-05]
+        errors: [APPRAISAL-409-VERSION-CONFLICT, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-PERIOD-LOCKED]
+        source: TL-02b SCR-0901 "Lưu nháp"; SCR-1803 "Tiếp tục, Quay lại"
+
+  /appraisals/profiles/{id}/submit:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Tự đánh giá]
+      operationId: submitAppraisalSelfAssessment
+      summary: Ký số và nộp phiếu tự đánh giá
+      description: >-
+        Kiểm tra đủ trường và quy tắc (giải trình khi mức tự đề xuất khác mức tham khảo, giải pháp
+        đột phá kèm minh chứng `DA_XAC_NHAN` khi tự đề xuất HTXSNV), chốt `content_hash` của phiếu,
+        tạo yêu cầu ký ở SVC-10 rồi trả 202. Hồ sơ chỉ chuyển `CHO_THAM_DINH` khi nhận EVT-18
+        (BR-09-15); trong lúc chờ, hồ sơ giữ `TU_DANH_GIA`. Thay cho `POST /appraisals/{id}/self-assessment`
+        của TL-01 Phụ lục C (điểm chốt AP-01). Lỗi 422 mã `APPRAISAL-422-REASON-REQUIRED` (MSG-09-02),
+        `APPRAISAL-422-BREAKTHROUGH-REQUIRED` (MSG-09-03); ký lỗi báo qua job với MSG-09-05.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppraisalSignRequestInput' }
+            examples:
+              mysign:
+                value: { signProvider: MYSIGN, formCode: MAU_2 }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-10]
+        scr: [SCR-0901]
+        owner: MOD-04
+        evt: [EVT-11, EVT-18]
+        roles: [member]
+        scope: B
+        aal: 2
+        rules: [BR-09-05, BR-09-12, BR-09-15]
+        errors: [APPRAISAL-422-REASON-REQUIRED, APPRAISAL-422-BREAKTHROUGH-REQUIRED, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-VERSION-CONFLICT]
+        source: TL-02b SCR-0901 "Ký số và nộp"; TL-01 PL C POST /appraisals/{id}/self-assessment
+
+  /appraisals/profiles/{id}/return:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Thẩm định và đề xuất]
+      operationId: returnAppraisalProfile
+      summary: Trả lại hồ sơ để cán bộ bổ sung
+      description: >-
+        Thẩm định viên trả hồ sơ từ `CHO_THAM_DINH` về `TU_DANH_GIA`, giữ nguyên các bản ghi cũ,
+        hoàn thành user task với `ket_qua = TRA_LAI`. Bắt buộc lý do. Vượt số lần trả lại tối đa
+        (tham số, mặc định 2) trả 409 mã `APPRAISAL-409-RETURN-LIMIT`. Thành công hiện MSG-09-09.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppraisalReturnInput' }
+            examples:
+              bo-sung:
+                value:
+                  reason: Đề nghị đồng chí bổ sung biên bản nghiệm thu nhiệm vụ then chốt số 3 và giải trình việc chậm hạn.
+      responses:
+        '200':
+          description: Đã trả lại; trả hồ sơ ở `TU_DANH_GIA`.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalProfile' }
+              examples:
+                da-tra-lai:
+                  $ref: '#/components/examples/AppraisalProfileSample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09]
+        scr: [SCR-0902]
+        owner: MOD-04
+        evt: [EVT-11, EVT-21]
+        roles: [appraiser]
+        scope: Cd
+        rules: [BR-09-14]
+        errors: [APPRAISAL-409-RETURN-LIMIT, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-VERSION-CONFLICT]
+        source: TL-02b SCR-0902 "Trả lại bổ sung"; QT-09 bảng trạng thái
+
+  /appraisals/profiles/{id}/appraisal:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Thẩm định và đề xuất]
+      operationId: appraiseAppraisalProfile
+      summary: Ký số kết quả thẩm định và chuyển đề xuất
+      description: >-
+        Ghi bản ghi mức `THAM_DINH` kèm nhận xét (C2), lý do khi khác mức tự đề xuất (BR-09-12,
+        MSG-09-06), tạo yêu cầu ký và trả 202. Hồ sơ chuyển `DA_THAM_DINH` khi nhận EVT-18. OPA từ
+        chối người thẩm định là người được đánh giá hoặc đã nghiệm thu một nhiệm vụ của hồ sơ
+        (BR-09-14, 403 kèm `msg` MSG-09-08). Thay cho `POST /appraisals/{id}/review` của TL-01
+        Phụ lục C (điểm chốt AP-01). Cũng dùng cho thẩm định năm (SCR-0902 chế độ năm).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppraisalReviewInput' }
+            examples:
+              ha-muc:
+                value:
+                  ratingCode: HTTNV
+                  comment: Hoàn thành tốt các nhiệm vụ then chốt; tỷ lệ nhiệm vụ vượt mục tiêu chưa đạt ngưỡng của mức xuất sắc.
+                  reason: Tỷ lệ nhiệm vụ vượt mục tiêu 22%, thấp hơn ngưỡng 30% của mức HTXSNV theo QĐ Điều 11.
+                  signProvider: MYSIGN
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-10]
+        scr: [SCR-0902]
+        owner: MOD-04
+        evt: [EVT-11, EVT-18]
+        roles: [appraiser]
+        scope: Cd
+        aal: 2
+        fourEyes: true
+        rules: [BR-09-12, BR-09-14, BR-09-15]
+        errors: [APPRAISAL-422-REASON-REQUIRED, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-VERSION-CONFLICT, APPRAISAL-403-SEPARATION-OF-DUTIES]
+        source: TL-02b SCR-0902 "Ký số và chuyển đề xuất"; TL-01 PL C POST /appraisals/{id}/review
+
+  /appraisals/profiles/{id}/proposal:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Thẩm định và đề xuất]
+      operationId: proposeAppraisalRating
+      summary: Ghi mức đề xuất của quản lý trực tiếp
+      description: >-
+        Quản lý trực tiếp (AC-05) ghi bản ghi mức `DE_XUAT` khi hồ sơ ở `DA_THAM_DINH`; khác mức
+        thẩm định thì bắt buộc lý do (MSG-09-12, 422 `APPRAISAL-422-REASON-REQUIRED`). Hoàn thành
+        user task, hồ sơ chuyển `CHO_QUYET_DINH`. Bước này không ký số (TL-03 `ck_rating_proposal__signed`).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppraisalProposalInput' }
+            examples:
+              dong-y-tham-dinh:
+                value: { ratingCode: HTTNV }
+      responses:
+        '200':
+          description: Đã ghi mức đề xuất; trả hồ sơ ở `CHO_QUYET_DINH`.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalProfile' }
+              examples:
+                da-de-xuat:
+                  $ref: '#/components/examples/AppraisalProfileSample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09]
+        scr: [SCR-0903]
+        owner: MOD-04
+        evt: [EVT-11]
+        roles: [manager]
+        scope: Đv
+        rules: [BR-09-12, BR-09-14]
+        errors: [APPRAISAL-422-REASON-REQUIRED, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-VERSION-CONFLICT]
+        source: TL-02b SCR-0903 "Ghi mức đề xuất"
+
+  /appraisals/profiles/{id}/scores:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Điểm và giải thích]
+      operationId: getAppraisalScores
+      summary: Điểm, ảnh chụp điểm và giải thích xếp loại
+      description: >-
+        Trả ảnh chụp điểm hiện hành và câu giải thích của DMN cho hồ sơ. Tham số `flow` cho phép
+        chuyển thẻ luồng: khi khác luồng của hồ sơ, máy chủ trả ảnh chụp của hồ sơ cùng người, cùng
+        kỳ ở luồng kia (mỗi luồng là một hồ sơ riêng, TL-03). Hồ sơ `CHUA_LAP` chưa có ảnh chụp trả
+        409 mã `APPRAISAL-409-NOT-COMPUTED` (MSG-09-01). Thay cho `GET /appraisals/{id}/score` của
+        TL-01 Phụ lục C (điểm chốt AP-04).
+      parameters:
+        - $ref: '#/components/parameters/FlowQuery'
+      responses:
+        '200':
+          description: Điểm và giải thích.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalScoreView' }
+              examples:
+                ho-so-mau:
+                  $ref: '#/components/examples/AppraisalScoreViewSample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-10]
+        scr: [SCR-0901, SCR-0903]
+        owner: MOD-04
+        roles: [member, manager, appraiser, decider]
+        scope: B (member); Đv (manager); Cd (appraiser, decider)
+        rules: [BR-09-06, BR-09-10, BR-09-11, BR-09-16]
+        source: TL-02b SCR-0901 "Chuyển thẻ luồng"; SCR-0903 "Chuyển thẻ Luồng Nhà nước"; TL-01 PL C GET /appraisals/{id}/score
+
+  /appraisals/profiles/{id}/score-trace:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Điểm và giải thích]
+      operationId: getAppraisalScoreTrace
+      summary: Vết tính điểm của hồ sơ
+      description: >-
+        Các bước tính của SVC-07 (`scoring.score_trace`) cho kết quả gắn với ảnh chụp hiện hành:
+        công thức, giá trị vào, giá trị ra, điều khoản, câu giải thích; dùng cho ngăn "Vết tính"
+        (A, B, C từng nhiệm vụ) và thẻ Vết tính. Khoảng 40 bước mỗi kết quả nên không phân trang.
+      parameters:
+        - $ref: '#/components/parameters/FlowQuery'
+        - name: taskId
+          in: query
+          description: Chỉ lấy các bước liên quan một nhiệm vụ (suy luận, phục vụ ngăn vết tính của một dòng).
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: Vết tính.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalScoreTrace' }
+              examples:
+                vet-tinh:
+                  $ref: '#/components/examples/AppraisalScoreTraceSample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09]
+        scr: [SCR-0901, SCR-0903]
+        owner: SVC-07
+        roles: [member, manager, appraiser, decider]
+        scope: B (member); Đv (manager); Cd (appraiser, decider)
+        rules: [BR-09-01]
+        source: TL-02b SCR-0901 "Vết tính"; SCR-0903 "Thẻ Vết tính"; TL-03 scoring.score_trace
+
+  /appraisals/profiles/{id}/simulate:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Điểm và giải thích]
+      operationId: simulateAppraisalScore
+      summary: Tính thử điểm với điều chỉnh đề nghị (không lưu)
+      description: >-
+        Gọi SVC-07 ở chế độ mô phỏng với các điều chỉnh cấu phần do người xử lý khiếu nại đề nghị,
+        dùng Policy Pack của kỳ; không ghi ảnh chụp, không đổi trạng thái (BR-09-16). Kết quả chỉ để
+        hiển thị trên SCR-1202.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppraisalSimulationInput' }
+            examples:
+              mien-tru-c:
+                value:
+                  adjustments:
+                    - component: C
+                      taskId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c03
+                      oldValue: 0.85
+                      newValue: 1
+                      reason: Miễn trừ chậm hạn do nguyên nhân khách quan (sáp nhập chi bộ).
+      responses:
+        '200':
+          description: Kết quả tính thử.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalSimulationResult' }
+              examples:
+                tinh-thu:
+                  value:
+                    policyVersion: KHOI_DANG v2.0
+                    before: { totalScore: 91.2, ratingCode: HTTNV }
+                    after: { totalScore: 92.1, ratingCode: HTTNV }
+                    explanation: Sau điều chỉnh, tỷ lệ nhiệm vụ vượt mục tiêu vẫn 22%, chưa đạt 30% nên giữ mức HTTNV.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-12]
+        scr: [SCR-1202]
+        owner: SVC-07
+        roles: [appraiser]
+        scope: Gn
+        rules: [BR-09-16]
+        source: TL-02b SCR-1202 "Tính thử"
+
+  /appraisals/profiles/{id}/recompute:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Nội bộ]
+      operationId: recomputeAppraisalProfile
+      summary: Tính lại và đối chiếu ảnh chụp điểm
+      description: >-
+        Giám sát (AC-10) yêu cầu SVC-07 tính lại từ `scoring.score_input_v` với đúng phiên bản quy
+        tắc đã dùng và so băm kết quả với ảnh chụp hiện hành (tiêu chí I6). Không ghi đè ảnh chụp;
+        kết quả đối chiếu nằm ở `resultLocation` của job (suy luận về dạng kết quả).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-13]
+        scr: []
+        owner: SVC-07
+        roles: [inspector]
+        scope: Tn
+        source: TL-01 PL C POST /appraisals/{id}/recompute; TL-03 part-07 tái lập kết quả
+
+  /appraisals/score-preview:
+    post:
+      tags: [Điểm và giải thích]
+      operationId: previewAppraisalTaskScore
+      summary: Xem trước A, B, C, KPI của một nhiệm vụ khi nghiệm thu (không lưu)
+      description: >-
+        Người nghiệm thu chọn mức chất lượng B rồi xem trước A, B, C, KPI theo Policy Pack của kỳ
+        (BR-09-01). SVC-07 tính, không lưu kết quả.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppraisalScorePreviewInput' }
+            examples:
+              muc-075:
+                value:
+                  taskId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c03
+                  evidenceVersionId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0e11
+                  qualityLevel: 0.75
+                  revisionCause: CHU_QUAN
+      responses:
+        '200':
+          description: Kết quả xem trước.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalScorePreview' }
+              examples:
+                xem-truoc:
+                  value: { a: 1, b: 0.75, c: 0.9, kpi: 0.883, policyVersion: KHOI_DANG v2.0 }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0703]
+        owner: SVC-07
+        roles: [manager]
+        scope: Gn
+        rules: [BR-09-01]
+        source: TL-02a SCR-0703 "Xem trước điểm"
+
+  /appraisals/exports:
+    post:
+      tags: [Nội bộ]
+      operationId: exportAppraisalProfiles
+      summary: Xuất danh sách hàng đợi thẩm định ra XLSX
+      description: >-
+        Tạo tác vụ xuất danh sách hồ sơ theo bộ lọc đang dùng; tệp không chứa trường C2. Kết quả
+        tải qua `resultLocation` của job.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppraisalExportInput' }
+            examples:
+              hang-doi:
+                value:
+                  periodId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0001
+                  unitId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0101
+                  status: [CHO_THAM_DINH]
+                  format: XLSX
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09]
+        scr: [SCR-0902]
+        owner: MOD-04
+        roles: [appraiser]
+        scope: Cd
+        source: TL-02b SCR-0902 "Xuất danh sách"
+
+  /appraisals/inputs:
+    get:
+      tags: [Nội bộ]
+      operationId: listAppraisalScoringInputs
+      summary: Đầu vào tính điểm theo lô cho scoring-service
+      description: >-
+        Client nội bộ SVC-07 đọc danh sách hồ sơ của kỳ cùng thuộc tính cần cho tính điểm (luồng,
+        khối đối tượng, người đứng đầu, phiên bản Policy Pack, kết quả tiêu chí chung). Không dành
+        cho giao diện. Các trường cụ thể là suy luận từ TL-03 `appraisal_profile`.
+      security:
+        - serviceClient: []
+      parameters:
+        - name: period
+          in: query
+          required: true
+          description: Mã kỳ đánh giá.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang đầu vào.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalScoringInputPage' }
+              examples:
+                trang-dau:
+                  value:
+                    items:
+                      - profileId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01
+                        personId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0201
+                        flow: DANG
+                        orgUnitId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0101
+                        subjectGroupId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0301
+                        isHead: false
+                        isLeadership: true
+                        policyPackVersionId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0401
+                        generalCriteria:
+                          - { criteriaCode: TCC-01, met: true }
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09]
+        scr: []
+        owner: MOD-04
+        roles: [service_client]
+        scope: Tn
+        source: TL-01 PL C GET /appraisals/inputs?period=&cursor=
+
+  /appraisals/batch-decisions:
+    post:
+      tags: [Quyết định hàng loạt]
+      operationId: createAppraisalBatchDecision
+      summary: Quyết định xếp loại và ký lô
+      description: >-
+        Tạo `appraisal.batch_decision` cho 1 đến 1.000 hồ sơ `CHO_QUYET_DINH`, ghi bản ghi mức
+        `QUYET_DINH` cho từng hồ sơ (đổi mức so với mức đề xuất thì bắt buộc lý do ≥ 20 ký tự), yêu
+        cầu xác thực bước lên một lần và tạo yêu cầu ký lô ở SVC-10 (mỗi hồ sơ một chữ ký PAdES).
+        Trả 202 với `Location: /api/v1/jobs/{id}`; tiến độ theo SSE. Mỗi chữ ký thành công phát
+        EVT-18 và hồ sơ chuyển `DA_KY_SO`, kèm EVT-12. Hồ sơ lỗi ký giữ `CHO_QUYET_DINH`.
+        Quyết định một hồ sơ cũng đi qua đây (lô 1 hồ sơ, điểm chốt AP-02).
+
+
+        Lỗi: 409 `APPRAISAL-409-DECISION-NO-DUPLICATE` khi trùng số quyết định trong năm của đơn vị;
+        422 `APPRAISAL-422-HEAD-TOO-EARLY` (MSG-09-14, BR-09-13); 422 `APPRAISAL-422-REASON-REQUIRED`;
+        409 `APPRAISAL-409-COMPLAINT-OPEN` (MSG-10-03) khi xếp loại năm còn khiếu nại quý chưa kết
+        luận; 422 `APPRAISAL-422-CALIBRATION-REQUIRED` (MSG-09-13, BR-09-17) khi tỷ lệ HTXSNV vượt
+        ngưỡng khối mà chưa xác nhận đã có phiên hiệu chỉnh. Mục có `rowVersion` lệch phiên bản hiện
+        tại bị từ chối cả lô với 409 `APPRAISAL-409-VERSION-CONFLICT`, `errors[]` chỉ rõ mục.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppraisalBatchDecisionInput' }
+            examples:
+              qd-215:
+                value:
+                  periodId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0001
+                  flow: DANG
+                  decisionNo: 215-QĐ/ĐUK
+                  decisionDate: '2027-01-12'
+                  signProvider: MYSIGN
+                  calibrationAcknowledged: false
+                  items:
+                    - profileId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01
+                      ratingCode: HTTNV
+                      rowVersion: 9
+                    - profileId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a02
+                      ratingCode: HTNV
+                      reason: Tập thể Ban Thường vụ thống nhất hạ một mức do chưa hoàn thành nhiệm vụ then chốt về chuyển đổi số.
+                      rowVersion: 6
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-10]
+        scr: [SCR-0904]
+        owner: MOD-04
+        evt: [EVT-11, EVT-18, EVT-12]
+        roles: [decider]
+        scope: Cd
+        aal: 2
+        rules: [BR-09-12, BR-09-13, BR-09-14, BR-09-15, BR-09-17, BR-10-03]
+        errors: [APPRAISAL-409-DECISION-NO-DUPLICATE, APPRAISAL-422-HEAD-TOO-EARLY, APPRAISAL-422-REASON-REQUIRED, APPRAISAL-409-COMPLAINT-OPEN, APPRAISAL-422-CALIBRATION-REQUIRED, APPRAISAL-409-VERSION-CONFLICT]
+        source: TL-02b SCR-0904 "Quyết định và ký lô"; TL-01 PL C POST /appraisals/decisions/batch và POST /appraisals/{id}/decision
+
+  /appraisals/batch-decisions/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Quyết định hàng loạt]
+      operationId: getAppraisalBatchDecision
+      summary: Chi tiết lô quyết định
+      description: >-
+        Trạng thái lô, số hồ sơ đã ký, lỗi từng hồ sơ. Đường dẫn suy luận: TL-02b chỉ ghi theo dõi
+        qua `GET /jobs/{id}`, nhưng cần đọc lô để lấy `ETag` cho thao tác huỷ và để mở lại màn hình
+        sau khi đóng.
+      responses:
+        '200':
+          description: Lô quyết định.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalBatchDecision' }
+              examples:
+                dang-ky:
+                  $ref: '#/components/examples/AppraisalBatchDecisionSample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-10]
+        scr: [SCR-0904]
+        owner: MOD-04
+        roles: [decider]
+        scope: Cd
+        source: suy luận từ TL-02b SCR-0904 "Theo dõi tiến độ", "Huỷ lô"; TL-03 appraisal.batch_decision
+
+  /appraisals/batch-decisions/{id}/cancel:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Quyết định hàng loạt]
+      operationId: cancelAppraisalBatchDecision
+      summary: Huỷ lô quyết định chưa hoàn tất
+      description: >-
+        Dừng các chữ ký chưa thực hiện; hồ sơ đã ký giữ `DA_KY_SO`, hồ sơ chưa ký giữ
+        `CHO_QUYET_DINH`. Lô chuyển `HUY` nếu chưa ký hồ sơ nào, ngược lại `LOI_MOT_PHAN` (suy luận
+        cách chọn trạng thái). Lô đã `DA_KY` trả 409 `APPRAISAL-409-BATCH-COMPLETED`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Đã huỷ phần chưa ký.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalBatchDecision' }
+              examples:
+                da-huy:
+                  $ref: '#/components/examples/AppraisalBatchDecisionSample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-10]
+        scr: [SCR-0904]
+        owner: MOD-04
+        roles: [decider]
+        scope: Cd
+        errors: [APPRAISAL-409-BATCH-COMPLETED, APPRAISAL-409-VERSION-CONFLICT]
+        source: TL-02b SCR-0904 "Huỷ lô"
+
+  /appraisals/annual:
+    get:
+      tags: [Xếp loại năm]
+      operationId: listAnnualAppraisalRatings
+      summary: Tổng hợp xếp loại năm của đơn vị
+      description: >-
+        Bảng tổng hợp bốn quý, điểm năm, mức tự đề xuất năm, mức hệ thống đề xuất và quy tắc liên
+        thông của từng hồ sơ năm, kèm bốn số đếm cho thẻ số liệu đầu trang (trả riêng trong `counts`
+        theo SCR-1001 trường 3). `flag=lien_thong` chỉ hiện hồ sơ có `blockReason` hoặc `reassignFlag`.
+      parameters:
+        - name: period
+          in: query
+          required: true
+          description: Mã kỳ năm (`config.period.kind = NAM`).
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - $ref: '#/components/parameters/FlowQuery'
+        - name: flag
+          in: query
+          description: Lọc hồ sơ có cảnh báo liên thông quý–năm.
+          schema: { type: string, enum: [lien_thong] }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang xếp loại năm.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnnualRatingPage' }
+              examples:
+                nam-2026:
+                  $ref: '#/components/examples/AnnualRatingPageSample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-10]
+        scr: [SCR-1001]
+        owner: MOD-04
+        roles: [leader, appraiser, decider]
+        scope: Cd
+        rules: [BR-10-03, BR-10-04]
+        source: TL-02b SCR-1001 "Chỉ hiện hồ sơ có cảnh báo liên thông"
+
+  /appraisals/annual/{id}/explanation:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Xếp loại năm]
+      operationId: getAnnualAppraisalExplanation
+      summary: Giải thích liên thông quý–năm của một hồ sơ năm
+      description: >-
+        `id` là mã `appraisal.annual_rating`. Trả công thức điểm năm theo tham số `nam.cach_tinh`,
+        bốn kết quả quý với phiên bản Policy Pack đã dùng (BR-10-06), danh sách điều kiện, mức hệ
+        thống đề xuất và câu giải thích có điều khoản (MSG-10-01).
+      responses:
+        '200':
+          description: Giải thích.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnnualRatingExplanation' }
+              examples:
+                ho-so-mau:
+                  $ref: '#/components/examples/AnnualRatingExplanationSample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-10]
+        scr: [SCR-1001]
+        owner: MOD-04
+        roles: [leader, appraiser, decider]
+        scope: Cd
+        rules: [BR-10-01, BR-10-02, BR-10-03, BR-10-05, BR-10-06]
+        source: TL-02b SCR-1001 "Chọn dòng"
+
+  /appraisals/annual/{id}/reassignment-proposal:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Xếp loại năm]
+      operationId: createAnnualReassignmentProposal
+      summary: Lập đề xuất bố trí lại công việc
+      description: >-
+        Với hồ sơ năm có `reassignFlag` (hai quý liên tiếp KHTNV, QĐ khoản 15.6), tạo việc cho cơ quan
+        tổ chức trong MOD-02 với căn cứ khoản 15.6 và đặt `relocationProposed = true`. Không thay đổi
+        mức xếp loại. Hồ sơ không có cờ trả 409 `APPRAISAL-409-NO-REASSIGN-FLAG`; đã lập trả 409
+        `APPRAISAL-409-REASSIGN-EXISTS`. `If-Match` dùng `rowVersion` của dòng xếp loại năm.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnnualReassignmentInput' }
+            examples:
+              ghi-chu:
+                value: { note: Đề nghị Ban Tổ chức xem xét bố trí công tác phù hợp trong quý I/2027. }
+      responses:
+        '201':
+          description: Đã tạo việc đề xuất bố trí lại.
+          headers:
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnnualReassignmentResult' }
+              examples:
+                da-tao:
+                  value:
+                    annualRatingId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0b02
+                    taskId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c99
+                    relocationProposed: true
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-10]
+        scr: [SCR-1001]
+        owner: MOD-04
+        evt: [EVT-04]
+        roles: [appraiser]
+        scope: Cd
+        rules: [BR-10-04]
+        errors: [APPRAISAL-409-NO-REASSIGN-FLAG, APPRAISAL-409-REASSIGN-EXISTS, APPRAISAL-409-VERSION-CONFLICT]
+        source: TL-02b SCR-1001 "Lập đề xuất bố trí lại"
+
+  /appraisals/prospect-groups/{periodId}/{orgUnitId}:
+    parameters:
+      - $ref: '#/components/parameters/PeriodIdPath'
+      - $ref: '#/components/parameters/OrgUnitIdPath'
+    get:
+      tags: [Phân nhóm triển vọng]
+      operationId: getProspectGroupBoard
+      summary: Bảng phân nhóm triển vọng của đơn vị trong kỳ năm
+      description: >-
+        Danh sách phân nhóm hiện hành (gồm nhóm gợi ý của hệ thống) của một đơn vị trong kỳ năm.
+        Đường dẫn GET là suy luận: TL-02b chỉ ghi PUT và submit, nhưng màn hình cần tải bảng và ETag.
+        Gọi ở kỳ quý trả 409 `APPRAISAL-409-PROSPECT-QUARTER` (MSG-10-05, BR-10-07). Dữ liệu C2,
+        chỉ `leader` và `appraiser` của đơn vị (BR-10-10).
+      responses:
+        '200':
+          description: Bảng phân nhóm.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProspectGroupBoard' }
+              examples:
+                nam-2026:
+                  $ref: '#/components/examples/ProspectGroupBoardSample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-10]
+        scr: [SCR-1002]
+        owner: MOD-04
+        roles: [leader, appraiser]
+        scope: Đv
+        rules: [BR-10-07, BR-10-10]
+        source: suy luận từ TL-02b SCR-1002 bảng trường; TL-03 appraisal.prospect_group
+    put:
+      tags: [Phân nhóm triển vọng]
+      operationId: saveProspectGroupBoard
+      summary: Lưu nháp danh sách phân nhóm triển vọng
+      description: >-
+        Lưu toàn bộ danh sách (nhóm, thứ tự trong nhóm, lý do khi khác gợi ý, kế hoạch bồi dưỡng).
+        Kiểm tra: thứ tự không trùng trong nhóm; người KHTNV năm hoặc có cờ bố trí lại không vào
+        `NHOM_1`, `NHOM_2` (422 `APPRAISAL-422-PROSPECT-NOT-ELIGIBLE`, MSG-10-06, BR-10-09); khác gợi
+        ý thì lý do 20 đến 1.000 ký tự (lỗi theo trường, MSG-10-07). Chỉ khi danh sách ở `NHAP`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProspectGroupBoardInput' }
+            examples:
+              nhap:
+                value:
+                  entries:
+                    - personId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0201
+                      groupCode: NHOM_2
+                      rankInGroup: 1
+                    - personId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0205
+                      groupCode: NHOM_1
+                      rankInGroup: 2
+                      reason: Đồng chí chủ trì thành công đề án chuyển đổi số của Ban, được tập thể đánh giá có khả năng đảm nhận vị trí cao hơn.
+                      trainingPlanRef: KH-BD-2027-04
+      responses:
+        '200':
+          description: Đã lưu nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProspectGroupBoard' }
+              examples:
+                da-luu:
+                  $ref: '#/components/examples/ProspectGroupBoardSample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-10]
+        scr: [SCR-1002]
+        owner: MOD-04
+        roles: [leader, appraiser]
+        scope: Đv
+        rules: [BR-10-07, BR-10-08, BR-10-09, BR-10-10]
+        errors: [APPRAISAL-409-PROSPECT-QUARTER, APPRAISAL-422-PROSPECT-NOT-ELIGIBLE, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-VERSION-CONFLICT]
+        source: TL-02b SCR-1002 "Lưu nháp"
+
+  /appraisals/prospect-groups/{periodId}/{orgUnitId}/submit:
+    parameters:
+      - $ref: '#/components/parameters/PeriodIdPath'
+      - $ref: '#/components/parameters/OrgUnitIdPath'
+    post:
+      tags: [Phân nhóm triển vọng]
+      operationId: submitProspectGroupBoard
+      summary: Trình tập thể lãnh đạo danh sách phân nhóm
+      description: >-
+        Khởi động user task thông qua tập thể và khoá chỉnh sửa; danh sách chuyển `DA_TRINH`. Thiếu
+        lý do cho điều chỉnh khác gợi ý trả 422. Việc thông qua và ký số danh sách (bước 9 QT-10) do
+        workflow-service và esign-service xử lý, không có đường dẫn riêng ở đây.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Đã trình.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProspectGroupBoard' }
+              examples:
+                da-trinh:
+                  $ref: '#/components/examples/ProspectGroupBoardSample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-10]
+        scr: [SCR-1002]
+        owner: MOD-04
+        evt: [EVT-11]
+        roles: [leader]
+        scope: Đv
+        rules: [BR-10-08, BR-10-09]
+        errors: [APPRAISAL-422-REASON-REQUIRED, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-VERSION-CONFLICT]
+        source: TL-02b SCR-1002 "Trình tập thể lãnh đạo"
+
+components:
+  securitySchemes:
+    keycloak:
+      $ref: '../common/common.yaml#/components/securitySchemes/keycloak'
+    serviceClient:
+      $ref: '../common/common.yaml#/components/securitySchemes/serviceClient'
+  parameters:
+    FlowQuery:
+      name: flow
+      in: query
+      description: Luồng đánh giá; bỏ trống thì lấy luồng của hồ sơ hoặc mọi luồng tenant bật.
+      schema: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+    PeriodIdPath:
+      name: periodId
+      in: path
+      required: true
+      description: Mã kỳ năm.
+      schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    OrgUnitIdPath:
+      name: orgUnitId
+      in: path
+      required: true
+      description: Mã đơn vị (`org.org_unit.id`).
+      schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+
+  schemas:
+    AppraisalProfileStatus:
+      description: Trạng thái hồ sơ đánh giá `appraisal.appraisal_profile.status` (baseline mục 9.1).
+      type: string
+      enum: [CHUA_LAP, TU_DANH_GIA, CHO_THAM_DINH, DA_THAM_DINH, CHO_QUYET_DINH, DA_QUYET_DINH, DA_KY_SO, DA_KHOA, KHIEU_NAI]
+    AppraisalPeriodKind:
+      description: Loại kỳ (`config.period.kind`, TL-03).
+      type: string
+      enum: [THANG, QUY, NAM, NAM_HOC]
+    RatingLevelKind:
+      description: Loại mức trong `appraisal.rating_proposal.level_kind` (TL-03).
+      type: string
+      enum: [TU_DE_XUAT, THAM_DINH, DE_XUAT, QUYET_DINH]
+    GeneralCriteriaLevel:
+      description: Mức tiêu chí chung (`appraisal.general_criteria_result.level`, BR-09-05).
+      type: string
+      enum: [THUC_HIEN_TOT, DAM_BAO, CO_BAN_DAM_BAO, KHONG_DAM_BAO]
+    GeneralCriteriaStage:
+      description: Bước ghi kết quả tiêu chí chung (`general_criteria_result.stage`).
+      type: string
+      enum: [TU_DANH_GIA, THAM_DINH]
+    ScoreSnapshotKind:
+      description: Loại ảnh chụp điểm (`score_snapshot.snapshot_kind`).
+      type: string
+      enum: [TAM_TINH, CHOT_KY, TINH_LAI_HAU_KIEM]
+    RatingExplanationType:
+      description: Loại giải trình (`rating_explanation.explanation_type`).
+      type: string
+      enum: [HA_MUC, KHAC_MUC_TRUOC, BAO_LUU]
+    AppraisalBatchDecisionStatus:
+      description: Trạng thái ký lô (`appraisal.batch_decision.status`).
+      type: string
+      enum: [NHAP, CHO_KY, DA_KY, LOI_MOT_PHAN, HUY]
+    ProspectGroupCode:
+      description: Nhóm triển vọng theo PL 5 (`prospect_group.group_code`); dữ liệu C2 dạng rõ có kiểm soát.
+      type: string
+      enum: [NHOM_1, NHOM_2, NHOM_3, NHOM_4]
+    ProspectBoardStatus:
+      description: >-
+        Trạng thái danh sách phân nhóm của một đơn vị trong kỳ (suy luận: TL-02b nêu "nháp", "trình
+        tập thể", "đã ký" và việc không thông qua đưa về nháp; TL-03 chưa có cột trạng thái).
+      type: string
+      enum: [NHAP, DA_TRINH, DA_KY]
+    AppraisalSignProvider:
+      description: Nhà cung cấp chữ ký số (`esign` provider, TL-03).
+      type: string
+      enum: [MYSIGN, VIETTEL_CA, CA_CHINH_PHU, BAN_CO_YEU]
+    AppraisalHash:
+      description: Băm SHA-256 dạng hex chữ thường (64 ký tự).
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+      examples: ['9f2c4e1a7b3d5f60a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718']
+
+    AppraisalRatingLevels:
+      description: Bốn mức đã đưa ra cho một hồ sơ (dòng hiện hành theo từng `level_kind`); `null` khi chưa có.
+      type: object
+      properties:
+        selfProposed:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+        appraised:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+        proposed:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+        decided:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+    AppraisalAnomalyHint:
+      description: Gợi ý bất thường từ QT-14 hiển thị trên hàng đợi; chỉ để lưu ý, không đổi kết quả.
+      type: object
+      required: [code, label]
+      properties:
+        code: { type: string, description: 'Mã dấu hiệu, ví dụ `DAU_HIEU_1`', examples: [DAU_HIEU_1] }
+        label: { type: string, examples: ['Tự chấm cao 3 quý'] }
+        alertId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+
+    AppraisalProfileRow:
+      description: Một dòng danh sách hồ sơ (hàng đợi thẩm định, quyết định, hồ sơ của tôi).
+      type: object
+      required: [id, person, orgUnit, period, periodKind, flow, status, levels, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        person: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        jobTitle: { type: string, description: 'Chức vụ (`org_replica.person_v`)' }
+        orgUnit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        period: { $ref: '../common/common.yaml#/components/schemas/PeriodRef' }
+        periodKind: { $ref: '#/components/schemas/AppraisalPeriodKind' }
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        status: { $ref: '#/components/schemas/AppraisalProfileStatus' }
+        isHead: { type: boolean, description: 'Người đứng đầu (BR-09-13)' }
+        totalScore: { type: [number, 'null'], minimum: 0, maximum: 100, description: 'Điểm của ảnh chụp hiện hành' }
+        autoRatingCode:
+          description: Mức hệ thống tính (tham khảo).
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+        levels: { $ref: '#/components/schemas/AppraisalRatingLevels' }
+        differsExplained: { type: boolean, description: 'Có mức khác bước trước và đã giải trình (cột ghi chú SCR-0904)' }
+        noSelfAssessment: { type: boolean, description: 'Quá hạn không tự đánh giá, chuyển thẩm định với mức tự đề xuất trống (QT-09 ngoại lệ 3)' }
+        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        anomalyHints:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalAnomalyHint' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    AppraisalProfilePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalProfileRow' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+
+    GeneralCriteriaItem:
+      description: Kết quả một nhóm tiêu chí chung (`appraisal.general_criteria_result`).
+      type: object
+      required: [criteriaCode, met]
+      properties:
+        criteriaCode: { type: string, maxLength: 16, examples: [TCC-01] }
+        label: { type: string, description: 'Tên tiêu chí lấy từ Policy Pack (suy luận)', examples: ['Bản lĩnh chính trị, tư tưởng'] }
+        met: { type: boolean }
+        comment:
+          type: string
+          maxLength: 2000
+          x-classification: C2
+          description: Nhận xét theo tiêu chí (C2).
+    GeneralCriteriaResult:
+      description: Tiêu chí chung của một bước, kèm tỷ lệ đáp ứng và mức quy đổi (BR-09-05).
+      type: object
+      required: [stage, items, complianceRatio, level]
+      properties:
+        stage: { $ref: '#/components/schemas/GeneralCriteriaStage' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/GeneralCriteriaItem' }
+        complianceRatio: { type: number, minimum: 0, maximum: 1 }
+        level: { $ref: '#/components/schemas/GeneralCriteriaLevel' }
+    AppraisalTaskClaim:
+      description: >-
+        B, C cán bộ tự nhận cho một nhiệm vụ (`self_assessment.claims_json`), dùng cho bảng so sánh
+        trên SCR-0902 (cấu trúc suy luận).
+      type: object
+      required: [taskId]
+      properties:
+        taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        qualityLevel: { $ref: '../common/common.yaml#/components/schemas/QualityLevel' }
+        delayDays: { type: integer, minimum: 0 }
+    AppraisalSelfAssessment:
+      description: Phiếu tự đánh giá hiện hành (`appraisal.self_assessment` cùng mức `TU_DE_XUAT`).
+      type: object
+      required: [versionNo]
+      properties:
+        versionNo: { type: integer, minimum: 1, description: 'Lần nộp; nộp lại sau trả lại tạo phiên bản mới' }
+        formCode: { type: string, examples: [MAU_2] }
+        formVersion: { type: string, examples: ['1.0'] }
+        selfRatingCode:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+        breakthrough:
+          type: string
+          maxLength: 2000
+          x-classification: C2
+          description: Giải pháp đột phá (`breakthrough_enc`).
+        breakthroughEvidenceIds:
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        reason:
+          type: string
+          maxLength: 2000
+          x-classification: C2
+          description: Giải trình khác mức tham khảo (`rating_proposal.reason_enc`).
+        content:
+          type: string
+          maxLength: 2000
+          x-classification: C2
+          description: Ưu điểm, hạn chế, hướng khắc phục (`content_enc`).
+        strengths: { type: string, maxLength: 2000, x-classification: C2, description: 'Ưu điểm (`strengths_enc`)' }
+        weaknesses: { type: string, maxLength: 2000, x-classification: C2, description: 'Hạn chế (`weaknesses_enc`)' }
+        remedialPlan: { type: string, maxLength: 2000, x-classification: C2, description: 'Hướng khắc phục (`remedial_plan_enc`)' }
+        claims:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalTaskClaim' }
+        contentHash: { $ref: '#/components/schemas/AppraisalHash' }
+        savedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        submittedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        signedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    AppraisalSignature:
+      description: Thông tin chữ ký của một mốc (SCR-0902 trường 3).
+      type: object
+      required: [signedAt, provider]
+      properties:
+        signedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        provider: { $ref: '#/components/schemas/AppraisalSignProvider' }
+        signRequestId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        contentHash: { $ref: '#/components/schemas/AppraisalHash' }
+        valid: { type: boolean, description: 'Kết quả kiểm tra chữ ký khi mở' }
+    AppraisalRatingProposal:
+      description: Một mức do con người đưa ra (`appraisal.rating_proposal`).
+      type: object
+      required: [id, levelKind, ratingCode, actor, actorRole, proposedAt, isCurrent]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        levelKind: { $ref: '#/components/schemas/RatingLevelKind' }
+        ratingCode: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        actor: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        actorRole:
+          type: string
+          description: Vai trò khi đưa ra mức (TL-03 `actor_role`, giữ đúng giá trị CHECK).
+          enum: [staff, appraiser, manager, decider]
+        isCurrent: { type: boolean }
+        differsFromPrev: { type: boolean }
+        explanationRequired: { type: boolean }
+        isBulkDecision: { type: boolean }
+        batchDecisionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        scoreSnapshotId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        reason:
+          type: string
+          maxLength: 2000
+          x-classification: C2
+          description: Lý do đưa ra mức (`reason_enc`).
+        comment:
+          type: string
+          maxLength: 4000
+          x-classification: C2
+          description: Nhận xét (`comment_enc`).
+        proposedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        signedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    AppraisalQuarterRating:
+      description: Kết quả một quý dùng cho hồ sơ năm.
+      type: object
+      required: [period, ratingCode]
+      properties:
+        period: { $ref: '../common/common.yaml#/components/schemas/PeriodRef' }
+        ratingCode:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+        totalScore: { type: [number, 'null'] }
+        policyVersion: { type: string, examples: ['KHOI_DANG v1.4'] }
+        snapshotId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        inputHash: { $ref: '#/components/schemas/AppraisalHash' }
+    AppraisalProfile:
+      description: Hồ sơ đánh giá của một người, một kỳ, một luồng (`appraisal.appraisal_profile`).
+      type: object
+      required: [id, person, orgUnit, period, periodKind, flow, status, availableFlows, ratingTrail, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        person: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        jobTitle: { type: string }
+        orgUnit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        period: { $ref: '../common/common.yaml#/components/schemas/PeriodRef' }
+        periodKind: { $ref: '#/components/schemas/AppraisalPeriodKind' }
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        availableFlows:
+          description: Các luồng tenant bật cho người này trong kỳ (thẻ luồng SCR-0901).
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        status: { $ref: '#/components/schemas/AppraisalProfileStatus' }
+        isHead: { type: boolean }
+        isLeadership: { type: boolean }
+        policyVersion: { type: string, description: 'Nhãn phiên bản Policy Pack gắn với hồ sơ', examples: ['KHOI_DANG v2.0'] }
+        currentSnapshotId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        finalRatingCode:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+        selfAssessDue: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        workingDaysLeft: { type: integer, description: 'Số ngày làm việc còn lại tới hạn nộp, tính theo lịch nghỉ của tenant' }
+        returnCount: { type: integer, minimum: 0, description: 'Số lần đã trả lại (suy luận, phục vụ MSG-09-09)' }
+        returnLimit: { type: integer, minimum: 0, description: 'Số lần trả lại tối đa theo tham số luồng (suy luận)' }
+        noSelfAssessment: { type: boolean }
+        complaintDeadline: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        submittedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        decidedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        lockedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        appraiser: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        decider: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        generalCriteria:
+          type: array
+          description: Kết quả tiêu chí chung theo từng bước đã có.
+          items: { $ref: '#/components/schemas/GeneralCriteriaResult' }
+        selfAssessment:
+          oneOf:
+            - $ref: '#/components/schemas/AppraisalSelfAssessment'
+            - type: 'null'
+        submissionSignature: { $ref: '#/components/schemas/AppraisalSignature' }
+        ratingTrail:
+          description: Vết các mức (mọi dòng `rating_proposal`, gồm dòng không còn hiện hành), theo thời gian.
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalRatingProposal' }
+        quarterRatings:
+          description: Chỉ có ở hồ sơ năm; bốn kết quả quý chỉ đọc.
+          type: array
+          maxItems: 4
+          items: { $ref: '#/components/schemas/AppraisalQuarterRating' }
+        anomalyHints:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalAnomalyHint' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+
+    AppraisalSelfAssessmentInput:
+      description: Nội dung lưu nháp phiếu tự đánh giá; mọi trường tuỳ chọn khi lưu nháp.
+      type: object
+      properties:
+        criteria:
+          type: array
+          maxItems: 30
+          items:
+            type: object
+            required: [criteriaCode, met]
+            properties:
+              criteriaCode: { type: string, maxLength: 16 }
+              met: { type: boolean }
+        selfRatingCode: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        breakthrough:
+          type: string
+          maxLength: 2000
+          x-classification: C2
+          description: Bắt buộc khi nộp với HTXSNV, kèm ít nhất một minh chứng `DA_XAC_NHAN`.
+        breakthroughEvidenceIds:
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        reason:
+          type: string
+          maxLength: 2000
+          x-classification: C2
+          description: Bắt buộc 20 đến 2.000 ký tự khi nộp nếu mức tự đề xuất khác mức tham khảo.
+        content:
+          type: string
+          maxLength: 2000
+          x-classification: C2
+          description: Bắt buộc khi nộp.
+        strengths: { type: string, maxLength: 2000, x-classification: C2 }
+        weaknesses: { type: string, maxLength: 2000, x-classification: C2 }
+        remedialPlan: { type: string, maxLength: 2000, x-classification: C2 }
+        claims:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalTaskClaim' }
+    AppraisalSignRequestInput:
+      description: Tham số tạo yêu cầu ký khi nộp phiếu.
+      type: object
+      properties:
+        signProvider: { $ref: '#/components/schemas/AppraisalSignProvider' }
+        formCode:
+          type: string
+          description: Biểu mẫu sinh bản ký (Mẫu 1B hoặc Mẫu 2); bỏ trống thì theo khối đối tượng.
+          examples: [MAU_2]
+        contentHash:
+          $ref: '#/components/schemas/AppraisalHash'
+          description: Băm phiếu client đã xem trước; lệch với máy chủ trả 409 (suy luận, chống ký nội dung khác).
+    AppraisalReturnInput:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 20
+          maxLength: 2000
+          x-classification: C2
+          description: Lý do trả lại (độ dài suy luận theo quy ước lý do của TL-02b).
+    AppraisalReviewInput:
+      description: Kết luận thẩm định (SCR-0902 trường 6 đến 8).
+      type: object
+      required: [ratingCode, comment]
+      properties:
+        ratingCode: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          x-classification: C2
+        reason:
+          type: string
+          minLength: 20
+          maxLength: 2000
+          x-classification: C2
+          description: Bắt buộc khi mức thẩm định khác mức tự đề xuất (BR-09-12).
+        generalCriteria:
+          description: Kết quả tiêu chí chung ở bước thẩm định nếu khác tự đánh giá (suy luận từ `stage = THAM_DINH`).
+          type: array
+          items:
+            type: object
+            required: [criteriaCode, met]
+            properties:
+              criteriaCode: { type: string, maxLength: 16 }
+              met: { type: boolean }
+        signProvider: { $ref: '#/components/schemas/AppraisalSignProvider' }
+    AppraisalProposalInput:
+      type: object
+      required: [ratingCode]
+      properties:
+        ratingCode: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        reason:
+          type: string
+          minLength: 20
+          maxLength: 2000
+          x-classification: C2
+          description: Bắt buộc khi khác mức thẩm định (MSG-09-12).
+        comment: { type: string, maxLength: 4000, x-classification: C2 }
+
+    AppraisalRuleCheck:
+      description: Một điều kiện của mức xếp loại, đạt hay chưa (`rule_checks`, `conditions_json`).
+      type: object
+      required: [ratingCode, label, met]
+      properties:
+        ratingCode: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        label: { type: string, examples: ['≥ 30% nhiệm vụ vượt mục tiêu'] }
+        met: { type: boolean }
+        actual: { type: string, description: 'Giá trị thực tế đã định dạng', examples: ['22%'] }
+        threshold: { type: string, examples: ['30%'] }
+        legalRef: { type: string, examples: ['QĐ Điều 11'] }
+    AppraisalDowngradeReason:
+      description: Một lý do hạ mức (`downgrade_reasons`).
+      type: object
+      required: [fromRating, toRating, text]
+      properties:
+        fromRating: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        toRating: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        text: { type: string, maxLength: 1000 }
+        legalRef: { type: string }
+    AppraisalScoreTaskLine:
+      description: Một nhiệm vụ trong bảng kết quả (`group_scores_json`, `detail_json`).
+      type: object
+      required: [taskId, title, kpi]
+      properties:
+        taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        title: { type: string }
+        approvedQuantity: { type: number }
+        plannedQuantity: { type: number }
+        a: { type: number, minimum: 0, maximum: 1 }
+        b: { $ref: '../common/common.yaml#/components/schemas/QualityLevel' }
+        c: { type: number, minimum: 0, maximum: 1 }
+        kpi: { type: number, minimum: 0, maximum: 1 }
+        exceedsTarget: { type: boolean }
+    AppraisalScoreGroup:
+      description: Một nhóm nhiệm vụ (then chốt, thường xuyên) với KPI nhóm và điểm (BR-09-03).
+      type: object
+      required: [code, label, kpi, maxScore, score]
+      properties:
+        code: { type: string, examples: [THEN_CHOT] }
+        label: { type: string, examples: ['Nhiệm vụ then chốt'] }
+        kpi: { type: number, minimum: 0, maximum: 1 }
+        maxScore: { type: number }
+        score: { type: number }
+        tasks:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalScoreTaskLine' }
+    AppraisalScoreSnapshot:
+      description: Ảnh chụp điểm bất biến do SVC-07 tính (`appraisal.score_snapshot`); chỉ đọc.
+      type: object
+      required: [id, profileId, flow, snapshotKind, policyVersion, inputHash, snapshotHash, totalScore, autoRatingCode, ruleChecks, downgradeReasons, groups, computedAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        profileId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        snapshotKind: { $ref: '#/components/schemas/ScoreSnapshotKind' }
+        scoreResultId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        policyPackVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        policyVersion: { type: string, maxLength: 32 }
+        policyContentHash: { $ref: '#/components/schemas/AppraisalHash' }
+        inputHash: { $ref: '#/components/schemas/AppraisalHash' }
+        snapshotHash: { $ref: '#/components/schemas/AppraisalHash' }
+        totalScore: { type: number, minimum: 0, maximum: 100 }
+        regularScore: { type: [number, 'null'] }
+        keyTaskScore: { type: [number, 'null'] }
+        generalCriteriaScore: { type: [number, 'null'], description: 'Luồng NHA_NUOC: phần 30 điểm' }
+        kpiScore: { type: [number, 'null'], description: 'Luồng NHA_NUOC: phần 70 điểm' }
+        exceedRatio: { type: [number, 'null'], minimum: 0, maximum: 1, description: 'Tỷ lệ nhiệm vụ vượt mục tiêu (TL-02b gọi `over_target_ratio`)' }
+        objectiveRatio: { type: [number, 'null'], minimum: 0, maximum: 1 }
+        generalCriteriaLevel:
+          oneOf:
+            - $ref: '#/components/schemas/GeneralCriteriaLevel'
+            - type: 'null'
+        autoRatingCode: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        ruleChecks:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalRuleCheck' }
+        downgradeReasons:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalDowngradeReason' }
+        groups:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalScoreGroup' }
+        computedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        supersededById: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    AppraisalRatingExplanation:
+      description: Câu giải thích của hệ thống (`appraisal.rating_explanation`, BR-09-10).
+      type: object
+      required: [systemLevel, conditions]
+      properties:
+        explanationType: { $ref: '#/components/schemas/RatingExplanationType' }
+        systemLevel: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        conditions:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalRuleCheck' }
+        text: { type: string, maxLength: 2000, description: 'Câu giải thích sinh từ mẫu câu DMN (`auto_text`)' }
+        legalRef: { type: string, maxLength: 200 }
+    AppraisalScoreView:
+      description: Điểm và giải thích cho SCR-0901, SCR-0903.
+      type: object
+      required: [profileId, flow, snapshot]
+      properties:
+        profileId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        snapshot: { $ref: '#/components/schemas/AppraisalScoreSnapshot' }
+        explanation: { $ref: '#/components/schemas/AppraisalRatingExplanation' }
+    AppraisalScoreTraceStep:
+      description: Một bước tính (`scoring.score_trace`).
+      type: object
+      required: [stepNo, ruleCode, inputs, output]
+      properties:
+        stepNo: { type: integer, minimum: 1 }
+        ruleCode: { type: string, maxLength: 64, examples: [kpi_nhiem_vu] }
+        legalRef: { type: string, maxLength: 200 }
+        taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        inputs: { type: object, additionalProperties: true }
+        output: { type: object, additionalProperties: true }
+        explanation: { type: string, maxLength: 1000 }
+    AppraisalScoreTrace:
+      type: object
+      required: [profileId, scoreResultId, steps]
+      properties:
+        profileId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        scoreResultId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        snapshotId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        policyVersion: { type: string }
+        engineVersion: { type: string, examples: ['scoring 1.8.2'] }
+        steps:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalScoreTraceStep' }
+    AppraisalSimulationInput:
+      type: object
+      required: [adjustments]
+      properties:
+        adjustments:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [component, newValue]
+            properties:
+              component: { type: string, description: 'Cấu phần điều chỉnh, ví dụ A, B, C hoặc tiêu chí chung', examples: [C] }
+              taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+              oldValue: { type: number }
+              newValue: { type: number }
+              reason: { type: string, maxLength: 1000, x-classification: C2 }
+    AppraisalScoreOutcome:
+      type: object
+      required: [totalScore, ratingCode]
+      properties:
+        totalScore: { type: number }
+        ratingCode: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+    AppraisalSimulationResult:
+      description: Kết quả tính thử, không lưu.
+      type: object
+      required: [before, after]
+      properties:
+        policyVersion: { type: string }
+        before: { $ref: '#/components/schemas/AppraisalScoreOutcome' }
+        after: { $ref: '#/components/schemas/AppraisalScoreOutcome' }
+        explanation: { type: string }
+    AppraisalScorePreviewInput:
+      type: object
+      required: [taskId, qualityLevel]
+      properties:
+        taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        evidenceVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        qualityLevel: { $ref: '../common/common.yaml#/components/schemas/QualityLevel' }
+        revisionCause:
+          type: string
+          description: Nguyên nhân chỉnh sửa (`product.acceptance.revision_cause`, đề xuất của TL-02a).
+          enum: [CHU_QUAN, KHACH_QUAN, KHONG_CO]
+    AppraisalScorePreview:
+      type: object
+      required: [a, b, c, kpi]
+      properties:
+        a: { type: number, minimum: 0, maximum: 1 }
+        b: { $ref: '../common/common.yaml#/components/schemas/QualityLevel' }
+        c: { type: number, minimum: 0, maximum: 1 }
+        kpi: { type: number, minimum: 0, maximum: 1 }
+        policyVersion: { type: string }
+    AppraisalExportInput:
+      type: object
+      required: [periodId, format]
+      properties:
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        unitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        status:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalProfileStatus' }
+        format: { type: string, enum: [XLSX] }
+    AppraisalScoringInput:
+      description: Đầu vào hồ sơ cho SVC-07 (suy luận từ `appraisal_profile`, `general_criteria_result`).
+      type: object
+      required: [profileId, personId, flow, orgUnitId, policyPackVersionId]
+      properties:
+        profileId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        orgUnitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        subjectGroupId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        isHead: { type: boolean }
+        isLeadership: { type: boolean }
+        policyPackVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        generalCriteria:
+          type: array
+          items:
+            type: object
+            required: [criteriaCode, met]
+            properties:
+              criteriaCode: { type: string }
+              met: { type: boolean }
+    AppraisalScoringInputPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalScoringInput' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+
+    AppraisalBatchDecisionItem:
+      type: object
+      required: [profileId, ratingCode, rowVersion]
+      properties:
+        profileId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        ratingCode: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        reason:
+          type: string
+          minLength: 20
+          maxLength: 2000
+          x-classification: C2
+          description: Bắt buộc khi khác mức đề xuất.
+        rowVersion:
+          $ref: '../common/common.yaml#/components/schemas/RowVersion'
+          description: Phiên bản hồ sơ người quyết định đã xem (thay cho `If-Match` từng hồ sơ trong lô).
+    AppraisalBatchDecisionInput:
+      type: object
+      required: [periodId, flow, decisionNo, decisionDate, items]
+      properties:
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        decisionNo: { type: string, maxLength: 64, description: 'Số ký hiệu quyết định, không trùng trong năm của đơn vị' }
+        decisionDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        signProvider: { $ref: '#/components/schemas/AppraisalSignProvider' }
+        calibrationAcknowledged:
+          type: boolean
+          default: false
+          description: Xác nhận đã tổ chức phiên hiệu chỉnh khi tỷ lệ HTXSNV vượt ngưỡng (BR-09-17; trường suy luận).
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/AppraisalBatchDecisionItem' }
+    AppraisalBatchDecision:
+      description: Lô quyết định (`appraisal.batch_decision`).
+      type: object
+      required: [id, period, flow, decisionNo, decisionDate, decider, profileCount, status, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        period: { $ref: '../common/common.yaml#/components/schemas/PeriodRef' }
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        decisionNo: { type: string, maxLength: 64 }
+        decisionDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        decider: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        profileCount: { type: integer, minimum: 1, maximum: 1000 }
+        profilesHash: { $ref: '#/components/schemas/AppraisalHash' }
+        signRequestId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        jobId: { type: string, description: 'Mã job theo dõi tiến độ (suy luận)' }
+        status: { $ref: '#/components/schemas/AppraisalBatchDecisionStatus' }
+        signedCount: { type: integer, minimum: 0, description: 'Số hồ sơ đã ký (suy luận, từ `esign.sign_item`)' }
+        failedCount: { type: integer, minimum: 0 }
+        failedItems:
+          description: Hồ sơ lỗi ký hoặc bị từ chối.
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/BatchItemResult' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+
+    AnnualRatingRow:
+      description: Một dòng xếp loại năm (`appraisal.annual_rating`).
+      type: object
+      required: [id, profileId, person, flow, quarterRatings, hasKhtnvQuarter, consecutiveKhtnv, reassignFlag, relocationProposed, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        profileId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        person: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        orgUnit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        profileStatus: { $ref: '#/components/schemas/AppraisalProfileStatus' }
+        quarterRatings:
+          description: Mức quyết định của các quý theo thứ tự; `null` khi quý không xếp loại.
+          type: array
+          maxItems: 4
+          items:
+            oneOf:
+              - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+              - type: 'null'
+        annualScore: { type: [number, 'null'] }
+        selfProposedLevel:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+        systemLevel:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+        ratingCode:
+          description: Mức năm đã quyết định.
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+        hasKhtnvQuarter: { type: boolean }
+        consecutiveKhtnv: { type: boolean }
+        blockReason: { type: [string, 'null'], maxLength: 32, examples: [CO_QUY_KHTNV] }
+        reassignFlag: { type: boolean }
+        relocationProposed: { type: boolean }
+        linkageNote: { type: string, maxLength: 200, description: 'Câu ngắn cột "Quy tắc liên thông"' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    AnnualRatingCounts:
+      description: Số đếm cho bốn thẻ số liệu SCR-1001.
+      type: object
+      required: [profilesCreated, profilesTotal, blockedExcellent, reassignProposed, awaitingProspectGrouping]
+      properties:
+        profilesCreated: { type: integer, minimum: 0 }
+        profilesTotal: { type: integer, minimum: 0 }
+        blockedExcellent: { type: integer, minimum: 0, description: 'Bị chặn HTXSNV do có quý KHTNV' }
+        reassignProposed: { type: integer, minimum: 0 }
+        awaitingProspectGrouping: { type: integer, minimum: 0 }
+    AnnualRatingPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AnnualRatingRow' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        counts: { $ref: '#/components/schemas/AnnualRatingCounts' }
+        policyNote: { type: string, description: 'Dòng phụ ghi phiên bản Policy Pack các quý' }
+    AnnualRatingExplanation:
+      type: object
+      required: [annualRatingId, quarters, conditions, systemLevel]
+      properties:
+        annualRatingId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        yearCalcMethod: { type: string, description: 'Giá trị tham số `nam.cach_tinh`', examples: [TRUNG_BINH_QUY] }
+        formula: { type: string, examples: ['(91,8 + 88,6 + 90,2 + 91,2) / 4 = 90,4'] }
+        annualScore: { type: [number, 'null'] }
+        exceedRatio: { type: [number, 'null'], minimum: 0, maximum: 1 }
+        quarters:
+          type: array
+          maxItems: 4
+          items: { $ref: '#/components/schemas/AppraisalQuarterRating' }
+        conditions:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalRuleCheck' }
+        systemLevel: { $ref: '../common/common.yaml#/components/schemas/RatingLevel' }
+        text: { type: string, maxLength: 2000 }
+        legalRef: { type: string }
+        policyVersion: { type: string }
+        inputHash: { $ref: '#/components/schemas/AppraisalHash' }
+    AnnualReassignmentInput:
+      type: object
+      properties:
+        note: { type: string, maxLength: 1000, x-classification: C2 }
+    AnnualReassignmentResult:
+      type: object
+      required: [annualRatingId, taskId, relocationProposed]
+      properties:
+        annualRatingId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        relocationProposed: { type: boolean }
+
+    ProspectGroupEntry:
+      description: Một cán bộ trên bảng phân nhóm (`appraisal.prospect_group`).
+      type: object
+      required: [person, groupCode]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        person: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        summary: { type: string, maxLength: 80, description: 'Tóm tắt thẻ: chức vụ, số năm HTXSNV hoặc lý do' }
+        annualRatingCode:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+            - type: 'null'
+        reassignFlag: { type: boolean }
+        groupCode:
+          $ref: '#/components/schemas/ProspectGroupCode'
+          x-classification: C2
+        suggestedGroup:
+          x-classification: C2
+          oneOf:
+            - $ref: '#/components/schemas/ProspectGroupCode'
+            - type: 'null'
+        rankInGroup: { type: [integer, 'null'], minimum: 1 }
+        reason:
+          type: string
+          maxLength: 1000
+          x-classification: C2
+        trainingPlanRef: { type: string, maxLength: 200 }
+        decidedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    ProspectGroupBoard:
+      description: Danh sách phân nhóm triển vọng của một đơn vị trong kỳ năm.
+      type: object
+      required: [periodId, orgUnit, status, entries, rowVersion]
+      properties:
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        orgUnit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        status: { $ref: '#/components/schemas/ProspectBoardStatus' }
+        policyVersion: { type: string }
+        rejectionReason:
+          type: string
+          x-classification: C2
+          description: Lý do tập thể không thông qua lần trước (QT-10 ngoại lệ 4).
+        entries:
+          type: array
+          items: { $ref: '#/components/schemas/ProspectGroupEntry' }
+        rowVersion:
+          $ref: '../common/common.yaml#/components/schemas/RowVersion'
+          description: Phiên bản của cả danh sách (suy luận); gửi lại trong `If-Match`.
+    ProspectGroupBoardInput:
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          items:
+            type: object
+            required: [personId, groupCode, rankInGroup]
+            properties:
+              personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+              groupCode:
+                $ref: '#/components/schemas/ProspectGroupCode'
+                x-classification: C2
+              rankInGroup: { type: integer, minimum: 1 }
+              reason:
+                type: string
+                minLength: 20
+                maxLength: 1000
+                x-classification: C2
+                description: Bắt buộc khi nhóm khác gợi ý (BR-10-08).
+              trainingPlanRef: { type: string, maxLength: 200 }
+
+  examples:
+    AppraisalProfilePageMine:
+      summary: Hai hồ sơ quý IV/2026 của một cán bộ theo hai luồng
+      value:
+        items:
+          - id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01
+            person: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0201, name: Trần Minh Hoàng }
+            jobTitle: Trưởng phòng Tổng hợp
+            orgUnit: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0101, name: Ban Tổ chức Đảng uỷ khối }
+            period: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0001, label: Quý IV/2026, startDate: '2026-10-01', endDate: '2026-12-31' }
+            periodKind: QUY
+            flow: DANG
+            status: TU_DANH_GIA
+            isHead: false
+            totalScore: 91.2
+            autoRatingCode: HTTNV
+            levels: { selfProposed: null, appraised: null, proposed: null, decided: null }
+            differsExplained: false
+            dueDate: '2027-01-06'
+            anomalyHints: []
+            rowVersion: 3
+          - id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a11
+            person: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0201, name: Trần Minh Hoàng }
+            jobTitle: Trưởng phòng Tổng hợp
+            orgUnit: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0101, name: Ban Tổ chức Đảng uỷ khối }
+            period: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0001, label: Quý IV/2026, startDate: '2026-10-01', endDate: '2026-12-31' }
+            periodKind: QUY
+            flow: NHA_NUOC
+            status: TU_DANH_GIA
+            isHead: false
+            totalScore: 91.8
+            autoRatingCode: HTXSNV
+            levels: { selfProposed: null, appraised: null, proposed: null, decided: null }
+            dueDate: '2027-01-06'
+            rowVersion: 2
+        nextCursor: null
+    AppraisalProfilePageQueue:
+      summary: Hàng đợi chờ quyết định của Ban Tổ chức
+      value:
+        items:
+          - id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01
+            person: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0201, name: Trần Minh Hoàng }
+            jobTitle: Trưởng phòng Tổng hợp
+            orgUnit: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0101, name: Ban Tổ chức Đảng uỷ khối }
+            period: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0001, label: Quý IV/2026, startDate: '2026-10-01', endDate: '2026-12-31' }
+            periodKind: QUY
+            flow: DANG
+            status: CHO_QUYET_DINH
+            isHead: false
+            totalScore: 91.2
+            autoRatingCode: HTTNV
+            levels: { selfProposed: HTXSNV, appraised: HTTNV, proposed: HTTNV, decided: null }
+            differsExplained: true
+            dueDate: '2027-01-14'
+            anomalyHints:
+              - { code: DAU_HIEU_1, label: Tự chấm cao 3 quý }
+            rowVersion: 9
+        nextCursor: eyJrIjoiMDE5MjhmM2UifQ
+    AppraisalProfileSample:
+      summary: Hồ sơ mẫu quý IV/2026 ở bước chờ thẩm định
+      value:
+        id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01
+        person: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0201, name: Trần Minh Hoàng }
+        jobTitle: Trưởng phòng Tổng hợp
+        orgUnit: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0101, name: Ban Tổ chức Đảng uỷ khối }
+        period: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0001, label: Quý IV/2026, startDate: '2026-10-01', endDate: '2026-12-31' }
+        periodKind: QUY
+        flow: DANG
+        availableFlows: [DANG, NHA_NUOC]
+        status: CHO_THAM_DINH
+        isHead: false
+        isLeadership: true
+        policyVersion: KHOI_DANG v2.0
+        currentSnapshotId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0d01
+        finalRatingCode: null
+        selfAssessDue: '2027-01-06'
+        workingDaysLeft: 0
+        returnCount: 0
+        returnLimit: 2
+        noSelfAssessment: false
+        submittedAt: '2027-01-04T09:12:00+07:00'
+        generalCriteria:
+          - stage: TU_DANH_GIA
+            items:
+              - { criteriaCode: TCC-01, label: 'Bản lĩnh chính trị, tư tưởng', met: true }
+              - { criteriaCode: TCC-02, label: Đạo đức và lối sống, met: true }
+            complianceRatio: 1
+            level: THUC_HIEN_TOT
+        selfAssessment:
+          versionNo: 1
+          formCode: MAU_2
+          formVersion: '1.0'
+          selfRatingCode: HTXSNV
+          breakthrough: Đề xuất và triển khai quy trình tổng hợp báo cáo tuần trên nền tảng số.
+          breakthroughEvidenceIds: [01928f3e-7b1a-7c3e-9a51-3f2d9c1b0e11]
+          reason: Đơn vị đánh giá cao giải pháp số hoá báo cáo nên tôi đề nghị mức xuất sắc.
+          content: Hoàn thành đúng hạn các nhiệm vụ then chốt; còn chậm một báo cáo chuyên đề do chủ quan.
+          contentHash: 9f2c4e1a7b3d5f60a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718
+          submittedAt: '2027-01-04T09:12:00+07:00'
+          signedAt: '2027-01-04T09:13:05+07:00'
+        submissionSignature:
+          signedAt: '2027-01-04T09:13:05+07:00'
+          provider: MYSIGN
+          contentHash: 9f2c4e1a7b3d5f60a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718
+          valid: true
+        ratingTrail:
+          - id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0f01
+            levelKind: TU_DE_XUAT
+            ratingCode: HTXSNV
+            actor: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0201, name: Trần Minh Hoàng }
+            actorRole: staff
+            isCurrent: true
+            differsFromPrev: true
+            explanationRequired: true
+            isBulkDecision: false
+            scoreSnapshotId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0d01
+            reason: Đơn vị đánh giá cao giải pháp số hoá báo cáo nên tôi đề nghị mức xuất sắc.
+            proposedAt: '2027-01-04T09:12:00+07:00'
+            signedAt: '2027-01-04T09:13:05+07:00'
+        anomalyHints:
+          - { code: DAU_HIEU_1, label: Tự chấm cao 3 quý }
+        rowVersion: 7
+    AppraisalScoreViewSample:
+      summary: Điểm 91,2 bị hạ từ HTXSNV xuống HTTNV
+      value:
+        profileId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01
+        flow: DANG
+        snapshot:
+          id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0d01
+          profileId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01
+          flow: DANG
+          snapshotKind: CHOT_KY
+          policyVersion: KHOI_DANG v2.0
+          inputHash: 3b7a1c9e5d2f4a6b8c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b
+          snapshotHash: 7e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d
+          totalScore: 91.2
+          regularScore: 27.6
+          keyTaskScore: 63.6
+          exceedRatio: 0.22
+          objectiveRatio: 1
+          generalCriteriaLevel: THUC_HIEN_TOT
+          autoRatingCode: HTTNV
+          ruleChecks:
+            - { ratingCode: HTXSNV, label: '≥ 90 điểm', met: true, actual: '91,2', threshold: '90', legalRef: QĐ Điều 11 }
+            - { ratingCode: HTXSNV, label: '≥ 30% nhiệm vụ vượt mục tiêu', met: false, actual: '22%', threshold: '30%', legalRef: QĐ Điều 11 }
+          downgradeReasons:
+            - fromRating: HTXSNV
+              toRating: HTTNV
+              text: Chưa đạt điều kiện 30% nhiệm vụ vượt mục tiêu (thực tế 22%).
+              legalRef: QĐ Điều 11; PL 6 §12
+          groups:
+            - { code: THEN_CHOT, label: Nhiệm vụ then chốt, kpi: 0.908, maxScore: 70, score: 63.6 }
+            - { code: THUONG_XUYEN, label: Nhiệm vụ thường xuyên, kpi: 0.92, maxScore: 30, score: 27.6 }
+          computedAt: '2027-01-02T01:40:00+07:00'
+        explanation:
+          explanationType: HA_MUC
+          systemLevel: HTTNV
+          conditions:
+            - { ratingCode: HTXSNV, label: '≥ 30% nhiệm vụ vượt mục tiêu', met: false, actual: '22%', threshold: '30%' }
+          text: Đủ điểm mức HTXSNV (91,2 ≥ 90) nhưng chưa đạt điều kiện 30% nhiệm vụ vượt mục tiêu (thực tế 22%, theo QĐ Điều 11), nên chuyển xuống mức liền kề theo PL 6 §12. Policy Pack Đảng v2.0.
+          legalRef: QĐ Điều 11; PL 6 §12
+    AppraisalScoreTraceSample:
+      summary: Vết tính KPI một nhiệm vụ then chốt
+      value:
+        profileId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01
+        scoreResultId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0d81
+        snapshotId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0d01
+        policyVersion: KHOI_DANG v2.0
+        engineVersion: scoring 1.8.2
+        steps:
+          - stepNo: 7
+            ruleCode: kpi_nhiem_vu
+            legalRef: PL 3 mục 1, 2, 3
+            taskId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c03
+            inputs: { a: 1, b: 0.75, c: 0.85 }
+            output: { kpi: 0.867 }
+            explanation: KPI = (A + B + C) / 3 = (1 + 0,75 + 0,85) / 3 = 0,867.
+    AppraisalBatchDecisionSample:
+      summary: Lô 215-QĐ/ĐUK đang ký
+      value:
+        id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0b51
+        period: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0001, label: Quý IV/2026, startDate: '2026-10-01', endDate: '2026-12-31' }
+        flow: DANG
+        decisionNo: 215-QĐ/ĐUK
+        decisionDate: '2027-01-12'
+        decider: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0209, name: Ngô Thanh Tâm }
+        profileCount: 48
+        status: CHO_KY
+        signedCount: 36
+        failedCount: 0
+        failedItems: []
+        rowVersion: 4
+    AnnualRatingPageSample:
+      summary: Xếp loại năm 2026 có cảnh báo liên thông
+      value:
+        items:
+          - id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0b01
+            profileId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a21
+            person: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0203, name: Phạm Đức Long }
+            orgUnit: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0101, name: Ban Tổ chức Đảng uỷ khối }
+            flow: DANG
+            profileStatus: CHO_THAM_DINH
+            quarterRatings: [HTTNV, KHTNV, HTNV, HTTNV]
+            annualScore: 78.4
+            selfProposedLevel: HTTNV
+            systemLevel: HTNV
+            ratingCode: null
+            hasKhtnvQuarter: true
+            consecutiveKhtnv: false
+            blockReason: CO_QUY_KHTNV
+            reassignFlag: false
+            relocationProposed: false
+            linkageNote: Có quý KHTNV ⇒ chặn HTXSNV (QĐ 15.5)
+            rowVersion: 2
+        nextCursor: null
+        counts: { profilesCreated: 48, profilesTotal: 48, blockedExcellent: 3, reassignProposed: 1, awaitingProspectGrouping: 48 }
+        policyNote: Policy Pack Đảng v2.0 (Q1–Q3 dùng v1.4, giữ nguyên theo kỳ đã khoá)
+    AnnualRatingExplanationSample:
+      summary: Giải thích năm của hồ sơ mẫu
+      value:
+        annualRatingId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0b00
+        yearCalcMethod: TRUNG_BINH_QUY
+        formula: (91,8 + 88,6 + 90,2 + 91,2) / 4 = 90,4
+        annualScore: 90.4
+        exceedRatio: 0.24
+        quarters:
+          - period: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0004, label: Quý IV/2026, startDate: '2026-10-01', endDate: '2026-12-31' }
+            ratingCode: HTTNV
+            totalScore: 91.2
+            policyVersion: KHOI_DANG v2.0
+        conditions:
+          - { ratingCode: HTXSNV, label: Không có quý KHTNV, met: true, legalRef: QĐ khoản 15.5 }
+          - { ratingCode: HTXSNV, label: '≥ 30% nhiệm vụ vượt mục tiêu cả năm', met: false, actual: '24%', threshold: '30%', legalRef: QĐ Điều 11 }
+        systemLevel: HTTNV
+        text: Điểm năm 90,4 đủ mức HTXSNV nhưng tỷ lệ nhiệm vụ vượt mục tiêu cả năm 24% chưa đạt 30% (QĐ Điều 11), nên hệ thống đề xuất HTTNV.
+        legalRef: QĐ Điều 11; QĐ khoản 15.5
+        policyVersion: KHOI_DANG v2.0
+    ProspectGroupBoardSample:
+      summary: Bảng phân nhóm năm 2026 ở trạng thái nháp
+      value:
+        periodId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0010
+        orgUnit: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0101, name: Ban Tổ chức Đảng uỷ khối }
+        status: NHAP
+        policyVersion: KHOI_DANG v2.0
+        entries:
+          - person: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0201, name: Trần Minh Hoàng }
+            summary: Trưởng phòng Tổng hợp · 2 năm HTXSNV
+            annualRatingCode: HTTNV
+            reassignFlag: false
+            groupCode: NHOM_2
+            suggestedGroup: NHOM_2
+            rankInGroup: 1
+          - person: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0205, name: Vũ Ngọc Sơn }
+            summary: Phó Trưởng phòng · chủ trì đề án chuyển đổi số
+            annualRatingCode: HTXSNV
+            reassignFlag: false
+            groupCode: NHOM_1
+            suggestedGroup: NHOM_2
+            rankInGroup: 2
+            reason: Đồng chí chủ trì thành công đề án chuyển đổi số của Ban, được tập thể đánh giá có khả năng đảm nhận vị trí cao hơn.
+        rowVersion: 5

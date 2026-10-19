@@ -13,6 +13,16 @@ export const TASK_ROUTES: Routes = [
     title: 'Thư viện danh mục công việc',
   },
   {
+    path: 'documents',
+    loadComponent: () => import('./pages/source-docs.page').then((m) => m.SourceDocsPage),
+    title: 'Văn bản đến',
+  },
+  {
+    path: 'documents/:id',
+    loadComponent: () => import('./pages/from-document.page').then((m) => m.FromDocumentPage),
+    title: 'Tạo nhiệm vụ từ văn bản',
+  },
+  {
     path: 'assign',
     loadComponent: () => import('./pages/assign-task.page').then((m) => m.AssignTaskPage),
     title: 'Giao việc',

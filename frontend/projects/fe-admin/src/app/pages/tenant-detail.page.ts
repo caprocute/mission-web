@@ -1,0 +1,225 @@
+import { Component, computed, inject, input } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
+import {
+  TENANT_ONBOARDING_STATUSES,
+  TENANT_SECTOR_LABEL,
+  TENANT_STATUS_LABEL,
+  TenantApi,
+  TenantStatus,
+} from '@vt/api-client';
+import { MessageModule } from 'primeng/message';
+import { errorText, fmtDate, fmtDateTime, fmtInt } from '../admin-ui';
+import { MSG_01_02 } from './tenants.page';
+
+const FLOW_LABEL = { DANG: 'Đảng', NHA_NUOC: 'Nhà nước' } as const;
+const DOMAIN_KIND_LABEL = {
+  PRIMARY: 'chính',
+  ALIAS: 'bí danh',
+  EMBED: 'nhúng cổng văn phòng số',
+} as const;
+
+/**
+ * Chi tiết tenant, mở từ nút "Chi tiết" của SCR-0101 (`GET /api/v1/config/tenants/{id}`). TL-02 không
+ * vẽ màn hình riêng nên trang chỉ đọc, hiện các cột của `registry.tenant`, tên miền và nhật ký trạng thái.
+ */
+@Component({
+  selector: 'vt-tenant-detail-page',
+  imports: [RouterLink, MessageModule],
+  template: `
+    <nav class="crumb" aria-label="Đường dẫn">
+      <a routerLink="..">Danh sách tenant</a> /
+      <span aria-current="page">{{ t()?.name ?? 'Chi tiết' }}</span>
+    </nav>
+    @if (tenant.error()) {
+      <p-message severity="error" styleClass="msg">
+        <span>{{ err(tenant.error(), 'Không tải được tenant.') }}</span>
+        <button type="button" class="link" (click)="tenant.reload()">Thử lại</button>
+      </p-message>
+    } @else if (t(); as t) {
+      <h1>{{ t.name }}</h1>
+      @if (onboarding()) {
+        <p class="warnbox" role="status">{{ msg(t.name, t.onboardingStep ?? 1) }}</p>
+      }
+      <div class="cols">
+        <section class="box" aria-labelledby="info-title">
+          <h2 id="info-title" class="h">Thông tin tenant</h2>
+          <dl>
+            <dt>Mã</dt>
+            <dd>{{ t.code }}</dd>
+            <dt>Trạng thái</dt>
+            <dd>{{ status(t.status) }}</dd>
+            <dt>Nhóm khách hàng</dt>
+            <dd>{{ sector(t.sector) }}</dd>
+            <dt>Luồng đánh giá</dt>
+            <dd>{{ flows() }}</dd>
+            <dt>Cell, mô hình</dt>
+            <dd>{{ t.cellCode }} · {{ t.tenancyModel }} · vùng dữ liệu {{ t.dataRegion }}</dd>
+            <dt>Tài khoản</dt>
+            <dd>
+              {{ int(t.accountCount) }} / hạn mức {{ int(t.maxAccounts) }}
+              @if (t.expectedAccounts) {
+                · dự kiến {{ int(t.expectedAccounts) }}
+              }
+            </dd>
+            <dt>Policy Pack đang gắn</dt>
+            <dd>{{ t.policyPacks.length ? t.policyPacks.join(' + ') : 'Chưa gắn' }}</dd>
+            <dt>UI Pack</dt>
+            <dd>{{ t.uiPack }}</dd>
+            <dt>Hợp đồng</dt>
+            <dd>
+              {{ t.contractRef ?? '—' }}
+              @if (t.contractValidTo) {
+                · hết hạn {{ date(t.contractValidTo) }}
+              }
+            </dd>
+          </dl>
+        </section>
+        <div>
+          <section class="box" aria-labelledby="dom-title">
+            <h2 id="dom-title" class="h">Tên miền</h2>
+            <ul>
+              @for (d of t.domains; track d.domain) {
+                <li>
+                  {{ d.domain }} <span class="muted">({{ domainKind[d.kind] }})</span>
+                  @if (d.verifiedAt) {
+                    <span class="muted"> · đã xác minh {{ date(d.verifiedAt) }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          </section>
+          <section class="box" aria-labelledby="log-title">
+            <h2 id="log-title" class="h">Nhật ký trạng thái</h2>
+            @if (t.statusLog.length) {
+              <ol class="log">
+                @for (l of t.statusLog; track l.at) {
+                  <li>
+                    <span class="muted">{{ dateTime(l.at) }}</span> ·
+                    @if (l.from) {
+                      {{ status(l.from) }} →
+                    }
+                    {{ status(l.to) }}
+                    @if (l.reason) {
+                      <span class="muted"> · {{ l.reason }}</span>
+                    }
+                  </li>
+                }
+              </ol>
+            } @else {
+              <p class="muted">Chưa có thay đổi trạng thái được ghi.</p>
+            }
+          </section>
+        </div>
+      </div>
+    } @else {
+      <p class="muted" aria-busy="true">Đang tải tenant…</p>
+    }
+  `,
+  styles: `
+    h1 {
+      font-size: 1.4rem;
+      margin: 8px 0 12px;
+    }
+    .crumb {
+      color: #4b5563;
+    }
+    .crumb a {
+      color: var(--vt-color-primary, #b8002a);
+    }
+    .muted {
+      color: #4b5563;
+    }
+    .cols {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 1000px) {
+      .cols {
+        grid-template-columns: 1fr;
+      }
+    }
+    .box {
+      padding: 16px;
+      border: 1px solid var(--p-content-border-color, #e5e7eb);
+      border-radius: 8px;
+      background: var(--p-content-background, #fff);
+      margin-bottom: 12px;
+    }
+    .h {
+      font-size: 1.05rem;
+      margin: 0 0 8px;
+    }
+    dl {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 8px 16px;
+      margin: 0;
+    }
+    dt {
+      color: #4b5563;
+    }
+    dd {
+      margin: 0;
+    }
+    ul,
+    .log {
+      margin: 0;
+      padding-left: 20px;
+      display: grid;
+      gap: 6px;
+    }
+    .link {
+      background: none;
+      border: 0;
+      padding: 0 0 0 8px;
+      color: var(--vt-color-primary, #b8002a);
+      text-decoration: underline;
+      cursor: pointer;
+      font: inherit;
+    }
+    .warnbox {
+      padding: 8px 12px;
+      border: 1px solid #f3d27a;
+      border-radius: 6px;
+      background: #fff8e1;
+      color: #6b4400;
+    }
+    :host ::ng-deep .msg {
+      margin: 8px 0;
+      width: 100%;
+    }
+  `,
+})
+export class TenantDetailPage {
+  private readonly api = inject(TenantApi);
+  /** Tham số tuyến `:id` (withComponentInputBinding). */
+  readonly id = input.required<string>();
+
+  protected readonly tenant = rxResource({
+    params: () => this.id(),
+    stream: ({ params }) => this.api.get(params),
+  });
+  protected readonly t = computed(() => (this.tenant.hasValue() ? this.tenant.value() : undefined));
+  protected readonly onboarding = computed(() => {
+    const t = this.t();
+    return !!t && TENANT_ONBOARDING_STATUSES.includes(t.status);
+  });
+  protected readonly flows = computed(
+    () =>
+      this.t()
+        ?.flows.map((f) => FLOW_LABEL[f])
+        .join(', ') ?? '',
+  );
+
+  protected readonly domainKind = DOMAIN_KIND_LABEL;
+  protected readonly int = fmtInt;
+  protected readonly date = fmtDate;
+  protected readonly dateTime = fmtDateTime;
+  protected readonly err = errorText;
+  protected readonly msg = MSG_01_02;
+  protected status = (s: TenantStatus) => TENANT_STATUS_LABEL[s];
+  protected sector = (s: string) => TENANT_SECTOR_LABEL[s] ?? s;
+}

@@ -1,0 +1,3032 @@
+# Nguồn: baseline mục 9 (schema task), 9.1 (trạng thái nhiệm vụ, kế hoạch), 13 (quy ước API);
+# TL-01 Phụ lục C mục "Giao việc và KPI (MOD-02)"; TL-02a SCR-0401 (part-05), SCR-0402, SCR-0403 (part-05),
+# SCR-0501, SCR-0502, SCR-0503, SCR-0504 (part-06), SCR-0601, SCR-0602 (part-07), SCR-0002 (part-03);
+# TL-02b SCR-1601 (nhắc, giao lại; part-05); TL-03 schema `task`; ma trận docs/phan-quyen/ma-tran.json.
+# Tương thích: giữ đường dẫn và tên trường mà frontend đã dùng (frontend/projects/api-client/src/lib/models)
+# khi không trái TL; các điểm chốt HD-03, HD-04 xem contracts/openapi/README.md.
+openapi: 3.1.0
+info:
+  title: Mission – Giao việc và KPI (MOD-02)
+  version: 1.0.0-draft.1
+  description: >-
+    Hợp đồng của module `task` trong mission-core (SVC-05): danh mục công việc theo Bảng 3, kế hoạch
+    công tác quý có phiên bản theo Bảng 1, nhiệm vụ với chủ trì và phối hợp, tiến độ, điểm nghẽn, đề
+    nghị gia hạn và điều chỉnh, văn bản chỉ đạo đến. Máy trạng thái nhiệm vụ là máy trạng thái khai báo
+    trong mã (ADR-04 tầng 1), không qua BPMN.
+servers:
+  - url: /api/v1
+security:
+  - keycloak: []
+tags:
+  - name: Nhiệm vụ
+    description: Giao việc, việc của tôi, chi tiết, chuyển trạng thái (QT-05, QT-06).
+  - name: Tiến độ và điểm nghẽn
+    description: Cập nhật tiến độ chỉ ghi thêm, báo và xử lý điểm nghẽn (QT-06).
+  - name: Đề nghị điều chỉnh
+    description: Gia hạn, điều chỉnh số lượng hoặc sản phẩm, tạm dừng, huỷ (SCR-0602).
+  - name: Văn bản đến
+    description: Văn bản chỉ đạo nhận qua SVC-13 và tạo nhiệm vụ từ văn bản (SCR-0502).
+  - name: Kế hoạch quý
+    description: Kế hoạch công tác quý có phiên bản, duyệt có ký số (QT-04).
+  - name: Danh mục công việc
+    description: Thư viện danh mục công việc theo vị trí việc làm (SCR-0401).
+
+paths:
+  # ───────────────────────────── Nhiệm vụ ─────────────────────────────
+  /tasks:
+    get:
+      tags: [Nhiệm vụ]
+      operationId: listUnitTasks
+      summary: Việc của đơn vị
+      description: >-
+        Danh sách nhiệm vụ theo đơn vị và kỳ cho người giao việc và lãnh đạo. Danh sách "Việc của tôi"
+        dùng `/tasks/mine` (điểm chốt HD-04). Lọc theo KR dùng tham số `kr` (SCR-0201 "Xem tất cả nhiệm
+        vụ liên kết").
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - name: status
+          in: query
+          description: Danh sách trạng thái phân tách bằng dấu phẩy.
+          schema: { type: string }
+        - name: kr
+          in: query
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: overdue
+          in: query
+          schema: { type: boolean }
+        - name: includeSubunits
+          in: query
+          description: Gồm cả đơn vị cấp dưới (lãnh đạo, giám sát).
+          schema: { type: boolean, default: false }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang nhiệm vụ.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskSummaryPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05, QT-16]
+        scr: [SCR-0201, SCR-1601]
+        owner: MOD-02
+        roles: [manager, leader, inspector, appraiser, ai_readonly]
+        scope: Đv
+        source: 'TL-01 PL C; TL-02a SCR-0201; TL-02b SCR-1601'
+    post:
+      tags: [Nhiệm vụ]
+      operationId: createTaskDraft
+      summary: Lưu nháp nhiệm vụ lần đầu
+      description: Tạo nhiệm vụ ở trạng thái `NHAP` từ bản đang soạn của SCR-0501. Chưa phát sự kiện.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskDraft' }
+      responses:
+        '201':
+          description: Bản nháp đã lưu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDraft' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          description: Kỳ đã khoá (`TASK-409-PERIOD-LOCKED`).
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501]
+        owner: MOD-02
+        roles: [manager, leader]
+        scope: Đv
+        source: 'TL-01 PL C; TL-02a SCR-0501 "Lưu nháp"'
+
+  /tasks/mine:
+    get:
+      tags: [Nhiệm vụ]
+      operationId: listMyTasks
+      summary: Việc của tôi
+      description: >-
+        Nhiệm vụ người dùng chủ trì hoặc phối hợp trong kỳ, kèm số đếm từng bộ lọc nhanh và danh sách
+        KR để lọc (SCR-0503, SCR-0504, khối "Việc hôm nay" của SCR-0002). Điểm chốt HD-04: TL ghi
+        `/tasks?assignee=me`, hợp đồng tách thành đường dẫn riêng vì lược đồ trả khác danh sách đơn vị.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - name: filter
+          in: query
+          description: Bộ lọc nhanh (SCR-0503 trường 1); bỏ trống tương đương `TAT_CA`.
+          schema: { $ref: '#/components/schemas/MyTasksQuickFilter' }
+        - name: view
+          in: query
+          description: '`today` cho khối việc hôm nay ở trang chủ (SCR-0002).'
+          schema: { type: string, enum: [today] }
+        - name: status
+          in: query
+          description: Danh sách trạng thái phân tách bằng dấu phẩy.
+          schema: { type: string }
+        - name: overdue
+          in: query
+          schema: { type: boolean }
+        - name: role
+          in: query
+          schema: { $ref: '#/components/schemas/AssigneeRole' }
+        - name: group
+          in: query
+          schema: { $ref: '#/components/schemas/TaskGroup' }
+        - name: kr
+          in: query
+          description: Lọc theo KR liên kết.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang "Việc của tôi".
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyTasksPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05, QT-00]
+        scr: [SCR-0503, SCR-0504, SCR-0002]
+        owner: MOD-02
+        roles: [member, manager, leader]
+        scope: B
+        source: 'TL-01 PL C "/tasks?assignee=me"; TL-02a SCR-0503; mã frontend `/tasks/mine`'
+
+  /tasks/drafts/new:
+    get:
+      tags: [Nhiệm vụ]
+      operationId: getNewTaskDraft
+      summary: Khung soạn nhiệm vụ mới
+      description: >-
+        Máy chủ điền kỳ đang mở, đơn vị và người giao theo ngữ cảnh phân công, giá trị mặc định
+        (SCR-0501). Không tạo bản ghi. (suy luận: TL-02 không ghi API riêng cho bước mở màn hình.)
+      responses:
+        '200':
+          description: Khung soạn.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDraftTemplate' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501]
+        owner: MOD-02
+        roles: [manager, leader]
+        scope: Đv
+        source: 'Mã frontend WEB-028 (suy luận)'
+
+  /tasks/assign-check:
+    post:
+      tags: [Nhiệm vụ]
+      operationId: checkTaskAssignment
+      summary: Kiểm tra trước khi giao
+      description: >-
+        Kiểm tra tức thì của MOD-02 cho bản đang soạn (QT-05 bước 5): BR-05-01 đến BR-05-04, BR-05-06,
+        BR-05-09, BR-05-11; trả nhiệm vụ gần giống, số ngày làm việc tới hạn và khối lượng của người chủ
+        trì. Không ghi dữ liệu nên không cần `Idempotency-Key`. (suy luận: TL-02 mô tả kiểm tra nhưng
+        không đặt tên API.)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskDraft' }
+      responses:
+        '200':
+          description: Kết quả kiểm tra.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssignCheckResult' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501]
+        owner: MOD-02
+        roles: [manager, leader]
+        scope: Đv
+        rules: [BR-05-01, BR-05-02, BR-05-03, BR-05-04, BR-05-06, BR-05-09, BR-05-11]
+        source: 'TL-02a SCR-0501 "Danh sách kiểm tra"; mã frontend WEB-028'
+
+  /tasks/bulk-assign:
+    post:
+      tags: [Nhiệm vụ]
+      operationId: bulkAssignTasks
+      summary: Giao đồng loạt cho nhiều đơn vị
+      description: Tạo một nhiệm vụ cho mỗi đơn vị nhận và giao ngay; chạy nền, trả 202.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BulkAssignRequest' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501]
+        owner: MOD-02
+        evt: [EVT-04, EVT-21]
+        roles: [manager, leader]
+        scope: ĐvD
+        source: 'TL-02a SCR-0501 "Giao đồng loạt"'
+
+  /tasks/assign-batch:
+    post:
+      tags: [Văn bản đến]
+      operationId: assignTaskBatch
+      summary: Giao các nhiệm vụ đã xác nhận từ văn bản
+      description: >-
+        Giao hàng loạt các nhiệm vụ `NHAP` đã xác nhận ở SCR-0502. Mỗi nhiệm vụ xử lý độc lập; nhiệm vụ
+        lỗi không làm hỏng nhiệm vụ khác.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [taskIds]
+              properties:
+                taskIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: Kết quả từng nhiệm vụ.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: '#/components/schemas/AssignBatchResult' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0502]
+        owner: MOD-02
+        evt: [EVT-04]
+        roles: [manager, leader]
+        scope: Đv
+        source: 'TL-02a SCR-0502 "Xác nhận và giao"'
+
+  /tasks/progress-batch:
+    post:
+      tags: [Tiến độ và điểm nghẽn]
+      operationId: updateTaskProgressBatch
+      summary: Cập nhật tiến độ hàng loạt
+      description: >-
+        Mỗi dòng mang `rowVersion` riêng thay cho `If-Match`; máy chủ xử lý độc lập từng dòng và trả mã
+        HTTP tương đương cho từng dòng (409 khi lệch phiên bản).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items: { $ref: '#/components/schemas/ProgressBatchItem' }
+      responses:
+        '200':
+          description: Kết quả từng dòng.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProgressBatchResult' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-06]
+        scr: [SCR-0503]
+        owner: MOD-02
+        evt: [EVT-05]
+        roles: [member, manager]
+        scope: B
+        source: 'TL-02a SCR-0503 "Cập nhật tiến độ hàng loạt"'
+
+  /tasks/registrations:
+    post:
+      tags: [Nhiệm vụ]
+      operationId: registerTask
+      summary: Cán bộ đăng ký nhiệm vụ từ danh mục
+      description: Tạo nhiệm vụ `NHAP` có nguồn `DANG_KY`, gửi người quản lý trực tiếp xem xét (QT-05 bước 1c).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskRegistration' }
+      responses:
+        '201':
+          description: Nhiệm vụ đăng ký đã tạo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskSummary' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0503]
+        owner: MOD-02
+        evt: [EVT-21]
+        roles: [member]
+        scope: B
+        source: 'TL-02a SCR-0503 "Gửi đăng ký"'
+
+  /tasks/export:
+    post:
+      tags: [Nhiệm vụ]
+      operationId: exportTasks
+      summary: Xuất Excel danh sách đang lọc
+      description: Tạo tác vụ xuất (tối đa 100.000 dòng); trả 202, tệp lấy ở `resultLocation` của job.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskExportRequest' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0503]
+        owner: MOD-02
+        roles: [member, manager, leader]
+        scope: B
+        source: 'TL-02a SCR-0503 "Xuất Excel"'
+
+  /tasks/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Nhiệm vụ]
+      operationId: getTask
+      summary: Chi tiết nhiệm vụ
+      description: Chi tiết nhiệm vụ cho người được giao, người giao và cấp trên (SCR-0601).
+      responses:
+        '200':
+          description: Nhiệm vụ.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDetail' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-06]
+        scr: [SCR-0601]
+        owner: MOD-02
+        roles: [member, manager, leader, appraiser, inspector, ai_readonly]
+        scope: B
+        source: 'TL-01 PL C; TL-02a SCR-0601'
+    put:
+      tags: [Nhiệm vụ]
+      operationId: saveTaskDraft
+      summary: Lưu nháp nhiệm vụ
+      description: Chỉ sửa được khi nhiệm vụ còn `NHAP`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskDraft' }
+      responses:
+        '200':
+          description: Bản nháp đã lưu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDraft' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Lệch phiên bản (`TASK-409-VERSION-CONFLICT`) hoặc nhiệm vụ không còn `NHAP` (`TASK-409-NOT-DRAFT`).
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501]
+        owner: MOD-02
+        roles: [manager, leader]
+        scope: Đv
+        source: 'TL-02a SCR-0501 "Lưu nháp"'
+    delete:
+      tags: [Nhiệm vụ]
+      operationId: deleteTaskDraft
+      summary: Huỷ bản nháp
+      description: Bỏ nhiệm vụ còn `NHAP`. Nhiệm vụ đã giao phải huỷ qua đề nghị (SCR-0602).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: Đã huỷ bản nháp.
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501]
+        owner: MOD-02
+        roles: [manager, leader]
+        scope: Đv
+        source: 'TL-02a SCR-0501 "Huỷ"'
+
+  /tasks/{id}/draft:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Nhiệm vụ]
+      operationId: getTaskDraft
+      summary: Nhiệm vụ ở dạng soạn để giao
+      description: >-
+        Nhiệm vụ `NHAP` (sinh từ kế hoạch, đăng ký hoặc đã lưu nháp) ở dạng soạn của SCR-0501. Thay cho
+        `GET /tasks/{id}?view=assign` mà mã frontend đang dùng, để mỗi đường dẫn có một lược đồ trả.
+      responses:
+        '200':
+          description: Khung soạn của nhiệm vụ.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDraftTemplate' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501]
+        owner: MOD-02
+        roles: [manager, leader]
+        scope: Đv
+        source: 'Mã frontend WEB-028 (suy luận)'
+
+  /tasks/{id}/assign:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Nhiệm vụ]
+      operationId: assignTask
+      summary: Giao việc
+      description: >-
+        Chuyển `NHAP` → `DA_GIAO`, ghi nhật ký trạng thái. Chỉ thực hiện khi danh sách kiểm tra không có
+        lỗi chặn; có nhiệm vụ gần giống thì phải ghi lý do vẫn tạo mới (BR-05-06).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssignRequest' }
+      responses:
+        '200':
+          description: Đã giao.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssignResult' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          description: Lệch phiên bản, kỳ đã khoá, hoặc nhiệm vụ không còn `NHAP`.
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        '422':
+          description: Vi phạm quy tắc chặn của QT-05 bước 5 (mỗi lỗi trong `errors[]` có `rule`).
+          $ref: '../common/common.yaml#/components/responses/UnprocessableEntity'
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501]
+        owner: MOD-02
+        evt: [EVT-04, EVT-21]
+        roles: [manager, leader]
+        scope: Đv
+        rules: [BR-05-01, BR-05-02, BR-05-03, BR-05-04, BR-05-06, BR-05-09]
+        source: 'TL-02a SCR-0501 "Giao việc"'
+
+  /tasks/{id}/similar:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Nhiệm vụ]
+      operationId: listSimilarTasks
+      summary: Nhiệm vụ gần giống
+      description: Nhiệm vụ gần giống cùng đơn vị và kỳ (BR-05-06), sắp theo độ tương đồng giảm dần.
+      responses:
+        '200':
+          description: Danh sách nhiệm vụ gần giống.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/SimilarTask' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501, SCR-0502]
+        owner: MOD-02
+        roles: [manager, leader]
+        scope: Đv
+        rules: [BR-05-06]
+        source: 'TL-02a SCR-0501 "Xem nhiệm vụ gần giống"'
+
+  /tasks/{id}/assignees:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Nhiệm vụ]
+      operationId: listTaskAssignees
+      summary: Người chủ trì và phối hợp của nhiệm vụ
+      responses:
+        '200':
+          description: Danh sách người, đơn vị được giao (`task.task_assignee`).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/TaskAssignee' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0601]
+        owner: MOD-02
+        roles: [member, manager, leader, inspector]
+        scope: B
+        source: 'TL-02b ma trận truy vết QT-05'
+
+  /tasks/{id}/accept:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Nhiệm vụ]
+      operationId: acceptTask
+      summary: Nhận việc
+      description: Người chủ trì nhận nhiệm vụ, `DA_GIAO` → `DANG_THUC_HIEN` (QT-05 bước 8).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Nhiệm vụ sau khi nhận.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDetail' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0503, SCR-0504]
+        owner: MOD-02
+        evt: [EVT-06]
+        roles: [member, manager]
+        scope: B
+        source: 'TL-02a SCR-0503 "Nhận việc"'
+
+  /tasks/{id}/transitions:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Nhiệm vụ]
+      operationId: transitionTask
+      summary: Chuyển trạng thái nhiệm vụ theo máy trạng thái
+      description: >-
+        Chuyển trạng thái chung cho những bước không có thao tác riêng (ví dụ tiếp tục sau `TAM_DUNG`).
+        Giao, nhận việc, tạm dừng và huỷ có duyệt đi qua thao tác riêng (`assign`, `accept`,
+        `change-requests`). Máy chủ kiểm bảng chuyển của baseline mục 9.1; chuyển không hợp lệ trả 409
+        mã `TASK-409-INVALID-TRANSITION`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskTransitionRequest' }
+      responses:
+        '200':
+          description: Nhiệm vụ sau khi chuyển.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDetail' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-06]
+        scr: [SCR-0601]
+        owner: MOD-02
+        evt: [EVT-06]
+        roles: [manager, leader]
+        scope: Đv
+        source: 'TL-01 PL C "/tasks/{id}/transitions"'
+
+  /tasks/{id}/reminders:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Nhiệm vụ]
+      operationId: remindTask
+      summary: Nhắc người chủ trì
+      description: Gửi nhắc tới người chủ trì việc chậm trong phạm vi (SCR-1601).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 500 }
+      responses:
+        '202':
+          description: Đã xếp hàng gửi nhắc (EVT-21).
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1601]
+        owner: MOD-02
+        evt: [EVT-21]
+        roles: [leader, manager]
+        scope: ĐvD
+        source: 'TL-02b SCR-1601 "Nhắc"'
+
+  /tasks/{id}/reassign:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Nhiệm vụ]
+      operationId: reassignTask
+      summary: Giao lại nhiệm vụ
+      description: Đổi người chủ trì, bắt buộc ghi lý do; phát EVT-04 cho người nhận mới.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leadPersonId, reason]
+              properties:
+                leadPersonId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        '200':
+          description: Nhiệm vụ sau khi giao lại.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDetail' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1601]
+        owner: MOD-02
+        evt: [EVT-04]
+        roles: [leader, manager]
+        scope: ĐvD
+        source: 'TL-02b SCR-1601 "Giao lại"'
+
+  # ─────────────────────── Tiến độ và điểm nghẽn ───────────────────────
+  /tasks/{id}/progress:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Tiến độ và điểm nghẽn]
+      operationId: updateTaskProgress
+      summary: Cập nhật tiến độ
+      description: >-
+        Thêm một dòng `task.task_progress` (chỉ ghi thêm). Người phối hợp chỉ ghi nhật ký, không đổi phần
+        trăm (BR-06-03). Lần cập nhật đầu chuyển `DA_GIAO` → `DANG_THUC_HIEN`. Điểm chốt HD-03: TL-01 ghi
+        `PATCH`, hợp đồng dùng `POST` như TL-02. Ứng dụng di động gửi lại bản nháp ngoại tuyến với cùng
+        `Idempotency-Key`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProgressUpdate' }
+            examples:
+              cap-nhat:
+                value: { percent: 60, note: 'Đã hoàn thành dự thảo báo cáo, chờ lãnh đạo ban cho ý kiến.' }
+      responses:
+        '200':
+          description: Nhiệm vụ sau khi cập nhật.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDetail' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Lệch phiên bản (`TASK-409-VERSION-CONFLICT`, MSG-09-07) hoặc kỳ đã khoá (`TASK-409-PERIOD-LOCKED`).
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-06]
+        scr: [SCR-0503, SCR-0504, SCR-0601, SCR-0002]
+        owner: MOD-02
+        evt: [EVT-05]
+        roles: [member, manager]
+        scope: B
+        rules: [BR-06-03]
+        source: 'TL-02a SCR-0503, SCR-0504, SCR-0601; TL-01 PL C (PATCH)'
+
+  /tasks/{id}/blockers:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Tiến độ và điểm nghẽn]
+      operationId: reportTaskBlocker
+      summary: Báo điểm nghẽn
+      description: Ghi điểm nghẽn mới (`task.task_blocker`, trạng thái `MO`), báo người giao (EVT-21).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BlockerReport' }
+      responses:
+        '201':
+          description: Nhiệm vụ sau khi thêm điểm nghẽn.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDetail' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-06]
+        scr: [SCR-0504, SCR-0601]
+        owner: MOD-02
+        evt: [EVT-21]
+        roles: [member, manager]
+        scope: B
+        source: 'TL-01 PL C; TL-02a SCR-0601 "Báo điểm nghẽn"'
+
+  /tasks/{id}/blockers/{blockerId}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - name: blockerId
+        in: path
+        required: true
+        schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    patch:
+      tags: [Tiến độ và điểm nghẽn]
+      operationId: handleTaskBlocker
+      summary: Xử lý điểm nghẽn
+      description: Người giao chỉ định người xử lý, đặt hạn, chuyển trạng thái hoặc đóng điểm nghẽn.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: '#/components/schemas/BlockerPatch' }
+      responses:
+        '200':
+          description: Điểm nghẽn sau khi xử lý.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskBlocker' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-06]
+        scr: [SCR-0601]
+        owner: MOD-02
+        evt: [EVT-21]
+        roles: [manager, leader]
+        scope: Đv
+        source: 'TL-02a SCR-0601 "Xử lý điểm nghẽn"'
+
+  # ─────────────────────── Đề nghị điều chỉnh ───────────────────────
+  /tasks/{id}/change-requests:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Đề nghị điều chỉnh]
+      operationId: submitTaskChangeRequest
+      summary: Gửi đề nghị gia hạn, điều chỉnh, tạm dừng, huỷ
+      description: >-
+        Tạo đề nghị `CHO_DUYET` và báo người duyệt; vượt ngưỡng BR-06-06 thì tạo tiến trình
+        `duyet-de-nghi` chuyển cấp trên. Một đề nghị cùng loại đang chờ thì trả 409. Thay cho
+        `/tasks/{id}/extensions` của TL-01 Phụ lục C.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangeRequestDraft' }
+      responses:
+        '201':
+          description: Nhiệm vụ kèm đề nghị mới.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDetail' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-06]
+        scr: [SCR-0602]
+        owner: MOD-02
+        evt: [EVT-21]
+        roles: [member, manager]
+        scope: B
+        rules: [BR-06-06, BR-06-07, BR-06-09]
+        source: 'TL-02a SCR-0602 "Gửi đề nghị"; TL-01 PL C "/tasks/{id}/extensions"'
+
+  /tasks/{id}/change-requests/preview:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Đề nghị điều chỉnh]
+      operationId: previewTaskChangeRequest
+      summary: Xem trước hệ quả của đề nghị
+      description: >-
+        Tính hệ số tiến độ C cho hai trường hợp khách quan và chủ quan (MSG-06-06), kiểm vượt ngưỡng,
+        gửi muộn, huỷ bị chặn. Không ghi dữ liệu.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangeRequestDraft' }
+      responses:
+        '200':
+          description: Hệ quả dự kiến.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChangeRequestPreview' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-06]
+        scr: [SCR-0602]
+        owner: MOD-02
+        roles: [member, manager]
+        scope: B
+        source: 'TL-02a SCR-0602 "Xem trước hệ quả"'
+
+  /tasks/{id}/change-requests/{requestId}/withdraw:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - name: requestId
+        in: path
+        required: true
+        schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    post:
+      tags: [Đề nghị điều chỉnh]
+      operationId: withdrawTaskChangeRequest
+      summary: Rút lại đề nghị
+      description: Đề nghị `CHO_DUYET` của chính người gửi chuyển `DA_RUT`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Nhiệm vụ sau khi rút đề nghị.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDetail' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-06]
+        scr: [SCR-0602]
+        owner: MOD-02
+        roles: [member, manager]
+        scope: B
+        source: 'TL-02a SCR-0602 "Rút lại"'
+
+  /tasks/{id}/change-requests/{requestId}/decision:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - name: requestId
+        in: path
+        required: true
+        schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    post:
+      tags: [Đề nghị điều chỉnh]
+      operationId: decideTaskChangeRequest
+      summary: Duyệt đề nghị
+      description: >-
+        Người duyệt chọn nguyên nhân (khách quan hoặc chủ quan) và chấp nhận hoặc từ chối. Chấp nhận
+        đổi hạn, số lượng, sản phẩm, hoặc chuyển `TAM_DUNG`, `HUY` theo loại đề nghị.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangeRequestDecision' }
+      responses:
+        '200':
+          description: Nhiệm vụ sau khi duyệt đề nghị.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDetail' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-06]
+        scr: [SCR-0601]
+        owner: MOD-02
+        evt: [EVT-06]
+        roles: [manager, leader]
+        scope: Gn
+        source: 'TL-02a SCR-0601 "Duyệt đề nghị"'
+
+  # ───────────────────────────── Văn bản đến ─────────────────────────────
+  /tasks/source-docs:
+    get:
+      tags: [Văn bản đến]
+      operationId: listSourceDocs
+      summary: Văn bản đến của đơn vị
+      description: Văn bản chỉ đạo nhận qua SVC-13 (EVT-24) chờ hoặc đã xử lý ở đơn vị người dùng.
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/SourceDocStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang văn bản đến.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/SourceDocSummary' }
+                  nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0502]
+        owner: MOD-02
+        evt: []
+        roles: [manager, leader]
+        scope: Đv
+        source: 'Mã frontend WEB-029; TL-02a SCR-0502 (suy luận về API danh sách)'
+
+  /tasks/source-docs/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Văn bản đến]
+      operationId: getSourceDoc
+      summary: Toàn văn văn bản đến
+      responses:
+        '200':
+          description: Văn bản.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SourceDoc' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0502]
+        owner: MOD-02
+        roles: [manager, leader]
+        scope: Đv
+        source: 'Mã frontend WEB-029 (suy luận)'
+
+  /tasks/source-docs/{id}/dismiss:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Văn bản đến]
+      operationId: dismissSourceDoc
+      summary: Bỏ qua văn bản
+      description: Đánh dấu văn bản đã xem, không tạo nhiệm vụ, bắt buộc ghi lý do.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        '200':
+          description: Văn bản sau khi bỏ qua.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SourceDoc' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0502]
+        owner: MOD-02
+        roles: [manager, leader]
+        scope: Đv
+        source: 'TL-02a SCR-0502 "Bỏ qua văn bản"'
+
+  /tasks/from-document:
+    post:
+      tags: [Văn bản đến]
+      operationId: createTaskFromDocument
+      summary: Xác nhận nhiệm vụ AI trích từ văn bản
+      description: >-
+        Tạo nhiệm vụ `NHAP` từ gợi ý đã xác nhận, ghi danh sách ô người giao đã sửa. Trùng đoạn giao
+        việc đã tạo nhiệm vụ (BR-05-07) trả 409 mã `TASK-409-DUPLICATE-PARAGRAPH` (MSG-05-09).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FromDocumentRequest' }
+      responses:
+        '201':
+          description: Gợi ý đã chuyển `DA_XAC_NHAN` kèm nhiệm vụ đã tạo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskSuggestion' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0502]
+        owner: MOD-02
+        roles: [manager, leader]
+        scope: Đv
+        rules: [BR-05-06, BR-05-07]
+        source: 'TL-02a SCR-0502 "Xác nhận nhiệm vụ"'
+
+  /tasks/{id}/source-docs:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Văn bản đến]
+      operationId: mergeSourceDocIntoTask
+      summary: Gộp văn bản vào nhiệm vụ cũ
+      description: Văn bản trở thành căn cứ bổ sung của nhiệm vụ cũ; báo người chủ trì (EVT-21).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sourceDocId, suggestionId, paragraphNo]
+              properties:
+                sourceDocId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+                suggestionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+                paragraphNo: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Gợi ý đã chuyển `DA_GOP`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskSuggestion' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0502]
+        owner: MOD-02
+        evt: [EVT-21]
+        roles: [manager, leader]
+        scope: Đv
+        source: 'TL-02a SCR-0502 "Gộp vào nhiệm vụ cũ"'
+
+  # ───────────────────────────── Kế hoạch quý ─────────────────────────────
+  /plans:
+    get:
+      tags: [Kế hoạch quý]
+      operationId: listPlans
+      summary: Kế hoạch theo kỳ và đơn vị
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/PlanVersionStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang kế hoạch.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Plan' }
+                  nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0402, SCR-0403]
+        owner: MOD-02
+        roles: [manager, leader, appraiser, member, ai_readonly]
+        scope: Đv
+        source: 'TL-02a SCR-0402'
+    post:
+      tags: [Kế hoạch quý]
+      operationId: createPlan
+      summary: Tạo kế hoạch quý
+      description: Tạo kế hoạch cho đơn vị và kỳ kèm phiên bản 1 trạng thái `NHAP`. Mỗi đơn vị một kế hoạch mỗi kỳ.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [periodId]
+              properties:
+                periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+                unitId:
+                  $ref: '../common/common.yaml#/components/schemas/Uuid'
+                  description: Bỏ trống thì lấy đơn vị của ngữ cảnh phân công.
+      responses:
+        '201':
+          description: Kế hoạch đã tạo.
+          headers:
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Plan' }
+        '409':
+          description: Đơn vị đã có kế hoạch cho kỳ (`TASK-409-PLAN-EXISTS`) hoặc kỳ không còn `MO`.
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0402]
+        owner: MOD-02
+        roles: [manager]
+        scope: Đv
+        source: 'TL-01 PL C "POST /plans"'
+
+  /plans/items:
+    get:
+      tags: [Kế hoạch quý]
+      operationId: listApprovedPlanItems
+      summary: Dòng kế hoạch đã duyệt dùng để giao việc
+      description: >-
+        Dòng của phiên bản kế hoạch `DA_DUYET` hiệu lực trong kỳ, chưa sinh nhiệm vụ đã giao (BR-05-04),
+        dùng làm nguồn ở SCR-0501.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - name: status
+          in: query
+          description: Trạng thái phiên bản; mặc định `DA_DUYET`.
+          schema: { $ref: '#/components/schemas/PlanVersionStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang dòng kế hoạch.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/PlanItemRef' }
+                  nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501]
+        owner: MOD-02
+        roles: [manager, leader]
+        scope: Đv
+        rules: [BR-05-04]
+        source: 'Mã frontend WEB-028 (suy luận)'
+
+  /plans/approvals:
+    get:
+      tags: [Kế hoạch quý]
+      operationId: listPlanApprovals
+      summary: Kế hoạch chờ tôi duyệt
+      description: Phiên bản kế hoạch `CHO_DUYET` mà người dùng là người duyệt theo `flowable.wf_binding`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang phiên bản chờ duyệt.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/PlanVersionSummary' }
+                  nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0403]
+        owner: MOD-02
+        roles: [leader]
+        scope: Gn
+        source: 'TL-02a SCR-0403 "Đường vào: Chờ tôi duyệt"'
+
+  /plans/{id}/versions:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Kế hoạch quý]
+      operationId: listPlanVersions
+      summary: Các phiên bản của kế hoạch
+      responses:
+        '200':
+          description: Phiên bản, mới nhất trước.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/PlanVersionSummary' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0402, SCR-0403]
+        owner: MOD-02
+        roles: [manager, leader, appraiser]
+        scope: Đv
+        source: 'TL-02a SCR-0402, SCR-0403'
+    post:
+      tags: [Kế hoạch quý]
+      operationId: createPlanAdjustment
+      summary: Tạo điều chỉnh kế hoạch
+      description: >-
+        Tạo phiên bản n+1 `NHAP` sao chép từ phiên bản `DA_DUYET` hiệu lực; vượt số lần điều chỉnh
+        trong quý trả 422 (BR-04-10, MSG-04-07).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: Phiên bản mới.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanVersion' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0402]
+        owner: MOD-02
+        roles: [manager]
+        scope: Đv
+        rules: [BR-04-10]
+        source: 'TL-02a SCR-0402 "Tạo điều chỉnh"'
+
+  /plans/{id}/versions/{v}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/VersionNo'
+    get:
+      tags: [Kế hoạch quý]
+      operationId: getPlanVersion
+      summary: Một phiên bản kế hoạch kèm các dòng
+      responses:
+        '200':
+          description: Phiên bản kế hoạch.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanVersion' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0402, SCR-0403]
+        owner: MOD-02
+        roles: [manager, leader, appraiser, member, ai_readonly]
+        scope: Đv
+        source: 'TL-02a SCR-0402'
+    put:
+      tags: [Kế hoạch quý]
+      operationId: savePlanVersion
+      summary: Lưu nháp phiên bản kế hoạch
+      description: >-
+        Ghi toàn bộ dòng của phiên bản `NHAP` hoặc `TRA_LAI`. Kiểm tra tức thì trả về trong `checks`
+        của phản hồi; lỗi chặn chỉ ngăn gửi duyệt, không ngăn lưu nháp.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanVersionInput' }
+      responses:
+        '200':
+          description: Phiên bản sau khi lưu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanVersion' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0402]
+        owner: MOD-02
+        roles: [manager]
+        scope: Đv
+        rules: [BR-04-02, BR-04-03, BR-04-04, BR-04-05, BR-04-06]
+        source: 'TL-02a SCR-0402 "Lưu nháp"'
+
+  /plans/{id}/versions/{v}/copy-from:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/VersionNo'
+    post:
+      tags: [Kế hoạch quý]
+      operationId: copyPlanFromPreviousPeriod
+      summary: Sao chép từ quý trước
+      description: >-
+        Sao chép dòng thường xuyên và dòng chưa hoàn thành của kế hoạch quý trước vào phiên bản 1 còn
+        trống, hạn dịch theo kỳ.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sourcePeriodId:
+                  $ref: '../common/common.yaml#/components/schemas/Uuid'
+                  description: Bỏ trống thì lấy kỳ liền trước.
+      responses:
+        '200':
+          description: Phiên bản sau khi sao chép.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanVersion' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0402]
+        owner: MOD-02
+        roles: [manager]
+        scope: Đv
+        source: 'TL-02a SCR-0402 "Sao chép từ quý trước"'
+
+  /plans/{id}/suggestions:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Kế hoạch quý]
+      operationId: suggestPlanItemsFromOkr
+      summary: Gợi ý dòng kế hoạch từ OKR
+      description: Đề xuất một dòng cho mỗi KR đã duyệt cùng kỳ chưa có nhiệm vụ.
+      responses:
+        '200':
+          description: Dòng gợi ý.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/PlanItemInput' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0402]
+        owner: MOD-02
+        roles: [manager]
+        scope: Đv
+        source: 'TL-02a SCR-0402 "Gợi ý từ OKR"'
+
+  /plans/{id}/versions/{v}/submit:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/VersionNo'
+    post:
+      tags: [Kế hoạch quý]
+      operationId: submitPlanVersion
+      summary: Gửi duyệt kế hoạch
+      description: >-
+        Kiểm tra lại, khoá nội dung, tính mã băm SHA-256, chuyển `CHO_DUYET` và tạo tiến trình duyệt
+        trên SVC-06. Thay cho `POST /plans/{id}/submit` của TL-01 Phụ lục C.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Phiên bản đã gửi duyệt.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanVersion' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422':
+          description: Còn lỗi chặn (MSG-04-04, MSG-04-05, MSG-04-06).
+          $ref: '../common/common.yaml#/components/responses/UnprocessableEntity'
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0402]
+        owner: MOD-02
+        roles: [manager]
+        scope: Đv
+        rules: [BR-04-02, BR-04-03, BR-04-06]
+        source: 'TL-02a SCR-0402 "Gửi duyệt"; TL-01 PL C'
+
+  /plans/{id}/versions/{v}/diff:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/VersionNo'
+    get:
+      tags: [Kế hoạch quý]
+      operationId: diffPlanVersions
+      summary: So sánh hai phiên bản kế hoạch
+      parameters:
+        - name: base
+          in: query
+          required: true
+          description: Số phiên bản gốc để so sánh.
+          schema: { type: integer, minimum: 1 }
+        - name: mode
+          in: query
+          schema: { type: string, enum: [changes, all], default: changes }
+      responses:
+        '200':
+          description: Khác biệt giữa hai phiên bản.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanDiff' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0403]
+        owner: MOD-02
+        roles: [leader, manager, appraiser]
+        scope: Đv
+        source: 'TL-02a SCR-0403'
+
+  /plans/{id}/versions/{v}/return:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/VersionNo'
+    post:
+      tags: [Kế hoạch quý]
+      operationId: returnPlanVersion
+      summary: Trả lại kế hoạch
+      description: Chuyển `TRA_LAI`, bắt buộc ý kiến người duyệt.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comment]
+              properties:
+                comment: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        '200':
+          description: Phiên bản đã trả lại.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanVersion' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0403]
+        owner: MOD-02
+        evt: [EVT-21]
+        roles: [leader]
+        scope: Gn
+        source: 'TL-02a SCR-0403 "Trả lại"'
+
+  /plans/{id}/versions/{v}/approve:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/VersionNo'
+    post:
+      tags: [Kế hoạch quý]
+      operationId: approvePlanVersion
+      summary: Duyệt và ký số kế hoạch
+      description: >-
+        Người duyệt khác người lập, phiên AAL2 trong 15 phút. Máy chủ tạo yêu cầu ký trên SVC-10 và trả
+        202; khi ký xong (EVT-18) phiên bản chuyển `DA_DUYET` và phát EVT-03. Trạng thái ký theo dõi qua
+        job hoặc `/esign/requests/{id}`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [signMethod]
+              properties:
+                signMethod: { type: string, enum: [MYSIGN, USB_TOKEN, CHUNG_THU_TO_CHUC] }
+                comment: { type: string, maxLength: 2000 }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: Người duyệt trùng người lập (`TASK-403-SAME-AUTHOR`) hoặc không phải người duyệt được chỉ định.
+          $ref: '../common/common.yaml#/components/responses/Forbidden'
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0403]
+        owner: MOD-02
+        evt: [EVT-03, EVT-18]
+        roles: [leader]
+        scope: Gn
+        aal: 2
+        fourEyes: true
+        source: 'TL-02a SCR-0403 "Duyệt và ký số"; TL-01 PL C "/plans/{id}/approve"'
+
+  # ──────────────────────── Danh mục công việc ────────────────────────
+  /catalog:
+    get:
+      tags: [Danh mục công việc]
+      operationId: listWorkCatalogs
+      summary: Các phiên bản danh mục người dùng được xem
+      description: Phiên bản đang áp dụng đứng trước.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang phiên bản danh mục.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/WorkCatalog' }
+                  nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0401]
+        owner: MOD-02
+        roles: [member, manager, leader, policy_author, appraiser]
+        scope: Đv
+        source: 'TL-02a SCR-0401'
+
+  /catalog/items:
+    get:
+      tags: [Danh mục công việc]
+      operationId: listApplicableCatalogItems
+      summary: Mục danh mục đang áp dụng
+      description: >-
+        Mục `AP_DUNG` của phiên bản hiệu lực, dùng cho đăng ký nhiệm vụ (SCR-0503) và giao việc
+        (SCR-0501). `applicable=me` chỉ lấy mục theo vị trí việc làm của người dùng.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - name: applicable
+          in: query
+          schema: { type: string, enum: [me] }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang mục danh mục.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/CatalogItem' }
+                  nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04, QT-05]
+        scr: [SCR-0501, SCR-0503]
+        owner: MOD-02
+        roles: [member, manager, leader]
+        scope: Đv
+        source: 'TL-01 PL C "GET /catalog/items"'
+
+  /catalog/{catalogId}/items:
+    parameters:
+      - $ref: '#/components/parameters/CatalogId'
+    get:
+      tags: [Danh mục công việc]
+      operationId: listCatalogVersionItems
+      summary: Mục của một phiên bản danh mục
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - name: position
+          in: query
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: difficulty
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 5 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/CatalogItemStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang mục kèm tổng số.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CatalogItemsPage' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0401]
+        owner: MOD-02
+        roles: [member, manager, leader, policy_author, appraiser]
+        scope: Đv
+        source: 'TL-02a SCR-0401'
+    post:
+      tags: [Danh mục công việc]
+      operationId: addCatalogItem
+      summary: Thêm công việc vào danh mục
+      description: >-
+        Thêm mục vào phiên bản nháp; khi `catalogId` là phiên bản đang áp dụng, máy chủ ghi vào phiên bản
+        nháp mới và trả `movedToNewVersion = true`. `code` trống thì máy chủ tự sinh. Thay cho
+        `POST /catalog/items` của TL-01 Phụ lục C.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CatalogItemInput' }
+      responses:
+        '201':
+          description: Mục đã thêm.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CatalogItemSaveResult' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0401]
+        owner: MOD-02
+        roles: [manager, policy_author]
+        scope: Đv
+        rules: [BR-04-14]
+        source: 'TL-02a SCR-0401 "Thêm công việc"; TL-01 PL C'
+
+  /catalog/{catalogId}/items/{itemId}:
+    parameters:
+      - $ref: '#/components/parameters/CatalogId'
+      - name: itemId
+        in: path
+        required: true
+        schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    put:
+      tags: [Danh mục công việc]
+      operationId: updateCatalogItem
+      summary: Sửa mục danh mục
+      description: >-
+        Mục đã dùng ở kỳ đã khoá được lưu ở phiên bản mới, kỳ cũ giữ nguyên (BR-04-13, MSG-04-01).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CatalogItemInput' }
+      responses:
+        '200':
+          description: Kết quả lưu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CatalogItemSaveResult' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0401]
+        owner: MOD-02
+        roles: [manager, policy_author]
+        scope: Đv
+        rules: [BR-04-13, BR-04-14]
+        source: 'TL-02a SCR-0401 "Sửa"'
+
+  /catalog/{catalogId}/positions:
+    parameters:
+      - $ref: '#/components/parameters/CatalogId'
+    get:
+      tags: [Danh mục công việc]
+      operationId: listCatalogPositions
+      summary: Vị trí việc làm có trong danh mục
+      responses:
+        '200':
+          description: Vị trí việc làm (`org.position`).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Position' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0401]
+        owner: MOD-02
+        roles: [member, manager, leader, policy_author]
+        scope: Đv
+        source: 'Mã frontend WEB-025 (suy luận)'
+
+  /catalog/{catalogId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/CatalogId'
+    post:
+      tags: [Danh mục công việc]
+      operationId: cloneCatalogVersion
+      summary: Nhân bản phiên bản danh mục
+      description: Tạo phiên bản n+1 ở trạng thái `NHAP` từ phiên bản đang xem.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: Phiên bản mới.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkCatalog' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0401]
+        owner: MOD-02
+        roles: [manager, policy_author]
+        scope: Đv
+        source: 'TL-02a SCR-0401 "Nhân bản phiên bản"'
+
+  /catalog/{catalogId}/imports:
+    parameters:
+      - $ref: '#/components/parameters/CatalogId'
+    post:
+      tags: [Danh mục công việc]
+      operationId: importCatalogExcel
+      summary: Nhập danh mục từ Excel
+      description: >-
+        Tải tệp Excel; máy chủ kiểm tra ở tác vụ nền và trả 202 với `Location` trỏ tới
+        `/catalog/imports/{jobId}`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  contentMediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      responses:
+        '202':
+          description: Đã nhận tệp.
+          headers:
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CatalogImportJob' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0401]
+        owner: MOD-02
+        roles: [manager, policy_author]
+        scope: Đv
+        source: 'TL-02a SCR-0401 "Nhập từ Excel"'
+
+  /catalog/{catalogId}/imports/latest:
+    parameters:
+      - $ref: '#/components/parameters/CatalogId'
+    get:
+      tags: [Danh mục công việc]
+      operationId: getLatestCatalogImport
+      summary: Lần nhập Excel gần nhất của danh mục
+      responses:
+        '200':
+          description: Lần nhập gần nhất, `null` khi chưa nhập lần nào.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CatalogImportJob'
+                  - type: 'null'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0401]
+        owner: MOD-02
+        roles: [manager, policy_author]
+        scope: Đv
+        source: 'Mã frontend WEB-025 (suy luận)'
+
+  /catalog/imports/{jobId}:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      tags: [Danh mục công việc]
+      operationId: getCatalogImport
+      summary: Trạng thái một lần nhập Excel
+      responses:
+        '200':
+          description: Lần nhập.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CatalogImportJob' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0401]
+        owner: MOD-02
+        roles: [manager, policy_author]
+        scope: Đv
+        source: 'Mã frontend WEB-025'
+
+  /catalog/imports/{jobId}/errors:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      tags: [Danh mục công việc]
+      operationId: downloadCatalogImportErrors
+      summary: Tải tệp các dòng lỗi
+      responses:
+        '200':
+          description: Tệp Excel các dòng lỗi kèm lý do (MSG-04-02).
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, contentMediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0401]
+        owner: MOD-02
+        roles: [manager, policy_author]
+        scope: Đv
+        source: 'TL-02a SCR-0401 "Tải tệp lỗi"'
+
+components:
+  securitySchemes:
+    keycloak:
+      $ref: '../common/common.yaml#/components/securitySchemes/keycloak'
+  parameters:
+    VersionNo:
+      name: v
+      in: path
+      required: true
+      description: Số phiên bản kế hoạch (`task.plan_version.version_no`).
+      schema: { type: integer, minimum: 1 }
+    CatalogId:
+      name: catalogId
+      in: path
+      required: true
+      description: Mã phiên bản danh mục (`task.work_catalog.id`).
+      schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema: { type: string }
+
+  schemas:
+    # ── Liệt kê ──
+    TaskStatus:
+      description: Trạng thái `task.task.status` (baseline mục 9.1).
+      type: string
+      enum: [NHAP, DA_GIAO, DANG_THUC_HIEN, CHO_NGHIEM_THU, HOAN_THANH, TAM_DUNG, HUY]
+    AssigneeRole:
+      description: Vai trò trên nhiệm vụ (`task.task_assignee.role`).
+      type: string
+      enum: [CHU_TRI, PHOI_HOP]
+    TaskGroup:
+      description: Nhóm tính điểm (`task.task.task_group`); một nhiệm vụ chỉ tính ở một nhóm.
+      type: string
+      enum: [THUONG_XUYEN, THEN_CHOT]
+    TaskSource:
+      description: >-
+        Nguồn nhiệm vụ (`task.task.source`, ràng buộc `ck_task__source` của TL-03). TL-02 gọi nguồn
+        ngoài kế hoạch là "phát sinh"; giá trị giữ `DOT_XUAT` theo TL-03.
+      type: string
+      enum: [KE_HOACH, VAN_BAN, DANG_KY, DOT_XUAT]
+    TaskPriority:
+      type: string
+      enum: [CAO, TRUNG_BINH, THAP]
+    MyTasksQuickFilter:
+      description: Bộ lọc nhanh của SCR-0503 trường 1.
+      type: string
+      enum: [TAT_CA, CHAM, SAP_HAN, CHO_NGHIEM_THU, HOAN_THANH]
+    ProgressChannel:
+      type: string
+      enum: [WEB, MOBILE, TICH_HOP]
+    BlockerStatus:
+      type: string
+      enum: [MO, DANG_XU_LY, DA_GIAI_QUYET, DONG]
+    BlockerCauseCategory:
+      type: string
+      enum: [NGUON_LUC, PHOI_HOP, THU_TUC, KHACH_QUAN, KHAC]
+    ImpactLevel:
+      type: string
+      enum: [CAO, TRUNG_BINH, THAP]
+    CauseKind:
+      description: Nguyên nhân khách quan hoặc chủ quan (`cause_claimed`, `cause_decided`).
+      type: string
+      enum: [KHACH_QUAN, CHU_QUAN]
+    ChangeRequestType:
+      description: >-
+        Loại đề nghị theo TL-02 SCR-0602 trường 1. TL-03 ghi bộ giá trị khác (`DIEU_CHINH_KHOI_LUONG`,
+        `DIEU_CHINH_NOI_DUNG`, không có `TAM_DUNG`); hợp đồng theo TL-02, TL-03 cần sửa ràng buộc CHECK.
+      type: string
+      enum: [GIA_HAN, DOI_SO_LUONG, DOI_SAN_PHAM, TAM_DUNG, HUY]
+    ChangeRequestStatus:
+      type: string
+      enum: [NHAP, CHO_DUYET, DA_DUYET, TU_CHOI, DA_RUT]
+    TaskTransition:
+      description: Tên chuyển trạng thái dùng cho `/tasks/{id}/transitions`.
+      type: string
+      enum: [TIEP_TUC, TRINH_NGHIEM_THU, HOAN_THANH]
+
+    # ── Nhiệm vụ ──
+    TaskSummary:
+      description: Tóm tắt nhiệm vụ cho danh sách (SCR-0503) và trang chủ (SCR-0002).
+      type: object
+      required:
+        [id, code, title, status, overdue, dueDate, progress, role, assignerName, unitName, periodId,
+         rowVersion, taskGroup, source, plannedQuantity, doneQuantity, unit, openBlockerCount, workingDaysLeft]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, examples: ['NV-2026-0157'] }
+        title: { type: string, maxLength: 500 }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        overdue:
+          type: boolean
+          description: Cờ `task.task.is_overdue`, máy chủ đặt hằng ngày (QT-06 bước 8).
+        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Phần trăm 0–100; máy chủ lưu `progress_pct` dạng 0–1.
+        role: { $ref: '#/components/schemas/AssigneeRole' }
+        assignerName: { type: string }
+        unitName: { type: string }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        taskGroup: { $ref: '#/components/schemas/TaskGroup' }
+        source: { $ref: '#/components/schemas/TaskSource' }
+        keyResultId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        keyResultTitle: { type: string }
+        plannedQuantity: { type: number, minimum: 0 }
+        doneQuantity: { type: number, minimum: 0 }
+        unit: { type: string, description: 'Đơn vị tính của sản phẩm' }
+        openBlockerCount: { type: integer, minimum: 0 }
+        workingDaysLeft:
+          type: integer
+          description: Số ngày làm việc còn lại tới hạn, âm khi đã quá hạn; máy chủ tính theo lịch nghỉ.
+      examples:
+        - id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a77
+          code: NV-2026-0157
+          title: Thẩm định hồ sơ kết nạp đảng viên đợt 2
+          status: DANG_THUC_HIEN
+          overdue: false
+          dueDate: '2026-11-20'
+          progress: 60
+          role: CHU_TRI
+          assignerName: Trần Thị Bình
+          unitName: Ban Tổ chức Đảng uỷ khối
+          periodId: 01928f3e-0000-7000-8000-000000004426
+          rowVersion: 7
+          taskGroup: THEN_CHOT
+          source: 'KE_HOACH'
+          plannedQuantity: 12
+          doneQuantity: 7
+          unit: hồ sơ
+          openBlockerCount: 0
+          workingDaysLeft: 22
+    TaskSummaryPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/TaskSummary' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    MyTasksPage:
+      description: Trang "Việc của tôi" kèm số đếm bộ lọc nhanh và danh sách KR để lọc.
+      type: object
+      required: [items, nextCursor, period, counts, keyResults]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/TaskSummary' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        period: { $ref: '../common/common.yaml#/components/schemas/PeriodRef' }
+        counts:
+          type: object
+          description: Số đếm cho từng bộ lọc nhanh, tính trên cùng điều kiện vai trò, nhóm, KR, từ khoá.
+          required: [TAT_CA, CHAM, SAP_HAN, CHO_NGHIEM_THU, HOAN_THANH]
+          properties:
+            TAT_CA: { type: integer }
+            CHAM: { type: integer }
+            SAP_HAN: { type: integer }
+            CHO_NGHIEM_THU: { type: integer }
+            HOAN_THANH: { type: integer }
+        keyResults:
+          type: array
+          items:
+            type: object
+            required: [id, title]
+            properties:
+              id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+              title: { type: string }
+    ProgressLogEntry:
+      description: Một dòng nhật ký tiến độ (`task.task_progress`), chỉ ghi thêm.
+      type: object
+      required: [at, by, percent, note]
+      properties:
+        at: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        by: { type: string, description: 'Tên người ghi' }
+        byRole: { $ref: '#/components/schemas/AssigneeRole' }
+        channel: { $ref: '#/components/schemas/ProgressChannel' }
+        fromPercent: { type: integer, minimum: 0, maximum: 100 }
+        percent: { type: integer, minimum: 0, maximum: 100 }
+        note: { type: string, maxLength: 2000 }
+    TaskBlocker:
+      description: Điểm nghẽn (`task.task_blocker`).
+      type: object
+      required: [id, code, content, causeCategory, causeClaimed, impactLevel, status, createdAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, examples: ['BN-0157-01'] }
+        content: { type: string, maxLength: 2000 }
+        causeCategory: { $ref: '#/components/schemas/BlockerCauseCategory' }
+        causeClaimed: { $ref: '#/components/schemas/CauseKind' }
+        impactLevel: { $ref: '#/components/schemas/ImpactLevel' }
+        handlerName: { type: string }
+        resolveBy: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        status: { $ref: '#/components/schemas/BlockerStatus' }
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    BlockerReport:
+      type: object
+      required: [content, causeCategory, causeClaimed, impactLevel]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 2000 }
+        causeCategory: { $ref: '#/components/schemas/BlockerCauseCategory' }
+        causeClaimed: { $ref: '#/components/schemas/CauseKind' }
+        impactLevel: { $ref: '#/components/schemas/ImpactLevel' }
+        resolveBy: { $ref: '../common/common.yaml#/components/schemas/Date' }
+    BlockerPatch:
+      description: Các trường người giao được sửa khi xử lý điểm nghẽn (JSON Merge Patch).
+      type: object
+      properties:
+        handlerPersonId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        resolveBy: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        status: { $ref: '#/components/schemas/BlockerStatus' }
+        resolutionNote: { type: string, maxLength: 2000 }
+    ChangeRequest:
+      description: Đề nghị gia hạn, điều chỉnh (`task.task_change_request`).
+      type: object
+      required: [id, type, status, causeClaimed, reason, approverName, submittedAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        type: { $ref: '#/components/schemas/ChangeRequestType' }
+        status: { $ref: '#/components/schemas/ChangeRequestStatus' }
+        newDueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        newQuantity: { type: number, minimum: 0 }
+        newProduct: { type: string }
+        causeClaimed: { $ref: '#/components/schemas/CauseKind' }
+        blockerId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        reason: { type: string, maxLength: 2000 }
+        approverName: { type: string }
+        submittedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        escalated: { type: boolean, description: 'Vượt ngưỡng BR-06-06 đã chuyển cấp trên (MSG-06-07)' }
+        decidedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        causeDecided: { $ref: '#/components/schemas/CauseKind' }
+        decisionNote: { type: string, maxLength: 2000 }
+    ChangeRequestDraft:
+      type: object
+      required: [type, causeClaimed, reason]
+      properties:
+        type: { $ref: '#/components/schemas/ChangeRequestType' }
+        newDueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        newQuantity: { type: number, minimum: 0 }
+        newProduct: { type: string, maxLength: 500 }
+        causeClaimed: { $ref: '#/components/schemas/CauseKind' }
+        blockerId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+    ChangeRequestDecision:
+      type: object
+      required: [approve, causeDecided]
+      properties:
+        approve: { type: boolean }
+        causeDecided: { $ref: '#/components/schemas/CauseKind' }
+        note: { type: string, maxLength: 2000, description: 'Bắt buộc khi từ chối' }
+    ChangeRequestPreview:
+      type: object
+      required: [extraWorkingDays, objective, subjective, overThreshold, lateSubmission, cancelBlocked]
+      properties:
+        extraWorkingDays: { type: integer, description: 'Số ngày làm việc tăng thêm theo lịch nghỉ' }
+        objective:
+          type: object
+          required: [scoreDueDate, c]
+          properties:
+            scoreDueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+            c: { type: number, description: 'Hệ số tiến độ C nếu nguyên nhân khách quan' }
+        subjective:
+          type: object
+          required: [scoreDueDate, delayDays, c]
+          properties:
+            scoreDueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+            delayDays: { type: integer }
+            c: { type: number }
+        overThreshold: { type: boolean, description: 'Vượt ngưỡng BR-06-06' }
+        escalateToName: { type: string }
+        lateSubmission: { type: boolean, description: 'Gửi sau hạn thực hiện (BR-06-07)' }
+        cancelBlocked: { type: boolean, description: 'Huỷ không được khi đã có sản phẩm được nghiệm thu (BR-06-09)' }
+    StateLogEntry:
+      description: Một lần chuyển trạng thái (`task.task_state_log`).
+      type: object
+      required: [at, from, to, transition, actorName]
+      properties:
+        at: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        from:
+          oneOf:
+            - $ref: '#/components/schemas/TaskStatus'
+            - type: 'null'
+        to: { $ref: '#/components/schemas/TaskStatus' }
+        transition: { type: string }
+        actorName: { type: string }
+        reason: { type: string }
+    DelayRisk:
+      description: Dự báo trễ hạn do SVC-15 tính (`task.task.delay_risk`).
+      type: object
+      required: [level, neededWorkingDays, explanation]
+      properties:
+        level: { type: string, enum: [THAP, VUA, CAO] }
+        neededWorkingDays: { type: integer }
+        explanation: { type: string }
+    TaskDetail:
+      description: Chi tiết nhiệm vụ (SCR-0601).
+      allOf:
+        - $ref: '#/components/schemas/TaskSummary'
+        - type: object
+          required:
+            [description, acceptorName, scoreDueDate, products, extensionsUsed, extensionsMax, coAssignees,
+             progressLog, blockers, changeRequests, stateLog]
+          properties:
+            description: { type: string }
+            sourceDoc:
+              type: object
+              required: [number, title]
+              properties:
+                number: { type: string }
+                title: { type: string }
+            sourceRef: { type: string, description: 'Mô tả nguồn, ví dụ "Kế hoạch Q4 phiên bản 2 · dòng 1"' }
+            catalogItemCode: { type: string }
+            difficulty: { type: integer, minimum: 1, maximum: 5 }
+            standardScore: { type: number }
+            assignedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+            acceptorName: { type: string }
+            scoreDueDate:
+              $ref: '../common/common.yaml#/components/schemas/Date'
+              description: Hạn tính hệ số tiến độ C, khác `dueDate` là hạn thực hiện (BR-06-04, BR-06-05).
+            products:
+              type: object
+              required: [confirmed, pendingReview, required]
+              properties:
+                confirmed: { type: integer }
+                pendingReview: { type: integer }
+                required: { type: integer }
+            delayRisk: { $ref: '#/components/schemas/DelayRisk' }
+            extensionsUsed: { type: integer }
+            extensionsMax: { type: integer }
+            coAssignees:
+              type: array
+              items:
+                type: object
+                required: [personId, name, role]
+                properties:
+                  personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+                  name: { type: string }
+                  role: { $ref: '#/components/schemas/AssigneeRole' }
+            progressLog:
+              type: array
+              items: { $ref: '#/components/schemas/ProgressLogEntry' }
+            blockers:
+              type: array
+              items: { $ref: '#/components/schemas/TaskBlocker' }
+            changeRequests:
+              type: array
+              items: { $ref: '#/components/schemas/ChangeRequest' }
+            stateLog:
+              type: array
+              items: { $ref: '#/components/schemas/StateLogEntry' }
+    TaskAssignee:
+      description: Một người hoặc đơn vị được giao (`task.task_assignee`).
+      type: object
+      required: [kind, id, name, role]
+      properties:
+        kind: { type: string, enum: [PERSON, UNIT] }
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        name: { type: string }
+        role: { $ref: '#/components/schemas/AssigneeRole' }
+    ProgressUpdate:
+      type: object
+      required: [percent, note]
+      properties:
+        percent: { type: integer, minimum: 0, maximum: 100 }
+        note: { type: string, maxLength: 2000 }
+        doneQuantity: { type: number, minimum: 0, description: 'Số lượng sản phẩm đã làm (tuỳ chọn)' }
+        channel: { $ref: '#/components/schemas/ProgressChannel' }
+    ProgressBatchItem:
+      type: object
+      required: [taskId, rowVersion, percent, note]
+      properties:
+        taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        percent: { type: integer, minimum: 0, maximum: 100 }
+        note: { type: string, maxLength: 2000 }
+    ProgressBatchResult:
+      type: object
+      required: [taskId, status]
+      properties:
+        taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        status: { type: integer, description: 'Mã HTTP tương đương cho dòng này' }
+        task: { $ref: '#/components/schemas/TaskSummary' }
+        problem: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+    TaskRegistration:
+      description: Đăng ký nhiệm vụ từ danh mục (QT-05 bước 1c).
+      type: object
+      required: [catalogItemId, quantity, proposedDueDate]
+      properties:
+        catalogItemId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        quantity: { type: number, exclusiveMinimum: 0 }
+        proposedDueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        note: { type: string, maxLength: 1000 }
+    TaskExportRequest:
+      description: Điều kiện lọc giống `/tasks/mine` hoặc `/tasks`.
+      type: object
+      properties:
+        assignee: { type: string, enum: [me], description: '`me` xuất "Việc của tôi"; bỏ trống xuất theo đơn vị' }
+        unit: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        period: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        filter: { $ref: '#/components/schemas/MyTasksQuickFilter' }
+        status:
+          type: array
+          items: { $ref: '#/components/schemas/TaskStatus' }
+        overdueOnly: { type: boolean }
+        role: { $ref: '#/components/schemas/AssigneeRole' }
+        group: { $ref: '#/components/schemas/TaskGroup' }
+        keyResultId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        q: { type: string, maxLength: 200 }
+    TaskTransitionRequest:
+      type: object
+      required: [transition]
+      properties:
+        transition: { $ref: '#/components/schemas/TaskTransition' }
+        reason: { type: string, maxLength: 1000 }
+
+    # ── Soạn và giao ──
+    TaskMilestone:
+      type: object
+      required: [date, content]
+      properties:
+        date: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        content: { type: string, maxLength: 500 }
+    AssigneeRef:
+      description: Người hoặc đơn vị phối hợp.
+      type: object
+      required: [kind, id, name]
+      properties:
+        kind: { type: string, enum: [PERSON, UNIT] }
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        name: { type: string }
+    TaskDraft:
+      description: >-
+        Nhiệm vụ đang soạn để giao (SCR-0501), tên trường theo `task.task` của TL-03. `id`, `code`,
+        `rowVersion` chỉ có sau khi lưu nháp.
+      type: object
+      required:
+        [status, periodId, unitName, assignerId, assignerName, source, title, taskGroup, priority,
+         coAssignees, milestones, productName, quantity, unit, evidenceRequired, qualityCriteria]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        unitName: { type: string }
+        assignerId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        assignerName: { type: string }
+        source: { $ref: '#/components/schemas/TaskSource' }
+        planItemId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        catalogItemId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        title: { type: string, maxLength: 500 }
+        taskGroup: { $ref: '#/components/schemas/TaskGroup' }
+        keyResultId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        priority: { $ref: '#/components/schemas/TaskPriority' }
+        leadPersonId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        coAssignees:
+          type: array
+          items: { $ref: '#/components/schemas/AssigneeRef' }
+        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        acceptorId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        milestones:
+          type: array
+          items: { $ref: '#/components/schemas/TaskMilestone' }
+        productName: { type: string, maxLength: 500 }
+        quantity: { type: [number, 'null'], minimum: 0 }
+        unit: { type: string, maxLength: 50 }
+        evidenceRequired: { type: string, maxLength: 1000 }
+        qualityCriteria: { type: string, maxLength: 2000 }
+        sourceDoc:
+          type: object
+          required: [number, title]
+          properties:
+            number: { type: string }
+            title: { type: string }
+        basis: { type: string, maxLength: 1000, description: 'Căn cứ của nhiệm vụ phát sinh ngoài kế hoạch (BR-05-09)' }
+    TaskDraftTemplate:
+      type: object
+      required: [period, draft]
+      properties:
+        period: { $ref: '../common/common.yaml#/components/schemas/PeriodRef' }
+        draft: { $ref: '#/components/schemas/TaskDraft' }
+    AssignCheckItem:
+      type: object
+      required: [rule, level, passed, message]
+      properties:
+        rule: { type: string, examples: ['BR-05-01'] }
+        level: { type: string, enum: [CHAN, CANH_BAO], description: '`CHAN` không giao được; `CANH_BAO` giao được sau khi xử lý' }
+        passed: { type: boolean }
+        message: { type: string }
+    SimilarTask:
+      description: Nhiệm vụ gần giống (BR-05-06, MSG-05-03).
+      type: object
+      required: [id, code, title, status, similarity, unitName, leadName, dueDate, progress]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        similarity: { type: number, minimum: 0, maximum: 1 }
+        unitName: { type: string }
+        leadName: { type: string }
+        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+    PersonWorkload:
+      description: Khối lượng việc của người chủ trì theo tuần (BR-05-11, MSG-05-04).
+      type: object
+      required: [personId, personName, leadCount, coCount, weeklyThreshold, weeks]
+      properties:
+        personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        personName: { type: string }
+        leadCount: { type: integer }
+        coCount: { type: integer }
+        weeklyThreshold: { type: integer }
+        weeks:
+          type: array
+          items:
+            type: object
+            required: [label, count]
+            properties:
+              label: { type: string }
+              count: { type: integer }
+    AssignCheckResult:
+      type: object
+      required: [items, similar]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AssignCheckItem' }
+        similar:
+          type: array
+          items: { $ref: '#/components/schemas/SimilarTask' }
+        workingDays: { type: integer, description: 'Số ngày làm việc từ hôm nay tới hạn' }
+        workload: { $ref: '#/components/schemas/PersonWorkload' }
+    AssignRequest:
+      type: object
+      properties:
+        similarReason: { type: string, maxLength: 1000, description: 'Lý do vẫn tạo mới khi có nhiệm vụ gần giống (BR-05-06)' }
+    AssignResult:
+      type: object
+      required: [id, code, status, leadName]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        leadName: { type: string }
+    BulkAssignRequest:
+      type: object
+      required: [draft, unitIds]
+      properties:
+        draft: { $ref: '#/components/schemas/TaskDraft' }
+        unitIds:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    AssignBatchResult:
+      type: object
+      required: [taskId, code, assigned, status]
+      properties:
+        taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string }
+        assigned: { type: boolean }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        message: { type: string }
+
+    # ── Văn bản đến ──
+    SourceSystem:
+      description: Hệ nguồn (`task.task_source_doc.source_system`).
+      type: string
+      enum: [VOFFICE, IOFFICE, EDXML, LGSP, THU_CONG]
+    SourceDocStatus:
+      description: Tình trạng xử lý văn bản đến ở đơn vị nhận (suy luận từ SCR-0502).
+      type: string
+      enum: [CHO_XU_LY, DA_XU_LY, DA_BO_QUA]
+    SourceDocExtractionStatus:
+      description: Tình trạng trích nhiệm vụ của SVC-14 (cùng giá trị với `ExtractionStatus` của platform.yaml).
+      type: string
+      enum: [DANG_TRICH, XONG, KHONG_TRICH_DUOC]
+    SourceDocSummary:
+      type: object
+      required:
+        [id, sourceSystem, docNumber, docDate, issuer, excerpt, receivedAt, format, status, extraction,
+         pendingCount, suggestionCount]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        sourceSystem: { $ref: '#/components/schemas/SourceSystem' }
+        docNumber: { type: string, description: 'Số, ký hiệu theo NĐ 30/2020' }
+        docDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        issuer: { type: string }
+        excerpt: { type: string, description: 'Trích yếu' }
+        receivedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        format: { type: string, examples: [EdXML] }
+        status: { $ref: '#/components/schemas/SourceDocStatus' }
+        extraction: { $ref: '#/components/schemas/SourceDocExtractionStatus' }
+        pendingCount: { type: integer }
+        suggestionCount: { type: integer }
+    SourceDoc:
+      allOf:
+        - $ref: '#/components/schemas/SourceDocSummary'
+        - type: object
+          required: [issuerHeader, title, preamble, paragraphs, recipients]
+          properties:
+            issuerHeader: { type: string }
+            title: { type: string }
+            preamble: { type: string }
+            paragraphs:
+              type: array
+              items:
+                type: object
+                required: [no, text, assignment]
+                properties:
+                  no: { type: integer }
+                  text: { type: string }
+                  assignment: { type: boolean, description: 'Đoạn giao việc cho đơn vị nhận do AI xác định' }
+            recipients: { type: string }
+            dismissReason: { type: string }
+    SuggestionDecision:
+      description: Quyết định của người giao với một nhiệm vụ AI trích (`ai.suggestion_log.decision`).
+      type: string
+      enum: [CHO_XAC_NHAN, DA_XAC_NHAN, DA_BO, DA_GOP]
+    SuggestionField:
+      description: Tên ô ghi vào `edited_fields` khi người giao sửa (SCR-0502 trường 13).
+      type: string
+      enum: [title, leadUnitId, coUnits, dueDate, productName, catalogItemId, keyResultId]
+    TaskSuggestionFields:
+      description: Các ô AI điền trên thẻ nhiệm vụ (SCR-0502 trường 5–10), tên theo `task.task`.
+      type: object
+      required: [title, leadUnitId, leadUnitName, coUnits, dueDate, productName]
+      properties:
+        title: { type: string, maxLength: 500 }
+        leadUnitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        leadUnitName: { type: string }
+        coUnits:
+          type: array
+          items: { $ref: '#/components/schemas/AssigneeRef' }
+        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        productName: { type: string, maxLength: 500 }
+        catalogItemId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        catalogItemCode: { type: string }
+        keyResultId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        keyResultCode: { type: string }
+    TaskSuggestion:
+      description: >-
+        Một nhiệm vụ do AI trích từ văn bản (`ai.suggestion_log`, use_case `GOI_Y_NHIEM_VU`), dùng chung
+        giữa MOD-02 và SVC-14.
+      type: object
+      required: [id, paragraphNo, confidence, decision, fields, aiFields, editedFields, similar]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        paragraphNo: { type: integer, minimum: 1 }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        decision: { $ref: '#/components/schemas/SuggestionDecision' }
+        fields: { $ref: '#/components/schemas/TaskSuggestionFields' }
+        aiFields: { $ref: '#/components/schemas/TaskSuggestionFields' }
+        editedFields:
+          type: array
+          items: { $ref: '#/components/schemas/SuggestionField' }
+        similar:
+          type: array
+          items: { $ref: '#/components/schemas/SimilarTask' }
+        taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        taskCode: { type: string }
+        taskStatus: { $ref: '#/components/schemas/TaskStatus' }
+        reason: { type: string }
+    FromDocumentRequest:
+      type: object
+      required: [sourceDocId, suggestionId, paragraphNo, fields, editedFields]
+      properties:
+        sourceDocId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        suggestionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        paragraphNo: { type: integer, minimum: 1 }
+        fields: { $ref: '#/components/schemas/TaskSuggestionFields' }
+        editedFields:
+          type: array
+          items: { $ref: '#/components/schemas/SuggestionField' }
+        similarReason: { type: string, maxLength: 1000 }
+
+    # ── Kế hoạch ──
+    PlanVersionStatus:
+      description: Trạng thái `task.plan_version.status` (baseline mục 9.1).
+      type: string
+      enum: [NHAP, CHO_DUYET, DA_DUYET, TRA_LAI]
+    Plan:
+      description: Kế hoạch công tác quý của một đơn vị (`task.plan`).
+      type: object
+      required: [id, code, period, unitId, unitName, currentVersion, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, examples: ['KH-Q4-2026-BTC'] }
+        period: { $ref: '../common/common.yaml#/components/schemas/PeriodRef' }
+        unitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        unitName: { type: string }
+        currentVersion: { $ref: '#/components/schemas/PlanVersionSummary' }
+        effectiveVersionNo: { type: [integer, 'null'], description: 'Phiên bản `DA_DUYET` đang hiệu lực' }
+        approvalDeadline: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        adjustmentsUsed: { type: integer }
+        adjustmentsMax: { type: integer }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    PlanVersionSummary:
+      type: object
+      required: [planId, versionNo, status, unitName, periodLabel, itemCount]
+      properties:
+        planId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        versionNo: { type: integer, minimum: 1 }
+        status: { $ref: '#/components/schemas/PlanVersionStatus' }
+        unitName: { type: string }
+        periodLabel: { type: string }
+        itemCount: { type: integer }
+        submittedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        submittedByName: { type: string }
+        approvedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    PlanItemInput:
+      description: Một dòng kế hoạch theo Bảng 1 (`task.plan_item`, SCR-0402 trường 5–14).
+      type: object
+      required: [title, taskGroup, leadAssignee, productName, quantity, dueDate]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        originItemId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Dòng tương ứng ở phiên bản trước, để tính thêm, sửa, bỏ (đề xuất của TL-02)
+        title: { type: string, minLength: 1, maxLength: 500 }
+        taskGroup: { $ref: '#/components/schemas/TaskGroup' }
+        keyResultId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        leadAssignee: { $ref: '#/components/schemas/AssigneeRef' }
+        coAssignees:
+          type: array
+          items: { $ref: '#/components/schemas/AssigneeRef' }
+        catalogItemId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Bỏ trống khi là việc ngoài danh mục (chờ chấm điểm)
+        productName:
+          type: string
+          maxLength: 500
+          description: >-
+            Tên sản phẩm. Tên chọn theo TL-02 SCR-0402 trường 11 (`product_name`); TL-03 chưa có cột này
+            trong `task.plan_item` và cần bổ sung.
+        quantity: { type: number, minimum: 0 }
+        unit: { type: string, maxLength: 50 }
+        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        recurrence: { type: [string, 'null'], enum: [HANG_THANG, null], description: '"Hằng tháng" thay cho một hạn cố định' }
+        standardScore:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 100
+          description: >-
+            Điểm của dòng, bắt buộc khi duyệt (BR-04-05). Tên chọn theo cột `standard_score` của TL-03;
+            TL-02 SCR-0402 trường 13 gọi là `score_weight`.
+        flows:
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        changeReason: { type: string, maxLength: 500, description: 'Bắt buộc với mỗi thay đổi ở phiên bản điều chỉnh (BR-04-10)' }
+    PlanItem:
+      allOf:
+        - $ref: '#/components/schemas/PlanItemInput'
+        - type: object
+          required: [id, lineNo]
+          properties:
+            lineNo: { type: integer, minimum: 1 }
+            catalogItemCode: { type: string }
+            pendingScore: { type: boolean, description: 'Việc ngoài danh mục chờ chấm điểm' }
+    PlanCheck:
+      description: Một kết quả kiểm tra tức thì của kế hoạch.
+      type: object
+      required: [rule, level, message]
+      properties:
+        rule: { type: string, examples: ['BR-04-03'] }
+        level: { type: string, enum: [CHAN, CANH_BAO] }
+        lineNo: { type: integer }
+        message: { type: string }
+        msg: { type: string, examples: ['MSG-04-04'] }
+    PlanVersion:
+      description: Một phiên bản kế hoạch kèm các dòng (`task.plan_version`, `task.plan_item`).
+      type: object
+      required: [planId, versionNo, status, period, unitName, items, groupWeights, checks, rowVersion]
+      properties:
+        planId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        versionNo: { type: integer, minimum: 1 }
+        status: { $ref: '#/components/schemas/PlanVersionStatus' }
+        period: { $ref: '../common/common.yaml#/components/schemas/PeriodRef' }
+        unitName: { type: string }
+        approvalDeadline: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        workingDaysToDeadline: { type: integer }
+        contentHash: { type: [string, 'null'], description: 'SHA-256 tính khi gửi duyệt' }
+        reviewComment: { type: [string, 'null'], maxLength: 2000 }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PlanItem' }
+        groupWeights:
+          type: object
+          description: Điểm tối đa của từng nhóm theo Policy Pack (BR-04-06).
+          required: [THUONG_XUYEN, THEN_CHOT]
+          properties:
+            THUONG_XUYEN: { type: number }
+            THEN_CHOT: { type: number }
+        checks:
+          type: array
+          items: { $ref: '#/components/schemas/PlanCheck' }
+        signRequestId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    PlanVersionInput:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 500
+          items: { $ref: '#/components/schemas/PlanItemInput' }
+    PlanDiffLine:
+      type: object
+      required: [change]
+      properties:
+        change: { type: string, enum: [THEM, SUA, BO, KHONG_DOI] }
+        before: { $ref: '#/components/schemas/PlanItem' }
+        after: { $ref: '#/components/schemas/PlanItem' }
+        changedFields:
+          type: array
+          items: { type: string }
+        reason: { type: string }
+    PlanDiff:
+      type: object
+      required: [baseVersionNo, versionNo, added, modified, removed, lines]
+      properties:
+        baseVersionNo: { type: integer }
+        versionNo: { type: integer }
+        added: { type: integer }
+        modified: { type: integer }
+        removed: { type: integer }
+        groupWeightChanged: { type: boolean }
+        adjustmentNo: { type: integer, description: 'Lần điều chỉnh hiện tại' }
+        adjustmentsMax: { type: integer }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/PlanDiffLine' }
+    PlanItemRef:
+      description: Dòng kế hoạch đã duyệt dùng làm nguồn giao việc (BR-05-04).
+      type: object
+      required: [id, planCode, version, lineNo, title, taskGroup, productName, quantity, unit, dueDate, evidenceRequired, qualityCriteria]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        planCode: { type: string }
+        version: { type: integer }
+        lineNo: { type: integer }
+        title: { type: string }
+        catalogItemId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        taskGroup: { $ref: '#/components/schemas/TaskGroup' }
+        keyResultId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        productName: { type: string }
+        quantity: { type: number }
+        unit: { type: string }
+        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        evidenceRequired: { type: string }
+        qualityCriteria: { type: string }
+
+    # ── Danh mục ──
+    WorkCatalogStatus:
+      description: Trạng thái phiên bản danh mục (`task.work_catalog.status`, suy luận).
+      type: string
+      enum: [NHAP, AP_DUNG, HET_HIEU_LUC]
+    CatalogItemStatus:
+      type: string
+      enum: [AP_DUNG, NGUNG]
+    WorkCatalog:
+      description: Một phiên bản danh mục công việc theo vị trí việc làm (`task.work_catalog`).
+      type: object
+      required: [id, name, versionNo, status, itemCount, positionCount, rowVersion, difficultyFactors, scoreSuggestion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        name: { type: string }
+        versionNo: { type: integer, minimum: 1 }
+        status: { $ref: '#/components/schemas/WorkCatalogStatus' }
+        effectiveFromLabel: { type: string, examples: ['Quý IV/2026'] }
+        effectiveFromDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        parentCatalogName: { type: string }
+        itemCount: { type: integer }
+        positionCount: { type: integer }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        difficultyFactors:
+          type: object
+          description: Hệ số mức khó từ Policy Pack, chỉ để gợi ý điểm.
+          additionalProperties: { type: number }
+        scoreSuggestion:
+          type: object
+          description: Điểm gợi ý cho từng mức khó.
+          additionalProperties: { type: number }
+    Position:
+      description: Vị trí việc làm (`org.position`).
+      type: object
+      required: [id, name]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        name: { type: string }
+    CatalogItem:
+      description: Mục danh mục công việc theo Bảng 3 (`task.catalog_item`).
+      type: object
+      required: [id, code, name, productName, unit, difficulty, baseScore, qualityCriteria, defaultGroup]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        catalogId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, examples: ['TC-DV-06'] }
+        name: { type: string, maxLength: 500 }
+        positionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        positionName: { type: string }
+        productName: { type: string }
+        unit: { type: string }
+        difficulty: { type: integer, minimum: 1, maximum: 5, description: 'Mức khó năm mức (BR-04-14)' }
+        baseScore: { type: number, minimum: 0, maximum: 100, description: 'Điểm chuẩn (`base_score`)' }
+        qualityCriteria: { type: string }
+        evidenceRequired: { type: string }
+        defaultGroup: { $ref: '#/components/schemas/TaskGroup' }
+        standardDays: { type: integer, minimum: 1, description: 'Thời hạn chuẩn, ngày làm việc' }
+        status: { $ref: '#/components/schemas/CatalogItemStatus' }
+        usageCount: { type: integer }
+        usagePeriods: { type: integer }
+        usedInLockedPeriod: { type: boolean, description: 'Đã dùng ở kỳ đã khoá (BR-04-13)' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    CatalogItemInput:
+      type: object
+      required: [name, productName, unit, difficulty, baseScore, qualityCriteria, defaultGroup]
+      properties:
+        code: { type: string, description: 'Bỏ trống thì máy chủ tự sinh' }
+        positionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        name: { type: string, minLength: 1, maxLength: 500 }
+        productName: { type: string, maxLength: 500 }
+        unit: { type: string, maxLength: 50 }
+        difficulty: { type: integer, minimum: 1, maximum: 5 }
+        baseScore: { type: number, minimum: 0, maximum: 100 }
+        qualityCriteria: { type: string, maxLength: 2000 }
+        evidenceRequired: { type: string, maxLength: 1000 }
+        defaultGroup: { $ref: '#/components/schemas/TaskGroup' }
+        standardDays: { type: integer, minimum: 1 }
+        status: { $ref: '#/components/schemas/CatalogItemStatus' }
+    CatalogItemSaveResult:
+      type: object
+      required: [item, catalog, movedToNewVersion]
+      properties:
+        item: { $ref: '#/components/schemas/CatalogItem' }
+        catalog: { $ref: '#/components/schemas/WorkCatalog' }
+        movedToNewVersion: { type: boolean, description: 'Thay đổi được lưu ở phiên bản khác phiên bản đang xem' }
+    CatalogItemsPage:
+      type: object
+      required: [items, nextCursor, total, positionCount]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CatalogItem' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        total: { type: integer, description: 'Tổng số mục theo bộ lọc (SCR-0401 cần hiển thị)' }
+        positionCount: { type: integer }
+    CatalogImportJob:
+      description: Một lần nhập Excel danh mục.
+      type: object
+      required: [id, fileName, status, totalRows, validRows, errorGroups]
+      properties:
+        id: { type: string }
+        fileName: { type: string }
+        status: { type: string, enum: [DANG_XU_LY, XONG, LOI] }
+        totalRows: { type: integer }
+        validRows: { type: integer }
+        errorGroups:
+          type: array
+          items:
+            type: object
+            required: [reason, count, kind]
+            properties:
+              reason: { type: string }
+              count: { type: integer }
+              kind: { type: string, enum: [THIEU, MO_HO, KHAC] }
+        finishedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }

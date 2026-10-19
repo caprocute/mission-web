@@ -1,0 +1,982 @@
+# Nguồn: baseline mục 5 (SVC-04), 8 (Event-carried State Transfer), 9 (schema org, org_replica), 13;
+# TL-01 Phụ lục C mục "Dịch vụ nền" (`/org/units/{id}`, `/org/units/{id}/subtree`); TL-02a SCR-0001,
+# SCR-0002 (part-03, chọn và đổi phân công), SCR-0103 (cây tổ chức có lịch sử), SCR-0104 (đồng bộ và đối
+# soát nhân sự); TL-03 part-03 schema `org` (org_unit, org_unit_relation, person, assignment,
+# org_change_order, scim_sync_log, sync_discrepancy); mã frontend `org-api.ts` (WEB-006, WEB-028).
+openapi: 3.1.0
+info:
+  title: Mission – Tổ chức và nhân sự (SVC-04)
+  version: 1.0.0-draft.1
+  description: >-
+    Hợp đồng của org-service: hồ sơ và phân công của người dùng hiện tại, ngữ cảnh phiên, tra cứu cán bộ
+    và đơn vị, cây tổ chức hai trục thời gian (hiệu lực `asOf`, ghi nhận `recordedAsOf`), thay đổi tổ
+    chức theo quyết định, nhập Excel, đồng bộ và đối soát nhân sự. Mọi sửa đổi tạo phiên bản mới, không
+    ghi đè (TL-03). Dữ liệu cá nhân là C2 và chỉ trả dạng đã che.
+servers:
+  - url: /api/v1
+security:
+  - keycloak: []
+tags:
+  - name: Người dùng hiện tại
+    description: Phân công còn hiệu lực và ngữ cảnh làm việc (QT-00).
+  - name: Tra cứu
+    description: Cán bộ và đơn vị trong phạm vi người dùng, dùng cho hộp chọn ở các màn hình nghiệp vụ.
+  - name: Cây tổ chức
+    description: Cây đơn vị có lịch sử và thay đổi tổ chức (SCR-0103).
+  - name: Đồng bộ nhân sự
+    description: Đồng bộ từ CSDL CBCCVC, CSDL đảng viên, SCIM và đối soát lệch (SCR-0104).
+
+paths:
+  /org/me:
+    get:
+      tags: [Người dùng hiện tại]
+      operationId: getMyOrgProfile
+      summary: Người dùng hiện tại và các phân công còn hiệu lực
+      description: Dùng ở QT-00 bước 7 để chọn phân công khi kiêm nhiệm (SCR-0001) và đổi phân công (SCR-0002).
+      responses:
+        '200':
+          description: Hồ sơ và phân công.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyOrgProfile' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0001, SCR-0002]
+        owner: SVC-04
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: 'TL-02a SCR-0001 bước 7; TL-02b ma trận truy vết QT-00'
+
+  /org/me/context:
+    put:
+      tags: [Người dùng hiện tại]
+      operationId: setMyContext
+      summary: Ghi ngữ cảnh phiên (phân công đang làm việc)
+      description: >-
+        Ghi phân công được chọn vào phiên; client làm mới token để nhận claim `org`. Vai trò chỉ dùng
+        trong phiên AAL2 (`appraiser`, `decider`, `second_approver`, `tenant_admin`, `platform_admin`)
+        không chọn được ở phiên AAL1 (BR-00-01, MSG-00-05) và trả 401 yêu cầu bước lên.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignmentId]
+              properties:
+                assignmentId: { type: string }
+      responses:
+        '200':
+          description: Ngữ cảnh đã ghi.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkContext' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0001, SCR-0002]
+        owner: SVC-04
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        rules: [BR-00-01]
+        source: 'TL-02a SCR-0001 "Chọn phân công", SCR-0002 "Đổi phân công"'
+
+  /org/persons:
+    get:
+      tags: [Tra cứu]
+      operationId: listOrgPersons
+      summary: Cán bộ trong phạm vi
+      description: >-
+        Cán bộ để chọn chủ trì, phối hợp, người nghiệm thu (SCR-0501). Đọc từ `org_replica` trong
+        mission-core theo cơ chế Event-carried State Transfer; không gọi đồng bộ sang SVC-04 trên đường
+        găng (baseline mục 8). `scope=unit` là đơn vị của ngữ cảnh, `scope=subtree` gồm đơn vị cấp dưới.
+      parameters:
+        - name: scope
+          in: query
+          schema: { type: string, enum: [unit, subtree], default: unit }
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang cán bộ.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrgPerson' }
+                  nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0501]
+        owner: SVC-04
+        roles: [manager, leader, tenant_admin]
+        scope: Đv
+        source: 'Mã frontend WEB-028 (suy luận)'
+
+  /org/persons/{id}/assignments:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Tra cứu]
+      operationId: listPersonAssignments
+      summary: Phân công của một cán bộ theo thời gian
+      parameters:
+        - $ref: '#/components/parameters/AsOf'
+        - $ref: '#/components/parameters/RecordedAsOf'
+      responses:
+        '200':
+          description: Phân công tại thời điểm hỏi.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Assignment' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        roles: [tenant_admin, appraiser, manager, leader]
+        scope: Đv
+        source: 'TL-02a SCR-0103 trường 13'
+
+  /org/units:
+    get:
+      tags: [Tra cứu]
+      operationId: listOrgUnits
+      summary: Đơn vị trong phạm vi
+      description: >-
+        `scope=unit` là đơn vị của người dùng và đơn vị ngang cấp, `scope=children` là đơn vị cấp dưới
+        trực tiếp (giao đồng loạt ở SCR-0501).
+      parameters:
+        - name: scope
+          in: query
+          schema: { type: string, enum: [unit, children], default: unit }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang đơn vị.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrgUnitRef' }
+                  nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05, QT-01]
+        scr: [SCR-0501, SCR-0103]
+        owner: SVC-04
+        roles: [manager, leader, tenant_admin, inspector]
+        scope: Đv
+        source: 'Mã frontend WEB-028; TL-02b ma trận truy vết QT-01'
+
+  /org/units/tree:
+    get:
+      tags: [Cây tổ chức]
+      operationId: getOrgTree
+      summary: Cây tổ chức tại một thời điểm
+      description: >-
+        Cây đơn vị theo hai trục thời gian. Khi `asOf` hoặc `recordedAsOf` khác hiện tại, giao diện ở chế
+        độ chỉ đọc. Mặc định trả tối đa ba tầng từ gốc; tầng sâu hơn nạp lười bằng `/org/units/{id}/subtree`.
+      parameters:
+        - $ref: '#/components/parameters/AsOf'
+        - $ref: '#/components/parameters/RecordedAsOf'
+        - name: tree
+          in: query
+          description: Cây Đảng hoặc cây chuyên môn (`org.org_unit_relation.tree`).
+          schema: { $ref: '#/components/schemas/OrgTreeKind' }
+        - name: depth
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 6, default: 3 }
+      responses:
+        '200':
+          description: Cây đơn vị.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgTree' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        roles: [tenant_admin, leader, manager, inspector, appraiser]
+        scope: Tn
+        source: 'TL-02a SCR-0103 "Xem tại ngày"'
+
+  /org/units/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Cây tổ chức]
+      operationId: getOrgUnit
+      summary: Đơn vị tại thời điểm, hai trục thời gian
+      parameters:
+        - $ref: '#/components/parameters/AsOf'
+        - $ref: '#/components/parameters/RecordedAsOf'
+      responses:
+        '200':
+          description: Phiên bản đơn vị có hiệu lực tại thời điểm hỏi.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgUnit' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        roles: [tenant_admin, leader, manager, member, inspector, appraiser]
+        scope: Đv
+        source: 'TL-01 PL C "/org/units/{id}?asOf=&knownAt="; tham số `knownAt` đổi thành `recordedAsOf` theo TL-02a'
+    put:
+      tags: [Cây tổ chức]
+      operationId: updateOrgUnit
+      summary: Sửa đơn vị
+      description: Tạo phiên bản mới của đơn vị từ ngày hiệu lực, không ghi đè phiên bản cũ; phát EVT-14.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrgUnitInput' }
+      responses:
+        '200':
+          description: Phiên bản mới.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgUnit' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        evt: [EVT-14]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-05]
+        source: 'TL-02a SCR-0103 "Sửa"'
+
+  /org/units/{id}/subtree:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Cây tổ chức]
+      operationId: getOrgSubtree
+      summary: Cây đơn vị cấp dưới
+      description: Thay cho `/org/units/{id}/tree` của TL-02; giữ tên `subtree` của TL-01 Phụ lục C.
+      parameters:
+        - $ref: '#/components/parameters/AsOf'
+        - $ref: '#/components/parameters/RecordedAsOf'
+        - name: depth
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 6, default: 2 }
+      responses:
+        '200':
+          description: Cây con.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgTree' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01, QT-16]
+        scr: [SCR-0103, SCR-1601]
+        owner: SVC-04
+        roles: [manager, leader, tenant_admin, inspector]
+        scope: ĐvD
+        source: 'TL-01 PL C'
+
+  /org/units/{id}/changes:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Cây tổ chức]
+      operationId: changeOrgUnit
+      summary: Thay đổi tổ chức theo quyết định
+      description: >-
+        Thành lập, đổi tên, sáp nhập, hợp nhất, chia tách, giải thể kèm ngày hiệu lực và văn bản căn cứ.
+        Máy chủ ghi `org.org_change_order` và sinh phiên bản mới cho các đơn vị bị tác động; phân công
+        chuyển theo phát EVT-15. Thay đổi có hiệu lực tương lai được giữ ở `NHAP` tới ngày hiệu lực.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrgChangeRequest' }
+      responses:
+        '201':
+          description: Quyết định thay đổi đã ghi.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgChangeOrder' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        evt: [EVT-14, EVT-15]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-07, BR-01-08]
+        source: 'TL-02a SCR-0103 "Thay đổi tổ chức"'
+
+  /org/imports:
+    post:
+      tags: [Cây tổ chức]
+      operationId: importOrgExcel
+      summary: Nhập cây tổ chức từ Excel
+      description: Tải tệp, kiểm tra và ghi ở tác vụ nền; trả 202, báo cáo lỗi nằm trong `resultLocation` của job.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  contentMediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+                effectiveFrom: { $ref: '../common/common.yaml#/components/schemas/Date' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103, SCR-0102]
+        owner: SVC-04
+        evt: [EVT-14]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        source: 'TL-02a SCR-0103 "Nhập từ Excel"'
+
+  /org/sync-runs:
+    get:
+      tags: [Đồng bộ nhân sự]
+      operationId: listOrgSyncRuns
+      summary: Các lần đồng bộ gần đây theo nguồn
+      parameters:
+        - name: connector
+          in: query
+          schema: { $ref: '#/components/schemas/SyncSource' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang lần đồng bộ.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrgSyncRun' }
+                  nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0104]
+        owner: SVC-04
+        roles: [tenant_admin]
+        scope: Tn
+        source: 'TL-02a SCR-0104 trường 1, 2'
+    post:
+      tags: [Đồng bộ nhân sự]
+      operationId: startOrgSyncRun
+      summary: Đồng bộ ngay
+      description: Tạo lần chạy đồng bộ cho một hoặc mọi nguồn; trả 202. Thay cho `/org/sync` của ma trận truy vết TL-02b.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                connector: { $ref: '#/components/schemas/SyncSource' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          description: Đang có lần đồng bộ chạy cho nguồn này (`ORG-409-SYNC-RUNNING`).
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0104]
+        owner: SVC-04
+        roles: [tenant_admin]
+        scope: Tn
+        source: 'TL-02a SCR-0104 "Đồng bộ ngay"'
+
+  /org/sync-runs/{id}/retry:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Đồng bộ nhân sự]
+      operationId: retryOrgSyncRun
+      summary: Chạy lại thông điệp lỗi
+      description: Đưa các thông điệp trong hàng đợi lỗi (`integ.dead_letter`) của lần chạy vào lại luồng xử lý.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0104]
+        owner: SVC-04
+        roles: [tenant_admin]
+        scope: Tn
+        source: 'TL-02a SCR-0104 "Chạy lại thông điệp lỗi"'
+
+  /org/sync-schedules:
+    get:
+      tags: [Đồng bộ nhân sự]
+      operationId: listOrgSyncSchedules
+      summary: Lịch đồng bộ theo nguồn
+      responses:
+        '200':
+          description: Lịch đồng bộ.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrgSyncSchedule' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0104]
+        owner: SVC-04
+        roles: [tenant_admin]
+        scope: Tn
+        source: 'TL-02a SCR-0104 "Lịch đồng bộ"'
+    put:
+      tags: [Đồng bộ nhân sự]
+      operationId: saveOrgSyncSchedules
+      summary: Lưu lịch đồng bộ
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/OrgSyncSchedule' }
+      responses:
+        '200':
+          description: Lịch đã lưu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrgSyncSchedule' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0104]
+        owner: SVC-04
+        roles: [tenant_admin]
+        scope: Tn
+        source: 'TL-02a SCR-0104 "Lịch đồng bộ"'
+
+  /org/discrepancies:
+    get:
+      tags: [Đồng bộ nhân sự]
+      operationId: listOrgDiscrepancies
+      summary: Danh sách lệch cần đối soát
+      parameters:
+        - name: field
+          in: query
+          schema: { type: string }
+        - name: severity
+          in: query
+          schema: { $ref: '#/components/schemas/DiscrepancySeverity' }
+        - name: unresolved
+          in: query
+          schema: { type: boolean, default: true }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang lệch kèm số đếm theo mức.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor, counts]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrgDiscrepancy' }
+                  nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+                  counts:
+                    type: object
+                    required: [CAO, VUA, THAP]
+                    properties:
+                      CAO: { type: integer }
+                      VUA: { type: integer }
+                      THAP: { type: integer }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0104]
+        owner: SVC-04
+        roles: [tenant_admin]
+        scope: Tn
+        source: 'TL-02a SCR-0104 vùng 2'
+
+  /org/discrepancies/resolve:
+    post:
+      tags: [Đồng bộ nhân sự]
+      operationId: resolveOrgDiscrepancies
+      summary: Xử lý lệch hàng loạt
+      description: >-
+        Lấy theo nguồn (ghi phiên bản mới, phát EVT-15 hoặc EVT-16) hoặc giữ dữ liệu nội bộ (bỏ qua cho
+        tới khi nguồn đổi). Áp dụng hàng loạt cần phiên AAL2. Mức Cao còn tồn chặn kích hoạt tenant.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids, resolution]
+              properties:
+                ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+                resolution: { $ref: '#/components/schemas/DiscrepancyResolution' }
+                effectiveFrom: { $ref: '../common/common.yaml#/components/schemas/Date' }
+                note: { type: string, maxLength: 1000 }
+      responses:
+        '200':
+          description: Kết quả từng mục.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: '../common/common.yaml#/components/schemas/BatchItemResult' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0104]
+        owner: SVC-04
+        evt: [EVT-15, EVT-16]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        source: 'TL-02a SCR-0104 "Lấy theo nguồn", "Giữ dữ liệu nội bộ"'
+
+  /org/discrepancies/{id}/map:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Đồng bộ nhân sự]
+      operationId: mapOrgDiscrepancy
+      summary: Ánh xạ thủ công bản ghi người
+      description: Chọn bản ghi người đúng cho dòng không khớp, ghi `integ.mapping_xref`, phát EVT-16.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [personId]
+              properties:
+                personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: Dòng lệch sau khi ánh xạ.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgDiscrepancy' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          description: Mã ngoài đã ánh xạ tới người khác (`ORG-409-XREF-EXISTS`).
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0104]
+        owner: SVC-04
+        evt: [EVT-16]
+        roles: [tenant_admin]
+        scope: Tn
+        source: 'TL-02a SCR-0104 "Ánh xạ thủ công"'
+
+  /org/discrepancies/{id}/assign:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Đồng bộ nhân sự]
+      operationId: assignOrgDiscrepancy
+      summary: Ghi chú, giao xử lý
+      description: Giao cho cán bộ tổ chức đơn vị kiểm tra; phát EVT-21.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assigneeId]
+              properties:
+                assigneeId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+                note: { type: string, maxLength: 1000 }
+      responses:
+        '200':
+          description: Dòng lệch sau khi giao.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgDiscrepancy' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0104]
+        owner: SVC-04
+        evt: [EVT-21]
+        roles: [tenant_admin]
+        scope: Tn
+        source: 'TL-02a SCR-0104 "Ghi chú, giao xử lý"'
+
+components:
+  securitySchemes:
+    keycloak:
+      $ref: '../common/common.yaml#/components/securitySchemes/keycloak'
+  parameters:
+    AsOf:
+      name: asOf
+      in: query
+      description: Ngày trên trục hiệu lực (`valid_from`/`valid_to`); bỏ trống là hôm nay.
+      schema: { $ref: '../common/common.yaml#/components/schemas/Date' }
+    RecordedAsOf:
+      name: recordedAsOf
+      in: query
+      description: Thời điểm trên trục ghi nhận (`recorded_from`/`recorded_to`); bỏ trống là hiện tại.
+      schema: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+  schemas:
+    AssignmentKind:
+      description: Loại phân công (`org.assignment.kind`).
+      type: string
+      enum: [CHINH, KIEM_NHIEM, DIEU_DONG, BIET_PHAI, TAM_GIU]
+    Assignment:
+      description: Phân công còn hiệu lực (`org_replica.assignment_v`) kèm vai trò (`config.role_binding`).
+      type: object
+      required: [id, orgUnitId, orgUnitName, jobTitleName, kind, branch, roles, validFrom]
+      properties:
+        id: { type: string }
+        orgUnitId: { type: string }
+        orgUnitName: { type: string }
+        jobTitleName: { type: string }
+        kind: { $ref: '#/components/schemas/AssignmentKind' }
+        branch: { $ref: '../common/common.yaml#/components/schemas/Branch' }
+        roles:
+          type: array
+          items: { type: string }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        validTo: { type: [string, 'null'], format: date }
+    MyOrgProfile:
+      type: object
+      required: [personId, fullName, assignments]
+      properties:
+        personId: { type: string }
+        fullName: { type: string }
+        assignments:
+          type: array
+          items: { $ref: '#/components/schemas/Assignment' }
+        lastAssignmentId: { type: [string, 'null'], description: Phân công dùng lần trước (chọn sẵn) }
+      examples:
+        - personId: 01928f3e-1111-7000-8000-000000000001
+          fullName: Nguyễn Văn An
+          lastAssignmentId: 01928f3e-2222-7000-8000-000000000001
+          assignments:
+            - id: 01928f3e-2222-7000-8000-000000000001
+              orgUnitId: 01928f3e-3333-7000-8000-000000000001
+              orgUnitName: Ban Tổ chức Đảng uỷ khối
+              jobTitleName: Chuyên viên
+              kind: CHINH
+              branch: DANG
+              roles: [member]
+              validFrom: '2024-01-01'
+              validTo: null
+    WorkContext:
+      type: object
+      required: [assignmentId, orgUnitId, roles]
+      properties:
+        assignmentId: { type: string }
+        orgUnitId: { type: string }
+        roles:
+          type: array
+          items: { type: string }
+    OrgPerson:
+      description: Cán bộ trong bản sao cây tổ chức (`org_replica.person_v`); không chứa dữ liệu C2.
+      type: object
+      required: [id, name, title, unitId, unitName]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        name: { type: string }
+        title: { type: string, description: Chức danh }
+        unitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        unitName: { type: string }
+    OrgUnitRef:
+      type: object
+      required: [id, name, parentId]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        name: { type: string }
+        parentId: { type: [string, 'null'], format: uuid }
+    OrgUnitType:
+      description: Loại đơn vị (`org.org_unit.unit_type`).
+      type: string
+      enum: [TO_CHUC_DANG, CHI_BO, CO_QUAN, DON_VI_SU_NGHIEP, PHONG_BAN, XA_PHUONG, DOANH_NGHIEP]
+    OrgTreeKind:
+      description: Cây tổ chức (`org.org_unit_relation.tree`).
+      type: string
+      enum: [DANG, CHUYEN_MON]
+    OrgUnitInput:
+      description: Nội dung sửa đơn vị (SCR-0103 trường 3–9, 11).
+      type: object
+      required: [code, name, level, unitType, subjectGroupId, flows, validFrom]
+      properties:
+        code: { type: string, maxLength: 30, description: 'TL-02 giới hạn 30 ký tự, TL-03 cột `varchar(50)`' }
+        nationalCode: { type: string, description: Mã CSDL CBCCVC (`integ.mapping_xref.external_id`) }
+        name: { type: string, minLength: 1, maxLength: 255 }
+        shortName: { type: string, maxLength: 100 }
+        level: { type: string, description: 'Cấp (TW, tỉnh, xã); TL-03 chưa có CHECK IN' }
+        unitType: { $ref: '#/components/schemas/OrgUnitType' }
+        subjectGroupId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        flows:
+          type: array
+          minItems: 1
+          items: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        parentId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        validTo: { type: [string, 'null'], format: date }
+    OrgUnit:
+      description: Một phiên bản đơn vị (`org.org_unit`) theo hai trục thời gian.
+      allOf:
+        - $ref: '#/components/schemas/OrgUnitInput'
+        - type: object
+          required: [id, versionId, recordedFrom, rowVersion]
+          properties:
+            id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+            versionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+            parentName: { type: string }
+            subjectGroupName: { type: string }
+            predecessorIds:
+              type: array
+              items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+            recordedFrom: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+            recordedByName: { type: string }
+            assignmentCount: { type: integer }
+            rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    OrgTreeNode:
+      type: object
+      required: [id, name, unitType, hasChildren]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string }
+        name: { type: string }
+        unitType: { $ref: '#/components/schemas/OrgUnitType' }
+        hasChildren: { type: boolean }
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/OrgTreeNode' }
+    OrgTree:
+      type: object
+      required: [asOf, recordedAsOf, readOnly, roots]
+      properties:
+        asOf: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        recordedAsOf: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        readOnly: { type: boolean, description: Đúng khi xem quá khứ }
+        roots:
+          type: array
+          items: { $ref: '#/components/schemas/OrgTreeNode' }
+    OrgChangeType:
+      description: >-
+        Loại thay đổi tổ chức theo hộp chọn SCR-0103 (thành lập, đổi tên, sáp nhập, hợp nhất, chia tách,
+        giải thể). Mã giá trị là suy luận; TL-03 `org.org_change_order.kind` gộp chung với quyết định nhân
+        sự và chưa có THANH_LAP, DOI_TEN, HOP_NHAT.
+      type: string
+      enum: [THANH_LAP, DOI_TEN, SAP_NHAP, HOP_NHAT, CHIA_TACH, GIAI_THE]
+    OrgChangeRequest:
+      type: object
+      required: [changeType, effectiveOn, orderNo, orderDate]
+      properties:
+        changeType: { $ref: '#/components/schemas/OrgChangeType' }
+        effectiveOn: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        orderNo: { type: string, maxLength: 64, description: Số quyết định }
+        orderDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        signedDocRef: { type: string, maxLength: 200 }
+        newName: { type: string, maxLength: 255 }
+        relatedUnitIds:
+          type: array
+          description: Đơn vị bị sáp nhập, hợp nhất cùng, hoặc đơn vị mới sau chia tách.
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        newUnits:
+          type: array
+          items: { $ref: '#/components/schemas/OrgUnitInput' }
+        moveAssignmentsTo: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    OrgChangeOrder:
+      description: Quyết định thay đổi (`org.org_change_order`).
+      type: object
+      required: [id, changeType, orderNo, effectiveOn, status]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        changeType: { $ref: '#/components/schemas/OrgChangeType' }
+        orderNo: { type: string }
+        effectiveOn: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        status: { type: string, enum: [NHAP, DA_AP_DUNG, DA_HUY] }
+        appliedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        affectedUnitIds:
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    SyncSource:
+      description: Nguồn đồng bộ (`integ.connector.code`, suy luận về mã).
+      type: string
+      enum: [CBCCVC, DANG_VIEN, SCIM, HRM]
+    OrgSyncRun:
+      description: Một lần đồng bộ (`org.scim_sync_log` tổng hợp, `integ.sync_cursor`).
+      type: object
+      required: [id, connector, startedAt, status, records, changes, errors]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        connector: { $ref: '#/components/schemas/SyncSource' }
+        startedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        finishedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        status: { type: string, enum: [DANG_CHAY, THANH_CONG, THANH_CONG_MOT_PHAN, LOI] }
+        records: { type: integer }
+        changes: { type: integer }
+        errors: { type: integer }
+        deadLetters: { type: integer }
+    OrgSyncSchedule:
+      type: object
+      required: [connector, enabled, cron]
+      properties:
+        connector: { $ref: '#/components/schemas/SyncSource' }
+        enabled: { type: boolean }
+        cron: { type: string, description: 'Biểu thức cron, ví dụ `0 2 * * *`' }
+    DiscrepancySeverity:
+      type: string
+      enum: [CAO, VUA, THAP]
+    DiscrepancyResolution:
+      description: Cách xử lý (`org.sync_discrepancy.resolution`, TL-03).
+      type: string
+      enum: [NHAN_NGUON, GIU_HIEN_TAI, SUA_TAY, BO_QUA]
+    OrgDiscrepancy:
+      description: >-
+        Một dòng lệch (`org.sync_discrepancy`). Giá trị hai phía là C2 và chỉ trả dạng đã che
+        (ví dụ CCCD che 4 số cuối).
+      type: object
+      required: [id, field, sourceConnector, severity, suggestedAction, syncRunId]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        personId: { type: [string, 'null'], format: uuid }
+        personName: { type: string }
+        maskedNationalId: { type: string, x-classification: C2 }
+        field: { type: string, examples: [org_unit_id, job_title_id] }
+        sourceConnector: { $ref: '#/components/schemas/SyncSource' }
+        sourceValueMasked: { type: string, x-classification: C2 }
+        currentValueMasked: { type: string, x-classification: C2 }
+        severity: { $ref: '#/components/schemas/DiscrepancySeverity' }
+        suggestedAction: { type: string }
+        resolution: { $ref: '#/components/schemas/DiscrepancyResolution' }
+        resolvedByName: { type: string }
+        resolvedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        assigneeName: { type: string }
+        externalId: { type: string }
+        syncRunId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }

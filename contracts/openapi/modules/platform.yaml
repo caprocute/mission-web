@@ -1,0 +1,3832 @@
+# Hợp đồng OpenAPI của các dịch vụ nền: SVC-03 tenant-registry, SVC-06 workflow-service,
+# SVC-12 notification-service, SVC-14 ai-gateway, SVC-15 analytics, SVC-16 search (WEB-063, ADR-32).
+# Nguồn: baseline mục 9, 9.1, 10, 13; TL-01 mục SVC-03, SVC-06, SVC-12, SVC-14, SVC-15, SVC-16 (part-05b, part-05c),
+#   chương "Định tuyến tới cell", "Tiếp nhận tenant" (part-11), chương "Trí tuệ nhân tạo" (part-12),
+#   Phụ lục C mục "Dịch vụ nền" (trừ `/org/...`, `/esign/...`) và các dòng SVC-15;
+# TL-02a SCR-0002 (thông báo), SCR-0202 (AI soát KR), SCR-0203 (hộp việc), SCR-0302 (giọng nói),
+#   SCR-0502 (AI trích nhiệm vụ), SCR-0702 (AI đọc minh chứng); TL-02b QT-16 SCR-1601, SCR-1602, SCR-1603,
+#   QT-17 SCR-1701, SCR-1803 (giọng nói), BR-16-xx, BR-17-xx, MSG-16-xx, MSG-17-xx;
+# BS-01 SCR-1505, SCR-1506 (mẫu luồng và giám sát tiến trình);
+# TL-03 schema `registry` (tenant, cell, tenant_cell, tenant_domain), `flowable` (wf_template, wf_task_projection,
+#   saga_instance), `notify` (notification, delivery), `ai` (suggestion_log, guardrail_event), `config.dashboard_def`;
+# ma trận phân quyền `docs/phan-quyen/ma-tran.json`; mô hình frontend `api-client/src/lib/models/source-doc.ts`.
+openapi: 3.1.0
+info:
+  title: Mission – Dịch vụ nền (SVC-03, SVC-06, SVC-12, SVC-14, SVC-15, SVC-16)
+  version: 1.0.0-draft.1
+  description: >-
+    Các dịch vụ nền dùng chung cho mọi module: danh bạ tenant và cell toàn cục (SVC-03), hộp việc và
+    luồng duyệt Flowable (SVC-06), thông báo thời gian thực (SVC-12), cổng AI chỉ đọc (SVC-14), phía đọc
+    phân tích và bảng điều hành (SVC-15), tìm kiếm toàn văn (SVC-16). Mọi đường dẫn tương đối với `/api/v1`.
+    AI không có quyền ghi dữ liệu nghiệp vụ (BR-17-01): mọi nội dung AI tạo chỉ vào hệ thống khi người
+    dùng xác nhận và gọi API nghiệp vụ của module tương ứng dưới danh tính của chính họ.
+servers:
+  - url: /api/v1
+security:
+  - keycloak: []
+tags:
+  - name: Registry
+    description: >-
+      Danh bạ tenant toàn cục của SVC-03 tenant-registry (schema `registry`): tra cell của tenant, danh sách
+      cell, tiếp nhận tenant, chuyển tenant sang cell khác với hai người duyệt. Chạy ở vùng điều phối toàn cục.
+  - name: Workflow
+    description: >-
+      Luồng duyệt có con người tham gia của SVC-06 workflow-service (Flowable 7): hộp việc cần duyệt đọc từ
+      `flowable.wf_task_projection`, hoàn thành user task, duyệt hàng loạt, lịch sử tiến trình, saga chốt kỳ,
+      thư viện mẫu luồng (SCR-1505) và giám sát tiến trình (SCR-1506) theo BS-01.
+  - name: Notifications
+    description: >-
+      Thông báo trong ứng dụng của SVC-12 notification-service (schema `notify`): luồng SSE thời gian thực,
+      hộp thông báo, đánh dấu đã đọc. Nội dung thông báo không chứa dữ liệu C2.
+  - name: AI
+    description: >-
+      Cổng AI chỉ đọc SVC-14 ai-gateway (vai trò kỹ thuật AC-12 `ai_readonly`, schema `ai`). Mọi gợi ý gắn nhãn
+      "Nội dung do AI tạo", có nguồn trích dẫn và được ghi `ai.suggestion_log` (BR-17-02, BR-17-09). AI không
+      chấm điểm, không đề xuất xếp loại (BR-17-04) và không nhận dữ liệu C3 (BR-17-07).
+  - name: Analytics
+    description: >-
+      Phía đọc CQRS của SVC-15 analytics (ClickHouse, lớp ngữ nghĩa Cube): bảng điều hành, truy vấn chỉ số
+      chuẩn, trình dựng dashboard, đi xuống tới minh chứng, xuất báo cáo. Mọi số liệu lọc theo phạm vi cây
+      tổ chức của người xem (BR-16-01); dữ liệu C2 lấy từ mission-core có kiểm quyền (BR-16-04).
+  - name: Search
+    description: >-
+      Tìm kiếm toàn văn SVC-16 trên OpenSearch: nhiệm vụ, văn bản chỉ đạo, danh mục công việc. Chỉ mục không
+      chứa dữ liệu C2, C3; kết quả được kiểm quyền lại ở lõi trước khi hiển thị chi tiết.
+
+paths:
+  # ───────────────────────────── Registry (SVC-03) ─────────────────────────────
+  /registry/resolve:
+    get:
+      tags: [Registry]
+      operationId: resolveTenantCell
+      summary: Tra cell, IdP và trạng thái của một tenant
+      description: >-
+        Shell gọi sau đăng nhập qua điểm vào toàn cục với tenant lấy từ token; APISIX lớp ngoài gọi bằng
+        client nội bộ theo `host` và lưu đệm 5 phút. Máy chủ kiểm tenant khớp claim `tid` của token người
+        dùng, trả URL cổng API của cell và đặt cookie định tuyến ký HMAC hạn 5 phút. Phải có đúng một trong
+        hai tham số `tenant` hoặc `host`. Khi tenant đang chuyển cell hoặc đã chuyển sang cell khác với cell
+        mà request đi tới, trả 421 kèm URL mới để shell chuyển hướng (TL-01 "Định tuyến tới cell"). Khi
+        registry ngừng và tenant chưa có trong đệm, trả 503 với `Retry-After: 30`.
+      security:
+        - keycloak: []
+        - serviceClient: []
+      parameters:
+        - name: tenant
+          in: query
+          description: Mã tenant (`registry.tenant.code`) hoặc `tenant_id` lấy từ claim `tid`.
+          schema: { type: string, maxLength: 64, examples: [dukcqtw] }
+        - name: host
+          in: query
+          description: Tên miền người dùng truy cập (`registry.tenant_domain.domain`), do APISIX lớp ngoài gửi.
+          schema: { type: string, maxLength: 253, examples: [kpi.dukcqtw.dcs.vn] }
+      responses:
+        '200':
+          description: Cell hiện hành của tenant.
+          headers:
+            Set-Cookie:
+              description: Cookie định tuyến ký HMAC, hạn 5 phút, để request sau đi thẳng tới cell.
+              schema: { type: string }
+            Cache-Control:
+              description: '`private, max-age=300`.'
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantResolution' }
+              examples:
+                dang-van-hanh:
+                  value:
+                    tenantId: 0192f1a2-3b4c-7d5e-8f60-718293a4b5c6
+                    tenantCode: dukcqtw
+                    tenantName: Đảng uỷ Khối các cơ quan Trung ương
+                    status: DANG_VAN_HANH
+                    tenancyModel: BRIDGE
+                    cell: { id: 0192f1a2-0000-7c00-8a00-00000000c001, code: CELL-HN, apiBaseUrl: 'https://api.cell-hn.okrkpi.vn' }
+                    idps:
+                      - { idpAlias: vneid, protocol: OIDC, issuer: 'https://sso.vneid.gov.vn', isVneid: true }
+                    cacheTtlSeconds: 300
+        '400': { $ref: '../common/common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '421':
+          description: >-
+            Tenant đã chuyển sang cell khác (mã `REGISTRY-421-TENANT-MOVED`). Header `Location` mang URL cổng API
+            của cell mới; shell gọi lại `registry/resolve` rồi chuyển hướng.
+          headers:
+            Location:
+              description: URL cổng API của cell mới.
+              schema: { type: string, format: uri }
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '503': { $ref: '../common/common.yaml#/components/responses/ServiceUnavailable' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0001]
+        owner: SVC-03
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector, service_client]
+        scope: B
+        source: TL-01 SVC-03, PL C Dịch vụ nền, part-11 "Định tuyến tới cell"; ma trận module registry (shell gọi không cần vai trò)
+
+  /registry/cells:
+    get:
+      tags: [Registry]
+      operationId: listCells
+      summary: Danh sách cell, sức chứa và tải hiện tại
+      description: >-
+        Liệt kê các cell (`registry.cell`) cùng số tenant và số tài khoản đang phục vụ, để quản trị nền tảng
+        chọn cell khi tiếp nhận hoặc chuyển tenant. Số tài khoản cập nhật hằng đêm từ SVC-02.
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/CellStatus' }
+        - name: tenancyModel
+          in: query
+          schema: { $ref: '#/components/schemas/RegistryTenancyModel' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang danh sách cell.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CellPage' }
+              examples:
+                hai-cell:
+                  value:
+                    items:
+                      - id: 0192f1a2-0000-7c00-8a00-00000000c001
+                        code: CELL-HN
+                        name: Cell Hà Nội
+                        primaryDc: HOALAC
+                        standbyDc: PHIANAM
+                        tenancyModel: BRIDGE
+                        apiBaseUrl: 'https://api.cell-hn.okrkpi.vn'
+                        capacityAccounts: 1500000
+                        status: HOAT_DONG
+                        tenantCount: 42
+                        accountCount: 812345
+                      - id: 0192f1a2-0000-7c00-8a00-00000000c002
+                        code: CELL-NB
+                        name: Cell thí điểm Ninh Bình
+                        primaryDc: PHIANAM
+                        tenancyModel: POOL
+                        apiBaseUrl: 'https://api.cell-nb.okrkpi.vn'
+                        capacityAccounts: 300000
+                        status: HOAT_DONG
+                        tenantCount: 118
+                        accountCount: 96120
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0101, SCR-0102]
+        owner: SVC-03
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        source: TL-01 SVC-03 (API chính); TL-03 `registry.cell`
+
+  /registry/tenants:
+    post:
+      tags: [Registry]
+      operationId: createRegistryTenant
+      summary: Tiếp nhận tenant vào danh bạ và gán cell
+      description: >-
+        Tạo bản ghi `registry.tenant` ở trạng thái `KHOI_TAO`, gán cell đích (`registry.tenant_cell`) và tên
+        miền, rồi khởi động tiến trình tiếp nhận tự động (Keycloak Organizations, KEK trong OpenBao, CSDL hoặc
+        phân vùng, Policy Pack và UI Pack mặc định, kiểm thử khói, phát `sys.tenant.provisioned.v1`). Mỗi bước
+        idempotent. Màn hình SCR-0102 đi qua `POST /config/tenants/{id}/provision` của MOD-08; saga cấp phát
+        gọi thao tác này bằng client nội bộ, quản trị nền tảng cũng gọi được trực tiếp.
+      security:
+        - keycloak: []
+        - serviceClient: []
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegistryTenantCreate' }
+            examples:
+              tiep-nhan:
+                value:
+                  code: dukcqtw
+                  name: Đảng uỷ Khối các cơ quan Trung ương
+                  sector: DANG
+                  tenancyModel: BRIDGE
+                  cellId: 0192f1a2-0000-7c00-8a00-00000000c001
+                  flows: [DANG]
+                  maxAccounts: 60000
+                  expectedAccounts: 52000
+                  contractRef: HĐ-2026/VTS-123
+                  contractValidTo: '2029-12-31'
+                  onboardingCode: KT-2026-0042
+                  domains:
+                    - { domain: kpi.dukcqtw.dcs.vn, kind: PRIMARY }
+      responses:
+        '201':
+          description: Đã tạo tenant và khởi động tiếp nhận.
+          headers:
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RegistryTenant' }
+              examples:
+                vua-tao:
+                  value:
+                    id: 0192f1a2-3b4c-7d5e-8f60-718293a4b5c6
+                    code: dukcqtw
+                    name: Đảng uỷ Khối các cơ quan Trung ương
+                    sector: DANG
+                    tenancyModel: BRIDGE
+                    status: KHOI_TAO
+                    flows: [DANG]
+                    maxAccounts: 60000
+                    expectedAccounts: 52000
+                    accountCount: 0
+                    contractRef: HĐ-2026/VTS-123
+                    contractValidTo: '2029-12-31'
+                    onboardingCode: KT-2026-0042
+                    currentCell: { id: 0192f1a2-0000-7c00-8a00-00000000c001, code: CELL-HN, databaseName: td_dukcqtw, validFrom: '2026-10-19T09:00:00+07:00' }
+                    domains:
+                      - { domain: kpi.dukcqtw.dcs.vn, kind: PRIMARY, verifiedAt: null }
+                    rowVersion: 0
+                    createdAt: '2026-10-19T09:00:00+07:00'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          description: >-
+            Mã tenant, mã hồ sơ khởi tạo hoặc tên miền đã tồn tại (`REGISTRY-409-DUPLICATE`), hoặc cell đích không
+            ở trạng thái `HOAT_DONG` (`REGISTRY-409-CELL-UNAVAILABLE`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0102]
+        owner: SVC-03
+        roles: [platform_admin, service_client]
+        scope: N
+        aal: 2
+        rules: [BR-00-01]
+        source: TL-01 PL C Dịch vụ nền; TL-01 SVC-03; part-11 "Tiếp nhận tenant"; TL-03 `registry.tenant`
+
+  /registry/tenants/{id}:
+    get:
+      tags: [Registry]
+      operationId: getRegistryTenant
+      summary: Xem bản ghi danh bạ của một tenant
+      description: >-
+        Trả thông tin danh bạ, cell hiện hành và lịch sử gắn cell (suy luận: cần để lấy ETag trước khi đề nghị
+        chuyển cell và để theo dõi lần chuyển đang chạy).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Bản ghi tenant.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RegistryTenant' }
+              examples:
+                dang-van-hanh:
+                  value:
+                    id: 0192f1a2-3b4c-7d5e-8f60-718293a4b5c6
+                    code: dukcqtw
+                    name: Đảng uỷ Khối các cơ quan Trung ương
+                    sector: DANG
+                    tenancyModel: BRIDGE
+                    status: DANG_VAN_HANH
+                    flows: [DANG]
+                    maxAccounts: 60000
+                    accountCount: 51870
+                    currentCell: { id: 0192f1a2-0000-7c00-8a00-00000000c001, code: CELL-HN, databaseName: td_dukcqtw, validFrom: '2026-10-19T09:00:00+07:00' }
+                    domains:
+                      - { domain: kpi.dukcqtw.dcs.vn, kind: PRIMARY, verifiedAt: '2026-10-19T10:15:00+07:00' }
+                    rowVersion: 5
+                    createdAt: '2026-10-19T09:00:00+07:00'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0101]
+        owner: SVC-03
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        source: TL-03 `registry.tenant`, `registry.tenant_cell` (suy luận)
+
+  /registry/tenants/{id}/move:
+    post:
+      tags: [Registry]
+      operationId: requestTenantMove
+      summary: Đề nghị chuyển tenant sang cell khác
+      description: >-
+        Người đề nghị (quản trị nền tảng thứ nhất) tạo đề nghị chuyển cell ở trạng thái `CHO_DUYET`. Việc chuyển
+        chỉ bắt đầu khi một quản trị nền tảng khác phê duyệt (`.../move/{moveId}/approve`). Khi chạy, tenant ở
+        trạng thái `DANG_CHUYEN_CELL`, dữ liệu sao chép logic sang cell đích, khoá ghi vài phút rồi cập nhật
+        `registry.tenant_cell` (ADR-29, TL-03 "registry").
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TenantMoveCreate' }
+            examples:
+              tot-nghiep-len-bridge:
+                value:
+                  targetCellId: 0192f1a2-0000-7c00-8a00-00000000c001
+                  targetTenancyModel: BRIDGE
+                  dataRegion: HOALAC
+                  reason: Tenant vượt ngưỡng 50.000 tài khoản của cell pool, tốt nghiệp lên bridge theo ADR-29.
+                  plannedAt: '2026-11-07T22:00:00+07:00'
+      responses:
+        '201':
+          description: Đã tạo đề nghị chuyển cell, chờ người duyệt thứ hai.
+          headers:
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantMove' }
+              examples:
+                cho-duyet:
+                  value:
+                    id: 0192f1b0-11aa-7b22-9c33-44d55e66f701
+                    tenantId: 0192f1a2-3b4c-7d5e-8f60-718293a4b5c6
+                    fromCell: { id: 0192f1a2-0000-7c00-8a00-00000000c002, code: CELL-NB }
+                    toCell: { id: 0192f1a2-0000-7c00-8a00-00000000c001, code: CELL-HN }
+                    targetTenancyModel: BRIDGE
+                    dataRegion: HOALAC
+                    status: CHO_DUYET
+                    reason: Tenant vượt ngưỡng 50.000 tài khoản của cell pool, tốt nghiệp lên bridge theo ADR-29.
+                    plannedAt: '2026-11-07T22:00:00+07:00'
+                    requestedBy: 0192f1a2-1111-7aaa-8bbb-000000000a01
+                    requestedAt: '2026-10-19T09:30:00+07:00'
+                    rowVersion: 0
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Xung đột ghi (`REGISTRY-409-VERSION-CONFLICT`), tenant đang có lần chuyển khác
+            (`REGISTRY-409-MOVE-IN-PROGRESS`) hoặc cell đích trùng cell hiện tại (`REGISTRY-409-SAME-CELL`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0101]
+        owner: SVC-03
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        fourEyes: true
+        source: TL-01 PL C Dịch vụ nền ("hai người duyệt"); TL-01 SVC-03; ADR-29
+
+  /registry/tenants/{id}/move/{moveId}/approve:
+    post:
+      tags: [Registry]
+      operationId: approveTenantMove
+      summary: Phê duyệt lần chuyển cell và khởi động saga chuyển
+      description: >-
+        Người duyệt thứ hai, khác người đề nghị, phê duyệt đề nghị chuyển cell. Máy chủ chuyển tenant sang
+        `DANG_CHUYEN_CELL`, khởi động saga sao chép logic và chuyển đổi (TL-04), trả 202. Kết thúc thành công
+        thì tenant về `DANG_VAN_HANH`, `registry.tenant_cell` có dòng mới và phát `registry.tenant.changed.v1`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - name: moveId
+          in: path
+          required: true
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApprovalComment' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: >-
+            Người duyệt trùng người đề nghị (`REGISTRY-403-SAME-APPROVER`) hoặc OPA từ chối.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0101]
+        owner: SVC-03
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        fourEyes: true
+        source: TL-01 PL C Dịch vụ nền ("hai người duyệt"), đường dẫn duyệt là suy luận
+
+  # ───────────────────────────── Workflow (SVC-06) ─────────────────────────────
+  /workflow/inbox:
+    get:
+      tags: [Workflow]
+      operationId: listWorkflowInbox
+      summary: Hộp việc cần duyệt của người dùng
+      description: >-
+        Đọc từ `flowable.wf_task_projection` (không truy vấn `ACT_*`): user task gán trực tiếp cho người dùng
+        và user task có nhóm ứng viên khớp vai trò, đơn vị trong ngữ cảnh đang chọn. Sắp theo hạn tăng dần.
+        `counts` phục vụ MSG-02-12 "Còn {n} bộ chờ duyệt".
+      parameters:
+        - name: assignee
+          in: query
+          description: Chỉ hỗ trợ `me` (người gọi).
+          schema: { type: string, enum: [me], default: me }
+        - name: businessType
+          in: query
+          description: Lọc theo loại đối tượng nghiệp vụ, ví dụ `OKR_OBJECTIVE`, `PLAN`, `APPRAISAL_PROFILE`.
+          schema: { type: string, maxLength: 32 }
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang hộp việc.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowInboxPage' }
+              examples:
+                okr-cho-duyet:
+                  value:
+                    items:
+                      - taskId: '7f3c2a10-8b1e-11f1-9c5a-0242ac120002'
+                        title: Phê duyệt OKR Quý I/2027 của Ban Tổ chức
+                        businessType: OKR_OBJECTIVE
+                        businessId: 0192f2c4-5d6e-7f80-91a2-b3c4d5e6f701
+                        businessKey: 'OKR_OBJECTIVE:0192f2c4-5d6e-7f80-91a2-b3c4d5e6f701'
+                        templateCode: duyet-okr
+                        assigneeId: 0192f1a2-2222-7aaa-8bbb-000000000b04
+                        candidateRole: leader
+                        candidateUnitId: 0192f1a2-3333-7ccc-8ddd-000000000a01
+                        periodId: 0192f1a2-4444-7eee-8fff-000000000f27
+                        dueAt: '2027-01-08T17:00:00+07:00'
+                        createdAt: '2027-01-06T09:12:00+07:00'
+                        overdue: false
+                        deepLink: /okr/phe-duyet/0192f2c4-5d6e-7f80-91a2-b3c4d5e6f701
+                        rowVersion: 1
+                    nextCursor: null
+                    counts: { total: 6, overdue: 0, dueToday: 0 }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02, QT-04, QT-09, QT-18]
+        scr: [SCR-0203, SCR-1803]
+        owner: SVC-06
+        roles: [tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: TL-01 PL C Dịch vụ nền; TL-01 SVC-06; TL-02a SCR-0203 trường 1; TL-03 `flowable.wf_task_projection`
+
+  /workflow/tasks/{taskId}/complete:
+    post:
+      tags: [Workflow]
+      operationId: completeWorkflowTask
+      summary: Hoàn thành một user task với quyết định và lý do
+      description: >-
+        Người được gán (hoặc thuộc nhóm ứng viên) hoàn thành user task. Biến `decision` được đặt vào tiến trình
+        (mẫu dùng `${decision == 'TRA_LAI'}`, TL-01 chương 8). Thao tác nghiệp vụ có API riêng của module (ví dụ
+        `POST /okr/objectives/{id}/approve`) gọi thao tác này qua lõi; frontend dùng trực tiếp cho user task
+        không có API nghiệp vụ riêng (suy luận). `If-Match` mang `REV_` của `ACT_RU_TASK` (trả trong
+        `rowVersion` của hộp việc).
+      parameters:
+        - $ref: '#/components/parameters/WorkflowTaskId'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkflowTaskCompletion' }
+            examples:
+              tra-lai:
+                value:
+                  decision: TRA_LAI
+                  comment: KR 1.3 chưa có chỉ tiêu đo được, đề nghị bổ sung trước ngày 10/01/2027.
+      responses:
+        '200':
+          description: Đã hoàn thành user task.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowTaskResult' }
+              examples:
+                da-tra-lai:
+                  value:
+                    taskId: '7f3c2a10-8b1e-11f1-9c5a-0242ac120002'
+                    businessKey: 'OKR_OBJECTIVE:0192f2c4-5d6e-7f80-91a2-b3c4d5e6f701'
+                    decision: TRA_LAI
+                    completedAt: '2027-01-07T10:05:00+07:00'
+                    processEnded: true
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: >-
+            Người gọi không phải người được gán hay ứng viên, hoặc vi phạm tách vai trò (người duyệt là người soạn,
+            `WORKFLOW-403-SELF-APPROVAL`, MSG-02-11).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            User task đã được người khác hoàn thành (`WORKFLOW-409-TASK-COMPLETED`) hoặc lệch phiên bản
+            (`WORKFLOW-409-VERSION-CONFLICT`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02, QT-04, QT-09]
+        scr: [SCR-0203]
+        owner: SVC-06
+        roles: [tenant_admin, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        rules: [BR-02-08, BR-02-09]
+        source: TL-01 PL C Dịch vụ nền ("Người được gán"); TL-01 SVC-06
+
+  /workflow/tasks/batch-complete:
+    post:
+      tags: [Workflow]
+      operationId: batchCompleteWorkflowTasks
+      summary: Duyệt hàng loạt tối đa 200 user task
+      description: >-
+        Hoàn thành nhiều user task cùng một quyết định, mỗi mục một giao dịch; mục lỗi không làm hỏng mục khác.
+        Kết quả từng mục (`BatchItemResult`) nằm ở `resultLocation` của job. Chỉ dùng cho mục không có cảnh
+        báo (SCR-0203 "Duyệt hàng loạt (đủ điều kiện)").
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkflowBatchCompletion' }
+            examples:
+              duyet-ba-bo:
+                value:
+                  decision: DUYET
+                  comment: Đồng ý.
+                  items:
+                    - { taskId: '7f3c2a10-8b1e-11f1-9c5a-0242ac120002', rowVersion: 1 }
+                    - { taskId: '7f3c2a11-8b1e-11f1-9c5a-0242ac120002', rowVersion: 1 }
+                    - { taskId: '7f3c2a12-8b1e-11f1-9c5a-0242ac120002', rowVersion: 2 }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422':
+          description: Quá 200 mục (`WORKFLOW-422-BATCH-TOO-LARGE`) hoặc dữ liệu không hợp lệ.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02, QT-04, QT-09]
+        scr: [SCR-0203]
+        owner: SVC-06
+        roles: [leader, manager, appraiser, decider, second_approver]
+        scope: B
+        source: TL-01 PL C Dịch vụ nền ("tới 200 mục"); TL-01 SVC-06
+
+  /workflow/instances:
+    get:
+      tags: [Workflow]
+      operationId: listWorkflowInstances
+      summary: Danh sách tiến trình đang chạy theo mẫu, phát hiện tiến trình kẹt
+      description: >-
+        Giám sát tiến trình (BS-01 SCR-1506). Đọc từ `flowable.wf_task_projection` và chỉ số engine, không truy
+        vấn `ACT_*` lúc cao điểm. Quản trị tenant thấy tiến trình của tenant mình; quản trị nền tảng xem tổng
+        hợp theo cell (tham số `cell`). Tiến trình "kẹt" là tiến trình có user task quá hạn hoặc không có người
+        xử lý hợp lệ (suy luận).
+      parameters:
+        - name: template
+          in: query
+          description: Mã mẫu luồng (`flowable.wf_template.template_code`).
+          schema: { type: string, maxLength: 64 }
+        - name: stuck
+          in: query
+          schema: { type: boolean }
+        - name: cell
+          in: query
+          description: Mã cell, chỉ quản trị nền tảng dùng.
+          schema: { type: string, maxLength: 16 }
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang tiến trình.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowInstancePage' }
+              examples:
+                mot-tien-trinh-ket:
+                  value:
+                    items:
+                      - businessKey: 'APPRAISAL_PROFILE:0192f3d5-6e7f-7091-a2b3-c4d5e6f70812'
+                        businessType: APPRAISAL_PROFILE
+                        businessId: 0192f3d5-6e7f-7091-a2b3-c4d5e6f70812
+                        title: Hồ sơ đánh giá năm 2026 – Trần Minh Hoàng
+                        templateCode: duyet-ho-so-danh-gia
+                        templateVersion: 3
+                        currentActivityName: Duyệt theo cấp
+                        currentTaskId: '9a1b2c3d-8b1e-11f1-9c5a-0242ac120002'
+                        assigneeId: null
+                        candidateRole: appraiser
+                        startedAt: '2026-12-01T08:00:00+07:00'
+                        dueAt: '2026-12-20T17:00:00+07:00'
+                        stuck: true
+                        stuckReason: Quá hạn 3 ngày, không có người xử lý trong đơn vị ứng viên.
+                        cellCode: CELL-HN
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1506]
+        owner: SVC-06
+        roles: [platform_admin, tenant_admin]
+        scope: Tn
+        aal: 2
+        source: BS-01 SCR-1506; ma trận SCR-1506.xem
+
+  /workflow/instances/{businessKey}/history:
+    get:
+      tags: [Workflow]
+      operationId: getWorkflowHistory
+      summary: Lịch sử duyệt của một hồ sơ theo businessKey
+      description: >-
+        Lịch sử các bước của tiến trình gắn với một đối tượng nghiệp vụ (SCR-0203 trường 6, SCR-1506), lấy từ
+        `ACT_HI_TASKINST` qua bảng chiếu, mức lịch sử `audit`. Máy chủ kiểm người gọi có quyền đọc đối tượng
+        nghiệp vụ tương ứng.
+      parameters:
+        - $ref: '#/components/parameters/BusinessKey'
+      responses:
+        '200':
+          description: Lịch sử tiến trình.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowHistory' }
+              examples:
+                okr-da-duyet:
+                  value:
+                    businessKey: 'OKR_OBJECTIVE:0192f2c4-5d6e-7f80-91a2-b3c4d5e6f701'
+                    businessType: OKR_OBJECTIVE
+                    templateCode: duyet-okr
+                    templateVersion: 2
+                    status: DA_KET_THUC
+                    entries:
+                      - { at: '2027-01-05T16:20:00+07:00', action: TAO_TIEN_TRINH, actorId: 0192f1a2-2222-7aaa-8bbb-000000000b05, actorName: Lê Minh Châu, activityName: Trình phê duyệt }
+                      - { at: '2027-01-07T10:05:00+07:00', action: DUYET, actorId: 0192f1a2-2222-7aaa-8bbb-000000000b04, actorName: Đinh Văn Sơn, activityName: Duyệt theo cấp, comment: Đồng ý. }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02, QT-04, QT-09, QT-15]
+        scr: [SCR-0203, SCR-1506]
+        owner: SVC-06
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: TL-01 SVC-06 (API chính); TL-02a SCR-0203 trường 6; BS-01 SCR-1506
+
+  /workflow/instances/{businessKey}/diagram:
+    get:
+      tags: [Workflow]
+      operationId: getWorkflowDiagram
+      summary: Sơ đồ tiến trình với bước hiện tại
+      description: >-
+        Trả BPMN của phiên bản mẫu mà tiến trình đang chạy cùng danh sách phần tử đã qua và đang chờ, để frontend
+        vẽ bằng bpmn-js ở chế độ chỉ xem (BS-01 SCR-1506; dạng tương tự `/periods/{id}/lock/diagram` của QT-08).
+      parameters:
+        - $ref: '#/components/parameters/BusinessKey'
+      responses:
+        '200':
+          description: Sơ đồ và trạng thái các phần tử.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowDiagram' }
+              examples:
+                dang-duyet:
+                  value:
+                    businessKey: 'APPRAISAL_PROFILE:0192f3d5-6e7f-7091-a2b3-c4d5e6f70812'
+                    templateCode: duyet-ho-so-danh-gia
+                    templateVersion: 3
+                    bpmnXml: '<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">…</definitions>'
+                    completedActivityIds: [start, chooseLevels]
+                    activeActivityIds: [review]
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1506]
+        owner: SVC-06
+        roles: [platform_admin, tenant_admin]
+        scope: Tn
+        source: BS-01 SCR-1506 thao tác thứ ba; ma trận SCR-1506.so-do
+
+  /workflow/tasks/{taskId}/reassign:
+    post:
+      tags: [Workflow]
+      operationId: reassignWorkflowTask
+      summary: Chuyển người xử lý của một user task
+      description: >-
+        Dùng khi cán bộ nghỉ hoặc chuyển công tác (BS-01 SCR-1506). Người nhận phải có vai trò và đơn vị phù hợp
+        nhóm ứng viên của bước. Ghi sổ cái; không sửa biến tiến trình, không nhảy bước. Người nhận mới được
+        thông báo qua EVT-21 (suy luận).
+      parameters:
+        - $ref: '#/components/parameters/WorkflowTaskId'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkflowTaskReassign' }
+            examples:
+              nghi-phep:
+                value:
+                  assigneeId: 0192f1a2-2222-7aaa-8bbb-000000000b09
+                  reason: Đồng chí thẩm định nghỉ phép từ 18/12 đến 28/12/2026 theo Quyết định 215-QĐ/ĐUK.
+      responses:
+        '200':
+          description: Đã chuyển người xử lý.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowInboxItem' }
+              examples:
+                da-chuyen:
+                  value:
+                    taskId: '9a1b2c3d-8b1e-11f1-9c5a-0242ac120002'
+                    title: Thẩm định hồ sơ đánh giá năm 2026 – Trần Minh Hoàng
+                    businessType: APPRAISAL_PROFILE
+                    businessId: 0192f3d5-6e7f-7091-a2b3-c4d5e6f70812
+                    businessKey: 'APPRAISAL_PROFILE:0192f3d5-6e7f-7091-a2b3-c4d5e6f70812'
+                    templateCode: duyet-ho-so-danh-gia
+                    assigneeId: 0192f1a2-2222-7aaa-8bbb-000000000b09
+                    candidateRole: appraiser
+                    dueAt: '2026-12-20T17:00:00+07:00'
+                    createdAt: '2026-12-01T08:00:00+07:00'
+                    overdue: true
+                    rowVersion: 3
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422':
+          description: >-
+            Thiếu lý do, hoặc người nhận không thuộc nhóm ứng viên của bước (`WORKFLOW-422-ASSIGNEE-NOT-ELIGIBLE`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1506]
+        owner: SVC-06
+        evt: [EVT-21]
+        roles: [platform_admin, tenant_admin]
+        scope: Tn
+        aal: 2
+        source: BS-01 SCR-1506; ma trận SCR-1506.chuyen-nguoi-xu-ly
+
+  /workflow/tasks/{taskId}/extend:
+    post:
+      tags: [Workflow]
+      operationId: extendWorkflowTask
+      summary: Gia hạn thời hạn của một bước
+      description: Đặt hạn mới cho user task; ghi sổ cái; không sửa biến khác, không nhảy bước (BS-01 SCR-1506).
+      parameters:
+        - $ref: '#/components/parameters/WorkflowTaskId'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkflowTaskExtend' }
+            examples:
+              gia-han:
+                value:
+                  dueAt: '2026-12-29T17:00:00+07:00'
+                  reason: Chờ bổ sung minh chứng từ đơn vị cơ sở theo đề nghị ngày 18/12/2026.
+      responses:
+        '200':
+          description: Đã gia hạn.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowInboxItem' }
+              examples:
+                da-gia-han:
+                  value:
+                    taskId: '9a1b2c3d-8b1e-11f1-9c5a-0242ac120002'
+                    title: Thẩm định hồ sơ đánh giá năm 2026 – Trần Minh Hoàng
+                    businessType: APPRAISAL_PROFILE
+                    businessId: 0192f3d5-6e7f-7091-a2b3-c4d5e6f70812
+                    businessKey: 'APPRAISAL_PROFILE:0192f3d5-6e7f-7091-a2b3-c4d5e6f70812'
+                    candidateRole: appraiser
+                    dueAt: '2026-12-29T17:00:00+07:00'
+                    createdAt: '2026-12-01T08:00:00+07:00'
+                    overdue: false
+                    rowVersion: 4
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1506]
+        owner: SVC-06
+        roles: [platform_admin, tenant_admin]
+        scope: Tn
+        aal: 2
+        source: BS-01 SCR-1506; ma trận SCR-1506.gia-han-buoc
+
+  /workflow/sagas/period-close:
+    post:
+      tags: [Workflow]
+      operationId: startPeriodCloseSaga
+      summary: Khởi động saga chốt kỳ
+      description: >-
+        Client nội bộ (MOD-08 sau khi lệnh khoá kỳ được duyệt và quản trị tenant bấm khởi chạy ở SCR-0801) khởi
+        động saga `CHOT_KY` trong `flowable.saga_instance`, idempotent theo (`tenant_id`, `saga_type`,
+        `correlation_id`). Trả 202 và mã theo dõi; các bước `DAT_DANG_KHOA`, `CHO_XA_SU_KIEN`, `CHAY_TINH_DIEM`,
+        `NIEM_PHONG`, `DAT_DA_KHOA` chạy nền, kết thúc thì MOD-08 phát EVT-09.
+      security:
+        - serviceClient: []
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PeriodCloseSagaStart' }
+            examples:
+              quy-iv:
+                value:
+                  periodId: 0192f1a2-4444-7eee-8fff-000000000f26
+                  lockOrderId: 0192f4e6-7f80-7192-a3b4-c5d6e7f80923
+                  unitIds: []
+                  requestedBy: 0192f1a2-1111-7aaa-8bbb-000000000a02
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          description: Kỳ đã có saga chốt kỳ đang chạy hoặc đã hoàn tất (`WORKFLOW-409-SAGA-EXISTS`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: SVC-06
+        evt: [EVT-09]
+        roles: [service_client]
+        scope: Tn
+        rules: [BR-08-01, BR-08-02]
+        source: TL-01 PL C Dịch vụ nền ("Client nội bộ"); TL-01 SVC-06; TL-03 `flowable.saga_instance`
+
+  /workflow/templates:
+    get:
+      tags: [Workflow]
+      operationId: listWorkflowTemplates
+      summary: Thư viện mẫu luồng
+      description: >-
+        Danh sách mẫu luồng dùng chung (BS-01 SCR-1505) với phiên bản, trạng thái, số tenant đang dùng (đếm từ
+        `flowable.wf_binding`) và số test. Chỉ đội sản phẩm có vai trò con `wf_template_author` của AC-01 và
+        người phê duyệt AC-09 cấp nền tảng; tenant không thấy.
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/WorkflowTemplateStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang mẫu luồng.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowTemplatePage' }
+              examples:
+                thu-vien:
+                  value:
+                    items:
+                      - id: 0192f5f7-8091-72a3-b4c5-d6e7f8091a34
+                        templateCode: duyet-ho-so-danh-gia
+                        versionNo: 3
+                        status: HIEU_LUC
+                        bpmnSha256: 9f2c4e1a7b3d5f60819a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f70
+                        tenantBindingCount: 37
+                        testCount: 24
+                        updatedAt: '2026-10-02T14:00:00+07:00'
+                        rowVersion: 6
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1505]
+        owner: SVC-06
+        roles: [platform_admin, second_approver]
+        scope: N
+        aal: 2
+        source: BS-01 SCR-1505 Bố cục; ma trận SCR-1505.thu-vien (vai trò con wf_template_author)
+    post:
+      tags: [Workflow]
+      operationId: createWorkflowTemplate
+      summary: Tạo mẫu luồng mới hoặc phiên bản mới của mẫu
+      description: >-
+        Lưu BPMN 2.0 và khai báo tham số (JSON Schema) ở trạng thái `NHAP`. Máy chủ chạy lại linter bpmnlint với
+        bốn quy tắc chống mạng nhện của TL-01 và giới hạn tải của BS-01 (≤ 12 user task mỗi nhánh, ≤ 50 phần tử
+        đa thể hiện, một tầng call activity, chỉ external worker task); vi phạm trả 422 với `errors[].rule`.
+        Khi `basedOnTemplateId` có giá trị, tạo phiên bản kế tiếp của cùng `templateCode`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkflowTemplateCreate' }
+            examples:
+              phien-ban-moi:
+                value:
+                  templateCode: duyet-ho-so-danh-gia
+                  basedOnTemplateId: 0192f5f7-8091-72a3-b4c5-d6e7f8091a34
+                  bpmnXml: '<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">…</definitions>'
+                  paramSchema:
+                    type: object
+                    properties:
+                      approvalLevels: { type: integer, minimum: 1, maximum: 4 }
+                      remindAfter: { type: string, default: P2D }
+      responses:
+        '201':
+          description: Đã tạo mẫu ở trạng thái `NHAP`.
+          headers:
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowTemplate' }
+              examples:
+                nhap:
+                  value:
+                    id: 0192f5f7-8091-72a3-b4c5-d6e7f8091a40
+                    templateCode: duyet-ho-so-danh-gia
+                    versionNo: 4
+                    status: NHAP
+                    bpmnXml: '<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">…</definitions>'
+                    bpmnSha256: 1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809
+                    paramSchema: { type: object }
+                    tenantBindingCount: 0
+                    testCount: 24
+                    updatedAt: '2026-10-19T11:00:00+07:00'
+                    rowVersion: 0
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          description: Đã có phiên bản `NHAP` khác của cùng mã mẫu (`WORKFLOW-409-DRAFT-EXISTS`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1505]
+        owner: SVC-06
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        source: BS-01 SCR-1505 Kiểm tra khi soạn, Giới hạn tải; ma trận SCR-1505.soan
+
+  /workflow/templates/{id}:
+    get:
+      tags: [Workflow]
+      operationId: getWorkflowTemplate
+      summary: Xem một phiên bản mẫu luồng
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Mẫu luồng đầy đủ.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowTemplate' }
+              examples:
+                hieu-luc:
+                  value:
+                    id: 0192f5f7-8091-72a3-b4c5-d6e7f8091a34
+                    templateCode: duyet-ho-so-danh-gia
+                    versionNo: 3
+                    status: HIEU_LUC
+                    bpmnXml: '<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">…</definitions>'
+                    bpmnSha256: 9f2c4e1a7b3d5f60819a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f70
+                    paramSchema: { type: object }
+                    testSuiteRef: 4e1d2c3b
+                    flowableDeploymentId: '20001'
+                    approvedBy: 0192f1a2-1111-7aaa-8bbb-000000000a09
+                    tenantBindingCount: 37
+                    testCount: 24
+                    updatedAt: '2026-10-02T14:00:00+07:00'
+                    rowVersion: 6
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1505]
+        owner: SVC-06
+        roles: [platform_admin, second_approver]
+        scope: N
+        aal: 2
+        source: BS-01 SCR-1505; TL-03 `flowable.wf_template` và cột bổ sung của BS-01
+    put:
+      tags: [Workflow]
+      operationId: updateWorkflowTemplate
+      summary: Sửa mẫu luồng đang ở trạng thái nháp
+      description: >-
+        Chỉ sửa được phiên bản `NHAP`; phiên bản từ `HIEU_LUC` trở đi không sửa (BS-01 "Vòng đời phiên bản").
+        Linter chạy lại ở máy chủ như khi tạo. Sửa sau khi đã `DAT_KIEM_THU` đưa mẫu về `NHAP` (suy luận).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkflowTemplateUpdate' }
+            examples:
+              sua-bpmn:
+                value:
+                  bpmnXml: '<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">…</definitions>'
+                  paramSchema: { type: object }
+      responses:
+        '200':
+          description: Đã lưu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowTemplate' }
+              examples:
+                da-luu:
+                  value:
+                    id: 0192f5f7-8091-72a3-b4c5-d6e7f8091a40
+                    templateCode: duyet-ho-so-danh-gia
+                    versionNo: 4
+                    status: NHAP
+                    bpmnXml: '<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">…</definitions>'
+                    bpmnSha256: 2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a
+                    paramSchema: { type: object }
+                    tenantBindingCount: 0
+                    testCount: 24
+                    updatedAt: '2026-10-19T11:20:00+07:00'
+                    rowVersion: 1
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Lệch phiên bản (`WORKFLOW-409-VERSION-CONFLICT`) hoặc mẫu không còn ở `NHAP`, `DAT_KIEM_THU`
+            (`WORKFLOW-409-TEMPLATE-IMMUTABLE`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1505]
+        owner: SVC-06
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        source: BS-01 SCR-1505; ma trận SCR-1505.soan
+
+  /workflow/templates/{id}/test:
+    post:
+      tags: [Workflow]
+      operationId: runWorkflowTemplateTests
+      summary: Chạy bộ test kịch bản và thử tải rút gọn của mẫu
+      description: >-
+        Gửi mẫu tới engine Flowable kiểm thử riêng (không phải engine của cell), chạy mọi kịch bản với tham số
+        của mọi `wf_binding` đang dùng mẫu, đo ngân sách ≤ 20 câu SQL mỗi lần hoàn thành user task. Đạt hết thì
+        mẫu chuyển `DAT_KIEM_THU`. Trả 202 và job.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Mẫu không ở trạng thái `NHAP` hoặc `DAT_KIEM_THU` (`WORKFLOW-409-TEMPLATE-IMMUTABLE`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1505]
+        owner: SVC-06
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        source: BS-01 SCR-1505 Kiểm thử; ma trận SCR-1505.chay-test
+
+  /workflow/templates/{id}/submit:
+    post:
+      tags: [Workflow]
+      operationId: submitWorkflowTemplate
+      summary: Đề nghị phát hành mẫu luồng
+      description: >-
+        Chỉ khi mẫu `DAT_KIEM_THU`. Hệ thống tạo merge request vào repo mẫu luồng kèm BPMN, khai báo tham số và
+        bộ test, chuyển mẫu sang `CHO_PHE_DUYET` (BS-01 "Đồng bộ với kho mã").
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApprovalComment' }
+      responses:
+        '200':
+          description: Đã tạo merge request, mẫu chờ phê duyệt.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowTemplate' }
+              examples:
+                cho-phe-duyet:
+                  value:
+                    id: 0192f5f7-8091-72a3-b4c5-d6e7f8091a40
+                    templateCode: duyet-ho-so-danh-gia
+                    versionNo: 4
+                    status: CHO_PHE_DUYET
+                    bpmnSha256: 2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a
+                    testSuiteRef: 7c8d9e0f
+                    mergeRequestUrl: 'https://git.okrkpi.vn/platform/wf-templates/-/merge_requests/128'
+                    tenantBindingCount: 0
+                    testCount: 26
+                    updatedAt: '2026-10-19T15:00:00+07:00'
+                    rowVersion: 3
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Mẫu chưa `DAT_KIEM_THU` (`WORKFLOW-409-NOT-TESTED`) hoặc lệch phiên bản.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1505]
+        owner: SVC-06
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        source: BS-01 SCR-1505; ma trận SCR-1505.de-nghi-phat-hanh
+
+  /workflow/templates/{id}/approve:
+    post:
+      tags: [Workflow]
+      operationId: approveWorkflowTemplate
+      summary: Phê duyệt phát hành mẫu luồng và triển khai lên các cell
+      description: >-
+        Người phê duyệt khác người soạn (bốn mắt), xác thực bước lên AAL2. Pipeline ký số gói mẫu (cosign), ghi
+        `wf_template` sang `HIEU_LUC`, phát `config.wf_template.published.v1` và khởi động saga triển khai cuốn
+        chiếu (CELL-NB trước, CELL-HCM và CELL-DTW sau cùng; ngoài giờ cao điểm, không trong 3 ngày cuối kỳ).
+        Trả 202; tiến độ từng cell xem ở `.../rollouts`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApprovalComment' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: Người phê duyệt là người soạn (`WORKFLOW-403-SAME-AUTHOR`) hoặc OPA từ chối.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Mẫu không ở `CHO_PHE_DUYET`, lệch phiên bản, hoặc đang trong khung cấm triển khai
+            (`WORKFLOW-409-ROLLOUT-WINDOW`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1505]
+        owner: SVC-06
+        roles: [second_approver]
+        scope: N
+        aal: 2
+        fourEyes: true
+        source: BS-01 SCR-1505 Người dùng và quyền, Triển khai lên cell; ma trận SCR-1505.phe-duyet
+
+  /workflow/templates/{id}/rollouts:
+    get:
+      tags: [Workflow]
+      operationId: listWorkflowTemplateRollouts
+      summary: Tiến độ triển khai một phiên bản mẫu lên từng cell
+      description: Đọc `flowable.wf_template_rollout` (bảng đề xuất của BS-01).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Tiến độ theo cell.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowTemplateRolloutList' }
+              examples:
+                cuon-chieu:
+                  value:
+                    items:
+                      - { cellCode: CELL-NB, status: DA_TRIEN_KHAI, flowableDeploymentId: '30011', deployedAt: '2026-10-20T22:10:00+07:00' }
+                      - { cellCode: CELL-HN, status: CHO, flowableDeploymentId: null, deployedAt: null }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: [SCR-1505]
+        owner: SVC-06
+        roles: [platform_admin, second_approver]
+        scope: N
+        source: BS-01 SCR-1505 Triển khai lên cell; ma trận SCR-1505.trien-khai-cell
+
+  # ───────────────────────────── Notifications (SVC-12) ─────────────────────────────
+  /notifications/stream:
+    get:
+      tags: [Notifications]
+      operationId: streamNotifications
+      summary: Luồng SSE thông báo thời gian thực
+      description: |-
+        Kết nối Server-Sent Events dài (`text/event-stream`, UTF-8). Mỗi sự kiện gồm các dòng:
+
+        ```
+        id: <mã sự kiện của Valkey Streams, tăng dần theo người nhận>
+        event: <tên sự kiện>
+        data: <một dòng JSON>
+
+        ```
+
+        Tên sự kiện và lược đồ của `data`:
+
+        - `notification`: thông báo mới, `data` theo lược đồ `Notification`.
+        - `job`: cập nhật tác vụ dài của chính người dùng (ký lô, khoá kỳ, xuất báo cáo), `data` theo lược đồ
+          `Job` của `common.yaml`; `JobTracker` trộn luồng này với thăm dò `GET /jobs/{id}`.
+        - `unread`: số thông báo chưa đọc thay đổi, `data` theo lược đồ `NotificationUnreadEvent`.
+        - Dòng chú thích `: ping` mỗi 25 giây để giữ kết nối qua proxy; không mang `id`.
+
+        Máy chủ gửi `retry: 5000` ở đầu luồng. Khi mất kết nối, trình duyệt tự nối lại và gửi header
+        `Last-Event-ID`; máy chủ phát lại các sự kiện sau mã đó còn trong Valkey Streams (giữ tối thiểu 10 phút,
+        suy luận), nếu mã quá cũ thì gửi một sự kiện `unread` để client tải lại hộp thông báo. Nối lại p95 ≤ 10 s,
+        độ trễ phân phát p95 ≤ 2 s (TL-04 PERF-22). Nội dung không chứa dữ liệu C2. Khi pod tắt, máy chủ đóng
+        luồng dần trong 30 giây. Token truyền qua `Authorization: Bearer`; client dùng `fetch` đọc luồng (qua
+        `@vt/api-client`) vì `EventSource` không gửi được header.
+      parameters:
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: Mã sự kiện cuối cùng client đã nhận, để phát lại phần bị lỡ.
+          schema: { type: string, maxLength: 64 }
+      responses:
+        '200':
+          description: Luồng sự kiện mở.
+          headers:
+            Cache-Control:
+              description: '`no-cache`.'
+              schema: { type: string }
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Chuỗi sự kiện SSE theo định dạng ở phần mô tả thao tác.
+              examples:
+                hai-su-kien:
+                  value: |
+                    retry: 5000
+
+                    id: 1729318200000-0
+                    event: notification
+                    data: {"id":"0192f6a8-9102-73b4-c5d6-e7f8091a2b45","templateCode":"OKR_CHO_DUYET","title":"Có bộ OKR cần phê duyệt","body":"Ban Tổ chức trình OKR Quý I/2027, hạn duyệt 08/01/2027.","deepLink":"/okr/phe-duyet","priority":"CAO","createdAt":"2027-01-06T09:12:05+07:00","readAt":null}
+
+                    id: 1729318260000-0
+                    event: job
+                    data: {"id":"01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a77","type":"EXPORT","status":"DANG_CHAY","progress":40}
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        '503': { $ref: '../common/common.yaml#/components/responses/ServiceUnavailable' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-sse-events:
+        notification: '#/components/schemas/Notification'
+        job: '../common/common.yaml#/components/schemas/Job'
+        unread: '#/components/schemas/NotificationUnreadEvent'
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002, SCR-0801, SCR-0904]
+        owner: SVC-12
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: TL-01 PL C Dịch vụ nền; TL-01 SVC-12; TL-04 PERF-22; wiki/06 mục tác vụ dài
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      operationId: listNotifications
+      summary: Hộp thông báo của người dùng
+      description: >-
+        Thông báo trong ứng dụng của chính người gọi (`notify.notification`, giữ 90 ngày), mới nhất trước, chưa
+        đọc lên trước khi `unread=true`. Trang chủ SCR-0002 lấy tối đa 5 dòng. Tiêu đề và nội dung được dựng từ
+        `notify.template` kênh `INAPP` theo ngôn ngữ `vi` (suy luận).
+      parameters:
+        - name: unread
+          in: query
+          description: Chỉ lấy thông báo chưa đọc.
+          schema: { type: boolean, default: false }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang thông báo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPage' }
+              examples:
+                trang-chu:
+                  value:
+                    items:
+                      - id: 0192f6a8-9102-73b4-c5d6-e7f8091a2b45
+                        templateCode: NV_DUOC_GIAO
+                        title: Đồng chí được giao nhiệm vụ mới
+                        body: NV-2026-Q4-0171 "Dự thảo hướng dẫn kiểm điểm chi bộ cuối năm", hạn 30/10/2026.
+                        params: { taskCode: NV-2026-Q4-0171, dueDate: '2026-10-30' }
+                        deepLink: /nhiem-vu/0192f2c4-5d6e-7f80-91a2-b3c4d5e6f7aa
+                        priority: THUONG
+                        createdAt: '2026-10-19T08:05:00+07:00'
+                        readAt: null
+                    nextCursor: eyJjIjoiMjAyNi0xMC0xOVQwODowNTowMCJ9
+                    unreadCount: 3
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002]
+        owner: SVC-12
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: TL-02a SCR-0002 trường 9 (suy luận đường dẫn); TL-03 `notify.notification`; ma trận module notifications
+
+  /notifications/read:
+    post:
+      tags: [Notifications]
+      operationId: markNotificationsRead
+      summary: Đánh dấu thông báo đã đọc
+      description: >-
+        Đặt `read_at` cho các thông báo trong `ids`, hoặc mọi thông báo chưa đọc khi `all = true` (nút "Đánh dấu
+        đã đọc" của SCR-0002). Thao tác lặp lại không đổi kết quả nên không cần `If-Match`. Phải có đúng một
+        trong hai trường.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NotificationReadRequest' }
+            examples:
+              tat-ca:
+                value: { all: true }
+      responses:
+        '200':
+          description: Đã đánh dấu.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationReadResult' }
+              examples:
+                xong:
+                  value: { updated: 3, unreadCount: 0 }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002]
+        owner: SVC-12
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: TL-02a SCR-0002 bảng chức năng; ma trận SCR-0002.doc-thong-bao
+
+  # ───────────────────────────── AI (SVC-14) ─────────────────────────────
+  /ai/suggestions:
+    post:
+      tags: [AI]
+      operationId: requestAiSuggestion
+      summary: Yêu cầu một gợi ý AI chỉ đọc
+      description: >-
+        Điểm vào chung của trợ lý cho các ca dùng không có đường dẫn riêng (hỏi đáp quy định, giải thích điểm số,
+        tóm tắt văn bản). ai-gateway xác thực, kiểm quyền qua OPA, áp rào chắn đầu vào, truy xuất RAG trong phạm
+        vi quyền của người dùng (token exchange), gọi mô hình, áp rào chắn đầu ra, ghi `ai.suggestion_log`.
+        Trả 200 khi xong trong thời gian chờ; trả 202 kèm job khi hàng đợi suy luận đầy (MSG-17-03), kết quả ở
+        `GET /ai/suggestions/{id}`. Yêu cầu chấm điểm, đề xuất xếp loại hay nhận xét cán bộ bị chặn (BR-17-04):
+        trả 200 với `blocked` (MSG-17-02) và ghi `ai.guardrail_event`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AiSuggestionRequest' }
+            examples:
+              hoi-quy-dinh:
+                value:
+                  useCase: HOI_DAP_QUY_DINH
+                  question: Hệ số tiến độ bị trừ thế nào khi nộp sản phẩm chậm do nguyên nhân khách quan?
+                  contextRefs: []
+      responses:
+        '200':
+          description: Gợi ý đã sinh.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AiSuggestion' }
+              examples:
+                tra-loi:
+                  value:
+                    id: 0192f7b9-a213-74c5-d6e7-f8091a2b3c56
+                    useCase: HOI_DAP_QUY_DINH
+                    model: viettel-llm-vi-2026.3
+                    createdAt: '2026-10-19T09:40:02+07:00'
+                    aiGenerated: true
+                    label: Nội dung do AI tạo
+                    outputText: Chậm do nguyên nhân khách quan đã được người giao xác nhận thì không trừ hệ số tiến độ C.
+                    sources:
+                      - { kind: VAN_BAN, title: 'Dự thảo PL 1 – Hướng dẫn tính điểm', location: mục 4.3, ref: 0192f1a2-5555-7aaa-8bbb-00000000d001 }
+                    decision: null
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-17]
+        scr: [SCR-1701]
+        owner: SVC-14
+        roles: [manager, member, ai_readonly]
+        scope: B
+        rules: [BR-17-01, BR-17-02, BR-17-03, BR-17-04, BR-17-07, BR-17-09]
+        source: TL-01 PL C Dịch vụ nền (`POST /ai/suggestions`); TL-01 chương "Trí tuệ nhân tạo"; TL-02b QT-17
+    get:
+      tags: [AI]
+      operationId: listAiSuggestions
+      summary: Danh sách gợi ý AI theo loại, ví dụ tóm tắt tuần
+      description: >-
+        Đọc `ai.suggestion_log` của người gọi hoặc trong phạm vi quyền đọc của người gọi. Dùng cho khối "Tóm tắt
+        tuần" của SCR-0002 (chỉ dữ liệu của chính người dùng) và SCR-1601 (`kind = TOM_TAT_TUAN`, theo đơn vị
+        trong phạm vi). Không có tóm tắt thì trả danh sách rỗng ("Chưa có tóm tắt tuần này").
+      parameters:
+        - name: kind
+          in: query
+          description: Loại gợi ý chi tiết (`ai.suggestion_log.kind`), ví dụ `TOM_TAT_TUAN`.
+          schema: { type: string, maxLength: 24 }
+        - name: useCase
+          in: query
+          schema: { type: string, maxLength: 32 }
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang gợi ý.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AiSuggestionPage' }
+              examples:
+                tom-tat-tuan:
+                  value:
+                    items:
+                      - id: 0192f7b9-a213-74c5-d6e7-f8091a2b3c60
+                        useCase: TOM_TAT_VAN_BAN
+                        kind: TOM_TAT_TUAN
+                        model: viettel-llm-vi-2026.3
+                        createdAt: '2026-11-16T06:00:00+07:00'
+                        aiGenerated: true
+                        label: Nội dung do AI tạo
+                        outputText: Tiến độ mục tiêu O của khối đạt 72%; Văn phòng E chậm 41% do hai nhiệm vụ then chốt quá hạn.
+                        items:
+                          - Tiến độ mục tiêu O đạt 72%, tăng 4% so với tuần trước.
+                          - Văn phòng E đạt 41%, có 2 nhiệm vụ then chốt quá hạn.
+                          - 9 hồ sơ chờ thẩm định, hạn 10/01/2027.
+                        sources:
+                          - { kind: TRUY_VAN, title: Kho phân tích ngày 14/11/2026, ref: 'okr.tien_do_o' }
+                        decision: null
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00, QT-16]
+        scr: [SCR-0002, SCR-1601]
+        owner: SVC-14
+        roles: [leader, manager, member]
+        scope: Đv
+        rules: [BR-16-06]
+        source: TL-02a SCR-0002 trường 10; TL-02b SCR-1601 trường 8 (đường dẫn suy luận)
+
+  /ai/suggestions/{id}:
+    get:
+      tags: [AI]
+      operationId: getAiSuggestion
+      summary: Xem một gợi ý AI
+      description: >-
+        Đọc một dòng `ai.suggestion_log` của người gọi; là `resultLocation` của job khi yêu cầu gợi ý trả 202
+        (suy luận).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Gợi ý.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AiSuggestion' }
+              examples:
+                goi-y:
+                  value:
+                    id: 0192f7b9-a213-74c5-d6e7-f8091a2b3c56
+                    useCase: HOI_DAP_QUY_DINH
+                    model: viettel-llm-vi-2026.3
+                    createdAt: '2026-10-19T09:40:02+07:00'
+                    aiGenerated: true
+                    label: Nội dung do AI tạo
+                    outputText: Chậm do nguyên nhân khách quan đã được người giao xác nhận thì không trừ hệ số tiến độ C.
+                    sources: []
+                    decision: CHAP_NHAN
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-17]
+        scr: [SCR-1701]
+        owner: SVC-14
+        roles: [leader, manager, member]
+        scope: B
+        source: suy luận từ TL-02b QT-17 ngoại lệ "hàng đợi đầy (202)"
+
+  /ai/suggestions/{id}/sources:
+    get:
+      tags: [AI]
+      operationId: listAiSuggestionSources
+      summary: Dữ liệu và nguồn AI đã dùng cho một gợi ý
+      description: >-
+        Hiển thị các văn bản, truy vấn và số liệu mà gợi ý đã dùng (`ai.suggestion_log.sources_json`,
+        `chunk_ids`), lọc lại theo quyền đọc hiện tại của người xem; nguồn ngoài phạm vi trả dạng che.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Danh sách nguồn.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AiSourceList' }
+              examples:
+                nguon:
+                  value:
+                    suggestionId: 0192f7b9-a213-74c5-d6e7-f8091a2b3c60
+                    items:
+                      - { kind: TRUY_VAN, title: Tiến độ mục tiêu O theo đơn vị, ref: 'okr.tien_do_o', excerpt: 'Ban Tuyên giáo 92%; Văn phòng E 41%', asOf: '2026-11-14T23:55:00+07:00' }
+                      - { kind: DU_LIEU, title: Nhiệm vụ quá hạn của Văn phòng E, ref: 'task.so_viec_cham', excerpt: '2 nhiệm vụ then chốt quá hạn', asOf: '2026-11-14T23:55:00+07:00' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1601]
+        owner: SVC-14
+        roles: [leader, manager, ai_readonly]
+        scope: Đv
+        rules: [BR-16-06, BR-17-02]
+        source: TL-02b SCR-1601 "Xem dữ liệu đã dùng"; ma trận SCR-1601.nguon-ai
+
+  /ai/suggestions/{id}/decision:
+    post:
+      tags: [AI]
+      operationId: decideAiSuggestion
+      summary: Ghi quyết định của người dùng với một gợi ý AI
+      description: >-
+        Ghi `ai.suggestion_log.user_action` (`CHAP_NHAN`, `SUA`, `BO_QUA`), lý do, danh sách ô đã sửa và người chấp
+        nhận. Thao tác này chỉ ghi nhật ký của SVC-14; nội dung nghiệp vụ được ghi bằng API của module dưới danh
+        tính người dùng (ví dụ `POST /tasks/from-document`, `PUT /okr/objectives/{id}`), BR-02-11, BR-05-05.
+        Một đường dẫn duy nhất thay cho `/accept` và `/dismiss` của SCR-1701. Với gợi ý trích nhiệm vụ
+        (`use_case = GOI_Y_NHIEM_VU`) phản hồi là `TaskSuggestion` của tasks.yaml mà frontend SCR-0502 đang dùng
+        (`decision = BO_QUA` cho ra `DA_BO`); với ca dùng khác là `AiSuggestion`. Không dùng `If-Match` vì
+        `ai.suggestion_log` không có `row_version`; quyết định đã ghi rồi thì trả 409.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AiSuggestionDecisionRequest' }
+            examples:
+              bo-nhiem-vu:
+                value:
+                  decision: BO_QUA
+                  reason: Đoạn 4 chỉ để biết, không giao việc cho đơn vị.
+              dung-goi-y:
+                value:
+                  decision: CHAP_NHAN
+                  targetRef: 'okr.key_result:0192f2c4-5d6e-7f80-91a2-b3c4d5e6f7b3'
+      responses:
+        '200':
+          description: Đã ghi quyết định.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: './tasks.yaml#/components/schemas/TaskSuggestion'
+                  - $ref: '#/components/schemas/AiSuggestion'
+              examples:
+                nhiem-vu-da-bo:
+                  value:
+                    id: 0192f7b9-a213-74c5-d6e7-f8091a2b3c71
+                    paragraphNo: 4
+                    confidence: 0.71
+                    decision: DA_BO
+                    fields:
+                      title: Tổng hợp kết quả kiểm điểm gửi Đảng uỷ Khối
+                      leadUnitId: 0192f1a2-3333-7ccc-8ddd-000000000a02
+                      leadUnitName: Ban Tổ chức
+                      coUnits: []
+                      dueDate: '2026-12-20'
+                      productName: Báo cáo tổng hợp
+                    aiFields:
+                      title: Tổng hợp kết quả kiểm điểm gửi Đảng uỷ Khối
+                      leadUnitId: 0192f1a2-3333-7ccc-8ddd-000000000a02
+                      leadUnitName: Ban Tổ chức
+                      coUnits: []
+                      dueDate: '2026-12-20'
+                      productName: Báo cáo tổng hợp
+                    editedFields: []
+                    similar: []
+                    reason: Đoạn 4 chỉ để biết, không giao việc cho đơn vị.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Gợi ý đã có quyết định (`AI-409-ALREADY-DECIDED`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: Thiếu lý do khi bỏ nhiệm vụ trích (`AI-422-REASON-REQUIRED`) hoặc dữ liệu không hợp lệ.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05, QT-17]
+        scr: [SCR-0502, SCR-1701]
+        owner: SVC-14
+        roles: [manager, member]
+        scope: Đv
+        rules: [BR-02-11, BR-05-05, BR-17-08, BR-17-09]
+        source: TL-02a SCR-0502 "Bỏ nhiệm vụ này"; TL-02b SCR-1701 "Dùng gợi ý", "Bỏ qua"; frontend ai-api.ts
+
+  /ai/extractions:
+    get:
+      tags: [AI]
+      operationId: getDocExtraction
+      summary: Kết quả AI trích nhiệm vụ từ một văn bản đến
+      description: >-
+        SVC-14 tự trích khi nhận EVT-24 (QT-05 bước 2, ≤ 1 phút) và ghi mỗi nhiệm vụ một dòng `ai.suggestion_log`
+        (`use_case = GOI_Y_NHIEM_VU`). Thao tác trả kết quả cho SCR-0502; khi đang trích trả `status = DANG_TRICH`
+        với danh sách rỗng, khi không trích được trả `KHONG_TRICH_DUOC` (MSG-05-10). Đường dẫn là suy luận và
+        đã được frontend dùng (wiki/05a).
+      parameters:
+        - name: sourceDocId
+          in: query
+          required: true
+          description: Mã văn bản đến (`task.task_source_doc.id`).
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: Kết quả trích.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocExtraction' }
+              examples:
+                van-ban-512:
+                  value:
+                    sourceDocId: 0192f8ca-b324-75d6-e7f8-091a2b3c4d01
+                    status: XONG
+                    model: viettel-llm-vi-2026.3
+                    extractedAt: '2026-10-12T15:02:40+07:00'
+                    suggestions:
+                      - id: 0192f7b9-a213-74c5-d6e7-f8091a2b3c70
+                        paragraphNo: 2
+                        confidence: 0.94
+                        decision: CHO_XAC_NHAN
+                        fields:
+                          title: Dự thảo hướng dẫn kiểm điểm chi bộ cuối năm
+                          leadUnitId: 0192f1a2-3333-7ccc-8ddd-000000000a02
+                          leadUnitName: Ban Tổ chức
+                          coUnits:
+                            - { kind: UNIT, id: 0192f1a2-3333-7ccc-8ddd-000000000a03, name: Văn phòng Đảng uỷ }
+                          dueDate: '2026-10-30'
+                          productName: Hướng dẫn kiểm điểm
+                        aiFields:
+                          title: Dự thảo hướng dẫn kiểm điểm chi bộ cuối năm
+                          leadUnitId: 0192f1a2-3333-7ccc-8ddd-000000000a02
+                          leadUnitName: Ban Tổ chức
+                          coUnits:
+                            - { kind: UNIT, id: 0192f1a2-3333-7ccc-8ddd-000000000a03, name: Văn phòng Đảng uỷ }
+                          dueDate: '2026-10-30'
+                          productName: Hướng dẫn kiểm điểm
+                        editedFields: []
+                        similar: []
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0502]
+        owner: SVC-14
+        evt: []
+        roles: [manager, ai_readonly]
+        scope: Đv
+        rules: [BR-05-05, BR-05-06, BR-05-07]
+        source: TL-02a SCR-0502 bảng trường 4–13; ma trận SCR-0502.ai-trich; frontend ai-api.ts (suy luận đường dẫn)
+
+  /ai/okr/review:
+    post:
+      tags: [AI]
+      operationId: reviewOkrKeyResults
+      summary: Trợ lý AI soát KR mơ hồ hoặc giống nhiệm vụ
+      description: >-
+        Gửi nội dung mục tiêu và KR đang soạn (không có dữ liệu C3) để soát theo BR-02-05, BR-02-06, BR-17-05.
+        Mỗi phát hiện có một `suggestionId` riêng để ghi quyết định dùng hay bỏ. Gợi ý chỉ điền vào ô ở trình
+        duyệt; ghi vào OKR do người soạn lưu (BR-02-11). Trả 202 khi hàng đợi đầy.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrReviewRequest' }
+            examples:
+              kr-mo-ho:
+                value:
+                  periodId: 0192f1a2-4444-7eee-8fff-000000000f27
+                  objectiveId: 0192f2c4-5d6e-7f80-91a2-b3c4d5e6f701
+                  objectiveTitle: Nâng chất lượng sinh hoạt chi bộ khối cơ quan
+                  keyResults:
+                    - { code: KR 1.3, title: 'Tăng cường công tác kiểm tra, giám sát', unit: null, baselineValue: null, targetValue: null }
+                    - { code: KR 1.4, title: Tổ chức hội nghị sơ kết, unit: lần, baselineValue: 0, targetValue: 1 }
+      responses:
+        '200':
+          description: Kết quả soát.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrReviewResult' }
+              examples:
+                hai-phat-hien:
+                  value:
+                    model: viettel-llm-vi-2026.3
+                    createdAt: '2027-01-05T10:12:00+07:00'
+                    aiGenerated: true
+                    label: Nội dung do AI tạo
+                    findings:
+                      - suggestionId: 0192f7b9-a213-74c5-d6e7-f8091a2b3c80
+                        krCode: KR 1.3
+                        severity: LOI
+                        rule: BR-02-05
+                        msg: MSG-02-05
+                        message: 'KPI mơ hồ: "tăng cường" không đo được. Vui lòng bổ sung chỉ tiêu và đơn vị đo.'
+                        rewrites:
+                          - Kiểm tra 100% chi bộ trực thuộc trước 31/3/2027
+                          - Kiểm tra ít nhất 18 chi bộ trực thuộc trong quý I/2027
+                        sources:
+                          - { kind: VAN_BAN, title: Dự thảo PL 1, location: mục 3.2a }
+                      - suggestionId: 0192f7b9-a213-74c5-d6e7-f8091a2b3c81
+                        krCode: KR 1.4
+                        severity: CANH_BAO
+                        rule: BR-02-06
+                        msg: MSG-02-06
+                        message: KR 1.4 giống một nhiệm vụ, không phải kết quả đo được. Cân nhắc chuyển sang Kế hoạch quý.
+                        rewrites: []
+                        sources:
+                          - { kind: VAN_BAN, title: Dự thảo PL 1, location: mục 3.2a }
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02, QT-17]
+        scr: [SCR-0202]
+        owner: SVC-14
+        roles: [manager, member, ai_readonly]
+        scope: Đv
+        rules: [BR-02-05, BR-02-06, BR-02-11, BR-17-05, BR-17-07]
+        source: TL-02a SCR-0202 "Trợ lý AI soát KR"; ma trận SCR-0202.ai-soat
+
+  /ai/assist/okr:
+    post:
+      tags: [AI]
+      operationId: assistOkrDraft
+      summary: Hỏi trợ lý AI soạn mục tiêu và KR từ văn bản căn cứ
+      description: >-
+        Trợ lý soạn O và KR có chỉ tiêu đo được bám văn bản căn cứ, soát KR mơ hồ, phát hiện KR trùng đơn vị khác
+        (QT-17 bước 2–5). Không đề xuất quá 3 mục tiêu (BR-17-06). Trả 200 với các gợi ý có nhãn và nguồn, 202
+        khi hàng đợi đầy (MSG-17-03), hoặc 200 với `blocked` khi rào chắn chặn (MSG-17-02).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrAssistRequest' }
+            examples:
+              soan-quy-i:
+                value:
+                  question: Soạn OKR quý I/2027 cho Ban Tổ chức bám mục II.2 và III.1 của kế hoạch đính kèm.
+                  periodId: 0192f1a2-4444-7eee-8fff-000000000f27
+                  unitId: 0192f1a2-3333-7ccc-8ddd-000000000a02
+                  basisIds: [0192f1a2-5555-7aaa-8bbb-00000000d025]
+                  attachmentObjectIds: []
+                  draftObjectiveIds: [0192f2c4-5d6e-7f80-91a2-b3c4d5e6f701]
+      responses:
+        '200':
+          description: Trả lời của trợ lý.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrAssistResult' }
+              examples:
+                hai-muc-tieu:
+                  value:
+                    model: viettel-llm-vi-2026.3
+                    createdAt: '2027-01-05T10:20:00+07:00'
+                    aiGenerated: true
+                    label: Nội dung do AI tạo
+                    answer: Đề xuất 2 mục tiêu và 5 KR bám mục II.2 và III.1 của KH-25-KH/ĐUK.
+                    suggestions:
+                      - id: 0192f7b9-a213-74c5-d6e7-f8091a2b3c90
+                        kind: MUC_TIEU
+                        objective:
+                          title: Nâng chất lượng sinh hoạt chi bộ khối cơ quan
+                          keyResults:
+                            - { title: Kiểm tra 100% chi bộ trực thuộc trước 31/3/2027, unit: '%', baselineValue: 0, targetValue: 100 }
+                        reason: Bám mục II.2 của kế hoạch công tác năm 2027.
+                        sources:
+                          - { kind: VAN_BAN, title: KH-25-KH/ĐUK, location: tr. 4–6 }
+                    blocked: null
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-17]
+        scr: [SCR-1701]
+        owner: SVC-14
+        roles: [manager, member, ai_readonly]
+        scope: Đv
+        rules: [BR-17-01, BR-17-02, BR-17-03, BR-17-04, BR-17-05, BR-17-06, BR-17-07, BR-17-09]
+        source: TL-02b SCR-1701 "Gửi câu hỏi"; ma trận SCR-1701.hoi
+
+  /ai/evidence/extract:
+    post:
+      tags: [AI]
+      operationId: extractEvidenceFields
+      summary: Đọc văn bản minh chứng đã tải lên và gợi ý nhiệm vụ khớp
+      description: >-
+        OCR tệp PDF đã tải lên qua `/files/uploads`, trích số ký hiệu, ngày ban hành, trích yếu và gợi ý nhiệm vụ
+        đang mở của người nộp có độ khớp cao nhất. Các ô do AI điền chỉ được ghi khi người nộp xác nhận và nộp
+        qua `/evidences/{id}/versions/{v}/submit`. Ảnh không đủ nét trả 422 (MSG-07-06); độ khớp dưới 0,5 thì
+        `matchedTask` rỗng (MSG-07-08).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvidenceExtractRequest' }
+            examples:
+              bao-cao-47:
+                value:
+                  objectId: 0192f9db-c435-76e7-f809-1a2b3c4d5e01
+      responses:
+        '200':
+          description: Kết quả đọc.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceExtraction' }
+              examples:
+                doc-duoc:
+                  value:
+                    suggestionId: 0192f7b9-a213-74c5-d6e7-f8091a2b3ca0
+                    objectId: 0192f9db-c435-76e7-f809-1a2b3c4d5e01
+                    model: viettel-ocr-2026.2
+                    aiGenerated: true
+                    label: Nội dung do AI tạo
+                    docNumber: 47-BC/BTCĐUK
+                    docDate: '2026-10-16'
+                    docSummary: Báo cáo sơ kết công tác tổ chức cơ sở đảng 9 tháng năm 2026
+                    matchedTask: { id: 0192f2c4-5d6e-7f80-91a2-b3c4d5e6f742, code: NV-2026-Q4-0142, title: Báo cáo sơ kết công tác tổ chức cơ sở đảng, confidence: 0.93 }
+                    alternatives: []
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '422':
+          description: Ảnh chưa đủ nét để đọc (`AI-422-UNREADABLE`, MSG-07-06) hoặc tệp chưa quét sạch.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0702]
+        owner: SVC-14
+        roles: [member, ai_readonly]
+        scope: B
+        source: TL-02a SCR-0702 "Đọc văn bản"; ma trận SCR-0702.dd
+
+  /ai/speech-to-text:
+    post:
+      tags: [AI]
+      operationId: transcribeSpeech
+      summary: Chuyển giọng nói tiếng Việt thành văn bản
+      description: >-
+        Dùng khi thiết bị không nhận dạng tại chỗ (SCR-0302 "Nói để nhập", SCR-1803 "Nói"). Âm thanh không lưu
+        sau khi chuyển; văn bản trả về được hiển thị để người dùng xác nhận trước khi lưu (MSG-18-10).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/SpeechToTextRequest' }
+            encoding:
+              audio:
+                contentType: audio/webm, audio/ogg, audio/wav, audio/mp4
+      responses:
+        '200':
+          description: Văn bản nhận dạng.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SpeechToTextResult' }
+              examples:
+                vuong-mac:
+                  value:
+                    text: Chi bộ 3 chưa nộp biên bản sinh hoạt tháng mười.
+                    confidence: 0.91
+                    durationMs: 4200
+                    model: viettel-asr-vi-2026.1
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '413':
+          description: Đoạn ghi âm quá dài hoặc quá lớn (`AI-413-AUDIO-TOO-LARGE`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-03, QT-18]
+        scr: [SCR-0302, SCR-1803]
+        owner: SVC-14
+        roles: [manager, member, ai_readonly]
+        scope: B
+        source: TL-02a SCR-0302; TL-02b SCR-1803; ma trận SCR-0302.check-in-dd, SCR-1803.dd
+
+  # ───────────────────────────── Analytics (SVC-15) ─────────────────────────────
+  /analytics/query:
+    post:
+      tags: [Analytics]
+      operationId: queryAnalytics
+      summary: Truy vấn chỉ số chuẩn trên lớp ngữ nghĩa
+      description: >-
+        Truy vấn đọc (dùng POST vì thân truy vấn phức tạp) chỉ trên measures, dimensions công bố của lớp ngữ nghĩa
+        Cube (BR-16-02, không SQL tự do). analytics-api thêm securityContext gồm tenant và `org_path` của người
+        xem (BR-16-01), lưu đệm Valkey 60 giây. Trả kèm thời điểm dữ liệu; trễ quá 5 phút thì `stale = true`
+        (MSG-16-01, BR-16-08). Không có cột C2 rõ hay C3.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnalyticsQuery' }
+            examples:
+              tien-do-theo-don-vi:
+                value:
+                  measures: [okr.tien_do_o]
+                  dimensions: [org_unit.name]
+                  periodId: 0192f1a2-4444-7eee-8fff-000000000f26
+                  compareToPreviousPeriod: true
+                  filters:
+                    - { member: subject_group.code, operator: equals, values: [CQ_THAM_MUU] }
+                  limit: 50
+      responses:
+        '200':
+          description: Kết quả truy vấn.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnalyticsQueryResult' }
+              examples:
+                sau-don-vi:
+                  value:
+                    semanticModelVersion: '2026.4'
+                    dataAsOf: '2026-11-16T08:55:00+07:00'
+                    stale: false
+                    columns:
+                      - { name: org_unit.name, title: Đơn vị, type: string }
+                      - { name: okr.tien_do_o, title: Tiến độ mục tiêu O, type: number, unit: '%' }
+                      - { name: okr.tien_do_o.previous, title: Tiến độ mục tiêu O quý trước, type: number, unit: '%' }
+                    rows:
+                      - [Ban Tuyên giáo, 92, 88]
+                      - [Ban Kiểm tra, 88, 85]
+                      - [Văn phòng E, 41, 55]
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422':
+          description: >-
+            Chỉ số hoặc chiều không có trong lớp ngữ nghĩa, kết hợp không hợp lệ (`ANALYTICS-422-INVALID-COMBINATION`,
+            MSG-16-04), quá 2 chiều.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1601, SCR-1602]
+        owner: SVC-15
+        roles: [leader, manager, inspector]
+        scope: Cd
+        rules: [BR-16-01, BR-16-02, BR-16-04, BR-16-05, BR-16-08]
+        source: TL-02b SCR-1601, SCR-1602 bảng chức năng; ma trận SCR-1601.xem
+
+  /analytics/semantic-model:
+    get:
+      tags: [Analytics]
+      operationId: getSemanticModel
+      summary: Danh mục chỉ số và chiều của lớp ngữ nghĩa
+      description: >-
+        Danh mục measures, dimensions công bố của phiên bản lớp ngữ nghĩa hiện hành (Cube meta API), cho vùng 1
+        của SCR-1602. Chiều đi kèm danh sách chỉ số hỗ trợ để giao diện chặn sớm kết hợp sai (MSG-16-04).
+      responses:
+        '200':
+          description: Danh mục.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SemanticModel' }
+              examples:
+                ban-2026-4:
+                  value:
+                    version: '2026.4'
+                    measures:
+                      - { name: okr.tien_do_o, title: Tiến độ mục tiêu O, type: number, unit: '%', drillable: true }
+                      - { name: task.ty_le_dung_han, title: Tỷ lệ nhiệm vụ đúng hạn, type: number, unit: '%', drillable: true }
+                      - { name: appraisal.cho_tham_dinh, title: Hồ sơ chờ thẩm định, type: count, drillable: false }
+                    dimensions:
+                      - { name: org_unit.name, title: Đơn vị, type: string, supportedMeasures: [okr.tien_do_o, task.ty_le_dung_han, appraisal.cho_tham_dinh] }
+                      - { name: period.label, title: Kỳ, type: string, supportedMeasures: [okr.tien_do_o, task.ty_le_dung_han] }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1602]
+        owner: SVC-15
+        roles: [leader, manager]
+        scope: Cd
+        rules: [BR-16-02]
+        source: TL-02b SCR-1602 trường 2 ("Cube meta API"), đường dẫn suy luận
+
+  /analytics/dashboards:
+    get:
+      tags: [Analytics]
+      operationId: listDashboards
+      summary: Dashboard của tôi và dashboard được chia sẻ
+      parameters:
+        - name: owner
+          in: query
+          description: '`me` chỉ lấy dashboard của mình; bỏ trống lấy cả dashboard được chia sẻ.'
+          schema: { type: string, enum: [me] }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang dashboard (chỉ định nghĩa, không có số liệu).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnalyticsDashboardPage' }
+              examples:
+                cua-toi:
+                  value:
+                    items:
+                      - id: 0192fa0c-d546-77f8-091a-2b3c4d5e6f01
+                        title: Bảng của Bí thư
+                        ownerUserId: 0192f1a2-2222-7aaa-8bbb-000000000b01
+                        shareScope: DON_VI
+                        widgetCount: 4
+                        updatedAt: '2026-11-16T09:30:00+07:00'
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1602]
+        owner: SVC-15
+        roles: [leader, manager, inspector]
+        scope: Cd
+        source: TL-02b QT-16 bước 6, 7; TL-03 `config.dashboard_def` (đường dẫn suy luận)
+    post:
+      tags: [Analytics]
+      operationId: createDashboard
+      summary: Tạo dashboard tự dựng
+      description: >-
+        Lưu định nghĩa dashboard mới (`config.dashboard_def`, không chứa dữ liệu). Tối đa 20 widget, mỗi widget tối
+        đa 2 chiều, chỉ chỉ số và chiều công bố. Tên không trùng trong không gian của người dùng.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnalyticsDashboardInput' }
+            examples:
+              bang-bi-thu:
+                value:
+                  title: Bảng của Bí thư
+                  layout:
+                    - { id: w1, x: 0, y: 0, w: 3, h: 2, measure: okr.tien_do_o, dimensions: [], chartType: THE_SO, filters: [], drillDown: true }
+                    - { id: w2, x: 3, y: 0, w: 6, h: 4, measure: appraisal.diem_kpi_tb, dimensions: [period.label], chartType: COT, filters: [{ member: flow.code, operator: equals, values: [DANG] }], drillDown: true }
+      responses:
+        '201':
+          description: Đã tạo.
+          headers:
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnalyticsDashboard' }
+              examples:
+                vua-tao:
+                  value:
+                    id: 0192fa0c-d546-77f8-091a-2b3c4d5e6f01
+                    title: Bảng của Bí thư
+                    ownerUserId: 0192f1a2-2222-7aaa-8bbb-000000000b01
+                    measures: [okr.tien_do_o, appraisal.diem_kpi_tb]
+                    dimensions: [period.label]
+                    layout:
+                      - { id: w1, x: 0, y: 0, w: 3, h: 2, measure: okr.tien_do_o, dimensions: [], chartType: THE_SO, filters: [], drillDown: true }
+                    shareScope: RIENG
+                    sharedUnitIds: []
+                    semanticModelVersion: '2026.4'
+                    rowVersion: 0
+                    updatedAt: '2026-11-16T09:00:00+07:00'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          description: Trùng tên dashboard của người dùng (`ANALYTICS-409-DUPLICATE-TITLE`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1602]
+        owner: SVC-15
+        roles: [leader, manager]
+        scope: Cd
+        rules: [BR-16-02]
+        source: TL-02b SCR-1602 (tạo mới là suy luận; TL-02 chỉ ghi PUT)
+
+  /analytics/dashboards/{id}:
+    get:
+      tags: [Analytics]
+      operationId: getDashboard
+      summary: Định nghĩa và dữ liệu của một dashboard
+      description: >-
+        Trả định nghĩa dashboard (có ETag) và số liệu từng widget tính cho kỳ, đơn vị chọn, với securityContext
+        của chính người xem (người được chia sẻ chỉ thấy số liệu trong phạm vi của họ, MSG-16-05).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - name: includeData
+          in: query
+          description: '`false` chỉ lấy định nghĩa (trình dựng).'
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: Dashboard.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnalyticsDashboard' }
+              examples:
+                co-du-lieu:
+                  value:
+                    id: 0192fa0c-d546-77f8-091a-2b3c4d5e6f01
+                    title: Bảng của Bí thư
+                    ownerUserId: 0192f1a2-2222-7aaa-8bbb-000000000b01
+                    measures: [okr.tien_do_o]
+                    dimensions: []
+                    layout:
+                      - { id: w1, x: 0, y: 0, w: 3, h: 2, measure: okr.tien_do_o, dimensions: [], chartType: THE_SO, filters: [], drillDown: true }
+                    shareScope: DON_VI
+                    sharedUnitIds: [0192f1a2-3333-7ccc-8ddd-000000000a01]
+                    semanticModelVersion: '2026.4'
+                    rowVersion: 3
+                    updatedAt: '2026-11-16T09:30:00+07:00'
+                    data:
+                      dataAsOf: '2026-11-16T08:55:00+07:00'
+                      stale: false
+                      widgets:
+                        - { widgetId: w1, columns: [{ name: okr.tien_do_o, title: Tiến độ mục tiêu O, type: number, unit: '%' }], rows: [[72]] }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1601, SCR-1602]
+        owner: SVC-15
+        roles: [leader, manager, inspector]
+        scope: Cd
+        rules: [BR-16-01]
+        source: TL-01 PL C Dịch vụ nền (`GET /analytics/dashboards/{id}?period=&unit=`); TL-02b SCR-1602
+    put:
+      tags: [Analytics]
+      operationId: updateDashboard
+      summary: Lưu dashboard
+      description: Thay toàn bộ định nghĩa; chỉ người tạo được sửa.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnalyticsDashboardInput' }
+            examples:
+              them-widget:
+                value:
+                  title: Bảng của Bí thư
+                  layout:
+                    - { id: w1, x: 0, y: 0, w: 3, h: 2, measure: okr.tien_do_o, dimensions: [], chartType: THE_SO, filters: [], drillDown: true }
+                    - { id: w3, x: 0, y: 4, w: 6, h: 4, measure: appraisal.phan_bo_muc, dimensions: [org_unit.name], chartType: THANH, filters: [], drillDown: false }
+      responses:
+        '200':
+          description: Đã lưu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnalyticsDashboard' }
+              examples:
+                da-luu:
+                  value:
+                    id: 0192fa0c-d546-77f8-091a-2b3c4d5e6f01
+                    title: Bảng của Bí thư
+                    ownerUserId: 0192f1a2-2222-7aaa-8bbb-000000000b01
+                    measures: [okr.tien_do_o, appraisal.phan_bo_muc]
+                    dimensions: [org_unit.name]
+                    layout:
+                      - { id: w1, x: 0, y: 0, w: 3, h: 2, measure: okr.tien_do_o, dimensions: [], chartType: THE_SO, filters: [], drillDown: true }
+                      - { id: w3, x: 0, y: 4, w: 6, h: 4, measure: appraisal.phan_bo_muc, dimensions: [org_unit.name], chartType: THANH, filters: [], drillDown: false }
+                    shareScope: RIENG
+                    sharedUnitIds: []
+                    semanticModelVersion: '2026.4'
+                    rowVersion: 4
+                    updatedAt: '2026-11-16T10:00:00+07:00'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1602]
+        owner: SVC-15
+        roles: [leader, manager]
+        scope: Cd
+        rules: [BR-16-02]
+        source: TL-02b SCR-1602 "Lưu dashboard"; ma trận SCR-1602.dung
+
+  /analytics/dashboards/{id}/shares:
+    post:
+      tags: [Analytics]
+      operationId: shareDashboard
+      summary: Chia sẻ dashboard
+      description: >-
+        Đặt phạm vi chia sẻ (`RIENG`, `DON_VI`, `TENANT`) và đơn vị được xem. Chia sẻ chỉ chia sẻ định nghĩa; người
+        được chia sẻ thấy số liệu trong phạm vi của chính họ (MSG-16-05). Người nhận được thông báo qua EVT-21.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DashboardShareRequest' }
+            examples:
+              ban-thuong-vu:
+                value:
+                  shareScope: DON_VI
+                  sharedUnitIds: [0192f1a2-3333-7ccc-8ddd-000000000a01]
+      responses:
+        '200':
+          description: Đã chia sẻ.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnalyticsDashboard' }
+              examples:
+                da-chia-se:
+                  value:
+                    id: 0192fa0c-d546-77f8-091a-2b3c4d5e6f01
+                    title: Bảng của Bí thư
+                    ownerUserId: 0192f1a2-2222-7aaa-8bbb-000000000b01
+                    measures: [okr.tien_do_o]
+                    dimensions: []
+                    layout: []
+                    shareScope: DON_VI
+                    sharedUnitIds: [0192f1a2-3333-7ccc-8ddd-000000000a01]
+                    semanticModelVersion: '2026.4'
+                    rowVersion: 5
+                    updatedAt: '2026-11-16T10:05:00+07:00'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1602]
+        owner: SVC-15
+        evt: [EVT-21]
+        roles: [leader, manager]
+        scope: Cd
+        source: TL-02b SCR-1602 "Chia sẻ"; TL-03 `config.dashboard_def.share_scope`; ma trận SCR-1602.chia-se
+
+  /analytics/reports:
+    post:
+      tags: [Analytics]
+      operationId: exportAnalyticsReport
+      summary: Xuất báo cáo bảng điều hành
+      description: Sinh báo cáo PDF hoặc XLSX theo mẫu trong phạm vi của người xem, chạy nền ≤ 1 phút (QT-16 bước 8).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnalyticsReportRequest' }
+            examples:
+              quy-iv-pdf:
+                value:
+                  templateCode: BANG_DIEU_HANH
+                  periodId: 0192f1a2-4444-7eee-8fff-000000000f26
+                  unitId: 0192f1a2-3333-7ccc-8ddd-000000000a01
+                  compareToPreviousPeriod: true
+                  format: PDF
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1601]
+        owner: SVC-15
+        roles: [leader, manager, inspector]
+        scope: Cd
+        rules: [BR-16-01]
+        source: TL-02b SCR-1601 "Xuất báo cáo"
+
+  /analytics/trace/{objectType}/{id}:
+    get:
+      tags: [Analytics]
+      operationId: getTraceChain
+      summary: Chuỗi truy vết từ điểm tới minh chứng và ngược lên căn cứ
+      description: >-
+        Trả chuỗi tám mắt xích quanh đối tượng chọn: điểm, cấu phần, KPI hoặc KR, sản phẩm, minh chứng, kế hoạch,
+        mục tiêu O, căn cứ (BR-16-03). Ba mắt xích đầu lấy từ kho phân tích, các mắt xích sau lấy từ mission-core
+        theo mã có kiểm quyền từng mắt xích (BR-16-04). Mắt xích ngoài phạm vi trả `masked = true` với MSG-16-06,
+        chuỗi vẫn tiếp tục. Mở mắt xích minh chứng được ghi sổ cái; nội dung tệp mở qua
+        `GET /evidences/{id}/versions/{v}/content` của products.yaml.
+      parameters:
+        - name: objectType
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/TraceObjectType' }
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Chuỗi truy vết.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TraceChain' }
+              examples:
+                diem-91-2:
+                  value:
+                    focus: { objectType: MINH_CHUNG, id: 0192fb1d-e657-7809-1a2b-3c4d5e6f7a03 }
+                    links:
+                      - { objectType: DIEM, id: 0192fb1d-e657-7809-1a2b-3c4d5e6f7a01, label: Điểm quý IV/2026 – Trần Minh Hoàng, value: '91,2', masked: false }
+                      - { objectType: CAU_PHAN, id: 0192fb1d-e657-7809-1a2b-3c4d5e6f7a02, label: Nhiệm vụ then chốt × 70, value: '63,6', masked: false }
+                      - { objectType: KPI_NHIEM_VU, id: 0192f2c4-5d6e-7f80-91a2-b3c4d5e6f742, label: Nhiệm vụ then chốt 2, value: '0,783', masked: false, details: { a: 1.0, b: 0.5, c: 0.85, policyPack: Đảng v2.0 } }
+                      - { objectType: SAN_PHAM, id: 0192fb1d-e657-7809-1a2b-3c4d5e6f7a04, label: Báo cáo sơ kết, value: 1/1, masked: false }
+                      - { objectType: MINH_CHUNG, id: 0192fb1d-e657-7809-1a2b-3c4d5e6f7a03, label: BC-so-ket-TCCS-v3.pdf, status: DA_XAC_NHAN, versionNo: 3, masked: false, msg: MSG-16-07 }
+                      - { objectType: KE_HOACH, id: 0192fb1d-e657-7809-1a2b-3c4d5e6f7a05, label: KH-Q4 v2, status: DA_DUYET, masked: false }
+                      - { objectType: MUC_TIEU, id: 0192f2c4-5d6e-7f80-91a2-b3c4d5e6f701, label: O1 – KR 1.2 Phòng Tổng hợp, masked: false }
+                      - { objectType: CAN_CU, id: 0192f1a2-5555-7aaa-8bbb-00000000d030, label: Nghị quyết Đại hội Đảng bộ khối, masked: false }
+                    ledgerRef: 'ledger:cell-hn:2026-12-18:000184223'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1603]
+        owner: SVC-15
+        roles: [leader, manager, appraiser, inspector]
+        scope: Cd
+        rules: [BR-16-03, BR-16-04]
+        source: TL-02b SCR-1603 "Chọn mắt xích"; ma trận SCR-1603.xem
+
+  /analytics/trace/exports:
+    post:
+      tags: [Analytics]
+      operationId: exportTraceChain
+      summary: Xuất chuỗi bằng chứng JSON và PDF
+      description: >-
+        Xuất chuỗi truy vết của một đối tượng kèm mã băm từng mắt xích và mã bản ghi sổ cái, chỉ gồm các mắt xích
+        người xuất có quyền. Việc xuất được ghi `sys.audit.v1`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TraceExportRequest' }
+            examples:
+              xuat-ca-hai:
+                value:
+                  objectType: DIEM
+                  id: 0192fb1d-e657-7809-1a2b-3c4d5e6f7a01
+                  formats: [JSON, PDF]
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1603]
+        owner: SVC-15
+        roles: [leader, manager, appraiser, inspector]
+        scope: Cd
+        source: TL-02b SCR-1603 "Xuất chuỗi bằng chứng"; ma trận SCR-1603.xuat
+
+  # ───────────────────────────── Search (SVC-16) ─────────────────────────────
+  /search:
+    get:
+      tags: [Search]
+      operationId: searchFullText
+      summary: Tìm kiếm toàn văn nhiệm vụ, văn bản chỉ đạo, danh mục công việc
+      description: >-
+        Tìm trên OpenSearch (bí danh chỉ mục lọc theo `tenant_id` ở cell pool). Chỉ mục không chứa C2, C3 nên kết
+        quả chỉ có trường C0, C1; đoạn trích là văn bản thuần, phần khớp đánh dấu bằng vị trí ký tự
+        (`highlights`), không trả HTML. Kết quả được kiểm quyền lại ở lõi; mục ngoài phạm vi bị loại trước khi
+        trả. Không có tổng số bản ghi.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Từ khoá, không phân biệt dấu.
+          schema: { type: string, minLength: 2, maxLength: 200 }
+        - name: type
+          in: query
+          description: Lọc theo loại; bỏ trống tìm mọi loại.
+          schema: { $ref: '#/components/schemas/SearchResultType' }
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang kết quả.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchResultPage' }
+              examples:
+                kiem-diem:
+                  value:
+                    items:
+                      - type: TASK
+                        id: 0192f2c4-5d6e-7f80-91a2-b3c4d5e6f7aa
+                        code: NV-2026-Q4-0171
+                        title: Dự thảo hướng dẫn kiểm điểm chi bộ cuối năm
+                        snippet: Dự thảo hướng dẫn kiểm điểm chi bộ cuối năm theo văn bản 512-CV/ĐUK
+                        highlights: [{ start: 15, length: 9 }]
+                        unitName: Ban Tổ chức
+                        periodLabel: Quý IV/2026
+                        status: DANG_THUC_HIEN
+                        deepLink: /nhiem-vu/0192f2c4-5d6e-7f80-91a2-b3c4d5e6f7aa
+                        score: 12.4
+                      - type: SOURCE_DOC
+                        id: 0192f8ca-b324-75d6-e7f8-091a2b3c4d01
+                        code: 512-CV/ĐUK
+                        title: Về việc triển khai kiểm điểm, đánh giá, xếp loại năm 2026
+                        snippet: triển khai kiểm điểm, đánh giá, xếp loại tổ chức đảng và đảng viên năm 2026
+                        highlights: [{ start: 11, length: 9 }]
+                        deepLink: /nhiem-vu/van-ban-den/0192f8ca-b324-75d6-e7f8-091a2b3c4d01
+                        score: 10.8
+                    nextCursor: null
+        '400': { $ref: '../common/common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002]
+        owner: SVC-16
+        roles: [leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: TL-01 PL C Dịch vụ nền ("kiểm quyền lại ở lõi"); TL-01 SVC-16; ma trận module search
+
+components:
+  securitySchemes:
+    keycloak: { $ref: '../common/common.yaml#/components/securitySchemes/keycloak' }
+    serviceClient: { $ref: '../common/common.yaml#/components/securitySchemes/serviceClient' }
+
+  parameters:
+    WorkflowTaskId:
+      name: taskId
+      in: path
+      required: true
+      description: Mã user task Flowable (`ACT_RU_TASK.ID_`, `flowable.wf_task_projection.task_id`), không phải UUID.
+      schema: { type: string, maxLength: 64 }
+    BusinessKey:
+      name: businessKey
+      in: path
+      required: true
+      description: >-
+        Khoá nghiệp vụ của tiến trình dạng `<businessType>:<businessId>` (suy luận từ cặp `business_type`,
+        `business_id` của `flowable.wf_task_projection`).
+      schema: { type: string, maxLength: 128, examples: ['OKR_OBJECTIVE:0192f2c4-5d6e-7f80-91a2-b3c4d5e6f701'] }
+
+  schemas:
+    # ── Registry ──
+    RegistryTenancyModel:
+      description: Mô hình thuê bao (`registry.tenant.tenancy_model`, `registry.cell.tenancy_model`, ADR-07).
+      type: string
+      enum: [SILO, BRIDGE, POOL, AIRGAP]
+    RegistryTenantStatus:
+      description: Trạng thái vòng đời tenant (`registry.tenant.status`, TL-02a QT-01).
+      type: string
+      enum: [KHOI_TAO, DANG_CAP_PHAT, DANG_CAU_HINH, SAN_SANG, DANG_VAN_HANH, TAM_NGUNG, DANG_CHUYEN_CELL, DA_CHAM_DUT]
+    CellStatus:
+      description: Trạng thái cell (`registry.cell.status`).
+      type: string
+      enum: [HOAT_DONG, BAO_TRI, NGUNG]
+    DataCenter:
+      description: Trung tâm dữ liệu chính (`registry.cell.primary_dc`).
+      type: string
+      enum: [HOALAC, PHIANAM, TAICHO]
+    DomainKind:
+      description: Loại tên miền (`registry.tenant_domain.kind`).
+      type: string
+      enum: [PRIMARY, ALIAS, EMBED]
+    RegistryCellRef:
+      type: object
+      required: [id, code]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 16, examples: [CELL-HN] }
+        apiBaseUrl: { type: string, format: uri }
+    TenantIdpInfo:
+      description: IdP liên kết của tenant (`registry.tenant_idp`), chỉ phần cần cho khám phá IdP.
+      type: object
+      required: [idpAlias, protocol, issuer, isVneid]
+      properties:
+        idpAlias: { type: string, maxLength: 64 }
+        protocol: { type: string, enum: [OIDC, SAML] }
+        issuer: { type: string, maxLength: 255 }
+        isVneid: { type: boolean }
+        emailDomains:
+          type: array
+          items: { type: string }
+    TenantResolution:
+      description: Kết quả tra cell của tenant (TL-01 SVC-03 "Trả cell, URL IdP, trạng thái").
+      type: object
+      required: [tenantId, tenantCode, status, tenancyModel, cell, cacheTtlSeconds]
+      properties:
+        tenantId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        tenantCode: { type: string, maxLength: 32, pattern: '^[a-z0-9_]+$' }
+        tenantName: { type: string, maxLength: 255 }
+        status: { $ref: '#/components/schemas/RegistryTenantStatus' }
+        tenancyModel: { $ref: '#/components/schemas/RegistryTenancyModel' }
+        cell: { $ref: '#/components/schemas/RegistryCellRef' }
+        idps:
+          type: array
+          items: { $ref: '#/components/schemas/TenantIdpInfo' }
+        cacheTtlSeconds: { type: integer, minimum: 0, description: 'Thời gian được lưu đệm kết quả, mặc định 300.' }
+      examples:
+        - tenantId: 0192f1a2-3b4c-7d5e-8f60-718293a4b5c6
+          tenantCode: dukcqtw
+          status: DANG_VAN_HANH
+          tenancyModel: BRIDGE
+          cell: { id: 0192f1a2-0000-7c00-8a00-00000000c001, code: CELL-HN, apiBaseUrl: 'https://api.cell-hn.okrkpi.vn' }
+          cacheTtlSeconds: 300
+    RegistryCell:
+      description: Cell (`registry.cell`) kèm tải hiện tại.
+      type: object
+      required: [id, code, name, primaryDc, tenancyModel, apiBaseUrl, capacityAccounts, status]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 16 }
+        name: { type: string, maxLength: 255 }
+        primaryDc: { $ref: '#/components/schemas/DataCenter' }
+        standbyDc: { type: [string, 'null'], maxLength: 16 }
+        tenancyModel: { $ref: '#/components/schemas/RegistryTenancyModel' }
+        apiBaseUrl: { type: string, maxLength: 255 }
+        capacityAccounts: { type: integer, minimum: 0 }
+        status: { $ref: '#/components/schemas/CellStatus' }
+        tenantCount: { type: integer, minimum: 0, description: 'Số tenant đang gắn (suy luận).' }
+        accountCount: { type: integer, minimum: 0, description: 'Tổng tài khoản các tenant của cell (suy luận).' }
+      examples:
+        - id: 0192f1a2-0000-7c00-8a00-00000000c001
+          code: CELL-HN
+          name: Cell Hà Nội
+          primaryDc: HOALAC
+          tenancyModel: BRIDGE
+          apiBaseUrl: 'https://api.cell-hn.okrkpi.vn'
+          capacityAccounts: 1500000
+          status: HOAT_DONG
+    CellPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/RegistryCell' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    TenantDomain:
+      type: object
+      required: [domain, kind]
+      properties:
+        domain: { type: string, maxLength: 253 }
+        kind: { $ref: '#/components/schemas/DomainKind' }
+        verifiedAt:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+            - { type: 'null' }
+    TenantCellBinding:
+      description: Lần gắn cell hiện hành (`registry.tenant_cell`).
+      type: object
+      required: [id, code, databaseName, validFrom]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 16 }
+        databaseName: { type: string, maxLength: 63 }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    RegistryTenantCreate:
+      type: object
+      required: [code, name, sector, tenancyModel, cellId, flows, maxAccounts]
+      properties:
+        code: { type: string, maxLength: 32, pattern: '^[a-z0-9_]+$' }
+        name: { type: string, maxLength: 255 }
+        sector: { $ref: './config.yaml#/components/schemas/TenantSector' }
+        tenancyModel: { $ref: '#/components/schemas/RegistryTenancyModel' }
+        cellId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        flows:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        maxAccounts: { type: integer, minimum: 1 }
+        expectedAccounts: { type: integer, minimum: 0 }
+        contractRef: { type: string, maxLength: 100 }
+        contractValidTo: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        onboardingCode: { type: string, maxLength: 32 }
+        domains:
+          type: array
+          items:
+            type: object
+            required: [domain, kind]
+            properties:
+              domain: { type: string, maxLength: 253 }
+              kind: { $ref: '#/components/schemas/DomainKind' }
+    RegistryTenant:
+      description: Bản ghi danh bạ tenant (`registry.tenant`). Không chứa `kek_ref`.
+      type: object
+      required: [id, code, name, sector, tenancyModel, status, flows, maxAccounts, accountCount, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 32 }
+        name: { type: string, maxLength: 255 }
+        sector: { $ref: './config.yaml#/components/schemas/TenantSector' }
+        tenancyModel: { $ref: '#/components/schemas/RegistryTenancyModel' }
+        status: { $ref: '#/components/schemas/RegistryTenantStatus' }
+        flows:
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        maxAccounts: { type: integer }
+        expectedAccounts: { type: integer }
+        accountCount: { type: integer }
+        contractRef: { type: string }
+        contractValidTo: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        onboardingCode: { type: string }
+        currentCell: { $ref: '#/components/schemas/TenantCellBinding' }
+        domains:
+          type: array
+          items: { $ref: '#/components/schemas/TenantDomain' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - id: 0192f1a2-3b4c-7d5e-8f60-718293a4b5c6
+          code: dukcqtw
+          name: Đảng uỷ Khối các cơ quan Trung ương
+          sector: DANG
+          tenancyModel: BRIDGE
+          status: DANG_VAN_HANH
+          flows: [DANG]
+          maxAccounts: 60000
+          accountCount: 51870
+          rowVersion: 5
+    TenantMoveStatus:
+      description: Trạng thái đề nghị chuyển cell (suy luận; TL-03 chưa có bảng riêng, vết nằm ở `registry.tenant_status_log`).
+      type: string
+      enum: [CHO_DUYET, DANG_CHUYEN, HOAN_TAT, THAT_BAI, DA_HUY]
+    TenantMoveCreate:
+      type: object
+      required: [targetCellId, reason]
+      properties:
+        targetCellId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        targetTenancyModel: { $ref: '#/components/schemas/RegistryTenancyModel' }
+        dataRegion: { type: string, maxLength: 32, description: '`registry.tenant_cell.data_region`.' }
+        reason: { type: string, minLength: 1, maxLength: 2000, description: 'Lý do, số văn bản (`tenant_status_log.reason`).' }
+        plannedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    TenantMove:
+      type: object
+      required: [id, tenantId, fromCell, toCell, status, reason, requestedBy, requestedAt, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        tenantId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        fromCell: { $ref: '#/components/schemas/RegistryCellRef' }
+        toCell: { $ref: '#/components/schemas/RegistryCellRef' }
+        targetTenancyModel: { $ref: '#/components/schemas/RegistryTenancyModel' }
+        dataRegion: { type: string }
+        status: { $ref: '#/components/schemas/TenantMoveStatus' }
+        reason: { type: string }
+        plannedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        requestedBy: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        requestedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        approvedBy: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        approvedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    ApprovalComment:
+      description: Ý kiến kèm thao tác phê duyệt hoặc đề nghị (tuỳ chọn).
+      type: object
+      properties:
+        comment: { type: string, maxLength: 2000 }
+
+    # ── Workflow ──
+    WorkflowDecision:
+      description: >-
+        Quyết định khi hoàn thành user task, đặt vào biến `decision` của tiến trình (TL-01 chương 8 dùng
+        `TRA_LAI`; `DUYET` là suy luận).
+      type: string
+      enum: [DUYET, TRA_LAI]
+    WorkflowInboxItem:
+      description: Một user task đang chờ (`flowable.wf_task_projection`).
+      type: object
+      required: [taskId, title, businessType, businessId, businessKey, createdAt, rowVersion]
+      properties:
+        taskId: { type: string, maxLength: 64 }
+        title: { type: string, maxLength: 255 }
+        businessType: { type: string, maxLength: 32, description: 'Loại đối tượng nghiệp vụ, ví dụ `OKR_OBJECTIVE`, `PLAN`, `APPRAISAL_PROFILE`, `COMPLAINT`.' }
+        businessId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        businessKey: { type: string, maxLength: 128 }
+        templateCode: { type: string, maxLength: 64, description: 'Mã mẫu luồng (suy luận).' }
+        assigneeId:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+            - { type: 'null' }
+        candidateRole: { type: [string, 'null'], maxLength: 32 }
+        candidateUnitId:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+            - { type: 'null' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        dueAt:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+            - { type: 'null' }
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        overdue: { type: boolean, description: 'Quá hạn so với `due_at` (suy luận).' }
+        deepLink: { type: string, maxLength: 512, description: 'Đường dẫn mở màn hình xử lý (suy luận).' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - taskId: '7f3c2a10-8b1e-11f1-9c5a-0242ac120002'
+          title: Phê duyệt OKR Quý I/2027 của Ban Tổ chức
+          businessType: OKR_OBJECTIVE
+          businessId: 0192f2c4-5d6e-7f80-91a2-b3c4d5e6f701
+          businessKey: 'OKR_OBJECTIVE:0192f2c4-5d6e-7f80-91a2-b3c4d5e6f701'
+          createdAt: '2027-01-06T09:12:00+07:00'
+          rowVersion: 1
+    WorkflowInboxPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WorkflowInboxItem' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        counts:
+          type: object
+          description: Số đếm cho nhắc MSG-02-12 và thẻ trang chủ.
+          properties:
+            total: { type: integer, minimum: 0 }
+            overdue: { type: integer, minimum: 0 }
+            dueToday: { type: integer, minimum: 0 }
+    WorkflowTaskCompletion:
+      type: object
+      required: [decision]
+      properties:
+        decision: { $ref: '#/components/schemas/WorkflowDecision' }
+        comment: { type: string, maxLength: 2000, description: 'Bắt buộc khi `TRA_LAI` (BR-02-09, MSG-02-10).' }
+    WorkflowTaskResult:
+      type: object
+      required: [taskId, businessKey, decision, completedAt]
+      properties:
+        taskId: { type: string }
+        businessKey: { type: string }
+        decision: { $ref: '#/components/schemas/WorkflowDecision' }
+        completedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        processEnded: { type: boolean }
+    WorkflowBatchCompletion:
+      type: object
+      required: [decision, items]
+      properties:
+        decision: { $ref: '#/components/schemas/WorkflowDecision' }
+        comment: { type: string, maxLength: 2000 }
+        items:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            required: [taskId, rowVersion]
+            properties:
+              taskId: { type: string, maxLength: 64 }
+              rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    WorkflowHistoryAction:
+      description: Loại bước trong lịch sử tiến trình (suy luận).
+      type: string
+      enum: [TAO_TIEN_TRINH, DUYET, TRA_LAI, CHUYEN_NGUOI_XU_LY, GIA_HAN, NHAC_HAN, KET_THUC]
+    WorkflowHistory:
+      type: object
+      required: [businessKey, businessType, status, entries]
+      properties:
+        businessKey: { type: string }
+        businessType: { type: string }
+        templateCode: { type: string }
+        templateVersion: { type: integer }
+        status: { type: string, enum: [DANG_CHAY, DA_KET_THUC], description: '(suy luận)' }
+        entries:
+          type: array
+          items:
+            type: object
+            required: [at, action]
+            properties:
+              at: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+              action: { $ref: '#/components/schemas/WorkflowHistoryAction' }
+              actorId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+              actorName: { type: string }
+              activityName: { type: string }
+              comment: { type: string }
+      examples:
+        - businessKey: 'OKR_OBJECTIVE:0192f2c4-5d6e-7f80-91a2-b3c4d5e6f701'
+          businessType: OKR_OBJECTIVE
+          status: DANG_CHAY
+          entries:
+            - { at: '2027-01-05T16:20:00+07:00', action: TAO_TIEN_TRINH, actorName: Lê Minh Châu }
+    WorkflowInstanceSummary:
+      type: object
+      required: [businessKey, businessType, businessId, templateCode, templateVersion, startedAt, stuck]
+      properties:
+        businessKey: { type: string }
+        businessType: { type: string }
+        businessId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        title: { type: string }
+        templateCode: { type: string }
+        templateVersion: { type: integer }
+        currentActivityName: { type: string }
+        currentTaskId: { type: [string, 'null'] }
+        assigneeId:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+            - { type: 'null' }
+        candidateRole: { type: [string, 'null'] }
+        startedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        dueAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        stuck: { type: boolean }
+        stuckReason: { type: string }
+        cellCode: { type: string }
+    WorkflowInstancePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WorkflowInstanceSummary' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    WorkflowDiagram:
+      type: object
+      required: [businessKey, bpmnXml, activeActivityIds, completedActivityIds]
+      properties:
+        businessKey: { type: string }
+        templateCode: { type: string }
+        templateVersion: { type: integer }
+        bpmnXml: { type: string, description: 'BPMN 2.0 XML; frontend hiển thị bằng bpmn-js ở chế độ chỉ xem.' }
+        activeActivityIds:
+          type: array
+          items: { type: string }
+        completedActivityIds:
+          type: array
+          items: { type: string }
+    WorkflowTaskReassign:
+      type: object
+      required: [assigneeId, reason]
+      properties:
+        assigneeId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    WorkflowTaskExtend:
+      type: object
+      required: [dueAt, reason]
+      properties:
+        dueAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    PeriodCloseSagaStart:
+      description: Tham số saga `CHOT_KY` (`flowable.saga_instance.context`).
+      type: object
+      required: [periodId, lockOrderId, requestedBy]
+      properties:
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        lockOrderId: { $ref: '../common/common.yaml#/components/schemas/Uuid', description: 'Lệnh khoá kỳ đã duyệt (`config.period_lock_order`), dùng làm `correlation_id`.' }
+        unitIds:
+          type: array
+          description: Danh sách đơn vị; rỗng là toàn tenant.
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        requestedBy: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    WorkflowTemplateStatus:
+      description: Trạng thái `flowable.wf_template.status` mở rộng theo BS-01.
+      type: string
+      enum: [NHAP, DAT_KIEM_THU, CHO_PHE_DUYET, HIEU_LUC, NGUNG]
+    WorkflowTemplateSummary:
+      type: object
+      required: [id, templateCode, versionNo, status, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        templateCode: { type: string, maxLength: 64 }
+        versionNo: { type: integer, minimum: 1 }
+        status: { $ref: '#/components/schemas/WorkflowTemplateStatus' }
+        bpmnSha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        tenantBindingCount: { type: integer, minimum: 0 }
+        testCount: { type: integer, minimum: 0 }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    WorkflowTemplate:
+      description: Một phiên bản mẫu luồng (`flowable.wf_template` cùng cột bổ sung của BS-01).
+      allOf:
+        - $ref: '#/components/schemas/WorkflowTemplateSummary'
+        - type: object
+          properties:
+            bpmnXml: { type: string }
+            paramSchema: { type: object, description: 'Khai báo tham số dạng JSON Schema (`param_schema`), sinh biểu mẫu ở SCR-1504.' }
+            testSuiteRef: { type: string, maxLength: 128 }
+            policyPackVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+            flowableDeploymentId: { type: string, maxLength: 64 }
+            approvedBy: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+            mergeRequestUrl: { type: string, format: uri, description: 'Merge request vào repo mẫu luồng (suy luận).' }
+      examples:
+        - id: 0192f5f7-8091-72a3-b4c5-d6e7f8091a34
+          templateCode: duyet-ho-so-danh-gia
+          versionNo: 3
+          status: HIEU_LUC
+          rowVersion: 6
+    WorkflowTemplatePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WorkflowTemplateSummary' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    WorkflowTemplateCreate:
+      type: object
+      required: [templateCode, bpmnXml, paramSchema]
+      properties:
+        templateCode: { type: string, maxLength: 64, pattern: '^[a-z0-9-]+$' }
+        basedOnTemplateId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        bpmnXml: { type: string, maxLength: 2000000 }
+        paramSchema: { type: object }
+    WorkflowTemplateUpdate:
+      type: object
+      required: [bpmnXml, paramSchema]
+      properties:
+        bpmnXml: { type: string, maxLength: 2000000 }
+        paramSchema: { type: object }
+    WorkflowTemplateRolloutList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [cellCode, status]
+            properties:
+              cellCode: { type: string }
+              status: { type: string, enum: [CHO, DA_TRIEN_KHAI, LOI, DA_BU_TRU], description: '`flowable.wf_template_rollout.status` (BS-01).' }
+              flowableDeploymentId: { type: [string, 'null'] }
+              deployedAt:
+                oneOf:
+                  - { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+                  - { type: 'null' }
+
+    # ── Notifications ──
+    Notification:
+      description: Thông báo trong ứng dụng (`notify.notification`); không chứa dữ liệu C2.
+      type: object
+      required: [id, templateCode, title, priority, createdAt, readAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        templateCode: { type: string, maxLength: 48 }
+        title: { type: string, description: 'Tiêu đề dựng từ `notify.template.subject` (suy luận).' }
+        body: { type: string, description: 'Nội dung dựng từ `notify.template.body` (suy luận).' }
+        params: { type: object, additionalProperties: true, description: 'Tham số mẫu (không chứa C2).' }
+        deepLink: { type: [string, 'null'], maxLength: 512 }
+        priority: { type: string, maxLength: 8, description: 'Mức ưu tiên (`notify.notification.priority`); TL-03 chưa liệt kê giá trị.' }
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        readAt:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+            - { type: 'null' }
+      examples:
+        - id: 0192f6a8-9102-73b4-c5d6-e7f8091a2b45
+          templateCode: OKR_CHO_DUYET
+          title: Có bộ OKR cần phê duyệt
+          body: Ban Tổ chức trình OKR Quý I/2027, hạn duyệt 08/01/2027.
+          deepLink: /okr/phe-duyet
+          priority: CAO
+          createdAt: '2027-01-06T09:12:05+07:00'
+          readAt: null
+    NotificationPage:
+      type: object
+      required: [items, nextCursor, unreadCount]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Notification' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        unreadCount: { type: integer, minimum: 0 }
+    NotificationReadRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          maxItems: 200
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        all: { type: boolean }
+    NotificationReadResult:
+      type: object
+      required: [updated, unreadCount]
+      properties:
+        updated: { type: integer, minimum: 0 }
+        unreadCount: { type: integer, minimum: 0 }
+    NotificationUnreadEvent:
+      description: Dữ liệu của sự kiện SSE `unread`.
+      type: object
+      required: [unreadCount]
+      properties:
+        unreadCount: { type: integer, minimum: 0 }
+        reload: { type: boolean, description: '`true` khi client cần tải lại hộp thông báo (mã `Last-Event-ID` quá cũ).' }
+
+    # ── AI ──
+    AiSourceKind:
+      description: Loại nguồn trích dẫn (suy luận từ `ai.suggestion_log.sources_json`).
+      type: string
+      enum: [VAN_BAN, DU_LIEU, TRUY_VAN]
+    AiSource:
+      description: Một nguồn mà gợi ý AI đã dùng (BR-17-02).
+      type: object
+      required: [kind, title]
+      properties:
+        kind: { $ref: '#/components/schemas/AiSourceKind' }
+        title: { type: string }
+        location: { type: string, description: 'Trang, mục trong văn bản, ví dụ `tr. 4–6`.' }
+        ref: { type: string, description: 'Mã văn bản, mã đoạn `ai.doc_chunk` hoặc tên chỉ số Cube.' }
+        excerpt: { type: string, description: 'Đoạn trích hoặc số liệu đã dùng (chỉ C0, C1).' }
+        asOf: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        masked: { type: boolean, description: 'Nguồn ngoài phạm vi quyền hiện tại của người xem.' }
+    AiSourceList:
+      type: object
+      required: [suggestionId, items]
+      properties:
+        suggestionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AiSource' }
+    AiUserAction:
+      description: Phản hồi của người dùng với gợi ý (`ai.suggestion_log.user_action`).
+      type: string
+      enum: [CHAP_NHAN, SUA, BO_QUA]
+    AiGuardrailBlock:
+      description: Rào chắn đã chặn yêu cầu (`ai.guardrail_event`).
+      type: object
+      required: [ruleCode, action, message]
+      properties:
+        ruleCode: { type: string, enum: [PII_OUT, PROMPT_INJECTION, OUT_OF_SCOPE, C2_REQUEST] }
+        action: { type: string, enum: [CHAN, CHE, CANH_BAO] }
+        msg: { type: string, examples: [MSG-17-02] }
+        message: { type: string }
+    AiSuggestion:
+      description: Một lượt gợi ý AI (`ai.suggestion_log`), luôn mang nhãn "Nội dung do AI tạo".
+      type: object
+      required: [id, useCase, model, createdAt, aiGenerated, label, sources]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        useCase: { type: string, maxLength: 32, description: 'Ví dụ `GOI_Y_NHIEM_VU`, `TOM_TAT_VAN_BAN`, `OCR`.' }
+        kind: { type: [string, 'null'], maxLength: 24, description: 'Ví dụ `TOM_TAT_TUAN`.' }
+        model: { type: string, maxLength: 64 }
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        aiGenerated: { const: true }
+        label: { type: string, const: Nội dung do AI tạo }
+        outputText: { type: [string, 'null'] }
+        items:
+          type: array
+          description: Các ý tách dòng (tóm tắt tuần 3 đến 5 ý).
+          items: { type: string }
+        sources:
+          type: array
+          items: { $ref: '#/components/schemas/AiSource' }
+        confidence: { type: [number, 'null'], minimum: 0, maximum: 1 }
+        decision:
+          oneOf:
+            - { $ref: '#/components/schemas/AiUserAction' }
+            - { type: 'null' }
+        blocked:
+          oneOf:
+            - { $ref: '#/components/schemas/AiGuardrailBlock' }
+            - { type: 'null' }
+      examples:
+        - id: 0192f7b9-a213-74c5-d6e7-f8091a2b3c56
+          useCase: HOI_DAP_QUY_DINH
+          model: viettel-llm-vi-2026.3
+          createdAt: '2026-10-19T09:40:02+07:00'
+          aiGenerated: true
+          label: Nội dung do AI tạo
+          sources: []
+    AiSuggestionPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AiSuggestion' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    AiContextRef:
+      type: object
+      required: [type, id]
+      properties:
+        type: { type: string, maxLength: 32, description: 'Loại đối tượng làm ngữ cảnh, ví dụ `OKR_BASIS`, `TASK`, `SCORE`.' }
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    AiSuggestionRequest:
+      type: object
+      required: [useCase, question]
+      properties:
+        useCase: { type: string, maxLength: 32, description: 'Ca dùng, ví dụ `HOI_DAP_QUY_DINH`, `GIAI_THICH_DIEM`, `TOM_TAT_VAN_BAN` (giá trị ngoài TL-03 là suy luận).' }
+        question: { type: string, minLength: 1, maxLength: 2000, x-classification: C2 }
+        contextRefs:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/AiContextRef' }
+    AiSuggestionDecisionRequest:
+      description: >-
+        Quyết định của người dùng. Frontend SCR-0502 gửi `{ decision: 'BO_QUA', reason }`.
+      type: object
+      required: [decision]
+      properties:
+        decision: { $ref: '#/components/schemas/AiUserAction' }
+        reason: { type: string, maxLength: 1000, description: 'Bắt buộc khi bỏ nhiệm vụ trích (SCR-0502).' }
+        editedFields:
+          type: array
+          items: { $ref: './tasks.yaml#/components/schemas/SuggestionField' }
+        targetRef: { type: string, maxLength: 128, description: 'Bản ghi nhận gợi ý (`ai.suggestion_log.target_ref`), ví dụ `okr.key_result:<id>`.' }
+    ExtractionStatus:
+      description: Tình trạng trích nhiệm vụ của SVC-14 (QT-05 bước 2, ≤ 1 phút).
+      type: string
+      enum: [DANG_TRICH, XONG, KHONG_TRICH_DUOC]
+    DocExtraction:
+      description: Kết quả trích nhiệm vụ của SVC-14 cho một văn bản (frontend `DocExtraction`).
+      type: object
+      required: [sourceDocId, status, model, extractedAt, suggestions]
+      properties:
+        sourceDocId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        status: { $ref: '#/components/schemas/ExtractionStatus' }
+        model: { type: string }
+        extractedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        suggestions:
+          type: array
+          items: { $ref: './tasks.yaml#/components/schemas/TaskSuggestion' }
+      examples:
+        - sourceDocId: 0192f8ca-b324-75d6-e7f8-091a2b3c4d01
+          status: DANG_TRICH
+          model: viettel-llm-vi-2026.3
+          extractedAt: '2026-10-12T15:02:10+07:00'
+          suggestions: []
+    OkrDraftKeyResult:
+      type: object
+      required: [title]
+      properties:
+        code: { type: string, maxLength: 16, examples: [KR 1.3] }
+        title: { type: string, maxLength: 300 }
+        unit: { type: [string, 'null'], maxLength: 32 }
+        baselineValue: { type: [number, 'null'] }
+        targetValue: { type: [number, 'null'] }
+        weight: { type: [number, 'null'], minimum: 0, maximum: 100 }
+    OkrReviewRequest:
+      type: object
+      required: [periodId, objectiveTitle, keyResults]
+      properties:
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        objectiveId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        objectiveTitle: { type: string, maxLength: 300 }
+        keyResults:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items: { $ref: '#/components/schemas/OkrDraftKeyResult' }
+    OkrReviewFinding:
+      type: object
+      required: [suggestionId, krCode, severity, message, sources]
+      properties:
+        suggestionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        krCode: { type: string }
+        severity: { type: string, enum: [LOI, CANH_BAO], description: '(suy luận)' }
+        rule: { type: string, examples: [BR-02-05] }
+        msg: { type: string, examples: [MSG-02-05] }
+        message: { type: string }
+        rewrites:
+          type: array
+          maxItems: 3
+          items: { type: string, maxLength: 300 }
+        sources:
+          type: array
+          items: { $ref: '#/components/schemas/AiSource' }
+    OkrReviewResult:
+      type: object
+      required: [model, createdAt, aiGenerated, label, findings]
+      properties:
+        model: { type: string }
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        aiGenerated: { const: true }
+        label: { type: string, const: Nội dung do AI tạo }
+        findings:
+          type: array
+          items: { $ref: '#/components/schemas/OkrReviewFinding' }
+      examples:
+        - model: viettel-llm-vi-2026.3
+          createdAt: '2027-01-05T10:12:00+07:00'
+          aiGenerated: true
+          label: Nội dung do AI tạo
+          findings: []
+    OkrAssistRequest:
+      type: object
+      required: [question, periodId, unitId]
+      properties:
+        question: { type: string, minLength: 1, maxLength: 2000, description: 'Câu hỏi cho trợ lý (`prompt_redacted` sau khi che).' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        unitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        basisIds:
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        attachmentObjectIds:
+          type: array
+          description: Tệp căn cứ PDF, DOCX ≤ 20 MB đã tải lên qua `/files/uploads`; được lập chỉ mục trước khi trả lời.
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        draftObjectiveIds:
+          type: array
+          description: Bản nháp OKR đang soạn để trợ lý soát.
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    OkrAssistSuggestion:
+      type: object
+      required: [id, kind, sources]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        kind: { type: string, enum: [MUC_TIEU, SOAT_KR, LIEN_KET_NGANG], description: '(suy luận)' }
+        objective:
+          type: object
+          properties:
+            title: { type: string, maxLength: 300 }
+            basisRef: { type: string }
+            keyResults:
+              type: array
+              items: { $ref: '#/components/schemas/OkrDraftKeyResult' }
+        krCode: { type: string }
+        text: { type: string }
+        reason: { type: string }
+        sources:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/AiSource' }
+    OkrAssistResult:
+      type: object
+      required: [model, createdAt, aiGenerated, label, suggestions]
+      properties:
+        model: { type: string }
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        aiGenerated: { const: true }
+        label: { type: string, const: Nội dung do AI tạo }
+        answer: { type: string }
+        suggestions:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/OkrAssistSuggestion' }
+        blocked:
+          oneOf:
+            - { $ref: '#/components/schemas/AiGuardrailBlock' }
+            - { type: 'null' }
+    EvidenceExtractRequest:
+      type: object
+      required: [objectId]
+      properties:
+        objectId: { $ref: '../common/common.yaml#/components/schemas/Uuid', description: 'Đối tượng đã tải lên (`evidence.object_meta`).' }
+    AiTaskMatch:
+      type: object
+      required: [id, code, title, confidence]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string }
+        title: { type: string }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+    EvidenceExtraction:
+      description: Kết quả OCR minh chứng (SCR-0702 trường 2–5); các ô do AI điền chờ người nộp xác nhận.
+      type: object
+      required: [suggestionId, objectId, model, aiGenerated, label]
+      properties:
+        suggestionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        objectId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        model: { type: string }
+        aiGenerated: { const: true }
+        label: { type: string, const: Nội dung do AI tạo }
+        docNumber: { type: [string, 'null'], maxLength: 64 }
+        docDate:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Date' }
+            - { type: 'null' }
+        docSummary: { type: [string, 'null'], maxLength: 500 }
+        matchedTask:
+          oneOf:
+            - { $ref: '#/components/schemas/AiTaskMatch' }
+            - { type: 'null' }
+        alternatives:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/AiTaskMatch' }
+      examples:
+        - suggestionId: 0192f7b9-a213-74c5-d6e7-f8091a2b3ca0
+          objectId: 0192f9db-c435-76e7-f809-1a2b3c4d5e01
+          model: viettel-ocr-2026.2
+          aiGenerated: true
+          label: Nội dung do AI tạo
+          docNumber: 47-BC/BTCĐUK
+    SpeechToTextRequest:
+      type: object
+      required: [audio]
+      properties:
+        audio: { type: string, contentMediaType: application/octet-stream, description: 'Đoạn ghi âm ≤ 60 giây, ≤ 2 MB (suy luận).' }
+        language: { type: string, default: vi-VN }
+        purpose: { type: string, enum: [CHECKIN_VUONG_MAC, TU_DANH_GIA_GHI_CHU, KHAC], description: 'Ô đích (suy luận).' }
+    SpeechToTextResult:
+      type: object
+      required: [text, model]
+      properties:
+        text: { type: string, maxLength: 1000 }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        durationMs: { type: integer, minimum: 0 }
+        model: { type: string }
+      examples:
+        - text: Chi bộ 3 chưa nộp biên bản sinh hoạt tháng mười.
+          confidence: 0.91
+          durationMs: 4200
+          model: viettel-asr-vi-2026.1
+
+    # ── Analytics ──
+    AnalyticsFilter:
+      type: object
+      required: [member, operator, values]
+      properties:
+        member: { type: string, description: 'Tên chiều công bố trong lớp ngữ nghĩa.' }
+        operator: { type: string, enum: [equals, notEquals, in, gte, lte] }
+        values:
+          type: array
+          items: { type: [string, number] }
+    AnalyticsQuery:
+      description: Truy vấn trên lớp ngữ nghĩa Cube, chỉ measures và dimensions công bố (BR-16-02).
+      type: object
+      required: [measures]
+      properties:
+        measures:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items: { type: string }
+        dimensions:
+          type: array
+          maxItems: 2
+          items: { type: string }
+        filters:
+          type: array
+          items: { $ref: '#/components/schemas/AnalyticsFilter' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        unitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        timeGranularity: { type: string, enum: [week, month, quarter, year], description: 'Chiều thời gian, ví dụ xu hướng 6 tuần.' }
+        compareToPreviousPeriod: { type: boolean, default: false }
+        limit: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    AnalyticsColumn:
+      type: object
+      required: [name, title, type]
+      properties:
+        name: { type: string }
+        title: { type: string }
+        type: { type: string, enum: [string, number, count, time] }
+        unit: { type: string }
+    AnalyticsQueryResult:
+      type: object
+      required: [semanticModelVersion, dataAsOf, stale, columns, rows]
+      properties:
+        semanticModelVersion: { type: string }
+        dataAsOf: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        stale: { type: boolean, description: 'Dữ liệu trễ quá 5 phút (MSG-16-01).' }
+        columns:
+          type: array
+          items: { $ref: '#/components/schemas/AnalyticsColumn' }
+        rows:
+          type: array
+          items:
+            type: array
+            items: { type: [string, number, 'null'] }
+      examples:
+        - semanticModelVersion: '2026.4'
+          dataAsOf: '2026-11-16T08:55:00+07:00'
+          stale: false
+          columns: [{ name: okr.tien_do_o, title: Tiến độ mục tiêu O, type: number, unit: '%' }]
+          rows: [[72]]
+    SemanticModel:
+      type: object
+      required: [version, measures, dimensions]
+      properties:
+        version: { type: string }
+        measures:
+          type: array
+          items:
+            type: object
+            required: [name, title, type]
+            properties:
+              name: { type: string }
+              title: { type: string }
+              type: { type: string }
+              unit: { type: string }
+              drillable: { type: boolean, description: 'Có liên kết truy vết để đi xuống (SCR-1602 trường 8).' }
+        dimensions:
+          type: array
+          items:
+            type: object
+            required: [name, title, type]
+            properties:
+              name: { type: string }
+              title: { type: string }
+              type: { type: string }
+              supportedMeasures:
+                type: array
+                items: { type: string }
+    DashboardChartType:
+      description: Kiểu biểu đồ của widget (SCR-1602 trường 6; mã là suy luận).
+      type: string
+      enum: [THE_SO, COT, DUONG, THANH, BANG]
+    DashboardShareScope:
+      description: Phạm vi chia sẻ (`config.dashboard_def.share_scope`).
+      type: string
+      enum: [RIENG, DON_VI, TENANT]
+    DashboardWidget:
+      type: object
+      required: [id, x, y, w, h, measure, chartType]
+      properties:
+        id: { type: string, maxLength: 32 }
+        x: { type: integer, minimum: 0 }
+        y: { type: integer, minimum: 0 }
+        w: { type: integer, minimum: 1 }
+        h: { type: integer, minimum: 1 }
+        measure: { type: string }
+        dimensions:
+          type: array
+          maxItems: 2
+          items: { type: string }
+        chartType: { $ref: '#/components/schemas/DashboardChartType' }
+        filters:
+          type: array
+          items: { $ref: '#/components/schemas/AnalyticsFilter' }
+        drillDown: { type: boolean, default: true }
+    AnalyticsDashboardInput:
+      type: object
+      required: [title, layout]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 100 }
+        layout:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { $ref: '#/components/schemas/DashboardWidget' }
+    AnalyticsDashboardSummary:
+      type: object
+      required: [id, title, ownerUserId, shareScope, updatedAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        title: { type: string }
+        ownerUserId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        shareScope: { $ref: '#/components/schemas/DashboardShareScope' }
+        widgetCount: { type: integer }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    AnalyticsDashboardPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AnalyticsDashboardSummary' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    AnalyticsDashboard:
+      description: Định nghĩa dashboard (`config.dashboard_def`) và số liệu khi được yêu cầu.
+      type: object
+      required: [id, title, ownerUserId, measures, dimensions, layout, shareScope, sharedUnitIds, rowVersion, updatedAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        title: { type: string, maxLength: 255 }
+        ownerUserId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        measures:
+          type: array
+          items: { type: string }
+        dimensions:
+          type: array
+          items: { type: string }
+        layout:
+          type: array
+          items: { $ref: '#/components/schemas/DashboardWidget' }
+        shareScope: { $ref: '#/components/schemas/DashboardShareScope' }
+        sharedUnitIds:
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        semanticModelVersion: { type: string }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        data:
+          type: object
+          properties:
+            dataAsOf: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+            stale: { type: boolean }
+            widgets:
+              type: array
+              items:
+                type: object
+                required: [widgetId, columns, rows]
+                properties:
+                  widgetId: { type: string }
+                  columns:
+                    type: array
+                    items: { $ref: '#/components/schemas/AnalyticsColumn' }
+                  rows:
+                    type: array
+                    items:
+                      type: array
+                      items: { type: [string, number, 'null'] }
+      examples:
+        - id: 0192fa0c-d546-77f8-091a-2b3c4d5e6f01
+          title: Bảng của Bí thư
+          ownerUserId: 0192f1a2-2222-7aaa-8bbb-000000000b01
+          measures: [okr.tien_do_o]
+          dimensions: []
+          layout: []
+          shareScope: RIENG
+          sharedUnitIds: []
+          rowVersion: 0
+          updatedAt: '2026-11-16T09:00:00+07:00'
+    DashboardShareRequest:
+      type: object
+      required: [shareScope]
+      properties:
+        shareScope: { $ref: '#/components/schemas/DashboardShareScope' }
+        sharedUnitIds:
+          type: array
+          description: Bắt buộc khi `DON_VI`; chỉ đơn vị trong tenant.
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    AnalyticsReportRequest:
+      type: object
+      required: [templateCode, periodId, format]
+      properties:
+        templateCode: { type: string, maxLength: 48, description: 'Mã mẫu báo cáo (suy luận).' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        unitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        dashboardId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        compareToPreviousPeriod: { type: boolean, default: false }
+        format: { type: string, enum: [PDF, XLSX] }
+    TraceObjectType:
+      description: >-
+        Loại mắt xích của chuỗi truy vết PL 4 III.2 (BR-16-03): điểm, cấu phần, KPI nhiệm vụ hoặc KR, sản phẩm,
+        minh chứng, kế hoạch, mục tiêu O, căn cứ. Mã là suy luận.
+      type: string
+      enum: [DIEM, CAU_PHAN, KPI_NHIEM_VU, KET_QUA_THEN_CHOT, SAN_PHAM, MINH_CHUNG, KE_HOACH, MUC_TIEU, CAN_CU]
+    TraceLink:
+      type: object
+      required: [objectType, id, label, masked]
+      properties:
+        objectType: { $ref: '#/components/schemas/TraceObjectType' }
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        label: { type: string }
+        value: { type: string, description: 'Giá trị hiển thị đã định dạng tiếng Việt.' }
+        status: { type: string, description: 'Trạng thái chuẩn của đối tượng (baseline mục 9.1).' }
+        versionNo: { type: integer }
+        unitName: { type: string }
+        masked: { type: boolean, description: 'Mắt xích ngoài phạm vi quyền, hiển thị dạng che (MSG-16-06).' }
+        msg: { type: string, description: 'Mã thông điệp TL-02 kèm theo, ví dụ `MSG-16-06`, `MSG-16-07`.' }
+        details: { type: object, additionalProperties: true, description: 'Chi tiết theo loại mắt xích (bảng A, B, C của KPI, phiên bản minh chứng…).' }
+    TraceChain:
+      type: object
+      required: [focus, links]
+      properties:
+        focus:
+          type: object
+          required: [objectType, id]
+          properties:
+            objectType: { $ref: '#/components/schemas/TraceObjectType' }
+            id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        links:
+          type: array
+          items: { $ref: '#/components/schemas/TraceLink' }
+        ledgerRef: { type: string, description: 'Mã bản ghi sổ cái của lần truy cập C2 (nếu có).' }
+      examples:
+        - focus: { objectType: DIEM, id: 0192fb1d-e657-7809-1a2b-3c4d5e6f7a01 }
+          links:
+            - { objectType: DIEM, id: 0192fb1d-e657-7809-1a2b-3c4d5e6f7a01, label: Điểm quý IV/2026, value: '91,2', masked: false }
+    TraceExportRequest:
+      type: object
+      required: [objectType, id, formats]
+      properties:
+        objectType: { $ref: '#/components/schemas/TraceObjectType' }
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        formats:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, enum: [JSON, PDF] }
+
+    # ── Search ──
+    SearchResultType:
+      description: Loại tài liệu được lập chỉ mục (TL-01 SVC-16; mã là suy luận).
+      type: string
+      enum: [TASK, SOURCE_DOC, CATALOG_ITEM]
+    SearchResult:
+      description: Một kết quả tìm kiếm; chỉ trường C0, C1.
+      type: object
+      required: [type, id, title, score]
+      properties:
+        type: { $ref: '#/components/schemas/SearchResultType' }
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string }
+        title: { type: string }
+        snippet: { type: string, description: 'Đoạn trích văn bản thuần, không HTML.' }
+        highlights:
+          type: array
+          description: Vị trí phần khớp trong `snippet` (đếm theo ký tự UTF-16).
+          items:
+            type: object
+            required: [start, length]
+            properties:
+              start: { type: integer, minimum: 0 }
+              length: { type: integer, minimum: 1 }
+        unitName: { type: string }
+        periodLabel: { type: string }
+        status: { type: string }
+        deepLink: { type: string }
+        score: { type: number }
+      examples:
+        - type: CATALOG_ITEM
+          id: 0192fc2e-f768-791a-2b3c-4d5e6f7a8b01
+          code: DM-TC-012
+          title: Hướng dẫn kiểm điểm tổ chức đảng
+          score: 8.2
+    SearchResultPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SearchResult' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }

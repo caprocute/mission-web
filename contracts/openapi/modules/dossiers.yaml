@@ -1,0 +1,2321 @@
+# Hợp đồng OpenAPI của MOD-06 `dossier`, SVC-11 document-service và SVC-10 esign-service (WEB-063, ADR-32).
+# Nguồn:
+#   - Baseline mục 9 (schema dossier, docgen, esign), 9.1, 10 (vai trò AC), 13 (quy ước API); bảng EVT (EVT-17, EVT-18, EVT-21).
+#   - TL-01 Phụ lục C mục "Kiểm điểm và hồ sơ số (MOD-06, SVC-11)" và hai dòng `/esign/sessions` ở mục "Dịch vụ nền";
+#     TL-01 mục SVC-10 esign-service (SignatureProvider, ký bất đồng bộ), SVC-11 document-service (render-jobs 202),
+#     chương 11 (ký từ xa chờ xác nhận tới 120 giây).
+#   - TL-02b QT-11 (các bước, trạng thái gói hồ sơ, BR-11-01..BR-11-11, ngoại lệ), SCR-1101, SCR-1102 (bảng trường,
+#     bảng chức năng, MSG-11-01..MSG-11-07); TL-02b SCR-0901, SCR-0903, SCR-0904, SCR-1202 (dùng `/dossiers/forms...`);
+#     TL-02a SCR-0403 và TL-02b SCR-0901 (dùng `/esign/requests`).
+#   - TL-03 schema dossier (review_meeting, review_comment, dossier_package, form_instance, special_case,
+#     remediation_item), docgen (template, render_job, render_output), esign (sign_request, sign_item, certificate_ref).
+#   - Ma trận phân quyền `docs/phan-quyen/ma-tran.json` (SCR-1101.*, SCR-1102.*, SCR-0901, SCR-0903, SCR-0904, SCR-1202;
+#     dòng API `dossiers`, `esign`).
+openapi: 3.1.0
+info:
+  title: Mission – Kiểm điểm, hồ sơ số và ký số (MOD-06)
+  version: 1.0.0-draft.1
+  description: >-
+    Hợp đồng của quy trình QT-11 "Kiểm điểm và hồ sơ số": hội nghị kiểm điểm (SCR-1101), góp ý (dữ liệu C2),
+    biên bản, theo dõi khắc phục hạn chế, gói hồ sơ số quý và năm có manifest SHA-256 và ký số (SCR-1102),
+    sinh biểu mẫu Mẫu 1A đến 1D, Mẫu 2, Mẫu 3, bảng chấm điểm qua document-service (SVC-11), chuyển gói con diện
+    Trung ương quản lý, và yêu cầu ký số qua esign-service (SVC-10) dùng chung cho mọi mốc pháp lý.
+    Tác vụ dài trả 202 và được theo dõi qua `GET /jobs/{id}` (tệp `jobs.yaml`) hoặc luồng SSE thông báo.
+servers:
+  - url: /api/v1
+security:
+  - keycloak: []
+tags:
+  - name: Hội nghị kiểm điểm
+    description: Lập hội nghị, gửi dự thảo, kiểm tra thời hạn 03 ngày làm việc, biên bản, kết thúc hội nghị (SCR-1101).
+  - name: Góp ý kiểm điểm
+    description: Góp ý trước và tại hội nghị; nội dung là dữ liệu C2, có chế độ ẩn danh (BR-11-06).
+  - name: Khắc phục hạn chế
+    description: Danh sách hạn chế cần khắc phục rút ra từ biên bản và theo dõi qua các kỳ (BR-11-08).
+  - name: Gói hồ sơ số
+    description: Gói hồ sơ quý, năm, diện TW; danh sách kiểm tra trước khi ký, ký số gói, tải gói, chuyển gói con (SCR-1102).
+  - name: Biểu mẫu
+    description: Biểu mẫu sinh từ dữ liệu đã quyết định (SVC-11), xem trước, tải tệp PDF/A, yêu cầu sinh trả 202.
+  - name: Trường hợp đặc thù
+    description: 13 trường hợp đặc thù của PL 6 do MOD-06 phát hiện và xử lý theo Policy Pack (BR-11-05).
+  - name: Ký số
+    description: Yêu cầu ký số từ xa và trạng thái yêu cầu ký (SVC-10), chứng thư của người ký.
+
+components:
+  securitySchemes:
+    keycloak: { $ref: '../common/common.yaml#/components/securitySchemes/keycloak' }
+    serviceClient: { $ref: '../common/common.yaml#/components/securitySchemes/serviceClient' }
+
+  responses:
+    DossierSignAccepted:
+      description: >-
+        Đã nhận yêu cầu ký gói (trả trong 200 ms). Theo dõi job bằng `Location` và yêu cầu ký bằng
+        `GET /esign/requests/{signRequestId}`.
+      headers:
+        Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+        Retry-After: { $ref: '../common/common.yaml#/components/headers/RetryAfter' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/DossierSignJob' }
+          examples:
+            cho-ky:
+              value:
+                id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a78
+                type: ESIGN_BATCH
+                status: DANG_CHAY
+                progress: 10
+                message: Đang chờ người ký xác nhận trên ứng dụng ký số.
+                signRequestId: 0192a3f4-1810-7000-8000-000000000001
+
+  examples:
+    DossierMeetingExample:
+      summary: Hội nghị kiểm điểm cuối năm đã gửi dự thảo
+      value: &meetingEx
+        id: 0192a3f4-1101-7000-8000-000000000001
+        title: Hội nghị kiểm điểm cuối năm 2026 của Chi bộ Ban Tổ chức
+        period: { id: 0192a3f4-0002-7000-8000-000000002026, label: Năm 2026, startDate: '2026-01-01', endDate: '2026-12-31' }
+        orgUnit: { id: 0192a3f4-0001-7000-8000-000000000010, name: Chi bộ Ban Tổ chức }
+        meetingType: KIEM_DIEM_NAM
+        scheduledAt: '2027-01-14T08:00:00+07:00'
+        location: Phòng họp tầng 3, trụ sở Ban Tổ chức
+        subjectPerson: { id: 0192a3f4-0003-7000-8000-000000000103, name: Trần Thị Mai }
+        chair: { id: 0192a3f4-0003-7000-8000-000000000101, name: Nguyễn Văn Hùng }
+        secretary: { id: 0192a3f4-0003-7000-8000-000000000102, name: Lê Thu Hà }
+        status: DA_GUI_DU_THAO
+        myRole: THANH_VIEN
+        draftSentAt: '2027-01-08T16:20:00+07:00'
+        deadlineCheck:
+          workingDays: 3
+          requiredWorkingDays: 3
+          passed: true
+          legalRef: QĐ Điều 6
+        participants:
+          - { person: { id: 0192a3f4-0003-7000-8000-000000000104, name: Phạm Quốc Bảo }, role: THANH_VIEN, status: DA_GOP_Y }
+          - { person: { id: 0192a3f4-0003-7000-8000-000000000105, name: Đỗ Minh Châu }, role: THANH_VIEN, status: VANG_CO_LY_DO }
+        draftForms:
+          - { id: 0192a3f4-1103-7000-8000-000000000001, formCode: MAU_1B, status: DA_SINH }
+        proposedLevel: HTTNV
+        vote: null
+        commentsLocked: false
+        rowVersion: 4
+
+    DossierCommentExample:
+      summary: Góp ý loại hạn chế trước hội nghị
+      value: &commentEx
+        id: 0192a3f4-1104-7000-8000-000000000001
+        meetingId: 0192a3f4-1101-7000-8000-000000000001
+        subjectPersonId: 0192a3f4-0003-7000-8000-000000000103
+        commenter: { id: 0192a3f4-0003-7000-8000-000000000104, name: Phạm Quốc Bảo }
+        kind: HAN_CHE
+        phase: TRUOC_HOI_NGHI
+        content: Việc tham mưu rà soát quy hoạch cán bộ quý III còn chậm so với kế hoạch khoảng hai tuần.
+        createdAt: '2027-01-10T09:15:00+07:00'
+
+    DossierRemediationItemExample:
+      summary: Hạn chế kỳ trước đang khắc phục
+      value: &remediationEx
+        id: 0192a3f4-1105-7000-8000-000000000001
+        person: { id: 0192a3f4-0003-7000-8000-000000000103, name: Trần Thị Mai }
+        meetingId: 0192a3f4-1101-7000-8000-000000000000
+        sourcePeriod: { id: 0192a3f4-0002-7000-8000-000000002025, label: Năm 2025, startDate: '2025-01-01', endDate: '2025-12-31' }
+        content: Nâng cao chất lượng thẩm định hồ sơ nhân sự, giảm số hồ sơ phải trả lại.
+        status: DANG_KHAC_PHUC
+        rowVersion: 2
+
+    DossierPackageExample:
+      summary: Gói hồ sơ năm đang chờ ký
+      value: &packageEx
+        id: 0192a3f4-1102-7000-8000-000000000142
+        code: DP-2026-N-0142
+        packageKind: NAM
+        period: { id: 0192a3f4-0002-7000-8000-000000002026, label: Năm 2026, startDate: '2026-01-01', endDate: '2026-12-31' }
+        orgUnit: { id: 0192a3f4-0001-7000-8000-000000000010, name: Ban Tổ chức Tỉnh uỷ }
+        status: CHO_KY
+        deadline: '2027-02-01'
+        versionNo: 1
+        formCounts: { total: 106, rendered: 106, failed: 0, signed: 104 }
+        profileCount: 48
+        manifestHash: 9f2c4e7a1b3d5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcd
+        central: { profileCount: 2, destination: BTC_TW, transferStatus: CHUA_GUI }
+        rowVersion: 12
+
+    DossierFormExample:
+      summary: Mẫu 1B đã sinh
+      value: &formEx
+        id: 0192a3f4-1103-7000-8000-000000000001
+        formCode: MAU_1B
+        packageId: 0192a3f4-1102-7000-8000-000000000142
+        profileId: 0192a3f4-0901-7000-8000-000000000201
+        subjectPerson: { id: 0192a3f4-0003-7000-8000-000000000103, name: Trần Thị Mai }
+        templateVersion: v2.0
+        status: DA_SINH
+        renderStatus: XONG
+        format: PDF/A-2b
+        dataSnapshotHash: 4a5b6c7d8e9f00112233445566778899aabbccddeeff00112233445566778899
+        pdfSha256: 0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0
+
+    DossierSpecialCaseExample:
+      summary: Điều động dưới hai tháng
+      value: &specialCaseEx
+        id: 0192a3f4-1106-7000-8000-000000000001
+        person: { id: 0192a3f4-0003-7000-8000-000000000107, name: Vũ Hoàng Long }
+        caseCode: DIEU_DONG_DUOI_2_THANG
+        legalRef: PL 6 §1
+        handling: Đơn vị cũ đánh giá, đơn vị mới cho ý kiến
+        detectedBy: TU_DONG
+        effect: XEP_LOAI_TAI_DON_VI_CU
+        effectiveFrom: '2026-11-15'
+        effectiveTo: '2026-12-31'
+
+    EsignRequestExample:
+      summary: Yêu cầu ký biên bản đang chờ xác nhận
+      value: &esignReqEx
+        id: 0192a3f4-1810-7000-8000-000000000002
+        purpose: BIEN_BAN
+        sourceModule: dossier
+        sourceRefId: 0192a3f4-1101-7000-8000-000000000001
+        provider: MYSIGN
+        isBatch: false
+        status: CHO_XAC_NHAN
+        expiresAt: '2027-01-14T11:02:00+07:00'
+        itemCount: 1
+        signedCount: 0
+
+  schemas:
+    # ------------------------------------------------------------ Liệt kê
+    DossierMeetingType:
+      description: Loại hội nghị (`dossier.review_meeting.meeting_type`).
+      type: string
+      enum: [KIEM_DIEM_QUY, KIEM_DIEM_NAM, CHUYEN_DE]
+    DossierMeetingStatus:
+      description: Trạng thái hội nghị (`dossier.review_meeting.status`).
+      type: string
+      enum: [DU_KIEN, DA_GUI_DU_THAO, DA_HOP, DA_LAP_BIEN_BAN, DA_KY]
+    DossierMeetingRole:
+      description: Vai trò của một người trong hội nghị (suy luận; `participants_json` của TL-03 không quy định giá trị).
+      type: string
+      enum: [CHU_TRI, THU_KY, THANH_VIEN, NGUOI_DUOC_KIEM_DIEM]
+    DossierParticipantStatus:
+      description: >-
+        Trạng thái của thành phần dự trên thẻ thành phần SCR-1101 (đã góp ý, đã đọc, chưa mở, vắng có lý do), cộng
+        `CO_MAT` khi điểm danh (suy luận; TL không quy định mã).
+      type: string
+      enum: [DA_GOP_Y, DA_DOC, CHUA_MO, CO_MAT, VANG_CO_LY_DO]
+    DossierCommentKind:
+      description: Loại nội dung góp ý (`dossier.review_comment.kind`).
+      type: string
+      enum: [UU_DIEM, HAN_CHE, KIEN_NGHI]
+    DossierCommentPhase:
+      description: Giai đoạn góp ý (`dossier.review_comment.phase`).
+      type: string
+      enum: [TRUOC_HOI_NGHI, HOI_NGHI]
+    DossierCommentSource:
+      description: >-
+        Nguồn góp ý (`dossier.review_comment.comment_kind`): góp ý của thành viên, phần tự kiểm điểm, kết luận.
+      type: string
+      enum: [GOP_Y, TU_KIEM_DIEM, KET_LUAN]
+    DossierRemediationStatus:
+      description: Trạng thái khắc phục (`dossier.remediation_item.status`).
+      type: string
+      enum: [MO, DANG_KHAC_PHUC, DA_KHAC_PHUC, CHUA_KHAC_PHUC]
+    DossierPackageKind:
+      description: Loại gói (`dossier.dossier_package.package_kind`).
+      type: string
+      enum: [QUY, NAM, DIEN_TW]
+    DossierPackageStatus:
+      description: Trạng thái gói hồ sơ (`dossier.dossier_package.status`, bộ trạng thái của TL-02b QT-11).
+      type: string
+      enum: [DANG_LAP, DANG_SINH, CHO_KY, DA_KY, DA_NOP, DA_LUU_TRU]
+    DossierTransferDestination:
+      description: Nơi chuyển hồ sơ diện TW (`dossier.dossier_package.transferred_to`).
+      type: string
+      enum: [BTC_TW, VPTW]
+    DossierFormCode:
+      description: Mã biểu mẫu (`dossier.form_instance.form_code`).
+      type: string
+      enum: [MAU_1A, MAU_1B, MAU_1C, MAU_1D, MAU_2, MAU_3, BANG_CHAM_DIEM]
+    DossierFormStatus:
+      description: Trạng thái biểu mẫu (`dossier.form_instance.status`).
+      type: string
+      enum: [CHO_SINH, DA_SINH, DA_KY, LOI]
+    DocgenRenderStatus:
+      description: Trạng thái tác vụ sinh ở SVC-11 (`docgen.render_job.status`).
+      type: string
+      enum: [CHO, DANG_SINH, XONG, LOI]
+    DossierSpecialCaseDetectedBy:
+      description: Cách phát hiện (`dossier.special_case.detected_by`).
+      type: string
+      enum: [TU_DONG, THU_CONG]
+    DossierSpecialCaseEffect:
+      description: Hệ quả với việc xếp loại (`dossier.special_case.effect`).
+      type: string
+      enum: [KHONG_XEP_LOAI, XEP_LOAI_TAI_DON_VI_CU, BAO_LUU, XEP_LOAI_BINH_THUONG, CHO_KET_LUAN]
+    EsignPurpose:
+      description: Mốc pháp lý của yêu cầu ký (`esign.sign_request.purpose`).
+      type: string
+      enum: [TU_DANH_GIA, THAM_DINH, QUYET_DINH, BIEN_BAN, GOI_HO_SO, PHE_DUYET_MO_LAI, PHAT_HANH_POLICY]
+    EsignProvider:
+      description: Nhà cung cấp chữ ký số (`esign.sign_request.provider`).
+      type: string
+      enum: [MYSIGN, VIETTEL_CA, CA_CHINH_PHU, BAN_CO_YEU]
+    EsignRequestStatus:
+      description: Trạng thái yêu cầu ký (`esign.sign_request.status`).
+      type: string
+      enum: [TAO, CHO_XAC_NHAN, DA_KY, TU_CHOI, HET_HAN, LOI]
+    EsignSignatureFormat:
+      description: Định dạng chữ ký (`esign.sign_item.signature_format`).
+      type: string
+      enum: [PADES_LTA, CADES_T, JWS]
+    DossierSha256:
+      description: Giá trị SHA-256 (cột `bytea` của TL-03) biểu diễn dạng 64 ký tự hex chữ thường.
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+      examples: ['9f2c4e7a1b3d5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcd']
+
+    # ------------------------------------------------------------ Hội nghị
+    DossierDeadlineCheck:
+      description: >-
+        Kết quả kiểm tra thời hạn gửi dự thảo (QT-11 bước 5, BR-11-01), tính theo `config.holiday_calendar` và tham số
+        `kiem_diem.cach_dem_ngay` của Policy Pack.
+      type: object
+      required: [requiredWorkingDays, passed]
+      properties:
+        workingDays:
+          type: [integer, 'null']
+          minimum: 0
+          description: Số ngày làm việc trọn vẹn giữa thời điểm gửi và ngày hội nghị; rỗng khi chưa gửi dự thảo.
+        requiredWorkingDays: { type: integer, description: 'Số ngày tối thiểu theo Policy Pack, mặc định 3.', examples: [3] }
+        passed: { type: boolean, description: Đạt yêu cầu thời hạn. }
+        legalRef: { type: string, examples: ['QĐ Điều 6'] }
+        msg: { type: string, description: 'Mã thông báo khi không đạt, `MSG-11-01`.' }
+        overrideReason:
+          type: [string, 'null']
+          maxLength: 2000
+          description: Lý do được cấp uỷ chấp thuận để giữ nguyên ngày họp; in vào biên bản.
+    DossierMeetingParticipant:
+      type: object
+      required: [person, role]
+      properties:
+        person: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        role: { $ref: '#/components/schemas/DossierMeetingRole' }
+        status: { $ref: '#/components/schemas/DossierParticipantStatus' }
+    DossierVote:
+      description: >-
+        Kết quả biểu quyết theo mức xếp loại (`dossier.review_meeting.vote_json`). Tổng không vượt số người có mặt; không
+        thay mức quyết định (BR-11-07).
+      type: object
+      properties:
+        HTXSNV: { type: integer, minimum: 0 }
+        HTTNV: { type: integer, minimum: 0 }
+        HTNV: { type: integer, minimum: 0 }
+        KHTNV: { type: integer, minimum: 0 }
+    DossierFormSummary:
+      description: Biểu mẫu rút gọn gắn với hội nghị (dự thảo Mẫu 1A đến 1D, biên bản).
+      type: object
+      required: [id, formCode, status]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        formCode: { $ref: '#/components/schemas/DossierFormCode' }
+        status: { $ref: '#/components/schemas/DossierFormStatus' }
+    DossierMeetingSummary:
+      description: Hội nghị rút gọn cho danh sách.
+      type: object
+      required: [id, meetingType, orgUnit, period, scheduledAt, status]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        title: { type: string, description: 'Tên hiển thị do máy chủ ghép từ loại, kỳ và tập thể (suy luận).' }
+        meetingType: { $ref: '#/components/schemas/DossierMeetingType' }
+        orgUnit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        period: { $ref: '../common/common.yaml#/components/schemas/PeriodRef' }
+        scheduledAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        status: { $ref: '#/components/schemas/DossierMeetingStatus' }
+        myRole:
+          $ref: '#/components/schemas/DossierMeetingRole'
+          description: Vai trò của người gọi trong hội nghị; rỗng khi người gọi chỉ xem theo quyền đơn vị.
+    DossierMeeting:
+      description: Hội nghị kiểm điểm (`dossier.review_meeting`) như SCR-1101 hiển thị.
+      allOf:
+        - $ref: '#/components/schemas/DossierMeetingSummary'
+        - type: object
+          required: [chair, secretary, deadlineCheck, rowVersion]
+          properties:
+            location: { type: string, maxLength: 500, description: 'Địa điểm (SCR-1101 trường 2; TL-03 chưa có cột, suy luận).' }
+            meetingAt:
+              type: [string, 'null']
+              format: date-time
+              description: Thời điểm họp thực tế (`meeting_at`).
+            subjectPerson:
+              description: Người được kiểm điểm khi hội nghị dành cho một người (`subject_person_id`).
+              oneOf:
+                - $ref: '../common/common.yaml#/components/schemas/Ref'
+                - type: 'null'
+            chair: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+            secretary: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+            draftSentAt:
+              type: [string, 'null']
+              format: date-time
+              description: Thời điểm gửi dự thảo (`draft_sent_at`).
+            deadlineCheck: { $ref: '#/components/schemas/DossierDeadlineCheck' }
+            participants:
+              type: array
+              items: { $ref: '#/components/schemas/DossierMeetingParticipant' }
+            draftForms:
+              type: array
+              description: Dự thảo biểu mẫu của người được kiểm điểm.
+              items: { $ref: '#/components/schemas/DossierFormSummary' }
+            proposedLevel:
+              $ref: '../common/common.yaml#/components/schemas/RatingLevel'
+              description: Mức đề xuất của hệ thống, hiển thị cạnh biểu quyết (vùng 4).
+            vote:
+              oneOf:
+                - $ref: '#/components/schemas/DossierVote'
+                - type: 'null'
+            minutesSha256:
+              oneOf:
+                - $ref: '#/components/schemas/DossierSha256'
+                - type: 'null'
+            signRequestId:
+              description: Yêu cầu ký biên bản (`sign_request_id`).
+              oneOf:
+                - $ref: '../common/common.yaml#/components/schemas/Uuid'
+                - type: 'null'
+            commentsLocked: { type: boolean, description: 'Góp ý đã khoá sau khi chủ trì kết thúc hội nghị.' }
+            rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - *meetingEx
+    DossierMeetingPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DossierMeetingSummary' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    DossierMeetingCreate:
+      type: object
+      required: [periodId, orgUnitId, meetingType, scheduledAt, chairPersonId, secretaryPersonId]
+      properties:
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        orgUnitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        meetingType: { $ref: '#/components/schemas/DossierMeetingType' }
+        scheduledAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        location: { type: string, maxLength: 500 }
+        chairPersonId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        secretaryPersonId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        subjectPersonId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Bỏ trống khi hội nghị kiểm điểm tập thể.
+        participantPersonIds:
+          type: array
+          maxItems: 200
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    DossierMeetingUpdate:
+      description: Các trường sửa được trước khi họp; trường không gửi giữ nguyên (JSON Merge Patch).
+      type: object
+      minProperties: 1
+      properties:
+        scheduledAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        location: { type: string, maxLength: 500 }
+        participantPersonIds:
+          type: array
+          maxItems: 200
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        deadlineOverrideReason:
+          type: string
+          minLength: 10
+          maxLength: 2000
+          description: Lý do giữ ngày họp khi thời hạn không đạt (chỉ chủ trì ghi).
+    DossierAttendance:
+      type: object
+      required: [personId, attendance]
+      properties:
+        personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        attendance:
+          type: string
+          enum: [CO_MAT, VANG_CO_LY_DO]
+          description: Điểm danh (suy luận, cùng tập giá trị với `DossierParticipantStatus`).
+    DossierMinutesRequest:
+      type: object
+      required: [attendance, vote]
+      properties:
+        meetingAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        attendance:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { $ref: '#/components/schemas/DossierAttendance' }
+        vote: { $ref: '#/components/schemas/DossierVote' }
+
+    # ------------------------------------------------------------ Góp ý
+    DossierComment:
+      description: Góp ý kiểm điểm (`dossier.review_comment`). Nội dung là C2.
+      type: object
+      required: [id, meetingId, subjectPersonId, kind, phase, content, createdAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        meetingId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        subjectPersonId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        commenter:
+          description: Người góp ý; `null` khi tenant bật ẩn danh và người xem là người được kiểm điểm (BR-11-06).
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Ref'
+            - type: 'null'
+        source: { $ref: '#/components/schemas/DossierCommentSource' }
+        kind: { $ref: '#/components/schemas/DossierCommentKind' }
+        phase: { $ref: '#/components/schemas/DossierCommentPhase' }
+        content:
+          type: string
+          maxLength: 4000
+          description: Nội dung góp ý (giải mã từ `comment_enc`).
+          x-classification: C2
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - *commentEx
+    DossierCommentPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        anonymous: { type: boolean, description: 'Tenant bật chế độ ẩn danh người góp ý.' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DossierComment' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    DossierCommentCreate:
+      type: object
+      required: [subjectPersonId, kind, phase, content]
+      properties:
+        subjectPersonId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        kind: { $ref: '#/components/schemas/DossierCommentKind' }
+        phase: { $ref: '#/components/schemas/DossierCommentPhase' }
+        content:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          x-classification: C2
+
+    # ------------------------------------------------------------ Khắc phục
+    DossierRemediationItem:
+      description: Hạn chế cần khắc phục (`dossier.remediation_item`).
+      type: object
+      required: [id, person, meetingId, content, status, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        person: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        meetingId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        reviewCommentId:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        sourcePeriod: { $ref: '../common/common.yaml#/components/schemas/PeriodRef' }
+        duePeriodId:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        content:
+          type: string
+          maxLength: 4000
+          description: Nội dung hạn chế và yêu cầu khắc phục (giải mã từ `content_enc`).
+          x-classification: C2
+        status: { $ref: '#/components/schemas/DossierRemediationStatus' }
+        verifiedBy:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Ref'
+            - type: 'null'
+        verifiedAt:
+          type: [string, 'null']
+          format: date-time
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - *remediationEx
+    DossierRemediationItemPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DossierRemediationItem' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    DossierRemediationItemUpdate:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: '#/components/schemas/DossierRemediationStatus' }
+        note: { type: string, maxLength: 2000, description: 'Ghi chú xác nhận (suy luận).', x-classification: C2 }
+
+    # ------------------------------------------------------------ Gói hồ sơ
+    DossierPackageFormCounts:
+      description: Tiến độ sinh và ký tệp của gói, ví dụ "104/106 tệp xong".
+      type: object
+      required: [total, rendered, failed]
+      properties:
+        total: { type: integer, minimum: 0 }
+        rendered: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        signed: { type: integer, minimum: 0 }
+    DossierCentralTransfer:
+      description: Thẻ chuyển hồ sơ diện TW (SCR-1102 vùng 4).
+      type: object
+      required: [profileCount, transferStatus]
+      properties:
+        profileCount: { type: integer, minimum: 0 }
+        destination:
+          oneOf:
+            - $ref: '#/components/schemas/DossierTransferDestination'
+            - type: 'null'
+        transferStatus:
+          type: string
+          enum: [CHUA_GUI, DANG_GUI, DA_GUI, LOI]
+          description: Trạng thái gửi gói con (suy luận; trạng thái chi tiết nằm ở `integ` của SVC-13).
+    DossierPackage:
+      description: >-
+        Gói hồ sơ số (`dossier.dossier_package`). Hợp đồng theo TL-02b: một gói cho mỗi đơn vị, kỳ và loại gói; `person`
+        chỉ có khi gói thuộc một cá nhân (TL-03 khai `person_id`).
+      type: object
+      required: [id, code, packageKind, period, status, formCounts, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, pattern: '^DP-\d{4}-[QN]-\d{4}$', examples: ['DP-2026-N-0142'] }
+        packageKind: { $ref: '#/components/schemas/DossierPackageKind' }
+        period: { $ref: '../common/common.yaml#/components/schemas/PeriodRef' }
+        orgUnit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        person:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Ref'
+            - type: 'null'
+        status: { $ref: '#/components/schemas/DossierPackageStatus' }
+        deadline:
+          type: [string, 'null']
+          format: date
+          description: Hạn nộp cấp trên (`deadline`).
+        submittedAt:
+          type: [string, 'null']
+          format: date-time
+        versionNo: { type: integer, minimum: 1, description: 'Phiên bản gói, tăng khi lập lại sau mở lại kỳ (suy luận).' }
+        formCounts: { $ref: '#/components/schemas/DossierPackageFormCounts' }
+        profileCount: { type: integer, minimum: 0 }
+        manifestHash:
+          oneOf:
+            - $ref: '#/components/schemas/DossierSha256'
+            - type: 'null'
+        packageSha256:
+          oneOf:
+            - $ref: '#/components/schemas/DossierSha256'
+            - type: 'null'
+        central: { $ref: '#/components/schemas/DossierCentralTransfer' }
+        transferredTo:
+          oneOf:
+            - $ref: '#/components/schemas/DossierTransferDestination'
+            - type: 'null'
+        signRequestId:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - *packageEx
+    DossierPackagePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DossierPackage' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    DossierPackageCreate:
+      type: object
+      required: [periodId, orgUnitId, packageKind]
+      properties:
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        orgUnitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        packageKind: { $ref: '#/components/schemas/DossierPackageKind' }
+        deadline: { $ref: '../common/common.yaml#/components/schemas/Date' }
+    DossierChecklistItem:
+      type: object
+      required: [code, label, status]
+      properties:
+        code:
+          type: string
+          description: Mã mục kiểm tra (suy luận), ví dụ `HO_SO_DA_KY_SO`, `MA_BAM_KHOP`, `CA_NHAN_DA_KY`, `MAU_3_DA_KY`, `KHONG_KHIEU_NAI_MO`.
+        label: { type: string }
+        status:
+          type: string
+          enum: [DAT, CANH_BAO]
+          description: Đạt hoặc cảnh báo (SCR-1102 trường 4; mã suy luận).
+        count: { type: integer, minimum: 0, description: 'Số mục chưa đạt nếu có.' }
+    DossierPackageChecklist:
+      description: Danh sách kiểm tra trước khi ký gói (BR-11-09).
+      type: object
+      required: [passed, items]
+      properties:
+        passed: { type: boolean }
+        evaluatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DossierChecklistItem' }
+    DossierRegenerateRequest:
+      type: object
+      properties:
+        formIds:
+          type: array
+          maxItems: 200
+          description: Chỉ sinh lại các biểu mẫu lỗi này; bỏ trống là mọi biểu mẫu `LOI` của gói.
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    DossierTransferRequest:
+      type: object
+      required: [destination]
+      properties:
+        destination: { $ref: '#/components/schemas/DossierTransferDestination' }
+        profileIds:
+          type: array
+          maxItems: 200
+          description: Hồ sơ diện TW cần gửi; bỏ trống là mọi hồ sơ diện TW của gói.
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    DossierPackageSignRequest:
+      type: object
+      properties:
+        provider: { $ref: '#/components/schemas/EsignProvider' }
+        certificateId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Chứng thư chọn để ký (`esign.certificate_ref.id`); bỏ trống dùng chứng thư mặc định của người ký.
+    DossierSignJob:
+      description: Job ký gói kèm mã yêu cầu ký ở SVC-10.
+      allOf:
+        - $ref: '../common/common.yaml#/components/schemas/Job'
+        - type: object
+          required: [signRequestId]
+          properties:
+            signRequestId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+
+    # ------------------------------------------------------------ Biểu mẫu
+    DossierForm:
+      description: Biểu mẫu đã hoặc đang sinh (`dossier.form_instance` kết hợp `docgen.render_job`).
+      type: object
+      required: [id, formCode, profileId, templateVersion, status]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        formCode: { $ref: '#/components/schemas/DossierFormCode' }
+        packageId:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        profileId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        subjectPerson: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        templateVersion: { type: string, maxLength: 32, description: 'Phiên bản mẫu, in thành tem chân trang (BR-11-03).' }
+        status: { $ref: '#/components/schemas/DossierFormStatus' }
+        renderStatus: { $ref: '#/components/schemas/DocgenRenderStatus' }
+        renderError:
+          type: [string, 'null']
+          maxLength: 2000
+          description: Lỗi sinh (`docgen.render_job.error`), dùng cho MSG-11-07.
+        format: { type: string, examples: ['PDF/A-2b'], description: 'Định dạng tệp và chuẩn PDF/A.' }
+        draft: { type: boolean, description: 'Bản nháp có dấu "Bản nháp" (suy luận).' }
+        dataSnapshotHash: { $ref: '#/components/schemas/DossierSha256' }
+        pdfSha256:
+          oneOf:
+            - $ref: '#/components/schemas/DossierSha256'
+            - type: 'null'
+        signedAt:
+          type: [string, 'null']
+          format: date-time
+      examples:
+        - *formEx
+    DossierFormPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DossierForm' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    DossierRenderJobRequest:
+      type: object
+      required: [packageId]
+      properties:
+        packageId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        formCodes:
+          type: array
+          description: Chỉ sinh các mẫu này; bỏ trống là đủ danh mục theo Policy Pack.
+          items: { $ref: '#/components/schemas/DossierFormCode' }
+    DossierDraftFormsRequest:
+      type: object
+      required: [formCode, periodId, profileIds]
+      properties:
+        formCode: { $ref: '#/components/schemas/DossierFormCode' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        profileIds:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    DossierFormPreviewRequest:
+      type: object
+      required: [formCode, sourceModule, sourceRefId]
+      properties:
+        formCode:
+          type: string
+          description: >-
+            Mã biểu mẫu hoặc mã mẫu văn bản ở `docgen.template`, ví dụ `MAU_1B`; văn bản trả lời khiếu nại dùng mã mẫu của
+            Policy Pack (suy luận).
+          maxLength: 16
+        sourceModule:
+          type: string
+          enum: [appraisal, oversight, dossier]
+          description: Module sở hữu bản ghi nguồn.
+        sourceRefId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+
+    # ------------------------------------------------------------ Trường hợp đặc thù
+    DossierSpecialCase:
+      description: Trường hợp đặc thù PL 6 (`dossier.special_case`).
+      type: object
+      required: [id, person, caseCode, legalRef, detectedBy, effect]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        person: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        caseCode:
+          type: string
+          maxLength: 32
+          description: Mã trường hợp theo danh mục 13 trường hợp của Policy Pack, ví dụ `DIEU_DONG_DUOI_2_THANG`.
+        legalRef: { type: string, maxLength: 100, examples: ['PL 6 §1'] }
+        handling: { type: string, description: 'Cách xử lý theo Policy Pack.' }
+        detectedBy: { $ref: '#/components/schemas/DossierSpecialCaseDetectedBy' }
+        effect: { $ref: '#/components/schemas/DossierSpecialCaseEffect' }
+        effectiveFrom:
+          type: [string, 'null']
+          format: date
+        effectiveTo:
+          type: [string, 'null']
+          format: date
+        detail:
+          type: [string, 'null']
+          description: Chi tiết (giải mã từ `detail_enc`); chỉ trả ở đọc một đối tượng.
+          x-classification: C2
+        confirmedBy:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Ref'
+            - type: 'null'
+        confirmedAt:
+          type: [string, 'null']
+          format: date-time
+      examples:
+        - *specialCaseEx
+    DossierSpecialCaseGroup:
+      type: object
+      required: [legalRef, caseCode, count]
+      properties:
+        legalRef: { type: string }
+        caseCode: { type: string }
+        handling: { type: string }
+        count: { type: integer, minimum: 0 }
+    DossierSpecialCasePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        groups:
+          type: array
+          description: Gom nhóm theo mục PL 6 kèm số hồ sơ.
+          items: { $ref: '#/components/schemas/DossierSpecialCaseGroup' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DossierSpecialCase' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+
+    # ------------------------------------------------------------ Ký số
+    EsignCertificate:
+      description: Chứng thư đã dùng hoặc đã đăng ký (`esign.certificate_ref`); chỉ phần công khai.
+      type: object
+      required: [id, subjectDn, issuerDn, serialNo, notBefore, notAfter]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        certSha256: { $ref: '#/components/schemas/DossierSha256' }
+        subjectDn: { type: string, maxLength: 512 }
+        issuerDn: { type: string, maxLength: 512 }
+        serialNo: { type: string, maxLength: 64 }
+        notBefore: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        notAfter: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        lastOcspStatus:
+          type: [string, 'null']
+          description: Kết quả OCSP gần nhất (`last_ocsp_status`), ví dụ GOOD, REVOKED, UNKNOWN.
+        lastOcspAt:
+          type: [string, 'null']
+          format: date-time
+    EsignRequest:
+      description: Yêu cầu ký (`esign.sign_request`) kèm tiến độ các tài liệu (`esign.sign_item`).
+      type: object
+      required: [id, purpose, sourceModule, sourceRefId, provider, isBatch, status, expiresAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        purpose: { $ref: '#/components/schemas/EsignPurpose' }
+        sourceModule: { type: string, maxLength: 32, examples: ['dossier'], description: 'Module của bản ghi yêu cầu ký.' }
+        sourceRefId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        provider: { $ref: '#/components/schemas/EsignProvider' }
+        isBatch: { type: boolean }
+        status: { $ref: '#/components/schemas/EsignRequestStatus' }
+        expiresAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        completedAt:
+          type: [string, 'null']
+          format: date-time
+        itemCount: { type: integer, minimum: 0, description: 'Tổng số tài liệu.' }
+        signedCount: { type: integer, minimum: 0, description: 'Số tài liệu đã ký (tiến độ ký lô).' }
+        signatureFormat: { $ref: '#/components/schemas/EsignSignatureFormat' }
+        certificate:
+          oneOf:
+            - $ref: '#/components/schemas/EsignCertificate'
+            - type: 'null'
+        problem: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+      examples:
+        - *esignReqEx
+    EsignRequestPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/EsignRequest' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    EsignRequestCreate:
+      type: object
+      required: [purpose, sourceModule, sourceRefId]
+      properties:
+        purpose: { $ref: '#/components/schemas/EsignPurpose' }
+        sourceModule:
+          type: string
+          maxLength: 32
+          enum: [task, appraisal, dossier, oversight, policy]
+          description: >-
+            Module sở hữu bản ghi cần ký (giá trị suy luận theo tên module baseline; TL-03 để `source_module` tự do).
+        sourceRefId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        provider: { $ref: '#/components/schemas/EsignProvider' }
+        certificateId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Chứng thư chọn để ký; bỏ trống dùng chứng thư mặc định.
+
+paths:
+  # ---------------------------------------------------------------- Hội nghị kiểm điểm
+  /dossiers/meetings:
+    get:
+      tags: [Hội nghị kiểm điểm]
+      operationId: listDossierMeetings
+      summary: Danh sách hội nghị kiểm điểm trong phạm vi người gọi
+      description: >-
+        Trả các hội nghị mà người gọi là thành phần (chủ trì, thư ký, thành viên, người được kiểm điểm) hoặc thuộc
+        đơn vị người gọi chuẩn bị (cơ quan tổ chức). Đường vào "Hồ sơ số › Kiểm điểm" của SCR-1101 (suy luận:
+        bảng chức năng SCR-1101 không ghi API danh sách).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - name: status
+          in: query
+          description: Lọc theo trạng thái hội nghị.
+          schema: { $ref: '#/components/schemas/DossierMeetingStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang hội nghị.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierMeetingPage' }
+              examples:
+                trang-dau:
+                  value:
+                    items:
+                      - id: 0192a3f4-1101-7000-8000-000000000001
+                        meetingType: KIEM_DIEM_NAM
+                        title: Hội nghị kiểm điểm cuối năm 2026 của Chi bộ Ban Tổ chức
+                        orgUnit: { id: 0192a3f4-0001-7000-8000-000000000010, name: Chi bộ Ban Tổ chức }
+                        period: { id: 0192a3f4-0002-7000-8000-000000002026, label: Năm 2026, startDate: '2026-01-01', endDate: '2026-12-31' }
+                        scheduledAt: '2027-01-14T08:00:00+07:00'
+                        status: DA_GUI_DU_THAO
+                        myRole: THANH_VIEN
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101]
+        owner: MOD-06
+        roles: [leader, manager, member, appraiser]
+        scope: Gn
+        source: TL-02b SCR-1101 (suy luận); ma trận dòng API dossiers
+    post:
+      tags: [Hội nghị kiểm điểm]
+      operationId: createDossierMeeting
+      summary: Tạo hội nghị kiểm điểm
+      description: >-
+        Bước 1 của QT-11: cơ quan tổ chức lập kế hoạch kiểm điểm với đối tượng, chủ trì, thư ký, thành phần, ngày giờ
+        và địa điểm. Hội nghị bắt đầu ở `DU_KIEN`. Khi tạo, MOD-06 chạy phát hiện trường hợp đặc thù (bước 2) và yêu cầu
+        SVC-11 sinh dự thảo Mẫu 1A đến 1D cho đối tượng (bước 3, EVT-17 khi xong).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierMeetingCreate' }
+            examples:
+              kiem-diem-nam:
+                value:
+                  periodId: 0192a3f4-0002-7000-8000-000000002026
+                  orgUnitId: 0192a3f4-0001-7000-8000-000000000010
+                  meetingType: KIEM_DIEM_NAM
+                  scheduledAt: '2027-01-14T08:00:00+07:00'
+                  location: Phòng họp tầng 3, trụ sở Ban Tổ chức
+                  chairPersonId: 0192a3f4-0003-7000-8000-000000000101
+                  secretaryPersonId: 0192a3f4-0003-7000-8000-000000000102
+                  subjectPersonId: 0192a3f4-0003-7000-8000-000000000103
+                  participantPersonIds:
+                    - 0192a3f4-0003-7000-8000-000000000104
+                    - 0192a3f4-0003-7000-8000-000000000105
+      responses:
+        '201':
+          description: Đã tạo hội nghị.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierMeeting' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          description: >-
+            Kỳ đã khoá với thao tác lập kế hoạch hoặc đã có hội nghị cùng loại cho đối tượng trong kỳ
+            (`DOSSIER-409-PERIOD-LOCKED`, `DOSSIER-409-MEETING-EXISTS`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: >-
+            Dữ liệu không hợp lệ, ví dụ chủ trì trùng thư ký hoặc người ngoài đơn vị (`DOSSIER-422-VALIDATION`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101]
+        owner: MOD-06
+        evt: [EVT-17]
+        roles: [appraiser]
+        scope: Đv
+        source: TL-01 PL C (`org_officer`); TL-02b QT-11 bước 1–3; ma trận SCR-1101.tao (AC-07 suy luận)
+
+  /dossiers/meetings/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Hội nghị kiểm điểm]
+      operationId: getDossierMeeting
+      summary: Chi tiết hội nghị kiểm điểm
+      description: >-
+        Dữ liệu ba cột của SCR-1101: thẻ kiểm tra thời hạn gửi dự thảo (vùng 1), thành phần và trạng thái từng người,
+        dự thảo biểu mẫu, kết quả biểu quyết so với mức đề xuất của hệ thống (vùng 4). Danh sách góp ý và hạn chế kỳ trước
+        đọc ở hai đường dẫn con.
+      responses:
+        '200':
+          description: Hội nghị.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierMeeting' }
+              examples:
+                dang-hop:
+                  $ref: '#/components/examples/DossierMeetingExample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101]
+        owner: MOD-06
+        roles: [leader, manager, member, appraiser]
+        scope: Gn
+        source: TL-02b SCR-1101 bảng trường 1–5, 9 (đường dẫn suy luận)
+    patch:
+      tags: [Hội nghị kiểm điểm]
+      operationId: updateDossierMeeting
+      summary: Sửa kế hoạch hội nghị (dời ngày, địa điểm, thành phần, lý do giữ ngày)
+      description: >-
+        Dùng khi kiểm tra thời hạn không đạt (MSG-11-01): cơ quan tổ chức dời ngày hội nghị, hoặc chủ trì ghi lý do được
+        cấp uỷ chấp thuận để giữ nguyên ngày (lý do in vào biên bản, BR-11-01). Chỉ sửa được khi hội nghị ở `DU_KIEN`
+        hoặc `DA_GUI_DU_THAO`. Thao tác này là suy luận từ mục "Ngoại lệ và xử lý" của QT-11; bảng chức năng SCR-1101
+        không ghi API.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierMeetingUpdate' }
+            examples:
+              giu-ngay:
+                value:
+                  deadlineOverrideReason: Cấp uỷ thống nhất giữ ngày họp do lịch công tác của đoàn kiểm tra cấp trên.
+      responses:
+        '200':
+          description: Hội nghị sau khi sửa; thời hạn được tính lại.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierMeeting' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Xung đột phiên bản (`DOSSIER-409-VERSION-CONFLICT`) hoặc hội nghị đã họp (`DOSSIER-409-MEETING-HELD`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101]
+        owner: MOD-06
+        roles: [leader, appraiser]
+        scope: Gn
+        rules: [BR-11-01]
+        source: TL-02b QT-11 Ngoại lệ và xử lý (suy luận)
+
+  /dossiers/meetings/{id}/send-draft:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Hội nghị kiểm điểm]
+      operationId: sendDossierMeetingDraft
+      summary: Gửi dự thảo bản kiểm điểm tới thành viên
+      description: >-
+        Bước 4–5 của QT-11. Người được kiểm điểm gửi dự thảo đã hoàn thiện; máy chủ ghi `draftSentAt`, gửi thông báo mời
+        góp ý (MSG-11-02, EVT-21) và đếm số ngày làm việc trọn vẹn giữa thời điểm gửi và ngày hội nghị theo
+        `config.holiday_calendar` và tham số `kiem_diem.cach_dem_ngay`. Thời hạn không đạt không làm hỏng thao tác:
+        phản hồi 200 mang `deadlineCheck.passed = false` và `msg = MSG-11-01` để giao diện cảnh báo (BR-11-01).
+        Hội nghị chuyển `DA_GUI_DU_THAO`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Đã gửi dự thảo; kèm kết quả kiểm tra thời hạn.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierMeeting' }
+              examples:
+                dat-thoi-han:
+                  $ref: '#/components/examples/DossierMeetingExample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: Người gọi không phải người được kiểm điểm của hội nghị (`DOSSIER-403-NOT-SUBJECT`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Xung đột phiên bản (`DOSSIER-409-VERSION-CONFLICT`) hoặc hội nghị không còn ở `DU_KIEN`
+            (`DOSSIER-409-INVALID-STATE`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101]
+        owner: MOD-06
+        evt: [EVT-21]
+        roles: [member]
+        scope: B
+        rules: [BR-11-01]
+        source: TL-02b SCR-1101 "Gửi dự thảo"; ma trận SCR-1101.gui-du-thao
+
+  /dossiers/meetings/{id}/comments:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Góp ý kiểm điểm]
+      operationId: listDossierMeetingComments
+      summary: Danh sách góp ý của hội nghị
+      description: >-
+        Vùng 2 của SCR-1101: góp ý trước hội nghị và ý kiến thư ký ghi tại hội nghị, phân loại ưu điểm, hạn chế, kiến nghị.
+        Nội dung là C2, máy chủ giải mã theo quyền và ghi nhật ký truy cập. Khi tenant bật chế độ ẩn danh, OPA lọc trường
+        `commenter` với người được kiểm điểm (BR-11-06).
+      parameters:
+        - name: phase
+          in: query
+          description: Lọc theo giai đoạn góp ý.
+          schema: { $ref: '#/components/schemas/DossierCommentPhase' }
+        - name: kind
+          in: query
+          description: Lọc theo loại nội dung.
+          schema: { $ref: '#/components/schemas/DossierCommentKind' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang góp ý.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierCommentPage' }
+              examples:
+                co-an-danh:
+                  value:
+                    anonymous: false
+                    items:
+                      - *commentEx
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101]
+        owner: MOD-06
+        roles: [leader, manager, member, appraiser]
+        scope: Gn
+        rules: [BR-11-06]
+        source: TL-02b SCR-1101 vùng 2, bảng trường 6–7 (đường dẫn đọc suy luận)
+    post:
+      tags: [Góp ý kiểm điểm]
+      operationId: createDossierMeetingComment
+      summary: Gửi góp ý hoặc ghi ý kiến tại hội nghị
+      description: >-
+        Bước 6–7 của QT-11. Thành viên gửi góp ý trước hoặc trong hội nghị (`phase = TRUOC_HOI_NGHI`); chỉ thư ký được ghi
+        ý kiến tại hội nghị (`phase = HOI_NGHI`). Nội dung C2 được mã hoá trường ở máy chủ (`comment_enc`, `dek_id`).
+        Không nhận góp ý sau khi chủ trì kết thúc hội nghị.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierCommentCreate' }
+            examples:
+              han-che:
+                value:
+                  subjectPersonId: 0192a3f4-0003-7000-8000-000000000103
+                  kind: HAN_CHE
+                  phase: TRUOC_HOI_NGHI
+                  content: Việc tham mưu rà soát quy hoạch cán bộ quý III còn chậm so với kế hoạch khoảng hai tuần.
+      responses:
+        '201':
+          description: Đã lưu góp ý.
+          headers:
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierComment' }
+              examples:
+                da-luu:
+                  $ref: '#/components/examples/DossierCommentExample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: >-
+            Người gọi không phải thành phần hội nghị, hoặc ghi `phase = HOI_NGHI` mà không phải thư ký
+            (`DOSSIER-403-NOT-PARTICIPANT`, `DOSSIER-403-NOT-SECRETARY`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Hội nghị đã kết thúc, góp ý đã khoá (`DOSSIER-409-COMMENTS-LOCKED`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101]
+        owner: MOD-06
+        roles: [leader, manager, member, appraiser]
+        scope: Gn
+        rules: [BR-11-06]
+        source: TL-02b SCR-1101 "Gửi góp ý"; TL-01 PL C; ma trận SCR-1101.gop-y, SCR-1101.thu-ky
+
+  /dossiers/meetings/{id}/minutes:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Hội nghị kiểm điểm]
+      operationId: createDossierMeetingMinutes
+      summary: Ghi biểu quyết và sinh biên bản hội nghị
+      description: >-
+        Bước 7–8 của QT-11. Thư ký gửi kết quả điểm danh và biểu quyết; máy chủ ghi `vote_json`, `participants_json`,
+        chuyển hội nghị `DA_HOP` và yêu cầu SVC-11 sinh biên bản (trả 202). Khi EVT-17 đến, hội nghị chuyển
+        `DA_LAP_BIEN_BAN`. Biểu quyết không thay mức quyết định của cấp có thẩm quyền (BR-11-07). Lý do giữ ngày họp
+        (nếu có) được in vào biên bản. Theo TL-01 PL C, thao tác này cần phiên AAL2.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierMinutesRequest' }
+            examples:
+              bieu-quyet:
+                value:
+                  meetingAt: '2027-01-14T08:05:00+07:00'
+                  attendance:
+                    - { personId: 0192a3f4-0003-7000-8000-000000000104, attendance: CO_MAT }
+                    - { personId: 0192a3f4-0003-7000-8000-000000000105, attendance: VANG_CO_LY_DO }
+                  vote: { HTXSNV: 1, HTTNV: 5, HTNV: 0, KHTNV: 0 }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: Người gọi không phải thư ký hội nghị (`DOSSIER-403-NOT-SECRETARY`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Xung đột phiên bản (`DOSSIER-409-VERSION-CONFLICT`) hoặc hội nghị chưa gửi dự thảo hay đã kết thúc
+            (`DOSSIER-409-INVALID-STATE`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: Tổng số phiếu biểu quyết vượt số người có mặt (`DOSSIER-422-VOTE-EXCEEDS-ATTENDEES`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101]
+        owner: MOD-06
+        evt: [EVT-17]
+        roles: [member, appraiser]
+        scope: Gn
+        aal: 2
+        rules: [BR-11-07]
+        source: TL-02b SCR-1101 "Sinh biên bản" (202); TL-01 PL C (thư ký, AAL2); ma trận SCR-1101.thu-ky
+
+  /dossiers/meetings/{id}/close:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Hội nghị kiểm điểm]
+      operationId: closeDossierMeeting
+      summary: Kết thúc hội nghị và yêu cầu ký biên bản
+      description: >-
+        Chủ trì kết thúc hội nghị: khoá góp ý, tạo `dossier.remediation_item` từ các góp ý loại `HAN_CHE` (bước 9,
+        BR-11-08), và khi biên bản đã sinh thì tạo yêu cầu ký biên bản (mục đích `BIEN_BAN`) cho chủ trì và thư ký.
+        Phản hồi kèm MSG-11-03. Hội nghị chuyển `DA_KY` khi nhận đủ EVT-18 của hai chữ ký; EVT-11 phát cho hồ sơ
+        liên quan theo TL-02b.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Đã kết thúc hội nghị.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierMeeting' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: Người gọi không phải chủ trì hội nghị (`DOSSIER-403-NOT-CHAIR`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Xung đột phiên bản (`DOSSIER-409-VERSION-CONFLICT`) hoặc chưa có biểu quyết (`DOSSIER-409-NO-VOTE`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101]
+        owner: MOD-06
+        evt: [EVT-11, EVT-18]
+        roles: [leader]
+        scope: Gn
+        rules: [BR-11-08]
+        source: TL-02b SCR-1101 "Kết thúc hội nghị"; ma trận SCR-1101.ket-thuc (AC-04 suy luận)
+
+  # ---------------------------------------------------------------- Khắc phục hạn chế
+  /dossiers/meetings/{id}/remediation-items:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Khắc phục hạn chế]
+      operationId: listDossierMeetingRemediationItems
+      summary: Hạn chế kỳ trước và hạn chế phát sinh của hội nghị
+      description: >-
+        Vùng 3 của SCR-1101: các hạn chế của người được kiểm điểm từ biên bản các kỳ trước kèm trạng thái khắc phục,
+        cùng hạn chế do hội nghị này tạo. Nội dung là C2 (`content_enc`). Đường dẫn là suy luận.
+      parameters:
+        - name: origin
+          in: query
+          description: '`KY_TRUOC` chỉ lấy hạn chế từ kỳ trước, `HOI_NGHI_NAY` chỉ lấy hạn chế do hội nghị này tạo (suy luận).'
+          schema: { type: string, enum: [KY_TRUOC, HOI_NGHI_NAY] }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang hạn chế.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierRemediationItemPage' }
+              examples:
+                ky-truoc:
+                  value:
+                    items:
+                      - *remediationEx
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101]
+        owner: MOD-06
+        roles: [leader, manager, member, appraiser]
+        scope: Gn
+        rules: [BR-11-08]
+        source: TL-02b SCR-1101 vùng 3, bảng trường 8; TL-03 dossier.remediation_item
+
+  /dossiers/remediation-items/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    patch:
+      tags: [Khắc phục hạn chế]
+      operationId: updateDossierRemediationItem
+      summary: Cập nhật trạng thái khắc phục một hạn chế
+      description: >-
+        Thư ký cập nhật trạng thái khắc phục hạn chế kỳ trước (SCR-1101 bảng trường 8: "Thư ký cập nhật trạng thái").
+        Chuyển sang `DA_KHAC_PHUC` hoặc `CHUA_KHAC_PHUC` ghi `verified_by`, `verified_at`. Đường dẫn là suy luận vì bảng
+        chức năng SCR-1101 không ghi API.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierRemediationItemUpdate' }
+            examples:
+              da-khac-phuc:
+                value: { status: DA_KHAC_PHUC }
+      responses:
+        '200':
+          description: Hạn chế sau khi cập nhật.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierRemediationItem' }
+              examples:
+                da-cap-nhat:
+                  $ref: '#/components/examples/DossierRemediationItemExample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101]
+        owner: MOD-06
+        roles: [member, appraiser]
+        scope: Gn
+        rules: [BR-11-08]
+        source: TL-02b SCR-1101 bảng trường 8 (suy luận); TL-03 dossier.remediation_item
+
+  # ---------------------------------------------------------------- Gói hồ sơ số
+  /dossiers/packages:
+    get:
+      tags: [Gói hồ sơ số]
+      operationId: listDossierPackages
+      summary: Danh sách gói hồ sơ số
+      description: Đường vào "Hồ sơ số › Gói hồ sơ số" của SCR-1102 (đường dẫn suy luận).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - name: kind
+          in: query
+          description: Loại gói.
+          schema: { $ref: '#/components/schemas/DossierPackageKind' }
+        - name: status
+          in: query
+          description: Trạng thái gói.
+          schema: { $ref: '#/components/schemas/DossierPackageStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang gói hồ sơ.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierPackagePage' }
+              examples:
+                trang-dau:
+                  value:
+                    items:
+                      - *packageEx
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1102]
+        owner: MOD-06
+        roles: [appraiser, decider]
+        scope: Đv
+        source: TL-02b SCR-1102 (suy luận); ma trận SCR-1102.chuan-bi
+    post:
+      tags: [Gói hồ sơ số]
+      operationId: createDossierPackage
+      summary: Lập gói hồ sơ quý, năm hoặc diện Trung ương
+      description: >-
+        Đóng gói hồ sơ cho một đơn vị và kỳ (TL-01 PL C "Đóng gói hồ sơ quý, năm"). Thông thường MOD-06 tự lập gói ở
+        `DANG_LAP` khi nhận EVT-12; thao tác này cho cơ quan tổ chức lập thủ công khi gói chưa có (ví dụ sau mở lại kỳ,
+        gói phiên bản mới). Mỗi đơn vị, kỳ và loại gói chỉ có một gói đang hiệu lực.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierPackageCreate' }
+            examples:
+              goi-nam:
+                value:
+                  periodId: 0192a3f4-0002-7000-8000-000000002026
+                  orgUnitId: 0192a3f4-0001-7000-8000-000000000010
+                  packageKind: NAM
+                  deadline: '2027-02-01'
+      responses:
+        '201':
+          description: Đã lập gói ở `DANG_LAP`.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierPackage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          description: >-
+            Đã có gói hiệu lực cho đơn vị, kỳ và loại gói (`DOSSIER-409-PACKAGE-EXISTS`), hoặc kỳ chưa có quyết định
+            xếp loại (`DOSSIER-409-PERIOD-NOT-DECIDED`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1102]
+        owner: MOD-06
+        roles: [appraiser]
+        scope: Đv
+        source: TL-01 PL C `POST /dossiers/{id}/packages` (ánh xạ sang `/dossiers/packages`); TL-02b QT-11 trạng thái gói
+
+  /dossiers/packages/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Gói hồ sơ số]
+      operationId: getDossierPackage
+      summary: Chi tiết gói hồ sơ số
+      description: >-
+        Phần đầu trang và vùng 1, 4, 5 của SCR-1102: mã gói, hạn nộp, tiến độ sinh tệp, thẻ chuyển hồ sơ diện TW, thẻ ký
+        số gói (người ký, nhà cung cấp, mã băm manifest). Danh sách biểu mẫu, trường hợp đặc thù và danh sách kiểm tra
+        đọc ở các đường dẫn riêng.
+      responses:
+        '200':
+          description: Gói hồ sơ.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierPackage' }
+              examples:
+                cho-ky:
+                  $ref: '#/components/examples/DossierPackageExample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1102]
+        owner: MOD-06
+        roles: [appraiser, decider]
+        scope: Đv
+        source: TL-02b SCR-1102 bảng trường 1, 5–7 (đường dẫn suy luận)
+
+  /dossiers/packages/{id}/forms:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Biểu mẫu]
+      operationId: listDossierPackageForms
+      summary: Danh sách biểu mẫu sinh từ dữ liệu của gói
+      description: >-
+        Vùng 1 của SCR-1102: mỗi dòng là một biểu mẫu (Mẫu 1A đến 1D, 2, 3, bảng chấm điểm), đối tượng, trạng thái sinh và
+        ký, định dạng PDF/A-2b kèm tem phiên bản. Đường dẫn là suy luận.
+      parameters:
+        - name: status
+          in: query
+          description: Lọc theo trạng thái biểu mẫu, ví dụ `LOI` để xem tệp sinh lỗi.
+          schema: { $ref: '#/components/schemas/DossierFormStatus' }
+        - name: formCode
+          in: query
+          description: Lọc theo mã mẫu.
+          schema: { $ref: '#/components/schemas/DossierFormCode' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang biểu mẫu.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierFormPage' }
+              examples:
+                trang-dau:
+                  value:
+                    items:
+                      - *formEx
+                    nextCursor: 'eyJpZCI6IjAxOTJhM2Y0In0'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1102]
+        owner: MOD-06
+        roles: [appraiser, decider]
+        scope: Đv
+        source: TL-02b SCR-1102 bảng trường 2; TL-03 dossier.form_instance, docgen.render_job
+
+  /dossiers/packages/{id}/checklist:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Gói hồ sơ số]
+      operationId: getDossierPackageChecklist
+      summary: Danh sách kiểm tra trước khi ký gói
+      description: >-
+        Vùng 3 của SCR-1102, tính tức thời theo BR-11-09: mọi hồ sơ `DA_KY_SO`, mã băm từng tệp khớp manifest, các cá nhân
+        đã ký bản kiểm điểm, Mẫu 3 đã ký, không còn khiếu nại mở. Nút "Ký số gói và nộp" chỉ bật khi `passed = true`.
+        Đường dẫn là suy luận.
+      responses:
+        '200':
+          description: Kết quả danh sách kiểm tra.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierPackageChecklist' }
+              examples:
+                con-canh-bao:
+                  value:
+                    passed: false
+                    evaluatedAt: '2027-01-25T10:00:00+07:00'
+                    items:
+                      - { code: HO_SO_DA_KY_SO, label: 48/48 hồ sơ đã ký số, status: DAT }
+                      - { code: MA_BAM_KHOP, label: Mã băm từng tệp khớp manifest, status: DAT }
+                      - { code: CA_NHAN_DA_KY, label: Mẫu 1C còn 2 người chưa ký, status: CANH_BAO, count: 2 }
+                      - { code: MAU_3_DA_KY, label: Mẫu 3 chờ Trưởng ban ký, status: CANH_BAO, count: 1 }
+                      - { code: KHONG_KHIEU_NAI_MO, label: Không còn khiếu nại mở, status: DAT }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1102]
+        owner: MOD-06
+        roles: [appraiser, decider]
+        scope: Đv
+        rules: [BR-11-09]
+        source: TL-02b SCR-1102 vùng 3, bảng trường 4 (đường dẫn suy luận)
+
+  /dossiers/packages/{id}/regenerate:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Biểu mẫu]
+      operationId: regenerateDossierPackageForms
+      summary: Sinh lại các biểu mẫu lỗi của gói
+      description: >-
+        Gửi lại các render job ở `LOI`, giữ các tệp đã sinh (QT-11 Ngoại lệ). Gói chuyển `DANG_SINH`; khi EVT-17 của tệp
+        cuối đến, gói chuyển `CHO_KY`, nếu vẫn có tệp lỗi thì quay về `DANG_LAP` và giao diện hiện MSG-11-07.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierRegenerateRequest' }
+            examples:
+              tat-ca-tep-loi:
+                value: {}
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Xung đột phiên bản (`DOSSIER-409-VERSION-CONFLICT`), không có tệp lỗi (`DOSSIER-409-NO-FAILED-FORMS`) hoặc gói
+            đã ký, đã nộp bị khoá (`DOSSIER-409-PACKAGE-LOCKED`, BR-11-10).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1102]
+        owner: MOD-06
+        evt: [EVT-17]
+        roles: [appraiser]
+        scope: Đv
+        rules: [BR-11-02, BR-11-10]
+        source: TL-02b SCR-1102 "Sinh lại mẫu lỗi" (202); ma trận SCR-1102.chuan-bi
+
+  /dossiers/packages/{id}/export:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Gói hồ sơ số]
+      operationId: exportDossierPackage
+      summary: Tạo tệp ZIP của gói kèm manifest có chữ ký
+      description: >-
+        Tạo tệp ZIP gồm các tệp PDF/A và manifest JSON (băm SHA-256 từng tệp, chữ ký gói khi đã ký). Chỉ cho gói từ
+        `CHO_KY` trở đi. Kết quả tải ở `resultLocation` của job khi `HOAN_TAT`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Gói chưa tới `CHO_KY` (`DOSSIER-409-PACKAGE-NOT-READY`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1102]
+        owner: MOD-06
+        roles: [appraiser, decider]
+        scope: Đv
+        source: TL-02b SCR-1102 "Tải gói (ZIP và manifest)" (202); ma trận SCR-1102.tai-goi
+
+  /dossiers/packages/{id}/transfers:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Gói hồ sơ số]
+      operationId: createDossierPackageTransfer
+      summary: Gửi gói con hồ sơ diện Trung ương quản lý
+      description: >-
+        Bước 14 của QT-11 (BR-11-11): tách gói con cho hồ sơ diện TW quản lý, mã hoá theo chứng thư bên nhận và gửi
+        EdXML qua integration-gateway (SVC-13). Chỉ khi gói đã ký và có hồ sơ diện TW. Gửi thất bại thì SVC-13 thử lại
+        theo lịch và thông báo MSG-11-06; gói chính vẫn nộp bình thường.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierTransferRequest' }
+            examples:
+              btc-tw:
+                value: { destination: BTC_TW }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Gói chưa ký (`DOSSIER-409-PACKAGE-NOT-SIGNED`) hoặc không có hồ sơ diện TW (`DOSSIER-409-NO-CENTRAL-PROFILES`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: Nơi nhận chưa được cấu hình kết nối ở `integ.connector` (`DOSSIER-422-DESTINATION-NOT-CONFIGURED`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1102]
+        owner: MOD-06
+        roles: [appraiser]
+        scope: Đv
+        rules: [BR-11-11]
+        source: TL-02b SCR-1102 "Gửi gói con" (202); ma trận SCR-1102.goi-con (AC-07 suy luận)
+
+  /dossiers/packages/{id}/sign:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Gói hồ sơ số]
+      operationId: signDossierPackage
+      summary: Ký số gói hồ sơ và nộp cấp trên
+      description: >-
+        Bước 13 của QT-11. Máy chủ kiểm lại danh sách kiểm tra (BR-11-09), chốt manifest, tạo yêu cầu ký mục đích
+        `GOI_HO_SO` ở SVC-10 cho người gọi và trả 202 kèm `signRequestId`. Giao diện theo dõi yêu cầu ký bằng
+        `GET /esign/requests/{id}` (chờ xác nhận trên ứng dụng ký từ xa). Khi EVT-18 đến, chữ ký được gắn dấu thời gian
+        RFC 3161, gói chuyển `DA_KY` rồi `DA_NOP`, bị khoá (BR-11-10) và ghi sổ cái; giao diện hiện MSG-11-05.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierPackageSignRequest' }
+            examples:
+              viettel-ca:
+                value: { provider: VIETTEL_CA }
+      responses:
+        '202': { $ref: '#/components/responses/DossierSignAccepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Danh sách kiểm tra chưa đạt (`DOSSIER-409-CHECKLIST-NOT-PASSED`, `msg` MSG-11-04), gói không ở `CHO_KY`
+            (`DOSSIER-409-INVALID-STATE`), gói đã nộp bị khoá (`DOSSIER-409-PACKAGE-LOCKED`) hoặc xung đột phiên bản
+            (`DOSSIER-409-VERSION-CONFLICT`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+              examples:
+                chua-dat:
+                  value:
+                    type: https://okrkpi.vn/problems/checklist-not-passed
+                    title: Chưa thể ký gói
+                    status: 409
+                    code: DOSSIER-409-CHECKLIST-NOT-PASSED
+                    msg: MSG-11-04
+                    detail: 'Chưa thể ký gói: 2 mục kiểm tra chưa đạt. Xem chi tiết ở danh sách kiểm tra.'
+                    traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+        '422':
+          description: Chứng thư của người ký hết hạn hoặc bị thu hồi (`ESIGN-422-CERTIFICATE-INVALID`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1102]
+        owner: MOD-06
+        evt: [EVT-18]
+        roles: [decider]
+        scope: Đv
+        aal: 2
+        rules: [BR-11-09, BR-11-10]
+        source: TL-02b SCR-1102 "Ký số gói và nộp" (202); ma trận SCR-1102.ky-goi
+
+  # ---------------------------------------------------------------- Biểu mẫu (SVC-11)
+  /dossiers/render-jobs:
+    post:
+      tags: [Biểu mẫu]
+      operationId: createDossierRenderJob
+      summary: Yêu cầu sinh biểu mẫu chính thức cho gói hồ sơ
+      description: >-
+        Bước 10 của QT-11: MOD-06 gửi lệnh sinh tới SVC-11 (Mẫu 1A đến 1D, 2, 3, bảng chấm điểm, PDF/A-2b có tem phiên
+        bản Policy Pack) từ dữ liệu đã quyết định (BR-11-02, BR-11-03). Gói chuyển `DANG_LAP` → `DANG_SINH`. Mỗi tệp xong
+        phát EVT-17. Client nội bộ (saga chốt kỳ) cũng gọi thao tác này.
+      security:
+        - keycloak: []
+        - serviceClient: []
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierRenderJobRequest' }
+            examples:
+              ca-goi:
+                value:
+                  packageId: 0192a3f4-1102-7000-8000-000000000142
+              chi-mau-3:
+                value:
+                  packageId: 0192a3f4-1102-7000-8000-000000000142
+                  formCodes: [MAU_3]
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Gói không ở `DANG_LAP` (`DOSSIER-409-INVALID-STATE`) hoặc còn hồ sơ chưa có quyết định và không thuộc trường
+            hợp đặc thù (`DOSSIER-409-PROFILES-NOT-DECIDED`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1102]
+        owner: SVC-11
+        evt: [EVT-17]
+        roles: [appraiser, service_client]
+        scope: Đv
+        rules: [BR-11-02, BR-11-03, BR-11-04]
+        source: TL-01 PL C `/dossiers/render-jobs`; TL-01 mục SVC-11; TL-02b QT-11 bước 10
+
+  /dossiers/forms:
+    post:
+      tags: [Biểu mẫu]
+      operationId: createDossierDraftForms
+      summary: Sinh biểu mẫu dạng nháp từ danh sách hồ sơ đang chọn
+      description: >-
+        Sinh biểu mẫu nháp ngoài gói hồ sơ, ví dụ "Xuất Mẫu 3" của SCR-0904 từ danh sách hồ sơ đang chọn. Tệp mang dấu
+        "Bản nháp", tạo `dossier.form_instance` không gắn gói (`dossier_package_id` rỗng). Trả 202; kết quả là mã biểu
+        mẫu ở `resultLocation` của job, tải bằng `GET /dossiers/forms/{id}/file`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierDraftFormsRequest' }
+            examples:
+              mau-3:
+                value:
+                  formCode: MAU_3
+                  periodId: 0192a3f4-0002-7000-8000-000000002026
+                  profileIds:
+                    - 0192a3f4-0901-7000-8000-000000000201
+                    - 0192a3f4-0901-7000-8000-000000000202
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-11]
+        scr: [SCR-0904]
+        owner: SVC-11
+        evt: [EVT-17]
+        roles: [decider]
+        scope: Cd
+        rules: [BR-11-02]
+        source: TL-02b SCR-0904 "Xuất Mẫu 3" (202); ma trận SCR-0904.xem
+
+  /dossiers/forms/preview:
+    post:
+      tags: [Biểu mẫu]
+      operationId: previewDossierForm
+      summary: Xem trước biểu mẫu từ dữ liệu hiện tại
+      description: >-
+        Sinh bản xem trước có dấu "Bản nháp" từ dữ liệu hiện tại, không lưu `form_instance`, trả tệp PDF ngay (một phiếu
+        sinh dưới 2 giây theo TL-01 mục SVC-11). Dùng ở SCR-0901 "Xem trước Mẫu 1B" và SCR-1202 "Xem văn bản" trả lời
+        khiếu nại.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierFormPreviewRequest' }
+            examples:
+              mau-1b:
+                value:
+                  formCode: MAU_1B
+                  sourceModule: appraisal
+                  sourceRefId: 0192a3f4-0901-7000-8000-000000000201
+      responses:
+        '200':
+          description: Tệp PDF xem trước.
+          content:
+            application/pdf:
+              schema: { type: string, contentMediaType: application/pdf }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-12]
+        scr: [SCR-0901, SCR-1202]
+        owner: SVC-11
+        roles: [manager, member, appraiser]
+        scope: B
+        source: TL-02b SCR-0901 "Xem trước Mẫu 1B", SCR-1202 "Xem văn bản"; ma trận SCR-0901.xem, SCR-1202.tinh-thu
+
+  /dossiers/forms/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Biểu mẫu]
+      operationId: getDossierForm
+      summary: Thông tin một biểu mẫu đã sinh
+      description: >-
+        Siêu dữ liệu của `dossier.form_instance`: mã mẫu, phiên bản mẫu, trạng thái sinh và ký, băm dữ liệu đầu vào và băm
+        tệp. Đường dẫn là suy luận, dùng khi theo dõi job sinh nháp.
+      responses:
+        '200':
+          description: Biểu mẫu.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierForm' }
+              examples:
+                da-sinh:
+                  $ref: '#/components/examples/DossierFormExample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-11]
+        scr: [SCR-0903, SCR-0904, SCR-1101, SCR-1102]
+        owner: MOD-06
+        roles: [leader, manager, member, appraiser, decider]
+        scope: B
+        source: TL-03 dossier.form_instance (đường dẫn suy luận)
+
+  /dossiers/forms/{id}/file:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Biểu mẫu]
+      operationId: downloadDossierFormFile
+      summary: Tải tệp PDF/A của biểu mẫu
+      description: >-
+        Tải tệp biểu mẫu (dự thảo hoặc chính thức, bản đã nhúng chữ ký nếu đã ký). Máy chủ ghi nhật ký truy cập.
+        Dùng ở SCR-1101 "Tải dự thảo Mẫu 1B", SCR-1102 "Xem biểu mẫu", SCR-0903 "Tải Mẫu 1B". Header `Digest` mang
+        SHA-256 của tệp để đối chiếu manifest (suy luận).
+      responses:
+        '200':
+          description: Nội dung tệp.
+          headers:
+            Content-Disposition:
+              description: Tên tệp gợi ý, ví dụ `attachment; filename="MAU_1B-2026.pdf"`.
+              schema: { type: string }
+            Digest:
+              description: SHA-256 của tệp, dạng `sha-256=<base64>` (suy luận).
+              schema: { type: string }
+          content:
+            application/pdf:
+              schema: { type: string, contentMediaType: application/pdf }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Biểu mẫu chưa sinh xong hoặc sinh lỗi (`DOSSIER-409-FORM-NOT-RENDERED`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-11]
+        scr: [SCR-0903, SCR-1101, SCR-1102]
+        owner: MOD-06
+        roles: [leader, manager, member, appraiser, decider]
+        scope: Gn
+        source: TL-02b SCR-1101, SCR-1102, SCR-0903 (`/dossiers/forms/{formId}/file`); ma trận SCR-1101.gop-y, SCR-1102.chuan-bi, SCR-0903.tai-mau-1b
+
+  # ---------------------------------------------------------------- Trường hợp đặc thù
+  /dossiers/special-cases:
+    get:
+      tags: [Trường hợp đặc thù]
+      operationId: listDossierSpecialCases
+      summary: Trường hợp đặc thù phát hiện trong kỳ
+      description: >-
+        Vùng 2 của SCR-1102: các trường hợp đặc thù của PL 6 phát sinh trong kỳ cho đơn vị, kèm cách xử lý theo Policy Pack
+        và số hồ sơ, gom nhóm theo mục. Danh sách không trả chi tiết C2. Đường dẫn là suy luận.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - name: packageId
+          in: query
+          description: Chỉ lấy trường hợp của hồ sơ thuộc gói này.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang trường hợp đặc thù và bảng gom nhóm.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierSpecialCasePage' }
+              examples:
+                nam-2026:
+                  value:
+                    groups:
+                      - { legalRef: PL 6 §1, caseCode: DIEU_DONG_DUOI_2_THANG, handling: 'Đơn vị cũ đánh giá, đơn vị mới cho ý kiến', count: 3 }
+                      - { legalRef: PL 6 §4, caseCode: NGHI_THAI_SAN_OM_DAU_DAI_NGAY, handling: Không xếp loại kỳ quý; ghi chú trên Mẫu 2, count: 2 }
+                    items:
+                      - *specialCaseEx
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1102]
+        owner: MOD-06
+        roles: [appraiser, decider]
+        scope: Đv
+        rules: [BR-11-05]
+        source: TL-02b SCR-1102 bảng trường 3; TL-03 dossier.special_case
+
+  /dossiers/special-cases/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Trường hợp đặc thù]
+      operationId: getDossierSpecialCase
+      summary: Chi tiết một trường hợp đặc thù
+      description: >-
+        "Xem chi tiết từng hồ sơ" của SCR-1102. Trả thêm trường `detail` (C2, ví dụ thông tin thai sản, xác minh); máy chủ
+        ghi nhật ký truy cập. Đường dẫn là suy luận.
+      responses:
+        '200':
+          description: Trường hợp đặc thù.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierSpecialCase' }
+              examples:
+                dieu-dong:
+                  $ref: '#/components/examples/DossierSpecialCaseExample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1102]
+        owner: MOD-06
+        roles: [appraiser, decider]
+        scope: Đv
+        rules: [BR-11-05]
+        source: TL-02b SCR-1102 bảng trường 3 (suy luận)
+
+  # ---------------------------------------------------------------- Ký số (SVC-10)
+  /esign/requests:
+    get:
+      tags: [Ký số]
+      operationId: listMyEsignRequests
+      summary: Yêu cầu ký của người gọi
+      description: >-
+        Danh sách yêu cầu ký mà người gọi là người ký, ví dụ biên bản chờ chủ trì và thư ký ký, bản kiểm điểm chờ cá nhân
+        ký (QT-11 bước 11). Đường dẫn là suy luận.
+      parameters:
+        - name: status
+          in: query
+          description: Lọc theo trạng thái yêu cầu ký.
+          schema: { $ref: '#/components/schemas/EsignRequestStatus' }
+        - name: purpose
+          in: query
+          description: Lọc theo mốc pháp lý.
+          schema: { $ref: '#/components/schemas/EsignPurpose' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang yêu cầu ký.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EsignRequestPage' }
+              examples:
+                cho-xac-nhan:
+                  value:
+                    items:
+                      - *esignReqEx
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101, SCR-1102]
+        owner: SVC-10
+        roles: [leader, member, appraiser, decider, second_approver]
+        scope: B
+        source: TL-03 esign.sign_request (đường dẫn suy luận)
+    post:
+      tags: [Ký số]
+      operationId: createEsignRequest
+      summary: Mở yêu cầu ký số từ xa
+      description: >-
+        Tạo yêu cầu ký tại một mốc pháp lý cho chính người gọi (chủ thể ký) và đẩy sang nhà cung cấp (MySign, Viettel-CA,
+        CA chuyên dùng Chính phủ, Ban Cơ yếu). Client chỉ gửi bản ghi nghiệp vụ nguồn; danh sách tài liệu và băm do máy
+        chủ lấy từ module nguồn, client không bao giờ gửi băm để ký. Ký từ xa là bất đồng bộ: phản hồi 202 trả yêu cầu ở
+        `CHO_XAC_NHAN` với `expiresAt` (thường 120 giây, MSG-04-09); giao diện theo dõi bằng `GET /esign/requests/{id}`
+        hoặc SSE, và EVT-18 phát khi hoàn tất. Cần phiên AAL2 với `auth_time` không quá 5 phút. Hợp nhất `POST
+        /esign/sessions` của TL-01 PL C.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EsignRequestCreate' }
+            examples:
+              ky-bien-ban:
+                value:
+                  purpose: BIEN_BAN
+                  sourceModule: dossier
+                  sourceRefId: 0192a3f4-1101-7000-8000-000000000001
+                  provider: MYSIGN
+      responses:
+        '202':
+          description: Đã tạo yêu cầu ký, đang chờ người ký xác nhận trên thiết bị.
+          headers:
+            Location:
+              description: Đường dẫn theo dõi yêu cầu ký `/api/v1/esign/requests/{id}`.
+              schema: { type: string, format: uri-reference, examples: ['/api/v1/esign/requests/0192a3f4-1810-7000-8000-000000000001'] }
+            Retry-After: { $ref: '../common/common.yaml#/components/headers/RetryAfter' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EsignRequest' }
+              examples:
+                cho-xac-nhan:
+                  $ref: '#/components/examples/EsignRequestExample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: >-
+            Người gọi không phải chủ thể ký của bản ghi nguồn hoặc vi phạm tách vai trò (`ESIGN-403-NOT-SIGNER`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Bản ghi nguồn chưa sẵn sàng để ký, ví dụ biên bản chưa sinh (`ESIGN-409-SOURCE-NOT-READY`), hoặc đã có yêu cầu
+            ký đang chờ cho cùng bản ghi và người ký (`ESIGN-409-REQUEST-PENDING`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: Chứng thư hết hạn, bị thu hồi hoặc nhà cung cấp chưa cấu hình (`ESIGN-422-CERTIFICATE-INVALID`, `ESIGN-422-PROVIDER-UNAVAILABLE`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '503': { $ref: '../common/common.yaml#/components/responses/ServiceUnavailable' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04, QT-09, QT-11, QT-12, QT-13, QT-15]
+        scr: [SCR-0403, SCR-0901, SCR-0902, SCR-0904, SCR-1101, SCR-1102, SCR-1202, SCR-1301, SCR-1503]
+        owner: SVC-10
+        evt: [EVT-18]
+        roles: [leader, member, appraiser, decider, second_approver]
+        scope: B
+        aal: 2
+        source: TL-02b SCR-1102, SCR-0901; TL-02a SCR-0403 (`/esign/requests`); TL-01 PL C `POST /esign/sessions`; ma trận dòng API esign
+
+  /esign/requests/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Ký số]
+      operationId: getEsignRequest
+      summary: Trạng thái yêu cầu ký
+      description: >-
+        Trạng thái yêu cầu ký và tiến độ ký lô (đã ký / tổng). Giao diện thăm dò tối đa tới `expiresAt` theo `Retry-After`
+        (TL-01 chương 11: phiên chờ xác nhận tới 120 giây qua polling), hoặc nghe SSE. Hợp nhất `GET /esign/sessions/{id}`
+        của TL-01 PL C.
+      responses:
+        '200':
+          description: Yêu cầu ký.
+          headers:
+            Retry-After: { $ref: '../common/common.yaml#/components/headers/RetryAfter' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EsignRequest' }
+              examples:
+                da-ky:
+                  value:
+                    id: 0192a3f4-1810-7000-8000-000000000001
+                    purpose: GOI_HO_SO
+                    sourceModule: dossier
+                    sourceRefId: 0192a3f4-1102-7000-8000-000000000142
+                    provider: VIETTEL_CA
+                    isBatch: false
+                    status: DA_KY
+                    expiresAt: '2027-01-30T09:02:00+07:00'
+                    completedAt: '2027-01-30T09:00:41+07:00'
+                    itemCount: 1
+                    signedCount: 1
+                    certificate:
+                      id: 0192a3f4-1811-7000-8000-000000000001
+                      subjectDn: CN=Ngô Thanh Tâm, O=Ban Tổ chức Tỉnh uỷ
+                      issuerDn: CN=Viettel-CA SHA-256
+                      serialNo: 5404FFFEB7033FB316D672201B7BA4FE
+                      notBefore: '2026-03-01T00:00:00+07:00'
+                      notAfter: '2028-03-01T00:00:00+07:00'
+                      lastOcspStatus: GOOD
+                      lastOcspAt: '2027-01-30T09:00:40+07:00'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04, QT-09, QT-11, QT-12, QT-13, QT-15]
+        scr: [SCR-0403, SCR-0901, SCR-0902, SCR-0904, SCR-1101, SCR-1102, SCR-1202, SCR-1301, SCR-1503]
+        owner: SVC-10
+        roles: [leader, member, appraiser, decider, second_approver]
+        scope: B
+        source: TL-01 PL C `GET /esign/sessions/{id}`; TL-02b SCR-0904 bảng trường 8; TL-03 esign.sign_request
+
+  /esign/certificates/mine:
+    get:
+      tags: [Ký số]
+      operationId: listMyEsignCertificates
+      summary: Chứng thư ký số của người gọi
+      description: >-
+        Chứng thư đã đăng ký của người gọi kèm hiệu lực và kết quả kiểm tra thu hồi gần nhất, để hiển thị "Người ký, nhà
+        cung cấp" (SCR-1102 trường 6, SCR-0904 trường 7) và chặn ký khi chứng thư hết hạn. Đường dẫn là suy luận.
+      responses:
+        '200':
+          description: Danh sách chứng thư.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/EsignCertificate' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-11]
+        scr: [SCR-0904, SCR-1102]
+        owner: SVC-10
+        roles: [leader, member, appraiser, decider, second_approver]
+        scope: B
+        source: TL-02b SCR-1102 bảng trường 6, SCR-0904 bảng trường 7; TL-03 esign.certificate_ref (đường dẫn suy luận)
