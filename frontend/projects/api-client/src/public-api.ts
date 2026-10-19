@@ -33,6 +33,8 @@ export * from './lib/models/tenant';
 export * from './lib/models/tenant-onboarding';
 export * from './lib/tenant-api';
 export * from './lib/okr-progress';
+export * from './lib/models/org-tree';
+export * from './lib/org-tree-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
 export { mockStepUp, resetMockApi, setMockEsignOutage } from './mock/mock-session';
 export type { MockApiOptions } from './mock/mock-api.interceptor';

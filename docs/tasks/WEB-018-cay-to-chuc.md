@@ -12,7 +12,7 @@
 | Cỡ việc | L (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-015 |
 | Truy vết | QT-01 → SCR-0103 → `/api/v1/org` → SVC-04 (org, hai trục thời gian) → EVT-14, EVT-15, EVT-16 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Xong, chờ gộp |
 
 ## 1. Mục tiêu
 

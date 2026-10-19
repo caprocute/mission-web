@@ -1,15 +1,23 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { MessageModule } from 'primeng/message';
+import { ADMIN_CAN } from '../admin-permissions';
 
-/** Trang khung của remote fe-admin (WEB-015); màn hình thật do các task QT-01, QT-08 dựng. */
+/** Trang đầu của remote fe-admin cho vai trò không vào thẳng Danh sách tenant (quản trị tenant, thẩm định). */
 @Component({
   selector: 'vt-admin-home-page',
-  imports: [MessageModule],
+  imports: [MessageModule, RouterLink],
   template: `
     <h1>Quản trị tenant</h1>
+    @if (can('SCR-0103.xem')) {
+      <ul class="links">
+        <li>
+          <a routerLink="org">Cây tổ chức</a> · xem, nhập và thay đổi cơ cấu theo thời gian hiệu lực
+        </li>
+      </ul>
+    }
     <p-message severity="info">
-      Phân hệ Quản trị tenant (remote fe-admin) đã có khung, các màn hình đang được phát triển:
-      SCR-0101 … SCR-0104, SCR-0801.
+      Các màn hình còn lại của phân hệ Quản trị tenant đang được phát triển: SCR-0104, SCR-0801.
     </p-message>
   `,
   styles: `
@@ -17,6 +25,15 @@ import { MessageModule } from 'primeng/message';
       font-size: 1.5rem;
       margin: 0 0 16px;
     }
+    .links {
+      padding-left: 20px;
+      margin: 0 0 16px;
+    }
+    a {
+      color: #b8002a;
+    }
   `,
 })
-export class AdminHomePage {}
+export class AdminHomePage {
+  protected readonly can = inject(ADMIN_CAN);
+}
