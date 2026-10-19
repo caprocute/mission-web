@@ -30,6 +30,10 @@ def check(realm_path: Path) -> list[str]:
     m = json.loads(DATA.read_text(encoding="utf-8"))
     r = json.loads(realm_path.read_text(encoding="utf-8"))
     expected = {v["role"]: v["ac"] for v in m["vai_tro"] if re.fullmatch(r"[a-z_]+", v["role"])}
+    # Vai trò con khai báo trong cột keycloak của vai trò, ví dụ "vai trò con `wf_template_author`" (BS-01)
+    for v in m["vai_tro"]:
+        for sub in re.findall(r"vai trò con `([a-z_]+)`", v.get("keycloak", "")):
+            expected[sub] = v["ac"]
     errors = []
 
     roles = {x["name"]: x for x in r.get("roles", {}).get("realm", [])}

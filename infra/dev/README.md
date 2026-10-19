@@ -27,7 +27,7 @@ PostgreSQL tạo sẵn database `mission` với các schema `okr, task, product,
 
 | Tài khoản | Vai trò | Đơn vị (`unit_id`) | OTP khi đăng nhập |
 |---|---|---|---|
-| `nentang` | `platform_admin` | – | Có |
+| `nentang` | `platform_admin`, `wf_template_author` (vai trò con AC-01, BS-01) | – | Có |
 | `quantri` | `tenant_admin`, `policy_author` | `phong-tong-hop` | Có |
 | `chinhsach` | `policy_author` | `phong-tong-hop` | Không |
 | `lanhdao` | `member`, `leader` | `phong-tong-hop` | Không |
