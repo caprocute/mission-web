@@ -4,7 +4,7 @@ upstreams:
   - id: mission-core
     type: roundrobin
     nodes:
-      "host.docker.internal:8081": 1
+      "host.docker.internal:35100": 1
   - id: web
     type: roundrobin
     nodes:

@@ -41,3 +41,9 @@ Dữ liệu nằm dưới `DATA_DIR` (bind mount) chứ không ở thư mục g�
 ## Khác biệt so với production
 
 Môi trường này không thay thế được kiến trúc production của TL-04: production chạy trên Kubernetes với CloudNativePG + PgBouncer, Valkey Cluster, Kafka nhiều broker, Ceph RGW với Object Lock chế độ COMPLIANCE, OpenSearch nhiều node có bảo mật, Istio ambient mTLS, OpenBao + HSM cho bí mật. Ở dev, các thành phần chỉ phục vụ phát triển và kiểm thử chức năng; không đặt dữ liệu thật hay dữ liệu cá nhân vào đây.
+
+## Ghi chú vận hành trên server dev (19/10/2026)
+
+Hạ tầng đã chạy trên server dev với sáu profile core, events, observability, search, analytics và gateway; profile web chưa bật. Khi triển khai trên CentOS 7 (kernel 3.10) có một số điều chỉnh so với bản gốc. Image `postgres:17-alpine` bị seccomp chặn ghi vào `pg_wal`, nên chuyển sang `postgres:17` bản Debian thay vì nới seccomp. Image `minio/mc` bản RELEASE cũ đã bị gỡ khỏi Docker Hub, nên dùng `minio/mc:latest`; image `minio/minio` đang dùng bản có sẵn trên server và sẽ không pull được ở máy mới, cần chọn nguồn khác khi dựng lại. `health.sh` dùng `docker ps` lọc theo nhãn project vì compose v2.17 không nhận `ps --format` dạng template. Khi chép bundle từ macOS phải xoá các tệp `._*`, vì một tệp như vậy trong `postgres/init` làm hỏng bước khởi tạo.
+
+Cổng 8081 trên server đã có dịch vụ khác, nên mission-core khi chạy dev phải nghe ở cổng 35100; `apisix/apisix.yaml` đã trỏ upstream tới `host.docker.internal:35100`. OpenSearch cảnh báo `vm.max_map_count=65530` (khuyến nghị 262144); một node dev vẫn chạy được, muốn sửa phải có sudo. Grafana LGTM khởi động mất khoảng ba phút. Debezium Connect và OpenSearch chỉ mở trên 127.0.0.1 của server, truy cập qua SSH tunnel. Mật khẩu dịch vụ nằm trong `/home/provision/mission-infra/.env` trên server (chmod 600), không chép vào repo hay chat.

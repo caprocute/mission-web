@@ -2,7 +2,7 @@
 # Kiểm tra nhanh trạng thái hạ tầng dev sau khi `docker compose up`.
 cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
-docker compose ps --format 'table {{.Name}}\t{{.Status}}\t{{.Ports}}'
+docker ps --filter label=com.docker.compose.project=mission-dev --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 echo
 check() { printf '%-12s ' "$1"; if eval "$2" >/dev/null 2>&1; then echo OK; else echo "CHƯA SẴN SÀNG"; fi; }
 check postgres  "docker compose exec -T postgres pg_isready -U ${PG_SUPERUSER:-postgres}"
