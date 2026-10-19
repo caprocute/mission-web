@@ -12,7 +12,7 @@
 | Cỡ việc | M (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-055, WEB-056 |
 | Truy vết | wiki/15a → `docs/phan-quyen/ma-tran.json` → `fe-shell` menu và tuyến → Keycloak dev (tài khoản thử theo vai trò) → SEC-18, SEC-40 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Xong, chờ gộp |
 
 ## 1. Mục tiêu
 
