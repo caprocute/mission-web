@@ -12,7 +12,7 @@
 | Cỡ việc | M (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-018 |
 | Truy vết | QT-01 → SCR-0104 → `/api/v1/org` (SCIM sync log) → SVC-04, SVC-13 → EVT-16 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Xong, chờ gộp |
 
 ## 1. Mục tiêu
 

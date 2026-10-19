@@ -11,6 +11,7 @@ import { EVIDENCE_MOCK } from './evidence/evidence.mock';
 import { PERIODS_MOCK } from './periods/periods.mock';
 import { APPRAISALS_MOCK } from './appraisals/appraisals.mock';
 import { DOSSIERS_MOCK } from './dossiers/dossiers.mock';
+import { ORG_SYNC_MOCK } from './org-sync/org-sync.mock';
 
 /**
  * Danh mục fixture theo module API (`/api/v1/<module>`). Thêm module mới: tạo thư mục
@@ -31,6 +32,7 @@ export const MOCK_MODULES: MockModule[] = [
   PERIODS_MOCK,
   APPRAISALS_MOCK,
   DOSSIERS_MOCK,
+  ORG_SYNC_MOCK,
 ];
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
