@@ -85,7 +85,7 @@ Phân công có vai trò AAL2 ghi chú MSG-00-05 và cần bước lên trước
 
 Khi `auth.enabled = false` trong `/config.json` (mặc định ở dev), `SessionService` tạo người dùng giả lập, phân công lấy từ API giả lập (`?mock-org=kiem-nhiem` cho ba phân công, `?mock-org=khong-phan-cong` cho MSG-00-06), và bước lên được giả lập ngay trên trình duyệt. Chế độ này chỉ dành cho dev và không được bật ở môi trường có dữ liệu thật. `?mock-error=401` trên URL trang làm API giả lập trả 401 step-up cho lệnh ghi đầu tiên của mỗi `Idempotency-Key`, dùng để thử luồng bước lên.
 
-Đường API `/api/v1/org/me` và `/api/v1/org/me/context` lấy từ SCR-0001 của TL-02; dạng dữ liệu (`Assignment`, `MyOrgProfile`) nằm trong hợp đồng mẫu `tools/openapi` và cần đối chiếu khi org-service phát hành OpenAPI thật (suy luận).
+Đường API `/api/v1/org/me` và `/api/v1/org/me/context` lấy từ SCR-0001 của TL-02; dạng dữ liệu (`Assignment`, `MyOrgProfile`) sinh từ `contracts/openapi/modules/org.yaml` (WEB-064) và cần đối chiếu khi org-service phát hành springdoc thật.
 
 ## Keycloak ở môi trường dev
 

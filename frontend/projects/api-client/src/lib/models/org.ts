@@ -1,4 +1,4 @@
-import { components } from '../generated/mission-core';
+import type { components } from '../generated/org';
 
 type Schemas = components['schemas'];
 

@@ -4,9 +4,12 @@ Cấu hình chạy, interceptor, Problem Details (RFC 9457), phân trang con tr�
 
 ## Hợp đồng OpenAPI, lỗi, xung đột, tác vụ dài (WEB-007)
 
-- Kiểu sinh từ `frontend/tools/openapi/mission-core.openapi.yaml` bằng openapi-typescript (chỉ kiểu, không mã chạy):
-  `npm run api:gen` ghi `src/lib/generated/mission-core.ts`, `npm run api:check` báo lệch (CI). Không sửa tay tệp sinh.
-- `apiUrl('/tasks/{id}', { id })` dựng `/api/v1/...` có kiểm kiểu theo hợp đồng.
+- Kiểu sinh từ bộ hợp đồng `contracts/openapi/` (WEB-063, WEB-064) bằng openapi-typescript (chỉ kiểu, không mã chạy):
+  `npm run api:gen` ghi `src/lib/generated/common.ts` và một tệp `<module>.ts` cho mỗi `modules/<module>.yaml`, cùng
+  `index.ts` xuất `TasksPaths`, `TasksComponents`, `OrgComponents`, `CommonComponents`, `ApiPaths`…;
+  `npm run api:check` báo lệch (CI). Không sửa tay tệp sinh. `src/lib/models/contract-check.spec.ts` kiểm model viết tay
+  tương thích hợp đồng lúc biên dịch.
+- `apiUrl('/tasks/{id}', { id })` dựng `/api/v1/...` có kiểm kiểu theo mọi đường dẫn của hợp đồng.
 - `toProblem`, `isConcurrencyConflict`, `fieldErrors`; `ProblemPresenter` (toast qua `MessageService`, MSG theo `code`
   khai bằng `provideProblemMessages`); `<vt-field-error>`; `<vt-conflict-notice>` cho 409/412.
 - `JobTracker.track(location)` theo dõi 202 + `Location: /api/v1/jobs/{id}` (thăm dò giãn cách, `Retry-After`,

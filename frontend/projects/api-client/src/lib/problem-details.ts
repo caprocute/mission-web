@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { components } from './generated/mission-core';
+import type { components } from './generated/common';
 
 /**
  * Lỗi theo RFC 9457 (quy ước API mục 13 của baseline), mở rộng `code`, `errors[]`, `traceId`

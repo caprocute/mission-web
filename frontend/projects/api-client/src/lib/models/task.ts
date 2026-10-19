@@ -1,8 +1,11 @@
 import { CursorPage } from '../paging';
+import type { components } from '../generated/tasks';
+
+/** Lược đồ sinh từ `contracts/openapi/modules/tasks.yaml` (WEB-064). */
+type Schemas = components['schemas'];
 
 /** Trạng thái chuẩn của `task.task.status` (baseline mục 9.1). */
-export type TaskStatus =
-  'NHAP' | 'DA_GIAO' | 'DANG_THUC_HIEN' | 'CHO_NGHIEM_THU' | 'HOAN_THANH' | 'TAM_DUNG' | 'HUY';
+export type TaskStatus = Schemas['TaskStatus'];
 
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   NHAP: 'Nháp',
@@ -14,7 +17,7 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   HUY: 'Huỷ',
 };
 
-export type AssigneeRole = 'CHU_TRI' | 'PHOI_HOP';
+export type AssigneeRole = Schemas['AssigneeRole'];
 
 /** `task.task.task_group` (TL-03): một nhiệm vụ chỉ tính ở một nhóm. */
 export type TaskGroup = 'THUONG_XUYEN' | 'THEN_CHOT';
@@ -28,37 +31,7 @@ export const TASK_GROUP_LABEL: Record<TaskGroup, string> = {
 export type TaskSource = 'KE_HOACH' | 'VAN_BAN' | 'DANG_KY' | 'DOT_XUAT';
 
 /** Bản tóm tắt nhiệm vụ cho danh sách "Việc của tôi" (SCR-0503) và widget trang chủ (SCR-0002). */
-export interface TaskSummary {
-  id: string;
-  code: string;
-  title: string;
-  status: TaskStatus;
-  /** Cờ `task.task.is_overdue`, máy chủ đặt hằng ngày (QT-06 bước 8). */
-  overdue: boolean;
-  dueDate: string;
-  /** Phần trăm 0–100; máy chủ lưu `progress_pct` dạng 0–1. */
-  progress: number;
-  role: AssigneeRole;
-  assignerName: string;
-  unitName: string;
-  periodId: string;
-  /** ETag = row_version, gửi lại trong `If-Match` khi cập nhật. */
-  rowVersion: number;
-  taskGroup: TaskGroup;
-  source: TaskSource;
-  keyResultId?: string;
-  keyResultTitle?: string;
-  plannedQuantity: number;
-  doneQuantity: number;
-  unit: string;
-  /** Số điểm nghẽn chưa giải quyết của nhiệm vụ. */
-  openBlockerCount: number;
-  /**
-   * Số ngày làm việc còn lại tới hạn (âm khi đã quá hạn), máy chủ tính theo `config.holiday_calendar`
-   * để trình duyệt không phải tải lịch nghỉ (SCR-0503 trường 6 "Tình trạng").
-   */
-  workingDaysLeft: number;
-}
+export type TaskSummary = Schemas['TaskSummary'];
 
 /** Kênh cập nhật tiến độ (`task.task_progress.channel`). */
 export type ProgressChannel = 'WEB' | 'MOBILE' | 'TICH_HOP';
@@ -219,34 +192,11 @@ export interface DelayRisk {
   explanation: string;
 }
 
-export interface TaskDetail extends TaskSummary {
-  description: string;
-  sourceDoc?: { number: string; title: string };
-  /** Mô tả nguồn nhiệm vụ, ví dụ "Kế hoạch Q4 phiên bản 2 · dòng 1". */
-  sourceRef?: string;
-  catalogItemCode?: string;
-  difficulty?: number;
-  standardScore?: number;
-  assignedAt?: string;
-  acceptorName: string;
-  /** Hạn tính hệ số tiến độ C, khác `dueDate` là hạn thực hiện (BR-06-04, BR-06-05). */
-  scoreDueDate: string;
-  /** Sản phẩm đã xác nhận / chờ nghiệm thu / phải nộp (SCR-0601 trường 5). */
-  products: { confirmed: number; pendingReview: number; required: number };
-  delayRisk?: DelayRisk;
-  extensionsUsed: number;
-  extensionsMax: number;
-  coAssignees: { personId: string; name: string; role: AssigneeRole }[];
-  progressLog: ProgressLogEntry[];
-  blockers: TaskBlocker[];
-  changeRequests: ChangeRequest[];
-  stateLog: StateLogEntry[];
-}
+/** Chi tiết nhiệm vụ (SCR-0601): `TaskSummary` cộng mô tả, sản phẩm, nhật ký, điểm nghẽn, đề nghị. */
+export type TaskDetail = Schemas['TaskDetail'];
 
-export interface ProgressUpdate {
-  percent: number;
-  note: string;
-}
+/** Thân `POST /tasks/{id}/progress`; hợp đồng có thêm `doneQuantity`, `channel` tuỳ chọn. */
+export type ProgressUpdate = Schemas['ProgressUpdate'];
 
 /** Bộ lọc nhanh của SCR-0503 trường 1. */
 export type MyTasksQuickFilter = 'TAT_CA' | 'CHAM' | 'SAP_HAN' | 'CHO_NGHIEM_THU' | 'HOAN_THANH';

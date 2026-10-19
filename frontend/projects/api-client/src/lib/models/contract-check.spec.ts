@@ -1,0 +1,109 @@
+/**
+ * WEB-064: kiểm lúc biên dịch rằng model viết tay của `@vt/api-client` tương thích hai chiều với
+ * kiểu sinh từ `contracts/openapi/` (mọi giá trị của bên này gán được cho bên kia). Khi hợp đồng đổi
+ * mà model chưa theo, `npm run test:all` báo lỗi biên dịch ở dòng tương ứng.
+ *
+ * Kiểu đã là bí danh của kiểu sinh (`TaskSummary`, `TaskDetail`, `ProgressUpdate`, `TaskStatus`,
+ * `AssigneeRole`, `Assignment`, `AssignmentKind`, `MyOrgProfile`, `WorkContext`, `Job`, `JobStatus`,
+ * `ProblemDetails`, `FieldError`) không cần kiểm ở đây. Các kiểu viết tay còn lệch hợp đồng và chưa
+ * kiểm (`OrgUnit`, `PlanItem`, `PlanVersion`, `OkrBasis`, `ProgressBatchResult`, `CellLoad`, các
+ * kiểu OKR và tenant chưa có cùng tên trong hợp đồng) được ghi ở báo cáo WEB-064 và wiki/06.
+ */
+import type { components as OkrContract } from '../generated/okr';
+import type { components as OrgContract } from '../generated/org';
+import type { components as PlatformContract } from '../generated/platform';
+import type { components as TasksContract } from '../generated/tasks';
+import type * as Catalog from './catalog';
+import type * as Okr from './okr';
+import type * as Org from './org';
+import type * as Plan from './plan';
+import type * as SourceDoc from './source-doc';
+import type * as TaskAssign from './task-assign';
+import type * as Task from './task';
+
+/** `true` khi A và B gán được cho nhau. */
+type Compatible<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+type Expect<T extends true> = T;
+
+export type ContractCheck = [
+  // catalog.ts ↔ tasks.yaml
+  Expect<Compatible<Catalog.WorkCatalogStatus, TasksContract['schemas']['WorkCatalogStatus']>>,
+  Expect<Compatible<Catalog.CatalogItemStatus, TasksContract['schemas']['CatalogItemStatus']>>,
+  Expect<Compatible<Catalog.WorkCatalog, TasksContract['schemas']['WorkCatalog']>>,
+  Expect<Compatible<Catalog.Position, TasksContract['schemas']['Position']>>,
+  Expect<Compatible<Catalog.CatalogItem, TasksContract['schemas']['CatalogItem']>>,
+  Expect<Compatible<Catalog.CatalogItemInput, TasksContract['schemas']['CatalogItemInput']>>,
+  Expect<
+    Compatible<Catalog.CatalogItemSaveResult, TasksContract['schemas']['CatalogItemSaveResult']>
+  >,
+  Expect<Compatible<Catalog.CatalogItemsPage, TasksContract['schemas']['CatalogItemsPage']>>,
+  Expect<Compatible<Catalog.CatalogImportJob, TasksContract['schemas']['CatalogImportJob']>>,
+  // okr.ts ↔ okr.yaml
+  Expect<Compatible<Okr.OkrOwnerType, OkrContract['schemas']['OkrOwnerType']>>,
+  // org.ts ↔ org.yaml
+  Expect<Compatible<Org.OrgPerson, OrgContract['schemas']['OrgPerson']>>,
+  // plan.ts ↔ tasks.yaml
+  Expect<Compatible<Plan.PlanItemRef, TasksContract['schemas']['PlanItemRef']>>,
+  Expect<Compatible<Plan.PlanVersionStatus, TasksContract['schemas']['PlanVersionStatus']>>,
+  // source-doc.ts ↔ tasks.yaml
+  Expect<Compatible<SourceDoc.SourceSystem, TasksContract['schemas']['SourceSystem']>>,
+  Expect<Compatible<SourceDoc.SourceDocStatus, TasksContract['schemas']['SourceDocStatus']>>,
+  Expect<Compatible<SourceDoc.SourceDocSummary, TasksContract['schemas']['SourceDocSummary']>>,
+  Expect<Compatible<SourceDoc.SourceDoc, TasksContract['schemas']['SourceDoc']>>,
+  Expect<Compatible<SourceDoc.SuggestionDecision, TasksContract['schemas']['SuggestionDecision']>>,
+  Expect<
+    Compatible<SourceDoc.TaskSuggestionFields, TasksContract['schemas']['TaskSuggestionFields']>
+  >,
+  Expect<Compatible<SourceDoc.SuggestionField, TasksContract['schemas']['SuggestionField']>>,
+  Expect<Compatible<SourceDoc.TaskSuggestion, TasksContract['schemas']['TaskSuggestion']>>,
+  Expect<
+    Compatible<SourceDoc.FromDocumentRequest, TasksContract['schemas']['FromDocumentRequest']>
+  >,
+  Expect<Compatible<SourceDoc.AssignBatchResult, TasksContract['schemas']['AssignBatchResult']>>,
+  // source-doc.ts ↔ platform.yaml
+  Expect<Compatible<SourceDoc.ExtractionStatus, PlatformContract['schemas']['ExtractionStatus']>>,
+  Expect<Compatible<SourceDoc.DocExtraction, PlatformContract['schemas']['DocExtraction']>>,
+  // task-assign.ts ↔ tasks.yaml
+  Expect<Compatible<TaskAssign.TaskPriority, TasksContract['schemas']['TaskPriority']>>,
+  Expect<Compatible<TaskAssign.TaskMilestone, TasksContract['schemas']['TaskMilestone']>>,
+  Expect<Compatible<TaskAssign.AssigneeRef, TasksContract['schemas']['AssigneeRef']>>,
+  Expect<Compatible<TaskAssign.TaskDraft, TasksContract['schemas']['TaskDraft']>>,
+  Expect<Compatible<TaskAssign.TaskDraftTemplate, TasksContract['schemas']['TaskDraftTemplate']>>,
+  Expect<Compatible<TaskAssign.AssignCheckItem, TasksContract['schemas']['AssignCheckItem']>>,
+  Expect<Compatible<TaskAssign.SimilarTask, TasksContract['schemas']['SimilarTask']>>,
+  Expect<Compatible<TaskAssign.PersonWorkload, TasksContract['schemas']['PersonWorkload']>>,
+  Expect<Compatible<TaskAssign.AssignCheckResult, TasksContract['schemas']['AssignCheckResult']>>,
+  Expect<Compatible<TaskAssign.AssignRequest, TasksContract['schemas']['AssignRequest']>>,
+  Expect<Compatible<TaskAssign.AssignResult, TasksContract['schemas']['AssignResult']>>,
+  Expect<Compatible<TaskAssign.BulkAssignRequest, TasksContract['schemas']['BulkAssignRequest']>>,
+  // task.ts ↔ tasks.yaml
+  Expect<Compatible<Task.TaskGroup, TasksContract['schemas']['TaskGroup']>>,
+  Expect<Compatible<Task.TaskSource, TasksContract['schemas']['TaskSource']>>,
+  Expect<Compatible<Task.ProgressChannel, TasksContract['schemas']['ProgressChannel']>>,
+  Expect<Compatible<Task.ProgressLogEntry, TasksContract['schemas']['ProgressLogEntry']>>,
+  Expect<Compatible<Task.BlockerStatus, TasksContract['schemas']['BlockerStatus']>>,
+  Expect<Compatible<Task.BlockerCauseCategory, TasksContract['schemas']['BlockerCauseCategory']>>,
+  Expect<Compatible<Task.ImpactLevel, TasksContract['schemas']['ImpactLevel']>>,
+  Expect<Compatible<Task.CauseKind, TasksContract['schemas']['CauseKind']>>,
+  Expect<Compatible<Task.TaskBlocker, TasksContract['schemas']['TaskBlocker']>>,
+  Expect<Compatible<Task.BlockerReport, TasksContract['schemas']['BlockerReport']>>,
+  Expect<Compatible<Task.ChangeRequestType, TasksContract['schemas']['ChangeRequestType']>>,
+  Expect<Compatible<Task.ChangeRequestStatus, TasksContract['schemas']['ChangeRequestStatus']>>,
+  Expect<Compatible<Task.ChangeRequest, TasksContract['schemas']['ChangeRequest']>>,
+  Expect<Compatible<Task.ChangeRequestDraft, TasksContract['schemas']['ChangeRequestDraft']>>,
+  Expect<Compatible<Task.ChangeRequestPreview, TasksContract['schemas']['ChangeRequestPreview']>>,
+  Expect<Compatible<Task.StateLogEntry, TasksContract['schemas']['StateLogEntry']>>,
+  Expect<Compatible<Task.DelayRisk, TasksContract['schemas']['DelayRisk']>>,
+  Expect<Compatible<Task.MyTasksQuickFilter, TasksContract['schemas']['MyTasksQuickFilter']>>,
+  Expect<Compatible<Task.PeriodRef, TasksContract['schemas']['PeriodRef']>>,
+  Expect<Compatible<Task.MyTasksPage, TasksContract['schemas']['MyTasksPage']>>,
+  Expect<Compatible<Task.ProgressBatchItem, TasksContract['schemas']['ProgressBatchItem']>>,
+  Expect<Compatible<Task.TaskRegistration, TasksContract['schemas']['TaskRegistration']>>,
+];
+
+describe('model viết tay và hợp đồng OpenAPI', () => {
+  it('tương thích kiểu (kiểm lúc biên dịch, xem ContractCheck)', () => {
+    const checked: ContractCheck['length'] = 59;
+    expect(checked).toBeGreaterThan(0);
+  });
+});
