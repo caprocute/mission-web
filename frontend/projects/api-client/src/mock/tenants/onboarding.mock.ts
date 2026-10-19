@@ -1,5 +1,5 @@
 import { Job } from '../../lib/models/job';
-import { CELL_LOAD_THRESHOLD, TenantStatus } from '../../lib/models/tenant';
+import { CELL_LOAD_THRESHOLD, TENANCY_MODEL_LABEL, TenantStatus } from '../../lib/models/tenant';
 import {
   CellOption,
   OnboardingCheck,
@@ -43,7 +43,7 @@ const uiLabel = (id: string) => {
 
 const MSG_01_04 = (domain: string) => `Tên miền ${domain} đã được sử dụng.`;
 const MSG_01_05 = (pack: string) =>
-  `Gói chính sách ${pack} chưa đạt 100% test case vàng nên chưa gắn được.`;
+  `Bộ quy định đánh giá ${pack} chưa đạt 100% bộ ca kiểm thử chuẩn nên chưa gắn được.`;
 const MSG_01_07 = (step: string, reason: string) =>
   `Cấp phát lỗi ở bước ${step}: ${reason}. Hệ thống đã hoàn tác các bước trước.`;
 
@@ -117,19 +117,24 @@ function cellOptions(model: string, accounts: number): CellOption[] {
 
 function create(r: MockRequest): MockResponse {
   const b = r.body as TenantOnboardingInput;
-  if (!b?.name?.trim()) return fieldError(422, 'Chưa nhập tên tenant', 'name');
+  if (!b?.name?.trim()) return fieldError(422, 'Đồng chí chưa nhập tên đơn vị triển khai.', 'name');
   if (!/^[a-z0-9_]{2,32}$/.test(b.code ?? '')) {
-    return fieldError(422, 'Mã tenant chỉ gồm chữ thường không dấu, số và dấu gạch dưới', 'code');
+    return fieldError(
+      422,
+      'Mã đơn vị chỉ gồm chữ thường không dấu, chữ số và dấu gạch dưới.',
+      'code',
+    );
   }
   if (load().some((t) => t.code === b.code)) {
-    return fieldError(409, `Mã tenant ${b.code} đã được sử dụng.`, 'code');
+    return fieldError(409, `Mã đơn vị ${b.code} đã được sử dụng.`, 'code');
   }
   if (!b.contractRef?.trim() || b.contractRef.length > 50) {
-    return fieldError(422, 'Số hợp đồng bắt buộc, tối đa 50 ký tự', 'contractRef');
+    return fieldError(422, 'Số hợp đồng là bắt buộc, tối đa 50 ký tự.', 'contractRef');
   }
-  if (!b.flows?.length) return fieldError(422, 'Chọn ít nhất một luồng áp dụng', 'flows');
+  if (!b.flows?.length)
+    return fieldError(422, 'Đồng chí cần chọn ít nhất một luồng đánh giá áp dụng.', 'flows');
   if (!(b.expectedAccounts > 0))
-    return fieldError(422, 'Quy mô dự kiến phải lớn hơn 0', 'expectedAccounts');
+    return fieldError(422, 'Số tài khoản dự kiến phải lớn hơn 0.', 'expectedAccounts');
   const id = `t-${b.code}`;
   const domain = `${b.code.replace(/_/g, '-')}.okr.viettel.vn`;
   const model = suggestTenancyModel(b.expectedAccounts, b.isolationRequired);
@@ -169,7 +174,9 @@ function create(r: MockRequest): MockResponse {
     expectedAccounts: b.expectedAccounts,
     dataRegion: 'HOALAC',
     domains: [{ domain, kind: 'PRIMARY' }],
-    statusLog: [{ at: new Date().toISOString(), to: 'KHOI_TAO', reason: 'Khai báo tenant' }],
+    statusLog: [
+      { at: new Date().toISOString(), to: 'KHOI_TAO', reason: 'Khai báo đơn vị triển khai' },
+    ],
     onboarding: extra,
   };
   load().unshift(t);
@@ -202,9 +209,13 @@ function patch(r: MockRequest): MockResponse {
   const o = t.onboarding!;
   const touchesSetup = SETUP_FIELDS.some((k) => k in p);
   if (touchesSetup && t.status !== 'KHOI_TAO') {
-    return problem(409, 'Tenant đã cấp phát, không sửa được thông tin bước 1 đến 3.', {
-      code: 'TENANT-409-STATE',
-    });
+    return problem(
+      409,
+      'Đơn vị đã được cấp phát hạ tầng, không sửa được thông tin từ bước 1 đến bước 3.',
+      {
+        code: 'TENANT-409-STATE',
+      },
+    );
   }
   const accounts = p.expectedAccounts ?? o.expectedAccounts;
   const isolation = p.isolationRequired ?? o.isolationRequired;
@@ -212,7 +223,8 @@ function patch(r: MockRequest): MockResponse {
   if (p.tenancyModel && !modelAllowed(p.tenancyModel, accounts, isolation)) {
     return fieldError(
       422,
-      'Tenant trên 1.000.000 tài khoản hoặc thuộc diện cách ly phải dùng mô hình silo (BR-01-01).',
+      // BR-01-01
+      'Đơn vị trên 1.000.000 tài khoản hoặc thuộc diện cách ly phải dùng mức cô lập Cụm riêng.',
       'tenancyModel',
     );
   }
@@ -221,7 +233,8 @@ function patch(r: MockRequest): MockResponse {
     if (!opt || !opt.eligible) {
       return fieldError(
         422,
-        `Cell ${p.cellCode} vượt ngưỡng 85% sau khi thêm tenant hoặc không dùng được (BR-01-02).`,
+        // BR-01-02
+        `Cụm máy chủ ${p.cellCode} vượt ngưỡng 85% dung lượng sau khi thêm đơn vị hoặc đang không sử dụng được.`,
         'cellCode',
       );
     }
@@ -229,17 +242,21 @@ function patch(r: MockRequest): MockResponse {
   if (p.domain !== undefined) {
     const d = p.domain.trim().toLowerCase();
     if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(d)) {
-      return fieldError(422, 'Tên miền không hợp lệ', 'domain');
+      return fieldError(422, 'Tên miền không hợp lệ.', 'domain');
     }
     if (domainTaken(d, t.id)) return fieldError(422, MSG_01_04(d), 'domain');
   }
   if (model === 'silo' && (p.kekMode ?? o.kekMode) === 'DUNG_CHUNG') {
-    return fieldError(422, 'Mô hình silo bắt buộc dùng khoá riêng theo tenant.', 'kekMode');
+    return fieldError(
+      422,
+      'Mức cô lập Cụm riêng bắt buộc dùng khoá mã hoá riêng của đơn vị.',
+      'kekMode',
+    );
   }
   if (p.policyPacks) {
     for (const id of Object.values(p.policyPacks)) {
       const pack = PACKS.find((x) => x.id === id);
-      if (!pack) return fieldError(422, 'Gói chính sách không tồn tại', 'policyPacks');
+      if (!pack) return fieldError(422, 'Bộ quy định đánh giá không tồn tại.', 'policyPacks');
       if (pack.goldenPassRate < 100) {
         return fieldError(422, MSG_01_05(`${pack.name} ${pack.version}`), 'policyPacks');
       }
@@ -286,7 +303,7 @@ function remove(r: MockRequest): MockResponse {
   if (!t) return problem(404, 'Không tìm thấy hồ sơ khởi tạo');
   if (ifMatch(r) !== String(t.rowVersion)) return conflict();
   if (t.status !== 'KHOI_TAO') {
-    return problem(409, 'Chỉ huỷ được yêu cầu chưa cấp phát (KHOI_TAO).', {
+    return problem(409, 'Chỉ huỷ được yêu cầu đang ở trạng thái Khởi tạo, chưa cấp phát hạ tầng.', {
       code: 'TENANT-409-STATE',
     });
   }
@@ -306,13 +323,15 @@ function provision(r: MockRequest): MockResponse {
   });
   if (t.status === 'DANG_CAP_PHAT' && o.provision) return location(o.provision.jobId);
   if (t.status !== 'KHOI_TAO')
-    return problem(409, 'Tenant đã cấp phát.', { code: 'TENANT-409-STATE' });
-  if (!t.cellCode || !t.domain) return problem(422, 'Chưa chọn cell và tên miền (bước 2).');
+    return problem(409, 'Đơn vị đã được cấp phát hạ tầng.', { code: 'TENANT-409-STATE' });
+  if (!t.cellCode || !t.domain)
+    return problem(422, 'Đồng chí chưa chọn cụm máy chủ và tên miền ở bước 2.');
   const missing = t.flows.find((f) => !o.policyPacks[f]);
   if (missing) {
     return fieldError(
       422,
-      `Chưa gắn Policy Pack cho luồng ${missing === 'DANG' ? 'Đảng' : 'Nhà nước'} (BR-01-04).`,
+      // BR-01-04
+      `Chưa gắn bộ quy định đánh giá cho luồng ${missing === 'DANG' ? 'Đảng' : 'Nhà nước'}.`,
       'policyPacks',
     );
   }
@@ -323,7 +342,11 @@ function provision(r: MockRequest): MockResponse {
   };
   delete o.provisionError;
   t.onboardingStep = 3;
-  log(t, 'DANG_CAP_PHAT', `Xác nhận cell ${t.cellCode}, mô hình ${t.tenancyModel}`);
+  log(
+    t,
+    'DANG_CAP_PHAT',
+    `Xác nhận cụm máy chủ ${t.cellCode}, mức cô lập ${TENANCY_MODEL_LABEL[t.tenancyModel]}`,
+  );
   t.rowVersion++;
   return location(o.provision.jobId);
 }
@@ -358,7 +381,7 @@ function provisionJob(r: MockRequest): MockResponse {
     o.provision = undefined;
     o.provisionError = { step, reason };
     t.onboardingStep = 3;
-    log(t, 'KHOI_TAO', `Saga lỗi ở bước ${step}, đã bù trừ`);
+    log(t, 'KHOI_TAO', `Cấp phát lỗi ở bước ${step}, đã hoàn tác`);
     t.rowVersion++;
     return ok({
       ...base,
@@ -372,10 +395,10 @@ function provisionJob(r: MockRequest): MockResponse {
     o.provisionedMinutes = t.tenancyModel === 'pool' ? 4 : t.tenancyModel === 'bridge' ? 74 : 2880;
     o.idps = o.idps.length
       ? o.idps
-      : [{ kind: 'KEYCLOAK_ORG', name: `Organization "${t.code}"`, status: 'DAT' }];
+      : [{ kind: 'KEYCLOAK_ORG', name: `Không gian đăng nhập "${t.code}"`, status: 'DAT' }];
     t.onboardingStep = 4;
     t.domains = t.domains.map((d) => ({ ...d, verifiedAt: new Date().toISOString() }));
-    log(t, 'DANG_CAU_HINH', 'Saga cấp phát hoàn tất');
+    log(t, 'DANG_CAU_HINH', 'Hoàn tất cấp phát hạ tầng');
     t.rowVersion++;
     return ok({
       ...base,
@@ -404,16 +427,20 @@ function testIdp(r: MockRequest): MockResponse {
       return {
         ...i,
         status: 'LOI',
-        message: i.kind === 'LDAP' ? 'Cần địa chỉ ldaps:// (LDAP qua TLS)' : 'Cần địa chỉ https://',
+        message:
+          i.kind === 'LDAP'
+            ? 'Địa chỉ phải bắt đầu bằng ldaps:// (kết nối có mã hoá).'
+            : 'Địa chỉ phải bắt đầu bằng https://.',
       };
     }
     if (url.includes('loi')) {
-      return { ...i, status: 'LOI', message: 'Không kết nối được: hết thời gian chờ 10 giây' };
+      return { ...i, status: 'LOI', message: 'Không kết nối được: quá thời gian chờ 10 giây.' };
     }
     return {
       ...i,
       status: 'DAT',
-      message: i.kind === 'LDAP' ? 'Bind thành công' : 'Đọc được cấu hình và khoá JWKS',
+      message:
+        i.kind === 'LDAP' ? 'Kết nối thành công.' : 'Đọc được cấu hình và khoá xác thực đăng nhập.',
     };
   });
   t.onboarding!.idps = idps;
@@ -434,11 +461,11 @@ function checks(t: StoredTenant): OnboardingCheck[] {
   return [
     {
       code: 'DUNG_LUONG',
-      label: 'Dung lượng cell dưới 85%',
+      label: 'Dung lượng cụm máy chủ dưới 85%',
       result: cell && cell.loadAfter < CELL_LOAD_THRESHOLD ? 'DAT' : 'LOI',
       detail: cell
         ? `${t.cellCode} đang dùng ${Math.round(cell.loadAfter * 100)}%`
-        : 'Chưa chọn cell',
+        : 'Chưa chọn cụm máy chủ',
     },
     {
       code: 'TEN_MIEN',
@@ -448,28 +475,29 @@ function checks(t: StoredTenant): OnboardingCheck[] {
     },
     {
       code: 'POLICY_PACK',
-      label: 'Policy Pack đã phát hành, đạt 100% test case vàng',
+      label: 'Bộ quy định đánh giá đã phát hành, đạt 100% bộ ca kiểm thử chuẩn',
       result: flowsOk ? 'DAT' : 'LOI',
     },
     {
       code: 'IDP',
-      label: 'IdP hoạt động',
+      label: 'Hệ thống đăng nhập hoạt động',
       result: idpOk ? 'DAT' : 'LOI',
-      detail: idpOk ? undefined : 'Còn IdP chưa kiểm tra kết nối hoặc kết nối lỗi',
+      detail: idpOk ? undefined : 'Còn hệ thống đăng nhập chưa kiểm tra kết nối hoặc kết nối lỗi',
     },
     {
       code: 'LECH_CAO',
-      label: 'Không còn lệch nhân sự mức Cao (BR-01-10)',
+      // BR-01-10
+      label: 'Không còn lệch nhân sự mức Cao',
       result: o.highIssues === 0 ? 'DAT' : 'LOI',
       detail: o.highIssues
-        ? `Còn ${o.highIssues.toLocaleString('vi-VN')} lệch mức Cao cần đối soát ở SCR-0104`
+        ? `Còn ${o.highIssues.toLocaleString('vi-VN')} mục lệch mức Cao cần đối soát ở màn hình Đồng bộ và đối soát nhân sự`
         : undefined,
     },
     {
       code: 'BAN_SAO',
       label: 'Bản sao dự phòng',
       result: 'CANH_BAO',
-      detail: 'Bản sao dự phòng đang trễ 6 phút (ngưỡng RPO 15 phút)',
+      detail: 'Bản sao dự phòng đang trễ 6 phút (ngưỡng cho phép 15 phút)',
     },
   ];
 }
@@ -492,13 +520,13 @@ function activate(r: MockRequest): MockResponse {
   if (t.status !== 'SAN_SANG' || failed.length) {
     return problem(
       409,
-      `Chưa kích hoạt được: ${failed.map((c) => c.label).join('; ') || 'tenant chưa sẵn sàng'}.`,
+      `Chưa kích hoạt được: ${failed.map((c) => c.label).join('; ') || 'đơn vị chưa sẵn sàng'}.`,
       {
         code: 'TENANT-409-NOT-READY',
       },
     );
   }
-  log(t, 'DANG_VAN_HANH', 'Kích hoạt (EVT-21 gửi thư cho đầu mối)');
+  log(t, 'DANG_VAN_HANH', 'Kích hoạt, đã gửi thư cho đầu mối quản trị');
   t.onboardingStep = undefined;
   t.rowVersion++;
   return ok(view(t));

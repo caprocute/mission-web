@@ -3,6 +3,7 @@ import {
   CellLoad,
   TENANT_ONBOARDING_STATUSES,
   TENANT_STATUS_LABEL,
+  TENANCY_MODEL_LABEL,
   TenancyModel,
   TenantOverview,
   TenantStatus,
@@ -110,14 +111,14 @@ function startExport(r: MockRequest): MockResponse {
   const rows = filtered(r.params);
   const csv = [
     [
-      'Tenant',
+      'Đơn vị triển khai',
       'Mã',
       'Tên miền',
-      'Cell',
-      'Mô hình',
+      'Cụm máy chủ',
+      'Mức cô lập',
       'Tài khoản',
-      'Policy Pack',
-      'UI Pack',
+      'Bộ quy định đánh giá',
+      'Bộ giao diện',
       'Trạng thái',
     ],
     ...rows.map((t) => [
@@ -125,7 +126,7 @@ function startExport(r: MockRequest): MockResponse {
       t.code,
       t.domain,
       t.cellCode,
-      t.tenancyModel,
+      TENANCY_MODEL_LABEL[t.tenancyModel],
       t.accountCount,
       t.policyPacks.join(' + '),
       t.uiPack,
@@ -145,7 +146,7 @@ function startExport(r: MockRequest): MockResponse {
 
 function exportJob(r: MockRequest): MockResponse {
   const e = exports.get(r.pathParams['jobId']);
-  if (!e) return problem(404, 'Không tìm thấy tác vụ xuất');
+  if (!e) return problem(404, 'Không tìm thấy yêu cầu xuất danh sách.');
   e.polls++;
   const id = e.job.id;
   e.job =
@@ -155,16 +156,16 @@ function exportJob(r: MockRequest): MockResponse {
           type: 'EXPORT',
           status: 'HOAN_TAT',
           progress: 100,
-          message: 'Đã tạo tệp danh sách tenant',
+          message: 'Đã tạo tệp danh sách đơn vị triển khai',
           resultLocation: `/api/v1/config/tenants/exports/${id}/file`,
         }
-      : { id, type: 'EXPORT', status: 'DANG_CHAY', progress: 50, message: 'Đang tổng hợp' };
+      : { id, type: 'EXPORT', status: 'DANG_CHAY', progress: 50, message: 'Đang tổng hợp dữ liệu' };
   return ok(e.job);
 }
 
 function exportFile(r: MockRequest): MockResponse {
   const e = exports.get(r.pathParams['jobId']);
-  if (!e || e.job.status !== 'HOAN_TAT') return problem(404, 'Tệp xuất chưa sẵn sàng');
+  if (!e || e.job.status !== 'HOAN_TAT') return problem(404, 'Tệp xuất chưa sẵn sàng.');
   // BOM để Excel đọc đúng tiếng Việt có dấu
   return {
     status: 200,
@@ -192,7 +193,7 @@ export const TENANTS_MOCK: MockModule = {
       pattern: '/api/v1/config/tenants/:id',
       handle: (r) => {
         const t = load().find((x) => x.id === r.pathParams['id']);
-        if (!t) return problem(404, 'Không tìm thấy tenant');
+        if (!t) return problem(404, 'Không tìm thấy đơn vị triển khai.');
         const { onboarding: _o, ...detail } = t;
         void _o;
         return ok(detail);

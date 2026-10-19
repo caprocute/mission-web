@@ -38,15 +38,15 @@ export const STEP_DEFS: { name: string; compensation: string | null }[] = [
   { name: 'Kiểm tra tiền điều kiện', compensation: null },
   {
     name: 'Khoá kỳ',
-    compensation: 'Trả kỳ về MO, phát sự kiện huỷ khoá kỳ, các module mở ghi lại',
+    compensation: 'Trả kỳ về trạng thái Đang mở, cho phép cập nhật dữ liệu của kỳ trở lại',
   },
   {
     name: 'Tính điểm hàng loạt',
-    compensation: 'Đánh dấu các lô điểm của lần chạy là bị thay thế (superseded), không xoá',
+    compensation: 'Đánh dấu kết quả tính điểm của lần chạy là không còn hiệu lực, không xoá',
   },
   {
     name: 'Sinh mẫu và bảng chấm điểm',
-    compensation: 'Đánh dấu thu hồi các tệp đã sinh; tệp vẫn giữ trong kho chỉ ghi',
+    compensation: 'Đánh dấu thu hồi các tệp đã sinh; tệp vẫn được lưu giữ và không sửa được',
   },
   {
     name: 'Ký số lô',
@@ -68,12 +68,14 @@ export const STEP_ACTIVITY_IDS = [
 const PACKS: PeriodPinnedPolicyPack[] = [
   {
     flow: 'DANG',
+    // ui-text-ok: mã phiên bản nội bộ, màn hình không hiện
     packVersionId: '0192e1c4-5d6e-7f80-9a1b-2c3d4e5f6a70',
     packCode: 'khoi-dang/quy-dinh-moi',
     version: '2.0',
   },
   {
     flow: 'NHA_NUOC',
+    // ui-text-ok: mã phiên bản nội bộ, màn hình không hiện
     packVersionId: '0192e1c4-5d6e-7f80-9a1b-2c3d4e5f6a71',
     packCode: 'nha-nuoc/nd-335',
     version: '1.3',
@@ -237,12 +239,14 @@ export function periodFixtures(): PeriodFixture[] {
           step(0, 'DAT_CO_CANH_BAO', {
             startedAt: '2026-10-19T07:02:05+07:00',
             finishedAt: '2026-10-19T07:05:31+07:00',
-            resultSummary: { note: '214 minh chứng còn DA_NOP không được tính trong kỳ' },
+            resultSummary: {
+              note: '214 minh chứng ở trạng thái Đã nộp, chưa được nghiệm thu, không được tính trong kỳ',
+            },
           }),
           step(1, 'DAT', {
             startedAt: '2026-10-19T07:05:31+07:00',
             finishedAt: '2026-10-19T07:05:40+07:00',
-            resultSummary: { note: 'Kỳ chuyển DANG_KHOA, đã phát EVT-09' },
+            resultSummary: { note: 'Kỳ chuyển sang trạng thái Đang khoá' },
           }),
           step(2, 'DANG_CHAY', {
             startedAt: '2026-10-19T07:05:42+07:00',
@@ -259,42 +263,43 @@ export function periodFixtures(): PeriodFixture[] {
           {
             at: '2026-10-19T07:41:13+07:00',
             event:
-              'Lô q3-lo-040, q3-lo-041, q3-lo-042 lỗi sau 3 lần thử, 17 hồ sơ vào hàng đợi lỗi.',
+              'Lô q3-lo-040, q3-lo-041, q3-lo-042 lỗi sau 3 lần thử; 17 hồ sơ chuyển sang danh sách hồ sơ lỗi.',
             evt: null,
             actor: null,
             ledgerEntryId: 'le-q3-6',
           },
           {
             at: '2026-10-19T07:21:13+07:00',
-            event: 'Đã tính xong 100.000 hồ sơ đầu tiên, phát DiemDaTinh theo lô.',
+            event: 'Đã tính xong 100.000 hồ sơ đầu tiên.',
             evt: 'EVT-10',
             actor: null,
             ledgerEntryId: 'le-q3-5',
           },
           {
             at: '2026-10-19T07:05:42+07:00',
-            event: 'Bắt đầu bước 2: chia 299 lô tính điểm, 24 worker.',
+            event: 'Bắt đầu bước 2: chia thành 299 lô tính điểm.',
             evt: null,
             actor: null,
             ledgerEntryId: 'le-q3-4',
           },
           {
             at: '2026-10-19T07:05:40+07:00',
-            event: 'Kỳ Quý III/2026 chuyển DANG_KHOA, phát KyDaKhoa.',
+            event: 'Kỳ Quý III/2026 chuyển sang trạng thái Đang khoá.',
             evt: 'EVT-09',
             actor: null,
             ledgerEntryId: 'le-q3-3',
           },
           {
             at: '2026-10-19T07:05:31+07:00',
-            event: 'Bước 0 đạt có cảnh báo: 214 minh chứng còn DA_NOP không được tính trong kỳ.',
+            event:
+              'Bước 0 đạt, có cảnh báo: 214 minh chứng ở trạng thái Đã nộp, chưa được nghiệm thu, không được tính trong kỳ.',
             evt: null,
             actor: null,
             ledgerEntryId: 'le-q3-2',
           },
           {
             at: '2026-10-19T07:02:00+07:00',
-            event: 'Khởi chạy saga chot-ky phiên bản 3, khoá chống lặp CK-2026Q3.',
+            event: 'Khởi chạy tiến trình khoá kỳ theo quy trình phiên bản 3.',
             evt: null,
             actor: PEOPLE.lan,
             ledgerEntryId: 'le-q3-1',
@@ -354,12 +359,14 @@ export function periodFixtures(): PeriodFixture[] {
           step(0, 'DAT_CO_CANH_BAO', {
             startedAt: '2026-09-08T08:03:04+07:00',
             finishedAt: '2026-09-08T08:04:10+07:00',
-            resultSummary: { note: '36 minh chứng còn DA_NOP không được tính trong kỳ' },
+            resultSummary: {
+              note: '36 minh chứng ở trạng thái Đã nộp, chưa được nghiệm thu, không được tính trong kỳ',
+            },
           }),
           step(1, 'DAT', {
             startedAt: '2026-09-08T08:04:10+07:00',
             finishedAt: '2026-09-08T08:04:16+07:00',
-            resultSummary: { note: 'Kỳ chuyển DANG_KHOA, đã phát EVT-09' },
+            resultSummary: { note: 'Kỳ chuyển sang trạng thái Đang khoá' },
           }),
           step(2, 'DAT', {
             startedAt: '2026-09-08T08:04:18+07:00',
@@ -374,7 +381,7 @@ export function periodFixtures(): PeriodFixture[] {
           requestedBy: PEOPLE.dung,
           requestedAt: '2026-09-08T08:16:00+07:00',
           reason:
-            'Phát hiện sai sót cấu hình trọng số khối 3 khi đang tính điểm; cần sửa Policy Pack trước khi khoá lại.',
+            'Phát hiện sai sót cấu hình trọng số khối 3 khi đang tính điểm; cần sửa bộ quy định đánh giá trước khi khoá lại.',
         },
         batches: batches('m08', 13, 0, 0, '2026-09-08T08:10:12+07:00').filter(
           (b) => b.status === 'XONG',
@@ -383,35 +390,35 @@ export function periodFixtures(): PeriodFixture[] {
         events: [
           {
             at: '2026-09-08T08:16:00+07:00',
-            event: 'Đề nghị huỷ và bù trừ toàn bộ, chờ người duyệt thứ hai.',
+            event: 'Đề nghị huỷ và hoàn tác toàn bộ, chờ người duyệt thứ hai.',
             evt: 'EVT-21',
             actor: PEOPLE.dung,
             ledgerEntryId: 'le-m08-5',
           },
           {
             at: '2026-09-08T08:10:12+07:00',
-            event: 'Bước 2 hoàn tất; saga tạm dừng theo cờ tạm dừng.',
+            event: 'Bước 2 hoàn tất; tiến trình tạm dừng theo yêu cầu.',
             evt: 'EVT-10',
             actor: null,
             ledgerEntryId: 'le-m08-4',
           },
           {
             at: '2026-09-08T08:08:30+07:00',
-            event: 'Đặt cờ tạm dừng sau bước hiện tại.',
+            event: 'Yêu cầu tạm dừng sau bước hiện tại.',
             evt: null,
             actor: PEOPLE.lan,
             ledgerEntryId: 'le-m08-3',
           },
           {
             at: '2026-09-08T08:04:16+07:00',
-            event: 'Kỳ Tháng 8/2026 chuyển DANG_KHOA, phát KyDaKhoa.',
+            event: 'Kỳ Tháng 8/2026 chuyển sang trạng thái Đang khoá.',
             evt: 'EVT-09',
             actor: null,
             ledgerEntryId: 'le-m08-2',
           },
           {
             at: '2026-09-08T08:03:00+07:00',
-            event: 'Khởi chạy saga chot-ky phiên bản 3, khoá chống lặp CK-202608.',
+            event: 'Khởi chạy tiến trình khoá kỳ theo quy trình phiên bản 3.',
             evt: null,
             actor: PEOPLE.lan,
             ledgerEntryId: 'le-m08-1',
@@ -440,7 +447,7 @@ export function periodFixtures(): PeriodFixture[] {
         },
         pinnedPolicyPacks: [PACKS[1]],
         warnings: [
-          'Ngày khoá dự kiến 20/10/2026 muộn hơn tham số của Policy Pack (ngày 10 tháng sau).',
+          'Ngày khoá dự kiến 20/10/2026 muộn hơn mốc của bộ quy định đánh giá (ngày 10 tháng sau).',
         ],
         rowVersion: 5,
       },

@@ -93,7 +93,7 @@ const TABS = Object.keys(DISCREPANCY_FIELD_LABEL);
               <th scope="col">Nguồn</th>
             }
             <th scope="col">Giá trị nguồn</th>
-            <th scope="col">Nền tảng hiện có</th>
+            <th scope="col">Dữ liệu hiện có</th>
             <th scope="col">Mức</th>
             <th scope="col">Đề xuất</th>
           </tr>

@@ -106,7 +106,7 @@ describe('mock onboarding – SCR-0102 (WEB-017)', () => {
     ).rejects.toMatchObject({
       error: {
         title:
-          'Gói chính sách Khối Đảng · Quy định mới v2.1 chưa đạt 100% test case vàng nên chưa gắn được.',
+          'Bộ quy định đánh giá Khối Đảng · Quy định mới v2.1 chưa đạt 100% bộ ca kiểm thử chuẩn nên chưa gắn được.',
       },
     });
     t = await firstValueFrom(

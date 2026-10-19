@@ -66,15 +66,15 @@ describe('OrgSyncPage (SCR-0104)', () => {
     expect(cards[0]).toContain('61.204 bản ghi · 37 thay đổi');
     expect(cards[2]).toContain('Một phần');
     expect(cards[3]).toContain('412');
-    expect(page(el)).toMatch(/Còn \d+ mục lệch mức Cao\. Tenant chưa thể kích hoạt\./);
+    expect(page(el)).toMatch(/Còn \d+ mục lệch mức Cao\. Đơn vị chưa thể được kích hoạt\./);
     expect(page(el)).toContain('Lần đồng bộ CBCCVC lúc');
     expect(page(el)).toContain(
-      'NDXP không phản hồi sau 120 giây. Thông điệp đã được lưu để chạy lại.',
+      'NDXP không phản hồi sau 120 giây. Dữ liệu đã được lưu lại để chạy lại.',
     );
     const detail = text(el.querySelector('section[aria-labelledby=z4]'));
     expect(detail).toContain('CBCCVC: 000.20.21.H56-00412');
     expect(detail).toContain('12/10/2026 (theo quyết định)');
-    expect(detail).toContain('EVT-15');
+    expect(detail).toContain('nhận được thông báo thay đổi phân công');
   });
 
   it('lọc theo trường lệch và chọn cán bộ để xem chi tiết', async () => {
@@ -121,9 +121,9 @@ describe('OrgSyncPage (SCR-0104)', () => {
   it('chạy lại lần hết thời gian qua tác vụ 202, MSG-01-14 biến mất', async () => {
     const { el } = await render();
     button(el, 'Chạy lại')!.click();
-    await until(el, '.note', () => page(el).includes('Đã chạy lại thông điệp lỗi'));
+    await until(el, '.note', () => page(el).includes('Đã chạy lại dữ liệu lỗi'));
     await until(el, '.tag', () => page(el).includes('đã chạy lại'));
-    expect(page(el)).not.toContain('Thông điệp đã được lưu để chạy lại.');
+    expect(page(el)).not.toContain('Dữ liệu đã được lưu lại để chạy lại.');
     expect(button(el, 'Chạy lại')).toBeUndefined();
   });
 });

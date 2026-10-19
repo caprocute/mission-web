@@ -2,6 +2,7 @@ import { Component, inject, input, linkedSignal, output, signal } from '@angular
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import {
+  ORG_FLOW_LABEL,
   ORG_UNIT_LEVEL_LABEL,
   ORG_UNIT_TYPE_LABEL,
   OrgFlow,
@@ -86,7 +87,7 @@ const today = () => new Date().toISOString().slice(0, 10);
         </select>
       </label>
       <label class="f wide">
-        <span>Khối đối tượng (PL 2A)</span>
+        <span>Khối đối tượng (Phụ lục 2A)</span>
         <select
           class="native"
           name="sg"
@@ -110,7 +111,7 @@ const today = () => new Date().toISOString().slice(0, 10);
               [checked]="f().flows.includes(fl)"
               (change)="toggleFlow(fl, $any($event.target).checked)"
             />
-            {{ fl }}
+            {{ flowLabel[fl] }}
           </label>
         }
         @if (fe()['flows']) {
@@ -141,7 +142,7 @@ const today = () => new Date().toISOString().slice(0, 10);
       <div class="wide row">
         <p-button
           type="submit"
-          label="Ghi phiên bản mới"
+          label="Lưu thay đổi"
           [loading]="busy()"
           [disabled]="!f().name.trim() || !f().flows.length"
         />
@@ -216,6 +217,7 @@ export class OrgUnitEdit {
   protected readonly types = Object.keys(ORG_UNIT_TYPE_LABEL) as OrgUnitType[];
   protected readonly levelLabel = ORG_UNIT_LEVEL_LABEL;
   protected readonly typeLabel = ORG_UNIT_TYPE_LABEL;
+  protected readonly flowLabel = ORG_FLOW_LABEL;
   protected readonly flows: OrgFlow[] = ['NHA_NUOC', 'DANG'];
   protected readonly groups = rxResource({ stream: () => this.api.subjectGroups() });
 

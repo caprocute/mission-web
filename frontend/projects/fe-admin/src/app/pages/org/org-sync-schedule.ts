@@ -57,7 +57,7 @@ import { errorText } from '../../admin-ui';
                     (ngModelChange)="$event && edit(i, { cron: cron($event) })"
                   />
                 } @else {
-                  <code>{{ s.cron }}</code>
+                  <span>Lịch tuỳ chỉnh (chỉ bật hoặc tắt tại đây)</span>
                 }
               </td>
             </tr>
@@ -175,7 +175,7 @@ export class OrgSyncSchedulePanel {
         this.busy.set(false);
         this.msg.set({
           ok: false,
-          text: errorText(e, 'Không lưu được lịch.'),
+          text: errorText(e, 'Không lưu được lịch đồng bộ.'),
           conflict: toProblem(e).status === 409,
         });
       },

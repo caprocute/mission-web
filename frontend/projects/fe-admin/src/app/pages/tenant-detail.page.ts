@@ -2,6 +2,8 @@ import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import {
+  DATA_CENTER_LABEL,
+  TENANCY_MODEL_LABEL,
   TENANT_ONBOARDING_STATUSES,
   TENANT_SECTOR_LABEL,
   TENANT_STATUS_LABEL,
@@ -28,12 +30,12 @@ const DOMAIN_KIND_LABEL = {
   imports: [RouterLink, MessageModule],
   template: `
     <nav class="crumb" aria-label="Đường dẫn">
-      <a routerLink="..">Danh sách tenant</a> /
+      <a routerLink="..">Danh sách đơn vị triển khai</a> /
       <span aria-current="page">{{ t()?.name ?? 'Chi tiết' }}</span>
     </nav>
     @if (tenant.error()) {
       <p-message severity="error" styleClass="msg">
-        <span>{{ err(tenant.error(), 'Không tải được tenant.') }}</span>
+        <span>{{ err(tenant.error(), 'Không tải được thông tin đơn vị triển khai.') }}</span>
         <button type="button" class="link" (click)="tenant.reload()">Thử lại</button>
       </p-message>
     } @else if (t(); as t) {
@@ -46,18 +48,21 @@ const DOMAIN_KIND_LABEL = {
       }
       <div class="cols">
         <section class="box" aria-labelledby="info-title">
-          <h2 id="info-title" class="h">Thông tin tenant</h2>
+          <h2 id="info-title" class="h">Thông tin đơn vị triển khai</h2>
           <dl>
             <dt>Mã</dt>
             <dd>{{ t.code }}</dd>
             <dt>Trạng thái</dt>
             <dd>{{ status(t.status) }}</dd>
-            <dt>Nhóm khách hàng</dt>
+            <dt>Khối, lĩnh vực</dt>
             <dd>{{ sector(t.sector) }}</dd>
             <dt>Luồng đánh giá</dt>
             <dd>{{ flows() }}</dd>
-            <dt>Cell, mô hình</dt>
-            <dd>{{ t.cellCode }} · {{ t.tenancyModel }} · vùng dữ liệu {{ t.dataRegion }}</dd>
+            <dt>Cụm máy chủ, mức cô lập</dt>
+            <dd>
+              {{ t.cellCode }} · {{ modelLabel[t.tenancyModel] }} · vùng lưu dữ liệu
+              {{ dc(t.dataRegion) }}
+            </dd>
             <dt>Tài khoản</dt>
             <dd>
               {{ int(t.accountCount) }} / hạn mức {{ int(t.maxAccounts) }}
@@ -65,9 +70,9 @@ const DOMAIN_KIND_LABEL = {
                 · dự kiến {{ int(t.expectedAccounts) }}
               }
             </dd>
-            <dt>Policy Pack đang gắn</dt>
+            <dt>Bộ quy định đánh giá</dt>
             <dd>{{ t.policyPacks.length ? t.policyPacks.join(' + ') : 'Chưa gắn' }}</dd>
-            <dt>UI Pack</dt>
+            <dt>Bộ giao diện</dt>
             <dd>{{ t.uiPack }}</dd>
             <dt>Hợp đồng</dt>
             <dd>
@@ -110,13 +115,13 @@ const DOMAIN_KIND_LABEL = {
                 }
               </ol>
             } @else {
-              <p class="muted">Chưa có thay đổi trạng thái được ghi.</p>
+              <p class="muted">Chưa có thay đổi trạng thái.</p>
             }
           </section>
         </div>
       </div>
     } @else {
-      <p class="muted" aria-busy="true">Đang tải tenant…</p>
+      <p class="muted" aria-busy="true">Đang tải thông tin đơn vị triển khai…</p>
     }
   `,
   styles: `
@@ -218,6 +223,8 @@ export class TenantDetailPage {
   );
 
   protected readonly domainKind = DOMAIN_KIND_LABEL;
+  protected readonly modelLabel = TENANCY_MODEL_LABEL;
+  protected dc = (code: string) => DATA_CENTER_LABEL[code] ?? code;
   protected readonly int = fmtInt;
   protected readonly date = fmtDate;
   protected readonly dateTime = fmtDateTime;

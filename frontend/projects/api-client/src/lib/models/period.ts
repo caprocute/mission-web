@@ -63,8 +63,8 @@ export const SAGA_STATUS_LABEL: Record<SagaStatus, string> = {
   DANG_CHAY: 'Đang chạy',
   CHO_SU_KIEN: 'Đang tạm dừng',
   HOAN_TAT: 'Hoàn tất',
-  DANG_BU_TRU: 'Đang bù trừ',
-  DA_BU_TRU: 'Đã bù trừ',
+  DANG_BU_TRU: 'Đang hoàn tác',
+  DA_BU_TRU: 'Đã hoàn tác',
   LOI_CAN_XU_LY: 'Lỗi cần xử lý',
 };
 
@@ -74,7 +74,7 @@ export const LOCK_STEP_STATUS_LABEL: Record<PeriodLockStepStatus, string> = {
   DAT: 'Đạt',
   DAT_CO_CANH_BAO: 'Đạt, có cảnh báo',
   LOI: 'Lỗi',
-  DA_BU_TRU: 'Đã bù trừ',
+  DA_BU_TRU: 'Đã hoàn tác',
 };
 
 export const SCORE_BATCH_STATUS_LABEL: Record<ScoreBatchStatus, string> = {

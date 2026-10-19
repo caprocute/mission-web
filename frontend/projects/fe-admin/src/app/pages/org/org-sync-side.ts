@@ -21,10 +21,10 @@ import { fmtDate, fmtDateTime } from '../../admin-ui';
       @if (row(); as d) {
         <p class="name">{{ d.personName }}</p>
         <dl>
-          <dt>Mã ngoài</dt>
+          <dt>Mã tại nguồn</dt>
           <dd>{{ d.externalId }}</dd>
-          <dt>Mã nội bộ</dt>
-          <dd>{{ d.personId ? 'person ' + d.personId : 'Chưa có, cần ánh xạ thủ công' }}</dd>
+          <dt>Hồ sơ trên hệ thống</dt>
+          <dd>{{ d.personId ? 'Đã khớp với hồ sơ hiện có' : 'Chưa có, cần ánh xạ thủ công' }}</dd>
           @if (d.matchedBy) {
             <dt>Khớp theo</dt>
             <dd>{{ d.matchedBy }}</dd>
@@ -42,9 +42,10 @@ import { fmtDate, fmtDateTime } from '../../admin-ui';
         </dl>
         @if (!simple()) {
           <p class="info">
-            Khi chấp nhận, org-service ghi một phiên bản mới với valid_from =
-            {{ d.effectiveFrom ? date(d.effectiveFrom) : 'ngày quyết định' }}, recorded_from = thời
-            điểm duyệt; phát sự kiện PhanCongDaThayDoi (EVT-15).
+            <!-- EVT-15: máy chủ ghi phiên bản mới valid_from = hiệu lực, recorded_from = lúc duyệt -->
+            Khi chấp nhận, phân công được cập nhật có hiệu lực từ ngày
+            {{ d.effectiveFrom ? date(d.effectiveFrom) : 'ghi trong quyết định' }}, thời điểm ghi
+            nhận là lúc duyệt; các bên liên quan nhận được thông báo thay đổi phân công.
           </p>
         }
       } @else {
@@ -80,7 +81,7 @@ import { fmtDate, fmtDateTime } from '../../admin-ui';
           }
         </tbody>
       </table>
-      <p class="muted small">Thông điệp lỗi được giữ trong integ.dead_letter để chạy lại.</p>
+      <p class="muted small">Dữ liệu của lần đồng bộ lỗi được lưu lại để chạy lại.</p>
     </section>
   `,
   styles: `
@@ -183,13 +184,11 @@ export class OrgSyncSide {
   protected readonly runText = computed(() => {
     const d = this.row();
     const r = d && this.runs().find((x) => x.id === d.syncRunId);
-    return r
-      ? `${fmtDateTime(r.startedAt)} · ${SYNC_SOURCE_LABEL[r.connector]}`
-      : (d?.syncRunId ?? '');
+    return r ? `${fmtDateTime(r.startedAt)} · ${SYNC_SOURCE_LABEL[r.connector]}` : 'Không xác định';
   });
 
   protected resultText(r: OrgSyncRun): string {
-    if (r.status === 'THANH_CONG') return 'OK';
+    if (r.status === 'THANH_CONG') return 'Thành công';
     if (r.status === 'THANH_CONG_MOT_PHAN') return `${r.errors} lỗi`;
     if (r.status === 'LOI' && !hasDeadLetters(r)) return 'Lỗi · đã chạy lại';
     return SYNC_RUN_STATUS_LABEL[r.status];
