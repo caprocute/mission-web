@@ -56,7 +56,8 @@ describe('TenantsPage (SCR-0101)', () => {
     expect(text(el.querySelector('aside'))).toContain(
       'Cell CELL-HCM đã sử dụng 91% dung lượng thiết kế. Đề nghị lập kế hoạch mở cell mới.',
     );
-    expect(text(el.querySelector('.pager'))).toContain('Hiển thị 1–8 trong 35');
+    expect(text(el.querySelector('.pager'))).toContain('Hiển thị 1–8');
+    expect(text(el.querySelector('.cards'))).toContain('cell vượt 85%');
   });
 
   it('trang sau và trang trước theo con trỏ', async () => {

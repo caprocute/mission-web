@@ -1,4 +1,4 @@
-import { TenantDetail } from '../../lib/models/tenant';
+import { TenancyModel, TenantStatus } from '../../lib/models/tenant';
 import { TenantOnboarding } from '../../lib/models/tenant-onboarding';
 import { resolveRelativeDates } from '../mock-router';
 import fixture from './tenants.json';
@@ -30,7 +30,37 @@ export interface OnboardingExtra extends Omit<
   provision?: { jobId: string; startedAt: number; failAt?: number };
 }
 
-export type StoredTenant = TenantDetail & { onboarding?: OnboardingExtra };
+/**
+ * Bản ghi tenant trong kho giả lập: hợp các cột `registry.tenant`, tên miền, nhật ký trạng thái và
+ * phần hiển thị của SCR-0101; các handler dựng `ConfigTenantRow`, `ConfigTenant`, `RegistryTenant`
+ * theo hợp đồng từ bản ghi này.
+ */
+export interface TenantRecord {
+  id: string;
+  code: string;
+  name: string;
+  domain: string;
+  cellCode: string;
+  tenancyModel: TenancyModel;
+  accountCount: number;
+  policyPacks: string[];
+  uiPack: string;
+  status: TenantStatus;
+  onboardingStep?: number;
+  rowVersion: number;
+  sector: string;
+  flows: ('DANG' | 'NHA_NUOC')[];
+  contractRef?: string;
+  contractValidTo?: string;
+  maxAccounts: number;
+  expectedAccounts?: number;
+  dataRegion: string;
+  domains: { domain: string; kind: 'PRIMARY' | 'ALIAS' | 'EMBED'; verifiedAt?: string }[];
+  /** `registry.tenant_status_log`, mới nhất trước. */
+  statusLog: { at: string; from?: TenantStatus; to: TenantStatus; reason?: string }[];
+}
+
+export type StoredTenant = TenantRecord & { onboarding?: OnboardingExtra };
 
 let tenants: StoredTenant[] | null = null;
 let seq = 340;
