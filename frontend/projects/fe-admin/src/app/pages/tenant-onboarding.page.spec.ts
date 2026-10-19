@@ -92,10 +92,10 @@ describe('TenantOnboardingPage (SCR-0102)', () => {
 
   it('bước 4: kiểm tra kết nối IdP cập nhật kết quả từng IdP', async () => {
     const { el } = await render('t-thainguyen');
-    await until(el, 'h2', (e) => text(e).includes('Định danh'));
+    await until(el, 'h2', (e) => text(e).includes('Đăng nhập'));
     expect(text(el.querySelector('tbody'))).toContain('Chưa kiểm tra');
     expect(button(el, 'Tiếp tục')?.disabled).toBe(true);
-    button(el, 'Kiểm tra kết nối IdP')!.click();
+    button(el, 'Kiểm tra kết nối')!.click();
     await until(el, 'tbody', (e) => !text(e).includes('Chưa kiểm tra'));
     expect(button(el, 'Tiếp tục')?.disabled).toBe(false);
   });

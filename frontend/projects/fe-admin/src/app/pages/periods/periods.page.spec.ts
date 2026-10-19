@@ -91,7 +91,7 @@ describe('PeriodsPage (SCR-0801)', () => {
     expect(text(el.querySelector('.steps tbody tr.cur'))).toContain('2. Tính điểm hàng loạt');
     expect(text(el)).toContain('Có 214 minh chứng chưa được nghiệm thu sẽ không được tính điểm');
     await until(el, 'h2', has('Hồ sơ lỗi (17)'));
-    await until(el, '.events li', has('KyDaKhoa'));
+    await until(el, '.events li', has('chuyển sang trạng thái Đang khoá'));
     expect(text(el.querySelector('.controls'))).toContain('Tạm dừng sau bước hiện tại');
     expect(text(el.querySelector('.controls'))).toContain('Chạy lại hồ sơ lỗi');
   });
@@ -110,8 +110,8 @@ describe('PeriodsPage (SCR-0801)', () => {
     const ok = await until(el, 'p-message', has('đã được phê duyệt bởi đồng chí'));
     expect(text(ok)).toContain('Lệnh khoá kỳ Quý IV/2026 đã được phê duyệt bởi đồng chí Cán bộ');
     await press(el, 'Khởi chạy');
-    const err = await until(el, 'p-message', has('BR-08-01'));
-    expect(text(err)).toContain('người khởi chạy phải khác người phê duyệt');
+    const err = await until(el, 'p-message', has('Người khởi chạy phải khác'));
+    expect(text(err)).toContain('Người khởi chạy phải khác người phê duyệt');
   });
 
   it('khởi chạy Năm 2026 khi chưa qua hạn nghiệm thu tồn đọng: MSG-08-02', async () => {
