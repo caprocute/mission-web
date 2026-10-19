@@ -28,10 +28,18 @@ export const ROUTES: Routes = [
     title: 'Danh sách tenant',
   },
   {
-    // SCR-0102 Khởi tạo tenant do WEB-017 dựng; tạm dùng trang khung
     path: 'tenants/new',
     canActivate: [permissionGuard('SCR-0102.buoc-1-3')],
-    loadComponent: () => import('./pages/admin-home.page').then((m) => m.AdminHomePage),
+    loadComponent: () =>
+      import('./pages/tenant-onboarding.page').then((m) => m.TenantOnboardingPage),
+    title: 'Khởi tạo tenant',
+  },
+  {
+    // mở lại bản nháp `?step=n`; bước 4, 5 do quản trị tenant (AC-02) làm, AC-01 theo dõi
+    path: 'tenants/:id/onboarding',
+    canActivate: [permissionGuard('SCR-0102.buoc-4-5')],
+    loadComponent: () =>
+      import('./pages/tenant-onboarding.page').then((m) => m.TenantOnboardingPage),
     title: 'Khởi tạo tenant',
   },
   {

@@ -29,6 +29,7 @@ export * from './lib/plan-api';
 export * from './lib/models/okr';
 export * from './lib/okr-api';
 export * from './lib/models/tenant';
+export * from './lib/models/tenant-onboarding';
 export * from './lib/tenant-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
 export type { MockApiOptions } from './mock/mock-api.interceptor';

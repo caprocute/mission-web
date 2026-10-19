@@ -10,7 +10,9 @@
       "primaryDc": "PHIANAM",
       "tenancyModel": "silo",
       "status": "HOAT_DONG",
-      "capacityAccounts": 1300000
+      "capacityAccounts": 1300000,
+      "softwareVersion": "3.2.1",
+      "standbyDc": "HOALAC"
     },
     {
       "code": "CELL-HN",
@@ -18,7 +20,9 @@
       "primaryDc": "HOALAC",
       "tenancyModel": "silo",
       "status": "HOAT_DONG",
-      "capacityAccounts": 1200000
+      "capacityAccounts": 1200000,
+      "softwareVersion": "3.2.1",
+      "standbyDc": "PHIANAM"
     },
     {
       "code": "CELL-DTW",
@@ -26,7 +30,9 @@
       "primaryDc": "HOALAC",
       "tenancyModel": "silo",
       "status": "HOAT_DONG",
-      "capacityAccounts": 1000000
+      "capacityAccounts": 1000000,
+      "softwareVersion": "3.2.1",
+      "standbyDc": "PHIANAM"
     },
     {
       "code": "CELL-G1",
@@ -34,7 +40,9 @@
       "primaryDc": "HOALAC",
       "tenancyModel": "bridge",
       "status": "HOAT_DONG",
-      "capacityAccounts": 1000000
+      "capacityAccounts": 1000000,
+      "softwareVersion": "3.2.1",
+      "standbyDc": "PHIANAM"
     },
     {
       "code": "CELL-G2",
@@ -42,7 +50,9 @@
       "primaryDc": "HOALAC",
       "tenancyModel": "bridge",
       "status": "HOAT_DONG",
-      "capacityAccounts": 1000000
+      "capacityAccounts": 1000000,
+      "softwareVersion": "3.2.1",
+      "standbyDc": "PHIANAM"
     },
     {
       "code": "CELL-G3",
@@ -50,7 +60,9 @@
       "primaryDc": "PHIANAM",
       "tenancyModel": "bridge",
       "status": "HOAT_DONG",
-      "capacityAccounts": 1000000
+      "capacityAccounts": 1000000,
+      "softwareVersion": "3.2.1",
+      "standbyDc": "HOALAC"
     },
     {
       "code": "CELL-G4",
@@ -58,7 +70,9 @@
       "primaryDc": "PHIANAM",
       "tenancyModel": "bridge",
       "status": "HOAT_DONG",
-      "capacityAccounts": 1000000
+      "capacityAccounts": 1000000,
+      "softwareVersion": "3.2.0",
+      "standbyDc": "HOALAC"
     },
     {
       "code": "CELL-SH",
@@ -66,7 +80,9 @@
       "primaryDc": "PHIANAM",
       "tenancyModel": "pool",
       "status": "HOAT_DONG",
-      "capacityAccounts": 600000
+      "capacityAccounts": 600000,
+      "softwareVersion": "3.2.1",
+      "standbyDc": "HOALAC"
     },
     {
       "code": "CELL-NB",
@@ -74,7 +90,9 @@
       "primaryDc": "PHIANAM",
       "tenancyModel": "bridge",
       "status": "BAO_TRI",
-      "capacityAccounts": 200000
+      "capacityAccounts": 200000,
+      "softwareVersion": "3.2.1",
+      "standbyDc": "HOALAC"
     }
   ],
   "tenants": [
@@ -242,7 +260,7 @@
       "policyPacks": [],
       "uiPack": "Mặc định v3.0",
       "status": "DANG_CAP_PHAT",
-      "onboardingStep": 2,
+      "onboardingStep": 3,
       "sector": "CHINH_QUYEN",
       "flows": ["DANG", "NHA_NUOC"],
       "contractRef": "HĐ-30/2026/VTS-LC",
@@ -347,7 +365,11 @@
         "to": "DANG_CAP_PHAT",
         "reason": "Xác nhận cell CELL-G2, mô hình bridge"
       },
-      { "at": "@today-2T09:30:00+07:00", "to": "KHOI_TAO", "reason": "Khai báo tenant" }
+      {
+        "at": "@today-2T09:30:00+07:00",
+        "to": "KHOI_TAO",
+        "reason": "Khai báo tenant"
+      }
     ],
     "t-ninhbinh": [
       {
@@ -357,5 +379,165 @@
         "reason": "Hết hạn hợp đồng, chờ gia hạn"
       }
     ]
+  },
+  "policyPacks": [
+    {
+      "id": "pk-dang-qdm-2.0",
+      "name": "Khối Đảng · Quy định mới",
+      "version": "v2.0",
+      "flow": "DANG",
+      "status": "DA_PHAT_HANH",
+      "goldenPassRate": 100
+    },
+    {
+      "id": "pk-dang-qdm-2.1",
+      "name": "Khối Đảng · Quy định mới",
+      "version": "v2.1",
+      "flow": "DANG",
+      "status": "DA_PHAT_HANH",
+      "goldenPassRate": 96
+    },
+    {
+      "id": "pk-nn-335-1.3",
+      "name": "Nhà nước · NĐ 335",
+      "version": "v1.3",
+      "flow": "NHA_NUOC",
+      "status": "DA_PHAT_HANH",
+      "goldenPassRate": 100
+    },
+    {
+      "id": "pk-sn-233-yte-1.0",
+      "name": "Sự nghiệp · NĐ 233 Y tế",
+      "version": "v1.0",
+      "flow": "NHA_NUOC",
+      "status": "DA_PHAT_HANH",
+      "goldenPassRate": 100
+    },
+    {
+      "id": "pk-dn-okr-1.1",
+      "name": "Doanh nghiệp · OKR",
+      "version": "v1.1",
+      "flow": "NHA_NUOC",
+      "status": "DA_PHAT_HANH",
+      "goldenPassRate": 100
+    }
+  ],
+  "uiPacks": [
+    {
+      "id": "ui-mac-dinh-3.0",
+      "name": "Mặc định",
+      "version": "v3.0"
+    },
+    {
+      "id": "ui-khoi-dang-1.4",
+      "name": "Khối Đảng",
+      "version": "v1.4"
+    },
+    {
+      "id": "ui-y-te-1.2",
+      "name": "Y tế",
+      "version": "v1.2"
+    }
+  ],
+  "onboarding": {
+    "t-truong-thpt-hue": {
+      "onboardingCode": "ONB-2026-0331",
+      "contractSignedOn": "2026-10-15",
+      "expectedUnits": 12,
+      "isolationRequired": false,
+      "adminName": "Nguyễn Thị Lan",
+      "adminEmail": "lan.nt@quochoc.edu.vn",
+      "startedAt": "@today-1T15:40:00+07:00",
+      "policyPacks": {},
+      "idps": [],
+      "hrSources": [],
+      "highIssues": 0
+    },
+    "t-laocai": {
+      "onboardingCode": "ONB-2026-0322",
+      "contractSignedOn": "2026-10-12",
+      "expectedUnits": 980,
+      "isolationRequired": false,
+      "adminName": "Hoàng Văn Sơn",
+      "adminEmail": "son.hv@laocai.gov.vn",
+      "startedAt": "@todayT07:30:00+07:00",
+      "kekMode": "RIENG",
+      "policyPacks": {
+        "DANG": "pk-dang-qdm-2.0",
+        "NHA_NUOC": "pk-nn-335-1.3"
+      },
+      "uiPackId": "ui-mac-dinh-3.0",
+      "idps": [],
+      "hrSources": [],
+      "highIssues": 0,
+      "provisionRunning": true
+    },
+    "t-thainguyen": {
+      "onboardingCode": "ONB-2026-0318",
+      "contractSignedOn": "2026-10-10",
+      "contractRefOverride": "87/2026/HĐ-VTS",
+      "expectedUnits": 1215,
+      "isolationRequired": false,
+      "adminName": "Trần Minh Đức",
+      "adminEmail": "duc.tm@thainguyen.gov.vn",
+      "startedAt": "@today-2T08:10:00+07:00",
+      "kekMode": "RIENG",
+      "policyPacks": {
+        "DANG": "pk-dang-qdm-2.0",
+        "NHA_NUOC": "pk-nn-335-1.3"
+      },
+      "uiPackId": "ui-mac-dinh-3.0",
+      "provisionedMinutes": 74,
+      "idps": [
+        {
+          "kind": "KEYCLOAK_ORG",
+          "name": "Organization \"thainguyen\"",
+          "status": "DAT"
+        },
+        {
+          "kind": "VNEID",
+          "name": "VNeID",
+          "status": "DAT"
+        },
+        {
+          "kind": "LDAP",
+          "name": "LDAP Sở TT&TT",
+          "url": "ldaps://ldap.thainguyen.gov.vn",
+          "status": "CHUA_KIEM_TRA"
+        }
+      ],
+      "hrSources": ["CBCCVC", "DANG_VIEN"],
+      "highIssues": 412
+    },
+    "t-quangngai": {
+      "onboardingCode": "ONB-2026-0297",
+      "contractSignedOn": "2026-09-28",
+      "expectedUnits": 860,
+      "isolationRequired": false,
+      "adminName": "Lê Thị Hoa",
+      "adminEmail": "hoa.lt@quangngai.gov.vn",
+      "startedAt": "@today-9T09:00:00+07:00",
+      "kekMode": "RIENG",
+      "policyPacks": {
+        "NHA_NUOC": "pk-nn-335-1.3"
+      },
+      "uiPackId": "ui-mac-dinh-3.0",
+      "provisionedMinutes": 81,
+      "idps": [
+        {
+          "kind": "KEYCLOAK_ORG",
+          "name": "Organization \"quangngai\"",
+          "status": "DAT"
+        },
+        {
+          "kind": "OIDC",
+          "name": "IdP tỉnh Quảng Ngãi",
+          "url": "https://sso.quangngai.gov.vn/realms/cbcc",
+          "status": "DAT"
+        }
+      ],
+      "hrSources": ["CBCCVC", "SCIM"],
+      "highIssues": 0
+    }
   }
 }
