@@ -5,11 +5,13 @@ Nguồn: docs/phan-quyen/ma-tran.json (sửa ma trận ở đây, không sửa b
 Đầu ra:
   - docs/phan-quyen/ma-tran-phan-quyen.xlsx (6 sheet: Chú giải, Vai trò, Ma trận chức năng, API, Mức dữ liệu, SoD)
   - các khối bảng giữa cặp dấu <!-- BEGIN GEN:<tên> --> ... <!-- END GEN:<tên> --> trong wiki/15a-ma-tran-phan-quyen.md
+  - frontend/projects/auth/src/lib/permissions.generated.ts (bảng quyền phía giao diện cho `@vt/auth`, WEB-054)
 
 Dùng:
-  python3 docs/phan-quyen/gen_matrix.py           # sinh lại cả xlsx và Markdown
-  python3 docs/phan-quyen/gen_matrix.py --check   # chỉ kiểm tra Markdown có khớp dữ liệu không (dùng trong CI)
+  python3 docs/phan-quyen/gen_matrix.py           # sinh lại xlsx, Markdown và tệp TypeScript
+  python3 docs/phan-quyen/gen_matrix.py --check   # chỉ kiểm tra Markdown và TypeScript có khớp dữ liệu không (dùng trong CI)
   python3 docs/phan-quyen/gen_matrix.py --md-only # chỉ sinh lại Markdown
+  python3 docs/phan-quyen/gen_matrix.py --ts      # chỉ sinh lại tệp TypeScript
 
 Chỉ cần Python 3 và openpyxl (không cài thêm gói nào).
 """
@@ -23,6 +25,7 @@ ROOT = HERE.parent.parent
 DATA = HERE / "ma-tran.json"
 XLSX = HERE / "ma-tran-phan-quyen.xlsx"
 WIKI = ROOT / "wiki" / "15a-ma-tran-phan-quyen.md"
+TS = ROOT / "frontend" / "projects" / "auth" / "src" / "lib" / "permissions.generated.ts"
 
 CELL_RE = re.compile(r"^(-|A\*?|H|[XTDR]/(B|Gn|Đv|Cd|Tn|N)\*?)$")
 FILL = {"X": "93C47D", "T": "A4C2F4", "D": "F9CB9C", "R": "D9EAD3", "A": "D9D2E9", "H": "E0E0E0"}
@@ -221,20 +224,71 @@ def write_xlsx(d, acs):
     wb.save(XLSX)
 
 
+# ------------------------------------------------------------------ TypeScript (WEB-054)
+
+def ts_source(d):
+    """Bảng quyền cho `@vt/auth`: chỉ chức năng web, chỉ vai trò người dùng có realm role (bỏ AC-11, AC-12).
+
+    Chỉ giữ dữ liệu cần để quyết định ẩn/hiện (khoá và vai trò), không đưa tên chức năng, phạm vi
+    hay ghi chú vào bundle. Vai trò có ô suy luận mang hậu tố `*` để có thể tắt khi kiểm thử chặt.
+    """
+    skip = {"AC-11", "AC-12"}
+    roles = [(r["ac"], r["role"]) for r in d["vai_tro"] if r["ac"] not in skip]
+    fs = [f for f in d["chuc_nang"] if f["web"]]
+    m = d["meta"]
+    out = [
+        "// TỆP SINH TỰ ĐỘNG, KHÔNG SỬA TAY.",
+        "// Nguồn: docs/phan-quyen/ma-tran.json; sinh lại bằng `python3 docs/phan-quyen/gen_matrix.py`",
+        "// và kiểm tra lệch bằng `npm run check:permissions` (WEB-054).",
+        "",
+        "/** Phiên bản ma trận phân quyền đã sinh ra tệp này. */",
+        f"export const PERMISSION_MATRIX_VERSION = '{m['phien_ban']} ({m['ngay']})';",
+        "",
+        "/** Khoá chức năng web của ma trận (wiki/15a), dạng `SCR-qqnn.<khoá>`. */",
+        "export type PermissionKey =",
+    ]
+    out += [f"  | '{f['key']}'" + (";" if i == len(fs) - 1 else "") for i, f in enumerate(fs)]
+    out += [
+        "",
+        "/**",
+        " * Vai trò có thể có quyền với từng chức năng, cách nhau bởi dấu cách; hậu tố `*` đánh dấu ô suy luận.",
+        " * Chuỗi rỗng: không vai trò người dùng nào có quyền trên giao diện.",
+        " */",
+        "export const PERMISSION_TABLE: Readonly<Record<PermissionKey, string>> = {",
+    ]
+    for f in fs:
+        cells = []
+        for ac, role in roles:
+            v = f["quyen"][ac]
+            if v != "-":
+                cells.append(role + ("*" if v.endswith("*") else ""))
+        line = f"  '{f['key']}': '{' '.join(cells)}',"
+        # Giữ đúng định dạng Prettier (printWidth 100) để `format:check` không báo lệch
+        out += [line] if len(line) <= 100 else [f"  '{f['key']}':", f"    '{' '.join(cells)}',"]
+    out += ["};", ""]
+    return "\n".join(out)
+
+
 def main(argv):
     d, acs = load()
     blocks = md_blocks(d, acs)
     old = WIKI.read_text(encoding="utf-8")
     new = render_md(old, blocks)
+    ts_new = ts_source(d)
+    ts_old = TS.read_text(encoding="utf-8") if TS.exists() else ""
     if "--check" in argv:
-        if new != old:
-            print(f"{WIKI.relative_to(ROOT)} lệch với {DATA.relative_to(ROOT)}; chạy lại gen_matrix.py", file=sys.stderr)
+        bad = [p for p, a, b in ((WIKI, new, old), (TS, ts_new, ts_old)) if a != b]
+        for p in bad:
+            print(f"{p.relative_to(ROOT)} lệch với {DATA.relative_to(ROOT)}; chạy lại gen_matrix.py", file=sys.stderr)
+        if bad:
             return 1
-        print("Markdown khớp dữ liệu.")
+        print("Markdown và TypeScript khớp dữ liệu.")
         return 0
-    if new != old:
+    if "--ts" not in argv and new != old:
         WIKI.write_text(new, encoding="utf-8")
-    if "--md-only" not in argv:
+    if "--md-only" not in argv and ts_new != ts_old:
+        TS.write_text(ts_new, encoding="utf-8")
+    if "--md-only" not in argv and "--ts" not in argv:
         write_xlsx(d, acs)
     s = stats(d)
     print(f"Đã sinh: {s['n']} chức năng ({s['web']} web), {s['scr']} màn hình, {s['inferred']} ô suy luận.")
