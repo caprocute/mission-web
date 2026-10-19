@@ -57,7 +57,7 @@ import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '.
         <p class="blocker">{{ k.latestBlocker }}</p>
       }
       @if (k.linkedWork.length > 0 || k.linkedTaskCount > 0) {
-        <h3 class="h3">Nhiệm vụ liên kết (Tầng 2–3)</h3>
+        <h3 class="h3">Chương trình và nhiệm vụ liên kết</h3>
         <ul class="work">
           @for (w of k.linkedWork; track w.id) {
             <li>
@@ -71,7 +71,8 @@ import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '.
             Xem tất cả {{ k.linkedTaskCount }} nhiệm vụ liên kết
           </a>
         }
-        <p class="note">Tiến độ nhiệm vụ không tự cộng vào giá trị KR (BR-03-07).</p>
+        <!-- BR-03-07 -->
+        <p class="note">Tiến độ nhiệm vụ không tự cộng vào giá trị KR.</p>
       }
       @if (canCheckIn()) {
         <p-button
