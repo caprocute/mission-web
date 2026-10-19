@@ -119,6 +119,21 @@ export interface ChildRoute {
  * Đối số của guard là khoá viết thẳng (`'SCR-0101.xem'`), `screenKeys(...)` hoặc một hằng khai báo
  * bằng `const X = screenKeys(...)` trong cùng tệp.
  */
+/** Đường dẫn các tuyến cha lồng (`children`) bao quanh vị trí `at`, suy theo thụt lề của `path:`. */
+function parentPaths(src: string, at: number): string[] {
+  const lines = src.slice(0, at).split('\n');
+  let indent = lines.at(-1)!.search(/\S|$/);
+  const out: string[] = [];
+  for (let i = lines.length - 2; i >= 0; i--) {
+    const m = /^(\s*)path: '([^']*)'/.exec(lines[i]);
+    if (m && m[1].length < indent) {
+      out.unshift(m[2]);
+      indent = m[1].length;
+    }
+  }
+  return out;
+}
+
 export function childRoutes(file: string, base: string): ChildRoute[] {
   const src = read(join(REPO, 'frontend/projects', file));
   const consts = new Map<string, string[]>();
@@ -134,7 +149,8 @@ export function childRoutes(file: string, base: string): ChildRoute[] {
       : args.startsWith('...')
         ? (consts.get(args.slice(3)) ?? [])
         : [...args.matchAll(/'(SCR-\d{4}\.[a-z0-9-]+)'/g)].map((k) => k[1]);
-    const full = m[1] ? `${base}/${m[1]}` : base;
+    const segs = [...parentPaths(src, m.index), m[1]].filter(Boolean);
+    const full = segs.length ? `${base}/${segs.join('/')}` : base;
     out.push({
       path: m[1],
       url: full.replace(/:\w+/g, 'E2E-1'),
