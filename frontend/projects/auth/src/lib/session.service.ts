@@ -4,8 +4,17 @@ import { RUNTIME_CONFIG } from '@vt/api-client';
 
 /** Vai trò hệ thống (baseline mục 10, AC-01…AC-12). */
 export type VtRole =
-  | 'platform_admin' | 'tenant_admin' | 'policy_author' | 'leader' | 'manager' | 'member'
-  | 'appraiser' | 'decider' | 'second_approver' | 'inspector' | 'ai_readonly';
+  | 'platform_admin'
+  | 'tenant_admin'
+  | 'policy_author'
+  | 'leader'
+  | 'manager'
+  | 'member'
+  | 'appraiser'
+  | 'decider'
+  | 'second_approver'
+  | 'inspector'
+  | 'ai_readonly';
 
 export interface VtUser {
   id: string;
@@ -18,8 +27,12 @@ export interface VtUser {
 }
 
 const DEV_USER: VtUser = {
-  id: 'dev-user', name: 'Cán bộ thử nghiệm', email: 'dev@mission.local', tenant: 'default',
-  unitId: 'phong-tong-hop', roles: ['member', 'manager'],
+  id: 'dev-user',
+  name: 'Cán bộ thử nghiệm',
+  email: 'dev@mission.local',
+  tenant: 'default',
+  unitId: 'phong-tong-hop',
+  roles: ['member', 'manager'],
 };
 
 /**
@@ -78,7 +91,8 @@ export class SessionService {
   private readClaims(): void {
     const c = this.oauth.getIdentityClaims() as Record<string, unknown> | null;
     if (!c) return;
-    const realmRoles = ((c['realm_access'] as { roles?: string[] } | undefined)?.roles ?? []) as VtRole[];
+    const realmRoles = ((c['realm_access'] as { roles?: string[] } | undefined)?.roles ??
+      []) as VtRole[];
     this._user.set({
       id: String(c['sub']),
       name: String(c['name'] ?? c['preferred_username'] ?? ''),
