@@ -7,6 +7,7 @@ import {
   idempotencyInterceptor,
   mockApiInterceptor,
 } from '@vt/api-client';
+import { provideVtAuth } from '@vt/auth';
 import { provideDesignSystem } from '@vt/design-system';
 import { ROUTES } from './admin.routes';
 
@@ -18,6 +19,8 @@ export const appConfig: ApplicationConfig = {
     // mockApiInterceptor đứng cuối chuỗi interceptor (WEB-008)
     provideHttpClient(withFetch(), withInterceptors([idempotencyInterceptor, mockApiInterceptor])),
     provideDesignSystem(),
+    // Chạy riêng remote: người dùng giả lập; trong shell, phiên do shell cung cấp
+    provideVtAuth(),
     { provide: RUNTIME_CONFIG, useValue: DEFAULT_RUNTIME_CONFIG },
   ],
 };
