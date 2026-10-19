@@ -8,7 +8,7 @@ import { TenantApi } from '../../lib/tenant-api';
 import { MOCK_API_OPTIONS, mockApiInterceptor } from '../mock-api.interceptor';
 import { resetMockData } from '../mock-registry';
 
-/** WEB-016: giả lập danh bạ tenant SCR-0101 (lọc, con trỏ, tải cell, xuất 202). */
+/** WEB-016: giả lập danh bạ tenant SCR-0101 theo `config.yaml`, `platform.yaml` (lọc, con trỏ, tải cell, xuất 202). */
 function setup() {
   TestBed.configureTestingModule({
     providers: [
@@ -30,11 +30,17 @@ function setup() {
 describe('mock tenants – SCR-0101 (WEB-016)', () => {
   beforeEach(() => resetMockData());
 
-  it('trang đầu 8 dòng, con trỏ sang trang sau, tổng số khớp', async () => {
+  it('trang đầu 8 dòng, con trỏ sang trang sau, đi hết 35 tenant', async () => {
     const api = setup();
     const p1 = await firstValueFrom(api.list());
     expect(p1.items).toHaveLength(8);
-    expect(p1.total).toBe(35);
+    let seen = p1.items.length;
+    for (let c = p1.nextCursor; c;) {
+      const p = await firstValueFrom(api.list({ cursor: c }));
+      seen += p.items.length;
+      c = p.nextCursor;
+    }
+    expect(seen).toBe(35);
     expect(p1.items[0].name).toBe('Đảng uỷ các cơ quan Đảng Trung ương');
     const p2 = await firstValueFrom(api.list({ cursor: p1.nextCursor! }));
     expect(p2.items[0].id).not.toBe(p1.items[0].id);
@@ -45,24 +51,26 @@ describe('mock tenants – SCR-0101 (WEB-016)', () => {
     expect((await firstValueFrom(api.list({ cell: 'CELL-G2' }))).items.map((t) => t.code)).toEqual([
       'thainguyen',
     ]);
-    const silo = await firstValueFrom(api.list({ model: 'silo' }));
-    expect(silo.total).toBe(3);
+    const silo = await firstValueFrom(api.list({ model: 'silo', limit: 50 }));
+    expect(silo.items).toHaveLength(3);
     expect((await firstValueFrom(api.list({ status: 'SAN_SANG' }))).items[0].code).toBe(
       'quangngai',
     );
     expect((await firstValueFrom(api.list({ q: 'ca mau' }))).items[0].code).toBe('bvdk_camau');
   });
 
-  it('tổng quan và tải theo cell: CELL-HCM vượt 85%', async () => {
+  it('summary toàn vùng không theo bộ lọc; tải theo cell: CELL-HCM vượt 85%', async () => {
     const api = setup();
-    const o = await firstValueFrom(api.overview());
-    expect(o.onboardingCount).toBe(3);
-    expect(o.onboarding.find((t) => t.id === 't-thainguyen')?.step).toBe(4);
-    expect(o.cellCount).toBe(9);
-    const cells = await firstValueFrom(api.cells());
-    const hcm = cells.find((c) => c.code === 'CELL-HCM')!;
-    expect(hcm.accountCount / hcm.capacityAccounts).toBeGreaterThan(0.85);
-    expect(cells.find((c) => c.code === 'CELL-SH')!.tenantCount).toBe(27);
+    const page = await firstValueFrom(api.list({ status: 'KHOI_TAO' }));
+    const s = page.summary!;
+    expect(s.onboardingTenants).toBe(3);
+    expect(s.cellCount).toBe(9);
+    expect(s.tenantLimit).toBe(5000);
+    const hcm = s.cellLoads!.find((c) => c.cellCode === 'CELL-HCM')!;
+    expect(hcm.loadPercent).toBeGreaterThan(85);
+    expect(hcm.overThreshold).toBe(true);
+    const tn = (await firstValueFrom(api.list({ cell: 'CELL-G2' }))).items[0];
+    expect(tn.onboardingStep).toBe(4);
   });
 
   it('xuất danh sách trả 202 + Location, tác vụ hoàn tất có tệp CSV', async () => {
@@ -77,10 +85,13 @@ describe('mock tenants – SCR-0101 (WEB-016)', () => {
     expect(text).toContain('Thành phố Hồ Chí Minh');
   });
 
-  it('chi tiết có nhật ký trạng thái; mã lạ trả 404', async () => {
+  it('chi tiết theo ConfigTenant, tên miền theo RegistryTenant; mã lạ trả 404', async () => {
     const api = setup();
     const t = await firstValueFrom(api.get('t-thainguyen'));
-    expect(t.statusLog[0].to).toBe('DANG_CAU_HINH');
+    expect(t).toMatchObject({ code: 'thainguyen', cellCode: 'CELL-G2', onboardingStep: 4 });
+    const r = await firstValueFrom(api.registry('t-thainguyen'));
+    expect(r.tenancyModel).toBe('BRIDGE');
+    expect(r.domains?.[0]).toMatchObject({ domain: 'thainguyen.okr.viettel.vn', kind: 'PRIMARY' });
     await expect(firstValueFrom(api.get('khong-co'))).rejects.toMatchObject({ status: 404 });
   });
 });
