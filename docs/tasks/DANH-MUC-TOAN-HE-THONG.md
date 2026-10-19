@@ -2,11 +2,11 @@
 
 # Danh mục task toàn hệ thống Mission
 
-Danh mục có 345 task ngoài các task web WEB-001..065 đã có trong `docs/tasks/README.md`. Tổng khối lượng quy đổi là 420.5 đơn vị (S = 0,5; M = 1; L = 2), đường găng dài 23 task với 31.5 đơn vị. Cột "Tầng" là số bước phụ thuộc dài nhất tính từ gốc: các task cùng tầng và khác luồng có thể chạy song song. Thẻ task chi tiết nằm cạnh tệp này, theo mẫu `_MAU-TASK-HE-THONG.md`. Trạng thái thật của từng task xem trong git và `docs/tasks/README.md` do thread điều phối cập nhật.
+Danh mục có 351 task ngoài các task web WEB-001..065 đã có trong `docs/tasks/README.md`. Tổng khối lượng quy đổi là 428.5 đơn vị (S = 0,5; M = 1; L = 2), đường găng dài 23 task với 31.5 đơn vị. Cột "Tầng" là số bước phụ thuộc dài nhất tính từ gốc: các task cùng tầng và khác luồng có thể chạy song song. Thẻ task chi tiết nằm cạnh tệp này, theo mẫu `_MAU-TASK-HE-THONG.md`. Trạng thái thật của từng task xem trong git và `docs/tasks/README.md` do thread điều phối cập nhật.
 
 ## Đường găng
 
-NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-uoc-flyway-lint.md) → [NEN-031](NEN-031-vai-tro-csdl-theo-schema.md) → [NEN-033](NEN-033-rls-phan-vung-pgbouncer.md) → [NEN-010](NEN-010-starter-ngu-canh-tenant.md) → [NEN-019](NEN-019-mau-service-java.md) → [CORE-00-01](CORE-00-01-khung-mission-core.md) → [CORE-00-02](CORE-00-02-tam-module-modulith.md) → [CORE-05-01](CORE-05-01-migration-schema-policy.md) → [CORE-05-02](CORE-05-02-phien-ban-goi-chinh-sach.md) → [CORE-05-03](CORE-05-03-policy-query-api.md) → [CORE-08-13](CORE-08-13-form-schema-api.md) → [CORE-08-14](CORE-08-14-kiem-tra-json-schema-cel.md) → [CORE-04-04](CORE-04-04-phieu-tu-danh-gia.md) → [CORE-04-05](CORE-04-05-tham-dinh-de-xuat.md) → [CORE-04-07](CORE-04-07-quyet-dinh-hang-loat.md) → [CORE-04-08](CORE-04-08-ky-so-khoa-ho-so.md) → [CORE-04-10](CORE-04-10-xep-loai-nam.md) → QA-06 → QA-07 → QA-16 → VH-08
+NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-uoc-flyway-lint.md) → [NEN-031](NEN-031-vai-tro-csdl-theo-schema.md) → [NEN-033](NEN-033-rls-phan-vung-pgbouncer.md) → [NEN-010](NEN-010-starter-ngu-canh-tenant.md) → [NEN-019](NEN-019-mau-service-java.md) → [CORE-00-01](CORE-00-01-khung-mission-core.md) → [CORE-00-02](CORE-00-02-tam-module-modulith.md) → [CORE-05-01](CORE-05-01-migration-schema-policy.md) → [CORE-05-02](CORE-05-02-phien-ban-goi-chinh-sach.md) → [CORE-05-03](CORE-05-03-policy-query-api.md) → [CORE-08-13](CORE-08-13-form-schema-api.md) → [CORE-08-14](CORE-08-14-kiem-tra-json-schema-cel.md) → [CORE-04-04](CORE-04-04-phieu-tu-danh-gia.md) → [CORE-04-05](CORE-04-05-tham-dinh-de-xuat.md) → [CORE-04-07](CORE-04-07-quyet-dinh-hang-loat.md) → [CORE-04-08](CORE-04-08-ky-so-khoa-ho-so.md) → [CORE-04-10](CORE-04-10-xep-loai-nam.md) → [QA-06](QA-06-hanh-trinh-danh-gia.md) → [QA-07](QA-07-hanh-trinh-giam-sat.md) → [QA-16](QA-16-uat-tenant-thi-diem.md) → [VH-08](VH-08-thi-diem-chuyen-tenant.md)
 
 ## Luồng song song
 
@@ -20,10 +20,10 @@ NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-
 | B5 | Định danh, tổ chức, tenant, tích hợp | 38 | 46 |
 | B6 | Quy trình, sổ cái, ký số, tài liệu | 27 | 39 |
 | B7 | Thông báo, tìm kiếm, phân tích, AI | 25 | 29 |
-| B8 | Hạ tầng, CI/CD, quan sát, dự phòng | 23 | 37 |
+| B8 | Hạ tầng, CI/CD, quan sát, dự phòng | 28 | 44 |
 | B9 | Kiểm thử tích hợp, hiệu năng, ATTT, DR | 18 | 26.5 |
 | B10 | Di động | 10 | 10.5 |
-| B11 | Dữ liệu nghiệp vụ, hệ cũ, vận hành | 34 | 44 |
+| B11 | Dữ liệu nghiệp vụ, hệ cũ, vận hành | 35 | 45 |
 | W | Phân hệ web (các luồng web hiện có) | 10 | 10.5 |
 
 ## NEN · Nền móng hệ thống: repo, quy định, wiki, khung mã, thư viện nền, nền CSDL
@@ -418,55 +418,61 @@ NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-
 | [DL-12](DL-12-job-doi-soat.md) | Job đối soát R1–R8 và bốn job kiểm tra sổ cái | L | CORE-04-02, DV-09-04, DV-15-02 | TL-03 ch.17 | B11 | 14 |  |
 | [DL-13](DL-13-luu-giu-xoa-mat-ma.md) | Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ | M | NEN-015, INF-18, CORE-08-07 | NFR-09; TL-03 ch.16 | B11 | 13 |  |
 | DL-14 | Xoay vòng DEK định kỳ và bọc lại khoá theo KEK mới | M | NEN-015, INF-13 | ADR-17 | B11 | 7 | Bổ sung sau khi viết thẻ |
+| DL-15 | Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`) | M | NEN-015, DL-08 | SEC-52 | B11 | 14 | Bổ sung sau khi viết thẻ |
 
 ## INF · Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng
 
 | Mã | Tên | Cỡ | Phụ thuộc | Truy vết | Luồng | Tầng | Ghi chú |
 |---|---|---|---|---|---|---|---|
-| INF-01 | Chart thư viện `vt-service`: probe, PDB, phân bố vùng, HPA, NetworkPolicy, tài nguyên | L | – | TL-04 ch.5 | B8 | 1 |  |
-| INF-02 | Chart từng service, chart tổng `vt-platform` và values cho ba mô hình phân phối | L | INF-01 | TL-04 ch.2, ch.5 | B8 | 2 |  |
-| INF-03 | Values định cỡ bốn hồ sơ cell, `capacity/assumptions.yaml`, script tính bảng, kiểm ngân sách kết nối trong CI | M | INF-02 | TL-05; TL-04 ch.4 | B8 | 3 |  |
-| INF-04 | Kho GitOps: Argo CD ApplicationSet theo cell và môi trường, sync window, Argo Rollouts canary có phân tích SLI | L | INF-02 | ADR-16; OPS-02, 03, 05 | B8 | 3 |  |
-| INF-05 | Thư viện pipeline Jenkins `vt-pipeline` cho Java: build, test, ArchUnit, Sonar, Semgrep, gitleaks, Trivy, openapi-diff, Pact, SBOM, Jib, cosign, provenance SLSA 3 | L | NEN-005 | ADR-16; SEC-37..39 | B8 | 3 |  |
-| INF-06 | Pipeline cho Go, Python, Flutter, Helm và nội dung (Policy Pack, UI Pack) | M | INF-05 | OPS-10 | B8 | 4 |  |
-| INF-07 | Harbor và chính sách Kyverno: chỉ ảnh có ký, không root, có giới hạn và probe, `vt-require-ha` | M | INF-05 | SEC-28, SEC-38 | B8 | 4 |  |
-| INF-08 | Cụm Kubernetes của cell phần 1: node pool, taint, 13 namespace, NetworkPolicy mặc định từ chối, APISIX ingress | L | – | TL-04 ch.3 | B8 | 1 | Cần cụm K8s thật hoặc kind cho dev |
-| INF-09 | Cụm Kubernetes của cell phần 2: Istio ambient mTLS STRICT, StorageClass Ceph RBD và NVMe cục bộ, egress gateway | L | INF-08 | ADR-11; SEC-32..36 | B8 | 2 |  |
-| INF-10 | Kafka bằng Strimzi, Apicurio, Kafka Connect Debezium, khai báo topic dạng mã | M | INF-08, NEN-007 | ADR-03 | B8 | 4 |  |
-| INF-11 | PostgreSQL CloudNativePG sáu cụm, PgBouncer, Valkey, OpenSearch, ClickHouse theo định cỡ | L | INF-08 | ADR-02, ADR-14, ADR-15, ADR-18 | B8 | 2 |  |
-| INF-12 | Ceph RGW, bucket minh chứng Object Lock compliance, multisite | M | INF-09 | ADR-13 | B8 | 3 |  |
-| INF-13 | OpenBao năm node tự mở khoá bằng HSM, PKI nội bộ, cert-manager, External Secrets Operator | L | INF-08 | ADR-17; SEC-10, 11, 59 | B8 | 2 | Cần HSM thật cho production |
-| INF-14 | Quan sát phần 1: OTel Collector lấy mẫu theo đuôi, Tempo, Prometheus và Thanos, Loki, Fluent Bit có bộ đệm đĩa | L | INF-08 | ADR-12; NFR-10 | B8 | 2 |  |
-| INF-15 | Quan sát phần 2: SLI, dashboard Grafana, cảnh báo theo tốc độ tiêu ngân sách lỗi, 24 cảnh báo tối thiểu, ngưỡng nâng bậc NG-01..NG-14 | M | INF-14 | TL-04 ch.10; TL-05 | B8 | 3 |  |
-| INF-16 | Co giãn: Prometheus Adapter cho HPA, KEDA theo độ trễ Kafka, KEDA theo lịch hạn, Cluster Autoscaler có pod giữ chỗ | L | INF-14, INF-10 | TL-04 ch.6 | B8 | 5 |  |
-| INF-17 | Sao lưu phần 1: CNPG Barman Cloud, kho sao lưu bất biến, `restore-check` hằng ngày, Velero và etcd | L | INF-11 | TL-04 ch.8; OPS-18 | B8 | 3 |  |
-| INF-18 | Sao lưu phần 2: MirrorMaker 2, Ceph multisite, snapshot OpenSearch, ClickHouse, Valkey, giữ outbox 72 giờ, lịch sao lưu | L | INF-17, INF-12 | TL-04 ch.8 | B8 | 4 |  |
-| INF-19 | Bảo mật nền: Falco, nhật ký kiểm toán API Kubernetes và luồng `sys.audit.v1` tới SIEM, Pod Security, chính sách egress | M | INF-09 | SEC-22, 30, 43, 50 | B8 | 3 |  |
-| INF-20 | Vùng điều phối toàn cục: cụm quản trị, PostgreSQL toàn cục, GeoDNS PowerDNS, `dns-sync`, CDN tài nguyên tĩnh | L | INF-04 | TL-04 ch.2 | B8 | 4 |  |
-| INF-21 | Môi trường phi sản xuất: staging, CELL-PERF, cụm sinh tải, môi trường tạm theo nhánh cho E2E | M | INF-04 | TL-05 môi trường | B8 | 4 | Cần tài nguyên hạ tầng |
-| INF-22 | Triển khai backend lên server dev bằng Docker Compose (profile backend, cổng 35xxx) để kiểm thử tích hợp thật | M | CORE-00-01, NEN-020 | YC-HT-01, YC-PT-08 | B8 | 10 | Qua Remote Control trên máy Mac |
-| INF-23 | Gói cài cách ly LTS: đóng gói Helm ngoại tuyến, Harbor nội bộ, kiểm chữ ký | L | INF-02, INF-07 | OPS-12; TL-04 mục 9.9 | B8 | 5 |  |
+| [INF-01](INF-01-chart-thu-vien-vt-service.md) | Chart thư viện `vt-service`: probe, PDB, phân bố vùng, HPA, NetworkPolicy, tài nguyên | L | – | TL-04 ch.5 | B8 | 1 |  |
+| [INF-02](INF-02-chart-dich-vu-vt-platform.md) | Chart từng service, chart tổng `vt-platform` và values cho ba mô hình phân phối | L | INF-01 | TL-04 ch.2, ch.5 | B8 | 2 |  |
+| [INF-03](INF-03-values-dinh-co-cell.md) | Values định cỡ bốn hồ sơ cell, `capacity/assumptions.yaml`, script tính bảng, kiểm ngân sách kết nối trong CI | M | INF-02 | TL-05; TL-04 ch.4 | B8 | 3 |  |
+| [INF-04](INF-04-gitops-argo-cd.md) | Kho GitOps: Argo CD ApplicationSet theo cell và môi trường, sync window, Argo Rollouts canary có phân tích SLI | L | INF-02 | ADR-16; OPS-02, 03, 05 | B8 | 3 |  |
+| [INF-05](INF-05-pipeline-jenkins-java.md) | Thư viện pipeline Jenkins `vt-pipeline` cho Java: build, test, ArchUnit, Sonar, Semgrep, gitleaks, Trivy, openapi-diff, Pact, SBOM, Jib, cosign, provenance SLSA 3 | L | NEN-005 | ADR-16; SEC-37..39 | B8 | 3 |  |
+| [INF-06](INF-06-pipeline-ngon-ngu-noi-dung.md) | Pipeline cho Go, Python, Flutter, Helm và nội dung (Policy Pack, UI Pack) | M | INF-05 | OPS-10 | B8 | 4 |  |
+| [INF-07](INF-07-harbor-kyverno.md) | Harbor và chính sách Kyverno: chỉ ảnh có ký, không root, có giới hạn và probe, `vt-require-ha` | M | INF-05 | SEC-28, SEC-38 | B8 | 4 |  |
+| [INF-08](INF-08-cum-cell-phan-1.md) | Cụm Kubernetes của cell phần 1: node pool, taint, 13 namespace, NetworkPolicy mặc định từ chối, APISIX ingress | L | – | TL-04 ch.3 | B8 | 1 | Cần cụm K8s thật hoặc kind cho dev |
+| [INF-09](INF-09-cum-cell-phan-2.md) | Cụm Kubernetes của cell phần 2: Istio ambient mTLS STRICT, StorageClass Ceph RBD và NVMe cục bộ, egress gateway | L | INF-08 | ADR-11; SEC-32..36 | B8 | 2 |  |
+| [INF-10](INF-10-kafka-strimzi-debezium.md) | Kafka bằng Strimzi, Apicurio, Kafka Connect Debezium, khai báo topic dạng mã | M | INF-08, NEN-007, INF-11 | ADR-03 | B8 | 4 |  |
+| [INF-11](INF-11-csdl-va-kho-du-lieu.md) | PostgreSQL CloudNativePG sáu cụm, PgBouncer, Valkey, OpenSearch, ClickHouse theo định cỡ | L | INF-08 | ADR-02, ADR-14, ADR-15, ADR-18 | B8 | 2 |  |
+| [INF-12](INF-12-ceph-object-lock.md) | Ceph RGW, bucket minh chứng Object Lock compliance, multisite | M | INF-09 | ADR-13 | B8 | 3 |  |
+| [INF-13](INF-13-openbao-pki-hsm.md) | OpenBao năm node tự mở khoá bằng HSM, PKI nội bộ, cert-manager, External Secrets Operator | L | INF-08 | ADR-17; SEC-10, 11, 59 | B8 | 2 | Cần HSM thật cho production |
+| [INF-14](INF-14-quan-sat-thu-thap.md) | Quan sát phần 1: OTel Collector lấy mẫu theo đuôi, Tempo, Prometheus và Thanos, Loki, Fluent Bit có bộ đệm đĩa | L | INF-08 | ADR-12; NFR-10 | B8 | 2 |  |
+| [INF-15](INF-15-slo-canh-bao-dashboard.md) | Quan sát phần 2: SLI, dashboard Grafana, cảnh báo theo tốc độ tiêu ngân sách lỗi, 24 cảnh báo tối thiểu, ngưỡng nâng bậc NG-01..NG-14 | M | INF-14 | TL-04 ch.10; TL-05 | B8 | 3 |  |
+| [INF-16](INF-16-co-gian-tu-dong.md) | Co giãn: Prometheus Adapter cho HPA, KEDA theo độ trễ Kafka, KEDA theo lịch hạn, Cluster Autoscaler có pod giữ chỗ | L | INF-14, INF-10, INF-01 | TL-04 ch.6 | B8 | 5 |  |
+| [INF-17](INF-17-sao-luu-csdl.md) | Sao lưu phần 1: CNPG Barman Cloud, kho sao lưu bất biến, `restore-check` hằng ngày, Velero và etcd | L | INF-11 | TL-04 ch.8; OPS-18 | B8 | 3 |  |
+| [INF-18](INF-18-sao-luu-du-lieu-khac.md) | Sao lưu phần 2: MirrorMaker 2, Ceph multisite, snapshot OpenSearch, ClickHouse, Valkey, giữ outbox 72 giờ, lịch sao lưu | L | INF-17, INF-12 | TL-04 ch.8 | B8 | 4 |  |
+| [INF-19](INF-19-bao-mat-nen-tang.md) | Bảo mật nền: Falco, nhật ký kiểm toán API Kubernetes và luồng `sys.audit.v1` tới SIEM, Pod Security, chính sách egress | M | INF-09 | SEC-22, 30, 43, 50 | B8 | 3 |  |
+| [INF-20](INF-20-vung-dieu-phoi-toan-cuc.md) | Vùng điều phối toàn cục: cụm quản trị, PostgreSQL toàn cục, GeoDNS PowerDNS, `dns-sync`, CDN tài nguyên tĩnh | L | INF-04 | TL-04 ch.2 | B8 | 4 |  |
+| [INF-21](INF-21-moi-truong-phi-san-xuat.md) | Môi trường phi sản xuất: staging, CELL-PERF, cụm sinh tải, môi trường tạm theo nhánh cho E2E | M | INF-04 | TL-05 môi trường | B8 | 4 | Cần tài nguyên hạ tầng |
+| [INF-22](INF-22-backend-tren-server-dev.md) | Triển khai backend lên server dev bằng Docker Compose (profile backend, cổng 35xxx) để kiểm thử tích hợp thật | M | CORE-00-01, NEN-020 | YC-HT-01, YC-PT-08 | B8 | 10 | Qua Remote Control trên máy Mac |
+| [INF-23](INF-23-goi-cai-cach-ly.md) | Gói cài cách ly LTS: đóng gói Helm ngoại tuyến, Harbor nội bộ, kiểm chữ ký | L | INF-02, INF-07 | OPS-12; TL-04 mục 9.9 | B8 | 5 |  |
+| INF-24 | Dịch vụ `audit-archiver`: chuyển nhật ký kiểm toán sang kho lưu trữ bất biến theo thời hạn lưu giữ | M | INF-12, INF-19 | NFR-09; SEC | B8 | 4 | Bổ sung sau khi viết thẻ |
+| INF-25 | Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năng phụ, cắt tải theo ưu tiên) | M | DV-01-02, INF-15 | TL-04 cắt tải | B8 | 4 | Bổ sung sau khi viết thẻ |
+| INF-26 | Công cụ vận hành `vtctl` cho các thao tác trong runbook (tenant, cell, khoá kỳ, phát lại sự kiện) | L | INF-04, DV-03-03 | TL-04 ch.11 | B8 | 9 | Bổ sung sau khi viết thẻ; nên tách theo nhóm lệnh |
+| INF-27 | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | INF-13 | SEC-42 | B8 | 3 | Bị chặn bởi bên ngoài: cần giải pháp PAM |
+| INF-28 | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | INF-11, INF-18, INF-20 | NFR-05; DR | B8 | 5 | Bị chặn bởi bên ngoài: cần TTDL thứ hai |
 
 ## QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng
 
 | Mã | Tên | Cỡ | Phụ thuộc | Truy vết | Luồng | Tầng | Ghi chú |
 |---|---|---|---|---|---|---|---|
-| QA-01 | Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối | S | – | TL-01 ch.18 | B9 | 1 |  |
-| QA-02 | Pact Broker và kiểm thử hợp đồng frontend với API, service với service | M | NEN-006, INF-05 | ADR-32 | B9 | 4 |  |
-| QA-03 | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | INF-22, QA-01 | YC-PT-08 | B9 | 11 |  |
-| QA-04 | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | QA-03, CORE-01-08, DV-03-05 | QT-00..QT-03 | B9 | 14 |  |
-| QA-05 | Hành trình đầu cuối: kế hoạch, giao việc, tiến độ, minh chứng, nghiệm thu | L | QA-03, CORE-03-07, CORE-02-22 | QT-04..QT-07 | B9 | 20 |  |
-| QA-06 | Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm | L | QA-05, DV-06-06, CORE-04-10 | QT-08..QT-10 | B9 | 21 |  |
-| QA-07 | Hành trình đầu cuối: kiểm điểm, hồ sơ số, khiếu nại, mở lại kỳ, cảnh báo, Policy Pack, bảng điều hành, AI, UI Pack | L | QA-06, CORE-06-08, CORE-07-11, DV-15-06 | QT-11..QT-18 | B9 | 23 |  |
-| QA-08 | Kịch bản k6 PERF-01..PERF-10 | L | QA-03, DL-08 | TL-04 ch.7 | B9 | 14 |  |
-| QA-09 | Kịch bản góp ý G2: PERF-11..PERF-13 (Gatling cho Flowable) | M | QA-08, DV-06-04 | G2 | B9 | 15 |  |
-| QA-10 | Kịch bản góp ý G3: PERF-14..PERF-18, PERF-25 | M | QA-08, NEN-015 | G3 | B9 | 15 |  |
-| QA-11 | Kịch bản PERF-19..PERF-24, PERF-26 | M | QA-08 | TL-04 ch.7 | B9 | 15 |  |
-| QA-12 | Chiến dịch thử tải trên CELL-PERF và hiệu chuẩn bảng định cỡ theo hồ sơ cell | L | QA-09, QA-10, QA-11, INF-21 | TL-05 hiệu chuẩn | B9 | 16 | Cần CELL-PERF |
-| QA-13 | Kiểm thử ATTT: OWASP ASVS 4.0.3 mức 2 (L3 cho xác thực, phiên, mật mã) và OWASP ZAP toàn hệ thống | L | QA-03 | NFR-08; TL-04 mục 9.7 | B9 | 12 |  |
-| QA-14 | Thử hỏng PERF-07 và diễn tập khôi phục DR-01..DR-09 | L | INF-17, QA-08 | TL-04 ch.8 | B9 | 15 |  |
-| QA-15 | Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu | L | QA-14, INF-18, INF-20 | NFR-05 | B9 | 16 | Cần TTDL thứ hai |
-| QA-16 | Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá | L | QA-07 | Đợt 2 | B9 | 24 | Cần tenant và người dùng thật |
+| [QA-01](QA-01-chien-luoc-kiem-thu.md) | Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối | S | – | TL-01 ch.18 | B9 | 1 |  |
+| [QA-02](QA-02-pact-hop-dong.md) | Pact Broker và kiểm thử hợp đồng frontend với API, service với service | M | NEN-006, INF-05 | ADR-32 | B9 | 4 |  |
+| [QA-03](QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | INF-22, QA-01 | YC-PT-08 | B9 | 11 |  |
+| [QA-04](QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | QA-03, CORE-01-08, DV-03-05 | QT-00..QT-03 | B9 | 14 |  |
+| [QA-05](QA-05-hanh-trinh-giao-viec.md) | Hành trình đầu cuối: kế hoạch, giao việc, tiến độ, minh chứng, nghiệm thu | L | QA-03, CORE-03-07, CORE-02-22 | QT-04..QT-07 | B9 | 20 |  |
+| [QA-06](QA-06-hanh-trinh-danh-gia.md) | Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm | L | QA-05, DV-06-06, CORE-04-10 | QT-08..QT-10 | B9 | 21 |  |
+| [QA-07](QA-07-hanh-trinh-giam-sat.md) | Hành trình đầu cuối: kiểm điểm, hồ sơ số, khiếu nại, mở lại kỳ, cảnh báo, Policy Pack, bảng điều hành, AI, UI Pack | L | QA-06, CORE-06-08, CORE-07-11, DV-15-06 | QT-11..QT-18 | B9 | 23 |  |
+| [QA-08](QA-08-k6-perf-01-10.md) | Kịch bản k6 PERF-01..PERF-10 | L | QA-03, DL-08 | TL-04 ch.7 | B9 | 14 |  |
+| [QA-09](QA-09-gatling-luong-flowable.md) | Kịch bản góp ý G2: PERF-11..PERF-13 (Gatling cho Flowable) | M | QA-08, DV-06-04 | G2 | B9 | 15 |  |
+| [QA-10](QA-10-chi-phi-bao-ve-g3.md) | Kịch bản góp ý G3: PERF-14..PERF-18, PERF-25 | M | QA-08, NEN-015 | G3 | B9 | 15 |  |
+| [QA-11](QA-11-lo-frontend-sse-ai.md) | Kịch bản PERF-19..PERF-24, PERF-26 | M | QA-08 | TL-04 ch.7 | B9 | 15 |  |
+| [QA-12](QA-12-chien-dich-cell-perf.md) | Chiến dịch thử tải trên CELL-PERF và hiệu chuẩn bảng định cỡ theo hồ sơ cell | L | QA-09, QA-10, QA-11, INF-21 | TL-05 hiệu chuẩn | B9 | 16 | Cần CELL-PERF |
+| [QA-13](QA-13-asvs-zap.md) | Kiểm thử ATTT: OWASP ASVS 4.0.3 mức 2 (L3 cho xác thực, phiên, mật mã) và OWASP ZAP toàn hệ thống | L | QA-03 | NFR-08; TL-04 mục 9.8 | B9 | 12 |  |
+| [QA-14](QA-14-thu-hong-dr-01-09.md) | Thử hỏng PERF-07 và diễn tập khôi phục DR-01..DR-09 | L | INF-17, QA-08 | TL-04 ch.8 | B9 | 15 |  |
+| [QA-15](QA-15-dr-chuyen-vung.md) | Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu | L | QA-14, INF-18, INF-20 | NFR-05 | B9 | 16 | Cần TTDL thứ hai |
+| [QA-16](QA-16-uat-tenant-thi-diem.md) | Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá | L | QA-07 | Đợt 2 | B9 | 24 | Cần tenant và người dùng thật |
 
 ## MOB · SVC-18 mobile-app (Flutter)
 
@@ -504,15 +510,15 @@ NEN-001 → [NEN-005](NEN-005-khung-maven-backend.md) → [NEN-030](NEN-030-quy-
 
 | Mã | Tên | Cỡ | Phụ thuộc | Truy vết | Luồng | Tầng | Ghi chú |
 |---|---|---|---|---|---|---|---|
-| VH-01 | Runbook OPS-01..OPS-13 | L | INF-04 | TL-04 ch.11 | B11 | 4 |  |
-| VH-02 | Runbook OPS-14..OPS-26 | L | INF-17 | TL-04 ch.11 | B11 | 4 |  |
-| VH-03 | Trực vận hành, mức sự cố SEV-1..SEV-4, quy trình thay đổi, đóng băng thay đổi | M | VH-01 | TL-04 ch.11 | B11 | 5 |  |
-| VH-04 | Diễn tập vòng đời tenant: đưa tenant mới vào vận hành trong một ngày (OPS-07) | M | DV-03-05, INF-04 | NFR-07 | B11 | 13 |  |
-| VH-05 | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | QA-07 | YC-PT-11 | B11 | 24 |  |
-| VH-06 | Tài liệu quản trị, cài đặt cho ba mô hình phân phối | M | INF-23 | TL-04 ch.2 | B11 | 6 |  |
-| VH-07 | Hồ sơ đề xuất cấp độ 4 theo TCVN 11930:2017 | M | QA-13, INF-19 | NFR-08 | B11 | 13 |  |
-| VH-08 | Kế hoạch đưa tenant thí điểm vào sử dụng và chuyển tenant theo nhóm (OPS-08) | M | QA-16 | Đợt 2, Đợt 3 | B11 | 25 |  |
-| VH-09 | Chấm lại checklist 110 tiêu chí và bảng chỉ số chuyển đổi mỗi quý | S | VH-03 | TL-01 ch.20 | B11 | 6 |  |
+| [VH-01](VH-01-runbook-ops-01-13.md) | Runbook OPS-01..OPS-13 | L | INF-04 | TL-04 ch.11 | B11 | 4 |  |
+| [VH-02](VH-02-runbook-ops-14-26.md) | Runbook OPS-14..OPS-26 | L | INF-17 | TL-04 ch.11 | B11 | 4 |  |
+| [VH-03](VH-03-truc-su-co-cab.md) | Trực vận hành, mức sự cố SEV-1..SEV-4, quy trình thay đổi, đóng băng thay đổi | M | VH-01 | TL-04 ch.11 | B11 | 5 |  |
+| [VH-04](VH-04-dien-tap-onboarding.md) | Diễn tập vòng đời tenant: đưa tenant mới vào vận hành trong một ngày (OPS-07) | M | DV-03-05, INF-04 | NFR-07 | B11 | 13 |  |
+| [VH-05](VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | QA-07 | YC-PT-11 | B11 | 24 |  |
+| [VH-06](VH-06-tai-lieu-quan-tri.md) | Tài liệu quản trị, cài đặt cho ba mô hình phân phối | M | INF-23 | TL-04 ch.2 | B11 | 6 |  |
+| [VH-07](VH-07-ho-so-cap-do-4.md) | Hồ sơ đề xuất cấp độ 4 theo TCVN 11930:2017 | M | QA-13, INF-19 | NFR-08 | B11 | 13 |  |
+| [VH-08](VH-08-thi-diem-chuyen-tenant.md) | Kế hoạch đưa tenant thí điểm vào sử dụng và chuyển tenant theo nhóm (OPS-08) | M | QA-16 | Đợt 2, Đợt 3 | B11 | 25 |  |
+| [VH-09](VH-09-cham-checklist-quy.md) | Chấm lại checklist 110 tiêu chí và bảng chỉ số chuyển đổi mỗi quý | S | VH-03 | TL-01 ch.20 | B11 | 6 |  |
 
 ## WEB · Phân hệ web: phần còn thiếu so với toàn hệ thống
 

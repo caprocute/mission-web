@@ -288,6 +288,7 @@ DL-11	Chuyển dữ liệu kỳ cũ dạng chỉ đọc và niêm phong sổ cá
 DL-12	Job đối soát R1–R8 và bốn job kiểm tra sổ cái	L	CORE-04-02, DV-09-04, DV-15-02	TL-03 ch.17	B11	tl03-phan2 §D
 DL-13	Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ	M	NEN-015, INF-18, CORE-08-07	NFR-09; TL-03 ch.16	B11	tl03-phan2 §C
 DL-14	Xoay vòng DEK định kỳ và bọc lại khoá theo KEK mới	M	NEN-015, INF-13	ADR-17	B11		Bổ sung sau khi viết thẻ
+DL-15	Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`)	M	NEN-015, DL-08	SEC-52	B11		Bổ sung sau khi viết thẻ
 ## INF	Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng
 INF-01	Chart thư viện `vt-service`: probe, PDB, phân bố vùng, HPA, NetworkPolicy, tài nguyên	L	–	TL-04 ch.5	B8	tl04-phan1 §A, §E
 INF-02	Chart từng service, chart tổng `vt-platform` và values cho ba mô hình phân phối	L	INF-01	TL-04 ch.2, ch.5	B8	tl04-phan1 §A, §E
@@ -298,13 +299,13 @@ INF-06	Pipeline cho Go, Python, Flutter, Helm và nội dung (Policy Pack, UI Pa
 INF-07	Harbor và chính sách Kyverno: chỉ ảnh có ký, không root, có giới hạn và probe, `vt-require-ha`	M	INF-05	SEC-28, SEC-38	B8	tl04-phan2 §B.2
 INF-08	Cụm Kubernetes của cell phần 1: node pool, taint, 13 namespace, NetworkPolicy mặc định từ chối, APISIX ingress	L	–	TL-04 ch.3	B8	tl04-phan1 §C	Cần cụm K8s thật hoặc kind cho dev
 INF-09	Cụm Kubernetes của cell phần 2: Istio ambient mTLS STRICT, StorageClass Ceph RBD và NVMe cục bộ, egress gateway	L	INF-08	ADR-11; SEC-32..36	B8	tl04-phan1 §C
-INF-10	Kafka bằng Strimzi, Apicurio, Kafka Connect Debezium, khai báo topic dạng mã	M	INF-08, NEN-007	ADR-03	B8	tl04-phan1 §D; tl03-phan2 §B11
+INF-10	Kafka bằng Strimzi, Apicurio, Kafka Connect Debezium, khai báo topic dạng mã	M	INF-08, NEN-007, INF-11	ADR-03	B8	tl04-phan1 §D; tl03-phan2 §B11
 INF-11	PostgreSQL CloudNativePG sáu cụm, PgBouncer, Valkey, OpenSearch, ClickHouse theo định cỡ	L	INF-08	ADR-02, ADR-14, ADR-15, ADR-18	B8	tl04-phan1 §D
 INF-12	Ceph RGW, bucket minh chứng Object Lock compliance, multisite	M	INF-09	ADR-13	B8	tl03-phan2 §B13; tl04-phan2 §A
 INF-13	OpenBao năm node tự mở khoá bằng HSM, PKI nội bộ, cert-manager, External Secrets Operator	L	INF-08	ADR-17; SEC-10, 11, 59	B8	tl04-phan2 §B.3	Cần HSM thật cho production
 INF-14	Quan sát phần 1: OTel Collector lấy mẫu theo đuôi, Tempo, Prometheus và Thanos, Loki, Fluent Bit có bộ đệm đĩa	L	INF-08	ADR-12; NFR-10	B8	tl04-phan2 §C
 INF-15	Quan sát phần 2: SLI, dashboard Grafana, cảnh báo theo tốc độ tiêu ngân sách lỗi, 24 cảnh báo tối thiểu, ngưỡng nâng bậc NG-01..NG-14	M	INF-14	TL-04 ch.10; TL-05	B8	tl04-phan2 §C; tl05 §1.11
-INF-16	Co giãn: Prometheus Adapter cho HPA, KEDA theo độ trễ Kafka, KEDA theo lịch hạn, Cluster Autoscaler có pod giữ chỗ	L	INF-14, INF-10	TL-04 ch.6	B8	tl04-phan1 §F
+INF-16	Co giãn: Prometheus Adapter cho HPA, KEDA theo độ trễ Kafka, KEDA theo lịch hạn, Cluster Autoscaler có pod giữ chỗ	L	INF-14, INF-10, INF-01	TL-04 ch.6	B8	tl04-phan1 §F
 INF-17	Sao lưu phần 1: CNPG Barman Cloud, kho sao lưu bất biến, `restore-check` hằng ngày, Velero và etcd	L	INF-11	TL-04 ch.8; OPS-18	B8	tl04-phan2 §A
 INF-18	Sao lưu phần 2: MirrorMaker 2, Ceph multisite, snapshot OpenSearch, ClickHouse, Valkey, giữ outbox 72 giờ, lịch sao lưu	L	INF-17, INF-12	TL-04 ch.8	B8	tl04-phan2 §A
 INF-19	Bảo mật nền: Falco, nhật ký kiểm toán API Kubernetes và luồng `sys.audit.v1` tới SIEM, Pod Security, chính sách egress	M	INF-09	SEC-22, 30, 43, 50	B8	tl04-phan2 §B.2, B.4
@@ -312,6 +313,11 @@ INF-20	Vùng điều phối toàn cục: cụm quản trị, PostgreSQL toàn c�
 INF-21	Môi trường phi sản xuất: staging, CELL-PERF, cụm sinh tải, môi trường tạm theo nhánh cho E2E	M	INF-04	TL-05 môi trường	B8	tl05 §1.8	Cần tài nguyên hạ tầng
 INF-22	Triển khai backend lên server dev bằng Docker Compose (profile backend, cổng 35xxx) để kiểm thử tích hợp thật	M	CORE-00-01, NEN-020	YC-HT-01, YC-PT-08	B8	tl05 §4.2	Qua Remote Control trên máy Mac
 INF-23	Gói cài cách ly LTS: đóng gói Helm ngoại tuyến, Harbor nội bộ, kiểm chữ ký	L	INF-02, INF-07	OPS-12; TL-04 mục 9.9	B8	tl04-phan2 §B.8
+INF-24	Dịch vụ `audit-archiver`: chuyển nhật ký kiểm toán sang kho lưu trữ bất biến theo thời hạn lưu giữ	M	INF-12, INF-19	NFR-09; SEC	B8		Bổ sung sau khi viết thẻ
+INF-25	Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năng phụ, cắt tải theo ưu tiên)	M	DV-01-02, INF-15	TL-04 cắt tải	B8		Bổ sung sau khi viết thẻ
+INF-26	Công cụ vận hành `vtctl` cho các thao tác trong runbook (tenant, cell, khoá kỳ, phát lại sự kiện)	L	INF-04, DV-03-03	TL-04 ch.11	B8		Bổ sung sau khi viết thẻ; nên tách theo nhóm lệnh
+INF-27	Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL	M	INF-13	SEC-42	B8		Bị chặn bởi bên ngoài: cần giải pháp PAM
+INF-28	Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite	L	INF-11, INF-18, INF-20	NFR-05; DR	B8		Bị chặn bởi bên ngoài: cần TTDL thứ hai
 ## QA	Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng
 QA-01	Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối	S	–	TL-01 ch.18	B9	tl01-xuyen-suot §12
 QA-02	Pact Broker và kiểm thử hợp đồng frontend với API, service với service	M	NEN-006, INF-05	ADR-32	B9	tl01-xuyen-suot §12
@@ -325,7 +331,7 @@ QA-09	Kịch bản góp ý G2: PERF-11..PERF-13 (Gatling cho Flowable)	M	QA-08, 
 QA-10	Kịch bản góp ý G3: PERF-14..PERF-18, PERF-25	M	QA-08, NEN-015	G3	B9	tl04-phan1 §G
 QA-11	Kịch bản PERF-19..PERF-24, PERF-26	M	QA-08	TL-04 ch.7	B9	tl04-phan1 §G
 QA-12	Chiến dịch thử tải trên CELL-PERF và hiệu chuẩn bảng định cỡ theo hồ sơ cell	L	QA-09, QA-10, QA-11, INF-21	TL-05 hiệu chuẩn	B9	tl05 §1.12	Cần CELL-PERF
-QA-13	Kiểm thử ATTT: OWASP ASVS 4.0.3 mức 2 (L3 cho xác thực, phiên, mật mã) và OWASP ZAP toàn hệ thống	L	QA-03	NFR-08; TL-04 mục 9.7	B9	tl04-phan2 §B.7
+QA-13	Kiểm thử ATTT: OWASP ASVS 4.0.3 mức 2 (L3 cho xác thực, phiên, mật mã) và OWASP ZAP toàn hệ thống	L	QA-03	NFR-08; TL-04 mục 9.8	B9	tl04-phan2 §B.7
 QA-14	Thử hỏng PERF-07 và diễn tập khôi phục DR-01..DR-09	L	INF-17, QA-08	TL-04 ch.8	B9	tl04-phan2 §A.2
 QA-15	Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu	L	QA-14, INF-18, INF-20	NFR-05	B9	tl04-phan2 §A.2	Cần TTDL thứ hai
 QA-16	Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá	L	QA-07	Đợt 2	B9	tl01-xuyen-suot §13	Cần tenant và người dùng thật

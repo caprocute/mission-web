@@ -6,7 +6,7 @@
 
 Tài liệu này là kế hoạch làm **trọn vẹn** nền tảng Mission tới khi đưa vào sử dụng ở quy mô quốc gia, không chỉ phân hệ web. Trước thời điểm lập kế hoạch, dự án mới có kế hoạch và mã nguồn cho phân hệ web (SVC-17), bộ hợp đồng OpenAPI, ma trận phân quyền và hạ tầng dev dùng chung; toàn bộ phần máy chủ (mission-core và mười lăm microservice), cơ sở dữ liệu, đồng bộ dữ liệu, tích hợp hệ ngoài, hạ tầng Kubernetes, CI/CD, kiểm thử tích hợp và hiệu năng, dự phòng thảm hoạ, vận hành, chuyển đổi dữ liệu từ hệ hiện hành, ứng dụng di động và tài liệu sử dụng đều chưa có kế hoạch hay mã. Kế hoạch này lấp toàn bộ khoảng trống đó.
 
-Kế hoạch được chia thành 345 task nhỏ cho AI agent, cộng với 65 task web WEB-001..065 đã có. Mỗi task là một thẻ Markdown trong `docs/tasks/` theo mẫu `docs/tasks/_MAU-TASK-HE-THONG.md`, mở đầu bằng khối quy định chung giống hệt cách đang làm cho web, có phạm vi, tệp được phép sửa và tiêu chí hoàn thành kiểm chứng được. Danh mục đầy đủ, tầng phụ thuộc và đường găng tính tự động nằm ở `docs/tasks/DANH-MUC-TOAN-HE-THONG.md`, sinh từ `docs/tasks/danh-muc-he-thong.tsv` bằng `python3 scripts/sinh-danh-muc.py`. Người điều phối chỉ sửa tệp TSV rồi chạy lại script, không sửa tay danh mục.
+Kế hoạch được chia thành 351 task nhỏ cho AI agent, cộng với 65 task web WEB-001..065 đã có. Mỗi task là một thẻ Markdown trong `docs/tasks/` theo mẫu `docs/tasks/_MAU-TASK-HE-THONG.md`, mở đầu bằng khối quy định chung giống hệt cách đang làm cho web, có phạm vi, tệp được phép sửa và tiêu chí hoàn thành kiểm chứng được. Danh mục đầy đủ, tầng phụ thuộc và đường găng tính tự động nằm ở `docs/tasks/DANH-MUC-TOAN-HE-THONG.md`, sinh từ `docs/tasks/danh-muc-he-thong.tsv` bằng `python3 scripts/sinh-danh-muc.py`. Người điều phối chỉ sửa tệp TSV rồi chạy lại script, không sửa tay danh mục.
 
 Người đọc lần đầu nên đọc mục 2 (thế nào là xong), mục 3 (phạm vi và ma trận phủ), mục 7 (đường găng), mục 8 (chia luồng) và mục 10 (việc cần người dùng). Agent làm task chỉ cần đọc `AGENTS.md`, quy định riêng của phân hệ trong `docs/quy-dinh/` và thẻ task của mình.
 
@@ -32,8 +32,8 @@ Danh mục chia thành mười một nhóm theo tiền tố mã. Tiền tố đ�
 | `NEN-` | Nền móng: repo chung, wiki backend, khung Maven, sinh mã từ hợp đồng, Avro/AsyncAPI, thư viện nền `vt-platform-starter`, thư viện Go và Python, mẫu service, môi trường dev backend, nền CSDL (Flyway, vai trò, bảng dùng chung, RLS, PgBouncer, định tuyến cell), gói chính sách OPA, thư viện CEL, hai task sửa hợp đồng OpenAPI còn thiếu (NEN-042, NEN-043) | 33 |
 | `CORE-00..08-` | mission-core (SVC-05): phần dùng chung và tám module MOD-01..MOD-08 | 112 |
 | `DV-01..16-` | Mười lăm microservice SVC-01..SVC-04, SVC-06..SVC-16 | 105 |
-| `DL-` | Nội dung nghiệp vụ và dữ liệu: Policy Pack, DMN, ca vàng, mẫu biểu, dữ liệu khởi tạo, dữ liệu thử quy mô, chuyển đổi Oracle, đối soát, lưu giữ, xoay vòng khoá | 14 |
-| `INF-` | Hạ tầng: Helm, GitOps, pipeline, Harbor/Kyverno, cụm K8s, Kafka, CSDL, Ceph, OpenBao, quan sát, co giãn, sao lưu, bảo mật nền, vùng toàn cục, môi trường phi sản xuất, server dev, gói cách ly | 23 |
+| `DL-` | Nội dung nghiệp vụ và dữ liệu: Policy Pack, DMN, ca vàng, mẫu biểu, dữ liệu khởi tạo, dữ liệu thử quy mô, chuyển đổi Oracle, đối soát, lưu giữ, xoay vòng khoá, ẩn danh hoá | 15 |
+| `INF-` | Hạ tầng: Helm, GitOps, pipeline, Harbor/Kyverno, cụm K8s, Kafka, CSDL, Ceph, OpenBao, quan sát, co giãn, sao lưu, bảo mật nền, vùng toàn cục, môi trường phi sản xuất, server dev, gói cách ly, lưu trữ kiểm toán, suy giảm khi quá tải, công cụ vận hành, PAM, cụm chờ ấm | 28 |
 | `QA-` | Kiểm thử hợp đồng, đầu cuối, hiệu năng (G2, G3), ATTT, thử hỏng và DR, chấp nhận nghiệp vụ | 16 |
 | `MOB-` | Ứng dụng di động Flutter (SVC-18) | 10 |
 | `LEG-` | Hệ hiện hành: đợt 0a, 0b, 0c, chuyển đổi Strangler Fig, tắt hệ cũ | 12 |
@@ -82,9 +82,9 @@ Bảng dưới trả lời câu hỏi "thành phần nào của thiết kế đ�
 | G3 hiệu năng bảy lớp bảo vệ và mã hoá | NEN-015, QA-10 |
 | Hạ tầng K8s, lưu trữ, mạng, service mesh | INF-08..13, INF-20 |
 | CI/CD, chuỗi cung ứng, GitOps | INF-04..07, INF-23 |
-| Quan sát, SLO, cảnh báo, co giãn | INF-14..16 |
-| Sao lưu và dự phòng thảm hoạ | INF-17, INF-18, QA-14, QA-15 |
-| Bảo mật vận hành (Falco, kiểm toán, SIEM) | INF-19, QA-13, VH-07 |
+| Quan sát, SLO, cảnh báo, co giãn | INF-14..16, INF-25, INF-26 |
+| Sao lưu và dự phòng thảm hoạ | INF-17, INF-18, INF-28, QA-14, QA-15 |
+| Bảo mật vận hành (Falco, kiểm toán, SIEM) | INF-19, INF-24, INF-27, QA-13, VH-07, DL-15 |
 | Kiểm thử tích hợp và đầu cuối | QA-01..07, DV-13-11, NEN-034, NEN-035 |
 | Hiệu năng và định cỡ | INF-03, DL-08, QA-08..12 |
 | Chuyển đổi dữ liệu, đối soát, lưu giữ | DL-09..14 |
@@ -166,10 +166,10 @@ Kế hoạch đề xuất mười một luồng phía hệ thống, cộng các 
 | B5 | Định danh, tổ chức, tenant, cổng API, tích hợp (DV-01..04, DV-13) | 38 | 46 |
 | B6 | Quy trình Flowable, sổ cái, ký số, tài liệu (DV-06, DV-09, DV-10, DV-11) | 27 | 39 |
 | B7 | Thông báo, tìm kiếm, phân tích, AI (DV-12, DV-16, DV-15, DV-14) | 25 | 29 |
-| B8 | Hạ tầng, CI/CD, quan sát, dự phòng (INF) | 23 | 37 |
+| B8 | Hạ tầng, CI/CD, quan sát, dự phòng (INF) | 28 | 44 |
 | B9 | Kiểm thử tích hợp, hiệu năng, ATTT, DR (QA, NEN-035, DL-08) | 18 | 26,5 |
 | B10 | Di động (MOB) | 10 | 10,5 |
-| B11 | Dữ liệu nghiệp vụ, hệ cũ, vận hành (DL, LEG, VH) | 34 | 44 |
+| B11 | Dữ liệu nghiệp vụ, hệ cũ, vận hành (DL, LEG, VH) | 35 | 45 |
 | W | Web còn thiếu (WEB-070..076, CNH web) giao cho các luồng web hiện có | 10 | 10,5 |
 
 Không nên khởi động cả mười một luồng cùng lúc, vì phần lớn luồng nghiệp vụ phải chờ khung mission-core. Đề xuất khởi động theo ba đợt:
@@ -203,7 +203,7 @@ Phần lớn kế hoạch agent tự làm được, nhưng một số đầu và
 
 ### Điểm lệch phát hiện khi viết thẻ
 
-Khi viết 345 thẻ, các agent đối chiếu từng thẻ với TL, baseline và hợp đồng OpenAPI, và phát hiện khoảng 120 điểm lệch hoặc thiếu thông tin: tên claim tenant và tên realm khác nhau giữa các tài liệu, cột và trạng thái trong TL-03 không khớp hợp đồng, một số thao tác mà TL-02 yêu cầu chưa có trong hợp đồng, một số hướng phụ thuộc giữa module ngược ma trận của TL-01, cùng các tham số vận hành chênh nhau (thời hạn step-up, giới hạn tốc độ, thời gian đệm). Mỗi thẻ ghi rõ điểm lệch của mình và lựa chọn đã dùng; quy tắc chung là theo hợp đồng OpenAPI khi hai bên lệch nhau về API (API-first, YC-PT-09), theo TL-03 khi lệch về lược đồ dữ liệu, và theo TL mới hơn trong các trường hợp còn lại. Danh sách đầy đủ ở `docs/DIEM-LECH-KHI-LAP-KE-HOACH.md`; task NEN-004 chuyển danh sách này vào wiki trang 14 và đề xuất chốt, còn NEN-042, NEN-043 bổ sung các thao tác hợp đồng còn thiếu. Mười chín task mới (đánh dấu "Bổ sung sau khi viết thẻ" trong danh mục) được thêm để nhận các việc mà khung ban đầu chưa giao cho ai.
+Khi viết các thẻ, các agent đối chiếu từng thẻ với TL, baseline và hợp đồng OpenAPI, và phát hiện khoảng 120 điểm lệch hoặc thiếu thông tin: tên claim tenant và tên realm khác nhau giữa các tài liệu, cột và trạng thái trong TL-03 không khớp hợp đồng, một số thao tác mà TL-02 yêu cầu chưa có trong hợp đồng, một số hướng phụ thuộc giữa module ngược ma trận của TL-01, cùng các tham số vận hành chênh nhau (thời hạn step-up, giới hạn tốc độ, thời gian đệm). Mỗi thẻ ghi rõ điểm lệch của mình và lựa chọn đã dùng; quy tắc chung là theo hợp đồng OpenAPI khi hai bên lệch nhau về API (API-first, YC-PT-09), theo TL-03 khi lệch về lược đồ dữ liệu, và theo TL mới hơn trong các trường hợp còn lại. Danh sách đầy đủ ở `docs/DIEM-LECH-KHI-LAP-KE-HOACH.md`; task NEN-004 chuyển danh sách này vào wiki trang 14 và đề xuất chốt, còn NEN-042, NEN-043 bổ sung các thao tác hợp đồng còn thiếu. Hai mươi lăm task mới (đánh dấu "Bổ sung sau khi viết thẻ" trong danh mục) được thêm để nhận các việc mà khung ban đầu chưa giao cho ai.
 
 ## 11. Rủi ro chính
 
@@ -215,11 +215,11 @@ Kế hoạch web hiện tại đúng phạm vi của nó, nhưng khi nhìn toàn
 
 ## 13. Ước lượng thời gian (suy luận)
 
-Tổng khối lượng là khoảng 425 đơn vị quy đổi (S = 0,5; M = 1; L = 2) cho 345 task. Phân hệ web đã gộp khoảng 41 task trong khoảng một ngày làm việc với năm luồng song song, tức mỗi luồng khoảng tám task một ngày với task cỡ S và M. Task máy chủ và hạ tầng nặng hơn task màn hình vì phải chạy Testcontainers và kiểm thử tích hợp, nên giả định tốc độ bằng một nửa. Với mười một luồng chạy đủ, phần agent tự làm được ước khoảng 7–10 ngày làm việc liên tục, trong đó đường găng chiếm khoảng 4–5 ngày (suy luận). Con số này **không** tính thời gian chờ các đầu vào bên ngoài ở mục 10, và không tính kỳ thí điểm QA-16, vốn kéo dài bằng một kỳ đánh giá thật. Nếu chạy ít luồng hơn, thời gian tăng gần tỷ lệ nghịch với số luồng ở giai đoạn giữa.
+Tổng khối lượng là khoảng 438 đơn vị quy đổi (S = 0,5; M = 1; L = 2) cho 351 task. Phân hệ web đã gộp khoảng 41 task trong khoảng một ngày làm việc với năm luồng song song, tức mỗi luồng khoảng tám task một ngày với task cỡ S và M. Task máy chủ và hạ tầng nặng hơn task màn hình vì phải chạy Testcontainers và kiểm thử tích hợp, nên giả định tốc độ bằng một nửa. Với mười một luồng chạy đủ, phần agent tự làm được ước khoảng 7–10 ngày làm việc liên tục, trong đó đường găng chiếm khoảng 4–5 ngày (suy luận). Con số này **không** tính thời gian chờ các đầu vào bên ngoài ở mục 10, và không tính kỳ thí điểm QA-16, vốn kéo dài bằng một kỳ đánh giá thật. Nếu chạy ít luồng hơn, thời gian tăng gần tỷ lệ nghịch với số luồng ở giai đoạn giữa.
 
 ## 14. Báo cáo tiến độ toàn hệ thống
 
-Theo YC-PT-11, mọi báo cáo tiến độ nêu tỷ lệ task đã gộp trên toàn danh mục (345 task hệ thống cộng 65 task web), tách theo mốc M0–M7 và theo luồng, kèm danh sách task đang bị chặn bởi bên ngoài. Thread điều phối cập nhật cột trạng thái trong `docs/tasks/danh-muc-he-thong.tsv` (cột Ghi chú) hoặc `docs/tasks/README.md` sau mỗi lần gộp và chạy lại `scripts/sinh-danh-muc.py`.
+Theo YC-PT-11, mọi báo cáo tiến độ nêu tỷ lệ task đã gộp trên toàn danh mục (351 task hệ thống cộng 65 task web), tách theo mốc M0–M7 và theo luồng, kèm danh sách task đang bị chặn bởi bên ngoài. Thread điều phối cập nhật cột trạng thái trong `docs/tasks/danh-muc-he-thong.tsv` (cột Ghi chú) hoặc `docs/tasks/README.md` sau mỗi lần gộp và chạy lại `scripts/sinh-danh-muc.py`.
 
 ## Liên quan
 
