@@ -100,7 +100,28 @@ Bảng `config.component_registry` theo TL-03 là danh mục dùng chung của n
 
 ## Lớp biểu mẫu động
 
-`@vt/form-engine` cung cấp `VtFormComponent` (`<vt-form>`) nhận `schema` (JSON Schema), `ui` (nhóm trường và widget) và `rules` (quy tắc CEL), dùng `FormlyJsonschema` để sinh cấu hình Formly. Mỗi quy tắc (`FormRule`) có `id`, `when`, `assert`, `message` và cờ `serverOnly` cho quy tắc dùng hàm chưa có trên trình duyệt (ví dụ hàm mở rộng `workdays()` trong TL-01). `evaluateRules()` chạy mỗi khi mô hình thay đổi; lỗi do thiếu biến không bị coi là vi phạm vì máy chủ sẽ kiểm tra lại. `lintRules()` kiểm cú pháp cho Config Studio (SCR-1802).
+`@vt/form-engine` cung cấp `VtFormComponent` (`<vt-form>`) nhận `schema` (JSON Schema của Policy Pack), `ui` (phần `forms.*.ui` của UI Pack), `rules` (quy tắc CEL), `context` (dữ liệu chỉ đọc mà quy tắc truy cập bằng `ctx.*`, ví dụ mức hệ thống tham khảo), `value` (bản nháp) và `serverErrors` (mảng `errors[]` của Problem Details). `FormlyJsonschema` sinh cấu hình Formly, rồi engine gắn widget và bố cục. Từ WEB-010, engine không nạp bộ kiểu PrimeNG của Formly mà dùng widget riêng, có nhãn gắn `for`, `aria-describedby` tới mô tả và lỗi, `aria-invalid`, cỡ chạm theo `--vt-min-touch` nên theo được chế độ cao tuổi.
+
+| Widget trong UI Pack | Hiển thị | Mặc định khi UI Pack không ghi |
+|---|---|---|
+| `vt.input.text` | Ô chữ một dòng | Chuỗi có `maxLength` không quá 255 |
+| `vt.input.textarea` | Văn bản dài, đếm ký tự theo `maxLength` | Chuỗi có `maxLength` trên 255 |
+| `vt.input.score` | Ô số có `minimum`, `maximum`, bước `multipleOf` | `number`, `integer` |
+| `vt.input.date` | Ô ngày của trình duyệt, giá trị `YYYY-MM-DD` | Chuỗi `format: date` |
+| `vt.input.catalog` | Danh sách chọn; nhãn lấy từ `oneOf` có `const` và `title`, hoặc từ `VT_FORM_CATALOGS` khi schema ghi `x-catalog` | `enum`, `oneOf` toàn hằng |
+| `vt.input.checkbox` | Hộp đánh dấu có nhãn bấm được | `boolean` |
+
+`ui.sections` gom trường thành `fieldset` có `legend`; trường có trong schema mà UI Pack không xếp vào nhóm nào vẫn được hiện ở cuối, để không giấu mất trường bắt buộc. Trường chuỗi chưa nhập mang giá trị `''` và hộp đánh dấu mang `false` (engine bỏ bộ chuyển `''` thành `undefined` của `FormlyJsonschema`), nên quy tắc như `size(giaiTrinh) >= 20` thấy được trường chưa nhập và bản gửi máy chủ đủ trường. Khi bấm gửi mà còn lỗi, đầu biểu mẫu hiện danh sách lỗi (`role="alert"`, nhận focus) gồm lỗi schema, vi phạm quy tắc và lỗi máy chủ, mỗi dòng có liên kết đưa focus tới trường.
+
+Mỗi quy tắc (`FormRule`) có `id`, `when`, `assert`, `message`, `field` (trường nhận thông báo) và cờ `serverOnly` cho quy tắc dùng hàm chưa có trên trình duyệt (ví dụ `workdays()` trong TL-01). `evaluateRules()` chạy mỗi lần mô hình đổi, cây cú pháp của mỗi biểu thức được phân tích một lần rồi dùng lại. Thiếu biến (cel-js báo `Identifier ... not found`) không bị coi là vi phạm; lỗi khác như gọi hàm không có được ghi cảnh báo trên console. `lintRules()` cho Config Studio (SCR-1802) kiểm cú pháp, mã trùng và hàm không có trên trình duyệt mà quy tắc chưa đánh dấu `serverOnly`. Lỗi máy chủ theo trường hiện ở đúng trường cho tới khi người dùng sửa giá trị trường đó.
+
+Thư viện cel-js 0.8 chỉ hỗ trợ một tập con CEL, và có chỗ cho kết quả khác cel-java (kiểm bằng thử trực tiếp khi làm WEB-010):
+- Phép chia số nguyên cho kết quả số thực: `7 / 2` bằng 3,5, còn CEL chuẩn và cel-java cho 3. Quy tắc nên viết hằng số thực (`100.0`), như ví dụ R-1B-01 của TL-01.
+- Không có cú pháp phương thức trên chuỗi hay danh sách literal: `s.size()`, `s.startsWith()`, `s.matches()`, `[a, b].filter(...)` đều lỗi. Dùng `size(s)`. Macro `filter`, `map`, `all`, `exists`, `exists_one` dùng được trên biến kiểu danh sách.
+- Không có `int()`, `timestamp()`, `duration()`: quy tắc về ngày giờ phải đánh dấu `serverOnly` hoặc truyền hàm mở rộng qua `functions`.
+- `size()` đếm ký tự, chuỗi tiếng Việt có dấu không bị đếm theo byte.
+
+**Test vàng dùng chung hai engine.** Mỗi biểu mẫu có một tệp `<ma-bieu-mau>.golden.json` gồm `form`, `version` và mảng `cases`; mỗi ca có `id`, `description`, `model` (dữ liệu như bản gửi máy chủ, đủ trường), `context` (giá trị cho `ctx.*`) và `violated` (mã quy tắc vi phạm mong đợi khi chạy toàn bộ quy tắc, kể cả `serverOnly`). `runGoldenSuite(rules, suite)` chạy bộ test trên cel-js: quy tắc `serverOnly` bị bỏ qua và báo trong `skipped`, trừ khi truyền đủ hàm qua `functions` cùng `includeServerOnly`; mã quy tắc trong `violated` mà bộ quy tắc không có làm ca bị trượt. Hai bên phải cùng quy ước "thiếu trường thì quy tắc không bị coi là vi phạm"; cel-java mặc định báo lỗi khi thiếu thuộc tính, nên phía máy chủ cần bắt lỗi này tương tự (suy luận, cần thống nhất với đội mission-core). Mẫu thử Mẫu 1B (`MAU_1B_SCHEMA`, `MAU_1B_UI`, `MAU_1B_RULES` và `mau-1b.golden.json` trong `projects/form-engine/src/samples/`) theo bảng trường SCR-0901 và quy tắc R-1B-01, R-1B-02 của TL-01; đây chỉ là mẫu kiểm engine, schema thật thuộc Policy Pack. TL-01 cho trường `diemTuCham` do cán bộ tự nhập, trong khi bảng trường SCR-0901 của TL-02 ghi điểm do hệ thống tính và không sửa tay; mẫu giữ theo TL-01 để có ví dụ `vt.input.score`, điểm lệch này cần chốt khi làm WEB-035.
 
 Ở phía dữ liệu, `config.form_schema` lưu `form_code`/`form_key`, `version`, `json_schema`/`schema_json` (JSON Schema có `x-cel` và `x-classification`), `ui_schema`/`ui_json`, `cel_rules`, `policy_pack_version_id` và `status` (`NHAP`, `DA_PHAT_HANH`, `NGUNG`). TL-01 quy định CI chạy cùng bộ test case trên cả cel-js và cel-java; MSG-18-08 báo khi hai engine cho kết quả khác nhau.
 
