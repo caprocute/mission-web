@@ -53,19 +53,20 @@ describe('LedgerPage (SCR-1302)', () => {
   it('90 ngày gần nhất, bản ghi 1042 tô đỏ, MSG-13-06, niêm phong và bản neo của bản ghi sai', async () => {
     const el = await render();
     const broken = el.querySelector('tr.broken');
-    expect(text(broken)).toContain('17·1042');
-    expect(text(broken)).toContain('c: 0,85');
-    expect(text(broken)).toContain('c: 0,95');
-    const chain = await until(el, 'section', has('Kết quả kiểm tra chuỗi băm'));
-    expect(text(chain)).toContain('4b07…e7f8 ≠ tính lại 9d3c…c6d7');
+    expect(text(broken)).toContain('Số 1042 Phân vùng 17');
+    expect(text(broken)).toContain('Nghiệm thu minh chứng');
+    expect(text(broken)).toContain('Tiến độ (C): 0,85');
+    expect(text(broken)).toContain('Tiến độ (C): 0,95');
+    const chain = await until(el, 'section', has('Kết quả kiểm tra toàn vẹn'));
+    expect(text(chain)).toContain('Mã kiểm tra: 4b07…e7f8 ≠ tính lại 9d3c…c6d7');
     expect(text(chain)).toContain(
-      'Phát hiện chuỗi băm bị phá vỡ tại bản ghi 1042 của phân vùng 17. Đã tạo cảnh báo mức Cao',
+      'Phát hiện sổ cái mất toàn vẹn tại bản ghi số 1042 của phân vùng 17. Hệ thống đã tạo cảnh báo mức Cao',
     );
     expect(text(el.querySelector('#r-h')!.parentElement)).toContain('63/64 phân vùng khớp');
     const seal = await until(
       el,
       'section',
-      (e) => !!e.querySelector('#s-h') && has('Gốc Merkle')(e),
+      (e) => !!e.querySelector('#s-h') && has('Mã niêm phong')(e),
     );
     expect(text(seal)).toContain('Hợp lệ');
     expect(text(seal)).toContain('Kho lưu trữ VPTW');
@@ -76,7 +77,7 @@ describe('LedgerPage (SCR-1302)', () => {
     const link = (await until(
       el,
       'button.link',
-      has('Yêu cầu mở lại kỳ rr-2026-007'),
+      has('Yêu cầu mở lại kỳ: MLK-2026-007'),
     )) as HTMLElement;
     link.click();
     await until(el, '.tbl tbody', (e) => e.querySelectorAll('tr').length === 2);
@@ -84,9 +85,9 @@ describe('LedgerPage (SCR-1302)', () => {
     const seal = await until(
       el,
       'section',
-      (e) => !!e.querySelector('#s-h') && has('17·1046 ·')(e),
+      (e) => !!e.querySelector('#s-h') && has('Số 1046, phân vùng 17 ·')(e),
     );
-    expect(text(seal)).toContain('Băm');
+    expect(text(seal)).toContain('Mã kiểm tra');
   });
 
   it('chạy kiểm tra một phân vùng khớp hết: MSG-13-05; người chỉ tra cứu không thấy nút chạy, xuất', async () => {
@@ -100,6 +101,6 @@ describe('LedgerPage (SCR-1302)', () => {
     TestBed.resetTestingModule();
     const ro = await render((k) => k === 'SCR-1302.tra-cuu');
     expect(text(ro)).not.toContain('Chạy kiểm tra toàn vẹn');
-    expect(text(ro)).not.toContain('Xuất bằng chứng');
+    expect(text(ro)).not.toContain('Xuất tệp bằng chứng');
   });
 });
