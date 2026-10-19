@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { JSONSchema7 } from 'json-schema';
+import { JSONSchema7 } from './json-schema';
 import { of } from 'rxjs';
 import { MAU_1B_CONTEXT, MAU_1B_RULES, MAU_1B_SCHEMA, MAU_1B_UI } from '../samples/mau-1b';
 import { VT_FORM_CATALOGS } from './fields/field-types';

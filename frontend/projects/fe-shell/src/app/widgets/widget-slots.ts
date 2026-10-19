@@ -11,7 +11,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { loadRemoteModule } from '@angular-architects/native-federation';
+import { loadRemote } from '../federation-remotes';
 
 /**
  * Ô giữ chỗ cho widget SDUI ở trang chủ (WEB-059, CLS).
@@ -66,15 +66,25 @@ export abstract class WidgetSlot implements AfterViewInit {
 
 const SLOT_TEMPLATE = '<ng-container #outlet />';
 
+/** Nạp widget thật của `vt.widget.myTasksToday` từ remote fe-task (dùng cả để tải trước). */
+export function loadMyTasksTodayWidget(): Promise<Type<unknown>> {
+  return loadRemote<{ MyTasksTodayWidget: Type<unknown> }>('feTask', './widgets').then(
+    (m) => m.MyTasksTodayWidget,
+  );
+}
+
+/** Nạp widget thật của `vt.widget.announcement` (chunk riêng của shell). */
+export function loadAnnouncementWidget(): Promise<Type<unknown>> {
+  return import('./announcement.widget').then((m) => m.AnnouncementWidget);
+}
+
 /** `vt.widget.myTasksToday` (remote fe-task): đầu thẻ, chân thẻ khoảng 6,5rem và mỗi dòng 4rem. */
 @Component({ selector: 'vt-my-tasks-today-slot', template: SLOT_TEMPLATE })
 export class MyTasksTodaySlot extends WidgetSlot {
   readonly limit = input(7);
   protected readonly reserve = computed(() => `calc(6.5rem + ${this.limit()} * 4rem)`);
   protected loadWidget() {
-    return loadRemoteModule('feTask', './widgets').then(
-      (m) => m.MyTasksTodayWidget as Type<unknown>,
-    );
+    return loadMyTasksTodayWidget();
   }
   protected widgetInputs() {
     return { limit: this.limit() };
@@ -112,7 +122,7 @@ export class AnnouncementSlot extends WidgetSlot {
   readonly i18nKey = input('');
   protected readonly reserve = () => '2.2rem';
   protected loadWidget() {
-    return import('./announcement.widget').then((m) => m.AnnouncementWidget);
+    return loadAnnouncementWidget();
   }
   protected widgetInputs() {
     return { i18nKey: this.i18nKey() };

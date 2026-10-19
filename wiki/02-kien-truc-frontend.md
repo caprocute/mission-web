@@ -41,9 +41,9 @@ Hai điểm trong bảng cần lưu ý. SCR-1803 (chế độ Đảng viên cao 
 
 ## Tệp kê khai Native Federation
 
-Tệp `federation.manifest.json` ánh xạ tên remote (theo quy ước camelCase như `feTask`) tới địa chỉ tệp `remoteEntry.json` của remote. Shell gọi `initFederation('federation.manifest.json')` trong `main.ts` để dựng import map trước khi nạp bất kỳ mã Angular nào. Theo thiết kế, manifest do CDN hoặc tenant cấp, nhờ đó tenant có plugin chuyên ngành (ví dụ Sở Y tế với `fe-plugin-yte`) nhận được manifest khác tenant khác mà không cần bản build riêng. BR-18-12 quy định plugin chỉ được nạp khi có trong manifest của tenant, bản dựng đã được ký và quét như một service.
+Tệp `federation.manifest.json` ánh xạ tên remote (theo quy ước camelCase như `feTask`) tới địa chỉ tệp `remoteEntry.json` của remote. Từ WEB-052, `main.ts` đọc manifest rồi gọi `initFederation({})`, tức chỉ dựng import map của chính shell trước khi nạp mã Angular; remote được đăng ký sau, khi cần (xem đoạn dưới). Theo thiết kế, manifest do CDN hoặc tenant cấp, nhờ đó tenant có plugin chuyên ngành (ví dụ Sở Y tế với `fe-plugin-yte`) nhận được manifest khác tenant khác mà không cần bản build riêng. BR-18-12 quy định plugin chỉ được nạp khi có trong manifest của tenant, bản dựng đã được ký và quét như một service.
 
-Ở môi trường dev, manifest nằm sẵn trong `fe-shell/public/` và trỏ tới từng remote chạy trên cổng dev của nó (`fe-task` 4201, tám remote khung 4202 đến 4209). Khi đóng gói bằng Docker, tệp này được sinh lại lúc container khởi động từ danh mục `frontend/tools/remotes/remotes.json` và các biến môi trường `FE_<TEN>_URL` (xem mục "Phục vụ tĩnh" bên dưới). Lúc khởi động, `initFederation` tải `remoteEntry.json` của mọi remote trong manifest để dựng import map. Hàm `remoteRoutes()` trong `fe-shell/src/app/remotes.ts` bọc `loadRemoteModule()`: khi remote không nạp được, shell hiển thị trang `RemoteUnavailablePage` thay vì vỡ toàn ứng dụng. Đây là cách hiện thực yêu cầu khả dụng NFR-04 ở phía trình duyệt.
+Ở môi trường dev, manifest nằm sẵn trong `fe-shell/public/` và trỏ tới từng remote chạy trên cổng dev của nó (`fe-task` 4201, tám remote khung 4202 đến 4209). Khi đóng gói bằng Docker, tệp này được sinh lại lúc container khởi động từ danh mục `frontend/tools/remotes/remotes.json` và các biến môi trường `FE_<TEN>_URL` (xem mục "Phục vụ tĩnh" bên dưới). Trước WEB-052, `initFederation` tải `remoteEntry.json` của cả chín remote trước khi shell khởi động. Từ WEB-052, hàm `loadRemote()` trong `fe-shell/src/app/federation-remotes.ts` tra URL trong manifest và gọi `loadRemoteModule({ remoteEntry, exposedModule })`, nên mỗi remote chỉ được tải `remoteEntry.json` và bổ sung import map ở lần đầu một tuyến hoặc widget của nó được nạp (trang chủ chỉ đăng ký `fe-task`). Tuyến và widget phải nạp remote qua `loadRemote()`, không gọi `loadRemoteModule('feX', …)` theo tên vì remote chưa đăng ký sẽ báo lỗi. Hàm `remoteRoutes()` trong `fe-shell/src/app/remotes.ts` bọc `loadRemote()`: khi remote không nạp được, shell hiển thị trang `RemoteUnavailablePage` thay vì vỡ toàn ứng dụng. Đây là cách hiện thực yêu cầu khả dụng NFR-04 ở phía trình duyệt.
 
 ## Cấu hình lúc chạy `/config.json`
 
@@ -87,8 +87,8 @@ sequenceDiagram
     participant KC as "Keycloak của cell"
     participant API as "APISIX và mission-core"
     B->>CDN: "Tải index.html, main.js"
-    B->>CDN: "initFederation: đọc federation.manifest.json"
-    B->>CDN: "bootstrap: đọc /config.json"
+    B->>CDN: "main.ts gửi sớm: federation.manifest.json, /config.json, rồi current.json và pack.json"
+    B->>CDN: "initFederation: remoteEntry.json của shell, thư viện dùng chung"
     Note over B: "Tạo provider với RUNTIME_CONFIG"
     B->>KC: "SessionService.init: OIDC Code + PKCE (khi auth.enabled)"
     KC-->>B: "Access token giữ trong bộ nhớ"
@@ -97,10 +97,10 @@ sequenceDiagram
     B->>CDN: "Đọc ui-packs/tenant/current.json"
     B->>CDN: "Tải version/pack.json nếu phiên bản khác"
     B->>API: "Widget trang chủ gọi /api/v1/... kèm Bearer, traceparent"
-    B->>CDN: "Khi vào /tasks: loadRemoteModule feTask"
+    B->>CDN: "Khi vào /tasks: loadRemote feTask (đăng ký remote lần đầu)"
 ```
 
-Thứ tự trên có hai ràng buộc kỹ thuật. Thứ nhất, `main.ts` chỉ được gọi `initFederation` rồi `import('./bootstrap')`; mọi import thư viện dùng chung (kể cả `@vt/*`) phải nằm trong `bootstrap.ts` trở đi, vì import map chỉ tồn tại sau bước dựng federation. Thứ hai, `UiPackLoader.load()` chạy trong `provideAppInitializer` để token của tenant được áp trước khi giao diện hiển thị, tránh hiện tượng nháy màu mặc định.
+Thứ tự trên có hai ràng buộc kỹ thuật. Thứ nhất, `main.ts` chỉ được gọi `initFederation` rồi `import('./bootstrap')`; mọi import thư viện dùng chung (kể cả `@vt/*`) phải nằm trong `bootstrap.ts` trở đi, vì import map chỉ tồn tại sau bước dựng federation. Các yêu cầu gửi sớm của WEB-052 (`fe-shell/src/early-fetch.ts`) vì thế chỉ dùng `fetch` của trình duyệt; `UiPackLoader` dùng lại kết quả qua token `UI_PACK_PREFETCH` khi gốc và tenant khớp cấu hình. Thứ hai, `UiPackLoader.load()` chạy trong `provideAppInitializer` để token của tenant được áp trước khi giao diện hiển thị, tránh hiện tượng nháy màu mặc định.
 
 ## Hiện trạng mã
 

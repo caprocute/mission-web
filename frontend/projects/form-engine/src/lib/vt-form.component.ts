@@ -16,10 +16,10 @@ import {
 import { AbstractControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { FormlyFieldConfig, FormlyForm, FormlyFormOptions } from '@ngx-formly/core';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
-import { JSONSchema7 } from 'json-schema';
+import { JSONSchema7 } from './json-schema';
 import { CelFunctions, evaluateRules } from './cel-rule-evaluator';
 import { FormRule, FormUi, RuleViolation, ServerFieldError } from './form-rule';
-import { WIDGET_TYPES } from './provide-form-engine';
+import { WIDGET_TYPES, formEngineProviders } from './provide-form-engine';
 
 type SchemaExt = JSONSchema7 & { 'x-catalog'?: string };
 
@@ -81,6 +81,8 @@ function defaultType(field: FormlyFieldConfig, schema: SchemaExt): string | unde
 @Component({
   selector: 'vt-form',
   imports: [ReactiveFormsModule, FormlyForm],
+  // Formly chỉ được đăng ký khi có <vt-form>, shell không phải tải sẵn (WEB-052)
+  providers: [formEngineProviders()],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form [formGroup]="form" (ngSubmit)="submit()" class="vt-form" novalidate>
