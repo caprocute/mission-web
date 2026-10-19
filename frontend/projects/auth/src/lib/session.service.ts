@@ -80,6 +80,23 @@ const DEV_USER: VtUser = {
   roles: ['member', 'manager'],
 };
 
+/** Khoá sessionStorage để thử giao diện theo từng vai trò khi chạy giả lập (WEB-055, WEB-057). */
+export const DEV_ROLES_KEY = 'vt.devRoles';
+
+/**
+ * Vai trò giả lập đặt trong sessionStorage `vt.devRoles` (ví dụ `tenant_admin,policy_author`).
+ * Chỉ dùng khi `auth.enabled = false`, thay cho vai trò của người dùng và phân công giả lập;
+ * không có hoặc không đọc được thì giữ vai trò của dữ liệu giả lập.
+ */
+function devRoles(): VtRole[] | null {
+  const raw = readSessionItem(DEV_ROLES_KEY) ?? '';
+  const roles = raw
+    .split(',')
+    .map((r) => r.trim())
+    .filter((r) => /^[a-z_]+$/.test(r));
+  return roles.length ? (roles as VtRole[]) : null;
+}
+
 export function requiresAal2(a: Pick<Assignment, 'roles'>): boolean {
   return a.roles.some((r) => (AAL2_ROLES as readonly string[]).includes(r));
 }
@@ -110,6 +127,7 @@ export class SessionService {
   private pendingStepUp: { resolve: () => void; reject: (e: Error) => void } | null = null;
   private refreshing: Promise<boolean> | null = null;
   private stepUpMaxAge: number | undefined;
+  private readonly devRoleOverride = this.cfg.auth.enabled ? null : devRoles();
 
   readonly user = this._user.asReadonly();
   readonly isAuthenticated = computed(() => this._user() !== null);
@@ -133,7 +151,11 @@ export class SessionService {
 
   async init(): Promise<void> {
     if (!this.cfg.auth.enabled) {
-      this._user.set({ ...DEV_USER, tenant: this.cfg.tenant });
+      this._user.set({
+        ...DEV_USER,
+        tenant: this.cfg.tenant,
+        roles: this.devRoleOverride ?? DEV_USER.roles,
+      });
       void this.loadContext();
       return;
     }
@@ -375,7 +397,14 @@ export class SessionService {
   private apply(a: Assignment): void {
     this._assignment.set(a);
     this._user.update((u) =>
-      u ? { ...u, unitId: a.orgUnitId, unitName: a.orgUnitName, roles: a.roles as VtRole[] } : u,
+      u
+        ? {
+            ...u,
+            unitId: a.orgUnitId,
+            unitName: a.orgUnitName,
+            roles: this.devRoleOverride ?? (a.roles as VtRole[]),
+          }
+        : u,
     );
     this._contextStatus.set('SAN_SANG');
   }

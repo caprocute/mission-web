@@ -7,6 +7,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
   ContextPickerComponent,
   MSG_00_06,
+  PermissionService,
   SessionNoticeComponent,
   SessionService,
   StepUpDialogComponent,
@@ -16,7 +17,7 @@ import { RUNTIME_CONFIG } from '@vt/api-client';
 import { ButtonModule } from 'primeng/button';
 import { AvatarModule } from 'primeng/avatar';
 import { TooltipModule } from 'primeng/tooltip';
-import { NAV } from './nav';
+import { visibleNav } from './nav';
 
 /** Khung ứng dụng: thanh trên, menu bên, vùng nội dung (dùng cho mọi màn hình sau đăng nhập). */
 @Component({
@@ -52,10 +53,10 @@ export class ShellLayout {
     { initialValue: '' },
   );
 
-  protected readonly nav = computed(() => {
-    const u = this.session.user();
-    return NAV.filter((i) => !i.roles || (u && i.roles.some((r) => u.roles.includes(r))));
-  });
+  private readonly permissions = inject(PermissionService);
+  protected readonly nav = computed(() =>
+    visibleNav((...keys) => this.permissions.canAny(...keys)),
+  );
   protected readonly initials = computed(() =>
     (this.session.user()?.name ?? '?')
       .split(' ')
