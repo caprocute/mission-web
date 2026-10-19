@@ -16,7 +16,9 @@
     "api:check": "node tools/openapi/generate.mjs --check",
     "perf:prepare": "npm run build:all && node tools/remotes/workspace.mjs assemble dist/lhci",
     "perf:lhci": "npm run perf:prepare && cd dist && lhci autorun --config=../lighthouserc.json",
-    "check:permissions": "python3 ../docs/phan-quyen/gen_matrix.py --check"
+    "check:permissions": "python3 ../docs/phan-quyen/gen_matrix.py --check",
+    "e2e:prepare": "npm run build:all && node tools/remotes/workspace.mjs assemble dist/e2e",
+    "e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "private": true,
   "packageManager": "npm@10.9.4",
@@ -48,6 +50,7 @@
     "@angular/cli": "^21.2.27",
     "@angular/compiler-cli": "^21.2.0",
     "@lhci/cli": "^0.15.1",
+    "@playwright/test": "1.56.1",
     "@types/json-schema": "^7.0.15",
     "angular-eslint": "^21.4.0",
     "eslint": "^9.39.5",
