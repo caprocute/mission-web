@@ -43,6 +43,7 @@
 
 - `backend/libs/vt-platform-starter/**` (gói `resilience`, `observability`, `audit`, cấu hình Log4j2, kiểm thử)
 - `backend/platform-bom/pom.xml` (chỉ thêm Resilience4j Spring Boot 3, OTel API, Log4j2 layout)
+- `wiki/20-bao-mat-phia-may-chu.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

@@ -11,7 +11,7 @@
 | Giai đoạn | Đợt 0b (mốc M0 – Nền móng) |
 | Luồng đề xuất | B1 |
 | Cỡ việc | M |
-| Phụ thuộc | NEN-007, NEN-032 |
+| Phụ thuộc | NEN-007, NEN-032 (bổ sung nên có: NEN-009 cho `error-codes.json`) |
 | Truy vết | ADR-03, ADR-12, ADR-22 → SVC-03 tenant-registry, SVC-09 ledger-service, SVC-12 notification-service (Go 1.23, `pgx`, `franz-go`) → bảng `outbox_event`, `inbox_processed`, `inbox_aggregate_version` → `registry.tenant.changed.v1`, EVT-19, EVT-21 |
 | Trạng thái | Chưa bắt đầu |
 
@@ -44,6 +44,7 @@ Cho ba service Go (tenant-registry, ledger, notification) cùng một thư việ
 
 - `services-go/vtplatform/**` (mới)
 - `services-go/README.md` (mới, ngắn: cấu trúc, lệnh kiểm thử)
+- `wiki/16-kien-truc-mission-core-va-microservice.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

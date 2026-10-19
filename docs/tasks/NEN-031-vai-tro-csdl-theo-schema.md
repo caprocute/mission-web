@@ -43,6 +43,7 @@ Viết bộ tạo vai trò CSDL tham số hoá theo schema đúng TL-03: bốn v
 ## 5. Tệp được phép sửa
 
 - `backend/libs/vt-db-migration/**` (thư mục `db/bootstrap`, mã chạy, kiểm thử)
+- `wiki/17-thiet-ke-csdl-va-da-khach-thue.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

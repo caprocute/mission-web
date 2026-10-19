@@ -45,6 +45,7 @@ Cung cấp khung consumer Kafka dùng chung cho mọi service Java: nhận ít n
 
 - `backend/libs/vt-platform-starter/**` (gói `inbox`, kiểm thử)
 - `backend/platform-bom/pom.xml` (chỉ thêm phụ thuộc Spring Kafka nếu chưa có)
+- `wiki/18-su-kien-va-dong-bo-du-lieu.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

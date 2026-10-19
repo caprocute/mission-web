@@ -43,6 +43,7 @@ Dựng bộ kiểm thử tự động chứng minh không có rò rỉ dữ li�
 
 - `backend/libs/vt-db-migration/src/test/**` hoặc `backend/libs/vt-tenant-test/**` (mới), `backend/libs/pom.xml` (nếu thêm mô-đun)
 - `backend/semgrep/**` (mới)
+- `wiki/17-thiet-ke-csdl-va-da-khach-thue.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

@@ -48,6 +48,7 @@ Dựng thư mục `backend/` thành một dự án Maven đa mô-đun mà mọi 
 - `backend/pom.xml`, `backend/platform-bom/**`, `backend/tools/build-smoke/**`
 - `backend/mvnw`, `backend/mvnw.cmd`, `backend/.mvn/**`
 - `backend/README.md`, `backend/.gitignore`
+- `wiki/16-kien-truc-mission-core-va-microservice.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

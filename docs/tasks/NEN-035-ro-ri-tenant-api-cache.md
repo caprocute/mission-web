@@ -45,6 +45,7 @@ Mở rộng lưới an toàn chống rò rỉ tenant lên các tầng ngoài CSD
 - `backend/libs/vt-platform-starter/**` (gói `cache`, luật ArchUnit)
 - `backend/libs/vt-tenant-test/**` hoặc thư mục kiểm thử tương ứng đã chọn ở NEN-034
 - `backend/mission-core/src/test/**` (chỉ thêm kiểm thử API hai tenant)
+- `wiki/17-thiet-ke-csdl-va-da-khach-thue.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

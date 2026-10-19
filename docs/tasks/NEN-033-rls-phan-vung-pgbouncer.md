@@ -44,6 +44,7 @@ Cung cấp ba mảnh nền mà mọi migration nghiệp vụ dùng lại: (1) c�
 
 - `backend/libs/vt-db-migration/src/main/resources/db/common/**`, `backend/libs/vt-db-migration/src/main/resources/pgbouncer/**` (mới)
 - `backend/libs/vt-db-migration/src/test/**`, `backend/libs/vt-db-migration/README.md`
+- `wiki/17-thiet-ke-csdl-va-da-khach-thue.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

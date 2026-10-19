@@ -43,6 +43,7 @@ Hiện thực một lần, trong thư viện nền, bốn quy ước API mà h�
 ## 5. Tệp được phép sửa
 
 - `backend/libs/vt-platform-starter/**` (gói `idempotency`, `etag`, `paging`, `job`, kiểm thử)
+- `wiki/16-kien-truc-mission-core-va-microservice.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

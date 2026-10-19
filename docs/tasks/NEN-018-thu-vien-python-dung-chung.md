@@ -11,7 +11,7 @@
 | Giai đoạn | Đợt 0b (mốc M0 – Nền móng) |
 | Luồng đề xuất | B1 |
 | Cỡ việc | S |
-| Phụ thuộc | NEN-007 |
+| Phụ thuộc | NEN-007 (bổ sung nên có: NEN-009 cho `error-codes.json`) |
 | Truy vết | ADR-12, ADR-28 → SVC-14 ai-gateway (Python 3.12, FastAPI), SVC-15 analytics (job Python phát EVT-20) → schema `ai` → EVT-20, EVT-24, `sys.evidence.object.stored.v1` |
 | Trạng thái | Chưa bắt đầu |
 

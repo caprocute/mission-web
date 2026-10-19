@@ -45,6 +45,7 @@ Có một mẫu service Java chuẩn và một lệnh tạo service mới từ m
 - `backend/services/service-template/**`, `backend/services/pom.xml`, `backend/pom.xml` (chỉ thêm mô-đun `services`)
 - `scripts/new-service.sh` (mới)
 - `deploy/charts/.gitkeep` hoặc `deploy/charts/README.md` (chỉ để giữ thư mục và hướng dẫn)
+- `wiki/16-kien-truc-mission-core-va-microservice.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

@@ -46,6 +46,7 @@ Tạo thư viện CEL phía máy chủ dùng chung cho MOD-05 (kiểm kiểu quy
 - `backend/libs/vt-cel/**` (mới), `backend/libs/pom.xml`, `backend/pom.xml` (chỉ thêm mô-đun), `backend/platform-bom/pom.xml` (chỉ thêm cel-java, jqwik nếu chưa có)
 - `data/golden/cel/**` (mới)
 - `frontend/projects/form-engine/src/lib/*.spec.ts` (chỉ thêm kiểm thử đọc bộ ca chung; không sửa mã chạy)
+- `wiki/03-giao-dien-theo-tenant.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

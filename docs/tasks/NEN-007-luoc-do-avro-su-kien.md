@@ -46,6 +46,7 @@ Viết hợp đồng sự kiện dạng mã: 26 lược đồ Avro cho EVT-01..E
 
 - `contracts/events/**` (mới: `catalog.yaml`, `README.md`, `avro/**`)
 - `backend/libs/vt-events/**`, `backend/libs/pom.xml`, `backend/pom.xml` (chỉ thêm mô-đun), `backend/platform-bom/pom.xml` (chỉ thêm phiên bản Avro, plugin Apicurio)
+- `wiki/18-su-kien-va-dong-bo-du-lieu.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

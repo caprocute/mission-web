@@ -44,6 +44,7 @@ Làm cho mọi service Java tự động mang đúng tenant từ token đã xác
 
 - `backend/libs/vt-platform-starter/**` (gói `tenant`, cấu hình, kiểm thử)
 - `backend/platform-bom/pom.xml` (chỉ thêm Testcontainers module cần thiết)
+- `wiki/17-thiet-ke-csdl-va-da-khach-thue.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

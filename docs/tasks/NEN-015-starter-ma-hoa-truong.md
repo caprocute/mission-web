@@ -48,6 +48,7 @@ Cung cấp cho mọi service Java khả năng mã hoá trường dữ liệu C2 
 - `backend/libs/vt-kernel/**` (chỉ annotation `@Classified` nếu NEN-009 chưa có)
 - `backend/libs/vt-platform-starter/**` (gói `crypto`, kiểm thử)
 - `backend/platform-bom/pom.xml` (chỉ thêm Testcontainers Vault/OpenBao nếu cần)
+- `wiki/20-bao-mat-phia-may-chu.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

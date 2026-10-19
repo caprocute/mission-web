@@ -44,6 +44,7 @@
 
 - `backend/libs/vt-platform-starter/**` (gói `authz`, công cụ sinh bảng `x-mission`, kiểm thử)
 - `backend/platform-bom/pom.xml` (chỉ thêm phụ thuộc kiểm thử cần thiết)
+- `wiki/15-phan-quyen.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

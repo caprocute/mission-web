@@ -11,7 +11,7 @@
 | Giai đoạn | Đợt 0b (mốc M0 – Nền móng) |
 | Luồng đề xuất | B1 |
 | Cỡ việc | M |
-| Phụ thuộc | NEN-031 (bổ sung nên có: NEN-007 cho danh sách topic kỹ thuật, NEN-040 cho bundle OPA; khi chưa có thì dùng thư mục chính sách rỗng) |
+| Phụ thuộc | NEN-031 (bổ sung nên có: NEN-007 cho danh sách topic kỹ thuật, NEN-040 cho bundle OPA, NEN-033 cho cấu hình PgBouncer tham chiếu; khi chưa có thì dùng thư mục chính sách rỗng) |
 | Truy vết | YC-HT-01 → TL-03 "Không truy cập chéo và quyền tối thiểu" → ADR-03, ADR-17, ADR-21 → `infra/dev` (Compose project `mission-dev`, dải cổng 35xxx) |
 | Trạng thái | Chưa bắt đầu |
 
@@ -32,6 +32,8 @@ Hoàn thiện hạ tầng dev để mã máy chủ chạy và kiểm thử đư�
 - Ghi trong `infra/dev/README.md` cách nâng một máy dev đã khởi tạo theo kiểu cũ (script chuyển đổi `postgres/migrate-roles.sh` chạy được nhiều lần), vì init chỉ chạy khi thư mục dữ liệu trống.
 - Bổ sung `scripts/create-topics.sh`: topic kỹ thuật `sys.ledger.append.v1`, `sys.audit.v1`, `sys.evidence.object.stored.v1`, `sys.tenant.provisioned.v1`, `iam.auth.event.v1`, `registry.tenant.changed.v1`, `org.bootstrap.v1`, `period.drain.marker`; topic `org.*` dùng `cleanup.policy=compact,delete`; ghi cách tạo `<topic>.retry.<consumer>`, `<topic>.dlq.<consumer>` (tham số hoá theo danh sách consumer).
 - Thêm `infra/dev/openbao/init.sh` tạo khoá Transit mẫu `kek-<tenant>` cho các tenant thử và khoá HMAC chỉ mục mù, idempotent.
+- Dựng ảnh PostgreSQL dev có pg_partman (ảnh `postgres:17` hiện dùng không kèm phần mở rộng này, trong khi NEN-033 cần): `infra/dev/postgres/Dockerfile` cài gói pg_partman của PGDG, `docker-compose.yml` chuyển sang `build:`; testkit dùng cùng ảnh này.
+- Thêm dịch vụ `pgbouncer` (chế độ giao dịch, cổng trong dải 35xxx) dùng cấu hình tham chiếu của NEN-033, để dịch vụ dev chạy đúng đường kết nối như production (tương thích `set_config(..., true)` của RLS).
 - Tạo mô-đun `backend/libs/vt-testkit/` cung cấp container Testcontainers dùng chung (PostgreSQL 17 chạy cùng script init, PgBouncer chế độ giao dịch, Kafka 3.9, Apicurio 3.x, Debezium Connect, Keycloak 26 nạp `realm-mission.json`, OPA, OpenBao, Valkey 8) với phiên bản ảnh khớp `docker-compose.yml`, và hướng dẫn bật `testcontainers.reuse.enable`.
 - Cập nhật `infra/dev/.env.example` (chỉ tên biến mới, không giá trị thật) và bảng profile trong README.
 
@@ -45,6 +47,7 @@ Hoàn thiện hạ tầng dev để mã máy chủ chạy và kiểm thử đư�
 - `infra/dev/docker-compose.yml`, `infra/dev/README.md`, `infra/dev/.env.example`
 - `infra/dev/postgres/**`, `infra/dev/scripts/create-topics.sh`, `infra/dev/openbao/**` (mới), `infra/dev/opa/**` (mới, chỉ README và thư mục chính sách rỗng)
 - `backend/libs/vt-testkit/**`, `backend/libs/pom.xml` (chỉ thêm mô-đun)
+- `wiki/12-ha-tang-dev-va-trien-khai.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

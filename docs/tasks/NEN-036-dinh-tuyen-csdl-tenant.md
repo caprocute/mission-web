@@ -43,6 +43,7 @@ Mỗi service có CSDL theo tenant phải biết một yêu cầu thuộc CSDL n
 
 - `backend/libs/vt-platform-starter/**` (gói `routing`, kiểm thử)
 - `services-go/vtplatform/db/**` (chỉ khi NEN-017 đã gộp)
+- `wiki/17-thiet-ke-csdl-va-da-khach-thue.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

@@ -1,6 +1,10 @@
 # DV-15-04 · SVC-15/SCR-1601, SCR-1602 analytics-api: proxy Cube theo token, đệm, API định nghĩa dashboard
 
-@@HDR@@
+> ### 0. QUY ĐỊNH CHUNG – BẮT BUỘC ĐỌC TRƯỚC KHI LÀM
+> Trước khi đọc tiếp, mở và đọc toàn bộ `AGENTS.md` ở gốc repo (quy tắc không được vi phạm, quy trình, mẫu báo cáo), rồi đọc quy định riêng của phân hệ: `docs/quy-dinh/BACKEND.md` (task NEN, CORE, DV, DL), `docs/quy-dinh/HA-TANG.md` (task INF, VH), `docs/quy-dinh/DI-DONG.md` (task MOB). Nhắc nhanh:
+> bám baseline và TL-01..TL-05, giữ nguyên mã định danh, tên schema, bảng, trạng thái; API-first, sửa mã chứ không sửa hợp đồng; chỉ sửa tệp trong phạm vi;
+> không commit bí mật; máy chủ là nguồn sự thật, quyền theo ma trận `wiki/15a`; ghi kèm Idempotency-Key, cập nhật kèm If-Match (409); outbox trong cùng giao dịch;
+> build + kiểm thử thật trước khi báo xong; báo cáo trung thực theo AGENTS.md mục 6. Chạy `./scripts/agent-task.sh DV-15-04` để có prompt đầy đủ.
 
 | Thuộc tính | Giá trị |
 |---|---|
@@ -29,11 +33,11 @@ Dựng `analytics-api` (Java 21, Spring Boot) làm điểm vào duy nhất của
 - Đệm kết quả trong Valkey theo khoá `t:<tenant>:analytics:...` gồm đơn vị, kỳ, băm truy vấn và phạm vi người xem; không đệm khi phạm vi khác nhau dù cùng truy vấn.
 - Hiện thực `getSemanticModel` trả danh mục chỉ số, chiều theo phiên bản lớp ngữ nghĩa từ Cube meta.
 - Hiện thực năm operation dashboard: tên ≤ 100 ký tự không trùng trong không gian người dùng, ≤ 20 widget, ≤ 2 chiều mỗi widget, chỉ lưu định nghĩa; chia sẻ chỉ trong tenant (`share_scope` `RIENG`, `DON_VI`, `TENANT`) và phát EVT-21 cho người được chia sẻ; `If-Match` cho cập nhật (409 khi lệch).
-- Điểm lệch cần lưu ý: TL-01 ghi đệm Valkey 60 giây, bản trích TL-02b ghi "cache 5 phút" cho `POST /analytics/query` và TL-03 làm mới pre-aggregation mỗi 5 phút; task đặt TTL đệm 60 giây theo TL-01 (độ trễ tổng vẫn ≤ 5 phút theo BR-16-08) và ghi vào `wiki/14`. Hợp đồng giao API dashboard cho SVC-15 nhưng TL-03 đặt bảng `config.dashboard_def` ở schema `config` của mission-core; analytics-api không được ghi schema của module khác, nên lưu qua cổng nội bộ của MOD-08 (cần CORE-08 cung cấp, suy luận) và báo cáo nếu cổng chưa có.
+- Điểm lệch cần lưu ý: TL-01 ghi đệm Valkey 60 giây, bản trích TL-02b ghi "cache 5 phút" cho `POST /analytics/query` và TL-03 làm mới pre-aggregation mỗi 5 phút; task đặt TTL đệm 60 giây theo TL-01 (độ trễ tổng vẫn ≤ 5 phút theo BR-16-08) và ghi vào `wiki/14`. Hợp đồng giao API dashboard cho SVC-15 nhưng TL-03 đặt bảng `config.dashboard_def` ở schema `config` của mission-core; theo TL-03 chương 2 (L143–151, sở hữu dữ liệu theo service) analytics-api không ghi schema của module khác, nên lưu qua cổng nội bộ của MOD-08 (cần CORE-08 cung cấp, suy luận) và báo cáo nếu cổng chưa có.
 
 ## 4. Ngoài phạm vi
 
-- Chuỗi truy vết, xuất báo cáo, nhắc và giao lại (DV-15-06); Superset (DV-15-05); màn hình (WEB-047, WEB-048).
+- Chuỗi truy vết, xuất báo cáo, nhắc và giao lại (DV-15-06); Superset (DV-15-05); nối màn hình với API thật (WEB-072).
 
 ## 5. Tệp được phép sửa
 

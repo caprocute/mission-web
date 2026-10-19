@@ -46,6 +46,7 @@ Cung cấp cho mọi service Java một cách duy nhất để phát sự kiện
 
 - `backend/libs/vt-platform-starter/**` (gói `outbox`, kiểm thử, tài nguyên kiểm thử)
 - `backend/platform-bom/pom.xml` (chỉ thêm serde Apicurio, Testcontainers Kafka/Debezium)
+- `wiki/18-su-kien-va-dong-bo-du-lieu.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 

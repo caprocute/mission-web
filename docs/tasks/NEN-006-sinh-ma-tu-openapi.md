@@ -48,6 +48,7 @@ Thực hiện phần máy chủ của ADR-32: giao diện controller và DTO Jav
 - `backend/libs/pom.xml` (tạo mới nếu chưa có), `backend/pom.xml` (chỉ thêm mô-đun)
 - `backend/platform-bom/pom.xml` (chỉ thêm phiên bản openapi-generator, openapi-diff, swagger-parser)
 - `backend/tools/contracts-bundle.sh`
+- `wiki/16-kien-truc-mission-core-va-microservice.md` (chỉ mục liên quan tới task này; tạo trang nếu chưa có, theo quy tắc cập nhật wiki)
 
 ## 6. Tiêu chí hoàn thành
 
