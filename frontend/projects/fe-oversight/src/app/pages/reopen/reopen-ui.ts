@@ -50,12 +50,14 @@ export const EDITABLE_TABLES: {
   },
 ];
 
+/** Tên nhóm dữ liệu cho người dùng; không lộ tên bảng kỹ thuật. */
 export function tableLabel(table: string): string {
   return EDITABLE_TABLES.find((t) => t.table === table)?.label ?? 'Dữ liệu khác';
 }
 
 export function fieldLabel(table: string, key: string): string {
   return (
-    EDITABLE_TABLES.find((t) => t.table === table)?.fields.find((f) => f.key === key)?.label ?? key
+    EDITABLE_TABLES.find((t) => t.table === table)?.fields.find((f) => f.key === key)?.label ??
+    'Nội dung khác'
   );
 }

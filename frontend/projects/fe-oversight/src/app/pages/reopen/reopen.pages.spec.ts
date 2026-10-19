@@ -166,7 +166,7 @@ describe('ReopenCreatePage (SCR-1301)', () => {
     ]);
     const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     await until(el, '#rq-profile');
-    expect(text(el.querySelector('.chips'))).toContain('ap-2026q1-nguyen-van-binh');
+    expect(text(el.querySelector('.chips'))).toContain('Hồ sơ đánh giá theo KN-2026-0040');
     expect((el.querySelector('#rq-basis-code') as HTMLInputElement).value).toBe('KN-2026-0040');
     type(
       el,

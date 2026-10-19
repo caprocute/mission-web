@@ -1,6 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { KrCheckin, OkrKeyResultDetail } from '@vt/api-client';
+import { KrCheckin, OkrKeyResultDetail, progressPct } from '@vt/api-client';
 import { formatDate, formatValue } from '../../okr-ui';
 
 interface Bar {
@@ -51,7 +51,7 @@ interface Bar {
         </tbody>
       </table>
       <p class="note">
-        Đường ngang là chỉ tiêu {{ fmt(k.targetValue) }}. Cột đỏ là giá trị đang check-in.
+        Đường ngang là chỉ tiêu {{ fmt(k.targetValue ?? 0) }}. Cột đỏ là giá trị đang check-in.
       </p>
     </section>
     <section class="box" aria-labelledby="w-h">
@@ -59,10 +59,11 @@ interface Bar {
       @if (k.linkedWork?.length) {
         <ul class="work">
           @for (w of k.linkedWork; track w.id) {
+            @let p = pct(w.progress);
             <li>
               {{ w.title }}
-              <span class="pct" [class.done]="w.percent >= 100">
-                {{ w.percent >= 100 ? 'Hoàn thành' : w.percent + '%' }}
+              <span class="pct" [class.done]="p >= 100">
+                {{ p >= 100 ? 'Hoàn thành' : p + '%' }}
               </span>
             </li>
           }
@@ -187,6 +188,7 @@ interface Bar {
   `,
 })
 export class CheckinTrend {
+  protected readonly pct = progressPct;
   readonly kr = input.required<OkrKeyResultDetail>();
   /** Lịch sử check-in `DA_GUI`, mới nhất trước. */
   readonly history = input<KrCheckin[]>([]);
@@ -194,13 +196,15 @@ export class CheckinTrend {
   readonly current = input<number | null>(null);
 
   private readonly scale = computed(() => {
-    const vals = [this.kr().targetValue, ...this.history().map((c) => c.value ?? 0)];
+    const vals = [this.kr().targetValue ?? 0, ...this.history().map((c) => c.value ?? 0)];
     const cur = this.current();
     if (cur !== null) vals.push(cur);
     return Math.max(...vals.map(Math.abs), 1) * 1.1;
   });
 
-  protected readonly targetPos = computed(() => (this.kr().targetValue / this.scale()) * 100);
+  protected readonly targetPos = computed(
+    () => ((this.kr().targetValue ?? 0) / this.scale()) * 100,
+  );
 
   protected readonly bars = computed<Bar[]>(() => {
     const past = this.history()

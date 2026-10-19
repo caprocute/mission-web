@@ -16,10 +16,10 @@ import {
 import { AbstractControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { FormlyFieldConfig, FormlyForm, FormlyFormOptions } from '@ngx-formly/core';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
-import { JSONSchema7 } from 'json-schema';
+import { JSONSchema7 } from './json-schema';
 import { CelFunctions, evaluateRules } from './cel-rule-evaluator';
 import { FormRule, FormUi, RuleViolation, ServerFieldError } from './form-rule';
-import { WIDGET_TYPES } from './provide-form-engine';
+import { WIDGET_TYPES, formEngineProviders } from './provide-form-engine';
 
 type SchemaExt = JSONSchema7 & { 'x-catalog'?: string };
 
@@ -81,6 +81,8 @@ function defaultType(field: FormlyFieldConfig, schema: SchemaExt): string | unde
 @Component({
   selector: 'vt-form',
   imports: [ReactiveFormsModule, FormlyForm],
+  // Formly chỉ được đăng ký khi có <vt-form>, shell không phải tải sẵn (WEB-052)
+  providers: [formEngineProviders()],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form [formGroup]="form" (ngSubmit)="submit()" class="vt-form" novalidate>
@@ -159,6 +161,9 @@ export class VtFormComponent {
     const widgets = this.ui().widgets ?? {};
     const validator = (control: AbstractControl, field: FormlyFieldConfig) =>
       this.validateField(control, field);
+    // Chỉ đọc: khoá từng trường (gốc của toFieldConfig không có điều khiển nên khoá ở gốc không có tác
+    // dụng); đổi `readonly` thì dựng lại các trường với giá trị `value` hiện tại
+    const readonly = this.readonly();
     const root = this.jsonschema.toFieldConfig(this.schema(), {
       map: (field: FormlyFieldConfig, s: JSONSchema7) => {
         const schema = s as SchemaExt;
@@ -182,13 +187,13 @@ export class VtFormComponent {
         if (schema.multipleOf) field.props = { ...field.props, step: schema.multipleOf };
         if (schema['x-catalog']) field.props = { ...field.props, catalog: schema['x-catalog'] };
         if (key) {
+          if (readonly) field.props = { ...field.props, disabled: true };
           field.id = `vt-f-${key}`;
           field.validators = { ...field.validators, validation: [validator] };
         }
         return field;
       },
     });
-    if (untracked(this.readonly)) root.props = { ...root.props, disabled: true };
     const sections = this.ui().sections;
     if (!sections?.length) return [root];
     const children = root.fieldGroup ?? [];
@@ -239,6 +244,9 @@ export class VtFormComponent {
   constructor() {
     effect(() => {
       const model = this.modelRef();
+      // ngữ cảnh (`ctx.*`) hay bộ quy tắc đổi thì quy tắc cũng phải đánh giá lại
+      this.context();
+      this.rules();
       untracked(() => this.recheck(model));
     });
     effect(() => {

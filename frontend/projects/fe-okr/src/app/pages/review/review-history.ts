@@ -127,5 +127,5 @@ export class ReviewHistory {
   );
 
   protected readonly when = formatDateTime;
-  protected readonly day = (iso: string) => formatDate(iso);
+  protected readonly day = (iso?: string) => (iso ? formatDate(iso) : '—');
 }

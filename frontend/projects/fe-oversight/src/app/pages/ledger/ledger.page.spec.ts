@@ -14,6 +14,8 @@ import { VERIFY_POLL_MS } from '../../step-up';
 import { LedgerPage } from './ledger.page';
 
 /** WEB-043: SCR-1302 trên dữ liệu giả lập: tra cứu, kết quả chuỗi băm, niêm phong, chạy kiểm tra. */
+let cmp: { newPartition: { set(v: number | null): void } };
+
 async function render(can: (k: string) => boolean = () => true) {
   await resetMockApi();
   TestBed.configureTestingModule({
@@ -32,8 +34,9 @@ async function render(can: (k: string) => boolean = () => true) {
   });
   const fixture = TestBed.createComponent(LedgerPage);
   fixture.autoDetectChanges();
+  cmp = fixture.componentInstance as unknown as typeof cmp;
   const el = fixture.nativeElement as HTMLElement;
-  await until(el, '.tbl tbody tr', (e) => text(e).includes('·'));
+  await until(el, '.tbl tbody tr', (e) => text(e).includes('Số '));
   return el;
 }
 
@@ -50,26 +53,36 @@ const text = (el: Element | null) => el?.textContent?.replace(/\s+/g, ' ').trim(
 const has = (s: string) => (e: Element) => text(e).includes(s);
 
 describe('LedgerPage (SCR-1302)', () => {
-  it('90 ngày gần nhất, bản ghi 1042 tô đỏ, MSG-13-06, niêm phong và bản neo của bản ghi sai', async () => {
+  it('90 ngày gần nhất, bản ghi 1042 tô đỏ, MSG-13-06, niêm phong và đối chứng của bản ghi sai', async () => {
     const el = await render();
     const broken = el.querySelector('tr.broken');
-    expect(text(broken)).toContain('Số 1042 Phân vùng 17');
-    expect(text(broken)).toContain('Nghiệm thu minh chứng');
-    expect(text(broken)).toContain('Tiến độ (C): 0,85');
-    expect(text(broken)).toContain('Tiến độ (C): 0,95');
+    expect(broken?.getAttribute('data-entry')).toBe('17·1042');
+    expect(broken?.getAttribute('data-event-type')).toBe('product.evidence.accepted.v1');
+    expect(text(broken)).toContain('Số 1042');
+    expect(text(broken)).toContain('Nghiệm thu sản phẩm');
+    expect(text(broken)).toContain('Hệ số C: 0,85');
+    expect(text(broken)).toContain('Hệ số C: 0,95');
     const chain = await until(el, 'section', has('Kết quả kiểm tra toàn vẹn'));
-    expect(text(chain)).toContain('Mã kiểm tra: 4b07…e7f8 ≠ tính lại 9d3c…c6d7');
+    const bad = chain.querySelector('li.bad-box');
+    expect(bad?.getAttribute('data-stored-hash')).toMatch(/^4b07/);
+    expect(bad?.getAttribute('data-recomputed-hash')).toMatch(/^9d3c/);
+    expect(text(bad)).toContain('Bản ghi số 1042');
+    expect(text(bad)).toContain('Đã bị thay đổi');
     expect(text(chain)).toContain(
-      'Phát hiện sổ cái mất toàn vẹn tại bản ghi số 1042 của phân vùng 17. Hệ thống đã tạo cảnh báo mức Cao',
+      'Phát hiện dữ liệu bị thay đổi trái phép tại bản ghi số 1042. Hệ thống đã tạo cảnh báo mức Cao',
     );
-    expect(text(el.querySelector('#r-h')!.parentElement)).toContain('63/64 phân vùng khớp');
+    expect(text(el.querySelector('#r-h')!.parentElement)).toContain(
+      'Phát hiện dữ liệu bị thay đổi',
+    );
     const seal = await until(
       el,
       'section',
-      (e) => !!e.querySelector('#s-h') && has('Mã niêm phong')(e),
+      (e) => !!e.querySelector('#s-h') && has('Chữ ký số')(e),
     );
     expect(text(seal)).toContain('Hợp lệ');
     expect(text(seal)).toContain('Kho lưu trữ VPTW');
+    // không hiện mã kỹ thuật trên giao diện (YC-PT-10)
+    expect(text(el)).not.toMatch(/Merkle|RFC 3161|phân vùng|\.v1\b|băm/);
   });
 
   it('lọc theo đối tượng từ một dòng; chọn bản ghi xem chi tiết', async () => {
@@ -77,7 +90,7 @@ describe('LedgerPage (SCR-1302)', () => {
     const link = (await until(
       el,
       'button.link',
-      has('Yêu cầu mở lại kỳ: MLK-2026-007'),
+      (e) => e.getAttribute('data-aggregate-id') === 'rr-2026-007',
     )) as HTMLElement;
     link.click();
     await until(el, '.tbl tbody', (e) => e.querySelectorAll('tr').length === 2);
@@ -85,19 +98,19 @@ describe('LedgerPage (SCR-1302)', () => {
     const seal = await until(
       el,
       'section',
-      (e) => !!e.querySelector('#s-h') && has('Số 1046, phân vùng 17 ·')(e),
+      (e) => !!e.querySelector('#s-h') && has('Số 1046 ·')(e),
     );
-    expect(text(seal)).toContain('Mã kiểm tra');
+    expect(seal.querySelector('dl')?.getAttribute('data-entry')).toBe('17·1046');
+    expect(text(seal)).toContain('Phê duyệt yêu cầu mở lại kỳ');
   });
 
   it('chạy kiểm tra một phân vùng khớp hết: MSG-13-05; người chỉ tra cứu không thấy nút chạy, xuất', async () => {
     const el = await render();
-    const part = el.querySelector('#lg-vpart') as HTMLInputElement;
-    part.value = '5';
-    part.dispatchEvent(new Event('input'));
+    // giao diện không còn ô chọn phân vùng (YC-PT-10); kiểm tra một phần dữ liệu đặt thẳng vào trang
+    cmp.newPartition.set(5);
     ((await until(el, 'button', has('Chạy kiểm tra toàn vẹn'))) as HTMLButtonElement).click();
-    const ok = await until(el, 'p-message', has('Kiểm tra toàn vẹn hoàn tất: 1/1 phân vùng khớp'));
-    expect(text(ok)).toContain('20.068 bản ghi');
+    const ok = await until(el, 'p-message', has('Kiểm tra toàn vẹn hoàn tất'));
+    expect(text(ok)).toContain('20.068 bản ghi đều nguyên vẹn');
     TestBed.resetTestingModule();
     const ro = await render((k) => k === 'SCR-1302.tra-cuu');
     expect(text(ro)).not.toContain('Chạy kiểm tra toàn vẹn');

@@ -3,21 +3,32 @@ import {
   GeneralCriteriaLevel,
   RATING_LEVELS,
   RatingLevel,
+  UiFormVersion,
 } from '@vt/api-client';
 import { FormRule, evaluateRules } from '@vt/form-engine';
 
 /**
- * Quy tắc của phiếu tự đánh giá SCR-0901 chạy trên trình duyệt để phản hồi tức thì; máy chủ kiểm lại
- * khi nộp (422 `APPRAISAL-422-REASON-REQUIRED`, `APPRAISAL-422-BREAKTHROUGH-REQUIRED`).
+ * Quy tắc của phiếu tự đánh giá SCR-0901 chạy trên trình duyệt để phản hồi tức thì. Phần tự đề xuất
+ * mức (trường 9 đến 12) là biểu mẫu động Mẫu 1B lấy từ `GET /ui/forms/mau-1b/current`: lược đồ, cách
+ * trình bày và quy tắc CEL do Policy Pack, UI Pack quy định; máy chủ kiểm lại khi lưu, nộp
+ * (422 `APPRAISAL-422-REASON-REQUIRED`, `APPRAISAL-422-BREAKTHROUGH-REQUIRED`).
  */
 
-/** Dữ liệu đang soạn của vùng 4 (trường 9 đến 12). */
+/** Khoá biểu mẫu động của phiếu tự đánh giá (Mẫu 1B). */
+export const SELF_FORM_KEY = 'mau-1b';
+
+/** Dữ liệu biểu mẫu Mẫu 1B; khoá trùng tên trường của `AppraisalSelfAssessmentInput`. */
 export interface SelfForm {
-  selfRating: RatingLevel | null;
+  selfRatingCode: RatingLevel;
   breakthrough: string;
-  evidenceIds: string[];
   reason: string;
   content: string;
+}
+
+/** Ngữ cảnh chỉ đọc của quy tắc (`ctx.*`): mức hệ thống tham khảo và số minh chứng đã gắn. */
+export interface SelfFormContext {
+  mucThamKhao: RatingLevel;
+  soMinhChung: number;
 }
 
 /** BR-09-05: 100% Thực hiện tốt; 90 đến dưới 100% Đảm bảo; 60 đến dưới 90% Cơ bản đảm bảo; còn lại Không đảm bảo. */
@@ -34,50 +45,39 @@ export function compareRating(a: RatingLevel, b: RatingLevel): number {
   return Math.sign(RATING_LEVELS.indexOf(a) - RATING_LEVELS.indexOf(b));
 }
 
-export const MSG_09_02 =
-  'Mức tự đề xuất khác mức hệ thống tham khảo. Đồng chí cần ghi giải trình trước khi nộp (Điều 16 Quy định 366).';
-export const MSG_09_03 =
-  'Đề xuất mức Hoàn thành xuất sắc nhiệm vụ cần mô tả giải pháp đột phá và gắn ít nhất một minh chứng đã được xác nhận.';
-
 /**
- * Quy tắc CEL theo dạng `FormRule` của `@vt/form-engine` (biến: `selfRating`, `refRating`,
- * `breakthroughLen`, `evidenceCount`, `reasonLen`, `contentLen`). Độ dài chuỗi tính trước thành biến vì
- * cel-js 0.8.2 trên trình duyệt chưa có đủ hàm chuỗi (wiki/10, bẫy 13). BR-09-12 là quy tắc nền tảng
- * (không cấu hình theo Policy Pack), nên bộ quy tắc nằm trong mã; khi WEB-010 có loader quy tắc của
- * UI Pack, có thể chuyển sang khai báo (suy luận).
+ * Đổi quy tắc CEL của biểu mẫu (`celRules`) sang `FormRule` của `@vt/form-engine`: mỗi quy tắc gắn
+ * với trường của nó, `expr` là điều kiện phải đúng.
  */
-export const SELF_RULES: FormRule[] = [
-  {
-    id: 'content',
+export function formRules(form: UiFormVersion): FormRule[] {
+  return (form.celRules ?? []).map((r, i) => ({
+    id: r.field || `rule-${i + 1}`,
     when: 'true',
-    assert: 'contentLen > 0',
-    message: 'Vui lòng nhập ưu điểm, hạn chế, hướng khắc phục.',
-  },
-  {
-    id: 'reason',
-    when: 'selfRating != refRating',
-    assert: 'reasonLen >= 20 && reasonLen <= 2000',
-    message: MSG_09_02,
-  },
-  {
-    id: 'breakthrough',
-    when: 'selfRating == "HTXSNV"',
-    assert: 'breakthroughLen > 0 && evidenceCount > 0',
-    message: MSG_09_03,
-  },
-];
+    assert: r.expr,
+    message: r.message,
+    ...(r.field ? { field: r.field } : {}),
+    ...(r.serverOnly ? { serverOnly: true } : {}),
+  }));
+}
 
-/** Lỗi theo trường của vùng 4, khoá là `id` của quy tắc. */
-export function checkSelfForm(f: SelfForm, ref: RatingLevel): Record<string, string> {
+/** Lỗi theo trường của biểu mẫu (khoá là tên trường), chuỗi đã bỏ khoảng trắng hai đầu. */
+export function checkSelfForm(
+  rules: readonly FormRule[],
+  f: SelfForm,
+  ctx: SelfFormContext,
+): Record<string, string> {
   const model = {
-    selfRating: f.selfRating ?? ref,
-    refRating: ref,
-    breakthroughLen: f.breakthrough.trim().length,
-    evidenceCount: f.evidenceIds.length,
-    reasonLen: f.reason.trim().length,
-    contentLen: f.content.trim().length,
+    selfRatingCode: f.selfRatingCode,
+    breakthrough: f.breakthrough.trim(),
+    reason: f.reason.trim(),
+    content: f.content.trim(),
   };
-  return Object.fromEntries(evaluateRules(SELF_RULES, model).map((v) => [v.ruleId, v.message]));
+  return Object.fromEntries(
+    evaluateRules(rules, model, { context: { ...ctx } }).map((v) => [
+      v.field ?? v.ruleId,
+      v.message,
+    ]),
+  );
 }
 
 /** Năm bước của hồ sơ trên thanh bước (bước 1/5 là tự đánh giá). */

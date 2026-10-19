@@ -19,16 +19,13 @@ import {
   OkrReviewSet,
   OkrTree,
 } from '../../lib/models/okr';
-import { krProgress, objectiveProgressPct } from '../../lib/okr-progress';
+import { krProgress, objectiveProgress } from '../../lib/okr-progress';
 import { MockModule, MockRequest, ok, problem } from '../mock-router';
 import { checkinRoutes, myKeyResults, resetCheckins } from './okr-checkin.mock';
 import fixture from './okr.json';
 
 type KrFixture = Omit<KeyResult, 'progress'>;
-type ObjectiveFixture = Omit<Objective, 'progressPct' | 'keyResults' | 'tier'> & {
-  tier: number;
-  keyResults: KrFixture[];
-};
+type ObjectiveFixture = Omit<Objective, 'progress' | 'keyResults'> & { keyResults: KrFixture[] };
 
 /** Đơn vị có cây lớn sinh tự động, để thử ảo hoá và hiệu năng của SCR-0201. */
 export const OKR_LARGE_UNIT_ID = 'u-duk';
@@ -66,18 +63,14 @@ const draftsState = () =>
 
 function withProgress(o: ObjectiveFixture): Objective {
   const keyResults = o.keyResults.map((k) => ({ ...k, progress: krProgress(k) }));
-  return {
-    ...o,
-    tier: o.tier as Objective['tier'],
-    keyResults,
-    progressPct: objectiveProgressPct(keyResults),
-  };
+  return { ...o, keyResults, progress: objectiveProgress(keyResults) };
 }
 
 /** Cây lớn: 3 mục tiêu tầng 1, mỗi mục tiêu 12 phòng, mỗi phòng 8 cá nhân (≈ 330 nút, ≈ 900 KR). */
 function largeObjectives(): Objective[] {
   const conf: Confidence[] = ['CAO', 'TRUNG_BINH', 'THAP'];
   const out: Objective[] = [];
+  const byId = new Map<string, Objective>();
   const kr = (objId: string, code: string, i: number, n: number): KeyResult => {
     const target = 10 + ((i * 7) % 40);
     const current = (i * 13) % (target + 5);
@@ -93,17 +86,21 @@ function largeObjectives(): Objective[] {
       weight: 1 / 3,
       progress: krProgress({ baselineValue: 0, targetValue: target, currentValue: current }),
       dueDate: '2026-12-31',
-      verifierName: 'Trưởng đơn vị',
-      dataSource: null,
-      valueNote: null,
+      verifier: { id: 'p-truong-don-vi', name: 'Trưởng đơn vị' },
+      owner: { id: `p-cb-${i}`, name: `Cán bộ ${i}` },
       confidence: conf[i % 3],
+      status: 'DA_DUYET',
       riskFlag: i % 11 === 0 ? 'RUI_RO' : 'BINH_THUONG',
-      lastCheckinAt: '2026-10-16T09:00:00+07:00',
-      ownerName: `Cán bộ ${i}`,
+      lastCheckin: {
+        value: current,
+        confidence: conf[i % 3],
+        checkinAt: '2026-10-16T09:00:00+07:00',
+      },
       viewerIsOwner: false,
       latestBlocker: null,
       linkedWork: [],
       linkedTaskCount: i % 5,
+      rowVersion: 1,
     };
   };
   const push = (
@@ -117,22 +114,26 @@ function largeObjectives(): Objective[] {
     seed: number,
   ) => {
     const keyResults = [1, 2, 3].map((n) => kr(id, `KR ${code.slice(1)}.${n}`, seed + n, n));
-    out.push({
+    const up = parent ? byId.get(parent) : undefined;
+    const o: Objective = {
       id,
+      periodId: fixture.currentPeriodId,
       code,
       title,
       tier,
       ownerType: person ? 'CA_NHAN' : 'TAP_THE',
-      ownerUnitName: unit,
-      ownerPersonName: person,
-      parentObjectiveId: parent,
+      ownerUnit: { id: `u-${code}`, name: unit },
+      ...(person ? { ownerPerson: { id: `p-${code}`, name: person } } : {}),
+      ...(up ? { parentObjective: { id: up.id, code: up.code, title: up.title } } : {}),
       status: 'DA_DUYET',
-      progressPct: objectiveProgressPct(keyResults),
+      progress: objectiveProgress(keyResults),
       approvedAt: '2026-10-08T09:00:00+07:00',
       versionNo: 1,
-      overLimitReason: null,
       keyResults,
-    });
+      rowVersion: 1,
+    };
+    byId.set(id, o);
+    out.push(o);
   };
   for (let a = 1; a <= 3; a++) {
     push(`L${a}`, `O${a}`, `Mục tiêu ${a} của Đảng uỷ khối`, 1, 'Đảng uỷ khối', null, null, a);
@@ -201,43 +202,48 @@ function withKrIds(d: ObjectiveDraft, n: number): ObjectiveDraft['keyResults'] {
 /** Cập nhật cây SCR-0201 theo bản nháp vừa lưu. */
 function syncTree(d: ObjectiveDetail) {
   const list = (objectivesState()[d.periodId] ??= []);
-  const verifierName = (id: string | null) =>
-    fixture.compose.verifiers.find((v) => v.id === id)?.title ?? '';
+  const verifier = (id: string | null) => {
+    const v = fixture.compose.verifiers.find((x) => x.id === id);
+    return v ? { verifier: { id: v.id, name: v.name } } : {};
+  };
+  const parent = fixture.compose.parentOptions.find((p) => p.id === d.parentObjectiveId);
+  const me = fixture.compose.me;
   const node: ObjectiveFixture = {
     id: d.id,
+    periodId: d.periodId,
     code: d.code,
     title: d.title,
     tier: 1,
     ownerType: d.ownerType,
-    ownerUnitName: d.ownerUnitName,
-    ownerPersonName: d.ownerType === 'CA_NHAN' ? d.authorName : null,
-    parentObjectiveId: d.parentObjectiveId,
+    ownerUnit: fixture.unit,
+    ...(d.ownerType === 'CA_NHAN' ? { ownerPerson: { id: me.id, name: d.authorName } } : {}),
+    ...(parent ? { parentObjective: parent as ObjectiveFixture['parentObjective'] } : {}),
     status: d.status,
-    approvedAt: null,
     versionNo: d.versionNo,
-    overLimitReason: d.overLimitReason,
+    ...(d.overLimitReason ? { overLimitReason: d.overLimitReason } : {}),
+    rowVersion: d.rowVersion,
+    // Bản nháp có thể chưa đủ chỉ tiêu, hạn (SCR-0202 cho lưu nháp thiếu trường): giữ null như máy chủ.
     keyResults: d.keyResults.map((k) => ({
       id: k.id!,
       objectiveId: d.id,
+      periodId: d.periodId,
       code: k.code,
       title: k.title,
       unit: k.unit,
       baselineValue: k.baselineValue,
-      targetValue: k.targetValue,
+      targetValue: k.targetValue as number,
       currentValue: null,
       weight: k.weight,
-      dueDate: k.dueDate ?? '',
-      verifierName: verifierName(k.verifierId),
-      dataSource: null,
-      valueNote: null,
-      confidence: null,
+      dueDate: k.dueDate as string,
+      ...verifier(k.verifierId),
+      owner: { id: me.id, name: d.authorName },
+      status: d.status,
       riskFlag: 'BINH_THUONG',
-      lastCheckinAt: null,
-      ownerName: d.authorName,
       viewerIsOwner: true,
       latestBlocker: null,
       linkedWork: [],
       linkedTaskCount: 0,
+      rowVersion: 1,
     })),
   };
   const i = list.findIndex((o) => o.id === d.id);
@@ -329,42 +335,40 @@ function reviewUnitTree(unitId: string, period: OkrPeriod): OkrTree | null {
   };
   const objectives: Objective[] = set.objectives.map((o) => ({
     id: o.id,
+    periodId: period.id,
     code: o.code,
     title: o.title,
     tier: 1,
     ownerType: 'TAP_THE',
-    ownerUnitName: set.unit.name,
-    ownerPersonName: null,
-    parentObjectiveId: null,
+    ownerUnit: set.unit,
     status: status(o.id),
-    progressPct: 0,
-    approvedAt: null,
+    progress: 0,
     versionNo: o.versionNo,
-    overLimitReason: null,
-    keyResults: o.keyResults.map((k) => ({
-      id: k.id,
-      objectiveId: o.id,
-      code: k.code,
-      title: k.title,
-      unit: '',
-      baselineValue: null,
-      targetValue: null,
-      currentValue: null,
-      weight: k.weight,
-      progress: 0,
-      dueDate: period.endDate,
-      verifierName: '',
-      dataSource: null,
-      valueNote: k.targetText,
-      confidence: null,
-      riskFlag: 'BINH_THUONG',
-      lastCheckinAt: null,
-      ownerName: set.submittedBy,
-      viewerIsOwner: false,
-      latestBlocker: null,
-      linkedWork: [],
-      linkedTaskCount: 0,
-    })),
+    rowVersion: o.rowVersion,
+    keyResults: o.keyResults.map((k) => {
+      // Chỉ tiêu dạng chữ của hàng chờ ("100%", "12 tin, bài") tách thành số và đơn vị đo.
+      const m = /^([\d.,]+)\s*(.*)$/.exec(k.targetText);
+      return {
+        id: k.id,
+        objectiveId: o.id,
+        code: k.code,
+        title: k.title,
+        unit: m?.[2] ?? '',
+        targetValue: m ? Number(m[1].replace(',', '.')) : 0,
+        currentValue: null,
+        weight: k.weight,
+        progress: 0,
+        dueDate: period.endDate,
+        owner: set.submittedBy,
+        status: status(o.id),
+        riskFlag: 'BINH_THUONG' as const,
+        viewerIsOwner: false,
+        latestBlocker: null,
+        linkedWork: [],
+        linkedTaskCount: 0,
+        rowVersion: 1,
+      };
+    }),
   }));
   return {
     period,
@@ -379,7 +383,7 @@ function reviewUnitTree(unitId: string, period: OkrPeriod): OkrTree | null {
   };
 }
 
-const REVIEW_OK: OkrReviewCheck = { tone: 'DAT', label: 'Đạt' };
+const REVIEW_OK: OkrReviewCheck = { level: 'DAT', label: 'Đạt' };
 
 function dueDateOf(periodId: string): string {
   const dues = fixture.reviews.dueDates as Record<string, string>;
@@ -393,28 +397,26 @@ function ownUnitSet(periodId: string): StaticSet | null {
     (o) => o.tier === 1 && o.status === 'CHO_DUYET',
   );
   if (!list.length) return null;
-  const parentCode = (id: string | null) =>
-    fixture.compose.parentOptions.find((p) => p.id === id)?.code ?? null;
   const objectives: OkrReviewObjective[] = list.map((o) => {
     const d = draftsState().get(o.id);
     return {
       id: o.id,
       code: o.code,
       title: o.title,
-      parentCode: parentCode(o.parentObjectiveId),
+      parentCode: o.parentObjective?.code ?? null,
       versionNo: o.versionNo,
       rowVersion: d?.rowVersion ?? 1,
       check:
         (d?.basisIds.length ?? 1) > 0
-          ? { tone: 'DAT', label: 'Có căn cứ' }
-          : { tone: 'LOI', label: 'Thiếu căn cứ' },
+          ? { level: 'DAT', label: 'Có căn cứ' }
+          : { level: 'LOI_CHAN', label: 'Thiếu căn cứ' },
       keyResults: o.keyResults.map((k) => {
         const t = k.title.toLocaleLowerCase('vi');
         const check: OkrReviewCheck = policy.vagueWords.some((w) => t.includes(w))
-          ? { tone: 'CANH_BAO', label: 'KR mơ hồ' }
+          ? { level: 'CANH_BAO', label: 'KR mơ hồ' }
           : policy.taskVerbs.some((v) => t.startsWith(v + ' '))
-            ? { tone: 'CANH_BAO', label: 'Giống nhiệm vụ' }
-            : { tone: 'DAT', label: 'Đo được' };
+            ? { level: 'CANH_BAO', label: 'Giống nhiệm vụ' }
+            : { level: 'DAT', label: 'Đo được' };
         return {
           id: k.id,
           code: k.code,
@@ -428,13 +430,15 @@ function ownUnitSet(periodId: string): StaticSet | null {
       }),
     };
   });
-  const author = draftsState().get(list[0].id)?.authorName ?? fixture.compose.me.name;
+  const me = fixture.compose.me;
+  const name = draftsState().get(list[0].id)?.authorName ?? me.name;
+  const author = { id: name === me.name ? me.id : `p-${fixture.unit.id}`, name };
   return {
     id: `rs-${fixture.unit.id}`,
     unit: { id: fixture.unit.id, name: fixture.unit.name },
     submittedAt: draftsState().get(list[0].id)?.updatedAt ?? new Date().toISOString(),
     submittedBy: author,
-    viewerIsAuthor: author === fixture.reviews.viewer.name,
+    viewerIsAuthor: author.id === fixture.reviews.viewer.id,
     objectives,
   };
 }
@@ -442,18 +446,18 @@ function ownUnitSet(periodId: string): StaticSet | null {
 /** Bổ sung số đếm và nhãn tổng hợp của hàng chờ ("Đạt", "n cảnh báo", "Vượt 3 O", "KR mơ hồ"). */
 function summarize(s: StaticSet, periodId: string): OkrReviewSet {
   const checks = s.objectives.flatMap((o) => [o.check, ...o.keyResults.map((k) => k.check)]);
-  const blocking = checks.filter((c) => c.tone === 'LOI').length;
+  const blocking = checks.filter((c) => c.level === 'LOI_CHAN').length;
   const over = s.objectives.length > fixture.compose.policy.recommendedMax;
-  const warnings = checks.filter((c) => c.tone === 'CANH_BAO').length + (over ? 1 : 0);
+  const warnings = checks.filter((c) => c.level === 'CANH_BAO').length + (over ? 1 : 0);
   const vague = checks.some((c) => c.label === 'KR mơ hồ');
   const summary: OkrReviewCheck = blocking
-    ? { tone: 'LOI', label: `${blocking} lỗi` }
+    ? { level: 'LOI_CHAN', label: `${blocking} lỗi` }
     : over
-      ? { tone: 'CANH_BAO', label: `Vượt ${fixture.compose.policy.recommendedMax} O` }
+      ? { level: 'CANH_BAO', label: `Vượt ${fixture.compose.policy.recommendedMax} O` }
       : vague
-        ? { tone: 'CANH_BAO', label: 'KR mơ hồ' }
+        ? { level: 'CANH_BAO', label: 'KR mơ hồ' }
         : warnings
-          ? { tone: 'CANH_BAO', label: `${warnings} cảnh báo` }
+          ? { level: 'CANH_BAO', label: `${warnings} cảnh báo` }
           : REVIEW_OK;
   return {
     ...s,
@@ -590,7 +594,7 @@ function baseHistory(id: string): OkrHistoryEntry[] | null {
   )) {
     const set = list.find((x) => x.objectives.some((o) => o.id === id));
     if (set) {
-      const actor = { id: `p-${set.unit.id}`, name: set.submittedBy };
+      const actor = set.submittedBy;
       return [
         { at: set.submittedAt, action: 'TRINH', versionNo: 1, status: 'CHO_DUYET', actor },
         { at: set.submittedAt, action: 'LUU_NHAP', versionNo: 1, status: 'NHAP', actor },
@@ -644,11 +648,8 @@ export const OKR_MOCK: MockModule = {
     },
     {
       method: 'GET',
-      pattern: '/api/v1/okr/objectives',
-      handle: (req) =>
-        req.params.get('view') === 'tree'
-          ? buildTree(req)
-          : problem(400, 'Chế độ xem này chưa được hỗ trợ.'),
+      pattern: '/api/v1/okr/tree',
+      handle: (req) => buildTree(req),
     },
     ...checkinRoutes(objectivesState),
     {

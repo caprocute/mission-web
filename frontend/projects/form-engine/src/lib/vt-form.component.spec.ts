@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { JSONSchema7 } from 'json-schema';
+import { JSONSchema7 } from './json-schema';
 import { of } from 'rxjs';
 import { MAU_1B_CONTEXT, MAU_1B_RULES, MAU_1B_SCHEMA, MAU_1B_UI } from '../samples/mau-1b';
 import { VT_FORM_CATALOGS } from './fields/field-types';
@@ -18,6 +18,7 @@ import { VtFormComponent } from './vt-form.component';
     [context]="context()"
     [value]="value()"
     [serverErrors]="serverErrors()"
+    [readonly]="readonly()"
     (submitted)="sent.push($event)"
   >
     <button type="submit">Nộp</button>
@@ -30,6 +31,7 @@ class HostComponent {
   context = signal<Record<string, unknown>>(MAU_1B_CONTEXT);
   value = signal<Record<string, unknown>>({ mucTuDeXuat: 'HTTNV' });
   serverErrors = signal<readonly ServerFieldError[]>([]);
+  readonly = signal(false);
   sent: Record<string, unknown>[] = [];
 }
 
@@ -82,6 +84,28 @@ async function fillValid(fixture: ComponentFixture<HostComponent>, el: HTMLEleme
 }
 
 describe('VtFormComponent với Mẫu 1B', () => {
+  it('chỉ đọc: mọi ô bị khoá, kể cả khi trường xếp theo ui.sections hoặc không có nhóm', async () => {
+    const { el } = await setup({ readonly: true });
+    const inputs = [...el.querySelectorAll('input, select, textarea')] as HTMLInputElement[];
+    expect(inputs.length).toBeGreaterThan(5);
+    expect(inputs.every((i) => i.disabled)).toBe(true);
+    TestBed.resetTestingModule();
+    const flat = await setup({ readonly: true, ui: {} });
+    expect((flat.el.querySelector('#vt-f-uuDiem') as HTMLTextAreaElement).disabled).toBe(true);
+  });
+
+  it('đổi ngữ cảnh thì đánh giá lại quy tắc: mức tham khảo mới bằng mức đã chọn thì hết lỗi giải trình', async () => {
+    const { fixture, host, el } = await setup();
+    await type(fixture, el, '#vt-f-mucTuDeXuat', 'Hoàn thành nhiệm vụ');
+    await type(fixture, el, '#vt-f-giaiTrinh', 'ngắn');
+    expect(el.querySelector('#vt-f-giaiTrinh')?.getAttribute('aria-invalid')).toBe('true');
+    host.context.set({ ...MAU_1B_CONTEXT, mucThamKhao: 'HTNV' });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el.querySelector('#vt-f-giaiTrinh')?.getAttribute('aria-invalid')).toBe('false');
+  });
+
   it('dựng 4 nhóm theo ui.sections, legend đúng tên', async () => {
     const { el } = await setup();
     const legends = [...el.querySelectorAll('fieldset.vt-section > legend')].map((l) =>

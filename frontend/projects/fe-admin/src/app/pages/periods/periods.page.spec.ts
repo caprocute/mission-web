@@ -108,7 +108,7 @@ describe('PeriodsPage (SCR-0801)', () => {
     await pick(el, 'Quý IV/2026');
     await press(el, 'Phê duyệt lệnh');
     const ok = await until(el, 'p-message', has('đã được phê duyệt bởi đồng chí'));
-    expect(text(ok)).toContain('Lệnh khoá kỳ Quý IV/2026 đã được phê duyệt bởi đồng chí Cán bộ');
+    expect(text(ok)).toContain('Lệnh khoá kỳ Quý IV/2026 đã được phê duyệt bởi đồng chí Nguyễn Văn Minh');
     await press(el, 'Khởi chạy');
     const err = await until(el, 'p-message', has('Người khởi chạy phải khác'));
     expect(text(err)).toContain('Người khởi chạy phải khác người phê duyệt');

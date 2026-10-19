@@ -26,6 +26,8 @@ export * from './lib/models/plan';
 export * from './lib/plan-api';
 export * from './lib/models/okr';
 export * from './lib/okr-api';
+export * from './lib/models/ui-form';
+export * from './lib/ui-form-api';
 export * from './lib/models/source-doc';
 export * from './lib/source-doc-api';
 export * from './lib/ai-api';
@@ -40,6 +42,8 @@ export * from './lib/models/org-tree';
 export * from './lib/org-tree-api';
 export * from './lib/models/period';
 export * from './lib/period-api';
+export * from './lib/models/role-binding';
+export * from './lib/role-admin-api';
 export * from './lib/models/appraisal';
 export * from './lib/appraisal-api';
 export * from './lib/models/org-sync';
@@ -48,6 +52,10 @@ export * from './lib/models/reopen';
 export * from './lib/reopen-api';
 export * from './lib/models/ledger';
 export * from './lib/ledger-api';
+export * from './lib/models/complaint';
+export * from './lib/complaint-api';
+export * from './lib/models/alert';
+export * from './lib/alert-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
 export {
   failMockIntegrityOnce,

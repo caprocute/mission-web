@@ -1,4 +1,4 @@
-import { CellLoad, TenancyModel, TenantStatus } from './tenant';
+import { CellInfo, TenancyModel, TenantStatus } from './tenant';
 
 /** Luồng đánh giá tenant áp dụng (`registry.tenant.flows`, SCR-0102 trường 3). */
 export type TenantFlow = 'DANG' | 'NHA_NUOC';
@@ -121,7 +121,7 @@ export type TenantOnboardingPatch = Partial<
 >;
 
 /** Một cell ứng viên ở bước 2 (vùng 3): tải sau khi thêm tenant (BR-01-02). */
-export interface CellOption extends CellLoad {
+export interface CellOption extends CellInfo {
   standbyDc?: string;
   softwareVersion: string;
   /** Tỉ lệ sử dụng sau khi thêm số tài khoản dự kiến. */

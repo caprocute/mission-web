@@ -14,6 +14,10 @@ import { DOSSIERS_MOCK } from './dossiers/dossiers.mock';
 import { ORG_SYNC_MOCK } from './org-sync/org-sync.mock';
 import { REOPEN_MOCK } from './oversight/reopen.mock';
 import { LEDGER_MOCK } from './ledger/ledger.mock';
+import { ALERTS_MOCK } from './oversight/alerts.mock';
+import { COMPLAINTS_MOCK } from './oversight/complaints.mock';
+import { UI_FORMS_MOCK } from './ui-forms/ui-forms.mock';
+import { ROLE_ADMIN_MOCK } from './role-admin/role-admin.mock';
 
 /**
  * Danh mục fixture theo module API (`/api/v1/<module>`). Thêm module mới: tạo thư mục
@@ -37,6 +41,10 @@ export const MOCK_MODULES: MockModule[] = [
   ORG_SYNC_MOCK,
   REOPEN_MOCK,
   LEDGER_MOCK,
+  COMPLAINTS_MOCK,
+  UI_FORMS_MOCK,
+  ROLE_ADMIN_MOCK,
+  ALERTS_MOCK,
 ];
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);

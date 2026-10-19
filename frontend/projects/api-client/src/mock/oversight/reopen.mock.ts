@@ -10,6 +10,7 @@ import {
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import { mockSession } from '../mock-session';
 import { mockPeriodInfo } from '../periods/periods.mock';
+import { linkComplaintReopen } from './complaints.mock';
 import { IMPACT_007, PROFILE_NAMES, REOPEN_PEOPLE, reopenFixtures } from './reopen.fixture';
 
 /**
@@ -170,6 +171,7 @@ function create(req: MockRequest): MockResponse {
     rowVersion: 1,
   };
   store.unshift(r);
+  if (r.basis?.kind === 'KHIEU_NAI' && r.basis.id) linkComplaintReopen(r.basis.id, r.id);
   return {
     status: 201,
     body: structuredClone(r),
@@ -231,7 +233,7 @@ function decide(req: MockRequest, decision: 'DONG_Y' | 'TU_CHOI'): MockResponse 
       code: 'OVERSIGHT-403-FOUR-EYES',
       msg: 'MSG-13-01',
       detail:
-        'Hai người duyệt phải là hai người khác nhau, khác người tạo yêu cầu và chưa tham gia thẩm định, quyết định hồ sơ được mở lại (Phụ lục 4, mục V.1).',
+        'Hai người duyệt phải là hai người khác nhau, khác người tạo yêu cầu và chưa tham gia thẩm định, quyết định hồ sơ được mở lại.',
     });
   const now = new Date().toISOString();
   slot.assignee = ME;

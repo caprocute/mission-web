@@ -1,7 +1,7 @@
 import { Component, computed, inject, input, output } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { KeyResult, OkrApi, OkrPeerLink, ProblemPresenter } from '@vt/api-client';
+import { KeyResult, OkrApi, OkrPeerLink, ProblemPresenter, progressPct } from '@vt/api-client';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '../../okr-ui';
@@ -56,19 +56,22 @@ import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '.
         <h3 class="h3">Vướng mắc gần nhất</h3>
         <p class="blocker">{{ k.latestBlocker }}</p>
       }
-      @if (k.linkedWork.length > 0 || k.linkedTaskCount > 0) {
+      @let work = k.linkedWork ?? [];
+      @let taskCount = k.linkedTaskCount ?? 0;
+      @if (work.length > 0 || taskCount > 0) {
         <h3 class="h3">Chương trình và nhiệm vụ liên kết</h3>
         <ul class="work">
-          @for (w of k.linkedWork; track w.id) {
+          @for (w of work; track w.id) {
+            @let p = pct(w.progress);
             <li>
               <span>{{ w.kind === 'PROGRAM' ? 'Chương trình' : 'Nhiệm vụ' }} "{{ w.title }}"</span>
-              <p-tag [severity]="w.percent >= 50 ? 'success' : 'warn'" [value]="w.percent + '%'" />
+              <p-tag [severity]="p >= 50 ? 'success' : 'warn'" [value]="p + '%'" />
             </li>
           }
         </ul>
-        @if (k.linkedTaskCount > 0) {
+        @if (taskCount > 0) {
           <a class="link" routerLink="/tasks" [queryParams]="{ krId: k.id }">
-            Xem tất cả {{ k.linkedTaskCount }} nhiệm vụ liên kết
+            Xem tất cả {{ taskCount }} nhiệm vụ liên kết
           </a>
         }
         <!-- BR-03-07 -->
@@ -195,6 +198,7 @@ export class KrSidePanel {
   protected readonly confSev = confidenceSeverity;
   protected readonly formatDate = formatDate;
   protected readonly formatValue = formatValue;
+  protected readonly pct = progressPct;
 
   protected readonly history = rxResource({
     params: () => this.kr().id,

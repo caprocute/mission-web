@@ -1,20 +1,25 @@
-import { Component, computed, input, model, output, signal } from '@angular/core';
+import { Component, computed, input, linkedSignal, model, output, untracked } from '@angular/core';
 import {
   AppraisalRatingExplanation,
   Evidence,
-  RATING_LEVELS,
   RATING_LEVEL_LABEL,
   RatingLevel,
+  UiFormVersion,
 } from '@vt/api-client';
-import { compareRating } from './self-assessment-rules';
+import { FormUi, VtFormComponent } from '@vt/form-engine';
+import type { JSONSchema7 } from 'json-schema';
+import { SelfForm, compareRating, formRules } from './self-assessment-rules';
 
 /**
- * SCR-0901 vùng 4: mức hệ thống tham khảo kèm giải thích (trường 8, BR-09-10), mức tự đề xuất
- * (trường 9), giải pháp đột phá kèm minh chứng `DA_XAC_NHAN` khi HTXSNV (trường 10), giải trình khi
- * khác mức tham khảo (trường 11, BR-09-12) và ưu điểm, hạn chế, hướng khắc phục (trường 12, C2).
+ * SCR-0901 vùng 4: mức hệ thống tham khảo kèm giải thích (trường 8, BR-09-10) và biểu mẫu động Mẫu 1B
+ * (`<vt-form>`, lược đồ và quy tắc CEL từ `GET /ui/forms/mau-1b/current`) gồm mức tự đề xuất (trường 9),
+ * giải pháp đột phá (trường 10), giải trình khi khác mức tham khảo (trường 11, BR-09-12) và ưu điểm,
+ * hạn chế, hướng khắc phục (trường 12, C2). Minh chứng đã xác nhận cho mức xuất sắc chọn ở danh sách
+ * riêng vì biểu mẫu động chưa có ô chọn minh chứng.
  */
 @Component({
   selector: 'vt-self-rating',
+  imports: [VtFormComponent],
   template: `
     <section class="box" aria-labelledby="sa-h">
       <h2 id="sa-h" class="sec">Tự đề xuất mức xếp loại</h2>
@@ -24,39 +29,21 @@ import { compareRating } from './self-assessment-rules';
       @if (explanation()?.text) {
         <p class="why">{{ explanation()!.text }}</p>
       }
-      <label for="sa-rating" class="lbl">Mức tự đề xuất <span aria-hidden="true">*</span></label>
-      <select
-        id="sa-rating"
-        [disabled]="!editable()"
-        [value]="selfRating()"
-        (change)="set(selfRating, $any($event.target).value)"
-        aria-required="true"
-      >
-        @for (r of levels; track r) {
-          <option [value]="r" [selected]="r === selfRating()">{{ label[r] }} ({{ r }})</option>
-        }
-      </select>
       @if (direction()) {
         <p class="warn" aria-live="polite">
-          Mức hệ thống tham khảo: <b>{{ label[refRating()] }}</b
-          >. Mức tự đề xuất {{ direction() }} nên phải ghi giải trình (Điều 16 Quy định 366).
+          Mức tự đề xuất {{ direction() }} mức hệ thống tham khảo, đồng chí cần ghi giải trình (Điều 16 Quy định 366).
         </p>
       }
-      @if (selfRating() === 'HTXSNV') {
-        <label for="sa-breakthrough" class="lbl">
-          Giải pháp đột phá <span aria-hidden="true">*</span>
-        </label>
-        <textarea
-          id="sa-breakthrough"
-          rows="4"
-          maxlength="2000"
-          [readOnly]="!editable()"
-          [value]="breakthrough()"
-          (input)="set(breakthrough, $any($event.target).value)"
-          (blur)="touch('breakthrough')"
-          [attr.aria-invalid]="!!shown('breakthrough')"
-          [attr.aria-describedby]="shown('breakthrough') ? 'sa-breakthrough-err' : null"
-        ></textarea>
+      <vt-form
+        [schema]="schema()"
+        [ui]="ui()"
+        [rules]="rules()"
+        [context]="context()"
+        [value]="initial()"
+        [readonly]="!editable()"
+        (valueChange)="changed($event)"
+      />
+      @if (current().selfRatingCode === 'HTXSNV') {
         <fieldset class="ev">
           <legend>Gắn minh chứng đã xác nhận</legend>
           @for (e of evidences(); track e.id) {
@@ -70,57 +57,13 @@ import { compareRating } from './self-assessment-rules';
               {{ e.title }}
             </label>
           } @empty {
-            <p class="hint">Chưa có minh chứng nào ở trạng thái đã xác nhận.</p>
+            <p class="hint">Chưa có minh chứng nào được xác nhận.</p>
           }
         </fieldset>
-        @if (shown('breakthrough'); as m) {
-          <p id="sa-breakthrough-err" class="err">{{ m }}</p>
-        }
       }
-      @if (direction()) {
-        <label for="sa-reason" class="lbl">
-          Giải trình khác mức tham khảo <span aria-hidden="true">*</span>
-        </label>
-        <textarea
-          id="sa-reason"
-          rows="4"
-          maxlength="2000"
-          [readOnly]="!editable()"
-          [value]="reason()"
-          (input)="set(reason, $any($event.target).value)"
-          (blur)="touch('reason')"
-          [attr.aria-invalid]="!!shown('reason')"
-          aria-describedby="sa-reason-hint"
-        ></textarea>
-        <p id="sa-reason-hint" class="hint">
-          Từ 20 đến 2.000 ký tự, đã nhập {{ reason().trim().length }}.
-          @if (shown('reason'); as m) {
-            <span class="err">{{ m }}</span>
-          }
-        </p>
+      @if (editable()) {
+        <p class="hint">Phiếu được tự động lưu nháp sau mỗi 30 giây.</p>
       }
-      <label for="sa-content" class="lbl">
-        Ưu điểm, hạn chế, hướng khắc phục <span aria-hidden="true">*</span>
-      </label>
-      <textarea
-        id="sa-content"
-        rows="5"
-        maxlength="2000"
-        placeholder="Nhập tối đa 2.000 ký tự..."
-        [readOnly]="!editable()"
-        [value]="content()"
-        (input)="set(content, $any($event.target).value)"
-        (blur)="touch('content')"
-        aria-required="true"
-        [attr.aria-invalid]="!!shown('content')"
-        aria-describedby="sa-content-hint"
-      ></textarea>
-      <p id="sa-content-hint" class="hint">
-        Nội dung được mã hoá khi lưu · tự động lưu nháp 30 giây một lần
-        @if (shown('content'); as m) {
-          <span class="err">{{ m }}</span>
-        }
-      </p>
     </section>
   `,
   styles: `
@@ -146,19 +89,6 @@ import { compareRating } from './self-assessment-rules';
       color: #4b5563;
       margin: 0;
     }
-    .lbl {
-      font-weight: 600;
-      margin-top: 8px;
-    }
-    select,
-    textarea {
-      font: inherit;
-      padding: 8px;
-      border: 1px solid #9ca3af;
-      border-radius: 6px;
-      width: 100%;
-      box-sizing: border-box;
-    }
     .warn {
       padding: 10px 12px;
       border-left: 4px solid #d97706;
@@ -176,54 +106,65 @@ import { compareRating } from './self-assessment-rules';
       display: flex;
       gap: 6px;
     }
-    .err {
-      color: #b91c1c;
-      display: block;
-      margin: 2px 0 0;
-    }
   `,
 })
 export class SelfRating {
+  /** Biểu mẫu Mẫu 1B đang áp dụng. */
+  readonly form = input.required<UiFormVersion>();
+  /** Hồ sơ đang mở; đổi hồ sơ thì dựng lại biểu mẫu. */
+  readonly profileId = input.required<string>();
   readonly refRating = input.required<RatingLevel>();
   readonly explanation = input<AppraisalRatingExplanation | undefined>();
   readonly editable = input(false);
   readonly evidences = input<Evidence[]>([]);
-  /** Lỗi theo quy tắc (`content`, `reason`, `breakthrough`) từ `checkSelfForm`. */
-  readonly errors = input<Record<string, string>>({});
-  /** Hiện mọi lỗi (sau khi người dùng bấm nộp), không chờ rời ô. */
-  readonly showAll = input(false);
-  readonly selfRating = model.required<RatingLevel>();
-  readonly breakthrough = model('');
+  /** Nội dung phiếu đã lưu (giá trị ban đầu của biểu mẫu). */
+  readonly value = input.required<SelfForm>();
   readonly evidenceIds = model<string[]>([]);
-  readonly reason = model('');
-  readonly content = model('');
-  readonly edited = output<void>();
+  /** Phát nội dung phiếu mỗi lần người dùng sửa. */
+  readonly edited = output<SelfForm>();
 
-  protected readonly levels = RATING_LEVELS;
   protected readonly label = RATING_LEVEL_LABEL;
-  private readonly touched = signal<ReadonlySet<string>>(new Set());
+  protected readonly schema = computed(() => this.form().schemaJson as JSONSchema7);
+  protected readonly ui = computed(() => this.form().uiJson as FormUi);
+  protected readonly rules = computed(() => formRules(this.form()));
+  protected readonly context = computed(() => ({
+    mucThamKhao: this.refRating(),
+    soMinhChung: this.evidenceIds().length,
+  }));
+
+  /** Nội dung đang soạn. */
+  protected readonly current = linkedSignal(() => this.value());
+  /**
+   * Giá trị ban đầu của biểu mẫu chỉ đổi khi đổi hồ sơ, phiên bản biểu mẫu hoặc quyền sửa (lúc đó biểu
+   * mẫu dựng lại), và lấy nội dung đang soạn để không mất chữ đã gõ khi lưu nháp tự động.
+   */
+  protected readonly formKey = computed(
+    () => `${this.profileId()}|${this.form().version}|${this.editable()}`,
+  );
+  protected readonly initial = computed(() => {
+    this.formKey();
+    return untracked(() => ({ ...this.current() }));
+  });
 
   protected readonly direction = computed(() => {
-    const c = compareRating(this.selfRating(), this.refRating());
+    const c = compareRating(this.current().selfRatingCode, this.refRating());
     return c < 0 ? 'cao hơn' : c > 0 ? 'thấp hơn' : '';
   });
 
-  protected shown(key: string): string | null {
-    const m = this.errors()[key];
-    return m && (this.showAll() || this.touched().has(key)) ? m : null;
-  }
-
-  protected touch(key: string) {
-    this.touched.update((s) => new Set(s).add(key));
-  }
-
-  protected set<T>(m: { set(v: T): void }, v: T) {
-    m.set(v);
-    this.edited.emit();
+  protected changed(model: Record<string, unknown>) {
+    const v = this.current();
+    const next: SelfForm = {
+      selfRatingCode: (model['selfRatingCode'] as RatingLevel | null) ?? v.selfRatingCode,
+      breakthrough: (model['breakthrough'] as string | undefined) ?? '',
+      reason: (model['reason'] as string | undefined) ?? '',
+      content: (model['content'] as string | undefined) ?? '',
+    };
+    this.current.set(next);
+    this.edited.emit(next);
   }
 
   protected pick(id: string, on: boolean) {
     this.evidenceIds.update((ids) => (on ? [...ids, id] : ids.filter((x) => x !== id)));
-    this.edited.emit();
+    this.edited.emit(this.current());
   }
 }

@@ -1,8 +1,7 @@
 {
-  "$comment": "Fixture danh bạ tenant (/api/v1/config/tenants, /api/v1/config/cells) của SVC-03 tenant-registry, WEB-016 SCR-0101. Dữ liệu hư cấu theo mockup TL-02 Hình 6.7; ngoài các tenant có tên, tenants.mock.ts sinh thêm tenant pool ở CELL-SH để có nhiều trang. Thêm ?mock-error=403 vào URL trang để thử MSG chặn quyền.",
+  "$comment": "Fixture danh bạ tenant (/api/v1/config/tenants, /api/v1/registry/tenants/{id}) của SVC-03 tenant-registry, WEB-016 SCR-0101. Dữ liệu hư cấu theo mockup TL-02 Hình 6.7; ngoài các tenant có tên, tenants.mock.ts sinh thêm tenant pool ở CELL-SH để có nhiều trang. Thêm ?mock-error=403 vào URL trang để thử MSG chặn quyền.",
   "maxTenants": 5000,
   "designAccounts": 6500000,
-  "updatedAt": "@todayT09:05:00+07:00",
   "cells": [
     {
       "code": "CELL-HCM",
@@ -333,23 +332,6 @@
     "Trường THPT Nguyễn Huệ",
     "Đảng uỷ xã Hải Vân",
     "Đảng uỷ xã Kim Liên"
-  ],
-  "todos": [
-    {
-      "kind": "CHO",
-      "tenantId": "t-thainguyen",
-      "text": "Thái Nguyên: đối soát 412 lệch nhân sự trước khi kích hoạt."
-    },
-    {
-      "kind": "LICH",
-      "tenantId": "t-quangngai",
-      "text": "Quảng Ngãi: kích hoạt ngày 22/10 sau khi ký hợp đồng."
-    },
-    {
-      "kind": "LOI",
-      "tenantId": "t-bvdk-camau",
-      "text": "Cà Mau: khoá xác thực đăng nhập của bệnh viện hết hạn ngày 25/10."
-    }
   ],
   "statusLog": {
     "t-thainguyen": [

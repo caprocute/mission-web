@@ -328,11 +328,14 @@ export function readSavedFilters(
       </aside>
     </div>
 
-    <vt-bulk-progress-dialog
-      [tasks]="bulkTasks()"
-      [(visible)]="bulkOpen"
-      (saved)="onBulkSaved($event)"
-    />
+    <!-- WEB-052: hộp cập nhật hàng loạt (p-dialog) chỉ tải khi người dùng mở lần đầu -->
+    @defer (when bulkOpen()) {
+      <vt-bulk-progress-dialog
+        [tasks]="bulkTasks()"
+        [(visible)]="bulkOpen"
+        (saved)="onBulkSaved($event)"
+      />
+    }
   `,
   styles: `
     :host {

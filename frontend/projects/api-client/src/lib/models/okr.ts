@@ -5,9 +5,10 @@ type Schemas = components['schemas'];
 /**
  * Mô hình dữ liệu module okr (MOD-01, `/api/v1/okr`), tên trường theo TL-03 schema `okr`
  * (`okr.basis`, `okr.objective`, `okr.key_result`, `okr.okr_link`, `okr.kr_checkin`) đổi sang camelCase.
- * Kiểu có cùng nghĩa trong `contracts/openapi/modules/okr.yaml` là bí danh của lược đồ `Okr*` sinh ra;
- * kiểu viết tay còn lại là dạng xem mà hợp đồng chưa có (cây mục tiêu, hàng chờ duyệt, ngữ cảnh soạn),
- * ghi ở wiki/14.
+ * Kiểu có cùng nghĩa trong `contracts/openapi/modules/okr.yaml` là bí danh của lược đồ `Okr*` sinh ra
+ * (cây mục tiêu, hàng chờ duyệt, ngữ cảnh soạn theo WEB-063). Tiến độ (`progress`) là tỉ lệ 0..1,
+ * người là `Ref` `{id, name}`. Kiểu viết tay còn lại (bản nháp soạn SCR-0202, gợi ý AI, kết quả trình)
+ * chưa có lược đồ cùng hình dạng, ghi ở wiki/14.
  */
 
 /** Kết quả then chốt dùng để liên kết nhiệm vụ (`okr.key_result`). */
@@ -40,7 +41,7 @@ export const CONFIDENCE_LABEL: Record<Confidence, string> = {
 export type KrRiskFlag = Schemas['OkrRiskFlag'];
 
 /** Trạng thái kỳ `config.period.status` (baseline). */
-export type OkrPeriodStatus = 'MO' | 'DANG_KHOA' | 'DA_KHOA' | 'MO_LAI_HAU_KIEM';
+export type OkrPeriodStatus = Schemas['PeriodStatus'];
 
 /** Chủ thể sở hữu `okr.objective.owner_type`. */
 export type OkrOwnerType = Schemas['OkrOwnerType'];
@@ -49,123 +50,28 @@ export type OkrOwnerType = Schemas['OkrOwnerType'];
 export type BasisKind = Schemas['OkrBasisKind'];
 
 /** Kỳ đánh giá để chọn trên SCR-0201 (trường 1, `config.period`). */
-export interface OkrPeriod {
-  id: string;
-  label: string;
-  startDate: string;
-  endDate: string;
-  status: OkrPeriodStatus;
-  /** Tuần hiện tại và tổng số tuần của kỳ, ví dụ "Tuần 4/13"; không có với kỳ chưa bắt đầu. */
-  weekNo?: number;
-  weekCount?: number;
-}
+export type OkrPeriod = Schemas['OkrPeriodInfo'];
 
 /** Căn cứ (`okr.basis`), SCR-0201 trường 2. */
-export interface OkrBasis {
-  id: string;
-  basisKind: BasisKind;
-  docNumber: string | null;
-  title: string;
-}
+export type OkrBasis = Schemas['OkrBasisRef'];
 
 /** Mục tiêu cấp trên (`okr.okr_link` kiểu phân rã), SCR-0201 trường 3. */
-export interface ObjectiveRef {
-  id: string;
-  code: string;
-  title: string;
-  unitName: string;
-  status: ObjectiveStatus;
-}
+export type ObjectiveRef = Schemas['OkrObjectiveRef'];
 
 /** Chương trình (Tầng 2) hoặc nhiệm vụ (Tầng 3) liên kết với KR (`okr.okr_link` tới schema `task`), trường 13. */
-export interface KrLinkedWork {
-  id: string;
-  kind: 'PROGRAM' | 'TASK';
-  code: string;
-  title: string;
-  /** Tiến độ 0–100 của nhiệm vụ; không cộng vào giá trị KR (BR-03-07). */
-  percent: number;
-}
+export type KrLinkedWork = Schemas['OkrLinkedWork'];
 
 /** Kết quả then chốt trên cây (`okr.key_result` cùng check-in mới nhất). */
-export interface KeyResult {
-  id: string;
-  objectiveId: string;
-  code: string;
-  title: string;
-  /** Đơn vị đo, ví dụ `%`, `hồ sơ`, `mốc`. */
-  unit: string;
-  /** Giá trị đầu, chỉ tiêu: có thể trống ở mục tiêu `NHAP` chưa soạn xong. */
-  baselineValue: number | null;
-  targetValue: number | null;
-  currentValue: number | null;
-  /** Trọng số trong mục tiêu, 0–1. */
-  weight: number;
-  /** Tỷ lệ đạt do máy chủ tính, 0–1 (`okr.key_result.progress`). */
-  progress: number;
-  dueDate: string;
-  verifierName: string;
-  /** Nguồn số liệu, `null` khi nhập tay. */
-  dataSource: string | null;
-  /** Diễn giải giá trị, ví dụ "18/25 hồ sơ". */
-  valueNote: string | null;
-  confidence: Confidence | null;
-  riskFlag: KrRiskFlag;
-  lastCheckinAt: string | null;
-  ownerName: string;
-  /** Người đang xem là chủ sở hữu KR hoặc được giao check-in thay (máy chủ tính theo token). */
-  viewerIsOwner: boolean;
-  latestBlocker: string | null;
-  linkedWork: KrLinkedWork[];
-  /** Tổng số nhiệm vụ liên kết (có thể nhiều hơn `linkedWork`). */
-  linkedTaskCount: number;
-}
+export type KeyResult = Schemas['OkrKeyResult'];
 
 /** Mục tiêu trên cây (`okr.objective`); tầng 1 của đơn vị, tầng 2 của phòng, tầng 3 của cá nhân. */
-export interface Objective {
-  id: string;
-  code: string;
-  title: string;
-  tier: 1 | 2 | 3;
-  ownerType: OkrOwnerType;
-  ownerUnitName: string;
-  ownerPersonName: string | null;
-  parentObjectiveId: string | null;
-  status: ObjectiveStatus;
-  /** Tiến độ 0–100 (`okr.objective.progress_pct`). */
-  progressPct: number;
-  approvedAt: string | null;
-  versionNo: number;
-  overLimitReason: string | null;
-  keyResults: KeyResult[];
-}
+export type Objective = Schemas['OkrObjective'];
 
 /** Liên kết ngang giữa đơn vị (`okr.okr_link`, `link_kind = NGANG`), SCR-0201 trường 12. */
-export interface OkrPeerLink {
-  id: string;
-  /** Đầu mình, ví dụ "O2 · KR 2.1". */
-  fromLabel: string;
-  fromKeyResultId: string | null;
-  peerUnitName: string;
-  peerCode: string;
-  peerTitle: string;
-}
+export type OkrPeerLink = Schemas['OkrPeerLink'];
 
-/** Dữ liệu cây mục tiêu của một đơn vị trong kỳ (`GET /api/v1/okr/objectives?view=tree`). */
-export interface OkrTree {
-  period: OkrPeriod;
-  periods: OkrPeriod[];
-  unit: { id: string; name: string };
-  /** Đơn vị đang xem là đơn vị của ngữ cảnh làm việc của người dùng (máy chủ tính theo token). */
-  viewerOwnUnit: boolean;
-  bases: OkrBasis[];
-  parent: ObjectiveRef | null;
-  /** Số mục tiêu khuyến nghị tối đa mỗi kỳ (BR-02-01, tham số Policy Pack). */
-  recommendedMax: number;
-  /** Mọi mục tiêu của cây, phẳng, nối bằng `parentObjectiveId`. */
-  objectives: Objective[];
-  peerLinks: OkrPeerLink[];
-}
+/** Dữ liệu cây mục tiêu của một đơn vị trong kỳ (`GET /api/v1/okr/tree`). */
+export type OkrTree = Schemas['OkrTree'];
 
 /** Một lần check-in (`okr.kr_checkin`, chỉ ghi thêm). */
 export interface KrCheckin {
@@ -240,69 +146,26 @@ export interface ObjectiveDetail extends ObjectiveDraft {
 }
 
 /** Mức của một quy tắc soát OKR: chặn trình duyệt hay chỉ cảnh báo. */
-export type OkrRuleSeverity = 'CHAN' | 'CANH_BAO';
+export type OkrRuleSeverity = OkrRule['severity'];
 
 /**
  * Quy tắc soát OKR viết bằng CEL trong Policy Pack (QT-02 bước 4): chạy trên trình duyệt để phản
  * hồi tức thì và chạy lại ở máy chủ khi trình. `scope` cho biết biểu thức chạy trên `objective`
  * hay trên từng `kr`. `message` có thể chứa chỗ trống `{tên}` lấy từ biến cùng tên của ngữ cảnh.
  */
-export interface OkrRule {
-  id: string;
-  /** Mã quy tắc nghiệp vụ, ví dụ `BR-02-05`. */
-  br: string;
-  scope: 'objective' | 'kr';
-  severity: OkrRuleSeverity;
-  when: string;
-  assert: string;
-  message: string;
-  /** Nhãn ngắn cho danh sách kiểm tra trước khi trình khi đạt, ví dụ "Tổng trọng số KR = 100%". */
-  passLabel?: string;
-  serverOnly?: boolean;
-}
+export type OkrRule = Schemas['OkrRule'];
 
 /** Tham số soát OKR của Policy Pack đang áp dụng cho tenant. */
-export interface OkrPolicy {
-  version: string;
-  recommendedMax: number;
-  /** Từ mơ hồ (BR-02-05), ví dụ "tăng cường", "đẩy mạnh". */
-  vagueWords: string[];
-  /** Động từ mở đầu KR giống nhiệm vụ (BR-02-06), ví dụ "tổ chức", "ban hành". */
-  taskVerbs: string[];
-  units: string[];
-  rules: OkrRule[];
-}
+export type OkrPolicy = Schemas['OkrPolicy'];
 
 /** Mục tiêu cấp trên có thể chọn (SCR-0202 trường 2). */
-export interface ParentObjectiveOption extends ObjectiveRef {
-  periodId: string;
-}
+export type ParentObjectiveOption = Schemas['OkrParentOption'];
 
 /** Người xác nhận KR có thể chọn (trường 14). */
-export interface VerifierOption {
-  id: string;
-  name: string;
-  title: string;
-}
+export type VerifierOption = Schemas['OkrPersonOption'];
 
 /** Ngữ cảnh soạn mục tiêu của đơn vị trong kỳ (`GET /api/v1/okr/compose-context`). */
-export interface OkrComposeContext {
-  period: OkrPeriod;
-  /** Kỳ chưa khoá có thể soạn (trường 5). */
-  periods: OkrPeriod[];
-  unit: { id: string; name: string };
-  /** Đơn vị cao nhất của tenant: không bắt buộc mục tiêu cấp trên (BR-02-02). */
-  isTopLevel: boolean;
-  bases: OkrBasis[];
-  parentOptions: ParentObjectiveOption[];
-  /** Số mục tiêu đã có của chủ thể trong kỳ (không tính mục tiêu đang sửa). */
-  existingCount: number;
-  verifiers: VerifierOption[];
-  /** Người dùng hiện tại, để mặc định người xác nhận khác chủ sở hữu (trường 14). */
-  me: { id: string; name: string };
-  aiEnabled: boolean;
-  policy: OkrPolicy;
-}
+export type OkrComposeContext = Schemas['OkrComposeContext'];
 
 /** Một gợi ý của trợ lý AI cho KR (`/api/v1/ai/okr/review`, AC-12, chỉ đọc). */
 export interface AiKrSuggestion {
@@ -325,74 +188,24 @@ export interface OkrSubmitResult {
 }
 
 /** Kết quả kiểm tra tự động một dòng của SCR-0203 (MOD-01 tính lại khi mở, không lưu). */
-export type OkrCheckTone = 'DAT' | 'CANH_BAO' | 'LOI';
+export type OkrCheckTone = Schemas['OkrCheckLevel'];
 
-export interface OkrReviewCheck {
-  tone: OkrCheckTone;
-  /** Nhãn ngắn như "Có căn cứ", "Đo được", "Gần giống NV-2027-Q1-0012", "Vượt 3 O". */
-  label: string;
-}
+export type OkrReviewCheck = Schemas['OkrReviewCheck'];
 
 /** Một KR trong bộ OKR chờ duyệt. */
-export interface OkrReviewKr {
-  id: string;
-  code: string;
-  title: string;
-  /** Chỉ tiêu kèm đơn vị đo, ví dụ "100%", "3 ngày". */
-  targetText: string;
-  /** Trọng số 0–1. */
-  weight: number;
-  /** Liên kết cấp trên hoặc ngang của KR, ví dụ "Văn phòng · O1 (ngang)". */
-  link: string | null;
-  check: OkrReviewCheck;
-}
+export type OkrReviewKr = Schemas['OkrReviewKr'];
 
 /** Một mục tiêu trong bộ OKR chờ duyệt (`okr.objective` ở `CHO_DUYET`). */
-export interface OkrReviewObjective {
-  id: string;
-  code: string;
-  title: string;
-  parentCode: string | null;
-  versionNo: number;
-  /** ETag gửi trong `If-Match` khi phê duyệt, trả lại. */
-  rowVersion: number;
-  check: OkrReviewCheck;
-  keyResults: OkrReviewKr[];
-}
+export type OkrReviewObjective = Schemas['OkrReviewObjective'];
 
 /**
  * Một bộ OKR chờ duyệt: các mục tiêu `CHO_DUYET` của một đơn vị trong kỳ, tương ứng các user task
  * `duyet-okr` của người duyệt (SCR-0203 vùng 1, 2).
  */
-export interface OkrReviewSet {
-  id: string;
-  unit: { id: string; name: string };
-  periodId: string;
-  submittedAt: string;
-  submittedBy: string;
-  versionNo: number;
-  objectiveCount: number;
-  krCount: number;
-  /** Nhãn tổng hợp ở hàng chờ: "Đạt", "1 cảnh báo", "Vượt 3 O", "KR mơ hồ". */
-  summary: OkrReviewCheck;
-  blockingCount: number;
-  warningCount: number;
-  /** Người xem là người soạn bộ này: không được duyệt (BR-02-08, MSG-02-11). */
-  viewerIsAuthor: boolean;
-  objectives: OkrReviewObjective[];
-}
+export type OkrReviewSet = Schemas['OkrReviewSet'];
 
 /** Hàng chờ phê duyệt OKR của người dùng trong kỳ (SCR-0203). */
-export interface OkrReviewQueue {
-  period: OkrPeriod;
-  periods: OkrPeriod[];
-  /** Hạn duyệt theo lịch kỳ. */
-  dueDate: string;
-  reviewer: { name: string; title: string };
-  /** Mẫu luồng và phiên bản đang áp dụng, ví dụ "duyet-okr" v2. */
-  workflow: { code: string; version: number };
-  items: OkrReviewSet[];
-}
+export type OkrReviewQueue = Schemas['OkrReviewQueue'];
 
 export type OkrHistoryAction = Schemas['OkrObjectiveHistoryEntry']['action'];
 
@@ -410,11 +223,8 @@ export type OkrLastCheckin = Schemas['OkrLastCheckin'];
 /** KR rút gọn trong danh sách "KR của tôi cần check-in" (`OkrKeyResultListItem`). */
 export type OkrKeyResultListItem = Schemas['OkrKeyResultListItem'];
 
-/**
- * Trang KR (`OkrKeyResultPage`). `period` là phần mở rộng của dữ liệu giả lập cho tiêu đề SCR-0301
- * (tuần, kỳ), hợp đồng chưa có (wiki/14).
- */
-export type OkrKeyResultPage = Schemas['OkrKeyResultPage'] & { period?: OkrPeriod };
+/** Trang KR (`OkrKeyResultPage`), `period` để dựng tiêu đề SCR-0301 (tuần, kỳ). */
+export type OkrKeyResultPage = Schemas['OkrKeyResultPage'];
 
 export type OkrCheckinStatus = Schemas['OkrCheckinStatus'];
 export type OkrCheckinChannel = Schemas['OkrCheckinChannel'];
@@ -423,12 +233,7 @@ export type OkrCheckinChannel = Schemas['OkrCheckinChannel'];
 export type OkrCheckin = Schemas['OkrCheckin'];
 
 /** Chi tiết KR cho SCR-0301 vùng 2 (`GET /api/v1/okr/key-results/{id}`, `OkrKeyResult`). */
-export type OkrKeyResultDetail = Schemas['OkrKeyResult'] & {
-  /** Mở rộng chờ hợp đồng (wiki/14): mục tiêu chứa KR và nhiệm vụ liên kết cho vùng 2, vùng 5. */
-  objective?: { id: string; code: string; title: string };
-  linkedWork?: KrLinkedWork[];
-  linkedTaskCount?: number;
-};
+export type OkrKeyResultDetail = KeyResult;
 
 /**
  * Thân yêu cầu lưu nháp hoặc gửi check-in (`OkrCheckinCreate`). `confirmLargeChange` có `default: false`

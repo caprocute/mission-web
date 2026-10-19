@@ -10,6 +10,19 @@ type Schemas = components['schemas'];
 export type RatingLevel = Schemas['RatingLevel'];
 export type AppraisalFlow = Schemas['Flow'];
 export type AppraisalProfileStatus = Schemas['AppraisalProfileStatus'];
+
+/** Tên trạng thái hồ sơ đánh giá hiển thị cho người dùng. */
+export const APPRAISAL_STATUS_LABEL: Record<AppraisalProfileStatus, string> = {
+  CHUA_LAP: 'Chưa lập',
+  TU_DANH_GIA: 'Đang tự đánh giá',
+  CHO_THAM_DINH: 'Chờ thẩm định',
+  DA_THAM_DINH: 'Đã thẩm định',
+  CHO_QUYET_DINH: 'Chờ quyết định',
+  DA_QUYET_DINH: 'Đã có quyết định',
+  DA_KY_SO: 'Đã ký số',
+  DA_KHOA: 'Đã khoá',
+  KHIEU_NAI: 'Đang giải quyết khiếu nại',
+};
 export type GeneralCriteriaLevel = Schemas['GeneralCriteriaLevel'];
 export type GeneralCriteriaItem = Schemas['GeneralCriteriaItem'];
 export type GeneralCriteriaResult = Schemas['GeneralCriteriaResult'];

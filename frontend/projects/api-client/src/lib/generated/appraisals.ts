@@ -680,7 +680,7 @@ export interface components {
       /** @description Hướng khắc phục (`remedial_plan_enc`) */
       remedialPlan?: string;
       claims?: components['schemas']['AppraisalTaskClaim'][];
-      /** @description Điểm tự tính theo B, C cán bộ tự nhận, thẻ "Điểm tự tính (theo minh chứng nộp)" của SCR-0902 trường 4. Máy chủ (SVC-07) tính bằng cùng công thức Policy Pack với điểm chính thức nhưng thay B, C bằng `claims`; không phải ảnh chụp điểm bất biến; `null` khi phiếu chưa có `claims` (suy luận tên trường). */
+      /** @description Điểm tự tính theo B, C cán bộ tự nhận, thẻ "Điểm tự tính (theo minh chứng nộp)" của SCR-0902 trường 4. TL-02b ghi nguồn `appraisal.score_snapshot`; SVC-07 tính bằng cùng công thức Policy Pack với điểm chính thức nhưng thay B, C bằng `claims` khi chốt phiếu; `null` khi phiếu chưa có `claims` (suy luận tên trường và cách lưu). */
       readonly claimedScore?: number | null;
       contentHash?: components['schemas']['AppraisalHash'];
       savedAt?: components['schemas']['DateTime'];

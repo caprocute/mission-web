@@ -124,20 +124,21 @@
             <p class="msg" role="status">Đang tải kết quả tính điểm…</p>
           }
         </div>
-        @if (refRating(); as ref) {
+        @if (form.error()) {
+          <p class="msg err" role="alert">
+            Không tải được mẫu phiếu tự đánh giá. Vui lòng tải lại trang.
+          </p>
+        } @else if (refRating() && form.hasValue()) {
           <vt-self-rating
-            [refRating]="ref"
+            [form]="form.value()"
+            [profileId]="p.id"
+            [refRating]="refRating()!"
             [explanation]="own.hasValue() ? own.value().explanation : undefined"
             [editable]="editable()"
             [evidences]="evidences.hasValue() ? evidences.value() : []"
-            [errors]="errors()"
-            [showAll]="showAll()"
-            [(selfRating)]="selfRating"
-            [(breakthrough)]="breakthrough"
+            [value]="self()"
             [(evidenceIds)]="evidenceIds"
-            [(reason)]="reason"
-            [(content)]="content"
-            (edited)="markEdited()"
+            (edited)="edited($event)"
           />
         }
       </div>

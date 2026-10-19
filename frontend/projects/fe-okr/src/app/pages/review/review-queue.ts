@@ -28,7 +28,7 @@ import { CheckTag } from './check-tag';
               >
                 <span class="unit">
                   <strong>{{ s.unit.name }}</strong>
-                  <small>trình {{ day(s.submittedAt) }} · {{ s.submittedBy }}</small>
+                  <small>trình {{ day(s.submittedAt) }} · {{ s.submittedBy.name }}</small>
                 </span>
                 <span>{{ s.objectiveCount }} / {{ s.krCount }}</span>
                 <vt-check-tag [check]="s.summary" />

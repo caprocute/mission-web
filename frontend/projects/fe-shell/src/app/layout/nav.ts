@@ -25,7 +25,16 @@ export const SECTION_KEYS = {
     'SCR-1801',
     'SCR-1802',
   ),
-  admin: screenKeys('SCR-0101', 'SCR-0102', 'SCR-0103', 'SCR-0104', 'SCR-0801'),
+  admin: screenKeys(
+    'SCR-0101',
+    'SCR-0102',
+    'SCR-0103',
+    'SCR-0104',
+    'SCR-0105',
+    'SCR-0106',
+    'SCR-0107',
+    'SCR-0801',
+  ),
 } satisfies Record<string, PermissionKey[]>;
 
 export interface NavItem {

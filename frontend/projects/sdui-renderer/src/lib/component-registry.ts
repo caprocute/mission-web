@@ -12,6 +12,11 @@ export interface RegistryEntry {
   name: string;
   /** Nạp lười, tách bundle theo component (có thể nạp từ remote Native Federation). */
   load: () => Promise<Type<unknown>>;
+  /**
+   * Tải trước phần nặng mà `load()` chưa tải (ví dụ widget thật trong remote mà ô giữ chỗ sẽ nạp),
+   * gọi khi bố cục vừa có để chạy song song với component cha (WEB-052). Không bắt buộc.
+   */
+  prefetch?: () => void;
   propsSchema: PropsSchema;
   /** Được chứa nút con hay không. */
   container?: boolean;

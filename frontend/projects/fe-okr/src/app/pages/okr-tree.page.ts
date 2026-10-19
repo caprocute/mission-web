@@ -47,6 +47,7 @@ import {
   formatNumber,
   indexTree,
   krTone,
+  krsOf,
   statusSeverity,
   tableRows,
   valueOverTarget,
@@ -181,7 +182,7 @@ const ROW_HEIGHT = 52;
           @if (t.parent; as p) {
             · <span class="lbl">Mục tiêu cấp trên</span>&nbsp;<strong>{{ p.code }}</strong>
             {{ p.title }}
-            @if (p.status !== 'DA_DUYET') {
+            @if (p.status && p.status !== 'DA_DUYET') {
               <span class="muted">({{ statusLabel[p.status] }})</span>
             }
           }
@@ -234,7 +235,7 @@ const ROW_HEIGHT = 52;
                       <span
                         role="cell"
                         class="ell"
-                        [style.padding-left.px]="(r.objective.tier - 1) * 16"
+                        [style.padding-left.px]="((r.objective.tier ?? 1) - 1) * 16"
                       >
                         <strong>{{ r.objective.code }}</strong> {{ r.objective.title }}
                       </span>
@@ -287,7 +288,7 @@ const ROW_HEIGHT = 52;
                         <strong>{{ o.code }}</strong> {{ o.title }}
                         <p-tag [severity]="statusSev(o)" [value]="statusLabel[o.status]" />
                         <ul>
-                          @for (kr of o.keyResults; track kr.id) {
+                          @for (kr of krsOf(o); track kr.id) {
                             <li>
                               <button type="button" class="code" (click)="selectKr(kr)">
                                 {{ kr.code }}
@@ -558,6 +559,7 @@ export class OkrTreePage {
   protected readonly confLabel = CONFIDENCE_LABEL;
   protected readonly valueOverTarget = valueOverTarget;
   protected readonly krTone = krTone;
+  protected readonly krsOf = krsOf;
 
   private readonly query = toSignal(
     this.route.queryParamMap.pipe(
@@ -610,13 +612,11 @@ export class OkrTreePage {
   /** MSG-02-01 cho KR của đơn vị đang ở `RUI_RO` (chỉ tầng gốc để cây lớn không sinh hàng trăm thông báo). */
   protected readonly riskKrs = computed(() =>
     this.index()
-      .roots.flatMap((o) => o.keyResults)
+      .roots.flatMap(krsOf)
       .filter((k) => k.riskFlag === 'RUI_RO'),
   );
 
-  private readonly allKrs = computed(() =>
-    (this.data()?.objectives ?? []).flatMap((o) => o.keyResults),
-  );
+  private readonly allKrs = computed(() => (this.data()?.objectives ?? []).flatMap(krsOf));
   /** KR đang chọn: theo `?kr=` nếu có, mặc định KR tự tin Thấp đầu tiên như mockup. */
   protected readonly selectedKrId = linkedSignal<string | null>(() => {
     const wanted = this.query().kr;
@@ -648,7 +648,7 @@ export class OkrTreePage {
   protected canCheckIn(kr: KeyResult): boolean {
     const o = this.objectiveById().get(kr.objectiveId);
     return (
-      kr.viewerIsOwner &&
+      !!kr.viewerIsOwner &&
       o?.status === 'DA_DUYET' &&
       this.data()?.period.status === 'MO' &&
       this.can('SCR-0201.check-in')

@@ -51,3 +51,7 @@ Bộ TL có dữ liệu cho việc cấp vai trò (`config.role_binding` với �
 ## 7. Báo cáo
 
 Kết thúc bằng báo cáo theo mẫu AGENTS.md mục 6, rồi cập nhật trạng thái dòng WEB-058 trong `docs/tasks/README.md`.
+
+## 8. Kết quả (19/10/2026)
+
+Pha 1 được người phụ trách duyệt ngày 19/10/2026 (mục 8 của `docs/phan-quyen/de-xuat-quan-tri-vai-tro.md`). Pha 2 đã thêm hợp đồng API vào `contracts/openapi/modules/config.yaml`, chín dòng chức năng `SCR-0105.*`, `SCR-0106.*`, `SCR-0107.*` vào ma trận, client `RoleAdminApi` cùng dữ liệu giả lập, và ba màn hình trong `fe-admin`. Ngoài danh sách tệp ở mục 5, task phải sửa thêm `contracts/openapi/modules/config.yaml` (API-first, ADR-32), `frontend/projects/api-client/src/mock/**` (dữ liệu giả lập), `frontend/projects/auth/src/lib/permissions.generated.ts` và `docs/phan-quyen/ma-tran-phan-quyen.xlsx` (do `gen_matrix.py` sinh), `frontend/projects/fe-shell/src/app/layout/nav.ts` (đưa ba màn hình vào nhóm menu quản trị) cùng wiki/14, wiki/15.

@@ -10,6 +10,7 @@
  *  5 Bảng nhiệm vụ SL duyệt/KH, B, C, KPI (chỉ đọc)              12 Ưu điểm, hạn chế, hướng khắc phục: bắt buộc, ≤ 2.000, C2, tự lưu 30 giây
  *  6 KPI nhóm, điểm nhóm (BR-09-03)                              13 Hạn nộp, số ngày làm việc còn lại
  *  7 Điểm kết quả nhiệm vụ
+ * Trường 9 đến 12 là biểu mẫu động Mẫu 1B (`<vt-form>`, GET /ui/forms/mau-1b/current).
  * Chức năng: Xem trước Mẫu 1B (POST /dossiers/forms/preview); Lưu nháp (PUT .../self-assessment, If-Match);
  *  Vết tính (GET .../score-trace); Chuyển thẻ luồng (GET .../scores?flow=); Ký số và nộp (POST .../submit 202,
  *  yêu cầu ký tạo ở SVC-10, chờ EVT-18 → CHO_THAM_DINH), chỉ bật khi đủ trường bắt buộc, cần MFA (AAL2).
@@ -35,7 +36,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   APPRAISAL_FLOW_LABEL,
-  APPRAISAL_PROFILE_STATUS_LABEL,
+  APPRAISAL_STATUS_LABEL,
   AppraisalApi,
   AppraisalFlow,
   AppraisalProfile,
@@ -43,6 +44,7 @@ import {
   EvidenceApi,
   JobTracker,
   RatingLevel,
+  UiFormApi,
   toProblem,
 } from '@vt/api-client';
 import { ThemeService } from '@vt/design-system';
@@ -53,7 +55,16 @@ import { RatingTrail } from './rating-trail';
 import { ScoreResult } from './score-result';
 import { ScoreTrace } from './score-trace';
 import { SelfRating } from './self-rating';
-import { STEPS, checkSelfForm, dmy, stepOf, vnTime } from './self-assessment-rules';
+import {
+  SELF_FORM_KEY,
+  STEPS,
+  SelfForm,
+  checkSelfForm,
+  dmy,
+  formRules,
+  stepOf,
+  vnTime,
+} from './self-assessment-rules';
 import { APPRAISAL_STEP_UP } from './step-up';
 
 /** Chu kỳ tự lưu nháp (trường 12: 30 giây một lần); kiểm thử thay bằng giá trị nhỏ. */
@@ -81,6 +92,7 @@ export class SelfAssessmentPage {
 
   private readonly api = inject(AppraisalApi);
   private readonly evidenceApi = inject(EvidenceApi);
+  private readonly uiForms = inject(UiFormApi);
   private readonly jobs = inject(JobTracker);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -90,7 +102,7 @@ export class SelfAssessmentPage {
 
   protected readonly steps = STEPS;
   protected readonly flowLabel = APPRAISAL_FLOW_LABEL;
-  protected readonly statusLabel = APPRAISAL_PROFILE_STATUS_LABEL;
+  protected readonly statusLabel = APPRAISAL_STATUS_LABEL;
   protected readonly dmy = dmy;
 
   protected readonly mine = rxResource({
@@ -155,6 +167,12 @@ export class SelfAssessmentPage {
     this.own.hasValue() ? this.own.value().snapshot.autoRatingCode : undefined,
   );
 
+  /** Biểu mẫu động Mẫu 1B đang áp dụng (trường 9 đến 12). */
+  protected readonly form = rxResource({ stream: () => this.uiForms.current(SELF_FORM_KEY) });
+  private readonly rules = computed(() =>
+    this.form.hasValue() ? formRules(this.form.value()) : [],
+  );
+
   // Biểu mẫu (trường 2, 9 đến 12), khởi tạo từ phiếu đã lưu
   private readonly sa = computed(() => this.profile()?.selfAssessment ?? null);
   protected readonly criteria = linkedSignal(() =>
@@ -162,39 +180,35 @@ export class SelfAssessmentPage {
       (c) => ({ ...c }),
     ),
   );
-  protected readonly selfRating = linkedSignal<RatingLevel>(
-    () => this.sa()?.selfRatingCode ?? this.refRating() ?? 'HTTNV',
-  );
-  protected readonly breakthrough = linkedSignal(() => this.sa()?.breakthrough ?? '');
+  protected readonly self = linkedSignal<SelfForm>(() => {
+    const sa = this.sa();
+    return {
+      selfRatingCode: sa?.selfRatingCode ?? this.refRating() ?? 'HTTNV',
+      breakthrough: sa?.breakthrough ?? '',
+      reason: sa?.reason ?? '',
+      content: sa?.content ?? '',
+    };
+  });
   protected readonly evidenceIds = linkedSignal(() => this.sa()?.breakthroughEvidenceIds ?? []);
-  protected readonly reason = linkedSignal(() => this.sa()?.reason ?? '');
-  protected readonly content = linkedSignal(() => this.sa()?.content ?? '');
   protected readonly dirty = linkedSignal({ source: this.profile, computation: () => false });
 
   protected readonly evidences = rxResource({
-    params: () => (this.selfRating() === 'HTXSNV' ? true : undefined),
+    params: () => (this.self().selfRatingCode === 'HTXSNV' ? true : undefined),
     stream: () => this.evidenceApi.list({ status: ['DA_XAC_NHAN'] }).pipe(map((p) => p.items)),
   });
 
   protected readonly errors = computed(() => {
     const ref = this.refRating();
     if (!ref) return {};
-    return checkSelfForm(
-      {
-        selfRating: this.selfRating(),
-        breakthrough: this.breakthrough(),
-        evidenceIds: this.evidenceIds(),
-        reason: this.reason(),
-        content: this.content(),
-      },
-      ref,
-    );
+    return checkSelfForm(this.rules(), this.self(), {
+      mucThamKhao: ref,
+      soMinhChung: this.evidenceIds().length,
+    });
   });
   protected readonly missing = computed(() => Object.values(this.errors()));
 
   protected readonly busy = signal<null | 'save' | 'submit' | 'preview'>(null);
   protected readonly signing = signal(false);
-  protected readonly showAll = signal(false);
   protected readonly notice = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly savedAt = signal<string | null>(null);
@@ -212,7 +226,8 @@ export class SelfAssessmentPage {
     );
   });
   protected readonly canSign = computed(
-    () => this.editable() && this.can('SCR-0901.ky-nop') && !!this.refRating(),
+    () =>
+      this.editable() && this.can('SCR-0901.ky-nop') && !!this.refRating() && this.form.hasValue(),
   );
 
   protected readonly trace = rxResource({
@@ -259,10 +274,7 @@ export class SelfAssessmentPage {
   protected tabLabel(t: Tab): string {
     if (t === 'LICH_SU') return 'Lịch sử';
     const scale = t === 'DANG' ? 'thang 100 điểm' : 'thang 30/70 điểm';
-    const own = this.profile()?.flow === t ? this.profile()?.policyVersion : undefined;
-    const s = this.shownScores();
-    const policy = own ?? (s?.flow === t ? s.snapshot.policyVersion : undefined);
-    return `${this.flowLabel[t]} · ${scale}${policy ? ` · Bộ quy định đánh giá ${policy}` : ''}`;
+    return `${this.flowLabel[t]} · ${scale}`;
   }
 
   protected selectTab(t: Tab) {
@@ -304,6 +316,11 @@ export class SelfAssessmentPage {
     this.markEdited();
   }
 
+  protected edited(v: SelfForm) {
+    this.self.set(v);
+    this.markEdited();
+  }
+
   protected markEdited() {
     this.dirty.set(true);
     this.notice.set(null);
@@ -315,15 +332,15 @@ export class SelfAssessmentPage {
   }
 
   private body(): AppraisalSelfAssessmentInput {
-    const self = this.selfRating();
-    const differs = self !== this.refRating();
+    const f = this.self();
+    const top = f.selfRatingCode === 'HTXSNV';
     return {
       criteria: this.criteria().map((c) => ({ criteriaCode: c.criteriaCode, met: c.met })),
-      selfRatingCode: self,
-      breakthrough: self === 'HTXSNV' ? this.breakthrough().trim() : '',
-      breakthroughEvidenceIds: self === 'HTXSNV' ? this.evidenceIds() : [],
-      reason: differs ? this.reason().trim() : '',
-      content: this.content().trim(),
+      selfRatingCode: f.selfRatingCode,
+      breakthrough: top ? f.breakthrough.trim() : '',
+      breakthroughEvidenceIds: top ? this.evidenceIds() : [],
+      reason: f.selfRatingCode !== this.refRating() ? f.reason.trim() : '',
+      content: f.content.trim(),
     };
   }
 
@@ -337,20 +354,14 @@ export class SelfAssessmentPage {
       const saved = await firstValueFrom(this.api.saveSelfAssessment(p, this.body()));
       const keep = {
         criteria: this.criteria(),
-        selfRating: this.selfRating(),
-        breakthrough: this.breakthrough(),
+        self: this.self(),
         evidenceIds: this.evidenceIds(),
-        reason: this.reason(),
-        content: this.content(),
       };
       this.profile.set(saved);
       // giữ nguyên nội dung đang gõ (máy chủ đã nhận đúng nội dung này)
       this.criteria.set(keep.criteria);
-      this.selfRating.set(keep.selfRating);
-      this.breakthrough.set(keep.breakthrough);
+      this.self.set(keep.self);
       this.evidenceIds.set(keep.evidenceIds);
-      this.reason.set(keep.reason);
-      this.content.set(keep.content);
       const at = vnTime(saved.selfAssessment?.savedAt ?? new Date().toISOString()).slice(0, 5);
       this.savedAt.set(at);
       if (!silent) this.notice.set(`Đã lưu nháp phiếu tự đánh giá lúc ${at}.`);
@@ -386,7 +397,6 @@ export class SelfAssessmentPage {
 
   /** "Ký số và nộp": lưu, MFA, gửi yêu cầu ký rồi theo dõi job tới khi EVT-18 về (BR-09-15). */
   protected async submit() {
-    this.showAll.set(true);
     if (!this.canSign() || this.missing().length) return;
     this.busy.set('submit');
     this.error.set(null);

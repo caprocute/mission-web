@@ -10,13 +10,22 @@ import {
 } from '@vt/api-client';
 import { authInterceptor, provideVtAuth } from '@vt/auth';
 import { provideDesignSystem } from '@vt/design-system';
-import { provideFormEngine } from '@vt/form-engine';
-import { BUILTIN_SDUI_COMPONENTS, UiPackLoader, provideSduiComponents } from '@vt/sdui-renderer';
+import {
+  BUILTIN_SDUI_COMPONENTS,
+  UI_PACK_PREFETCH,
+  UiPackLoader,
+  UiPackPrefetch,
+  provideSduiComponents,
+} from '@vt/sdui-renderer';
 import { traceparentInterceptor } from '@vt/telemetry';
 import { routes } from './app.routes';
 import { SHELL_WIDGETS } from './widgets/shell-widgets';
 
-export function buildAppConfig(cfg: RuntimeConfig): ApplicationConfig {
+/** `uiPackPrefetch`: UI Pack main.ts đã tải sớm (WEB-052), `UiPackLoader` dùng lại nếu khớp cấu hình. */
+export function buildAppConfig(
+  cfg: RuntimeConfig,
+  uiPackPrefetch?: Promise<UiPackPrefetch | null>,
+): ApplicationConfig {
   return {
     providers: [
       provideBrowserGlobalErrorListeners(),
@@ -34,10 +43,10 @@ export function buildAppConfig(cfg: RuntimeConfig): ApplicationConfig {
         ]),
       ),
       provideDesignSystem(),
-      provideFormEngine(),
       provideVtAuth(),
       provideSduiComponents(BUILTIN_SDUI_COMPONENTS),
       provideSduiComponents(SHELL_WIDGETS),
+      ...(uiPackPrefetch ? [{ provide: UI_PACK_PREFETCH, useValue: uiPackPrefetch }] : []),
       // nạp token của tenant trước khi render để không nháy giao diện
       provideAppInitializer(() => inject(UiPackLoader).load()),
     ],

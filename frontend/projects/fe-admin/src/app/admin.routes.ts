@@ -61,6 +61,26 @@ export const ROUTES: Routes = [
     title: 'Đồng bộ và đối soát nhân sự',
   },
   {
+    path: 'access',
+    canActivate: [permissionGuard('SCR-0105.xem')],
+    loadComponent: () =>
+      import('./pages/access/role-bindings.page').then((m) => m.RoleBindingsPage),
+    title: 'Vai trò theo đơn vị',
+  },
+  {
+    path: 'access/people/:personId',
+    canActivate: [permissionGuard('SCR-0106.xem')],
+    loadComponent: () =>
+      import('./pages/access/person-access.page').then((m) => m.PersonAccessPage),
+    title: 'Hồ sơ quyền của một người',
+  },
+  {
+    path: 'access/delegations',
+    canActivate: [permissionGuard('SCR-0107.xem')],
+    loadComponent: () => import('./pages/access/delegations.page').then((m) => m.DelegationsPage),
+    title: 'Uỷ quyền khi vắng mặt',
+  },
+  {
     path: 'tenants/:id',
     canActivate: [permissionGuard('SCR-0101.xem')],
     loadComponent: () => import('./pages/tenant-detail.page').then((m) => m.TenantDetailPage),

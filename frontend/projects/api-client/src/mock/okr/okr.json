@@ -78,21 +78,24 @@
     "p-2026-q3": [
       {
         "id": "o-q3-1",
+        "periodId": "p-2026-q3",
         "code": "O1",
         "title": "Hoàn thành kiểm điểm, xếp loại giữa nhiệm kỳ",
         "tier": 1,
         "ownerType": "TAP_THE",
-        "ownerUnitName": "Ban Tổ chức Đảng uỷ khối",
-        "ownerPersonName": null,
-        "parentObjectiveId": null,
+        "ownerUnit": {
+          "id": "u-btc",
+          "name": "Ban Tổ chức Đảng uỷ khối"
+        },
         "status": "DONG",
         "approvedAt": "2026-07-07T08:00:00+07:00",
         "versionNo": 1,
-        "overLimitReason": null,
+        "rowVersion": 1,
         "keyResults": [
           {
             "id": "kr-q3-1",
             "objectiveId": "o-q3-1",
+            "periodId": "p-2026-q3",
             "code": "KR 1.1",
             "title": "100% tổ chức đảng hoàn thành kiểm điểm giữa nhiệm kỳ",
             "unit": "%",
@@ -101,17 +104,27 @@
             "currentValue": 96,
             "weight": 1,
             "dueDate": "2026-09-30",
-            "verifierName": "Trưởng ban",
-            "dataSource": null,
-            "valueNote": "44/46 tổ chức",
+            "verifier": {
+              "id": "p-dung",
+              "name": "Hoàng Văn Dũng"
+            },
+            "owner": {
+              "id": "p-an",
+              "name": "Nguyễn Văn An"
+            },
             "confidence": "CAO",
+            "status": "DONG",
             "riskFlag": "BINH_THUONG",
-            "lastCheckinAt": "2026-09-25T10:00:00+07:00",
-            "ownerName": "Nguyễn Văn An",
+            "lastCheckin": {
+              "value": 96,
+              "confidence": "CAO",
+              "checkinAt": "2026-09-25T10:00:00+07:00"
+            },
             "viewerIsOwner": true,
             "latestBlocker": null,
             "linkedWork": [],
-            "linkedTaskCount": 0
+            "linkedTaskCount": 0,
+            "rowVersion": 1
           }
         ]
       }
@@ -119,21 +132,31 @@
     "p-2026-q4": [
       {
         "id": "o-1",
+        "periodId": "p-2026-q4",
         "code": "O1",
         "title": "Nâng cao chất lượng tổ chức đảng và đảng viên",
         "tier": 1,
         "ownerType": "TAP_THE",
-        "ownerUnitName": "Ban Tổ chức Đảng uỷ khối",
-        "ownerPersonName": null,
-        "parentObjectiveId": "o-duk-1",
+        "ownerUnit": {
+          "id": "u-btc",
+          "name": "Ban Tổ chức Đảng uỷ khối"
+        },
+        "parentObjective": {
+          "id": "o-duk-1",
+          "code": "O-ĐUK-1",
+          "title": "Xây dựng tổ chức đảng trong sạch, vững mạnh",
+          "unitName": "Đảng uỷ khối",
+          "status": "DA_DUYET"
+        },
         "status": "DA_DUYET",
         "approvedAt": "2026-10-08T09:15:00+07:00",
         "versionNo": 1,
-        "overLimitReason": null,
+        "rowVersion": 1,
         "keyResults": [
           {
             "id": "kr-1-1",
             "objectiveId": "o-1",
+            "periodId": "p-2026-q4",
             "code": "KR 1.1",
             "title": "Kết nạp đảng viên mới ≥ 3% tổng số đảng viên đầu kỳ (500)",
             "unit": "%",
@@ -142,13 +165,23 @@
             "currentValue": 2.4,
             "weight": 0.4,
             "dueDate": "2026-12-31",
-            "verifierName": "Trưởng ban",
+            "verifier": {
+              "id": "p-dung",
+              "name": "Hoàng Văn Dũng"
+            },
+            "owner": {
+              "id": "p-an",
+              "name": "Nguyễn Văn An"
+            },
             "dataSource": "CSDL đảng viên",
-            "valueNote": "12/500 đảng viên",
             "confidence": "CAO",
+            "status": "DA_DUYET",
             "riskFlag": "BINH_THUONG",
-            "lastCheckinAt": "2026-10-12T08:00:00+07:00",
-            "ownerName": "Nguyễn Văn An",
+            "lastCheckin": {
+              "value": 2.4,
+              "confidence": "CAO",
+              "checkinAt": "2026-10-12T08:00:00+07:00"
+            },
             "viewerIsOwner": true,
             "latestBlocker": null,
             "linkedWork": [
@@ -157,14 +190,16 @@
                 "kind": "TASK",
                 "code": "NV-2026-Q4-0011",
                 "title": "Thẩm định hồ sơ kết nạp đợt 2",
-                "percent": 40
+                "progress": 0.4
               }
             ],
-            "linkedTaskCount": 3
+            "linkedTaskCount": 3,
+            "rowVersion": 1
           },
           {
             "id": "kr-1-2",
             "objectiveId": "o-1",
+            "periodId": "p-2026-q4",
             "code": "KR 1.2",
             "title": "100% hồ sơ đề nghị kết nạp được thẩm định đúng hạn",
             "unit": "%",
@@ -173,21 +208,32 @@
             "currentValue": 72,
             "weight": 0.3,
             "dueDate": "2026-12-31",
-            "verifierName": "Trưởng ban",
-            "dataSource": null,
-            "valueNote": "18/25 hồ sơ",
+            "verifier": {
+              "id": "p-dung",
+              "name": "Hoàng Văn Dũng"
+            },
+            "owner": {
+              "id": "p-binh",
+              "name": "Trần Thị Bình"
+            },
             "confidence": "CAO",
+            "status": "DA_DUYET",
             "riskFlag": "BINH_THUONG",
-            "lastCheckinAt": "2026-10-12T16:20:00+07:00",
-            "ownerName": "Trần Thị Bình",
+            "lastCheckin": {
+              "value": 72,
+              "confidence": "CAO",
+              "checkinAt": "2026-10-12T16:20:00+07:00"
+            },
             "viewerIsOwner": false,
             "latestBlocker": null,
             "linkedWork": [],
-            "linkedTaskCount": 2
+            "linkedTaskCount": 2,
+            "rowVersion": 1
           },
           {
             "id": "kr-1-3",
             "objectiveId": "o-1",
+            "periodId": "p-2026-q4",
             "code": "KR 1.3",
             "title": "≥ 90% tổ chức đảng xếp loại \"Hoàn thành tốt nhiệm vụ\" trở lên",
             "unit": "%",
@@ -196,13 +242,22 @@
             "currentValue": 32.6,
             "weight": 0.3,
             "dueDate": "2026-12-31",
-            "verifierName": "Phó Trưởng ban thường trực",
-            "dataSource": null,
-            "valueNote": "15/46 tổ chức (32,6%)",
+            "verifier": {
+              "id": "p-chau",
+              "name": "Lê Minh Châu"
+            },
+            "owner": {
+              "id": "p-an",
+              "name": "Nguyễn Văn An"
+            },
             "confidence": "THAP",
+            "status": "DA_DUYET",
             "riskFlag": "THEO_DOI",
-            "lastCheckinAt": "2026-10-12T15:05:00+07:00",
-            "ownerName": "Nguyễn Văn An",
+            "lastCheckin": {
+              "value": 32.6,
+              "confidence": "THAP",
+              "checkinAt": "2026-10-12T15:05:00+07:00"
+            },
             "viewerIsOwner": true,
             "latestBlocker": "2 chi bộ chưa hoàn thành kiểm điểm giữa kỳ; đề nghị Văn phòng hỗ trợ lịch hội nghị.",
             "linkedWork": [
@@ -211,44 +266,55 @@
                 "kind": "PROGRAM",
                 "code": "CT-2026-04",
                 "title": "Nâng chất lượng sinh hoạt chi bộ",
-                "percent": 55
+                "progress": 0.55
               },
               {
                 "id": "t-0012",
                 "kind": "TASK",
                 "code": "NV-2026-Q4-0012",
                 "title": "Hướng dẫn kiểm điểm chi bộ",
-                "percent": 70
+                "progress": 0.7
               },
               {
                 "id": "t-0013",
                 "kind": "TASK",
                 "code": "NV-2026-Q4-0013",
                 "title": "Kiểm tra 2 chi bộ yếu",
-                "percent": 30
+                "progress": 0.3
               }
             ],
-            "linkedTaskCount": 9
+            "linkedTaskCount": 9,
+            "rowVersion": 1
           }
         ]
       },
       {
         "id": "o-2",
+        "periodId": "p-2026-q4",
         "code": "O2",
         "title": "Đẩy mạnh chuyển đổi số trong công tác tổ chức",
         "tier": 1,
         "ownerType": "TAP_THE",
-        "ownerUnitName": "Ban Tổ chức Đảng uỷ khối",
-        "ownerPersonName": null,
-        "parentObjectiveId": "o-duk-1",
+        "ownerUnit": {
+          "id": "u-btc",
+          "name": "Ban Tổ chức Đảng uỷ khối"
+        },
+        "parentObjective": {
+          "id": "o-duk-1",
+          "code": "O-ĐUK-1",
+          "title": "Xây dựng tổ chức đảng trong sạch, vững mạnh",
+          "unitName": "Đảng uỷ khối",
+          "status": "DA_DUYET"
+        },
         "status": "DA_DUYET",
         "approvedAt": "2026-10-08T09:20:00+07:00",
         "versionNo": 1,
-        "overLimitReason": null,
+        "rowVersion": 1,
         "keyResults": [
           {
             "id": "kr-2-1",
             "objectiveId": "o-2",
+            "periodId": "p-2026-q4",
             "code": "KR 2.1",
             "title": "100% đảng viên được cập nhật hồ sơ trên CSDL đảng viên",
             "unit": "%",
@@ -257,13 +323,23 @@
             "currentValue": 68,
             "weight": 0.5,
             "dueDate": "2026-12-31",
-            "verifierName": "Trưởng ban",
+            "verifier": {
+              "id": "p-dung",
+              "name": "Hoàng Văn Dũng"
+            },
+            "owner": {
+              "id": "p-an",
+              "name": "Nguyễn Văn An"
+            },
             "dataSource": "CSDL đảng viên",
-            "valueNote": "340/500 hồ sơ",
             "confidence": "TRUNG_BINH",
+            "status": "DA_DUYET",
             "riskFlag": "BINH_THUONG",
-            "lastCheckinAt": "2026-10-16T10:00:00+07:00",
-            "ownerName": "Nguyễn Văn An",
+            "lastCheckin": {
+              "value": 68,
+              "confidence": "TRUNG_BINH",
+              "checkinAt": "2026-10-16T10:00:00+07:00"
+            },
             "viewerIsOwner": true,
             "latestBlocker": null,
             "linkedWork": [
@@ -272,14 +348,16 @@
                 "kind": "TASK",
                 "code": "NV-2026-Q4-0021",
                 "title": "Rà soát hồ sơ đảng viên khối cơ quan",
-                "percent": 65
+                "progress": 0.65
               }
             ],
-            "linkedTaskCount": 4
+            "linkedTaskCount": 4,
+            "rowVersion": 1
           },
           {
             "id": "kr-2-2",
             "objectiveId": "o-2",
+            "periodId": "p-2026-q4",
             "code": "KR 2.2",
             "title": "Đề án chuyển đổi số khối được Thường trực Đảng uỷ thông qua trước 15/12/2026",
             "unit": "mốc",
@@ -288,37 +366,56 @@
             "currentValue": 4,
             "weight": 0.5,
             "dueDate": "2026-12-15",
-            "verifierName": "Trưởng ban",
-            "dataSource": null,
-            "valueNote": "4/12 mốc của đề án",
+            "verifier": {
+              "id": "p-dung",
+              "name": "Hoàng Văn Dũng"
+            },
+            "owner": {
+              "id": "p-chau",
+              "name": "Lê Minh Châu"
+            },
             "confidence": "TRUNG_BINH",
+            "status": "DA_DUYET",
             "riskFlag": "BINH_THUONG",
-            "lastCheckinAt": "2026-10-16T11:30:00+07:00",
-            "ownerName": "Lê Minh Châu",
+            "lastCheckin": {
+              "value": 4,
+              "confidence": "TRUNG_BINH",
+              "checkinAt": "2026-10-16T11:30:00+07:00"
+            },
             "viewerIsOwner": false,
             "latestBlocker": null,
             "linkedWork": [],
-            "linkedTaskCount": 2
+            "linkedTaskCount": 2,
+            "rowVersion": 1
           }
         ]
       },
       {
         "id": "o-1-a",
+        "periodId": "p-2026-q4",
         "code": "O1.1",
         "title": "Nâng chất lượng sinh hoạt chi bộ ở 46 tổ chức cơ sở đảng",
         "tier": 2,
         "ownerType": "TAP_THE",
-        "ownerUnitName": "Phòng Tổ chức cơ sở đảng",
-        "ownerPersonName": null,
-        "parentObjectiveId": "o-1",
+        "ownerUnit": {
+          "id": "u-btc-tccs",
+          "name": "Phòng Tổ chức cơ sở đảng"
+        },
+        "parentObjective": {
+          "id": "o-1",
+          "code": "O1",
+          "title": "Nâng cao chất lượng tổ chức đảng và đảng viên",
+          "status": "DA_DUYET"
+        },
         "status": "DA_DUYET",
         "approvedAt": "2026-10-09T14:00:00+07:00",
         "versionNo": 1,
-        "overLimitReason": null,
+        "rowVersion": 1,
         "keyResults": [
           {
             "id": "kr-1a-1",
             "objectiveId": "o-1-a",
+            "periodId": "p-2026-q4",
             "code": "KR 1.1.1",
             "title": "46/46 chi bộ tổ chức sinh hoạt chuyên đề trong quý",
             "unit": "chi bộ",
@@ -327,21 +424,32 @@
             "currentValue": 30,
             "weight": 0.5,
             "dueDate": "2026-12-31",
-            "verifierName": "Trưởng phòng",
-            "dataSource": null,
-            "valueNote": null,
+            "verifier": {
+              "id": "p-thang",
+              "name": "Vũ Đức Thắng"
+            },
+            "owner": {
+              "id": "p-pqdung",
+              "name": "Phạm Quốc Dũng"
+            },
             "confidence": "TRUNG_BINH",
+            "status": "DA_DUYET",
             "riskFlag": "BINH_THUONG",
-            "lastCheckinAt": "2026-10-15T09:00:00+07:00",
-            "ownerName": "Phạm Quốc Dũng",
+            "lastCheckin": {
+              "value": 30,
+              "confidence": "TRUNG_BINH",
+              "checkinAt": "2026-10-15T09:00:00+07:00"
+            },
             "viewerIsOwner": false,
             "latestBlocker": null,
             "linkedWork": [],
-            "linkedTaskCount": 0
+            "linkedTaskCount": 0,
+            "rowVersion": 1
           },
           {
             "id": "kr-1a-2",
             "objectiveId": "o-1-a",
+            "periodId": "p-2026-q4",
             "code": "KR 1.1.2",
             "title": "≥ 80% chi bộ được xếp loại sinh hoạt tốt",
             "unit": "%",
@@ -350,37 +458,59 @@
             "currentValue": 41,
             "weight": 0.5,
             "dueDate": "2026-12-31",
-            "verifierName": "Trưởng phòng",
-            "dataSource": null,
-            "valueNote": null,
+            "verifier": {
+              "id": "p-thang",
+              "name": "Vũ Đức Thắng"
+            },
+            "owner": {
+              "id": "p-pqdung",
+              "name": "Phạm Quốc Dũng"
+            },
             "confidence": "THAP",
+            "status": "DA_DUYET",
             "riskFlag": "THEO_DOI",
-            "lastCheckinAt": "2026-10-15T09:10:00+07:00",
-            "ownerName": "Phạm Quốc Dũng",
+            "lastCheckin": {
+              "value": 41,
+              "confidence": "THAP",
+              "checkinAt": "2026-10-15T09:10:00+07:00"
+            },
             "viewerIsOwner": false,
             "latestBlocker": null,
             "linkedWork": [],
-            "linkedTaskCount": 0
+            "linkedTaskCount": 0,
+            "rowVersion": 1
           }
         ]
       },
       {
         "id": "o-1-a-1",
+        "periodId": "p-2026-q4",
         "code": "O1.1.a",
         "title": "Hướng dẫn, kiểm tra kiểm điểm 12 chi bộ được phân công",
         "tier": 3,
         "ownerType": "CA_NHAN",
-        "ownerUnitName": "Phòng Tổ chức cơ sở đảng",
-        "ownerPersonName": "Nguyễn Văn An",
-        "parentObjectiveId": "o-1-a",
+        "ownerUnit": {
+          "id": "u-btc-tccs",
+          "name": "Phòng Tổ chức cơ sở đảng"
+        },
+        "ownerPerson": {
+          "id": "p-an",
+          "name": "Nguyễn Văn An"
+        },
+        "parentObjective": {
+          "id": "o-1-a",
+          "code": "O1.1",
+          "title": "Nâng chất lượng sinh hoạt chi bộ ở 46 tổ chức cơ sở đảng",
+          "status": "DA_DUYET"
+        },
         "status": "NHAP",
-        "approvedAt": null,
         "versionNo": 1,
-        "overLimitReason": null,
+        "rowVersion": 1,
         "keyResults": [
           {
             "id": "kr-1a1-1",
             "objectiveId": "o-1-a-1",
+            "periodId": "p-2026-q4",
             "code": "KR a.1",
             "title": "12/12 chi bộ hoàn thành kiểm điểm giữa kỳ đúng hạn",
             "unit": "chi bộ",
@@ -389,37 +519,49 @@
             "currentValue": null,
             "weight": 1,
             "dueDate": "2026-12-31",
-            "verifierName": "Trưởng phòng",
-            "dataSource": null,
-            "valueNote": null,
-            "confidence": null,
+            "verifier": {
+              "id": "p-thang",
+              "name": "Vũ Đức Thắng"
+            },
+            "owner": {
+              "id": "p-an",
+              "name": "Nguyễn Văn An"
+            },
+            "status": "NHAP",
             "riskFlag": "BINH_THUONG",
-            "lastCheckinAt": null,
-            "ownerName": "Nguyễn Văn An",
             "viewerIsOwner": true,
             "latestBlocker": null,
             "linkedWork": [],
-            "linkedTaskCount": 0
+            "linkedTaskCount": 0,
+            "rowVersion": 1
           }
         ]
       },
       {
         "id": "o-2-a",
+        "periodId": "p-2026-q4",
         "code": "O2.1",
         "title": "Số hoá 100% hồ sơ đảng viên khối cơ quan",
         "tier": 2,
         "ownerType": "TAP_THE",
-        "ownerUnitName": "Phòng Đảng viên",
-        "ownerPersonName": null,
-        "parentObjectiveId": "o-2",
+        "ownerUnit": {
+          "id": "u-btc-dv",
+          "name": "Phòng Đảng viên"
+        },
+        "parentObjective": {
+          "id": "o-2",
+          "code": "O2",
+          "title": "Đẩy mạnh chuyển đổi số trong công tác tổ chức",
+          "status": "DA_DUYET"
+        },
         "status": "CHO_DUYET",
-        "approvedAt": null,
         "versionNo": 2,
-        "overLimitReason": null,
+        "rowVersion": 1,
         "keyResults": [
           {
             "id": "kr-2a-1",
             "objectiveId": "o-2-a",
+            "periodId": "p-2026-q4",
             "code": "KR 2.1.1",
             "title": "500/500 hồ sơ đảng viên được số hoá và đối chiếu",
             "unit": "hồ sơ",
@@ -428,21 +570,27 @@
             "currentValue": 340,
             "weight": 0.6,
             "dueDate": "2026-12-31",
-            "verifierName": "Trưởng phòng",
+            "verifier": {
+              "id": "p-thang",
+              "name": "Vũ Đức Thắng"
+            },
+            "owner": {
+              "id": "p-ha",
+              "name": "Hoàng Thu Hà"
+            },
             "dataSource": "CSDL đảng viên",
-            "valueNote": null,
-            "confidence": null,
+            "status": "CHO_DUYET",
             "riskFlag": "BINH_THUONG",
-            "lastCheckinAt": null,
-            "ownerName": "Hoàng Thu Hà",
             "viewerIsOwner": false,
             "latestBlocker": null,
             "linkedWork": [],
-            "linkedTaskCount": 0
+            "linkedTaskCount": 0,
+            "rowVersion": 1
           },
           {
             "id": "kr-2a-2",
             "objectiveId": "o-2-a",
+            "periodId": "p-2026-q4",
             "code": "KR 2.1.2",
             "title": "Sai lệch dữ liệu sau đối chiếu ≤ 1%",
             "unit": "%",
@@ -451,37 +599,50 @@
             "currentValue": null,
             "weight": 0.4,
             "dueDate": "2026-12-31",
-            "verifierName": "Trưởng phòng",
-            "dataSource": null,
-            "valueNote": null,
-            "confidence": null,
+            "verifier": {
+              "id": "p-thang",
+              "name": "Vũ Đức Thắng"
+            },
+            "owner": {
+              "id": "p-ha",
+              "name": "Hoàng Thu Hà"
+            },
+            "status": "CHO_DUYET",
             "riskFlag": "BINH_THUONG",
-            "lastCheckinAt": null,
-            "ownerName": "Hoàng Thu Hà",
             "viewerIsOwner": false,
             "latestBlocker": null,
             "linkedWork": [],
-            "linkedTaskCount": 0
+            "linkedTaskCount": 0,
+            "rowVersion": 1
           }
         ]
       },
       {
         "id": "o-3",
+        "periodId": "p-2026-q4",
         "code": "O3",
         "title": "Nâng chất lượng sinh hoạt chi bộ khối cơ quan",
         "tier": 1,
         "ownerType": "TAP_THE",
-        "ownerUnitName": "Ban Tổ chức Đảng uỷ khối",
-        "ownerPersonName": null,
-        "parentObjectiveId": "o-duk-1",
+        "ownerUnit": {
+          "id": "u-btc",
+          "name": "Ban Tổ chức Đảng uỷ khối"
+        },
+        "parentObjective": {
+          "id": "o-duk-1",
+          "code": "O-ĐUK-1",
+          "title": "Xây dựng tổ chức đảng trong sạch, vững mạnh",
+          "unitName": "Đảng uỷ khối",
+          "status": "DA_DUYET"
+        },
         "status": "NHAP",
-        "approvedAt": null,
         "versionNo": 1,
-        "overLimitReason": null,
+        "rowVersion": 1,
         "keyResults": [
           {
             "id": "kr-3-1",
             "objectiveId": "o-3",
+            "periodId": "p-2026-q4",
             "code": "KR 3.1",
             "title": "100% chi bộ sinh hoạt chuyên đề ít nhất 1 lần/quý",
             "unit": "%",
@@ -490,21 +651,26 @@
             "currentValue": null,
             "weight": 0.4,
             "dueDate": "2026-12-31",
-            "verifierName": "Trưởng ban",
-            "dataSource": null,
-            "valueNote": null,
-            "confidence": null,
+            "verifier": {
+              "id": "p-dung",
+              "name": "Hoàng Văn Dũng"
+            },
+            "owner": {
+              "id": "p-chau",
+              "name": "Lê Minh Châu"
+            },
+            "status": "NHAP",
             "riskFlag": "BINH_THUONG",
-            "lastCheckinAt": null,
-            "ownerName": "Lê Minh Châu",
             "viewerIsOwner": true,
             "latestBlocker": null,
             "linkedWork": [],
-            "linkedTaskCount": 0
+            "linkedTaskCount": 0,
+            "rowVersion": 1
           },
           {
             "id": "kr-3-2",
             "objectiveId": "o-3",
+            "periodId": "p-2026-q4",
             "code": "KR 3.2",
             "title": "≥ 90% đảng viên tham gia đầy đủ sinh hoạt",
             "unit": "%",
@@ -513,21 +679,26 @@
             "currentValue": null,
             "weight": 0.3,
             "dueDate": "2026-12-31",
-            "verifierName": "Trưởng ban",
-            "dataSource": null,
-            "valueNote": null,
-            "confidence": null,
+            "verifier": {
+              "id": "p-dung",
+              "name": "Hoàng Văn Dũng"
+            },
+            "owner": {
+              "id": "p-chau",
+              "name": "Lê Minh Châu"
+            },
+            "status": "NHAP",
             "riskFlag": "BINH_THUONG",
-            "lastCheckinAt": null,
-            "ownerName": "Lê Minh Châu",
             "viewerIsOwner": true,
             "latestBlocker": null,
             "linkedWork": [],
-            "linkedTaskCount": 0
+            "linkedTaskCount": 0,
+            "rowVersion": 1
           },
           {
             "id": "kr-3-3",
             "objectiveId": "o-3",
+            "periodId": "p-2026-q4",
             "code": "KR 3.3",
             "title": "Tăng cường công tác kiểm tra, giám sát",
             "unit": "",
@@ -536,21 +707,26 @@
             "currentValue": null,
             "weight": 0.3,
             "dueDate": "2026-12-31",
-            "verifierName": "Trưởng ban",
-            "dataSource": null,
-            "valueNote": null,
-            "confidence": null,
+            "verifier": {
+              "id": "p-dung",
+              "name": "Hoàng Văn Dũng"
+            },
+            "owner": {
+              "id": "p-chau",
+              "name": "Lê Minh Châu"
+            },
+            "status": "NHAP",
             "riskFlag": "BINH_THUONG",
-            "lastCheckinAt": null,
-            "ownerName": "Lê Minh Châu",
             "viewerIsOwner": true,
             "latestBlocker": null,
             "linkedWork": [],
-            "linkedTaskCount": 0
+            "linkedTaskCount": 0,
+            "rowVersion": 1
           },
           {
             "id": "kr-3-4",
             "objectiveId": "o-3",
+            "periodId": "p-2026-q4",
             "code": "KR 3.4",
             "title": "Tổ chức hội nghị sơ kết công tác tổ chức xây dựng Đảng",
             "unit": "lần",
@@ -559,17 +735,21 @@
             "currentValue": null,
             "weight": 0,
             "dueDate": "2026-12-31",
-            "verifierName": "Trưởng ban",
-            "dataSource": null,
-            "valueNote": null,
-            "confidence": null,
+            "verifier": {
+              "id": "p-dung",
+              "name": "Hoàng Văn Dũng"
+            },
+            "owner": {
+              "id": "p-chau",
+              "name": "Lê Minh Châu"
+            },
+            "status": "NHAP",
             "riskFlag": "BINH_THUONG",
-            "lastCheckinAt": null,
-            "ownerName": "Lê Minh Châu",
             "viewerIsOwner": true,
             "latestBlocker": null,
             "linkedWork": [],
-            "linkedTaskCount": 0
+            "linkedTaskCount": 0,
+            "rowVersion": 1
           }
         ]
       }
@@ -838,6 +1018,7 @@
       "name": "Lê Minh Châu"
     },
     "reviewer": {
+      "id": "p-son",
       "name": "Đinh Văn Sơn",
       "title": "Phó Bí thư Thường trực"
     },
@@ -855,7 +1036,8 @@
           "severity": "CHAN",
           "when": "true",
           "assert": "o.titleLength > 0 && o.titleLength <= 200",
-          "message": "Tên mục tiêu không được trống và tối đa 200 ký tự."
+          "message": "Tên mục tiêu không được trống và tối đa 200 ký tự.",
+          "serverOnly": false
         },
         {
           "id": "BR-02-02-CC",
@@ -865,7 +1047,8 @@
           "when": "true",
           "assert": "o.basisCount >= 1",
           "message": "Mục tiêu phải có ít nhất một căn cứ.",
-          "passLabel": "Có căn cứ"
+          "passLabel": "Có căn cứ",
+          "serverOnly": false
         },
         {
           "id": "BR-02-02-CT",
@@ -875,7 +1058,8 @@
           "when": "!o.isTopLevel",
           "assert": "o.hasParent",
           "message": "Mục tiêu phải liên kết mục tiêu cấp trên.",
-          "passLabel": "Có mục tiêu cấp trên"
+          "passLabel": "Có mục tiêu cấp trên",
+          "serverOnly": false
         },
         {
           "id": "MSG-02-03",
@@ -884,7 +1068,8 @@
           "severity": "CHAN",
           "when": "o.hasParent",
           "assert": "o.parentApproved",
-          "message": "Mục tiêu cấp trên {parentCode} chưa được duyệt. Đồng chí có thể soạn nhưng chưa trình được."
+          "message": "Mục tiêu cấp trên {parentCode} chưa được duyệt. Đồng chí có thể soạn nhưng chưa trình được.",
+          "serverOnly": false
         },
         {
           "id": "BR-02-01",
@@ -893,7 +1078,8 @@
           "severity": "CANH_BAO",
           "when": "true",
           "assert": "o.totalObjectives <= o.recommendedMax",
-          "message": "{totalObjectives} mục tiêu trong kỳ, vượt khuyến nghị {recommendedMax}."
+          "message": "{totalObjectives} mục tiêu trong kỳ, vượt khuyến nghị {recommendedMax}.",
+          "serverOnly": false
         },
         {
           "id": "BR-02-01-LD",
@@ -902,7 +1088,8 @@
           "severity": "CHAN",
           "when": "o.totalObjectives > o.recommendedMax",
           "assert": "o.overLimitReasonLength > 0",
-          "message": "Vui lòng ghi lý do vượt {recommendedMax} mục tiêu."
+          "message": "Vui lòng ghi lý do vượt {recommendedMax} mục tiêu.",
+          "serverOnly": false
         },
         {
           "id": "BR-02-03",
@@ -911,7 +1098,8 @@
           "severity": "CANH_BAO",
           "when": "true",
           "assert": "o.krCount >= 2 && o.krCount <= 5",
-          "message": "Mục tiêu nên có từ 2 đến 5 KR (hiện có {krCount})."
+          "message": "Mục tiêu nên có từ 2 đến 5 KR (hiện có {krCount}).",
+          "serverOnly": false
         },
         {
           "id": "BR-02-07",
@@ -921,7 +1109,8 @@
           "when": "true",
           "assert": "o.totalWeight == 100",
           "message": "Tổng trọng số KR là {totalWeight}%, cần bằng 100%.",
-          "passLabel": "Tổng trọng số KR = 100%"
+          "passLabel": "Tổng trọng số KR = 100%",
+          "serverOnly": false
         },
         {
           "id": "KR-ND",
@@ -930,7 +1119,8 @@
           "severity": "CHAN",
           "when": "true",
           "assert": "kr.titleLength > 0 && kr.titleLength <= 300",
-          "message": "{code} cần nội dung, tối đa 300 ký tự."
+          "message": "{code} cần nội dung, tối đa 300 ký tự.",
+          "serverOnly": false
         },
         {
           "id": "BR-02-05",
@@ -939,7 +1129,8 @@
           "severity": "CHAN",
           "when": "kr.vagueWord != \"\"",
           "assert": "kr.hasTarget && kr.unit != \"\"",
-          "message": "KPI mơ hồ: \"{vagueWord}\" không đo được. Vui lòng bổ sung chỉ tiêu và đơn vị đo."
+          "message": "KPI mơ hồ: \"{vagueWord}\" không đo được. Vui lòng bổ sung chỉ tiêu và đơn vị đo.",
+          "serverOnly": false
         },
         {
           "id": "BR-02-04",
@@ -949,7 +1140,8 @@
           "when": "true",
           "assert": "kr.missing == \"\"",
           "message": "{code} thiếu {missing}.",
-          "passLabel": "Mọi KR có đơn vị đo, giá trị đầu, chỉ tiêu, hạn, người xác nhận"
+          "passLabel": "Mọi KR có đơn vị đo, giá trị đầu, chỉ tiêu, hạn, người xác nhận",
+          "serverOnly": false
         },
         {
           "id": "KR-CT",
@@ -958,7 +1150,8 @@
           "severity": "CHAN",
           "when": "kr.hasTarget && kr.hasBaseline",
           "assert": "kr.targetDiffers",
-          "message": "{code}: chỉ tiêu phải khác giá trị đầu."
+          "message": "{code}: chỉ tiêu phải khác giá trị đầu.",
+          "serverOnly": false
         },
         {
           "id": "BR-02-06",
@@ -967,7 +1160,8 @@
           "severity": "CANH_BAO",
           "when": "true",
           "assert": "kr.taskVerb == \"\"",
-          "message": "{code} giống một nhiệm vụ, không phải kết quả đo được. Cân nhắc chuyển sang Kế hoạch quý."
+          "message": "{code} giống một nhiệm vụ, không phải kết quả đo được. Cân nhắc chuyển sang Kế hoạch quý.",
+          "serverOnly": false
         },
         {
           "id": "KR-XN",
@@ -1007,7 +1201,8 @@
     },
     "reviewer": {
       "name": "Đinh Văn Sơn",
-      "title": "Phó Bí thư Thường trực"
+      "title": "Phó Bí thư Thường trực",
+      "id": "p-son"
     },
     "workflow": {
       "code": "duyet-okr",
@@ -1027,7 +1222,10 @@
             "name": "Ban Tuyên giáo"
           },
           "submittedAt": "2026-10-05T09:20:00+07:00",
-          "submittedBy": "Phạm Thu Hà",
+          "submittedBy": {
+            "id": "p-ha7",
+            "name": "Phạm Thu Hà"
+          },
           "viewerIsAuthor": false,
           "objectives": [
             {
@@ -1038,7 +1236,7 @@
               "versionNo": 1,
               "rowVersion": 2,
               "check": {
-                "tone": "DAT",
+                "level": "DAT",
                 "label": "Có căn cứ"
               },
               "keyResults": [
@@ -1050,7 +1248,7 @@
                   "weight": 0.5,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1062,7 +1260,7 @@
                   "weight": 0.3,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1074,7 +1272,7 @@
                   "weight": 0.2,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 }
@@ -1088,7 +1286,7 @@
               "versionNo": 1,
               "rowVersion": 2,
               "check": {
-                "tone": "DAT",
+                "level": "DAT",
                 "label": "Có căn cứ"
               },
               "keyResults": [
@@ -1100,7 +1298,7 @@
                   "weight": 0.5,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1112,7 +1310,7 @@
                   "weight": 0.3,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1124,7 +1322,7 @@
                   "weight": 0.2,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 }
@@ -1139,7 +1337,10 @@
             "name": "Uỷ ban Kiểm tra"
           },
           "submittedAt": "2026-10-06T08:45:00+07:00",
-          "submittedBy": "Nguyễn Văn Khánh",
+          "submittedBy": {
+            "id": "p-khanh8",
+            "name": "Nguyễn Văn Khánh"
+          },
           "viewerIsAuthor": false,
           "objectives": [
             {
@@ -1150,7 +1351,7 @@
               "versionNo": 1,
               "rowVersion": 2,
               "check": {
-                "tone": "DAT",
+                "level": "DAT",
                 "label": "Có căn cứ"
               },
               "keyResults": [
@@ -1162,7 +1363,7 @@
                   "weight": 0.6,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1174,7 +1375,7 @@
                   "weight": 0.4,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 }
@@ -1188,7 +1389,7 @@
               "versionNo": 1,
               "rowVersion": 2,
               "check": {
-                "tone": "DAT",
+                "level": "DAT",
                 "label": "Có căn cứ"
               },
               "keyResults": [
@@ -1200,7 +1401,7 @@
                   "weight": 0.5,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1212,7 +1413,7 @@
                   "weight": 0.3,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1224,7 +1425,7 @@
                   "weight": 0.2,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 }
@@ -1239,7 +1440,10 @@
             "name": "Văn phòng Đảng uỷ"
           },
           "submittedAt": "2026-10-06T15:10:00+07:00",
-          "submittedBy": "Đinh Văn Sơn",
+          "submittedBy": {
+            "id": "p-son",
+            "name": "Đinh Văn Sơn"
+          },
           "viewerIsAuthor": true,
           "objectives": [
             {
@@ -1250,7 +1454,7 @@
               "versionNo": 1,
               "rowVersion": 2,
               "check": {
-                "tone": "DAT",
+                "level": "DAT",
                 "label": "Có căn cứ"
               },
               "keyResults": [
@@ -1262,7 +1466,7 @@
                   "weight": 0.5,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1274,7 +1478,7 @@
                   "weight": 0.3,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1286,7 +1490,7 @@
                   "weight": 0.2,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 }
@@ -1300,7 +1504,7 @@
               "versionNo": 1,
               "rowVersion": 2,
               "check": {
-                "tone": "DAT",
+                "level": "DAT",
                 "label": "Có căn cứ"
               },
               "keyResults": [
@@ -1312,7 +1516,7 @@
                   "weight": 0.6,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1324,7 +1528,7 @@
                   "weight": 0.4,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 }
@@ -1338,7 +1542,7 @@
               "versionNo": 1,
               "rowVersion": 2,
               "check": {
-                "tone": "DAT",
+                "level": "DAT",
                 "label": "Có căn cứ"
               },
               "keyResults": [
@@ -1350,7 +1554,7 @@
                   "weight": 0.5,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1362,7 +1566,7 @@
                   "weight": 0.5,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 }
@@ -1376,7 +1580,7 @@
               "versionNo": 1,
               "rowVersion": 2,
               "check": {
-                "tone": "DAT",
+                "level": "DAT",
                 "label": "Có căn cứ"
               },
               "keyResults": [
@@ -1388,7 +1592,7 @@
                   "weight": 0.4,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1400,7 +1604,7 @@
                   "weight": 0.3,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1412,7 +1616,7 @@
                   "weight": 0.3,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 }
@@ -1427,7 +1631,10 @@
             "name": "Đảng uỷ Cơ quan A"
           },
           "submittedAt": "2026-10-06T16:30:00+07:00",
-          "submittedBy": "Trần Quốc Bảo",
+          "submittedBy": {
+            "id": "p-bao9",
+            "name": "Trần Quốc Bảo"
+          },
           "viewerIsAuthor": false,
           "objectives": [
             {
@@ -1438,7 +1645,7 @@
               "versionNo": 1,
               "rowVersion": 2,
               "check": {
-                "tone": "DAT",
+                "level": "DAT",
                 "label": "Có căn cứ"
               },
               "keyResults": [
@@ -1450,7 +1657,7 @@
                   "weight": 0.5,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1462,7 +1669,7 @@
                   "weight": 0.5,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 }
@@ -1476,7 +1683,7 @@
               "versionNo": 1,
               "rowVersion": 2,
               "check": {
-                "tone": "DAT",
+                "level": "DAT",
                 "label": "Có căn cứ"
               },
               "keyResults": [
@@ -1488,7 +1695,7 @@
                   "weight": 0.6,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1500,7 +1707,7 @@
                   "weight": 0.4,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 }
@@ -1514,7 +1721,7 @@
               "versionNo": 1,
               "rowVersion": 2,
               "check": {
-                "tone": "DAT",
+                "level": "DAT",
                 "label": "Có căn cứ"
               },
               "keyResults": [
@@ -1526,7 +1733,7 @@
                   "weight": 0.6,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1538,7 +1745,7 @@
                   "weight": 0.4,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 }
@@ -1553,7 +1760,10 @@
             "name": "Đảng uỷ Cơ quan B"
           },
           "submittedAt": "2026-10-07T10:05:00+07:00",
-          "submittedBy": "Vũ Thị Lan",
+          "submittedBy": {
+            "id": "p-lan10",
+            "name": "Vũ Thị Lan"
+          },
           "viewerIsAuthor": false,
           "objectives": [
             {
@@ -1564,7 +1774,7 @@
               "versionNo": 1,
               "rowVersion": 2,
               "check": {
-                "tone": "DAT",
+                "level": "DAT",
                 "label": "Có căn cứ"
               },
               "keyResults": [
@@ -1576,7 +1786,7 @@
                   "weight": 0.5,
                   "link": null,
                   "check": {
-                    "tone": "CANH_BAO",
+                    "level": "CANH_BAO",
                     "label": "KR mơ hồ"
                   }
                 },
@@ -1588,7 +1798,7 @@
                   "weight": 0.5,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 }
@@ -1602,7 +1812,7 @@
               "versionNo": 1,
               "rowVersion": 2,
               "check": {
-                "tone": "DAT",
+                "level": "DAT",
                 "label": "Có căn cứ"
               },
               "keyResults": [
@@ -1614,7 +1824,7 @@
                   "weight": 0.5,
                   "link": null,
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 },
@@ -1626,7 +1836,7 @@
                   "weight": 0.5,
                   "link": "Ban Tuyên giáo · O1 (ngang)",
                   "check": {
-                    "tone": "DAT",
+                    "level": "DAT",
                     "label": "Đo được"
                   }
                 }

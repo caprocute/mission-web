@@ -8,7 +8,13 @@ import { ADMIN_CAN } from '../admin-permissions';
   imports: [RouterLink],
   template: `
     <h1>Quản trị</h1>
-    @if (can('SCR-0103.xem') || can('SCR-0104.xem') || can('SCR-0801.xem')) {
+    @if (
+      can('SCR-0103.xem') ||
+      can('SCR-0104.xem') ||
+      can('SCR-0801.xem') ||
+      can('SCR-0105.xem') ||
+      can('SCR-0107.xem')
+    ) {
       <ul class="links">
         @if (can('SCR-0103.xem')) {
           <li>
@@ -20,6 +26,18 @@ import { ADMIN_CAN } from '../admin-permissions';
           <li>
             <a routerLink="org/sync">Đồng bộ nhân sự</a>: theo dõi các lần đồng bộ, đối soát dữ liệu
             nhân sự bị lệch
+          </li>
+        }
+        @if (can('SCR-0105.xem')) {
+          <li>
+            <a routerLink="access">Vai trò theo đơn vị</a>: cấp, duyệt thứ hai, thu hồi vai trò có
+            thời hạn
+          </li>
+        }
+        @if (can('SCR-0107.xem')) {
+          <li>
+            <a routerLink="access/delegations">Uỷ quyền khi vắng mặt</a>: duyệt thay, nghiệm thu
+            thay, check-in KR thay có thời hạn
           </li>
         }
         @if (can('SCR-0801.xem')) {

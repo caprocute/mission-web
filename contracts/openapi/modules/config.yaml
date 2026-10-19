@@ -14,6 +14,9 @@
 #     component_registry; registry.tenant, registry.tenant_cell, registry.tenant_domain,
 #     registry.tenant_idp (tham khảo trạng thái tenant); flowable.saga_instance; scoring.score_job;
 #     oversight.anomaly_alert.signal_code; TL-03 chương 10 (payload EVT-09, EVT-23, EVT-26).
+#   - WEB-058 (đề xuất docs/phan-quyen/de-xuat-quan-tri-vai-tro.md, anh Hiếu duyệt 19/10/2026): SCR-0105,
+#     SCR-0106, SCR-0107, BR-01-13..BR-01-18, MSG-01-16..MSG-01-18, EVT-27, bảng bổ sung config.delegation
+#     và các cột bổ sung của config.role_binding.
 #   - Ma trận phân quyền docs/phan-quyen/ma-tran.json (chức năng SCR-0001, SCR-0002, SCR-0101,
 #     SCR-0102, SCR-0801, SCR-1401, SCR-1801, SCR-1802; dòng API config, periods, ui).
 openapi: 3.1.0
@@ -54,6 +57,8 @@ tags:
     description: Biểu mẫu JSON Schema kèm quy tắc CEL, phiên bản và bộ test hai engine (QT-18, SCR-1802).
   - name: Bố cục trang
     description: Bố cục SDUI đã phân giải cho trang chủ "Việc của tôi hôm nay" (SCR-0002).
+  - name: Vai trò và uỷ quyền
+    description: Cấp, duyệt thứ hai, thu hồi vai trò `config.role_binding`, lịch sử quyền và uỷ quyền khi vắng mặt `config.delegation` (QT-01, SCR-0105, SCR-0106, SCR-0107; WEB-058).
 
 paths:
   # ---------------------------------------------------------------- /config/tenants
@@ -1995,6 +2000,463 @@ paths:
         '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
 
+  # ---------------------------------------------------------------- /config/role-bindings (WEB-058)
+  /config/role-bindings:
+    get:
+      tags: [Vai trò và uỷ quyền]
+      operationId: listRoleBindings
+      summary: Vai trò đã cấp theo đơn vị hoặc theo người
+      description: >-
+        Trả các bản ghi `config.role_binding` của một đơn vị phạm vi (kèm đơn vị cấp dưới khi
+        `includeSubunits=true`) hoặc của một người, lọc theo vai trò và trạng thái, phân trang con trỏ.
+        `awaitingMe=true` chỉ trả đề nghị cấp vai trò nhạy cảm đang chờ người gọi duyệt thứ hai. Phần
+        `counts` là số đếm cho thẻ lọc nhanh của SCR-0105 (SCR yêu cầu nên trả riêng). Mỗi lần đọc
+        được ghi nhật ký truy cập (BR-13-07).
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0105, SCR-0106]
+        owner: MOD-08
+        roles: [tenant_admin, leader, inspector]
+        scope: Tn
+        source: WEB-058 đề xuất mục 3 F1, F2, F4 (đã duyệt 19/10/2026); TL-03 `config.role_binding`; ma trận SCR-0105.xem, SCR-0106.xem
+      parameters:
+        - name: orgUnitId
+          in: query
+          description: Đơn vị phạm vi; bỏ trống khi lọc theo `personId`.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: includeSubunits
+          in: query
+          description: Gồm cả bản ghi cấp tại đơn vị cấp dưới.
+          schema: { type: boolean, default: false }
+        - name: personId
+          in: query
+          description: Người được cấp.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: role
+          in: query
+          schema: { $ref: '#/components/schemas/RoleCode' }
+        - name: status
+          in: query
+          description: Trạng thái suy ra; bỏ trống là mọi trạng thái trừ `TU_CHOI`.
+          schema: { $ref: '#/components/schemas/RoleBindingStatus' }
+        - name: awaitingMe
+          in: query
+          description: Chỉ đề nghị đang chờ người gọi duyệt thứ hai (người gọi khác người cấp và người được cấp).
+          schema: { type: boolean, default: false }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang vai trò đã cấp.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleBindingPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    post:
+      tags: [Vai trò và uỷ quyền]
+      operationId: grantRoleBinding
+      summary: Cấp vai trò có thời hạn và phạm vi
+      description: >-
+        Tạo bản ghi `config.role_binding` với người cấp là người gọi. Vai trò `decider`,
+        `second_approver`, `policy_author` vào trạng thái `CHO_DUYET` (cột `approved_by` rỗng) và chỉ có
+        hiệu lực sau khi người duyệt thứ hai phê duyệt (BR-01-14, MSG-01-17); vai trò khác có hiệu lực
+        theo `validFrom` và phát EVT-27. Tự cấp cho chính mình trả 403 mã `CONFIG-403-SELF-GRANT`
+        (BR-01-13, MSG-01-16); thiếu `validTo` hoặc `validTo` không sau `validFrom` trả 422 mã
+        `CONFIG-422-VALIDITY` (BR-01-16); đã có bản ghi còn hiệu lực trùng người, vai trò, đơn vị và
+        phạm vi trả 409 mã `CONFIG-409-DUPLICATE-BINDING`. Phiên phải đạt `aal2` trong 15 phút (BR-01-15).
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0105]
+        owner: MOD-08
+        evt: [EVT-27]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-13, BR-01-14, BR-01-15, BR-01-16]
+        source: WEB-058 đề xuất F3; TL-01 mục Định danh và xác thực (thay đổi quyền cần step-up); ma trận SCR-0105.cap
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleBindingCreate' }
+      responses:
+        '201':
+          description: Đã cấp (hoặc đã gửi duyệt thứ hai với vai trò nhạy cảm).
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleBinding' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/role-bindings/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Vai trò và uỷ quyền]
+      operationId: getRoleBinding
+      summary: Chi tiết một vai trò đã cấp
+      description: Trả bản ghi vai trò kèm người cấp, người duyệt và thông tin kết thúc (thu hồi, từ chối).
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0105, SCR-0106]
+        owner: MOD-08
+        roles: [tenant_admin, leader, inspector]
+        scope: Tn
+        source: WEB-058 đề xuất F1, F2
+      responses:
+        '200':
+          description: Chi tiết vai trò.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleBinding' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/role-bindings/{id}/approve:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Vai trò và uỷ quyền]
+      operationId: approveRoleBinding
+      summary: Duyệt thứ hai khi cấp vai trò nhạy cảm
+      description: >-
+        Người duyệt thứ hai (một `tenant_admin` khác người cấp, hoặc `leader` có thẩm quyền trên đơn vị
+        phạm vi) phê duyệt đề nghị đang `CHO_DUYET`; ghi `approved_by` và phát EVT-27. Người duyệt trùng
+        người cấp hoặc trùng người được cấp trả 403 mã `CONFIG-403-SELF-GRANT` (CHECK `approved_by <>
+        granted_by`, BR-01-13, MSG-01-16). Đề nghị không còn chờ duyệt trả 409 mã `CONFIG-409-NOT-PENDING`.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0105]
+        owner: MOD-08
+        evt: [EVT-27]
+        roles: [tenant_admin, leader]
+        scope: Tn
+        aal: 2
+        fourEyes: true
+        rules: [BR-01-13, BR-01-14, BR-01-15]
+        source: WEB-058 đề xuất F4; TL-03 `config.role_binding.approved_by`; ma trận SCR-0105.duyet
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleBindingApprove' }
+      responses:
+        '200':
+          description: Đã duyệt; vai trò có hiệu lực theo `validFrom`.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleBinding' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/role-bindings/{id}/reject:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Vai trò và uỷ quyền]
+      operationId: rejectRoleBinding
+      summary: Từ chối đề nghị cấp vai trò nhạy cảm
+      description: >-
+        Người duyệt thứ hai từ chối đề nghị đang `CHO_DUYET` kèm lý do; bản ghi được giữ với
+        `end_kind = TU_CHOI` để tra cứu (không xoá). Cùng ràng buộc người duyệt như thao tác duyệt.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0105]
+        owner: MOD-08
+        roles: [tenant_admin, leader]
+        scope: Tn
+        aal: 2
+        fourEyes: true
+        rules: [BR-01-13, BR-01-15]
+        source: WEB-058 đề xuất F4; ma trận SCR-0105.duyet
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccessEndInput' }
+      responses:
+        '200':
+          description: Đã từ chối.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleBinding' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/role-bindings/{id}/revoke:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Vai trò và uỷ quyền]
+      operationId: revokeRoleBinding
+      summary: Thu hồi vai trò trước hạn
+      description: >-
+        Đặt `valid_to` bằng thời điểm hiện tại, ghi người thu hồi và lý do bắt buộc, không xoá bản ghi;
+        phát EVT-27 để dữ liệu OPA và realm role Keycloak cập nhật. Phiên của người bị thu hồi không cần
+        đăng xuất ngay vì OPA từ chối theo dữ liệu mới. Thu hồi vai trò của chính mình trả 403 mã
+        `CONFIG-403-SELF-GRANT` (BR-01-13); vai trò đã kết thúc trả 409 mã `CONFIG-409-ALREADY-ENDED`.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0105, SCR-0106]
+        owner: MOD-08
+        evt: [EVT-27]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-13, BR-01-15]
+        source: WEB-058 đề xuất F5; wiki/15 "Cấp, thu hồi quyền"; ma trận SCR-0105.thu-hoi
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccessEndInput' }
+      responses:
+        '200':
+          description: Đã thu hồi.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleBinding' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/access-history:
+    get:
+      tags: [Vai trò và uỷ quyền]
+      operationId: listAccessHistory
+      summary: Lịch sử cấp, duyệt, thu hồi vai trò và uỷ quyền
+      description: >-
+        Dòng thời gian của một người (`personId`) hoặc một đơn vị (`orgUnitId`): cấp, duyệt, từ chối,
+        thu hồi, hết hạn vai trò và tạo, thu hồi, hết hạn uỷ quyền, mới nhất trước. Đọc từ nhật ký kiểm
+        toán `sys.audit.v1`; mỗi lần tra cứu được ghi lại (BR-13-07). Cần ít nhất một trong hai bộ lọc.
+      x-mission:
+        qt: [QT-01, QT-13]
+        scr: [SCR-0106]
+        owner: MOD-08
+        roles: [tenant_admin, leader, inspector]
+        scope: Tn
+        source: WEB-058 đề xuất F8; TL-01 Nhật ký kiểm toán; ma trận SCR-0106.xem
+      parameters:
+        - name: personId
+          in: query
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: orgUnitId
+          in: query
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang sự kiện quyền.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccessEventPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/access-history/export:
+    get:
+      tags: [Vai trò và uỷ quyền]
+      operationId: exportAccessHistory
+      summary: Xuất lịch sử quyền của một người ra CSV
+      description: >-
+        Xuất toàn bộ lịch sử quyền của một người thành CSV (UTF-8 có BOM). Xuất là thao tác nhạy cảm:
+        phiên phải đạt `aal2` trong 15 phút và lần xuất được ghi nhật ký kiểm toán.
+      x-mission:
+        qt: [QT-01, QT-13]
+        scr: [SCR-0106]
+        owner: MOD-08
+        roles: [tenant_admin, inspector]
+        scope: Tn
+        aal: 2
+        source: WEB-058 đề xuất F8 (step-up khi xuất); ma trận SCR-0106.xuat
+      parameters:
+        - name: personId
+          in: query
+          required: true
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: Tệp CSV.
+          content:
+            text/csv:
+              schema: { type: string }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  # ---------------------------------------------------------------- /config/delegations (WEB-058)
+  /config/delegations:
+    get:
+      tags: [Vai trò và uỷ quyền]
+      operationId: listDelegations
+      summary: Uỷ quyền khi vắng mặt
+      description: >-
+        Trả bản ghi `config.delegation` (bảng bổ sung TL-03 theo WEB-058) của một đơn vị hoặc của một
+        người (là người uỷ quyền hoặc người nhận), lọc theo loại và trạng thái.
+      x-mission:
+        qt: [QT-02, QT-03, QT-06, QT-07]
+        scr: [SCR-0107, SCR-0106]
+        owner: MOD-08
+        roles: [tenant_admin, leader, inspector]
+        scope: Cd
+        source: WEB-058 đề xuất F6, F7; ma trận SCR-0107.xem
+      parameters:
+        - name: orgUnitId
+          in: query
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: personId
+          in: query
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: kind
+          in: query
+          schema: { $ref: '#/components/schemas/DelegationKind' }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/DelegationStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang uỷ quyền.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DelegationPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    post:
+      tags: [Vai trò và uỷ quyền]
+      operationId: createDelegation
+      summary: Khai báo duyệt thay, nghiệm thu thay, check-in thay
+      description: >-
+        Lãnh đạo đơn vị khai báo người nhận uỷ quyền có thời hạn: duyệt thay (QT-02, QT-06), nghiệm thu
+        thay (QT-07) hoặc check-in KR thay cho chủ sở hữu vắng dài ngày (QT-03, `subject` là KR). Phiếu
+        duyệt, nghiệm thu và check-in do người nhận thực hiện ghi rõ "duyệt thay", "nghiệm thu thay",
+        "check-in thay". Người nhận đang là người nhận uỷ quyền của chính người uỷ quyền khác không được
+        uỷ quyền lại: 422 mã `CONFIG-422-REDELEGATION` (BR-01-17, MSG-01-18). Người uỷ quyền và người nhận
+        trùng nhau trả 403 mã `CONFIG-403-SELF-GRANT` (BR-01-13). Thiếu thời hạn trả 422 mã
+        `CONFIG-422-VALIDITY` (BR-01-16). Người nhận vẫn chịu ràng buộc tách vai trò của hồ sơ (BR-01-18).
+      x-mission:
+        qt: [QT-02, QT-03, QT-06, QT-07]
+        scr: [SCR-0107]
+        owner: MOD-08
+        evt: [EVT-27]
+        roles: [leader]
+        scope: Cd
+        aal: 2
+        rules: [BR-01-13, BR-01-15, BR-01-16, BR-01-17, BR-01-18]
+        source: WEB-058 đề xuất F6, F7; TL-02 QT-02, QT-03, QT-06, QT-07 ngoại lệ; ma trận SCR-0107.tao
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DelegationCreate' }
+      responses:
+        '201':
+          description: Đã khai báo uỷ quyền.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delegation' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/delegations/{id}/revoke:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Vai trò và uỷ quyền]
+      operationId: revokeDelegation
+      summary: Thu hồi uỷ quyền trước hạn
+      description: >-
+        Đặt `valid_to` bằng thời điểm hiện tại kèm lý do; phiếu đang giao cho người nhận quay về người
+        uỷ quyền theo mẫu luồng. Uỷ quyền đã kết thúc trả 409 mã `CONFIG-409-ALREADY-ENDED`.
+      x-mission:
+        qt: [QT-02, QT-03, QT-06, QT-07]
+        scr: [SCR-0107]
+        owner: MOD-08
+        evt: [EVT-27]
+        roles: [leader]
+        scope: Cd
+        aal: 2
+        rules: [BR-01-15]
+        source: WEB-058 đề xuất F6, F7; ma trận SCR-0107.thu-hoi
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccessEndInput' }
+      responses:
+        '200':
+          description: Đã thu hồi uỷ quyền.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delegation' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
 components:
   securitySchemes:
     keycloak: { $ref: '../common/common.yaml#/components/securitySchemes/keycloak' }
@@ -2126,12 +2588,48 @@ components:
         activeTenants: { type: integer, minimum: 0, description: 'Số tenant `DANG_VAN_HANH`' }
         tenantLimit: { type: integer, description: 'Giới hạn thiết kế, 5.000' }
         totalAccounts: { type: integer, minimum: 0 }
-        accountLimit: { type: integer, description: 'Giới hạn thiết kế, 6 triệu (NFR-01)' }
+        accountLimit:
+          type: integer
+          description: >-
+            Giới hạn thiết kế về tài khoản (NFR-01), máy chủ trả theo cấu hình. Quy mô định cỡ đã chốt ngày
+            19/10/2026 là 6,5 triệu tài khoản (AGENTS.md mục 1); baseline NFR-01 và TL-02a còn ghi 6 triệu.
         onboardingTenants: { type: integer, minimum: 0, description: 'Số tenant đang khởi tạo' }
         cellCount: { type: integer, minimum: 0 }
+        dataCenterCount:
+          type: integer
+          minimum: 0
+          description: Số trung tâm dữ liệu chứa các cell, dòng phụ của thẻ Cell trên Hình 6.7 (suy luận tên trường).
         cellLoads:
           type: array
           items: { $ref: '#/components/schemas/CellLoad' }
+        onboarding:
+          type: array
+          description: >-
+            Mọi tenant đang khởi tạo của vùng (không phụ thuộc trang đang xem), để hiện MSG-01-02 "Tenant {tên}
+            đang khởi tạo bước {n}/6".
+          items:
+            type: object
+            required: [tenantId, name, step]
+            properties:
+              tenantId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+              name: { type: string }
+              step: { type: integer, minimum: 1, maximum: 6 }
+        pendingActions:
+          type: array
+          description: Danh sách việc cần xử lý của vùng điều phối toàn cục (SCR-0101 vùng 3, Hình 6.7).
+          items: { $ref: '#/components/schemas/TenantPendingAction' }
+    TenantPendingAction:
+      description: Một việc cần xử lý trên SCR-0101 vùng 3 (cấu trúc suy luận từ Hình 6.7).
+      type: object
+      required: [kind, message]
+      properties:
+        kind:
+          type: string
+          enum: [CHO, LICH, LOI]
+          description: '`CHO` việc chờ duyệt hoặc chờ thao tác, `LICH` việc đã lên lịch, `LOI` lỗi cần xử lý.'
+        tenantId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        message: { type: string, maxLength: 500, description: Nội dung tiếng Việt đã điền tham số }
+        dueAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
     ConfigTenantPage:
       type: object
       required: [items, nextCursor]
@@ -2140,6 +2638,12 @@ components:
           type: array
           items: { $ref: '#/components/schemas/ConfigTenantRow' }
         nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        total:
+          type: integer
+          minimum: 0
+          description: >-
+            Tổng số tenant khớp bộ lọc cho dòng "Hiển thị a–b trong n" (Hình 6.7); registry dưới 100.000 dòng
+            (TL-03) nên đếm chính xác được.
         summary: { $ref: '#/components/schemas/ConfigTenantSummary' }
       examples:
         - items:
@@ -2157,7 +2661,7 @@ components:
             activeTenants: 1284
             tenantLimit: 5000
             totalAccounts: 2418760
-            accountLimit: 6000000
+            accountLimit: 6500000
             onboardingTenants: 3
             cellCount: 7
             cellLoads:
@@ -2247,6 +2751,19 @@ components:
           type: array
           items: { $ref: '#/components/schemas/TenantPolicyBinding' }
         uiPackVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        uiPack:
+          type: object
+          readOnly: true
+          description: Tên và phiên bản UI Pack đang dùng (SCR-0101 trường 7, `config.ui_pack_version`).
+          required: [name, version]
+          properties:
+            name: { type: string }
+            version: { type: string }
+        statusLog:
+          type: array
+          readOnly: true
+          description: Nhật ký đổi trạng thái (`registry.tenant_status_log`, TL-03), mới nhất trước, cho trang chi tiết.
+          items: { $ref: '#/components/schemas/TenantStatusLogEntry' }
         idps:
           type: array
           items: { $ref: '#/components/schemas/TenantIdp' }
@@ -2360,13 +2877,31 @@ components:
       properties:
         reason: { type: string, maxLength: 500, description: 'Lý do, số văn bản (ghi `registry.tenant_status_log.reason`)' }
     ConfigTenantExportRequest:
-      description: Bộ lọc và định dạng tệp xuất (định dạng là suy luận).
+      description: Bộ lọc và định dạng tệp xuất, cùng bộ lọc với `GET /config/tenants` (định dạng là suy luận).
       type: object
       properties:
         cell: { type: string, maxLength: 16 }
         model: { $ref: '#/components/schemas/TenancyModel' }
         status: { $ref: '#/components/schemas/TenantStatus' }
-        format: { type: string, enum: [XLSX, CSV], default: XLSX }
+        q: { type: string, maxLength: 100, description: Từ khoá đang tìm trên danh sách }
+        format:
+          type: string
+          enum: [XLSX, CSV]
+          description: Định dạng tệp; vắng thì máy chủ dùng `XLSX`.
+    TenantStatusLogEntry:
+      description: Một lần đổi trạng thái tenant (`registry.tenant_status_log`).
+      type: object
+      required: [id, toStatus, reason, changedAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        fromStatus:
+          oneOf:
+            - $ref: '#/components/schemas/TenantStatus'
+            - type: 'null'
+        toStatus: { $ref: '#/components/schemas/TenantStatus' }
+        reason: { type: string, description: 'Lý do, số văn bản' }
+        actor: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        changedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
     TenantIdpTestRequest:
       description: IdP cần kiểm tra; gửi `idpAlias` của IdP đã lưu hoặc cấu hình đang soạn.
       type: object
@@ -3565,3 +4100,236 @@ components:
               - { component: vt.widget.krCheckinDue }
               - { component: vt.widget.periodMilestones }
               - { component: vt.widget.weeklySummaryAi }
+
+    # ------------------------------------------------------------ Vai trò và uỷ quyền (WEB-058)
+    RoleCode:
+      description: Vai trò hệ thống gán theo đơn vị (`config.role_binding.role_code`, CHECK của TL-03).
+      type: string
+      enum: [tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+    RoleBindingScope:
+      description: Phạm vi ABAC (`config.role_binding.scope`).
+      type: string
+      enum: [DON_VI, DON_VI_VA_CAP_DUOI]
+    RoleBindingStatus:
+      description: >-
+        Trạng thái suy ra, không lưu thành cột (quyết định WEB-058 điểm 2): `CHO_DUYET` khi vai trò nhạy
+        cảm chưa có `approved_by`; `TU_CHOI`, `DA_THU_HOI` theo `end_kind`; còn lại so `valid_from`,
+        `valid_to` với thời điểm hiện tại.
+      type: string
+      enum: [CHO_DUYET, SAP_HIEU_LUC, HIEU_LUC, HET_HAN, DA_THU_HOI, TU_CHOI]
+    AccessEndKind:
+      description: Cách bản ghi kết thúc trước hạn (`end_kind`, cột bổ sung theo WEB-058).
+      type: string
+      enum: [THU_HOI, TU_CHOI]
+    RoleBinding:
+      description: >-
+        Vai trò đã cấp (`config.role_binding`, TL-03; cột bổ sung `reason`, `granted_at`, `approved_at`,
+        `ended_by`, `ended_at`, `end_kind`, `end_reason` theo WEB-058). Là nguồn sự thật của vai trò; mỗi
+        thay đổi phát EVT-27 để cập nhật dữ liệu OPA và đồng bộ realm role sang Keycloak.
+      type: object
+      required: [id, person, roleCode, orgUnit, scope, validFrom, validTo, status, sensitive, grantedBy, grantedAt, reason, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        person: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        personTitle: { type: ['string', 'null'], description: 'Chức danh của phân công chính' }
+        roleCode: { $ref: '#/components/schemas/RoleCode' }
+        orgUnit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        scope: { $ref: '#/components/schemas/RoleBindingScope' }
+        flow:
+          description: Giới hạn theo luồng; `null` là cả hai luồng.
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Flow' }
+            - { type: 'null' }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        validTo: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        status: { $ref: '#/components/schemas/RoleBindingStatus' }
+        sensitive: { type: boolean, description: 'Vai trò cần người duyệt thứ hai (`decider`, `second_approver`, `policy_author`)' }
+        grantedBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        grantedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        reason: { type: string, maxLength: 500, description: 'Căn cứ cấp (quyết định, văn bản)' }
+        approvedBy:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Ref' }
+            - { type: 'null' }
+        approvedAt: { type: ['string', 'null'], format: date-time }
+        endedBy:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Ref' }
+            - { type: 'null' }
+        endedAt: { type: ['string', 'null'], format: date-time }
+        endKind:
+          oneOf:
+            - { $ref: '#/components/schemas/AccessEndKind' }
+            - { type: 'null' }
+        endReason: { type: ['string', 'null'], maxLength: 500 }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - id: 0192f7a1-1111-7c3e-9a51-3f2d9c1b0a01
+          person: { id: 0192f7a1-2222-7c3e-9a51-3f2d9c1b0a02, name: Lê Minh Châu }
+          personTitle: Phó Trưởng ban
+          roleCode: decider
+          orgUnit: { id: 0192f7a1-3333-7c3e-9a51-3f2d9c1b0a03, name: Ban Tổ chức Tỉnh uỷ }
+          scope: DON_VI_VA_CAP_DUOI
+          flow: DANG
+          validFrom: '2026-11-01T00:00:00+07:00'
+          validTo: '2027-10-31T23:59:59+07:00'
+          status: CHO_DUYET
+          sensitive: true
+          grantedBy: { id: 0192f7a1-4444-7c3e-9a51-3f2d9c1b0a04, name: Ngô Thị Lan }
+          grantedAt: '2026-10-19T09:30:00+07:00'
+          reason: Quyết định 152-QĐ/TU ngày 15/10/2026 giao quyết định xếp loại khối Đảng
+          approvedBy: null
+          approvedAt: null
+          endedBy: null
+          endedAt: null
+          endKind: null
+          endReason: null
+          rowVersion: 1
+    RoleBindingCreate:
+      type: object
+      required: [personId, roleCode, orgUnitId, scope, validFrom, validTo, reason]
+      properties:
+        personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        roleCode: { $ref: '#/components/schemas/RoleCode' }
+        orgUnitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        scope: { $ref: '#/components/schemas/RoleBindingScope' }
+        flow:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Flow' }
+            - { type: 'null' }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        validTo: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+    RoleBindingApprove:
+      type: object
+      properties:
+        note: { type: string, maxLength: 500, description: 'Ghi chú của người duyệt (tuỳ chọn)' }
+    AccessEndInput:
+      description: Lý do bắt buộc khi từ chối hoặc thu hồi vai trò, uỷ quyền.
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 5, maxLength: 500 }
+    RoleBindingCounts:
+      description: Số đếm cho thẻ lọc nhanh của SCR-0105 theo bộ lọc đơn vị hiện tại.
+      type: object
+      required: [active, pending, awaitingMe, expiringSoon]
+      properties:
+        active: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+        awaitingMe: { type: integer, minimum: 0 }
+        expiringSoon: { type: integer, minimum: 0, description: 'Còn hiệu lực và hết hạn trong 30 ngày tới' }
+    RoleBindingPage:
+      type: object
+      required: [items, nextCursor, counts]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/RoleBinding' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        counts: { $ref: '#/components/schemas/RoleBindingCounts' }
+    AccessEventKind:
+      description: Loại sự kiện trong lịch sử quyền.
+      type: string
+      enum: [CAP_VAI_TRO, DUYET_VAI_TRO, TU_CHOI_VAI_TRO, THU_HOI_VAI_TRO, HET_HAN_VAI_TRO, TAO_UY_QUYEN, THU_HOI_UY_QUYEN, HET_HAN_UY_QUYEN]
+    AccessEvent:
+      description: Một sự kiện cấp, duyệt, thu hồi vai trò hoặc uỷ quyền, đọc từ nhật ký kiểm toán.
+      type: object
+      required: [id, at, kind, person, summary, refId]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        at: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        kind: { $ref: '#/components/schemas/AccessEventKind' }
+        actor:
+          description: Người thực hiện; `null` khi hệ thống tự kết thúc do hết hạn.
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Ref' }
+            - { type: 'null' }
+        person: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        summary: { type: string, examples: ['Cấp vai trò decider tại Ban Tổ chức Tỉnh uỷ, chờ duyệt thứ hai'] }
+        refId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    AccessEventPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AccessEvent' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    DelegationKind:
+      description: Loại uỷ quyền (`config.delegation.kind`, bảng bổ sung theo WEB-058).
+      type: string
+      enum: [DUYET_THAY, NGHIEM_THU_THAY, CHECK_IN_THAY]
+    DelegationStatus:
+      description: Trạng thái suy ra từ `valid_from`, `valid_to`, `end_kind`.
+      type: string
+      enum: [SAP_HIEU_LUC, HIEU_LUC, HET_HAN, DA_THU_HOI]
+    Delegation:
+      description: >-
+        Uỷ quyền khi vắng mặt (`config.delegation`, bảng bổ sung TL-03 theo WEB-058): người uỷ quyền, người
+        nhận, loại, đơn vị, đối tượng (KR khi check-in thay), thời hạn, lý do. OPA và workflow-service
+        (SVC-06) cùng đọc bảng này; phiếu do người nhận xử lý ghi rõ "duyệt thay", "nghiệm thu thay",
+        "check-in thay".
+      type: object
+      required: [id, kind, delegator, delegate, orgUnit, validFrom, validTo, reason, status, createdBy, createdAt, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        kind: { $ref: '#/components/schemas/DelegationKind' }
+        delegator: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        delegate: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        orgUnit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        subject:
+          description: Đối tượng được uỷ quyền (KR khi `CHECK_IN_THAY`); `null` là mọi phiếu của người uỷ quyền tại đơn vị.
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Ref' }
+            - { type: 'null' }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        validTo: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        reason: { type: string, maxLength: 500 }
+        status: { $ref: '#/components/schemas/DelegationStatus' }
+        createdBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        endedBy:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Ref' }
+            - { type: 'null' }
+        endedAt: { type: ['string', 'null'], format: date-time }
+        endReason: { type: ['string', 'null'], maxLength: 500 }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - id: 0192f7a1-5555-7c3e-9a51-3f2d9c1b0a05
+          kind: DUYET_THAY
+          delegator: { id: 0192f7a1-6666-7c3e-9a51-3f2d9c1b0a06, name: Hoàng Văn Dũng }
+          delegate: { id: 0192f7a1-2222-7c3e-9a51-3f2d9c1b0a02, name: Lê Minh Châu }
+          orgUnit: { id: 0192f7a1-3333-7c3e-9a51-3f2d9c1b0a03, name: Ban Tổ chức Tỉnh uỷ }
+          subject: null
+          validFrom: '2026-10-20T00:00:00+07:00'
+          validTo: '2026-11-05T23:59:59+07:00'
+          reason: Trưởng ban đi học lớp bồi dưỡng từ 20/10 đến 05/11/2026
+          status: SAP_HIEU_LUC
+          createdBy: { id: 0192f7a1-6666-7c3e-9a51-3f2d9c1b0a06, name: Hoàng Văn Dũng }
+          createdAt: '2026-10-19T10:00:00+07:00'
+          endedBy: null
+          endedAt: null
+          endReason: null
+          rowVersion: 1
+    DelegationCreate:
+      type: object
+      required: [kind, delegatorId, delegateId, orgUnitId, validFrom, validTo, reason]
+      properties:
+        kind: { $ref: '#/components/schemas/DelegationKind' }
+        delegatorId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        delegateId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        orgUnitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        subjectId: { type: ['string', 'null'], format: uuid, description: 'KR khi `CHECK_IN_THAY`' }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        validTo: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+    DelegationPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Delegation' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
