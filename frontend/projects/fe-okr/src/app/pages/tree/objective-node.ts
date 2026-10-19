@@ -1,5 +1,11 @@
 import { Component, computed, input, output, signal } from '@angular/core';
-import { CONFIDENCE_LABEL, KeyResult, OBJECTIVE_STATUS_LABEL, Objective } from '@vt/api-client';
+import {
+  CONFIDENCE_LABEL,
+  KeyResult,
+  OBJECTIVE_STATUS_LABEL,
+  Objective,
+  progressPct,
+} from '@vt/api-client';
 import { TagModule } from 'primeng/tag';
 import {
   confidenceSeverity,
@@ -7,6 +13,7 @@ import {
   formatDate,
   formatNumber,
   krTone,
+  krsOf,
   objectiveTone,
   statusSeverity,
   valueOverTarget,
@@ -23,13 +30,14 @@ import {
   imports: [TagModule],
   template: `
     @let o = objective();
-    <article class="obj" [class.sub]="o.tier > 1" [attr.aria-labelledby]="'o-' + o.id">
+    @let krs = krList();
+    <article class="obj" [class.sub]="sub()" [attr.aria-labelledby]="'o-' + o.id">
       <header class="hd">
-        <span class="oid" [class.sub]="o.tier > 1">{{ o.code }}</span>
+        <span class="oid" [class.sub]="sub()">{{ o.code }}</span>
         <h2 class="title" [id]="'o-' + o.id">
           {{ o.title }}
-          @if (o.tier > 1) {
-            <span class="owner">· {{ o.ownerPersonName ?? o.ownerUnitName }}</span>
+          @if (sub()) {
+            <span class="owner">· {{ o.ownerPerson?.name ?? o.ownerUnit.name }}</span>
           }
         </h2>
         <p-tag [severity]="statusSev()" [value]="statusText()" />
@@ -39,12 +47,12 @@ import {
           [attr.aria-label]="'Tiến độ ' + o.code"
           aria-valuemin="0"
           aria-valuemax="100"
-          [attr.aria-valuenow]="o.progressPct"
+          [attr.aria-valuenow]="pct()"
         >
-          <i [class]="tone()" [style.width.%]="o.progressPct"></i>
+          <i [class]="tone()" [style.width.%]="pct()"></i>
         </div>
-        <strong class="pct">{{ o.progressPct }}%</strong>
-        <span class="muted">{{ o.keyResults.length }} KR</span>
+        <strong class="pct">{{ pct() }}%</strong>
+        <span class="muted">{{ krs.length }} KR</span>
         @if (canEdit() && o.status === 'NHAP') {
           <button
             type="button"
@@ -56,10 +64,10 @@ import {
           </button>
         }
       </header>
-      @if (o.keyResults.length === 0) {
+      @if (krs.length === 0) {
         <p class="muted empty">Mục tiêu chưa có KR.</p>
       }
-      @for (kr of o.keyResults; track kr.id) {
+      @for (kr of krs; track kr.id) {
         <button
           type="button"
           class="kr"
@@ -86,7 +94,9 @@ import {
               <span class="muted">Chưa check-in</span>
             }
           </span>
-          <span class="muted date">{{ kr.lastCheckinAt ? formatDate(kr.lastCheckinAt) : '' }}</span>
+          <span class="muted date">{{
+            kr.lastCheckin ? formatDate(kr.lastCheckin.checkinAt) : ''
+          }}</span>
         </button>
       }
       @if (childList().length > 0) {
@@ -313,6 +323,11 @@ export class ObjectiveNode {
   protected readonly krTone = krTone;
   protected readonly confSev = confidenceSeverity;
 
+  protected readonly krList = computed(() => krsOf(this.objective()));
+  /** Mục tiêu tầng 2, 3 (của phòng, cá nhân); `tier` vắng coi là tầng 1. */
+  protected readonly sub = computed(() => (this.objective().tier ?? 1) > 1);
+  /** `OkrObjective.progress` là 0..1, hiện phần trăm làm tròn. */
+  protected readonly pct = computed(() => progressPct(this.objective().progress));
   protected readonly childList = computed(() => this.children().get(this.objective().id) ?? []);
   protected readonly descendants = computed(() =>
     descendantCount(this.objective().id, this.children()),
@@ -329,7 +344,7 @@ export class ObjectiveNode {
     const stack = [...this.childList()];
     while (stack.length) {
       const o = stack.pop()!;
-      tiers.add(o.tier);
+      tiers.add(o.tier ?? 1);
       stack.push(...(this.children().get(o.id) ?? []));
     }
     return [...tiers]
@@ -340,9 +355,8 @@ export class ObjectiveNode {
 
   protected meta(kr: KeyResult): string {
     const parts = [`Trọng số ${formatNumber(Math.round(kr.weight * 100))}%`];
-    parts.push(`người xác nhận: ${kr.verifierName}`);
+    if (kr.verifier) parts.push(`người xác nhận: ${kr.verifier.name}`);
     if (kr.dataSource) parts.push(`nguồn: ${kr.dataSource}`);
-    if (kr.valueNote) parts.push(kr.valueNote);
     return parts.join(' · ');
   }
 }

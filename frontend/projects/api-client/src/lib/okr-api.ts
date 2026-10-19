@@ -43,14 +43,14 @@ export class OkrApi {
   }
 
   /**
-   * Cây mục tiêu của đơn vị trong kỳ (SCR-0201, `/api/v1/okr/objectives?unit=&period=&view=tree`).
+   * Cây mục tiêu của đơn vị trong kỳ (SCR-0201, `GET /api/v1/okr/tree?period=&unit=`).
    * Bỏ `unit` để lấy đơn vị của ngữ cảnh làm việc; bỏ `period` để lấy kỳ đang `MO`.
    */
   tree(query: { unit?: string; period?: string } = {}): Observable<OkrTree> {
-    let params = new HttpParams().set('view', 'tree');
+    let params = new HttpParams();
     if (query.unit) params = params.set('unit', query.unit);
     if (query.period) params = params.set('period', query.period);
-    return this.http.get<OkrTree>('/api/v1/okr/objectives', { params });
+    return this.http.get<OkrTree>('/api/v1/okr/tree', { params });
   }
 
   /** Lịch sử check-in của KR, mới nhất trước (`/api/v1/okr/key-results/{id}/checkins?cursor=`). */

@@ -34,8 +34,8 @@ describe('mock okr – SCR-0201 (WEB-021)', () => {
     expect(t.parent?.code).toBe('O-ĐUK-1');
     const o1 = t.objectives.find((o) => o.code === 'O1')!;
     const o2 = t.objectives.find((o) => o.code === 'O2')!;
-    expect(o1.progressPct).toBe(64);
-    expect(o2.progressPct).toBe(51);
+    expect(o1.progress).toBeCloseTo(0.64, 2);
+    expect(o2.progress).toBeCloseTo(0.51, 2);
     expect(new Set(t.objectives.map((o) => o.tier))).toEqual(new Set([1, 2, 3]));
     expect(t.peerLinks).toHaveLength(1);
   });
@@ -186,7 +186,7 @@ describe('mock okr – SCR-0203 (WEB-023)', () => {
     expect(q.period.id).toBe('p-2026-q4');
     expect(q.reviewer.name).toBe('Đinh Văn Sơn');
     const byUnit = Object.fromEntries(q.items.map((s) => [s.unit.name, s]));
-    expect(byUnit['Ban Tuyên giáo'].summary).toEqual({ tone: 'DAT', label: 'Đạt' });
+    expect(byUnit['Ban Tuyên giáo'].summary).toEqual({ level: 'DAT', label: 'Đạt' });
     expect(byUnit['Văn phòng Đảng uỷ'].summary.label).toBe('Vượt 3 O');
     expect(byUnit['Văn phòng Đảng uỷ'].viewerIsAuthor).toBe(true);
     expect(byUnit['Đảng uỷ Cơ quan B'].summary.label).toBe('KR mơ hồ');
@@ -308,7 +308,7 @@ describe('mock okr – SCR-0301 (WEB-024)', () => {
     const h = await firstValueFrom(api.checkins('kr-1-1'));
     expect(h.items[0].value).toBe(2.6);
     const t = await firstValueFrom(api.tree());
-    expect(t.objectives.find((o) => o.code === 'O1')!.progressPct).toBe(67);
+    expect(Math.round(t.objectives.find((o) => o.code === 'O1')!.progress * 100)).toBe(67);
   });
 
   it('BR-03-04, BR-03-05: ghi đè thiếu lý do và chênh lớn chưa xác nhận bị chặn', async () => {

@@ -9,7 +9,7 @@ import {
   OkrKeyResultListItem,
   OkrPeriod,
 } from '../../lib/models/okr';
-import { krProgress, objectiveProgressPct } from '../../lib/okr-progress';
+import { krProgress, objectiveProgress } from '../../lib/okr-progress';
 import { MockRequest, MockResponse, MockRoute, ok, problem } from '../mock-router';
 import fixture from './okr.json';
 
@@ -21,7 +21,7 @@ import fixture from './okr.json';
  */
 
 type Kr = Omit<KeyResult, 'progress'>;
-type Obj = Omit<Objective, 'progressPct' | 'keyResults' | 'tier'> & { keyResults: Kr[] };
+type Obj = Omit<Objective, 'progress' | 'keyResults'> & { keyResults: Kr[] };
 
 interface CheckinState {
   history: Map<string, KrCheckin[]>;
@@ -65,7 +65,8 @@ function findKr(objectives: Record<string, Obj[]>, id: string) {
 const lastSent = (id: string) => checkinState().history.get(id)?.[0] ?? null;
 
 function needCheckin(kr: Kr): boolean {
-  return !kr.lastCheckinAt || Date.parse(kr.lastCheckinAt) < Date.parse(conf.cycleStart);
+  const at = kr.lastCheckin?.checkinAt;
+  return !at || Date.parse(at) < Date.parse(conf.cycleStart);
 }
 
 function listItem(o: Obj, kr: Kr): OkrKeyResultListItem {
@@ -127,8 +128,8 @@ function detail(objectives: Record<string, Obj[]>, id: string): MockResponse {
     currentValue: kr.currentValue,
     weight: kr.weight,
     dueDate: kr.dueDate,
-    verifier: { id: 'p-verifier', name: kr.verifierName },
-    owner: { id: kr.viewerIsOwner ? conf.viewer.id : 'p-owner', name: kr.ownerName },
+    verifier: kr.verifier,
+    owner: kr.owner,
     dataSource: kr.dataSource ?? undefined,
     formulaText: (conf.formulas as Record<string, string>)[id],
     confidence: kr.confidence ?? undefined,
@@ -249,7 +250,7 @@ function create(req: MockRequest, objectives: Record<string, Obj[]>): MockRespon
     return result(checkin, o, kr, 201);
   }
   // BR-03-05: chênh quá 50% khoảng chỉ tiêu so với lần trước thì phải xác nhận
-  const prev = kr.currentValue;
+  const prev = kr.currentValue ?? null;
   const span = Math.abs((kr.targetValue ?? 0) - (kr.baselineValue ?? 0));
   if (prev !== null && span > 0 && !body.confirmLargeChange) {
     const diff = Math.abs(body.value - prev) / span;
@@ -278,7 +279,7 @@ function create(req: MockRequest, objectives: Record<string, Obj[]>): MockRespon
   kr.riskFlag = nextRiskFlag(id, kr.riskFlag, body.confidence === 'THAP');
   kr.currentValue = body.value;
   kr.confidence = body.confidence;
-  kr.lastCheckinAt = now;
+  kr.lastCheckin = { value: body.value, confidence: body.confidence, checkinAt: now };
   kr.latestBlocker = body.blockerNote || null;
   return result(checkin, o, kr, 201);
 }
@@ -294,7 +295,7 @@ function result(checkin: OkrCheckin, o: Obj, kr: Kr, status: number): MockRespon
       confidence: kr.confidence ?? undefined,
       riskFlag: kr.riskFlag,
     },
-    objective: { id: o.id, code: o.code, progress: objectiveProgressPct(o.keyResults) / 100 },
+    objective: { id: o.id, code: o.code, progress: objectiveProgress(o.keyResults) },
   };
   return { status, body };
 }

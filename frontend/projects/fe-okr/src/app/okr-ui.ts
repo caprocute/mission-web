@@ -4,7 +4,7 @@ export type TagSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' |
 export type Tone = 'ok' | 'warn' | 'danger' | 'none';
 
 /** Màu theo mức tự tin như mockup Hình 7.3: Cao xanh, Trung bình vàng, Thấp đỏ. */
-export function confidenceTone(c: Confidence | null): Tone {
+export function confidenceTone(c: Confidence | null | undefined): Tone {
   switch (c) {
     case 'CAO':
       return 'ok';
@@ -17,7 +17,7 @@ export function confidenceTone(c: Confidence | null): Tone {
   }
 }
 
-export function confidenceSeverity(c: Confidence | null): TagSeverity {
+export function confidenceSeverity(c: Confidence | null | undefined): TagSeverity {
   const t = confidenceTone(c);
   return t === 'ok' ? 'success' : t === 'warn' ? 'warn' : t === 'danger' ? 'danger' : 'secondary';
 }
@@ -39,9 +39,14 @@ export function krTone(kr: Pick<KeyResult, 'confidence' | 'riskFlag' | 'progress
   return kr.progress >= 0.7 ? 'ok' : kr.progress >= 0.4 ? 'warn' : 'none';
 }
 
+/** KR của mục tiêu; `keyResults` không bắt buộc trong `OkrObjective` nên vắng coi là rỗng. */
+export function krsOf(o: Pick<Objective, 'keyResults'>): KeyResult[] {
+  return o.keyResults ?? [];
+}
+
 /** Màu thanh tiến độ mục tiêu: theo KR kém nhất (có KR tự tin Thấp thì đỏ, có Trung bình thì vàng). */
 export function objectiveTone(o: Pick<Objective, 'keyResults'>): Tone {
-  const tones = o.keyResults.map(krTone);
+  const tones = krsOf(o).map(krTone);
   if (tones.includes('danger')) return 'danger';
   if (tones.includes('warn')) return 'warn';
   if (tones.includes('ok')) return 'ok';
@@ -69,8 +74,8 @@ export function formatNumber(n: number): string {
 }
 
 /** Giá trị kèm đơn vị đo: `2,4%`, `4 mốc`; `null` hiện `—`. */
-export function formatValue(n: number | null, unit: string): string {
-  if (n === null) return '—';
+export function formatValue(n: number | null | undefined, unit: string): string {
+  if (n == null) return '—';
   return unit === '%' ? `${formatNumber(n)}%` : `${formatNumber(n)} ${unit}`;
 }
 
@@ -78,8 +83,8 @@ export function formatValue(n: number | null, unit: string): string {
 export function valueOverTarget(
   kr: Pick<KeyResult, 'currentValue' | 'targetValue' | 'unit'>,
 ): string {
-  const cur = kr.currentValue === null ? '—' : formatNumber(kr.currentValue);
-  if (kr.targetValue === null) return `${cur} / —`;
+  const cur = kr.currentValue == null ? '—' : formatNumber(kr.currentValue);
+  if (kr.targetValue == null) return `${cur} / —`;
   return kr.unit === '%'
     ? `${cur}% / ${formatNumber(kr.targetValue)}%`
     : `${cur} / ${formatNumber(kr.targetValue)} ${kr.unit}`.trimEnd();
@@ -126,10 +131,11 @@ export function indexTree(objectives: readonly Objective[]): TreeIndex {
   const children = new Map<string, Objective[]>();
   const roots: Objective[] = [];
   for (const o of objectives) {
-    if (o.parentObjectiveId && ids.has(o.parentObjectiveId)) {
-      const list = children.get(o.parentObjectiveId) ?? [];
+    const parentId = o.parentObjective?.id;
+    if (parentId && ids.has(parentId)) {
+      const list = children.get(parentId) ?? [];
       list.push(o);
-      children.set(o.parentObjectiveId, list);
+      children.set(parentId, list);
     } else {
       roots.push(o);
     }
@@ -159,8 +165,9 @@ export interface TableRow {
 export function tableRows(index: TreeIndex): TableRow[] {
   const rows: TableRow[] = [];
   const visit = (o: Objective) => {
-    if (o.keyResults.length === 0) rows.push({ objective: o, kr: null });
-    for (const kr of o.keyResults) rows.push({ objective: o, kr });
+    const krs = krsOf(o);
+    if (krs.length === 0) rows.push({ objective: o, kr: null });
+    for (const kr of krs) rows.push({ objective: o, kr });
     for (const c of index.children.get(o.id) ?? []) visit(c);
   };
   index.roots.forEach(visit);
@@ -169,6 +176,6 @@ export function tableRows(index: TreeIndex): TableRow[] {
 
 /** KR chọn mặc định cho bảng bên phải: KR có cờ rủi ro hoặc tự tin Thấp đầu tiên, nếu không có thì KR đầu tiên. */
 export function defaultKr(objectives: readonly Objective[]): KeyResult | null {
-  const krs = objectives.filter((o) => o.tier === 1).flatMap((o) => o.keyResults);
+  const krs = objectives.filter((o) => o.tier === 1).flatMap(krsOf);
   return krs.find((k) => k.riskFlag !== 'BINH_THUONG' || k.confidence === 'THAP') ?? krs[0] ?? null;
 }

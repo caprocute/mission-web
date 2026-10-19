@@ -420,7 +420,7 @@ export class OkrReviewPage {
   );
   protected readonly batchJob = signal<Job | null>(null);
 
-  protected readonly day = (iso: string) => formatDate(iso, true);
+  protected readonly day = (iso?: string) => (iso ? formatDate(iso, true) : '—');
 
   protected setPeriod(id: string) {
     this.notice.set(null);
