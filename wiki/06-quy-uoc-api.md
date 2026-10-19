@@ -1,0 +1,99 @@
+> Nguồn: Baseline mục 13; TL-01 mục "API và OpenAPI", mục 4 "Luồng một request", mục "Idempotency, giới hạn tốc độ, RFC 9457", mục bảo mật (step-up RFC 9470), mục định tuyến cell, Phụ lục C (danh mục API); TL-02 chương "Quy ước giao diện chung" (xử lý lỗi, phân trang); TL-03 (thời hạn giữ `idempotency_key`); TL-04 mục "Cổng vào: Apache APISIX", "Cắt tải và giới hạn tốc độ"; mã `@vt/api-client`.
+
+# Quy ước API
+
+Trang này gom mọi quy ước mà frontend phải tuân theo khi gọi API của nền tảng. Quy ước gốc nằm ở baseline mục 13 và chỉ dài một đoạn; TL-01, TL-02, TL-03, TL-04 chi tiết hoá thêm và ở vài chỗ chưa thống nhất với nhau. Trang ghi rõ chỗ nào đã thống nhất, chỗ nào còn lệch, và mã hiện tại đang chọn cách nào, để người làm không phải tự dò lại bốn tài liệu.
+
+## Hình thức chung
+
+API là REST JSON mô tả bằng OpenAPI 3.1, tiền tố `/api/v1/<module>`. Baseline liệt kê các module: `okr`, `tasks`, `plans`, `catalog`, `products`, `evidences`, `appraisals`, `policies`, `dossiers`, `oversight`, `config`, `periods`, `org`, `files`, `ledger`, `esign`, `notifications`, `analytics`, `ai`, `ui`. TL-01 Phụ lục C dùng thêm `registry` (phân giải cell), `workflow` (hộp việc, hoàn thành hàng loạt), `jobs` (theo dõi tác vụ nền) và `search`. Tên trường JSON viết camelCase; đặc tả sinh bằng springdoc và CI chạy openapi-diff để chặn thay đổi phá vỡ tương thích.
+
+Phiên bản nằm trong đường dẫn (`v1`). Khi có `v2`, bản cũ được duy trì ít nhất 12 tháng và trả header `Deprecation` (RFC 9745) và `Sunset` (RFC 8594). Client nên ghi cảnh báo vào telemetry khi thấy hai header này để đội biết còn màn hình nào dùng API sắp ngừng (suy luận về cách dùng).
+
+Trình duyệt chỉ biết một gốc API của cell (khoá `apiBaseUrl` trong `/config.json`), vì mọi service đều đứng sau APISIX (SVC-01). APISIX kết thúc TLS, chạy WAF Coraza với OWASP CRS, kiểm JWT qua JWKS của Keycloak trong cell (lưu đệm khoảng 10 phút theo TL-01) và claim `cell`, giới hạn tốc độ, rồi gắn `X-Tenant-Id` cho upstream. Frontend không tự gửi `X-Tenant-Id`. Thời gian chờ đọc ở cổng là 10 giây cho mọi API đồng bộ (TL-04), nên API nào có thể chạy lâu hơn đều phải theo mẫu tác vụ nền.
+
+## Header của mỗi request
+
+| Header | Khi nào | Giá trị | Ai gắn trong mã |
+|---|---|---|---|
+| `Authorization` | Mọi request tới `/api/` | `Bearer <access token>` | `authInterceptor` của `@vt/auth` |
+| `traceparent` | Mọi request tới `/api/` | W3C Trace Context, sinh ở trình duyệt | `traceparentInterceptor` của `@vt/telemetry` |
+| `Idempotency-Key` | Mọi request ghi (`POST`, `PUT`, `PATCH`, `DELETE`) | UUID duy nhất cho một ý định ghi | `idempotencyInterceptor` của `@vt/api-client` |
+| `If-Match` | Mọi cập nhật một đối tượng đã có | ETag = `row_version` của đối tượng | Client API gắn theo từng lời gọi |
+| `If-None-Match` | Đọc tài nguyên có ETag (UI Pack, dữ liệu ít đổi) | ETag lần trước | Theo thiết kế; UI Pack hiện dùng so sánh phiên bản |
+
+Thứ tự interceptor trong `fe-shell/src/app/app.config.ts` là `apiBaseUrlInterceptor`, `authInterceptor`, `idempotencyInterceptor`, `traceparentInterceptor`. `apiBaseUrlInterceptor` chỉ ghép gốc API vào đường dẫn bắt đầu bằng `/api/v1/` khi `apiBaseUrl` khác `/api`; vì vậy component và client luôn viết đường dẫn tương đối dạng `/api/v1/...`, không tự ghép tên miền.
+
+## Chống ghi trùng: Idempotency-Key
+
+Baseline yêu cầu mọi lệnh ghi có `Idempotency-Key`. TL-01 mô tả chi tiết: khoá là UUIDv7, máy chủ lưu kết quả lần đầu và trả lại nguyên kết quả đó khi nhận lại cùng khoá; nếu cùng khoá nhưng băm nội dung khác thì trả 422. Mục đích là để người dùng bấm lại hoặc mạng di động tự gửi lại không tạo hai bản ghi. Thời hạn giữ khoá chưa thống nhất: TL-01 ghi 24 giờ, còn TL-03 thiết kế bảng bổ sung `<schema>.idempotency_key` (ví dụ `task.idempotency_key`) giữ 48 giờ "đủ cho ứng dụng di động gửi lại sau khi mất mạng". Theo TL-03, khoá chỉ có nghĩa trong phạm vi một người gọi (`actor_id` là `sub` của JWT), băm yêu cầu tính trên phương thức, đường dẫn và thân đã chuẩn hoá, và phản hồi lưu lại không chứa trường C2.
+
+Có hai điểm người làm cần chú ý. Thứ nhất, một khoá phải gắn với một ý định ghi chứ không phải một lần gọi HTTP: khi người dùng bấm "Gửi" rồi mạng lỗi và ứng dụng tự thử lại, lần thử lại phải dùng lại khoá cũ. `idempotencyInterceptor` hiện sinh khoá mới cho mỗi request chưa có header, nên logic thử lại phải tự gắn khoá trước khi gửi lần đầu (ví dụ SCR-0302 lưu khoá UUIDv7 cùng bản nháp ngoại tuyến). Thứ hai, mã hiện dùng `crypto.randomUUID()` sinh UUID phiên bản 4, trong khi TL-01 ghi UUIDv7; máy chủ chỉ cần khoá duy nhất nên đây không phải lỗi chức năng, nhưng cần chốt để thống nhất (xem trang 14).
+
+## Khoá lạc quan: If-Match và xung đột
+
+Mọi bảng nghiệp vụ có cột `row_version` (khoá lạc quan, optimistic lock). API trả ETag bằng `row_version`; khi cập nhật, client gửi `If-Match` với giá trị đó. Nếu đối tượng đã bị người khác sửa, máy chủ từ chối. Mã trạng thái của lỗi này đang lệch giữa các tài liệu: baseline mục 13 và TL-02 (MSG-09-07 "API trả 409") ghi 409, còn TL-01 ghi 412 với `type` là `concurrent-modification`. Mã hiện tại (`TaskApi.updateProgress`, `toProblem`) xử lý 409. Cho tới khi chốt, client nên coi cả 409 có mã xung đột và 412 là cùng một tình huống (khuyến nghị của wiki).
+
+TL-02 quy định cách giao diện phản ứng: giữ nguyên dữ liệu người dùng đang nhập, hiện khác biệt giữa bản của họ và bản mới trên máy chủ, để họ chọn tải lại hay ghi đè có chủ ý. Không được tự động tải lại làm mất dữ liệu đã nhập.
+
+Cần phân biệt xung đột ghi với các lỗi 409 mang nghĩa nghiệp vụ khác, ví dụ ghi vào kỳ đã khoá (MSG-08-06, MSG-13-04), gói hồ sơ đã nộp (BR-11-10) hay phân nhóm triển vọng ở kỳ quý (BR-10-07). Các lỗi này phân biệt bằng trường `code` của Problem Details, không phải bằng mã HTTP.
+
+## Lỗi theo RFC 9457
+
+Mọi lỗi trả về dạng Problem Details (RFC 9457). TL-01 mở rộng thêm trường `code` dạng `<MODULE>-<HTTP>-<TÊN>` và `traceId`, cùng mảng `errors[]` cho lỗi theo trường. Ví dụ trong TL-01 có `status` 409, `code` `TASK-409-PERIOD-LOCKED` cho trường hợp ghi vào kỳ đã khoá. TL-02 ví dụ `type` trỏ tới mã quy tắc nghiệp vụ dạng `.../errors/BR-04-03` và quy định giao diện ánh xạ lỗi sang thông báo MSG.
+
+Kiểu `ProblemDetails` trong `@vt/api-client` có `type`, `title`, `status`, `detail`, `instance`, `code`, `errors` (mỗi phần tử có `field`, `message`) và `traceId`. Hàm `toProblem()` chuyển mọi lỗi HTTP về kiểu này, kể cả khi máy chủ không trả body đúng dạng. Quy tắc hiển thị do wiki khuyến nghị, dựa trên TL-02: lỗi có `errors[]` hiện ở cạnh từng trường; lỗi có `code` ánh xạ được sang MSG thì hiện văn bản của MSG; các lỗi còn lại hiện `title` kèm `traceId` để người dùng báo cho bộ phận hỗ trợ.
+
+## Phân trang
+
+Danh sách phân trang theo con trỏ (cursor), `limit` tối đa 200; TL-02 đặt mặc định 20. Kiểu `CursorPage<T>` gồm `items` và `nextCursor` (null khi hết). Hằng `MAX_PAGE_LIMIT = 200` trong mã chặn mọi giá trị lớn hơn. Không dùng phân trang theo số trang và tổng số bản ghi, vì đếm tổng trên bảng lớn tốn kém ở quy mô 6 triệu người dùng (suy luận). TL-02 yêu cầu nhớ bộ lọc theo người dùng.
+
+## Tác vụ dài và theo dõi tiến độ
+
+Tác vụ nặng (khoá kỳ, ký lô, xuất Excel, sinh biểu mẫu, chạy test vàng, kiểm tra toàn vẹn) trả `202 Accepted` kèm `Location: /api/v1/jobs/{id}` trong vòng 200 ms (NFR-03, SLO-ASYNC). Giao diện theo dõi bằng `GET /api/v1/jobs/{id}` hoặc nhận cập nhật qua SSE `GET /api/v1/notifications/stream` của notification-service (SVC-12). SCR-0904 và SCR-0801 là ví dụ điển hình: tiến độ ký lô và saga khoá kỳ cập nhật qua SSE, người dùng có thể đóng màn hình mà tác vụ vẫn chạy (MSG-09-15). TL-04 PERF-22 kiểm tra 60.000 kết nối SSE với độ trễ phân phát p95 ≤ 2 giây và nối lại ≤ 10 giây.
+
+## Giới hạn và mã trạng thái đặc biệt
+
+Bảng dưới gom các mã trạng thái có hành vi riêng mà giao diện phải xử lý.
+
+| Mã | Nghĩa | Cách xử lý ở giao diện |
+|---|---|---|
+| 202 | Tác vụ nền đã nhận | Theo dõi `Location`, hiển thị tiến độ |
+| 401 kèm `WWW-Authenticate: ... insufficient_user_authentication` | Cần xác thực bước lên (RFC 9470): thao tác yêu cầu `acr=aal2` và `auth_time` ≤ 5 phút | Shell chuyển người dùng sang xác thực lại với MFA rồi gửi lại thao tác (xem trang 07) |
+| 403 | OPA từ chối | Hiện MSG phân quyền tương ứng (ví dụ MSG-09-08, MSG-12-05, MSG-13-01) |
+| 409 hoặc 412 | Xung đột ghi đồng thời, hoặc vi phạm trạng thái nghiệp vụ (phân biệt bằng `code`) | Giữ dữ liệu, hiện khác biệt; hoặc hiện MSG nghiệp vụ |
+| 421 | Tenant đã chuyển sang cell khác | Shell tự chuyển hướng tới địa chỉ mới do `registry/resolve` trả |
+| 422 | Dữ liệu không hợp lệ, hoặc `Idempotency-Key` dùng lại với nội dung khác, hoặc thiếu lý do bắt buộc (BR-09-12) | Hiện lỗi theo trường |
+| 429 kèm `Retry-After` | Vượt giới hạn tốc độ | Chờ đúng `Retry-After` rồi thử lại, không thử dồn |
+| 503 | Cắt tải khi cell gần bão hoà | Hiện thông báo tạm thời, thử lại có giãn cách |
+
+TL-01 đặt giới hạn mỗi người dùng 20 request/giây (cho phép đột biến 40), thân JSON tối đa 1 MB và xuất tối đa 100.000 dòng; cắt tải có ba lớp ưu tiên. TL-04 hiện thực giới hạn ở APISIX bằng plugin `limit-count`, `limit-req`, `limit-conn` với khoá theo tenant và người dùng lấy từ JWT qua plugin nền tảng `vt-claims`. `POST /api/v1/workflow/tasks/batch-complete` nhận tối đa 200 mục mỗi lần.
+
+## Định tuyến cell
+
+Theo TL-01, shell gọi `GET /api/v1/registry/resolve?tenant=` để biết tenant đang ở cell nào. Khi tenant đã chuyển cell (trạng thái `DANG_CHUYEN_CELL` của `registry.tenant` theo TL-03), máy chủ trả 421 kèm địa chỉ mới và shell tự chuyển hướng. Vùng toàn cục lưu đệm ánh xạ tenant sang cell 5 phút và dùng cookie có HMAC. Mã hiện tại chưa gọi `registry/resolve`; cell lấy từ `/config.json`.
+
+## Dữ liệu giả lập
+
+Trong giai đoạn đầu, frontend phát triển với mock API (quyết định đã chốt, xem trang 14). Khi `useMockApi` bật trong `/config.json`, client API trả dữ liệu từ thư mục `mock/` của `@vt/api-client` với độ trễ giả lập 100 đến 200 ms; khi tắt, cùng client gọi API thật. Quy tắc cho người viết client mới: mock và thật phải dùng chung kiểu dữ liệu, mock phải mô phỏng cả các hành vi quan trọng như tăng `rowVersion` sau khi ghi và chuyển trạng thái đúng bảng chuyển của baseline mục 9.1 (ví dụ `DA_GIAO` sang `DANG_THUC_HIEN` khi có cập nhật tiến độ đầu tiên, như `TaskApi` đang làm).
+
+## Các điểm lệch cần chốt
+
+Danh sách dưới chỉ liệt kê; phân tích và đề xuất nằm ở [Quyết định và câu hỏi mở](14-quyet-dinh-va-cau-hoi-mo.md).
+
+| Chủ đề | Lệch giữa |
+|---|---|
+| Mã lỗi xung đột `If-Match` | Baseline, TL-02: 409; TL-01: 412 |
+| Thời hạn giữ `Idempotency-Key` | TL-01: 24 giờ; TL-03: 48 giờ |
+| Phiên bản UUID của `Idempotency-Key` | TL-01: UUIDv7; mã: UUID v4 |
+| Phương thức cập nhật tiến độ | TL-01 mục 4: `PATCH /api/v1/tasks/{id}/progress`; TL-02 và mã: `POST` |
+| Danh sách "việc của tôi" | TL-02 SCR-0503: `/api/v1/tasks?assignee=me`; ma trận TL-02: `/api/v1/tasks/my`; mã: `/api/v1/tasks/mine` |
+
+## Liên quan
+
+- [Kiến trúc frontend](02-kien-truc-frontend.md)
+- [Mã định danh và truy vết](04-ma-dinh-danh-va-truy-vet.md)
+- [Xác thực và phân quyền](07-xac-thuc-phan-quyen.md)
+- [Bảo mật frontend](08-bao-mat-frontend.md)
+- [Quy ước mã nguồn](10-quy-uoc-ma-nguon.md)
+- [Quyết định và câu hỏi mở](14-quyet-dinh-va-cau-hoi-mo.md)

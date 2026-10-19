@@ -1,0 +1,126 @@
+> Nguồn: Baseline mục 4 (ADR-05), mục 14 (G1); TL-01 chương 7 (chuyên đề G1: bốn lớp, cấu trúc UI Pack, cơ chế bộ đệm, chống XSS, ngân sách hiệu năng, kiểm thử), Phụ lục A (ADR-05, ADR-25); TL-02 QT-18 (BR-18-01 đến BR-18-12, SCR-1801 đến SCR-1803); TL-03 mục "Bảng config.ui_pack và config.ui_pack_version", "config.form_schema", "config.component_registry"; mã `@vt/design-system`, `@vt/sdui-renderer`, `fe-shell/public/ui-packs/`.
+
+# Giao diện theo tenant
+
+Trang này giải thích cách một bản build web duy nhất phục vụ hàng nghìn tenant với giao diện khác nhau. Đây là câu trả lời của thiết kế cho góp ý G1 của lãnh đạo ("mỗi tenant có thể có giao diện riêng, kiến trúc đề xuất là SDUI + Micro-frontends, nghiên cứu xem có áp dụng được không"). Kết luận đã chốt ở baseline mục 14 là áp dụng được nhưng có chọn lọc theo lớp, không biến toàn bộ frontend thành một bộ máy dựng giao diện thuần tuý từ dữ liệu.
+
+## Bốn lớp của ADR-05
+
+ADR-05 chia khả năng tuỳ biến thành bốn lớp với mức áp dụng khác nhau. Lý do chia lớp là mỗi lớp có chi phí, rủi ro an toàn và rủi ro hiệu năng khác nhau: đổi màu gần như không có rủi ro, còn cho tenant tự sắp màn hình nghiệp vụ lõi sẽ làm mất khả năng kiểm thử và kiểm tra khả năng truy cập một lần cho mọi tenant.
+
+| Lớp | Nội dung | Phạm vi áp dụng | Công nghệ | Chi phí ước tính (TL-01) |
+|---|---|---|---|---|
+| 1. Design Token | Màu, chữ, khoảng cách, bo góc, biểu tượng, logo | Toàn bộ giao diện | W3C Design Tokens biên dịch thành CSS custom properties và preset PrimeNG | 3 đến 4 tuần người |
+| 2. SDUI có giới hạn | Bố cục trang chủ và widget, nhóm trường và thứ tự thẻ ở trang chi tiết, bố cục dashboard | Chỉ "bề mặt cấu hình được" | `@vt/sdui-renderer` với danh mục component có phiên bản | 6 đến 8 tuần người |
+| 3. Biểu mẫu động | Biểu mẫu nghiệp vụ của tenant | Biểu mẫu khai báo trong UI Pack | Formly + JSON Schema 2020-12 + CEL (cel-js ở trình duyệt, cel-java ở máy chủ) | 4 đến 6 tuần người |
+| 4. Plugin | Module chuyên ngành Y tế, Giáo dục, LLVT | Tenant có plugin trong manifest | Native Federation, bản dựng ký số và quét | 2 đến 3 tuần người |
+
+TL-01 cộng tổng chi phí khoảng 15 đến 21 tuần người (số ước tính) và ghi rằng việc biên dịch CEL sang WebAssembly là không cần thiết, tiết kiệm khoảng 3 tuần, vì biểu thức kiểm tra biểu mẫu ngắn và cel-js thông dịch dưới 0,1 ms mỗi biểu thức (baseline mục 14).
+
+Phần không cấu hình được quan trọng ngang phần cấu hình được. BR-18-03 quy định các màn hình lõi (cây OKR, Config Studio, thẩm định so sánh, quyết định hàng loạt, bảng điều hành có đi xuống, sổ cái) chỉ nhận token và không cấu hình bố cục. TL-02 đánh dấu rõ ở thuộc tính thiết bị của SCR-0902 và SCR-1501 là "màn hình lõi viết mã, không cấu hình SDUI". Công thức tính điểm cũng không nằm trong UI Pack mà trong Policy Pack (QT-15).
+
+## Cấu trúc UI Pack
+
+UI Pack là một tệp JSON có phiên bản ngữ nghĩa. TL-01 chương 7 định nghĩa các khoá cấp cao sau, và tệp mẫu `fe-shell/public/ui-packs/default/1.0.0/pack.json` trong mã theo đúng cấu trúc này.
+
+| Khoá | Nội dung |
+|---|---|
+| `$schema` | URI lược đồ UI Pack phiên bản 1.0 |
+| `pack`, `version` | Mã gói (ví dụ `default/ui`) và phiên bản ngữ nghĩa |
+| `requires` | `registry` là dải phiên bản danh mục component tương thích (ví dụ `^2.4.0`); `policyPack` là dải phiên bản Policy Pack tương thích (ADR-25) |
+| `tokens` | Cây token W3C với `$type` và `$value` cho màu, phông, cỡ chữ, bo góc, logo |
+| `modes.elderly` | Bộ token phụ cho chế độ Đảng viên cao tuổi (ví dụ chữ thân 18px) và `flags` gồm `reducedSteps`, `minTouchTarget` (48px) |
+| `layouts` | Cây nút SDUI theo tên bề mặt, ví dụ `home` dùng `vt.layout.grid` chứa các widget |
+| `forms` | Biểu mẫu tham chiếu lược đồ trong Policy Pack (`schemaRef` dạng `policy://...`), phần trình bày gồm `ui.sections` và `widgets` như `vt.input.textarea`, `vt.input.score` |
+| `plugins` | Danh sách plugin chuyên ngành tenant được nạp |
+| `i18n` | Chuỗi hiển thị theo ngôn ngữ, ví dụ thông báo trang chủ |
+
+Mỗi nút SDUI chỉ gồm bốn trường: `component` (tên trong registry), `props`, `children` và `visibleWhen` (biểu thức CEL chỉ đọc ngữ cảnh người dùng). Ví dụ trong bố cục `home` của TL-01 và của tệp mẫu: widget `vt.widget.myTasksToday` với `limit: 7`, widget `vt.widget.okrProgress` hiện khi người dùng có vai trò `leader` hoặc `manager`, widget `vt.widget.pendingApprovals` hiện khi có vai trò `manager`, và widget `vt.widget.announcement` đọc chuỗi từ `i18n`.
+
+Ở phía dữ liệu, TL-03 lưu UI Pack trong `config.ui_pack` (mã, tên, `current_version_id`) và `config.ui_pack_version`. Bảng phiên bản có các cột token (`tokens`, `tokens_json`), bố cục (`layouts`, `layout_json`), tài nguyên (`assets_json`), `component_registry_version`, `policy_pack_version_id` và `policy_pack_ref`, khoá đối tượng gói đã biên dịch `bundle_object_key`, băm `bundle_sha256` dùng làm ETag và thuộc tính `integrity`, chữ ký `signature`, cờ `elder_mode` và `few_steps`, `published_at` và `status`. TL-03 giữ cả tên cột của baseline và tên cột do TL-02b đề xuất (ví dụ `tokens` và `tokens_json`), nên khi viết client cho API `ui/packs` cần đối chiếu hợp đồng OpenAPI thay vì đoán tên cột.
+
+## Vòng đời phát hành (QT-18)
+
+Trạng thái chuẩn của `config.ui_pack_version.status` là `NHAP`, `DANG_KIEM_TRA`, `CHO_DUYET`, `DA_PHAT_HANH`, `THAY_THE`. Quản trị tenant (AC-02 `tenant_admin`) tạo phiên bản nháp ở SCR-1801, chọn token, sắp bố cục, dựng biểu mẫu ở SCR-1802, xem trước song song hai tenant và chế độ cao tuổi, rồi gửi duyệt. Hệ thống chạy kiểm tra tự động: lược đồ hợp lệ, mọi component nằm trong registry, tương phản đạt AA, kích thước gói ≤ 30 KB, biểu thức CEL cho cùng kết quả trên cel-js và cel-java. Lỗi thì phiên bản về `NHAP`; đạt thì sang `CHO_DUYET`. Người duyệt phải khác người soạn; sau khi duyệt, MOD-08 biên dịch token thành CSS và preset PrimeNG, lưu phiên bản `DA_PHAT_HANH` và phát EVT-23 `UiPackDaPhatHanh`. Phiên bản cũ tự chuyển `THAY_THE` và có thể kích hoạt lại khi quay lui, với điều kiện tương thích Policy Pack đang gắn (MSG-18-04 khi không tương thích).
+
+Bảng dưới tóm tắt các quy tắc của QT-18 mà người làm web phải tôn trọng khi viết renderer, Config Studio hoặc màn hình mới.
+
+| Mã | Nội dung tóm tắt |
+|---|---|
+| BR-18-01 | Token theo W3C Design Tokens, biên dịch thành CSS custom properties và preset PrimeNG; chữ trên nền phải đạt tương phản ≥ 4,5 : 1 |
+| BR-18-02 | Bố cục SDUI chỉ tham chiếu component trong danh mục cho phép có phiên bản; không chứa HTML hay JavaScript tuỳ ý |
+| BR-18-03 | Màn hình lõi chỉ nhận token, không cấu hình bố cục |
+| BR-18-04 | Biểu mẫu động dùng Formly và JSON Schema; quy tắc và điều kiện hiển thị viết bằng CEL; trình duyệt kiểm tra tức thời, máy chủ kiểm tra lại |
+| BR-18-05 | Bộ test biểu mẫu phải cho cùng kết quả trên cel-js và cel-java |
+| BR-18-06 | Phiên bản biểu mẫu tham chiếu phiên bản Policy Pack; trường được tính điểm phải khớp khai báo của Policy Pack |
+| BR-18-07 | Thay đổi thuần giao diện không phải chạy lại test case tính điểm |
+| BR-18-08 | UI Pack ≤ 30 KB gzip; dựng biểu mẫu 50 trường ≤ 50 ms |
+| BR-18-09 | Chế độ cao tuổi: chữ cơ sở ≥ 17 px, nút cao ≥ 48 px, tương phản ≥ 7 : 1, một câu hỏi mỗi màn hình, ≤ 3 chạm |
+| BR-18-10 | Phát hành ≤ 1 ngày, không phát hành lại mã; quay lui được; EVT-23 |
+| BR-18-11 | Trường biểu mẫu khai báo lớp dữ liệu (C1, C2) bằng `x-classification`; trường C2 được mã hoá trường khi lưu |
+| BR-18-12 | Plugin chỉ nạp khi có trong manifest của tenant, bản dựng đã ký và quét |
+
+TL-02 nêu ba ngoại lệ có ảnh hưởng trực tiếp tới mã. Khi người dùng đang mở ứng dụng lúc phát hành, giao diện không đổi đột ngột mà hiện gợi ý "Có giao diện mới, tải lại khi thuận tiện"; biểu mẫu đang nhập dở dùng schema cũ cho tới khi nộp, và máy chủ chấp nhận cả hai phiên bản trong thời gian chuyển tiếp nếu cùng tham chiếu một phiên bản Policy Pack. Khi widget của plugin không tải được, renderer hiển thị khung giữ chỗ và ghi lỗi, phần còn lại của trang vẫn chạy. Khi quay lui về phiên bản có biểu mẫu tham chiếu Policy Pack đã ngừng, hệ thống chặn quay lui.
+
+## Liên kết phiên bản với Policy Pack (ADR-25)
+
+Biểu mẫu tự đánh giá thuộc UI Pack phải khớp đầu vào của quy tắc tính điểm thuộc Policy Pack của cùng kỳ. ADR-25 chọn cách để UI Pack khai báo dải phiên bản Policy Pack tương thích (`requires.policyPack`), và công cụ phát hành kiểm trường biểu mẫu khớp `inputs` của gói quy tắc. Phương án gộp hai gói bị loại vì khi đó mọi thay đổi giao diện phải qua phê duyệt quy tắc. Hệ quả là giao diện thay được độc lập nhưng vẫn an toàn, đổi lại mỗi lần phát hành có thêm một bước kiểm tra. MSG-18-07 chặn việc đổi kiểu hoặc xoá một trường mà Policy Pack dùng để tính điểm.
+
+## Bộ đệm: CDN, ETag và IndexedDB
+
+TL-01 chương 7 thiết kế cơ chế hai đường dẫn để UI Pack vừa được lưu đệm lâu vừa đổi được trong vòng một phút. Gói `/{tenant}/{version}/pack.json` là bất biến, phục vụ với `max-age` một năm và `immutable`. Con trỏ `/{tenant}/current.json` chỉ chứa phiên bản hiện hành (và chữ ký), phục vụ với `max-age=60, stale-while-revalidate=600` kèm ETag. Khi tenant phát hành, EVT-23 kích hoạt vô hiệu bộ đệm CDN cho đúng tenant đó; TL-02 nhấn mạnh rằng dù có tới 5.000 tenant, mỗi lần phát hành chỉ vô hiệu bộ đệm của một tenant.
+
+Phía trình duyệt, thiết kế quy định: khi khởi động, hiển thị ngay bản đã lưu trong IndexedDB; đồng thời gửi yêu cầu có `If-None-Match`; nếu nhận 304 thì giữ nguyên; nếu có bản mới thì tải, kiểm chữ ký và áp ở lần điều hướng sau. TL-01 ước 30 KB tương đương khoảng 60 ms trên mạng 4G 4 Mbit/s (số ước tính), nên ngân sách 30 KB không làm chậm đáng kể lần tải đầu. TL-02 ghi số đo trên bản dựng thử là 11,2 KB gzip với tenant mẫu.
+
+Mã hiện tại (`UiPackLoader` và `PackCache` trong `@vt/sdui-renderer`) làm như sau: đọc bản lưu trong cơ sở dữ liệu IndexedDB `vt-ui-pack` và áp ngay nếu có; đọc `current.json` với `cache: 'no-cache'`; nếu phiên bản khác bản lưu thì tải `pack.json`, ghi vào IndexedDB, và chỉ áp ngay khi chưa có bản lưu nào (nếu đã có bản lưu, giao diện mới có hiệu lực ở lần tải sau). Bước kiểm chữ ký gói chưa được hiện thực và đang đánh dấu `TODO(ADR-05)`; đây là việc bắt buộc trước khi lên môi trường thật vì chữ ký là lớp thứ năm của phòng thủ XSS.
+
+## Lớp token và preset PrimeNG
+
+`@vt/design-system` cung cấp `VtPreset`, dựng bằng `definePreset(Aura, ...)` từ `@primeuix/themes`. Thang màu `primary` 50 đến 950 được tính bằng `color-mix()` từ biến `--vt-color-primary`; `surface` và `text` trỏ tới `--vt-color-surface`, `--vt-color-text`; bo góc thẻ trỏ tới `--vt-radius-card`. Nhờ vậy đổi tenant chỉ cần đổi tệp CSS token, không phải dựng lại preset. `provideDesignSystem()` đăng ký PrimeNG với lớp CSS (`cssLayer`) thứ tự `base, primeng, app` và tắt chế độ tối.
+
+Theo thiết kế, CSS token do MOD-08 biên dịch ở máy chủ bằng Style Dictionary khi phát hành, sinh khối `:root[data-tenant]` và `:root[data-mode="elderly"]` cùng JSON preset. Trong mã, nếu gói không có trường `compiledCss` thì shell dùng hàm dự phòng `tokensToCss()` để làm phẳng cây token thành biến `--vt-<đường-dẫn>`. `ThemeService.applyTenant()` gắn thuộc tính `data-tenant` lên phần tử gốc và ghi CSS vào một thẻ `<style>` có `nonce` (nếu có `CSP_NONCE`) bằng `textContent`, không dùng `innerHTML`.
+
+TL-02 phần quy ước giao diện chung đặt thêm một giới hạn quan trọng: tenant đổi được màu nhấn và logo nhưng không đổi được bảng màu trạng thái (xanh lá, xanh dương, vàng cam, đỏ, xám, tím cho nội dung AI), và trạng thái luôn kèm chữ để không chỉ dựa vào màu.
+
+## Chế độ Đảng viên cao tuổi
+
+NFR-11 yêu cầu chế độ "Đảng viên cao tuổi" với chữ ≥ 17 px, tương phản cao, ít bước. Baseline mục 14 mô tả chế độ này là một bộ token phụ cộng cờ "ít bước" bật luồng rút gọn. BR-18-09 cụ thể hoá: chữ cơ sở ≥ 17 px, nút cao ≥ 48 px, tương phản ≥ 7 : 1, luồng rút gọn một câu hỏi mỗi màn hình, thao tác thường ngày ≤ 3 chạm. Ví dụ trong TL-01 và tệp mẫu đặt chữ thân 18px và `minTouchTarget` 48px. Theo TL-01, tuỳ chọn của người dùng được lưu trong `config.tenant_setting` và có nút chuyển nhanh trên thanh trên; SCR-1803 là màn hình tiêu biểu của chế độ này (xác nhận sinh hoạt chi bộ, tự đánh giá cuối năm, nhập bằng giọng nói).
+
+Trong mã, `ThemeService` giữ signal `mode` (`default` hoặc `elderly`), gắn `data-mode` lên phần tử gốc và nhớ lựa chọn trong `localStorage` khoá `vt.displayMode` (chỉ là tiện ích cục bộ; việc đồng bộ với `config.tenant_setting` chưa làm). Signal `reducedSteps` lấy từ `modes.elderly.flags.reducedSteps` để màn hình biết cần chuyển sang luồng ít bước. Nút "Chữ lớn" trên `ShellLayout` gọi `toggleElderly()`. Mọi màn hình mới phải được kiểm thử ở cả hai chế độ (xem [Kiểm thử và chất lượng](11-kiem-thu-va-chat-luong.md)).
+
+## Lớp SDUI và danh mục component
+
+`@vt/sdui-renderer` gồm `ComponentRegistry`, `SduiOutletComponent`, `SduiNodeComponent`, `PropsValidator` và `CelContext`. Mỗi mục đăng ký (`RegistryEntry`) có `name`, hàm nạp lười `load`, `propsSchema`, cờ `container` và `since` (phiên bản registry đưa component vào), đúng như TL-01 mô tả. Shell và remote đăng ký thêm mục bằng `provideSduiComponents()`. `SduiNodeComponent` tra registry, bỏ qua component lạ, đánh giá `visibleWhen` bằng cel-js, lọc thuộc tính theo `propsSchema`, rồi tạo component bằng `ViewContainerRef.createComponent`.
+
+TL-01 mô tả kiểm tra thuộc tính bằng Ajv. Mã hiện tại cố ý không dùng Ajv ở chế độ biên dịch lúc chạy vì CSP cấm `unsafe-eval`; `PropsValidator` tự lọc theo tập con JSON Schema (kiểu, `minimum`, `maximum`, `enum`, `pattern`) và loại chuỗi bắt đầu bằng `javascript:` hoặc `data:`. Nếu cần JSON Schema đầy đủ, hướng xử lý ghi trong mã là dùng mã kiểm tra Ajv biên dịch sẵn lúc build.
+
+Phiên bản registry là một điểm lệch cần lưu ý. TL-01 và mã dùng dạng ngữ nghĩa (`REGISTRY_VERSION = '2.4.0'`, `requires.registry: "^2.4.0"`), trong khi TL-02 (SCR-1801, API `GET /api/v1/ui/components?registry=2026.3`) và TL-03 (`config.component_registry.registry_version`, ví dụ `v2026.3`) dùng dạng theo lịch. Trang 14 ghi điểm này để chốt.
+
+Bảng `config.component_registry` theo TL-03 là danh mục dùng chung của nền tảng (không có `tenant_id`), do đội nền tảng phát hành cùng bản web-frontend, gồm `registry_version`, `component_key`, `props_schema`, `allowed_classification` (mức phân loại cao nhất component được hiển thị) và `status` (`HIEU_LUC`, `NGUNG`). Quy trình thêm một widget mới được trình bày ở [Quy ước mã nguồn](10-quy-uoc-ma-nguon.md).
+
+## Lớp biểu mẫu động
+
+`@vt/form-engine` cung cấp `VtFormComponent` (`<vt-form>`) nhận `schema` (JSON Schema), `ui` (nhóm trường và widget) và `rules` (quy tắc CEL), dùng `FormlyJsonschema` để sinh cấu hình Formly. Mỗi quy tắc (`FormRule`) có `id`, `when`, `assert`, `message` và cờ `serverOnly` cho quy tắc dùng hàm chưa có trên trình duyệt (ví dụ hàm mở rộng `workdays()` trong TL-01). `evaluateRules()` chạy mỗi khi mô hình thay đổi; lỗi do thiếu biến không bị coi là vi phạm vì máy chủ sẽ kiểm tra lại. `lintRules()` kiểm cú pháp cho Config Studio (SCR-1802).
+
+Ở phía dữ liệu, `config.form_schema` lưu `form_code`/`form_key`, `version`, `json_schema`/`schema_json` (JSON Schema có `x-cel` và `x-classification`), `ui_schema`/`ui_json`, `cel_rules`, `policy_pack_version_id` và `status` (`NHAP`, `DA_PHAT_HANH`, `NGUNG`). TL-01 quy định CI chạy cùng bộ test case trên cả cel-js và cel-java; MSG-18-08 báo khi hai engine cho kết quả khác nhau.
+
+## Lớp plugin
+
+Plugin chuyên ngành như `fe-plugin-yte` là một remote Native Federation được nạp theo manifest của tenant. Trong ví dụ xuyên suốt của TL-02, Sở Y tế tỉnh X dùng UI Pack v1.8 với widget `ChuyenMonKpiWidget` từ `fe-plugin-yte` và biểu mẫu `phieu-vc-yte` v12 gắn Policy Pack `nn-335/so-y-te` v1.3, cùng một bản build web với Đảng uỷ các cơ quan Đảng TW dùng UI Pack v2.3. Kiểu `UiPack.plugins` trong mã có các trường `name`, `remoteEntry`, `exposedModule`, `routePath`, `title`, nhưng shell chưa đọc mảng này để nạp plugin.
+
+## Phòng thủ XSS năm lớp
+
+TL-01 chương 7 lập luận rằng SDUI chỉ an toàn khi có nhiều lớp chặn độc lập. Năm lớp được thiết kế là: lược đồ UI Pack không có trường nào chứa HTML hay JavaScript; chỉ component có trong registry được dựng; `additionalProperties: false` và URL chỉ được là `https:` hoặc tương đối trong danh sách cho phép; biểu thức CEL chỉ đọc, giới hạn độ dài và chi phí; UI Pack được ký số. Mã hiện có lớp 2, phần lớn lớp 3 (lọc thuộc tính), lớp 4 (giới hạn 512 ký tự trong `CelContext`); lớp 5 chưa có. Chi tiết CSP và quy tắc mã an toàn xem [Bảo mật frontend](08-bao-mat-frontend.md).
+
+## Ngân sách kích thước và kiểm thử
+
+Baseline mục 14 và TL-01 đặt ngân sách: shell cùng design system ≤ 250 KB gzip, mỗi remote ≤ 180 KB, UI Pack ≤ 30 KB, dựng biểu mẫu 50 trường ≤ 50 ms, CEL cho toàn biểu mẫu ≤ 5 ms. Kiểm thử UI Pack theo TL-01 có bốn tầng: Storybook với bộ token mặc định, tương phản cao, cao tuổi và màu thương hiệu tối kết hợp ảnh chụp Playwright và axe-core; kiểm tra tĩnh UI Pack (tương phản ≥ 4,5 : 1); smoke khoảng 2 phút cho mỗi gói; hồi quy trên 20 UI Pack đại diện. Chi tiết xem [Hiệu năng và trải nghiệm](09-hieu-nang-va-trai-nghiem.md) và [Kiểm thử và chất lượng](11-kiem-thu-va-chat-luong.md).
+
+## Liên quan
+
+- [Kiến trúc frontend](02-kien-truc-frontend.md)
+- [Quy trình và màn hình QT-09 đến QT-18](05b-quy-trinh-va-man-hinh-qt09-18.md) (QT-18)
+- [Bảo mật frontend](08-bao-mat-frontend.md)
+- [Hiệu năng và trải nghiệm](09-hieu-nang-va-trai-nghiem.md)
+- [Quy ước mã nguồn](10-quy-uoc-ma-nguon.md)
+- [Quyết định và câu hỏi mở](14-quyet-dinh-va-cau-hoi-mo.md)
