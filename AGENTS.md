@@ -23,7 +23,7 @@ Bản .docx chính thức nằm ở `/mnt/project-files/kien-truc-okr-kpi/`. Wik
 3. **Chỉ làm đúng phạm vi task.** Không sửa tệp ngoài danh sách "Tệp được phép sửa" của task, trừ khi bắt buộc để build chạy; khi đó ghi rõ trong báo cáo. Không "tiện tay" refactor.
 4. **Không bao giờ commit bí mật.** `.env` ở mọi cấp đã nằm trong `.gitignore`; không chép mật khẩu, token, khoá vào mã, tài liệu, wiki, log hay thông điệp commit. Chỉ cập nhật `.env.example` (không có giá trị thật).
 5. **An toàn giao diện theo TL-01 mục CSP.** Không dùng `innerHTML`, `bypassSecurityTrust*`, `eval`, `new Function`, thư viện sinh mã lúc chạy (Ajv chế độ mặc định). SDUI chỉ dựng component có trong registry. Dữ liệu C2 không lưu cục bộ dạng rõ; dữ liệu C3 chỉ xử lý theo luồng E2EE đã thiết kế (ADR-06).
-6. **Máy chủ là nguồn sự thật.** Kiểm tra ở trình duyệt (CEL, vai trò, trạng thái) chỉ để phản hồi nhanh; không bao giờ coi đó là kiểm soát quyền hay kiểm tra nghiệp vụ cuối cùng.
+6. **Máy chủ là nguồn sự thật.** Kiểm tra ở trình duyệt (CEL, vai trò, trạng thái) chỉ để phản hồi nhanh; không bao giờ coi đó là kiểm soát quyền hay kiểm tra nghiệp vụ cuối cùng. Khi ẩn hoặc hiện menu, tuyến, nút theo vai trò, tham chiếu duy nhất là ma trận phân quyền ở `wiki/15a-ma-tran-phan-quyen.md` (sinh từ `docs/phan-quyen/ma-tran.json`); không tự đặt danh sách vai trò trong mã.
 7. **Quy ước API mục 13 baseline.** `/api/v1/<module>`, ghi kèm `Idempotency-Key`, cập nhật kèm `If-Match` (409 khi xung đột), phân trang con trỏ `limit ≤ 200`, lỗi RFC 9457, tác vụ dài 202 + `Location`. Mọi lời gọi đi qua `@vt/api-client`, không gọi `fetch` trực tiếp trong component.
 8. **Angular hiện đại.** Standalone component, `inject()`, signals (`signal`, `computed`, `linkedSignal`, `rxResource`), `input()`/`output()`, control flow `@if/@for`. Không tạo NgModule mới. Không ghi signal bên trong `computed` (lỗi NG0600). Thư viện dùng chung mà remote cần thì shell cũng phải dùng ít nhất một lần (lỗi NG0203 với `ignoreUnusedDeps`).
 9. **Trải nghiệm và khả năng truy cập là yêu cầu chức năng.** WCAG 2.1 AA, thao tác thường ngày ≤ 3 chạm, chế độ "Đảng viên cao tuổi" (`data-mode="elderly"`, cờ `reducedSteps`) phải hoạt động trên mọi màn hình mới (NFR-11). Văn bản giao diện bằng tiếng Việt có dấu, đúng thuật ngữ trong TL-02.
@@ -38,6 +38,7 @@ mission-web/
 ├── AGENTS.md              ← quy định chung (tệp này); CLAUDE.md trỏ về đây
 ├── docs/
 │   ├── KE-HOACH-PHAT-TRIEN-PHAN-HE-WEB.md   ← kế hoạch, giai đoạn, mốc
+│   ├── phan-quyen/        ← ma-tran.json (nguồn ma trận phân quyền), gen_matrix.py, ma-tran-phan-quyen.xlsx
 │   └── tasks/             ← task cho AI agent: README (danh mục, thứ tự), _MAU-TASK.md, WEB-xxx-*.md
 ├── wiki/                  ← tri thức chi tiết; README.md là mục lục
 ├── frontend/              ← Angular workspace (fe-shell, fe-task, thư viện @vt/*)

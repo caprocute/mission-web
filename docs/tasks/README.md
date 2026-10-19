@@ -84,6 +84,18 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-052](WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | WEB-003, WEB-011 | Chưa bắt đầu |
 | [WEB-053](WEB-053-danh-gia-attt.md) | Đánh giá ATTT frontend: OWASP ZAP và ASVS mức 2 | M | WEB-014 | Chưa bắt đầu |
 
+## Phân quyền (xuyên giai đoạn)
+
+Nhóm này hiện thực ma trận phân quyền ở [wiki/15a](../../wiki/15a-ma-tran-phan-quyen.md) cho phía giao diện và môi trường dev. Nguồn dữ liệu duy nhất là `docs/phan-quyen/ma-tran.json`; wiki/15a và tệp `docs/phan-quyen/ma-tran-phan-quyen.xlsx` được sinh từ đó bằng `python3 docs/phan-quyen/gen_matrix.py`. WEB-054 nên làm ngay sau WEB-006 để các task màn hình từ GĐ1 trở đi dùng được `can()` và `*vtCan`; mọi task màn hình đều có tiêu chí ẩn hiện chức năng đúng ma trận.
+
+| Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
+|---|---|---|---|---|
+| [WEB-054](WEB-054-bang-quyen-frontend.md) | Bảng quyền phía giao diện sinh từ ma trận (`can()`, `*vtCan`, `permissionGuard`) | M | WEB-001, WEB-006 | Chưa bắt đầu |
+| [WEB-055](WEB-055-ap-ma-tran-shell-remote.md) | Áp ma trận vào menu, tuyến và nút của shell và các remote hiện có | M | WEB-054, WEB-015 | Chưa bắt đầu |
+| [WEB-056](WEB-056-dong-bo-realm-keycloak.md) | Đồng bộ realm Keycloak dev với ma trận (vai trò, claim, MFA theo vai trò, tài khoản thử) | M | WEB-006, WEB-054 | Chưa bắt đầu |
+| [WEB-057](WEB-057-kiem-thu-ma-tran-playwright.md) | Kiểm thử Playwright đối chiếu ma trận: vai trò × tuyến | M | WEB-055, WEB-056 | Chưa bắt đầu |
+| [WEB-058](WEB-058-quan-tri-vai-tro-uy-quyen.md) | Quản trị phân công vai trò và uỷ quyền (chưa có SCR, cần bổ sung thiết kế) | L | WEB-018, WEB-054, quyết định thiết kế | Chờ thiết kế |
+
 ## Màn hình không thuộc phân hệ web
 
 SCR-0302, SCR-0504, SCR-0702 và SCR-1803 là màn hình di động của ứng dụng Flutter (SVC-18) nên không có task ở đây; phân hệ web chỉ bảo đảm dùng chung API, UI Pack và token với ứng dụng di động.

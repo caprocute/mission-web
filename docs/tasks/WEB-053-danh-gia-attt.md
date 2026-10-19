@@ -22,6 +22,7 @@ Chạy ZAP baseline trên bản dev, đối chiếu checklist ASVS L2 phần ph�
 
 - wiki/08-bao-mat-frontend.md
 - TL-04 mục ASVS và ZAP
+- wiki/15-phan-quyen.md và wiki/15a-ma-tran-phan-quyen.md (ma trận API, bảng ràng buộc tách vai trò, bốn mắt, step-up)
 
 ## 3. Phạm vi công việc
 
@@ -39,6 +40,7 @@ Chạy ZAP baseline trên bản dev, đối chiếu checklist ASVS L2 phần ph�
 ## 6. Tiêu chí hoàn thành
 
 - Không còn phát hiện mức High trong ZAP baseline.
+- Thử truy cập vượt quyền theo ma trận phân quyền (vai trò không có quyền gọi trực tiếp API, đổi mã đối tượng ngoài phạm vi): giao diện không lộ dữ liệu và hiển thị lỗi 403 đúng MSG; phát hiện phía máy chủ được mở task riêng.
 - Báo cáo cuối task theo AGENTS.md mục 6; wiki được cập nhật nếu có tri thức mới.
 
 ## 7. Báo cáo

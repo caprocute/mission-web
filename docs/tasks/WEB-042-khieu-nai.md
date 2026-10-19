@@ -26,6 +26,7 @@ Hiện thực màn hình SCR-1201 "Gửi khiếu nại và SCR-1202 Xử lý khi
 - wiki/10-quy-uoc-ma-nguon.md
 - wiki/08-bao-mat-frontend.md
 - TL-02 mục QT-12, đặc tả SCR-1201 (mockup, bảng trường, bảng chức năng, BR, MSG)
+- wiki/15a-ma-tran-phan-quyen.md (các dòng của SCR-1201, SCR-1202)
 
 ## 3. Phạm vi công việc
 
@@ -50,6 +51,7 @@ Hiện thực màn hình SCR-1201 "Gửi khiếu nại và SCR-1202 Xử lý khi
 - `npx ng build` cho shell và remote liên quan thành công, không cảnh báo mới về ngân sách.
 - Kiểm thử đơn vị (Vitest) cho logic mới chạy xanh; màn hình mở trên trình duyệt không có lỗi console.
 - Chế độ Đảng viên cao tuổi và bàn phím (Tab/Enter/Esc) dùng được; axe-core không có lỗi mức serious.
+- Ẩn/hiện chức năng đúng ma trận phân quyền cho mọi vai trò liên quan; thao tác bị chặn ở máy chủ vẫn hiển thị lỗi 403 đúng MSG.
 - Báo cáo cuối task theo AGENTS.md mục 6; wiki được cập nhật nếu có tri thức mới.
 
 ## 7. Báo cáo

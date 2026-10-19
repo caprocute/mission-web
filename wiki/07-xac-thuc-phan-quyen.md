@@ -61,7 +61,7 @@ Tách vai trò theo PL 4 V.1 là ràng buộc mà giao diện thấy rõ nhất:
 
 `@vt/auth` khai báo kiểu `VtRole` gồm mười một vai trò của baseline: `platform_admin`, `tenant_admin`, `policy_author`, `leader`, `manager`, `member`, `appraiser`, `decider`, `second_approver`, `inspector`, `ai_readonly`. `SessionService.readClaims()` đọc vai trò từ `realm_access.roles` của ID token, tenant từ claim `tenant` và đơn vị từ claim `unit_id`. `roleGuard(...roles)` chặn tuyến theo vai trò; menu trong `nav.ts` ẩn mục theo cùng danh sách. Chú thích trong mã ghi rõ "quyết định cuối cùng vẫn ở máy chủ (OPA, ABAC)".
 
-Hiện shell chặn tuyến như sau: `/dashboard` cho `leader`, `manager`, `inspector`; `/config-studio` cho `policy_author`, `tenant_admin`; `/admin` cho `platform_admin`, `tenant_admin`. Các tuyến khác chỉ cần đăng nhập. Khi bổ sung remote, danh sách vai trò của tuyến phải lấy từ cột "Quyền" và "Tác nhân" của SCR trong TL-02, không tự suy ra.
+Hiện shell chặn tuyến như sau: `/dashboard` cho `leader`, `manager`, `inspector`; `/config-studio` cho `policy_author`, `tenant_admin`; `/admin` cho `platform_admin`, `tenant_admin`. Các tuyến khác chỉ cần đăng nhập. Khi bổ sung remote, danh sách vai trò của tuyến phải lấy từ cột "Quyền" và "Tác nhân" của SCR trong TL-02, không tự suy ra; các cột này đã được tổng hợp thành [ma trận phân quyền](15a-ma-tran-phan-quyen.md), còn nguyên tắc, phạm vi dữ liệu và cách hiện thực từng tầng nằm ở [trang Phân quyền](15-phan-quyen.md). Đối chiếu với ma trận cho thấy chặn theo tuyến cha hiện nay quá chặt ở `/admin`, `/config-studio`, `/dashboard`; task WEB-054 và WEB-055 thay `roleGuard` rải rác bằng bảng quyền sinh từ ma trận.
 
 ## Hiện trạng mã
 
@@ -77,6 +77,7 @@ Theo `infra/dev/README.md`, Keycloak 26.4 ở dev nạp realm `mission` với 11
 
 ## Liên quan
 
+- [Phân quyền](15-phan-quyen.md) và [Ma trận phân quyền](15a-ma-tran-phan-quyen.md)
 - [Quy trình và màn hình QT-00 đến QT-08](05a-quy-trinh-va-man-hinh-qt00-08.md) (QT-00)
 - [Quy ước API](06-quy-uoc-api.md)
 - [Bảo mật frontend](08-bao-mat-frontend.md)
