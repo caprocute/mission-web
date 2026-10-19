@@ -386,7 +386,7 @@ export function assignStored(
   return { draft: cur, errors };
 }
 
-/** `GET /api/v1/tasks/{id}?view=assign`. */
+/** `GET /api/v1/tasks/{id}/draft` (contracts/openapi `getTaskDraft`). */
 export function draftView(id: string): MockResponse | null {
   const d = findDraft(id);
   return d ? ok({ period: period(), draft: structuredClone(d) }, etag(d)) : null;

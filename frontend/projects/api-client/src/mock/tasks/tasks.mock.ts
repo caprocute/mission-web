@@ -605,11 +605,14 @@ export const TASKS_MOCK: MockModule = {
       method: 'GET',
       pattern: '/api/v1/tasks/:id',
       handle: (r) => {
-        if (r.params.get('view') === 'assign')
-          return draftView(r.pathParams['id']) ?? notFound(r.pathParams['id']);
         const t = find(r.pathParams['id']);
         return t ? ok(derive(structuredClone(t)), etag(t)) : notFound(r.pathParams['id']);
       },
+    },
+    {
+      method: 'GET',
+      pattern: '/api/v1/tasks/:id/draft',
+      handle: (r) => draftView(r.pathParams['id']) ?? notFound(r.pathParams['id']),
     },
     { method: 'POST', pattern: '/api/v1/tasks/:id/progress', handle: updateProgress },
     { method: 'POST', pattern: '/api/v1/tasks/:id/accept', handle: accept },

@@ -154,9 +154,7 @@ export class TaskApi {
 
   /** Nhiệm vụ `NHAP` ở dạng soạn để giao (sinh từ kế hoạch, đăng ký hoặc đã lưu nháp). */
   draft(id: string): Observable<TaskDraftTemplate> {
-    return this.http.get<TaskDraftTemplate>(`/api/v1/tasks/${encodeURIComponent(id)}`, {
-      params: { view: 'assign' },
-    });
+    return this.http.get<TaskDraftTemplate>(`/api/v1/tasks/${encodeURIComponent(id)}/draft`);
   }
 
   /** Lưu nháp lần đầu: `/api/v1/tasks` (POST) → `NHAP`. */
