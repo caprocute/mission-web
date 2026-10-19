@@ -6,7 +6,9 @@
  * Chức năng: Sao chép từ quý trước (POST /plans/{id}/versions/{v}/copy-from); Gợi ý từ OKR (/plans/{id}/suggestions);
  *   Thêm từ danh mục; Thêm việc ngoài danh mục; Lưu nháp (PUT /plans/{id}/versions/{v} + If-Match, kèm lưu tự động);
  *   Gửi duyệt (POST …/submit + Idempotency-Key); Tạo điều chỉnh (POST /plans/{id}/versions, BR-04-10).
- * Kiểm tra tức thì: POST /plans/{id}/versions/{v}/check (MOD-02). Thông báo: MSG-04-03 … MSG-04-08.
+ * Dữ liệu (WEB-065): GET /plans, GET /plans/{id}/versions, GET /plans/{id}/versions/{v} ghép ở client.
+ * Kiểm tra tức thì: POST /plans/{id}/versions/{v}/check (MOD-02, chưa có trong hợp đồng; xem wiki/14).
+ * Thông báo: MSG-04-03 … MSG-04-08.
  * Quyền (wiki/15a): SCR-0402.xem, SCR-0402.lap, SCR-0402.gui-duyet, SCR-0402.dieu-chinh.
  */
 import {
@@ -27,10 +29,12 @@ import {
   CatalogItem,
   OkrApi,
   OrgApi,
+  PLAN_CHECK_RULES,
   PLAN_RECURRENCE_LABEL,
   PLAN_VERSION_STATUS_LABEL,
   PlanApi,
   PlanItem,
+  PlanItemInput,
   PlanVersion,
   PlanWorkspace,
   TASK_GROUP_LABEL,
@@ -46,7 +50,6 @@ import { TagModule } from 'primeng/tag';
 import { catchError, debounceTime, filter, of, switchMap } from 'rxjs';
 import { TASK_CAN } from '../task-permissions';
 import { formatDate } from '../task-ui';
-import { ReasonDialog } from './from-document/reason.dialog';
 import { CatalogPickDialog } from './plan/catalog-pick.dialog';
 import { PlanItemEditor } from './plan/plan-item-editor';
 
@@ -65,7 +68,6 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
     TagModule,
     CatalogPickDialog,
     PlanItemEditor,
-    ReasonDialog,
   ],
   template: `
     @if (!can('SCR-0402.xem')) {
@@ -76,9 +78,9 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
       @let v = w.version;
       <header class="top">
         <div>
-          <h1>Kế hoạch công tác {{ w.periodLabel }}</h1>
+          <h1>Kế hoạch công tác {{ v.period.label }}</h1>
           <p class="muted sub">
-            {{ w.unitName }} · Bảng 1 PL 1 · phiên bản {{ v.versionNo }} ·
+            {{ v.unitName }} · Bảng 1 PL 1 · phiên bản {{ v.versionNo }} ·
             <p-tag
               [value]="v.status"
               [severity]="statusSeverity(v.status)"
@@ -113,9 +115,9 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
         </div>
         <div class="actions">
           @if (editable() && can('SCR-0402.lap')) {
-            @if (v.versionNo === 1 && !items().length && w.previousPeriodLabel && !simple()) {
+            @if (v.versionNo === 1 && !items().length && !simple()) {
               <p-button
-                [label]="'Sao chép từ ' + w.previousPeriodLabel"
+                label="Sao chép từ quý trước"
                 severity="contrast"
                 [outlined]="true"
                 [loading]="busy() === 'copy'"
@@ -123,7 +125,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
                 (onClick)="copyPrevious()"
               />
             }
-            @if ((check()?.keyResultsWithoutItems?.length ?? 0) > 0 && !simple()) {
+            @if (krMissing() > 0 && !simple()) {
               <p-button
                 label="Gợi ý từ OKR"
                 severity="contrast"
@@ -161,7 +163,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
             <p-button
               label="Tạo điều chỉnh"
               [outlined]="true"
-              [disabled]="w.adjustmentsUsed >= w.adjustmentsMax || !!busy()"
+              [disabled]="adjust().used >= adjust().max || !!busy()"
               (onClick)="openAdjust()"
             />
           }
@@ -169,18 +171,18 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
       </header>
 
       @if (editable()) {
-        @if (w.workingDaysLeft < 0) {
+        @if ((v.workingDaysToDeadline ?? 0) < 0) {
           <p class="msg err banner" role="note">
             <span class="num" aria-hidden="true">1</span>
-            Đã quá hạn phê duyệt kế hoạch {{ date(w.approvalDeadline) }}. Việc này đã được ghi nhận
-            và báo người đứng đầu.
+            Đã quá hạn phê duyệt kế hoạch {{ date(deadline()) }}. Việc này đã được ghi nhận và báo
+            người đứng đầu.
           </p>
         } @else {
           <p class="msg warn banner" role="note">
             <span class="num" aria-hidden="true">1</span>
             <span
-              >Hạn phê duyệt kế hoạch là <strong>{{ date(w.approvalDeadline) }}</strong
-              >. Còn {{ w.workingDaysLeft }} ngày làm việc.
+              >Hạn phê duyệt kế hoạch là <strong>{{ date(deadline()) }}</strong
+              >. Còn {{ v.workingDaysToDeadline }} ngày làm việc.
               @if (!simple()) {
                 (Hết tuần thứ 2 của tháng đầu quý, tham số Policy Pack. Quá hạn, hệ thống báo người
                 đứng đầu và ghi nhận vào dấu hiệu bất thường.)
@@ -188,28 +190,27 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
             </span>
           </p>
         }
-        @if (v.status === 'TRA_LAI' && (v.returnReason || v.reviewComment)) {
-          <p class="msg err">Kế hoạch bị trả lại: {{ v.returnReason || v.reviewComment }}</p>
+        @if (v.status === 'TRA_LAI' && v.reviewComment) {
+          <p class="msg err">Kế hoạch bị trả lại: {{ v.reviewComment }}</p>
         }
       } @else if (v.status === 'CHO_DUYET') {
         <p class="msg info">
-          Đã gửi duyệt lúc {{ v.submittedAt | date: 'dd/MM/yyyy HH:mm' }}; nội dung đã khoá. Mã băm
-          phiên bản: <code class="hash">{{ v.contentHash }}</code>
+          Đã gửi duyệt lúc {{ summary()?.submittedAt | date: 'dd/MM/yyyy HH:mm' }}; nội dung đã
+          khoá. Mã băm phiên bản: <code class="hash">{{ v.contentHash }}</code>
         </p>
       } @else if (v.status === 'DA_DUYET') {
         <p class="msg ok">
           Phiên bản {{ v.versionNo }} đã duyệt và ký số lúc
-          {{ v.approvedAt | date: 'dd/MM/yyyy HH:mm' }}
-          {{ v.approvedByName ? 'bởi đồng chí ' + v.approvedByName : '' }}; phiên bản đã duyệt không
-          sửa được.
-          @if (v.isCurrent && w.adjustmentsUsed >= w.adjustmentsMax) {
-            Kế hoạch đã điều chỉnh {{ w.adjustmentsUsed }} lần trong quý, đạt giới hạn.
+          {{ summary()?.approvedAt | date: 'dd/MM/yyyy HH:mm' }}; phiên bản đã duyệt không sửa được.
+          @if (isCurrent() && adjust().used >= adjust().max) {
+            Kế hoạch đã điều chỉnh {{ adjust().used }} lần trong quý, đạt giới hạn.
           }
         </p>
       }
-      @if (v.versionNo > 1 && v.changeReason) {
+      @if (v.versionNo > 1) {
         <p class="muted">
-          Lý do điều chỉnh (lần {{ v.versionNo - 1 }}/{{ w.adjustmentsMax }}): {{ v.changeReason }}
+          Phiên bản điều chỉnh lần {{ v.versionNo - 1 }}/{{ adjust().max }}; lý do ghi ở từng dòng
+          thêm, sửa.
         </p>
       }
 
@@ -262,9 +263,9 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
               </thead>
               <tbody>
                 @for (i of items(); track i.id) {
-                  @let errs = lineErrors().get(i.itemNo) ?? [];
-                  <tr [class.bad]="blockedLines().has(i.itemNo)" [class.sel]="i.id === editingId()">
-                    <td>{{ i.itemNo }}</td>
+                  @let errs = lineErrors().get(i.lineNo) ?? [];
+                  <tr [class.bad]="blockedLines().has(i.lineNo)" [class.sel]="i.id === editingId()">
+                    <td>{{ i.lineNo }}</td>
                     <td class="title">
                       <strong>{{ i.title || '(chưa có nội dung)' }}</strong>
                       @for (m of errs; track $index) {
@@ -275,14 +276,14 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
                     @if (!simple()) {
                       <td class="nw">{{ krCode(i.keyResultId) }}</td>
                     }
-                    <td class="nw">{{ unitName(i.leadUnitId) || '—' }}</td>
+                    <td class="nw">{{ i.leadAssignee.name || '—' }}</td>
                     @if (!simple()) {
                       <td>{{ coNames(i) || '—' }}</td>
                     }
                     <td class="cat">
                       @if (i.productName || i.catalogItemCode) {
                         {{ i.catalogItemCode ? i.catalogItemCode + ' · ' : ''
-                        }}{{ i.plannedQuantity ?? '' }}
+                        }}{{ i.quantity || '' }}
                         {{ i.unit || i.productName }}
                       } @else {
                         <span class="missing">chưa chọn</span>
@@ -296,7 +297,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
                           icon="pi pi-pencil"
                           [text]="true"
                           severity="contrast"
-                          [ariaLabel]="'Sửa dòng ' + i.itemNo"
+                          [ariaLabel]="'Sửa dòng ' + i.lineNo"
                           (onClick)="edit(i)"
                         />
                       </td>
@@ -316,10 +317,11 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
               [item]="e"
               [units]="units()"
               [keyResults]="keyResultOptions()"
-              [periodStart]="w.periodStart"
-              [periodEnd]="w.periodEnd"
+              [periodStart]="v.period.startDate"
+              [periodEnd]="v.period.endDate"
               [simple]="simple()"
-              [messages]="lineErrors().get(e.itemNo) ?? []"
+              [adjusting]="v.versionNo > 1"
+              [messages]="lineErrors().get(e.lineNo) ?? []"
               (changed)="update($event)"
               (remove)="removeItem(e)"
               (done)="editingId.set(null)"
@@ -361,8 +363,8 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
                   <tr>
                     <th scope="row">{{ group(g) }}</th>
                     <td>
-                      <strong>{{ w.groupWeights[g] }}</strong> điểm tối đa
-                      <div class="small" [class.over]="total(g) > w.groupWeights[g]">
+                      <strong>{{ v.groupWeights[g] }}</strong> điểm tối đa
+                      <div class="small" [class.over]="total(g) > v.groupWeights[g]">
                         đang lập {{ total(g) }}
                       </div>
                     </td>
@@ -371,16 +373,14 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
                 <tr>
                   <th scope="row">Tổng</th>
                   <td>
-                    <strong>{{ w.groupWeights.total }}</strong> · luồng {{ w.groupWeights.flow }}
+                    <strong>{{ v.groupWeights.THUONG_XUYEN + v.groupWeights.THEN_CHOT }}</strong>
                   </td>
                 </tr>
               </tbody>
             </table>
             @if (!simple()) {
               <p class="muted small">
-                Tỷ trọng do cấp có thẩm quyền quyết định, cấu hình trong Policy Pack "{{
-                  w.groupWeights.policyPack
-                }}".
+                Tỷ trọng do cấp có thẩm quyền quyết định, cấu hình trong Policy Pack của đơn vị.
               </p>
             }
           </section>
@@ -390,9 +390,9 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
               <h2 id="chk-title" class="h">
                 <span class="num" aria-hidden="true">4</span> Kiểm tra kế hoạch
               </h2>
-              @if (check(); as c) {
+              @if (checks()) {
                 <ul class="checks">
-                  @for (x of c.items; track $index) {
+                  @for (x of checkRows(); track $index) {
                     <li>
                       <span class="chip" [class]="'chip ' + tone(x)">{{ tag(x) }}</span>
                       <span>{{ x.message }}</span>
@@ -453,23 +453,35 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
         </ng-template>
       </p-dialog>
 
-      <vt-reason-dialog
-        [(visible)]="adjustOpen"
+      <p-dialog
         header="Tạo điều chỉnh kế hoạch"
-        [intro]="
-          'Tạo phiên bản ' +
-          (w.versions.length + 1) +
-          ' từ phiên bản đã duyệt. Lần điều chỉnh ' +
-          (w.adjustmentsUsed + 1) +
-          '/' +
-          w.adjustmentsMax +
-          ' trong quý; hiệu lực từ ngày duyệt, không hồi tố.'
-        "
-        confirmLabel="Tạo điều chỉnh"
-        [busy]="busy() === 'adjust'"
-        [error]="dialogError()"
-        (confirmed)="createAdjustment($event)"
-      />
+        [modal]="true"
+        [(visible)]="adjustOpen"
+        closeAriaLabel="Đóng"
+        [style]="{ width: 'min(520px, 95vw)' }"
+      >
+        <p>
+          Tạo phiên bản {{ w.versions.length + 1 }} từ phiên bản đã duyệt. Lần điều chỉnh
+          {{ adjust().used + 1 }}/{{ adjust().max }} trong quý; hiệu lực từ ngày duyệt, không hồi
+          tố. Mỗi dòng thêm hoặc sửa cần ghi lý do thay đổi.
+        </p>
+        @if (dialogError(); as e) {
+          <p class="msg err" role="alert">{{ e }}</p>
+        }
+        <ng-template #footer>
+          <p-button
+            label="Đóng"
+            severity="contrast"
+            [outlined]="true"
+            (onClick)="adjustOpen.set(false)"
+          />
+          <p-button
+            label="Tạo điều chỉnh"
+            [loading]="busy() === 'adjust'"
+            (onClick)="createAdjustment()"
+          />
+        </ng-template>
+      </p-dialog>
     } @else {
       <p class="muted">Đang tải kế hoạch…</p>
     }
@@ -730,29 +742,31 @@ export class PlanPage {
 
   private readonly plans = rxResource({
     params: () => (this.can('SCR-0402.xem') ? true : undefined),
-    stream: () => this.api.mine(),
+    stream: () => this.api.list(),
   });
   /** Kỳ đang xem: `?plan=`, mặc định kế hoạch còn đang soạn, nếu không có thì kỳ mới nhất. */
   protected readonly planId = computed(() => {
     const list = this.plans.value() ?? [];
     const q = this.query()?.get('plan');
     if (q && list.some((p) => p.id === q)) return q;
-    return (list.find((p) => p.latestStatus === 'NHAP' || p.latestStatus === 'TRA_LAI') ?? list[0])
-      ?.id;
+    const open = (p: (typeof list)[number]) =>
+      p.currentVersion.status === 'NHAP' || p.currentVersion.status === 'TRA_LAI';
+    return (list.find(open) ?? list[0])?.id;
   });
+  private readonly plan = computed(() => this.plans.value()?.find((p) => p.id === this.planId()));
   private readonly versionNo = computed(() => Number(this.query()?.get('v')) || undefined);
 
   protected readonly ws = rxResource({
     params: () => {
-      const id = this.planId();
-      return id ? { id, v: this.versionNo() } : undefined;
+      const plan = this.plan();
+      return plan ? { plan, v: this.versionNo() } : undefined;
     },
-    stream: ({ params }) => this.api.workspace(params.id, params.v),
+    stream: ({ params }) => this.api.workspace(params.plan, params.v),
   });
 
   private readonly unitsRes = rxResource({ stream: () => this.orgApi.units('unit') });
   private readonly krRes = rxResource({
-    params: () => this.ws.value()?.periodId,
+    params: () => this.ws.value()?.version.period.id,
     stream: ({ params }) => this.okrApi.keyResults(params),
   });
   private readonly catalogRes = rxResource({
@@ -780,9 +794,24 @@ export class PlanPage {
     const w = this.ws.value();
     if (!w) return false;
     const last = w.versions[w.versions.length - 1];
-    return (
-      w.version.isCurrent && last.versionNo === w.version.versionNo && last.status === 'DA_DUYET'
-    );
+    return this.isCurrent() && last.versionNo === w.version.versionNo && last.status === 'DA_DUYET';
+  });
+  /** Phiên bản đang xem là phiên bản `DA_DUYET` hiệu lực. */
+  protected readonly isCurrent = computed(() => {
+    const w = this.ws.value();
+    return !!w && w.plan.effectiveVersionNo === w.version.versionNo;
+  });
+  protected readonly summary = computed(() => {
+    const w = this.ws.value();
+    return w?.versions.find((x) => x.versionNo === w.version.versionNo);
+  });
+  protected readonly adjust = computed(() => ({
+    used: this.ws.value()?.plan.adjustmentsUsed ?? 0,
+    max: this.ws.value()?.plan.adjustmentsMax ?? 0,
+  }));
+  protected readonly deadline = computed(() => {
+    const w = this.ws.value();
+    return w?.version.approvalDeadline ?? w?.plan.approvalDeadline ?? '';
   });
 
   protected readonly busy = signal<Busy>(null);
@@ -794,7 +823,7 @@ export class PlanPage {
   protected readonly pickOpen = signal(false);
   protected readonly suggestOpen = signal(false);
   protected readonly adjustOpen = signal(false);
-  protected readonly suggestions = signal<PlanItem[]>([]);
+  protected readonly suggestions = signal<PlanItemInput[]>([]);
   protected readonly suggestPicked = signal<Set<number>>(new Set());
 
   /** Chế độ người cao tuổi: ẩn cột KR, phối hợp, sao chép, gợi ý OKR và phần giải thích (NFR-11). */
@@ -813,30 +842,50 @@ export class PlanPage {
       switchMap(({ items, w }) => {
         this.checking.set(true);
         return this.api
-          .check(w!.id, w!.version.versionNo, items)
+          .check(w!.plan.id, w!.version.versionNo, items)
           .pipe(catchError(() => of(undefined)));
       }),
     ),
   );
+  /** Vi phạm còn lại: lần kiểm tra gần nhất, hoặc `checks` của phiên bản vừa tải. */
+  protected readonly checks = computed(() => this.check() ?? this.ws.value()?.version.checks);
   protected readonly blocking = computed(() =>
-    (this.check()?.items ?? []).filter((i) => i.level === 'CHAN' && !i.passed),
+    (this.checks() ?? []).filter((i) => i.level === 'CHAN'),
   );
   protected readonly blockedLines = computed(
     () =>
       new Set(
         this.blocking()
-          .map((x) => x.itemNo)
+          .map((x) => x.lineNo)
           .filter((n): n is number => !!n),
       ),
   );
   protected readonly lineErrors = computed(() => {
     const m = new Map<number, string[]>();
-    for (const x of this.check()?.items ?? []) {
-      if (x.passed || !x.itemNo) continue;
-      m.set(x.itemNo, [...(m.get(x.itemNo) ?? []), x.message]);
+    for (const x of this.checks() ?? []) {
+      if (!x.lineNo) continue;
+      m.set(x.lineNo, [...(m.get(x.lineNo) ?? []), x.message]);
     }
     return m;
   });
+  /** Danh sách vùng 4: mỗi luật hiện vi phạm của nó, không có vi phạm thì hiện "Đạt". */
+  protected readonly checkRows = computed(() => {
+    const list = this.checks() ?? [];
+    const adjusting = (this.ws.value()?.version.versionNo ?? 1) > 1;
+    const rows: { level: string; passed: boolean; message: string }[] = [];
+    for (const r of PLAN_CHECK_RULES) {
+      if (r.rule === 'BR-04-10' && !adjusting) continue;
+      const hits = list.filter((x) => x.rule === r.rule);
+      if (hits.length) rows.push(...hits.map((x) => ({ ...x, passed: false })));
+      else rows.push({ level: r.level, passed: true, message: r.passed });
+    }
+    const known = new Set(PLAN_CHECK_RULES.map((r) => r.rule));
+    rows.push(...list.filter((x) => !known.has(x.rule)).map((x) => ({ ...x, passed: false })));
+    return rows;
+  });
+  protected readonly krMissing = computed(
+    () => (this.checks() ?? []).filter((x) => x.rule === 'BR-04-07').length,
+  );
 
   protected readonly units = computed(() =>
     (this.unitsRes.value()?.items ?? []).map((u) => ({ value: u.id, label: u.name })),
@@ -858,13 +907,13 @@ export class PlanPage {
   protected readonly planOptions = computed(() =>
     (this.plans.value() ?? []).map((p) => ({
       value: p.id,
-      label: `${p.periodLabel} · phiên bản ${p.latestVersionNo} · ${PLAN_VERSION_STATUS_LABEL[p.latestStatus]}`,
+      label: `${p.period.label} · phiên bản ${p.currentVersion.versionNo} · ${PLAN_VERSION_STATUS_LABEL[p.currentVersion.status]}`,
     })),
   );
   protected readonly versionOptions = computed(() =>
     (this.ws.value()?.versions ?? []).map((v) => ({
       value: v.versionNo,
-      label: `Phiên bản ${v.versionNo} · ${PLAN_VERSION_STATUS_LABEL[v.status]}${v.isCurrent ? ' (hiện hành)' : ''}`,
+      label: `Phiên bản ${v.versionNo} · ${PLAN_VERSION_STATUS_LABEL[v.status]}${v.versionNo === this.ws.value()?.plan.effectiveVersionNo ? ' (hiện hành)' : ''}`,
     })),
   );
   protected readonly saveState = computed(() => {
@@ -927,18 +976,15 @@ export class PlanPage {
   }
   protected due(i: PlanItem) {
     if (i.recurrence) return PLAN_RECURRENCE_LABEL[i.recurrence];
-    return i.dueDate ? formatDate(i.dueDate) : '—';
+    return formatDate(i.dueDate);
   }
   /** Mở SCR-0403 cho phiên bản đang xem (so sánh với phiên bản đã duyệt trước đó). */
   protected openReview(v: number) {
     void this.router.navigate(['/plans', this.planId(), 'review'], { queryParams: { v } });
   }
 
-  protected unitName(id?: string) {
-    return this.units().find((u) => u.value === id)?.label ?? '';
-  }
   protected coNames(i: PlanItem) {
-    return i.coUnitIds.map((id) => this.unitName(id)).join(', ');
+    return (i.coAssignees ?? []).map((c) => c.name).join(', ');
   }
   protected krCode(id?: string) {
     return id
@@ -948,12 +994,9 @@ export class PlanPage {
       : '—';
   }
   protected total(g: TaskGroup) {
-    return (
-      this.check()?.groupTotals[g] ??
-      this.items()
-        .filter((i) => i.taskGroup === g)
-        .reduce((s, i) => s + (i.standardScore ?? 0), 0)
-    );
+    return this.items()
+      .filter((i) => i.taskGroup === g)
+      .reduce((s, i) => s + (i.standardScore ?? 0), 0);
   }
   protected tag(x: { passed: boolean; level: string }) {
     return x.passed ? 'Đạt' : x.level === 'CHAN' ? 'Lỗi' : 'Cảnh báo';
@@ -978,11 +1021,11 @@ export class PlanPage {
   }
 
   private setItems(next: PlanItem[]) {
-    this.items.set(next.map((i, n) => ({ ...i, itemNo: n + 1 })));
+    this.items.set(next.map((i, n) => ({ ...i, lineNo: n + 1 })));
     this.dirty.set(true);
   }
   protected edit(i: PlanItem) {
-    this.editingId.set(i.id);
+    this.editingId.set(i.id ?? null);
   }
   protected update(i: PlanItem) {
     this.setItems(this.items().map((x) => (x.id === i.id ? i : x)));
@@ -990,19 +1033,22 @@ export class PlanPage {
   protected removeItem(i: PlanItem) {
     this.setItems(this.items().filter((x) => x.id !== i.id));
     this.editingId.set(null);
-    this.notice.set(`Đã bỏ dòng "${i.title || i.itemNo}". Bấm Lưu nháp hoặc chờ lưu tự động.`);
+    this.notice.set(`Đã bỏ dòng "${i.title || i.lineNo}". Bấm Lưu nháp hoặc chờ lưu tự động.`);
   }
+  /** Dòng mới: chủ trì là đơn vị lập, hạn mặc định cuối kỳ vì hợp đồng bắt buộc `dueDate`. */
   private blank(patch: Partial<PlanItem> = {}): PlanItem {
+    const w = this.ws.value();
     return {
       id: `tmp-${crypto.randomUUID()}`,
-      itemNo: this.items().length + 1,
+      lineNo: this.items().length + 1,
       title: '',
       taskGroup: 'THUONG_XUYEN',
-      leadUnitId: this.ws.value()?.unitId,
-      coUnitIds: [],
+      leadAssignee: { kind: 'UNIT', id: w?.plan.unitId ?? '', name: w?.plan.unitName ?? '' },
+      coAssignees: [],
       productName: '',
-      plannedQuantity: null,
+      quantity: 0,
       unit: '',
+      dueDate: w?.version.period.endDate ?? '',
       standardScore: null,
       ...patch,
     };
@@ -1010,7 +1056,7 @@ export class PlanPage {
   protected addBlank() {
     const i = this.blank();
     this.setItems([...this.items(), i]);
-    this.editingId.set(i.id);
+    this.editingId.set(i.id ?? null);
   }
   protected addFromCatalog(list: CatalogItem[]) {
     if (!list.length) return;
@@ -1021,9 +1067,8 @@ export class PlanPage {
         catalogItemId: c.id,
         catalogItemCode: c.code,
         productName: c.productName,
-        plannedQuantity: 1,
+        quantity: 1,
         unit: c.unit,
-        difficulty: c.difficulty,
         standardScore: c.baseScore,
       }),
     );
@@ -1035,7 +1080,7 @@ export class PlanPage {
     this.suggestions.set([]);
     this.suggestPicked.set(new Set());
     this.suggestOpen.set(true);
-    this.api.suggestions(w.id).subscribe({
+    this.api.suggestions(w.plan.id).subscribe({
       next: (s) => {
         this.suggestions.set(s);
         this.suggestPicked.set(new Set(s.map((_, n) => n)));
@@ -1082,12 +1127,12 @@ export class PlanPage {
 
   /** Thay dòng tạm (`tmp-…`) bằng dòng máy chủ trả, giữ dòng đang sửa. */
   private applySaved(v: PlanVersion) {
-    const editingNo = this.editing()?.itemNo;
+    const editingNo = this.editing()?.lineNo;
     this.saved.set(v);
     this.items.set(v.items);
     this.dirty.set(false);
     this.savedAt.set(new Date());
-    if (editingNo) this.editingId.set(v.items.find((i) => i.itemNo === editingNo)?.id ?? null);
+    if (editingNo) this.editingId.set(v.items.find((i) => i.lineNo === editingNo)?.id ?? null);
   }
 
   protected save(auto = false) {
@@ -1095,7 +1140,7 @@ export class PlanPage {
     const base = this.saved();
     if (!w || !base) return;
     this.begin('save', auto);
-    this.api.save(w.id, base, this.items()).subscribe({
+    this.api.save(w.plan.id, base, this.items()).subscribe({
       next: (v) => {
         this.busy.set(null);
         this.applySaved(v);
@@ -1109,13 +1154,11 @@ export class PlanPage {
     const base = this.saved();
     if (!w || !base) return;
     this.begin('copy');
-    this.api.copyFromPrevious(w.id, base).subscribe({
+    this.api.copyFromPrevious(w.plan.id, base).subscribe({
       next: (v) => {
         this.busy.set(null);
         this.applySaved(v);
-        this.notice.set(
-          `Đã sao chép ${v.items.length} dòng từ ${w.previousPeriodLabel}, hạn đã dịch theo kỳ.`,
-        );
+        this.notice.set(`Đã sao chép ${v.items.length} dòng từ quý trước, hạn đã dịch theo kỳ.`);
       },
       error: (e) => this.fail(e),
     });
@@ -1127,14 +1170,18 @@ export class PlanPage {
     if (!w || !base) return;
     this.begin('submit');
     const run = (v: PlanVersion) =>
-      this.api.submit(w.id, v).subscribe({
+      this.api.submit(w.plan.id, v).subscribe({
         next: (sent) => {
           this.busy.set(null);
           this.editingId.set(null);
           this.ws.set({
             ...w,
             version: sent,
-            versions: w.versions.map((x) => (x.id === sent.id ? { ...x, status: sent.status } : x)),
+            versions: w.versions.map((x) =>
+              x.versionNo === sent.versionNo
+                ? { ...x, status: sent.status, submittedAt: new Date().toISOString() }
+                : x,
+            ),
           } as PlanWorkspace);
           this.notice.set('Đã gửi duyệt kế hoạch; lãnh đạo được thông báo để phê duyệt.');
           this.plans.reload();
@@ -1143,7 +1190,7 @@ export class PlanPage {
       });
     if (this.dirty()) {
       this.api
-        .save(w.id, base, this.items())
+        .save(w.plan.id, base, this.items())
         .pipe(
           switchMap((v) => {
             this.applySaved(v);
@@ -1158,18 +1205,18 @@ export class PlanPage {
     this.dialogError.set(null);
     this.adjustOpen.set(true);
   }
-  protected createAdjustment(reason: string) {
+  protected createAdjustment() {
     const w = this.ws.value();
     if (!w) return;
     this.begin('adjust');
-    this.api.createAdjustment(w.id, reason).subscribe({
+    this.api.createAdjustment(w.plan.id).subscribe({
       next: (v) => {
         this.busy.set(null);
         this.adjustOpen.set(false);
         this.plans.reload();
         this.chooseVersion(v.versionNo);
         this.notice.set(
-          `Đã tạo phiên bản ${v.versionNo} để điều chỉnh. Ghi lý do ở từng dòng thay đổi nếu cần.`,
+          `Đã tạo phiên bản ${v.versionNo} để điều chỉnh. Ghi lý do ở từng dòng thêm, sửa.`,
         );
       },
       error: (e) => this.fail(e, true),
