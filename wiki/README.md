@@ -29,6 +29,7 @@ Người mới vào dự án nên đọc theo thứ tự trang 01, 02, 04, 10, r
 | [14-quyet-dinh-va-cau-hoi-mo.md](14-quyet-dinh-va-cau-hoi-mo.md) | ADR liên quan web, quyết định đã chốt, điểm lệch giữa nguồn, câu hỏi mở |
 | [15-phan-quyen.md](15-phan-quyen.md) | Nguyên tắc phân quyền RBAC và ABAC, mô hình vai trò AC, phạm vi dữ liệu, mức dữ liệu, tách vai trò, bốn mắt, step-up, hiện thực từng tầng, cấp và thu hồi quyền |
 | [15a-ma-tran-phan-quyen.md](15a-ma-tran-phan-quyen.md) | Ma trận phân quyền chức năng theo SCR × AC-01..AC-12, ma trận API, mức dữ liệu, ràng buộc; sinh từ `docs/phan-quyen/ma-tran.json` |
+| [16-noi-dung-giao-dien.md](16-noi-dung-giao-dien.md) | Quy định nội dung hiển thị cho cán bộ, viên chức: không lộ mã thiết kế, trạng thái thô, tên kỹ thuật; bảng từ thay thế; hai lớp kiểm tra tự động |
 
 ## Quy tắc cập nhật wiki
 
