@@ -1,5 +1,5 @@
 {
-  "$comment": "Fixture module plans (/api/v1/plans, QT-04). `items`: dòng của kế hoạch Quý IV/2026 phiên bản 2 đã duyệt, dùng làm nguồn giao việc trên SCR-0501 (WEB-028). `plans`: kế hoạch tập thể của Ban Tổ chức cho SCR-0402 (WEB-026): Quý IV/2026 đã duyệt hai phiên bản (dòng 5–7 của phiên bản 2 lấy từ `items`, phiên bản 1 suy ra từ phiên bản 2 bỏ dòng TC-DV-06), Quý I/2027 phiên bản 1 đang soạn như Hình 7.13 TL-02. Dữ liệu hư cấu.",
+  "$comment": "Fixture module plans (/api/v1/plans, QT-04). `items`: dòng của kế hoạch Quý IV/2026 phiên bản 2 đã duyệt, dùng làm nguồn giao việc trên SCR-0501 (WEB-028). `plans`: kế hoạch tập thể của Ban Tổ chức cho SCR-0402 (WEB-026): Quý IV/2026 đã duyệt hai phiên bản (dòng 5–7 của phiên bản 2 lấy từ `items`, phiên bản 1 suy ra từ phiên bản 2 bỏ dòng TC-DV-06), Quý I/2027 phiên bản 1 đang soạn như Hình 7.13 TL-02. Hình dạng theo lược đồ `Plan`, `PlanVersion`, `PlanItem` của contracts/openapi/modules/tasks.yaml (WEB-065); `submittedById`, `removedItems` là trường nội bộ của giả lập. Dữ liệu hư cấu.",
   "items": [
     {
       "id": "pi-q4-v2-07",
@@ -52,114 +52,160 @@
   ],
   "groupWeights": {
     "THUONG_XUYEN": 30,
-    "THEN_CHOT": 70,
-    "total": 100,
-    "flow": "DANG",
-    "policyPack": "Khối Đảng v2.0"
+    "THEN_CHOT": 70
   },
   "adjustmentsMax": 2,
   "plans": [
     {
       "id": "plan-2027-q1",
       "code": "KH-Q1-2027",
-      "periodId": "2027-Q1",
-      "periodLabel": "Quý I/2027",
-      "periodStart": "@today+73",
-      "periodEnd": "@today+163",
-      "previousPeriodLabel": "quý IV",
+      "period": {
+        "id": "2027-Q1",
+        "label": "Quý I/2027",
+        "startDate": "@today+73",
+        "endDate": "@today+163"
+      },
       "approvalDeadline": "@today+6",
       "unitId": "u-btc",
       "unitName": "Ban Tổ chức Đảng uỷ khối",
       "versions": [
         {
-          "id": "pv-q1-1",
           "versionNo": 1,
           "status": "NHAP",
           "rowVersion": 3,
-          "isCurrent": false,
           "items": [
             {
               "id": "pi-q1-v1-01",
-              "itemNo": 1,
+              "lineNo": 1,
               "title": "Thẩm định hồ sơ đề nghị kết nạp đảng viên đợt 2",
               "taskGroup": "THEN_CHOT",
-              "leadUnitId": "u-btc",
-              "coUnitIds": ["u-vp"],
-              "productName": "Phiếu thẩm định",
-              "plannedQuantity": 15,
-              "unit": "hồ sơ",
-              "standardScore": 20,
               "keyResultId": "kr-1-1",
+              "leadAssignee": {
+                "kind": "UNIT",
+                "id": "u-btc",
+                "name": "Ban Tổ chức"
+              },
+              "coAssignees": [
+                {
+                  "kind": "UNIT",
+                  "id": "u-vp",
+                  "name": "Văn phòng Đảng uỷ"
+                }
+              ],
               "catalogItemId": "ci-tc-dv-01",
-              "dueDate": "@today+85"
+              "productName": "Phiếu thẩm định",
+              "quantity": 15,
+              "unit": "hồ sơ",
+              "dueDate": "@today+85",
+              "standardScore": 20
             },
             {
               "id": "pi-q1-v1-02",
-              "itemNo": 2,
+              "lineNo": 2,
               "title": "Báo cáo chuyên đề công tác kiểm tra quý IV",
               "taskGroup": "THEN_CHOT",
-              "leadUnitId": "u-btc",
-              "coUnitIds": ["u-ubkt"],
-              "productName": "Báo cáo chuyên đề",
-              "plannedQuantity": 1,
-              "unit": "báo cáo",
-              "standardScore": 30,
               "keyResultId": "kr-1-2",
+              "leadAssignee": {
+                "kind": "UNIT",
+                "id": "u-btc",
+                "name": "Ban Tổ chức"
+              },
+              "coAssignees": [
+                {
+                  "kind": "UNIT",
+                  "id": "u-ubkt",
+                  "name": "Uỷ ban Kiểm tra"
+                }
+              ],
               "catalogItemId": "ci-tc-tc-01",
-              "dueDate": "@today+79"
+              "productName": "Báo cáo chuyên đề",
+              "quantity": 1,
+              "unit": "báo cáo",
+              "dueDate": "@today+79",
+              "standardScore": 30
             },
             {
               "id": "pi-q1-v1-03",
-              "itemNo": 3,
+              "lineNo": 3,
               "title": "Hướng dẫn kiểm điểm chi bộ cuối năm",
               "taskGroup": "THEN_CHOT",
-              "leadUnitId": "u-btc",
-              "coUnitIds": ["u-btg"],
-              "productName": "Văn bản hướng dẫn",
-              "plannedQuantity": 1,
-              "unit": "văn bản",
-              "standardScore": 20,
               "keyResultId": "kr-1-3",
+              "leadAssignee": {
+                "kind": "UNIT",
+                "id": "u-btc",
+                "name": "Ban Tổ chức"
+              },
+              "coAssignees": [
+                {
+                  "kind": "UNIT",
+                  "id": "u-btg",
+                  "name": "Ban Tuyên giáo"
+                }
+              ],
               "catalogItemId": "ci-tc-dv-08",
-              "dueDate": "@today+94"
+              "productName": "Văn bản hướng dẫn",
+              "quantity": 1,
+              "unit": "văn bản",
+              "dueDate": "@today+94",
+              "standardScore": 20
             },
             {
               "id": "pi-q1-v1-04",
-              "itemNo": 4,
+              "lineNo": 4,
               "title": "Đề án chuyển đổi số khối: hoàn thành 8 mốc còn lại",
               "taskGroup": "THEN_CHOT",
-              "leadUnitId": "u-btc",
-              "coUnitIds": ["u-vp"],
+              "leadAssignee": {
+                "kind": "UNIT",
+                "id": "u-btc",
+                "name": "Ban Tổ chức"
+              },
+              "coAssignees": [
+                {
+                  "kind": "UNIT",
+                  "id": "u-vp",
+                  "name": "Văn phòng Đảng uỷ"
+                }
+              ],
               "productName": "Đề án",
-              "plannedQuantity": 8,
+              "quantity": 8,
               "unit": "mốc",
-              "standardScore": null,
-              "dueDate": "@today+140"
+              "dueDate": "@today+140",
+              "standardScore": null
             },
             {
               "id": "pi-q1-v1-05",
-              "itemNo": 5,
+              "lineNo": 5,
               "title": "Tổng hợp danh sách đảng viên miễn sinh hoạt",
               "taskGroup": "THUONG_XUYEN",
-              "leadUnitId": "u-btc",
-              "coUnitIds": [],
-              "productName": "Danh sách tổng hợp",
-              "plannedQuantity": 3,
-              "unit": "báo cáo",
-              "standardScore": 5,
+              "leadAssignee": {
+                "kind": "UNIT",
+                "id": "u-btc",
+                "name": "Ban Tổ chức"
+              },
+              "coAssignees": [],
               "catalogItemId": "ci-tc-dv-02",
-              "recurrence": "HANG_THANG"
+              "productName": "Danh sách tổng hợp",
+              "quantity": 3,
+              "unit": "báo cáo",
+              "dueDate": "@today+163",
+              "recurrence": "HANG_THANG",
+              "standardScore": 5
             },
             {
               "id": "pi-q1-v1-06",
-              "itemNo": 6,
+              "lineNo": 6,
               "title": "Đẩy mạnh công tác tuyên truyền kịp thời",
               "taskGroup": "THUONG_XUYEN",
-              "leadUnitId": "u-btc",
-              "coUnitIds": [],
+              "leadAssignee": {
+                "kind": "UNIT",
+                "id": "u-btc",
+                "name": "Ban Tổ chức"
+              },
+              "coAssignees": [],
               "productName": "",
-              "plannedQuantity": null,
+              "quantity": 0,
               "unit": "",
+              "dueDate": "@today+163",
               "standardScore": null
             }
           ]
@@ -169,113 +215,141 @@
     {
       "id": "plan-2026-q4",
       "code": "KH-Q4",
-      "periodId": "2026-Q4",
-      "periodLabel": "Quý IV/2026",
-      "periodStart": "@today-19",
-      "periodEnd": "@today+72",
-      "previousPeriodLabel": "quý III",
+      "period": {
+        "id": "2026-Q4",
+        "label": "Quý IV/2026",
+        "startDate": "@today-19",
+        "endDate": "@today+72"
+      },
       "approvalDeadline": "@today-9",
       "unitId": "u-btc",
       "unitName": "Ban Tổ chức Đảng uỷ khối",
+      "effectiveVersionNo": 1,
       "versions": [
         {
-          "id": "pv-q4-1",
           "versionNo": 1,
           "status": "DA_DUYET",
           "rowVersion": 4,
-          "isCurrent": true,
           "submittedAt": "@today-14T09:00:00+07:00",
           "approvedAt": "@today-11T16:20:00+07:00",
-          "approvedByName": "Trần Thị Bình",
           "items": "@v2-without-tc-dv-06"
         },
         {
-          "id": "pv-q4-2",
           "versionNo": 2,
           "status": "CHO_DUYET",
           "rowVersion": 3,
-          "isCurrent": false,
-          "changeReason": "Bổ sung rà soát quy hoạch cấp uỷ theo Văn bản 518-CV/ĐUK; điều chỉnh số hồ sơ kết nạp đợt 2; lùi tập huấn sang Quý I/2027",
           "submittedAt": "@today-3T10:00:00+07:00",
+          "submittedById": "u-lmchau",
+          "submittedByName": "Lê Minh Châu",
           "items": [
             {
               "id": "pi-q4-v2-01",
-              "itemNo": 1,
+              "lineNo": 1,
               "title": "Thẩm định hồ sơ đề nghị kết nạp đảng viên đợt 1",
               "taskGroup": "THEN_CHOT",
-              "leadUnitId": "u-btc",
-              "coUnitIds": ["u-vp"],
-              "productName": "Phiếu thẩm định",
-              "plannedQuantity": 12,
-              "unit": "hồ sơ",
-              "standardScore": 20,
               "keyResultId": "kr-1-1",
+              "leadAssignee": {
+                "kind": "UNIT",
+                "id": "u-btc",
+                "name": "Ban Tổ chức"
+              },
+              "coAssignees": [
+                {
+                  "kind": "UNIT",
+                  "id": "u-vp",
+                  "name": "Văn phòng Đảng uỷ"
+                }
+              ],
               "catalogItemId": "ci-tc-dv-01",
-              "dueDate": "@today-6"
+              "productName": "Phiếu thẩm định",
+              "quantity": 12,
+              "unit": "hồ sơ",
+              "dueDate": "@today-6",
+              "standardScore": 20
             },
             {
               "id": "pi-q4-v2-02",
-              "itemNo": 2,
+              "lineNo": 2,
               "title": "Tổng hợp danh sách đảng viên miễn sinh hoạt",
               "taskGroup": "THUONG_XUYEN",
-              "leadUnitId": "u-btc",
-              "coUnitIds": [],
-              "productName": "Danh sách tổng hợp",
-              "plannedQuantity": 3,
-              "unit": "báo cáo",
-              "standardScore": 5,
+              "leadAssignee": {
+                "kind": "UNIT",
+                "id": "u-btc",
+                "name": "Ban Tổ chức"
+              },
+              "coAssignees": [],
               "catalogItemId": "ci-tc-dv-02",
-              "recurrence": "HANG_THANG"
+              "productName": "Danh sách tổng hợp",
+              "quantity": 3,
+              "unit": "báo cáo",
+              "dueDate": "@today+72",
+              "recurrence": "HANG_THANG",
+              "standardScore": 5
             },
             {
               "id": "pi-q4-v2-03",
-              "itemNo": 3,
+              "lineNo": 3,
               "title": "Cập nhật thông tin đảng viên trên CSDL",
               "taskGroup": "THUONG_XUYEN",
-              "leadUnitId": "u-btc",
-              "coUnitIds": [],
-              "productName": "Bản ghi cập nhật",
-              "plannedQuantity": 200,
-              "unit": "hồ sơ",
-              "standardScore": 5,
               "keyResultId": "kr-2-1",
+              "leadAssignee": {
+                "kind": "UNIT",
+                "id": "u-btc",
+                "name": "Ban Tổ chức"
+              },
+              "coAssignees": [],
               "catalogItemId": "ci-tc-dv-07",
-              "dueDate": "@today+60"
+              "productName": "Bản ghi cập nhật",
+              "quantity": 200,
+              "unit": "hồ sơ",
+              "dueDate": "@today+60",
+              "standardScore": 5
             },
             {
               "id": "pi-q4-v2-04",
-              "itemNo": 4,
+              "lineNo": 4,
               "title": "Thủ tục chuyển sinh hoạt đảng cho đảng viên",
               "taskGroup": "THUONG_XUYEN",
-              "leadUnitId": "u-btc",
-              "coUnitIds": ["u-vp"],
-              "productName": "Giấy giới thiệu sinh hoạt đảng",
-              "plannedQuantity": 30,
-              "unit": "hồ sơ",
-              "standardScore": 10,
+              "leadAssignee": {
+                "kind": "UNIT",
+                "id": "u-btc",
+                "name": "Ban Tổ chức"
+              },
+              "coAssignees": [
+                {
+                  "kind": "UNIT",
+                  "id": "u-vp",
+                  "name": "Văn phòng Đảng uỷ"
+                }
+              ],
               "catalogItemId": "ci-tc-dv-09",
-              "dueDate": "@today+70"
+              "productName": "Giấy giới thiệu sinh hoạt đảng",
+              "quantity": 30,
+              "unit": "hồ sơ",
+              "dueDate": "@today+70",
+              "standardScore": 10
             },
             {
               "id": "pi-q4-v2-10",
-              "itemNo": 8,
+              "lineNo": 8,
               "title": "Thẩm định hồ sơ kết nạp đảng viên đợt 2",
               "taskGroup": "THEN_CHOT",
-              "leadUnitId": "u-btc",
-              "coUnitIds": [],
-              "productName": "Phiếu thẩm định",
-              "plannedQuantity": 18,
-              "unit": "hồ sơ",
-              "standardScore": 20,
               "keyResultId": "kr-1-1",
+              "leadAssignee": {
+                "kind": "UNIT",
+                "id": "u-btc",
+                "name": "Ban Tổ chức"
+              },
+              "coAssignees": [],
               "catalogItemId": "ci-tc-dv-01",
+              "productName": "Phiếu thẩm định",
+              "quantity": 18,
+              "unit": "hồ sơ",
               "dueDate": "@today+35",
+              "standardScore": 20,
               "changeReason": "Chi bộ 2, 7 bổ sung hồ sơ"
             }
           ],
-          "submittedByName": "Lê Minh Châu",
-          "submittedByTitle": "Phó Trưởng ban",
-          "submittedById": "u-lmchau",
           "removedItems": [
             {
               "originItemId": "pi-q4-v1-tap-huan",
@@ -294,16 +368,20 @@
     "quantityBefore": 15,
     "removedItem": {
       "id": "pi-q4-v1-tap-huan",
-      "itemNo": 0,
+      "lineNo": 0,
       "title": "Tập huấn nghiệp vụ cho chi bộ cơ sở",
       "taskGroup": "THEN_CHOT",
-      "leadUnitId": "u-btc",
-      "coUnitIds": [],
+      "leadAssignee": {
+        "kind": "UNIT",
+        "id": "u-btc",
+        "name": "Ban Tổ chức"
+      },
+      "coAssignees": [],
       "productName": "Lớp tập huấn",
-      "plannedQuantity": 1,
+      "quantity": 1,
       "unit": "lớp",
-      "standardScore": 15,
-      "dueDate": "@today+42"
+      "dueDate": "@today+42",
+      "standardScore": 15
     }
   }
 }
