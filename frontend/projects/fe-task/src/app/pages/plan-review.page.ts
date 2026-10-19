@@ -780,12 +780,18 @@ export class PlanReviewPage {
     }
   }
 
-  protected async approve() {
+  /** BR-00-02: xin MFA bước lên trước (hộp MFA của shell), máy chủ vẫn kiểm lại và có thể trả 401. */
+  protected async approve(steppedUp = false) {
     const d = this.diff.value();
     if (!d) return;
     this.busy.set('approve');
     this.error.set(null);
     this.sign.set(null);
+    if (!steppedUp && !(await this.stepUpFn().catch(() => false))) {
+      this.busy.set(null);
+      this.error.set('Cần xác thực nhiều lớp (MFA) để ký số. Bấm "Duyệt và ký số" để thử lại.');
+      return;
+    }
     try {
       const { location, request } = await firstValueFrom(
         this.api.approve(d.planId, d.target.versionNo, d.target.rowVersion, {
@@ -811,13 +817,11 @@ export class PlanReviewPage {
     const ok = await this.stepUpFn().catch(() => false);
     this.busy.set(null);
     if (!ok) {
-      this.error.set(
-        'Chưa xác thực bước lên được. Vui lòng đăng xuất, đăng nhập lại có MFA rồi ký.',
-      );
+      this.error.set('Chưa xác thực bước lên được. Vui lòng thử lại.');
       return;
     }
     this.stepUp.set(false);
-    await this.approve();
+    await this.approve(true);
   }
 
   /** Số nhiệm vụ mới sẽ sinh: dòng thêm (hoặc mọi dòng ở phiên bản đầu), theo MSG-04-10 (suy luận). */

@@ -582,7 +582,7 @@ function approve(req: MockRequest): MockResponse {
   const { p, v } = hit;
   if (v.submittedById === MOCK_ME.id)
     return problem(403, 'Người duyệt không được là người lập kế hoạch.', {
-      code: 'PLAN-403-SELF-APPROVAL',
+      code: 'TASK-403-SAME-AUTHOR',
       detail: 'BR-04-08: kế hoạch này do đồng chí lập và gửi duyệt.',
     });
   if (!mockSession.recentMfa()) {

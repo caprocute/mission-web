@@ -19,9 +19,10 @@ async function render(
   can: (k: string) => boolean = () => true,
   query: Record<string, string> = { v: '2' },
 ) {
+  // lần đầu giả như phiên đã đạt MFA nhưng máy chủ vẫn đòi (401), lần sau mới đánh dấu đã MFA
+  let calls = 0;
   const stepUp = vi.fn(async () => {
-    const { mockStepUp } = await import('@vt/api-client');
-    mockStepUp();
+    if (calls++ > 0) (await import('@vt/api-client')).mockStepUp();
     return true;
   });
   TestBed.configureTestingModule({
@@ -113,7 +114,7 @@ describe('PlanReviewPage (SCR-0403)', () => {
       expect(text(el.querySelector('.msg.warn[role=alert]'))).toContain('xác thực bước lên');
       click(el, 'Xác thực MFA');
       await until(el, '.msg.info[role=status]');
-      expect(stepUp).toHaveBeenCalledTimes(1);
+      expect(stepUp).toHaveBeenCalledTimes(2);
       expect(text(el.querySelector('.msg.info[role=status]'))).toContain(
         'Vui lòng xác nhận ký trên ứng dụng MySign trong 120 giây.',
       );
