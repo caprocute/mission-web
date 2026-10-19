@@ -1,10 +1,22 @@
-import { checkSelfForm, compareRating, criteriaLevel, stepOf, vn } from './self-assessment-rules';
+import { UiFormVersion } from '@vt/api-client';
+import fixture from '../../../../../api-client/src/mock/ui-forms/ui-forms.json';
+import {
+  checkSelfForm,
+  compareRating,
+  criteriaLevel,
+  formRules,
+  stepOf,
+  vn,
+} from './self-assessment-rules';
+
+/** Quy tắc CEL của Mẫu 1B như máy chủ trả (dữ liệu giả lập). */
+const RULES = formRules(fixture.forms['mau-1b'] as unknown as UiFormVersion);
+const CTX = { mucThamKhao: 'HTTNV' as const, soMinhChung: 0 };
 
 describe('self-assessment-rules (SCR-0901)', () => {
   const base = {
-    selfRating: null,
+    selfRatingCode: 'HTTNV' as const,
     breakthrough: '',
-    evidenceIds: [],
     reason: '',
     content: 'Ưu điểm',
   };
@@ -23,27 +35,27 @@ describe('self-assessment-rules (SCR-0901)', () => {
   });
 
   it('mặc định bằng mức tham khảo thì chỉ cần ưu điểm, hạn chế', () => {
-    expect(checkSelfForm(base, 'HTTNV')).toEqual({});
-    expect(checkSelfForm({ ...base, content: '  ' }, 'HTTNV')).toEqual({
+    expect(checkSelfForm(RULES, base, CTX)).toEqual({});
+    expect(checkSelfForm(RULES, { ...base, content: '  ' }, CTX)).toEqual({
       content: 'Vui lòng nhập ưu điểm, hạn chế, hướng khắc phục.',
     });
   });
 
   it('BR-09-12 MSG-09-02: khác mức tham khảo phải giải trình 20 đến 2.000 ký tự', () => {
-    const f = { ...base, selfRating: 'HTNV' as const, reason: 'quá ngắn' };
-    expect(Object.keys(checkSelfForm(f, 'HTTNV'))).toEqual(['reason']);
-    expect(checkSelfForm({ ...f, reason: 'x'.repeat(20) }, 'HTTNV')).toEqual({});
+    const f = { ...base, selfRatingCode: 'HTNV' as const, reason: 'quá ngắn' };
+    expect(Object.keys(checkSelfForm(RULES, f, CTX))).toEqual(['reason']);
+    expect(checkSelfForm(RULES, { ...f, reason: 'x'.repeat(20) }, CTX)).toEqual({});
   });
 
   it('MSG-09-03: HTXSNV cần giải pháp đột phá và minh chứng', () => {
     const f = {
       ...base,
-      selfRating: 'HTXSNV' as const,
+      selfRatingCode: 'HTXSNV' as const,
       reason: 'Giải pháp số hoá đã có quyết định ghi nhận.',
     };
-    expect(Object.keys(checkSelfForm(f, 'HTTNV'))).toEqual(['breakthrough']);
+    expect(Object.keys(checkSelfForm(RULES, f, CTX))).toEqual(['breakthrough']);
     expect(
-      checkSelfForm({ ...f, breakthrough: 'Giải pháp', evidenceIds: ['e1'] }, 'HTTNV'),
+      checkSelfForm(RULES, { ...f, breakthrough: 'Giải pháp' }, { ...CTX, soMinhChung: 1 }),
     ).toEqual({});
   });
 
