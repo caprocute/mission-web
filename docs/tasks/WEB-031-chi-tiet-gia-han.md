@@ -12,7 +12,7 @@
 | Cỡ việc | M (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-030 |
 | Truy vết | QT-06 → SCR-0601 → `/api/v1/tasks` → MOD-02 → EVT-05, EVT-06 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Xong, chờ gộp (luồng Màn hình) |
 
 ## 1. Mục tiêu
 

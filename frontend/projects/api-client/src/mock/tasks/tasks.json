@@ -36,7 +36,8 @@
           "at": "@today-3T08:30:00Z",
           "percent": 60,
           "note": "Đã thu số liệu 6/8 phòng",
-          "by": "Tôi"
+          "by": "Tôi",
+          "channel": "WEB"
         }
       ],
       "blockers": [],
@@ -95,14 +96,22 @@
           "at": "@today-5T09:00:00Z",
           "percent": 40,
           "note": "Đã có dự thảo báo cáo",
-          "by": "Tôi"
+          "by": "Tôi",
+          "channel": "WEB"
         }
       ],
       "blockers": [
         {
           "id": "b1",
+          "code": "BN-0003-01",
           "content": "Chưa nhận đủ báo cáo của chi bộ 3",
-          "resolved": false
+          "causeCategory": "PHOI_HOP",
+          "causeClaimed": "KHACH_QUAN",
+          "impactLevel": "TRUNG_BINH",
+          "handlerName": "Văn phòng Đảng uỷ",
+          "resolveBy": "@today+3",
+          "status": "MO",
+          "createdAt": "@today-4T09:00:00Z"
         }
       ],
       "taskGroup": "THEN_CHOT",
@@ -132,7 +141,8 @@
           "at": "@today-1T15:00:00Z",
           "percent": 100,
           "note": "Đã nộp minh chứng",
-          "by": "Tôi"
+          "by": "Tôi",
+          "channel": "WEB"
         }
       ],
       "blockers": [],
@@ -190,7 +200,8 @@
           "at": "@today-6T10:00:00Z",
           "percent": 70,
           "note": "Đã có dự thảo, chờ số liệu UBKT",
-          "by": "Tôi"
+          "by": "Tôi",
+          "channel": "WEB"
         }
       ],
       "blockers": []
@@ -213,24 +224,99 @@
       "doneQuantity": 8,
       "unit": "phiếu thẩm định",
       "description": "Thẩm định 18 hồ sơ kết nạp đảng viên của các chi bộ trực thuộc, lập phiếu thẩm định theo mẫu.",
-      "coAssignees": [],
+      "coAssignees": [
+        {
+          "personId": "p-vp",
+          "name": "Văn phòng Đảng uỷ",
+          "role": "PHOI_HOP"
+        },
+        {
+          "personId": "p-ha",
+          "name": "Phạm Thu Hà",
+          "role": "PHOI_HOP"
+        }
+      ],
       "progressLog": [
         {
-          "at": "@today-1T08:47:00Z",
+          "at": "@today-1T01:47:00Z",
+          "by": "Tôi",
+          "byRole": "CHU_TRI",
+          "channel": "MOBILE",
+          "fromPercent": 30,
           "percent": 45,
-          "note": "11/18 hồ sơ đã có phiếu thẩm định",
-          "by": "Tôi"
+          "note": "11/18 hồ sơ đã có phiếu thẩm định"
+        },
+        {
+          "at": "@today-3T09:30:00Z",
+          "by": "Tôi",
+          "byRole": "CHU_TRI",
+          "channel": "WEB",
+          "fromPercent": 10,
+          "percent": 30,
+          "note": "Hoàn thành 3 hồ sơ chi bộ 2"
+        },
+        {
+          "at": "@today-6T03:05:00Z",
+          "by": "Phạm Thu Hà",
+          "byRole": "PHOI_HOP",
+          "channel": "WEB",
+          "fromPercent": 10,
+          "percent": 10,
+          "note": "Văn phòng gửi đủ 18 bộ hồ sơ gốc"
+        },
+        {
+          "at": "@today-10T01:15:00Z",
+          "by": "Tôi",
+          "byRole": "CHU_TRI",
+          "channel": "WEB",
+          "fromPercent": 0,
+          "percent": 10,
+          "note": "Nhận việc, lập danh sách 18 hồ sơ"
         }
       ],
       "blockers": [
         {
           "id": "b157-1",
-          "content": "Chờ kết quả thẩm tra lý lịch từ địa phương",
-          "resolved": false
+          "code": "BN-0157-01",
+          "content": "Chờ kết quả thẩm tra lý lịch 4 quần chúng từ địa phương",
+          "causeCategory": "PHOI_HOP",
+          "causeClaimed": "KHACH_QUAN",
+          "impactLevel": "TRUNG_BINH",
+          "handlerName": "Văn phòng Đảng uỷ",
+          "resolveBy": "@today+5",
+          "status": "MO",
+          "createdAt": "@today-4T09:00:00Z"
         }
       ],
       "keyResultId": "kr-1-1",
-      "keyResultTitle": "KR 1.1 · Kết nạp 40 đảng viên mới"
+      "keyResultTitle": "KR 1.1 · Kết nạp 40 đảng viên mới",
+      "sourceRef": "Kế hoạch Q4 phiên bản 2 · dòng 1",
+      "catalogItemCode": "TC-DV-01",
+      "difficulty": 3,
+      "standardScore": 20,
+      "assignedAt": "@today-11T08:00:00Z",
+      "acceptorName": "Lê Minh Châu",
+      "products": {
+        "confirmed": 8,
+        "pendingReview": 3,
+        "required": 18
+      },
+      "stateLog": [
+        {
+          "at": "@today-11T08:00:00Z",
+          "from": "NHAP",
+          "to": "DA_GIAO",
+          "transition": "GIAO",
+          "actorName": "Lê Minh Châu"
+        },
+        {
+          "at": "@today-10T01:15:00Z",
+          "from": "DA_GIAO",
+          "to": "DANG_THUC_HIEN",
+          "transition": "NHAN_VIEC",
+          "actorName": "Tôi"
+        }
+      ]
     },
     {
       "id": "0192a0f0-0001-7000-8000-000000000163",

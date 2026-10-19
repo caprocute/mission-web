@@ -1,6 +1,11 @@
 import { HttpParams } from '@angular/common/http';
 import { MAX_PAGE_LIMIT } from '../../lib/paging';
 import {
+  BlockerReport,
+  ChangeRequest,
+  ChangeRequestDraft,
+  ChangeRequestPreview,
+  DelayRisk,
   MyTasksQuickFilter,
   PeriodRef,
   ProgressBatchItem,
@@ -29,9 +34,23 @@ import fixture from './tasks.json';
  * Mô phỏng hành vi quan trọng của máy chủ: kiểm `If-Match` (409), kiểm dữ liệu (422),
  * tăng `rowVersion` sau khi ghi, chuyển `DA_GIAO` → `DANG_THUC_HIEN` (baseline mục 9.1),
  * BR-06-02 (giảm tiến độ phải có ghi chú), BR-06-03 (chỉ chủ trì đổi phần trăm),
- * số ngày làm việc còn lại và cờ quá hạn tính theo lịch (giả lập: nghỉ thứ Bảy, Chủ nhật).
+ * số ngày làm việc còn lại và cờ quá hạn tính theo lịch (giả lập: nghỉ thứ Bảy, Chủ nhật),
+ * điểm nghẽn, đề nghị gia hạn/điều chỉnh (BR-06-06 đến BR-06-09), lịch sử trạng thái (WEB-031).
  */
-type StoredTask = Omit<TaskDetail, 'overdue' | 'workingDaysLeft' | 'openBlockerCount'>;
+type StoredTask = Omit<
+  TaskDetail,
+  | 'overdue'
+  | 'workingDaysLeft'
+  | 'openBlockerCount'
+  | 'delayRisk'
+  | 'extensionsUsed'
+  | 'extensionsMax'
+>;
+
+/** Số lần gia hạn tối đa mỗi quý trước khi phải chuyển cấp trên (BR-06-06, tham số Policy Pack). */
+export const MAX_EXTENSIONS = 2;
+/** Gia hạn quá số ngày làm việc này phải chuyển cấp trên duyệt (BR-06-06). */
+export const EXTENSION_ESCALATE_DAYS = 10;
 
 /** Số ngày làm việc còn lại để một nhiệm vụ được xếp "Sắp hạn" (tham số Policy Pack, giả định 3). */
 export const SAP_HAN_WORKING_DAYS = 3;
@@ -40,8 +59,42 @@ const OPEN: TaskStatus[] = ['DA_GIAO', 'DANG_THUC_HIEN'];
 let db: StoredTask[] | null = null;
 let period: PeriodRef | null = null;
 
+/** Điền giá trị mặc định cho trường chi tiết mà fixture không ghi (máy chủ thật luôn trả đủ). */
+function normalize(
+  t: Partial<StoredTask> & Pick<StoredTask, 'id' | 'status' | 'dueDate' | 'assignerName'>,
+): StoredTask {
+  const n = t as StoredTask;
+  n.acceptorName ??= t.assignerName;
+  n.scoreDueDate ??= t.dueDate;
+  n.products ??= {
+    confirmed: n.doneQuantity,
+    pendingReview: t.status === 'CHO_NGHIEM_THU' ? n.plannedQuantity - n.doneQuantity : 0,
+    required: n.plannedQuantity,
+  };
+  n.changeRequests ??= [];
+  n.stateLog ??=
+    t.status === 'NHAP'
+      ? []
+      : [
+          {
+            at: `${t.dueDate}T00:00:00Z`,
+            from: 'NHAP',
+            to: 'DA_GIAO',
+            transition: 'GIAO',
+            actorName: t.assignerName,
+          },
+        ];
+  for (const l of n.progressLog) {
+    l.byRole ??= n.role;
+    l.fromPercent ??= l.percent;
+  }
+  return n;
+}
+
 function tasks(): StoredTask[] {
-  db ??= resolveRelativeDates(structuredClone(fixture.tasks) as StoredTask[]);
+  db ??= resolveRelativeDates(structuredClone(fixture.tasks) as unknown as StoredTask[]).map(
+    normalize,
+  );
   return db;
 }
 
@@ -77,7 +130,32 @@ function derive(t: StoredTask): TaskDetail {
     ...t,
     overdue,
     workingDaysLeft,
-    openBlockerCount: t.blockers.filter((b) => !b.resolved).length,
+    openBlockerCount: t.blockers.filter((b) => b.status === 'MO' || b.status === 'DANG_XU_LY')
+      .length,
+    delayRisk: OPEN.includes(t.status) ? delayRisk(t, workingDaysLeft) : undefined,
+    extensionsUsed: t.changeRequests.filter((c) => c.type === 'GIA_HAN' && c.status === 'DA_DUYET')
+      .length,
+    extensionsMax: MAX_EXTENSIONS,
+  };
+}
+
+/**
+ * Dự báo trễ hạn giả lập SVC-15 (QT-06 bước 2): nhịp = phần trăm tăng bình quân mỗi ngày làm việc
+ * từ khi giao; số ngày còn cần = phần còn lại / nhịp; so với số ngày làm việc còn lại.
+ */
+function delayRisk(t: StoredTask, left: number): DelayRisk {
+  const start = t.assignedAt?.slice(0, 10) ?? t.stateLog[0]?.at.slice(0, 10) ?? todayIso();
+  const elapsed = Math.max(1, -workingDaysBetween(todayIso(), start));
+  const pace = t.progress / elapsed;
+  const needed = pace > 0 ? Math.ceil((100 - t.progress) / pace) : 99;
+  const level = needed > left + 2 ? 'CAO' : needed > left ? 'VUA' : 'THAP';
+  return {
+    level,
+    neededWorkingDays: needed,
+    explanation:
+      pace > 0
+        ? `Nhịp ${pace.toFixed(1).replace('.', ',')}%/ngày làm việc, cần khoảng ${needed} ngày, còn ${Math.max(0, left)} ngày`
+        : 'Chưa có cập nhật tiến độ để tính nhịp',
   };
 }
 
@@ -228,12 +306,19 @@ function applyProgress(
       ],
     });
   }
+  const fromPercent = t.progress;
   t.progress = percent;
   t.rowVersion += 1;
-  if (t.status === 'DA_GIAO') t.status = 'DANG_THUC_HIEN';
-  t.progressLog.unshift({ at: new Date().toISOString(), percent, note, by: 'Tôi' });
-  if (body.blocker)
-    t.blockers.push({ id: crypto.randomUUID(), content: body.blocker, resolved: false });
+  if (t.status === 'DA_GIAO') transition(t, 'DANG_THUC_HIEN', 'NHAN_VIEC');
+  t.progressLog.unshift({
+    at: new Date().toISOString(),
+    percent,
+    fromPercent,
+    note,
+    by: 'Tôi',
+    byRole: t.role,
+    channel: 'WEB',
+  });
   return ok(derive(structuredClone(t)), etag(t));
 }
 
@@ -254,7 +339,167 @@ function accept(req: MockRequest): MockResponse {
       detail: `Trạng thái hiện tại ${t.status}`,
     });
   }
-  t.status = 'DANG_THUC_HIEN';
+  transition(t, 'DANG_THUC_HIEN', 'NHAN_VIEC');
+  t.rowVersion += 1;
+  return ok(derive(structuredClone(t)), etag(t));
+}
+
+/** Chuyển trạng thái và ghi `task.task_state_log` cùng lúc như máy trạng thái của MOD-02. */
+function transition(t: StoredTask, to: TaskStatus, name: string, reason?: string): void {
+  t.stateLog.push({
+    at: new Date().toISOString(),
+    from: t.status,
+    to,
+    transition: name,
+    actorName: 'Tôi',
+    reason,
+  });
+  t.status = to;
+}
+
+const isAssignee = (_t: StoredTask) => true; // danh sách giả lập chỉ gồm nhiệm vụ của người dùng hiện tại
+
+function reportBlocker(req: MockRequest): MockResponse {
+  const t = find(req.pathParams['id']);
+  if (!t) return notFound(req.pathParams['id']);
+  if (!isAssignee(t)) return problem(403, 'Chỉ người được giao được báo điểm nghẽn');
+  if (!OPEN.includes(t.status) && t.status !== 'TAM_DUNG') {
+    return problem(422, 'Nhiệm vụ không ở trạng thái cho phép báo điểm nghẽn');
+  }
+  const b = (req.body ?? {}) as Partial<BlockerReport>;
+  const content = (b.content ?? '').trim();
+  const errors: { field: string; message: string }[] = [];
+  if (!content || content.length > 500)
+    errors.push({ field: 'content', message: 'Nội dung bắt buộc, tối đa 500 ký tự' });
+  if (!b.causeCategory) errors.push({ field: 'causeCategory', message: 'Chọn nhóm nguyên nhân' });
+  if (!b.causeClaimed)
+    errors.push({ field: 'causeClaimed', message: 'Chọn nguyên nhân khách quan hoặc chủ quan' });
+  if (!b.impactLevel) errors.push({ field: 'impactLevel', message: 'Chọn mức ảnh hưởng' });
+  if (errors.length) return problem(422, 'Dữ liệu không hợp lệ', { errors });
+  t.blockers.push({
+    id: crypto.randomUUID(),
+    code: `BN-${t.code.slice(-4)}-${String(t.blockers.length + 1).padStart(2, '0')}`,
+    content,
+    causeCategory: b.causeCategory!,
+    causeClaimed: b.causeClaimed!,
+    impactLevel: b.impactLevel!,
+    resolveBy: b.resolveBy,
+    status: 'MO',
+    createdAt: new Date().toISOString(),
+  });
+  t.rowVersion += 1;
+  return { status: 201, body: derive(structuredClone(t)), headers: etag(t) };
+}
+
+/** Hệ số tiến độ C = 1 − 0,05 × số ngày làm việc chậm, không nhỏ hơn 0 (BR-06-01). */
+export const coefficientC = (delayDays: number) =>
+  Math.max(0, Math.round((1 - 0.05 * Math.max(0, delayDays)) * 100) / 100);
+
+function preview(t: StoredTask, d: Partial<ChangeRequestDraft>): ChangeRequestPreview {
+  const newDue = d.type === 'GIA_HAN' && d.newDueDate ? d.newDueDate : t.dueDate;
+  const extra = Math.max(0, workingDaysBetween(t.dueDate, newDue));
+  const used = t.changeRequests.filter(
+    (c) => c.type === 'GIA_HAN' && c.status === 'DA_DUYET',
+  ).length;
+  return {
+    extraWorkingDays: extra,
+    objective: { scoreDueDate: newDue, c: 1 },
+    subjective: { scoreDueDate: t.scoreDueDate, delayDays: extra, c: coefficientC(extra) },
+    overThreshold:
+      d.type === 'GIA_HAN' && (used >= MAX_EXTENSIONS || extra > EXTENSION_ESCALATE_DAYS),
+    escalateToName: 'Trưởng ban Tổ chức',
+    lateSubmission: utcDay(todayIso()) > utcDay(t.dueDate),
+    cancelBlocked: d.type === 'HUY' && t.products.confirmed > 0,
+  };
+}
+
+function validateDraft(t: StoredTask, d: Partial<ChangeRequestDraft>): MockResponse | null {
+  const errors: { field: string; message: string }[] = [];
+  const types = ['GIA_HAN', 'DOI_SO_LUONG', 'DOI_SAN_PHAM', 'TAM_DUNG', 'HUY'];
+  if (!d.type || !types.includes(d.type))
+    errors.push({ field: 'type', message: 'Chọn loại đề nghị' });
+  if (d.type === 'GIA_HAN') {
+    const p = currentPeriod();
+    if (!d.newDueDate || d.newDueDate <= t.dueDate || d.newDueDate > p.endDate) {
+      errors.push({ field: 'newDueDate', message: 'Hạn mới phải sau hạn hiện tại và trong kỳ' });
+    }
+  }
+  if (d.type === 'DOI_SO_LUONG' && !(typeof d.newQuantity === 'number' && d.newQuantity > 0)) {
+    errors.push({ field: 'newQuantity', message: 'Số lượng mới phải lớn hơn 0' });
+  }
+  if (d.type === 'DOI_SAN_PHAM' && !d.newProduct?.trim())
+    errors.push({ field: 'newProduct', message: 'Nhập sản phẩm mới' });
+  if (d.causeClaimed !== 'KHACH_QUAN' && d.causeClaimed !== 'CHU_QUAN') {
+    errors.push({ field: 'causeClaimed', message: 'Chọn nguyên nhân' });
+  }
+  const reason = (d.reason ?? '').trim();
+  if (reason.length < 20 || reason.length > 2000) {
+    errors.push({ field: 'reason', message: 'Lý do chi tiết từ 20 đến 2.000 ký tự' });
+  }
+  if (d.blockerId && !t.blockers.some((b) => b.id === d.blockerId)) {
+    errors.push({ field: 'blockerId', message: 'Điểm nghẽn không thuộc nhiệm vụ này' });
+  }
+  return errors.length ? problem(422, 'Dữ liệu không hợp lệ', { errors }) : null;
+}
+
+function previewRoute(req: MockRequest): MockResponse {
+  const t = find(req.pathParams['id']);
+  if (!t) return notFound(req.pathParams['id']);
+  return ok(preview(t, (req.body ?? {}) as Partial<ChangeRequestDraft>));
+}
+
+function submitChangeRequest(req: MockRequest): MockResponse {
+  const t = find(req.pathParams['id']);
+  if (!t) return notFound(req.pathParams['id']);
+  if (t.role !== 'CHU_TRI') return problem(403, 'Chỉ người chủ trì được gửi đề nghị');
+  if (!OPEN.includes(t.status) && t.status !== 'TAM_DUNG') {
+    return problem(422, 'Nhiệm vụ không còn mở nên không gửi được đề nghị');
+  }
+  const d = (req.body ?? {}) as Partial<ChangeRequestDraft>;
+  const invalid = validateDraft(t, d);
+  if (invalid) return invalid;
+  const pv = preview(t, d);
+  if (pv.cancelBlocked) {
+    return problem(422, 'Không thể huỷ nhiệm vụ đã có sản phẩm được nghiệm thu.', {
+      code: 'MSG-06-09',
+    });
+  }
+  if (t.changeRequests.some((c) => c.type === d.type && c.status === 'CHO_DUYET')) {
+    return problem(409, 'Đã có đề nghị cùng loại đang chờ duyệt', {
+      detail: 'Rút đề nghị cũ trước khi gửi đề nghị mới',
+    });
+  }
+  const cr: ChangeRequest = {
+    id: crypto.randomUUID(),
+    type: d.type!,
+    status: 'CHO_DUYET',
+    newDueDate: d.type === 'GIA_HAN' ? d.newDueDate : undefined,
+    newQuantity: d.type === 'DOI_SO_LUONG' ? d.newQuantity : undefined,
+    newProduct: d.type === 'DOI_SAN_PHAM' ? d.newProduct : undefined,
+    causeClaimed: d.causeClaimed!,
+    blockerId: d.blockerId,
+    reason: d.reason!.trim(),
+    // người duyệt là người giao việc; vượt ngưỡng chuyển cấp trên (BR-06-06, BR-06-08)
+    approverName: pv.overThreshold ? pv.escalateToName! : t.assignerName,
+    escalated: pv.overThreshold,
+    submittedAt: new Date().toISOString(),
+  };
+  t.changeRequests.unshift(cr);
+  t.rowVersion += 1;
+  return { status: 201, body: derive(structuredClone(t)), headers: etag(t) };
+}
+
+function withdraw(req: MockRequest): MockResponse {
+  const t = find(req.pathParams['id']);
+  if (!t) return notFound(req.pathParams['id']);
+  const cr = t.changeRequests.find((c) => c.id === req.pathParams['cid']);
+  if (!cr) return problem(404, 'Không tìm thấy đề nghị');
+  if (cr.status !== 'CHO_DUYET') {
+    return problem(409, 'Đề nghị đã được xử lý nên không rút lại được', {
+      detail: `Trạng thái ${cr.status}`,
+    });
+  }
+  cr.status = 'DA_RUT';
   t.rowVersion += 1;
   return ok(derive(structuredClone(t)), etag(t));
 }
@@ -317,9 +562,15 @@ function register(req: MockRequest): MockResponse {
     doneQuantity: 0,
     unit: item.unit,
     description: body.note ?? '',
+    catalogItemCode: item.code,
+    acceptorName: 'Chờ phân công',
+    scoreDueDate: due,
+    products: { confirmed: 0, pendingReview: 0, required: body.quantity! },
     coAssignees: [],
     progressLog: [],
     blockers: [],
+    changeRequests: [],
+    stateLog: [],
   };
   tasks().push(t);
   return {
@@ -358,5 +609,13 @@ export const TASKS_MOCK: MockModule = {
     },
     { method: 'POST', pattern: '/api/v1/tasks/:id/progress', handle: updateProgress },
     { method: 'POST', pattern: '/api/v1/tasks/:id/accept', handle: accept },
+    { method: 'POST', pattern: '/api/v1/tasks/:id/blockers', handle: reportBlocker },
+    { method: 'POST', pattern: '/api/v1/tasks/:id/change-requests/preview', handle: previewRoute },
+    { method: 'POST', pattern: '/api/v1/tasks/:id/change-requests', handle: submitChangeRequest },
+    {
+      method: 'POST',
+      pattern: '/api/v1/tasks/:id/change-requests/:cid/withdraw',
+      handle: withdraw,
+    },
   ],
 };

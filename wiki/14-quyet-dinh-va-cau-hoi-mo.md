@@ -57,6 +57,7 @@ Bảng dưới liệt kê các điểm mà hai hay nhiều nguồn ghi khác nha
 | Mã SEC trong chú thích mã | `session.service.ts` ghi SEC-15, SEC-54 cho `state` và `nonce`; TL-04: đúng là SEC-17 | Sửa chú thích khi làm WEB-006 |
 | Kiểm thuộc tính SDUI | TL-01 nêu Ajv; mã tự viết bộ lọc vì CSP không có `'unsafe-eval'` | Giữ bộ lọc tự viết hoặc Ajv biên dịch trước lúc build |
 | Đỉnh người dùng task cell lớn | Baseline bản cũ, TL-02: 80 đến 110 lượt/giây; TL-01, baseline 3.1: 133 đến 150 lượt/giây | Dùng số lớn hơn khi định cỡ thử tải |
+| Loại đề nghị điều chỉnh (`task.task_change_request.request_type`) | TL-02 SCR-0602: `GIA_HAN`, `DOI_SO_LUONG`, `DOI_SAN_PHAM`, `TAM_DUNG`, `HUY`; TL-03: `GIA_HAN`, `DIEU_CHINH_KHOI_LUONG`, `DIEU_CHINH_NOI_DUNG`, `HUY` (không có tạm dừng) | Theo TL-02 vì là đặc tả màn hình (`ChangeRequestType`, WEB-031); cần chốt khi có OpenAPI (WEB-007) |
 | Tổng số tài khoản | NFR-01: 6 triệu; TL-04 định cỡ: 6,5 triệu | **Đã chốt 6,5 triệu** cho định cỡ (19/10/2026) |
 
 ## Khoảng trống trong mã so với thiết kế

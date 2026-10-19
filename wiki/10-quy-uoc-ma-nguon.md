@@ -53,6 +53,8 @@ Bẫy thứ tám là `linkedSignal` đặt lại trạng thái phụ (ghi chú, 
 
 Bẫy thứ chín là chạy `ng build` trong lúc `ng serve` của cùng workspace đang chạy: bản build ghi đè bộ đệm gói dùng chung của Native Federation và trang dev báo `ReferenceError: ngDevMode is not defined` ở shell. Chỉ cần dừng rồi chạy lại `ng serve` cả shell lẫn remote.
 
+Bẫy thứ mười là kiểm thử component có `p-tabs` trong Vitest với jsdom: `p-tablist` gọi `ResizeObserver` mà jsdom không có, kiểm thử báo lỗi không bắt được dù các khẳng định đều đúng. Cách xử lý là gán một lớp giả `ResizeObserver` trong `beforeAll` của tệp spec (xem `task-detail.page.spec.ts`), không sửa cấu hình kiểm thử chung.
+
 ## Thêm một remote mới
 
 Task WEB-015 sẽ viết script sinh remote và dựng khung tám remote `fe-okr`, `fe-evidence`, `fe-appraisal`, `fe-dossier`, `fe-oversight`, `fe-dashboard`, `fe-config-studio`, `fe-admin` với cổng dev 4202 đến 4209. Cho tới khi có script, các bước làm tay như dưới đây, lấy `fe-task` làm mẫu.

@@ -4,6 +4,9 @@ import { Observable, map } from 'rxjs';
 import { CursorQuery, MAX_PAGE_LIMIT } from './paging';
 import {
   AssigneeRole,
+  BlockerReport,
+  ChangeRequestDraft,
+  ChangeRequestPreview,
   MyTasksPage,
   MyTasksQuickFilter,
   ProgressBatchItem,
@@ -99,5 +102,40 @@ export class TaskApi {
     return this.http
       .post('/api/v1/tasks/export', { assignee: 'me', ...query }, { observe: 'response' })
       .pipe(map((res: HttpResponse<unknown>) => ({ location: res.headers.get('Location') ?? '' })));
+  }
+
+  /** Báo điểm nghẽn (QT-06 bước 3), phát EVT-21 cho người giao; trả nhiệm vụ đã cập nhật. */
+  reportBlocker(task: TaskSummary, body: BlockerReport): Observable<TaskDetail> {
+    return this.http.post<TaskDetail>(
+      `/api/v1/tasks/${encodeURIComponent(task.id)}/blockers`,
+      body,
+    );
+  }
+
+  /** SCR-0602 "Xem trước hệ quả": tính C cho hai trường hợp khách quan, chủ quan (MSG-06-06). */
+  previewChangeRequest(
+    task: TaskSummary,
+    body: ChangeRequestDraft,
+  ): Observable<ChangeRequestPreview> {
+    return this.http.post<ChangeRequestPreview>(
+      `/api/v1/tasks/${encodeURIComponent(task.id)}/change-requests/preview`,
+      body,
+    );
+  }
+
+  /** Gửi đề nghị gia hạn, điều chỉnh, tạm dừng, huỷ (QT-06 bước 5): `CHO_DUYET`, EVT-21. */
+  submitChangeRequest(task: TaskSummary, body: ChangeRequestDraft): Observable<TaskDetail> {
+    return this.http.post<TaskDetail>(
+      `/api/v1/tasks/${encodeURIComponent(task.id)}/change-requests`,
+      body,
+    );
+  }
+
+  /** Rút lại đề nghị `CHO_DUYET` của mình → `DA_RUT`. */
+  withdrawChangeRequest(task: TaskSummary, requestId: string): Observable<TaskDetail> {
+    return this.http.post<TaskDetail>(
+      `/api/v1/tasks/${encodeURIComponent(task.id)}/change-requests/${encodeURIComponent(requestId)}/withdraw`,
+      null,
+    );
   }
 }
