@@ -54,7 +54,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-024](WEB-024-check-in-kr.md) | SCR-0301 Check-in KR | M | WEB-021 | Chưa bắt đầu |
 | [WEB-025](WEB-025-danh-muc-cong-viec.md) | SCR-0401 Thư viện danh mục công việc | M | WEB-008 | Xong, chờ gộp (luồng Màn hình) |
 | [WEB-026](WEB-026-lap-ke-hoach.md) | SCR-0402 Lập kế hoạch công tác quý | L | WEB-025 | Xong, chờ gộp (luồng Màn hình) |
-| [WEB-027](WEB-027-duyet-ke-hoach.md) | SCR-0403 Phê duyệt kế hoạch (so sánh phiên bản) | M | WEB-026 | Chưa bắt đầu |
+| [WEB-027](WEB-027-duyet-ke-hoach.md) | SCR-0403 Phê duyệt kế hoạch (so sánh phiên bản) | M | WEB-026 | Xong, chờ gộp (luồng Màn hình) |
 | [WEB-028](WEB-028-giao-viec.md) | SCR-0501 Giao việc | M | WEB-008 | Xong, chờ gộp (luồng Màn hình) |
 | [WEB-029](WEB-029-nhiem-vu-tu-van-ban.md) | SCR-0502 Tạo nhiệm vụ từ văn bản chỉ đạo | M | WEB-028 | Xong, chờ gộp (luồng Màn hình) |
 | [WEB-030](WEB-030-viec-cua-toi.md) | SCR-0503 Việc của tôi – hoàn thiện | S | WEB-008 | Xong, chờ gộp (luồng Màn hình) |

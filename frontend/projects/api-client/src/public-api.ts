@@ -32,4 +32,5 @@ export * from './lib/models/source-doc';
 export * from './lib/source-doc-api';
 export * from './lib/ai-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
+export { mockStepUp, resetMockApi, setMockEsignOutage } from './mock/mock-session';
 export type { MockApiOptions } from './mock/mock-api.interceptor';

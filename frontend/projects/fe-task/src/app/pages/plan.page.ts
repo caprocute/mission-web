@@ -149,6 +149,14 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
               (onClick)="submit()"
             />
           }
+          @if ((v.status === 'CHO_DUYET' || v.versionNo > 1) && can('SCR-0403.so-sanh')) {
+            <p-button
+              [label]="v.status === 'CHO_DUYET' ? 'Xem xét và duyệt' : 'So sánh phiên bản'"
+              severity="contrast"
+              [outlined]="true"
+              (onClick)="openReview(v.versionNo)"
+            />
+          }
           @if (canAdjust() && can('SCR-0402.dieu-chinh')) {
             <p-button
               label="Tạo điều chỉnh"
@@ -921,6 +929,11 @@ export class PlanPage {
     if (i.recurrence) return PLAN_RECURRENCE_LABEL[i.recurrence];
     return i.dueDate ? formatDate(i.dueDate) : '—';
   }
+  /** Mở SCR-0403 cho phiên bản đang xem (so sánh với phiên bản đã duyệt trước đó). */
+  protected openReview(v: number) {
+    void this.router.navigate(['/plans', this.planId(), 'review'], { queryParams: { v } });
+  }
+
   protected unitName(id?: string) {
     return this.units().find((u) => u.value === id)?.label ?? '';
   }

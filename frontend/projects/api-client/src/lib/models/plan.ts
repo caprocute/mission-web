@@ -76,11 +76,16 @@ export interface PlanVersion {
   returnReason?: string;
   reviewComment?: string;
   submittedAt?: string;
+  /** Người trình (vùng 3 của SCR-0403). */
+  submittedByName?: string;
+  submittedByTitle?: string;
   approvedAt?: string;
   approvedByName?: string;
   /** SHA-256 nội dung các dòng, dữ liệu được ký số khi duyệt (hex). */
   contentHash?: string;
   items: PlanItem[];
+  /** Dòng của phiên bản trước bị bỏ ở bản điều chỉnh, kèm lý do (đề xuất, BR-04-10; xem wiki/14). */
+  removedItems?: { originItemId: string; changeReason: string }[];
 }
 
 /** Tỷ trọng nhóm của Policy Pack (`policy.policy_rule`, tham số `group_weights`; BR-04-06). */
@@ -142,4 +147,86 @@ export interface PlanCheckResult {
   /** KR đã duyệt cùng kỳ chưa có dòng nào (BR-04-07). */
   keyResultsWithoutItems: string[];
   keyResultCount: number;
+}
+
+/** Loại thay đổi của một dòng khi so sánh hai phiên bản (SCR-0403 trường 2); `GIU` là không đổi. */
+export type PlanChangeType = 'THEM' | 'SUA' | 'BO' | 'GIU';
+
+export const PLAN_CHANGE_LABEL: Record<PlanChangeType, string> = {
+  THEM: 'Thêm',
+  SUA: 'Sửa',
+  BO: 'Bỏ',
+  GIU: 'Không đổi',
+};
+
+/** Một dòng của bảng khác biệt, ghép theo `originItemId` (SCR-0403 vùng 2). */
+export interface PlanDiffRow {
+  change: PlanChangeType;
+  before?: PlanItem;
+  after?: PlanItem;
+  /** Trường đã đổi giữa `before` và `after` (chỉ với `SUA`). */
+  changedFields: (keyof PlanItem)[];
+  /** Lý do thay đổi (`task.plan_item.change_reason`, BR-04-10); với dòng bỏ là lý do bỏ. */
+  reason?: string;
+}
+
+/** Vi phạm BR-04-11, BR-04-12 mà máy chủ phát hiện trên bản điều chỉnh; còn vi phạm thì không duyệt được. */
+export interface PlanDiffViolation {
+  rule: string;
+  message: string;
+  itemNo?: number;
+}
+
+/**
+ * Kết quả `GET /plans/{id}/versions/{v}/diff?base={v0}`: phiên bản chờ duyệt so với phiên bản hiệu lực
+ * (không có `base` khi là phiên bản đầu tiên), cùng thông tin trình (vùng 3).
+ */
+export interface PlanDiff {
+  planId: string;
+  periodLabel: string;
+  unitName: string;
+  base?: Pick<PlanVersion, 'versionNo' | 'status' | 'approvedAt' | 'approvedByName'>;
+  target: Pick<
+    PlanVersion,
+    | 'versionNo'
+    | 'status'
+    | 'rowVersion'
+    | 'submittedAt'
+    | 'submittedByName'
+    | 'submittedByTitle'
+    | 'contentHash'
+    | 'changeReason'
+    | 'reviewComment'
+    | 'approvedAt'
+    | 'approvedByName'
+  >;
+  /** Lần điều chỉnh của phiên bản này (0 với phiên bản đầu) trên tối đa của Policy Pack (BR-04-10). */
+  adjustmentNo: number;
+  adjustmentsMax: number;
+  /** Điểm tối đa nhóm then chốt ở hai phiên bản (tỷ trọng của Policy Pack, BR-04-06). */
+  keyGroupMax: { before: number; after: number };
+  summary: { added: number; changed: number; removed: number; unchanged: number };
+  rows: PlanDiffRow[];
+  violations: PlanDiffViolation[];
+}
+
+/** Phương thức ký số (SCR-0403 trường 7, `esign.certificate_ref`). */
+export type SignMethod = 'MYSIGN' | 'USB_TOKEN' | 'CHUNG_THU_TO_CHUC';
+
+export const SIGN_METHOD_LABEL: Record<SignMethod, string> = {
+  MYSIGN: 'Ký số bằng MySign',
+  USB_TOKEN: 'USB token',
+  CHUNG_THU_TO_CHUC: 'Chứng thư số của tổ chức',
+};
+
+/** Trạng thái yêu cầu ký của esign-service (SVC-10, `esign.sign_request`). */
+export type SignRequestStatus = 'CHO_KY' | 'DA_KY' | 'TU_CHOI' | 'HET_HAN' | 'CHO_GUI_LAI';
+
+/** Yêu cầu ký tạo khi bấm "Duyệt và ký số" (SCR-0403 trường 8). */
+export interface SignRequest {
+  id: string;
+  status: SignRequestStatus;
+  method: SignMethod;
+  expiresAt: string;
+  signedAt?: string;
 }

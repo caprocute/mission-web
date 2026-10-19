@@ -183,22 +183,20 @@
           "versionNo": 1,
           "status": "DA_DUYET",
           "rowVersion": 4,
-          "isCurrent": false,
+          "isCurrent": true,
           "submittedAt": "@today-14T09:00:00+07:00",
           "approvedAt": "@today-11T16:20:00+07:00",
-          "approvedByName": "Hoàng Văn Dũng",
+          "approvedByName": "Trần Thị Bình",
           "items": "@v2-without-tc-dv-06"
         },
         {
           "id": "pv-q4-2",
           "versionNo": 2,
-          "status": "DA_DUYET",
+          "status": "CHO_DUYET",
           "rowVersion": 3,
-          "isCurrent": true,
-          "changeReason": "Bổ sung rà soát quy hoạch cấp uỷ theo Văn bản 518-CV/ĐUK",
+          "isCurrent": false,
+          "changeReason": "Bổ sung rà soát quy hoạch cấp uỷ theo Văn bản 518-CV/ĐUK; điều chỉnh số hồ sơ kết nạp đợt 2; lùi tập huấn sang Quý I/2027",
           "submittedAt": "@today-3T10:00:00+07:00",
-          "approvedAt": "@today-2T15:00:00+07:00",
-          "approvedByName": "Hoàng Văn Dũng",
           "items": [
             {
               "id": "pi-q4-v2-01",
@@ -257,10 +255,55 @@
               "standardScore": 10,
               "catalogItemId": "ci-tc-dv-09",
               "dueDate": "@today+70"
+            },
+            {
+              "id": "pi-q4-v2-10",
+              "itemNo": 8,
+              "title": "Thẩm định hồ sơ kết nạp đảng viên đợt 2",
+              "taskGroup": "THEN_CHOT",
+              "leadUnitId": "u-btc",
+              "coUnitIds": [],
+              "productName": "Phiếu thẩm định",
+              "plannedQuantity": 18,
+              "unit": "hồ sơ",
+              "standardScore": 20,
+              "keyResultId": "kr-1-1",
+              "catalogItemId": "ci-tc-dv-01",
+              "dueDate": "@today+35",
+              "changeReason": "Chi bộ 2, 7 bổ sung hồ sơ"
+            }
+          ],
+          "submittedByName": "Lê Minh Châu",
+          "submittedByTitle": "Phó Trưởng ban",
+          "submittedById": "u-lmchau",
+          "removedItems": [
+            {
+              "originItemId": "pi-q4-v1-tap-huan",
+              "changeReason": "Lùi sang Quý I/2027 theo chỉ đạo"
             }
           ]
         }
       ]
     }
-  ]
+  ],
+  "q4Adjustment": {
+    "$comment": "Hình 7.14: phiên bản 1 khác phiên bản 2 ở ba dòng; phiên bản 1 suy ra từ phiên bản 2 trong plans.mock.ts",
+    "addedCatalogItemId": "ci-tc-dv-06",
+    "addedReason": "Văn bản 518-CV/ĐUK ngày 14/10",
+    "changedItemId": "pi-q4-v2-10",
+    "quantityBefore": 15,
+    "removedItem": {
+      "id": "pi-q4-v1-tap-huan",
+      "itemNo": 0,
+      "title": "Tập huấn nghiệp vụ cho chi bộ cơ sở",
+      "taskGroup": "THEN_CHOT",
+      "leadUnitId": "u-btc",
+      "coUnitIds": [],
+      "productName": "Lớp tập huấn",
+      "plannedQuantity": 1,
+      "unit": "lớp",
+      "standardScore": 15,
+      "dueDate": "@today+42"
+    }
+  }
 }
