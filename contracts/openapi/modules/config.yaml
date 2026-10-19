@@ -2126,12 +2126,48 @@ components:
         activeTenants: { type: integer, minimum: 0, description: 'Số tenant `DANG_VAN_HANH`' }
         tenantLimit: { type: integer, description: 'Giới hạn thiết kế, 5.000' }
         totalAccounts: { type: integer, minimum: 0 }
-        accountLimit: { type: integer, description: 'Giới hạn thiết kế, 6 triệu (NFR-01)' }
+        accountLimit:
+          type: integer
+          description: >-
+            Giới hạn thiết kế về tài khoản (NFR-01), máy chủ trả theo cấu hình. Quy mô định cỡ đã chốt ngày
+            19/10/2026 là 6,5 triệu tài khoản (AGENTS.md mục 1); baseline NFR-01 và TL-02a còn ghi 6 triệu.
         onboardingTenants: { type: integer, minimum: 0, description: 'Số tenant đang khởi tạo' }
         cellCount: { type: integer, minimum: 0 }
+        dataCenterCount:
+          type: integer
+          minimum: 0
+          description: Số trung tâm dữ liệu chứa các cell, dòng phụ của thẻ Cell trên Hình 6.7 (suy luận tên trường).
         cellLoads:
           type: array
           items: { $ref: '#/components/schemas/CellLoad' }
+        onboarding:
+          type: array
+          description: >-
+            Mọi tenant đang khởi tạo của vùng (không phụ thuộc trang đang xem), để hiện MSG-01-02 "Tenant {tên}
+            đang khởi tạo bước {n}/6".
+          items:
+            type: object
+            required: [tenantId, name, step]
+            properties:
+              tenantId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+              name: { type: string }
+              step: { type: integer, minimum: 1, maximum: 6 }
+        pendingActions:
+          type: array
+          description: Danh sách việc cần xử lý của vùng điều phối toàn cục (SCR-0101 vùng 3, Hình 6.7).
+          items: { $ref: '#/components/schemas/TenantPendingAction' }
+    TenantPendingAction:
+      description: Một việc cần xử lý trên SCR-0101 vùng 3 (cấu trúc suy luận từ Hình 6.7).
+      type: object
+      required: [kind, message]
+      properties:
+        kind:
+          type: string
+          enum: [CHO, LICH, LOI]
+          description: '`CHO` việc chờ duyệt hoặc chờ thao tác, `LICH` việc đã lên lịch, `LOI` lỗi cần xử lý.'
+        tenantId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        message: { type: string, maxLength: 500, description: Nội dung tiếng Việt đã điền tham số }
+        dueAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
     ConfigTenantPage:
       type: object
       required: [items, nextCursor]
@@ -2140,6 +2176,12 @@ components:
           type: array
           items: { $ref: '#/components/schemas/ConfigTenantRow' }
         nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        total:
+          type: integer
+          minimum: 0
+          description: >-
+            Tổng số tenant khớp bộ lọc cho dòng "Hiển thị a–b trong n" (Hình 6.7); registry dưới 100.000 dòng
+            (TL-03) nên đếm chính xác được.
         summary: { $ref: '#/components/schemas/ConfigTenantSummary' }
       examples:
         - items:
@@ -2157,7 +2199,7 @@ components:
             activeTenants: 1284
             tenantLimit: 5000
             totalAccounts: 2418760
-            accountLimit: 6000000
+            accountLimit: 6500000
             onboardingTenants: 3
             cellCount: 7
             cellLoads:
@@ -2247,6 +2289,19 @@ components:
           type: array
           items: { $ref: '#/components/schemas/TenantPolicyBinding' }
         uiPackVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        uiPack:
+          type: object
+          readOnly: true
+          description: Tên và phiên bản UI Pack đang dùng (SCR-0101 trường 7, `config.ui_pack_version`).
+          required: [name, version]
+          properties:
+            name: { type: string }
+            version: { type: string }
+        statusLog:
+          type: array
+          readOnly: true
+          description: Nhật ký đổi trạng thái (`registry.tenant_status_log`, TL-03), mới nhất trước, cho trang chi tiết.
+          items: { $ref: '#/components/schemas/TenantStatusLogEntry' }
         idps:
           type: array
           items: { $ref: '#/components/schemas/TenantIdp' }
@@ -2360,13 +2415,31 @@ components:
       properties:
         reason: { type: string, maxLength: 500, description: 'Lý do, số văn bản (ghi `registry.tenant_status_log.reason`)' }
     ConfigTenantExportRequest:
-      description: Bộ lọc và định dạng tệp xuất (định dạng là suy luận).
+      description: Bộ lọc và định dạng tệp xuất, cùng bộ lọc với `GET /config/tenants` (định dạng là suy luận).
       type: object
       properties:
         cell: { type: string, maxLength: 16 }
         model: { $ref: '#/components/schemas/TenancyModel' }
         status: { $ref: '#/components/schemas/TenantStatus' }
-        format: { type: string, enum: [XLSX, CSV], default: XLSX }
+        q: { type: string, maxLength: 100, description: Từ khoá đang tìm trên danh sách }
+        format:
+          type: string
+          enum: [XLSX, CSV]
+          description: Định dạng tệp; vắng thì máy chủ dùng `XLSX`.
+    TenantStatusLogEntry:
+      description: Một lần đổi trạng thái tenant (`registry.tenant_status_log`).
+      type: object
+      required: [id, toStatus, reason, changedAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        fromStatus:
+          oneOf:
+            - $ref: '#/components/schemas/TenantStatus'
+            - type: 'null'
+        toStatus: { $ref: '#/components/schemas/TenantStatus' }
+        reason: { type: string, description: 'Lý do, số văn bản' }
+        actor: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        changedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
     TenantIdpTestRequest:
       description: IdP cần kiểm tra; gửi `idpAlias` của IdP đã lưu hoặc cấu hình đang soạn.
       type: object

@@ -1110,12 +1110,34 @@ export interface components {
       /** @description Giới hạn thiết kế, 5.000 */
       tenantLimit: number;
       totalAccounts: number;
-      /** @description Giới hạn thiết kế, 6 triệu (NFR-01) */
+      /** @description Giới hạn thiết kế về tài khoản (NFR-01), máy chủ trả theo cấu hình. Quy mô định cỡ đã chốt ngày 19/10/2026 là 6,5 triệu tài khoản (AGENTS.md mục 1); baseline NFR-01 và TL-02a còn ghi 6 triệu. */
       accountLimit: number;
       /** @description Số tenant đang khởi tạo */
       onboardingTenants: number;
       cellCount: number;
+      /** @description Số trung tâm dữ liệu chứa các cell, dòng phụ của thẻ Cell trên Hình 6.7 (suy luận tên trường). */
+      dataCenterCount?: number;
       cellLoads?: components['schemas']['CellLoad'][];
+      /** @description Mọi tenant đang khởi tạo của vùng (không phụ thuộc trang đang xem), để hiện MSG-01-02 "Tenant {tên} đang khởi tạo bước {n}/6". */
+      onboarding?: {
+        tenantId: components['schemas']['Uuid'];
+        name: string;
+        step: number;
+      }[];
+      /** @description Danh sách việc cần xử lý của vùng điều phối toàn cục (SCR-0101 vùng 3, Hình 6.7). */
+      pendingActions?: components['schemas']['TenantPendingAction'][];
+    };
+    /** @description Một việc cần xử lý trên SCR-0101 vùng 3 (cấu trúc suy luận từ Hình 6.7). */
+    TenantPendingAction: {
+      /**
+       * @description `CHO` việc chờ duyệt hoặc chờ thao tác, `LICH` việc đã lên lịch, `LOI` lỗi cần xử lý.
+       * @enum {string}
+       */
+      kind: 'CHO' | 'LICH' | 'LOI';
+      tenantId?: components['schemas']['Uuid'];
+      /** @description Nội dung tiếng Việt đã điền tham số */
+      message: string;
+      dueAt?: components['schemas']['DateTime'];
     };
     /**
      * @example {
@@ -1137,7 +1159,7 @@ export interface components {
      *         "activeTenants": 1284,
      *         "tenantLimit": 5000,
      *         "totalAccounts": 2418760,
-     *         "accountLimit": 6000000,
+     *         "accountLimit": 6500000,
      *         "onboardingTenants": 3,
      *         "cellCount": 7,
      *         "cellLoads": [
@@ -1155,6 +1177,8 @@ export interface components {
     ConfigTenantPage: {
       items: components['schemas']['ConfigTenantRow'][];
       nextCursor: components['schemas']['NextCursor'];
+      /** @description Tổng số tenant khớp bộ lọc cho dòng "Hiển thị a–b trong n" (Hình 6.7); registry dưới 100.000 dòng (TL-03) nên đếm chính xác được. */
+      total?: number;
       summary?: components['schemas']['ConfigTenantSummary'];
     };
     /** @description Policy Pack gốc gắn theo luồng (SCR-0102 trường 10; `policy.policy_binding.pack_version_id`). */
@@ -1279,6 +1303,13 @@ export interface components {
       kekMode?: components['schemas']['TenantKekMode'];
       policyBindings?: components['schemas']['TenantPolicyBinding'][];
       uiPackVersionId?: components['schemas']['Uuid'];
+      /** @description Tên và phiên bản UI Pack đang dùng (SCR-0101 trường 7, `config.ui_pack_version`). */
+      readonly uiPack?: {
+        name: string;
+        version: string;
+      };
+      /** @description Nhật ký đổi trạng thái (`registry.tenant_status_log`, TL-03), mới nhất trước, cho trang chi tiết. */
+      readonly statusLog?: components['schemas']['TenantStatusLogEntry'][];
       idps?: components['schemas']['TenantIdp'][];
       staffSources?: components['schemas']['TenantStaffSource'][];
       adminContact?: components['schemas']['TenantAdminContact'];
@@ -1354,16 +1385,28 @@ export interface components {
       /** @description Lý do, số văn bản (ghi `registry.tenant_status_log.reason`) */
       reason?: string;
     };
-    /** @description Bộ lọc và định dạng tệp xuất (định dạng là suy luận). */
+    /** @description Bộ lọc và định dạng tệp xuất, cùng bộ lọc với `GET /config/tenants` (định dạng là suy luận). */
     ConfigTenantExportRequest: {
       cell?: string;
       model?: components['schemas']['TenancyModel'];
       status?: components['schemas']['TenantStatus'];
+      /** @description Từ khoá đang tìm trên danh sách */
+      q?: string;
       /**
-       * @default XLSX
+       * @description Định dạng tệp; vắng thì máy chủ dùng `XLSX`.
        * @enum {string}
        */
-      format: 'XLSX' | 'CSV';
+      format?: 'XLSX' | 'CSV';
+    };
+    /** @description Một lần đổi trạng thái tenant (`registry.tenant_status_log`). */
+    TenantStatusLogEntry: {
+      id: components['schemas']['Uuid'];
+      fromStatus?: components['schemas']['TenantStatus'] | null;
+      toStatus: components['schemas']['TenantStatus'];
+      /** @description Lý do, số văn bản */
+      reason: string;
+      actor?: components['schemas']['Ref'];
+      changedAt: components['schemas']['DateTime'];
     };
     /**
      * @description IdP cần kiểm tra; gửi `idpAlias` của IdP đã lưu hoặc cấu hình đang soạn.
@@ -2925,6 +2968,12 @@ export interface components {
     /** @description Con trỏ trang kế tiếp; `null` khi đã hết. */
     NextCursor: string | null;
     /**
+     * Format: date-time
+     * @description Thời điểm ISO 8601 có múi giờ.
+     * @example 2026-10-19T08:30:00+07:00
+     */
+    DateTime: string;
+    /**
      * Format: date
      * @description Ngày theo lịch (ISO 8601), không có giờ.
      * @example 2026-12-15
@@ -2935,12 +2984,11 @@ export interface components {
      * @enum {string}
      */
     Flow: 'DANG' | 'NHA_NUOC';
-    /**
-     * Format: date-time
-     * @description Thời điểm ISO 8601 có múi giờ.
-     * @example 2026-10-19T08:30:00+07:00
-     */
-    DateTime: string;
+    /** @description Tham chiếu rút gọn tới một đối tượng kèm tên hiển thị. */
+    Ref: {
+      id: components['schemas']['Uuid'];
+      name: string;
+    };
     /**
      * @description Giá trị `row_version` (khoá lạc quan). Cùng giá trị với ETag, gửi lại trong `If-Match`.
      * @example 7
@@ -2964,11 +3012,6 @@ export interface components {
       resultLocation?: string;
       problem?: components['schemas']['ProblemDetails'];
       updatedAt?: components['schemas']['DateTime'];
-    };
-    /** @description Tham chiếu rút gọn tới một đối tượng kèm tên hiển thị. */
-    Ref: {
-      id: components['schemas']['Uuid'];
-      name: string;
     };
     /**
      * @description Trạng thái kỳ `config.period.status` (baseline mục 9.1).
