@@ -5,6 +5,7 @@ import { ORG_MOCK } from './org/org.mock';
 import { PLANS_MOCK } from './plans/plans.mock';
 import { OKR_MOCK } from './okr/okr.mock';
 import { TENANTS_MOCK } from './tenants/tenants.mock';
+import { ORG_TREE_MOCK } from './org-tree/org-tree.mock';
 
 /**
  * Danh mục fixture theo module API (`/api/v1/<module>`). Thêm module mới: tạo thư mục
@@ -18,6 +19,7 @@ export const MOCK_MODULES: MockModule[] = [
   PLANS_MOCK,
   OKR_MOCK,
   TENANTS_MOCK,
+  ORG_TREE_MOCK,
 ];
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);

@@ -43,6 +43,12 @@ export const ROUTES: Routes = [
     title: 'Khởi tạo tenant',
   },
   {
+    path: 'org',
+    canActivate: [permissionGuard('SCR-0103.xem')],
+    loadComponent: () => import('./pages/org/org-tree.page').then((m) => m.OrgTreePage),
+    title: 'Cây tổ chức',
+  },
+  {
     path: 'tenants/:id',
     canActivate: [permissionGuard('SCR-0101.xem')],
     loadComponent: () => import('./pages/tenant-detail.page').then((m) => m.TenantDetailPage),
