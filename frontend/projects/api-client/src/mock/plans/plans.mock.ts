@@ -1,18 +1,20 @@
+import { Job } from '../../lib/models/job';
 import {
+  Plan,
   PlanChangeType,
-  PlanCheckItem,
-  PlanCheckResult,
+  PlanCheck,
   PlanDiff,
-  PlanDiffRow,
+  PlanDiffLine,
   PlanItem,
+  PlanItemInput,
   PlanItemRef,
-  PlanSummary,
+  PlanSignRequest,
   PlanVersion,
-  PlanWorkspace,
+  PlanVersionStatus,
+  PlanVersionSummary,
   SignMethod,
-  SignRequest,
 } from '../../lib/models/plan';
-import { TaskGroup } from '../../lib/models/task';
+import { PeriodRef, TaskGroup } from '../../lib/models/task';
 import {
   MockModule,
   MockRequest,
@@ -23,32 +25,53 @@ import {
 } from '../mock-router';
 import catalogFixture from '../catalog/catalog.json';
 import okrFixture from '../okr/okr.json';
+import orgFixture from '../org/org.json';
 import { MOCK_ME, mockSession } from '../mock-session';
 import { workingDaysBetween } from '../tasks/tasks.mock';
 import fixture from './plans.json';
 
 /**
- * Giả lập `/api/v1/plans` (QT-04, MOD-02): dòng kế hoạch đã duyệt cho SCR-0501 (WEB-028) và lập kế hoạch
- * quý SCR-0402 (WEB-026): xem phiên bản, kiểm tra tức thì, lưu nháp (If-Match), sao chép quý trước,
- * gợi ý từ OKR, gửi duyệt, tạo điều chỉnh; phê duyệt SCR-0403 (WEB-027): so sánh phiên bản, trả lại,
- * duyệt và ký số qua yêu cầu ký của esign-service. Máy chủ là nơi chặn BR-04-02 … BR-04-06,
- * BR-04-08, BR-04-10 và MFA bước lên.
+ * Giả lập `/api/v1/plans` (QT-04, MOD-02) theo hợp đồng `tasks.yaml` (WEB-065): dòng kế hoạch đã duyệt
+ * cho SCR-0501 (WEB-028) và lập kế hoạch quý SCR-0402 (WEB-026): danh sách kế hoạch, phiên bản, kiểm tra
+ * tức thì, lưu nháp (If-Match), sao chép quý trước, gợi ý từ OKR, gửi duyệt, tạo điều chỉnh; phê duyệt
+ * SCR-0403 (WEB-027): so sánh phiên bản, trả lại, duyệt và ký số (202 Job, yêu cầu ký của esign-service).
+ * Máy chủ là nơi chặn BR-04-02 … BR-04-06, BR-04-08, BR-04-10 và MFA bước lên.
  */
 
 /** Dòng kế hoạch đã duyệt, ngày tương đối đã quy đổi. */
 export const approvedPlanItems = (): PlanItemRef[] =>
   resolveRelativeDates(structuredClone(fixture.items) as PlanItemRef[]);
 
-type StoredVersion = PlanVersion & { submittedById?: string };
-type StoredPlan = Omit<
-  PlanWorkspace,
-  'version' | 'versions' | 'workingDaysLeft' | 'groupWeights' | 'adjustmentsUsed' | 'adjustmentsMax'
-> & {
+/** Phiên bản trong kho giả lập: ngoài trường của hợp đồng còn người trình, mốc thời gian, dòng đã bỏ. */
+interface StoredVersion {
+  versionNo: number;
+  status: PlanVersionStatus;
+  rowVersion: number;
+  items: PlanItem[];
+  contentHash?: string | null;
+  reviewComment?: string | null;
+  signRequestId?: string;
+  submittedAt?: string;
+  submittedById?: string;
+  submittedByName?: string;
+  approvedAt?: string;
+  /** Lý do bỏ dòng của phiên bản trước (hợp đồng chưa có chỗ ghi, xem wiki/14). */
+  removedItems?: { originItemId: string; changeReason: string }[];
+}
+interface StoredPlan {
+  id: string;
+  code: string;
+  period: PeriodRef;
+  approvalDeadline: string;
+  unitId: string;
+  unitName: string;
+  effectiveVersionNo?: number;
   versions: StoredVersion[];
-};
-type StoredSign = SignRequest & {
+}
+type StoredSign = PlanSignRequest & {
   planId: string;
   versionNo: number;
+  method: SignMethod;
   comment?: string;
   polls: number;
 };
@@ -60,21 +83,26 @@ let seq = 0;
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const catalogItem = (id?: string) => catalogFixture.items.find((i) => i.id === id);
 const keyResults = () => okrFixture.keyResults;
+const unitRef = (id: string) => ({
+  id,
+  name: orgFixture.units.find((u) => u.id === id)?.name ?? '',
+});
+const groupWeights = (): Record<TaskGroup, number> => ({ ...fixture.groupWeights });
 
 /** Dòng 5–7 của phiên bản 2 Quý IV là các dòng đã duyệt dùng cho giao việc (`items`). */
-function fromApproved(r: PlanItemRef): PlanItem {
+function fromApproved(r: PlanItemRef, unit: { id: string; name: string }): PlanItem {
   const ci = catalogItem(r.catalogItemId);
   return {
     id: r.id,
-    itemNo: r.lineNo,
+    lineNo: r.lineNo,
     title: r.title,
     taskGroup: r.taskGroup,
     keyResultId: r.keyResultId,
-    leadUnitId: 'u-btc',
-    coUnitIds: [],
+    leadAssignee: { kind: 'UNIT', ...unit },
+    coAssignees: [],
     catalogItemId: r.catalogItemId,
     productName: r.productName,
-    plannedQuantity: r.quantity,
+    quantity: r.quantity,
     unit: r.unit,
     dueDate: r.dueDate,
     standardScore: ci?.baseScore ?? null,
@@ -83,13 +111,9 @@ function fromApproved(r: PlanItemRef): PlanItem {
 
 function withCatalog(i: PlanItem): PlanItem {
   const ci = catalogItem(i.catalogItemId);
-  return {
-    ...i,
-    catalogItemCode: ci?.code,
-    difficulty: ci?.difficulty,
-    // BR-04-05: điểm của dòng lấy từ danh mục; việc ngoài danh mục để cấp duyệt chấm.
-    standardScore: ci ? ci.baseScore : (i.standardScore ?? null),
-  };
+  // BR-04-05: điểm của dòng lấy từ danh mục; việc ngoài danh mục để cấp duyệt chấm.
+  const standardScore = ci ? ci.baseScore : (i.standardScore ?? null);
+  return { ...i, catalogItemCode: ci?.code, standardScore, pendingScore: standardScore == null };
 }
 
 const v1Id = (id: string) => (id.includes('-v2-') ? id.replace('-v2-', '-v1-') : `${id}-v1`);
@@ -99,11 +123,12 @@ function store(): StoredPlan[] {
   const raw = resolveRelativeDates(structuredClone(fixture.plans)) as unknown as StoredPlan[];
   plans = raw.map((p) => {
     const versions = p.versions.map((v) => ({ ...v }));
-    const q4v2 = versions.find((v) => v.id === 'pv-q4-2');
+    const q4v2 = p.id === 'plan-2026-q4' ? versions.find((v) => v.versionNo === 2) : undefined;
     if (q4v2)
-      q4v2.items = [...q4v2.items, ...approvedPlanItems().map(fromApproved)].sort(
-        (a, b) => a.itemNo - b.itemNo,
-      );
+      q4v2.items = [
+        ...q4v2.items,
+        ...approvedPlanItems().map((r) => fromApproved(r, unitRef(p.unitId))),
+      ].sort((a, b) => a.lineNo - b.lineNo);
     // Hình 7.14: phiên bản 1 = phiên bản 2 bỏ dòng thêm, số lượng dòng sửa như cũ, cộng dòng đã bỏ
     const adj = resolveRelativeDates(structuredClone(fixture.q4Adjustment));
     for (const v of versions) {
@@ -113,24 +138,24 @@ function store(): StoredPlan[] {
             .filter((i) => i.catalogItemId !== adj.addedCatalogItemId)
             .map((i) => ({
               ...i,
-              id: v1Id(i.id),
-              plannedQuantity: i.id === adj.changedItemId ? adj.quantityBefore : i.plannedQuantity,
+              id: v1Id(i.id!),
+              quantity: i.id === adj.changedItemId ? adj.quantityBefore : i.quantity,
               changeReason: undefined,
             })),
           adj.removedItem as PlanItem,
-        ].map((i, n) => ({ ...i, itemNo: n + 1 }));
+        ].map((i, n) => ({ ...i, lineNo: n + 1 }));
       }
       v.items = v.items.map(withCatalog);
     }
     if (q4v2) {
-      const v1 = versions.find((v) => v.id === 'pv-q4-1')!;
+      const v1 = versions.find((v) => v.versionNo === 1)!;
       q4v2.items = q4v2.items.map((i) => ({
         ...i,
-        originItemId: v1.items.find((o) => o.id === v1Id(i.id))?.id,
+        originItemId: v1.items.find((o) => o.id === v1Id(i.id!))?.id,
         changeReason: i.catalogItemId === adj.addedCatalogItemId ? adj.addedReason : i.changeReason,
       }));
     }
-    // phiên bản 1 đã duyệt có mã băm như lúc ký
+    // phiên bản đã gửi duyệt có mã băm như lúc gửi
     for (const v of versions) if (v.status !== 'NHAP') v.contentHash ??= contentHash(v.items);
     return { ...p, versions };
   });
@@ -150,42 +175,72 @@ function contentHash(items: PlanItem[]): string {
 }
 
 const latest = (p: StoredPlan) => p.versions[p.versions.length - 1];
+const effective = (p: StoredPlan) => p.versions.find((v) => v.versionNo === p.effectiveVersionNo);
 
-function workspace(p: StoredPlan, v: PlanVersion): PlanWorkspace {
+function summaryOf(p: StoredPlan, v: StoredVersion): PlanVersionSummary {
+  return {
+    planId: p.id,
+    versionNo: v.versionNo,
+    status: v.status,
+    unitName: p.unitName,
+    periodLabel: p.period.label,
+    itemCount: v.items.length,
+    submittedAt: v.submittedAt,
+    submittedByName: v.submittedByName,
+    approvedAt: v.approvedAt,
+  };
+}
+
+function planOf(p: StoredPlan): Plan {
   return structuredClone({
-    ...p,
-    workingDaysLeft: workingDaysBetween(todayIso(), p.approvalDeadline),
-    groupWeights: fixture.groupWeights,
+    id: p.id,
+    code: p.code,
+    period: p.period,
+    unitId: p.unitId,
+    unitName: p.unitName,
+    currentVersion: summaryOf(p, latest(p)),
+    effectiveVersionNo: p.effectiveVersionNo ?? null,
+    approvalDeadline: p.approvalDeadline,
     adjustmentsUsed: latest(p).versionNo - 1,
     adjustmentsMax: fixture.adjustmentsMax,
-    versions: p.versions.map(({ id, versionNo, status, isCurrent }) => ({
-      id,
-      versionNo,
-      status,
-      isCurrent,
-    })),
-    version: strip(v),
+    rowVersion: latest(p).rowVersion,
   });
 }
 
-/** Bỏ trường nội bộ của kho giả lập trước khi trả về. */
-function strip(v: StoredVersion): PlanVersion {
-  const { submittedById: _by, ...rest } = v;
-  return rest;
+/** Phiên bản theo lược đồ `PlanVersion`: kèm tỷ trọng nhóm và vi phạm còn lại của các dòng. */
+function versionOf(p: StoredPlan, v: StoredVersion): PlanVersion {
+  return structuredClone({
+    planId: p.id,
+    versionNo: v.versionNo,
+    status: v.status,
+    period: p.period,
+    unitName: p.unitName,
+    approvalDeadline: p.approvalDeadline,
+    workingDaysToDeadline: workingDaysBetween(todayIso(), p.approvalDeadline),
+    contentHash: v.contentHash ?? null,
+    reviewComment: v.reviewComment ?? null,
+    items: v.items,
+    groupWeights: groupWeights(),
+    // Phiên bản đã gửi duyệt đã qua kiểm tra lúc gửi; BR-04-11, BR-04-12 lúc duyệt cần dữ liệu minh chứng
+    // và nhiệm vụ đang làm, giả lập không có vi phạm.
+    checks: editable(v) ? checkPlan(p, v.items, baseItems(p, v)) : [],
+    signRequestId: v.signRequestId,
+    rowVersion: v.rowVersion,
+  });
 }
 
-const etag = (v: PlanVersion) => ({ ETag: `"${v.rowVersion}"` });
-const editable = (v: PlanVersion) => v.status === 'NHAP' || v.status === 'TRA_LAI';
+const etag = (v: { rowVersion: number }) => ({ ETag: `"${v.rowVersion}"` });
+const editable = (v: StoredVersion) => v.status === 'NHAP' || v.status === 'TRA_LAI';
 
-function locate(req: MockRequest): { p: StoredPlan; v: PlanVersion } | MockResponse {
+function locate(req: MockRequest): { p: StoredPlan; v: StoredVersion } | MockResponse {
   const p = store().find((x) => x.id === req.pathParams['id']);
   if (!p) return problem(404, 'Không tìm thấy kế hoạch');
-  const no = req.pathParams['v'] ? Number(req.pathParams['v']) : latest(p).versionNo;
+  const no = Number(req.pathParams['v']);
   const v = p.versions.find((x) => x.versionNo === no);
   return v ? { p, v } : problem(404, 'Không tìm thấy phiên bản kế hoạch');
 }
 
-function ifMatch(v: PlanVersion, req: MockRequest): MockResponse | null {
+function ifMatch(v: StoredVersion, req: MockRequest): MockResponse | null {
   const h = req.headers.get('If-Match');
   if (!h) return problem(428, 'Thiếu If-Match');
   return h.replace(/"/g, '') === String(v.rowVersion)
@@ -198,127 +253,135 @@ const GROUP_LABEL: Record<TaskGroup, string> = {
   THEN_CHOT: 'then chốt',
 };
 
-/** Danh sách kiểm tra kế hoạch (SCR-0402 vùng 4): cùng một hàm cho `check` và `submit`. */
+/** Dòng của phiên bản hiệu lực mà phiên bản điều chỉnh `v` dựa vào (BR-04-10). */
+function baseItems(p: StoredPlan, v: StoredVersion): PlanItem[] | undefined {
+  if (v.versionNo === 1) return undefined;
+  return [...p.versions].reverse().find((x) => x.versionNo < v.versionNo && x.status === 'DA_DUYET')
+    ?.items;
+}
+
+const FIELDS = [
+  'title',
+  'taskGroup',
+  'keyResultId',
+  'leadAssignee',
+  'coAssignees',
+  'catalogItemId',
+  'productName',
+  'quantity',
+  'unit',
+  'dueDate',
+  'recurrence',
+  'standardScore',
+] as const;
+
+const same = (a: unknown, b: unknown) => {
+  const norm = (x: unknown) =>
+    JSON.stringify(x ?? null) === '[]' ? 'null' : JSON.stringify(x ?? null);
+  return norm(a) === norm(b);
+};
+const changedFields = (before: PlanItem, after: PlanItem) =>
+  FIELDS.filter((f) => !same(before[f], after[f]));
+
+/**
+ * "Kiểm tra kế hoạch" (SCR-0402 vùng 4): vi phạm còn lại, cùng một hàm cho `check`, `submit` và
+ * `PlanVersion.checks`. `base` là dòng của phiên bản đã duyệt khi đang điều chỉnh (BR-04-10).
+ */
 export function checkPlan(
-  p: Pick<StoredPlan, 'periodStart' | 'periodEnd'>,
+  p: Pick<StoredPlan, 'period'>,
   items: PlanItem[],
-): PlanCheckResult {
-  const out: PlanCheckItem[] = [];
-  const add = (
-    rule: string,
-    level: PlanCheckItem['level'],
-    passed: boolean,
-    message: string,
-    itemNo?: number,
-  ) => out.push({ rule, level, passed, message, itemNo });
+  base?: PlanItem[],
+): PlanCheck[] {
+  const out: PlanCheck[] = [];
+  const add = (rule: string, level: PlanCheck['level'], message: string, lineNo?: number) =>
+    out.push(lineNo ? { rule, level, message, lineNo } : { rule, level, message });
+  const warnings: PlanCheck[] = [];
   const vague = catalogFixture.vagueWords;
+  const { startDate, endDate } = p.period;
+  const totals: Record<TaskGroup, number> = { THUONG_XUYEN: 0, THEN_CHOT: 0 };
 
-  const leadIssues = items.filter(
-    (i) =>
-      (!i.leadUnitId && !i.leadPersonId) || (i.leadUnitId && i.coUnitIds.includes(i.leadUnitId)),
-  );
-  if (!leadIssues.length) add('BR-04-02', 'CHAN', true, 'Mỗi việc có đúng 1 chủ trì');
-
-  const krs = keyResults();
-  const linked = new Set(items.map((i) => i.keyResultId).filter(Boolean));
-  const missingKr = krs.filter((k) => !linked.has(k.id));
-  add(
-    'BR-04-07',
-    'CANH_BAO',
-    true,
-    `${krs.length - missingKr.length}/${krs.length} KR có nhiệm vụ liên kết`,
-  );
-
-  const groupTotals: Record<TaskGroup, number> = { THUONG_XUYEN: 0, THEN_CHOT: 0 };
-  const warnings: PlanCheckItem[] = [];
   for (const i of items) {
-    const n = i.itemNo;
-    groupTotals[i.taskGroup] += i.standardScore ?? 0;
+    const n = i.lineNo;
+    totals[i.taskGroup] += i.standardScore ?? 0;
     if (!i.title.trim() || i.title.length > 500)
-      add('BR-04-04', 'CHAN', false, `Dòng ${n}: nội dung công việc bắt buộc, tối đa 500 ký tự`, n);
-    for (const x of leadIssues.filter((l) => l === i)) {
-      if (!x.leadUnitId && !x.leadPersonId)
-        add('BR-04-02', 'CHAN', false, `Dòng ${n} chưa có chủ trì.`, n);
-      else
-        add(
-          'BR-04-02',
-          'CHAN',
-          false,
-          `Dòng ${n} có 2 đơn vị chủ trì. Mỗi việc chỉ có đúng một chủ trì.`,
-          n,
-        );
-    }
+      add('BR-04-04', 'CHAN', `Dòng ${n}: nội dung công việc bắt buộc, tối đa 500 ký tự`, n);
+    if (!i.leadAssignee?.id) add('BR-04-02', 'CHAN', `Dòng ${n} chưa có chủ trì.`, n);
+    else if ((i.coAssignees ?? []).some((c) => c.id === i.leadAssignee.id))
+      add(
+        'BR-04-02',
+        'CHAN',
+        `Dòng ${n} có 2 đơn vị chủ trì. Mỗi việc chỉ có đúng một chủ trì.`,
+        n,
+      );
     const missing: string[] = [];
     if (!i.productName.trim()) missing.push('sản phẩm');
-    if (!(i.plannedQuantity && i.plannedQuantity > 0)) missing.push('số lượng');
-    if (!i.unit.trim()) missing.push('đơn vị tính');
-    const dueOk =
-      !!i.recurrence || (!!i.dueDate && i.dueDate >= p.periodStart && i.dueDate <= p.periodEnd);
-    if (!i.recurrence && !i.dueDate) missing.push('hạn');
+    if (!(i.quantity > 0)) missing.push('số lượng');
+    if (!i.unit?.trim()) missing.push('đơn vị tính');
+    if (!i.dueDate) missing.push('hạn');
     const words = vague.filter((w) => i.title.toLowerCase().includes(w));
     if (words.length && missing.length) {
       add(
         'BR-04-03',
         'CHAN',
-        false,
         `KPI mơ hồ ở dòng ${n}: "${words.join('", "')}". Vui lòng ghi rõ sản phẩm, đơn vị tính và hạn.`,
         n,
       );
     } else if (missing.length) {
-      add('BR-04-04', 'CHAN', false, `Dòng ${n} thiếu ${missing.join(', ')}.`, n);
+      add('BR-04-04', 'CHAN', `Dòng ${n} thiếu ${missing.join(', ')}.`, n);
     }
-    if (i.dueDate && !dueOk) add('BR-04-04', 'CHAN', false, `Dòng ${n}: hạn phải nằm trong kỳ.`, n);
+    if (i.dueDate && (i.dueDate < startDate || i.dueDate > endDate))
+      add('BR-04-04', 'CHAN', `Dòng ${n}: hạn phải nằm trong kỳ.`, n);
+    if (base) {
+      const before = base.find((b) => b.id === i.originItemId);
+      const changed = !before || changedFields(before, i).length > 0;
+      if (changed && !i.changeReason?.trim())
+        add('BR-04-10', 'CHAN', `Dòng ${n} thay đổi so với phiên bản đã duyệt, cần ghi lý do.`, n);
+    }
     if (i.standardScore == null)
       warnings.push({
         rule: 'BR-04-05',
         level: 'CANH_BAO',
-        passed: false,
+        lineNo: n,
         message: `Dòng ${n} chưa có điểm (việc ngoài danh mục)`,
-        itemNo: n,
       });
   }
   for (const g of ['THUONG_XUYEN', 'THEN_CHOT'] as TaskGroup[]) {
     const max = fixture.groupWeights[g];
-    if (groupTotals[g] > max)
+    if (totals[g] > max)
       add(
         'BR-04-06',
         'CHAN',
-        false,
-        `Tổng điểm nhóm ${GROUP_LABEL[g]} là ${groupTotals[g]}, vượt điểm tối đa ${max}.`,
+        `Tổng điểm nhóm ${GROUP_LABEL[g]} là ${totals[g]}, vượt điểm tối đa ${max}.`,
       );
   }
   out.push(...warnings);
-  for (const k of missingKr) add('BR-04-07', 'CANH_BAO', false, `${k.code} chưa có nhiệm vụ`);
-  return {
-    items: out,
-    groupTotals,
-    keyResultsWithoutItems: missingKr.map((k) => k.id),
-    keyResultCount: krs.length,
-  };
+  const linked = new Set(items.map((i) => i.keyResultId).filter(Boolean));
+  for (const k of keyResults().filter((k) => !linked.has(k.id)))
+    add('BR-04-07', 'CANH_BAO', `${k.code} chưa có nhiệm vụ`);
+  return out;
 }
 
 /** Máy chủ chuẩn hoá dòng: đánh lại số thứ tự, điểm theo danh mục, gắn mã dòng mới. */
-function sanitize(items: unknown): PlanItem[] {
-  return ((items ?? []) as Partial<PlanItem>[]).map((i, n) =>
+function sanitize(items: unknown, period: PeriodRef): PlanItem[] {
+  return ((items ?? []) as Partial<PlanItemInput>[]).map((i, n) =>
     withCatalog({
       id: i.id || `pi-new-${++seq}`,
-      itemNo: n + 1,
+      lineNo: n + 1,
       title: i.title ?? '',
       taskGroup: i.taskGroup ?? 'THUONG_XUYEN',
       keyResultId: i.keyResultId || undefined,
-      leadUnitId: i.leadUnitId || undefined,
-      leadPersonId: i.leadPersonId || undefined,
-      coUnitIds: i.coUnitIds ?? [],
+      leadAssignee: i.leadAssignee ?? { kind: 'UNIT', id: '', name: '' },
+      coAssignees: i.coAssignees ?? [],
       catalogItemId: i.catalogItemId || undefined,
       productName: i.productName ?? '',
-      plannedQuantity: i.plannedQuantity ?? null,
+      quantity: Number(i.quantity) || 0,
       unit: i.unit ?? '',
-      dueDate: i.recurrence ? undefined : i.dueDate || undefined,
+      dueDate: i.dueDate || period.endDate,
       recurrence: i.recurrence || undefined,
       // việc ngoài danh mục: điểm do cấp duyệt chấm, chỉ giữ điểm đã chấm ở phiên bản trước
       standardScore: i.originItemId ? (i.standardScore ?? null) : null,
       originItemId: i.originItemId,
-      changeReason: i.changeReason,
+      changeReason: i.changeReason || undefined,
     }),
   );
 }
@@ -326,21 +389,21 @@ function sanitize(items: unknown): PlanItem[] {
 function save(req: MockRequest): MockResponse {
   const hit = locate(req);
   if ('status' in hit) return hit;
-  const { v } = hit;
+  const { p, v } = hit;
   const conflict = ifMatch(v, req);
   if (conflict) return conflict;
   if (!editable(v)) return problem(409, 'Phiên bản đã gửi duyệt hoặc đã duyệt, không sửa được');
-  const items = sanitize((req.body as { items?: unknown })?.items);
+  const items = sanitize((req.body as { items?: unknown })?.items, p.period);
   const bad = items.find((i) => i.title.length > 500);
   if (bad)
     return problem(422, 'Dữ liệu không hợp lệ', {
       errors: [
-        { field: `items[${bad.itemNo - 1}].title`, message: 'Nội dung công việc tối đa 500 ký tự' },
+        { field: `items[${bad.lineNo - 1}].title`, message: 'Nội dung công việc tối đa 500 ký tự' },
       ],
     });
   v.items = items;
   v.rowVersion++;
-  return ok(structuredClone(strip(v)), etag(v));
+  return ok(versionOf(p, v), etag(v));
 }
 
 function copyFrom(req: MockRequest): MockResponse {
@@ -352,48 +415,43 @@ function copyFrom(req: MockRequest): MockResponse {
   if (v.versionNo !== 1 || v.items.length || !editable(v))
     return problem(409, 'Chỉ sao chép vào phiên bản 1 còn trống');
   const prev = store()
-    .filter((x) => x.periodEnd < p.periodStart)
-    .sort((a, b) => b.periodEnd.localeCompare(a.periodEnd))[0];
-  const src = prev?.versions.find((x) => x.isCurrent);
+    .filter((x) => x.period.endDate < p.period.startDate)
+    .sort((a, b) => b.period.endDate.localeCompare(a.period.endDate))[0];
+  const src = prev && effective(prev);
   if (!src) return problem(404, 'Không có kế hoạch đã duyệt của quý trước');
-  const shift = (d?: string) => {
-    if (!d) return undefined;
+  const shift = (d: string) => {
     const t = new Date(d + 'T00:00:00Z').getTime() + 91 * 86_400_000;
     return new Date(t).toISOString().slice(0, 10);
   };
   // dòng thường xuyên và dòng then chốt chưa tới hạn (suy luận "chưa hoàn thành"), hạn dịch một quý
-  const picked = src.items.filter(
-    (i) => i.taskGroup === 'THUONG_XUYEN' || (i.dueDate ?? '') >= todayIso(),
-  );
+  const picked = src.items.filter((i) => i.taskGroup === 'THUONG_XUYEN' || i.dueDate >= todayIso());
   v.items = sanitize(
     picked.map((i) => ({ ...i, id: '', originItemId: undefined, dueDate: shift(i.dueDate) })),
+    p.period,
   );
   v.rowVersion++;
-  return ok(structuredClone(v), etag(v));
+  return ok(versionOf(p, v), etag(v));
 }
 
 function suggestions(req: MockRequest): MockResponse {
-  const hit = locate(req);
-  if ('status' in hit) return hit;
-  const linked = new Set(hit.v.items.map((i) => i.keyResultId));
-  const items = keyResults()
+  const p = store().find((x) => x.id === req.pathParams['id']);
+  if (!p) return problem(404, 'Không tìm thấy kế hoạch');
+  const linked = new Set(latest(p).items.map((i) => i.keyResultId));
+  const items: PlanItemInput[] = keyResults()
     .filter((k) => !linked.has(k.id))
-    .map((k, n) =>
-      withCatalog({
-        id: '',
-        itemNo: n + 1,
-        title: `Triển khai ${k.code}: ${k.title}`,
-        taskGroup: 'THEN_CHOT',
-        keyResultId: k.id,
-        leadUnitId: hit.p.unitId,
-        coUnitIds: [],
-        productName: '',
-        plannedQuantity: null,
-        unit: '',
-        standardScore: null,
-      }),
-    );
-  return ok({ items, nextCursor: null });
+    .map((k) => ({
+      title: `Triển khai ${k.code}: ${k.title}`,
+      taskGroup: 'THEN_CHOT',
+      keyResultId: k.id,
+      leadAssignee: { kind: 'UNIT', ...unitRef(p.unitId) },
+      coAssignees: [],
+      productName: '',
+      quantity: 0,
+      unit: '',
+      dueDate: p.period.endDate,
+      standardScore: null,
+    }));
+  return ok({ items });
 }
 
 function submit(req: MockRequest): MockResponse {
@@ -407,31 +465,26 @@ function submit(req: MockRequest): MockResponse {
     return problem(422, 'Kế hoạch chưa có dòng nào', {
       errors: [{ field: 'items', message: 'Thêm ít nhất một công việc' }],
     });
-  if (v.versionNo > 1 && !v.changeReason?.trim())
-    return problem(422, 'Thiếu lý do điều chỉnh', {
-      errors: [{ field: 'changeReason', message: 'Ghi lý do điều chỉnh' }],
-    });
-  const errors = checkPlan(p, v.items)
-    .items.filter((i) => i.level === 'CHAN' && !i.passed)
-    .map((i) => ({ field: i.itemNo ? `items[${i.itemNo - 1}]` : i.rule, message: i.message }));
+  const errors = checkPlan(p, v.items, baseItems(p, v))
+    .filter((i) => i.level === 'CHAN')
+    .map((i) => ({ field: i.lineNo ? `items[${i.lineNo - 1}]` : i.rule, message: i.message }));
   if (errors.length) return problem(422, 'Kế hoạch còn lỗi chặn gửi duyệt', { errors });
   Object.assign(v, {
     status: 'CHO_DUYET',
     submittedAt: new Date().toISOString(),
     submittedById: MOCK_ME.id,
     submittedByName: MOCK_ME.name,
-    submittedByTitle: undefined,
     contentHash: contentHash(v.items),
     rowVersion: v.rowVersion + 1,
   });
-  return ok(structuredClone(v), etag(v));
+  return ok(versionOf(p, v), etag(v));
 }
 
 function createAdjustment(req: MockRequest): MockResponse {
   const p = store().find((x) => x.id === req.pathParams['id']);
   if (!p) return problem(404, 'Không tìm thấy kế hoạch');
   const last = latest(p);
-  const current = p.versions.find((x) => x.isCurrent);
+  const current = effective(p);
   if (!current || last.status !== 'DA_DUYET')
     return problem(409, 'Chỉ tạo điều chỉnh từ phiên bản đã duyệt mới nhất');
   const used = last.versionNo - 1;
@@ -439,18 +492,10 @@ function createAdjustment(req: MockRequest): MockResponse {
     return problem(409, `Kế hoạch đã điều chỉnh ${used} lần trong quý, đạt giới hạn.`, {
       code: 'PLAN-409-ADJUSTMENT-LIMIT',
     });
-  const reason = (req.body as { changeReason?: string })?.changeReason?.trim();
-  if (!reason)
-    return problem(422, 'Dữ liệu không hợp lệ', {
-      errors: [{ field: 'changeReason', message: 'Ghi lý do điều chỉnh' }],
-    });
-  const next: PlanVersion = {
-    id: `pv-${p.id}-${last.versionNo + 1}`,
+  const next: StoredVersion = {
     versionNo: last.versionNo + 1,
     status: 'NHAP',
     rowVersion: 0,
-    isCurrent: false,
-    changeReason: reason,
     items: current.items.map((i) => ({
       ...i,
       id: `${i.id}-n${last.versionNo + 1}`,
@@ -459,31 +504,7 @@ function createAdjustment(req: MockRequest): MockResponse {
     })),
   };
   p.versions.push(next);
-  return { status: 201, body: structuredClone(next), headers: etag(next) };
-}
-
-const FIELDS: (keyof PlanItem)[] = [
-  'title',
-  'taskGroup',
-  'keyResultId',
-  'leadUnitId',
-  'leadPersonId',
-  'coUnitIds',
-  'catalogItemId',
-  'productName',
-  'plannedQuantity',
-  'unit',
-  'dueDate',
-  'recurrence',
-  'standardScore',
-];
-
-/** Phiên bản so sánh mặc định: phiên bản đã duyệt gần nhất trước `v` (SCR-0403 trường 1). */
-function baseOf(p: StoredPlan, v: StoredVersion, no?: number): StoredVersion | undefined {
-  if (no) return p.versions.find((x) => x.versionNo === no && x.versionNo !== v.versionNo);
-  return [...p.versions]
-    .reverse()
-    .find((x) => x.versionNo < v.versionNo && x.status === 'DA_DUYET');
+  return { status: 201, body: versionOf(p, next), headers: etag(next) };
 }
 
 /** So sánh theo `originItemId` (TL-02 SCR-0403 trường 2): thêm, sửa, bỏ, không đổi. */
@@ -491,63 +512,36 @@ function diff(req: MockRequest): MockResponse {
   const hit = locate(req);
   if ('status' in hit) return hit;
   const { p, v } = hit;
-  const baseNo = Number(req.params.get('base')) || undefined;
-  const base = baseOf(p, v, baseNo);
-  if (baseNo && !base) return problem(404, 'Không tìm thấy phiên bản so sánh');
-  const rows: PlanDiffRow[] = v.items.map((after) => {
-    const before = base?.items.find((b) => b.id === after.originItemId);
-    if (!before) return { change: 'THEM', after, changedFields: [], reason: after.changeReason };
-    const changedFields = FIELDS.filter(
-      (f) => JSON.stringify(before[f] ?? null) !== JSON.stringify(after[f] ?? null),
-    );
-    const change: PlanChangeType = changedFields.length ? 'SUA' : 'GIU';
-    return { change, before, after, changedFields, reason: after.changeReason };
+  const baseNo = Number(req.params.get('base'));
+  if (!baseNo) return problem(400, 'Thiếu phiên bản gốc để so sánh (base)');
+  const base = p.versions.find((x) => x.versionNo === baseNo && x.versionNo !== v.versionNo);
+  if (!base) return problem(404, 'Không tìm thấy phiên bản so sánh');
+  const lines: PlanDiffLine[] = v.items.map((after) => {
+    const before = base.items.find((b) => b.id === after.originItemId);
+    if (!before) return { change: 'THEM', after, reason: after.changeReason };
+    const fields = changedFields(before, after);
+    const change: PlanChangeType = fields.length ? 'SUA' : 'KHONG_DOI';
+    return { change, before, after, changedFields: [...fields], reason: after.changeReason };
   });
   const kept = new Set(v.items.map((i) => i.originItemId));
-  for (const before of base?.items ?? []) {
+  for (const before of base.items) {
     if (kept.has(before.id)) continue;
     const reason = v.removedItems?.find((r) => r.originItemId === before.id)?.changeReason;
-    rows.push({ change: 'BO', before, changedFields: [], reason });
+    lines.push({ change: 'BO', before, reason });
   }
-  const count = (c: PlanChangeType) => rows.filter((r) => r.change === c).length;
-  const max = fixture.groupWeights.THEN_CHOT;
+  const count = (c: PlanChangeType) => lines.filter((r) => r.change === c).length;
   const body: PlanDiff = {
-    planId: p.id,
-    periodLabel: p.periodLabel,
-    unitName: p.unitName,
-    base: base && {
-      versionNo: base.versionNo,
-      status: base.status,
-      approvedAt: base.approvedAt,
-      approvedByName: base.approvedByName,
-    },
-    target: {
-      versionNo: v.versionNo,
-      status: v.status,
-      rowVersion: v.rowVersion,
-      submittedAt: v.submittedAt,
-      submittedByName: v.submittedByName,
-      submittedByTitle: v.submittedByTitle,
-      contentHash: v.contentHash,
-      changeReason: v.changeReason,
-      reviewComment: v.reviewComment,
-      approvedAt: v.approvedAt,
-      approvedByName: v.approvedByName,
-    },
+    baseVersionNo: base.versionNo,
+    versionNo: v.versionNo,
+    added: count('THEM'),
+    modified: count('SUA'),
+    removed: count('BO'),
+    groupWeightChanged: false,
     adjustmentNo: v.versionNo - 1,
     adjustmentsMax: fixture.adjustmentsMax,
-    keyGroupMax: { before: max, after: max },
-    summary: {
-      added: count('THEM'),
-      changed: count('SUA'),
-      removed: count('BO'),
-      unchanged: count('GIU'),
-    },
-    rows,
-    // BR-04-11, BR-04-12 cần dữ liệu minh chứng và nhiệm vụ đang thực hiện; giả lập không có vi phạm
-    violations: [],
+    lines: req.params.get('mode') === 'all' ? lines : lines.filter((l) => l.change !== 'KHONG_DOI'),
   };
-  return ok(structuredClone(body), etag(v));
+  return ok(structuredClone(body));
 }
 
 function pending(req: MockRequest): { p: StoredPlan; v: StoredVersion } | MockResponse {
@@ -572,10 +566,10 @@ function returnPlan(req: MockRequest): MockResponse {
     reviewComment: comment,
     rowVersion: hit.v.rowVersion + 1,
   });
-  return ok(structuredClone(strip(hit.v)), etag(hit.v));
+  return ok(versionOf(hit.p, hit.v), etag(hit.v));
 }
 
-/** "Duyệt và ký số": BR-04-08, MFA trong 15 phút, rồi tạo yêu cầu ký 120 giây (MSG-04-09). */
+/** "Duyệt và ký số": BR-04-08, MFA trong 15 phút, rồi tạo yêu cầu ký 120 giây (MSG-04-09), trả 202 Job. */
 function approve(req: MockRequest): MockResponse {
   const hit = pending(req);
   if ('status' in hit) return hit;
@@ -605,21 +599,28 @@ function approve(req: MockRequest): MockResponse {
       ],
     });
   const sign: StoredSign = {
-    id: `sr-${++seq}`,
-    status: mockSession.esignDown() ? 'CHO_GUI_LAI' : 'CHO_KY',
-    method: body.signMethod,
+    id: `0192a1e5-0000-7000-8fff-${String(++seq).padStart(12, '0')}`,
+    status: mockSession.esignDown() ? 'LOI' : 'CHO_XAC_NHAN',
     expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    completedAt: null,
+    method: body.signMethod,
     planId: p.id,
     versionNo: v.versionNo,
     comment: body.comment?.trim() || undefined,
     polls: 0,
   };
   signs.push(sign);
-  const { planId: _p, versionNo: _v, comment: _c, polls: _n, ...out } = sign;
+  v.signRequestId = sign.id;
+  const job: Job = {
+    id: `job-plan-approve-${seq}`,
+    type: 'ESIGN_PLAN_APPROVAL',
+    status: sign.status === 'LOI' ? 'THAT_BAI' : 'DANG_CHAY',
+    message: 'Chờ người duyệt xác nhận ký trên MySign',
+  };
   return {
     status: 202,
-    body: out,
-    headers: { Location: `/api/v1/esign/requests/${sign.id}` },
+    body: job,
+    headers: { Location: `/api/v1/jobs/${job.id}`, 'Retry-After': '2' },
   };
 }
 
@@ -627,23 +628,21 @@ function approve(req: MockRequest): MockResponse {
 function signStatus(req: MockRequest): MockResponse {
   const s = signs.find((x) => x.id === req.pathParams['id']);
   if (!s) return problem(404, 'Không tìm thấy yêu cầu ký');
-  if (s.status === 'CHO_KY' && ++s.polls >= 2) {
+  if (s.status === 'CHO_XAC_NHAN' && ++s.polls >= 2) {
     const p = store().find((x) => x.id === s.planId)!;
     const v = p.versions.find((x) => x.versionNo === s.versionNo)!;
     const now = new Date().toISOString();
-    for (const x of p.versions) x.isCurrent = false;
+    p.effectiveVersionNo = v.versionNo;
     Object.assign(v, {
       status: 'DA_DUYET',
-      isCurrent: true,
       approvedAt: now,
-      approvedByName: MOCK_ME.name,
       reviewComment: s.comment,
       rowVersion: v.rowVersion + 1,
     });
-    Object.assign(s, { status: 'DA_KY', signedAt: now });
+    Object.assign(s, { status: 'DA_KY', completedAt: now });
   }
-  const { planId: _p, versionNo: _v, comment: _c, polls: _n, ...out } = s;
-  return ok(out);
+  const { id, status, expiresAt, completedAt } = s;
+  return ok({ id, status, expiresAt, completedAt });
 }
 
 export const PLANS_MOCK: MockModule = {
@@ -663,25 +662,24 @@ export const PLANS_MOCK: MockModule = {
     {
       method: 'GET',
       pattern: '/api/v1/plans',
-      handle: () => {
-        const items: PlanSummary[] = [...store()]
-          .sort((a, b) => b.periodStart.localeCompare(a.periodStart))
-          .map((p) => ({
-            id: p.id,
-            periodId: p.periodId,
-            periodLabel: p.periodLabel,
-            latestVersionNo: latest(p).versionNo,
-            latestStatus: latest(p).status,
-          }));
+      handle: (r) => {
+        const status = r.params.get('status');
+        const items = [...store()]
+          .sort((a, b) => b.period.startDate.localeCompare(a.period.startDate))
+          .filter((p) => !r.params.get('period') || p.period.id === r.params.get('period'))
+          .filter((p) => !r.params.get('unit') || p.unitId === r.params.get('unit'))
+          .filter((p) => !status || latest(p).status === status)
+          .map(planOf);
         return ok({ items, nextCursor: null });
       },
     },
     {
       method: 'GET',
-      pattern: '/api/v1/plans/:id',
+      pattern: '/api/v1/plans/:id/versions',
       handle: (r) => {
-        const hit = locate(r);
-        return 'status' in hit ? hit : ok(workspace(hit.p, hit.v), etag(hit.v));
+        const p = store().find((x) => x.id === r.pathParams['id']);
+        if (!p) return problem(404, 'Không tìm thấy kế hoạch');
+        return ok({ items: [...p.versions].reverse().map((v) => summaryOf(p, v)) });
       },
     },
     {
@@ -689,7 +687,7 @@ export const PLANS_MOCK: MockModule = {
       pattern: '/api/v1/plans/:id/versions/:v',
       handle: (r) => {
         const hit = locate(r);
-        return 'status' in hit ? hit : ok(workspace(hit.p, hit.v), etag(hit.v));
+        return 'status' in hit ? hit : ok(versionOf(hit.p, hit.v), etag(hit.v));
       },
     },
     {
@@ -698,7 +696,8 @@ export const PLANS_MOCK: MockModule = {
       handle: (r) => {
         const hit = locate(r);
         if ('status' in hit) return hit;
-        return ok(checkPlan(hit.p, sanitize((r.body as { items?: unknown })?.items)));
+        const items = sanitize((r.body as { items?: unknown })?.items, hit.p.period);
+        return ok({ checks: checkPlan(hit.p, items, baseItems(hit.p, hit.v)) });
       },
     },
     { method: 'PUT', pattern: '/api/v1/plans/:id/versions/:v', handle: save },

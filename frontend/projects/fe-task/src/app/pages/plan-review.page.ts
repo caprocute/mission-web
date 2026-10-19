@@ -4,13 +4,15 @@
  * 5 mã băm phiên bản (SHA-256), 6 ý kiến người duyệt (bắt buộc khi trả lại, ≤ 2.000), 7 phương thức ký số
  * (MySign, USB token, chứng thư tổ chức), 8 yêu cầu ký (ẩn).
  * Chức năng: "Chỉ hiện thay đổi / Toàn bộ" (`GET …/versions/{v}/diff?base=`), "Trả lại" (`POST …/return`,
- * EVT-21), "Duyệt và ký số" (`POST …/approve` kèm Idempotency-Key, rồi theo dõi `/api/v1/esign/requests/{id}`;
- * EVT-18, EVT-03).
+ * EVT-21), "Duyệt và ký số" (`POST …/approve` kèm Idempotency-Key trả 202 Job; mã yêu cầu ký đọc ở
+ * `PlanVersion.signRequestId`, rồi theo dõi `GET /esign/requests/{id}`; EVT-18, EVT-03).
+ * Dữ liệu (WEB-065): `GET /plans/{id}/versions`, `GET …/versions/{v}` và diff ghép ở client; phiên bản đầu
+ * so với kế hoạch rỗng (mọi dòng là Thêm).
  * Quy tắc: BR-04-08 người duyệt khác người lập (403), BR-04-09 ký số bắt buộc, phiên bản đã duyệt bất biến,
  * BR-04-10 lần điều chỉnh, BR-04-11 không bỏ việc đã có minh chứng xác nhận, BR-04-12 hạn nhiệm vụ đang
  * làm không đổi; BR-00-02 MFA trong 15 phút (401 `insufficient_user_authentication`).
  * Thông báo: MSG-04-09 chờ xác nhận trên MySign 120 giây, MSG-04-10 duyệt xong, MSG-04-11, MSG-04-12 (vi
- * phạm do máy chủ trả), MSG-04-13 dịch vụ ký số gián đoạn.
+ * phạm do máy chủ trả trong `checks`), MSG-04-13 dịch vụ ký số gián đoạn.
  */
 import { Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
@@ -18,15 +20,15 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
-  OrgApi,
+  EsignRequestStatus,
   PLAN_CHANGE_LABEL,
   PLAN_RECURRENCE_LABEL,
   PlanApi,
-  PlanDiffRow,
+  PlanDiffLine,
   PlanItem,
+  PlanSignRequest,
   SIGN_METHOD_LABEL,
   SignMethod,
-  SignRequest,
   TASK_GROUP_LABEL,
   toProblem,
 } from '@vt/api-client';
@@ -34,7 +36,7 @@ import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TextareaModule } from 'primeng/textarea';
-import { firstValueFrom, switchMap } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { TASK_CAN } from '../task-permissions';
 import { formatDate } from '../task-ui';
 import { PLAN_STEP_UP } from './plan/step-up';
@@ -44,7 +46,9 @@ type Busy = 'approve' | 'return' | 'stepup' | null;
 
 /** Phương thức đã liên kết chứng thư; còn lại hiện để biết nhưng chưa chọn được (suy luận, xem wiki/05a). */
 const LINKED: SignMethod[] = ['MYSIGN'];
-const ORDER = { THEM: 0, SUA: 1, BO: 2, GIU: 3 } as const;
+const ORDER = { THEM: 0, SUA: 1, BO: 2, KHONG_DOI: 3 } as const;
+/** Yêu cầu ký còn chờ người duyệt xác nhận trên MySign. */
+const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
 
 @Component({
   selector: 'vt-plan-review-page',
@@ -52,24 +56,25 @@ const ORDER = { THEM: 0, SUA: 1, BO: 2, GIU: 3 } as const;
   template: `
     @if (!can('SCR-0403.so-sanh')) {
       <p class="msg warn">Anh/chị không có quyền xem xét kế hoạch của đơn vị.</p>
-    } @else if (diff.error()) {
+    } @else if (review.error()) {
       <p class="msg err" role="alert">{{ loadError() }}</p>
-    } @else if (diff.value(); as d) {
-      @let t = d.target;
+    } @else if (review.value(); as d) {
+      @let t = d.version;
+      @let x = d.diff;
       <header class="top">
         <div>
           <h1>
             {{ d.base ? 'Phê duyệt điều chỉnh kế hoạch' : 'Phê duyệt kế hoạch' }}
-            {{ d.periodLabel }}
+            {{ t.period.label }}
           </h1>
           <p class="muted sub">
-            {{ d.unitName }} ·
+            {{ t.unitName }} ·
             @if (d.base; as b) {
               so sánh phiên bản {{ b.versionNo }} (đã duyệt
               {{ b.approvedAt ? date(b.approvedAt) : '' }}, ký số) với phiên bản
-              {{ t.versionNo }} (trình {{ t.submittedAt ? date(t.submittedAt) : '' }})
+              {{ t.versionNo }} (trình {{ submittedAt() }})
             } @else {
-              phiên bản {{ t.versionNo }} (trình {{ t.submittedAt ? date(t.submittedAt) : '' }})
+              phiên bản {{ t.versionNo }} (trình {{ submittedAt() }})
             }
           </p>
         </div>
@@ -92,9 +97,7 @@ const ORDER = { THEM: 0, SUA: 1, BO: 2, GIU: 3 } as const;
       @if (t.status === 'DA_DUYET') {
         <p class="msg ok">
           Phiên bản {{ t.versionNo }} đã duyệt và ký số lúc
-          {{ t.approvedAt | date: 'dd/MM/yyyy HH:mm' }}
-          {{ t.approvedByName ? 'bởi đồng chí ' + t.approvedByName : '' }}; phiên bản đã duyệt không
-          sửa được.
+          {{ d.summary?.approvedAt | date: 'dd/MM/yyyy HH:mm' }}; phiên bản đã duyệt không sửa được.
         </p>
       } @else if (t.status === 'TRA_LAI') {
         <p class="msg warn">Kế hoạch đã được trả lại cho người lập: {{ t.reviewComment }}</p>
@@ -106,28 +109,30 @@ const ORDER = { THEM: 0, SUA: 1, BO: 2, GIU: 3 } as const;
         @if (d.base) {
           <div class="card">
             <span class="num" aria-hidden="true">1</span>
-            <span class="lbl">Thêm mới</span><strong class="big add">{{ d.summary.added }}</strong>
+            <span class="lbl">Thêm mới</span><strong class="big add">{{ x.added }}</strong>
           </div>
           <div class="card">
-            <span class="lbl">Sửa</span><strong class="big chg">{{ d.summary.changed }}</strong>
+            <span class="lbl">Sửa</span><strong class="big chg">{{ x.modified }}</strong>
           </div>
           <div class="card">
-            <span class="lbl">Bỏ</span><strong class="big del">{{ d.summary.removed }}</strong>
+            <span class="lbl">Bỏ</span><strong class="big del">{{ x.removed }}</strong>
           </div>
         } @else {
           <div class="card">
             <span class="num" aria-hidden="true">1</span>
-            <span class="lbl">Số công việc</span><strong class="big">{{ d.rows.length }}</strong>
+            <span class="lbl">Số công việc</span><strong class="big">{{ x.lines.length }}</strong>
           </div>
         }
         <div class="card">
           <span class="lbl">Tổng điểm then chốt</span>
           <strong class="big"
-            >{{ d.keyGroupMax.before }} <span aria-hidden="true">→</span
-            ><span class="sr-only">thành</span> {{ d.keyGroupMax.after }}</strong
+            >{{ keyMax().before }} <span aria-hidden="true">→</span
+            ><span class="sr-only">thành</span> {{ keyMax().after }}</strong
           >
           <span class="muted small">{{
-            d.keyGroupMax.before === d.keyGroupMax.after ? 'không đổi tỷ trọng' : 'đổi tỷ trọng'
+            x.groupWeightChanged || keyMax().before !== keyMax().after
+              ? 'đổi tỷ trọng'
+              : 'không đổi tỷ trọng'
           }}</span>
         </div>
       </section>
@@ -201,7 +206,7 @@ const ORDER = { THEM: 0, SUA: 1, BO: 2, GIU: 3 } as const;
                         @if (r.change === 'BO') {
                           <s>{{ r.reason || '—' }}</s>
                         } @else {
-                          {{ r.change === 'GIU' ? '' : r.reason || '—' }}
+                          {{ r.change === 'KHONG_DOI' ? '' : r.reason || '—' }}
                         }
                       </td>
                     }
@@ -216,8 +221,8 @@ const ORDER = { THEM: 0, SUA: 1, BO: 2, GIU: 3 } as const;
               </tbody>
             </table>
           </div>
-          @for (x of d.violations; track $index) {
-            <p class="msg err">{{ x.message }}</p>
+          @for (c of blocking(); track $index) {
+            <p class="msg err">{{ c.message }}</p>
           }
           @if (d.base && !simple()) {
             <p class="msg info note">
@@ -235,25 +240,18 @@ const ORDER = { THEM: 0, SUA: 1, BO: 2, GIU: 3 } as const;
             </h2>
             <dl class="meta">
               <dt>Người trình</dt>
-              <dd>
-                {{ t.submittedByName || '—'
-                }}{{ t.submittedByTitle ? ' · ' + t.submittedByTitle : '' }}
-              </dd>
-              @if (d.adjustmentNo > 0) {
+              <dd>{{ d.summary?.submittedByName || '—' }}</dd>
+              @if ((x.adjustmentNo ?? 0) > 0) {
                 <dt>Lần điều chỉnh</dt>
-                <dd>{{ d.adjustmentNo }} / tối đa {{ d.adjustmentsMax }} trong quý</dd>
+                <dd>{{ x.adjustmentNo }} / tối đa {{ x.adjustmentsMax }} trong quý</dd>
               }
               <dt>Hiệu lực</dt>
               <dd>Từ ngày duyệt; không hồi tố</dd>
-              @if (t.changeReason && !simple()) {
-                <dt>Lý do điều chỉnh</dt>
-                <dd>{{ t.changeReason }}</dd>
-              }
               @if (!simple()) {
                 <dt>Mã băm v{{ t.versionNo }}</dt>
                 <dd>
                   <code class="hash" [title]="t.contentHash ?? ''"
-                    >sha256: {{ shortHash(t.contentHash) }}</code
+                    >sha256: {{ shortHash(t.contentHash ?? undefined) }}</code
                   >
                 </dd>
               }
@@ -313,14 +311,14 @@ const ORDER = { THEM: 0, SUA: 1, BO: 2, GIU: 3 } as const;
                 </div>
               }
               @if (sign(); as s) {
-                @if (s.status === 'CHO_KY') {
+                @if (waiting()) {
                   <p class="msg info" role="status">
                     Vui lòng xác nhận ký trên ứng dụng MySign trong 120 giây.
                     <span class="muted">Còn {{ secondsLeft() }} giây.</span>
                   </p>
-                } @else if (s.status === 'CHO_GUI_LAI') {
+                } @else if (s.status === 'LOI') {
                   <p class="msg warn" role="alert">
-                    Dịch vụ ký số đang gián đoạn. Yêu cầu ký đã được lưu và sẽ gửi lại.
+                    Dịch vụ ký số đang gián đoạn, chưa gửi được yêu cầu ký. Vui lòng thử lại sau.
                   </p>
                 } @else if (s.status === 'TU_CHOI' || s.status === 'HET_HAN') {
                   <p class="msg err" role="alert">
@@ -348,7 +346,7 @@ const ORDER = { THEM: 0, SUA: 1, BO: 2, GIU: 3 } as const;
                   <p-button
                     label="Duyệt và ký số"
                     [loading]="busy() === 'approve' || waiting()"
-                    [disabled]="!!busy() || waiting() || d.violations.length > 0"
+                    [disabled]="!!busy() || waiting() || blocking().length > 0"
                     (onClick)="approve()"
                   />
                 }
@@ -514,7 +512,7 @@ const ORDER = { THEM: 0, SUA: 1, BO: 2, GIU: 3 } as const;
     tr.BO .kind {
       font-weight: 600;
     }
-    tr.GIU .kind {
+    tr.KHONG_DOI .kind {
       color: #4b5563;
     }
     .note {
@@ -626,7 +624,6 @@ const ORDER = { THEM: 0, SUA: 1, BO: 2, GIU: 3 } as const;
 })
 export class PlanReviewPage {
   private readonly api = inject(PlanApi);
-  private readonly orgApi = inject(OrgApi);
   private readonly theme = inject(ThemeService);
   private readonly route = inject(ActivatedRoute);
   private readonly stepUpFn = inject(PLAN_STEP_UP);
@@ -636,25 +633,19 @@ export class PlanReviewPage {
   readonly id = input.required<string>();
   private readonly query = toSignal(this.route.queryParamMap);
 
-  protected readonly diff = rxResource({
+  /**
+   * Phiên bản trình, phiên bản gốc và khác biệt (WEB-065). Không ghi `?v=` thì xem phiên bản mới nhất
+   * (lối vào từ "Chờ tôi duyệt" và thông báo).
+   */
+  protected readonly review = rxResource({
     params: () => {
       if (!this.can('SCR-0403.so-sanh')) return undefined;
       const q = this.query();
       return { id: this.id(), v: Number(q?.get('v')) || 0, base: Number(q?.get('base')) || 0 };
     },
-    // không ghi `?v=` thì xem phiên bản mới nhất (lối vào từ "Chờ tôi duyệt" và thông báo)
     stream: ({ params }) =>
-      params.v
-        ? this.api.diff(params.id, params.v, params.base || undefined)
-        : this.api
-            .workspace(params.id)
-            .pipe(
-              switchMap((w) =>
-                this.api.diff(params.id, w.versions[w.versions.length - 1].versionNo),
-              ),
-            ),
+      this.api.review(params.id, params.v || undefined, params.base || undefined),
   });
-  private readonly unitsRes = rxResource({ stream: () => this.orgApi.units('unit') });
 
   protected readonly views: { label: string; value: View }[] = [
     { label: 'Chỉ hiện thay đổi', value: 'changes' },
@@ -669,8 +660,8 @@ export class PlanReviewPage {
   protected readonly error = signal<string | null>(null);
   protected readonly notice = signal<string | null>(null);
   protected readonly stepUp = signal(false);
-  protected readonly sign = signal<SignRequest | null>(null);
-  protected readonly waiting = computed(() => this.sign()?.status === 'CHO_KY');
+  protected readonly sign = signal<PlanSignRequest | null>(null);
+  protected readonly waiting = computed(() => WAITING.includes(this.sign()?.status ?? 'DA_KY'));
   private readonly now = signal(Date.now());
 
   /** Chế độ người cao tuổi: ẩn mã băm, lý do tổng và phần giải thích quy tắc (NFR-11). */
@@ -678,13 +669,27 @@ export class PlanReviewPage {
     () => this.theme.mode() === 'elderly' && this.theme.reducedSteps(),
   );
 
-  protected readonly shown = computed<PlanDiffRow[]>(() => {
-    const d = this.diff.value();
+  protected readonly shown = computed<PlanDiffLine[]>(() => {
+    const d = this.review.value();
     if (!d) return [];
-    if (!d.base || this.view() === 'all') return d.rows;
-    return d.rows
-      .filter((r) => r.change !== 'GIU')
+    if (!d.base || this.view() === 'all') return d.diff.lines;
+    return d.diff.lines
+      .filter((r) => r.change !== 'KHONG_DOI')
       .sort((a, b) => ORDER[a.change] - ORDER[b.change]);
+  });
+  /** Vi phạm chặn duyệt máy chủ trả trong `checks` của phiên bản (BR-04-11, BR-04-12…). */
+  protected readonly blocking = computed(() =>
+    (this.review.value()?.version.checks ?? []).filter((c) => c.level === 'CHAN'),
+  );
+  /** Điểm tối đa nhóm then chốt ở phiên bản gốc và phiên bản trình (tỷ trọng Policy Pack, BR-04-06). */
+  protected readonly keyMax = computed(() => {
+    const d = this.review.value();
+    const after = d?.version.groupWeights.THEN_CHOT ?? 0;
+    return { before: d?.baseGroupWeights?.THEN_CHOT ?? after, after };
+  });
+  protected readonly submittedAt = computed(() => {
+    const at = this.review.value()?.summary?.submittedAt;
+    return at ? formatDate(at) : '';
   });
 
   protected readonly methods = computed(() =>
@@ -703,7 +708,7 @@ export class PlanReviewPage {
   });
 
   protected readonly loadError = computed(() => {
-    const p = toProblem(this.diff.error());
+    const p = toProblem(this.review.error());
     return p.status === 404 ? 'Không tìm thấy kế hoạch hoặc phiên bản.' : p.detail || p.title;
   });
 
@@ -721,33 +726,27 @@ export class PlanReviewPage {
     return h ? `${h.slice(0, 4)}…${h.slice(-4)}` : '—';
   }
 
-  private unitName(id?: string) {
-    return (this.unitsRes.value()?.items ?? []).find((u) => u.id === id)?.name ?? '';
-  }
-
   /** Mô tả một dòng ở một phiên bản: dòng thêm, bỏ hoặc không đổi ghi đủ; dòng sửa chỉ ghi phần đã đổi. */
-  protected describe(i: PlanItem, r: PlanDiffRow): string {
-    const qty = i.plannedQuantity != null ? `${i.plannedQuantity} ${i.unit}`.trim() : '';
+  protected describe(i: PlanItem, r: PlanDiffLine): string {
+    const qty = i.quantity ? `${i.quantity} ${i.unit ?? ''}`.trim() : '';
     const due = i.recurrence
       ? PLAN_RECURRENCE_LABEL[i.recurrence].toLowerCase()
-      : i.dueDate
-        ? `hạn ${formatDate(i.dueDate)}`
-        : '';
+      : `hạn ${formatDate(i.dueDate)}`;
     const score = i.standardScore != null ? `${i.standardScore} điểm` : 'chưa có điểm';
-    const lead = i.leadUnitId ? `chủ trì ${this.unitName(i.leadUnitId)}` : '';
+    const lead = i.leadAssignee.name ? `chủ trì ${i.leadAssignee.name}` : '';
     if (r.change === 'SUA') {
       const parts: string[] = [];
-      for (const f of r.changedFields) {
-        if (f === 'plannedQuantity' || f === 'unit') parts.push(qty);
+      for (const f of r.changedFields ?? []) {
+        if (f === 'quantity' || f === 'unit') parts.push(qty);
         else if (f === 'dueDate' || f === 'recurrence') parts.push(due);
         else if (f === 'standardScore') parts.push(score);
-        else if (f === 'leadUnitId' || f === 'leadPersonId') parts.push(lead);
+        else if (f === 'leadAssignee') parts.push(lead);
         else if (f === 'taskGroup')
           parts.push(`nhóm ${TASK_GROUP_LABEL[i.taskGroup].toLowerCase()}`);
         else if (f === 'productName') parts.push(i.productName);
         else if (f === 'catalogItemId') parts.push(i.catalogItemCode ?? 'ngoài danh mục');
-        else if (f === 'coUnitIds')
-          parts.push(`phối hợp ${i.coUnitIds.map((u) => this.unitName(u)).join(', ') || 'không'}`);
+        else if (f === 'coAssignees')
+          parts.push(`phối hợp ${(i.coAssignees ?? []).map((u) => u.name).join(', ') || 'không'}`);
         else if (f === 'keyResultId') parts.push('KR liên kết khác');
         else if (f === 'title') parts.push(i.title);
       }
@@ -757,7 +756,7 @@ export class PlanReviewPage {
   }
 
   protected async returnPlan() {
-    const d = this.diff.value();
+    const d = this.review.value();
     if (!d) return;
     const comment = this.comment().trim();
     if (!comment) {
@@ -769,10 +768,10 @@ export class PlanReviewPage {
     this.error.set(null);
     try {
       await firstValueFrom(
-        this.api.returnPlan(d.planId, d.target.versionNo, d.target.rowVersion, comment),
+        this.api.returnPlan(d.planId, d.version.versionNo, d.version.rowVersion, comment),
       );
       this.notice.set('Đã trả lại kế hoạch cho người lập kèm ý kiến.');
-      this.diff.reload();
+      this.review.reload();
     } catch (e) {
       this.error.set(this.message(e));
     } finally {
@@ -782,7 +781,7 @@ export class PlanReviewPage {
 
   /** BR-00-02: xin MFA bước lên trước (hộp MFA của shell), máy chủ vẫn kiểm lại và có thể trả 401. */
   protected async approve(steppedUp = false) {
-    const d = this.diff.value();
+    const d = this.review.value();
     if (!d) return;
     this.busy.set('approve');
     this.error.set(null);
@@ -792,17 +791,25 @@ export class PlanReviewPage {
       this.error.set('Cần xác thực nhiều lớp (MFA) để ký số. Bấm "Duyệt và ký số" để thử lại.');
       return;
     }
+    const no = d.version.versionNo;
     try {
-      const { location, request } = await firstValueFrom(
-        this.api.approve(d.planId, d.target.versionNo, d.target.rowVersion, {
+      // 202 Job; yêu cầu ký đọc qua `signRequestId` của phiên bản (hợp đồng WEB-065)
+      const { job } = await firstValueFrom(
+        this.api.approve(d.planId, no, d.version.rowVersion, {
           signMethod: this.method(),
           comment: this.comment().trim() || undefined,
         }),
       );
       this.stepUp.set(false);
+      const v = await firstValueFrom(this.api.version(d.planId, no));
+      if (!v.signRequestId) {
+        this.error.set(job.problem?.detail || job.message || 'Chưa tạo được yêu cầu ký.');
+        return;
+      }
+      const s = await firstValueFrom(this.api.signRequest(v.signRequestId));
       this.now.set(Date.now());
-      this.sign.set(request);
-      if (request.status === 'CHO_KY') this.poll(location, d.target.versionNo, this.added());
+      this.sign.set(s);
+      if (WAITING.includes(s.status)) this.poll(v.signRequestId, no, this.added());
     } catch (e) {
       const p = toProblem(e);
       if (p.status === 401) this.stepUp.set(true);
@@ -826,16 +833,15 @@ export class PlanReviewPage {
 
   /** Số nhiệm vụ mới sẽ sinh: dòng thêm (hoặc mọi dòng ở phiên bản đầu), theo MSG-04-10 (suy luận). */
   private added() {
-    const d = this.diff.value();
-    return d ? (d.base ? d.summary.added : d.rows.length) : 0;
+    return this.review.value()?.diff.added ?? 0;
   }
 
-  private poll(location: string, versionNo: number, n: number) {
+  private poll(signRequestId: string, versionNo: number, n: number) {
     this.stopPolling();
     const tick = async () => {
       this.now.set(Date.now());
       try {
-        const s = await firstValueFrom(this.api.signRequest(location));
+        const s = await firstValueFrom(this.api.signRequest(signRequestId));
         this.sign.set(s);
         if (s.status === 'DA_KY') {
           this.notice.set(
@@ -843,10 +849,10 @@ export class PlanReviewPage {
           );
           this.sign.set(null);
           this.comment.set('');
-          this.diff.reload();
+          this.review.reload();
           return;
         }
-        if (s.status !== 'CHO_KY') return;
+        if (!WAITING.includes(s.status)) return;
       } catch (e) {
         this.error.set(this.message(e));
         this.sign.set(null);
