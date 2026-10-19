@@ -47,6 +47,14 @@ export const PERMISSIONS: ReadonlyMap<PermissionKey, PermissionRule> = new Map(
 /** Danh sách mọi khoá chức năng web của ma trận. */
 export const PERMISSION_KEYS: readonly PermissionKey[] = [...PERMISSIONS.keys()];
 
+/**
+ * Mọi khoá chức năng của các màn hình `screens` (ví dụ `screenKeys('SCR-0101', 'SCR-0801')`), dùng
+ * cho mục menu và tuyến cha gom nhiều SCR: cho qua khi có ít nhất một chức năng trong nhóm.
+ */
+export function screenKeys(...screens: string[]): PermissionKey[] {
+  return PERMISSION_KEYS.filter((k) => screens.includes(k.slice(0, k.indexOf('.'))));
+}
+
 /** Vai trò có thể có quyền với chức năng `key`. */
 export function rolesFor(key: PermissionKey, allowInferred = true): VtRole[] {
   const rule = PERMISSIONS.get(key);

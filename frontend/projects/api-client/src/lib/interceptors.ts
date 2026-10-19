@@ -14,11 +14,13 @@ export const apiBaseUrlInterceptor: HttpInterceptorFn = (req, next) => {
 };
 
 /**
- * Mọi request ghi mang `Idempotency-Key` (UUID) để máy chủ chống xử lý trùng
- * khi người dùng bấm lại hoặc mạng di động gửi lại.
+ * Mọi request ghi tới API của cell mang `Idempotency-Key` (UUID) để máy chủ chống xử lý trùng
+ * khi người dùng bấm lại hoặc mạng di động gửi lại. Không gắn cho request ra ngoài API, ví dụ lệnh
+ * đổi mã lấy token của Keycloak: header lạ làm preflight CORS bị từ chối và hỏng đăng nhập (WEB-057).
  */
 export const idempotencyInterceptor: HttpInterceptorFn = (req, next) => {
-  if (WRITE_METHODS.has(req.method) && !req.headers.has('Idempotency-Key')) {
+  const isApi = req.url.startsWith('/api/') || req.url.includes('/api/v1/');
+  if (isApi && WRITE_METHODS.has(req.method) && !req.headers.has('Idempotency-Key')) {
     return next(req.clone({ setHeaders: { 'Idempotency-Key': crypto.randomUUID() } }));
   }
   return next(req);

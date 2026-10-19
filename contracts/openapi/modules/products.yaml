@@ -31,7 +31,11 @@ info:
     minh chứng; `TAI_LEN`, `VAN_BAN_HE_THONG`, `OCR_DI_DONG`, `TICH_HOP` cho phiên bản) thay cho bộ
     `VAN_BAN`, `TEP`, `LIEN_KET`, `ANH_CHUP` ghi ở bảng trường SCR-0701; (3) nhận xét nghiệm thu xếp C2 theo
     TL-02 SCR-0703 và cột `comment_enc` của TL-03; (4) gửi từng phần tệp qua `PUT /files/uploads/{uploadId}/parts/{n}`
-    theo TL-01; việc SVC-08 chuyển tiếp thẳng tới Ceph RGW bằng URL ký trước (TL-03) là chi tiết hiện thực phía máy chủ.
+    theo TL-01; việc SVC-08 chuyển tiếp thẳng tới Ceph RGW bằng URL ký trước (TL-03) là chi tiết hiện thực phía máy chủ;
+    (5) một phiên bản minh chứng gồm nhiều tệp (`files[]`) theo TL-02 SCR-0701 (Hình 8.13 vùng 2 là bảng tệp của
+    phiên bản, vùng 3 cảnh báo trùng theo từng tệp), trong khi TL-03 `product.evidence_version` chỉ có một
+    `object_id`; TL-03 cần thêm bảng con `product.evidence_version_file` (suy luận về tên). Trạng thái quét và cờ
+    trùng ở cấp phiên bản là tổng hợp của các tệp.
 servers:
   - url: /api/v1
 security:
@@ -428,8 +432,8 @@ paths:
       summary: Tạo phiên bản minh chứng mới ở trạng thái nháp
       description: >-
         Tạo phiên bản n+1 ở trạng thái `NHAP` ("Lưu nháp" lần đầu của SCR-0701; bước đầu khi nộp lại sau
-        `YEU_CAU_BO_SUNG` hoặc `TU_CHOI`). Tham chiếu tệp đã tải lên bằng `objectId` từ
-        `POST /files/uploads/{uploadId}/complete`. Không được tạo phiên bản mới khi phiên bản mới nhất còn
+        `YEU_CAU_BO_SUNG` hoặc `TU_CHOI`). Tham chiếu các tệp đã tải lên bằng `files[].objectId` lấy
+        từ `POST /files/uploads/{uploadId}/complete`. Không được tạo phiên bản mới khi phiên bản mới nhất còn
         `NHAP`, `DA_NOP` hoặc `DANG_NGHIEM_THU`. Thay cho phần lưu nháp của TL-01 PL C `POST /products/{id}/evidence-versions`.
       parameters:
         - $ref: '../common/common.yaml#/components/parameters/IdPath'
@@ -444,7 +448,9 @@ paths:
                 value:
                   source: VAN_BAN_HE_THONG
                   sourceDocRef: 47-BC/BTCĐUK
-                  objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
+                  files:
+                    - objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c13
+                    - objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
                   docNumber: 47-BC/BTCĐUK
                   docDate: '2026-10-19'
                   docSummary: Báo cáo chuyên đề công tác kiểm tra quý III năm 2026
@@ -539,8 +545,10 @@ paths:
               giai-trinh:
                 value:
                   source: TAI_LEN
-                  objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
-                  reuseJustification: Phụ lục số liệu dùng chung với báo cáo quý III vì cùng nguồn số liệu tổng hợp của Ban.
+                  files:
+                    - objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c13
+                    - objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
+                      reuseJustification: Phụ lục số liệu dùng chung với báo cáo quý III vì cùng nguồn số liệu tổng hợp của Ban.
                   note: Đã bổ sung số liệu chi bộ 3 và chi bộ 6.
       responses:
         '200':
@@ -619,6 +627,14 @@ paths:
                       versionNo: 2
                       status: DA_NOP
                       source: VAN_BAN_HE_THONG
+                      files:
+                        - objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c13
+                          contentSha256: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b
+                          sizeBytes: 2457600
+                          mediaType: application/pdf
+                          fileName: 47-BC-BTCDUK.pdf
+                          scanStatus: SACH
+                          isDuplicateSuspect: false
                       scanStatus: SACH
                       hasE2ee: false
                       aiPrefill: false
@@ -1352,18 +1368,29 @@ components:
         status: NHAP
         source: VAN_BAN_HE_THONG
         sourceDocRef: 47-BC/BTCĐUK
-        objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
-        objectVersionId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c13
-        contentSha256: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
-        sizeBytes: 1843200
-        mediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-        fileName: phu-luc-so-lieu.xlsx
+        files:
+          - objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c13
+            objectVersionId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c23
+            contentSha256: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b
+            sizeBytes: 2457600
+            mediaType: application/pdf
+            fileName: 47-BC-BTCDUK.pdf
+            scanStatus: SACH
+            isDuplicateSuspect: false
+          - objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
+            objectVersionId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c33
+            contentSha256: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+            sizeBytes: 1843200
+            mediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+            fileName: phu-luc-so-lieu.xlsx
+            scanStatus: CHO_QUET
+            isDuplicateSuspect: true
+            duplicateOf:
+              taskCode: NV-2026-Q3-0088
+              ownerName: Phạm Thu Hà
+              submittedAt: '2026-09-02T15:40:00+07:00'
         scanStatus: CHO_QUET
         isDuplicateSuspect: true
-        duplicateOf:
-          taskCode: NV-2026-Q3-0088
-          ownerName: Phạm Thu Hà
-          submittedAt: '2026-09-02T15:40:00+07:00'
         hasE2ee: false
         aiPrefill: false
         docNumber: 47-BC/BTCĐUK
@@ -1381,17 +1408,19 @@ components:
         status: DANG_NGHIEM_THU
         source: VAN_BAN_HE_THONG
         sourceDocRef: 47-BC/BTCĐUK
-        objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
-        objectVersionId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c13
-        contentSha256: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b
-        sizeBytes: 2457600
-        mediaType: application/pdf
-        fileName: 47-BC-BTCDUK.pdf
+        files:
+          - objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c13
+            objectVersionId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c23
+            contentSha256: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b
+            sizeBytes: 2457600
+            mediaType: application/pdf
+            fileName: 47-BC-BTCDUK.pdf
+            scanStatus: SACH
+            isDuplicateSuspect: false
         scanStatus: SACH
         isDuplicateSuspect: false
         hasE2ee: false
         aiPrefill: false
-        reuseJustification: null
         submittedBy: { id: 0192a0aa-1111-7222-8333-444455556666, name: Nguyễn Văn An }
         submittedAt: '2026-10-19T09:11:00+07:00'
         attestedAt: '2026-10-19T09:11:00+07:00'
@@ -1614,10 +1643,10 @@ components:
         note: { type: string, maxLength: 500 }
     EvidenceVersion:
       description: >-
-        Phiên bản minh chứng (`product.evidence_version`). Sau khi rời `NHAP`, các trường tệp và mã băm đóng
-        băng (BR-07-01). Trường do AI điền chỉ có hiệu lực khi người nộp xác nhận (BR-07-09).
+        Phiên bản minh chứng (`product.evidence_version`) gồm một hoặc nhiều tệp (`files`). Sau khi rời `NHAP`,
+        danh sách tệp và mã băm đóng băng (BR-07-01). Trường do AI điền chỉ có hiệu lực khi người nộp xác nhận (BR-07-09).
       type: object
-      required: [id, evidenceId, taskId, versionNo, status, source, scanStatus, hasE2ee, aiPrefill, isDuplicateSuspect, rowVersion]
+      required: [id, evidenceId, taskId, versionNo, status, source, files, scanStatus, hasE2ee, aiPrefill, isDuplicateSuspect, rowVersion]
       properties:
         id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         evidenceId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
@@ -1626,35 +1655,17 @@ components:
         status: { $ref: '#/components/schemas/EvidenceVersionStatus' }
         source: { $ref: '#/components/schemas/EvidenceVersionSource' }
         sourceDocRef: { type: [string, 'null'], maxLength: 200 }
-        objectId:
-          description: Đối tượng ở SVC-08 (`evidence.object_meta.id`).
-          oneOf:
-            - $ref: '../common/common.yaml#/components/schemas/Uuid'
-            - type: 'null'
-        objectVersionId:
-          oneOf:
-            - $ref: '../common/common.yaml#/components/schemas/Uuid'
-            - type: 'null'
-        contentSha256:
-          oneOf:
-            - $ref: '#/components/schemas/Sha256Hex'
-            - type: 'null'
-        sizeBytes: { type: [integer, 'null'], minimum: 0 }
-        mediaType: { type: [string, 'null'], maxLength: 127 }
-        fileName:
-          type: [string, 'null']
-          maxLength: 255
+        files:
+          type: array
+          description: Các tệp của phiên bản theo thứ tự hiển thị (vùng 2 SCR-0701). Rỗng khi nháp chưa có tệp.
+          items: { $ref: '#/components/schemas/EvidenceVersionFile' }
+        scanStatus:
+          allOf:
+            - $ref: '#/components/schemas/FileScanStatus'
           description: >-
-            Tên tệp gốc. TL-03 xếp `product.evidence_version.file_name` C1 nhưng `evidence.object_meta.file_name_enc`
-            C2; hợp đồng xếp C2 để thống nhất.
-          x-classification: C2
-        scanStatus: { $ref: '#/components/schemas/FileScanStatus' }
-        isDuplicateSuspect: { type: boolean }
-        duplicateOf:
-          oneOf:
-            - $ref: '#/components/schemas/EvidenceDuplicateMatch'
-            - type: 'null'
-        reuseJustification: { type: [string, 'null'], minLength: 20, maxLength: 1000, description: 'Giải trình dùng lại khi trùng mã băm (BR-07-03)' }
+            Trạng thái quét tổng hợp của các tệp: `NHIEM` nếu có tệp nhiễm, `LOI` nếu có tệp lỗi, `CHO_QUET` nếu
+            còn tệp đang quét, `SACH` khi mọi tệp sạch (cột `scan_status` của TL-03).
+        isDuplicateSuspect: { type: boolean, description: 'Đúng khi có ít nhất một tệp trùng mã băm (cột `is_duplicate_suspect`)' }
         hasE2ee: { type: boolean, description: 'Tệp C3 mã hoá đầu cuối; máy chủ chỉ giữ bản mã' }
         keyWrap:
           description: Khoá nội dung đã bọc cho chính người gọi khi `hasE2ee` (suy luận).
@@ -1714,8 +1725,14 @@ components:
           versionNo: 2
           status: DA_NOP
           source: OCR_DI_DONG
-          objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
-          contentSha256: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b
+          files:
+            - objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
+              contentSha256: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b
+              sizeBytes: 812000
+              mediaType: image/jpeg
+              fileName: bao-cao-trang-1.jpg
+              scanStatus: SACH
+              isDuplicateSuspect: false
           scanStatus: SACH
           isDuplicateSuspect: false
           hasE2ee: false
@@ -1725,18 +1742,64 @@ components:
           docDate: '2026-10-19'
           docSummary: Báo cáo chuyên đề công tác kiểm tra quý III năm 2026
           rowVersion: 5
+    EvidenceVersionFile:
+      description: >-
+        Một tệp của phiên bản minh chứng (một dòng ở vùng 2 SCR-0701). TL-03 chưa có bảng này; đề xuất bảng con
+        `product.evidence_version_file` mang các cột tệp hiện đặt trên `product.evidence_version` (suy luận).
+      type: object
+      required: [objectId, contentSha256, sizeBytes, mediaType, fileName, scanStatus, isDuplicateSuspect]
+      properties:
+        objectId:
+          allOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Đối tượng ở SVC-08 (`evidence.object_meta.id`).
+        objectVersionId:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        contentSha256: { $ref: '#/components/schemas/Sha256Hex' }
+        sizeBytes: { type: integer, minimum: 0 }
+        mediaType: { type: string, maxLength: 127 }
+        fileName:
+          type: string
+          maxLength: 255
+          description: >-
+            Tên tệp gốc. TL-03 xếp `product.evidence_version.file_name` C1 nhưng `evidence.object_meta.file_name_enc`
+            C2; hợp đồng xếp C2 để thống nhất.
+          x-classification: C2
+        scanStatus: { $ref: '#/components/schemas/FileScanStatus' }
+        isDuplicateSuspect: { type: boolean }
+        duplicateOf:
+          oneOf:
+            - $ref: '#/components/schemas/EvidenceDuplicateMatch'
+            - type: 'null'
+        reuseJustification:
+          type: [string, 'null']
+          minLength: 20
+          maxLength: 1000
+          description: Giải trình dùng lại khi tệp này trùng mã băm (BR-07-03); bắt buộc với từng tệp trùng trước khi nộp.
+    EvidenceVersionFileInput:
+      description: Một tệp khi lưu nháp phiên bản.
+      type: object
+      required: [objectId]
+      properties:
+        objectId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        objectVersionNo: { type: integer, minimum: 1, description: 'Phiên bản đối tượng; mặc định phiên bản hiện hành' }
+        reuseJustification: { type: string, minLength: 20, maxLength: 1000 }
     EvidenceVersionDraft:
       description: >-
-        Nội dung phiên bản khi lưu nháp. Bắt buộc `objectId` với nguồn tải lên, OCR di động; bắt buộc `sourceDocRef`
-        với nguồn văn bản hệ thống.
+        Nội dung phiên bản khi lưu nháp. `files` thay toàn bộ danh sách tệp của nháp. Khi nộp, phải có ít nhất một
+        tệp với nguồn tải lên, OCR di động; bắt buộc `sourceDocRef` với nguồn văn bản hệ thống (tệp kèm theo là phụ lục).
       type: object
       required: [source]
       properties:
         source: { $ref: '#/components/schemas/EvidenceVersionSource' }
         sourceDocRef: { type: string, maxLength: 200 }
-        objectId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
-        objectVersionNo: { type: integer, minimum: 1, description: 'Phiên bản đối tượng; mặc định phiên bản hiện hành' }
-        reuseJustification: { type: string, minLength: 20, maxLength: 1000 }
+        files:
+          type: array
+          maxItems: 20
+          description: Tệp của phiên bản theo thứ tự hiển thị; giới hạn 20 tệp là suy luận.
+          items: { $ref: '#/components/schemas/EvidenceVersionFileInput' }
         aiPrefill: { type: boolean, default: false }
         aiSuggestionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         aiFieldsEdited:

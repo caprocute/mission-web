@@ -1,0 +1,141 @@
+{
+  "$comment": "Fixture module products/files (MOD-03, SVC-08) cho SCR-0701 (WEB-032), theo Hình 8.13 TL-02: NV-2026-Q4-0142 có phiên bản 1 bị yêu cầu bổ sung và phiên bản 2 đang soạn với phụ lục trùng mã băm. `dedupIndex` là chỉ mục khử trùng trong tenant; tệp có nội dung `So lieu tong hop cac chi bo quy III/2026\\n` trùng với NV-2026-Q3-0088.",
+  "reviewerName": "Lê Minh Châu",
+  "deliverables": [
+    {
+      "id": "0192a1b0-0000-7000-8000-000000000142",
+      "taskId": "0192a0f0-0001-7000-8000-000000000142",
+      "name": "Báo cáo chuyên đề công tác kiểm tra quý III",
+      "deliverableType": "BAO_CAO",
+      "unit": "báo cáo",
+      "quantityPlanned": 1,
+      "quantityAccepted": 0,
+      "status": "DANG_LAM",
+      "rowVersion": 2
+    },
+    {
+      "id": "0192a1b0-0000-7000-8000-000000000157",
+      "taskId": "0192a0f0-0001-7000-8000-000000000157",
+      "name": "Phiếu thẩm định hồ sơ kết nạp đảng viên đợt 2",
+      "deliverableType": "HO_SO",
+      "unit": "hồ sơ",
+      "quantityPlanned": 15,
+      "quantityAccepted": 0,
+      "status": "DANG_LAM",
+      "rowVersion": 1
+    },
+    {
+      "id": "0192a1b0-0000-7000-8000-000000000001",
+      "taskId": "0192a0f0-0001-7000-8000-000000000001",
+      "name": "Báo cáo tổng kết công tác chuyển đổi số quý IV",
+      "deliverableType": "BAO_CAO",
+      "unit": "báo cáo",
+      "quantityPlanned": 1,
+      "quantityAccepted": 0,
+      "status": "DANG_LAM",
+      "rowVersion": 1
+    }
+  ],
+  "externalDocs": [
+    {
+      "ref": "47-BC/BTCĐUK",
+      "docNumber": "47-BC/BTCĐUK",
+      "docDate": "@today+0",
+      "summary": "Báo cáo chuyên đề công tác kiểm tra quý III/2026",
+      "signerName": "Trần Thị Bình",
+      "signatureValid": true
+    },
+    {
+      "ref": "45-BC/BTCĐUK",
+      "docNumber": "45-BC/BTCĐUK",
+      "docDate": "@today-6",
+      "summary": "Báo cáo chuyên đề công tác kiểm tra quý III/2026 (dự thảo lần 1)",
+      "signerName": "Trần Thị Bình",
+      "signatureValid": true
+    },
+    {
+      "ref": "12-HD/BTCĐUK",
+      "docNumber": "12-HD/BTCĐUK",
+      "docDate": "@today-20",
+      "summary": "Hướng dẫn kiểm điểm, đánh giá chi bộ cuối năm 2026",
+      "signerName": "Hoàng Văn Dũng",
+      "signatureValid": true
+    }
+  ],
+  "dedupIndex": [
+    {
+      "sha256": "54bbe97c36629d0cb0e9886d99adc6999a398cdb187f803433a4cab1058d057d",
+      "taskCode": "NV-2026-Q3-0088",
+      "ownerName": "Phạm Thu Hà",
+      "submittedAt": "@today-47T15:40:00+07:00"
+    },
+    {
+      "sha256": "77be0c11e5a2b8f6d4c39a0e7f1b2c3d4e5f60718293a4b5c6d7e8f90a1b9a40",
+      "taskCode": "NV-2026-Q3-0088",
+      "ownerName": "Phạm Thu Hà",
+      "submittedAt": "@today-47T15:40:00+07:00"
+    }
+  ],
+  "objects": [
+    {
+      "objectId": "0192a1c3-0000-7000-8000-000000000001",
+      "objectVersionId": "0192a1c3-0000-7000-8000-000000000011",
+      "versionNo": 1,
+      "fileName": "phu-luc-so-lieu.xlsx",
+      "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "sizeBytes": 98304,
+      "sha256": "77be0c11e5a2b8f6d4c39a0e7f1b2c3d4e5f60718293a4b5c6d7e8f90a1b9a40",
+      "classification": "C1",
+      "e2ee": false,
+      "scanStatus": "CHO_QUET",
+      "dedup": {
+        "duplicate": true,
+        "matches": [
+          { "taskCode": "NV-2026-Q3-0088", "ownerName": "Phạm Thu Hà", "submittedAt": "@today-47" }
+        ]
+      },
+      "createdAt": "@today+0T09:05:00+07:00"
+    }
+  ],
+  "evidences": [
+    {
+      "id": "0192a1b2-0000-7000-8000-000000000142",
+      "deliverableId": "0192a1b0-0000-7000-8000-000000000142",
+      "taskId": "0192a0f0-0001-7000-8000-000000000142",
+      "title": "Báo cáo chuyên đề công tác kiểm tra quý III",
+      "sourceType": "VAN_BAN",
+      "externalDocRef": "47-BC/BTCĐUK",
+      "rowVersion": 3,
+      "versions": [
+        {
+          "versionNo": 1,
+          "status": "YEU_CAU_BO_SUNG",
+          "source": "VAN_BAN_HE_THONG",
+          "sourceDocRef": "45-BC/BTCĐUK",
+          "docNumber": "45-BC/BTCĐUK",
+          "docDate": "@today-6",
+          "docSummary": "Báo cáo chuyên đề công tác kiểm tra quý III/2026 (dự thảo lần 1)",
+          "submittedAt": "@today-5T16:20:00+07:00",
+          "attestedAt": "@today-5T16:20:00+07:00",
+          "decidedAt": "@today-4T10:00:00+07:00",
+          "decisionNote": "Bổ sung số liệu chi bộ 3, 6",
+          "decidedByName": "Lê Minh Châu",
+          "scanStatus": "SACH",
+          "rowVersion": 4
+        },
+        {
+          "versionNo": 2,
+          "status": "NHAP",
+          "source": "VAN_BAN_HE_THONG",
+          "sourceDocRef": "47-BC/BTCĐUK",
+          "docNumber": "47-BC/BTCĐUK",
+          "docDate": "@today+0",
+          "docSummary": "Báo cáo chuyên đề công tác kiểm tra quý III/2026",
+          "objectId": "0192a1c3-0000-7000-8000-000000000001",
+          "note": "Đã bổ sung số liệu chi bộ 3 và chi bộ 6.",
+          "rowVersion": 1
+        }
+      ]
+    }
+  ]
+}

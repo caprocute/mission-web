@@ -12,7 +12,7 @@
 | Cỡ việc | M (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-054, WEB-015 |
 | Truy vết | wiki/15a → `PERMISSIONS` (`@vt/auth`) → `fe-shell` (`nav.ts`, `app.routes.ts`), `fe-task` (SCR-0002, SCR-0503, SCR-0601) và khung remote của WEB-015 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Xong, chờ gộp |
 
 ## 1. Mục tiêu
 

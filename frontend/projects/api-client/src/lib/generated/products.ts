@@ -123,7 +123,7 @@ export interface paths {
     put?: never;
     /**
      * Tạo phiên bản minh chứng mới ở trạng thái nháp
-     * @description Tạo phiên bản n+1 ở trạng thái `NHAP` ("Lưu nháp" lần đầu của SCR-0701; bước đầu khi nộp lại sau `YEU_CAU_BO_SUNG` hoặc `TU_CHOI`). Tham chiếu tệp đã tải lên bằng `objectId` từ `POST /files/uploads/{uploadId}/complete`. Không được tạo phiên bản mới khi phiên bản mới nhất còn `NHAP`, `DA_NOP` hoặc `DANG_NGHIEM_THU`. Thay cho phần lưu nháp của TL-01 PL C `POST /products/{id}/evidence-versions`.
+     * @description Tạo phiên bản n+1 ở trạng thái `NHAP` ("Lưu nháp" lần đầu của SCR-0701; bước đầu khi nộp lại sau `YEU_CAU_BO_SUNG` hoặc `TU_CHOI`). Tham chiếu các tệp đã tải lên bằng `files[].objectId` lấy từ `POST /files/uploads/{uploadId}/complete`. Không được tạo phiên bản mới khi phiên bản mới nhất còn `NHAP`, `DA_NOP` hoặc `DANG_NGHIEM_THU`. Thay cho phần lưu nháp của TL-01 PL C `POST /products/{id}/evidence-versions`.
      */
     post: operations['createEvidenceVersion'];
     delete?: never;
@@ -580,7 +580,7 @@ export interface components {
       note?: string;
     };
     /**
-     * @description Phiên bản minh chứng (`product.evidence_version`). Sau khi rời `NHAP`, các trường tệp và mã băm đóng băng (BR-07-01). Trường do AI điền chỉ có hiệu lực khi người nộp xác nhận (BR-07-09).
+     * @description Phiên bản minh chứng (`product.evidence_version`) gồm một hoặc nhiều tệp (`files`). Sau khi rời `NHAP`, danh sách tệp và mã băm đóng băng (BR-07-01). Trường do AI điền chỉ có hiệu lực khi người nộp xác nhận (BR-07-09).
      * @example {
      *       "id": "0192a1d4-6f70-7b92-8d3e-4f5a6b7c8d04",
      *       "evidenceId": "0192a1b2-4d5e-7f60-8b1c-2d3e4f5a6b02",
@@ -588,8 +588,17 @@ export interface components {
      *       "versionNo": 2,
      *       "status": "DA_NOP",
      *       "source": "OCR_DI_DONG",
-     *       "objectId": "0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03",
-     *       "contentSha256": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+     *       "files": [
+     *         {
+     *           "objectId": "0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03",
+     *           "contentSha256": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+     *           "sizeBytes": 812000,
+     *           "mediaType": "image/jpeg",
+     *           "fileName": "bao-cao-trang-1.jpg",
+     *           "scanStatus": "SACH",
+     *           "isDuplicateSuspect": false
+     *         }
+     *       ],
      *       "scanStatus": "SACH",
      *       "isDuplicateSuspect": false,
      *       "hasE2ee": false,
@@ -609,19 +618,12 @@ export interface components {
       status: components['schemas']['EvidenceVersionStatus'];
       source: components['schemas']['EvidenceVersionSource'];
       sourceDocRef?: string | null;
-      /** @description Đối tượng ở SVC-08 (`evidence.object_meta.id`). */
-      objectId?: components['schemas']['Uuid'] | null;
-      objectVersionId?: components['schemas']['Uuid'] | null;
-      contentSha256?: components['schemas']['Sha256Hex'] | null;
-      sizeBytes?: number | null;
-      mediaType?: string | null;
-      /** @description Tên tệp gốc. TL-03 xếp `product.evidence_version.file_name` C1 nhưng `evidence.object_meta.file_name_enc` C2; hợp đồng xếp C2 để thống nhất. */
-      fileName?: string | null;
+      /** @description Các tệp của phiên bản theo thứ tự hiển thị (vùng 2 SCR-0701). Rỗng khi nháp chưa có tệp. */
+      files: components['schemas']['EvidenceVersionFile'][];
+      /** @description Trạng thái quét tổng hợp của các tệp: `NHIEM` nếu có tệp nhiễm, `LOI` nếu có tệp lỗi, `CHO_QUET` nếu còn tệp đang quét, `SACH` khi mọi tệp sạch (cột `scan_status` của TL-03). */
       scanStatus: components['schemas']['FileScanStatus'];
+      /** @description Đúng khi có ít nhất một tệp trùng mã băm (cột `is_duplicate_suspect`) */
       isDuplicateSuspect: boolean;
-      duplicateOf?: components['schemas']['EvidenceDuplicateMatch'] | null;
-      /** @description Giải trình dùng lại khi trùng mã băm (BR-07-03) */
-      reuseJustification?: string | null;
       /** @description Tệp C3 mã hoá đầu cuối; máy chủ chỉ giữ bản mã */
       hasE2ee: boolean;
       /** @description Khoá nội dung đã bọc cho chính người gọi khi `hasE2ee` (suy luận). */
@@ -657,14 +659,35 @@ export interface components {
       acceptance?: components['schemas']['EvidenceAcceptance'] | null;
       rowVersion: components['schemas']['RowVersion'];
     };
-    /** @description Nội dung phiên bản khi lưu nháp. Bắt buộc `objectId` với nguồn tải lên, OCR di động; bắt buộc `sourceDocRef` với nguồn văn bản hệ thống. */
-    EvidenceVersionDraft: {
-      source: components['schemas']['EvidenceVersionSource'];
-      sourceDocRef?: string;
-      objectId?: components['schemas']['Uuid'];
+    /** @description Một tệp của phiên bản minh chứng (một dòng ở vùng 2 SCR-0701). TL-03 chưa có bảng này; đề xuất bảng con `product.evidence_version_file` mang các cột tệp hiện đặt trên `product.evidence_version` (suy luận). */
+    EvidenceVersionFile: {
+      /** @description Đối tượng ở SVC-08 (`evidence.object_meta.id`). */
+      objectId: components['schemas']['Uuid'];
+      objectVersionId?: components['schemas']['Uuid'] | null;
+      contentSha256: components['schemas']['Sha256Hex'];
+      sizeBytes: number;
+      mediaType: string;
+      /** @description Tên tệp gốc. TL-03 xếp `product.evidence_version.file_name` C1 nhưng `evidence.object_meta.file_name_enc` C2; hợp đồng xếp C2 để thống nhất. */
+      fileName: string;
+      scanStatus: components['schemas']['FileScanStatus'];
+      isDuplicateSuspect: boolean;
+      duplicateOf?: components['schemas']['EvidenceDuplicateMatch'] | null;
+      /** @description Giải trình dùng lại khi tệp này trùng mã băm (BR-07-03); bắt buộc với từng tệp trùng trước khi nộp. */
+      reuseJustification?: string | null;
+    };
+    /** @description Một tệp khi lưu nháp phiên bản. */
+    EvidenceVersionFileInput: {
+      objectId: components['schemas']['Uuid'];
       /** @description Phiên bản đối tượng; mặc định phiên bản hiện hành */
       objectVersionNo?: number;
       reuseJustification?: string;
+    };
+    /** @description Nội dung phiên bản khi lưu nháp. `files` thay toàn bộ danh sách tệp của nháp. Khi nộp, phải có ít nhất một tệp với nguồn tải lên, OCR di động; bắt buộc `sourceDocRef` với nguồn văn bản hệ thống (tệp kèm theo là phụ lục). */
+    EvidenceVersionDraft: {
+      source: components['schemas']['EvidenceVersionSource'];
+      sourceDocRef?: string;
+      /** @description Tệp của phiên bản theo thứ tự hiển thị; giới hạn 20 tệp là suy luận. */
+      files?: components['schemas']['EvidenceVersionFileInput'][];
       /** @default false */
       aiPrefill: boolean;
       aiSuggestionId?: components['schemas']['Uuid'];

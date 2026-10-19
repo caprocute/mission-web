@@ -45,6 +45,14 @@ describe('idempotencyInterceptor', () => {
     expect(ctrl.expectOne('/api/v1/x').request.headers.has('Idempotency-Key')).toBe(false);
     expect(ctrl.expectOne('/api/v1/y').request.headers.get('Idempotency-Key')).toBe('giu-nguyen');
   });
+
+  it('không gắn cho request ngoài API, ví dụ đổi mã lấy token của Keycloak', () => {
+    const { http, ctrl } = setup();
+    const token = 'http://localhost:8180/realms/mission/protocol/openid-connect/token';
+    http.post(token, 'grant_type=authorization_code').subscribe();
+    expect(ctrl.expectOne(token).request.headers.has('Idempotency-Key')).toBe(false);
+    ctrl.verify();
+  });
 });
 
 describe('If-Match của TaskApi', () => {
