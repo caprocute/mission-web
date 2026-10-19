@@ -13,6 +13,7 @@ import { APPRAISALS_MOCK } from './appraisals/appraisals.mock';
 import { DOSSIERS_MOCK } from './dossiers/dossiers.mock';
 import { REOPEN_MOCK } from './oversight/reopen.mock';
 import { LEDGER_MOCK } from './ledger/ledger.mock';
+import { ALERTS_MOCK } from './oversight/alerts.mock';
 import { COMPLAINTS_MOCK } from './oversight/complaints.mock';
 
 /**
@@ -37,6 +38,7 @@ export const MOCK_MODULES: MockModule[] = [
   REOPEN_MOCK,
   LEDGER_MOCK,
   COMPLAINTS_MOCK,
+  ALERTS_MOCK,
 ];
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
