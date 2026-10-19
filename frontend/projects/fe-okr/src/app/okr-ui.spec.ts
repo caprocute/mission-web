@@ -1,4 +1,4 @@
-import { KeyResult, Objective, krProgress, objectiveProgressPct } from '@vt/api-client';
+import { KeyResult, Objective, krProgress, objectiveProgress } from '@vt/api-client';
 import {
   formatDateTime,
   defaultKr,
@@ -23,17 +23,16 @@ const kr = (over: Partial<KeyResult> = {}): KeyResult => ({
   weight: 0.5,
   progress: 0.5,
   dueDate: '2026-12-31',
-  verifierName: 'Trưởng ban',
-  dataSource: null,
-  valueNote: null,
+  verifier: { id: 'p-v', name: 'Trưởng ban' },
+  owner: { id: 'p-a', name: 'A' },
   confidence: 'CAO',
+  status: 'DA_DUYET',
   riskFlag: 'BINH_THUONG',
-  lastCheckinAt: null,
-  ownerName: 'A',
   viewerIsOwner: false,
   latestBlocker: null,
   linkedWork: [],
   linkedTaskCount: 0,
+  rowVersion: 1,
   ...over,
 });
 
@@ -44,35 +43,34 @@ const obj = (
   tier: 1 | 2 | 3 = 1,
 ): Objective => ({
   id,
+  periodId: 'p',
   code: id,
   title: id,
   tier,
   ownerType: 'TAP_THE',
-  ownerUnitName: 'Ban',
-  ownerPersonName: null,
-  parentObjectiveId: parent,
+  ownerUnit: { id: 'u', name: 'Ban' },
+  ...(parent ? { parentObjective: { id: parent, code: parent, title: parent } } : {}),
   status: 'DA_DUYET',
-  progressPct: 0,
-  approvedAt: null,
+  progress: 0,
   versionNo: 1,
-  overLimitReason: null,
   keyResults: krs,
+  rowVersion: 1,
 });
 
 describe('okr-ui (SCR-0201)', () => {
-  it('tính tiến độ O1 của mockup Hình 7.3 bằng 64%', () => {
+  it('tính tiến độ O1 của mockup Hình 7.3 bằng 0,64 (64%)', () => {
     const krs = [
       { baselineValue: 0, targetValue: 3, currentValue: 2.4, weight: 0.4 },
       { baselineValue: 0, targetValue: 100, currentValue: 72, weight: 0.3 },
       { baselineValue: 0, targetValue: 90, currentValue: 32.6, weight: 0.3 },
     ];
-    expect(objectiveProgressPct(krs)).toBe(64);
+    expect(objectiveProgress(krs)).toBeCloseTo(0.64, 2);
     expect(
-      objectiveProgressPct([
+      objectiveProgress([
         { baselineValue: 0, targetValue: 100, currentValue: 68, weight: 0.5 },
         { baselineValue: 0, targetValue: 12, currentValue: 4, weight: 0.5 },
       ]),
-    ).toBe(51);
+    ).toBeCloseTo(0.51, 2);
   });
 
   it('tiến độ KR giới hạn trong [0, 1], hỗ trợ chiều giảm và chưa có giá trị', () => {
@@ -84,7 +82,7 @@ describe('okr-ui (SCR-0201)', () => {
   it('màu theo mức tự tin; cờ RUI_RO luôn đỏ; mục tiêu theo KR kém nhất', () => {
     expect(krTone(kr({ confidence: 'TRUNG_BINH' }))).toBe('warn');
     expect(krTone(kr({ confidence: 'CAO', riskFlag: 'RUI_RO' }))).toBe('danger');
-    expect(krTone(kr({ confidence: null, progress: 0.8 }))).toBe('ok');
+    expect(krTone(kr({ confidence: undefined, progress: 0.8 }))).toBe('ok');
     expect(objectiveTone(obj('o', null, [kr(), kr({ confidence: 'THAP' })]))).toBe('danger');
   });
 

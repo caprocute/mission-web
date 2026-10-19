@@ -1,6 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { KrCheckin, OkrKeyResultDetail } from '@vt/api-client';
+import { KrCheckin, OkrKeyResultDetail, progressPct } from '@vt/api-client';
 import { formatDate, formatValue } from '../../okr-ui';
 
 interface Bar {
@@ -59,10 +59,11 @@ interface Bar {
       @if (k.linkedWork?.length) {
         <ul class="work">
           @for (w of k.linkedWork; track w.id) {
+            @let p = pct(w.progress);
             <li>
               {{ w.title }}
-              <span class="pct" [class.done]="w.percent >= 100">
-                {{ w.percent >= 100 ? 'Hoàn thành' : w.percent + '%' }}
+              <span class="pct" [class.done]="p >= 100">
+                {{ p >= 100 ? 'Hoàn thành' : p + '%' }}
               </span>
             </li>
           }
@@ -186,6 +187,7 @@ interface Bar {
   `,
 })
 export class CheckinTrend {
+  protected readonly pct = progressPct;
   readonly kr = input.required<OkrKeyResultDetail>();
   /** Lịch sử check-in `DA_GUI`, mới nhất trước. */
   readonly history = input<KrCheckin[]>([]);

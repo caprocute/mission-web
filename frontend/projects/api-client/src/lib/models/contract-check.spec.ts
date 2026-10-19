@@ -5,10 +5,10 @@
  *
  * Kiểu đã là bí danh của kiểu sinh (`TaskSummary`, `TaskDetail`, `ProgressUpdate`, `TaskStatus`,
  * `AssigneeRole`, `Assignment`, `AssignmentKind`, `MyOrgProfile`, `WorkContext`, `Job`, `JobStatus`,
- * `ProblemDetails`, `FieldError`, các kiểu liệt kê, lịch sử và check-in của `okr.ts`) không cần kiểm ở
- * đây. Các kiểu viết tay còn lệch hợp đồng và chưa kiểm (`OrgUnit`, `OkrBasis`, `ProgressBatchResult`,
- * `CellLoad`, các dạng xem OKR như cây mục tiêu, hàng chờ duyệt, ngữ cảnh soạn, và kiểu tenant chưa có
- * cùng tên trong hợp đồng) được ghi ở báo cáo WEB-064 và wiki/06. Kế hoạch (`plan.ts`) theo hợp đồng
+ * `ProblemDetails`, `FieldError`, và trong `okr.ts` các kiểu liệt kê, lịch sử, check-in, cây mục tiêu,
+ * hàng chờ duyệt, ngữ cảnh soạn) không cần kiểm ở đây. Các kiểu viết tay còn lệch hợp đồng và chưa kiểm
+ * (`OrgUnit`, `ProgressBatchResult`, `CellLoad`, bản nháp soạn OKR `ObjectiveDraft`/`ObjectiveDetail`, và
+ * kiểu tenant chưa có cùng tên trong hợp đồng) được ghi ở báo cáo WEB-064 và wiki/06. Kế hoạch (`plan.ts`) theo hợp đồng
  * từ WEB-065; `PlanWorkspace`, `PlanReview` là kiểu ghép phía client, không có trong hợp đồng.
  */
 import type { components as DossiersContract } from '../generated/dossiers';

@@ -4,7 +4,7 @@ import { OkrReviewCheck } from '@vt/api-client';
 /** Nhãn kết quả kiểm tra tự động (Đạt, cảnh báo, lỗi) của SCR-0203, màu đạt tương phản WCAG AA. */
 @Component({
   selector: 'vt-check-tag',
-  template: `<span class="tag" [class]="'t-' + check().tone">{{ check().label }}</span>`,
+  template: `<span class="tag" [class]="'t-' + check().level">{{ check().label }}</span>`,
   styles: `
     .tag {
       display: inline-block;
@@ -22,7 +22,7 @@ import { OkrReviewCheck } from '@vt/api-client';
       background: #fef6e4;
       color: #7c4a03;
     }
-    .t-LOI {
+    .t-LOI_CHAN {
       background: #fdecea;
       color: #991b1b;
     }
