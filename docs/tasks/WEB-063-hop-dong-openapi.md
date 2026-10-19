@@ -12,7 +12,7 @@
 | Cỡ việc | L |
 | Phụ thuộc | WEB-007 |
 | Truy vết | Mọi QT → mọi SCR → `/api/v1/*` → MOD-01..08, SVC-03..16 (trừ SVC-13) |
-| Trạng thái | Xong bản nháp 1 (11 tệp, 351 thao tác); chờ chốt các điểm HD và chuyển `generate.mjs` |
+| Trạng thái | Hoàn thành (đã gộp; điểm chốt được chấp nhận 19/10/2026; chuyển `generate.mjs` ở WEB-064) |
 
 ## 1. Mục tiêu
 
@@ -59,5 +59,5 @@ Theo mẫu `AGENTS.md` mục 6.
 - Truy vết: mỗi thao tác ghi `x-mission.qt/scr/owner/evt/roles/scope/source`.
 - Kiểm chứng: Redocly 1.34.21 lint toàn bộ hợp lệ (0 lỗi, 5 cảnh báo `no-ambiguous-paths`); bundle ra 11 tệp; openapi-typescript 7 sinh kiểu được 12 tệp; kiểm trùng `operationId` và tên lược đồ toàn thư mục trả rỗng; đối chiếu lược đồ `TaskSummary`, `TaskDetail`, `ProgressUpdate`, `Assignment`, `MyOrgProfile`, `WorkContext`, `Job`, `ProblemDetails` với hợp đồng mẫu WEB-007 và model viết tay của `@vt/api-client`: tương thích (chỉ thêm trường đã có trong model viết tay).
 - Giả định đã chọn: các điểm HD-01..HD-07 ở `contracts/openapi/README.md` và các bảng theo module ở BS-02; giá trị tự đặt khi nguồn không ghi đều đánh dấu "(suy luận)" trong tệp.
-- Chưa làm / rủi ro: chưa chuyển `generate.mjs`; chưa có kiểm thử hợp đồng tự động (Prism hoặc Schemathesis) và chưa đưa lint vào CI; các điểm chốt chờ người phụ trách xác nhận, có thể đổi đường dẫn hoặc tên trường.
+- Chưa làm / rủi ro: chưa chuyển `generate.mjs`; chưa có kiểm thử hợp đồng tự động (Prism hoặc Schemathesis) và chưa đưa lint vào CI; các điểm chốt đã được anh Hiếu chấp nhận ngày 19/10/2026; TL-03 còn chờ bổ sung theo BS-02.
 - Cập nhật wiki: 06 (mục "Bộ hợp đồng OpenAPI dùng chung"), 14 (ADR-32, mục "Điểm chốt khi viết hợp đồng OpenAPI").

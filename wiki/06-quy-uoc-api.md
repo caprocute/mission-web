@@ -101,7 +101,7 @@ Fixture phải mô phỏng các hành vi quan trọng của máy chủ: `If-Matc
 
 ## Các điểm lệch cần chốt
 
-Danh sách dưới chỉ liệt kê; phân tích và đề xuất nằm ở [Quyết định và câu hỏi mở](14-quyet-dinh-va-cau-hoi-mo.md).
+Danh sách dưới chỉ liệt kê; phân tích và đề xuất nằm ở [Quyết định và câu hỏi mở](14-quyet-dinh-va-cau-hoi-mo.md). **Đã chốt (19/10/2026, WEB-063):** xung đột `If-Match` trả 409, giữ `Idempotency-Key` 48 giờ, cập nhật tiến độ bằng `POST`, "việc của tôi" là `GET /tasks/mine`, giữ lược đồ job của WEB-007 (điểm HD-01 đến HD-06 trong `contracts/openapi/README.md`). Riêng phiên bản UUID của `Idempotency-Key` vẫn còn mở.
 
 | Chủ đề | Lệch giữa |
 |---|---|
