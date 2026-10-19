@@ -151,6 +151,8 @@ export interface EvidenceVersion {
   integrity?: { verified: boolean; checkedAt: string };
   qualityCriteria?: EvidenceQualityCriterion[];
   hasPriorRevisionRequest?: boolean;
+  /** Quyết định nghiệm thu của phiên bản này, nếu đã có. */
+  acceptance?: EvidenceAcceptance | null;
   rowVersion: number;
 }
 
@@ -235,4 +237,97 @@ export interface FileScanResult {
   scanStatus: FileScanStatus;
   verdict?: 'SACH' | 'NHIEM' | 'NGHI_NGO' | 'LOI';
   scannedAt?: string;
+}
+
+// ── Nghiệm thu (SCR-0703) ──
+
+/** Năm mức chất lượng B (PL 1, BR-07-07) và ý nghĩa mặc định (TL-02 SCR-0703). */
+export type QualityLevel = 1 | 0.75 | 0.5 | 0.25 | 0;
+
+/** Nguyên nhân chỉnh sửa theo hợp đồng (`product.acceptance.revision_cause`), tương ứng một-một với mức B. */
+export type EvidenceRevisionCause =
+  | 'THE_THUC'
+  | 'NOI_DUNG_KHONG_COT_LOI'
+  | 'NOI_DUNG_CO_BAN'
+  | 'SAI_SOT_NGHIEM_TRONG'
+  | 'SAI_CHU_TRUONG';
+
+export const QUALITY_LEVELS: {
+  value: QualityLevel;
+  label: string;
+  cause: EvidenceRevisionCause;
+}[] = [
+  { value: 1, label: 'Đạt, chỉ sửa thể thức', cause: 'THE_THUC' },
+  { value: 0.75, label: 'Cơ bản đạt, sửa nội dung không cốt lõi', cause: 'NOI_DUNG_KHONG_COT_LOI' },
+  { value: 0.5, label: 'Phải sửa nội dung cơ bản', cause: 'NOI_DUNG_CO_BAN' },
+  { value: 0.25, label: 'Sai sót nghiêm trọng, phải làm lại', cause: 'SAI_SOT_NGHIEM_TRONG' },
+  { value: 0, label: 'Không chấp nhận, sai chủ trương', cause: 'SAI_CHU_TRUONG' },
+];
+
+export type EvidenceAcceptanceDecision = 'DA_XAC_NHAN' | 'YEU_CAU_BO_SUNG' | 'TU_CHOI';
+
+export interface EvidenceCriterionResult {
+  criterionCode: string;
+  passed: boolean;
+  note?: string;
+}
+
+/** Bản ghi nghiệm thu (`product.acceptance`); `comment` là dữ liệu C2. */
+export interface EvidenceAcceptance {
+  id: string;
+  evidenceVersionId: string;
+  decision: EvidenceAcceptanceDecision;
+  qualityLevel?: QualityLevel;
+  criteriaResults?: EvidenceCriterionResult[];
+  revisionCause?: EvidenceRevisionCause;
+  isObjectiveRevision?: boolean;
+  revisionCount?: number;
+  comment?: string;
+  reviewer: NamedRef;
+  decidedAt: string;
+}
+
+export interface EvidenceAcceptRequest {
+  qualityLevel: QualityLevel;
+  criteriaResults: EvidenceCriterionResult[];
+  revisionCause?: EvidenceRevisionCause;
+  isObjectiveRevision?: boolean;
+  comment?: string;
+}
+
+export interface EvidenceReturnRequest {
+  criteriaResults?: EvidenceCriterionResult[];
+  comment: string;
+}
+
+export interface EvidenceDecisionResult {
+  acceptance: EvidenceAcceptance;
+  versionStatus: EvidenceVersionStatus;
+  taskStatusChanged?: string | null;
+}
+
+/** Xem trước điểm nhiệm vụ khi nghiệm thu (`POST /appraisals/score-preview`, SVC-07; không lưu). */
+export interface ScorePreviewInput {
+  taskId: string;
+  evidenceVersionId?: string;
+  qualityLevel: QualityLevel;
+  revisionCause?: 'CHU_QUAN' | 'KHACH_QUAN' | 'KHONG_CO';
+}
+
+export interface ScorePreview {
+  a: number;
+  b: number;
+  c: number;
+  kpi: number;
+  policyVersion?: string;
+}
+
+/** URL ký trước 5 phút để mở tệp (`GET /files/{objectId}/download-url`). */
+export interface FileDownloadUrl {
+  url: string;
+  expiresAt: string;
+  mediaType?: string;
+  sizeBytes?: number;
+  sha256: string;
+  e2ee: boolean;
 }

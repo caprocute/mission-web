@@ -2,7 +2,8 @@
  * Đường vào SCR-0701 (TL-02: từ SCR-0601 nút "Nộp sản phẩm", menu "Minh chứng", trang chủ).
  * `?task=` liệt kê sản phẩm của nhiệm vụ (`GET /products?task=`) và minh chứng của từng sản phẩm
  * (`GET /evidences?task=`); "Nộp minh chứng" mở minh chứng đã có hoặc tạo mới (`POST /evidences`).
- * Không có `?task=`: minh chứng do tôi nộp (`GET /evidences?submitter=me`).
+ * `?reviewer=me`: hàng chờ nghiệm thu (`GET /evidences?reviewer=me&status=DA_NOP,DANG_NGHIEM_THU`).
+ * Không có tham số: minh chứng do tôi nộp (`GET /evidences?submitter=me`).
  */
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
@@ -81,6 +82,32 @@ import { EVIDENCE_CAN } from '../evidence-permissions';
         </ul>
       } @else {
         <p class="muted" aria-busy="true">Đang tải…</p>
+      }
+    } @else if (reviewer() === 'me') {
+      <h1>Minh chứng chờ tôi nghiệm thu</h1>
+      @if (!can('SCR-0703.mo')) {
+        <p class="msg warn">Anh/chị không có quyền nghiệm thu minh chứng.</p>
+      } @else if (mine.value(); as list) {
+        @if (!list.length) {
+          <p class="muted">Không có minh chứng nào đang chờ đồng chí nghiệm thu.</p>
+        }
+        <ul class="list">
+          @for (e of list; track e.id) {
+            <li class="box">
+              <div>
+                <strong>{{ e.task.code }} · {{ e.title }}</strong>
+                <div class="muted small">
+                  {{ e.submittedBy?.name }} · phiên bản {{ e.currentVersionNo }}
+                  {{ e.currentStatus ? '· ' + statusLabel[e.currentStatus] : '' }}
+                  {{ e.isDuplicateSuspect ? '· có tệp trùng mã băm' : '' }}
+                </div>
+              </div>
+              <a class="p-button p-component lnk" [routerLink]="[e.id, 'review']">Nghiệm thu</a>
+            </li>
+          }
+        </ul>
+      } @else if (mine.error()) {
+        <p class="msg err" role="alert">Không tải được hàng chờ nghiệm thu.</p>
       }
     } @else {
       <h1>Minh chứng của tôi</h1>
@@ -176,6 +203,8 @@ export class EvidenceListPage {
 
   /** Mã nhiệm vụ từ `?task=` (SCR-0601 "Nộp sản phẩm"). */
   readonly task = input<string>();
+  /** `?reviewer=me`: hàng chờ nghiệm thu (menu "Đánh giá / Chờ tôi duyệt", SCR-0703). */
+  readonly reviewer = input<string>();
 
   protected readonly taskRes = rxResource({
     params: () => this.task(),
@@ -192,8 +221,15 @@ export class EvidenceListPage {
   });
 
   protected readonly mine = rxResource({
-    params: () => (this.task() ? undefined : 'me'),
-    stream: () => this.api.list({ submitter: 'me' }).pipe(map((p) => p.items)),
+    params: () => (this.task() ? undefined : this.reviewer() === 'me' ? 'reviewer' : 'submitter'),
+    stream: ({ params }) =>
+      this.api
+        .list(
+          params === 'reviewer'
+            ? { reviewer: 'me', status: ['DA_NOP', 'DANG_NGHIEM_THU'] }
+            : { submitter: 'me' },
+        )
+        .pipe(map((p) => p.items)),
   });
 
   protected readonly canStart = computed(
