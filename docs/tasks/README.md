@@ -29,7 +29,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
 | [WEB-001](WEB-001-cong-cu-chat-luong.md) | Công cụ chất lượng mã: ESLint, Prettier, Vitest cho toàn workspace | S | – | Hoàn thành (format:check còn đỏ do mã cũ) |
-| [WEB-002](WEB-002-pipeline-jenkins.md) | Pipeline Jenkins cho frontend có cổng chất lượng | M | WEB-001 | Chưa bắt đầu |
+| [WEB-002](WEB-002-pipeline-jenkins.md) | Pipeline Jenkins cho frontend có cổng chất lượng | M | WEB-001 | Hoàn thành (nhánh `feat/WEB-002-pipeline-jenkins`): `Jenkinsfile` đủ cổng, gitleaks, Semgrep, Trivy, SBOM, cosign; chưa chạy trên Jenkins thật; chưa có độ phủ tệp thay đổi (thiếu `@vitest/coverage-v8`); cổng ngân sách và Lighthouse CI đỏ cho tới khi WEB-052 đạt (xem wiki/11) |
 | [WEB-003](WEB-003-ngan-sach-hieu-nang.md) | Ngân sách bundle và Lighthouse CI | S | WEB-001 | Hoàn thành cấu hình; số đo chưa đạt, tối ưu ở WEB-052 |
 | [WEB-004](WEB-004-bien-dich-token.md) | Biên dịch Design Token và kiểm tra tương phản | M | WEB-001 | Chưa bắt đầu |
 | [WEB-005](WEB-005-storybook-hoi-quy.md) | Storybook và kiểm thử hồi quy giao diện theo bộ token | M | WEB-004 | Chưa bắt đầu |
