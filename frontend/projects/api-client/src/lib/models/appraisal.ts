@@ -34,6 +34,8 @@ export type AppraisalRatingLevels = Schemas['AppraisalRatingLevels'];
 export type AppraisalAnomalyHint = Schemas['AppraisalAnomalyHint'];
 export type AppraisalSignature = Schemas['AppraisalSignature'];
 export type AppraisalReviewInput = Schemas['AppraisalReviewInput'];
+export type AppraisalProposalInput = Schemas['AppraisalProposalInput'];
+export type AppraisalDowngradeReason = Schemas['AppraisalDowngradeReason'];
 export type AppraisalReturnInput = Schemas['AppraisalReturnInput'];
 export type AppraisalExportInput = Schemas['AppraisalExportInput'];
 
@@ -58,6 +60,13 @@ export type AppraisalSelfAssessmentView = Omit<AppraisalSelfAssessment, 'claims'
  * khi B hoặc C nghiệm thu khác tự nhận (SCR-0902 trường 5), phần mở rộng chờ hợp đồng (wiki/14).
  */
 export type AppraisalScoreTaskLineView = AppraisalScoreTaskLine & { acceptanceNote?: string };
+
+/**
+ * Hồ sơ kèm `signedFormId`: mã biểu mẫu Mẫu 1B đã ký của hồ sơ (`dossier.form_instance`), để SCR-0903
+ * "Tải Mẫu 1B" gọi `GET /dossiers/forms/{id}/file`. Hợp đồng chưa có cách lấy mã này từ hồ sơ nên đây là
+ * phần mở rộng của dữ liệu giả lập chờ hợp đồng bổ sung (wiki/14).
+ */
+export type AppraisalProfileView = AppraisalProfile & { signedFormId?: string | null };
 
 /** Yêu cầu xem trước biểu mẫu của SVC-11 (`POST /dossiers/forms/preview`, dossiers.yaml). */
 export type DossierFormPreviewRequest = DossierComponents['schemas']['DossierFormPreviewRequest'];

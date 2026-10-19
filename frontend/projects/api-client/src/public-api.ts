@@ -42,6 +42,7 @@ export * from './lib/models/period';
 export * from './lib/period-api';
 export * from './lib/models/appraisal';
 export * from './lib/appraisal-api';
+export * from './lib/dossier-api';
 export * from './lib/models/org-sync';
 export * from './lib/org-sync-api';
 export * from './lib/models/reopen';

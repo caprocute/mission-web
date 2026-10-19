@@ -7,6 +7,7 @@ import {
   AppraisalProfile,
   AppraisalProfilePage,
   AppraisalProfileStatus,
+  AppraisalProposalInput,
   AppraisalReviewInput,
   AppraisalScoreTrace,
   AppraisalScoreView,
@@ -30,7 +31,7 @@ const ifMatch = (p: Pick<AppraisalProfile, 'rowVersion'>) => ({ 'If-Match': `"${
 /**
  * Client cho `/api/v1/appraisals` của MOD-04 (QT-09, QT-10) theo hợp đồng
  * `contracts/openapi/modules/appraisals.yaml`: phiếu tự đánh giá SCR-0901 (WEB-035), thẩm định SCR-0902
- * (WEB-036). Mọi thao tác ghi
+ * (WEB-036), phiếu xếp loại SCR-0903 (WEB-037). Mọi thao tác ghi
  * lên hồ sơ gửi `If-Match` bằng `rowVersion` của hồ sơ (điểm chốt AP-05).
  */
 @Injectable({ providedIn: 'root' })
@@ -132,6 +133,18 @@ export class AppraisalApi {
         observe: 'response',
       })
       .pipe(map((res) => ({ location: accepted(res) })));
+  }
+
+  /**
+   * "Ghi mức đề xuất" của quản lý trực tiếp (SCR-0903): ghi mức `DE_XUAT` khi hồ sơ ở `DA_THAM_DINH`,
+   * không ký số; khác mức thẩm định thì bắt buộc lý do (422 MSG-09-12). Trả hồ sơ ở `CHO_QUYET_DINH`.
+   */
+  propose(p: AppraisalProfile, body: AppraisalProposalInput): Observable<AppraisalProfile> {
+    return this.http.post<AppraisalProfile>(
+      `/api/v1/appraisals/profiles/${enc(p.id)}/proposal`,
+      body,
+      { headers: ifMatch(p) },
+    );
   }
 
   /** "Xuất danh sách" hàng đợi ra XLSX (không gồm trường C2), tác vụ dài 202. */

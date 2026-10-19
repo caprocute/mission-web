@@ -57,7 +57,7 @@ describe('appraisals mock (WEB-035)', () => {
 
   it('hồ sơ của tôi có hai luồng; chuyển luồng lấy ảnh chụp của hồ sơ luồng kia', async () => {
     const { api } = setup();
-    const mine = await firstValueFrom(api.myProfiles());
+    const mine = await firstValueFrom(api.myProfiles({ period: P + '0001' }));
     expect(mine.items.map((r) => [r.flow, r.totalScore, r.autoRatingCode])).toEqual([
       ['DANG', 91.2, 'HTTNV'],
       ['NHA_NUOC', 91.8, 'HTXSNV'],
@@ -178,7 +178,8 @@ describe('appraisals mock, thẩm định (WEB-036)', () => {
     expect(h).toMatchObject({ totalScore: 91.2, levels: { selfProposed: 'HTXSNV' } });
     expect(h.anomalyHints?.[0].label).toBe('Tự chấm cao 3 quý');
     const done = await firstValueFrom(api.profiles({ status: ['DA_THAM_DINH'] }));
-    expect(done.items).toEqual([]);
+    // chỉ có các hồ sơ của phiếu xếp loại SCR-0903 (WEB-037)
+    expect(done.items.map((r) => r.id.slice(-4))).toEqual(['0a41', '0a42', '0a43']);
   });
 
   it('ký thẩm định: 422 MSG-09-06 khi khác mức không lý do, 401 khi chưa MFA, job xong hồ sơ DA_THAM_DINH', async () => {
@@ -229,5 +230,44 @@ describe('appraisals mock, thẩm định (WEB-036)', () => {
     expect(job.status).toBe('HOAN_TAT');
     const file = await firstValueFrom(api.download(job.resultLocation!));
     expect(await file.text()).toContain('Trần Minh Hoàng');
+  });
+
+  it('WEB-037 ghi mức đề xuất: lý do khi khác mức thẩm định, hồ sơ sang CHO_QUYET_DINH, 409 khi ghi lại', async () => {
+    const { api } = setup();
+    const p = await firstValueFrom(api.profile(P + '0a41'));
+    expect(p.status).toBe('DA_THAM_DINH');
+    const noReason = await errorOf(firstValueFrom(api.propose(p, { ratingCode: 'HTXSNV' })));
+    expect([noReason.status, noReason.error.code]).toEqual([422, 'APPRAISAL-422-REASON-REQUIRED']);
+    const after = await firstValueFrom(api.propose(p, { ratingCode: 'HTTNV' }));
+    expect(after.status).toBe('CHO_QUYET_DINH');
+    expect(after.ratingTrail.at(-1)).toMatchObject({
+      levelKind: 'DE_XUAT',
+      ratingCode: 'HTTNV',
+      actorRole: 'manager',
+      differsFromPrev: false,
+    });
+    const again = await errorOf(firstValueFrom(api.propose(after, { ratingCode: 'HTTNV' })));
+    expect([again.status, again.error.code]).toEqual([409, 'APPRAISAL-409-INVALID-STATUS']);
+    const stale = await errorOf(firstValueFrom(api.propose(p, { ratingCode: 'HTTNV' })));
+    expect(stale.status).toBe(409);
+  });
+
+  it('WEB-037 tách vai trò khi đề xuất (403); hồ sơ đã quyết định của tôi có Mẫu 1B đã ký', async () => {
+    const { api, http } = setup();
+    const nam = await firstValueFrom(api.profile(P + '0a43'));
+    const e = await errorOf(firstValueFrom(api.propose(nam, { ratingCode: 'HTTNV' })));
+    expect([e.status, e.error.code]).toEqual([403, 'APPRAISAL-403-SEPARATION-OF-DUTIES']);
+    const mine = await firstValueFrom(api.myProfiles());
+    const q3 = mine.items.find((r) => r.status === 'DA_KY_SO')!;
+    expect(q3.levels.decided).toBe('HTTNV');
+    const full = (await firstValueFrom(api.profile(q3.id))) as { signedFormId?: string };
+    const pdf = await firstValueFrom(
+      http.get(`/api/v1/dossiers/forms/${full.signedFormId}/file`, { responseType: 'blob' }),
+    );
+    expect((await pdf.text()).startsWith('%PDF-1.4')).toBe(true);
+    const view = await firstValueFrom(api.scores(q3.id));
+    expect(view.explanation?.conditions.filter((c) => !c.met).map((c) => c.actual)).toEqual([
+      '22%',
+    ]);
   });
 });
