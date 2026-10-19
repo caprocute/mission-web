@@ -36,7 +36,7 @@
           "at": "@today-3T08:30:00Z",
           "percent": 60,
           "note": "Đã thu số liệu 6/8 phòng",
-          "by": "Cán bộ thử nghiệm",
+          "by": "Nguyễn Văn Minh",
           "channel": "WEB"
         }
       ],
@@ -96,7 +96,7 @@
           "at": "@today-5T09:00:00Z",
           "percent": 40,
           "note": "Đã có dự thảo báo cáo",
-          "by": "Cán bộ thử nghiệm",
+          "by": "Nguyễn Văn Minh",
           "channel": "WEB"
         }
       ],
@@ -141,7 +141,7 @@
           "at": "@today-1T15:00:00Z",
           "percent": 100,
           "note": "Đã nộp minh chứng",
-          "by": "Cán bộ thử nghiệm",
+          "by": "Nguyễn Văn Minh",
           "channel": "WEB"
         }
       ],
@@ -200,7 +200,7 @@
           "at": "@today-6T10:00:00Z",
           "percent": 70,
           "note": "Đã có dự thảo, chờ số liệu UBKT",
-          "by": "Cán bộ thử nghiệm",
+          "by": "Nguyễn Văn Minh",
           "channel": "WEB"
         }
       ],
@@ -239,7 +239,7 @@
       "progressLog": [
         {
           "at": "@today-1T01:47:00Z",
-          "by": "Cán bộ thử nghiệm",
+          "by": "Nguyễn Văn Minh",
           "byRole": "CHU_TRI",
           "channel": "MOBILE",
           "fromPercent": 30,
@@ -248,7 +248,7 @@
         },
         {
           "at": "@today-3T09:30:00Z",
-          "by": "Cán bộ thử nghiệm",
+          "by": "Nguyễn Văn Minh",
           "byRole": "CHU_TRI",
           "channel": "WEB",
           "fromPercent": 10,
@@ -266,7 +266,7 @@
         },
         {
           "at": "@today-10T01:15:00Z",
-          "by": "Cán bộ thử nghiệm",
+          "by": "Nguyễn Văn Minh",
           "byRole": "CHU_TRI",
           "channel": "WEB",
           "fromPercent": 0,
@@ -314,7 +314,7 @@
           "from": "DA_GIAO",
           "to": "DANG_THUC_HIEN",
           "transition": "NHAN_VIEC",
-          "actorName": "Cán bộ thử nghiệm"
+          "actorName": "Nguyễn Văn Minh"
         }
       ]
     },

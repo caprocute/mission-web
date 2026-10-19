@@ -201,7 +201,7 @@
           "submittedAt": "@today-5T15:20:00+07:00",
           "decidedAt": "@today-4T10:00:00+07:00",
           "decisionNote": "Bổ sung số liệu chi bộ 3, 6",
-          "decidedByName": "Cán bộ thử nghiệm",
+          "decidedByName": "Nguyễn Văn Minh",
           "qualityCriteria": [
             {
               "code": "TC-DV-03-1",

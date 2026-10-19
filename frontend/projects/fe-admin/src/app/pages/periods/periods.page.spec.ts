@@ -157,6 +157,6 @@ describe('PeriodsPage (SCR-0801)', () => {
     area.dispatchEvent(new Event('input'));
     await press(el, 'Gửi đề nghị huỷ');
     await until(el, 'p-message', has('Đề nghị huỷ và hoàn tác cần người duyệt thứ hai'));
-    expect(text(await until(el, '.cancelbox'))).toContain('Cán bộ thử nghiệm');
+    expect(text(await until(el, '.cancelbox'))).toContain('Nguyễn Văn Minh');
   });
 });
