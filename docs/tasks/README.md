@@ -51,7 +51,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-016](WEB-016-danh-sach-tenant.md) | SCR-0101 Danh sách tenant | S | WEB-015 | Xong, chờ gộp (luồng giám sát, điều hành, cấu hình; nhánh `feat/WEB-016-danh-sach-tenant`) |
 | [WEB-017](WEB-017-wizard-tenant.md) | SCR-0102 Khởi tạo tenant (wizard) | M | WEB-016 | Xong, chờ gộp |
 | [WEB-018](WEB-018-cay-to-chuc.md) | SCR-0103 Cây tổ chức có lịch sử | L | WEB-015 | Xong, chờ gộp |
-| [WEB-019](WEB-019-doi-soat-nhan-su.md) | SCR-0104 Đồng bộ và đối soát nhân sự | M | WEB-018 | Chưa bắt đầu |
+| [WEB-019](WEB-019-doi-soat-nhan-su.md) | SCR-0104 Đồng bộ và đối soát nhân sự | M | WEB-018 | Xong, chờ gộp |
 | [WEB-020](WEB-020-theme-keycloak.md) | SCR-0001 Giao diện trang đăng nhập (theme Keycloak) | M | WEB-004, WEB-006 | Chưa bắt đầu |
 
 ## GĐ2 – Lõi nghiệp vụ (đợt 2 TL-04)

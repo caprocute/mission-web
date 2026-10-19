@@ -38,6 +38,8 @@ export * from './lib/tenant-api';
 export * from './lib/okr-progress';
 export * from './lib/models/org-tree';
 export * from './lib/org-tree-api';
+export * from './lib/models/org-sync';
+export * from './lib/org-sync-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
 export {
   failMockIntegrityOnce,

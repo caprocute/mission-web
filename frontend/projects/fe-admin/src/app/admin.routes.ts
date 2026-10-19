@@ -49,6 +49,12 @@ export const ROUTES: Routes = [
     title: 'Cây tổ chức',
   },
   {
+    path: 'org/sync',
+    canActivate: [permissionGuard('SCR-0104.xem')],
+    loadComponent: () => import('./pages/org/org-sync.page').then((m) => m.OrgSyncPage),
+    title: 'Đồng bộ và đối soát nhân sự',
+  },
+  {
     path: 'tenants/:id',
     canActivate: [permissionGuard('SCR-0101.xem')],
     loadComponent: () => import('./pages/tenant-detail.page').then((m) => m.TenantDetailPage),

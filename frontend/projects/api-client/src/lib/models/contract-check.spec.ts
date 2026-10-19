@@ -16,6 +16,7 @@ import type { components as TasksContract } from '../generated/tasks';
 import type * as Catalog from './catalog';
 import type * as Okr from './okr';
 import type * as Org from './org';
+import type * as OrgSync from './org-sync';
 import type * as Plan from './plan';
 import type * as SourceDoc from './source-doc';
 import type * as TaskAssign from './task-assign';
@@ -42,6 +43,14 @@ export type ContractCheck = [
   Expect<Compatible<Okr.OkrOwnerType, OkrContract['schemas']['OkrOwnerType']>>,
   // org.ts ↔ org.yaml
   Expect<Compatible<Org.OrgPerson, OrgContract['schemas']['OrgPerson']>>,
+  // org-sync.ts ↔ org.yaml (trường thêm chờ hợp đồng đều tuỳ chọn)
+  Expect<Compatible<OrgSync.SyncSource, OrgContract['schemas']['SyncSource']>>,
+  Expect<Compatible<OrgSync.OrgSyncRun, OrgContract['schemas']['OrgSyncRun']>>,
+  Expect<Compatible<OrgSync.OrgSyncSchedule, OrgContract['schemas']['OrgSyncSchedule']>>,
+  Expect<Compatible<OrgSync.OrgDiscrepancy, OrgContract['schemas']['OrgDiscrepancy']>>,
+  Expect<
+    Compatible<OrgSync.DiscrepancyResolution, OrgContract['schemas']['DiscrepancyResolution']>
+  >,
   // plan.ts ↔ tasks.yaml
   Expect<Compatible<Plan.PlanItemRef, TasksContract['schemas']['PlanItemRef']>>,
   Expect<Compatible<Plan.PlanVersionStatus, TasksContract['schemas']['PlanVersionStatus']>>,
@@ -103,7 +112,7 @@ export type ContractCheck = [
 
 describe('model viết tay và hợp đồng OpenAPI', () => {
   it('tương thích kiểu (kiểm lúc biên dịch, xem ContractCheck)', () => {
-    const checked: ContractCheck['length'] = 59;
+    const checked: ContractCheck['length'] = 64;
     expect(checked).toBeGreaterThan(0);
   });
 });
