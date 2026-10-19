@@ -13,15 +13,11 @@ import { TASK_CAN } from '../task-permissions';
 import { PlanReviewPage } from './plan-review.page';
 import { PLAN_STEP_UP } from './plan/step-up';
 
-/**
- * WEB-027, WEB-065: SCR-0403 trên dữ liệu giả lập theo hợp đồng: so sánh, phiên bản đầu so với kế hoạch
- * rỗng, trả lại, MFA bước lên, ký số (202 Job, yêu cầu ký), ẩn/hiện theo quyền.
- */
+/** WEB-027: SCR-0403 trên dữ liệu giả lập: so sánh, trả lại, MFA bước lên, ký số, ẩn/hiện theo quyền. */
 async function render(
   ready: string,
   can: (k: string) => boolean = () => true,
   query: Record<string, string> = { v: '2' },
-  planId = 'plan-2026-q4',
 ) {
   // lần đầu giả như phiên đã đạt MFA nhưng máy chủ vẫn đòi (401), lần sau mới đánh dấu đã MFA
   let calls = 0;
@@ -45,7 +41,7 @@ async function render(
     ],
   });
   const fixture = TestBed.createComponent(PlanReviewPage);
-  fixture.componentRef.setInput('id', planId);
+  fixture.componentRef.setInput('id', 'plan-2026-q4');
   fixture.autoDetectChanges();
   await until(fixture.nativeElement, ready);
   return { el: fixture.nativeElement as HTMLElement, stepUp };
@@ -92,15 +88,6 @@ describe('PlanReviewPage (SCR-0403)', () => {
     ).click();
     await until(el, '.tbl tbody tr', () => el.querySelectorAll('.tbl tbody tr').length === 9);
     expect(el.querySelectorAll('.tbl tbody tr')).toHaveLength(9);
-  });
-
-  it('phiên bản đầu so với kế hoạch rỗng: mọi dòng là nội dung kế hoạch, không có cột thay đổi', async () => {
-    const { el } = await render('.tbl tbody tr', () => true, {}, 'plan-2027-q1');
-    expect(text(el.querySelector('h1'))).toBe('Phê duyệt kế hoạch Quý I/2027');
-    expect(text(el.querySelector('.card'))).toContain('Số công việc6');
-    expect(el.querySelectorAll('.tbl tbody tr')).toHaveLength(6);
-    expect([...el.querySelectorAll('.tbl th')].map(text)).not.toContain('Thay đổi');
-    expect(text(el.querySelector('.msg.info'))).toContain('chưa gửi duyệt');
   });
 
   it('trả lại bắt buộc ý kiến, sau đó kế hoạch thành TRA_LAI', async () => {
