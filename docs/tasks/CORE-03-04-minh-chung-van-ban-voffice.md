@@ -48,7 +48,7 @@ Người nộp tìm được văn bản đã ban hành của đơn vị trong vO
 ## 6. Tiêu chí hoàn thành
 
 - `cd backend && mvn -q -pl mission-core -am verify` xanh; phản hồi khớp `products.yaml`.
-- Kiểm thử chứng minh văn bản có chữ ký sai không trở thành minh chứng; SVC-13 lỗi trả 503 có `Retry-After`, không treo luồng.
+- Kiểm thử chứng minh văn bản có chữ ký sai không trở thành minh chứng; SVC-13 lỗi trả 503 có `Retry-After` (suy luận), không treo luồng.
 - Báo cáo cuối task theo AGENTS.md mục 6; wiki được cập nhật nếu có tri thức mới.
 
 ## 7. Báo cáo
