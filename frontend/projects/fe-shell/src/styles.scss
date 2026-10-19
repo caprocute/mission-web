@@ -1,0 +1,28 @@
+/* Thứ tự lớp CSS: base của nền tảng → PrimeNG → app, để token tenant ghi đè đúng chỗ */
+@layer base, primeng, app;
+@import 'primeicons/primeicons.css';
+
+@layer base {
+  /* Token mặc định khi UI Pack chưa nạp; UI Pack ghi đè dưới :root[data-tenant] */
+  :root {
+    --vt-color-primary: #ee0033;
+    --vt-color-on-primary: #ffffff;
+    --vt-color-surface: #ffffff;
+    --vt-color-text: #1f2329;
+    --vt-color-background: #f5f6f8;
+    --vt-font-family: 'Be Vietnam Pro', Roboto, 'Segoe UI', sans-serif;
+    --vt-font-size-body: 14px;
+    --vt-radius-card: 8px;
+    --vt-space-lg: 16px;
+    --vt-min-touch: 40px;
+  }
+  /* Chế độ Đảng viên cao tuổi (NFR-11): chữ ≥ 17 px, tương phản cao, vùng chạm ≥ 48 px */
+  :root[data-mode='elderly'] {
+    --vt-font-size-body: 18px;
+    --vt-color-text: #000000;
+    --vt-min-touch: 48px;
+  }
+  html { font-size: var(--vt-font-size-body); }
+  body { margin: 0; font-family: var(--vt-font-family); color: var(--vt-color-text); background: var(--vt-color-background); }
+  :focus-visible { outline: 3px solid color-mix(in srgb, var(--vt-color-primary) 60%, white); outline-offset: 2px; }
+}

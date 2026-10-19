@@ -1,0 +1,368 @@
+# Hạ tầng dùng chung cho môi trường DEV của phân hệ web Mission.
+# Bám danh mục hạ tầng trong cell (baseline mục 5, TL-01, TL-04) nhưng thu gọn về một máy:
+#   production dùng CloudNativePG, Valkey Cluster, Kafka nhiều broker, Ceph RGW, Istio...
+#   dev dùng một instance mỗi loại, MinIO thay Ceph RGW (cùng API S3, có Object Lock).
+# Chia theo profile để chỉ bật phần cần: core, events, search, analytics, observability, gateway, web.
+#   docker compose --profile core up -d
+#   docker compose --profile core --profile events up -d
+# Mọi cổng và mật khẩu lấy từ infra/dev/.env (không commit), mẫu ở .env.example.
+
+name: mission-dev
+
+x-restart: &restart
+  restart: unless-stopped
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "3" }
+
+networks:
+  mission:
+    name: mission-dev
+
+
+services:
+  data-init:
+    # Tạo thư mục dữ liệu (bind mount) với đúng chủ sở hữu theo UID của từng image.
+    # Dữ liệu đặt ngoài thư mục gốc của Docker vì ổ đó trên server dev gần đầy.
+    image: busybox:1.37
+    profiles: [core, events, search, analytics, observability]
+    volumes:
+      - ${DATA_DIR:-./data}:/data
+    command:
+      - sh
+      - -c
+      - >
+        mkdir -p /data/postgres /data/valkey /data/kafka /data/minio /data/opensearch /data/clickhouse /data/lgtm &&
+        chown -R 999:999 /data/valkey && chown -R 1000:1000 /data/kafka /data/opensearch &&
+        chown -R 101:101 /data/clickhouse && echo data-init ok
+
+  # ---------------------------------------------------------------- core
+  postgres:
+    # ADR-02: PostgreSQL 17; mỗi module/service một schema và một tài khoản CSDL
+    image: postgres:17-alpine
+    <<: [*restart, *logging]
+    profiles: [core]
+    command:
+      - postgres
+      - -c
+      - wal_level=logical          # Debezium outbox (ADR-03)
+      - -c
+      - max_replication_slots=10
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_connections=300
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+    environment:
+      POSTGRES_USER: ${PG_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${PG_SUPERUSER_PASSWORD:?đặt PG_SUPERUSER_PASSWORD trong .env}
+      POSTGRES_DB: postgres
+      MISSION_DB_PASSWORD: ${MISSION_DB_PASSWORD:?}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?}
+    volumes:
+      - ${DATA_DIR:-./data}/postgres:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:${PG_PORT:-35432}:5432"
+    depends_on:
+      data-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_SUPERUSER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [mission]
+
+  valkey:
+    # ADR-18: Valkey thay Redis; dev dùng một node, khoá có tiền tố {tenant}:{module}:
+    image: valkey/valkey:8-alpine
+    <<: [*restart, *logging]
+    profiles: [core]
+    command: ["valkey-server", "--appendonly", "yes", "--requirepass", "${VALKEY_PASSWORD:?}", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - ${DATA_DIR:-./data}/valkey:/data
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:${VALKEY_PORT:-35379}:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli -a $$VALKEY_PASSWORD ping | grep PONG"]
+      interval: 10s
+      retries: 10
+    environment:
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD}
+    depends_on:
+      data-init: { condition: service_completed_successfully }
+    networks: [mission]
+
+  keycloak:
+    # ADR-08: Keycloak 26, realm "mission", client mission-web (OIDC Code + PKCE)
+    image: quay.io/keycloak/keycloak:26.4
+    <<: [*restart, *logging]
+    profiles: [core]
+    command: ["start-dev", "--import-realm", "--http-port=8080", "--features=organization"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?}
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-http://localhost:35080}
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      WEB_ORIGIN: ${WEB_PUBLIC_URL:-http://localhost:35200}
+    volumes:
+      - ./keycloak/realm-mission.json:/opt/keycloak/data/import/realm-mission.json:ro
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:${KEYCLOAK_PORT:-35080}:8080"
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [mission]
+
+  minio:
+    # ADR-13 ở dev: MinIO (API S3) thay Ceph RGW; bucket minh chứng bật Object Lock
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    <<: [*restart, *logging]
+    profiles: [core]
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-mission}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?}
+    volumes:
+      - ${DATA_DIR:-./data}/minio:/data
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:${MINIO_API_PORT:-35900}:9000"
+      - "${BIND_ADDR:-0.0.0.0}:${MINIO_CONSOLE_PORT:-35901}:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      retries: 10
+    depends_on:
+      data-init: { condition: service_completed_successfully }
+    networks: [mission]
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    profiles: [core]
+    depends_on:
+      minio: { condition: service_healthy }
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-mission}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    entrypoint: ["/bin/sh", "/init/init-buckets.sh"]
+    volumes:
+      - ./minio/init-buckets.sh:/init/init-buckets.sh:ro
+    networks: [mission]
+
+  mailpit:
+    # Hộp thư giả để thử notification-service (SVC-12) gửi email ở dev
+    image: axllent/mailpit:v1.27
+    <<: [*restart, *logging]
+    profiles: [core]
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:${MAILPIT_SMTP_PORT:-35025}:1025"
+      - "${BIND_ADDR:-0.0.0.0}:${MAILPIT_UI_PORT:-35825}:8025"
+    networks: [mission]
+
+  # -------------------------------------------------------------- events
+  kafka:
+    # ADR-03: Kafka KRaft (không ZooKeeper); dev một broker
+    image: apache/kafka:3.9.1
+    <<: [*restart, *logging]
+    profiles: [events]
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9094,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://${PUBLIC_HOST:-localhost}:${KAFKA_EXTERNAL_PORT:-35094}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_RETENTION_HOURS: 72          # giữ outbox 72 giờ như TL-04 mục 8
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx1g
+    volumes:
+      - ${DATA_DIR:-./data}/kafka:/var/lib/kafka/data
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:${KAFKA_EXTERNAL_PORT:-35094}:9094"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 15s
+      retries: 10
+    depends_on:
+      data-init: { condition: service_completed_successfully }
+    networks: [mission]
+
+  kafka-init:
+    # Tạo topic EVT-01…EVT-26 theo quy ước <miền>.<thực-thể>.<sự-kiện>.v1
+    image: apache/kafka:3.9.1
+    profiles: [events]
+    depends_on:
+      kafka: { condition: service_healthy }
+    entrypoint: ["/bin/bash", "/init/create-topics.sh"]
+    volumes:
+      - ./scripts/create-topics.sh:/init/create-topics.sh:ro
+    networks: [mission]
+
+  apicurio:
+    # Registry schema sự kiện Avro (ADR-03)
+    image: apicurio/apicurio-registry:3.0.9
+    <<: [*restart, *logging]
+    profiles: [events]
+    environment:
+      APICURIO_STORAGE_KIND: sql
+      APICURIO_STORAGE_SQL_KIND: postgresql
+      APICURIO_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mission?currentSchema=apicurio
+      APICURIO_DATASOURCE_USERNAME: apicurio
+      APICURIO_DATASOURCE_PASSWORD: ${MISSION_DB_PASSWORD}
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:${APICURIO_PORT:-35081}:8080"
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [mission]
+
+  connect:
+    # Debezium (Kafka Connect) đọc WAL bảng outbox_event; một connector mỗi database
+    image: quay.io/debezium/connect:3.1
+    <<: [*restart, *logging]
+    profiles: [events]
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: mission-connect
+      CONFIG_STORAGE_TOPIC: _connect_configs
+      OFFSET_STORAGE_TOPIC: _connect_offsets
+      STATUS_STORAGE_TOPIC: _connect_status
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      HEAP_OPTS: -Xms256m -Xmx768m
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${CONNECT_PORT:-35083}:8083"
+    depends_on:
+      kafka: { condition: service_healthy }
+    networks: [mission]
+
+  kafka-ui:
+    image: ghcr.io/kafbat/kafka-ui:v1.3.0
+    <<: [*restart, *logging]
+    profiles: [events]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: mission-dev
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: debezium
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://connect:8083
+      AUTH_TYPE: LOGIN_FORM
+      SPRING_SECURITY_USER_NAME: ${KAFKA_UI_USER:-admin}
+      SPRING_SECURITY_USER_PASSWORD: ${KAFKA_UI_PASSWORD:?}
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:${KAFKA_UI_PORT:-35082}:8080"
+    depends_on:
+      kafka: { condition: service_healthy }
+    networks: [mission]
+
+  # -------------------------------------------------------------- search
+  opensearch:
+    # ADR-15: OpenSearch thay Elasticsearch; dev tắt plugin security, chỉ mở trên 127.0.0.1
+    image: opensearchproject/opensearch:2.19.2
+    <<: [*restart, *logging]
+    profiles: [search]
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx1g
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    volumes:
+      - ${DATA_DIR:-./data}/opensearch:/usr/share/opensearch/data
+    ports:
+      - "127.0.0.1:${OPENSEARCH_PORT:-35920}:9200"
+    depends_on:
+      data-init: { condition: service_completed_successfully }
+    networks: [mission]
+
+  # ----------------------------------------------------------- analytics
+  clickhouse:
+    # ADR-14: kho phân tích CQRS phía đọc
+    image: clickhouse/clickhouse-server:25.3-alpine
+    <<: [*restart, *logging]
+    profiles: [analytics]
+    environment:
+      CLICKHOUSE_DB: analytics_dev
+      CLICKHOUSE_USER: mission
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    volumes:
+      - ${DATA_DIR:-./data}/clickhouse:/var/lib/clickhouse
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:${CLICKHOUSE_HTTP_PORT:-35123}:8123"
+    depends_on:
+      data-init: { condition: service_completed_successfully }
+    networks: [mission]
+
+  # ------------------------------------------------------- observability
+  lgtm:
+    # ADR-12 thu gọn: OTel Collector + Tempo + Prometheus + Loki + Grafana trong một image
+    image: grafana/otel-lgtm:0.11.4
+    <<: [*restart, *logging]
+    profiles: [observability]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?}
+    volumes:
+      - ${DATA_DIR:-./data}/lgtm:/data
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:${GRAFANA_PORT:-35300}:3000"
+      - "${BIND_ADDR:-0.0.0.0}:${OTLP_GRPC_PORT:-35317}:4317"
+      - "${BIND_ADDR:-0.0.0.0}:${OTLP_HTTP_PORT:-35318}:4318"
+    depends_on:
+      data-init: { condition: service_completed_successfully }
+    networks: [mission]
+
+  # ------------------------------------------------------------- gateway
+  apisix:
+    # SVC-01 ở chế độ standalone (không etcd) cho dev: định tuyến /api → mission-core, / → web
+    image: apache/apisix:3.12.0-debian
+    <<: [*restart, *logging]
+    profiles: [gateway]
+    environment:
+      APISIX_STAND_ALONE: "true"
+    volumes:
+      - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:${GATEWAY_PORT:-35000}:9080"
+    networks: [mission]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ----------------------------------------------------------------- web
+  web:
+    # SVC-17: bản build fe-shell + fe-task phục vụ bằng nginx, config.json sinh từ biến môi trường
+    build:
+      context: ../..
+      dockerfile: deploy/web/Dockerfile
+    image: mission/web:dev
+    <<: [*restart, *logging]
+    profiles: [web]
+    environment:
+      CELL: DEV
+      TENANT: default
+      API_BASE_URL: /api
+      AUTH_ENABLED: ${WEB_AUTH_ENABLED:-false}
+      AUTH_ISSUER: ${KEYCLOAK_PUBLIC_URL:-http://localhost:35080}/realms/mission
+      AUTH_CLIENT_ID: mission-web
+      USE_MOCK_API: ${WEB_USE_MOCK_API:-true}
+      FE_TASK_URL: /remotes/fe-task
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:${WEB_PORT:-35200}:8080"
+    networks: [mission]

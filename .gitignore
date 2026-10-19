@@ -1,0 +1,15 @@
+# Bí mật: không bao giờ commit
+.env
+*.env
+!.env.example
+!**/.env.example
+infra/dev/data/
+infra/dev/SHA256SUMS
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/coverage/
+*.log
+.DS_Store

@@ -1,0 +1,275 @@
+{
+  "realm": "mission",
+  "enabled": true,
+  "displayName": "Mission (dev)",
+  "organizationsEnabled": true,
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "vi",
+    "en"
+  ],
+  "defaultLocale": "vi",
+  "bruteForceProtected": true,
+  "passwordPolicy": "length(8)",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      {
+        "name": "platform_admin",
+        "description": "AC-01 Quản trị nền tảng"
+      },
+      {
+        "name": "tenant_admin",
+        "description": "AC-02 Quản trị tenant"
+      },
+      {
+        "name": "policy_author",
+        "description": "AC-03 Quản trị nghiệp vụ / BA cấu hình"
+      },
+      {
+        "name": "leader",
+        "description": "AC-04 Lãnh đạo, người đứng đầu"
+      },
+      {
+        "name": "manager",
+        "description": "AC-05 Cán bộ quản lý trực tiếp"
+      },
+      {
+        "name": "member",
+        "description": "AC-06 Cán bộ, công chức, viên chức, đảng viên"
+      },
+      {
+        "name": "appraiser",
+        "description": "AC-07 Cơ quan tổ chức cán bộ (thẩm định)"
+      },
+      {
+        "name": "decider",
+        "description": "AC-08 Cấp có thẩm quyền quyết định"
+      },
+      {
+        "name": "second_approver",
+        "description": "AC-09 Người duyệt thứ hai"
+      },
+      {
+        "name": "inspector",
+        "description": "AC-10 Cơ quan kiểm tra, giám sát"
+      },
+      {
+        "name": "ai_readonly",
+        "description": "AC-12 Trợ lý AI chỉ đọc"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "mission-web",
+      "name": "Phân hệ web Mission (SVC-17)",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "redirectUris": [
+        "http://localhost:4200/*",
+        "http://localhost:35200/*",
+        "${WEB_ORIGIN}/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200",
+        "http://localhost:35200",
+        "${WEB_ORIGIN}"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
+      "protocolMappers": [
+        {
+          "name": "tenant",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "tenant",
+            "claim.name": "tenant",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "unit_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "unit_id",
+            "claim.name": "unit_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "realm roles in id token",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "realm_access.roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "mission-core",
+      "name": "mission-core (resource server, SVC-05)",
+      "bearerOnly": false,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "secret": "dev-only-change-me"
+    }
+  ],
+  "users": [
+    {
+      "username": "canbo",
+      "enabled": true,
+      "firstName": "Bộ",
+      "lastName": "Nguyễn Văn Cán",
+      "email": "canbo@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "phong-tong-hop"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Mission@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    },
+    {
+      "username": "quanly",
+      "enabled": true,
+      "firstName": "Lý",
+      "lastName": "Trần Thị Quản",
+      "email": "quanly@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "phong-tong-hop"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Mission@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager"
+      ]
+    },
+    {
+      "username": "lanhdao",
+      "enabled": true,
+      "firstName": "Đạo",
+      "lastName": "Lê Văn Lãnh",
+      "email": "lanhdao@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "phong-tong-hop"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Mission@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader"
+      ]
+    },
+    {
+      "username": "thamdinh",
+      "enabled": true,
+      "firstName": "Định",
+      "lastName": "Phạm Thị Thẩm",
+      "email": "thamdinh@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "phong-tong-hop"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Mission@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "appraiser"
+      ]
+    },
+    {
+      "username": "quantri",
+      "enabled": true,
+      "firstName": "Trị",
+      "lastName": "Hoàng Văn Quản",
+      "email": "quantri@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "phong-tong-hop"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Mission@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "tenant_admin",
+        "policy_author"
+      ]
+    }
+  ]
+}

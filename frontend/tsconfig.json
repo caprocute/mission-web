@@ -1,0 +1,93 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "paths": {
+      "@vt/design-system": [
+        "./projects/design-system/src/public-api.ts"
+      ],
+      "@vt/auth": [
+        "./projects/auth/src/public-api.ts"
+      ],
+      "@vt/sdui-renderer": [
+        "./projects/sdui-renderer/src/public-api.ts"
+      ],
+      "@vt/form-engine": [
+        "./projects/form-engine/src/public-api.ts"
+      ],
+      "@vt/telemetry": [
+        "./projects/telemetry/src/public-api.ts"
+      ],
+      "@vt/api-client": [
+        "./projects/api-client/src/public-api.ts"
+      ]
+    },
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2022",
+    "module": "preserve"
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./projects/fe-shell/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/fe-shell/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/fe-task/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/fe-task/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/design-system/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/design-system/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/auth/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/auth/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/sdui-renderer/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/sdui-renderer/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/form-engine/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/form-engine/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/telemetry/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/telemetry/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/api-client/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/api-client/tsconfig.spec.json"
+    }
+  ]
+}

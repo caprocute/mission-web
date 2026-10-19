@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "cat \"$CLAUDE_PROJECT_DIR/docs/tasks/_NHAC-QUY-DINH.md\"" }
+        ]
+      }
+    ]
+  }
+}

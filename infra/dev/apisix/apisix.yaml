@@ -1,0 +1,27 @@
+# Định tuyến dev của SVC-01: /api/v1/* → mission-core (chạy trên máy dev hoặc container sau này),
+# còn lại → web (nginx của SVC-17). Giới hạn tốc độ minh hoạ theo TL-04 "Cắt tải và giới hạn tốc độ".
+upstreams:
+  - id: mission-core
+    type: roundrobin
+    nodes:
+      "host.docker.internal:8081": 1
+  - id: web
+    type: roundrobin
+    nodes:
+      "web:8080": 1
+routes:
+  - id: api
+    uri: /api/v1/*
+    upstream_id: mission-core
+    plugins:
+      request-id: { header_name: X-Request-Id }
+      limit-count:
+        count: 600
+        time_window: 60
+        key_type: var
+        key: remote_addr
+        rejected_code: 429
+  - id: web
+    uri: /*
+    upstream_id: web
+#END
