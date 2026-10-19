@@ -83,7 +83,7 @@ export class MyTasksPage {
     },
   });
   protected readonly loading = this.page.isLoading;
-  protected readonly rows = computed(() => this.page.value()?.items ?? []);
+  protected readonly rows = computed(() => (this.page.hasValue() ? this.page.value().items : []));
   protected readonly openCount = computed(() => this.rows().filter((t) => t.status !== 'HOAN_THANH').length);
   protected readonly overdueCount = computed(() => this.rows().filter((t) => t.overdue).length);
 
