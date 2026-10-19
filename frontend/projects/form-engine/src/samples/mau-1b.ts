@@ -1,4 +1,4 @@
-import { JSONSchema7 } from 'json-schema';
+import { JSONSchema7 } from '../lib/json-schema';
 import { FormRule, FormUi } from '../lib/form-rule';
 
 /**

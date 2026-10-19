@@ -6,6 +6,7 @@ export * from './lib/cel-rule-evaluator';
 export * from './lib/golden';
 export * from './lib/vt-form.component';
 export * from './lib/provide-form-engine';
+export type { JSONSchema7 } from './lib/json-schema';
 export { VT_FORM_CATALOGS } from './lib/fields/field-types';
 export type { CatalogOption } from './lib/fields/field-types';
 export * from './samples/mau-1b';
