@@ -1820,6 +1820,43 @@ paths:
         '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
 
+  /ui/forms/{key}/current:
+    parameters:
+      - $ref: '#/components/parameters/FormKeyPath'
+    get:
+      tags: [Biểu mẫu động]
+      operationId: getCurrentUiForm
+      summary: Biểu mẫu hiệu lực để dựng phiếu
+      description: >-
+        (suy luận) Trả phiên bản `DA_PHAT_HANH` đang áp dụng của biểu mẫu theo khoá cho người dùng nghiệp
+        vụ, để `<vt-form>` dựng phiếu (ví dụ Mẫu 1B của SCR-0901). Máy chủ đã phân giải `schemaRef` của UI
+        Pack sang JSON Schema dữ liệu của Policy Pack hiệu lực, nên `schemaJson` là lược đồ dữ liệu đầy đủ
+        và `uiJson` là phần trình bày của UI Pack. Khi loader UI Pack (WEB-009) nạp được `forms` từ
+        `GET /ui/packs/current`, thao tác này là nguồn dự phòng và cho ứng dụng di động. ETag theo phiên
+        bản; gửi `If-None-Match` để nhận 304. Quy tắc CEL `serverOnly` vẫn chạy lại ở máy chủ khi lưu, nộp.
+      x-mission:
+        qt: [QT-18, QT-09]
+        scr: [SCR-0901, SCR-1802]
+        owner: MOD-08
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: Tn
+        source: TL-01 chương 7 "Cấu trúc UI Pack" (biểu mẫu tham chiếu Policy Pack); TL-02b SCR-0901 (suy luận đường dẫn)
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Biểu mẫu hiệu lực.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiFormVersion' }
+        '304':
+          description: Phiên bản không đổi so với `If-None-Match`.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
   /ui/forms/{key}/versions/{v}:
     parameters:
       - $ref: '#/components/parameters/FormKeyPath'

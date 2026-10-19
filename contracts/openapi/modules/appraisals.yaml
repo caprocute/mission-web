@@ -263,6 +263,11 @@ paths:
         (BR-09-15); trong lúc chờ, hồ sơ giữ `TU_DANH_GIA`. Thay cho `POST /appraisals/{id}/self-assessment`
         của TL-01 Phụ lục C (điểm chốt AP-01). Lỗi 422 mã `APPRAISAL-422-REASON-REQUIRED` (MSG-09-02),
         `APPRAISAL-422-BREAKTHROUGH-REQUIRED` (MSG-09-03); ký lỗi báo qua job với MSG-09-05.
+        Theo dõi ký: `Location` trỏ `/jobs/{id}` (loại `ESIGN`, suy luận); job ở `DANG_CHAY` trong lúc chờ
+        người ký xác nhận trên ứng dụng ký số, chuyển `HOAN_TAT` khi nhận EVT-18 và hồ sơ đã sang
+        `CHO_THAM_DINH`, với `resultLocation` là `/appraisals/profiles/{id}`; chuyển `THAT_BAI` kèm `problem`
+        (MSG-09-05) khi ký lỗi, bị từ chối hoặc hết hạn, hồ sơ giữ `TU_DANH_GIA` và nộp lại được với
+        `Idempotency-Key` mới. Client không gọi `POST /esign/requests` riêng.
       parameters:
         - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
         - $ref: '../common/common.yaml#/components/parameters/IfMatch'

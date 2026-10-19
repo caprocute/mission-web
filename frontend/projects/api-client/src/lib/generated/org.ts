@@ -260,7 +260,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Lịch đồng bộ theo nguồn */
+    /**
+     * Lịch đồng bộ theo nguồn
+     * @description Trả `ETag` để gửi lại trong `If-Match` khi lưu lịch (`PUT` bắt buộc `If-Match`).
+     */
     get: operations['listOrgSyncSchedules'];
     /** Lưu lịch đồng bộ */
     put: operations['saveOrgSyncSchedules'];
@@ -531,6 +534,8 @@ export interface components {
       changes: number;
       errors: number;
       deadLetters?: number;
+      /** @description Lý do lỗi tiếng Việt khi `status = LOI` hoặc `THANH_CONG_MOT_PHAN`, điền vào {lý do} của MSG-01-14 (ví dụ "hết thời gian chờ NDXP"); không chứa dữ liệu C2 (suy luận). */
+      reason?: string;
     };
     OrgSyncSchedule: {
       connector: components['schemas']['SyncSource'];
@@ -540,6 +545,27 @@ export interface components {
     };
     /** @enum {string} */
     DiscrepancySeverity: 'CAO' | 'VUA' | 'THAP';
+    /**
+     * @description Trường lệch (`org.sync_discrepancy.field`), sáu loại của TL-02a SCR-0104 trường 4: chức vụ, đơn vị, không khớp người, đảng tịch, trạng thái, kiêm nhiệm. Mã khoá là suy luận (TL-03 chưa liệt kê).
+     * @enum {string}
+     */
+    OrgDiscrepancyField:
+      | 'job_title_id'
+      | 'org_unit_id'
+      | 'person_match'
+      | 'party_membership'
+      | 'employment_status'
+      | 'concurrent_assignment';
+    /**
+     * @description Đề xuất xử lý (`org.sync_discrepancy.suggested_action`) theo TL-02a SCR-0104 trường 7. Khác bộ `DiscrepancyResolution` của TL-03: `LAY_THEO_NGUON` ứng `NHAN_NGUON`, `GIU_NOI_BO` ứng `GIU_HIEN_TAI`, `DOI_SOAT_THU_CONG` ứng `SUA_TAY` (ánh xạ thủ công); `TAO_DIEU_DONG_TUONG_LAI` và `KET_THUC_PHAN_CONG` được xử lý bằng `NHAN_NGUON` kèm `effectiveFrom` (suy luận, TL-03 cần bổ sung).
+     * @enum {string}
+     */
+    OrgSuggestedAction:
+      | 'LAY_THEO_NGUON'
+      | 'GIU_NOI_BO'
+      | 'DOI_SOAT_THU_CONG'
+      | 'TAO_DIEU_DONG_TUONG_LAI'
+      | 'KET_THUC_PHAN_CONG';
     /**
      * @description Cách xử lý (`org.sync_discrepancy.resolution`, TL-03).
      * @enum {string}
@@ -552,21 +578,21 @@ export interface components {
       personId?: string | null;
       personName?: string;
       maskedNationalId?: string;
-      /**
-       * @example org_unit_id
-       * @example job_title_id
-       */
-      field: string;
+      field: components['schemas']['OrgDiscrepancyField'];
       sourceConnector: components['schemas']['SyncSource'];
       sourceValueMasked?: string;
       currentValueMasked?: string;
       severity: components['schemas']['DiscrepancySeverity'];
-      suggestedAction: string;
+      suggestedAction: components['schemas']['OrgSuggestedAction'];
       resolution?: components['schemas']['DiscrepancyResolution'];
       resolvedByName?: string;
       resolvedAt?: components['schemas']['DateTime'];
       assigneeName?: string;
       externalId?: string;
+      /** @description Tiêu chí khớp người hiển thị ở vùng 4 "Khớp theo", ví dụ "Số định danh (băm HMAC) và ngày sinh" (TL-02a QT-01 bước 7; suy luận tên trường). */
+      matchedBy?: string;
+      /** @description Ngày hiệu lực theo quyết định nguồn (trường 10), dùng làm `org.assignment.valid_from` khi lấy theo nguồn. */
+      effectiveFrom?: components['schemas']['Date'];
       syncRunId: components['schemas']['Uuid'];
     };
     FieldError: {
@@ -1196,6 +1222,7 @@ export interface operations {
       /** @description Lịch đồng bộ. */
       200: {
         headers: {
+          ETag: components['headers']['ETag'];
           [name: string]: unknown;
         };
         content: {
@@ -1249,7 +1276,7 @@ export interface operations {
   listOrgDiscrepancies: {
     parameters: {
       query?: {
-        field?: string;
+        field?: components['schemas']['OrgDiscrepancyField'];
         severity?: components['schemas']['DiscrepancySeverity'];
         unresolved?: boolean;
         /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
@@ -1263,7 +1290,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Một trang lệch kèm số đếm theo mức. */
+      /** @description Một trang lệch kèm số đếm theo mức và theo trường lệch. */
       200: {
         headers: {
           [name: string]: unknown;
@@ -1276,6 +1303,10 @@ export interface operations {
               CAO: number;
               VUA: number;
               THAP: number;
+            };
+            /** @description Số lệch theo trường lệch cho các thẻ lọc của vùng 2 ("Chức vụ 168, Đơn vị 121…"); khoá là giá trị `OrgDiscrepancyField`, tính trên cùng bộ lọc `unresolved` và `severity`, bỏ qua bộ lọc `field`. Trường không có lệch có thể vắng (suy luận). */
+            countsByField?: {
+              [key: string]: number;
             };
           };
         };
@@ -1313,6 +1344,8 @@ export interface operations {
         content: {
           'application/json': {
             results: components['schemas']['BatchItemResult'][];
+            /** @description Số phân công đã ghi phiên bản mới với ngày hiệu lực theo quyết định gốc ({m} của MSG-01-13); 0 khi chỉ giữ dữ liệu nội bộ. */
+            assignmentsUpdated: number;
           };
         };
       };

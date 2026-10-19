@@ -918,6 +918,29 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/ui/forms/{key}/current': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Khoá biểu mẫu (`config.form_schema.form_key`). */
+        key: components['parameters']['FormKeyPath'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Biểu mẫu hiệu lực để dựng phiếu
+     * @description (suy luận) Trả phiên bản `DA_PHAT_HANH` đang áp dụng của biểu mẫu theo khoá cho người dùng nghiệp vụ, để `<vt-form>` dựng phiếu (ví dụ Mẫu 1B của SCR-0901). Máy chủ đã phân giải `schemaRef` của UI Pack sang JSON Schema dữ liệu của Policy Pack hiệu lực, nên `schemaJson` là lược đồ dữ liệu đầy đủ và `uiJson` là phần trình bày của UI Pack. Khi loader UI Pack (WEB-009) nạp được `forms` từ `GET /ui/packs/current`, thao tác này là nguồn dự phòng và cho ứng dụng di động. ETag theo phiên bản; gửi `If-None-Match` để nhận 304. Quy tắc CEL `serverOnly` vẫn chạy lại ở máy chủ khi lưu, nộp.
+     */
+    get: operations['getCurrentUiForm'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/ui/forms/{key}/versions/{v}': {
     parameters: {
       query?: never;
@@ -4709,6 +4732,43 @@ export interface operations {
       403: components['responses']['Forbidden'];
       409: components['responses']['Conflict'];
       422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getCurrentUiForm: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description ETag đã lưu ở client; khớp thì máy chủ trả 304. */
+        'If-None-Match'?: components['parameters']['IfNoneMatch'];
+      };
+      path: {
+        /** @description Khoá biểu mẫu (`config.form_schema.form_key`). */
+        key: components['parameters']['FormKeyPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Biểu mẫu hiệu lực. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UiFormVersion'];
+        };
+      };
+      /** @description Phiên bản không đổi so với `If-None-Match`. */
+      304: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
       default: components['responses']['Problem'];
     };
   };
