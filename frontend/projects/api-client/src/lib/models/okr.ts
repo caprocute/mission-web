@@ -89,8 +89,9 @@ export interface KeyResult {
   title: string;
   /** Đơn vị đo, ví dụ `%`, `hồ sơ`, `mốc`. */
   unit: string;
-  baselineValue: number;
-  targetValue: number;
+  /** Giá trị đầu, chỉ tiêu: có thể trống ở mục tiêu `NHAP` chưa soạn xong. */
+  baselineValue: number | null;
+  targetValue: number | null;
   currentValue: number | null;
   /** Trọng số trong mục tiêu, 0–1. */
   weight: number;
@@ -176,3 +177,143 @@ export interface KrCheckin {
 
 /** Chế độ hiển thị SCR-0201 (nút "Cây, Bảng, Bản đồ liên kết"). */
 export type OkrTreeView = 'tree' | 'table' | 'map';
+
+/** Tần suất check-in `okr.key_result.checkin_frequency` (SCR-0202 trường 15). */
+export type CheckinFrequency = 'TUAN' | 'HAI_TUAN' | 'THANG';
+
+export const CHECKIN_FREQUENCY_LABEL: Record<CheckinFrequency, string> = {
+  TUAN: 'Tuần',
+  HAI_TUAN: 'Hai tuần',
+  THANG: 'Tháng',
+};
+
+/** Nguồn nội dung `okr.key_result.content_source` (BR-02-11). */
+export type ContentSource = 'HUMAN' | 'AI_ACCEPTED' | 'AI_EDITED';
+
+/** Một KR trong bản nháp SCR-0202 (`okr.key_result`); trọng số 0–1 như TL-03. */
+export interface KeyResultDraft {
+  /** Không có với KR mới thêm, máy chủ cấp khi lưu. */
+  id?: string;
+  code: string;
+  title: string;
+  unit: string;
+  baselineValue: number | null;
+  targetValue: number | null;
+  weight: number;
+  dueDate: string | null;
+  verifierId: string | null;
+  checkinFrequency: CheckinFrequency;
+  contentSource: ContentSource;
+}
+
+/** Bản nháp mục tiêu để soạn trên SCR-0202 (`okr.objective` cùng KR, căn cứ, liên kết cấp trên). */
+export interface ObjectiveDraft {
+  id?: string;
+  periodId: string;
+  ownerType: OkrOwnerType;
+  basisIds: string[];
+  parentObjectiveId: string | null;
+  title: string;
+  overLimitReason: string | null;
+  keyResults: KeyResultDraft[];
+}
+
+/** Mục tiêu đã lưu: bản nháp kèm thông tin máy chủ cấp. */
+export interface ObjectiveDetail extends ObjectiveDraft {
+  id: string;
+  code: string;
+  status: ObjectiveStatus;
+  versionNo: number;
+  /** Giá trị ETag hiện tại, gửi lại trong `If-Match` khi cập nhật. */
+  rowVersion: number;
+  ownerUnitName: string;
+  authorName: string;
+  updatedAt: string;
+  /** Lần lưu thứ mấy của bản nháp (hiện "bản nháp 3"). */
+  draftNo: number;
+}
+
+/** Mức của một quy tắc soát OKR: chặn trình duyệt hay chỉ cảnh báo. */
+export type OkrRuleSeverity = 'CHAN' | 'CANH_BAO';
+
+/**
+ * Quy tắc soát OKR viết bằng CEL trong Policy Pack (QT-02 bước 4): chạy trên trình duyệt để phản
+ * hồi tức thì và chạy lại ở máy chủ khi trình. `scope` cho biết biểu thức chạy trên `objective`
+ * hay trên từng `kr`. `message` có thể chứa chỗ trống `{tên}` lấy từ biến cùng tên của ngữ cảnh.
+ */
+export interface OkrRule {
+  id: string;
+  /** Mã quy tắc nghiệp vụ, ví dụ `BR-02-05`. */
+  br: string;
+  scope: 'objective' | 'kr';
+  severity: OkrRuleSeverity;
+  when: string;
+  assert: string;
+  message: string;
+  /** Nhãn ngắn cho danh sách kiểm tra trước khi trình khi đạt, ví dụ "Tổng trọng số KR = 100%". */
+  passLabel?: string;
+  serverOnly?: boolean;
+}
+
+/** Tham số soát OKR của Policy Pack đang áp dụng cho tenant. */
+export interface OkrPolicy {
+  version: string;
+  recommendedMax: number;
+  /** Từ mơ hồ (BR-02-05), ví dụ "tăng cường", "đẩy mạnh". */
+  vagueWords: string[];
+  /** Động từ mở đầu KR giống nhiệm vụ (BR-02-06), ví dụ "tổ chức", "ban hành". */
+  taskVerbs: string[];
+  units: string[];
+  rules: OkrRule[];
+}
+
+/** Mục tiêu cấp trên có thể chọn (SCR-0202 trường 2). */
+export interface ParentObjectiveOption extends ObjectiveRef {
+  periodId: string;
+}
+
+/** Người xác nhận KR có thể chọn (trường 14). */
+export interface VerifierOption {
+  id: string;
+  name: string;
+  title: string;
+}
+
+/** Ngữ cảnh soạn mục tiêu của đơn vị trong kỳ (`GET /api/v1/okr/compose-context`). */
+export interface OkrComposeContext {
+  period: OkrPeriod;
+  /** Kỳ chưa khoá có thể soạn (trường 5). */
+  periods: OkrPeriod[];
+  unit: { id: string; name: string };
+  /** Đơn vị cao nhất của tenant: không bắt buộc mục tiêu cấp trên (BR-02-02). */
+  isTopLevel: boolean;
+  bases: OkrBasis[];
+  parentOptions: ParentObjectiveOption[];
+  /** Số mục tiêu đã có của chủ thể trong kỳ (không tính mục tiêu đang sửa). */
+  existingCount: number;
+  verifiers: VerifierOption[];
+  /** Người dùng hiện tại, để mặc định người xác nhận khác chủ sở hữu (trường 14). */
+  me: { id: string; name: string };
+  aiEnabled: boolean;
+  policy: OkrPolicy;
+}
+
+/** Một gợi ý của trợ lý AI cho KR (`/api/v1/ai/okr/review`, AC-12, chỉ đọc). */
+export interface AiKrSuggestion {
+  id: string;
+  krCode: string;
+  issue: string;
+  rewrites: string[];
+  sources: string[];
+}
+
+export interface AiOkrReview {
+  suggestions: AiKrSuggestion[];
+}
+
+/** Kết quả trình phê duyệt (MSG-02-08). */
+export interface OkrSubmitResult {
+  status: ObjectiveStatus;
+  reviewerName: string;
+  dueDate: string;
+}

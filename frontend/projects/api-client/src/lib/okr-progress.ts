@@ -7,9 +7,11 @@ import { KeyResult } from './models/okr';
 export function krProgress(
   kr: Pick<KeyResult, 'baselineValue' | 'targetValue' | 'currentValue'>,
 ): number {
-  const span = kr.targetValue - kr.baselineValue;
-  if (kr.currentValue === null || span === 0) return 0;
-  return Math.min(1, Math.max(0, (kr.currentValue - kr.baselineValue) / span));
+  if (kr.currentValue === null || kr.targetValue === null) return 0;
+  const base = kr.baselineValue ?? 0;
+  const span = kr.targetValue - base;
+  if (span === 0) return 0;
+  return Math.min(1, Math.max(0, (kr.currentValue - base) / span));
 }
 
 /** Tiến độ mục tiêu: trung bình có trọng số của tiến độ KR, đổi sang phần trăm làm tròn. */

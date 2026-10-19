@@ -1,5 +1,5 @@
 {
-  "$comment": "Fixture module okr (/api/v1/okr). keyResults: KR để liên kết nhiệm vụ (SCR-0501 trường 7, WEB-028). Phần còn lại: cây mục tiêu SCR-0201 (WEB-021) của Ban Tổ chức Đảng uỷ khối theo mockup TL-02 Hình 7.3; đơn vị 'u-duk' sinh cây lớn để thử ảo hoá.",
+  "$comment": "Fixture module okr (/api/v1/okr). keyResults: KR để liên kết nhiệm vụ (SCR-0501 trường 7, WEB-028). Phần còn lại: cây mục tiêu SCR-0201 (WEB-021) của Ban Tổ chức Đảng uỷ khối theo mockup TL-02 Hình 7.3; đơn vị 'u-duk' sinh cây lớn để thử ảo hoá. WEB-022: compose (ngữ cảnh soạn, Policy Pack soát OKR), drafts (chi tiết bản nháp để sửa), aiReview (gợi ý trợ lý AI).",
   "keyResults": [
     {
       "id": "kr-1-1",
@@ -464,6 +464,114 @@
             "linkedTaskCount": 0
           }
         ]
+      },
+      {
+        "id": "o-3",
+        "code": "O3",
+        "title": "Nâng chất lượng sinh hoạt chi bộ khối cơ quan",
+        "tier": 1,
+        "ownerType": "TAP_THE",
+        "ownerUnitName": "Ban Tổ chức Đảng uỷ khối",
+        "ownerPersonName": null,
+        "parentObjectiveId": "o-duk-1",
+        "status": "NHAP",
+        "approvedAt": null,
+        "versionNo": 1,
+        "overLimitReason": null,
+        "keyResults": [
+          {
+            "id": "kr-3-1",
+            "objectiveId": "o-3",
+            "code": "KR 3.1",
+            "title": "100% chi bộ sinh hoạt chuyên đề ít nhất 1 lần/quý",
+            "unit": "%",
+            "baselineValue": 78,
+            "targetValue": 100,
+            "currentValue": null,
+            "weight": 0.4,
+            "dueDate": "2026-12-31",
+            "verifierName": "Trưởng ban",
+            "dataSource": null,
+            "valueNote": null,
+            "confidence": null,
+            "riskFlag": "BINH_THUONG",
+            "lastCheckinAt": null,
+            "ownerName": "Lê Minh Châu",
+            "viewerIsOwner": true,
+            "latestBlocker": null,
+            "linkedWork": [],
+            "linkedTaskCount": 0
+          },
+          {
+            "id": "kr-3-2",
+            "objectiveId": "o-3",
+            "code": "KR 3.2",
+            "title": "≥ 90% đảng viên tham gia đầy đủ sinh hoạt",
+            "unit": "%",
+            "baselineValue": 84,
+            "targetValue": 90,
+            "currentValue": null,
+            "weight": 0.3,
+            "dueDate": "2026-12-31",
+            "verifierName": "Trưởng ban",
+            "dataSource": null,
+            "valueNote": null,
+            "confidence": null,
+            "riskFlag": "BINH_THUONG",
+            "lastCheckinAt": null,
+            "ownerName": "Lê Minh Châu",
+            "viewerIsOwner": true,
+            "latestBlocker": null,
+            "linkedWork": [],
+            "linkedTaskCount": 0
+          },
+          {
+            "id": "kr-3-3",
+            "objectiveId": "o-3",
+            "code": "KR 3.3",
+            "title": "Tăng cường công tác kiểm tra, giám sát",
+            "unit": "",
+            "baselineValue": null,
+            "targetValue": null,
+            "currentValue": null,
+            "weight": 0.3,
+            "dueDate": "2026-12-31",
+            "verifierName": "Trưởng ban",
+            "dataSource": null,
+            "valueNote": null,
+            "confidence": null,
+            "riskFlag": "BINH_THUONG",
+            "lastCheckinAt": null,
+            "ownerName": "Lê Minh Châu",
+            "viewerIsOwner": true,
+            "latestBlocker": null,
+            "linkedWork": [],
+            "linkedTaskCount": 0
+          },
+          {
+            "id": "kr-3-4",
+            "objectiveId": "o-3",
+            "code": "KR 3.4",
+            "title": "Tổ chức hội nghị sơ kết công tác tổ chức xây dựng Đảng",
+            "unit": "lần",
+            "baselineValue": 0,
+            "targetValue": 1,
+            "currentValue": null,
+            "weight": 0,
+            "dueDate": "2026-12-31",
+            "verifierName": "Trưởng ban",
+            "dataSource": null,
+            "valueNote": null,
+            "confidence": null,
+            "riskFlag": "BINH_THUONG",
+            "lastCheckinAt": null,
+            "ownerName": "Lê Minh Châu",
+            "viewerIsOwner": true,
+            "latestBlocker": null,
+            "linkedWork": [],
+            "linkedTaskCount": 0
+          }
+        ]
       }
     ],
     "p-2027-q1": []
@@ -590,5 +698,305 @@
         "status": "DA_GUI"
       }
     ]
-  }
+  },
+  "drafts": {
+    "o-3": {
+      "id": "o-3",
+      "code": "O3",
+      "periodId": "p-2026-q4",
+      "ownerType": "TAP_THE",
+      "basisIds": ["b-kh-05"],
+      "parentObjectiveId": "o-duk-1",
+      "title": "Nâng chất lượng sinh hoạt chi bộ khối cơ quan",
+      "overLimitReason": null,
+      "status": "NHAP",
+      "versionNo": 1,
+      "rowVersion": 3,
+      "ownerUnitName": "Ban Tổ chức Đảng uỷ khối",
+      "authorName": "Lê Minh Châu",
+      "updatedAt": "2026-10-19T10:12:00+07:00",
+      "draftNo": 3,
+      "keyResults": [
+        {
+          "id": "kr-3-1",
+          "code": "KR 3.1",
+          "title": "100% chi bộ sinh hoạt chuyên đề ít nhất 1 lần/quý",
+          "unit": "%",
+          "baselineValue": 78,
+          "targetValue": 100,
+          "weight": 0.4,
+          "dueDate": "2026-12-31",
+          "verifierId": "p-dung",
+          "checkinFrequency": "TUAN",
+          "contentSource": "HUMAN"
+        },
+        {
+          "id": "kr-3-2",
+          "code": "KR 3.2",
+          "title": "≥ 90% đảng viên tham gia đầy đủ sinh hoạt",
+          "unit": "%",
+          "baselineValue": 84,
+          "targetValue": 90,
+          "weight": 0.3,
+          "dueDate": "2026-12-31",
+          "verifierId": "p-dung",
+          "checkinFrequency": "THANG",
+          "contentSource": "HUMAN"
+        },
+        {
+          "id": "kr-3-3",
+          "code": "KR 3.3",
+          "title": "Tăng cường công tác kiểm tra, giám sát",
+          "unit": "",
+          "baselineValue": null,
+          "targetValue": null,
+          "weight": 0.3,
+          "dueDate": null,
+          "verifierId": null,
+          "checkinFrequency": "TUAN",
+          "contentSource": "HUMAN"
+        },
+        {
+          "id": "kr-3-4",
+          "code": "KR 3.4",
+          "title": "Tổ chức hội nghị sơ kết công tác tổ chức xây dựng Đảng",
+          "unit": "lần",
+          "baselineValue": 0,
+          "targetValue": 1,
+          "weight": 0,
+          "dueDate": "2026-12-15",
+          "verifierId": "p-dung",
+          "checkinFrequency": "THANG",
+          "contentSource": "HUMAN"
+        }
+      ]
+    }
+  },
+  "compose": {
+    "isTopLevel": false,
+    "basisLibrary": [
+      {
+        "id": "b-nq-dh",
+        "basisKind": "NGHI_QUYET",
+        "docNumber": null,
+        "title": "Nghị quyết Đại hội Đảng bộ khối nhiệm kỳ 2025–2030"
+      },
+      {
+        "id": "b-ctr-03",
+        "basisKind": "CHUONG_TRINH",
+        "docNumber": "03-CTr/ĐUK",
+        "title": "Chương trình công tác năm 2026 của Đảng uỷ khối"
+      },
+      {
+        "id": "b-kh-05",
+        "basisKind": "KE_HOACH",
+        "docNumber": "05-KH/ĐUK",
+        "title": "Kế hoạch công tác năm 2027 của Đảng uỷ khối"
+      },
+      {
+        "id": "b-kl-21",
+        "basisKind": "KET_LUAN",
+        "docNumber": "21-KL/TW",
+        "title": "Kết luận về đẩy mạnh xây dựng, chỉnh đốn Đảng"
+      }
+    ],
+    "parentOptions": [
+      {
+        "id": "o-duk-1",
+        "code": "O-ĐUK-1",
+        "title": "Xây dựng tổ chức đảng trong sạch, vững mạnh",
+        "unitName": "Đảng uỷ khối",
+        "status": "DA_DUYET"
+      },
+      {
+        "id": "o-duk-2",
+        "code": "O-ĐUK-2",
+        "title": "Nâng cao hiệu lực công tác kiểm tra, giám sát",
+        "unitName": "Đảng uỷ khối",
+        "status": "CHO_DUYET"
+      }
+    ],
+    "verifiers": [
+      {
+        "id": "p-dung",
+        "name": "Hoàng Văn Dũng",
+        "title": "Trưởng ban"
+      },
+      {
+        "id": "p-chau",
+        "name": "Lê Minh Châu",
+        "title": "Phó Trưởng ban"
+      },
+      {
+        "id": "p-binh",
+        "name": "Trần Thị Bình",
+        "title": "Chuyên viên chính"
+      }
+    ],
+    "me": {
+      "id": "p-chau",
+      "name": "Lê Minh Châu"
+    },
+    "reviewer": {
+      "name": "Đinh Văn Sơn",
+      "title": "Phó Bí thư Thường trực"
+    },
+    "policy": {
+      "version": "okr-policy 2026.4",
+      "recommendedMax": 3,
+      "vagueWords": ["tăng cường", "đẩy mạnh", "kịp thời", "nâng cao", "chú trọng", "quan tâm"],
+      "taskVerbs": ["tổ chức", "ban hành", "xây dựng", "triển khai", "họp", "tập huấn"],
+      "units": ["%", "người", "hồ sơ", "ngày", "lần", "mốc", "chi bộ", "tổ chức"],
+      "rules": [
+        {
+          "id": "O-TEN",
+          "br": "SCR-0202",
+          "scope": "objective",
+          "severity": "CHAN",
+          "when": "true",
+          "assert": "o.titleLength > 0 && o.titleLength <= 200",
+          "message": "Tên mục tiêu không được trống và tối đa 200 ký tự."
+        },
+        {
+          "id": "BR-02-02-CC",
+          "br": "BR-02-02",
+          "scope": "objective",
+          "severity": "CHAN",
+          "when": "true",
+          "assert": "o.basisCount >= 1",
+          "message": "Mục tiêu phải có ít nhất một căn cứ.",
+          "passLabel": "Có căn cứ"
+        },
+        {
+          "id": "BR-02-02-CT",
+          "br": "BR-02-02",
+          "scope": "objective",
+          "severity": "CHAN",
+          "when": "!o.isTopLevel",
+          "assert": "o.hasParent",
+          "message": "Mục tiêu phải liên kết mục tiêu cấp trên.",
+          "passLabel": "Có mục tiêu cấp trên"
+        },
+        {
+          "id": "MSG-02-03",
+          "br": "BR-02-02",
+          "scope": "objective",
+          "severity": "CHAN",
+          "when": "o.hasParent",
+          "assert": "o.parentApproved",
+          "message": "Mục tiêu cấp trên {parentCode} chưa được duyệt. Đồng chí có thể soạn nhưng chưa trình được."
+        },
+        {
+          "id": "BR-02-01",
+          "br": "BR-02-01",
+          "scope": "objective",
+          "severity": "CANH_BAO",
+          "when": "true",
+          "assert": "o.totalObjectives <= o.recommendedMax",
+          "message": "{totalObjectives} mục tiêu trong kỳ, vượt khuyến nghị {recommendedMax}."
+        },
+        {
+          "id": "BR-02-01-LD",
+          "br": "BR-02-01",
+          "scope": "objective",
+          "severity": "CHAN",
+          "when": "o.totalObjectives > o.recommendedMax",
+          "assert": "o.overLimitReasonLength > 0",
+          "message": "Vui lòng ghi lý do vượt {recommendedMax} mục tiêu."
+        },
+        {
+          "id": "BR-02-03",
+          "br": "BR-02-03",
+          "scope": "objective",
+          "severity": "CANH_BAO",
+          "when": "true",
+          "assert": "o.krCount >= 2 && o.krCount <= 5",
+          "message": "Mục tiêu nên có từ 2 đến 5 KR (hiện có {krCount})."
+        },
+        {
+          "id": "BR-02-07",
+          "br": "BR-02-07",
+          "scope": "objective",
+          "severity": "CHAN",
+          "when": "true",
+          "assert": "o.totalWeight == 100",
+          "message": "Tổng trọng số KR là {totalWeight}%, cần bằng 100%.",
+          "passLabel": "Tổng trọng số KR = 100%"
+        },
+        {
+          "id": "KR-ND",
+          "br": "SCR-0202",
+          "scope": "kr",
+          "severity": "CHAN",
+          "when": "true",
+          "assert": "kr.titleLength > 0 && kr.titleLength <= 300",
+          "message": "{code} cần nội dung, tối đa 300 ký tự."
+        },
+        {
+          "id": "BR-02-05",
+          "br": "BR-02-05",
+          "scope": "kr",
+          "severity": "CHAN",
+          "when": "kr.vagueWord != \"\"",
+          "assert": "kr.hasTarget && kr.unit != \"\"",
+          "message": "KPI mơ hồ: \"{vagueWord}\" không đo được. Vui lòng bổ sung chỉ tiêu và đơn vị đo."
+        },
+        {
+          "id": "BR-02-04",
+          "br": "BR-02-04",
+          "scope": "kr",
+          "severity": "CHAN",
+          "when": "true",
+          "assert": "kr.missing == \"\"",
+          "message": "{code} thiếu {missing}.",
+          "passLabel": "Mọi KR có đơn vị đo, giá trị đầu, chỉ tiêu, hạn, người xác nhận"
+        },
+        {
+          "id": "KR-CT",
+          "br": "SCR-0202",
+          "scope": "kr",
+          "severity": "CHAN",
+          "when": "kr.hasTarget && kr.hasBaseline",
+          "assert": "kr.targetDiffers",
+          "message": "{code}: chỉ tiêu phải khác giá trị đầu."
+        },
+        {
+          "id": "BR-02-06",
+          "br": "BR-02-06",
+          "scope": "kr",
+          "severity": "CANH_BAO",
+          "when": "true",
+          "assert": "kr.taskVerb == \"\"",
+          "message": "{code} giống một nhiệm vụ, không phải kết quả đo được. Cân nhắc chuyển sang Kế hoạch quý."
+        },
+        {
+          "id": "KR-XN",
+          "br": "SCR-0202",
+          "scope": "kr",
+          "severity": "CHAN",
+          "when": "true",
+          "assert": "true",
+          "message": "Người xác nhận phải khác chủ sở hữu KR.",
+          "serverOnly": true
+        }
+      ]
+    }
+  },
+  "aiReview": [
+    {
+      "match": "tăng cường",
+      "issue": "chưa đo được",
+      "rewrites": [
+        "Kiểm tra 100% chi bộ trực thuộc trước 31/12/2026",
+        "≥ 95% kiến nghị sau kiểm tra được khắc phục đúng hạn"
+      ],
+      "sources": ["PL 1 dự thảo (định nghĩa KR)", "Kế hoạch 05-KH/ĐUK mục II.3"]
+    },
+    {
+      "match": "tổ chức",
+      "issue": "giống một nhiệm vụ (Tầng 3)",
+      "rewrites": ["≥ 90% chi bộ áp dụng kết luận của hội nghị sơ kết trong quý"],
+      "sources": ["PL 1 dự thảo (KR không đồng nhất với nhiệm vụ)"]
+    }
+  ]
 }

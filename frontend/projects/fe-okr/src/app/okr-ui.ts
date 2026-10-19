@@ -79,9 +79,10 @@ export function valueOverTarget(
   kr: Pick<KeyResult, 'currentValue' | 'targetValue' | 'unit'>,
 ): string {
   const cur = kr.currentValue === null ? '—' : formatNumber(kr.currentValue);
+  if (kr.targetValue === null) return `${cur} / —`;
   return kr.unit === '%'
     ? `${cur}% / ${formatNumber(kr.targetValue)}%`
-    : `${cur} / ${formatNumber(kr.targetValue)} ${kr.unit}`;
+    : `${cur} / ${formatNumber(kr.targetValue)} ${kr.unit}`.trimEnd();
 }
 
 /** Ngày ISO → `dd/mm` hoặc `dd/mm/yyyy` (theo giờ địa phương của chuỗi, không đổi múi giờ). */
