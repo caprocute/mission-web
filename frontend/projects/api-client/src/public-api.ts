@@ -46,6 +46,7 @@ export * from './lib/models/role-binding';
 export * from './lib/role-admin-api';
 export * from './lib/models/appraisal';
 export * from './lib/appraisal-api';
+export * from './lib/dossier-api';
 export * from './lib/models/org-sync';
 export * from './lib/org-sync-api';
 export * from './lib/models/reopen';

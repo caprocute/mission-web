@@ -1,15 +1,15 @@
 import { Component } from '@angular/core';
 import { MessageModule } from 'primeng/message';
 
-/** Trang khung của remote fe-appraisal (WEB-015); màn hình thật do các task QT-09, QT-10 dựng. */
+/** Trang đầu của remote fe-appraisal cho vai trò chưa có màn hình đánh giá riêng (WEB-015). */
 @Component({
   selector: 'vt-appraisal-home-page',
   imports: [MessageModule],
   template: `
     <h1>Đánh giá, xếp loại</h1>
     <p-message severity="info">
-      Phân hệ Đánh giá, xếp loại (remote fe-appraisal) đã có Phiếu tự đánh giá (SCR-0901) và Thẩm
-      định (SCR-0902); các màn hình đang được phát triển: SCR-0903, SCR-0904, SCR-1001, SCR-1002.
+      Phân hệ Đánh giá, xếp loại gồm phiếu tự đánh giá, thẩm định và kết quả xếp loại. Các chức năng
+      dành cho vai trò của đồng chí đang được hoàn thiện.
     </p-message>
   `,
   styles: `

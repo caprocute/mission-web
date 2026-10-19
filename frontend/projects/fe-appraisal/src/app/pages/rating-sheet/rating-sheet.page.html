@@ -1,0 +1,424 @@
+@if (loaded.error()) {
+  <p class="msg err" role="alert">
+    Không mở được phiếu xếp loại. Hồ sơ không tồn tại hoặc đồng chí không có quyền xem hồ sơ này.
+  </p>
+} @else if (!profile()) {
+  <p class="muted" role="status">Đang tải phiếu xếp loại…</p>
+}
+
+@if (profile(); as p) {
+  <header class="head" [attr.data-profile-id]="p.id" [attr.data-status]="p.status">
+    <div>
+      <h1>Phiếu xếp loại cá nhân · {{ p.period.label }}</h1>
+      <p class="sub">
+        {{ p.person.name }} · {{ p.jobTitle ? p.jobTitle + ', ' : '' }}{{ p.orgUnit.name }}
+        @if (criteriaLevel(); as c) {
+          · Tiêu chí chung: <b>{{ criteriaLabel[c] }}</b>
+        }
+      </p>
+    </div>
+    <div class="acts">
+      @if (snapshot(); as s) {
+        <span class="pack" [title]="packNote()" [attr.data-policy-version]="s.policyVersion">
+          Bộ tiêu chí {{ s.policyVersion }}
+          <span class="sr-only">. {{ packNote() }}</span>
+        </span>
+      }
+      @if (canDownload()) {
+        <button type="button" class="btn" [disabled]="busy() === 'download'" (click)="download()">
+          {{ busy() === 'download' ? 'Đang tải…' : 'Tải Mẫu 1B (PDF/A)' }}
+        </button>
+      }
+      @if (fileUrl(); as url) {
+        <a #fileLink class="btn link" [href]="url" download="Mau-1B.pdf">Lưu tệp Mẫu 1B</a>
+      }
+      @if (canComplain()) {
+        <a
+          class="btn outline"
+          routerLink="/oversight/complaints/new"
+          [queryParams]="{ profileId: p.id }"
+          >Gửi khiếu nại</a
+        >
+      }
+    </div>
+  </header>
+
+  @if (decided() && finalLevel(); as f) {
+    <p class="msg info" role="status">
+      Kết quả xếp loại {{ p.period.label }} của đồng chí {{ p.person.name }} đã được quyết định:
+      <b>{{ levelLabel[f] }}</b
+      >.
+      @if (p.complaintDeadline && p.status === 'DA_KY_SO') {
+        Thời hạn khiếu nại đến hết ngày {{ dmy(p.complaintDeadline) }}.
+      }
+    </p>
+  }
+  @if (notice(); as n) {
+    <p #noticeBox class="msg ok" role="status" tabindex="-1">{{ n }}</p>
+  }
+  @if (error(); as e) {
+    <p class="msg err" role="alert">{{ e }}</p>
+  }
+
+  @if (tabs().length > 1) {
+    <div class="tabs" role="tablist" aria-label="Kết quả theo luồng đánh giá">
+      @for (t of tabs(); track t.key; let i = $index) {
+        <button
+          type="button"
+          role="tab"
+          [id]="'tab-' + t.key"
+          [attr.data-tab]="t.key"
+          aria-controls="sheet-panel"
+          [attr.aria-selected]="tab() === t.key"
+          [attr.tabindex]="tab() === t.key ? 0 : -1"
+          [class.on]="tab() === t.key"
+          (click)="select(t.key)"
+          (keydown)="tabKey($event, i)"
+        >
+          {{ t.label }}
+        </button>
+      }
+    </div>
+  }
+
+  <div
+    id="sheet-panel"
+    [attr.role]="tabs().length > 1 ? 'tabpanel' : null"
+    [attr.aria-labelledby]="tabs().length > 1 ? 'tab-' + tab() : null"
+  >
+    @if (scores.error()) {
+      <p class="msg err" role="alert">
+        Kết quả của luồng này đang được tính hoặc chưa có. Vui lòng quay lại sau.
+      </p>
+    } @else if (!snapshot()) {
+      <p class="muted" role="status">Đang tải kết quả…</p>
+    } @else if (tab() === 'TRACE') {
+      <section class="card" aria-labelledby="trace-h">
+        <h2 id="trace-h">Vết tính điểm</h2>
+        @if (trace.hasValue()) {
+          @let t = trace.value();
+          <p class="muted">
+            Kết quả tính lúc {{ vnTime(snapshot()!.computedAt) }} theo bộ tiêu chí
+            {{ t.policyVersion ?? snapshot()!.policyVersion }}, gồm {{ t.steps.length }} bước tính.
+            Mỗi nhiệm vụ dẫn tới minh chứng đã được nghiệm thu.
+          </p>
+          <ol class="steps">
+            @for (s of t.steps; track s.stepNo) {
+              <li [attr.data-rule]="s.ruleCode" [attr.data-task-id]="s.taskId ?? null">
+                <p class="rule">
+                  <b>Bước {{ s.stepNo }}. {{ stepLabel(s) }}</b>
+                  @if (taskTitle(s.taskId); as title) {
+                    · {{ title }}
+                  }
+                </p>
+                @if (s.explanation) {
+                  <p>{{ s.explanation }}</p>
+                }
+                @if (s.legalRef) {
+                  <p class="muted small">Căn cứ: {{ s.legalRef }}</p>
+                }
+                @if (taskOf(s); as line) {
+                  @if (line.evidenceId) {
+                    <a
+                      class="ev"
+                      routerLink="/evidence"
+                      [queryParams]="{ task: line.taskId }"
+                      [attr.data-evidence-id]="line.evidenceId"
+                      >Xem minh chứng đã nghiệm thu
+                      @if (line.evidenceVersionNo) {
+                        (phiên bản {{ line.evidenceVersionNo }})
+                      }
+                    </a>
+                  }
+                }
+              </li>
+            }
+          </ol>
+        } @else if (trace.error()) {
+          <p class="msg err" role="alert">Không tải được vết tính. Vui lòng thử lại sau.</p>
+        } @else {
+          <p class="muted" role="status">Đang tải vết tính…</p>
+        }
+      </section>
+    } @else {
+      @let s = snapshot()!;
+      <div class="grid" [class.simple]="simple()">
+        <!-- Vùng 1, 3: điểm và cấu phần -->
+        <section class="card" aria-labelledby="score-h">
+          <h2 id="score-h">Điểm kết quả nhiệm vụ</h2>
+          <p class="score">
+            <span class="big" data-field="total-score">{{ vn(s.totalScore) }}</span>
+            <span class="muted">/100 điểm · làm tròn 1 chữ số thập phân</span>
+          </p>
+          <div class="scroll">
+            <table>
+              <caption class="sr-only">
+                Điểm theo cấu phần
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Cấu phần</th>
+                  <th scope="col" class="r">KPI nhóm</th>
+                  <th scope="col" class="r">Điểm tối đa</th>
+                  <th scope="col" class="r">Điểm</th>
+                  <th scope="col">Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (s.generalCriteriaScore !== null && s.generalCriteriaScore !== undefined) {
+                  <tr>
+                    <th scope="row">Tiêu chí chung</th>
+                    <td class="r">—</td>
+                    <td class="r">30</td>
+                    <td class="r b">{{ vn(s.generalCriteriaScore) }}</td>
+                    <td class="muted small">
+                      @if (criteriaLevel(); as c) {
+                        {{ criteriaLabel[c] }}
+                      }
+                    </td>
+                  </tr>
+                }
+                @for (g of groups(); track g.code) {
+                  <tr [attr.data-group]="g.code">
+                    <th scope="row">{{ g.label }} ({{ groupCount(g) }})</th>
+                    <td class="r">{{ vn(g.kpi, 3) }}</td>
+                    <td class="r">{{ g.maxScore }}</td>
+                    <td class="r b">{{ vn(g.score) }}</td>
+                    <td>
+                      @if (!simple() && groupCount(g)) {
+                        <button
+                          type="button"
+                          class="link"
+                          [id]="'grp-' + g.code"
+                          [attr.aria-expanded]="openGroup() === g.code"
+                          [attr.aria-controls]="'tasks-' + g.code"
+                          (click)="toggleGroup(g.code)"
+                        >
+                          {{ openGroup() === g.code ? 'Thu gọn' : 'Xem nhiệm vụ' }}
+                          <span class="sr-only">{{ g.label.toLowerCase() }}</span>
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                  @if (openGroup() === g.code) {
+                    <tr class="detail">
+                      <td colspan="5">
+                        <div
+                          [id]="'tasks-' + g.code"
+                          class="tasks"
+                          tabindex="-1"
+                          (keydown.escape)="closeGroup(g.code)"
+                        >
+                          <table>
+                            <caption class="sr-only">
+                              Nhiệm vụ thuộc
+                              {{
+                                g.label.toLowerCase()
+                              }}
+                            </caption>
+                            <thead>
+                              <tr>
+                                <th scope="col">Nhiệm vụ</th>
+                                <th scope="col" class="r">Số lượng</th>
+                                <th scope="col" class="r">Chất lượng</th>
+                                <th scope="col" class="r">Tiến độ</th>
+                                <th scope="col" class="r">KPI</th>
+                                <th scope="col">Minh chứng</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (t of g.tasks ?? []; track t.taskId) {
+                                <tr [attr.data-task-id]="t.taskId">
+                                  <th scope="row">
+                                    {{ t.title }}
+                                    @if (t.exceedsTarget) {
+                                      <span class="over">Vượt mục tiêu</span>
+                                    }
+                                  </th>
+                                  <td class="r">{{ vn(t.a, 2) }}</td>
+                                  <td class="r">{{ vn(t.b, 2) }}</td>
+                                  <td class="r">{{ vn(t.c, 2) }}</td>
+                                  <td class="r b">{{ vn(t.kpi, 3) }}</td>
+                                  <td>
+                                    @if (t.evidenceId) {
+                                      <a
+                                        class="ev"
+                                        routerLink="/evidence"
+                                        [queryParams]="{ task: t.taskId }"
+                                        [attr.data-evidence-id]="t.evidenceId"
+                                        >Xem<span class="sr-only">
+                                          minh chứng {{ t.title }}</span
+                                        ></a
+                                      >
+                                    } @else {
+                                      <span class="muted">—</span>
+                                    }
+                                  </td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                }
+                <tr>
+                  <th scope="row">Tỷ lệ nhiệm vụ vượt mục tiêu</th>
+                  <td class="r">{{ exceed().over }}/{{ exceed().total }}</td>
+                  <td class="r">—</td>
+                  <td class="r b" data-field="exceed-ratio">{{ pct(s.exceedRatio) }}</td>
+                  <td class="muted small">ghi nhận riêng, không cộng điểm</td>
+                </tr>
+                <tr>
+                  <th scope="row">Tỷ lệ hoàn thành mục tiêu O</th>
+                  <td class="r">—</td>
+                  <td class="r">—</td>
+                  <td class="r b">{{ pct(s.objectiveRatio) }}</td>
+                  <td class="muted small">ghi nhận riêng, không cộng điểm</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          @if (otherNote(); as o) {
+            <p class="note" data-field="other-flow">
+              {{ o.head }} ⇒ <b>{{ o.total }} điểm</b>. Hai kết quả được lưu riêng, không ghi đè
+              nhau.
+            </p>
+          }
+        </section>
+
+        <!-- Vùng 2: điều kiện các mức -->
+        <section class="card" aria-labelledby="cond-h">
+          <h2 id="cond-h" class="sr-only">Điều kiện các mức xếp loại</h2>
+          @for (c of conditions(); track c.level) {
+            <h3 [attr.data-level]="c.level">{{ c.title }}</h3>
+            <ul class="conds">
+              @for (i of c.items; track $index) {
+                <li [class.miss]="!i.met">
+                  <span class="tag" [class.bad]="!i.met">{{ i.met ? '✓ Đạt' : '✗ Chưa đạt' }}</span>
+                  <span>{{ conditionText(i) }}</span>
+                </li>
+              }
+            </ul>
+          } @empty {
+            <p class="muted">Chưa có điều kiện xếp loại cho kết quả này.</p>
+          }
+        </section>
+      </div>
+
+      <!-- Vùng 4: mức đề xuất của hệ thống -->
+      <section class="card system" aria-labelledby="sys-h">
+        <div class="sys-top">
+          <div>
+            <p id="sys-h" class="muted">Mức đề xuất của hệ thống</p>
+            @if (systemLevel(); as l) {
+              <p class="level" [attr.data-level]="l">{{ levelLabel[l] }}</p>
+            }
+          </div>
+          @if (legalRef(); as r) {
+            <span class="ref">{{ r }}</span>
+          }
+        </div>
+        @if (explanation()) {
+          <p class="explain">{{ explanation() }}</p>
+        }
+      </section>
+    }
+  </div>
+
+  <!-- Trường 10: mức đề xuất của quản lý trực tiếp -->
+  @if (canPropose()) {
+    <section class="card" aria-labelledby="prop-h">
+      <h2 id="prop-h">Mức đề xuất của quản lý trực tiếp</h2>
+      <p class="muted">
+        Mức thẩm định: <b>{{ levelLabel[appraised()!] }}</b
+        >. Đồng chí chọn mức đề xuất để trình cấp có thẩm quyền quyết định.
+      </p>
+      <label class="field" for="f-rating">Mức đề xuất <span class="req">*</span></label>
+      <select
+        id="f-rating"
+        [value]="rating()"
+        (change)="rating.set($any($event.target).value)"
+        [attr.aria-describedby]="differs() ? 'w-rating' : null"
+      >
+        @for (l of levels; track l) {
+          <option [value]="l" [selected]="l === rating()">{{ levelLabel[l] }}</option>
+        }
+      </select>
+      @if (differs()) {
+        <p id="w-rating" class="warn" role="status">{{ msg0912 }}</p>
+        <label class="field" for="f-reason"
+          >Lý do khác mức thẩm định <span class="req">*</span></label
+        >
+        <textarea
+          id="f-reason"
+          rows="3"
+          maxlength="2000"
+          [value]="reason()"
+          (input)="reason.set($any($event.target).value)"
+          [attr.aria-invalid]="!!shown('reason')"
+          [attr.aria-describedby]="shown('reason') ? 'e-reason' : null"
+        ></textarea>
+        @if (shown('reason'); as m) {
+          <p id="e-reason" class="field-err">{{ m }}</p>
+        }
+      }
+      <label class="field" for="f-comment">Nhận xét (không bắt buộc)</label>
+      <textarea
+        id="f-comment"
+        rows="3"
+        maxlength="4000"
+        [value]="comment()"
+        (input)="comment.set($any($event.target).value)"
+        [attr.aria-invalid]="!!shown('comment')"
+        [attr.aria-describedby]="shown('comment') ? 'e-comment' : null"
+      ></textarea>
+      @if (shown('comment'); as m) {
+        <p id="e-comment" class="field-err">{{ m }}</p>
+      }
+      <div class="row-acts">
+        <button
+          type="button"
+          class="btn primary"
+          [disabled]="busy() === 'propose'"
+          (click)="propose()"
+        >
+          {{ busy() === 'propose' ? 'Đang ghi…' : 'Ghi mức đề xuất' }}
+        </button>
+      </div>
+    </section>
+  }
+
+  <!-- Trường 8, 9: vết các mức -->
+  <section class="card" aria-labelledby="trail-h">
+    <h2 id="trail-h">Vết các mức đề xuất</h2>
+    @if (chips().length) {
+      <ol class="trail">
+        @for (c of chips(); track $index) {
+          <li [class]="'chip k-' + c.kind" [attr.title]="c.title ?? null">
+            @if (c.kind === 'level') {
+              {{ c.text }}: <b>{{ c.level }}</b> · {{ c.date }}
+            } @else {
+              {{ c.text }}
+            }
+          </li>
+        }
+      </ol>
+    } @else {
+      <p class="muted">Chưa có mức nào được ghi.</p>
+    }
+    @if (snapshot(); as s) {
+      @if (!simple()) {
+        <details class="verify" [attr.data-snapshot-id]="s.id" [attr.data-input-hash]="s.inputHash">
+          <summary>Thông tin đối chiếu kết quả</summary>
+          <p class="muted small">
+            Kết quả tính lúc {{ vnTime(s.computedAt) }} theo bộ tiêu chí {{ s.policyVersion }}. Mã
+            đối chiếu dữ liệu đầu vào {{ inputHash() }}; tính lại từ cùng dữ liệu cho đúng kết quả
+            này.
+          </p>
+        </details>
+      }
+    }
+  </section>
+}

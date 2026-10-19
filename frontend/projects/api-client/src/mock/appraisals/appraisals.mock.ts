@@ -2,6 +2,7 @@ import {
   AppraisalProfile,
   AppraisalProfileRow,
   AppraisalProfileStatus,
+  AppraisalProposalInput,
   AppraisalReviewInput,
   AppraisalScoreTraceStep,
   AppraisalScoreView,
@@ -15,6 +16,7 @@ import { Job } from '../../lib/models/job';
 import { mockSession } from '../mock-session';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import fixture from './appraisals.json';
+import { MOCK_MANAGER, PROPOSAL_BLOCKED, RESULT_MINE, ratingSheets } from './rating-sheet';
 import {
   ACCEPTED_BY_VIEWER,
   MOCK_APPRAISER,
@@ -36,9 +38,14 @@ import {
  * MSG-09-09); ký thẩm định (nhận xét bắt buộc tối đa 4.000 ký tự, lý do khi khác mức tự đề xuất 422
  * MSG-09-06, tách vai trò 403 MSG-09-08 với hồ sơ người thẩm định đã nghiệm thu, MFA, job ký như trên,
  * hồ sơ sang `DA_THAM_DINH`); xuất danh sách XLSX qua job (tệp giả lập).
+ *
+ * Phiếu xếp loại SCR-0903 (WEB-037): hồ sơ ở `rating-sheet.ts`; "Ghi mức đề xuất" chỉ khi hồ sơ ở
+ * `DA_THAM_DINH` (409), `If-Match`, lý do 20 đến 2.000 ký tự khi khác mức thẩm định (422 MSG-09-12),
+ * tách vai trò với hồ sơ quản lý giả lập đã nghiệm thu (403); ghi mức `DE_XUAT`, hồ sơ sang
+ * `CHO_QUYET_DINH`. Hồ sơ đã có quyết định của tôi nằm trong `profiles/mine`.
  */
 
-const ME = fixture.mine;
+const ME = [...fixture.mine, ...RESULT_MINE];
 /** Hạn thẩm định của kỳ trong bản giả lập (3 ngày làm việc sau hạn nộp). */
 const APPRAISAL_DUE = '2027-01-08';
 const MSG_09_02 =
@@ -47,6 +54,9 @@ const MSG_09_06 =
   'Mức thẩm định khác mức tự đề xuất. Theo QĐ Điều 16, đồng chí cần ghi lý do trước khi ký.';
 const MSG_09_08 =
   'Đồng chí không thể thẩm định hồ sơ này vì đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (PL 4 V.1).';
+const MSG_09_12 = 'Mức đề xuất khác mức thẩm định. Vui lòng ghi lý do (QĐ khoản 16.3).';
+const MSG_PROPOSAL_SOD =
+  'Đồng chí không thể đề xuất mức cho hồ sơ này vì đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (PL 4 V.1).';
 const MSG_09_03 =
   'Đề xuất mức Hoàn thành xuất sắc cần mô tả giải pháp đột phá và gắn ít nhất một minh chứng đã được xác nhận.';
 
@@ -67,12 +77,14 @@ const exportJobs = new Map<string, Job>();
 
 function load(): void {
   const queue = reviewQueue();
+  const sheets = ratingSheets();
   const base = structuredClone(fixture.profiles) as unknown as AppraisalProfile[];
   base.forEach(patchFixtureProfile);
-  profiles = [...base, ...queue.profiles];
+  profiles = [...base, ...queue.profiles, ...sheets.profiles];
   scoreViews = {
     ...(fixture.scores as unknown as Record<string, AppraisalScoreView>),
     ...queue.views,
+    ...sheets.views,
   };
 }
 const store = (): AppraisalProfile[] => {
@@ -153,6 +165,65 @@ function returnProfile(req: MockRequest): MockResponse {
     });
   p.status = 'TU_DANH_GIA';
   p.returnCount = (p.returnCount ?? 0) + 1;
+  p.rowVersion++;
+  return ok(structuredClone(p), etag(p));
+}
+
+/** "Ghi mức đề xuất" (SCR-0903): mức `DE_XUAT` của quản lý trực tiếp, hồ sơ sang `CHO_QUYET_DINH`. */
+function propose(req: MockRequest): MockResponse {
+  const p = find(req);
+  if (!('person' in p)) return p;
+  if (PROPOSAL_BLOCKED.has(p.id))
+    return problem(403, MSG_PROPOSAL_SOD, { code: 'APPRAISAL-403-SEPARATION-OF-DUTIES' });
+  if (p.status !== 'DA_THAM_DINH')
+    return problem(409, 'Hồ sơ không còn ở bước đề xuất mức', {
+      code: 'APPRAISAL-409-INVALID-STATUS',
+      detail: 'Hồ sơ đã được đề xuất mức hoặc đã chuyển bước khác. Vui lòng tải lại trang.',
+    });
+  const match = req.headers.get('If-Match');
+  if (!match) return problem(428, 'Thiếu If-Match');
+  if (match.replace(/"/g, '') !== String(p.rowVersion))
+    return problem(409, 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại', {
+      code: 'APPRAISAL-409-VERSION-CONFLICT',
+    });
+  const body = (req.body ?? {}) as AppraisalProposalInput;
+  if (!body.ratingCode || !(body.ratingCode in RATING_LEVEL_LABEL))
+    return problem(422, 'Chưa chọn mức đề xuất', {
+      errors: [{ field: 'ratingCode', message: 'Chọn mức đề xuất.' }],
+    });
+  if ((body.comment?.length ?? 0) > 4000)
+    return problem(422, 'Nhận xét quá dài', {
+      errors: [{ field: 'comment', message: 'Tối đa 4.000 ký tự.' }],
+    });
+  const appraised = p.ratingTrail.find((r) => r.levelKind === 'THAM_DINH' && r.isCurrent);
+  const differs = !!appraised && body.ratingCode !== appraised.ratingCode;
+  const reason = body.reason?.trim() ?? '';
+  if (differs && (reason.length < 20 || reason.length > 2000))
+    return problem(422, MSG_09_12, {
+      code: 'APPRAISAL-422-REASON-REQUIRED',
+      errors: [{ field: 'reason', message: MSG_09_12 }],
+    });
+  // dữ liệu mẫu đặt ở tháng 01/2027: mức mới ghi sau mức cuối để vết giữ đúng thứ tự thời gian
+  const last = Math.max(0, ...p.ratingTrail.map((x) => Date.parse(x.proposedAt)));
+  const now = new Date(Math.max(Date.now(), last + 3_600_000)).toISOString();
+  p.ratingTrail = [
+    ...p.ratingTrail.map((x) => (x.levelKind === 'DE_XUAT' ? { ...x, isCurrent: false } : x)),
+    {
+      id: crypto.randomUUID(),
+      levelKind: 'DE_XUAT',
+      ratingCode: body.ratingCode,
+      actor: MOCK_MANAGER,
+      actorRole: 'manager',
+      isCurrent: true,
+      differsFromPrev: differs,
+      explanationRequired: differs,
+      isBulkDecision: false,
+      ...(differs ? { reason } : {}),
+      ...(body.comment?.trim() ? { comment: body.comment.trim() } : {}),
+      proposedAt: now,
+    },
+  ];
+  p.status = 'CHO_QUYET_DINH';
   p.rowVersion++;
   return ok(structuredClone(p), etag(p));
 }
@@ -515,7 +586,7 @@ function trace(view: AppraisalScoreView, taskId: string | null): AppraisalScoreT
   steps.push({
     stepNo: ++n,
     ruleCode: 'diem_ket_qua',
-    legalRef: 'BR-09-03',
+    legalRef: 'PL A3; Bảng chấm điểm',
     inputs: Object.fromEntries(s.groups.map((g) => [g.code, g.score])),
     output: { tong: s.totalScore, mucThamKhao: s.autoRatingCode },
     explanation: `Điểm kết quả nhiệm vụ ${num(s.totalScore)}; mức tham khảo ${RATING_LEVEL_LABEL[s.autoRatingCode]}.`,
@@ -535,6 +606,7 @@ export const APPRAISALS_MOCK: MockModule = {
     { method: 'GET', pattern: '/api/v1/appraisals/profiles', handle: list },
     { method: 'POST', pattern: '/api/v1/appraisals/profiles/:id/return', handle: returnProfile },
     { method: 'POST', pattern: '/api/v1/appraisals/profiles/:id/appraisal', handle: appraise },
+    { method: 'POST', pattern: '/api/v1/appraisals/profiles/:id/proposal', handle: propose },
     { method: 'POST', pattern: '/api/v1/appraisals/exports', handle: exportProfiles },
     {
       method: 'GET',
