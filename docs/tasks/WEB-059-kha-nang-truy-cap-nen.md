@@ -12,7 +12,7 @@
 | Cỡ việc | S |
 | Phụ thuộc | WEB-001 |
 | Truy vết | NFR-11, WCAG 2.1 AA, AGENTS.md quy tắc 9 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Hoàn thành |
 
 ## 1. Mục tiêu
 

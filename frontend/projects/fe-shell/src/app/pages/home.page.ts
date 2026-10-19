@@ -13,7 +13,16 @@ import { SduiOutletComponent } from '@vt/sdui-renderer';
       <p class="muted">Chưa nạp được bố cục trang chủ của đơn vị.</p>
     </vt-sdui-outlet>
   `,
-  styles: `h1 { margin: 0; font-size: 1.5rem; } .muted { color: var(--p-text-muted-color, #6b7280); margin: 4px 0 20px; }`,
+  styles: `
+    h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+    .muted {
+      color: var(--p-text-muted-color, #566275);
+      margin: 4px 0 20px;
+    }
+  `,
 })
 export class HomePage {
   private readonly session = inject(SessionService);

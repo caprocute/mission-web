@@ -37,7 +37,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-007](WEB-007-api-client-openapi.md) | `@vt/api-client`: sinh client từ OpenAPI, xử lý lỗi, 409, job 202 | M | WEB-001 | Hoàn thành (hợp đồng mẫu, chờ OpenAPI thật của mission-core) |
 | [WEB-008](WEB-008-mock-api.md) | Tách dữ liệu giả lập thành interceptor và fixture theo module | S | WEB-007 | Hoàn thành (axe còn lỗi có sẵn, xem WEB-059) |
 | [WEB-009](WEB-009-sdui-chu-ky.md) | SDUI: kiểm chữ ký UI Pack, kiểm phiên bản registry, telemetry | M | WEB-004 | Chưa bắt đầu |
-| [WEB-010](WEB-010-form-engine.md) | Form engine: widget, test CEL dùng chung, benchmark | M | WEB-001 | Chưa bắt đầu |
+| [WEB-010](WEB-010-form-engine.md) | Form engine: widget, test CEL dùng chung, benchmark | M | WEB-001 | Hoàn thành một phần (nhánh `feat/WEB-010-form-engine`): ngân sách dựng 50 trường ≤ 50 ms chưa đạt (khoảng 95 ms trên Chromium), xem wiki/09 |
 | [WEB-011](WEB-011-telemetry-faro.md) | Telemetry: Grafana Faro + OpenTelemetry web | S | WEB-001 | Chưa bắt đầu |
 | [WEB-012](WEB-012-shell-hoan-thien.md) | Shell: thông báo thời gian thực, tìm kiếm, xử lý lỗi toàn cục | M | WEB-006, WEB-007 | Chưa bắt đầu |
 | [WEB-013](WEB-013-web-component-nhung.md) | Chế độ nhúng `<vt-okr-app>` cho cổng văn phòng số | M | WEB-006 | Chưa bắt đầu |
@@ -118,7 +118,7 @@ Nhóm này hiện thực ma trận phân quyền ở [wiki/15a](../../wiki/15a-m
 
 | Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
-| [WEB-059](WEB-059-kha-nang-truy-cap-nen.md) | Sửa lỗi khả năng truy cập nền: progressbar, slider, tương phản token | S | WEB-001 | Chưa bắt đầu |
+| [WEB-059](WEB-059-kha-nang-truy-cap-nen.md) | Sửa lỗi khả năng truy cập nền: progressbar, slider, tương phản token | S | WEB-001 | Hoàn thành (nhánh `feat/WEB-059-kha-nang-truy-cap-nen`): axe 0 lỗi critical/serious, Lighthouse accessibility 1,00 ở `/` và `/tasks`, CLS trang chủ 0,001; LCP và tổng tải vẫn thuộc WEB-052 |
 | [WEB-060](WEB-060-format-toan-bo.md) | Chạy Prettier toàn workspace một lần | S | WEB-001 | Chưa bắt đầu |
 | [WEB-061](WEB-061-trinh-soan-mau-luong.md) | SCR-1505 Thư viện và trình soạn mẫu luồng (BS-01) | L | WEB-015, WEB-046 | Chưa bắt đầu (luồng giám sát, điều hành, cấu hình) |
 | [WEB-062](WEB-062-giam-sat-tien-trinh.md) | SCR-1506 Giám sát tiến trình theo mẫu (BS-01) | M | WEB-015 | Chưa bắt đầu (luồng giám sát, điều hành, cấu hình) |

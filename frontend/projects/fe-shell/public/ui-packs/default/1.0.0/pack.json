@@ -6,9 +6,11 @@
   "tokens": {
     "color": {
       "primary": { "$type": "color", "$value": "#EE0033" },
+      "primaryStrong": { "$type": "color", "$value": "#D1002D" },
       "onPrimary": { "$type": "color", "$value": "#FFFFFF" },
       "surface": { "$type": "color", "$value": "#FFFFFF" },
       "text": { "$type": "color", "$value": "#1F2329" },
+      "textMuted": { "$type": "color", "$value": "#566275" },
       "background": { "$type": "color", "$value": "#F5F6F8" }
     },
     "font": {
@@ -21,7 +23,7 @@
   "modes": {
     "elderly": {
       "font": { "size": { "body": { "$value": "18px" } } },
-      "color": { "text": { "$value": "#000000" } },
+      "color": { "text": { "$value": "#000000" }, "textMuted": { "$value": "#3D4756" }, "primaryStrong": { "$value": "#A30023" } },
       "flags": { "reducedSteps": true, "minTouchTarget": "48px" }
     }
   },

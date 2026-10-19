@@ -1,4 +1,4 @@
 @layer base, primeng, app;
 @import 'primeicons/primeicons.css';
-:root { --vt-color-primary: #ee0033; --vt-color-on-primary: #fff; --vt-color-surface: #fff; --vt-color-text: #1f2329; --vt-radius-card: 8px; }
+:root { --vt-color-primary: #ee0033; --vt-color-primary-strong: #d1002d; --vt-color-text-muted: #566275; --vt-color-on-primary: #fff; --vt-color-surface: #fff; --vt-color-text: #1f2329; --vt-radius-card: 8px; }
 body { margin: 0; font-family: 'Be Vietnam Pro', Roboto, sans-serif; color: var(--vt-color-text); background: #f5f6f8; }
