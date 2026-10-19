@@ -1,7 +1,7 @@
 /*
  * SCR-1302 "Tra cứu sổ cái và kiểm tra toàn vẹn" (QT-13 bước 2, 3; TL-02 Hình 11.8) — đối chiếu đặc tả:
  * Tác nhân AC-10 (`inspector`), AC-07 xem trong phạm vi đơn vị; web máy tính. Đường vào: menu "Giám sát ›
- *   Sổ cái"; liên kết từ SCR-1301 (`?aggregateType=&aggregateId=`) và SCR-1401.
+ *   Sổ cái"; liên kết từ SCR-1301 (`?aggregateType=&aggregateId=`) và SCR-1401 (`?entryId=`).
  * Trường: 1 đối tượng (loại và mã); 2 khoảng thời gian (mặc định 90 ngày gần nhất, tối đa 2 năm); 3 loại sự
  *   kiện (topic EVT); 4 bảng bản ghi (mã, thời điểm, sự kiện, người, trước, sau; phân trang con trỏ; trường
  *   C2 đã che); 5 kết quả chuỗi (prev, hash, khớp); 6 lần kiểm tra (mã, phạm vi, thời gian chạy, kết quả);
@@ -684,7 +684,8 @@ export class LedgerPage {
   protected readonly running = signal(false);
 
   // vùng 5
-  protected readonly selectedId = signal<string | null>(null);
+  // SCR-1401 "Mở sổ cái" truyền `?entryId=` để mở sẵn bản ghi
+  protected readonly selectedId = signal<string | null>(this.query.get('entryId'));
   protected readonly detail = rxResource({
     params: () => this.selectedId() ?? undefined,
     stream: ({ params }) => this.api.entry(params),

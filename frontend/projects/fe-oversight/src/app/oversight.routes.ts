@@ -3,7 +3,7 @@ import { permissionGuard, screenKeys } from '@vt/auth';
 
 /**
  * Tuyến của remote fe-oversight, shell gắn dưới `/oversight` (QT-12, QT-13, QT-14). Mỗi tuyến con chặn
- * theo chức năng của đúng SCR (wiki/15a); máy chủ vẫn kiểm quyền và trả 403. SCR-1401 (WEB-044) còn chờ.
+ * theo chức năng của đúng SCR (wiki/15a); máy chủ vẫn kiểm quyền và trả 403. SCR-1401 do WEB-044 dựng.
  */
 export const ROUTES: Routes = [
   {
@@ -81,6 +81,33 @@ export const ROUTES: Routes = [
         title: 'Yêu cầu mở lại kỳ',
       },
     ],
+  },
+  {
+    // SCR-1401: danh sách bên trái, chi tiết bên phải (QT-14)
+    path: 'alerts',
+    canActivate: [permissionGuard('SCR-1401.xem')],
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./pages/alerts/alert-center.page').then((m) => m.AlertCenterPage),
+        title: 'Trung tâm cảnh báo bất thường',
+      },
+      {
+        path: ':id',
+        loadComponent: () =>
+          import('./pages/alerts/alert-center.page').then((m) => m.AlertCenterPage),
+        title: 'Trung tâm cảnh báo bất thường',
+      },
+    ],
+  },
+  {
+    // SCR-1401 chức năng "Ngưỡng phát hiện" (`policy_author`)
+    path: 'alert-thresholds',
+    canActivate: [permissionGuard('SCR-1401.nguong')],
+    loadComponent: () =>
+      import('./pages/alerts/alert-thresholds.page').then((m) => m.AlertThresholdsPage),
+    title: 'Ngưỡng phát hiện dấu hiệu bất thường',
   },
   {
     path: 'ledger',
