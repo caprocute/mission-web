@@ -45,6 +45,14 @@ Bẫy thứ tư nằm ở `main.ts`: tệp này chỉ được gọi `initFedera
 
 Bẫy thứ năm là kiểm thử khung: `app.spec.ts` của cả hai ứng dụng còn là mã sinh mặc định, trong đó phép thử "should render title" tìm thẻ `h1` chứa "Hello, fe-task" hoặc "Hello, fe-shell", trong khi `App` của hai ứng dụng không còn thẻ này, nên phép thử nhiều khả năng sẽ lỗi khi chạy (suy luận từ đọc mã, chưa chạy). Thiết lập ESLint và Vitest cho toàn workspace thuộc task WEB-001.
 
+Bẫy thứ sáu là đọc `resource.value()` khi `rxResource` đang lỗi: lời gọi ném `ResourceValueError` và làm hỏng cả trang, kể cả khi lỗi đó chỉ là 403 hay 500 cần hiện thông báo. Bẫy hay gặp nhất là dùng thẳng `source: this.page.value` cho `linkedSignal`. Cách tránh là gom một `computed(() => res.hasValue() ? res.value() : null)` rồi mọi `computed`, `linkedSignal` đọc qua nó (ví dụ `firstPage` trong `MyTasksPage`, WEB-030). Thử bằng `?mock-error=403` trên URL trang.
+
+Bẫy thứ bảy là `p-inputnumber` của PrimeNG 21 trong bảng nhập nhanh hoặc hộp thoại: khi rời ô bằng Tab, host binding `data-p` của nó đổi giữa hai vòng phát hiện thay đổi và Angular báo NG0100 ở chế độ dev. Với ô số đơn giản (phần trăm, số lượng), dùng `<input pInputText type="number">` và chuẩn hoá giá trị trong hàm `set…` của component, vừa nhẹ hơn vừa không lỗi (WEB-030).
+
+Bẫy thứ tám là `linkedSignal` đặt lại trạng thái phụ (ghi chú, thông báo thành công) theo cả đối tượng: khi máy chủ trả bản mới của cùng nhiệm vụ, đối tượng đổi tham chiếu và thông báo vừa đặt bị xoá. Hãy lấy nguồn là khoá ổn định, ví dụ `computed(() => this.task().id)`.
+
+Bẫy thứ chín là chạy `ng build` trong lúc `ng serve` của cùng workspace đang chạy: bản build ghi đè bộ đệm gói dùng chung của Native Federation và trang dev báo `ReferenceError: ngDevMode is not defined` ở shell. Chỉ cần dừng rồi chạy lại `ng serve` cả shell lẫn remote.
+
 ## Thêm một remote mới
 
 Task WEB-015 sẽ viết script sinh remote và dựng khung tám remote `fe-okr`, `fe-evidence`, `fe-appraisal`, `fe-dossier`, `fe-oversight`, `fe-dashboard`, `fe-config-studio`, `fe-admin` với cổng dev 4202 đến 4209. Cho tới khi có script, các bước làm tay như dưới đây, lấy `fe-task` làm mẫu.

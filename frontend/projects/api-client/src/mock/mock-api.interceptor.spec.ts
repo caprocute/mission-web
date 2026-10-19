@@ -51,16 +51,21 @@ describe('mockApiInterceptor', () => {
   it('trả danh sách Việc của tôi từ fixture, lọc theo trạng thái và từ khoá', async () => {
     const { api } = setup();
     const all = await firstValueFrom(api.myTasks());
-    expect(all.items.length).toBe(5);
+    expect(all.items.length).toBe(10);
     expect(all.nextCursor).toBeNull();
     const open = await firstValueFrom(api.myTasks({ status: ['DA_GIAO', 'DANG_THUC_HIEN'] }));
-    expect(open.items.map((t) => t.code)).toEqual([
+    expect(open.items.map((t) => t.code).sort()).toEqual([
       'NV-2026-Q4-0001',
       'NV-2026-Q4-0002',
       'NV-2026-Q4-0003',
+      'NV-2026-Q4-0142',
+      'NV-2026-Q4-0157',
+      'NV-2026-Q4-0163',
+      'NV-2026-Q4-0171',
+      'NV-2026-Q4-0178',
     ]);
     const overdue = await firstValueFrom(api.myTasks({ overdueOnly: true }));
-    expect(overdue.items.map((t) => t.code)).toEqual(['NV-2026-Q4-0003']);
+    expect(overdue.items.map((t) => t.code)).toEqual(['NV-2026-Q4-0142', 'NV-2026-Q4-0003']);
     const q = await firstValueFrom(api.myTasks({ q: 'nghị định' }));
     expect(q.items.map((t) => t.code)).toEqual(['NV-2026-Q4-0002']);
   });
@@ -70,9 +75,9 @@ describe('mockApiInterceptor', () => {
     const p1 = await firstValueFrom(api.myTasks({ limit: 2 }));
     expect(p1.items.length).toBe(2);
     expect(p1.nextCursor).toBe('2');
-    const p3 = await firstValueFrom(api.myTasks({ limit: 2, cursor: '4' }));
-    expect(p3.items.length).toBe(1);
-    expect(p3.nextCursor).toBeNull();
+    const p5 = await firstValueFrom(api.myTasks({ limit: 2, cursor: '9' }));
+    expect(p5.items.length).toBe(1);
+    expect(p5.nextCursor).toBeNull();
   });
 
   it('quy đổi ngày tương đối của fixture theo ngày chạy', async () => {

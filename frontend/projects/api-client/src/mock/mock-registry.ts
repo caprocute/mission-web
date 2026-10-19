@@ -1,12 +1,13 @@
 import { MockModule, MockRequest, MockResponse, matchPath, problem } from './mock-router';
 import { TASKS_MOCK } from './tasks/tasks.mock';
+import { CATALOG_MOCK } from './catalog/catalog.mock';
 
 /**
  * Danh mục fixture theo module API (`/api/v1/<module>`). Thêm module mới: tạo thư mục
  * `mock/<module>/` gồm `<module>.json` và `<module>.mock.ts`, rồi thêm vào mảng này.
  * Tệp này chỉ được nạp lười từ `mockApiInterceptor`, nên không vào gói tải đầu.
  */
-export const MOCK_MODULES: MockModule[] = [TASKS_MOCK];
+export const MOCK_MODULES: MockModule[] = [TASKS_MOCK, CATALOG_MOCK];
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
