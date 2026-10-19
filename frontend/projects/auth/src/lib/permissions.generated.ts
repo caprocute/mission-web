@@ -141,6 +141,16 @@ export type PermissionKey =
   | 'SCR-1503.xem-duyet'
   | 'SCR-1503.ky-duyet'
   | 'SCR-1504.cau-hinh'
+  | 'SCR-1505.thu-vien'
+  | 'SCR-1505.soan'
+  | 'SCR-1505.chay-test'
+  | 'SCR-1505.de-nghi-phat-hanh'
+  | 'SCR-1505.phe-duyet'
+  | 'SCR-1505.trien-khai-cell'
+  | 'SCR-1506.xem'
+  | 'SCR-1506.chuyen-nguoi-xu-ly'
+  | 'SCR-1506.gia-han-buoc'
+  | 'SCR-1506.so-do'
   | 'SCR-1601.xem'
   | 'SCR-1601.nhac'
   | 'SCR-1601.giao-lai'
@@ -305,6 +315,16 @@ export const PERMISSION_TABLE: Readonly<Record<PermissionKey, string>> = {
   'SCR-1503.xem-duyet': 'decider',
   'SCR-1503.ky-duyet': 'decider',
   'SCR-1504.cau-hinh': 'policy_author',
+  'SCR-1505.thu-vien': 'platform_admin second_approver*',
+  'SCR-1505.soan': 'platform_admin',
+  'SCR-1505.chay-test': 'platform_admin',
+  'SCR-1505.de-nghi-phat-hanh': 'platform_admin',
+  'SCR-1505.phe-duyet': 'second_approver',
+  'SCR-1505.trien-khai-cell': 'platform_admin',
+  'SCR-1506.xem': 'platform_admin tenant_admin',
+  'SCR-1506.chuyen-nguoi-xu-ly': 'platform_admin* tenant_admin',
+  'SCR-1506.gia-han-buoc': 'platform_admin* tenant_admin',
+  'SCR-1506.so-do': 'platform_admin tenant_admin',
   'SCR-1601.xem': 'leader manager inspector*',
   'SCR-1601.nhac': 'leader manager',
   'SCR-1601.giao-lai': 'leader* manager',

@@ -34,7 +34,7 @@ Các bảng giữa cặp dấu `BEGIN GEN` và `END GEN` được sinh tự đ�
 | `Tn` | Toàn tenant | Mọi đơn vị trong tenant, vẫn chịu RLS theo `tenant_id`. |
 | `N` | Nền tảng | Vùng điều phối toàn cục, nhiều tenant (chỉ AC-01). |
 
-Dữ liệu hiện có 156 chức năng trên 48 màn hình, trong đó 152 chức năng thuộc 44 màn hình web; 55 ô được đánh dấu suy luận (`*`).
+Dữ liệu hiện có 166 chức năng trên 50 màn hình, trong đó 162 chức năng thuộc 46 màn hình web; 58 ô được đánh dấu suy luận (`*`).
 <!-- END GEN:chu-giai -->
 
 ## Ma trận chính: chức năng theo màn hình
@@ -260,6 +260,16 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | SCR-1503 | Xem kết quả test khi phê duyệt `xem-duyet` | - | - | - | - | - | - | - | R/Tn | - | - | - | - |  |
 | SCR-1503 | Ký số phê duyệt phát hành Policy Pack `ky-duyet` | - | - | - | - | - | - | - | D/Tn | - | - | - | - | BR-15-09 (khác người soạn); AAL2 |
 | SCR-1504 | Chọn mẫu luồng, mô phỏng, lưu tham số luồng duyệt `cau-hinh` | - | - | X/Tn | - | - | - | - | - | - | - | - | - |  |
+| SCR-1505 | Xem thư viện mẫu luồng: phiên bản, trạng thái, số tenant đang dùng, số test `thu-vien` | R/N | - | - | - | - | - | - | - | R/N* | - | - | - |  |
+| SCR-1505 | Soạn, sửa mẫu luồng bằng bpmn-js, khai báo tham số; linter bpmnlint chạy ngay trên trình duyệt `soan` | T/N | - | - | - | - | - | - | - | - | - | - | - | 4 quy tắc chống mạng nhện (TL-01), máy chủ chạy lại linter khi lưu |
+| SCR-1505 | Chạy bộ test kịch bản và thử tải rút gọn trên engine kiểm thử riêng `chay-test` | T/N | - | - | - | - | - | - | - | - | - | - | - | ≤ 20 câu SQL mỗi lần hoàn thành user task; ≤ 12 user task mỗi nhánh; ≤ 50 phần tử đa thể hiện |
+| SCR-1505 | Đề nghị phát hành: tạo merge request vào repo mẫu luồng kèm BPMN, tham số, test `de-nghi-phat-hanh` | T/N | - | - | - | - | - | - | - | - | - | - | - | Chỉ khi DAT_KIEM_THU |
+| SCR-1505 | Phê duyệt phát hành mẫu luồng (bốn mắt), ký số gói mẫu `phe-duyet` | - | - | - | - | - | - | - | - | D/N | - | - | - | Bốn mắt: người duyệt khác người soạn; AAL2, step-up |
+| SCR-1505 | Theo dõi saga triển khai cuốn chiếu lên engine từng cell, bù trừ về phiên bản trước `trien-khai-cell` | X/N | - | - | - | - | - | - | - | - | - | - | - | Ngoài giờ cao điểm, không trong 3 ngày cuối kỳ; CELL-NB trước |
+| SCR-1506 | Xem tiến trình đang chạy theo mẫu, phát hiện tiến trình kẹt `xem` | R/N | R/Tn | - | - | - | - | - | - | - | - | - | - | Không truy vấn ACT_* lúc cao điểm |
+| SCR-1506 | Chuyển người xử lý của user task khi cán bộ nghỉ hoặc chuyển công tác `chuyen-nguoi-xu-ly` | T/N* | T/Tn | - | - | - | - | - | - | - | - | - | - | Ghi sổ cái |
+| SCR-1506 | Gia hạn thời hạn của một bước `gia-han-buoc` | T/N* | T/Tn | - | - | - | - | - | - | - | - | - | - | Ghi sổ cái; không sửa biến, không nhảy bước |
+| SCR-1506 | Xem sơ đồ tiến trình với bước hiện tại `so-do` | R/N | R/Tn | - | - | - | - | - | - | - | - | - | - |  |
 
 #### QT-16. Bảng điều hành và báo cáo
 
@@ -332,6 +342,11 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | `SCR-1401.xu-ly` | Bảng chức năng chỉ ghi điều kiện trạng thái; AC-10 làm bước này là suy luận. |
 | `SCR-1501.soan` | AC-02 xem danh sách gói theo TL-01 Phụ lục C (`GET /policies`). |
 | `SCR-1503.ky-duyet` | TL-01 Phụ lục C ghi vai trò `policy_approver` và đường dẫn `/publish`. |
+| `SCR-1505.thu-vien` | Chỉ người giữ vai trò con `wf_template_author` của AC-01; AC-09 xem để phê duyệt (suy luận). Tenant không thấy màn hình. |
+| `SCR-1505.soan` | Vai trò `wf_template_author`. Phiên bản HIEU_LUC không sửa được. |
+| `SCR-1505.phe-duyet` | AC-09 ở phạm vi nền tảng là người của đội sản phẩm Viettel, khác AC-09 trong tenant. |
+| `SCR-1506.xem` | AC-01 xem tổng hợp theo cell. |
+| `SCR-1506.chuyen-nguoi-xu-ly` | AC-01 thực hiện là suy luận; nguồn nêu thao tác chung cho màn hình. |
 | `SCR-1601.xem` | AC-10 có trong TL-01 và menu hiện tại nhưng không có trong tác nhân SCR-1601. |
 | `SCR-1801.duyet` | Nguồn không nêu vai trò người duyệt; TL-01 ghi `tenant_admin` nên ánh xạ AC-02 khác người soạn là suy luận. |
 <!-- END GEN:ghi-chu -->
@@ -427,6 +442,8 @@ Bảng dưới gom mọi ràng buộc gắn với chức năng mà giao diện p
 | 28 | SCR-0202, SCR-0502, SCR-1701 | Gợi ý AI | AI chỉ đọc | Trợ lý chỉ đọc dữ liệu người dùng đang có quyền đọc, không nhận C3, không lưu C2 trong nhật ký; nội dung chỉ được ghi khi người soạn xác nhận và mang cờ `ai_assisted`. | BR-02-11, BR-17-03, BR-17-07, BR-17-08 | Token exchange ở SVC-14; ACL `doc_chunk` | MSG-17-02, MSG-17-04 |
 | 29 | (chưa có SCR) | Cấp vai trò (`config.role_binding`) | Bốn mắt | Vai trò nhạy cảm `decider`, `second_approver`, `policy_author` cần người duyệt thứ hai khác người cấp; CSDL chặn tự duyệt việc gán vai trò cho chính mình; thay đổi quyền yêu cầu step-up. | TL-03 `config.role_binding`; TL-01 mục Định danh và xác thực; SEC-22 | CSDL CHECK `approved_by` khác `granted_by`; OPA | Chưa có MSG riêng |
 | 30 | SCR-0203, SCR-0601, SCR-0703 | Duyệt thay khi vắng mặt | Uỷ quyền | Người duyệt hoặc nghiệm thu vắng mặt thì luồng lấy người thay thế (cấp phó được uỷ quyền) từ `flowable.wf_binding` và ghi rõ "duyệt thay", "nghiệm thu thay"; check-in thay ghi rõ "check-in thay". | QT-02, QT-03, QT-06, QT-07 Ngoại lệ và xử lý | SVC-06; sổ cái | Chưa có MSG riêng |
+| 31 | SCR-1505 | Phê duyệt phát hành mẫu luồng | Bốn mắt | Người phê duyệt (`second_approver`) phải khác người soạn (`wf_template_author`); phiên AAL2 và step-up khi ký gói mẫu. | BS-01 SCR-1505 | Repo mẫu luồng (merge request), SVC-06 | Chưa có MSG (cần bổ sung) |
+| 32 | SCR-1506 | Chuyển người xử lý, gia hạn bước | Giới hạn thao tác | Chỉ chuyển người xử lý và gia hạn; không sửa biến tiến trình, không nhảy bước; mọi thao tác ghi sổ cái. | BS-01 SCR-1506 | SVC-06, SVC-09 | Chưa có MSG (cần bổ sung) |
 <!-- END GEN:rang-buoc -->
 
 ## Liên quan
