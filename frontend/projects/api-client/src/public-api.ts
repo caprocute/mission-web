@@ -40,6 +40,8 @@ export * from './lib/models/org-tree';
 export * from './lib/org-tree-api';
 export * from './lib/models/period';
 export * from './lib/period-api';
+export * from './lib/models/role-binding';
+export * from './lib/role-admin-api';
 export * from './lib/models/appraisal';
 export * from './lib/appraisal-api';
 export * from './lib/models/org-sync';

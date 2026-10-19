@@ -1,6 +1,6 @@
 # Đề xuất bổ sung thiết kế: quản trị phân công vai trò và uỷ quyền (WEB-058, pha 1)
 
-> Trạng thái: **chờ người phụ trách duyệt và cấp mã**. Tài liệu này không đặt mã SCR, BR, MSG, EVT hay API chính thức; những chỗ cần mã ghi "chờ cấp mã", kèm số gợi ý là số kế tiếp còn trống trong dải của QT-01 để người phụ trách tiện cấp. Nguồn: TL-03 bảng `config.role_binding`, `org.assignment`, `flowable.wf_binding`; TL-02 chương "Tác nhân và phân quyền", ngoại lệ của QT-02, QT-03, QT-06, QT-07; TL-01 mục "Định danh và xác thực" và "Nhật ký kiểm toán"; baseline mục 10 và danh mục EVT; wiki/15 và wiki/15a (ràng buộc số 29, 30).
+> Trạng thái: **đã duyệt ngày 19/10/2026** (người phụ trách duyệt theo các phương án đề xuất). Kết quả duyệt và các mã đã cấp nằm ở mục 8; các mục 1 đến 7 giữ nguyên nội dung lúc trình để tra cứu, nên các "gợi ý mã" trong đó không còn là mã chính thức.
 
 ## 1. Vì sao cần bổ sung
 
@@ -69,3 +69,22 @@ Theo quy ước mục 13 baseline, thuộc module `config` (MOD-08): `GET /api/v
 5. Cấp mã chính thức cho ba màn hình, các BR, MSG, sự kiện thay đổi vai trò và các API ở mục 6.
 
 Khi các điểm trên được chốt, pha 2 của WEB-058 thêm các dòng chức năng vào `docs/phan-quyen/ma-tran.json`, sinh lại wiki/15a và bảng quyền, rồi hiện thực ba màn hình trên dữ liệu giả lập.
+
+## 8. Kết quả duyệt (19/10/2026) và mã đã cấp
+
+Người phụ trách duyệt toàn bộ đề xuất theo phương án mặc định. Bốn quyết định được chốt như sau. Thứ nhất, nguồn sự thật của vai trò là `config.role_binding` (phương án A): mỗi lần cấp, duyệt, từ chối, thu hồi hoặc hết hạn, MOD-08 phát EVT-27 qua outbox và một consumer đồng bộ realm role sang Keycloak. Thứ hai, trạng thái chờ duyệt được biểu diễn bằng `approved_by` rỗng, không thêm cột `status`; trạng thái hiển thị (`CHO_DUYET`, `SAP_HIEU_LUC`, `HIEU_LUC`, `HET_HAN`, `DA_THU_HOI`, `TU_CHOI`) do máy chủ suy ra từ các cột. Để từ chối và thu hồi có vết, bảng được bổ sung các cột `reason`, `granted_at`, `approved_at`, `ended_by`, `ended_at`, `end_kind` (`THU_HOI`, `TU_CHOI`) và `end_reason`. Thứ ba, người duyệt thứ hai có thể là một `tenant_admin` khác hoặc `leader` của đơn vị phạm vi, miễn khác người cấp và khác người được cấp. Thứ tư, thêm bảng `config.delegation` dùng chung cho duyệt thay, nghiệm thu thay và check-in KR thay.
+
+Khi cấp mã, hai mã BR gợi ý đầu tiên (BR-01-11, BR-01-12) đã trùng với quy tắc có sẵn của QT-01 trong TL-02, nên toàn bộ dải BR được dời lên hai số. Bảng dưới đối chiếu mã gợi ý ở mục 4 với mã chính thức.
+
+| Gợi ý ở mục 4 | Mã chính thức | Quy tắc |
+|---|---|---|
+| BR-01-11 | BR-01-13 | Không tự cấp, tự duyệt, tự thu hồi vai trò hoặc uỷ quyền của chính mình (MSG-01-16, mã lỗi `CONFIG-403-SELF-GRANT`) |
+| BR-01-12 | BR-01-14 | Vai trò nhạy cảm chỉ hiệu lực sau duyệt thứ hai (MSG-01-17) |
+| BR-01-13 | BR-01-15 | Thao tác thay đổi quyền cần phiên `aal2` trong 15 phút |
+| BR-01-14 | BR-01-16 | Vai trò và uỷ quyền bắt buộc có thời hạn (`CONFIG-422-VALIDITY`) |
+| BR-01-15 | BR-01-17 | Không uỷ quyền lại (MSG-01-18, `CONFIG-422-REDELEGATION`) |
+| BR-01-16 | BR-01-18 | Người nhận uỷ quyền vẫn chịu phân tách nhiệm vụ của hồ sơ |
+
+Ba màn hình nhận mã SCR-0105 "Vai trò theo đơn vị", SCR-0106 "Hồ sơ quyền của một người" và SCR-0107 "Uỷ quyền khi vắng mặt"; sự kiện thay đổi vai trò là EVT-27. Hợp đồng API nằm trong `contracts/openapi/modules/config.yaml` (thẻ "Vai trò và uỷ quyền"): `GET`, `POST /config/role-bindings`, `GET /config/role-bindings/{id}`, `POST /config/role-bindings/{id}/approve`, `/reject`, `/revoke`, `GET /config/access-history`, `GET /config/access-history/export`, `GET`, `POST /config/delegations` và `POST /config/delegations/{id}/revoke`. Lịch sử thay đổi quyền dùng đường `/config/access-history` thay cho `/config/role-bindings/history` ở mục 6 vì gộp cả sự kiện uỷ quyền. Các dòng chức năng `SCR-0105.*`, `SCR-0106.*`, `SCR-0107.*` đã thêm vào `ma-tran.json`; wiki/15a và bảng quyền được sinh lại.
+
+Một điểm còn để ngỏ: hộp khai báo uỷ quyền check-in KR thay chưa cho chọn KR cụ thể vì MOD-01 chưa có API tra KR theo người sở hữu; để trống đối tượng nghĩa là mọi KR của người uỷ quyền tại đơn vị. Điểm này được ghi ở wiki/14.

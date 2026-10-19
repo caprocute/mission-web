@@ -34,7 +34,7 @@ Các bảng giữa cặp dấu `BEGIN GEN` và `END GEN` được sinh tự đ�
 | `Tn` | Toàn tenant | Mọi đơn vị trong tenant, vẫn chịu RLS theo `tenant_id`. |
 | `N` | Nền tảng | Vùng điều phối toàn cục, nhiều tenant (chỉ AC-01). |
 
-Dữ liệu hiện có 166 chức năng trên 50 màn hình, trong đó 162 chức năng thuộc 46 màn hình web; 58 ô được đánh dấu suy luận (`*`).
+Dữ liệu hiện có 175 chức năng trên 53 màn hình, trong đó 171 chức năng thuộc 49 màn hình web; 64 ô được đánh dấu suy luận (`*`).
 <!-- END GEN:chu-giai -->
 
 ## Ma trận chính: chức năng theo màn hình
@@ -73,6 +73,15 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | SCR-0104 | Đồng bộ ngay, lịch đồng bộ, chạy lại thông điệp lỗi `dong-bo` | - | X/Tn | - | - | - | - | - | - | - | - | - | - |  |
 | SCR-0104 | Xử lý lệch: lấy theo nguồn, giữ nội bộ, ánh xạ thủ công `xu-ly-lech` | - | X/Tn | - | - | - | - | - | - | - | - | - | - | Phiên AAL2 khi áp dụng hàng loạt |
 | SCR-0104 | Giao cán bộ tổ chức đơn vị kiểm tra dòng lệch `giao-xu-ly` | - | T/Tn | - | - | - | - | R/Gn* | - | - | - | - | - |  |
+| SCR-0105 | Xem vai trò đã cấp theo đơn vị (lọc vai trò, còn hiệu lực, sắp hết hạn, chờ duyệt) `xem` | - | R/Tn | - | R/Cd* | - | - | - | - | - | R/Tn* | - | - |  |
+| SCR-0105 | Cấp vai trò có thời hạn, đơn vị phạm vi, phạm vi và luồng `cap` | - | X/Tn | - | - | - | - | - | - | - | - | - | - | BR-01-13, BR-01-14, BR-01-15 (step-up), BR-01-16 |
+| SCR-0105 | Duyệt thứ hai hoặc từ chối đề nghị cấp `decider`, `second_approver`, `policy_author` `duyet` | - | D/Tn | - | D/Cd* | - | - | - | - | - | - | - | - | Bốn mắt: người duyệt khác người cấp và người được cấp (BR-01-13, BR-01-14); step-up |
+| SCR-0105 | Thu hồi vai trò trước hạn, lý do bắt buộc `thu-hoi` | - | X/Tn | - | - | - | - | - | - | - | - | - | - | BR-01-13, BR-01-15 (step-up) |
+| SCR-0106 | Xem hồ sơ quyền của một người: vai trò hiện hành, uỷ quyền đã giao và đã nhận, lịch sử `xem` | - | R/Tn | - | R/Cd* | - | - | - | - | - | R/Tn | - | - | Mọi lần tra cứu được ghi (BR-13-07) |
+| SCR-0106 | Xuất lịch sử quyền của một người ra CSV `xuat` | - | R/Tn | - | - | - | - | - | - | - | R/Tn | - | - | Step-up khi xuất (BR-01-15) |
+| SCR-0107 | Xem uỷ quyền khi vắng mặt đang hiệu lực và đã kết thúc của đơn vị `xem` | - | R/Tn* | - | R/Cd | - | - | - | - | - | R/Tn* | - | - |  |
+| SCR-0107 | Khai báo duyệt thay, nghiệm thu thay, check-in KR thay có thời hạn `tao` | - | - | - | T/Cd | - | - | - | - | - | - | - | - | BR-01-13, BR-01-16, BR-01-17 (không uỷ quyền lại), BR-01-18; step-up |
+| SCR-0107 | Thu hồi uỷ quyền trước hạn `thu-hoi` | - | - | - | T/Cd | - | - | - | - | - | - | - | - | Step-up (BR-01-15) |
 
 #### QT-02. Lập và phê duyệt mục tiêu, OKR
 
@@ -317,10 +326,14 @@ Dòng tiêu đề cột: AC-01 `platform_admin`, AC-02 `tenant_admin`, AC-03 `po
 | `SCR-0103.xem` | Phạm vi Cd của AC-07 và Tn của AC-10 là suy luận từ phạm vi mặc định của vai trò. |
 | `SCR-0104.xem` | AC-10 đọc nhật ký đồng bộ theo bảng tác nhân TL-02 nhưng SCR-0104 chỉ ghi AC-02; AC-11 là CSDL CBCCVC. |
 | `SCR-0104.giao-xu-ly` | Người nhận "cán bộ tổ chức đơn vị" ánh xạ sang AC-07 là suy luận. |
+| `SCR-0105.xem` | Quyền xem của AC-04, AC-10 là suy luận từ phạm vi mặc định của vai trò. |
+| `SCR-0105.duyet` | Người duyệt thứ hai là một AC-02 khác người cấp hoặc AC-04 có thẩm quyền trên đơn vị phạm vi (quyết định điểm 3 của WEB-058). |
+| `SCR-0106.xem` | Người dùng tự xem quyền của mình chưa làm ở màn hình quản trị (giữ menu của AC-06 không đổi). |
+| `SCR-0107.xem` | AC-02, AC-10 xem để tra cứu là suy luận. |
 | `SCR-0201.xem` | AC-04 xem cây cấp dưới suy luận từ phạm vi lãnh đạo. |
 | `SCR-0301.check-in` | Người được giao check-in thay có phạm vi Gn trên KR đó. |
 | `SCR-0301.lich-su` | AC-04, AC-05 xem lịch sử check-in của cấp dưới suy luận từ SCR-0201 (thành viên đơn vị xem). |
-| `SCR-0301.giao-check-in-thay` | Nguồn không có nút trên SCR-0301; cần bổ sung thiết kế màn hình (xem WEB-058). |
+| `SCR-0301.giao-check-in-thay` | Nguồn không có nút trên SCR-0301; thao tác làm ở SCR-0107 (WEB-058) với khoá SCR-0107.tao. |
 | `SCR-0302.check-in-dd` | Màn hình ứng dụng Flutter (SVC-18). |
 | `SCR-0401.sua` | Phạm vi Tn của AC-03 là suy luận; AC-05 chỉ khi được giao quản lý danh mục (Gn). TL-01 ghi `org_officer` thay cho `policy_author`. |
 | `SCR-0501.giao-dong-loat` | Phạm vi Cd (đơn vị cấp dưới) là suy luận; cần OPA quyết định danh sách đơn vị được giao. |
@@ -368,7 +381,7 @@ Bảng dưới ghi các phương thức HTTP mà mỗi vai trò có thể gọi 
 | `/api/v1/policies` | - | GET* | GET POST PUT | GET* | - | - | GET* | GET POST | - | - | - | - | AC-08 POST = approve (TL-02) hoặc publish (TL-01, `policy_approver`). |
 | `/api/v1/dossiers` | - | - | - | GET POST* | GET POST* | GET POST | GET POST | GET POST | - | - | - | - | Góp ý, biên bản, gói; quyền thật theo thành phần hội nghị. |
 | `/api/v1/oversight` | - | - | - | - | - | GET POST PUT | GET POST | GET POST | GET POST | GET POST | - | - | AC-06 = khiếu nại của mình. |
-| `/api/v1/config` | GET POST PATCH DELETE | GET POST PUT PATCH | PUT | GET | GET | GET | GET | GET | GET | GET | - | - | AC-01 = tenants; AC-02 = bước 4, 5, feature-flags, holiday-calendars; AC-03 = anomaly-thresholds; người dùng khác GET lịch ngày làm việc. |
+| `/api/v1/config` | GET POST PATCH DELETE | GET POST PUT PATCH | PUT | GET POST | GET | GET | GET | GET | GET | GET | - | - | AC-01 = tenants; AC-02 = bước 4, 5, feature-flags, holiday-calendars; AC-03 = anomaly-thresholds; người dùng khác GET lịch ngày làm việc. AC-02, AC-04 POST còn gồm role-bindings, delegations (SCR-0105, SCR-0107). |
 | `/api/v1/periods` | - | GET POST | - | GET POST | GET | GET | GET | GET | GET POST | GET | - | - | AC-04 POST = approve lệnh; AC-09 POST = duyệt huỷ. |
 | `/api/v1/org` | GET* | GET POST PUT | - | GET PUT | GET PUT | GET PUT | GET PUT | GET PUT | GET PUT | GET PUT | - | - | PUT `/org/me/context` cho mọi người dùng; AC-11 đẩy dữ liệu qua SVC-13. |
 | `/api/v1/files` | - | - | - | GET | GET POST | GET POST PUT | GET | GET | - | GET | - | - | URL tải xuống ký trước 5 phút theo quyền trên sản phẩm. |
@@ -440,8 +453,8 @@ Bảng dưới gom mọi ràng buộc gắn với chức năng mà giao diện p
 | 26 | SCR-1801 | Duyệt và phát hành UI Pack | Tách vai trò | Người duyệt khác người soạn; phát hành trong phiên AAL2. | SCR-1801 Quyền; TL-01 Phụ lục C | OPA (suy luận) | Chưa có MSG riêng |
 | 27 | SCR-1601 | Nhắc, giao lại | Quyền của người bấm | Hành động chỉ đạo gọi API của MOD-02 với quyền của người bấm; mọi số liệu lọc theo phạm vi cây tổ chức của người xem. | BR-16-01, BR-16-07 | Cube securityContext; OPA | MSG-16-06 |
 | 28 | SCR-0202, SCR-0502, SCR-1701 | Gợi ý AI | AI chỉ đọc | Trợ lý chỉ đọc dữ liệu người dùng đang có quyền đọc, không nhận C3, không lưu C2 trong nhật ký; nội dung chỉ được ghi khi người soạn xác nhận và mang cờ `ai_assisted`. | BR-02-11, BR-17-03, BR-17-07, BR-17-08 | Token exchange ở SVC-14; ACL `doc_chunk` | MSG-17-02, MSG-17-04 |
-| 29 | (chưa có SCR) | Cấp vai trò (`config.role_binding`) | Bốn mắt | Vai trò nhạy cảm `decider`, `second_approver`, `policy_author` cần người duyệt thứ hai khác người cấp; CSDL chặn tự duyệt việc gán vai trò cho chính mình; thay đổi quyền yêu cầu step-up. | TL-03 `config.role_binding`; TL-01 mục Định danh và xác thực; SEC-22 | CSDL CHECK `approved_by` khác `granted_by`; OPA | Chưa có MSG riêng |
-| 30 | SCR-0203, SCR-0601, SCR-0703 | Duyệt thay khi vắng mặt | Uỷ quyền | Người duyệt hoặc nghiệm thu vắng mặt thì luồng lấy người thay thế (cấp phó được uỷ quyền) từ `flowable.wf_binding` và ghi rõ "duyệt thay", "nghiệm thu thay"; check-in thay ghi rõ "check-in thay". | QT-02, QT-03, QT-06, QT-07 Ngoại lệ và xử lý | SVC-06; sổ cái | Chưa có MSG riêng |
+| 29 | SCR-0105 | Cấp vai trò (`config.role_binding`) | Bốn mắt | Vai trò nhạy cảm `decider`, `second_approver`, `policy_author` cần người duyệt thứ hai khác người cấp; CSDL chặn tự duyệt việc gán vai trò cho chính mình; thay đổi quyền yêu cầu step-up. Vai trò nhạy cảm chưa duyệt không có hiệu lực (BR-01-14). | TL-03 `config.role_binding`; TL-01 mục Định danh và xác thực; SEC-22; WEB-058 BR-01-13, BR-01-14, BR-01-15 | CSDL CHECK `approved_by` khác `granted_by`; OPA | MSG-01-16, MSG-01-17 |
+| 30 | SCR-0203, SCR-0601, SCR-0703, SCR-0107 | Duyệt thay khi vắng mặt | Uỷ quyền | Người duyệt hoặc nghiệm thu vắng mặt thì luồng lấy người thay thế (cấp phó được uỷ quyền) từ `flowable.wf_binding` và ghi rõ "duyệt thay", "nghiệm thu thay"; check-in thay ghi rõ "check-in thay". Người nhận uỷ quyền không được uỷ quyền lại (BR-01-17) và vẫn chịu ràng buộc tách vai trò của hồ sơ (BR-01-18). | QT-02, QT-03, QT-06, QT-07 Ngoại lệ và xử lý; WEB-058 | `config.delegation`; OPA; SVC-06; sổ cái | MSG-01-18 |
 | 31 | SCR-1505 | Phê duyệt phát hành mẫu luồng | Bốn mắt | Người phê duyệt (`second_approver`) phải khác người soạn (`wf_template_author`); phiên AAL2 và step-up khi ký gói mẫu. | BS-01 SCR-1505 | Repo mẫu luồng (merge request), SVC-06 | Chưa có MSG (cần bổ sung) |
 | 32 | SCR-1506 | Chuyển người xử lý, gia hạn bước | Giới hạn thao tác | Chỉ chuyển người xử lý và gia hạn; không sửa biến tiến trình, không nhảy bước; mọi thao tác ghi sổ cái. | BS-01 SCR-1506 | SVC-06, SVC-09 | Chưa có MSG (cần bổ sung) |
 <!-- END GEN:rang-buoc -->

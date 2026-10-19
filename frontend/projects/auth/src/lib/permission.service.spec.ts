@@ -29,8 +29,8 @@ function setup(current: VtUser | null, allowInferred = true) {
 }
 
 describe('bảng quyền sinh từ ma trận', () => {
-  it('có đủ 162 khoá chức năng web, đúng dạng SCR-qqnn.<khoá>', () => {
-    expect(PERMISSION_KEYS.length).toBe(162);
+  it('có đủ 171 khoá chức năng web, đúng dạng SCR-qqnn.<khoá>', () => {
+    expect(PERMISSION_KEYS.length).toBe(171);
     for (const k of PERMISSION_KEYS) expect(k).toMatch(/^SCR-\d{4}\.[a-z0-9-]+$/);
   });
 

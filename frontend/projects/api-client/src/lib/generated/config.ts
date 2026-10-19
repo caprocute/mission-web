@@ -992,6 +992,204 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/config/role-bindings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Vai trò đã cấp theo đơn vị hoặc theo người
+     * @description Trả các bản ghi `config.role_binding` của một đơn vị phạm vi (kèm đơn vị cấp dưới khi `includeSubunits=true`) hoặc của một người, lọc theo vai trò và trạng thái, phân trang con trỏ. `awaitingMe=true` chỉ trả đề nghị cấp vai trò nhạy cảm đang chờ người gọi duyệt thứ hai. Phần `counts` là số đếm cho thẻ lọc nhanh của SCR-0105 (SCR yêu cầu nên trả riêng). Mỗi lần đọc được ghi nhật ký truy cập (BR-13-07).
+     */
+    get: operations['listRoleBindings'];
+    put?: never;
+    /**
+     * Cấp vai trò có thời hạn và phạm vi
+     * @description Tạo bản ghi `config.role_binding` với người cấp là người gọi. Vai trò `decider`, `second_approver`, `policy_author` vào trạng thái `CHO_DUYET` (cột `approved_by` rỗng) và chỉ có hiệu lực sau khi người duyệt thứ hai phê duyệt (BR-01-14, MSG-01-17); vai trò khác có hiệu lực theo `validFrom` và phát EVT-27. Tự cấp cho chính mình trả 403 mã `CONFIG-403-SELF-GRANT` (BR-01-13, MSG-01-16); thiếu `validTo` hoặc `validTo` không sau `validFrom` trả 422 mã `CONFIG-422-VALIDITY` (BR-01-16); đã có bản ghi còn hiệu lực trùng người, vai trò, đơn vị và phạm vi trả 409 mã `CONFIG-409-DUPLICATE-BINDING`. Phiên phải đạt `aal2` trong 15 phút (BR-01-15).
+     */
+    post: operations['grantRoleBinding'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/role-bindings/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Chi tiết một vai trò đã cấp
+     * @description Trả bản ghi vai trò kèm người cấp, người duyệt và thông tin kết thúc (thu hồi, từ chối).
+     */
+    get: operations['getRoleBinding'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/role-bindings/{id}/approve': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Duyệt thứ hai khi cấp vai trò nhạy cảm
+     * @description Người duyệt thứ hai (một `tenant_admin` khác người cấp, hoặc `leader` có thẩm quyền trên đơn vị phạm vi) phê duyệt đề nghị đang `CHO_DUYET`; ghi `approved_by` và phát EVT-27. Người duyệt trùng người cấp hoặc trùng người được cấp trả 403 mã `CONFIG-403-SELF-GRANT` (CHECK `approved_by <> granted_by`, BR-01-13, MSG-01-16). Đề nghị không còn chờ duyệt trả 409 mã `CONFIG-409-NOT-PENDING`.
+     */
+    post: operations['approveRoleBinding'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/role-bindings/{id}/reject': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Từ chối đề nghị cấp vai trò nhạy cảm
+     * @description Người duyệt thứ hai từ chối đề nghị đang `CHO_DUYET` kèm lý do; bản ghi được giữ với `end_kind = TU_CHOI` để tra cứu (không xoá). Cùng ràng buộc người duyệt như thao tác duyệt.
+     */
+    post: operations['rejectRoleBinding'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/role-bindings/{id}/revoke': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Thu hồi vai trò trước hạn
+     * @description Đặt `valid_to` bằng thời điểm hiện tại, ghi người thu hồi và lý do bắt buộc, không xoá bản ghi; phát EVT-27 để dữ liệu OPA và realm role Keycloak cập nhật. Phiên của người bị thu hồi không cần đăng xuất ngay vì OPA từ chối theo dữ liệu mới. Thu hồi vai trò của chính mình trả 403 mã `CONFIG-403-SELF-GRANT` (BR-01-13); vai trò đã kết thúc trả 409 mã `CONFIG-409-ALREADY-ENDED`.
+     */
+    post: operations['revokeRoleBinding'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/access-history': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Lịch sử cấp, duyệt, thu hồi vai trò và uỷ quyền
+     * @description Dòng thời gian của một người (`personId`) hoặc một đơn vị (`orgUnitId`): cấp, duyệt, từ chối, thu hồi, hết hạn vai trò và tạo, thu hồi, hết hạn uỷ quyền, mới nhất trước. Đọc từ nhật ký kiểm toán `sys.audit.v1`; mỗi lần tra cứu được ghi lại (BR-13-07). Cần ít nhất một trong hai bộ lọc.
+     */
+    get: operations['listAccessHistory'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/access-history/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Xuất lịch sử quyền của một người ra CSV
+     * @description Xuất toàn bộ lịch sử quyền của một người thành CSV (UTF-8 có BOM). Xuất là thao tác nhạy cảm: phiên phải đạt `aal2` trong 15 phút và lần xuất được ghi nhật ký kiểm toán.
+     */
+    get: operations['exportAccessHistory'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/delegations': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Uỷ quyền khi vắng mặt
+     * @description Trả bản ghi `config.delegation` (bảng bổ sung TL-03 theo WEB-058) của một đơn vị hoặc của một người (là người uỷ quyền hoặc người nhận), lọc theo loại và trạng thái.
+     */
+    get: operations['listDelegations'];
+    put?: never;
+    /**
+     * Khai báo duyệt thay, nghiệm thu thay, check-in thay
+     * @description Lãnh đạo đơn vị khai báo người nhận uỷ quyền có thời hạn: duyệt thay (QT-02, QT-06), nghiệm thu thay (QT-07) hoặc check-in KR thay cho chủ sở hữu vắng dài ngày (QT-03, `subject` là KR). Phiếu duyệt, nghiệm thu và check-in do người nhận thực hiện ghi rõ "duyệt thay", "nghiệm thu thay", "check-in thay". Người nhận đang là người nhận uỷ quyền của chính người uỷ quyền khác không được uỷ quyền lại: 422 mã `CONFIG-422-REDELEGATION` (BR-01-17, MSG-01-18). Người uỷ quyền và người nhận trùng nhau trả 403 mã `CONFIG-403-SELF-GRANT` (BR-01-13). Thiếu thời hạn trả 422 mã `CONFIG-422-VALIDITY` (BR-01-16). Người nhận vẫn chịu ràng buộc tách vai trò của hồ sơ (BR-01-18).
+     */
+    post: operations['createDelegation'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/delegations/{id}/revoke': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Thu hồi uỷ quyền trước hạn
+     * @description Đặt `valid_to` bằng thời điểm hiện tại kèm lý do; phiếu đang giao cho người nhận quay về người uỷ quyền theo mẫu luồng. Uỷ quyền đã kết thúc trả 409 mã `CONFIG-409-ALREADY-ENDED`.
+     */
+    post: operations['revokeDelegation'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2868,6 +3066,241 @@ export interface components {
       /** @description Cờ "ít bước" (NFR-11) */
       reducedSteps?: boolean;
       layout: components['schemas']['SduiNode'];
+    };
+    /**
+     * @description Vai trò hệ thống gán theo đơn vị (`config.role_binding.role_code`, CHECK của TL-03).
+     * @enum {string}
+     */
+    RoleCode:
+      | 'tenant_admin'
+      | 'policy_author'
+      | 'leader'
+      | 'manager'
+      | 'member'
+      | 'appraiser'
+      | 'decider'
+      | 'second_approver'
+      | 'inspector';
+    /**
+     * @description Phạm vi ABAC (`config.role_binding.scope`).
+     * @enum {string}
+     */
+    RoleBindingScope: 'DON_VI' | 'DON_VI_VA_CAP_DUOI';
+    /**
+     * @description Trạng thái suy ra, không lưu thành cột (quyết định WEB-058 điểm 2): `CHO_DUYET` khi vai trò nhạy cảm chưa có `approved_by`; `TU_CHOI`, `DA_THU_HOI` theo `end_kind`; còn lại so `valid_from`, `valid_to` với thời điểm hiện tại.
+     * @enum {string}
+     */
+    RoleBindingStatus:
+      'CHO_DUYET' | 'SAP_HIEU_LUC' | 'HIEU_LUC' | 'HET_HAN' | 'DA_THU_HOI' | 'TU_CHOI';
+    /**
+     * @description Cách bản ghi kết thúc trước hạn (`end_kind`, cột bổ sung theo WEB-058).
+     * @enum {string}
+     */
+    AccessEndKind: 'THU_HOI' | 'TU_CHOI';
+    /**
+     * @description Vai trò đã cấp (`config.role_binding`, TL-03; cột bổ sung `reason`, `granted_at`, `approved_at`, `ended_by`, `ended_at`, `end_kind`, `end_reason` theo WEB-058). Là nguồn sự thật của vai trò; mỗi thay đổi phát EVT-27 để cập nhật dữ liệu OPA và đồng bộ realm role sang Keycloak.
+     * @example {
+     *       "id": "0192f7a1-1111-7c3e-9a51-3f2d9c1b0a01",
+     *       "person": {
+     *         "id": "0192f7a1-2222-7c3e-9a51-3f2d9c1b0a02",
+     *         "name": "Lê Minh Châu"
+     *       },
+     *       "personTitle": "Phó Trưởng ban",
+     *       "roleCode": "decider",
+     *       "orgUnit": {
+     *         "id": "0192f7a1-3333-7c3e-9a51-3f2d9c1b0a03",
+     *         "name": "Ban Tổ chức Tỉnh uỷ"
+     *       },
+     *       "scope": "DON_VI_VA_CAP_DUOI",
+     *       "flow": "DANG",
+     *       "validFrom": "2026-11-01T00:00:00+07:00",
+     *       "validTo": "2027-10-31T23:59:59+07:00",
+     *       "status": "CHO_DUYET",
+     *       "sensitive": true,
+     *       "grantedBy": {
+     *         "id": "0192f7a1-4444-7c3e-9a51-3f2d9c1b0a04",
+     *         "name": "Ngô Thị Lan"
+     *       },
+     *       "grantedAt": "2026-10-19T09:30:00+07:00",
+     *       "reason": "Quyết định 152-QĐ/TU ngày 15/10/2026 giao quyết định xếp loại khối Đảng",
+     *       "approvedBy": null,
+     *       "approvedAt": null,
+     *       "endedBy": null,
+     *       "endedAt": null,
+     *       "endKind": null,
+     *       "endReason": null,
+     *       "rowVersion": 1
+     *     }
+     */
+    RoleBinding: {
+      id: components['schemas']['Uuid'];
+      person: components['schemas']['Ref'];
+      /** @description Chức danh của phân công chính */
+      personTitle?: string | null;
+      roleCode: components['schemas']['RoleCode'];
+      orgUnit: components['schemas']['Ref'];
+      scope: components['schemas']['RoleBindingScope'];
+      /** @description Giới hạn theo luồng; `null` là cả hai luồng. */
+      flow?: components['schemas']['Flow'] | null;
+      validFrom: components['schemas']['DateTime'];
+      validTo: components['schemas']['DateTime'];
+      status: components['schemas']['RoleBindingStatus'];
+      /** @description Vai trò cần người duyệt thứ hai (`decider`, `second_approver`, `policy_author`) */
+      sensitive: boolean;
+      grantedBy: components['schemas']['Ref'];
+      grantedAt: components['schemas']['DateTime'];
+      /** @description Căn cứ cấp (quyết định, văn bản) */
+      reason: string;
+      approvedBy?: components['schemas']['Ref'] | null;
+      /** Format: date-time */
+      approvedAt?: string | null;
+      endedBy?: components['schemas']['Ref'] | null;
+      /** Format: date-time */
+      endedAt?: string | null;
+      endKind?: components['schemas']['AccessEndKind'] | null;
+      endReason?: string | null;
+      rowVersion: components['schemas']['RowVersion'];
+    };
+    RoleBindingCreate: {
+      personId: components['schemas']['Uuid'];
+      roleCode: components['schemas']['RoleCode'];
+      orgUnitId: components['schemas']['Uuid'];
+      scope: components['schemas']['RoleBindingScope'];
+      flow?: components['schemas']['Flow'] | null;
+      validFrom: components['schemas']['DateTime'];
+      validTo: components['schemas']['DateTime'];
+      reason: string;
+    };
+    RoleBindingApprove: {
+      /** @description Ghi chú của người duyệt (tuỳ chọn) */
+      note?: string;
+    };
+    /** @description Lý do bắt buộc khi từ chối hoặc thu hồi vai trò, uỷ quyền. */
+    AccessEndInput: {
+      reason: string;
+    };
+    /** @description Số đếm cho thẻ lọc nhanh của SCR-0105 theo bộ lọc đơn vị hiện tại. */
+    RoleBindingCounts: {
+      active: number;
+      pending: number;
+      awaitingMe: number;
+      /** @description Còn hiệu lực và hết hạn trong 30 ngày tới */
+      expiringSoon: number;
+    };
+    RoleBindingPage: {
+      items: components['schemas']['RoleBinding'][];
+      nextCursor: components['schemas']['NextCursor'];
+      counts: components['schemas']['RoleBindingCounts'];
+    };
+    /**
+     * @description Loại sự kiện trong lịch sử quyền.
+     * @enum {string}
+     */
+    AccessEventKind:
+      | 'CAP_VAI_TRO'
+      | 'DUYET_VAI_TRO'
+      | 'TU_CHOI_VAI_TRO'
+      | 'THU_HOI_VAI_TRO'
+      | 'HET_HAN_VAI_TRO'
+      | 'TAO_UY_QUYEN'
+      | 'THU_HOI_UY_QUYEN'
+      | 'HET_HAN_UY_QUYEN';
+    /** @description Một sự kiện cấp, duyệt, thu hồi vai trò hoặc uỷ quyền, đọc từ nhật ký kiểm toán. */
+    AccessEvent: {
+      id: components['schemas']['Uuid'];
+      at: components['schemas']['DateTime'];
+      kind: components['schemas']['AccessEventKind'];
+      /** @description Người thực hiện; `null` khi hệ thống tự kết thúc do hết hạn. */
+      actor?: components['schemas']['Ref'] | null;
+      person: components['schemas']['Ref'];
+      /** @example Cấp vai trò decider tại Ban Tổ chức Tỉnh uỷ, chờ duyệt thứ hai */
+      summary: string;
+      refId: components['schemas']['Uuid'];
+    };
+    AccessEventPage: {
+      items: components['schemas']['AccessEvent'][];
+      nextCursor: components['schemas']['NextCursor'];
+    };
+    /**
+     * @description Loại uỷ quyền (`config.delegation.kind`, bảng bổ sung theo WEB-058).
+     * @enum {string}
+     */
+    DelegationKind: 'DUYET_THAY' | 'NGHIEM_THU_THAY' | 'CHECK_IN_THAY';
+    /**
+     * @description Trạng thái suy ra từ `valid_from`, `valid_to`, `end_kind`.
+     * @enum {string}
+     */
+    DelegationStatus: 'SAP_HIEU_LUC' | 'HIEU_LUC' | 'HET_HAN' | 'DA_THU_HOI';
+    /**
+     * @description Uỷ quyền khi vắng mặt (`config.delegation`, bảng bổ sung TL-03 theo WEB-058): người uỷ quyền, người nhận, loại, đơn vị, đối tượng (KR khi check-in thay), thời hạn, lý do. OPA và workflow-service (SVC-06) cùng đọc bảng này; phiếu do người nhận xử lý ghi rõ "duyệt thay", "nghiệm thu thay", "check-in thay".
+     * @example {
+     *       "id": "0192f7a1-5555-7c3e-9a51-3f2d9c1b0a05",
+     *       "kind": "DUYET_THAY",
+     *       "delegator": {
+     *         "id": "0192f7a1-6666-7c3e-9a51-3f2d9c1b0a06",
+     *         "name": "Hoàng Văn Dũng"
+     *       },
+     *       "delegate": {
+     *         "id": "0192f7a1-2222-7c3e-9a51-3f2d9c1b0a02",
+     *         "name": "Lê Minh Châu"
+     *       },
+     *       "orgUnit": {
+     *         "id": "0192f7a1-3333-7c3e-9a51-3f2d9c1b0a03",
+     *         "name": "Ban Tổ chức Tỉnh uỷ"
+     *       },
+     *       "subject": null,
+     *       "validFrom": "2026-10-20T00:00:00+07:00",
+     *       "validTo": "2026-11-05T23:59:59+07:00",
+     *       "reason": "Trưởng ban đi học lớp bồi dưỡng từ 20/10 đến 05/11/2026",
+     *       "status": "SAP_HIEU_LUC",
+     *       "createdBy": {
+     *         "id": "0192f7a1-6666-7c3e-9a51-3f2d9c1b0a06",
+     *         "name": "Hoàng Văn Dũng"
+     *       },
+     *       "createdAt": "2026-10-19T10:00:00+07:00",
+     *       "endedBy": null,
+     *       "endedAt": null,
+     *       "endReason": null,
+     *       "rowVersion": 1
+     *     }
+     */
+    Delegation: {
+      id: components['schemas']['Uuid'];
+      kind: components['schemas']['DelegationKind'];
+      delegator: components['schemas']['Ref'];
+      delegate: components['schemas']['Ref'];
+      orgUnit: components['schemas']['Ref'];
+      /** @description Đối tượng được uỷ quyền (KR khi `CHECK_IN_THAY`); `null` là mọi phiếu của người uỷ quyền tại đơn vị. */
+      subject?: components['schemas']['Ref'] | null;
+      validFrom: components['schemas']['DateTime'];
+      validTo: components['schemas']['DateTime'];
+      reason: string;
+      status: components['schemas']['DelegationStatus'];
+      createdBy: components['schemas']['Ref'];
+      createdAt: components['schemas']['DateTime'];
+      endedBy?: components['schemas']['Ref'] | null;
+      /** Format: date-time */
+      endedAt?: string | null;
+      endReason?: string | null;
+      rowVersion: components['schemas']['RowVersion'];
+    };
+    DelegationCreate: {
+      kind: components['schemas']['DelegationKind'];
+      delegatorId: components['schemas']['Uuid'];
+      delegateId: components['schemas']['Uuid'];
+      orgUnitId: components['schemas']['Uuid'];
+      /**
+       * Format: uuid
+       * @description KR khi `CHECK_IN_THAY`
+       */
+      subjectId?: string | null;
+      validFrom: components['schemas']['DateTime'];
+      validTo: components['schemas']['DateTime'];
+      reason: string;
+    };
+    DelegationPage: {
+      items: components['schemas']['Delegation'][];
+      nextCursor: components['schemas']['NextCursor'];
     };
     FieldError: {
       /** @description Tên trường theo JSON của thân yêu cầu, dạng đường dẫn chấm */
@@ -4851,6 +5284,383 @@ export interface operations {
         content?: never;
       };
       401: components['responses']['Unauthorized'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listRoleBindings: {
+    parameters: {
+      query?: {
+        /** @description Đơn vị phạm vi; bỏ trống khi lọc theo `personId`. */
+        orgUnitId?: components['schemas']['Uuid'];
+        /** @description Gồm cả bản ghi cấp tại đơn vị cấp dưới. */
+        includeSubunits?: boolean;
+        /** @description Người được cấp. */
+        personId?: components['schemas']['Uuid'];
+        role?: components['schemas']['RoleCode'];
+        /** @description Trạng thái suy ra; bỏ trống là mọi trạng thái trừ `TU_CHOI`. */
+        status?: components['schemas']['RoleBindingStatus'];
+        /** @description Chỉ đề nghị đang chờ người gọi duyệt thứ hai (người gọi khác người cấp và người được cấp). */
+        awaitingMe?: boolean;
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Một trang vai trò đã cấp. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RoleBindingPage'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  grantRoleBinding: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RoleBindingCreate'];
+      };
+    };
+    responses: {
+      /** @description Đã cấp (hoặc đã gửi duyệt thứ hai với vai trò nhạy cảm). */
+      201: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          Location: components['headers']['Location'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RoleBinding'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getRoleBinding: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Chi tiết vai trò. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RoleBinding'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  approveRoleBinding: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['RoleBindingApprove'];
+      };
+    };
+    responses: {
+      /** @description Đã duyệt; vai trò có hiệu lực theo `validFrom`. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RoleBinding'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  rejectRoleBinding: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AccessEndInput'];
+      };
+    };
+    responses: {
+      /** @description Đã từ chối. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RoleBinding'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  revokeRoleBinding: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AccessEndInput'];
+      };
+    };
+    responses: {
+      /** @description Đã thu hồi. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RoleBinding'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listAccessHistory: {
+    parameters: {
+      query?: {
+        personId?: components['schemas']['Uuid'];
+        orgUnitId?: components['schemas']['Uuid'];
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Một trang sự kiện quyền. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AccessEventPage'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  exportAccessHistory: {
+    parameters: {
+      query: {
+        personId: components['schemas']['Uuid'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Tệp CSV. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/csv': string;
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listDelegations: {
+    parameters: {
+      query?: {
+        orgUnitId?: components['schemas']['Uuid'];
+        personId?: components['schemas']['Uuid'];
+        kind?: components['schemas']['DelegationKind'];
+        status?: components['schemas']['DelegationStatus'];
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Một trang uỷ quyền. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DelegationPage'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  createDelegation: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DelegationCreate'];
+      };
+    };
+    responses: {
+      /** @description Đã khai báo uỷ quyền. */
+      201: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          Location: components['headers']['Location'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Delegation'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  revokeDelegation: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AccessEndInput'];
+      };
+    };
+    responses: {
+      /** @description Đã thu hồi uỷ quyền. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Delegation'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
       default: components['responses']['Problem'];
     };
   };

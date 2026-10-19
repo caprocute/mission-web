@@ -112,7 +112,7 @@ Nhóm này hiện thực ma trận phân quyền ở [wiki/15a](../../wiki/15a-m
 | [WEB-055](WEB-055-ap-ma-tran-shell-remote.md) | Áp ma trận vào menu, tuyến và nút của shell và các remote hiện có | M | WEB-054, WEB-015 | Xong, chờ gộp (nhánh `feat/WEB-055-ap-ma-tran`) |
 | [WEB-056](WEB-056-dong-bo-realm-keycloak.md) | Đồng bộ realm Keycloak dev với ma trận (vai trò, claim, MFA theo vai trò, tài khoản thử) | M | WEB-006, WEB-054 | Xong, chờ gộp (nhánh `feat/WEB-056-dong-bo-realm-keycloak`); nạp lên server dev sau khi gộp |
 | [WEB-057](WEB-057-kiem-thu-ma-tran-playwright.md) | Kiểm thử Playwright đối chiếu ma trận: vai trò × tuyến | M | WEB-055, WEB-056 | Xong, chờ gộp (nhánh `feat/WEB-057-kiem-thu-ma-tran`, dựng trên WEB-055) |
-| [WEB-058](WEB-058-quan-tri-vai-tro-uy-quyen.md) | Quản trị phân công vai trò và uỷ quyền (chưa có SCR, cần bổ sung thiết kế) | L | WEB-018, WEB-054, quyết định thiết kế | Pha 1 xong (đề xuất `docs/phan-quyen/de-xuat-quan-tri-vai-tro.md`), chờ duyệt và cấp mã |
+| [WEB-058](WEB-058-quan-tri-vai-tro-uy-quyen.md) | Quản trị phân công vai trò và uỷ quyền (chưa có SCR, cần bổ sung thiết kế) | L | WEB-018, WEB-054, quyết định thiết kế | Xong pha 2 (19/10/2026): đề xuất đã duyệt, SCR-0105..0107 trên dữ liệu giả lập, chờ gộp |
 
 ## Phát sinh trong quá trình làm
 

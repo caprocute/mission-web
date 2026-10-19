@@ -27,6 +27,15 @@ export type PermissionKey =
   | 'SCR-0104.dong-bo'
   | 'SCR-0104.xu-ly-lech'
   | 'SCR-0104.giao-xu-ly'
+  | 'SCR-0105.xem'
+  | 'SCR-0105.cap'
+  | 'SCR-0105.duyet'
+  | 'SCR-0105.thu-hoi'
+  | 'SCR-0106.xem'
+  | 'SCR-0106.xuat'
+  | 'SCR-0107.xem'
+  | 'SCR-0107.tao'
+  | 'SCR-0107.thu-hoi'
   | 'SCR-0201.xem'
   | 'SCR-0201.them'
   | 'SCR-0201.check-in'
@@ -201,6 +210,15 @@ export const PERMISSION_TABLE: Readonly<Record<PermissionKey, string>> = {
   'SCR-0104.dong-bo': 'tenant_admin',
   'SCR-0104.xu-ly-lech': 'tenant_admin',
   'SCR-0104.giao-xu-ly': 'tenant_admin appraiser*',
+  'SCR-0105.xem': 'tenant_admin leader* inspector*',
+  'SCR-0105.cap': 'tenant_admin',
+  'SCR-0105.duyet': 'tenant_admin leader*',
+  'SCR-0105.thu-hoi': 'tenant_admin',
+  'SCR-0106.xem': 'tenant_admin leader* inspector',
+  'SCR-0106.xuat': 'tenant_admin inspector',
+  'SCR-0107.xem': 'tenant_admin* leader inspector*',
+  'SCR-0107.tao': 'leader',
+  'SCR-0107.thu-hoi': 'leader',
   'SCR-0201.xem': 'leader* manager member',
   'SCR-0201.them': 'manager',
   'SCR-0201.check-in': 'manager member',

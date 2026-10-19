@@ -12,6 +12,7 @@ import { PERIODS_MOCK } from './periods/periods.mock';
 import { APPRAISALS_MOCK } from './appraisals/appraisals.mock';
 import { DOSSIERS_MOCK } from './dossiers/dossiers.mock';
 import { ORG_SYNC_MOCK } from './org-sync/org-sync.mock';
+import { ROLE_ADMIN_MOCK } from './role-admin/role-admin.mock';
 
 /**
  * Danh mục fixture theo module API (`/api/v1/<module>`). Thêm module mới: tạo thư mục
@@ -33,6 +34,7 @@ export const MOCK_MODULES: MockModule[] = [
   APPRAISALS_MOCK,
   DOSSIERS_MOCK,
   ORG_SYNC_MOCK,
+  ROLE_ADMIN_MOCK,
 ];
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
