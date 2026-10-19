@@ -56,7 +56,7 @@ Bẫy thứ bảy là `p-inputnumber` của PrimeNG 21 trong bảng nhập nhanh
 
 Bẫy thứ tám là `linkedSignal` đặt lại trạng thái phụ (ghi chú, thông báo thành công) theo cả đối tượng: khi máy chủ trả bản mới của cùng nhiệm vụ, đối tượng đổi tham chiếu và thông báo vừa đặt bị xoá. Hãy lấy nguồn là khoá ổn định, ví dụ `computed(() => this.task().id)`.
 
-Bẫy thứ chín là chạy `ng build` trong lúc `ng serve` của cùng workspace đang chạy: bản build ghi đè bộ đệm gói dùng chung của Native Federation và trang dev báo `ReferenceError: ngDevMode is not defined` ở shell. Chỉ cần dừng rồi chạy lại `ng serve` cả shell lẫn remote.
+Bẫy thứ chín là chạy `ng build` trong lúc `ng serve` của cùng workspace đang chạy: bản build ghi đè bộ đệm gói dùng chung của Native Federation và trang dev báo `ReferenceError: ngDevMode is not defined` ở shell. Chỉ cần dừng rồi chạy lại `ng serve` cả shell lẫn remote. Khi dừng, đừng dùng `pkill -f "ng serve"` hay `pgrep -f "ng serve"` trong cùng dòng lệnh có chữ `ng serve`: mẫu khớp luôn tiến trình shell đang chạy lệnh và giết chính nó; hãy lấy số tiến trình bằng `ps` rồi `kill` từng số.
 
 Bẫy thứ mười là kiểm thử component có `p-tabs` trong Vitest với jsdom: `p-tablist` gọi `ResizeObserver` mà jsdom không có, kiểm thử báo lỗi không bắt được dù các khẳng định đều đúng. Cách xử lý là gán một lớp giả `ResizeObserver` trong `beforeAll` của tệp spec (xem `task-detail.page.spec.ts`), không sửa cấu hình kiểm thử chung.
 

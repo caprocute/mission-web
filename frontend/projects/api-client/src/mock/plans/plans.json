@@ -1,0 +1,53 @@
+{
+  "$comment": "Fixture module plans (/api/v1/plans): dòng của kế hoạch Quý IV/2026 phiên bản 2 đã duyệt (QT-04), dùng làm nguồn giao việc trên SCR-0501. WEB-026 mở rộng cho SCR-0402.",
+  "items": [
+    {
+      "id": "pi-q4-v2-07",
+      "planCode": "KH-Q4",
+      "version": 2,
+      "lineNo": 7,
+      "title": "Rà soát quy hoạch cấp uỷ nhiệm kỳ 2025–2030 tại 46 tổ chức đảng trực thuộc",
+      "catalogItemId": "ci-tc-dv-06",
+      "taskGroup": "THEN_CHOT",
+      "keyResultId": "kr-1-3",
+      "productName": "Tờ trình và danh sách quy hoạch",
+      "quantity": 1,
+      "unit": "đợt",
+      "dueDate": "@today+27",
+      "evidenceRequired": "Tờ trình đã ký, danh sách",
+      "qualityCriteria": "Đúng Quy định 50-QĐ/TW; đủ hồ sơ nhân sự; được Thường trực cho ý kiến"
+    },
+    {
+      "id": "pi-q4-v2-08",
+      "planCode": "KH-Q4",
+      "version": 2,
+      "lineNo": 8,
+      "title": "Tổng hợp, báo cáo số liệu đảng viên quý IV",
+      "catalogItemId": "ci-tc-dv-03",
+      "taskGroup": "THUONG_XUYEN",
+      "keyResultId": "kr-2-1",
+      "productName": "Báo cáo số liệu",
+      "quantity": 1,
+      "unit": "báo cáo",
+      "dueDate": "@today+40",
+      "evidenceRequired": "Báo cáo có chữ ký, tệp số liệu",
+      "qualityCriteria": "Số liệu khớp CSDL đảng viên"
+    },
+    {
+      "id": "pi-q4-v2-09",
+      "planCode": "KH-Q4",
+      "version": 2,
+      "lineNo": 9,
+      "title": "Kiểm tra 6 chi bộ trực thuộc về công tác phát triển đảng viên",
+      "catalogItemId": "ci-tc-dv-05",
+      "taskGroup": "THEN_CHOT",
+      "keyResultId": "kr-1-1",
+      "productName": "Biên bản, báo cáo kết quả kiểm tra",
+      "quantity": 6,
+      "unit": "chi bộ",
+      "dueDate": "@today+50",
+      "evidenceRequired": "Biên bản kiểm tra từng chi bộ",
+      "qualityCriteria": "Có biên bản, kết luận kiểm tra được thông qua"
+    }
+  ]
+}

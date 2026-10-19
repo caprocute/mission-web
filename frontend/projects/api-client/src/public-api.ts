@@ -21,5 +21,12 @@ export type {
   paths as MissionCorePaths,
   components as MissionCoreComponents,
 } from './lib/generated/mission-core';
+export * from './lib/models/task-assign';
+export * from './lib/models/org';
+export * from './lib/org-api';
+export * from './lib/models/plan';
+export * from './lib/plan-api';
+export * from './lib/models/okr';
+export * from './lib/okr-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
 export type { MockApiOptions } from './mock/mock-api.interceptor';
