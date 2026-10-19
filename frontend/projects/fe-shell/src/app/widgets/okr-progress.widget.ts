@@ -1,19 +1,28 @@
 import { Component, input } from '@angular/core';
 import { CardModule } from 'primeng/card';
-import { ProgressBarModule } from 'primeng/progressbar';
+import { VtProgressBarComponent } from '@vt/design-system';
 
 /** `vt.widget.okrProgress`: tiến độ OKR (dữ liệu mẫu cho tới khi có fe-okr và MOD-01). */
 @Component({
   selector: 'vt-okr-progress-widget',
-  imports: [CardModule, ProgressBarModule],
+  imports: [CardModule, VtProgressBarComponent],
   template: `
     <p-card [header]="scope() === 'unit' ? 'Tiến độ OKR của đơn vị' : 'Tiến độ OKR của tôi'">
       @for (o of objectives; track o.title) {
-        <div class="row"><span>{{ o.title }}</span><p-progressbar [value]="o.progress" /></div>
+        <div class="row">
+          <span>{{ o.title }}</span>
+          <vt-progress-bar [value]="o.progress" [label]="o.title" />
+        </div>
       }
     </p-card>
   `,
-  styles: `.row { display: grid; gap: 6px; margin-bottom: 14px; }`,
+  styles: `
+    .row {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+  `,
 })
 export class OkrProgressWidget {
   readonly scope = input<'me' | 'unit'>('me');

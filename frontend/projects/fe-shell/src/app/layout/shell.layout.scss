@@ -7,7 +7,7 @@
   position: absolute;
   left: -999px;
   top: 0;
-  background: var(--vt-color-primary);
+  background: var(--vt-color-primary-strong, #d1002d);
   color: var(--vt-color-on-primary);
   padding: 8px 12px;
   z-index: 100;
@@ -41,7 +41,7 @@
   display: block;
   font-weight: 400;
   font-size: 0.72rem;
-  color: var(--p-text-muted-color, #6b7280);
+  color: var(--p-text-muted-color, #566275);
 }
 .spacer {
   flex: 1;
@@ -55,7 +55,8 @@
   padding: 2px 8px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--vt-color-primary) 10%, white);
-  color: var(--vt-color-primary);
+  /* chữ đậm hơn màu nhận diện để đạt 4,5:1 trên nền hồng nhạt (WEB-059) */
+  color: var(--vt-color-primary-strong, #d1002d);
 }
 .user-name {
   font-weight: 500;
@@ -100,8 +101,9 @@
   background: color-mix(in srgb, var(--vt-color-primary) 6%, white);
 }
 .sidenav a.active {
-  background: color-mix(in srgb, var(--vt-color-primary) 12%, white);
-  color: var(--vt-color-primary);
+  background: color-mix(in srgb, var(--vt-color-primary) 10%, white);
+  color: var(--vt-color-primary-strong, #d1002d);
+  box-shadow: inset 3px 0 0 var(--vt-color-primary);
   font-weight: 600;
 }
 .content {

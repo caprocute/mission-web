@@ -6,9 +6,12 @@
   /* Token mặc định khi UI Pack chưa nạp; UI Pack ghi đè dưới :root[data-tenant] */
   :root {
     --vt-color-primary: #ee0033;
+    /* chữ và nền có chữ trắng: #EE0033 chỉ đạt 4,48:1 (WCAG 2.1 AA cần 4,5:1, WEB-059) */
+    --vt-color-primary-strong: #d1002d;
     --vt-color-on-primary: #ffffff;
     --vt-color-surface: #ffffff;
     --vt-color-text: #1f2329;
+    --vt-color-text-muted: #566275;
     --vt-color-background: #f5f6f8;
     --vt-font-family: 'Be Vietnam Pro', Roboto, 'Segoe UI', sans-serif;
     --vt-font-size-body: 14px;
@@ -20,9 +23,23 @@
   :root[data-mode='elderly'] {
     --vt-font-size-body: 18px;
     --vt-color-text: #000000;
+    --vt-color-text-muted: #3d4756;
+    /* BR-18-09: tương phản ≥ 7:1 cho chữ trắng trên nút ở chế độ cao tuổi */
+    --vt-color-primary-strong: #a30023;
     --vt-min-touch: 48px;
   }
-  html { font-size: var(--vt-font-size-body); }
-  body { margin: 0; font-family: var(--vt-font-family); color: var(--vt-color-text); background: var(--vt-color-background); }
-  :focus-visible { outline: 3px solid color-mix(in srgb, var(--vt-color-primary) 60%, white); outline-offset: 2px; }
+  html {
+    font-size: var(--vt-font-size-body);
+  }
+  body {
+    margin: 0;
+    font-family: var(--vt-font-family);
+    color: var(--vt-color-text);
+    background: var(--vt-color-background);
+  }
+  :focus-visible {
+    /* viền tiêu điểm đạt 3:1 với nền trắng (WCAG 1.4.11), WEB-059 */
+    outline: 3px solid var(--vt-color-primary-strong, #d1002d);
+    outline-offset: 2px;
+  }
 }
