@@ -71,7 +71,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-031](WEB-031-chi-tiet-gia-han.md) | SCR-0601 Chi tiết nhiệm vụ và SCR-0602 Đề nghị gia hạn, điều chỉnh | M | WEB-030 | Xong, chờ gộp (luồng Màn hình) |
 | [WEB-032](WEB-032-nop-minh-chung.md) | SCR-0701 Nộp minh chứng | L | WEB-015 | Xong, chờ gộp (nhánh `feat/WEB-032-nop-minh-chung`) |
 | [WEB-033](WEB-033-nghiem-thu.md) | SCR-0703 Nghiệm thu chất lượng 5 mức | M | WEB-032 | Xong, chờ gộp (nhánh `feat/WEB-033-nghiem-thu`) |
-| [WEB-034](WEB-034-khoa-ky.md) | SCR-0801 Quản lý kỳ và tiến trình khoá kỳ | M | WEB-007, WEB-015 | Chưa bắt đầu |
+| [WEB-034](WEB-034-khoa-ky.md) | SCR-0801 Quản lý kỳ và tiến trình khoá kỳ | M | WEB-007, WEB-015 | Xong, chờ gộp (nhánh `feat/WEB-034-khoa-ky`) |
 
 ## GĐ3 – Đánh giá, hồ sơ, giám sát
 
