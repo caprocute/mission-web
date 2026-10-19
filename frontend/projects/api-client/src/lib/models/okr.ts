@@ -1,3 +1,5 @@
+import { CursorPage } from '../paging';
+
 /**
  * Mô hình dữ liệu module okr (MOD-01, `/api/v1/okr`), tên trường theo TL-03 schema `okr`
  * (`okr.basis`, `okr.objective`, `okr.key_result`, `okr.okr_link`, `okr.kr_checkin`) đổi sang camelCase.
@@ -406,4 +408,132 @@ export interface OkrHistoryEntry {
 export interface OkrReviewDecisionBody {
   comment?: string;
   notifyPeers: boolean;
+}
+
+// ---- Check-in KR (QT-03, SCR-0301; WEB-024). Tên trường theo `contracts/openapi/modules/okr.yaml`. ----
+
+/** Check-in `DA_GUI` gần nhất của KR (`OkrLastCheckin`). */
+export interface OkrLastCheckin {
+  value: number;
+  confidence: Confidence;
+  checkinAt: string;
+}
+
+/** KR rút gọn trong danh sách "KR của tôi cần check-in" (`OkrKeyResultListItem`). */
+export interface OkrKeyResultListItem {
+  id: string;
+  code: string;
+  title: string;
+  objectiveId?: string;
+  objectiveCode?: string;
+  unit?: string;
+  targetValue?: number;
+  currentValue?: number | null;
+  progress?: number;
+  confidence?: Confidence;
+  riskFlag?: KrRiskFlag;
+  dueDate?: string;
+  /** Hạn check-in của chu kỳ hiện tại. */
+  nextCheckinDue?: string;
+  lastCheckin?: OkrLastCheckin;
+}
+
+/**
+ * Trang KR (`OkrKeyResultPage`). `period` là phần mở rộng của dữ liệu giả lập cho tiêu đề SCR-0301
+ * (tuần, kỳ), hợp đồng chưa có (wiki/14).
+ */
+export interface OkrKeyResultPage extends CursorPage<OkrKeyResultListItem> {
+  counts?: { needCheckin: number };
+  period?: OkrPeriod;
+}
+
+export type OkrCheckinStatus = 'NHAP' | 'DA_GUI';
+export type OkrCheckinChannel = 'WEB' | 'MOBILE' | 'TICH_HOP';
+
+/** Một lần check-in (`OkrCheckin`, `okr.kr_checkin`), chỉ ghi thêm. */
+export interface OkrCheckin {
+  id: string;
+  keyResultId: string;
+  periodId?: string;
+  checkinAt: string;
+  value: number;
+  confidence: Confidence;
+  highlights?: string;
+  blockerNote?: string;
+  channel: OkrCheckinChannel;
+  status: OkrCheckinStatus;
+  sourceValue?: number | null;
+  sourceFetchedAt?: string;
+  overrideReason?: string;
+  onBehalf?: boolean;
+}
+
+/** Chi tiết KR cho SCR-0301 vùng 2 (`GET /api/v1/okr/key-results/{id}`, `OkrKeyResult`). */
+export interface OkrKeyResultDetail {
+  id: string;
+  objectiveId: string;
+  periodId?: string;
+  code: string;
+  title: string;
+  unit: string;
+  baselineValue: number | null;
+  targetValue: number;
+  currentValue: number | null;
+  direction?: 'TANG' | 'GIAM' | 'DAT';
+  weight: number;
+  dueDate: string;
+  verifier?: { id: string; name: string };
+  owner?: { id: string; name: string };
+  checkinDelegate?: { id: string; name: string };
+  dataSource?: string;
+  formulaText?: string;
+  confidence?: Confidence;
+  progress: number;
+  status: ObjectiveStatus;
+  riskFlag: KrRiskFlag;
+  checkinFrequency?: CheckinFrequency;
+  lastCheckin?: OkrLastCheckin;
+  myDraftCheckin?: OkrCheckin;
+  nextCheckinDue?: string;
+  rowVersion: number;
+  /** Mở rộng chờ hợp đồng (wiki/14): mục tiêu chứa KR và nhiệm vụ liên kết cho vùng 2, vùng 5. */
+  objective?: { id: string; code: string; title: string };
+  linkedWork?: KrLinkedWork[];
+  linkedTaskCount?: number;
+}
+
+/** Thân yêu cầu lưu nháp hoặc gửi check-in (`OkrCheckinCreate`). */
+export interface OkrCheckinCreate {
+  status: OkrCheckinStatus;
+  value: number;
+  confidence: Confidence;
+  sourceValue?: number;
+  sourceFetchedAt?: string;
+  overrideReason?: string;
+  highlights?: string;
+  blockerNote?: string;
+  channel?: OkrCheckinChannel;
+  /** Đã xác nhận cảnh báo chênh lệch lớn (BR-03-05, MSG-03-02). */
+  confirmLargeChange?: boolean;
+}
+
+/** Kết quả ghi check-in kèm tiến độ đã tính lại (`OkrCheckinResult`, MSG-03-01). */
+export interface OkrCheckinResult {
+  checkin: OkrCheckin;
+  keyResult: {
+    id: string;
+    code: string;
+    currentValue?: number | null;
+    progress: number;
+    confidence?: Confidence;
+    riskFlag: KrRiskFlag;
+  };
+  objective: { id: string; code: string; progress: number };
+}
+
+/** Số liệu nguồn qua SVC-13 (`OkrSourceValue`). */
+export interface OkrSourceValue {
+  value: number;
+  fetchedAt: string;
+  dataSource?: string;
 }

@@ -9,9 +9,14 @@ import {
   ObjectiveDetail,
   ObjectiveDraft,
   OkrComposeContext,
+  OkrCheckinCreate,
+  OkrCheckinResult,
   OkrHistoryEntry,
+  OkrKeyResultDetail,
+  OkrKeyResultPage,
   OkrReviewDecisionBody,
   OkrReviewQueue,
+  OkrSourceValue,
   OkrSubmitResult,
   OkrTree,
   OkrTreeView,
@@ -21,7 +26,8 @@ import {
  * Client `/api/v1/okr` (MOD-01). WEB-028 dùng danh sách KR để liên kết nhiệm vụ; WEB-021 thêm cây
  * mục tiêu SCR-0201, lịch sử check-in và xuất mẫu báo cáo; WEB-022 thêm soạn, lưu nháp, trình
  * phê duyệt mục tiêu (SCR-0202) và trợ lý AI soát KR; WEB-023 thêm hàng chờ, phê duyệt, trả lại,
- * duyệt hàng loạt và lịch sử luồng duyệt (SCR-0203). Khi `useMockApi` bật, dữ liệu từ `mock/okr/`.
+ * duyệt hàng loạt và lịch sử luồng duyệt (SCR-0203); WEB-024 thêm KR của tôi, chi tiết KR, số liệu
+ * nguồn và lưu nháp, gửi check-in (SCR-0301). Khi `useMockApi` bật, dữ liệu từ `mock/okr/`.
  */
 @Injectable({ providedIn: 'root' })
 export class OkrApi {
@@ -174,6 +180,42 @@ export class OkrApi {
   history(id: string): Observable<CursorPage<OkrHistoryEntry>> {
     return this.http.get<CursorPage<OkrHistoryEntry>>(
       `/api/v1/okr/objectives/${encodeURIComponent(id)}/history`,
+    );
+  }
+
+  /**
+   * KR người dùng sở hữu hoặc được giao check-in thay (SCR-0301 vùng 1,
+   * `/api/v1/okr/key-results?owner=me`); `needCheckin` chỉ lấy KR chưa check-in trong chu kỳ.
+   */
+  myKeyResults(
+    query: { period?: string; needCheckin?: boolean } = {},
+  ): Observable<OkrKeyResultPage> {
+    let params = new HttpParams().set('owner', 'me').set('limit', MAX_PAGE_LIMIT);
+    if (query.period) params = params.set('period', query.period);
+    if (query.needCheckin) params = params.set('needCheckin', true);
+    return this.http.get<OkrKeyResultPage>('/api/v1/okr/key-results', { params });
+  }
+
+  /** Chi tiết KR kèm lần check-in gần nhất và bản nháp của người gọi (SCR-0301 vùng 2). */
+  keyResult(id: string): Observable<OkrKeyResultDetail> {
+    return this.http.get<OkrKeyResultDetail>(`/api/v1/okr/key-results/${encodeURIComponent(id)}`);
+  }
+
+  /** Lấy lại số liệu nguồn qua SVC-13; 502 `OKR-502-SOURCE-UNAVAILABLE` khi nguồn lỗi (MSG-03-03). */
+  sourceValue(id: string): Observable<OkrSourceValue> {
+    return this.http.get<OkrSourceValue>(
+      `/api/v1/okr/key-results/${encodeURIComponent(id)}/source-value`,
+    );
+  }
+
+  /**
+   * Lưu nháp (`NHAP`) hoặc gửi (`DA_GUI`) check-in, kèm `Idempotency-Key`. Check-in đã gửi bất biến
+   * (BR-03-03); lỗi 422 theo BR-03-02, BR-03-04, BR-03-05 và 409 khi mục tiêu chưa duyệt, kỳ đã khoá.
+   */
+  createCheckin(id: string, body: OkrCheckinCreate): Observable<OkrCheckinResult> {
+    return this.http.post<OkrCheckinResult>(
+      `/api/v1/okr/key-results/${encodeURIComponent(id)}/checkins`,
+      { channel: 'WEB', ...body },
     );
   }
 }

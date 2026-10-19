@@ -99,7 +99,7 @@ const MAX_COMMENT = 2000;
 
       @if (notice(); as n) {
         <p-message severity="success" styleClass="msg">
-          <span role="status">{{ n }}</span>
+          <span role="status" class="ok-text">{{ n }}</span>
         </p-message>
       }
       @if (error(); as e) {
@@ -267,6 +267,9 @@ const MAX_COMMENT = 2000;
     :host ::ng-deep .p-button.primary {
       background: #c4002a;
       border-color: #c4002a;
+    }
+    .ok-text {
+      color: #14532d;
     }
     :host ::ng-deep .msg {
       margin-bottom: 12px;
