@@ -1,0 +1,150 @@
+@let p = profile();
+@if (mine.error() && !id()) {
+  <p class="msg err" role="alert">Không tải được hồ sơ đánh giá của đồng chí. Vui lòng thử lại.</p>
+} @else if (loaded.error()) {
+  <p class="msg err" role="alert">Không mở được hồ sơ đánh giá này.</p>
+} @else if (mine.hasValue() && !id() && !mine.value().length) {
+  <h1>Phiếu tự đánh giá</h1>
+  <p class="msg">Đồng chí chưa có hồ sơ đánh giá nào trong kỳ hiện tại.</p>
+} @else if (!p) {
+  <p class="msg" role="status">Đang tải phiếu tự đánh giá…</p>
+} @else {
+  <header class="head">
+    <div>
+      <h1>Phiếu tự đánh giá · {{ p.period.label }}</h1>
+      <p class="sub">
+        {{ p.person.name }}{{ p.jobTitle ? ' · ' + p.jobTitle : '' }}, {{ p.orgUnit.name }}
+        @if (p.selfAssessDue) {
+          · Hạn nộp {{ dmy(p.selfAssessDue) }}
+          @if (p.status === 'TU_DANH_GIA' && p.workingDaysLeft !== undefined) {
+            (còn {{ p.workingDaysLeft }} ngày làm việc)
+          }
+        }
+      </p>
+    </div>
+    <div class="acts">
+      <span class="state">Trạng thái: {{ p.status }}</span>
+      <button type="button" class="btn" [disabled]="!!busy()" (click)="preview()">
+        Xem trước Mẫu 1B
+      </button>
+      @if (editable() && !simple()) {
+        <button type="button" class="btn" [disabled]="!!busy() || !dirty()" (click)="save()">
+          Lưu nháp
+        </button>
+      }
+      @if (isMine() && p.status === 'TU_DANH_GIA' && can('SCR-0901.ky-nop')) {
+        <button
+          type="button"
+          class="btn primary"
+          [disabled]="!!busy() || signing() || !canSign() || missing().length > 0"
+          [attr.aria-describedby]="missing().length ? 'missing' : null"
+          (click)="submit()"
+        >
+          {{ signing() ? 'Đang chờ ký…' : 'Ký số và nộp' }}
+        </button>
+      }
+    </div>
+  </header>
+  @if (isMine() && p.status === 'TU_DANH_GIA' && missing().length && !signing()) {
+    <p id="missing" class="hint">Cần hoàn thiện trước khi nộp: {{ missing().join(' ') }}</p>
+  }
+  @if (savedAt() && !notice()) {
+    <p class="hint">Đã tự lưu nháp lúc {{ savedAt() }}.</p>
+  }
+
+  <ol class="steps" aria-label="Các bước của hồ sơ đánh giá">
+    @for (s of steps; track s; let i = $index) {
+      <li
+        [class.on]="i === stepIndex()"
+        [class.done]="i < stepIndex()"
+        [attr.aria-current]="i === stepIndex() ? 'step' : null"
+      >
+        <span class="n" aria-hidden="true">{{ i + 1 }}</span> {{ s }}
+      </li>
+    }
+  </ol>
+
+  @if (notice()) {
+    <p class="msg ok ok-text" role="status">{{ notice() }}</p>
+  }
+  @if (error()) {
+    <p class="msg err" role="alert">{{ error() }}</p>
+  }
+  @if (previewUrl()) {
+    <p class="msg">
+      Đã sinh bản xem trước (có dấu "Bản nháp").
+      <a
+        #previewLink
+        [href]="previewUrl()"
+        target="_blank"
+        rel="noopener"
+        download="Mau-1B-ban-nhap.pdf"
+      >
+        Mở bản xem trước Mẫu 1B (PDF)
+      </a>
+    </p>
+  }
+
+  <div class="tabs-row">
+    <div role="tablist" aria-label="Luồng đánh giá và lịch sử">
+      @for (t of tabs(); track t; let i = $index) {
+        <button
+          type="button"
+          role="tab"
+          [id]="'tab-' + t"
+          aria-controls="tab-panel"
+          [attr.aria-selected]="tab() === t"
+          [attr.tabindex]="tab() === t ? 0 : -1"
+          (click)="selectTab(t)"
+          (keydown)="tabKey($event, i)"
+        >
+          {{ tabLabel(t) }}
+        </button>
+      }
+    </div>
+    <a class="ev-link" routerLink="/evidence">Minh chứng</a>
+  </div>
+
+  <div id="tab-panel" role="tabpanel" [attr.aria-labelledby]="'tab-' + tab()">
+    @if (tab() === 'LICH_SU') {
+      <vt-rating-trail [items]="p.ratingTrail" />
+    } @else {
+      <div class="cols" [class.simple]="simple()">
+        <vt-general-criteria
+          [items]="criteria()"
+          [editable]="editable()"
+          (toggled)="toggle($event.code, $event.met)"
+        />
+        <div>
+          @if (shownScores(); as s) {
+            <vt-score-result [view]="s" [simple]="simple()" (trace)="traceOpen.set(true)" />
+          } @else if (scoresError()) {
+            <p class="msg" role="status">{{ scoresError() }}</p>
+          } @else {
+            <p class="msg" role="status">Đang tải kết quả tính điểm…</p>
+          }
+        </div>
+        @if (refRating(); as ref) {
+          <vt-self-rating
+            [refRating]="ref"
+            [explanation]="own.hasValue() ? own.value().explanation : undefined"
+            [editable]="editable()"
+            [evidences]="evidences.hasValue() ? evidences.value() : []"
+            [errors]="errors()"
+            [showAll]="showAll()"
+            [(selfRating)]="selfRating"
+            [(breakthrough)]="breakthrough"
+            [(evidenceIds)]="evidenceIds"
+            [(reason)]="reason"
+            [(content)]="content"
+            (edited)="markEdited()"
+          />
+        }
+      </div>
+    }
+  </div>
+
+  @if (traceOpen() && trace.hasValue()) {
+    <vt-score-trace [trace]="trace.value()" [titles]="taskTitles()" (closed)="closeTrace()" />
+  }
+}

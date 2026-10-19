@@ -1,0 +1,734 @@
+{
+  "$comment": "Fixture MOD-04 appraisal cho SCR-0901 (WEB-035), số liệu theo hồ sơ mẫu của TL-02b Hình B1.3 và ví dụ của appraisals.yaml. Hồ sơ 0a01, 0a11 là của người đang đăng nhập (hai luồng); 0a21 là hồ sơ cấp dưới để quản lý xem chỉ đọc.",
+  "mine": ["01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01", "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a11"],
+  "profiles": [
+    {
+      "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01",
+      "person": {
+        "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0201",
+        "name": "Trần Minh Hoàng"
+      },
+      "jobTitle": "Trưởng phòng Tổng hợp",
+      "orgUnit": {
+        "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0101",
+        "name": "Ban Tổ chức Đảng uỷ khối"
+      },
+      "period": {
+        "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0001",
+        "label": "Quý IV/2026",
+        "startDate": "2026-10-01",
+        "endDate": "2026-12-31"
+      },
+      "periodKind": "QUY",
+      "flow": "DANG",
+      "availableFlows": ["DANG", "NHA_NUOC"],
+      "status": "TU_DANH_GIA",
+      "isHead": false,
+      "isLeadership": true,
+      "policyVersion": "Đảng v2.0",
+      "currentSnapshotId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0ad1",
+      "finalRatingCode": null,
+      "selfAssessDue": "2027-01-05",
+      "workingDaysLeft": 3,
+      "returnCount": 0,
+      "returnLimit": 2,
+      "noSelfAssessment": false,
+      "generalCriteria": [
+        {
+          "stage": "TU_DANH_GIA",
+          "items": [
+            {
+              "criteriaCode": "TCC-01",
+              "label": "Bản lĩnh chính trị, tư tưởng",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-02",
+              "label": "Phẩm chất đạo đức, lối sống",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-03",
+              "label": "Ý thức tổ chức kỷ luật",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-04",
+              "label": "Tác phong, lề lối làm việc",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-05",
+              "label": "Trách nhiệm nêu gương",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-06",
+              "label": "Đoàn kết nội bộ",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-07",
+              "label": "Năng lực đổi mới, sáng tạo",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-08",
+              "label": "Thực hiện điều đảng viên không được làm",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-09",
+              "label": "Dám nghĩ, dám làm, dám chịu trách nhiệm",
+              "met": true
+            }
+          ],
+          "complianceRatio": 1,
+          "level": "THUC_HIEN_TOT"
+        }
+      ],
+      "selfAssessment": null,
+      "ratingTrail": [],
+      "anomalyHints": [],
+      "rowVersion": 3
+    },
+    {
+      "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a11",
+      "person": {
+        "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0201",
+        "name": "Trần Minh Hoàng"
+      },
+      "jobTitle": "Trưởng phòng Tổng hợp",
+      "orgUnit": {
+        "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0101",
+        "name": "Ban Tổ chức Đảng uỷ khối"
+      },
+      "period": {
+        "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0001",
+        "label": "Quý IV/2026",
+        "startDate": "2026-10-01",
+        "endDate": "2026-12-31"
+      },
+      "periodKind": "QUY",
+      "flow": "NHA_NUOC",
+      "availableFlows": ["DANG", "NHA_NUOC"],
+      "status": "TU_DANH_GIA",
+      "isHead": false,
+      "isLeadership": true,
+      "policyVersion": "NĐ 335 v1.3",
+      "currentSnapshotId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0ad1",
+      "finalRatingCode": null,
+      "selfAssessDue": "2027-01-05",
+      "workingDaysLeft": 3,
+      "returnCount": 0,
+      "returnLimit": 2,
+      "noSelfAssessment": false,
+      "generalCriteria": [
+        {
+          "stage": "TU_DANH_GIA",
+          "items": [
+            {
+              "criteriaCode": "TCC-01",
+              "label": "Bản lĩnh chính trị, tư tưởng",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-02",
+              "label": "Phẩm chất đạo đức, lối sống",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-03",
+              "label": "Ý thức tổ chức kỷ luật",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-04",
+              "label": "Tác phong, lề lối làm việc",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-05",
+              "label": "Trách nhiệm nêu gương",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-06",
+              "label": "Đoàn kết nội bộ",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-07",
+              "label": "Năng lực đổi mới, sáng tạo",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-08",
+              "label": "Thực hiện điều đảng viên không được làm",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-09",
+              "label": "Dám nghĩ, dám làm, dám chịu trách nhiệm",
+              "met": true
+            }
+          ],
+          "complianceRatio": 1,
+          "level": "THUC_HIEN_TOT"
+        }
+      ],
+      "selfAssessment": null,
+      "ratingTrail": [],
+      "anomalyHints": [],
+      "rowVersion": 2
+    },
+    {
+      "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a21",
+      "person": {
+        "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0202",
+        "name": "Lê Thu Hà"
+      },
+      "jobTitle": "Chuyên viên Phòng Tổng hợp",
+      "orgUnit": {
+        "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0101",
+        "name": "Ban Tổ chức Đảng uỷ khối"
+      },
+      "period": {
+        "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0001",
+        "label": "Quý IV/2026",
+        "startDate": "2026-10-01",
+        "endDate": "2026-12-31"
+      },
+      "periodKind": "QUY",
+      "flow": "DANG",
+      "availableFlows": ["DANG"],
+      "status": "CHO_THAM_DINH",
+      "isHead": false,
+      "isLeadership": true,
+      "policyVersion": "Đảng v2.0",
+      "currentSnapshotId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0ad1",
+      "finalRatingCode": null,
+      "selfAssessDue": "2027-01-05",
+      "workingDaysLeft": 0,
+      "returnCount": 0,
+      "returnLimit": 2,
+      "noSelfAssessment": false,
+      "generalCriteria": [
+        {
+          "stage": "TU_DANH_GIA",
+          "items": [
+            {
+              "criteriaCode": "TCC-01",
+              "label": "Bản lĩnh chính trị, tư tưởng",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-02",
+              "label": "Phẩm chất đạo đức, lối sống",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-03",
+              "label": "Ý thức tổ chức kỷ luật",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-04",
+              "label": "Tác phong, lề lối làm việc",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-05",
+              "label": "Trách nhiệm nêu gương",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-06",
+              "label": "Đoàn kết nội bộ",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-07",
+              "label": "Năng lực đổi mới, sáng tạo",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-08",
+              "label": "Thực hiện điều đảng viên không được làm",
+              "met": true
+            },
+            {
+              "criteriaCode": "TCC-09",
+              "label": "Dám nghĩ, dám làm, dám chịu trách nhiệm",
+              "met": true
+            }
+          ],
+          "complianceRatio": 1,
+          "level": "THUC_HIEN_TOT"
+        }
+      ],
+      "selfAssessment": {
+        "versionNo": 1,
+        "formCode": "MAU_1B",
+        "formVersion": "1.0",
+        "selfRatingCode": "HTTNV",
+        "content": "Hoàn thành đúng hạn các nhiệm vụ then chốt của phòng; còn chậm một báo cáo chuyên đề do chủ quan, đã rút kinh nghiệm về phân công.",
+        "submittedAt": "2027-01-04T09:12:00+07:00",
+        "signedAt": "2027-01-04T09:13:05+07:00"
+      },
+      "ratingTrail": [
+        {
+          "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0f21",
+          "levelKind": "TU_DE_XUAT",
+          "ratingCode": "HTTNV",
+          "actor": {
+            "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0202",
+            "name": "Lê Thu Hà"
+          },
+          "actorRole": "staff",
+          "isCurrent": true,
+          "differsFromPrev": false,
+          "explanationRequired": false,
+          "isBulkDecision": false,
+          "proposedAt": "2027-01-04T09:12:00+07:00",
+          "signedAt": "2027-01-04T09:13:05+07:00"
+        }
+      ],
+      "anomalyHints": [],
+      "rowVersion": 5,
+      "submittedAt": "2027-01-04T09:12:00+07:00",
+      "submissionSignature": {
+        "signedAt": "2027-01-04T09:13:05+07:00",
+        "provider": "MYSIGN",
+        "valid": true
+      }
+    }
+  ],
+  "scores": {
+    "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01": {
+      "profileId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01",
+      "flow": "DANG",
+      "snapshot": {
+        "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0ad1",
+        "profileId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01",
+        "flow": "DANG",
+        "snapshotKind": "TAM_TINH",
+        "policyVersion": "Đảng v2.0",
+        "inputHash": "3b7a1c9e5d2f4a6b8c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+        "snapshotHash": "7e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d",
+        "totalScore": 91.2,
+        "regularScore": 27.6,
+        "keyTaskScore": 63.6,
+        "generalCriteriaScore": null,
+        "kpiScore": null,
+        "exceedRatio": 0.22,
+        "objectiveRatio": 1,
+        "generalCriteriaLevel": "THUC_HIEN_TOT",
+        "autoRatingCode": "HTTNV",
+        "ruleChecks": [
+          {
+            "ratingCode": "HTXSNV",
+            "label": "≥ 90 điểm",
+            "met": true,
+            "actual": "91,2",
+            "threshold": "90",
+            "legalRef": "QĐ Điều 11"
+          },
+          {
+            "ratingCode": "HTXSNV",
+            "label": "Hoàn thành 100% mục tiêu O",
+            "met": true,
+            "actual": "100%",
+            "threshold": "100%",
+            "legalRef": "QĐ Điều 11"
+          },
+          {
+            "ratingCode": "HTXSNV",
+            "label": "≥ 30% nhiệm vụ vượt mục tiêu",
+            "met": false,
+            "actual": "22%",
+            "threshold": "30%",
+            "legalRef": "QĐ Điều 11"
+          },
+          {
+            "ratingCode": "HTXSNV",
+            "label": "Tiêu chí chung Thực hiện tốt",
+            "met": true,
+            "actual": "Thực hiện tốt",
+            "threshold": "Thực hiện tốt",
+            "legalRef": "QĐ Điều 11"
+          }
+        ],
+        "downgradeReasons": [
+          {
+            "fromRating": "HTXSNV",
+            "toRating": "HTTNV",
+            "text": "Chưa đạt điều kiện 30% nhiệm vụ vượt mục tiêu (thực tế 22%).",
+            "legalRef": "QĐ Điều 11; PL 6 §12"
+          }
+        ],
+        "groups": [
+          {
+            "code": "THEN_CHOT",
+            "label": "Nhiệm vụ then chốt",
+            "kpi": 0.908,
+            "maxScore": 70,
+            "score": 63.6,
+            "tasks": [
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c01",
+                "title": "Đề án chuyển đổi số công tác tổ chức",
+                "approvedQuantity": 1,
+                "plannedQuantity": 1,
+                "a": 1,
+                "b": 0.75,
+                "c": 0.95,
+                "kpi": 0.9
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c02",
+                "title": "Báo cáo sơ kết chuyên đề tổ chức cơ sở đảng",
+                "approvedQuantity": 1,
+                "plannedQuantity": 1,
+                "a": 1,
+                "b": 0.5,
+                "c": 0.85,
+                "kpi": 0.783
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c03",
+                "title": "Thẩm định hồ sơ quy hoạch cán bộ",
+                "approvedQuantity": 12,
+                "plannedQuantity": 12,
+                "a": 1,
+                "b": 1,
+                "c": 0.85,
+                "kpi": 0.95
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c04",
+                "title": "Tập huấn kiểm điểm chi bộ năm 2026",
+                "approvedQuantity": 26,
+                "plannedQuantity": 20,
+                "a": 1,
+                "b": 1,
+                "c": 1,
+                "kpi": 1,
+                "exceedsTarget": true
+              }
+            ]
+          },
+          {
+            "code": "THUONG_XUYEN",
+            "label": "Nhiệm vụ thường xuyên",
+            "kpi": 0.92,
+            "maxScore": 30,
+            "score": 27.6,
+            "tasks": [
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c11",
+                "title": "Tổng hợp báo cáo tuần, tháng của Ban",
+                "approvedQuantity": 13,
+                "plannedQuantity": 13,
+                "a": 1,
+                "b": 1,
+                "c": 1,
+                "kpi": 1
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c12",
+                "title": "Cập nhật dữ liệu đảng viên",
+                "approvedQuantity": 1240,
+                "plannedQuantity": 1000,
+                "a": 1,
+                "b": 1,
+                "c": 1,
+                "kpi": 1,
+                "exceedsTarget": true
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c13",
+                "title": "Tham mưu văn bản hướng dẫn nghiệp vụ",
+                "approvedQuantity": 4,
+                "plannedQuantity": 4,
+                "a": 1,
+                "b": 1,
+                "c": 0.8,
+                "kpi": 0.933
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c14",
+                "title": "Giải quyết đơn thư thuộc thẩm quyền",
+                "approvedQuantity": 6,
+                "plannedQuantity": 6,
+                "a": 1,
+                "b": 0.75,
+                "c": 0.8,
+                "kpi": 0.85
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c15",
+                "title": "Theo dõi sinh hoạt chi bộ trực thuộc",
+                "approvedQuantity": 9,
+                "plannedQuantity": 10,
+                "a": 0.9,
+                "b": 0.75,
+                "c": 0.8,
+                "kpi": 0.817
+              }
+            ]
+          }
+        ],
+        "computedAt": "2027-01-02T01:40:00+07:00"
+      },
+      "explanation": {
+        "explanationType": "HA_MUC",
+        "systemLevel": "HTTNV",
+        "conditions": [
+          {
+            "ratingCode": "HTXSNV",
+            "label": "≥ 30% nhiệm vụ vượt mục tiêu",
+            "met": false,
+            "actual": "22%",
+            "threshold": "30%",
+            "legalRef": "QĐ Điều 11"
+          }
+        ],
+        "text": "Đủ điểm mức HTXSNV (91,2 ≥ 90) nhưng chưa đạt điều kiện 30% nhiệm vụ vượt mục tiêu (thực tế 22%, theo QĐ Điều 11), nên chuyển xuống mức liền kề theo PL 6 §12. Policy Pack Đảng v2.0.",
+        "legalRef": "QĐ Điều 11; PL 6 §12"
+      }
+    },
+    "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a11": {
+      "profileId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a11",
+      "flow": "NHA_NUOC",
+      "snapshot": {
+        "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0ad1",
+        "profileId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a11",
+        "flow": "NHA_NUOC",
+        "snapshotKind": "TAM_TINH",
+        "policyVersion": "NĐ 335 v1.3",
+        "inputHash": "3b7a1c9e5d2f4a6b8c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+        "snapshotHash": "7e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d",
+        "totalScore": 91.8,
+        "regularScore": null,
+        "keyTaskScore": null,
+        "generalCriteriaScore": 28.0,
+        "kpiScore": 63.8,
+        "exceedRatio": 0.22,
+        "objectiveRatio": 1,
+        "generalCriteriaLevel": "THUC_HIEN_TOT",
+        "autoRatingCode": "HTXSNV",
+        "ruleChecks": [
+          {
+            "ratingCode": "HTXSNV",
+            "label": "≥ 90 điểm (thang 30/70)",
+            "met": true,
+            "actual": "91,8",
+            "threshold": "90",
+            "legalRef": "NĐ 335/2025"
+          }
+        ],
+        "downgradeReasons": [],
+        "groups": [
+          {
+            "code": "THEN_CHOT",
+            "label": "Nhiệm vụ then chốt",
+            "kpi": 0.908,
+            "maxScore": 49,
+            "score": 44.5,
+            "tasks": [
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c01",
+                "title": "Đề án chuyển đổi số công tác tổ chức",
+                "approvedQuantity": 1,
+                "plannedQuantity": 1,
+                "a": 1,
+                "b": 0.75,
+                "c": 0.95,
+                "kpi": 0.9
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c02",
+                "title": "Báo cáo sơ kết chuyên đề tổ chức cơ sở đảng",
+                "approvedQuantity": 1,
+                "plannedQuantity": 1,
+                "a": 1,
+                "b": 0.5,
+                "c": 0.85,
+                "kpi": 0.783
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c03",
+                "title": "Thẩm định hồ sơ quy hoạch cán bộ",
+                "approvedQuantity": 12,
+                "plannedQuantity": 12,
+                "a": 1,
+                "b": 1,
+                "c": 0.85,
+                "kpi": 0.95
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c04",
+                "title": "Tập huấn kiểm điểm chi bộ năm 2026",
+                "approvedQuantity": 26,
+                "plannedQuantity": 20,
+                "a": 1,
+                "b": 1,
+                "c": 1,
+                "kpi": 1,
+                "exceedsTarget": true
+              }
+            ]
+          },
+          {
+            "code": "THUONG_XUYEN",
+            "label": "Nhiệm vụ thường xuyên",
+            "kpi": 0.92,
+            "maxScore": 21,
+            "score": 19.3,
+            "tasks": [
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c11",
+                "title": "Tổng hợp báo cáo tuần, tháng của Ban",
+                "approvedQuantity": 13,
+                "plannedQuantity": 13,
+                "a": 1,
+                "b": 1,
+                "c": 1,
+                "kpi": 1
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c12",
+                "title": "Cập nhật dữ liệu đảng viên",
+                "approvedQuantity": 1240,
+                "plannedQuantity": 1000,
+                "a": 1,
+                "b": 1,
+                "c": 1,
+                "kpi": 1,
+                "exceedsTarget": true
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c13",
+                "title": "Tham mưu văn bản hướng dẫn nghiệp vụ",
+                "approvedQuantity": 4,
+                "plannedQuantity": 4,
+                "a": 1,
+                "b": 1,
+                "c": 0.8,
+                "kpi": 0.933
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c14",
+                "title": "Giải quyết đơn thư thuộc thẩm quyền",
+                "approvedQuantity": 6,
+                "plannedQuantity": 6,
+                "a": 1,
+                "b": 0.75,
+                "c": 0.8,
+                "kpi": 0.85
+              },
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c15",
+                "title": "Theo dõi sinh hoạt chi bộ trực thuộc",
+                "approvedQuantity": 9,
+                "plannedQuantity": 10,
+                "a": 0.9,
+                "b": 0.75,
+                "c": 0.8,
+                "kpi": 0.817
+              }
+            ]
+          }
+        ],
+        "computedAt": "2027-01-02T01:40:00+07:00"
+      },
+      "explanation": {
+        "systemLevel": "HTXSNV",
+        "conditions": [],
+        "text": "Đạt 91,8 điểm (tiêu chí chung 28,0/30, KPI 63,8/70) theo thang NĐ 335/2025, đủ ngưỡng mức HTXSNV (≥ 90). Policy Pack NĐ 335 v1.3.",
+        "legalRef": "NĐ 335/2025; PL A5"
+      }
+    },
+    "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a21": {
+      "profileId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a21",
+      "flow": "DANG",
+      "snapshot": {
+        "id": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0ad1",
+        "profileId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a21",
+        "flow": "DANG",
+        "snapshotKind": "TAM_TINH",
+        "policyVersion": "Đảng v2.0",
+        "inputHash": "3b7a1c9e5d2f4a6b8c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+        "snapshotHash": "7e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d",
+        "totalScore": 84.5,
+        "regularScore": null,
+        "keyTaskScore": null,
+        "generalCriteriaScore": null,
+        "kpiScore": null,
+        "exceedRatio": 0,
+        "objectiveRatio": 1,
+        "generalCriteriaLevel": "THUC_HIEN_TOT",
+        "autoRatingCode": "HTTNV",
+        "ruleChecks": [
+          {
+            "ratingCode": "HTTNV",
+            "label": "≥ 80 điểm",
+            "met": true,
+            "actual": "84,5",
+            "threshold": "80",
+            "legalRef": "QĐ Điều 11"
+          }
+        ],
+        "downgradeReasons": [],
+        "groups": [
+          {
+            "code": "THEN_CHOT",
+            "label": "Nhiệm vụ then chốt",
+            "kpi": 0.85,
+            "maxScore": 70,
+            "score": 59.5,
+            "tasks": [
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c21",
+                "title": "Rà soát hồ sơ đảng viên chuyển sinh hoạt",
+                "approvedQuantity": 30,
+                "plannedQuantity": 30,
+                "a": 1,
+                "b": 0.75,
+                "c": 0.8,
+                "kpi": 0.85
+              }
+            ]
+          },
+          {
+            "code": "THUONG_XUYEN",
+            "label": "Nhiệm vụ thường xuyên",
+            "kpi": 0.833,
+            "maxScore": 30,
+            "score": 25.0,
+            "tasks": [
+              {
+                "taskId": "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c22",
+                "title": "Tổng hợp số liệu báo cáo tháng",
+                "approvedQuantity": 3,
+                "plannedQuantity": 3,
+                "a": 1,
+                "b": 0.75,
+                "c": 0.75,
+                "kpi": 0.833
+              }
+            ]
+          }
+        ],
+        "computedAt": "2027-01-02T01:40:00+07:00"
+      },
+      "explanation": {
+        "systemLevel": "HTTNV",
+        "conditions": [],
+        "text": "Đạt 84,5 điểm (≥ 80), không có nhiệm vụ then chốt chưa hoàn thành do chủ quan, tiêu chí chung Thực hiện tốt, nên xếp mức HTTNV. Policy Pack Đảng v2.0.",
+        "legalRef": "QĐ Điều 11"
+      }
+    }
+  }
+}

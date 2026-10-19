@@ -75,7 +75,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 
 | Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
-| [WEB-035](WEB-035-tu-danh-gia.md) | SCR-0901 Phiếu tự đánh giá | L | WEB-010, WEB-015 | Chưa bắt đầu |
+| [WEB-035](WEB-035-tu-danh-gia.md) | SCR-0901 Phiếu tự đánh giá | L | WEB-010, WEB-015 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-035-tu-danh-gia`) |
 | [WEB-036](WEB-036-tham-dinh.md) | SCR-0902 Thẩm định | L | WEB-035 | Chưa bắt đầu |
 | [WEB-037](WEB-037-phieu-xep-loai.md) | SCR-0903 Phiếu xếp loại có giải thích | M | WEB-036 | Chưa bắt đầu |
 | [WEB-038](WEB-038-quyet-dinh-hang-loat.md) | SCR-0904 Quyết định xếp loại hàng loạt và ký số | L | WEB-037 | Chưa bắt đầu |

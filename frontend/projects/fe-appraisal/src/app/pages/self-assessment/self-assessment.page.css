@@ -1,0 +1,137 @@
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 4px;
+}
+.head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.sub,
+.hint {
+  color: #4b5563;
+  margin: 0;
+}
+.hint {
+  font-size: 0.85rem;
+  margin-top: 6px;
+}
+.acts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.state {
+  font-size: 0.85rem;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #f3f4f6;
+}
+.btn {
+  font: inherit;
+  padding: 8px 16px;
+  border: 1px solid #9ca3af;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+.btn.primary {
+  background: #b4001f;
+  border-color: #b4001f;
+  color: #fff;
+  font-weight: 600;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.steps {
+  display: flex;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+.steps li {
+  flex: 1;
+  color: #4b5563;
+  white-space: nowrap;
+}
+.steps .n {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #9ca3af;
+}
+.steps .on {
+  color: #b4001f;
+  font-weight: 600;
+}
+.steps .on .n {
+  border: 2px solid #b4001f;
+}
+.steps .done .n {
+  background: #15803d;
+  border-color: #15803d;
+  color: #fff;
+}
+.msg {
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #f3f4f6;
+}
+.msg.ok {
+  background: #dcfce7;
+}
+.ok-text {
+  color: #14532d;
+}
+.msg.err {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.tabs-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+[role='tab'] {
+  font: inherit;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: #374151;
+  cursor: pointer;
+}
+[role='tab'][aria-selected='true'] {
+  color: #b4001f;
+  border-bottom-color: #b4001f;
+  font-weight: 600;
+}
+.ev-link {
+  padding: 10px 12px;
+  color: #374151;
+}
+.cols {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(360px, 1.8fr) minmax(260px, 1.2fr);
+  gap: 16px;
+  align-items: start;
+}
+.cols.simple {
+  grid-template-columns: 1fr;
+}
+@media (max-width: 1100px) {
+  .cols {
+    grid-template-columns: 1fr;
+  }
+}
