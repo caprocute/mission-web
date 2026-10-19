@@ -59,7 +59,7 @@ Vai trò dùng tên của baseline mục 10 (`member`, không dùng `staff` củ
 
 ## Điểm đã chốt khi ghép nguồn
 
-Các điểm dưới đây là chỗ các tài liệu thiết kế ghi khác nhau. Hợp đồng chọn phương án mặc định, ghi lý do, và các điểm này đang chờ anh Hiếu xác nhận theo YC-TK-10 (bảng dưới chỉ gồm quy ước chung; các điểm riêng của từng module nằm ở BS-02 mục "Các điểm đã chốt khi ghép nguồn", và khối chú thích đầu mỗi tệp module).
+Các điểm dưới đây là chỗ các tài liệu thiết kế ghi khác nhau. Hợp đồng chọn phương án mặc định, ghi lý do, và anh Hiếu đã chấp nhận toàn bộ các điểm này ngày 19/10/2026 (YC-TK-10) (bảng dưới chỉ gồm quy ước chung; các điểm riêng của từng module nằm ở BS-02 mục "Các điểm đã chốt khi ghép nguồn", và khối chú thích đầu mỗi tệp module).
 
 | Mã | Chủ đề | Nguồn ghi khác nhau | Hợp đồng chọn | Lý do |
 |---|---|---|---|---|
