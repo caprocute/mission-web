@@ -54,6 +54,7 @@ export type ContractCheck = [
   Expect<Compatible<Plan.PlanCheck, TasksContract['schemas']['PlanCheck']>>,
   Expect<Compatible<Plan.PlanVersion, TasksContract['schemas']['PlanVersion']>>,
   Expect<Compatible<Plan.PlanVersionInput, TasksContract['schemas']['PlanVersionInput']>>,
+  Expect<Compatible<Plan.PlanRemovedItem, TasksContract['schemas']['PlanRemovedItem']>>,
   Expect<Compatible<Plan.PlanDiffLine, TasksContract['schemas']['PlanDiffLine']>>,
   Expect<Compatible<Plan.PlanDiff, TasksContract['schemas']['PlanDiff']>>,
   Expect<
@@ -131,7 +132,7 @@ export type ContractCheck = [
 
 describe('model viết tay và hợp đồng OpenAPI', () => {
   it('tương thích kiểu (kiểm lúc biên dịch, xem ContractCheck)', () => {
-    const checked: ContractCheck['length'] = 71;
+    const checked: ContractCheck['length'] = 72;
     expect(checked).toBeGreaterThan(0);
   });
 });

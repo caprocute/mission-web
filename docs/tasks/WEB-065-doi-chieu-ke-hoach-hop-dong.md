@@ -34,7 +34,7 @@ Màn hình lập kế hoạch quý (SCR-0402) và phê duyệt kế hoạch (SCR
 ## 4. Ngoài phạm vi
 - Sửa hợp đồng `contracts/openapi/` (thuộc luồng hợp đồng).
 - Theo dõi job tổng quát `/jobs/{id}` cho phê duyệt (giao diện theo dõi yêu cầu ký, đủ cho MSG-04-09, MSG-04-13).
-- Ghi lý do bỏ dòng từ client (hợp đồng chưa có chỗ ghi).
+- Ghi lý do bỏ dòng từ client (hợp đồng chưa có chỗ ghi). *Đã làm ở nhánh sửa `fix/WEB-065-hop-dong-ke-hoach` sau khi hợp đồng bổ sung `removedItems`, `check`, `changeReason` và các trường hiển thị (19/10/2026).*
 
 ## 5. Tệp được phép sửa
 - `frontend/projects/api-client/src/lib/models/plan.ts`, `plan-api.ts`, `models/contract-check.spec.ts`

@@ -11,6 +11,7 @@ import {
   PlanItem,
   PlanItemInput,
   PlanItemRef,
+  PlanRemovedItem,
   PlanReview,
   PlanSignRequest,
   PlanVersion,
@@ -33,10 +34,16 @@ export function toPlanItemInput(i: PlanItem | PlanItemInput): PlanItemInput {
   return rest;
 }
 
+function input(items: PlanItem[], removedItems?: PlanRemovedItem[]): PlanVersionInput {
+  const body: PlanVersionInput = { items: items.map(toPlanItemInput) };
+  if (removedItems?.length) body.removedItems = removedItems;
+  return body;
+}
+
 /**
  * Client cho `/api/v1/plans` của MOD-02 (QT-04), theo hợp đồng `contracts/openapi/modules/tasks.yaml`
  * (WEB-065): dòng kế hoạch đã duyệt cho SCR-0501 (WEB-028), lập kế hoạch quý SCR-0402 (WEB-026),
- * phê duyệt SCR-0403 (WEB-027). Chỉ `check` còn chưa có trong hợp đồng (xem wiki/14).
+ * phê duyệt SCR-0403 (WEB-027).
  */
 @Injectable({ providedIn: 'root' })
 export class PlanApi {
@@ -83,22 +90,31 @@ export class PlanApi {
   }
 
   /**
-   * Kiểm tra tức thì tập dòng đang soạn (BR-04-02 … BR-04-07), kể cả khi chưa lưu. Chưa có trong hợp
-   * đồng: đề xuất `POST /plans/{id}/versions/{v}/check`, thân `PlanVersionInput`, trả `{ checks }`.
+   * Kiểm tra tức thì tập dòng đang soạn, kể cả khi chưa lưu (`POST /plans/{id}/versions/{v}/check`,
+   * BR-04-01..BR-04-10): chỉ trả vi phạm. Ở bản điều chỉnh, gửi kèm dòng bị bỏ và lý do.
    */
-  check(planId: string, versionNo: number, items: PlanItem[]): Observable<PlanCheck[]> {
-    const body: PlanVersionInput = { items: items.map(toPlanItemInput) };
+  check(
+    planId: string,
+    versionNo: number,
+    items: PlanItem[],
+    removedItems?: PlanRemovedItem[],
+  ): Observable<PlanCheck[]> {
     return this.http
       .post<{ checks: PlanCheck[] }>(
-        `${apiUrl('/plans/{id}/versions/{v}', { id: planId, v: String(versionNo) })}/check`,
-        body,
+        apiUrl('/plans/{id}/versions/{v}/check', { id: planId, v: String(versionNo) }),
+        input(items, removedItems),
       )
       .pipe(map((r) => r.checks));
   }
 
-  /** "Lưu nháp": `PUT /plans/{id}/versions/{v}` kèm `If-Match`. */
-  save(planId: string, version: PlanVersion, items: PlanItem[]): Observable<PlanVersion> {
-    const body: PlanVersionInput = { items: items.map(toPlanItemInput) };
+  /** "Lưu nháp": `PUT /plans/{id}/versions/{v}` kèm `If-Match`; bản điều chỉnh gửi cả dòng bị bỏ. */
+  save(
+    planId: string,
+    version: PlanVersion,
+    items: PlanItem[],
+    removedItems?: PlanRemovedItem[],
+  ): Observable<PlanVersion> {
+    const body = input(items, removedItems);
     return this.http.put<PlanVersion>(
       apiUrl('/plans/{id}/versions/{v}', { id: planId, v: String(version.versionNo) }),
       body,
@@ -134,30 +150,24 @@ export class PlanApi {
     );
   }
 
-  /** "Tạo điều chỉnh": phiên bản n+1 từ phiên bản đã duyệt; lý do ghi ở từng dòng đổi (BR-04-10). */
-  createAdjustment(planId: string): Observable<PlanVersion> {
-    return this.http.post<PlanVersion>(apiUrl('/plans/{id}/versions', { id: planId }), null);
+  /**
+   * "Tạo điều chỉnh": phiên bản n+1 từ phiên bản đã duyệt, kèm lý do chung của lần điều chỉnh
+   * (`task.plan_version.change_reason`, BR-04-10); lý do từng dòng ghi khi soạn.
+   */
+  createAdjustment(planId: string, changeReason: string): Observable<PlanVersion> {
+    return this.http.post<PlanVersion>(apiUrl('/plans/{id}/versions', { id: planId }), {
+      changeReason,
+    });
   }
 
   /**
-   * "Chỉ hiện thay đổi, Toàn bộ": so sánh phiên bản `v` với `base`. Không có `base` (phiên bản đầu)
-   * thì so với kế hoạch rỗng ngay ở client: mọi dòng là `THEM` (giả định WEB-065).
+   * "Chỉ hiện thay đổi, Toàn bộ": so sánh phiên bản `v` với `base`; phiên bản đầu so với kế hoạch rỗng
+   * (`base=0`, mọi dòng là `THEM`).
    */
   diff(planId: string, version: PlanVersion, base?: number): Observable<PlanDiff> {
-    if (!base) {
-      return of({
-        baseVersionNo: 0,
-        versionNo: version.versionNo,
-        added: version.items.length,
-        modified: 0,
-        removed: 0,
-        adjustmentNo: 0,
-        lines: version.items.map((after) => ({ change: 'THEM' as const, after })),
-      });
-    }
     return this.http.get<PlanDiff>(
       apiUrl('/plans/{id}/versions/{v}/diff', { id: planId, v: String(version.versionNo) }),
-      { params: { base, mode: 'all' } },
+      { params: { base: base ?? 0, mode: 'all' } },
     );
   }
 

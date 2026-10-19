@@ -35,6 +35,7 @@ import {
   PlanApi,
   PlanItem,
   PlanItemInput,
+  PlanRemovedItem,
   PlanVersion,
   PlanWorkspace,
   TASK_GROUP_LABEL,
@@ -45,6 +46,7 @@ import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
+import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 import { catchError, debounceTime, filter, of, switchMap } from 'rxjs';
@@ -64,6 +66,7 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
     ButtonModule,
     CheckboxModule,
     DialogModule,
+    InputTextModule,
     SelectModule,
     TagModule,
     CatalogPickDialog,
@@ -115,9 +118,9 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
         </div>
         <div class="actions">
           @if (editable() && can('SCR-0402.lap')) {
-            @if (v.versionNo === 1 && !items().length && !simple()) {
+            @if (v.versionNo === 1 && !items().length && !simple() && w.plan.previousPeriod) {
               <p-button
-                label="Sao chép từ quý trước"
+                [label]="'Sao chép từ ' + w.plan.previousPeriod.label"
                 severity="contrast"
                 [outlined]="true"
                 [loading]="busy() === 'copy'"
@@ -209,9 +212,34 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
       }
       @if (v.versionNo > 1) {
         <p class="muted">
-          Phiên bản điều chỉnh lần {{ v.versionNo - 1 }}/{{ adjust().max }}; lý do ghi ở từng dòng
-          thêm, sửa.
+          Phiên bản điều chỉnh lần {{ v.versionNo - 1 }}/{{ adjust().max }}.
+          @if (v.changeReason) {
+            Lý do điều chỉnh: <strong>{{ v.changeReason }}</strong
+            >.
+          }
+          Lý do ghi thêm ở từng dòng thêm, sửa, bỏ.
         </p>
+        @if (removed().length) {
+          <div class="removed">
+            <p id="rm-title" class="small">Dòng bỏ so với phiên bản đã duyệt</p>
+            <ul aria-labelledby="rm-title">
+              @for (r of removed(); track r.originItemId) {
+                <li>
+                  {{ removedTitle(r.originItemId) }}: {{ r.changeReason }}
+                  @if (editable() && can('SCR-0402.lap')) {
+                    <p-button
+                      label="Khôi phục"
+                      [text]="true"
+                      size="small"
+                      [ariaLabel]="'Khôi phục dòng ' + removedTitle(r.originItemId)"
+                      (onClick)="restoreItem(r.originItemId)"
+                    />
+                  }
+                </li>
+              }
+            </ul>
+          </div>
+        }
       }
 
       <div aria-live="polite">
@@ -378,6 +406,17 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
                 </tr>
               </tbody>
             </table>
+            @if (v.groupWeights.policyPackName) {
+              <p class="small">
+                Policy Pack <strong>{{ v.groupWeights.policyPackName }}</strong>
+                @if (v.groupWeights.policyPackVersion) {
+                  phiên bản {{ v.groupWeights.policyPackVersion }}
+                }
+                @if (v.groupWeights.flow) {
+                  · luồng {{ v.groupWeights.flow === 'DANG' ? 'Đảng' : 'Nhà nước' }}
+                }
+              </p>
+            }
             @if (!simple()) {
               <p class="muted small">
                 Tỷ trọng do cấp có thẩm quyền quyết định, cấu hình trong Policy Pack của đơn vị.
@@ -463,8 +502,19 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
         <p>
           Tạo phiên bản {{ w.versions.length + 1 }} từ phiên bản đã duyệt. Lần điều chỉnh
           {{ adjust().used + 1 }}/{{ adjust().max }} trong quý; hiệu lực từ ngày duyệt, không hồi
-          tố. Mỗi dòng thêm hoặc sửa cần ghi lý do thay đổi.
+          tố. Mỗi dòng thêm, sửa hoặc bỏ cần ghi lý do thay đổi.
         </p>
+        <div class="field">
+          <label for="adj-reason">Lý do điều chỉnh (bắt buộc)</label>
+          <textarea
+            pInputText
+            id="adj-reason"
+            rows="3"
+            maxlength="1000"
+            [ngModel]="adjustReason()"
+            (ngModelChange)="adjustReason.set($event)"
+          ></textarea>
+        </div>
         @if (dialogError(); as e) {
           <p class="msg err" role="alert">{{ e }}</p>
         }
@@ -478,7 +528,46 @@ type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
           <p-button
             label="Tạo điều chỉnh"
             [loading]="busy() === 'adjust'"
+            [disabled]="!adjustReason().trim()"
             (onClick)="createAdjustment()"
+          />
+        </ng-template>
+      </p-dialog>
+
+      <p-dialog
+        header="Bỏ dòng khỏi kế hoạch điều chỉnh"
+        [modal]="true"
+        [visible]="!!removing()"
+        (visibleChange)="$event || removing.set(null)"
+        closeAriaLabel="Đóng"
+        [style]="{ width: 'min(520px, 95vw)' }"
+      >
+        <p>
+          Dòng "{{ removing()?.title }}" có trong phiên bản đã duyệt; bỏ dòng cần ghi lý do
+          (BR-04-10).
+        </p>
+        <div class="field">
+          <label for="rm-reason">Lý do bỏ dòng (bắt buộc)</label>
+          <textarea
+            pInputText
+            id="rm-reason"
+            rows="3"
+            maxlength="500"
+            [ngModel]="removeReason()"
+            (ngModelChange)="removeReason.set($event)"
+          ></textarea>
+        </div>
+        <ng-template #footer>
+          <p-button
+            label="Đóng"
+            severity="contrast"
+            [outlined]="true"
+            (onClick)="removing.set(null)"
+          />
+          <p-button
+            label="Bỏ dòng"
+            [disabled]="!removeReason().trim()"
+            (onClick)="confirmRemove()"
           />
         </ng-template>
       </p-dialog>
@@ -778,6 +867,23 @@ export class PlanPage {
   protected readonly items = linkedSignal<PlanItem[]>(() => this.ws.value()?.version.items ?? []);
   /** Phiên bản đã lưu gần nhất (rowVersion cho If-Match). */
   private readonly saved = linkedSignal<PlanVersion | undefined>(() => this.ws.value()?.version);
+  /** Dòng gốc bị bỏ trong phiên bản điều chỉnh, mỗi dòng kèm lý do (BR-04-10). */
+  protected readonly removed = linkedSignal<PlanRemovedItem[]>(
+    () => this.ws.value()?.version.removedItems ?? [],
+  );
+  /** Dòng của phiên bản hiện hành, để hiện tên và khôi phục dòng đã bỏ khi điều chỉnh. */
+  private readonly baseRes = rxResource({
+    params: () => {
+      const w = this.ws.value();
+      const no = w?.plan.effectiveVersionNo;
+      return w && no && w.version.versionNo > no ? { id: w.plan.id, no } : undefined;
+    },
+    stream: ({ params }) => this.api.version(params.id, params.no),
+  });
+  private readonly baseItems = computed(() => this.baseRes.value()?.items ?? []);
+  protected readonly removing = signal<PlanItem | null>(null);
+  protected readonly removeReason = signal('');
+  protected readonly adjustReason = signal('');
   protected readonly dirty = linkedSignal<boolean>(() => {
     this.ws.value();
     return false;
@@ -835,14 +941,19 @@ export class PlanPage {
   protected readonly checking = signal(false);
   protected readonly check = toSignal(
     toObservable(
-      computed(() => ({ items: this.items(), w: this.ws.value(), on: this.editable() })),
+      computed(() => ({
+        items: this.items(),
+        removed: this.removed(),
+        w: this.ws.value(),
+        on: this.editable(),
+      })),
     ).pipe(
       filter((x) => !!x.w && x.on),
       debounceTime(300),
-      switchMap(({ items, w }) => {
+      switchMap(({ items, removed, w }) => {
         this.checking.set(true);
         return this.api
-          .check(w!.plan.id, w!.version.versionNo, items)
+          .check(w!.plan.id, w!.version.versionNo, items, removed)
           .pipe(catchError(() => of(undefined)));
       }),
     ),
@@ -1031,6 +1142,36 @@ export class PlanPage {
     this.setItems(this.items().map((x) => (x.id === i.id ? i : x)));
   }
   protected removeItem(i: PlanItem) {
+    if (i.originItemId && (this.ws.value()?.version.versionNo ?? 1) > 1) {
+      this.removeReason.set('');
+      this.removing.set(i);
+      return;
+    }
+    this.drop(i);
+  }
+  protected confirmRemove() {
+    const i = this.removing();
+    if (!i?.originItemId) return;
+    this.removed.set([
+      ...this.removed().filter((r) => r.originItemId !== i.originItemId),
+      { originItemId: i.originItemId, changeReason: this.removeReason().trim() },
+    ]);
+    this.removing.set(null);
+    this.drop(i);
+  }
+  /** Khôi phục dòng gốc đã bỏ, lấy lại từ phiên bản hiện hành (đã duyệt). */
+  protected restoreItem(originItemId: string) {
+    const line = this.baseItems().find((x) => x.id === originItemId);
+    this.removed.set(this.removed().filter((r) => r.originItemId !== originItemId));
+    if (line)
+      this.setItems([...this.items(), { ...line, id: `tmp-${crypto.randomUUID()}`, originItemId }]);
+    else this.dirty.set(true);
+  }
+  protected removedTitle(originItemId: string) {
+    const line = this.baseItems().find((x) => x.id === originItemId);
+    return line?.title ?? 'Dòng đã duyệt';
+  }
+  private drop(i: PlanItem) {
     this.setItems(this.items().filter((x) => x.id !== i.id));
     this.editingId.set(null);
     this.notice.set(`Đã bỏ dòng "${i.title || i.lineNo}". Bấm Lưu nháp hoặc chờ lưu tự động.`);
@@ -1140,7 +1281,7 @@ export class PlanPage {
     const base = this.saved();
     if (!w || !base) return;
     this.begin('save', auto);
-    this.api.save(w.plan.id, base, this.items()).subscribe({
+    this.api.save(w.plan.id, base, this.items(), this.removed()).subscribe({
       next: (v) => {
         this.busy.set(null);
         this.applySaved(v);
@@ -1158,7 +1299,9 @@ export class PlanPage {
       next: (v) => {
         this.busy.set(null);
         this.applySaved(v);
-        this.notice.set(`Đã sao chép ${v.items.length} dòng từ quý trước, hạn đã dịch theo kỳ.`);
+        this.notice.set(
+          `Đã sao chép ${v.items.length} dòng từ ${w.plan.previousPeriod?.label ?? 'kỳ trước'}, hạn đã dịch theo kỳ.`,
+        );
       },
       error: (e) => this.fail(e),
     });
@@ -1190,7 +1333,7 @@ export class PlanPage {
       });
     if (this.dirty()) {
       this.api
-        .save(w.plan.id, base, this.items())
+        .save(w.plan.id, base, this.items(), this.removed())
         .pipe(
           switchMap((v) => {
             this.applySaved(v);
@@ -1203,20 +1346,21 @@ export class PlanPage {
 
   protected openAdjust() {
     this.dialogError.set(null);
+    this.adjustReason.set('');
     this.adjustOpen.set(true);
   }
   protected createAdjustment() {
     const w = this.ws.value();
     if (!w) return;
     this.begin('adjust');
-    this.api.createAdjustment(w.plan.id).subscribe({
+    this.api.createAdjustment(w.plan.id, this.adjustReason().trim()).subscribe({
       next: (v) => {
         this.busy.set(null);
         this.adjustOpen.set(false);
         this.plans.reload();
         this.chooseVersion(v.versionNo);
         this.notice.set(
-          `Đã tạo phiên bản ${v.versionNo} để điều chỉnh. Ghi lý do ở từng dòng thêm, sửa.`,
+          `Đã tạo phiên bản ${v.versionNo} để điều chỉnh. Ghi lý do ở từng dòng thêm, sửa, bỏ.`,
         );
       },
       error: (e) => this.fail(e, true),

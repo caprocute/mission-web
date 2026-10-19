@@ -62,7 +62,7 @@ describe('mock plans – SCR-0402 (WEB-026)', () => {
       leadAssignee: { kind: 'UNIT', id: 'u-btc', name: 'Ban Tổ chức' },
       coAssignees: [{ kind: 'UNIT', id: 'u-vp', name: 'Văn phòng Đảng uỷ' }],
     });
-    expect(ws.version.groupWeights).toEqual({ THUONG_XUYEN: 30, THEN_CHOT: 70 });
+    expect(ws.version.groupWeights).toMatchObject({ THUONG_XUYEN: 30, THEN_CHOT: 70 });
     expect(ws.version.period.label).toBe('Quý I/2027');
     const q4 = await firstValueFrom(api.workspace(list[1]));
     expect(q4.version.versionNo).toBe(2);
@@ -196,14 +196,50 @@ describe('mock plans – SCR-0402 (WEB-026)', () => {
     expect(ws.version).toMatchObject({ status: 'DA_DUYET', reviewComment: 'Đồng ý' });
     expect(ws.versions[1].approvedAt).toBeTruthy();
     // BR-04-10: lý do ghi ở từng dòng đổi
-    const v3 = await firstValueFrom(api.createAdjustment(Q4));
-    expect(v3).toMatchObject({ versionNo: 3, status: 'NHAP' });
+    expect((await errorOf(firstValueFrom(api.createAdjustment(Q4, ' ')))).status).toBe(422);
+    const v3 = await firstValueFrom(api.createAdjustment(Q4, 'Bổ sung theo chỉ đạo mới'));
+    expect(v3).toMatchObject({
+      versionNo: 3,
+      status: 'NHAP',
+      changeReason: 'Bổ sung theo chỉ đạo mới',
+    });
     expect(v3.items[0].originItemId).toBe('pi-q4-v2-01');
     const edited = v3.items.map((i, n) => (n === 0 ? { ...i, quantity: 20 } : i));
     const saved = await firstValueFrom(api.save(Q4, v3, edited));
     expect(saved.checks.find((c) => c.rule === 'BR-04-10')).toMatchObject({ lineNo: 1 });
     expect((await errorOf(firstValueFrom(api.submit(Q4, saved)))).status).toBe(422);
-    expect((await errorOf(firstValueFrom(api.createAdjustment(Q4)))).status).toBe(409);
+    // BR-04-10: bỏ dòng gốc cũng cần lý do, gửi qua removedItems
+    const origin = v3.items[1].originItemId!;
+    const rest = edited.map((i, n) => (n === 0 ? { ...i, changeReason: 'Tăng chỉ tiêu' } : i));
+    const dropped = rest.filter((_, n) => n !== 1);
+    const noReason = await firstValueFrom(api.check(Q4, 3, dropped));
+    expect(noReason.find((c) => c.rule === 'BR-04-10')).toBeTruthy();
+    const withReason = await firstValueFrom(
+      api.save(Q4, saved, dropped, [{ originItemId: origin, changeReason: 'Không còn phù hợp' }]),
+    );
+    expect(withReason.checks.filter((c) => c.rule === 'BR-04-10')).toEqual([]);
+    expect(withReason.removedItems).toEqual([
+      { originItemId: origin, changeReason: 'Không còn phù hợp' },
+    ]);
+    expect((await errorOf(firstValueFrom(api.createAdjustment(Q4, 'Lần ba')))).status).toBe(409);
+  });
+
+  it('phiên bản: chức danh người gửi, người duyệt, Policy Pack, kỳ trước và so sánh với base=0', async () => {
+    const api = setup();
+    expect((await plan(api, Q1)).previousPeriod?.label).toBe('Quý IV/2026');
+    const p = await plan(api, Q4);
+    expect(p.previousPeriod).toBeNull();
+    const ws = await firstValueFrom(api.workspace(p));
+    expect(ws.versions[0]).toMatchObject({
+      submittedByTitle: 'Phó Trưởng ban',
+      approvedByName: 'Nguyễn Hữu Thắng',
+    });
+    expect(ws.version.groupWeights).toMatchObject({ flow: 'DANG', policyPackCode: 'PP-KHOI-DANG' });
+    expect(ws.version.changeReason).toContain('518-CV/ĐUK');
+    const v1 = await firstValueFrom(api.version(Q4, 1));
+    const d = await firstValueFrom(api.diff(Q4, v1, 0));
+    expect(d).toMatchObject({ baseVersionNo: 0, added: v1.items.length, removed: 0 });
+    expect(d.lines.every((r) => r.change === 'THEM')).toBe(true);
   });
 
   it('BR-04-08: người lập không tự duyệt; esign gián đoạn thì yêu cầu ký báo lỗi', async () => {

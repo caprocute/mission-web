@@ -125,6 +125,10 @@ describe('PlanPage (SCR-0402)', () => {
     await until(el.ownerDocument.body, '.p-dialog');
     const dialog = el.ownerDocument.body.querySelector('.p-dialog') as HTMLElement;
     expect(text(dialog)).toContain('Lần điều chỉnh 2/2');
+    const adj = dialog.querySelector('#adj-reason') as HTMLTextAreaElement;
+    adj.value = 'Bổ sung theo chỉ đạo mới';
+    adj.dispatchEvent(new Event('input'));
+    await new Promise((r) => setTimeout(r, 20));
     click(dialog, 'Tạo điều chỉnh');
     await until(el, '.sub', (e) => text(e).includes('phiên bản 3'));
     expect(text(el.querySelector('.sub'))).toContain('NHAP');
@@ -143,5 +147,20 @@ describe('PlanPage (SCR-0402)', () => {
     reason.dispatchEvent(new Event('input'));
     await until(el, '.checks', (e) => text(e).includes('ĐạtMọi dòng thêm, sửa có lý do'));
     expect(text(el.querySelector('.checks'))).toContain('ĐạtMọi dòng thêm, sửa có lý do');
+    expect(text(el)).toContain('Lý do điều chỉnh: Bổ sung theo chỉ đạo mới');
+    // bỏ dòng gốc: hỏi lý do (BR-04-10), dòng bỏ hiện kèm lý do và khôi phục được
+    (el.querySelector('[aria-label="Sửa dòng 2"]') as HTMLElement).click();
+    await until(el, 'vt-plan-item-editor', (e) => text(e).includes('Bỏ dòng này'));
+    click(el.querySelector('vt-plan-item-editor') as HTMLElement, 'Bỏ dòng này');
+    const body = el.ownerDocument.body;
+    await until(body, '#rm-reason');
+    const rm = body.querySelector('#rm-reason') as HTMLTextAreaElement;
+    rm.value = 'Không còn phù hợp';
+    rm.dispatchEvent(new Event('input'));
+    await new Promise((r) => setTimeout(r, 20));
+    const rmDialog = rm.closest('.p-dialog') as HTMLElement;
+    click(rmDialog, 'Bỏ dòng');
+    await until(el, '.removed');
+    expect(text(el.querySelector('.removed'))).toContain('Không còn phù hợp');
   });
 });

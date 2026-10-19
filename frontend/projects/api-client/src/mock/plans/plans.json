@@ -52,7 +52,11 @@
   ],
   "groupWeights": {
     "THUONG_XUYEN": 30,
-    "THEN_CHOT": 70
+    "THEN_CHOT": 70,
+    "flow": "DANG",
+    "policyPackCode": "PP-KHOI-DANG",
+    "policyPackName": "Khối Đảng",
+    "policyPackVersion": "2.0.0"
   },
   "adjustmentsMax": 2,
   "plans": [
@@ -232,7 +236,10 @@
           "rowVersion": 4,
           "submittedAt": "@today-14T09:00:00+07:00",
           "approvedAt": "@today-11T16:20:00+07:00",
-          "items": "@v2-without-tc-dv-06"
+          "items": "@v2-without-tc-dv-06",
+          "submittedByName": "Lê Minh Châu",
+          "submittedByTitle": "Phó Trưởng ban",
+          "approvedByName": "Nguyễn Hữu Thắng"
         },
         {
           "versionNo": 2,
@@ -355,7 +362,9 @@
               "originItemId": "pi-q4-v1-tap-huan",
               "changeReason": "Lùi sang Quý I/2027 theo chỉ đạo"
             }
-          ]
+          ],
+          "submittedByTitle": "Phó Trưởng ban",
+          "changeReason": "Bổ sung nhiệm vụ theo Văn bản 518-CV/ĐUK, điều chỉnh số lượng và lùi tập huấn sang Quý I/2027"
         }
       ]
     }

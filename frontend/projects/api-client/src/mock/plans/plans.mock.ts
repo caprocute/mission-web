@@ -7,7 +7,9 @@ import {
   PlanDiffLine,
   PlanItem,
   PlanItemInput,
+  PlanGroupWeights,
   PlanItemRef,
+  PlanRemovedItem,
   PlanSignRequest,
   PlanVersion,
   PlanVersionStatus,
@@ -54,9 +56,13 @@ interface StoredVersion {
   submittedAt?: string;
   submittedById?: string;
   submittedByName?: string;
+  submittedByTitle?: string;
   approvedAt?: string;
-  /** Lý do bỏ dòng của phiên bản trước (hợp đồng chưa có chỗ ghi, xem wiki/14). */
-  removedItems?: { originItemId: string; changeReason: string }[];
+  approvedByName?: string;
+  /** Lý do chung của lần điều chỉnh (`task.plan_version.change_reason`). */
+  changeReason?: string | null;
+  /** Dòng của phiên bản trước bị bỏ, kèm lý do (BR-04-10). */
+  removedItems?: PlanRemovedItem[];
 }
 interface StoredPlan {
   id: string;
@@ -87,7 +93,7 @@ const unitRef = (id: string) => ({
   id,
   name: orgFixture.units.find((u) => u.id === id)?.name ?? '',
 });
-const groupWeights = (): Record<TaskGroup, number> => ({ ...fixture.groupWeights });
+const groupWeights = (): PlanGroupWeights => ({ ...fixture.groupWeights }) as PlanGroupWeights;
 
 /** Dòng 5–7 của phiên bản 2 Quý IV là các dòng đã duyệt dùng cho giao việc (`items`). */
 function fromApproved(r: PlanItemRef, unit: { id: string; name: string }): PlanItem {
@@ -177,6 +183,22 @@ function contentHash(items: PlanItem[]): string {
 const latest = (p: StoredPlan) => p.versions[p.versions.length - 1];
 const effective = (p: StoredPlan) => p.versions.find((v) => v.versionNo === p.effectiveVersionNo);
 
+/** Kế hoạch của kỳ liền trước có phiên bản đã duyệt (nguồn "Sao chép từ {kỳ}", `Plan.previousPeriod`). */
+function previousPlan(p: StoredPlan): StoredPlan | undefined {
+  return store()
+    .filter((x) => x.period.endDate < p.period.startDate && effective(x))
+    .sort((a, b) => b.period.endDate.localeCompare(a.period.endDate))[0];
+}
+
+/** Dòng bị bỏ kèm lý do trong thân `PlanVersionInput`; chỉ có nghĩa ở phiên bản điều chỉnh. */
+function removedOf(body: unknown, v: StoredVersion): PlanRemovedItem[] | undefined {
+  if (v.versionNo === 1) return undefined;
+  const list = (body as { removedItems?: Partial<PlanRemovedItem>[] })?.removedItems ?? [];
+  return list
+    .filter((r) => r.originItemId)
+    .map((r) => ({ originItemId: r.originItemId!, changeReason: (r.changeReason ?? '').trim() }));
+}
+
 function summaryOf(p: StoredPlan, v: StoredVersion): PlanVersionSummary {
   return {
     planId: p.id,
@@ -187,7 +209,9 @@ function summaryOf(p: StoredPlan, v: StoredVersion): PlanVersionSummary {
     itemCount: v.items.length,
     submittedAt: v.submittedAt,
     submittedByName: v.submittedByName,
+    submittedByTitle: v.submittedByTitle,
     approvedAt: v.approvedAt,
+    approvedByName: v.approvedByName,
   };
 }
 
@@ -200,6 +224,7 @@ function planOf(p: StoredPlan): Plan {
     unitName: p.unitName,
     currentVersion: summaryOf(p, latest(p)),
     effectiveVersionNo: p.effectiveVersionNo ?? null,
+    previousPeriod: previousPlan(p)?.period ?? null,
     approvalDeadline: p.approvalDeadline,
     adjustmentsUsed: latest(p).versionNo - 1,
     adjustmentsMax: fixture.adjustmentsMax,
@@ -223,7 +248,9 @@ function versionOf(p: StoredPlan, v: StoredVersion): PlanVersion {
     groupWeights: groupWeights(),
     // Phiên bản đã gửi duyệt đã qua kiểm tra lúc gửi; BR-04-11, BR-04-12 lúc duyệt cần dữ liệu minh chứng
     // và nhiệm vụ đang làm, giả lập không có vi phạm.
-    checks: editable(v) ? checkPlan(p, v.items, baseItems(p, v)) : [],
+    checks: editable(v) ? checkPlan(p, v.items, baseItems(p, v), v.removedItems) : [],
+    changeReason: v.changeReason ?? null,
+    removedItems: v.removedItems ?? [],
     signRequestId: v.signRequestId,
     rowVersion: v.rowVersion,
   });
@@ -291,6 +318,7 @@ export function checkPlan(
   p: Pick<StoredPlan, 'period'>,
   items: PlanItem[],
   base?: PlanItem[],
+  removed: PlanRemovedItem[] = [],
 ): PlanCheck[] {
   const out: PlanCheck[] = [];
   const add = (rule: string, level: PlanCheck['level'], message: string, lineNo?: number) =>
@@ -344,6 +372,13 @@ export function checkPlan(
         lineNo: n,
         message: `Dòng ${n} chưa có điểm (việc ngoài danh mục)`,
       });
+  }
+  // dòng của phiên bản đã duyệt bị bỏ mà không ghi lý do (BR-04-10, SCR-0403 trường 3)
+  const kept = new Set(items.map((i) => i.originItemId));
+  for (const b of base ?? []) {
+    if (kept.has(b.id)) continue;
+    if (!removed.find((r) => r.originItemId === b.id)?.changeReason?.trim())
+      add('BR-04-10', 'CHAN', `Dòng "${b.title}" bị bỏ so với phiên bản đã duyệt, cần ghi lý do.`);
   }
   for (const g of ['THUONG_XUYEN', 'THEN_CHOT'] as TaskGroup[]) {
     const max = fixture.groupWeights[g];
@@ -402,6 +437,7 @@ function save(req: MockRequest): MockResponse {
       ],
     });
   v.items = items;
+  v.removedItems = removedOf(req.body, v);
   v.rowVersion++;
   return ok(versionOf(p, v), etag(v));
 }
@@ -414,9 +450,7 @@ function copyFrom(req: MockRequest): MockResponse {
   if (conflict) return conflict;
   if (v.versionNo !== 1 || v.items.length || !editable(v))
     return problem(409, 'Chỉ sao chép vào phiên bản 1 còn trống');
-  const prev = store()
-    .filter((x) => x.period.endDate < p.period.startDate)
-    .sort((a, b) => b.period.endDate.localeCompare(a.period.endDate))[0];
+  const prev = previousPlan(p);
   const src = prev && effective(prev);
   if (!src) return problem(404, 'Không có kế hoạch đã duyệt của quý trước');
   const shift = (d: string) => {
@@ -465,7 +499,7 @@ function submit(req: MockRequest): MockResponse {
     return problem(422, 'Kế hoạch chưa có dòng nào', {
       errors: [{ field: 'items', message: 'Thêm ít nhất một công việc' }],
     });
-  const errors = checkPlan(p, v.items, baseItems(p, v))
+  const errors = checkPlan(p, v.items, baseItems(p, v), v.removedItems)
     .filter((i) => i.level === 'CHAN')
     .map((i) => ({ field: i.lineNo ? `items[${i.lineNo - 1}]` : i.rule, message: i.message }));
   if (errors.length) return problem(422, 'Kế hoạch còn lỗi chặn gửi duyệt', { errors });
@@ -487,6 +521,11 @@ function createAdjustment(req: MockRequest): MockResponse {
   const current = effective(p);
   if (!current || last.status !== 'DA_DUYET')
     return problem(409, 'Chỉ tạo điều chỉnh từ phiên bản đã duyệt mới nhất');
+  const changeReason = ((req.body as { changeReason?: string })?.changeReason ?? '').trim();
+  if (!changeReason)
+    return problem(422, 'Dữ liệu không hợp lệ', {
+      errors: [{ field: 'changeReason', message: 'Nhập lý do điều chỉnh (BR-04-10)' }],
+    });
   const used = last.versionNo - 1;
   if (used >= fixture.adjustmentsMax)
     return problem(409, `Kế hoạch đã điều chỉnh ${used} lần trong quý, đạt giới hạn.`, {
@@ -496,6 +535,8 @@ function createAdjustment(req: MockRequest): MockResponse {
     versionNo: last.versionNo + 1,
     status: 'NHAP',
     rowVersion: 0,
+    changeReason,
+    removedItems: [],
     items: current.items.map((i) => ({
       ...i,
       id: `${i.id}-n${last.versionNo + 1}`,
@@ -512,9 +553,14 @@ function diff(req: MockRequest): MockResponse {
   const hit = locate(req);
   if ('status' in hit) return hit;
   const { p, v } = hit;
-  const baseNo = Number(req.params.get('base'));
-  if (!baseNo) return problem(400, 'Thiếu phiên bản gốc để so sánh (base)');
-  const base = p.versions.find((x) => x.versionNo === baseNo && x.versionNo !== v.versionNo);
+  const raw = req.params.get('base');
+  if (raw == null || raw === '') return problem(400, 'Thiếu phiên bản gốc để so sánh (base)');
+  const baseNo = Number(raw);
+  // base=0: so với kế hoạch rỗng, mọi dòng là THEM (phiên bản đầu)
+  const base =
+    baseNo === 0
+      ? { versionNo: 0, items: [] as PlanItem[] }
+      : p.versions.find((x) => x.versionNo === baseNo && x.versionNo !== v.versionNo);
   if (!base) return problem(404, 'Không tìm thấy phiên bản so sánh');
   const lines: PlanDiffLine[] = v.items.map((after) => {
     const before = base.items.find((b) => b.id === after.originItemId);
@@ -636,6 +682,7 @@ function signStatus(req: MockRequest): MockResponse {
     Object.assign(v, {
       status: 'DA_DUYET',
       approvedAt: now,
+      approvedByName: MOCK_ME.name,
       reviewComment: s.comment,
       rowVersion: v.rowVersion + 1,
     });
@@ -697,7 +744,8 @@ export const PLANS_MOCK: MockModule = {
         const hit = locate(r);
         if ('status' in hit) return hit;
         const items = sanitize((r.body as { items?: unknown })?.items, hit.p.period);
-        return ok({ checks: checkPlan(hit.p, items, baseItems(hit.p, hit.v)) });
+        const removed = removedOf(r.body, hit.v);
+        return ok({ checks: checkPlan(hit.p, items, baseItems(hit.p, hit.v), removed) });
       },
     },
     { method: 'PUT', pattern: '/api/v1/plans/:id/versions/:v', handle: save },

@@ -29,11 +29,15 @@ export const PLAN_VERSION_STATUS_LABEL: Record<PlanVersionStatus, string> = {
   TRA_LAI: 'Trả lại',
 };
 
-/** Lặp lại của dòng kế hoạch, thay cho hạn cố định (SCR-0402 trường 12); hợp đồng chỉ có "Hằng tháng". */
-export type PlanRecurrence = 'HANG_THANG';
+/**
+ * Lặp lại của dòng kế hoạch, thay cho hạn cố định (`task.plan_item.recurrence`; SCR-0402 trường 12 chỉ
+ * nêu "Hằng tháng", TL-03 thêm "hằng quý" cho kế hoạch lập cho kỳ dài hơn một quý).
+ */
+export type PlanRecurrence = 'HANG_THANG' | 'HANG_QUY';
 
 export const PLAN_RECURRENCE_LABEL: Record<PlanRecurrence, string> = {
   HANG_THANG: 'Hằng tháng',
+  HANG_QUY: 'Hằng quý',
 };
 
 /** Kế hoạch công tác quý của một đơn vị (`task.plan`, lược đồ `Plan` của `tasks.yaml`). */
@@ -47,6 +51,8 @@ export interface Plan {
   currentVersion: PlanVersionSummary;
   /** Phiên bản `DA_DUYET` đang hiệu lực. */
   effectiveVersionNo?: number | null;
+  /** Kỳ trước có kế hoạch đã duyệt của đơn vị, cho nút "Sao chép từ {nhãn}". */
+  previousPeriod?: PeriodRef | null;
   /** Hạn phê duyệt (BR-04-01). */
   approvalDeadline?: string;
   /** Số lần điều chỉnh đã dùng và tối đa trong quý (BR-04-10). */
@@ -65,7 +71,10 @@ export interface PlanVersionSummary {
   itemCount: number;
   submittedAt?: string;
   submittedByName?: string;
+  /** Chức vụ người trình (SCR-0403 vùng 3). */
+  submittedByTitle?: string;
   approvedAt?: string;
+  approvedByName?: string;
 }
 
 /**
@@ -144,9 +153,13 @@ export interface PlanVersion {
   /** Ý kiến của người duyệt (khi trả lại hoặc khi duyệt). */
   reviewComment?: string | null;
   items: PlanItem[];
-  /** Điểm tối đa của từng nhóm theo Policy Pack (BR-04-06). */
-  groupWeights: Record<TaskGroup, number>;
+  /** Điểm tối đa của từng nhóm theo Policy Pack (BR-04-06), kèm luồng và gói áp dụng. */
+  groupWeights: PlanGroupWeights;
   checks: PlanCheck[];
+  /** Lý do chung của lần điều chỉnh (`task.plan_version.change_reason`, BR-04-10). */
+  changeReason?: string | null;
+  /** Dòng của phiên bản trước bị bỏ ở phiên bản điều chỉnh, kèm lý do (BR-04-10). */
+  removedItems?: PlanRemovedItem[];
   /** Yêu cầu ký của esign-service sau "Duyệt và ký số" (SCR-0403 trường 8). */
   signRequestId?: string;
   rowVersion: number;
@@ -154,6 +167,26 @@ export interface PlanVersion {
 
 export interface PlanVersionInput {
   items: PlanItemInput[];
+  /** Ở phiên bản điều chỉnh: dòng phiên bản trước bị bỏ cùng lý do (BR-04-10). */
+  removedItems?: PlanRemovedItem[];
+}
+
+/** Dòng của phiên bản trước bị bỏ, kèm lý do (SCR-0403 trường 3). */
+export interface PlanRemovedItem {
+  originItemId: string;
+  changeReason: string;
+}
+
+/**
+ * Tỷ trọng nhóm của Policy Pack (`group_weights`, BR-04-06) cùng luồng và gói áp dụng (Hình 7.13 vùng 3).
+ */
+export interface PlanGroupWeights {
+  THUONG_XUYEN: number;
+  THEN_CHOT: number;
+  flow?: 'DANG' | 'NHA_NUOC';
+  policyPackCode?: string;
+  policyPackName?: string;
+  policyPackVersion?: string;
 }
 
 /** Loại thay đổi của một dòng khi so sánh hai phiên bản (SCR-0403 trường 2). */
@@ -178,8 +211,8 @@ export interface PlanDiffLine {
 }
 
 /**
- * Kết quả `GET /plans/{id}/versions/{v}/diff?base=`. Phiên bản đầu chưa có phiên bản gốc thì client
- * so với kế hoạch rỗng: `baseVersionNo = 0`, mọi dòng là `THEM` (giả định WEB-065, xem wiki/14).
+ * Kết quả `GET /plans/{id}/versions/{v}/diff?base=`. Phiên bản đầu chưa có phiên bản gốc thì gọi
+ * `base=0`: máy chủ so với kế hoạch rỗng, `baseVersionNo = 0`, mọi dòng là `THEM` (hợp đồng tasks.yaml).
  */
 export interface PlanDiff {
   baseVersionNo: number;
@@ -235,6 +268,6 @@ export interface PlanReview {
   summary?: PlanVersionSummary;
   base?: PlanVersionSummary;
   /** Điểm tối đa nhóm then chốt của phiên bản gốc, để hiện "trước → sau". */
-  baseGroupWeights?: Record<TaskGroup, number>;
+  baseGroupWeights?: PlanGroupWeights;
   diff: PlanDiff;
 }

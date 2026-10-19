@@ -6,8 +6,9 @@
  * Chức năng: "Chỉ hiện thay đổi / Toàn bộ" (`GET …/versions/{v}/diff?base=`), "Trả lại" (`POST …/return`,
  * EVT-21), "Duyệt và ký số" (`POST …/approve` kèm Idempotency-Key trả 202 Job; mã yêu cầu ký đọc ở
  * `PlanVersion.signRequestId`, rồi theo dõi `GET /esign/requests/{id}`; EVT-18, EVT-03).
- * Dữ liệu (WEB-065): `GET /plans/{id}/versions`, `GET …/versions/{v}` và diff ghép ở client; phiên bản đầu
- * so với kế hoạch rỗng (mọi dòng là Thêm).
+ * Dữ liệu (WEB-065): `GET /plans/{id}/versions` (người trình kèm chức danh, người duyệt), `GET …/versions/{v}`
+ * (lý do điều chỉnh, dòng bỏ kèm lý do) và `GET …/diff`; phiên bản đầu gọi `base=0`, máy chủ so với kế hoạch
+ * rỗng (mọi dòng là Thêm).
  * Quy tắc: BR-04-08 người duyệt khác người lập (403), BR-04-09 ký số bắt buộc, phiên bản đã duyệt bất biến,
  * BR-04-10 lần điều chỉnh, BR-04-11 không bỏ việc đã có minh chứng xác nhận, BR-04-12 hạn nhiệm vụ đang
  * làm không đổi; BR-00-02 MFA trong 15 phút (401 `insufficient_user_authentication`).
@@ -240,7 +241,20 @@ const WAITING: EsignRequestStatus[] = ['TAO', 'CHO_XAC_NHAN'];
             </h2>
             <dl class="meta">
               <dt>Người trình</dt>
-              <dd>{{ d.summary?.submittedByName || '—' }}</dd>
+              <dd>
+                {{ d.summary?.submittedByName || '—' }}
+                @if (d.summary?.submittedByTitle) {
+                  <span class="muted">· {{ d.summary?.submittedByTitle }}</span>
+                }
+              </dd>
+              @if (d.summary?.approvedByName) {
+                <dt>Người duyệt</dt>
+                <dd>{{ d.summary?.approvedByName }}</dd>
+              }
+              @if (t.changeReason) {
+                <dt>Lý do điều chỉnh</dt>
+                <dd>{{ t.changeReason }}</dd>
+              }
               @if ((x.adjustmentNo ?? 0) > 0) {
                 <dt>Lần điều chỉnh</dt>
                 <dd>{{ x.adjustmentNo }} / tối đa {{ x.adjustmentsMax }} trong quý</dd>
