@@ -40,7 +40,7 @@ type StoredEvidence = Omit<Evidence, 'task' | 'versions' | 'currentVersionNo' | 
   versions: StoredVersion[];
 };
 type StoredObject = FileObject & { scanPolls: number };
-type StoredUpload = {
+interface StoredUpload {
   uploadId: string;
   body: FileUploadCreate;
   status: 'MO' | 'HOAN_TAT' | 'HUY';
@@ -48,7 +48,7 @@ type StoredUpload = {
   partCount: number;
   parts: Map<number, FileUploadPart>;
   expiresAt: string;
-};
+}
 
 const PART_SIZE = 5 * 1024 * 1024;
 const OPEN: EvidenceVersionStatus[] = ['NHAP', 'DA_NOP', 'DANG_NGHIEM_THU'];
