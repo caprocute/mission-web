@@ -5,6 +5,7 @@ module.exports = withNativeFederation({
 
   exposes: {
     './routes': './projects/fe-task/src/app/task.routes.ts',
+    './plan-routes': './projects/fe-task/src/app/plan.routes.ts',
     './widgets': './projects/fe-task/src/widgets/index.ts',
   },
 

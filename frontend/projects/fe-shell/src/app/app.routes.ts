@@ -3,12 +3,6 @@ import { authGuard, roleGuard } from '@vt/auth';
 import { remoteRoutes } from './remotes';
 import { ShellLayout } from './layout/shell.layout';
 
-const planned = (title: string, wave: string, screens: string) => ({
-  loadComponent: () => import('./pages/planned.page').then((m) => m.PlannedPage),
-  data: { title, wave, screens },
-  title,
-});
-
 export const routes: Routes = [
   {
     path: '',
@@ -22,8 +16,8 @@ export const routes: Routes = [
       // roleGuard giữ như cũ, chặn theo ma trận wiki/15a thuộc WEB-055.
       // fe-okr: QT-02, QT-03 (SCR-0201, SCR-0202, SCR-0203, SCR-0301)
       { path: 'okr', loadChildren: remoteRoutes('feOkr'), title: 'Mục tiêu và OKR' },
-      // QT-04 (SCR-0401, SCR-0402, SCR-0403): chưa chốt remote, xem wiki/02
-      { path: 'plans', ...planned('Kế hoạch công tác quý', 'Giai đoạn 2', 'SCR-0401, SCR-0402, SCR-0403') },
+      // fe-task: QT-04 (SCR-0402, SCR-0403); SCR-0401 ở /tasks/catalog
+      { path: 'plans', loadChildren: remoteRoutes('feTask', './plan-routes'), title: 'Kế hoạch công tác quý' },
       // fe-evidence: QT-07 (SCR-0701, SCR-0703)
       { path: 'evidence', loadChildren: remoteRoutes('feEvidence'), title: 'Sản phẩm và minh chứng' },
       // fe-appraisal: QT-09, QT-10 (SCR-0901 … SCR-0904, SCR-1001, SCR-1002)
