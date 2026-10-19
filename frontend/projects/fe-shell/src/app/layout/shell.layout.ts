@@ -4,7 +4,13 @@ import { Title } from '@angular/platform-browser';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { SessionService } from '@vt/auth';
+import {
+  ContextPickerComponent,
+  MSG_00_06,
+  SessionNoticeComponent,
+  SessionService,
+  StepUpDialogComponent,
+} from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { RUNTIME_CONFIG } from '@vt/api-client';
 import { ButtonModule } from 'primeng/button';
@@ -15,7 +21,17 @@ import { NAV } from './nav';
 /** Khung ứng dụng: thanh trên, menu bên, vùng nội dung (dùng cho mọi màn hình sau đăng nhập). */
 @Component({
   selector: 'vt-shell-layout',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, ButtonModule, AvatarModule, TooltipModule],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    ButtonModule,
+    AvatarModule,
+    TooltipModule,
+    SessionNoticeComponent,
+    ContextPickerComponent,
+    StepUpDialogComponent,
+  ],
   templateUrl: './shell.layout.html',
   styleUrl: './shell.layout.scss',
 })
@@ -24,6 +40,7 @@ export class ShellLayout {
   protected readonly theme = inject(ThemeService);
   protected readonly cfg = inject(RUNTIME_CONFIG);
   protected readonly navOpen = signal(false);
+  protected readonly noAssignmentText = MSG_00_06;
   private readonly title = inject(Title);
 
   /** Tiêu đề trang hiện tại, hiển thị trên thanh trên ở màn hình hẹp. */
@@ -40,6 +57,12 @@ export class ShellLayout {
     return NAV.filter((i) => !i.roles || (u && i.roles.some((r) => u.roles.includes(r))));
   });
   protected readonly initials = computed(() =>
-    (this.session.user()?.name ?? '?').split(' ').filter(Boolean).slice(-2).map((w) => w[0]).join('').toUpperCase(),
+    (this.session.user()?.name ?? '?')
+      .split(' ')
+      .filter(Boolean)
+      .slice(-2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase(),
   );
 }

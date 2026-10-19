@@ -1,6 +1,13 @@
 <a class="skip-link" href="#main">Bỏ qua tới nội dung chính</a>
 <header class="topbar">
-  <button pButton type="button" icon="pi pi-bars" class="p-button-text menu-btn" aria-label="Mở menu" (click)="navOpen.set(!navOpen())"></button>
+  <button
+    pButton
+    type="button"
+    icon="pi pi-bars"
+    class="p-button-text menu-btn"
+    aria-label="Mở menu"
+    (click)="navOpen.set(!navOpen())"
+  ></button>
   <a routerLink="/" class="brand">
     @if (theme.logoUrl(); as logo) {
       <img [src]="logo" alt="" height="32" />
@@ -10,24 +17,79 @@
   <span class="page-title">{{ pageTitle() }}</span>
   <span class="spacer"></span>
   <span class="cell-badge" pTooltip="Cell đang phục vụ">{{ cfg.cell }}</span>
-  <button pButton type="button" class="p-button-text" [icon]="theme.mode() === 'elderly' ? 'pi pi-eye-slash' : 'pi pi-eye'"
-    [label]="theme.mode() === 'elderly' ? 'Chữ thường' : 'Chữ lớn'" [attr.aria-pressed]="theme.mode() === 'elderly'"
-    (click)="theme.toggleElderly()"></button>
+  @if (session.assignment(); as a) {
+    <span class="unit-name">{{ a.orgUnitName }}</span>
+  }
+  @if (session.canSwitchContext()) {
+    <!-- SCR-0002 "Đổi phân công" (QT-00 bước 7) -->
+    <button
+      pButton
+      type="button"
+      class="p-button-text"
+      icon="pi pi-sitemap"
+      label="Đổi phân công"
+      (click)="session.switchContext()"
+    ></button>
+  }
+  <button
+    pButton
+    type="button"
+    class="p-button-text"
+    [icon]="theme.mode() === 'elderly' ? 'pi pi-eye-slash' : 'pi pi-eye'"
+    [label]="theme.mode() === 'elderly' ? 'Chữ thường' : 'Chữ lớn'"
+    [attr.aria-pressed]="theme.mode() === 'elderly'"
+    (click)="theme.toggleElderly()"
+  ></button>
   @if (session.user(); as u) {
     <p-avatar [label]="initials()" shape="circle" [attr.aria-label]="u.name" />
     <span class="user-name">{{ u.name }}</span>
-    <button pButton type="button" icon="pi pi-sign-out" class="p-button-text" aria-label="Đăng xuất" (click)="session.logout()"></button>
+    <button
+      pButton
+      type="button"
+      icon="pi pi-sign-out"
+      class="p-button-text"
+      aria-label="Đăng xuất"
+      (click)="session.logout()"
+    ></button>
   }
 </header>
 <div class="body">
   <nav class="sidenav" [class.open]="navOpen()" aria-label="Menu chính">
     @for (item of nav(); track item.link) {
-      <a [routerLink]="item.link" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.link === '/' }" (click)="navOpen.set(false)">
+      <a
+        [routerLink]="item.link"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: item.link === '/' }"
+        (click)="navOpen.set(false)"
+      >
         <i [class]="item.icon" aria-hidden="true"></i><span>{{ item.label }}</span>
       </a>
     }
   </nav>
   <main id="main" class="content" tabindex="-1">
-    <router-outlet />
+    <vt-session-notice />
+    @if (session.contextStatus() === 'KHONG_PHAN_CONG') {
+      <!-- QT-00 ngoại lệ: không có phân công còn hiệu lực thì không vào trang chủ (MSG-00-06) -->
+      <section class="no-assignment">
+        <h1>Chưa có phân công công tác</h1>
+        <p>{{ noAssignmentText }}</p>
+        <button
+          pButton
+          type="button"
+          icon="pi pi-sign-out"
+          label="Đăng xuất"
+          (click)="session.logout()"
+        ></button>
+      </section>
+    } @else {
+      <router-outlet />
+    }
   </main>
 </div>
+<!-- Hộp chọn phân công và hộp MFA bước lên nạp lười khi cần (giữ gói tải đầu nhỏ) -->
+@defer (when session.contextStatus() === 'CAN_CHON') {
+  <vt-context-picker />
+}
+@defer (when !!session.stepUpRequest()) {
+  <vt-step-up-dialog />
+}

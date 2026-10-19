@@ -1,7 +1,7 @@
 # Tệp hợp đồng MẪU của mission-core (WEB-007), viết tay khi chưa có tệp OpenAPI 3.1 thật
 # do springdoc sinh. Khi mission-core phát hành hợp đồng, thay tệp này bằng bản thật rồi chạy
-# `npm run api:gen`. Phạm vi mẫu: MOD-02 `/api/v1/tasks` (QT-05, QT-06; SCR-0503, SCR-0601)
-# và `/api/v1/jobs/{id}` (tác vụ dài, baseline mục 13; TL-01 Phụ lục C).
+# `npm run api:gen`. Phạm vi mẫu: MOD-02 `/api/v1/tasks` (QT-05, QT-06; SCR-0503, SCR-0601),
+# `/api/v1/org/me` (QT-00, WEB-006) và `/api/v1/jobs/{id}` (tác vụ dài, baseline mục 13; TL-01 Phụ lục C).
 # Lưu ý: kiểu nhiệm vụ trong mã (`models/task.ts`) vẫn viết tay vì WEB-031 mở rộng nhiều trường
 # hơn bản mẫu này; khi có hợp đồng thật thì chuyển sang bí danh kiểu sinh như ProblemDetails, Job.
 # Đường dẫn bám mã hiện tại; các điểm lệch với TL (tasks/mine, POST progress) xem wiki/06.
@@ -74,6 +74,39 @@ paths:
               schema: { $ref: '#/components/schemas/TaskDetail' }
         '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
+        default: { $ref: '#/components/responses/Problem' }
+  /org/me:
+    get:
+      operationId: getMyOrgProfile
+      summary: Người dùng hiện tại và các phân công còn hiệu lực (QT-00 bước 7, SCR-0001)
+      responses:
+        '200':
+          description: Hồ sơ và phân công
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyOrgProfile' }
+        default: { $ref: '#/components/responses/Problem' }
+  /org/me/context:
+    put:
+      operationId: setMyContext
+      summary: Ghi ngữ cảnh phiên (phân công đang làm việc); client làm mới token để nhận claim org
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignmentId]
+              properties:
+                assignmentId: { type: string }
+      responses:
+        '200':
+          description: Ngữ cảnh đã ghi
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkContext' }
         default: { $ref: '#/components/responses/Problem' }
   /jobs/{id}:
     get:
@@ -229,6 +262,45 @@ components:
         resultLocation: { type: string, description: Đường dẫn kết quả khi HOAN_TAT }
         problem: { $ref: '#/components/schemas/ProblemDetails' }
         updatedAt: { type: string, format: date-time }
+    AssignmentKind:
+      description: Loại phân công (TL-03 org.assignment.kind)
+      type: string
+      enum: [CHINH, KIEM_NHIEM, DIEU_DONG, BIET_PHAI, TAM_GIU]
+    Assignment:
+      description: Phân công còn hiệu lực (org_replica.assignment_v) kèm vai trò (config.role_binding)
+      type: object
+      required: [id, orgUnitId, orgUnitName, jobTitleName, kind, branch, roles, validFrom]
+      properties:
+        id: { type: string }
+        orgUnitId: { type: string }
+        orgUnitName: { type: string }
+        jobTitleName: { type: string }
+        kind: { $ref: '#/components/schemas/AssignmentKind' }
+        branch: { type: string, enum: [DANG, CHINH_QUYEN] }
+        roles:
+          type: array
+          items: { type: string }
+        validFrom: { type: string, format: date }
+        validTo: { type: [string, 'null'], format: date }
+    MyOrgProfile:
+      type: object
+      required: [personId, fullName, assignments]
+      properties:
+        personId: { type: string }
+        fullName: { type: string }
+        assignments:
+          type: array
+          items: { $ref: '#/components/schemas/Assignment' }
+        lastAssignmentId: { type: [string, 'null'], description: Phân công dùng lần trước (chọn sẵn) }
+    WorkContext:
+      type: object
+      required: [assignmentId, orgUnitId, roles]
+      properties:
+        assignmentId: { type: string }
+        orgUnitId: { type: string }
+        roles:
+          type: array
+          items: { type: string }
     FieldError:
       type: object
       required: [field, message]

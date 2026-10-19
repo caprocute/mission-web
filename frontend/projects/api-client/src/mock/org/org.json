@@ -1,5 +1,5 @@
 {
-  "$comment": "Fixture module org (/api/v1/org): bản sao cây tổ chức của đơn vị người dùng (task.org_replica). WEB-028 dùng để chọn chủ trì, phối hợp, người nghiệm thu, đơn vị nhận khi giao đồng loạt. Dữ liệu hư cấu.",
+  "$comment": "Fixture module org (/api/v1/org): bản sao cây tổ chức của đơn vị người dùng (task.org_replica). WEB-028 dùng để chọn chủ trì, phối hợp, người nghiệm thu, đơn vị nhận khi giao đồng loạt. Dữ liệu hư cấu. WEB-006 (QT-00): profile và assignments cho /api/v1/org/me. Mặc định một phân công; thêm ?mock-org=kiem-nhiem vào URL trang để có ba phân công (chọn đơn vị khi kiêm nhiệm), ?mock-org=khong-phan-cong để thử MSG-00-06. Khi có access token (Keycloak dev), vai trò lấy từ realm_access.roles của token.",
   "me": "p-chau",
   "units": [
     {
@@ -150,5 +150,45 @@
     }
   ],
   "weekLabels": ["Tuần 4", "Tuần 5", "Tuần 6"],
-  "weeklyThreshold": 3
+  "weeklyThreshold": 3,
+  "profile": {
+    "personId": "0192a0f0-0004-7000-8000-000000000001",
+    "fullName": "Cán bộ thử nghiệm",
+    "lastAssignmentId": "pc-chinh"
+  },
+  "assignments": [
+    {
+      "id": "pc-chinh",
+      "orgUnitId": "phong-tong-hop",
+      "orgUnitName": "Phòng Tổng hợp",
+      "jobTitleName": "Chuyên viên chính",
+      "kind": "CHINH",
+      "branch": "CHINH_QUYEN",
+      "roles": ["member", "manager"],
+      "validFrom": "@today-400",
+      "validTo": null
+    },
+    {
+      "id": "pc-chi-bo",
+      "orgUnitId": "chi-bo-co-quan",
+      "orgUnitName": "Chi bộ Cơ quan",
+      "jobTitleName": "Bí thư Chi bộ",
+      "kind": "KIEM_NHIEM",
+      "branch": "DANG",
+      "roles": ["member", "leader"],
+      "validFrom": "@today-200",
+      "validTo": null
+    },
+    {
+      "id": "pc-tham-dinh",
+      "orgUnitId": "hoi-dong-tham-dinh",
+      "orgUnitName": "Hội đồng thẩm định Quý IV/2026",
+      "jobTitleName": "Thành viên thẩm định",
+      "kind": "KIEM_NHIEM",
+      "branch": "CHINH_QUYEN",
+      "roles": ["member", "appraiser"],
+      "validFrom": "@today-30",
+      "validTo": "@today+60"
+    }
+  ]
 }

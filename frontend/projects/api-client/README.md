@@ -14,6 +14,10 @@ Cấu hình chạy, interceptor, Problem Details (RFC 9457), phân trang con tr�
 
 ## Dữ liệu giả lập (WEB-008)
 
+Module `org` (WEB-006): `GET /api/v1/org/me`, `PUT /api/v1/org/me/context`; `?mock-org=kiem-nhiem` cho ba phân công,
+`?mock-org=khong-phan-cong` cho trường hợp không có phân công (MSG-00-06).
+
+
 Client (như `TaskApi`) luôn gọi HTTP thật. Khi `useMockApi` bật trong `/config.json`,
 `mockApiInterceptor` (đặt cuối chuỗi interceptor) trả fixture JSON theo đường dẫn `/api/v1/<module>/...`,
 nên interceptor `Idempotency-Key`, `If-Match`, lỗi RFC 9457 chạy như với máy chủ thật.
@@ -23,8 +27,8 @@ nên interceptor `Idempotency-Key`, `If-Match`, lỗi RFC 9457 chạy như với
 - Hành vi mô phỏng: `If-Match` cũ trả 409; dữ liệu sai trả 422 kèm `errors[]`; cùng `Idempotency-Key` trả lại
   kết quả lần đầu, khác nội dung trả 422; tăng `rowVersion`; `DA_GIAO` → `DANG_THUC_HIEN` khi có tiến độ đầu tiên.
 - Độ trễ 100–200 ms (đổi bằng `MOCK_API_OPTIONS` hoặc `?mock-delay=<ms>` trên URL trang).
-- Lỗi giả lập: thêm `?mock-error=409|422|500` vào URL trang (hoặc tham số `mock-error` của request).
-  409, 412, 422 chỉ áp cho lệnh ghi (POST/PUT/PATCH/DELETE); mã khác (500, 503...) áp cho mọi request `/api/v1/`.
+- Lỗi giả lập: thêm `?mock-error=401|403|409|422|500` vào URL trang (hoặc tham số `mock-error` của request).
+  401 là yêu cầu bước lên MFA (RFC 9470), chỉ đòi một lần cho mỗi `Idempotency-Key`. 401, 409, 412, 422 chỉ áp cho lệnh ghi (POST/PUT/PATCH/DELETE); mã khác (500, 503...) áp cho mọi request `/api/v1/`.
 - Mã giả lập nằm trong chunk nạp lười `mock-registry`, không vào gói tải đầu. Dữ liệu sống trong bộ nhớ,
   tải lại trang là về fixture ban đầu. Chưa giả lập WebSocket/SSE.
 
