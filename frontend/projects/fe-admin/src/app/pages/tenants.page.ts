@@ -67,7 +67,7 @@ export const MSG_01_02 = (tenant: string, step: number) =>
     <header class="head">
       <div>
         <h1>Danh sách tenant</h1>
-        <p class="muted">Vùng điều phối toàn cục · tenant-registry (SVC-03)</p>
+        <p class="muted">Các đơn vị đang sử dụng nền tảng và tải của từng cụm máy chủ</p>
       </div>
       <div class="actions">
         @if (can('SCR-0101.xuat') && !simple()) {
@@ -103,7 +103,7 @@ export const MSG_01_02 = (tenant: string, step: number) =>
         <div class="card first">
           <p class="label">Tenant đang vận hành</p>
           <p class="big">{{ int(o.activeTenants) }}</p>
-          <p class="muted small">giới hạn thiết kế {{ int(o.tenantLimit) }} (NFR-01)</p>
+          <p class="muted small">giới hạn thiết kế {{ int(o.tenantLimit) }}</p>
         </div>
         <div class="card">
           <p class="label">Tài khoản</p>
