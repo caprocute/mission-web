@@ -6,7 +6,12 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "lint": "eslint .",
+    "format": "prettier --write \"projects/**/*.{ts,html,scss,css,json}\" \"*.{js,json}\"",
+    "format:check": "prettier --check \"projects/**/*.{ts,html,scss,css,json}\" \"*.{js,json}\"",
+    "test:all": "for p in design-system auth sdui-renderer form-engine telemetry api-client fe-task fe-shell; do if [ -n \"$(find projects/$p -name '*.spec.ts' -print -quit)\" ]; then ng test $p --watch=false || exit 1; else echo \"[test:all] $p: chưa có tệp *.spec.ts, bỏ qua\"; fi; done",
+    "build:all": "ng build fe-task && ng build fe-shell"
   },
   "private": true,
   "packageManager": "npm@10.9.4",
@@ -38,10 +43,13 @@
     "@angular/cli": "^21.2.27",
     "@angular/compiler-cli": "^21.2.0",
     "@types/json-schema": "^7.0.15",
+    "angular-eslint": "^21.4.0",
+    "eslint": "^9.39.5",
     "jsdom": "^28.0.0",
     "ng-packagr": "^21.2.0",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2",
+    "typescript-eslint": "^8.71.2",
     "vitest": "^4.0.8"
   }
 }
