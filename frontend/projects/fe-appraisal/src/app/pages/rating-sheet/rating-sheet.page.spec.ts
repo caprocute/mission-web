@@ -210,7 +210,7 @@ describe('RatingSheetPage (SCR-0903, WEB-037)', () => {
       /^Kết quả xếp loại Quý III\/2026 của đồng chí Trần Minh Hoàng đã được quyết định: Hoàn thành tốt nhiệm vụ\. Thời hạn khiếu nại đến hết ngày \d\d\/\d\d\/\d{4}\.$/,
     );
     expect(button(el, 'Gửi khiếu nại')?.getAttribute('href')).toContain(
-      '/oversight/complaints/new',
+      '/oversight/my-complaints/new',
     );
     button(el, 'Tải Mẫu 1B (PDF/A)')!.click();
     const link = await until(el, 'a[download]');
