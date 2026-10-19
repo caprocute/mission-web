@@ -29,6 +29,7 @@ import {
   MyTasksQuery,
   MyTasksQuickFilter,
   TASK_GROUP_LABEL,
+  TASK_STATUS_LABEL,
   TaskApi,
   TaskDetail,
   TaskGroup,
@@ -270,7 +271,7 @@ export function readSavedFilters(
                     />
                   </td>
                   @if (!reduced()) {
-                    <td class="status">{{ t.status }}</td>
+                    <td class="status">{{ statusLabel[t.status] }}</td>
                   }
                 </tr>
               } @empty {
@@ -549,6 +550,7 @@ export class MyTasksPage {
   ];
   protected readonly quickLabel = MY_TASKS_QUICK_FILTER_LABEL;
   protected readonly groupLabel = TASK_GROUP_LABEL;
+  protected readonly statusLabel = TASK_STATUS_LABEL;
   protected readonly pageSize = PAGE_SIZE;
   protected readonly roleOptions = [
     { label: 'Chủ trì', value: 'CHU_TRI' },
