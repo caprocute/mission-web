@@ -15,14 +15,14 @@ export const TEXT_IDP_UNAVAILABLE =
 /** Tên vai trò tiếng Việt để hiển thị (baseline mục 10, AC-01 đến AC-12). */
 export const ROLE_LABEL: Record<string, string> = {
   platform_admin: 'Quản trị nền tảng',
-  tenant_admin: 'Quản trị tenant',
-  policy_author: 'Người soạn chính sách',
-  leader: 'Lãnh đạo',
-  manager: 'Quản lý',
-  member: 'Cán bộ',
-  appraiser: 'Thẩm định',
-  decider: 'Người quyết định',
+  tenant_admin: 'Quản trị đơn vị',
+  policy_author: 'Quản trị nghiệp vụ',
+  leader: 'Lãnh đạo đơn vị',
+  manager: 'Cán bộ quản lý trực tiếp',
+  member: 'Cán bộ, công chức, viên chức',
+  appraiser: 'Cán bộ thẩm định',
+  decider: 'Người có thẩm quyền quyết định',
   second_approver: 'Người duyệt thứ hai',
-  inspector: 'Giám sát, thanh tra',
+  inspector: 'Cán bộ kiểm tra, giám sát',
   ai_readonly: 'Trợ lý AI',
 };

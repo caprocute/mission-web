@@ -58,7 +58,7 @@ describe('ContextPickerComponent', () => {
     const radios = [...el.querySelectorAll<HTMLInputElement>('input[type=radio]')];
     expect(radios.map((r) => r.value)).toEqual(['chinh', 'td']);
     expect(radios[0].checked).toBe(true);
-    expect(el.textContent).toContain('Vai trò Thẩm định yêu cầu xác thực nhiều lớp');
+    expect(el.textContent).toContain('Vai trò Cán bộ thẩm định yêu cầu xác thực nhiều lớp');
     expect(dialog.getAttribute('aria-labelledby')).toBe('vt-ctx-title');
   });
 
@@ -85,7 +85,7 @@ describe('ContextPickerComponent', () => {
     step.detectChanges();
     const stepEl = step.nativeElement as HTMLElement;
     expect(stepEl.querySelector('dialog')!.hasAttribute('open')).toBe(true);
-    expect(stepEl.textContent).toContain('Vai trò Thẩm định');
+    expect(stepEl.textContent).toContain('Vai trò Cán bộ thẩm định');
     expect(org.setContext).not.toHaveBeenCalled();
     await session.confirmStepUp();
     await new Promise((r) => setTimeout(r, 0));

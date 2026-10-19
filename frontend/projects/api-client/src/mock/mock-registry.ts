@@ -57,7 +57,10 @@ export function handleMockRequest(req: Omit<MockRequest, 'pathParams'>): MockRes
       if (prev) {
         return prev.fingerprint === fingerprint
           ? prev.res
-          : problem(422, 'Idempotency-Key đã dùng cho một yêu cầu khác');
+          : problem(
+              422,
+              'Yêu cầu này đã được gửi trước đó với nội dung khác, vui lòng tải lại trang',
+            );
       }
       const res = route.handle({ ...req, pathParams });
       if (res.status < 500) idempotency.set(key, { fingerprint, res });
@@ -65,7 +68,7 @@ export function handleMockRequest(req: Omit<MockRequest, 'pathParams'>): MockRes
     }
   }
   console.warn(`[mock-api] Chưa có fixture cho ${req.method} ${req.path}`);
-  return problem(404, `Chưa có dữ liệu giả lập cho ${req.method} ${req.path}`);
+  return problem(404, 'Không tìm thấy dữ liệu');
 }
 
 /** Đưa mọi module về dữ liệu fixture ban đầu (dùng trong kiểm thử). */

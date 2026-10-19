@@ -28,7 +28,9 @@ describe('toProblem (RFC 9457)', () => {
     expect(toProblem(httpError(412)).title).toMatch(/người khác cập nhật/);
     expect(toProblem(httpError(503, '<html>')).title).toMatch(/quá tải/);
     expect(toProblem(httpError(0)).title).toMatch(/kết nối/);
-    expect(toProblem(new Error('x'))).toMatchObject({ status: 0, detail: 'Error: x' });
+    const p = toProblem(new Error('x'));
+    expect(p).toMatchObject({ status: 0 });
+    expect(p.detail).toBeUndefined();
   });
 });
 

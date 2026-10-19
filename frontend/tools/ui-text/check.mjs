@@ -2,7 +2,8 @@
 // kỹ thuật và ghi chú giải pháp lộ ra màn hình. Quét văn bản trong template Angular (nút văn bản,
 // thuộc tính tĩnh, chuỗi trong biểu thức) và chuỗi dạng câu trong mã TypeScript, kể cả dữ liệu giả lập.
 // Cách dùng: `npm run check:ui-text` (thêm `--json` để in kết quả dạng JSON).
-// Bỏ qua có chủ đích: đặt chú thích `ui-text-ok: <lý do>` ngay trên dòng (TS) hoặc trong `<!-- -->` (HTML).
+// Bỏ qua có chủ đích: đặt chú thích `ui-text-ok: <lý do>` ngay trên chuỗi (TS) hoặc trong `<!-- -->` (HTML);
+// chú thích có hiệu lực cho chính dòng đó và ba dòng tiếp theo.
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -112,10 +113,7 @@ function exprStrings(ast, cb) {
 function ignoredLines(src) {
   const set = new Set();
   src.split('\n').forEach((l, i) => {
-    if (/ui-text-ok/.test(l)) {
-      set.add(i + 1);
-      set.add(i + 2);
-    }
+    if (/ui-text-ok/.test(l)) for (let k = 1; k <= 4; k++) set.add(i + k);
   });
   return set;
 }

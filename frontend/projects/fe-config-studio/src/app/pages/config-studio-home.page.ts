@@ -6,11 +6,8 @@ import { MessageModule } from 'primeng/message';
   selector: 'vt-config-studio-home-page',
   imports: [MessageModule],
   template: `
-    <h1>Config Studio</h1>
-    <p-message severity="info">
-      Phân hệ Config Studio (remote fe-config-studio) đã có khung, các màn hình đang được phát
-      triển: SCR-1501 … SCR-1504, SCR-1801, SCR-1802.
-    </p-message>
+    <h1>Cấu hình nghiệp vụ</h1>
+    <p-message severity="info">Chức năng này đang được chuẩn bị đưa vào sử dụng.</p-message>
   `,
   styles: `
     h1 {

@@ -152,7 +152,9 @@ describe('SessionService: AAL2 và bước lên (BR-00-01, BR-00-02)', () => {
     expect(requiresAal2(THAM_DINH)).toBe(true);
     expect(requiresAal2(CHINH)).toBe(false);
     expect(session.canUse(THAM_DINH)).toBe(false);
-    expect(session.aal2Reason(THAM_DINH)).toContain('Vai trò Thẩm định yêu cầu xác thực nhiều lớp');
+    expect(session.aal2Reason(THAM_DINH)).toContain(
+      'Vai trò Cán bộ thẩm định yêu cầu xác thực nhiều lớp',
+    );
   });
 
   it('chọn phân công AAL2: mở hộp bước lên, xác thực xong mới ghi ngữ cảnh', async () => {

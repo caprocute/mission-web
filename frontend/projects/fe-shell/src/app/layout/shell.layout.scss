@@ -50,14 +50,6 @@
   display: none;
   font-weight: 600;
 }
-.cell-badge {
-  font-size: 0.75rem;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--vt-color-primary) 10%, white);
-  /* chữ đậm hơn màu nhận diện để đạt 4,5:1 trên nền hồng nhạt (WEB-059) */
-  color: var(--vt-color-primary-strong, #d1002d);
-}
 .user-name {
   font-weight: 500;
 }
@@ -118,7 +110,6 @@
   }
   .user-name,
   .unit-name,
-  .cell-badge,
   .brand small {
     display: none;
   }

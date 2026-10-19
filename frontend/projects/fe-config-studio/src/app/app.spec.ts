@@ -20,7 +20,7 @@ describe('fe-config-studio', () => {
     const fixture = TestBed.createComponent(ConfigStudioHomePage);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent).toBe(
-      'Config Studio',
+      'Cấu hình nghiệp vụ',
     );
   });
 });

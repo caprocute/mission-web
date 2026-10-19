@@ -28,6 +28,7 @@ export function miniPdf(lines: string[]): Blob {
   const text = lines
     .map((l, i) => `BT /F1 ${i === 0 ? 16 : 11} Tf 56 ${780 - i * 22} Td (${ascii(l)}) Tj ET`)
     .join('\n');
+  // ui-text-ok: lệnh vẽ dấu "BẢN NHÁP" trong tệp PDF mẫu, không phải văn bản giao diện
   const stamp = 'BT /F1 48 Tf 0.85 g 140 420 Td (BAN NHAP) Tj ET';
   const content = `${stamp}\n${text}`;
   const objects = [
