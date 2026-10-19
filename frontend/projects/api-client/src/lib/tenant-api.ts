@@ -15,13 +15,14 @@ import {
   UiPackOption,
 } from './models/tenant-onboarding';
 import {
-  CellLoad,
+  ConfigTenant,
+  RegistryTenant,
   TenancyModel,
-  TenantDetail,
-  TenantOverview,
+  TenantExportRequest,
   TenantPage,
   TenantStatus,
 } from './models/tenant';
+import { apiUrl } from './api-path';
 
 /** Lọc danh sách tenant (SCR-0101 vùng 1). */
 export interface TenantQuery extends CursorQuery {
@@ -41,43 +42,35 @@ function filterParams(query: Omit<TenantQuery, 'cursor' | 'limit'>): HttpParams 
 }
 
 /**
- * Client cho danh bạ tenant `/api/v1/config/tenants` của SVC-03 tenant-registry (QT-01, SCR-0101),
- * đọc qua MOD-08 ở vùng điều phối toàn cục; chỉ `platform_admin` trong phiên AAL2 được gọi.
+ * Client cho danh bạ tenant `/api/v1/config/tenants` của MOD-08 ở vùng điều phối toàn cục (QT-01,
+ * SCR-0101) theo `config.yaml`, và bản ghi danh bạ `/api/v1/registry/tenants/{id}` của SVC-03 theo
+ * `platform.yaml`; chỉ `platform_admin` trong phiên AAL2 được gọi.
  */
 @Injectable({ providedIn: 'root' })
 export class TenantApi {
   private readonly http = inject(HttpClient);
 
-  /** Bốn thẻ tổng quan, tenant đang khởi tạo và việc cần xử lý. */
-  overview(): Observable<TenantOverview> {
-    return this.http.get<TenantOverview>('/api/v1/config/tenants/overview');
-  }
-
-  /** `GET /api/v1/config/tenants?cell=&model=&status=&cursor=`. */
+  /** Một trang tenant kèm `summary`: bốn chỉ số đầu trang và tải theo cell (trường 9). */
   list(query: TenantQuery = {}): Observable<TenantPage> {
     let params = filterParams(query).set('limit', Math.min(query.limit ?? 8, MAX_PAGE_LIMIT));
     if (query.cursor) params = params.set('cursor', query.cursor);
-    return this.http.get<TenantPage>('/api/v1/config/tenants', { params });
+    return this.http.get<TenantPage>(apiUrl('/config/tenants'), { params });
   }
 
-  /** Tải theo cell (trường 9). */
-  cells(): Observable<CellLoad[]> {
-    return this.http
-      .get<{ items: CellLoad[] }>('/api/v1/config/cells', { params: { limit: MAX_PAGE_LIMIT } })
-      .pipe(map((r) => r.items));
+  /** Chi tiết tenant và cấu hình khởi tạo. */
+  get(id: string): Observable<ConfigTenant> {
+    return this.http.get<ConfigTenant>(apiUrl('/config/tenants/{id}', { id }));
   }
 
-  get(id: string): Observable<TenantDetail> {
-    return this.http.get<TenantDetail>(`/api/v1/config/tenants/${encodeURIComponent(id)}`);
+  /** Bản ghi danh bạ: cell hiện hành và các tên miền (`registry.tenant_domain`). */
+  registry(id: string): Observable<RegistryTenant> {
+    return this.http.get<RegistryTenant>(apiUrl('/registry/tenants/{id}', { id }));
   }
 
   /** Xuất danh sách theo bộ lọc hiện tại: 202 + `Location` của tác vụ (theo dõi bằng `JobTracker`). */
-  export(query: Omit<TenantQuery, 'cursor' | 'limit'>): Observable<string> {
+  export(body: TenantExportRequest): Observable<string> {
     return this.http
-      .post('/api/v1/config/tenants/export', null, {
-        params: filterParams(query),
-        observe: 'response',
-      })
+      .post(apiUrl('/config/tenants/export'), body, { observe: 'response' })
       .pipe(map((res: HttpResponse<unknown>) => jobLocation(res) ?? ''));
   }
 

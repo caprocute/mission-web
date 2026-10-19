@@ -47,7 +47,7 @@ const names = (el: HTMLElement) => [...el.querySelectorAll('.tbl tbody .name')].
 describe('TenantsPage (SCR-0101)', () => {
   it('thẻ tổng quan, bảng 8 dòng, trạng thái khởi tạo n/6, MSG-01-01 và MSG-01-02', async () => {
     const el = (await render()).nativeElement as HTMLElement;
-    expect(text(el.querySelector('.cards'))).toContain('giới hạn thiết kế 5.000 (NFR-01)');
+    expect(text(el.querySelector('.cards'))).toContain('giới hạn thiết kế 5.000');
     expect(names(el)).toHaveLength(8);
     expect(text(el.querySelector('.tbl tbody'))).toContain('Đang khởi tạo 4/6');
     expect(text(el.querySelector('.notices'))).toContain(
@@ -56,7 +56,8 @@ describe('TenantsPage (SCR-0101)', () => {
     expect(text(el.querySelector('aside'))).toContain(
       'Cell CELL-HCM đã sử dụng 91% dung lượng thiết kế. Đề nghị lập kế hoạch mở cell mới.',
     );
-    expect(text(el.querySelector('.pager'))).toContain('Hiển thị 1–8 trong 35');
+    expect(text(el.querySelector('.pager'))).toContain('Hiển thị 1–8');
+    expect(text(el.querySelector('.cards'))).toContain('cell vượt 85%');
   });
 
   it('trang sau và trang trước theo con trỏ', async () => {

@@ -9,7 +9,7 @@ import {
   TenantStatus,
 } from '@vt/api-client';
 import { MessageModule } from 'primeng/message';
-import { errorText, fmtDate, fmtDateTime, fmtInt } from '../admin-ui';
+import { errorText, fmtDate, fmtInt } from '../admin-ui';
 import { MSG_01_02 } from './tenants.page';
 
 const FLOW_LABEL = { DANG: 'Đảng', NHA_NUOC: 'Nhà nước' } as const;
@@ -20,8 +20,10 @@ const DOMAIN_KIND_LABEL = {
 } as const;
 
 /**
- * Chi tiết tenant, mở từ nút "Chi tiết" của SCR-0101 (`GET /api/v1/config/tenants/{id}`). TL-02 không
- * vẽ màn hình riêng nên trang chỉ đọc, hiện các cột của `registry.tenant`, tên miền và nhật ký trạng thái.
+ * Chi tiết tenant, mở từ nút "Chi tiết" của SCR-0101. TL-02 không vẽ màn hình riêng nên trang chỉ đọc:
+ * thông tin tenant lấy từ `GET /config/tenants/{id}` (`ConfigTenant`), tên miền lấy từ
+ * `GET /registry/tenants/{id}` (`RegistryTenant`). Hợp đồng chưa có nhật ký trạng thái
+ * (`registry.tenant_status_log`) và tên UI Pack nên trang chưa hiện hai phần đó (wiki/14).
  */
 @Component({
   selector: 'vt-tenant-detail-page',
@@ -53,22 +55,25 @@ const DOMAIN_KIND_LABEL = {
             <dt>Trạng thái</dt>
             <dd>{{ status(t.status) }}</dd>
             <dt>Nhóm khách hàng</dt>
-            <dd>{{ sector(t.sector) }}</dd>
+            <dd>{{ t.sector ? sector(t.sector) : '—' }}</dd>
             <dt>Luồng đánh giá</dt>
             <dd>{{ flows() }}</dd>
             <dt>Cell, mô hình</dt>
-            <dd>{{ t.cellCode }} · {{ t.tenancyModel }} · vùng dữ liệu {{ t.dataRegion }}</dd>
+            <dd>
+              {{ t.cellCode ?? '—' }} · {{ t.tenancyModel ?? '—' }}
+              @if (t.dataRegion) {
+                · vùng dữ liệu {{ t.dataRegion }}
+              }
+            </dd>
             <dt>Tài khoản</dt>
             <dd>
-              {{ int(t.accountCount) }} / hạn mức {{ int(t.maxAccounts) }}
+              {{ int(t.accountCount ?? 0) }} / hạn mức {{ int(t.maxAccounts ?? 0) }}
               @if (t.expectedAccounts) {
                 · dự kiến {{ int(t.expectedAccounts) }}
               }
             </dd>
             <dt>Policy Pack đang gắn</dt>
-            <dd>{{ t.policyPacks.length ? t.policyPacks.join(' + ') : 'Chưa gắn' }}</dd>
-            <dt>UI Pack</dt>
-            <dd>{{ t.uiPack }}</dd>
+            <dd>{{ packs() || 'Chưa gắn' }}</dd>
             <dt>Hợp đồng</dt>
             <dd>
               {{ t.contractRef ?? '—' }}
@@ -81,37 +86,23 @@ const DOMAIN_KIND_LABEL = {
         <div>
           <section class="box" aria-labelledby="dom-title">
             <h2 id="dom-title" class="h">Tên miền</h2>
+            @if (reg.error()) {
+              <p class="muted">{{ err(reg.error(), 'Không tải được tên miền.') }}</p>
+            }
             <ul>
-              @for (d of t.domains; track d.domain) {
+              @for (d of domains(); track d.domain) {
                 <li>
                   {{ d.domain }} <span class="muted">({{ domainKind[d.kind] }})</span>
                   @if (d.verifiedAt) {
                     <span class="muted"> · đã xác minh {{ date(d.verifiedAt) }}</span>
                   }
                 </li>
+              } @empty {
+                @if (t.domain) {
+                  <li>{{ t.domain }} <span class="muted">(chính)</span></li>
+                }
               }
             </ul>
-          </section>
-          <section class="box" aria-labelledby="log-title">
-            <h2 id="log-title" class="h">Nhật ký trạng thái</h2>
-            @if (t.statusLog.length) {
-              <ol class="log">
-                @for (l of t.statusLog; track l.at) {
-                  <li>
-                    <span class="muted">{{ dateTime(l.at) }}</span> ·
-                    @if (l.from) {
-                      {{ status(l.from) }} →
-                    }
-                    {{ status(l.to) }}
-                    @if (l.reason) {
-                      <span class="muted"> · {{ l.reason }}</span>
-                    }
-                  </li>
-                }
-              </ol>
-            } @else {
-              <p class="muted">Chưa có thay đổi trạng thái được ghi.</p>
-            }
           </section>
         </div>
       </div>
@@ -167,8 +158,7 @@ const DOMAIN_KIND_LABEL = {
     dd {
       margin: 0;
     }
-    ul,
-    .log {
+    ul {
       margin: 0;
       padding-left: 20px;
       display: grid;
@@ -205,7 +195,19 @@ export class TenantDetailPage {
     params: () => this.id(),
     stream: ({ params }) => this.api.get(params),
   });
+  protected readonly reg = rxResource({
+    params: () => this.id(),
+    stream: ({ params }) => this.api.registry(params),
+  });
   protected readonly t = computed(() => (this.tenant.hasValue() ? this.tenant.value() : undefined));
+  protected readonly domains = computed(() =>
+    this.reg.hasValue() ? (this.reg.value().domains ?? []) : [],
+  );
+  protected readonly packs = computed(() =>
+    (this.t()?.policyBindings ?? [])
+      .map((b) => (b.version ? `${b.packCode ?? b.packVersionId} v${b.version}` : b.packCode))
+      .join(' + '),
+  );
   protected readonly onboarding = computed(() => {
     const t = this.t();
     return !!t && TENANT_ONBOARDING_STATUSES.includes(t.status);
@@ -220,7 +222,6 @@ export class TenantDetailPage {
   protected readonly domainKind = DOMAIN_KIND_LABEL;
   protected readonly int = fmtInt;
   protected readonly date = fmtDate;
-  protected readonly dateTime = fmtDateTime;
   protected readonly err = errorText;
   protected readonly msg = MSG_01_02;
   protected status = (s: TenantStatus) => TENANT_STATUS_LABEL[s];

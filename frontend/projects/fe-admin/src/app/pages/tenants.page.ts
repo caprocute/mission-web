@@ -8,29 +8,32 @@
  *   trạng thái, tìm theo tên, mã, tên miền; 2 bảng tenant, phân trang con trỏ; 3 tải theo cell và việc cần
  *   xử lý; 4 nút "Khởi tạo tenant" (mở SCR-0102), "Xuất danh sách" (202 + Location, tác vụ nền).
  * Chức năng: Khởi tạo tenant; Chi tiết (GET /config/tenants/{id}); Lọc, tìm (GET /config/tenants?cell=&model=
- *   &status=&cursor=); Xuất danh sách (POST /config/tenants/export).
+ *   &status=&q=&cursor=, kèm `summary` cho thẻ tổng quan và tải theo cell); Xuất danh sách (POST
+ *   /config/tenants/export, bộ lọc trong thân yêu cầu).
+ * Theo `config.yaml` (WEB-064): hợp đồng chưa có danh sách "việc cần xử lý", số trung tâm dữ liệu, tổng
+ *   số tenant theo bộ lọc, danh sách tenant đang khởi tạo toàn vùng và từ khoá khi xuất; màn hình bỏ các
+ *   phần đó, MSG-01-02 lấy từ các dòng đang hiện (wiki/14, Điểm lệch).
  * Quy tắc, thông báo: BR-01-02 và MSG-01-01 (cell vượt 85%), MSG-01-02 (tenant đang khởi tạo bước n/6).
  * Quyền (wiki/15a): SCR-0101.xem, SCR-0101.xuat, SCR-0102.buoc-1-3 cho nút khởi tạo.
  */
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
-  CELL_LOAD_THRESHOLD,
   CellLoad,
   JOB_STATUS_LABEL,
   Job,
   JobTracker,
-  PLATFORM_TODO_LABEL,
   TENANCY_MODELS,
   TENANT_ONBOARDING_STATUSES,
   TENANT_STATUS_LABEL,
   TenancyModel,
   TenantApi,
   TenantQuery,
+  TenantRow,
+  TenantStats,
   TenantStatus,
-  TenantSummary,
 } from '@vt/api-client';
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
@@ -39,7 +42,7 @@ import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { Subject, debounceTime, finalize } from 'rxjs';
 import { ADMIN_CAN } from '../admin-permissions';
-import { errorText, fmtAccounts, fmtDateTime, fmtInt, fmtPercent } from '../admin-ui';
+import { errorText, fmtAccounts, fmtInt, fmtPercent } from '../admin-ui';
 
 const PAGE_SIZE = 8;
 
@@ -64,12 +67,7 @@ export const MSG_01_02 = (tenant: string, step: number) =>
     <header class="head">
       <div>
         <h1>Danh sách tenant</h1>
-        <p class="muted">
-          Vùng điều phối toàn cục · tenant-registry (SVC-03)
-          @if (ov(); as o) {
-            · cập nhật {{ dateTime(o.updatedAt) }}
-          }
-        </p>
+        <p class="muted">Các đơn vị đang sử dụng nền tảng và tải của từng cụm máy chủ</p>
       </div>
       <div class="actions">
         @if (can('SCR-0101.xuat') && !simple()) {
@@ -100,47 +98,42 @@ export const MSG_01_02 = (tenant: string, step: number) =>
       <p-message severity="error" [text]="e" styleClass="msg" role="alert" />
     }
 
-    @if (overview.error()) {
-      <p-message severity="error" styleClass="msg">
-        <span>{{ err(overview.error(), 'Không tải được tổng quan tenant.') }}</span>
-        <button type="button" class="link" (click)="overview.reload()">Thử lại</button>
-      </p-message>
-    } @else if (ov(); as o) {
+    @if (ov(); as o) {
       <section class="cards" aria-label="Tổng quan">
         <div class="card first">
           <p class="label">Tenant đang vận hành</p>
-          <p class="big">{{ int(o.operatingCount) }}</p>
-          <p class="muted small">giới hạn thiết kế {{ int(o.maxTenants) }} (NFR-01)</p>
+          <p class="big">{{ int(o.activeTenants) }}</p>
+          <p class="muted small">giới hạn thiết kế {{ int(o.tenantLimit) }}</p>
         </div>
         <div class="card">
           <p class="label">Tài khoản</p>
-          <p class="big">{{ accounts(o.accountTotal) }}</p>
+          <p class="big">{{ accounts(o.totalAccounts) }}</p>
           <p class="muted small">
-            {{ percent(o.accountTotal / o.designAccounts) }} của {{ accounts(o.designAccounts) }}
+            {{ percent(o.totalAccounts / o.accountLimit) }} của {{ accounts(o.accountLimit) }}
           </p>
         </div>
         <div class="card">
           <p class="label">Đang khởi tạo</p>
-          <p class="big warn">{{ int(o.onboardingCount) }}</p>
+          <p class="big warn">{{ int(o.onboardingTenants) }}</p>
           <p class="muted small">mục tiêu ≤ 1 ngày/tenant</p>
         </div>
         <div class="card">
           <p class="label">Cell</p>
           <p class="big">{{ int(o.cellCount) }}</p>
-          <p class="muted small">{{ o.dataCenterCount }} trung tâm dữ liệu</p>
+          <p class="muted small">{{ overloaded().length }} cell vượt 85%</p>
         </div>
       </section>
-      @if (o.onboarding.length) {
-        <ul class="warnbox notices" aria-label="Tenant đang khởi tạo">
-          @for (t of o.onboarding; track t.id) {
-            <li>
-              <a [routerLink]="[t.id, 'onboarding']" [queryParams]="{ step: t.step }">{{
-                msg0102(t.name, t.step)
-              }}</a>
-            </li>
-          }
-        </ul>
-      }
+    }
+    @if (onboardingRows().length) {
+      <ul class="warnbox notices" aria-label="Tenant đang khởi tạo">
+        @for (t of onboardingRows(); track t.id) {
+          <li>
+            <a [routerLink]="[t.id, 'onboarding']" [queryParams]="{ step: t.onboardingStep }">{{
+              msg0102(t.name, t.onboardingStep ?? 1)
+            }}</a>
+          </li>
+        }
+      </ul>
     }
 
     <div class="cols">
@@ -229,8 +222,8 @@ export const MSG_01_02 = (tenant: string, step: number) =>
                   </td>
                   <td class="num">{{ int(t.accountCount) }}</td>
                   @if (!simple()) {
-                    <td>{{ t.policyPacks.length ? t.policyPacks.join(' + ') : '—' }}</td>
-                    <td>{{ t.uiPack }}</td>
+                    <td>{{ (t.policyPacks ?? []).join(' + ') || '—' }}</td>
+                    <td>{{ t.uiPack ?? '—' }}</td>
                   }
                   <td>
                     <span class="status" [class]="'status st-' + tone(t)">{{ statusText(t) }}</span>
@@ -263,8 +256,8 @@ export const MSG_01_02 = (tenant: string, step: number) =>
         @if (pg(); as p) {
           <nav class="pager" aria-label="Phân trang">
             <span class="muted" aria-live="polite">
-              @if (p.total) {
-                Hiển thị {{ from() }}–{{ from() + p.items.length - 1 }} trong {{ int(p.total) }}
+              @if (p.items.length) {
+                Hiển thị {{ from() }}–{{ from() + p.items.length - 1 }}
               } @else {
                 Không có kết quả
               }
@@ -294,10 +287,7 @@ export const MSG_01_02 = (tenant: string, step: number) =>
       <aside>
         <section class="box" aria-labelledby="cell-title">
           <h2 id="cell-title" class="h">Tải theo cell</h2>
-          @if (cells.error()) {
-            <p class="muted">{{ err(cells.error(), 'Không tải được tải theo cell.') }}</p>
-          }
-          @for (m of overloaded(); track m.code) {
+          @for (m of overloaded(); track m.cellCode) {
             <p class="warnbox" role="status">{{ msg0101(m) }}</p>
           }
           <table class="tbl cells">
@@ -312,28 +302,16 @@ export const MSG_01_02 = (tenant: string, step: number) =>
               </tr>
             </thead>
             <tbody>
-              @for (c of cellRows(); track c.code) {
+              @for (c of cellRows(); track c.cellCode) {
                 <tr>
-                  <td class="nowrap">
-                    {{ c.code }}
-                    @if (c.status !== 'HOAT_DONG') {
-                      <span class="muted small block">{{
-                        c.status === 'BAO_TRI' ? 'bảo trì' : 'ngừng'
-                      }}</span>
-                    }
-                  </td>
-                  <td class="num">
-                    {{ accounts(c.accountCount) }}
-                    @if (c.tenancyModel === 'pool') {
-                      <span class="muted small block">{{ int(c.tenantCount) }} tenant</span>
-                    }
-                  </td>
+                  <td class="nowrap">{{ c.cellCode }}</td>
+                  <td class="num">{{ accounts(c.accountCount) }}</td>
                   <td>
                     <span class="meter" role="img" [attr.aria-label]="'Sử dụng ' + percent(load(c))"
                       ><span
                         class="fill"
-                        [class.hi]="load(c) > threshold"
-                        [class.mid]="load(c) > 0.7 && load(c) <= threshold"
+                        [class.hi]="over(c)"
+                        [class.mid]="load(c) > 0.7 && !over(c)"
                         [style.width.%]="Math.min(100, load(c) * 100)"
                       ></span
                     ></span>
@@ -348,20 +326,6 @@ export const MSG_01_02 = (tenant: string, step: number) =>
             mới.
           </p>
         </section>
-
-        @if (ov()?.todos?.length) {
-          <section class="box" aria-labelledby="todo-title">
-            <h2 id="todo-title" class="h">Việc cần xử lý</h2>
-            <ul class="todos">
-              @for (t of ov()!.todos; track t.text) {
-                <li>
-                  <span class="tag" [class]="'tag tag-' + t.kind">{{ todoLabel[t.kind] }}</span>
-                  {{ t.text }}
-                </li>
-              }
-            </ul>
-          </section>
-        }
       </aside>
     </div>
   `,
@@ -565,32 +529,6 @@ export const MSG_01_02 = (tenant: string, step: number) =>
     .meter .fill.hi {
       background: #c53030;
     }
-    .todos {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: grid;
-      gap: 10px;
-    }
-    .tag {
-      display: inline-block;
-      padding: 0 6px;
-      border-radius: 4px;
-      font-size: 0.875em;
-      margin-right: 4px;
-    }
-    .tag-CHO {
-      background: #fff4d6;
-      color: #7a4f00;
-    }
-    .tag-LICH {
-      background: #e6f0ff;
-      color: #1e40af;
-    }
-    .tag-LOI {
-      background: #fde8e8;
-      color: #9b1c1c;
-    }
     .note {
       padding: 8px 12px;
       border-radius: 6px;
@@ -626,12 +564,9 @@ export class TenantsPage {
   protected readonly can = inject(ADMIN_CAN);
 
   protected readonly Math = Math;
-  protected readonly threshold = CELL_LOAD_THRESHOLD;
-  protected readonly todoLabel = PLATFORM_TODO_LABEL;
   protected readonly int = fmtInt;
   protected readonly accounts = fmtAccounts;
   protected readonly percent = fmtPercent;
-  protected readonly dateTime = fmtDateTime;
   protected readonly err = errorText;
   protected readonly msg0102 = MSG_01_02;
 
@@ -651,25 +586,27 @@ export class TenantsPage {
   private readonly cursor = signal<string | undefined>(undefined);
   protected readonly search$ = new Subject<string>();
 
-  protected readonly overview = rxResource({ stream: () => this.api.overview() });
-  protected readonly cells = rxResource({ stream: () => this.api.cells() });
   protected readonly page = rxResource({
     params: () => ({ ...this.query(), cursor: this.cursor(), limit: PAGE_SIZE }),
     stream: ({ params }) => this.api.list(params),
   });
 
   /** Giá trị an toàn khi tài nguyên lỗi (đọc `value()` của resource lỗi sẽ ném lỗi). */
-  protected readonly ov = computed(() =>
-    this.overview.hasValue() ? this.overview.value() : undefined,
-  );
   protected readonly pg = computed(() => (this.page.hasValue() ? this.page.value() : undefined));
-  protected readonly cellRows = computed(() => (this.cells.hasValue() ? this.cells.value() : []));
+  /** `summary` không theo bộ lọc; giữ bản trước trong lúc tải trang khác. */
+  protected readonly ov = linkedSignal<TenantStats | undefined, TenantStats | undefined>({
+    source: () => this.pg()?.summary,
+    computation: (s, prev) => s ?? prev?.value,
+  });
+  protected readonly cellRows = computed(() => this.ov()?.cellLoads ?? []);
   protected readonly cellOptions = computed(() =>
-    this.cellRows().map((c) => ({ value: c.code, label: c.code })),
+    this.cellRows().map((c) => ({ value: c.cellCode, label: c.cellCode })),
   );
-  /** BR-01-02, MSG-01-01: cell vượt ngưỡng. */
-  protected readonly overloaded = computed(() =>
-    this.cellRows().filter((c) => this.load(c) > CELL_LOAD_THRESHOLD),
+  /** BR-01-02, MSG-01-01: cell vượt ngưỡng (máy chủ tính `overThreshold`). */
+  protected readonly overloaded = computed(() => this.cellRows().filter((c) => this.over(c)));
+  /** MSG-01-02 cho các tenant đang khởi tạo trên trang đang xem. */
+  protected readonly onboardingRows = computed(() =>
+    (this.pg()?.items ?? []).filter((t) => this.onboarding(t)),
   );
   protected readonly from = computed(() => this.cursors().length * PAGE_SIZE + 1);
 
@@ -711,21 +648,29 @@ export class TenantsPage {
   }
 
   protected load(c: CellLoad): number {
-    return c.capacityAccounts ? c.accountCount / c.capacityAccounts : 0;
+    return c.loadPercent / 100;
+  }
+
+  protected over(c: CellLoad): boolean {
+    return c.overThreshold ?? c.loadPercent > 85;
   }
 
   protected msg0101(c: CellLoad): string {
-    return MSG_01_01(c.code, Math.round(this.load(c) * 100));
+    return MSG_01_01(c.cellCode, Math.round(c.loadPercent));
   }
 
-  protected statusText(t: TenantSummary): string {
-    if (TENANT_ONBOARDING_STATUSES.includes(t.status) && t.onboardingStep) {
+  private onboarding(t: TenantRow): boolean {
+    return TENANT_ONBOARDING_STATUSES.includes(t.status) && !!t.onboardingStep;
+  }
+
+  protected statusText(t: TenantRow): string {
+    if (this.onboarding(t)) {
       return `Đang khởi tạo ${t.onboardingStep}/6`;
     }
     return TENANT_STATUS_LABEL[t.status];
   }
 
-  protected tone(t: TenantSummary): 'ok' | 'warn' | 'wait' | 'bad' {
+  protected tone(t: TenantRow): 'ok' | 'warn' | 'wait' | 'bad' {
     if (t.status === 'DANG_VAN_HANH') return 'ok';
     if (t.status === 'TAM_NGUNG' || t.status === 'DA_CHAM_DUT') return 'bad';
     if (t.status === 'SAN_SANG') return 'wait';
@@ -739,7 +684,8 @@ export class TenantsPage {
   protected exportList() {
     this.actionError.set(null);
     this.exporting.set(true);
-    this.api.export(this.query()).subscribe({
+    const { cell, model, status } = this.query();
+    this.api.export({ cell, model, status, format: 'CSV' }).subscribe({
       next: (location) => {
         if (!location) {
           this.exporting.set(false);
