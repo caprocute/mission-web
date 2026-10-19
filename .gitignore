@@ -13,3 +13,4 @@ frontend/.angular/
 frontend/coverage/
 *.log
 .DS_Store
+frontend/.lighthouseci

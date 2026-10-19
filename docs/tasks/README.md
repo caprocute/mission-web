@@ -18,14 +18,14 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 
 | Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
-| [WEB-001](WEB-001-cong-cu-chat-luong.md) | Công cụ chất lượng mã: ESLint, Prettier, Vitest cho toàn workspace | S | – | Chưa bắt đầu |
+| [WEB-001](WEB-001-cong-cu-chat-luong.md) | Công cụ chất lượng mã: ESLint, Prettier, Vitest cho toàn workspace | S | – | Hoàn thành (format:check còn đỏ do mã cũ) |
 | [WEB-002](WEB-002-pipeline-jenkins.md) | Pipeline Jenkins cho frontend có cổng chất lượng | M | WEB-001 | Chưa bắt đầu |
-| [WEB-003](WEB-003-ngan-sach-hieu-nang.md) | Ngân sách bundle và Lighthouse CI | S | WEB-001 | Chưa bắt đầu |
+| [WEB-003](WEB-003-ngan-sach-hieu-nang.md) | Ngân sách bundle và Lighthouse CI | S | WEB-001 | Hoàn thành cấu hình; số đo chưa đạt, tối ưu ở WEB-052 |
 | [WEB-004](WEB-004-bien-dich-token.md) | Biên dịch Design Token và kiểm tra tương phản | M | WEB-001 | Chưa bắt đầu |
 | [WEB-005](WEB-005-storybook-hoi-quy.md) | Storybook và kiểm thử hồi quy giao diện theo bộ token | M | WEB-004 | Chưa bắt đầu |
 | [WEB-006](WEB-006-dang-nhap-keycloak.md) | Đăng nhập Keycloak, chọn đơn vị và vai trò (phần web của QT-00) | M | WEB-001 | Chưa bắt đầu |
 | [WEB-007](WEB-007-api-client-openapi.md) | `@vt/api-client`: sinh client từ OpenAPI, xử lý lỗi, 409, job 202 | M | WEB-001 | Chưa bắt đầu |
-| [WEB-008](WEB-008-mock-api.md) | Tách dữ liệu giả lập thành interceptor và fixture theo module | S | WEB-007 | Chưa bắt đầu |
+| [WEB-008](WEB-008-mock-api.md) | Tách dữ liệu giả lập thành interceptor và fixture theo module | S | WEB-007 | Hoàn thành (axe còn lỗi có sẵn, xem WEB-059) |
 | [WEB-009](WEB-009-sdui-chu-ky.md) | SDUI: kiểm chữ ký UI Pack, kiểm phiên bản registry, telemetry | M | WEB-004 | Chưa bắt đầu |
 | [WEB-010](WEB-010-form-engine.md) | Form engine: widget, test CEL dùng chung, benchmark | M | WEB-001 | Chưa bắt đầu |
 | [WEB-011](WEB-011-telemetry-faro.md) | Telemetry: Grafana Faro + OpenTelemetry web | S | WEB-001 | Chưa bắt đầu |
@@ -103,6 +103,13 @@ Nhóm này hiện thực ma trận phân quyền ở [wiki/15a](../../wiki/15a-m
 | [WEB-056](WEB-056-dong-bo-realm-keycloak.md) | Đồng bộ realm Keycloak dev với ma trận (vai trò, claim, MFA theo vai trò, tài khoản thử) | M | WEB-006, WEB-054 | Chưa bắt đầu |
 | [WEB-057](WEB-057-kiem-thu-ma-tran-playwright.md) | Kiểm thử Playwright đối chiếu ma trận: vai trò × tuyến | M | WEB-055, WEB-056 | Chưa bắt đầu |
 | [WEB-058](WEB-058-quan-tri-vai-tro-uy-quyen.md) | Quản trị phân công vai trò và uỷ quyền (chưa có SCR, cần bổ sung thiết kế) | L | WEB-018, WEB-054, quyết định thiết kế | Chờ thiết kế |
+
+## Phát sinh trong quá trình làm
+
+| Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
+|---|---|---|---|---|
+| [WEB-059](WEB-059-kha-nang-truy-cap-nen.md) | Sửa lỗi khả năng truy cập nền: progressbar, slider, tương phản token | S | WEB-001 | Chưa bắt đầu |
+| [WEB-060](WEB-060-format-toan-bo.md) | Chạy Prettier toàn workspace một lần | S | WEB-001 | Chưa bắt đầu |
 
 ## Màn hình không thuộc phân hệ web
 
