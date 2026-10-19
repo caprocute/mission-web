@@ -148,6 +148,6 @@ describe('mock org-tree – SCR-0103 (WEB-018)', () => {
     expect(job).toMatchObject({ status: 'HOAN_TAT' });
     expect(job.message).toContain('2 dòng lỗi');
     const blob = await firstValueFrom(api.report(job.resultLocation!));
-    expect(await blob.text()).toContain('BR-01-05');
+    expect(await blob.text()).toContain('Phụ lục 2A');
   });
 });

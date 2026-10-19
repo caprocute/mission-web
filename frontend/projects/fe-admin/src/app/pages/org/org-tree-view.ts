@@ -60,7 +60,7 @@ export function prevDay(iso: string): string {
           <li>
             <button type="button" class="res" (click)="reveal(m)">
               <strong>{{ m.name }}</strong>
-              <span class="muted small block">{{ m.path || 'Cấp gốc' }}</span>
+              <span class="muted small block">{{ m.path || 'Đơn vị cấp cao nhất' }}</span>
             </button>
           </li>
         } @empty {
@@ -109,7 +109,7 @@ export function prevDay(iso: string): string {
     </ul>
     @if (stats(); as s) {
       <p class="muted small foot">
-        {{ int(s.unitCount) }} đơn vị · {{ s.subjectGroupCount }} khối đối tượng (PL 2A) ·
+        {{ int(s.unitCount) }} đơn vị · {{ s.subjectGroupCount }} khối đối tượng (Phụ lục 2A) ·
         {{ int(s.positionCount) }} vị trí việc làm
       </p>
     }
