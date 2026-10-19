@@ -557,7 +557,7 @@ function register(req: MockRequest): MockResponse {
     unitName: 'Ban Tổ chức',
     periodId: p.id,
     rowVersion: 0,
-    taskGroup: item.taskGroup,
+    taskGroup: item.defaultGroup,
     source: 'DANG_KY',
     plannedQuantity: body.quantity!,
     doneQuantity: 0,

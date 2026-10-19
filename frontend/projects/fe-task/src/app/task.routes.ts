@@ -8,6 +8,11 @@ export const TASK_ROUTES: Routes = [
     title: 'Việc của tôi',
   },
   {
+    path: 'catalog',
+    loadComponent: () => import('./pages/catalog.page').then((m) => m.CatalogPage),
+    title: 'Thư viện danh mục công việc',
+  },
+  {
     path: 'assign',
     loadComponent: () => import('./pages/assign-task.page').then((m) => m.AssignTaskPage),
     title: 'Giao việc',

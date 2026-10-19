@@ -12,7 +12,7 @@
 | Cỡ việc | M (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-008 |
 | Truy vết | QT-04 → SCR-0401 → `/api/v1/catalog` → MOD-02 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Xong, chờ gộp (luồng Màn hình) |
 
 ## 1. Mục tiêu
 

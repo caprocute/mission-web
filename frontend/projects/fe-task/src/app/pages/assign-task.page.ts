@@ -893,7 +893,7 @@ export class AssignTaskPage {
   protected readonly catalogOptions = computed(() =>
     (this.catalog.value() ?? []).map((c) => ({
       value: c.id,
-      label: `${c.code} · ${c.name} · mức khó ${c.difficulty} · ${c.standardScore} điểm`,
+      label: `${c.code} · ${c.name} · mức khó ${c.difficulty} · ${c.baseScore} điểm`,
     })),
   );
   protected readonly krOptions = computed(() =>
@@ -1013,10 +1013,10 @@ export class AssignTaskPage {
               ...f,
               catalogItemId: c.id,
               title: f.title || c.name,
-              taskGroup: c.taskGroup,
+              taskGroup: c.defaultGroup,
               productName: f.productName || c.productName,
               unit: f.unit || c.unit,
-              qualityCriteria: f.qualityCriteria || c.qualityStandard,
+              qualityCriteria: f.qualityCriteria || c.qualityCriteria,
             },
     );
   }
