@@ -8,7 +8,11 @@ export const MOCK_ME = { id: 'dev-user', name: 'Cán bộ thử nghiệm' } as c
 /** Cửa sổ MFA cho thao tác nhạy cảm: 15 phút (TL-02 SCR-0403, BR-00-02). */
 export const STEP_UP_WINDOW_MS = 15 * 60_000;
 
-const state = { lastMfaAt: null as number | null, esignDown: false };
+const state = {
+  lastMfaAt: null as number | null,
+  esignDown: false,
+  failUploadPart: null as number | null,
+};
 
 /** Giả lập xác thực bước lên thành công: lần MFA gần nhất là bây giờ. */
 export function mockStepUp(): void {
@@ -20,12 +24,26 @@ export function setMockEsignOutage(down: boolean): void {
   state.esignDown = down;
 }
 
+/**
+ * Giả lập mất kết nối khi tải lên (QT-07): lần gửi kế tiếp của phần `partNo` trả 503 một lần, để kiểm
+ * chứng tự gửi lại và nối tiếp tải lên.
+ */
+export function failMockUploadPartOnce(partNo = 1): void {
+  state.failUploadPart = partNo;
+}
+
 export const mockSession = {
   recentMfa: () => state.lastMfaAt !== null && Date.now() - state.lastMfaAt <= STEP_UP_WINDOW_MS,
   esignDown: () => state.esignDown,
+  takeUploadFailure: (partNo: number) => {
+    if (state.failUploadPart !== partNo) return false;
+    state.failUploadPart = null;
+    return true;
+  },
   reset: () => {
     state.lastMfaAt = null;
     state.esignDown = false;
+    state.failUploadPart = null;
   },
 };
 

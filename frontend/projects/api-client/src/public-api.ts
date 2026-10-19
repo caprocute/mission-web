@@ -31,10 +31,18 @@ export * from './lib/okr-api';
 export * from './lib/models/source-doc';
 export * from './lib/source-doc-api';
 export * from './lib/ai-api';
+export * from './lib/models/evidence';
+export * from './lib/evidence-api';
+export * from './lib/file-api';
 export * from './lib/models/tenant';
 export * from './lib/models/tenant-onboarding';
 export * from './lib/tenant-api';
 export * from './lib/okr-progress';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
-export { mockStepUp, resetMockApi, setMockEsignOutage } from './mock/mock-session';
+export {
+  failMockUploadPartOnce,
+  mockStepUp,
+  resetMockApi,
+  setMockEsignOutage,
+} from './mock/mock-session';
 export type { MockApiOptions } from './mock/mock-api.interceptor';
