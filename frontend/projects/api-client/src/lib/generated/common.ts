@@ -71,6 +71,16 @@ export interface components {
      */
     QualityLevel: 1 | 0.75 | 0.5 | 0.25 | 0;
     /**
+     * @description Nguyên nhân chỉnh sửa minh chứng khi nghiệm thu (`product.acceptance.revision_cause`, CHECK của TL-03), dùng chung cho nghiệm thu (MOD-03) và xem trước, tính điểm (MOD-04, SVC-07). Tính chủ quan hay khách quan của việc chỉnh sửa (TL-02 SCR-0703 trường 4 "Chủ quan, Khách quan, Không có") đi kèm ở cờ `isObjectiveRevision`; "Không có" là bỏ trống cả hai.
+     * @enum {string}
+     */
+    RevisionCause:
+      | 'THE_THUC'
+      | 'NOI_DUNG_KHONG_COT_LOI'
+      | 'NOI_DUNG_CO_BAN'
+      | 'SAI_SOT_NGHIEM_TRONG'
+      | 'SAI_CHU_TRUONG';
+    /**
      * @description Trạng thái kỳ `config.period.status` (baseline mục 9.1).
      * @enum {string}
      */

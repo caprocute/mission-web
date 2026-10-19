@@ -969,11 +969,9 @@ export interface components {
       taskId: components['schemas']['Uuid'];
       evidenceVersionId?: components['schemas']['Uuid'];
       qualityLevel: components['schemas']['QualityLevel'];
-      /**
-       * @description Nguyên nhân chỉnh sửa (`product.acceptance.revision_cause`, đề xuất của TL-02a).
-       * @enum {string}
-       */
-      revisionCause?: 'CHU_QUAN' | 'KHACH_QUAN' | 'KHONG_CO';
+      revisionCause?: components['schemas']['RevisionCause'];
+      /** @description Chỉnh sửa do nguyên nhân khách quan (ảnh hưởng cách tính C); cùng nghĩa với `EvidenceAcceptRequest`. */
+      isObjectiveRevision?: boolean;
     };
     AppraisalScorePreview: {
       a: number;
@@ -1253,6 +1251,16 @@ export interface components {
       problem?: components['schemas']['ProblemDetails'];
       updatedAt?: components['schemas']['DateTime'];
     };
+    /**
+     * @description Nguyên nhân chỉnh sửa minh chứng khi nghiệm thu (`product.acceptance.revision_cause`, CHECK của TL-03), dùng chung cho nghiệm thu (MOD-03) và xem trước, tính điểm (MOD-04, SVC-07). Tính chủ quan hay khách quan của việc chỉnh sửa (TL-02 SCR-0703 trường 4 "Chủ quan, Khách quan, Không có") đi kèm ở cờ `isObjectiveRevision`; "Không có" là bỏ trống cả hai.
+     * @enum {string}
+     */
+    RevisionCause:
+      | 'THE_THUC'
+      | 'NOI_DUNG_KHONG_COT_LOI'
+      | 'NOI_DUNG_CO_BAN'
+      | 'SAI_SOT_NGHIEM_TRONG'
+      | 'SAI_CHU_TRUONG';
     /** @description Kết quả từng mục của thao tác lô; mục lỗi không làm hỏng mục khác. */
     BatchItemResult: {
       /** @description Mã đối tượng của mục */
