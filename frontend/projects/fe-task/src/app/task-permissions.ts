@@ -1,4 +1,5 @@
-import { InjectionToken } from '@angular/core';
+import { InjectionToken, inject } from '@angular/core';
+import { PermissionService } from '@vt/auth';
 
 /**
  * Khoá chức năng của fe-task theo ma trận phân quyền (wiki/15a, `docs/phan-quyen/ma-tran.json`),
@@ -33,15 +34,15 @@ export type TaskPermissionKey =
   | 'SCR-0602.rut';
 
 /**
- * Hàm hỏi "vai trò hiện tại có thể có quyền này không". Bảng quyền dùng chung `can()` của `@vt/auth`
- * do WEB-054 làm và WEB-055 gắn vào đây; trong lúc chờ, mặc định cho phép vì mọi chức năng SCR-0503
- * và SCR-0602 mà fe-task dùng đều là `T/B` hoặc `R/B` của AC-06 (`member`), tức mọi người đã đăng nhập vào được tuyến `/tasks`.
- * Điều kiện theo đối tượng (người chủ trì, trạng thái) vẫn xét theo dữ liệu nhiệm vụ, và máy chủ là
- * nơi quyết định cuối cùng: thao tác bị chặn trả 403 và giao diện hiện đúng thông báo của máy chủ.
- * Riêng khoá `SCR-0401.sua` (AC-03, AC-05 được giao), `SCR-0402.*`, `SCR-0403.*` (AC-04), `SCR-0501.*` và `SCR-0502.*` (AC-05) theo wiki/15a; mặc định cho phép ở đây chỉ để chạy
- * với dữ liệu giả lập khi chưa đăng nhập, WEB-055 phải thay bằng `can()` thật trước khi bật đăng nhập.
+ * Hàm hỏi "vai trò hiện tại có thể có quyền này không", nối vào `can()` của `@vt/auth` (WEB-055),
+ * tức bảng quyền sinh từ ma trận. Màn hình kết hợp thêm điều kiện theo dữ liệu nhiệm vụ (người chủ
+ * trì, trạng thái); máy chủ là nơi quyết định cuối cùng: thao tác bị chặn trả 403 và giao diện hiện
+ * đúng thông báo của máy chủ. Kiểm thử đơn vị thay token này bằng hàm giả.
  */
 export const TASK_CAN = new InjectionToken<(key: TaskPermissionKey) => boolean>('vt.fe-task.can', {
   providedIn: 'root',
-  factory: () => () => true,
+  factory: () => {
+    const permissions = inject(PermissionService);
+    return (key) => permissions.can(key);
+  },
 });

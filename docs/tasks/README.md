@@ -107,7 +107,7 @@ Nhóm này hiện thực ma trận phân quyền ở [wiki/15a](../../wiki/15a-m
 | Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
 | [WEB-054](WEB-054-bang-quyen-frontend.md) | Bảng quyền phía giao diện sinh từ ma trận (`can()`, `*vtCan`, `permissionGuard`) | M | WEB-001, WEB-006 | Xong, chờ gộp (nhánh `feat/WEB-054-bang-quyen-frontend`) |
-| [WEB-055](WEB-055-ap-ma-tran-shell-remote.md) | Áp ma trận vào menu, tuyến và nút của shell và các remote hiện có | M | WEB-054, WEB-015 | Chưa bắt đầu |
+| [WEB-055](WEB-055-ap-ma-tran-shell-remote.md) | Áp ma trận vào menu, tuyến và nút của shell và các remote hiện có | M | WEB-054, WEB-015 | Xong, chờ gộp (nhánh `feat/WEB-055-ap-ma-tran`) |
 | [WEB-056](WEB-056-dong-bo-realm-keycloak.md) | Đồng bộ realm Keycloak dev với ma trận (vai trò, claim, MFA theo vai trò, tài khoản thử) | M | WEB-006, WEB-054 | Xong, chờ gộp (nhánh `feat/WEB-056-dong-bo-realm-keycloak`); nạp lên server dev sau khi gộp |
 | [WEB-057](WEB-057-kiem-thu-ma-tran-playwright.md) | Kiểm thử Playwright đối chiếu ma trận: vai trò × tuyến | M | WEB-055, WEB-056 | Chưa bắt đầu |
 | [WEB-058](WEB-058-quan-tri-vai-tro-uy-quyen.md) | Quản trị phân công vai trò và uỷ quyền (chưa có SCR, cần bổ sung thiết kế) | L | WEB-018, WEB-054, quyết định thiết kế | Pha 1 xong (đề xuất `docs/phan-quyen/de-xuat-quan-tri-vai-tro.md`), chờ duyệt và cấp mã |
