@@ -1,0 +1,283 @@
+{
+  "$schema_note": "Khung kê khai trường mẫu biểu; xem data/seed/docgen/README.md.",
+  "form_code": "MAU_1B",
+  "ten_mau": "Mẫu 1B",
+  "mo_ta": "Bản kiểm điểm cá nhân; đối tượng áp dụng chờ đối chiếu bản mẫu chính thức.",
+  "trang_thai": "KHUNG_CHO_BAN_MAU",
+  "template_version": "0.1.0-khung",
+  "tep_mau": "mau-1b.docx",
+  "ban_chinh_thuc": {
+    "so_hieu_van_ban": null,
+    "ngay_ban_hanh": null,
+    "co_quan_ban_hanh": null,
+    "ghi_chu": "Chờ người dùng cung cấp bản mẫu chính thức."
+  },
+  "doi_tuong": "CA_NHAN",
+  "luong": [
+    "DANG"
+  ],
+  "nhan_tieu_chi_chung": "MAU_1",
+  "can_cu": [
+    "QT-11",
+    "BR-11-02",
+    "BR-11-03",
+    "BR-11-04"
+  ],
+  "truong": [
+    {
+      "tag": "ten_don_vi",
+      "nhan": "Đơn vị",
+      "kieu": "van_ban",
+      "nguon": "org_replica.org_unit_v.name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "ten_ky",
+      "nhan": "Kỳ đánh giá",
+      "kieu": "van_ban",
+      "nguon": "config.period.name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "ho_ten",
+      "nhan": "Họ và tên",
+      "kieu": "van_ban",
+      "nguon": "org_replica.person_v.full_name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "chuc_danh",
+      "nhan": "Chức vụ, chức danh",
+      "kieu": "van_ban",
+      "nguon": "org.job_title.name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "bang_tieu_chi_chung",
+      "nhan": "Tiêu chí chung",
+      "kieu": "bang",
+      "nguon": "appraisal.general_criteria_result",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "than",
+      "cot": [
+        {
+          "tag": "ten_tieu_chi",
+          "nhan": "Nhóm tiêu chí",
+          "kieu": "van_ban",
+          "nguon": "appraisal.general_criteria_result.criteria_code",
+          "khoa_so_lieu": false,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than",
+          "ghi_chu": "Tên nhóm tra từ danh mục tiêu chí chung trong Policy Pack."
+        },
+        {
+          "tag": "ket_qua_tieu_chi",
+          "nhan": "Kết quả",
+          "kieu": "nhan_tieu_chi",
+          "nguon": "appraisal.general_criteria_result.met",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        }
+      ],
+      "ghi_chu": "Bước tự đánh giá (stage = TU_DANH_GIA). Nhãn đạt/không đạt lấy theo bảng nhãn của mẫu (BR-11-04)."
+    },
+    {
+      "tag": "bang_diem_nhom",
+      "nhan": "Kết quả thực hiện nhiệm vụ theo nhóm",
+      "kieu": "bang",
+      "nguon": "appraisal.score_snapshot.group_scores_json",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "than",
+      "cot": [
+        {
+          "tag": "ten_nhom",
+          "nhan": "Nhóm nhiệm vụ",
+          "kieu": "van_ban",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "kpi_nhom",
+          "nhan": "Chỉ số nhóm",
+          "kieu": "so",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than",
+          "ghi_chu": "3 chữ số thập phân như SCR-0903."
+        },
+        {
+          "tag": "diem_toi_da_nhom",
+          "nhan": "Điểm tối đa",
+          "kieu": "so",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "diem_nhom",
+          "nhan": "Điểm đạt",
+          "kieu": "so",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        }
+      ]
+    },
+    {
+      "tag": "tong_diem",
+      "nhan": "Tổng điểm kết quả thực hiện nhiệm vụ",
+      "kieu": "so",
+      "nguon": "appraisal.score_snapshot.total_score",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "than",
+      "ghi_chu": "1 chữ số thập phân (BR-09-03)."
+    },
+    {
+      "tag": "ty_le_viec_vuot",
+      "nhan": "Tỷ lệ nhiệm vụ vượt mục tiêu",
+      "kieu": "so",
+      "nguon": "appraisal.score_snapshot.exceed_ratio",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": false,
+      "vung": "than",
+      "ghi_chu": "Ghi nhận riêng, không cộng điểm (BR-09-04)."
+    },
+    {
+      "tag": "ty_le_muc_tieu",
+      "nhan": "Tỷ lệ hoàn thành mục tiêu",
+      "kieu": "so",
+      "nguon": "appraisal.score_snapshot.objective_ratio",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": false,
+      "vung": "than"
+    },
+    {
+      "tag": "uu_diem",
+      "nhan": "Ưu điểm",
+      "kieu": "van_ban_dai",
+      "nguon": "appraisal.self_assessment.strengths_enc",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C2",
+      "bat_buoc": false,
+      "vung": "than"
+    },
+    {
+      "tag": "han_che",
+      "nhan": "Hạn chế, khuyết điểm",
+      "kieu": "van_ban_dai",
+      "nguon": "appraisal.self_assessment.weaknesses_enc",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C2",
+      "bat_buoc": false,
+      "vung": "than"
+    },
+    {
+      "tag": "huong_khac_phuc",
+      "nhan": "Hướng khắc phục",
+      "kieu": "van_ban_dai",
+      "nguon": "appraisal.self_assessment.remedial_plan_enc",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C2",
+      "bat_buoc": false,
+      "vung": "than"
+    },
+    {
+      "tag": "han_che_ky_truoc",
+      "nhan": "Kết quả khắc phục hạn chế kỳ trước",
+      "kieu": "bang",
+      "nguon": "dossier.remediation_item",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C2",
+      "bat_buoc": false,
+      "vung": "than",
+      "cot": [
+        {
+          "tag": "noi_dung_han_che",
+          "nhan": "Nội dung hạn chế",
+          "kieu": "van_ban_dai",
+          "nguon": "dossier.remediation_item.content_enc",
+          "khoa_so_lieu": false,
+          "muc_du_lieu": "C2",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "tinh_trang_khac_phuc",
+          "nhan": "Tình trạng khắc phục",
+          "kieu": "nhan_trang_thai",
+          "nguon": "dossier.remediation_item.status",
+          "khoa_so_lieu": false,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        }
+      ],
+      "ghi_chu": "QT-11 bước 3: dự thảo điền sẵn hạn chế kỳ trước."
+    },
+    {
+      "tag": "muc_tu_de_xuat",
+      "nhan": "Tự xếp loại",
+      "kieu": "nhan_muc",
+      "nguon": "appraisal.rating_proposal.rating_code",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": false,
+      "vung": "than",
+      "ghi_chu": "Dòng level_kind = TU_DE_XUAT."
+    },
+    {
+      "tag": "tem_phien_ban_quy_tac",
+      "nhan": "Phiên bản bộ quy tắc",
+      "kieu": "van_ban",
+      "nguon": "appraisal.score_snapshot.policy_version",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "chan_trang",
+      "ghi_chu": "BR-11-03: tem phiên bản Policy Pack in ở chân trang."
+    },
+    {
+      "tag": "tem_phien_ban_mau",
+      "nhan": "Phiên bản mẫu biểu",
+      "kieu": "van_ban",
+      "nguon": "dossier.form_instance.template_version",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "chan_trang",
+      "ghi_chu": "BR-11-03: phiên bản mẫu biểu đã dùng."
+    }
+  ]
+}

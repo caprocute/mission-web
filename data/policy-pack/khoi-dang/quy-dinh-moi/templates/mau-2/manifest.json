@@ -1,0 +1,290 @@
+{
+  "$schema_note": "Khung kê khai trường mẫu biểu; xem data/seed/docgen/README.md.",
+  "form_code": "MAU_2",
+  "ten_mau": "Mẫu 2",
+  "mo_ta": "Phiếu đánh giá, xếp loại chất lượng cá nhân theo kỳ quý hoặc năm.",
+  "trang_thai": "KHUNG_CHO_BAN_MAU",
+  "template_version": "0.1.0-khung",
+  "tep_mau": "mau-2.docx",
+  "ban_chinh_thuc": {
+    "so_hieu_van_ban": null,
+    "ngay_ban_hanh": null,
+    "co_quan_ban_hanh": null,
+    "ghi_chu": "Chờ người dùng cung cấp bản mẫu chính thức."
+  },
+  "doi_tuong": "CA_NHAN",
+  "luong": [
+    "DANG"
+  ],
+  "nhan_tieu_chi_chung": "MAU_2",
+  "can_cu": [
+    "QT-09",
+    "QT-10",
+    "BR-09-10",
+    "BR-10-07",
+    "BR-11-02",
+    "BR-11-03",
+    "BR-11-04",
+    "BR-11-05"
+  ],
+  "truong": [
+    {
+      "tag": "ten_don_vi",
+      "nhan": "Đơn vị",
+      "kieu": "van_ban",
+      "nguon": "org_replica.org_unit_v.name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "ten_ky",
+      "nhan": "Kỳ đánh giá",
+      "kieu": "van_ban",
+      "nguon": "config.period.name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "ho_ten",
+      "nhan": "Họ và tên",
+      "kieu": "van_ban",
+      "nguon": "org_replica.person_v.full_name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "chuc_danh",
+      "nhan": "Chức vụ, chức danh",
+      "kieu": "van_ban",
+      "nguon": "org.job_title.name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "bang_tieu_chi_chung",
+      "nhan": "Tiêu chí chung",
+      "kieu": "bang",
+      "nguon": "appraisal.general_criteria_result",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "than",
+      "cot": [
+        {
+          "tag": "ten_tieu_chi",
+          "nhan": "Nhóm tiêu chí",
+          "kieu": "van_ban",
+          "nguon": "appraisal.general_criteria_result.criteria_code",
+          "khoa_so_lieu": false,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than",
+          "ghi_chu": "Tên nhóm tra từ danh mục tiêu chí chung trong Policy Pack."
+        },
+        {
+          "tag": "ket_qua_tieu_chi",
+          "nhan": "Kết quả",
+          "kieu": "nhan_tieu_chi",
+          "nguon": "appraisal.general_criteria_result.met",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        }
+      ],
+      "ghi_chu": "Kết quả sau thẩm định (stage = THAM_DINH). Nhãn đạt/không đạt lấy theo bảng nhãn của mẫu (BR-11-04)."
+    },
+    {
+      "tag": "bang_diem_nhom",
+      "nhan": "Kết quả thực hiện nhiệm vụ theo nhóm",
+      "kieu": "bang",
+      "nguon": "appraisal.score_snapshot.group_scores_json",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "than",
+      "cot": [
+        {
+          "tag": "ten_nhom",
+          "nhan": "Nhóm nhiệm vụ",
+          "kieu": "van_ban",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "kpi_nhom",
+          "nhan": "Chỉ số nhóm",
+          "kieu": "so",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than",
+          "ghi_chu": "3 chữ số thập phân như SCR-0903."
+        },
+        {
+          "tag": "diem_toi_da_nhom",
+          "nhan": "Điểm tối đa",
+          "kieu": "so",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "diem_nhom",
+          "nhan": "Điểm đạt",
+          "kieu": "so",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        }
+      ]
+    },
+    {
+      "tag": "tong_diem",
+      "nhan": "Tổng điểm kết quả thực hiện nhiệm vụ",
+      "kieu": "so",
+      "nguon": "appraisal.score_snapshot.total_score",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "than",
+      "ghi_chu": "1 chữ số thập phân (BR-09-03)."
+    },
+    {
+      "tag": "ty_le_viec_vuot",
+      "nhan": "Tỷ lệ nhiệm vụ vượt mục tiêu",
+      "kieu": "so",
+      "nguon": "appraisal.score_snapshot.exceed_ratio",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": false,
+      "vung": "than",
+      "ghi_chu": "Ghi nhận riêng, không cộng điểm (BR-09-04)."
+    },
+    {
+      "tag": "ty_le_muc_tieu",
+      "nhan": "Tỷ lệ hoàn thành mục tiêu",
+      "kieu": "so",
+      "nguon": "appraisal.score_snapshot.objective_ratio",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": false,
+      "vung": "than"
+    },
+    {
+      "tag": "muc_tu_de_xuat",
+      "nhan": "Cá nhân tự xếp loại",
+      "kieu": "nhan_muc",
+      "nguon": "appraisal.rating_proposal.rating_code",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": false,
+      "vung": "than",
+      "ghi_chu": "level_kind = TU_DE_XUAT."
+    },
+    {
+      "tag": "muc_quyet_dinh",
+      "nhan": "Cấp có thẩm quyền quyết định xếp loại",
+      "kieu": "nhan_muc",
+      "nguon": "appraisal.rating_proposal.rating_code",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": false,
+      "vung": "than",
+      "ghi_chu": "level_kind = QUYET_DINH."
+    },
+    {
+      "tag": "cau_giai_thich_ha_muc",
+      "nhan": "Lý do xếp loại ở mức liền kề",
+      "kieu": "van_ban_dai",
+      "nguon": "appraisal.rating_explanation.auto_text",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": false,
+      "vung": "than",
+      "ghi_chu": "In nguyên văn câu giải thích hạ mức (explanation_type = HA_MUC), không biên tập lại (BR-09-10).",
+      "suy_luan": true
+    },
+    {
+      "tag": "can_cu_ha_muc",
+      "nhan": "Căn cứ",
+      "kieu": "van_ban",
+      "nguon": "appraisal.rating_explanation.legal_ref",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": false,
+      "vung": "than"
+    },
+    {
+      "tag": "ghi_chu_khong_xep_loai",
+      "nhan": "Ghi chú không xếp loại",
+      "kieu": "van_ban",
+      "nguon": "dossier.special_case.effect",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": false,
+      "vung": "than",
+      "ghi_chu": "Chỉ in khi có trường hợp đặc thù §4 với effect = KHONG_XEP_LOAI; câu in lấy từ bảng câu ghi chú của mẫu."
+    },
+    {
+      "tag": "ghi_chu_so_quy_thuc_co",
+      "nhan": "Ghi chú tính điểm năm",
+      "kieu": "van_ban",
+      "nguon": "appraisal.annual_rating",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": false,
+      "vung": "than",
+      "ghi_chu": "Kỳ năm: ghi chú khi điểm năm tính trên số quý thực có (QT-10, PL 6)."
+    },
+    {
+      "tag": "du_kien_phan_nhom",
+      "nhan": "Dự kiến phân nhóm",
+      "kieu": "nhan_nhom",
+      "nguon": "appraisal.prospect_group.group_code",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C2",
+      "bat_buoc": false,
+      "vung": "than",
+      "ghi_chu": "Ẩn ở kỳ quý khi tham số phan_nhom.mo_o_ky_quy = false (BR-10-07); dữ liệu C2 dạng rõ có kiểm soát."
+    },
+    {
+      "tag": "tem_phien_ban_quy_tac",
+      "nhan": "Phiên bản bộ quy tắc",
+      "kieu": "van_ban",
+      "nguon": "appraisal.score_snapshot.policy_version",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "chan_trang",
+      "ghi_chu": "BR-11-03: tem phiên bản Policy Pack in ở chân trang."
+    },
+    {
+      "tag": "tem_phien_ban_mau",
+      "nhan": "Phiên bản mẫu biểu",
+      "kieu": "van_ban",
+      "nguon": "dossier.form_instance.template_version",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "chan_trang",
+      "ghi_chu": "BR-11-03: phiên bản mẫu biểu đã dùng."
+    }
+  ]
+}

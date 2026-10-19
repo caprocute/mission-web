@@ -1,0 +1,280 @@
+{
+  "$schema_note": "Khung kê khai trường mẫu biểu; xem data/seed/docgen/README.md.",
+  "form_code": "BANG_CHAM_DIEM",
+  "ten_mau": "Bảng chấm điểm",
+  "mo_ta": "Bảng chấm điểm kết quả thực hiện nhiệm vụ theo PL 3: số lượng, chất lượng, tiến độ của từng nhiệm vụ.",
+  "trang_thai": "KHUNG_CHO_BAN_MAU",
+  "template_version": "0.1.0-khung",
+  "tep_mau": "bang-cham-diem.docx",
+  "ban_chinh_thuc": {
+    "so_hieu_van_ban": null,
+    "ngay_ban_hanh": null,
+    "co_quan_ban_hanh": null,
+    "ghi_chu": "Chờ người dùng cung cấp bản mẫu chính thức."
+  },
+  "doi_tuong": "CA_NHAN",
+  "luong": [
+    "DANG"
+  ],
+  "nhan_tieu_chi_chung": null,
+  "can_cu": [
+    "QT-09",
+    "BR-09-01",
+    "BR-09-03",
+    "BR-11-02",
+    "BR-11-03"
+  ],
+  "truong": [
+    {
+      "tag": "ten_don_vi",
+      "nhan": "Đơn vị",
+      "kieu": "van_ban",
+      "nguon": "org_replica.org_unit_v.name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "ten_ky",
+      "nhan": "Kỳ đánh giá",
+      "kieu": "van_ban",
+      "nguon": "config.period.name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "ho_ten",
+      "nhan": "Họ và tên",
+      "kieu": "van_ban",
+      "nguon": "org_replica.person_v.full_name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "chuc_danh",
+      "nhan": "Chức vụ, chức danh",
+      "kieu": "van_ban",
+      "nguon": "org.job_title.name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "bang_nhiem_vu",
+      "nhan": "Kết quả từng nhiệm vụ",
+      "kieu": "bang",
+      "nguon": "appraisal.score_snapshot.group_scores_json",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "than",
+      "cot": [
+        {
+          "tag": "stt",
+          "nhan": "STT",
+          "kieu": "so",
+          "nguon": "suy_ra:thu_tu_dong",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "ten_nhiem_vu",
+          "nhan": "Nhiệm vụ",
+          "kieu": "van_ban",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "nhom_nhiem_vu",
+          "nhan": "Nhóm",
+          "kieu": "van_ban",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than",
+          "ghi_chu": "Thường xuyên hoặc then chốt."
+        },
+        {
+          "tag": "chi_so_so_luong",
+          "nhan": "Số lượng",
+          "kieu": "so",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "chi_so_chat_luong",
+          "nhan": "Chất lượng",
+          "kieu": "so",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "chi_so_tien_do",
+          "nhan": "Tiến độ",
+          "kieu": "so",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "kpi_nhiem_vu",
+          "nhan": "Chỉ số nhiệm vụ",
+          "kieu": "so",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        }
+      ]
+    },
+    {
+      "tag": "bang_diem_nhom",
+      "nhan": "Kết quả thực hiện nhiệm vụ theo nhóm",
+      "kieu": "bang",
+      "nguon": "appraisal.score_snapshot.group_scores_json",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "than",
+      "cot": [
+        {
+          "tag": "ten_nhom",
+          "nhan": "Nhóm nhiệm vụ",
+          "kieu": "van_ban",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "kpi_nhom",
+          "nhan": "Chỉ số nhóm",
+          "kieu": "so",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than",
+          "ghi_chu": "3 chữ số thập phân như SCR-0903."
+        },
+        {
+          "tag": "diem_toi_da_nhom",
+          "nhan": "Điểm tối đa",
+          "kieu": "so",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "diem_nhom",
+          "nhan": "Điểm đạt",
+          "kieu": "so",
+          "nguon": "appraisal.score_snapshot.group_scores_json",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        }
+      ]
+    },
+    {
+      "tag": "tong_diem",
+      "nhan": "Tổng điểm kết quả thực hiện nhiệm vụ",
+      "kieu": "so",
+      "nguon": "appraisal.score_snapshot.total_score",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "than",
+      "ghi_chu": "1 chữ số thập phân (BR-09-03)."
+    },
+    {
+      "tag": "ty_le_viec_vuot",
+      "nhan": "Tỷ lệ nhiệm vụ vượt mục tiêu",
+      "kieu": "so",
+      "nguon": "appraisal.score_snapshot.exceed_ratio",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": false,
+      "vung": "than",
+      "ghi_chu": "Ghi nhận riêng, không cộng điểm (BR-09-04)."
+    },
+    {
+      "tag": "ty_le_muc_tieu",
+      "nhan": "Tỷ lệ hoàn thành mục tiêu",
+      "kieu": "so",
+      "nguon": "appraisal.score_snapshot.objective_ratio",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": false,
+      "vung": "than"
+    },
+    {
+      "tag": "ma_anh_chup",
+      "nhan": "Mã ảnh chụp điểm",
+      "kieu": "van_ban",
+      "nguon": "appraisal.score_snapshot.id",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "chan_trang"
+    },
+    {
+      "tag": "bam_dau_vao",
+      "nhan": "Mã băm dữ liệu đầu vào",
+      "kieu": "van_ban",
+      "nguon": "appraisal.score_snapshot.input_hash",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "chan_trang",
+      "ghi_chu": "Rút gọn như SCR-0903."
+    },
+    {
+      "tag": "tem_phien_ban_quy_tac",
+      "nhan": "Phiên bản bộ quy tắc",
+      "kieu": "van_ban",
+      "nguon": "appraisal.score_snapshot.policy_version",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "chan_trang",
+      "ghi_chu": "BR-11-03: tem phiên bản Policy Pack in ở chân trang."
+    },
+    {
+      "tag": "tem_phien_ban_mau",
+      "nhan": "Phiên bản mẫu biểu",
+      "kieu": "van_ban",
+      "nguon": "dossier.form_instance.template_version",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "chan_trang",
+      "ghi_chu": "BR-11-03: phiên bản mẫu biểu đã dùng."
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "mo_ta": "Bảng nhãn dùng chung khi trộn dữ liệu vào mẫu biểu. Cùng một dữ liệu gốc, nhãn in ra tuỳ theo mẫu (BR-11-04). Khoá là giá trị lưu trong CSDL, giá trị là chữ in trên biểu mẫu.",
+  "muc_xep_loai": {
+    "HTXSNV": "Hoàn thành xuất sắc nhiệm vụ",
+    "HTTNV": "Hoàn thành tốt nhiệm vụ",
+    "HTNV": "Hoàn thành nhiệm vụ",
+    "KHTNV": "Không hoàn thành nhiệm vụ"
+  },
+  "nhan_tieu_chi_chung": {
+    "ghi_chu": "Ánh xạ theo cột appraisal.general_criteria_result.met (đạt hoặc không đạt nhóm tiêu chí). Việc dùng cột met thay cho cột level bốn mức là suy luận, chờ bản mẫu chính thức xác nhận.",
+    "MAU_1": { "true": "Đảm bảo", "false": "Không đảm bảo" },
+    "MAU_2": { "true": "Không vi phạm", "false": "Vi phạm" }
+  },
+  "tinh_trang_khac_phuc": {
+    "MO": "Chưa khắc phục",
+    "DANG_KHAC_PHUC": "Đang khắc phục",
+    "DA_KHAC_PHUC": "Đã khắc phục",
+    "CHUA_KHAC_PHUC": "Chưa khắc phục được"
+  },
+  "nhom_trien_vong": {
+    "NHOM_1": "Nhóm 1",
+    "NHOM_2": "Nhóm 2",
+    "NHOM_3": "Nhóm 3",
+    "NHOM_4": "Nhóm 4"
+  },
+  "cau_ghi_chu": {
+    "khong_tu_danh_gia": "Không tự đánh giá",
+    "khong_xep_loai_ky_quy": "Không xếp loại kỳ này do nghỉ thai sản hoặc nghỉ ốm đau dài ngày theo quy định.",
+    "diem_nam_theo_so_quy": "Điểm năm được tính trên số quý thực tế công tác trong năm."
+  }
+}
