@@ -18,6 +18,14 @@ import {
   TaskStatus,
   TaskSummary,
 } from './models/task';
+import {
+  AssignCheckResult,
+  AssignRequest,
+  AssignResult,
+  BulkAssignRequest,
+  TaskDraft,
+  TaskDraftTemplate,
+} from './models/task-assign';
 
 export interface MyTasksQuery extends CursorQuery {
   /** Bộ lọc nhanh SCR-0503; máy chủ quy đổi sang điều kiện trạng thái, cờ quá hạn, hạn. */
@@ -137,5 +145,60 @@ export class TaskApi {
       `/api/v1/tasks/${encodeURIComponent(task.id)}/change-requests/${encodeURIComponent(requestId)}/withdraw`,
       null,
     );
+  }
+
+  /** Khung soạn nhiệm vụ mới (SCR-0501): kỳ hiện tại, đơn vị, người giao, giá trị mặc định. */
+  newDraft(): Observable<TaskDraftTemplate> {
+    return this.http.get<TaskDraftTemplate>('/api/v1/tasks/drafts/new');
+  }
+
+  /** Nhiệm vụ `NHAP` ở dạng soạn để giao (sinh từ kế hoạch, đăng ký hoặc đã lưu nháp). */
+  draft(id: string): Observable<TaskDraftTemplate> {
+    return this.http.get<TaskDraftTemplate>(`/api/v1/tasks/${encodeURIComponent(id)}`, {
+      params: { view: 'assign' },
+    });
+  }
+
+  /** Lưu nháp lần đầu: `/api/v1/tasks` (POST) → `NHAP`. */
+  createDraft(draft: TaskDraft): Observable<TaskDraft> {
+    return this.http.post<TaskDraft>('/api/v1/tasks', draft);
+  }
+
+  /** Lưu nháp: `/api/v1/tasks/{id}` (PUT, If-Match). */
+  saveDraft(draft: TaskDraft): Observable<TaskDraft> {
+    return this.http.put<TaskDraft>(`/api/v1/tasks/${encodeURIComponent(draft.id!)}`, draft, {
+      headers: { 'If-Match': `"${draft.rowVersion}"` },
+    });
+  }
+
+  /** Huỷ bản nháp: `/api/v1/tasks/{id}` (DELETE, If-Match). */
+  deleteDraft(draft: TaskDraft): Observable<void> {
+    return this.http.delete<void>(`/api/v1/tasks/${encodeURIComponent(draft.id!)}`, {
+      headers: { 'If-Match': `"${draft.rowVersion}"` },
+    });
+  }
+
+  /**
+   * Kiểm tra tức thì của MOD-02 trước khi giao (QT-05 bước 5): BR-05-01 đến BR-05-04, BR-05-06,
+   * BR-05-09, BR-05-11, kèm nhiệm vụ gần giống, số ngày làm việc tới hạn và khối lượng của người chủ trì.
+   */
+  assignCheck(draft: TaskDraft): Observable<AssignCheckResult> {
+    return this.http.post<AssignCheckResult>('/api/v1/tasks/assign-check', draft);
+  }
+
+  /** Giao việc: `NHAP` → `DA_GIAO`, phát EVT-04, EVT-21 (Idempotency-Key do interceptor gắn). */
+  assign(draft: TaskDraft, body: AssignRequest): Observable<AssignResult> {
+    return this.http.post<AssignResult>(
+      `/api/v1/tasks/${encodeURIComponent(draft.id!)}/assign`,
+      body,
+      { headers: { 'If-Match': `"${draft.rowVersion}"` } },
+    );
+  }
+
+  /** Giao đồng loạt cho nhiều đơn vị: tác vụ nền, 202 + `Location`. */
+  bulkAssign(body: BulkAssignRequest): Observable<AcceptedJob> {
+    return this.http
+      .post('/api/v1/tasks/bulk-assign', body, { observe: 'response' })
+      .pipe(map((res: HttpResponse<unknown>) => ({ location: res.headers.get('Location') ?? '' })));
   }
 }

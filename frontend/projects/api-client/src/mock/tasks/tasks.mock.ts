@@ -27,6 +27,7 @@ import {
 } from '../mock-router';
 import catalogFixture from '../catalog/catalog.json';
 import fixture from './tasks.json';
+import { ASSIGN_MOCK, draftView } from './assign.mock';
 
 /**
  * Giả lập API `/api/v1/tasks` của MOD-02 (mission-core) cho QT-05, QT-06:
@@ -585,6 +586,7 @@ export const TASKS_MOCK: MockModule = {
   reset: () => {
     db = null;
     period = null;
+    ASSIGN_MOCK.reset();
   },
   routes: [
     { method: 'GET', pattern: '/api/v1/tasks/mine', handle: (r) => myTasks(r.params) },
@@ -603,6 +605,8 @@ export const TASKS_MOCK: MockModule = {
       method: 'GET',
       pattern: '/api/v1/tasks/:id',
       handle: (r) => {
+        if (r.params.get('view') === 'assign')
+          return draftView(r.pathParams['id']) ?? notFound(r.pathParams['id']);
         const t = find(r.pathParams['id']);
         return t ? ok(derive(structuredClone(t)), etag(t)) : notFound(r.pathParams['id']);
       },
@@ -617,5 +621,6 @@ export const TASKS_MOCK: MockModule = {
       pattern: '/api/v1/tasks/:id/change-requests/:cid/withdraw',
       handle: withdraw,
     },
+    ...ASSIGN_MOCK.routes,
   ],
 };

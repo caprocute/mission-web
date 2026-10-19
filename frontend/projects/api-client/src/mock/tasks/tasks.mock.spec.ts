@@ -1,3 +1,4 @@
+import { AssignCheckItem } from '../../lib/models/task-assign';
 import { HttpErrorResponse, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -271,5 +272,61 @@ describe('mock tasks – SCR-0601, SCR-0602 (WEB-031)', () => {
       ),
     );
     expect(r).toEqual({ status: 422, code: 'MSG-06-09' });
+  });
+});
+
+describe('mock tasks – SCR-0501 Giao việc (WEB-028)', () => {
+  const ref = (items: AssignCheckItem[], rule: string) => items.filter((i) => i.rule === rule);
+
+  it('kiểm tra trước khi giao: chủ trì, người nghiệm thu, nhiệm vụ gần giống, khối lượng', async () => {
+    const { api } = setup();
+    const { draft } = await firstValueFrom(api.draft('0192a0f0-0002-7000-8000-000000000201'));
+    let r = await firstValueFrom(api.assignCheck(draft));
+    expect(ref(r.items, 'BR-05-01')[0].passed).toBe(false);
+    expect(ref(r.items, 'BR-05-04')[0].passed).toBe(true);
+    expect(r.similar[0].code).toBe('NV-2026-Q3-0211');
+    expect(r.workingDays).toBeGreaterThan(0);
+    r = await firstValueFrom(
+      api.assignCheck({ ...draft, leadPersonId: 'p-an', acceptorId: 'p-an' }),
+    );
+    expect(ref(r.items, 'BR-05-01')[0].passed).toBe(true);
+    expect(ref(r.items, 'BR-05-02')[0].message).toBe(
+      'Người nghiệm thu phải khác người thực hiện nhiệm vụ.',
+    );
+    expect(ref(r.items, 'BR-05-11')[0].message).toContain('Nguyễn Văn An đang chủ trì 4 việc');
+    expect(r.workload?.leadCount).toBe(5);
+  });
+
+  it('giao: 422 khi thiếu lý do trùng, thành công khi đủ; lưu nháp kèm If-Match', async () => {
+    const { api } = setup();
+    const { draft } = await firstValueFrom(api.draft('0192a0f0-0002-7000-8000-000000000201'));
+    const saved = await firstValueFrom(api.saveDraft({ ...draft, leadPersonId: 'p-an' }));
+    expect(saved.rowVersion).toBe(1);
+    await expect(
+      firstValueFrom(api.saveDraft({ ...draft, leadPersonId: 'p-ha' })),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(firstValueFrom(api.assign(saved, {}))).rejects.toMatchObject({ status: 422 });
+    const res = await firstValueFrom(
+      api.assign(saved, { similarReason: 'Khác phạm vi: 46 tổ chức đảng' }),
+    );
+    expect(res).toMatchObject({
+      code: 'NV-2026-Q4-0201',
+      status: 'DA_GIAO',
+      leadName: 'Nguyễn Văn An',
+    });
+  });
+
+  it('tạo nháp mới, huỷ nháp và giao đồng loạt trả 202', async () => {
+    const { api } = setup();
+    const { draft } = await firstValueFrom(api.newDraft());
+    expect(draft.assignerName).toBe('Lê Minh Châu');
+    const created = await firstValueFrom(api.createDraft({ ...draft, title: 'Việc thử' }));
+    expect(created.code).toMatch(/^NV-2026-Q4-03\d\d$/);
+    await firstValueFrom(api.deleteDraft(created));
+    await expect(firstValueFrom(api.draft(created.id!))).rejects.toMatchObject({ status: 404 });
+    const job = await firstValueFrom(
+      api.bulkAssign({ draft: { ...draft, title: 'Việc chung' }, unitIds: ['u-cs-01'] }),
+    );
+    expect(job.location).toMatch(/^\/api\/v1\/jobs\//);
   });
 });

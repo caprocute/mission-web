@@ -35,6 +35,17 @@
       "qualityStandard": "Có biên bản, kết luận kiểm tra được thông qua"
     },
     {
+      "id": "ci-tc-dv-06",
+      "code": "TC-DV-06",
+      "name": "Rà soát quy hoạch cấp uỷ",
+      "productName": "Tờ trình và danh sách quy hoạch",
+      "unit": "đợt",
+      "difficulty": 5,
+      "standardScore": 35,
+      "taskGroup": "THEN_CHOT",
+      "qualityStandard": "Đúng Quy định 50-QĐ/TW; đủ hồ sơ nhân sự; được Thường trực cho ý kiến"
+    },
+    {
       "id": "ci-tc-dv-08",
       "code": "TC-DV-08",
       "name": "Soạn văn bản hướng dẫn nghiệp vụ tổ chức",

@@ -1,0 +1,154 @@
+{
+  "$comment": "Fixture module org (/api/v1/org): bản sao cây tổ chức của đơn vị người dùng (task.org_replica). WEB-028 dùng để chọn chủ trì, phối hợp, người nghiệm thu, đơn vị nhận khi giao đồng loạt. Dữ liệu hư cấu.",
+  "me": "p-chau",
+  "units": [
+    {
+      "id": "u-btc",
+      "name": "Ban Tổ chức",
+      "parentId": "u-duk",
+      "scope": "unit"
+    },
+    {
+      "id": "u-vp",
+      "name": "Văn phòng Đảng uỷ",
+      "parentId": "u-duk",
+      "scope": "unit"
+    },
+    {
+      "id": "u-btg",
+      "name": "Ban Tuyên giáo",
+      "parentId": "u-duk",
+      "scope": "unit"
+    },
+    {
+      "id": "u-ubkt",
+      "name": "Uỷ ban Kiểm tra",
+      "parentId": "u-duk",
+      "scope": "unit"
+    },
+    {
+      "id": "u-cs-01",
+      "name": "Đảng bộ cơ sở số 1",
+      "parentId": "u-duk",
+      "scope": "children"
+    },
+    {
+      "id": "u-cs-02",
+      "name": "Đảng bộ cơ sở số 2",
+      "parentId": "u-duk",
+      "scope": "children"
+    },
+    {
+      "id": "u-cs-03",
+      "name": "Đảng bộ cơ sở số 3",
+      "parentId": "u-duk",
+      "scope": "children"
+    },
+    {
+      "id": "u-cb-04",
+      "name": "Chi bộ cơ sở số 4",
+      "parentId": "u-duk",
+      "scope": "children"
+    }
+  ],
+  "persons": [
+    {
+      "id": "p-dung",
+      "name": "Hoàng Văn Dũng",
+      "title": "Trưởng ban",
+      "unitId": "u-btc",
+      "unitName": "Ban Tổ chức",
+      "workload": {
+        "leadCount": 2,
+        "coCount": 4,
+        "weeks": [1, 1, 0]
+      }
+    },
+    {
+      "id": "p-chau",
+      "name": "Lê Minh Châu",
+      "title": "Phó Trưởng ban",
+      "unitId": "u-btc",
+      "unitName": "Ban Tổ chức",
+      "workload": {
+        "leadCount": 3,
+        "coCount": 3,
+        "weeks": [2, 1, 1]
+      }
+    },
+    {
+      "id": "p-an",
+      "name": "Nguyễn Văn An",
+      "title": "Chuyên viên",
+      "unitId": "u-btc",
+      "unitName": "Ban Tổ chức",
+      "workload": {
+        "leadCount": 5,
+        "coCount": 2,
+        "weeks": [4, 3, 2]
+      }
+    },
+    {
+      "id": "p-binh",
+      "name": "Trần Thị Bình",
+      "title": "Chuyên viên chính",
+      "unitId": "u-btc",
+      "unitName": "Ban Tổ chức",
+      "workload": {
+        "leadCount": 3,
+        "coCount": 1,
+        "weeks": [2, 2, 1]
+      }
+    },
+    {
+      "id": "p-ha",
+      "name": "Phạm Thu Hà",
+      "title": "Chuyên viên",
+      "unitId": "u-btc",
+      "unitName": "Ban Tổ chức",
+      "workload": {
+        "leadCount": 2,
+        "coCount": 3,
+        "weeks": [1, 2, 2]
+      }
+    },
+    {
+      "id": "p-tuan",
+      "name": "Đỗ Minh Tuấn",
+      "title": "Chuyên viên",
+      "unitId": "u-btc",
+      "unitName": "Ban Tổ chức",
+      "workload": {
+        "leadCount": 1,
+        "coCount": 1,
+        "weeks": [0, 1, 1]
+      }
+    },
+    {
+      "id": "p-lan",
+      "name": "Ngô Thị Lan",
+      "title": "Chánh Văn phòng",
+      "unitId": "u-vp",
+      "unitName": "Văn phòng Đảng uỷ",
+      "workload": {
+        "leadCount": 4,
+        "coCount": 2,
+        "weeks": [2, 2, 1]
+      }
+    },
+    {
+      "id": "p-hung",
+      "name": "Vũ Quang Hùng",
+      "title": "Chuyên viên",
+      "unitId": "u-vp",
+      "unitName": "Văn phòng Đảng uỷ",
+      "workload": {
+        "leadCount": 2,
+        "coCount": 2,
+        "weeks": [1, 1, 1]
+      }
+    }
+  ],
+  "weekLabels": ["Tuần 4", "Tuần 5", "Tuần 6"],
+  "weeklyThreshold": 3
+}
