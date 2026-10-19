@@ -1,0 +1,1165 @@
+/*
+ * SCR-0402 "Lập kế hoạch quý" (QT-04 bước 2–4, TL-02 Hình 7.13) — đối chiếu đặc tả:
+ * Trường: 1 kỳ; 2 đơn vị; 3 phiên bản, trạng thái; 4 hạn phê duyệt (BR-04-01); 5 nội dung ≤ 500 (BR-04-03);
+ *   6 nhóm; 7 KR liên kết; 8 chủ trì đúng một (BR-04-02); 9 phối hợp; 10 mục danh mục; 11 sản phẩm, số lượng (BR-04-04);
+ *   12 hạn hoặc "Hằng tháng"; 13 điểm từ danh mục (BR-04-05); 14 luồng (ẩn); 15 tỷ trọng nhóm (BR-04-06).
+ * Chức năng: Sao chép từ quý trước (POST /plans/{id}/versions/{v}/copy-from); Gợi ý từ OKR (/plans/{id}/suggestions);
+ *   Thêm từ danh mục; Thêm việc ngoài danh mục; Lưu nháp (PUT /plans/{id}/versions/{v} + If-Match, kèm lưu tự động);
+ *   Gửi duyệt (POST …/submit + Idempotency-Key); Tạo điều chỉnh (POST /plans/{id}/versions, BR-04-10).
+ * Kiểm tra tức thì: POST /plans/{id}/versions/{v}/check (MOD-02). Thông báo: MSG-04-03 … MSG-04-08.
+ * Quyền (wiki/15a): SCR-0402.xem, SCR-0402.lap, SCR-0402.gui-duyet, SCR-0402.dieu-chinh.
+ */
+import {
+  Component,
+  DestroyRef,
+  computed,
+  effect,
+  inject,
+  linkedSignal,
+  signal,
+} from '@angular/core';
+import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import {
+  CatalogApi,
+  CatalogItem,
+  OkrApi,
+  OrgApi,
+  PLAN_RECURRENCE_LABEL,
+  PLAN_VERSION_STATUS_LABEL,
+  PlanApi,
+  PlanItem,
+  PlanVersion,
+  PlanWorkspace,
+  TASK_GROUP_LABEL,
+  TaskGroup,
+  toProblem,
+} from '@vt/api-client';
+import { ThemeService } from '@vt/design-system';
+import { ButtonModule } from 'primeng/button';
+import { CheckboxModule } from 'primeng/checkbox';
+import { DialogModule } from 'primeng/dialog';
+import { SelectModule } from 'primeng/select';
+import { TagModule } from 'primeng/tag';
+import { catchError, debounceTime, filter, of, switchMap } from 'rxjs';
+import { TASK_CAN } from '../task-permissions';
+import { formatDate } from '../task-ui';
+import { ReasonDialog } from './from-document/reason.dialog';
+import { CatalogPickDialog } from './plan/catalog-pick.dialog';
+import { PlanItemEditor } from './plan/plan-item-editor';
+
+const AUTOSAVE_MS = 3000;
+type Busy = 'save' | 'submit' | 'copy' | 'adjust' | null;
+
+@Component({
+  selector: 'vt-plan-page',
+  imports: [
+    DatePipe,
+    FormsModule,
+    ButtonModule,
+    CheckboxModule,
+    DialogModule,
+    SelectModule,
+    TagModule,
+    CatalogPickDialog,
+    PlanItemEditor,
+    ReasonDialog,
+  ],
+  template: `
+    @if (!can('SCR-0402.xem')) {
+      <p class="msg warn">Anh/chị không có quyền xem kế hoạch quý của đơn vị.</p>
+    } @else if (ws.error()) {
+      <p class="msg err" role="alert">{{ loadError() }}</p>
+    } @else if (ws.value(); as w) {
+      @let v = w.version;
+      <header class="top">
+        <div>
+          <h1>Kế hoạch công tác {{ w.periodLabel }}</h1>
+          <p class="muted sub">
+            {{ w.unitName }} · Bảng 1 PL 1 · phiên bản {{ v.versionNo }} ·
+            <p-tag
+              [value]="v.status"
+              [severity]="statusSeverity(v.status)"
+              [title]="statusLabel(v.status)"
+            />
+            <span class="sr-only">{{ statusLabel(v.status) }}</span>
+          </p>
+          <div class="pickers">
+            <label for="pl-period" class="sr-only">Kỳ</label>
+            <p-select
+              inputId="pl-period"
+              [options]="planOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="planId()"
+              (ngModelChange)="choosePlan($event)"
+              size="small"
+            />
+            @if (w.versions.length > 1) {
+              <label for="pl-version" class="sr-only">Phiên bản</label>
+              <p-select
+                inputId="pl-version"
+                [options]="versionOptions()"
+                optionLabel="label"
+                optionValue="value"
+                [ngModel]="v.versionNo"
+                (ngModelChange)="chooseVersion($event)"
+                size="small"
+              />
+            }
+          </div>
+        </div>
+        <div class="actions">
+          @if (editable() && can('SCR-0402.lap')) {
+            @if (v.versionNo === 1 && !items().length && w.previousPeriodLabel && !simple()) {
+              <p-button
+                [label]="'Sao chép từ ' + w.previousPeriodLabel"
+                severity="contrast"
+                [outlined]="true"
+                [loading]="busy() === 'copy'"
+                [disabled]="!!busy()"
+                (onClick)="copyPrevious()"
+              />
+            }
+            @if ((check()?.keyResultsWithoutItems?.length ?? 0) > 0 && !simple()) {
+              <p-button
+                label="Gợi ý từ OKR"
+                severity="contrast"
+                [outlined]="true"
+                (onClick)="openSuggestions()"
+              />
+            }
+            <p-button
+              label="Lưu nháp"
+              severity="contrast"
+              [outlined]="true"
+              [loading]="busy() === 'save'"
+              [disabled]="!!busy() || !dirty()"
+              (onClick)="save()"
+            />
+          }
+          @if (editable() && can('SCR-0402.gui-duyet')) {
+            <p-button
+              label="Gửi duyệt"
+              [loading]="busy() === 'submit'"
+              [disabled]="!!busy() || blocking().length > 0 || !items().length || checking()"
+              [attr.aria-describedby]="blocking().length ? 'chk-title' : null"
+              (onClick)="submit()"
+            />
+          }
+          @if (canAdjust() && can('SCR-0402.dieu-chinh')) {
+            <p-button
+              label="Tạo điều chỉnh"
+              [outlined]="true"
+              [disabled]="w.adjustmentsUsed >= w.adjustmentsMax || !!busy()"
+              (onClick)="openAdjust()"
+            />
+          }
+        </div>
+      </header>
+
+      @if (editable()) {
+        @if (w.workingDaysLeft < 0) {
+          <p class="msg err banner" role="note">
+            <span class="num" aria-hidden="true">1</span>
+            Đã quá hạn phê duyệt kế hoạch {{ date(w.approvalDeadline) }}. Việc này đã được ghi nhận
+            và báo người đứng đầu.
+          </p>
+        } @else {
+          <p class="msg warn banner" role="note">
+            <span class="num" aria-hidden="true">1</span>
+            <span
+              >Hạn phê duyệt kế hoạch là <strong>{{ date(w.approvalDeadline) }}</strong
+              >. Còn {{ w.workingDaysLeft }} ngày làm việc.
+              @if (!simple()) {
+                (Hết tuần thứ 2 của tháng đầu quý, tham số Policy Pack. Quá hạn, hệ thống báo người
+                đứng đầu và ghi nhận vào dấu hiệu bất thường.)
+              }
+            </span>
+          </p>
+        }
+        @if (v.status === 'TRA_LAI' && (v.returnReason || v.reviewComment)) {
+          <p class="msg err">Kế hoạch bị trả lại: {{ v.returnReason || v.reviewComment }}</p>
+        }
+      } @else if (v.status === 'CHO_DUYET') {
+        <p class="msg info">
+          Đã gửi duyệt lúc {{ v.submittedAt | date: 'dd/MM/yyyy HH:mm' }}; nội dung đã khoá. Mã băm
+          phiên bản: <code class="hash">{{ v.contentHash }}</code>
+        </p>
+      } @else if (v.status === 'DA_DUYET') {
+        <p class="msg ok">
+          Phiên bản {{ v.versionNo }} đã duyệt và ký số lúc
+          {{ v.approvedAt | date: 'dd/MM/yyyy HH:mm' }}
+          {{ v.approvedByName ? 'bởi đồng chí ' + v.approvedByName : '' }}; phiên bản đã duyệt không
+          sửa được.
+          @if (v.isCurrent && w.adjustmentsUsed >= w.adjustmentsMax) {
+            Kế hoạch đã điều chỉnh {{ w.adjustmentsUsed }} lần trong quý, đạt giới hạn.
+          }
+        </p>
+      }
+      @if (v.versionNo > 1 && v.changeReason) {
+        <p class="muted">
+          Lý do điều chỉnh (lần {{ v.versionNo - 1 }}/{{ w.adjustmentsMax }}): {{ v.changeReason }}
+        </p>
+      }
+
+      <div aria-live="polite">
+        @if (notice()) {
+          <p class="msg ok" role="status">{{ notice() }}</p>
+        }
+        @if (error()) {
+          <p class="msg err" role="alert">
+            {{ error() }}
+            @if (conflict()) {
+              <p-button label="Tải lại" [link]="true" (onClick)="reload()" />
+            }
+          </p>
+        }
+      </div>
+
+      <div class="layout">
+        <section class="box" aria-labelledby="tbl-title">
+          <h2 id="tbl-title" class="h">
+            <span class="num" aria-hidden="true">2</span> Danh sách công việc
+            <span class="muted small"
+              >· mỗi việc đúng một đơn vị chủ trì, có thể nhiều đơn vị phối hợp</span
+            >
+            @if (editable()) {
+              <span class="save-state small" aria-live="polite">{{ saveState() }}</span>
+            }
+          </h2>
+          <div class="scroll" tabindex="0" role="region" aria-label="Bảng công việc trong kế hoạch">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th scope="col">STT</th>
+                  <th scope="col">Nội dung công việc</th>
+                  <th scope="col">Nhóm</th>
+                  @if (!simple()) {
+                    <th scope="col">KR</th>
+                  }
+                  <th scope="col">Chủ trì</th>
+                  @if (!simple()) {
+                    <th scope="col">Phối hợp</th>
+                  }
+                  <th scope="col" class="cat">Danh mục · sản phẩm, số lượng</th>
+                  <th scope="col">Hạn</th>
+                  <th scope="col" class="r">Điểm</th>
+                  @if (editable() && can('SCR-0402.lap')) {
+                    <th scope="col"><span class="sr-only">Sửa</span></th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (i of items(); track i.id) {
+                  @let errs = lineErrors().get(i.itemNo) ?? [];
+                  <tr [class.bad]="blockedLines().has(i.itemNo)" [class.sel]="i.id === editingId()">
+                    <td>{{ i.itemNo }}</td>
+                    <td class="title">
+                      <strong>{{ i.title || '(chưa có nội dung)' }}</strong>
+                      @for (m of errs; track $index) {
+                        <div class="row-err">{{ m }}</div>
+                      }
+                    </td>
+                    <td class="nw"><p-tag [value]="group(i.taskGroup)" severity="secondary" /></td>
+                    @if (!simple()) {
+                      <td class="nw">{{ krCode(i.keyResultId) }}</td>
+                    }
+                    <td class="nw">{{ unitName(i.leadUnitId) || '—' }}</td>
+                    @if (!simple()) {
+                      <td>{{ coNames(i) || '—' }}</td>
+                    }
+                    <td class="cat">
+                      @if (i.productName || i.catalogItemCode) {
+                        {{ i.catalogItemCode ? i.catalogItemCode + ' · ' : ''
+                        }}{{ i.plannedQuantity ?? '' }}
+                        {{ i.unit || i.productName }}
+                      } @else {
+                        <span class="missing">chưa chọn</span>
+                      }
+                    </td>
+                    <td class="nw">{{ due(i) }}</td>
+                    <td class="r">{{ i.standardScore ?? '' }}</td>
+                    @if (editable() && can('SCR-0402.lap')) {
+                      <td>
+                        <p-button
+                          icon="pi pi-pencil"
+                          [text]="true"
+                          severity="contrast"
+                          [ariaLabel]="'Sửa dòng ' + i.itemNo"
+                          (onClick)="edit(i)"
+                        />
+                      </td>
+                    }
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td [attr.colspan]="12" class="muted">Kế hoạch chưa có công việc nào.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          @if (editing(); as e) {
+            <vt-plan-item-editor
+              [item]="e"
+              [units]="units()"
+              [keyResults]="keyResultOptions()"
+              [periodStart]="w.periodStart"
+              [periodEnd]="w.periodEnd"
+              [simple]="simple()"
+              [messages]="lineErrors().get(e.itemNo) ?? []"
+              (changed)="update($event)"
+              (remove)="removeItem(e)"
+              (done)="editingId.set(null)"
+            />
+          }
+
+          @if (editable() && can('SCR-0402.lap')) {
+            <div class="add">
+              <p-button
+                label="Thêm từ danh mục"
+                icon="pi pi-plus"
+                severity="contrast"
+                [outlined]="true"
+                (onClick)="pickOpen.set(true)"
+              />
+              <p-button
+                label="Thêm việc ngoài danh mục"
+                icon="pi pi-plus"
+                severity="contrast"
+                [outlined]="true"
+                (onClick)="addBlank()"
+              />
+              <span class="muted small"
+                >Điểm của việc lấy từ danh mục (Bảng 3); việc ngoài danh mục cần cấp duyệt chấm
+                điểm.</span
+              >
+            </div>
+          }
+        </section>
+
+        <aside>
+          <section class="box" aria-labelledby="w-title">
+            <h2 id="w-title" class="h">
+              <span class="num" aria-hidden="true">3</span> Tỷ trọng nhóm
+            </h2>
+            <table class="weights">
+              <tbody>
+                @for (g of groups; track g) {
+                  <tr>
+                    <th scope="row">{{ group(g) }}</th>
+                    <td>
+                      <strong>{{ w.groupWeights[g] }}</strong> điểm tối đa
+                      <div class="small" [class.over]="total(g) > w.groupWeights[g]">
+                        đang lập {{ total(g) }}
+                      </div>
+                    </td>
+                  </tr>
+                }
+                <tr>
+                  <th scope="row">Tổng</th>
+                  <td>
+                    <strong>{{ w.groupWeights.total }}</strong> · luồng {{ w.groupWeights.flow }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            @if (!simple()) {
+              <p class="muted small">
+                Tỷ trọng do cấp có thẩm quyền quyết định, cấu hình trong Policy Pack "{{
+                  w.groupWeights.policyPack
+                }}".
+              </p>
+            }
+          </section>
+
+          @if (editable()) {
+            <section class="box" aria-labelledby="chk-title" aria-live="polite">
+              <h2 id="chk-title" class="h">
+                <span class="num" aria-hidden="true">4</span> Kiểm tra kế hoạch
+              </h2>
+              @if (check(); as c) {
+                <ul class="checks">
+                  @for (x of c.items; track $index) {
+                    <li>
+                      <span class="chip" [class]="'chip ' + tone(x)">{{ tag(x) }}</span>
+                      <span>{{ x.message }}</span>
+                    </li>
+                  }
+                </ul>
+                @if (blocking().length) {
+                  <p class="small err-text">Gửi duyệt bị chặn cho tới khi sửa hết lỗi.</p>
+                }
+              } @else {
+                <p class="muted">Đang kiểm tra…</p>
+              }
+            </section>
+          }
+        </aside>
+      </div>
+
+      <vt-catalog-pick-dialog
+        [(visible)]="pickOpen"
+        [items]="catalogItems()"
+        [used]="usedCatalog()"
+        (added)="addFromCatalog($event)"
+      />
+
+      <p-dialog
+        header="Gợi ý từ OKR"
+        [modal]="true"
+        [(visible)]="suggestOpen"
+        closeAriaLabel="Đóng"
+        [style]="{ width: 'min(600px, 95vw)' }"
+      >
+        <p class="muted">Một dòng đề xuất cho mỗi KR đã duyệt chưa có nhiệm vụ (BR-04-07).</p>
+        @for (s of suggestions(); track $index) {
+          <div class="sg">
+            <p-checkbox
+              [inputId]="'sg-' + $index"
+              [binary]="true"
+              [ngModel]="suggestPicked().has($index)"
+              (ngModelChange)="toggleSuggestion($index)"
+            />
+            <label [for]="'sg-' + $index">{{ s.title }}</label>
+          </div>
+        } @empty {
+          <p class="muted">Đang tải gợi ý…</p>
+        }
+        <ng-template #footer>
+          <p-button
+            label="Đóng"
+            severity="contrast"
+            [outlined]="true"
+            (onClick)="suggestOpen.set(false)"
+          />
+          <p-button
+            [label]="'Thêm ' + suggestPicked().size + ' dòng'"
+            [disabled]="!suggestPicked().size"
+            (onClick)="addSuggestions()"
+          />
+        </ng-template>
+      </p-dialog>
+
+      <vt-reason-dialog
+        [(visible)]="adjustOpen"
+        header="Tạo điều chỉnh kế hoạch"
+        [intro]="
+          'Tạo phiên bản ' +
+          (w.versions.length + 1) +
+          ' từ phiên bản đã duyệt. Lần điều chỉnh ' +
+          (w.adjustmentsUsed + 1) +
+          '/' +
+          w.adjustmentsMax +
+          ' trong quý; hiệu lực từ ngày duyệt, không hồi tố.'
+        "
+        confirmLabel="Tạo điều chỉnh"
+        [busy]="busy() === 'adjust'"
+        [error]="dialogError()"
+        (confirmed)="createAdjustment($event)"
+      />
+    } @else {
+      <p class="muted">Đang tải kế hoạch…</p>
+    }
+  `,
+  styles: `
+    :host {
+      display: block;
+      padding: 16px 24px;
+      --p-togglebutton-color: #374151;
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin: 0 0 4px;
+    }
+    .sub {
+      margin: 0 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .pickers {
+      display: flex;
+      gap: 8px;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 16px;
+      align-items: start;
+    }
+    .box {
+      border: 1px solid var(--p-content-border-color, #e5e7eb);
+      border-radius: 8px;
+      padding: 12px 16px;
+      background: var(--p-content-background, #fff);
+      margin-bottom: 12px;
+    }
+    .h {
+      font-size: 1.05rem;
+      margin: 0 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .num {
+      display: inline-grid;
+      place-items: center;
+      flex: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #111827;
+      color: #fff;
+      font-size: 0.8rem;
+    }
+    .save-state {
+      margin-left: auto;
+      color: #4b5563;
+      font-weight: 400;
+    }
+    .scroll {
+      overflow-x: auto;
+    }
+    .tbl {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .tbl th {
+      text-align: left;
+      color: #4b5563;
+      font-weight: 500;
+      background: #f9fafb;
+    }
+    .tbl th,
+    .tbl td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--p-content-border-color, #e5e7eb);
+      vertical-align: middle;
+    }
+    .tbl .title {
+      min-width: 220px;
+    }
+    .tbl .nw {
+      white-space: nowrap;
+    }
+    .tbl .cat {
+      min-width: 130px;
+    }
+    .banner {
+      flex-wrap: nowrap;
+      align-items: flex-start;
+    }
+    .tbl tr.bad {
+      background: #fef2f2;
+    }
+    .tbl tr.sel {
+      outline: 2px solid #6d28d9;
+      outline-offset: -2px;
+    }
+    .row-err {
+      margin-top: 6px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      background: #fffbeb;
+      color: #78350f;
+      font-size: 0.9em;
+    }
+    .missing {
+      color: #b91c1c;
+    }
+    .r {
+      text-align: right;
+    }
+    .add {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .weights {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .weights th {
+      text-align: left;
+      font-weight: 400;
+      color: #4b5563;
+      padding: 4px 0;
+      vertical-align: top;
+    }
+    .over {
+      color: #b91c1c;
+      font-weight: 600;
+    }
+    .checks {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .checks li {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 4px 0;
+      line-height: 1.5;
+    }
+    .chip {
+      flex: none;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 1px 8px;
+      border-radius: 4px;
+    }
+    .chip.ok {
+      background: #dcfce7;
+      color: #14532d;
+    }
+    .chip.bad {
+      background: #fee2e2;
+      color: #7f1d1d;
+    }
+    .chip.warn {
+      background: #fef3c7;
+      color: #78350f;
+    }
+    .err-text {
+      color: #b91c1c;
+    }
+    .msg {
+      margin: 0 0 10px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      border-left: 4px solid;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .msg.ok {
+      color: #14532d;
+      background: #f0fdf4;
+      border-color: #15803d;
+    }
+    .msg.warn {
+      color: #78350f;
+      background: #fffbeb;
+      border-color: #b45309;
+    }
+    .msg.err {
+      color: #7f1d1d;
+      background: #fef2f2;
+      border-color: #b91c1c;
+    }
+    .msg.info {
+      color: #1e3a8a;
+      background: #eff6ff;
+      border-color: #1d4ed8;
+    }
+    .hash {
+      word-break: break-all;
+      font-size: 0.85em;
+    }
+    .sg {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 6px 0;
+    }
+    .muted {
+      color: #4b5563;
+    }
+    .small {
+      font-size: 0.9em;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+    @media (max-width: 1100px) {
+      .layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+  `,
+})
+export class PlanPage {
+  private readonly api = inject(PlanApi);
+  private readonly orgApi = inject(OrgApi);
+  private readonly okrApi = inject(OkrApi);
+  private readonly catalogApi = inject(CatalogApi);
+  private readonly theme = inject(ThemeService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  protected readonly can = inject(TASK_CAN);
+
+  private readonly query = toSignal(this.route.queryParamMap);
+  protected readonly groups: TaskGroup[] = ['THUONG_XUYEN', 'THEN_CHOT'];
+
+  private readonly plans = rxResource({
+    params: () => (this.can('SCR-0402.xem') ? true : undefined),
+    stream: () => this.api.mine(),
+  });
+  /** Kỳ đang xem: `?plan=`, mặc định kế hoạch còn đang soạn, nếu không có thì kỳ mới nhất. */
+  protected readonly planId = computed(() => {
+    const list = this.plans.value() ?? [];
+    const q = this.query()?.get('plan');
+    if (q && list.some((p) => p.id === q)) return q;
+    return (list.find((p) => p.latestStatus === 'NHAP' || p.latestStatus === 'TRA_LAI') ?? list[0])
+      ?.id;
+  });
+  private readonly versionNo = computed(() => Number(this.query()?.get('v')) || undefined);
+
+  protected readonly ws = rxResource({
+    params: () => {
+      const id = this.planId();
+      return id ? { id, v: this.versionNo() } : undefined;
+    },
+    stream: ({ params }) => this.api.workspace(params.id, params.v),
+  });
+
+  private readonly unitsRes = rxResource({ stream: () => this.orgApi.units('unit') });
+  private readonly krRes = rxResource({
+    params: () => this.ws.value()?.periodId,
+    stream: ({ params }) => this.okrApi.keyResults(params),
+  });
+  private readonly catalogRes = rxResource({
+    params: () => (this.editable() ? true : undefined),
+    stream: () => this.catalogApi.items({ limit: 200 }),
+  });
+
+  /** Bản làm việc của các dòng: sửa tại chỗ, lưu nháp tự động. */
+  protected readonly items = linkedSignal<PlanItem[]>(() => this.ws.value()?.version.items ?? []);
+  /** Phiên bản đã lưu gần nhất (rowVersion cho If-Match). */
+  private readonly saved = linkedSignal<PlanVersion | undefined>(() => this.ws.value()?.version);
+  protected readonly dirty = linkedSignal<boolean>(() => {
+    this.ws.value();
+    return false;
+  });
+  protected readonly editingId = signal<string | null>(null);
+  protected readonly editing = computed(
+    () => this.items().find((i) => i.id === this.editingId()) ?? null,
+  );
+  protected readonly editable = computed(() => {
+    const s = this.ws.value()?.version.status;
+    return s === 'NHAP' || s === 'TRA_LAI';
+  });
+  protected readonly canAdjust = computed(() => {
+    const w = this.ws.value();
+    if (!w) return false;
+    const last = w.versions[w.versions.length - 1];
+    return (
+      w.version.isCurrent && last.versionNo === w.version.versionNo && last.status === 'DA_DUYET'
+    );
+  });
+
+  protected readonly busy = signal<Busy>(null);
+  protected readonly notice = signal<string | null>(null);
+  protected readonly error = signal<string | null>(null);
+  protected readonly conflict = signal(false);
+  protected readonly dialogError = signal<string | null>(null);
+  protected readonly savedAt = signal<Date | null>(null);
+  protected readonly pickOpen = signal(false);
+  protected readonly suggestOpen = signal(false);
+  protected readonly adjustOpen = signal(false);
+  protected readonly suggestions = signal<PlanItem[]>([]);
+  protected readonly suggestPicked = signal<Set<number>>(new Set());
+
+  /** Chế độ người cao tuổi: ẩn cột KR, phối hợp, sao chép, gợi ý OKR và phần giải thích (NFR-11). */
+  protected readonly simple = computed(
+    () => this.theme.mode() === 'elderly' && this.theme.reducedSteps(),
+  );
+
+  /** Kiểm tra tức thì của máy chủ, gọi lại khi dòng thay đổi (debounce). */
+  protected readonly checking = signal(false);
+  protected readonly check = toSignal(
+    toObservable(
+      computed(() => ({ items: this.items(), w: this.ws.value(), on: this.editable() })),
+    ).pipe(
+      filter((x) => !!x.w && x.on),
+      debounceTime(300),
+      switchMap(({ items, w }) => {
+        this.checking.set(true);
+        return this.api
+          .check(w!.id, w!.version.versionNo, items)
+          .pipe(catchError(() => of(undefined)));
+      }),
+    ),
+  );
+  protected readonly blocking = computed(() =>
+    (this.check()?.items ?? []).filter((i) => i.level === 'CHAN' && !i.passed),
+  );
+  protected readonly blockedLines = computed(
+    () =>
+      new Set(
+        this.blocking()
+          .map((x) => x.itemNo)
+          .filter((n): n is number => !!n),
+      ),
+  );
+  protected readonly lineErrors = computed(() => {
+    const m = new Map<number, string[]>();
+    for (const x of this.check()?.items ?? []) {
+      if (x.passed || !x.itemNo) continue;
+      m.set(x.itemNo, [...(m.get(x.itemNo) ?? []), x.message]);
+    }
+    return m;
+  });
+
+  protected readonly units = computed(() =>
+    (this.unitsRes.value()?.items ?? []).map((u) => ({ value: u.id, label: u.name })),
+  );
+  protected readonly keyResultOptions = computed(() =>
+    (this.krRes.value()?.items ?? []).map((k) => ({
+      value: k.id,
+      label: `${k.code} · ${k.title}`,
+    })),
+  );
+  protected readonly catalogItems = computed<CatalogItem[]>(
+    () => this.catalogRes.value()?.items ?? [],
+  );
+  protected readonly usedCatalog = computed(() =>
+    this.items()
+      .map((i) => i.catalogItemId)
+      .filter((x): x is string => !!x),
+  );
+  protected readonly planOptions = computed(() =>
+    (this.plans.value() ?? []).map((p) => ({
+      value: p.id,
+      label: `${p.periodLabel} · phiên bản ${p.latestVersionNo} · ${PLAN_VERSION_STATUS_LABEL[p.latestStatus]}`,
+    })),
+  );
+  protected readonly versionOptions = computed(() =>
+    (this.ws.value()?.versions ?? []).map((v) => ({
+      value: v.versionNo,
+      label: `Phiên bản ${v.versionNo} · ${PLAN_VERSION_STATUS_LABEL[v.status]}${v.isCurrent ? ' (hiện hành)' : ''}`,
+    })),
+  );
+  protected readonly saveState = computed(() => {
+    if (this.busy() === 'save') return 'Đang lưu nháp…';
+    if (this.dirty()) return 'Có thay đổi chưa lưu';
+    const t = this.savedAt();
+    return t
+      ? `Đã lưu nháp lúc ${t.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+      : '';
+  });
+  protected readonly loadError = computed(() => {
+    const p = toProblem(this.ws.error());
+    return p.status === 404 ? 'Không tìm thấy kế hoạch.' : p.title;
+  });
+
+  constructor() {
+    // Lưu nháp tự động sau khi ngừng sửa.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    effect(() => {
+      const d = this.dirty();
+      clearTimeout(timer);
+      if (d && this.editable() && this.can('SCR-0402.lap'))
+        timer = setTimeout(() => this.busy() || this.save(true), AUTOSAVE_MS);
+    });
+    inject(DestroyRef).onDestroy(() => clearTimeout(timer));
+    // Nhận mục danh mục chuyển từ SCR-0401 ("Đưa vào kế hoạch"), `?catalogItems=id1,id2`.
+    effect(() => {
+      const ids = this.query()?.get('catalogItems')?.split(',').filter(Boolean) ?? [];
+      const cat = this.catalogItems();
+      if (!ids.length || !cat.length || !this.editable() || !this.can('SCR-0402.lap')) return;
+      const chosen = cat.filter((c) => ids.includes(c.id) && !this.usedCatalog().includes(c.id));
+      this.addFromCatalog(chosen);
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { catalogItems: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    });
+    effect(() => this.check() !== undefined && this.checking.set(false));
+  }
+
+  protected statusLabel(s: keyof typeof PLAN_VERSION_STATUS_LABEL) {
+    return PLAN_VERSION_STATUS_LABEL[s];
+  }
+  protected statusSeverity(s: string) {
+    return s === 'DA_DUYET'
+      ? 'success'
+      : s === 'TRA_LAI'
+        ? 'danger'
+        : s === 'CHO_DUYET'
+          ? 'info'
+          : 'secondary';
+  }
+  protected group(g: TaskGroup) {
+    return TASK_GROUP_LABEL[g];
+  }
+  protected date(d: string) {
+    return formatDate(d, true);
+  }
+  protected due(i: PlanItem) {
+    if (i.recurrence) return PLAN_RECURRENCE_LABEL[i.recurrence];
+    return i.dueDate ? formatDate(i.dueDate) : '—';
+  }
+  protected unitName(id?: string) {
+    return this.units().find((u) => u.value === id)?.label ?? '';
+  }
+  protected coNames(i: PlanItem) {
+    return i.coUnitIds.map((id) => this.unitName(id)).join(', ');
+  }
+  protected krCode(id?: string) {
+    return id
+      ? (this.keyResultOptions()
+          .find((k) => k.value === id)
+          ?.label.split(' · ')[0] ?? '')
+      : '—';
+  }
+  protected total(g: TaskGroup) {
+    return (
+      this.check()?.groupTotals[g] ??
+      this.items()
+        .filter((i) => i.taskGroup === g)
+        .reduce((s, i) => s + (i.standardScore ?? 0), 0)
+    );
+  }
+  protected tag(x: { passed: boolean; level: string }) {
+    return x.passed ? 'Đạt' : x.level === 'CHAN' ? 'Lỗi' : 'Cảnh báo';
+  }
+  protected tone(x: { passed: boolean; level: string }) {
+    return x.passed ? 'ok' : x.level === 'CHAN' ? 'bad' : 'warn';
+  }
+
+  protected choosePlan(id: string) {
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { plan: id, v: null } });
+  }
+  protected chooseVersion(v: number) {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { plan: this.planId(), v },
+    });
+  }
+  protected reload() {
+    this.error.set(null);
+    this.conflict.set(false);
+    this.ws.reload();
+  }
+
+  private setItems(next: PlanItem[]) {
+    this.items.set(next.map((i, n) => ({ ...i, itemNo: n + 1 })));
+    this.dirty.set(true);
+  }
+  protected edit(i: PlanItem) {
+    this.editingId.set(i.id);
+  }
+  protected update(i: PlanItem) {
+    this.setItems(this.items().map((x) => (x.id === i.id ? i : x)));
+  }
+  protected removeItem(i: PlanItem) {
+    this.setItems(this.items().filter((x) => x.id !== i.id));
+    this.editingId.set(null);
+    this.notice.set(`Đã bỏ dòng "${i.title || i.itemNo}". Bấm Lưu nháp hoặc chờ lưu tự động.`);
+  }
+  private blank(patch: Partial<PlanItem> = {}): PlanItem {
+    return {
+      id: `tmp-${crypto.randomUUID()}`,
+      itemNo: this.items().length + 1,
+      title: '',
+      taskGroup: 'THUONG_XUYEN',
+      leadUnitId: this.ws.value()?.unitId,
+      coUnitIds: [],
+      productName: '',
+      plannedQuantity: null,
+      unit: '',
+      standardScore: null,
+      ...patch,
+    };
+  }
+  protected addBlank() {
+    const i = this.blank();
+    this.setItems([...this.items(), i]);
+    this.editingId.set(i.id);
+  }
+  protected addFromCatalog(list: CatalogItem[]) {
+    if (!list.length) return;
+    const added = list.map((c) =>
+      this.blank({
+        title: c.name,
+        taskGroup: c.defaultGroup,
+        catalogItemId: c.id,
+        catalogItemCode: c.code,
+        productName: c.productName,
+        plannedQuantity: 1,
+        unit: c.unit,
+        difficulty: c.difficulty,
+        standardScore: c.baseScore,
+      }),
+    );
+    this.setItems([...this.items(), ...added]);
+    this.notice.set(`Đã thêm ${added.length} công việc từ danh mục; chọn hạn cho từng dòng.`);
+  }
+  protected openSuggestions() {
+    const w = this.ws.value()!;
+    this.suggestions.set([]);
+    this.suggestPicked.set(new Set());
+    this.suggestOpen.set(true);
+    this.api.suggestions(w.id).subscribe({
+      next: (s) => {
+        this.suggestions.set(s);
+        this.suggestPicked.set(new Set(s.map((_, n) => n)));
+      },
+      error: (e) => this.fail(e),
+    });
+  }
+  protected toggleSuggestion(n: number) {
+    this.suggestPicked.update((s) => {
+      const next = new Set(s);
+      if (next.has(n)) next.delete(n);
+      else next.add(n);
+      return next;
+    });
+  }
+  protected addSuggestions() {
+    const picked = this.suggestions().filter((_, n) => this.suggestPicked().has(n));
+    this.setItems([
+      ...this.items(),
+      ...picked.map((s) => this.blank({ ...s, id: `tmp-${crypto.randomUUID()}` })),
+    ]);
+    this.suggestOpen.set(false);
+    this.notice.set(
+      `Đã thêm ${picked.length} dòng gợi ý từ OKR; bổ sung sản phẩm, đơn vị tính và hạn.`,
+    );
+  }
+
+  private fail(e: unknown, dialog = false) {
+    const p = toProblem(e);
+    this.busy.set(null);
+    if (dialog) {
+      this.dialogError.set(p.errors?.[0]?.message ?? p.title);
+      return;
+    }
+    this.conflict.set(p.status === 409 || p.status === 412);
+    this.error.set(p.errors?.length ? p.errors.map((x) => x.message).join(' ') : p.title);
+  }
+  private begin(kind: Busy, quiet = false) {
+    this.busy.set(kind);
+    this.error.set(null);
+    this.conflict.set(false);
+    if (!quiet) this.notice.set(null);
+  }
+
+  /** Thay dòng tạm (`tmp-…`) bằng dòng máy chủ trả, giữ dòng đang sửa. */
+  private applySaved(v: PlanVersion) {
+    const editingNo = this.editing()?.itemNo;
+    this.saved.set(v);
+    this.items.set(v.items);
+    this.dirty.set(false);
+    this.savedAt.set(new Date());
+    if (editingNo) this.editingId.set(v.items.find((i) => i.itemNo === editingNo)?.id ?? null);
+  }
+
+  protected save(auto = false) {
+    const w = this.ws.value();
+    const base = this.saved();
+    if (!w || !base) return;
+    this.begin('save', auto);
+    this.api.save(w.id, base, this.items()).subscribe({
+      next: (v) => {
+        this.busy.set(null);
+        this.applySaved(v);
+      },
+      error: (e) => this.fail(e),
+    });
+  }
+
+  protected copyPrevious() {
+    const w = this.ws.value();
+    const base = this.saved();
+    if (!w || !base) return;
+    this.begin('copy');
+    this.api.copyFromPrevious(w.id, base).subscribe({
+      next: (v) => {
+        this.busy.set(null);
+        this.applySaved(v);
+        this.notice.set(
+          `Đã sao chép ${v.items.length} dòng từ ${w.previousPeriodLabel}, hạn đã dịch theo kỳ.`,
+        );
+      },
+      error: (e) => this.fail(e),
+    });
+  }
+
+  protected submit() {
+    const w = this.ws.value();
+    const base = this.saved();
+    if (!w || !base) return;
+    this.begin('submit');
+    const run = (v: PlanVersion) =>
+      this.api.submit(w.id, v).subscribe({
+        next: (sent) => {
+          this.busy.set(null);
+          this.editingId.set(null);
+          this.ws.set({
+            ...w,
+            version: sent,
+            versions: w.versions.map((x) => (x.id === sent.id ? { ...x, status: sent.status } : x)),
+          } as PlanWorkspace);
+          this.notice.set('Đã gửi duyệt kế hoạch; lãnh đạo được thông báo để phê duyệt.');
+          this.plans.reload();
+        },
+        error: (e) => this.fail(e),
+      });
+    if (this.dirty()) {
+      this.api
+        .save(w.id, base, this.items())
+        .pipe(
+          switchMap((v) => {
+            this.applySaved(v);
+            return of(v);
+          }),
+        )
+        .subscribe({ next: run, error: (e) => this.fail(e) });
+    } else run(base);
+  }
+
+  protected openAdjust() {
+    this.dialogError.set(null);
+    this.adjustOpen.set(true);
+  }
+  protected createAdjustment(reason: string) {
+    const w = this.ws.value();
+    if (!w) return;
+    this.begin('adjust');
+    this.api.createAdjustment(w.id, reason).subscribe({
+      next: (v) => {
+        this.busy.set(null);
+        this.adjustOpen.set(false);
+        this.plans.reload();
+        this.chooseVersion(v.versionNo);
+        this.notice.set(
+          `Đã tạo phiên bản ${v.versionNo} để điều chỉnh. Ghi lý do ở từng dòng thay đổi nếu cần.`,
+        );
+      },
+      error: (e) => this.fail(e, true),
+    });
+  }
+}
