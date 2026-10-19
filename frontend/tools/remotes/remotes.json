@@ -1,0 +1,59 @@
+{
+  "$comment": "Danh mục remote của shell (WEB-015). Nguồn duy nhất cho build:all, test:all, perf:prepare, Dockerfile và manifest lúc chạy. Thêm remote bằng scripts/new-remote.sh, không sửa tay.",
+  "remotes": [
+    {
+      "project": "fe-task",
+      "key": "feTask",
+      "port": 4201,
+      "route": "tasks"
+    },
+    {
+      "project": "fe-okr",
+      "key": "feOkr",
+      "port": 4202,
+      "route": "okr"
+    },
+    {
+      "project": "fe-evidence",
+      "key": "feEvidence",
+      "port": 4203,
+      "route": "evidence"
+    },
+    {
+      "project": "fe-appraisal",
+      "key": "feAppraisal",
+      "port": 4204,
+      "route": "appraisal"
+    },
+    {
+      "project": "fe-dossier",
+      "key": "feDossier",
+      "port": 4205,
+      "route": "dossier"
+    },
+    {
+      "project": "fe-oversight",
+      "key": "feOversight",
+      "port": 4206,
+      "route": "oversight"
+    },
+    {
+      "project": "fe-dashboard",
+      "key": "feDashboard",
+      "port": 4207,
+      "route": "dashboard"
+    },
+    {
+      "project": "fe-config-studio",
+      "key": "feConfigStudio",
+      "port": 4208,
+      "route": "config-studio"
+    },
+    {
+      "project": "fe-admin",
+      "key": "feAdmin",
+      "port": 4209,
+      "route": "admin"
+    }
+  ]
+}

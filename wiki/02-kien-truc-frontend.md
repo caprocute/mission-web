@@ -20,15 +20,15 @@ Baseline mục 5.2 liệt kê đầy đủ các thành phần của SVC-17. Bả
 |---|---|---|---|
 | `fe-shell` | Host | QT-00 (SCR-0001 qua Keycloak, SCR-0002 trang chủ SDUI), khung, menu, UI Pack | Đã có |
 | `fe-task` | Remote | QT-05, QT-06 (SCR-0503, SCR-0601 đã có bản đầu); widget `vt.widget.myTasksToday` | Đã có, cổng dev 4201 |
-| `fe-okr` | Remote | QT-02, QT-03 (SCR-0201, SCR-0202, SCR-0203, SCR-0301) | Tuyến `/okr` chờ |
+| `fe-okr` | Remote | QT-02, QT-03 (SCR-0201, SCR-0202, SCR-0203, SCR-0301) | Khung (WEB-015), cổng dev 4202 |
 | `fe-task` hoặc remote riêng | Remote | QT-04 (SCR-0401, SCR-0402, SCR-0403); mã đặt tạm ở tuyến `/plans` | Chưa chốt remote (suy luận: thuộc `fe-task` vì cùng MOD-02) |
-| `fe-evidence` | Remote | QT-07 (SCR-0701, SCR-0703) | Tuyến `/evidence` chờ |
-| `fe-appraisal` | Remote | QT-09, QT-10 (SCR-0901 đến SCR-0904, SCR-1001, SCR-1002) | Tuyến `/appraisal` chờ |
-| `fe-dossier` | Remote | QT-11 (SCR-1101, SCR-1102) | Tuyến `/dossier` chờ |
-| `fe-oversight` | Remote | QT-12, QT-13, QT-14 (SCR-1201, SCR-1202, SCR-1301, SCR-1302, SCR-1401) | Tuyến `/oversight` chờ |
-| `fe-dashboard` | Remote | QT-16 (SCR-1601 đến SCR-1603) | Tuyến `/dashboard` chờ, chặn theo vai trò |
-| `fe-config-studio` | Remote | QT-15, QT-18 (SCR-1501 đến SCR-1504, SCR-1801, SCR-1802) | Tuyến `/config-studio` chờ |
-| `fe-admin` | Remote | QT-01, QT-08 (SCR-0101 đến SCR-0104, SCR-0801) | Tuyến `/admin` chờ |
+| `fe-evidence` | Remote | QT-07 (SCR-0701, SCR-0703) | Khung (WEB-015), cổng dev 4203 |
+| `fe-appraisal` | Remote | QT-09, QT-10 (SCR-0901 đến SCR-0904, SCR-1001, SCR-1002) | Khung (WEB-015), cổng dev 4204 |
+| `fe-dossier` | Remote | QT-11 (SCR-1101, SCR-1102) | Khung (WEB-015), cổng dev 4205 |
+| `fe-oversight` | Remote | QT-12, QT-13, QT-14 (SCR-1201, SCR-1202, SCR-1301, SCR-1302, SCR-1401) | Khung (WEB-015), cổng dev 4206 |
+| `fe-dashboard` | Remote | QT-16 (SCR-1601 đến SCR-1603) | Khung (WEB-015), cổng dev 4207, chặn theo vai trò |
+| `fe-config-studio` | Remote | QT-15, QT-18 (SCR-1501 đến SCR-1504, SCR-1801, SCR-1802) | Khung (WEB-015), cổng dev 4208, chặn theo vai trò |
+| `fe-admin` | Remote | QT-01, QT-08 (SCR-0101 đến SCR-0104, SCR-0801) | Khung (WEB-015), cổng dev 4209, chặn theo vai trò |
 | `fe-plugin-yte`, `fe-plugin-giaoduc`, `fe-plugin-llvt` | Plugin chuyên ngành | Widget, trang chuyên môn nạp theo manifest của tenant (ADR-05 lớp 4) | Chưa có |
 | `@vt/design-system` | Thư viện | Preset PrimeNG + token, `ThemeService` | Đã có |
 | `@vt/sdui-renderer` | Thư viện | Dựng bố cục SDUI từ UI Pack, registry component | Đã có |
@@ -43,7 +43,7 @@ Hai điểm trong bảng cần lưu ý. SCR-1803 (chế độ Đảng viên cao 
 
 Tệp `federation.manifest.json` ánh xạ tên remote (theo quy ước camelCase như `feTask`) tới địa chỉ tệp `remoteEntry.json` của remote. Shell gọi `initFederation('federation.manifest.json')` trong `main.ts` để dựng import map trước khi nạp bất kỳ mã Angular nào. Theo thiết kế, manifest do CDN hoặc tenant cấp, nhờ đó tenant có plugin chuyên ngành (ví dụ Sở Y tế với `fe-plugin-yte`) nhận được manifest khác tenant khác mà không cần bản build riêng. BR-18-12 quy định plugin chỉ được nạp khi có trong manifest của tenant, bản dựng đã được ký và quét như một service.
 
-Ở môi trường dev, manifest nằm sẵn trong `fe-shell/public/` và trỏ tới remote `fe-task` chạy trên cổng 4201. Khi đóng gói bằng Docker, tệp này được sinh lại lúc container khởi động từ biến môi trường `FE_TASK_URL` (xem mục "Phục vụ tĩnh" bên dưới). Hàm `remoteRoutes()` trong `fe-shell/src/app/remotes.ts` bọc `loadRemoteModule()`: khi remote không nạp được, shell hiển thị trang `RemoteUnavailablePage` thay vì vỡ toàn ứng dụng. Đây là cách hiện thực yêu cầu khả dụng NFR-04 ở phía trình duyệt.
+Ở môi trường dev, manifest nằm sẵn trong `fe-shell/public/` và trỏ tới từng remote chạy trên cổng dev của nó (`fe-task` 4201, tám remote khung 4202 đến 4209). Khi đóng gói bằng Docker, tệp này được sinh lại lúc container khởi động từ danh mục `frontend/tools/remotes/remotes.json` và các biến môi trường `FE_<TEN>_URL` (xem mục "Phục vụ tĩnh" bên dưới). Lúc khởi động, `initFederation` tải `remoteEntry.json` của mọi remote trong manifest để dựng import map. Hàm `remoteRoutes()` trong `fe-shell/src/app/remotes.ts` bọc `loadRemoteModule()`: khi remote không nạp được, shell hiển thị trang `RemoteUnavailablePage` thay vì vỡ toàn ứng dụng. Đây là cách hiện thực yêu cầu khả dụng NFR-04 ở phía trình duyệt.
 
 ## Cấu hình lúc chạy `/config.json`
 
@@ -69,7 +69,7 @@ TL-01 mục SVC-17 quy định mọi tệp tĩnh có tên chứa băm nội dung
 
 Cấu hình `deploy/web/nginx.conf` hiện tại theo đúng nguyên tắc này: tệp `.js`, `.css`, phông, ảnh nhận `max-age=31536000, immutable`, còn `index.html`, `federation.manifest.json`, `remoteEntry.json`, `config.json`, `current.json` nhận `max-age=60`. Riêng UI Pack có quy tắc bộ đệm chi tiết hơn (`current.json` có thêm `stale-while-revalidate=600` và ETag theo thiết kế), trình bày ở [Giao diện theo tenant](03-giao-dien-theo-tenant.md).
 
-`deploy/web/Dockerfile` dựng `fe-task` rồi `fe-shell` trong một giai đoạn Node 22, sau đó chép kết quả vào ảnh `nginx-unprivileged` chạy không root trên cổng 8080. Remote `fe-task` được đặt dưới đường dẫn `/remotes/fe-task` cùng nguồn với shell. Tập lệnh `40-runtime-config.sh` chạy khi container khởi động và sinh `config.json`, `federation.manifest.json` từ biến môi trường `CELL`, `TENANT`, `API_BASE_URL`, `UI_PACK_BASE_URL`, `AUTH_ENABLED`, `AUTH_ISSUER`, `AUTH_CLIENT_ID`, `USE_MOCK_API`, `FE_TASK_URL`. Chi tiết triển khai xem [Hạ tầng dev và triển khai](12-ha-tang-dev-va-trien-khai.md).
+`deploy/web/Dockerfile` chạy `npm run build:all` (mọi remote trong `remotes.json` rồi `fe-shell`) trong một giai đoạn Node 22, ghép kết quả bằng `workspace.mjs assemble`, sau đó chép vào ảnh `nginx-unprivileged` chạy không root trên cổng 8080. Mỗi remote được đặt dưới `/remotes/<project>` cùng nguồn với shell, và `nginx.conf` trả 404 cho tệp thiếu dưới `/remotes/` thay vì rơi về `index.html`. Tập lệnh `40-runtime-config.sh` chạy khi container khởi động và sinh `config.json`, `federation.manifest.json` từ biến môi trường `CELL`, `TENANT`, `API_BASE_URL`, `UI_PACK_BASE_URL`, `AUTH_ENABLED`, `AUTH_ISSUER`, `AUTH_CLIENT_ID`, `USE_MOCK_API` và `FE_<TEN>_URL` cho từng remote (như `FE_TASK_URL`, `FE_OKR_URL`, `FE_CONFIG_STUDIO_URL`). Chi tiết triển khai xem [Hạ tầng dev và triển khai](12-ha-tang-dev-va-trien-khai.md).
 
 ## Nhúng vào cổng khác: `<vt-okr-app>`
 

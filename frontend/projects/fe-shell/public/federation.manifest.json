@@ -1,3 +1,11 @@
 {
-  "feTask": "http://localhost:4201/remoteEntry.json"
+  "feTask": "http://localhost:4201/remoteEntry.json",
+  "feOkr": "http://localhost:4202/remoteEntry.json",
+  "feEvidence": "http://localhost:4203/remoteEntry.json",
+  "feAppraisal": "http://localhost:4204/remoteEntry.json",
+  "feDossier": "http://localhost:4205/remoteEntry.json",
+  "feOversight": "http://localhost:4206/remoteEntry.json",
+  "feDashboard": "http://localhost:4207/remoteEntry.json",
+  "feConfigStudio": "http://localhost:4208/remoteEntry.json",
+  "feAdmin": "http://localhost:4209/remoteEntry.json"
 }

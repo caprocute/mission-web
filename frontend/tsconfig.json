@@ -54,6 +54,54 @@
       "path": "./projects/fe-task/tsconfig.spec.json"
     },
     {
+      "path": "./projects/fe-okr/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/fe-okr/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/fe-evidence/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/fe-evidence/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/fe-appraisal/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/fe-appraisal/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/fe-dossier/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/fe-dossier/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/fe-oversight/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/fe-oversight/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/fe-dashboard/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/fe-dashboard/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/fe-config-studio/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/fe-config-studio/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/fe-admin/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/fe-admin/tsconfig.spec.json"
+    },
+    {
       "path": "./projects/design-system/tsconfig.lib.json"
     },
     {

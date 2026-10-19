@@ -1,7 +1,11 @@
 #!/bin/sh
 # Sinh /config.json và federation.manifest.json từ biến môi trường khi container khởi động.
+# Mỗi remote trong /etc/mission-web/remotes.tsv (khoá, biến URL, project; sinh lúc build từ
+# frontend/tools/remotes/remotes.json) nhận URL từ biến tương ứng, ví dụ FE_TASK_URL,
+# FE_OKR_URL, FE_CONFIG_STUDIO_URL; mặc định là /remotes/<project> cùng nguồn với shell.
 set -e
 H=/usr/share/nginx/html
+REMOTES=${REMOTES_TSV:-/etc/mission-web/remotes.tsv}
 cat > $H/config.json <<JSON
 {
   "cell": "${CELL:-DEV}",
@@ -12,6 +16,14 @@ cat > $H/config.json <<JSON
   "useMockApi": ${USE_MOCK_API:-true}
 }
 JSON
-cat > $H/federation.manifest.json <<JSON
-{ "feTask": "${FE_TASK_URL:-/remotes/fe-task}/remoteEntry.json" }
-JSON
+{
+  printf '{'
+  sep=''
+  while IFS="$(printf '\t')" read -r key var project; do
+    [ -n "$key" ] || continue
+    url=$(printenv "$var" || true)
+    printf '%s\n  "%s": "%s/remoteEntry.json"' "$sep" "$key" "${url:-/remotes/$project}"
+    sep=','
+  done < "$REMOTES"
+  printf '\n}\n'
+} > $H/federation.manifest.json
