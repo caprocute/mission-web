@@ -49,6 +49,12 @@ export const ROUTES: Routes = [
     title: 'Cây tổ chức',
   },
   {
+    path: 'periods',
+    canActivate: [permissionGuard('SCR-0801.xem')],
+    loadComponent: () => import('./pages/periods/periods.page').then((m) => m.PeriodsPage),
+    title: 'Kỳ đánh giá và khoá kỳ',
+  },
+  {
     path: 'tenants/:id',
     canActivate: [permissionGuard('SCR-0101.xem')],
     loadComponent: () => import('./pages/tenant-detail.page').then((m) => m.TenantDetailPage),

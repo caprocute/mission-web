@@ -8,6 +8,7 @@ import { SOURCE_DOCS_MOCK } from './source-docs/source-docs.mock';
 import { TENANTS_MOCK } from './tenants/tenants.mock';
 import { ORG_TREE_MOCK } from './org-tree/org-tree.mock';
 import { EVIDENCE_MOCK } from './evidence/evidence.mock';
+import { PERIODS_MOCK } from './periods/periods.mock';
 
 /**
  * Danh mục fixture theo module API (`/api/v1/<module>`). Thêm module mới: tạo thư mục
@@ -25,6 +26,7 @@ export const MOCK_MODULES: MockModule[] = [
   TENANTS_MOCK,
   ORG_TREE_MOCK,
   EVIDENCE_MOCK,
+  PERIODS_MOCK,
 ];
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);

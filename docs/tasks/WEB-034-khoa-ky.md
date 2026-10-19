@@ -12,7 +12,7 @@
 | Cỡ việc | M (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-007, WEB-015 |
 | Truy vết | QT-08 → SCR-0801 → `/api/v1/periods` → MOD-08, SVC-06 (saga) → EVT-09, EVT-26 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Xong, chờ gộp (nhánh `feat/WEB-034-khoa-ky`) |
 
 ## 1. Mục tiêu
 

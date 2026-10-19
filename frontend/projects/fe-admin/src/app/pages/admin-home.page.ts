@@ -9,15 +9,24 @@ import { ADMIN_CAN } from '../admin-permissions';
   imports: [MessageModule, RouterLink],
   template: `
     <h1>Quản trị tenant</h1>
-    @if (can('SCR-0103.xem')) {
+    @if (can('SCR-0103.xem') || can('SCR-0801.xem')) {
       <ul class="links">
-        <li>
-          <a routerLink="org">Cây tổ chức</a> · xem, nhập và thay đổi cơ cấu theo thời gian hiệu lực
-        </li>
+        @if (can('SCR-0103.xem')) {
+          <li>
+            <a routerLink="org">Cây tổ chức</a> · xem, nhập và thay đổi cơ cấu theo thời gian hiệu
+            lực
+          </li>
+        }
+        @if (can('SCR-0801.xem')) {
+          <li>
+            <a routerLink="periods">Kỳ đánh giá</a> · lịch kỳ, lệnh khoá kỳ và tiến trình saga khoá
+            kỳ
+          </li>
+        }
       </ul>
     }
     <p-message severity="info">
-      Các màn hình còn lại của phân hệ Quản trị tenant đang được phát triển: SCR-0104, SCR-0801.
+      Các màn hình còn lại của phân hệ Quản trị tenant đang được phát triển: SCR-0104.
     </p-message>
   `,
   styles: `
