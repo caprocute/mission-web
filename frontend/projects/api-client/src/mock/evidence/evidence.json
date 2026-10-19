@@ -34,6 +34,17 @@
       "quantityAccepted": 0,
       "status": "DANG_LAM",
       "rowVersion": 1
+    },
+    {
+      "id": "0192a1b0-0000-7000-8000-000000000138",
+      "taskId": "0192a0f0-0002-7000-8000-000000000138",
+      "name": "Báo cáo tổng hợp kết quả kiểm tra đảng viên quý III",
+      "deliverableType": "BAO_CAO",
+      "unit": "báo cáo",
+      "quantityPlanned": 1,
+      "quantityAccepted": 0,
+      "status": "DA_NOP",
+      "rowVersion": 3
     }
   ],
   "externalDocs": [
@@ -91,7 +102,34 @@
       "dedup": {
         "duplicate": true,
         "matches": [
-          { "taskCode": "NV-2026-Q3-0088", "ownerName": "Phạm Thu Hà", "submittedAt": "@today-47" }
+          {
+            "taskCode": "NV-2026-Q3-0088",
+            "ownerName": "Phạm Thu Hà",
+            "submittedAt": "@today-47"
+          }
+        ]
+      },
+      "createdAt": "@today+0T09:05:00+07:00"
+    },
+    {
+      "objectId": "0192a1c3-0000-7000-8000-000000000002",
+      "objectVersionId": "0192a1c3-0000-7000-8000-000000000012",
+      "versionNo": 1,
+      "fileName": "phu-luc-so-lieu-chi-bo.xlsx",
+      "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "sizeBytes": 101376,
+      "sha256": "a41c9e07b3d2f1e0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f85d2b",
+      "classification": "C1",
+      "e2ee": false,
+      "scanStatus": "SACH",
+      "dedup": {
+        "duplicate": true,
+        "matches": [
+          {
+            "taskCode": "NV-2026-Q3-0088",
+            "ownerName": "Phạm Thu Hà",
+            "submittedAt": "@today-47"
+          }
         ]
       },
       "createdAt": "@today+0T09:05:00+07:00"
@@ -136,6 +174,92 @@
           "rowVersion": 1
         }
       ]
+    },
+    {
+      "$comment": "SCR-0703 (WEB-033): người dùng dev là người nghiệm thu được chỉ định, Nguyễn Văn An là người nộp",
+      "id": "0192a1b2-0000-7000-8000-000000000138",
+      "deliverableId": "0192a1b0-0000-7000-8000-000000000138",
+      "taskId": "0192a0f0-0002-7000-8000-000000000138",
+      "title": "Báo cáo tổng hợp kết quả kiểm tra đảng viên quý III",
+      "sourceType": "VAN_BAN",
+      "externalDocRef": "47-BC/BTCĐUK",
+      "reviewerId": "dev-user",
+      "rowVersion": 4,
+      "versions": [
+        {
+          "versionNo": 1,
+          "status": "YEU_CAU_BO_SUNG",
+          "source": "VAN_BAN_HE_THONG",
+          "sourceDocRef": "45-BC/BTCĐUK",
+          "docNumber": "45-BC/BTCĐUK",
+          "docDate": "@today-6",
+          "docSummary": "Báo cáo kết quả kiểm tra đảng viên quý III/2026 (lần 1)",
+          "submittedBy": {
+            "id": "u-nvan",
+            "name": "Nguyễn Văn An"
+          },
+          "submittedAt": "@today-5T15:20:00+07:00",
+          "decidedAt": "@today-4T10:00:00+07:00",
+          "decisionNote": "Bổ sung số liệu chi bộ 3, 6",
+          "decidedByName": "Cán bộ thử nghiệm",
+          "qualityCriteria": [
+            {
+              "code": "TC-DV-03-1",
+              "text": "Đủ số liệu theo mẫu"
+            },
+            {
+              "code": "TC-DV-03-2",
+              "text": "Đúng thể thức NĐ 30/2020"
+            },
+            {
+              "code": "TC-DV-03-3",
+              "text": "Được lãnh đạo ban duyệt"
+            }
+          ],
+          "rowVersion": 3
+        },
+        {
+          "versionNo": 2,
+          "status": "DA_NOP",
+          "source": "VAN_BAN_HE_THONG",
+          "sourceDocRef": "47-BC/BTCĐUK",
+          "docNumber": "47-BC/BTCĐUK",
+          "docDate": "@today+0",
+          "docSummary": "Báo cáo chuyên đề công tác kiểm tra quý III/2026",
+          "objectId": "0192a1c3-0000-7000-8000-000000000002",
+          "reuseJustification": "Phụ lục số liệu dùng chung cho hai báo cáo quý III theo chỉ đạo của Trưởng ban.",
+          "submittedBy": {
+            "id": "u-nvan",
+            "name": "Nguyễn Văn An"
+          },
+          "submittedAt": "@today+0T09:11:00+07:00",
+          "attestedAt": "@today+0T09:11:00+07:00",
+          "qualityCriteria": [
+            {
+              "code": "TC-DV-03-1",
+              "text": "Đủ số liệu theo mẫu"
+            },
+            {
+              "code": "TC-DV-03-2",
+              "text": "Đúng thể thức NĐ 30/2020"
+            },
+            {
+              "code": "TC-DV-03-3",
+              "text": "Được lãnh đạo ban duyệt"
+            }
+          ],
+          "hasPriorRevisionRequest": true,
+          "rowVersion": 2
+        }
+      ]
     }
-  ]
+  ],
+  "taskRefs": {
+    "0192a0f0-0002-7000-8000-000000000138": {
+      "code": "NV-2026-Q4-0138",
+      "name": "Báo cáo tổng hợp kết quả kiểm tra đảng viên quý III",
+      "dueDate": "@today-4",
+      "lateWorkingDays": 2
+    }
+  }
 }

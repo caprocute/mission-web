@@ -40,6 +40,7 @@ export * from './lib/models/org-tree';
 export * from './lib/org-tree-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
 export {
+  failMockIntegrityOnce,
   failMockUploadPartOnce,
   mockStepUp,
   resetMockApi,

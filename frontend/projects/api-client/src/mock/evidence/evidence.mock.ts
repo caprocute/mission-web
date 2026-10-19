@@ -1,5 +1,8 @@
 import {
   Deliverable,
+  EvidenceAcceptRequest,
+  EvidenceAcceptance,
+  EvidenceReturnRequest,
   Evidence,
   EvidenceExternalDoc,
   EvidenceVersion,
@@ -37,6 +40,8 @@ type StoredVersion = EvidenceVersion & {
 };
 type StoredEvidence = Omit<Evidence, 'task' | 'versions' | 'currentVersionNo' | 'currentStatus'> & {
   taskId: string;
+  /** Người nghiệm thu được chỉ định; mặc định là lãnh đạo giao việc trong fixture. */
+  reviewerId?: string;
   versions: StoredVersion[];
 };
 type StoredObject = FileObject & { scanPolls: number };
@@ -66,7 +71,7 @@ let objects: StoredObject[] | null = null;
 let uploads: StoredUpload[] = [];
 let seq = 0;
 
-const uuid = (kind: string) => `0192a1${kind}-0000-7000-8000-${String(++seq).padStart(12, '0')}`;
+const uuid = (kind: string) => `0192a1${kind}-0000-7000-8fff-${String(++seq).padStart(12, '0')}`;
 const now = () => new Date().toISOString();
 
 function store(): StoredEvidence[] {
@@ -98,7 +103,12 @@ const dedupIndex = () =>
     submittedAt: string;
   }[];
 
+type TaskRefFixture = { code: string; name: string; dueDate: string; lateWorkingDays: number };
+const extraTasks = fixture.taskRefs as Record<string, TaskRefFixture>;
+
 function taskRef(id: string) {
+  const extra = extraTasks[id];
+  if (extra) return { id, code: extra.code, name: extra.name };
   const t = tasksFixture.tasks.find((x) => x.id === id) as
     { code?: string; title?: string } | undefined;
   return { id, code: t?.code ?? id, name: t?.title ?? '' };
@@ -155,6 +165,7 @@ function evidenceView(e: StoredEvidence, withVersions: boolean): Evidence {
           status: v.status,
           submittedAt: v.submittedAt,
           decidedAt: v.decidedAt,
+          qualityLevel: v.acceptance?.qualityLevel,
           decisionNote: v.decisionNote,
         }))
       : [],
@@ -333,6 +344,187 @@ function submit(req: MockRequest): MockResponse {
   );
 }
 
+// ── Nghiệm thu SCR-0703 (WEB-033) ──
+
+const LEVELS = [1, 0.75, 0.5, 0.25, 0];
+
+/** BR-07-06: chỉ người nghiệm thu được chỉ định, khác người nộp. */
+function reviewerGuard(e: StoredEvidence, v: StoredVersion): MockResponse | null {
+  if (v.submittedBy?.id === MOCK_ME.id || e.reviewerId !== MOCK_ME.id)
+    return problem(403, 'Đồng chí không phải người nghiệm thu được chỉ định của minh chứng này.', {
+      code: 'PRODUCT-403-SELF-REVIEW',
+      detail:
+        v.submittedBy?.id === MOCK_ME.id
+          ? 'BR-07-06: người nghiệm thu phải khác người nộp và người phối hợp.'
+          : undefined,
+    });
+  return null;
+}
+
+function reviewTarget(req: MockRequest) {
+  const hit = locate(req);
+  if ('status' in hit) return hit;
+  const v = hit.v!;
+  return reviewerGuard(hit.e, v) ?? ifMatch(v, req) ?? { e: hit.e, v };
+}
+
+function openReview(req: MockRequest): MockResponse {
+  const hit = reviewTarget(req);
+  if ('status' in hit) return hit;
+  const { e, v } = hit;
+  if (v.status !== 'DA_NOP' && v.status !== 'DANG_NGHIEM_THU')
+    return problem(409, 'Phiên bản không ở trạng thái chờ nghiệm thu.', {
+      code: 'PRODUCT-409-INVALID-STATE',
+    });
+  if (mockSession.takeIntegrityFailure()) {
+    v.integrity = { verified: false, checkedAt: now() };
+    return problem(
+      409,
+      'Toàn vẹn minh chứng không được bảo đảm. Nghiệm thu bị chặn và sự cố đã được báo.',
+      {
+        code: 'PRODUCT-409-INTEGRITY-FAILED',
+      },
+    );
+  }
+  v.status = 'DANG_NGHIEM_THU';
+  v.integrity = { verified: true, checkedAt: now() };
+  v.rowVersion++;
+  e.rowVersion++;
+  return ok(view(v), etag(v.rowVersion));
+}
+
+function decide(
+  e: StoredEvidence,
+  v: StoredVersion,
+  a: Omit<
+    EvidenceAcceptance,
+    'id' | 'evidenceVersionId' | 'reviewer' | 'decidedAt' | 'revisionCount'
+  >,
+) {
+  const at = now();
+  const acceptance: EvidenceAcceptance = {
+    id: uuid('e5'),
+    evidenceVersionId: v.id,
+    reviewer: { id: MOCK_ME.id, name: MOCK_ME.name },
+    decidedAt: at,
+    revisionCount: e.versions.filter((x) => x.status === 'YEU_CAU_BO_SUNG').length,
+    ...a,
+  };
+  Object.assign(v, {
+    status: a.decision,
+    acceptance,
+    acceptedAt: a.decision === 'DA_XAC_NHAN' ? at : undefined,
+    decidedAt: at,
+    decisionNote: a.comment,
+    decidedByName: MOCK_ME.name,
+    rowVersion: v.rowVersion + 1,
+  });
+  e.rowVersion++;
+  return acceptance;
+}
+
+function accept(req: MockRequest): MockResponse {
+  const hit = reviewTarget(req);
+  if ('status' in hit) return hit;
+  const { e, v } = hit;
+  if (v.status !== 'DANG_NGHIEM_THU')
+    return problem(409, 'Phiên bản chưa được mở nghiệm thu.', {
+      code: 'PRODUCT-409-INVALID-STATE',
+    });
+  if (v.integrity && !v.integrity.verified)
+    return problem(409, 'Toàn vẹn minh chứng không được bảo đảm.', {
+      code: 'PRODUCT-409-INTEGRITY-FAILED',
+    });
+  // BR-07-11: xác nhận nghiệm thu cần MFA trong 15 phút
+  if (!mockSession.recentMfa()) {
+    const r = problem(401, 'Cần xác thực bước lên trước khi xác nhận nghiệm thu', {
+      type: 'https://datatracker.ietf.org/doc/html/rfc9470',
+      code: 'insufficient_user_authentication',
+    });
+    r.headers = {
+      ...r.headers,
+      'WWW-Authenticate':
+        'Bearer error="insufficient_user_authentication", acr_values="aal2", max_age=900',
+    };
+    return r;
+  }
+  const b = req.body as EvidenceAcceptRequest;
+  if (!LEVELS.includes(b?.qualityLevel))
+    return problem(422, 'Dữ liệu không hợp lệ', {
+      code: 'COMMON-422-VALIDATION',
+      errors: [{ field: 'qualityLevel', message: 'Mức chất lượng chỉ nhận 1; 0,75; 0,5; 0,25; 0' }],
+    });
+  const codes = new Set((b.criteriaResults ?? []).map((c) => c.criterionCode));
+  if ((v.qualityCriteria ?? []).some((c) => !codes.has(c.code)))
+    return problem(422, 'Vui lòng đánh giá tất cả tiêu chuẩn chất lượng trước khi chọn mức.', {
+      code: 'PRODUCT-422-CRITERIA-INCOMPLETE',
+    });
+  if (b.qualityLevel < 1 && !b.comment?.trim())
+    return problem(422, 'Mức chất lượng dưới 1 cần có nhận xét.', {
+      code: 'PRODUCT-422-COMMENT-REQUIRED',
+      errors: [{ field: 'comment', message: 'Mức chất lượng dưới 1 cần có nhận xét.' }],
+    });
+  if (v.hasPriorRevisionRequest && (!b.revisionCause || b.isObjectiveRevision === undefined))
+    return problem(422, 'Chọn nguyên nhân chỉnh sửa', {
+      code: 'PRODUCT-422-REVISION-CAUSE-REQUIRED',
+      errors: [{ field: 'revisionCause', message: 'Chọn nguyên nhân chỉnh sửa' }],
+    });
+  const acceptance = decide(e, v, {
+    decision: 'DA_XAC_NHAN',
+    qualityLevel: b.qualityLevel,
+    criteriaResults: b.criteriaResults,
+    revisionCause: b.revisionCause,
+    isObjectiveRevision: b.isObjectiveRevision,
+    comment: b.comment?.trim() || undefined,
+  });
+  return ok(
+    { acceptance, versionStatus: v.status, taskStatusChanged: 'HOAN_THANH' },
+    etag(v.rowVersion),
+  );
+}
+
+function returnVersion(req: MockRequest, decision: 'YEU_CAU_BO_SUNG' | 'TU_CHOI'): MockResponse {
+  const hit = reviewTarget(req);
+  if ('status' in hit) return hit;
+  const { e, v } = hit;
+  if (v.status !== 'DANG_NGHIEM_THU')
+    return problem(409, 'Phiên bản chưa được mở nghiệm thu.', {
+      code: 'PRODUCT-409-INVALID-STATE',
+    });
+  const b = req.body as EvidenceReturnRequest;
+  const comment = b?.comment?.trim() ?? '';
+  if (!comment || comment.length > 2000)
+    return problem(422, decision === 'TU_CHOI' ? 'Ghi lý do từ chối' : 'Ghi nội dung cần bổ sung', {
+      code: 'PRODUCT-422-COMMENT-REQUIRED',
+      errors: [{ field: 'comment', message: 'Nhận xét bắt buộc, tối đa 2.000 ký tự' }],
+    });
+  const acceptance = decide(e, v, { decision, criteriaResults: b.criteriaResults, comment });
+  return ok(
+    { acceptance, versionStatus: v.status, taskStatusChanged: 'DANG_THUC_HIEN' },
+    etag(v.rowVersion),
+  );
+}
+
+/**
+ * Xem trước điểm (SVC-07, Policy Pack Khối Đảng v2.0 giả lập): A = 1 khi đủ số lượng, B là mức đã chọn,
+ * C = 1 − 0,05 × số ngày làm việc chậm (chậm do khách quan thì không trừ), KPI = trung bình ba hệ số.
+ */
+function scorePreview(req: MockRequest): MockResponse {
+  const b = req.body as { taskId?: string; qualityLevel?: number; revisionCause?: string };
+  if (!b?.taskId || !LEVELS.includes(b.qualityLevel ?? -1))
+    return problem(422, 'Dữ liệu không hợp lệ', { code: 'COMMON-422-VALIDATION' });
+  const late = extraTasks[b.taskId]?.lateWorkingDays ?? 0;
+  const c = b.revisionCause === 'KHACH_QUAN' ? 1 : Math.max(0, 1 - 0.05 * late);
+  const round = (x: number) => Math.round(x * 1000) / 1000;
+  return ok({
+    a: 1,
+    b: b.qualityLevel,
+    c: round(c),
+    kpi: round((1 + b.qualityLevel! + c) / 3),
+    policyVersion: 'KHOI_DANG v2.0',
+  });
+}
+
 // ── SVC-08: tải lên nhiều phần ──
 
 function createUpload(req: MockRequest): MockResponse {
@@ -485,7 +677,11 @@ export const EVIDENCE_MOCK: MockModule = {
         const task = r.params.get('task');
         const deliverable = r.params.get('deliverable');
         const status = r.params.get('status')?.split(',');
+        const reviewer = r.params.get('reviewer') === 'me';
+        const submitter = r.params.get('submitter') === 'me';
         const items = store()
+          .filter((e) => !reviewer || e.reviewerId === MOCK_ME.id)
+          .filter((e) => !submitter || e.reviewerId !== MOCK_ME.id)
           .filter((e) => !task || e.taskId === task)
           .filter((e) => !deliverable || e.deliverableId === deliverable)
           .filter((e) => !status || status.includes(latest(e)?.status ?? ''))
@@ -556,5 +752,43 @@ export const EVIDENCE_MOCK: MockModule = {
     { method: 'PUT', pattern: '/api/v1/files/uploads/:uploadId/parts/:n', handle: putPart },
     { method: 'POST', pattern: '/api/v1/files/uploads/:uploadId/complete', handle: complete },
     { method: 'GET', pattern: '/api/v1/files/:objectId/scan', handle: scan },
+    {
+      method: 'GET',
+      pattern: '/api/v1/files/:objectId/download-url',
+      handle: (r) => {
+        const o = findObject(r.pathParams['objectId']);
+        if (!o) return problem(404, 'Không tìm thấy tệp');
+        if (o.scanStatus === 'NHIEM') return problem(403, 'Tệp nhiễm mã độc không được mở');
+        return ok(
+          {
+            // giả lập không có kho đối tượng: trang trống thay cho URL ký trước
+            url: 'about:blank',
+            expiresAt: new Date(Date.now() + 300_000).toISOString(),
+            mediaType: o.mediaType,
+            sizeBytes: o.sizeBytes,
+            sha256: o.sha256,
+            e2ee: o.e2ee,
+          },
+          { 'Cache-Control': 'no-store' },
+        );
+      },
+    },
+    {
+      method: 'POST',
+      pattern: '/api/v1/evidences/:id/versions/:v/open-review',
+      handle: openReview,
+    },
+    { method: 'POST', pattern: '/api/v1/evidences/:id/versions/:v/accept', handle: accept },
+    {
+      method: 'POST',
+      pattern: '/api/v1/evidences/:id/versions/:v/request-revision',
+      handle: (r) => returnVersion(r, 'YEU_CAU_BO_SUNG'),
+    },
+    {
+      method: 'POST',
+      pattern: '/api/v1/evidences/:id/versions/:v/reject',
+      handle: (r) => returnVersion(r, 'TU_CHOI'),
+    },
+    { method: 'POST', pattern: '/api/v1/appraisals/score-preview', handle: scorePreview },
   ],
 };

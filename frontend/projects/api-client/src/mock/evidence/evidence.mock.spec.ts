@@ -7,7 +7,7 @@ import { idempotencyInterceptor } from '../../lib/interceptors';
 import { DEFAULT_RUNTIME_CONFIG, RUNTIME_CONFIG } from '../../lib/runtime-config';
 import { MOCK_API_OPTIONS, mockApiInterceptor } from '../mock-api.interceptor';
 import { resetMockData } from '../mock-registry';
-import { failMockUploadPartOnce } from '../mock-session';
+import { failMockIntegrityOnce, failMockUploadPartOnce, mockStepUp } from '../mock-session';
 
 /** WEB-032: hành vi giả lập SCR-0701 (tải lên nhiều phần, quét, tra trùng, lưu nháp, nộp BR-07-01…04). */
 function setup() {
@@ -161,5 +161,84 @@ describe('mock evidence – SCR-0701 (WEB-032)', () => {
     );
     const v1 = await firstValueFrom(ev.createVersion(e.id, { source: 'TAI_LEN' }));
     expect(v1).toMatchObject({ versionNo: 1, status: 'NHAP' });
+  });
+});
+
+describe('mock evidence – SCR-0703 (WEB-033)', () => {
+  beforeEach(() => resetMockData());
+  const R = '0192a1b2-0000-7000-8000-000000000138';
+  const criteria = ['TC-DV-03-1', 'TC-DV-03-2', 'TC-DV-03-3'].map((c) => ({
+    criterionCode: c,
+    passed: true,
+  }));
+
+  it('hàng chờ của tôi; mở nghiệm thu chuyển DANG_NGHIEM_THU và kiểm toàn vẹn; người nộp không tự nghiệm thu', async () => {
+    const { ev } = setup();
+    const q = await firstValueFrom(
+      ev.list({ reviewer: 'me', status: ['DA_NOP', 'DANG_NGHIEM_THU'] }),
+    );
+    expect(q.items.map((e) => [e.task.code, e.currentStatus])).toEqual([
+      ['NV-2026-Q4-0138', 'DA_NOP'],
+    ]);
+    const v = await firstValueFrom(ev.version(R, 2));
+    expect(v).toMatchObject({ isDuplicateSuspect: true, hasPriorRevisionRequest: true });
+    const opened = await firstValueFrom(ev.openReview(R, v));
+    expect(opened).toMatchObject({ status: 'DANG_NGHIEM_THU', integrity: { verified: true } });
+    const own = await firstValueFrom(ev.version(EV, 2));
+    expect((await errorOf(firstValueFrom(ev.openReview(EV, own)))).error.code).toBe(
+      'PRODUCT-403-SELF-REVIEW',
+    );
+    failMockIntegrityOnce();
+    expect((await errorOf(firstValueFrom(ev.openReview(R, opened)))).error.code).toBe(
+      'PRODUCT-409-INTEGRITY-FAILED',
+    );
+  });
+
+  it('xác nhận: cần MFA, đủ tiêu chuẩn, nhận xét khi B < 1, nguyên nhân chỉnh sửa; xem trước điểm như Hình 8.15', async () => {
+    const { ev } = setup();
+    const v = await firstValueFrom(ev.openReview(R, await firstValueFrom(ev.version(R, 2))));
+    const p = await firstValueFrom(
+      ev.scorePreview({ taskId: v.taskId, qualityLevel: 0.75, revisionCause: 'CHU_QUAN' }),
+    );
+    expect(p).toMatchObject({ a: 1, b: 0.75, c: 0.9, kpi: 0.883 });
+    const body = { qualityLevel: 0.75 as const, criteriaResults: criteria };
+    expect((await errorOf(firstValueFrom(ev.accept(R, v, body)))).status).toBe(401);
+    mockStepUp();
+    const err = async (b: object) =>
+      (await errorOf(firstValueFrom(ev.accept(R, v, b as never)))).error.code;
+    expect(await err({ ...body, criteriaResults: criteria.slice(0, 2) })).toBe(
+      'PRODUCT-422-CRITERIA-INCOMPLETE',
+    );
+    expect(await err(body)).toBe('PRODUCT-422-COMMENT-REQUIRED');
+    expect(await err({ ...body, comment: 'Thiếu số liệu ở phiên bản 1' })).toBe(
+      'PRODUCT-422-REVISION-CAUSE-REQUIRED',
+    );
+    const res = await firstValueFrom(
+      ev.accept(R, v, {
+        ...body,
+        comment: 'Thiếu số liệu ở phiên bản 1',
+        revisionCause: 'NOI_DUNG_KHONG_COT_LOI',
+        isObjectiveRevision: false,
+      }),
+    );
+    expect(res).toMatchObject({ versionStatus: 'DA_XAC_NHAN', taskStatusChanged: 'HOAN_THANH' });
+    expect(res.acceptance).toMatchObject({ qualityLevel: 0.75, revisionCount: 1 });
+  });
+
+  it('yêu cầu bổ sung bắt buộc nhận xét, phiên bản kết thúc và người nộp tạo phiên bản mới', async () => {
+    const { ev } = setup();
+    const v = await firstValueFrom(ev.openReview(R, await firstValueFrom(ev.version(R, 2))));
+    expect((await errorOf(firstValueFrom(ev.requestRevision(R, v, { comment: ' ' })))).status).toBe(
+      422,
+    );
+    const res = await firstValueFrom(
+      ev.requestRevision(R, v, { comment: 'Bổ sung biên bản kiểm tra chi bộ 5' }),
+    );
+    expect(res.versionStatus).toBe('YEU_CAU_BO_SUNG');
+    const e = await firstValueFrom(ev.get(R));
+    expect(e.versions?.at(-1)).toMatchObject({
+      status: 'YEU_CAU_BO_SUNG',
+      decisionNote: 'Bổ sung biên bản kiểm tra chi bộ 5',
+    });
   });
 });
