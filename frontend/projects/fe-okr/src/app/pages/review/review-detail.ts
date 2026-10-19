@@ -14,9 +14,7 @@ import { CheckTag } from './check-tag';
     @let s = set();
     <section class="box" aria-labelledby="d-h">
       <header class="top">
-        <h2 id="d-h" class="sec">
-          <span class="num" aria-hidden="true">2</span> {{ s.unit.name }} · {{ periodLabel() }}
-        </h2>
+        <h2 id="d-h" class="sec">{{ s.unit.name }} · {{ periodLabel() }}</h2>
         <span class="ver">Chờ duyệt · phiên bản {{ s.versionNo }}</span>
         <a class="link" routerLink=".." [queryParams]="{ unit: s.unit.id, period: s.periodId }">
           Xem cây

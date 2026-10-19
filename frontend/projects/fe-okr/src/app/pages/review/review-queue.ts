@@ -9,12 +9,12 @@ import { CheckTag } from './check-tag';
   imports: [CheckTag],
   template: `
     <section class="box" aria-labelledby="q-h">
-      <h2 id="q-h" class="sec"><span class="num" aria-hidden="true">1</span> Hàng chờ</h2>
+      <h2 id="q-h" class="sec">Hàng chờ</h2>
       @if (!items().length) {
         <p class="muted" role="status">Không còn bộ OKR nào chờ đồng chí duyệt trong kỳ này.</p>
       } @else {
         <div class="hd" aria-hidden="true">
-          <span>Đơn vị</span><span>O/KR</span><span>Kiểm tra</span>
+          <span>Đơn vị</span><span>Mục tiêu / KR</span><span>Kiểm tra</span>
         </div>
         <ul class="list">
           @for (s of items(); track s.id) {

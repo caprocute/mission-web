@@ -117,8 +117,8 @@ const MAX_COMMENT = 2000;
         >
           <h2 id="b-h" class="sec">Duyệt hàng loạt các bộ đủ điều kiện</h2>
           <p class="muted small">
-            Chỉ gồm bộ "Đạt", không cảnh báo và không do đồng chí soạn. Mỗi bộ duyệt trong một giao
-            dịch riêng; bộ lỗi không ảnh hưởng bộ khác.
+            Chỉ gồm bộ "Đạt", không cảnh báo và không do đồng chí soạn. Mỗi bộ được duyệt riêng; bộ
+            không duyệt được không ảnh hưởng tới các bộ khác.
           </p>
           <ul class="plain">
             @for (s of eligible(); track s.id) {
@@ -166,9 +166,7 @@ const MAX_COMMENT = 2000;
             <vt-review-detail [set]="s" [periodLabel]="q.period.label" />
             <div class="pair">
               <section class="box" aria-labelledby="c-h">
-                <h2 id="c-h" class="sec">
-                  <span class="num" aria-hidden="true">3</span> Ý kiến phê duyệt
-                </h2>
+                <h2 id="c-h" class="sec">Ý kiến phê duyệt</h2>
                 <label for="r-comment" class="sr-only">
                   Ý kiến phê duyệt, bắt buộc khi trả lại
                 </label>
@@ -200,7 +198,6 @@ const MAX_COMMENT = 2000;
                   </p>
                 }
                 <div class="actions decide">
-                  <span class="num" aria-hidden="true">4</span>
                   @if (can('SCR-0203.tra-lai')) {
                     <p-button
                       label="Trả lại để sửa"
