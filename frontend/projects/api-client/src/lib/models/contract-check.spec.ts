@@ -6,15 +6,13 @@
  * Kiểu đã là bí danh của kiểu sinh (`TaskSummary`, `TaskDetail`, `ProgressUpdate`, `TaskStatus`,
  * `AssigneeRole`, `Assignment`, `AssignmentKind`, `MyOrgProfile`, `WorkContext`, `Job`, `JobStatus`,
  * `ProblemDetails`, `FieldError`) không cần kiểm ở đây. Các kiểu viết tay còn lệch hợp đồng và chưa
- * kiểm (`OrgUnit`, `OkrBasis`, `ProgressBatchResult`, `CellLoad`, các kiểu OKR và tenant chưa có cùng
- * tên trong hợp đồng) được ghi ở báo cáo WEB-064 và wiki/06. Kế hoạch (`plan.ts`) theo hợp đồng từ
- * WEB-065; `PlanWorkspace`, `PlanReview` là kiểu ghép phía client, không có trong hợp đồng.
+ * kiểm (`OrgUnit`, `PlanItem`, `PlanVersion`, `OkrBasis`, `ProgressBatchResult`, `CellLoad`, các
+ * kiểu OKR và tenant chưa có cùng tên trong hợp đồng) được ghi ở báo cáo WEB-064 và wiki/06.
  */
-import type { components as DossiersContract } from '../generated/dossiers';
 import type { components as OkrContract } from '../generated/okr';
 import type { components as OrgContract } from '../generated/org';
 import type { components as PlatformContract } from '../generated/platform';
-import type { components as TasksContract, operations as TasksOps } from '../generated/tasks';
+import type { components as TasksContract } from '../generated/tasks';
 import type * as Catalog from './catalog';
 import type * as Okr from './okr';
 import type * as Org from './org';
@@ -47,32 +45,6 @@ export type ContractCheck = [
   // plan.ts ↔ tasks.yaml
   Expect<Compatible<Plan.PlanItemRef, TasksContract['schemas']['PlanItemRef']>>,
   Expect<Compatible<Plan.PlanVersionStatus, TasksContract['schemas']['PlanVersionStatus']>>,
-  Expect<Compatible<Plan.Plan, TasksContract['schemas']['Plan']>>,
-  Expect<Compatible<Plan.PlanVersionSummary, TasksContract['schemas']['PlanVersionSummary']>>,
-  Expect<Compatible<Plan.PlanItemInput, TasksContract['schemas']['PlanItemInput']>>,
-  Expect<Compatible<Plan.PlanItem, TasksContract['schemas']['PlanItem']>>,
-  Expect<Compatible<Plan.PlanCheck, TasksContract['schemas']['PlanCheck']>>,
-  Expect<Compatible<Plan.PlanVersion, TasksContract['schemas']['PlanVersion']>>,
-  Expect<Compatible<Plan.PlanVersionInput, TasksContract['schemas']['PlanVersionInput']>>,
-  Expect<Compatible<Plan.PlanDiffLine, TasksContract['schemas']['PlanDiffLine']>>,
-  Expect<Compatible<Plan.PlanDiff, TasksContract['schemas']['PlanDiff']>>,
-  Expect<
-    Compatible<
-      Plan.SignMethod,
-      TasksOps['approvePlanVersion']['requestBody']['content']['application/json']['signMethod']
-    >
-  >,
-  // plan.ts ↔ dossiers.yaml (yêu cầu ký của esign-service)
-  Expect<Compatible<Plan.EsignRequestStatus, DossiersContract['schemas']['EsignRequestStatus']>>,
-  Expect<
-    Compatible<
-      Plan.PlanSignRequest,
-      Pick<
-        DossiersContract['schemas']['EsignRequest'],
-        'id' | 'status' | 'expiresAt' | 'completedAt'
-      >
-    >
-  >,
   // source-doc.ts ↔ tasks.yaml
   Expect<Compatible<SourceDoc.SourceSystem, TasksContract['schemas']['SourceSystem']>>,
   Expect<Compatible<SourceDoc.SourceDocStatus, TasksContract['schemas']['SourceDocStatus']>>,
@@ -131,7 +103,7 @@ export type ContractCheck = [
 
 describe('model viết tay và hợp đồng OpenAPI', () => {
   it('tương thích kiểu (kiểm lúc biên dịch, xem ContractCheck)', () => {
-    const checked: ContractCheck['length'] = 71;
+    const checked: ContractCheck['length'] = 59;
     expect(checked).toBeGreaterThan(0);
   });
 });

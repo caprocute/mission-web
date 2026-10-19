@@ -726,7 +726,7 @@ export interface paths {
     put?: never;
     /**
      * Tạo điều chỉnh kế hoạch
-     * @description Tạo phiên bản n+1 `NHAP` sao chép từ phiên bản `DA_DUYET` hiệu lực; vượt số lần điều chỉnh trong quý trả 422 (BR-04-10, MSG-04-07).
+     * @description Tạo phiên bản n+1 `NHAP` sao chép từ phiên bản `DA_DUYET` hiệu lực; vượt số lần điều chỉnh trong quý trả 422 (BR-04-10, MSG-04-07). Lý do chung của lần điều chỉnh ghi vào `task.plan_version.change_reason` (TL-03 bắt buộc khi `version_no > 1`); lý do từng dòng thêm, sửa ghi ở `PlanItemInput.changeReason`, dòng bỏ ghi ở `PlanVersionInput.removedItems` (TL-02 SCR-0403 trường 3).
      */
     post: operations['createPlanAdjustment'];
     delete?: never;
@@ -800,6 +800,30 @@ export interface paths {
     get: operations['suggestPlanItemsFromOkr'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/plans/{id}/versions/{v}/check': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Số phiên bản kế hoạch (`task.plan_version.version_no`). */
+        v: components['parameters']['VersionNo'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Kiểm tra tức thì các dòng chưa lưu
+     * @description Chạy các quy tắc BR-04-01..BR-04-10 trên nội dung đang soạn mà không lưu (SCR-0402 vùng kiểm tra), trả chỉ các vi phạm. Thao tác chỉ đọc nhưng dùng POST vì thân là cả bảng kế hoạch. (suy luận: TL-02 mô tả kiểm tra tức thì nhưng không ghi API.)
+     */
+    post: operations['checkPlanVersion'];
     delete?: never;
     options?: never;
     head?: never;
@@ -890,7 +914,7 @@ export interface paths {
     put?: never;
     /**
      * Duyệt và ký số kế hoạch
-     * @description Người duyệt khác người lập, phiên AAL2 trong 15 phút. Máy chủ tạo yêu cầu ký trên SVC-10 và trả 202; khi ký xong (EVT-18) phiên bản chuyển `DA_DUYET` và phát EVT-03. Trạng thái ký theo dõi qua job hoặc `/esign/requests/{id}`.
+     * @description Người duyệt khác người lập, phiên AAL2 trong 15 phút. Máy chủ tạo yêu cầu ký trên SVC-10 và trả 202 kèm job. Đường chính thức để theo dõi: thăm dò `GET /jobs/{id}` theo `Location`; khi job `HOAN_TAT`, `Job.resultLocation` trỏ tới `/esign/requests/{signRequestId}` và `PlanVersion.signRequestId` được ghi, nên giao diện có thể đọc lại phiên bản rồi theo dõi yêu cầu ký. Khi ký xong (EVT-18) phiên bản chuyển `DA_DUYET` và phát EVT-03.
      */
     post: operations['approvePlanVersion'];
     delete?: never;
@@ -1669,6 +1693,8 @@ export interface components {
       currentVersion: components['schemas']['PlanVersionSummary'];
       /** @description Phiên bản `DA_DUYET` đang hiệu lực */
       effectiveVersionNo?: number | null;
+      /** @description Kỳ trước có kế hoạch đã duyệt của đơn vị, cho nút "Sao chép từ {nhãn}" (nguồn của `copy-from`). */
+      previousPeriod?: components['schemas']['PeriodRef'] | null;
       approvalDeadline?: components['schemas']['Date'];
       adjustmentsUsed?: number;
       adjustmentsMax?: number;
@@ -1683,7 +1709,11 @@ export interface components {
       itemCount: number;
       submittedAt?: components['schemas']['DateTime'];
       submittedByName?: string;
+      /** @description Chức vụ người trình (SCR-0403 vùng 3) */
+      submittedByTitle?: string;
       approvedAt?: components['schemas']['DateTime'];
+      /** @description Người duyệt */
+      approvedByName?: string;
     };
     /** @description Một dòng kế hoạch theo Bảng 1 (`task.plan_item`, SCR-0402 trường 5–14). */
     PlanItemInput: {
@@ -1701,12 +1731,13 @@ export interface components {
       productName: string;
       quantity: number;
       unit?: string;
+      /** @description Hạn của dòng. Với dòng lặp lại (`recurrence` khác null), là hạn của lần cuối trong kỳ, thường là ngày cuối kỳ; hạn từng lần do máy chủ sinh khi giao việc. */
       dueDate: components['schemas']['Date'];
       /**
-       * @description "Hằng tháng" thay cho một hạn cố định
+       * @description Lặp lại thay cho một hạn cố định (`task.plan_item.recurrence`; TL-03 ghi "hằng tháng, hằng quý", TL-02 SCR-0402 trường 12 chỉ nêu "Hằng tháng"). `HANG_QUY` dùng khi kế hoạch lập cho kỳ dài hơn một quý.
        * @enum {string|null}
        */
-      recurrence?: 'HANG_THANG' | null;
+      recurrence?: 'HANG_THANG' | 'HANG_QUY' | null;
       /** @description Điểm của dòng, bắt buộc khi duyệt (BR-04-05). Tên chọn theo cột `standard_score` của TL-03; TL-02 SCR-0402 trường 13 gọi là `score_weight`. */
       standardScore?: number | null;
       flows?: components['schemas']['Flow'][];
@@ -1743,17 +1774,34 @@ export interface components {
       contentHash?: string | null;
       reviewComment?: string | null;
       items: components['schemas']['PlanItem'][];
-      /** @description Điểm tối đa của từng nhóm theo Policy Pack (BR-04-06). */
+      /** @description Điểm tối đa của từng nhóm theo Policy Pack (BR-04-06), kèm luồng và gói áp dụng (Hình 7.13 vùng 3). */
       groupWeights: {
         THUONG_XUYEN: number;
         THEN_CHOT: number;
+        flow?: components['schemas']['Flow'];
+        /** @example PP-KHOI-DANG */
+        policyPackCode?: string;
+        /** @example Khối Đảng */
+        policyPackName?: string;
+        /** @example 2.0.0 */
+        policyPackVersion?: string;
       };
       checks: components['schemas']['PlanCheck'][];
+      /** @description Lý do chung của lần điều chỉnh */
+      changeReason?: string | null;
+      /** @description Dòng của phiên bản trước bị bỏ ở phiên bản điều chỉnh này, kèm lý do. */
+      removedItems?: components['schemas']['PlanRemovedItem'][];
       signRequestId?: components['schemas']['Uuid'];
       rowVersion: components['schemas']['RowVersion'];
     };
     PlanVersionInput: {
       items: components['schemas']['PlanItemInput'][];
+      /** @description Ở phiên bản điều chỉnh, các dòng của phiên bản trước bị bỏ cùng lý do (BR-04-10 chặn khi thiếu lý do). Dòng phiên bản trước không có trong `items` cũng không có ở đây bị coi là thiếu lý do. */
+      removedItems?: components['schemas']['PlanRemovedItem'][];
+    };
+    PlanRemovedItem: {
+      originItemId: components['schemas']['Uuid'];
+      changeReason: string;
     };
     PlanDiffLine: {
       /** @enum {string} */
@@ -3323,7 +3371,14 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody?: never;
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description Lý do của lần điều chỉnh (BR-04-10) */
+          changeReason: string;
+        };
+      };
+    };
     responses: {
       /** @description Phiên bản mới. */
       201: {
@@ -3472,6 +3527,42 @@ export interface operations {
       default: components['responses']['Problem'];
     };
   };
+  checkPlanVersion: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Số phiên bản kế hoạch (`task.plan_version.version_no`). */
+        v: components['parameters']['VersionNo'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlanVersionInput'];
+      };
+    };
+    responses: {
+      /** @description Các vi phạm; rỗng khi hợp lệ. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            checks: components['schemas']['PlanCheck'][];
+          };
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
   submitPlanVersion: {
     parameters: {
       query?: never;
@@ -3510,7 +3601,7 @@ export interface operations {
   diffPlanVersions: {
     parameters: {
       query: {
-        /** @description Số phiên bản gốc để so sánh. */
+        /** @description Số phiên bản gốc để so sánh. `0` là kế hoạch rỗng: dùng cho phiên bản đầu, mọi dòng là `THEM`. */
         base: number;
         mode?: 'changes' | 'all';
       };
