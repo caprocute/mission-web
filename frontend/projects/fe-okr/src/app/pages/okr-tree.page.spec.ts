@@ -57,18 +57,21 @@ const text = (el: Element | null) => el?.textContent?.replace(/\s+/g, ' ').trim(
 const buttons = (el: HTMLElement) => [...el.querySelectorAll('button')].map(text);
 
 describe('OkrTreePage (SCR-0201)', () => {
-  it('hiện căn cứ, mục tiêu cấp trên, hai mục tiêu với tiến độ và KR tự tin thấp được chọn sẵn', async () => {
+  it('hiện căn cứ, mục tiêu cấp trên, ba mục tiêu với tiến độ và KR tự tin thấp được chọn sẵn', async () => {
     const el = (await render()).nativeElement as HTMLElement;
     await until(el, 'vt-kr-side-panel table');
     expect(text(el.querySelector('.head'))).toContain(
       'Ban Tổ chức Đảng uỷ khối · Quý IV/2026 · Tuần 4/13',
     );
     expect(text(el.querySelector('.strip'))).toContain('O-ĐUK-1');
-    expect(text(el.querySelector('.strip'))).toContain('2/3 mục tiêu trong kỳ');
+    expect(text(el.querySelector('.strip'))).toContain('3/3 mục tiêu trong kỳ');
     const objs = [...el.querySelectorAll('vt-objective-node > .obj')];
-    expect(objs).toHaveLength(2);
+    expect(objs).toHaveLength(3);
     expect(text(objs[0])).toContain('64%');
     expect(text(objs[1])).toContain('51%');
+    // O3 đang soạn (WEB-022): chỉ mục tiêu NHAP của đơn vị có nút "Sửa"
+    expect(text(objs[2])).toContain('Nháp');
+    expect(objs.map((o) => !!o.querySelector('.editbtn'))).toEqual([false, false, true]);
     expect(text(el.querySelector('vt-kr-side-panel'))).toContain('KR 1.3 · lịch sử check-in');
     expect(text(el.querySelector('vt-kr-side-panel'))).toContain('Tuần 4 (12/10)');
     expect(buttons(el)).toContain('Check-in KR 1.3');
@@ -83,10 +86,11 @@ describe('OkrTreePage (SCR-0201)', () => {
     expect(text(el.querySelector('.children'))).toContain('Phòng Tổ chức cơ sở đảng');
   });
 
-  it('chỉ có quyền xem: ẩn Thêm mục tiêu và Check-in', async () => {
+  it('chỉ có quyền xem: ẩn Thêm mục tiêu, Sửa và Check-in', async () => {
     const el = (await render((k) => k === 'SCR-0201.xem')).nativeElement as HTMLElement;
     await until(el, 'vt-kr-side-panel table');
     expect(buttons(el)).not.toContain('Mục tiêu');
+    expect(el.querySelector('.editbtn')).toBeNull();
     expect(buttons(el).some((b) => b.startsWith('Check-in'))).toBe(false);
   });
 

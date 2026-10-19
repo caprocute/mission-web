@@ -7,7 +7,8 @@
  *   13 nhiệm vụ liên kết (Tầng 2 chương trình, Tầng 3 nhiệm vụ).
  * Vùng: 1 dải căn cứ, mục tiêu cấp trên, số mục tiêu trên khuyến nghị; 2 mục tiêu với KR; 3 KR tự tin Thấp nổi bật;
  *   4 bảng phải: lịch sử check-in, vướng mắc, nhiệm vụ liên kết, nút Check-in; 5 liên kết ngang, quy tắc tự tin thấp.
- * Hành động: Cây/Bảng/Bản đồ liên kết (GET /api/v1/okr/objectives?unit=&period=&view=tree); Thêm mục tiêu (AC-05 của
+ * Hành động: Cây/Bảng/Bản đồ liên kết (GET /api/v1/okr/objectives?unit=&period=&view=tree); Sửa mục tiêu NHAP của
+ *   đơn vị (SCR-0202.soan-don-vi → SCR-0202, WEB-022); Thêm mục tiêu (AC-05 của
  *   đơn vị, kỳ chưa khoá → SCR-0202); Xuất mẫu (POST /api/v1/okr/objectives/export, 202); Check-in KR (chủ sở hữu KR,
  *   mục tiêu DA_DUYET → SCR-0301); Xem tất cả nhiệm vụ liên kết (/tasks?krId=).
  * Quy tắc, thông báo: BR-02-01 (khuyến nghị 1–3 mục tiêu, nhãn "Vượt 3 O"); MSG-02-01 (KR `RUI_RO`); MSG-02-02 (cây trống).
@@ -316,7 +317,9 @@ const ROW_HEIGHT = 52;
                     [objective]="o"
                     [children]="index().children"
                     [selectedKrId]="selectedKrId()"
+                    [canEdit]="canEdit()"
                     (krSelected)="selectKr($event)"
+                    (edit)="editObjective($event)"
                   />
                 }
               }
@@ -623,6 +626,11 @@ export class OkrTreePage {
     () => !!this.data()?.viewerOwnUnit && !this.locked() && this.can('SCR-0201.them'),
   );
 
+  /** "Sửa" mục tiêu `NHAP` của đơn vị (SCR-0202.soan-don-vi), kỳ chưa khoá. */
+  protected readonly canEdit = computed(
+    () => !!this.data()?.viewerOwnUnit && !this.locked() && this.can('SCR-0202.soan-don-vi'),
+  );
+
   protected readonly exporting = signal(false);
   protected readonly exportJob = signal<Job | null>(null);
   protected readonly exportError = signal<string | null>(null);
@@ -658,6 +666,10 @@ export class OkrTreePage {
       relativeTo: this.route,
       queryParams: { period: this.data()?.period.id },
     });
+  }
+
+  protected editObjective(o: Objective) {
+    this.router.navigate(['objectives', o.id, 'edit'], { relativeTo: this.route });
   }
 
   protected checkIn(kr: KeyResult) {

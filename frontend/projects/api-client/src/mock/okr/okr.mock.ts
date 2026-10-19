@@ -1,11 +1,17 @@
 import { Job } from '../../lib/models/job';
 import {
+  AiOkrReview,
   Confidence,
   KeyResult,
   KrCheckin,
   Objective,
+  ObjectiveDetail,
+  ObjectiveDraft,
+  OkrBasis,
+  OkrComposeContext,
   OkrPeerLink,
   OkrPeriod,
+  OkrPolicy,
   OkrTree,
 } from '../../lib/models/okr';
 import { krProgress, objectiveProgressPct } from '../../lib/okr-progress';
@@ -22,6 +28,20 @@ type ObjectiveFixture = Omit<Objective, 'progressPct' | 'keyResults' | 'tier'> &
 export const OKR_LARGE_UNIT_ID = 'u-duk';
 
 const periods = fixture.periods as OkrPeriod[];
+const basisLibrary = fixture.compose.basisLibrary as OkrBasis[];
+
+/** Dữ liệu ghi được (mục tiêu theo kỳ, bản nháp chi tiết), đưa về fixture bằng `reset()`. */
+let objectivesByPeriod: Record<string, ObjectiveFixture[]> | null = null;
+let drafts: Map<string, ObjectiveDetail> | null = null;
+const objectivesState = () =>
+  (objectivesByPeriod ??= structuredClone(fixture.objectives) as unknown as Record<
+    string,
+    ObjectiveFixture[]
+  >);
+const draftsState = () =>
+  (drafts ??= new Map(
+    Object.entries(structuredClone(fixture.drafts) as unknown as Record<string, ObjectiveDetail>),
+  ));
 
 function withProgress(o: ObjectiveFixture): Objective {
   const keyResults = o.keyResults.map((k) => ({ ...k, progress: krProgress(k) }));
@@ -124,7 +144,7 @@ function buildTree(req: MockRequest) {
   if (!large && unitId !== fixture.unit.id) {
     return problem(403, 'Đồng chí không có quyền xem mục tiêu của đơn vị này');
   }
-  const byPeriod = fixture.objectives as Record<string, ObjectiveFixture[]>;
+  const byPeriod = objectivesState();
   const objectives = large
     ? period.id === fixture.currentPeriodId
       ? largeObjectives()
@@ -144,6 +164,132 @@ function buildTree(req: MockRequest) {
   return ok(tree);
 }
 
+/** Máy chủ cấp mã và id cho KR mới; giữ id cũ của KR đã có. */
+function withKrIds(d: ObjectiveDraft, n: number): ObjectiveDraft['keyResults'] {
+  return d.keyResults.map((k, i) => ({
+    ...k,
+    id: k.id ?? `kr-${crypto.randomUUID().slice(0, 8)}`,
+    code: `KR ${n}.${i + 1}`,
+  }));
+}
+
+/** Cập nhật cây SCR-0201 theo bản nháp vừa lưu. */
+function syncTree(d: ObjectiveDetail) {
+  const list = (objectivesState()[d.periodId] ??= []);
+  const verifierName = (id: string | null) =>
+    fixture.compose.verifiers.find((v) => v.id === id)?.title ?? '';
+  const node: ObjectiveFixture = {
+    id: d.id,
+    code: d.code,
+    title: d.title,
+    tier: 1,
+    ownerType: d.ownerType,
+    ownerUnitName: d.ownerUnitName,
+    ownerPersonName: d.ownerType === 'CA_NHAN' ? d.authorName : null,
+    parentObjectiveId: d.parentObjectiveId,
+    status: d.status,
+    approvedAt: null,
+    versionNo: d.versionNo,
+    overLimitReason: d.overLimitReason,
+    keyResults: d.keyResults.map((k) => ({
+      id: k.id!,
+      objectiveId: d.id,
+      code: k.code,
+      title: k.title,
+      unit: k.unit,
+      baselineValue: k.baselineValue,
+      targetValue: k.targetValue,
+      currentValue: null,
+      weight: k.weight,
+      dueDate: k.dueDate ?? '',
+      verifierName: verifierName(k.verifierId),
+      dataSource: null,
+      valueNote: null,
+      confidence: null,
+      riskFlag: 'BINH_THUONG',
+      lastCheckinAt: null,
+      ownerName: d.authorName,
+      viewerIsOwner: true,
+      latestBlocker: null,
+      linkedWork: [],
+      linkedTaskCount: 0,
+    })),
+  };
+  const i = list.findIndex((o) => o.id === d.id);
+  if (i >= 0) list[i] = node;
+  else list.push(node);
+}
+
+/** Kiểm tra lại ở máy chủ khi trình (rút gọn từ Policy Pack): những quy tắc chặn chính. */
+function serverCheck(d: ObjectiveDetail): string[] {
+  const errs: string[] = [];
+  const policy = fixture.compose.policy as OkrPolicy;
+  if (!d.title.trim()) errs.push('Tên mục tiêu không được trống.');
+  if (d.basisIds.length === 0) errs.push('Mục tiêu phải có ít nhất một căn cứ.');
+  if (!d.parentObjectiveId) errs.push('Mục tiêu phải liên kết mục tiêu cấp trên.');
+  const parent = fixture.compose.parentOptions.find((p) => p.id === d.parentObjectiveId);
+  if (parent && parent.status !== 'DA_DUYET') {
+    errs.push(
+      `Mục tiêu cấp trên ${parent.code} chưa được duyệt. Đồng chí có thể soạn nhưng chưa trình được.`,
+    );
+  }
+  const total = Math.round(d.keyResults.reduce((s, k) => s + k.weight, 0) * 100);
+  if (total !== 100) errs.push(`Tổng trọng số KR là ${total}%, cần bằng 100%.`);
+  for (const k of d.keyResults) {
+    const t = k.title.toLocaleLowerCase('vi');
+    const vague = policy.vagueWords.find((w) => t.includes(w));
+    if (
+      !k.unit ||
+      k.targetValue === null ||
+      k.baselineValue === null ||
+      !k.dueDate ||
+      !k.verifierId
+    ) {
+      errs.push(
+        vague
+          ? `KPI mơ hồ: "${vague}" không đo được. Vui lòng bổ sung chỉ tiêu và đơn vị đo.`
+          : `${k.code} thiếu thông tin bắt buộc.`,
+      );
+    }
+    if (k.verifierId === fixture.compose.me.id)
+      errs.push(`${k.code}: người xác nhận phải khác chủ sở hữu KR.`);
+  }
+  const list = objectivesState()[d.periodId] ?? [];
+  const count = list.filter((o) => o.tier === 1).length;
+  if (count > policy.recommendedMax && !d.overLimitReason?.trim()) {
+    errs.push(`Vui lòng ghi lý do vượt ${policy.recommendedMax} mục tiêu.`);
+  }
+  return errs;
+}
+
+function composeContext(req: MockRequest) {
+  const periodId = req.params.get('period') ?? fixture.currentPeriodId;
+  const period = periods.find((p) => p.id === periodId);
+  if (!period) return problem(404, 'Không tìm thấy kỳ đánh giá');
+  const self = req.params.get('objective');
+  const existing = (objectivesState()[period.id] ?? []).filter(
+    (o) => o.tier === 1 && o.id !== self,
+  ).length;
+  const c = fixture.compose;
+  const ctx: OkrComposeContext = {
+    period,
+    periods: periods.filter((p) => p.status === 'MO'),
+    unit: fixture.unit,
+    isTopLevel: c.isTopLevel,
+    bases: basisLibrary,
+    parentOptions: c.parentOptions.map((o) => ({
+      ...(o as OkrComposeContext['parentOptions'][number]),
+      periodId: period.id,
+    })),
+    existingCount: existing,
+    verifiers: c.verifiers,
+    me: c.me,
+    aiEnabled: req.params.get('ai') !== 'off',
+    policy: c.policy as OkrPolicy,
+  };
+  return ok(ctx);
+}
+
 const exportJobs = new Map<string, Job>();
 
 /**
@@ -152,7 +298,11 @@ const exportJobs = new Map<string, Job>();
  */
 export const OKR_MOCK: MockModule = {
   name: 'okr',
-  reset: () => exportJobs.clear(),
+  reset: () => {
+    exportJobs.clear();
+    objectivesByPeriod = null;
+    drafts = null;
+  },
   routes: [
     {
       method: 'GET',
@@ -177,6 +327,146 @@ export const OKR_MOCK: MockModule = {
         const items = all.slice(start, start + limit);
         const next = start + limit < all.length ? String(start + limit) : null;
         return ok({ items, nextCursor: next });
+      },
+    },
+    {
+      method: 'GET',
+      pattern: '/api/v1/okr/compose-context',
+      handle: (req) => composeContext(req),
+    },
+    {
+      method: 'GET',
+      pattern: '/api/v1/okr/objectives/:id',
+      handle: (req) => {
+        const id = req.pathParams['id'];
+        // Mục tiêu của đơn vị cấp trên: ngoài phạm vi soạn của người dùng (ABAC ở máy chủ)
+        if (fixture.compose.parentOptions.some((p) => p.id === id)) {
+          return problem(403, 'Đồng chí không có quyền sửa mục tiêu của đơn vị khác.', {
+            code: 'OKR-403-SCOPE',
+          });
+        }
+        const d = draftsState().get(id);
+        return d ? ok(d, { ETag: `"${d.rowVersion}"` }) : problem(404, 'Không tìm thấy mục tiêu');
+      },
+    },
+    {
+      method: 'POST',
+      pattern: '/api/v1/okr/objectives',
+      handle: (req) => {
+        const body = req.body as ObjectiveDraft;
+        const period = periods.find((p) => p.id === body.periodId);
+        if (!period || period.status === 'DA_KHOA' || period.status === 'DANG_KHOA') {
+          return problem(409, 'Kỳ đã khoá, không tạo được mục tiêu', {
+            code: 'OKR-409-PERIOD-LOCKED',
+          });
+        }
+        const list = (objectivesState()[period.id] ??= []);
+        const n = list.filter((o) => o.tier === 1).length + 1;
+        const id = `o-new-${crypto.randomUUID().slice(0, 8)}`;
+        const detail: ObjectiveDetail = {
+          ...body,
+          id,
+          code: `O${n}`,
+          status: 'NHAP',
+          versionNo: 1,
+          rowVersion: 1,
+          ownerUnitName: fixture.unit.name,
+          authorName: fixture.compose.me.name,
+          updatedAt: new Date().toISOString(),
+          draftNo: 1,
+          keyResults: withKrIds(body, n),
+        };
+        draftsState().set(id, detail);
+        syncTree(detail);
+        return {
+          status: 201,
+          body: detail,
+          headers: { ETag: '"1"', Location: `/api/v1/okr/objectives/${id}` },
+        };
+      },
+    },
+    {
+      method: 'PUT',
+      pattern: '/api/v1/okr/objectives/:id',
+      handle: (req) => {
+        const cur = draftsState().get(req.pathParams['id']);
+        if (!cur) return problem(404, 'Không tìm thấy mục tiêu');
+        const ifMatch = req.headers.get('If-Match');
+        if (!ifMatch) return problem(428, 'Thiếu If-Match');
+        if (ifMatch.replace(/"/g, '') !== String(cur.rowVersion)) {
+          return problem(409, 'Mục tiêu vừa được người khác cập nhật. Vui lòng tải lại.');
+        }
+        if (cur.status !== 'NHAP') {
+          return problem(409, 'Mục tiêu đã trình hoặc đã duyệt không sửa tại chỗ (BR-02-10)', {
+            code: 'OKR-409-NOT-DRAFT',
+          });
+        }
+        const body = req.body as ObjectiveDraft;
+        const n = Number(cur.code.slice(1)) || 1;
+        const next: ObjectiveDetail = {
+          ...cur,
+          ...body,
+          id: cur.id,
+          keyResults: withKrIds(body, n),
+          rowVersion: cur.rowVersion + 1,
+          draftNo: cur.draftNo + 1,
+          updatedAt: new Date().toISOString(),
+        };
+        draftsState().set(cur.id, next);
+        syncTree(next);
+        return ok(next, { ETag: `"${next.rowVersion}"` });
+      },
+    },
+    {
+      method: 'POST',
+      pattern: '/api/v1/okr/objectives/:id/submit',
+      handle: (req) => {
+        const cur = draftsState().get(req.pathParams['id']);
+        if (!cur) return problem(404, 'Không tìm thấy mục tiêu');
+        if (cur.status !== 'NHAP')
+          return problem(409, 'Mục tiêu không ở trạng thái nháp', { code: 'OKR-409-NOT-DRAFT' });
+        const errors = serverCheck(cur);
+        if (errors.length) {
+          return problem(422, 'Bộ OKR còn lỗi chặn trình duyệt', {
+            code: 'OKR-422-RULES',
+            errors: errors.map((message) => ({ field: '', message })),
+          });
+        }
+        const next: ObjectiveDetail = {
+          ...cur,
+          status: 'CHO_DUYET',
+          rowVersion: cur.rowVersion + 1,
+        };
+        draftsState().set(cur.id, next);
+        syncTree(next);
+        const period = periods.find((p) => p.id === cur.periodId)!;
+        return ok({
+          status: 'CHO_DUYET',
+          reviewerName: `${fixture.compose.reviewer.title} ${fixture.compose.reviewer.name}`,
+          dueDate: period.startDate.slice(0, 8) + '10',
+        });
+      },
+    },
+    {
+      method: 'POST',
+      pattern: '/api/v1/ai/okr/review',
+      handle: (req) => {
+        const body = req.body as { keyResults: { code: string; title: string }[] };
+        const out: AiOkrReview = { suggestions: [] };
+        for (const k of body.keyResults ?? []) {
+          const t = k.title.toLocaleLowerCase('vi');
+          const hit = fixture.aiReview.find((a) => t.includes(a.match));
+          if (hit) {
+            out.suggestions.push({
+              id: `${k.code}-${hit.match}`,
+              krCode: k.code,
+              issue: hit.issue,
+              rewrites: hit.rewrites,
+              sources: hit.sources,
+            });
+          }
+        }
+        return ok(out);
       },
     },
     {

@@ -49,7 +49,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
 | [WEB-021](WEB-021-cay-okr.md) | SCR-0201 Cây mục tiêu OKR | L | WEB-015 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-021-cay-okr`) |
-| [WEB-022](WEB-022-tao-sua-okr.md) | SCR-0202 Tạo/sửa O và KR | M | WEB-021 | Chưa bắt đầu |
+| [WEB-022](WEB-022-tao-sua-okr.md) | SCR-0202 Tạo/sửa O và KR | M | WEB-021 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-022-tao-sua-okr`) |
 | [WEB-023](WEB-023-duyet-okr.md) | SCR-0203 Phê duyệt OKR | M | WEB-022 | Chưa bắt đầu |
 | [WEB-024](WEB-024-check-in-kr.md) | SCR-0301 Check-in KR | M | WEB-021 | Chưa bắt đầu |
 | [WEB-025](WEB-025-danh-muc-cong-viec.md) | SCR-0401 Thư viện danh mục công việc | M | WEB-008 | Xong, chờ gộp (luồng Màn hình) |

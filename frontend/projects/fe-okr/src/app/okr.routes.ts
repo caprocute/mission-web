@@ -7,10 +7,13 @@ const planned = (heading: string, screen: string, task: string) => ({
   title: heading,
 });
 
+const compose = () =>
+  import('./pages/compose/objective-compose.page').then((m) => m.ObjectiveComposePage);
+
 /**
  * Tuyến của remote fe-okr, shell gắn dưới `/okr` (QT-02, QT-03). Trang đầu là SCR-0201; tuyến con
- * chặn theo chức năng của đúng SCR (wiki/15a). SCR-0202, SCR-0203, SCR-0301 giữ chỗ tới khi
- * WEB-022, WEB-023, WEB-024 thay bằng màn hình thật.
+ * chặn theo chức năng của đúng SCR (wiki/15a). SCR-0202 soạn mục tiêu (WEB-022); SCR-0203,
+ * SCR-0301 giữ chỗ tới khi WEB-023, WEB-024 thay bằng màn hình thật.
  */
 export const ROUTES: Routes = [
   {
@@ -22,7 +25,14 @@ export const ROUTES: Routes = [
   {
     path: 'objectives/new',
     canActivate: [permissionGuard('SCR-0201.them')],
-    ...planned('Tạo, sửa mục tiêu và KR', 'SCR-0202', 'WEB-022'),
+    loadComponent: compose,
+    title: 'Soạn mục tiêu và KR',
+  },
+  {
+    path: 'objectives/:id/edit',
+    canActivate: [permissionGuard('SCR-0202.soan-don-vi', 'SCR-0202.soan-ca-nhan')],
+    loadComponent: compose,
+    title: 'Sửa mục tiêu và KR',
   },
   {
     path: 'checkin',

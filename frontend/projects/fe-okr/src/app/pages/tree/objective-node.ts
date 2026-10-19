@@ -45,6 +45,16 @@ import {
         </div>
         <strong class="pct">{{ o.progressPct }}%</strong>
         <span class="muted">{{ o.keyResults.length }} KR</span>
+        @if (canEdit() && o.status === 'NHAP') {
+          <button
+            type="button"
+            class="editbtn"
+            [attr.aria-label]="'Sửa ' + o.code"
+            (click)="edit.emit(o)"
+          >
+            Sửa
+          </button>
+        }
       </header>
       @if (o.keyResults.length === 0) {
         <p class="muted empty">Mục tiêu chưa có KR.</p>
@@ -272,6 +282,19 @@ import {
         grid-column: 2;
       }
     }
+    .editbtn {
+      border: 1px solid #9ca3af;
+      background: #fff;
+      border-radius: 6px;
+      padding: 4px 12px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .editbtn:focus-visible {
+      outline: 2px solid #c4002a;
+      outline-offset: 2px;
+    }
   `,
 })
 export class ObjectiveNode {
@@ -279,6 +302,9 @@ export class ObjectiveNode {
   readonly children = input.required<ReadonlyMap<string, Objective[]>>();
   readonly selectedKrId = input<string | null>(null);
   readonly krSelected = output<KeyResult>();
+  /** Hiện nút "Sửa" (mở SCR-0202) cho mục tiêu `NHAP` của đơn vị; mục tiêu cấp dưới không truyền. */
+  readonly canEdit = input(false);
+  readonly edit = output<Objective>();
 
   protected readonly open = signal(false);
   protected readonly confLabel = CONFIDENCE_LABEL;

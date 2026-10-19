@@ -5,7 +5,14 @@ import { PermissionService } from '@vt/auth';
  * Khoá chức năng của fe-okr theo ma trận phân quyền (wiki/15a, `docs/phan-quyen/ma-tran.json`),
  * dạng `SCR-qqnn.<khoá>`. Chỉ liệt kê khoá mà remote đang dùng.
  */
-export type OkrPermissionKey = 'SCR-0201.xem' | 'SCR-0201.them' | 'SCR-0201.check-in';
+export type OkrPermissionKey =
+  | 'SCR-0201.xem'
+  | 'SCR-0201.them'
+  | 'SCR-0201.check-in'
+  | 'SCR-0202.soan-don-vi'
+  | 'SCR-0202.soan-ca-nhan'
+  | 'SCR-0202.ai-soat'
+  | 'SCR-0202.trinh';
 
 /**
  * Hàm hỏi "vai trò hiện tại có thể có quyền này không", nối vào `can()` của `@vt/auth` (WEB-054).
