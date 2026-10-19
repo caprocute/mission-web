@@ -1,6 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { catchError, of } from 'rxjs';
 import { TaskApi } from '@vt/api-client';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
@@ -36,7 +37,12 @@ import { daysLeft, statusSeverity } from '../app/task-ui';
 })
 export class MyTasksTodayWidget {
   readonly limit = input(7);
-  private readonly page = toSignal(inject(TaskApi).myTasks({ status: ['DA_GIAO', 'DANG_THUC_HIEN'] }));
+  // widget SDUI phải chịu được lỗi API: lỗi thì hiện như danh sách rỗng, không làm hỏng trang chủ
+  private readonly page = toSignal(
+    inject(TaskApi)
+      .myTasks({ status: ['DA_GIAO', 'DANG_THUC_HIEN'] })
+      .pipe(catchError(() => of(null))),
+  );
   protected readonly top = computed(() =>
     (this.page()?.items ?? []).slice().sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, this.limit()),
   );

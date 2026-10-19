@@ -198,7 +198,11 @@
           }
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "buildTarget": "fe-shell:esbuild:development",
+            "tsConfig": "projects/fe-shell/tsconfig.spec.json"
+          }
         },
         "esbuild": {
           "builder": "@angular/build:application",
@@ -292,7 +296,11 @@
           }
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "buildTarget": "fe-task:esbuild:development",
+            "tsConfig": "projects/fe-task/tsconfig.spec.json"
+          }
         },
         "esbuild": {
           "builder": "@angular/build:application",

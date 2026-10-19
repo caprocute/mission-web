@@ -18,7 +18,9 @@ import { statusSeverity } from '../task-ui';
   imports: [FormsModule, RouterLink, ButtonModule, CardModule, SliderModule, TextareaModule, TagModule, MessageModule],
   template: `
     <a routerLink=".." class="back">← Việc của tôi</a>
-    @if (task.value(); as t) {
+    @if (task.error()) {
+      <p-message severity="error" text="Không tải được nhiệm vụ" />
+    } @else if (task.value(); as t) {
       <header class="head">
         <h1>{{ t.title }}</h1>
         <p-tag [value]="statusLabel(t)" [severity]="sev(t)" />
@@ -58,8 +60,6 @@ import { statusSeverity } from '../task-ui';
           </p-card>
         }
       </div>
-    } @else if (task.error()) {
-      <p-message severity="error" text="Không tải được nhiệm vụ" />
     }
   `,
   styles: `
@@ -80,7 +80,7 @@ export class TaskDetailPage {
 
   protected readonly task = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.detail(params) });
   /** Thanh trượt bắt đầu từ tiến độ hiện tại của nhiệm vụ. */
-  protected readonly percent = linkedSignal(() => this.task.value()?.progress ?? 0);
+  protected readonly percent = linkedSignal(() => (this.task.hasValue() ? this.task.value().progress : 0));
   protected readonly note = signal('');
   protected readonly blocker = signal('');
   protected readonly saving = signal(false);
