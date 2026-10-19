@@ -206,7 +206,7 @@ const options = <K extends string>(labels: Record<K, string>) =>
             <ul class="chips" aria-label="Đối tượng trong phạm vi">
               @for (t of targets(); track t) {
                 <li>
-                  <span class="mono">{{ targetName(t) }}</span>
+                  <span>{{ targetName(t) }}</span>
                   <p-button
                     icon="pi pi-times"
                     [text]="true"
@@ -500,7 +500,7 @@ export class ReopenCreatePage {
     stream: () => this.periodApi.list({ status: 'DA_KHOA' }),
   });
   protected readonly periods = computed(() =>
-    (this.periodsRes.value() ?? [])
+    ((this.periodsRes.hasValue() ? this.periodsRes.value() : undefined) ?? [])
       .filter((p) => p.status === 'DA_KHOA')
       .map((p) => ({ value: p.id, label: p.name })),
   );
@@ -509,7 +509,10 @@ export class ReopenCreatePage {
     stream: () => this.orgApi.units('children'),
   });
   protected readonly units = computed(() =>
-    (this.unitsRes.value()?.items ?? []).map((u) => ({ value: u.id, label: u.name })),
+    ((this.unitsRes.hasValue() ? this.unitsRes.value() : undefined)?.items ?? []).map((u) => ({
+      value: u.id,
+      label: u.name,
+    })),
   );
 
   protected readonly ready = computed(
@@ -525,7 +528,11 @@ export class ReopenCreatePage {
 
   protected targetName(id: string) {
     const unit = this.units().find((u) => u.value === id);
-    return unit ? unit.label : id;
+    if (unit) return unit.label;
+    // hồ sơ đến từ khiếu nại hoặc cảnh báo: gọi theo văn bản căn cứ thay vì mã hồ sơ
+    if (id === this.q().get('profileId') && this.basisCode().trim())
+      return `Hồ sơ đánh giá theo ${this.basisCode().trim()}`;
+    return id;
   }
   protected addProfile() {
     const id = this.profileDraft().trim();

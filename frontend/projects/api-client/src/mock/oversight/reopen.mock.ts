@@ -10,6 +10,7 @@ import {
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import { mockSession } from '../mock-session';
 import { mockPeriodInfo } from '../periods/periods.mock';
+import { linkComplaintReopen } from './complaints.mock';
 import { IMPACT_007, PROFILE_NAMES, REOPEN_PEOPLE, reopenFixtures } from './reopen.fixture';
 
 /**
@@ -38,7 +39,7 @@ const isResponse = (x: ReopenRequest | MockResponse): x is MockResponse => !('ro
 
 function ifMatch(r: ReopenRequest, req: MockRequest): MockResponse | null {
   const h = req.headers.get('If-Match');
-  if (!h) return problem(428, 'Thiếu If-Match');
+  if (!h) return problem(428, 'Thiếu thông tin phiên bản dữ liệu; vui lòng tải lại trang.');
   if (h.replace(/"/g, '') !== String(r.rowVersion))
     return problem(412, 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại', {
       code: 'PRECONDITION_FAILED',
@@ -171,6 +172,7 @@ function create(req: MockRequest): MockResponse {
     rowVersion: 1,
   };
   store.unshift(r);
+  if (r.basis?.kind === 'KHIEU_NAI' && r.basis.id) linkComplaintReopen(r.basis.id, r.id);
   return {
     status: 201,
     body: structuredClone(r),
@@ -227,7 +229,7 @@ function decide(req: MockRequest, decision: 'DONG_Y' | 'TU_CHOI'): MockResponse 
       code: 'OVERSIGHT-403-FOUR-EYES',
       msg: 'MSG-13-01',
       detail:
-        'Hai người duyệt phải là hai người khác nhau, khác người tạo yêu cầu và chưa tham gia thẩm định, quyết định hồ sơ bị mở (PL 4 V.1).',
+        'Hai người duyệt phải là hai người khác nhau, khác người tạo yêu cầu và chưa tham gia thẩm định, quyết định hồ sơ bị mở.',
     });
   const now = new Date().toISOString();
   slot.assignee = ME;

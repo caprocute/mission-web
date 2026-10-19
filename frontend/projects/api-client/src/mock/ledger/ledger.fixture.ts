@@ -199,7 +199,7 @@ const STORY: Seed[] = [
     aggregateId: PROFILE_AGG,
     actor: PEOPLE.hoang,
     actorKind: 'NGUOI',
-    metadata: { after: { complaint: 'KN-2026-0031', content: '[đã che, dữ liệu C2]' } },
+    metadata: { after: { complaint: 'KN-2026-0031', content: '[nội dung được bảo mật]' } },
   },
   {
     daysAgo: 12,

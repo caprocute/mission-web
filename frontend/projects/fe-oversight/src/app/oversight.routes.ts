@@ -3,14 +3,58 @@ import { permissionGuard, screenKeys } from '@vt/auth';
 
 /**
  * Tuyến của remote fe-oversight, shell gắn dưới `/oversight` (QT-12, QT-13, QT-14). Mỗi tuyến con chặn
- * theo chức năng của đúng SCR (wiki/15a); máy chủ vẫn kiểm quyền và trả 403. SCR-1201, SCR-1202 (WEB-042)
- * và SCR-1401 (WEB-044) còn chờ.
+ * theo chức năng của đúng SCR (wiki/15a); máy chủ vẫn kiểm quyền và trả 403. SCR-1401 (WEB-044) còn chờ.
  */
 export const ROUTES: Routes = [
   {
     path: '',
     loadComponent: () => import('./pages/oversight-home.page').then((m) => m.OversightHomePage),
     title: 'Giám sát, hậu kiểm',
+  },
+  {
+    // SCR-1201: người khiếu nại theo dõi, soạn, gửi, rút, bảo lưu (QT-12)
+    path: 'my-complaints',
+    canActivate: [permissionGuard(...screenKeys('SCR-1201'))],
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./pages/complaints/my-complaints.page').then((m) => m.MyComplaintsPage),
+        title: 'Khiếu nại, giải trình của tôi',
+      },
+      {
+        path: 'new',
+        canActivate: [permissionGuard('SCR-1201.soan')],
+        loadComponent: () =>
+          import('./pages/complaints/complaint-form.page').then((m) => m.ComplaintFormPage),
+        title: 'Gửi khiếu nại',
+      },
+      {
+        path: ':id',
+        loadComponent: () =>
+          import('./pages/complaints/complaint-form.page').then((m) => m.ComplaintFormPage),
+        title: 'Khiếu nại',
+      },
+    ],
+  },
+  {
+    // SCR-1202: người xử lý, bên giải trình, người ký văn bản trả lời
+    path: 'complaints',
+    canActivate: [permissionGuard(...screenKeys('SCR-1202'))],
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./pages/complaints/complaint-handle.page').then((m) => m.ComplaintHandlePage),
+        title: 'Xử lý khiếu nại',
+      },
+      {
+        path: ':id',
+        loadComponent: () =>
+          import('./pages/complaints/complaint-handle.page').then((m) => m.ComplaintHandlePage),
+        title: 'Xử lý khiếu nại',
+      },
+    ],
   },
   {
     // SCR-1301: không có khoá "xem" riêng, ai có một chức năng của màn hình thì vào được

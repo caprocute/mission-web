@@ -12,7 +12,7 @@
 | Cỡ việc | L (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-015 |
 | Truy vết | QT-12 → SCR-1201 → `/api/v1/oversight` → MOD-07, SVC-06 → EVT-25 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Xong, chờ gộp |
 
 ## 1. Mục tiêu
 

@@ -45,10 +45,10 @@ export interface LedgerExportInput {
 }
 
 export const LEDGER_VERIFY_KIND_LABEL: Record<LedgerVerifyKind, string> = {
-  DAU_CHUOI: 'Đầu chuỗi',
-  NIEM_PHONG: 'Niêm phong Merkle',
-  TOAN_BO: 'Toàn bộ chuỗi, niêm phong và bản neo',
-  LUU_TRU: 'Kho lưu trữ',
+  DAU_CHUOI: 'Các bản ghi mới nhất',
+  NIEM_PHONG: 'Các bản niêm phong',
+  TOAN_BO: 'Toàn bộ dữ liệu',
+  LUU_TRU: 'Dữ liệu lưu trữ',
 };
 
 export const LEDGER_ACTOR_KIND_LABEL: Record<LedgerActorKind, string> = {
@@ -58,10 +58,10 @@ export const LEDGER_ACTOR_KIND_LABEL: Record<LedgerActorKind, string> = {
 };
 
 export const LEDGER_ANCHOR_TARGET_LABEL: Record<LedgerAnchorReceipt['anchorTarget'], string> = {
-  CELL_KHAC: 'Cell khác',
+  CELL_KHAC: 'Trung tâm dữ liệu dự phòng',
   KHO_VPTW: 'Kho lưu trữ VPTW',
-  TSA_DOC_LAP: 'Dịch vụ dấu thời gian độc lập',
-  OBJECT_LOCK: 'Lưu trữ khoá ghi (Object Lock)',
+  TSA_DOC_LAP: 'Dịch vụ cấp dấu thời gian độc lập',
+  OBJECT_LOCK: 'Kho lưu trữ chống sửa, xoá',
 };
 
 /** Loại đối tượng hay tra cứu (`ledger_entry.aggregate_type`, TL-03; danh sách gợi ý, suy luận). */
