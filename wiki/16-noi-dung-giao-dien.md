@@ -61,6 +61,16 @@ Bảng sau là cách gọi thống nhất trên giao diện cho các khái niệ
 | Phiên bản Policy Pack (`policyVersion`) | "Bộ quy định đánh giá <tên>, phiên bản x.y" |
 | Lỗi chặn trình duyệt | Lỗi cần sửa trước khi trình (tránh nhầm với "trình duyệt" web) |
 | Thiếu `If-Match` (428), xung đột phiên bản | "Dữ liệu trên màn hình đã cũ. Đồng chí vui lòng tải lại rồi thực hiện lại thao tác." |
+| Mô hình thuê bao (silo, bridge, pool) | Mức cô lập |
+| Golden test case, test case vàng | Bộ ca kiểm thử chuẩn |
+| KEK, HSM | Khoá mã hoá dữ liệu, thiết bị HSM |
+| Organization trong Keycloak | Không gian đăng nhập của đơn vị |
+| Saga cấp phát tenant | Tiến trình cấp phát hạ tầng |
+| Dead letter | Dữ liệu lỗi được lưu lại để chạy lại |
+| Lỗi lược đồ (schema) | Bản ghi sai cấu trúc |
+| Mã ngoài, mã nội bộ (đồng bộ nhân sự) | Mã tại nguồn, hồ sơ trên hệ thống |
+| Ngân sách thời gian của NFR | Thời hạn cho phép |
+| OIDC, SAML | Liên kết chuẩn OpenID Connect, liên kết chuẩn SAML2 (chỉ ở màn hình cấu hình đăng nhập của quản trị) |
 
 Bảng được bổ sung khi gặp khái niệm mới; khi bổ sung, sửa luôn mục tương ứng ở [Thuật ngữ](13-thuat-ngu.md) nếu có.
 
