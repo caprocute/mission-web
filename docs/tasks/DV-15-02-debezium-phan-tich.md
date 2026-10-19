@@ -18,7 +18,7 @@ Cấu hình connector Debezium thứ hai cho mỗi CSDL (tách khỏi connector 
 ## 2. Đầu vào bắt buộc đọc
 
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-03-thiet-ke-csdl.md` "CDC phân tích sang ClickHouse" (L4313, "Đường đi dữ liệu": slot, publication, `ExtractNewRecordState`, `column.exclude.list`, `column.mask.hash.SHA-256.with.salt`), "Bảng tổng hợp xử lý theo phân loại" (L4172), "Transactional Outbox và Debezium" (L4205, để không trùng cấu hình).
-- `/mnt/project-files/kien-truc-okr-kpi/src/TL-01-thiet-ke-kien-truc.md` mục "Outbox" (L754) và "Connector Debezium" trong phần SVC-05 (một connector mỗi schema).
+- `/mnt/project-files/kien-truc-okr-kpi/src/TL-01-thiet-ke-kien-truc.md` đoạn cấu hình connector Debezium (L780–806: mỗi CSDL một connector outbox và một connector phân tích) và mục "SVC-15 analytics" (L1194–1204).
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-02b-quy-trinh.md` QT-14 "Quy tắc nghiệp vụ" (L1202, BR-14-06), QT-16 (L1655, BR-16-04).
 - Bản trích `extract/tl03-phan2.md` mục B4, B7, F.1.
 
@@ -28,7 +28,7 @@ Cấu hình connector Debezium thứ hai cho mỗi CSDL (tách khỏi connector 
 - Viết mẫu cấu hình KafkaConnector (Strimzi) cho connector phân tích: `pgoutput`, slot `dbz_cdc_<db>`, publication `pub_analytics`, topic `cdc.<db>.<schema>.<table>`, transform `ExtractNewRecordState` thêm `__op`, `__lsn`, `__source_ts_ms`, `__deleted`; muối lấy từ OpenBao qua cấu hình bí mật.
 - Viết lệnh tạo publication `pub_analytics` trong migration hoặc script quản trị cho từng CSDL (phối hợp chủ sở hữu schema; không sửa migration đã gộp, chỉ thêm mới).
 - Thêm bước CI chạy `cdc-config-gen` và so sánh với cấu hình đã commit; khác nhau thì thất bại.
-- Điểm lệch cần lưu ý: TL-01 mô tả một connector cho mỗi schema, TL-03 (L4253) chọn một connector cho mỗi CSDL; task theo TL-03 (chi tiết hơn, viết sau) cho connector phân tích và ghi vào `wiki/14`.
+- Mỗi CSDL có đúng một connector phân tích với slot riêng (TL-01 L806, TL-03 L4253); câu "mỗi schema có connector và slot riêng" mà TL-03 dẫn lại từ TL-01 bản cũ không còn áp dụng, task ghi việc này vào `wiki/14` để tránh hiểu nhầm.
 
 ## 4. Ngoài phạm vi
 
