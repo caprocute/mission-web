@@ -11,7 +11,9 @@
     "format": "prettier --write \"projects/**/*.{ts,html,scss,css,json}\" \"*.{js,json}\"",
     "format:check": "prettier --check \"projects/**/*.{ts,html,scss,css,json}\" \"*.{js,json}\"",
     "test:all": "for p in design-system auth sdui-renderer form-engine telemetry api-client fe-task fe-shell; do if [ -n \"$(find projects/$p -name '*.spec.ts' -print -quit)\" ]; then ng test $p --watch=false || exit 1; else echo \"[test:all] $p: chưa có tệp *.spec.ts, bỏ qua\"; fi; done",
-    "build:all": "ng build fe-task && ng build fe-shell"
+    "build:all": "ng build fe-task && ng build fe-shell",
+    "perf:prepare": "npm run build:all && rm -rf dist/lhci && cp -r dist/fe-shell/browser dist/lhci && mkdir -p dist/lhci/remotes/fe-task && cp -r dist/fe-task/browser/. dist/lhci/remotes/fe-task/ && node -e \"require('fs').writeFileSync('dist/lhci/federation.manifest.json', JSON.stringify({ feTask: '/remotes/fe-task/remoteEntry.json' }))\"",
+    "perf:lhci": "npm run perf:prepare && cd dist && lhci autorun --config=../lighthouserc.json"
   },
   "private": true,
   "packageManager": "npm@10.9.4",
@@ -42,6 +44,7 @@
     "@angular/build": "^21.2.27",
     "@angular/cli": "^21.2.27",
     "@angular/compiler-cli": "^21.2.0",
+    "@lhci/cli": "^0.15.1",
     "@types/json-schema": "^7.0.15",
     "angular-eslint": "^21.4.0",
     "eslint": "^9.39.5",
