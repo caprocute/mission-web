@@ -61,7 +61,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-021](WEB-021-cay-okr.md) | SCR-0201 Cây mục tiêu OKR | L | WEB-015 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-021-cay-okr`) |
 | [WEB-022](WEB-022-tao-sua-okr.md) | SCR-0202 Tạo/sửa O và KR | M | WEB-021 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-022-tao-sua-okr`) |
 | [WEB-023](WEB-023-duyet-okr.md) | SCR-0203 Phê duyệt OKR | M | WEB-022 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-023-duyet-okr`) |
-| [WEB-024](WEB-024-check-in-kr.md) | SCR-0301 Check-in KR | M | WEB-021 | Chưa bắt đầu |
+| [WEB-024](WEB-024-check-in-kr.md) | SCR-0301 Check-in KR | M | WEB-021 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-024-checkin-kr`) |
 | [WEB-025](WEB-025-danh-muc-cong-viec.md) | SCR-0401 Thư viện danh mục công việc | M | WEB-008 | Xong, chờ gộp (luồng Màn hình) |
 | [WEB-026](WEB-026-lap-ke-hoach.md) | SCR-0402 Lập kế hoạch công tác quý | L | WEB-025 | Xong, chờ gộp (luồng Màn hình) |
 | [WEB-027](WEB-027-duyet-ke-hoach.md) | SCR-0403 Phê duyệt kế hoạch (so sánh phiên bản) | M | WEB-026 | Xong, chờ gộp (luồng Màn hình) |

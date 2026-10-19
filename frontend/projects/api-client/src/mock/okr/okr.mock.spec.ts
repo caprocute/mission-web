@@ -258,3 +258,118 @@ describe('mock okr – SCR-0203 (WEB-023)', () => {
     expect(after.items.some((s) => s.unit.name === 'Uỷ ban Kiểm tra')).toBe(false);
   });
 });
+
+describe('mock okr – SCR-0301 (WEB-024)', () => {
+  beforeEach(() => resetMockData());
+  const err = async (p: Promise<unknown>) => {
+    try {
+      await p;
+    } catch (e) {
+      return (e as HttpErrorResponse).error as { status: number; code?: string; title: string };
+    }
+    throw new Error('Không lỗi');
+  };
+
+  it('KR của tôi: ba KR, hai KR còn phải check-in trong chu kỳ, kèm kỳ', async () => {
+    const api = setup();
+    const all = await firstValueFrom(api.myKeyResults());
+    expect(all.items.map((k) => k.code)).toEqual(['KR 1.1', 'KR 1.3', 'KR 2.1']);
+    expect(all.counts?.needCheckin).toBe(2);
+    expect(all.period?.weekNo).toBe(4);
+    const need = await firstValueFrom(api.myKeyResults({ needCheckin: true }));
+    expect(need.items.map((k) => k.code)).toEqual(['KR 1.1', 'KR 1.3']);
+  });
+
+  it('chi tiết KR có công thức, nguồn, lần trước; số liệu nguồn lấy được', async () => {
+    const api = setup();
+    const kr = await firstValueFrom(api.keyResult('kr-1-1'));
+    expect(kr.formulaText).toContain('/ 500 đảng viên đầu kỳ');
+    expect(kr.lastCheckin).toMatchObject({ value: 2.4, confidence: 'CAO' });
+    expect(kr.objective?.code).toBe('O1');
+    const src = await firstValueFrom(api.sourceValue('kr-1-1'));
+    expect(src).toMatchObject({ value: 2.6, dataSource: 'CSDL đảng viên' });
+  });
+
+  it('gửi check-in: cập nhật KR, tiến độ mục tiêu và cây; KR rời danh sách cần check-in', async () => {
+    const api = setup();
+    const r = await firstValueFrom(
+      api.createCheckin('kr-1-1', {
+        status: 'DA_GUI',
+        value: 2.6,
+        confidence: 'CAO',
+        sourceValue: 2.6,
+      }),
+    );
+    expect(r.checkin.status).toBe('DA_GUI');
+    expect(r.keyResult.progress).toBeCloseTo(0.8667, 3);
+    expect(Math.round(r.objective.progress * 100)).toBe(67);
+    const need = await firstValueFrom(api.myKeyResults({ needCheckin: true }));
+    expect(need.items.map((k) => k.code)).toEqual(['KR 1.3']);
+    const h = await firstValueFrom(api.checkins('kr-1-1'));
+    expect(h.items[0].value).toBe(2.6);
+    const t = await firstValueFrom(api.tree());
+    expect(t.objectives.find((o) => o.code === 'O1')!.progressPct).toBe(67);
+  });
+
+  it('BR-03-04, BR-03-05: ghi đè thiếu lý do và chênh lớn chưa xác nhận bị chặn', async () => {
+    const api = setup();
+    const e1 = await err(
+      firstValueFrom(
+        api.createCheckin('kr-1-1', {
+          status: 'DA_GUI',
+          value: 2.5,
+          confidence: 'CAO',
+          sourceValue: 2.6,
+        }),
+      ),
+    );
+    expect(e1).toMatchObject({ status: 422, code: 'OKR-422-OVERRIDE-REASON-REQUIRED' });
+    expect(e1.title).toBe('Vui lòng ghi lý do khi thay đổi số liệu lấy từ CSDL đảng viên.');
+    const e2 = await err(
+      firstValueFrom(
+        api.createCheckin('kr-1-1', { status: 'DA_GUI', value: 4, confidence: 'CAO' }),
+      ),
+    );
+    expect(e2).toMatchObject({ status: 422, code: 'OKR-422-LARGE-CHANGE-UNCONFIRMED' });
+    expect(e2.title).toBe('Giá trị mới chênh 53% so với lần trước. Đồng chí có chắc chắn không?');
+    const ok = await firstValueFrom(
+      api.createCheckin('kr-1-1', {
+        status: 'DA_GUI',
+        value: 4,
+        confidence: 'CAO',
+        confirmLargeChange: true,
+      }),
+    );
+    expect(ok.keyResult.currentValue).toBe(4);
+  });
+
+  it('BR-03-06: tự tin Thấp lần thứ hai liên tiếp chuyển KR sang RUI_RO', async () => {
+    const api = setup();
+    const r = await firstValueFrom(
+      api.createCheckin('kr-1-3', { status: 'DA_GUI', value: 33, confidence: 'THAP' }),
+    );
+    expect(r.keyResult.riskFlag).toBe('RUI_RO');
+  });
+
+  it('lưu nháp không đổi KR, trả lại trong chi tiết; KR người khác 403, mục tiêu nháp 409', async () => {
+    const api = setup();
+    await firstValueFrom(
+      api.createCheckin('kr-1-3', { status: 'NHAP', value: 34, confidence: 'TRUNG_BINH' }),
+    );
+    const kr = await firstValueFrom(api.keyResult('kr-1-3'));
+    expect(kr.currentValue).toBe(32.6);
+    expect(kr.myDraftCheckin).toMatchObject({ value: 34, status: 'NHAP' });
+    const e403 = await err(
+      firstValueFrom(
+        api.createCheckin('kr-1-2', { status: 'DA_GUI', value: 80, confidence: 'CAO' }),
+      ),
+    );
+    expect(e403).toMatchObject({ status: 403, code: 'OKR-403-NOT-OWNER' });
+    const e409 = await err(
+      firstValueFrom(
+        api.createCheckin('kr-3-1', { status: 'DA_GUI', value: 1, confidence: 'CAO' }),
+      ),
+    );
+    expect(e409).toMatchObject({ status: 409, code: 'OKR-409-OBJECTIVE-NOT-APPROVED' });
+  });
+});

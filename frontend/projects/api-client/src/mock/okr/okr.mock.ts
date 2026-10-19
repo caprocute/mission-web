@@ -3,7 +3,6 @@ import {
   AiOkrReview,
   Confidence,
   KeyResult,
-  KrCheckin,
   Objective,
   ObjectiveDetail,
   ObjectiveDraft,
@@ -22,6 +21,7 @@ import {
 } from '../../lib/models/okr';
 import { krProgress, objectiveProgressPct } from '../../lib/okr-progress';
 import { MockModule, MockRequest, ok, problem } from '../mock-router';
+import { checkinRoutes, myKeyResults, resetCheckins } from './okr-checkin.mock';
 import fixture from './okr.json';
 
 type KrFixture = Omit<KeyResult, 'progress'>;
@@ -616,7 +616,7 @@ const exportJobs = new Map<string, Job>();
 
 /**
  * Giả lập `/api/v1/okr`: KR để liên kết nhiệm vụ (WEB-028), cây mục tiêu, lịch sử check-in và
- * xuất mẫu (WEB-021, SCR-0201).
+ * xuất mẫu (WEB-021, SCR-0201); check-in KR (WEB-024, SCR-0301) ở `okr-checkin.mock.ts`.
  */
 export const OKR_MOCK: MockModule = {
   name: 'okr',
@@ -626,12 +626,16 @@ export const OKR_MOCK: MockModule = {
     drafts = null;
     reviewSets = null;
     reviewLog.clear();
+    resetCheckins();
   },
   routes: [
     {
       method: 'GET',
       pattern: '/api/v1/okr/key-results',
-      handle: () => ok({ items: fixture.keyResults, nextCursor: null }),
+      handle: (req) =>
+        req.params.get('owner') === 'me'
+          ? myKeyResults(req, objectivesState())
+          : ok({ items: fixture.keyResults, nextCursor: null }),
     },
     {
       method: 'GET',
@@ -641,18 +645,7 @@ export const OKR_MOCK: MockModule = {
           ? buildTree(req)
           : problem(400, 'Chế độ xem chưa hỗ trợ trong dữ liệu giả lập'),
     },
-    {
-      method: 'GET',
-      pattern: '/api/v1/okr/key-results/:id/checkins',
-      handle: (req) => {
-        const all = (fixture.checkins as Record<string, KrCheckin[]>)[req.pathParams['id']] ?? [];
-        const limit = Math.min(Number(req.params.get('limit') ?? 10), 200);
-        const start = Number(req.params.get('cursor') ?? 0);
-        const items = all.slice(start, start + limit);
-        const next = start + limit < all.length ? String(start + limit) : null;
-        return ok({ items, nextCursor: next });
-      },
-    },
+    ...checkinRoutes(objectivesState),
     {
       method: 'GET',
       pattern: '/api/v1/okr/compose-context',

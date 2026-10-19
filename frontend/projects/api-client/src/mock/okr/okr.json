@@ -263,8 +263,8 @@
             "confidence": "TRUNG_BINH",
             "riskFlag": "BINH_THUONG",
             "lastCheckinAt": "2026-10-16T10:00:00+07:00",
-            "ownerName": "Lê Minh Châu",
-            "viewerIsOwner": false,
+            "ownerName": "Nguyễn Văn An",
+            "viewerIsOwner": true,
             "latestBlocker": null,
             "linkedWork": [
               {
@@ -705,9 +705,7 @@
       "code": "O3",
       "periodId": "p-2026-q4",
       "ownerType": "TAP_THE",
-      "basisIds": [
-        "b-kh-05"
-      ],
+      "basisIds": ["b-kh-05"],
       "parentObjectiveId": "o-duk-1",
       "title": "Nâng chất lượng sinh hoạt chi bộ khối cơ quan",
       "overLimitReason": null,
@@ -846,32 +844,9 @@
     "policy": {
       "version": "okr-policy 2026.4",
       "recommendedMax": 3,
-      "vagueWords": [
-        "tăng cường",
-        "đẩy mạnh",
-        "kịp thời",
-        "nâng cao",
-        "chú trọng",
-        "quan tâm"
-      ],
-      "taskVerbs": [
-        "tổ chức",
-        "ban hành",
-        "xây dựng",
-        "triển khai",
-        "họp",
-        "tập huấn"
-      ],
-      "units": [
-        "%",
-        "người",
-        "hồ sơ",
-        "ngày",
-        "lần",
-        "mốc",
-        "chi bộ",
-        "tổ chức"
-      ],
+      "vagueWords": ["tăng cường", "đẩy mạnh", "kịp thời", "nâng cao", "chú trọng", "quan tâm"],
+      "taskVerbs": ["tổ chức", "ban hành", "xây dựng", "triển khai", "họp", "tập huấn"],
+      "units": ["%", "người", "hồ sơ", "ngày", "lần", "mốc", "chi bộ", "tổ chức"],
       "rules": [
         {
           "id": "O-TEN",
@@ -1015,20 +990,13 @@
         "Kiểm tra 100% chi bộ trực thuộc trước 31/12/2026",
         "≥ 95% kiến nghị sau kiểm tra được khắc phục đúng hạn"
       ],
-      "sources": [
-        "PL 1 dự thảo (định nghĩa KR)",
-        "Kế hoạch 05-KH/ĐUK mục II.3"
-      ]
+      "sources": ["PL 1 dự thảo (định nghĩa KR)", "Kế hoạch 05-KH/ĐUK mục II.3"]
     },
     {
       "match": "tổ chức",
       "issue": "giống một nhiệm vụ (Tầng 3)",
-      "rewrites": [
-        "≥ 90% chi bộ áp dụng kết luận của hội nghị sơ kết trong quý"
-      ],
-      "sources": [
-        "PL 1 dự thảo (KR không đồng nhất với nhiệm vụ)"
-      ]
+      "rewrites": ["≥ 90% chi bộ áp dụng kết luận của hội nghị sơ kết trong quý"],
+      "sources": ["PL 1 dự thảo (KR không đồng nhất với nhiệm vụ)"]
     }
   ],
   "reviews": {
@@ -1667,6 +1635,30 @@
           ]
         }
       ]
+    }
+  },
+  "checkin": {
+    "$comment": "WEB-024 SCR-0301: chu kỳ check-in hiện tại, người check-in, công thức và số liệu nguồn (SVC-13) theo KR.",
+    "viewer": {
+      "id": "p-an",
+      "name": "Nguyễn Văn An"
+    },
+    "cycleStart": "2026-10-16T00:00:00+07:00",
+    "due": "2026-10-23",
+    "formulas": {
+      "kr-1-1": "Số đảng viên mới kết nạp trong năm / 500 đảng viên đầu kỳ",
+      "kr-1-3": "Số tổ chức đảng xếp loại \"Hoàn thành tốt nhiệm vụ\" trở lên / 46 tổ chức đảng trực thuộc",
+      "kr-2-1": "Số hồ sơ đảng viên đã cập nhật trên CSDL / 500 hồ sơ"
+    },
+    "sources": {
+      "kr-1-1": {
+        "value": 2.6,
+        "fetchedAt": "2026-10-19T08:00:00+07:00"
+      },
+      "kr-2-1": {
+        "value": 68,
+        "fetchedAt": "2026-10-16T08:00:00+07:00"
+      }
     }
   }
 }
