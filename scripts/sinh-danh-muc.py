@@ -75,7 +75,7 @@ for x in ids:
 
 cards = {}
 for p in glob.glob(os.path.join(ROOT, "docs/tasks/*.md")):
-    m = re.match(r"((?:[A-Z]+-)+\d+)-", os.path.basename(p))
+    m = re.match(r"([A-Z]+(?:-\d+)+)-[a-z]", os.path.basename(p))
     if m:
         cards[m.group(1)] = os.path.basename(p)
 

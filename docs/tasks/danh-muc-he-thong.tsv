@@ -3,7 +3,7 @@
 NEN-001	Chuyển repo thành repo chung toàn hệ thống: cấu trúc thư mục, AGENTS.md mở rộng, quy định theo phân hệ, prompt agent	S	–	ADR-01, BS-02	DP	tl05 §4.9-4.10	Hoàn thành trong nhánh kế hoạch
 NEN-002	Wiki backend phần 1: trang 16 kiến trúc mission-core và microservice, trang 17 thiết kế CSDL và đa khách thuê	M	NEN-001	TL-01 ch.5, ch.12; TL-03 ch.1-5	B1	tl01-thanh-phan §A; tl03-phan1 §A-B
 NEN-003	Wiki backend phần 2: trang 18 sự kiện và đồng bộ dữ liệu, trang 19 hạ tầng production và triển khai, trang 20 bảo mật phía máy chủ	M	NEN-001	TL-01 ch.6, ch.16; TL-03 ch.10-11; TL-04 ch.3, ch.9	B1	tl01-thanh-phan §D; tl03-phan2 §B; tl04-phan1 §A-C; tl04-phan2 §B
-NEN-004	Ghi các điểm lệch và câu hỏi mở phía backend vào wiki trang 14 và lập đề xuất chốt	S	NEN-001	YC-TK-10	B1	mục "Điểm lệch" của cả 9 tệp trích
+NEN-004	Ghi các điểm lệch và câu hỏi mở phía backend vào wiki trang 14 và lập đề xuất chốt	S	NEN-001	YC-TK-10	B1	"mục ""Điểm lệch"" của cả 9 tệp trích"
 NEN-005	Khung Maven đa module `backend/`: POM cha, BOM phiên bản theo TL-01 PL B, Java 21, Spotless, JaCoCo, PIT, Jib, cấu hình Sonar	M	NEN-001	TL-01 PL B, ch.18; ADR-16	B1	tl01-xuyen-suot §12, §16
 NEN-006	Sinh giao diện máy chủ từ hợp đồng OpenAPI (openapi-generator Spring interfaceOnly) và kiểm `openapi-diff` springdoc với `contracts/`	M	NEN-005	ADR-32, YC-PT-05, YC-PT-09	B1	tl05 §Phần 3; tl01-thanh-phan §A15
 NEN-007	Lược đồ Avro cho EVT-01..EVT-26 và topic kỹ thuật, sinh lớp Java, kiểm tương thích bằng plugin Maven Apicurio	M	NEN-005	baseline §7; TL-03 ch.12	B1	tl03-phan2 §B11; tl01-thanh-phan §D3-D4
@@ -16,66 +16,72 @@ NEN-013	vt-platform-starter: kho Idempotency-Key 48 giờ, ETag/If-Match, phân 
 NEN-014	vt-platform-starter: OpaClient, `@RequiresPermission`, đánh giá từng phần thành điều kiện SQL, kiểm step-up `acr`/`auth_time`	L	NEN-009, NEN-040	ADR-21; TL-01 ch.16	B1	tl01-thanh-phan §A12; tl01-xuyen-suot §10
 NEN-015	vt-platform-starter: CryptoProvider, FieldEncryptor AES-256-GCM phong bì, DekCache 15 phút, chỉ mục mù HMAC, client OpenBao Transit	L	NEN-009, NEN-032	ADR-06, ADR-17, ADR-30	B1	tl01-xuyen-suot §3; tl03-phan2 §B3
 NEN-016	vt-platform-starter: Resilience4j chuẩn, timeout mặc định, OpenTelemetry, log ECS JSON có che dữ liệu, tách nhật ký kiểm toán	M	NEN-009	ADR-12, ADR-24	B1	tl01-xuyen-suot §8-9
-NEN-017	Thư viện Go dùng chung: tenant, outbox/inbox với pgx và franz-go, lỗi RFC 9457, OpenTelemetry	M	NEN-007, NEN-032	TL-01 SVC-03/09/12	B1	tl01-thanh-phan §C3, §C8, §C11, §D1
-NEN-018	Thư viện Python dùng chung cho ai-gateway và job phân tích: tenant, OTel, lỗi, Kafka consumer	S	NEN-007	TL-01 SVC-14, SVC-15	B1	tl01-thanh-phan §C13-C14
+NEN-017	Thư viện Go dùng chung: tenant, outbox/inbox với pgx và franz-go, lỗi RFC 9457, OpenTelemetry	M	NEN-007, NEN-032, NEN-009	TL-01 SVC-03/09/12	B1	tl01-thanh-phan §C3, §C8, §C11, §D1
+NEN-018	Thư viện Python dùng chung cho ai-gateway và job phân tích: tenant, OTel, lỗi, Kafka consumer	S	NEN-007, NEN-009	TL-01 SVC-14, SVC-15	B1	tl01-thanh-phan §C13-C14
 NEN-019	Mẫu service Java (lục giác, actuator, probe, Helm values) và lệnh `scripts/new-service.sh`	M	NEN-010, NEN-011, NEN-012, NEN-016	TL-04 ch.5	B1	tl04-phan1 §E
-NEN-020	Môi trường dev backend: bổ sung profile Kafka, Apicurio, Debezium, OPA, OpenBao, Valkey vào `infra/dev`, chuẩn hoá tài khoản CSDL `svc_/mig_/ro_/cdc_`, cấu hình Testcontainers dùng chung	M	NEN-031	YC-HT-01; TL-03 ch.2	B1	tl05 §4.2	Đụng `infra/dev`, phối hợp luồng điều phối
+NEN-020	Môi trường dev backend: bổ sung profile Kafka, Apicurio, Debezium, OPA, OpenBao, Valkey vào `infra/dev`, chuẩn hoá tài khoản CSDL `svc_/mig_/ro_/cdc_`, cấu hình Testcontainers dùng chung	M	NEN-031, NEN-007, NEN-040, NEN-033	YC-HT-01; TL-03 ch.2	B1	tl05 §4.2	Đụng `infra/dev`, phối hợp luồng điều phối
 NEN-030	Quy ước Flyway theo schema, tài khoản `mig_<schema>`, lint tên, kiểu và chú thích phân loại cột trong CI	M	NEN-005	TL-03 ch.1, ch.15	B1	tl03-phan1 §T-DB-01, 03, 04
 NEN-031	Vai trò CSDL và quyền mặc định theo schema (svc, ro, mig, cdc) cùng các ngoại lệ	M	NEN-030	TL-03 ch.2	B1	tl03-phan1 §T-DB-02
-NEN-032	Bảng dùng chung mẫu: `outbox_event` phân vùng, `inbox_processed`, `inbox_aggregate_version`, `idempotency_key`, schema `modulith`, `keyring.dek`	M	NEN-030	TL-03 ch.5 bảng dùng chung	B1	tl03-phan1 §T-DB-05..07
+NEN-032	Bảng dùng chung mẫu: `outbox_event` phân vùng, `inbox_processed`, `inbox_aggregate_version`, `idempotency_key`, schema `modulith`, `keyring.dek`	M	NEN-030, NEN-031	TL-03 ch.5 bảng dùng chung	B1	tl03-phan1 §T-DB-05..07
 NEN-033	Mẫu RLS chuẩn, hàm `fn_create_period_partitions`, cấu hình PgBouncer chế độ giao dịch	L	NEN-031	ADR-07, ADR-22; TL-03 ch.4	B1	tl03-phan1 §T-DB-08, 09
 NEN-034	Kiểm thử rò rỉ tenant lớp CSDL: RLS giữa hai tenant, PgBouncer dùng lại kết nối, phân vùng	M	NEN-033, NEN-010	TL-03 kiểm thử rò rỉ	B1	tl03-phan1 §T-DB-10
 NEN-035	Kiểm thử rò rỉ tenant lớp API, bộ đệm Valkey, chỉ mục tìm kiếm và kho phân tích	M	NEN-034, CORE-00-02	TL-03 kiểm thử rò rỉ	B9	tl03-phan1 §T-DB-10
-NEN-036	Định tuyến tới đúng CSDL theo mô hình silo, bridge, pool (`registry.tenant_cell`, mã 421)	M	NEN-033, DV-03-02	ADR-07; TL-03 định tuyến	B1	tl03-phan1 §T-DB-11
+NEN-036	Định tuyến tới đúng CSDL theo mô hình silo, bridge, pool (`registry.tenant_cell`, mã 421)	M	NEN-033, DV-03-02, NEN-012	ADR-07; TL-03 định tuyến	B1	tl03-phan1 §T-DB-11
 NEN-040	Gói chính sách OPA (Rego) sinh từ `docs/phan-quyen/ma-tran.json`: RBAC, ABAC theo cây tổ chức, luồng, mức dữ liệu, tách vai trò, bốn mắt; kiểm thử `opa test`	L	NEN-001	ADR-21; wiki/15, 15a	B1	tl01-xuyen-suot §10; tl02a §0
 NEN-041	Thư viện CEL dùng chung `vt-cel` (cel-java): môi trường, hàm mở rộng `sum`, `ngay_lam_viec`, `min_muc`, bộ ca kiểm thử chung với cel-js	L	NEN-005	ADR-19	B2	tl02b §QT-15 BE-Q15-03; tl01-xuyen-suot §4
+NEN-021	Lược đồ Avro cho sự kiện kỹ thuật `evidence.object.*` và các topic kỹ thuật còn thiếu	S	NEN-007	TL-03 ch.11; TL-01 SVC-08	B1		Bổ sung sau khi viết thẻ
+NEN-022	Công cụ phát lại outbox và cấu hình connector Debezium outbox theo schema	M	NEN-011	ADR-03; TL-03 ch.11	B1		Bổ sung sau khi viết thẻ
+NEN-042	Sửa hợp đồng OpenAPI phần nghiệp vụ: thêm thao tác còn thiếu (huỷ OKR, phiên bản điều chỉnh mục tiêu, uỷ quyền check-in, kích hoạt danh mục, chấm việc ngoài danh mục, ngoại lệ điều chỉnh, xác nhận dòng kế hoạch, duyệt nhiệm vụ đăng ký, chuyển điểm nghẽn, danh bạ khoá E2EE và chia sẻ CEK, ghi trường hợp đặc thù, gợi ý khiếu nại trùng) và sửa mô tả `acceptComplaint`	M	NEN-001	ADR-32; YC-PT-09	B1		Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt
+NEN-043	Sửa hợp đồng OpenAPI phần nền tảng: cờ tính năng cho mọi người dùng, cấu hình tenant, thiết bị nhận thông báo đẩy, tuỳ chọn kênh, mã khôi phục MFA, `POST /org/assignments`, guest token Superset, kiểm quyền theo lô cho tìm kiếm, ký nội bộ cho sổ cái, OCR cho tài khoản dịch vụ, đề nghị chuyển cell	M	NEN-001	ADR-32; YC-PT-09	B1		Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt
 ## CORE-00	mission-core: phần dùng chung
-CORE-00-01	Khung ứng dụng mission-core: Spring Boot 3.5, luồng ảo, tám DataSource riêng theo module, actuator, cấu hình mẫu	L	NEN-019, NEN-031	SVC-05; TL-01 ch.5	B2	tl01-thanh-phan §A1, A10, A14
+CORE-00-01	Khung ứng dụng mission-core: Spring Boot 3.5, luồng ảo, tám DataSource riêng theo module, actuator, cấu hình mẫu	L	NEN-019, NEN-031, NEN-006, NEN-013, NEN-030	SVC-05; TL-01 ch.5	B2	tl01-thanh-phan §A1, A10, A14
 CORE-00-02	Tám module lục giác, khai báo Spring Modulith, ma trận phụ thuộc, ArchUnit, sinh tài liệu module	M	CORE-00-01	ADR-01, ADR-23	B2	tl01-thanh-phan §A3-A6
 CORE-00-03	Schema `org_replica` và consumer EVT-14, EVT-15, EVT-16	M	CORE-00-02, NEN-012, DV-04-03	baseline §8.3	B2	tl01-thanh-phan §A11; tl03-phan1 §C3
-CORE-00-04	API tổng hợp trang chủ "Việc của tôi hôm nay" (SCR-0002)	M	CORE-02-18, CORE-01-08	QT-00 → SCR-0002	B3	tl02a §QT-00 BE-00-9
-CORE-00-05	Nhật ký truy cập dữ liệu C2 và ghi sổ cái lần giải mã	S	NEN-015, DV-09-02	ADR-06	B4	tl02b §Việc dùng chung
+CORE-00-04	"API tổng hợp trang chủ ""Việc của tôi hôm nay"" (SCR-0002)"	M	CORE-02-18, CORE-01-08, CORE-08-09, CORE-08-02, NEN-041	QT-00 → SCR-0002	B3	tl02a §QT-00 BE-00-9
+CORE-00-05	Nhật ký truy cập dữ liệu C2 và ghi sổ cái lần giải mã	S	NEN-015, DV-09-02, NEN-011, NEN-016, CORE-00-02	ADR-06	B4	tl02b §Việc dùng chung
 ## CORE-08	MOD-08 config: kỳ, lịch, cờ, UI Pack, biểu mẫu (G1 phía máy chủ)
 CORE-08-01	Migration schema `config` (period, holiday_calendar, tenant_setting, feature_flag, ui_pack, ui_pack_version, form_schema, component_registry, role_binding, period_lock_order)	M	CORE-00-02, NEN-033	MOD-08; TL-03 schema config	B2	tl03-phan1 §C4
-CORE-08-02	Kỳ đánh giá: domain, máy trạng thái kỳ, tạo kỳ có lịch và ghim Policy Pack, `PeriodApi`	M	CORE-08-01	QT-08; baseline §9.1	B2	tl02a §QT-08 BE-08-1; tl01-thanh-phan §B8
+CORE-08-02	Kỳ đánh giá: domain, máy trạng thái kỳ, tạo kỳ có lịch và ghim Policy Pack, `PeriodApi`	M	CORE-08-01, CORE-05-03	QT-08; baseline §9.1	B2	tl02a §QT-08 BE-08-1; tl01-thanh-phan §B8
 CORE-08-03	Chặn ghi khi kỳ `DANG_KHOA`/`DA_KHOA` ở mọi module, đệm trạng thái kỳ, lỗi 409 `period-locked`	M	CORE-08-02	BR-08-06	B2	tl02a §QT-08 BE-08-2
 CORE-08-04	Lịch ngày làm việc, ngày nghỉ, làm bù và thư viện tính ngày làm việc dùng chung	M	CORE-08-01	BR-06-01	B2	tl02a §QT-06 BE-06-3
 CORE-08-05	Lệnh khoá kỳ: lập, duyệt có MFA và tách vai trò, khởi chạy saga	M	CORE-08-02, DV-06-05	BR-08-01, BR-08-02	B2	tl02a §QT-08 BE-08-3
 CORE-08-06	Mở lại hậu kiểm: trạng thái `MO_LAI_HAU_KIEM`, phạm vi mở, consumer EVT-22, timer hết hạn khoá lại	L	CORE-08-03	QT-13; EVT-22	B2	tl02b §QT-13 BE-Q13-04, 05; tl02a §QT-08 BE-08-14
 CORE-08-07	Cấu hình tenant và cờ tính năng (`tenant_setting`, `feature_flag`) kèm API	S	CORE-08-01	MOD-08	B2	tl01-thanh-phan §B8
 CORE-08-08	UI Pack: mô hình có phiên bản, máy trạng thái, người duyệt khác người soạn	M	CORE-08-01	QT-18; ADR-05	B2	tl02b §QT-18 BE-Q18-01; tl01-xuyen-suot §1
-CORE-08-09	Component registry có phiên bản và kiểm schema bố cục SDUI	M	CORE-08-08	ADR-05	B2	tl02b §QT-18 BE-Q18-02
-CORE-08-10	Kiểm tra tự động UI Pack: tương phản AA và 7:1, kích thước ≤ 30 KB, làm sạch SVG	M	CORE-08-08	NFR-07, NFR-11	B2	tl02b §QT-18 BE-Q18-03
-CORE-08-11	Biên dịch token sang CSS và preset PrimeNG, ký UI Pack, đẩy CDN với ETag, `GET /ui/packs/current`, EVT-23	L	CORE-08-09, CORE-08-10, DV-10-01	EVT-23; ADR-05	B2	tl02b §QT-18 BE-Q18-04; tl01-xuyen-suot §1
+CORE-08-09	Component registry có phiên bản và kiểm schema bố cục SDUI	M	CORE-08-08, NEN-041	ADR-05	B2	tl02b §QT-18 BE-Q18-02
+CORE-08-10	Kiểm tra tự động UI Pack: tương phản AA và 7:1, kích thước ≤ 30 KB, làm sạch SVG	M	CORE-08-08, WEB-004	NFR-07, NFR-11	B2	tl02b §QT-18 BE-Q18-03
+CORE-08-11	Biên dịch token sang CSS và preset PrimeNG, ký UI Pack, đẩy CDN với ETag, `GET /ui/packs/current`, EVT-23	L	CORE-08-09, CORE-08-10, DV-10-01, WEB-004	EVT-23; ADR-05	B2	tl02b §QT-18 BE-Q18-04; tl01-xuyen-suot §1
 CORE-08-12	Quay lui UI Pack có kiểm tương thích phiên bản Policy Pack	S	CORE-08-11, CORE-05-03	ADR-25	B2	tl02b §QT-18 BE-Q18-05
 CORE-08-13	API `form_schema`: lưu, phục vụ theo phiên bản, kiểm trường tính điểm theo Policy Pack	M	CORE-08-08, CORE-05-03	QT-18 → SCR-1802	B2	tl02b §QT-18 BE-Q18-06
 CORE-08-14	Bộ kiểm tra JSON Schema có `x-cel`, `x-classification` dùng chung cho API nghiệp vụ, đối chiếu cel-js	L	CORE-08-13, NEN-041	ADR-05, ADR-19	B2	tl02b §QT-18 BE-Q18-07, 08
 CORE-08-15	Manifest plugin theo tenant và kiểm chữ ký bản dựng plugin	S	CORE-08-11	ADR-05 lớp 4	B2	tl02b §QT-18 BE-Q18-09
-CORE-08-16	Lưu phân công vai trò và uỷ quyền (`config.role_binding`) theo đề xuất WEB-058	M	CORE-08-01, NEN-040	WEB-058	B2	tl05 §4.8	Chờ người dùng duyệt đề xuất WEB-058
+CORE-08-16	Lưu phân công vai trò và uỷ quyền (`config.role_binding`) theo đề xuất WEB-058	M	CORE-08-01, NEN-040, NEN-043	WEB-058	B2	tl05 §4.8	Chờ người dùng duyệt đề xuất WEB-058
+CORE-08-17	Lưu định nghĩa dashboard `config.dashboard_def` và cổng `api` cho analytics-api	S	CORE-08-01	SCR-1602; MOD-08	B2		Bổ sung sau khi viết thẻ
 ## CORE-05	MOD-05 policy: Policy Pack
 CORE-05-01	Migration schema `policy` và trigger đóng băng phiên bản đã phát hành	M	CORE-00-02, NEN-033	MOD-05; TL-03 schema policy	B2	tl03-phan1 §C5
 CORE-05-02	Mô hình phiên bản gói, nhân bản, máy trạng thái, kế thừa theo cờ `overridable`	M	CORE-05-01	QT-15; baseline §9.1	B2	tl02b §QT-15 BE-Q15-01, 11
 CORE-05-03	`PolicyQueryApi` và API phân giải nội bộ có bộ đệm, cung cấp `task_lifecycle` và tham số theo tenant/khối/kỳ	M	CORE-05-02	ADR-19	B2	tl01-thanh-phan §B5
 CORE-05-04	API quy tắc CEL và tham số, kiểm kiểu theo khai báo ngữ cảnh	M	CORE-05-02, NEN-041	SCR-1501	B2	tl02b §QT-15 BE-Q15-02
 CORE-05-05	Bảng quyết định DMN 1.4: lưu, kiểm FEEL, mẫu câu giải thích, xuất XML	L	CORE-05-02	SCR-1502; ADR-19	B2	tl02b §QT-15 BE-Q15-04
-CORE-05-06	Ca kiểm thử vàng và ký duyệt ca	M	CORE-05-02	SCR-1503	B2	tl02b §QT-15 BE-Q15-05
+CORE-05-06	Ca kiểm thử vàng và ký duyệt ca	M	CORE-05-02, DV-10-01	SCR-1503	B2	tl02b §QT-15 BE-Q15-05
 CORE-05-07	Chạy kiểm thử 202: cel-java, đối chiếu cel-js, kiểm thử thuộc tính jqwik	L	CORE-05-04, CORE-05-05, CORE-05-06	SCR-1503	B2	tl02b §QT-15 BE-Q15-06
 CORE-05-08	So sánh phiên bản và đánh giá xem trước	S	CORE-05-04	QT-15	B2	tl02b §QT-15 BE-Q15-07
 CORE-05-09	Trình và phê duyệt: người duyệt khác người soạn, ký số, ghi sổ cái	M	CORE-05-07, DV-10-01	QT-15	B2	tl02b §QT-15 BE-Q15-08
-CORE-05-10	Phát hành: saga đa cell có bù trừ, `policy_binding`, EVT-13	L	CORE-05-09, DV-06-05	EVT-13	B2	tl02b §QT-15 BE-Q15-09
+CORE-05-10	Phát hành: saga đa cell có bù trừ, `policy_binding`, EVT-13	L	CORE-05-09, DV-06-05, CORE-08-12	EVT-13	B2	tl02b §QT-15 BE-Q15-09
+CORE-05-11	Lớp công bố `/policies/.../workflow-bindings` thuộc MOD-05, gọi API `wf_binding` của workflow-service	S	CORE-05-02, DV-06-08	SCR-1504	B2		Bổ sung sau khi viết thẻ
 ## CORE-01	MOD-01 okr
 CORE-01-01	Migration schema `okr` (basis, objective, key_result, okr_link, kr_checkin) và phiên bản mục tiêu	M	CORE-00-02, NEN-033	MOD-01; TL-03 schema okr	B2	tl03-phan1 §C6; tl02a §QT-02 BE-02-1
 CORE-01-02	`OkrApi` công bố và API đọc cây, bảng, bản đồ liên kết, tính tiến độ KR và mục tiêu	M	CORE-01-01	SCR-0201	B2	tl02a §QT-02 BE-02-2
 CORE-01-03	API soạn mục tiêu và KR: If-Match, sinh mã, sao chép kỳ trước	M	CORE-01-02, CORE-08-03	SCR-0202	B2	tl02a §QT-02 BE-02-3
 CORE-01-04	Kiểm tra quy tắc BR-02-01..07 ở máy chủ, danh sách từ mơ hồ, trọng số 100%	M	CORE-01-03, NEN-041	BR-02-01..07	B2	tl02a §QT-02 BE-02-4; tl02b §QT-17 BE-Q17-06
-CORE-01-05	Trình duyệt OKR qua BPMN `duyet-okr`, chọn người duyệt và người thay từ `wf_binding`	L	CORE-01-03, DV-06-03	SCR-0203	B2	tl02a §QT-02 BE-02-5
-CORE-01-06	Duyệt, trả lại, rút, huỷ, duyệt hàng loạt 202, EVT-01	M	CORE-01-05	EVT-01; BR-02-08, 09	B2	tl02a §QT-02 BE-02-6
-CORE-01-07	Điều chỉnh mục tiêu giữa kỳ bằng phiên bản mới	S	CORE-01-06	BR-02-10	B2	tl02a §QT-02 BE-02-7
+CORE-01-05	Trình duyệt OKR qua BPMN `duyet-okr`, chọn người duyệt và người thay từ `wf_binding`	L	CORE-01-03, DV-06-03, CORE-01-04	SCR-0203	B2	tl02a §QT-02 BE-02-5
+CORE-01-06	Duyệt, trả lại, rút, huỷ, duyệt hàng loạt 202, EVT-01	M	CORE-01-05, NEN-042	EVT-01; BR-02-08, 09	B2	tl02a §QT-02 BE-02-6
+CORE-01-07	Điều chỉnh mục tiêu giữa kỳ bằng phiên bản mới	S	CORE-01-06, NEN-042	BR-02-10	B2	tl02a §QT-02 BE-02-7
 CORE-01-08	Check-in KR: bảng chỉ thêm, nháp và gửi idempotent, tính lại giá trị và tiến độ	M	CORE-01-02	QT-03 → SCR-0301; BR-03-01..05	B2	tl02a §QT-03 BE-03-1, 2
 CORE-01-09	Cờ rủi ro KR và EVT-02	S	CORE-01-08	EVT-02; BR-03-06	B2	tl02a §QT-03 BE-03-3
 CORE-01-10	Lấy số liệu nguồn của KR qua cổng tích hợp, ghi đè có lý do	M	CORE-01-08, DV-13-08	BR-03-04	B2	tl02a §QT-03 BE-03-4
 CORE-01-11	Nhắc check-in, nhắc trước hạn và quá hạn OKR	S	CORE-01-08, DV-12-01	BR-03-08	B2	tl02a §QT-03 BE-03-5; §QT-02 BE-02-9
-CORE-01-12	Uỷ quyền check-in thay và chuyển giá trị khi phiên bản mục tiêu mới được duyệt	S	CORE-01-08, CORE-01-07	QT-03	B2	tl02a §QT-03 BE-03-6
+CORE-01-12	Uỷ quyền check-in thay và chuyển giá trị khi phiên bản mục tiêu mới được duyệt	S	CORE-01-08, CORE-01-07, NEN-042	QT-03	B2	tl02a §QT-03 BE-03-6
 CORE-01-13	Trợ lý AI cho OKR qua ai-gateway: soát KR, ghi `ai.suggestion_log`, cờ `content_source`	M	CORE-01-04, DV-14-04	QT-17 → SCR-1701; BR-02-11	B2	tl02a §QT-02 BE-02-8; tl02b §QT-17
 ## CORE-02	MOD-02 task: danh mục, kế hoạch, nhiệm vụ
 CORE-02-01	Migration schema `task` phần danh mục và kế hoạch (work_catalog, catalog_item, plan, plan_version, plan_item)	M	CORE-00-02, NEN-033	MOD-02; TL-03 schema task	B3	tl03-phan1 §C7
@@ -87,20 +93,23 @@ CORE-02-06	Kiểm tra kế hoạch BR-04-02..07 và tỷ trọng nhóm theo Poli
 CORE-02-07	Tính hạn duyệt kế hoạch theo lịch ngày làm việc, nhắc trước hạn và quá hạn	S	CORE-02-05, CORE-08-04	BR-04-01	B3	tl02a §QT-04 BE-04-7
 CORE-02-08	Gửi duyệt kế hoạch: khoá nội dung, băm SHA-256, BPMN `duyet-ke-hoach`, trả lại	M	CORE-02-06, DV-06-03	SCR-0403	B3	tl02a §QT-04 BE-04-8
 CORE-02-09	Duyệt kế hoạch có ký số (EVT-18 rồi EVT-03), hàng đợi thử lại	L	CORE-02-08, DV-10-02	EVT-03, EVT-18; BR-04-08, 09	B3	tl02a §QT-04 BE-04-9
-CORE-02-10	Điều chỉnh kế hoạch: phiên bản n+1, so sánh, lý do từng thay đổi, giới hạn số lần	L	CORE-02-09	BR-04-10..12	B3	tl02a §QT-04 BE-04-10
+CORE-02-10	Điều chỉnh kế hoạch: phiên bản n+1, so sánh, lý do từng thay đổi, giới hạn số lần	L	CORE-02-09, CORE-02-12	BR-04-10..12	B3	tl02a §QT-04 BE-04-10
 CORE-02-11	Consumer EVT-03 sinh, cập nhật, huỷ nhiệm vụ; xác nhận dòng của đơn vị chủ trì khác	M	CORE-02-09, CORE-02-13	EVT-03, EVT-06	B3	tl02a §QT-04 BE-04-11, 12
 CORE-02-12	`TaskApi` công bố và listener nội bộ cho MOD-04	S	CORE-02-13	ADR-23	B3	tl01-thanh-phan §B2.1
-CORE-02-13	Máy trạng thái nhiệm vụ khai báo, bảng chuyển trạng thái từ Policy Pack, guard CEL, `task_state_log`, EVT-06	L	CORE-02-02, CORE-05-03, NEN-041	ADR-04 tầng 1; EVT-06	B3	tl01-thanh-phan §B2.2-B2.4; tl02a §QT-05 BE-05-2
+CORE-02-13	Máy trạng thái nhiệm vụ khai báo, bảng chuyển trạng thái từ Policy Pack, guard CEL, `task_state_log`, EVT-06	L	CORE-02-02, CORE-05-03, NEN-041, DL-04	ADR-04 tầng 1; EVT-06	B3	tl01-thanh-phan §B2.2-B2.4; tl02a §QT-05 BE-05-2
 CORE-02-14	Giao việc: nháp, sửa, xoá, giao đơn lẻ và đồng loạt 202, kiểm BR-05-01..05, BR-05-09, EVT-04	L	CORE-02-13, CORE-00-03	QT-05 → SCR-0501; EVT-04	B3	tl02a §QT-05 BE-05-3, 4
 CORE-02-15	Phát hiện nhiệm vụ gần giống và gộp có lý do	M	CORE-02-14, DV-16-01	BR-05-06	B3	tl02a §QT-05 BE-05-5
 CORE-02-16	Nhiệm vụ từ văn bản chỉ đạo: consumer EVT-24, trích bằng AI, xác nhận và khoá đoạn	L	CORE-02-14, DV-13-03, DV-14-04	SCR-0502; EVT-24; BR-05-05, 07	B3	tl02a §QT-05 BE-05-7, 8
-CORE-02-17	Đăng ký nhiệm vụ, duyệt hoặc từ chối, đưa vào điều chỉnh kế hoạch	M	CORE-02-14	BR-05-08	B3	tl02a §QT-05 BE-05-9
-CORE-02-18	"Việc của tôi": danh sách con trỏ, lọc nhanh, nhận việc, xuất 202, cảnh báo khối lượng	M	CORE-02-14	SCR-0503; BR-05-11	B3	tl02a §QT-05 BE-05-10, 11
+CORE-02-17	Đăng ký nhiệm vụ, duyệt hoặc từ chối, đưa vào điều chỉnh kế hoạch	M	CORE-02-14, NEN-042	BR-05-08	B3	tl02a §QT-05 BE-05-9
+CORE-02-18	Việc của tôi: danh sách con trỏ, lọc nhanh, nhận việc, xuất 202, cảnh báo khối lượng	M	CORE-02-14	SCR-0503; BR-05-11	B3	tl02a §QT-05 BE-05-10, 11
 CORE-02-19	Cập nhật tiến độ chỉ thêm, EVT-05, xung đột 409, cập nhật hàng loạt	M	CORE-02-13	QT-06 → SCR-0601; BR-06-02, 03	B3	tl02a §QT-06 BE-06-1; tl01-thanh-phan §B2.6
-CORE-02-20	Điểm nghẽn: tạo, giao xử lý, chuyển cấp trên, đóng	S	CORE-02-19	QT-06	B3	tl02a §QT-06 BE-06-2
+CORE-02-20	Điểm nghẽn: tạo, giao xử lý, chuyển cấp trên, đóng	S	CORE-02-19, NEN-042	QT-06	B3	tl02a §QT-06 BE-06-2
 CORE-02-21	Đề nghị gia hạn, điều chỉnh: máy trạng thái năm trạng thái, gửi, rút, xem trước hệ số C	M	CORE-02-19, CORE-08-04	SCR-0602	B3	tl02a §QT-06 BE-06-4
 CORE-02-22	Duyệt đề nghị, tạm dừng, tiếp tục, huỷ; vượt ngưỡng chuyển BPMN `duyet-de-nghi`, người duyệt thay	L	CORE-02-21, DV-06-03	BR-06-04..11	B3	tl02a §QT-06 BE-06-5, 6
 CORE-02-23	Tác vụ 00:05 đặt cờ `qua_han`, nhắc, tính lại khi lịch nghỉ đổi	S	CORE-02-19, CORE-08-04	QT-06	B3	tl02a §QT-06 BE-06-7
+CORE-02-24	Nội dung mật C3 của nhiệm vụ: `task.task_secret_content`, `task.e2ee_key_wrap`, chia sẻ và thu hồi khoá	M	CORE-02-02, CORE-07-06, NEN-042	ADR-27; C3	B3		Bổ sung sau khi viết thẻ
+CORE-02-25	Nhắc việc, giao lại (`remindTask`, `reassignTask`) và đổi người chủ trì khi điều động	M	CORE-02-14, CORE-00-03	QT-16; QT-05	B3		Bổ sung sau khi viết thẻ
+CORE-02-26	Cột `delay_risk` và cổng ghi nội bộ cho dự báo nguy cơ trễ	S	CORE-02-02	QT-06	B3		Bổ sung sau khi viết thẻ
 ## CORE-03	MOD-03 product: sản phẩm, minh chứng, nghiệm thu
 CORE-03-01	Migration schema `product` và trigger đóng băng phiên bản minh chứng	M	CORE-00-02, NEN-033	MOD-03; TL-03 schema product	B3	tl03-phan1 §C8
 CORE-03-02	Máy trạng thái phiên bản minh chứng và liên động với máy trạng thái nhiệm vụ	M	CORE-03-01, CORE-02-13	BR-07-10; baseline §9.1	B3	tl02a §QT-07 BE-07-4
@@ -109,7 +118,7 @@ CORE-03-04	Minh chứng là văn bản đã ban hành trên vOffice, kiểm ch�
 CORE-03-05	OCR và trích thông tin minh chứng, gợi ý nhiệm vụ khớp	M	CORE-03-03, DV-08-05	BR-07-09	B3	tl02a §QT-07 BE-07-7
 CORE-03-06	Mở nghiệm thu và kiểm toàn vẹn tệp	S	CORE-03-03	SCR-0703	B3	tl02a §QT-07 BE-07-8
 CORE-03-07	Nghiệm thu năm mức: AAL2, tách vai trò, nhận xét C2, EVT-08	L	CORE-03-06, NEN-014, NEN-015	SCR-0703; EVT-08; BR-07-06..08, 11	B3	tl02a §QT-07 BE-07-9
-CORE-03-08	Nhắc quá hạn nghiệm thu và nghiệm thu thay theo uỷ quyền	S	CORE-03-07	BR-07-12	B3	tl02a §QT-07 BE-07-11
+CORE-03-08	Nhắc quá hạn nghiệm thu và nghiệm thu thay theo uỷ quyền	S	CORE-03-07, CORE-08-04, CORE-08-16	BR-07-12	B3	tl02a §QT-07 BE-07-11
 ## CORE-04	MOD-04 appraisal: đánh giá, xếp loại
 CORE-04-01	Migration schema `appraisal` và trigger `period_state` bảo vệ dữ liệu kỳ đã khoá	L	CORE-00-02, NEN-033	MOD-04; TL-03 schema appraisal	B4	tl03-phan2 §A1
 CORE-04-02	Consumer EVT-09 lập hồ sơ quý theo tổ chức tại thời điểm; consumer EVT-10 lưu `score_snapshot`	M	CORE-04-01, CORE-00-03	EVT-09, EVT-10	B4	tl02b §QT-09 BE-Q09-01; tl02a §QT-08 BE-08-7
@@ -118,34 +127,35 @@ CORE-04-04	Phiếu tự đánh giá: lưu nháp If-Match, kiểm tiêu chí chun
 CORE-04-05	Thẩm định, trả lại tối đa hai lần, đề xuất, tách vai trò qua OPA	M	CORE-04-04	SCR-0902; BR-09-14	B4	tl02b §QT-09 BE-Q09-05
 CORE-04-06	API đọc lô `inputs` cho scoring và listener nhiệm vụ kết thúc	M	CORE-04-01, CORE-02-12	SVC-07	B4	tl01-thanh-phan §B4
 CORE-04-07	Quyết định xếp loại hàng loạt: lô, step-up, job 202, huỷ và tiếp tục, kiểm phân bố mức	L	CORE-04-05, DV-10-06	SCR-0904	B4	tl02b §QT-09 BE-Q09-09, 11
-CORE-04-08	Consumer EVT-18 chuyển `DA_KY_SO`, phát EVT-12; timer hạn khiếu nại chuyển `DA_KHOA`	M	CORE-04-07	EVT-12, EVT-18	B4	tl02b §QT-09 BE-Q09-10, 12
+CORE-04-08	Consumer EVT-18 chuyển `DA_KY_SO`, phát EVT-12; timer hạn khiếu nại chuyển `DA_KHOA`	M	CORE-04-07, CORE-08-04	EVT-12, EVT-18	B4	tl02b §QT-09 BE-Q09-10, 12
 CORE-04-09	Tra cứu vết tính điểm, điểm theo luồng, xuất XLSX	S	CORE-04-02, DV-07-03	SCR-0903	B4	tl02b §QT-09 BE-Q09-13
 CORE-04-10	Xếp loại năm: lập từ bốn quý, xử lý thiếu quý, chặn khi còn khiếu nại, tính lại	L	CORE-04-08, DV-07-07	QT-10 → SCR-1001	B4	tl02b §QT-10 BE-Q10-01, 04, 05
-CORE-04-11	Cờ "không hoàn thành hai năm liền" và đề xuất bố trí lại sang MOD-02	S	CORE-04-10	QT-10	B4	tl02b §QT-10 BE-Q10-03
+CORE-04-11	"Cờ ""không hoàn thành hai năm liền"" và đề xuất bố trí lại sang MOD-02"	S	CORE-04-10	QT-10	B4	tl02b §QT-10 BE-Q10-03
 CORE-04-12	Phân nhóm triển vọng: lưu nháp, BR-10-07..09, trình tập thể, ký danh sách	M	CORE-04-10	SCR-1002	B4	tl02b §QT-10 BE-Q10-06, 07
 ## CORE-06	MOD-06 dossier: kiểm điểm, hồ sơ số
 CORE-06-01	Migration schema `dossier`	M	CORE-00-02, NEN-033	MOD-06; TL-03 schema dossier	B4	tl03-phan2 §A2
 CORE-06-02	Hội nghị kiểm điểm: tạo, thành phần, quyền thư ký và chủ trì, gửi dự thảo	M	CORE-06-01, CORE-08-04	QT-11 → SCR-1101	B4	tl02b §QT-11 BE-Q11-01, 02
 CORE-06-03	Góp ý mã hoá C2 và chế độ ẩn danh qua OPA	S	CORE-06-02, NEN-015	SCR-1101	B4	tl02b §QT-11 BE-Q11-03
 CORE-06-04	Kết thúc hội nghị: biểu quyết, sinh biên bản 202, mục khắc phục	M	CORE-06-03, DV-11-01	SCR-1101	B4	tl02b §QT-11 BE-Q11-04
-CORE-06-05	Phát hiện 13 trường hợp đặc thù theo bảng trong Policy Pack	L	CORE-06-01, CORE-05-03	QT-11	B4	tl02b §QT-11 BE-Q11-05
+CORE-06-05	Phát hiện 13 trường hợp đặc thù theo bảng trong Policy Pack	L	CORE-06-01, CORE-05-03, CORE-00-03	QT-11	B4	tl02b §QT-11 BE-Q11-05
 CORE-06-06	Tạo gói hồ sơ khi có EVT-12, theo dõi job sinh biểu mẫu, sinh lại tệp lỗi	M	CORE-06-01, CORE-04-08, DV-11-04	SCR-1102; EVT-12, EVT-17	B4	tl02b §QT-11 BE-Q11-06
 CORE-06-07	Manifest SHA-256, danh sách kiểm tra, ký gói, khoá `DA_NOP`, phiên bản gói mới khi EVT-22	M	CORE-06-06, DV-10-02	SCR-1102	B4	tl02b §QT-11 BE-Q11-08, 09
 CORE-06-08	Xuất gói ZIP có manifest ký và gửi gói con diện Trung ương qua EdXML	M	CORE-06-07, DV-13-05	SCR-1102	B4	tl02b §QT-11 BE-Q11-10, 11
 ## CORE-07	MOD-07 oversight: khiếu nại, hậu kiểm, cảnh báo
 CORE-07-01	Migration schema `oversight`	M	CORE-00-02, NEN-033	MOD-07; TL-03 schema oversight	B4	tl03-phan2 §A3
 CORE-07-02	Khiếu nại: lưu nháp mã hoá, kiểm thời hạn, nộp có ký, chuyển hồ sơ `KHIEU_NAI`, EVT-25	M	CORE-07-01, CORE-04-08	QT-12 → SCR-1201; EVT-25	B4	tl02b §QT-12 BE-Q12-01, 02
-CORE-07-03	Chọn người xử lý qua OPA, máy trạng thái khiếu nại, tiếp nhận, không thụ lý, rút	M	CORE-07-02	SCR-1202	B4	tl02b §QT-12 BE-Q12-03, 04
-CORE-07-04	Yêu cầu giải trình, timer hạn, kết luận, văn bản trả lời có ký, tạo yêu cầu mở lại	L	CORE-07-03, DV-07-08	SCR-1202	B4	tl02b §QT-12 BE-Q12-05, 06, 07
+CORE-07-03	Chọn người xử lý qua OPA, máy trạng thái khiếu nại, tiếp nhận, không thụ lý, rút	M	CORE-07-02, NEN-040, DV-06-04	SCR-1202	B4	tl02b §QT-12 BE-Q12-03, 04
+CORE-07-04	Yêu cầu giải trình, timer hạn, kết luận, văn bản trả lời có ký, tạo yêu cầu mở lại	L	CORE-07-03, DV-07-08, CORE-07-07	SCR-1202	B4	tl02b §QT-12 BE-Q12-05, 06, 07
 CORE-07-05	Bảo lưu, tự đóng, nhật ký giải mã, gợi ý khiếu nại trùng	S	CORE-07-04, CORE-00-05	QT-12	B4	tl02b §QT-12 BE-Q12-08, 09
-CORE-07-06	Mã hoá đầu cuối C3 phía máy chủ: lưu bản mã, khoá công khai người nhận, bọc khoá, phục hồi tổ chức Shamir	L	CORE-07-02, NEN-015	ADR-27; C3	B4	tl01-xuyen-suot §3; tl03-phan2 §B3
+CORE-07-06	Mã hoá đầu cuối C3 phía máy chủ: lưu bản mã, khoá công khai người nhận, bọc khoá, phục hồi tổ chức Shamir	L	CORE-07-02, NEN-015, NEN-042	ADR-27; C3	B4	tl01-xuyen-suot §3; tl03-phan2 §B3
 CORE-07-07	Yêu cầu mở lại kỳ và mô phỏng ảnh hưởng	M	CORE-07-01, DV-07-08	QT-13 → SCR-1301	B4	tl02b §QT-13 BE-Q13-01
-CORE-07-08	Bốn mắt: chọn hai người duyệt qua OPA, phê duyệt có step-up và ký số, EVT-22	M	CORE-07-07, NEN-040	EVT-22	B4	tl02b §QT-13 BE-Q13-02, 03
-CORE-07-09	Điều phối tính lại, sinh lại, ký lại sau EVT-22; hậu kiểm có bằng chứng sổ cái	M	CORE-07-08, CORE-08-06	QT-13	B4	tl02b §QT-13 BE-Q13-06, 11
+CORE-07-08	Bốn mắt: chọn hai người duyệt qua OPA, phê duyệt có step-up và ký số, EVT-22	M	CORE-07-07, NEN-040, DV-10-02, DV-06-04	EVT-22	B4	tl02b §QT-13 BE-Q13-02, 03
+CORE-07-09	Điều phối tính lại, sinh lại, ký lại sau EVT-22; hậu kiểm có bằng chứng sổ cái	M	CORE-07-08, CORE-08-06, DV-09-05	QT-13	B4	tl02b §QT-13 BE-Q13-06, 11
 CORE-07-10	Cảnh báo bất thường: consumer EVT-20, chống trùng, gộp, hành động tự động, cờ chặn minh chứng	M	CORE-07-01, DV-15-07	QT-14 → SCR-1401; EVT-20	B4	tl02b §QT-14 BE-Q14-01, 02
-CORE-07-11	Xử lý cảnh báo: hợp lệ, giao kiểm tra, kết luận; quyền inspector; ngưỡng phát hiện có phiên bản	M	CORE-07-10	SCR-1401	B4	tl02b §QT-14 BE-Q14-03, 04, 05
+CORE-07-11	Xử lý cảnh báo: hợp lệ, giao kiểm tra, kết luận; quyền inspector; ngưỡng phát hiện có phiên bản	M	CORE-07-10, CORE-08-07, CORE-07-07	SCR-1401	B4	tl02b §QT-14 BE-Q14-03, 04, 05
+CORE-07-12	Chỉ mục kiểm toán và API tra cứu nhật ký truy cập dữ liệu C2	M	CORE-00-05	ADR-06	B4		Bổ sung sau khi viết thẻ
 ## DV-01	SVC-01 api-gateway
-DV-01-01	Tuyến APISIX theo module (ApisixRoute), xác thực JWT qua JWKS, plugin gán claim tenant	M	INF-08	SVC-01	B5	tl01-thanh-phan §C1
+DV-01-01	Tuyến APISIX theo module (ApisixRoute), xác thực JWT qua JWKS, plugin gán claim tenant	M	INF-08, DV-02-01	SVC-01	B5	tl01-thanh-phan §C1
 DV-01-02	Giới hạn tốc độ ba tầng, plugin bảo vệ API, cắt tải, WAF Coraza với OWASP CRS 4	M	DV-01-01	TL-01 ch.14; TL-04 cắt tải	B5	tl01-thanh-phan §C1; tl04-phan1 §F
 DV-01-03	Danh sách tuyến công khai tường minh và kiểm thử CI quét toàn bộ CRD	S	DV-01-01	S03	B5	tl01-thanh-phan §C1.7
 DV-01-04	APISIX lớp ngoài ở vùng toàn cục: phân giải tenant sang cell, đệm 5 phút, khám phá cell	M	DV-01-01, DV-03-02	ADR-07	B5	tl01-thanh-phan §C1.10; tl04-phan1 §B
@@ -153,9 +163,11 @@ DV-01-04	APISIX lớp ngoài ở vùng toàn cục: phân giải tenant sang cel
 DV-02-01	Mẫu realm production theo cell với Organizations, PKCE, chính sách mật khẩu, khoá sau 5 lần sai, thời hạn phiên	M	–	ADR-08; BR-00-05	B5	tl02a §QT-00 BE-00-2; tl01-thanh-phan §C2	Kế thừa realm dev của WEB-056
 DV-02-02	Protocol mapper claim ngữ cảnh và API chọn đơn vị, vai trò (`PUT /org/me/context`)	M	DV-02-01, DV-04-04	BR-00-07	B5	tl02a §QT-00 BE-00-6
 DV-02-03	MFA theo vai trò, thiết bị, rủi ro; step-up `acr` và `auth_time`	M	DV-02-01	BR-00-01, 02, 06	B5	tl02a §QT-00 BE-00-4, 5
-DV-02-04	Môi giới VNeID: state, nonce, PKCE, liên kết danh tính bằng HMAC	L	DV-02-01	BR-00-03, 04	B5	tl02a §QT-00 BE-00-3	Cần môi trường thử VNeID
+DV-02-04	Môi giới VNeID: state, nonce, PKCE, liên kết danh tính bằng HMAC	L	DV-02-01, DV-04-01, NEN-015	BR-00-03, 04	B5	tl02a §QT-00 BE-00-3	Cần môi trường thử VNeID
 DV-02-05	Event listener Keycloak đẩy `iam.auth.event.v1`, báo truy cập bất thường, thu hồi phiên	M	DV-02-01, NEN-007	BR-00-08	B5	tl02a §QT-00 BE-00-7, 8
 DV-02-06	Consumer EVT-16 đồng bộ người dùng qua Admin API	M	DV-02-01, DV-04-03	EVT-16	B5	tl01-thanh-phan §C2.5
+DV-02-07	Consumer EVT-14 cập nhật Organizations Keycloak khi tổ chức thay đổi	S	DV-02-01, DV-04-03	EVT-14	B5		Bổ sung sau khi viết thẻ
+DV-02-08	Mã khôi phục MFA: cấp, dùng một lần, thu hồi	S	DV-02-03, NEN-043	BR-00-01	B5		Bổ sung sau khi viết thẻ
 ## DV-03	SVC-03 tenant-registry (Go, toàn cục)
 DV-03-01	Khung service Go và migration schema `registry`	M	NEN-017	SVC-03; TL-03 schema registry	B5	tl03-phan1 §C1; tl01-thanh-phan §C3
 DV-03-02	API phân giải tenant theo tên miền, danh sách cell, đệm	M	DV-03-01	QT-00	B5	tl02a §QT-00 BE-00-1
@@ -163,7 +175,7 @@ DV-03-03	Tenant: máy trạng thái bảy trạng thái, API nháp, gợi ý mô
 DV-03-04	Saga cấp phát tenant phần 1: CSDL hoặc schema, đăng ký pool, KEK trong HSM	L	DV-03-03, DV-06-05	NFR-07	B5	tl02a §QT-01 BE-01-4, 5
 DV-03-05	Saga cấp phát tenant phần 2: Organization Keycloak, tên miền và TLS, sao chép Policy Pack và UI Pack, lịch mặc định, kích hoạt	L	DV-03-04, DV-02-01	BR-01-03, 04	B5	tl02a §QT-01 BE-01-6, 7
 DV-03-06	Khai báo IdP của tenant và kiểm kết nối OIDC, SAML, LDAP	S	DV-03-03	SCR-0102	B5	tl02a §QT-01 BE-01-8
-DV-03-07	Chuyển tenant giữa các cell bằng sao chép logic, hai người duyệt	L	DV-03-05	ADR-29	B5	tl01-xuyen-suot §6
+DV-03-07	Chuyển tenant giữa các cell bằng sao chép logic, hai người duyệt	L	DV-03-05, NEN-043	ADR-29	B5	tl01-xuyen-suot §6
 ## DV-04	SVC-04 org-service
 DV-04-01	Khung service và migration schema `org` hai trục thời gian có ràng buộc loại trừ	L	NEN-019, NEN-033	SVC-04; TL-03 schema org	B5	tl03-phan1 §C2; tl03-phan2 §B1
 DV-04-02	Đơn vị và quan hệ: truy vấn `asOf`, `knownAt`, cây con, chặn vòng	M	DV-04-01	QT-01 → SCR-0103; BR-01-06	B5	tl02a §QT-01 BE-01-9
@@ -172,6 +184,7 @@ DV-04-04	Phân công: một vị trí chính tại một thời điểm, kiêm n
 DV-04-05	Nhập cây tổ chức từ Excel (202, báo cáo lỗi)	S	DV-04-02	SCR-0103	B5	tl02a §QT-01 BE-01-11
 DV-04-06	SCIM 2.0 cho HRM và IdP khách hàng	M	DV-04-04	SVC-04	B5	tl01-thanh-phan §C4.4
 DV-04-07	Đối soát nhân sự: khớp người bằng HMAC và ngày sinh, bảng lệch, phân loại, API giải quyết	L	DV-04-04, DV-13-06	QT-01 → SCR-0104; BR-01-10..12	B5	tl02a §QT-01 BE-01-14, 15
+DV-04-08	Lệnh phát lại sự kiện tổ chức (`org-republish`) cho bên nhận bị lệch	S	DV-04-03, NEN-022	EVT-14..16	B5		Bổ sung sau khi viết thẻ
 ## DV-06	SVC-06 workflow-service (Flowable)
 DV-06-01	Khung Flowable 7 nhúng Spring Boot, CSDL `flowable`, lịch sử mức audit, tách API và async executor	L	NEN-019	ADR-04; TL-01 ch.8	B6	tl01-xuyen-suot §2; tl01-thanh-phan §C5
 DV-06-02	`wf_template`, `wf_binding`, `wf_task_projection`; API hộp việc, hoàn thành, hoàn thành hàng loạt	M	DV-06-01	SVC-06	B6	tl01-thanh-phan §C5.2-C5.3; tl03-phan2 §A4
@@ -184,6 +197,7 @@ DV-06-08	API `wf_binding`: lưu, linter tham số, mô phỏng trên engine th�
 DV-06-09	Mẫu luồng nội bộ (BS-01): mở rộng `wf_template`, `wf_template_rollout`, linter, saga phát hành cuốn chiếu	L	DV-06-08	SCR-1505; BS-01	B6	tl02b §QT-15 BE-Q15-12, 13
 DV-06-10	API giám sát tiến trình theo mẫu (BS-01): chuyển người xử lý, gia hạn, sơ đồ	M	DV-06-02	SCR-1506; BS-01	B6	tl02b §QT-15 BE-Q15-14
 DV-06-11	Chiếu lịch sử tiến trình sang kho phân tích và chỉ số giám sát G2	M	DV-06-02, DV-15-01	G2	B6	tl01-xuyen-suot §2
+DV-06-12	Mẫu BPMN duyệt kép chỉ huy và cấp uỷ (`duyet-kep-chi-huy-cap-uy`)	M	DV-06-04	ADR-04	B6		Bổ sung sau khi viết thẻ
 ## DV-07	SVC-07 scoring-service
 DV-07-01	Khung service và migration schema `scoring`	M	NEN-019, NEN-033	SVC-07; TL-03 schema scoring	B4	tl03-phan2 §A5
 DV-07-02	Nạp Policy Pack, biên dịch sẵn CEL và DMN, đệm theo phiên bản	M	DV-07-01, NEN-041, CORE-05-03	ADR-19	B4	tl01-thanh-phan §C6
@@ -198,7 +212,8 @@ DV-08-01	Khung WebFlux, migration schema `evidence`, client S3 cho Ceph RGW	M	NE
 DV-08-02	Tải lên nhiều phần có tiếp tục, SHA-256 khi nhận, Object Lock, URL tải ký 5 phút	L	DV-08-01	BR-07-01, 02; ADR-13	B3	tl02a §QT-07 BE-07-1
 DV-08-03	Khử trùng theo băm và phát hiện trùng tức thời phát EVT-20	M	DV-08-02	BR-07; QT-14	B3	tl02a §QT-07 BE-07-2; tl02b §QT-14 BE-Q14-09
 DV-08-04	Quét mã độc ClamAV bất đồng bộ, cách ly, thông báo	M	DV-08-02	BR-07-04	B3	tl02a §QT-07 BE-07-3
-DV-08-05	Gọi OCR qua ai-gateway cho minh chứng	S	DV-08-02, DV-14-05	SCR-0702	B3	tl01-thanh-phan §C7.4
+DV-08-05	Gọi OCR qua ai-gateway cho minh chứng	S	DV-08-02, DV-14-05, DV-08-04	SCR-0702	B3	tl01-thanh-phan §C7.4
+DV-08-06	Xem trước tệp minh chứng (`getFilePreview`) qua Gotenberg, chỉ tệp đã quét sạch	S	DV-08-04, DV-11-01	SCR-0703	B3		Bổ sung sau khi viết thẻ
 ## DV-09	SVC-09 ledger-service (Go)
 DV-09-01	Khung service và migration CSDL `ledger` chỉ ghi thêm	M	NEN-017	SVC-09; TL-03 schema ledger	B6	tl03-phan2 §A7
 DV-09-02	Consumer ghi chuỗi băm 64 phân vùng theo tenant, chuẩn hoá RFC 8785	L	DV-09-01	ADR-09, ADR-26	B6	tl02b §QT-13 BE-Q13-07; tl03-phan2 §B2
@@ -222,6 +237,7 @@ DV-12-01	Khung service Go, migration schema `notify`, consumer EVT-21 và các s
 DV-12-02	Thông báo thời gian thực SSE `/notifications/stream`, bus Valkey Streams giữa các pod	M	DV-12-01	SVC-12	B7	tl01-thanh-phan §C11.1
 DV-12-03	Kênh email, SMS, FCM, APNs có bulkhead, thử lại, tuỳ chọn kênh, mẫu thông báo	L	DV-12-01	SVC-12	B7	tl01-thanh-phan §C11.2-11.3	Cần cổng SMS và tài khoản đẩy
 DV-12-04	Thông báo hàng loạt cuối kỳ chia theo tenant, giới hạn tốc độ theo kênh	S	DV-12-03	NFR-06	B7	tl01-thanh-phan §C11.5
+DV-12-05	Đăng ký thiết bị nhận thông báo đẩy và tuỳ chọn kênh: bảng `notify`, API	S	DV-12-01, NEN-043	SVC-12	B7		Bổ sung sau khi viết thẻ
 ## DV-13	SVC-13 integration-gateway
 DV-13-01	Khung Camel, migration schema `integ`, khung lớp chống ô nhiễm, `mapping_xref`, dead letter	L	NEN-019, NEN-033	ADR-20; SVC-13	B5	tl01-thanh-phan §C12, §D8
 DV-13-02	CloudEvents ra ngoài có JWS và mTLS	M	DV-13-01	TL-01 ch.6	B5	tl01-thanh-phan §D5
@@ -241,35 +257,37 @@ DV-14-03	Rào chắn đầu vào, đầu ra và `guardrail_event`; không gửi 
 DV-14-04	API trợ lý: soạn OKR, soát KR, trích nhiệm vụ, giải thích điểm, 202 khi hàng đợi đầy	M	DV-14-03	QT-17 → SCR-1701	B7	tl02b §QT-17 BE-Q17-04
 DV-14-05	OCR minh chứng	M	DV-14-01	SCR-0702	B7	tl01-thanh-phan §C13
 DV-14-06	Nhật ký gợi ý (chấp nhận, bỏ qua, nguồn) và tóm tắt tuần cho lãnh đạo	M	DV-14-04	QT-17, QT-16	B7	tl02b §QT-17 BE-Q17-05, 07
+DV-14-07	Chuyển giọng nói thành văn bản (`transcribeSpeech`)	M	DV-14-01	SVC-14	B7		Bổ sung sau khi viết thẻ
 ## DV-15	SVC-15 analytics
 DV-15-01	ClickHouse `analytics_<cell>` mô hình sao, Kafka engine và materialized view	L	INF-11, NEN-007	ADR-14	B7	tl03-phan2 §B7; tl01-thanh-phan §C14
 DV-15-02	Connector Debezium phân tích và giả danh hoá cột C2	M	DV-15-01, INF-10	TL-03 CDC	B7	tl03-phan2 §B7
 DV-15-03	Cube: chỉ số chuẩn của bảng điều hành, chiều đơn vị, kỳ, khối, luồng, bộ lọc an ninh	L	DV-15-01	QT-16 → SCR-1601	B7	tl02b §QT-16 BE-Q16-02
-DV-15-04	analytics-api: proxy Cube theo token, đệm 60 giây, API định nghĩa dashboard	M	DV-15-03	SCR-1601, SCR-1602	B7	tl02b §QT-16 BE-Q16-01, 03
-DV-15-05	Superset nhúng với guest token theo phạm vi	M	DV-15-03	ADR-14	B7	tl01-thanh-phan §C14.3
+DV-15-04	analytics-api: proxy Cube theo token, đệm 60 giây, API định nghĩa dashboard	M	DV-15-03, CORE-08-17	SCR-1601, SCR-1602	B7	tl02b §QT-16 BE-Q16-01, 03
+DV-15-05	Superset nhúng với guest token theo phạm vi	M	DV-15-03, DV-15-04	ADR-14	B7	tl01-thanh-phan §C14.3
 DV-15-06	Đi xuống tới minh chứng: chuỗi truy vết, xuất bằng chứng và báo cáo 202, nhắc và giao lại	M	DV-15-04	SCR-1603	B7	tl02b §QT-16 BE-Q16-04..07
 DV-15-07	Khung job phát hiện bất thường hằng đêm và dấu hiệu 1, 2, phát EVT-20	M	DV-15-01	QT-14; EVT-20	B7	tl02b §QT-14 BE-Q14-06
 DV-15-08	Dấu hiệu bất thường 3, 5, 7	M	DV-15-07	QT-14	B7	tl02b §QT-14 BE-Q14-07
 DV-15-09	Dấu hiệu bất thường 6, 8 và tự đóng khi hết dấu hiệu; dấu hiệu tỷ lệ chấp nhận khách quan	M	DV-15-07	QT-14; BR-06-12	B7	tl02b §QT-14 BE-Q14-08; tl02a §QT-06 BE-06-9
-DV-15-10	Dự báo nguy cơ trễ nhiệm vụ	M	DV-15-01	QT-06	B7	tl02a §QT-06 BE-06-8
+DV-15-10	Dự báo nguy cơ trễ nhiệm vụ	M	DV-15-01, CORE-02-26	QT-06	B7	tl02a §QT-06 BE-06-8
 DV-15-11	MirrorMaker 2 đẩy dữ liệu tổng hợp lên kho phân tích quốc gia	M	DV-15-01, INF-10	baseline §8.7	B7	tl01-thanh-phan §C14.6
 ## DV-16	SVC-16 search
 DV-16-01	Chỉ mục OpenSearch, alias lọc theo tenant, indexer consumer EVT-04, EVT-24	M	INF-11, NEN-012	SVC-16	B7	tl03-phan2 §B8; tl01-thanh-phan §C15
-DV-16-02	API tìm kiếm toàn cục, kiểm quyền lại ở lõi trước khi trả chi tiết	M	DV-16-01, CORE-00-02	SCR-0002	B7	tl01-thanh-phan §C15
+DV-16-02	API tìm kiếm toàn cục, kiểm quyền lại ở lõi trước khi trả chi tiết	M	DV-16-01, CORE-00-02, NEN-013, NEN-014	SCR-0002	B7	tl01-thanh-phan §C15
 ## DL	Dữ liệu, nội dung nghiệp vụ và chuyển đổi
-DL-01	Policy Pack "quy định mới": công thức CEL tính điểm luồng Đảng và luồng Nhà nước theo QĐ 366, NĐ 335/2025	L	CORE-05-04	QT-15; H	B11	tl02b §QT-15	Cần nghiệp vụ xác nhận
+DL-01	"Policy Pack ""quy định mới"": công thức CEL tính điểm luồng Đảng và luồng Nhà nước theo QĐ 366, NĐ 335/2025"	L	CORE-05-04	QT-15; H	B11	tl02b §QT-15	Cần nghiệp vụ xác nhận
 DL-02	Bảng DMN xếp loại quý, năm và bảng 13 trường hợp đặc thù	M	DL-01, CORE-05-05	QT-09, QT-10, QT-11	B11	tl02b §QT-09, QT-11	Cần nghiệp vụ xác nhận
 DL-03	Bộ ca kiểm thử vàng đầy đủ do nghiệp vụ ký	L	DL-02, CORE-05-06	J6	B11	tl01-xuyen-suot §4	Cần nghiệp vụ ký
 DL-04	Bảng chuyển trạng thái `task_lifecycle` và tham số luồng duyệt mặc định	S	CORE-05-03	ADR-04	B11	tl01-thanh-phan §B2.3
 DL-05	Mẫu DOCX 1A–1D, 2, 3 và bảng chấm điểm theo văn bản pháp lý	M	–	H5	B11	tl01-thanh-phan §C10.2	Cần bản mẫu chính thức
-DL-06	UI Pack mặc định, bộ token người cao tuổi, danh mục công việc mẫu theo khối	M	CORE-08-11	NFR-07, NFR-11	B11	tl02b §QT-18
+DL-06	UI Pack mặc định, bộ token người cao tuổi, danh mục công việc mẫu theo khối	M	CORE-08-11, CORE-02-04	NFR-07, NFR-11	B11	tl02b §QT-18
 DL-07	Dữ liệu khởi tạo: 9 khối đối tượng, lịch nghỉ lễ quốc gia, danh mục chức danh	S	DV-04-01, CORE-08-04	PL 2A	B11	tl03-phan1 §C2
-DL-08	Bộ sinh dữ liệu thử quy mô (1,2 triệu hồ sơ một cell) cho kiểm thử hiệu năng	M	CORE-04-01, CORE-02-02	NFR-06	B9	tl04-phan1 §G
+DL-08	Bộ sinh dữ liệu thử quy mô (1,2 triệu hồ sơ một cell) cho kiểm thử hiệu năng	M	CORE-04-01, CORE-02-02, DV-04-01, CORE-03-01	NFR-06	B9	tl04-phan1 §G
 DL-09	Khảo sát và ánh xạ 23 bảng Oracle của hệ hiện hành sang lược đồ mới	M	LEG-01	TL-03 ch.15	B11	tl03-phan2 §B15	Cần quyền đọc Oracle hệ hiện hành
-DL-10	Đường ống chuyển đổi ora2pg và kiểm tra chất lượng dữ liệu	L	DL-09	TL-03 ch.15	B11	tl03-phan2 §B15
-DL-11	Chuyển dữ liệu kỳ cũ dạng chỉ đọc và niêm phong sổ cái loại `MIGRATED`	M	DL-10, DV-09-03	TL-03 ch.15	B11	tl03-phan2 §B15
+DL-10	Đường ống chuyển đổi ora2pg và kiểm tra chất lượng dữ liệu	L	DL-09, NEN-015, DV-08-02	TL-03 ch.15	B11	tl03-phan2 §B15
+DL-11	Chuyển dữ liệu kỳ cũ dạng chỉ đọc và niêm phong sổ cái loại `MIGRATED`	M	DL-10, DV-09-03, CORE-08-03	TL-03 ch.15	B11	tl03-phan2 §B15
 DL-12	Job đối soát R1–R8 và bốn job kiểm tra sổ cái	L	CORE-04-02, DV-09-04, DV-15-02	TL-03 ch.17	B11	tl03-phan2 §D
-DL-13	Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ	M	NEN-015, INF-18	NFR-09; TL-03 ch.16	B11	tl03-phan2 §C
+DL-13	Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ	M	NEN-015, INF-18, CORE-08-07	NFR-09; TL-03 ch.16	B11	tl03-phan2 §C
+DL-14	Xoay vòng DEK định kỳ và bọc lại khoá theo KEK mới	M	NEN-015, INF-13	ADR-17	B11		Bổ sung sau khi viết thẻ
 ## INF	Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng
 INF-01	Chart thư viện `vt-service`: probe, PDB, phân bố vùng, HPA, NetworkPolicy, tài nguyên	L	–	TL-04 ch.5	B8	tl04-phan1 §A, §E
 INF-02	Chart từng service, chart tổng `vt-platform` và values cho ba mô hình phân phối	L	INF-01	TL-04 ch.2, ch.5	B8	tl04-phan1 §A, §E
@@ -312,15 +330,15 @@ QA-14	Thử hỏng PERF-07 và diễn tập khôi phục DR-01..DR-09	L	INF-17, 
 QA-15	Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu	L	QA-14, INF-18, INF-20	NFR-05	B9	tl04-phan2 §A.2	Cần TTDL thứ hai
 QA-16	Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá	L	QA-07	Đợt 2	B9	tl01-xuyen-suot §13	Cần tenant và người dùng thật
 ## MOB	SVC-18 mobile-app (Flutter)
-MOB-01	Khung Flutter: token thiết kế sang ThemeData, đăng nhập OIDC PKCE, client API sinh từ hợp đồng	M	NEN-006	SVC-18; ADR-10	B10	tl01-thanh-phan §C17
+MOB-01	Khung Flutter: token thiết kế sang ThemeData, đăng nhập OIDC PKCE, client API sinh từ hợp đồng	M	NEN-006, DV-02-01	SVC-18; ADR-10	B10	tl01-thanh-phan §C17
 MOB-02	Lưu trữ ngoại tuyến SQLCipher, khoá trong Keystore/Keychain, hàng đợi đồng bộ có Idempotency-Key	M	MOB-01	SVC-18	B10	tl01-thanh-phan §C17.2
-MOB-03	SCR-0504 Việc của tôi và cập nhật tiến độ trên di động	M	MOB-02, CORE-02-19	QT-05, QT-06	B10	tl02a §QT-05
+MOB-03	SCR-0504 Việc của tôi và cập nhật tiến độ trên di động	M	MOB-02, CORE-02-19, CORE-02-18	QT-05, QT-06	B10	tl02a §QT-05
 MOB-04	SCR-0302 Check-in KR trên di động	M	MOB-02, CORE-01-08	QT-03	B10	tl02a §QT-03
-MOB-05	SCR-0702 Nộp minh chứng trên di động có OCR, tải theo khối	M	MOB-02, DV-08-02	QT-07	B10	tl02a §QT-07
-MOB-06	Bộ dựng biểu mẫu từ JSON Schema và CEL trên Flutter, phiếu tự đánh giá	L	MOB-02, CORE-08-13	QT-09	B10	tl01-thanh-phan §C17.3
+MOB-05	SCR-0702 Nộp minh chứng trên di động có OCR, tải theo khối	M	MOB-02, DV-08-02, CORE-03-05	QT-07	B10	tl02a §QT-07
+MOB-06	Bộ dựng biểu mẫu từ JSON Schema và CEL trên Flutter, phiếu tự đánh giá	L	MOB-02, CORE-08-13, CORE-04-04	QT-09	B10	tl01-thanh-phan §C17.3
 MOB-07	Ký số MySign trên di động	M	MOB-06, DV-10-02	QT-09	B10	tl01-thanh-phan §C17.1
-MOB-08	SCR-1803 Chế độ Đảng viên cao tuổi trên di động	M	MOB-03	NFR-11	B10	tl02b §QT-18
-MOB-09	Thông báo đẩy FCM, APNs	S	MOB-01, DV-12-03	SVC-12	B10	tl01-thanh-phan §C11.2
+MOB-08	SCR-1803 Chế độ Đảng viên cao tuổi trên di động	M	MOB-03, MOB-06, DL-06	NFR-11	B10	tl02b §QT-18
+MOB-09	Thông báo đẩy FCM, APNs	S	MOB-01, DV-12-03, DV-12-05	SVC-12	B10	tl01-thanh-phan §C11.2
 MOB-10	Pipeline build, ký và phát hành ứng dụng; kiểm thử đầu cuối và khả năng truy cập trên di động	M	MOB-03, INF-06	NFR-11	B10	tl01-thanh-phan §C17	Cần tài khoản cửa hàng ứng dụng
 ## LEG	Hệ thống hiện hành: đợt 0a, 0b, 0c và chuyển đổi Strangler
 LEG-01	Tiếp nhận và khảo sát bốn repo của hệ hiện hành, Oracle và hạ tầng đang chạy	S	–	Đợt 0a	B11	tl01-xuyen-suot §13	Cần người dùng cấp quyền truy cập
@@ -332,8 +350,9 @@ LEG-06	APISIX đứng trước hệ cũ, OTel Java agent, log JSON, Fluent Bit	M
 LEG-07	Resilience4j cho lời gọi của hệ cũ và pipeline có cổng chất lượng cho bốn repo	L	LEG-05, INF-05	Đợt 0c	B11	tl04-phan2 §E
 LEG-08	Flyway cho phần mới và thử tải hệ cũ ở 500 người dùng đồng thời	M	LEG-07	Đợt 0c; PERF-01, 04	B11	tl04-phan2 §E
 LEG-09	Hệ cũ đăng nhập qua Keycloak và đọc tổ chức qua org-service, ngừng truy vấn bảng `VHR_*`	L	LEG-06, DV-02-03, DV-04-04	Đợt 1	B11	tl01-xuyen-suot §13
-LEG-10	Chuyển tuyến theo Strangler Fig theo route và theo tenant, bắt đầu từ danh mục công việc	M	LEG-09, CORE-02-03	ADR-20	B11	tl01-thanh-phan §D10
+LEG-10	Chuyển tuyến theo Strangler Fig theo route và theo tenant, bắt đầu từ danh mục công việc	M	LEG-09, CORE-02-03, DV-01-01, DV-13-01, DL-09	ADR-20	B11	tl01-thanh-phan §D10
 LEG-11	Chuyển tenant theo nhóm từ đầu kỳ, thay toàn bộ giao diện ZK, tắt hệ cũ	M	LEG-10, QA-16, DL-11	Đợt 3; OPS-08	B11	tl01-xuyen-suot §13
+LEG-12	Strangler cho các chức năng tiếp theo: giao việc, đánh giá, bảng điều hành, mỗi chức năng một lần chuyển tuyến	L	LEG-10, CORE-02-14, CORE-04-07, DV-15-04	ADR-20	B11		Bổ sung sau khi viết thẻ; nên tách theo chức năng
 ## VH	Vận hành và đưa vào sử dụng
 VH-01	Runbook OPS-01..OPS-13	L	INF-04	TL-04 ch.11	B11	tl04-phan2 §D.1
 VH-02	Runbook OPS-14..OPS-26	L	INF-17	TL-04 ch.11	B11	tl04-phan2 §D.1
@@ -351,10 +370,10 @@ WEB-072	Nối các màn hình quản trị, cấu hình, Policy Pack, bảng đi
 WEB-073	Xử lý 429 và 503 có `Retry-After`, thử lại có backoff, giữ bản nháp	S	WEB-007	TL-04 cắt tải	W	tl04-phan1 §I
 WEB-074	Gắn `traceparent` vào mọi lời gọi của `@vt/api-client` và liên kết với telemetry	S	WEB-011	NFR-10	W	tl04-phan2 §G
 WEB-075	Khám phá cell khi đăng nhập (chuyển hướng 307, mã 421)	S	WEB-006, DV-01-04	ADR-07	W	tl04-phan1 §I
-WEB-076	Đọc cờ tính năng phía web	S	CORE-08-07	MOD-08	W	tl04-phan2 §G
+WEB-076	Đọc cờ tính năng phía web	S	CORE-08-07, NEN-043	MOD-08	W	tl04-phan2 §G
 ## CNH	Cá nhân hoá theo người dùng (chờ người dùng chốt)
 CNH-01	Đề xuất bổ sung thiết kế cá nhân hoá: mã màn hình, API, bảng `config.user_preference`	M	–	ADR-05	B2	–	Chờ người dùng chốt
-CNH-02	Backend lưu tuỳ chọn cá nhân: bố cục trang chủ, cột, bộ lọc đã lưu, chế độ người cao tuổi	M	CNH-01, CORE-08-01	NFR-11	B2	–	Chờ người dùng chốt
+CNH-02	Backend lưu tuỳ chọn cá nhân: bố cục trang chủ, cột, bộ lọc đã lưu, chế độ người cao tuổi	M	CNH-01, CORE-08-01, CORE-08-11	NFR-11	B2	–	Chờ người dùng chốt
 CNH-03	Web: lưu và khôi phục bố cục trang chủ và dashboard cá nhân	M	CNH-02, WEB-048	SCR-0002, SCR-1602	W	–	Chờ người dùng chốt
 CNH-04	Web: cột và bộ lọc đã lưu trên các danh sách	M	CNH-02	TL-02 quy ước danh sách	W	–	Chờ người dùng chốt
 CNH-05	Web và di động: đồng bộ chế độ người cao tuổi qua máy chủ thay cho lưu cục bộ	S	CNH-02	NFR-11	W	–	Chờ người dùng chốt
