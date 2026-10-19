@@ -12,8 +12,8 @@ Công việc được chia thành năm luồng chạy song song, mỗi luồng l
 |---|---|---|---|
 | Nền tảng | `mission-web` (nhánh `main`) | fe-shell, thư viện `@vt/*`, CI, triển khai | WEB-001..WEB-015, WEB-020, WEB-051..WEB-053, WEB-059, WEB-060 |
 | Phân quyền | `phan-quyen` | xuyên suốt | WEB-054..WEB-058 |
-| Màn hình nghiệp vụ (giao việc, kế hoạch) | `man-hinh` | fe-task, tuyến `/plans` | WEB-025..WEB-031 |
-| Màn hình OKR, minh chứng, đánh giá | `okr-danh-gia` | fe-okr, fe-evidence, fe-appraisal, fe-dossier | WEB-021..WEB-024, WEB-032, WEB-033, WEB-035..WEB-041, WEB-049 |
+| Màn hình nghiệp vụ (giao việc, kế hoạch) | `man-hinh` | fe-task, tuyến `/plans`, fe-evidence | WEB-025..WEB-031, WEB-032, WEB-033 (nhận thêm 19/10) |
+| Màn hình OKR, minh chứng, đánh giá | `okr-danh-gia` | fe-okr, fe-appraisal, fe-dossier | WEB-021..WEB-024, WEB-035..WEB-041, WEB-049 |
 | Màn hình giám sát, điều hành, cấu hình | `giam-sat-cau-hinh` | fe-oversight, fe-dashboard, fe-config-studio, fe-admin | WEB-016..WEB-019, WEB-034, WEB-042..WEB-048, WEB-050, WEB-061, WEB-062 |
 
 Nền tảng mà các luồng màn hình cần đã có trên `main`: WEB-001 (lint, test), WEB-003 (ngân sách), WEB-006 (đăng nhập, chọn phân công, step-up), WEB-007 (api-client sinh từ OpenAPI, JobTracker), WEB-008 (mock API), WEB-015 (khung 8 remote, cổng dev 4202–4209), WEB-054 (bảng quyền `can()`). WEB-010 (form engine) đang làm; các task dùng biểu mẫu động (WEB-022, WEB-035, WEB-045, WEB-050) làm phần khung trước, nối form engine khi WEB-010 lên `main`.
