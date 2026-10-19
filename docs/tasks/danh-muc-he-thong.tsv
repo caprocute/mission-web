@@ -1,6 +1,6 @@
 #ID	Tên	Cỡ	Phụ thuộc	Truy vết	Luồng	Nguồn trích	Ghi chú
 ## NEN	Nền móng hệ thống: repo, quy định, wiki, khung mã, thư viện nền, nền CSDL
-NEN-001	Chuyển repo thành repo chung toàn hệ thống: cấu trúc thư mục, AGENTS.md mở rộng, quy định theo phân hệ, prompt agent	S	–	ADR-01, BS-02	DP	tl05 §4.9-4.10	Hoàn thành trong nhánh kế hoạch
+NEN-001	Chuyển repo thành repo chung toàn hệ thống: cấu trúc thư mục, AGENTS.md mở rộng, quy định theo phân hệ, prompt agent	S	–	ADR-01, BS-02	DP	tl05 §4.9-4.10	Đã làm trong nhánh kế hoạch tổng thể
 NEN-002	Wiki backend phần 1: trang 16 kiến trúc mission-core và microservice, trang 17 thiết kế CSDL và đa khách thuê	M	NEN-001	TL-01 ch.5, ch.12; TL-03 ch.1-5	B1	tl01-thanh-phan §A; tl03-phan1 §A-B
 NEN-003	Wiki backend phần 2: trang 18 sự kiện và đồng bộ dữ liệu, trang 19 hạ tầng production và triển khai, trang 20 bảo mật phía máy chủ	M	NEN-001	TL-01 ch.6, ch.16; TL-03 ch.10-11; TL-04 ch.3, ch.9	B1	tl01-thanh-phan §D; tl03-phan2 §B; tl04-phan1 §A-C; tl04-phan2 §B
 NEN-004	Ghi các điểm lệch và câu hỏi mở phía backend vào wiki trang 14 và lập đề xuất chốt	S	NEN-001	YC-TK-10	B1	"mục ""Điểm lệch"" của cả 9 tệp trích"
@@ -32,7 +32,7 @@ NEN-041	Thư viện CEL dùng chung `vt-cel` (cel-java): môi trường, hàm m�
 NEN-021	Lược đồ Avro cho sự kiện kỹ thuật `evidence.object.*` và các topic kỹ thuật còn thiếu	S	NEN-007	TL-03 ch.11; TL-01 SVC-08	B1		Bổ sung sau khi viết thẻ
 NEN-022	Công cụ phát lại outbox và cấu hình connector Debezium outbox theo schema	M	NEN-011	ADR-03; TL-03 ch.11	B1		Bổ sung sau khi viết thẻ
 NEN-042	Sửa hợp đồng OpenAPI phần nghiệp vụ: thêm thao tác còn thiếu (huỷ OKR, phiên bản điều chỉnh mục tiêu, uỷ quyền check-in, kích hoạt danh mục, chấm việc ngoài danh mục, ngoại lệ điều chỉnh, xác nhận dòng kế hoạch, duyệt nhiệm vụ đăng ký, chuyển điểm nghẽn, danh bạ khoá E2EE và chia sẻ CEK, ghi trường hợp đặc thù, gợi ý khiếu nại trùng) và sửa mô tả `acceptComplaint`	M	NEN-001	ADR-32; YC-PT-09	B1		Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt
-NEN-043	Sửa hợp đồng OpenAPI phần nền tảng: cờ tính năng cho mọi người dùng, cấu hình tenant, thiết bị nhận thông báo đẩy, tuỳ chọn kênh, mã khôi phục MFA, `POST /org/assignments`, guest token Superset, kiểm quyền theo lô cho tìm kiếm, ký nội bộ cho sổ cái, OCR cho tài khoản dịch vụ, đề nghị chuyển cell	M	NEN-001	ADR-32; YC-PT-09	B1		Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt
+NEN-043	Sửa hợp đồng OpenAPI phần nền tảng: cờ tính năng cho mọi người dùng, cấu hình tenant, thiết bị nhận thông báo đẩy, tuỳ chọn kênh, mã khôi phục MFA, `POST /org/assignments`, guest token Superset, kiểm quyền theo lô cho tìm kiếm, ký nội bộ cho sổ cái, OCR cho tài khoản dịch vụ, đề nghị chuyển cell	M	NEN-001, NEN-042	ADR-32; YC-PT-09	B1		Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt
 ## CORE-00	mission-core: phần dùng chung
 CORE-00-01	Khung ứng dụng mission-core: Spring Boot 3.5, luồng ảo, tám DataSource riêng theo module, actuator, cấu hình mẫu	L	NEN-019, NEN-031, NEN-006, NEN-013, NEN-030	SVC-05; TL-01 ch.5	B2	tl01-thanh-phan §A1, A10, A14
 CORE-00-02	Tám module lục giác, khai báo Spring Modulith, ma trận phụ thuộc, ArchUnit, sinh tài liệu module	M	CORE-00-01	ADR-01, ADR-23	B2	tl01-thanh-phan §A3-A6
@@ -288,7 +288,7 @@ DL-11	Chuyển dữ liệu kỳ cũ dạng chỉ đọc và niêm phong sổ cá
 DL-12	Job đối soát R1–R8 và bốn job kiểm tra sổ cái	L	CORE-04-02, DV-09-04, DV-15-02	TL-03 ch.17	B11	tl03-phan2 §D
 DL-13	Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ	M	NEN-015, INF-18, CORE-08-07	NFR-09; TL-03 ch.16	B11	tl03-phan2 §C
 DL-14	Xoay vòng DEK định kỳ và bọc lại khoá theo KEK mới	M	NEN-015, INF-13	ADR-17	B11		Bổ sung sau khi viết thẻ
-DL-15	Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`)	M	NEN-015, DL-08	SEC-52	B11		Bổ sung sau khi viết thẻ
+DL-15	Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`)	M	NEN-015, DL-08, NEN-005, NEN-006	SEC-52	B11		Bổ sung sau khi viết thẻ
 ## INF	Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng
 INF-01	Chart thư viện `vt-service`: probe, PDB, phân bố vùng, HPA, NetworkPolicy, tài nguyên	L	–	TL-04 ch.5	B8	tl04-phan1 §A, §E
 INF-02	Chart từng service, chart tổng `vt-platform` và values cho ba mô hình phân phối	L	INF-01	TL-04 ch.2, ch.5	B8	tl04-phan1 §A, §E
@@ -307,7 +307,7 @@ INF-14	Quan sát phần 1: OTel Collector lấy mẫu theo đuôi, Tempo, Promet
 INF-15	Quan sát phần 2: SLI, dashboard Grafana, cảnh báo theo tốc độ tiêu ngân sách lỗi, 24 cảnh báo tối thiểu, ngưỡng nâng bậc NG-01..NG-14	M	INF-14	TL-04 ch.10; TL-05	B8	tl04-phan2 §C; tl05 §1.11
 INF-16	Co giãn: Prometheus Adapter cho HPA, KEDA theo độ trễ Kafka, KEDA theo lịch hạn, Cluster Autoscaler có pod giữ chỗ	L	INF-14, INF-10, INF-01	TL-04 ch.6	B8	tl04-phan1 §F
 INF-17	Sao lưu phần 1: CNPG Barman Cloud, kho sao lưu bất biến, `restore-check` hằng ngày, Velero và etcd	L	INF-11	TL-04 ch.8; OPS-18	B8	tl04-phan2 §A
-INF-18	Sao lưu phần 2: MirrorMaker 2, Ceph multisite, snapshot OpenSearch, ClickHouse, Valkey, giữ outbox 72 giờ, lịch sao lưu	L	INF-17, INF-12	TL-04 ch.8	B8	tl04-phan2 §A
+INF-18	Sao lưu phần 2: MirrorMaker 2, Ceph multisite, snapshot OpenSearch, ClickHouse, Valkey, giữ outbox 72 giờ, lịch sao lưu	L	INF-17, INF-12, NEN-022	TL-04 ch.8	B8	tl04-phan2 §A
 INF-19	Bảo mật nền: Falco, nhật ký kiểm toán API Kubernetes và luồng `sys.audit.v1` tới SIEM, Pod Security, chính sách egress	M	INF-09	SEC-22, 30, 43, 50	B8	tl04-phan2 §B.2, B.4
 INF-20	Vùng điều phối toàn cục: cụm quản trị, PostgreSQL toàn cục, GeoDNS PowerDNS, `dns-sync`, CDN tài nguyên tĩnh	L	INF-04	TL-04 ch.2	B8	tl04-phan1 §B
 INF-21	Môi trường phi sản xuất: staging, CELL-PERF, cụm sinh tải, môi trường tạm theo nhánh cho E2E	M	INF-04	TL-05 môi trường	B8	tl05 §1.8	Cần tài nguyên hạ tầng
@@ -317,7 +317,7 @@ INF-24	Dịch vụ `audit-archiver`: chuyển nhật ký kiểm toán sang kho l
 INF-25	Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năng phụ, cắt tải theo ưu tiên)	M	DV-01-02, INF-15	TL-04 cắt tải	B8		Bổ sung sau khi viết thẻ
 INF-26	Công cụ vận hành `vtctl` cho các thao tác trong runbook (tenant, cell, khoá kỳ, phát lại sự kiện)	L	INF-04, DV-03-03	TL-04 ch.11	B8		Bổ sung sau khi viết thẻ; nên tách theo nhóm lệnh
 INF-27	Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL	M	INF-13	SEC-42	B8		Bị chặn bởi bên ngoài: cần giải pháp PAM
-INF-28	Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite	L	INF-11, INF-18, INF-20	NFR-05; DR	B8		Bị chặn bởi bên ngoài: cần TTDL thứ hai
+INF-28	Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite	L	INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17	NFR-05; DR	B8		Bị chặn bởi bên ngoài: cần TTDL thứ hai
 ## QA	Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng
 QA-01	Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối	S	–	TL-01 ch.18	B9	tl01-xuyen-suot §12
 QA-02	Pact Broker và kiểm thử hợp đồng frontend với API, service với service	M	NEN-006, INF-05	ADR-32	B9	tl01-xuyen-suot §12
