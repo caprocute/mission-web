@@ -654,6 +654,8 @@ export interface components {
       taskId: components['schemas']['Uuid'];
       qualityLevel?: components['schemas']['QualityLevel'];
       delayDays?: number;
+      /** @description Hệ số C quy đổi từ `delayDays` theo bảng tiến độ của Policy Pack hồ sơ đang ghim; máy chủ tính, client không gửi (SCR-0902 trường 5, suy luận tên trường). */
+      readonly delayFactor?: number;
     };
     /** @description Phiếu tự đánh giá hiện hành (`appraisal.self_assessment` cùng mức `TU_DE_XUAT`). */
     AppraisalSelfAssessment: {
@@ -678,6 +680,8 @@ export interface components {
       /** @description Hướng khắc phục (`remedial_plan_enc`) */
       remedialPlan?: string;
       claims?: components['schemas']['AppraisalTaskClaim'][];
+      /** @description Điểm tự tính theo B, C cán bộ tự nhận, thẻ "Điểm tự tính (theo minh chứng nộp)" của SCR-0902 trường 4. Máy chủ (SVC-07) tính bằng cùng công thức Policy Pack với điểm chính thức nhưng thay B, C bằng `claims`; không phải ảnh chụp điểm bất biến; `null` khi phiếu chưa có `claims` (suy luận tên trường). */
+      readonly claimedScore?: number | null;
       contentHash?: components['schemas']['AppraisalHash'];
       savedAt?: components['schemas']['DateTime'];
       submittedAt?: components['schemas']['DateTime'];
@@ -859,6 +863,14 @@ export interface components {
       c?: number;
       kpi: number;
       exceedsTarget?: boolean;
+      /** @description Lần nghiệm thu quyết định B, C của dòng (`product.acceptance.id`). */
+      acceptanceId?: components['schemas']['Uuid'];
+      /** @description Căn cứ điều chỉnh B, C so với tự nhận, ghép từ `product.acceptance` (ví dụ "B: phải sửa nội dung cơ bản (biên bản nghiệm thu 18/12)"); SCR-0902 trường 5 (suy luận tên trường). */
+      acceptanceNote?: string;
+      /** @description Minh chứng đã được nghiệm thu, mở bằng `GET /evidences/{id}/versions/{v}`. */
+      evidenceId?: components['schemas']['Uuid'];
+      /** @description Số phiên bản minh chứng đã nghiệm thu, đi cùng `evidenceId`. */
+      evidenceVersionNo?: number;
     };
     /** @description Một nhóm nhiệm vụ (then chốt, thường xuyên) với KPI nhóm và điểm (BR-09-03). */
     AppraisalScoreGroup: {
