@@ -58,7 +58,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-028](WEB-028-giao-viec.md) | SCR-0501 Giao việc | M | WEB-008 | Chưa bắt đầu |
 | [WEB-029](WEB-029-nhiem-vu-tu-van-ban.md) | SCR-0502 Tạo nhiệm vụ từ văn bản chỉ đạo | M | WEB-028 | Chưa bắt đầu |
 | [WEB-030](WEB-030-viec-cua-toi.md) | SCR-0503 Việc của tôi – hoàn thiện | S | WEB-008 | Xong, chờ gộp (luồng Màn hình) |
-| [WEB-031](WEB-031-chi-tiet-gia-han.md) | SCR-0601 Chi tiết nhiệm vụ và SCR-0602 Đề nghị gia hạn, điều chỉnh | M | WEB-030 | Chưa bắt đầu |
+| [WEB-031](WEB-031-chi-tiet-gia-han.md) | SCR-0601 Chi tiết nhiệm vụ và SCR-0602 Đề nghị gia hạn, điều chỉnh | M | WEB-030 | Xong, chờ gộp (luồng Màn hình) |
 | [WEB-032](WEB-032-nop-minh-chung.md) | SCR-0701 Nộp minh chứng | L | WEB-015 | Chưa bắt đầu |
 | [WEB-033](WEB-033-nghiem-thu.md) | SCR-0703 Nghiệm thu chất lượng 5 mức | M | WEB-032 | Chưa bắt đầu |
 | [WEB-034](WEB-034-khoa-ky.md) | SCR-0801 Quản lý kỳ và tiến trình khoá kỳ | M | WEB-007, WEB-015 | Chưa bắt đầu |

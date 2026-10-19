@@ -8,7 +8,7 @@ import { TaskApi } from '../../lib/task-api';
 import { CatalogApi } from '../../lib/catalog-api';
 import { MOCK_API_OPTIONS, mockApiInterceptor } from '../mock-api.interceptor';
 import { resetMockData } from '../mock-registry';
-import { workingDaysBetween } from './tasks.mock';
+import { coefficientC, workingDaysBetween } from './tasks.mock';
 
 /** WEB-030: hành vi giả lập SCR-0503 (bộ lọc nhanh, nhận việc, hàng loạt, đăng ký, xuất Excel). */
 function setup() {
@@ -156,5 +156,120 @@ describe('workingDaysBetween', () => {
     expect(workingDaysBetween('2026-10-19', '2026-10-19')).toBe(0);
     expect(workingDaysBetween('2026-10-19', '2026-10-16')).toBe(-1);
     expect(workingDaysBetween('2026-10-19', '2026-10-26')).toBe(5);
+  });
+});
+
+describe('mock tasks – SCR-0601, SCR-0602 (WEB-031)', () => {
+  beforeEach(() => resetMockData());
+
+  it('chi tiết có lịch sử trạng thái, sản phẩm, dự báo trễ, số lần gia hạn', async () => {
+    const { api } = setup();
+    const t = await firstValueFrom(api.detail(ID_157));
+    expect(t.stateLog.map((s) => s.to)).toEqual(['DA_GIAO', 'DANG_THUC_HIEN']);
+    expect(t.products).toEqual({ confirmed: 8, pendingReview: 3, required: 18 });
+    expect(['THAP', 'VUA', 'CAO']).toContain(t.delayRisk?.level);
+    expect(t).toMatchObject({ extensionsUsed: 0, extensionsMax: 2, acceptorName: 'Lê Minh Châu' });
+    expect(t.blockers[0]).toMatchObject({ code: 'BN-0157-01', status: 'MO' });
+  });
+
+  it('nhận việc ghi thêm một dòng lịch sử trạng thái', async () => {
+    const { api } = setup();
+    const t = await firstValueFrom(api.accept(await firstValueFrom(api.detail(ID_DA_GIAO))));
+    expect(t.stateLog.at(-1)).toMatchObject({
+      from: 'DA_GIAO',
+      to: 'DANG_THUC_HIEN',
+      transition: 'NHAN_VIEC',
+    });
+  });
+
+  it('báo điểm nghẽn tăng số điểm nghẽn đang mở; thiếu nội dung trả 422', async () => {
+    const { api } = setup();
+    const t = await firstValueFrom(api.detail(ID_157));
+    const bad = await statusOf(
+      firstValueFrom(
+        api.reportBlocker(t, {
+          content: ' ',
+          causeCategory: 'THU_TUC',
+          causeClaimed: 'CHU_QUAN',
+          impactLevel: 'THAP',
+        }),
+      ),
+    );
+    expect(bad.status).toBe(422);
+    const u = await firstValueFrom(
+      api.reportBlocker(t, {
+        content: 'Thiếu biểu mẫu mới',
+        causeCategory: 'THU_TUC',
+        causeClaimed: 'KHACH_QUAN',
+        impactLevel: 'CAO',
+      }),
+    );
+    expect(u.openBlockerCount).toBe(t.openBlockerCount + 1);
+    expect(u.blockers.at(-1)?.code).toBe('BN-0157-02');
+  });
+
+  it('xem trước hệ quả: C khách quan 1, chủ quan giảm 0,05 mỗi ngày làm việc (BR-06-01)', async () => {
+    const { api } = setup();
+    const t = await firstValueFrom(api.detail(ID_157));
+    const due = new Date(Date.parse(t.dueDate) + 7 * 86_400_000).toISOString().slice(0, 10);
+    const n = workingDaysBetween(t.dueDate, due); // 5 khi hạn cũ là ngày làm việc
+    const p = await firstValueFrom(
+      api.previewChangeRequest(t, {
+        type: 'GIA_HAN',
+        newDueDate: due,
+        causeClaimed: 'KHACH_QUAN',
+        reason: '',
+      }),
+    );
+    expect(p).toMatchObject({
+      extraWorkingDays: n,
+      objective: { c: 1, scoreDueDate: due },
+      subjective: { delayDays: n },
+    });
+    expect(p.subjective.c).toBeCloseTo(1 - 0.05 * n, 5);
+    expect(coefficientC(5)).toBe(0.75);
+    expect(coefficientC(30)).toBe(0);
+    expect(p.overThreshold).toBe(false);
+  });
+
+  it('gửi đề nghị: CHO_DUYET, trùng loại đang chờ trả 409, rút lại thành DA_RUT', async () => {
+    const { api } = setup();
+    const t = await firstValueFrom(api.detail(ID_157));
+    const due = new Date(Date.parse(t.dueDate) + 7 * 86_400_000).toISOString().slice(0, 10);
+    const draft = {
+      type: 'GIA_HAN' as const,
+      newDueDate: due,
+      causeClaimed: 'KHACH_QUAN' as const,
+      blockerId: t.blockers[0].id,
+      reason: '4 hồ sơ chờ kết quả thẩm tra lý lịch từ địa phương',
+    };
+    expect(
+      (await statusOf(firstValueFrom(api.submitChangeRequest(t, { ...draft, reason: 'ngắn' }))))
+        .status,
+    ).toBe(422);
+    const u = await firstValueFrom(api.submitChangeRequest(t, draft));
+    expect(u.changeRequests[0]).toMatchObject({
+      status: 'CHO_DUYET',
+      approverName: 'Lê Minh Châu',
+      newDueDate: due,
+    });
+    expect((await statusOf(firstValueFrom(api.submitChangeRequest(u, draft)))).status).toBe(409);
+    const w = await firstValueFrom(api.withdrawChangeRequest(u, u.changeRequests[0].id));
+    expect(w.changeRequests[0].status).toBe('DA_RUT');
+  });
+
+  it('huỷ nhiệm vụ đã có sản phẩm được nghiệm thu trả 422 MSG-06-09 (BR-06-09)', async () => {
+    const { api } = setup();
+    const t = await firstValueFrom(api.detail(ID_157));
+    const r = await statusOf(
+      firstValueFrom(
+        api.submitChangeRequest(t, {
+          type: 'HUY',
+          causeClaimed: 'KHACH_QUAN',
+          reason: 'Nhiệm vụ không còn cần thiết theo chỉ đạo mới',
+        }),
+      ),
+    );
+    expect(r).toEqual({ status: 422, code: 'MSG-06-09' });
   });
 });
