@@ -1031,7 +1031,7 @@
     "AC-11": "-",
     "AC-12": "A"
    },
-   "api": "`/api/v1/okr/objectives?unit=&period=&view=tree`",
+   "api": "`GET /api/v1/okr/tree?unit=&period=`",
    "rang_buoc": "",
    "nguon": "SCR-0201 Quyền: thành viên đơn vị xem",
    "ghi_chu": "AC-04 xem cây cấp dưới suy luận từ phạm vi lãnh đạo."
