@@ -12,7 +12,7 @@
 | Cỡ việc | M (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-034 |
 | Truy vết | QT-13 → SCR-1301 → `/api/v1/oversight`, `/api/v1/ledger` → MOD-07, SVC-09 → EVT-22, EVT-19 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Xong, chờ gộp |
 
 ## 1. Mục tiêu
 

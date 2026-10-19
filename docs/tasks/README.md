@@ -85,7 +85,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-040](WEB-040-hoi-nghi-kiem-diem.md) | SCR-1101 Hội nghị kiểm điểm | M | WEB-015 | Chưa bắt đầu |
 | [WEB-041](WEB-041-goi-ho-so-so.md) | SCR-1102 Gói hồ sơ số và ký số | M | WEB-040 | Chưa bắt đầu |
 | [WEB-042](WEB-042-khieu-nai.md) | SCR-1201 Gửi khiếu nại và SCR-1202 Xử lý khiếu nại | L | WEB-015 | Chưa bắt đầu |
-| [WEB-043](WEB-043-mo-lai-ky-so-cai.md) | SCR-1301 Yêu cầu mở lại kỳ và SCR-1302 Tra cứu sổ cái | M | WEB-034 | Chưa bắt đầu |
+| [WEB-043](WEB-043-mo-lai-ky-so-cai.md) | SCR-1301 Yêu cầu mở lại kỳ và SCR-1302 Tra cứu sổ cái | M | WEB-034 | Xong, chờ gộp (nhánh `feat/WEB-043-mo-lai-ky-so-cai`) |
 
 ## GĐ4 – Điều hành, cấu hình, mở rộng
 

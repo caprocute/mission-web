@@ -11,6 +11,8 @@ import { EVIDENCE_MOCK } from './evidence/evidence.mock';
 import { PERIODS_MOCK } from './periods/periods.mock';
 import { APPRAISALS_MOCK } from './appraisals/appraisals.mock';
 import { DOSSIERS_MOCK } from './dossiers/dossiers.mock';
+import { REOPEN_MOCK } from './oversight/reopen.mock';
+import { LEDGER_MOCK } from './ledger/ledger.mock';
 
 /**
  * Danh mục fixture theo module API (`/api/v1/<module>`). Thêm module mới: tạo thư mục
@@ -31,6 +33,8 @@ export const MOCK_MODULES: MockModule[] = [
   PERIODS_MOCK,
   APPRAISALS_MOCK,
   DOSSIERS_MOCK,
+  REOPEN_MOCK,
+  LEDGER_MOCK,
 ];
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
