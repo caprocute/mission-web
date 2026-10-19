@@ -60,6 +60,7 @@ Bảng dưới liệt kê các điểm mà hai hay nhiều nguồn ghi khác nha
 | Loại đề nghị điều chỉnh (`task.task_change_request.request_type`) | TL-02 SCR-0602: `GIA_HAN`, `DOI_SO_LUONG`, `DOI_SAN_PHAM`, `TAM_DUNG`, `HUY`; TL-03: `GIA_HAN`, `DIEU_CHINH_KHOI_LUONG`, `DIEU_CHINH_NOI_DUNG`, `HUY` (không có tạm dừng) | Theo TL-02 vì là đặc tả màn hình (`ChangeRequestType`, WEB-031); cần chốt khi có OpenAPI (WEB-007) |
 | Mã nguồn nhiệm vụ ngoài kế hoạch | TL-02 SCR-0501 và cột `source_type` TL-03: `PHAT_SINH`; ràng buộc `ck_task__source` TL-03: `DOT_XUAT` | Giữ `DOT_XUAT` theo ràng buộc bảng (`TaskSource`), hiển thị "Phát sinh" (WEB-028) |
 | Tổng số tài khoản | NFR-01: 6 triệu; TL-04 định cỡ: 6,5 triệu | **Đã chốt 6,5 triệu** cho định cỡ (19/10/2026) |
+| "Ba tầng" của cây OKR | TL-02 QT-02: Tầng 1 là O/KR của đơn vị, Tầng 2 là chương trình, đề án, Tầng 3 là nhiệm vụ (`okr.okr_link` tới `PROGRAM`, `TASK`); task WEB-021 và cột `okr.objective.tier`, `parent_objective_id` (TL-03): mục tiêu phân rã đơn vị → phòng → cá nhân | WEB-021 hiện cả hai: cây mục tiêu theo `parent_objective_id` (tầng 1–3 của `okr.objective`) và trong bảng KR là chương trình, nhiệm vụ liên kết ghi "Tầng 2–3" như mockup; **chờ chốt** nghĩa chính thức của "tầng" |
 
 ### Ghi chú và đề xuất từ WEB-056 (realm Keycloak dev)
 
