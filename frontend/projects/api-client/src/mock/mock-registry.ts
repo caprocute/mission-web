@@ -16,6 +16,7 @@ import { REOPEN_MOCK } from './oversight/reopen.mock';
 import { LEDGER_MOCK } from './ledger/ledger.mock';
 import { COMPLAINTS_MOCK } from './oversight/complaints.mock';
 import { UI_FORMS_MOCK } from './ui-forms/ui-forms.mock';
+import { ROLE_ADMIN_MOCK } from './role-admin/role-admin.mock';
 
 /**
  * Danh mục fixture theo module API (`/api/v1/<module>`). Thêm module mới: tạo thư mục
@@ -41,6 +42,7 @@ export const MOCK_MODULES: MockModule[] = [
   LEDGER_MOCK,
   COMPLAINTS_MOCK,
   UI_FORMS_MOCK,
+  ROLE_ADMIN_MOCK,
 ];
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
