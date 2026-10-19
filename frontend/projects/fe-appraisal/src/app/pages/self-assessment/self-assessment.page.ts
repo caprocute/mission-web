@@ -35,6 +35,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   APPRAISAL_FLOW_LABEL,
+  APPRAISAL_PROFILE_STATUS_LABEL,
   AppraisalApi,
   AppraisalFlow,
   AppraisalProfile,
@@ -89,6 +90,7 @@ export class SelfAssessmentPage {
 
   protected readonly steps = STEPS;
   protected readonly flowLabel = APPRAISAL_FLOW_LABEL;
+  protected readonly statusLabel = APPRAISAL_PROFILE_STATUS_LABEL;
   protected readonly dmy = dmy;
 
   protected readonly mine = rxResource({
@@ -256,11 +258,11 @@ export class SelfAssessmentPage {
 
   protected tabLabel(t: Tab): string {
     if (t === 'LICH_SU') return 'Lịch sử';
-    const scale = t === 'DANG' ? '100 điểm' : '30/70';
+    const scale = t === 'DANG' ? 'thang 100 điểm' : 'thang 30/70 điểm';
     const own = this.profile()?.flow === t ? this.profile()?.policyVersion : undefined;
     const s = this.shownScores();
     const policy = own ?? (s?.flow === t ? s.snapshot.policyVersion : undefined);
-    return `${this.flowLabel[t]} · ${scale}${policy ? ` (Policy Pack ${policy})` : ''}`;
+    return `${this.flowLabel[t]} · ${scale}${policy ? ` · Bộ quy định đánh giá ${policy}` : ''}`;
   }
 
   protected selectTab(t: Tab) {
@@ -395,7 +397,7 @@ export class SelfAssessmentPage {
     }
     if (!(await this.stepUp().catch(() => false))) {
       this.busy.set(null);
-      this.error.set('Cần xác thực nhiều lớp (MFA) để ký số. Bấm "Ký số và nộp" để thử lại.');
+      this.error.set('Cần xác thực nhiều lớp để ký số. Bấm "Ký số và nộp" để thử lại.');
       return;
     }
     this.busy.set('submit');

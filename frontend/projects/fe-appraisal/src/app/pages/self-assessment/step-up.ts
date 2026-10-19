@@ -4,8 +4,7 @@ import { SessionService } from '@vt/auth';
 
 /** Cửa sổ MFA trước khi ký số: 15 phút (BR-00-02). */
 const MAX_AGE_SEC = 900;
-const SELF_REASON =
-  'Nộp phiếu tự đánh giá là mốc ký số; vui lòng xác thực nhiều lớp (MFA) trước khi ký.';
+const SELF_REASON = 'Nộp phiếu tự đánh giá là mốc ký số; vui lòng xác thực nhiều lớp trước khi ký.';
 
 /**
  * Xác thực bước lên (step-up MFA, RFC 9470) trước "Ký số và nộp" của SCR-0901 và "Ký số và chuyển đề

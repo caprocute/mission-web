@@ -107,13 +107,13 @@ describe('ReviewPage (SCR-0902, WEB-036)', () => {
     const stats = [...el.querySelectorAll('.stat')].map(text);
     expect(stats[0]).toContain('93,4');
     expect(stats[1]).toContain('91,2');
-    expect(stats[1]).toContain('−2,2 do điều chỉnh B, C');
+    expect(stats[1]).toContain('−2,2 do điều chỉnh chất lượng, tiến độ');
     expect(stats[2]).toContain('Thực hiện tốt');
     expect(stats[3]).toContain('HTTNV');
     expect(text(el.querySelector('.who-head'))).toContain('đã ký số MySign');
     const cmp = [...el.querySelectorAll('tbody tr')].map(text);
     expect(cmp).toHaveLength(4);
-    expect(cmp[1]).toContain('B: phải sửa nội dung cơ bản');
+    expect(cmp[1]).toContain('Chất lượng: phải sửa nội dung cơ bản');
     expect(el.querySelectorAll('tbody td.bad').length).toBeGreaterThan(0);
     expect(el.querySelector('a.ev')?.getAttribute('href')).toContain('/evidence?task=');
   });
@@ -139,7 +139,7 @@ describe('ReviewPage (SCR-0902, WEB-036)', () => {
     const ok = await until(el, '.msg.ok', (e) => /Đã ký số kết quả thẩm định/.test(text(e)));
     expect(text(ok)).toContain('Trần Minh Hoàng');
     expect(text(await until(el, '#done-title'))).toBe('Kết luận thẩm định');
-    expect(text(el.querySelector('.state'))).toBe('DA_THAM_DINH');
+    expect(text(el.querySelector('.state'))).toBe('Đã thẩm định');
     await until(el, '.queue', (e) => e.querySelectorAll('.qrow').length === 6);
     expect(el.querySelectorAll('.qrow').length).toBe(6);
     expect(text(el.querySelector('.queue'))).not.toContain('Trần Minh Hoàng');
@@ -150,7 +150,9 @@ describe('ReviewPage (SCR-0902, WEB-036)', () => {
     type(el, '#f-comment', COMMENT);
     button(el, 'Ký số và chuyển đề xuất').click();
     const err = await until(el, '.msg.err');
-    expect(text(err)).toContain('đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (PL 4 V.1)');
+    expect(text(err)).toContain(
+      'đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (Phụ lục 4, mục V.1)',
+    );
   });
 
   it('trả lại bổ sung: bắt buộc lý do, MSG-09-09; hồ sơ đã trả đủ số lần thì báo lỗi 409', async () => {

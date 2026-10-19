@@ -111,7 +111,7 @@ describe('SelfAssessmentPage (SCR-0901)', () => {
     expect(text(el.querySelector('vt-general-criteria dl'))).toContain('9/9 · 100%');
     expect(text(el.querySelector('vt-score-result .total'))).toContain('91,2');
     expect(text(el.querySelector('[role=tab][aria-selected=true]'))).toBe(
-      'Luồng Đảng · 100 điểm (Policy Pack Đảng v2.0)',
+      'Luồng Đảng · thang 100 điểm · Bộ quy định đánh giá khối Đảng, phiên bản 2.0',
     );
     expect(field(el, 'sa-rating').value).toBe('HTTNV');
     expect(text(el.querySelector('.why'))).toContain(
@@ -131,7 +131,7 @@ describe('SelfAssessmentPage (SCR-0901)', () => {
     type(field(el, 'sa-rating'), 'HTXSNV');
     await tick();
     expect(text(el.querySelector('.warn'))).toBe(
-      'Mức hệ thống tham khảo: HTTNV. Mức tự đề xuất cao hơn nên phải ghi giải trình (QĐ Điều 16).',
+      'Mức hệ thống tham khảo: Hoàn thành tốt nhiệm vụ. Mức tự đề xuất cao hơn nên phải ghi giải trình (Điều 16 Quy định 366).',
     );
     type(field(el, 'sa-content'), CONTENT);
     await tick();
@@ -149,7 +149,7 @@ describe('SelfAssessmentPage (SCR-0901)', () => {
     expect(text(ok)).toMatch(
       /^Đã nộp phiếu tự đánh giá và ký số thành công lúc \d\d:\d\d .*Phiếu đã chuyển sang bước thẩm định\.$/,
     );
-    expect(text(el.querySelector('.state'))).toBe('Trạng thái: CHO_THAM_DINH');
+    expect(text(el.querySelector('.state'))).toBe('Trạng thái: Chờ thẩm định');
     expect(button(el, 'Ký số và nộp')).toBeUndefined();
     expect((field(el, 'sa-content') as HTMLTextAreaElement).readOnly).toBe(true);
   });
@@ -166,7 +166,7 @@ describe('SelfAssessmentPage (SCR-0901)', () => {
     expect(text(err)).toBe(
       'Ký số không thành công: dịch vụ ký số từ xa không phản hồi. Phiếu chưa được nộp, dữ liệu đã nhập vẫn được giữ.',
     );
-    expect(text(el.querySelector('.state'))).toBe('Trạng thái: TU_DANH_GIA');
+    expect(text(el.querySelector('.state'))).toBe('Trạng thái: Đang tự đánh giá');
     expect(field(el, 'sa-content').value).toBe(CONTENT);
   });
 
@@ -189,15 +189,15 @@ describe('SelfAssessmentPage (SCR-0901)', () => {
     const { el } = await render();
     const tabs = [...el.querySelectorAll<HTMLButtonElement>('[role=tab]')];
     expect(tabs.map(text)).toEqual([
-      'Luồng Đảng · 100 điểm (Policy Pack Đảng v2.0)',
-      'Luồng Nhà nước · 30/70',
+      'Luồng Đảng · thang 100 điểm · Bộ quy định đánh giá khối Đảng, phiên bản 2.0',
+      'Luồng Nhà nước · thang 30/70 điểm',
       'Lịch sử',
     ]);
     tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     await until(el, 'vt-score-result .total', (e) => text(e).includes('91,8'));
     expect(text(el.querySelector('vt-score-result .extra'))).toContain('28,0');
     expect(text(el.querySelector('[role=tab][aria-selected=true]'))).toBe(
-      'Luồng Nhà nước · 30/70 (Policy Pack NĐ 335 v1.3)',
+      'Luồng Nhà nước · thang 30/70 điểm · Bộ quy định đánh giá NĐ 335/2025, phiên bản 1.3',
     );
     button(el, 'Vết tính')!.click();
     const panel = (await until(el, 'vt-score-trace .panel')) as HTMLElement;

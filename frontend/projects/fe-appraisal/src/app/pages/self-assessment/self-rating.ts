@@ -19,7 +19,7 @@ import { compareRating } from './self-assessment-rules';
     <section class="box" aria-labelledby="sa-h">
       <h2 id="sa-h" class="sec">Tự đề xuất mức xếp loại</h2>
       <p class="ref">
-        Mức hệ thống tham khảo: <b>{{ refRating() }}</b> ({{ label[refRating()] }})
+        Mức hệ thống tham khảo: <b>{{ label[refRating()] }}</b>
       </p>
       @if (explanation()?.text) {
         <p class="why">{{ explanation()!.text }}</p>
@@ -38,8 +38,8 @@ import { compareRating } from './self-assessment-rules';
       </select>
       @if (direction()) {
         <p class="warn" aria-live="polite">
-          Mức hệ thống tham khảo: <b>{{ refRating() }}</b
-          >. Mức tự đề xuất {{ direction() }} nên phải ghi giải trình (QĐ Điều 16).
+          Mức hệ thống tham khảo: <b>{{ label[refRating()] }}</b
+          >. Mức tự đề xuất {{ direction() }} nên phải ghi giải trình (Điều 16 Quy định 366).
         </p>
       }
       @if (selfRating() === 'HTXSNV') {
@@ -116,7 +116,7 @@ import { compareRating } from './self-assessment-rules';
         aria-describedby="sa-content-hint"
       ></textarea>
       <p id="sa-content-hint" class="hint">
-        Mã hoá trường (C2) · tự lưu nháp 30 giây/lần
+        Nội dung được mã hoá khi lưu · tự động lưu nháp 30 giây một lần
         @if (shown('content'); as m) {
           <span class="err">{{ m }}</span>
         }

@@ -35,9 +35,9 @@ export function compareRating(a: RatingLevel, b: RatingLevel): number {
 }
 
 export const MSG_09_02 =
-  'Mức tự đề xuất khác mức hệ thống tham khảo. Đồng chí cần ghi giải trình trước khi nộp (QĐ Điều 16).';
+  'Mức tự đề xuất khác mức hệ thống tham khảo. Đồng chí cần ghi giải trình trước khi nộp (Điều 16 Quy định 366).';
 export const MSG_09_03 =
-  'Đề xuất mức Hoàn thành xuất sắc cần mô tả giải pháp đột phá và gắn ít nhất một minh chứng đã được xác nhận.';
+  'Đề xuất mức Hoàn thành xuất sắc nhiệm vụ cần mô tả giải pháp đột phá và gắn ít nhất một minh chứng đã được xác nhận.';
 
 /**
  * Quy tắc CEL theo dạng `FormRule` của `@vt/form-engine` (biến: `selfRating`, `refRating`,
