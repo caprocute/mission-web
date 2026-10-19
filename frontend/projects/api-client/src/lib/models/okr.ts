@@ -1,8 +1,13 @@
-import { CursorPage } from '../paging';
+import type { components } from '../generated/okr';
+
+type Schemas = components['schemas'];
 
 /**
  * Mô hình dữ liệu module okr (MOD-01, `/api/v1/okr`), tên trường theo TL-03 schema `okr`
  * (`okr.basis`, `okr.objective`, `okr.key_result`, `okr.okr_link`, `okr.kr_checkin`) đổi sang camelCase.
+ * Kiểu có cùng nghĩa trong `contracts/openapi/modules/okr.yaml` là bí danh của lược đồ `Okr*` sinh ra;
+ * kiểu viết tay còn lại là dạng xem mà hợp đồng chưa có (cây mục tiêu, hàng chờ duyệt, ngữ cảnh soạn),
+ * ghi ở wiki/14.
  */
 
 /** Kết quả then chốt dùng để liên kết nhiệm vụ (`okr.key_result`). */
@@ -13,7 +18,7 @@ export interface KeyResultRef {
 }
 
 /** Trạng thái mục tiêu `okr.objective.status` (baseline, TL-02 QT-02 Hình 7.2); KR theo trạng thái mục tiêu. */
-export type ObjectiveStatus = 'NHAP' | 'CHO_DUYET' | 'DA_DUYET' | 'DONG';
+export type ObjectiveStatus = Schemas['OkrObjectiveStatus'];
 
 export const OBJECTIVE_STATUS_LABEL: Record<ObjectiveStatus, string> = {
   NHAP: 'Nháp',
@@ -23,7 +28,7 @@ export const OBJECTIVE_STATUS_LABEL: Record<ObjectiveStatus, string> = {
 };
 
 /** Mức tự tin `okr.kr_checkin.confidence` (QT-03 bước 5). */
-export type Confidence = 'CAO' | 'TRUNG_BINH' | 'THAP';
+export type Confidence = Schemas['OkrConfidence'];
 
 export const CONFIDENCE_LABEL: Record<Confidence, string> = {
   CAO: 'Tự tin cao',
@@ -32,17 +37,16 @@ export const CONFIDENCE_LABEL: Record<Confidence, string> = {
 };
 
 /** Cờ rủi ro KR `okr.key_result.risk_flag` (QT-03 Hình 7.7). */
-export type KrRiskFlag = 'BINH_THUONG' | 'THEO_DOI' | 'RUI_RO';
+export type KrRiskFlag = Schemas['OkrRiskFlag'];
 
 /** Trạng thái kỳ `config.period.status` (baseline). */
 export type OkrPeriodStatus = 'MO' | 'DANG_KHOA' | 'DA_KHOA' | 'MO_LAI_HAU_KIEM';
 
 /** Chủ thể sở hữu `okr.objective.owner_type`. */
-export type OkrOwnerType = 'TAP_THE' | 'CA_NHAN';
+export type OkrOwnerType = Schemas['OkrOwnerType'];
 
 /** Loại căn cứ `okr.basis.basis_kind`. */
-export type BasisKind =
-  'NGHI_QUYET' | 'KET_LUAN' | 'CHI_THI' | 'CHUONG_TRINH' | 'KE_HOACH' | 'CHI_TIEU_KTXH';
+export type BasisKind = Schemas['OkrBasisKind'];
 
 /** Kỳ đánh giá để chọn trên SCR-0201 (trường 1, `config.period`). */
 export interface OkrPeriod {
@@ -173,15 +177,15 @@ export interface KrCheckin {
   confidence: Confidence;
   blockerNote: string | null;
   highlights: string | null;
-  channel: 'WEB' | 'MOBILE' | 'TICH_HOP';
-  status: 'NHAP' | 'DA_GUI';
+  channel: OkrCheckinChannel;
+  status: OkrCheckinStatus;
 }
 
 /** Chế độ hiển thị SCR-0201 (nút "Cây, Bảng, Bản đồ liên kết"). */
 export type OkrTreeView = 'tree' | 'table' | 'map';
 
 /** Tần suất check-in `okr.key_result.checkin_frequency` (SCR-0202 trường 15). */
-export type CheckinFrequency = 'TUAN' | 'HAI_TUAN' | 'THANG';
+export type CheckinFrequency = Schemas['OkrCheckinFrequency'];
 
 export const CHECKIN_FREQUENCY_LABEL: Record<CheckinFrequency, string> = {
   TUAN: 'Tuần',
@@ -190,7 +194,7 @@ export const CHECKIN_FREQUENCY_LABEL: Record<CheckinFrequency, string> = {
 };
 
 /** Nguồn nội dung `okr.key_result.content_source` (BR-02-11). */
-export type ContentSource = 'HUMAN' | 'AI_ACCEPTED' | 'AI_EDITED';
+export type ContentSource = Schemas['OkrContentSource'];
 
 /** Một KR trong bản nháp SCR-0202 (`okr.key_result`); trọng số 0–1 như TL-03. */
 export interface KeyResultDraft {
@@ -390,150 +394,52 @@ export interface OkrReviewQueue {
   items: OkrReviewSet[];
 }
 
-export type OkrHistoryAction =
-  'TAO' | 'LUU_NHAP' | 'TRINH' | 'RUT_LAI' | 'DUYET' | 'TRA_LAI' | 'DONG';
+export type OkrHistoryAction = Schemas['OkrObjectiveHistoryEntry']['action'];
 
 /** Một mốc lịch sử mục tiêu (`GET /api/v1/okr/objectives/{id}/history`). */
-export interface OkrHistoryEntry {
-  at: string;
-  action: OkrHistoryAction;
-  versionNo: number;
-  status?: ObjectiveStatus;
-  actor: { id: string; name: string };
-  comment?: string;
-  aiAssisted?: boolean;
-}
+export type OkrHistoryEntry = Schemas['OkrObjectiveHistoryEntry'];
 
 /** Ý kiến khi phê duyệt hoặc trả lại (`OkrApproveRequest`, `OkrReturnRequest`). */
-export interface OkrReviewDecisionBody {
-  comment?: string;
-  notifyPeers: boolean;
-}
+export type OkrReviewDecisionBody = Schemas['OkrApproveRequest'];
 
 // ---- Check-in KR (QT-03, SCR-0301; WEB-024). Tên trường theo `contracts/openapi/modules/okr.yaml`. ----
 
 /** Check-in `DA_GUI` gần nhất của KR (`OkrLastCheckin`). */
-export interface OkrLastCheckin {
-  value: number;
-  confidence: Confidence;
-  checkinAt: string;
-}
+export type OkrLastCheckin = Schemas['OkrLastCheckin'];
 
 /** KR rút gọn trong danh sách "KR của tôi cần check-in" (`OkrKeyResultListItem`). */
-export interface OkrKeyResultListItem {
-  id: string;
-  code: string;
-  title: string;
-  objectiveId?: string;
-  objectiveCode?: string;
-  unit?: string;
-  targetValue?: number;
-  currentValue?: number | null;
-  progress?: number;
-  confidence?: Confidence;
-  riskFlag?: KrRiskFlag;
-  dueDate?: string;
-  /** Hạn check-in của chu kỳ hiện tại. */
-  nextCheckinDue?: string;
-  lastCheckin?: OkrLastCheckin;
-}
+export type OkrKeyResultListItem = Schemas['OkrKeyResultListItem'];
 
 /**
  * Trang KR (`OkrKeyResultPage`). `period` là phần mở rộng của dữ liệu giả lập cho tiêu đề SCR-0301
  * (tuần, kỳ), hợp đồng chưa có (wiki/14).
  */
-export interface OkrKeyResultPage extends CursorPage<OkrKeyResultListItem> {
-  counts?: { needCheckin: number };
-  period?: OkrPeriod;
-}
+export type OkrKeyResultPage = Schemas['OkrKeyResultPage'] & { period?: OkrPeriod };
 
-export type OkrCheckinStatus = 'NHAP' | 'DA_GUI';
-export type OkrCheckinChannel = 'WEB' | 'MOBILE' | 'TICH_HOP';
+export type OkrCheckinStatus = Schemas['OkrCheckinStatus'];
+export type OkrCheckinChannel = Schemas['OkrCheckinChannel'];
 
 /** Một lần check-in (`OkrCheckin`, `okr.kr_checkin`), chỉ ghi thêm. */
-export interface OkrCheckin {
-  id: string;
-  keyResultId: string;
-  periodId?: string;
-  checkinAt: string;
-  value: number;
-  confidence: Confidence;
-  highlights?: string;
-  blockerNote?: string;
-  channel: OkrCheckinChannel;
-  status: OkrCheckinStatus;
-  sourceValue?: number | null;
-  sourceFetchedAt?: string;
-  overrideReason?: string;
-  onBehalf?: boolean;
-}
+export type OkrCheckin = Schemas['OkrCheckin'];
 
 /** Chi tiết KR cho SCR-0301 vùng 2 (`GET /api/v1/okr/key-results/{id}`, `OkrKeyResult`). */
-export interface OkrKeyResultDetail {
-  id: string;
-  objectiveId: string;
-  periodId?: string;
-  code: string;
-  title: string;
-  unit: string;
-  baselineValue: number | null;
-  targetValue: number;
-  currentValue: number | null;
-  direction?: 'TANG' | 'GIAM' | 'DAT';
-  weight: number;
-  dueDate: string;
-  verifier?: { id: string; name: string };
-  owner?: { id: string; name: string };
-  checkinDelegate?: { id: string; name: string };
-  dataSource?: string;
-  formulaText?: string;
-  confidence?: Confidence;
-  progress: number;
-  status: ObjectiveStatus;
-  riskFlag: KrRiskFlag;
-  checkinFrequency?: CheckinFrequency;
-  lastCheckin?: OkrLastCheckin;
-  myDraftCheckin?: OkrCheckin;
-  nextCheckinDue?: string;
-  rowVersion: number;
+export type OkrKeyResultDetail = Schemas['OkrKeyResult'] & {
   /** Mở rộng chờ hợp đồng (wiki/14): mục tiêu chứa KR và nhiệm vụ liên kết cho vùng 2, vùng 5. */
   objective?: { id: string; code: string; title: string };
   linkedWork?: KrLinkedWork[];
   linkedTaskCount?: number;
-}
+};
 
-/** Thân yêu cầu lưu nháp hoặc gửi check-in (`OkrCheckinCreate`). */
-export interface OkrCheckinCreate {
-  status: OkrCheckinStatus;
-  value: number;
-  confidence: Confidence;
-  sourceValue?: number;
-  sourceFetchedAt?: string;
-  overrideReason?: string;
-  highlights?: string;
-  blockerNote?: string;
-  channel?: OkrCheckinChannel;
-  /** Đã xác nhận cảnh báo chênh lệch lớn (BR-03-05, MSG-03-02). */
+/**
+ * Thân yêu cầu lưu nháp hoặc gửi check-in (`OkrCheckinCreate`). `confirmLargeChange` có `default: false`
+ * nên kiểu sinh coi là bắt buộc; ở thân yêu cầu trường này được phép vắng.
+ */
+export type OkrCheckinCreate = Omit<Schemas['OkrCheckinCreate'], 'confirmLargeChange'> & {
   confirmLargeChange?: boolean;
-}
+};
 
 /** Kết quả ghi check-in kèm tiến độ đã tính lại (`OkrCheckinResult`, MSG-03-01). */
-export interface OkrCheckinResult {
-  checkin: OkrCheckin;
-  keyResult: {
-    id: string;
-    code: string;
-    currentValue?: number | null;
-    progress: number;
-    confidence?: Confidence;
-    riskFlag: KrRiskFlag;
-  };
-  objective: { id: string; code: string; progress: number };
-}
+export type OkrCheckinResult = Schemas['OkrCheckinResult'];
 
 /** Số liệu nguồn qua SVC-13 (`OkrSourceValue`). */
-export interface OkrSourceValue {
-  value: number;
-  fetchedAt: string;
-  dataSource?: string;
-}
+export type OkrSourceValue = Schemas['OkrSourceValue'];

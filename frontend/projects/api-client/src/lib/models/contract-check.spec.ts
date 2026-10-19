@@ -12,11 +12,15 @@
  */
 import type { components as DossiersContract } from '../generated/dossiers';
 import type { components as OkrContract } from '../generated/okr';
+ * `ProblemDetails`, `FieldError`, các kiểu liệt kê, lịch sử và check-in của `okr.ts`) không cần kiểm ở
+ * đây. Các kiểu viết tay còn lệch hợp đồng và chưa kiểm (`OrgUnit`, `PlanItem`, `PlanVersion`,
+ * `OkrBasis`, `ProgressBatchResult`, `CellLoad`, các dạng xem OKR như cây mục tiêu, hàng chờ duyệt,
+ * ngữ cảnh soạn, và kiểu tenant chưa có cùng tên trong hợp đồng) được ghi ở báo cáo WEB-064 và wiki/06.
+ */
 import type { components as OrgContract } from '../generated/org';
 import type { components as PlatformContract } from '../generated/platform';
 import type { components as TasksContract, operations as TasksOps } from '../generated/tasks';
 import type * as Catalog from './catalog';
-import type * as Okr from './okr';
 import type * as Org from './org';
 import type * as Plan from './plan';
 import type * as SourceDoc from './source-doc';
@@ -40,8 +44,6 @@ export type ContractCheck = [
   >,
   Expect<Compatible<Catalog.CatalogItemsPage, TasksContract['schemas']['CatalogItemsPage']>>,
   Expect<Compatible<Catalog.CatalogImportJob, TasksContract['schemas']['CatalogImportJob']>>,
-  // okr.ts ↔ okr.yaml
-  Expect<Compatible<Okr.OkrOwnerType, OkrContract['schemas']['OkrOwnerType']>>,
   // org.ts ↔ org.yaml
   Expect<Compatible<Org.OrgPerson, OrgContract['schemas']['OrgPerson']>>,
   // plan.ts ↔ tasks.yaml
@@ -133,6 +135,7 @@ export type ContractCheck = [
 describe('model viết tay và hợp đồng OpenAPI', () => {
   it('tương thích kiểu (kiểm lúc biên dịch, xem ContractCheck)', () => {
     const checked: ContractCheck['length'] = 72;
+    const checked: ContractCheck['length'] = 58;
     expect(checked).toBeGreaterThan(0);
   });
 });

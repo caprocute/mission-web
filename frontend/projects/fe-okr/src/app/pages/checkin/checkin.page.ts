@@ -675,7 +675,10 @@ export class OkrCheckinPage {
   protected readonly preview = computed(() => {
     const k = this.detail();
     if (!k || this.parsed() === null) return null;
-    return Math.round(krProgress({ ...k, currentValue: this.parsed() }) * 100);
+    return Math.round(
+      krProgress({ ...k, baselineValue: k.baselineValue ?? null, currentValue: this.parsed() }) *
+        100,
+    );
   });
 
   protected readonly errors = computed(() => {
@@ -781,7 +784,12 @@ export class OkrCheckinPage {
       return;
     }
     if (status === 'DA_GUI' && !confirm) {
-      const diff = largeChange(k.currentValue, this.parsed()!, k.baselineValue, k.targetValue);
+      const diff = largeChange(
+        k.currentValue ?? null,
+        this.parsed()!,
+        k.baselineValue ?? null,
+        k.targetValue,
+      );
       if (diff !== null) {
         this.pendingLarge.set(largeChangeMessage(diff));
         return;
