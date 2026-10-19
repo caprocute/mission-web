@@ -2,7 +2,10 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { OAuthService } from 'angular-oauth2-oidc';
 import { RUNTIME_CONFIG } from '@vt/api-client';
 
-/** Vai trò hệ thống (baseline mục 10, AC-01…AC-12). */
+/**
+ * Vai trò hệ thống (baseline mục 10, AC-01…AC-12) và vai trò con khai báo ở cột keycloak của
+ * ma trận phân quyền (`wf_template_author` của AC-01, BS-01 SCR-1505).
+ */
 export type VtRole =
   | 'platform_admin'
   | 'tenant_admin'
@@ -14,7 +17,8 @@ export type VtRole =
   | 'decider'
   | 'second_approver'
   | 'inspector'
-  | 'ai_readonly';
+  | 'ai_readonly'
+  | 'wf_template_author';
 
 export interface VtUser {
   id: string;

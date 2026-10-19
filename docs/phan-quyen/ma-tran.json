@@ -3731,7 +3731,10 @@
    "api": "`GET /api/v1/workflow/templates`*",
    "rang_buoc": "",
    "nguon": "BS-01 (đã duyệt 19/10/2026) SCR-1505 Bố cục",
-   "ghi_chu": "Chỉ người giữ vai trò con `wf_template_author` của AC-01; AC-09 xem để phê duyệt (suy luận). Tenant không thấy màn hình."
+   "ghi_chu": "Chỉ người giữ vai trò con `wf_template_author` của AC-01; AC-09 xem để phê duyệt (suy luận). Tenant không thấy màn hình.",
+   "vai_tro_con": {
+    "AC-01": "wf_template_author"
+   }
   },
   {
    "qt": "QT-15",
@@ -3756,7 +3759,10 @@
    "api": "`POST/PUT /api/v1/workflow/templates`*",
    "rang_buoc": "4 quy tắc chống mạng nhện (TL-01), máy chủ chạy lại linter khi lưu",
    "nguon": "BS-01 (đã duyệt 19/10/2026) SCR-1505 Kiểm tra khi soạn",
-   "ghi_chu": "Vai trò `wf_template_author`. Phiên bản HIEU_LUC không sửa được."
+   "ghi_chu": "Vai trò `wf_template_author`. Phiên bản HIEU_LUC không sửa được.",
+   "vai_tro_con": {
+    "AC-01": "wf_template_author"
+   }
   },
   {
    "qt": "QT-15",
@@ -3781,7 +3787,10 @@
    "api": "`POST /api/v1/workflow/templates/{id}/test`* (202 + job)",
    "rang_buoc": "≤ 20 câu SQL mỗi lần hoàn thành user task; ≤ 12 user task mỗi nhánh; ≤ 50 phần tử đa thể hiện",
    "nguon": "BS-01 (đã duyệt 19/10/2026) SCR-1505 Kiểm thử; Giới hạn tải",
-   "ghi_chu": ""
+   "ghi_chu": "",
+   "vai_tro_con": {
+    "AC-01": "wf_template_author"
+   }
   },
   {
    "qt": "QT-15",
@@ -3806,7 +3815,10 @@
    "api": "`POST /api/v1/workflow/templates/{id}/submit`*",
    "rang_buoc": "Chỉ khi DAT_KIEM_THU",
    "nguon": "BS-01 (đã duyệt 19/10/2026) SCR-1505 Đồng bộ với kho mã",
-   "ghi_chu": ""
+   "ghi_chu": "",
+   "vai_tro_con": {
+    "AC-01": "wf_template_author"
+   }
   },
   {
    "qt": "QT-15",
@@ -3856,7 +3868,10 @@
    "api": "`GET /api/v1/workflow/templates/{id}/rollouts`*",
    "rang_buoc": "Ngoài giờ cao điểm, không trong 3 ngày cuối kỳ; CELL-NB trước",
    "nguon": "BS-01 (đã duyệt 19/10/2026) SCR-1505 Triển khai lên cell; Giới hạn tải",
-   "ghi_chu": ""
+   "ghi_chu": "",
+   "vai_tro_con": {
+    "AC-01": "wf_template_author"
+   }
   },
   {
    "qt": "QT-15",

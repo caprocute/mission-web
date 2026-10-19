@@ -46,6 +46,10 @@ def load():
         for ac, v in f["quyen"].items():
             if not CELL_RE.match(v):
                 raise SystemExit(f"{f['key']} {ac}: ô '{v}' sai cú pháp")
+        for ac, sub in f.get("vai_tro_con", {}).items():
+            role = next(r for r in d["vai_tro"] if r["ac"] == ac)
+            if f"vai trò con `{sub}`" not in role.get("keycloak", "") or f["quyen"][ac] == "-":
+                raise SystemExit(f"{f['key']}: vai_tro_con {ac}={sub} không khai báo ở vai_tro hoặc ô là '-'")
     missing = [s for s in d["man_hinh"] if s not in {f["scr"] for f in d["chuc_nang"]}]
     if missing:
         raise SystemExit(f"Màn hình chưa có dòng nào trong ma trận: {', '.join(missing)}")
@@ -261,6 +265,8 @@ def ts_source(d):
         for ac, role in roles:
             v = f["quyen"][ac]
             if v != "-":
+                # Ô chỉ dành cho vai trò con (ví dụ `wf_template_author` của AC-01 ở SCR-1505, BS-01)
+                role = f.get("vai_tro_con", {}).get(ac, role)
                 cells.append(role + ("*" if v.endswith("*") else ""))
         line = f"  '{f['key']}': '{' '.join(cells)}',"
         # Giữ đúng định dạng Prettier (printWidth 100) để `format:check` không báo lệch
