@@ -1,0 +1,84 @@
+# Nguồn: baseline mục 13 (tác vụ dài trả 202 + Location /api/v1/jobs/{id}); TL-01 Phụ lục C mục MOD-06
+# (`GET /jobs/{id}`); wiki/06 mục "Tác vụ dài và theo dõi tiến độ"; lược đồ Job của WEB-007 (điểm chốt HD-06).
+openapi: 3.1.0
+info:
+  title: Mission – Tác vụ dài (dùng chung)
+  version: 1.0.0-draft.1
+  description: >-
+    Theo dõi tác vụ nền mà mọi module trả về bằng `202 Accepted` kèm `Location`. Client thăm dò với
+    giãn cách tăng dần theo `Retry-After` hoặc nhận cập nhật qua SSE `/notifications/stream`.
+servers:
+  - url: /api/v1
+security:
+  - keycloak: []
+tags:
+  - name: Tác vụ dài
+    description: Trạng thái và huỷ tác vụ nền.
+paths:
+  /jobs/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Tác vụ dài]
+      operationId: getJob
+      summary: Trạng thái tác vụ dài
+      description: Chỉ người khởi tạo xem được; người khác nhận 404.
+      responses:
+        '200':
+          description: Trạng thái hiện tại.
+          headers:
+            Retry-After: { $ref: '../common/common.yaml#/components/headers/RetryAfter' }
+          content:
+            application/json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/Job' }
+              examples:
+                dang-chay:
+                  value:
+                    id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a77
+                    type: PERIOD_LOCK
+                    status: DANG_CHAY
+                    progress: 45
+                    message: Đang chốt điểm đơn vị 9/20
+                    updatedAt: '2026-12-31T17:05:00+07:00'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-08, QT-09, QT-11]
+        scr: [SCR-0801, SCR-0904, SCR-1102, SCR-0401, SCR-0503]
+        owner: SVC-05
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: 'Baseline mục 13; TL-01 PL C'
+    delete:
+      tags: [Tác vụ dài]
+      operationId: cancelJob
+      summary: Huỷ tác vụ dài
+      description: >-
+        Yêu cầu huỷ tác vụ chưa kết thúc; chỉ tác vụ khai báo huỷ được (ví dụ xuất báo cáo). Saga có bù trừ
+        như khoá kỳ huỷ qua API riêng của module. (suy luận: TL không đặc tả huỷ chung.)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Đã nhận yêu cầu huỷ; trạng thái chuyển `DA_HUY` khi dừng xong.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Tác vụ đã kết thúc hoặc không cho huỷ (`JOB-409-NOT-CANCELLABLE`).
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0503]
+        owner: SVC-05
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: 'Suy luận'
+components:
+  securitySchemes:
+    keycloak:
+      $ref: '../common/common.yaml#/components/securitySchemes/keycloak'

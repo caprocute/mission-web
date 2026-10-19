@@ -26,6 +26,7 @@ Bảng dưới liệt kê các ADR của baseline có tác động trực tiếp
 | ADR-25 | UI Pack khai dải Policy Pack tương thích | `UiPack` có tham chiếu Policy Pack; kiểm khi phát hành |
 | ADR-27 | E2EE cho C3: ECDH P-256, khoá không trích xuất, Shamir 3/5 | Thư viện `@vt/e2ee` dự kiến |
 | ADR-31 | Ký lô và niêm phong sổ cái | Màn hình ký lô, tra cứu sổ cái |
+| ADR-32 | Hợp đồng API trước (bổ sung BS-02, đề xuất) | Mọi lời gọi API: kiểu sinh từ `contracts/openapi/`, đổi API bắt đầu bằng PR sửa hợp đồng |
 
 ## Quyết định riêng của dự án web đã chốt
 
@@ -65,6 +66,10 @@ Bảng dưới liệt kê các điểm mà hai hay nhiều nguồn ghi khác nha
 | Điểm và sản phẩm của dòng kế hoạch | TL-02 SCR-0402 gọi là "điểm" (`score_weight`) và "sản phẩm" (`product_name`); TL-03 bảng dòng kế hoạch dùng `standard_score` và không có cột tên sản phẩm | Giao diện dùng `standardScore` và `productName` (WEB-026); cần chốt tên cột và bổ sung cột sản phẩm vào TL-03 |
 | Tổng số tài khoản | NFR-01: 6 triệu; TL-04 định cỡ: 6,5 triệu | **Đã chốt 6,5 triệu** cho định cỡ (19/10/2026) |
 | "Ba tầng" của cây OKR | TL-02 QT-02: Tầng 1 là O/KR của đơn vị, Tầng 2 là chương trình, đề án, Tầng 3 là nhiệm vụ (`okr.okr_link` tới `PROGRAM`, `TASK`); task WEB-021 và cột `okr.objective.tier`, `parent_objective_id` (TL-03): mục tiêu phân rã đơn vị → phòng → cá nhân | WEB-021 hiện cả hai: cây mục tiêu theo `parent_objective_id` (tầng 1–3 của `okr.objective`) và trong bảng KR là chương trình, nhiệm vụ liên kết ghi "Tầng 2–3" như mockup; **chờ chốt** nghĩa chính thức của "tầng" |
+
+### Điểm chốt khi viết hợp đồng OpenAPI (WEB-063, chờ xác nhận)
+
+Khi ghép TL-01 Phụ lục C, bảng sự kiện SCR của TL-02, cột và ràng buộc CHECK của TL-03 với ma trận phân quyền thành bộ hợp đồng `contracts/openapi/`, có khoảng năm mươi chỗ nguồn ghi khác nhau về đường dẫn, tên trường hoặc giá trị liệt kê. Hợp đồng đã chọn phương án mặc định có lý do cho từng chỗ; danh sách đầy đủ nằm ở bổ sung BS-02 (`kien-truc-okr-kpi/bo-sung/BS-02-hop-dong-API-truoc.md`), mục "Các điểm đã chốt khi ghép nguồn", và theo YC-TK-10 đang chờ người phụ trách xác nhận. Những điểm ảnh hưởng nhiều nhất là: dùng 409 cho xung đột `If-Match` (HD-01); giữ `Idempotency-Key` 48 giờ (HD-02); dùng tên vai trò của baseline mục 10 thay cho `staff`, `org_officer`, `policy_approver` của Phụ lục C (HD-05), trong khi TL-03 vẫn ghi `staff` trong CHECK `actor_role` (HD-07); dùng kiểu đường dẫn của TL-02 khi Phụ lục C ghi khác (đánh giá, Policy Pack, minh chứng, cảnh báo); `standardScore` theo TL-03 cho dòng kế hoạch; thang 0..1 cho trọng số và tiến độ OKR nhưng 0..100 cho tiến độ nhiệm vụ; thời hạn URL tải và độ tươi AAL2 khi nghiệm thu đều 5 phút. Danh sách các cột và giá trị TL-03 cần bổ sung nằm ở mục cuối BS-02.
 
 ### Ghi chú và đề xuất từ WEB-056 (realm Keycloak dev)
 

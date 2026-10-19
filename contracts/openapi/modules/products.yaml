@@ -1,0 +1,2004 @@
+# Hợp đồng OpenAPI của MOD-03 `product` (sản phẩm, minh chứng, nghiệm thu) và SVC-08 evidence-service
+# (tải tệp nhiều phần, băm SHA-256, URL tải có hạn, quét mã độc). WEB-063, ADR-32.
+# Nguồn:
+#   - Baseline mục 9 (EVT-06, EVT-07, EVT-08, EVT-21), 9.1 (trạng thái chuẩn, QualityLevel), 10 (vai trò AC), 13 (quy ước API).
+#   - TL-01 chương "SVC-08 evidence-service" (bảng API, Object Lock, URL ký 5 phút), chương 9 (C2, C3, ADR-06),
+#     Phụ lục C mục "Sản phẩm và minh chứng (MOD-03, SVC-08)".
+#   - TL-02a QT-07: bảng các bước, trạng thái `product.evidence_version` (Hình 8.12), BR-07-01..BR-07-13,
+#     ngoại lệ, SCR-0701, SCR-0702, SCR-0703 (bảng trường, bảng nút/hành động, MSG-07-01..MSG-07-14).
+#   - TL-03 schema `product` (deliverable, evidence, evidence_version, acceptance, e2ee_key_wrap) và schema
+#     `evidence` (object_meta, object_version, dedup_index, scan_result, upload_session); bảng EVT ở part-10.
+#   - TL-04 SEC-47 (quét ClamAV), SEC-48 (giới hạn tải lên).
+#   - Ma trận phân quyền `docs/phan-quyen/ma-tran.json` (SCR-0701.*, SCR-0702.dd, SCR-0703.*, API `products`, `evidences`).
+# Điểm chốt khi ghép nguồn (TL-01 PL C với TL-02) ghi ở `info.description`.
+openapi: 3.1.0
+info:
+  title: Mission – Sản phẩm và minh chứng (MOD-03, SVC-08)
+  version: 1.0.0-draft.1
+  description: >-
+    Sản phẩm của nhiệm vụ, minh chứng có phiên bản chỉ ghi, nghiệm thu chất lượng năm mức (QT-07) do
+    module product (MOD-03) của mission-core xử lý; lưu trữ tệp, băm SHA-256, khử trùng, quét mã độc và
+    URL tải có hạn do evidence-service (SVC-08) xử lý. Trạng thái thực hiện của nhiệm vụ (`task.task.status`)
+    và trạng thái nghiệm thu của phiên bản minh chứng (`product.evidence_version.status`) là hai máy trạng thái
+    tách biệt (BR-07-10).
+
+
+    Điểm chốt khi ghép nguồn: (1) đường dẫn minh chứng theo TL-02 SCR-0701..0703
+    (`/evidences/{id}/versions/{v}/submit|open-review|accept|request-revision|reject`) thay cho TL-01 PL C
+    (`/products/{id}/evidence-versions`, `/evidence-versions/{id}/acceptance`, `/evidence-versions/{id}/supplement-requests`),
+    vì TL-02 chi tiết hơn, tách rõ lưu nháp và nộp, và ma trận phân quyền đã dùng đường dẫn TL-02;
+    (2) giá trị liệt kê nguồn minh chứng lấy theo CHECK của TL-03 (`TAI_LEN`, `VAN_BAN`, `HE_THONG` cho
+    minh chứng; `TAI_LEN`, `VAN_BAN_HE_THONG`, `OCR_DI_DONG`, `TICH_HOP` cho phiên bản) thay cho bộ
+    `VAN_BAN`, `TEP`, `LIEN_KET`, `ANH_CHUP` ghi ở bảng trường SCR-0701; (3) nhận xét nghiệm thu xếp C2 theo
+    TL-02 SCR-0703 và cột `comment_enc` của TL-03; (4) gửi từng phần tệp qua `PUT /files/uploads/{uploadId}/parts/{n}`
+    theo TL-01; việc SVC-08 chuyển tiếp thẳng tới Ceph RGW bằng URL ký trước (TL-03) là chi tiết hiện thực phía máy chủ.
+servers:
+  - url: /api/v1
+security:
+  - keycloak: []
+tags:
+  - name: Sản phẩm
+    description: Sản phẩm của nhiệm vụ (`product.deliverable`), số lượng kế hoạch và số lượng đã xác nhận (đầu vào cấu phần A).
+  - name: Minh chứng
+    description: Minh chứng và phiên bản minh chứng chỉ ghi (`product.evidence`, `product.evidence_version`), nộp để nghiệm thu (SCR-0701, SCR-0702).
+  - name: Nghiệm thu
+    description: Mở nghiệm thu, kiểm toàn vẹn, xác nhận mức chất lượng năm mức, yêu cầu bổ sung, từ chối (SCR-0703, `product.acceptance`).
+  - name: Tệp
+    description: Phiên tải lên nhiều phần, hoàn tất trả SHA-256, URL tải có hạn 5 phút, kết quả quét mã độc (SVC-08, schema `evidence`).
+
+paths:
+  /products:
+    get:
+      tags: [Sản phẩm]
+      operationId: listDeliverables
+      summary: Danh sách sản phẩm của một nhiệm vụ
+      description: >-
+        Trả các sản phẩm khai báo cho nhiệm vụ cùng số lượng kế hoạch, số lượng đã xác nhận và trạng thái tổng hợp.
+        Dùng ở SCR-0701 (chọn sản phẩm cần nộp) và SCR-0703 (tính số lượng A). Thao tác đọc suy luận từ ma trận
+        API `products` (GET cho AC-05, AC-06); TL-01 PL C chỉ ghi thao tác tạo.
+      parameters:
+        - name: task
+          in: query
+          required: true
+          description: Mã nhiệm vụ (`task.task.id`).
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Danh sách sản phẩm.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeliverableList' }
+              examples:
+                bao-cao-chuyen-de:
+                  value:
+                    items:
+                      - id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+                        taskId: 0192a0f1-2b3c-7d4e-9f50-6a7b8c9d0e11
+                        name: Báo cáo chuyên đề công tác kiểm tra quý III
+                        deliverableType: BAO_CAO
+                        unit: báo cáo
+                        quantityPlanned: 1
+                        quantityAccepted: 0
+                        status: DANG_THUC_HIEN
+                        rowVersion: 2
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0703]
+        owner: MOD-03
+        roles: [member, manager]
+        scope: B; Gn
+        source: TL-01 PL C MOD-03 (suy luận thao tác đọc); ma trận API products
+    post:
+      tags: [Sản phẩm]
+      operationId: createDeliverable
+      summary: Khai báo sản phẩm của nhiệm vụ
+      description: >-
+        Người được giao khai báo một sản phẩm cần nộp cho nhiệm vụ (tên, loại, đơn vị tính, số lượng kế hoạch).
+        TL-02 không có SCR riêng cho thao tác này; sản phẩm thường được sinh khi giao việc từ mục danh mục (suy luận).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeliverableCreate' }
+            examples:
+              khai-bao:
+                value:
+                  taskId: 0192a0f1-2b3c-7d4e-9f50-6a7b8c9d0e11
+                  name: Báo cáo chuyên đề công tác kiểm tra quý III
+                  deliverableType: BAO_CAO
+                  unit: báo cáo
+                  quantityPlanned: 1
+      responses:
+        '201':
+          description: Đã tạo sản phẩm.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deliverable' }
+              examples:
+                da-tao:
+                  value:
+                    id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+                    taskId: 0192a0f1-2b3c-7d4e-9f50-6a7b8c9d0e11
+                    name: Báo cáo chuyên đề công tác kiểm tra quý III
+                    deliverableType: BAO_CAO
+                    unit: báo cáo
+                    quantityPlanned: 1
+                    quantityAccepted: 0
+                    status: CHUA_CO
+                    rowVersion: 0
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        '422':
+          description: >-
+            Dữ liệu không hợp lệ. Mã lỗi: `COMMON-422-VALIDATION`, `PRODUCT-422-TASK-NOT-OPEN` (nhiệm vụ
+            không ở trạng thái cho phép khai báo sản phẩm).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: []
+        owner: MOD-03
+        roles: [member]
+        scope: B
+        source: TL-01 PL C MOD-03 POST /products; ma trận API products
+  /products/{id}:
+    get:
+      tags: [Sản phẩm]
+      operationId: getDeliverable
+      summary: Chi tiết một sản phẩm
+      description: Trả sản phẩm kèm `ETag`. Thao tác đọc suy luận từ ma trận API `products`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Sản phẩm.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deliverable' }
+              examples:
+                san-pham:
+                  value:
+                    id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+                    taskId: 0192a0f1-2b3c-7d4e-9f50-6a7b8c9d0e11
+                    name: Báo cáo chuyên đề công tác kiểm tra quý III
+                    deliverableType: BAO_CAO
+                    unit: báo cáo
+                    quantityPlanned: 1
+                    quantityAccepted: 0
+                    status: DANG_THUC_HIEN
+                    rowVersion: 2
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0703]
+        owner: MOD-03
+        roles: [member, manager]
+        scope: B; Gn
+        source: Ma trận API products (suy luận)
+
+  /evidences:
+    get:
+      tags: [Minh chứng]
+      operationId: listEvidences
+      summary: Danh sách minh chứng theo nhiệm vụ, sản phẩm hoặc hàng chờ nghiệm thu
+      description: >-
+        Danh sách minh chứng kèm trạng thái phiên bản mới nhất. Với `reviewer=me` và `status=DA_NOP,DANG_NGHIEM_THU`
+        trả hàng chờ nghiệm thu của người gọi (menu "Đánh giá / Chờ tôi duyệt" dẫn vào SCR-0703); với `submitter=me`
+        trả minh chứng của tôi (tab "Minh chứng" của SCR-0702). Bộ lọc là suy luận từ đường vào của SCR.
+      parameters:
+        - name: task
+          in: query
+          description: Lọc theo nhiệm vụ.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: deliverable
+          in: query
+          description: Lọc theo sản phẩm.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: status
+          in: query
+          description: Lọc theo trạng thái phiên bản mới nhất; nhiều giá trị cách nhau bằng dấu phẩy.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/EvidenceVersionStatus' }
+        - name: reviewer
+          in: query
+          description: '`me` để lấy minh chứng mà người gọi là người nghiệm thu được chỉ định.'
+          schema: { type: string, enum: [me] }
+        - name: submitter
+          in: query
+          description: '`me` để lấy minh chứng do người gọi nộp hoặc đang soạn.'
+          schema: { type: string, enum: [me] }
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Danh sách minh chứng.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceList' }
+              examples:
+                cho-nghiem-thu:
+                  value:
+                    items:
+                      - id: 0192a1b2-4d5e-7f60-8b1c-2d3e4f5a6b02
+                        deliverableId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+                        task: { id: 0192a0f1-2b3c-7d4e-9f50-6a7b8c9d0e11, code: NV-2026-Q4-0142, name: Báo cáo chuyên đề công tác kiểm tra quý III }
+                        title: Báo cáo chuyên đề công tác kiểm tra quý III
+                        sourceType: VAN_BAN
+                        currentVersionNo: 2
+                        currentStatus: DA_NOP
+                        isDuplicateSuspect: true
+                        submittedAt: '2026-10-19T09:11:00+07:00'
+                        submittedBy: { id: 0192a0aa-1111-7222-8333-444455556666, name: Nguyễn Văn An }
+                        rowVersion: 4
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0702, SCR-0703]
+        owner: MOD-03
+        roles: [member, manager, leader, appraiser, inspector]
+        scope: B; Gn; Cd
+        source: TL-02a SCR-0701..0703 (đường vào); ma trận API evidences (GET)
+    post:
+      tags: [Minh chứng]
+      operationId: createEvidence
+      summary: Tạo minh chứng cho một sản phẩm
+      description: >-
+        Tạo minh chứng (`product.evidence`) gắn với sản phẩm của nhiệm vụ mà người gọi chủ trì. Phiên bản đầu
+        tiên tạo bằng `POST /evidences/{id}/versions`. TL-02 không ghi riêng thao tác này; nó cần thiết vì đường
+        dẫn lưu nháp của SCR-0701 đã có `{id}` của minh chứng (suy luận). Thay cho phần tạo của TL-01 PL C
+        `POST /products/{id}/evidence-versions`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvidenceCreate' }
+            examples:
+              van-ban:
+                value:
+                  deliverableId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+                  title: Báo cáo chuyên đề công tác kiểm tra quý III
+                  sourceType: VAN_BAN
+                  externalDocRef: 47-BC/BTCĐUK
+      responses:
+        '201':
+          description: Đã tạo minh chứng (chưa có phiên bản).
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Evidence' }
+              examples:
+                da-tao:
+                  value:
+                    id: 0192a1b2-4d5e-7f60-8b1c-2d3e4f5a6b02
+                    deliverableId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+                    task: { id: 0192a0f1-2b3c-7d4e-9f50-6a7b8c9d0e11, code: NV-2026-Q4-0142, name: Báo cáo chuyên đề công tác kiểm tra quý III }
+                    title: Báo cáo chuyên đề công tác kiểm tra quý III
+                    sourceType: VAN_BAN
+                    externalDocRef: 47-BC/BTCĐUK
+                    currentVersionNo: null
+                    currentStatus: null
+                    versions: []
+                    rowVersion: 0
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: Người gọi không phải người chủ trì nhiệm vụ (`PRODUCT-403-NOT-TASK-OWNER`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '409':
+          description: >-
+            Kỳ đã khoá hoặc nhiệm vụ không ở trạng thái nhận minh chứng. Mã lỗi: `PRODUCT-409-PERIOD-LOCKED`,
+            `PRODUCT-409-TASK-STATE`.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0702]
+        owner: MOD-03
+        roles: [member]
+        scope: B
+        rules: [BR-07-13]
+        source: TL-02a SCR-0701 (suy luận bước tạo); TL-01 PL C POST /products/{id}/evidence-versions
+  /evidences/external-docs:
+    get:
+      tags: [Minh chứng]
+      operationId: searchEvidenceExternalDocs
+      summary: Tìm văn bản đã ban hành của đơn vị để làm minh chứng
+      description: >-
+        Tìm văn bản đã ban hành của đơn vị trong vOffice qua integration-gateway (SVC-13) để dùng làm minh chứng
+        mà không tải lại tệp (BR-07-13). Trả số ký hiệu, ngày ban hành, trích yếu, người ký và trạng thái chữ ký số.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Danh sách văn bản khớp từ khoá.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceExternalDocList' }
+              examples:
+                vanban:
+                  value:
+                    items:
+                      - ref: 47-BC/BTCĐUK
+                        docNumber: 47-BC/BTCĐUK
+                        docDate: '2026-10-19'
+                        summary: Báo cáo chuyên đề công tác kiểm tra quý III năm 2026
+                        signerName: Trần Thị Bình
+                        signatureValid: true
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701]
+        owner: MOD-03
+        roles: [member]
+        scope: B
+        rules: [BR-07-13]
+        source: TL-02a SCR-0701 hành động "Chọn văn bản"
+  /evidences/{id}:
+    get:
+      tags: [Minh chứng]
+      operationId: getEvidence
+      summary: Chi tiết minh chứng và lịch sử phiên bản
+      description: >-
+        Trả minh chứng cùng danh sách rút gọn mọi phiên bản (vùng 4 "Lịch sử phiên bản" của SCR-0701). Phiên bản
+        không bao giờ bị xoá (BR-07-01).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Minh chứng.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Evidence' }
+              examples:
+                hai-phien-ban:
+                  value:
+                    id: 0192a1b2-4d5e-7f60-8b1c-2d3e4f5a6b02
+                    deliverableId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+                    task: { id: 0192a0f1-2b3c-7d4e-9f50-6a7b8c9d0e11, code: NV-2026-Q4-0142, name: Báo cáo chuyên đề công tác kiểm tra quý III }
+                    title: Báo cáo chuyên đề công tác kiểm tra quý III
+                    sourceType: VAN_BAN
+                    externalDocRef: 47-BC/BTCĐUK
+                    currentVersionNo: 2
+                    currentStatus: NHAP
+                    versions:
+                      - versionNo: 1
+                        status: YEU_CAU_BO_SUNG
+                        submittedAt: '2026-10-14T16:20:00+07:00'
+                        decisionNote: Bổ sung số liệu chi bộ 3, 6.
+                      - versionNo: 2
+                        status: NHAP
+                    rowVersion: 3
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0703]
+        owner: MOD-03
+        roles: [member, manager, leader, appraiser, inspector]
+        scope: B; Gn; Cd
+        source: TL-02a SCR-0701 vùng 4; ma trận API evidences (GET)
+  /evidences/{id}/versions:
+    post:
+      tags: [Minh chứng]
+      operationId: createEvidenceVersion
+      summary: Tạo phiên bản minh chứng mới ở trạng thái nháp
+      description: >-
+        Tạo phiên bản n+1 ở trạng thái `NHAP` ("Lưu nháp" lần đầu của SCR-0701; bước đầu khi nộp lại sau
+        `YEU_CAU_BO_SUNG` hoặc `TU_CHOI`). Tham chiếu tệp đã tải lên bằng `objectId` từ
+        `POST /files/uploads/{uploadId}/complete`. Không được tạo phiên bản mới khi phiên bản mới nhất còn
+        `NHAP`, `DA_NOP` hoặc `DANG_NGHIEM_THU`. Thay cho phần lưu nháp của TL-01 PL C `POST /products/{id}/evidence-versions`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvidenceVersionDraft' }
+            examples:
+              nop-lai:
+                value:
+                  source: VAN_BAN_HE_THONG
+                  sourceDocRef: 47-BC/BTCĐUK
+                  objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
+                  docNumber: 47-BC/BTCĐUK
+                  docDate: '2026-10-19'
+                  docSummary: Báo cáo chuyên đề công tác kiểm tra quý III năm 2026
+                  note: Đã bổ sung số liệu chi bộ 3 và chi bộ 6.
+      responses:
+        '201':
+          description: Đã tạo phiên bản nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceVersion' }
+              examples:
+                nhap: { $ref: '#/components/examples/EvidenceVersionDraftExample' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: Người gọi không phải người chủ trì nhiệm vụ (`PRODUCT-403-NOT-TASK-OWNER`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Không tạo được phiên bản. Mã lỗi: `PRODUCT-409-OPEN-VERSION-EXISTS` (phiên bản mới nhất chưa kết thúc),
+            `PRODUCT-409-PERIOD-LOCKED` (đã quá thời hạn nghiệm thu tồn đọng của kỳ).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0702]
+        owner: MOD-03
+        roles: [member]
+        scope: B
+        rules: [BR-07-01, BR-07-09, BR-07-13]
+        source: TL-02a SCR-0701 "Lưu nháp" (POST); TL-01 PL C POST /products/{id}/evidence-versions
+  /evidences/{id}/versions/{v}:
+    get:
+      tags: [Minh chứng]
+      operationId: getEvidenceVersion
+      summary: Chi tiết một phiên bản minh chứng
+      description: >-
+        Trả phiên bản kèm thông tin tệp, mã băm, kết quả quét, cờ trùng, giải trình, kết quả nghiệm thu (nếu có)
+        và danh sách tiêu chuẩn chất lượng của mục danh mục để đối chiếu ở SCR-0703. Mở minh chứng ghi nhật ký
+        truy cập (SCR-0902). Với tệp C3 (`hasE2ee`), trả thêm khoá nội dung đã bọc cho người gọi.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/VersionNo'
+      responses:
+        '200':
+          description: Phiên bản minh chứng.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceVersion' }
+              examples:
+                dang-nghiem-thu: { $ref: '#/components/examples/EvidenceVersionInReviewExample' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07, QT-09]
+        scr: [SCR-0701, SCR-0703, SCR-0902]
+        owner: MOD-03
+        roles: [member, manager, appraiser, leader, inspector]
+        scope: B; Gn; Cd
+        rules: [BR-09-14]
+        source: Ma trận SCR-0701.xem, SCR-0902.xem; ma trận API evidences (GET)
+    put:
+      tags: [Minh chứng]
+      operationId: updateEvidenceVersionDraft
+      summary: Lưu nháp phiên bản minh chứng
+      description: >-
+        Sửa phiên bản đang `NHAP` (đổi tệp, giải trình dùng lại, trường văn bản, xác nhận ô do AI điền). Phiên
+        bản khác `NHAP` không sửa được (BR-07-01, trigger đóng băng của TL-03).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/VersionNo'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvidenceVersionDraft' }
+            examples:
+              giai-trinh:
+                value:
+                  source: TAI_LEN
+                  objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
+                  reuseJustification: Phụ lục số liệu dùng chung với báo cáo quý III vì cùng nguồn số liệu tổng hợp của Ban.
+                  note: Đã bổ sung số liệu chi bộ 3 và chi bộ 6.
+      responses:
+        '200':
+          description: Đã lưu nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceVersion' }
+              examples:
+                nhap: { $ref: '#/components/examples/EvidenceVersionDraftExample' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Xung đột. Mã lỗi: `PRODUCT-409-VERSION-CONFLICT` (lệch `If-Match`), `PRODUCT-409-VERSION-FROZEN`
+            (phiên bản không còn `NHAP`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0702]
+        owner: MOD-03
+        roles: [member]
+        scope: B
+        rules: [BR-07-01, BR-07-03, BR-07-09]
+        source: TL-02a SCR-0701 "Lưu nháp" (PUT, If-Match)
+  /evidences/{id}/versions/{v}/submit:
+    post:
+      tags: [Minh chứng]
+      operationId: submitEvidenceVersion
+      summary: Nộp phiên bản minh chứng để nghiệm thu
+      description: >-
+        Chuyển phiên bản `NHAP` → `DA_NOP`, ghi `submittedAt`, `attestedAt`, phát EVT-07. Khi số phiên bản
+        `DA_NOP` đủ số lượng sản phẩm, nhiệm vụ chuyển `DANG_THUC_HIEN` → `CHO_NGHIEM_THU` và phát EVT-06
+        (ngày nộp là ngày hoàn thành tạm). Máy chủ kiểm: mã băm khớp (BR-07-02), mọi tệp quét sạch (BR-07-04),
+        có giải trình khi trùng mã băm (BR-07-03), có cam kết, ô do AI điền đã được xác nhận (BR-07-09). Dùng
+        chung cho SCR-0701 và SCR-0702 ("Xác nhận và nộp"). Thay cho phần nộp của TL-01 PL C
+        `POST /products/{id}/evidence-versions`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/VersionNo'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvidenceSubmit' }
+            examples:
+              nop:
+                value:
+                  attested: true
+                  aiFieldsConfirmed: true
+      responses:
+        '200':
+          description: >-
+            Đã nộp (MSG-07-04; MSG-07-05 khi `taskStatusChanged` là `CHO_NGHIEM_THU`).
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceSubmitResult' }
+              examples:
+                da-nop:
+                  value:
+                    version:
+                      id: 0192a1d4-6f70-7b92-8d3e-4f5a6b7c8d04
+                      evidenceId: 0192a1b2-4d5e-7f60-8b1c-2d3e4f5a6b02
+                      taskId: 0192a0f1-2b3c-7d4e-9f50-6a7b8c9d0e11
+                      versionNo: 2
+                      status: DA_NOP
+                      source: VAN_BAN_HE_THONG
+                      scanStatus: SACH
+                      hasE2ee: false
+                      aiPrefill: false
+                      isDuplicateSuspect: false
+                      submittedAt: '2026-10-19T09:11:00+07:00'
+                      attestedAt: '2026-10-19T09:11:00+07:00'
+                      rowVersion: 5
+                    reviewer: { id: 0192a0bb-2222-7333-8444-555566667777, name: Lê Minh Châu }
+                    taskStatusChanged: CHO_NGHIEM_THU
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: Người gọi không phải người chủ trì nhiệm vụ (`PRODUCT-403-NOT-TASK-OWNER`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Xung đột. Mã lỗi: `PRODUCT-409-VERSION-CONFLICT`, `PRODUCT-409-INVALID-STATE` (phiên bản không ở
+            `NHAP`), `PRODUCT-409-PERIOD-LOCKED` (quá thời hạn nghiệm thu tồn đọng của kỳ).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: >-
+            Chưa đủ điều kiện nộp. Mã lỗi: `PRODUCT-422-HASH-MISMATCH` (MSG-07-03, BR-07-02),
+            `PRODUCT-422-NOT-CLEAN` (MSG-07-02, BR-07-04, gồm cả đang quét), `PRODUCT-422-REUSE-JUSTIFICATION-REQUIRED`
+            (MSG-07-01, BR-07-03), `PRODUCT-422-ATTESTATION-REQUIRED`, `PRODUCT-422-AI-NOT-CONFIRMED` (BR-07-09),
+            `PRODUCT-422-NO-OBJECT` (chưa gắn tệp hoặc văn bản).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0702]
+        owner: MOD-03
+        evt: [EVT-07, EVT-06]
+        roles: [member]
+        scope: B
+        rules: [BR-07-01, BR-07-02, BR-07-03, BR-07-04, BR-07-09]
+        source: TL-02a SCR-0701, SCR-0702 "Nộp"; TL-01 PL C POST /products/{id}/evidence-versions
+  /evidences/{id}/versions/{v}/open-review:
+    post:
+      tags: [Nghiệm thu]
+      operationId: openEvidenceReview
+      summary: Mở nghiệm thu và kiểm toàn vẹn phiên bản
+      description: >-
+        Người nghiệm thu được chỉ định mở minh chứng: lần đầu chuyển `DA_NOP` → `DANG_NGHIEM_THU`; mọi lần mở đều
+        kiểm lại mã băm của tệp với `evidence.object_version.sha256`. Không khớp thì chặn nghiệm thu, phát cảnh
+        báo an ninh mức cao (MSG-07-13). Gọi lại khi đã `DANG_NGHIEM_THU` chỉ kiểm toàn vẹn, không đổi trạng thái.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/VersionNo'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Phiên bản đang nghiệm thu, toàn vẹn đã kiểm (MSG-07-11 khi có cờ trùng).
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceVersion' }
+              examples:
+                dang-nghiem-thu: { $ref: '#/components/examples/EvidenceVersionInReviewExample' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: >-
+            Không phải người nghiệm thu được chỉ định, hoặc là người nộp, người phối hợp (`PRODUCT-403-SELF-REVIEW`, BR-07-06).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Mã lỗi: `PRODUCT-409-VERSION-CONFLICT`, `PRODUCT-409-INVALID-STATE` (phiên bản không ở `DA_NOP` hoặc
+            `DANG_NGHIEM_THU`), `PRODUCT-409-INTEGRITY-FAILED` (MSG-07-13, toàn vẹn không bảo đảm).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0703]
+        owner: MOD-03
+        roles: [manager]
+        scope: Gn
+        rules: [BR-07-06]
+        source: TL-02a SCR-0703 "Mở minh chứng"; ma trận SCR-0703.mo
+  /evidences/{id}/versions/{v}/accept:
+    post:
+      tags: [Nghiệm thu]
+      operationId: acceptEvidenceVersion
+      summary: Xác nhận nghiệm thu với mức chất lượng năm mức
+      description: >-
+        Ghi `product.acceptance` với quyết định `DA_XAC_NHAN`, chuyển phiên bản `DANG_NGHIEM_THU` → `DA_XAC_NHAN`,
+        phát EVT-08 (scoring-service tính dần A, B, C). Khi mọi sản phẩm đã xác nhận, nhiệm vụ chuyển
+        `CHO_NGHIEM_THU` → `HOAN_THANH` và phát EVT-06. Cần phiên AAL2 (BR-07-11). Không huỷ xác nhận được;
+        sai sót sau xác nhận xử lý bằng hậu kiểm QT-13. Thay cho TL-01 PL C `POST /evidence-versions/{id}/acceptance`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/VersionNo'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvidenceAcceptRequest' }
+            examples:
+              co-ban-dat:
+                value:
+                  qualityLevel: 0.75
+                  criteriaResults:
+                    - criterionCode: TC-DV-03-1
+                      passed: true
+                      note: Đạt sau bổ sung ở phiên bản 2.
+                    - criterionCode: TC-DV-03-2
+                      passed: true
+                    - criterionCode: TC-DV-03-3
+                      passed: true
+                      note: Lãnh đạo ban ký số ngày 19/10.
+                  revisionCause: NOI_DUNG_KHONG_COT_LOI
+                  isObjectiveRevision: false
+                  comment: Phiên bản 1 thiếu số liệu chi bộ 3 và 6; đã bổ sung đầy đủ ở phiên bản 2.
+      responses:
+        '200':
+          description: Đã xác nhận nghiệm thu (MSG-07-12).
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceDecisionResult' }
+              examples:
+                da-xac-nhan:
+                  value:
+                    acceptance:
+                      id: 0192a1e5-7081-7ca3-9e4f-5a6b7c8d9e05
+                      evidenceVersionId: 0192a1d4-6f70-7b92-8d3e-4f5a6b7c8d04
+                      decision: DA_XAC_NHAN
+                      qualityLevel: 0.75
+                      revisionCause: NOI_DUNG_KHONG_COT_LOI
+                      isObjectiveRevision: false
+                      revisionCount: 1
+                      comment: Phiên bản 1 thiếu số liệu chi bộ 3 và 6; đã bổ sung đầy đủ ở phiên bản 2.
+                      reviewer: { id: 0192a0bb-2222-7333-8444-555566667777, name: Lê Minh Châu }
+                      decidedAt: '2026-10-19T10:05:00+07:00'
+                    versionStatus: DA_XAC_NHAN
+                    taskStatusChanged: HOAN_THANH
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: >-
+            Không phải người nghiệm thu được chỉ định, hoặc là người nộp, người phối hợp (`PRODUCT-403-SELF-REVIEW`, BR-07-06).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Mã lỗi: `PRODUCT-409-VERSION-CONFLICT`, `PRODUCT-409-INVALID-STATE` (phiên bản không ở `DANG_NGHIEM_THU`;
+            phải gọi `open-review` trước), `PRODUCT-409-INTEGRITY-FAILED` (MSG-07-13), `PRODUCT-409-PERIOD-LOCKED`.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: >-
+            Mã lỗi: `PRODUCT-422-CRITERIA-INCOMPLETE` (MSG-07-09, chưa đánh giá hết tiêu chuẩn),
+            `PRODUCT-422-COMMENT-REQUIRED` (MSG-07-10, BR-07-08, mức dưới 1 không có nhận xét),
+            `PRODUCT-422-REVISION-CAUSE-REQUIRED` (có phiên bản trước bị yêu cầu bổ sung), `COMMON-422-VALIDATION`
+            (mức chất lượng ngoài năm giá trị, BR-07-07).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0703]
+        owner: MOD-03
+        evt: [EVT-08, EVT-06]
+        roles: [manager]
+        scope: Gn
+        aal: 2
+        rules: [BR-07-05, BR-07-06, BR-07-07, BR-07-08, BR-07-11]
+        source: TL-02a SCR-0703 "Xác nhận nghiệm thu"; TL-01 PL C POST /evidence-versions/{id}/acceptance; ma trận SCR-0703.xac-nhan
+  /evidences/{id}/versions/{v}/request-revision:
+    post:
+      tags: [Nghiệm thu]
+      operationId: requestEvidenceRevision
+      summary: Yêu cầu bổ sung minh chứng
+      description: >-
+        Ghi `product.acceptance` với quyết định `YEU_CAU_BO_SUNG` và nội dung cần bổ sung (bắt buộc, BR-07-08);
+        phiên bản chuyển `DANG_NGHIEM_THU` → `YEU_CAU_BO_SUNG` và kết thúc; nhiệm vụ trở về `DANG_THUC_HIEN`
+        (EVT-06); người nộp được thông báo (EVT-21) và tạo phiên bản mới. Thay cho TL-01 PL C
+        `POST /evidence-versions/{id}/supplement-requests`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/VersionNo'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvidenceReturnRequest' }
+            examples:
+              bo-sung:
+                value:
+                  criteriaResults:
+                    - criterionCode: TC-DV-03-1
+                      passed: false
+                      note: Thiếu số liệu chi bộ 3 và chi bộ 6.
+                  comment: Đề nghị bổ sung số liệu chi bộ 3 và chi bộ 6 theo mẫu biểu số 02.
+      responses:
+        '200':
+          description: Đã yêu cầu bổ sung.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceDecisionResult' }
+              examples:
+                bo-sung:
+                  value:
+                    acceptance:
+                      id: 0192a1e5-7081-7ca3-9e4f-5a6b7c8d9e06
+                      evidenceVersionId: 0192a1d4-6f70-7b92-8d3e-4f5a6b7c8d01
+                      decision: YEU_CAU_BO_SUNG
+                      revisionCount: 1
+                      comment: Đề nghị bổ sung số liệu chi bộ 3 và chi bộ 6 theo mẫu biểu số 02.
+                      reviewer: { id: 0192a0bb-2222-7333-8444-555566667777, name: Lê Minh Châu }
+                      decidedAt: '2026-10-15T14:30:00+07:00'
+                    versionStatus: YEU_CAU_BO_SUNG
+                    taskStatusChanged: DANG_THUC_HIEN
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: Không phải người nghiệm thu được chỉ định (`PRODUCT-403-SELF-REVIEW`, BR-07-06).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Mã lỗi `PRODUCT-409-VERSION-CONFLICT`, `PRODUCT-409-INVALID-STATE`.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: Thiếu nội dung cần bổ sung (`PRODUCT-422-COMMENT-REQUIRED`, BR-07-08).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0703]
+        owner: MOD-03
+        evt: [EVT-06, EVT-21]
+        roles: [manager]
+        scope: Gn
+        rules: [BR-07-06, BR-07-08]
+        source: TL-02a SCR-0703 "Yêu cầu bổ sung"; TL-01 PL C POST /evidence-versions/{id}/supplement-requests
+  /evidences/{id}/versions/{v}/reject:
+    post:
+      tags: [Nghiệm thu]
+      operationId: rejectEvidenceVersion
+      summary: Từ chối minh chứng
+      description: >-
+        Ghi `product.acceptance` với quyết định `TU_CHOI` và lý do (bắt buộc); phiên bản chuyển
+        `DANG_NGHIEM_THU` → `TU_CHOI`; nhiệm vụ trở về `DANG_THUC_HIEN` (EVT-06); người nộp được thông báo
+        (EVT-21). B = 0 nếu không nộp lại trước hạn nghiệm thu tồn đọng.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/VersionNo'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvidenceReturnRequest' }
+            examples:
+              tu-choi:
+                value:
+                  comment: Tệp nộp không phải báo cáo chuyên đề của quý III mà là báo cáo tháng 9.
+      responses:
+        '200':
+          description: Đã từ chối.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceDecisionResult' }
+              examples:
+                tu-choi:
+                  value:
+                    acceptance:
+                      id: 0192a1e5-7081-7ca3-9e4f-5a6b7c8d9e07
+                      evidenceVersionId: 0192a1d4-6f70-7b92-8d3e-4f5a6b7c8d01
+                      decision: TU_CHOI
+                      revisionCount: 0
+                      comment: Tệp nộp không phải báo cáo chuyên đề của quý III mà là báo cáo tháng 9.
+                      reviewer: { id: 0192a0bb-2222-7333-8444-555566667777, name: Lê Minh Châu }
+                      decidedAt: '2026-10-15T14:30:00+07:00'
+                    versionStatus: TU_CHOI
+                    taskStatusChanged: DANG_THUC_HIEN
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: Không phải người nghiệm thu được chỉ định (`PRODUCT-403-SELF-REVIEW`, BR-07-06).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Mã lỗi `PRODUCT-409-VERSION-CONFLICT`, `PRODUCT-409-INVALID-STATE`.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: Thiếu lý do từ chối (`PRODUCT-422-COMMENT-REQUIRED`, BR-07-08).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0703]
+        owner: MOD-03
+        evt: [EVT-06, EVT-21]
+        roles: [manager]
+        scope: Gn
+        rules: [BR-07-06, BR-07-08]
+        source: TL-02a SCR-0703 "Từ chối"; ma trận SCR-0703.bo-sung-tu-choi
+
+  /files/uploads:
+    post:
+      tags: [Tệp]
+      operationId: createFileUpload
+      summary: Khởi tạo phiên tải lên nhiều phần
+      description: >-
+        Khởi tạo phiên tải lên (`evidence.upload_session`) với mã băm SHA-256 và kích thước khai báo trước (tính
+        trên trình duyệt hoặc thiết bị). Trả `uploadId`, kích thước phần (5 đến 16 MB) và thời hạn phiên. Giới hạn
+        tệp 50 MB mặc định, tenant cấu hình tối đa 200 MB; ảnh chụp di động chuyển PDF trên thiết bị, ≤ 20 MB
+        (SEC-48). Với tệp C3 (`e2ee: true`), nội dung tải lên là bản mã, mã băm khai báo là băm của bản mã;
+        máy chủ không quét và không khử trùng được (TL-03 `product.e2ee_key_wrap`), việc quét chạy trên thiết bị
+        trước khi mã hoá.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FileUploadCreate' }
+            examples:
+              phu-luc:
+                value:
+                  fileName: phu-luc-so-lieu.xlsx
+                  mediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+                  declaredSize: 1843200
+                  declaredSha256: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+                  ownerModule: product
+                  classification: C1
+                  e2ee: false
+      responses:
+        '201':
+          description: Đã mở phiên tải lên.
+          headers:
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FileUploadSession' }
+              examples:
+                mo: { $ref: '#/components/examples/FileUploadSessionExample' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '413':
+          description: Tệp vượt giới hạn kích thước của tenant (`FILE-413-TOO-LARGE`, SEC-48).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '415':
+          description: Kiểu tệp không được phép (`FILE-415-UNSUPPORTED-TYPE`, SEC-48); chỉ PDF, DOCX, XLSX, JPG, PNG.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07, QT-12]
+        scr: [SCR-0701, SCR-0702, SCR-1201]
+        owner: SVC-08
+        roles: [member]
+        scope: B
+        rules: [BR-07-02]
+        source: TL-01 PL C POST /files/uploads; TL-01 SVC-08; TL-02a SCR-0701, SCR-0702; TL-03 evidence.upload_session; ma trận SCR-0701.soan
+  /files/uploads/{uploadId}:
+    get:
+      tags: [Tệp]
+      operationId: getFileUpload
+      summary: Trạng thái phiên tải lên để tải tiếp
+      description: >-
+        Trả số phần đã nhận và trạng thái phiên để trình duyệt tải tiếp sau khi mất kết nối (ngoại lệ QT-07
+        "Mất kết nối giữa chừng"). Chỉ người khởi tạo đọc được. Thao tác suy luận từ TL-01 ("hỗ trợ tải tiếp khi mất mạng").
+      parameters:
+        - $ref: '#/components/parameters/UploadId'
+      responses:
+        '200':
+          description: Phiên tải lên.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FileUploadSession' }
+              examples:
+                dang-tai: { $ref: '#/components/examples/FileUploadSessionExample' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0702]
+        owner: SVC-08
+        roles: [member]
+        scope: B
+        source: TL-01 SVC-08 (suy luận); TL-02a QT-07 ngoại lệ
+    delete:
+      tags: [Tệp]
+      operationId: cancelFileUpload
+      summary: Huỷ phiên tải lên
+      description: >-
+        Huỷ phiên đang `MO`, chuyển `HUY` và huỷ multipart dở dang trên Ceph RGW. Thao tác suy luận từ
+        trạng thái `HUY` của `evidence.upload_session`.
+      parameters:
+        - $ref: '#/components/parameters/UploadId'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: Đã huỷ.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Phiên đã hoàn tất (`FILE-409-UPLOAD-CLOSED`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0702]
+        owner: SVC-08
+        roles: [member]
+        scope: B
+        source: TL-03 evidence.upload_session (suy luận)
+  /files/uploads/{uploadId}/parts/{n}:
+    put:
+      tags: [Tệp]
+      operationId: uploadFilePart
+      summary: Gửi một phần của tệp
+      description: >-
+        Gửi phần thứ `n` (5 đến 16 MB, phần cuối có thể nhỏ hơn) dạng nhị phân. Gửi lại cùng phần là an toàn
+        (ghi đè phần chưa hoàn tất). `Idempotency-Key` nên là khoá của phiên ghép với số phần. Chỉ người khởi tạo
+        phiên được gửi.
+      parameters:
+        - $ref: '#/components/parameters/UploadId'
+        - name: n
+          in: path
+          required: true
+          description: Số thứ tự phần, bắt đầu từ 1.
+          schema: { type: integer, minimum: 1, maximum: 10000 }
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, contentMediaType: application/octet-stream }
+      responses:
+        '200':
+          description: Đã nhận phần.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FileUploadPart' }
+              examples:
+                phan-1:
+                  value: { partNo: 1, size: 8388608, etag: '"5d41402abc4b2a76b9719d911017c592"' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Phiên đã hoàn tất, đã huỷ hoặc hết hạn (`FILE-409-UPLOAD-CLOSED`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '413':
+          description: Phần vượt kích thước tối đa (`FILE-413-PART-TOO-LARGE`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0702]
+        owner: SVC-08
+        roles: [member]
+        scope: B
+        source: TL-01 PL C PUT /files/uploads/{uploadId}/parts/{n}; TL-01 SVC-08
+  /files/uploads/{uploadId}/complete:
+    post:
+      tags: [Tệp]
+      operationId: completeFileUpload
+      summary: Hoàn tất tải lên và nhận mã băm
+      description: >-
+        Ghép các phần, tính lại SHA-256 trên toàn tệp và so với băm khai báo (BR-07-02), kiểm tra định dạng thật
+        của tệp (SEC-48), ghi đối tượng vào kho có Object Lock chế độ compliance, tra `evidence.dedup_index` trong
+        phạm vi tenant, rồi xếp quét mã độc bất đồng bộ (SEC-47, ≤ 2 phút). Trả `objectId`, `sha256`,
+        `scanStatus` (thường `CHO_QUET`) và thông tin trùng mã băm nếu có (MSG-07-01). SVC-08 phát sự kiện kỹ
+        thuật `evidence.object.stored.v1` qua outbox. Trạng thái quét đọc lại bằng `GET /files/{objectId}/scan`
+        hoặc qua luồng SSE thông báo.
+      parameters:
+        - $ref: '#/components/parameters/UploadId'
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FileUploadComplete' }
+            examples:
+              hoan-tat:
+                value:
+                  parts:
+                    - { partNo: 1, etag: '"5d41402abc4b2a76b9719d911017c592"' }
+      responses:
+        '200':
+          description: Đã lưu đối tượng.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FileObject' }
+              examples:
+                trung-bam:
+                  value:
+                    objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
+                    objectVersionId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c13
+                    versionNo: 1
+                    fileName: phu-luc-so-lieu.xlsx
+                    mediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+                    sizeBytes: 1843200
+                    sha256: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+                    classification: C1
+                    e2ee: false
+                    scanStatus: CHO_QUET
+                    dedup:
+                      duplicate: true
+                      matches:
+                        - taskCode: NV-2026-Q3-0088
+                          ownerName: Phạm Thu Hà
+                          submittedAt: '2026-09-02T15:40:00+07:00'
+                    createdAt: '2026-10-19T09:05:12+07:00'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Phiên đã huỷ hoặc hết hạn (`FILE-409-UPLOAD-CLOSED`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422':
+          description: >-
+            Mã lỗi: `FILE-422-HASH-MISMATCH` (MSG-07-03, băm tính lại không khớp băm khai báo),
+            `FILE-422-SIZE-MISMATCH`, `FILE-422-MISSING-PARTS`, `FILE-422-CONTENT-TYPE-MISMATCH` (nội dung thật
+            khác kiểu khai báo hoặc có macro, SEC-48).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0702]
+        owner: SVC-08
+        roles: [member]
+        scope: B
+        rules: [BR-07-02, BR-07-03]
+        source: TL-01 PL C POST /files/uploads/{uploadId}/complete; TL-01 SVC-08; TL-03 mục 9 schema evidence
+  /files/{objectId}/download-url:
+    get:
+      tags: [Tệp]
+      operationId: getFileDownloadUrl
+      summary: Lấy URL tải tệp có hạn 5 phút
+      description: >-
+        Kiểm quyền qua OPA theo quyền trên bản ghi nghiệp vụ sở hữu tệp (với minh chứng: quyền đọc phiên bản
+        minh chứng), ghi nhật ký truy cập (bắt buộc với tệp C2, SCR-0902, SCR-1603), rồi trả URL ký trước sống
+        5 phút, phạm vi đúng một khoá đối tượng. Với tệp C3, tệp tải về là bản mã; trình duyệt giải mã bằng
+        khoá nội dung đã bọc trả trong `EvidenceVersion.keyWrap` (ADR-06). Không trả tệp nhiễm mã độc. Đây là
+        đường dẫn duy nhất để mở nội dung tệp; ma trận ghi `GET /evidences/{id}/versions/{v}/content` cho
+        SCR-1603 được ánh xạ về đây.
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - name: version
+          in: query
+          description: Số phiên bản đối tượng; mặc định phiên bản hiện hành.
+          schema: { type: integer, minimum: 1 }
+        - name: disposition
+          in: query
+          description: '`inline` để xem trong trình duyệt (trình xem SCR-0703), `attachment` để tải về.'
+          schema: { type: string, enum: [inline, attachment], default: inline }
+      responses:
+        '200':
+          description: URL tải có hạn.
+          headers:
+            Cache-Control:
+              description: Luôn `no-store`.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FileDownloadUrl' }
+              examples:
+                url:
+                  value:
+                    url: https://s3.cell-01.okrkpi.vn/ev-cell01-t001/t/0192/sha256/9f/9f86d0?X-Amz-Expires=300&X-Amz-Signature=abc
+                    expiresAt: '2026-10-19T09:16:00+07:00'
+                    mediaType: application/pdf
+                    sizeBytes: 2457600
+                    sha256: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b
+                    e2ee: false
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Tệp đang chờ quét hoặc đã bị cách ly (`FILE-409-NOT-CLEAN`, MSG-07-02).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07, QT-09, QT-16]
+        scr: [SCR-0701, SCR-0703, SCR-0902, SCR-1603]
+        owner: SVC-08
+        roles: [member, manager, leader, appraiser, inspector]
+        scope: B; Gn; Đv; Cd
+        rules: [BR-09-14]
+        source: TL-01 PL C GET /files/{objectId}/download-url; TL-01 SVC-08; TL-03 part-11 (URL ký trước); ma trận SCR-1603.mo-c2
+  /files/{objectId}/scan:
+    get:
+      tags: [Tệp]
+      operationId: getFileScanResult
+      summary: Kết quả quét mã độc của tệp
+      description: >-
+        Trả trạng thái quét (`CHO_QUET`, `SACH`, `NHIEM`, `LOI`) của phiên bản đối tượng và kết luận chi tiết của
+        bộ quét (`evidence.scan_result`). Trình duyệt hỏi lại có giãn cách (hoặc nghe SSE) cho tới khi khác
+        `CHO_QUET`; cột "Kết quả quét" của SCR-0701 hiện từ đây. Tệp nhiễm bị cách ly (MSG-07-02).
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - name: version
+          in: query
+          description: Số phiên bản đối tượng; mặc định phiên bản hiện hành.
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Kết quả quét.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FileScanResult' }
+              examples:
+                sach:
+                  value:
+                    objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
+                    objectVersionId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c13
+                    scanStatus: SACH
+                    verdict: SACH
+                    engine: ClamAV
+                    engineVersion: 1.4.1/27431
+                    scannedAt: '2026-10-19T09:06:40+07:00'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0702]
+        owner: SVC-08
+        roles: [member, manager]
+        scope: B; Gn
+        rules: [BR-07-04]
+        source: TL-01 SVC-08 GET /files/{objectId}/scan; TL-03 evidence.scan_result; SEC-47
+
+components:
+  securitySchemes:
+    keycloak:
+      $ref: '../common/common.yaml#/components/securitySchemes/keycloak'
+
+  parameters:
+    VersionNo:
+      name: v
+      in: path
+      required: true
+      description: Số phiên bản minh chứng (`product.evidence_version.version_no`), bắt đầu từ 1.
+      schema: { type: integer, minimum: 1 }
+    UploadId:
+      name: uploadId
+      in: path
+      required: true
+      description: Mã phiên tải lên (`evidence.upload_session.id`).
+      schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    ObjectId:
+      name: objectId
+      in: path
+      required: true
+      description: Mã đối tượng logic (`evidence.object_meta.id`).
+      schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+
+  examples:
+    FileUploadSessionExample:
+      summary: Phiên tải lên vừa mở
+      value:
+        uploadId: 0192a1c2-1a2b-7c3d-8e4f-5a6b7c8d9e10
+        status: MO
+        partSize: 8388608
+        partCount: 1
+        partsDone: 0
+        receivedParts: []
+        expiresAt: '2026-10-19T09:20:00+07:00'
+    EvidenceVersionDraftExample:
+      summary: Phiên bản 2 đang soạn, có tệp trùng mã băm
+      value:
+        id: 0192a1d4-6f70-7b92-8d3e-4f5a6b7c8d04
+        evidenceId: 0192a1b2-4d5e-7f60-8b1c-2d3e4f5a6b02
+        taskId: 0192a0f1-2b3c-7d4e-9f50-6a7b8c9d0e11
+        versionNo: 2
+        status: NHAP
+        source: VAN_BAN_HE_THONG
+        sourceDocRef: 47-BC/BTCĐUK
+        objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
+        objectVersionId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c13
+        contentSha256: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+        sizeBytes: 1843200
+        mediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+        fileName: phu-luc-so-lieu.xlsx
+        scanStatus: CHO_QUET
+        isDuplicateSuspect: true
+        duplicateOf:
+          taskCode: NV-2026-Q3-0088
+          ownerName: Phạm Thu Hà
+          submittedAt: '2026-09-02T15:40:00+07:00'
+        hasE2ee: false
+        aiPrefill: false
+        docNumber: 47-BC/BTCĐUK
+        docDate: '2026-10-19'
+        docSummary: Báo cáo chuyên đề công tác kiểm tra quý III năm 2026
+        note: Đã bổ sung số liệu chi bộ 3 và chi bộ 6.
+        rowVersion: 1
+    EvidenceVersionInReviewExample:
+      summary: Phiên bản 2 đang nghiệm thu, đã kiểm toàn vẹn
+      value:
+        id: 0192a1d4-6f70-7b92-8d3e-4f5a6b7c8d04
+        evidenceId: 0192a1b2-4d5e-7f60-8b1c-2d3e4f5a6b02
+        taskId: 0192a0f1-2b3c-7d4e-9f50-6a7b8c9d0e11
+        versionNo: 2
+        status: DANG_NGHIEM_THU
+        source: VAN_BAN_HE_THONG
+        sourceDocRef: 47-BC/BTCĐUK
+        objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
+        objectVersionId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c13
+        contentSha256: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b
+        sizeBytes: 2457600
+        mediaType: application/pdf
+        fileName: 47-BC-BTCDUK.pdf
+        scanStatus: SACH
+        isDuplicateSuspect: false
+        hasE2ee: false
+        aiPrefill: false
+        reuseJustification: null
+        submittedBy: { id: 0192a0aa-1111-7222-8333-444455556666, name: Nguyễn Văn An }
+        submittedAt: '2026-10-19T09:11:00+07:00'
+        attestedAt: '2026-10-19T09:11:00+07:00'
+        integrity: { verified: true, checkedAt: '2026-10-19T09:40:00+07:00' }
+        qualityCriteria:
+          - { code: TC-DV-03-1, text: Đủ số liệu theo mẫu }
+          - { code: TC-DV-03-2, text: Đúng thể thức NĐ 30/2020 }
+          - { code: TC-DV-03-3, text: Được lãnh đạo ban duyệt }
+        hasPriorRevisionRequest: true
+        rowVersion: 6
+
+  schemas:
+    DeliverableType:
+      description: Loại sản phẩm (`product.deliverable.deliverable_type`, TL-03).
+      type: string
+      enum: [VAN_BAN, BAO_CAO, SO_LIEU, SU_KIEN, KHAC]
+    DeliverableStatus:
+      description: Trạng thái tổng hợp của sản phẩm (`product.deliverable.status`, TL-03).
+      type: string
+      enum: [CHUA_CO, DANG_THUC_HIEN, DA_XAC_NHAN_MOT_PHAN, DA_XAC_NHAN]
+    Deliverable:
+      description: Sản phẩm của nhiệm vụ (`product.deliverable`).
+      type: object
+      required: [id, taskId, name, deliverableType, unit, quantityPlanned, quantityAccepted, status, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        name: { type: string, maxLength: 500 }
+        deliverableType: { $ref: '#/components/schemas/DeliverableType' }
+        unit: { type: string, maxLength: 32, description: 'Đơn vị tính' }
+        quantityPlanned: { type: number, minimum: 0, description: 'Số lượng kế hoạch' }
+        quantityAccepted: { type: number, minimum: 0, description: 'Số lượng đã được xác nhận (đầu vào cấu phần A)' }
+        status: { $ref: '#/components/schemas/DeliverableStatus' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+          taskId: 0192a0f1-2b3c-7d4e-9f50-6a7b8c9d0e11
+          name: Báo cáo chuyên đề công tác kiểm tra quý III
+          deliverableType: BAO_CAO
+          unit: báo cáo
+          quantityPlanned: 1
+          quantityAccepted: 1
+          status: DA_XAC_NHAN
+          rowVersion: 4
+    DeliverableCreate:
+      type: object
+      required: [taskId, name, deliverableType, unit, quantityPlanned]
+      properties:
+        taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        name: { type: string, minLength: 1, maxLength: 500 }
+        deliverableType: { $ref: '#/components/schemas/DeliverableType' }
+        unit: { type: string, minLength: 1, maxLength: 32 }
+        quantityPlanned: { type: number, exclusiveMinimum: 0 }
+    DeliverableList:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Deliverable' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+
+    EvidenceVersionStatus:
+      description: >-
+        Trạng thái nghiệm thu của phiên bản minh chứng (`product.evidence_version.status`, baseline 9.1, TL-02a
+        Hình 8.12). `YEU_CAU_BO_SUNG` và `TU_CHOI` là trạng thái kết thúc; nộp lại tạo phiên bản mới.
+      type: string
+      enum: [NHAP, DA_NOP, DANG_NGHIEM_THU, DA_XAC_NHAN, YEU_CAU_BO_SUNG, TU_CHOI]
+    EvidenceSourceType:
+      description: >-
+        Nguồn minh chứng (`product.evidence.source_type`, TL-03). TL-02 SCR-0701 ghi bộ khác
+        (`VAN_BAN`, `TEP`, `LIEN_KET`, `ANH_CHUP`); hợp đồng theo TL-03.
+      type: string
+      enum: [TAI_LEN, VAN_BAN, HE_THONG]
+    EvidenceVersionSource:
+      description: Nguồn của phiên bản (`product.evidence_version.source`, TL-03).
+      type: string
+      enum: [TAI_LEN, VAN_BAN_HE_THONG, OCR_DI_DONG, TICH_HOP]
+    FileScanStatus:
+      description: Trạng thái quét mã độc (`evidence.object_version.scan_status`, `product.evidence_version.scan_status`).
+      type: string
+      enum: [CHO_QUET, SACH, NHIEM, LOI]
+    FileScanVerdict:
+      description: Kết luận của bộ quét (`evidence.scan_result.verdict`).
+      type: string
+      enum: [SACH, NHIEM, NGHI_NGO, LOI]
+    Sha256Hex:
+      description: >-
+        Mã băm SHA-256 dạng 64 ký tự hex chữ thường (cột `bytea` 32 byte của TL-03). Với tệp C3 là băm của bản mã.
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+      examples: ['9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08']
+    ProductTaskRef:
+      description: Nhiệm vụ rút gọn (`task.task`).
+      type: object
+      required: [id, code, name]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, examples: ['NV-2026-Q4-0142'] }
+        name: { type: string }
+    EvidenceDuplicateMatch:
+      description: >-
+        Minh chứng khác trong tenant có cùng mã băm (`evidence.dedup_index`); hiện ở vùng 3 SCR-0701 (MSG-07-01)
+        và SCR-0703 (MSG-07-11). Không bao giờ so trùng giữa các tenant.
+      type: object
+      required: [taskCode]
+      properties:
+        taskCode: { type: string, description: 'Mã nhiệm vụ có minh chứng trùng' }
+        ownerName: { type: string, description: 'Người nộp minh chứng trùng' }
+        submittedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    EvidenceVersionSummary:
+      description: Một dòng trong lịch sử phiên bản (vùng 4 SCR-0701).
+      type: object
+      required: [versionNo, status]
+      properties:
+        versionNo: { type: integer, minimum: 1 }
+        status: { $ref: '#/components/schemas/EvidenceVersionStatus' }
+        submittedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        decidedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        qualityLevel: { $ref: '../common/common.yaml#/components/schemas/QualityLevel' }
+        decisionNote:
+          type: string
+          description: Tóm tắt nhận xét nghiệm thu, chỉ trả cho người có quyền đọc C2.
+          x-classification: C2
+    Evidence:
+      description: Minh chứng của một sản phẩm (`product.evidence`) kèm lịch sử phiên bản.
+      type: object
+      required: [id, deliverableId, task, title, sourceType, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        deliverableId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        task: { $ref: '#/components/schemas/ProductTaskRef' }
+        title: { type: string, maxLength: 500 }
+        sourceType: { $ref: '#/components/schemas/EvidenceSourceType' }
+        externalDocRef: { type: [string, 'null'], maxLength: 200, description: 'Văn bản bên ngoài làm minh chứng' }
+        currentVersionNo: { type: [integer, 'null'], description: 'Số phiên bản mới nhất' }
+        currentStatus:
+          description: Trạng thái của phiên bản mới nhất (`current_status`); null khi chưa có phiên bản.
+          oneOf:
+            - $ref: '#/components/schemas/EvidenceVersionStatus'
+            - type: 'null'
+        isDuplicateSuspect: { type: boolean, description: 'Phiên bản mới nhất nghi trùng mã băm' }
+        submittedBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        submittedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        versions:
+          type: array
+          description: Chỉ có ở `GET /evidences/{id}`; danh sách bỏ trống.
+          items: { $ref: '#/components/schemas/EvidenceVersionSummary' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - id: 0192a1b2-4d5e-7f60-8b1c-2d3e4f5a6b02
+          deliverableId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
+          task: { id: 0192a0f1-2b3c-7d4e-9f50-6a7b8c9d0e11, code: NV-2026-Q4-0142, name: Báo cáo chuyên đề công tác kiểm tra quý III }
+          title: Báo cáo chuyên đề công tác kiểm tra quý III
+          sourceType: VAN_BAN
+          externalDocRef: 47-BC/BTCĐUK
+          currentVersionNo: 2
+          currentStatus: DA_NOP
+          rowVersion: 4
+    EvidenceCreate:
+      type: object
+      required: [deliverableId, title, sourceType]
+      properties:
+        deliverableId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        title: { type: string, minLength: 1, maxLength: 500 }
+        sourceType: { $ref: '#/components/schemas/EvidenceSourceType' }
+        externalDocRef: { type: string, maxLength: 200, description: 'Bắt buộc khi `sourceType` là `VAN_BAN`' }
+    EvidenceList:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Evidence' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    EvidenceExternalDoc:
+      description: Văn bản đã ban hành lấy từ vOffice qua SVC-13 (`integ.mapping_xref`).
+      type: object
+      required: [ref, docNumber, docDate, summary]
+      properties:
+        ref: { type: string, maxLength: 200, description: 'Mã tham chiếu dùng cho `externalDocRef`, `sourceDocRef`' }
+        docNumber: { type: string, description: 'Số, ký hiệu' }
+        docDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        summary: { type: string, description: 'Trích yếu' }
+        signerName: { type: string, description: 'Người ký' }
+        signatureValid: { type: boolean, description: 'Chữ ký số gốc hợp lệ khi nhận (BR-07-13)' }
+    EvidenceExternalDocList:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/EvidenceExternalDoc' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    EvidenceKeyWrap:
+      description: >-
+        Khoá nội dung của tệp C3 đã bọc bằng khoá công khai của một người nhận (`product.e2ee_key_wrap`,
+        `object_type = EVIDENCE_FILE`, ADR-06). Máy chủ chỉ giữ bản bọc, không bao giờ thấy khoá rõ. Cấu trúc
+        trường theo `task.e2ee_key_wrap` (suy luận).
+      type: object
+      required: [recipientId, wrappedKey, alg]
+      properties:
+        recipientId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        wrappedKey: { type: string, contentEncoding: base64, description: 'Khoá nội dung đã bọc' }
+        alg: { type: string, enum: [ECDH-ES+A256KW, RSA-OAEP-256], description: 'Thuật toán bọc khoá' }
+    EvidenceQualityCriterion:
+      description: Tiêu chuẩn chất lượng của mục danh mục (`task.catalog_item.quality_criteria`).
+      type: object
+      required: [code, text]
+      properties:
+        code: { type: string }
+        text: { type: string }
+    EvidenceCriterionResult:
+      description: Kết quả đối chiếu một tiêu chuẩn (`product.acceptance.criteria_results`).
+      type: object
+      required: [criterionCode, passed]
+      properties:
+        criterionCode: { type: string }
+        passed: { type: boolean, description: 'Đạt hoặc Chưa đạt' }
+        note: { type: string, maxLength: 500 }
+    EvidenceVersion:
+      description: >-
+        Phiên bản minh chứng (`product.evidence_version`). Sau khi rời `NHAP`, các trường tệp và mã băm đóng
+        băng (BR-07-01). Trường do AI điền chỉ có hiệu lực khi người nộp xác nhận (BR-07-09).
+      type: object
+      required: [id, evidenceId, taskId, versionNo, status, source, scanStatus, hasE2ee, aiPrefill, isDuplicateSuspect, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        evidenceId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        versionNo: { type: integer, minimum: 1 }
+        status: { $ref: '#/components/schemas/EvidenceVersionStatus' }
+        source: { $ref: '#/components/schemas/EvidenceVersionSource' }
+        sourceDocRef: { type: [string, 'null'], maxLength: 200 }
+        objectId:
+          description: Đối tượng ở SVC-08 (`evidence.object_meta.id`).
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        objectVersionId:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        contentSha256:
+          oneOf:
+            - $ref: '#/components/schemas/Sha256Hex'
+            - type: 'null'
+        sizeBytes: { type: [integer, 'null'], minimum: 0 }
+        mediaType: { type: [string, 'null'], maxLength: 127 }
+        fileName:
+          type: [string, 'null']
+          maxLength: 255
+          description: >-
+            Tên tệp gốc. TL-03 xếp `product.evidence_version.file_name` C1 nhưng `evidence.object_meta.file_name_enc`
+            C2; hợp đồng xếp C2 để thống nhất.
+          x-classification: C2
+        scanStatus: { $ref: '#/components/schemas/FileScanStatus' }
+        isDuplicateSuspect: { type: boolean }
+        duplicateOf:
+          oneOf:
+            - $ref: '#/components/schemas/EvidenceDuplicateMatch'
+            - type: 'null'
+        reuseJustification: { type: [string, 'null'], minLength: 20, maxLength: 1000, description: 'Giải trình dùng lại khi trùng mã băm (BR-07-03)' }
+        hasE2ee: { type: boolean, description: 'Tệp C3 mã hoá đầu cuối; máy chủ chỉ giữ bản mã' }
+        keyWrap:
+          description: Khoá nội dung đã bọc cho chính người gọi khi `hasE2ee` (suy luận).
+          oneOf:
+            - $ref: '#/components/schemas/EvidenceKeyWrap'
+            - type: 'null'
+        aiPrefill: { type: boolean, description: 'Có trường do AI, OCR điền sẵn (SCR-0702)' }
+        aiSuggestionId:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        userConfirmedAt:
+          description: Thời điểm người nộp xác nhận các ô do AI điền.
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        docNumber: { type: [string, 'null'], maxLength: 100, description: 'Số, ký hiệu văn bản (NĐ 30/2020)' }
+        docDate:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Date'
+            - type: 'null'
+        docSummary: { type: [string, 'null'], maxLength: 2000, description: 'Trích yếu (SCR-0702 giới hạn 500 ký tự khi nhập)' }
+        note: { type: [string, 'null'], maxLength: 2000, description: 'Ghi chú của người nộp' }
+        submittedBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        submittedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        attestedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        acceptedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        excludedPeriodId:
+          description: Kỳ mà phiên bản không được tính (còn `DA_NOP` khi khoá kỳ, QT-08).
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        integrity:
+          description: Kết quả kiểm toàn vẹn mã băm lần mở gần nhất (SCR-0703).
+          type: object
+          required: [verified, checkedAt]
+          properties:
+            verified: { type: boolean }
+            checkedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        qualityCriteria:
+          type: array
+          description: Tiêu chuẩn chất lượng của mục danh mục để đối chiếu ở SCR-0703.
+          items: { $ref: '#/components/schemas/EvidenceQualityCriterion' }
+        hasPriorRevisionRequest:
+          type: boolean
+          description: Có phiên bản trước bị yêu cầu bổ sung; khi đúng, nghiệm thu phải chọn nguyên nhân chỉnh sửa.
+        acceptance:
+          description: Quyết định nghiệm thu của phiên bản này, nếu đã có.
+          oneOf:
+            - $ref: '#/components/schemas/EvidenceAcceptance'
+            - type: 'null'
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - id: 0192a1d4-6f70-7b92-8d3e-4f5a6b7c8d04
+          evidenceId: 0192a1b2-4d5e-7f60-8b1c-2d3e4f5a6b02
+          taskId: 0192a0f1-2b3c-7d4e-9f50-6a7b8c9d0e11
+          versionNo: 2
+          status: DA_NOP
+          source: OCR_DI_DONG
+          objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
+          contentSha256: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b
+          scanStatus: SACH
+          isDuplicateSuspect: false
+          hasE2ee: false
+          aiPrefill: true
+          userConfirmedAt: '2026-10-19T09:11:00+07:00'
+          docNumber: 47-BC/BTCĐUK
+          docDate: '2026-10-19'
+          docSummary: Báo cáo chuyên đề công tác kiểm tra quý III năm 2026
+          rowVersion: 5
+    EvidenceVersionDraft:
+      description: >-
+        Nội dung phiên bản khi lưu nháp. Bắt buộc `objectId` với nguồn tải lên, OCR di động; bắt buộc `sourceDocRef`
+        với nguồn văn bản hệ thống.
+      type: object
+      required: [source]
+      properties:
+        source: { $ref: '#/components/schemas/EvidenceVersionSource' }
+        sourceDocRef: { type: string, maxLength: 200 }
+        objectId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        objectVersionNo: { type: integer, minimum: 1, description: 'Phiên bản đối tượng; mặc định phiên bản hiện hành' }
+        reuseJustification: { type: string, minLength: 20, maxLength: 1000 }
+        aiPrefill: { type: boolean, default: false }
+        aiSuggestionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        aiFieldsEdited:
+          type: array
+          description: Tên các ô do AI điền mà người nộp đã sửa (ghi vết BR-07-09).
+          items: { type: string, enum: [docNumber, docDate, docSummary, taskId] }
+        docNumber: { type: string, maxLength: 100 }
+        docDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        docSummary: { type: string, maxLength: 500 }
+        note: { type: string, maxLength: 2000 }
+        keyWraps:
+          type: array
+          description: Bắt buộc khi tệp là C3; khoá nội dung bọc cho người nộp và người nghiệm thu (suy luận).
+          items: { $ref: '#/components/schemas/EvidenceKeyWrap' }
+    EvidenceSubmit:
+      type: object
+      required: [attested]
+      properties:
+        attested:
+          type: boolean
+          const: true
+          description: Cam kết tính xác thực (ô "Cam kết" SCR-0701); máy chủ ghi `attestedAt`.
+        aiFieldsConfirmed:
+          type: boolean
+          description: Người nộp xác nhận các ô do AI điền; bắt buộc đúng khi `aiPrefill` (BR-07-09).
+    EvidenceSubmitResult:
+      type: object
+      required: [version]
+      properties:
+        version: { $ref: '#/components/schemas/EvidenceVersion' }
+        reviewer: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        taskStatusChanged:
+          type: [string, 'null']
+          description: Trạng thái mới của nhiệm vụ nếu đổi (EVT-06), ví dụ `CHO_NGHIEM_THU`.
+
+    EvidenceAcceptanceDecision:
+      description: Quyết định nghiệm thu (`product.acceptance.decision`, TL-03).
+      type: string
+      enum: [DA_XAC_NHAN, YEU_CAU_BO_SUNG, TU_CHOI]
+    EvidenceRevisionCause:
+      description: Nguyên nhân chỉnh sửa (`product.acceptance.revision_cause`, TL-03).
+      type: string
+      enum: [THE_THUC, NOI_DUNG_KHONG_COT_LOI, NOI_DUNG_CO_BAN, SAI_SOT_NGHIEM_TRONG, SAI_CHU_TRUONG]
+    EvidenceAcceptance:
+      description: Bản ghi nghiệm thu (`product.acceptance`).
+      type: object
+      required: [id, evidenceVersionId, decision, reviewer, decidedAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        evidenceVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        decision: { $ref: '#/components/schemas/EvidenceAcceptanceDecision' }
+        qualityLevel: { $ref: '../common/common.yaml#/components/schemas/QualityLevel' }
+        criteriaResults:
+          type: array
+          items: { $ref: '#/components/schemas/EvidenceCriterionResult' }
+        revisionCause: { $ref: '#/components/schemas/EvidenceRevisionCause' }
+        isObjectiveRevision:
+          type: boolean
+          description: Chỉnh sửa do nguyên nhân khách quan (ảnh hưởng cách tính C).
+        revisionCount: { type: integer, minimum: 0 }
+        comment:
+          type: string
+          maxLength: 2000
+          description: Nhận xét nghiệm thu (`comment_enc`); chỉ trả cho người có quyền đọc C2.
+          x-classification: C2
+        reviewer: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        decidedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - id: 0192a1e5-7081-7ca3-9e4f-5a6b7c8d9e05
+          evidenceVersionId: 0192a1d4-6f70-7b92-8d3e-4f5a6b7c8d04
+          decision: DA_XAC_NHAN
+          qualityLevel: 0.75
+          revisionCause: NOI_DUNG_KHONG_COT_LOI
+          isObjectiveRevision: false
+          revisionCount: 1
+          comment: Đã bổ sung đầy đủ số liệu ở phiên bản 2.
+          reviewer: { id: 0192a0bb-2222-7333-8444-555566667777, name: Lê Minh Châu }
+          decidedAt: '2026-10-19T10:05:00+07:00'
+    EvidenceAcceptRequest:
+      description: >-
+        Xác nhận nghiệm thu. `comment` bắt buộc khi `qualityLevel` < 1 (BR-07-08); `revisionCause` và
+        `isObjectiveRevision` bắt buộc khi có phiên bản trước bị yêu cầu bổ sung. Mọi tiêu chuẩn chất lượng phải
+        có kết quả (MSG-07-09).
+      type: object
+      required: [qualityLevel, criteriaResults]
+      properties:
+        qualityLevel: { $ref: '../common/common.yaml#/components/schemas/QualityLevel' }
+        criteriaResults:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/EvidenceCriterionResult' }
+        revisionCause: { $ref: '#/components/schemas/EvidenceRevisionCause' }
+        isObjectiveRevision: { type: boolean }
+        comment:
+          type: string
+          maxLength: 2000
+          x-classification: C2
+    EvidenceReturnRequest:
+      description: Yêu cầu bổ sung hoặc từ chối; nhận xét, lý do bắt buộc (BR-07-08).
+      type: object
+      required: [comment]
+      properties:
+        criteriaResults:
+          type: array
+          items: { $ref: '#/components/schemas/EvidenceCriterionResult' }
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          x-classification: C2
+    EvidenceDecisionResult:
+      type: object
+      required: [acceptance, versionStatus]
+      properties:
+        acceptance: { $ref: '#/components/schemas/EvidenceAcceptance' }
+        versionStatus: { $ref: '#/components/schemas/EvidenceVersionStatus' }
+        taskStatusChanged:
+          type: [string, 'null']
+          description: Trạng thái mới của nhiệm vụ nếu đổi (EVT-06), ví dụ `HOAN_THANH`, `DANG_THUC_HIEN`.
+
+    FileUploadStatus:
+      description: Trạng thái phiên tải lên (`evidence.upload_session.status`, TL-03).
+      type: string
+      enum: [MO, HOAN_TAT, HUY]
+    FileUploadCreate:
+      type: object
+      required: [fileName, mediaType, declaredSize, declaredSha256, ownerModule, classification]
+      properties:
+        fileName:
+          type: string
+          maxLength: 255
+          description: Tên tệp gốc; SVC-08 lưu mã hoá (`file_name_enc`).
+          x-classification: C2
+        mediaType:
+          type: string
+          enum:
+            - application/pdf
+            - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+            - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+            - image/jpeg
+            - image/png
+            - application/octet-stream
+          description: Kiểu MIME khai báo; `application/octet-stream` chỉ dùng cho bản mã C3.
+        declaredSize: { type: integer, minimum: 1, description: 'Kích thước byte khai báo' }
+        declaredSha256: { $ref: '#/components/schemas/Sha256Hex' }
+        ownerModule:
+          type: string
+          enum: [product, dossier, oversight]
+          description: Module sở hữu (`evidence.object_meta.owner_module`).
+        ownerRefId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Bản ghi nghiệp vụ sở hữu nếu đã có (ví dụ minh chứng); có thể gắn sau khi nộp (suy luận).
+        classification:
+          type: string
+          enum: [C1, C2, C3]
+          description: Phân loại tệp (`evidence.object_meta.classification`).
+        e2ee:
+          type: boolean
+          default: false
+          description: Nội dung là bản mã đầu cuối (bắt buộc đúng khi `classification` là C3, ADR-06).
+    FileUploadSession:
+      description: Phiên tải lên nhiều phần (`evidence.upload_session`).
+      type: object
+      required: [uploadId, status, partSize, partsDone, expiresAt]
+      properties:
+        uploadId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        status: { $ref: '#/components/schemas/FileUploadStatus' }
+        partSize: { type: integer, minimum: 5242880, maximum: 16777216, description: 'Kích thước mỗi phần (byte)' }
+        partCount: { type: integer, minimum: 1, description: 'Số phần cần gửi' }
+        partsDone: { type: integer, minimum: 0 }
+        receivedParts:
+          type: array
+          description: Các phần đã nhận, để tải tiếp.
+          items: { $ref: '#/components/schemas/FileUploadPart' }
+        expiresAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - uploadId: 0192a1c2-1a2b-7c3d-8e4f-5a6b7c8d9e10
+          status: MO
+          partSize: 8388608
+          partCount: 1
+          partsDone: 0
+          expiresAt: '2026-10-19T09:20:00+07:00'
+    FileUploadPart:
+      type: object
+      required: [partNo, etag]
+      properties:
+        partNo: { type: integer, minimum: 1 }
+        size: { type: integer, minimum: 0 }
+        etag: { type: string, description: 'ETag của phần do kho trả, gửi lại khi hoàn tất' }
+    FileUploadComplete:
+      type: object
+      required: [parts]
+      properties:
+        parts:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/FileUploadPart' }
+    FileDedup:
+      description: Kết quả tra `evidence.dedup_index` trong phạm vi tenant.
+      type: object
+      required: [duplicate]
+      properties:
+        duplicate: { type: boolean }
+        matches:
+          type: array
+          maxItems: 16
+          items: { $ref: '#/components/schemas/EvidenceDuplicateMatch' }
+    FileObject:
+      description: Đối tượng đã lưu ở SVC-08 (`evidence.object_meta` và `evidence.object_version`).
+      type: object
+      required: [objectId, objectVersionId, versionNo, mediaType, sizeBytes, sha256, classification, e2ee, scanStatus, createdAt]
+      properties:
+        objectId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        objectVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        versionNo: { type: integer, minimum: 1 }
+        fileName:
+          type: string
+          x-classification: C2
+        mediaType: { type: string, description: 'Kiểu MIME đã xác minh' }
+        sizeBytes: { type: integer, minimum: 0 }
+        sha256: { $ref: '#/components/schemas/Sha256Hex' }
+        classification: { $ref: '../common/common.yaml#/components/schemas/Classification' }
+        e2ee: { type: boolean }
+        scanStatus: { $ref: '#/components/schemas/FileScanStatus' }
+        dedup:
+          description: Không có với tệp C3 (không khử trùng được bản mã).
+          $ref: '#/components/schemas/FileDedup'
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - objectId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c03
+          objectVersionId: 0192a1c3-5e6f-7a81-9c2d-3e4f5a6b7c13
+          versionNo: 1
+          mediaType: application/pdf
+          sizeBytes: 2457600
+          sha256: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b
+          classification: C1
+          e2ee: false
+          scanStatus: CHO_QUET
+          dedup: { duplicate: false }
+          createdAt: '2026-10-19T09:10:30+07:00'
+    FileDownloadUrl:
+      description: URL ký trước sống 5 phút, phạm vi một khoá đối tượng.
+      type: object
+      required: [url, expiresAt, sha256, e2ee]
+      properties:
+        url: { type: string, format: uri }
+        expiresAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        mediaType: { type: string }
+        sizeBytes: { type: integer, minimum: 0 }
+        sha256: { $ref: '#/components/schemas/Sha256Hex' }
+        e2ee: { type: boolean, description: 'Tệp tải về là bản mã, giải mã tại trình duyệt' }
+    FileScanResult:
+      description: Kết quả quét (`evidence.scan_result` và `evidence.object_version.scan_status`).
+      type: object
+      required: [objectId, objectVersionId, scanStatus]
+      properties:
+        objectId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        objectVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        scanStatus: { $ref: '#/components/schemas/FileScanStatus' }
+        verdict:
+          description: Kết luận của bộ quét; vắng khi còn `CHO_QUET`.
+          $ref: '#/components/schemas/FileScanVerdict'
+        engine: { type: string }
+        engineVersion: { type: string }
+        scannedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }

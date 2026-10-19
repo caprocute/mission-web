@@ -1,0 +1,1834 @@
+# Hợp đồng OpenAPI 3.1 của MOD-01 `okr` (mission-core SVC-05), WEB-063, ADR-32.
+# Nguồn:
+#   - Baseline mục 9 (schema `okr`), 9.1 (trạng thái `okr.objective.status`), 10 (vai trò AC), 13 (quy ước API);
+#     bảng sự kiện EVT-01 MucTieuDaDuyet, EVT-02 KrDaCheckIn, EVT-21 YeuCauThongBao.
+#   - TL-01 Phụ lục C mục "Mục tiêu và OKR (MOD-01)".
+#   - TL-02a QT-02 (SCR-0201, SCR-0202, SCR-0203; BR-02-01..BR-02-11; MSG-02-01..MSG-02-12),
+#     QT-03 (SCR-0301, SCR-0302; BR-03-01..BR-03-08; MSG-03-01..MSG-03-07), QT-00 SCR-0002 (khối KR cần check-in).
+#   - TL-02b QT-17 SCR-1701 (đường dẫn okr dùng từ trợ lý AI: PUT objective, POST key-results, history);
+#     TL-02b ma trận truy vết QT-02, QT-03 (`/okr/links`).
+#   - TL-03 schema `okr`: `basis`, `objective`, `key_result`, `objective_basis`, `objective_review`, `okr_link`,
+#     `kr_checkin`; cột chung (`row_version` là ETag); bảng sự kiện outbox EVT-01, EVT-02.
+#   - Ma trận phân quyền `docs/phan-quyen/ma-tran.json` (SCR-0201..SCR-0203, SCR-0301, SCR-0302, SCR-1701; dòng API `okr`).
+# Trợ lý AI cho OKR (`/ai/...`) thuộc `platform.yaml`, không nằm ở đây.
+openapi: 3.1.0
+info:
+  title: Mission – Mục tiêu và OKR (MOD-01)
+  version: 1.0.0-draft.1
+  description: >-
+    API của module `okr` (MOD-01) trong mission-core (SVC-05): căn cứ, mục tiêu O, kết quả then chốt
+    KR, liên kết dọc và ngang (phân rã ba tầng), luồng trình và phê duyệt OKR (QT-02, luồng duyệt
+    `duyet-okr` chạy trên SVC-06) và check-in KR chỉ ghi thêm (QT-03, không qua BPMN theo ADR-04).
+    Máy chủ là nơi kiểm tra cuối cùng mọi quy tắc BR-02-xx và BR-03-xx; bộ kiểm tra CEL ở trình duyệt
+    chỉ để phản hồi nhanh. Mã lỗi nghiệp vụ có tiền tố `OKR-`.
+servers:
+  - url: /api/v1
+security:
+  - keycloak: []
+tags:
+  - name: Mục tiêu
+    description: Mục tiêu O (`okr.objective`) với các KR đi kèm, trình duyệt, phê duyệt, trả lại, xuất mẫu báo cáo.
+  - name: Kết quả then chốt
+    description: Kết quả then chốt KR (`okr.key_result`), danh sách KR cần check-in, số liệu nguồn.
+  - name: Check-in
+    description: Lần check-in KR (`okr.kr_checkin`), chỉ ghi thêm; gửi rồi không sửa, không xoá (BR-03-03).
+  - name: Liên kết và căn cứ
+    description: Căn cứ (`okr.basis`), liên kết đa hình (`okr.okr_link`) và cây liên kết dọc, ngang.
+
+paths:
+  /okr/objectives:
+    get:
+      tags: [Mục tiêu]
+      operationId: listOkrObjectives
+      summary: Danh sách mục tiêu theo kỳ và đơn vị
+      description: >-
+        Trả các mục tiêu của đơn vị (hoặc của cá nhân) trong kỳ, kèm KR và tiến độ, phục vụ ba chế độ
+        xem cây, bảng và bản đồ liên kết của SCR-0201. Máy chủ lọc theo phạm vi ABAC: thành viên đơn vị
+        xem mục tiêu của đơn vị mình; `leader` xem cả cây cấp dưới. Khi `view=tree` mỗi mục tiêu kèm
+        `keyResults` và `peerLinks`; khi `view=table` chỉ kèm `keyResults`; khi `view=map` nên dùng
+        `GET /okr/alignment`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - name: view
+          in: query
+          description: Chế độ xem của SCR-0201. Mặc định `tree`.
+          schema:
+            type: string
+            enum: [tree, table, map]
+            default: tree
+        - name: ownerType
+          in: query
+          description: Lọc mục tiêu tập thể hay cá nhân (`okr.objective.owner_type`).
+          schema: { $ref: '#/components/schemas/OkrOwnerType' }
+        - name: owner
+          in: query
+          description: '`me` để chỉ lấy OKR cá nhân của người gọi.'
+          schema:
+            type: string
+            enum: [me]
+        - name: status
+          in: query
+          description: Lọc theo trạng thái mục tiêu; có thể lặp lại tham số.
+          style: form
+          explode: true
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/OkrObjectiveStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang mục tiêu.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrObjectivePage' }
+              examples:
+                cay-ban-to-chuc:
+                  summary: Cây mục tiêu Ban Tổ chức Đảng uỷ khối, Quý IV/2026
+                  value:
+                    items:
+                      - id: 0192a1b0-1111-7a00-8000-000000000001
+                        periodId: 0192a000-0000-7000-8000-00000000a426
+                        ownerType: TAP_THE
+                        ownerUnit: { id: 0192a000-0000-7000-8000-000000000b70, name: Ban Tổ chức Đảng uỷ khối }
+                        code: O1
+                        title: Nâng cao chất lượng tổ chức đảng và đảng viên
+                        tier: 1
+                        status: DA_DUYET
+                        progress: 0.64
+                        versionNo: 1
+                        aiAssisted: false
+                        approvedAt: '2026-10-08T15:20:00+07:00'
+                        rowVersion: 5
+                        keyResults:
+                          - id: 0192a1b0-2222-7a00-8000-000000000011
+                            objectiveId: 0192a1b0-1111-7a00-8000-000000000001
+                            code: KR 1.1
+                            title: Kết nạp đảng viên mới đạt 3% tổng số đảng viên đầu kỳ
+                            metricType: TY_LE
+                            unit: '%'
+                            baselineValue: 0
+                            targetValue: 3
+                            currentValue: 2.4
+                            direction: TANG
+                            weight: 0.4
+                            dueDate: '2026-12-31'
+                            confidence: CAO
+                            riskFlag: BINH_THUONG
+                            progress: 0.8
+                            status: DA_DUYET
+                            checkinFrequency: TUAN
+                            contentSource: HUMAN
+                            rowVersion: 9
+                    nextCursor: null
+                    counts: { objectives: 2, recommendedMax: 3 }
+        '400': { $ref: '../common/common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0201, SCR-0203]
+        owner: MOD-01
+        roles: [leader, manager, member, inspector, ai_readonly]
+        scope: Đv
+        source: TL-01 PL C; TL-02a SCR-0201 (`/okr/objectives?unit=&period=&view=tree`); ma trận SCR-0201.xem
+    post:
+      tags: [Mục tiêu]
+      operationId: createOkrObjective
+      summary: Tạo mục tiêu ở trạng thái nháp
+      description: >-
+        Tạo mục tiêu `NHAP` (có thể kèm KR), liên kết căn cứ và mục tiêu cấp trên. Kỳ phải tồn tại và
+        chưa khoá. Quy tắc chặn trình duyệt (BR-02-02, BR-02-04, BR-02-05, BR-02-07) không chặn lưu nháp;
+        kết quả kiểm tra trả trong `checks`. Khi kỳ đã có từ 3 mục tiêu trở lên, phải có
+        `overLimitReason` (BR-02-01, MSG-02-04). Mã `code` (`O{n}`) và mã KR do máy chủ sinh.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrObjectiveCreate' }
+            examples:
+              muc-tieu-moi:
+                value:
+                  periodId: 0192a000-0000-7000-8000-0000000a1270
+                  ownerType: TAP_THE
+                  ownerUnitId: 0192a000-0000-7000-8000-000000000b70
+                  title: Nâng chất lượng sinh hoạt chi bộ khối cơ quan
+                  parentObjectiveId: 0192a1b0-1111-7a00-8000-0000000d0001
+                  basisIds: [0192a1b0-3333-7a00-8000-000000000101]
+                  keyResults:
+                    - title: Kiểm tra 100% chi bộ trực thuộc trước 31/3/2027
+                      metricType: TY_LE
+                      unit: '%'
+                      baselineValue: 0
+                      targetValue: 100
+                      weight: 0.5
+                      dueDate: '2027-03-31'
+                      verifierPersonId: 0192a000-0000-7000-8000-00000000c001
+                      checkinFrequency: TUAN
+                      contentSource: AI_ACCEPTED
+      responses:
+        '201':
+          description: Đã tạo mục tiêu nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrObjective' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409':
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02, QT-17]
+        scr: [SCR-0201, SCR-0202, SCR-1701]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: Đv
+        rules: [BR-02-01, BR-02-11]
+        source: TL-01 PL C; TL-02a QT-02 bước 1-3; ma trận SCR-0202.soan-don-vi, SCR-0202.soan-ca-nhan
+
+  /okr/objectives/copy-from-period:
+    post:
+      tags: [Mục tiêu]
+      operationId: copyOkrObjectivesFromPeriod
+      summary: Sao chép mục tiêu kỳ trước làm điểm khởi đầu
+      description: >-
+        (suy luận) QT-02 bước 1 và MSG-02-02 cho phép sao chép mục tiêu kỳ trước nhưng TL không ghi
+        API. Máy chủ tạo bản sao ở trạng thái `NHAP` trong kỳ đích, giữ căn cứ, bỏ giá trị hiện tại,
+        check-in và liên kết cấp trên (người soạn chọn lại mục tiêu cấp trên của kỳ mới).
+        Lỗi: `OKR-409-PERIOD-LOCKED` khi kỳ đích đã khoá.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrCopyFromPeriodRequest' }
+      responses:
+        '201':
+          description: Các mục tiêu nháp đã tạo trong kỳ đích.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/OkrObjective' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0201]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: Đv
+        source: TL-02a QT-02 bước 1, MSG-02-02 (suy luận đường dẫn)
+
+  /okr/objectives/export:
+    post:
+      tags: [Mục tiêu]
+      operationId: exportOkrObjectives
+      summary: Xuất mẫu báo cáo OKR
+      description: >-
+        Sinh tệp theo mẫu báo cáo OKR của tenant cho đơn vị và kỳ, chạy nền và trả 202. TL-02 không ghi
+        phương thức; hợp đồng chọn POST vì tạo tác vụ. Kết quả lấy qua `resultLocation` của job.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrExportRequest' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0201]
+        owner: MOD-01
+        roles: [leader, manager, member]
+        scope: Đv
+        source: TL-02a SCR-0201 "Xuất mẫu"; ma trận SCR-0201.xem
+
+  /okr/objectives/approve-batch:
+    post:
+      tags: [Mục tiêu]
+      operationId: approveOkrObjectivesBatch
+      summary: Duyệt hàng loạt các bộ OKR đủ điều kiện
+      description: >-
+        Duyệt các bộ OKR "Đạt" (không cảnh báo) đã chọn, mỗi bộ một giao dịch; mục lỗi không làm hỏng
+        mục khác. Trả 202; kết quả từng mục (`BatchItemResult`) nằm trong kết quả job. BR-02-08 áp cho
+        từng bộ. Mỗi mục kèm `rowVersion` thay cho `If-Match`; lệch phiên bản thì mục đó lỗi 409.
+        Mỗi bộ được duyệt phát EVT-01.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrApproveBatchRequest' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0203]
+        owner: MOD-01
+        evt: [EVT-01]
+        roles: [leader]
+        scope: Cd
+        fourEyes: true
+        rules: [BR-02-08]
+        source: TL-02a SCR-0203 "Duyệt hàng loạt"; ma trận SCR-0203.duyet-lo
+
+  /okr/objectives/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Mục tiêu]
+      operationId: getOkrObjective
+      summary: Xem chi tiết một mục tiêu
+      description: >-
+        Trả mục tiêu kèm KR, căn cứ, liên kết, thông tin luồng duyệt và kết quả kiểm tra tự động
+        (`checks`, tính lại mỗi lần đọc, không lưu). Dùng cho SCR-0202 khi sửa và SCR-0203 khi xem chi tiết.
+      responses:
+        '200':
+          description: Mục tiêu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrObjective' }
+              examples:
+                cho-duyet:
+                  $ref: '#/components/examples/OkrObjectivePending'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0201, SCR-0202, SCR-0203]
+        owner: MOD-01
+        roles: [leader, manager, member, inspector, ai_readonly]
+        scope: Đv
+        source: TL-02a SCR-0202, SCR-0203 (đọc trước khi sửa, xem chi tiết bộ OKR)
+    put:
+      tags: [Mục tiêu]
+      operationId: updateOkrObjective
+      summary: Lưu nháp mục tiêu và toàn bộ KR
+      description: >-
+        Ghi đè phần nội dung sửa được của mục tiêu ở trạng thái `NHAP`, kể cả danh sách KR (KR lưu cùng
+        mục tiêu: KR có `id` được cập nhật, KR không có `id` được thêm, KR có trong bản cũ mà vắng mặt
+        bị xoá). Giao diện gọi tự động mỗi 30 giây. Mục tiêu `CHO_DUYET` hoặc `DA_DUYET` không sửa tại
+        chỗ (BR-02-10): trả 409 `OKR-409-INVALID-STATE`. Nội dung do AI gợi ý phải mang
+        `contentSource` là `AI_ACCEPTED` hoặc `AI_EDITED` (BR-02-11).
+        Lỗi: `OKR-409-VERSION-CONFLICT`, `OKR-409-PERIOD-LOCKED`, `OKR-409-INVALID-STATE`,
+        `OKR-422-OVER-LIMIT-REASON-REQUIRED` (MSG-02-04).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrObjectiveUpdate' }
+      responses:
+        '200':
+          description: Đã lưu nháp; trả mục tiêu kèm kết quả kiểm tra mới.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrObjective' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02, QT-17]
+        scr: [SCR-0202, SCR-1701]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: Đv
+        rules: [BR-02-01, BR-02-10, BR-02-11]
+        source: TL-02a SCR-0202 "Lưu nháp" (PUT, If-Match); TL-02b SCR-1701; TL-01 PL C ghi PATCH
+
+  /okr/objectives/{id}/submit:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Mục tiêu]
+      operationId: submitOkrObjective
+      summary: Trình phê duyệt mục tiêu
+      description: >-
+        Kiểm tra lại toàn bộ quy tắc ở máy chủ, chuyển `NHAP` → `CHO_DUYET`, tạo tiến trình `duyet-okr`
+        với người duyệt lấy từ `flowable.wf_binding`. Phản hồi trả người duyệt và hạn duyệt trong
+        `approval` để hiển thị MSG-02-08. Lỗi chặn trả 422 `OKR-422-VALIDATION` với `errors[].rule`
+        (BR-02-02, BR-02-04, BR-02-05, BR-02-07); mục tiêu cấp trên chưa duyệt trả 422
+        `OKR-422-PARENT-NOT-APPROVED` (MSG-02-03). Trạng thái sai trả 409 `OKR-409-INVALID-STATE`;
+        kỳ khoá trả 409 `OKR-409-PERIOD-LOCKED`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Đã trình; mục tiêu ở `CHO_DUYET`.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrObjective' }
+              examples:
+                da-trinh:
+                  $ref: '#/components/examples/OkrObjectivePending'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02, QT-17]
+        scr: [SCR-0202, SCR-1701]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: Đv
+        rules: [BR-02-01, BR-02-02, BR-02-03, BR-02-04, BR-02-05, BR-02-06, BR-02-07]
+        source: TL-01 PL C; TL-02a SCR-0202 "Trình phê duyệt"; ma trận SCR-0202.trinh
+
+  /okr/objectives/{id}/withdraw:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Mục tiêu]
+      operationId: withdrawOkrObjective
+      summary: Người soạn rút lại mục tiêu đang chờ duyệt
+      description: >-
+        (suy luận) Bảng trạng thái QT-02 có chuyển `CHO_DUYET` → `NHAP` khi "người soạn rút lại" nhưng
+        TL không ghi API. Máy chủ huỷ nhiệm vụ duyệt đang mở của tiến trình `duyet-okr` và đưa mục tiêu
+        về `NHAP`. Lỗi: `OKR-409-INVALID-STATE` khi mục tiêu không ở `CHO_DUYET`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrReviewComment' }
+      responses:
+        '200':
+          description: Đã rút lại; mục tiêu ở `NHAP`.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrObjective' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0202]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: Đv
+        source: TL-02a QT-02 bảng trạng thái (suy luận đường dẫn)
+
+  /okr/objectives/{id}/approve:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Mục tiêu]
+      operationId: approveOkrObjective
+      summary: Phê duyệt mục tiêu
+      description: >-
+        Hoàn thành nhiệm vụ duyệt của tiến trình `duyet-okr`, chuyển `CHO_DUYET` → `DA_DUYET`, ghi
+        `okr.objective_review` (`DUYET`), ghi sổ cái, phát EVT-01 và mở check-in (MSG-02-09). Người duyệt
+        phải khác người soạn (BR-02-08): vi phạm trả 403 `OKR-403-SELF-APPROVAL` (MSG-02-11).
+        Lỗi khác: `OKR-409-INVALID-STATE`, `OKR-409-VERSION-CONFLICT`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrApproveRequest' }
+      responses:
+        '200':
+          description: Đã phê duyệt.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrObjective' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: >-
+            OPA từ chối, hoặc người gọi là người soạn bộ OKR (`OKR-403-SELF-APPROVAL`, MSG-02-11).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+              examples:
+                tu-duyet:
+                  value:
+                    type: https://okrkpi.vn/problems/self-approval
+                    title: Không thể tự phê duyệt
+                    status: 403
+                    code: OKR-403-SELF-APPROVAL
+                    msg: MSG-02-11
+                    detail: Đồng chí là người soạn bộ OKR này nên không thể phê duyệt.
+                    traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0203]
+        owner: MOD-01
+        evt: [EVT-01]
+        roles: [leader]
+        scope: Cd
+        fourEyes: true
+        rules: [BR-02-08]
+        source: TL-02a SCR-0203 "Phê duyệt"; ma trận SCR-0203.duyet
+
+  /okr/objectives/{id}/return:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Mục tiêu]
+      operationId: returnOkrObjective
+      summary: Trả lại mục tiêu để sửa
+      description: >-
+        Chuyển `CHO_DUYET` → `NHAP`, ghi `okr.objective_review` (`TRA_LAI`) và thông báo người soạn
+        (EVT-21). Ý kiến là bắt buộc (BR-02-09): thiếu trả 422 `OKR-422-COMMENT-REQUIRED` (MSG-02-10).
+        TL-02 chỉ ghi POST; hợp đồng thêm `Idempotency-Key` theo quy ước ghi.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrReturnRequest' }
+            examples:
+              tra-lai:
+                value:
+                  comment: Đề nghị viết lại KR 1.3 thành chỉ tiêu đo được và bổ sung căn cứ Kế hoạch 05-KH/ĐUK.
+                  notifyPeers: false
+      responses:
+        '200':
+          description: Đã trả lại; mục tiêu ở `NHAP`.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrObjective' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0203]
+        owner: MOD-01
+        evt: [EVT-21]
+        roles: [leader]
+        scope: Cd
+        rules: [BR-02-09]
+        source: TL-02a SCR-0203 "Trả lại để sửa"; ma trận SCR-0203.tra-lai
+
+  /okr/objectives/{id}/history:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Mục tiêu]
+      operationId: listOkrObjectiveHistory
+      summary: Lịch sử phiên bản và luồng duyệt của mục tiêu
+      description: >-
+        Các lần lưu nháp, trình, rút lại, duyệt, trả lại theo thời gian, kèm nguồn gốc nội dung (người
+        hay gợi ý AI) và ý kiến người duyệt. Phục vụ "Lịch sử nháp" của SCR-1701 và lịch sử phiên bản,
+        lịch sử luồng duyệt của SCR-0203.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang lịch sử, mới nhất trước.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrObjectiveHistoryPage' }
+              examples:
+                lich-su:
+                  value:
+                    items:
+                      - at: '2027-01-06T09:12:00+07:00'
+                        action: TRINH
+                        versionNo: 1
+                        status: CHO_DUYET
+                        actor: { id: 0192a000-0000-7000-8000-00000000c002, name: Lê Minh Châu }
+                      - at: '2027-01-05T16:40:00+07:00'
+                        action: LUU_NHAP
+                        versionNo: 1
+                        status: NHAP
+                        actor: { id: 0192a000-0000-7000-8000-00000000c002, name: Lê Minh Châu }
+                        aiAssisted: true
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02, QT-17]
+        scr: [SCR-0203, SCR-1701]
+        owner: MOD-01
+        roles: [leader, manager, member]
+        scope: Đv
+        source: TL-02b SCR-1701 "Lịch sử nháp"; TL-02a SCR-0203 trường 2, 6
+
+  /okr/key-results:
+    get:
+      tags: [Kết quả then chốt]
+      operationId: listOkrKeyResults
+      summary: Danh sách KR
+      description: >-
+        Danh sách KR rút gọn dùng ở nhiều nơi: liên kết nhiệm vụ với KR (SCR-0501, `scope=unit`), khối
+        "KR cần check-in" của trang chủ SCR-0002 (`owner=me&needCheckin=true`), danh sách check-in của
+        SCR-0301 và SCR-0302. Mỗi dòng luôn có `id`, `code`, `title`. Khi `needCheckin=true`, phản hồi
+        có `counts.needCheckin` cho số đếm trên menu và thẻ chỉ số.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - name: scope
+          in: query
+          description: >-
+            `unit` lấy KR của đơn vị trong ngữ cảnh đang chọn (hoặc của `unit`); `subtree` lấy cả cây
+            cấp dưới (chỉ `leader`). Mặc định `unit`.
+          schema:
+            type: string
+            enum: [unit, subtree]
+            default: unit
+        - name: owner
+          in: query
+          description: '`me` để chỉ lấy KR người gọi sở hữu hoặc được giao check-in thay.'
+          schema:
+            type: string
+            enum: [me]
+        - name: needCheckin
+          in: query
+          description: Chỉ lấy KR thuộc mục tiêu `DA_DUYET` chưa có check-in `DA_GUI` trong chu kỳ hiện tại.
+          schema: { type: boolean }
+        - name: objective
+          in: query
+          description: Chỉ lấy KR của một mục tiêu.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: riskFlag
+          in: query
+          description: Lọc theo cờ rủi ro.
+          schema: { $ref: '#/components/schemas/OkrRiskFlag' }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang KR.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrKeyResultPage' }
+              examples:
+                can-check-in:
+                  summary: KR cần check-in của người gọi
+                  value:
+                    items:
+                      - id: 0192a1b0-2222-7a00-8000-000000000011
+                        code: KR 1.1
+                        title: Kết nạp đảng viên mới đạt 3% tổng số đảng viên đầu kỳ
+                        objectiveId: 0192a1b0-1111-7a00-8000-000000000001
+                        objectiveCode: O1
+                        unit: '%'
+                        targetValue: 3
+                        currentValue: 2.4
+                        confidence: CAO
+                        riskFlag: BINH_THUONG
+                        dueDate: '2026-12-31'
+                        nextCheckinDue: '2026-10-23'
+                      - id: 0192a1b0-2222-7a00-8000-000000000013
+                        code: KR 1.3
+                        title: Tỷ lệ tổ chức đảng được kiểm tra chuyên đề đạt 90%
+                        objectiveId: 0192a1b0-1111-7a00-8000-000000000001
+                        objectiveCode: O1
+                        unit: '%'
+                        targetValue: 90
+                        currentValue: 32.6
+                        confidence: THAP
+                        riskFlag: THEO_DOI
+                        dueDate: '2026-12-31'
+                        nextCheckinDue: '2026-10-23'
+                    nextCursor: null
+                    counts: { needCheckin: 2 }
+        '400': { $ref: '../common/common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00, QT-03, QT-05]
+        scr: [SCR-0002, SCR-0301, SCR-0302, SCR-0501]
+        owner: MOD-01
+        roles: [leader, manager, member, inspector, ai_readonly]
+        scope: Đv
+        source: TL-02a SCR-0002 "Tải trang" (`/okr/key-results?owner=me&needCheckin=true`); SCR-0301, SCR-0302 trường 1; mã frontend WEB-028
+    post:
+      tags: [Kết quả then chốt]
+      operationId: createOkrKeyResult
+      summary: Thêm một KR vào mục tiêu nháp
+      description: >-
+        Thêm một KR vào mục tiêu ở trạng thái `NHAP` (ví dụ khi người soạn dùng gợi ý của trợ lý AI ở
+        SCR-1701). Thao tác này làm tăng `row_version` của mục tiêu chứa KR; giao diện đang sửa mục tiêu
+        cần đọc lại ETag. Mã KR (`KR {o}.{n}`) do máy chủ sinh. Lỗi: `OKR-409-INVALID-STATE` khi mục
+        tiêu không ở `NHAP`, `OKR-409-PERIOD-LOCKED`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrKeyResultCreate' }
+      responses:
+        '201':
+          description: Đã thêm KR.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrKeyResult' }
+              examples:
+                kr-moi:
+                  $ref: '#/components/examples/OkrKeyResultExample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02, QT-17]
+        scr: [SCR-0202, SCR-1701]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: Đv
+        rules: [BR-02-04, BR-02-11]
+        source: TL-01 PL C; TL-02b SCR-1701 "Dùng gợi ý"
+
+  /okr/key-results/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Kết quả then chốt]
+      operationId: getOkrKeyResult
+      summary: Xem chi tiết một KR
+      description: >-
+        (suy luận) TL không ghi API riêng; SCR-0301 vùng 2 cần công thức, chỉ tiêu, giá trị lần trước,
+        nguồn số liệu, bản nháp check-in hiện có của người gọi và mục tiêu chứa KR.
+      responses:
+        '200':
+          description: KR.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrKeyResult' }
+              examples:
+                kr:
+                  $ref: '#/components/examples/OkrKeyResultExample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-03]
+        scr: [SCR-0301, SCR-0302, SCR-0201]
+        owner: MOD-01
+        roles: [leader, manager, member, inspector, ai_readonly]
+        scope: Đv
+        source: TL-02a SCR-0301 trường 1-6 (suy luận đường dẫn)
+
+  /okr/key-results/{id}/checkins:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Check-in]
+      operationId: listOkrCheckins
+      summary: Lịch sử check-in của KR
+      description: >-
+        Các lần check-in `DA_GUI` của KR, mới nhất trước, để vẽ biểu đồ diễn biến và xem vướng mắc.
+        Bản nháp `NHAP` chỉ trả cho chính người tạo.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang check-in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrCheckinPage' }
+              examples:
+                lich-su:
+                  value:
+                    items:
+                      - { id: 0192a1b0-4444-7a00-8000-000000000201, keyResultId: 0192a1b0-2222-7a00-8000-000000000011, checkinAt: '2026-10-22T15:30:00+07:00', value: 2.6, confidence: CAO, channel: WEB, status: DA_GUI, highlights: Kết nạp thêm 1 đảng viên tại Chi bộ 3. }
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-03]
+        scr: [SCR-0301, SCR-0201]
+        owner: MOD-01
+        roles: [leader, manager, member]
+        scope: Đv
+        source: TL-02a SCR-0301 "Lịch sử"; ma trận SCR-0301.lich-su
+    post:
+      tags: [Check-in]
+      operationId: createOkrCheckin
+      summary: Lưu nháp hoặc gửi check-in KR
+      description: >-
+        Một đường dẫn cho cả lưu nháp (`status=NHAP`) và gửi (`status=DA_GUI`). Mỗi người có tối đa
+        một bản nháp cho mỗi KR; lưu nháp lần sau ghi đè bản nháp đó, gửi thì chuyển bản nháp thành
+        `DA_GUI` (suy luận). Check-in đã gửi bất biến (BR-03-03); đính chính bằng check-in mới.
+        Khi gửi: ghi `okr.kr_checkin`, cập nhật giá trị hiện tại, tiến độ KR và mục tiêu, cờ rủi ro,
+        phát EVT-02, và EVT-21 nếu KR chuyển sang `RUI_RO` (BR-03-06). Ứng dụng di động gửi lại sau
+        mất sóng với cùng `Idempotency-Key` (lưu vào `okr.kr_checkin.idempotency_key`).
+        Lỗi: `OKR-409-OBJECTIVE-NOT-APPROVED` (BR-03-01), `OKR-409-PERIOD-LOCKED` (MSG-03-05),
+        `OKR-422-VALIDATION` (BR-03-02), `OKR-422-OVERRIDE-REASON-REQUIRED` (BR-03-04, MSG-03-04),
+        `OKR-422-LARGE-CHANGE-UNCONFIRMED` (BR-03-05, MSG-03-02; gửi lại với `confirmLargeChange=true`).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrCheckinCreate' }
+            examples:
+              gui-tu-web:
+                value:
+                  status: DA_GUI
+                  value: 2.6
+                  confidence: CAO
+                  sourceValue: 2.6
+                  sourceFetchedAt: '2026-10-22T08:00:00+07:00'
+                  highlights: Kết nạp thêm 1 đảng viên tại Chi bộ 3.
+                  channel: WEB
+              gui-tu-di-dong:
+                value:
+                  status: DA_GUI
+                  value: 37
+                  confidence: THAP
+                  blockerNote: Hai chi bộ chưa nộp báo cáo tự kiểm tra, đề nghị Văn phòng hỗ trợ đôn đốc.
+                  channel: MOBILE
+      responses:
+        '201':
+          description: Đã lưu nháp hoặc đã gửi; trả check-in và tiến độ sau khi tính lại.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrCheckinResult' }
+              examples:
+                da-gui:
+                  value:
+                    checkin: { id: 0192a1b0-4444-7a00-8000-000000000201, keyResultId: 0192a1b0-2222-7a00-8000-000000000011, checkinAt: '2026-10-22T15:30:00+07:00', value: 2.6, confidence: CAO, channel: WEB, status: DA_GUI, highlights: Kết nạp thêm 1 đảng viên tại Chi bộ 3. }
+                    keyResult:
+                      id: 0192a1b0-2222-7a00-8000-000000000011
+                      code: KR 1.1
+                      currentValue: 2.6
+                      progress: 0.8667
+                      confidence: CAO
+                      riskFlag: BINH_THUONG
+                    objective:
+                      id: 0192a1b0-1111-7a00-8000-000000000001
+                      code: O1
+                      progress: 0.6667
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-03]
+        scr: [SCR-0301, SCR-0302, SCR-0201]
+        owner: MOD-01
+        evt: [EVT-02, EVT-21]
+        roles: [manager, member]
+        scope: B
+        rules: [BR-03-01, BR-03-02, BR-03-03, BR-03-04, BR-03-05, BR-03-06]
+        source: TL-01 PL C; TL-02a SCR-0301 "Lưu nháp", "Gửi check-in"; SCR-0302 "Gửi check-in"; ma trận SCR-0301.check-in
+
+  /okr/key-results/{id}/source-value:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Kết quả then chốt]
+      operationId: getOkrKeyResultSourceValue
+      summary: Lấy lại số liệu nguồn của KR
+      description: >-
+        Gọi lại hệ thống nguồn qua integration-gateway (SVC-13) để lấy giá trị gợi ý và thời điểm lấy
+        (≤ 3 giây). Số liệu nguồn chỉ là gợi ý; chủ sở hữu KR xác nhận. TL-02 không ghi phương thức;
+        hợp đồng chọn GET vì không đổi trạng thái. Nguồn lỗi trả 502 `OKR-502-SOURCE-UNAVAILABLE`
+        (MSG-03-03), giao diện cho nhập tay.
+      responses:
+        '200':
+          description: Giá trị nguồn.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrSourceValue' }
+              examples:
+                csdl-dang-vien:
+                  value:
+                    value: 2.6
+                    fetchedAt: '2026-10-22T08:00:00+07:00'
+                    dataSource: CSDL đảng viên
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '502':
+          description: Hệ thống nguồn không phản hồi (`OKR-502-SOURCE-UNAVAILABLE`, MSG-03-03).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-03]
+        scr: [SCR-0301]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: B
+        rules: [BR-03-04]
+        source: TL-02a SCR-0301 "Lấy lại số liệu nguồn"; QT-03 bước 3
+
+  /okr/alignment:
+    get:
+      tags: [Liên kết và căn cứ]
+      operationId: getOkrAlignment
+      summary: Cây liên kết dọc và ngang
+      description: >-
+        Đồ thị liên kết (nút và cạnh) từ căn cứ, mục tiêu cấp trên, mục tiêu, KR xuống chương trình và
+        nhiệm vụ của MOD-02, cùng liên kết ngang giữa đơn vị. Dùng cho chế độ "Bản đồ liên kết" của
+        SCR-0201 và cây liên kết ở SCR-0203. Cần `objective`, hoặc cả `unit` và `period`; thiếu trả 400.
+      parameters:
+        - name: objective
+          in: query
+          description: Mục tiêu gốc của đồ thị.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+        - name: depth
+          in: query
+          description: Số tầng đi lên và đi xuống từ nút gốc (suy luận). Mặc định 3.
+          schema: { type: integer, minimum: 1, maximum: 5, default: 3 }
+      responses:
+        '200':
+          description: Đồ thị liên kết.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrAlignmentGraph' }
+              examples:
+                ban-to-chuc:
+                  value:
+                    nodes:
+                      - { type: OBJECTIVE, id: 0192a1b0-1111-7a00-8000-0000000d0001, code: O-ĐUK-1, title: Xây dựng Đảng bộ khối trong sạch vững mạnh, unitName: Đảng uỷ khối, status: DA_DUYET, progress: 0.58 }
+                      - { type: OBJECTIVE, id: 0192a1b0-1111-7a00-8000-000000000001, code: O1, title: Nâng cao chất lượng tổ chức đảng và đảng viên, unitName: Ban Tổ chức Đảng uỷ khối, status: DA_DUYET, progress: 0.64 }
+                    edges:
+                      - { fromType: OBJECTIVE, fromId: 0192a1b0-1111-7a00-8000-0000000d0001, toType: OBJECTIVE, toId: 0192a1b0-1111-7a00-8000-000000000001, linkKind: PHAN_RA }
+        '400': { $ref: '../common/common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0201, SCR-0203]
+        owner: MOD-01
+        roles: [leader, manager, member, inspector, ai_readonly]
+        scope: Đv
+        source: TL-01 PL C (`/okr/alignment?objective=`); TL-02a SCR-0201 "Bản đồ liên kết"
+
+  /okr/links:
+    get:
+      tags: [Liên kết và căn cứ]
+      operationId: listOkrLinks
+      summary: Danh sách liên kết OKR
+      description: >-
+        Tra liên kết theo đầu nguồn hoặc đầu đích (truy vết hai chiều theo PL 4 III.2), ví dụ các liên
+        kết ngang của một mục tiêu hoặc các nhiệm vụ phục vụ một KR.
+      parameters:
+        - name: fromType
+          in: query
+          schema: { $ref: '#/components/schemas/OkrLinkFromType' }
+        - name: fromId
+          in: query
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: toType
+          in: query
+          schema: { $ref: '#/components/schemas/OkrLinkToType' }
+        - name: toId
+          in: query
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: linkKind
+          in: query
+          schema: { $ref: '#/components/schemas/OkrLinkKind' }
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang liên kết.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrLinkPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0201, SCR-0202]
+        owner: MOD-01
+        roles: [leader, manager, member, inspector, ai_readonly]
+        scope: Đv
+        source: TL-02b ma trận truy vết QT-02 (`/okr/links`); TL-03 `okr.okr_link`
+    post:
+      tags: [Liên kết và căn cứ]
+      operationId: createOkrLink
+      summary: Tạo liên kết OKR
+      description: >-
+        Tạo liên kết, chủ yếu là liên kết ngang (`NGANG`) giữa mục tiêu, KR của hai đơn vị cùng kỳ
+        (SCR-0201 trường 12) hoặc liên kết đóng góp. Liên kết căn cứ và mục tiêu cấp trên của một mục
+        tiêu ghi qua `basisIds`, `parentObjectiveId` của mục tiêu. Trùng liên kết trả 409
+        `OKR-409-LINK-EXISTS`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrLinkCreate' }
+            examples:
+              lien-ket-ngang:
+                value:
+                  fromType: KEY_RESULT
+                  fromId: 0192a1b0-2222-7a00-8000-000000000021
+                  toType: KEY_RESULT
+                  toId: 0192a1b0-2222-7a00-8000-0000000e0021
+                  linkKind: NGANG
+      responses:
+        '201':
+          description: Đã tạo liên kết.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrLink' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0201, SCR-0202]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: Đv
+        source: TL-02b ma trận truy vết QT-02 (`/okr/links`, suy luận phương thức); TL-03 `okr.okr_link`
+
+  /okr/links/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    delete:
+      tags: [Liên kết và căn cứ]
+      operationId: deleteOkrLink
+      summary: Xoá liên kết OKR
+      description: >-
+        (suy luận) Xoá một liên kết ngang hoặc đóng góp khi mục tiêu đầu nguồn còn ở `NHAP`. Liên kết
+        của mục tiêu đã duyệt chỉ đổi qua phiên bản điều chỉnh (BR-02-10).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Đã xoá.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0202]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: Đv
+        rules: [BR-02-10]
+        source: TL-03 `okr.okr_link` (suy luận đường dẫn)
+
+  /okr/bases:
+    get:
+      tags: [Liên kết và căn cứ]
+      operationId: listOkrBases
+      summary: Thư viện căn cứ
+      description: >-
+        (suy luận) Danh sách căn cứ (nghị quyết, kết luận, chương trình, kế hoạch, chỉ tiêu KT-XH) để
+        chọn ở SCR-0202 trường 1. TL không ghi đường dẫn; tên tài nguyên lấy từ bảng `okr.basis`.
+      parameters:
+        - name: kind
+          in: query
+          schema: { $ref: '#/components/schemas/OkrBasisKind' }
+        - name: validOn
+          in: query
+          description: Chỉ lấy căn cứ còn hiệu lực vào ngày này.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang căn cứ.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrBasisPage' }
+              examples:
+                ke-hoach:
+                  value:
+                    items:
+                      - id: 0192a1b0-3333-7a00-8000-000000000101
+                        basisKind: KE_HOACH
+                        docNumber: 05-KH/ĐUK
+                        title: Kế hoạch công tác năm 2027 của Đảng uỷ khối
+                        issuedOn: '2026-12-20'
+                        validFrom: '2027-01-01'
+                        validTo: '2027-12-31'
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0201, SCR-0202]
+        owner: MOD-01
+        roles: [leader, manager, member, inspector, ai_readonly]
+        scope: Tn
+        source: TL-02a SCR-0202 trường 1, SCR-0201 trường 2; TL-03 `okr.basis` (suy luận đường dẫn)
+
+components:
+  securitySchemes:
+    keycloak:
+      $ref: '../common/common.yaml#/components/securitySchemes/keycloak'
+  examples:
+    OkrObjectivePending:
+      summary: Mục tiêu Quý I/2027 đã trình, chờ duyệt
+      value:
+        id: 0192a1b0-1111-7a00-8000-000000000101
+        periodId: 0192a000-0000-7000-8000-0000000a1270
+        ownerType: TAP_THE
+        ownerUnit: { id: 0192a000-0000-7000-8000-000000000b70, name: Ban Tổ chức Đảng uỷ khối }
+        code: O1
+        title: Nâng chất lượng sinh hoạt chi bộ khối cơ quan
+        tier: 1
+        parentObjective: { id: 0192a1b0-1111-7a00-8000-0000000d0001, code: O-ĐUK-1, title: Xây dựng Đảng bộ khối trong sạch vững mạnh, status: DA_DUYET }
+        bases:
+          - { id: 0192a1b0-3333-7a00-8000-000000000101, basisKind: KE_HOACH, docNumber: 05-KH/ĐUK, title: Kế hoạch công tác năm 2027 của Đảng uỷ khối }
+        status: CHO_DUYET
+        progress: 0
+        versionNo: 1
+        aiAssisted: true
+        approval:
+          reviewer: { id: 0192a000-0000-7000-8000-00000000c003, name: Đinh Văn Sơn }
+          dueDate: '2027-01-08'
+        keyResults: []
+        checks:
+          - { level: DAT, rule: BR-02-07, message: Tổng trọng số KR là 100%. }
+        createdBy: { id: 0192a000-0000-7000-8000-00000000c002, name: Lê Minh Châu }
+        createdAt: '2027-01-05T09:00:00+07:00'
+        updatedAt: '2027-01-06T09:12:00+07:00'
+        rowVersion: 12
+    OkrKeyResultExample:
+      summary: KR 1.1 của Ban Tổ chức
+      value:
+        id: 0192a1b0-2222-7a00-8000-000000000011
+        objectiveId: 0192a1b0-1111-7a00-8000-000000000001
+        periodId: 0192a000-0000-7000-8000-00000000a426
+        code: KR 1.1
+        title: Kết nạp đảng viên mới đạt 3% tổng số đảng viên đầu kỳ
+        metricType: TY_LE
+        unit: '%'
+        baselineValue: 0
+        targetValue: 3
+        currentValue: 2.4
+        direction: TANG
+        weight: 0.4
+        dueDate: '2026-12-31'
+        verifier: { id: 0192a000-0000-7000-8000-00000000c004, name: Trần Thị Hà }
+        owner: { id: 0192a000-0000-7000-8000-00000000c005, name: Nguyễn Văn An }
+        dataSource: CSDL đảng viên
+        formulaText: Số đảng viên mới kết nạp trong năm chia 500 đảng viên đầu kỳ
+        confidence: CAO
+        progress: 0.8
+        status: DA_DUYET
+        riskFlag: BINH_THUONG
+        checkinFrequency: TUAN
+        contentSource: HUMAN
+        aiAssisted: false
+        lastCheckin: { value: 2.4, confidence: CAO, checkinAt: '2026-10-16T16:05:00+07:00' }
+        nextCheckinDue: '2026-10-23'
+        rowVersion: 9
+    OkrCheckinExample:
+      summary: Check-in tuần 4 của KR 1.1
+      value:
+        id: 0192a1b0-4444-7a00-8000-000000000201
+        keyResultId: 0192a1b0-2222-7a00-8000-000000000011
+        periodId: 0192a000-0000-7000-8000-00000000a426
+        checkinAt: '2026-10-22T15:30:00+07:00'
+        value: 2.6
+        confidence: CAO
+        highlights: Kết nạp thêm 1 đảng viên tại Chi bộ 3.
+        channel: WEB
+        status: DA_GUI
+        sourceValue: 2.6
+        sourceFetchedAt: '2026-10-22T08:00:00+07:00'
+        createdBy: { id: 0192a000-0000-7000-8000-00000000c005, name: Nguyễn Văn An }
+        onBehalf: false
+
+  schemas:
+    OkrObjectiveStatus:
+      description: Trạng thái mục tiêu (`okr.objective.status`, baseline mục 9.1). KR theo trạng thái của mục tiêu.
+      type: string
+      enum: [NHAP, CHO_DUYET, DA_DUYET, DONG]
+    OkrOwnerType:
+      description: Chủ thể sở hữu mục tiêu (`okr.objective.owner_type`).
+      type: string
+      enum: [TAP_THE, CA_NHAN]
+    OkrMetricType:
+      description: Loại đo của KR (`okr.key_result.metric_type`).
+      type: string
+      enum: [SO_LUONG, TY_LE, CO_KHONG, CHI_SO]
+    OkrDirection:
+      description: Chiều tốt của KR (`okr.key_result.direction`).
+      type: string
+      enum: [TANG, GIAM, DAT]
+    OkrConfidence:
+      description: Mức tự tin (`okr.kr_checkin.confidence`, `okr.key_result.confidence`).
+      type: string
+      enum: [CAO, TRUNG_BINH, THAP]
+    OkrRiskFlag:
+      description: Cờ rủi ro của KR (`okr.key_result.risk_flag`, TL-02a QT-03).
+      type: string
+      enum: [BINH_THUONG, THEO_DOI, RUI_RO]
+    OkrContentSource:
+      description: Nguồn nội dung (`okr.key_result.content_source`, BR-02-11).
+      type: string
+      enum: [HUMAN, AI_ACCEPTED, AI_EDITED]
+    OkrCheckinFrequency:
+      description: >-
+        Tần suất check-in (`okr.key_result.checkin_frequency`). TL-03 không có CHECK IN; mã lấy từ
+        nhãn "Tuần, Hai tuần, Tháng" của SCR-0202 (suy luận).
+      type: string
+      enum: [TUAN, HAI_TUAN, THANG]
+    OkrCheckinStatus:
+      description: Trạng thái lần check-in (`okr.kr_checkin.status`).
+      type: string
+      enum: [NHAP, DA_GUI]
+    OkrCheckinChannel:
+      description: Kênh nhập check-in (`okr.kr_checkin.channel`).
+      type: string
+      enum: [WEB, MOBILE, TICH_HOP]
+    OkrBasisKind:
+      description: Loại căn cứ (`okr.basis.basis_kind`).
+      type: string
+      enum: [NGHI_QUYET, KET_LUAN, CHI_THI, CHUONG_TRINH, KE_HOACH, CHI_TIEU_KTXH]
+    OkrLinkFromType:
+      description: Loại đầu nguồn của liên kết (`okr.okr_link.from_type`).
+      type: string
+      enum: [BASIS, OBJECTIVE, KEY_RESULT]
+    OkrLinkToType:
+      description: Loại đầu đích (`okr.okr_link.to_type`); `PROGRAM`, `TASK` là mã logic của schema `task`.
+      type: string
+      enum: [OBJECTIVE, KEY_RESULT, PROGRAM, TASK]
+    OkrLinkKind:
+      description: Loại liên kết (`okr.okr_link.link_kind`).
+      type: string
+      enum: [PHAN_RA, DONG_GOP, NGANG, CAN_CU]
+    OkrReviewDecision:
+      description: Quyết định của người duyệt (`okr.objective_review.decision`).
+      type: string
+      enum: [DUYET, TRA_LAI]
+
+    OkrObjectiveRef:
+      description: Mục tiêu rút gọn.
+      type: object
+      required: [id, code, title]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 16 }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/OkrObjectiveStatus' }
+        unitName: { type: string, description: Tên đơn vị sở hữu }
+    OkrBasisRef:
+      description: Căn cứ rút gọn.
+      type: object
+      required: [id, title]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        basisKind: { $ref: '#/components/schemas/OkrBasisKind' }
+        docNumber: { type: string, maxLength: 64 }
+        title: { type: string, maxLength: 500 }
+    OkrCheckResult:
+      description: >-
+        Một kết quả của bộ kiểm tra tự động MOD-01 (tính lại mỗi lần đọc, không lưu; SCR-0203 trường 3).
+        Mã mức `DAT`, `CANH_BAO`, `LOI_CHAN` là suy luận từ nhãn "Đạt, cảnh báo, lỗi".
+      type: object
+      required: [level, rule, message]
+      properties:
+        level:
+          type: string
+          enum: [DAT, CANH_BAO, LOI_CHAN]
+        rule: { type: string, description: 'Mã quy tắc, ví dụ `BR-02-05`' }
+        msg: { type: string, description: 'Mã thông điệp TL-02, ví dụ `MSG-02-05`' }
+        message: { type: string, description: Thông điệp tiếng Việt đã điền tham số }
+        keyResultId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: KR liên quan; vắng khi quy tắc áp cho cả mục tiêu.
+        similarTaskCode:
+          type: string
+          description: Mã nhiệm vụ có nội dung gần giống KR (BR-02-06), ví dụ `NV-2027-Q1-0012`.
+    OkrApprovalInfo:
+      description: Thông tin luồng duyệt `duyet-okr` đang mở (`flowable.wf_task_projection`).
+      type: object
+      properties:
+        processInstanceId: { type: string, description: '`okr.objective.wf_process_instance_id`' }
+        reviewer: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        onBehalfOf:
+          $ref: '../common/common.yaml#/components/schemas/Ref'
+          description: Người duyệt chính khi đang duyệt thay theo uỷ quyền.
+        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        submittedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        lastComment: { type: string, maxLength: 2000, description: Ý kiến gần nhất của người duyệt }
+
+    OkrObjective:
+      description: Mục tiêu O (`okr.objective`) kèm KR, căn cứ, liên kết và kết quả kiểm tra.
+      type: object
+      required: [id, periodId, ownerType, ownerUnit, code, title, status, progress, versionNo, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        period: { $ref: '../common/common.yaml#/components/schemas/PeriodRef' }
+        ownerType: { $ref: '#/components/schemas/OkrOwnerType' }
+        ownerUnit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        ownerPerson:
+          $ref: '../common/common.yaml#/components/schemas/Ref'
+          description: Có khi `ownerType = CA_NHAN`.
+        code: { type: string, maxLength: 16, description: 'Mã hiển thị `O{n}`, duy nhất trong đơn vị và kỳ' }
+        title: { type: string, maxLength: 200 }
+        description: { type: string, description: Diễn giải chuyển biến cần đạt }
+        tier: { type: integer, minimum: 1, maximum: 3, description: Tầng phân rã }
+        parentObjective: { $ref: '#/components/schemas/OkrObjectiveRef' }
+        bases:
+          type: array
+          items: { $ref: '#/components/schemas/OkrBasisRef' }
+        status: { $ref: '#/components/schemas/OkrObjectiveStatus' }
+        progress:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Tiến độ, trung bình có trọng số tiến độ các KR, từ 0 đến 1 (`okr.objective.progress`).
+        overLimitReason: { type: string, maxLength: 500, description: Lý do vượt 3 mục tiêu (BR-02-01) }
+        overLimit: { type: boolean, description: 'Nhãn "Vượt 3 O" cho người duyệt (suy luận)' }
+        versionNo: { type: integer, minimum: 1, description: Lần trình duyệt }
+        aiAssisted: { type: boolean }
+        aiSuggestionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        approvedBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        approvedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        approval: { $ref: '#/components/schemas/OkrApprovalInfo' }
+        keyResults:
+          type: array
+          items: { $ref: '#/components/schemas/OkrKeyResult' }
+        peerLinks:
+          type: array
+          description: Liên kết ngang (`link_kind = NGANG`).
+          items: { $ref: '#/components/schemas/OkrLink' }
+        checks:
+          type: array
+          description: Kết quả kiểm tra tự động; có trong phản hồi đọc một mục tiêu và phản hồi ghi.
+          items: { $ref: '#/components/schemas/OkrCheckResult' }
+        createdBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    OkrObjectivePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OkrObjective' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        counts:
+          type: object
+          description: Số mục tiêu của đơn vị trong kỳ so với khuyến nghị (SCR-0201 vùng 1).
+          properties:
+            objectives: { type: integer, minimum: 0 }
+            recommendedMax: { type: integer, minimum: 1 }
+    OkrObjectiveWritable:
+      description: Phần sửa được của mục tiêu nháp.
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 4000 }
+        tier: { type: integer, minimum: 1, maximum: 3, default: 1 }
+        parentObjectiveId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Mục tiêu cấp trên cùng kỳ; bắt buộc khi trình, trừ cấp cao nhất (BR-02-02). Ghi vào `okr.okr_link` loại `PHAN_RA`.
+        basisIds:
+          type: array
+          description: Căn cứ (`okr.objective_basis`); ít nhất một khi trình (BR-02-02).
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        overLimitReason: { type: string, maxLength: 500 }
+        aiSuggestionId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Gợi ý AI đã được người soạn chấp nhận cho tên mục tiêu (BR-02-11).
+        keyResults:
+          type: array
+          maxItems: 5
+          description: Danh sách KR đầy đủ của mục tiêu; tổng `weight` bằng 1 khi trình (BR-02-07).
+          items: { $ref: '#/components/schemas/OkrKeyResultInput' }
+    OkrObjectiveCreate:
+      allOf:
+        - $ref: '#/components/schemas/OkrObjectiveWritable'
+        - type: object
+          required: [periodId, ownerType, ownerUnitId]
+          properties:
+            periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+            ownerType: { $ref: '#/components/schemas/OkrOwnerType' }
+            ownerUnitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+            ownerPersonId:
+              $ref: '../common/common.yaml#/components/schemas/Uuid'
+              description: Bắt buộc khi `ownerType = CA_NHAN`.
+    OkrObjectiveUpdate:
+      allOf:
+        - $ref: '#/components/schemas/OkrObjectiveWritable'
+    OkrCopyFromPeriodRequest:
+      type: object
+      required: [fromPeriodId, toPeriodId, ownerUnitId]
+      properties:
+        fromPeriodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        toPeriodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        ownerUnitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        objectiveIds:
+          type: array
+          description: Chỉ sao chép các mục tiêu này; vắng thì sao chép tất cả.
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    OkrExportRequest:
+      type: object
+      required: [periodId, unitId]
+      properties:
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        unitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        format:
+          type: string
+          enum: [DOCX, PDF, XLSX]
+          default: DOCX
+          description: Định dạng tệp (suy luận).
+    OkrReviewComment:
+      type: object
+      properties:
+        comment: { type: string, maxLength: 2000 }
+    OkrApproveRequest:
+      type: object
+      properties:
+        comment: { type: string, maxLength: 2000, description: 'Ý kiến phê duyệt, không bắt buộc' }
+        notifyPeers: { type: boolean, default: true, description: Thông báo cho các đơn vị liên kết ngang }
+    OkrReturnRequest:
+      type: object
+      required: [comment]
+      properties:
+        comment: { type: string, minLength: 1, maxLength: 2000, description: Ý kiến bắt buộc (BR-02-09) }
+        notifyPeers: { type: boolean, default: true }
+    OkrApproveBatchRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            required: [id, rowVersion]
+            properties:
+              id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+              rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        comment: { type: string, maxLength: 2000 }
+        notifyPeers: { type: boolean, default: true }
+    OkrObjectiveHistoryEntry:
+      description: Một mốc trong lịch sử mục tiêu (`okr.objective_review` và lịch sử luồng duyệt).
+      type: object
+      required: [at, action, versionNo, actor]
+      properties:
+        at: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        action:
+          type: string
+          description: Hành động (mã suy luận từ bảng trạng thái QT-02).
+          enum: [TAO, LUU_NHAP, TRINH, RUT_LAI, DUYET, TRA_LAI, DONG]
+        versionNo: { type: integer, minimum: 1 }
+        status: { $ref: '#/components/schemas/OkrObjectiveStatus' }
+        actor: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        onBehalfOf:
+          $ref: '../common/common.yaml#/components/schemas/Ref'
+          description: Người duyệt chính khi duyệt thay.
+        decision: { $ref: '#/components/schemas/OkrReviewDecision' }
+        comment: { type: string, maxLength: 4000 }
+        aiAssisted: { type: boolean, description: Lần lưu có nội dung chèn từ gợi ý AI }
+    OkrObjectiveHistoryPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OkrObjectiveHistoryEntry' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+
+    OkrLastCheckin:
+      description: Check-in `DA_GUI` gần nhất của KR.
+      type: object
+      required: [value, confidence, checkinAt]
+      properties:
+        value: { type: number }
+        confidence: { $ref: '#/components/schemas/OkrConfidence' }
+        checkinAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    OkrKeyResult:
+      description: Kết quả then chốt (`okr.key_result`).
+      type: object
+      required: [id, objectiveId, code, title, unit, targetValue, weight, dueDate, status, riskFlag, progress, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        objectiveId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 16, description: 'Mã `KR {o}.{n}`' }
+        title: { type: string, maxLength: 300 }
+        metricType: { $ref: '#/components/schemas/OkrMetricType' }
+        unit: { type: string, maxLength: 32, description: 'Đơn vị đo: %, người, hồ sơ, ngày, lần, mốc' }
+        baselineValue: { type: [number, 'null'] }
+        targetValue: { type: number }
+        currentValue: { type: [number, 'null'], description: Giá trị từ check-in gần nhất }
+        direction: { $ref: '#/components/schemas/OkrDirection' }
+        weight: { type: number, minimum: 0, maximum: 1, description: 'Trọng số trong mục tiêu, từ 0 đến 1' }
+        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        verifier: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        owner:
+          $ref: '../common/common.yaml#/components/schemas/Ref'
+          description: >-
+            Chủ sở hữu KR, người check-in (suy luận: TL-02 SCR-0002 nhắc `okr.key_result.owner_id` nhưng
+            TL-03 không có cột này).
+        checkinDelegate:
+          $ref: '../common/common.yaml#/components/schemas/Ref'
+          description: Người đang được giao check-in thay (suy luận).
+        dataSource: { type: string, maxLength: 200 }
+        formulaText: { type: string, maxLength: 1000 }
+        confidence: { $ref: '#/components/schemas/OkrConfidence' }
+        progress: { type: number, minimum: 0, maximum: 1 }
+        status: { $ref: '#/components/schemas/OkrObjectiveStatus' }
+        riskFlag: { $ref: '#/components/schemas/OkrRiskFlag' }
+        checkinFrequency: { $ref: '#/components/schemas/OkrCheckinFrequency' }
+        contentSource: { $ref: '#/components/schemas/OkrContentSource' }
+        aiAssisted: { type: boolean }
+        aiSuggestionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        lastCheckin: { $ref: '#/components/schemas/OkrLastCheckin' }
+        myDraftCheckin: { $ref: '#/components/schemas/OkrCheckin' }
+        nextCheckinDue:
+          $ref: '../common/common.yaml#/components/schemas/Date'
+          description: Hạn check-in của chu kỳ hiện tại (suy luận).
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    OkrKeyResultInput:
+      description: KR khi soạn (SCR-0202 trường 7-16).
+      type: object
+      required: [title, unit, targetValue, weight, dueDate, verifierPersonId]
+      properties:
+        id:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Có khi sửa KR đã có trong `PUT /okr/objectives/{id}`.
+        title: { type: string, minLength: 1, maxLength: 300 }
+        metricType:
+          $ref: '#/components/schemas/OkrMetricType'
+          description: Mặc định `SO_LUONG` khi vắng (suy luận; SCR-0202 không có trường này).
+        unit: { type: string, minLength: 1, maxLength: 32 }
+        baselineValue: { type: number, default: 0 }
+        targetValue: { type: number }
+        direction:
+          $ref: '#/components/schemas/OkrDirection'
+          description: Mặc định `TANG` khi vắng (suy luận).
+        weight: { type: number, minimum: 0, maximum: 1 }
+        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        verifierPersonId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: Người xác nhận, khác chủ sở hữu KR.
+        dataSource: { type: string, maxLength: 200 }
+        formulaText: { type: string, maxLength: 1000 }
+        checkinFrequency:
+          $ref: '#/components/schemas/OkrCheckinFrequency'
+        contentSource:
+          $ref: '#/components/schemas/OkrContentSource'
+        aiSuggestionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    OkrKeyResultCreate:
+      allOf:
+        - $ref: '#/components/schemas/OkrKeyResultInput'
+        - type: object
+          required: [objectiveId]
+          properties:
+            objectiveId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    OkrKeyResultListItem:
+      description: KR rút gọn trong danh sách. Luôn có `id`, `code`, `title` (tương thích frontend WEB-028).
+      type: object
+      required: [id, code, title]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 16 }
+        title: { type: string, maxLength: 300 }
+        objectiveId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        objectiveCode: { type: string, maxLength: 16 }
+        unit: { type: string, maxLength: 32 }
+        targetValue: { type: number }
+        currentValue: { type: [number, 'null'] }
+        progress: { type: number, minimum: 0, maximum: 1 }
+        confidence: { $ref: '#/components/schemas/OkrConfidence' }
+        riskFlag: { $ref: '#/components/schemas/OkrRiskFlag' }
+        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        nextCheckinDue: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        lastCheckin: { $ref: '#/components/schemas/OkrLastCheckin' }
+    OkrKeyResultPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OkrKeyResultListItem' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        counts:
+          type: object
+          description: Có khi `needCheckin=true`.
+          properties:
+            needCheckin: { type: integer, minimum: 0 }
+    OkrSourceValue:
+      type: object
+      required: [value, fetchedAt]
+      properties:
+        value: { type: number }
+        fetchedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        dataSource: { type: string, maxLength: 200 }
+
+    OkrCheckin:
+      description: Một lần check-in (`okr.kr_checkin`), chỉ ghi thêm.
+      type: object
+      required: [id, keyResultId, checkinAt, value, confidence, channel, status]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        keyResultId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        checkinAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        value: { type: number }
+        confidence: { $ref: '#/components/schemas/OkrConfidence' }
+        highlights: { type: string, maxLength: 1000 }
+        blockerNote: { type: string, maxLength: 1000 }
+        channel: { $ref: '#/components/schemas/OkrCheckinChannel' }
+        status: { $ref: '#/components/schemas/OkrCheckinStatus' }
+        sourceValue: { type: [number, 'null'] }
+        sourceFetchedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        overrideReason: { type: string, maxLength: 500 }
+        verifiedBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        verifiedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        createdBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        onBehalf: { type: boolean, description: 'Check-in thay chủ sở hữu KR (suy luận)' }
+    OkrCheckinCreate:
+      description: Thân yêu cầu lưu nháp hoặc gửi check-in (SCR-0301 trường 5-11, SCR-0302).
+      type: object
+      required: [status, value, confidence]
+      properties:
+        status:
+          $ref: '#/components/schemas/OkrCheckinStatus'
+        value:
+          type: number
+          description: Giá trị hiện tại, tối đa 4 chữ số lẻ (BR-03-02).
+          multipleOf: 0.0001
+        confidence: { $ref: '#/components/schemas/OkrConfidence' }
+        sourceValue: { type: number, description: Giá trị nguồn đã lấy (nếu có) }
+        sourceFetchedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        overrideReason:
+          type: string
+          maxLength: 500
+          description: Bắt buộc khi `value` khác `sourceValue` (BR-03-04).
+        highlights: { type: string, maxLength: 1000 }
+        blockerNote:
+          type: string
+          maxLength: 1000
+          description: Vướng mắc, đề nghị hỗ trợ; có thể bắt buộc khi tự tin `THAP` theo cấu hình tenant.
+        channel:
+          $ref: '#/components/schemas/OkrCheckinChannel'
+        confirmLargeChange:
+          type: boolean
+          default: false
+          description: Người dùng đã xác nhận cảnh báo chênh lệch lớn (BR-03-05, MSG-03-02).
+    OkrCheckinResult:
+      description: Kết quả ghi check-in kèm tiến độ đã tính lại (MSG-03-01).
+      type: object
+      required: [checkin, keyResult, objective]
+      properties:
+        checkin: { $ref: '#/components/schemas/OkrCheckin' }
+        keyResult:
+          type: object
+          required: [id, code, progress, riskFlag]
+          properties:
+            id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+            code: { type: string }
+            currentValue: { type: [number, 'null'] }
+            progress: { type: number, minimum: 0, maximum: 1 }
+            confidence: { $ref: '#/components/schemas/OkrConfidence' }
+            riskFlag: { $ref: '#/components/schemas/OkrRiskFlag' }
+        objective:
+          type: object
+          required: [id, code, progress]
+          properties:
+            id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+            code: { type: string }
+            progress: { type: number, minimum: 0, maximum: 1 }
+    OkrCheckinPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OkrCheckin' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+
+    OkrBasis:
+      description: Căn cứ (`okr.basis`).
+      type: object
+      required: [id, basisKind, title]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        basisKind: { $ref: '#/components/schemas/OkrBasisKind' }
+        docNumber: { type: string, maxLength: 64 }
+        title: { type: string, maxLength: 500 }
+        issuedByUnit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        issuedOn: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        sourceDocRef: { type: string, maxLength: 200 }
+        parentBasisId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        validTo: { $ref: '../common/common.yaml#/components/schemas/Date' }
+    OkrBasisPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OkrBasis' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    OkrLink:
+      description: Liên kết đa hình (`okr.okr_link`).
+      type: object
+      required: [id, fromType, fromId, toType, toId, linkKind]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        fromType: { $ref: '#/components/schemas/OkrLinkFromType' }
+        fromId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        toType: { $ref: '#/components/schemas/OkrLinkToType' }
+        toId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        linkKind: { $ref: '#/components/schemas/OkrLinkKind' }
+        contributionWeight: { type: [number, 'null'], minimum: 0, maximum: 1 }
+        fromLabel: { type: string, description: 'Mã, tên đầu nguồn để hiển thị' }
+        toLabel: { type: string, description: 'Mã, tên và đơn vị đầu đích để hiển thị' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    OkrLinkCreate:
+      type: object
+      required: [fromType, fromId, toType, toId, linkKind]
+      properties:
+        fromType: { $ref: '#/components/schemas/OkrLinkFromType' }
+        fromId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        toType: { $ref: '#/components/schemas/OkrLinkToType' }
+        toId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        linkKind: { $ref: '#/components/schemas/OkrLinkKind' }
+        contributionWeight: { type: number, minimum: 0, maximum: 1 }
+    OkrLinkPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OkrLink' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    OkrAlignmentNode:
+      type: object
+      required: [type, id, title]
+      properties:
+        type:
+          type: string
+          enum: [BASIS, OBJECTIVE, KEY_RESULT, PROGRAM, TASK]
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string }
+        title: { type: string }
+        unitName: { type: string }
+        status: { type: string, description: Trạng thái của đối tượng theo module sở hữu }
+        progress: { type: number, minimum: 0, maximum: 1 }
+        confidence: { $ref: '#/components/schemas/OkrConfidence' }
+    OkrAlignmentEdge:
+      type: object
+      required: [fromType, fromId, toType, toId, linkKind]
+      properties:
+        fromType: { $ref: '#/components/schemas/OkrLinkFromType' }
+        fromId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        toType: { $ref: '#/components/schemas/OkrLinkToType' }
+        toId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        linkKind: { $ref: '#/components/schemas/OkrLinkKind' }
+        contributionWeight: { type: [number, 'null'] }
+    OkrAlignmentGraph:
+      description: Đồ thị liên kết dọc và ngang.
+      type: object
+      required: [nodes, edges]
+      properties:
+        rootId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        nodes:
+          type: array
+          items: { $ref: '#/components/schemas/OkrAlignmentNode' }
+        edges:
+          type: array
+          items: { $ref: '#/components/schemas/OkrAlignmentEdge' }

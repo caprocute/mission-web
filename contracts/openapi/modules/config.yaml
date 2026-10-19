@@ -1,0 +1,3530 @@
+# Hợp đồng OpenAPI của MOD-08 `config` (WEB-063, ADR-32 trong BS-02).
+# Nguồn:
+#   - Baseline mục 7 (EVT-09, EVT-21, EVT-23, EVT-26), 9 (schema config, registry), 9.1 (trạng thái kỳ),
+#     10 (vai trò AC), 13 (quy ước API).
+#   - TL-01 chương 7 (UI Pack: cấu trúc, registry component, bộ đệm CDN và ETag, CEL, ngân sách 30 KB);
+#     TL-01 Phụ lục C mục "Cấu hình nền tảng (MOD-08)".
+#   - TL-02a QT-00 SCR-0001 (báo cáo truy cập bất thường), SCR-0002 (bố cục trang chủ);
+#     QT-01 SCR-0101, SCR-0102 (BR-01-01..BR-01-04, BR-01-10, MSG-01-01..MSG-01-07);
+#     QT-08 SCR-0801 (BR-08-01..BR-08-12, MSG-08-01..MSG-08-08).
+#   - TL-02b QT-14 SCR-1401 (ngưỡng phát hiện, BR-14-01, BR-14-09);
+#     QT-18 SCR-1801, SCR-1802 (BR-18-01..BR-18-12, MSG-18-01..MSG-18-08); TL-02b ma trận truy vết.
+#   - TL-03 schema config: tenant_setting, period, period_status_log, holiday_calendar, ui_pack,
+#     ui_pack_version, form_schema, feature_flag, role_binding, period_lock_order, period_lock_step,
+#     component_registry; registry.tenant, registry.tenant_cell, registry.tenant_domain,
+#     registry.tenant_idp (tham khảo trạng thái tenant); flowable.saga_instance; scoring.score_job;
+#     oversight.anomaly_alert.signal_code; TL-03 chương 10 (payload EVT-09, EVT-23, EVT-26).
+#   - Ma trận phân quyền docs/phan-quyen/ma-tran.json (chức năng SCR-0001, SCR-0002, SCR-0101,
+#     SCR-0102, SCR-0801, SCR-1401, SCR-1801, SCR-1802; dòng API config, periods, ui).
+openapi: 3.1.0
+info:
+  title: Mission – Cấu hình nền tảng (MOD-08)
+  version: 1.0.0-draft.1
+  description: >-
+    Hợp đồng của module `config` (MOD-08) trong mission-core với ba tiền tố: `/config` (tenant theo
+    QT-01, lịch ngày làm việc và ngày nghỉ, cờ tính năng, ngưỡng cảnh báo bất thường, báo cáo truy cập
+    bất thường), `/periods` (kỳ đánh giá và saga khoá kỳ QT-08) và `/ui` (UI Pack, danh mục component
+    SDUI, biểu mẫu động, bố cục trang chủ theo QT-18). Tiền tố `/registry` thuộc `platform.yaml`.
+    Thao tác ghi khai `Idempotency-Key`; thao tác sửa hoặc chuyển trạng thái khai `If-Match`; tác vụ
+    dài trả 202 kèm `Location: /api/v1/jobs/{id}`. Mã lỗi nghiệp vụ dùng tiền tố `CONFIG-`, `PERIOD-`, `UI-`.
+servers:
+  - url: /api/v1
+security:
+  - keycloak: []
+tags:
+  - name: Tenant
+    description: Danh sách tenant, wizard khởi tạo sáu bước, saga cấp phát, kiểm tra IdP, kích hoạt, xuất danh sách (QT-01, SCR-0101, SCR-0102).
+  - name: Bảo mật tài khoản
+    description: Báo cáo truy cập bất thường từ cảnh báo đăng nhập thiết bị mới (QT-00, SCR-0001).
+  - name: Lịch làm việc
+    description: Lịch ngày làm việc của tenant và danh mục ngày nghỉ lễ, nghỉ bù, làm bù (`config.holiday_calendar`).
+  - name: Cờ tính năng
+    description: Bật tắt tính năng theo tenant (`config.feature_flag`).
+  - name: Ngưỡng cảnh báo
+    description: Ngưỡng của tám dấu hiệu bất thường, lưu theo phiên bản trong `config.tenant_setting` (QT-14, SCR-1401).
+  - name: Kỳ đánh giá
+    description: Danh sách, tạo và xem kỳ đánh giá `config.period` (QT-08, SCR-0801).
+  - name: Khoá kỳ
+    description: Lệnh khoá kỳ, saga chốt kỳ, tiến trình, tạm dừng, chạy lại hồ sơ lỗi, huỷ và bù trừ có hai người duyệt (QT-08, SCR-0801).
+  - name: UI Pack
+    description: UI Pack hiện hành, phiên bản, xem trước, gửi duyệt, phát hành, quay lui (QT-18, SCR-1801).
+  - name: Danh mục component
+    description: Danh mục component SDUI được phép theo phiên bản registry (`config.component_registry`).
+  - name: Biểu mẫu động
+    description: Biểu mẫu JSON Schema kèm quy tắc CEL, phiên bản và bộ test hai engine (QT-18, SCR-1802).
+  - name: Bố cục trang
+    description: Bố cục SDUI đã phân giải cho trang chủ "Việc của tôi hôm nay" (SCR-0002).
+
+paths:
+  # ---------------------------------------------------------------- /config/tenants
+  /config/tenants:
+    get:
+      tags: [Tenant]
+      operationId: listConfigTenants
+      summary: Danh sách tenant kèm tải theo cell
+      description: >-
+        Trả danh sách tenant của vùng điều phối toàn cục, lọc theo cell, mô hình thuê bao và trạng thái,
+        phân trang con trỏ. Phần `summary` chứa bốn chỉ số đầu trang và tải theo cell của SCR-0101
+        (số đếm được SCR yêu cầu nên trả riêng). Cell vượt 85% kèm MSG-01-01.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0101]
+        owner: MOD-08
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        source: TL-02a SCR-0101; ma trận SCR-0101.xem
+      parameters:
+        - name: cell
+          in: query
+          description: Mã cell, ví dụ `CELL-G2`.
+          schema: { type: string, maxLength: 16 }
+        - name: model
+          in: query
+          description: Mô hình thuê bao.
+          schema: { $ref: '#/components/schemas/TenancyModel' }
+        - name: status
+          in: query
+          description: Trạng thái tenant.
+          schema: { $ref: '#/components/schemas/TenantStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang tenant và chỉ số tổng hợp.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfigTenantPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    post:
+      tags: [Tenant]
+      operationId: createConfigTenant
+      summary: Khai báo tenant mới (bước 1 của wizard)
+      description: >-
+        Tạo yêu cầu khởi tạo tenant ở trạng thái `KHOI_TAO`, sinh mã yêu cầu `ONB-yyyy-nnnn`. TL-02
+        không ghi API riêng cho bước này (suy luận từ bước 1 QT-01 và quyền POST của AC-01 trong ma trận).
+        Tên miền trùng trả 409 mã `CONFIG-409-DOMAIN-TAKEN` (MSG-01-04).
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0102]
+        owner: MOD-08
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        rules: [BR-01-04]
+        source: TL-02a QT-01 bước 1, SCR-0102; ma trận dòng API config (suy luận)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfigTenantCreate' }
+      responses:
+        '201':
+          description: Đã tạo yêu cầu khởi tạo.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfigTenant' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/tenants/export:
+    post:
+      tags: [Tenant]
+      operationId: exportConfigTenants
+      summary: Xuất danh sách tenant
+      description: Tạo tác vụ xuất danh sách tenant theo bộ lọc hiện tại; trả 202 và địa chỉ theo dõi.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0101]
+        owner: MOD-08
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        source: TL-02a SCR-0101; ma trận SCR-0101.xuat
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfigTenantExportRequest' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/tenants/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Tenant]
+      operationId: getConfigTenant
+      summary: Chi tiết tenant và cấu hình wizard
+      description: >-
+        Trả cấu hình đang soạn hoặc đang vận hành của tenant, bước hiện tại của wizard và kết quả kiểm
+        tra tổng thể của bước 6. Quản trị tenant chỉ xem được tenant của mình (bước 4, 5).
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0101, SCR-0102]
+        owner: MOD-08
+        roles: [platform_admin, tenant_admin]
+        scope: N (platform_admin), Tn (tenant_admin)
+        aal: 2
+        source: TL-02a SCR-0101 "Chi tiết", SCR-0102
+      responses:
+        '200':
+          description: Chi tiết tenant.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfigTenant' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    patch:
+      tags: [Tenant]
+      operationId: updateConfigTenant
+      summary: Lưu nháp cấu hình tenant
+      description: >-
+        Lưu cấu hình đang soạn của bất kỳ bước nào (JSON Merge Patch theo RFC 7396). Bước 1, 2, 3 do
+        `platform_admin` sửa; bước 4, 5 (IdP, nguồn nhân sự) do `tenant_admin` của tenant sửa. Mã lỗi:
+        `CONFIG-422-SILO-REQUIRED` (BR-01-01), `CONFIG-422-CELL-OVER-CAPACITY` (BR-01-02, MSG-01-03),
+        `CONFIG-422-POLICY-PACK-NOT-READY` (BR-01-03, MSG-01-05), `CONFIG-422-FLOW-PACK-MISSING`
+        (BR-01-04), `CONFIG-409-DOMAIN-TAKEN` (MSG-01-04), `CONFIG-409-VERSION-CONFLICT`.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0102]
+        owner: MOD-08
+        roles: [platform_admin, tenant_admin]
+        scope: N (platform_admin), Tn (tenant_admin)
+        aal: 2
+        rules: [BR-01-01, BR-01-02, BR-01-03, BR-01-04]
+        source: TL-02a SCR-0102 "Lưu nháp"; ma trận SCR-0102.buoc-1-3, SCR-0102.buoc-4-5
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: '#/components/schemas/ConfigTenantPatch' }
+      responses:
+        '200':
+          description: Đã lưu nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfigTenant' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    delete:
+      tags: [Tenant]
+      operationId: cancelConfigTenant
+      summary: Huỷ yêu cầu khởi tạo tenant
+      description: >-
+        Huỷ yêu cầu khi tenant còn `KHOI_TAO`, không cấp phát tài nguyên. Trạng thái khác trả 409 mã
+        `CONFIG-409-TENANT-STATE`.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0102]
+        owner: MOD-08
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        source: TL-02a SCR-0102 "Huỷ"; ma trận SCR-0102.huy
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Đã huỷ yêu cầu khởi tạo.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/tenants/{id}/provision:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Tenant]
+      operationId: provisionConfigTenant
+      summary: Khởi chạy saga cấp phát tenant
+      description: >-
+        Ở cuối bước 3, kiểm tra cấu hình và khởi chạy saga cấp phát (SVC-03 khởi tạo, SVC-06 điều phối):
+        tenant chuyển `KHOI_TAO` → `DANG_CAP_PHAT`, khi xong chuyển `DANG_CAU_HINH` (MSG-01-06); lỗi
+        không khắc phục được thì bù trừ về `KHOI_TAO` (MSG-01-07). Trả 202, job loại `PROVISION`.
+        Không phát EVT nghiệp vụ; saga ghi tiến độ.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0102]
+        owner: MOD-08
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        rules: [BR-01-01, BR-01-02, BR-01-03, BR-01-04]
+        source: TL-02a SCR-0102 "Tiếp tục"; QT-01 bước 4
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/tenants/{id}/idp/test:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Tenant]
+      operationId: testConfigTenantIdp
+      summary: Kiểm tra kết nối IdP của tenant
+      description: >-
+        Thử luồng OIDC hoặc liên kết SAML với cấu hình IdP đang soạn (bước 4). Không đổi trạng thái
+        tenant; kết quả được ghi để bước 6 kiểm tra "IdP hoạt động".
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0102]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        source: TL-02a SCR-0102 "Kiểm tra kết nối IdP"; ma trận SCR-0102.buoc-4-5
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TenantIdpTestRequest' }
+      responses:
+        '200':
+          description: Kết quả kiểm tra kết nối.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantIdpTestResult' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/tenants/{id}/activate:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Tenant]
+      operationId: activateConfigTenant
+      summary: Kích hoạt tenant
+      description: >-
+        Bước 6: khi mọi kiểm tra tổng thể đạt, chuyển `SAN_SANG` → `DANG_VAN_HANH` (hoặc `TAM_NGUNG` →
+        `DANG_VAN_HANH` khi gia hạn), yêu cầu MFA bước lên; phát EVT-21 thông báo đầu mối quản trị tenant.
+        Còn lệch mức Cao trả 422 mã `CONFIG-422-HIGH-DISCREPANCY` (BR-01-10); sai trạng thái trả 409
+        mã `CONFIG-409-TENANT-STATE`.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0102]
+        owner: MOD-08
+        evt: [EVT-21]
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        rules: [BR-01-10]
+        source: TL-02a SCR-0102 "Kích hoạt"; ma trận SCR-0102.kich-hoat
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfigTenantActivateRequest' }
+      responses:
+        '200':
+          description: Tenant đã vào vận hành.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfigTenant' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  # ---------------------------------------------------------------- /config/security
+  /config/security/report-suspicious:
+    post:
+      tags: [Bảo mật tài khoản]
+      operationId: reportSuspiciousAccess
+      summary: Báo cáo truy cập bất thường
+      description: >-
+        Người dùng bấm "Báo cáo truy cập bất thường" trên cảnh báo thiết bị mới (MSG-00-08): máy chủ thu
+        hồi mọi phiên của tài khoản, buộc đổi mật khẩu và phát EVT-21 thông báo quản trị. Phiên hiện tại
+        cũng bị thu hồi sau khi trả phản hồi.
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0001]
+        owner: MOD-08
+        evt: [EVT-21]
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        rules: [BR-00-06]
+        source: TL-02a SCR-0001; ma trận SCR-0001.bao-bat-thuong
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SuspiciousAccessReport' }
+      responses:
+        '200':
+          description: Đã ghi nhận báo cáo và thu hồi phiên.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuspiciousAccessResult' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  # ---------------------------------------------------------------- /config/calendar
+  /config/calendar:
+    get:
+      tags: [Lịch làm việc]
+      operationId: getWorkingCalendar
+      summary: Lịch ngày làm việc của tenant theo năm
+      description: >-
+        Trả lịch quốc gia hợp với lịch riêng của tenant cho một năm: ngày nghỉ lễ, nghỉ bù, làm bù và số
+        ngày làm việc từng tháng. Dùng để hiển thị hạn và số ngày chậm; máy chủ (SVC-07) là nơi tính điểm.
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: Tn
+        source: TL-01 PL C; ma trận dòng API config ("người dùng khác GET lịch ngày làm việc")
+      parameters:
+        - $ref: '#/components/parameters/Year'
+      responses:
+        '200':
+          description: Lịch ngày làm việc của năm.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkingCalendar' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/holiday-calendars:
+    get:
+      tags: [Lịch làm việc]
+      operationId: listHolidayCalendarDays
+      summary: Danh sách ngày nghỉ, làm bù
+      description: Danh mục ngày đặc biệt của tenant (kèm lịch quốc gia) để quản trị tenant chỉnh sửa.
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        source: TL-02a SCR-0801 "Lịch ngày nghỉ"; ma trận SCR-0801.tao-ky
+      parameters:
+        - $ref: '#/components/parameters/Year'
+        - name: scope
+          in: query
+          description: Lọc theo lịch quốc gia hoặc lịch riêng.
+          schema: { $ref: '#/components/schemas/HolidayScope' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang ngày đặc biệt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HolidayCalendarDayPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    post:
+      tags: [Lịch làm việc]
+      operationId: createHolidayCalendarDay
+      summary: Thêm ngày nghỉ hoặc làm bù
+      description: >-
+        Thêm một ngày vào lịch riêng của tenant. Ngày đã có trả 409 mã `CONFIG-409-DATE-EXISTS`. Lịch
+        quốc gia chỉ do tenant hệ thống cập nhật.
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        source: TL-02a SCR-0801 "Lịch ngày nghỉ"; TL-03 config.holiday_calendar
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HolidayCalendarDayInput' }
+      responses:
+        '201':
+          description: Đã thêm ngày.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HolidayCalendarDay' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/holiday-calendars/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    put:
+      tags: [Lịch làm việc]
+      operationId: updateHolidayCalendarDay
+      summary: Sửa ngày nghỉ hoặc làm bù
+      description: Sửa loại ngày hoặc tên ngày của lịch riêng tenant.
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        source: TL-02a SCR-0801 "Lịch ngày nghỉ"
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HolidayCalendarDayInput' }
+      responses:
+        '200':
+          description: Đã sửa.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HolidayCalendarDay' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    delete:
+      tags: [Lịch làm việc]
+      operationId: deleteHolidayCalendarDay
+      summary: Xoá ngày nghỉ hoặc làm bù
+      description: >-
+        Xoá một ngày của lịch riêng tenant. Ngày thuộc kỳ đã khoá vẫn xoá được nhưng không làm tính lại
+        kỳ đó (MSG-08-06 không áp dụng cho lịch; suy luận theo BR-08-07 về tính tất định).
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        source: TL-02a SCR-0801 "Lịch ngày nghỉ" (suy luận)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Đã xoá.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  # ---------------------------------------------------------------- /config/feature-flags
+  /config/feature-flags:
+    get:
+      tags: [Cờ tính năng]
+      operationId: listFeatureFlags
+      summary: Danh sách cờ tính năng của tenant
+      description: Trả mọi cờ tính năng của tenant cùng quy tắc bật dần (suy luận, cần để màn hình quản trị đọc trước khi PUT).
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        source: TL-03 config.feature_flag; ma trận dòng API config (suy luận)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang cờ tính năng.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeatureFlagPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/feature-flags/{key}:
+    parameters:
+      - $ref: '#/components/parameters/FlagKeyPath'
+    put:
+      tags: [Cờ tính năng]
+      operationId: setFeatureFlag
+      summary: Bật tắt tính năng theo tenant
+      description: >-
+        Đặt trạng thái và quy tắc bật dần của một cờ. Cờ do nền tảng khai báo sẵn cho mọi tenant (suy
+        luận), nên thao tác luôn là cập nhật và cần `If-Match`; mã cờ lạ trả 404.
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        source: TL-01 PL C; TL-03 config.feature_flag
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FeatureFlagInput' }
+      responses:
+        '200':
+          description: Đã cập nhật cờ.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeatureFlag' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  # ---------------------------------------------------------------- /config/anomaly-thresholds
+  /config/anomaly-thresholds:
+    get:
+      tags: [Ngưỡng cảnh báo]
+      operationId: getAnomalyThresholds
+      summary: Ngưỡng phát hiện tám dấu hiệu bất thường
+      description: Trả phiên bản ngưỡng hiện hành của tenant (suy luận, cần để màn hình "Ngưỡng phát hiện" đọc trước khi PUT).
+      x-mission:
+        qt: [QT-14]
+        scr: [SCR-1401]
+        owner: MOD-08
+        roles: [policy_author]
+        scope: Tn
+        rules: [BR-14-01, BR-14-09]
+        source: TL-02b SCR-1401 "Ngưỡng phát hiện" (suy luận)
+      responses:
+        '200':
+          description: Bộ ngưỡng hiện hành.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnomalyThresholdSet' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    put:
+      tags: [Ngưỡng cảnh báo]
+      operationId: updateAnomalyThresholds
+      summary: Lưu phiên bản ngưỡng mới
+      description: >-
+        Lưu phiên bản ngưỡng mới có lý do (BR-14-09); phiên bản cũ được giữ trong `config.tenant_setting`.
+        Job phát hiện đêm (SVC-15) dùng phiên bản mới từ lần chạy kế tiếp.
+      x-mission:
+        qt: [QT-14]
+        scr: [SCR-1401]
+        owner: MOD-08
+        roles: [policy_author]
+        scope: Tn
+        rules: [BR-14-01, BR-14-09]
+        source: TL-02b SCR-1401; ma trận SCR-1401.nguong
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnomalyThresholdUpdate' }
+      responses:
+        '200':
+          description: Đã lưu phiên bản ngưỡng mới.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnomalyThresholdSet' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  # ---------------------------------------------------------------- /periods
+  /periods:
+    get:
+      tags: [Kỳ đánh giá]
+      operationId: listPeriods
+      summary: Danh sách kỳ và trạng thái
+      description: Trả các kỳ đánh giá của tenant theo năm, loại kỳ, luồng và trạng thái, mới nhất trước.
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801, SCR-0002]
+        owner: MOD-08
+        roles: [tenant_admin, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: Tn
+        source: TL-01 PL C; TL-02a SCR-0801; ma trận dòng API periods
+      parameters:
+        - $ref: '#/components/parameters/YearOptional'
+        - name: kind
+          in: query
+          schema: { $ref: '#/components/schemas/PeriodKind' }
+        - name: flow
+          in: query
+          schema: { $ref: '#/components/schemas/PeriodFlow' }
+        - name: status
+          in: query
+          schema: { $ref: '../common/common.yaml#/components/schemas/PeriodStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang kỳ đánh giá.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    post:
+      tags: [Kỳ đánh giá]
+      operationId: createPeriod
+      summary: Tạo kỳ đánh giá
+      description: >-
+        Tạo kỳ mới với lịch mốc mặc định theo Policy Pack và ghim phiên bản Policy Pack đang hiệu lực
+        cho kỳ (BR-08-07). Kỳ chồng lấn cùng loại, cùng luồng trả 409 mã `PERIOD-409-OVERLAP`; lịch khoá
+        muộn hơn tham số được trả kèm cảnh báo `warnings` (BR-08-12).
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        rules: [BR-08-07, BR-08-12]
+        source: TL-02a SCR-0801 "Tạo kỳ"; ma trận SCR-0801.tao-ky
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PeriodCreate' }
+      responses:
+        '201':
+          description: Đã tạo kỳ.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Period' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /periods/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Kỳ đánh giá]
+      operationId: getPeriod
+      summary: Chi tiết kỳ đánh giá
+      description: Trả kỳ, lịch mốc, Policy Pack ghim và lệnh khoá kỳ hiện hành (nếu có).
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: Tn
+        source: TL-02a SCR-0801 trường 1 đến 4
+      responses:
+        '200':
+          description: Chi tiết kỳ.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Period' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /periods/{id}/lock-orders:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Khoá kỳ]
+      operationId: createPeriodLockOrder
+      summary: Lập lệnh khoá kỳ
+      description: >-
+        Lập lệnh khoá kỳ khi kỳ đang `MO` (hoặc `MO_LAI_HAU_KIEM`) và chưa có lệnh còn hiệu lực; lệnh
+        vào `CHO_DUYET` và gửi lãnh đạo (AC-04) qua EVT-21. Đã có lệnh trả 409 mã `PERIOD-409-ORDER-EXISTS`.
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        evt: [EVT-21]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-08-01]
+        source: TL-02a SCR-0801 "Lập lệnh khoá kỳ"; ma trận SCR-0801.lap-lenh
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PeriodLockOrderCreate' }
+      responses:
+        '201':
+          description: Đã lập lệnh, chờ phê duyệt.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodLockOrder' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /periods/{id}/lock-orders/{oid}/approve:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/LockOrderIdPath'
+    post:
+      tags: [Khoá kỳ]
+      operationId: approvePeriodLockOrder
+      summary: Phê duyệt lệnh khoá kỳ
+      description: >-
+        Lãnh đạo (AC-04) phê duyệt lệnh với MFA; người duyệt phải khác người lập (CHECK
+        `approved_by <> requested_by`, mã `PERIOD-403-SAME-PERSON`). Lệnh chuyển `DA_DUYET` (MSG-08-01).
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [leader]
+        scope: Tn
+        aal: 2
+        fourEyes: true
+        rules: [BR-08-01, BR-08-02]
+        source: TL-02a SCR-0801 "Phê duyệt lệnh"; ma trận SCR-0801.duyet-lenh
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PeriodLockOrderApprove' }
+      responses:
+        '200':
+          description: Lệnh đã được phê duyệt.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodLockOrder' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /periods/{id}/lock:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Khoá kỳ]
+      operationId: getPeriodLockProgress
+      summary: Tiến trình saga khoá kỳ
+      description: >-
+        Trả lệnh khoá kỳ, mã saga, khoá chống lặp, bốn chỉ số (số hồ sơ, đã tính, lỗi, dự kiến hoàn tất),
+        sáu bước saga chiếu từ `config.period_lock_step`, đề nghị huỷ đang chờ và cảnh báo. Giao diện
+        nhận cập nhật thời gian thực qua `/api/v1/notifications/stream` rồi đọc lại tài nguyên này.
+        Kỳ chưa có saga trả 404.
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin, leader, second_approver, inspector]
+        scope: Tn
+        source: TL-02a SCR-0801 trường 4 đến 9, 12; ma trận SCR-0801.xem
+      responses:
+        '200':
+          description: Tiến trình hiện tại.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodLockProgress' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    post:
+      tags: [Khoá kỳ]
+      operationId: startPeriodLock
+      summary: Khởi động saga khoá kỳ
+      description: >-
+        Khởi tạo saga `chot-ky` từ lệnh đã duyệt; người khởi chạy phải khác người phê duyệt (BR-08-01,
+        mã `PERIOD-403-SAME-PERSON`), MFA trong 15 phút (BR-08-02). Mỗi kỳ chỉ một saga chạy (BR-08-08):
+        khoá chống lặp theo kỳ (`CK-2026Q4`) làm lần gọi trùng trả lại job cũ; saga khác đang chạy trả
+        409 mã `PERIOD-409-SAGA-RUNNING`. Trả 202, job loại `PERIOD_LOCK`. Bước 1 phát EVT-09; bước 0
+        không đạt làm job `THAT_BAI` với Problem mã `PERIOD-422-PRECONDITION` (MSG-08-02).
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        evt: [EVT-09]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        fourEyes: true
+        rules: [BR-08-01, BR-08-02, BR-08-03, BR-08-04, BR-08-08]
+        source: TL-01 PL C; TL-02a SCR-0801 "Khởi chạy"; ma trận SCR-0801.khoi-chay
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PeriodLockStart' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /periods/{id}/lock/batches:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Khoá kỳ]
+      operationId: listPeriodLockBatches
+      summary: Danh sách lô tính điểm của saga
+      description: Các lô `scoring.score_job` của lần khoá hiện tại, phân trang con trỏ (SCR-0801 trường 10).
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin, leader, second_approver, inspector]
+        scope: Tn
+        source: TL-02a SCR-0801 trường 10
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/ScoreBatchStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang lô tính điểm.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodLockBatchPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /periods/{id}/lock/failures:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Khoá kỳ]
+      operationId: listPeriodLockFailures
+      summary: Danh sách hồ sơ lỗi khi tính điểm
+      description: Hồ sơ trong hàng đợi lỗi của bước 2, phân trang con trỏ (SCR-0801 trường 11).
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin, leader, second_approver, inspector]
+        scope: Tn
+        source: TL-02a SCR-0801 trường 11
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang hồ sơ lỗi.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodLockFailurePage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /periods/{id}/lock/events:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Khoá kỳ]
+      operationId: listPeriodLockEvents
+      summary: Nhật ký sự kiện của saga
+      description: Các dòng `ledger.ledger_entry` lọc theo saga, mới nhất trước (SCR-0801 trường 13, BR-08-10).
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin, leader, second_approver, inspector]
+        scope: Tn
+        rules: [BR-08-10]
+        source: TL-02a SCR-0801 trường 13
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang sự kiện.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodLockEventPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /periods/{id}/lock/diagram:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Khoá kỳ]
+      operationId: getPeriodLockDiagram
+      summary: Sơ đồ BPMN của saga khoá kỳ
+      description: >-
+        Trả định nghĩa BPMN của mẫu `chot-ky` đang chạy cho kỳ và các hoạt động đã xong, đang chạy, lỗi
+        để giao diện tô màu. XML chỉ được hiển thị bằng trình xem BPMN, không chèn vào DOM dạng HTML.
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin, leader, second_approver, inspector]
+        scope: Tn
+        source: TL-02a SCR-0801 "Xem BPMN"; ma trận SCR-0801.xem
+      responses:
+        '200':
+          description: Sơ đồ và trạng thái các hoạt động.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodLockDiagram' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /periods/{id}/lock/pause:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Khoá kỳ]
+      operationId: pausePeriodLock
+      summary: Tạm dừng saga sau bước hiện tại
+      description: >-
+        Đặt cờ tạm dừng; saga dừng khi bước hiện tại xong. Saga không chạy trả 409 mã
+        `PERIOD-409-SAGA-NOT-RUNNING`.
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-08-02, BR-08-10]
+        source: TL-02a SCR-0801 "Tạm dừng sau bước hiện tại"; ma trận SCR-0801.dieu-khien
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PeriodLockControl' }
+      responses:
+        '200':
+          description: Đã đặt cờ tạm dừng.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodLockProgress' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /periods/{id}/lock/resume:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Khoá kỳ]
+      operationId: resumePeriodLock
+      summary: Tiếp tục saga đã tạm dừng
+      description: >-
+        Gỡ cờ tạm dừng để saga chạy tiếp bước kế tiếp (suy luận: TL-02a có "Tạm dừng" nhưng không ghi
+        thao tác tiếp tục; QT-08 ngoại lệ "chờ tiếp" ở bước 4 cần đường này).
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-08-02, BR-08-10]
+        source: TL-02a QT-08 ngoại lệ (suy luận)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Saga tiếp tục.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodLockProgress' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /periods/{id}/lock/retry-failed:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Khoá kỳ]
+      operationId: retryFailedPeriodLock
+      summary: Chạy lại hồ sơ lỗi
+      description: >-
+        Tạo lô mới cho các hồ sơ trong hàng đợi lỗi (hoặc danh sách chỉ định); trả 202, job loại
+        `PERIOD_LOCK_RETRY`. Khi tính xong SVC-07 phát EVT-10. Không có hồ sơ lỗi trả 409 mã
+        `PERIOD-409-NO-FAILURE`.
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        evt: [EVT-10]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-08-02, BR-08-10, BR-08-11]
+        source: TL-02a SCR-0801 "Chạy lại hồ sơ lỗi"; ma trận SCR-0801.dieu-khien
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PeriodLockRetryRequest' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /periods/{id}/lock/cancel:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Khoá kỳ]
+      operationId: requestPeriodLockCancel
+      summary: Đề nghị huỷ và bù trừ toàn bộ
+      description: >-
+        Tạo đề nghị huỷ saga, gửi người duyệt thứ hai qua EVT-21 (MSG-08-05). Chỉ cho phép trước khi
+        bước 4 hoàn tất; quá điểm không quay lại trả 409 mã `PERIOD-409-POINT-OF-NO-RETURN` (BR-08-09).
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        evt: [EVT-21]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-08-02, BR-08-09]
+        source: TL-02a SCR-0801 "Huỷ và bù trừ toàn bộ"; ma trận SCR-0801.de-nghi-huy
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PeriodLockCancelRequestInput' }
+      responses:
+        '200':
+          description: Đã tạo đề nghị huỷ, chờ người duyệt thứ hai.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodLockProgress' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /periods/{id}/lock/cancel/approve:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Khoá kỳ]
+      operationId: approvePeriodLockCancel
+      summary: Duyệt thứ hai huỷ và bù trừ
+      description: >-
+        Người duyệt thứ hai (AC-09), khác người đề nghị, duyệt huỷ; saga bù trừ theo thứ tự ngược, kỳ
+        trở về `MO` và MOD-08 phát EVT-26 KyDaHuyKhoa (MSG-08-08). Trả 202, job loại `PERIOD_UNLOCK`.
+      x-mission:
+        qt: [QT-08]
+        scr: [SCR-0801]
+        owner: MOD-08
+        evt: [EVT-26, EVT-21]
+        roles: [second_approver]
+        scope: Tn
+        aal: 2
+        fourEyes: true
+        rules: [BR-08-09, BR-08-10]
+        source: TL-02a SCR-0801; TL-03 config.period (EVT-26); ma trận SCR-0801.duyet-huy
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PeriodLockControl' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  # ---------------------------------------------------------------- /ui/packs
+  /ui/packs/current:
+    get:
+      tags: [UI Pack]
+      operationId: getCurrentUiPack
+      summary: UI Pack hiệu lực của tenant
+      description: >-
+        Trả phiên bản UI Pack `DA_PHAT_HANH` của tenant (siêu dữ liệu, token, chế độ cao tuổi, bố cục,
+        biểu mẫu, plugin, i18n) kèm băm nội dung và chữ ký để shell kiểm trước khi áp. ETag theo phiên
+        bản; gửi `If-None-Match` để nhận 304. Bản phát qua CDN (`/ui-packs/{tenant}/current.json`) có
+        cùng nội dung; API này là nguồn dự phòng và cho ứng dụng di động.
+      x-mission:
+        qt: [QT-18, QT-00]
+        scr: [SCR-0002, SCR-1801]
+        owner: MOD-08
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: Tn
+        source: TL-01 PL C; TL-01 chương 7 "Cấu trúc UI Pack", "Cơ chế bộ đệm"; ma trận dòng API ui
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: UI Pack hiện hành.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiPackRuntime' }
+        '304':
+          description: Phiên bản không đổi so với `If-None-Match`.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /ui/packs:
+    get:
+      tags: [UI Pack]
+      operationId: listUiPacks
+      summary: Danh sách UI Pack của tenant
+      description: Trả UI Pack của tenant kèm phiên bản đang phát hành và phiên bản nháp (suy luận, cần cho thẻ Phiên bản của SCR-1801).
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        source: TL-02b ma trận truy vết `/api/v1/ui/packs` (suy luận)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang UI Pack.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiPackPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /ui/packs/{id}/versions:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [UI Pack]
+      operationId: listUiPackVersions
+      summary: Danh sách phiên bản UI Pack
+      description: Các phiên bản của một UI Pack, mới nhất trước, để quay lui về phiên bản `THAY_THE` tương thích.
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        source: TL-02b QT-18 bước 10 (suy luận)
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/UiPackVersionStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang phiên bản.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiPackVersionPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    post:
+      tags: [UI Pack]
+      operationId: createUiPackVersion
+      summary: Tạo phiên bản nháp UI Pack
+      description: >-
+        Tạo phiên bản `NHAP` bằng cách nhân bản phiên bản đang dùng hoặc từ bộ mặc định (QT-18 bước 1;
+        TL-02 không ghi đường dẫn, suy luận theo quy ước).
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        source: TL-02b QT-18 bước 1 (suy luận)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UiPackVersionCreate' }
+      responses:
+        '201':
+          description: Đã tạo phiên bản nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiPackVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /ui/packs/{id}/versions/{v}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/UiPackVersionPath'
+    get:
+      tags: [UI Pack]
+      operationId: getUiPackVersion
+      summary: Chi tiết phiên bản UI Pack
+      description: Trả token, bố cục, tài nguyên, cờ chế độ cao tuổi và trạng thái của một phiên bản.
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        source: TL-02b SCR-1801 bảng trường
+      responses:
+        '200':
+          description: Phiên bản UI Pack.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiPackVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    put:
+      tags: [UI Pack]
+      operationId: updateUiPackVersion
+      summary: Lưu nháp UI Pack
+      description: >-
+        Lưu token, bố cục, tài nguyên và cờ của phiên bản `NHAP`. Máy chủ kiểm tra ngay: component lạ
+        trả 422 mã `UI-422-UNKNOWN-COMPONENT` (MSG-18-02, BR-18-02); tương phản dưới AA trả 422 mã
+        `UI-422-CONTRAST` (MSG-18-01, BR-18-01); quá 12 widget trên trang chủ trả 422. Phiên bản không
+        còn `NHAP` trả 409 mã `UI-409-NOT-DRAFT`.
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        rules: [BR-18-01, BR-18-02, BR-18-03, BR-18-09]
+        source: TL-02b SCR-1801 "Lưu nháp"; ma trận SCR-1801.soan
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UiPackVersionUpdate' }
+      responses:
+        '200':
+          description: Đã lưu nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiPackVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /ui/packs/{id}/versions/{v}/preview:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/UiPackVersionPath'
+    get:
+      tags: [UI Pack]
+      operationId: previewUiPackVersion
+      summary: Xem trước phiên bản UI Pack
+      description: >-
+        Biên dịch thử token thành CSS custom properties và preset PrimeNG, trả kèm bố cục và kết quả kiểm
+        tra tự động (tương phản, registry, kích thước) để shell dựng giao diện mẫu, kể cả chế độ cao tuổi.
+        Không đẩy lên CDN, không đổi trạng thái.
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1801]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        rules: [BR-18-01, BR-18-08, BR-18-09]
+        source: TL-02b SCR-1801 "Xem trước"; ma trận SCR-1801.soan
+      parameters:
+        - name: mode
+          in: query
+          description: Chế độ hiển thị cần xem trước.
+          schema: { type: string, enum: [default, elderly], default: default }
+      responses:
+        '200':
+          description: Kết quả biên dịch thử.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiPackPreview' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /ui/packs/{id}/versions/{v}/submit:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/UiPackVersionPath'
+    post:
+      tags: [UI Pack]
+      operationId: submitUiPackVersion
+      summary: Gửi duyệt phiên bản UI Pack
+      description: >-
+        Chuyển `NHAP` → `DANG_KIEM_TRA` và chạy bộ kiểm tra tự động (schema, registry, tương phản AA,
+        kích thước ≤ 30 KB gzip, cel-js = cel-java). Đạt thì `CHO_DUYET` và gửi người duyệt qua EVT-21;
+        lỗi thì về `NHAP` kèm danh sách lỗi trong job. Trả 202, job loại `TEST_RUN`.
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1801]
+        owner: MOD-08
+        evt: [EVT-21]
+        roles: [tenant_admin]
+        scope: Tn
+        rules: [BR-18-01, BR-18-02, BR-18-05, BR-18-08]
+        source: TL-02b SCR-1801 "Gửi duyệt và phát hành"; ma trận SCR-1801.gui-duyet
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /ui/packs/{id}/versions/{v}/publish:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/UiPackVersionPath'
+    post:
+      tags: [UI Pack]
+      operationId: publishUiPackVersion
+      summary: Duyệt và phát hành UI Pack
+      description: >-
+        Người duyệt (khác người soạn, mã `UI-403-SAME-PERSON`) duyệt phiên bản `CHO_DUYET`: MOD-08 biên
+        dịch token sang CSS và preset, ký gói, đẩy lên CDN, chuyển `DA_PHAT_HANH`, chuyển phiên bản cũ
+        sang `THAY_THE` và phát EVT-23 để vô hiệu bộ đệm (MSG-18-03). Trả 202, job loại `RENDER`.
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1801]
+        owner: MOD-08
+        evt: [EVT-23]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        fourEyes: true
+        rules: [BR-18-07, BR-18-10]
+        source: TL-01 PL C; TL-02b SCR-1801 "Duyệt"; ma trận SCR-1801.duyet
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UiPackReviewInput' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /ui/packs/{id}/versions/{v}/reject:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/UiPackVersionPath'
+    post:
+      tags: [UI Pack]
+      operationId: rejectUiPackVersion
+      summary: Từ chối phiên bản UI Pack
+      description: >-
+        Người duyệt từ chối phiên bản `CHO_DUYET` kèm ý kiến; phiên bản về `NHAP` (suy luận từ bảng
+        trạng thái QT-18 "CHO_DUYET → Từ chối → NHAP"; TL-02b không ghi đường dẫn).
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1801]
+        owner: MOD-08
+        evt: [EVT-21]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        fourEyes: true
+        source: TL-02b QT-18 trạng thái đối tượng (suy luận)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UiPackRejectInput' }
+      responses:
+        '200':
+          description: Đã trả về nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiPackVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /ui/packs/{id}/versions/{v}/activate:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/UiPackVersionPath'
+    post:
+      tags: [UI Pack]
+      operationId: activateUiPackVersion
+      summary: Quay lui về phiên bản UI Pack trước
+      description: >-
+        Kích hoạt lại một phiên bản `THAY_THE` tương thích với Policy Pack đang gắn; phiên bản hiện hành
+        chuyển `THAY_THE`, phát EVT-23. Biểu mẫu tham chiếu Policy Pack đã ngừng trả 409 mã
+        `UI-409-ROLLBACK-INCOMPATIBLE` (MSG-18-04).
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1801]
+        owner: MOD-08
+        evt: [EVT-23]
+        roles: [tenant_admin]
+        scope: Tn
+        rules: [BR-18-10]
+        source: TL-02b SCR-1801 "Quay lui"; ma trận SCR-1801.quay-lui
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Phiên bản đã được kích hoạt lại.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiPackVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /ui/packs/{id}/versions/{v}/forms:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/UiPackVersionPath'
+    post:
+      tags: [UI Pack]
+      operationId: attachUiPackForm
+      summary: Đưa biểu mẫu vào UI Pack nháp
+      description: >-
+        Gắn một phiên bản biểu mẫu đã đạt bộ test vào phiên bản UI Pack `NHAP`. Biểu mẫu chưa đạt bộ
+        test trả 422 mã `UI-422-FORM-TEST-FAILED`; Policy Pack không khớp trả 422 (BR-18-06).
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1802]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        rules: [BR-18-05, BR-18-06]
+        source: TL-02b SCR-1802 "Đưa vào UI Pack"; ma trận SCR-1802.dua-vao-pack
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UiPackFormAttach' }
+      responses:
+        '200':
+          description: Đã gắn biểu mẫu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiPackVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  # ---------------------------------------------------------------- /ui/components
+  /ui/components:
+    get:
+      tags: [Danh mục component]
+      operationId: listUiComponents
+      summary: Danh mục component SDUI được phép
+      description: >-
+        Trả component của một phiên bản registry (mặc định phiên bản mới nhất), kể cả widget của plugin
+        có trong manifest của tenant (BR-18-12). Danh mục dùng chung nền tảng, không có `tenant_id`.
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1801]
+        owner: MOD-08
+        roles: [tenant_admin, policy_author]
+        scope: Tn
+        rules: [BR-18-02, BR-18-12]
+        source: TL-02b SCR-1801 "Thêm widget từ danh mục"; TL-03 config.component_registry
+      parameters:
+        - name: registry
+          in: query
+          description: Phiên bản registry, ví dụ `2026.3`.
+          schema: { type: string, maxLength: 16 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/UiComponentStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang component.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiComponentPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  # ---------------------------------------------------------------- /ui/forms
+  /ui/forms:
+    get:
+      tags: [Biểu mẫu động]
+      operationId: listUiForms
+      summary: Danh sách biểu mẫu động
+      description: Trả các biểu mẫu của tenant với phiên bản mới nhất và trạng thái (suy luận, cần để mở trình dựng).
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1802]
+        owner: MOD-08
+        roles: [tenant_admin, policy_author]
+        scope: Tn
+        source: TL-02b ma trận truy vết `/api/v1/ui/forms` (suy luận)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang biểu mẫu.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiFormPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /ui/forms/{key}/versions:
+    parameters:
+      - $ref: '#/components/parameters/FormKeyPath'
+    post:
+      tags: [Biểu mẫu động]
+      operationId: createUiFormVersion
+      summary: Tạo phiên bản nháp biểu mẫu
+      description: >-
+        Tạo phiên bản `NHAP` mới của biểu mẫu (khoá mới thì tạo biểu mẫu mới), nhân bản từ phiên bản chỉ
+        định hoặc trống (suy luận: TL-02b chỉ ghi PUT trên phiên bản đã có).
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1802]
+        owner: MOD-08
+        roles: [tenant_admin, policy_author]
+        scope: Tn
+        rules: [BR-18-06]
+        source: TL-02b QT-18 bước 4 (suy luận)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UiFormVersionCreate' }
+      responses:
+        '201':
+          description: Đã tạo phiên bản nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiFormVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /ui/forms/{key}/versions/{v}:
+    parameters:
+      - $ref: '#/components/parameters/FormKeyPath'
+      - $ref: '#/components/parameters/FormVersionPath'
+    get:
+      tags: [Biểu mẫu động]
+      operationId: getUiFormVersion
+      summary: Chi tiết phiên bản biểu mẫu
+      description: Trả JSON Schema có `x-cel`, `x-classification`, cấu hình Formly và quy tắc CEL của phiên bản.
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1802]
+        owner: MOD-08
+        roles: [tenant_admin, policy_author]
+        scope: Tn
+        source: TL-02b SCR-1802 bảng trường
+      responses:
+        '200':
+          description: Phiên bản biểu mẫu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiFormVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    put:
+      tags: [Biểu mẫu động]
+      operationId: updateUiFormVersion
+      summary: Lưu nháp biểu mẫu
+      description: >-
+        Lưu schema và cấu hình hiển thị của phiên bản `NHAP`. Máy chủ kiểm tra biểu thức CEL bằng
+        cel-java (mã `UI-422-CEL-INVALID`, MSG-18-06) và trường tính điểm theo Policy Pack (mã
+        `UI-409-SCORED-FIELD`, MSG-18-07).
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1802]
+        owner: MOD-08
+        roles: [tenant_admin, policy_author]
+        scope: Tn
+        rules: [BR-18-04, BR-18-06, BR-18-11]
+        source: TL-02b SCR-1802 "Lưu nháp"; ma trận SCR-1802.dung
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UiFormVersionUpdate' }
+      responses:
+        '200':
+          description: Đã lưu nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiFormVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /ui/forms/{key}/versions/{v}/test-runs:
+    parameters:
+      - $ref: '#/components/parameters/FormKeyPath'
+      - $ref: '#/components/parameters/FormVersionPath'
+    post:
+      tags: [Biểu mẫu động]
+      operationId: runUiFormTests
+      summary: Chạy bộ test biểu mẫu trên hai engine
+      description: >-
+        Chạy các ca test của biểu mẫu bằng cel-java tại máy chủ và so với kết quả cel-js trình duyệt gửi
+        lên; ca cho kết quả khác nhau được đánh dấu (MSG-18-08, BR-18-05). Trả kết quả đồng bộ.
+      x-mission:
+        qt: [QT-18]
+        scr: [SCR-1802]
+        owner: MOD-08
+        roles: [tenant_admin, policy_author]
+        scope: Tn
+        rules: [BR-18-04, BR-18-05, BR-18-08]
+        source: TL-02b SCR-1802 "Chạy bộ test biểu mẫu"; ma trận SCR-1802.dung
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UiFormTestRunRequest' }
+      responses:
+        '200':
+          description: Kết quả bộ test.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UiFormTestRunResult' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  # ---------------------------------------------------------------- /ui/layouts
+  /ui/layouts/home:
+    get:
+      tags: [Bố cục trang]
+      operationId: getHomeLayout
+      summary: Bố cục trang chủ "Việc của tôi hôm nay"
+      description: >-
+        Trả cây SDUI của trang chủ từ UI Pack hiện hành, đã lọc theo vai trò trong ngữ cảnh phân công
+        đang chọn (biểu thức `visibleWhen` được máy chủ đánh giá trước; trình duyệt chỉ đánh giá lại để
+        phản hồi nhanh). Dữ liệu từng khối lấy từ API của module tương ứng.
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002]
+        owner: MOD-08
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: TL-02a SCR-0002 "Tải trang"; ma trận SCR-0002.xem
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Bố cục trang chủ.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HomeLayout' }
+        '304':
+          description: Bố cục không đổi so với `If-None-Match`.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+components:
+  securitySchemes:
+    keycloak: { $ref: '../common/common.yaml#/components/securitySchemes/keycloak' }
+  parameters:
+    Year:
+      name: year
+      in: query
+      required: true
+      description: Năm dương lịch.
+      schema: { type: integer, minimum: 2020, maximum: 2100, examples: [2026] }
+    YearOptional:
+      name: year
+      in: query
+      description: Năm dương lịch; bỏ trống thì trả mọi năm.
+      schema: { type: integer, minimum: 2020, maximum: 2100, examples: [2026] }
+    LockOrderIdPath:
+      name: oid
+      in: path
+      required: true
+      description: Mã lệnh khoá kỳ (`config.period_lock_order.id`).
+      schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    FlagKeyPath:
+      name: key
+      in: path
+      required: true
+      description: Mã cờ tính năng (`config.feature_flag.flag_key`).
+      schema: { type: string, maxLength: 100, pattern: '^[a-z0-9][a-z0-9._-]*$', examples: ['ai.weeklySummary'] }
+    UiPackVersionPath:
+      name: v
+      in: path
+      required: true
+      description: Phiên bản ngữ nghĩa của UI Pack (`config.ui_pack_version.version`).
+      schema: { type: string, maxLength: 32, examples: ['1.8.0'] }
+    FormKeyPath:
+      name: key
+      in: path
+      required: true
+      description: Khoá biểu mẫu (`config.form_schema.form_key`).
+      schema: { type: string, maxLength: 64, pattern: '^[a-z0-9][a-z0-9-]*$', examples: ['phieu-vc-yte'] }
+    FormVersionPath:
+      name: v
+      in: path
+      required: true
+      description: Phiên bản biểu mẫu (`config.form_schema.version`).
+      schema: { type: string, maxLength: 32, examples: ['12'] }
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: ETag đã lưu ở client; khớp thì máy chủ trả 304.
+      schema: { type: string, examples: ['"uipack-1.8.0-9f2c"'] }
+
+  schemas:
+    # ------------------------------------------------------------ Tenant
+    TenancyModel:
+      description: >-
+        Mô hình thuê bao trong lần gắn cell (`registry.tenant_cell.tenancy_model`, CHECK chữ thường như
+        TL-02a). `registry.tenant.tenancy_model` viết hoa và có thêm `AIRGAP`; hợp đồng theo TL-02a.
+      type: string
+      enum: [silo, bridge, pool]
+    TenantStatus:
+      description: Trạng thái vòng đời tenant (`registry.tenant.status`, TL-02a QT-01 cộng `DANG_CHUYEN_CELL` của TL-03).
+      type: string
+      enum: [KHOI_TAO, DANG_CAP_PHAT, DANG_CAU_HINH, SAN_SANG, DANG_VAN_HANH, TAM_NGUNG, DANG_CHUYEN_CELL, DA_CHAM_DUT]
+    TenantSector:
+      description: Nhóm khách hàng (`registry.tenant.sector`).
+      type: string
+      enum: [DANG, CHINH_QUYEN, SU_NGHIEP, TRUONG_HOC, BENH_VIEN, LLVT, DOANH_NGHIEP]
+    TenantKekMode:
+      description: >-
+        Loại khoá mã hoá (SCR-0102 trường 9): riêng theo tenant hoặc dùng chung của cell; silo bắt buộc
+        riêng (suy luận tên giá trị, TL-03 chỉ có cột `kek_ref`).
+      type: string
+      enum: [RIENG, DUNG_CHUNG_CELL]
+    TenantStaffSourceType:
+      description: Nguồn nhân sự (SCR-0102 trường 13; suy luận tên giá trị).
+      type: string
+      enum: [CSDL_CBCCVC, CSDL_DANG_VIEN, SCIM]
+    ConfigTenantRow:
+      description: Một dòng của bảng tenant trên SCR-0101.
+      type: object
+      required: [id, code, name, domain, cellCode, tenancyModel, accountCount, status]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 32, description: '`registry.tenant.code`' }
+        name: { type: string, maxLength: 200, description: '`registry.tenant.name`' }
+        domain: { type: string, maxLength: 253, description: 'Tên miền chính (`registry.tenant_domain.domain`)' }
+        cellCode: { type: string, maxLength: 16, description: 'Mã cell, dạng `CELL-xxx`' }
+        tenancyModel: { $ref: '#/components/schemas/TenancyModel' }
+        accountCount: { type: integer, minimum: 0, description: 'Số tài khoản, đồng bộ từ cell' }
+        policyPacks:
+          type: array
+          description: Policy Pack đang gắn, dạng "tên vX.Y" theo luồng.
+          items: { type: string }
+        uiPack: { type: string, description: 'UI Pack đang dùng, dạng "tên vX.Y"' }
+        status: { $ref: '#/components/schemas/TenantStatus' }
+        onboardingStep:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 6
+          description: Bước wizard hiện tại khi đang khởi tạo (MSG-01-02); `null` khi đã vận hành (suy luận).
+      examples:
+        - id: 0192f0a1-3b2c-7d4e-8f50-6a7b8c9d0e11
+          code: thainguyen
+          name: Tỉnh Thái Nguyên
+          domain: thainguyen.okr.viettel.vn
+          cellCode: CELL-G2
+          tenancyModel: bridge
+          accountCount: 0
+          policyPacks: ['Khối Đảng · Quy định mới v2.0', 'Nhà nước · NĐ 335 v1.3']
+          uiPack: Mặc định v3.0
+          status: DANG_CAP_PHAT
+          onboardingStep: 4
+    CellLoad:
+      description: Tải của một cell tính bằng số tài khoản chia sức chứa thiết kế (SCR-0101 trường 9).
+      type: object
+      required: [cellCode, accountCount, capacityAccounts, loadPercent]
+      properties:
+        cellCode: { type: string }
+        accountCount: { type: integer, minimum: 0 }
+        capacityAccounts: { type: integer, minimum: 1, description: '`registry.cell.capacity_accounts`' }
+        loadPercent: { type: number, minimum: 0, maximum: 100 }
+        overThreshold: { type: boolean, description: 'Vượt ngưỡng 85% (MSG-01-01, BR-01-02)' }
+    ConfigTenantSummary:
+      description: Bốn chỉ số đầu trang và tải theo cell của SCR-0101.
+      type: object
+      required: [activeTenants, tenantLimit, totalAccounts, accountLimit, onboardingTenants, cellCount]
+      properties:
+        activeTenants: { type: integer, minimum: 0, description: 'Số tenant `DANG_VAN_HANH`' }
+        tenantLimit: { type: integer, description: 'Giới hạn thiết kế, 5.000' }
+        totalAccounts: { type: integer, minimum: 0 }
+        accountLimit: { type: integer, description: 'Giới hạn thiết kế, 6 triệu (NFR-01)' }
+        onboardingTenants: { type: integer, minimum: 0, description: 'Số tenant đang khởi tạo' }
+        cellCount: { type: integer, minimum: 0 }
+        cellLoads:
+          type: array
+          items: { $ref: '#/components/schemas/CellLoad' }
+    ConfigTenantPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ConfigTenantRow' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        summary: { $ref: '#/components/schemas/ConfigTenantSummary' }
+      examples:
+        - items:
+            - id: 0192f0a1-3b2c-7d4e-8f50-6a7b8c9d0e11
+              code: thainguyen
+              name: Tỉnh Thái Nguyên
+              domain: thainguyen.okr.viettel.vn
+              cellCode: CELL-G2
+              tenancyModel: bridge
+              accountCount: 0
+              status: DANG_CAP_PHAT
+              onboardingStep: 4
+          nextCursor: eyJjIjoiMDE5MmYwYTEifQ
+          summary:
+            activeTenants: 1284
+            tenantLimit: 5000
+            totalAccounts: 2418760
+            accountLimit: 6000000
+            onboardingTenants: 3
+            cellCount: 7
+            cellLoads:
+              - { cellCode: CELL-G2, accountCount: 640000, capacityAccounts: 1000000, loadPercent: 64, overThreshold: false }
+    TenantPolicyBinding:
+      description: Policy Pack gốc gắn theo luồng (SCR-0102 trường 10; `policy.policy_binding.pack_version_id`).
+      type: object
+      required: [flow, packVersionId]
+      properties:
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        packVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        packCode: { type: string, readOnly: true }
+        version: { type: string, readOnly: true }
+    TenantIdp:
+      description: >-
+        IdP của tenant (`registry.tenant_idp`). TL-03 chỉ cho `OIDC`, `SAML`; LDAP liên kết mà TL-02a
+        nhắc tới chưa có trong CHECK nên chưa đưa vào.
+      type: object
+      required: [idpAlias, protocol, issuer]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        idpAlias: { type: string, maxLength: 64 }
+        protocol: { type: string, enum: [OIDC, SAML] }
+        issuer: { type: string, maxLength: 255 }
+        isVneid: { type: boolean, default: false }
+        emailDomains:
+          type: array
+          items: { type: string, maxLength: 253 }
+        status: { type: string, enum: [HOAT_DONG, TAM_DUNG], readOnly: true }
+        lastTestedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        lastTestOk: { type: boolean, readOnly: true, description: 'Kết quả lần kiểm tra kết nối gần nhất (suy luận)' }
+    TenantStaffSource:
+      description: Nguồn nhân sự của tenant (SCR-0102 trường 13; `integ.connector`).
+      type: object
+      required: [type]
+      properties:
+        type: { $ref: '#/components/schemas/TenantStaffSourceType' }
+        connectorId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        connected: { type: boolean, readOnly: true, description: 'Có kết nối hợp lệ' }
+    TenantAdminContact:
+      description: Đầu mối quản trị tenant (dữ liệu cá nhân).
+      type: object
+      required: [fullName, email]
+      properties:
+        fullName: { type: string, maxLength: 200, x-classification: C2 }
+        email: { type: string, format: email, maxLength: 254, x-classification: C2 }
+        phone: { type: string, maxLength: 20, x-classification: C2 }
+    ReadinessCheck:
+      description: Một mục kiểm tra tổng thể ở bước 6 (QT-01 bước 9).
+      type: object
+      required: [code, passed]
+      properties:
+        code:
+          type: string
+          enum: [CAPACITY, DOMAIN, TLS, POLICY_PACK_GOLDEN, IDP, ORG_TREE, HIGH_DISCREPANCY]
+          description: Mã mục kiểm tra (suy luận tên giá trị).
+        passed: { type: boolean }
+        detail: { type: string }
+    ConfigTenant:
+      description: Chi tiết tenant và cấu hình wizard khởi tạo (SCR-0102).
+      type: object
+      required: [id, code, name, status, flows, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 32, pattern: '^[a-z0-9_]+$' }
+        name: { type: string, maxLength: 200 }
+        sector: { $ref: '#/components/schemas/TenantSector' }
+        onboardingCode: { type: string, pattern: '^ONB-[0-9]{4}-[0-9]{4}$', readOnly: true }
+        contractRef: { type: string, maxLength: 50 }
+        contractValidTo: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        flows:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        expectedAccounts: { type: integer, minimum: 1 }
+        expectedUnits: { type: integer, minimum: 1, description: 'Số đơn vị dự kiến (suy luận cột)' }
+        maxAccounts: { type: integer, minimum: 1 }
+        accountCount: { type: integer, minimum: 0, readOnly: true }
+        tenancyModel: { $ref: '#/components/schemas/TenancyModel' }
+        suggestedTenancyModel: { allOf: [{ $ref: '#/components/schemas/TenancyModel' }], readOnly: true, description: 'Gợi ý theo quy mô và BR-01-01' }
+        cellCode: { type: string, maxLength: 16 }
+        domain: { type: string, maxLength: 253 }
+        dataRegion: { type: string, maxLength: 32 }
+        kekMode: { $ref: '#/components/schemas/TenantKekMode' }
+        policyBindings:
+          type: array
+          items: { $ref: '#/components/schemas/TenantPolicyBinding' }
+        uiPackVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        idps:
+          type: array
+          items: { $ref: '#/components/schemas/TenantIdp' }
+        staffSources:
+          type: array
+          items: { $ref: '#/components/schemas/TenantStaffSource' }
+        adminContact: { $ref: '#/components/schemas/TenantAdminContact' }
+        status: { $ref: '#/components/schemas/TenantStatus' }
+        onboardingStep: { type: [integer, 'null'], minimum: 1, maximum: 6, readOnly: true }
+        readinessChecks:
+          type: array
+          readOnly: true
+          items: { $ref: '#/components/schemas/ReadinessCheck' }
+        provisionJobId: { type: [string, 'null'], readOnly: true, description: 'Job saga cấp phát gần nhất' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - id: 0192f0a1-3b2c-7d4e-8f50-6a7b8c9d0e11
+          code: thainguyen
+          name: Tỉnh Thái Nguyên
+          sector: CHINH_QUYEN
+          onboardingCode: ONB-2026-0318
+          contractRef: HĐ-2026/VTS-TN-118
+          flows: [DANG, NHA_NUOC]
+          expectedAccounts: 98420
+          expectedUnits: 1260
+          maxAccounts: 110000
+          accountCount: 0
+          tenancyModel: bridge
+          suggestedTenancyModel: bridge
+          cellCode: CELL-G2
+          domain: thainguyen.okr.viettel.vn
+          dataRegion: HOALAC
+          kekMode: RIENG
+          policyBindings:
+            - { flow: DANG, packVersionId: 0192e1c4-5d6e-7f80-9a1b-2c3d4e5f6a70, packCode: khoi-dang/quy-dinh-moi, version: '2.0' }
+            - { flow: NHA_NUOC, packVersionId: 0192e1c4-5d6e-7f80-9a1b-2c3d4e5f6a71, packCode: nn-335, version: '1.3' }
+          uiPackVersionId: 0192e2d5-6e7f-7a81-8b2c-3d4e5f6a7b80
+          status: KHOI_TAO
+          onboardingStep: 2
+          rowVersion: 3
+          createdAt: '2026-10-19T08:30:00+07:00'
+          updatedAt: '2026-10-19T09:05:00+07:00'
+    ConfigTenantCreate:
+      description: Thông tin bước 1 của wizard.
+      type: object
+      required: [code, name, sector, contractRef, flows, expectedAccounts, adminContact]
+      properties:
+        code: { type: string, maxLength: 32, pattern: '^[a-z0-9_]+$' }
+        name: { type: string, maxLength: 200 }
+        sector: { $ref: '#/components/schemas/TenantSector' }
+        contractRef: { type: string, maxLength: 50 }
+        contractValidTo: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        flows:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        expectedAccounts: { type: integer, minimum: 1 }
+        expectedUnits: { type: integer, minimum: 1 }
+        adminContact: { $ref: '#/components/schemas/TenantAdminContact' }
+      examples:
+        - code: thainguyen
+          name: Tỉnh Thái Nguyên
+          sector: CHINH_QUYEN
+          contractRef: HĐ-2026/VTS-TN-118
+          flows: [DANG, NHA_NUOC]
+          expectedAccounts: 98420
+          expectedUnits: 1260
+          adminContact: { fullName: Trần Thị Hồng, email: quantri@thainguyen.gov.vn }
+    ConfigTenantPatch:
+      description: Thay đổi một phần cấu hình đang soạn (JSON Merge Patch); mọi trường tuỳ chọn.
+      type: object
+      properties:
+        name: { type: string, maxLength: 200 }
+        contractRef: { type: string, maxLength: 50 }
+        contractValidTo: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        flows:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        expectedAccounts: { type: integer, minimum: 1 }
+        expectedUnits: { type: integer, minimum: 1 }
+        tenancyModel: { $ref: '#/components/schemas/TenancyModel' }
+        cellCode: { type: string, maxLength: 16 }
+        domain: { type: string, maxLength: 253 }
+        dataRegion: { type: string, maxLength: 32 }
+        kekMode: { $ref: '#/components/schemas/TenantKekMode' }
+        policyBindings:
+          type: array
+          items: { $ref: '#/components/schemas/TenantPolicyBinding' }
+        uiPackVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        idps:
+          type: array
+          items: { $ref: '#/components/schemas/TenantIdp' }
+        staffSources:
+          type: array
+          items: { $ref: '#/components/schemas/TenantStaffSource' }
+        adminContact: { $ref: '#/components/schemas/TenantAdminContact' }
+      examples:
+        - tenancyModel: bridge
+          cellCode: CELL-G2
+          domain: thainguyen.okr.viettel.vn
+          dataRegion: HOALAC
+          kekMode: RIENG
+    ConfigTenantActivateRequest:
+      description: Ghi chú khi kích hoạt hoặc kích hoạt lại sau tạm ngừng.
+      type: object
+      properties:
+        reason: { type: string, maxLength: 500, description: 'Lý do, số văn bản (ghi `registry.tenant_status_log.reason`)' }
+    ConfigTenantExportRequest:
+      description: Bộ lọc và định dạng tệp xuất (định dạng là suy luận).
+      type: object
+      properties:
+        cell: { type: string, maxLength: 16 }
+        model: { $ref: '#/components/schemas/TenancyModel' }
+        status: { $ref: '#/components/schemas/TenantStatus' }
+        format: { type: string, enum: [XLSX, CSV], default: XLSX }
+    TenantIdpTestRequest:
+      description: IdP cần kiểm tra; gửi `idpAlias` của IdP đã lưu hoặc cấu hình đang soạn.
+      type: object
+      properties:
+        idpAlias: { type: string, maxLength: 64 }
+        idp: { $ref: '#/components/schemas/TenantIdp' }
+      examples:
+        - idpAlias: idp-tinh-thainguyen
+    TenantIdpTestResult:
+      type: object
+      required: [success, checkedAt]
+      properties:
+        success: { type: boolean }
+        protocol: { type: string, enum: [OIDC, SAML] }
+        latencyMs: { type: integer, minimum: 0 }
+        message: { type: string, description: 'Mô tả kết quả hoặc lỗi, tiếng Việt' }
+        checkedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - success: true
+          protocol: OIDC
+          latencyMs: 412
+          message: Đã lấy được tài liệu khám phá OIDC và khoá ký của IdP.
+          checkedAt: '2026-10-19T10:12:00+07:00'
+
+    # ------------------------------------------------------------ Bảo mật
+    SuspiciousAccessReport:
+      description: Báo cáo truy cập bất thường từ cảnh báo thiết bị mới.
+      type: object
+      properties:
+        loginEventId: { type: string, maxLength: 64, description: 'Mã sự kiện đăng nhập của Keycloak trong cảnh báo' }
+        occurredAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        note: { type: string, maxLength: 1000, x-classification: C2 }
+      examples:
+        - loginEventId: 7d2a9c1e-4b5f-4e8a-9c3d-1f2e3a4b5c6d
+          occurredAt: '2026-10-19T06:42:00+07:00'
+          note: Tôi không đăng nhập vào thời điểm này.
+    SuspiciousAccessResult:
+      type: object
+      required: [reportId, sessionsRevoked, passwordChangeRequired]
+      properties:
+        reportId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        sessionsRevoked: { type: integer, minimum: 0 }
+        passwordChangeRequired: { type: boolean }
+        passwordChangeUrl: { type: string, format: uri-reference, description: 'Luồng đổi mật khẩu của Keycloak' }
+      examples:
+        - reportId: 0192f3b4-1a2b-7c3d-8e4f-5a6b7c8d9e01
+          sessionsRevoked: 3
+          passwordChangeRequired: true
+          passwordChangeUrl: /realms/mission/login-actions/required-action?execution=UPDATE_PASSWORD
+
+    # ------------------------------------------------------------ Lịch
+    HolidayDayKind:
+      description: Loại ngày (`config.holiday_calendar.day_kind`).
+      type: string
+      enum: [NGHI_LE, NGHI_BU, LAM_BU]
+    HolidayScope:
+      description: Lịch quốc gia hoặc lịch riêng tenant (`config.holiday_calendar.scope`).
+      type: string
+      enum: [QUOC_GIA, TENANT]
+    HolidayCalendarDay:
+      type: object
+      required: [id, calendarDate, dayKind, name, scope, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        calendarDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        dayKind: { $ref: '#/components/schemas/HolidayDayKind' }
+        name: { type: string, maxLength: 100 }
+        scope: { $ref: '#/components/schemas/HolidayScope' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - id: 0192f4c5-2b3c-7d4e-9f50-6a7b8c9d0e12
+          calendarDate: '2026-09-02'
+          dayKind: NGHI_LE
+          name: Quốc khánh
+          scope: QUOC_GIA
+          rowVersion: 0
+    HolidayCalendarDayInput:
+      type: object
+      required: [calendarDate, dayKind, name]
+      properties:
+        calendarDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        dayKind: { $ref: '#/components/schemas/HolidayDayKind' }
+        name: { type: string, maxLength: 100 }
+      examples:
+        - calendarDate: '2026-12-26'
+          dayKind: LAM_BU
+          name: Làm bù cho ngày nghỉ 02/01/2027
+    HolidayCalendarDayPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/HolidayCalendarDay' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    WorkingCalendar:
+      description: Lịch ngày làm việc của tenant trong một năm (lịch quốc gia hợp lịch riêng).
+      type: object
+      required: [year, days]
+      properties:
+        year: { type: integer }
+        weekendDays:
+          type: array
+          description: Thứ trong tuần là ngày nghỉ, ISO 8601 (6 = thứ Bảy, 7 = Chủ nhật) (suy luận).
+          items: { type: integer, minimum: 1, maximum: 7 }
+        days:
+          type: array
+          description: Ngày đặc biệt trong năm.
+          items:
+            type: object
+            required: [date, dayKind, name, scope]
+            properties:
+              date: { $ref: '../common/common.yaml#/components/schemas/Date' }
+              dayKind: { $ref: '#/components/schemas/HolidayDayKind' }
+              name: { type: string }
+              scope: { $ref: '#/components/schemas/HolidayScope' }
+        workingDaysByMonth:
+          type: array
+          description: Số ngày làm việc của 12 tháng (suy luận).
+          minItems: 12
+          maxItems: 12
+          items: { type: integer, minimum: 0 }
+      examples:
+        - year: 2026
+          weekendDays: [6, 7]
+          days:
+            - { date: '2026-09-02', dayKind: NGHI_LE, name: Quốc khánh, scope: QUOC_GIA }
+            - { date: '2026-12-26', dayKind: LAM_BU, name: Làm bù cho ngày nghỉ 02/01/2027, scope: TENANT }
+          workingDaysByMonth: [21, 15, 22, 21, 19, 22, 23, 21, 20, 22, 21, 23]
+
+    # ------------------------------------------------------------ Cờ tính năng
+    FeatureFlagRollout:
+      description: Quy tắc bật dần (`config.feature_flag.rollout`).
+      type: object
+      properties:
+        unitIds:
+          type: array
+          description: Chỉ bật cho các đơn vị này và cấp dưới; trống là toàn tenant.
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        percent: { type: integer, minimum: 0, maximum: 100, description: 'Tỷ lệ người dùng được bật' }
+    FeatureFlag:
+      type: object
+      required: [flagKey, enabled, rowVersion]
+      properties:
+        flagKey: { type: string, maxLength: 100 }
+        description: { type: string, readOnly: true, description: 'Mô tả cờ do nền tảng khai báo (suy luận)' }
+        enabled: { type: boolean }
+        rollout: { $ref: '#/components/schemas/FeatureFlagRollout' }
+        validFrom: { type: ['string', 'null'], format: date-time }
+        validTo: { type: ['string', 'null'], format: date-time }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - flagKey: ai.weeklySummary
+          description: Khối "Tóm tắt tuần" do AI tạo trên trang chủ.
+          enabled: true
+          rollout: { unitIds: [], percent: 100 }
+          validFrom: null
+          validTo: null
+          rowVersion: 2
+    FeatureFlagInput:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+        rollout: { $ref: '#/components/schemas/FeatureFlagRollout' }
+        validFrom: { type: ['string', 'null'], format: date-time }
+        validTo: { type: ['string', 'null'], format: date-time }
+      examples:
+        - enabled: false
+    FeatureFlagPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/FeatureFlag' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+
+    # ------------------------------------------------------------ Ngưỡng cảnh báo
+    ConfigAnomalySignalCode:
+      description: Tám dấu hiệu bất thường (`oversight.anomaly_alert.signal_code`).
+      type: string
+      enum: [TU_CHAM_CAO, CAO_BANG, MUC_TIEU_DE, MINH_CHUNG_TRUNG, CAP_NHAT_DON, SUA_SAU_KHOA, CHE_NHO, MIEN_TRU_LAP]
+    AnomalySignalThreshold:
+      description: Ngưỡng của một dấu hiệu; tham số theo từng dấu hiệu nên để dạng ánh xạ tên → số (suy luận).
+      type: object
+      required: [signalCode, enabled, params]
+      properties:
+        signalCode: { $ref: '#/components/schemas/ConfigAnomalySignalCode' }
+        enabled: { type: boolean }
+        params:
+          type: object
+          additionalProperties: { type: number }
+          description: 'Ví dụ `{ "consecutiveQuarters": 3, "scoreGap": 5 }` cho dấu hiệu 1.'
+    AnomalyThresholdSet:
+      description: Phiên bản ngưỡng hiện hành của tenant (lưu trong `config.tenant_setting`).
+      type: object
+      required: [version, signals, rowVersion]
+      properties:
+        version: { type: integer, minimum: 1 }
+        reason: { type: string }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        updatedBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        signals:
+          type: array
+          minItems: 8
+          maxItems: 8
+          items: { $ref: '#/components/schemas/AnomalySignalThreshold' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - version: 3
+          reason: Giảm ngưỡng dồn cập nhật cuối kỳ từ 70% xuống 60% theo kết quả quý III.
+          updatedAt: '2026-10-05T14:20:00+07:00'
+          updatedBy: { id: 0192f5d6-3c4d-7e5f-8a61-7b8c9d0e1f23, name: Lê Minh Châu }
+          signals:
+            - { signalCode: TU_CHAM_CAO, enabled: true, params: { consecutiveQuarters: 3, scoreGap: 5 } }
+            - { signalCode: CAO_BANG, enabled: true, params: { sameLevelPercent: 90 } }
+            - { signalCode: MUC_TIEU_DE, enabled: true, params: { earlyWeeks: 2, belowPreviousPercent: 20 } }
+            - { signalCode: MINH_CHUNG_TRUNG, enabled: true, params: { ocrSimilarityPercent: 95 } }
+            - { signalCode: CAP_NHAT_DON, enabled: true, params: { lastDaysPercent: 60, lastDays: 3 } }
+            - { signalCode: SUA_SAU_KHOA, enabled: true, params: {} }
+            - { signalCode: CHE_NHO, enabled: true, params: { taskIncreasePercent: 50 } }
+            - { signalCode: MIEN_TRU_LAP, enabled: true, params: { exemptionsIn2Quarters: 3 } }
+          rowVersion: 3
+    AnomalyThresholdUpdate:
+      type: object
+      required: [signals, reason]
+      properties:
+        signals:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { $ref: '#/components/schemas/AnomalySignalThreshold' }
+        reason: { type: string, minLength: 20, maxLength: 2000, description: 'Lý do thay đổi (BR-14-09); độ dài tối thiểu là suy luận' }
+
+    # ------------------------------------------------------------ Kỳ đánh giá
+    PeriodKind:
+      description: Loại kỳ (`config.period.kind`).
+      type: string
+      enum: [THANG, QUY, NAM, NAM_HOC]
+    PeriodFlow:
+      description: Luồng áp dụng của kỳ (`config.period.flow`); khác `Flow` vì có `CA_HAI`.
+      type: string
+      enum: [DANG, NHA_NUOC, CA_HAI]
+    PeriodMilestones:
+      description: Lịch mốc của kỳ (`config.period.milestones`, TL-02a SCR-0801 trường 2).
+      type: object
+      properties:
+        planApprovalDeadline: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        evidenceDeadline: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        acceptanceBacklogDeadline: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        plannedLockDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+    PeriodPinnedPolicyPack:
+      description: Phiên bản Policy Pack ghim cho kỳ (`policy.policy_binding` theo `period_id`).
+      type: object
+      required: [flow, packVersionId]
+      properties:
+        flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+        packVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        packCode: { type: string }
+        version: { type: string }
+    PeriodLockOrderStatus:
+      description: Trạng thái lệnh khoá kỳ (`config.period_lock_order.status`).
+      type: string
+      enum: [NHAP, CHO_DUYET, DA_DUYET, DANG_CHAY, HOAN_TAT, DA_HUY]
+    PeriodLockOrder:
+      description: Lệnh khoá kỳ (`config.period_lock_order`).
+      type: object
+      required: [id, periodId, status, requestedBy, basisDoc, idempotencyKey, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        status: { $ref: '#/components/schemas/PeriodLockOrderStatus' }
+        basisDoc: { type: string, maxLength: 200, description: 'Văn bản căn cứ' }
+        plannedLockAt: { type: ['string', 'null'], format: date-time, description: 'Thời điểm dự kiến khởi chạy (suy luận cột)' }
+        requestedBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        requestedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        approvedBy:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Ref' }
+            - { type: 'null' }
+        approvedAt: { type: ['string', 'null'], format: date-time }
+        startedBy:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Ref' }
+            - { type: 'null' }
+        startedAt: { type: ['string', 'null'], format: date-time }
+        sagaId: { type: ['string', 'null'], format: uuid, description: '`flowable.saga_instance.id`' }
+        idempotencyKey: { type: string, maxLength: 64, readOnly: true, description: 'Khoá chống khởi chạy trùng, dạng `CK-{năm}{kỳ}`' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - id: 0192f6e7-4d5e-7f60-8b72-8c9d0e1f2a34
+          periodId: 0192f6e7-0000-7f60-8b72-8c9d0e1f2a01
+          status: DANG_CHAY
+          basisDoc: Thông báo 21-TB/ĐUK ngày 28/12/2026
+          plannedLockAt: '2027-01-04T07:00:00+07:00'
+          requestedBy: { id: 0192f6e7-1111-7f60-8b72-8c9d0e1f2a02, name: Hoàng Đức Dũng }
+          requestedAt: '2026-12-29T09:15:00+07:00'
+          approvedBy: { id: 0192f6e7-2222-7f60-8b72-8c9d0e1f2a03, name: Phạm Quang Huy }
+          approvedAt: '2026-12-30T16:40:00+07:00'
+          startedBy: { id: 0192f6e7-3333-7f60-8b72-8c9d0e1f2a04, name: Vũ Thị Lan }
+          startedAt: '2027-01-04T07:02:00+07:00'
+          sagaId: 0192f6e7-5e6f-7a81-9c83-9d0e1f2a3b45
+          idempotencyKey: CK-2026Q4
+          rowVersion: 4
+    Period:
+      description: Kỳ đánh giá (`config.period`).
+      type: object
+      required: [id, code, name, kind, flow, startDate, endDate, status, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 32, description: 'Ví dụ `2026-Q4`, `2026`, `2027-03`' }
+        name: { type: string, maxLength: 100 }
+        kind: { $ref: '#/components/schemas/PeriodKind' }
+        flow: { $ref: '#/components/schemas/PeriodFlow' }
+        parentPeriodId: { type: ['string', 'null'], format: uuid }
+        startDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        endDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        periodBucket: { type: integer, readOnly: true, description: 'Giá trị phân vùng, ví dụ 20264' }
+        planDeadline: { type: ['string', 'null'], format: date }
+        submissionDeadline: { type: ['string', 'null'], format: date }
+        status: { $ref: '../common/common.yaml#/components/schemas/PeriodStatus' }
+        notStarted: { type: boolean, readOnly: true, description: 'Kỳ đã tạo nhưng chưa tới ngày bắt đầu (hiển thị "Đã tạo")' }
+        lockedAt: { type: ['string', 'null'], format: date-time }
+        lockedBy:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Ref' }
+            - { type: 'null' }
+        lockSagaId: { type: ['string', 'null'], format: uuid }
+        reopenCount: { type: integer, minimum: 0 }
+        milestones: { $ref: '#/components/schemas/PeriodMilestones' }
+        pinnedPolicyPacks:
+          type: array
+          items: { $ref: '#/components/schemas/PeriodPinnedPolicyPack' }
+        currentLockOrder:
+          oneOf:
+            - { $ref: '#/components/schemas/PeriodLockOrder' }
+            - { type: 'null' }
+        warnings:
+          type: array
+          readOnly: true
+          description: Cảnh báo lịch, ví dụ khoá muộn hơn tham số (BR-08-12).
+          items: { type: string }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - id: 0192f6e7-0000-7f60-8b72-8c9d0e1f2a01
+          code: 2026-Q4
+          name: Quý IV/2026
+          kind: QUY
+          flow: CA_HAI
+          parentPeriodId: 0192f6e7-0000-7f60-8b72-8c9d0e1f2a00
+          startDate: '2026-10-01'
+          endDate: '2026-12-31'
+          periodBucket: 20264
+          planDeadline: '2026-10-09'
+          submissionDeadline: '2027-01-08'
+          status: DANG_KHOA
+          notStarted: false
+          lockedAt: null
+          lockedBy: null
+          lockSagaId: 0192f6e7-5e6f-7a81-9c83-9d0e1f2a3b45
+          reopenCount: 0
+          milestones:
+            planApprovalDeadline: '2026-10-09'
+            evidenceDeadline: '2026-12-31'
+            acceptanceBacklogDeadline: '2027-01-03'
+            plannedLockDate: '2027-01-04'
+          pinnedPolicyPacks:
+            - { flow: DANG, packVersionId: 0192e1c4-5d6e-7f80-9a1b-2c3d4e5f6a70, packCode: khoi-dang/quy-dinh-moi, version: '2.0' }
+          warnings: []
+          rowVersion: 12
+    PeriodPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Period' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    PeriodCreate:
+      type: object
+      required: [code, name, kind, flow, startDate, endDate]
+      properties:
+        code: { type: string, maxLength: 32 }
+        name: { type: string, maxLength: 100 }
+        kind: { $ref: '#/components/schemas/PeriodKind' }
+        flow: { $ref: '#/components/schemas/PeriodFlow' }
+        parentPeriodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        startDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        endDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        planDeadline: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        submissionDeadline: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        milestones: { $ref: '#/components/schemas/PeriodMilestones' }
+      examples:
+        - code: 2027-Q1
+          name: Quý I/2027
+          kind: QUY
+          flow: CA_HAI
+          parentPeriodId: 0192f6e7-0000-7f60-8b72-8c9d0e1f2a10
+          startDate: '2027-01-01'
+          endDate: '2027-03-31'
+          planDeadline: '2027-01-08'
+    PeriodLockOrderCreate:
+      type: object
+      required: [basisDoc]
+      properties:
+        basisDoc: { type: string, maxLength: 200 }
+        plannedLockAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - basisDoc: Thông báo 21-TB/ĐUK ngày 28/12/2026
+          plannedLockAt: '2027-01-04T07:00:00+07:00'
+    PeriodLockOrderApprove:
+      type: object
+      properties:
+        comment: { type: string, maxLength: 1000 }
+    PeriodLockStart:
+      type: object
+      required: [lockOrderId]
+      properties:
+        lockOrderId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+      examples:
+        - lockOrderId: 0192f6e7-4d5e-7f60-8b72-8c9d0e1f2a34
+    PeriodLockControl:
+      description: Ghi chú kèm hành động điều khiển (ghi sổ cái, BR-08-10).
+      type: object
+      properties:
+        comment: { type: string, maxLength: 1000 }
+    PeriodLockRetryRequest:
+      type: object
+      properties:
+        profileIds:
+          type: array
+          description: Chỉ chạy lại các hồ sơ này; bỏ trống là toàn bộ hàng đợi lỗi.
+          maxItems: 1000
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    PeriodLockCancelRequestInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 20, maxLength: 2000, description: 'Lý do huỷ (độ dài tối thiểu là suy luận)' }
+      examples:
+        - reason: Phát hiện sai sót cấu hình trọng số khối 3 khi đang tính điểm; cần sửa Policy Pack trước khi khoá lại.
+    SagaStatus:
+      description: Trạng thái saga (`flowable.saga_instance.status`).
+      type: string
+      enum: [DANG_CHAY, CHO_SU_KIEN, HOAN_TAT, DANG_BU_TRU, DA_BU_TRU, LOI_CAN_XU_LY]
+    PeriodLockStepStatus:
+      description: Trạng thái một bước saga (`config.period_lock_step.status`).
+      type: string
+      enum: [CHO, DANG_CHAY, DAT, DAT_CO_CANH_BAO, LOI, DA_BU_TRU]
+    PeriodLockStep:
+      description: Một bước saga chiếu từ `config.period_lock_step`.
+      type: object
+      required: [stepNo, name, status]
+      properties:
+        stepNo: { type: integer, minimum: 0, maximum: 5 }
+        name: { type: string, maxLength: 64 }
+        status: { $ref: '#/components/schemas/PeriodLockStepStatus' }
+        startedAt: { type: ['string', 'null'], format: date-time }
+        finishedAt: { type: ['string', 'null'], format: date-time }
+        resultSummary:
+          type: object
+          additionalProperties: true
+          description: Tóm tắt kết quả (số hồ sơ, cảnh báo).
+        compensationAction: { type: ['string', 'null'], maxLength: 48 }
+        compensatedAt: { type: ['string', 'null'], format: date-time }
+    PeriodLockCancelState:
+      description: Đề nghị huỷ và bù trừ đang có (cột `cancel_requested_by`, `cancel_approved_by`).
+      type: object
+      required: [requestedBy, requestedAt, reason]
+      properties:
+        requestedBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        requestedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        reason: { type: string }
+        approvedBy:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Ref' }
+            - { type: 'null' }
+        approvedAt: { type: ['string', 'null'], format: date-time }
+    PeriodLockProgress:
+      description: Tiến trình saga khoá kỳ trên SCR-0801.
+      type: object
+      required: [periodId, lockOrder, sagaStatus, totals, steps, pauseRequested]
+      properties:
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        lockOrder: { $ref: '#/components/schemas/PeriodLockOrder' }
+        sagaStatus: { $ref: '#/components/schemas/SagaStatus' }
+        templateKey: { type: string, description: 'Mẫu saga, ví dụ `chot-ky`' }
+        templateVersion: { type: integer }
+        pauseRequested: { type: boolean, description: 'Đã đặt cờ tạm dừng sau bước hiện tại' }
+        totals:
+          type: object
+          required: [profiles, scored, failed]
+          properties:
+            profiles: { type: integer, minimum: 0 }
+            scored: { type: integer, minimum: 0 }
+            failed: { type: integer, minimum: 0 }
+        ratePerMinute: { type: ['number', 'null'], minimum: 0, description: 'Hồ sơ mỗi phút, tính lại sau mỗi lô' }
+        estimatedFinishAt: { type: ['string', 'null'], format: date-time }
+        budgetFinishAt: { type: ['string', 'null'], format: date-time, description: 'Hạn theo ngân sách NFR-06; vượt thì MSG-08-04' }
+        excludedEvidenceCount: { type: integer, minimum: 0, description: 'Minh chứng không tính trong kỳ (BR-08-05, MSG-08-03)' }
+        steps:
+          type: array
+          minItems: 6
+          maxItems: 6
+          items: { $ref: '#/components/schemas/PeriodLockStep' }
+        cancelRequest:
+          oneOf:
+            - { $ref: '#/components/schemas/PeriodLockCancelState' }
+            - { type: 'null' }
+        cancellable: { type: boolean, description: 'Còn trước khi bước 4 hoàn tất (BR-08-09)' }
+        warnings:
+          type: array
+          items: { type: string }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - periodId: 0192f6e7-0000-7f60-8b72-8c9d0e1f2a01
+          lockOrder:
+            id: 0192f6e7-4d5e-7f60-8b72-8c9d0e1f2a34
+            periodId: 0192f6e7-0000-7f60-8b72-8c9d0e1f2a01
+            status: DANG_CHAY
+            basisDoc: Thông báo 21-TB/ĐUK ngày 28/12/2026
+            requestedBy: { id: 0192f6e7-1111-7f60-8b72-8c9d0e1f2a02, name: Hoàng Đức Dũng }
+            idempotencyKey: CK-2026Q4
+            rowVersion: 4
+          sagaStatus: DANG_CHAY
+          templateKey: chot-ky
+          templateVersion: 3
+          pauseRequested: false
+          totals: { profiles: 298760, scored: 233040, failed: 17 }
+          ratePerMinute: 5800
+          estimatedFinishAt: '2027-01-04T10:30:00+07:00'
+          budgetFinishAt: '2027-01-04T13:02:00+07:00'
+          excludedEvidenceCount: 214
+          steps:
+            - { stepNo: 0, name: Kiểm tra tiền điều kiện, status: DAT_CO_CANH_BAO, startedAt: '2027-01-04T07:02:00+07:00', finishedAt: '2027-01-04T07:05:00+07:00', resultSummary: { excludedEvidence: 214 }, compensationAction: null, compensatedAt: null }
+            - { stepNo: 1, name: Khoá kỳ, status: DAT, startedAt: '2027-01-04T07:05:00+07:00', finishedAt: '2027-01-04T07:05:40+07:00', resultSummary: { event: EVT-09 }, compensationAction: Trả kỳ về MO, compensatedAt: null }
+            - { stepNo: 2, name: Tính điểm hàng loạt, status: DANG_CHAY, startedAt: '2027-01-04T07:05:40+07:00', finishedAt: null, resultSummary: { percent: 78, retryingBatches: 3 }, compensationAction: Đánh dấu lô điểm bị thay thế, compensatedAt: null }
+            - { stepNo: 3, name: Sinh mẫu và bảng chấm điểm, status: CHO, startedAt: null, finishedAt: null, resultSummary: {}, compensationAction: Thu hồi tệp đã sinh, compensatedAt: null }
+            - { stepNo: 4, name: Ký số lô, status: CHO, startedAt: null, finishedAt: null, resultSummary: {}, compensationAction: Huỷ yêu cầu ký đang chờ, compensatedAt: null }
+            - { stepNo: 5, name: Hoàn tất, status: CHO, startedAt: null, finishedAt: null, resultSummary: {}, compensationAction: null, compensatedAt: null }
+          cancelRequest: null
+          cancellable: true
+          warnings: ['Có 214 minh chứng chưa được nghiệm thu sẽ không được tính điểm trong kỳ.']
+          updatedAt: '2027-01-04T07:44:00+07:00'
+    ScoreBatchStatus:
+      description: Trạng thái lô tính điểm (`scoring.score_job.status`).
+      type: string
+      enum: [CHO, DANG_CHAY, XONG, LOI]
+    PeriodLockBatch:
+      description: Một lô tính điểm (`scoring.score_job`).
+      type: object
+      required: [id, profileCount, status, attempts]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        unit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        profileCount: { type: integer, minimum: 0 }
+        status: { $ref: '#/components/schemas/ScoreBatchStatus' }
+        attempts: { type: integer, minimum: 0, maximum: 3 }
+        finishedAt: { type: ['string', 'null'], format: date-time }
+      examples:
+        - id: 0192f7f8-5e6f-7a81-9c83-9d0e1f2a3b56
+          unit: { id: 0192f7f8-0000-7a81-9c83-9d0e1f2a3b00, name: Ban Tổ chức Đảng uỷ }
+          profileCount: 1000
+          status: XONG
+          attempts: 1
+          finishedAt: '2027-01-04T07:21:13+07:00'
+    PeriodLockBatchPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PeriodLockBatch' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    PeriodLockFailure:
+      description: Hồ sơ lỗi trong hàng đợi lỗi của bước tính điểm.
+      type: object
+      required: [profileId, error, attempts]
+      properties:
+        profileId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        person: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        unit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        batchId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        error: { type: string, description: 'Mô tả lỗi, không chứa thông tin nội bộ' }
+        attempts: { type: integer, minimum: 0 }
+        lastAttemptAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - profileId: 0192f8a9-6f70-7b82-8d94-0e1f2a3b4c67
+          person: { id: 0192f8a9-1111-7b82-8d94-0e1f2a3b4c01, name: Nguyễn Thị Mai }
+          unit: { id: 0192f8a9-2222-7b82-8d94-0e1f2a3b4c02, name: Văn phòng Đảng uỷ }
+          batchId: 0192f7f8-5e6f-7a81-9c83-9d0e1f2a3b56
+          error: Thiếu phân công chính tại ngày cuối kỳ.
+          attempts: 3
+          lastAttemptAt: '2027-01-04T07:30:02+07:00'
+    PeriodLockFailurePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PeriodLockFailure' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    PeriodLockEvent:
+      description: Một dòng nhật ký sự kiện của saga (`ledger.ledger_entry` lọc theo saga).
+      type: object
+      required: [at, event]
+      properties:
+        at: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        event: { type: string, description: 'Mô tả sự kiện, tiếng Việt' }
+        evt: { type: ['string', 'null'], description: 'Mã EVT nếu có, ví dụ EVT-09' }
+        actor:
+          oneOf:
+            - { $ref: '../common/common.yaml#/components/schemas/Ref' }
+            - { type: 'null' }
+        ledgerEntryId: { type: ['string', 'null'], format: uuid }
+      examples:
+        - at: '2027-01-04T07:05:40+07:00'
+          event: Kỳ Quý IV/2026 chuyển DANG_KHOA, phát KyDaKhoa.
+          evt: EVT-09
+          actor: null
+          ledgerEntryId: 0192f9ba-7081-7c93-8ea5-1f2a3b4c5d78
+    PeriodLockEventPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PeriodLockEvent' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    PeriodLockDiagram:
+      description: Định nghĩa BPMN và trạng thái các hoạt động của saga.
+      type: object
+      required: [bpmnXml, activeActivityIds, completedActivityIds, failedActivityIds]
+      properties:
+        templateKey: { type: string }
+        templateVersion: { type: integer }
+        bpmnXml: { type: string, description: 'BPMN 2.0 XML; chỉ hiển thị bằng trình xem BPMN' }
+        activeActivityIds: { type: array, items: { type: string } }
+        completedActivityIds: { type: array, items: { type: string } }
+        failedActivityIds: { type: array, items: { type: string } }
+      examples:
+        - templateKey: chot-ky
+          templateVersion: 3
+          bpmnXml: '<?xml version="1.0" encoding="UTF-8"?><definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">…</definitions>'
+          activeActivityIds: [buoc2TinhDiem]
+          completedActivityIds: [buoc0TienDieuKien, buoc1KhoaKy]
+          failedActivityIds: []
+
+    # ------------------------------------------------------------ UI Pack
+    UiPackVersionStatus:
+      description: Trạng thái phiên bản UI Pack (`config.ui_pack_version.status`, bộ trạng thái TL-02b).
+      type: string
+      enum: [NHAP, DANG_KIEM_TRA, CHO_DUYET, DA_PHAT_HANH, THAY_THE]
+    DesignTokens:
+      description: >-
+        Design Token theo định dạng W3C Design Tokens (`$type`, `$value`), lưu ở
+        `config.ui_pack_version.tokens_json`. Không có trường nhận HTML hay JavaScript.
+      type: object
+      additionalProperties: true
+      examples:
+        - color:
+            brand:
+              primary: { $type: color, $value: '#0A7E8C' }
+              on-primary: { $type: color, $value: '#FFFFFF' }
+          radius:
+            card: { $type: dimension, $value: 14px }
+    SduiNode:
+      description: >-
+        Nút cây SDUI; `component` phải có trong registry (BR-18-02), `props` kiểm theo `propsSchema` của
+        component, `visibleWhen` là biểu thức CEL chỉ đọc ngữ cảnh người dùng.
+      type: object
+      required: [component]
+      properties:
+        component: { type: string, maxLength: 64, pattern: '^[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9-]+)+$' }
+        props:
+          type: object
+          additionalProperties: true
+        visibleWhen: { type: string, maxLength: 500 }
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/SduiNode' }
+      examples:
+        - component: vt.layout.grid
+          props: { columns: { xs: 1, md: 2, xl: 3 } }
+          children:
+            - { component: vt.widget.myTasksToday, props: { limit: 7 } }
+    UiPackAsset:
+      description: Tài nguyên của UI Pack (`assets_json`), ví dụ logo SVG đã làm sạch ≤ 50 KB.
+      type: object
+      required: [key, path, sha256]
+      properties:
+        key: { type: string, description: 'Ví dụ `logo`' }
+        path: { type: string, maxLength: 512 }
+        mediaType: { type: string, enum: ['image/svg+xml', 'image/png', 'font/woff2'] }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        sizeBytes: { type: integer, minimum: 0, maximum: 51200 }
+    UiPackFormRef:
+      description: Biểu mẫu gắn trong UI Pack.
+      type: object
+      required: [formKey, version]
+      properties:
+        formKey: { type: string, maxLength: 64 }
+        version: { type: string, maxLength: 32 }
+    PolicyPackVersionRef:
+      description: Phiên bản Policy Pack tham chiếu (`policy_pack_ref`, `policy_pack_version_id`).
+      type: object
+      required: [packVersionId]
+      properties:
+        packVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        packCode: { type: string }
+        version: { type: string }
+    UiPackVersion:
+      description: Một phiên bản UI Pack (`config.ui_pack_version`).
+      type: object
+      required: [id, uiPackId, version, status, tokens, layouts, componentRegistryVersion, elderMode, fewSteps, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        uiPackId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        version: { type: string, maxLength: 32 }
+        status: { $ref: '#/components/schemas/UiPackVersionStatus' }
+        tokens: { $ref: '#/components/schemas/DesignTokens' }
+        layouts:
+          type: object
+          description: Bố cục theo bề mặt cấu hình được (ví dụ `home`); tối đa 12 widget trên trang chủ.
+          additionalProperties: { $ref: '#/components/schemas/SduiNode' }
+        assets:
+          type: array
+          items: { $ref: '#/components/schemas/UiPackAsset' }
+        forms:
+          type: array
+          items: { $ref: '#/components/schemas/UiPackFormRef' }
+        componentRegistryVersion: { type: string, maxLength: 32 }
+        policyPack: { $ref: '#/components/schemas/PolicyPackVersionRef' }
+        elderMode: { type: boolean }
+        fewSteps: { type: boolean }
+        bundleSha256: { type: ['string', 'null'], pattern: '^[0-9a-f]{64}$', readOnly: true }
+        bundleSizeGzipBytes: { type: ['integer', 'null'], readOnly: true, description: 'Kích thước gói đã biên dịch (suy luận; ngân sách 30 KB)' }
+        publishedAt: { type: ['string', 'null'], format: date-time, readOnly: true }
+        reviewComment: { type: ['string', 'null'], readOnly: true, description: 'Ý kiến của người duyệt khi từ chối' }
+        createdBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - id: 0192fa0b-8192-7da4-9fb6-2a3b4c5d6e89
+          uiPackId: 0192fa0b-0000-7da4-9fb6-2a3b4c5d6e00
+          version: 1.8.0
+          status: NHAP
+          tokens:
+            color:
+              brand:
+                primary: { $type: color, $value: '#0A7E8C' }
+            radius:
+              card: { $type: dimension, $value: 14px }
+          layouts:
+            home:
+              component: vt.layout.grid
+              children:
+                - { component: vt.widget.myTasksToday, props: { limit: 7 } }
+                - { component: vt.widget.kpiTile }
+          assets:
+            - { key: logo, path: assets/logo-so-y-te-x.svg, mediaType: image/svg+xml, sha256: 9f2c7a1e4b5d6c8f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f6071, sizeBytes: 8421 }
+          forms:
+            - { formKey: phieu-vc-yte, version: '12' }
+          componentRegistryVersion: '2026.3'
+          policyPack: { packVersionId: 0192e1c4-5d6e-7f80-9a1b-2c3d4e5f6a72, packCode: nn-335/so-y-te, version: '1.3' }
+          elderMode: true
+          fewSteps: false
+          bundleSha256: null
+          bundleSizeGzipBytes: 11469
+          publishedAt: null
+          reviewComment: null
+          createdBy: { id: 0192fa0b-1111-7da4-9fb6-2a3b4c5d6e01, name: Đỗ Thanh Tâm }
+          updatedAt: '2026-10-19T09:40:00+07:00'
+          rowVersion: 6
+    UiPackVersionPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/UiPackVersion' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    UiPackVersionCreate:
+      type: object
+      required: [version]
+      properties:
+        version: { type: string, maxLength: 32 }
+        cloneFromVersion:
+          type: ['string', 'null']
+          maxLength: 32
+          description: Phiên bản nhân bản; `null` là bộ mặc định của `@vt/design-system`.
+      examples:
+        - version: 1.9.0
+          cloneFromVersion: 1.8.0
+    UiPackVersionUpdate:
+      type: object
+      required: [tokens, layouts, componentRegistryVersion, elderMode, fewSteps]
+      properties:
+        tokens: { $ref: '#/components/schemas/DesignTokens' }
+        layouts:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/SduiNode' }
+        assets:
+          type: array
+          items: { $ref: '#/components/schemas/UiPackAsset' }
+        componentRegistryVersion: { type: string, maxLength: 32 }
+        policyPackVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        elderMode: { type: boolean }
+        fewSteps: { type: boolean }
+    UiPackSummary:
+      description: Một UI Pack của tenant (`config.ui_pack`).
+      type: object
+      required: [id, code, name]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 64 }
+        name: { type: string, maxLength: 255 }
+        currentVersionId: { type: ['string', 'null'], format: uuid }
+        currentVersion: { type: ['string', 'null'] }
+        draftVersion: { type: ['string', 'null'], description: 'Phiên bản đang soạn nếu có (suy luận)' }
+      examples:
+        - id: 0192fa0b-0000-7da4-9fb6-2a3b4c5d6e00
+          code: so-y-te-x
+          name: UI Pack Sở Y tế tỉnh X
+          currentVersionId: 0192fa0b-7000-7da4-9fb6-2a3b4c5d6e70
+          currentVersion: 1.7.0
+          draftVersion: 1.8.0
+    UiPackPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/UiPackSummary' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    UiPackCheck:
+      description: Một mục kiểm tra tự động của UI Pack.
+      type: object
+      required: [code, passed]
+      properties:
+        code: { type: string, enum: [SCHEMA, REGISTRY, CONTRAST, SIZE, CEL_PARITY, ELDER_MODE], description: 'Mã kiểm tra (suy luận tên giá trị)' }
+        passed: { type: boolean }
+        message: { type: string }
+        msg: { type: string, description: 'Mã thông điệp TL-02b nếu có, ví dụ MSG-18-01' }
+    UiPackPreview:
+      description: Kết quả biên dịch thử một phiên bản UI Pack.
+      type: object
+      required: [version, mode, cssVariables, layouts, checks]
+      properties:
+        version: { type: string }
+        mode: { type: string, enum: [default, elderly] }
+        cssVariables:
+          type: object
+          description: CSS custom properties sinh từ token (tên → giá trị).
+          additionalProperties: { type: string }
+        primePreset:
+          type: object
+          additionalProperties: true
+          description: Preset PrimeNG dạng JSON.
+        layouts:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/SduiNode' }
+        checks:
+          type: array
+          items: { $ref: '#/components/schemas/UiPackCheck' }
+        bundleSizeGzipBytes: { type: integer, minimum: 0 }
+      examples:
+        - version: 1.8.0
+          mode: default
+          cssVariables: { '--vt-color-primary': '#0A7E8C', '--vt-radius-card': 14px }
+          primePreset: { semantic: { primary: { '500': 'var(--vt-color-primary)' } } }
+          layouts:
+            home: { component: vt.layout.grid, children: [{ component: vt.widget.myTasksToday }] }
+          checks:
+            - { code: CONTRAST, passed: true, message: 'Tương phản 4,9 : 1, đạt AA.' }
+            - { code: SIZE, passed: true, message: 'Gói 11,2 KB gzip, trong ngân sách 30 KB.' }
+          bundleSizeGzipBytes: 11469
+    UiPackRuntime:
+      description: >-
+        UI Pack hiện hành cho shell và ứng dụng di động, theo cấu trúc năm phần của TL-01 chương 7 (siêu
+        dữ liệu, token, bố cục, biểu mẫu, plugin) cộng `modes`, `i18n` và thông tin toàn vẹn.
+      type: object
+      required: [pack, version, requires, tokens, layouts, contentHash]
+      properties:
+        pack: { type: string, description: 'Mã gói, ví dụ `tinh-quang-ngai/ui`' }
+        version: { type: string }
+        requires:
+          type: object
+          required: [registry]
+          properties:
+            registry: { type: string, description: 'Dải phiên bản registry tương thích' }
+            policyPack: { type: string, description: 'Dải phiên bản Policy Pack tương thích' }
+        tokens: { $ref: '#/components/schemas/DesignTokens' }
+        modes:
+          type: object
+          description: Ghi đè token theo chế độ; `elderly` kèm `flags.reducedSteps`.
+          additionalProperties: true
+        layouts:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/SduiNode' }
+        forms:
+          type: object
+          description: Cấu hình trình bày biểu mẫu theo khoá; dữ liệu phiếu tham chiếu Policy Pack qua `schemaRef`.
+          additionalProperties: true
+        plugins:
+          type: array
+          items:
+            type: object
+            required: [name, remoteEntry]
+            properties:
+              name: { type: string }
+              remoteEntry: { type: string, format: uri-reference }
+              integrity: { type: string }
+        i18n:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { type: string }
+        contentHash: { type: string, description: 'SHA-256 của gói (`bundle_sha256`)' }
+        signature: { type: string, description: 'Chữ ký số của gói, base64' }
+        publishedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - pack: tinh-quang-ngai/ui
+          version: 1.3.0
+          requires: { registry: '^2.4.0', policyPack: 'khoi-chinh-quyen/nd335@>=1.2.0 <2.0.0' }
+          tokens:
+            color:
+              primary: { $type: color, $value: '#C8102E' }
+          modes:
+            elderly:
+              font: { size: { body: { $value: 18px } } }
+              flags: { reducedSteps: true, minTouchTarget: 48px }
+          layouts:
+            home:
+              component: vt.layout.grid
+              children:
+                - { component: vt.widget.myTasksToday, props: { limit: 7 } }
+          forms: {}
+          plugins: []
+          i18n: { vi: { home.notice.q4: Hạn nộp hồ sơ quý IV là ngày 10/01/2027. } }
+          contentHash: 9f2c7a1e4b5d6c8f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f6071
+          signature: MEUCIQDx…
+          publishedAt: '2026-10-12T15:00:00+07:00'
+    UiPackReviewInput:
+      type: object
+      properties:
+        comment: { type: string, maxLength: 1000 }
+    UiPackRejectInput:
+      type: object
+      required: [comment]
+      properties:
+        comment: { type: string, minLength: 1, maxLength: 1000, description: 'Ý kiến bắt buộc khi từ chối' }
+      examples:
+        - comment: Màu chữ phụ trên nền thẻ chưa đạt AA, đề nghị chỉnh lại.
+    UiPackFormAttach:
+      type: object
+      required: [formKey, formVersion]
+      properties:
+        formKey: { type: string, maxLength: 64 }
+        formVersion: { type: string, maxLength: 32 }
+      examples:
+        - formKey: phieu-vc-yte
+          formVersion: '12'
+
+    # ------------------------------------------------------------ Danh mục component
+    UiComponentStatus:
+      description: Trạng thái component trong registry (`config.component_registry.status`).
+      type: string
+      enum: [HIEU_LUC, NGUNG]
+    UiComponent:
+      description: Một component SDUI được phép (`config.component_registry`).
+      type: object
+      required: [componentKey, registryVersion, propsSchema, allowedClassification, status]
+      properties:
+        componentKey: { type: string, maxLength: 64 }
+        registryVersion: { type: string, maxLength: 16 }
+        propsSchema:
+          type: object
+          additionalProperties: true
+          description: JSON Schema của thuộc tính được phép.
+        allowedClassification: { $ref: '../common/common.yaml#/components/schemas/Classification' }
+        status: { $ref: '#/components/schemas/UiComponentStatus' }
+        container: { type: boolean, description: 'Được chứa children (TL-01 chương 7)' }
+        mobile: { type: boolean, description: 'Hỗ trợ trên ứng dụng di động' }
+        plugin: { type: ['string', 'null'], description: 'Plugin cung cấp, ví dụ `fe-plugin-yte`' }
+      examples:
+        - componentKey: vt.widget.myTasksToday
+          registryVersion: '2026.3'
+          propsSchema: { type: object, additionalProperties: false, properties: { limit: { type: integer, maximum: 20 } } }
+          allowedClassification: C1
+          status: HIEU_LUC
+          container: false
+          mobile: true
+          plugin: null
+    UiComponentPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/UiComponent' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+
+    # ------------------------------------------------------------ Biểu mẫu động
+    UiFormStatus:
+      description: Trạng thái biểu mẫu (`config.form_schema.status`).
+      type: string
+      enum: [NHAP, DA_PHAT_HANH, NGUNG]
+    UiFormVersion:
+      description: Một phiên bản biểu mẫu động (`config.form_schema`).
+      type: object
+      required: [formKey, version, status, schemaJson, uiJson, rowVersion]
+      properties:
+        formKey: { type: string, maxLength: 64 }
+        version: { type: string, maxLength: 32 }
+        status: { $ref: '#/components/schemas/UiFormStatus' }
+        schemaJson:
+          type: object
+          additionalProperties: true
+          description: JSON Schema 2020-12 của dữ liệu, có `x-cel` (quy tắc) và `x-classification` (C1, C2).
+        uiJson:
+          type: object
+          additionalProperties: true
+          description: Cấu hình trường Formly, điều kiện hiển thị CEL, thông báo lỗi.
+        celRules:
+          type: array
+          items:
+            type: object
+            required: [field, expr, message]
+            properties:
+              field: { type: string, maxLength: 64 }
+              expr: { type: string, maxLength: 1000 }
+              message: { type: string, maxLength: 200 }
+              serverOnly: { type: boolean, default: false }
+        policyPack: { $ref: '#/components/schemas/PolicyPackVersionRef' }
+        lastTestRun:
+          oneOf:
+            - { $ref: '#/components/schemas/UiFormTestRunResult' }
+            - { type: 'null' }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+      examples:
+        - formKey: phieu-vc-yte
+          version: '12'
+          status: NHAP
+          schemaJson:
+            $schema: https://json-schema.org/draft/2020-12/schema
+            type: object
+            properties:
+              ty_le_hsba_dat: { type: number, x-cel: 'self >= 0.0 && self <= 100.0', x-classification: C1 }
+              mo_ta_su_co: { type: string, maxLength: 2000, x-classification: C2 }
+          uiJson:
+            mo_ta_su_co: { hideExpression: 'form.su_co_y_khoa != "CO"', label: Mô tả sự cố và biện pháp khắc phục }
+          celRules:
+            - { field: ty_le_hsba_dat, expr: 'self >= 0.0 && self <= 100.0', message: Giá trị phải từ 0 đến 100 }
+          policyPack: { packVersionId: 0192e1c4-5d6e-7f80-9a1b-2c3d4e5f6a72, packCode: nn-335/so-y-te, version: '1.3' }
+          lastTestRun: null
+          updatedAt: '2026-10-19T09:30:00+07:00'
+          rowVersion: 9
+    UiFormVersionCreate:
+      type: object
+      required: [version]
+      properties:
+        version: { type: string, maxLength: 32 }
+        cloneFromVersion: { type: ['string', 'null'], maxLength: 32 }
+        policyPackVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+      examples:
+        - version: '13'
+          cloneFromVersion: '12'
+    UiFormVersionUpdate:
+      type: object
+      required: [schemaJson, uiJson]
+      properties:
+        schemaJson:
+          type: object
+          additionalProperties: true
+        uiJson:
+          type: object
+          additionalProperties: true
+        celRules:
+          type: array
+          items:
+            type: object
+            required: [field, expr, message]
+            properties:
+              field: { type: string, maxLength: 64 }
+              expr: { type: string, maxLength: 1000 }
+              message: { type: string, maxLength: 200 }
+              serverOnly: { type: boolean, default: false }
+        policyPackVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    UiFormSummary:
+      type: object
+      required: [formKey, latestVersion, status]
+      properties:
+        formKey: { type: string }
+        latestVersion: { type: string }
+        status: { $ref: '#/components/schemas/UiFormStatus' }
+        policyPack: { $ref: '#/components/schemas/PolicyPackVersionRef' }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - formKey: phieu-vc-yte
+          latestVersion: '12'
+          status: NHAP
+          updatedAt: '2026-10-19T09:30:00+07:00'
+    UiFormPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/UiFormSummary' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    UiFormTestCaseInput:
+      type: object
+      required: [caseId, input, browserValid]
+      properties:
+        caseId: { type: string, maxLength: 64 }
+        input:
+          type: object
+          additionalProperties: true
+          description: Dữ liệu biểu mẫu mẫu (dữ liệu giả, không dữ liệu thật).
+        browserValid: { type: boolean, description: 'Kết quả cel-js tại trình duyệt' }
+        browserErrors:
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/FieldError' }
+    UiFormTestRunRequest:
+      type: object
+      required: [cases]
+      properties:
+        cases:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items: { $ref: '#/components/schemas/UiFormTestCaseInput' }
+        renderMs50Fields: { type: number, minimum: 0, description: 'Thời gian dựng 50 trường đo ở trình duyệt (BR-18-08)' }
+      examples:
+        - cases:
+            - caseId: TC-01
+              input: { ty_le_hsba_dat: 104 }
+              browserValid: false
+              browserErrors: [{ field: ty_le_hsba_dat, message: Giá trị phải từ 0 đến 100 }]
+          renderMs50Fields: 31
+    UiFormTestRunResult:
+      type: object
+      required: [total, passed, parity, cases]
+      properties:
+        total: { type: integer, minimum: 0 }
+        passed: { type: integer, minimum: 0 }
+        parity: { type: boolean, description: 'Mọi ca cho cùng kết quả trên cel-js và cel-java (BR-18-05)' }
+        renderMs50Fields: { type: ['number', 'null'] }
+        cases:
+          type: array
+          items:
+            type: object
+            required: [caseId, serverValid, browserValid, match]
+            properties:
+              caseId: { type: string }
+              serverValid: { type: boolean }
+              browserValid: { type: boolean }
+              match: { type: boolean }
+              serverErrors:
+                type: array
+                items: { $ref: '../common/common.yaml#/components/schemas/FieldError' }
+        ranAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - total: 24
+          passed: 24
+          parity: true
+          renderMs50Fields: 31
+          cases:
+            - { caseId: TC-01, serverValid: false, browserValid: false, match: true }
+          ranAt: '2026-10-19T09:35:00+07:00'
+
+    # ------------------------------------------------------------ Bố cục trang
+    HomeLayout:
+      description: Bố cục trang chủ đã phân giải cho người dùng hiện tại.
+      type: object
+      required: [uiPackVersion, registryVersion, layout]
+      properties:
+        uiPackVersion: { type: string }
+        registryVersion: { type: string }
+        mode: { type: string, enum: [default, elderly], description: 'Chế độ đang áp cho người dùng' }
+        reducedSteps: { type: boolean, description: 'Cờ "ít bước" (NFR-11)' }
+        layout: { $ref: '#/components/schemas/SduiNode' }
+      examples:
+        - uiPackVersion: 2.3.0
+          registryVersion: '2026.3'
+          mode: default
+          reducedSteps: false
+          layout:
+            component: vt.layout.grid
+            props: { columns: { xs: 1, md: 2, xl: 3 } }
+            children:
+              - { component: vt.widget.myTasksToday, props: { limit: 7 } }
+              - { component: vt.widget.krCheckinDue }
+              - { component: vt.widget.periodMilestones }
+              - { component: vt.widget.weeklySummaryAi }
