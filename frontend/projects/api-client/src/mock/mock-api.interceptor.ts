@@ -24,15 +24,32 @@ export const MOCK_API_OPTIONS = new InjectionToken<MockApiOptions>('vt.mockApiOp
 });
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-/** Lỗi có nghĩa với lệnh ghi (xung đột `If-Match`, dữ liệu không hợp lệ) chỉ áp cho lệnh ghi. */
-const WRITE_ONLY_ERRORS = new Set([409, 412, 422]);
+/**
+ * Lỗi có nghĩa với lệnh ghi (bước lên MFA, xung đột `If-Match`, dữ liệu không hợp lệ) chỉ áp
+ * cho lệnh ghi. 401 giả lập là yêu cầu bước lên RFC 9470 (BR-00-02, WEB-006).
+ */
+const WRITE_ONLY_ERRORS = new Set([401, 409, 412, 422]);
+const FORCED_HEADERS: Record<number, Record<string, string>> = {
+  401: {
+    'WWW-Authenticate':
+      'Bearer error="insufficient_user_authentication", error_description="Cần xác thực nhiều lớp", acr_values="aal2"',
+  },
+};
 const FORCED_TITLES: Record<number, string> = {
+  401: 'Thao tác yêu cầu xác thực nhiều lớp',
+  403: 'Đồng chí không có quyền thực hiện thao tác này',
   409: 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại',
   412: 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại',
   422: 'Dữ liệu không hợp lệ',
   500: 'Lỗi máy chủ, vui lòng thử lại sau',
   503: 'Hệ thống đang quá tải, vui lòng thử lại sau',
 };
+
+const stepUpDone = new Set<string>();
+
+function withHeaders(res: MockResponse, extra?: Record<string, string>): MockResponse {
+  return extra ? { ...res, headers: { ...res.headers, ...extra } } : res;
+}
 
 /**
  * Trả đường dẫn `/api/v1/...` nếu request gọi API của cell, ngược lại `null`.
@@ -68,7 +85,13 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
   if (!path) return next(req);
   const opts = inject(MOCK_API_OPTIONS);
   const query = (opts.pageQuery ?? (() => globalThis.location?.search ?? ''))();
-  const forced = forcedError(req, query);
+  let forced = forcedError(req, query);
+  if (forced === 401) {
+    // Bước lên chỉ đòi một lần cho mỗi ý định ghi: gửi lại cùng Idempotency-Key sau MFA thì qua
+    const key = req.headers.get('Idempotency-Key') ?? '';
+    if (stepUpDone.has(key)) forced = null;
+    else stepUpDone.add(key);
+  }
   const pageDelay = Number(new URLSearchParams(query).get('mock-delay'));
   const ms =
     Number.isFinite(pageDelay) && pageDelay > 0
@@ -78,9 +101,12 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
   const response$: Observable<MockResponse> =
     forced !== null
       ? of(
-          problem(forced, FORCED_TITLES[forced] ?? `Lỗi giả lập ${forced}`, {
-            code: `MOCK-${forced}`,
-          }),
+          withHeaders(
+            problem(forced, FORCED_TITLES[forced] ?? `Lỗi giả lập ${forced}`, {
+              code: `MOCK-${forced}`,
+            }),
+            FORCED_HEADERS[forced],
+          ),
         )
       : from(import('./mock-registry')).pipe(
           mergeMap(({ handleMockRequest }) =>

@@ -1,0 +1,69 @@
+// Hộp thoại dạng modal dùng <dialog> gốc: tự giữ focus, Esc phát sự kiện cancel.
+.vt-modal {
+  width: min(560px, calc(100vw - 32px));
+  border: 0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  color: var(--vt-color-text, #1f2329);
+  background: var(--vt-color-surface, #fff);
+  box-shadow: 0 10px 40px rgb(0 0 0 / 25%);
+}
+.vt-modal::backdrop {
+  background: rgb(15 23 42 / 45%);
+}
+h2 {
+  font-size: 1.25rem;
+  margin: 0 0 8px;
+}
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 12px 0;
+  display: grid;
+  gap: 8px;
+}
+.option {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  min-height: var(--vt-min-touch, 40px);
+  border: 1px solid var(--p-content-border-color, #d1d5db);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.option.selected {
+  border-color: var(--vt-color-primary, #b8002a);
+  box-shadow: 0 0 0 1px var(--vt-color-primary, #b8002a);
+}
+.option input {
+  margin-top: 4px;
+  width: 18px;
+  height: 18px;
+}
+.meta {
+  display: block;
+  font-size: 0.9em;
+  color: var(--p-text-muted-color, #4b5563);
+}
+.mfa {
+  display: block;
+  color: #92400e;
+}
+.error {
+  color: #b91c1c;
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}

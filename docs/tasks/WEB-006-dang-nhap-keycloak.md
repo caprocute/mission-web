@@ -12,7 +12,7 @@
 | Cỡ việc | M (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-001 |
 | Truy vết | QT-00 → SCR-0001, SCR-0002 → SVC-02 (Keycloak) → `/api/v1/org` |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Hoàn thành với OIDC giả lập; chưa thử với Keycloak dev thật |
 
 ## 1. Mục tiêu
 

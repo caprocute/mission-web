@@ -3,7 +3,13 @@ import { CanActivateFn, CanMatchFn } from '@angular/router';
 import { PermissionKey, PermissionService } from './permission.service';
 import { SessionService, VtRole } from './session.service';
 
-export const authGuard: CanActivateFn = () => inject(SessionService).isAuthenticated();
+/** Chưa đăng nhập thì chuyển sang Keycloak (khi bật đăng nhập), giữ đường dẫn đang mở. */
+export const authGuard: CanActivateFn = () => {
+  const session = inject(SessionService);
+  if (session.isAuthenticated()) return true;
+  session.login();
+  return false;
+};
 
 /**
  * Cho vào tuyến khi vai trò hiện tại có ít nhất một chức năng trong `keys` theo ma trận (wiki/15a).

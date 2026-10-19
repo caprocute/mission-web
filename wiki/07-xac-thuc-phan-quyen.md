@@ -29,7 +29,7 @@ TL-02 định nghĩa trạng thái mức bảo đảm của phiên (`acr`): `CHU
 | SEC-13 | MFA bắt buộc bằng TOTP, WebAuthn hoặc VNeID mức 2 |
 | TL-02 QT-00 | Phiên AAL2 hạ xuống AAL1 sau 15 phút; phiên hết hạn sau 30 phút không hoạt động |
 
-Xác thực bước lên (step-up) là cơ chế giao diện phải xử lý thường xuyên vì nhiều thao tác pháp lý cần nó (ký số, ký lô, mở lại kỳ, khoá kỳ, nghiệm thu). Theo TL-01, máy chủ kiểm `acr=aal2` và `auth_time` không quá 5 phút; nếu không đạt, máy chủ trả 401 với `WWW-Authenticate` mang lỗi `insufficient_user_authentication` theo RFC 9470. Shell khi đó chuyển người dùng sang Keycloak để xác thực lại với mức yêu cầu, rồi quay về và gửi lại thao tác. Vì yêu cầu có `Idempotency-Key`, gửi lại không tạo bản ghi trùng (xem [Quy ước API](06-quy-uoc-api.md)). Mã hiện tại chưa xử lý luồng này; đây là việc cần làm trước khi hiện thực các màn hình ký số (suy luận về thứ tự ưu tiên). Realm dev đã cấu hình sẵn ánh xạ `acr` và luồng OTP để thử step-up (WEB-056, xem mục Keycloak ở môi trường dev).
+Xác thực bước lên (step-up) là cơ chế giao diện phải xử lý thường xuyên vì nhiều thao tác pháp lý cần nó (ký số, ký lô, mở lại kỳ, khoá kỳ, nghiệm thu). Theo TL-01, máy chủ kiểm `acr=aal2` và `auth_time` không quá 5 phút; nếu không đạt, máy chủ trả 401 với `WWW-Authenticate` mang lỗi `insufficient_user_authentication` theo RFC 9470. Shell khi đó mở hộp MFA bước lên, người dùng xác thực lại ở Keycloak với mức yêu cầu, rồi thao tác được gửi lại. Vì yêu cầu có `Idempotency-Key`, gửi lại không tạo bản ghi trùng (xem [Quy ước API](06-quy-uoc-api.md)). Từ WEB-006 luồng này đã có trong `@vt/auth`, mô tả ở mục "Hiện trạng mã". Realm dev đã cấu hình sẵn ánh xạ `acr` và luồng OTP để thử step-up (WEB-056, xem mục Keycloak ở môi trường dev).
 
 TL-01 có thêm thông số về mật khẩu và lưu trữ phía Keycloak (băm Argon2id hoặc PBKDF2 theo SEC-15); frontend không xử lý mật khẩu và không lưu mật khẩu ở trình duyệt (SEC-04).
 
@@ -49,7 +49,7 @@ Giao diện không nên phụ thuộc vào con số cụ thể: thư viện làm
 
 TL-01 quy định token chỉ giữ trong bộ nhớ của ứng dụng, không dùng cookie cho API; vì vậy tấn công giả mạo yêu cầu liên trang (CSRF) không áp dụng cho API. SEC-07 cấm ghi token vào log; SEC-08 cấm đặt JWT trong URL (lỗ hổng S11 của hệ cũ). `authInterceptor` chỉ gắn `Authorization` cho request tới `/api/` hoặc chứa `/api/v1/`, không gắn cho tài nguyên tĩnh hay CDN, để token không rò ra nguồn khác.
 
-Cần kiểm tra một điểm trong mã: `angular-oauth2-oidc` mặc định lưu token vào `sessionStorage` của trình duyệt nếu ứng dụng không cung cấp `OAuthStorage` riêng (suy luận từ hành vi mặc định của thư viện; `provideVtAuth()` hiện chỉ gọi `provideOAuthClient()` không đối số). Nếu đúng, cách lưu này lệch với yêu cầu "chỉ trong bộ nhớ" của TL-01 và cần một `OAuthStorage` lưu trong bộ nhớ, chấp nhận việc người dùng phải đăng nhập lại (qua SSO của Keycloak, thường không phải nhập lại mật khẩu) khi tải lại trang.
+Từ WEB-006, `provideVtAuth()` thay kho lưu mặc định của `angular-oauth2-oidc` (vốn là `sessionStorage`) bằng `VtTokenStorage`: access token, refresh token và ID token chỉ nằm trong bộ nhớ của ứng dụng. Riêng `nonce`, `PKCE_verifier`, `session_state` và đường dẫn cần quay về phải sống qua lần Keycloak chuyển hướng về trang, nên vẫn ở `sessionStorage` của tab và bị thư viện xoá ngay sau khi đổi mã lấy token. Hệ quả là tải lại trang thì mất token: shell chuyển sang Keycloak và SSO cho qua ngay, thường không phải nhập lại mật khẩu.
 
 ## Phân quyền: RBAC, ABAC và OPA
 
@@ -65,11 +65,27 @@ Hiện shell chặn tuyến như sau: `/dashboard` cho `leader`, `manager`, `ins
 
 ## Hiện trạng mã
 
-`SessionService` dùng `angular-oauth2-oidc` với `responseType: 'code'` (PKCE do thư viện tự sinh), `redirectUri` và `postLogoutRedirectUri` là gốc của trang, tắt silent refresh bằng iframe (`useSilentRefresh: false`) nên việc làm mới dựa vào refresh token qua `setupAutomaticSilentRefresh()`, tắt kiểm tra phiên bằng iframe. Khởi tạo bằng `loadDiscoveryDocumentAndLogin()`. Đăng xuất gọi `logOut()`, tức chuyển tới `end_session_endpoint` của Keycloak như TL-01 yêu cầu.
+`SessionService` (WEB-006) dùng `angular-oauth2-oidc` với `responseType: 'code'` (PKCE S256, `state`, `nonce` do thư viện sinh và kiểm, SEC-17). Khởi tạo gồm ba bước: nạp discovery document, xử lý callback bằng `tryLoginCodeFlow()`, rồi nếu chưa có token thì gọi `initCodeFlow()` với đường dẫn đang mở làm `state` để quay lại đúng chỗ sau đăng nhập. Keycloak không phản hồi thì shell hiện thông báo lỗi chứ không chuyển hướng lặp. Token được làm mới bằng refresh token qua `setupAutomaticSilentRefresh()`; làm mới lỗi thì phiên sang `HET_HAN`, màn hình giữ nguyên và hiện nút "Đăng nhập lại". Đăng xuất gọi `logOut()`, tức chuyển tới `end_session_endpoint` của Keycloak.
 
-Khi `auth.enabled = false` trong `/config.json` (mặc định ở dev), `SessionService` tạo một người dùng giả lập có vai trò `member` và `manager` để phát triển giao diện không cần Keycloak. Chế độ này chỉ dành cho dev và không được bật ở môi trường có dữ liệu thật.
+`authInterceptor` xử lý lỗi xác thực theo bốn nhánh:
+- 401 có `insufficient_user_authentication`: đọc `acr_values` và `max_age` từ `WWW-Authenticate`, gọi `requireStepUp`, xong thì gửi lại.
+- 401 khác: làm mới token một lần (các request song song dùng chung một lần làm mới) rồi gửi lại; không được thì báo hết phiên.
+- 403: hiện thông báo theo mã lỗi, MSG-00-06 khi không có phân công, MSG-00-07 khi tenant tạm ngừng, còn lại là câu chung. Màn hình có MSG riêng (ví dụ MSG-09-08) đặt `SKIP_FORBIDDEN_NOTICE` trong `HttpContext` để không bị hiện hai lần.
+- Lệnh ghi được gắn `Idempotency-Key` ngay trước khi gửi, nên lần gửi lại sau bước lên dùng cùng khoá.
 
-Ba điểm cần sửa hoặc bổ sung trong mã: chú thích trong `session.service.ts` dẫn chiếu SEC-15 và SEC-54 cho `state` và `nonce`, trong khi theo TL-04 biện pháp đúng là SEC-17 (SEC-15 là băm mật khẩu, SEC-54 là phát hiện đăng nhập bất thường); chưa có luồng chọn phân công và `PUT /api/v1/org/me/context`; chưa xử lý 401 step-up.
+Xác thực bước lên dùng `await session.requireStepUp('aal2', maxAgeGiay, lyDo)` trước thao tác quan trọng (ký, quyết định, nghiệm thu, khoá kỳ). Nếu phiên đã đạt mức và MFA còn trong `max_age` thì Promise xong ngay; nếu chưa, `<vt-step-up-dialog>` trong shell mở hộp MFA. Nút "Xác thực" mở cửa sổ Keycloak (`initLoginFlowInPopup` với `acr_values`, `max_age`, trang nhận kết quả `/silent-refresh.html`), nên màn hình bên dưới và dữ liệu đang nhập không mất như TL-02 QT-00 yêu cầu. Huỷ thì Promise bị từ chối. Cửa sổ phải mở từ thao tác bấm của người dùng, nếu không trình duyệt chặn popup; vì thế hộp MFA luôn có nút bấm chứ không tự mở cửa sổ. `SessionService` theo dõi `acr` và `auth_time` trong token và tự hạ `AAL2` về `AAL1` sau 15 phút.
+
+Chọn phân công (QT-00 bước 7) chạy sau đăng nhập. `loadContext()` gọi `GET /api/v1/org/me` và xử lý bốn trường hợp:
+- Không có phân công: hiện MSG-00-06 và nút đăng xuất.
+- Một phân công: dùng ngay.
+- Đã chọn trong phiên này (khoá `vt.assignment` của `sessionStorage`): dùng lại.
+- Còn lại: `<vt-context-picker>` mở hộp chọn, chọn sẵn phân công dùng lần trước, nếu không có thì phân công chính.
+
+Phân công có vai trò AAL2 ghi chú MSG-00-05 và cần bước lên trước khi dùng (BR-00-01). Chọn xong, shell ghi `PUT /api/v1/org/me/context`, làm mới token để nhận claim `org`, rồi đặt vai trò và đơn vị của phiên theo phân công đó. Bảng quyền `can()` (WEB-054) đọc vai trò này nên menu đổi theo phân công. Nút "Đổi phân công" trên thanh trên hiện khi có từ hai phân công. Lỗi khi tải phân công (trừ tenant tạm ngừng) không chặn người dùng: phiên dùng vai trò trong token.
+
+Khi `auth.enabled = false` trong `/config.json` (mặc định ở dev), `SessionService` tạo người dùng giả lập, phân công lấy từ API giả lập (`?mock-org=kiem-nhiem` cho ba phân công, `?mock-org=khong-phan-cong` cho MSG-00-06), và bước lên được giả lập ngay trên trình duyệt. Chế độ này chỉ dành cho dev và không được bật ở môi trường có dữ liệu thật. `?mock-error=401` trên URL trang làm API giả lập trả 401 step-up cho lệnh ghi đầu tiên của mỗi `Idempotency-Key`, dùng để thử luồng bước lên.
+
+Đường API `/api/v1/org/me` và `/api/v1/org/me/context` lấy từ SCR-0001 của TL-02; dạng dữ liệu (`Assignment`, `MyOrgProfile`) nằm trong hợp đồng mẫu `tools/openapi` và cần đối chiếu khi org-service phát hành OpenAPI thật (suy luận).
 
 ## Keycloak ở môi trường dev
 

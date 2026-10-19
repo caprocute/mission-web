@@ -55,6 +55,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/org/me': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Người dùng hiện tại và các phân công còn hiệu lực (QT-00 bước 7, SCR-0001) */
+    get: operations['getMyOrgProfile'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/me/context': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Ghi ngữ cảnh phiên (phân công đang làm việc); client làm mới token để nhận claim org */
+    put: operations['setMyContext'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/jobs/{id}': {
     parameters: {
       query?: never;
@@ -151,6 +185,38 @@ export interface components {
       problem?: components['schemas']['ProblemDetails'];
       /** Format: date-time */
       updatedAt?: string;
+    };
+    /**
+     * @description Loại phân công (TL-03 org.assignment.kind)
+     * @enum {string}
+     */
+    AssignmentKind: 'CHINH' | 'KIEM_NHIEM' | 'DIEU_DONG' | 'BIET_PHAI' | 'TAM_GIU';
+    /** @description Phân công còn hiệu lực (org_replica.assignment_v) kèm vai trò (config.role_binding) */
+    Assignment: {
+      id: string;
+      orgUnitId: string;
+      orgUnitName: string;
+      jobTitleName: string;
+      kind: components['schemas']['AssignmentKind'];
+      /** @enum {string} */
+      branch: 'DANG' | 'CHINH_QUYEN';
+      roles: string[];
+      /** Format: date */
+      validFrom: string;
+      /** Format: date */
+      validTo?: string | null;
+    };
+    MyOrgProfile: {
+      personId: string;
+      fullName: string;
+      assignments: components['schemas']['Assignment'][];
+      /** @description Phân công dùng lần trước (chọn sẵn) */
+      lastAssignmentId?: string | null;
+    };
+    WorkContext: {
+      assignmentId: string;
+      orgUnitId: string;
+      roles: string[];
     };
     FieldError: {
       field: string;
@@ -277,6 +343,57 @@ export interface operations {
       };
       409: components['responses']['Problem'];
       422: components['responses']['Problem'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getMyOrgProfile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Hồ sơ và phân công */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MyOrgProfile'];
+        };
+      };
+      default: components['responses']['Problem'];
+    };
+  };
+  setMyContext: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá duy nhất cho một ý định ghi (TL-01 ghi UUIDv7) */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          assignmentId: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Ngữ cảnh đã ghi */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['WorkContext'];
+        };
+      };
       default: components['responses']['Problem'];
     };
   };
