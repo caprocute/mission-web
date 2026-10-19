@@ -42,6 +42,7 @@ export * from './lib/models/appraisal';
 export * from './lib/appraisal-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
 export {
+  failMockIntegrityOnce,
   failMockUploadPartOnce,
   mockStepUp,
   resetMockApi,

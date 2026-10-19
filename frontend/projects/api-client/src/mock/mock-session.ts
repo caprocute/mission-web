@@ -12,6 +12,7 @@ const state = {
   lastMfaAt: null as number | null,
   esignDown: false,
   failUploadPart: null as number | null,
+  failIntegrity: false,
 };
 
 /** Giả lập xác thực bước lên thành công: lần MFA gần nhất là bây giờ. */
@@ -32,6 +33,11 @@ export function failMockUploadPartOnce(partNo = 1): void {
   state.failUploadPart = partNo;
 }
 
+/** Giả lập lần mở nghiệm thu kế tiếp phát hiện mã băm không khớp (MSG-07-13). */
+export function failMockIntegrityOnce(): void {
+  state.failIntegrity = true;
+}
+
 export const mockSession = {
   recentMfa: () => state.lastMfaAt !== null && Date.now() - state.lastMfaAt <= STEP_UP_WINDOW_MS,
   esignDown: () => state.esignDown,
@@ -40,10 +46,16 @@ export const mockSession = {
     state.failUploadPart = null;
     return true;
   },
+  takeIntegrityFailure: () => {
+    const f = state.failIntegrity;
+    state.failIntegrity = false;
+    return f;
+  },
   reset: () => {
     state.lastMfaAt = null;
     state.esignDown = false;
     state.failUploadPart = null;
+    state.failIntegrity = false;
   },
 };
 

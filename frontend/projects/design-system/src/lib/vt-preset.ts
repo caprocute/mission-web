@@ -2,9 +2,21 @@ import { definePreset } from '@primeuix/themes';
 import Aura from '@primeuix/themes/aura';
 
 /**
+ * Màu dùng cho chữ và cho nền có chữ trắng (WCAG 2.1 AA, WEB-059). Màu nhận diện
+ * `--vt-color-primary` (#EE0033) chỉ đạt 4,48:1 với chữ trắng, nên nút, liên kết và tab
+ * lấy `--vt-color-primary-strong`. Có giá trị dự phòng cho remote chạy độc lập khi
+ * UI Pack chưa khai báo token mới.
+ */
+const STRONG = 'var(--vt-color-primary-strong, #d1002d)';
+/** Chữ phụ: #64748b mặc định của Aura chỉ đạt 4,4:1 trên nền #F5F6F8. */
+const MUTED = 'var(--vt-color-text-muted, #566275)';
+
+/**
  * Preset gốc của nền tảng (ADR-05, lớp 1 Design Token).
  * Các token ngữ nghĩa của PrimeNG trỏ tới CSS variables của tenant,
  * nên đổi tenant chỉ cần đổi tệp CSS token, không phải dựng lại preset.
+ * Thang màu (50..950) vẫn pha từ màu nhận diện để giữ sắc hồng quen thuộc cho nền nhạt,
+ * viền và thanh tiến độ; chỉ màu chữ và nền nút chuyển sang bản đậm.
  */
 export const VtPreset = definePreset(Aura, {
   semantic: {
@@ -24,7 +36,17 @@ export const VtPreset = definePreset(Aura, {
     colorScheme: {
       light: {
         surface: { 0: 'var(--vt-color-surface)' },
-        text: { color: 'var(--vt-color-text)' },
+        primary: {
+          color: STRONG,
+          contrastColor: 'var(--vt-color-on-primary, #ffffff)',
+          hoverColor: `color-mix(in srgb, ${STRONG} 88%, black)`,
+          activeColor: `color-mix(in srgb, ${STRONG} 76%, black)`,
+        },
+        text: {
+          color: 'var(--vt-color-text)',
+          mutedColor: MUTED,
+          hoverMutedColor: `color-mix(in srgb, ${MUTED} 80%, black)`,
+        },
       },
     },
   },

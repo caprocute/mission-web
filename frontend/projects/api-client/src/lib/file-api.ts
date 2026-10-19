@@ -4,6 +4,7 @@ import { Observable, firstValueFrom } from 'rxjs';
 import {
   EVIDENCE_MAX_BYTES,
   EVIDENCE_MEDIA_TYPES,
+  FileDownloadUrl,
   FileObject,
   FileScanResult,
   FileUploadCreate,
@@ -93,6 +94,13 @@ export class FileApi {
   complete(uploadId: string, parts: FileUploadPart[]): Observable<FileObject> {
     return this.http.post<FileObject>(`/api/v1/files/uploads/${enc(uploadId)}/complete`, {
       parts,
+    });
+  }
+
+  /** URL ký trước 5 phút để xem (`inline`) hoặc tải tệp; mỗi lần gọi được ghi nhật ký truy cập. */
+  downloadUrl(objectId: string, disposition: 'inline' | 'attachment' = 'inline') {
+    return this.http.get<FileDownloadUrl>(`/api/v1/files/${enc(objectId)}/download-url`, {
+      params: { disposition },
     });
   }
 

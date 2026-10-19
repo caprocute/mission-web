@@ -2,13 +2,19 @@ import { Routes } from '@angular/router';
 
 /**
  * Tuyến của remote fe-evidence, shell gắn dưới `/evidence` (QT-07): `?task=` từ SCR-0601 "Nộp sản phẩm",
- * `/evidence/:id` là SCR-0701 Nộp minh chứng.
+ * `/evidence/:id` là SCR-0701 Nộp minh chứng, `/evidence/:id/review` là SCR-0703 Nghiệm thu,
+ * `?reviewer=me` là hàng chờ nghiệm thu (menu "Chờ tôi duyệt").
  */
 export const ROUTES: Routes = [
   {
     path: '',
     loadComponent: () => import('./pages/evidence-list.page').then((m) => m.EvidenceListPage),
     title: 'Sản phẩm và minh chứng',
+  },
+  {
+    path: ':id/review',
+    loadComponent: () => import('./pages/evidence-review.page').then((m) => m.EvidenceReviewPage),
+    title: 'Nghiệm thu sản phẩm',
   },
   {
     path: ':id',

@@ -10,6 +10,11 @@ import {
   EvidenceSubmitResult,
   EvidenceVersion,
   EvidenceVersionDraft,
+  EvidenceAcceptRequest,
+  EvidenceDecisionResult,
+  EvidenceReturnRequest,
+  ScorePreview,
+  ScorePreviewInput,
   EvidenceVersionStatus,
 } from './models/evidence';
 
@@ -92,5 +97,50 @@ export class EvidenceApi {
       { attested: true },
       { headers: { 'If-Match': `"${v.rowVersion}"` } },
     );
+  }
+
+  // ── Nghiệm thu SCR-0703 ──
+
+  /** Mở nghiệm thu: lần đầu `DA_NOP` → `DANG_NGHIEM_THU`; lần nào cũng kiểm toàn vẹn (MSG-07-13). */
+  openReview(id: string, v: EvidenceVersion): Observable<EvidenceVersion> {
+    return this.http.post<EvidenceVersion>(this.versionPath(id, v, 'open-review'), null, {
+      headers: { 'If-Match': `"${v.rowVersion}"` },
+    });
+  }
+
+  /** "Xác nhận nghiệm thu" (EVT-08); cần phiên AAL2 trong 15 phút (BR-07-11). */
+  accept(
+    id: string,
+    v: EvidenceVersion,
+    body: EvidenceAcceptRequest,
+  ): Observable<EvidenceDecisionResult> {
+    return this.http.post<EvidenceDecisionResult>(this.versionPath(id, v, 'accept'), body, {
+      headers: { 'If-Match': `"${v.rowVersion}"` },
+    });
+  }
+
+  requestRevision(id: string, v: EvidenceVersion, body: EvidenceReturnRequest) {
+    return this.http.post<EvidenceDecisionResult>(
+      this.versionPath(id, v, 'request-revision'),
+      body,
+      {
+        headers: { 'If-Match': `"${v.rowVersion}"` },
+      },
+    );
+  }
+
+  reject(id: string, v: EvidenceVersion, body: EvidenceReturnRequest) {
+    return this.http.post<EvidenceDecisionResult>(this.versionPath(id, v, 'reject'), body, {
+      headers: { 'If-Match': `"${v.rowVersion}"` },
+    });
+  }
+
+  /** Xem trước A, B, C, KPI theo Policy Pack của kỳ (SVC-07, không lưu). */
+  scorePreview(body: ScorePreviewInput): Observable<ScorePreview> {
+    return this.http.post<ScorePreview>('/api/v1/appraisals/score-preview', body);
+  }
+
+  private versionPath(id: string, v: EvidenceVersion, action: string) {
+    return `/api/v1/evidences/${enc(id)}/versions/${v.versionNo}/${action}`;
   }
 }

@@ -14,9 +14,10 @@ describe('fe-evidence', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('router-outlet')).not.toBeNull();
   });
 
-  it('tuyến gốc là danh sách minh chứng, `:id` là SCR-0701', () => {
+  it('tuyến gốc là danh sách minh chứng, `:id` là SCR-0701, `:id/review` là SCR-0703', () => {
     expect(ROUTES.map((r) => [r.path, r.title])).toEqual([
       ['', 'Sản phẩm và minh chứng'],
+      [':id/review', 'Nghiệm thu sản phẩm'],
       [':id', 'Nộp minh chứng'],
     ]);
   });

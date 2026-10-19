@@ -1278,6 +1278,76 @@ paths:
         scope: B; Gn; Đv; Cd
         rules: [BR-09-14]
         source: TL-01 PL C GET /files/{objectId}/download-url; TL-01 SVC-08; TL-03 part-11 (URL ký trước); ma trận SCR-1603.mo-c2
+  /files/{objectId}/preview:
+    get:
+      tags: [Tệp]
+      operationId: getFilePreview
+      summary: Ảnh xem trước từng trang của tệp
+      description: >-
+        Phục vụ trình xem minh chứng theo trang ở SCR-0703 vùng 1 ("trang 1 trên 6") và SCR-0902 mà không phải tải
+        thư viện dựng PDF hay Office lớn về trình duyệt. SVC-08 dựng ảnh từng trang (PDF, DOCX, XLSX, ảnh) ở tác vụ
+        nền sau khi tệp quét sạch và trả URL ký trước sống 5 phút cho mỗi trang, cùng quy tắc kiểm quyền và ghi
+        nhật ký truy cập như `getFileDownloadUrl`. Khi ảnh chưa dựng xong, `status` là `DANG_TAO` kèm `Retry-After`.
+        Tệp C3 (E2EE) không dựng được ở máy chủ nên trả `KHONG_HO_TRO`; giao diện tải bản mã qua `getFileDownloadUrl`
+        để giải mã và hiển thị tại trình duyệt. (suy luận: TL-02 vẽ trình xem theo trang nhưng TL chưa đặc tả API.)
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - name: version
+          in: query
+          description: Số phiên bản đối tượng; mặc định phiên bản hiện hành.
+          schema: { type: integer, minimum: 1 }
+        - name: fromPage
+          in: query
+          description: Trang đầu (tính từ 1).
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: count
+          in: query
+          description: Số trang trả về; giao diện nạp lười theo cửa sổ trang.
+          schema: { type: integer, minimum: 1, maximum: 20, default: 5 }
+      responses:
+        '200':
+          description: Thông tin xem trước và URL các trang trong cửa sổ yêu cầu.
+          headers:
+            Cache-Control:
+              description: Luôn `no-store`.
+              schema: { type: string }
+            Retry-After: { $ref: '../common/common.yaml#/components/headers/RetryAfter' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FilePreview' }
+              examples:
+                san-sang:
+                  value:
+                    status: SAN_SANG
+                    pageCount: 6
+                    sha256: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b
+                    pages:
+                      - page: 1
+                        url: https://s3.cell-01.okrkpi.vn/ev-preview-t001/0192/p1.webp?X-Amz-Expires=300&X-Amz-Signature=abc
+                        width: 1240
+                        height: 1754
+                      - page: 2
+                        url: https://s3.cell-01.okrkpi.vn/ev-preview-t001/0192/p2.webp?X-Amz-Expires=300&X-Amz-Signature=def
+                        width: 1240
+                        height: 1754
+                    expiresAt: '2026-10-19T09:16:00+07:00'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Tệp đang chờ quét hoặc đã bị cách ly (`FILE-409-NOT-CLEAN`, MSG-07-02).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07, QT-09, QT-16]
+        scr: [SCR-0703, SCR-0902, SCR-1603]
+        owner: SVC-08
+        roles: [member, manager, leader, appraiser, inspector]
+        scope: B; Gn; Đv; Cd
+        rules: [BR-09-14]
+        source: 'TL-02a SCR-0703 Hình 8.15 vùng 1 (trình xem theo trang); suy luận đường dẫn'
   /files/{objectId}/scan:
     get:
       tags: [Tệp]
@@ -1840,9 +1910,7 @@ components:
       type: string
       enum: [DA_XAC_NHAN, YEU_CAU_BO_SUNG, TU_CHOI]
     EvidenceRevisionCause:
-      description: Nguyên nhân chỉnh sửa (`product.acceptance.revision_cause`, TL-03).
-      type: string
-      enum: [THE_THUC, NOI_DUNG_KHONG_COT_LOI, NOI_DUNG_CO_BAN, SAI_SOT_NGHIEM_TRONG, SAI_CHU_TRUONG]
+      $ref: '../common/common.yaml#/components/schemas/RevisionCause'
     EvidenceAcceptance:
       description: Bản ghi nghiệm thu (`product.acceptance`).
       type: object
@@ -2051,6 +2119,29 @@ components:
         sizeBytes: { type: integer, minimum: 0 }
         sha256: { $ref: '#/components/schemas/Sha256Hex' }
         e2ee: { type: boolean, description: 'Tệp tải về là bản mã, giải mã tại trình duyệt' }
+    FilePreviewStatus:
+      description: Trạng thái ảnh xem trước (suy luận).
+      type: string
+      enum: [DANG_TAO, SAN_SANG, KHONG_HO_TRO, LOI]
+    FilePreviewPage:
+      type: object
+      required: [page, url]
+      properties:
+        page: { type: integer, minimum: 1 }
+        url: { type: string, format: uri, description: 'URL ký trước của ảnh trang (WebP), sống 5 phút' }
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+    FilePreview:
+      type: object
+      required: [status, sha256, pages]
+      properties:
+        status: { $ref: '#/components/schemas/FilePreviewStatus' }
+        pageCount: { type: [integer, 'null'], minimum: 1, description: 'Tổng số trang; null khi chưa dựng xong' }
+        sha256: { allOf: [{ $ref: '#/components/schemas/Sha256Hex' }], description: 'Mã băm của tệp gốc đã kiểm toàn vẹn' }
+        pages:
+          type: array
+          items: { $ref: '#/components/schemas/FilePreviewPage' }
+        expiresAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
     FileScanResult:
       description: Kết quả quét (`evidence.scan_result` và `evidence.object_version.scan_status`).
       type: object

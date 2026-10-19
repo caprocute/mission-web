@@ -12,7 +12,7 @@
 | Cỡ việc | M (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-001 |
 | Truy vết | ADR-05 lớp 3, ADR-19 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Hoàn thành một phần: ngân sách dựng 50 trường chưa đạt, xem wiki/09 |
 
 ## 1. Mục tiêu
 

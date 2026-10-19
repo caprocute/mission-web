@@ -1,0 +1,122 @@
+/* Kiểu của @vt/form-engine (WEB-010): dùng biến CSS của PrimeNG và design system nên theo theme
+   tenant và chế độ cao tuổi (--vt-min-touch). Mọi lớp có tiền tố vt- vì không đóng gói kiểu. */
+vt-form {
+  display: block;
+}
+.vt-form__summary {
+  border: 1px solid var(--vt-color-danger, #b91c1c);
+  border-radius: var(--vt-radius-card, 8px);
+  padding: 8px 16px;
+  margin-bottom: 16px;
+  color: var(--vt-color-danger, #b91c1c);
+}
+.vt-form__summary p {
+  margin: 4px 0;
+  font-weight: 600;
+}
+.vt-form__summary a {
+  color: inherit;
+}
+.vt-section {
+  border: 1px solid var(--p-content-border-color, #e5e7eb);
+  border-radius: var(--vt-radius-card, 8px);
+  padding: 12px 16px 0;
+  margin: 0 0 16px;
+  min-width: 0;
+}
+.vt-section > legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+.vt-field {
+  margin-bottom: 16px;
+}
+.vt-field__label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.vt-field__req {
+  color: var(--vt-color-danger, #b91c1c);
+  margin-left: 2px;
+}
+.vt-field__desc,
+.vt-count,
+.vt-score__max {
+  color: var(--vt-color-text-muted, #4b5563);
+}
+.vt-field__desc {
+  margin: 4px 0 0;
+  font-size: 0.875em;
+}
+.vt-field__error {
+  margin: 4px 0 0;
+  color: var(--vt-color-danger, #b91c1c);
+  font-size: 0.875em;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.vt-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.vt-input {
+  width: 100%;
+  font: inherit;
+  color: var(--p-inputtext-color, inherit);
+  background: var(--p-inputtext-background, #fff);
+  border: 1px solid var(--p-inputtext-border-color, #6b7280);
+  border-radius: var(--p-inputtext-border-radius, 6px);
+  padding: 8px 12px;
+  min-height: var(--vt-min-touch, 40px);
+  box-sizing: border-box;
+}
+.vt-input:focus-visible {
+  outline: 2px solid var(--p-primary-color, #1d4ed8);
+  outline-offset: 1px;
+}
+.vt-input[aria-invalid='true'] {
+  border-color: var(--vt-color-danger, #b91c1c);
+}
+.vt-input:disabled {
+  opacity: 0.7;
+}
+textarea.vt-input {
+  resize: vertical;
+}
+.vt-input--date {
+  max-width: 14em;
+}
+.vt-score {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vt-score .vt-input {
+  max-width: 10em;
+}
+.vt-count {
+  display: block;
+  text-align: right;
+  font-size: 0.875em;
+}
+.vt-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-height: var(--vt-min-touch, 40px);
+  padding: 6px 0;
+  cursor: pointer;
+}
+.vt-check input {
+  width: 1.25em;
+  height: 1.25em;
+  margin-top: 0.15em;
+  flex: none;
+  accent-color: var(--p-primary-color, #1d4ed8);
+}

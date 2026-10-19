@@ -1387,9 +1387,24 @@ paths:
       summary: Tạo điều chỉnh kế hoạch
       description: >-
         Tạo phiên bản n+1 `NHAP` sao chép từ phiên bản `DA_DUYET` hiệu lực; vượt số lần điều chỉnh
-        trong quý trả 422 (BR-04-10, MSG-04-07).
+        trong quý trả 422 (BR-04-10, MSG-04-07). Lý do chung của lần điều chỉnh ghi vào
+        `task.plan_version.change_reason` (TL-03 bắt buộc khi `version_no > 1`); lý do từng dòng thêm, sửa ghi ở
+        `PlanItemInput.changeReason`, dòng bỏ ghi ở `PlanVersionInput.removedItems` (TL-02 SCR-0403 trường 3).
       parameters:
         - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [changeReason]
+              properties:
+                changeReason: { type: string, minLength: 1, maxLength: 1000, description: 'Lý do của lần điều chỉnh (BR-04-10)' }
+            examples:
+              dieu-chinh:
+                value:
+                  changeReason: Bổ sung nhiệm vụ theo Kết luận 15-KL/ĐUK ngày 10/11/2026.
       responses:
         '201':
           description: Phiên bản mới.
@@ -1544,6 +1559,57 @@ paths:
         scope: Đv
         source: 'TL-02a SCR-0402 "Gợi ý từ OKR"'
 
+  /plans/{id}/versions/{v}/check:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/VersionNo'
+    post:
+      tags: [Kế hoạch quý]
+      operationId: checkPlanVersion
+      summary: Kiểm tra tức thì các dòng chưa lưu
+      description: >-
+        Chạy các quy tắc BR-04-01..BR-04-10 trên nội dung đang soạn mà không lưu (SCR-0402 vùng kiểm tra), trả chỉ
+        các vi phạm. Thao tác chỉ đọc nhưng dùng POST vì thân là cả bảng kế hoạch. (suy luận: TL-02 mô tả kiểm tra
+        tức thì nhưng không ghi API.)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanVersionInput' }
+      responses:
+        '200':
+          description: Các vi phạm; rỗng khi hợp lệ.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [checks]
+                properties:
+                  checks:
+                    type: array
+                    items: { $ref: '#/components/schemas/PlanCheck' }
+              examples:
+                vuot-diem:
+                  value:
+                    checks:
+                      - rule: BR-04-06
+                        level: CHAN
+                        message: Tổng điểm nhóm then chốt vượt điểm tối đa 40.
+                        msg: MSG-04-04
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-04]
+        scr: [SCR-0402]
+        owner: MOD-02
+        roles: [manager]
+        scope: Đv
+        rules: [BR-04-03, BR-04-05, BR-04-06, BR-04-10]
+        source: 'TL-02a SCR-0402 kiểm tra tức thì; suy luận đường dẫn'
+
   /plans/{id}/versions/{v}/submit:
     parameters:
       - $ref: '../common/common.yaml#/components/parameters/IdPath'
@@ -1593,8 +1659,9 @@ paths:
         - name: base
           in: query
           required: true
-          description: Số phiên bản gốc để so sánh.
-          schema: { type: integer, minimum: 1 }
+          description: >-
+            Số phiên bản gốc để so sánh. `0` là kế hoạch rỗng: dùng cho phiên bản đầu, mọi dòng là `THEM`.
+          schema: { type: integer, minimum: 0 }
         - name: mode
           in: query
           schema: { type: string, enum: [changes, all], default: changes }
@@ -1666,8 +1733,10 @@ paths:
       summary: Duyệt và ký số kế hoạch
       description: >-
         Người duyệt khác người lập, phiên AAL2 trong 15 phút. Máy chủ tạo yêu cầu ký trên SVC-10 và trả
-        202; khi ký xong (EVT-18) phiên bản chuyển `DA_DUYET` và phát EVT-03. Trạng thái ký theo dõi qua
-        job hoặc `/esign/requests/{id}`.
+        202 kèm job. Đường chính thức để theo dõi: thăm dò `GET /jobs/{id}` theo `Location`; khi job `HOAN_TAT`,
+        `Job.resultLocation` trỏ tới `/esign/requests/{signRequestId}` và `PlanVersion.signRequestId` được ghi, nên
+        giao diện có thể đọc lại phiên bản rồi theo dõi yêu cầu ký. Khi ký xong (EVT-18) phiên bản chuyển `DA_DUYET`
+        và phát EVT-03.
       parameters:
         - $ref: '../common/common.yaml#/components/parameters/IfMatch'
         - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
@@ -2756,6 +2825,11 @@ components:
         unitName: { type: string }
         currentVersion: { $ref: '#/components/schemas/PlanVersionSummary' }
         effectiveVersionNo: { type: [integer, 'null'], description: 'Phiên bản `DA_DUYET` đang hiệu lực' }
+        previousPeriod:
+          description: Kỳ trước có kế hoạch đã duyệt của đơn vị, cho nút "Sao chép từ {nhãn}" (nguồn của `copy-from`).
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/PeriodRef'
+            - type: 'null'
         approvalDeadline: { $ref: '../common/common.yaml#/components/schemas/Date' }
         adjustmentsUsed: { type: integer }
         adjustmentsMax: { type: integer }
@@ -2772,7 +2846,9 @@ components:
         itemCount: { type: integer }
         submittedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
         submittedByName: { type: string }
+        submittedByTitle: { type: string, description: 'Chức vụ người trình (SCR-0403 vùng 3)' }
         approvedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        approvedByName: { type: string, description: 'Người duyệt' }
     PlanItemInput:
       description: Một dòng kế hoạch theo Bảng 1 (`task.plan_item`, SCR-0402 trường 5–14).
       type: object
@@ -2800,8 +2876,18 @@ components:
             trong `task.plan_item` và cần bổ sung.
         quantity: { type: number, minimum: 0 }
         unit: { type: string, maxLength: 50 }
-        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
-        recurrence: { type: [string, 'null'], enum: [HANG_THANG, null], description: '"Hằng tháng" thay cho một hạn cố định' }
+        dueDate:
+          allOf:
+            - $ref: '../common/common.yaml#/components/schemas/Date'
+          description: >-
+            Hạn của dòng. Với dòng lặp lại (`recurrence` khác null), là hạn của lần cuối trong kỳ, thường là ngày cuối
+            kỳ; hạn từng lần do máy chủ sinh khi giao việc.
+        recurrence:
+          type: [string, 'null']
+          enum: [HANG_THANG, HANG_QUY, null]
+          description: >-
+            Lặp lại thay cho một hạn cố định (`task.plan_item.recurrence`; TL-03 ghi "hằng tháng, hằng quý", TL-02
+            SCR-0402 trường 12 chỉ nêu "Hằng tháng"). `HANG_QUY` dùng khi kế hoạch lập cho kỳ dài hơn một quý.
         standardScore:
           type: [number, 'null']
           minimum: 0
@@ -2851,14 +2937,23 @@ components:
           items: { $ref: '#/components/schemas/PlanItem' }
         groupWeights:
           type: object
-          description: Điểm tối đa của từng nhóm theo Policy Pack (BR-04-06).
+          description: Điểm tối đa của từng nhóm theo Policy Pack (BR-04-06), kèm luồng và gói áp dụng (Hình 7.13 vùng 3).
           required: [THUONG_XUYEN, THEN_CHOT]
           properties:
             THUONG_XUYEN: { type: number }
             THEN_CHOT: { type: number }
+            flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+            policyPackCode: { type: string, examples: ['PP-KHOI-DANG'] }
+            policyPackName: { type: string, examples: ['Khối Đảng'] }
+            policyPackVersion: { type: string, examples: ['2.0.0'] }
         checks:
           type: array
           items: { $ref: '#/components/schemas/PlanCheck' }
+        changeReason: { type: [string, 'null'], maxLength: 1000, description: 'Lý do chung của lần điều chỉnh' }
+        removedItems:
+          type: array
+          description: Dòng của phiên bản trước bị bỏ ở phiên bản điều chỉnh này, kèm lý do.
+          items: { $ref: '#/components/schemas/PlanRemovedItem' }
         signRequestId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
     PlanVersionInput:
@@ -2869,6 +2964,19 @@ components:
           type: array
           maxItems: 500
           items: { $ref: '#/components/schemas/PlanItemInput' }
+        removedItems:
+          type: array
+          maxItems: 500
+          description: >-
+            Ở phiên bản điều chỉnh, các dòng của phiên bản trước bị bỏ cùng lý do (BR-04-10 chặn khi thiếu lý do).
+            Dòng phiên bản trước không có trong `items` cũng không có ở đây bị coi là thiếu lý do.
+          items: { $ref: '#/components/schemas/PlanRemovedItem' }
+    PlanRemovedItem:
+      type: object
+      required: [originItemId, changeReason]
+      properties:
+        originItemId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        changeReason: { type: string, minLength: 1, maxLength: 500 }
     PlanDiffLine:
       type: object
       required: [change]

@@ -19,7 +19,8 @@ import { daysLeft, statusSeverity } from '../app/task-ui';
     @if (canList) {
       <p-card>
         <ng-template #title>Việc của tôi hôm nay</ng-template>
-        <ul class="list">
+        <!-- giữ chỗ đủ số dòng limit ngay từ đầu để liên kết "Xem tất cả" không nhảy khi dữ liệu về (CLS, WEB-059) -->
+        <ul class="list" [style.min-height]="listMinHeight()">
           @for (t of top(); track t.id) {
             <li>
               @if (canDetail) {
@@ -57,21 +58,23 @@ import { daysLeft, statusSeverity } from '../app/task-ui';
       text-decoration: none;
     }
     li a:hover {
-      color: var(--vt-color-primary);
+      color: var(--vt-color-primary-strong, #d1002d);
     }
     .more {
       display: inline-block;
       margin-top: 12px;
-      color: var(--vt-color-primary);
+      color: var(--vt-color-primary-strong, #d1002d);
       text-decoration: none;
     }
     .muted {
-      color: var(--p-text-muted-color, #6b7280);
+      color: var(--p-text-muted-color, #566275);
     }
   `,
 })
 export class MyTasksTodayWidget {
   readonly limit = input(7);
+  /** Mỗi dòng cao tối đa khoảng 4rem (tiêu đề hai dòng); đổi theo cỡ chữ của chế độ cao tuổi. */
+  protected readonly listMinHeight = computed(() => `calc(${this.limit()} * 4rem)`);
   private readonly permissions = inject(PermissionService);
   protected readonly canList = this.permissions.can('SCR-0503.xem');
   protected readonly canDetail = this.permissions.can('SCR-0601.xem');

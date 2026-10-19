@@ -1,0 +1,422 @@
+{
+  "$comment": "Test vàng Mẫu 1B (mẫu thử WEB-010). Dùng chung cho cel-js (Vitest, @vt/form-engine runGoldenSuite) và cel-java (CI máy chủ). violated là mã quy tắc vi phạm khi chạy TOÀN BỘ quy tắc, kể cả serverOnly. Định dạng xem wiki/03.",
+  "form": "mau-1b",
+  "version": "1.2.0",
+  "cases": [
+    {
+      "id": "G-1B-01",
+      "description": "Phiếu hợp lệ, mức tự đề xuất bằng mức tham khảo",
+      "model": {
+        "tieuChiChung": {
+          "tc1": true,
+          "tc2": true,
+          "tc3": true,
+          "tc4": true,
+          "tc5": true,
+          "tc6": true,
+          "tc7": true,
+          "tc8": true,
+          "tc9": true
+        },
+        "ketQuaNhiemVu": "Hoàn thành 12/12 nhiệm vụ được giao trong quý.",
+        "diemTuCham": 92.5,
+        "mucTuDeXuat": "HTTNV",
+        "giaiPhapDotPha": "",
+        "giaiTrinh": "",
+        "uuDiem": "Chủ động, đúng hạn.",
+        "hanChe": "Còn chậm báo cáo tháng 11.",
+        "huongKhacPhuc": "Lập lịch nhắc việc hằng tuần."
+      },
+      "context": {
+        "mucThamKhao": "HTTNV",
+        "ngayMoPhieu": "2027-01-04",
+        "ngayNop": "2027-01-06",
+        "soNgayLamViecDuocPhep": 3
+      },
+      "violated": []
+    },
+    {
+      "id": "G-1B-02",
+      "description": "Biên trên điểm tự chấm 100,0 hợp lệ",
+      "model": {
+        "tieuChiChung": {
+          "tc1": true,
+          "tc2": true,
+          "tc3": true,
+          "tc4": true,
+          "tc5": true,
+          "tc6": true,
+          "tc7": true,
+          "tc8": true,
+          "tc9": true
+        },
+        "ketQuaNhiemVu": "Hoàn thành 12/12 nhiệm vụ được giao trong quý.",
+        "diemTuCham": 100,
+        "mucTuDeXuat": "HTTNV",
+        "giaiPhapDotPha": "",
+        "giaiTrinh": "",
+        "uuDiem": "Chủ động, đúng hạn.",
+        "hanChe": "Còn chậm báo cáo tháng 11.",
+        "huongKhacPhuc": "Lập lịch nhắc việc hằng tuần."
+      },
+      "context": {
+        "mucThamKhao": "HTTNV",
+        "ngayMoPhieu": "2027-01-04",
+        "ngayNop": "2027-01-06",
+        "soNgayLamViecDuocPhep": 3
+      },
+      "violated": []
+    },
+    {
+      "id": "G-1B-03",
+      "description": "Điểm tự chấm vượt 100",
+      "model": {
+        "tieuChiChung": {
+          "tc1": true,
+          "tc2": true,
+          "tc3": true,
+          "tc4": true,
+          "tc5": true,
+          "tc6": true,
+          "tc7": true,
+          "tc8": true,
+          "tc9": true
+        },
+        "ketQuaNhiemVu": "Hoàn thành 12/12 nhiệm vụ được giao trong quý.",
+        "diemTuCham": 100.1,
+        "mucTuDeXuat": "HTTNV",
+        "giaiPhapDotPha": "",
+        "giaiTrinh": "",
+        "uuDiem": "Chủ động, đúng hạn.",
+        "hanChe": "Còn chậm báo cáo tháng 11.",
+        "huongKhacPhuc": "Lập lịch nhắc việc hằng tuần."
+      },
+      "context": {
+        "mucThamKhao": "HTTNV",
+        "ngayMoPhieu": "2027-01-04",
+        "ngayNop": "2027-01-06",
+        "soNgayLamViecDuocPhep": 3
+      },
+      "violated": ["R-1B-01"]
+    },
+    {
+      "id": "G-1B-04",
+      "description": "Điểm tự chấm âm",
+      "model": {
+        "tieuChiChung": {
+          "tc1": true,
+          "tc2": true,
+          "tc3": true,
+          "tc4": true,
+          "tc5": true,
+          "tc6": true,
+          "tc7": true,
+          "tc8": true,
+          "tc9": true
+        },
+        "ketQuaNhiemVu": "Hoàn thành 12/12 nhiệm vụ được giao trong quý.",
+        "diemTuCham": -1,
+        "mucTuDeXuat": "HTTNV",
+        "giaiPhapDotPha": "",
+        "giaiTrinh": "",
+        "uuDiem": "Chủ động, đúng hạn.",
+        "hanChe": "Còn chậm báo cáo tháng 11.",
+        "huongKhacPhuc": "Lập lịch nhắc việc hằng tuần."
+      },
+      "context": {
+        "mucThamKhao": "HTTNV",
+        "ngayMoPhieu": "2027-01-04",
+        "ngayNop": "2027-01-06",
+        "soNgayLamViecDuocPhep": 3
+      },
+      "violated": ["R-1B-01"]
+    },
+    {
+      "id": "G-1B-05",
+      "description": "Đề xuất HTXSNV, giải pháp đột phá 49 ký tự, có giải trình",
+      "model": {
+        "tieuChiChung": {
+          "tc1": true,
+          "tc2": true,
+          "tc3": true,
+          "tc4": true,
+          "tc5": true,
+          "tc6": true,
+          "tc7": true,
+          "tc8": true,
+          "tc9": true
+        },
+        "ketQuaNhiemVu": "Hoàn thành 12/12 nhiệm vụ được giao trong quý.",
+        "diemTuCham": 92.5,
+        "mucTuDeXuat": "HTXSNV",
+        "giaiPhapDotPha": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "giaiTrinh": "Có sáng kiến được Sở công nhận năm 2026.",
+        "uuDiem": "Chủ động, đúng hạn.",
+        "hanChe": "Còn chậm báo cáo tháng 11.",
+        "huongKhacPhuc": "Lập lịch nhắc việc hằng tuần."
+      },
+      "context": {
+        "mucThamKhao": "HTTNV",
+        "ngayMoPhieu": "2027-01-04",
+        "ngayNop": "2027-01-06",
+        "soNgayLamViecDuocPhep": 3
+      },
+      "violated": ["R-1B-02"]
+    },
+    {
+      "id": "G-1B-06",
+      "description": "Đề xuất HTXSNV, giải pháp đủ 50 ký tự, có giải trình",
+      "model": {
+        "tieuChiChung": {
+          "tc1": true,
+          "tc2": true,
+          "tc3": true,
+          "tc4": true,
+          "tc5": true,
+          "tc6": true,
+          "tc7": true,
+          "tc8": true,
+          "tc9": true
+        },
+        "ketQuaNhiemVu": "Hoàn thành 12/12 nhiệm vụ được giao trong quý.",
+        "diemTuCham": 92.5,
+        "mucTuDeXuat": "HTXSNV",
+        "giaiPhapDotPha": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "giaiTrinh": "Có sáng kiến được Sở công nhận năm 2026.",
+        "uuDiem": "Chủ động, đúng hạn.",
+        "hanChe": "Còn chậm báo cáo tháng 11.",
+        "huongKhacPhuc": "Lập lịch nhắc việc hằng tuần."
+      },
+      "context": {
+        "mucThamKhao": "HTTNV",
+        "ngayMoPhieu": "2027-01-04",
+        "ngayNop": "2027-01-06",
+        "soNgayLamViecDuocPhep": 3
+      },
+      "violated": []
+    },
+    {
+      "id": "G-1B-07",
+      "description": "Đề xuất HTXSNV, chưa có giải pháp và giải trình",
+      "model": {
+        "tieuChiChung": {
+          "tc1": true,
+          "tc2": true,
+          "tc3": true,
+          "tc4": true,
+          "tc5": true,
+          "tc6": true,
+          "tc7": true,
+          "tc8": true,
+          "tc9": true
+        },
+        "ketQuaNhiemVu": "Hoàn thành 12/12 nhiệm vụ được giao trong quý.",
+        "diemTuCham": 92.5,
+        "mucTuDeXuat": "HTXSNV",
+        "giaiPhapDotPha": "",
+        "giaiTrinh": "",
+        "uuDiem": "Chủ động, đúng hạn.",
+        "hanChe": "Còn chậm báo cáo tháng 11.",
+        "huongKhacPhuc": "Lập lịch nhắc việc hằng tuần."
+      },
+      "context": {
+        "mucThamKhao": "HTTNV",
+        "ngayMoPhieu": "2027-01-04",
+        "ngayNop": "2027-01-06",
+        "soNgayLamViecDuocPhep": 3
+      },
+      "violated": ["R-1B-02", "R-1B-03"]
+    },
+    {
+      "id": "G-1B-08",
+      "description": "Mức khác tham khảo, giải trình 19 ký tự",
+      "model": {
+        "tieuChiChung": {
+          "tc1": true,
+          "tc2": true,
+          "tc3": true,
+          "tc4": true,
+          "tc5": true,
+          "tc6": true,
+          "tc7": true,
+          "tc8": true,
+          "tc9": true
+        },
+        "ketQuaNhiemVu": "Hoàn thành 12/12 nhiệm vụ được giao trong quý.",
+        "diemTuCham": 92.5,
+        "mucTuDeXuat": "HTNV",
+        "giaiPhapDotPha": "",
+        "giaiTrinh": "yyyyyyyyyyyyyyyyyyy",
+        "uuDiem": "Chủ động, đúng hạn.",
+        "hanChe": "Còn chậm báo cáo tháng 11.",
+        "huongKhacPhuc": "Lập lịch nhắc việc hằng tuần."
+      },
+      "context": {
+        "mucThamKhao": "HTTNV",
+        "ngayMoPhieu": "2027-01-04",
+        "ngayNop": "2027-01-06",
+        "soNgayLamViecDuocPhep": 3
+      },
+      "violated": ["R-1B-03"]
+    },
+    {
+      "id": "G-1B-09",
+      "description": "Mức khác tham khảo, giải trình đủ 20 ký tự",
+      "model": {
+        "tieuChiChung": {
+          "tc1": true,
+          "tc2": true,
+          "tc3": true,
+          "tc4": true,
+          "tc5": true,
+          "tc6": true,
+          "tc7": true,
+          "tc8": true,
+          "tc9": true
+        },
+        "ketQuaNhiemVu": "Hoàn thành 12/12 nhiệm vụ được giao trong quý.",
+        "diemTuCham": 92.5,
+        "mucTuDeXuat": "HTNV",
+        "giaiPhapDotPha": "",
+        "giaiTrinh": "yyyyyyyyyyyyyyyyyyyy",
+        "uuDiem": "Chủ động, đúng hạn.",
+        "hanChe": "Còn chậm báo cáo tháng 11.",
+        "huongKhacPhuc": "Lập lịch nhắc việc hằng tuần."
+      },
+      "context": {
+        "mucThamKhao": "HTTNV",
+        "ngayMoPhieu": "2027-01-04",
+        "ngayNop": "2027-01-06",
+        "soNgayLamViecDuocPhep": 3
+      },
+      "violated": []
+    },
+    {
+      "id": "G-1B-10",
+      "description": "Chuỗi tiếng Việt có dấu: size đếm ký tự, không đếm byte",
+      "model": {
+        "tieuChiChung": {
+          "tc1": true,
+          "tc2": true,
+          "tc3": true,
+          "tc4": true,
+          "tc5": true,
+          "tc6": true,
+          "tc7": true,
+          "tc8": true,
+          "tc9": true
+        },
+        "ketQuaNhiemVu": "Hoàn thành 12/12 nhiệm vụ được giao trong quý.",
+        "diemTuCham": 92.5,
+        "mucTuDeXuat": "HTXSNV",
+        "giaiPhapDotPha": "ềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềềề",
+        "giaiTrinh": "Số hoá quy trình tiếp nhận hồ sơ, giảm 40% thời gian xử lý.",
+        "uuDiem": "Chủ động, đúng hạn.",
+        "hanChe": "Còn chậm báo cáo tháng 11.",
+        "huongKhacPhuc": "Lập lịch nhắc việc hằng tuần."
+      },
+      "context": {
+        "mucThamKhao": "HTTNV",
+        "ngayMoPhieu": "2027-01-04",
+        "ngayNop": "2027-01-06",
+        "soNgayLamViecDuocPhep": 3
+      },
+      "violated": []
+    },
+    {
+      "id": "G-1B-11",
+      "description": "Chưa chọn mức (null): R-1B-03 không áp dụng",
+      "model": {
+        "tieuChiChung": {
+          "tc1": true,
+          "tc2": true,
+          "tc3": true,
+          "tc4": true,
+          "tc5": true,
+          "tc6": true,
+          "tc7": true,
+          "tc8": true,
+          "tc9": true
+        },
+        "ketQuaNhiemVu": "Hoàn thành 12/12 nhiệm vụ được giao trong quý.",
+        "diemTuCham": 92.5,
+        "mucTuDeXuat": null,
+        "giaiPhapDotPha": "",
+        "giaiTrinh": "",
+        "uuDiem": "Chủ động, đúng hạn.",
+        "hanChe": "Còn chậm báo cáo tháng 11.",
+        "huongKhacPhuc": "Lập lịch nhắc việc hằng tuần."
+      },
+      "context": {
+        "mucThamKhao": "HTTNV",
+        "ngayMoPhieu": "2027-01-04",
+        "ngayNop": "2027-01-06",
+        "soNgayLamViecDuocPhep": 3
+      },
+      "violated": []
+    },
+    {
+      "id": "G-1B-12",
+      "description": "Quá hạn nộp theo ngày làm việc: chỉ máy chủ kiểm (serverOnly)",
+      "model": {
+        "tieuChiChung": {
+          "tc1": true,
+          "tc2": true,
+          "tc3": true,
+          "tc4": true,
+          "tc5": true,
+          "tc6": true,
+          "tc7": true,
+          "tc8": true,
+          "tc9": true
+        },
+        "ketQuaNhiemVu": "Hoàn thành 12/12 nhiệm vụ được giao trong quý.",
+        "diemTuCham": 92.5,
+        "mucTuDeXuat": "HTTNV",
+        "giaiPhapDotPha": "",
+        "giaiTrinh": "",
+        "uuDiem": "Chủ động, đúng hạn.",
+        "hanChe": "Còn chậm báo cáo tháng 11.",
+        "huongKhacPhuc": "Lập lịch nhắc việc hằng tuần."
+      },
+      "context": {
+        "mucThamKhao": "HTTNV",
+        "ngayMoPhieu": "2027-01-04",
+        "ngayNop": "2027-01-12",
+        "soNgayLamViecDuocPhep": 3
+      },
+      "violated": ["R-1B-04"]
+    },
+    {
+      "id": "G-1B-13",
+      "description": "Thiếu trường diemTuCham (chưa nhập): quy tắc không bị coi là vi phạm ở cả hai engine; schema bắt trường bắt buộc",
+      "model": {
+        "tieuChiChung": {
+          "tc1": true,
+          "tc2": true,
+          "tc3": true,
+          "tc4": true,
+          "tc5": true,
+          "tc6": true,
+          "tc7": true,
+          "tc8": true,
+          "tc9": true
+        },
+        "ketQuaNhiemVu": "Hoàn thành 12/12 nhiệm vụ được giao trong quý.",
+        "mucTuDeXuat": "HTTNV",
+        "giaiPhapDotPha": "",
+        "giaiTrinh": "",
+        "uuDiem": "Chủ động, đúng hạn.",
+        "hanChe": "Còn chậm báo cáo tháng 11.",
+        "huongKhacPhuc": "Lập lịch nhắc việc hằng tuần."
+      },
+      "context": {
+        "mucThamKhao": "HTTNV",
+        "ngayMoPhieu": "2027-01-04",
+        "ngayNop": "2027-01-06",
+        "soNgayLamViecDuocPhep": 3
+      },
+      "violated": []
+    }
+  ]
+}

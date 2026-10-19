@@ -360,6 +360,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/files/{objectId}/preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Ảnh xem trước từng trang của tệp
+     * @description Phục vụ trình xem minh chứng theo trang ở SCR-0703 vùng 1 ("trang 1 trên 6") và SCR-0902 mà không phải tải thư viện dựng PDF hay Office lớn về trình duyệt. SVC-08 dựng ảnh từng trang (PDF, DOCX, XLSX, ảnh) ở tác vụ nền sau khi tệp quét sạch và trả URL ký trước sống 5 phút cho mỗi trang, cùng quy tắc kiểm quyền và ghi nhật ký truy cập như `getFileDownloadUrl`. Khi ảnh chưa dựng xong, `status` là `DANG_TAO` kèm `Retry-After`. Tệp C3 (E2EE) không dựng được ở máy chủ nên trả `KHONG_HO_TRO`; giao diện tải bản mã qua `getFileDownloadUrl` để giải mã và hiển thị tại trình duyệt. (suy luận: TL-02 vẽ trình xem theo trang nhưng TL chưa đặc tả API.)
+     */
+    get: operations['getFilePreview'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/files/{objectId}/scan': {
     parameters: {
       query?: never;
@@ -720,16 +740,7 @@ export interface components {
      * @enum {string}
      */
     EvidenceAcceptanceDecision: 'DA_XAC_NHAN' | 'YEU_CAU_BO_SUNG' | 'TU_CHOI';
-    /**
-     * @description Nguyên nhân chỉnh sửa (`product.acceptance.revision_cause`, TL-03).
-     * @enum {string}
-     */
-    EvidenceRevisionCause:
-      | 'THE_THUC'
-      | 'NOI_DUNG_KHONG_COT_LOI'
-      | 'NOI_DUNG_CO_BAN'
-      | 'SAI_SOT_NGHIEM_TRONG'
-      | 'SAI_CHU_TRUONG';
+    EvidenceRevisionCause: components['schemas']['RevisionCause'];
     /**
      * @description Bản ghi nghiệm thu (`product.acceptance`).
      * @example {
@@ -754,7 +765,7 @@ export interface components {
       decision: components['schemas']['EvidenceAcceptanceDecision'];
       qualityLevel?: components['schemas']['QualityLevel'];
       criteriaResults?: components['schemas']['EvidenceCriterionResult'][];
-      revisionCause?: components['schemas']['EvidenceRevisionCause'];
+      revisionCause?: components['schemas']['RevisionCause'];
       /** @description Chỉnh sửa do nguyên nhân khách quan (ảnh hưởng cách tính C). */
       isObjectiveRevision?: boolean;
       revisionCount?: number;
@@ -767,7 +778,7 @@ export interface components {
     EvidenceAcceptRequest: {
       qualityLevel: components['schemas']['QualityLevel'];
       criteriaResults: components['schemas']['EvidenceCriterionResult'][];
-      revisionCause?: components['schemas']['EvidenceRevisionCause'];
+      revisionCause?: components['schemas']['RevisionCause'];
       isObjectiveRevision?: boolean;
       comment?: string;
     };
@@ -904,6 +915,30 @@ export interface components {
       /** @description Tệp tải về là bản mã, giải mã tại trình duyệt */
       e2ee: boolean;
     };
+    /**
+     * @description Trạng thái ảnh xem trước (suy luận).
+     * @enum {string}
+     */
+    FilePreviewStatus: 'DANG_TAO' | 'SAN_SANG' | 'KHONG_HO_TRO' | 'LOI';
+    FilePreviewPage: {
+      page: number;
+      /**
+       * Format: uri
+       * @description URL ký trước của ảnh trang (WebP), sống 5 phút
+       */
+      url: string;
+      width?: number;
+      height?: number;
+    };
+    FilePreview: {
+      status: components['schemas']['FilePreviewStatus'];
+      /** @description Tổng số trang; null khi chưa dựng xong */
+      pageCount?: number | null;
+      /** @description Mã băm của tệp gốc đã kiểm toàn vẹn */
+      sha256: components['schemas']['Sha256Hex'];
+      pages: components['schemas']['FilePreviewPage'][];
+      expiresAt?: components['schemas']['DateTime'];
+    };
     /** @description Kết quả quét (`evidence.scan_result` và `evidence.object_version.scan_status`). */
     FileScanResult: {
       objectId: components['schemas']['Uuid'];
@@ -974,6 +1009,16 @@ export interface components {
      * @example 2026-12-15
      */
     Date: string;
+    /**
+     * @description Nguyên nhân chỉnh sửa minh chứng khi nghiệm thu (`product.acceptance.revision_cause`, CHECK của TL-03), dùng chung cho nghiệm thu (MOD-03) và xem trước, tính điểm (MOD-04, SVC-07). Tính chủ quan hay khách quan của việc chỉnh sửa (TL-02 SCR-0703 trường 4 "Chủ quan, Khách quan, Không có") đi kèm ở cờ `isObjectiveRevision`; "Không có" là bỏ trống cả hai.
+     * @enum {string}
+     */
+    RevisionCause:
+      | 'THE_THUC'
+      | 'NOI_DUNG_KHONG_COT_LOI'
+      | 'NOI_DUNG_CO_BAN'
+      | 'SAI_SOT_NGHIEM_TRONG'
+      | 'SAI_CHU_TRUONG';
     /**
      * @description Phân loại dữ liệu theo ADR-06.
      * @enum {string}
@@ -1073,6 +1118,8 @@ export interface components {
     ETag: string;
     /** @description Đường dẫn theo dõi tác vụ dài `/api/v1/jobs/{id}` hoặc đối tượng vừa tạo. */
     Location: string;
+    /** @description Số giây nên chờ trước lần gọi kế tiếp. */
+    RetryAfter: number;
   };
   pathItems: never;
 }
@@ -2013,6 +2060,52 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['FileDownloadUrl'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      /** @description Tệp đang chờ quét hoặc đã bị cách ly (`FILE-409-NOT-CLEAN`, MSG-07-02). */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      default: components['responses']['Problem'];
+    };
+  };
+  getFilePreview: {
+    parameters: {
+      query?: {
+        /** @description Số phiên bản đối tượng; mặc định phiên bản hiện hành. */
+        version?: number;
+        /** @description Trang đầu (tính từ 1). */
+        fromPage?: number;
+        /** @description Số trang trả về; giao diện nạp lười theo cửa sổ trang. */
+        count?: number;
+      };
+      header?: never;
+      path: {
+        /** @description Mã đối tượng logic (`evidence.object_meta.id`). */
+        objectId: components['parameters']['ObjectId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Thông tin xem trước và URL các trang trong cửa sổ yêu cầu. */
+      200: {
+        headers: {
+          /** @description Luôn `no-store`. */
+          'Cache-Control'?: string;
+          'Retry-After': components['headers']['RetryAfter'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FilePreview'];
         };
       };
       401: components['responses']['Unauthorized'];

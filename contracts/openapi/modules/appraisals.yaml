@@ -629,7 +629,8 @@ paths:
                   taskId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c03
                   evidenceVersionId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0e11
                   qualityLevel: 0.75
-                  revisionCause: CHU_QUAN
+                  revisionCause: NOI_DUNG_KHONG_COT_LOI
+                  isObjectiveRevision: false
       responses:
         '200':
           description: Kết quả xem trước.
@@ -1747,10 +1748,10 @@ components:
         taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         evidenceVersionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         qualityLevel: { $ref: '../common/common.yaml#/components/schemas/QualityLevel' }
-        revisionCause:
-          type: string
-          description: Nguyên nhân chỉnh sửa (`product.acceptance.revision_cause`, đề xuất của TL-02a).
-          enum: [CHU_QUAN, KHACH_QUAN, KHONG_CO]
+        revisionCause: { $ref: '../common/common.yaml#/components/schemas/RevisionCause' }
+        isObjectiveRevision:
+          type: boolean
+          description: Chỉnh sửa do nguyên nhân khách quan (ảnh hưởng cách tính C); cùng nghĩa với `EvidenceAcceptRequest`.
     AppraisalScorePreview:
       type: object
       required: [a, b, c, kpi]

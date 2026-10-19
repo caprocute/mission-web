@@ -12,11 +12,13 @@ Công việc được chia thành năm luồng chạy song song, mỗi luồng l
 |---|---|---|---|
 | Nền tảng | `mission-web` (nhánh `main`) | fe-shell, thư viện `@vt/*`, CI, triển khai | WEB-001..WEB-015, WEB-020, WEB-051..WEB-053, WEB-059, WEB-060 |
 | Phân quyền | `phan-quyen` | xuyên suốt | WEB-054..WEB-058 |
-| Màn hình nghiệp vụ (giao việc, kế hoạch) | `man-hinh` | fe-task, tuyến `/plans`, fe-evidence | WEB-025..WEB-031, WEB-032, WEB-033 (nhận thêm 19/10) |
+| Màn hình nghiệp vụ (giao việc, kế hoạch) | `man-hinh` | fe-task, tuyến `/plans`, fe-evidence, fe-oversight | WEB-025..WEB-031, WEB-032, WEB-033, WEB-034, WEB-042..WEB-044 (nhận thêm 19/10) |
 | Màn hình OKR, minh chứng, đánh giá | `okr-danh-gia` | fe-okr, fe-appraisal, fe-dossier | WEB-021..WEB-024, WEB-035..WEB-041, WEB-049 |
-| Màn hình giám sát, điều hành, cấu hình | `giam-sat-cau-hinh` | fe-oversight, fe-dashboard, fe-config-studio, fe-admin | WEB-016..WEB-019, WEB-034, WEB-042..WEB-048, WEB-050, WEB-061, WEB-062 |
+| Màn hình giám sát, điều hành, cấu hình | `giam-sat-cau-hinh` | fe-dashboard, fe-config-studio, fe-admin | WEB-016..WEB-019, WEB-045..WEB-048, WEB-050, WEB-061, WEB-062 |
 
 Nền tảng mà các luồng màn hình cần đã có trên `main`: WEB-001 (lint, test), WEB-003 (ngân sách), WEB-006 (đăng nhập, chọn phân công, step-up), WEB-007 (api-client sinh từ OpenAPI, JobTracker), WEB-008 (mock API), WEB-015 (khung 8 remote, cổng dev 4202–4209), WEB-054 (bảng quyền `can()`). WEB-010 (form engine) đang làm; các task dùng biểu mẫu động (WEB-022, WEB-035, WEB-045, WEB-050) làm phần khung trước, nối form engine khi WEB-010 lên `main`.
+
+Cân lại 19/10/2026: luồng Màn hình nghiệp vụ đã xong phần được giao nên nhận thêm WEB-034 (khoá kỳ), WEB-042 (khiếu nại), WEB-043 (mở lại kỳ, sổ cái) và WEB-044 (trung tâm cảnh báo), tức toàn bộ remote fe-oversight. Luồng Giám sát, điều hành, cấu hình giữ fe-dashboard, fe-config-studio, fe-admin và WEB-019; nếu luồng này đã lỡ bắt đầu một task vừa chuyển đi thì báo lại để giữ task đó.
 
 Mỗi luồng chỉ sửa trong remote và thư viện của mình. Khi buộc phải sửa tệp dùng chung (`fe-shell/src/app/app.routes.ts`, `layout/nav.ts`, `package.json`, `angular.json`, `@vt/api-client/src/public-api.ts`), sửa tối thiểu và ghi rõ trong báo cáo để luồng Nền tảng xử lý xung đột khi gộp. Mục menu theo ma trận phân quyền do WEB-055 (luồng Phân quyền) gắn. Model và client mới trong `@vt/api-client` đặt theo tệp riêng của module (`models/<module>.ts`, `<module>-api.ts`, `mock/<module>/`) để hạn chế xung đột.
 
@@ -35,7 +37,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-007](WEB-007-api-client-openapi.md) | `@vt/api-client`: sinh client từ OpenAPI, xử lý lỗi, 409, job 202 | M | WEB-001 | Hoàn thành (hợp đồng mẫu, chờ OpenAPI thật của mission-core) |
 | [WEB-008](WEB-008-mock-api.md) | Tách dữ liệu giả lập thành interceptor và fixture theo module | S | WEB-007 | Hoàn thành (axe còn lỗi có sẵn, xem WEB-059) |
 | [WEB-009](WEB-009-sdui-chu-ky.md) | SDUI: kiểm chữ ký UI Pack, kiểm phiên bản registry, telemetry | M | WEB-004 | Chưa bắt đầu |
-| [WEB-010](WEB-010-form-engine.md) | Form engine: widget, test CEL dùng chung, benchmark | M | WEB-001 | Chưa bắt đầu |
+| [WEB-010](WEB-010-form-engine.md) | Form engine: widget, test CEL dùng chung, benchmark | M | WEB-001 | Hoàn thành một phần (nhánh `feat/WEB-010-form-engine`): ngân sách dựng 50 trường ≤ 50 ms chưa đạt (khoảng 95 ms trên Chromium), xem wiki/09 |
 | [WEB-011](WEB-011-telemetry-faro.md) | Telemetry: Grafana Faro + OpenTelemetry web | S | WEB-001 | Chưa bắt đầu |
 | [WEB-012](WEB-012-shell-hoan-thien.md) | Shell: thông báo thời gian thực, tìm kiếm, xử lý lỗi toàn cục | M | WEB-006, WEB-007 | Chưa bắt đầu |
 | [WEB-013](WEB-013-web-component-nhung.md) | Chế độ nhúng `<vt-okr-app>` cho cổng văn phòng số | M | WEB-006 | Chưa bắt đầu |
@@ -68,7 +70,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-030](WEB-030-viec-cua-toi.md) | SCR-0503 Việc của tôi – hoàn thiện | S | WEB-008 | Xong, chờ gộp (luồng Màn hình) |
 | [WEB-031](WEB-031-chi-tiet-gia-han.md) | SCR-0601 Chi tiết nhiệm vụ và SCR-0602 Đề nghị gia hạn, điều chỉnh | M | WEB-030 | Xong, chờ gộp (luồng Màn hình) |
 | [WEB-032](WEB-032-nop-minh-chung.md) | SCR-0701 Nộp minh chứng | L | WEB-015 | Xong, chờ gộp (nhánh `feat/WEB-032-nop-minh-chung`) |
-| [WEB-033](WEB-033-nghiem-thu.md) | SCR-0703 Nghiệm thu chất lượng 5 mức | M | WEB-032 | Chưa bắt đầu |
+| [WEB-033](WEB-033-nghiem-thu.md) | SCR-0703 Nghiệm thu chất lượng 5 mức | M | WEB-032 | Xong, chờ gộp (nhánh `feat/WEB-033-nghiem-thu`) |
 | [WEB-034](WEB-034-khoa-ky.md) | SCR-0801 Quản lý kỳ và tiến trình khoá kỳ | M | WEB-007, WEB-015 | Chưa bắt đầu |
 
 ## GĐ3 – Đánh giá, hồ sơ, giám sát
@@ -116,7 +118,7 @@ Nhóm này hiện thực ma trận phân quyền ở [wiki/15a](../../wiki/15a-m
 
 | Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
-| [WEB-059](WEB-059-kha-nang-truy-cap-nen.md) | Sửa lỗi khả năng truy cập nền: progressbar, slider, tương phản token | S | WEB-001 | Chưa bắt đầu |
+| [WEB-059](WEB-059-kha-nang-truy-cap-nen.md) | Sửa lỗi khả năng truy cập nền: progressbar, slider, tương phản token | S | WEB-001 | Hoàn thành (nhánh `feat/WEB-059-kha-nang-truy-cap-nen`): axe 0 lỗi critical/serious, Lighthouse accessibility 1,00 ở `/` và `/tasks`, CLS trang chủ 0,001; LCP và tổng tải vẫn thuộc WEB-052 |
 | [WEB-060](WEB-060-format-toan-bo.md) | Chạy Prettier toàn workspace một lần | S | WEB-001 | Chưa bắt đầu |
 | [WEB-061](WEB-061-trinh-soan-mau-luong.md) | SCR-1505 Thư viện và trình soạn mẫu luồng (BS-01) | L | WEB-015, WEB-046 | Chưa bắt đầu (luồng giám sát, điều hành, cấu hình) |
 | [WEB-062](WEB-062-giam-sat-tien-trinh.md) | SCR-1506 Giám sát tiến trình theo mẫu (BS-01) | M | WEB-015 | Chưa bắt đầu (luồng giám sát, điều hành, cấu hình) |
