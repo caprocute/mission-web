@@ -1,0 +1,109 @@
+{
+  "$comment": "Fixture module tasks (MOD-02, /api/v1/tasks) cho môi trường dev, bám trạng thái và trường TL-02 QT-05, QT-06. Ngày dạng @today±N được quy đổi theo ngày chạy.",
+  "tasks": [
+    {
+      "id": "0192a0f0-0001-7000-8000-000000000001",
+      "code": "NV-2026-Q4-0001",
+      "title": "Xây dựng báo cáo tổng kết công tác chuyển đổi số quý IV",
+      "status": "DANG_THUC_HIEN",
+      "overdue": false,
+      "dueDate": "@today+2",
+      "progress": 60,
+      "role": "CHU_TRI",
+      "assignerName": "Nguyễn Văn An",
+      "unitName": "Phòng Tổng hợp",
+      "periodId": "2026-Q4",
+      "rowVersion": 3,
+      "description": "Tổng hợp kết quả chuyển đổi số của các phòng, ban; đề xuất nhiệm vụ trọng tâm năm 2027.",
+      "sourceDoc": { "number": "125/KH-UBND", "title": "Kế hoạch chuyển đổi số năm 2026" },
+      "coAssignees": [{ "personId": "p2", "name": "Trần Thị Bình", "role": "PHOI_HOP" }],
+      "progressLog": [
+        {
+          "at": "@today-3T08:30:00Z",
+          "percent": 60,
+          "note": "Đã thu số liệu 6/8 phòng",
+          "by": "Tôi"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "id": "0192a0f0-0001-7000-8000-000000000002",
+      "code": "NV-2026-Q4-0002",
+      "title": "Rà soát danh mục vị trí việc làm theo Nghị định 62",
+      "status": "DA_GIAO",
+      "overdue": false,
+      "dueDate": "@today+0",
+      "progress": 0,
+      "role": "CHU_TRI",
+      "assignerName": "Nguyễn Văn An",
+      "unitName": "Phòng Tổ chức cán bộ",
+      "periodId": "2026-Q4",
+      "rowVersion": 1,
+      "description": "Đối chiếu danh mục vị trí việc làm hiện hành với khung của Nghị định 62/2020/NĐ-CP.",
+      "coAssignees": [],
+      "progressLog": [],
+      "blockers": []
+    },
+    {
+      "id": "0192a0f0-0001-7000-8000-000000000003",
+      "code": "NV-2026-Q4-0003",
+      "title": "Chuẩn bị tài liệu hội nghị kiểm điểm cuối năm",
+      "status": "DANG_THUC_HIEN",
+      "overdue": true,
+      "dueDate": "@today-1",
+      "progress": 40,
+      "role": "PHOI_HOP",
+      "assignerName": "Lê Minh Châu",
+      "unitName": "Văn phòng",
+      "periodId": "2026-Q4",
+      "rowVersion": 5,
+      "description": "Phối hợp chuẩn bị báo cáo kiểm điểm tập thể và mẫu phiếu góp ý.",
+      "coAssignees": [{ "personId": "p3", "name": "Lê Minh Châu", "role": "CHU_TRI" }],
+      "progressLog": [
+        { "at": "@today-5T09:00:00Z", "percent": 40, "note": "Đã có dự thảo báo cáo", "by": "Tôi" }
+      ],
+      "blockers": [
+        { "id": "b1", "content": "Chưa nhận đủ báo cáo của chi bộ 3", "resolved": false }
+      ]
+    },
+    {
+      "id": "0192a0f0-0001-7000-8000-000000000004",
+      "code": "NV-2026-Q4-0004",
+      "title": "Cập nhật minh chứng KR \"100% hồ sơ xử lý trực tuyến\"",
+      "status": "CHO_NGHIEM_THU",
+      "overdue": false,
+      "dueDate": "@today+5",
+      "progress": 100,
+      "role": "CHU_TRI",
+      "assignerName": "Nguyễn Văn An",
+      "unitName": "Phòng Tổng hợp",
+      "periodId": "2026-Q4",
+      "rowVersion": 7,
+      "description": "Nộp báo cáo trích xuất từ hệ thống một cửa làm minh chứng cho KR 2.1.",
+      "coAssignees": [],
+      "progressLog": [
+        { "at": "@today-1T15:00:00Z", "percent": 100, "note": "Đã nộp minh chứng", "by": "Tôi" }
+      ],
+      "blockers": []
+    },
+    {
+      "id": "0192a0f0-0001-7000-8000-000000000005",
+      "code": "NV-2026-Q4-0005",
+      "title": "Góp ý dự thảo quy chế làm việc của cơ quan",
+      "status": "HOAN_THANH",
+      "overdue": false,
+      "dueDate": "@today-7",
+      "progress": 100,
+      "role": "PHOI_HOP",
+      "assignerName": "Phạm Quốc Dũng",
+      "unitName": "Văn phòng",
+      "periodId": "2026-Q4",
+      "rowVersion": 4,
+      "description": "Góp ý chương II và chương IV của dự thảo.",
+      "coAssignees": [],
+      "progressLog": [],
+      "blockers": []
+    }
+  ]
+}
