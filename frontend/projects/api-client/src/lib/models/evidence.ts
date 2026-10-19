@@ -34,6 +34,15 @@ export interface Deliverable {
 export type EvidenceVersionStatus =
   'NHAP' | 'DA_NOP' | 'DANG_NGHIEM_THU' | 'DA_XAC_NHAN' | 'YEU_CAU_BO_SUNG' | 'TU_CHOI';
 
+export const EVIDENCE_STATUS_LABEL: Record<EvidenceVersionStatus, string> = {
+  NHAP: 'Nháp',
+  DA_NOP: 'Đã nộp',
+  DANG_NGHIEM_THU: 'Đang nghiệm thu',
+  DA_XAC_NHAN: 'Đã xác nhận',
+  YEU_CAU_BO_SUNG: 'Yêu cầu bổ sung',
+  TU_CHOI: 'Từ chối',
+};
+
 /** Nguồn minh chứng (`product.evidence.source_type`, TL-03). */
 export type EvidenceSourceType = 'TAI_LEN' | 'VAN_BAN' | 'HE_THONG';
 
