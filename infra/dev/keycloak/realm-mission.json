@@ -29,6 +29,10 @@
         "description": "AC-01 Quản trị nền tảng (Viettel)"
       },
       {
+        "name": "wf_template_author",
+        "description": "AC-01 Vai trò con: soạn mẫu luồng duyệt (BS-01, SCR-1505)"
+      },
+      {
         "name": "tenant_admin",
         "description": "AC-02 Quản trị tenant"
       },
@@ -473,6 +477,13 @@
           "userSetupAllowed": false
         },
         {
+          "flowAlias": "mission-browser otp wf_template_author",
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 25,
+          "userSetupAllowed": false
+        },
+        {
           "flowAlias": "mission-browser aal1",
           "authenticatorFlow": true,
           "requirement": "CONDITIONAL",
@@ -695,6 +706,38 @@
           "userSetupAllowed": false
         }
       ]
+    },
+    {
+      "alias": "mission-browser otp wf_template_author",
+      "description": "OTP bắt buộc với vai trò wf_template_author (vai trò con của AC-01, AAL2), đạt mức aal2",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-role-wf_template_author"
+        },
+        {
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-loa-wf_template_author"
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 30,
+          "userSetupAllowed": false
+        }
+      ]
     }
   ],
   "authenticatorConfig": [
@@ -781,6 +824,20 @@
         "condUserRole": "platform_admin",
         "negate": "false"
       }
+    },
+    {
+      "alias": "mission-loa-wf_template_author",
+      "config": {
+        "loa-condition-level": "8",
+        "loa-max-age": "900"
+      }
+    },
+    {
+      "alias": "mission-role-wf_template_author",
+      "config": {
+        "condUserRole": "wf_template_author",
+        "negate": "false"
+      }
     }
   ],
   "users": [
@@ -810,7 +867,8 @@
         }
       ],
       "realmRoles": [
-        "platform_admin"
+        "platform_admin",
+        "wf_template_author"
       ]
     },
     {
