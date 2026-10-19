@@ -51,7 +51,7 @@ interface Bar {
         </tbody>
       </table>
       <p class="note">
-        Đường ngang là chỉ tiêu {{ fmt(k.targetValue) }}. Cột đỏ là giá trị đang check-in.
+        Đường ngang là chỉ tiêu {{ fmt(k.targetValue ?? 0) }}. Cột đỏ là giá trị đang check-in.
       </p>
     </section>
     <section class="box" aria-labelledby="w-h">
@@ -195,13 +195,15 @@ export class CheckinTrend {
   readonly current = input<number | null>(null);
 
   private readonly scale = computed(() => {
-    const vals = [this.kr().targetValue, ...this.history().map((c) => c.value ?? 0)];
+    const vals = [this.kr().targetValue ?? 0, ...this.history().map((c) => c.value ?? 0)];
     const cur = this.current();
     if (cur !== null) vals.push(cur);
     return Math.max(...vals.map(Math.abs), 1) * 1.1;
   });
 
-  protected readonly targetPos = computed(() => (this.kr().targetValue / this.scale()) * 100);
+  protected readonly targetPos = computed(
+    () => ((this.kr().targetValue ?? 0) / this.scale()) * 100,
+  );
 
   protected readonly bars = computed<Bar[]>(() => {
     const past = this.history()

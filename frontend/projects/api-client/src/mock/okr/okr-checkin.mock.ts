@@ -83,7 +83,7 @@ function listItem(o: Obj, kr: Kr): OkrKeyResultListItem {
     progress: krProgress(kr),
     confidence: kr.confidence ?? undefined,
     riskFlag: kr.riskFlag,
-    dueDate: kr.dueDate,
+    dueDate: kr.dueDate ?? undefined,
     nextCheckinDue: conf.due,
     lastCheckin:
       last && last.value !== null

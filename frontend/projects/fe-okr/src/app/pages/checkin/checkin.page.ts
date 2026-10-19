@@ -788,7 +788,7 @@ export class OkrCheckinPage {
         k.currentValue ?? null,
         this.parsed()!,
         k.baselineValue ?? null,
-        k.targetValue,
+        k.targetValue ?? 0,
       );
       if (diff !== null) {
         this.pendingLarge.set(largeChangeMessage(diff));
