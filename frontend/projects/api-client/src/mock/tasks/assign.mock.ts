@@ -342,6 +342,50 @@ function bulkAssign(req: MockRequest): MockResponse {
   return { status: 202, body: null, headers: { Location: `/api/v1/jobs/${crypto.randomUUID()}` } };
 }
 
+/**
+ * Tạo nhiệm vụ `NHAP` cho tuyến khác của MOD-02 (tạo từ văn bản, WEB-029); máy chủ điền ngữ cảnh,
+ * mã và phiên bản như `POST /api/v1/tasks`.
+ */
+export function addDraft(d: Partial<TaskDraft>): TaskDraft {
+  seq++;
+  const saved: TaskDraft = {
+    ...blankDraft(),
+    ...d,
+    ...context(),
+    id: crypto.randomUUID(),
+    code: `NV-${period().id}-${String(300 + seq).padStart(4, '0')}`,
+    rowVersion: 0,
+    status: 'NHAP',
+  };
+  store().push(saved);
+  return saved;
+}
+
+/** Huỷ nhiệm vụ nháp khi gợi ý tạo ra nó bị bỏ (WEB-029). */
+export function cancelDraft(id: string): void {
+  const cur = findDraft(id);
+  if (cur?.status === 'NHAP') cur.status = 'HUY';
+}
+
+/** Giao một nhiệm vụ nháp đã lưu (giao theo lô): cùng kiểm tra như `POST /tasks/{id}/assign`. */
+export function assignStored(
+  id: string,
+  similarReason?: string,
+): { draft?: TaskDraft; errors: string[] } {
+  const cur = findDraft(id);
+  if (!cur) return { errors: ['Không tìm thấy nhiệm vụ'] };
+  if (cur.status !== 'NHAP') return { draft: cur, errors: ['Nhiệm vụ đã được giao'] };
+  const result = check(cur);
+  const errors = result.items.filter((i) => i.level === 'CHAN' && !i.passed).map((i) => i.message);
+  if (result.similar.length && !similarReason?.trim())
+    errors.push('Có nhiệm vụ gần giống: ghi lý do tạo mới hoặc gộp vào nhiệm vụ cũ.');
+  if (!errors.length) {
+    cur.status = 'DA_GIAO';
+    cur.rowVersion = cur.rowVersion! + 1;
+  }
+  return { draft: cur, errors };
+}
+
 /** `GET /api/v1/tasks/{id}?view=assign`. */
 export function draftView(id: string): MockResponse | null {
   const d = findDraft(id);

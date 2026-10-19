@@ -59,6 +59,8 @@ Bảng dưới liệt kê các điểm mà hai hay nhiều nguồn ghi khác nha
 | Đỉnh người dùng task cell lớn | Baseline bản cũ, TL-02: 80 đến 110 lượt/giây; TL-01, baseline 3.1: 133 đến 150 lượt/giây | Dùng số lớn hơn khi định cỡ thử tải |
 | Loại đề nghị điều chỉnh (`task.task_change_request.request_type`) | TL-02 SCR-0602: `GIA_HAN`, `DOI_SO_LUONG`, `DOI_SAN_PHAM`, `TAM_DUNG`, `HUY`; TL-03: `GIA_HAN`, `DIEU_CHINH_KHOI_LUONG`, `DIEU_CHINH_NOI_DUNG`, `HUY` (không có tạm dừng) | Theo TL-02 vì là đặc tả màn hình (`ChangeRequestType`, WEB-031); cần chốt khi có OpenAPI (WEB-007) |
 | Mã nguồn nhiệm vụ ngoài kế hoạch | TL-02 SCR-0501 và cột `source_type` TL-03: `PHAT_SINH`; ràng buộc `ck_task__source` TL-03: `DOT_XUAT` | Giữ `DOT_XUAT` theo ràng buộc bảng (`TaskSource`), hiển thị "Phát sinh" (WEB-028) |
+| Hạn của nhiệm vụ trích từ văn bản | TL-02 SCR-0502 trường 8: "trong kỳ hoặc kỳ sau"; BR-05-03 và SCR-0501: hạn trong kỳ | Kiểm theo BR-05-03 vì nhiệm vụ trích được giao qua cùng kiểm tra của SCR-0501 (WEB-029); cần chốt cách giao nhiệm vụ có hạn sang kỳ sau |
+| Quyết định với gợi ý AI | TL-02 SCR-0502 trường 12: Chờ xác nhận, Đã xác nhận, Đã bỏ, Đã gộp (`decision`); TL-03 `ai.suggestion_log.user_action`: `CHAP_NHAN`, `SUA`, `BO_QUA` | Giao diện dùng `CHO_XAC_NHAN`, `DA_XAC_NHAN`, `DA_BO`, `DA_GOP` cho `decision` và gửi `BO_QUA` khi bỏ (WEB-029); cần chốt khi có OpenAPI |
 | Tổng số tài khoản | NFR-01: 6 triệu; TL-04 định cỡ: 6,5 triệu | **Đã chốt 6,5 triệu** cho định cỡ (19/10/2026) |
 
 ### Ghi chú và đề xuất từ WEB-056 (realm Keycloak dev)

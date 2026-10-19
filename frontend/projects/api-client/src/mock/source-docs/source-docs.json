@@ -1,0 +1,185 @@
+{
+  "$comment": "Fixture văn bản chỉ đạo đến (SVC-13 → EVT-24, task.task_source_doc) và nhiệm vụ AI trích (SVC-14, ai.suggestion_log) cho SCR-0502 (WEB-029). Văn bản 512-CV/ĐUK theo Hình 8.4 TL-02; hai văn bản còn lại minh hoạ BR-05-07 (MSG-05-09) và MSG-05-10. Dữ liệu hư cấu. Trong toàn văn, {{@today+N}} được thay bằng ngày dd/mm/yyyy.",
+  "model": "viettel-llm-vi v3",
+  "docs": [
+    {
+      "id": "sd-512",
+      "sourceSystem": "VOFFICE",
+      "docNumber": "512-CV/ĐUK",
+      "docDate": "@today-7",
+      "issuer": "Đảng uỷ các cơ quan Đảng Trung ương",
+      "excerpt": "V/v triển khai kiểm điểm, đánh giá, xếp loại chất lượng tổ chức đảng, đảng viên năm 2026",
+      "receivedAt": "@today-7T15:02:00+07:00",
+      "format": "EdXML",
+      "status": "CHO_XU_LY",
+      "extraction": "XONG",
+      "extractedAt": "@today-7T15:03:00+07:00",
+      "issuerHeader": "ĐẢNG UỶ CÁC CƠ QUAN ĐẢNG TRUNG ƯƠNG",
+      "title": "V/v triển khai kiểm điểm, đánh giá, xếp loại chất lượng tổ chức đảng, đảng viên năm 2026",
+      "preamble": "Thực hiện Quy định số 366-QĐ/TW và Hướng dẫn số 02-HD/BTCTW, Thường trực Đảng uỷ khối đề nghị:",
+      "paragraphs": [
+        {
+          "no": 1,
+          "assignment": true,
+          "text": "Ban Tổ chức chủ trì, phối hợp với Uỷ ban Kiểm tra ban hành hướng dẫn kiểm điểm, đánh giá, xếp loại tổ chức đảng, đảng viên năm 2026, hoàn thành trước ngày {{@today+11}}."
+        },
+        {
+          "no": 2,
+          "assignment": false,
+          "text": "Các đảng uỷ, chi bộ trực thuộc tổ chức kiểm điểm theo hướng dẫn, hoàn thành trước ngày {{@today+70}}."
+        },
+        {
+          "no": 3,
+          "assignment": true,
+          "text": "Ban Tổ chức tổng hợp kết quả xếp loại, báo cáo Thường trực Đảng uỷ khối trước ngày {{@today+60}}."
+        },
+        {
+          "no": 4,
+          "assignment": true,
+          "text": "Văn phòng Đảng uỷ phối hợp Ban Tổ chức rà soát, hoàn thiện hồ sơ đảng viên trên Cơ sở dữ liệu đảng viên, xong trước {{@today+42}}."
+        }
+      ],
+      "recipients": "Nơi nhận: như trên; lưu VP.",
+      "suggestions": [
+        {
+          "id": "sg-512-1",
+          "paragraphNo": 1,
+          "confidence": 0.94,
+          "decision": "DA_XAC_NHAN",
+          "fields": {
+            "title": "Hướng dẫn kiểm điểm, đánh giá, xếp loại tổ chức đảng, đảng viên năm 2026",
+            "leadUnitId": "u-btc",
+            "leadUnitName": "Ban Tổ chức",
+            "coUnits": [{ "kind": "UNIT", "id": "u-ubkt", "name": "Uỷ ban Kiểm tra" }],
+            "dueDate": "@today+11",
+            "productName": "Văn bản hướng dẫn",
+            "catalogItemId": "ci-tc-dv-04",
+            "catalogItemCode": "TC-DV-04",
+            "keyResultId": "kr-1-2",
+            "keyResultCode": "KR 1.2"
+          }
+        },
+        {
+          "id": "sg-512-3",
+          "paragraphNo": 3,
+          "confidence": 0.88,
+          "decision": "CHO_XAC_NHAN",
+          "fields": {
+            "title": "Tổng hợp kết quả xếp loại tổ chức đảng, đảng viên năm 2026",
+            "leadUnitId": "u-btc",
+            "leadUnitName": "Ban Tổ chức",
+            "coUnits": [{ "kind": "UNIT", "id": "u-vp", "name": "Văn phòng Đảng uỷ" }],
+            "dueDate": "@today+60",
+            "productName": "Báo cáo tổng hợp",
+            "catalogItemId": "ci-tc-dv-03",
+            "catalogItemCode": "TC-DV-03",
+            "keyResultId": "kr-1-2",
+            "keyResultCode": "KR 1.2"
+          }
+        },
+        {
+          "id": "sg-512-4",
+          "paragraphNo": 4,
+          "confidence": 0.71,
+          "decision": "CHO_XAC_NHAN",
+          "fields": {
+            "title": "Rà soát, hoàn thiện hồ sơ đảng viên trên CSDL đảng viên",
+            "leadUnitId": "u-vp",
+            "leadUnitName": "Văn phòng Đảng uỷ",
+            "coUnits": [{ "kind": "UNIT", "id": "u-btc", "name": "Ban Tổ chức" }],
+            "dueDate": "@today+42",
+            "productName": "Danh sách đối soát",
+            "keyResultId": "kr-2-1",
+            "keyResultCode": "KR 2.1"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sd-87",
+      "sourceSystem": "IOFFICE",
+      "docNumber": "87-KH/ĐUK",
+      "docDate": "@today-3",
+      "issuer": "Đảng uỷ các cơ quan Đảng Trung ương",
+      "excerpt": "Kế hoạch báo cáo số liệu đảng viên và kết nạp đảng viên quý IV/2026",
+      "receivedAt": "@today-3T09:15:00+07:00",
+      "format": "EdXML",
+      "status": "CHO_XU_LY",
+      "extraction": "XONG",
+      "extractedAt": "@today-3T09:16:00+07:00",
+      "issuerHeader": "ĐẢNG UỶ CÁC CƠ QUAN ĐẢNG TRUNG ƯƠNG",
+      "title": "Kế hoạch báo cáo số liệu đảng viên và kết nạp đảng viên quý IV/2026",
+      "preamble": "Để chủ động nắm tình hình đội ngũ đảng viên cuối năm, Thường trực Đảng uỷ khối yêu cầu:",
+      "paragraphs": [
+        {
+          "no": 1,
+          "assignment": true,
+          "text": "Ban Tổ chức tổng hợp, báo cáo số liệu đảng viên tháng 10, gửi trước ngày {{@today+5}}."
+        },
+        {
+          "no": 2,
+          "assignment": true,
+          "text": "Ban Tổ chức hướng dẫn các chi bộ lập danh sách quần chúng ưu tú, hoàn thành trước ngày {{@today+30}}."
+        }
+      ],
+      "recipients": "Nơi nhận: Ban Tổ chức; lưu VP.",
+      "usedParagraphs": [{ "paragraphNo": 1, "taskCode": "NV-2026-Q4-0120" }],
+      "suggestions": [
+        {
+          "id": "sg-87-1",
+          "paragraphNo": 1,
+          "confidence": 0.9,
+          "decision": "CHO_XAC_NHAN",
+          "fields": {
+            "title": "Báo cáo số liệu đảng viên tháng 10",
+            "leadUnitId": "u-btc",
+            "leadUnitName": "Ban Tổ chức",
+            "coUnits": [],
+            "dueDate": "@today+5",
+            "productName": "Báo cáo số liệu",
+            "catalogItemId": "ci-tc-dv-03",
+            "catalogItemCode": "TC-DV-03"
+          }
+        },
+        {
+          "id": "sg-87-2",
+          "paragraphNo": 2,
+          "confidence": 0.83,
+          "decision": "CHO_XAC_NHAN",
+          "fields": {
+            "title": "Hướng dẫn chi bộ lập danh sách quần chúng ưu tú",
+            "leadUnitId": "u-btc",
+            "leadUnitName": "Ban Tổ chức",
+            "coUnits": [],
+            "dueDate": "@today+30",
+            "productName": "Danh sách quần chúng ưu tú",
+            "keyResultId": "kr-1-1",
+            "keyResultCode": "KR 1.1"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sd-33",
+      "sourceSystem": "LGSP",
+      "docNumber": "33-TB/ĐUK",
+      "docDate": "@today-1",
+      "issuer": "Đảng uỷ các cơ quan Đảng Trung ương",
+      "excerpt": "Thông báo lịch làm việc của Thường trực Đảng uỷ khối tuần tới",
+      "receivedAt": "@today-1T16:40:00+07:00",
+      "format": "EdXML",
+      "status": "CHO_XU_LY",
+      "extraction": "KHONG_TRICH_DUOC",
+      "extractedAt": "@today-1T16:41:00+07:00",
+      "issuerHeader": "ĐẢNG UỶ CÁC CƠ QUAN ĐẢNG TRUNG ƯƠNG",
+      "title": "Thông báo lịch làm việc của Thường trực Đảng uỷ khối",
+      "preamble": "Thường trực Đảng uỷ khối thông báo lịch làm việc tuần tới như sau:",
+      "paragraphs": [
+        { "no": 1, "assignment": false, "text": "Thứ Hai: giao ban Thường trực Đảng uỷ khối." },
+        { "no": 2, "assignment": false, "text": "Thứ Tư: làm việc với Đảng uỷ cơ sở số 2." }
+      ],
+      "recipients": "Nơi nhận: các ban, Văn phòng; lưu VP.",
+      "suggestions": []
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import { CATALOG_MOCK } from './catalog/catalog.mock';
 import { ORG_MOCK } from './org/org.mock';
 import { PLANS_MOCK } from './plans/plans.mock';
 import { OKR_MOCK } from './okr/okr.mock';
+import { SOURCE_DOCS_MOCK } from './source-docs/source-docs.mock';
 
 /**
  * Danh mục fixture theo module API (`/api/v1/<module>`). Thêm module mới: tạo thư mục
@@ -11,6 +12,8 @@ import { OKR_MOCK } from './okr/okr.mock';
  * Tệp này chỉ được nạp lười từ `mockApiInterceptor`, nên không vào gói tải đầu.
  */
 export const MOCK_MODULES: MockModule[] = [
+  // trước TASKS_MOCK để `/tasks/source-docs` không rơi vào `/tasks/:id`
+  SOURCE_DOCS_MOCK,
   TASKS_MOCK,
   CATALOG_MOCK,
   ORG_MOCK,
