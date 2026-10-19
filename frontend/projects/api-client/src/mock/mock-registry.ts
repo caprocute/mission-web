@@ -18,6 +18,7 @@ import { ALERTS_MOCK } from './oversight/alerts.mock';
 import { COMPLAINTS_MOCK } from './oversight/complaints.mock';
 import { UI_FORMS_MOCK } from './ui-forms/ui-forms.mock';
 import { ROLE_ADMIN_MOCK } from './role-admin/role-admin.mock';
+import { POLICIES_MOCK } from './policies/policies.mock';
 
 /**
  * Danh mục fixture theo module API (`/api/v1/<module>`). Thêm module mới: tạo thư mục
@@ -45,6 +46,7 @@ export const MOCK_MODULES: MockModule[] = [
   UI_FORMS_MOCK,
   ROLE_ADMIN_MOCK,
   ALERTS_MOCK,
+  POLICIES_MOCK,
 ];
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
