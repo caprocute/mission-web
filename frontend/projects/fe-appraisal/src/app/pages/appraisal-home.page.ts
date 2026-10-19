@@ -8,8 +8,8 @@ import { MessageModule } from 'primeng/message';
   template: `
     <h1>Đánh giá, xếp loại</h1>
     <p-message severity="info">
-      Phân hệ Đánh giá, xếp loại (remote fe-appraisal) đã có Phiếu tự đánh giá (SCR-0901); các màn
-      hình đang được phát triển: SCR-0902 … SCR-0904, SCR-1001, SCR-1002.
+      Phân hệ Đánh giá, xếp loại (remote fe-appraisal) đã có Phiếu tự đánh giá (SCR-0901) và Thẩm
+      định (SCR-0902); các màn hình đang được phát triển: SCR-0903, SCR-0904, SCR-1001, SCR-1002.
     </p-message>
   `,
   styles: `
