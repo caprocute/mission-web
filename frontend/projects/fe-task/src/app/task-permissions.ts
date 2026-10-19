@@ -5,6 +5,9 @@ import { InjectionToken } from '@angular/core';
  * dạng `SCR-qqnn.<khoá>`. Chỉ liệt kê khoá mà remote đang dùng.
  */
 export type TaskPermissionKey =
+  | 'SCR-0401.xem'
+  | 'SCR-0401.sua'
+  | 'SCR-0402.lap'
   | 'SCR-0501.soan'
   | 'SCR-0501.giao'
   | 'SCR-0501.giao-dong-loat'
@@ -26,7 +29,7 @@ export type TaskPermissionKey =
  * và SCR-0602 mà fe-task dùng đều là `T/B` hoặc `R/B` của AC-06 (`member`), tức mọi người đã đăng nhập vào được tuyến `/tasks`.
  * Điều kiện theo đối tượng (người chủ trì, trạng thái) vẫn xét theo dữ liệu nhiệm vụ, và máy chủ là
  * nơi quyết định cuối cùng: thao tác bị chặn trả 403 và giao diện hiện đúng thông báo của máy chủ.
- * Riêng khoá `SCR-0501.*` chỉ dành cho AC-05 (`manager` của đơn vị, wiki/15a); mặc định cho phép ở đây chỉ để chạy
+ * Riêng khoá `SCR-0401.sua` (AC-03, AC-05 được giao), `SCR-0402.lap` và `SCR-0501.*` (AC-05) theo wiki/15a; mặc định cho phép ở đây chỉ để chạy
  * với dữ liệu giả lập khi chưa đăng nhập, WEB-055 phải thay bằng `can()` thật trước khi bật đăng nhập.
  */
 export const TASK_CAN = new InjectionToken<(key: TaskPermissionKey) => boolean>('vt.fe-task.can', {
