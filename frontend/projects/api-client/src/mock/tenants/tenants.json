@@ -213,7 +213,7 @@
     },
     {
       "id": "t-tanphu",
-      "code": "tanphu_dn",
+      "code": "tanphudn",
       "name": "Đảng uỷ xã Tân Phú (Đồng Nai)",
       "domain": "tanphu-dn.okr.viettel.vn",
       "cellCode": "CELL-SH",
@@ -232,7 +232,7 @@
     },
     {
       "id": "t-bvdk-camau",
-      "code": "bvdk_camau",
+      "code": "bvdkcamau",
       "name": "Bệnh viện Đa khoa tỉnh Cà Mau",
       "domain": "bvdk-camau.okr.viettel.vn",
       "cellCode": "CELL-G4",
@@ -271,7 +271,7 @@
     },
     {
       "id": "t-truong-thpt-hue",
-      "code": "thpt_quochoc",
+      "code": "thptquochoc",
       "name": "Trường THPT Quốc Học Huế",
       "domain": "quochoc.okr.viettel.vn",
       "cellCode": "CELL-SH",
