@@ -4,7 +4,6 @@ import {
   TENANT_ONBOARDING_STATUSES,
   TENANT_STATUS_LABEL,
   TenancyModel,
-  TenantDetail,
   TenantOverview,
   TenantStatus,
   TenantSummary,
@@ -19,6 +18,8 @@ import {
   resolveRelativeDates,
 } from '../mock-router';
 import fixture from './tenants.json';
+import { StoredTenant, load, resetTenantStore } from './tenant-store';
+import { ONBOARDING_ROUTES } from './onboarding.mock';
 
 /**
  * Giả lập danh bạ tenant của SVC-03 tenant-registry (QT-01, SCR-0101): tổng quan, danh sách lọc theo
@@ -26,53 +27,7 @@ import fixture from './tenants.json';
  * sách (202 + `Location`, tác vụ hoàn tất sau vài lần thăm dò).
  */
 
-type StoredTenant = TenantDetail;
-
-let tenants: StoredTenant[] | null = null;
 let exports = new Map<string, { job: Job; polls: number; csv: string }>();
-
-function load(): StoredTenant[] {
-  if (tenants) return tenants;
-  const named = resolveRelativeDates(structuredClone(fixture.tenants)).map(
-    (t) =>
-      ({
-        ...t,
-        rowVersion: 0,
-        domains: [{ domain: t.domain, kind: 'PRIMARY', verifiedAt: '2026-01-15T08:00:00+07:00' }],
-        statusLog: resolveRelativeDates(
-          structuredClone(
-            (fixture.statusLog as Record<string, StoredTenant['statusLog']>)[t.id] ?? [],
-          ),
-        ),
-      }) as StoredTenant,
-  );
-  // tenant pool nhỏ ở CELL-SH, đủ để bảng có nhiều trang như vùng điều phối thật
-  const pool = fixture.poolUnits.map((name, i): StoredTenant => {
-    const code = `pool_${String(i + 1).padStart(3, '0')}`;
-    const party = name.startsWith('Đảng uỷ');
-    return {
-      id: `t-${code}`,
-      code,
-      name,
-      domain: `${code.replace('_', '-')}.okr.viettel.vn`,
-      cellCode: 'CELL-SH',
-      tenancyModel: 'pool',
-      accountCount: 180 + ((i * 397) % 2600),
-      policyPacks: [party ? 'Khối Đảng · Quy định mới v2.0' : 'Nhà nước · NĐ 335 v1.3'],
-      uiPack: 'Mặc định v3.0',
-      status: 'DANG_VAN_HANH',
-      rowVersion: 0,
-      sector: party ? 'DANG' : 'SU_NGHIEP',
-      flows: [party ? 'DANG' : 'NHA_NUOC'],
-      maxAccounts: 5000,
-      dataRegion: 'PHIANAM',
-      domains: [{ domain: `${code.replace('_', '-')}.okr.viettel.vn`, kind: 'PRIMARY' }],
-      statusLog: [],
-    };
-  });
-  tenants = [...named, ...pool];
-  return tenants;
-}
 
 function summary(t: StoredTenant): TenantSummary {
   const { id, code, name, domain, cellCode, tenancyModel, accountCount, policyPacks, uiPack } = t;
@@ -221,10 +176,12 @@ function exportFile(r: MockRequest): MockResponse {
 export const TENANTS_MOCK: MockModule = {
   name: 'config/tenants',
   reset: () => {
-    tenants = null;
+    resetTenantStore();
     exports = new Map();
   },
   routes: [
+    // tuyến cụ thể của SCR-0102 đứng trước `/config/tenants/:id`
+    ...ONBOARDING_ROUTES,
     { method: 'GET', pattern: '/api/v1/config/tenants/overview', handle: overview },
     { method: 'GET', pattern: '/api/v1/config/tenants', handle: list },
     { method: 'POST', pattern: '/api/v1/config/tenants/export', handle: startExport },
@@ -235,7 +192,10 @@ export const TENANTS_MOCK: MockModule = {
       pattern: '/api/v1/config/tenants/:id',
       handle: (r) => {
         const t = load().find((x) => x.id === r.pathParams['id']);
-        return t ? ok(t) : problem(404, 'Không tìm thấy tenant');
+        if (!t) return problem(404, 'Không tìm thấy tenant');
+        const { onboarding: _o, ...detail } = t;
+        void _o;
+        return ok(detail);
       },
     },
     { method: 'GET', pattern: '/api/v1/config/cells', handle: () => ok({ items: cells() }) },

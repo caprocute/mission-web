@@ -2,6 +2,7 @@ import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { CursorQuery, MAX_PAGE_LIMIT } from './paging';
+import { apiUrl } from './api-path';
 import {
   AssigneeRole,
   BlockerReport,
@@ -152,11 +153,12 @@ export class TaskApi {
     return this.http.get<TaskDraftTemplate>('/api/v1/tasks/drafts/new');
   }
 
-  /** Nhiệm vụ `NHAP` ở dạng soạn để giao (sinh từ kế hoạch, đăng ký hoặc đã lưu nháp). */
+  /**
+   * Nhiệm vụ `NHAP` ở dạng soạn để giao (sinh từ kế hoạch, đăng ký hoặc đã lưu nháp):
+   * `GET /api/v1/tasks/{id}/draft` theo hợp đồng `getTaskDraft` (thay `?view=assign`, WEB-064).
+   */
   draft(id: string): Observable<TaskDraftTemplate> {
-    return this.http.get<TaskDraftTemplate>(`/api/v1/tasks/${encodeURIComponent(id)}`, {
-      params: { view: 'assign' },
-    });
+    return this.http.get<TaskDraftTemplate>(apiUrl('/tasks/{id}/draft', { id }));
   }
 
   /** Lưu nháp lần đầu: `/api/v1/tasks` (POST) → `NHAP`. */

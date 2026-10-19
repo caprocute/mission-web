@@ -1,6 +1,6 @@
-import { components } from '../generated/mission-core';
+import type { components } from '../generated/common';
 
-/** Trạng thái tác vụ dài `/api/v1/jobs/{id}` (giả định WEB-007, xem tools/openapi). */
+/** Trạng thái tác vụ dài `/api/v1/jobs/{id}` (lược đồ `Job` của `contracts/openapi/common/common.yaml`, HD-06). */
 export type JobStatus = components['schemas']['JobStatus'];
 export type Job = components['schemas']['Job'];
 

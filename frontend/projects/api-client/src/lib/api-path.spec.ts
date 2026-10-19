@@ -5,5 +5,7 @@ describe('apiUrl', () => {
     expect(apiUrl('/tasks/mine')).toBe('/api/v1/tasks/mine');
     expect(apiUrl('/tasks/{id}/progress', { id: 'x y' })).toBe('/api/v1/tasks/x%20y/progress');
     expect(apiUrl('/jobs/{id}', { id: 'J1' })).toBe('/api/v1/jobs/J1');
+    expect(apiUrl('/tasks/{id}/draft', { id: 'T1' })).toBe('/api/v1/tasks/T1/draft');
+    expect(apiUrl('/okr/objectives')).toBe('/api/v1/okr/objectives');
   });
 });

@@ -39,7 +39,10 @@ const DOMAIN_KIND_LABEL = {
     } @else if (t(); as t) {
       <h1>{{ t.name }}</h1>
       @if (onboarding()) {
-        <p class="warnbox" role="status">{{ msg(t.name, t.onboardingStep ?? 1) }}</p>
+        <p class="warnbox" role="status">
+          {{ msg(t.name, t.onboardingStep ?? 1) }}
+          <a [routerLink]="['/admin/tenants', t.id, 'onboarding']">Mở hồ sơ khởi tạo</a>
+        </p>
       }
       <div class="cols">
         <section class="box" aria-labelledby="info-title">

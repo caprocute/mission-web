@@ -1,7 +1,10 @@
-import { paths } from './generated/mission-core';
+import type { ApiPaths } from './generated/index';
 
-/** Đường dẫn khai trong hợp đồng OpenAPI của mission-core (không kèm tiền tố `/api/v1`). */
-export type ApiPath = keyof paths;
+/**
+ * Đường dẫn khai trong bộ hợp đồng `contracts/openapi/modules/*.yaml` (không kèm tiền tố `/api/v1`),
+ * hợp của mọi module (WEB-064).
+ */
+export type ApiPath = keyof ApiPaths;
 
 type PathParamNames<P extends string> = P extends `${string}{${infer N}}${infer Rest}`
   ? N | PathParamNames<Rest>

@@ -47,8 +47,8 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
 | [WEB-016](WEB-016-danh-sach-tenant.md) | SCR-0101 Danh sách tenant | S | WEB-015 | Xong, chờ gộp (luồng giám sát, điều hành, cấu hình; nhánh `feat/WEB-016-danh-sach-tenant`) |
-| [WEB-017](WEB-017-wizard-tenant.md) | SCR-0102 Khởi tạo tenant (wizard) | M | WEB-016 | Chưa bắt đầu |
-| [WEB-018](WEB-018-cay-to-chuc.md) | SCR-0103 Cây tổ chức có lịch sử | L | WEB-015 | Chưa bắt đầu |
+| [WEB-017](WEB-017-wizard-tenant.md) | SCR-0102 Khởi tạo tenant (wizard) | M | WEB-016 | Xong, chờ gộp |
+| [WEB-018](WEB-018-cay-to-chuc.md) | SCR-0103 Cây tổ chức có lịch sử | L | WEB-015 | Xong, chờ gộp |
 | [WEB-019](WEB-019-doi-soat-nhan-su.md) | SCR-0104 Đồng bộ và đối soát nhân sự | M | WEB-018 | Chưa bắt đầu |
 | [WEB-020](WEB-020-theme-keycloak.md) | SCR-0001 Giao diện trang đăng nhập (theme Keycloak) | M | WEB-004, WEB-006 | Chưa bắt đầu |
 
@@ -120,7 +120,8 @@ Nhóm này hiện thực ma trận phân quyền ở [wiki/15a](../../wiki/15a-m
 | [WEB-060](WEB-060-format-toan-bo.md) | Chạy Prettier toàn workspace một lần | S | WEB-001 | Chưa bắt đầu |
 | [WEB-061](WEB-061-trinh-soan-mau-luong.md) | SCR-1505 Thư viện và trình soạn mẫu luồng (BS-01) | L | WEB-015, WEB-046 | Chưa bắt đầu (luồng giám sát, điều hành, cấu hình) |
 | [WEB-062](WEB-062-giam-sat-tien-trinh.md) | SCR-1506 Giám sát tiến trình theo mẫu (BS-01) | M | WEB-015 | Chưa bắt đầu (luồng giám sát, điều hành, cấu hình) |
-| [WEB-063](WEB-063-hop-dong-openapi.md) | Bộ hợp đồng OpenAPI 3.1 toàn dự án theo hướng API-first (ADR-32, BS-02) | L | WEB-007 | Xong bản nháp 1 (11 tệp, 351 thao tác); chờ chốt các điểm HD và chuyển `generate.mjs` |
+| [WEB-063](WEB-063-hop-dong-openapi.md) | Bộ hợp đồng OpenAPI 3.1 toàn dự án theo hướng API-first (ADR-32, BS-02) | L | WEB-007 | Hoàn thành (11 tệp, 351 thao tác; điểm chốt đã chấp nhận 19/10) |
+| [WEB-064](WEB-064-sinh-kieu-tu-hop-dong.md) | Sinh kiểu frontend từ bộ hợp đồng `contracts/openapi/`, kiểm model viết tay với hợp đồng (luồng Nền tảng) | M | WEB-007, WEB-063 | Hoàn thành (chờ gộp) |
 
 ## Màn hình không thuộc phân hệ web
 
