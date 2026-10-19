@@ -46,7 +46,8 @@ paths:
         xem cây, bảng và bản đồ liên kết của SCR-0201. Máy chủ lọc theo phạm vi ABAC: thành viên đơn vị
         xem mục tiêu của đơn vị mình; `leader` xem cả cây cấp dưới. Khi `view=tree` mỗi mục tiêu kèm
         `keyResults` và `peerLinks`; khi `view=table` chỉ kèm `keyResults`; khi `view=map` nên dùng
-        `GET /okr/alignment`.
+        `GET /okr/alignment`. Màn hình SCR-0201 dựng cây bằng `GET /okr/tree` (một lần gọi kèm ngữ cảnh kỳ,
+        căn cứ, mục tiêu cấp trên); thao tác này phục vụ danh sách phân trang và lọc.
       parameters:
         - $ref: '../common/common.yaml#/components/parameters/PeriodId'
         - $ref: '../common/common.yaml#/components/parameters/UnitId'
@@ -1150,6 +1151,224 @@ paths:
         scope: Tn
         source: TL-02a SCR-0202 trường 1, SCR-0201 trường 2; TL-03 `okr.basis` (suy luận đường dẫn)
 
+  /okr/tree:
+    get:
+      tags: [Mục tiêu]
+      operationId: getOkrTree
+      summary: Cây mục tiêu của đơn vị trong kỳ kèm ngữ cảnh màn hình
+      description: >-
+        Dữ liệu dựng chế độ xem cây của SCR-0201 trong một lần gọi: kỳ đang xem và các kỳ chọn được,
+        căn cứ, mục tiêu cấp trên, ngưỡng khuyến nghị số mục tiêu (BR-02-01, tham số Policy Pack), mọi
+        mục tiêu của đơn vị (phẳng, nối bằng `parentObjective`) kèm KR và các liên kết ngang. Bỏ `unit`
+        thì lấy đơn vị của ngữ cảnh làm việc; bỏ `period` thì lấy kỳ đang `MO`. Tách khỏi
+        `GET /okr/objectives?view=tree` để mỗi thao tác trả đúng một lược đồ (suy luận đường dẫn;
+        TL-02a SCR-0201 ghi chung `/okr/objectives?unit=&period=&view=tree`).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+      responses:
+        '200':
+          description: Cây mục tiêu và ngữ cảnh.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrTree' }
+              examples:
+                ban-to-chuc:
+                  summary: Ban Tổ chức Đảng uỷ khối, Quý IV/2026
+                  value:
+                    period:
+                      id: 0192a000-0000-7000-8000-00000000a426
+                      label: Quý IV/2026
+                      startDate: '2026-10-01'
+                      endDate: '2026-12-31'
+                      status: MO
+                      weekNo: 3
+                      weekCount: 13
+                    periods:
+                      - id: 0192a000-0000-7000-8000-00000000a426
+                        label: Quý IV/2026
+                        startDate: '2026-10-01'
+                        endDate: '2026-12-31'
+                        status: MO
+                    unit: { id: 0192a000-0000-7000-8000-000000000b70, name: Ban Tổ chức Đảng uỷ khối }
+                    viewerOwnUnit: true
+                    bases:
+                      - id: 0192a1b0-3333-7a00-8000-000000000101
+                        basisKind: KE_HOACH
+                        docNumber: 05-KH/ĐUK
+                        title: Kế hoạch công tác năm 2027 của Đảng uỷ khối
+                    parent:
+                      id: 0192a1b0-1111-7a00-8000-0000000000f1
+                      code: O2
+                      title: Xây dựng Đảng bộ khối trong sạch, vững mạnh
+                      unitName: Đảng uỷ khối
+                      status: DA_DUYET
+                    recommendedMax: 3
+                    objectives: []
+                    peerLinks: []
+        '400': { $ref: '../common/common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0201]
+        owner: MOD-01
+        roles: [leader, manager, member, inspector, ai_readonly]
+        scope: Đv
+        rules: [BR-02-01]
+        source: TL-02a SCR-0201 trường 1-6 (suy luận đường dẫn); ma trận SCR-0201.xem
+  /okr/compose-context:
+    get:
+      tags: [Mục tiêu]
+      operationId: getOkrComposeContext
+      summary: Ngữ cảnh soạn mục tiêu (SCR-0202)
+      description: >-
+        (suy luận) Dữ liệu SCR-0202 cần khi mở: kỳ và các kỳ chưa khoá soạn được (trường 5), căn cứ
+        (trường 1), mục tiêu cấp trên chọn được (trường 2, BR-02-02), số mục tiêu đã có của chủ thể trong
+        kỳ không tính mục tiêu đang sửa (BR-02-01), người xác nhận KR chọn được (trường 14), cờ bật trợ lý
+        AI và bộ quy tắc soát CEL của Policy Pack đang áp dụng. Trình duyệt chạy các quy tắc này chỉ để
+        phản hồi tức thì; máy chủ chạy lại khi lưu và khi trình (AGENTS.md quy tắc 6).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - name: objective
+          in: query
+          description: Mục tiêu đang sửa; vắng khi soạn mới.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: Ngữ cảnh soạn.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrComposeContext' }
+              examples:
+                soan-moi:
+                  value:
+                    period:
+                      id: 0192a000-0000-7000-8000-00000000a426
+                      label: Quý IV/2026
+                      startDate: '2026-10-01'
+                      endDate: '2026-12-31'
+                      status: MO
+                    periods: []
+                    unit: { id: 0192a000-0000-7000-8000-000000000b70, name: Ban Tổ chức Đảng uỷ khối }
+                    isTopLevel: false
+                    bases: []
+                    parentOptions:
+                      - id: 0192a1b0-1111-7a00-8000-0000000000f1
+                        code: O2
+                        title: Xây dựng Đảng bộ khối trong sạch, vững mạnh
+                        unitName: Đảng uỷ khối
+                        status: DA_DUYET
+                        periodId: 0192a000-0000-7000-8000-00000000a426
+                    existingCount: 2
+                    verifiers:
+                      - { id: 0192a000-0000-7000-8000-0000000c0001, name: Nguyễn Văn An, title: Trưởng ban }
+                    me: { id: 0192a000-0000-7000-8000-0000000c0002, name: Trần Thị Bình }
+                    aiEnabled: true
+                    policy:
+                      version: '2026.10'
+                      recommendedMax: 3
+                      vagueWords: [tăng cường, đẩy mạnh, nâng cao]
+                      taskVerbs: [tổ chức, ban hành, triển khai]
+                      units: ['%', người, hồ sơ, ngày, lần, mốc]
+                      rules:
+                        - id: kr-count
+                          br: BR-02-03
+                          scope: objective
+                          severity: CANH_BAO
+                          when: 'true'
+                          assert: size(objective.keyResults) >= 2 && size(objective.keyResults) <= 5
+                          message: Mỗi mục tiêu nên có 2 đến 5 KR, hiện có {krCount}.
+                          passLabel: Có 2 đến 5 KR
+        '400': { $ref: '../common/common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0202]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: Đv
+        rules: [BR-02-01, BR-02-02, BR-02-04, BR-02-05, BR-02-06]
+        source: TL-02a SCR-0202 trường 1, 2, 5, 14; QT-02 bước 4 (suy luận đường dẫn); ma trận SCR-0202.soan-don-vi
+  /okr/reviews:
+    get:
+      tags: [Mục tiêu]
+      operationId: listOkrReviews
+      summary: Hàng chờ phê duyệt OKR của người duyệt trong kỳ
+      description: >-
+        (suy luận) Dữ liệu vùng 1 và vùng 2 của SCR-0203: các bộ OKR đơn vị cấp dưới đã trình và đang chờ
+        người gọi duyệt (kể cả duyệt thay theo uỷ quyền), mỗi bộ kèm mục tiêu, KR và kết quả kiểm tra tự
+        động tính lại khi đọc (không lưu). Số bộ bị chặn bởi số đơn vị trực thuộc nên trả một lần, không
+        phân trang. `viewerIsAuthor = true` báo trước BR-02-08 (người soạn không tự duyệt); máy chủ vẫn
+        kiểm lại khi gọi `approve`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+      responses:
+        '200':
+          description: Hàng chờ duyệt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrReviewQueue' }
+              examples:
+                mot-bo:
+                  value:
+                    period:
+                      id: 0192a000-0000-7000-8000-00000000a426
+                      label: Quý IV/2026
+                      startDate: '2026-10-01'
+                      endDate: '2026-12-31'
+                      status: MO
+                    periods: []
+                    dueDate: '2026-10-10'
+                    reviewer: { id: 0192a000-0000-7000-8000-0000000c0001, name: Nguyễn Văn An, title: Trưởng ban }
+                    workflow: { code: duyet-okr, version: 3 }
+                    items:
+                      - id: 0192a1b0-5555-7a00-8000-000000000001
+                        unit: { id: 0192a000-0000-7000-8000-000000000b71, name: Chi bộ Văn phòng }
+                        periodId: 0192a000-0000-7000-8000-00000000a426
+                        submittedAt: '2026-10-06T09:12:00+07:00'
+                        submittedBy: { id: 0192a000-0000-7000-8000-0000000c0003, name: Lê Văn Cường }
+                        versionNo: 1
+                        objectiveCount: 1
+                        krCount: 1
+                        summary: { level: CANH_BAO, label: 1 cảnh báo }
+                        blockingCount: 0
+                        warningCount: 1
+                        viewerIsAuthor: false
+                        objectives:
+                          - id: 0192a1b0-1111-7a00-8000-000000000021
+                            code: O1
+                            title: Nâng cao chất lượng sinh hoạt chi bộ
+                            parentCode: O1
+                            versionNo: 1
+                            rowVersion: 4
+                            check: { level: DAT, label: Có căn cứ }
+                            keyResults:
+                              - id: 0192a1b0-2222-7a00-8000-000000000031
+                                code: KR 1.1
+                                title: 100% kỳ sinh hoạt có chuyên đề
+                                targetText: 100 %
+                                weight: 1
+                                link: null
+                                check: { level: CANH_BAO, label: Gần giống NV-2027-Q1-0012 }
+        '400': { $ref: '../common/common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0203]
+        owner: MOD-01
+        roles: [leader]
+        scope: Cd
+        rules: [BR-02-08]
+        source: TL-02a SCR-0203 vùng 1, 2, trường 3 (suy luận đường dẫn); ma trận SCR-0203.xem
+
 components:
   securitySchemes:
     keycloak:
@@ -1315,13 +1534,10 @@ components:
     OkrCheckResult:
       description: >-
         Một kết quả của bộ kiểm tra tự động MOD-01 (tính lại mỗi lần đọc, không lưu; SCR-0203 trường 3).
-        Mã mức `DAT`, `CANH_BAO`, `LOI_CHAN` là suy luận từ nhãn "Đạt, cảnh báo, lỗi".
       type: object
       required: [level, rule, message]
       properties:
-        level:
-          type: string
-          enum: [DAT, CANH_BAO, LOI_CHAN]
+        level: { $ref: '#/components/schemas/OkrCheckLevel' }
         rule: { type: string, description: 'Mã quy tắc, ví dụ `BR-02-05`' }
         msg: { type: string, description: 'Mã thông điệp TL-02, ví dụ `MSG-02-05`' }
         message: { type: string, description: Thông điệp tiếng Việt đã điền tham số }
@@ -1578,6 +1794,25 @@ components:
         nextCheckinDue:
           $ref: '../common/common.yaml#/components/schemas/Date'
           description: Hạn check-in của chu kỳ hiện tại (suy luận).
+        objective:
+          $ref: '#/components/schemas/OkrObjectiveRef'
+          description: Mục tiêu chứa KR; có trong `GET /okr/key-results/{id}` (SCR-0301 vùng 2).
+        viewerIsOwner:
+          type: boolean
+          description: Người gọi là chủ sở hữu hoặc người được giao check-in thay (máy chủ tính; suy luận).
+        latestBlocker:
+          type: [string, 'null']
+          description: Ghi chú vướng mắc của check-in gần nhất, hiện ở SCR-0201 trường 6 (suy luận).
+        linkedWork:
+          type: array
+          description: >-
+            Một số chương trình, nhiệm vụ liên kết để hiển thị (SCR-0201 trường 6, SCR-0301 vùng 5); có trong
+            `GET /okr/tree` và `GET /okr/key-results/{id}`.
+          items: { $ref: '#/components/schemas/OkrLinkedWork' }
+        linkedTaskCount:
+          type: integer
+          minimum: 0
+          description: Tổng số nhiệm vụ liên kết, có thể nhiều hơn số phần tử `linkedWork`.
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
     OkrKeyResultInput:
       description: KR khi soạn (SCR-0202 trường 7-16).
@@ -1643,6 +1878,9 @@ components:
           type: array
           items: { $ref: '#/components/schemas/OkrKeyResultListItem' }
         nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+        period:
+          $ref: '#/components/schemas/OkrPeriodInfo'
+          description: Kỳ của danh sách, để dựng tiêu đề SCR-0301 (tuần, kỳ) (suy luận).
         counts:
           type: object
           description: Có khi `needCheckin=true`.
@@ -1832,3 +2070,267 @@ components:
         edges:
           type: array
           items: { $ref: '#/components/schemas/OkrAlignmentEdge' }
+
+    OkrCheckLevel:
+      description: >-
+        Mức của một kết quả kiểm tra tự động MOD-01. Mã `DAT`, `CANH_BAO`, `LOI_CHAN` là suy luận từ nhãn
+        "Đạt, cảnh báo, lỗi" của SCR-0203 trường 3.
+      type: string
+      enum: [DAT, CANH_BAO, LOI_CHAN]
+    OkrPeriodInfo:
+      description: >-
+        Kỳ kèm trạng thái và vị trí tuần hiện tại để dựng tiêu đề SCR-0201, SCR-0203, SCR-0301 (ví dụ
+        "Quý IV/2026 · Tuần 4/13"). `weekNo`, `weekCount` vắng với kỳ chưa bắt đầu (suy luận).
+      allOf:
+        - $ref: '../common/common.yaml#/components/schemas/PeriodRef'
+        - type: object
+          required: [status]
+          properties:
+            status: { $ref: '../common/common.yaml#/components/schemas/PeriodStatus' }
+            weekNo: { type: integer, minimum: 1 }
+            weekCount: { type: integer, minimum: 1 }
+    OkrPersonOption:
+      description: Người chọn được kèm chức danh, ví dụ người xác nhận KR (SCR-0202 trường 14) hay người duyệt.
+      type: object
+      required: [id, name]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        name: { type: string }
+        title: { type: string, description: Chức danh }
+    OkrLinkedWork:
+      description: >-
+        Chương trình hoặc nhiệm vụ gắn với KR qua `okr.okr_link` (SCR-0201 trường 6, SCR-0301 vùng 5),
+        kèm tiến độ do module sở hữu cung cấp (suy luận).
+      type: object
+      required: [id, kind, code, title]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        kind:
+          type: string
+          enum: [PROGRAM, TASK]
+        code: { type: string, description: 'Mã hiển thị, ví dụ `NV-2027-Q1-0012`' }
+        title: { type: string }
+        progress: { type: number, minimum: 0, maximum: 1 }
+    OkrPeerLink:
+      description: Liên kết ngang của cây mục tiêu, đã ghép nhãn hai đầu để hiển thị (SCR-0201 trường 5).
+      type: object
+      required: [id, fromLabel, peerUnitName, peerCode, peerTitle]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        fromLabel: { type: string, description: 'Đầu của đơn vị đang xem, ví dụ "O2 · KR 2.1"' }
+        fromKeyResultId:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+          description: KR đầu nguồn; `null` khi liên kết đặt ở mức mục tiêu.
+        peerUnitName: { type: string }
+        peerCode: { type: string }
+        peerTitle: { type: string }
+    OkrTree:
+      description: Cây mục tiêu của một đơn vị trong kỳ kèm ngữ cảnh SCR-0201 (`GET /okr/tree`).
+      type: object
+      required: [period, periods, unit, viewerOwnUnit, bases, parent, recommendedMax, objectives, peerLinks]
+      properties:
+        period: { $ref: '#/components/schemas/OkrPeriodInfo' }
+        periods:
+          type: array
+          description: Các kỳ chọn được ở bộ lọc kỳ.
+          items: { $ref: '#/components/schemas/OkrPeriodInfo' }
+        unit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        viewerOwnUnit:
+          type: boolean
+          description: Đơn vị đang xem là đơn vị trong ngữ cảnh làm việc của người gọi (máy chủ tính theo token).
+        bases:
+          type: array
+          items: { $ref: '#/components/schemas/OkrBasisRef' }
+        parent:
+          description: Mục tiêu cấp trên mà cây này phân rã từ; `null` ở đơn vị cao nhất.
+          oneOf:
+            - $ref: '#/components/schemas/OkrObjectiveRef'
+            - type: 'null'
+        recommendedMax:
+          type: integer
+          minimum: 1
+          description: Số mục tiêu khuyến nghị tối đa mỗi kỳ (BR-02-01, tham số Policy Pack).
+        objectives:
+          type: array
+          description: Mọi mục tiêu của cây, phẳng, nối bằng `parentObjective.id`; mỗi mục tiêu kèm `keyResults`.
+          items: { $ref: '#/components/schemas/OkrObjective' }
+        peerLinks:
+          type: array
+          items: { $ref: '#/components/schemas/OkrPeerLink' }
+    OkrRule:
+      description: >-
+        Quy tắc soát OKR viết bằng CEL trong Policy Pack (QT-02 bước 4). `scope` cho biết biểu thức chạy
+        trên `objective` hay trên từng `kr`; `message` có thể chứa chỗ trống `{tên}` lấy từ biến cùng tên
+        của ngữ cảnh. `serverOnly = true` thì trình duyệt không chạy (cần dữ liệu máy chủ, ví dụ so trùng
+        nhiệm vụ của BR-02-06).
+      type: object
+      required: [id, br, scope, severity, when, assert, message]
+      properties:
+        id: { type: string }
+        br: { type: string, description: 'Mã quy tắc nghiệp vụ, ví dụ `BR-02-05`' }
+        scope:
+          type: string
+          enum: [objective, kr]
+        severity:
+          type: string
+          enum: [CHAN, CANH_BAO]
+          description: '`CHAN` chặn trình duyệt, `CANH_BAO` chỉ cảnh báo (cột "Xử lý" của bảng BR TL-02a).'
+        when: { type: string, description: Biểu thức CEL điều kiện áp dụng }
+        assert: { type: string, description: Biểu thức CEL phải đúng }
+        message: { type: string }
+        passLabel: { type: string, description: 'Nhãn khi đạt cho danh sách kiểm tra trước khi trình' }
+        serverOnly: { type: boolean, default: false }
+    OkrPolicy:
+      description: Tham số soát OKR của Policy Pack đang áp dụng cho tenant (suy luận cách đóng gói).
+      type: object
+      required: [version, recommendedMax, vagueWords, taskVerbs, units, rules]
+      properties:
+        version: { type: string, description: Phiên bản Policy Pack }
+        recommendedMax: { type: integer, minimum: 1, description: BR-02-01 }
+        vagueWords:
+          type: array
+          description: Từ mơ hồ (BR-02-05), ví dụ "tăng cường", "đẩy mạnh".
+          items: { type: string }
+        taskVerbs:
+          type: array
+          description: Động từ mở đầu KR giống nhiệm vụ (BR-02-06), ví dụ "tổ chức", "ban hành".
+          items: { type: string }
+        units:
+          type: array
+          description: Đơn vị đo gợi ý (SCR-0202 trường 9).
+          items: { type: string }
+        rules:
+          type: array
+          items: { $ref: '#/components/schemas/OkrRule' }
+    OkrParentOption:
+      description: Mục tiêu cấp trên chọn được (SCR-0202 trường 2).
+      allOf:
+        - $ref: '#/components/schemas/OkrObjectiveRef'
+        - type: object
+          required: [periodId]
+          properties:
+            periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    OkrComposeContext:
+      description: Ngữ cảnh soạn mục tiêu của đơn vị trong kỳ (`GET /okr/compose-context`, SCR-0202).
+      type: object
+      required: [period, periods, unit, isTopLevel, bases, parentOptions, existingCount, verifiers, me, aiEnabled, policy]
+      properties:
+        period: { $ref: '#/components/schemas/OkrPeriodInfo' }
+        periods:
+          type: array
+          description: Kỳ chưa khoá soạn được (trường 5).
+          items: { $ref: '#/components/schemas/OkrPeriodInfo' }
+        unit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        isTopLevel:
+          type: boolean
+          description: Đơn vị cao nhất của tenant, không bắt buộc mục tiêu cấp trên (BR-02-02).
+        bases:
+          type: array
+          items: { $ref: '#/components/schemas/OkrBasisRef' }
+        parentOptions:
+          type: array
+          items: { $ref: '#/components/schemas/OkrParentOption' }
+        existingCount:
+          type: integer
+          minimum: 0
+          description: Số mục tiêu đã có của chủ thể trong kỳ, không tính mục tiêu đang sửa (BR-02-01).
+        verifiers:
+          type: array
+          description: Người xác nhận KR chọn được (trường 14).
+          items: { $ref: '#/components/schemas/OkrPersonOption' }
+        me:
+          $ref: '../common/common.yaml#/components/schemas/Ref'
+          description: Người gọi, để mặc định người xác nhận khác chủ sở hữu.
+        aiEnabled: { type: boolean, description: Tenant bật trợ lý AI soát OKR (AC-12) }
+        policy: { $ref: '#/components/schemas/OkrPolicy' }
+    OkrReviewCheck:
+      description: Kết quả kiểm tra rút gọn một dòng của SCR-0203 trường 3 (tính lại khi đọc, không lưu).
+      type: object
+      required: [level, label]
+      properties:
+        level: { $ref: '#/components/schemas/OkrCheckLevel' }
+        label:
+          type: string
+          description: 'Nhãn ngắn như "Có căn cứ", "Đo được", "Gần giống NV-2027-Q1-0012", "Vượt 3 O"'
+    OkrReviewKr:
+      type: object
+      required: [id, code, title, targetText, weight, link, check]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 16 }
+        title: { type: string, maxLength: 300 }
+        targetText: { type: string, description: 'Chỉ tiêu kèm đơn vị đo, ví dụ "3 %"' }
+        weight: { type: number, minimum: 0, maximum: 1 }
+        link:
+          type: [string, 'null']
+          description: Nhãn liên kết lên mục tiêu hoặc KR cấp trên; `null` khi chưa liên kết.
+        check: { $ref: '#/components/schemas/OkrReviewCheck' }
+    OkrReviewObjective:
+      type: object
+      required: [id, code, title, parentCode, versionNo, rowVersion, check, keyResults]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 16 }
+        title: { type: string, maxLength: 200 }
+        parentCode: { type: [string, 'null'], description: Mã mục tiêu cấp trên }
+        versionNo: { type: integer, minimum: 1 }
+        rowVersion:
+          $ref: '../common/common.yaml#/components/schemas/RowVersion'
+          description: Gửi lại trong `If-Match` khi phê duyệt hoặc trả lại.
+        check: { $ref: '#/components/schemas/OkrReviewCheck' }
+        checks:
+          type: array
+          description: Toàn bộ kết quả kiểm tra chi tiết (tuỳ chọn, như `OkrObjective.checks`).
+          items: { $ref: '#/components/schemas/OkrCheckResult' }
+        keyResults:
+          type: array
+          items: { $ref: '#/components/schemas/OkrReviewKr' }
+    OkrReviewSet:
+      description: Một bộ OKR của đơn vị cấp dưới đã trình, đang chờ người gọi duyệt (SCR-0203 vùng 1).
+      type: object
+      required: [id, unit, periodId, submittedAt, submittedBy, versionNo, objectiveCount, krCount, summary, blockingCount, warningCount, viewerIsAuthor, objectives]
+      properties:
+        id:
+          type: string
+          description: Mã bộ trình duyệt, ổn định trong kỳ (suy luận; dùng mã phiên `duyet-okr` hoặc tổ hợp đơn vị và kỳ).
+        unit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        submittedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        submittedBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        versionNo: { type: integer, minimum: 1, description: Lần trình duyệt }
+        objectiveCount: { type: integer, minimum: 0 }
+        krCount: { type: integer, minimum: 0 }
+        summary: { $ref: '#/components/schemas/OkrReviewCheck' }
+        blockingCount: { type: integer, minimum: 0, description: Số kết quả `LOI_CHAN` }
+        warningCount: { type: integer, minimum: 0, description: Số kết quả `CANH_BAO` }
+        viewerIsAuthor:
+          type: boolean
+          description: Người gọi là người soạn bộ này nên không được duyệt (BR-02-08, MSG-02-11).
+        objectives:
+          type: array
+          items: { $ref: '#/components/schemas/OkrReviewObjective' }
+    OkrReviewQueue:
+      description: Hàng chờ phê duyệt OKR của người gọi trong kỳ (`GET /okr/reviews`, SCR-0203).
+      type: object
+      required: [period, periods, reviewer, workflow, items]
+      properties:
+        period: { $ref: '#/components/schemas/OkrPeriodInfo' }
+        periods:
+          type: array
+          items: { $ref: '#/components/schemas/OkrPeriodInfo' }
+        dueDate:
+          $ref: '../common/common.yaml#/components/schemas/Date'
+          description: Hạn duyệt sớm nhất trong hàng chờ; vắng khi hàng chờ rỗng.
+        reviewer: { $ref: '#/components/schemas/OkrPersonOption' }
+        workflow:
+          type: object
+          description: Quy trình `duyet-okr` đang áp dụng (`flowable` process definition).
+          required: [code, version]
+          properties:
+            code: { type: string, examples: [duyet-okr] }
+            version: { type: integer, minimum: 1 }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OkrReviewSet' }
