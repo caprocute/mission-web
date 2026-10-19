@@ -1,0 +1,49 @@
+{
+  "$comment": "Fixture module catalog (MOD-02, /api/v1/catalog): mục danh mục công việc theo Bảng 3 áp dụng cho người dùng. WEB-030 dùng cho khối đăng ký nhiệm vụ của SCR-0503; WEB-025 mở rộng cho SCR-0401.",
+  "items": [
+    {
+      "id": "ci-tc-dv-01",
+      "code": "TC-DV-01",
+      "name": "Thẩm định hồ sơ kết nạp đảng viên",
+      "productName": "Phiếu thẩm định",
+      "unit": "hồ sơ",
+      "difficulty": 3,
+      "standardScore": 2.5,
+      "taskGroup": "THEN_CHOT",
+      "qualityStandard": "Đúng mẫu, đủ căn cứ, trình đúng hạn"
+    },
+    {
+      "id": "ci-tc-dv-03",
+      "code": "TC-DV-03",
+      "name": "Tổng hợp, báo cáo số liệu đảng viên",
+      "productName": "Báo cáo số liệu",
+      "unit": "báo cáo",
+      "difficulty": 2,
+      "standardScore": 1.5,
+      "taskGroup": "THUONG_XUYEN",
+      "qualityStandard": "Số liệu khớp CSDL đảng viên"
+    },
+    {
+      "id": "ci-tc-dv-05",
+      "code": "TC-DV-05",
+      "name": "Kiểm tra chi bộ trực thuộc",
+      "productName": "Biên bản, báo cáo kết quả kiểm tra",
+      "unit": "chi bộ",
+      "difficulty": 4,
+      "standardScore": 3,
+      "taskGroup": "THEN_CHOT",
+      "qualityStandard": "Có biên bản, kết luận kiểm tra được thông qua"
+    },
+    {
+      "id": "ci-tc-dv-08",
+      "code": "TC-DV-08",
+      "name": "Soạn văn bản hướng dẫn nghiệp vụ tổ chức",
+      "productName": "Văn bản hướng dẫn",
+      "unit": "văn bản",
+      "difficulty": 3,
+      "standardScore": 2,
+      "taskGroup": "THUONG_XUYEN",
+      "qualityStandard": "Đúng thể thức NĐ 30/2020/NĐ-CP"
+    }
+  ]
+}

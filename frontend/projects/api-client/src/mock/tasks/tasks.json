@@ -1,12 +1,17 @@
 {
   "$comment": "Fixture module tasks (MOD-02, /api/v1/tasks) cho môi trường dev, bám trạng thái và trường TL-02 QT-05, QT-06. Ngày dạng @today±N được quy đổi theo ngày chạy.",
+  "period": {
+    "id": "2026-Q4",
+    "label": "Quý IV/2026",
+    "startDate": "@today-19",
+    "endDate": "@today+72"
+  },
   "tasks": [
     {
       "id": "0192a0f0-0001-7000-8000-000000000001",
       "code": "NV-2026-Q4-0001",
       "title": "Xây dựng báo cáo tổng kết công tác chuyển đổi số quý IV",
       "status": "DANG_THUC_HIEN",
-      "overdue": false,
       "dueDate": "@today+2",
       "progress": 60,
       "role": "CHU_TRI",
@@ -15,8 +20,17 @@
       "periodId": "2026-Q4",
       "rowVersion": 3,
       "description": "Tổng hợp kết quả chuyển đổi số của các phòng, ban; đề xuất nhiệm vụ trọng tâm năm 2027.",
-      "sourceDoc": { "number": "125/KH-UBND", "title": "Kế hoạch chuyển đổi số năm 2026" },
-      "coAssignees": [{ "personId": "p2", "name": "Trần Thị Bình", "role": "PHOI_HOP" }],
+      "sourceDoc": {
+        "number": "125/KH-UBND",
+        "title": "Kế hoạch chuyển đổi số năm 2026"
+      },
+      "coAssignees": [
+        {
+          "personId": "p2",
+          "name": "Trần Thị Bình",
+          "role": "PHOI_HOP"
+        }
+      ],
       "progressLog": [
         {
           "at": "@today-3T08:30:00Z",
@@ -25,14 +39,20 @@
           "by": "Tôi"
         }
       ],
-      "blockers": []
+      "blockers": [],
+      "taskGroup": "THEN_CHOT",
+      "source": "KE_HOACH",
+      "keyResultId": "kr-2-1",
+      "keyResultTitle": "KR 2.1 · 100% hồ sơ xử lý trực tuyến",
+      "plannedQuantity": 1,
+      "doneQuantity": 0,
+      "unit": "báo cáo"
     },
     {
       "id": "0192a0f0-0001-7000-8000-000000000002",
       "code": "NV-2026-Q4-0002",
       "title": "Rà soát danh mục vị trí việc làm theo Nghị định 62",
       "status": "DA_GIAO",
-      "overdue": false,
       "dueDate": "@today+0",
       "progress": 0,
       "role": "CHU_TRI",
@@ -43,14 +63,18 @@
       "description": "Đối chiếu danh mục vị trí việc làm hiện hành với khung của Nghị định 62/2020/NĐ-CP.",
       "coAssignees": [],
       "progressLog": [],
-      "blockers": []
+      "blockers": [],
+      "taskGroup": "THUONG_XUYEN",
+      "source": "VAN_BAN",
+      "plannedQuantity": 1,
+      "doneQuantity": 0,
+      "unit": "báo cáo"
     },
     {
       "id": "0192a0f0-0001-7000-8000-000000000003",
       "code": "NV-2026-Q4-0003",
       "title": "Chuẩn bị tài liệu hội nghị kiểm điểm cuối năm",
       "status": "DANG_THUC_HIEN",
-      "overdue": true,
       "dueDate": "@today-1",
       "progress": 40,
       "role": "PHOI_HOP",
@@ -59,20 +83,41 @@
       "periodId": "2026-Q4",
       "rowVersion": 5,
       "description": "Phối hợp chuẩn bị báo cáo kiểm điểm tập thể và mẫu phiếu góp ý.",
-      "coAssignees": [{ "personId": "p3", "name": "Lê Minh Châu", "role": "CHU_TRI" }],
+      "coAssignees": [
+        {
+          "personId": "p3",
+          "name": "Lê Minh Châu",
+          "role": "CHU_TRI"
+        }
+      ],
       "progressLog": [
-        { "at": "@today-5T09:00:00Z", "percent": 40, "note": "Đã có dự thảo báo cáo", "by": "Tôi" }
+        {
+          "at": "@today-5T09:00:00Z",
+          "percent": 40,
+          "note": "Đã có dự thảo báo cáo",
+          "by": "Tôi"
+        }
       ],
       "blockers": [
-        { "id": "b1", "content": "Chưa nhận đủ báo cáo của chi bộ 3", "resolved": false }
-      ]
+        {
+          "id": "b1",
+          "content": "Chưa nhận đủ báo cáo của chi bộ 3",
+          "resolved": false
+        }
+      ],
+      "taskGroup": "THEN_CHOT",
+      "source": "KE_HOACH",
+      "keyResultId": "kr-1-2",
+      "keyResultTitle": "KR 1.2 · Kiểm điểm đúng hạn 100% chi bộ",
+      "plannedQuantity": 3,
+      "doneQuantity": 1,
+      "unit": "bộ tài liệu"
     },
     {
       "id": "0192a0f0-0001-7000-8000-000000000004",
       "code": "NV-2026-Q4-0004",
       "title": "Cập nhật minh chứng KR \"100% hồ sơ xử lý trực tuyến\"",
       "status": "CHO_NGHIEM_THU",
-      "overdue": false,
       "dueDate": "@today+5",
       "progress": 100,
       "role": "CHU_TRI",
@@ -83,16 +128,27 @@
       "description": "Nộp báo cáo trích xuất từ hệ thống một cửa làm minh chứng cho KR 2.1.",
       "coAssignees": [],
       "progressLog": [
-        { "at": "@today-1T15:00:00Z", "percent": 100, "note": "Đã nộp minh chứng", "by": "Tôi" }
+        {
+          "at": "@today-1T15:00:00Z",
+          "percent": 100,
+          "note": "Đã nộp minh chứng",
+          "by": "Tôi"
+        }
       ],
-      "blockers": []
+      "blockers": [],
+      "taskGroup": "THEN_CHOT",
+      "source": "KE_HOACH",
+      "keyResultId": "kr-2-1",
+      "keyResultTitle": "KR 2.1 · 100% hồ sơ xử lý trực tuyến",
+      "plannedQuantity": 1,
+      "doneQuantity": 1,
+      "unit": "báo cáo"
     },
     {
       "id": "0192a0f0-0001-7000-8000-000000000005",
       "code": "NV-2026-Q4-0005",
       "title": "Góp ý dự thảo quy chế làm việc của cơ quan",
       "status": "HOAN_THANH",
-      "overdue": false,
       "dueDate": "@today-7",
       "progress": 100,
       "role": "PHOI_HOP",
@@ -101,6 +157,145 @@
       "periodId": "2026-Q4",
       "rowVersion": 4,
       "description": "Góp ý chương II và chương IV của dự thảo.",
+      "coAssignees": [],
+      "progressLog": [],
+      "blockers": [],
+      "taskGroup": "THUONG_XUYEN",
+      "source": "DOT_XUAT",
+      "plannedQuantity": 1,
+      "doneQuantity": 1,
+      "unit": "văn bản góp ý"
+    },
+    {
+      "id": "0192a0f0-0001-7000-8000-000000000142",
+      "code": "NV-2026-Q4-0142",
+      "title": "Báo cáo chuyên đề công tác kiểm tra quý III",
+      "status": "DANG_THUC_HIEN",
+      "dueDate": "@today-2",
+      "progress": 70,
+      "role": "CHU_TRI",
+      "assignerName": "Lê Minh Châu",
+      "unitName": "Ban Tổ chức",
+      "periodId": "2026-Q4",
+      "rowVersion": 4,
+      "taskGroup": "THEN_CHOT",
+      "source": "KE_HOACH",
+      "plannedQuantity": 1,
+      "doneQuantity": 0,
+      "unit": "báo cáo",
+      "description": "Báo cáo chuyên đề kết quả kiểm tra, giám sát quý III gửi Thường trực Đảng uỷ.",
+      "coAssignees": [],
+      "progressLog": [
+        {
+          "at": "@today-6T10:00:00Z",
+          "percent": 70,
+          "note": "Đã có dự thảo, chờ số liệu UBKT",
+          "by": "Tôi"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "id": "0192a0f0-0001-7000-8000-000000000157",
+      "code": "NV-2026-Q4-0157",
+      "title": "Thẩm định hồ sơ kết nạp đảng viên đợt 2",
+      "status": "DANG_THUC_HIEN",
+      "dueDate": "@today+2",
+      "progress": 45,
+      "role": "CHU_TRI",
+      "assignerName": "Lê Minh Châu",
+      "unitName": "Ban Tổ chức",
+      "periodId": "2026-Q4",
+      "rowVersion": 6,
+      "taskGroup": "THEN_CHOT",
+      "source": "KE_HOACH",
+      "plannedQuantity": 18,
+      "doneQuantity": 8,
+      "unit": "phiếu thẩm định",
+      "description": "Thẩm định 18 hồ sơ kết nạp đảng viên của các chi bộ trực thuộc, lập phiếu thẩm định theo mẫu.",
+      "coAssignees": [],
+      "progressLog": [
+        {
+          "at": "@today-1T08:47:00Z",
+          "percent": 45,
+          "note": "11/18 hồ sơ đã có phiếu thẩm định",
+          "by": "Tôi"
+        }
+      ],
+      "blockers": [
+        {
+          "id": "b157-1",
+          "content": "Chờ kết quả thẩm tra lý lịch từ địa phương",
+          "resolved": false
+        }
+      ],
+      "keyResultId": "kr-1-1",
+      "keyResultTitle": "KR 1.1 · Kết nạp 40 đảng viên mới"
+    },
+    {
+      "id": "0192a0f0-0001-7000-8000-000000000163",
+      "code": "NV-2026-Q4-0163",
+      "title": "Tổng hợp danh sách đảng viên miễn sinh hoạt",
+      "status": "DANG_THUC_HIEN",
+      "dueDate": "@today+0",
+      "progress": 90,
+      "role": "PHOI_HOP",
+      "assignerName": "Nguyễn Văn An",
+      "unitName": "Ban Tổ chức",
+      "periodId": "2026-Q4",
+      "rowVersion": 3,
+      "taskGroup": "THUONG_XUYEN",
+      "source": "KE_HOACH",
+      "plannedQuantity": 1,
+      "doneQuantity": 0,
+      "unit": "danh sách",
+      "description": "Phối hợp tổng hợp danh sách đảng viên được miễn công tác và sinh hoạt đảng.",
+      "coAssignees": [],
+      "progressLog": [],
+      "blockers": []
+    },
+    {
+      "id": "0192a0f0-0001-7000-8000-000000000171",
+      "code": "NV-2026-Q4-0171",
+      "title": "Hướng dẫn kiểm điểm chi bộ cuối năm",
+      "status": "DANG_THUC_HIEN",
+      "dueDate": "@today+11",
+      "progress": 20,
+      "role": "CHU_TRI",
+      "assignerName": "Lê Minh Châu",
+      "unitName": "Ban Tổ chức",
+      "periodId": "2026-Q4",
+      "rowVersion": 2,
+      "taskGroup": "THEN_CHOT",
+      "source": "VAN_BAN",
+      "plannedQuantity": 1,
+      "doneQuantity": 0,
+      "unit": "văn bản hướng dẫn",
+      "description": "Soạn hướng dẫn kiểm điểm, đánh giá, xếp loại chất lượng chi bộ năm 2026.",
+      "coAssignees": [],
+      "progressLog": [],
+      "blockers": [],
+      "keyResultId": "kr-1-2",
+      "keyResultTitle": "KR 1.2 · Kiểm điểm đúng hạn 100% chi bộ"
+    },
+    {
+      "id": "0192a0f0-0001-7000-8000-000000000178",
+      "code": "NV-2026-Q4-0178",
+      "title": "Rà soát quy hoạch cấp uỷ nhiệm kỳ 2025–2030",
+      "status": "DA_GIAO",
+      "dueDate": "@today+27",
+      "progress": 0,
+      "role": "CHU_TRI",
+      "assignerName": "Lê Minh Châu",
+      "unitName": "Ban Tổ chức",
+      "periodId": "2026-Q4",
+      "rowVersion": 1,
+      "taskGroup": "THEN_CHOT",
+      "source": "KE_HOACH",
+      "plannedQuantity": 1,
+      "doneQuantity": 0,
+      "unit": "báo cáo",
+      "description": "Rà soát, bổ sung quy hoạch cấp uỷ các chi bộ trực thuộc nhiệm kỳ 2025–2030.",
       "coAssignees": [],
       "progressLog": [],
       "blockers": []
