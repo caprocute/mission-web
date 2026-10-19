@@ -1,5 +1,5 @@
-import { InjectionToken, inject } from '@angular/core';
-import { PermissionKey, PermissionService } from '@vt/auth';
+import { InjectionToken, Injector, inject } from '@angular/core';
+import { PermissionKey, PermissionService, SessionService } from '@vt/auth';
 
 /**
  * Hàm hỏi "vai trò của phân công đang chọn có thể có quyền này không", nối vào `can()` của `@vt/auth`
@@ -13,6 +13,28 @@ export const OVERSIGHT_CAN = new InjectionToken<(key: PermissionKey) => boolean>
     factory: () => {
       const permissions = inject(PermissionService);
       return (key) => permissions.can(key);
+    },
+  },
+);
+
+/**
+ * Mã người dùng hiện tại (`sub` của token, `dev-user` khi tắt đăng nhập), để nhận ra khiếu nại của chính
+ * mình (SCR-1201) và yêu cầu giải trình gửi tới mình (SCR-1202 chế độ bên liên quan). Máy chủ vẫn lọc theo
+ * phạm vi; giá trị này chỉ dùng để chọn cách hiển thị.
+ */
+export const OVERSIGHT_USER_ID = new InjectionToken<() => string | null>(
+  'vt.fe-oversight.user-id',
+  {
+    providedIn: 'root',
+    factory: () => {
+      const injector = inject(Injector);
+      return () => {
+        try {
+          return injector.get(SessionService).user()?.id ?? null;
+        } catch {
+          return null;
+        }
+      };
     },
   },
 );

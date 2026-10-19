@@ -32,7 +32,7 @@ export const EDITABLE_TABLES: {
 }[] = [
   {
     table: 'product.acceptance',
-    label: 'Kết quả nghiệm thu (product.acceptance)',
+    label: 'Kết quả nghiệm thu sản phẩm',
     fields: [
       { key: 'c_factor', label: 'Hệ số C' },
       { key: 'quality_level', label: 'Mức chất lượng' },
@@ -42,10 +42,15 @@ export const EDITABLE_TABLES: {
   },
   {
     table: 'appraisal.self_assessment',
-    label: 'Phiếu tự đánh giá (appraisal.self_assessment)',
+    label: 'Phiếu tự đánh giá',
     fields: [{ key: 'structured_data', label: 'Số liệu có cấu trúc của phiếu' }],
   },
 ];
+
+/** Tên nhóm dữ liệu cho người dùng; không lộ tên bảng kỹ thuật. */
+export function tableLabel(table: string): string {
+  return EDITABLE_TABLES.find((t) => t.table === table)?.label ?? 'Dữ liệu khác';
+}
 
 export function fieldLabel(table: string, key: string): string {
   return (

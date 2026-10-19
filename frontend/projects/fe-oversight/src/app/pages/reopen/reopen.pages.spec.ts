@@ -114,7 +114,7 @@ describe('ReopenDetailPage (SCR-1301)', () => {
     expect(text(el.querySelector('.slots'))).toContain('Đang chờ duyệt');
     expect(text(el.querySelector('.decide'))).toContain('Duyệt lượt thứ hai');
     type(el, '#dec-comment', 'Đồng ý mở lại một hồ sơ.');
-    await press(el, 'Xác thực MFA và duyệt');
+    await press(el, 'Xác thực và phê duyệt');
     const ok = await until(el, 'p-message', has('đủ hai phê duyệt'));
     expect(text(ok)).toContain('Kỳ Quý II/2026 được mở lại trong phạm vi 1 đối tượng');
     expect(text(el.querySelector('h1'))).toContain('Đã đủ hai phê duyệt');
@@ -125,7 +125,7 @@ describe('ReopenDetailPage (SCR-1301)', () => {
     const el = await render(ReopenDetailPage, () => true, 'rr-2026-009');
     await until(el, '.decide');
     type(el, '#dec-comment', 'Đồng ý mở lại phiếu tự đánh giá.');
-    await press(el, 'Xác thực MFA và duyệt');
+    await press(el, 'Xác thực và phê duyệt');
     const err = await until(el, 'p-message', has('Hai người duyệt phải là hai người khác nhau'));
     expect(text(err)).toContain('khác người tạo yêu cầu');
   });
@@ -166,7 +166,7 @@ describe('ReopenCreatePage (SCR-1301)', () => {
     ]);
     const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     await until(el, '#rq-profile');
-    expect(text(el.querySelector('.chips'))).toContain('ap-2026q1-nguyen-van-binh');
+    expect(text(el.querySelector('.chips'))).toContain('Hồ sơ đánh giá theo KN-2026-0040');
     expect((el.querySelector('#rq-basis-code') as HTMLInputElement).value).toBe('KN-2026-0040');
     type(
       el,

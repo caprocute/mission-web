@@ -48,6 +48,8 @@ export * from './lib/models/reopen';
 export * from './lib/reopen-api';
 export * from './lib/models/ledger';
 export * from './lib/ledger-api';
+export * from './lib/models/complaint';
+export * from './lib/complaint-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
 export {
   failMockIntegrityOnce,

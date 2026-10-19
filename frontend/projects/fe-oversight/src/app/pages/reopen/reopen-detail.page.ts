@@ -27,6 +27,8 @@ import {
   REOPEN_LIMITS,
   REOPEN_PENDING_STATUSES,
   REOPEN_STATUS_LABEL,
+  OrgApi,
+  RATING_LEVEL_LABEL,
   ReopenApi,
   ReopenApproverSlot,
   ReopenRequest,
@@ -42,7 +44,7 @@ import { Observable } from 'rxjs';
 import { OVERSIGHT_CAN } from '../../oversight-permissions';
 import { errorText, fmtDateTime } from '../../oversight-ui';
 import { OVERSIGHT_STEP_UP } from '../../step-up';
-import { fieldLabel, reopenSeverity, scopeSummary } from './reopen-ui';
+import { fieldLabel, reopenSeverity, scopeSummary, tableLabel } from './reopen-ui';
 
 type Busy = 'approve' | 'reject' | 'cancel' | 'simulate' | null;
 
@@ -129,7 +131,8 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                     ; đã khoá lại lúc {{ dt(r.relockedAt) }}
                   }
                 } @else {
-                  Đến {{ dt(r.openUntil) }} (tính theo lịch làm việc của tenant khi đủ phê duyệt)
+                  Đến {{ dt(r.openUntil) }} (tính theo lịch làm việc của cơ quan, kể từ khi đủ phê
+                  duyệt)
                 }
               </dd>
             </dl>
@@ -141,26 +144,31 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                 <thead>
                   <tr>
                     <th scope="col">Đối tượng</th>
-                    <th scope="col">Bảng</th>
+                    <th scope="col">Nhóm dữ liệu</th>
                     <th scope="col">Dữ liệu được phép sửa</th>
                   </tr>
                 </thead>
                 <tbody>
                   @for (it of r.scopeDetail?.items ?? []; track $index) {
-                    <tr>
+                    <tr
+                      [attr.data-profile-id]="it.profileId ?? null"
+                      [attr.data-unit-id]="it.unitId ?? null"
+                      [attr.data-record-id]="it.recordId ?? null"
+                      [attr.data-table]="it.table"
+                    >
                       <td>
                         @if (it.profileId) {
-                          Hồ sơ <span class="mono">{{ it.profileId }}</span>
+                          Hồ sơ đánh giá
+                          @if (r.basis?.code) {
+                            theo {{ r.basis?.code }}
+                          }
                         } @else if (it.unitId) {
-                          Đơn vị <span class="mono">{{ it.unitId }}</span>
+                          {{ unitName(it.unitId) }}
                         } @else {
                           Toàn kỳ
                         }
-                        @if (it.recordId && !simple()) {
-                          <span class="block small muted">bản ghi {{ it.recordId }}</span>
-                        }
                       </td>
-                      <td class="mono">{{ it.table }}</td>
+                      <td>{{ table(it.table) }}</td>
                       <td>{{ fields(it.table, it.fields) }}</td>
                     </tr>
                   } @empty {
@@ -197,9 +205,9 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                   @for (row of im.rows; track $index) {
                     <tr>
                       <td>{{ row.metric }}</td>
-                      <td>{{ row.before }}</td>
+                      <td>{{ metricValue(row.before) }}</td>
                       <td>
-                        <strong>{{ row.after }}</strong>
+                        <strong>{{ metricValue(row.after) }}</strong>
                         @if (row.after === row.before) {
                           <span class="small muted"> (giữ nguyên)</span>
                         }
@@ -213,9 +221,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                 </tbody>
               </table>
               @if (!simple()) {
-                <p class="small muted">
-                  Tính bằng Policy Pack {{ im.policyVersion }} đã dùng khi khoá kỳ (BR-13-06).
-                </p>
+                <p class="small muted">Tính theo bộ tiêu chí đánh giá đã áp dụng khi khoá kỳ.</p>
               }
             }
             @if (pending()) {
@@ -245,11 +251,13 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                     <span class="small">{{ slotState(r, s) }}</span>
                   </div>
                   <div>
-                    {{ s.approval?.approver?.name ?? s.assignee?.name ?? 'Chờ OPA chỉ định' }}
+                    {{
+                      s.approval?.approver?.name ?? s.assignee?.name ?? 'Hệ thống đang phân công'
+                    }}
                   </div>
                   @if (s.approval; as a) {
                     <div class="small muted">
-                      {{ dt(a.decidedAt) }} · MFA {{ a.mfaAcr ?? 'aal2' }} ·
+                      {{ dt(a.decidedAt) }} · đã xác thực ·
                       {{ a.decision === 'DONG_Y' ? 'đã ký số phê duyệt' : 'đã ký số từ chối' }}
                     </div>
                     @if (a.comment) {
@@ -262,7 +270,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
             @if (!simple()) {
               <p class="small muted">
                 Hai người duyệt phải khác nhau, khác người tạo yêu cầu và chưa tham gia thẩm định,
-                quyết định hồ sơ bị mở (BR-13-02, BR-13-03). Không có cách hạ xuống một người duyệt.
+                quyết định hồ sơ bị mở. Không có cách hạ xuống một người duyệt.
               </p>
             }
           </section>
@@ -303,7 +311,7 @@ const MSG_13_02 = 'Cần xác thực bổ sung để phê duyệt mở lại k�
                   />
                 }
                 <p-button
-                  label="Xác thực MFA và duyệt"
+                  label="Xác thực và phê duyệt"
                   [loading]="busy() === 'approve'"
                   [disabled]="!!busy() || !commentOk()"
                   (onClick)="decide('approve')"
@@ -549,7 +557,9 @@ export class ReopenDetailPage {
     stream: ({ params }) => this.api.get(params),
   });
   /** Bản đang hiển thị: thay bằng bản máy chủ trả sau mỗi thao tác. */
-  protected readonly current = linkedSignal<ReopenRequest | undefined>(() => this.req.value());
+  protected readonly current = linkedSignal<ReopenRequest | undefined>(() =>
+    this.req.hasValue() ? this.req.value() : undefined,
+  );
   protected readonly pending = computed(() => {
     const s = this.current()?.status;
     return !!s && REOPEN_PENDING_STATUSES.includes(s);
@@ -604,6 +614,23 @@ export class ReopenDetailPage {
   }
   protected periodStatus(r: ReopenRequest) {
     return r.periodStatus ? PERIOD_STATUS_LABEL[r.periodStatus] : '';
+  }
+  private readonly org = inject(OrgApi);
+  /** Tên đơn vị trong phạm vi; danh mục tổ chức chỉ nạp khi yêu cầu có phạm vi đơn vị. */
+  private readonly unitsRes = rxResource({
+    params: () => (this.current()?.scopeDetail?.items?.some((i) => i.unitId) ? true : undefined),
+    stream: () => this.org.units('children'),
+  });
+  protected unitName(id: string) {
+    const u = this.unitsRes.hasValue() ? this.unitsRes.value() : undefined;
+    return u?.items.find((x) => x.id === id)?.name ?? 'Đơn vị trong phạm vi';
+  }
+  /** Giá trị xếp loại trả về dạng mã được đổi sang tên đầy đủ. */
+  protected metricValue(v?: string | null) {
+    return v ? ((RATING_LEVEL_LABEL as Record<string, string>)[v] ?? v) : '—';
+  }
+  protected table(t: string) {
+    return tableLabel(t);
   }
   protected fields(table: string, keys?: string[]) {
     return keys?.length ? keys.map((k) => fieldLabel(table, k)).join(', ') : 'Mọi trường';
