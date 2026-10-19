@@ -124,8 +124,8 @@ describe('PlanReviewPage (SCR-0403)', () => {
       const { el, stepUp } = await render('.dec-actions');
       click(el, 'Duyệt và ký số');
       await until(el, '.msg.warn[role=alert]');
-      expect(text(el.querySelector('.msg.warn[role=alert]'))).toContain('xác thực bước lên');
-      click(el, 'Xác thực MFA');
+      expect(text(el.querySelector('.msg.warn[role=alert]'))).toContain('xác thực nhiều lớp');
+      click(el, 'Xác thực nhiều lớp');
       await until(el, '.msg.info[role=status]');
       expect(stepUp).toHaveBeenCalledTimes(2);
       expect(text(el.querySelector('.msg.info[role=status]'))).toContain(

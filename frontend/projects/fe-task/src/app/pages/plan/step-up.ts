@@ -28,7 +28,7 @@ export const PLAN_STEP_UP = new InjectionToken<() => Promise<boolean>>('vt.fe-ta
           await session.requireStepUp(
             'aal2',
             MAX_AGE_SEC,
-            'Duyệt kế hoạch là mốc ký số pháp lý; vui lòng xác thực nhiều lớp (MFA) trước khi ký.',
+            'Duyệt kế hoạch là thao tác ký số có giá trị pháp lý; đồng chí vui lòng xác thực nhiều lớp trước khi ký.',
           );
         } catch {
           return false;

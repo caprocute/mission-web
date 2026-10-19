@@ -142,7 +142,7 @@ describe('SelfAssessmentPage (SCR-0901)', () => {
     choose(field(el, 'selfRatingCode') as HTMLSelectElement, 'Hoàn thành xuất sắc nhiệm vụ');
     await tick();
     expect(text(el.querySelector('.warn'))).toBe(
-      'Mức tự đề xuất cao hơn mức hệ thống tham khảo, đồng chí cần ghi giải trình.',
+      'Mức tự đề xuất cao hơn mức hệ thống tham khảo, đồng chí cần ghi giải trình (Điều 16 Quy định 366).',
     );
     type(field(el, 'content') as HTMLTextAreaElement, CONTENT);
     await tick();
@@ -207,14 +207,14 @@ describe('SelfAssessmentPage (SCR-0901)', () => {
     const tabs = [...el.querySelectorAll<HTMLButtonElement>('[role=tab]')];
     expect(tabs.map(text)).toEqual([
       'Luồng Đảng · thang 100 điểm',
-      'Luồng Nhà nước · thang 30/70',
+      'Luồng Nhà nước · thang 30/70 điểm',
       'Lịch sử',
     ]);
     tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     await until(el, 'vt-score-result .total', (e) => text(e).includes('91,8'));
     expect(text(el.querySelector('vt-score-result .extra'))).toContain('28,0');
     expect(text(el.querySelector('[role=tab][aria-selected=true]'))).toBe(
-      'Luồng Nhà nước · thang 30/70',
+      'Luồng Nhà nước · thang 30/70 điểm',
     );
     button(el, 'Vết tính')!.click();
     const panel = (await until(el, 'vt-score-trace .panel')) as HTMLElement;

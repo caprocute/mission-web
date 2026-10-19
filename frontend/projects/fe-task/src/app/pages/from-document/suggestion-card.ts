@@ -84,7 +84,7 @@ export function suggestionTag(s: TaskSuggestion): { label: string; severity: Tag
           >
         }
         @if (!simple()) {
-          <span class="conf muted small">độ tin cậy {{ confidence() }}</span>
+          <span class="conf muted small">độ tin cậy của AI: {{ confidence() }}</span>
         }
       </header>
 

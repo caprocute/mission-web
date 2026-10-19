@@ -3,7 +3,7 @@
  * MFA gần nhất (step-up, BR-00-02) và tình trạng dịch vụ ký số (MSG-04-13). Không chứa dữ liệu mẫu nên
  * được xuất ra ngoài mà không kéo fixture vào gói chính.
  */
-export const MOCK_ME = { id: 'dev-user', name: 'Cán bộ thử nghiệm' } as const;
+export const MOCK_ME = { id: 'dev-user', name: 'Nguyễn Văn Minh' } as const;
 
 /** Cửa sổ MFA cho thao tác nhạy cảm: 15 phút (TL-02 SCR-0403, BR-00-02). */
 export const STEP_UP_WINDOW_MS = 15 * 60_000;

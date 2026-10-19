@@ -9,7 +9,7 @@ export const ROUTES: Routes = [
     path: '',
     loadComponent: () =>
       import('./pages/config-studio-home.page').then((m) => m.ConfigStudioHomePage),
-    title: 'Config Studio',
+    title: 'Cấu hình nghiệp vụ',
   },
 ];
 

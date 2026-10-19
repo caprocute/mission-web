@@ -73,7 +73,7 @@ interface Filters {
         <div>
           <h1>Thư viện danh mục công việc</h1>
           <p class="muted">
-            Theo Bảng 3, PL 1 · Danh mục "{{ c.name }}" · phiên bản {{ c.versionNo }} ({{
+            Theo Bảng 3, Phụ lục 1 · Danh mục "{{ c.name }}" · phiên bản {{ c.versionNo }} ({{
               versionText(c)
             }})
             @if (c.parentCatalogName) {
@@ -229,7 +229,7 @@ interface Filters {
                   <th scope="col">Mã</th>
                   <th scope="col">Công việc</th>
                   <th scope="col">Sản phẩm</th>
-                  <th scope="col">ĐVT</th>
+                  <th scope="col">Đơn vị tính</th>
                   <th scope="col" class="num">Mức khó</th>
                   <th scope="col" class="num">Điểm</th>
                   @if (!simple()) {
@@ -343,9 +343,9 @@ interface Filters {
                 <dd>{{ itemStatus(s) }}</dd>
                 <dt>Phiên bản</dt>
                 <dd>
-                  v{{ c.versionNo }}
+                  {{ c.versionNo }}
                   @if (c.effectiveFromDate) {
-                    · thay v{{ c.versionNo - 1 }} từ {{ date(c.effectiveFromDate) }}
+                    · thay phiên bản {{ c.versionNo - 1 }} từ {{ date(c.effectiveFromDate) }}
                   }
                 </dd>
               </dl>
@@ -682,7 +682,7 @@ export class CatalogPage {
   protected readonly versionOptions = computed(() =>
     (this.catalogs.value() ?? []).map((c) => ({
       value: c.id,
-      label: `v${c.versionNo} · ${WORK_CATALOG_STATUS_LABEL[c.status]}`,
+      label: `Phiên bản ${c.versionNo} · ${WORK_CATALOG_STATUS_LABEL[c.status]}`,
     })),
   );
   protected readonly positions = rxResource({
@@ -840,8 +840,8 @@ export class CatalogPage {
     if (r.movedToNewVersion) {
       this.info.set(
         this.editing()
-          ? `Công việc ${r.item.code} đã được dùng ở kỳ đã khoá. Thay đổi đã lưu ở phiên bản danh mục mới v${r.catalog.versionNo} (nháp), kỳ cũ giữ nguyên phiên bản v${before?.versionNo}.`
-          : `Đã thêm công việc ${r.item.code} vào phiên bản nháp v${r.catalog.versionNo}; phiên bản v${before?.versionNo} đang áp dụng giữ nguyên.`,
+          ? `Công việc ${r.item.code} đã được dùng ở kỳ đã khoá. Thay đổi đã lưu ở phiên bản danh mục mới (phiên bản ${r.catalog.versionNo}, nháp); kỳ cũ giữ nguyên phiên bản ${before?.versionNo}.`
+          : `Đã thêm công việc ${r.item.code} vào phiên bản nháp ${r.catalog.versionNo}; phiên bản ${before?.versionNo} đang áp dụng giữ nguyên.`,
       );
       this.catalogs.reload();
       this.catalogId.set(r.catalog.id);
@@ -859,7 +859,9 @@ export class CatalogPage {
     this.api.cloneVersion(c.id).subscribe({
       next: (n) => {
         this.cloning.set(false);
-        this.notice.set(`Đã tạo phiên bản v${n.versionNo} ở trạng thái nháp từ v${c.versionNo}.`);
+        this.notice.set(
+          `Đã tạo phiên bản ${n.versionNo} ở trạng thái nháp từ phiên bản ${c.versionNo}.`,
+        );
         this.catalogs.reload();
         this.catalogId.set(n.id);
       },

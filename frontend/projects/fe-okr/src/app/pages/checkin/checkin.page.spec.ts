@@ -91,7 +91,7 @@ describe('OkrCheckinPage (SCR-0301)', () => {
     expect(text(el.querySelector('form h2'))).toContain('KR 1.1 · Kết nạp đảng viên mới');
     expect(text(el.querySelector('.info'))).toContain('/ 500 đảng viên đầu kỳ');
     expect(input(el, 'c-prev').value).toBe('2,4%');
-    await until(el, 'small', (s) => text(s).includes('qua SVC-13'));
+    await until(el, 'small', (s) => text(s).includes('cập nhật lúc'));
     expect(input(el, 'c-value').value).toBe('2,6');
     expect(text(el.querySelector('form'))).toContain('Tiến độ KR: 87% chỉ tiêu');
     expect(radio(el, 'Cao').checked).toBe(true);
@@ -100,9 +100,9 @@ describe('OkrCheckinPage (SCR-0301)', () => {
 
   it('gửi check-in: MSG-03-01, KR chuyển "Xong", sang KR kế tiếp', async () => {
     const el = await render();
-    await until(el, 'small', (s) => text(s).includes('qua SVC-13'));
+    await until(el, 'small', (s) => text(s).includes('cập nhật lúc'));
     type(input(el, 'c-highlights'), 'Chi bộ 5 kết nạp 01 đồng chí');
-    button(el, '4 Gửi check-in')!.click();
+    button(el, 'Gửi check-in')!.click();
     const msg = await until(el, '[role="status"]', (e) => text(e).startsWith('Đã gửi'));
     expect(text(msg)).toBe('Đã gửi check-in KR 1.1. Tiến độ mục tiêu O1 hiện là 67%.');
     await until(el, 'form h2', (h) => text(h).includes('KR 1.3'));
@@ -113,11 +113,11 @@ describe('OkrCheckinPage (SCR-0301)', () => {
 
   it('ghi đè số liệu nguồn phải có lý do (MSG-03-04); thiếu giá trị báo cạnh ô', async () => {
     const el = await render();
-    await until(el, 'small', (s) => text(s).includes('qua SVC-13'));
+    await until(el, 'small', (s) => text(s).includes('cập nhật lúc'));
     type(input(el, 'c-value'), '2,5');
     await tick();
     expect(input(el, 'c-overrideReason')).toBeTruthy();
-    button(el, '4 Gửi check-in')!.click();
+    button(el, 'Gửi check-in')!.click();
     await tick();
     expect(text(el.querySelector('#c-reason-err'))).toBe(
       'Vui lòng ghi lý do khi thay đổi số liệu lấy từ CSDL đảng viên.',
@@ -132,7 +132,7 @@ describe('OkrCheckinPage (SCR-0301)', () => {
     const el = await render('/checkin?kr=kr-1-3');
     type(input(el, 'c-value'), '80');
     await tick();
-    button(el, '4 Gửi check-in')!.click();
+    button(el, 'Gửi check-in')!.click();
     const warn = await until(el, '.confirm');
     expect(text(warn)).toContain(
       'Giá trị mới chênh 53% so với lần trước. Đồng chí có chắc chắn không?',
@@ -174,10 +174,10 @@ describe('OkrCheckinPage (SCR-0301)', () => {
 
   it('không có quyền check-in: ẩn nút gửi; chế độ cao tuổi một bước, ẩn nháp, lịch sử, biểu đồ', async () => {
     let el = await render('/checkin', (k) => k !== 'SCR-0301.check-in');
-    expect(buttons(el)).not.toContain('4 Gửi check-in');
+    expect(buttons(el)).not.toContain('Gửi check-in');
     TestBed.resetTestingModule();
     el = await render('/checkin', () => true, true);
-    expect(buttons(el)).toContain('4 Gửi check-in');
+    expect(buttons(el)).toContain('Gửi check-in');
     expect(buttons(el)).not.toContain('Lưu nháp');
     expect(buttons(el)).not.toContain('Lịch sử');
     expect(el.querySelector('vt-checkin-trend')).toBeNull();

@@ -85,7 +85,7 @@ export const NAV: NavItem[] = [
     perms: SECTION_KEYS.dashboard,
   },
   {
-    label: 'Config Studio',
+    label: 'Cấu hình nghiệp vụ',
     icon: 'pi pi-sliders-h',
     link: '/config-studio',
     perms: SECTION_KEYS.configStudio,

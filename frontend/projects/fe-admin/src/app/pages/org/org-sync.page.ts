@@ -40,10 +40,11 @@ import { OrgSyncSide } from './org-sync-side';
 const SOURCE_ORDER: SyncSource[] = ['CBCCVC', 'DANG_VIEN', 'SCIM', 'HRM'];
 
 /** MSG-01-12 (BR-01-10). */
-export const MSG_01_12 = (n: number) => `Còn ${n} mục lệch mức Cao. Tenant chưa thể kích hoạt.`;
+export const MSG_01_12 = (n: number) =>
+  `Còn ${n} mục lệch mức Cao. Đơn vị chưa thể được kích hoạt.`;
 /** MSG-01-14 */
 export const MSG_01_14 = (source: string, at: string, reason: string) =>
-  `Lần đồng bộ ${source} lúc ${at} lỗi: ${reason}. Thông điệp đã được lưu để chạy lại.`;
+  `Lần đồng bộ ${source} lúc ${at} lỗi: ${reason}. Dữ liệu đã được lưu lại để chạy lại.`;
 
 @Component({
   selector: 'vt-org-sync-page',
@@ -53,8 +54,8 @@ export const MSG_01_14 = (source: string, at: string, reason: string) =>
       <div>
         <h1>Đồng bộ và đối soát nhân sự</h1>
         <p class="muted">
-          Qua integration-gateway (SVC-13) · bảng ánh xạ integ.mapping_xref · dữ liệu nguồn không
-          sửa trên nền tảng
+          Đồng bộ nhân sự từ các CSDL nguồn và đối soát dữ liệu lệch; dữ liệu nguồn chỉ được sửa tại
+          nơi quản lý nguồn.
         </p>
       </div>
       @if (can('SCR-0104.dong-bo')) {
@@ -87,7 +88,9 @@ export const MSG_01_14 = (source: string, at: string, reason: string) =>
         <article class="card">
           <h2 class="lbl">Lệch cần đối soát</h2>
           <p class="big total">{{ int(c.CAO + c.VUA + c.THAP) }}</p>
-          <p class="muted">{{ int(c.CAO) }} mục mức Cao; chặn kích hoạt tenant khi còn mục Cao</p>
+          <p class="muted">
+            {{ int(c.CAO) }} mục mức Cao; đơn vị chưa kích hoạt được khi còn mục mức Cao
+          </p>
         </article>
       }
     </section>
@@ -104,7 +107,7 @@ export const MSG_01_14 = (source: string, at: string, reason: string) =>
       <p class="note" [class]="'note ' + jobKind(j)" role="status">
         {{
           j.status === 'THAT_BAI'
-            ? (j.problem?.title ?? 'Đồng bộ lỗi.')
+            ? (j.problem?.title ?? 'Đồng bộ không thành công.')
             : (j.message ?? 'Đang đồng bộ…')
         }}
       </p>
@@ -297,7 +300,7 @@ export class OrgSyncPage {
 
   protected cardLine(s: OrgSyncRun): string {
     const at = fmtDateTime(s.startedAt);
-    if (s.status === 'THANH_CONG_MOT_PHAN') return `${at} · ${s.errors} lỗi lược đồ`;
+    if (s.status === 'THANH_CONG_MOT_PHAN') return `${at} · ${s.errors} bản ghi sai cấu trúc`;
     if (s.status === 'LOI') return `${at} · ${s.errors} lỗi`;
     return `${at} · ${fmtInt(s.records)} bản ghi · ${fmtInt(s.changes)} thay đổi`;
   }
@@ -321,7 +324,7 @@ export class OrgSyncPage {
 
   protected retry(r: OrgSyncRun) {
     const at = fmtDateTime(r.startedAt);
-    this.track('ORG_SYNC_RETRY', `Đang chạy lại lần ${at}…`, this.api.retry(r.id));
+    this.track('ORG_SYNC_RETRY', `Đang chạy lại lần đồng bộ lúc ${at}…`, this.api.retry(r.id));
   }
 
   private track(type: string, message: string, start: Observable<string>) {

@@ -44,7 +44,11 @@ const RISK_SEVERITY: Record<'THAP' | 'VUA' | 'CAO', TagSeverity> = {
   VUA: 'warn',
   CAO: 'danger',
 };
-const CHANNEL_LABEL = { WEB: 'Web', MOBILE: 'Ứng dụng di động', TICH_HOP: 'Tích hợp' } as const;
+const CHANNEL_LABEL = {
+  WEB: 'Trang web',
+  MOBILE: 'Ứng dụng di động',
+  TICH_HOP: 'Hệ thống liên thông',
+} as const;
 
 /** Hệ số tiến độ C = 1 − 0,05 × số ngày làm việc chậm, không âm (BR-06-01). */
 export function coefficient(lateWorkingDays: number): number {
@@ -83,9 +87,9 @@ export function coefficient(lateWorkingDays: number): number {
               · Danh mục {{ t.catalogItemCode }}
             }
             @if (t.assignedAt) {
-              · Giao {{ date(t.assignedAt) }}
+              · Giao ngày {{ date(t.assignedAt) }}
             }
-            bởi {{ t.assignerName }}
+            · Người giao: {{ t.assignerName }}
           </p>
         </div>
         <p-tag [value]="statusLabel(t)" [severity]="sev(t)" />

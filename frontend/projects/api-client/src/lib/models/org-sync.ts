@@ -15,14 +15,14 @@ export type SyncSource = Schemas['SyncSource'];
 export const SYNC_SOURCE_LABEL: Record<SyncSource, string> = {
   CBCCVC: 'CBCCVC',
   DANG_VIEN: 'Đảng viên',
-  SCIM: 'SCIM',
+  SCIM: 'Tài khoản đăng nhập',
   HRM: 'HRM',
 };
 
 export const SYNC_SOURCE_TITLE: Record<SyncSource, string> = {
   CBCCVC: 'CSDL quốc gia CBCCVC (NDXP)',
   DANG_VIEN: 'CSDL đảng viên',
-  SCIM: 'SCIM 2.0 từ IdP tỉnh',
+  SCIM: 'Đồng bộ tài khoản tự động từ hệ thống đăng nhập của tỉnh',
   HRM: 'Phần mềm nhân sự HRM',
 };
 

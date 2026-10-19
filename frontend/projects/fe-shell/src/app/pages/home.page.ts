@@ -8,9 +8,9 @@ import { SduiOutletComponent } from '@vt/sdui-renderer';
   imports: [SduiOutletComponent],
   template: `
     <h1>Xin chào, {{ fullName() }}</h1>
-    <p class="muted">Đây là những việc cần anh/chị quan tâm hôm nay.</p>
+    <p class="muted">Dưới đây là những việc đồng chí cần quan tâm hôm nay.</p>
     <vt-sdui-outlet layout="home">
-      <p class="muted">Chưa nạp được bố cục trang chủ của đơn vị.</p>
+      <p class="muted">Chưa tải được trang chủ của đơn vị. Đồng chí vui lòng tải lại trang.</p>
     </vt-sdui-outlet>
   `,
   styles: `

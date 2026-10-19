@@ -157,7 +157,7 @@ const MILESTONES: { key: keyof Draft; label: string }[] = [
       </div>
       <fieldset>
         <legend>Lịch kỳ</legend>
-        <p class="muted small">Bỏ trống để lấy theo Policy Pack đang hiệu lực.</p>
+        <p class="muted small">Bỏ trống để lấy theo bộ quy định đánh giá đang hiệu lực.</p>
         <div class="grid">
           @for (m of milestones; track m.key) {
             <div>

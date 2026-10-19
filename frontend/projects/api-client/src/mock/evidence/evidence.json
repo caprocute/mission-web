@@ -201,7 +201,7 @@
           "submittedAt": "@today-5T15:20:00+07:00",
           "decidedAt": "@today-4T10:00:00+07:00",
           "decisionNote": "Bổ sung số liệu chi bộ 3, 6",
-          "decidedByName": "Cán bộ thử nghiệm",
+          "decidedByName": "Nguyễn Văn Minh",
           "qualityCriteria": [
             {
               "code": "TC-DV-03-1",
@@ -285,6 +285,12 @@
       "name": "Báo cáo tổng hợp kết quả kiểm tra đảng viên quý III",
       "dueDate": "@today-4",
       "lateWorkingDays": 2
+    },
+    "01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c03": {
+      "code": "NV-2026-Q4-0090",
+      "name": "Thẩm định hồ sơ quy hoạch cán bộ",
+      "dueDate": "2026-11-10",
+      "lateWorkingDays": 3
     }
   }
 }

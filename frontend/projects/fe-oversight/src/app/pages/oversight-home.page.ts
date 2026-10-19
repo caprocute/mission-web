@@ -45,7 +45,9 @@ import { OVERSIGHT_CAN } from '../oversight-permissions';
       @if (can('SCR-1302.tra-cuu')) {
         <li>
           <a routerLink="ledger">Sổ cái và kiểm tra toàn vẹn</a>
-          <span>Tra cứu lịch sử thay đổi, kiểm tra tính toàn vẹn của dữ liệu đánh giá.</span>
+          <span
+            >Tra cứu lịch sử thay đổi dữ liệu đánh giá và kiểm tra tính toàn vẹn của sổ cái.</span
+          >
         </li>
       }
     </ul>
@@ -84,6 +86,7 @@ export class OversightHomePage {
   }
   protected canReopen() {
     return (['tao', 'duyet-1', 'duyet-2', 'tu-choi', 'huy'] as const).some((k) =>
+      // ui-text-ok: khoá quyền, không hiện lên màn hình
       this.can(`SCR-1301.${k}`),
     );
   }

@@ -14,11 +14,11 @@ import { FormRule, evaluateRules } from '@vt/form-engine';
  */
 
 export const MSG_09_06 =
-  'Mức thẩm định khác mức tự đề xuất. Theo QĐ Điều 16, đồng chí cần ghi lý do trước khi ký.';
+  'Mức thẩm định khác mức tự đề xuất. Theo Điều 16 Quy định 366, đồng chí cần ghi lý do trước khi ký.';
 export const MSG_09_07 =
   'Hồ sơ vừa được người khác cập nhật. Vui lòng tải lại để xem thay đổi trước khi lưu.';
 export const MSG_09_08 =
-  'Đồng chí không thể thẩm định hồ sơ này vì đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (PL 4 V.1).';
+  'Đồng chí không thể thẩm định hồ sơ này vì đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (Phụ lục 4, mục V.1).';
 
 /** MSG-09-09 sau khi trả lại; `n`, `max` lấy từ hồ sơ máy chủ trả về. */
 export function msg0909(name: string, n: number, max: number): string {
@@ -138,8 +138,8 @@ export function selfLevel(p: AppraisalProfile): RatingLevel | null {
   );
 }
 
-/** Mã băm rút gọn để hiện trên nhãn: `sha256:9c1e…a07b`. */
+/** Mã băm rút gọn để hiện trên nhãn: `9c1e…a07b`. */
 export function shortHash(h: string | undefined): string {
   if (!h) return '';
-  return `sha256:${h.slice(0, 4)}…${h.slice(-4)}`;
+  return `${h.slice(0, 4)}…${h.slice(-4)}`;
 }

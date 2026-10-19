@@ -31,6 +31,7 @@ const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const WRITE_ONLY_ERRORS = new Set([401, 409, 412, 422]);
 const FORCED_HEADERS: Record<number, Record<string, string>> = {
   401: {
+    // ui-text-ok: tiêu đề HTTP, không hiện lên màn hình
     'WWW-Authenticate':
       'Bearer error="insufficient_user_authentication", error_description="Cần xác thực nhiều lớp", acr_values="aal2"',
   },
@@ -102,9 +103,13 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     forced !== null
       ? of(
           withHeaders(
-            problem(forced, FORCED_TITLES[forced] ?? `Lỗi giả lập ${forced}`, {
-              code: `MOCK-${forced}`,
-            }),
+            problem(
+              forced,
+              FORCED_TITLES[forced] ?? 'Hệ thống tạm thời gián đoạn, vui lòng thử lại sau',
+              {
+                code: `MOCK-${forced}`,
+              },
+            ),
             FORCED_HEADERS[forced],
           ),
         )

@@ -91,6 +91,7 @@ function stepUpRequired(): MockResponse {
   });
   r.headers = {
     ...r.headers,
+    // ui-text-ok: tiêu đề HTTP, không hiện lên màn hình
     'WWW-Authenticate':
       'Bearer error="insufficient_user_authentication", acr_values="aal2", max_age=900',
   };

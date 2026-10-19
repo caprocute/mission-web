@@ -273,7 +273,7 @@ export class SelfAssessmentPage {
 
   protected tabLabel(t: Tab): string {
     if (t === 'LICH_SU') return 'Lịch sử';
-    const scale = t === 'DANG' ? 'thang 100 điểm' : 'thang 30/70';
+    const scale = t === 'DANG' ? 'thang 100 điểm' : 'thang 30/70 điểm';
     return `${this.flowLabel[t]} · ${scale}`;
   }
 
@@ -407,7 +407,7 @@ export class SelfAssessmentPage {
     }
     if (!(await this.stepUp().catch(() => false))) {
       this.busy.set(null);
-      this.error.set('Cần xác thực nhiều lớp (MFA) để ký số. Bấm "Ký số và nộp" để thử lại.');
+      this.error.set('Cần xác thực nhiều lớp để ký số. Bấm "Ký số và nộp" để thử lại.');
       return;
     }
     this.busy.set('submit');

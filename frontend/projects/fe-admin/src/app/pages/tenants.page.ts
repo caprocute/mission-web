@@ -26,6 +26,7 @@ import {
   Job,
   JobTracker,
   TENANCY_MODELS,
+  TENANCY_MODEL_LABEL,
   TENANT_ONBOARDING_STATUSES,
   TENANT_STATUS_LABEL,
   TenancyModel,
@@ -55,10 +56,10 @@ interface Filters {
 
 /** MSG-01-01 */
 export const MSG_01_01 = (cell: string, percent: number) =>
-  `Cell ${cell} đã sử dụng ${percent}% dung lượng thiết kế. Đề nghị lập kế hoạch mở cell mới.`;
+  `Cụm máy chủ ${cell} đã sử dụng ${percent}% dung lượng thiết kế. Đề nghị lập kế hoạch mở cụm máy chủ mới.`;
 /** MSG-01-02 */
 export const MSG_01_02 = (tenant: string, step: number) =>
-  `Tenant ${tenant} đang khởi tạo bước ${step}/6.`;
+  `Đơn vị ${tenant} đang khởi tạo, đến bước ${step}/6.`;
 
 @Component({
   selector: 'vt-tenants-page',
@@ -66,8 +67,8 @@ export const MSG_01_02 = (tenant: string, step: number) =>
   template: `
     <header class="head">
       <div>
-        <h1>Danh sách tenant</h1>
-        <p class="muted">Các đơn vị đang sử dụng nền tảng và tải của từng cụm máy chủ</p>
+        <h1>Danh sách đơn vị triển khai</h1>
+        <p class="muted">Các đơn vị đang sử dụng hệ thống và tải của từng cụm máy chủ</p>
       </div>
       <div class="actions">
         @if (can('SCR-0101.xuat') && !simple()) {
@@ -81,7 +82,13 @@ export const MSG_01_02 = (tenant: string, step: number) =>
           />
         }
         @if (can('SCR-0102.buoc-1-3')) {
-          <a pButton class="act" routerLink="new" icon="pi pi-plus" label="Khởi tạo tenant"></a>
+          <a
+            pButton
+            class="act"
+            routerLink="new"
+            icon="pi pi-plus"
+            label="Khởi tạo đơn vị triển khai"
+          ></a>
         }
       </div>
     </header>
@@ -101,9 +108,9 @@ export const MSG_01_02 = (tenant: string, step: number) =>
     @if (ov(); as o) {
       <section class="cards" aria-label="Tổng quan">
         <div class="card first">
-          <p class="label">Tenant đang vận hành</p>
+          <p class="label">Đơn vị đang vận hành</p>
           <p class="big">{{ int(o.activeTenants) }}</p>
-          <p class="muted small">giới hạn thiết kế {{ int(o.tenantLimit) }}</p>
+          <p class="muted small">tối đa {{ int(o.tenantLimit) }} đơn vị</p>
         </div>
         <div class="card">
           <p class="label">Tài khoản</p>
@@ -115,17 +122,17 @@ export const MSG_01_02 = (tenant: string, step: number) =>
         <div class="card">
           <p class="label">Đang khởi tạo</p>
           <p class="big warn">{{ int(o.onboardingTenants) }}</p>
-          <p class="muted small">mục tiêu ≤ 1 ngày/tenant</p>
+          <p class="muted small">mục tiêu không quá 1 ngày mỗi đơn vị</p>
         </div>
         <div class="card">
-          <p class="label">Cell</p>
+          <p class="label">Cụm máy chủ</p>
           <p class="big">{{ int(o.cellCount) }}</p>
-          <p class="muted small">{{ overloaded().length }} cell vượt 85%</p>
+          <p class="muted small">{{ overloaded().length }} cụm vượt 85% dung lượng</p>
         </div>
       </section>
     }
     @if (onboardingRows().length) {
-      <ul class="warnbox notices" aria-label="Tenant đang khởi tạo">
+      <ul class="warnbox notices" aria-label="Đơn vị đang khởi tạo">
         @for (t of onboardingRows(); track t.id) {
           <li>
             <a [routerLink]="[t.id, 'onboarding']" [queryParams]="{ step: t.onboardingStep }">{{
@@ -138,8 +145,8 @@ export const MSG_01_02 = (tenant: string, step: number) =>
 
     <div class="cols">
       <section class="box" aria-labelledby="tbl-title">
-        <h2 id="tbl-title" class="sr-only">Bảng tenant</h2>
-        <div class="filters" role="search" aria-label="Lọc danh sách tenant">
+        <h2 id="tbl-title" class="sr-only">Bảng đơn vị triển khai</h2>
+        <div class="filters" role="search" aria-label="Lọc danh sách đơn vị triển khai">
           <input
             pInputText
             type="search"
@@ -155,9 +162,9 @@ export const MSG_01_02 = (tenant: string, step: number) =>
             optionValue="value"
             [ngModel]="filters().cell"
             (ngModelChange)="setFilter('cell', $event)"
-            placeholder="Cell: Tất cả"
+            placeholder="Cụm máy chủ: Tất cả"
             [showClear]="true"
-            ariaLabel="Cell"
+            ariaLabel="Cụm máy chủ"
             appendTo="body"
           />
           <p-select
@@ -166,9 +173,9 @@ export const MSG_01_02 = (tenant: string, step: number) =>
             optionValue="value"
             [ngModel]="filters().model"
             (ngModelChange)="setFilter('model', $event)"
-            placeholder="Mô hình: Tất cả"
+            placeholder="Mức cô lập: Tất cả"
             [showClear]="true"
-            ariaLabel="Mô hình"
+            ariaLabel="Mức cô lập"
             appendTo="body"
           />
           <p-select
@@ -186,24 +193,24 @@ export const MSG_01_02 = (tenant: string, step: number) =>
 
         @if (page.error()) {
           <p-message severity="error" styleClass="msg">
-            <span>{{ err(page.error(), 'Không tải được danh sách tenant.') }}</span>
+            <span>{{ err(page.error(), 'Không tải được danh sách đơn vị triển khai.') }}</span>
             <button type="button" class="link" (click)="page.reload()">Thử lại</button>
           </p-message>
         }
         <div class="scroll">
           <table class="tbl" [attr.aria-busy]="page.isLoading()">
             <caption class="sr-only">
-              Danh sách tenant
+              Danh sách đơn vị triển khai
             </caption>
             <thead>
               <tr>
-                <th scope="col">Tenant</th>
-                <th scope="col">Cell</th>
-                <th scope="col">Mô hình</th>
+                <th scope="col">Đơn vị triển khai</th>
+                <th scope="col">Cụm máy chủ</th>
+                <th scope="col">Mức cô lập</th>
                 <th scope="col" class="num">Tài khoản</th>
                 @if (!simple()) {
-                  <th scope="col">Policy Pack đang gắn</th>
-                  <th scope="col">UI Pack</th>
+                  <th scope="col">Bộ quy định đánh giá</th>
+                  <th scope="col">Bộ giao diện</th>
                 }
                 <th scope="col">Trạng thái</th>
                 <th scope="col"><span class="sr-only">Thao tác</span></th>
@@ -218,7 +225,7 @@ export const MSG_01_02 = (tenant: string, step: number) =>
                   </td>
                   <td class="nowrap">{{ t.cellCode }}</td>
                   <td>
-                    <span class="chip">{{ t.tenancyModel }}</span>
+                    <span class="chip">{{ modelLabel[t.tenancyModel] }}</span>
                   </td>
                   <td class="num">{{ int(t.accountCount) }}</td>
                   @if (!simple()) {
@@ -245,7 +252,7 @@ export const MSG_01_02 = (tenant: string, step: number) =>
                 @if (!page.isLoading()) {
                   <tr>
                     <td [attr.colspan]="simple() ? 6 : 8" class="empty muted">
-                      Không có tenant phù hợp bộ lọc.
+                      Không có đơn vị nào phù hợp với điều kiện lọc.
                     </td>
                   </tr>
                 }
@@ -286,17 +293,17 @@ export const MSG_01_02 = (tenant: string, step: number) =>
 
       <aside>
         <section class="box" aria-labelledby="cell-title">
-          <h2 id="cell-title" class="h">Tải theo cell</h2>
+          <h2 id="cell-title" class="h">Tải theo cụm máy chủ</h2>
           @for (m of overloaded(); track m.cellCode) {
             <p class="warnbox" role="status">{{ msg0101(m) }}</p>
           }
           <table class="tbl cells">
             <caption class="sr-only">
-              Tải theo cell
+              Tải theo cụm máy chủ
             </caption>
             <thead>
               <tr>
-                <th scope="col">Cell</th>
+                <th scope="col">Cụm máy chủ</th>
                 <th scope="col" class="num">Tài khoản</th>
                 <th scope="col">Sử dụng</th>
               </tr>
@@ -322,8 +329,8 @@ export const MSG_01_02 = (tenant: string, step: number) =>
             </tbody>
           </table>
           <p class="muted small">
-            Sử dụng = tài khoản / dung lượng thiết kế của cell. Trên 85% hệ thống đề nghị mở cell
-            mới.
+            Mức sử dụng bằng số tài khoản chia cho dung lượng thiết kế của cụm máy chủ. Khi vượt
+            85%, hệ thống đề nghị mở cụm máy chủ mới.
           </p>
         </section>
       </aside>
@@ -575,7 +582,11 @@ export class TenantsPage {
     () => this.theme.mode() === 'elderly' && this.theme.reducedSteps(),
   );
 
-  protected readonly modelOptions = TENANCY_MODELS.map((m) => ({ value: m, label: m }));
+  protected readonly modelLabel = TENANCY_MODEL_LABEL;
+  protected readonly modelOptions = TENANCY_MODELS.map((m) => ({
+    value: m,
+    label: TENANCY_MODEL_LABEL[m],
+  }));
   protected readonly statusOptions = (Object.keys(TENANT_STATUS_LABEL) as TenantStatus[]).map(
     (s) => ({ value: s, label: TENANT_STATUS_LABEL[s] }),
   );
@@ -696,12 +707,13 @@ export class TenantsPage {
           .pipe(finalize(() => this.exporting.set(false)))
           .subscribe({
             next: (j) => this.exportJob.set(j),
-            error: (e) => this.actionError.set(errorText(e, 'Không theo dõi được tác vụ xuất.')),
+            error: (e) =>
+              this.actionError.set(errorText(e, 'Không theo dõi được tiến độ xuất danh sách.')),
           });
       },
       error: (e) => {
         this.exporting.set(false);
-        this.actionError.set(errorText(e, 'Không tạo được tác vụ xuất.'));
+        this.actionError.set(errorText(e, 'Không xuất được danh sách.'));
       },
     });
   }
@@ -712,7 +724,7 @@ export class TenantsPage {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'danh-sach-tenant.csv';
+        a.download = 'danh-sach-don-vi-trien-khai.csv';
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       },

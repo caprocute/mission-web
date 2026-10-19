@@ -7,10 +7,7 @@ import { MessageModule } from 'primeng/message';
   imports: [MessageModule],
   template: `
     <h1>Bảng điều hành</h1>
-    <p-message severity="info">
-      Phân hệ Bảng điều hành (remote fe-dashboard) đã có khung, các màn hình đang được phát triển:
-      SCR-1601 … SCR-1603.
-    </p-message>
+    <p-message severity="info">Chức năng này đang được chuẩn bị đưa vào sử dụng.</p-message>
   `,
   styles: `
     h1 {

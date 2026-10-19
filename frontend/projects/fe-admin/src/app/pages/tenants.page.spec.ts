@@ -47,17 +47,17 @@ const names = (el: HTMLElement) => [...el.querySelectorAll('.tbl tbody .name')].
 describe('TenantsPage (SCR-0101)', () => {
   it('thẻ tổng quan, bảng 8 dòng, trạng thái khởi tạo n/6, MSG-01-01 và MSG-01-02', async () => {
     const el = (await render()).nativeElement as HTMLElement;
-    expect(text(el.querySelector('.cards'))).toContain('giới hạn thiết kế 5.000');
+    expect(text(el.querySelector('.cards'))).toContain('tối đa 5.000 đơn vị');
     expect(names(el)).toHaveLength(8);
     expect(text(el.querySelector('.tbl tbody'))).toContain('Đang khởi tạo 4/6');
     expect(text(el.querySelector('.notices'))).toContain(
-      'Tenant Tỉnh Thái Nguyên đang khởi tạo bước 4/6.',
+      'Đơn vị Tỉnh Thái Nguyên đang khởi tạo, đến bước 4/6.',
     );
     expect(text(el.querySelector('aside'))).toContain(
-      'Cell CELL-HCM đã sử dụng 91% dung lượng thiết kế. Đề nghị lập kế hoạch mở cell mới.',
+      'Cụm máy chủ CELL-HCM đã sử dụng 91% dung lượng thiết kế. Đề nghị lập kế hoạch mở cụm máy chủ mới.',
     );
     expect(text(el.querySelector('.pager'))).toContain('Hiển thị 1–8');
-    expect(text(el.querySelector('.cards'))).toContain('cell vượt 85%');
+    expect(text(el.querySelector('.cards'))).toContain('cụm vượt 85% dung lượng');
   });
 
   it('trang sau và trang trước theo con trỏ', async () => {
@@ -88,7 +88,7 @@ describe('TenantsPage (SCR-0101)', () => {
   it('hiện đủ nút khi là quản trị nền tảng', async () => {
     const el = (await render()).nativeElement as HTMLElement;
     expect(text(el.querySelector('.actions'))).toContain('Xuất danh sách');
-    expect(text(el.querySelector('.actions'))).toContain('Khởi tạo tenant');
+    expect(text(el.querySelector('.actions'))).toContain('Khởi tạo đơn vị triển khai');
   });
 
   it('máy chủ trả 403 thì hiện thông báo không có quyền', async () => {

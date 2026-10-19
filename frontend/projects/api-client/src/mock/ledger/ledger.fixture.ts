@@ -106,7 +106,7 @@ const STORY: Seed[] = [
     aggregateId: PROFILE_AGG,
     actor: PEOPLE.tam,
     actorKind: 'NGUOI',
-    metadata: { before: { c: null }, after: { c: 0.92, quality: 'TOT' } },
+    metadata: { before: { c: null }, after: { c: 0.92, b: 1 } },
   },
   {
     daysAgo: 70,
@@ -126,7 +126,7 @@ const STORY: Seed[] = [
     aggregateId: PROFILE_AGG,
     actor: PEOPLE.tam,
     actorKind: 'NGUOI',
-    metadata: { before: { c: null }, after: { c: 0.85, quality: 'KHA' } },
+    metadata: { before: { c: null }, after: { c: 0.85, b: 0.75 } },
   },
   {
     daysAgo: 60,
@@ -155,7 +155,7 @@ const STORY: Seed[] = [
     aggregateType: 'appraisal_profile',
     aggregateId: PROFILE_AGG,
     actorKind: 'DICH_VU',
-    metadata: { after: { score: 91.2, level: 'HTTNV', policyVersion: 'Đảng v2.0' } },
+    metadata: { after: { score: 91.2, level: 'HTTNV', policyVersion: 'khối Đảng, phiên bản 2.0' } },
   },
   {
     daysAgo: 52,
@@ -175,7 +175,7 @@ const STORY: Seed[] = [
     aggregateId: PROFILE_AGG,
     actor: PEOPLE.quan,
     actorKind: 'NGUOI',
-    metadata: { after: { level: 'HTTNV', signature: 'MySign' } },
+    metadata: { after: { level: 'HTTNV', signature: 'Đã ký' } },
   },
   {
     daysAgo: 40,
@@ -199,7 +199,7 @@ const STORY: Seed[] = [
     aggregateId: PROFILE_AGG,
     actor: PEOPLE.hoang,
     actorKind: 'NGUOI',
-    metadata: { after: { complaint: 'KN-2026-0031', content: '[nội dung được bảo mật]' } },
+    metadata: { after: { complaint: 'KN-2026-0031', content: '[Nội dung được mã hoá khi lưu]' } },
   },
   {
     daysAgo: 12,
@@ -242,6 +242,17 @@ const STORY: Seed[] = [
   },
 ];
 
+/**
+ * Tên hiển thị của đối tượng (`metadata.aggregateLabel`, suy luận): máy chủ gửi kèm để màn hình không phải
+ * hiện `aggregate_id` nội bộ.
+ */
+const AGGREGATE_LABEL: Record<string, string> = {
+  'task-tc-3': 'NV-2026-Q2-0031 · Nhiệm vụ then chốt 3',
+  [PROFILE_AGG]: 'Trần Minh Hoàng, Quý II/2026',
+  'p-2026q2': 'Quý II/2026',
+  'rr-2026-007': 'MLK-2026-007',
+};
+
 const at = (daysAgo: number, time: string) => {
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
@@ -258,7 +269,8 @@ export function ledgerFixture(): StoredEntry[] {
     const seqNo = 1030 + i;
     const id = `le-17-${seqNo}`;
     const occurredAt = at(s.daysAgo, s.time);
-    const content = JSON.stringify([prev, id, s.eventType, s.aggregateId, s.metadata]);
+    const metadata = { ...s.metadata, aggregateLabel: AGGREGATE_LABEL[s.aggregateId] };
+    const content = JSON.stringify([prev, id, s.eventType, s.aggregateId, metadata]);
     const recomputed = fakeHash(content);
     const tampered = seqNo === TAMPERED_SEQ;
     const entryHash = tampered ? TAMPERED_STORED : recomputed;
@@ -274,7 +286,7 @@ export function ledgerFixture(): StoredEntry[] {
       actorKind: s.actorKind,
       occurredAt,
       recordedAt: new Date(Date.parse(occurredAt) + 1000).toISOString(),
-      metadata: s.metadata,
+      metadata,
       entryHash,
       prevHash: prev,
       payloadHash: fakeHash(`payload-${id}`),

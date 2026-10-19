@@ -1,0 +1,14 @@
+[
+  "/admin/tenants/t-hcm",
+  "/admin/tenants/t-thainguyen",
+  "/admin/tenants/t-ninhbinh",
+  "/admin/tenants/t-truong-thpt-hue/onboarding",
+  "/admin/tenants/t-truong-thpt-hue/onboarding?step=1",
+  "/admin/tenants/t-thainguyen/onboarding?step=2",
+  "/admin/tenants/t-thainguyen/onboarding?step=3",
+  "/admin/tenants/t-thainguyen/onboarding?step=4",
+  "/admin/tenants/t-laocai/onboarding",
+  "/admin/tenants/t-quangngai/onboarding?step=5",
+  "/admin/tenants/t-quangngai/onboarding?step=6",
+  "/admin/tenants/new"
+]

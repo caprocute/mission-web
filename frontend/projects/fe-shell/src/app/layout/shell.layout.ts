@@ -13,9 +13,9 @@ import {
   StepUpDialogComponent,
 } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
-import { RUNTIME_CONFIG } from '@vt/api-client';
 import { ButtonModule } from 'primeng/button';
 import { AvatarModule } from 'primeng/avatar';
+// Giữ TooltipModule trong shell để thư viện dùng chung của remote được chia sẻ (AGENTS.md quy tắc 8)
 import { TooltipModule } from 'primeng/tooltip';
 import { visibleNav } from './nav';
 
@@ -39,7 +39,6 @@ import { visibleNav } from './nav';
 export class ShellLayout {
   protected readonly session = inject(SessionService);
   protected readonly theme = inject(ThemeService);
-  protected readonly cfg = inject(RUNTIME_CONFIG);
   protected readonly navOpen = signal(false);
   protected readonly noAssignmentText = MSG_00_06;
   private readonly title = inject(Title);

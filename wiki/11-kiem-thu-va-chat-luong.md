@@ -52,11 +52,14 @@ Mọi cổng thất bại đều dừng pipeline. Jenkinsfile và cách chạy p
 
 Theo quy tắc 11 của `AGENTS.md`, một task chỉ hoàn thành khi ba điều kiện cùng đạt: lệnh `npx ng build fe-task && npx ng build fe-shell` (cùng remote mà task đụng tới) thành công; kiểm thử của task chạy xanh; màn hình đã được mở thật trên trình duyệt, bằng Playwright hoặc thủ công, không có lỗi console. Quy tắc 12 yêu cầu báo cáo trung thực: kiểm thử chưa chạy, việc chưa làm và giả định đã chọn phải ghi rõ trong báo cáo theo mẫu mục 6, không tuyên bố xong khi chưa kiểm chứng.
 
+Với task có giao diện, điều kiện thứ hai gồm cả hai lớp kiểm tra nội dung hiển thị: `npm run check:ui-text` (kiểm tra tĩnh) và `e2e/gia-lap.noi-dung.spec.ts` (đọc văn bản đang hiện trên từng tuyến) đều xanh, tức là màn hình không lộ mã thiết kế, mã trạng thái thô, tên kỹ thuật hay ghi chú giải pháp; quy định và bảng từ thay thế ở [Nội dung giao diện](16-noi-dung-giao-dien.md).
+
 Ngoài ba điều kiện bắt buộc, người duyệt PR nên kiểm thêm: màn hình hoạt động ở chế độ người cao tuổi, dùng được bằng bàn phím, không vi phạm bảng kiểm ở [Bảo mật frontend](08-bao-mat-frontend.md), không vượt ngân sách kích thước, và chú thích mã ghi đúng SCR, QT (suy luận từ quy tắc 5, 9, 10 của `AGENTS.md`).
 
 ## Liên quan
 
 - [Quy ước mã nguồn](10-quy-uoc-ma-nguon.md)
+- [Nội dung giao diện](16-noi-dung-giao-dien.md)
 - [Hiệu năng và trải nghiệm](09-hieu-nang-va-trai-nghiem.md)
 - [Bảo mật frontend](08-bao-mat-frontend.md)
 - [Giao diện theo tenant](03-giao-dien-theo-tenant.md)

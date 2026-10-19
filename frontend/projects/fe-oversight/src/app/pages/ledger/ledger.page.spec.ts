@@ -114,6 +114,6 @@ describe('LedgerPage (SCR-1302)', () => {
     TestBed.resetTestingModule();
     const ro = await render((k) => k === 'SCR-1302.tra-cuu');
     expect(text(ro)).not.toContain('Chạy kiểm tra toàn vẹn');
-    expect(text(ro)).not.toContain('Xuất bằng chứng');
+    expect(text(ro)).not.toContain('Xuất tệp bằng chứng');
   });
 });

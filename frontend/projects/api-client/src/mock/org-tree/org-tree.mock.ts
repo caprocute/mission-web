@@ -213,7 +213,7 @@ function unit(r: MockRequest): MockResponse {
   const v = view(r);
   if (isResponse(v)) return v;
   const d = detail(r.pathParams['id'], v);
-  return d ? ok(d) : problem(404, 'Đơn vị không tồn tại tại thời điểm đang xem');
+  return d ? ok(d) : problem(404, 'Đơn vị không tồn tại tại thời điểm đang xem.');
 }
 
 function unitHistory(r: MockRequest): MockResponse {
@@ -313,22 +313,27 @@ function update(r: MockRequest): MockResponse {
   const id = r.pathParams['id'];
   const body = r.body as OrgUnitUpdate;
   const cur = currentAt(id, body.validFrom ?? today()) ?? currentAt(id, today());
-  if (!cur) return problem(404, 'Đơn vị không còn hiệu lực');
+  if (!cur) return problem(404, 'Đơn vị không còn hiệu lực.');
   if (r.headers.get('If-Match')?.replace(/"/g, '') !== String(rowVersions.get(id) ?? 0)) {
     return problem(409, 'Đơn vị đã được người khác thay đổi. Vui lòng tải lại.', {
       code: 'ORG-409-CONFLICT',
     });
   }
   if (cur.syncedFrom) {
-    return problem(409, 'Đơn vị đồng bộ từ CSDL CBCCVC, sửa tại nguồn rồi đồng bộ lại.', {
-      code: 'ORG-409-SYNCED',
-    });
+    return problem(
+      409,
+      'Đơn vị được đồng bộ từ CSDL CBCCVC; đồng chí sửa tại nguồn rồi đồng bộ lại.',
+      {
+        code: 'ORG-409-SYNCED',
+      },
+    );
   }
   if (!body.name?.trim()) return fieldError('Tên đơn vị không được trống.', 'name');
   if (body.name.length > 255) return fieldError('Tên đơn vị tối đa 255 ký tự.', 'name');
   if (!SUBJECT_GROUPS.some((g) => g.id === body.subjectGroupId)) {
     return fieldError(
-      'Đơn vị phải thuộc đúng một khối đối tượng PL 2A (BR-01-05).',
+      // BR-01-05
+      'Đơn vị phải thuộc đúng một khối đối tượng theo Phụ lục 2A.',
       'subjectGroupId',
     );
   }
@@ -345,7 +350,7 @@ function update(r: MockRequest): MockResponse {
     kind: 'SUA',
     effectiveOn: validFrom,
     title: 'Sửa thông tin',
-    detail: `Phiên bản mới: ${body.name.trim()}`,
+    detail: `Cập nhật thông tin: ${body.name.trim()}`,
   });
   const d = detail(id, { asOf: null, cut: Date.now() })!;
   return ok({ ...d, warning: lockedWarning(validFrom) });
@@ -449,7 +454,7 @@ function change(r: MockRequest): MockResponse {
         kind: body.kind,
         effectiveOn: eff,
         title: body.kind === 'SAP_NHAP' ? 'Sáp nhập' : 'Hợp nhất',
-        detail: `${sources.map((p) => ref(p, { asOf: null, cut: Date.now() })?.name).join(' + ')} · ${moved} phân công chuyển tự động`,
+        detail: `${sources.map((p) => ref(p, { asOf: null, cut: Date.now() })?.name).join(', ')}; ${moved} phân công được chuyển theo`,
         orderNo: order,
       });
       break;
@@ -497,7 +502,7 @@ function change(r: MockRequest): MockResponse {
       });
       break;
     default:
-      return problem(400, 'Loại thay đổi không hợp lệ');
+      return problem(400, 'Loại thay đổi không hợp lệ.');
   }
   return {
     status: 201,
@@ -517,8 +522,9 @@ function startImport(r: MockRequest): MockResponse {
   const id = crypto.randomUUID();
   const errors = /loi/i.test(file.name)
     ? [
-        ['12', 'TN-X-200', 'Thiếu khối đối tượng PL 2A (BR-01-05)'],
-        ['27', 'TN-X-215', 'Sáp nhập thiếu đơn vị tiền thân (BR-01-07)'],
+        // BR-01-05, BR-01-07
+        ['12', 'TN-X-200', 'Thiếu khối đối tượng theo Phụ lục 2A'],
+        ['27', 'TN-X-215', 'Sáp nhập thiếu đơn vị tiền thân'],
       ]
     : [];
   imports.set(id, {
@@ -531,7 +537,7 @@ function startImport(r: MockRequest): MockResponse {
 
 function importJob(r: MockRequest): MockResponse {
   const e = imports.get(r.pathParams['id']);
-  if (!e) return problem(404, 'Không tìm thấy tác vụ nhập');
+  if (!e) return problem(404, 'Không tìm thấy yêu cầu nhập tệp.');
   e.polls++;
   const id = e.job.id;
   e.job =
@@ -551,14 +557,14 @@ function importJob(r: MockRequest): MockResponse {
           type: 'ORG_IMPORT',
           status: 'DANG_CHAY',
           progress: 40,
-          message: 'Đang kiểm tra từng dòng',
+          message: 'Đang kiểm tra từng dòng dữ liệu…',
         };
   return ok(e.job);
 }
 
 function importReport(r: MockRequest): MockResponse {
   const e = imports.get(r.pathParams['id']);
-  if (!e?.errors.length) return problem(404, 'Không có báo cáo lỗi');
+  if (!e?.errors.length) return problem(404, 'Không có báo cáo lỗi.');
   const csv = [['Dòng', 'Mã đơn vị', 'Lỗi'], ...e.errors].map((l) => l.join(',')).join('\r\n');
   return {
     status: 200,

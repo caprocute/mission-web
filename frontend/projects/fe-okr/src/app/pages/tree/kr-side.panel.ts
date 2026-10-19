@@ -59,7 +59,7 @@ import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '.
       @let work = k.linkedWork ?? [];
       @let taskCount = k.linkedTaskCount ?? 0;
       @if (work.length > 0 || taskCount > 0) {
-        <h3 class="h3">Nhiệm vụ liên kết (Tầng 2–3)</h3>
+        <h3 class="h3">Chương trình và nhiệm vụ liên kết</h3>
         <ul class="work">
           @for (w of work; track w.id) {
             @let p = pct(w.progress);
@@ -74,7 +74,8 @@ import { CONFIDENCE_SHORT, confidenceSeverity, formatDate, formatValue } from '.
             Xem tất cả {{ taskCount }} nhiệm vụ liên kết
           </a>
         }
-        <p class="note">Tiến độ nhiệm vụ không tự cộng vào giá trị KR (BR-03-07).</p>
+        <!-- BR-03-07 -->
+        <p class="note">Tiến độ nhiệm vụ không tự cộng vào giá trị KR.</p>
       }
       @if (canCheckIn()) {
         <p-button

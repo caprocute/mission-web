@@ -69,7 +69,7 @@ const fmtDateTime = (iso?: string | null) => {
   imports: [FormsModule, RouterLink, ButtonModule],
   template: `
     @if (!can('SCR-0703.mo')) {
-      <p class="msg warn">Anh/chị không có quyền nghiệm thu minh chứng.</p>
+      <p class="msg warn">Đồng chí không có quyền nghiệm thu minh chứng.</p>
     } @else if (evidence.error()) {
       <p class="msg err" role="alert">{{ loadError() }}</p>
     } @else if (evidence.value(); as e) {
@@ -138,11 +138,11 @@ const fmtDateTime = (iso?: string | null) => {
                       <strong>{{ v.fileName }}</strong>
                       @if (!elderly() && v.contentSha256) {
                         <span class="muted small hash">
-                          · sha256 {{ shortHash(v.contentSha256) }}</span
+                          · mã kiểm tra {{ shortHash(v.contentSha256) }}</span
                         >
                       }
                       @if (v.integrity?.verified) {
-                        <span class="chip SACH">đã kiểm toàn vẹn</span>
+                        <span class="chip SACH">đã kiểm tra toàn vẹn</span>
                       }
                     </span>
                     @if (v.integrity?.verified) {
@@ -239,7 +239,7 @@ const fmtDateTime = (iso?: string | null) => {
                   <dt>Quyết định</dt>
                   <dd>{{ statusLabel[a.decision] }}</dd>
                   @if (a.qualityLevel !== null && a.qualityLevel !== undefined) {
-                    <dt>Mức B</dt>
+                    <dt>Mức chất lượng (B)</dt>
                     <dd>{{ fmt(a.qualityLevel) }}</dd>
                   }
                   @if (a.comment) {
@@ -336,11 +336,11 @@ const fmtDateTime = (iso?: string | null) => {
                 </h2>
                 @if (preview.value(); as p) {
                   <dl class="meta">
-                    <dt>A · Số lượng</dt>
+                    <dt>Khối lượng (A)</dt>
                     <dd>{{ fmt(p.a) }}</dd>
-                    <dt>B · Chất lượng</dt>
+                    <dt>Chất lượng (B)</dt>
                     <dd>{{ fmt(p.b) }}</dd>
-                    <dt>C · Tiến độ</dt>
+                    <dt>Tiến độ (C)</dt>
                     <dd>{{ fmt(p.c) }}</dd>
                     <dt>KPI nhiệm vụ</dt>
                     <dd>
@@ -349,8 +349,9 @@ const fmtDateTime = (iso?: string | null) => {
                   </dl>
                   @if (!elderly()) {
                     <p class="muted small">
-                      Chỉ là xem trước; điểm chính thức do scoring-service tính khi nhận sự kiện
-                      MinhChungDaXacNhan.
+                      <!-- điểm chính thức do scoring-service tính khi nhận MinhChungDaXacNhan -->
+                      Đây là điểm xem trước; điểm chính thức được hệ thống tính sau khi xác nhận
+                      nghiệm thu.
                     </p>
                   }
                 } @else {
@@ -398,7 +399,7 @@ const fmtDateTime = (iso?: string | null) => {
           </aside>
         </div>
       } @else if (busy() === 'open') {
-        <p class="muted" aria-busy="true">Đang mở minh chứng và kiểm toàn vẹn…</p>
+        <p class="muted" aria-busy="true">Đang mở minh chứng và kiểm tra toàn vẹn…</p>
       }
     } @else {
       <p class="muted" aria-busy="true">Đang tải minh chứng…</p>

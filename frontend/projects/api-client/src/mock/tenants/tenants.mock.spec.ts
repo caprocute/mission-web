@@ -56,7 +56,7 @@ describe('mock tenants – SCR-0101 (WEB-016)', () => {
     expect((await firstValueFrom(api.list({ status: 'SAN_SANG' }))).items[0].code).toBe(
       'quangngai',
     );
-    expect((await firstValueFrom(api.list({ q: 'ca mau' }))).items[0].code).toBe('bvdk_camau');
+    expect((await firstValueFrom(api.list({ q: 'ca mau' }))).items[0].code).toBe('bvdkcamau');
   });
 
   it('summary toàn vùng không theo bộ lọc; tải theo cell: CELL-HCM vượt 85%', async () => {

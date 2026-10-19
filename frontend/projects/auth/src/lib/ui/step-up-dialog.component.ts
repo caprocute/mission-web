@@ -25,9 +25,8 @@ import { closeModal, openModal } from './modal';
       </h2>
       <p id="vt-stepup-desc">{{ session.stepUpRequest()?.reason }}</p>
       @if (!authEnabled) {
-        <p class="meta">
-          Môi trường dev không có Keycloak: bấm "Xác thực" để giả lập MFA thành công.
-        </p>
+        <!-- Chỉ hiện khi tắt đăng nhập (môi trường phát triển, chưa có Keycloak): bấm Xác thực là đạt -->
+        <p class="meta">Bấm "Xác thực" để tiếp tục.</p>
       }
       @if (error(); as e) {
         <p class="error" role="alert">{{ e }}</p>

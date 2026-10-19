@@ -7,10 +7,7 @@ import { MessageModule } from 'primeng/message';
   imports: [MessageModule],
   template: `
     <h1>Đánh giá, xếp loại</h1>
-    <p-message severity="info">
-      Phân hệ Đánh giá, xếp loại gồm phiếu tự đánh giá, thẩm định và kết quả xếp loại. Các chức năng
-      dành cho vai trò của đồng chí đang được hoàn thiện.
-    </p-message>
+    <p-message severity="info"> Chức năng này đang được chuẩn bị đưa vào sử dụng. </p-message>
   `,
   styles: `
     h1 {

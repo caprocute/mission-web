@@ -182,7 +182,8 @@ const HINT: Record<OrgChangeKind, string> = {
               </button>
             </li>
           } @empty {
-            <li class="muted small">Chưa chọn đơn vị tiền thân (BR-01-07).</li>
+            <!-- BR-01-07 -->
+            <li class="muted small">Chưa chọn đơn vị tiền thân.</li>
           }
         </ul>
         @if (fe()['predecessorIds']) {

@@ -142,7 +142,7 @@ const ROW_HEIGHT = 52;
             />
           }
           @if (canAdd()) {
-            <p-button label="Mục tiêu" icon="pi pi-plus" (onClick)="addObjective()" />
+            <p-button label="Thêm mục tiêu" icon="pi pi-plus" (onClick)="addObjective()" />
           }
         </div>
       </header>

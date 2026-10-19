@@ -117,7 +117,7 @@ export const BASIS_KIND_LABEL: Record<BasisKind, string> = {
   CHI_THI: 'Chỉ thị',
   CHUONG_TRINH: 'Chương trình',
   KE_HOACH: 'Kế hoạch',
-  CHI_TIEU_KTXH: 'Chỉ tiêu KT-XH',
+  CHI_TIEU_KTXH: 'Chỉ tiêu kinh tế - xã hội',
 };
 
 export interface TreeIndex {
