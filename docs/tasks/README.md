@@ -4,13 +4,21 @@ Mỗi tệp `WEB-xxx-*.md` là một task đủ nhỏ để một AI agent làm 
 
 Thứ tự thực hiện đi theo cột Phụ thuộc: một task chỉ bắt đầu khi các task nó phụ thuộc đã xong. Những task cùng giai đoạn không phụ thuộc nhau có thể giao cho nhiều agent chạy song song, mỗi agent một nhánh `feat/WEB-xxx-…`. Cỡ việc S/M/L ước lượng cho một agent; người phụ trách duyệt PR của từng task trước khi gộp.
 
-## Phân luồng phát triển song song (từ 19/10/2026)
+## Phân luồng phát triển song song (cập nhật 19/10/2026, năm luồng)
 
-Công việc được chia thành ba luồng chạy song song, mỗi luồng là một thread riêng trong dự án. Luồng **Nền tảng** do thread "Kế hoạch và hạ tầng phân hệ web" giữ, sở hữu nhánh `main` trong `/mnt/project-files/mission-web` và là nơi duy nhất gộp code vào `main`. Luồng này làm WEB-001 đến WEB-015 (công cụ, CI, thư viện `@vt/*`, shell, khung remote) và các task xuyên suốt WEB-051 đến WEB-053. Luồng **Phân quyền** làm WEB-054 đến WEB-058. Luồng **Màn hình nghiệp vụ** làm WEB-016 đến WEB-050 theo thứ tự quy trình QT.
+Công việc được chia thành năm luồng chạy song song, mỗi luồng là một thread riêng trong dự án. Luồng **Nền tảng** do thread "Kế hoạch và mã nguồn phân hệ web Mission" giữ, sở hữu nhánh `main` trong `/mnt/project-files/mission-web`, là nơi duy nhất gộp code vào `main` và đẩy lên GitHub (`origin` = `github.com/caprocute/mission-web`). Các luồng còn lại làm trong git worktree riêng dưới `/mnt/project-files/mission-web-worktrees/<tên-luồng>`, mỗi task một nhánh `feat/WEB-xxx-…`, không ghi trực tiếp vào `main`; khi một task đạt build, kiểm thử và đã mở màn hình thật, luồng đó báo luồng Nền tảng để gộp, và rebase lên `main` mới nhất trước khi bàn giao task tiếp theo.
 
-Hai luồng Phân quyền và Màn hình nghiệp vụ làm trong git worktree riêng tại `/mnt/project-files/mission-web-worktrees/<tên-luồng>`, mỗi task một nhánh `feat/WEB-xxx-…`, không ghi trực tiếp vào `main`. Khi một task đạt build, kiểm thử và đã mở màn hình thật, luồng đó báo luồng Nền tảng để gộp; trước khi bắt đầu task mới, luồng phải rebase lên `main` mới nhất.
+| Luồng | Worktree | Remote | Task |
+|---|---|---|---|
+| Nền tảng | `mission-web` (nhánh `main`) | fe-shell, thư viện `@vt/*`, CI, triển khai | WEB-001..WEB-015, WEB-020, WEB-051..WEB-053, WEB-059, WEB-060 |
+| Phân quyền | `phan-quyen` | xuyên suốt | WEB-054..WEB-058 |
+| Màn hình nghiệp vụ (giao việc, kế hoạch) | `man-hinh` | fe-task, tuyến `/plans` | WEB-025..WEB-031 |
+| Màn hình OKR, minh chứng, đánh giá | `okr-danh-gia` | fe-okr, fe-evidence, fe-appraisal, fe-dossier | WEB-021..WEB-024, WEB-032, WEB-033, WEB-035..WEB-041, WEB-049 |
+| Màn hình giám sát, điều hành, cấu hình | `giam-sat-cau-hinh` | fe-oversight, fe-dashboard, fe-config-studio, fe-admin | WEB-016..WEB-019, WEB-034, WEB-042..WEB-048, WEB-050, WEB-061, WEB-062 |
 
-Vì các luồng sau cần nền tảng, luồng Nền tảng làm trước các task mà hai luồng kia phụ thuộc: WEB-001 (lint, test), WEB-008 (mock API), WEB-007 (api-client), WEB-015 (khung remote), WEB-006 (đăng nhập) và WEB-010 (form engine). Các task màn hình của `fe-task` (WEB-025, WEB-028, WEB-030, WEB-031) chỉ cần WEB-008 nên có thể bắt đầu sớm nhất; các remote khác chờ WEB-015. Tệp dùng chung như `fe-shell/src/app/app.routes.ts`, `layout/nav.ts`, `package.json` chỉ được sửa ở mức tối thiểu và ghi rõ trong báo cáo để luồng Nền tảng gộp xung đột.
+Nền tảng mà các luồng màn hình cần đã có trên `main`: WEB-001 (lint, test), WEB-003 (ngân sách), WEB-006 (đăng nhập, chọn phân công, step-up), WEB-007 (api-client sinh từ OpenAPI, JobTracker), WEB-008 (mock API), WEB-015 (khung 8 remote, cổng dev 4202–4209), WEB-054 (bảng quyền `can()`). WEB-010 (form engine) đang làm; các task dùng biểu mẫu động (WEB-022, WEB-035, WEB-045, WEB-050) làm phần khung trước, nối form engine khi WEB-010 lên `main`.
+
+Mỗi luồng chỉ sửa trong remote và thư viện của mình. Khi buộc phải sửa tệp dùng chung (`fe-shell/src/app/app.routes.ts`, `layout/nav.ts`, `package.json`, `angular.json`, `@vt/api-client/src/public-api.ts`), sửa tối thiểu và ghi rõ trong báo cáo để luồng Nền tảng xử lý xung đột khi gộp. Mục menu theo ma trận phân quyền do WEB-055 (luồng Phân quyền) gắn. Model và client mới trong `@vt/api-client` đặt theo tệp riêng của module (`models/<module>.ts`, `<module>-api.ts`, `mock/<module>/`) để hạn chế xung đột.
 
 Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 
@@ -110,8 +118,8 @@ Nhóm này hiện thực ma trận phân quyền ở [wiki/15a](../../wiki/15a-m
 |---|---|---|---|---|
 | [WEB-059](WEB-059-kha-nang-truy-cap-nen.md) | Sửa lỗi khả năng truy cập nền: progressbar, slider, tương phản token | S | WEB-001 | Chưa bắt đầu |
 | [WEB-060](WEB-060-format-toan-bo.md) | Chạy Prettier toàn workspace một lần | S | WEB-001 | Chưa bắt đầu |
-| [WEB-061](WEB-061-trinh-soan-mau-luong.md) | SCR-1505 Thư viện và trình soạn mẫu luồng (BS-01) | L | WEB-015, WEB-046 | Chưa bắt đầu (luồng Màn hình nghiệp vụ) |
-| [WEB-062](WEB-062-giam-sat-tien-trinh.md) | SCR-1506 Giám sát tiến trình theo mẫu (BS-01) | M | WEB-015 | Chưa bắt đầu (luồng Màn hình nghiệp vụ) |
+| [WEB-061](WEB-061-trinh-soan-mau-luong.md) | SCR-1505 Thư viện và trình soạn mẫu luồng (BS-01) | L | WEB-015, WEB-046 | Chưa bắt đầu (luồng giám sát, điều hành, cấu hình) |
+| [WEB-062](WEB-062-giam-sat-tien-trinh.md) | SCR-1506 Giám sát tiến trình theo mẫu (BS-01) | M | WEB-015 | Chưa bắt đầu (luồng giám sát, điều hành, cấu hình) |
 
 ## Màn hình không thuộc phân hệ web
 
