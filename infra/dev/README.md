@@ -23,7 +23,22 @@ Compose chia thành profile để chỉ bật phần cần dùng. Bảng dưới
 | gateway | apisix (3.12, standalone) | SVC-01 | 35000 |
 | web | nginx phục vụ fe-shell + fe-task | SVC-17 | 35200 |
 
-PostgreSQL tạo sẵn database `mission` với các schema `okr, task, product, appraisal, policy, dossier, oversight, config, org_replica, org, registry, scoring, evidence, esign, docgen, notify, integ, ai, apicurio`, mỗi schema có một role cùng tên dùng chung mật khẩu `MISSION_DB_PASSWORD`; hai database riêng `flowable` (SVC-06) và `ledger` (SVC-09); role `debezium` có quyền replication. Keycloak nạp realm `mission` với 11 vai trò AC, client công khai `mission-web` (Authorization Code + PKCE S256) và năm tài khoản thử `canbo`, `quanly`, `lanhdao`, `thamdinh`, `quantri` (mật khẩu tạm `Mission@123`, buộc đổi ở lần đăng nhập đầu).
+PostgreSQL tạo sẵn database `mission` với các schema `okr, task, product, appraisal, policy, dossier, oversight, config, org_replica, org, registry, scoring, evidence, esign, docgen, notify, integ, ai, apicurio`, mỗi schema có một role cùng tên dùng chung mật khẩu `MISSION_DB_PASSWORD`; hai database riêng `flowable` (SVC-06) và `ledger` (SVC-09); role `debezium` có quyền replication. Keycloak nạp realm `mission` (WEB-056) với 11 vai trò AC đúng theo `docs/phan-quyen/ma-tran.json`, client công khai `mission-web` (Authorization Code + PKCE S256) dùng client scope chung `mission-context` (vai trò realm, `tenant`, `unit_id`, `acr`), luồng đăng nhập `mission-browser` có mức xác thực `aal1`/`aal2` và OTP bắt buộc với năm vai trò AAL2 của BR-00-01, cùng mười tài khoản thử phủ đủ vai trò AC-01..AC-10:
+
+| Tài khoản | Vai trò | Đơn vị (`unit_id`) | OTP khi đăng nhập |
+|---|---|---|---|
+| `nentang` | `platform_admin` | – | Có |
+| `quantri` | `tenant_admin`, `policy_author` | `phong-tong-hop` | Có |
+| `chinhsach` | `policy_author` | `phong-tong-hop` | Không |
+| `lanhdao` | `member`, `leader` | `phong-tong-hop` | Không |
+| `quanly` | `member`, `manager` | `phong-tong-hop` | Không |
+| `canbo` | `member` | `phong-tong-hop` | Không |
+| `thamdinh` | `member`, `appraiser` | `ban-to-chuc` | Có |
+| `quyetdinh` | `decider` | `ban-to-chuc` | Có |
+| `duyet2` | `second_approver` | `ban-to-chuc` | Có |
+| `kiemtra` | `member`, `inspector` | `uy-ban-kiem-tra` | Không |
+
+Mọi tài khoản thử thuộc tenant `default`, dùng chung mật khẩu `KC_TEST_USER_PASSWORD` và đã có sẵn OTP với khoá `KC_TEST_OTP_SECRET` (cả hai trong `.env`, không commit); mã OTP sinh bằng ứng dụng TOTP bất kỳ hoặc trong kiểm thử tự động từ khoá này. Tài khoản không có vai trò AAL2 chỉ bị hỏi OTP khi ứng dụng yêu cầu `acr_values=aal2` (step-up). `ai_readonly` (AC-12) không có tài khoản vì trợ lý AI đọc dưới danh tính người dùng qua ai-gateway. Kiểm tra realm khớp ma trận bằng `python3 docs/phan-quyen/check_realm.py`.
 
 ## Cách chạy
 
@@ -34,6 +49,22 @@ cd infra/dev
 docker compose --profile core up -d        # bật lõi
 docker compose --profile core --profile events --profile observability up -d
 ./scripts/health.sh                        # kiểm tra
+```
+
+### Nạp lại realm `mission` sau khi sửa `realm-mission.json`
+
+Keycloak chỉ nhập realm khi realm chưa tồn tại (`--import-realm` bỏ qua realm đã có), nên sau khi sửa tệp realm phải xoá realm cũ rồi khởi động lại container. Việc này xoá cả phiên và tài khoản tạo tay trong realm `mission` ở dev; chỉ thao tác trên container của project `mission-dev`:
+
+```bash
+cd infra/dev
+# .env sinh trước WEB-056 chưa có ba biến mới: thêm với giá trị ngẫu nhiên (gen-env.sh không ghi đè .env đã có)
+for v in KC_TEST_USER_PASSWORD KC_TEST_OTP_SECRET MISSION_CORE_CLIENT_SECRET; do
+  grep -q "^$v=" .env || echo "$v=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)" >> .env
+done
+docker compose exec keycloak sh -c '/opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 \
+  --realm master --user "$KC_BOOTSTRAP_ADMIN_USERNAME" --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" \
+  && /opt/keycloak/bin/kcadm.sh delete realms/mission'
+docker compose --profile core up -d --force-recreate keycloak
 ```
 
 Dữ liệu nằm dưới `DATA_DIR` (bind mount) chứ không ở thư mục gốc của Docker, vì ổ chứa Docker trên máy chủ dev gần đầy. Mọi container giới hạn log ở 3 tệp × 20 MB, Kafka giữ dữ liệu 72 giờ, Valkey tối đa 512 MB.

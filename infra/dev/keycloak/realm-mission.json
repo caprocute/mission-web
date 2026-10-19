@@ -14,11 +14,19 @@
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
+  "attributes": {
+    "acr.loa.map": "{\"aal1\": 1, \"aal2\": 2}"
+  },
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "browserFlow": "mission-browser",
   "roles": {
     "realm": [
       {
         "name": "platform_admin",
-        "description": "AC-01 Quản trị nền tảng"
+        "description": "AC-01 Quản trị nền tảng (Viettel)"
       },
       {
         "name": "tenant_admin",
@@ -26,7 +34,7 @@
       },
       {
         "name": "policy_author",
-        "description": "AC-03 Quản trị nghiệp vụ / BA cấu hình"
+        "description": "AC-03 Quản trị nghiệp vụ, BA cấu hình"
       },
       {
         "name": "leader",
@@ -50,7 +58,7 @@
       },
       {
         "name": "second_approver",
-        "description": "AC-09 Người duyệt thứ hai"
+        "description": "AC-09 Người duyệt thứ hai (four-eyes)"
       },
       {
         "name": "inspector",
@@ -58,10 +66,278 @@
       },
       {
         "name": "ai_readonly",
-        "description": "AC-12 Trợ lý AI chỉ đọc"
+        "description": "AC-12 Trợ lý AI (chỉ đọc)"
       }
     ]
   },
+  "clientScopes": [
+    {
+      "name": "basic",
+      "description": "OpenID Connect scope for add all basic claims to the token",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "auth_time",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.session.note": "AUTH_TIME",
+            "claim.name": "auth_time",
+            "jsonType.label": "long",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "profile",
+      "description": "OpenID Connect built-in scope: profile",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "full name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-full-name-mapper",
+          "consentRequired": false,
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "given name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "firstName",
+            "claim.name": "given_name",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "family name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "lastName",
+            "claim.name": "family_name",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "locale",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "locale",
+            "claim.name": "locale",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "email",
+      "description": "OpenID Connect built-in scope: email",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "email",
+            "claim.name": "email",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "email verified",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "emailVerified",
+            "claim.name": "email_verified",
+            "jsonType.label": "boolean",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "web-origins",
+      "description": "OpenID Connect scope for add allowed web origins to the access token",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "allowed web origins",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-allowed-origins-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "mission-context",
+      "description": "Ngữ cảnh Mission (WEB-056): vai trò realm, tenant, đơn vị, mức xác thực acr. Tên claim tenant/unit_id giữ theo SessionService tới khi chốt (wiki/14).",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "realm_access.roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "tenant",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenant",
+            "claim.name": "tenant",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "unit_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "unit_id",
+            "claim.name": "unit_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "acr loa level",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-acr-mapper",
+          "consentRequired": false,
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience resolve",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-resolve-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "defaultDefaultClientScopes": [
+    "basic",
+    "profile",
+    "email",
+    "web-origins",
+    "mission-context"
+  ],
+  "defaultOptionalClientScopes": [],
   "clients": [
     {
       "clientId": "mission-web",
@@ -84,47 +360,14 @@
         "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "+"
       },
-      "protocolMappers": [
-        {
-          "name": "tenant",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-usermodel-attribute-mapper",
-          "config": {
-            "user.attribute": "tenant",
-            "claim.name": "tenant",
-            "jsonType.label": "String",
-            "id.token.claim": "true",
-            "access.token.claim": "true",
-            "userinfo.token.claim": "true"
-          }
-        },
-        {
-          "name": "unit_id",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-usermodel-attribute-mapper",
-          "config": {
-            "user.attribute": "unit_id",
-            "claim.name": "unit_id",
-            "jsonType.label": "String",
-            "id.token.claim": "true",
-            "access.token.claim": "true",
-            "userinfo.token.claim": "true"
-          }
-        },
-        {
-          "name": "realm roles in id token",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-usermodel-realm-role-mapper",
-          "config": {
-            "claim.name": "realm_access.roles",
-            "multivalued": "true",
-            "jsonType.label": "String",
-            "id.token.claim": "true",
-            "access.token.claim": "true",
-            "userinfo.token.claim": "true"
-          }
-        }
-      ]
+      "defaultClientScopes": [
+        "basic",
+        "profile",
+        "email",
+        "web-origins",
+        "mission-context"
+      ],
+      "optionalClientScopes": []
     },
     {
       "clientId": "mission-core",
@@ -133,115 +376,441 @@
       "publicClient": false,
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
-      "secret": "dev-only-change-me"
+      "secret": "${MISSION_CORE_CLIENT_SECRET}",
+      "defaultClientScopes": [
+        "basic",
+        "profile",
+        "email",
+        "web-origins",
+        "mission-context"
+      ]
+    }
+  ],
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\": [{\"name\": \"username\", \"displayName\": \"${username}\", \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}, {\"name\": \"email\", \"displayName\": \"${email}\", \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}, \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}, {\"name\": \"firstName\", \"displayName\": \"${firstName}\", \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}, {\"name\": \"lastName\", \"displayName\": \"${lastName}\", \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}, {\"name\": \"tenant\", \"displayName\": \"Tenant\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"unit_id\", \"displayName\": \"Đơn vị\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}], \"groups\": [{\"name\": \"user-metadata\", \"displayHeader\": \"User metadata\", \"displayDescription\": \"Attributes, which refer to user metadata\"}]}"
+          ]
+        }
+      }
+    ]
+  },
+  "authenticationFlows": [
+    {
+      "alias": "mission-browser",
+      "description": "Đăng nhập trình duyệt Mission (WEB-056): cookie SSO, rồi biểu mẫu theo mức xác thực aal1/aal2",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false
+        },
+        {
+          "flowAlias": "mission-browser forms",
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "mission-browser forms",
+      "description": "Mật khẩu; OTP bắt buộc với vai trò AAL2 (BR-00-01); OTP khi ứng dụng yêu cầu acr_values=aal2 (step-up, RFC 9470)",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-username-password-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false
+        },
+        {
+          "flowAlias": "mission-browser otp appraiser",
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "userSetupAllowed": false
+        },
+        {
+          "flowAlias": "mission-browser otp decider",
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 21,
+          "userSetupAllowed": false
+        },
+        {
+          "flowAlias": "mission-browser otp second_approver",
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 22,
+          "userSetupAllowed": false
+        },
+        {
+          "flowAlias": "mission-browser otp tenant_admin",
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 23,
+          "userSetupAllowed": false
+        },
+        {
+          "flowAlias": "mission-browser otp platform_admin",
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 24,
+          "userSetupAllowed": false
+        },
+        {
+          "flowAlias": "mission-browser aal1",
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 40,
+          "userSetupAllowed": false
+        },
+        {
+          "flowAlias": "mission-browser aal2",
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 50,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "mission-browser aal1",
+      "description": "Mốc mức aal1 sau khi xác thực bằng mật khẩu",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-loa1"
+        },
+        {
+          "authenticator": "allow-access-authenticator",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "mission-browser aal2",
+      "description": "Mức aal2 (step-up): OTP",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-loa-stepup"
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "mission-browser otp appraiser",
+      "description": "OTP bắt buộc với vai trò appraiser (BR-00-01), đạt mức aal2",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-role-appraiser"
+        },
+        {
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-loa-appraiser"
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 30,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "mission-browser otp decider",
+      "description": "OTP bắt buộc với vai trò decider (BR-00-01), đạt mức aal2",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-role-decider"
+        },
+        {
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-loa-decider"
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 30,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "mission-browser otp second_approver",
+      "description": "OTP bắt buộc với vai trò second_approver (BR-00-01), đạt mức aal2",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-role-second_approver"
+        },
+        {
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-loa-second_approver"
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 30,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "mission-browser otp tenant_admin",
+      "description": "OTP bắt buộc với vai trò tenant_admin (BR-00-01), đạt mức aal2",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-role-tenant_admin"
+        },
+        {
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-loa-tenant_admin"
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 30,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "mission-browser otp platform_admin",
+      "description": "OTP bắt buộc với vai trò platform_admin (BR-00-01), đạt mức aal2",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-role-platform_admin"
+        },
+        {
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mission-loa-platform_admin"
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 30,
+          "userSetupAllowed": false
+        }
+      ]
+    }
+  ],
+  "authenticatorConfig": [
+    {
+      "alias": "mission-loa1",
+      "config": {
+        "loa-condition-level": "1",
+        "loa-max-age": "36000"
+      }
+    },
+    {
+      "alias": "mission-loa-stepup",
+      "config": {
+        "loa-condition-level": "2",
+        "loa-max-age": "900"
+      }
+    },
+    {
+      "alias": "mission-loa-appraiser",
+      "config": {
+        "loa-condition-level": "3",
+        "loa-max-age": "900"
+      }
+    },
+    {
+      "alias": "mission-loa-decider",
+      "config": {
+        "loa-condition-level": "4",
+        "loa-max-age": "900"
+      }
+    },
+    {
+      "alias": "mission-loa-second_approver",
+      "config": {
+        "loa-condition-level": "5",
+        "loa-max-age": "900"
+      }
+    },
+    {
+      "alias": "mission-loa-tenant_admin",
+      "config": {
+        "loa-condition-level": "6",
+        "loa-max-age": "900"
+      }
+    },
+    {
+      "alias": "mission-loa-platform_admin",
+      "config": {
+        "loa-condition-level": "7",
+        "loa-max-age": "900"
+      }
+    },
+    {
+      "alias": "mission-role-appraiser",
+      "config": {
+        "condUserRole": "appraiser",
+        "negate": "false"
+      }
+    },
+    {
+      "alias": "mission-role-decider",
+      "config": {
+        "condUserRole": "decider",
+        "negate": "false"
+      }
+    },
+    {
+      "alias": "mission-role-second_approver",
+      "config": {
+        "condUserRole": "second_approver",
+        "negate": "false"
+      }
+    },
+    {
+      "alias": "mission-role-tenant_admin",
+      "config": {
+        "condUserRole": "tenant_admin",
+        "negate": "false"
+      }
+    },
+    {
+      "alias": "mission-role-platform_admin",
+      "config": {
+        "condUserRole": "platform_admin",
+        "negate": "false"
+      }
     }
   ],
   "users": [
     {
-      "username": "canbo",
+      "username": "nentang",
       "enabled": true,
-      "firstName": "Bộ",
-      "lastName": "Nguyễn Văn Cán",
-      "email": "canbo@mission.local",
+      "firstName": "Nền",
+      "lastName": "Tạ Văn",
+      "email": "nentang@mission.local",
       "emailVerified": true,
       "attributes": {
         "tenant": [
           "default"
-        ],
-        "unit_id": [
-          "phong-tong-hop"
         ]
       },
       "credentials": [
         {
           "type": "password",
-          "value": "Mission@123",
-          "temporary": true
-        }
-      ],
-      "realmRoles": [
-        "member"
-      ]
-    },
-    {
-      "username": "quanly",
-      "enabled": true,
-      "firstName": "Lý",
-      "lastName": "Trần Thị Quản",
-      "email": "quanly@mission.local",
-      "emailVerified": true,
-      "attributes": {
-        "tenant": [
-          "default"
-        ],
-        "unit_id": [
-          "phong-tong-hop"
-        ]
-      },
-      "credentials": [
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
         {
-          "type": "password",
-          "value": "Mission@123",
-          "temporary": true
+          "type": "otp",
+          "userLabel": "dev (WEB-056)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
         }
       ],
       "realmRoles": [
-        "member",
-        "manager"
-      ]
-    },
-    {
-      "username": "lanhdao",
-      "enabled": true,
-      "firstName": "Đạo",
-      "lastName": "Lê Văn Lãnh",
-      "email": "lanhdao@mission.local",
-      "emailVerified": true,
-      "attributes": {
-        "tenant": [
-          "default"
-        ],
-        "unit_id": [
-          "phong-tong-hop"
-        ]
-      },
-      "credentials": [
-        {
-          "type": "password",
-          "value": "Mission@123",
-          "temporary": true
-        }
-      ],
-      "realmRoles": [
-        "member",
-        "leader"
-      ]
-    },
-    {
-      "username": "thamdinh",
-      "enabled": true,
-      "firstName": "Định",
-      "lastName": "Phạm Thị Thẩm",
-      "email": "thamdinh@mission.local",
-      "emailVerified": true,
-      "attributes": {
-        "tenant": [
-          "default"
-        ],
-        "unit_id": [
-          "phong-tong-hop"
-        ]
-      },
-      "credentials": [
-        {
-          "type": "password",
-          "value": "Mission@123",
-          "temporary": true
-        }
-      ],
-      "realmRoles": [
-        "member",
-        "appraiser"
+        "platform_admin"
       ]
     },
     {
@@ -262,13 +831,279 @@
       "credentials": [
         {
           "type": "password",
-          "value": "Mission@123",
-          "temporary": true
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (WEB-056)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
         }
       ],
       "realmRoles": [
         "tenant_admin",
         "policy_author"
+      ]
+    },
+    {
+      "username": "chinhsach",
+      "enabled": true,
+      "firstName": "Sách",
+      "lastName": "Đỗ Thị Chính",
+      "email": "chinhsach@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "phong-tong-hop"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (WEB-056)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "policy_author"
+      ]
+    },
+    {
+      "username": "lanhdao",
+      "enabled": true,
+      "firstName": "Đạo",
+      "lastName": "Lê Văn Lãnh",
+      "email": "lanhdao@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "phong-tong-hop"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (WEB-056)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "leader"
+      ]
+    },
+    {
+      "username": "quanly",
+      "enabled": true,
+      "firstName": "Lý",
+      "lastName": "Trần Thị Quản",
+      "email": "quanly@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "phong-tong-hop"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (WEB-056)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "manager"
+      ]
+    },
+    {
+      "username": "canbo",
+      "enabled": true,
+      "firstName": "Bộ",
+      "lastName": "Nguyễn Văn Cán",
+      "email": "canbo@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "phong-tong-hop"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (WEB-056)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    },
+    {
+      "username": "thamdinh",
+      "enabled": true,
+      "firstName": "Định",
+      "lastName": "Phạm Thị Thẩm",
+      "email": "thamdinh@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "ban-to-chuc"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (WEB-056)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "appraiser"
+      ]
+    },
+    {
+      "username": "quyetdinh",
+      "enabled": true,
+      "firstName": "Định",
+      "lastName": "Vũ Văn Quyết",
+      "email": "quyetdinh@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "ban-to-chuc"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (WEB-056)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "decider"
+      ]
+    },
+    {
+      "username": "duyet2",
+      "enabled": true,
+      "firstName": "Hai",
+      "lastName": "Bùi Thị Duyệt",
+      "email": "duyet2@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "ban-to-chuc"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (WEB-056)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "second_approver"
+      ]
+    },
+    {
+      "username": "kiemtra",
+      "enabled": true,
+      "firstName": "Tra",
+      "lastName": "Ngô Văn Kiểm",
+      "email": "kiemtra@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "uy-ban-kiem-tra"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (WEB-056)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "member",
+        "inspector"
       ]
     }
   ]
