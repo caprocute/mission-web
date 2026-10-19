@@ -33,7 +33,7 @@
 
 @if (exportUrl()) {
   <p class="msg">
-    Đã xuất danh sách hàng đợi (không gồm trường C2).
+    Đã xuất danh sách hàng đợi (không gồm nội dung được mã hoá khi lưu).
     <a #exportLink [href]="exportUrl()" download="hang-doi-tham-dinh.xlsx"
       >Tải tệp danh sách (XLSX)</a
     >
@@ -57,7 +57,7 @@
       <p class="empty" role="status">Đang tải hàng đợi…</p>
     } @else {
       <div class="qhead" aria-hidden="true">
-        <span>Cán bộ</span><span>Điểm HT</span><span>Tự đề xuất</span>
+        <span>Cán bộ</span><span>Điểm hệ thống</span><span>Tự đề xuất</span>
       </div>
       <ul class="qlist">
         @for (r of rs; track r.id) {
@@ -80,7 +80,7 @@
                 class="badge"
                 [attr.title]="r.levels.selfProposed ? levelLabel[r.levels.selfProposed] : null"
               >
-                {{ r.levels.selfProposed ?? 'Trống' }}
+                {{ r.levels.selfProposed ?? 'Chưa có' }}
               </span>
             </a>
           </li>
@@ -111,7 +111,7 @@
                 Nộp {{ vnTime(p.submittedAt ?? sig.signedAt) }} · đã ký số
                 {{ providerLabel[sig.provider] ?? sig.provider }}
                 @if (sig.contentHash) {
-                  · băm phiếu <code>{{ shortHash(sig.contentHash) }}</code>
+                  · mã kiểm tra toàn vẹn <code>{{ shortHash(sig.contentHash) }}</code>
                 }
                 @if (sig.valid === false) {
                   · <strong class="bad">chữ ký không hợp lệ</strong>
@@ -122,7 +122,7 @@
             }
           </div>
           <div class="tags">
-            <span class="state">{{ p.status }}</span>
+            <span class="state">{{ statusLabel[p.status] }}</span>
             @for (h of p.anomalyHints ?? []; track h.code) {
               <span class="suggest"
                 >Gợi ý: {{ h.label.toLowerCase() }} (không thay đổi kết quả)</span
@@ -151,7 +151,8 @@
             <span class="big red">{{ view() ? vn(view()!.snapshot.totalScore) : '…' }}</span>
             @if (scoreDiff(); as d) {
               <span class="muted"
-                >{{ d > 0 ? '+' : '−' }}{{ vn(d > 0 ? d : -d) }} do điều chỉnh B, C</span
+                >{{ d > 0 ? '+' : '−' }}{{ vn(d > 0 ? d : -d) }} do điều chỉnh chất lượng, tiến
+                độ</span
               >
             }
           </div>
@@ -166,7 +167,9 @@
           </div>
           <div class="stat">
             <span class="label">Mức hệ thống tính</span>
-            <span class="mid">{{ auto() ?? '…' }}</span>
+            <span class="mid" [attr.title]="auto() ? levelLabel[auto()!] : null">{{
+              auto() ?? '…'
+            }}</span>
             @if (view()?.snapshot?.downgradeReasons?.[0]; as d) {
               <span class="muted">{{ d.text }}</span>
             }
@@ -183,15 +186,18 @@
             <div class="scroll">
               <table>
                 <caption class="sr-only">
-                  B, C cán bộ tự nhận khi nộp minh chứng và B, C do người nghiệm thu ghi
+                  Chất lượng, tiến độ cán bộ tự nhận khi nộp minh chứng và kết quả do người nghiệm
+                  thu ghi
                 </caption>
                 <thead>
                   <tr>
                     <th scope="col">Nhiệm vụ</th>
-                    <th scope="col" class="r">B tự</th>
-                    <th scope="col" class="r">B thẩm định</th>
-                    <th scope="col" class="r">C tự</th>
-                    <th scope="col" class="r">C thẩm định</th>
+                    <th scope="col" class="r" title="Chất lượng (B) tự nhận">Chất lượng tự nhận</th>
+                    <th scope="col" class="r" title="Chất lượng (B) thẩm định">
+                      Chất lượng thẩm định
+                    </th>
+                    <th scope="col" class="r" title="Tiến độ (C) tự nhận">Tiến độ tự nhận</th>
+                    <th scope="col" class="r" title="Tiến độ (C) thẩm định">Tiến độ thẩm định</th>
                     <th scope="col">Căn cứ điều chỉnh</th>
                   </tr>
                 </thead>
@@ -266,7 +272,9 @@
               (input)="comment.set($any($event.target).value)"
               (blur)="touch('comment')"
             ></textarea>
-            <p id="h-comment" class="muted small">Mã hoá trường C2 · tối đa 4.000 ký tự</p>
+            <p id="h-comment" class="muted small">
+              Nội dung được mã hoá khi lưu · tối đa 4.000 ký tự
+            </p>
             @if (shown('comment'); as m) {
               <p id="e-comment" class="field-err">{{ m }}</p>
             }
@@ -276,7 +284,8 @@
             <h2 id="act-title">{{ differs() ? 'Giải trình bắt buộc' : 'Ký thẩm định' }}</h2>
             @if (differs()) {
               <p class="warn" role="status">
-                {{ msg0906 }} Mức thẩm định {{ rating() }}, mức tự đề xuất {{ self() }}.
+                {{ msg0906 }} Mức thẩm định: {{ levelLabel[rating()] }}; mức tự đề xuất:
+                {{ self() ? levelLabel[self()!] : 'chưa có' }}.
               </p>
               <label class="field" for="f-reason"
                 >Lý do khác mức tự đề xuất <span class="req">*</span></label
@@ -297,8 +306,9 @@
               }
             } @else {
               <p class="muted">
-                Mức thẩm định trùng mức tự đề xuất{{ self() ? ' (' + self() + ')' : '' }}, không cần
-                giải trình. Ký số cần xác thực nhiều lớp (MFA).
+                Mức thẩm định trùng mức tự đề xuất{{
+                  self() ? ' (' + levelLabel[self()!] + ')' : ''
+                }}, không cần giải trình. Ký số cần xác thực nhiều lớp.
               </p>
             }
 

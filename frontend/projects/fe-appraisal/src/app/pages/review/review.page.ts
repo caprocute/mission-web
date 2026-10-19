@@ -42,6 +42,7 @@ import {
   GENERAL_CRITERIA_LEVEL_LABEL,
   JobTracker,
   RATING_LEVELS,
+  APPRAISAL_PROFILE_STATUS_LABEL,
   RATING_LEVEL_LABEL,
   RatingLevel,
   toProblem,
@@ -65,7 +66,7 @@ import {
 } from './review-rules';
 
 const STEP_UP_REASON =
-  'Ký kết quả thẩm định là mốc ký số; vui lòng xác thực nhiều lớp (MFA) trước khi ký.';
+  'Ký kết quả thẩm định là mốc ký số; vui lòng xác thực nhiều lớp trước khi ký.';
 const PROVIDER_LABEL: Partial<Record<string, string>> = {
   MYSIGN: 'MySign',
   VIETTEL_CA: 'Viettel-CA',
@@ -93,6 +94,7 @@ export class ReviewPage {
   protected readonly filters = QUEUE_FILTERS;
   protected readonly levels = RATING_LEVELS;
   protected readonly levelLabel = RATING_LEVEL_LABEL;
+  protected readonly statusLabel = APPRAISAL_PROFILE_STATUS_LABEL;
   protected readonly criteriaLabel = GENERAL_CRITERIA_LEVEL_LABEL;
   protected readonly steps = STEPS;
   protected readonly msg0906 = MSG_09_06;
@@ -264,9 +266,7 @@ export class ReviewPage {
     this.notice.set(null);
     if (!(await this.stepUp(STEP_UP_REASON).catch(() => false))) {
       this.busy.set(null);
-      this.error.set(
-        'Cần xác thực nhiều lớp (MFA) để ký số. Bấm "Ký số và chuyển đề xuất" để thử lại.',
-      );
+      this.error.set('Cần xác thực nhiều lớp để ký số. Bấm "Ký số và chuyển đề xuất" để thử lại.');
       return;
     }
     try {

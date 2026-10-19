@@ -126,9 +126,7 @@ const LEVELS: { id: Confidence; label: string }[] = [
           <p-message severity="error" styleClass="msg">{{ krError() }}</p-message>
         } @else if (detail(); as k) {
           <form class="box main" (ngSubmit)="send('DA_GUI')" novalidate>
-            <h2 class="sec">
-              <span class="num" aria-hidden="true">2</span> {{ k.code }} · {{ k.title }}
-            </h2>
+            <h2 class="sec">{{ k.code }} · {{ k.title }}</h2>
             <dl class="info">
               @if (k.objective; as o) {
                 <dt>Mục tiêu</dt>
@@ -143,7 +141,7 @@ const LEVELS: { id: Confidence; label: string }[] = [
             </dl>
             @if (!canCheckin()) {
               <p class="warn" role="note">
-                Chỉ check-in KR thuộc mục tiêu đã duyệt trong kỳ đang mở (BR-03-01).
+                Chỉ check-in được KR thuộc mục tiêu đã duyệt trong kỳ đang mở.
               </p>
             }
 
@@ -196,7 +194,7 @@ const LEVELS: { id: Confidence; label: string }[] = [
                     </p>
                     @if (src(); as s) {
                       <small>
-                        {{ fmtValue(s.value, k.unit) }}, lấy lúc {{ when(s.fetchedAt) }} qua SVC-13
+                        {{ fmtValue(s.value, k.unit) }}, cập nhật lúc {{ when(s.fetchedAt) }}
                       </small>
                     } @else if (source.isLoading()) {
                       <small role="status">Đang lấy số liệu nguồn…</small>
@@ -243,7 +241,7 @@ const LEVELS: { id: Confidence; label: string }[] = [
                 [attr.aria-describedby]="errors()['confidence'] ? 'c-conf-err' : null"
               >
                 <p id="c-conf-l" class="lbl">
-                  <span class="num" aria-hidden="true">3</span> Mức tự tin đạt chỉ tiêu cuối kỳ
+                  Mức tự tin đạt chỉ tiêu cuối kỳ
                   <span aria-hidden="true">*</span>
                 </p>
                 <div class="levels">
@@ -289,8 +287,8 @@ const LEVELS: { id: Confidence; label: string }[] = [
               ></textarea>
               @if (confidence() === 'THAP') {
                 <small id="c-blk-hint">
-                  Tự tin Thấp hai lần liên tiếp sẽ đưa KR lên bảng điều hành của lãnh đạo
-                  (BR-03-06); nên ghi rõ vướng mắc để được hỗ trợ.
+                  Mức tự tin Thấp hai lần liên tiếp sẽ đưa KR lên bảng điều hành của lãnh đạo; đồng
+                  chí nên ghi rõ vướng mắc để được hỗ trợ.
                 </small>
               }
             </fieldset>
@@ -312,7 +310,8 @@ const LEVELS: { id: Confidence; label: string }[] = [
             @if (canCheckin()) {
               <div class="foot">
                 <p class="muted small">
-                  Check-in được ghi vào sổ cái, không sửa sau khi gửi (chỉ thêm check-in mới).
+                  Check-in đã gửi được lưu vết và không sửa được; khi cần điều chỉnh, đồng chí gửi
+                  check-in mới.
                 </p>
                 <div class="actions">
                   @if (!simple()) {
@@ -321,7 +320,7 @@ const LEVELS: { id: Confidence; label: string }[] = [
                     </button>
                   }
                   <button type="submit" class="btn primary" [disabled]="busy()">
-                    <span class="num inv" aria-hidden="true">4</span> Gửi check-in
+                    Gửi check-in
                   </button>
                 </div>
               </div>

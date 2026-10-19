@@ -202,7 +202,8 @@ function create(req: MockRequest, objectives: Record<string, Obj[]>): MockRespon
     });
   }
   if (o.status !== 'DA_DUYET') {
-    return problem(409, 'Chỉ check-in KR thuộc mục tiêu đã duyệt (BR-03-01).', {
+    // BR-03-01
+    return problem(409, 'Chỉ check-in được KR thuộc mục tiêu đã duyệt.', {
       code: 'OKR-409-OBJECTIVE-NOT-APPROVED',
     });
   }

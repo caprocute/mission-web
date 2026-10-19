@@ -23,7 +23,7 @@
       </p>
     </div>
     <div class="acts">
-      <span class="state">Trạng thái: {{ p.status }}</span>
+      <span class="state">Trạng thái: {{ statusLabel[p.status] }}</span>
       <button type="button" class="btn" [disabled]="!!busy()" (click)="preview()">
         Xem trước Mẫu 1B
       </button>
@@ -72,7 +72,7 @@
   }
   @if (previewUrl()) {
     <p class="msg">
-      Đã sinh bản xem trước (có dấu "Bản nháp").
+      Đã tạo bản xem trước (có dấu "Bản nháp").
       <a
         #previewLink
         [href]="previewUrl()"

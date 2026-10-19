@@ -134,7 +134,7 @@ const newKey = () => `k${++seq}`;
                 [loading]="submitting()"
                 [ariaLabel]="
                   r.errors.length
-                    ? 'Trình phê duyệt, chưa trình được: còn ' + r.errors.length + ' lỗi chặn'
+                    ? 'Trình phê duyệt, chưa trình được: còn ' + r.errors.length + ' lỗi cần sửa'
                     : 'Trình phê duyệt'
                 "
                 (onClick)="submit()"
@@ -184,9 +184,8 @@ const newKey = () => `k${++seq}`;
       }
       @if (overLimit() && editable()) {
         <div class="banner" role="note">
-          <span class="num" aria-hidden="true">1</span>
           <span>
-            Kỳ {{ c.period.label }} đã có <strong>{{ c.existingCount }} mục tiêu</strong>. PL 1
+            Kỳ {{ c.period.label }} đã có <strong>{{ c.existingCount }} mục tiêu</strong>. Phụ lục 1
             khuyến nghị từ 1 đến {{ c.policy.recommendedMax }} mục tiêu mỗi kỳ; vui lòng ghi lý do
             nếu vẫn thêm.
           </span>
@@ -196,7 +195,7 @@ const newKey = () => `k${++seq}`;
       <div class="cols">
         <div>
           <fieldset class="box" [disabled]="!editable()">
-            <legend class="sec"><span class="num" aria-hidden="true">2</span> Mục tiêu (O)</legend>
+            <legend class="sec">Mục tiêu (O)</legend>
             <div class="grid2">
               <div class="field">
                 <label for="f-basis">Căn cứ <span class="req" aria-hidden="true">*</span></label>
@@ -306,9 +305,7 @@ const newKey = () => `k${++seq}`;
           </fieldset>
 
           <fieldset class="box" [disabled]="!editable()">
-            <legend class="sec">
-              <span class="num" aria-hidden="true">3</span> Kết quả then chốt (KR)
-            </legend>
+            <legend class="sec">Kết quả then chốt (KR)</legend>
             @if (editable() && f.keyResults.length < maxKr) {
               <button type="button" class="linkbtn add" (click)="addKr()">+ Thêm KR</button>
             }
@@ -475,7 +472,9 @@ const newKey = () => `k${++seq}`;
               </span>
               <span class="badges">
                 @if (r.errors.length) {
-                  <span class="badge b-error">{{ r.errors.length }} lỗi chặn trình duyệt</span>
+                  <span class="badge b-error"
+                    >{{ r.errors.length }} lỗi cần sửa trước khi trình</span
+                  >
                 }
                 @if (r.warnings.length) {
                   <span class="badge b-warn">{{ r.warnings.length }} cảnh báo</span>
@@ -496,9 +495,7 @@ const newKey = () => `k${++seq}`;
             />
           }
           <section class="box" aria-labelledby="chk-h">
-            <h2 id="chk-h" class="sec">
-              <span class="num" aria-hidden="true">5</span> Kiểm tra trước khi trình
-            </h2>
+            <h2 id="chk-h" class="sec">Kiểm tra trước khi trình</h2>
             <ul class="check">
               @for (it of r.checklist; track $index) {
                 <li>
@@ -510,8 +507,8 @@ const newKey = () => `k${++seq}`;
               }
             </ul>
             <p class="muted small">
-              Máy chủ kiểm tra lại toàn bộ quy tắc khi trình, kể cả quy tắc người xác nhận phải khác
-              chủ sở hữu KR. Bộ quy tắc {{ c.policy.version }}.
+              Khi trình, hệ thống kiểm tra lại toàn bộ quy tắc, kể cả quy tắc người xác nhận phải
+              khác chủ sở hữu KR. Bộ quy tắc OKR phiên bản {{ c.policy.version }}.
             </p>
           </section>
           <section class="box" aria-labelledby="pr-h">
@@ -921,7 +918,7 @@ export class ObjectiveComposePage {
     if (!this.canCompose()) return 'Đồng chí không có quyền soạn mục tiêu này.';
     if (this.periodLocked()) return `Kỳ ${c.period.label} đã khoá, không soạn thêm mục tiêu.`;
     if (m && m.status !== 'NHAP') {
-      return `Mục tiêu đang ở trạng thái "${OBJECTIVE_STATUS_LABEL[m.status]}" nên không sửa tại chỗ (BR-02-10).`;
+      return `Mục tiêu đang ở trạng thái "${OBJECTIVE_STATUS_LABEL[m.status]}" nên không sửa trực tiếp được.`;
     }
     return null;
   });

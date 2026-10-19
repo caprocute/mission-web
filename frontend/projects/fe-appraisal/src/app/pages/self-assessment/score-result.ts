@@ -14,7 +14,7 @@ import { vn } from './self-assessment-rules';
     <section class="box" aria-labelledby="sr-h">
       <div class="head">
         <h2 id="sr-h" class="sec">
-          Kết quả thực hiện nhiệm vụ <span class="chip">Hệ thống tính · không sửa tay</span>
+          Kết quả thực hiện nhiệm vụ <span class="chip">Hệ thống tự tính, không sửa được</span>
         </h2>
         @if (!simple()) {
           <button type="button" class="link" (click)="trace.emit()">Vết tính</button>
@@ -34,9 +34,11 @@ import { vn } from './self-assessment-rules';
           <thead>
             <tr>
               <th scope="col" class="name">{{ g.label }} · tối đa {{ g.maxScore }}</th>
-              <th scope="col">SL duyệt/KH</th>
-              <th scope="col">B</th>
-              <th scope="col">C</th>
+              <th scope="col" title="Số lượng được nghiệm thu / số lượng kế hoạch">
+                Nghiệm thu/kế hoạch
+              </th>
+              <th scope="col" title="Chất lượng (B)">Chất lượng</th>
+              <th scope="col" title="Tiến độ (C)">Tiến độ</th>
               <th scope="col">KPI</th>
             </tr>
           </thead>
@@ -78,8 +80,9 @@ import { vn } from './self-assessment-rules';
         >
       </p>
       <p class="note">
-        A = min(SL duyệt/KH, 1) · B theo 5 mức nghiệm thu · C = max(0; 1 − 0,05 × ngày làm việc chậm
-        do chủ quan) · Chỉ minh chứng DA_XAC_NHAN được tính.
+        Khối lượng (A) = min(số lượng được nghiệm thu / kế hoạch; 1) · Chất lượng (B) theo 5 mức
+        nghiệm thu · Tiến độ (C) = max(0; 1 − 0,05 × số ngày làm việc chậm do chủ quan) · Chỉ tính
+        minh chứng đã được xác nhận.
       </p>
     </section>
   `,

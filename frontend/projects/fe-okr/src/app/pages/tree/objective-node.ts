@@ -18,6 +18,9 @@ import {
  * Mục tiêu cấp dưới (tầng 2 của phòng, tầng 3 của cá nhân) thu gọn mặc định và chỉ dựng khi mở,
  * để cây hàng trăm nút không dựng hết DOM một lúc. Thành phần tự gọi đệ quy cho cấp dưới.
  */
+/** Tên cấp của mục tiêu theo tầng phân rã: tầng 2 là phòng, ban; tầng 3 là cá nhân. */
+const TIER_LABEL: Record<number, string> = { 1: 'cấp đơn vị', 2: 'cấp phòng, ban', 3: 'cá nhân' };
+
 @Component({
   selector: 'vt-objective-node',
   imports: [TagModule],
@@ -334,7 +337,7 @@ export class ObjectiveNode {
     }
     return [...tiers]
       .sort()
-      .map((t) => `tầng ${t}`)
+      .map((t) => TIER_LABEL[t] ?? `cấp ${t}`)
       .join(', ');
   });
 

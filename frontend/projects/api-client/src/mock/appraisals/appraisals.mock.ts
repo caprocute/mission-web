@@ -8,6 +8,7 @@ import {
   AppraisalSelfAssessmentInput,
   AppraisalSignRequestInput,
   GeneralCriteriaLevel,
+  APPRAISAL_PROFILE_STATUS_LABEL,
   RATING_LEVEL_LABEL,
   RatingLevel,
 } from '../../lib/models/appraisal';
@@ -42,13 +43,13 @@ const ME = fixture.mine;
 /** Hạn thẩm định của kỳ trong bản giả lập (3 ngày làm việc sau hạn nộp). */
 const APPRAISAL_DUE = '2027-01-08';
 const MSG_09_02 =
-  'Mức tự đề xuất khác mức hệ thống tham khảo. Đồng chí cần ghi giải trình trước khi nộp (QĐ Điều 16).';
+  'Mức tự đề xuất khác mức hệ thống tham khảo. Đồng chí cần ghi giải trình trước khi nộp (Điều 16 Quy định 366).';
 const MSG_09_06 =
-  'Mức thẩm định khác mức tự đề xuất. Theo QĐ Điều 16, đồng chí cần ghi lý do trước khi ký.';
+  'Mức thẩm định khác mức tự đề xuất. Theo Điều 16 Quy định 366, đồng chí cần ghi lý do trước khi ký.';
 const MSG_09_08 =
-  'Đồng chí không thể thẩm định hồ sơ này vì đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (PL 4 V.1).';
+  'Đồng chí không thể thẩm định hồ sơ này vì đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (Phụ lục 4, mục V.1).';
 const MSG_09_03 =
-  'Đề xuất mức Hoàn thành xuất sắc cần mô tả giải pháp đột phá và gắn ít nhất một minh chứng đã được xác nhận.';
+  'Đề xuất mức Hoàn thành xuất sắc nhiệm vụ cần mô tả giải pháp đột phá và gắn ít nhất một minh chứng đã được xác nhận.';
 
 interface SignJob {
   job: Job;
@@ -108,10 +109,14 @@ function guardWrite(p: AppraisalProfile, req: MockRequest): MockResponse | null 
   if (p.status !== 'TU_DANH_GIA')
     return problem(409, 'Hồ sơ không còn ở bước tự đánh giá', {
       code: 'APPRAISAL-409-INVALID-STATUS',
-      detail: `Trạng thái hiện tại: ${p.status}.`,
+      detail: `Trạng thái hiện tại: ${APPRAISAL_PROFILE_STATUS_LABEL[p.status]}.`,
     });
   const match = req.headers.get('If-Match');
-  if (!match) return problem(428, 'Thiếu If-Match');
+  if (!match)
+    return problem(
+      428,
+      'Dữ liệu trên màn hình đã cũ. Vui lòng tải lại rồi thực hiện lại thao tác.',
+    );
   if (match.replace(/"/g, '') !== String(p.rowVersion))
     return problem(409, 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại', {
       code: 'APPRAISAL-409-VERSION-CONFLICT',
@@ -124,10 +129,14 @@ function guardReview(p: AppraisalProfile, req: MockRequest): MockResponse | null
   if (p.status !== 'CHO_THAM_DINH')
     return problem(409, 'Hồ sơ không còn ở bước thẩm định', {
       code: 'APPRAISAL-409-INVALID-STATUS',
-      detail: `Trạng thái hiện tại: ${p.status}.`,
+      detail: `Trạng thái hiện tại: ${APPRAISAL_PROFILE_STATUS_LABEL[p.status]}.`,
     });
   const match = req.headers.get('If-Match');
-  if (!match) return problem(428, 'Thiếu If-Match');
+  if (!match)
+    return problem(
+      428,
+      'Dữ liệu trên màn hình đã cũ. Vui lòng tải lại rồi thực hiện lại thao tác.',
+    );
   if (match.replace(/"/g, '') !== String(p.rowVersion))
     return problem(409, 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại', {
       code: 'APPRAISAL-409-VERSION-CONFLICT',
@@ -261,7 +270,7 @@ function exportProfiles(req: MockRequest): MockResponse {
     type: 'EXPORT',
     status: 'HOAN_TAT',
     progress: 100,
-    message: 'Đã xuất danh sách hàng đợi thẩm định (không gồm trường C2)',
+    message: 'Đã xuất danh sách hàng đợi thẩm định (không gồm nội dung được mã hoá khi lưu).',
     resultLocation: `/api/v1/appraisals/export-jobs/${id}/file`,
   });
   return { status: 202, body: null, headers: { Location: `/api/v1/appraisals/export-jobs/${id}` } };
@@ -342,13 +351,14 @@ function validate(p: AppraisalProfile): MockResponse | null {
 }
 
 function stepUpRequired(): MockResponse {
-  const r = problem(401, 'Cần xác thực bước lên trước khi ký số', {
+  const r = problem(401, 'Cần xác thực nhiều lớp trước khi ký số', {
     type: 'https://datatracker.ietf.org/doc/html/rfc9470',
     code: 'insufficient_user_authentication',
   });
   r.headers = {
     ...r.headers,
     'WWW-Authenticate':
+      // ui-text-ok: giá trị header HTTP cho thư viện xác thực, không hiện trên màn hình
       'Bearer error="insufficient_user_authentication", acr_values="aal2", max_age=900',
   };
   return r;
@@ -383,7 +393,7 @@ function submit(req: MockRequest): MockResponse {
 /** Lần hỏi thứ hai: EVT-18 về, hồ sơ chuyển `CHO_THAM_DINH` và ghi mức `TU_DE_XUAT` (EVT-11). */
 function signJob(req: MockRequest): MockResponse {
   const s = jobs.get(req.pathParams['id']);
-  if (!s) return problem(404, 'Không tìm thấy tác vụ ký');
+  if (!s) return problem(404, 'Không tìm thấy yêu cầu ký số');
   if (s.job.status !== 'CHO' && s.job.status !== 'DANG_CHAY') return ok(s.job);
   if (++s.polls < 2) {
     s.job = { ...s.job, status: 'DANG_CHAY', progress: 50 };
@@ -463,7 +473,7 @@ function viewFor(p: AppraisalProfile, flow: string | null): AppraisalScoreView |
     const other = store().find(
       (x) => x.person.id === p.person.id && x.period.id === p.period.id && x.flow === flow,
     );
-    if (!other) return problem(404, 'Luồng này chưa bật cho cán bộ trong kỳ');
+    if (!other) return problem(404, 'Luồng đánh giá này chưa được áp dụng cho đồng chí trong kỳ.');
     target = other;
   }
   if (target.status === 'CHUA_LAP' || !views()[target.id])
@@ -489,7 +499,7 @@ function trace(view: AppraisalScoreView, taskId: string | null): AppraisalScoreT
       steps.push({
         stepNo: ++n,
         ruleCode: 'kpi_nhiem_vu',
-        legalRef: 'PL 3 mục 1, 2, 3',
+        legalRef: 'Phụ lục 3, mục 1, 2, 3',
         taskId: t.taskId,
         inputs: {
           slDuyet: t.approvedQuantity ?? null,
@@ -497,7 +507,8 @@ function trace(view: AppraisalScoreView, taskId: string | null): AppraisalScoreT
           a,
           b,
           c,
-          nguon: 'Minh chứng DA_XAC_NHAN (QT-07), nghiệm thu (SCR-0703)',
+          // Minh chứng DA_XAC_NHAN (QT-07), nghiệm thu (SCR-0703)
+          nguon: 'Minh chứng đã được xác nhận và kết quả nghiệm thu sản phẩm',
         },
         output: { kpi: t.kpi },
         explanation: `KPI = (A + B + C) / 3 = (${num(a)} + ${num(b)} + ${num(c)}) / 3 = ${num(t.kpi)}.`,
@@ -506,7 +517,7 @@ function trace(view: AppraisalScoreView, taskId: string | null): AppraisalScoreT
     steps.push({
       stepNo: ++n,
       ruleCode: 'kpi_nhom',
-      legalRef: 'PL A3; Bảng chấm điểm',
+      legalRef: 'Phụ lục A3; Bảng chấm điểm',
       inputs: { nhom: g.code, soNhiemVu: g.tasks?.length ?? 0, diemToiDa: g.maxScore },
       output: { kpi: g.kpi, diem: g.score },
       explanation: `${g.label}: KPI nhóm ${num(g.kpi)} × ${g.maxScore} = ${num(g.score)} điểm.`,
@@ -515,7 +526,8 @@ function trace(view: AppraisalScoreView, taskId: string | null): AppraisalScoreT
   steps.push({
     stepNo: ++n,
     ruleCode: 'diem_ket_qua',
-    legalRef: 'BR-09-03',
+    // BR-09-03
+    legalRef: 'Phụ lục A3; Bảng chấm điểm',
     inputs: Object.fromEntries(s.groups.map((g) => [g.code, g.score])),
     output: { tong: s.totalScore, mucThamKhao: s.autoRatingCode },
     explanation: `Điểm kết quả nhiệm vụ ${num(s.totalScore)}; mức tham khảo ${RATING_LEVEL_LABEL[s.autoRatingCode]}.`,
@@ -541,7 +553,7 @@ export const APPRAISALS_MOCK: MockModule = {
       pattern: '/api/v1/appraisals/export-jobs/:id',
       handle: (req) => {
         const job = exportJobs.get(req.pathParams['id']);
-        return job ? ok(job) : problem(404, 'Không tìm thấy tác vụ xuất');
+        return job ? ok(job) : problem(404, 'Không tìm thấy yêu cầu xuất danh sách');
       },
     },
     {
@@ -557,7 +569,7 @@ export const APPRAISALS_MOCK: MockModule = {
               '\t',
             ),
           );
-        const text = ['Cán bộ\tChức vụ\tĐiểm HT\tTự đề xuất', ...rows].join('\n');
+        const text = ['Cán bộ\tChức vụ\tĐiểm hệ thống\tTự đề xuất', ...rows].join('\n');
         return {
           status: 200,
           body: new Blob([text], {

@@ -89,7 +89,7 @@ describe('OkrTreePage (SCR-0201)', () => {
   it('chỉ có quyền xem: ẩn Thêm mục tiêu, Sửa và Check-in', async () => {
     const el = (await render((k) => k === 'SCR-0201.xem')).nativeElement as HTMLElement;
     await until(el, 'vt-kr-side-panel table');
-    expect(buttons(el)).not.toContain('Mục tiêu');
+    expect(buttons(el)).not.toContain('Thêm mục tiêu');
     expect(el.querySelector('.editbtn')).toBeNull();
     expect(buttons(el).some((b) => b.startsWith('Check-in'))).toBe(false);
   });
@@ -105,7 +105,7 @@ describe('OkrTreePage (SCR-0201)', () => {
     const el = (await render(() => true, '/?period=p-2026-q3')).nativeElement as HTMLElement;
     await until(el, 'vt-kr-side-panel');
     expect(text(el.querySelector('.head'))).toContain('kỳ đã khoá');
-    expect(buttons(el)).not.toContain('Mục tiêu');
+    expect(buttons(el)).not.toContain('Thêm mục tiêu');
     expect(buttons(el).some((b) => b.startsWith('Check-in'))).toBe(false);
   });
 
@@ -125,7 +125,7 @@ describe('OkrTreePage (SCR-0201)', () => {
     const rendered = el.querySelectorAll('cdk-virtual-scroll-viewport [role=row]').length;
     expect(total).toBeGreaterThan(900);
     expect(rendered).toBeLessThan(100);
-    expect(buttons(el)).not.toContain('Mục tiêu');
+    expect(buttons(el)).not.toContain('Thêm mục tiêu');
   });
 
   it('chế độ Đảng viên cao tuổi giảm bước: chỉ còn chế độ Cây, ẩn Xuất mẫu', async () => {

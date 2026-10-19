@@ -11,8 +11,8 @@ import { AiKrSuggestion } from '@vt/api-client';
   template: `
     <section class="box" aria-labelledby="ai-h">
       <h2 id="ai-h" class="sec">
-        <span class="num" aria-hidden="true">4</span> Trợ lý AI
-        <span class="pill">Chỉ đọc · không ghi</span>
+        Trợ lý AI
+        <span class="pill">Chỉ gợi ý, không tự sửa</span>
       </h2>
       @if (error(); as e) {
         <p class="err" role="alert">{{ e }}</p>

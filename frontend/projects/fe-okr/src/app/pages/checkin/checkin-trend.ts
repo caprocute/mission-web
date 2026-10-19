@@ -55,7 +55,7 @@ interface Bar {
       </p>
     </section>
     <section class="box" aria-labelledby="w-h">
-      <h2 id="w-h" class="sec"><span class="num" aria-hidden="true">5</span> Nhiệm vụ liên kết</h2>
+      <h2 id="w-h" class="sec">Nhiệm vụ liên kết</h2>
       @if (k.linkedWork?.length) {
         <ul class="work">
           @for (w of k.linkedWork; track w.id) {
@@ -75,8 +75,9 @@ interface Bar {
           Xem tất cả {{ k.linkedTaskCount }} nhiệm vụ liên kết
         </a>
       }
+      <!-- BR-03-07 -->
       <p class="note">
-        Tiến độ nhiệm vụ không tự cộng vào KR: KR đo kết quả, không đo khối lượng việc (BR-03-07).
+        Tiến độ nhiệm vụ không tự cộng vào KR: KR đo kết quả, không đo khối lượng công việc.
       </p>
     </section>
   `,
