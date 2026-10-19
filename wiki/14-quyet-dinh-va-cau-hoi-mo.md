@@ -58,6 +58,7 @@ Bảng dưới liệt kê các điểm mà hai hay nhiều nguồn ghi khác nha
 | Kiểm thuộc tính SDUI | TL-01 nêu Ajv; mã tự viết bộ lọc vì CSP không có `'unsafe-eval'` | Giữ bộ lọc tự viết hoặc Ajv biên dịch trước lúc build |
 | Đỉnh người dùng task cell lớn | Baseline bản cũ, TL-02: 80 đến 110 lượt/giây; TL-01, baseline 3.1: 133 đến 150 lượt/giây | Dùng số lớn hơn khi định cỡ thử tải |
 | Loại đề nghị điều chỉnh (`task.task_change_request.request_type`) | TL-02 SCR-0602: `GIA_HAN`, `DOI_SO_LUONG`, `DOI_SAN_PHAM`, `TAM_DUNG`, `HUY`; TL-03: `GIA_HAN`, `DIEU_CHINH_KHOI_LUONG`, `DIEU_CHINH_NOI_DUNG`, `HUY` (không có tạm dừng) | Theo TL-02 vì là đặc tả màn hình (`ChangeRequestType`, WEB-031); cần chốt khi có OpenAPI (WEB-007) |
+| Trạng thái tenant và tổng tài khoản thiết kế (SCR-0101) | Mockup Hình 6.7 có nhãn "Thử nghiệm 1 quý" và thẻ "69% của 6 triệu"; Hình 6.6 và TL-03 `registry.tenant.status` không có trạng thái thử nghiệm, còn tổng tài khoản thiết kế đã chốt là 6,5 triệu | WEB-016 chỉ dùng tám trạng thái của TL-03 (`SAN_SANG` hiển thị "Chờ kích hoạt" như mockup) và lấy tổng tài khoản thiết kế từ API (`designAccounts`, fixture 6,5 triệu); nếu cần tenant thử nghiệm thì phải bổ sung cột hoặc trạng thái ở TL-03 |
 | Mã nguồn nhiệm vụ ngoài kế hoạch | TL-02 SCR-0501 và cột `source_type` TL-03: `PHAT_SINH`; ràng buộc `ck_task__source` TL-03: `DOT_XUAT` | Giữ `DOT_XUAT` theo ràng buộc bảng (`TaskSource`), hiển thị "Phát sinh" (WEB-028) |
 | Tổng số tài khoản | NFR-01: 6 triệu; TL-04 định cỡ: 6,5 triệu | **Đã chốt 6,5 triệu** cho định cỡ (19/10/2026) |
 

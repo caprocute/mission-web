@@ -12,7 +12,7 @@
 | Cỡ việc | S (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-015 |
 | Truy vết | QT-01 → SCR-0101 → `/api/v1/config` + SVC-03 tenant-registry → MOD-08, SVC-03 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Xong, chờ gộp |
 
 ## 1. Mục tiêu
 
