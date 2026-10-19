@@ -61,7 +61,8 @@ export const SELF_AUTOSAVE_MS = new InjectionToken<number>('vt.fe-appraisal.auto
   factory: () => 30_000,
 });
 
-const MSG_09_07 = 'Hồ sơ vừa được cập nhật ở nơi khác. Vui lòng tải lại trang để xem thay đổi.';
+const MSG_09_07 =
+  'Hồ sơ vừa được người khác cập nhật. Vui lòng tải lại để xem thay đổi trước khi lưu.';
 
 type Tab = AppraisalFlow | 'LICH_SU';
 

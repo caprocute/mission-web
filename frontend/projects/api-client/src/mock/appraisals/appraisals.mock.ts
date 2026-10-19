@@ -1,6 +1,8 @@
 import {
   AppraisalProfile,
   AppraisalProfileRow,
+  AppraisalProfileStatus,
+  AppraisalReviewInput,
   AppraisalScoreTraceStep,
   AppraisalScoreView,
   AppraisalSelfAssessmentInput,
@@ -13,6 +15,12 @@ import { Job } from '../../lib/models/job';
 import { mockSession } from '../mock-session';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import fixture from './appraisals.json';
+import {
+  ACCEPTED_BY_VIEWER,
+  MOCK_APPRAISER,
+  patchFixtureProfile,
+  reviewQueue,
+} from './review-queue';
 
 /**
  * Giả lập MOD-04 `appraisal` cho phiếu tự đánh giá SCR-0901 (QT-09; WEB-035) theo
@@ -22,11 +30,23 @@ import fixture from './appraisals.json';
  * (422 MSG-09-03), MFA trong 15 phút trước khi ký (401 step-up), ký số qua job: lần hỏi thứ hai coi như
  * đã xác nhận trên MySign và nhận EVT-18, hồ sơ sang `CHO_THAM_DINH` (BR-09-15). Ký lỗi (MSG-09-05)
  * khi `setMockEsignOutage(true)` hoặc URL trang có `?mock-esign=loi`.
+ *
+ * Thẩm định SCR-0902 (WEB-036): hàng đợi `GET /appraisals/profiles` theo trạng thái, sắp theo hạn;
+ * trả lại bổ sung (lý do 20 đến 2.000 ký tự, tối đa `returnLimit` lần, 409 `APPRAISAL-409-RETURN-LIMIT`,
+ * MSG-09-09); ký thẩm định (nhận xét bắt buộc tối đa 4.000 ký tự, lý do khi khác mức tự đề xuất 422
+ * MSG-09-06, tách vai trò 403 MSG-09-08 với hồ sơ người thẩm định đã nghiệm thu, MFA, job ký như trên,
+ * hồ sơ sang `DA_THAM_DINH`); xuất danh sách XLSX qua job (tệp giả lập).
  */
 
 const ME = fixture.mine;
+/** Hạn thẩm định của kỳ trong bản giả lập (3 ngày làm việc sau hạn nộp). */
+const APPRAISAL_DUE = '2027-01-08';
 const MSG_09_02 =
   'Mức tự đề xuất khác mức hệ thống tham khảo. Đồng chí cần ghi giải trình trước khi nộp (QĐ Điều 16).';
+const MSG_09_06 =
+  'Mức thẩm định khác mức tự đề xuất. Theo QĐ Điều 16, đồng chí cần ghi lý do trước khi ký.';
+const MSG_09_08 =
+  'Đồng chí không thể thẩm định hồ sơ này vì đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (PL 4 V.1).';
 const MSG_09_03 =
   'Đề xuất mức Hoàn thành xuất sắc cần mô tả giải pháp đột phá và gắn ít nhất một minh chứng đã được xác nhận.';
 
@@ -36,14 +56,33 @@ interface SignJob {
   polls: number;
   fail: boolean;
   provider: NonNullable<AppraisalSignRequestInput['signProvider']>;
+  /** Có khi job ký kết quả thẩm định (SCR-0902), vắng khi ký phiếu tự đánh giá. */
+  review?: AppraisalReviewInput;
 }
 
 let profiles: AppraisalProfile[] | null = null;
+let scoreViews: Record<string, AppraisalScoreView> | null = null;
 const jobs = new Map<string, SignJob>();
+const exportJobs = new Map<string, Job>();
 
-const store = () =>
-  (profiles ??= structuredClone(fixture.profiles) as unknown as AppraisalProfile[]);
-const views = () => fixture.scores as unknown as Record<string, AppraisalScoreView>;
+function load(): void {
+  const queue = reviewQueue();
+  const base = structuredClone(fixture.profiles) as unknown as AppraisalProfile[];
+  base.forEach(patchFixtureProfile);
+  profiles = [...base, ...queue.profiles];
+  scoreViews = {
+    ...(fixture.scores as unknown as Record<string, AppraisalScoreView>),
+    ...queue.views,
+  };
+}
+const store = (): AppraisalProfile[] => {
+  if (!profiles) load();
+  return profiles!;
+};
+const views = (): Record<string, AppraisalScoreView> => {
+  if (!scoreViews) load();
+  return scoreViews!;
+};
 const etag = (p: AppraisalProfile) => ({ ETag: `"${p.rowVersion}"` });
 const pageQuery = () => new URLSearchParams(globalThis.location?.search ?? '');
 
@@ -80,9 +119,158 @@ function guardWrite(p: AppraisalProfile, req: MockRequest): MockResponse | null 
   return null;
 }
 
+/** Kiểm thao tác của người thẩm định: trạng thái `CHO_THAM_DINH` và `If-Match`. */
+function guardReview(p: AppraisalProfile, req: MockRequest): MockResponse | null {
+  if (p.status !== 'CHO_THAM_DINH')
+    return problem(409, 'Hồ sơ không còn ở bước thẩm định', {
+      code: 'APPRAISAL-409-INVALID-STATUS',
+      detail: `Trạng thái hiện tại: ${p.status}.`,
+    });
+  const match = req.headers.get('If-Match');
+  if (!match) return problem(428, 'Thiếu If-Match');
+  if (match.replace(/"/g, '') !== String(p.rowVersion))
+    return problem(409, 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại', {
+      code: 'APPRAISAL-409-VERSION-CONFLICT',
+    });
+  return null;
+}
+
+function returnProfile(req: MockRequest): MockResponse {
+  const p = find(req);
+  if (!('person' in p)) return p;
+  const blocked = guardReview(p, req);
+  if (blocked) return blocked;
+  const reason = String((req.body as { reason?: string } | null)?.reason ?? '').trim();
+  if (reason.length < 20 || reason.length > 2000)
+    return problem(422, 'Lý do trả lại chưa hợp lệ', {
+      errors: [{ field: 'reason', message: 'Lý do trả lại từ 20 đến 2.000 ký tự.' }],
+    });
+  const limit = p.returnLimit ?? 2;
+  if ((p.returnCount ?? 0) >= limit)
+    return problem(409, 'Đã trả lại hồ sơ đủ số lần tối đa', {
+      code: 'APPRAISAL-409-RETURN-LIMIT',
+      detail: `Hồ sơ đã được trả lại ${limit}/${limit} lần, không trả lại thêm được.`,
+    });
+  p.status = 'TU_DANH_GIA';
+  p.returnCount = (p.returnCount ?? 0) + 1;
+  p.rowVersion++;
+  return ok(structuredClone(p), etag(p));
+}
+
+function appraise(req: MockRequest): MockResponse {
+  const p = find(req);
+  if (!('person' in p)) return p;
+  if (ACCEPTED_BY_VIEWER.has(p.id))
+    return problem(403, MSG_09_08, {
+      code: 'APPRAISAL-403-SEPARATION-OF-DUTIES',
+      msg: 'MSG-09-08',
+    });
+  const blocked = guardReview(p, req);
+  if (blocked) return blocked;
+  const body = (req.body ?? {}) as AppraisalReviewInput;
+  const errors: { field: string; message: string }[] = [];
+  if (!body.ratingCode) errors.push({ field: 'ratingCode', message: 'Chọn mức thẩm định.' });
+  const comment = body.comment?.trim() ?? '';
+  if (!comment) errors.push({ field: 'comment', message: 'Nhập nhận xét thẩm định.' });
+  if (comment.length > 4000) errors.push({ field: 'comment', message: 'Tối đa 4.000 ký tự.' });
+  if (errors.length) return problem(422, 'Kết luận thẩm định chưa đủ thông tin', { errors });
+  const self = p.ratingTrail.find((r) => r.levelKind === 'TU_DE_XUAT' && r.isCurrent)?.ratingCode;
+  const reason = body.reason?.trim() ?? '';
+  if (self && body.ratingCode !== self && (reason.length < 20 || reason.length > 2000))
+    return problem(422, MSG_09_06, {
+      code: 'APPRAISAL-422-REASON-REQUIRED',
+      errors: [{ field: 'reason', message: MSG_09_06 }],
+    });
+  if (!mockSession.recentMfa()) return stepUpRequired();
+  const id = crypto.randomUUID();
+  const job: Job = {
+    id,
+    type: 'ESIGN',
+    status: 'CHO',
+    progress: 0,
+    message: 'Đã gửi yêu cầu ký kết quả thẩm định tới ứng dụng ký số',
+  };
+  jobs.set(id, {
+    job,
+    profileId: p.id,
+    polls: 0,
+    fail: mockSession.esignDown() || pageQuery().get('mock-esign') === 'loi',
+    provider: body.signProvider ?? 'MYSIGN',
+    review: body,
+  });
+  return { status: 202, body: job, headers: { Location: `/api/v1/appraisals/sign-jobs/${id}` } };
+}
+
+/** EVT-18 của ký thẩm định: ghi mức `THAM_DINH` (EVT-11), hồ sơ sang `DA_THAM_DINH`. */
+function completeReview(p: AppraisalProfile, s: SignJob, now: string): void {
+  const r = s.review!;
+  const self = p.ratingTrail.find((x) => x.levelKind === 'TU_DE_XUAT' && x.isCurrent)?.ratingCode;
+  p.ratingTrail = [
+    ...p.ratingTrail.map((x) => (x.levelKind === 'THAM_DINH' ? { ...x, isCurrent: false } : x)),
+    {
+      id: crypto.randomUUID(),
+      levelKind: 'THAM_DINH',
+      ratingCode: r.ratingCode,
+      actor: MOCK_APPRAISER,
+      actorRole: 'appraiser',
+      isCurrent: true,
+      differsFromPrev: !!self && r.ratingCode !== self,
+      explanationRequired: !!self && r.ratingCode !== self,
+      isBulkDecision: false,
+      comment: r.comment,
+      ...(r.reason ? { reason: r.reason } : {}),
+      proposedAt: now,
+      signedAt: now,
+    },
+  ];
+  p.status = 'DA_THAM_DINH';
+  p.appraiser = MOCK_APPRAISER;
+  p.rowVersion++;
+}
+
+function list(req: MockRequest): MockResponse {
+  const status = (req.params.getAll('status') ?? []) as AppraisalProfileStatus[];
+  const wanted: AppraisalProfileStatus[] = status.length ? status : ['CHO_THAM_DINH'];
+  const period = req.params.get('periodId');
+  const flow = req.params.get('flow');
+  const q = req.params.get('q')?.toLocaleLowerCase('vi');
+  const rows = store()
+    .filter((p) => !ME.includes(p.id))
+    .filter((p) => wanted.includes(p.status))
+    .filter((p) => !period || p.period.id === period)
+    .filter((p) => !flow || p.flow === flow)
+    .filter((p) => !q || p.person.name.toLocaleLowerCase('vi').includes(q))
+    .map(row)
+    .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''));
+  const limit = Math.min(Number(req.params.get('limit') ?? 50), 200);
+  const start = Number(req.params.get('cursor') ?? 0);
+  const items = rows.slice(start, start + limit);
+  const next = start + limit < rows.length ? String(start + limit) : null;
+  return ok({ items, nextCursor: next });
+}
+
+function exportProfiles(req: MockRequest): MockResponse {
+  const body = (req.body ?? {}) as { periodId?: string; format?: string };
+  if (!body.periodId || body.format !== 'XLSX')
+    return problem(422, 'Thiếu kỳ hoặc định dạng xuất', {
+      errors: [{ field: 'periodId', message: 'Chọn kỳ cần xuất.' }],
+    });
+  const id = crypto.randomUUID();
+  exportJobs.set(id, {
+    id,
+    type: 'EXPORT',
+    status: 'HOAN_TAT',
+    progress: 100,
+    message: 'Đã xuất danh sách hàng đợi thẩm định (không gồm trường C2)',
+    resultLocation: `/api/v1/appraisals/export-jobs/${id}/file`,
+  });
+  return { status: 202, body: null, headers: { Location: `/api/v1/appraisals/export-jobs/${id}` } };
+}
+
 function row(p: AppraisalProfile): AppraisalProfileRow {
   const v = views()[p.id]?.snapshot;
-  const self = p.ratingTrail.find((r) => r.levelKind === 'TU_DE_XUAT' && r.isCurrent);
+  const level = (kind: string) =>
+    p.ratingTrail.find((r) => r.levelKind === kind && r.isCurrent)?.ratingCode ?? null;
   return {
     id: p.id,
     person: p.person,
@@ -96,12 +284,14 @@ function row(p: AppraisalProfile): AppraisalProfileRow {
     totalScore: v?.totalScore ?? null,
     autoRatingCode: v?.autoRatingCode ?? null,
     levels: {
-      selfProposed: self?.ratingCode ?? null,
-      appraised: null,
-      proposed: null,
-      decided: null,
+      selfProposed: level('TU_DE_XUAT'),
+      appraised: level('THAM_DINH'),
+      proposed: level('DE_XUAT'),
+      decided: level('QUYET_DINH'),
     },
-    dueDate: p.selfAssessDue,
+    noSelfAssessment: p.noSelfAssessment,
+    dueDate: p.status === 'TU_DANH_GIA' ? p.selfAssessDue : APPRAISAL_DUE,
+    anomalyHints: p.anomalyHints,
     rowVersion: p.rowVersion,
   };
 }
@@ -216,6 +406,18 @@ function signJob(req: MockRequest): MockResponse {
     return ok(s.job);
   }
   const p = store().find((x) => x.id === s.profileId)!;
+  if (s.review) {
+    completeReview(p, s, now);
+    s.job = {
+      ...s.job,
+      status: 'HOAN_TAT',
+      progress: 100,
+      message: 'Đã ký số kết quả thẩm định',
+      resultLocation: `/api/v1/appraisals/profiles/${p.id}`,
+      updatedAt: now,
+    };
+    return ok(s.job);
+  }
   const sa = p.selfAssessment!;
   const auto = views()[p.id]?.snapshot.autoRatingCode;
   const hash = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) =>
@@ -325,9 +527,45 @@ export const APPRAISALS_MOCK: MockModule = {
   name: 'appraisals',
   reset: () => {
     profiles = null;
+    scoreViews = null;
     jobs.clear();
+    exportJobs.clear();
   },
   routes: [
+    { method: 'GET', pattern: '/api/v1/appraisals/profiles', handle: list },
+    { method: 'POST', pattern: '/api/v1/appraisals/profiles/:id/return', handle: returnProfile },
+    { method: 'POST', pattern: '/api/v1/appraisals/profiles/:id/appraisal', handle: appraise },
+    { method: 'POST', pattern: '/api/v1/appraisals/exports', handle: exportProfiles },
+    {
+      method: 'GET',
+      pattern: '/api/v1/appraisals/export-jobs/:id',
+      handle: (req) => {
+        const job = exportJobs.get(req.pathParams['id']);
+        return job ? ok(job) : problem(404, 'Không tìm thấy tác vụ xuất');
+      },
+    },
+    {
+      method: 'GET',
+      pattern: '/api/v1/appraisals/export-jobs/:id/file',
+      handle: (req) => {
+        if (!exportJobs.has(req.pathParams['id'])) return problem(404, 'Không tìm thấy tệp xuất');
+        const rows = store()
+          .filter((p) => p.status === 'CHO_THAM_DINH')
+          .map(row)
+          .map((r) =>
+            [r.person.name, r.jobTitle ?? '', r.totalScore ?? '', r.levels.selfProposed ?? ''].join(
+              '\t',
+            ),
+          );
+        const text = ['Cán bộ\tChức vụ\tĐiểm HT\tTự đề xuất', ...rows].join('\n');
+        return {
+          status: 200,
+          body: new Blob([text], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          }),
+        };
+      },
+    },
     {
       method: 'GET',
       pattern: '/api/v1/appraisals/profiles/mine',

@@ -159,3 +159,75 @@ describe('appraisals mock (WEB-035)', () => {
     expect((await pdf.text()).startsWith('%PDF-1.4')).toBe(true);
   });
 });
+
+describe('appraisals mock, thẩm định (WEB-036)', () => {
+  const HOANG = P + '0a31';
+  const MAI = P + '0a35';
+  const SON = P + '0a36';
+  const COMMENT = 'Hoàn thành tốt các nhiệm vụ then chốt; tỷ lệ việc vượt chưa đạt ngưỡng 30%.';
+  const REASON = 'Không đạt điều kiện ≥ 30% nhiệm vụ vượt mục tiêu (QĐ Điều 11).';
+
+  it('hàng đợi CHO_THAM_DINH sắp theo hạn, có mức tự đề xuất, gợi ý bất thường và phân trang', async () => {
+    const { api } = setup();
+    const page = await firstValueFrom(api.profiles({ limit: 5 }));
+    expect(page.items).toHaveLength(5);
+    expect(page.nextCursor).toBe('5');
+    const all = await firstValueFrom(api.profiles({ limit: 200 }));
+    expect(all.items.map((r) => r.person.name)).toContain('Lê Thu Hà');
+    const h = all.items.find((r) => r.id === HOANG)!;
+    expect(h).toMatchObject({ totalScore: 91.2, levels: { selfProposed: 'HTXSNV' } });
+    expect(h.anomalyHints?.[0].label).toBe('Tự chấm cao 3 quý');
+    const done = await firstValueFrom(api.profiles({ status: ['DA_THAM_DINH'] }));
+    expect(done.items).toEqual([]);
+  });
+
+  it('ký thẩm định: 422 MSG-09-06 khi khác mức không lý do, 401 khi chưa MFA, job xong hồ sơ DA_THAM_DINH', async () => {
+    const { api, http } = setup();
+    const p = await firstValueFrom(api.profile(HOANG));
+    const e = await errorOf(
+      firstValueFrom(api.appraise(p, { ratingCode: 'HTTNV', comment: COMMENT })),
+    );
+    expect([e.status, e.error.code]).toEqual([422, 'APPRAISAL-422-REASON-REQUIRED']);
+    const body = { ratingCode: 'HTTNV' as const, comment: COMMENT, reason: REASON };
+    expect((await errorOf(firstValueFrom(api.appraise(p, body)))).status).toBe(401);
+    mockStepUp();
+    const { location } = await firstValueFrom(api.appraise(p, body));
+    await firstValueFrom(http.get<Job>(location));
+    const job = await firstValueFrom(http.get<Job>(location));
+    expect(job.status).toBe('HOAN_TAT');
+    const after = await firstValueFrom(api.profile(HOANG));
+    expect(after.status).toBe('DA_THAM_DINH');
+    expect(after.ratingTrail.at(-1)).toMatchObject({ levelKind: 'THAM_DINH', ratingCode: 'HTTNV' });
+    const queue = await firstValueFrom(api.profiles());
+    expect(queue.items.some((r) => r.id === HOANG)).toBe(false);
+  });
+
+  it('tách vai trò 403 MSG-09-08; trả lại MSG-09-09 rồi 409 khi vượt số lần tối đa', async () => {
+    const { api } = setup();
+    mockStepUp();
+    const mai = await firstValueFrom(api.profile(MAI));
+    const e = await errorOf(
+      firstValueFrom(api.appraise(mai, { ratingCode: 'HTNV', comment: COMMENT })),
+    );
+    expect([e.status, e.error.code]).toEqual([403, 'APPRAISAL-403-SEPARATION-OF-DUTIES']);
+    const reason = 'Đề nghị bổ sung biên bản nghiệm thu nhiệm vụ then chốt số 2.';
+    const back = await firstValueFrom(api.returnProfile(mai, reason));
+    expect([back.status, back.returnCount, back.returnLimit]).toEqual(['TU_DANH_GIA', 1, 2]);
+    const son = await firstValueFrom(api.profile(SON));
+    const limit = await errorOf(firstValueFrom(api.returnProfile(son, reason)));
+    expect([limit.status, limit.error.code]).toEqual([409, 'APPRAISAL-409-RETURN-LIMIT']);
+    const short = await errorOf(firstValueFrom(api.returnProfile(son, 'ngắn')));
+    expect(short.status).toBe(422);
+  });
+
+  it('xuất danh sách: 202 + job HOAN_TAT, tải tệp kết quả', async () => {
+    const { api, http } = setup();
+    const { location } = await firstValueFrom(
+      api.exportProfiles({ periodId: P + '0001', status: ['CHO_THAM_DINH'], format: 'XLSX' }),
+    );
+    const job = await firstValueFrom(http.get<Job>(location));
+    expect(job.status).toBe('HOAN_TAT');
+    const file = await firstValueFrom(api.download(job.resultLocation!));
+    expect(await file.text()).toContain('Trần Minh Hoàng');
+  });
+});
