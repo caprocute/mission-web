@@ -1,6 +1,6 @@
 # Mission – phân hệ web (SVC-17)
 
-Repo này chứa phân hệ web của nền tảng giao nhiệm vụ, quản lý OKR/KPI và đánh giá cán bộ theo Thông tư 22 và Quyết định 366. Mã nguồn bám theo bộ tài liệu thiết kế TL-01..TL-04 trong `/mnt/project-files/kien-truc-okr-kpi/`.
+Repo này chứa phân hệ web của nền tảng giao nhiệm vụ, quản lý OKR/KPI và đánh giá cán bộ theo QĐ 366-QĐ/TW và các quy định đánh giá cán bộ Nhà nước. Mã nguồn bám theo bộ tài liệu thiết kế TL-01..TL-04 trong `/mnt/project-files/kien-truc-okr-kpi/`.
 
 Người và AI agent mới vào dự án nên đọc theo thứ tự sau:
 

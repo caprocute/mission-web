@@ -52,7 +52,7 @@ Bảng dưới liệt kê các điểm mà hai hay nhiều nguồn ghi khác nha
 | Mã SEC trong chú thích mã | `session.service.ts` ghi SEC-15, SEC-54 cho `state` và `nonce`; TL-04: đúng là SEC-17 | Sửa chú thích khi làm WEB-006 |
 | Kiểm thuộc tính SDUI | TL-01 nêu Ajv; mã tự viết bộ lọc vì CSP không có `'unsafe-eval'` | Giữ bộ lọc tự viết hoặc Ajv biên dịch trước lúc build |
 | Đỉnh người dùng task cell lớn | Baseline bản cũ, TL-02: 80 đến 110 lượt/giây; TL-01, baseline 3.1: 133 đến 150 lượt/giây | Dùng số lớn hơn khi định cỡ thử tải |
-| Tổng số tài khoản | NFR-01: 6 triệu; TL-04 định cỡ: 6,5 triệu; con số 6,1 triệu được nêu khi giao việc nhưng không thấy trong nguồn | Dùng 6,5 triệu cho định cỡ, 6 triệu khi trích NFR |
+| Tổng số tài khoản | NFR-01: 6 triệu; TL-04 định cỡ: 6,5 triệu | **Đã chốt 6,5 triệu** cho định cỡ (19/10/2026) |
 
 ## Khoảng trống trong mã so với thiết kế
 
@@ -62,11 +62,11 @@ Các điểm sau không phải mâu thuẫn mà là phần thiết kế chưa đ
 
 Câu hỏi một là biểu mẫu MRC: baseline mục 2 ghi giả định rằng không tìm thấy mẫu MRC trong tài liệu đầu vào, nên nội dung và vị trí của biểu mẫu này trong các quy trình chưa được đặc tả; cần cung cấp mẫu hoặc xác nhận bỏ.
 
-Câu hỏi hai là căn cứ pháp lý "Thông tư 22": phạm vi dự án được mô tả là "Thông tư 22 và QĐ 366", nhưng hướng dẫn viết của bộ TL ghi căn cứ thực là QĐ 366-QĐ/TW, Hướng dẫn 02, dự thảo Quy định mới, Nghị định 335/2025 và Nghị định 233/2026; nguồn không có văn bản nào tên "Thông tư 22". Cần xác nhận "Thông tư 22" chỉ văn bản nào, hay chỉ là cách gọi tắt.
+**Đã chốt (19/10/2026):** căn cứ pháp lý là QĐ 366-QĐ/TW cùng các quy định đánh giá cán bộ Nhà nước (NĐ 335/2025, NĐ 233/2026) như bộ TL ghi; cụm "Thông tư 22" trong mô tả phạm vi được hiểu theo cách này, không cần sửa TL.
 
-Câu hỏi ba là cell thí điểm: TL-04 đề xuất `CELL-NB` (tenant là các đơn vị nội bộ dùng thử) phát hành trước `CELL-G4`, nhưng mã này chưa có trong baseline. Cần quyết định có thêm cell này không, vì nó ảnh hưởng tới danh sách giá trị `cell` trong cấu hình chạy và thứ tự phát hành.
+**Tạm chốt (19/10/2026):** chấp nhận cell thí điểm `CELL-NB` theo đề xuất của TL-04 (tenant nội bộ dùng thử, phát hành trước `CELL-G4`); cần bổ sung mã này vào baseline ở lần cập nhật tới.
 
-Câu hỏi bốn là tổng số tài khoản dùng cho định cỡ: 6 triệu, 6,1 triệu hay 6,5 triệu (xem bảng trên).
+**Đã chốt (19/10/2026):** tổng số tài khoản dùng cho định cỡ là 6,5 triệu.
 
 Câu hỏi năm là chốt các điểm lệch kỹ thuật trong bảng trên, ưu tiên mã lỗi xung đột, thời hạn token, đường dẫn việc của tôi và cách giữ `Idempotency-Key` khi thử lại, vì chúng ảnh hưởng trực tiếp tới `@vt/api-client` và `@vt/auth` ở GĐ0.
 

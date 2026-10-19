@@ -6,7 +6,7 @@ Ngày lập: 19/10/2026 · Phiên bản 1.0 · Căn cứ: Baseline, TL-01, TL-02
 
 Tài liệu này biến thiết kế đã chốt trong bộ TL-01..TL-04 thành một lộ trình phát triển cụ thể cho phân hệ web, đủ chi tiết để chia việc cho cả người và AI agent. Kế hoạch không thiết kế lại kiến trúc: mọi lựa chọn công nghệ, mã định danh và quy ước đều lấy nguyên từ baseline và các TL. Khi có điểm nào trong kế hoạch lệch với TL, TL được coi là đúng và kế hoạch phải được sửa lại.
 
-Phân hệ web là kênh làm việc chính của cán bộ, lãnh đạo, tổ chức cán bộ và quản trị viên. Nó phải phục vụ quy mô 6 triệu tài khoản và 300.000 người dùng đồng thời (NFR-01), cho phép mỗi tenant có giao diện riêng mà không phải nhân bản mã nguồn (ADR-05, phản hồi G1 của lãnh đạo), và bảo đảm khả năng sử dụng cho người cao tuổi (NFR-11).
+Phân hệ web là kênh làm việc chính của cán bộ, lãnh đạo, tổ chức cán bộ và quản trị viên. Nó phải phục vụ quy mô 6,5 triệu tài khoản và 300.000 người dùng đồng thời (NFR-01), cho phép mỗi tenant có giao diện riêng mà không phải nhân bản mã nguồn (ADR-05, phản hồi G1 của lãnh đạo), và bảo đảm khả năng sử dụng cho người cao tuổi (NFR-11).
 
 ## 2. Phạm vi
 

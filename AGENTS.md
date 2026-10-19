@@ -4,7 +4,7 @@
 
 ## 1. Dự án này là gì
 
-Mission là phân hệ web (SVC-17 `web-frontend`) của nền tảng giao nhiệm vụ, quản lý OKR/KPI và đánh giá cán bộ theo Thông tư 22 và Quyết định 366, quy mô thiết kế 6 triệu tài khoản và 300.000 người dùng đồng thời (NFR-01). Thiết kế đã được chốt trong bộ bốn tài liệu và là **nguồn sự thật duy nhất**:
+Mission là phân hệ web (SVC-17 `web-frontend`) của nền tảng giao nhiệm vụ, quản lý OKR/KPI và đánh giá cán bộ theo QĐ 366-QĐ/TW và các quy định đánh giá cán bộ Nhà nước (NĐ 335/2025, NĐ 233/2026), quy mô định cỡ 6,5 triệu tài khoản và 300.000 người dùng đồng thời (NFR-01). Thiết kế đã được chốt trong bộ bốn tài liệu và là **nguồn sự thật duy nhất**:
 
 | Mã | Tài liệu | Bản đọc được (Markdown) |
 |---|---|---|
