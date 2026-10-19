@@ -1,11 +1,16 @@
 import {
+  PlanChangeType,
   PlanCheckItem,
   PlanCheckResult,
+  PlanDiff,
+  PlanDiffRow,
   PlanItem,
   PlanItemRef,
   PlanSummary,
   PlanVersion,
   PlanWorkspace,
+  SignMethod,
+  SignRequest,
 } from '../../lib/models/plan';
 import { TaskGroup } from '../../lib/models/task';
 import {
@@ -18,27 +23,38 @@ import {
 } from '../mock-router';
 import catalogFixture from '../catalog/catalog.json';
 import okrFixture from '../okr/okr.json';
+import { MOCK_ME, mockSession } from '../mock-session';
 import { workingDaysBetween } from '../tasks/tasks.mock';
 import fixture from './plans.json';
 
 /**
  * Giả lập `/api/v1/plans` (QT-04, MOD-02): dòng kế hoạch đã duyệt cho SCR-0501 (WEB-028) và lập kế hoạch
  * quý SCR-0402 (WEB-026): xem phiên bản, kiểm tra tức thì, lưu nháp (If-Match), sao chép quý trước,
- * gợi ý từ OKR, gửi duyệt, tạo điều chỉnh. Máy chủ là nơi chặn BR-04-02 … BR-04-06, BR-04-10.
+ * gợi ý từ OKR, gửi duyệt, tạo điều chỉnh; phê duyệt SCR-0403 (WEB-027): so sánh phiên bản, trả lại,
+ * duyệt và ký số qua yêu cầu ký của esign-service. Máy chủ là nơi chặn BR-04-02 … BR-04-06,
+ * BR-04-08, BR-04-10 và MFA bước lên.
  */
 
 /** Dòng kế hoạch đã duyệt, ngày tương đối đã quy đổi. */
 export const approvedPlanItems = (): PlanItemRef[] =>
   resolveRelativeDates(structuredClone(fixture.items) as PlanItemRef[]);
 
+type StoredVersion = PlanVersion & { submittedById?: string };
 type StoredPlan = Omit<
   PlanWorkspace,
   'version' | 'versions' | 'workingDaysLeft' | 'groupWeights' | 'adjustmentsUsed' | 'adjustmentsMax'
 > & {
-  versions: PlanVersion[];
+  versions: StoredVersion[];
+};
+type StoredSign = SignRequest & {
+  planId: string;
+  versionNo: number;
+  comment?: string;
+  polls: number;
 };
 
 let plans: StoredPlan[] | null = null;
+let signs: StoredSign[] = [];
 let seq = 0;
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -76,18 +92,33 @@ function withCatalog(i: PlanItem): PlanItem {
   };
 }
 
+const v1Id = (id: string) => (id.includes('-v2-') ? id.replace('-v2-', '-v1-') : `${id}-v1`);
+
 function store(): StoredPlan[] {
   if (plans) return plans;
   const raw = resolveRelativeDates(structuredClone(fixture.plans)) as unknown as StoredPlan[];
   plans = raw.map((p) => {
     const versions = p.versions.map((v) => ({ ...v }));
     const q4v2 = versions.find((v) => v.id === 'pv-q4-2');
-    if (q4v2) q4v2.items = [...q4v2.items, ...approvedPlanItems().map(fromApproved)];
+    if (q4v2)
+      q4v2.items = [...q4v2.items, ...approvedPlanItems().map(fromApproved)].sort(
+        (a, b) => a.itemNo - b.itemNo,
+      );
+    // Hình 7.14: phiên bản 1 = phiên bản 2 bỏ dòng thêm, số lượng dòng sửa như cũ, cộng dòng đã bỏ
+    const adj = resolveRelativeDates(structuredClone(fixture.q4Adjustment));
     for (const v of versions) {
       if ((v.items as unknown) === '@v2-without-tc-dv-06' && q4v2) {
-        v.items = q4v2.items
-          .filter((i) => i.catalogItemId !== 'ci-tc-dv-06')
-          .map((i, n) => ({ ...i, id: i.id.replace('-v2-', '-v1-'), itemNo: n + 1 }));
+        v.items = [
+          ...q4v2.items
+            .filter((i) => i.catalogItemId !== adj.addedCatalogItemId)
+            .map((i) => ({
+              ...i,
+              id: v1Id(i.id),
+              plannedQuantity: i.id === adj.changedItemId ? adj.quantityBefore : i.plannedQuantity,
+              changeReason: undefined,
+            })),
+          adj.removedItem as PlanItem,
+        ].map((i, n) => ({ ...i, itemNo: n + 1 }));
       }
       v.items = v.items.map(withCatalog);
     }
@@ -95,7 +126,8 @@ function store(): StoredPlan[] {
       const v1 = versions.find((v) => v.id === 'pv-q4-1')!;
       q4v2.items = q4v2.items.map((i) => ({
         ...i,
-        originItemId: v1.items.find((o) => o.title === i.title)?.id,
+        originItemId: v1.items.find((o) => o.id === v1Id(i.id))?.id,
+        changeReason: i.catalogItemId === adj.addedCatalogItemId ? adj.addedReason : i.changeReason,
       }));
     }
     // phiên bản 1 đã duyệt có mã băm như lúc ký
@@ -132,8 +164,14 @@ function workspace(p: StoredPlan, v: PlanVersion): PlanWorkspace {
       status,
       isCurrent,
     })),
-    version: v,
+    version: strip(v),
   });
+}
+
+/** Bỏ trường nội bộ của kho giả lập trước khi trả về. */
+function strip(v: StoredVersion): PlanVersion {
+  const { submittedById: _by, ...rest } = v;
+  return rest;
 }
 
 const etag = (v: PlanVersion) => ({ ETag: `"${v.rowVersion}"` });
@@ -302,7 +340,7 @@ function save(req: MockRequest): MockResponse {
     });
   v.items = items;
   v.rowVersion++;
-  return ok(structuredClone(v), etag(v));
+  return ok(structuredClone(strip(v)), etag(v));
 }
 
 function copyFrom(req: MockRequest): MockResponse {
@@ -380,6 +418,9 @@ function submit(req: MockRequest): MockResponse {
   Object.assign(v, {
     status: 'CHO_DUYET',
     submittedAt: new Date().toISOString(),
+    submittedById: MOCK_ME.id,
+    submittedByName: MOCK_ME.name,
+    submittedByTitle: undefined,
     contentHash: contentHash(v.items),
     rowVersion: v.rowVersion + 1,
   });
@@ -414,17 +455,204 @@ function createAdjustment(req: MockRequest): MockResponse {
       ...i,
       id: `${i.id}-n${last.versionNo + 1}`,
       originItemId: i.id,
+      changeReason: undefined,
     })),
   };
   p.versions.push(next);
   return { status: 201, body: structuredClone(next), headers: etag(next) };
 }
 
+const FIELDS: (keyof PlanItem)[] = [
+  'title',
+  'taskGroup',
+  'keyResultId',
+  'leadUnitId',
+  'leadPersonId',
+  'coUnitIds',
+  'catalogItemId',
+  'productName',
+  'plannedQuantity',
+  'unit',
+  'dueDate',
+  'recurrence',
+  'standardScore',
+];
+
+/** Phiên bản so sánh mặc định: phiên bản đã duyệt gần nhất trước `v` (SCR-0403 trường 1). */
+function baseOf(p: StoredPlan, v: StoredVersion, no?: number): StoredVersion | undefined {
+  if (no) return p.versions.find((x) => x.versionNo === no && x.versionNo !== v.versionNo);
+  return [...p.versions]
+    .reverse()
+    .find((x) => x.versionNo < v.versionNo && x.status === 'DA_DUYET');
+}
+
+/** So sánh theo `originItemId` (TL-02 SCR-0403 trường 2): thêm, sửa, bỏ, không đổi. */
+function diff(req: MockRequest): MockResponse {
+  const hit = locate(req);
+  if ('status' in hit) return hit;
+  const { p, v } = hit;
+  const baseNo = Number(req.params.get('base')) || undefined;
+  const base = baseOf(p, v, baseNo);
+  if (baseNo && !base) return problem(404, 'Không tìm thấy phiên bản so sánh');
+  const rows: PlanDiffRow[] = v.items.map((after) => {
+    const before = base?.items.find((b) => b.id === after.originItemId);
+    if (!before) return { change: 'THEM', after, changedFields: [], reason: after.changeReason };
+    const changedFields = FIELDS.filter(
+      (f) => JSON.stringify(before[f] ?? null) !== JSON.stringify(after[f] ?? null),
+    );
+    const change: PlanChangeType = changedFields.length ? 'SUA' : 'GIU';
+    return { change, before, after, changedFields, reason: after.changeReason };
+  });
+  const kept = new Set(v.items.map((i) => i.originItemId));
+  for (const before of base?.items ?? []) {
+    if (kept.has(before.id)) continue;
+    const reason = v.removedItems?.find((r) => r.originItemId === before.id)?.changeReason;
+    rows.push({ change: 'BO', before, changedFields: [], reason });
+  }
+  const count = (c: PlanChangeType) => rows.filter((r) => r.change === c).length;
+  const max = fixture.groupWeights.THEN_CHOT;
+  const body: PlanDiff = {
+    planId: p.id,
+    periodLabel: p.periodLabel,
+    unitName: p.unitName,
+    base: base && {
+      versionNo: base.versionNo,
+      status: base.status,
+      approvedAt: base.approvedAt,
+      approvedByName: base.approvedByName,
+    },
+    target: {
+      versionNo: v.versionNo,
+      status: v.status,
+      rowVersion: v.rowVersion,
+      submittedAt: v.submittedAt,
+      submittedByName: v.submittedByName,
+      submittedByTitle: v.submittedByTitle,
+      contentHash: v.contentHash,
+      changeReason: v.changeReason,
+      reviewComment: v.reviewComment,
+      approvedAt: v.approvedAt,
+      approvedByName: v.approvedByName,
+    },
+    adjustmentNo: v.versionNo - 1,
+    adjustmentsMax: fixture.adjustmentsMax,
+    keyGroupMax: { before: max, after: max },
+    summary: {
+      added: count('THEM'),
+      changed: count('SUA'),
+      removed: count('BO'),
+      unchanged: count('GIU'),
+    },
+    rows,
+    // BR-04-11, BR-04-12 cần dữ liệu minh chứng và nhiệm vụ đang thực hiện; giả lập không có vi phạm
+    violations: [],
+  };
+  return ok(structuredClone(body), etag(v));
+}
+
+function pending(req: MockRequest): { p: StoredPlan; v: StoredVersion } | MockResponse {
+  const hit = locate(req);
+  if ('status' in hit) return hit;
+  const conflict = ifMatch(hit.v, req);
+  if (conflict) return conflict;
+  if (hit.v.status !== 'CHO_DUYET') return problem(409, 'Phiên bản không ở trạng thái chờ duyệt');
+  return hit;
+}
+
+function returnPlan(req: MockRequest): MockResponse {
+  const hit = pending(req);
+  if ('status' in hit) return hit;
+  const comment = ((req.body as { comment?: string })?.comment ?? '').trim();
+  if (!comment || comment.length > 2000)
+    return problem(422, 'Dữ liệu không hợp lệ', {
+      errors: [{ field: 'comment', message: 'Ghi ý kiến khi trả lại (tối đa 2.000 ký tự)' }],
+    });
+  Object.assign(hit.v, {
+    status: 'TRA_LAI',
+    reviewComment: comment,
+    rowVersion: hit.v.rowVersion + 1,
+  });
+  return ok(structuredClone(strip(hit.v)), etag(hit.v));
+}
+
+/** "Duyệt và ký số": BR-04-08, MFA trong 15 phút, rồi tạo yêu cầu ký 120 giây (MSG-04-09). */
+function approve(req: MockRequest): MockResponse {
+  const hit = pending(req);
+  if ('status' in hit) return hit;
+  const { p, v } = hit;
+  if (v.submittedById === MOCK_ME.id)
+    return problem(403, 'Người duyệt không được là người lập kế hoạch.', {
+      code: 'PLAN-403-SELF-APPROVAL',
+      detail: 'BR-04-08: kế hoạch này do đồng chí lập và gửi duyệt.',
+    });
+  if (!mockSession.recentMfa()) {
+    const r = problem(401, 'Cần xác thực bước lên trước khi ký số', {
+      type: 'https://datatracker.ietf.org/doc/html/rfc9470',
+      code: 'insufficient_user_authentication',
+    });
+    r.headers = {
+      ...r.headers,
+      'WWW-Authenticate':
+        'Bearer error="insufficient_user_authentication", acr_values="aal2", max_age=900',
+    };
+    return r;
+  }
+  const body = req.body as { signMethod?: SignMethod; comment?: string };
+  if (body?.signMethod !== 'MYSIGN')
+    return problem(422, 'Chứng thư số chưa liên kết', {
+      errors: [
+        { field: 'signMethod', message: 'Phương thức ký này chưa liên kết chứng thư hợp lệ' },
+      ],
+    });
+  const sign: StoredSign = {
+    id: `sr-${++seq}`,
+    status: mockSession.esignDown() ? 'CHO_GUI_LAI' : 'CHO_KY',
+    method: body.signMethod,
+    expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    planId: p.id,
+    versionNo: v.versionNo,
+    comment: body.comment?.trim() || undefined,
+    polls: 0,
+  };
+  signs.push(sign);
+  const { planId: _p, versionNo: _v, comment: _c, polls: _n, ...out } = sign;
+  return {
+    status: 202,
+    body: out,
+    headers: { Location: `/api/v1/esign/requests/${sign.id}` },
+  };
+}
+
+/** Trạng thái yêu cầu ký: lần hỏi thứ hai coi như người duyệt đã xác nhận trên MySign (EVT-18, EVT-03). */
+function signStatus(req: MockRequest): MockResponse {
+  const s = signs.find((x) => x.id === req.pathParams['id']);
+  if (!s) return problem(404, 'Không tìm thấy yêu cầu ký');
+  if (s.status === 'CHO_KY' && ++s.polls >= 2) {
+    const p = store().find((x) => x.id === s.planId)!;
+    const v = p.versions.find((x) => x.versionNo === s.versionNo)!;
+    const now = new Date().toISOString();
+    for (const x of p.versions) x.isCurrent = false;
+    Object.assign(v, {
+      status: 'DA_DUYET',
+      isCurrent: true,
+      approvedAt: now,
+      approvedByName: MOCK_ME.name,
+      reviewComment: s.comment,
+      rowVersion: v.rowVersion + 1,
+    });
+    Object.assign(s, { status: 'DA_KY', signedAt: now });
+  }
+  const { planId: _p, versionNo: _v, comment: _c, polls: _n, ...out } = s;
+  return ok(out);
+}
+
 export const PLANS_MOCK: MockModule = {
   name: 'plans',
   reset: () => {
     plans = null;
+    signs = [];
     seq = 0;
+    mockSession.reset();
   },
   routes: [
     {
@@ -478,5 +706,9 @@ export const PLANS_MOCK: MockModule = {
     { method: 'POST', pattern: '/api/v1/plans/:id/versions/:v/submit', handle: submit },
     { method: 'GET', pattern: '/api/v1/plans/:id/suggestions', handle: suggestions },
     { method: 'POST', pattern: '/api/v1/plans/:id/versions', handle: createAdjustment },
+    { method: 'GET', pattern: '/api/v1/plans/:id/versions/:v/diff', handle: diff },
+    { method: 'POST', pattern: '/api/v1/plans/:id/versions/:v/return', handle: returnPlan },
+    { method: 'POST', pattern: '/api/v1/plans/:id/versions/:v/approve', handle: approve },
+    { method: 'GET', pattern: '/api/v1/esign/requests/:id', handle: signStatus },
   ],
 };
