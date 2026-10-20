@@ -1,0 +1,9 @@
+apiVersion: v2
+name: iam
+description: SVC-02 iam (Keycloak 26) - mẫu realm production theo cell và Job nạp realm bằng keycloak-config-cli (DV-02-01, ADR-08)
+type: application
+version: 0.1.0
+appVersion: "26.4.0"
+annotations:
+  mission/svc: SVC-02
+  mission/task: DV-02-01

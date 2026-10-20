@@ -1,0 +1,260 @@
+# Mẫu realm Keycloak production theo cell (DV-02-01).
+# Truy vết: QT-00 → SCR-0001 → OIDC /realms/<realm>/protocol/openid-connect/* → SVC-02 iam (Keycloak 26) → schema `iam`.
+# ADR-08: một realm mỗi cell, mỗi tenant là một Organization (Organizations của Keycloak 26).
+# Nạp bằng keycloak-config-cli (TL-04 SEC-13..SEC-17, SEC-54: cấu hình từ kho GitOps, không chỉnh tay),
+# bật import.var-substitution.enabled=true; các biến MISSION_* do Job Helm truyền vào từ values và Secret.
+# Không có mật khẩu, client secret hay khoá ký thật trong tệp này.
+#
+# Lớp mở rộng của các task khác đặt lên trên mẫu này, không sửa phần đã chốt ở đây:
+#   DV-02-02 mapper claim ngữ cảnh; DV-02-03 MFA, step-up, luồng đăng nhập; DV-02-04 VNeID;
+#   DV-02-05 event listener Kafka; DV-02-06 đồng bộ người dùng; WEB-020 theme đăng nhập.
+realm: $(env:MISSION_REALM)
+enabled: true
+displayName: $(env:MISSION_REALM_DISPLAY_NAME)
+attributes:
+  mission.cell: $(env:MISSION_CELL)
+
+# ADR-08: tenant là Organization; tenant-registry tạo Organization khi khởi tạo tenant (không khai trong mẫu).
+organizationsEnabled: true
+
+# Không cho tự đăng ký; tài khoản đến từ đồng bộ nhân sự (DV-02-06) hoặc IdP liên kết.
+registrationAllowed: false
+registrationEmailAsUsername: false
+# SCR-0001 "Ghi nhớ thiết bị 30 ngày" không áp dụng cho vai trò AAL2: chờ luồng đăng nhập của DV-02-03.
+rememberMe: false
+resetPasswordAllowed: false
+editUsernameAllowed: false
+loginWithEmailAllowed: true
+duplicateEmailsAllowed: false
+verifyEmail: false
+sslRequired: $(env:MISSION_SSL_REQUIRED)
+
+internationalizationEnabled: true
+supportedLocales:
+  - vi
+  - en
+defaultLocale: vi
+# Văn bản trang đăng nhập theo bảng MSG của QT-00 (TL-02a). Thông điệp Keycloak không có tham số
+# số lần thử còn lại ({n}) hay giờ mở khoá ({giờ}); hai phần đó do theme của WEB-020 bổ sung.
+localizationTexts:
+  vi:
+    # MSG-00-01
+    invalidUserMessage: Tên đăng nhập hoặc mật khẩu không đúng.
+    # MSG-00-02 (khoá tạm)
+    accountTemporarilyDisabledMessage: Tài khoản tạm khoá do đăng nhập sai nhiều lần.
+    # Khoá cố định sau 20 lần sai trong 24 giờ (TL-04 SEC-14): chỉ quản trị mở khoá.
+    accountPermanentlyDisabledMessage: Tài khoản đã bị khoá do đăng nhập sai nhiều lần. Đồng chí liên hệ quản trị đơn vị để được mở khoá.
+
+# ---------------------------------------------------------------------------
+# Token và phiên (TL-04 SEC-16; TL-01 SVC-02; TL-02a QT-00). Xem điểm lệch ở wiki/14.
+#   access token: MISSION_ACCESS_TOKEN_LIFESPAN (mặc định 300 s, TL-04)
+#   phiên SSO nhàn rỗi 30 phút, tối đa 10 giờ (TL-01)
+#   refresh token: trượt theo thời gian nhàn rỗi của phiên client, tối đa MISSION_CLIENT_SESSION_MAX (8 giờ, TL-04)
+# ---------------------------------------------------------------------------
+defaultSignatureAlgorithm: ES256
+accessTokenLifespan: $(env:MISSION_ACCESS_TOKEN_LIFESPAN)
+accessTokenLifespanForImplicitFlow: $(env:MISSION_ACCESS_TOKEN_LIFESPAN)
+ssoSessionIdleTimeout: $(env:MISSION_SSO_IDLE)
+ssoSessionMaxLifespan: $(env:MISSION_SSO_MAX)
+clientSessionIdleTimeout: $(env:MISSION_CLIENT_SESSION_IDLE)
+clientSessionMaxLifespan: $(env:MISSION_CLIENT_SESSION_MAX)
+# Phiên offline (nếu client nào xin offline_access) cũng bị giới hạn như phiên SSO: nhàn rỗi 30 phút, tối đa 10 giờ.
+offlineSessionMaxLifespanEnabled: true
+offlineSessionIdleTimeout: $(env:MISSION_SSO_IDLE)
+offlineSessionMaxLifespan: $(env:MISSION_SSO_MAX)
+# Refresh token xoay vòng, dùng một lần; dùng lại bị từ chối (TL-01 D5).
+revokeRefreshToken: true
+refreshTokenMaxReuse: 0
+accessCodeLifespan: 60
+accessCodeLifespanLogin: 1800
+accessCodeLifespanUserAction: 300
+
+# ---------------------------------------------------------------------------
+# Chống dò mật khẩu (BR-00-05; TL-04 SEC-14).
+#   failureFactor 5, khoá tạm MISSION_BF_WAIT giây (900 = 15 phút);
+#   khoá cố định khi số lần khoá tạm vượt MISSION_BF_MAX_TEMP_LOCKOUTS. Keycloak 26 tính một lần khoá tạm
+#   cho mỗi lần sai từ lần thứ 5 trở đi, nên 15 tương ứng khoá cố định ở lần sai thứ 20.
+#   maxDeltaTimeSeconds là khoảng lặng xoá bộ đếm: 86400 để bộ đếm giữ trong 24 giờ (xem wiki/14).
+# ---------------------------------------------------------------------------
+bruteForceProtected: true
+bruteForceStrategy: MULTIPLE
+failureFactor: $(env:MISSION_BF_FAILURE_FACTOR)
+waitIncrementSeconds: $(env:MISSION_BF_WAIT)
+maxFailureWaitSeconds: $(env:MISSION_BF_WAIT)
+maxDeltaTimeSeconds: $(env:MISSION_BF_MAX_DELTA)
+permanentLockout: true
+maxTemporaryLockouts: $(env:MISSION_BF_MAX_TEMP_LOCKOUTS)
+quickLoginCheckMilliSeconds: 1000
+minimumQuickLoginWaitSeconds: 60
+
+# ---------------------------------------------------------------------------
+# Chính sách mật khẩu (TL-04 SEC-15: Argon2id; NFR-08 ASVS).
+#   ASVS 2.1.1 dài tối thiểu 12, 2.1.2 cho phép tới 128; 2.1.9 không áp quy tắc thành phần ký tự;
+#   cấm trùng tên đăng nhập, thư điện tử; cấm dùng lại 5 mật khẩu gần nhất (suy luận theo NFR-08).
+#   Keycloak băm lại theo hashAlgorithm của chính sách ở lần đăng nhập thành công kế tiếp,
+#   nên mật khẩu mang thuật toán cũ được băm lại bằng Argon2id ở lần đăng nhập đầu.
+#   Danh sách mật khẩu đã lộ (passwordBlacklist) cần tệp trong ảnh Keycloak: chờ task INF dựng ảnh.
+# ---------------------------------------------------------------------------
+passwordPolicy: "hashAlgorithm(argon2) and length(12) and maxLength(128) and notUsername(undefined) and notEmail(undefined) and passwordHistory(5)"
+
+# Sự kiện xác thực cho DV-02-05 (đẩy lên topic iam.auth.event.v1) và SOC.
+eventsEnabled: true
+eventsExpiration: 2592000
+eventsListeners:
+  - jboss-logging
+enabledEventTypes:
+  - LOGIN
+  - LOGIN_ERROR
+  - LOGOUT
+  - LOGOUT_ERROR
+  - CODE_TO_TOKEN
+  - CODE_TO_TOKEN_ERROR
+  - REFRESH_TOKEN
+  - REFRESH_TOKEN_ERROR
+  - USER_DISABLED_BY_TEMPORARY_LOCKOUT
+  - USER_DISABLED_BY_PERMANENT_LOCKOUT
+  - UPDATE_PASSWORD
+  - UPDATE_PASSWORD_ERROR
+  - UPDATE_TOTP
+  - REMOVE_TOTP
+  - UPDATE_CREDENTIAL
+  - REMOVE_CREDENTIAL
+  - IDENTITY_PROVIDER_LOGIN
+  - IDENTITY_PROVIDER_LOGIN_ERROR
+  - IDENTITY_PROVIDER_LINK_ACCOUNT
+adminEventsEnabled: true
+adminEventsDetailsEnabled: false
+
+# Khoá ký ES256 (P-256). Khoá sinh trong Keycloak của cell, xoay vòng bằng cách thêm khoá ưu tiên cao hơn.
+components:
+  org.keycloak.keys.KeyProvider:
+    - name: mission-es256
+      providerId: ecdsa-generated
+      config:
+        priority:
+          - "$(env:MISSION_SIGNING_KEY_PRIORITY)"
+        ecdsaEllipticCurveKey:
+          - P-256
+        active:
+          - "true"
+        enabled:
+          - "true"
+
+# ---------------------------------------------------------------------------
+# Vai trò realm: đúng tập vai trò của docs/phan-quyen/ma-tran.json (AC-01..AC-10, AC-12;
+# AC-11 là client credentials, không phải realm role), cộng vai trò con wf_template_author của AC-01 (BS-01).
+# Không có composite role. Mô tả bắt đầu bằng mã AC để đối chiếu tự động.
+# ---------------------------------------------------------------------------
+roles:
+  realm:
+    - name: platform_admin
+      description: AC-01 Quản trị nền tảng (Viettel)
+    - name: wf_template_author
+      description: AC-01 Vai trò con soạn mẫu luồng duyệt (BS-01, SCR-1505)
+    - name: tenant_admin
+      description: AC-02 Quản trị tenant
+    - name: policy_author
+      description: AC-03 Quản trị nghiệp vụ, BA cấu hình
+    - name: leader
+      description: AC-04 Lãnh đạo, người đứng đầu
+    - name: manager
+      description: AC-05 Cán bộ quản lý trực tiếp
+    - name: member
+      description: AC-06 Cán bộ, công chức, viên chức, đảng viên
+    - name: appraiser
+      description: AC-07 Cơ quan tổ chức cán bộ (thẩm định)
+    - name: decider
+      description: AC-08 Cấp có thẩm quyền quyết định
+    - name: second_approver
+      description: AC-09 Người duyệt thứ hai (four-eyes)
+    - name: inspector
+      description: AC-10 Cơ quan kiểm tra, giám sát
+    - name: ai_readonly
+      description: AC-12 Trợ lý AI (chỉ đọc)
+
+# ---------------------------------------------------------------------------
+# Client OIDC (SEC-17): Authorization Code + PKCE S256 bắt buộc; không implicit, không direct grant.
+# state và nonce do thư viện OIDC của ứng dụng sinh và kiểm (angular-oauth2-oidc, AppAuth trên di động).
+# ---------------------------------------------------------------------------
+clients:
+  - clientId: mission-web
+    name: Phân hệ web Mission (SVC-17)
+    protocol: openid-connect
+    enabled: true
+    publicClient: true
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    frontchannelLogout: true
+    fullScopeAllowed: true
+    redirectUris: $(env:MISSION_WEB_REDIRECT_URIS)
+    webOrigins: $(env:MISSION_WEB_ORIGINS)
+    attributes:
+      pkce.code.challenge.method: S256
+      post.logout.redirect.uris: $(env:MISSION_WEB_POST_LOGOUT_URIS)
+      id.token.signed.response.alg: ES256
+      access.token.signed.response.alg: ES256
+      oauth2.device.authorization.grant.enabled: "false"
+      oidc.ciba.grant.enabled: "false"
+      use.refresh.tokens: "true"
+      client_credentials.use_refresh_token: "false"
+    defaultClientScopes:
+      - basic
+      - profile
+      - email
+      - roles
+      - web-origins
+      - acr
+    optionalClientScopes:
+      - organization
+
+  - clientId: mission-mobile
+    name: Ứng dụng di động Mission
+    protocol: openid-connect
+    enabled: true
+    publicClient: true
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    fullScopeAllowed: true
+    redirectUris: $(env:MISSION_MOBILE_REDIRECT_URIS)
+    webOrigins: []
+    attributes:
+      pkce.code.challenge.method: S256
+      post.logout.redirect.uris: $(env:MISSION_MOBILE_POST_LOGOUT_URIS)
+      id.token.signed.response.alg: ES256
+      access.token.signed.response.alg: ES256
+      oauth2.device.authorization.grant.enabled: "false"
+      oidc.ciba.grant.enabled: "false"
+      use.refresh.tokens: "true"
+    defaultClientScopes:
+      - basic
+      - profile
+      - email
+      - roles
+      - web-origins
+      - acr
+    optionalClientScopes:
+      - organization
+
+  # Cổng APISIX (SVC-01) chỉ kiểm token (introspection, JWKS); không phát token cho người dùng.
+  - clientId: apisix-gateway
+    name: Cổng API (SVC-01), chỉ kiểm token
+    protocol: openid-connect
+    enabled: true
+    publicClient: false
+    bearerOnly: false
+    clientAuthenticatorType: client-secret
+    secret: $(env:MISSION_APISIX_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    fullScopeAllowed: false
+    redirectUris: []
+    webOrigins: []
+    attributes:
+      oauth2.device.authorization.grant.enabled: "false"
+      oidc.ciba.grant.enabled: "false"

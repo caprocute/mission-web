@@ -1,0 +1,18 @@
+# Giá trị chart iam cho môi trường staging (DV-02-01). Chỉ biến và tham chiếu bí mật, không có giá trị bí mật.
+# Tên miền dưới đây là chỗ giữ chỗ; tên miền thật đặt trong kho GitOps của môi trường (không ghi vào repo này).
+realm:
+  name: okrkpi
+  displayName: Mission (staging)
+  cell: staging-01
+  sslRequired: all
+  web:
+    hosts:
+      - app.staging-01.example.invalid
+externalSecret:
+  remoteRefs:
+    configCliClientSecret:
+      key: staging/iam/realm-import
+      property: config-cli-client-secret
+    apisixClientSecret:
+      key: staging/iam/apisix-gateway
+      property: client-secret

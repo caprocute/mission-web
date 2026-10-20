@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tenant-registry.fullname" . }}
+  labels:
+    {{- include "tenant-registry.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "tenant-registry.selector" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
