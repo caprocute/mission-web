@@ -1,0 +1,477 @@
+# Bộ ca mẫu GIẢ LẬP cho gói khoi-dang/quy-dinh-moi (DL-03, YC-PT-14).
+# Định dạng theo TL-01 (bo_ca_mau: ca[].id, mo_ta, dau_vao, mong_doi), thêm legal_ref, source, loai.
+# Dữ liệu đều là giả lập, không lấy từ hồ sơ thật (SEC-52). Kỳ vọng do người soạn tính tay từ quy tắc,
+# không sinh từ chính bộ quy tắc; chưa được nghiệp vụ ký (trang_thai_ky: NHAP, BR-15-08).
+# Chạy: python -I data/golden/chay_ca_mau.py data/policy-pack
+bo_ca_mau: bo-ca-mau-gia-lap-quy-dinh-moi
+goi: khoi-dang/quy-dinh-moi
+gia_lap: true
+nguoi_ky: null
+yeu_cau_dat: 1.0
+trang_thai_ky: NHAP
+
+# Giá trị mặc định ghép vào từng ca (ca ghi đè khoá nào thì dùng khoá đó)
+mac_dinh:
+  nhiem_vu: {ke_hoach: 10, so_luong_duyet: 10, muc_chat_luong: 1.0, so_lan_chinh_sua: 0,
+             ngay_lam_viec_cham_chu_quan: 0, ngay_lich_cham_chu_quan: 0, diem_chuan: 10, khong_hoan_thanh_chu_quan: false}
+  QUY: {ty_le_O: 1.0, ty_le_dap_ung_tieu_chi_chung: 1.0, giai_phap_dot_pha_da_kiem_chung: true, loai_tru: false,
+        la_nguoi_dung_dau: false, tap_the_dat_05_chi_tieu: true, tap_the_dat_tat_ca_O: true, ty_le_don_vi_khtnv: 0.0,
+        giu_chuc_vu: false, xep_loai_nha_nuoc: ""}
+  NAM: {diem_toan_bo_nhiem_vu_nam: 0, ty_le_O_nam: 1.0, ty_le_vuot_nam: 0.35, giai_phap_dot_pha_da_kiem_chung: true,
+        ty_le_dap_ung_tieu_chi_chung: 1.0, loai_tru: false, truot_then_chot_chu_quan_nam: false, khong_xet_htxsnv_nam: false}
+
+ca:
+  # ------------------------------------------------------------------ Xếp loại quý
+  - id: Q-001
+    loai: QUY
+    mo_ta: "Đủ mọi điều kiện của mức Hoàn thành xuất sắc nhiệm vụ"
+    legal_ref: "QĐ Điều 11; BR-09-07"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN}, {nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}, {nhom: THEN_CHOT}]
+    mong_doi: {diem: 100.0, ty_le_vuot: 0.5, muc_tieu_chi_chung: THUC_HIEN_TOT, dong_dmn: xep-loai-dang-dong-4, xep_loai: HTXSNV, muc_cuoi: HTXSNV}
+  - id: Q-002
+    loai: QUY
+    mo_ta: "Đủ điểm xuất sắc nhưng tỷ lệ nhiệm vụ vượt mục tiêu 25%, chuyển xuống mức liền kề, có câu giải thích"
+    legal_ref: "QĐ Điều 11; PL 6 §12; BR-09-10"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, muc_chat_luong: 0.75}, {nhom: THUONG_XUYEN}, {nhom: THEN_CHOT, so_luong_duyet: 12}, {nhom: THEN_CHOT}]
+    mong_doi: {diem: 98.8, ty_le_vuot: 0.25, dong_dmn: xep-loai-dang-dong-5, xep_loai: HTTNV, muc_cuoi: HTTNV, ha_muc: true, dieu_kien_thieu: [dat_ty_le_vuot]}
+  - id: Q-003
+    loai: QUY
+    mo_ta: "Điểm 85, tiêu chí chung mức Đảm bảo"
+    legal_ref: "QĐ Điều 11; BR-09-08"
+    source: BA
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.95
+      giai_phap_dot_pha_da_kiem_chung: false
+      nhiem_vu: [{nhom: THUONG_XUYEN, muc_chat_luong: 0.75, ngay_lam_viec_cham_chu_quan: 4}, {nhom: THEN_CHOT, muc_chat_luong: 0.75, ngay_lam_viec_cham_chu_quan: 4}]
+    mong_doi: {diem: 85.0, muc_tieu_chi_chung: DAM_BAO, dong_dmn: xep-loai-dang-dong-5, xep_loai: HTTNV, muc_cuoi: HTTNV}
+  - id: Q-004
+    loai: QUY
+    mo_ta: "Điểm 70, mức Hoàn thành nhiệm vụ"
+    legal_ref: "QĐ Điều 11; BR-09-09"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, muc_chat_luong: 0.5, ngay_lam_viec_cham_chu_quan: 8}, {nhom: THEN_CHOT, muc_chat_luong: 0.5, ngay_lam_viec_cham_chu_quan: 8}]
+    mong_doi: {diem: 70.0, dong_dmn: xep-loai-dang-dong-6, xep_loai: HTNV, muc_cuoi: HTNV}
+  - id: Q-005
+    loai: QUY
+    mo_ta: "Điểm 55, dưới ngưỡng 60"
+    legal_ref: "QĐ Điều 11; BR-09-09"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 5, muc_chat_luong: 0.75, ngay_lam_viec_cham_chu_quan: 12}, {nhom: THEN_CHOT, so_luong_duyet: 5, muc_chat_luong: 0.75, ngay_lam_viec_cham_chu_quan: 12}]
+    mong_doi: {diem: 55.0, kpi_nhiem_vu: [0.55, 0.55], dong_dmn: xep-loai-dang-dong-1, xep_loai: KHTNV, muc_cuoi: KHTNV}
+  - id: Q-006
+    loai: QUY
+    mo_ta: "Điểm 100 nhưng tiêu chí chung Không đảm bảo"
+    legal_ref: "QĐ Điều 10, Điều 11; BR-09-05; BR-09-09"
+    source: BA
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.5
+      nhiem_vu: [{nhom: THUONG_XUYEN}, {nhom: THEN_CHOT}]
+    mong_doi: {diem: 100.0, muc_tieu_chi_chung: KHONG_DAM_BAO, dong_dmn: xep-loai-dang-dong-2, xep_loai: KHTNV, muc_cuoi: KHTNV}
+  - id: Q-007
+    loai: QUY
+    mo_ta: "Có điều kiện loại trừ (ví dụ bị kỷ luật trong kỳ)"
+    legal_ref: "QĐ khoản 11.2.4; PL 6 §8; BR-09-09"
+    source: BA
+    dau_vao:
+      loai_tru: true
+      nhiem_vu: [{nhom: THUONG_XUYEN}, {nhom: THEN_CHOT}]
+    mong_doi: {diem: 100.0, dong_dmn: xep-loai-dang-dong-3, xep_loai: KHTNV, muc_cuoi: KHTNV}
+  - id: Q-008
+    loai: QUY
+    mo_ta: "Đủ mọi điều kiện xuất sắc nhưng có nhiệm vụ then chốt không hoàn thành do chủ quan"
+    legal_ref: "QĐ Điều 11; BR-09-08"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}, {nhom: THEN_CHOT, khong_hoan_thanh_chu_quan: true}]
+    mong_doi: {diem: 100.0, ty_le_vuot: 0.6667, dong_dmn: xep-loai-dang-dong-6, xep_loai: HTNV, muc_cuoi: HTNV}
+  - id: Q-009
+    loai: QUY
+    mo_ta: "Tiêu chí chung Cơ bản đảm bảo (70%), điểm 100"
+    legal_ref: "QĐ Điều 10, Điều 11; BR-09-05; BR-09-06"
+    source: BA
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.7
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    mong_doi: {diem: 100.0, ty_le_vuot: 1.0, muc_tieu_chi_chung: CO_BAN_DAM_BAO, dong_dmn: xep-loai-dang-dong-6, xep_loai: HTNV, muc_cuoi: HTNV}
+  - id: Q-010
+    loai: QUY
+    mo_ta: "Biên tiêu chí chung 90% thuộc mức Đảm bảo"
+    legal_ref: "QĐ Điều 10; BR-09-05"
+    source: BA
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.9
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    mong_doi: {muc_tieu_chi_chung: DAM_BAO, dong_dmn: xep-loai-dang-dong-5, xep_loai: HTTNV, muc_cuoi: HTTNV}
+  - id: Q-011
+    loai: QUY
+    mo_ta: "Biên tiêu chí chung 60% thuộc mức Cơ bản đảm bảo"
+    legal_ref: "QĐ Điều 10; BR-09-05"
+    source: BA
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.6
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    mong_doi: {muc_tieu_chi_chung: CO_BAN_DAM_BAO, dong_dmn: xep-loai-dang-dong-6, xep_loai: HTNV, muc_cuoi: HTNV}
+  - id: Q-012
+    loai: QUY
+    mo_ta: "Tiêu chí chung 59,9% thuộc mức Không đảm bảo"
+    legal_ref: "QĐ Điều 10; BR-09-05"
+    source: BA
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.599
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    mong_doi: {muc_tieu_chi_chung: KHONG_DAM_BAO, dong_dmn: xep-loai-dang-dong-2, xep_loai: KHTNV, muc_cuoi: KHTNV}
+  - id: Q-013
+    loai: QUY
+    mo_ta: "Chưa hoàn thành toàn bộ mục tiêu (90%), chuyển xuống mức liền kề"
+    legal_ref: "QĐ Điều 11; PL 6 §12; BR-09-10"
+    source: BA
+    dau_vao:
+      ty_le_O: 0.9
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    mong_doi: {dong_dmn: xep-loai-dang-dong-5, xep_loai: HTTNV, ha_muc: true, dieu_kien_thieu: [ty_le_O]}
+  - id: Q-014
+    loai: QUY
+    mo_ta: "Không có giải pháp đột phá được kiểm chứng, chuyển xuống mức liền kề"
+    legal_ref: "QĐ Điều 11; PL 6 §12; BR-09-07; BR-09-10"
+    source: BA
+    dau_vao:
+      giai_phap_dot_pha_da_kiem_chung: false
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    mong_doi: {dong_dmn: xep-loai-dang-dong-5, xep_loai: HTTNV, ha_muc: true, dieu_kien_thieu: [giai_phap_dot_pha_da_kiem_chung]}
+  - id: Q-015
+    loai: QUY
+    mo_ta: "Điểm thô 89,95 làm tròn nửa lên thành 90,0"
+    legal_ref: "BR-09-03"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN}, {nhom: THUONG_XUYEN, ke_hoach: 25, so_luong_duyet: 6, muc_chat_luong: 0.75, ngay_lam_viec_cham_chu_quan: 20},
+                 {nhom: THEN_CHOT, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    mong_doi: {diem: 90.0, kpi_nhiem_vu: [1.0, 0.33, 1.0, 1.0], dong_dmn: xep-loai-dang-dong-4, xep_loai: HTXSNV}
+  - id: Q-016
+    loai: QUY
+    mo_ta: "Điểm 89,9 không đạt ngưỡng 90"
+    legal_ref: "QĐ Điều 11; BR-09-03"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, ke_hoach: 25, so_luong_duyet: 21, ngay_lam_viec_cham_chu_quan: 3}, {nhom: THEN_CHOT, so_luong_duyet: 7}]
+    mong_doi: {diem: 89.9, dong_dmn: xep-loai-dang-dong-5, xep_loai: HTTNV, ha_muc: false}
+  - id: Q-017
+    loai: QUY
+    mo_ta: "Điểm thô 59,95 làm tròn thành 60,0, không rơi vào mức Không hoàn thành"
+    legal_ref: "BR-09-03; BR-09-09"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, ke_hoach: 40, so_luong_duyet: 1, ngay_lam_viec_cham_chu_quan: 13}, {nhom: THEN_CHOT, ke_hoach: 25, so_luong_duyet: 2, ngay_lam_viec_cham_chu_quan: 2}]
+    mong_doi: {diem: 60.0, dong_dmn: xep-loai-dang-dong-6, xep_loai: HTNV}
+  - id: Q-018
+    loai: QUY
+    mo_ta: "Điểm 59,9 dưới ngưỡng 60"
+    legal_ref: "BR-09-03; BR-09-09"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, ke_hoach: 25, so_luong_duyet: 1, ngay_lam_viec_cham_chu_quan: 12}, {nhom: THEN_CHOT, so_luong_duyet: 0, ngay_lam_viec_cham_chu_quan: 1}]
+    mong_doi: {diem: 59.9, dong_dmn: xep-loai-dang-dong-1, xep_loai: KHTNV}
+  - id: Q-019
+    loai: QUY
+    mo_ta: "Cách tính chất lượng trừ 25% mỗi lần chỉnh sửa (hai lần)"
+    legal_ref: "Bảng chấm điểm; BR-15-02"
+    source: BA
+    tham_so: {cach_tinh_chat_luong: TRU_25_MOI_LAN}
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_lan_chinh_sua: 2}, {nhom: THEN_CHOT, so_lan_chinh_sua: 2}]
+    mong_doi: {diem: 83.3, dong_dmn: xep-loai-dang-dong-5, xep_loai: HTTNV}
+  - id: Q-020
+    loai: QUY
+    mo_ta: "Cùng dữ liệu Q-019 với cách tính chất lượng mặc định theo năm mức"
+    legal_ref: "PL 3 mục 2; BR-15-02"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_lan_chinh_sua: 2}, {nhom: THEN_CHOT, so_lan_chinh_sua: 2}]
+    mong_doi: {diem: 100.0, dong_dmn: xep-loai-dang-dong-5, xep_loai: HTTNV}
+  - id: Q-021
+    loai: QUY
+    mo_ta: "Tính chậm theo ngày lịch (4 ngày lịch, 2 ngày làm việc)"
+    legal_ref: "PL 3 mục 3; BR-15-03"
+    source: BA
+    tham_so: {loai_ngay: NGAY_LICH}
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, ngay_lam_viec_cham_chu_quan: 2, ngay_lich_cham_chu_quan: 4}, {nhom: THEN_CHOT, ngay_lam_viec_cham_chu_quan: 2, ngay_lich_cham_chu_quan: 4}]
+    mong_doi: {diem: 93.3, xep_loai: HTTNV}
+  - id: Q-022
+    loai: QUY
+    mo_ta: "Cùng dữ liệu Q-021, tính chậm theo ngày làm việc (mặc định)"
+    legal_ref: "PL 3 mục 3; BR-15-03"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, ngay_lam_viec_cham_chu_quan: 2, ngay_lich_cham_chu_quan: 4}, {nhom: THEN_CHOT, ngay_lam_viec_cham_chu_quan: 2, ngay_lich_cham_chu_quan: 4}]
+    mong_doi: {diem: 96.7, xep_loai: HTTNV}
+  - id: Q-023
+    loai: QUY
+    mo_ta: "Tỷ lệ vượt đúng 30%, so sánh tối thiểu (lớn hơn hoặc bằng)"
+    legal_ref: "PL A4; BR-15-04"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THUONG_XUYEN}, {nhom: THUONG_XUYEN}, {nhom: THUONG_XUYEN},
+                 {nhom: THEN_CHOT, so_luong_duyet: 12}, {nhom: THEN_CHOT}, {nhom: THEN_CHOT}, {nhom: THEN_CHOT}, {nhom: THEN_CHOT}]
+    mong_doi: {diem: 100.0, ty_le_vuot: 0.3, xep_loai: HTXSNV}
+  - id: Q-024
+    loai: QUY
+    mo_ta: "Tỷ lệ vượt đúng 30%, so sánh lớn hơn hẳn"
+    legal_ref: "PL A4; BR-15-04"
+    source: BA
+    tham_so: {htxs.phep_so_sanh: LON_HON}
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THUONG_XUYEN}, {nhom: THUONG_XUYEN}, {nhom: THUONG_XUYEN},
+                 {nhom: THEN_CHOT, so_luong_duyet: 12}, {nhom: THEN_CHOT}, {nhom: THEN_CHOT}, {nhom: THEN_CHOT}, {nhom: THEN_CHOT}]
+    mong_doi: {ty_le_vuot: 0.3, xep_loai: HTTNV, ha_muc: true, dieu_kien_thieu: [dat_ty_le_vuot]}
+  - id: Q-025
+    loai: QUY
+    mo_ta: "Đếm nhiệm vụ vượt theo điểm chuẩn: 25% theo số nhiệm vụ nhưng 40% theo điểm"
+    legal_ref: "PL A4; BR-09-07; BR-15-04"
+    source: BA
+    tham_so: {htxs.cach_dem_vuot: THEO_DIEM}
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12, diem_chuan: 40}, {nhom: THUONG_XUYEN, diem_chuan: 20}, {nhom: THEN_CHOT, diem_chuan: 20}, {nhom: THEN_CHOT, diem_chuan: 20}]
+    mong_doi: {ty_le_vuot: 0.4, xep_loai: HTXSNV}
+  - id: Q-026
+    loai: QUY
+    mo_ta: "Cùng dữ liệu Q-025, đếm theo số nhiệm vụ (mặc định)"
+    legal_ref: "PL A4; BR-15-04"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12, diem_chuan: 40}, {nhom: THUONG_XUYEN, diem_chuan: 20}, {nhom: THEN_CHOT, diem_chuan: 20}, {nhom: THEN_CHOT, diem_chuan: 20}]
+    mong_doi: {ty_le_vuot: 0.25, xep_loai: HTTNV}
+  - id: Q-027
+    loai: QUY
+    mo_ta: "Kế hoạch bằng 0 thì chỉ số số lượng bằng 1"
+    legal_ref: "PL 3 mục 1; BR-09-01"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, ke_hoach: 0, so_luong_duyet: 0}, {nhom: THEN_CHOT}]
+    mong_doi: {diem: 100.0, kpi_nhiem_vu: [1.0, 1.0], ty_le_vuot: 0.0, xep_loai: HTTNV}
+  - id: Q-028
+    loai: QUY
+    mo_ta: "Chậm 50 ngày làm việc thì chỉ số tiến độ bằng 0, không âm"
+    legal_ref: "PL 3 mục 3; BR-09-01"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN, ngay_lam_viec_cham_chu_quan: 50}, {nhom: THEN_CHOT}]
+    mong_doi: {diem: 90.0, kpi_nhiem_vu: [0.6667, 1.0], xep_loai: HTTNV}
+  - id: Q-029
+    loai: QUY
+    mo_ta: "Nhóm nhiệm vụ then chốt không có nhiệm vụ nào thì điểm nhóm bằng 0"
+    legal_ref: "PL A3; BR-09-03"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN}]
+    mong_doi: {diem: 30.0, dong_dmn: xep-loai-dang-dong-1, xep_loai: KHTNV}
+  - id: Q-030
+    loai: QUY
+    mo_ta: "Người đứng đầu, tập thể không đạt 05 chỉ tiêu"
+    legal_ref: "QĐ khoản 14.3.3; PL 6 §13; BR-09-13"
+    source: BA
+    dau_vao:
+      la_nguoi_dung_dau: true
+      tap_the_dat_05_chi_tieu: false
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    mong_doi: {xep_loai: HTXSNV, nguoi_dung_dau: true, muc_cuoi: KHTNV}
+  - id: Q-031
+    loai: QUY
+    mo_ta: "Người đứng đầu, 60% đơn vị phụ trách xếp loại Không hoàn thành"
+    legal_ref: "QĐ khoản 14.3.3; BR-09-13"
+    source: BA
+    dau_vao:
+      la_nguoi_dung_dau: true
+      ty_le_don_vi_khtnv: 0.6
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    mong_doi: {nguoi_dung_dau: true, muc_cuoi: KHTNV}
+  - id: Q-032
+    loai: QUY
+    mo_ta: "Người đứng đầu, đúng 50% đơn vị phụ trách xếp loại Không hoàn thành (chưa vượt ngưỡng)"
+    legal_ref: "QĐ khoản 14.3.3; BR-09-13"
+    source: BA
+    dau_vao:
+      la_nguoi_dung_dau: true
+      ty_le_don_vi_khtnv: 0.5
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    mong_doi: {nguoi_dung_dau: false, muc_cuoi: HTXSNV}
+  - id: Q-033
+    loai: QUY
+    mo_ta: "Người đứng đầu, tập thể không đạt mọi mục tiêu"
+    legal_ref: "QĐ khoản 14.3.3; BR-09-13"
+    source: BA
+    dau_vao:
+      la_nguoi_dung_dau: true
+      tap_the_dat_tat_ca_O: false
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    mong_doi: {nguoi_dung_dau: true, muc_cuoi: KHTNV}
+  - id: Q-034
+    loai: QUY
+    mo_ta: "Người giữ chức vụ: mức đảng viên không cao hơn mức công chức"
+    legal_ref: "QĐ Điều 11; BR-09-11"
+    source: BA
+    dau_vao:
+      giu_chuc_vu: true
+      xep_loai_nha_nuoc: HTNV
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    mong_doi: {xep_loai: HTXSNV, muc_cuoi: HTNV}
+  - id: Q-035
+    loai: QUY
+    mo_ta: "Không giữ chức vụ: không áp giới hạn theo mức công chức"
+    legal_ref: "QĐ Điều 11; BR-09-11"
+    source: BA
+    dau_vao:
+      xep_loai_nha_nuoc: HTNV
+      nhiem_vu: [{nhom: THUONG_XUYEN, so_luong_duyet: 12}, {nhom: THEN_CHOT, so_luong_duyet: 12}]
+    mong_doi: {muc_cuoi: HTXSNV}
+
+  # ------------------------------------------------------------------ Xếp loại năm
+  - id: N-001
+    loai: NAM
+    mo_ta: "Bốn quý xuất sắc, đủ điều kiện năm"
+    legal_ref: "QĐ Điều 11; BR-10-02; BR-10-05"
+    source: BA
+    dau_vao:
+      ket_qua_quy: [{quy: 1, diem: 92, xep_loai: HTXSNV}, {quy: 2, diem: 94, xep_loai: HTXSNV}, {quy: 3, diem: 96, xep_loai: HTXSNV}, {quy: 4, diem: 98, xep_loai: HTXSNV}]
+    mong_doi: {diem_nam: 95.0, so_quy_khtnv: 0, dong_dmn: xep-loai-nam-dang-dong-6, xep_loai_nam: HTXSNV, co_bo_tri_lai: false}
+  - id: N-002
+    loai: NAM
+    mo_ta: "Điểm năm 92,5 nhưng có một quý Không hoàn thành nhiệm vụ"
+    legal_ref: "QĐ khoản 15.5; BR-10-03"
+    source: BA
+    dau_vao:
+      ket_qua_quy: [{quy: 1, diem: 100, xep_loai: HTXSNV}, {quy: 2, diem: 100, xep_loai: HTXSNV}, {quy: 3, diem: 100, xep_loai: HTXSNV}, {quy: 4, diem: 70, xep_loai: KHTNV}]
+    mong_doi: {diem_nam: 92.5, so_quy_khtnv: 1, dong_dmn: xep-loai-nam-dang-dong-4, xep_loai_nam: HTTNV}
+  - id: N-003
+    loai: NAM
+    mo_ta: "Mới tuyển dụng, bổ nhiệm dưới 6 tháng: không xét mức xuất sắc năm"
+    legal_ref: "PL 6 §6; BR-11-05"
+    source: BA
+    dau_vao:
+      khong_xet_htxsnv_nam: true
+      ket_qua_quy: [{quy: 1, diem: 95, xep_loai: HTXSNV}, {quy: 2, diem: 95, xep_loai: HTXSNV}, {quy: 3, diem: 95, xep_loai: HTXSNV}, {quy: 4, diem: 95, xep_loai: HTXSNV}]
+    mong_doi: {diem_nam: 95.0, dong_dmn: xep-loai-nam-dang-dong-5, xep_loai_nam: HTTNV}
+  - id: N-004
+    loai: NAM
+    mo_ta: "Điểm năm 85, tiêu chí chung Đảm bảo"
+    legal_ref: "QĐ Điều 11; BR-10-05"
+    source: BA
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.95
+      ket_qua_quy: [{quy: 1, diem: 85, xep_loai: HTTNV}, {quy: 2, diem: 85, xep_loai: HTTNV}, {quy: 3, diem: 85, xep_loai: HTTNV}, {quy: 4, diem: 85, xep_loai: HTTNV}]
+    mong_doi: {diem_nam: 85.0, dong_dmn: xep-loai-nam-dang-dong-7, xep_loai_nam: HTTNV}
+  - id: N-005
+    loai: NAM
+    mo_ta: "Điểm năm 70"
+    legal_ref: "QĐ Điều 11; BR-10-05"
+    source: BA
+    dau_vao:
+      ket_qua_quy: [{quy: 1, diem: 70, xep_loai: HTNV}, {quy: 2, diem: 70, xep_loai: HTNV}, {quy: 3, diem: 70, xep_loai: HTNV}, {quy: 4, diem: 70, xep_loai: HTNV}]
+    mong_doi: {diem_nam: 70.0, dong_dmn: xep-loai-nam-dang-dong-8, xep_loai_nam: HTNV}
+  - id: N-006
+    loai: NAM
+    mo_ta: "Điểm năm 50, bốn quý Không hoàn thành nhiệm vụ"
+    legal_ref: "QĐ Điều 11; QĐ khoản 15.6; BR-10-04; BR-10-05"
+    source: BA
+    dau_vao:
+      ket_qua_quy: [{quy: 1, diem: 50, xep_loai: KHTNV}, {quy: 2, diem: 50, xep_loai: KHTNV}, {quy: 3, diem: 50, xep_loai: KHTNV}, {quy: 4, diem: 50, xep_loai: KHTNV}]
+    mong_doi: {diem_nam: 50.0, so_quy_khtnv: 4, dong_dmn: xep-loai-nam-dang-dong-1, xep_loai_nam: KHTNV, co_bo_tri_lai: true}
+  - id: N-007
+    loai: NAM
+    mo_ta: "Điểm năm 95 nhưng tiêu chí chung Không đảm bảo"
+    legal_ref: "QĐ Điều 10, Điều 11; BR-10-05"
+    source: BA
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.5
+      ket_qua_quy: [{quy: 1, diem: 95, xep_loai: HTXSNV}, {quy: 2, diem: 95, xep_loai: HTXSNV}, {quy: 3, diem: 95, xep_loai: HTXSNV}, {quy: 4, diem: 95, xep_loai: HTXSNV}]
+    mong_doi: {dong_dmn: xep-loai-nam-dang-dong-2, xep_loai_nam: KHTNV}
+  - id: N-008
+    loai: NAM
+    mo_ta: "Có điều kiện loại trừ trong năm"
+    legal_ref: "QĐ khoản 11.2.4; PL 6 §8; BR-10-05"
+    source: BA
+    dau_vao:
+      loai_tru: true
+      ket_qua_quy: [{quy: 1, diem: 95, xep_loai: HTXSNV}, {quy: 2, diem: 95, xep_loai: HTXSNV}, {quy: 3, diem: 95, xep_loai: HTXSNV}, {quy: 4, diem: 95, xep_loai: HTXSNV}]
+    mong_doi: {dong_dmn: xep-loai-nam-dang-dong-3, xep_loai_nam: KHTNV}
+  - id: N-009
+    loai: NAM
+    mo_ta: "Quý I không xếp loại do nghỉ thai sản: không tính vào trung bình năm"
+    legal_ref: "PL 6 §4; BR-10-02"
+    source: BA
+    dau_vao:
+      ket_qua_quy: [{quy: 1, diem: 0, xep_loai: "", co_xep_loai: false}, {quy: 2, diem: 90, xep_loai: HTXSNV}, {quy: 3, diem: 92, xep_loai: HTXSNV}, {quy: 4, diem: 94, xep_loai: HTXSNV}]
+    mong_doi: {diem_nam: 92.0, so_quy_khtnv: 0, xep_loai_nam: HTXSNV}
+  - id: N-010
+    loai: NAM
+    mo_ta: "Trung bình có trọng số, quý IV trọng số 2"
+    legal_ref: "PL A4; BR-10-02"
+    source: BA
+    tham_so: {nam.cach_tinh: TRUNG_BINH_CO_TRONG_SO, nam.trong_so_quy: [1.0, 1.0, 1.0, 2.0]}
+    dau_vao:
+      ket_qua_quy: [{quy: 1, diem: 80, xep_loai: HTTNV}, {quy: 2, diem: 80, xep_loai: HTTNV}, {quy: 3, diem: 80, xep_loai: HTTNV}, {quy: 4, diem: 95, xep_loai: HTXSNV}]
+    mong_doi: {diem_nam: 86.0, dong_dmn: xep-loai-nam-dang-dong-7, xep_loai_nam: HTTNV}
+  - id: N-011
+    loai: NAM
+    mo_ta: "Cùng dữ liệu N-010, trung bình cộng bốn quý (mặc định)"
+    legal_ref: "PL A4; BR-10-02"
+    source: BA
+    dau_vao:
+      ket_qua_quy: [{quy: 1, diem: 80, xep_loai: HTTNV}, {quy: 2, diem: 80, xep_loai: HTTNV}, {quy: 3, diem: 80, xep_loai: HTTNV}, {quy: 4, diem: 95, xep_loai: HTXSNV}]
+    mong_doi: {diem_nam: 83.8, xep_loai_nam: HTTNV}
+  - id: N-012
+    loai: NAM
+    mo_ta: "Điểm năm tính trên toàn bộ nhiệm vụ cả năm"
+    legal_ref: "PL A4; BR-10-02"
+    source: BA
+    tham_so: {nam.cach_tinh: TOAN_BO_NHIEM_VU_NAM}
+    dau_vao:
+      diem_toan_bo_nhiem_vu_nam: 91.25
+      ket_qua_quy: [{quy: 1, diem: 80, xep_loai: HTTNV}, {quy: 2, diem: 80, xep_loai: HTTNV}, {quy: 3, diem: 80, xep_loai: HTTNV}, {quy: 4, diem: 80, xep_loai: HTTNV}]
+    mong_doi: {diem_nam: 91.3, xep_loai_nam: HTXSNV}
+  - id: N-013
+    loai: NAM
+    mo_ta: "Hai quý liên tiếp Không hoàn thành nhiệm vụ: đánh dấu xem xét bố trí lại"
+    legal_ref: "QĐ khoản 15.6; BR-10-04"
+    source: BA
+    dau_vao:
+      ket_qua_quy: [{quy: 1, diem: 100, xep_loai: HTXSNV}, {quy: 2, diem: 50, xep_loai: KHTNV}, {quy: 3, diem: 50, xep_loai: KHTNV}, {quy: 4, diem: 100, xep_loai: HTXSNV}]
+    mong_doi: {diem_nam: 75.0, so_quy_khtnv: 2, dong_dmn: xep-loai-nam-dang-dong-8, xep_loai_nam: HTNV, co_bo_tri_lai: true}
+  - id: N-014
+    loai: NAM
+    mo_ta: "Hai quý Không hoàn thành nhiệm vụ nhưng không liên tiếp"
+    legal_ref: "QĐ khoản 15.6; BR-10-04"
+    source: BA
+    dau_vao:
+      ket_qua_quy: [{quy: 1, diem: 50, xep_loai: KHTNV}, {quy: 2, diem: 100, xep_loai: HTXSNV}, {quy: 3, diem: 50, xep_loai: KHTNV}, {quy: 4, diem: 100, xep_loai: HTXSNV}]
+    mong_doi: {so_quy_khtnv: 2, xep_loai_nam: HTNV, co_bo_tri_lai: false}
+  - id: N-015
+    loai: NAM
+    mo_ta: "Đủ điều kiện xuất sắc năm nhưng có nhiệm vụ then chốt không hoàn thành do chủ quan"
+    legal_ref: "QĐ Điều 11; BR-10-05"
+    source: BA
+    dau_vao:
+      truot_then_chot_chu_quan_nam: true
+      ket_qua_quy: [{quy: 1, diem: 95, xep_loai: HTXSNV}, {quy: 2, diem: 95, xep_loai: HTXSNV}, {quy: 3, diem: 95, xep_loai: HTXSNV}, {quy: 4, diem: 95, xep_loai: HTXSNV}]
+    mong_doi: {dong_dmn: xep-loai-nam-dang-dong-8, xep_loai_nam: HTNV}
+
+  # ------------------------------------------------------------------ 13 trường hợp đặc thù (PL 6)
+  - {id: D-01, loai: DAC_THU, mo_ta: "Điều động dưới 2 tháng", legal_ref: "PL 6 §1", source: BA, dau_vao: {truong_hop: DIEU_DONG_DUOI_2_THANG}, mong_doi: {muc: 1, hieu_ung: XEP_LOAI_TAI_DON_VI_CU}}
+  - {id: D-02, loai: DAC_THU, mo_ta: "Điều động từ 2 tháng trở lên", legal_ref: "PL 6 §2", source: BA, dau_vao: {truong_hop: DIEU_DONG_TU_2_THANG}, mong_doi: {muc: 2, hieu_ung: XEP_LOAI_BINH_THUONG}}
+  - {id: D-03, loai: DAC_THU, mo_ta: "Kiêm nhiệm nhiều chức vụ", legal_ref: "PL 6 §3", source: BA, dau_vao: {truong_hop: KIEM_NHIEM}, mong_doi: {muc: 3, hieu_ung: XEP_LOAI_BINH_THUONG}}
+  - {id: D-04, loai: DAC_THU, mo_ta: "Nghỉ thai sản, ốm đau dài ngày", legal_ref: "PL 6 §4", source: BA, dau_vao: {truong_hop: NGHI_DAI_NGAY}, mong_doi: {muc: 4, hieu_ung: KHONG_XEP_LOAI}, ca_lien_quan: [N-009]}
+  - {id: D-05, loai: DAC_THU, mo_ta: "Đi học, biệt phái dài hạn", legal_ref: "PL 6 §5", source: BA, dau_vao: {truong_hop: DI_HOC_BIET_PHAI}, mong_doi: {muc: 5, hieu_ung: XEP_LOAI_BINH_THUONG}}
+  - {id: D-06, loai: DAC_THU, mo_ta: "Mới tuyển dụng, bổ nhiệm dưới 6 tháng", legal_ref: "PL 6 §6", source: BA, dau_vao: {truong_hop: MOI_TUYEN_DUNG_BO_NHIEM}, mong_doi: {muc: 6, hieu_ung: XEP_LOAI_BINH_THUONG}, ca_lien_quan: [N-003]}
+  - {id: D-07, loai: DAC_THU, mo_ta: "Đang bị xem xét, xác minh", legal_ref: "PL 6 §7", source: BA, dau_vao: {truong_hop: DANG_XEM_XET_XAC_MINH}, mong_doi: {muc: 7, hieu_ung: CHO_KET_LUAN}}
+  - {id: D-08, loai: DAC_THU, mo_ta: "Đã bị kỷ luật trong kỳ", legal_ref: "PL 6 §8", source: BA, dau_vao: {truong_hop: BI_KY_LUAT}, mong_doi: {muc: 8, hieu_ung: XEP_LOAI_BINH_THUONG}, ca_lien_quan: [Q-007, N-008]}
+  - {id: D-09, loai: DAC_THU, mo_ta: "Đơn vị mới thành lập, sáp nhập, chia tách", legal_ref: "PL 6 §9", source: BA, dau_vao: {truong_hop: DON_VI_TO_CHUC_LAI}, mong_doi: {muc: 9, hieu_ung: XEP_LOAI_BINH_THUONG}}
+  - {id: D-10, loai: DAC_THU, mo_ta: "Nghỉ hưu, thôi việc trong kỳ", legal_ref: "PL 6 §10", source: BA, dau_vao: {truong_hop: NGHI_HUU_THOI_VIEC}, mong_doi: {muc: 10, hieu_ung: XEP_LOAI_BINH_THUONG, hieu_ung_khi_khong_du: KHONG_XEP_LOAI}}
+  - {id: D-11, loai: DAC_THU, mo_ta: "Đảng viên ngoài hệ thống chính trị", legal_ref: "PL 6 §11", source: BA, dau_vao: {truong_hop: DANG_VIEN_NGOAI_HTCT}, mong_doi: {muc: 11, hieu_ung: XEP_LOAI_BINH_THUONG}}
+  - {id: D-12, loai: DAC_THU, mo_ta: "Không đủ điều kiện của mức đề xuất", legal_ref: "PL 6 §12", source: BA, dau_vao: {truong_hop: KHONG_DU_DIEU_KIEN_MUC_DE_XUAT}, mong_doi: {muc: 12, hieu_ung: XEP_LOAI_BINH_THUONG}, ca_lien_quan: [Q-002, Q-013, Q-014]}
+  - {id: D-13, loai: DAC_THU, mo_ta: "Người đứng đầu có đơn vị phụ trách Không hoàn thành", legal_ref: "PL 6 §13", source: BA, dau_vao: {truong_hop: NGUOI_DUNG_DAU_DON_VI_KHTNV}, mong_doi: {muc: 13, hieu_ung: XEP_LOAI_BINH_THUONG}, ca_lien_quan: [Q-030, Q-031]}

@@ -13,7 +13,7 @@
 | Cỡ việc | L (> 1 ngày, nên tách: xem cuối mục 3) |
 | Phụ thuộc | DL-02, CORE-05-06 |
 | Truy vết | J6; QT-15 (BR-15-07, BR-15-08), QT-09, QT-10 → API `POST /api/v1/policies/test-cases` (`createGoldenTestCase`), `POST /api/v1/policies/test-cases/{id}/approve` (`approveGoldenTestCase`), `POST /api/v1/policies/packs/{id}/versions/{v}/test-runs` (`runPolicyTests`) → MOD-05, SVC-07 → bảng `policy.golden_test_case`, `policy.test_run`, `policy.test_case_result` → không phát EVT (EVT-13 thuộc bước phát hành) |
-| Trạng thái | Chưa bắt đầu (dùng bản giả lập) |
+| Trạng thái | Bộ ca giả lập xong 20/10/2026: 70 ca, đạt 70/70, phủ mọi dòng DMN và 13 trường hợp đặc thù (`data/golden/`); 0 ca đã ký, chờ nghiệp vụ rà và ký; so khớp cel-java với cel-js, jqwik và nạp qua API chờ NEN-041, CORE-05-06 |
 
 ## 1. Mục tiêu
 

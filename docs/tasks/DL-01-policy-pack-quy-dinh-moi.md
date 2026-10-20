@@ -13,7 +13,7 @@
 | Cỡ việc | L (> 1 ngày, nên tách: xem cuối mục 3) |
 | Phụ thuộc | CORE-05-04 (đã kéo theo NEN-041 thư viện `vt-cel`) |
 | Truy vết | QT-15 → BR-09-01..BR-09-05, BR-09-11, BR-15-01..BR-15-05, BR-15-13 → API `PUT /api/v1/policies/packs/{id}/versions/{v}/rules/{key}` (`savePolicyRule`), `POST /api/v1/policies/packs/{id}/versions/{v}/evaluate` (`evaluatePolicyVersion`) → MOD-05, SVC-07 → bảng `policy.policy_pack`, `policy.policy_pack_version`, `policy.policy_rule` → EVT-13 (chỉ khi phát hành, ngoài task này) |
-| Trạng thái | Chưa bắt đầu (dùng bản giả lập); đã có bản nháp dữ liệu giả lập ngày 20/10/2026 (`data/policy-pack/`, trạng thái gói `NHAP`); kiểm thử nạp gói bằng vt-cel chờ CORE-05-04 |
+| Trạng thái | Bản giả lập xong 20/10/2026 (`data/policy-pack/`, metadata `gia_lap: true`, trạng thái gói `NHAP`); bộ ca mẫu DL-03 đạt 70/70; kiểm thử nạp gói bằng vt-cel chờ CORE-05-04; phát hành bản chính thức khi có nội dung chính thức |
 
 ## 1. Mục tiêu
 

@@ -137,13 +137,15 @@ Câu hỏi năm là chốt các điểm lệch kỹ thuật trong bảng trên, 
 
 Câu hỏi sáu là bổ sung thiết kế cho quản trị phân quyền: bộ TL có bảng `config.role_binding` (vai trò có phạm vi, thời hạn, người duyệt thứ hai cho vai trò nhạy cảm) và có quy định duyệt thay, nghiệm thu thay, check-in thay, nhưng không có SCR, API, BR hay MSG cho màn hình cấp, thu hồi vai trò và uỷ quyền. Cần người phụ trách cấp mã trước khi làm pha 2 của WEB-058. Cùng nhóm này còn ba điểm nhỏ: nhiều ràng buộc tách vai trò chưa có MSG riêng (BR-04-08, BR-06-08, BR-07-06, BR-08-01, BR-15-09, BR-14-08, danh sách ở bảng ràng buộc của trang 15a), nguồn không nêu vai trò của "thư ký tổng hợp" ở SCR-0904 và của chủ trì hội nghị ở SCR-1101, và nguồn không nêu ai là người duyệt UI Pack ở SCR-1801 (ma trận tạm ghi `tenant_admin` khác người soạn, đánh dấu suy luận).
 
-## Dữ liệu nghiệp vụ nền, mẫu biểu và hệ hiện hành (luồng B11, bản nháp 20/10/2026)
+## Dữ liệu nghiệp vụ nền và mẫu biểu (luồng B11, bản giả lập 20/10/2026)
 
-Phần này gom điểm lệch và câu hỏi phát sinh khi soạn dữ liệu nghiệp vụ nền của các task DL-01, DL-02, DL-04, DL-05, DL-07 và điểm chờ của nhóm LEG. Mọi dữ liệu nói ở đây là bản nháp do agent soạn để nghiệp vụ duyệt (kế hoạch tổng thể mục 10), chưa được dùng cho tenant thật. Khi một câu hỏi được trả lời, chuyển nó lên phần quyết định đã chốt.
+Phần này gom điểm lệch và câu hỏi phát sinh khi soạn dữ liệu nghiệp vụ nền của các task DL-01, DL-02, DL-03, DL-04, DL-05, DL-07. Mọi dữ liệu nói ở đây là bản do agent soạn để nghiệp vụ duyệt (kế hoạch tổng thể mục 10), chưa được dùng cho tenant thật. Khi một câu hỏi được trả lời, chuyển nó lên phần quyết định đã chốt.
+
+**Đã chốt ngày 20/10/2026 (người dùng, sổ tay YC-PT-13, YC-PT-14): dùng bản giả lập, giữ cấu hình động.** Công thức tính điểm, bảng xếp loại và mẫu biểu tạm dùng bản giả lập soạn theo QĐ 366-QĐ/TW, dự thảo Quy định mới và NĐ 335/2025; metadata của cả hai gói ghi `gia_lap: true` kèm `ghi_chu_gia_lap`, công cụ `data/policy-pack/kiem_goi.py` bắt buộc có hai trường này. Khi có nội dung chính thức, chỉ phát hành phiên bản gói mới với `gia_lap: false`, không sửa mã. Hệ thống Mission là hệ thống mới độc lập nên không còn việc nào với hệ hiện hành: các task LEG-01..LEG-12 và DL-09..DL-11 đã bị bỏ khỏi kế hoạch, và hệ ngoài chỉ được kiểm thử với bản giả lập.
 
 ### Mẫu biểu sinh hồ sơ số (DL-05)
 
-**Chưa có bản mẫu chính thức.** Dự án chưa có bản DOCX hoặc PDF chính thức của Mẫu 1A, 1B, 1C, 1D, Mẫu 2, Mẫu 3 và bảng chấm điểm cùng số hiệu văn bản ban hành. Theo phạm vi DL-05, mỗi mẫu mới có tệp kê khai trường `manifest.json` ở trạng thái `KHUNG_CHO_BAN_MAU` dựng từ SCR-0903, SCR-1102 và từ điển dữ liệu TL-03, đặt ở `data/policy-pack/khoi-dang/quy-dinh-moi/templates/`; không có bố cục văn bản nào được tự dựng. Cần người dùng cung cấp bản mẫu chính thức và xác nhận phông chữ được phép nhúng vào PDF/A. Nguồn: DL-05 mục 3; `data/seed/docgen/README.md`.
+**Dùng mẫu giả lập trong khi chờ bản chính thức (đã chốt 20/10/2026).** Dự án chưa có bản DOCX hoặc PDF chính thức của Mẫu 1A, 1B, 1C, 1D, Mẫu 2, Mẫu 3 và bảng chấm điểm cùng số hiệu văn bản ban hành. Mỗi mẫu có tệp kê khai `manifest.json` ở trạng thái `GIA_LAP` (phiên bản `0.9.0-gia-lap`) dựng từ SCR-0903, SCR-1102 và từ điển dữ liệu TL-03, cùng tệp DOCX giả lập sinh từ kê khai bằng `data/seed/docgen/sinh_mau_gia_lap.py`. Tệp DOCX chỉ dựng đủ vùng trộn và in dòng "MẪU GIẢ LẬP" ở đầu tài liệu và đầu mỗi trang, không phải bố cục văn bản pháp lý. Khi có bản chính thức, thay tệp DOCX, đổi trạng thái kê khai và phát hành phiên bản gói mới. Vẫn cần người dùng cung cấp bản mẫu chính thức và xác nhận phông chữ được phép nhúng vào PDF/A. Nguồn: DL-05 mục 3; `data/seed/docgen/README.md`.
 
 **Đối tượng của Mẫu 1B, 1C và nguồn số liệu Mẫu 1A.** TL chỉ ghi 1A là mẫu tập thể, 1B, 1C, 1D là mẫu cá nhân và 1D dành cho đảng viên ngoài hệ thống chính trị (PL 2E); đối tượng cụ thể của 1B và 1C, cùng các cột số liệu tập thể của 1A, chưa có trong TL. Kê khai để trống các phần này và đánh dấu suy luận. Nguồn: TL-02b QT-11 bước 3, bảng 13 trường hợp §11.
 
@@ -151,9 +153,11 @@ Phần này gom điểm lệch và câu hỏi phát sinh khi soạn dữ liệu 
 
 **Gói luồng Nhà nước chưa có mẫu biểu.** TL không nói luồng Nhà nước dùng mẫu nào; `khoi-chinh-quyen/nd335/templates/` để trống. Cần xác nhận luồng Nhà nước dùng chung mẫu nào của gói Đảng hay có mẫu riêng theo NĐ 335/2025.
 
-### Policy Pack bản nháp (DL-01, DL-02, DL-04)
+### Policy Pack bản giả lập (DL-01, DL-02, DL-04)
 
-Bản nháp gói `khoi-dang/quy-dinh-moi` 2.1.0 và `khoi-chinh-quyen/nd335` 1.4.0 nằm ở `data/policy-pack/`, trạng thái `NHAP`, chưa phê duyệt. Các mục dưới cần nghiệp vụ hoặc người phụ trách xác nhận; khi chốt, chuyển sang phần quyết định đã chốt.
+Bản giả lập gói `khoi-dang/quy-dinh-moi` 2.1.0 và `khoi-chinh-quyen/nd335` 1.4.0 nằm ở `data/policy-pack/`, trạng thái `NHAP`, chưa phê duyệt. Các mục dưới cần nghiệp vụ hoặc người phụ trách xác nhận khi có nội dung chính thức; khi chốt, chuyển sang phần quyết định đã chốt.
+
+**Đã sửa: điều kiện nhiệm vụ then chốt ở dòng xuất sắc (20/10/2026).** Dòng Hoàn thành xuất sắc nhiệm vụ của bảng xếp loại quý và bảng xếp loại năm trước đây không xét điều kiện "không có nhiệm vụ then chốt chưa hoàn thành do nguyên nhân chủ quan", trong khi dòng Hoàn thành tốt có xét, nên một hồ sơ có thể được mức xuất sắc mà không được mức tốt. Hai dòng nay yêu cầu điều kiện này, vì mức cao phải bao hàm điều kiện của mức thấp hơn (suy luận từ cấu trúc Điều 11). Lỗi được phát hiện khi soạn bộ ca mẫu DL-03 (ca Q-008, N-015). Nguồn: TL-02b BR-09-07, BR-09-08; CHANGELOG của gói.
 
 **Định danh gói luồng Nhà nước.** Chọn `khoi-chinh-quyen/nd335` vì TL-01 dùng đúng định danh này ở ví dụ `wf_binding` ("Policy Pack `khoi-chinh-quyen/nd335@1.4`") và ở UI Pack (`requires.policyPack: khoi-chinh-quyen/nd335@>=1.2.0 <2.0.0`). Phiên bản nháp 1.4.0; TL-02b SCR-0901 nhắc "NĐ 335 v1.3". Cần xác nhận định danh, tag tenant `khoi-chinh-quyen` và số phiên bản. Nguồn: TL-01 chương điều phối luồng, chương 7 (UI Pack); TL-02b SCR-0901.
 
@@ -224,9 +228,11 @@ Bản nháp gói `khoi-dang/quy-dinh-moi` 2.1.0 và `khoi-chinh-quyen/nd335` 1.4
 
 Nguồn: TL-03 bảng `org.subject_group`, `org.job_title`, `config.holiday_calendar`, mục migration (K1); TL-02a QT-01 BR-01-05; TL-02b BR-11-11; baseline mục 9; Bộ luật Lao động 2019 Điều 111, 112; Nghị quyết 28/2026/QH16; các văn bản nêu trên (đường dẫn trong `data/seed/config/*.csv`).
 
-### Hệ hiện hành (LEG-01..LEG-12, DL-09..DL-11)
+### Bộ ca mẫu vàng (DL-03)
 
-**Đang chờ quyền truy cập, chưa làm gì và không giả định dữ liệu.** Mọi task LEG và DL-09..DL-11 cần người dùng cấp: quyền đọc các repo của hệ hiện hành (TL-01 nêu năm repo `backend-missions`, `dhtn_fe`, `backend2.0`, `web-spring`, `twd_mission`, TL-04 nói bốn repo, cần xác nhận danh sách); tài khoản Oracle chỉ đọc vào schema `VOFFICE` trên bản sao kèm quyền đọc từ điển dữ liệu; mô tả hoặc quyền xem hạ tầng đang chạy và đầu mối vận hành, đầu mối vOffice. Không có cách làm tạm, và các lỗ hổng S01–S05 của hệ hiện hành vẫn tồn tại cho tới khi LEG-03 làm được. Nguồn: thẻ LEG-01 mục 2; kế hoạch tổng thể mục 10.
+**Bộ ca giả lập, chưa ký.** Gói Đảng có 63 ca (35 ca quý, 15 ca năm, 13 ca trường hợp đặc thù), gói Nhà nước có 7 ca, ở `tests/bo-ca-mau-gia-lap.yaml` của từng gói; tập lệnh `data/golden/chay_ca_mau.py` chạy đạt 70/70 và ma trận phủ không còn dòng bảng quyết định hay trường hợp đặc thù nào thiếu ca. Mọi ca ở trạng thái `NHAP`; cần người phụ trách nghiệp vụ do cơ quan tổ chức chỉ định rà bảng đối chiếu `data/golden/<gói>/bang-doi-chieu.csv` và ký. Nguồn: TL-01 "Bộ ca mẫu vàng"; TL-02b BR-15-07, BR-15-08.
+
+**Phần chưa làm được.** Chạy cùng bộ ca trên cel-java và cel-js để so khớp (`engine_match`), kiểm thử thuộc tính jqwik và nạp ca qua `createGoldenTestCase` đều cần mã máy chủ (bộ chạy chung `vt-cel` của NEN-041, CORE-05-06) chưa có trong repo; tệp nạp `nap-ca.json` đã chuẩn bị sẵn. Ca biên của TL-01 dùng ngưỡng 59,95 và 89,95 (đúng ranh giới làm tròn một chữ số) thay cho 59,995 và 89,995 (ranh giới của hai chữ số trong ví dụ TL-01), theo quyết định làm tròn một chữ số ở mục trên (suy luận).
 
 ## Liên quan
 

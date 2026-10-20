@@ -10,8 +10,8 @@ Tập lệnh duyệt mọi tệp ``<gói>/templates/<mẫu>/manifest.json`` dư�
     nhãn tiêu chí chung trỏ tới bảng nhãn có thật (BR-11-04), không in dữ liệu mức C3;
   * nếu đã có tệp DOCX: tệp là OOXML hợp lệ và tập tag content control trùng khít tập tag trong kê khai.
 
-Khi chưa có bản mẫu chính thức (``trang_thai = KHUNG_CHO_BAN_MAU``), thiếu tệp DOCX chỉ là cảnh báo;
-với ``--nghiem-ngat`` hoặc mẫu đã ở trạng thái khác, thiếu tệp DOCX là lỗi.
+Ở trạng thái ``KHUNG_CHO_BAN_MAU`` thiếu tệp DOCX chỉ là cảnh báo (trừ khi chạy ``--nghiem-ngat``); ở mọi trạng thái
+khác thiếu DOCX là lỗi. Mẫu ``GIA_LAP`` (YC-PT-14) phải in dòng "MẪU GIẢ LẬP" trên tài liệu.
 Chỉ dùng thư viện chuẩn của Python 3.12.
 """
 from __future__ import annotations
@@ -24,7 +24,8 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 MA_BIEU_MAU = {"MAU_1A", "MAU_1B", "MAU_1C", "MAU_1D", "MAU_2", "MAU_3", "BANG_CHAM_DIEM"}
-TRANG_THAI = {"KHUNG_CHO_BAN_MAU", "CHO_DUYET", "HIEU_LUC"}
+TRANG_THAI = {"KHUNG_CHO_BAN_MAU", "GIA_LAP", "CHO_DUYET", "HIEU_LUC"}
+DAU_GIA_LAP = "MẪU GIẢ LẬP"
 LUONG = {"DANG", "NHA_NUOC"}
 DOI_TUONG = {"CA_NHAN", "TAP_THE", "DANH_SACH"}
 KIEU = {"van_ban", "van_ban_dai", "so", "ngay", "co", "bang", "nhan_muc", "nhan_tieu_chi", "nhan_trang_thai", "nhan_nhom"}
@@ -136,27 +137,29 @@ def duyet_truong(ds: list, manifest: dict, khung: bool, ten: str, tags: list[str
                 kq.them_loi(noi, "bảng phải khai báo danh sách cột")
 
 
-def tag_trong_docx(tep: Path, noi: str, kq: KetQua) -> set[str] | None:
+def tag_trong_docx(tep: Path, noi: str, kq: KetQua) -> tuple[set[str] | None, str]:
     try:
         with zipfile.ZipFile(tep) as z:
             ten = set(z.namelist())
             if "[Content_Types].xml" not in ten or "word/document.xml" not in ten:
                 kq.them_loi(noi, "tệp DOCX thiếu [Content_Types].xml hoặc word/document.xml")
-                return None
+                return None, ""
             tags: set[str] = set()
+            chu: list[str] = []
             for phan in sorted(ten):
                 if not re.match(r"^word/(document|header\d*|footer\d*)\.xml$", phan):
                     continue
                 goc = ElementTree.fromstring(z.read(phan))
+                chu.extend(t.text or "" for t in goc.iter(f"{W_NS}t"))
                 for sdt_pr in goc.iter(f"{W_NS}sdtPr"):
                     for tag in sdt_pr.iter(f"{W_NS}tag"):
                         gia_tri = tag.get(f"{W_NS}val")
                         if gia_tri:
                             tags.add(gia_tri)
-            return tags
+            return tags, "".join(chu)
     except (zipfile.BadZipFile, ElementTree.ParseError, OSError) as e:
         kq.them_loi(noi, f"tệp DOCX không phải OOXML hợp lệ ({e.__class__.__name__})")
-        return None
+        return None, ""
 
 
 def kiem_manifest(tep: Path, goc: Path, nhan: dict, nghiem_ngat: bool, kq: KetQua) -> str | None:
@@ -172,7 +175,7 @@ def kiem_manifest(tep: Path, goc: Path, nhan: dict, nghiem_ngat: bool, kq: KetQu
     trang_thai = m.get("trang_thai")
     if trang_thai not in TRANG_THAI:
         kq.them_loi(noi, f"trạng thái '{trang_thai}' không hợp lệ")
-    khung = trang_thai == "KHUNG_CHO_BAN_MAU"
+    khung = trang_thai in ("KHUNG_CHO_BAN_MAU", "GIA_LAP")
     tv = m.get("template_version")
     if not isinstance(tv, str) or not tv or len(tv) > 32:
         kq.them_loi(noi, "template_version phải là chuỗi 1–32 ký tự (dossier.form_instance.template_version)")
@@ -206,12 +209,14 @@ def kiem_manifest(tep: Path, goc: Path, nhan: dict, nghiem_ngat: bool, kq: KetQu
     tep_mau = tep.parent / str(m.get("tep_mau") or "")
     if not m.get("tep_mau") or not tep_mau.is_file():
         thong_diep = f"chưa có tệp mẫu DOCX '{m.get('tep_mau')}'"
-        if khung and not nghiem_ngat:
+        if trang_thai == "KHUNG_CHO_BAN_MAU" and not nghiem_ngat:
             kq.them_canh_bao(noi, thong_diep + " (chờ bản mẫu chính thức)")
         else:
             kq.them_loi(noi, thong_diep)
     else:
-        tag_docx = tag_trong_docx(tep_mau, str(tep_mau.relative_to(goc)), kq)
+        tag_docx, van_ban = tag_trong_docx(tep_mau, str(tep_mau.relative_to(goc)), kq)
+        if trang_thai == "GIA_LAP" and DAU_GIA_LAP not in van_ban:
+            kq.them_loi(noi, "mẫu giả lập phải in dòng \"MẪU GIẢ LẬP\" trên tài liệu (YC-PT-14)")
         if tag_docx is not None:
             thieu = sorted(set(tags) - tag_docx)
             thua = sorted(tag_docx - set(tags))
