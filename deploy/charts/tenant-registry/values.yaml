@@ -42,6 +42,26 @@ database:
   secretName: tenant-registry-db
   secretKey: DATABASE_URL
 
+# DV-03-02: khoá HMAC cookie định tuyến (TL-01 "Định tuyến tới cell"). Khoá nằm trong OpenBao, External
+# Secrets đồng bộ vào Secret dưới đây; ứng dụng đọc base64 từ biến môi trường ROUTING_COOKIE_KEY.
+routingCookie:
+  secretName: tenant-registry-routing-key
+  keyCurrent: ROUTING_COOKIE_KEY
+  keyPrevious: ROUTING_COOKIE_KEY_PREVIOUS   # tuỳ chọn, dùng khi xoay khoá
+  domain: ""                                 # ví dụ .okrkpi.vn để cookie tới được cổng các cell
+resolve:
+  cacheTtl: 30s      # TL-03: làm mới mỗi 30 giây
+  staleMax: 300s     # phục vụ đệm cũ khi mất CSDL toàn cục
+
+# Tạo ExternalSecret (external-secrets.io/v1) kéo khoá HMAC từ OpenBao; tắt khi cụm dùng cách nạp khác.
+externalSecrets:
+  enabled: false
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: openbao
+  refreshInterval: 1h
+  routingKeyPath: mission/global/tenant-registry/routing-cookie   # khoá trong OpenBao (không phải giá trị)
+
 # Job migrate chạy Flyway bằng vai trò mig_registry trước khi cài hoặc nâng cấp (helm hook).
 migration:
   enabled: true

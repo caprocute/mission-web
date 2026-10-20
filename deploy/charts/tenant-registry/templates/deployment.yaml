@@ -68,6 +68,23 @@ spec:
               value: {{ .Values.env.oidcAudience | quote }}
             - name: STEP_UP_MAX_AGE
               value: {{ .Values.env.stepUpMaxAge | quote }}
+            - name: ROUTING_COOKIE_DOMAIN
+              value: {{ .Values.routingCookie.domain | quote }}
+            - name: RESOLVE_CACHE_TTL
+              value: {{ .Values.resolve.cacheTtl | quote }}
+            - name: RESOLVE_STALE_MAX
+              value: {{ .Values.resolve.staleMax | quote }}
+            - name: ROUTING_COOKIE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.routingCookie.secretName }}
+                  key: {{ .Values.routingCookie.keyCurrent }}
+            - name: ROUTING_COOKIE_KEY_PREVIOUS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.routingCookie.secretName }}
+                  key: {{ .Values.routingCookie.keyPrevious }}
+                  optional: true
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:

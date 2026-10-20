@@ -17,6 +17,8 @@ import (
 	"mission/services-go/tenant-registry/internal/config"
 	"mission/services-go/tenant-registry/internal/platform/auth"
 	"mission/services-go/tenant-registry/internal/platform/logx"
+	"mission/services-go/tenant-registry/internal/resolve"
+	"mission/services-go/tenant-registry/pkg/routecookie"
 )
 
 // migrationDir là nơi Dockerfile chép migration Flyway vào ảnh.
@@ -48,7 +50,15 @@ func main() {
 	defer pool.Close()
 
 	verifier := auth.NewJWKSVerifier(auth.JWKSConfig{JWKSURL: cfg.JWKSURL, Issuers: cfg.Issuers, Audience: cfg.Audience})
-	srv := api.New(api.Deps{Pool: pool, Log: log, Verifier: verifier, StepUpMaxAge: cfg.StepUpMaxAge})
+	signer, err := routecookie.NewSigner(cfg.RoutingKey, cfg.RoutingKeyPrevious)
+	if err != nil {
+		log.Error("khoá cookie định tuyến không hợp lệ", "err", err.Error())
+		os.Exit(2)
+	}
+	resolver := resolve.New(&resolve.DBLoader{Pool: pool}, resolve.Options{TTL: cfg.ResolveCacheTTL, StaleMax: cfg.ResolveStaleMax})
+	go resolver.Listen(ctx, pool, log)
+	srv := api.New(api.Deps{Pool: pool, Log: log, Verifier: verifier, StepUpMaxAge: cfg.StepUpMaxAge,
+		Resolver: resolver, Cookies: signer, CookieDomain: cfg.CookieDomain})
 
 	httpSrv := &http.Server{
 		Addr:              cfg.HTTPAddr,

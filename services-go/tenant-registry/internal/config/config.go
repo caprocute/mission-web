@@ -23,6 +23,13 @@ type Config struct {
 	Audience string
 	// StepUpMaxAge: độ tươi AAL2 cho thao tác có x-mission.aal: 2 (TL-01: 5 phút).
 	StepUpMaxAge time.Duration
+
+	// DV-03-02: khoá HMAC cookie định tuyến (OpenBao → External Secrets → biến môi trường hoặc tệp).
+	RoutingKey         []byte
+	RoutingKeyPrevious []byte
+	CookieDomain       string
+	ResolveCacheTTL    time.Duration
+	ResolveStaleMax    time.Duration
 }
 
 // Load đọc cấu hình; thiếu biến bắt buộc trả lỗi.
@@ -35,6 +42,19 @@ func Load() (Config, error) {
 		Issuers:         list("OIDC_ISSUERS"),
 		Audience:        os.Getenv("OIDC_AUDIENCE"),
 		StepUpMaxAge:    dur("STEP_UP_MAX_AGE", 5*time.Minute),
+		CookieDomain:    os.Getenv("ROUTING_COOKIE_DOMAIN"),
+		ResolveCacheTTL: dur("RESOLVE_CACHE_TTL", 30*time.Second),
+		ResolveStaleMax: dur("RESOLVE_STALE_MAX", 300*time.Second),
+	}
+	var err error
+	if c.RoutingKey, err = secret("ROUTING_COOKIE_KEY"); err != nil {
+		return c, err
+	}
+	if c.RoutingKeyPrevious, err = secret("ROUTING_COOKIE_KEY_PREVIOUS"); err != nil {
+		return c, err
+	}
+	if len(c.RoutingKey) < 32 {
+		return c, fmt.Errorf("config: ROUTING_COOKIE_KEY (base64) phải có tối thiểu 32 byte")
 	}
 	if c.DatabaseURL == "" {
 		return c, fmt.Errorf("config: thiếu DATABASE_URL")
@@ -99,4 +119,3 @@ func secret(k string) ([]byte, error) {
 	}
 	return b, nil
 }
-

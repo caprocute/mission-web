@@ -14,6 +14,8 @@ import (
 	"mission/services-go/tenant-registry/internal/platform/auth"
 	"mission/services-go/tenant-registry/internal/platform/logx"
 	"mission/services-go/tenant-registry/internal/platform/problem"
+	"mission/services-go/tenant-registry/internal/resolve"
+	"mission/services-go/tenant-registry/pkg/routecookie"
 )
 
 // Deps là phụ thuộc của Server.
@@ -23,6 +25,10 @@ type Deps struct {
 	Verifier     auth.Verifier
 	StepUpMaxAge time.Duration
 	Now          func() time.Time
+	// DV-03-02: phân giải có đệm và cookie định tuyến.
+	Resolver     *resolve.Service
+	Cookies      *routecookie.Signer
+	CookieDomain string
 }
 
 // Server giữ phụ thuộc và bộ định tuyến.
