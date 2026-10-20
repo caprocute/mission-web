@@ -1,0 +1,149 @@
+{{- $r := .Values.realm -}}
+# Job nạp mẫu realm bằng keycloak-config-cli sau mỗi lần cài, nâng cấp chart (TL-04 SEC-13..SEC-17:
+# Keycloak cấu hình từ kho GitOps, không chỉnh tay). Argo CD ánh xạ hook post-install/post-upgrade thành PostSync.
+# keycloak-config-cli chỉ xoá tài nguyên do chính nó quản lý (remote state), nên lớp của DV-02-02..06 không bị mất.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "iam.fullname" . }}-realm-import
+  labels:
+    {{- include "iam.labels" . | nindent 4 }}
+    app.kubernetes.io/component: realm-import
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.job.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.job.activeDeadlineSeconds }}
+  ttlSecondsAfterFinished: {{ .Values.job.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+        {{- include "iam.realmImport.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/realm: {{ .Files.Get "files/realm/realm-cell.yaml" | sha256sum }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "iam.fullname" . }}-realm-import
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: keycloak-config-cli
+          image: {{ include "iam.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: JAVA_OPTS
+              value: {{ printf "%s -Djava.io.tmpdir=/tmp" .Values.job.javaOpts | quote }}
+            - name: KEYCLOAK_URL
+              value: {{ .Values.keycloak.url | quote }}
+            - name: KEYCLOAK_LOGINREALM
+              value: {{ .Values.keycloak.loginRealm | quote }}
+            - name: KEYCLOAK_GRANTTYPE
+              value: client_credentials
+            - name: KEYCLOAK_CLIENTID
+              value: {{ .Values.keycloak.clientId | quote }}
+            - name: KEYCLOAK_CLIENTSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.keys.configCliClientSecret }}
+            - name: KEYCLOAK_SSLVERIFY
+              value: {{ .Values.keycloak.sslVerify | quote }}
+            - name: KEYCLOAK_AVAILABILITYCHECK_ENABLED
+              value: "true"
+            - name: KEYCLOAK_AVAILABILITYCHECK_TIMEOUT
+              value: {{ .Values.keycloak.availabilityCheckTimeout | quote }}
+            - name: IMPORT_FILES_LOCATIONS
+              value: file:/config/realm-cell.yaml
+            - name: IMPORT_VARSUBSTITUTION_ENABLED
+              value: "true"
+            - name: IMPORT_VARSUBSTITUTION_UNDEFINEDISERROR
+              value: "true"
+            - name: IMPORT_REMOTESTATE_ENABLED
+              value: "true"
+            - name: IMPORT_VALIDATE
+              value: "true"
+            # Biến thay thế trong mẫu realm ($(env:...))
+            - name: MISSION_REALM
+              value: {{ required "realm.name là bắt buộc" $r.name | quote }}
+            - name: MISSION_REALM_DISPLAY_NAME
+              value: {{ $r.displayName | quote }}
+            - name: MISSION_CELL
+              value: {{ required "realm.cell là bắt buộc" $r.cell | quote }}
+            - name: MISSION_SSL_REQUIRED
+              value: {{ $r.sslRequired | quote }}
+            - name: MISSION_WEB_REDIRECT_URIS
+              value: {{ include "iam.web.redirectUris" . | quote }}
+            - name: MISSION_WEB_ORIGINS
+              value: {{ include "iam.web.origins" . | quote }}
+            - name: MISSION_WEB_POST_LOGOUT_URIS
+              value: {{ include "iam.web.postLogoutUris" . | quote }}
+            - name: MISSION_MOBILE_REDIRECT_URIS
+              value: {{ toJson $r.mobile.redirectUris | quote }}
+            - name: MISSION_MOBILE_POST_LOGOUT_URIS
+              value: {{ join "##" $r.mobile.postLogoutRedirectUris | quote }}
+            - name: MISSION_ACCESS_TOKEN_LIFESPAN
+              value: {{ $r.tokens.accessTokenLifespan | quote }}
+            - name: MISSION_SSO_IDLE
+              value: {{ $r.tokens.ssoSessionIdleTimeout | quote }}
+            - name: MISSION_SSO_MAX
+              value: {{ $r.tokens.ssoSessionMaxLifespan | quote }}
+            - name: MISSION_CLIENT_SESSION_IDLE
+              value: {{ $r.tokens.clientSessionIdleTimeout | quote }}
+            - name: MISSION_CLIENT_SESSION_MAX
+              value: {{ $r.tokens.clientSessionMaxLifespan | quote }}
+            - name: MISSION_BF_FAILURE_FACTOR
+              value: {{ $r.bruteForce.failureFactor | quote }}
+            - name: MISSION_BF_WAIT
+              value: {{ $r.bruteForce.waitSeconds | quote }}
+            - name: MISSION_BF_MAX_DELTA
+              value: {{ $r.bruteForce.maxDeltaTimeSeconds | quote }}
+            - name: MISSION_BF_MAX_TEMP_LOCKOUTS
+              value: {{ $r.bruteForce.maxTemporaryLockouts | quote }}
+            - name: MISSION_SIGNING_KEY_PRIORITY
+              value: {{ $r.signingKeyPriority | quote }}
+            - name: MISSION_APISIX_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.keys.apisixClientSecret }}
+          resources:
+            {{- toYaml .Values.job.resources | nindent 12 }}
+          volumeMounts:
+            - name: realm
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: realm
+          configMap:
+            name: {{ include "iam.fullname" . }}-realm
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+      {{- with .Values.job.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.job.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
