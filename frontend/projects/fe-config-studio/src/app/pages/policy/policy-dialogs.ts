@@ -37,13 +37,13 @@ export const PARAM_LABEL: Record<string, string> = {
   diem_toi_da: 'Điểm tối đa của nhóm',
 };
 
-const VALUE_LABEL: Record<string, string> = {
+export const VALUE_LABEL: Record<string, string> = {
   ...QUALITY_METHOD_LABEL,
   ...RETURN_REASON_LABEL,
   ...DAY_KIND_LABEL,
 };
 
-const DIALOG_STYLES = `
+export const DIALOG_STYLES = `
   .muted { color: #4b5563; }
   .err { color: #b4001f; }
   table { width: 100%; border-collapse: collapse; }

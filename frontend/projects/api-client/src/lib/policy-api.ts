@@ -7,7 +7,19 @@ import {
   DecisionTable,
   DecisionTableSaved,
   DecisionTableUpdate,
+  GoldenTestCase,
+  GoldenTestCaseCreate,
   GoldenTestCaseList,
+  PolicyDecisionReason,
+  PolicyPackApprove,
+  PolicyTestRun,
+  PolicyTestRunCreate,
+  PolicyWorkflowTemplateList,
+  PolicyWorkflowTemplateVersion,
+  WorkflowBinding,
+  WorkflowBindingUpdate,
+  WorkflowSimulateRequest,
+  WorkflowSimulateResult,
   PolicyEvaluateResult,
   PolicyPack,
   PolicyPackList,
@@ -36,7 +48,7 @@ const etagOf = (res: HttpResponse<unknown>, rowVersion: number) =>
   res.headers.get('ETag') ?? `"${rowVersion}"`;
 
 /**
- * Client Policy Pack của MOD-05 (QT-15, SCR-1501, SCR-1502) theo `policies.yaml`. Máy chủ kiểm tra
+ * Client Policy Pack của MOD-05 (QT-15, SCR-1501 … SCR-1504) theo `policies.yaml`. Máy chủ kiểm tra
  * kiểu CEL bằng cel-java và là nguồn sự thật; ghi kèm `Idempotency-Key` (interceptor tự thêm) và
  * `If-Match` theo ETag của bản ghi.
  */
@@ -130,9 +142,33 @@ export class PolicyApi {
     );
   }
 
-  /** Chạy bộ test case vàng: 202, theo dõi qua danh sách lần chạy. */
-  runTests(r: PackVersionRef): Observable<Job> {
-    return this.http.post<Job>(apiUrl('/policies/packs/{id}/versions/{v}/test-runs', r), {});
+  /**
+   * Chạy bộ test case vàng trên hai engine cùng kiểm thử thuộc tính: 202, theo dõi qua danh sách lần
+   * chạy (BR-15-07). 409 `POLICY-409-TEST-RUNNING` khi đang có lần chạy.
+   */
+  runTests(r: PackVersionRef, etag: string, body: PolicyTestRunCreate = {}): Observable<Job> {
+    return this.http.post<Job>(apiUrl('/policies/packs/{id}/versions/{v}/test-runs', r), body, {
+      headers: { 'If-Match': etag },
+    });
+  }
+
+  /** Kết quả đầy đủ một lần chạy: từng ca, kiểm thử thuộc tính, khác biệt cấu hình, tác động. */
+  testRun(r: PackVersionRef, runId: string): Observable<PolicyTestRun> {
+    return this.http.get<PolicyTestRun>(
+      apiUrl('/policies/packs/{id}/versions/{v}/test-runs/{runId}', { ...r, runId }),
+    );
+  }
+
+  /** Ca kiểm thử vàng của gói theo trạng thái, kèm tóm tắt bộ (SCR-1503 trường 1). */
+  testCases(packId: string, status?: 'NHAP' | 'DA_DUYET'): Observable<GoldenTestCaseList> {
+    return this.http.get<GoldenTestCaseList>(apiUrl('/policies/test-cases'), {
+      params: { pack: packId, limit: 200, ...(status ? { status } : {}) },
+    });
+  }
+
+  /** Thêm ca kiểm thử ở trạng thái chờ ký duyệt (BR-15-08). */
+  createTestCase(body: GoldenTestCaseCreate): Observable<GoldenTestCase> {
+    return this.http.post<GoldenTestCase>(apiUrl('/policies/test-cases'), body);
   }
 
   testRuns(r: PackVersionRef, limit = 1): Observable<PolicyTestRunList> {
@@ -148,6 +184,77 @@ export class PolicyApi {
       apiUrl('/policies/packs/{id}/versions/{v}/submit', r),
       body,
       { headers: { 'If-Match': etag } },
+    );
+  }
+
+  /**
+   * Ký số phê duyệt và phát hành (AAL2, người phê duyệt khác người soạn, BR-15-09): 202, saga phát
+   * hành chạy nền; xong thì phiên bản `DA_PHAT_HANH` (MSG-15-08).
+   */
+  approve(r: PackVersionRef, etag: string, body: PolicyPackApprove = {}): Observable<Job> {
+    return this.http.post<Job>(apiUrl('/policies/packs/{id}/versions/{v}/approve', r), body, {
+      headers: { 'If-Match': etag },
+    });
+  }
+
+  /** Từ chối phát hành có ý kiến: phiên bản trở về bản nháp. */
+  reject(
+    r: PackVersionRef,
+    etag: string,
+    body: PolicyDecisionReason,
+  ): Observable<PolicyPackVersion> {
+    return this.http.post<PolicyPackVersion>(
+      apiUrl('/policies/packs/{id}/versions/{v}/reject', r),
+      body,
+      { headers: { 'If-Match': etag } },
+    );
+  }
+
+  /** Danh mục mẫu luồng đã phát hành để chọn (SCR-1504 vùng 1). */
+  workflowTemplates(processKind?: string): Observable<PolicyWorkflowTemplateList> {
+    return this.http.get<PolicyWorkflowTemplateList>(apiUrl('/policies/workflow-templates'), {
+      params: { limit: 50, ...(processKind ? { processKind } : {}) },
+    });
+  }
+
+  /** Khai báo tham số (JSON Schema) và các bước xem trước của một phiên bản mẫu. */
+  workflowTemplate(key: string, v: number): Observable<PolicyWorkflowTemplateVersion> {
+    return this.http.get<PolicyWorkflowTemplateVersion>(
+      apiUrl('/policies/workflow-templates/{key}/versions/{v}', { key, v: String(v) }),
+    );
+  }
+
+  /** Tham số luồng duyệt đã gắn với phiên bản gói. */
+  workflowBindings(r: PackVersionRef): Observable<WorkflowBinding[]> {
+    return this.http
+      .get<{ items: WorkflowBinding[] }>(
+        apiUrl('/policies/packs/{id}/versions/{v}/workflow-bindings', r),
+      )
+      .pipe(map((b) => b.items));
+  }
+
+  /** Lưu tham số luồng duyệt theo loại quy trình; 422 `POLICY-422-WF-PARAMS` (MSG-15-09). */
+  saveWorkflowBinding(
+    r: PackVersionRef,
+    processKind: string,
+    rowVersion: number | null,
+    body: WorkflowBindingUpdate,
+  ): Observable<WorkflowBinding> {
+    return this.http.put<WorkflowBinding>(
+      apiUrl('/policies/packs/{id}/versions/{v}/workflow-bindings/{key}', {
+        ...r,
+        key: processKind,
+      }),
+      body,
+      rowVersion === null ? {} : { headers: { 'If-Match': `"${rowVersion}"` } },
+    );
+  }
+
+  /** Mô phỏng luồng với tham số trên engine thử: các bước, linter, test của mẫu, hồ sơ mẫu. */
+  simulate(body: WorkflowSimulateRequest): Observable<WorkflowSimulateResult> {
+    return this.http.post<WorkflowSimulateResult>(
+      apiUrl('/policies/workflow-bindings/simulate'),
+      body,
     );
   }
 }

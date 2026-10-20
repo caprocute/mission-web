@@ -2,12 +2,13 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { idempotencyInterceptor } from '../../lib/interceptors';
-import { shadowedDecisionRows } from '../../lib/models/policy';
+import { shadowedDecisionRows, stepsForLevels } from '../../lib/models/policy';
 import { PolicyApi } from '../../lib/policy-api';
 import { toProblem } from '../../lib/problem-details';
 import { DEFAULT_RUNTIME_CONFIG, RUNTIME_CONFIG } from '../../lib/runtime-config';
 import { MOCK_API_OPTIONS, mockApiInterceptor } from '../mock-api.interceptor';
 import { resetMockData } from '../mock-registry';
+import { mockSession, mockStepUp } from '../mock-session';
 
 /** WEB-045: giả lập Policy Pack SCR-1501, SCR-1502 theo `policies.yaml`. */
 function setup() {
@@ -39,7 +40,7 @@ describe('mock policies – SCR-1501, SCR-1502 (WEB-045)', () => {
   it('danh sách gói, phiên bản kèm ETag, quy tắc theo thứ tự tính', async () => {
     const api = setup();
     const { items } = await firstValueFrom(api.packs());
-    expect(items.map((p) => p.code)).toEqual(['khoi-dang/quy-dinh-moi', 'nn-335']);
+    expect(items.map((p) => p.code)).toEqual(['khoi-dang/quy-dinh-moi', 'nn-335', 'vc-su-nghiep']);
     const ref = { id: items[0].id, v: '2.1.0' };
     const v = await firstValueFrom(api.version(ref));
     expect(v.value.status).toBe('NHAP');
@@ -164,7 +165,7 @@ describe('mock policies – SCR-1501, SCR-1502 (WEB-045)', () => {
       ),
     );
     expect(early['code']).toBe('POLICY-409-NOT-TESTED');
-    const job = await firstValueFrom(api.runTests(ref));
+    const job = await firstValueFrom(api.runTests(ref, v.etag));
     expect(job.id).toBeTruthy();
     expect((await firstValueFrom(api.testRuns(ref))).items[0].result).toBe('DANG_CHAY');
     expect((await firstValueFrom(api.testRuns(ref))).items[0].result).toBe('DAT');
@@ -174,5 +175,142 @@ describe('mock policies – SCR-1501, SCR-1502 (WEB-045)', () => {
       api.submit(ref, v.etag, { effectivePeriodId: 'k', scopes: [{ flow: 'DANG' }] }),
     );
     expect(sent.status).toBe('CHO_PHE_DUYET');
+  });
+});
+
+describe('mock policies – SCR-1503, SCR-1504 (WEB-046)', () => {
+  beforeEach(() => {
+    resetMockData();
+    mockSession.reset();
+  });
+
+  const packId = async (api: PolicyApi, code: string) =>
+    (await firstValueFrom(api.packs())).items.find((p) => p.code === code)!.id;
+
+  it('lịch sử chạy có lần lỗi kèm khác biệt cấu hình; chạy lại cần If-Match và không chồng lần chạy', async () => {
+    const api = setup();
+    const ref = { id: await packId(api, 'khoi-dang/quy-dinh-moi'), v: '2.1.0' };
+    const runs = await firstValueFrom(api.testRuns(ref, 10));
+    expect(runs.items.map((r) => [r.runNo, r.result])).toEqual([
+      [13, 'KHONG_DAT'],
+      [12, 'DAT'],
+    ]);
+    const bad = await firstValueFrom(api.testRun(ref, runs.items[0].id));
+    const failed = bad.cases!.filter((c) => !c.passed);
+    expect(failed.map((c) => c.caseCode)).toEqual(['TC-077']);
+    expect(bad.configDiff?.changes[0].path).toBe('params.loai_ngay');
+    const v = await firstValueFrom(api.version(ref));
+    expect((await fail(firstValueFrom(api.runTests(ref, '"99"'))))['code']).toBe(
+      'POLICY-409-VERSION-CONFLICT',
+    );
+    await firstValueFrom(api.runTests(ref, v.etag, { propertyDatasets: 10000 }));
+    expect((await fail(firstValueFrom(api.runTests(ref, v.etag))))['code']).toBe(
+      'POLICY-409-TEST-RUNNING',
+    );
+    await firstValueFrom(api.testRuns(ref));
+    const [latest] = (await firstValueFrom(api.testRuns(ref))).items;
+    expect(latest.runNo).toBe(14);
+    expect(latest.result).toBe('DAT');
+    const full = await firstValueFrom(api.testRun(ref, latest.id));
+    expect(full.engineMatchedCount).toBe(full.total);
+    expect(full.propertyResult?.violations).toBe(0);
+  });
+
+  it('thêm ca kiểm thử: chờ ký duyệt, không trùng mã, chưa tính vào bộ', async () => {
+    const api = setup();
+    const id = await packId(api, 'khoi-dang/quy-dinh-moi');
+    const before = await firstValueFrom(api.testCases(id));
+    const created = await firstValueFrom(
+      api.createTestCase({
+        policyPackId: id,
+        caseCode: 'TC-149',
+        description: 'Cán bộ biệt phái giữa kỳ',
+        input: {},
+        expected: { muc: 'HTNV' },
+        source: 'BA',
+      }),
+    );
+    expect(created.status).toBe('NHAP');
+    const after = await firstValueFrom(api.testCases(id));
+    expect(after.suite?.total).toBe(before.suite?.total);
+    expect(after.suite?.pending).toBe(1);
+    const dup = await fail(
+      firstValueFrom(
+        api.createTestCase({
+          policyPackId: id,
+          caseCode: 'TC-017',
+          description: 'Trùng mã',
+          input: {},
+          expected: { muc: 'HTNV' },
+          source: 'BA',
+        }),
+      ),
+    );
+    expect(dup.status).toBe(422);
+  });
+
+  it('ký phê duyệt: cần MFA, 202 rồi phiên bản phát hành; từ chối cần ý kiến', async () => {
+    const api = setup();
+    const ref = { id: await packId(api, 'vc-su-nghiep'), v: '1.1.0' };
+    let v = await firstValueFrom(api.version(ref));
+    expect(v.value.status).toBe('CHO_PHE_DUYET');
+    expect((await fail(firstValueFrom(api.approve(ref, v.etag)))).status).toBe(401);
+    expect((await fail(firstValueFrom(api.reject(ref, v.etag, { reason: 'ngắn' })))).status).toBe(
+      422,
+    );
+    mockStepUp();
+    const job = await firstValueFrom(api.approve(ref, v.etag, { comment: 'Đồng ý' }));
+    expect(job.type).toBe('POLICY_PUBLISH');
+    v = await firstValueFrom(api.version(ref));
+    v = await firstValueFrom(api.version(ref));
+    expect(v.value.status).toBe('DA_PHAT_HANH');
+    expect(v.value.effectiveFrom).toBe('2027-01-01');
+  });
+
+  it('luồng duyệt: danh mục mẫu, khai báo tham số, mô phỏng và lưu có kiểm tra', async () => {
+    const api = setup();
+    const ref = { id: await packId(api, 'khoi-dang/quy-dinh-moi'), v: '2.1.0' };
+    const list = await firstValueFrom(api.workflowTemplates());
+    expect(list.items.length).toBe(5);
+    const t = await firstValueFrom(api.workflowTemplate('duyet-ho-so-danh-gia', 3));
+    expect((t.paramSchema['properties'] as Record<string, unknown>)['so_cap']).toMatchObject({
+      minimum: 2,
+      maximum: 4,
+    });
+    const [b] = await firstValueFrom(api.workflowBindings(ref));
+    const sim = await firstValueFrom(
+      api.simulate({ templateKey: b.templateKey, templateVersionNo: 3, params: b.params }),
+    );
+    expect(sim.lint.passed).toBe(true);
+    expect(sim.steps.find((s) => s.stepKey === 'DE_XUAT')?.skippable).toBe(true);
+    const params = structuredClone(b.params) as { cap: { buoc: string; ky_so?: boolean }[] };
+    params.cap.find((c) => c.buoc === 'THAM_DINH')!.ky_so = false;
+    const bad = await fail(
+      firstValueFrom(
+        api.saveWorkflowBinding(ref, 'DANH_GIA', b.rowVersion, {
+          templateKey: b.templateKey,
+          templateVersionNo: 3,
+          scope: b.scope,
+          params,
+        }),
+      ),
+    );
+    expect(bad['code']).toBe('POLICY-422-WF-PARAMS');
+    expect(bad.detail).toContain('Thẩm định');
+    const saved = await firstValueFrom(
+      api.saveWorkflowBinding(ref, 'DANH_GIA', b.rowVersion, {
+        templateKey: b.templateKey,
+        templateVersionNo: 3,
+        scope: b.scope,
+        params: { ...b.params, so_cap: 3 },
+      }),
+    );
+    expect(saved.rowVersion).toBe(b.rowVersion + 1);
+  });
+
+  it('stepsForLevels: giữ bước đầu, bước cuối', () => {
+    expect(stepsForLevels(['a', 'b', 'c', 'd'], 3)).toEqual(['a', 'b', 'd']);
+    expect(stepsForLevels(['a', 'b', 'c', 'd'], 2)).toEqual(['a', 'd']);
+    expect(stepsForLevels(['a', 'b', 'c'], 1)).toEqual(['c']);
   });
 });
