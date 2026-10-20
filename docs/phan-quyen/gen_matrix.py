@@ -6,12 +6,15 @@ Nguồn: docs/phan-quyen/ma-tran.json (sửa ma trận ở đây, không sửa b
   - docs/phan-quyen/ma-tran-phan-quyen.xlsx (6 sheet: Chú giải, Vai trò, Ma trận chức năng, API, Mức dữ liệu, SoD)
   - các khối bảng giữa cặp dấu <!-- BEGIN GEN:<tên> --> ... <!-- END GEN:<tên> --> trong wiki/15a-ma-tran-phan-quyen.md
   - frontend/projects/auth/src/lib/permissions.generated.ts (bảng quyền phía giao diện cho `@vt/auth`, WEB-054)
+  - chỉ với --rego: backend/opa/okrkpi/generated/data.json và backend/opa/okrkpi/matrix_cases_test.rego (NEN-040)
 
 Dùng:
   python3 docs/phan-quyen/gen_matrix.py           # sinh lại xlsx, Markdown và tệp TypeScript
   python3 docs/phan-quyen/gen_matrix.py --check   # chỉ kiểm tra Markdown và TypeScript có khớp dữ liệu không (dùng trong CI)
   python3 docs/phan-quyen/gen_matrix.py --md-only # chỉ sinh lại Markdown
   python3 docs/phan-quyen/gen_matrix.py --ts      # chỉ sinh lại tệp TypeScript
+  python3 docs/phan-quyen/gen_matrix.py --rego    # chỉ sinh lại dữ liệu và ca kiểm thử của gói OPA (NEN-040)
+  python3 docs/phan-quyen/gen_matrix.py --rego-check  # kiểm tra dữ liệu OPA có khớp ma trận không
 
 Chỉ cần Python 3 và openpyxl (không cài thêm gói nào).
 """
@@ -275,8 +278,352 @@ def ts_source(d):
     return "\n".join(out)
 
 
+# ------------------------------------------------------------------ OPA/Rego (NEN-040)
+
+REGO_DIR = ROOT / "backend" / "opa" / "okrkpi"
+REGO_DATA = REGO_DIR / "generated" / "data.json"
+REGO_CASES = REGO_DIR / "matrix_cases_test.rego"
+
+SCOPE_CODES = ("B", "Gn", "Đv", "Cd", "Tn", "N")
+SCOPE_TOKEN_RE = re.compile(r"(?<![\w-])(B|Gn|Đv|Cd|Tn|N)(?![\w-])")
+HTTP_METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE")
+# Vai trò AC-11 không phải realm role: OPA nhận chủ thể `kind = "client"` và tra theo đúng tên trong ma trận.
+CLIENT_AC = "AC-11"
+
+# Người tham gia một đối tượng mà máy chủ truyền vào `input.resource.participants` (danh sách user_id).
+# Năm vai của TL-02a "Nguyên tắc tách vai trò" là initiator, acceptor, appraiser, decider, period_locker.
+PARTICIPANTS = {
+    "initiator": "Người khởi tạo, soạn, lập hoặc trình đối tượng",
+    "submitter": "Người nộp sản phẩm, minh chứng",
+    "lead": "Người chủ trì nhiệm vụ",
+    "collaborator": "Người phối hợp nhiệm vụ",
+    "acceptor": "Người nghiệm thu",
+    "appraisee": "Người được đánh giá (chủ hồ sơ)",
+    "appraiser": "Người thẩm định",
+    "proposer": "Người đề xuất mức xếp loại",
+    "decider": "Người quyết định",
+    "period_locker": "Người khởi chạy khoá kỳ",
+    "approver": "Người đã phê duyệt (bước trước)",
+    "requester": "Người gửi đề nghị hoặc yêu cầu",
+    "grantor": "Người cấp vai trò",
+    "grantee": "Người được cấp vai trò",
+    "alert_subject": "Đối tượng của cảnh báo",
+}
+
+# Chuẩn hoá 32 dòng `rang_buoc` (văn bản tự do) thành quy tắc máy đọc được. Khoá là STT 1-based như sheet SoD;
+# mỗi mục ghi lại `scr` và `loai` để phát hiện khi ma trận đổi mà bảng này chưa cập nhật (sinh lỗi, không đoán).
+# kind:
+#   aal2_roles            vai trò chỉ có hiệu lực trong phiên AAL2 (tên lấy từ chính quy tắc)
+#   step_up               cần `acr = aal2` và `auth_time` trong `params.step_up_max_age_seconds`
+#   aal2_session          cần phiên `acr = aal2`
+#   separation_of_duties  chủ thể không được thuộc các nhóm `subject_not_in` của đối tượng
+#   disjoint              nhóm `participant` không được giao với các nhóm `not_in` (kiểm nội dung yêu cầu)
+#   four_eyes             như separation_of_duties nhưng lý do là `four_eyes_required`
+#   hidden_from_subject   đối tượng của cảnh báo không thấy cho tới khi có kết luận (`resource.concluded`)
+#   obligation            không đổi quyết định, chỉ gắn cờ nghĩa vụ cho service (`flag`)
+#   sensitive_role_grant  cấp vai trò nhạy cảm (tên lấy từ quy tắc) gắn cờ cần duyệt thứ hai
+RANG_BUOC_MAP = {
+    1: ("SCR-0001", "Mức xác thực", [{"kind": "aal2_roles"}]),
+    2: ("SCR-0102", "Step-up MFA", [
+        {"kind": "step_up", "functions": ["SCR-0102.kich-hoat"]},
+        {"kind": "aal2_session", "functions": ["SCR-0102.buoc-1-3", "SCR-0102.buoc-4-5", "SCR-0102.huy"]}]),
+    3: ("SCR-0104", "Step-up MFA", [{"kind": "aal2_session", "functions": ["SCR-0104.xu-ly-lech"]}]),
+    4: ("SCR-0203", "Tách vai trò", [
+        {"kind": "separation_of_duties", "functions": ["SCR-0203.duyet", "SCR-0203.duyet-lo"], "subject_not_in": ["initiator"]}]),
+    5: ("SCR-0403", "Tách vai trò", [
+        {"kind": "separation_of_duties", "functions": ["SCR-0403.duyet-ky"], "subject_not_in": ["initiator"]}]),
+    6: ("SCR-0403", "Step-up MFA", [{"kind": "step_up", "functions": ["SCR-0403.duyet-ky"]}]),
+    7: ("SCR-0501, SCR-0502", "Tách vai trò", [
+        {"kind": "disjoint", "functions": ["SCR-0501.giao", "SCR-0501.giao-dong-loat", "SCR-0502.xac-nhan-giao"],
+         "participant": "acceptor", "not_in": ["lead", "collaborator"]}]),
+    8: ("SCR-0601", "Tách vai trò", [
+        {"kind": "separation_of_duties", "functions": ["SCR-0601.duyet-de-nghi"], "subject_not_in": ["requester"]}]),
+    9: ("SCR-0703", "Tách vai trò", [
+        {"kind": "separation_of_duties", "functions": ["SCR-0703.xac-nhan", "SCR-0703.bo-sung-tu-choi"],
+         "subject_not_in": ["submitter", "lead", "collaborator"], "exception": "small_unit"}]),
+    10: ("SCR-0703", "Step-up MFA", [{"kind": "step_up", "functions": ["SCR-0703.xac-nhan"]}]),
+    11: ("SCR-0801", "Tách vai trò", [
+        {"kind": "separation_of_duties", "functions": ["SCR-0801.duyet-lenh"], "subject_not_in": ["initiator"]},
+        {"kind": "separation_of_duties", "functions": ["SCR-0801.khoi-chay"], "subject_not_in": ["approver"]}]),
+    12: ("SCR-0801", "Step-up MFA", [
+        {"kind": "step_up", "functions": ["SCR-0801.khoi-chay", "SCR-0801.dieu-khien", "SCR-0801.de-nghi-huy"]}]),
+    13: ("SCR-0801", "Bốn mắt", [
+        {"kind": "four_eyes", "functions": ["SCR-0801.duyet-huy"], "subject_not_in": ["requester"]}]),
+    14: ("SCR-0901", "Step-up MFA", [{"kind": "aal2_session", "functions": ["SCR-0901.ky-nop"]}]),
+    15: ("SCR-0902, SCR-0903, SCR-0904", "Tách vai trò", [
+        {"kind": "separation_of_duties", "functions": ["SCR-0902.ky", "SCR-0902.tra-lai"],
+         "subject_not_in": ["appraisee", "acceptor", "decider"]},
+        {"kind": "separation_of_duties", "functions": ["SCR-0903.de-xuat"],
+         "subject_not_in": ["appraisee", "appraiser", "decider"]},
+        {"kind": "separation_of_duties", "functions": ["SCR-0904.ky-lo", "SCR-0904.doi-muc"],
+         "subject_not_in": ["appraisee", "acceptor", "appraiser"]}]),
+    16: ("SCR-0904", "Step-up MFA", [{"kind": "step_up", "functions": ["SCR-0904.ky-lo"]}]),
+    17: ("SCR-0902, SCR-1603", "Mức dữ liệu", [
+        {"kind": "obligation", "functions": ["SCR-0902.xem", "SCR-1603.mo-c2"], "when_classification": "C2",
+         "flag": "c2_access_log"},
+        {"kind": "obligation", "functions": ["SCR-0902.xuat"], "flag": "exclude_c2_fields"},
+        {"kind": "step_up", "functions": ["SCR-1603.xuat"], "when_classification": "C2"}]),
+    18: ("SCR-1002", "Mức dữ liệu", [
+        {"kind": "obligation", "functions": ["SCR-1002.xem", "SCR-1002.xep-nhom", "SCR-1002.trinh"],
+         "flag": "c2_no_identified_export"}]),
+    19: ("SCR-1101", "Mức dữ liệu", [
+        {"kind": "obligation", "functions": ["SCR-1101.gop-y", "SCR-1101.thu-ky", "SCR-1101.ket-thuc"],
+         "flag": "c2_anonymous_feedback"}]),
+    20: ("SCR-1102", "Step-up MFA", [{"kind": "step_up", "functions": ["SCR-1102.ky-goi"]}]),
+    21: ("SCR-1202", "Tách vai trò", [
+        {"kind": "separation_of_duties", "functions": ["SCR-1202.tiep-nhan", "SCR-1202.tinh-thu", "SCR-1202.mo-lai"],
+         "subject_not_in": ["acceptor", "appraiser", "proposer", "decider"]}]),
+    22: ("SCR-1301", "Bốn mắt", [
+        {"kind": "four_eyes", "functions": ["SCR-1301.duyet-1"], "subject_not_in": ["requester", "appraiser", "decider"]},
+        {"kind": "four_eyes", "functions": ["SCR-1301.duyet-2"],
+         "subject_not_in": ["requester", "appraiser", "decider", "approver"]}]),
+    23: ("SCR-1301", "Step-up MFA", [{"kind": "step_up", "functions": ["SCR-1301.duyet-1", "SCR-1301.duyet-2"]}]),
+    24: ("SCR-1401", "Ẩn với đối tượng", [
+        {"kind": "hidden_from_subject", "functions": ["SCR-1401.xem"], "participant": "alert_subject"},
+        {"kind": "separation_of_duties", "functions": ["SCR-1401.xu-ly", "SCR-1401.ket-luan"],
+         "subject_not_in": ["alert_subject"]}]),
+    25: ("SCR-1503", "Tách vai trò", [
+        {"kind": "separation_of_duties", "functions": ["SCR-1503.ky-duyet"], "subject_not_in": ["initiator"]},
+        {"kind": "aal2_session", "functions": ["SCR-1503.ky-duyet"]}]),
+    26: ("SCR-1801", "Tách vai trò", [
+        {"kind": "separation_of_duties", "functions": ["SCR-1801.duyet"], "subject_not_in": ["initiator"]},
+        {"kind": "aal2_session", "functions": ["SCR-1801.duyet"]}]),
+    27: ("SCR-1601", "Quyền của người bấm", [
+        {"kind": "obligation", "functions": ["SCR-1601.nhac", "SCR-1601.giao-lai"], "flag": "act_as_caller"}]),
+    28: ("SCR-0202, SCR-0502, SCR-1701", "AI chỉ đọc", [
+        {"kind": "obligation", "functions": ["SCR-0202.ai-soat", "SCR-0502.ai-trich", "SCR-1701.hoi"],
+         "flag": "ai_no_c2_log"}]),
+    29: ("SCR-0105", "Bốn mắt", [
+        {"kind": "four_eyes", "functions": ["SCR-0105.duyet"], "subject_not_in": ["grantor", "grantee"]},
+        {"kind": "sensitive_role_grant", "functions": ["SCR-0105.cap"], "flag": "second_approval_required"}]),
+    30: ("SCR-0203, SCR-0601, SCR-0703, SCR-0107", "Uỷ quyền", [
+        {"kind": "obligation", "functions": ["SCR-0203.duyet", "SCR-0601.duyet-de-nghi", "SCR-0703.xac-nhan"],
+         "flag": "record_delegation", "when_delegate": True}]),
+    31: ("SCR-1505", "Bốn mắt", [
+        {"kind": "four_eyes", "functions": ["SCR-1505.phe-duyet"], "subject_not_in": ["initiator"]},
+        {"kind": "step_up", "functions": ["SCR-1505.phe-duyet"]}]),
+    32: ("SCR-1506", "Giới hạn thao tác", [
+        {"kind": "obligation", "functions": ["SCR-1506.chuyen-nguoi-xu-ly", "SCR-1506.gia-han-buoc"],
+         "flag": "ledger_record"}]),
+}
+NEEDS_FUNCTIONS = {"step_up", "aal2_session", "separation_of_duties", "disjoint", "four_eyes",
+                   "hidden_from_subject", "obligation", "sensitive_role_grant"}
+
+
+def _cell(v):
+    """'T/Đv*' -> ('T', 'Đv', True); 'A' -> ('A', None, False); '-' -> None."""
+    if v == "-":
+        return None
+    inferred = v.endswith("*")
+    v = v.rstrip("*")
+    level, _, scope = v.partition("/")
+    return level, (scope or None), inferred
+
+
+def _classification(text):
+    t = text.strip()
+    inferred = "*" in t
+    if t == "-" or t.startswith("Không bao giờ"):
+        return {"allowed": False, "inferred": inferred, "note": t}
+    if t.startswith("Chỉ khi là người nhận"):
+        return {"allowed": True, "recipient_only": True, "inferred": inferred, "note": t}
+    scopes = sorted(set(SCOPE_TOKEN_RE.findall(t)), key=SCOPE_CODES.index)
+    out = {"allowed": True, "inferred": inferred, "note": t}
+    if scopes:
+        out["scopes"] = scopes
+    elif t.startswith("Theo người dùng"):
+        out["basis"] = "user"
+    else:
+        out["basis"] = "contract"
+    return out
+
+
+def _backtick_roles(text, roles):
+    found = re.findall(r"`([a-z_]+)`", text)
+    bad = [r for r in found if r not in roles]
+    if bad:
+        raise SystemExit(f"Quy tắc nêu vai trò không có trong vai_tro: {', '.join(bad)}")
+    return found
+
+
+def rego_data(d):
+    """Dữ liệu cho gói `okrkpi.authz`, nạp ở `data.okrkpi.generated`. Tất định: khoá sắp xếp, không có thời gian sinh."""
+    by_ac = {r["ac"]: r for r in d["vai_tro"]}
+    role_of = {r["ac"]: r["role"] for r in d["vai_tro"]}
+    fkeys = {f["key"] for f in d["chuc_nang"]}
+
+    # Ràng buộc
+    if set(RANG_BUOC_MAP) != set(range(1, len(d["rang_buoc"]) + 1)):
+        raise SystemExit("RANG_BUOC_MAP không khớp số dòng rang_buoc; cập nhật bảng chuẩn hoá trong gen_matrix.py")
+    constraints, by_function = {}, {}
+    aal2_roles, sensitive = [], []
+    for stt, (scr, loai, rules) in sorted(RANG_BUOC_MAP.items()):
+        src = d["rang_buoc"][stt - 1]
+        if (src["scr"], src["loai"]) != (scr, loai):
+            raise SystemExit(f"rang_buoc[{stt}] đã đổi ({src['scr']} / {src['loai']}); cập nhật RANG_BUOC_MAP")
+        for i, rule in enumerate(rules, 1):
+            rid = f"{stt}.{i}"
+            c = dict(rule)
+            c.update({"stt": stt, "scr": scr, "loai": loai, "nguon": src["nguon"]})
+            if c["kind"] in NEEDS_FUNCTIONS:
+                for k in c["functions"]:
+                    if k not in fkeys:
+                        raise SystemExit(f"RANG_BUOC_MAP {rid}: khoá chức năng {k} không có trong ma trận")
+                    by_function.setdefault(k, []).append(rid)
+            for p in c.get("subject_not_in", []) + c.get("not_in", []) + ([c["participant"]] if "participant" in c else []):
+                if p not in PARTICIPANTS:
+                    raise SystemExit(f"RANG_BUOC_MAP {rid}: nhóm tham gia {p} chưa khai báo")
+            if c["kind"] == "aal2_roles":
+                aal2_roles = _backtick_roles(src["quy_tac"], role_of.values())
+                c["roles"] = aal2_roles
+            if c["kind"] == "sensitive_role_grant":
+                sensitive = _backtick_roles(src["quy_tac"], role_of.values())
+                c["roles"] = sensitive
+            constraints[rid] = c
+
+    # Vai trò, kể cả vai trò con khai báo ở cột keycloak
+    roles = {}
+    for r in d["vai_tro"]:
+        kind = "client" if r["ac"] == CLIENT_AC else ("ai" if r["role"] == "ai_readonly" else "user")
+        roles[r["role"]] = {"ac": r["ac"], "kind": kind, "aal2": r["role"] in aal2_roles,
+                            "default_scope": r["pham_vi"] if r["pham_vi"] in SCOPE_CODES else None}
+        for sub in re.findall(r"vai trò con `([a-z_]+)`", r.get("keycloak", "")):
+            roles[sub] = {"ac": r["ac"], "kind": "user", "parent": r["role"], "aal2": r["role"] in aal2_roles,
+                          "default_scope": roles[r["role"]]["default_scope"]}
+
+    functions = {}
+    for f in d["chuc_nang"]:
+        grants = {}
+        for ac, v in f["quyen"].items():
+            c = _cell(v)
+            if c is None:
+                continue
+            level, scope, inferred = c
+            role = f.get("vai_tro_con", {}).get(ac, role_of[ac])
+            grants[role] = {"level": level, "scope": scope, "inferred": inferred}
+        functions[f["key"]] = {"scr": f["scr"], "qt": f["qt"], "web": f["web"], "grants": grants,
+                               "constraints": by_function.get(f["key"], [])}
+
+    api = {}
+    for row in d["api"]:
+        m = {}
+        for ac, v in row["quyen"].items():
+            if v == "-":
+                continue
+            toks = v.split()
+            m[role_of[ac]] = {"methods": sorted({t.rstrip("*") for t in toks}, key=HTTP_METHODS.index),
+                              "inferred_methods": sorted({t.rstrip("*") for t in toks if t.endswith("*")},
+                                                         key=HTTP_METHODS.index)}
+        api[row["module"]] = {"roles": m, "outside_baseline": row["ngoai_baseline"]}
+
+    classification = {role_of[r["ac"]]: {k: _classification(r[k]) for k in ("C0", "C1", "C2", "C3")}
+                      for r in d["muc_du_lieu"]}
+
+    m = d["meta"]
+    return {
+        "meta": {"source": "docs/phan-quyen/ma-tran.json", "matrix_version": f"{m['phien_ban']} ({m['ngay']})",
+                 "generated_by": "python3 docs/phan-quyen/gen_matrix.py --rego",
+                 "note": "TỆP SINH TỰ ĐỘNG, KHÔNG SỬA TAY"},
+        "scopes": list(SCOPE_CODES),
+        "client_role": role_of[CLIENT_AC],
+        "aal2_roles": aal2_roles,
+        "sensitive_roles": sensitive,
+        "params": {"aal2_acr": "aal2", "step_up_max_age_seconds": 300},
+        "participants": PARTICIPANTS,
+        "roles": roles,
+        "functions": functions,
+        "api": api,
+        "classification": classification,
+        "constraints": constraints,
+    }
+
+
+def _rego_obj(o):
+    return json.dumps(o, ensure_ascii=False, sort_keys=True, separators=(", ", ": "))
+
+
+def rego_cases(data):
+    """Ca kiểm thử sinh từ ma trận: ô có quyền -> cho phép và (nếu phạm vi hẹp hơn tenant) một ca ngoài phạm vi;
+    ô '-' -> role_not_allowed. API: mọi module x vai trò x phương thức."""
+    users = [r for r, v in data["roles"].items()]
+    fcases = []
+    for key, f in sorted(data["functions"].items()):
+        fcases.append(f["qt"])
+        for role in sorted(users):
+            g = f["grants"].get(role)
+            if g is None:
+                # vai trò cha của vai trò con chỉ có quyền qua vai trò con; vai trò con chỉ có quyền ở ô của mình
+                fcases.append({"key": key, "role": role, "expect": "role_not_allowed"})
+                continue
+            fcases.append({"key": key, "role": role, "level": g["level"], "scope": g["scope"], "expect": "allow",
+                           "inferred": g["inferred"]})
+            if g["scope"] in ("B", "Gn", "Đv", "Cd", "Tn"):
+                fcases.append({"key": key, "role": role, "level": g["level"], "scope": g["scope"],
+                               "expect": "out_of_scope"})
+    acases = []
+    for mod, row in sorted(data["api"].items()):
+        for role in sorted(users):
+            g = row["roles"].get(role, {"methods": [], "inferred_methods": []})
+            for meth in HTTP_METHODS:
+                ok = meth in g["methods"]
+                acases.append({"module": mod, "role": role, "method": meth,
+                               "expect": "allow" if ok else "role_not_allowed",
+                               "inferred": meth in g["inferred_methods"]})
+    # Chia theo quy trình QT để mỗi test chạy gọn trong thời hạn mặc định của `opa test` (5 giây)
+    groups, qt = {}, None
+    for c in fcases:
+        if isinstance(c, str):
+            qt = c
+            continue
+        groups.setdefault(qt, []).append(c)
+    total = sum(len(v) for v in groups.values())
+    out = [
+        "# TỆP SINH TỰ ĐỘNG, KHÔNG SỬA TAY.",
+        "# Nguồn: docs/phan-quyen/ma-tran.json; sinh lại bằng `python3 docs/phan-quyen/gen_matrix.py --rego`.",
+        "# Ca kiểm thử theo từng ô ma trận; bộ chạy nằm ở matrix_test.rego (NEN-040).",
+        "package okrkpi.authz_matrix_test",
+        "",
+        "import rego.v1",
+        "",
+        f"# {total} ca chức năng: ô có quyền -> allow (+ out_of_scope khi phạm vi B, Gn, Đv, Cd, Tn); ô '-' -> role_not_allowed",
+    ]
+    for g in sorted(groups):
+        name = g.lower().replace("-", "_")
+        out += ["", f"test_function_matrix_{name} if function_group_ok(\"{g}\")", "",
+                f"function_cases[\"{g}\"] := ["]
+        out += [f"\t{_rego_obj(c)}," for c in groups[g]]
+        out += ["]"]
+    out += ["", f"# {len(acases)} ca API: module x vai trò x phương thức", "api_cases := ["]
+    out += [f"\t{_rego_obj(c)}," for c in acases]
+    out += ["]", ""]
+    return "\n".join(out)
+
+
+def rego_outputs(d):
+    data = rego_data(d)
+    return {REGO_DATA: json.dumps(data, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+            REGO_CASES: rego_cases(data)}
+
+
 def main(argv):
     d, acs = load()
+    if "--rego" in argv or "--rego-check" in argv:
+        # Chỉ đụng tới backend/opa (NEN-040); không sinh lại xlsx, Markdown hay TypeScript
+        outs = rego_outputs(d)
+        if "--rego-check" in argv:
+            bad = [p for p, t in outs.items() if not p.exists() or p.read_text(encoding="utf-8") != t]
+            for p in bad:
+                print(f"{p.relative_to(ROOT)} lệch với {DATA.relative_to(ROOT)}; chạy lại gen_matrix.py --rego", file=sys.stderr)
+            if bad:
+                return 1
+            print("Dữ liệu và ca kiểm thử OPA khớp ma trận.")
+            return 0
+        for p, t in outs.items():
+            p.parent.mkdir(parents=True, exist_ok=True)
+            if not p.exists() or p.read_text(encoding="utf-8") != t:
+                p.write_text(t, encoding="utf-8")
+        print(f"Đã sinh dữ liệu OPA: {len(outs)} tệp trong {REGO_DIR.relative_to(ROOT)}.")
+        return 0
     blocks = md_blocks(d, acs)
     old = WIKI.read_text(encoding="utf-8")
     new = render_md(old, blocks)
