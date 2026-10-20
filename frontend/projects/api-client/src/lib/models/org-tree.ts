@@ -36,6 +36,11 @@ export const ORG_UNIT_LEVEL_LABEL: Record<OrgUnitLevel, string> = {
 
 export type OrgFlow = 'DANG' | 'NHA_NUOC';
 
+export const ORG_FLOW_LABEL: Record<OrgFlow, string> = {
+  DANG: 'Đảng',
+  NHA_NUOC: 'Nhà nước',
+};
+
 /** Khối đối tượng PL 2A (`org.subject_group`, mã `K1`..`K9`). */
 export interface SubjectGroup {
   id: string;

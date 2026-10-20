@@ -45,7 +45,10 @@ import { OrgUnitEdit } from './org-unit-edit';
 export const MSG_01_08 = (day: string) => `Đang xem cơ cấu tại ngày ${day}. Chế độ này chỉ đọc.`;
 
 const today = () => new Date().toISOString().slice(0, 10);
-const FLOW_LABEL: Record<string, string> = { NHA_NUOC: 'NHA_NUOC (NĐ 335)', DANG: 'DANG' };
+const FLOW_LABEL: Record<string, string> = {
+  NHA_NUOC: 'Nhà nước (Nghị định 335/2025)',
+  DANG: 'Đảng',
+};
 
 @Component({
   selector: 'vt-org-tree-page',
@@ -62,7 +65,9 @@ const FLOW_LABEL: Record<string, string> = { NHA_NUOC: 'NHA_NUOC (NĐ 335)', DAN
     <header class="head">
       <div>
         <h1>Cây tổ chức</h1>
-        <p class="muted">Nguồn: org-service (SVC-04) · dữ liệu hai trục thời gian</p>
+        <p class="muted">
+          Cơ cấu tổ chức theo thời gian hiệu lực; có thể xem lại cơ cấu tại một ngày bất kỳ.
+        </p>
       </div>
       <div class="tools" role="group" aria-label="Chế độ xem">
         <div class="seg">
@@ -140,7 +145,7 @@ const FLOW_LABEL: Record<string, string> = { NHA_NUOC: 'NHA_NUOC (NĐ 335)', DAN
       >
         <span role="status">{{
           j.status === 'THAT_BAI'
-            ? (j.problem?.title ?? 'Nhập lỗi.')
+            ? (j.problem?.title ?? 'Nhập tệp không thành công.')
             : (j.message ?? 'Đang nhập tệp…')
         }}</span>
         @if (j.resultLocation) {
@@ -196,7 +201,7 @@ const FLOW_LABEL: Record<string, string> = { NHA_NUOC: 'NHA_NUOC (NĐ 335)', DAN
                   <dt>Cấp, loại</dt>
                   <dd>{{ levelLabel[u.level] }} · {{ typeLabel[u.unitType] }}</dd>
                   <dt>Khối đối tượng</dt>
-                  <dd>{{ u.subjectGroup.name }} (PL 2A)</dd>
+                  <dd>{{ u.subjectGroup.name }} (Phụ lục 2A)</dd>
                   <dt>Luồng đánh giá</dt>
                   <dd>{{ flows(u) }}</dd>
                 </div>
@@ -206,7 +211,7 @@ const FLOW_LABEL: Record<string, string> = { NHA_NUOC: 'NHA_NUOC (NĐ 335)', DAN
                   <dt>Ghi nhận lúc</dt>
                   <dd>{{ dateTime(u.recordedFrom) }} · {{ u.recordedBy }}</dd>
                   <dt>Đơn vị cấp trên</dt>
-                  <dd>{{ u.parent?.name ?? 'Gốc của cây' }}</dd>
+                  <dd>{{ u.parent?.name ?? 'Không có (đơn vị cấp cao nhất)' }}</dd>
                   <dt>Đơn vị tiền thân</dt>
                   <dd>{{ predecessors(u) }}</dd>
                 </div>
@@ -283,8 +288,8 @@ const FLOW_LABEL: Record<string, string> = { NHA_NUOC: 'NHA_NUOC (NĐ 335)', DAN
               </button>
             }
             <p class="muted small">
-              Người điều động giữa kỳ được đánh giá theo PL 6: dưới 2 tháng tại đơn vị mới thì đơn
-              vị cũ đánh giá.
+              Người được điều động giữa kỳ được đánh giá theo Phụ lục 6: công tác tại đơn vị mới
+              dưới 2 tháng thì đơn vị cũ đánh giá.
             </p>
           </section>
         </div>
@@ -619,7 +624,7 @@ export class OrgTreePage {
     this.notices.set([
       {
         kind: 'success',
-        text: `Đã ghi phiên bản mới của ${r.name} từ ngày ${fmtDate(r.validFrom)}.`,
+        text: `Đã cập nhật thông tin ${r.name}, có hiệu lực từ ngày ${fmtDate(r.validFrom)}.`,
       },
       ...(r.warning ? [{ kind: 'warn' as const, text: r.warning }] : []),
     ]);

@@ -122,7 +122,7 @@ describe('RatingSheetPage (SCR-0903, WEB-037)', () => {
       'Chờ đề xuất',
     ]);
     expect(el.querySelector('.pack')?.getAttribute('title')).toBe(
-      'Kết quả này được tính theo bộ tiêu chí Đảng v2.0, áp dụng cho kỳ Quý IV/2026.',
+      'Kết quả này được tính theo bộ tiêu chí khối Đảng, phiên bản 2.0, áp dụng cho kỳ Quý IV/2026.',
     );
     // YC-PT-10: không hiện mã kỹ thuật
     expect(el.textContent).not.toMatch(/HTXSNV|HTTNV|DA_THAM_DINH|Policy Pack|SCR-/);
@@ -169,7 +169,7 @@ describe('RatingSheetPage (SCR-0903, WEB-037)', () => {
     expect((el.querySelector('#f-rating') as HTMLSelectElement).value).toBe('HTTNV');
     type(el, '#f-rating', 'HTXSNV');
     expect(text(await until(el, '#w-rating'))).toBe(
-      'Mức đề xuất khác mức thẩm định. Vui lòng ghi lý do (QĐ khoản 16.3).',
+      'Mức đề xuất khác mức thẩm định. Vui lòng ghi lý do (khoản 16.3 Điều 16 Quy định 366).',
     );
     button(el, 'Ghi mức đề xuất')!.click();
     expect(text(await until(el, '#e-reason'))).toContain('từ 20 đến 2.000 ký tự');

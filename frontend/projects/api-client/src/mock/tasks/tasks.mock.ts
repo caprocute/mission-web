@@ -2,6 +2,7 @@ import { HttpParams } from '@angular/common/http';
 import { MAX_PAGE_LIMIT } from '../../lib/paging';
 import {
   BlockerReport,
+  CHANGE_REQUEST_STATUS_LABEL,
   ChangeRequest,
   ChangeRequestDraft,
   ChangeRequestPreview,
@@ -11,6 +12,7 @@ import {
   ProgressBatchItem,
   ProgressBatchResult,
   ProgressUpdate,
+  TASK_STATUS_LABEL,
   TaskDetail,
   TaskRegistration,
   TaskStatus,
@@ -25,6 +27,7 @@ import {
   problem,
   resolveRelativeDates,
 } from '../mock-router';
+import { MOCK_ME } from '../mock-session';
 import catalogFixture from '../catalog/catalog.json';
 import fixture from './tasks.json';
 import { ASSIGN_MOCK, draftView } from './assign.mock';
@@ -155,8 +158,8 @@ function delayRisk(t: StoredTask, left: number): DelayRisk {
     neededWorkingDays: needed,
     explanation:
       pace > 0
-        ? `Nhịp ${pace.toFixed(1).replace('.', ',')}%/ngày làm việc, cần khoảng ${needed} ngày, còn ${Math.max(0, left)} ngày`
-        : 'Chưa có cập nhật tiến độ để tính nhịp',
+        ? `Tiến độ bình quân ${pace.toFixed(1).replace('.', ',')}% mỗi ngày làm việc; cần khoảng ${needed} ngày làm việc, còn ${Math.max(0, left)} ngày.`
+        : 'Chưa có cập nhật tiến độ để dự báo.',
   };
 }
 
@@ -190,8 +193,10 @@ function toSummary(t: StoredTask): TaskSummary {
 const etag = (t: StoredTask) => ({ ETag: `"${t.rowVersion}"` });
 const find = (id: string) => tasks().find((x) => x.id === id);
 
-function notFound(id: string) {
-  return problem(404, 'Không tìm thấy nhiệm vụ', { detail: `Không có nhiệm vụ ${id}` });
+function notFound(_id: string) {
+  return problem(404, 'Không tìm thấy nhiệm vụ', {
+    detail: 'Nhiệm vụ không tồn tại hoặc đã bị xoá.',
+  });
 }
 
 export function matchesQuickFilter(t: TaskSummary, f: MyTasksQuickFilter): boolean {
@@ -264,7 +269,8 @@ function myTasks(params: HttpParams): MockResponse {
 function checkIfMatch(t: StoredTask, ifMatch: string | null): MockResponse | null {
   if (ifMatch && ifMatch !== `"${t.rowVersion}"`) {
     return problem(409, 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại', {
-      detail: `If-Match ${ifMatch} khác phiên bản hiện tại "${t.rowVersion}"`,
+      // If-Match của yêu cầu khác phiên bản hiện tại
+      detail: 'Nhiệm vụ đã có thay đổi sau lần tải trước.',
     });
   }
   return null;
@@ -280,7 +286,7 @@ function applyProgress(
   if (conflict) return conflict;
   if (!OPEN.includes(t.status)) {
     return problem(422, 'Nhiệm vụ không ở trạng thái cho phép cập nhật tiến độ', {
-      detail: `Trạng thái hiện tại ${t.status}`,
+      detail: `Trạng thái hiện tại: ${TASK_STATUS_LABEL[t.status]}.`,
     });
   }
   const percent = body.percent;
@@ -293,9 +299,8 @@ function applyProgress(
     return problem(
       403,
       'Chỉ người chủ trì được đổi phần trăm tiến độ; người phối hợp chỉ ghi nhật ký',
-      {
-        detail: 'BR-06-03',
-      },
+      // BR-06-03
+      {},
     );
   }
   const note = (body.note ?? '').trim();
@@ -316,7 +321,7 @@ function applyProgress(
     percent,
     fromPercent,
     note,
-    by: 'Tôi',
+    by: MOCK_ME.name,
     byRole: t.role,
     channel: 'WEB',
   });
@@ -337,7 +342,7 @@ function accept(req: MockRequest): MockResponse {
   if (t.role !== 'CHU_TRI') return problem(403, 'Chỉ người chủ trì được nhận việc');
   if (t.status !== 'DA_GIAO') {
     return problem(422, 'Nhiệm vụ không ở trạng thái Đã giao', {
-      detail: `Trạng thái hiện tại ${t.status}`,
+      detail: `Trạng thái hiện tại: ${TASK_STATUS_LABEL[t.status]}.`,
     });
   }
   transition(t, 'DANG_THUC_HIEN', 'NHAN_VIEC');
@@ -352,7 +357,7 @@ function transition(t: StoredTask, to: TaskStatus, name: string, reason?: string
     from: t.status,
     to,
     transition: name,
-    actorName: 'Tôi',
+    actorName: MOCK_ME.name,
     reason,
   });
   t.status = to;
@@ -497,7 +502,7 @@ function withdraw(req: MockRequest): MockResponse {
   if (!cr) return problem(404, 'Không tìm thấy đề nghị');
   if (cr.status !== 'CHO_DUYET') {
     return problem(409, 'Đề nghị đã được xử lý nên không rút lại được', {
-      detail: `Trạng thái ${cr.status}`,
+      detail: `Trạng thái hiện tại: ${CHANGE_REQUEST_STATUS_LABEL[cr.status]}.`,
     });
   }
   cr.status = 'DA_RUT';

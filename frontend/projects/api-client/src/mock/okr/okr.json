@@ -1023,7 +1023,7 @@
       "title": "Phó Bí thư Thường trực"
     },
     "policy": {
-      "version": "okr-policy 2026.4",
+      "version": "2026.4",
       "recommendedMax": 3,
       "vagueWords": ["tăng cường", "đẩy mạnh", "kịp thời", "nâng cao", "chú trọng", "quan tâm"],
       "taskVerbs": ["tổ chức", "ban hành", "xây dựng", "triển khai", "họp", "tập huấn"],
@@ -1184,13 +1184,13 @@
         "Kiểm tra 100% chi bộ trực thuộc trước 31/12/2026",
         "≥ 95% kiến nghị sau kiểm tra được khắc phục đúng hạn"
       ],
-      "sources": ["PL 1 dự thảo (định nghĩa KR)", "Kế hoạch 05-KH/ĐUK mục II.3"]
+      "sources": ["Phụ lục 1 dự thảo Quy định (định nghĩa KR)", "Kế hoạch 05-KH/ĐUK mục II.3"]
     },
     {
       "match": "tổ chức",
-      "issue": "giống một nhiệm vụ (Tầng 3)",
+      "issue": "giống một nhiệm vụ trong kế hoạch quý",
       "rewrites": ["≥ 90% chi bộ áp dụng kết luận của hội nghị sơ kết trong quý"],
-      "sources": ["PL 1 dự thảo (KR không đồng nhất với nhiệm vụ)"]
+      "sources": ["Phụ lục 1 dự thảo Quy định (KR không đồng nhất với nhiệm vụ)"]
     }
   ],
   "reviews": {

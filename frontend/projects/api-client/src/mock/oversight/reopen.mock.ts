@@ -31,7 +31,7 @@ const etag = (rowVersion: number) => ({ ETag: `"${rowVersion}"` });
 function find(req: MockRequest): ReopenRequest | MockResponse {
   return (
     store.find((r) => r.id === req.pathParams['id']) ??
-    problem(404, 'Không tìm thấy yêu cầu mở lại kỳ')
+    problem(404, 'Không tìm thấy yêu cầu mở lại kỳ.')
   );
 }
 // yêu cầu cũng có trường `status` nên phân biệt bằng `rowVersion`
@@ -39,9 +39,10 @@ const isResponse = (x: ReopenRequest | MockResponse): x is MockResponse => !('ro
 
 function ifMatch(r: ReopenRequest, req: MockRequest): MockResponse | null {
   const h = req.headers.get('If-Match');
-  if (!h) return problem(428, 'Thiếu thông tin phiên bản dữ liệu; vui lòng tải lại trang.');
+  if (!h)
+    return problem(428, 'Không xác định được phiên bản dữ liệu; đồng chí vui lòng tải lại trang.');
   if (h.replace(/"/g, '') !== String(r.rowVersion))
-    return problem(412, 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại', {
+    return problem(412, 'Dữ liệu đã được người khác cập nhật.', {
       code: 'PRECONDITION_FAILED',
     });
   return null;
@@ -56,6 +57,7 @@ function stepUpRequired(): MockResponse {
   r.headers = {
     ...r.headers,
     'WWW-Authenticate':
+      // ui-text-ok: header HTTP gửi cho trình duyệt, không hiện lên màn hình
       'Bearer error="insufficient_user_authentication", acr_values="aal2", max_age=900',
   };
   return r;
@@ -120,12 +122,9 @@ function create(req: MockRequest): MockResponse {
   if (b.scope !== 'TOAN_KY' && !b.scopeIds?.length)
     return invalid('scopeIds', 'Phạm vi cần ít nhất một đối tượng.');
   if (b.scope === 'TOAN_KY' && b.basis?.kind !== 'QUYET_DINH')
-    return invalid(
-      'scope',
-      'Chỉ chọn toàn kỳ khi có quyết định hậu kiểm toàn diện làm căn cứ (BR-13-05).',
-    );
+    return invalid('scope', 'Chỉ chọn toàn kỳ khi có quyết định hậu kiểm toàn diện làm căn cứ.');
   if (!b.scopeDetail?.items?.length)
-    return invalid('scopeDetail', 'Nêu ít nhất một bảng dữ liệu được phép sửa.');
+    return invalid('scopeDetail', 'Nêu ít nhất một nhóm dữ liệu được phép sửa.');
   if (!b.basis?.kind || !(b.basis.code ?? '').trim())
     return invalid('basis', 'Nêu căn cứ: mã khiếu nại, cảnh báo hoặc quyết định hậu kiểm.');
   if (info.status !== 'DA_KHOA')
@@ -186,17 +185,22 @@ function simulate(req: MockRequest): MockResponse {
   if (r.id === 'rr-2026-007') return ok(structuredClone(IMPACT_007));
   const ids = r.scopeIds?.length ? r.scopeIds : ['toan-ky'];
   const impact: ReopenImpact = {
-    policyVersion: 'Đảng v2.0',
+    policyVersion: 'khối Đảng, phiên bản 2.0',
     rows: ids.flatMap((id, i) => {
       const before = 84 + ((id.length * 7 + i * 3) % 12) + 0.4;
       return [
         {
           profileId: id,
-          metric: `Điểm · ${PROFILE_NAMES[id] ?? id}`,
+          metric: PROFILE_NAMES[id] ? `Điểm · ${PROFILE_NAMES[id]}` : 'Điểm',
           before: before.toLocaleString('vi-VN', { maximumFractionDigits: 1 }),
           after: (before + 0.9).toLocaleString('vi-VN', { maximumFractionDigits: 1 }),
         },
-        { profileId: id, metric: 'Mức xếp loại', before: 'HTTNV', after: 'HTTNV' },
+        {
+          profileId: id,
+          metric: 'Mức xếp loại',
+          before: 'Hoàn thành tốt nhiệm vụ',
+          after: 'Hoàn thành tốt nhiệm vụ',
+        },
       ];
     }),
     formsToRegenerate: ids.length * 2,
@@ -224,12 +228,12 @@ function decide(req: MockRequest, decision: 'DONG_Y' | 'TU_CHOI'): MockResponse 
   const slot = currentSlot(r);
   if (!slot) return conflict('OVERSIGHT-409-INVALID-STATE', 'Yêu cầu không còn ở bước chờ duyệt.');
   if (involved(r))
-    return problem(403, 'Không đáp ứng nguyên tắc hai người duyệt', {
+    return problem(403, 'Không đáp ứng nguyên tắc hai người duyệt.', {
       type: 'https://okrkpi.vn/problems/four-eyes',
       code: 'OVERSIGHT-403-FOUR-EYES',
       msg: 'MSG-13-01',
       detail:
-        'Hai người duyệt phải là hai người khác nhau, khác người tạo yêu cầu và chưa tham gia thẩm định, quyết định hồ sơ bị mở.',
+        'Hai người duyệt phải là hai người khác nhau, khác người tạo yêu cầu và chưa tham gia thẩm định, quyết định hồ sơ được mở lại.',
     });
   const now = new Date().toISOString();
   slot.assignee = ME;
@@ -264,7 +268,7 @@ function cancel(req: MockRequest): MockResponse {
   if (reason.length < 10 || reason.length > 2000)
     return invalid('reason', 'Lý do huỷ cần từ 10 đến 2.000 ký tự.');
   if (r.requestedBy.id !== ME.id)
-    return problem(403, 'Chỉ người tạo được huỷ yêu cầu', { code: 'FORBIDDEN' });
+    return problem(403, 'Chỉ người tạo yêu cầu mới được huỷ yêu cầu.', { code: 'FORBIDDEN' });
   if (!REOPEN_PENDING_STATUSES.includes(r.status))
     return conflict('OVERSIGHT-409-INVALID-STATE', 'Yêu cầu đã đủ phê duyệt hoặc đã đóng.');
   r.status = 'DA_DONG';

@@ -117,3 +117,24 @@ export const APPRAISAL_FLOW_LABEL: Record<AppraisalFlow, string> = {
   DANG: 'Luồng Đảng',
   NHA_NUOC: 'Luồng Nhà nước',
 };
+
+/** Nhãn trạng thái hồ sơ đánh giá (baseline mục 9.1, TL-02 QT-09). */
+export const APPRAISAL_PROFILE_STATUS_LABEL: Record<AppraisalProfileStatus, string> = {
+  CHUA_LAP: 'Chưa lập',
+  TU_DANH_GIA: 'Đang tự đánh giá',
+  CHO_THAM_DINH: 'Chờ thẩm định',
+  DA_THAM_DINH: 'Đã thẩm định',
+  CHO_QUYET_DINH: 'Chờ quyết định',
+  DA_QUYET_DINH: 'Đã quyết định',
+  DA_KY_SO: 'Đã ký số',
+  DA_KHOA: 'Đã khoá',
+  KHIEU_NAI: 'Đang khiếu nại',
+};
+
+/** Nhãn loại mức xếp loại theo bước (`appraisal.rating_proposal.level_kind`). */
+export const RATING_LEVEL_KIND_LABEL: Record<RatingLevelKind, string> = {
+  TU_DE_XUAT: 'Tự đề xuất',
+  THAM_DINH: 'Thẩm định',
+  DE_XUAT: 'Quản lý đề xuất',
+  QUYET_DINH: 'Quyết định',
+};

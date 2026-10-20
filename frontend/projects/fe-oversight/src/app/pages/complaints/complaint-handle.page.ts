@@ -769,11 +769,13 @@ export class ComplaintHandlePage {
   protected readonly partyOptions = computed<PartyOption[]>(() => {
     const o = this.orgOptions.hasValue() ? this.orgOptions.value() : undefined;
     if (!o) return [];
+    // ui-text-ok: giá trị nội bộ của lựa chọn, màn hình chỉ hiện nhãn
     return [
       ...o.persons.map((p) => ({
         value: `NGUOI:${p.id}`,
         label: `${p.name} · ${p.title}, ${p.unitName}`,
       })),
+      // ui-text-ok: giá trị nội bộ của lựa chọn
       ...o.units.map((u) => ({ value: `DON_VI:${u.id}`, label: `Đơn vị: ${u.name}` })),
     ];
   });

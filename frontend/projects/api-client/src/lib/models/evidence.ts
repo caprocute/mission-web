@@ -55,7 +55,7 @@ export type FileScanStatus = 'CHO_QUET' | 'SACH' | 'NHIEM' | 'LOI';
 export const FILE_SCAN_LABEL: Record<FileScanStatus, string> = {
   CHO_QUET: 'Đang quét',
   SACH: 'Sạch',
-  NHIEM: 'Nhiễm',
+  NHIEM: 'Nhiễm mã độc',
   LOI: 'Lỗi quét',
 };
 

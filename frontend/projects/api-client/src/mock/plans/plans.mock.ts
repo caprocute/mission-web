@@ -269,7 +269,7 @@ function locate(req: MockRequest): { p: StoredPlan; v: StoredVersion } | MockRes
 
 function ifMatch(v: StoredVersion, req: MockRequest): MockResponse | null {
   const h = req.headers.get('If-Match');
-  if (!h) return problem(428, 'Thiếu If-Match');
+  if (!h) return problem(428, 'Thiếu thông tin phiên bản dữ liệu. Vui lòng tải lại trang.');
   return h.replace(/"/g, '') === String(v.rowVersion)
     ? null
     : problem(409, 'Kế hoạch vừa được người khác cập nhật. Vui lòng tải lại.');
@@ -524,7 +524,7 @@ function createAdjustment(req: MockRequest): MockResponse {
   const changeReason = ((req.body as { changeReason?: string })?.changeReason ?? '').trim();
   if (!changeReason)
     return problem(422, 'Dữ liệu không hợp lệ', {
-      errors: [{ field: 'changeReason', message: 'Nhập lý do điều chỉnh (BR-04-10)' }],
+      errors: [{ field: 'changeReason', message: 'Nhập lý do điều chỉnh' }],
     });
   const used = last.versionNo - 1;
   if (used >= fixture.adjustmentsMax)
@@ -554,7 +554,7 @@ function diff(req: MockRequest): MockResponse {
   if ('status' in hit) return hit;
   const { p, v } = hit;
   const raw = req.params.get('base');
-  if (raw == null || raw === '') return problem(400, 'Thiếu phiên bản gốc để so sánh (base)');
+  if (raw == null || raw === '') return problem(400, 'Thiếu phiên bản gốc để so sánh');
   const baseNo = Number(raw);
   // base=0: so với kế hoạch rỗng, mọi dòng là THEM (phiên bản đầu)
   const base =
@@ -623,16 +623,18 @@ function approve(req: MockRequest): MockResponse {
   if (v.submittedById === MOCK_ME.id)
     return problem(403, 'Người duyệt không được là người lập kế hoạch.', {
       code: 'TASK-403-SAME-AUTHOR',
-      detail: 'BR-04-08: kế hoạch này do đồng chí lập và gửi duyệt.',
+      // BR-04-08
+      detail: 'Kế hoạch này do đồng chí lập và gửi duyệt nên đồng chí không duyệt được.',
     });
   if (!mockSession.recentMfa()) {
-    const r = problem(401, 'Cần xác thực bước lên trước khi ký số', {
+    const r = problem(401, 'Cần xác thực nhiều lớp trước khi ký số', {
       type: 'https://datatracker.ietf.org/doc/html/rfc9470',
       code: 'insufficient_user_authentication',
     });
     r.headers = {
       ...r.headers,
       'WWW-Authenticate':
+        // ui-text-ok: tiêu đề HTTP theo RFC 9470, không hiện lên màn hình
         'Bearer error="insufficient_user_authentication", acr_values="aal2", max_age=900',
     };
     return r;

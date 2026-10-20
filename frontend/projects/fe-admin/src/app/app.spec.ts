@@ -24,7 +24,7 @@ describe('fe-admin', () => {
     const fixture = TestBed.createComponent(AdminHomePage);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent).toBe(
-      'Quản trị tenant',
+      'Quản trị',
     );
     expect((fixture.nativeElement as HTMLElement).querySelector('a')?.textContent).toBe(
       'Cây tổ chức',

@@ -100,9 +100,9 @@ export function load(): StoredTenant[] {
     }
     return stored;
   });
-  // tenant pool nhỏ ở CELL-SH, đủ để bảng có nhiều trang như vùng điều phối thật
+  // tenant pool nhỏ ở CELL-SH (mã `dvNNN`), đủ để bảng có nhiều trang như vùng điều phối thật
   const pool = fixture.poolUnits.map((name, i): StoredTenant => {
-    const code = `pool_${String(i + 1).padStart(3, '0')}`;
+    const code = `dv${String(i + 1).padStart(3, '0')}`;
     const party = name.startsWith('Đảng uỷ');
     return {
       id: `t-${code}`,

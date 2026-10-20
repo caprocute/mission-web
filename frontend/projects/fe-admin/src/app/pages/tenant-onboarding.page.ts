@@ -35,6 +35,7 @@ import {
   ONBOARDING_STEPS,
   PROVISION_STEPS,
   PolicyPackOption,
+  TENANCY_MODEL_LABEL,
   TENANT_FLOW_LABEL,
   TENANT_SECTOR_LABEL,
   TENANT_STATUS_LABEL,
@@ -61,34 +62,34 @@ import { errorText, fmtAccounts, fmtDateTime, fmtInt, fmtPercent } from '../admi
 
 /** MSG-01-03 */
 export const MSG_01_03 = (model: string) =>
-  `Không còn cell ${model} nào dưới ngưỡng 85% sau khi thêm tenant. Vui lòng mở yêu cầu dựng cell mới.`;
+  `Không còn cụm máy chủ mức cô lập ${model} nào dưới ngưỡng 85% sau khi thêm đơn vị. Đề nghị lập yêu cầu dựng cụm máy chủ mới.`;
 /** MSG-01-04 */
 export const MSG_01_04 = (domain: string) => `Tên miền ${domain} đã được sử dụng.`;
 /** MSG-01-05 */
 export const MSG_01_05 = (pack: string) =>
-  `Gói chính sách ${pack} chưa đạt 100% test case vàng nên chưa gắn được.`;
+  `Bộ quy định đánh giá ${pack} chưa đạt 100% bộ ca kiểm thử chuẩn nên chưa gắn được.`;
 /** MSG-01-06 */
 export const MSG_01_06 = (minutes: number) =>
-  `Cấp phát tenant thành công trong ${minutes} phút. Đã gửi thư cho đầu mối quản trị tenant.`;
+  `Cấp phát hạ tầng cho đơn vị thành công trong ${minutes} phút. Đã gửi thư cho đầu mối quản trị của đơn vị.`;
 
 const MODEL_CARDS: { model: TenancyModel; title: string; text: string; build: string }[] = [
   {
     model: 'silo',
-    title: 'Silo · cell riêng',
-    text: 'Toàn bộ hạ tầng riêng (CSDL, Kafka, kho tệp, HSM). Cho khối Đảng TW, tỉnh trên 1 triệu tài khoản, LLVT.',
+    title: 'Cụm riêng',
+    text: 'Toàn bộ hạ tầng riêng cho đơn vị (CSDL, hàng đợi thông điệp, kho tệp, thiết bị HSM). Dành cho khối Đảng Trung ương, tỉnh trên 1 triệu tài khoản, lực lượng vũ trang.',
     build: 'Thời gian dựng: 3–5 ngày',
   },
   {
     model: 'bridge',
-    title: 'Bridge · CSDL riêng',
-    text: 'Một CSDL PostgreSQL riêng cho tenant trong cụm của cell nhóm tỉnh; service dùng chung. Khoá mã hoá riêng.',
-    build: 'Thời gian dựng: ≤ 2 giờ',
+    title: 'CSDL riêng',
+    text: 'Một CSDL riêng cho đơn vị trong cụm máy chủ nhóm tỉnh; các dịch vụ dùng chung. Khoá mã hoá riêng.',
+    build: 'Thời gian dựng: không quá 2 giờ',
   },
   {
     model: 'pool',
-    title: 'Pool · bảng chung',
-    text: 'Bảng chung có tenant_id và Row-Level Security. Cho xã, chi bộ, đơn vị dưới 5.000 tài khoản.',
-    build: 'Thời gian dựng: ≤ 5 phút',
+    title: 'Dùng chung',
+    text: 'Dữ liệu lưu chung với các đơn vị khác, được tách riêng theo từng đơn vị. Dành cho xã, chi bộ, đơn vị dưới 5.000 tài khoản.',
+    build: 'Thời gian dựng: không quá 5 phút',
   },
 ];
 
@@ -138,8 +139,8 @@ function emptyStep1(): Step1 {
   imports: [FormsModule, RouterLink, ButtonModule, InputTextModule, MessageModule, SelectModule],
   template: `
     <nav class="muted" aria-label="Đường dẫn">
-      <a routerLink="/admin/tenants">Danh sách tenant</a> /
-      <span aria-current="page">Khởi tạo tenant</span>
+      <a routerLink="/admin/tenants">Danh sách đơn vị triển khai</a> /
+      <span aria-current="page">Khởi tạo đơn vị triển khai</span>
     </nav>
 
     @if (loadError(); as e) {
@@ -150,7 +151,7 @@ function emptyStep1(): Step1 {
     } @else if (!id() || ob()) {
       <header class="head">
         <div>
-          <h1>Khởi tạo tenant{{ ob() ? ': ' + ob()!.name : '' }}</h1>
+          <h1>Khởi tạo đơn vị triển khai{{ ob() ? ': ' + ob()!.name : '' }}</h1>
           @if (ob(); as o) {
             <p class="muted">
               Mã yêu cầu {{ o.onboardingCode }} · hợp đồng {{ o.contractRef }}
@@ -160,7 +161,7 @@ function emptyStep1(): Step1 {
               · bắt đầu {{ dateTime(o.startedAt) }} · {{ statusLabel[o.status] }}
             </p>
           } @else {
-            <p class="muted">Mã yêu cầu được hệ thống sinh khi lưu bước 1.</p>
+            <p class="muted">Mã yêu cầu do hệ thống cấp khi lưu bước 1.</p>
           }
         </div>
         <div class="actions">
@@ -244,11 +245,11 @@ function emptyStep1(): Step1 {
           @switch (viewStep()) {
             @case (1) {
               <section class="box" aria-labelledby="s1-title">
-                <h2 id="s1-title" class="h">1. Thông tin tenant</h2>
+                <h2 id="s1-title" class="h">1. Thông tin đơn vị</h2>
                 <fieldset class="grid" [disabled]="!canEditSetup()">
-                  <legend class="sr-only">Thông tin tenant</legend>
+                  <legend class="sr-only">Thông tin đơn vị</legend>
                   <label class="f wide">
-                    <span>Tên tenant <span class="req" aria-hidden="true">*</span></span>
+                    <span>Tên đơn vị triển khai <span class="req" aria-hidden="true">*</span></span>
                     <input
                       pInputText
                       [ngModel]="s1().name"
@@ -262,7 +263,7 @@ function emptyStep1(): Step1 {
                     }
                   </label>
                   <label class="f">
-                    <span>Mã tenant <span class="req" aria-hidden="true">*</span></span>
+                    <span>Mã đơn vị <span class="req" aria-hidden="true">*</span></span>
                     <input
                       pInputText
                       [ngModel]="s1().code"
@@ -273,14 +274,14 @@ function emptyStep1(): Step1 {
                       aria-describedby="code-hint"
                     />
                     <small id="code-hint" class="muted"
-                      >Chữ thường không dấu, số, dấu gạch dưới; dùng trong tên miền và URN</small
+                      >Chữ thường không dấu, chữ số, dấu gạch dưới; dùng để đặt tên miền</small
                     >
                     @if (fe()['code']) {
                       <small class="err">{{ fe()['code'] }}</small>
                     }
                   </label>
                   <label class="f">
-                    <span>Nhóm khách hàng</span>
+                    <span>Khối, lĩnh vực</span>
                     <select
                       class="native"
                       [ngModel]="s1().sector"
@@ -316,7 +317,9 @@ function emptyStep1(): Step1 {
                     />
                   </label>
                   <fieldset class="f wide inline">
-                    <legend>Luồng áp dụng <span class="req" aria-hidden="true">*</span></legend>
+                    <legend>
+                      Luồng đánh giá áp dụng <span class="req" aria-hidden="true">*</span>
+                    </legend>
                     @for (fl of flows; track fl) {
                       <label class="chk">
                         <input
@@ -363,11 +366,11 @@ function emptyStep1(): Step1 {
                       (ngModelChange)="set1('isolationRequired', $event)"
                       name="isolation"
                     />
-                    Yêu cầu cách ly (khối Đảng Trung ương, lực lượng vũ trang): bắt buộc mô hình
-                    silo
+                    Yêu cầu cách ly (khối Đảng Trung ương, lực lượng vũ trang): bắt buộc mức cô lập
+                    Cụm riêng
                   </label>
                   <label class="f">
-                    <span>Đầu mối quản trị tenant</span>
+                    <span>Đầu mối quản trị của đơn vị</span>
                     <input
                       pInputText
                       [ngModel]="s1().adminName"
@@ -390,9 +393,9 @@ function emptyStep1(): Step1 {
             }
             @case (2) {
               <section class="box" aria-labelledby="s2-title">
-                <h2 id="s2-title" class="h">2. Mô hình thuê bao</h2>
+                <h2 id="s2-title" class="h">2. Mức cô lập dữ liệu</h2>
                 <fieldset class="models" [disabled]="!canEditSetup()">
-                  <legend class="sr-only">Mô hình thuê bao</legend>
+                  <legend class="sr-only">Mức cô lập dữ liệu</legend>
                   @for (m of modelCards; track m.model) {
                     <label
                       class="model"
@@ -414,31 +417,31 @@ function emptyStep1(): Step1 {
                   }
                 </fieldset>
                 <p class="hint">
-                  Gợi ý của hệ thống: <strong>{{ suggestion() }}</strong
+                  Gợi ý của hệ thống: <strong>{{ modelLabel[suggestion()] }}</strong
                   >, vì {{ suggestionReason() }}.
                 </p>
               </section>
               <section class="box" aria-labelledby="s3-title">
-                <h2 id="s3-title" class="h">Chọn cell</h2>
+                <h2 id="s3-title" class="h">Chọn cụm máy chủ</h2>
                 @if (cellOptions.isLoading()) {
-                  <p class="muted" aria-busy="true">Đang tính tải theo cell…</p>
+                  <p class="muted" aria-busy="true">Đang tính tải của các cụm máy chủ…</p>
                 } @else if (!eligibleCells().length) {
-                  <p class="warnbox" role="alert">{{ msg0103(s2().tenancyModel) }}</p>
+                  <p class="warnbox" role="alert">{{ msg0103(modelLabel[s2().tenancyModel]) }}</p>
                 }
                 <div class="scroll">
                   <table class="tbl">
                     <caption class="sr-only">
-                      Cell ứng viên cho mô hình
+                      Cụm máy chủ phù hợp với mức cô lập
                       {{
-                        s2().tenancyModel
+                        modelLabel[s2().tenancyModel]
                       }}
                     </caption>
                     <thead>
                       <tr>
                         <th scope="col"><span class="sr-only">Chọn</span></th>
-                        <th scope="col">Cell</th>
+                        <th scope="col">Cụm máy chủ</th>
                         <th scope="col">Trung tâm dữ liệu</th>
-                        <th scope="col" class="r">Tenant</th>
+                        <th scope="col" class="r">Số đơn vị</th>
                         <th scope="col" class="r">Tài khoản hiện có</th>
                         <th scope="col">Sau khi thêm</th>
                         <th scope="col">Phiên bản phần mềm</th>
@@ -480,7 +483,7 @@ function emptyStep1(): Step1 {
                             ></span>
                             {{ percent(c.loadAfter) }}
                             @if (c.status !== 'HOAT_DONG') {
-                              · bảo trì
+                              · đang bảo trì
                             } @else if (!c.eligible) {
                               · vượt ngưỡng
                             }
@@ -511,9 +514,9 @@ function emptyStep1(): Step1 {
                       @if (domainOk() === false) {
                         {{ msg0104(s2().domain) }}
                       } @else if (domainOk()) {
-                        Kiểm tra trùng tại registry.tenant_domain · hợp lệ
+                        Tên miền chưa được sử dụng, hợp lệ
                       } @else {
-                        Kiểm tra trùng khi rời ô
+                        Hệ thống kiểm tra trùng tên miền khi đồng chí rời khỏi ô nhập
                       }
                     </small>
                     @if (fe()['domain']) {
@@ -533,7 +536,7 @@ function emptyStep1(): Step1 {
                     </select>
                   </label>
                   <label class="f">
-                    <span>Khoá mã hoá (KEK) <span class="req" aria-hidden="true">*</span></span>
+                    <span>Khoá mã hoá dữ liệu <span class="req" aria-hidden="true">*</span></span>
                     <select
                       class="native"
                       [ngModel]="s2().kekMode"
@@ -555,10 +558,11 @@ function emptyStep1(): Step1 {
             @case (3) {
               @if (job(); as j) {
                 <section class="box" aria-labelledby="prov-title" aria-live="polite">
-                  <h2 id="prov-title" class="h">Saga cấp phát</h2>
+                  <h2 id="prov-title" class="h">Tiến trình cấp phát hạ tầng</h2>
                   <p class="muted">
-                    Mục tiêu NFR-07: tenant mới sẵn sàng trong một ngày (bridge ≤ 2 giờ, pool ≤ 5
-                    phút). Tác vụ vẫn chạy ở máy chủ, đồng chí có thể đóng màn hình.
+                    <!-- NFR-07 -->
+                    Đơn vị mới sẵn sàng trong vòng một ngày (CSDL riêng không quá 2 giờ, dùng chung
+                    không quá 5 phút). Việc cấp phát vẫn tiếp tục khi đồng chí đóng màn hình.
                   </p>
                   <ol class="saga">
                     @for (p of provisionSteps; track p; let i = $index) {
@@ -579,13 +583,13 @@ function emptyStep1(): Step1 {
                 </section>
               } @else {
                 <section class="box" aria-labelledby="pp-title">
-                  <h2 id="pp-title" class="h">3. Policy Pack gốc và UI Pack</h2>
+                  <h2 id="pp-title" class="h">3. Bộ quy định đánh giá và bộ giao diện</h2>
                   <fieldset class="grid" [disabled]="!canEditSetup()">
-                    <legend class="sr-only">Policy Pack và UI Pack</legend>
+                    <legend class="sr-only">Bộ quy định đánh giá và bộ giao diện</legend>
                     @for (fl of ob()?.flows ?? []; track fl) {
                       <label class="f wide">
                         <span
-                          >Policy Pack gốc luồng {{ flowLabel[fl] }}
+                          >Bộ quy định đánh giá luồng {{ flowLabel[fl] }}
                           <span class="req" aria-hidden="true">*</span></span
                         >
                         <select
@@ -594,10 +598,11 @@ function emptyStep1(): Step1 {
                           (ngModelChange)="setPack(fl, $event)"
                           [attr.name]="'pack-' + fl"
                         >
-                          <option value="" disabled>Chọn gói đã phát hành</option>
+                          <option value="" disabled>Chọn bộ quy định đã phát hành</option>
                           @for (p of packsFor(fl); track p.id) {
                             <option [value]="p.id">
-                              {{ p.name }} {{ p.version }} · test case vàng {{ p.goldenPassRate }}%
+                              {{ p.name }} {{ p.version }} · đạt {{ p.goldenPassRate }}% bộ ca kiểm
+                              thử chuẩn
                             </option>
                           }
                         </select>
@@ -610,7 +615,9 @@ function emptyStep1(): Step1 {
                       <small class="err wide">{{ fe()['policyPacks'] }}</small>
                     }
                     <label class="f wide">
-                      <span>UI Pack <span class="req" aria-hidden="true">*</span></span>
+                      <span
+                        >Bộ giao diện của đơn vị <span class="req" aria-hidden="true">*</span></span
+                      >
                       <select
                         class="native"
                         [ngModel]="s3().uiPackId"
@@ -626,23 +633,24 @@ function emptyStep1(): Step1 {
                     </label>
                   </fieldset>
                   <p class="muted small">
-                    "Tiếp tục" lưu lựa chọn rồi khởi chạy saga cấp phát: tạo CSDL hoặc đăng ký
-                    tenant_id, khoá KEK, Organization trong Keycloak, tên miền, chứng chỉ TLS, sao
-                    chép gói xuống cell.
+                    Nút "Tiếp tục" lưu lựa chọn rồi bắt đầu cấp phát hạ tầng: tạo vùng lưu trữ dữ
+                    liệu, khoá mã hoá, không gian đăng nhập, tên miền, chứng chỉ TLS và cài đặt bộ
+                    quy định đánh giá, bộ giao diện cho đơn vị.
                   </p>
                 </section>
               }
             }
             @case (4) {
               <section class="box" aria-labelledby="idp-title">
-                <h2 id="idp-title" class="h">4. Định danh</h2>
+                <h2 id="idp-title" class="h">4. Đăng nhập</h2>
                 <p class="muted small">
-                  Khai báo IdP của tổ chức (OIDC, SAML hoặc LDAP liên kết), bật VNeID; ánh xạ nhóm
-                  sang vai trò làm ở Phân quyền.
+                  Khai báo hệ thống đăng nhập của đơn vị (liên kết chuẩn OpenID Connect, SAML2 hoặc
+                  thư mục LDAP), bật đăng nhập bằng VNeID. Việc gán nhóm người dùng với vai trò thực
+                  hiện ở chức năng Phân quyền.
                 </p>
                 <table class="tbl">
                   <caption class="sr-only">
-                    IdP của tenant
+                    Hệ thống đăng nhập của đơn vị
                   </caption>
                   <thead>
                     <tr>
@@ -663,7 +671,7 @@ function emptyStep1(): Step1 {
                             class="full"
                             [ngModel]="i.name"
                             (ngModelChange)="editIdp(k, { name: $event })"
-                            [attr.aria-label]="'Tên IdP ' + (k + 1)"
+                            [attr.aria-label]="'Tên hệ thống đăng nhập ' + (k + 1)"
                             [disabled]="!canEditConfig() || i.kind === 'KEYCLOAK_ORG'"
                           />
                         </td>
@@ -674,7 +682,7 @@ function emptyStep1(): Step1 {
                               class="full"
                               [ngModel]="i.url ?? ''"
                               (ngModelChange)="editIdp(k, { url: $event })"
-                              [attr.aria-label]="'Địa chỉ IdP ' + (k + 1)"
+                              [attr.aria-label]="'Địa chỉ hệ thống đăng nhập ' + (k + 1)"
                               [placeholder]="i.kind === 'LDAP' ? 'ldaps://…' : 'https://…'"
                               [disabled]="!canEditConfig()"
                             />
@@ -708,21 +716,21 @@ function emptyStep1(): Step1 {
                 </table>
                 @if (canEditConfig()) {
                   <div class="row">
-                    <label for="idp-kind" class="sr-only">Loại IdP thêm mới</label>
+                    <label for="idp-kind" class="sr-only">Loại hệ thống đăng nhập thêm mới</label>
                     <select id="idp-kind" class="native" [(ngModel)]="newIdpKind" name="newIdp">
                       @for (k of addableIdps; track k) {
                         <option [value]="k">{{ idpLabel[k] }}</option>
                       }
                     </select>
                     <p-button
-                      label="Thêm IdP"
+                      label="Thêm hệ thống đăng nhập"
                       icon="pi pi-plus"
                       severity="contrast"
                       [outlined]="true"
                       (onClick)="addIdp()"
                     />
                     <p-button
-                      label="Kiểm tra kết nối IdP"
+                      label="Kiểm tra kết nối"
                       icon="pi pi-link"
                       [loading]="testing()"
                       (onClick)="testIdp()"
@@ -748,9 +756,10 @@ function emptyStep1(): Step1 {
                   }
                 </fieldset>
                 <p class="muted small">
-                  Cây tổ chức có lịch sử nhập ở SCR-0103, đồng bộ và đối soát lệch nhân sự ở
-                  SCR-0104. Tenant chỉ sẵn sàng kích hoạt khi đã có cây tổ chức và không còn lệch
-                  mức Cao (BR-01-10).
+                  <!-- SCR-0103, SCR-0104, BR-01-10 -->
+                  Cây tổ chức được nhập ở chức năng Cây tổ chức; đồng bộ và đối soát nhân sự ở chức
+                  năng Đồng bộ và đối soát nhân sự. Đơn vị chỉ sẵn sàng kích hoạt khi đã có cây tổ
+                  chức và không còn mục lệch mức Cao.
                 </p>
               </section>
             }
@@ -783,8 +792,9 @@ function emptyStep1(): Step1 {
                 />
                 @if (ob()?.status === 'DANG_VAN_HANH') {
                   <p class="okbox" role="status">
-                    Tenant đã kích hoạt và đang vận hành. Quản trị tenant tạo kỳ đánh giá đầu tiên.
-                    <a routerLink="/admin/tenants">Về danh sách tenant</a>
+                    Đơn vị đã được kích hoạt và đang vận hành. Bước tiếp theo: quản trị của đơn vị
+                    tạo kỳ đánh giá đầu tiên.
+                    <a routerLink="/admin/tenants">Về danh sách đơn vị triển khai</a>
                   </p>
                 }
               </section>
@@ -803,7 +813,7 @@ function emptyStep1(): Step1 {
             }
             <span class="spacer"></span>
             @if (job()) {
-              <!-- saga đang chạy: không thao tác tiếp cho tới khi có kết quả -->
+              <!-- saga cấp phát đang chạy: không thao tác tiếp cho tới khi có kết quả -->
             } @else if (viewStep() < 6) {
               @if (canContinue()) {
                 <p-button
@@ -841,29 +851,29 @@ function emptyStep1(): Step1 {
             <section class="box" aria-labelledby="sum-title">
               <h2 id="sum-title" class="h">Tóm tắt cấu hình</h2>
               <dl>
-                <dt>Tenant</dt>
+                <dt>Đơn vị</dt>
                 <dd>
                   {{ s1().name || '—' }}
                   @if (s1().code) {
                     · mã {{ s1().code }}
                   }
                 </dd>
-                <dt>Luồng áp dụng</dt>
+                <dt>Luồng đánh giá</dt>
                 <dd>{{ flowsText() }}</dd>
                 <dt>Quy mô dự kiến</dt>
                 <dd>
                   {{ int(s1().expectedAccounts || 0) }} tài khoản ·
                   {{ int(s1().expectedUnits || 0) }} đơn vị
                 </dd>
-                <dt>Cell</dt>
-                <dd>{{ s2().cellCode ?? 'Chưa chọn' }} · {{ s2().tenancyModel }}</dd>
+                <dt>Cụm máy chủ</dt>
+                <dd>{{ s2().cellCode ?? 'Chưa chọn' }} · {{ modelLabel[s2().tenancyModel] }}</dd>
                 <dt>Tên miền</dt>
                 <dd>{{ s2().domain || '—' }}</dd>
-                <dt>Policy Pack gốc</dt>
+                <dt>Bộ quy định đánh giá</dt>
                 <dd>{{ packsText() }}</dd>
-                <dt>UI Pack</dt>
+                <dt>Bộ giao diện</dt>
                 <dd>{{ uiText() }}</dd>
-                <dt>IdP</dt>
+                <dt>Đăng nhập</dt>
                 <dd>{{ idpsText() }}</dd>
                 <dt>Nguồn nhân sự</dt>
                 <dd>{{ hrText() }}</dd>
@@ -1252,6 +1262,7 @@ export class TenantOnboardingPage {
   protected readonly flowLabel = TENANT_FLOW_LABEL;
   protected readonly statusLabel = TENANT_STATUS_LABEL;
   protected readonly kekLabel = KEK_MODE_LABEL;
+  protected readonly modelLabel = TENANCY_MODEL_LABEL;
   protected readonly idpLabel = IDP_KIND_LABEL;
   protected readonly hrLabel = HR_SOURCE_LABEL;
   protected readonly checkLabel = CHECK_RESULT_LABEL;
@@ -1404,11 +1415,11 @@ export class TenantOnboardingPage {
     const o = this.ob();
     if (!o) return '';
     const n = fmtInt(o.expectedAccounts);
-    if (o.isolationRequired) return `tenant thuộc diện cách ly (BR-01-01)`;
-    if (this.suggestion() === 'silo')
-      return `quy mô dự kiến ${n} tài khoản vượt 1.000.000 (BR-01-01)`;
+    // BR-01-01
+    if (o.isolationRequired) return `đơn vị thuộc diện cách ly`;
+    if (this.suggestion() === 'silo') return `quy mô dự kiến ${n} tài khoản vượt 1.000.000`;
     if (this.suggestion() === 'bridge') {
-      return `quy mô dự kiến ${n} tài khoản (5.000 – 1.000.000)`;
+      return `quy mô dự kiến ${n} tài khoản, từ 5.000 đến 1.000.000`;
     }
     return `quy mô dự kiến ${n} tài khoản dưới 5.000`;
   });
@@ -1433,7 +1444,7 @@ export class TenantOnboardingPage {
     out.push({
       label: cell
         ? `Dung lượng ${cell.code} sau khi thêm ${fmtPercent(cell.loadAfter)}, dưới 85%`
-        : 'Dung lượng cell sau khi thêm dưới 85%',
+        : 'Dung lượng cụm máy chủ sau khi thêm dưới 85%',
       result: cell?.eligible || (this.ob()?.cellCode && !cell) ? 'DAT' : 'LOI',
     });
     out.push({
@@ -1443,7 +1454,7 @@ export class TenantOnboardingPage {
     const flows = this.ob()?.flows ?? this.s1().flows;
     const packsOk = flows.every((f) => this.s3().policyPacks[f] && !this.packWarning(f));
     out.push({
-      label: 'Policy Pack đã phát hành, có test case vàng 100%, đủ gói mỗi luồng',
+      label: 'Bộ quy định đánh giá đã phát hành, đạt 100% bộ ca kiểm thử chuẩn, đủ cho mỗi luồng',
       result: packsOk ? 'DAT' : this.viewStep() < 3 ? 'CANH_BAO' : 'LOI',
     });
     return out;
@@ -1481,7 +1492,7 @@ export class TenantOnboardingPage {
 
   protected readonly continueLabel = computed(() => {
     const n = this.viewStep();
-    if (n === 3) return 'Tiếp tục: khởi chạy cấp phát';
+    if (n === 3) return 'Tiếp tục: bắt đầu cấp phát hạ tầng';
     return `Tiếp tục: ${ONBOARDING_STEPS[n]}`;
   });
 
@@ -1520,7 +1531,7 @@ export class TenantOnboardingPage {
     () =>
       this.idps()
         .map((i) => i.name)
-        .join('; ') || 'Organization của cell (tạo khi cấp phát)',
+        .join('; ') || 'Không gian đăng nhập của đơn vị (tạo khi cấp phát)',
   );
   protected readonly hrText = computed(
     () =>
@@ -1586,17 +1597,22 @@ export class TenantOnboardingPage {
     this.hr.update((l) => (on ? [...new Set([...l, h])] : l.filter((x) => x !== h)));
   }
 
+  // ui-text-ok: giá trị trạng thái nội bộ của bước, không hiện lên màn hình
   protected sagaState(i: number): 'done' | 'cur' | 'todo' | 'bad' {
     const j = this.job();
+    // ui-text-ok: giá trị trạng thái nội bộ của bước, không hiện lên màn hình
     if (!j) return 'todo';
     if (j.status === 'HOAN_TAT') return 'done';
     const cur = Math.max(0, PROVISION_STEPS.indexOf(j.message as (typeof PROVISION_STEPS)[number]));
     if (i < cur) return 'done';
     if (i === cur) return j.status === 'THAT_BAI' ? 'bad' : 'cur';
+    // ui-text-ok: giá trị trạng thái nội bộ của bước, không hiện lên màn hình
     return 'todo';
   }
   protected sagaText(i: number): string {
-    return { done: 'xong', cur: 'đang chạy', todo: 'chờ', bad: 'lỗi' }[this.sagaState(i)];
+    return { done: 'đã xong', cur: 'đang thực hiện', todo: 'chờ thực hiện', bad: 'lỗi' }[
+      this.sagaState(i)
+    ];
   }
 
   protected go(n: number) {
@@ -1695,7 +1711,7 @@ export class TenantOnboardingPage {
               },
               error: (e) => this.fail(e, 'Không lưu được hồ sơ.'),
             }),
-          error: (e) => this.fail(e, 'Không khai báo được tenant.'),
+          error: (e) => this.fail(e, 'Không khai báo được đơn vị triển khai.'),
         });
       return;
     }
@@ -1721,7 +1737,7 @@ export class TenantOnboardingPage {
         this.saving.set(false);
         this.track(location);
       },
-      error: (e) => this.fail(e, 'Không khởi chạy được saga cấp phát.'),
+      error: (e) => this.fail(e, 'Không bắt đầu được việc cấp phát hạ tầng.'),
     });
   }
 
@@ -1733,7 +1749,7 @@ export class TenantOnboardingPage {
       error: (e) => {
         this.tracking = null;
         this.job.set(null);
-        this.error.set(errorText(e, 'Mất kết nối khi theo dõi saga cấp phát.'));
+        this.error.set(errorText(e, 'Mất kết nối khi theo dõi tiến trình cấp phát hạ tầng.'));
       },
       complete: () => {
         const j = this.job();
@@ -1746,7 +1762,7 @@ export class TenantOnboardingPage {
             this.notice.set(MSG_01_06(r.provisionedMinutes ?? 0));
           } else if (!r.provisionError) {
             // MSG-01-07 đã hiện qua provisionError của hồ sơ; chỉ báo khi máy chủ không ghi lại
-            this.error.set(j?.problem?.title ?? 'Cấp phát lỗi.');
+            this.error.set(j?.problem?.title ?? 'Cấp phát hạ tầng không thành công.');
           }
         });
       },
@@ -1767,7 +1783,7 @@ export class TenantOnboardingPage {
       },
       error: (e) => {
         this.testing.set(false);
-        this.error.set(errorText(e, 'Không kiểm tra được kết nối IdP.'));
+        this.error.set(errorText(e, 'Không kiểm tra được kết nối hệ thống đăng nhập.'));
       },
     });
   }
@@ -1782,9 +1798,11 @@ export class TenantOnboardingPage {
         this.ob.set(r);
         this.saving.set(false);
         this.checks.reload();
-        this.notice.set(`Đã kích hoạt tenant ${r.name}. Đã gửi thư cho đầu mối quản trị tenant.`);
+        this.notice.set(
+          `Đã kích hoạt đơn vị ${r.name}. Đã gửi thư cho đầu mối quản trị của đơn vị.`,
+        );
       },
-      error: (e) => this.fail(e, 'Không kích hoạt được tenant.'),
+      error: (e) => this.fail(e, 'Không kích hoạt được đơn vị triển khai.'),
     });
   }
 

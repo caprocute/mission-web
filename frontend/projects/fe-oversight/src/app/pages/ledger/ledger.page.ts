@@ -134,7 +134,7 @@ const isoDate = (d: Date) => {
           />
         </div>
         <div class="f">
-          <label for="lg-evt">Loại sự kiện</label>
+          <label for="lg-evt">Thao tác</label>
           <p-select
             inputId="lg-evt"
             name="eventType"
@@ -173,10 +173,10 @@ const isoDate = (d: Date) => {
                   <tr>
                     <th scope="col">Bản ghi</th>
                     <th scope="col">Thời điểm</th>
-                    <th scope="col">Sự kiện</th>
+                    <th scope="col">Thao tác</th>
                     <th scope="col">Người thực hiện</th>
-                    <th scope="col">Trước</th>
-                    <th scope="col">Sau</th>
+                    <th scope="col">Giá trị trước</th>
+                    <th scope="col">Giá trị sau</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -323,14 +323,14 @@ const isoDate = (d: Date) => {
                     : 'Một phần dữ liệu'
                 }}
               </dd>
-              <dt>Bản ghi</dt>
+              <dt>Số bản ghi</dt>
               <dd>{{ int(r.entriesChecked) }}</dd>
               @if (r.sealsChecked !== undefined) {
-                <dt>Niêm phong</dt>
+                <dt>Số niêm phong</dt>
                 <dd>{{ int(r.sealsChecked) }}</dd>
               }
               <dt>Thời gian chạy</dt>
-              <dd>{{ r.finishedAt ? seconds(r) + ' giây' : 'đang chạy' }}</dd>
+              <dd>{{ r.finishedAt ? seconds(r) + ' giây' : 'Đang kiểm tra' }}</dd>
               <dt>Kết quả</dt>
               <dd [class.bad]="r.mismatches > 0">
                 @if (r.finishedAt) {
@@ -383,7 +383,7 @@ const isoDate = (d: Date) => {
             >
               <dt>Bản ghi</dt>
               <dd>Số {{ d.seqNo }} · {{ dt(d.recordedAt) }}</dd>
-              <dt>Sự kiện</dt>
+              <dt>Thao tác</dt>
               <dd>{{ event(d.eventType) }}</dd>
             </dl>
             @if (d.seal; as s) {
@@ -397,7 +397,7 @@ const isoDate = (d: Date) => {
                 <dd>
                   {{ dt(s.tsaGenTime) }}
                   @if (s.tsaLate) {
-                    <span class="warn">(dấu thời gian trễ)</span>
+                    <span class="warn">(gắn bù do dịch vụ chứng thực phản hồi chậm)</span>
                   }
                 </dd>
               </dl>
@@ -781,9 +781,7 @@ export class LedgerPage {
           const id = verifyRunIdOf(job);
           if (!id) {
             this.running.set(false);
-            this.notice.set(
-              'Đã tạo tác vụ kiểm tra toàn vẹn; kết quả có ở danh sách lần kiểm tra.',
-            );
+            this.notice.set('Đã bắt đầu kiểm tra toàn vẹn; kết quả sẽ hiện ở mục Lần kiểm tra.');
             return;
           }
           this.poll(id);
@@ -840,7 +838,8 @@ export class LedgerPage {
       .subscribe({
         next: ({ job }) => {
           this.exporting.set(false);
-          // MSG-13-07; tệp tải về ở `job.resultLocation` khi job hoàn tất
+          // MSG-13-07 (bỏ tên công cụ dòng lệnh `ledger-verify` khỏi câu hiển thị); tệp tải về ở
+          // `job.resultLocation` khi job hoàn tất
           this.notice.set(
             job.status === 'HOAN_TAT'
               ? 'Tệp bằng chứng đã sẵn sàng; tệp có chữ ký số để cơ quan kiểm tra đối chiếu độc lập.'

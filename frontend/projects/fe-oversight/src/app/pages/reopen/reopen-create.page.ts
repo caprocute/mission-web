@@ -183,7 +183,8 @@ const options = <K extends string>(labels: Record<K, string>) =>
                   />
                 </div>
                 <small id="h-profile" class="muted"
-                  >Mã hồ sơ lấy từ khiếu nại, cảnh báo hoặc sổ cái; mỗi hồ sơ một lần thêm.</small
+                  >Mã hồ sơ ghi trong kết luận khiếu nại, cảnh báo hoặc sổ cái; mỗi lần thêm một hồ
+                  sơ.</small
                 >
               </div>
             } @else if (scope() === 'DON_VI') {
@@ -227,9 +228,9 @@ const options = <K extends string>(labels: Record<K, string>) =>
 
           <h2 class="h3" id="data-h">Dữ liệu được phép sửa</h2>
           @for (row of dataRows(); track $index; let i = $index) {
-            <div class="data-row" role="group" [attr.aria-label]="'Bảng dữ liệu ' + (i + 1)">
+            <div class="data-row" role="group" [attr.aria-label]="'Nhóm dữ liệu ' + (i + 1)">
               <div class="f">
-                <label [for]="'rq-table-' + i">Bảng</label>
+                <label [for]="'rq-table-' + i">Nhóm dữ liệu</label>
                 <p-select
                   [inputId]="'rq-table-' + i"
                   [options]="tables"
@@ -241,7 +242,7 @@ const options = <K extends string>(labels: Record<K, string>) =>
                 />
               </div>
               <fieldset class="fields">
-                <legend class="small">Trường</legend>
+                <legend class="small">Nội dung được phép sửa</legend>
                 @for (f of fieldsOf(row.table); track f.key) {
                   <span class="check">
                     <p-checkbox
@@ -260,14 +261,14 @@ const options = <K extends string>(labels: Record<K, string>) =>
                   icon="pi pi-trash"
                   [text]="true"
                   severity="contrast"
-                  [ariaLabel]="'Bỏ bảng dữ liệu ' + (i + 1)"
+                  [ariaLabel]="'Bỏ nhóm dữ liệu ' + (i + 1)"
                   (onClick)="removeRow(i)"
                 />
               }
             </div>
           }
           <p-button
-            label="Thêm bảng dữ liệu"
+            label="Thêm nhóm dữ liệu"
             icon="pi pi-plus"
             [text]="true"
             size="small"

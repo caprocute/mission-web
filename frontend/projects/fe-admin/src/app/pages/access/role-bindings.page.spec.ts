@@ -46,7 +46,7 @@ describe('RoleBindingsPage (SCR-0105)', () => {
     const el = await open();
     press(row(el, 'Lê Minh Châu'), 'Duyệt');
     const ok = await until(el, 'p-message', has('Đã duyệt vai trò'));
-    expect(text(ok)).toContain('Cấp có thẩm quyền quyết định');
+    expect(text(ok)).toContain('Người có thẩm quyền quyết định');
     await until(el, 'tbody tr', (e) => has('Lê Minh Châu')(e) && has('Sắp hiệu lực')(e));
   });
 

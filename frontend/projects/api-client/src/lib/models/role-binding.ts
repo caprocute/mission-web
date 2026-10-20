@@ -31,15 +31,15 @@ export const SENSITIVE_ROLES: readonly RoleCode[] = ['decider', 'second_approver
 
 /** Tên vai trò theo baseline mục 10 (AC-02 đến AC-10). */
 export const ROLE_CODE_LABEL: Record<RoleCode, string> = {
-  tenant_admin: 'Quản trị tenant',
-  policy_author: 'Quản trị nghiệp vụ, BA cấu hình',
-  leader: 'Lãnh đạo, người đứng đầu',
+  tenant_admin: 'Quản trị đơn vị',
+  policy_author: 'Quản trị nghiệp vụ',
+  leader: 'Lãnh đạo đơn vị',
   manager: 'Cán bộ quản lý trực tiếp',
   member: 'Cán bộ, công chức, viên chức',
-  appraiser: 'Cơ quan tổ chức cán bộ (thẩm định)',
-  decider: 'Cấp có thẩm quyền quyết định',
+  appraiser: 'Cán bộ thẩm định',
+  decider: 'Người có thẩm quyền quyết định',
   second_approver: 'Người duyệt thứ hai',
-  inspector: 'Cơ quan kiểm tra, giám sát',
+  inspector: 'Cán bộ kiểm tra, giám sát',
 };
 
 export const ROLE_SCOPE_LABEL: Record<RoleBindingScope, string> = {

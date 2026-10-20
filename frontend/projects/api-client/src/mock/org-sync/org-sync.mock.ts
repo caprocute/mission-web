@@ -6,6 +6,7 @@ import {
   OrgDiscrepancy,
   OrgSyncRun,
   OrgSyncSchedule,
+  SYNC_SOURCE_LABEL,
   SyncSource,
 } from '../../lib/models/org-sync';
 import { MAX_PAGE_LIMIT } from '../../lib/paging';
@@ -55,7 +56,7 @@ function seedRuns(): OrgSyncRun[] {
       changes: 18,
       errors: 3,
       deadLetters: 0,
-      reason: '3 lỗi lược đồ thuộc tính nhóm',
+      reason: '3 bản ghi sai cấu trúc ở thuộc tính nhóm',
     },
     {
       id: RUN(8843),
@@ -143,7 +144,7 @@ const UNITS = [
   'UBND phường Đại Cương',
 ];
 const TITLES = ['Chuyên viên', 'Chuyên viên chính', 'Phó Trưởng phòng', 'Trưởng phòng', 'Cán sự'];
-const MATCH = 'Số định danh cá nhân (băm HMAC) + ngày sinh';
+const MATCH = 'Số định danh cá nhân và ngày sinh';
 
 /**
  * Phân bố như Hình 6.10 (chức vụ 168, đơn vị 121, không khớp người 74) cộng đảng tịch 47 và hai
@@ -156,7 +157,11 @@ const PLAN: [OrgDiscrepancy['field'], number][] = [
   ['party_membership', 47],
 ];
 
-function base(i: number, field: OrgDiscrepancy['field'], severity: DiscrepancySeverity): OrgDiscrepancy {
+function base(
+  i: number,
+  field: OrgDiscrepancy['field'],
+  severity: DiscrepancySeverity,
+): OrgDiscrepancy {
   const run = field === 'party_membership' ? runs[1] : runs[2];
   return {
     id: uuid('01928f3e-d100', i),
@@ -240,7 +245,7 @@ function seedItems(): OrgDiscrepancy[] {
       ...base(4, 'concurrent_assignment', 'THAP'),
       personName: 'Lương Thị Hoa',
       sourceConnector: 'SCIM',
-      sourceValueMasked: 'Thiếu nhóm "chi-uy-vien"',
+      sourceValueMasked: 'Thiếu nhóm "Chi uỷ viên"',
       currentValueMasked: 'Chi uỷ viên Chi bộ 2',
       suggestedAction: 'GIU_NOI_BO',
     },
@@ -324,7 +329,8 @@ function resolve(r: MockRequest): MockResponse {
   let updated = 0;
   const results = ids.map((id) => {
     const d = items.find((x) => x.id === id);
-    if (!d) return { id, status: 404, problem: { title: 'Không tìm thấy dòng lệch', status: 404 } };
+    if (!d)
+      return { id, status: 404, problem: { title: 'Không tìm thấy dòng lệch.', status: 404 } };
     if (d.resolution) {
       return { id, status: 409, problem: { title: 'Dòng đã được xử lý.', status: 409 } };
     }
@@ -342,14 +348,16 @@ function resolve(r: MockRequest): MockResponse {
 
 function mapPerson(r: MockRequest): MockResponse {
   const d = items.find((x) => x.id === r.pathParams['id']);
-  if (!d) return problem(404, 'Không tìm thấy dòng lệch');
+  if (!d) return problem(404, 'Không tìm thấy dòng lệch.');
   if (d.resolution) return problem(409, 'Dòng đã được xử lý.');
   if (d.field !== FIELD_PERSON_MATCH)
     return problem(409, 'Chỉ ánh xạ thủ công dòng không khớp người.');
   const id = (r.body as { personId?: string }).personId;
   if (!ORG_PERSONS.some((p) => p.id === id)) return fieldErr('Chọn hồ sơ cán bộ.', 'personId');
   if (items.some((x) => x.personId === id && x.field === FIELD_PERSON_MATCH)) {
-    return problem(409, 'Mã ngoài đã ánh xạ tới người khác.', { code: 'ORG-409-XREF-EXISTS' });
+    return problem(409, 'Mã tại nguồn đã được ánh xạ tới người khác.', {
+      code: 'ORG-409-XREF-EXISTS',
+    });
   }
   Object.assign(d, {
     personId: id,
@@ -362,7 +370,7 @@ function mapPerson(r: MockRequest): MockResponse {
 
 function assign(r: MockRequest): MockResponse {
   const d = items.find((x) => x.id === r.pathParams['id']);
-  if (!d) return problem(404, 'Không tìm thấy dòng lệch');
+  if (!d) return problem(404, 'Không tìm thấy dòng lệch.');
   const body = r.body as { assigneeId?: string };
   const who = ORG_PERSONS.find((p) => p.id === body.assigneeId);
   if (!who) return fieldErr('Chọn cán bộ nhận kiểm tra.', 'assigneeId');
@@ -410,30 +418,29 @@ function syncNow(r: MockRequest): MockResponse {
       addRun('SCIM', {
         status: 'THANH_CONG_MOT_PHAN',
         errors: 3,
-        reason: '3 lỗi lược đồ thuộc tính nhóm',
+        reason: '3 bản ghi sai cấu trúc ở thuộc tính nhóm',
       });
     }
     return one
-      ? `Đã đồng bộ nguồn ${one}.`
-      : 'Đã đồng bộ ba nguồn: CBCCVC 2 thay đổi, Đảng viên 1 thay đổi, SCIM 3 lỗi lược đồ.';
+      ? `Đã đồng bộ nguồn ${SYNC_SOURCE_LABEL[one]}.`
+      : 'Đã đồng bộ ba nguồn: CBCCVC 2 thay đổi, Đảng viên 1 thay đổi, tài khoản đăng nhập 3 bản ghi sai cấu trúc.';
   });
 }
 
 function retry(r: MockRequest): MockResponse {
   const run = runs.find((x) => x.id === r.pathParams['id']);
-  if (!run) return problem(404, 'Không tìm thấy lần đồng bộ');
-  if (!run.deadLetters)
-    return problem(409, 'Lần đồng bộ này không có thông điệp lỗi chờ chạy lại.');
+  if (!run) return problem(404, 'Không tìm thấy lần đồng bộ.');
+  if (!run.deadLetters) return problem(409, 'Lần đồng bộ này không có dữ liệu lỗi chờ chạy lại.');
   return startJob('ORG_SYNC_RETRY', () => {
     run.deadLetters = 0;
     const n = addRun(run.connector, { changes: 5 });
-    return `Đã chạy lại thông điệp lỗi của lần ${run.connector} lúc ${run.startedAt.slice(11, 16)}: ${n.records.toLocaleString('vi-VN')} bản ghi, ${n.changes} thay đổi.`;
+    return `Đã chạy lại dữ liệu lỗi của lần đồng bộ ${SYNC_SOURCE_LABEL[run.connector]} lúc ${run.startedAt.slice(11, 16)}: ${n.records.toLocaleString('vi-VN')} bản ghi, ${n.changes} thay đổi.`;
   });
 }
 
 function job(r: MockRequest): MockResponse {
   const e = jobs.get(r.pathParams['id']);
-  if (!e) return problem(404, 'Không tìm thấy tác vụ');
+  if (!e) return problem(404, 'Không tìm thấy yêu cầu xử lý.');
   e.polls++;
   if (e.polls >= 2 && e.job.status !== 'HOAN_TAT') {
     e.job = {
@@ -448,7 +455,7 @@ function job(r: MockRequest): MockResponse {
       ...e.job,
       status: 'DANG_CHAY',
       progress: 50,
-      message: 'Đang lấy dữ liệu qua integration-gateway',
+      message: 'Đang lấy dữ liệu từ các nguồn…',
     };
   }
   return out(e.job);
@@ -456,7 +463,7 @@ function job(r: MockRequest): MockResponse {
 
 function saveSchedules(r: MockRequest): MockResponse {
   const m = r.headers.get('If-Match');
-  if (!m) return problem(428, 'Thiếu If-Match.');
+  if (!m) return problem(428, 'Thiếu thông tin phiên bản của lịch. Vui lòng tải lại trang.');
   if (m !== `"${scheduleVersion}"`) {
     return problem(409, 'Lịch đã được người khác thay đổi. Vui lòng tải lại.', {
       code: 'ORG-409-CONFLICT',
@@ -464,7 +471,7 @@ function saveSchedules(r: MockRequest): MockResponse {
   }
   const next = (r.body as { items?: OrgSyncSchedule[] }).items ?? [];
   if (next.some((s) => !/^\d{1,2} \d{1,2} \* \* \*$|^[\d*/,\- ]+$/.test(s.cron ?? ''))) {
-    return fieldErr('Biểu thức lịch không hợp lệ.', 'items');
+    return fieldErr('Lịch đồng bộ không hợp lệ.', 'items');
   }
   schedules = next.map((s) => ({ connector: s.connector, enabled: !!s.enabled, cron: s.cron }));
   scheduleVersion++;

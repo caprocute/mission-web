@@ -38,6 +38,7 @@ export function miniPdf(lines: string[], draft = true): Blob {
   const text = lines
     .map((l, i) => `BT /F1 ${i === 0 ? 16 : 11} Tf 56 ${780 - i * 22} Td (${ascii(l)}) Tj ET`)
     .join('\n');
+  // ui-text-ok: lệnh vẽ dấu "BẢN NHÁP" trong tệp PDF mẫu, không phải văn bản giao diện
   const stamp = 'BT /F1 48 Tf 0.85 g 140 420 Td (BAN NHAP) Tj ET';
   const content = draft ? `${stamp}\n${text}` : text;
   const objects = [
@@ -81,6 +82,7 @@ function preview(body: Partial<DossierFormPreviewRequest> | null): MockResponse 
 
 /** Mẫu 1B đã ký của hồ sơ giả lập (`signedFormId` trong `appraisals/rating-sheet.ts`). */
 const SIGNED_FORMS: Record<string, string[]> = {
+  // ui-text-ok: khoá tra cứu của dữ liệu giả lập, không hiển thị
   '01928f3e-7b1a-7c3e-9a51-3f2d9c1b0f45': [
     FORM_NAME['MAU_1B'],
     'Can bo: Tran Minh Hoang - Quy III/2026',
@@ -174,7 +176,7 @@ export const DOSSIERS_MOCK: MockModule = {
           body: miniPdf(lines, !!draft),
           headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="${draft ? 'MAU_3-ban-nhap' : 'MAU_1B-Q3-2026'}.pdf"`,
+            'Content-Disposition': `attachment; filename="${draft ? 'Mau-3-ban-nhap' : 'Mau-1B-Quy-III-2026'}.pdf"`,
           },
         };
       },

@@ -56,7 +56,7 @@ export function reopenFixtures(): ReopenRequest[] {
       },
       openUntil: day(4, '17:00'),
       reason:
-        'Thi hành kết luận khiếu nại KN-2026-0031 chấp nhận một phần: điều chỉnh hệ số C của nhiệm vụ then chốt 3 do chậm vì nguyên nhân khách quan (chờ văn bản của cơ quan cấp trên).',
+        'Thi hành kết luận khiếu nại KN-2026-0031 chấp nhận một phần: điều chỉnh hệ số tiến độ (C) của nhiệm vụ then chốt 3 do chậm vì nguyên nhân khách quan (chờ văn bản của cơ quan cấp trên).',
       basis: { kind: 'KHIEU_NAI', id: 'kn-2026-0031', code: 'KN-2026-0031' },
       requestedBy: P.ha,
       approvalsRequired: 2,
@@ -74,7 +74,7 @@ export function reopenFixtures(): ReopenRequest[] {
             mfaAcr: 'aal2',
             signRequestId: 'sr-2026-007-1',
             comment:
-              'Đồng ý mở lại trong phạm vi một hồ sơ, chỉ sửa hệ số C của nhiệm vụ then chốt 3.',
+              'Đồng ý mở lại trong phạm vi một hồ sơ, chỉ sửa hệ số tiến độ (C) của nhiệm vụ then chốt 3.',
             decidedAt: day(-1, '10:14'),
           },
         },
@@ -104,7 +104,7 @@ export function reopenFixtures(): ReopenRequest[] {
       },
       openUntil: day(8, '17:00'),
       reason:
-        'Cảnh báo CB-2026-0112 kết luận có vi phạm: hai minh chứng trùng mã băm được nghiệm thu cho hai nhiệm vụ khác nhau, cần nghiệm thu lại mức chất lượng của nhiệm vụ thứ hai.',
+        'Cảnh báo CB-2026-0112 kết luận có vi phạm: cùng một tệp minh chứng được nghiệm thu cho hai nhiệm vụ khác nhau, cần nghiệm thu lại mức chất lượng của nhiệm vụ thứ hai.',
       basis: { kind: 'CANH_BAO', id: 'cb-2026-0112', code: 'CB-2026-0112' },
       requestedBy: P.lam,
       approvalsRequired: 2,
@@ -170,7 +170,7 @@ export function reopenFixtures(): ReopenRequest[] {
       },
       openUntil: day(-40, '17:00'),
       reason:
-        'Thi hành kết luận khiếu nại KN-2026-0017: nhiệm vụ thường xuyên 2 bị tính chậm hạn do lỗi đồng bộ ngày nghỉ lễ của lịch tenant, cần nghiệm thu lại hệ số C.',
+        'Thi hành kết luận khiếu nại KN-2026-0017: nhiệm vụ thường xuyên 2 bị tính chậm hạn do lịch làm việc của đơn vị thiếu ngày nghỉ lễ, cần nghiệm thu lại hệ số tiến độ (C).',
       basis: { kind: 'KHIEU_NAI', id: 'kn-2026-0017', code: 'KN-2026-0017' },
       requestedBy: P.ha,
       approvalsRequired: 2,
@@ -221,7 +221,7 @@ export function reopenFixtures(): ReopenRequest[] {
       },
       openUntil: day(-60, '17:00'),
       reason:
-        'Đề nghị mở lại toàn bộ kết quả nghiệm thu của Văn phòng Đảng uỷ để rà soát hệ số C sau phản ánh của một số đảng viên về cách tính hạn.',
+        'Đề nghị mở lại toàn bộ kết quả nghiệm thu của Văn phòng Đảng uỷ để rà soát hệ số tiến độ (C) sau phản ánh của một số đảng viên về cách tính hạn.',
       basis: { kind: 'QUYET_DINH', code: 'QĐ 08-QĐ/UBKT' },
       requestedBy: P.lam,
       approvalsRequired: 2,
@@ -253,10 +253,15 @@ export function reopenFixtures(): ReopenRequest[] {
 
 /** Ảnh hưởng dự kiến theo TL-02 Hình 11.7 (vùng 3). */
 export const IMPACT_007: ReopenImpact = {
-  policyVersion: 'Đảng v2.0',
+  policyVersion: 'khối Đảng, phiên bản 2.0',
   rows: [
     { profileId: PROFILE_HOANG, metric: 'Điểm', before: '91,2', after: '92,1' },
-    { profileId: PROFILE_HOANG, metric: 'Mức xếp loại', before: 'HTTNV', after: 'HTTNV' },
+    {
+      profileId: PROFILE_HOANG,
+      metric: 'Mức xếp loại',
+      before: 'Hoàn thành tốt nhiệm vụ',
+      after: 'Hoàn thành tốt nhiệm vụ',
+    },
   ],
   formsToRegenerate: 2,
 };

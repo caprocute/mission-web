@@ -9,6 +9,7 @@ export type ProblemDetails = components['schemas']['ProblemDetails'];
 export type FieldError = components['schemas']['FieldError'];
 
 export const CONFLICT_TITLE = 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại';
+const UNKNOWN_TITLE = 'Hệ thống chưa xử lý được yêu cầu, vui lòng thử lại sau';
 const NETWORK_TITLE = 'Không kết nối được máy chủ, vui lòng kiểm tra mạng và thử lại';
 
 /** Tiêu đề mặc định khi máy chủ không trả body Problem Details. */
@@ -50,11 +51,14 @@ export function toProblem(err: unknown): ProblemDetails {
     if (err.status === 0) return { type: 'about:blank', title: NETWORK_TITLE, status: 0 };
     return {
       type: 'about:blank',
-      title: DEFAULT_TITLES[err.status] ?? (err.statusText || 'Lỗi kết nối'),
+      // không dùng statusText (tiếng Anh, kỹ thuật) làm văn bản hiển thị (wiki/16)
+      title: DEFAULT_TITLES[err.status] ?? UNKNOWN_TITLE,
       status: err.status,
     };
   }
-  return { type: 'about:blank', title: 'Lỗi không xác định', status: 0, detail: String(err) };
+  // ngoại lệ phía trình duyệt: ghi nhật ký để chẩn đoán, không đưa chuỗi ngoại lệ lên giao diện
+  console.error('[problem] lỗi không phải HTTP', err);
+  return { type: 'about:blank', title: UNKNOWN_TITLE, status: 0 };
 }
 
 /**

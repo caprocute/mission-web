@@ -5,6 +5,7 @@ import {
   AppraisalScoreView,
   AppraisalSelfAssessmentView,
   GeneralCriteriaResult,
+  RATING_LEVEL_LABEL,
   RatingLevel,
 } from '../../lib/models/appraisal';
 import { QualityLevel } from '../../lib/models/evidence';
@@ -74,12 +75,12 @@ const SPECS: Spec[] = [
     tasks: [
       { title: 'Đề án chuyển đổi số công tác tổ chức', selfB: 0.75, b: 0.75, selfC: 0.95, c: 0.95 },
       {
-        title: 'Báo cáo sơ kết chuyên đề TCCS đảng',
+        title: 'Báo cáo sơ kết chuyên đề tổ chức cơ sở đảng',
         selfB: 0.75,
         b: 0.5,
         selfC: 0.85,
         c: 0.85,
-        note: 'B: phải sửa nội dung cơ bản (biên bản nghiệm thu 18/12)',
+        note: 'Chất lượng: phải sửa nội dung cơ bản (biên bản nghiệm thu 18/12)',
       },
       {
         title: 'Thẩm định hồ sơ quy hoạch cán bộ',
@@ -87,7 +88,7 @@ const SPECS: Spec[] = [
         b: 1,
         selfC: 1,
         c: 0.85,
-        note: 'C: chậm 3 ngày làm việc do chủ quan, không có miễn trừ',
+        note: 'Tiến độ: chậm 3 ngày làm việc do chủ quan, không có miễn trừ',
       },
       { title: 'Hướng dẫn kiểm điểm chi bộ', selfB: 1, b: 1, selfC: 1, c: 1 },
     ],
@@ -108,7 +109,7 @@ const SPECS: Spec[] = [
         b: 0.75,
         selfC: 1,
         c: 0.7,
-        note: 'C: chậm 5 ngày làm việc, đã nhắc hạn hai lần',
+        note: 'Tiến độ: chậm 5 ngày làm việc, đã nhắc hạn hai lần',
       },
       { title: 'Báo cáo thống kê đảng viên năm', selfB: 0.75, b: 0.75, selfC: 0.85, c: 0.85 },
     ],
@@ -275,7 +276,7 @@ function build(s: Spec): { profile: AppraisalProfile; view: AppraisalScoreView }
     status: 'CHO_THAM_DINH',
     isHead: false,
     isLeadership: s.title.startsWith('Trưởng') || s.title.startsWith('Phó'),
-    policyVersion: 'Đảng v2.0',
+    policyVersion: 'khối Đảng, phiên bản 2.0',
     currentSnapshotId: `${ID}0d${s.key.slice(2)}`,
     finalRatingCode: null,
     selfAssessDue: '2027-01-05',
@@ -321,7 +322,7 @@ function build(s: Spec): { profile: AppraisalProfile; view: AppraisalScoreView }
       profileId: id,
       flow: 'DANG',
       snapshotKind: 'TAM_TINH',
-      policyVersion: 'Đảng v2.0',
+      policyVersion: 'khối Đảng, phiên bản 2.0',
       inputHash: s.hash.split('').reverse().join(''),
       snapshotHash: s.hash.slice(32) + s.hash.slice(0, 32),
       totalScore: total,
@@ -335,7 +336,14 @@ function build(s: Spec): { profile: AppraisalProfile; view: AppraisalScoreView }
       autoRatingCode: s.auto,
       ruleChecks: [],
       downgradeReasons: s.downgrade
-        ? [{ fromRating: 'HTXSNV', toRating: s.auto, text: s.downgrade, legalRef: 'QĐ Điều 11' }]
+        ? [
+            {
+              fromRating: 'HTXSNV',
+              toRating: s.auto,
+              text: s.downgrade,
+              legalRef: 'Điều 11 Quy định 366',
+            },
+          ]
         : [],
       groups: [
         {
@@ -360,8 +368,8 @@ function build(s: Spec): { profile: AppraisalProfile; view: AppraisalScoreView }
     explanation: {
       systemLevel: s.auto,
       conditions: [],
-      text: `Đạt ${total.toLocaleString('vi-VN')} điểm; mức hệ thống tính ${s.auto}. Policy Pack Đảng v2.0.`,
-      legalRef: 'QĐ Điều 11',
+      text: `Đạt ${total.toLocaleString('vi-VN')} điểm; mức hệ thống tính: ${RATING_LEVEL_LABEL[s.auto]}. Căn cứ: Bộ quy định đánh giá khối Đảng, phiên bản 2.0.`,
+      legalRef: 'Điều 11 Quy định 366',
     },
   };
   return { profile, view };

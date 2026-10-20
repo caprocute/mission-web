@@ -49,7 +49,7 @@ describe('quy tắc SCR-0902 (WEB-036)', () => {
           {
             code: 'THEN_CHOT',
             tasks: [
-              { taskId: 't1', title: 'A', b: 0.5, c: 0.85, acceptanceNote: 'B: phải sửa' },
+              { taskId: 't1', title: 'A', b: 0.5, c: 0.85, acceptanceNote: 'Chất lượng: phải sửa' },
               { taskId: 't2', title: 'B', b: 1, c: 1 },
               { taskId: 't3', title: 'C', b: 1, c: 0.7 },
             ],
@@ -60,14 +60,14 @@ describe('quy tắc SCR-0902 (WEB-036)', () => {
     } as unknown as AppraisalScoreView;
     const rows = compareRows(view, profile);
     expect(rows.map((r) => [r.taskId, r.diffB, r.diffC, r.note])).toEqual([
-      ['t1', true, false, 'B: phải sửa'],
+      ['t1', true, false, 'Chất lượng: phải sửa'],
       ['t2', false, false, 'Khớp'],
       ['t3', false, false, 'Khớp'],
     ]);
     expect(rows[2].selfB).toBeNull();
     expect(selfLevel(profile)).toBe('HTXSNV');
     expect(shortHash('9c1ea07bd2f4c6e8a1b3d5f7092c4e6a8b0d2f4a6c8e0b2d4f6a8c0e2b4d6f8a')).toBe(
-      'sha256:9c1e…6f8a',
+      '9c1e…6f8a',
     );
   });
 });

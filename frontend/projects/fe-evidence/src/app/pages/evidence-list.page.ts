@@ -24,7 +24,7 @@ import { EVIDENCE_CAN } from '../evidence-permissions';
   imports: [RouterLink, ButtonModule],
   template: `
     @if (!can('SCR-0701.xem')) {
-      <p class="msg warn">Anh/chị không có quyền xem minh chứng.</p>
+      <p class="msg warn">Đồng chí không có quyền xem minh chứng.</p>
     } @else if (task()) {
       @let t = taskRes.value();
       <h1>Sản phẩm, minh chứng của nhiệm vụ</h1>
@@ -86,7 +86,7 @@ import { EVIDENCE_CAN } from '../evidence-permissions';
     } @else if (reviewer() === 'me') {
       <h1>Minh chứng chờ tôi nghiệm thu</h1>
       @if (!can('SCR-0703.mo')) {
-        <p class="msg warn">Anh/chị không có quyền nghiệm thu minh chứng.</p>
+        <p class="msg warn">Đồng chí không có quyền nghiệm thu minh chứng.</p>
       } @else if (mine.value(); as list) {
         @if (!list.length) {
           <p class="muted">Không có minh chứng nào đang chờ đồng chí nghiệm thu.</p>
@@ -99,7 +99,7 @@ import { EVIDENCE_CAN } from '../evidence-permissions';
                 <div class="muted small">
                   {{ e.submittedBy?.name }} · phiên bản {{ e.currentVersionNo }}
                   {{ e.currentStatus ? '· ' + statusLabel[e.currentStatus] : '' }}
-                  {{ e.isDuplicateSuspect ? '· có tệp trùng mã băm' : '' }}
+                  {{ e.isDuplicateSuspect ? '· có tệp trùng với minh chứng đã nộp' : '' }}
                 </div>
               </div>
               <a class="p-button p-component lnk" [routerLink]="[e.id, 'review']">Nghiệm thu</a>

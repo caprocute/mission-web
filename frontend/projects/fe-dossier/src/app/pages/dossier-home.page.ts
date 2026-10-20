@@ -7,10 +7,7 @@ import { MessageModule } from 'primeng/message';
   imports: [MessageModule],
   template: `
     <h1>Kiểm điểm, hồ sơ số</h1>
-    <p-message severity="info">
-      Phân hệ Kiểm điểm, hồ sơ số (remote fe-dossier) đã có khung, các màn hình đang được phát
-      triển: SCR-1101, SCR-1102.
-    </p-message>
+    <p-message severity="info">Chức năng này đang được chuẩn bị đưa vào sử dụng.</p-message>
   `,
   styles: `
     h1 {

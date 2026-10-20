@@ -104,7 +104,7 @@ export const MAU_1B_RULES: FormRule[] = [
     assert: 'size(giaiTrinh) >= 20',
     // MSG-09-02 (TL-02 SCR-0901), kèm độ dài tối thiểu của trường 11
     message:
-      'Mức tự đề xuất khác mức hệ thống tham khảo. Đồng chí cần ghi giải trình (ít nhất 20 ký tự) trước khi nộp (QĐ Điều 16).',
+      'Mức tự đề xuất khác mức hệ thống tham khảo. Đồng chí cần ghi giải trình (ít nhất 20 ký tự) trước khi nộp (theo Điều 16 Quy định 366-QĐ/TW).',
     field: 'giaiTrinh',
   },
   {
