@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "HoSoDanhGiaChuyenBuoc",
+  "namespace": "vn.vtokr.appraisal.v1",
+  "doc": "EVT-11 · appraisal.profile.stepcompleted.v1 · MOD-04 phát khi hồ sơ đánh giá chuyển bước.",
+  "fields": [
+    {"name": "profileId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "appraisal.appraisal_profile.id"},
+    {"name": "fromStatus", "type": ["null", "string"], "default": null, "doc": "Trạng thái trước theo baseline 9.1"},
+    {"name": "toStatus", "type": "string", "doc": "Trạng thái sau theo baseline 9.1"},
+    {"name": "stage", "type": "string", "doc": "Bước vừa hoàn tất: TU_DE_XUAT, THAM_DINH, DE_XUAT, QUYET_DINH"},
+    {"name": "actorId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người thực hiện bước; là trường dữ liệu theo TL-03, khác thuộc tính phong bì actorid"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

@@ -39,6 +39,8 @@
     <!-- Microservice Java (NEN-019 trở đi): services/ -->
     <!-- Mô-đun mẫu kiểm chuỗi plugin; xoá khi NEN-009 có mô-đun thật. -->
     <module>tools/build-smoke</module>
+    <!-- NEN-007: hợp đồng sự kiện Avro, lớp sinh dùng chung. -->
+    <module>libs/vt-events</module>
   </modules>
 
   <properties>

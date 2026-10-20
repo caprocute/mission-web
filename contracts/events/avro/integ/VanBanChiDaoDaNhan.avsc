@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "VanBanChiDaoDaNhan",
+  "namespace": "vn.vtokr.integ.v1",
+  "doc": "EVT-24 · integ.document.received.v1 · SVC-13 phát khi nhận văn bản chỉ đạo từ hệ văn bản ngoài.",
+  "fields": [
+    {"name": "documentId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Mã văn bản nội bộ"},
+    {"name": "connectorCode", "type": "string", "doc": "Mã kết nối (integ.connector)"},
+    {"name": "externalId", "type": "string", "doc": "Mã văn bản phía hệ ngoài"},
+    {"name": "docNumber", "type": "string", "doc": "Số, ký hiệu văn bản"},
+    {"name": "issuedDate", "type": {"type": "int", "logicalType": "date"}, "doc": "Ngày ban hành"},
+    {"name": "issuer", "type": "string", "doc": "Cơ quan ban hành"},
+    {"name": "summary", "type": "string", "doc": "Trích yếu"},
+    {"name": "objectKey", "type": ["null", "string"], "default": null, "doc": "Khoá đối tượng tệp văn bản"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}
