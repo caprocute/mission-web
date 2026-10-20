@@ -1,0 +1,457 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  NEN-005 · ADR-16 · TL-01 chương "Kiểm thử và tích hợp, triển khai liên tục".
+
+  POM cha của mọi mã Java trong backend/. Kế thừa phiên bản từ platform-bom (relativePath),
+  khoá Java 21 và bật cổng chất lượng mặc định ở pha verify:
+    - maven-enforcer-plugin: Java 21, Maven tối thiểu, hội tụ phụ thuộc, cấm thư viện trái giấy phép;
+    - Spotless: định dạng Java (google-java-format) và POM;
+    - JaCoCo: ngưỡng 80% dòng, 70% nhánh cho gói ..domain.. và ..application..;
+    - SpotBugs + Find Security Bugs: lỗi mức cao làm hỏng build;
+    - Surefire (kiểm thử đơn vị) / Failsafe (kiểm thử tích hợp *IT.java).
+  Profile -Pmutation chạy PIT (ngưỡng 70%). Jib chỉ chạy khi gọi tường minh.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>vn.viettel.okrkpi</groupId>
+    <artifactId>platform-bom</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>platform-bom/pom.xml</relativePath>
+  </parent>
+
+  <artifactId>mission-backend-parent</artifactId>
+  <packaging>pom</packaging>
+
+  <name>Mission · POM cha backend</name>
+  <description>POM cha cho mission-core, thư viện nền và microservice Java (ADR-16).</description>
+
+  <modules>
+    <!--
+      platform-bom không nằm trong reactor: POM cha kế thừa nó qua relativePath (đủ cho build
+      cục bộ và CI); khi phát hành, INF-05 chạy "./mvnw -f platform-bom deploy" trước.
+      Đưa BOM vào reactor sẽ làm nó thành dự án đầu tiên và hỏng phân giải tiền tố plugin
+      (ví dụ "./mvnw spotless:apply").
+    -->
+    <!-- Thư viện nền vt-platform-* (NEN-009..NEN-016), vt-db-migration (NEN-030): libs/ -->
+    <!-- Khối nguyên khối theo mô-đun mission-core (CORE-00-01): mission-core/ -->
+    <!-- Microservice Java (NEN-019 trở đi): services/ -->
+    <!-- Mô-đun mẫu kiểm chuỗi plugin; xoá khi NEN-009 có mô-đun thật. -->
+    <module>tools/build-smoke</module>
+  </modules>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <!-- Bản dựng tái lập: dấu thời gian cố định cho tệp nén. -->
+    <project.build.outputTimestamp>2026-10-19T00:00:00Z</project.build.outputTimestamp>
+
+    <!-- Phiên bản plugin build (không phải phụ thuộc chạy, nên đặt ở POM cha). -->
+    <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+    <extra-enforcer-rules.version>1.12.1</extra-enforcer-rules.version>
+    <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
+    <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
+    <maven-failsafe-plugin.version>3.5.6</maven-failsafe-plugin.version>
+    <spotless-maven-plugin.version>3.10.4</spotless-maven-plugin.version>
+    <google-java-format.version>1.28.0</google-java-format.version>
+    <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
+    <spotbugs-maven-plugin.version>4.10.5.0</spotbugs-maven-plugin.version>
+    <findsecbugs-plugin.version>1.14.0</findsecbugs-plugin.version>
+    <pitest-maven.version>1.30.1</pitest-maven.version>
+    <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
+    <jib-maven-plugin.version>3.5.2</jib-maven-plugin.version>
+    <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
+
+    <!-- Cổng chất lượng (TL-01 "Tháp kiểm thử"). -->
+    <quality.coverage.line.minimum>0.80</quality.coverage.line.minimum>
+    <quality.coverage.branch.minimum>0.70</quality.coverage.branch.minimum>
+    <quality.mutation.threshold>70</quality.mutation.threshold>
+    <!-- Lớp đích của PIT; mô-đun nghiệp vụ thu hẹp về máy trạng thái và tính điểm. -->
+    <pitest.targetClasses>vn.viettel.okrkpi.*</pitest.targetClasses>
+    <!-- Thoát hiểm cục bộ, không dùng trong CI: -Dquality.skip=true. -->
+    <quality.skip>false</quality.skip>
+
+    <!-- Ảnh chạy (TL-04 "Nguyên tắc cấu hình chung"): JRE 21 distroless, UID 10001. -->
+    <jib.from.image>gcr.io/distroless/java21-debian12:nonroot</jib.from.image>
+    <jib.container.user>10001:10001</jib.container.user>
+    <!-- Mô-đun API ghi đè để thêm ZGC thế hệ; mô-đun lô dùng G1 (TL-04 mục 3). -->
+    <jib.jvm.gc>-XX:+UseG1GC</jib.jvm.gc>
+    <jib.to.image>harbor.local/mission/${project.artifactId}:${project.version}</jib.to.image>
+
+    <!-- SonarQube (INF-05 cấu hình phía máy chủ; ngưỡng ghi trong backend/README.md). -->
+    <sonar.projectKey>vn.viettel.okrkpi:mission-backend</sonar.projectKey>
+    <sonar.java.source>21</sonar.java.source>
+    <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml,${project.build.directory}/site/jacoco-it/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+    <sonar.exclusions>**/target/generated-sources/**,**/generated/**</sonar.exclusions>
+    <sonar.coverage.exclusions>**/target/generated-sources/**,**/generated/**</sonar.coverage.exclusions>
+  </properties>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>${maven-compiler-plugin.version}</version>
+          <configuration>
+            <release>${maven.compiler.release}</release>
+            <parameters>true</parameters>
+            <compilerArgs>
+              <arg>-Xlint:all,-processing,-serial</arg>
+            </compilerArgs>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>${maven-surefire-plugin.version}</version>
+          <configuration>
+            <!-- Kiểm thử tích hợp (*IT.java) chạy ở Failsafe. -->
+            <excludes>
+              <exclude>**/*IT.java</exclude>
+            </excludes>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>${maven-failsafe-plugin.version}</version>
+          <configuration>
+            <includes>
+              <include>**/*IT.java</include>
+            </includes>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>${spotless-maven-plugin.version}</version>
+          <configuration>
+            <java>
+              <excludes>
+                <exclude>target/**</exclude>
+              </excludes>
+              <googleJavaFormat>
+                <version>${google-java-format.version}</version>
+                <style>GOOGLE</style>
+              </googleJavaFormat>
+              <removeUnusedImports/>
+              <formatAnnotations/>
+            </java>
+            <pom>
+              <sortPom>
+                <expandEmptyElements>false</expandEmptyElements>
+                <nrOfIndentSpace>2</nrOfIndentSpace>
+                <keepBlankLines>true</keepBlankLines>
+                <sortDependencies/>
+                <sortModules>false</sortModules>
+              </sortPom>
+            </pom>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.jacoco</groupId>
+          <artifactId>jacoco-maven-plugin</artifactId>
+          <version>${jacoco-maven-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>com.github.spotbugs</groupId>
+          <artifactId>spotbugs-maven-plugin</artifactId>
+          <version>${spotbugs-maven-plugin.version}</version>
+          <configuration>
+            <effort>Max</effort>
+            <!-- Chỉ lỗi mức cao làm hỏng build (BACKEND.md mục 4). -->
+            <threshold>High</threshold>
+            <failOnError>true</failOnError>
+            <includeTests>false</includeTests>
+            <xmlOutput>true</xmlOutput>
+            <plugins>
+              <plugin>
+                <groupId>com.h3xstream.findsecbugs</groupId>
+                <artifactId>findsecbugs-plugin</artifactId>
+                <version>${findsecbugs-plugin.version}</version>
+              </plugin>
+            </plugins>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.pitest</groupId>
+          <artifactId>pitest-maven</artifactId>
+          <version>${pitest-maven.version}</version>
+          <configuration>
+            <targetClasses>
+              <param>${pitest.targetClasses}</param>
+            </targetClasses>
+            <mutationThreshold>${quality.mutation.threshold}</mutationThreshold>
+            <outputFormats>
+              <format>XML</format>
+              <format>HTML</format>
+            </outputFormats>
+            <timestampedReports>false</timestampedReports>
+            <excludedTestClasses>
+              <param>**.*IT</param>
+            </excludedTestClasses>
+          </configuration>
+          <dependencies>
+            <dependency>
+              <groupId>org.pitest</groupId>
+              <artifactId>pitest-junit5-plugin</artifactId>
+              <version>${pitest-junit5-plugin.version}</version>
+            </dependency>
+          </dependencies>
+        </plugin>
+        <plugin>
+          <groupId>com.google.cloud.tools</groupId>
+          <artifactId>jib-maven-plugin</artifactId>
+          <version>${jib-maven-plugin.version}</version>
+          <!--
+            Không gắn vào vòng đời: verify không bao giờ đẩy ảnh. Đóng gói tường minh bằng
+            jib:buildTar (cục bộ) hoặc jib:build (INF-05, đẩy lên Harbor kèm ký cosign).
+          -->
+          <configuration>
+            <from>
+              <image>${jib.from.image}</image>
+            </from>
+            <to>
+              <image>${jib.to.image}</image>
+            </to>
+            <container>
+              <user>${jib.container.user}</user>
+              <jvmFlags>
+                <jvmFlag>-XX:MaxRAMPercentage=70</jvmFlag>
+                <jvmFlag>${jib.jvm.gc}</jvmFlag>
+                <jvmFlag>-Djava.io.tmpdir=/tmp</jvmFlag>
+              </jvmFlags>
+              <labels>
+                <org.opencontainers.image.title>${project.artifactId}</org.opencontainers.image.title>
+                <org.opencontainers.image.version>${project.version}</org.opencontainers.image.version>
+                <org.opencontainers.image.vendor>Viettel</org.opencontainers.image.vendor>
+                <org.opencontainers.image.source>https://github.com/caprocute/mission-web</org.opencontainers.image.source>
+              </labels>
+              <creationTime>USE_CURRENT_TIMESTAMP</creationTime>
+            </container>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.sonarsource.scanner.maven</groupId>
+          <artifactId>sonar-maven-plugin</artifactId>
+          <version>${sonar-maven-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-maven-plugin</artifactId>
+          <version>${spring-boot.version}</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>${maven-enforcer-plugin.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>extra-enforcer-rules</artifactId>
+            <version>${extra-enforcer-rules.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <id>enforce-platform</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireJavaVersion>
+                  <version>[21,22)</version>
+                  <message>Mission backend biên dịch bằng Java 21 LTS (TL-01 Phụ lục B).</message>
+                </requireJavaVersion>
+                <requireMavenVersion>
+                  <version>[3.9.6,)</version>
+                </requireMavenVersion>
+                <dependencyConvergence/>
+                <banDuplicatePomDependencyVersions/>
+                <requireReleaseDeps>
+                  <onlyWhenRelease>true</onlyWhenRelease>
+                </requireReleaseDeps>
+                <bannedDependencies>
+                  <!--
+                    Cấm thư viện mà TL-01 Phụ lục B đã loại vì giấy phép (suy luận về cách
+                    thực thi). Thay thế: OpenPDF/docx4j, Flowable, OpenSearch, Valkey (Lettuce),
+                    OpenBao (truy cập qua HTTP/Spring Vault, chốt ở NEN-015).
+                  -->
+                  <excludes>
+                    <!-- iText 7: AGPL. -->
+                    <exclude>com.itextpdf</exclude>
+                    <exclude>com.itextpdf.*</exclude>
+                    <!-- Camunda 7/8: giấy phép tự lưu trữ không còn miễn phí, 7 CE hết hỗ trợ. -->
+                    <exclude>org.camunda.*</exclude>
+                    <exclude>org.camunda.bpm</exclude>
+                    <exclude>io.camunda</exclude>
+                    <exclude>io.camunda.*</exclude>
+                    <!-- Elasticsearch client (SSPL/ELv2 từ 7.11): dùng OpenSearch. -->
+                    <exclude>org.elasticsearch</exclude>
+                    <exclude>org.elasticsearch.*</exclude>
+                    <exclude>co.elastic.clients</exclude>
+                    <exclude>org.springframework.data:spring-data-elasticsearch</exclude>
+                    <!-- Client Redis của Redis Ltd.: dùng Valkey. -->
+                    <exclude>redis.clients</exclude>
+                    <exclude>com.redis</exclude>
+                    <exclude>com.redis.*</exclude>
+                    <!-- Client HashiCorp Vault (BSL từ 2023): dùng OpenBao. -->
+                    <exclude>com.hashicorp</exclude>
+                    <exclude>com.hashicorp.*</exclude>
+                    <exclude>com.bettercloud:vault-java-driver</exclude>
+                    <exclude>io.github.jopenlibs:vault-java-driver</exclude>
+                  </excludes>
+                  <searchTransitive>true</searchTransitive>
+                  <message>Thư viện bị cấm theo TL-01 Phụ lục B (giấy phép). Xem backend/README.md mục "Thư viện bị cấm".</message>
+                </bannedDependencies>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>spotless-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <skip>${quality.skip}</skip>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>jacoco-prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>jacoco-prepare-agent-it</id>
+            <goals>
+              <goal>prepare-agent-integration</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>jacoco-report</id>
+            <goals>
+              <goal>report</goal>
+            </goals>
+            <phase>verify</phase>
+          </execution>
+          <execution>
+            <id>jacoco-report-it</id>
+            <goals>
+              <goal>report-integration</goal>
+            </goals>
+            <phase>verify</phase>
+          </execution>
+          <execution>
+            <id>jacoco-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <skip>${quality.skip}</skip>
+              <haltOnFailure>true</haltOnFailure>
+              <rules>
+                <!-- Ngưỡng áp cho lớp domain và application (BACKEND.md mục 4; TL-01 "Tháp kiểm thử"). -->
+                <rule>
+                  <element>PACKAGE</element>
+                  <includes>
+                    <include>*.domain</include>
+                    <include>*.domain.*</include>
+                    <include>*.application</include>
+                    <include>*.application.*</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${quality.coverage.line.minimum}</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${quality.coverage.branch.minimum}</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>spotbugs-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <skip>${quality.skip}</skip>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <!-- Kiểm thử đột biến PIT (ngưỡng 70%), task nghiệp vụ bật khi cần: ./mvnw -Pmutation verify -->
+    <profile>
+      <id>mutation</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-maven</artifactId>
+            <executions>
+              <execution>
+                <id>pitest</id>
+                <goals>
+                  <goal>mutationCoverage</goal>
+                </goals>
+                <phase>verify</phase>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>
