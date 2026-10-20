@@ -39,7 +39,7 @@ Dựng lớp kiểm thử bảo mật thứ hai và thứ ba của TL-04 mục 9
 
 ## 4. Ngoài phạm vi
 
-- Thực hiện kiểm thử xâm nhập độc lập (đơn vị bên ngoài; bị chặn bởi bên ngoài); sửa lỗ hổng tìm được (mở task theo phân hệ).
+- Thực hiện kiểm thử xâm nhập độc lập (do đơn vị độc lập bên ngoài thực hiện); sửa lỗ hổng tìm được (mở task theo phân hệ).
 - Hồ sơ cấp độ 4 (VH-07).
 
 ## 5. Tệp được phép sửa

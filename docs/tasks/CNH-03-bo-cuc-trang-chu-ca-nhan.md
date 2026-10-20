@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | CNH-02, WEB-048 |
 | Truy vết | QT-00 → SCR-0002 → `GET /api/v1/ui/layouts/home` (`getHomeLayout`) và API tuỳ chọn cá nhân (CNH-02); QT-16 → SCR-1602 → `/api/v1/analytics/dashboards` (`listDashboards`, `createDashboard`, `updateDashboard`) → MOD-08, SVC-15 → `config.user_preference` (đề xuất), `config.dashboard_def` |
-| Trạng thái | Chờ người dùng chốt |
+| Trạng thái | Chưa bắt đầu |
 
 ## 1. Mục tiêu
 

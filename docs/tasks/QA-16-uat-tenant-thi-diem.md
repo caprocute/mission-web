@@ -12,16 +12,16 @@
 | Luồng đề xuất | B9 |
 | Cỡ việc | L (> 1 ngày, nên tách) |
 | Phụ thuộc | QA-07 |
-| Truy vết | Điều kiện chuyển bước đợt 2 (TL-01 chương "Lộ trình chuyển đổi theo Strangler Fig") → QT-00..QT-18 → SCR theo wiki 05a, 05b → MOD-01..MOD-08 → EVT-01..EVT-26 → `ledger.verify_run` |
-| Trạng thái | Bị chặn bởi bên ngoài: cần tenant thí điểm và người dùng thật (chuẩn bị kịch bản và diễn tập trên staging với người dùng thử) |
+| Truy vết | Điều kiện chuyển bước đợt 2 (TL-01 chương "Lộ trình chuyển đổi theo Strangler Fig", chỉ phần tiêu chí đợt 2; phần Strangler không áp dụng) → QT-00..QT-18 → SCR theo wiki 05a, 05b → MOD-01..MOD-08 → EVT-01..EVT-26 → `ledger.verify_run` |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
-Tổ chức kiểm thử chấp nhận với một tenant thí điểm chạy trọn một kỳ đánh giá trên hệ mới: lập kế hoạch, giao việc, OKR, cập nhật tiến độ, minh chứng, tự đánh giá, đánh giá, khoá kỳ, hồ sơ số, khiếu nại. Khi xong, có biên bản nghiệm thu nghiệp vụ ký bởi đại diện tenant, `ledger-verify` báo hợp lệ trên kỳ hoàn chỉnh, và danh sách lỗi đã phân loại theo mức sự cố.
+Tổ chức kiểm thử chấp nhận với một tenant thí điểm chạy trọn một kỳ đánh giá trên hệ mới: lập kế hoạch, giao việc, OKR, cập nhật tiến độ, minh chứng, tự đánh giá, đánh giá, khoá kỳ, hồ sơ số, khiếu nại. Trong task này, kỳ đánh giá chạy với tenant thí điểm giả lập và người dùng thử trên staging. Khi xong, có bộ kế hoạch, kịch bản và biên bản diễn tập theo mẫu nghiệm thu, `ledger-verify` báo hợp lệ trên kỳ hoàn chỉnh, và danh sách lỗi đã phân loại theo mức sự cố; bộ này sẵn sàng chạy lại với tenant thí điểm thật khi có.
 
 ## 2. Đầu vào bắt buộc đọc
 
-- `/mnt/project-files/kien-truc-okr-kpi/src/TL-01-thiet-ke-kien-truc.md` chương "Lộ trình chuyển đổi theo Strangler Fig" (dòng 3140–3184: điều kiện chuyển bước đợt 2 "tenant thí điểm hoàn thành một kỳ đầy đủ trên hệ mới", "ca vàng đạt 100%", "`ledger-verify` báo hợp lệ trên một kỳ hoàn chỉnh").
+- `/mnt/project-files/kien-truc-okr-kpi/src/TL-01-thiet-ke-kien-truc.md` chương "Lộ trình chuyển đổi theo Strangler Fig" (dòng 3140–3184: điều kiện chuyển bước đợt 2 "tenant thí điểm hoàn thành một kỳ đầy đủ trên hệ mới", "ca vàng đạt 100%", "`ledger-verify` báo hợp lệ trên một kỳ hoàn chỉnh"). Chỉ dùng tiêu chí thí điểm của đợt 2; phần Strangler Fig không áp dụng vì Mission là hệ mới độc lập (quyết định ngày 20/10/2026).
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-04-trien-khai-van-hanh.md` mục 12.6 "Đợt 2" (dòng 3946), mục 11.4 (OPS-07 onboarding), mục 11.8 (OPS-17 chuẩn bị trước mốc hạn và saga khoá kỳ).
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-02a-quy-trinh.md`, `TL-02b-quy-trinh.md` (QT-00..QT-18); `wiki/05a`, `wiki/05b`, `wiki/15a-ma-tran-phan-quyen.md`.
 - `frontend/e2e/hanh-trinh/danh-muc.json` (QA-01) làm khung kịch bản.
@@ -38,7 +38,8 @@ Tổ chức kiểm thử chấp nhận với một tenant thí điểm chạy tr
 
 ## 4. Ngoài phạm vi
 
-- Chuyển tenant theo nhóm sau thí điểm (VH-08); sửa lỗi (task theo phân hệ); tài liệu hướng dẫn sử dụng (VH-05, dùng làm đầu vào).
+- Mở rộng theo nhóm tenant sau thí điểm (VH-08); sửa lỗi (task theo phân hệ); tài liệu hướng dẫn sử dụng (VH-05, dùng làm đầu vào).
+- Nối và kiểm thử với hệ thật khi có môi trường: chạy kỳ thật với tenant thí điểm và người dùng thật, lập biên bản nghiệm thu có chữ ký đại diện tenant; khi đó chỉ đổi tenant đích và tài khoản người dùng, không đổi kịch bản.
 
 ## 5. Tệp được phép sửa
 
@@ -47,7 +48,7 @@ Tổ chức kiểm thử chấp nhận với một tenant thí điểm chạy tr
 ## 6. Tiêu chí hoàn thành
 
 - Diễn tập trên staging: mọi kịch bản UAT chạy hết với người dùng thử; `E2E_MODE=he-thong npm run e2e:he-thong` xanh trên staging trước buổi UAT.
-- Với tenant thật: biên bản nghiệm thu có chữ ký đại diện tenant; 0 lỗi SEV-1, SEV-2 còn mở; `ledger-verify` hợp lệ cho kỳ. Khi chưa có tenant: ghi "Bị chặn bởi bên ngoài" và nộp bộ kịch bản đã diễn tập.
+- Với tenant thí điểm giả lập trên staging chạy trọn một kỳ rút gọn: biên bản diễn tập theo mẫu biên bản nghiệm thu; 0 lỗi SEV-1, SEV-2 còn mở; ca vàng 100%; `ledger-verify` hợp lệ cho kỳ. Tenant đích và tài khoản là tham số của kế hoạch, nên chạy với tenant thật chỉ đổi cấu hình.
 
 ## 7. Báo cáo
 

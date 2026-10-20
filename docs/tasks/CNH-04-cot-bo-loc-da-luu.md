@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | CNH-02 |
 | Truy vết | Quy ước danh sách của TL-02 (phân trang con trỏ, lọc) → các màn hình danh sách (ví dụ SCR-0101, SCR-0503 "Việc của tôi", danh sách minh chứng của QT-07) → API tuỳ chọn cá nhân và bộ lọc đã lưu (CNH-02) → MOD-08 → `config.user_preference`, `config.saved_filter` (đề xuất) |
-| Trạng thái | Chờ người dùng chốt |
+| Trạng thái | Chưa bắt đầu |
 
 ## 1. Mục tiêu
 
