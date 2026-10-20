@@ -1,0 +1,53 @@
+# WEB-002: luật Semgrep riêng của phân hệ web (SEC-39), chạy cùng bộ luật chung p/typescript.
+# Nhắc lại các điều cấm của AGENTS.md quy tắc 5 và TL-01 mục CSP ở tầng quét mã nguồn, để
+# vi phạm bị chặn kể cả khi ai đó tắt quy tắc ESLint bằng chú thích eslint-disable.
+rules:
+  - id: vt-no-inner-html
+    languages: [typescript]
+    severity: ERROR
+    message: Không gán innerHTML hoặc outerHTML (AGENTS.md quy tắc 5, TL-01 mục CSP); dựng DOM bằng template Angular.
+    pattern-either:
+      - pattern: $X.innerHTML = $Y
+      - pattern: $X.outerHTML = $Y
+      - pattern: $X.insertAdjacentHTML(...)
+      - pattern: document.write(...)
+    paths:
+      exclude: ['**/*.spec.ts', '**/e2e/**']
+
+  - id: vt-no-inner-html-binding
+    languages: [generic]
+    severity: ERROR
+    message: Không gắn [innerHTML] hoặc [outerHTML] trong template (AGENTS.md quy tắc 5).
+    pattern-regex: '\[(?:inner|outer)HTML\]'
+    paths:
+      include: ['*.html', '*.component.ts', '*.page.ts', '*.widget.ts', '*.dialog.ts']
+
+  - id: vt-no-bypass-security-trust
+    languages: [typescript]
+    severity: ERROR
+    message: Không dùng bypassSecurityTrust* (AGENTS.md quy tắc 5); Trusted Types sẽ chặn ở trình duyệt.
+    pattern-regex: '\bbypassSecurityTrust(?:Html|Style|Script|Url|ResourceUrl)\b'
+
+  - id: vt-no-dynamic-code
+    languages: [typescript]
+    severity: ERROR
+    message: Không sinh mã lúc chạy (eval, new Function, setTimeout với chuỗi); CSP không có unsafe-eval.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+      - pattern: setTimeout("...", ...)
+      - pattern: setInterval("...", ...)
+
+  - id: vt-no-token-in-web-storage
+    languages: [typescript]
+    severity: ERROR
+    message: Không lưu token hay dữ liệu xác thực vào localStorage/sessionStorage; token chỉ giữ trong bộ nhớ (WEB-006, SEC liên quan).
+    patterns:
+      - pattern-either:
+          - pattern: localStorage.setItem($K, $V)
+          - pattern: sessionStorage.setItem($K, $V)
+      - metavariable-regex:
+          metavariable: $K
+          regex: (?i).*(token|secret|password|mat_khau|refresh).*
+    paths:
+      exclude: ['**/*.spec.ts', '**/e2e/**']

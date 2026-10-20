@@ -270,4 +270,108 @@ describe('appraisals mock, thẩm định (WEB-036)', () => {
       '22%',
     ]);
   });
+
+  it('WEB-038 ký lô: kiểm số quyết định, lý do, người đứng đầu, ngưỡng xuất sắc, MFA; job ký dần tới DA_KY', async () => {
+    const { api, http } = setup();
+    const page = await firstValueFrom(api.profiles({ status: ['CHO_QUYET_DINH'], limit: 200 }));
+    const rows = page.items;
+    expect(rows.length).toBe(48);
+    const item = (r: (typeof rows)[number], ratingCode = r.levels.proposed!) => ({
+      profileId: r.id,
+      ratingCode,
+      rowVersion: r.rowVersion,
+    });
+    const base = {
+      periodId: P + '0001',
+      flow: 'DANG' as const,
+      decisionNo: '215-QĐ/ĐUK',
+      decisionDate: '2027-01-12',
+      calibrationAcknowledged: false,
+      items: rows.map((r) => item(r)),
+    };
+    const code = async (body: typeof base & { calibrationAcknowledged?: boolean }) => {
+      const e = await errorOf(firstValueFrom(api.batchDecide(body)));
+      return [e.status, e.error?.code];
+    };
+    expect(await code({ ...base, decisionNo: '198-QĐ/ĐUK' })).toEqual([
+      409,
+      'APPRAISAL-409-DECISION-NO-DUPLICATE',
+    ]);
+    const changed = base.items.map((x, i) =>
+      i === 1 ? { ...x, ratingCode: 'HTXSNV' as const } : x,
+    );
+    expect(await code({ ...base, items: changed })).toEqual([422, 'APPRAISAL-422-REASON-REQUIRED']);
+    const head = rows.find((r) => r.isHead)!;
+    expect(await code({ ...base, items: [item(head)] })).toEqual([
+      422,
+      'APPRAISAL-422-HEAD-TOO-EARLY',
+    ]);
+    const many = changed.map((x, i) =>
+      i === 1 ? { ...x, reason: 'Có giải pháp đột phá được Ban Thường vụ ghi nhận.' } : x,
+    );
+    expect(await code({ ...base, items: many })).toEqual([
+      422,
+      'APPRAISAL-422-CALIBRATION-REQUIRED',
+    ]);
+    const stale = base.items.map((x, i) => (i === 0 ? { ...x, rowVersion: 1 } : x));
+    expect(await code({ ...base, items: stale })).toEqual([409, 'APPRAISAL-409-VERSION-CONFLICT']);
+    expect((await code(base))[0]).toBe(401);
+
+    mockStepUp();
+    const { location, job } = await firstValueFrom(api.batchDecide(base));
+    expect(job?.resultLocation).toMatch(/\/batch-decisions\//);
+    let j = job!;
+    for (let i = 0; i < 5 && j.status !== 'HOAN_TAT'; i++)
+      j = await firstValueFrom(http.get<Job>(location));
+    expect(j.status).toBe('HOAN_TAT');
+    const b = await firstValueFrom(api.batchDecision(job!.resultLocation!));
+    expect([b.status, b.signedCount, b.profileCount]).toEqual(['DA_KY', 48, 48]);
+    const again = await errorOf(
+      firstValueFrom(api.batchDecide({ ...base, decisionNo: '216-QĐ/ĐUK' })),
+    );
+    expect(again.status).toBe(409);
+    const cancel = await errorOf(firstValueFrom(api.cancelBatch(b)));
+    expect([cancel.status, cancel.error.code]).toEqual([409, 'APPRAISAL-409-BATCH-COMPLETED']);
+  });
+
+  it('WEB-038 huỷ lô giữa chừng: hồ sơ đã ký giữ DA_KY_SO, còn lại vẫn chờ; lỗi ký một phần', async () => {
+    const { api, http } = setup();
+    mockStepUp();
+    const rows = (await firstValueFrom(api.profiles({ status: ['CHO_QUYET_DINH'], limit: 200 })))
+      .items;
+    const body = {
+      periodId: P + '0001',
+      flow: 'DANG' as const,
+      decisionNo: '220-QĐ/ĐUK',
+      decisionDate: '2027-01-12',
+      calibrationAcknowledged: false,
+      items: rows.map((r) => ({
+        profileId: r.id,
+        ratingCode: r.levels.proposed!,
+        rowVersion: r.rowVersion,
+      })),
+    };
+    const { location, job } = await firstValueFrom(api.batchDecide(body));
+    await firstValueFrom(http.get<Job>(location));
+    const mid = await firstValueFrom(api.batchDecision(job!.resultLocation!));
+    expect([mid.status, mid.signedCount]).toEqual(['CHO_KY', 12]);
+    const after = await firstValueFrom(api.cancelBatch(mid));
+    expect(after.status).toBe('LOI_MOT_PHAN');
+    expect((await firstValueFrom(http.get<Job>(location))).status).toBe('DA_HUY');
+    const left = await firstValueFrom(api.profiles({ status: ['CHO_QUYET_DINH'], limit: 200 }));
+    expect(left.items.length).toBe(36);
+
+    setMockEsignOutage(true);
+    const rest = {
+      ...body,
+      decisionNo: '221-QĐ/ĐUK',
+      items: body.items.filter((x) => left.items.some((r) => r.id === x.profileId)),
+    };
+    const second = await firstValueFrom(api.batchDecide(rest));
+    let j = second.job!;
+    for (let i = 0; i < 5 && j.status !== 'HOAN_TAT'; i++)
+      j = await firstValueFrom(http.get<Job>(second.location));
+    const b = await firstValueFrom(api.batchDecision(second.job!.resultLocation!));
+    expect([b.status, b.signedCount, b.failedCount]).toEqual(['LOI_MOT_PHAN', 34, 2]);
+  });
 });

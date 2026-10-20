@@ -1,0 +1,58 @@
+# Values mô phỏng org-service (SVC-04) ở cell hạng L, đối chiếu manifest mẫu TL-04 mục 5.5.
+global:
+  cell: hcm
+  sizing: L
+name: org-service
+namespace: identity
+image:
+  repository: harbor.vt.local/platform/org-service
+  # Digest giả lập; CI thay bằng digest thật (vtGitopsBump, INF-05).
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+runtime: java
+java:
+  gc: zgc
+env:
+  - { name: SPRING_PROFILES_ACTIVE, value: "saas,cell" }
+envFrom:
+  - secretRef: { name: org-service-db }
+resources:
+  requests: { cpu: "1", memory: 3Gi }
+  limits: { cpu: "2", memory: 3Gi }
+pdb:
+  minAvailable: 2
+  maxUnavailable: ""
+autoscaling:
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 6
+    cpuUtilization: 75
+    memoryUtilization: 85
+    rpsPerPod: "350"
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 0
+        selectPolicy: Max
+        policies:
+          - { type: Percent, value: 100, periodSeconds: 30 }
+          # TL-04 mục 5.5 dùng +2 pod/30 s cho org-service (chuẩn chung mục 6.2 là +4); xem wiki 14.
+          - { type: Pods, value: 2, periodSeconds: 30 }
+      scaleDown:
+        stabilizationWindowSeconds: 600
+        selectPolicy: Min
+        policies:
+          - { type: Percent, value: 20, periodSeconds: 120 }
+networkPolicy:
+  ingressFrom:
+    - namespace: edge
+      podLabels: { app.kubernetes.io/name: apisix }
+      ports: [{ port: 8080 }]
+    - namespace: observability
+      ports: [{ port: 8081 }]
+  egressTo:
+    - namespace: data-pg
+      podLabels: { cnpg.io/poolerName: pg-platform-rw }
+      ports: [{ port: 5432 }]
+    - namespace: data-kafka
+      podLabels: { strimzi.io/cluster: kafka-cell }
+      ports: [{ port: 9093 }]

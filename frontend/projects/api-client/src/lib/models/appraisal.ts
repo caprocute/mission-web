@@ -81,6 +81,17 @@ export type AppraisalScoreTaskLineView = AppraisalScoreTaskLine & { acceptanceNo
  */
 export type AppraisalProfileView = AppraisalProfile & { signedFormId?: string | null };
 
+/** Lô quyết định xếp loại và ký số (SCR-0904, `appraisal.batch_decision`). */
+export type AppraisalBatchDecisionStatus = Schemas['AppraisalBatchDecisionStatus'];
+export type AppraisalBatchDecisionItem = Schemas['AppraisalBatchDecisionItem'];
+export type AppraisalBatchDecisionInput = Schemas['AppraisalBatchDecisionInput'];
+export type AppraisalBatchDecision = Schemas['AppraisalBatchDecision'];
+
+/** Sinh biểu mẫu nháp từ danh sách hồ sơ (`POST /dossiers/forms`, "Xuất Mẫu 3" của SCR-0904). */
+export type DossierDraftFormsRequest = DossierComponents['schemas']['DossierDraftFormsRequest'];
+/** Chứng thư ký số của người gọi (`GET /esign/certificates/mine`, SCR-0904 trường 7). */
+export type EsignCertificate = DossierComponents['schemas']['EsignCertificate'];
+
 /** Yêu cầu xem trước biểu mẫu của SVC-11 (`POST /dossiers/forms/preview`, dossiers.yaml). */
 export type DossierFormPreviewRequest = DossierComponents['schemas']['DossierFormPreviewRequest'];
 

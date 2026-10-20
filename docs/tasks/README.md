@@ -4,6 +4,8 @@ Mỗi tệp `WEB-xxx-*.md` là một task đủ nhỏ để một AI agent làm 
 
 Thứ tự thực hiện đi theo cột Phụ thuộc: một task chỉ bắt đầu khi các task nó phụ thuộc đã xong. Những task cùng giai đoạn không phụ thuộc nhau có thể giao cho nhiều agent chạy song song, mỗi agent một nhánh `feat/WEB-xxx-…`. Cỡ việc S/M/L ước lượng cho một agent; người phụ trách duyệt PR của từng task trước khi gộp.
 
+Danh mục này chỉ gồm task của phân hệ web. Danh mục task của toàn hệ thống (backend, dữ liệu, hạ tầng, di động, kiểm thử, vận hành) nằm ở [`DANH-MUC-TOAN-HE-THONG.md`](DANH-MUC-TOAN-HE-THONG.md), được sinh từ `danh-muc-he-thong.tsv` bằng `scripts/sinh-danh-muc.py` theo kế hoạch tổng thể `docs/KE-HOACH-TONG-THE-HE-THONG.md`.
+
 ## Phân luồng phát triển song song (cập nhật 19/10/2026, năm luồng)
 
 Công việc được chia thành năm luồng chạy song song, mỗi luồng là một thread riêng trong dự án. Luồng **Nền tảng** do thread "Kế hoạch và mã nguồn phân hệ web Mission" giữ, sở hữu nhánh `main` trong `/mnt/project-files/mission-web`, là nơi duy nhất gộp code vào `main` và đẩy lên GitHub (`origin` = `github.com/caprocute/mission-web`). Các luồng còn lại làm trong git worktree riêng dưới `/mnt/project-files/mission-web-worktrees/<tên-luồng>`, mỗi task một nhánh `feat/WEB-xxx-…`, không ghi trực tiếp vào `main`; khi một task đạt build, kiểm thử và đã mở màn hình thật, luồng đó báo luồng Nền tảng để gộp, và rebase lên `main` mới nhất trước khi bàn giao task tiếp theo.
@@ -29,7 +31,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
 | [WEB-001](WEB-001-cong-cu-chat-luong.md) | Công cụ chất lượng mã: ESLint, Prettier, Vitest cho toàn workspace | S | – | Hoàn thành (format:check còn đỏ do mã cũ) |
-| [WEB-002](WEB-002-pipeline-jenkins.md) | Pipeline Jenkins cho frontend có cổng chất lượng | M | WEB-001 | Chưa bắt đầu |
+| [WEB-002](WEB-002-pipeline-jenkins.md) | Pipeline Jenkins cho frontend có cổng chất lượng | M | WEB-001 | Hoàn thành (nhánh `feat/WEB-002-pipeline-jenkins`): `Jenkinsfile` đủ cổng, gitleaks, Semgrep, Trivy, SBOM, cosign; chưa chạy trên Jenkins thật; chưa có độ phủ tệp thay đổi (thiếu `@vitest/coverage-v8`); cổng ngân sách và Lighthouse CI đỏ cho tới khi WEB-052 đạt (xem wiki/11) |
 | [WEB-003](WEB-003-ngan-sach-hieu-nang.md) | Ngân sách bundle và Lighthouse CI | S | WEB-001 | Hoàn thành cấu hình; số đo chưa đạt, tối ưu ở WEB-052 |
 | [WEB-004](WEB-004-bien-dich-token.md) | Biên dịch Design Token và kiểm tra tương phản | M | WEB-001 | Chưa bắt đầu |
 | [WEB-005](WEB-005-storybook-hoi-quy.md) | Storybook và kiểm thử hồi quy giao diện theo bộ token | M | WEB-004 | Chưa bắt đầu |
@@ -79,8 +81,8 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 |---|---|---|---|---|
 | [WEB-035](WEB-035-tu-danh-gia.md) | SCR-0901 Phiếu tự đánh giá | L | WEB-010, WEB-015 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-035-tu-danh-gia`) |
 | [WEB-036](WEB-036-tham-dinh.md) | SCR-0902 Thẩm định | L | WEB-035 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-036-tham-dinh`, cần gộp sau WEB-035) |
-| [WEB-037](WEB-037-phieu-xep-loai.md) | SCR-0903 Phiếu xếp loại có giải thích | M | WEB-036 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-037-phieu-xep-loai`) |
-| [WEB-038](WEB-038-quyet-dinh-hang-loat.md) | SCR-0904 Quyết định xếp loại hàng loạt và ký số | L | WEB-037 | Chưa bắt đầu |
+| [WEB-037](WEB-037-phieu-xep-loai.md) | SCR-0903 Phiếu xếp loại có giải thích | M | WEB-036 | Xong, đã gộp |
+| [WEB-038](WEB-038-quyet-dinh-hang-loat.md) | SCR-0904 Quyết định xếp loại hàng loạt và ký số | L | WEB-037 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-038-quyet-dinh-hang-loat`) |
 | [WEB-039](WEB-039-xep-loai-nam.md) | SCR-1001 Xếp loại năm và SCR-1002 Phân nhóm triển vọng | M | WEB-037 | Chưa bắt đầu |
 | [WEB-040](WEB-040-hoi-nghi-kiem-diem.md) | SCR-1101 Hội nghị kiểm điểm | M | WEB-015 | Chưa bắt đầu |
 | [WEB-041](WEB-041-goi-ho-so-so.md) | SCR-1102 Gói hồ sơ số và ký số | M | WEB-040 | Chưa bắt đầu |
@@ -94,8 +96,8 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-044](WEB-044-trung-tam-canh-bao.md) | SCR-1401 Trung tâm cảnh báo | M | WEB-015 | Xong, chờ gộp (nhánh `feat/WEB-044-canh-bao`, dựng trên WEB-042) |
 | [WEB-045](WEB-045-studio-cong-thuc.md) | SCR-1501 Config Studio – công thức và SCR-1502 Bảng quyết định | L | WEB-010, WEB-015 | Xong, chờ gộp (nhánh `feat/WEB-045-cong-thuc`) |
 | [WEB-046](WEB-046-test-vang-luong-duyet.md) | SCR-1503 Chạy test case vàng và SCR-1504 Cấu hình luồng duyệt | M | WEB-045 | Xong, chờ gộp (nhánh `feat/WEB-046-test-luong-duyet`) |
-| [WEB-047](WEB-047-bang-dieu-hanh.md) | SCR-1601 Bảng điều hành lãnh đạo và SCR-1603 Đi xuống tới minh chứng | L | WEB-015 | Chưa bắt đầu |
-| [WEB-048](WEB-048-trinh-dung-dashboard.md) | SCR-1602 Trình dựng dashboard | M | WEB-047 | Chưa bắt đầu |
+| [WEB-047](WEB-047-bang-dieu-hanh.md) | SCR-1601 Bảng điều hành lãnh đạo và SCR-1603 Đi xuống tới minh chứng | L | WEB-015 | Xong, chờ gộp (nhánh `feat/WEB-047-bang-dieu-hanh`) |
+| [WEB-048](WEB-048-trinh-dung-dashboard.md) | SCR-1602 Trình dựng dashboard | M | WEB-047 | Xong, chờ gộp (chung nhánh `feat/WEB-047-bang-dieu-hanh`) |
 | [WEB-049](WEB-049-tro-ly-ai.md) | SCR-1701 Trợ lý AI soạn OKR và soát KR | M | WEB-022 | Chưa bắt đầu |
 | [WEB-050](WEB-050-studio-giao-dien.md) | SCR-1801 Cấu hình giao diện tenant và SCR-1802 Trình dựng biểu mẫu động | L | WEB-004, WEB-009, WEB-010 | Chưa bắt đầu |
 | [WEB-051](WEB-051-plugin-chuyen-nganh.md) | Plugin chuyên ngành mẫu và manifest theo tenant | M | WEB-015 | Chưa bắt đầu |

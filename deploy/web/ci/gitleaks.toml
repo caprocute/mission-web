@@ -1,0 +1,21 @@
+# WEB-002: cấu hình gitleaks cho repo mission-web (SEC-23, ADR-16).
+# Dùng toàn bộ luật mặc định của gitleaks; chỉ miễn trừ đúng các dòng mã định danh nghiệp vụ
+# mà luật generic-api-key nhận nhầm là khoá bí mật (kiểm trên toàn lịch sử ngày 19/10/2026,
+# 115 phát hiện, cả 115 thuộc ba mẫu dưới). Mỗi mẫu khớp cả dòng, không miễn trừ theo tệp,
+# để bí mật thật lỡ ghi vào cùng tệp vẫn bị chặn.
+title = "mission-web"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Mã định danh nghiệp vụ, không phải bí mật"
+regexTarget = "line"
+regexes = [
+  # Khoá chức năng của ma trận phân quyền, ví dụ "key": "SCR-0503.tien-do" (docs/phan-quyen/ma-tran.json)
+  '''"key": "SCR-\d{4}\.[a-z0-9-]+"''',
+  # Mã tiêu chí nhiệm vụ trong dữ liệu giả lập, ví dụ key: 'NV-THUONG-XUYEN-2.C'
+  '''(?:key|targetKey): 'NV-[A-Z0-9-]+\.[A-Z]'(?:,|$)''',
+  # Tham chiếu đối tượng dạng <loại>:<UUID> trong ví dụ của hợp đồng OpenAPI
+  '''targetRef: '[a-z_.]+:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'$''',
+]

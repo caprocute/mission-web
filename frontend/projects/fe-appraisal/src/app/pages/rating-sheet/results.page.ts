@@ -34,7 +34,12 @@ const UNIT_VIEW: AppraisalProfileStatus[] = [
   selector: 'vt-results-page',
   imports: [RouterLink],
   template: `
-    <h1>Kết quả xếp loại</h1>
+    <div class="top">
+      <h1>Kết quả xếp loại</h1>
+      @if (can('SCR-0904.xem')) {
+        <a class="go" routerLink="../quyet-dinh">Quyết định xếp loại hàng loạt</a>
+      }
+    </div>
 
     <section class="card" aria-labelledby="mine-h">
       <h2 id="mine-h">Kết quả của tôi</h2>
@@ -102,6 +107,20 @@ const UNIT_VIEW: AppraisalProfileStatus[] = [
       font-size: 1.5rem;
       margin: 0;
     }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .go {
+      padding: 8px 16px;
+      border: 1px solid #9ca3af;
+      border-radius: 6px;
+      color: inherit;
+      text-decoration: none;
+    }
     h2 {
       font-size: 1.1rem;
       margin: 0 0 8px;
@@ -160,7 +179,7 @@ const UNIT_VIEW: AppraisalProfileStatus[] = [
 })
 export class ResultsPage {
   private readonly api = inject(AppraisalApi);
-  private readonly can = inject(APPRAISAL_CAN);
+  protected readonly can = inject(APPRAISAL_CAN);
 
   protected readonly flowLabel = APPRAISAL_FLOW_LABEL;
   protected readonly statusLabel = PROFILE_STATUS_LABEL;

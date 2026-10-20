@@ -59,6 +59,8 @@ export * from './lib/models/alert';
 export * from './lib/alert-api';
 export * from './lib/models/policy';
 export * from './lib/policy-api';
+export * from './lib/models/analytics';
+export * from './lib/analytics-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
 export {
   failMockIntegrityOnce,

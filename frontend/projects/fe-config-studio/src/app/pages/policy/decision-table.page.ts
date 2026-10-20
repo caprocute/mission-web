@@ -52,7 +52,7 @@ const VARIABLE_HINT: Record<string, string> = {
   template: `
     <div class="toolbar">
       <p-button
-        label="Tải tệp bảng quyết định"
+        label="Xuất tệp bảng quyết định"
         severity="contrast"
         [outlined]="true"
         icon="pi pi-download"
