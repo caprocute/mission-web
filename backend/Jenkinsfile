@@ -1,0 +1,11 @@
+// Jenkinsfile của backend Java (mission-core), dùng thư viện dùng chung vt-pipeline (INF-05).
+// Truy vết: ADR-16 → TL-01 ch.18 "Đường ống CI/CD" → TL-04 mục 9.6 → SEC-09, SEC-23, SEC-37..SEC-39, SEC-49, SEC-55.
+// Mọi stage, cổng chặn, agent `vt-build-ephemeral`, timeout 45 phút và cách ký ảnh nằm trong
+// ci/vt-pipeline/vars/vtJavaPipeline.groovy; biến và credential Jenkins cần có: ci/vt-pipeline/README.md.
+// Job: Multibranch Pipeline trên repo Mission, Script Path = backend/Jenkinsfile.
+@Library('vt-pipeline@vt-pipeline-v1.0.0') _
+
+vtJavaPipeline(
+  service: 'mission-core',
+  dir: 'backend'
+)

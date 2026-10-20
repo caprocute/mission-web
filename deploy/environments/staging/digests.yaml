@@ -1,0 +1,18 @@
+# Digest ảnh đang phát hành lên môi trường staging (TL-04 mục 9.6, OPS-01).
+# Tệp này là Helm values nạp sau cùng trong valueFiles (mô hình → hồ sơ → cell → digest, INF-04).
+# KHÔNG sửa tay: bước vtGitopsBump của thư viện ci/vt-pipeline (INF-05) cập nhật mục của từng service
+# bằng một commit có chữ ký GPG sau khi ảnh đã được ký cosign và có chứng thực SLSA (SEC-37, SEC-38).
+# Ảnh luôn tham chiếu theo digest, không theo thẻ (SEC-55); chart vt-service (INF-01) từ chối digest rỗng
+# khi service được bật.
+#
+# Cấu trúc mỗi mục (khoá là tên service theo baseline):
+#   repository: ảnh trong Harbor, không có thẻ
+#   digest:     sha256:<64 ký tự hex> của ảnh đã ký
+#   commit:     commit nguồn đã dựng ra ảnh
+#   build:      đường dẫn bản dựng Jenkins sinh ra ảnh
+images:
+  mission-core:
+    repository: harbor.vt.local/okr/mission-core
+    digest: ""
+    commit: ""
+    build: ""
