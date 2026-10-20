@@ -1,8 +1,52 @@
-> Nguồn: TL-03 chương "Giới thiệu" (Quy ước đặt tên, Kiểu dữ liệu chuẩn, Cột chung, Phân loại dữ liệu C0 đến C3), chương "Nguyên tắc thiết kế dữ liệu" (Ứng dụng không có quyền DDL), chương "Quản lý thay đổi lược đồ và di trú từ Oracle" (Flyway và quy trình thay đổi lược đồ); `backend/libs/vt-db-migration/README.md` (NEN-030).
+> Nguồn: TL-03 chương "Giới thiệu" (Quy ước đặt tên, Kiểu dữ liệu chuẩn, Cột chung, Phân loại dữ liệu C0 đến C3), chương "Nguyên tắc thiết kế dữ liệu" (Sở hữu dữ liệu, Không truy cập chéo và quyền tối thiểu, Ứng dụng không có quyền DDL), chương "Danh mục microservice, module và kho dữ liệu", chương "Mô hình thuê bao và phân bổ cơ sở dữ liệu theo cell" (ba mô hình, các cụm PostgreSQL, bố trí silo, bridge, pool, RLS, đặt ngữ cảnh qua PgBouncer, kiểm thử rò rỉ, định tuyến), chương "Thiết kế chi tiết các schema" mục "Cách trình bày và các bảng dùng chung", chương "Quản lý thay đổi lược đồ và di trú từ Oracle" (Flyway và quy trình thay đổi lược đồ); `_ghi-chu-TL-03.md` mục 1 và 3; TL-01 chương "Đa khách thuê" (Ba mô hình và tiêu chí chọn, Lan truyền ngữ cảnh tenant từ JWT tới RLS, Định tuyến tới cell), Phụ lục A ADR-22; TL-04 mục "Định cỡ PostgreSQL"; `backend/libs/vt-db-migration/README.md` (NEN-030).
 
 # Thiết kế CSDL và đa khách thuê
 
-Trang này gom tri thức CSDL cho người viết mã máy chủ. Phần tổng quan về sở hữu dữ liệu, ba mô hình thuê bao và RLS do task NEN-002 viết; hiện trang mới có các mục "Vai trò CSDL" (NEN-031), "RLS và phân vùng" (NEN-033) và "Viết migration" (NEN-030).
+Trang này gom tri thức CSDL cho người viết mã máy chủ: dữ liệu nằm ở đâu, đặt tên và chọn kiểu thế nào, vai trò CSDL và RLS hoạt động ra sao, ba mô hình thuê bao silo, bridge, pool bố trí CSDL thế nào, và những bảng mà TL-03 thêm vào ngoài baseline. Các mục "Vai trò CSDL" (NEN-031), "RLS và phân vùng" (NEN-033) và "Viết migration" (NEN-030) được viết cùng các task hiện thực thư viện `vt-db-migration`; các mục còn lại do NEN-002 viết. Từ điển dữ liệu từng bảng nghiệp vụ không chép ở đây; task migration của từng schema đọc thẳng TL-03 chương "Thiết kế chi tiết các schema". Kiến trúc lõi và danh sách service ở [trang 21](21-kien-truc-mission-core-va-microservice.md); outbox, inbox và đồng bộ ở [trang 18](18-su-kien-va-dong-bo-du-lieu.md).
+
+## Sở hữu dữ liệu và vị trí schema
+
+Nguyên tắc nền là Database per Service và Schema per Module (ADR-02): mỗi đơn vị triển khai sở hữu riêng dữ liệu của mình, mỗi module hoặc service một schema và một bộ vai trò CSDL, không service nào đọc ghi bảng của service khác. Tham chiếu giữa các service luôn là tham chiếu logic bằng mã định danh; không có khoá ngoại vật lý giữa schema của các module hay giữa các service, và toàn vẹn được giữ bằng kiểm tra trên bản sao cục bộ (ví dụ MOD-02 kiểm phân công trong `org_replica.assignment_v`), sự kiện bù và đối soát. Một thành phần nhận bản sao không bao giờ tự sửa bản sao; muốn thay đổi thì gọi API của nơi sở hữu.
+
+Đơn vị đặt dữ liệu vật lý là "CSDL dữ liệu tenant" `td_<mã>`. Mỗi CSDL này chứa chín schema của mission-core (`config`, `policy`, `okr`, `task`, `product`, `appraisal`, `dossier`, `oversight`, `org_replica`) cùng schema của bốn microservice xử lý dữ liệu nghiệp vụ theo tenant (`org` của SVC-04, `scoring` của SVC-07, `evidence` của SVC-08, `docgen` của SVC-11), tức mười ba schema, cộng hai schema kỹ thuật bổ sung `modulith` và `keyring`. TL-03 nêu lý do gộp: thao tác pháp lý của lõi cần giao dịch ACID cục bộ với outbox của chính module, và số slot sao chép logic (tức số connector Debezium) càng ít thì chi phí giải mã WAL càng thấp. CSDL `cell_shared` chứa `notify` (SVC-12) và `integ` (SVC-13), là hai service vốn phục vụ nhiều tenant cùng lúc, tách tenant bằng RLS. Các service cần cô lập bảo mật hoặc tải có CSDL riêng trên cụm riêng: `iam` (SVC-02), `flowable` (SVC-06), `ledger` (SVC-09), `esign` (SVC-10), `ai` (SVC-14). `registry` (SVC-03) là kho toàn cục duy nhất, nằm ở vùng điều phối chứ không ở cell.
+
+## Quy ước đặt tên và kiểu dữ liệu
+
+Mọi định danh dùng chữ thường tiếng Anh kiểu `snake_case`, không dấu, không phải trích dẫn bằng ngoặc kép; bảng của Flowable (`ACT_*`, `FLW_*`) là ngoại lệ duy nhất. Schema mang tên module hoặc service, số ít, đúng như baseline mục 9; bảng là danh từ số ít, bảng liên kết ghép hai danh từ. Tên schema và tên bảng đã có trong baseline được giữ nguyên tuyệt đối.
+
+| Đối tượng | Quy ước TL-03 | Ví dụ |
+|---|---|---|
+| Khoá chính | `pk_<bảng>` | `pk_task` |
+| Khoá ngoại | `fk_<bảng>__<bảng đích>` | `fk_task_assignee__task` |
+| Ràng buộc duy nhất | `uq_<bảng>__<cột>` | `uq_catalog_item__code` |
+| Ràng buộc kiểm tra | `ck_<bảng>__<nội dung>` | `ck_task__status` |
+| Ràng buộc loại trừ | `ex_<bảng>__<nội dung>` | `ex_assignment__no_overlap` |
+| Chỉ mục | `ix_<bảng>__<cột>`, chỉ mục một phần thêm hậu tố `_p` | `ix_task__assignee_due_p` |
+| Chính sách RLS | `rls_<bảng>__tenant` | `rls_task__tenant` |
+| Trigger | `tg_<bảng>__<hành vi>` | `tg_ledger_entry__no_update` |
+| Hàm, thủ tục | `fn_<động từ>_<đối tượng>` | `fn_create_period_partitions` |
+| Vai trò CSDL | `svc_`, `ro_`, `mig_`, `cdc_` + `<schema>` | `svc_task`, `mig_ledger` |
+
+Quy ước cột đi kèm: khoá chính tên `id` kiểu `uuid`; khoá ngoại `<bảng được tham chiếu>_id`; cột trạng thái `status varchar(32)` có `CHECK` liệt kê đúng giá trị baseline mục 9.1; thời điểm hậu tố `_at` kiểu `timestamptz`; ngày lịch hậu tố `_date` hoặc `_on` kiểu `date`; cờ tiền tố `is_` hoặc `has_` kiểu `boolean NOT NULL DEFAULT false`; băm hậu tố `_hash` kiểu `bytea` 32 byte.
+
+Hai quy tắc cột liên quan tới mã hoá cần nhớ kỹ. Cột C2 luôn có hậu tố `_enc`, kiểu `bytea`, và bảng chứa nó phải có cột `dek_id uuid` trỏ tới DEK trong `keyring.dek`. Khi cần tra cứu bằng trên một giá trị C2 (ví dụ số định danh), bảng thêm cột chỉ mục mù `<cột>_bidx` kiểu `bytea`, là HMAC-SHA-256 cắt 16 byte; chỉ mục đặt trên cột `_bidx`, không bao giờ trên bản rõ. Cách tạo bản mã và khoá mô tả ở [trang 20](20-bao-mat-phia-may-chu.md).
+
+Danh sách kiểu được phép của TL-03 là: `uuid` (UUIDv7 sinh ở ứng dụng, vì PostgreSQL 17 chưa có hàm UUIDv7), `varchar(n)` có độ dài cụ thể (không dùng `char(n)`), `text` (giới hạn bằng `CHECK` khi cần), `timestamptz` lưu UTC, `date`, `daterange` và `tstzrange` cho khoảng hiệu lực, `numeric(6,3)` cho điểm số, `numeric(6,4)` cho hệ số và tỷ lệ, `numeric(18,4)` cho giá trị đo KR và KPI, `int` và `bigint` cho số đếm, `boolean` luôn `NOT NULL` có mặc định, `jsonb` chỉ cho cấu hình, tham số và payload, `bytea` cho bản mã, băm, chữ ký, và `vector(1024)` chỉ trong schema `ai`. Muốn dùng kiểu khác phải ghi lý do khi duyệt thiết kế migration. Điểm số tính bằng `BigDecimal` làm tròn `HALF_UP` ba chữ số, để tính lại hồ sơ cũ cho kết quả trùng tới từng chữ số.
+
+## Cột chung và phân loại cột
+
+Mọi bảng nghiệp vụ có bảy cột chung: `id uuid` (UUIDv7), `tenant_id uuid` (khoá của chính sách RLS), `created_at timestamptz DEFAULT now()`, `created_by uuid` (`sub` của JWT hoặc mã tài khoản dịch vụ), `updated_at`, `updated_by`, và `row_version int DEFAULT 0`. Cột `row_version` vừa là khoá lạc quan, vừa là ETag của API, vừa là `aggregate_version` ghi vào outbox; câu lệnh cập nhật luôn có dạng `... SET ..., row_version = row_version + 1 WHERE id = ? AND row_version = ?`, không dòng nào bị ảnh hưởng thì API trả 409. `created_by` và `updated_by` không có khoá ngoại vì người dùng thuộc CSDL khác.
+
+Bảng phân vùng theo kỳ có thêm `period_id uuid` (khoá nghiệp vụ dùng để lọc) và `period_bucket int` (khoá phân vùng LIST, giá trị năm × 10 + quý, ví dụ 20271 là quý I/2027, năm × 10 cho dữ liệu cấp năm). `period_bucket` được suy ra một lần khi tạo bản ghi từ ngày bắt đầu kỳ và không bao giờ đổi. Kỳ tháng của luồng Nhà nước xếp vào phân vùng của quý chứa tháng đó, nên mỗi năm luôn có năm phân vùng. TL-03 tách `period_bucket` khỏi `period_id` vì PostgreSQL buộc khoá phân vùng nằm trong khoá chính và công cụ phân vùng làm việc tốt hơn với số có thứ tự.
+
+Phân loại theo ADR-06 áp tới từng cột. C0 là công khai; C1 là nội bộ, gồm cả điểm số và mức xếp loại (bảo vệ bằng RLS, ABAC và sổ cái, không mã hoá trường); C2 là nhạy cảm, gồm dữ liệu cá nhân, nhận xét, giải trình, khiếu nại, góp ý kiểm điểm, kết luận hậu kiểm, phải mã hoá trường AES-256-GCM, không cache dạng rõ, giả danh hoá khi sang ClickHouse và không đưa vào OpenSearch; C3 là hạn chế, mã hoá đầu cuối tại client, máy chủ chỉ giữ bản mã. Phân loại được ghi bằng chú thích cột dạng JSON:
+
+```sql
+COMMENT ON COLUMN org.person.national_id_enc IS
+  '{"cls":"C2","pii":true,"desc":"Số định danh cá nhân, mã hoá trường"}';
+```
+
+Kiểm thử CI đọc `pg_description` sau khi áp migration và chặn build khi có cột thiếu chú thích, hoặc cột `"cls":"C2"` mà không phải `bytea` có hậu tố `_enc`. Cùng danh sách này sinh `column.exclude.list` cho connector Debezium phân tích, nên thêm một cột C2 không thể vô tình rò sang ClickHouse. TL-03 ghi một ngoại lệ có lý do: `appraisal.prospect_group.group_code` là C2 nhưng không mã hoá, bảo vệ bằng quyền cột.
 
 ## Vai trò CSDL
 
@@ -18,6 +62,34 @@ Bảng theo kỳ phân vùng LIST theo `period_bucket` (năm×10 + quý). Phân 
 
 Bẫy quan trọng: vì pool chia băm theo `tenant_id`, khoá chính và ràng buộc duy nhất của mọi bảng theo kỳ phải chứa cả `period_bucket` và `tenant_id` (ví dụ `(period_bucket, tenant_id, id)`), nếu không migration chạy được ở silo, bridge nhưng hàm tạo phân vùng lỗi ở pool. TL-03 ghi khoá chính `(period_bucket, id)`; điểm lệch này cần NEN-004 đưa vào trang 14. Bẫy thứ hai: `mig_<schema>` cũng chịu RLS do `FORCE`, nên migration điền dữ liệu phải chạy bằng `svc_` theo từng tenant (suy luận).
 
+## Ngữ cảnh tenant và kiểm thử rò rỉ
+
+Ngữ cảnh tenant đi qua năm chặng theo TL-01: Keycloak cấp claim tenant và `cell` trong token mà người dùng không tự đặt được; APISIX kiểm chữ ký và từ chối khi claim `cell` không khớp cell đang phục vụ; bộ lọc trong service (`TenantContextFilter`) đọc claim từ token đã xác thực, không bao giờ từ header do client gửi, và đặt vào `TenantContext` (dùng `ScopedValue` khi chạy luồng ảo); giao dịch CSDL đặt `app.tenant_id`; cuối cùng RLS lọc. Tên claim không thống nhất giữa các nguồn (TL-01 dùng `tenant_id`, TL-03 dùng `tid`, realm dev dùng `tenant`), xem [trang 14](14-quyet-dinh-va-cau-hoi-mo.md).
+
+PgBouncer chạy `pool_mode = transaction` (ADR-22): một kết nối máy chủ chỉ gắn với một khách trong một giao dịch rồi trả về pool cho khách khác. Vì vậy mọi tham số đặt bằng `SET` mức phiên sẽ rò sang giao dịch kế tiếp, có thể của tenant khác; thiết kế cấm tuyệt đối `SET app.tenant_id` mức phiên và chỉ cho `SET LOCAL` hoặc `set_config(..., true)`, vốn tự huỷ khi giao dịch kết thúc. Mọi truy cập CSDL phải nằm trong giao dịch tường minh, kể cả đọc. Ở Java, `TenantJpaTransactionManager.doBegin` gọi `select set_config('app.tenant_id', ?, true)` ngay sau khi giao dịch bắt đầu, nên không lập trình viên nào phải nhớ gọi; service Go (SVC-03, SVC-09, SVC-12) gọi `tx.Exec(ctx, "select set_config('app.tenant_id', $1, true)", tenantID)` ngay sau `BeginTx`; service Python (SVC-14) làm tương tự với asyncpg. PgBouncer 1.21 trở lên hỗ trợ câu lệnh chuẩn bị trong chế độ giao dịch (`max_prepared_statements`), nên JDBC giữ `prepareThreshold` mặc định. Job hệ thống chạy cho nhiều tenant lặp qua từng tenant và đặt ngữ cảnh cho từng giao dịch, không dùng tài khoản vượt RLS; tài khoản có `BYPASSRLS` duy nhất là tài khoản sao lưu.
+
+TL-03 đặt năm lớp kiểm thử rò rỉ tenant chạy tự động. Lớp một là truy vấn danh mục trong CI: sau khi áp migration lên CSDL trống, không được còn bảng nào có `tenant_id` mà thiếu `relrowsecurity`, `relforcerowsecurity` hay chính sách. Lớp hai là kiểm thử Testcontainers với hai tenant A, B, sinh tự động từ danh mục bảng: đặt ngữ cảnh A rồi đọc, sửa, xoá dòng của B phải được 0 dòng, chèn dòng mang `tenant_id` của B phải lỗi, không đặt ngữ cảnh phải rỗng. Lớp ba chạy qua PgBouncer với `default_pool_size = 1` để ép mọi giao dịch dùng chung một kết nối, phát hiện ai lỡ dùng `SET` mức phiên. Lớp bốn là kiểm thử tĩnh bằng Semgrep chặn mọi chuỗi `SET app.` không có `LOCAL` và mọi lời gọi `set_config(..., false)`. Lớp năm chạy trên môi trường thật: mỗi cell pool có hai tenant canh gác với dữ liệu tổng hợp, một job mỗi giờ đăng nhập bằng tenant thứ nhất gọi các API danh sách chính, và nếu phản hồi chứa mã định danh của tenant thứ hai thì cảnh báo nghiêm trọng được gửi tới SOC. TL-01 thêm một quy tắc ArchUnit cấm gọi `DataSource.getConnection()` ngoài lớp hạ tầng chuẩn.
+
+## Ba mô hình thuê bao trên cùng một lược đồ
+
+ADR-07 chọn kiến trúc cell với ba mô hình: silo (cell riêng), bridge (CSDL riêng mỗi tenant trên cụm dùng chung), pool (bảng chung, cột `tenant_id` và RLS). Yêu cầu then chốt với tầng dữ liệu là cả ba dùng chung một lược đồ và một bộ migration, để mỗi bản phát hành không phải kiểm thử ba lần và mã ứng dụng không phải rẽ nhánh. TL-03 đạt điều này bằng ba quyết định: mọi bảng nghiệp vụ luôn có `tenant_id` và luôn bật RLS kể cả ở silo; đơn vị đặt dữ liệu là CSDL dữ liệu tenant `td_<mã>` (một CSDL mỗi tenant ở silo và bridge, một CSDL `td_pool` chung ở pool); các service phục vụ nhiều tenant cùng lúc dùng CSDL cấp cell. Nhờ vậy một tenant chuyển từ pool lên bridge không cần đổi mã.
+
+TL-01 cho tiêu chí xếp tenant khi tiếp nhận: pool cho xã, phường, đơn vị dưới 5.000 tài khoản, cô lập bằng RLS, chung pod, KEK riêng trong OpenBao chung; bridge cho bộ, tỉnh, tập đoàn 5.000 đến 150.000 tài khoản, CSDL logic riêng trên cụm chung cộng RLS, có thể có pod riêng cho service nặng, KEK riêng; silo cho khối Trung ương, đơn vị có yêu cầu pháp lý riêng và bản cài cách ly, cụm CSDL và hạ tầng riêng, HSM riêng. Theo baseline mục 6, CELL-DTW, CELL-HCM, CELL-HN là silo, CELL-G1 đến CELL-G4 là bridge, CELL-SH là pool. Bảng `registry.tenant_cell` có cột `tenancy_model` ghi mô hình của từng tenant.
+
+Ở cell silo, cụm nghiệp vụ có một CSDL dữ liệu tenant (ví dụ `td_hcm` ở CELL-HCM) cộng `cell_shared`; CELL-DTW phục vụ một tenant với 19 đảng bộ là đơn vị cấp một trong cây tổ chức, không phải 19 tenant. Ở cell bridge, mỗi tỉnh là một tenant có CSDL riêng (ví dụ `td_thainguyen`, `td_quangngai`) với cùng mười ba schema; PgBouncer khai báo một mục `[databases]` cho mỗi CSDL, ứng dụng chọn nguồn dữ liệu theo `tenant_id` bằng `AbstractRoutingDataSource` (Java) hoặc bản đồ pool theo tenant (Go), mỗi tenant có pool phía ứng dụng 2 đến 8 kết nối mỗi pod và PgBouncer gom về tối đa 30 kết nối máy chủ mỗi CSDL. Lợi ích của bridge là sao lưu, khôi phục và chuyển một tỉnh bằng một CSDL, cùng khoá mã hoá riêng theo tỉnh; chi phí là số slot sao chép logic tăng theo số tỉnh. Ở cell pool, mọi tenant dùng chung `td_pool`, và vì RLS là cơ chế cô lập chính, TL-03 đặt thêm ba biện pháp: bảng lớn đã phân vùng theo `period_bucket` được chia tiếp 16 phân vùng con `HASH (tenant_id)`; vai trò ứng dụng đặt `statement_timeout = '5s'` và `idle_in_transaction_session_timeout = '10s'`, job nặng chạy theo hàng đợi công bằng theo tenant; tenant vượt 50.000 tài khoản hoặc cần khoá riêng được "tốt nghiệp" sang CSDL dữ liệu tenant riêng ở cell bridge bằng publication lọc dòng `WHERE (tenant_id = ...)` với `publish_via_partition_root = true`, danh sách bảng sinh tự động từ danh mục chứ không viết tay.
+
+## Cụm PostgreSQL trong một cell: năm cụm hay sáu cụm
+
+Hai tài liệu chia cụm khác nhau, và trang này trình bày cả hai mà không tự chọn; điểm lệch được ghi ở [trang 14](14-quyet-dinh-va-cau-hoi-mo.md). Cả hai đều dùng CloudNativePG, mỗi cụm một bản chính và hai bản dự phòng trên ba node khác nhau, một bản dự phòng đồng bộ để RPO xấp xỉ 0 khi mất một node, và cụm bản sao ở TTDL phía Nam.
+
+TL-03 chương "Mô hình thuê bao và phân bổ cơ sở dữ liệu theo cell" dùng năm cụm: `pg-biz` chứa các CSDL dữ liệu tenant `td_<mã>` (hoặc `td_pool`) và `cell_shared`; `pg-wf` chứa `flowable`, tách riêng để nghẽn engine BPMN không ảnh hưởng ghi nghiệp vụ (góp ý G2); `pg-ledger` chứa `ledger` ở vùng bảo mật, chỉ ghi thêm, lưu ít nhất 10 năm; `pg-iam` chứa `iam` vì đăng nhập cần độ khả dụng cao nhất; `pg-sec` chứa `esign` và `ai`. Theo cách này `org`, `scoring`, `evidence`, `docgen` nằm cùng CSDL `td_<mã>` với lõi.
+
+TL-04 mục "Định cỡ PostgreSQL" dùng sáu cụm: `pg-core` chứa tám schema mission-core và `org_replica`; `pg-flowable` chứa `flowable`; `pg-platform` chứa `org`, `scoring`, `evidence`, `docgen`, `notify`, `integ`, mỗi service một database và một tài khoản; `pg-iam`; `pg-ledger`; `pg-secure` chứa `esign` và `ai`. Khác biệt thực chất là TL-04 tách schema của bốn microservice nghiệp vụ ra khỏi CSDL của lõi, trong khi TL-03 gộp chúng vào `td_<mã>` để giảm slot sao chép. Hạ tầng dev hiện chỉ có một CSDL `mission` (xem [trang 12](12-ha-tang-dev-va-trien-khai.md)). Mã ứng dụng không nên phụ thuộc vào việc hai schema có cùng CSDL hay không: mỗi schema một DataSource, không truy vấn chéo schema, thì cả hai cách bố trí đều chạy được (suy luận).
+
+## Định tuyến tới đúng CSDL
+
+Mỗi request đến cell mang mã tenant trong JWT. Service tra bảng định tuyến cục bộ, là bản đọc của `registry.tenant_cell` đồng bộ xuống cell, giữ trong bộ nhớ và làm mới theo sự kiện `registry.tenant.changed.v1`, để biết tenant thuộc CSDL dữ liệu tenant nào. Nếu tenant không thuộc cell hiện tại, ví dụ vừa chuyển cell mà DNS của người dùng chưa cập nhật, service trả `421 Misdirected Request` kèm tên miền đúng và APISIX lớp ngoài định tuyến lại; nhờ đó một request không bao giờ ghi nhầm vào CSDL của cell khác, kể cả trong lúc chuyển đổi. Ở mặt phẳng toàn cục, shell gọi `GET /api/v1/registry/resolve?tenant=` để lấy URL cell, kèm cookie định tuyến ký HMAC hạn 5 phút; danh bạ được sao xuống mọi cell với bộ đệm 5 phút nên sự cố mặt phẳng toàn cục không làm gián đoạn người đã đăng nhập.
+
 ## Viết migration
 
 Mỗi schema có một bộ migration Flyway riêng trong mô-đun sở hữu nó, ở `src/main/resources/db/migration/<schema>/`, và bảng lịch sử `flyway_schema_history` nằm trong chính schema đó. Migration chạy bằng Kubernetes Job với tài khoản `mig_<schema>`, là chủ sở hữu mọi đối tượng trong schema; ứng dụng chỉ có tài khoản `svc_<schema>`, đặt `spring.flyway.enabled=false` và `spring.jpa.hibernate.ddl-auto=validate`, và khi khởi động kiểm phiên bản lược đồ bằng `vt.db.schema-guard` để dừng nếu lược đồ cũ hơn mức mã cần. Lý do là tiêu chí K1 của bản đánh giá: hệ hiện hành để ứng dụng tự chạy `ALTER TABLE` lúc khởi động, vừa rủi ro an ninh vừa làm nhiều pod cùng sửa lược đồ.
@@ -28,8 +100,34 @@ Mỗi mô-đun có migration kế thừa `MigrationConventionsTest` (test-jar c�
 
 Danh sách cột C2, C3 mà lint xuất ra (`target/generated-resources/cdc/<schema>-column-exclude-list.txt`) là đầu vào cho `column.exclude.list` của connector Debezium phân tích (DV-15-02).
 
+## Bảng dùng chung và bảng bổ sung ngoài baseline
+
+Baseline mục 9 chỉ yêu cầu mọi schema có `outbox_event` và `inbox_processed`. TL-03 thêm một số bảng dùng chung có ảnh hưởng tới mọi schema hoặc mọi module của lõi; mỗi task migration phải biết chúng tồn tại. Các bảng này được TL-03 đánh dấu "bổ sung" và liệt kê ở `_ghi-chu-TL-03.md` mục 3.
+
+| Bảng | Có ở đâu | Mục đích và điểm cần nhớ | Nguồn đề xuất |
+|---|---|---|---|
+| `<schema>.outbox_event` | mọi schema phát sự kiện | Sự kiện ghi cùng giao dịch, Debezium đẩy lên Kafka; cột và phân vùng ở [trang 18](18-su-kien-va-dong-bo-du-lieu.md) | baseline |
+| `<schema>.inbox_processed` | mọi schema nhận sự kiện | PK `(consumer, event_id)`, chèn `ON CONFLICT DO NOTHING` để khử trùng | baseline |
+| `<schema>.inbox_aggregate_version` | mọi schema nhận sự kiện | Phiên bản cao nhất đã áp dụng theo aggregate, bỏ sự kiện cũ đến muộn | TL-03 |
+| `<schema>.idempotency_key` | mọi schema có API ghi | PK `(tenant_id, actor_id, idem_key, created_day)`, phân vùng theo ngày, giữ 48 giờ; cùng khoá khác băm trả 422; trạng thái `DANG_XU_LY`, `XONG` | TL-01 |
+| `modulith.event_publication` | CSDL dữ liệu tenant | Event Publication Registry (ADR-23), thêm cột `tenant_id`; `mig_modulith` sở hữu, mọi `svc_<module>` của lõi có DML; dọn bản ghi đã xong sau 7 ngày, cảnh báo sự kiện treo quá 15 phút | TL-01 |
+| `keyring.dek` | CSDL dữ liệu tenant | DEK đã bọc theo tenant × tháng × mục đích; `svc_<module>` chỉ `SELECT, INSERT`, chỉ `svc_keyring` đổi trạng thái `ACTIVE`, `DECRYPT_ONLY`, `RETIRED`, `DESTROYED` | TL-01 |
+| `org_replica.unit_closure_v`, `org_replica.replica_checkpoint`, `org_replica.reconcile_run` | lõi | Bảng closure của cây đơn vị cho lọc phạm vi; con trỏ phiên bản bản sao; đối soát theo bucket | TL-03 |
+| `okr.period_state`, `task.period_state`, `product.period_state` | lõi | Bản sao trạng thái kỳ cho trigger chặn ghi khi kỳ khoá; TL-03 mới có DDL cho `task` (câu hỏi mở ở trang 14) | TL-03 |
+| `config.period_status_log`, `config.period_lock_order`, `config.period_lock_step` | `config` | Nhật ký chuyển trạng thái kỳ, lệnh khoá kỳ và chiếu bước saga | TL-03, TL-02a |
+| `task.task_secret_content`, `task.e2ee_key_wrap`, `product.e2ee_key_wrap` | `task`, `product` | Nội dung mật C3 và khoá bọc theo người nhận | TL-03 |
+| `registry.tenant_status_log`, `registry.tenant_quota` | toàn cục | Lịch sử trạng thái tenant; hạn mức tài nguyên | TL-03, TL-01 |
+| `flowable.saga_instance`, `flowable.saga_step` | `flowable` | Trạng thái saga chốt kỳ, phát hành Policy Pack | TL-03 |
+
+Danh sách đầy đủ, gồm cả bảng bổ sung riêng của từng schema nghiệp vụ (`okr.objective_basis`, `task.program`, `appraisal.batch_decision`, `scoring.score_input_v`, `ledger.chain_head` và các bảng khác), ở `_ghi-chu-TL-03.md` mục 3; cột bổ sung của từng bảng ở mục 4 của cùng tệp. Một bảng của bản nháp đã bị bỏ: `appraisal.special_case_flag` (trùng `dossier.special_case`).
+
 ## Liên quan
 
 - `backend/libs/vt-db-migration/README.md`
 - `docs/quy-dinh/BACKEND.md` mục 3
 - [Quyết định và câu hỏi mở](14-quyet-dinh-va-cau-hoi-mo.md)
+- [Hạ tầng dev và triển khai](12-ha-tang-dev-va-trien-khai.md)
+- [Phân quyền](15-phan-quyen.md)
+- [Sự kiện và đồng bộ dữ liệu](18-su-kien-va-dong-bo-du-lieu.md)
+- [Bảo mật phía máy chủ](20-bao-mat-phia-may-chu.md)
+- [Kiến trúc mission-core và microservice](21-kien-truc-mission-core-va-microservice.md)

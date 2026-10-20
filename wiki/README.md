@@ -8,6 +8,8 @@ Wiki này gom tri thức cần thiết để phát triển phân hệ web của 
 
 Người mới vào dự án nên đọc theo thứ tự trang 01, 02, 04, 10, rồi đọc trang theo việc đang làm. AI agent làm task trong `docs/tasks/` đọc `AGENTS.md` trước (quy định bắt buộc, `CLAUDE.md` tự nạp cả `AGENTS.md` và trang này), sau đó đọc các trang wiki mà task liệt kê ở mục "Đầu vào bắt buộc đọc". Khi cần biết một màn hình làm gì, tra mã SCR trong trang 05a hoặc 05b; khi cần biết vai trò nào được thấy hay làm một chức năng, tra trang 15a; khi gặp từ lạ, tra trang 13; khi thấy hai nguồn nói khác nhau, xem trang 14 trước khi tự quyết định.
 
+Người làm phía máy chủ (task NEN, CORE, DV, DL) đọc trang 01 rồi trang 21 (kiến trúc mission-core và microservice) và trang 17 (CSDL và đa khách thuê), sau đó đọc trang 18 (sự kiện và đồng bộ), 19 (hạ tầng production) và 20 (bảo mật phía máy chủ) theo việc đang làm; các điểm lệch phía máy chủ đang chờ chốt nằm ở trang 14. Trang 16 là trang nội dung giao diện của web, nên trang kiến trúc mission-core mang số 21.
+
 ## Mục lục
 
 | Trang | Nội dung |
@@ -30,6 +32,8 @@ Người mới vào dự án nên đọc theo thứ tự trang 01, 02, 04, 10, r
 | [15-phan-quyen.md](15-phan-quyen.md) | Nguyên tắc phân quyền RBAC và ABAC, mô hình vai trò AC, phạm vi dữ liệu, mức dữ liệu, tách vai trò, bốn mắt, step-up, hiện thực từng tầng, cấp và thu hồi quyền |
 | [15a-ma-tran-phan-quyen.md](15a-ma-tran-phan-quyen.md) | Ma trận phân quyền chức năng theo SCR × AC-01..AC-12, ma trận API, mức dữ liệu, ràng buộc; sinh từ `docs/phan-quyen/ma-tran.json` |
 | [16-noi-dung-giao-dien.md](16-noi-dung-giao-dien.md) | Quy định nội dung hiển thị cho cán bộ, viên chức: không lộ mã thiết kế, trạng thái thô, tên kỹ thuật; bảng từ thay thế; hai lớp kiểm tra tự động |
+| [17-thiet-ke-csdl-va-da-khach-thue.md](17-thiet-ke-csdl-va-da-khach-thue.md) | Sở hữu dữ liệu, quy ước tên và kiểu, cột chung, phân loại cột, vai trò CSDL, RLS và phân vùng, ngữ cảnh tenant qua PgBouncer, ba mô hình silo, bridge, pool, cụm PostgreSQL, định tuyến 421, migration, bảng bổ sung |
+| [21-kien-truc-mission-core-va-microservice.md](21-kien-truc-mission-core-va-microservice.md) | Vai trò SVC-05, cây gói `vn.viettel.okrkpi`, ma trận phụ thuộc module, ArchUnit, bảng 17 service, quy tắc giao tiếp, quản lý giao dịch, vị trí mã trong repo |
 
 ## Quy tắc cập nhật wiki
 
