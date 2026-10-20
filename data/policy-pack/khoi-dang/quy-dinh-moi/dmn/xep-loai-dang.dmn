@@ -87,7 +87,7 @@
         <inputEntry id="xep-loai-dang-dong-4-in4"><text>&gt;= 1</text></inputEntry>
         <inputEntry id="xep-loai-dang-dong-4-in5"><text>true</text></inputEntry>
         <inputEntry id="xep-loai-dang-dong-4-in6"><text>true</text></inputEntry>
-        <inputEntry id="xep-loai-dang-dong-4-in7"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-dang-dong-4-in7"><text>false</text></inputEntry>
         <outputEntry id="xep-loai-dang-dong-4-out"><text>"HTXSNV"</text></outputEntry>
         <annotationEntry><text>QĐ Điều 11; BR-09-07</text></annotationEntry>
         <annotationEntry><text>Điều 11 của Quy định</text></annotationEntry>
