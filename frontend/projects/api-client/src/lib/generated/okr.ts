@@ -202,6 +202,50 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/okr/objectives/{id}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Huỷ mục tiêu
+     * @description Chuyển mục tiêu từ `CHO_DUYET` hoặc `DA_DUYET` sang `DONG` theo máy trạng thái QT-02, bắt buộc lý do huỷ, ghi vết lịch sử (`okr.objective_review`) và phát EVT-21 thông báo cho đơn vị sở hữu.
+     */
+    post: operations['cancelObjective'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/okr/objectives/{id}/revisions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Tạo phiên bản điều chỉnh mục tiêu đã duyệt
+     * @description Tạo phiên bản mới (`versionNo + 1`) từ mục tiêu đang `DA_DUYET` khi có sự kiện bất khả kháng hoặc thay đổi nhiệm vụ chính trị (BR-02-10). Phiên bản mới khởi tạo ở `NHAP` (hoặc `CHO_DUYET` nếu `submitImmediately = true`), sao chép các KR và liên kết hiện tại để điều chỉnh và trình duyệt lại; phiên bản cũ giữ nguyên lịch sử để đối chiếu.
+     */
+    post: operations['createObjectiveRevision'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/okr/objectives/{id}/history': {
     parameters: {
       query?: never;
@@ -265,6 +309,32 @@ export interface paths {
     put?: never;
     post?: never;
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/okr/key-results/{id}/checkin-delegate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Uỷ quyền cập nhật tiến độ kết quả then chốt
+     * @description Chủ sở hữu KR uỷ quyền cho chuyên viên đầu mối (`delegatePersonId`) thực hiện check-in thay trong thời hạn xác định (`validUntil`). Khi uỷ quyền còn hiệu lực, `viewerIsOwner` đúng cho cả chủ KR và người được uỷ quyền (QT-03 bước 2).
+     */
+    put: operations['setKrCheckinDelegate'];
+    post?: never;
+    /**
+     * Thu hồi uỷ quyền cập nhật tiến độ kết quả then chốt
+     * @description Chủ sở hữu KR thu hồi quyền check-in thay đã uỷ quyền.
+     */
+    delete: operations['revokeKrCheckinDelegate'];
     options?: never;
     head?: never;
     patch?: never;
@@ -611,7 +681,7 @@ export interface components {
       overLimitReason?: string;
       /** @description Nhãn "Vượt 3 O" cho người duyệt (suy luận) */
       overLimit?: boolean;
-      /** @description Lần trình duyệt */
+      /** @description Phiên bản mục tiêu (`okr.objective.version_no`, tăng khi tạo phiên bản điều chỉnh từ mục tiêu đã duyệt theo BR-02-10). */
       versionNo: number;
       aiAssisted?: boolean;
       aiSuggestionId?: components['schemas']['Uuid'];
@@ -696,6 +766,34 @@ export interface components {
       /** @default true */
       notifyPeers: boolean;
     };
+    /** @description Yêu cầu huỷ mục tiêu từ `CHO_DUYET` hoặc `DA_DUYET` sang `DONG`, bắt buộc lý do. */
+    OkrCancelRequest: {
+      reason: string;
+      /** @default true */
+      notifyPeers: boolean;
+    };
+    /** @description Yêu cầu tạo phiên bản điều chỉnh (`versionNo + 1`) từ mục tiêu `DA_DUYET` (BR-02-10). */
+    OkrRevisionCreateRequest: {
+      /** @description Lý do điều chỉnh (sự kiện bất khả kháng hoặc thay đổi nhiệm vụ chính trị). */
+      reason: string;
+      /** @description Số hiệu văn bản căn cứ điều chỉnh (nếu có). */
+      basisDocRef?: string;
+      /**
+       * @description Trình duyệt ngay phiên bản mới sau khi tạo; mặc định `false` (lưu ở `NHAP` để sửa chi tiết).
+       * @default false
+       */
+      submitImmediately: boolean;
+    };
+    /** @description Thiết lập người được chủ KR uỷ quyền check-in thay (QT-03 bước 2). */
+    KrCheckinDelegateInput: {
+      delegatePersonId: components['schemas']['Uuid'];
+      /**
+       * Format: date
+       * @description Hạn hiệu lực uỷ quyền; bỏ trống là tới hết kỳ của KR.
+       */
+      validUntil?: string | null;
+      reason?: string;
+    };
     OkrApproveBatchRequest: {
       items: {
         id: components['schemas']['Uuid'];
@@ -709,10 +807,11 @@ export interface components {
     OkrObjectiveHistoryEntry: {
       at: components['schemas']['DateTime'];
       /**
-       * @description Hành động (mã suy luận từ bảng trạng thái QT-02).
+       * @description Hành động (mã suy luận từ bảng trạng thái QT-02 và BR-02-10).
        * @enum {string}
        */
-      action: 'TAO' | 'LUU_NHAP' | 'TRINH' | 'RUT_LAI' | 'DUYET' | 'TRA_LAI' | 'DONG';
+      action:
+        'TAO' | 'LUU_NHAP' | 'TRINH' | 'RUT_LAI' | 'DUYET' | 'TRA_LAI' | 'TAO_PHIEN_BAN' | 'DONG';
       versionNo: number;
       status?: components['schemas']['OkrObjectiveStatus'];
       actor: components['schemas']['Ref'];
@@ -1744,6 +1843,87 @@ export interface operations {
       default: components['responses']['Problem'];
     };
   };
+  cancelObjective: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OkrCancelRequest'];
+      };
+    };
+    responses: {
+      /** @description Đã huỷ; mục tiêu ở `DONG`. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OkrObjective'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      /** @description Mục tiêu không ở `CHO_DUYET` hoặc `DA_DUYET` (`OKR-409-INVALID-STATE`), hoặc kỳ đã khoá (`OKR-409-PERIOD-LOCKED`). */
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  createObjectiveRevision: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OkrRevisionCreateRequest'];
+      };
+    };
+    responses: {
+      /** @description Đã tạo phiên bản mục tiêu mới (`versionNo + 1`). */
+      201: {
+        headers: {
+          Location: components['headers']['Location'];
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OkrObjective'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      /** @description Mục tiêu không ở `DA_DUYET` (`OKR-409-INVALID-STATE`), đã có phiên bản nháp đang mở (`OKR-409-REVISION-PENDING`) hoặc kỳ đã khoá. */
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
   listOkrObjectiveHistory: {
     parameters: {
       query?: {
@@ -1879,6 +2059,79 @@ export interface operations {
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  setKrCheckinDelegate: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['KrCheckinDelegateInput'];
+      };
+    };
+    responses: {
+      /** @description Đã thiết lập người được giao check-in thay. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OkrKeyResult'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  revokeKrCheckinDelegate: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Đã thu hồi uỷ quyền check-in thay. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OkrKeyResult'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      428: components['responses']['PreconditionRequired'];
       default: components['responses']['Problem'];
     };
   };

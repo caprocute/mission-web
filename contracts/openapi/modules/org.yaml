@@ -414,6 +414,51 @@ paths:
         rules: [BR-01-07, BR-01-08]
         source: 'TL-02a SCR-0103 "Thay đổi tổ chức"'
 
+  /org/change-orders/{id}/corrections:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Cây tổ chức]
+      operationId: correctOrgChangeOrder
+      summary: Đính chính hai trục thời gian cho quyết định thay đổi tổ chức
+      description: >-
+        Đính chính sai sót nhập liệu trên trục ghi nhận (bitemporal, BR-01-06): đóng `recorded_to` của các
+        phiên bản ghi nhận sai và chèn phiên bản đã đính chính với `recorded_from = now()`. Không ghi đè vật lý
+        lịch sử; bắt buộc có lý do đính chính và văn bản căn cứ.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrgChangeCorrectionRequest' }
+      responses:
+        '201':
+          description: Quyết định đính chính đã ghi nhận trên trục ghi nhận.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgChangeOrder' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        evt: [EVT-14]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-06, BR-01-07]
+        source: 'TL-02a BR-01-06, SCR-0103 vùng 4 "Lịch sử thay đổi" (suy luận đường dẫn)'
+
   /org/units/{id}/history:
     parameters:
       - $ref: '../common/common.yaml#/components/parameters/IdPath'
@@ -495,6 +540,131 @@ paths:
         scope: Đv
         rules: [BR-01-08]
         source: 'TL-02a SCR-0103 vùng 3, trường 13 (suy luận đường dẫn)'
+    post:
+      tags: [Cây tổ chức]
+      operationId: createOrgUnitAssignment
+      summary: Thêm phân công cán bộ vào đơn vị
+      description: >-
+        Tạo bản ghi phân công `org.assignment` có hiệu lực từ `validFrom` (QT-01 bước 5, BR-01-06).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrgAssignmentCreateRequest' }
+      responses:
+        '201':
+          description: Phân công mới đã tạo.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgUnitAssignment' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        evt: [EVT-15]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-06, BR-01-08]
+        source: 'TL-02a QT-01 bước 5; SCR-0103 vùng 3 (suy luận đường dẫn)'
+
+  /org/assignments/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    patch:
+      tags: [Cây tổ chức]
+      operationId: updateOrgAssignment
+      summary: Điều chỉnh phân công cán bộ theo trục hiệu lực
+      description: >-
+        Cập nhật chức danh, loại phân công (chính/kiêm nhiệm), tỷ lệ thời gian hoặc khối đối tượng của phân công
+        tại đơn vị (QT-01 bước 5, BR-01-06).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrgAssignmentUpdateRequest' }
+      responses:
+        '200':
+          description: Phân công sau khi cập nhật.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgUnitAssignment' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        evt: [EVT-15]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-06, BR-01-08]
+        source: 'TL-02a QT-01 bước 5; SCR-0103 vùng 3 (suy luận đường dẫn)'
+
+  /org/assignments/{id}/end:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Cây tổ chức]
+      operationId: endOrgAssignment
+      summary: Kết thúc phân công cán bộ tại đơn vị
+      description: >-
+        Đóng `valid_to` của phân công `org.assignment` khi điều động, thôi kiêm nhiệm hoặc nghỉ công tác
+        (QT-01 bước 5, BR-01-06).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrgAssignmentEndRequest' }
+      responses:
+        '200':
+          description: Phân công sau khi kết thúc hiệu lực.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgUnitAssignment' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        evt: [EVT-15]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-06, BR-01-08]
+        source: 'TL-02a QT-01 bước 5; SCR-0103 vùng 3 (suy luận đường dẫn)'
 
   /org/subject-groups:
     get:
@@ -1263,3 +1433,38 @@ components:
           $ref: '../common/common.yaml#/components/schemas/Date'
           description: Ngày hiệu lực theo quyết định nguồn (trường 10), dùng làm `org.assignment.valid_from` khi lấy theo nguồn.
         syncRunId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    OrgAssignmentCreateRequest:
+      type: object
+      required: [personId, jobTitleId, assignmentKind, validFrom]
+      properties:
+        personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        jobTitleId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        subjectGroupCode: { type: string }
+        assignmentKind: { type: string, enum: [CHINH, KIEM_NHIEM, BIET_PHAI], default: CHINH }
+        weightRatio: { type: number, minimum: 0, maximum: 1, default: 1 }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        validTo: { type: [string, 'null'], format: date }
+        signedDocRef: { type: string, maxLength: 200 }
+    OrgAssignmentUpdateRequest:
+      type: object
+      properties:
+        jobTitleId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        subjectGroupCode: { type: string }
+        assignmentKind: { type: string, enum: [CHINH, KIEM_NHIEM, BIET_PHAI] }
+        weightRatio: { type: number, minimum: 0, maximum: 1 }
+        effectiveFrom: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        signedDocRef: { type: string, maxLength: 200 }
+    OrgAssignmentEndRequest:
+      type: object
+      required: [validTo, reason]
+      properties:
+        validTo: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        reason: { type: string, minLength: 5, maxLength: 1000 }
+        signedDocRef: { type: string, maxLength: 200 }
+    OrgChangeCorrectionRequest:
+      type: object
+      required: [reason, signedDocRef, correctedOrder]
+      properties:
+        reason: { type: string, minLength: 10, maxLength: 2000 }
+        signedDocRef: { type: string, minLength: 1, maxLength: 200 }
+        correctedOrder: { $ref: '#/components/schemas/OrgChangeRequest' }

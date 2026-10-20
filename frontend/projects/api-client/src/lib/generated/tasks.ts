@@ -168,6 +168,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/tasks/{id}/registration-decision': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Duyệt hoặc từ chối nhiệm vụ do cán bộ đăng ký
+     * @description Người quản lý trực tiếp xem xét nhiệm vụ đăng ký (QT-05 bước 1c): duyệt chuyển sang `DA_GIAO`, hoặc từ chối chuyển sang `HUY` kèm lý do.
+     */
+    post: operations['decideTaskRegistration'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/tasks/export': {
     parameters: {
       query?: never;
@@ -456,6 +478,100 @@ export interface paths {
      * @description Người giao chỉ định người xử lý, đặt hạn, chuyển trạng thái hoặc đóng điểm nghẽn.
      */
     patch: operations['handleTaskBlocker'];
+    trace?: never;
+  };
+  '/tasks/{id}/blockers/{blockerId}/escalate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+        blockerId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Chuyển điểm nghẽn lên cấp trên hoặc đơn vị liên quan
+     * @description Chuyển trạng thái điểm nghẽn sang `CHUYEN_CAP_TREN` và gán người/đơn vị tiếp nhận xử lý (QT-06 bước 5).
+     */
+    post: operations['escalateTaskBlocker'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tasks/{id}/secret-content': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Lấy bản mã C3 và khoá bọc của người gọi
+     * @description Trả bản mã E2EE của nhiệm vụ C3 (`task.task_secret_blob`) và khoá nội dung đã bọc (`task.e2ee_key_wrap`) cho thiết bị của người gọi (ADR-06; TL-01 chương 9).
+     */
+    get: operations['getTaskSecretContent'];
+    /**
+     * Lưu bản mã C3 và danh sách khoá bọc ban đầu
+     * @description Lưu bản mã AES-256-GCM (`ciphertext`, `nonce`, `aadHash`, `sha256`) và danh sách khoá bọc cho những người được phép giải mã (ADR-06).
+     */
+    put: operations['saveTaskSecretContent'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tasks/{id}/secret-content/shares': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Bổ sung khoá bọc C3 cho người mới được phân công hoặc uỷ quyền
+     * @description Thêm các bản ghi `task.e2ee_key_wrap` cho người mới được giao hoặc uỷ quyền trên nhiệm vụ C3 (ADR-06).
+     */
+    post: operations['shareTaskSecretContent'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tasks/{id}/secret-content/shares/{personId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+        personId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Thu hồi khoá bọc C3 của một người nhận
+     * @description Thu hồi các bản ghi `task.e2ee_key_wrap` của `personId` trên nhiệm vụ C3 khi đổi người nhận hoặc kết thúc uỷ quyền (ADR-06).
+     */
+    delete: operations['revokeTaskSecretShare'];
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   '/tasks/{id}/change-requests': {
@@ -923,6 +1039,80 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/plans/{id}/versions/{v}/items/{itemId}/score': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Số phiên bản kế hoạch (`task.plan_version.version_no`). */
+        v: components['parameters']['VersionNo'];
+        /** @description Mã dòng kế hoạch (`task.plan_item.id`). */
+        itemId: components['parameters']['ItemId'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Định điểm công việc ngoài danh mục trong kế hoạch quý
+     * @description Cơ quan thẩm định hoặc cấp có thẩm quyền định độ khó và điểm chuẩn cho dòng công việc ngoài danh mục (`inCatalog = false`) trước khi duyệt kế hoạch (BR-04-05).
+     */
+    post: operations['scoreOffCatalogPlanItem'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/plans/{id}/adjustment-exceptions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Cấp ngoại lệ điều chỉnh kế hoạch quý vượt giới hạn
+     * @description Lãnh đạo có thẩm quyền cho phép điều chỉnh kế hoạch vượt số lần giới hạn trong quý (BR-04-10, MSG-04-07).
+     */
+    post: operations['grantPlanAdjustmentException'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/plans/{id}/versions/{v}/items/{itemId}/confirm-lead': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Số phiên bản kế hoạch (`task.plan_version.version_no`). */
+        v: components['parameters']['VersionNo'];
+        /** @description Mã dòng kế hoạch (`task.plan_item.id`). */
+        itemId: components['parameters']['ItemId'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Xác nhận một người chủ trì cho dòng kế hoạch trước khi sinh nhiệm vụ
+     * @description Xác nhận một người chủ trì duy nhất cho dòng công việc trong kế hoạch quý trước khi sinh nhiệm vụ (QT-04 bước 2, QT-05 bước 1a).
+     */
+    post: operations['confirmPlanItemLead'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/catalog': {
     parameters: {
       query?: never;
@@ -1048,6 +1238,29 @@ export interface paths {
      * @description Tạo phiên bản n+1 ở trạng thái `NHAP` từ phiên bản đang xem.
      */
     post: operations['cloneCatalogVersion'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/catalog/{catalogId}/activate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Mã phiên bản danh mục (`task.work_catalog.id`). */
+        catalogId: components['parameters']['CatalogId'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Áp dụng phiên bản danh mục công việc
+     * @description Chuyển phiên bản danh mục từ `NHAP` sang `AP_DUNG` và tự động chuyển phiên bản đang áp dụng trước đó của cùng đơn vị sang `HET_HIEU_LUC` (QT-04 bước 1).
+     */
+    post: operations['activateCatalogVersion'];
     delete?: never;
     options?: never;
     head?: never;
@@ -1945,6 +2158,74 @@ export interface components {
       }[];
       finishedAt?: components['schemas']['DateTime'];
     };
+    TaskRegistrationDecision: {
+      /** @description true = duyệt giao việc (`DA_GIAO`), false = từ chối (`HUY`) */
+      approve: boolean;
+      /** @description Bắt buộc khi `approve = false` */
+      reason?: string;
+      dueDate?: components['schemas']['Date'];
+      quantity?: number;
+    };
+    TaskBlockerEscalateRequest: {
+      targetUnitId?: components['schemas']['Uuid'];
+      targetPersonId?: components['schemas']['Uuid'];
+      note: string;
+    };
+    /** @description Khoá nội dung nhiệm vụ C3 đã bọc cho một thiết bị người nhận (`task.e2ee_key_wrap`, ADR-06). */
+    TaskKeyWrap: {
+      recipientPersonId: components['schemas']['Uuid'];
+      deviceId: string;
+      /**
+       * @default ECDH-ES+A256KW
+       * @enum {string}
+       */
+      algorithm: 'ECDH-ES+A256KW' | 'RSA-OAEP-256';
+      ephemeralPublicKey?: string;
+      wrappedKey: string;
+      createdAt?: components['schemas']['DateTime'];
+    };
+    TaskSecretContentInput: {
+      ciphertext: string;
+      nonce: string;
+      aadHash: string;
+      sha256: string;
+      keyWraps: components['schemas']['TaskKeyWrap'][];
+    };
+    TaskSecretContent: {
+      taskId: components['schemas']['Uuid'];
+      ciphertext: string;
+      nonce: string;
+      aadHash: string;
+      sha256: string;
+      keyWrap: components['schemas']['TaskKeyWrap'];
+      updatedAt: components['schemas']['DateTime'];
+      rowVersion: components['schemas']['RowVersion'];
+    };
+    TaskSecretContentMeta: {
+      taskId: components['schemas']['Uuid'];
+      sha256: string;
+      recipientCount: number;
+      updatedAt: components['schemas']['DateTime'];
+      rowVersion: components['schemas']['RowVersion'];
+    };
+    TaskSecretShareRequest: {
+      keyWraps: components['schemas']['TaskKeyWrap'][];
+    };
+    PlanItemScoreRequest: {
+      /** @description Mức khó năm mức (BR-04-14) */
+      difficulty: number;
+      standardScore: number;
+      note?: string;
+    };
+    PlanAdjustmentExceptionRequest: {
+      extraAdjustments: number;
+      reason: string;
+      basisDocRef?: string;
+    };
+    PlanItemConfirmLeadRequest: {
+      leadPersonId: components['schemas']['Uuid'];
+      note?: string;
+    };
     /**
      * Format: uuid
      * @description Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).
@@ -2085,16 +2366,6 @@ export interface components {
         'application/json': components['schemas']['Job'];
       };
     };
-    /** @description Vượt giới hạn tốc độ (mặc định 20 request/giây mỗi người dùng, đột biến 40). */
-    TooManyRequests: {
-      headers: {
-        'Retry-After': components['headers']['RetryAfter'];
-        [name: string]: unknown;
-      };
-      content: {
-        'application/problem+json': components['schemas']['ProblemDetails'];
-      };
-    };
     /** @description Không tìm thấy, hoặc đối tượng nằm ngoài phạm vi người gọi (không lộ sự tồn tại). */
     NotFound: {
       headers: {
@@ -2113,6 +2384,16 @@ export interface components {
         'application/problem+json': components['schemas']['ProblemDetails'];
       };
     };
+    /** @description Vượt giới hạn tốc độ (mặc định 20 request/giây mỗi người dùng, đột biến 40). */
+    TooManyRequests: {
+      headers: {
+        'Retry-After': components['headers']['RetryAfter'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetails'];
+      };
+    };
   };
   parameters: {
     /** @description Số phiên bản kế hoạch (`task.plan_version.version_no`). */
@@ -2120,6 +2401,8 @@ export interface components {
     /** @description Mã phiên bản danh mục (`task.work_catalog.id`). */
     CatalogId: components['schemas']['Uuid'];
     JobId: string;
+    /** @description Mã dòng kế hoạch (`task.plan_item.id`). */
+    ItemId: components['schemas']['Uuid'];
     /** @description Đơn vị (`org.org_unit.id`); máy chủ kiểm phạm vi theo ABAC. */
     UnitId: components['schemas']['Uuid'];
     /** @description Mã kỳ đánh giá (`config.period.id`). */
@@ -2431,6 +2714,45 @@ export interface operations {
       };
       409: components['responses']['Conflict'];
       422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  decideTaskRegistration: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TaskRegistrationDecision'];
+      };
+    };
+    responses: {
+      /** @description Nhiệm vụ sau khi ra quyết định đăng ký. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TaskDetail'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
       default: components['responses']['Problem'];
     };
   };
@@ -2916,6 +3238,174 @@ export interface operations {
       409: components['responses']['Conflict'];
       422: components['responses']['UnprocessableEntity'];
       428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  escalateTaskBlocker: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+        blockerId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TaskBlockerEscalateRequest'];
+      };
+    };
+    responses: {
+      /** @description Điểm nghẽn sau khi chuyển cấp trên. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TaskBlocker'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getTaskSecretContent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Bản mã C3 và khoá bọc của người gọi. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TaskSecretContent'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  saveTaskSecretContent: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TaskSecretContentInput'];
+      };
+    };
+    responses: {
+      /** @description Siêu dữ liệu bản mã C3 đã lưu. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TaskSecretContentMeta'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  shareTaskSecretContent: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TaskSecretShareRequest'];
+      };
+    };
+    responses: {
+      /** @description Siêu dữ liệu bản mã C3 sau khi chia sẻ khoá bọc. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TaskSecretContentMeta'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  revokeTaskSecretShare: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+        personId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Đã thu hồi khoá bọc. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       default: components['responses']['Problem'];
     };
   };
@@ -3703,6 +4193,131 @@ export interface operations {
       default: components['responses']['Problem'];
     };
   };
+  scoreOffCatalogPlanItem: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Số phiên bản kế hoạch (`task.plan_version.version_no`). */
+        v: components['parameters']['VersionNo'];
+        /** @description Mã dòng kế hoạch (`task.plan_item.id`). */
+        itemId: components['parameters']['ItemId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlanItemScoreRequest'];
+      };
+    };
+    responses: {
+      /** @description Phiên bản kế hoạch sau khi định điểm mục ngoài danh mục. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PlanVersion'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  grantPlanAdjustmentException: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlanAdjustmentExceptionRequest'];
+      };
+    };
+    responses: {
+      /** @description Kế hoạch sau khi cấp ngoại lệ điều chỉnh. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Plan'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  confirmPlanItemLead: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Số phiên bản kế hoạch (`task.plan_version.version_no`). */
+        v: components['parameters']['VersionNo'];
+        /** @description Mã dòng kế hoạch (`task.plan_item.id`). */
+        itemId: components['parameters']['ItemId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlanItemConfirmLeadRequest'];
+      };
+    };
+    responses: {
+      /** @description Dòng kế hoạch sau khi xác nhận người chủ trì. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PlanItem'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
   listWorkCatalogs: {
     parameters: {
       query?: {
@@ -3931,6 +4546,42 @@ export interface operations {
       };
       403: components['responses']['Forbidden'];
       409: components['responses']['Conflict'];
+      default: components['responses']['Problem'];
+    };
+  };
+  activateCatalogVersion: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        /** @description Mã phiên bản danh mục (`task.work_catalog.id`). */
+        catalogId: components['parameters']['CatalogId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Phiên bản danh mục đã chuyển sang `AP_DUNG`. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['WorkCatalog'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
       default: components['responses']['Problem'];
     };
   };

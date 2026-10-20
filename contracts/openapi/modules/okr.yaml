@@ -570,6 +570,106 @@ paths:
         rules: [BR-02-09]
         source: TL-02a SCR-0203 "Trả lại để sửa"; ma trận SCR-0203.tra-lai
 
+  /okr/objectives/{id}/cancel:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Mục tiêu]
+      operationId: cancelObjective
+      summary: Huỷ mục tiêu
+      description: >-
+        Chuyển mục tiêu từ `CHO_DUYET` hoặc `DA_DUYET` sang `DONG` theo máy trạng thái QT-02, bắt buộc lý do huỷ,
+        ghi vết lịch sử (`okr.objective_review`) và phát EVT-21 thông báo cho đơn vị sở hữu.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrCancelRequest' }
+            examples:
+              huy:
+                value:
+                  reason: Chủ trương công tác điều chỉnh theo nghị quyết mới của Ban Thường vụ.
+      responses:
+        '200':
+          description: Đã huỷ; mục tiêu ở `DONG`.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrObjective' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Mục tiêu không ở `CHO_DUYET` hoặc `DA_DUYET` (`OKR-409-INVALID-STATE`), hoặc kỳ đã khoá (`OKR-409-PERIOD-LOCKED`).
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0201, SCR-0203]
+        owner: MOD-01
+        evt: [EVT-21]
+        roles: [leader]
+        scope: Cd
+        source: TL-02a QT-02 máy trạng thái (CHO_DUYET/DA_DUYET → DONG); TL-03 okr.objective.status
+
+  /okr/objectives/{id}/revisions:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Mục tiêu]
+      operationId: createObjectiveRevision
+      summary: Tạo phiên bản điều chỉnh mục tiêu đã duyệt
+      description: >-
+        Tạo phiên bản mới (`versionNo + 1`) từ mục tiêu đang `DA_DUYET` khi có sự kiện bất khả kháng hoặc thay đổi
+        nhiệm vụ chính trị (BR-02-10). Phiên bản mới khởi tạo ở `NHAP` (hoặc `CHO_DUYET` nếu `submitImmediately = true`),
+        sao chép các KR và liên kết hiện tại để điều chỉnh và trình duyệt lại; phiên bản cũ giữ nguyên lịch sử để đối chiếu.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrRevisionCreateRequest' }
+            examples:
+              dieu-chinh:
+                value:
+                  reason: Bổ sung nhiệm vụ đột xuất theo thông báo kết luận của Thường trực Tỉnh uỷ.
+                  basisDocRef: 18-TB/TU
+                  submitImmediately: false
+      responses:
+        '201':
+          description: Đã tạo phiên bản mục tiêu mới (`versionNo + 1`).
+          headers:
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrObjective' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Mục tiêu không ở `DA_DUYET` (`OKR-409-INVALID-STATE`), đã có phiên bản nháp đang mở (`OKR-409-REVISION-PENDING`) hoặc kỳ đã khoá.
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0202]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: Đv
+        rules: [BR-02-10]
+        source: TL-02a BR-02-10; TL-03 okr.objective.version_no
+
   /okr/objectives/{id}/history:
     parameters:
       - $ref: '../common/common.yaml#/components/parameters/IdPath'
@@ -784,6 +884,83 @@ paths:
         roles: [leader, manager, member, inspector, ai_readonly]
         scope: Đv
         source: TL-02a SCR-0301 trường 1-6 (suy luận đường dẫn)
+
+  /okr/key-results/{id}/checkin-delegate:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    put:
+      tags: [Check-in]
+      operationId: setKrCheckinDelegate
+      summary: Uỷ quyền cập nhật tiến độ kết quả then chốt
+      description: >-
+        Chủ sở hữu KR uỷ quyền cho chuyên viên đầu mối (`delegatePersonId`) thực hiện check-in thay trong
+        thời hạn xác định (`validUntil`). Khi uỷ quyền còn hiệu lực, `viewerIsOwner` đúng cho cả chủ KR và
+        người được uỷ quyền (QT-03 bước 2).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KrCheckinDelegateInput' }
+            examples:
+              uy-quyen:
+                value:
+                  delegatePersonId: 01928f3e-1111-7000-8000-000000000001
+                  validUntil: '2026-12-31'
+                  reason: Giao chuyên viên tổng hợp số liệu tuần của phòng cập nhật định kỳ.
+      responses:
+        '200':
+          description: Đã thiết lập người được giao check-in thay.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrKeyResult' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-03]
+        scr: [SCR-0301, SCR-0201]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: B
+        source: TL-02a QT-03 bước 2 (người được chủ KR uỷ quyền); SCR-0301
+    delete:
+      tags: [Check-in]
+      operationId: revokeKrCheckinDelegate
+      summary: Thu hồi uỷ quyền cập nhật tiến độ kết quả then chốt
+      description: Chủ sở hữu KR thu hồi quyền check-in thay đã uỷ quyền.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Đã thu hồi uỷ quyền check-in thay.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrKeyResult' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-03]
+        scr: [SCR-0301, SCR-0201]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: B
+        source: TL-02a QT-03 bước 2; SCR-0301
 
   /okr/key-results/{id}/checkins:
     parameters:
@@ -1589,7 +1766,10 @@ components:
           description: Tiến độ, trung bình có trọng số tiến độ các KR, từ 0 đến 1 (`okr.objective.progress`).
         overLimitReason: { type: string, maxLength: 500, description: Lý do vượt 3 mục tiêu (BR-02-01) }
         overLimit: { type: boolean, description: 'Nhãn "Vượt 3 O" cho người duyệt (suy luận)' }
-        versionNo: { type: integer, minimum: 1, description: Lần trình duyệt }
+        versionNo:
+          type: integer
+          minimum: 1
+          description: Phiên bản mục tiêu (`okr.objective.version_no`, tăng khi tạo phiên bản điều chỉnh từ mục tiêu đã duyệt theo BR-02-10).
         aiAssisted: { type: boolean }
         aiSuggestionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         approvedBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
@@ -1700,6 +1880,42 @@ components:
       properties:
         comment: { type: string, minLength: 1, maxLength: 2000, description: Ý kiến bắt buộc (BR-02-09) }
         notifyPeers: { type: boolean, default: true }
+    OkrCancelRequest:
+      description: Yêu cầu huỷ mục tiêu từ `CHO_DUYET` hoặc `DA_DUYET` sang `DONG`, bắt buộc lý do.
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 10, maxLength: 2000 }
+        notifyPeers: { type: boolean, default: true }
+    OkrRevisionCreateRequest:
+      description: Yêu cầu tạo phiên bản điều chỉnh (`versionNo + 1`) từ mục tiêu `DA_DUYET` (BR-02-10).
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 10
+          maxLength: 2000
+          description: Lý do điều chỉnh (sự kiện bất khả kháng hoặc thay đổi nhiệm vụ chính trị).
+        basisDocRef:
+          type: string
+          maxLength: 200
+          description: Số hiệu văn bản căn cứ điều chỉnh (nếu có).
+        submitImmediately:
+          type: boolean
+          default: false
+          description: Trình duyệt ngay phiên bản mới sau khi tạo; mặc định `false` (lưu ở `NHAP` để sửa chi tiết).
+    KrCheckinDelegateInput:
+      description: Thiết lập người được chủ KR uỷ quyền check-in thay (QT-03 bước 2).
+      type: object
+      required: [delegatePersonId]
+      properties:
+        delegatePersonId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        validUntil:
+          type: [string, 'null']
+          format: date
+          description: Hạn hiệu lực uỷ quyền; bỏ trống là tới hết kỳ của KR.
+        reason: { type: string, maxLength: 500 }
     OkrApproveBatchRequest:
       type: object
       required: [items]
@@ -1724,8 +1940,8 @@ components:
         at: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
         action:
           type: string
-          description: Hành động (mã suy luận từ bảng trạng thái QT-02).
-          enum: [TAO, LUU_NHAP, TRINH, RUT_LAI, DUYET, TRA_LAI, DONG]
+          description: Hành động (mã suy luận từ bảng trạng thái QT-02 và BR-02-10).
+          enum: [TAO, LUU_NHAP, TRINH, RUT_LAI, DUYET, TRA_LAI, TAO_PHIEN_BAN, DONG]
         versionNo: { type: integer, minimum: 1 }
         status: { $ref: '#/components/schemas/OkrObjectiveStatus' }
         actor: { $ref: '../common/common.yaml#/components/schemas/Ref' }

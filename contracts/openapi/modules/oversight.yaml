@@ -537,6 +537,41 @@ paths:
         '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
 
+  /oversight/complaints/{id}/duplicate-candidates:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [complaints]
+      operationId: listComplaintDuplicateCandidates
+      summary: Tra cứu các khiếu nại nghi trùng nội dung đã trả lời
+      description: >-
+        Hỗ trợ cán bộ thụ lý kiểm tra điều kiện trùng nội dung đã trả lời không có tình tiết mới (BR-12-11)
+        trước khi quyết định thụ lý hoặc không thụ lý ở SCR-1202.
+      x-mission:
+        qt: [QT-12]
+        scr: [SCR-1202]
+        owner: MOD-07
+        roles: [appraiser]
+        scope: Gn
+        rules: [BR-12-11]
+        source: 'TL-02b QT-12 BR-12-11; SCR-1202 (suy luận đường dẫn)'
+      responses:
+        '200':
+          description: Danh sách khiếu nại tương tự của cùng người khiếu nại hoặc cùng nội dung mục tiêu.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ComplaintDuplicateCandidate' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
   /oversight/complaints/{id}/explanation-requests:
     parameters:
       - $ref: '../common/common.yaml#/components/parameters/IdPath'
@@ -2553,6 +2588,21 @@ components:
         anchors:
           type: array
           items: { $ref: '#/components/schemas/LedgerAnchorReceipt' }
+    ComplaintDuplicateCandidate:
+      description: Khiếu nại trước đó nghi trùng nội dung để đối chiếu theo BR-12-11.
+      type: object
+      required: [id, code, subjectLine, status, filedAt, similarityScore]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string }
+        subjectLine: { type: string }
+        status: { $ref: '#/components/schemas/ComplaintStatus' }
+        filedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        similarityScore: { type: number, minimum: 0, maximum: 1 }
+        matchedTargets:
+          type: array
+          items: { type: string }
+        conclusionSummary: { type: [string, 'null'] }
 
   examples:
     ComplaintKn0031:

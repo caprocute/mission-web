@@ -256,6 +256,30 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/evidences/{id}/versions/{v}/key-wraps': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Số phiên bản minh chứng (`product.evidence_version.version_no`), bắt đầu từ 1. */
+        v: components['parameters']['VersionNo'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Bổ sung khoá bọc E2EE cho phiên bản minh chứng C3
+     * @description Thêm các bản ghi `product.e2ee_key_wrap` cho người thẩm định, thành viên hội đồng hoặc người nhận uỷ quyền cần giải mã minh chứng C3 trên trình duyệt (ADR-06; TL-01 chương 9).
+     */
+    post: operations['addEvidenceVersionKeyWraps'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/files/uploads': {
     parameters: {
       query?: never;
@@ -394,6 +418,29 @@ export interface paths {
     get: operations['getFileScanResult'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/files/{objectId}/rescan': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Mã đối tượng logic (`evidence.object_meta.id`). */
+        objectId: components['parameters']['ObjectId'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Yêu cầu quét lại mã độc cho tệp bị lỗi quét
+     * @description Khi bộ quét mã độc gặp sự cố (`scanStatus = LOI`), người nộp hoặc quản trị yêu cầu đưa tệp vào lại hàng đợi quét mà không phải tải lên lại từ đầu (TL-02a QT-07 ngoại lệ, BR-07-04).
+     */
+    post: operations['rescanFileObject'];
     delete?: never;
     options?: never;
     head?: never;
@@ -950,6 +997,9 @@ export interface components {
       engineVersion?: string;
       scannedAt?: components['schemas']['DateTime'];
     };
+    EvidenceKeyWrapBatchInput: {
+      keyWraps: components['schemas']['EvidenceKeyWrap'][];
+    };
     /**
      * Format: uuid
      * @description Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).
@@ -1024,6 +1074,25 @@ export interface components {
      * @enum {string}
      */
     Classification: 'C0' | 'C1' | 'C2' | 'C3';
+    /**
+     * @description Trạng thái tác vụ dài. TL chưa đặc tả lược đồ job; hợp đồng giữ bộ giá trị WEB-007 đã dùng (lấy từ các trạng thái job trong TL-03).
+     * @enum {string}
+     */
+    JobStatus: 'CHO' | 'DANG_CHAY' | 'HOAN_TAT' | 'THAT_BAI' | 'DA_HUY';
+    /** @description Tác vụ dài trả qua `GET /api/v1/jobs/{id}`. */
+    Job: {
+      id: string;
+      /** @description Loại tác vụ, ví dụ PERIOD_LOCK, ESIGN_BATCH, EXPORT, IMPORT, RENDER, TEST_RUN, BULK_ASSIGN */
+      type: string;
+      status: components['schemas']['JobStatus'];
+      progress?: number;
+      /** @description Mô tả bước đang chạy, tiếng Việt */
+      message?: string;
+      /** @description Đường dẫn kết quả khi HOAN_TAT */
+      resultLocation?: string;
+      problem?: components['schemas']['ProblemDetails'];
+      updatedAt?: components['schemas']['DateTime'];
+    };
   };
   responses: {
     /** @description Lỗi khác theo RFC 9457. */
@@ -1088,6 +1157,17 @@ export interface components {
       };
       content: {
         'application/problem+json': components['schemas']['ProblemDetails'];
+      };
+    };
+    /** @description Tác vụ nền đã nhận (trả trong 200 ms, NFR-03). Theo dõi bằng `Location` hoặc luồng SSE `/api/v1/notifications/stream`. */
+    Accepted: {
+      headers: {
+        Location: components['headers']['Location'];
+        'Retry-After': components['headers']['RetryAfter'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['Job'];
       };
     };
   };
@@ -1814,6 +1894,43 @@ export interface operations {
       default: components['responses']['Problem'];
     };
   };
+  addEvidenceVersionKeyWraps: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Số phiên bản minh chứng (`product.evidence_version.version_no`), bắt đầu từ 1. */
+        v: components['parameters']['VersionNo'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['EvidenceKeyWrapBatchInput'];
+      };
+    };
+    responses: {
+      /** @description Phiên bản minh chứng sau khi bổ sung khoá bọc. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['EvidenceVersion'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
   createFileUpload: {
     parameters: {
       query?: never;
@@ -2150,6 +2267,29 @@ export interface operations {
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  rescanFileObject: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        /** @description Mã đối tượng logic (`evidence.object_meta.id`). */
+        objectId: components['parameters']['ObjectId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      202: components['responses']['Accepted'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
       default: components['responses']['Problem'];
     };
   };

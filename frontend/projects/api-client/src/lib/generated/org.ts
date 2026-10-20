@@ -210,6 +210,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/org/change-orders/{id}/corrections': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Đính chính hai trục thời gian cho quyết định thay đổi tổ chức
+     * @description Đính chính sai sót nhập liệu trên trục ghi nhận (bitemporal, BR-01-06): đóng `recorded_to` của các phiên bản ghi nhận sai và chèn phiên bản đã đính chính với `recorded_from = now()`. Không ghi đè vật lý lịch sử; bắt buộc có lý do đính chính và văn bản căn cứ.
+     */
+    post: operations['correctOrgChangeOrder'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/org/units/{id}/history': {
     parameters: {
       query?: never;
@@ -247,7 +269,55 @@ export interface paths {
      */
     get: operations['listOrgUnitAssignments'];
     put?: never;
+    /**
+     * Thêm phân công cán bộ vào đơn vị
+     * @description Tạo bản ghi phân công `org.assignment` có hiệu lực từ `validFrom` (QT-01 bước 5, BR-01-06).
+     */
+    post: operations['createOrgUnitAssignment'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/assignments/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Điều chỉnh phân công cán bộ theo trục hiệu lực
+     * @description Cập nhật chức danh, loại phân công (chính/kiêm nhiệm), tỷ lệ thời gian hoặc khối đối tượng của phân công tại đơn vị (QT-01 bước 5, BR-01-06).
+     */
+    patch: operations['updateOrgAssignment'];
+    trace?: never;
+  };
+  '/org/assignments/{id}/end': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Kết thúc phân công cán bộ tại đơn vị
+     * @description Đóng `valid_to` của phân công `org.assignment` khi điều động, thôi kiêm nhiệm hoặc nghỉ công tác (QT-01 bước 5, BR-01-06).
+     */
+    post: operations['endOrgAssignment'];
     delete?: never;
     options?: never;
     head?: never;
@@ -744,6 +814,41 @@ export interface components {
       /** @description Ngày hiệu lực theo quyết định nguồn (trường 10), dùng làm `org.assignment.valid_from` khi lấy theo nguồn. */
       effectiveFrom?: components['schemas']['Date'];
       syncRunId: components['schemas']['Uuid'];
+    };
+    OrgAssignmentCreateRequest: {
+      personId: components['schemas']['Uuid'];
+      jobTitleId: components['schemas']['Uuid'];
+      subjectGroupCode?: string;
+      /**
+       * @default CHINH
+       * @enum {string}
+       */
+      assignmentKind: 'CHINH' | 'KIEM_NHIEM' | 'BIET_PHAI';
+      /** @default 1 */
+      weightRatio: number;
+      validFrom: components['schemas']['Date'];
+      /** Format: date */
+      validTo?: string | null;
+      signedDocRef?: string;
+    };
+    OrgAssignmentUpdateRequest: {
+      jobTitleId?: components['schemas']['Uuid'];
+      subjectGroupCode?: string;
+      /** @enum {string} */
+      assignmentKind?: 'CHINH' | 'KIEM_NHIEM' | 'BIET_PHAI';
+      weightRatio?: number;
+      effectiveFrom?: components['schemas']['Date'];
+      signedDocRef?: string;
+    };
+    OrgAssignmentEndRequest: {
+      validTo: components['schemas']['Date'];
+      reason: string;
+      signedDocRef?: string;
+    };
+    OrgChangeCorrectionRequest: {
+      reason: string;
+      signedDocRef: string;
+      correctedOrder: components['schemas']['OrgChangeRequest'];
     };
     FieldError: {
       /** @description Tên trường theo JSON của thân yêu cầu, dạng đường dẫn chấm */
@@ -1303,6 +1408,45 @@ export interface operations {
       default: components['responses']['Problem'];
     };
   };
+  correctOrgChangeOrder: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OrgChangeCorrectionRequest'];
+      };
+    };
+    responses: {
+      /** @description Quyết định đính chính đã ghi nhận trên trục ghi nhận. */
+      201: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OrgChangeOrder'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
   listOrgUnitHistory: {
     parameters: {
       query?: {
@@ -1374,6 +1518,120 @@ export interface operations {
       };
       401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  createOrgUnitAssignment: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OrgAssignmentCreateRequest'];
+      };
+    };
+    responses: {
+      /** @description Phân công mới đã tạo. */
+      201: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OrgUnitAssignment'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  updateOrgAssignment: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OrgAssignmentUpdateRequest'];
+      };
+    };
+    responses: {
+      /** @description Phân công sau khi cập nhật. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OrgUnitAssignment'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  endOrgAssignment: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OrgAssignmentEndRequest'];
+      };
+    };
+    responses: {
+      /** @description Phân công sau khi kết thúc hiệu lực. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OrgUnitAssignment'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
       default: components['responses']['Problem'];
     };
   };
