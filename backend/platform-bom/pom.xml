@@ -60,6 +60,11 @@
     <docx4j.version>11.5.14</docx4j.version>
     <!-- OpenPDF 2.x: bản mới nhất của dòng 2 (thay iText 7 vì AGPL). -->
     <openpdf.version>2.4.0</openpdf.version>
+    <!--
+      uuid-creator 6.1: sinh UUIDv7 ở ứng dụng (TL-03 "Kiểu dữ liệu chuẩn", NEN-009);
+      bản mới nhất của dòng 6, không có phụ thuộc bắc cầu.
+    -->
+    <uuid-creator.version>6.1.1</uuid-creator.version>
   </properties>
 
   <dependencyManagement>
@@ -107,6 +112,11 @@
         <groupId>com.github.librepdf</groupId>
         <artifactId>openpdf</artifactId>
         <version>${openpdf.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.github.f4b6a3</groupId>
+        <artifactId>uuid-creator</artifactId>
+        <version>${uuid-creator.version}</version>
       </dependency>
 
       <!-- BOM bên ngoài: Spring Boot (gồm Hibernate, Flyway, Log4j2, JUnit, Testcontainers). -->
