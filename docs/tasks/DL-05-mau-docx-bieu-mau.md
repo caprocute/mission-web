@@ -13,7 +13,7 @@
 | Cỡ việc | M (≤ 1 ngày) |
 | Phụ thuộc | – (DV-11-02, DV-11-03 phụ thuộc task này) |
 | Truy vết | H5; QT-09, QT-11 (BR-11-02, BR-11-03, BR-11-04) → API `POST /api/v1/dossiers/forms/preview` (`previewDossierForm`), `POST /api/v1/dossiers/forms` (`createDossierDraftForms`), `POST /api/v1/dossiers/render-jobs` (`createDossierRenderJob`) → SVC-11, MOD-06 → bảng `docgen.template`, `dossier.form_instance` → EVT-17 |
-| Trạng thái | Chưa bắt đầu (dùng bản giả lập); đã dựng khung kê khai bảy mẫu và công cụ kiểm tra ngày 20/10/2026 |
+| Trạng thái | Bản giả lập xong 20/10/2026: bảy mẫu `GIA_LAP` có kê khai và tệp DOCX sinh tự động, công cụ kiểm tra và kiểm thử; thay bằng bản chính thức khi người dùng cung cấp mẫu |
 
 ## 1. Mục tiêu
 

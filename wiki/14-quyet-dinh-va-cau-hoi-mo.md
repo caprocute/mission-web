@@ -153,7 +153,7 @@ Phần này gom điểm lệch và câu hỏi phát sinh khi soạn dữ liệu 
 
 **Gói luồng Nhà nước chưa có mẫu biểu.** TL không nói luồng Nhà nước dùng mẫu nào; `khoi-chinh-quyen/nd335/templates/` để trống. Cần xác nhận luồng Nhà nước dùng chung mẫu nào của gói Đảng hay có mẫu riêng theo NĐ 335/2025.
 
-### Policy Pack bản nháp (DL-01, DL-02, DL-04)
+### Policy Pack bản giả lập (DL-01, DL-02, DL-04)
 
 Bản giả lập gói `khoi-dang/quy-dinh-moi` 2.1.0 và `khoi-chinh-quyen/nd335` 1.4.0 nằm ở `data/policy-pack/`, trạng thái `NHAP`, chưa phê duyệt. Các mục dưới cần nghiệp vụ hoặc người phụ trách xác nhận khi có nội dung chính thức; khi chốt, chuyển sang phần quyết định đã chốt.
 
