@@ -632,6 +632,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/esign/seals': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Ký HSM tổ chức và đóng dấu thời gian RFC 3161 cho Merkle root hàng ngày của sổ cái (SVC-09)
+     * @description Điểm vào nội bộ để `audit-ledger` (SVC-09) yêu cầu `esign-service` (SVC-10) ký chữ ký số tổ chức qua HSM và lấy dấu thời gian TSA chuẩn RFC 3161 cho gốc Merkle hàng ngày (`ledger.audit_seal`, TL-03 mục 3.16). Không qua luồng xác nhận của người dùng trên di động.
+     */
+    post: operations['signLedgerSeal'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1365,6 +1385,21 @@ export interface components {
       validTo: components['schemas']['DateTime'];
       /** @default false */
       isDefault: boolean;
+    };
+    /** @description Yêu cầu ký con dấu thời gian và chữ ký tổ chức cho lô sổ cái kiểm toán (`ledger.audit_seal`, SVC-09 gọi SVC-10). */
+    LedgerSealSignRequest: {
+      sealDate: components['schemas']['Date'];
+      merkleRoot: string;
+      prevMerkleRoot?: string | null;
+      eventCount: number;
+    };
+    LedgerSealSignature: {
+      sealDate: components['schemas']['Date'];
+      merkleRoot: string;
+      signatureB64: string;
+      tsaTokenB64: string;
+      certificateSerial: string;
+      signedAt: components['schemas']['DateTime'];
     };
     /**
      * Format: uuid
@@ -2861,6 +2896,37 @@ export interface operations {
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  signLedgerSeal: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LedgerSealSignRequest'];
+      };
+    };
+    responses: {
+      /** @description Chữ ký HSM và dấu thời gian TSA cho lô sổ cái. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LedgerSealSignature'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['UnprocessableEntity'];
       default: components['responses']['Problem'];
     };
   };

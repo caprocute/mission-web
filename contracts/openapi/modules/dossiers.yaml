@@ -920,6 +920,25 @@ components:
         validFrom: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
         validTo: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
         isDefault: { type: boolean, default: false }
+    LedgerSealSignRequest:
+      description: Yêu cầu ký con dấu thời gian và chữ ký tổ chức cho lô sổ cái kiểm toán (`ledger.audit_seal`, SVC-09 gọi SVC-10).
+      type: object
+      required: [sealDate, merkleRoot, eventCount]
+      properties:
+        sealDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        merkleRoot: { type: string, pattern: '^[0-9a-f]{64}$' }
+        prevMerkleRoot: { type: [string, 'null'], pattern: '^[0-9a-f]{64}$' }
+        eventCount: { type: integer, minimum: 0 }
+    LedgerSealSignature:
+      type: object
+      required: [sealDate, merkleRoot, signatureB64, tsaTokenB64, certificateSerial, signedAt]
+      properties:
+        sealDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        merkleRoot: { type: string, pattern: '^[0-9a-f]{64}$' }
+        signatureB64: { type: string, contentEncoding: base64 }
+        tsaTokenB64: { type: string, contentEncoding: base64 }
+        certificateSerial: { type: string }
+        signedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
 
 paths:
   # ---------------------------------------------------------------- Hội nghị kiểm điểm
@@ -2489,3 +2508,39 @@ paths:
         scope: B
         aal: 2
         source: 'TL-01 SVC-10; TL-03 esign.certificate_ref (suy luận đường dẫn)'
+
+  /esign/seals:
+    post:
+      tags: [Ký số]
+      operationId: signLedgerSeal
+      summary: Ký HSM tổ chức và đóng dấu thời gian RFC 3161 cho Merkle root hàng ngày của sổ cái (SVC-09)
+      description: >-
+        Điểm vào nội bộ để `audit-ledger` (SVC-09) yêu cầu `esign-service` (SVC-10) ký chữ ký số tổ chức
+        qua HSM và lấy dấu thời gian TSA chuẩn RFC 3161 cho gốc Merkle hàng ngày (`ledger.audit_seal`,
+        TL-03 mục 3.16). Không qua luồng xác nhận của người dùng trên di động.
+      security:
+        - serviceClient: []
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LedgerSealSignRequest' }
+      responses:
+        '201':
+          description: Chữ ký HSM và dấu thời gian TSA cho lô sổ cái.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LedgerSealSignature' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-13]
+        scr: [SCR-1302]
+        owner: SVC-10
+        roles: [service_client]
+        scope: N
+        source: 'TL-01 SVC-09, SVC-10; TL-03 ledger.audit_seal (suy luận đường dẫn)'

@@ -2508,10 +2508,48 @@ paths:
         scope: Đv
         source: 'TL-02a SCR-0401 "Tải tệp lỗi"'
 
+  /tasks/visibility-check:
+    post:
+      tags: [Nhiệm vụ]
+      operationId: checkTaskVisibilityBatch
+      summary: Kiểm quyền hiển thị theo lô cho kết quả tìm kiếm toàn văn của SVC-16
+      description: >-
+        Điểm vào nội bộ để `search-indexer` (SVC-16) kiểm quyền lại ở `mission-core` trên danh sách ứng viên
+        `taskId`/`directiveId` trả về từ OpenSearch trước khi trả kết quả tìm kiếm cho người dùng (TL-01 mục
+        SVC-16). Chỉ trả danh sách định danh mà `viewerPersonId` được phép nhìn thấy theo RLS và phạm vi đơn vị.
+      security:
+        - serviceClient: []
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskVisibilityCheckRequest' }
+      responses:
+        '200':
+          description: Tập định danh được phép hiển thị cho người tìm kiếm.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskVisibilityCheckResponse' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002]
+        owner: MOD-02
+        roles: [service_client]
+        scope: B
+        source: 'TL-01 mục SVC-16 kiểm quyền lại ở lõi trước khi trả (suy luận đường dẫn)'
+
 components:
   securitySchemes:
     keycloak:
       $ref: '../common/common.yaml#/components/securitySchemes/keycloak'
+    serviceClient:
+      $ref: '../common/common.yaml#/components/securitySchemes/serviceClient'
   parameters:
     VersionNo:
       name: v
@@ -3614,3 +3652,27 @@ components:
       properties:
         leadPersonId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         note: { type: string, maxLength: 500 }
+    TaskVisibilityCheckRequest:
+      type: object
+      required: [viewerPersonId, viewerUnitId]
+      properties:
+        viewerPersonId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        viewerUnitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        taskIds:
+          type: array
+          maxItems: 200
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        directiveIds:
+          type: array
+          maxItems: 200
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    TaskVisibilityCheckResponse:
+      type: object
+      required: [visibleTaskIds, visibleDirectiveIds]
+      properties:
+        visibleTaskIds:
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        visibleDirectiveIds:
+          type: array
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }

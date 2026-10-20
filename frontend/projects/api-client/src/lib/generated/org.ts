@@ -280,6 +280,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/org/assignments': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Tạo phân công chính thức, kiêm nhiệm hoặc biệt phái theo đơn vị trong thân yêu cầu
+     * @description Điểm vào chuẩn `POST /api/v1/org/assignments` theo TL-01 mục SVC-04 (cùng nghiệp vụ với `POST /org/units/{id}/assignments`, thuận tiện cho lời gọi nội bộ và đồng bộ). Kiểm tra tổng tỷ lệ thời gian không vượt 100% khi kiêm nhiệm (BR-01-06) và sinh bản ghi mới trên trục hiệu lực `[valid_from, valid_to)` (BR-01-08).
+     */
+    post: operations['createOrgAssignment'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/org/assignments/{id}': {
     parameters: {
       query?: never;
@@ -816,6 +836,23 @@ export interface components {
       syncRunId: components['schemas']['Uuid'];
     };
     OrgAssignmentCreateRequest: {
+      personId: components['schemas']['Uuid'];
+      jobTitleId: components['schemas']['Uuid'];
+      subjectGroupCode?: string;
+      /**
+       * @default CHINH
+       * @enum {string}
+       */
+      assignmentKind: 'CHINH' | 'KIEM_NHIEM' | 'BIET_PHAI';
+      /** @default 1 */
+      weightRatio: number;
+      validFrom: components['schemas']['Date'];
+      /** Format: date */
+      validTo?: string | null;
+      signedDocRef?: string;
+    };
+    OrgAssignmentCreateInput: {
+      orgUnitId: components['schemas']['Uuid'];
       personId: components['schemas']['Uuid'];
       jobTitleId: components['schemas']['Uuid'];
       subjectGroupCode?: string;
@@ -1553,6 +1590,49 @@ export interface operations {
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  createOrgAssignment: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OrgAssignmentCreateInput'];
+      };
+    };
+    responses: {
+      /** @description Phân công mới trên trục hiệu lực. */
+      201: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          Location: components['headers']['Location'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OrgUnitAssignment'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      /** @description Trùng giai đoạn phân công chính hoặc vượt tỷ lệ kiêm nhiệm (`ORG-409-ASSIGNMENT-OVERLAP`, BR-01-06). */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
       422: components['responses']['UnprocessableEntity'];
       default: components['responses']['Problem'];
     };

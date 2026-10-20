@@ -578,6 +578,53 @@ paths:
         rules: [BR-01-06, BR-01-08]
         source: 'TL-02a QT-01 bước 5; SCR-0103 vùng 3 (suy luận đường dẫn)'
 
+  /org/assignments:
+    post:
+      tags: [Cây tổ chức]
+      operationId: createOrgAssignment
+      summary: Tạo phân công chính thức, kiêm nhiệm hoặc biệt phái theo đơn vị trong thân yêu cầu
+      description: >-
+        Điểm vào chuẩn `POST /api/v1/org/assignments` theo TL-01 mục SVC-04 (cùng nghiệp vụ với
+        `POST /org/units/{id}/assignments`, thuận tiện cho lời gọi nội bộ và đồng bộ). Kiểm tra tổng tỷ lệ
+        thời gian không vượt 100% khi kiêm nhiệm (BR-01-06) và sinh bản ghi mới trên trục hiệu lực
+        `[valid_from, valid_to)` (BR-01-08).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrgAssignmentCreateInput' }
+      responses:
+        '201':
+          description: Phân công mới trên trục hiệu lực.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgUnitAssignment' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: Trùng giai đoạn phân công chính hoặc vượt tỷ lệ kiêm nhiệm (`ORG-409-ASSIGNMENT-OVERLAP`, BR-01-06).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103]
+        owner: SVC-04
+        evt: [EVT-15]
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-01-06, BR-01-08]
+        source: 'TL-01 mục SVC-04 POST /api/v1/org/assignments; TL-03 org.assignment'
+
   /org/assignments/{id}:
     parameters:
       - $ref: '../common/common.yaml#/components/parameters/IdPath'
@@ -1437,6 +1484,19 @@ components:
       type: object
       required: [personId, jobTitleId, assignmentKind, validFrom]
       properties:
+        personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        jobTitleId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        subjectGroupCode: { type: string }
+        assignmentKind: { type: string, enum: [CHINH, KIEM_NHIEM, BIET_PHAI], default: CHINH }
+        weightRatio: { type: number, minimum: 0, maximum: 1, default: 1 }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        validTo: { type: [string, 'null'], format: date }
+        signedDocRef: { type: string, maxLength: 200 }
+    OrgAssignmentCreateInput:
+      type: object
+      required: [orgUnitId, personId, jobTitleId, assignmentKind, validFrom]
+      properties:
+        orgUnitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         jobTitleId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         subjectGroupCode: { type: string }

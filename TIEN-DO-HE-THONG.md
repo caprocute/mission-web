@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **77 / 401 task (19.2%)** — Khối lượng quy đổi đã gộp: **89.5 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **85 / 401 task (21.2%)** (gồm **77** đã gộp `main` + **8** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **86 / 401 task (21.4%)** (gồm **77** đã gộp `main` + **9** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **10 task** (6 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **306 task**.
+- **Chưa bắt đầu**: **305 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **7 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-00-01`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -23,7 +23,7 @@
 | Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **46** | 0 | 3 | 23 | **63.9%** |
-| **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **25** | 2 | 3 | 3 | **75.8%** |
+| **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **25** | 3 | 3 | 2 | **75.8%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **0** | 0 | 0 | 112 | **0.0%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **0** | 5 | 2 | 97 | **0.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **4** | 0 | 2 | 6 | **33.3%** |
@@ -32,13 +32,13 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **77** | **8** | **10** | **306** | **19.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **77** | **9** | **10** | **305** | **19.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
-| **M0 – Nền móng phát triển & CSDL** | 59 | **41** | 3 | 4 | 11 | **69.5%** |
+| **M0 – Nền móng phát triển & CSDL** | 59 | **41** | 4 | 4 | 10 | **69.5%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **5** | 5 | 2 | 28 | **12.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **7** | 0 | 2 | 37 | **15.2%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **14** | 0 | 0 | 103 | **12.0%** |
@@ -144,7 +144,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-064](docs/tasks/WEB-064-sinh-kieu-tu-hop-dong.md) | Sinh kiểu frontend từ bộ hợp đồng `contracts/openapi/`, kiểm model viết tay với hợp đồng (luồng Nền tảng) | M | W-Nền tảng | – | WEB-007, WEB-063 | **Đã gộp main** | Đã gộp `main` (sinh kiểu frontend từ `contracts/openapi/`, `npm run api:check`) |
 | [WEB-065](docs/tasks/WEB-065-doi-chieu-ke-hoach-hop-dong.md) | Đối chiếu client kế hoạch (SCR-0402, SCR-0403) với hợp đồng OpenAPI (luồng màn hình nghiệp vụ) | M | W-Nghiệp vụ | – | WEB-026, WEB-027, WEB-064 | **Đã gộp main** | Đã gộp `main` (đối chiếu client kế hoạch SCR-0402, SCR-0403 với hợp đồng OpenAPI) |
 
-### NEN · Nền móng hệ thống: repo, quy định, wiki, khung mã, thư viện nền, nền CSDL (25/33 đã gộp `main`, 2 chờ gộp, 3 đang làm)
+### NEN · Nền móng hệ thống: repo, quy định, wiki, khung mã, thư viện nền, nền CSDL (25/33 đã gộp `main`, 3 chờ gộp, 3 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -180,7 +180,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [NEN-021](docs/tasks/NEN-021-luoc-do-topic-ky-thuat.md) | Lược đồ Avro cho sự kiện kỹ thuật `evidence.object.*` và các topic kỹ thuật còn thiếu | S | B1 | 4 | NEN-007 | **Đã gộp main** | Đã gộp `main` (commit `f32a1d7`, gộp tại `275bb0f` – lược đồ Avro cho các topic sự kiện kỹ thuật) |
 | [NEN-022](docs/tasks/NEN-022-phat-lai-outbox-connector.md) | Công cụ phát lại outbox và cấu hình connector Debezium outbox theo schema | M | B1 | 7 | NEN-011 | **Đã gộp main** | Đã gộp `main` (commit `3b0f87e` – công cụ phát lại outbox và cấu hình connector Debezium theo schema) |
 | [NEN-042](docs/tasks/NEN-042-sua-hop-dong-nghiep-vu.md) | Sửa hợp đồng OpenAPI phần nghiệp vụ: thêm thao tác còn thiếu (huỷ OKR, phiên bản điều chỉnh mục tiêu, uỷ quyền check-in, kích hoạt danh mục, chấm việc ngoài danh mục, ngoại lệ điều chỉnh, xác nhận dòng kế hoạch, duyệt nhiệm vụ đăng ký, chuyển điểm nghẽn, danh bạ khoá E2EE và chia sẻ CEK, ghi trường hợp đặc thù, gợi ý khiếu nại trùng) và sửa mô tả `acceptComplaint` | M | B1 | 2 | NEN-001 | **Xong, chờ gộp** | Đã bổ sung hợp đồng OpenAPI 3.1 các phân hệ nghiệp vụ (okr, tasks, products, org, dossiers, oversight), sinh lại kiểu TS và kiểm thử vt-api-contract/vt-contract-test xanh |
-| [NEN-043](docs/tasks/NEN-043-sua-hop-dong-nen-tang.md) | Sửa hợp đồng OpenAPI phần nền tảng: cờ tính năng cho mọi người dùng, cấu hình tenant, thiết bị nhận thông báo đẩy, tuỳ chọn kênh, mã khôi phục MFA, `POST /org/assignments`, guest token Superset, kiểm quyền theo lô cho tìm kiếm, ký nội bộ cho sổ cái, OCR cho tài khoản dịch vụ, đề nghị chuyển cell | M | B1 | 3 | NEN-001, NEN-042 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt |
+| [NEN-043](docs/tasks/NEN-043-sua-hop-dong-nen-tang.md) | Sửa hợp đồng OpenAPI phần nền tảng: cờ tính năng cho mọi người dùng, cấu hình tenant, thiết bị nhận thông báo đẩy, tuỳ chọn kênh, mã khôi phục MFA, `POST /org/assignments`, guest token Superset, kiểm quyền theo lô cho tìm kiếm, ký nội bộ cho sổ cái, OCR cho tài khoản dịch vụ, đề nghị chuyển cell | M | B1 | 3 | NEN-001, NEN-042 | **Xong, chờ gộp** | Bổ sung 16 thao tác OpenAPI 3.1 còn thiếu cho config, platform (registry, iam, notifications, ai, analytics), org, tasks, dossiers và đồng bộ api-client/vt-api-contract |
 
 ### CORE-00 · mission-core: phần dùng chung (0/5 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -653,4 +653,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 20/10/2026 22:09 | Điều phối | `NEN-011`, `NEN-012`, `NEN-019` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (2006fc9, 6c2525d) |
 | 20/10/2026 22:14 | B1 | `NEN-042` | Chuyển trạng thái sang **Đang làm** — Đang bổ sung các thao tác nghiệp vụ còn thiếu vào OpenAPI 3.1 |
 | 20/10/2026 22:32 | B1 | `NEN-042` | Chuyển trạng thái sang **Xong, chờ gộp** — Đã bổ sung hợp đồng OpenAPI 3.1 các phân hệ nghiệp vụ (okr, tasks, products, org, dossiers, oversight), sinh lại kiểu TS và kiểm thử vt-api-contract/vt-contract-test xanh |
+| 20/10/2026 22:33 | B1 | `NEN-043` | Chuyển trạng thái sang **Đang làm** — Đang bổ sung hợp đồng OpenAPI 3.1 các phân hệ nền tảng (config, platform, org, tasks, dossiers) |
+| 20/10/2026 22:48 | B1 | `NEN-043` | Chuyển trạng thái sang **Xong, chờ gộp** — Bổ sung 16 thao tác OpenAPI 3.1 còn thiếu cho config, platform (registry, iam, notifications, ai, analytics), org, tasks, dossiers và đồng bộ api-client/vt-api-contract |
 <!-- PROGRESS_LOG_END -->

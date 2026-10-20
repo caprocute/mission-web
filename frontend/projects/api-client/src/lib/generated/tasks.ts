@@ -1348,6 +1348,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/tasks/visibility-check': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Kiểm quyền hiển thị theo lô cho kết quả tìm kiếm toàn văn của SVC-16
+     * @description Điểm vào nội bộ để `search-indexer` (SVC-16) kiểm quyền lại ở `mission-core` trên danh sách ứng viên `taskId`/`directiveId` trả về từ OpenSearch trước khi trả kết quả tìm kiếm cho người dùng (TL-01 mục SVC-16). Chỉ trả danh sách định danh mà `viewerPersonId` được phép nhìn thấy theo RLS và phạm vi đơn vị.
+     */
+    post: operations['checkTaskVisibilityBatch'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2225,6 +2245,16 @@ export interface components {
     PlanItemConfirmLeadRequest: {
       leadPersonId: components['schemas']['Uuid'];
       note?: string;
+    };
+    TaskVisibilityCheckRequest: {
+      viewerPersonId: components['schemas']['Uuid'];
+      viewerUnitId: components['schemas']['Uuid'];
+      taskIds?: components['schemas']['Uuid'][];
+      directiveIds?: components['schemas']['Uuid'][];
+    };
+    TaskVisibilityCheckResponse: {
+      visibleTaskIds: components['schemas']['Uuid'][];
+      visibleDirectiveIds: components['schemas']['Uuid'][];
     };
     /**
      * Format: uuid
@@ -4691,6 +4721,37 @@ export interface operations {
         };
       };
       404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  checkTaskVisibilityBatch: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TaskVisibilityCheckRequest'];
+      };
+    };
+    responses: {
+      /** @description Tập định danh được phép hiển thị cho người tìm kiếm. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TaskVisibilityCheckResponse'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['UnprocessableEntity'];
       default: components['responses']['Problem'];
     };
   };

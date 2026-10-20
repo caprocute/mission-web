@@ -124,6 +124,97 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/registry/tenants/{id}/move/{moveId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Mã lệnh chuyển cell. */
+        moveId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Chi tiết và tiến độ lệnh chuyển cell
+     * @description Theo dõi trạng thái saga sáu bước chuyển cell của tenant (ADR-29: tạo đích, Debezium sao chép ban đầu, bắt kịp WAL, chuyển tenant sang chỉ đọc `TAM_KHOA`, đổi `registry.tenant_cell.active`, mở lại ghi ở cell mới).
+     */
+    get: operations['getTenantMove'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/registry/tenants/{id}/move/{moveId}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Mã lệnh chuyển cell. */
+        moveId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Huỷ lệnh chuyển cell trước khi cắt chuyển hoặc quay lui an toàn
+     * @description Huỷ đề nghị chuyển cell khi đang `CHO_DUYET`, hoặc dừng/quay lui an toàn trước khi đổi `registry.tenant_cell.active` (ADR-29). Yêu cầu AAL2 và hai người duyệt khi đang `DANG_CHUYEN`.
+     */
+    post: operations['cancelTenantMove'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/iam/users/{personId}/mfa-recovery-codes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Mã nhân sự (`org.person.id`) cần cấp mã khôi phục MFA. */
+        personId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Cấp mã khôi phục MFA một lần có thời hạn 15 phút
+     * @description Quản trị viên đơn vị xác minh ngoại tuyến và cấp mã khôi phục một lần khi người dùng mất thiết bị SmartOTP (TL-02a QT-00 mục 3.1.5). Mã có thời hạn tối đa 15 phút, chỉ dùng một lần để đăng nhập và đăng ký thiết bị mới, ghi nhật ký kiểm toán.
+     */
+    post: operations['issueMfaRecoveryCode'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/iam/users/{personId}/mfa-recovery-codes/revoke': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Mã nhân sự (`org.person.id`) cần thu hồi các mã khôi phục MFA chưa dùng. */
+        personId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Thu hồi mọi mã khôi phục MFA đang còn hiệu lực của người dùng */
+    post: operations['revokeMfaRecoveryCodes'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/workflow/inbox': {
     parameters: {
       query?: never;
@@ -511,6 +602,62 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/notifications/devices': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Danh sách thiết bị nhận thông báo đẩy của người dùng hiện hành */
+    get: operations['listMyPushDevices'];
+    put?: never;
+    /** Đăng ký hoặc làm mới token thiết bị nhận thông báo đẩy (FCM/APNs/Web Push) */
+    post: operations['registerPushDevice'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/notifications/devices/{deviceId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Định danh thiết bị đẩy đã đăng ký. */
+        deviceId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Huỷ đăng ký thiết bị nhận thông báo đẩy khi đăng xuất hoặc thu hồi phiên */
+    delete: operations['unregisterPushDevice'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/notifications/preferences': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Tuỳ chọn kênh thông báo và khung giờ yên lặng của người dùng */
+    get: operations['getNotificationPreferences'];
+    /** Cập nhật tuỳ chọn kênh thông báo của người dùng */
+    put: operations['updateNotificationPreferences'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/ai/suggestions': {
     parameters: {
       query?: never;
@@ -695,6 +842,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/ai/ocr': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Nhận dạng chữ tiếng Việt (OCR) từ tệp ảnh hoặc PDF quét của minh chứng/văn bản
+     * @description Tác vụ nội bộ cho `evidence-service` (SVC-08) và `search-indexer` (SVC-16) bóc văn bản từ tệp ảnh hoặc PDF quét thuộc mức C1/C2 (tuyệt đối từ chối C3 theo BR-17-07). Trả 200 khi tệp nhỏ hoặc 202 kèm `Location` khi xử lý bất đồng bộ.
+     */
+    post: operations['ocrEvidenceObject'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/analytics/query': {
     parameters: {
       query?: never;
@@ -854,6 +1021,26 @@ export interface paths {
      * @description Xuất chuỗi truy vết của một đối tượng kèm mã băm từng mắt xích và mã bản ghi sổ cái, chỉ gồm các mắt xích người xuất có quyền. Việc xuất được ghi `sys.audit.v1`.
      */
     post: operations['exportTraceChain'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/analytics/embed-tokens': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Cấp guest token ngắn hạn để nhúng biểu đồ Superset có khoá phạm vi `org_path`
+     * @description Sinh JWT ngắn hạn (tối đa 5 phút) cho khung nhúng Apache Superset ở chế độ tự khai thác chỉ số (TL-01 mục SVC-15), gắn chặt điều kiện RLS `tenant_id` và tiền tố `org_path` của người xem (BR-16-01, BR-16-04).
+     */
+    post: operations['createAnalyticsEmbedToken'];
     delete?: never;
     options?: never;
     head?: never;
@@ -1084,6 +1271,18 @@ export interface components {
       requestedAt: components['schemas']['DateTime'];
       approvedBy?: components['schemas']['Uuid'];
       approvedAt?: components['schemas']['DateTime'];
+      /**
+       * @description Bước hiện hành của saga 6 bước chuyển cell (ADR-29).
+       * @enum {string|null}
+       */
+      currentStep?:
+        | 'PROVISION_TARGET'
+        | 'INITIAL_SNAPSHOT'
+        | 'WAL_CATCHUP'
+        | 'READ_ONLY_FREEZE'
+        | 'SWITCH_ACTIVE_CELL'
+        | 'REOPEN_WRITE'
+        | null;
       rowVersion: components['schemas']['RowVersion'];
     };
     /** @description Ý kiến kèm thao tác phê duyệt hoặc đề nghị (tuỳ chọn). */
@@ -1900,6 +2099,125 @@ export interface components {
       items: components['schemas']['SearchResult'][];
       nextCursor: components['schemas']['NextCursor'];
     };
+    MfaRecoveryCodeIssueRequest: {
+      /**
+       * @description Hình thức quản trị viên đã xác minh danh tính cán bộ mất thiết bị SmartOTP.
+       * @enum {string}
+       */
+      verificationMethod: 'TRUC_TIEP' | 'VAN_BAN_DON_VI' | 'GOI_VIDEO_NOI_BO';
+      reason: string;
+      /** @default 15 */
+      ttlMinutes: number;
+    };
+    /**
+     * @example {
+     *       "codeId": "0195f3f0-0000-7000-8000-000000000501",
+     *       "personId": "0195f3a0-0000-7000-8000-000000000101",
+     *       "recoveryCode": "9482-7310-5521",
+     *       "expiresAt": "2026-04-01T08:15:00Z",
+     *       "issuedAt": "2026-04-01T08:00:00Z"
+     *     }
+     */
+    MfaRecoveryCodeIssued: {
+      codeId: components['schemas']['Uuid'];
+      personId: components['schemas']['Uuid'];
+      /** @description Mã khôi phục một lần (hiển thị đúng một lần cho quản trị viên trao cho cán bộ). */
+      recoveryCode: string;
+      expiresAt: components['schemas']['DateTime'];
+      issuedAt: components['schemas']['DateTime'];
+    };
+    MfaRecoveryCodeRevokeRequest: {
+      reason: string;
+    };
+    MfaRecoveryCodeRevokeResult: {
+      revokedCount: number;
+    };
+    /** @enum {string} */
+    PushPlatform: 'FCM' | 'APNS' | 'WEB_PUSH';
+    PushDevice: {
+      id: components['schemas']['Uuid'];
+      platform: components['schemas']['PushPlatform'];
+      deviceName: string;
+      appVersion?: string;
+      registeredAt: components['schemas']['DateTime'];
+      lastSeenAt: components['schemas']['DateTime'];
+    };
+    PushDeviceList: {
+      items: components['schemas']['PushDevice'][];
+    };
+    PushDeviceRegisterRequest: {
+      platform: components['schemas']['PushPlatform'];
+      pushToken: string;
+      deviceName: string;
+      appVersion?: string;
+      webPushKeys?: {
+        p256dh?: string;
+        auth?: string;
+      } | null;
+    };
+    /** @enum {string} */
+    NotificationChannel: 'IN_APP' | 'PUSH' | 'EMAIL' | 'SMS';
+    /** @enum {string} */
+    NotificationCategory:
+      'NHIEM_VU' | 'PHE_DUYET' | 'DANH_GIA' | 'KY_SO' | 'CANH_BAO_BAO_MAT' | 'HE_THONG';
+    NotificationCategoryPreference: {
+      category: components['schemas']['NotificationCategory'];
+      channels: components['schemas']['NotificationChannel'][];
+    };
+    NotificationPreferences: {
+      categories: components['schemas']['NotificationCategoryPreference'][];
+      /** @default false */
+      quietHoursEnabled: boolean;
+      quietHoursStart?: string | null;
+      quietHoursEnd?: string | null;
+      rowVersion: components['schemas']['RowVersion'];
+      updatedAt: components['schemas']['DateTime'];
+    };
+    NotificationPreferencesInput: {
+      categories: components['schemas']['NotificationCategoryPreference'][];
+      quietHoursEnabled: boolean;
+      quietHoursStart?: string | null;
+      quietHoursEnd?: string | null;
+    };
+    AiOcrRequest: {
+      objectKey: string;
+      sha256: string;
+      /** @enum {string} */
+      mimeType: 'application/pdf' | 'image/jpeg' | 'image/png';
+      /**
+       * @description Chỉ cho phép C1/C2; tài liệu C3 bị từ chối theo BR-17-07.
+       * @enum {string}
+       */
+      classification: 'C1' | 'C2';
+      /** @default vi */
+      languageHint: string;
+    };
+    AiOcrPage: {
+      pageNumber: number;
+      text: string;
+      confidence: number;
+    };
+    AiOcrResult: {
+      objectKey: string;
+      sha256: string;
+      pages: components['schemas']['AiOcrPage'][];
+      fullText: string;
+      modelId: string;
+      processedAt: components['schemas']['DateTime'];
+    };
+    AnalyticsEmbedTokenRequest: {
+      dashboardCode: string;
+      unitId?: components['schemas']['Uuid'];
+      periodId?: components['schemas']['Uuid'];
+    };
+    AnalyticsEmbedToken: {
+      token: string;
+      /** Format: uri */
+      embedUrl: string;
+      expiresAt: components['schemas']['DateTime'];
+      /** @description Tiền tố `org_path` đã khoá cứng trong guest token (BR-16-01). */
+      lockedOrgPathPrefix: string;
+    };
     FieldError: {
       /** @description Tên trường theo JSON của thân yêu cầu, dạng đường dẫn chấm */
       field: string;
@@ -2418,6 +2736,152 @@ export interface operations {
       404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
       428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getTenantMove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Mã lệnh chuyển cell. */
+        moveId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Chi tiết lệnh chuyển cell. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TenantMove'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  cancelTenantMove: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Mã lệnh chuyển cell. */
+        moveId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['ApprovalComment'];
+      };
+    };
+    responses: {
+      /** @description Lệnh chuyển cell đã chuyển sang `DA_HUY`. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TenantMove'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      /** @description Xung đột phiên bản hoặc lệnh đã hoàn tất cắt chuyển (`REGISTRY-409-MOVE-ALREADY-CUTOVER`). */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  issueMfaRecoveryCode: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        /** @description Mã nhân sự (`org.person.id`) cần cấp mã khôi phục MFA. */
+        personId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MfaRecoveryCodeIssueRequest'];
+      };
+    };
+    responses: {
+      /** @description Mã khôi phục một lần (chỉ trả dạng rõ đúng một lần khi cấp). */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MfaRecoveryCodeIssued'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  revokeMfaRecoveryCodes: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        /** @description Mã nhân sự (`org.person.id`) cần thu hồi các mã khôi phục MFA chưa dùng. */
+        personId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MfaRecoveryCodeRevokeRequest'];
+      };
+    };
+    responses: {
+      /** @description Số mã khôi phục đã thu hồi. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MfaRecoveryCodeRevokeResult'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       default: components['responses']['Problem'];
     };
   };
@@ -3135,6 +3599,143 @@ export interface operations {
       default: components['responses']['Problem'];
     };
   };
+  listMyPushDevices: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Danh sách thiết bị đã đăng ký. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PushDeviceList'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      default: components['responses']['Problem'];
+    };
+  };
+  registerPushDevice: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PushDeviceRegisterRequest'];
+      };
+    };
+    responses: {
+      /** @description Thiết bị đã đăng ký. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PushDevice'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  unregisterPushDevice: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        /** @description Định danh thiết bị đẩy đã đăng ký. */
+        deviceId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Đã xoá đăng ký thiết bị. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getNotificationPreferences: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Tuỳ chọn thông báo hiện hành. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['NotificationPreferences'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      default: components['responses']['Problem'];
+    };
+  };
+  updateNotificationPreferences: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['NotificationPreferencesInput'];
+      };
+    };
+    responses: {
+      /** @description Tuỳ chọn thông báo đã lưu. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['NotificationPreferences'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
   listAiSuggestions: {
     parameters: {
       query?: {
@@ -3480,6 +4081,46 @@ export interface operations {
       default: components['responses']['Problem'];
     };
   };
+  ocrEvidenceObject: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AiOcrRequest'];
+      };
+    };
+    responses: {
+      /** @description Văn bản OCR trích xuất được theo từng trang. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AiOcrResult'];
+        };
+      };
+      202: components['responses']['Accepted'];
+      401: components['responses']['Unauthorized'];
+      /** @description Từ chối khi đối tượng có mức độ mật `C3` (`AI-403-C3-FORBIDDEN`, BR-17-07). */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
   queryAnalytics: {
     parameters: {
       query?: never;
@@ -3795,6 +4436,38 @@ export interface operations {
     };
     responses: {
       202: components['responses']['Accepted'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  createAnalyticsEmbedToken: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AnalyticsEmbedTokenRequest'];
+      };
+    };
+    responses: {
+      /** @description Guest token ngắn hạn cho khung nhúng. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AnalyticsEmbedToken'];
+        };
+      };
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
