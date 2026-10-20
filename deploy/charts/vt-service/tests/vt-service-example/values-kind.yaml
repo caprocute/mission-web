@@ -1,0 +1,38 @@
+# Values cài chart thử lên cụm kind ba node giả lập ba vùng (deploy/environments/kind).
+# Dùng ảnh http-echo theo digest thay cho org-service (chưa có ảnh thật); runtime custom, probe trên cổng http.
+global:
+  cell: kind
+  sizing: M
+name: echo-service
+namespace: vt-thu
+runtime: custom
+image:
+  repository: docker.io/hashicorp/http-echo
+  digest: sha256:fcb75f691c8b0414d670ae570240cbf95502cc18a9ba57e982ecac589760a186
+args: ["-listen=:8080", "-text=ok"]
+ports:
+  http: 8080
+  mgmt: 8080
+probes:
+  startup: { path: /health, port: http }
+  liveness: { path: /health, port: http }
+  readiness: { path: /health, port: http }
+env: []
+envFrom: []
+resources:
+  requests: { cpu: 20m, memory: 32Mi }
+  limits: { cpu: 100m, memory: 32Mi }
+workload:
+  replicas: 3
+autoscaling:
+  hpa:
+    enabled: false
+pdb:
+  minAvailable: 2
+  maxUnavailable: ""
+serviceMonitor:
+  enabled: false
+networkPolicy:
+  ingressFrom:
+    - { namespace: vt-thu, podLabels: { vt.io/vai-tro: client }, ports: [{ port: 8080 }] }
+  egressTo: []
