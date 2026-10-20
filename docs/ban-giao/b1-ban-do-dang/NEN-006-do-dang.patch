@@ -1,0 +1,1856 @@
+diff --git a/backend/libs/pom.xml b/backend/libs/pom.xml
+index 57ccb47..b9f9ea4 100644
+--- a/backend/libs/pom.xml
++++ b/backend/libs/pom.xml
+@@ -18,5 +18,9 @@
+   <modules>
+     <!-- NEN-030: bộ chạy Flyway theo schema, kiểm phiên bản lược đồ, lint quy ước. -->
+     <module>vt-db-migration</module>
++    <!-- NEN-006 (ADR-32): interface Spring sinh từ contracts/openapi và kiểm hợp đồng openapi-diff. -->
++    <module>vt-api-contract/codegen</module>
++    <module>vt-api-contract</module>
++    <module>vt-contract-test</module>
+   </modules>
+ </project>
+diff --git a/backend/libs/vt-api-contract/codegen/pom.xml b/backend/libs/vt-api-contract/codegen/pom.xml
+new file mode 100644
+index 0000000..f31ebaa
+--- /dev/null
++++ b/backend/libs/vt-api-contract/codegen/pom.xml
+@@ -0,0 +1,57 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!--
++  NEN-006 · ADR-32 (BS-02) · YC-PT-05.
++
++  Phần mở rộng của openapi-generator dùng lúc sinh mã, không chạy trong ứng dụng: bộ chuẩn hoá
++  MissionContractNormalizer chỉ giữ thao tác có x-mission.owner thuộc một đơn vị triển khai, để mỗi
++  đơn vị (mission-core, org-service, evidence-service...) nhận đúng phần interface của mình mà
++  không phải sửa hợp đồng (YC-PT-09). Mô-đun vt-api-contract khai jar này làm phụ thuộc của plugin.
++-->
++<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
++  <modelVersion>4.0.0</modelVersion>
++
++  <parent>
++    <groupId>vn.viettel.okrkpi</groupId>
++    <artifactId>libs</artifactId>
++    <version>0.1.0-SNAPSHOT</version>
++    <relativePath>../../pom.xml</relativePath>
++  </parent>
++
++  <artifactId>vt-api-contract-codegen</artifactId>
++
++  <name>Mission · phần mở rộng sinh mã hợp đồng API</name>
++
++  <dependencies>
++    <!--
++      Chỉ cần lớp OpenAPINormalizer để biên dịch; lúc chạy, lớp này nằm sẵn trên classpath của
++      openapi-generator-maven-plugin. Loại toàn bộ phụ thuộc bắc cầu để không kéo cây phụ thuộc
++      lớn của generator vào hội tụ phụ thuộc.
++    -->
++    <dependency>
++      <groupId>org.openapitools</groupId>
++      <artifactId>openapi-generator</artifactId>
++      <scope>provided</scope>
++      <exclusions>
++        <exclusion>
++          <groupId>*</groupId>
++          <artifactId>*</artifactId>
++        </exclusion>
++      </exclusions>
++    </dependency>
++    <dependency>
++      <groupId>io.swagger.parser.v3</groupId>
++      <artifactId>swagger-parser-v3</artifactId>
++      <scope>provided</scope>
++    </dependency>
++    <dependency>
++      <groupId>org.assertj</groupId>
++      <artifactId>assertj-core</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>org.junit.jupiter</groupId>
++      <artifactId>junit-jupiter</artifactId>
++      <scope>test</scope>
++    </dependency>
++  </dependencies>
++</project>
+diff --git a/backend/libs/vt-api-contract/codegen/src/main/java/vn/viettel/okrkpi/contract/codegen/BooleanConstSimplifier.java b/backend/libs/vt-api-contract/codegen/src/main/java/vn/viettel/okrkpi/contract/codegen/BooleanConstSimplifier.java
+new file mode 100644
+index 0000000..48517ed
+--- /dev/null
++++ b/backend/libs/vt-api-contract/codegen/src/main/java/vn/viettel/okrkpi/contract/codegen/BooleanConstSimplifier.java
+@@ -0,0 +1,83 @@
++package vn.viettel.okrkpi.contract.codegen;
++
++import io.swagger.v3.oas.models.OpenAPI;
++import io.swagger.v3.oas.models.media.Schema;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.IdentityHashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.Set;
++
++/**
++ * Bỏ {@code const}/{@code enum} trên lược đồ kiểu {@code boolean} trước khi sinh mã.
++ *
++ * <p>Lý do: generator {@code spring} 7.x sinh {@code const: true} thành {@code enum AttestedEnum {
++ * TRUE("true") }} với trường {@code Boolean}, không biên dịch được (lỗi của generator với OpenAPI
++ * 3.1; quy tắc chuẩn {@code SIMPLIFY_BOOLEAN_ENUM} không bắt được {@code const}). Sau khi bỏ, trường
++ * là {@code Boolean}; ràng buộc "phải là true" do máy chủ kiểm trong nghiệp vụ, và kiểm thử hợp đồng
++ * vẫn đối chiếu theo tệp hợp đồng gốc. Tệp hợp đồng không bị sửa (YC-PT-09).
++ */
++public final class BooleanConstSimplifier {
++
++  private BooleanConstSimplifier() {}
++
++  /**
++   * Duyệt mọi lược đồ trong {@code components.schemas} (gồm thuộc tính lồng, phần tử mảng và
++   * thành phần allOf/oneOf/anyOf).
++   *
++   * @return số lược đồ boolean đã bỏ const/enum
++   */
++  public static int simplify(OpenAPI openApi) {
++    if (openApi.getComponents() == null || openApi.getComponents().getSchemas() == null) {
++      return 0;
++    }
++    Set<Schema<?>> visited = Collections.newSetFromMap(new IdentityHashMap<>());
++    int count = 0;
++    for (Schema<?> schema : openApi.getComponents().getSchemas().values()) {
++      count += visit(schema, visited);
++    }
++    return count;
++  }
++
++  @SuppressWarnings({"rawtypes", "unchecked"})
++  private static int visit(Schema<?> schema, Set<Schema<?>> visited) {
++    if (schema == null || !visited.add(schema)) {
++      return 0;
++    }
++    int count = 0;
++    if (isBoolean(schema) && (schema.getConst() != null || schema.getEnum() != null)) {
++      ((Schema) schema).setConst(null);
++      schema.setEnum(null);
++      count++;
++    }
++    List<Schema> children = new ArrayList<>();
++    Map<String, Schema> properties = schema.getProperties();
++    if (properties != null) {
++      children.addAll(properties.values());
++    }
++    children.add(schema.getItems());
++    if (schema.getAdditionalProperties() instanceof Schema<?> additional) {
++      children.add(additional);
++    }
++    addAll(children, schema.getAllOf());
++    addAll(children, schema.getOneOf());
++    addAll(children, schema.getAnyOf());
++    for (Schema child : children) {
++      count += visit(child, visited);
++    }
++    return count;
++  }
++
++  @SuppressWarnings("rawtypes")
++  private static void addAll(List<Schema> target, List<Schema> source) {
++    if (source != null) {
++      target.addAll(source);
++    }
++  }
++
++  private static boolean isBoolean(Schema<?> schema) {
++    return "boolean".equals(schema.getType())
++        || (schema.getTypes() != null && schema.getTypes().contains("boolean"));
++  }
++}
+diff --git a/backend/libs/vt-api-contract/codegen/src/main/java/vn/viettel/okrkpi/contract/codegen/ExampleStripper.java b/backend/libs/vt-api-contract/codegen/src/main/java/vn/viettel/okrkpi/contract/codegen/ExampleStripper.java
+new file mode 100644
+index 0000000..ade7370
+--- /dev/null
++++ b/backend/libs/vt-api-contract/codegen/src/main/java/vn/viettel/okrkpi/contract/codegen/ExampleStripper.java
+@@ -0,0 +1,81 @@
++package vn.viettel.okrkpi.contract.codegen;
++
++import io.swagger.v3.oas.models.OpenAPI;
++import io.swagger.v3.oas.models.Operation;
++import io.swagger.v3.oas.models.PathItem;
++import io.swagger.v3.oas.models.media.Content;
++import io.swagger.v3.oas.models.media.MediaType;
++import io.swagger.v3.oas.models.parameters.RequestBody;
++import io.swagger.v3.oas.models.responses.ApiResponse;
++import java.util.Collection;
++
++/**
++ * Bỏ {@code example}/{@code examples} của nội dung yêu cầu và phản hồi khỏi mô hình trong bộ nhớ
++ * trước khi sinh mã.
++ *
++ * <p>Lý do: generator {@code spring} 7.x chép ví dụ vào {@code @ExampleObject(value = "...")} mà
++ * không thoát đúng chuỗi JSON lồng dấu nháy (ví dụ {@code bpmnXml} chứa {@code xmlns="..."}), làm
++ * mã sinh ra không biên dịch được. Ví dụ không cần cho interface: kiểm thử hợp đồng đọc ví dụ thẳng
++ * từ {@code contracts/dist} (vt-contract-test). Tệp hợp đồng không bị sửa (YC-PT-09).
++ */
++public final class ExampleStripper {
++
++  private ExampleStripper() {}
++
++  /**
++   * Bỏ ví dụ ở mọi phản hồi, thân yêu cầu của thao tác và ở {@code components}.
++   *
++   * @return số kiểu nội dung (media type) đã bỏ ví dụ
++   */
++  public static int strip(OpenAPI openApi) {
++    int count = 0;
++    if (openApi.getPaths() != null) {
++      for (PathItem pathItem : openApi.getPaths().values()) {
++        for (Operation operation : pathItem.readOperations()) {
++          count += strip(operation.getRequestBody());
++          if (operation.getResponses() != null) {
++            count += stripResponses(operation.getResponses().values());
++          }
++        }
++      }
++    }
++    if (openApi.getComponents() != null) {
++      if (openApi.getComponents().getResponses() != null) {
++        count += stripResponses(openApi.getComponents().getResponses().values());
++      }
++      if (openApi.getComponents().getRequestBodies() != null) {
++        for (RequestBody body : openApi.getComponents().getRequestBodies().values()) {
++          count += strip(body);
++        }
++      }
++    }
++    return count;
++  }
++
++  private static int stripResponses(Collection<ApiResponse> responses) {
++    int count = 0;
++    for (ApiResponse response : responses) {
++      count += strip(response.getContent());
++    }
++    return count;
++  }
++
++  private static int strip(RequestBody body) {
++    return body == null ? 0 : strip(body.getContent());
++  }
++
++  private static int strip(Content content) {
++    if (content == null) {
++      return 0;
++    }
++    int count = 0;
++    for (MediaType mediaType : content.values()) {
++      if (mediaType.getExamples() != null || mediaType.getExample() != null) {
++        mediaType.setExamples(null);
++        mediaType.setExample(null);
++        count++;
++      }
++    }
++    return count;
++  }
++}
+diff --git a/backend/libs/vt-api-contract/codegen/src/main/java/vn/viettel/okrkpi/contract/codegen/MissionContractNormalizer.java b/backend/libs/vt-api-contract/codegen/src/main/java/vn/viettel/okrkpi/contract/codegen/MissionContractNormalizer.java
+new file mode 100644
+index 0000000..bc0358c
+--- /dev/null
++++ b/backend/libs/vt-api-contract/codegen/src/main/java/vn/viettel/okrkpi/contract/codegen/MissionContractNormalizer.java
+@@ -0,0 +1,51 @@
++package vn.viettel.okrkpi.contract.codegen;
++
++import io.swagger.v3.oas.models.OpenAPI;
++import java.util.Map;
++import java.util.Set;
++import org.openapitools.codegen.OpenAPINormalizer;
++
++/**
++ * Bộ chuẩn hoá tuỳ biến của openapi-generator (quy tắc {@code NORMALIZER_CLASS}) cho hợp đồng
++ * Mission. Chỉ thay đổi mô hình trong bộ nhớ của lần sinh mã, không sửa tệp hợp đồng (YC-PT-09):
++ *
++ * <ul>
++ *   <li>chỉ giữ thao tác của một đơn vị triển khai theo {@code x-mission.owner} ({@link
++ *       OwnerFilter});
++ *   <li>bỏ ví dụ của nội dung yêu cầu, phản hồi ({@link ExampleStripper});
++ *   <li>bỏ {@code const}/{@code enum} trên lược đồ boolean ({@link BooleanConstSimplifier}).
++ * </ul>
++ *
++ * <p>Cấu hình trong plugin Maven (danh sách {@code KHOÁ=giá trị}):
++ *
++ * <pre>{@code
++ * <openapiNormalizer>
++ *   <rule>NORMALIZER_CLASS=vn.viettel.okrkpi.contract.codegen.MissionContractNormalizer</rule>
++ *   <rule>X_MISSION_OWNERS=MOD-01|MOD-02|SVC-05</rule>
++ * </openapiNormalizer>
++ * }</pre>
++ *
++ * <p>openapi-generator ghi cảnh báo "Invalid openapi-normalizer rule name: X_MISSION_OWNERS" vì
++ * không biết quy tắc riêng này; cảnh báo đó vô hại.
++ */
++public class MissionContractNormalizer extends OpenAPINormalizer {
++
++  /** Tên quy tắc mang danh sách chủ sở hữu được giữ. */
++  public static final String RULE_OWNERS = "X_MISSION_OWNERS";
++
++  private final Set<String> owners;
++
++  /** Hàm dựng theo chữ ký mà openapi-generator gọi bằng phản chiếu. */
++  public MissionContractNormalizer(OpenAPI openApi, Map<String, String> inputRules) {
++    super(openApi, inputRules);
++    this.owners = OwnerFilter.parseOwners(inputRules.get(RULE_OWNERS));
++  }
++
++  @Override
++  protected void normalize() {
++    OwnerFilter.markForeignOperations(openAPI, owners);
++    ExampleStripper.strip(openAPI);
++    BooleanConstSimplifier.simplify(openAPI);
++    super.normalize();
++  }
++}
+diff --git a/backend/libs/vt-api-contract/codegen/src/main/java/vn/viettel/okrkpi/contract/codegen/OwnerFilter.java b/backend/libs/vt-api-contract/codegen/src/main/java/vn/viettel/okrkpi/contract/codegen/OwnerFilter.java
+new file mode 100644
+index 0000000..1f12b4b
+--- /dev/null
++++ b/backend/libs/vt-api-contract/codegen/src/main/java/vn/viettel/okrkpi/contract/codegen/OwnerFilter.java
+@@ -0,0 +1,93 @@
++package vn.viettel.okrkpi.contract.codegen;
++
++import io.swagger.v3.oas.models.OpenAPI;
++import io.swagger.v3.oas.models.Operation;
++import io.swagger.v3.oas.models.PathItem;
++import java.util.Arrays;
++import java.util.LinkedHashSet;
++import java.util.Map;
++import java.util.Set;
++import java.util.stream.Collectors;
++
++/**
++ * Lọc thao tác theo phần mở rộng truy vết {@code x-mission.owner} của hợp đồng (BS-02, ADR-32).
++ *
++ * <p>Thao tác có chủ sở hữu ngoài tập cho phép được đánh dấu {@code x-internal: true}; openapi-generator
++ * bỏ qua thao tác mang dấu này khi sinh interface. Hợp đồng gốc không bị sửa (YC-PT-09): việc đánh
++ * dấu chỉ xảy ra trên mô hình trong bộ nhớ của lần sinh mã.
++ */
++public final class OwnerFilter {
++
++  /** Tên phần mở rộng truy vết của hợp đồng. */
++  public static final String X_MISSION = "x-mission";
++
++  /** Phần mở rộng openapi-generator dùng để bỏ qua thao tác. */
++  public static final String X_INTERNAL = "x-internal";
++
++  private OwnerFilter() {}
++
++  /**
++   * Tách danh sách chủ sở hữu dạng {@code MOD-01|MOD-02|SVC-05}.
++   *
++   * @throws IllegalArgumentException khi chuỗi rỗng, để lần sinh mã không lặng lẽ bỏ hết thao tác
++   */
++  public static Set<String> parseOwners(String value) {
++    if (value == null || value.isBlank()) {
++      throw new IllegalArgumentException(
++          "Thiếu danh sách chủ sở hữu x-mission.owner (dạng MOD-01|SVC-05)");
++    }
++    return Arrays.stream(value.split("[|,\\s]+"))
++        .map(String::trim)
++        .filter(s -> !s.isEmpty())
++        .collect(Collectors.toCollection(LinkedHashSet::new));
++  }
++
++  /**
++   * Đánh dấu {@code x-internal} cho mọi thao tác không thuộc {@code owners}.
++   *
++   * @return số thao tác được giữ lại để sinh mã
++   * @throws IllegalStateException khi một thao tác thiếu {@code x-mission.owner} (hợp đồng chưa
++   *     qua lint) hoặc khi không còn thao tác nào được giữ
++   */
++  public static int markForeignOperations(OpenAPI openApi, Set<String> owners) {
++    if (openApi.getPaths() == null) {
++      return 0;
++    }
++    int kept = 0;
++    for (Map.Entry<String, PathItem> path : openApi.getPaths().entrySet()) {
++      for (Map.Entry<PathItem.HttpMethod, Operation> entry :
++          path.getValue().readOperationsMap().entrySet()) {
++        Operation operation = entry.getValue();
++        String owner = ownerOf(operation);
++        if (owner == null) {
++          throw new IllegalStateException(
++              "Thao tác "
++                  + entry.getKey()
++                  + " "
++                  + path.getKey()
++                  + " thiếu x-mission.owner; chạy npm run lint trong contracts/");
++        }
++        if (owners.contains(owner)) {
++          kept++;
++        } else {
++          operation.addExtension(X_INTERNAL, Boolean.TRUE);
++        }
++      }
++    }
++    if (kept == 0) {
++      throw new IllegalStateException(
++          "Không có thao tác nào thuộc " + owners + "; kiểm lại cấu hình đơn vị triển khai");
++    }
++    return kept;
++  }
++
++  /** Đọc {@code x-mission.owner} của một thao tác, {@code null} khi không có. */
++  public static String ownerOf(Operation operation) {
++    Map<String, Object> extensions = operation.getExtensions();
++    if (extensions == null || !(extensions.get(X_MISSION) instanceof Map<?, ?> mission)) {
++      return null;
++    }
++    Object owner = mission.get("owner");
++    return owner == null ? null : owner.toString();
++  }
++}
+diff --git a/backend/libs/vt-api-contract/codegen/src/test/java/vn/viettel/okrkpi/contract/codegen/ExampleStripperTest.java b/backend/libs/vt-api-contract/codegen/src/test/java/vn/viettel/okrkpi/contract/codegen/ExampleStripperTest.java
+new file mode 100644
+index 0000000..4860fe9
+--- /dev/null
++++ b/backend/libs/vt-api-contract/codegen/src/test/java/vn/viettel/okrkpi/contract/codegen/ExampleStripperTest.java
+@@ -0,0 +1,81 @@
++package vn.viettel.okrkpi.contract.codegen;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import io.swagger.v3.oas.models.Components;
++import io.swagger.v3.oas.models.OpenAPI;
++import io.swagger.v3.oas.models.Operation;
++import io.swagger.v3.oas.models.PathItem;
++import io.swagger.v3.oas.models.Paths;
++import io.swagger.v3.oas.models.examples.Example;
++import io.swagger.v3.oas.models.media.Content;
++import io.swagger.v3.oas.models.media.MediaType;
++import io.swagger.v3.oas.models.parameters.RequestBody;
++import io.swagger.v3.oas.models.responses.ApiResponse;
++import io.swagger.v3.oas.models.responses.ApiResponses;
++import java.util.Map;
++import org.junit.jupiter.api.Test;
++
++class ExampleStripperTest {
++
++  private static MediaType withExamples() {
++    return new MediaType()
++        .examples(Map.of("dang-chay", new Example().value(Map.of("status", "DANG_CHAY"))));
++  }
++
++  @Test
++  void boViDuOThaoTacVaComponents() {
++    MediaType responseMedia = withExamples();
++    MediaType requestMedia = new MediaType().example(Map.of("reason", "Đề nghị gia hạn"));
++    MediaType componentMedia = withExamples();
++    MediaType componentBody = withExamples();
++    MediaType plain = new MediaType();
++    Operation operation =
++        new Operation()
++            .requestBody(new RequestBody().content(new Content().addMediaType("a/json", requestMedia)))
++            .responses(
++                new ApiResponses()
++                    .addApiResponse(
++                        "200",
++                        new ApiResponse()
++                            .content(
++                                new Content()
++                                    .addMediaType("application/json", responseMedia)
++                                    .addMediaType("application/problem+json", plain)))
++                    .addApiResponse("204", new ApiResponse()));
++    OpenAPI api =
++        new OpenAPI()
++            .paths(new Paths().addPathItem("/jobs/{id}", new PathItem().post(operation)))
++            .components(
++                new Components()
++                    .responses(
++                        Map.of(
++                            "Conflict",
++                            new ApiResponse()
++                                .content(new Content().addMediaType("a/json", componentMedia))))
++                    .requestBodies(
++                        Map.of(
++                            "Body",
++                            new RequestBody()
++                                .content(new Content().addMediaType("a/json", componentBody)))));
++
++    int stripped = ExampleStripper.strip(api);
++
++    assertThat(stripped).isEqualTo(4);
++    assertThat(responseMedia.getExamples()).isNull();
++    assertThat(requestMedia.getExample()).isNull();
++    assertThat(componentMedia.getExamples()).isNull();
++    assertThat(componentBody.getExamples()).isNull();
++  }
++
++  @Test
++  void taiLieuRong() {
++    assertThat(ExampleStripper.strip(new OpenAPI())).isZero();
++    assertThat(ExampleStripper.strip(new OpenAPI().components(new Components()))).isZero();
++    Operation noBody = new Operation();
++    assertThat(
++            ExampleStripper.strip(
++                new OpenAPI().paths(new Paths().addPathItem("/x", new PathItem().get(noBody)))))
++        .isZero();
++  }
++}
+diff --git a/backend/libs/vt-api-contract/codegen/src/test/java/vn/viettel/okrkpi/contract/codegen/OwnerFilterTest.java b/backend/libs/vt-api-contract/codegen/src/test/java/vn/viettel/okrkpi/contract/codegen/OwnerFilterTest.java
+new file mode 100644
+index 0000000..1b2201b
+--- /dev/null
++++ b/backend/libs/vt-api-contract/codegen/src/test/java/vn/viettel/okrkpi/contract/codegen/OwnerFilterTest.java
+@@ -0,0 +1,80 @@
++package vn.viettel.okrkpi.contract.codegen;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
++
++import io.swagger.v3.oas.models.OpenAPI;
++import io.swagger.v3.oas.models.Operation;
++import io.swagger.v3.oas.models.PathItem;
++import io.swagger.v3.oas.models.Paths;
++import java.util.Map;
++import java.util.Set;
++import org.junit.jupiter.api.Test;
++
++class OwnerFilterTest {
++
++  private static Operation op(String id, String owner) {
++    Operation operation = new Operation().operationId(id);
++    if (owner != null) {
++      operation.addExtension(OwnerFilter.X_MISSION, Map.of("owner", owner, "qt", "QT-05"));
++    }
++    return operation;
++  }
++
++  private static OpenAPI api(Operation get, Operation post) {
++    return new OpenAPI()
++        .paths(new Paths().addPathItem("/appraisals/{id}", new PathItem().get(get).post(post)));
++  }
++
++  @Test
++  void tachDanhSachChuSoHuu() {
++    assertThat(OwnerFilter.parseOwners("MOD-01|MOD-02, SVC-05"))
++        .containsExactly("MOD-01", "MOD-02", "SVC-05");
++    assertThatThrownBy(() -> OwnerFilter.parseOwners(" "))
++        .isInstanceOf(IllegalArgumentException.class);
++    assertThatThrownBy(() -> OwnerFilter.parseOwners(null))
++        .isInstanceOf(IllegalArgumentException.class);
++  }
++
++  @Test
++  void danhDauThaoTacNgoaiDonVi() {
++    Operation core = op("getAppraisal", "MOD-04");
++    Operation scoring = op("recomputeScore", "SVC-07");
++
++    int kept = OwnerFilter.markForeignOperations(api(core, scoring), Set.of("MOD-04"));
++
++    assertThat(kept).isEqualTo(1);
++    assertThat(core.getExtensions()).doesNotContainKey(OwnerFilter.X_INTERNAL);
++    assertThat(scoring.getExtensions()).containsEntry(OwnerFilter.X_INTERNAL, Boolean.TRUE);
++  }
++
++  @Test
++  void thieuChuSoHuuThiBaoLoi() {
++    OpenAPI api = api(op("getAppraisal", "MOD-04"), op("noOwner", null));
++
++    assertThatThrownBy(() -> OwnerFilter.markForeignOperations(api, Set.of("MOD-04")))
++        .isInstanceOf(IllegalStateException.class)
++        .hasMessageContaining("x-mission.owner");
++  }
++
++  @Test
++  void khongConThaoTacNaoThiBaoLoi() {
++    OpenAPI api = api(op("getAppraisal", "MOD-04"), op("recomputeScore", "SVC-07"));
++
++    assertThatThrownBy(() -> OwnerFilter.markForeignOperations(api, Set.of("SVC-99")))
++        .isInstanceOf(IllegalStateException.class)
++        .hasMessageContaining("SVC-99");
++  }
++
++  @Test
++  void taiLieuKhongCoDuongDanVaPhanMoRongLa() {
++    assertThat(OwnerFilter.markForeignOperations(new OpenAPI(), Set.of("MOD-04"))).isZero();
++    Operation odd = new Operation().operationId("x");
++    odd.addExtension(OwnerFilter.X_MISSION, "khong-phai-map");
++    assertThat(OwnerFilter.ownerOf(odd)).isNull();
++    assertThat(OwnerFilter.ownerOf(new Operation())).isNull();
++    Operation noOwner = new Operation();
++    noOwner.addExtension(OwnerFilter.X_MISSION, Map.of("qt", "QT-01"));
++    assertThat(OwnerFilter.ownerOf(noOwner)).isNull();
++  }
++}
+diff --git a/backend/libs/vt-api-contract/pom.xml b/backend/libs/vt-api-contract/pom.xml
+new file mode 100644
+index 0000000..9115afc
+--- /dev/null
++++ b/backend/libs/vt-api-contract/pom.xml
+@@ -0,0 +1,710 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!--
++  NEN-006 · ADR-32 (BS-02) · YC-PT-05, YC-PT-09 · TL-01 "Hợp đồng API theo OpenAPI",
++  "Bảo vệ API và ứng dụng web" (Jakarta Validation sinh từ OpenAPI).
++
++  Interface controller và DTO Java sinh từ hợp đồng contracts/openapi/ bằng openapi-generator
++  (generator spring, interfaceOnly). Lớp hiện thực trong mission-core và microservice chỉ việc
++  "implements" interface sinh ra; không được viết controller lệch hợp đồng.
++
++  Đầu vào là bản gộp contracts/dist/<tệp>.yaml do backend/tools/contracts-bundle.sh sinh từ
++  contracts/openapi/modules/<tệp>.yaml (tham chiếu ../common/common.yaml được gộp vào components,
++  giữ tên ProblemDetails, Job, PeriodRef...). Sinh trực tiếp từ tệp module làm swagger-parser
++  (chế độ OpenAPI 3.1) dàn phẳng mọi $ref ngoài thành lược đồ nội tuyến tên GetJob200Response...
++
++  Mỗi lần sinh là một cặp (đơn vị triển khai, tệp hợp đồng): MissionContractNormalizer chỉ giữ thao
++  tác có x-mission.owner thuộc đơn vị. Mỗi đơn vị có một jar classifier; bảng ánh xạ owner →
++  classifier → gói Java ở README.md. Jar chính chứa toàn bộ.
++-->
++<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
++  <modelVersion>4.0.0</modelVersion>
++
++  <parent>
++    <groupId>vn.viettel.okrkpi</groupId>
++    <artifactId>libs</artifactId>
++    <version>0.1.0-SNAPSHOT</version>
++    <relativePath>../pom.xml</relativePath>
++  </parent>
++
++  <artifactId>vt-api-contract</artifactId>
++
++  <name>Mission · interface API sinh từ hợp đồng OpenAPI</name>
++
++  <properties>
++    <contracts.dir>${project.basedir}/../../../contracts</contracts.dir>
++    <contracts.dist>${contracts.dir}/dist</contracts.dist>
++    <generated.dir>${project.build.directory}/generated-sources/openapi</generated.dir>
++    <!-- SVC-05 mission-core: tám module MOD-01..MOD-08 và /jobs dùng chung (owner SVC-05). -->
++    <!-- Plugin jar không được POM cha quản lý; ghim để tránh cảnh báo phiên bản mặc định. -->
++    <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
++    <owners.core>MOD-01|MOD-02|MOD-03|MOD-04|MOD-05|MOD-06|MOD-07|MOD-08|SVC-05</owners.core>
++  </properties>
++
++  <dependencies>
++    <dependency>
++      <groupId>com.fasterxml.jackson.core</groupId>
++      <artifactId>jackson-annotations</artifactId>
++    </dependency>
++    <dependency>
++      <groupId>com.fasterxml.jackson.core</groupId>
++      <artifactId>jackson-databind</artifactId>
++    </dependency>
++    <dependency>
++      <groupId>jakarta.annotation</groupId>
++      <artifactId>jakarta.annotation-api</artifactId>
++    </dependency>
++    <dependency>
++      <groupId>jakarta.validation</groupId>
++      <artifactId>jakarta.validation-api</artifactId>
++    </dependency>
++    <!--
++      Interface sinh ra mang annotation springdoc (@Operation, @ApiResponse, @Schema) để tài liệu
++      /v3/api-docs của dịch vụ phản ánh đúng hợp đồng khi openapi-diff đối chiếu (ADR-32). Mọi
++      dịch vụ cài interface này đều phải bật springdoc, nên phụ thuộc đi kèm hợp đồng.
++    -->
++    <dependency>
++      <groupId>org.springdoc</groupId>
++      <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
++    </dependency>
++    <dependency>
++      <groupId>org.springframework</groupId>
++      <artifactId>spring-context</artifactId>
++    </dependency>
++    <dependency>
++      <groupId>org.springframework</groupId>
++      <artifactId>spring-web</artifactId>
++    </dependency>
++    <dependency>
++      <groupId>com.fasterxml.jackson.dataformat</groupId>
++      <artifactId>jackson-dataformat-yaml</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>org.assertj</groupId>
++      <artifactId>assertj-core</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>org.junit.jupiter</groupId>
++      <artifactId>junit-jupiter</artifactId>
++      <scope>test</scope>
++    </dependency>
++  </dependencies>
++
++  <build>
++    <plugins>
++      <plugin>
++        <groupId>org.openapitools</groupId>
++        <artifactId>openapi-generator-maven-plugin</artifactId>
++        <version>${openapi-generator.version}</version>
++        <configuration>
++          <generatorName>spring</generatorName>
++          <library>spring-boot</library>
++          <generateApiTests>false</generateApiTests>
++          <generateModelTests>false</generateModelTests>
++          <generateApiDocumentation>false</generateApiDocumentation>
++          <generateModelDocumentation>false</generateModelDocumentation>
++          <!--
++            Không sinh tệp hỗ trợ: ApiUtil chỉ dùng cho phương thức default (đã tắt bằng
++            skipDefaultInterface) và EnumConverterConfiguration trùng tên lớp giữa các lần sinh.
++          -->
++          <generateSupportingFiles>false</generateSupportingFiles>
++          <cleanupOutput>true</cleanupOutput>
++          <openapiNormalizer>
++            <rule>NORMALIZER_CLASS=vn.viettel.okrkpi.contract.codegen.MissionContractNormalizer</rule>
++          </openapiNormalizer>
++          <configOptions>
++            <interfaceOnly>true</interfaceOnly>
++            <useSpringBoot3>true</useSpringBoot3>
++            <!--
++              useTags=false (lệch thẻ NEN-006, ghi trong README): tag của hợp đồng là tiếng Việt có
++              dấu ("Tác vụ dài"), generator bỏ ký tự ngoài ASCII và sinh tên vô nghĩa như TcVDiApi.
++              Gom theo đoạn đầu đường dẫn cho JobsApi, AppraisalsApi, EvidencesApi...
++            -->
++            <useTags>false</useTags>
++            <useBeanValidation>true</useBeanValidation>
++            <skipDefaultInterface>true</skipDefaultInterface>
++            <openApiNullable>false</openApiNullable>
++            <hideGenerationTimestamp>true</hideGenerationTimestamp>
++            <documentationProvider>springdoc</documentationProvider>
++            <!-- @RequestMapping("${openapi.mission.base-path:/api/v1}") đặt trên interface. -->
++            <requestMappingMode>api_interface</requestMappingMode>
++            <title>mission</title>
++            <sourceFolder>src/main/java</sourceFolder>
++          </configOptions>
++        </configuration>
++        <dependencies>
++          <dependency>
++            <groupId>vn.viettel.okrkpi</groupId>
++            <artifactId>vt-api-contract-codegen</artifactId>
++            <version>${project.version}</version>
++          </dependency>
++        </dependencies>
++        <executions>
++          <execution>
++            <id>core-okr</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/okr.yaml</inputSpec>
++              <output>${generated.dir}/core-okr</output>
++              <apiPackage>vn.viettel.okrkpi.contract.okr.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.okr.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=${owners.core}</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>core-tasks</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/tasks.yaml</inputSpec>
++              <output>${generated.dir}/core-tasks</output>
++              <apiPackage>vn.viettel.okrkpi.contract.tasks.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.tasks.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=${owners.core}</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>core-products</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/products.yaml</inputSpec>
++              <output>${generated.dir}/core-products</output>
++              <apiPackage>vn.viettel.okrkpi.contract.products.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.products.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=${owners.core}</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>core-appraisals</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/appraisals.yaml</inputSpec>
++              <output>${generated.dir}/core-appraisals</output>
++              <apiPackage>vn.viettel.okrkpi.contract.appraisals.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.appraisals.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=${owners.core}</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>core-policies</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/policies.yaml</inputSpec>
++              <output>${generated.dir}/core-policies</output>
++              <apiPackage>vn.viettel.okrkpi.contract.policies.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.policies.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=${owners.core}</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>core-dossiers</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/dossiers.yaml</inputSpec>
++              <output>${generated.dir}/core-dossiers</output>
++              <apiPackage>vn.viettel.okrkpi.contract.dossiers.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.dossiers.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=${owners.core}</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>core-oversight</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/oversight.yaml</inputSpec>
++              <output>${generated.dir}/core-oversight</output>
++              <apiPackage>vn.viettel.okrkpi.contract.oversight.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.oversight.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=${owners.core}</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>core-config</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/config.yaml</inputSpec>
++              <output>${generated.dir}/core-config</output>
++              <apiPackage>vn.viettel.okrkpi.contract.config.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.config.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=${owners.core}</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>core-jobs</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/jobs.yaml</inputSpec>
++              <output>${generated.dir}/core-jobs</output>
++              <apiPackage>vn.viettel.okrkpi.contract.jobs.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.jobs.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=${owners.core}</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>org-org</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/org.yaml</inputSpec>
++              <output>${generated.dir}/org-org</output>
++              <apiPackage>vn.viettel.okrkpi.contract.org.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.org.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=SVC-04</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>scoring-appraisals</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/appraisals.yaml</inputSpec>
++              <output>${generated.dir}/scoring-appraisals</output>
++              <apiPackage>vn.viettel.okrkpi.contract.appraisals.scoring.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.appraisals.scoring.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=SVC-07</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>evidence-products</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/products.yaml</inputSpec>
++              <output>${generated.dir}/evidence-products</output>
++              <apiPackage>vn.viettel.okrkpi.contract.products.evidence.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.products.evidence.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=SVC-08</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>ledger-oversight</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/oversight.yaml</inputSpec>
++              <output>${generated.dir}/ledger-oversight</output>
++              <apiPackage>vn.viettel.okrkpi.contract.oversight.ledger.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.oversight.ledger.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=SVC-09</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>esign-dossiers</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/dossiers.yaml</inputSpec>
++              <output>${generated.dir}/esign-dossiers</output>
++              <apiPackage>vn.viettel.okrkpi.contract.dossiers.esign.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.dossiers.esign.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=SVC-10</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>docgen-dossiers</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/dossiers.yaml</inputSpec>
++              <output>${generated.dir}/docgen-dossiers</output>
++              <apiPackage>vn.viettel.okrkpi.contract.dossiers.docgen.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.dossiers.docgen.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=SVC-11</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>registry-platform</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/platform.yaml</inputSpec>
++              <output>${generated.dir}/registry-platform</output>
++              <apiPackage>vn.viettel.okrkpi.contract.platform.registry.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.platform.registry.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=SVC-03</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>workflow-platform</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/platform.yaml</inputSpec>
++              <output>${generated.dir}/workflow-platform</output>
++              <apiPackage>vn.viettel.okrkpi.contract.platform.workflow.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.platform.workflow.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=SVC-06</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>notification-platform</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/platform.yaml</inputSpec>
++              <output>${generated.dir}/notification-platform</output>
++              <apiPackage>vn.viettel.okrkpi.contract.platform.notification.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.platform.notification.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=SVC-12</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>ai-platform</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/platform.yaml</inputSpec>
++              <output>${generated.dir}/ai-platform</output>
++              <apiPackage>vn.viettel.okrkpi.contract.platform.ai.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.platform.ai.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=SVC-14</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>analytics-platform</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/platform.yaml</inputSpec>
++              <output>${generated.dir}/analytics-platform</output>
++              <apiPackage>vn.viettel.okrkpi.contract.platform.analytics.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.platform.analytics.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=SVC-15</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++          <execution>
++            <id>search-platform</id>
++            <goals>
++              <goal>generate</goal>
++            </goals>
++            <configuration>
++              <inputSpec>${contracts.dist}/platform.yaml</inputSpec>
++              <output>${generated.dir}/search-platform</output>
++              <apiPackage>vn.viettel.okrkpi.contract.platform.search.api</apiPackage>
++              <modelPackage>vn.viettel.okrkpi.contract.platform.search.model</modelPackage>
++              <openapiNormalizer combine.children="append">
++                <rule>X_MISSION_OWNERS=SVC-16</rule>
++              </openapiNormalizer>
++            </configuration>
++          </execution>
++        </executions>
++      </plugin>
++      <!-- Mỗi đơn vị triển khai một jar classifier; jar chính chứa toàn bộ. -->
++      <plugin>
++        <groupId>org.apache.maven.plugins</groupId>
++        <artifactId>maven-jar-plugin</artifactId>
++        <version>${maven-jar-plugin.version}</version>
++        <executions>
++          <execution>
++            <id>jar-core</id>
++            <goals>
++              <goal>jar</goal>
++            </goals>
++            <configuration>
++              <classifier>core</classifier>
++              <includes>
++                <include>vn/viettel/okrkpi/contract/okr/api/**</include>
++                <include>vn/viettel/okrkpi/contract/okr/model/**</include>
++                <include>vn/viettel/okrkpi/contract/tasks/api/**</include>
++                <include>vn/viettel/okrkpi/contract/tasks/model/**</include>
++                <include>vn/viettel/okrkpi/contract/products/api/**</include>
++                <include>vn/viettel/okrkpi/contract/products/model/**</include>
++                <include>vn/viettel/okrkpi/contract/appraisals/api/**</include>
++                <include>vn/viettel/okrkpi/contract/appraisals/model/**</include>
++                <include>vn/viettel/okrkpi/contract/policies/api/**</include>
++                <include>vn/viettel/okrkpi/contract/policies/model/**</include>
++                <include>vn/viettel/okrkpi/contract/dossiers/api/**</include>
++                <include>vn/viettel/okrkpi/contract/dossiers/model/**</include>
++                <include>vn/viettel/okrkpi/contract/oversight/api/**</include>
++                <include>vn/viettel/okrkpi/contract/oversight/model/**</include>
++                <include>vn/viettel/okrkpi/contract/config/api/**</include>
++                <include>vn/viettel/okrkpi/contract/config/model/**</include>
++                <include>vn/viettel/okrkpi/contract/jobs/api/**</include>
++                <include>vn/viettel/okrkpi/contract/jobs/model/**</include>
++              </includes>
++            </configuration>
++          </execution>
++          <execution>
++            <id>jar-org</id>
++            <goals>
++              <goal>jar</goal>
++            </goals>
++            <configuration>
++              <classifier>org</classifier>
++              <includes>
++                <include>vn/viettel/okrkpi/contract/org/api/**</include>
++                <include>vn/viettel/okrkpi/contract/org/model/**</include>
++              </includes>
++            </configuration>
++          </execution>
++          <execution>
++            <id>jar-scoring</id>
++            <goals>
++              <goal>jar</goal>
++            </goals>
++            <configuration>
++              <classifier>scoring</classifier>
++              <includes>
++                <include>vn/viettel/okrkpi/contract/appraisals/scoring/api/**</include>
++                <include>vn/viettel/okrkpi/contract/appraisals/scoring/model/**</include>
++              </includes>
++            </configuration>
++          </execution>
++          <execution>
++            <id>jar-evidence</id>
++            <goals>
++              <goal>jar</goal>
++            </goals>
++            <configuration>
++              <classifier>evidence</classifier>
++              <includes>
++                <include>vn/viettel/okrkpi/contract/products/evidence/api/**</include>
++                <include>vn/viettel/okrkpi/contract/products/evidence/model/**</include>
++              </includes>
++            </configuration>
++          </execution>
++          <execution>
++            <id>jar-ledger</id>
++            <goals>
++              <goal>jar</goal>
++            </goals>
++            <configuration>
++              <classifier>ledger</classifier>
++              <includes>
++                <include>vn/viettel/okrkpi/contract/oversight/ledger/api/**</include>
++                <include>vn/viettel/okrkpi/contract/oversight/ledger/model/**</include>
++              </includes>
++            </configuration>
++          </execution>
++          <execution>
++            <id>jar-esign</id>
++            <goals>
++              <goal>jar</goal>
++            </goals>
++            <configuration>
++              <classifier>esign</classifier>
++              <includes>
++                <include>vn/viettel/okrkpi/contract/dossiers/esign/api/**</include>
++                <include>vn/viettel/okrkpi/contract/dossiers/esign/model/**</include>
++              </includes>
++            </configuration>
++          </execution>
++          <execution>
++            <id>jar-docgen</id>
++            <goals>
++              <goal>jar</goal>
++            </goals>
++            <configuration>
++              <classifier>docgen</classifier>
++              <includes>
++                <include>vn/viettel/okrkpi/contract/dossiers/docgen/api/**</include>
++                <include>vn/viettel/okrkpi/contract/dossiers/docgen/model/**</include>
++              </includes>
++            </configuration>
++          </execution>
++          <execution>
++            <id>jar-registry</id>
++            <goals>
++              <goal>jar</goal>
++            </goals>
++            <configuration>
++              <classifier>registry</classifier>
++              <includes>
++                <include>vn/viettel/okrkpi/contract/platform/registry/api/**</include>
++                <include>vn/viettel/okrkpi/contract/platform/registry/model/**</include>
++              </includes>
++            </configuration>
++          </execution>
++          <execution>
++            <id>jar-workflow</id>
++            <goals>
++              <goal>jar</goal>
++            </goals>
++            <configuration>
++              <classifier>workflow</classifier>
++              <includes>
++                <include>vn/viettel/okrkpi/contract/platform/workflow/api/**</include>
++                <include>vn/viettel/okrkpi/contract/platform/workflow/model/**</include>
++              </includes>
++            </configuration>
++          </execution>
++          <execution>
++            <id>jar-notification</id>
++            <goals>
++              <goal>jar</goal>
++            </goals>
++            <configuration>
++              <classifier>notification</classifier>
++              <includes>
++                <include>vn/viettel/okrkpi/contract/platform/notification/api/**</include>
++                <include>vn/viettel/okrkpi/contract/platform/notification/model/**</include>
++              </includes>
++            </configuration>
++          </execution>
++          <execution>
++            <id>jar-ai</id>
++            <goals>
++              <goal>jar</goal>
++            </goals>
++            <configuration>
++              <classifier>ai</classifier>
++              <includes>
++                <include>vn/viettel/okrkpi/contract/platform/ai/api/**</include>
++                <include>vn/viettel/okrkpi/contract/platform/ai/model/**</include>
++              </includes>
++            </configuration>
++          </execution>
++          <execution>
++            <id>jar-analytics</id>
++            <goals>
++              <goal>jar</goal>
++            </goals>
++            <configuration>
++              <classifier>analytics</classifier>
++              <includes>
++                <include>vn/viettel/okrkpi/contract/platform/analytics/api/**</include>
++                <include>vn/viettel/okrkpi/contract/platform/analytics/model/**</include>
++              </includes>
++            </configuration>
++          </execution>
++          <execution>
++            <id>jar-search</id>
++            <goals>
++              <goal>jar</goal>
++            </goals>
++            <configuration>
++              <classifier>search</classifier>
++              <includes>
++                <include>vn/viettel/okrkpi/contract/platform/search/api/**</include>
++                <include>vn/viettel/okrkpi/contract/platform/search/model/**</include>
++              </includes>
++            </configuration>
++          </execution>
++        </executions>
++      </plugin>
++      <!-- Mã sinh không tính độ phủ (Sonar đã loại target/generated-sources ở POM cha). -->
++      <plugin>
++        <groupId>org.jacoco</groupId>
++        <artifactId>jacoco-maven-plugin</artifactId>
++        <configuration>
++          <excludes>
++            <exclude>vn/viettel/okrkpi/contract/**</exclude>
++          </excludes>
++        </configuration>
++      </plugin>
++      <plugin>
++        <groupId>com.github.spotbugs</groupId>
++        <artifactId>spotbugs-maven-plugin</artifactId>
++        <configuration>
++          <excludeFilterFile>${project.basedir}/spotbugs-exclude.xml</excludeFilterFile>
++        </configuration>
++      </plugin>
++    </plugins>
++  </build>
++  <profiles>
++    <!--
++      Báo lỗi dễ hiểu khi chưa gộp hợp đồng, thay vì lỗi "inputSpec not found" của generator.
++      (Luật requireFilesExist của enforcer so đường dẫn chuẩn hoá nên không nhận đường dẫn có "..".)
++    -->
++    <profile>
++      <id>contracts-bundle-missing</id>
++      <activation>
++        <file>
++          <missing>${project.basedir}/../../../contracts/dist/jobs.yaml</missing>
++        </file>
++      </activation>
++      <build>
++        <plugins>
++          <plugin>
++            <groupId>org.apache.maven.plugins</groupId>
++            <artifactId>maven-enforcer-plugin</artifactId>
++            <executions>
++              <execution>
++                <id>require-contracts-bundle</id>
++                <goals>
++                  <goal>enforce</goal>
++                </goals>
++                <configuration>
++                  <rules>
++                    <alwaysFail>
++                      <message>Chưa có bản gộp hợp đồng contracts/dist/. Chạy backend/tools/contracts-bundle.sh trước khi build.</message>
++                    </alwaysFail>
++                  </rules>
++                </configuration>
++              </execution>
++            </executions>
++          </plugin>
++        </plugins>
++      </build>
++    </profile>
++  </profiles>
++</project>
+diff --git a/backend/libs/vt-api-contract/spotbugs-exclude.xml b/backend/libs/vt-api-contract/spotbugs-exclude.xml
+new file mode 100644
+index 0000000..176ca95
+--- /dev/null
++++ b/backend/libs/vt-api-contract/spotbugs-exclude.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!--
++  NEN-006: mã do openapi-generator sinh (target/generated-sources/openapi) không chịu SpotBugs.
++  Lỗi trong mã sinh được sửa bằng cấu hình generator hoặc báo lên hợp đồng, không sửa tay.
++-->
++<FindBugsFilter>
++  <Match>
++    <Package name="~vn\.viettel\.okrkpi\.contract\..*\.(api|model)"/>
++  </Match>
++</FindBugsFilter>
+diff --git a/backend/libs/vt-api-contract/src/test/java/vn/viettel/okrkpi/contract/ContractFixtures.java b/backend/libs/vt-api-contract/src/test/java/vn/viettel/okrkpi/contract/ContractFixtures.java
+new file mode 100644
+index 0000000..13138c9
+--- /dev/null
++++ b/backend/libs/vt-api-contract/src/test/java/vn/viettel/okrkpi/contract/ContractFixtures.java
+@@ -0,0 +1,114 @@
++package vn.viettel.okrkpi.contract;
++
++import com.fasterxml.jackson.databind.JsonNode;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
++import java.io.IOException;
++import java.io.UncheckedIOException;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.util.ArrayList;
++import java.util.Iterator;
++import java.util.List;
++import java.util.Map;
++import java.util.Set;
++import java.util.stream.Stream;
++
++/**
++ * Bảng đơn vị triển khai và bộ đọc hợp đồng dùng trong kiểm thử. Bảng phải khớp các execution của
++ * openapi-generator trong {@code pom.xml} và bảng ánh xạ trong {@code README.md}.
++ */
++final class ContractFixtures {
++
++  /** Một lần sinh: đơn vị triển khai, tệp hợp đồng, gói cơ sở, tập owner. */
++  record Unit(String classifier, String file, String basePackage, Set<String> owners) {}
++
++  /** Một thao tác đọc từ hợp đồng nguồn. */
++  record ContractOperation(String file, String operationId, String owner) {}
++
++  static final Set<String> CORE_OWNERS =
++      Set.of("MOD-01", "MOD-02", "MOD-03", "MOD-04", "MOD-05", "MOD-06", "MOD-07", "MOD-08", "SVC-05");
++
++  static final List<String> CORE_FILES =
++      List.of(
++          "okr", "tasks", "products", "appraisals", "policies", "dossiers", "oversight", "config",
++          "jobs");
++
++  static final List<Unit> UNITS = buildUnits();
++
++  static final Path CONTRACTS = Path.of("..", "..", "..", "contracts").toAbsolutePath().normalize();
++
++  private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
++
++  private ContractFixtures() {}
++
++  private static List<Unit> buildUnits() {
++    List<Unit> units = new ArrayList<>();
++    for (String file : CORE_FILES) {
++      units.add(new Unit("core", file, "vn.viettel.okrkpi.contract." + file, CORE_OWNERS));
++    }
++    units.add(unit("org", "org", "vn.viettel.okrkpi.contract.org", "SVC-04"));
++    units.add(unit("scoring", "appraisals", "vn.viettel.okrkpi.contract.appraisals.scoring", "SVC-07"));
++    units.add(unit("evidence", "products", "vn.viettel.okrkpi.contract.products.evidence", "SVC-08"));
++    units.add(unit("ledger", "oversight", "vn.viettel.okrkpi.contract.oversight.ledger", "SVC-09"));
++    units.add(unit("esign", "dossiers", "vn.viettel.okrkpi.contract.dossiers.esign", "SVC-10"));
++    units.add(unit("docgen", "dossiers", "vn.viettel.okrkpi.contract.dossiers.docgen", "SVC-11"));
++    String platform = "vn.viettel.okrkpi.contract.platform.";
++    units.add(unit("registry", "platform", platform + "registry", "SVC-03"));
++    units.add(unit("workflow", "platform", platform + "workflow", "SVC-06"));
++    units.add(unit("notification", "platform", platform + "notification", "SVC-12"));
++    units.add(unit("ai", "platform", platform + "ai", "SVC-14"));
++    units.add(unit("analytics", "platform", platform + "analytics", "SVC-15"));
++    units.add(unit("search", "platform", platform + "search", "SVC-16"));
++    return List.copyOf(units);
++  }
++
++  private static Unit unit(String classifier, String file, String basePackage, String owner) {
++    return new Unit(classifier, file, basePackage, Set.of(owner));
++  }
++
++  /** Đọc YAML. */
++  static JsonNode readYaml(Path path) {
++    try {
++      return YAML.readTree(path.toFile());
++    } catch (IOException e) {
++      throw new UncheckedIOException(e);
++    }
++  }
++
++  /** Tên các tệp module (không đuôi) trong {@code contracts/openapi/modules}. */
++  static List<String> moduleFiles() {
++    try (Stream<Path> files = Files.list(CONTRACTS.resolve("openapi/modules"))) {
++      return files
++          .map(p -> p.getFileName().toString())
++          .filter(n -> n.endsWith(".yaml"))
++          .map(n -> n.substring(0, n.length() - ".yaml".length()))
++          .sorted()
++          .toList();
++    } catch (IOException e) {
++      throw new UncheckedIOException(e);
++    }
++  }
++
++  /** Mọi thao tác của một tệp hợp đồng (bản nguồn trong {@code openapi/modules}). */
++  static List<ContractOperation> operations(String file, String folder) {
++    Path path =
++        "dist".equals(folder)
++            ? CONTRACTS.resolve("dist").resolve(file + ".yaml")
++            : CONTRACTS.resolve("openapi/modules").resolve(file + ".yaml");
++    JsonNode paths = readYaml(path).path("paths");
++    List<ContractOperation> result = new ArrayList<>();
++    for (Iterator<Map.Entry<String, JsonNode>> it = paths.fields(); it.hasNext(); ) {
++      JsonNode item = it.next().getValue();
++      for (String method : List.of("get", "put", "post", "delete", "patch", "head", "options")) {
++        JsonNode op = item.get(method);
++        if (op != null) {
++          result.add(
++              new ContractOperation(
++                  file, op.path("operationId").asText(), op.path("x-mission").path("owner").asText()));
++        }
++      }
++    }
++    return result;
++  }
++}
+diff --git a/backend/libs/vt-api-contract/src/test/java/vn/viettel/okrkpi/contract/GeneratedModelsTest.java b/backend/libs/vt-api-contract/src/test/java/vn/viettel/okrkpi/contract/GeneratedModelsTest.java
+new file mode 100644
+index 0000000..5721a11
+--- /dev/null
++++ b/backend/libs/vt-api-contract/src/test/java/vn/viettel/okrkpi/contract/GeneratedModelsTest.java
+@@ -0,0 +1,166 @@
++package vn.viettel.okrkpi.contract;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import com.fasterxml.jackson.annotation.JsonProperty;
++import com.fasterxml.jackson.annotation.JsonValue;
++import com.fasterxml.jackson.databind.JsonNode;
++import java.lang.reflect.Field;
++import java.lang.reflect.Method;
++import java.time.LocalDate;
++import java.time.OffsetDateTime;
++import java.util.ArrayList;
++import java.util.Iterator;
++import java.util.List;
++import java.util.Map;
++import java.util.Set;
++import java.util.TreeSet;
++import java.util.UUID;
++import org.junit.jupiter.api.Test;
++import vn.viettel.okrkpi.contract.ContractFixtures.Unit;
++import vn.viettel.okrkpi.contract.jobs.model.Job;
++import vn.viettel.okrkpi.contract.jobs.model.JobStatus;
++import vn.viettel.okrkpi.contract.jobs.model.ProblemDetails;
++import vn.viettel.okrkpi.contract.tasks.model.PeriodRef;
++import vn.viettel.okrkpi.contract.tasks.model.TaskStatus;
++
++/**
++ * Kiểm kiểu sinh ra giữ đúng hợp đồng: tên trường JSON camelCase như lược đồ, giá trị liệt kê mã
++ * tiếng Việt (DA_GIAO, CHO_NGHIEM_THU...), kiểu Uuid, Date, DateTime, ProblemDetails, Job.
++ */
++class GeneratedModelsTest {
++
++  @Test
++  void kieuDungChungAnhXaDung() throws Exception {
++    assertThat(PeriodRef.class.getDeclaredField("id").getType()).isEqualTo(UUID.class);
++    assertThat(PeriodRef.class.getDeclaredField("startDate").getType()).isEqualTo(LocalDate.class);
++    assertThat(Job.class.getDeclaredField("updatedAt").getType()).isEqualTo(OffsetDateTime.class);
++    assertThat(Job.class.getDeclaredField("status").getType()).isEqualTo(JobStatus.class);
++    assertThat(Job.class.getDeclaredField("problem").getType()).isEqualTo(ProblemDetails.class);
++    assertThat(jsonNames(ProblemDetails.class))
++        .containsExactlyInAnyOrder(
++            "type", "title", "status", "detail", "instance", "code", "msg", "errors", "traceId");
++    assertThat(enumValues(JobStatus.class))
++        .containsExactly("CHO", "DANG_CHAY", "HOAN_TAT", "THAT_BAI", "DA_HUY");
++    assertThat(enumValues(TaskStatus.class)).contains("DA_GIAO", "CHO_NGHIEM_THU");
++  }
++
++  @Test
++  void moiLuocDoKhopTenTruongVaGiaTriLietKe() {
++    List<String> problems = new ArrayList<>();
++    int objects = 0;
++    int enums = 0;
++    for (Unit unit : ContractFixtures.UNITS) {
++      JsonNode document =
++          ContractFixtures.readYaml(ContractFixtures.CONTRACTS.resolve("dist/" + unit.file() + ".yaml"));
++      JsonNode schemas = document.path("components").path("schemas");
++      Set<String> formSchemas = multipartSchemas(document);
++      for (Iterator<Map.Entry<String, JsonNode>> it = schemas.fields(); it.hasNext(); ) {
++        Map.Entry<String, JsonNode> entry = it.next();
++        String className = unit.basePackage() + ".model." + entry.getKey();
++        JsonNode schema = entry.getValue();
++        if (formSchemas.contains(entry.getKey())) {
++          // Thân multipart/form-data sinh thành tham số @RequestPart, không có lớp model.
++          continue;
++        }
++        if (schema.has("properties") && !isComposed(schema)) {
++          objects++;
++          Class<?> type = loadOrNull(className);
++          if (type == null) {
++            problems.add("thiếu lớp " + className);
++            continue;
++          }
++          Set<String> expected = new TreeSet<>();
++          schema.path("properties").fieldNames().forEachRemaining(expected::add);
++          Set<String> actual = jsonNames(type);
++          if (!actual.equals(expected)) {
++            problems.add(className + ": hợp đồng " + expected + ", mã " + actual);
++          }
++        } else if (schema.has("enum") && schema.path("enum").get(0).isTextual()) {
++          Class<?> type = loadOrNull(className);
++          if (type != null && type.isEnum()) {
++            enums++;
++            List<String> expected = new ArrayList<>();
++            schema.path("enum").forEach(v -> expected.add(v.asText()));
++            List<String> actual = enumValues(type);
++            if (!actual.equals(expected)) {
++              problems.add(className + ": hợp đồng " + expected + ", mã " + actual);
++            }
++          }
++        }
++      }
++    }
++    assertThat(problems).isEmpty();
++    assertThat(objects).as("số lược đồ object đã kiểm").isGreaterThan(500);
++    assertThat(enums).as("số enum đã kiểm").isGreaterThan(100);
++  }
++
++  private static Set<String> multipartSchemas(JsonNode document) {
++    Set<String> names = new TreeSet<>();
++    document
++        .path("paths")
++        .forEach(
++            item ->
++                item.forEach(
++                    op -> {
++                      String ref =
++                          op.path("requestBody")
++                              .path("content")
++                              .path("multipart/form-data")
++                              .path("schema")
++                              .path("$ref")
++                              .asText("");
++                      if (!ref.isEmpty()) {
++                        names.add(ref.substring(ref.lastIndexOf('/') + 1));
++                      }
++                    }));
++    return names;
++  }
++
++  private static boolean isComposed(JsonNode schema) {
++    return schema.has("allOf") || schema.has("oneOf") || schema.has("anyOf");
++  }
++
++  private static Class<?> loadOrNull(String name) {
++    try {
++      return Class.forName(name);
++    } catch (ClassNotFoundException e) {
++      return null;
++    }
++  }
++
++  static Set<String> jsonNames(Class<?> type) {
++    Set<String> names = new TreeSet<>();
++    for (Field field : type.getDeclaredFields()) {
++      JsonProperty property = field.getAnnotation(JsonProperty.class);
++      if (property != null) {
++        names.add(property.value());
++      }
++    }
++    for (Method method : type.getDeclaredMethods()) {
++      JsonProperty property = method.getAnnotation(JsonProperty.class);
++      if (property != null) {
++        names.add(property.value());
++      }
++    }
++    return names;
++  }
++
++  static List<String> enumValues(Class<?> type) {
++    Method valueMethod = null;
++    for (Method method : type.getDeclaredMethods()) {
++      if (method.isAnnotationPresent(JsonValue.class)) {
++        valueMethod = method;
++      }
++    }
++    List<String> values = new ArrayList<>();
++    for (Object constant : type.getEnumConstants()) {
++      try {
++        values.add(String.valueOf(valueMethod == null ? constant : valueMethod.invoke(constant)));
++      } catch (ReflectiveOperationException e) {
++        throw new IllegalStateException(e);
++      }
++    }
++    return values;
++  }
++}
+diff --git a/backend/libs/vt-api-contract/src/test/java/vn/viettel/okrkpi/contract/GeneratedOperationsTest.java b/backend/libs/vt-api-contract/src/test/java/vn/viettel/okrkpi/contract/GeneratedOperationsTest.java
+new file mode 100644
+index 0000000..5608b33
+--- /dev/null
++++ b/backend/libs/vt-api-contract/src/test/java/vn/viettel/okrkpi/contract/GeneratedOperationsTest.java
+@@ -0,0 +1,136 @@
++package vn.viettel.okrkpi.contract;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import io.swagger.v3.oas.annotations.Operation;
++import java.io.IOException;
++import java.io.UncheckedIOException;
++import java.lang.reflect.Method;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Set;
++import java.util.TreeSet;
++import java.util.stream.Collectors;
++import java.util.stream.Stream;
++import org.junit.jupiter.api.Test;
++import org.springframework.web.bind.annotation.RequestMapping;
++import vn.viettel.okrkpi.contract.ContractFixtures.ContractOperation;
++import vn.viettel.okrkpi.contract.ContractFixtures.Unit;
++
++/**
++ * Đối chiếu số interface và phương thức sinh ra với số thao tác đếm từ hợp đồng nguồn
++ * ({@code contracts/openapi/modules}), theo từng (đơn vị triển khai, tệp). Thất bại khi hợp đồng
++ * thêm thao tác mà chưa sinh lại, khi bản gộp {@code contracts/dist} cũ, hoặc khi hợp đồng có owner
++ * mới chưa gán đơn vị trong {@code pom.xml}.
++ */
++class GeneratedOperationsTest {
++
++  private static final Path CLASSES = Path.of("target", "classes");
++
++  @Test
++  void moiThaoTacThuocDungMotDonVi() {
++    List<String> files = ContractFixtures.moduleFiles();
++    assertThat(files).as("tệp module của hợp đồng").hasSize(11);
++    List<String> unassigned = new ArrayList<>();
++    for (String file : files) {
++      for (ContractOperation op : ContractFixtures.operations(file, "modules")) {
++        long units =
++            ContractFixtures.UNITS.stream()
++                .filter(u -> u.file().equals(file) && u.owners().contains(op.owner()))
++                .count();
++        if (units != 1) {
++          unassigned.add(file + ":" + op.operationId() + " (owner " + op.owner() + ", " + units + ")");
++        }
++      }
++    }
++    assertThat(unassigned)
++        .as("thao tác chưa gán đúng một đơn vị; thêm execution vào pom.xml, README.md, ContractFixtures")
++        .isEmpty();
++  }
++
++  @Test
++  void banGopKhopHopDongNguon() {
++    for (String file : ContractFixtures.moduleFiles()) {
++      Set<String> source = ids(ContractFixtures.operations(file, "modules"));
++      Set<String> dist = ids(ContractFixtures.operations(file, "dist"));
++      assertThat(dist)
++          .as("contracts/dist/%s.yaml cũ so với openapi/modules; chạy tools/contracts-bundle.sh", file)
++          .isEqualTo(source);
++    }
++  }
++
++  @Test
++  void sinhDuPhuongThucChoMoiThaoTac() {
++    StringBuilder report = new StringBuilder("\nĐơn vị      Tệp          Interface Phương thức Thao tác\n");
++    int totalMethods = 0;
++    int totalInterfaces = 0;
++    for (Unit unit : ContractFixtures.UNITS) {
++      Set<String> expected =
++          ContractFixtures.operations(unit.file(), "modules").stream()
++              .filter(op -> unit.owners().contains(op.owner()))
++              .map(ContractOperation::operationId)
++              .collect(Collectors.toCollection(TreeSet::new));
++      List<Class<?>> interfaces = apiInterfaces(unit.basePackage() + ".api");
++      Set<String> generated = new TreeSet<>();
++      for (Class<?> api : interfaces) {
++        assertThat(api.isInterface()).as(api.getName()).isTrue();
++        assertThat(api.getAnnotation(RequestMapping.class).value())
++            .as("đường dẫn gốc của %s", api.getSimpleName())
++            .containsExactly("${openapi.mission.base-path:/api/v1}");
++        for (Method method : api.getDeclaredMethods()) {
++          Operation operation = method.getAnnotation(Operation.class);
++          if (operation != null) {
++            assertThat(method.getName()).isEqualTo(operation.operationId());
++            generated.add(operation.operationId());
++          }
++        }
++      }
++      assertThat(generated).as("%s/%s", unit.classifier(), unit.file()).isEqualTo(expected);
++      totalMethods += generated.size();
++      totalInterfaces += interfaces.size();
++      report.append(
++          String.format(
++              "%-11s %-12s %9d %11d %8d%n",
++              unit.classifier(), unit.file(), interfaces.size(), generated.size(), expected.size()));
++    }
++    int contractOps =
++        ContractFixtures.moduleFiles().stream()
++            .mapToInt(f -> ContractFixtures.operations(f, "modules").size())
++            .sum();
++    report.append(
++        String.format("%-24s %9d %11d %8d%n", "Tổng", totalInterfaces, totalMethods, contractOps));
++    System.out.println(report);
++    assertThat(totalMethods).isEqualTo(contractOps);
++  }
++
++  private static Set<String> ids(List<ContractOperation> ops) {
++    return ops.stream()
++        .map(ContractOperation::operationId)
++        .collect(Collectors.toCollection(TreeSet::new));
++  }
++
++  private static List<Class<?>> apiInterfaces(String apiPackage) {
++    Path dir = CLASSES.resolve(apiPackage.replace('.', '/'));
++    try (Stream<Path> files = Files.list(dir)) {
++      return files
++          .map(p -> p.getFileName().toString())
++          .filter(n -> n.endsWith("Api.class"))
++          .sorted()
++          .<Class<?>>map(
++              n -> load(apiPackage + "." + n.substring(0, n.length() - ".class".length())))
++          .toList();
++    } catch (IOException e) {
++      throw new UncheckedIOException("Không đọc được " + dir, e);
++    }
++  }
++
++  private static Class<?> load(String name) {
++    try {
++      return Class.forName(name);
++    } catch (ClassNotFoundException e) {
++      throw new IllegalStateException(e);
++    }
++  }
++}
+diff --git a/backend/libs/vt-contract-test/pom.xml b/backend/libs/vt-contract-test/pom.xml
+new file mode 100644
+index 0000000..5c1bc36
+--- /dev/null
++++ b/backend/libs/vt-contract-test/pom.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
++  <modelVersion>4.0.0</modelVersion>
++  <parent>
++    <groupId>vn.viettel.okrkpi</groupId>
++    <artifactId>libs</artifactId>
++    <version>0.1.0-SNAPSHOT</version>
++    <relativePath>../pom.xml</relativePath>
++  </parent>
++  <artifactId>vt-contract-test</artifactId>
++</project>
+diff --git a/backend/platform-bom/pom.xml b/backend/platform-bom/pom.xml
+index 95cc0cf..9f592f2 100644
+--- a/backend/platform-bom/pom.xml
++++ b/backend/platform-bom/pom.xml
+@@ -60,6 +60,20 @@
+     <docx4j.version>11.5.14</docx4j.version>
+     <!-- OpenPDF 2.x: bản mới nhất của dòng 2 (thay iText 7 vì AGPL). -->
+     <openpdf.version>2.4.0</openpdf.version>
++    <!--
++      NEN-006 · ADR-32 (BS-02): sinh interface Spring từ hợp đồng OpenAPI và kiểm ngược bằng
++      openapi-diff. openapi-generator 7.x là dòng hỗ trợ OpenAPI 3.1 và Spring Boot 3
++      (useSpringBoot3); 7.26.0 là bản mới nhất của dòng 7 khi làm task. Phiên bản này dùng cho
++      plugin Maven (vt-api-contract) và cho lớp chuẩn hoá chủ sở hữu (vt-api-contract-codegen).
++    -->
++    <openapi-generator.version>7.26.0</openapi-generator.version>
++    <!-- openapi-diff (org.openapitools.openapidiff): bản mới nhất của dòng 2.1. -->
++    <openapi-diff.version>2.1.7</openapi-diff.version>
++    <!--
++      swagger-parser 2.1: ghim tường minh để openapi-diff (khai 2.1.31) và bộ đọc hợp đồng của
++      vt-contract-test dùng cùng một bản, hội tụ phụ thuộc; 2.1.48 là bản vá mới nhất của dòng.
++    -->
++    <swagger-parser.version>2.1.48</swagger-parser.version>
+   </properties>
+ 
+   <dependencyManagement>
+@@ -109,6 +123,43 @@
+         <version>${openpdf.version}</version>
+       </dependency>
+ 
++      <!-- NEN-006: sinh mã và kiểm hợp đồng OpenAPI (ADR-32). -->
++      <dependency>
++        <groupId>org.openapitools</groupId>
++        <artifactId>openapi-generator</artifactId>
++        <version>${openapi-generator.version}</version>
++      </dependency>
++      <dependency>
++        <groupId>org.openapitools.openapidiff</groupId>
++        <artifactId>openapi-diff-core</artifactId>
++        <version>${openapi-diff.version}</version>
++      </dependency>
++      <dependency>
++        <groupId>io.swagger.parser.v3</groupId>
++        <artifactId>swagger-parser</artifactId>
++        <version>${swagger-parser.version}</version>
++      </dependency>
++      <dependency>
++        <groupId>io.swagger.parser.v3</groupId>
++        <artifactId>swagger-parser-v3</artifactId>
++        <version>${swagger-parser.version}</version>
++      </dependency>
++      <dependency>
++        <groupId>io.swagger.parser.v3</groupId>
++        <artifactId>swagger-parser-core</artifactId>
++        <version>${swagger-parser.version}</version>
++      </dependency>
++      <dependency>
++        <groupId>io.swagger.parser.v3</groupId>
++        <artifactId>swagger-parser-v2-converter</artifactId>
++        <version>${swagger-parser.version}</version>
++      </dependency>
++      <dependency>
++        <groupId>io.swagger.parser.v3</groupId>
++        <artifactId>swagger-parser-safe-url-resolver</artifactId>
++        <version>${swagger-parser.version}</version>
++      </dependency>
++
+       <!-- BOM bên ngoài: Spring Boot (gồm Hibernate, Flyway, Log4j2, JUnit, Testcontainers). -->
+       <dependency>
+         <groupId>org.springframework.boot</groupId>
+diff --git a/backend/tools/contracts-bundle.sh b/backend/tools/contracts-bundle.sh
+new file mode 100755
+index 0000000..aeb1213
+--- /dev/null
++++ b/backend/tools/contracts-bundle.sh
+@@ -0,0 +1,16 @@
++#!/usr/bin/env bash
++# NEN-006 · ADR-32 (BS-02): gộp hợp đồng OpenAPI contracts/openapi/modules/*.yaml thành
++# contracts/dist/*.yaml (không còn $ref ra ngoài) trước khi build backend.
++#
++# vt-api-contract sinh interface Spring từ contracts/dist/ (giữ tên lược đồ dùng chung như
++# ProblemDetails, Job) và vt-contract-test so springdoc với contracts/dist/ bằng openapi-diff.
++# Jenkins (INF-05) gọi lại script này trước "./mvnw verify".
++#
++# Dùng: backend/tools/contracts-bundle.sh   (chạy được từ thư mục bất kỳ)
++set -euo pipefail
++
++backend_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
++contracts_dir="${backend_dir}/../contracts"
++
++npm --prefix "${contracts_dir}" ci --no-audit --no-fund
++npm --prefix "${contracts_dir}" run bundle
