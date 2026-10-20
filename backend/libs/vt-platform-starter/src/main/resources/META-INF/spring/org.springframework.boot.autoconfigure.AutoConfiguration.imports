@@ -6,3 +6,4 @@ vn.viettel.okrkpi.shared.tenant.TenantAutoConfiguration
 vn.viettel.okrkpi.shared.idempotency.IdempotencyAutoConfiguration
 vn.viettel.okrkpi.shared.paging.PagingAutoConfiguration
 vn.viettel.okrkpi.shared.job.JobAutoConfiguration
+vn.viettel.okrkpi.shared.authz.AuthzAutoConfiguration
