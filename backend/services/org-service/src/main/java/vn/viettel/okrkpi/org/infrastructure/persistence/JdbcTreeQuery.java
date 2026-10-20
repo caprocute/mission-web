@@ -21,41 +21,48 @@ public class JdbcTreeQuery implements TreeQueryPort {
     this.jdbc = jdbc;
   }
 
+  /**
+   * Quan hệ trực thuộc của cây tại thời điểm hỏi được lấy một lần (CTE MATERIALIZED, dùng chỉ mục một phần khi hỏi
+   * theo hiểu biết hiện tại) rồi duyệt đệ quy và kiểm "còn cấp dưới" trên tập đó; tránh vòng lặp lồng nhau trên
+   * bảng quan hệ khi lọc {@code recorded_period @>} không có chỉ mục phù hợp.
+   */
+  private static String rel(TemporalQuery query) {
+    return "rel AS MATERIALIZED (SELECT r.parent_unit_id, r.child_unit_id FROM org.org_unit_relation r WHERE " + REL
+        + Sql.recorded("r", query) + ")";
+  }
+
   @Override
   public List<TreeRow> forest(TreeKind tree, TemporalQuery query, int depth) {
-    String sql = "WITH RECURSIVE roots AS ("
-        + " SELECT DISTINCT r.parent_unit_id AS id FROM org.org_unit_relation r WHERE " + REL + Sql.recorded("r", query)
-        + " AND NOT EXISTS (SELECT 1 FROM org.org_unit_relation p WHERE p.tenant_id = :tenant AND p.tree = :tree"
-        + "  AND p.relation_type = 'TRUC_THUOC' AND p.child_unit_id = r.parent_unit_id"
-        + "  AND p.valid_period @> CAST(:d AS date) AND " + Sql.recorded("p", query) + ")"
-        // Đơn vị chưa có quan hệ trực thuộc nào tại thời điểm hỏi là gốc riêng của cây mặc định theo loại đơn vị
+    String sql = "WITH RECURSIVE " + rel(query) + ","
+        // Quan hệ trực thuộc trên mọi cây: đơn vị không có quan hệ nào là gốc riêng của cây mặc định theo loại
         // (cùng quy tắc TreeKind.defaultFor), để không biến mất khỏi cây.
+        + " anyrel AS MATERIALIZED (SELECT x.parent_unit_id, x.child_unit_id FROM org.org_unit_relation x"
+        + "  WHERE x.tenant_id = :tenant AND x.relation_type = 'TRUC_THUOC' AND x.valid_period @> CAST(:d AS date)"
+        + "  AND " + Sql.recorded("x", query) + "),"
+        + " roots AS ("
+        + " SELECT DISTINCT a.parent_unit_id AS id FROM rel a"
+        + "  WHERE NOT EXISTS (SELECT 1 FROM rel p WHERE p.child_unit_id = a.parent_unit_id)"
         + " UNION SELECT u.id FROM org.org_unit u WHERE u.tenant_id = :tenant"
         + "  AND u.valid_period @> CAST(:d AS date) AND " + Sql.recorded("u", query)
         + "  AND (CASE WHEN u.unit_type IN ('TO_CHUC_DANG', 'CHI_BO') THEN 'DANG' ELSE 'CHUYEN_MON' END) = :tree"
-        + "  AND NOT EXISTS (SELECT 1 FROM org.org_unit_relation x WHERE x.tenant_id = :tenant"
-        + "   AND x.relation_type = 'TRUC_THUOC' AND x.child_unit_id = u.id"
-        + "   AND x.valid_period @> CAST(:d AS date) AND " + Sql.recorded("x", query) + ")"
-        + "  AND NOT EXISTS (SELECT 1 FROM org.org_unit_relation y WHERE y.tenant_id = :tenant"
-        + "   AND y.relation_type = 'TRUC_THUOC' AND y.parent_unit_id = u.id"
-        + "   AND y.valid_period @> CAST(:d AS date) AND " + Sql.recorded("y", query) + ")"
+        + "  AND NOT EXISTS (SELECT 1 FROM anyrel c WHERE c.child_unit_id = u.id)"
+        + "  AND NOT EXISTS (SELECT 1 FROM anyrel c WHERE c.parent_unit_id = u.id)"
         + "), t(id, parent_id, depth) AS ("
         + " SELECT id, CAST(NULL AS uuid), 0 FROM roots"
         + " UNION ALL"
-        + " SELECT r.child_unit_id, r.parent_unit_id, t.depth + 1 FROM org.org_unit_relation r"
-        + "  JOIN t ON r.parent_unit_id = t.id WHERE " + REL + Sql.recorded("r", query) + " AND t.depth < :depth"
+        + " SELECT r.child_unit_id, r.parent_unit_id, t.depth + 1 FROM rel r JOIN t ON r.parent_unit_id = t.id"
+        + "  WHERE t.depth < :depth"
         + ")" + select(query);
     return run(sql, tree, query, depth, null);
   }
 
   @Override
   public List<TreeRow> subtree(TreeKind tree, UUID root, TemporalQuery query, int depth) {
-    String sql = "WITH RECURSIVE t(id, parent_id, depth) AS ("
-        + " SELECT r.child_unit_id, r.parent_unit_id, 1 FROM org.org_unit_relation r WHERE " + REL
-        + Sql.recorded("r", query) + " AND r.parent_unit_id = :root"
+    String sql = "WITH RECURSIVE " + rel(query) + ", t(id, parent_id, depth) AS ("
+        + " SELECT r.child_unit_id, r.parent_unit_id, 1 FROM rel r WHERE r.parent_unit_id = :root"
         + " UNION ALL"
-        + " SELECT r.child_unit_id, r.parent_unit_id, t.depth + 1 FROM org.org_unit_relation r"
-        + "  JOIN t ON r.parent_unit_id = t.id WHERE " + REL + Sql.recorded("r", query) + " AND t.depth < :depth"
+        + " SELECT r.child_unit_id, r.parent_unit_id, t.depth + 1 FROM rel r JOIN t ON r.parent_unit_id = t.id"
+        + "  WHERE t.depth < :depth"
         + ")" + select(query);
     return run(sql, tree, query, depth, root);
   }
@@ -76,9 +83,7 @@ public class JdbcTreeQuery implements TreeQueryPort {
 
   private static String select(TemporalQuery query) {
     return " SELECT t.id, t.parent_id, t.depth, u.code, u.name, u.unit_type,"
-        + " (t.depth = :depth AND EXISTS (SELECT 1 FROM org.org_unit_relation c WHERE c.tenant_id = :tenant"
-        + "  AND c.tree = :tree AND c.relation_type = 'TRUC_THUOC' AND c.parent_unit_id = t.id"
-        + "  AND c.valid_period @> CAST(:d AS date) AND " + Sql.recorded("c", query) + ")) AS has_more"
+        + " (t.depth = :depth AND EXISTS (SELECT 1 FROM rel c WHERE c.parent_unit_id = t.id)) AS has_more"
         + " FROM t JOIN org.org_unit u ON u.tenant_id = :tenant AND u.id = t.id"
         + " AND u.valid_period @> CAST(:d AS date) AND " + Sql.recorded("u", query);
   }

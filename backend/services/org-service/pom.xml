@@ -30,6 +30,7 @@
     <archunit.version>1.4.1</archunit.version>
     <swagger-request-validator.version>2.46.1</swagger-request-validator.version>
     <jacoco.version>0.8.13</jacoco.version>
+    <test.jvm>-Xmx768m -XX:+UseSerialGC</test.jvm>
   </properties>
 
   <dependencies>
@@ -187,7 +188,7 @@
             <include>**/*Test.java</include>
             <include>**/*IT.java</include>
           </includes>
-          <argLine>@{argLine} -Xmx768m -XX:+UseSerialGC</argLine>
+          <argLine>@{argLine} ${test.jvm}</argLine>
         </configuration>
       </plugin>
       <plugin>
