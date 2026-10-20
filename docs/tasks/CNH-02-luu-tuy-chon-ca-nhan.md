@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | CNH-01, CORE-08-01; ghép bố cục trang chủ cần CORE-08-11 (bổ sung so với khung) |
 | Truy vết | NFR-11, ADR-05 → SCR-0002 và các màn hình danh sách → API đề xuất ở CNH-01 (dưới `/api/v1/config`, sau khi được thêm vào `config.yaml`) → MOD-08 → bảng đề xuất `config.user_preference`, `config.saved_filter` |
-| Trạng thái | Chờ người dùng chốt |
+| Trạng thái | Chưa bắt đầu |
 
 ## 1. Mục tiêu
 

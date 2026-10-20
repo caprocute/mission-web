@@ -13,11 +13,13 @@
 | Cỡ việc | M (≤ 1 ngày) |
 | Phụ thuộc | – (DV-11-02, DV-11-03 phụ thuộc task này) |
 | Truy vết | H5; QT-09, QT-11 (BR-11-02, BR-11-03, BR-11-04) → API `POST /api/v1/dossiers/forms/preview` (`previewDossierForm`), `POST /api/v1/dossiers/forms` (`createDossierDraftForms`), `POST /api/v1/dossiers/render-jobs` (`createDossierRenderJob`) → SVC-11, MOD-06 → bảng `docgen.template`, `dossier.form_instance` → EVT-17 |
-| Trạng thái | Bị chặn bởi bên ngoài: đã dựng khung kê khai bảy mẫu và công cụ kiểm tra (20/10/2026); chờ bản mẫu chính thức để dựng DOCX |
+| Trạng thái | Chưa bắt đầu (dùng bản giả lập); đã dựng khung kê khai bảy mẫu và công cụ kiểm tra ngày 20/10/2026 |
 
 ## 1. Mục tiêu
 
 Có bộ mẫu DOCX đúng văn bản pháp lý cho Mẫu 1A, 1B, 1C, 1D, Mẫu 2, Mẫu 3 và bảng chấm điểm, mỗi mẫu có vùng trộn dữ liệu đặt tên ổn định, tệp kê khai trường ánh xạ tới nguồn dữ liệu và phiên bản gắn với Policy Pack. document-service (docx4j, Gotenberg) dùng bộ mẫu này để sinh PDF/A-2b ở QT-09, QT-11 (tiêu chí H5); kỳ cũ phải sinh đúng mẫu cũ nên mẫu nằm trong thư mục `templates/` của gói.
+
+Theo quyết định ngày 20/10/2026 (`docs/KE-HOACH-TONG-THE-HE-THONG.md` mục 1a), bộ mẫu trong task này là mẫu giả lập dựng theo đặc tả SCR-0903, SCR-1102 và các mẫu của QĐ 366-QĐ/TW, NĐ 335/2025, đánh dấu rõ là giả lập trong kê khai và `metadata` của Policy Pack. Mẫu có phiên bản theo Policy Pack nên thay được: khi có bản mẫu chính thức, quản trị viên đưa mẫu mới vào phiên bản Policy Pack mới và phát hành theo QT-15, không sửa mã và không phát hành phần mềm.
 
 ## 2. Đầu vào bắt buộc đọc
 
@@ -25,17 +27,18 @@ Có bộ mẫu DOCX đúng văn bản pháp lý cho Mẫu 1A, 1B, 1C, 1D, Mẫu 
 - TL-02b `/mnt/project-files/kien-truc-okr-kpi/src/TL-02b-quy-trinh.md`: QT-11 "Quy tắc nghiệp vụ" (BR-11-02 vùng số liệu khoá, BR-11-03 tem phiên bản, BR-11-04 ánh xạ nhãn tiêu chí chung) và đặc tả SCR-1102; QT-09 "Ngoại lệ và xử lý" (trường hợp không tự đánh giá ghi trên Mẫu 3), đặc tả SCR-0903.
 - TL-03 `/mnt/project-files/kien-truc-okr-kpi/src/TL-03-thiet-ke-csdl.md`, mục "Schema docgen" và bảng `appraisal.score_snapshot`, `appraisal.rating_proposal` (`level_kind`), `appraisal.rating_explanation`, `dossier.form_instance`.
 - Hợp đồng `contracts/openapi/modules/dossiers.yaml` (lược đồ yêu cầu xem trước và sinh biểu mẫu).
-- Đầu vào người dùng cần cấp: bản mẫu chính thức (DOCX hoặc PDF) của các mẫu trên kèm số hiệu văn bản ban hành; xác nhận phông chữ được phép nhúng.
+- Bản mẫu chính thức (DOCX hoặc PDF) kèm số hiệu văn bản ban hành và xác nhận phông chữ được phép nhúng: chưa có, không chặn task; khi có thì dùng để soạn phiên bản mẫu thay thế.
 
 ## 3. Phạm vi công việc
 
-- Dựng tệp DOCX cho Mẫu 1A, 1B, 1C, 1D, Mẫu 2, Mẫu 3 và bảng chấm điểm, bám bố cục bản mẫu chính thức; vùng dữ liệu dùng content control có tag ổn định dạng `snake_case` để docx4j trộn.
+- Dựng tệp DOCX giả lập cho Mẫu 1A, 1B, 1C, 1D, Mẫu 2, Mẫu 3 và bảng chấm điểm, bám đặc tả SCR-0903, SCR-1102 và bố cục các mẫu trong văn bản pháp lý mà TL dẫn, dùng phông chữ mở được phép nhúng; vùng dữ liệu dùng content control có tag ổn định dạng `snake_case` để docx4j trộn.
+- Đánh dấu giả lập: mỗi `manifest.json` có `gia_lap: true` và ghi chú nguồn bố cục (tên trường là suy luận), chân trang mẫu có dòng "Mẫu thử nghiệm" bên cạnh tem phiên bản.
 - Viết tệp kê khai `manifest.json` cho mỗi mẫu: tên vùng, kiểu, nguồn (`appraisal.score_snapshot`, bốn bản ghi `rating_proposal` theo `level_kind`, `rating_explanation`, `appraisal.self_assessment`, `org_replica.*`), vùng nào khoá số liệu theo BR-11-02.
 - Đặt tem phiên bản Policy Pack và `template_version` ở chân trang mỗi mẫu (BR-11-03); ánh xạ nhãn tiêu chí chung theo từng mẫu (BR-11-04) bằng bảng tra trong kê khai.
 - Thể hiện các trường hợp đặc biệt: Mẫu 3 ghi "không tự đánh giá" khi cán bộ quá hạn; Mẫu 2 ghi chú trường hợp §4 không xếp loại; câu giải thích hạ mức liền kề in nguyên văn từ `rating_explanation`.
 - Đặt mẫu vào `templates/` của gói `khoi-dang/quy-dinh-moi` và gói luồng Nhà nước (Mẫu dùng chung thì tham chiếu, không chép), cập nhật `CHANGELOG.md`.
 - Viết kiểm tra tĩnh (Python 3.12, chạy `python -I`): mỗi DOCX hợp lệ OOXML, tập tag trong tệp trùng khớp tập trường trong kê khai, không còn tag thừa hoặc thiếu.
-- Nếu bản mẫu chính thức chưa có: chỉ dựng khung kê khai trường từ đặc tả SCR-0903, SCR-1102 và dừng, ghi rõ trong báo cáo; không tự sáng tác bố cục văn bản pháp lý.
+- Không viết cứng bố cục hay tên vùng của mẫu trong mã document-service; mọi thay đổi mẫu đi qua phiên bản `template_version` trong Policy Pack.
 
 ## 4. Ngoài phạm vi
 
@@ -52,7 +55,8 @@ Có bộ mẫu DOCX đúng văn bản pháp lý cho Mẫu 1A, 1B, 1C, 1D, Mẫu 
 
 - `python -I data/seed/docgen/kiem_mau.py data/policy-pack` báo 0 lỗi cho cả bảy mẫu.
 - Với DV-11-01 đã gộp: sinh thử mỗi mẫu bằng dữ liệu giả lập qua Gotenberg trong Testcontainers, tệp ra đạt PDF/A-2b (kiểm bằng veraPDF hoặc công cụ kiểm PDF/A mà DV-11-01 đã chọn) và có tem phiên bản.
-- Có bảng đối chiếu từng mẫu với bản chính thức (số hiệu văn bản, ngày ban hành) trong báo cáo.
+- Với DV-11-01 đã gộp, ca chứng minh thay mẫu: đưa một phiên bản mẫu mới (ví dụ đổi bố cục Mẫu 2) vào phiên bản Policy Pack mới; kỳ áp dụng phiên bản mới sinh tệp theo mẫu mới, kỳ cũ vẫn sinh mẫu cũ, cùng bản build, không đổi mã.
+- Báo cáo có bảng liệt kê từng mẫu đang là giả lập và căn cứ đã dùng để dựng bố cục.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo

@@ -13,7 +13,7 @@
 | Cỡ việc | L |
 | Phụ thuộc | DV-02-01; cần `org.person.national_id_bidx` của DV-04-01 và khoá HMAC chỉ mục mù của NEN-015 để liên kết danh tính (suy luận) |
 | Truy vết | QT-00 → SCR-0001 → OIDC broker `/realms/<realm>/broker/vneid/*` → SVC-02 iam → bảng `org.person` (`national_id_bidx`), `registry.tenant_idp` (`is_vneid`); BR-00-03, BR-00-04; MSG-00-03, MSG-00-04; ADR-08; vấn đề L03 của hệ hiện tại |
-| Trạng thái | Bị chặn bởi bên ngoài: cần môi trường thử VNeID (phần giả lập IdP làm được trước) |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -43,6 +43,7 @@ Cán bộ đăng nhập bằng VNeID qua Keycloak identity brokering, có kiểm
 
 - IdP cơ quan OIDC, SAML, LDAP do tenant khai báo (DV-03-06).
 - Mã hoá trường và khoá HMAC (NEN-015); theme trang đăng nhập (WEB-020).
+- Nối và kiểm thử với VNeID thật khi có môi trường thử; khi đó chỉ đổi cấu hình kết nối, không đổi mã.
 
 ## 5. Tệp được phép sửa
 
@@ -55,7 +56,7 @@ Cán bộ đăng nhập bằng VNeID qua Keycloak identity brokering, có kiểm
 
 - `cd backend && mvn -q -pl services/iam -am verify` chạy xanh với sáu ca kiểm thử ở mục 3; SpotBugs + Find Security Bugs không có lỗi mức cao.
 - Rà mã và nhật ký kiểm thử: không có số định danh dạng rõ trong log, bảng hay thuộc tính người dùng Keycloak.
-- Ghi rõ trong báo cáo phần nào đã thử với VNeID thật và phần nào chỉ với IdP giả lập.
+- Địa chỉ, client và chứng thư của VNeID nằm trong cấu hình realm và giá trị triển khai (bí mật qua OpenBao), không nằm trong mã; đổi từ IdP giả lập sang VNeID thật chỉ đổi cấu hình kết nối, không đổi mã.
 - Báo cáo cuối task theo AGENTS.md mục 6; wiki được cập nhật nếu có tri thức mới.
 
 ## 7. Báo cáo

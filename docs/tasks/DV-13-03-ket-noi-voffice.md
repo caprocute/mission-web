@@ -13,7 +13,7 @@
 | Cỡ việc | L |
 | Phụ thuộc | DV-13-01 |
 | Truy vết | QT-05 bước 1b, QT-07 (BR-07-13) → API `GET /api/v1/evidences/external-docs` (MOD-03 gọi qua SVC-13) → SVC-13 → bảng `integ.connector`, `integ.inbox_message`, `integ.mapping_xref`, `integ.sync_cursor`, `integ.dead_letter`, `integ.outbox_event` → EVT-24 `integ.document.received.v1` |
-| Trạng thái | Bị chặn bởi bên ngoài: cần môi trường thử vOffice (phần mã và kiểm thử với vOffice giả lập làm được ngay) |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -38,7 +38,7 @@ Hiện thực bộ kết nối vOffice (và ĐHTN cùng giao thức) hai chiều
 ## 4. Ngoài phạm vi
 
 - Trích nhiệm vụ bằng AI và màn hình xác nhận (CORE-02-16, DV-14-04); bộ kết nối iOffice (DV-13-04).
-- Đọc bảng tổ chức `VHR_ORG`, `VHR_EMPLOYEE` qua `JDBC_RO` trong giai đoạn chuyển tiếp (task hệ cũ LEG tương ứng).
+- Nối và kiểm thử với vOffice thật khi có môi trường thử; khi đó chỉ đổi cấu hình kết nối, không đổi mã.
 
 ## 5. Tệp được phép sửa
 
@@ -50,7 +50,7 @@ Hiện thực bộ kết nối vOffice (và ĐHTN cùng giao thức) hai chiều
 - `cd backend && mvn -q -pl services/integration-gateway -am verify` xanh, gồm kiểm thử tích hợp với vOffice giả lập (WireMock): 3 trang văn bản, một văn bản đổi phiên bản, một lần vOffice lỗi 5xx; kết quả đúng số EVT-24, không trùng, con trỏ tiến đúng, thông điệp lỗi vào `dead_letter`.
 - Văn bản có đơn vị nhận chưa ánh xạ được thì không phát EVT-24 mà vào hàng xử lý của quản trị tenant, có lý do rõ.
 - Kiểm thử hợp đồng phía tiêu dùng (Pact) với vOffice giả lập được công bố cho QA-02 dùng lại.
-- Khi có môi trường thử vOffice: chạy kéo thật và ghi kết quả; nếu chưa có, ghi rõ trong báo cáo.
+- Địa chỉ, chứng thư, bí mật và tham số kết nối vOffice nằm trong bản ghi `integ.connector` và giá trị triển khai (bí mật qua `secret_path`), không nằm trong mã; kiểm thử chứng minh chuyển từ vOffice giả lập sang địa chỉ khác chỉ bằng đổi cấu hình.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo

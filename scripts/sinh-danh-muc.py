@@ -29,7 +29,7 @@ STREAMS = {
     "B8": "Hạ tầng, CI/CD, quan sát, dự phòng",
     "B9": "Kiểm thử tích hợp, hiệu năng, ATTT, DR",
     "B10": "Di động",
-    "B11": "Dữ liệu nghiệp vụ, hệ cũ, vận hành",
+    "B11": "Dữ liệu nghiệp vụ, vận hành",
     "W": "Phân hệ web (các luồng web hiện có)",
 }
 

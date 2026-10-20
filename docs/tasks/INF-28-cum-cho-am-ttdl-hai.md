@@ -13,7 +13,7 @@
 | Cỡ việc | L (gợi ý tách: (a) cụm Kubernetes và node pool phía Nam, ApplicationSet `values-sn`; (b) lớp dữ liệu: CNPG replica cluster sáu cụm, nối cấu hình MirrorMaker 2 và Ceph multisite của INF-18; (c) giám sát độ trễ sao chép và kiểm tra sẵn sàng hằng ngày) |
 | Phụ thuộc | INF-11 (CNPG sáu cụm), INF-18 (MirrorMaker 2, Ceph multisite, giữ outbox 72 giờ), INF-20 (GeoDNS, `dns-sync`, cụm quản trị); INF-04 (ApplicationSet theo cell), INF-08, INF-09 (cụm cell), INF-17 (Barman Cloud, kho sao lưu) (bổ sung) |
 | Truy vết | NFR-05 (RPO ≤ 15 phút, RTO ≤ 4 giờ khi mất TTDL) → TL-04 "Topology hai trung tâm dữ liệu" (L133–146), năng lực phía Nam (L658–660), "PostgreSQL: CloudNativePG và Barman Cloud" (L2003–2112, replica cluster L2081–2083), "Kafka: MirrorMaker 2" (L2114–2174), "Ceph: multisite RGW" (L2176–2215), "Kịch bản DR" (L2336) → DR-10, DR-16, OPS-18 → cụm `pg-*-sn`, `mm2-hl-to-sn`, zone RGW thứ hai |
-| Trạng thái | Bị chặn bởi bên ngoài: cần TTDL thứ hai (kiểm tạm bằng hai cụm kind mô phỏng Hoà Lạc và phía Nam) |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -37,6 +37,7 @@
 ## 4. Ngoài phạm vi
 
 - Mua sắm và lắp đặt TTDL phía Nam, giữ chỗ năng lực Viettel Cloud (hạ tầng thật); diễn tập chuyển vùng và quay về (QA-15); GeoDNS, `dns-sync` (INF-20); cấu hình MirrorMaker 2 và multisite gốc (INF-18).
+- Dựng và kiểm thử trên TTDL thứ hai thật khi có; khi đó chỉ đổi values theo môi trường.
 
 ## 5. Tệp được phép sửa
 
@@ -49,7 +50,7 @@
 
 - `helm lint`, `helm template`, `kubeconform -strict` sạch cho mọi values phía Nam; `kube-linter` không lỗi mới.
 - Trên hai cụm kind mô phỏng: một replica CNPG nhận WAL từ cụm "Hoà Lạc" với độ trễ đo được dưới 1 phút; MirrorMaker 2 sao một topic thử; CronJob kiểm sẵn sàng báo xanh, và báo đỏ khi ngắt đường sao chép.
-- Báo cáo ghi rõ giới hạn của kiểm chứng trên kind so với hai TTDL thật; runbook có bước kiểm chứng và quay lui; báo cáo cuối task theo AGENTS.md mục 6.
+- Địa chỉ, kích thước và tham số riêng của phía Nam nằm trong values theo môi trường, nên áp lên TTDL thật chỉ đổi cấu hình; runbook có bước kiểm chứng và quay lui; báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo
 

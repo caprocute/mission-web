@@ -13,7 +13,7 @@
 | Cỡ việc | L (> 1 ngày, nên tách) |
 | Phụ thuộc | QA-09, QA-10, QA-11, INF-21 |
 | Truy vết | NFR-01, NFR-03, NFR-06 → TL-04 mục 7.3, 7.8; TL-05 mục 12.1–12.3, 11.2 → PERF-01..PERF-26, GD-xx, NG-01..NG-14 → `CELL-PERF`, cụm `perf-gen` |
-| Trạng thái | Bị chặn bởi bên ngoài: cần `CELL-PERF` trên phần cứng cùng loại sản xuất (kiểm tạm bằng chiến dịch thu nhỏ trên kind hoặc staging) |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -39,6 +39,7 @@ Chạy chương trình thử tải theo hồ sơ cell, lập báo cáo theo mẫ
 ## 4. Ngoài phạm vi
 
 - Dựng `CELL-PERF` và `perf-gen` (INF-21); viết kịch bản (QA-08..QA-11); quyết định mua sắm phần cứng (đầu ra là đề xuất).
+- Chạy bộ kịch bản mục 12.2 ở hồ sơ M trên `CELL-PERF` phần cứng cùng loại sản xuất khi có, cập nhật GD từ kết quả thật; khi đó chỉ đổi cấu hình.
 
 ## 5. Tệp được phép sửa
 
@@ -48,7 +49,7 @@ Chạy chương trình thử tải theo hồ sơ cell, lập báo cáo theo mẫ
 
 - `python deploy/capacity/trich_so_do.py --bao-cao infra/perf/ket-qua/<lần-chạy>` cập nhật được GD-08, GD-09 từ báo cáo PERF-02; `python deploy/capacity/kiem_ngan_sach_ket_noi.py` chạy xanh trên values hiện hành; một merge request thử tăng `maxReplicas` vượt ngân sách bị CI từ chối.
 - Chiến dịch thu nhỏ trên kind hoặc staging chạy trọn và sinh đủ báo cáo cho PERF-01, PERF-02, PERF-04, PERF-11.
-- Khi có `CELL-PERF`: bộ kịch bản mục 12.2 đạt ở hồ sơ M; báo cáo nêu thành phần chạm giới hạn đầu tiên và các GD đã cập nhật. Khi chưa có: báo cáo ghi "Bị chặn bởi bên ngoài".
+- Chiến dịch thu nhỏ nêu được thành phần chạm giới hạn đầu tiên ở quy mô thu nhỏ; hồ sơ tải và địa chỉ đích là tham số, nên chạy trên `CELL-PERF` thật chỉ đổi cấu hình.
 
 ## 7. Báo cáo
 

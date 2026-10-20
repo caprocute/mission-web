@@ -13,7 +13,7 @@
 | Cỡ việc | L |
 | Phụ thuộc | DV-13-01; DV-04-04 (org-service có phân công để nhận dữ liệu nhân sự) nên gộp trước (bổ sung); DV-04-07 (khớp người, bảng lệch) phụ thuộc ngược vào task này |
 | Truy vết | QT-01 bước 7 (BR-01-11, BR-01-12), QT-16 (BR-16-05) → API `GET/POST /api/v1/org/sync-runs`, `POST /api/v1/org/sync-runs/{id}/retry`, `GET/PUT /api/v1/org/sync-schedules` (SVC-04 gọi SVC-13) → SVC-13 → bảng `integ.connector`, `integ.sync_cursor`, `integ.inbox_message`, `integ.mapping_xref`, `integ.dead_letter` → EVT-15, EVT-16 (do SVC-04 phát) |
-| Trạng thái | Bị chặn bởi bên ngoài: cần kết nối thử NDXP, LGSP và dịch vụ chia sẻ của CSDL quốc gia CBCCVC |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -41,6 +41,7 @@ Kéo hồ sơ cán bộ, công chức, viên chức từ CSDL quốc gia CBCCVC 
 
 - Khớp người, bảng lệch, phân loại mức lệch ở org-service (DV-04-07); SCIM 2.0 từ IdP tỉnh (DV-04-06).
 - Chia sẻ ngược EVT-12 lên CSDL CBCCVC (DV-13-09); CSDL đảng viên (DV-13-07).
+- Nối và kiểm thử với NDXP, LGSP và dịch vụ chia sẻ của CSDL quốc gia CBCCVC thật khi có môi trường; khi đó chỉ đổi cấu hình kết nối, không đổi mã.
 
 ## 5. Tệp được phép sửa
 
@@ -51,7 +52,7 @@ Kéo hồ sơ cán bộ, công chức, viên chức từ CSDL quốc gia CBCCVC 
 - `cd backend && mvn -q -pl services/integration-gateway -am verify` xanh, gồm kiểm thử với NDXP giả lập: 100.000 bản ghi qua 500 trang, gián đoạn giữa chừng rồi chạy tiếp từ con trỏ không trùng, không sót; thời gian ghi vào báo cáo so với mốc ≤ 1 giờ.
 - Kiểm thử chứng minh không có số định danh dạng rõ trong `inbox_message`, thông điệp Kafka và nhật ký.
 - Chỉ tiêu KT-XH chưa công bố không được đánh dấu `da_cong_bo`.
-- Báo cáo ghi rõ đã hay chưa kết nối thử NDXP, LGSP thật.
+- Địa chỉ NDXP, LGSP, dịch vụ CSDL CBCCVC, chứng thư và tham số kết nối nằm trong bản ghi `integ.connector` và giá trị triển khai, không nằm trong mã; đổi từ giả lập sang hệ thật chỉ đổi cấu hình kết nối, không đổi mã.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo

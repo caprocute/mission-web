@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | DV-10-01; DV-10-03 (client TSA dùng chung) nên gộp trước (bổ sung) |
 | Truy vết | QT-09, QT-11, QT-13, QT-15 → API `POST /api/v1/esign/requests` (provider `VIETTEL_CA`, `CA_CHINH_PHU`) → SVC-10 → bảng `esign.sign_request`, `esign.certificate_ref` → EVT-18 |
-| Trạng thái | Bị chặn bởi bên ngoài: cần môi trường thử của Viettel-CA và CA chuyên dùng Chính phủ (phần mã và kiểm thử với giả lập làm được ngay) |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -39,6 +39,7 @@ Bổ sung hai nhà cung cấp `viettel-ca` và `gov-ca` vào SPI `SignatureProvi
 
 - Nhà cung cấp Ban Cơ yếu cho bản cách ly qua `CryptoProvider` (DV-10-05).
 - Giao diện chọn nhà cung cấp và chứng thư (WEB tương ứng).
+- Nối và kiểm thử với môi trường thử thật của Viettel-CA và CA chuyên dùng Chính phủ khi có; khi đó chỉ đổi cấu hình kết nối, không đổi mã.
 
 ## 5. Tệp được phép sửa
 
@@ -50,7 +51,7 @@ Bổ sung hai nhà cung cấp `viettel-ca` và `gov-ca` vào SPI `SignatureProvi
 - `cd backend && mvn -q -pl services/esign -am verify` xanh, gồm kiểm thử tích hợp với giả lập hai nhà cung cấp: ký thành công, từ chối, hết hạn, chứng thư bị thu hồi (OCSP giả lập trả `revoked`).
 - PDF ký bằng chứng thư thử của từng nhà cung cấp được công cụ độc lập xác nhận hợp lệ theo chuỗi gốc đã nạp.
 - Đổi nhà cung cấp mặc định của tenant chỉ bằng cấu hình, không đổi mã.
-- Báo cáo ghi rõ đã hay chưa kiểm với môi trường thử thật của từng CA.
+- Địa chỉ dịch vụ, chuỗi gốc và chứng thư của từng CA nằm trong cấu hình và giá trị triển khai, không nằm trong mã; đổi từ giả lập sang môi trường thật chỉ đổi cấu hình kết nối, không đổi mã.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo
