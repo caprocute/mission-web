@@ -31,6 +31,12 @@ export type GoldenTestCaseList = S['GoldenTestCaseList'];
 export type PolicyTestRunSummary = S['PolicyTestRunSummary'];
 export type PolicyTestRunList = S['PolicyTestRunList'];
 export type PolicyPackSubmit = S['PolicyPackSubmit'];
+export type PolicyManifest = S['PolicyManifest'];
+export type PolicyEvaluateOutputs = S['PolicyEvaluateOutputs'];
+export type PolicyRoundingMode = S['PolicyRoundingMode'];
+export type PolicyQualityMethod = S['PolicyQualityMethod'];
+export type PolicyDayType = S['PolicyDayType'];
+export type PolicyReturnReasonMode = S['PolicyReturnReasonMode'];
 
 /** Nhãn trạng thái phiên bản (baseline mục 9.1) hiển thị cho người dùng. */
 export const POLICY_VERSION_STATUS_LABEL: Record<PolicyPackVersionStatus, string> = {
@@ -50,26 +56,26 @@ export const isPolicyVersionEditable = (s: PolicyPackVersionStatus) =>
 export const policyVersionLabel = (v: string) => v.replace(/\.0$/, '');
 
 /** Cách tính chất lượng B (BR-15-02). */
-export const QUALITY_METHOD_LABEL: Record<string, string> = {
+export const QUALITY_METHOD_LABEL: Record<PolicyQualityMethod, string> = {
   NAM_MUC_PL3: 'Theo 5 mức của Phụ lục 3',
   TRU_25_MOI_LAN: 'Trừ 25% cho mỗi lần chỉnh sửa (Bảng chấm điểm)',
 };
 
 /** Loại ngày tính chậm (BR-15-03). */
-export const DAY_KIND_LABEL: Record<string, string> = {
+export const DAY_KIND_LABEL: Record<PolicyDayType, string> = {
   NGAY_LAM_VIEC: 'ngày làm việc theo lịch của đơn vị',
   NGAY_LICH: 'ngày lịch',
 };
 
-/** Lý do trả lại có tính vào chất lượng không (SCR-1501 trường 7; khoá giá trị là suy luận). */
-export const RETURN_REASON_LABEL: Record<string, string> = {
+/** Lý do trả lại có tính vào chất lượng không (SCR-1501 trường 7). */
+export const RETURN_REASON_LABEL: Record<PolicyReturnReasonMode, string> = {
   CHI_COT_LOI: 'Chỉ lý do thuộc nội dung cốt lõi',
   TAT_CA: 'Mọi lý do trả lại',
   KHONG_TINH: 'Không tính vào chất lượng',
 };
 
 /** Kiểu làm tròn (SCR-1501 trường 8; ngoài `NUA_LEN` là suy luận). */
-export const ROUNDING_MODE_LABEL: Record<string, string> = {
+export const ROUNDING_MODE_LABEL: Record<PolicyRoundingMode, string> = {
   NUA_LEN: 'nửa lên',
   CAT_BO: 'cắt bỏ phần lẻ',
 };

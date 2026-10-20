@@ -29,13 +29,6 @@ import { PolicyWorkspace } from './policy-workspace';
 const BLOCKS = ['A', 'B', 'C'] as const;
 const GROUP_TOTAL = 100;
 
-interface PreviewGroup {
-  key: string;
-  kpi_nhom: number;
-  diem_toi_da: number;
-  diem: number;
-}
-
 /**
  * Config Studio · Công thức (SCR-1501, QT-15): khối KPI nhiệm vụ = (A + B + C)/3 với ba biểu thức
  * sửa được, tham số (BR-15-02, BR-15-03), tổng hợp điểm theo nhóm có kiểm tổng tức thời (MSG-15-02),
@@ -348,15 +341,17 @@ interface PreviewGroup {
           } @else if (preview.value(); as p) {
             <table class="preview" data-testid="preview">
               <tbody>
-                <tr>
-                  <th scope="row">{{ p.outputs['nhiem_vu'] ?? 'Nhiệm vụ' }}</th>
-                  <td class="muted">
-                    {{ ws.label('A') }} {{ num(p.outputs['A']) }} · {{ ws.label('B') }}
-                    {{ num(p.outputs['B']) }} · {{ ws.label('C') }} {{ num(p.outputs['C']) }}
-                  </td>
-                  <td class="r strong">{{ num(p.outputs['kpi_nhiem_vu']) }}</td>
-                </tr>
-                @for (g of previewGroups(); track g.key) {
+                @for (t of p.outputs.nhiem_vu ?? []; track t.ma) {
+                  <tr [attr.data-task]="t.ma">
+                    <th scope="row">Nhiệm vụ {{ t.ma }}</th>
+                    <td class="muted">
+                      {{ ws.label('A') }} {{ num(t.A) }} · {{ ws.label('B') }} {{ num(t.B) }} ·
+                      {{ ws.label('C') }} {{ num(t.C) }}
+                    </td>
+                    <td class="r strong">{{ num(t.kpi_nhiem_vu) }}</td>
+                  </tr>
+                }
+                @for (g of p.outputs.nhom ?? []; track g.key) {
                   <tr>
                     <th scope="row">Nhóm {{ ws.label(g.key).toLowerCase() }}</th>
                     <td class="r muted">× {{ g.diem_toi_da }}</td>
@@ -366,7 +361,7 @@ interface PreviewGroup {
                 <tr class="total">
                   <th scope="row">Điểm</th>
                   <td></td>
-                  <td class="r" data-testid="preview-score">{{ num(p.outputs['diem'], 1) }}</td>
+                  <td class="r" data-testid="preview-score">{{ num(p.outputs.diem, 1) }}</td>
                 </tr>
                 @if (p.ratingLevel) {
                   <tr>
@@ -739,9 +734,6 @@ export class FormulaPage {
     },
     stream: ({ params }) => this.api.evaluate(params.ref, params.code),
   });
-  protected readonly previewGroups = computed(
-    () => (this.preview.value()?.outputs['nhom'] ?? []) as PreviewGroup[],
-  );
   protected readonly previewError = computed(() =>
     errorText(this.preview.error(), 'Không tính thử được hồ sơ mẫu.'),
   );

@@ -53,23 +53,12 @@ export class PolicyWorkspace {
     const s = this.status();
     return !!s && isPolicyVersionEditable(s);
   });
+  private readonly manifest = computed(() => this.version.value()?.value.manifest);
   /** Nhãn hiển thị của khối và nhóm (`manifest.labels`). */
-  readonly labels = computed(
-    () =>
-      ((this.version.value()?.value.manifest as { labels?: Record<string, string> } | undefined)
-        ?.labels ?? {}) as Record<string, string>,
-  );
-  readonly notes = computed(
-    () =>
-      ((this.version.value()?.value.manifest as { notes?: Record<string, string> } | undefined)
-        ?.notes ?? {}) as Record<string, string>,
-  );
+  readonly labels = computed(() => this.manifest()?.labels ?? {});
+  readonly notes = computed(() => this.manifest()?.notes ?? {});
   /** Biến khai báo cho gợi ý và kiểm tra biến chưa biết. */
-  readonly variables = computed(
-    () =>
-      ((this.version.value()?.value.manifest as { variables?: { name: string; label: string }[] })
-        ?.variables ?? []) as { name: string; label: string }[],
-  );
+  readonly variables = computed(() => this.manifest()?.variables ?? []);
   /** Phiên bản đã phát hành mới nhất khác bản đang mở, để so sánh. */
   readonly published = computed<PolicyPackVersionSummary | null>(() => {
     const cur = this.ref()?.v;
