@@ -1,0 +1,414 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mission.viettel.vn/schemas/config/user-preference.schema.json",
+  "title": "UserPreferenceSchema",
+  "description": "Lược đồ JSON Schema (Draft 2020-12) kiểm tra giá trị tùy chọn cá nhân hóa trình bày (bảng config.user_preference, phân loại dữ liệu C1, dung lượng tối đa 16 KB) và tiêu chí bộ lọc đã lưu (bảng config.saved_filter). Tham chiếu: CNH-01, TL-01 Chương 7, TL-02 SCR-0002/SCR-1803, TL-03 Mục 3.10.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "default": 1,
+      "description": "Phiên bản lược đồ cấu trúc tùy chọn cá nhân (khớp cột value_schema_version)."
+    },
+    "ui.display": {
+      "$ref": "#/$defs/UiDisplayPreference"
+    },
+    "ui.home.layout": {
+      "$ref": "#/$defs/UiHomeLayoutOverlay"
+    },
+    "ui.dashboard.default": {
+      "$ref": "#/$defs/UiDashboardDefaultPreference"
+    },
+    "ui.table": {
+      "type": "object",
+      "description": "Tùy chọn cột, độ rộng, kích thước trang và sắp xếp mặc định theo từng mã màn hình danh sách (SCR-xxxx).",
+      "propertyNames": {
+        "pattern": "^SCR-[0-9]{4}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/UiTableScreenPreference"
+      },
+      "maxProperties": 50
+    },
+    "notify.channel_pref": {
+      "$ref": "#/$defs/NotifyChannelPreferenceRef"
+    }
+  },
+  "$defs": {
+    "PrefKey": {
+      "type": "string",
+      "description": "Khóa tùy chọn hợp lệ trong bảng config.user_preference (cột pref_key).",
+      "pattern": "^(ui\\.display|ui\\.home\\.layout|ui\\.dashboard\\.default|ui\\.table\\.SCR-[0-9]{4}|notify\\.channel_pref)$",
+      "maxLength": 100
+    },
+    "WidgetId": {
+      "type": "string",
+      "description": "Mã định danh widget trong registry của UI Pack (TL-01 Mục 7.2).",
+      "pattern": "^[a-z][a-z0-9._-]{1,63}$",
+      "maxLength": 64
+    },
+    "ColumnKey": {
+      "type": "string",
+      "description": "Mã kỹ thuật của cột bảng danh sách (chỉ nhận định danh C0/C1, không chứa dữ liệu C2).",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_]{0,63}$",
+      "maxLength": 64
+    },
+    "Uuid": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "UiDisplayPreference": {
+      "type": "object",
+      "description": "Tùy chọn chế độ hiển thị giao diện cá nhân (TL-01 Mục 7.4, NFR-11, SCR-1803).",
+      "additionalProperties": false,
+      "required": ["mode", "reducedSteps"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["default", "elderly"],
+          "default": "default",
+          "description": "Chế độ giao diện: 'default' (mặc định) hoặc 'elderly' (Đảng viên cao tuổi, kích hoạt data-mode='elderly', cỡ chữ >= 18px, vùng chạm >= 48x48px)."
+        },
+        "reducedSteps": {
+          "type": "boolean",
+          "default": false,
+          "description": "Cờ rút gọn luồng thao tác thường ngày <= 3 chạm và ẩn trường nâng cao không bắt buộc (NFR-11)."
+        },
+        "density": {
+          "type": "string",
+          "enum": ["comfortable", "compact"],
+          "default": "comfortable",
+          "description": "Mật độ dòng trên bảng dữ liệu. Khi mode='elderly', máy khách luôn cưỡng bức 'comfortable'."
+        },
+        "fontScale": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 1.5,
+          "multipleOf": 0.05,
+          "default": 1.0,
+          "description": "Hệ số phóng chữ bổ sung của cá nhân trong phạm vi an toàn bố cục WCAG 2.1 AA."
+        },
+        "highContrastStatus": {
+          "type": "boolean",
+          "default": false,
+          "description": "Tăng viền tương phản và nhãn phụ cho thẻ trạng thái nhưng tuyệt đối không thay đổi bảng màu ngữ nghĩa chuẩn của hệ thống."
+        }
+      }
+    },
+    "UiHomeWidgetPlacement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "order"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/WidgetId"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50
+        },
+        "colSpan": {
+          "type": "integer",
+          "enum": [4, 6, 8, 12],
+          "description": "Độ rộng cột trên lưới 12 cột (chỉ áp dụng nếu widget trong UI Pack cho phép đổi kích thước)."
+        }
+      }
+    },
+    "UiHomeLayoutOverlay": {
+      "type": "object",
+      "description": "Lớp phủ (overlay) cá nhân hóa bố cục Trang chủ (SCR-0002). Chỉ được sắp xếp, ghim hoặc ẩn các widget không bắt buộc nằm trong tập widget mà UI Pack của tenant và vai trò đã cấp.",
+      "additionalProperties": false,
+      "properties": {
+        "baseUiPackVersion": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Phiên bản UI Pack của đơn vị tại thời điểm lưu lớp phủ để hỗ trợ hợp nhất an toàn."
+        },
+        "pinnedWidgets": {
+          "type": "array",
+          "description": "Danh sách mã widget được người dùng ghim lên đầu Trang chủ.",
+          "items": {
+            "$ref": "#/$defs/WidgetId"
+          },
+          "uniqueItems": true,
+          "maxItems": 6
+        },
+        "hiddenWidgets": {
+          "type": "array",
+          "description": "Danh sách mã widget người dùng chọn ẩn (máy chủ sẽ loại bỏ các widget có cờ mandatory=true trong UI Pack).",
+          "items": {
+            "$ref": "#/$defs/WidgetId"
+          },
+          "uniqueItems": true,
+          "maxItems": 20
+        },
+        "widgetOrder": {
+          "type": "array",
+          "description": "Thứ tự và độ rộng cột ưu tiên của từng widget trên lưới Trang chủ.",
+          "items": {
+            "$ref": "#/$defs/UiHomeWidgetPlacement"
+          },
+          "maxItems": 30
+        },
+        "collapsedSections": {
+          "type": "array",
+          "description": "Danh sách mã phân vùng trên Trang chủ được thu gọn mặc định.",
+          "items": {
+            "$ref": "#/$defs/WidgetId"
+          },
+          "uniqueItems": true,
+          "maxItems": 10
+        }
+      }
+    },
+    "UiTableScreenPreference": {
+      "type": "object",
+      "description": "Tùy chọn trình bày bảng danh sách của một màn hình (ẩn/hiện cột không bắt buộc, thứ tự cột, độ rộng cột, số dòng mỗi trang, bộ lọc mặc định).",
+      "additionalProperties": false,
+      "properties": {
+        "visibleColumns": {
+          "type": "array",
+          "description": "Danh sách mã cột hiển thị. Các cột bắt buộc pháp lý luôn được máy khách và máy chủ hợp nhất trở lại.",
+          "items": {
+            "$ref": "#/$defs/ColumnKey"
+          },
+          "minItems": 1,
+          "maxItems": 40,
+          "uniqueItems": true
+        },
+        "columnOrder": {
+          "type": "array",
+          "description": "Thứ tự sắp xếp các cột từ trái sang phải.",
+          "items": {
+            "$ref": "#/$defs/ColumnKey"
+          },
+          "maxItems": 40,
+          "uniqueItems": true
+        },
+        "columnWidths": {
+          "type": "object",
+          "description": "Độ rộng cột tính bằng pixel do người dùng kéo chỉnh.",
+          "propertyNames": {
+            "$ref": "#/$defs/ColumnKey"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 800
+          },
+          "maxProperties": 40
+        },
+        "pageSize": {
+          "type": "integer",
+          "enum": [10, 20, 50, 100, 200],
+          "default": 20,
+          "description": "Số bản ghi trên một trang (tuân thủ giới hạn phân trang limit <= 200 của Mục 13 baseline)."
+        },
+        "defaultSort": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["field", "direction"],
+          "properties": {
+            "field": {
+              "$ref": "#/$defs/ColumnKey"
+            },
+            "direction": {
+              "type": "string",
+              "enum": ["ASC", "DESC"]
+            }
+          }
+        },
+        "defaultSavedFilterId": {
+          "$ref": "#/$defs/Uuid",
+          "description": "UUID của bộ lọc đã lưu (config.saved_filter) được áp dụng mặc định khi mở màn hình."
+        }
+      }
+    },
+    "UiDashboardDefaultPreference": {
+      "type": "object",
+      "description": "Tùy chọn bảng điều khiển mặc định và danh sách mã chỉ số ghim nhanh (kết nối với config.dashboard_def có share_scope='RIENG').",
+      "additionalProperties": false,
+      "properties": {
+        "defaultDashboardId": {
+          "$ref": "#/$defs/Uuid",
+          "description": "UUID của bảng điều khiển trong config.dashboard_def được mở mặc định."
+        },
+        "pinnedKpiCodes": {
+          "type": "array",
+          "description": "Danh sách mã định danh chỉ số KPI/OKR ghim nhanh (chỉ lưu mã C1, không lưu nội dung văn bản C2).",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_-]{2,64}$",
+            "maxLength": 64
+          },
+          "uniqueItems": true,
+          "maxItems": 10
+        },
+        "defaultPeriodType": {
+          "type": "string",
+          "enum": ["THANG", "QUY", "NAM"],
+          "default": "QUY"
+        }
+      }
+    },
+    "NotifyChannelPreferenceRef": {
+      "type": "object",
+      "description": "Tùy chọn kênh nhận thông báo cho các sự kiện không bắt buộc (đồng bộ với bảng notify.channel_pref của MOD-09). Sự kiện bắt buộc công vụ không thể tắt.",
+      "additionalProperties": false,
+      "properties": {
+        "quietHours": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "start", "end"],
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "start": {
+              "type": "string",
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            },
+            "end": {
+              "type": "string",
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            }
+          }
+        },
+        "digestMode": {
+          "type": "string",
+          "enum": ["IMMEDIATE", "DAILY_SUMMARY"],
+          "default": "IMMEDIATE"
+        }
+      }
+    },
+    "SavedFilterCriteria": {
+      "type": "object",
+      "description": "Tiêu chí lọc trong bảng config.saved_filter (cột criteria jsonb, phân loại C1). Chỉ cho phép lưu mã định danh, mã trạng thái, khoảng ngày và khoảng số; cấm lưu chuỗi tìm kiếm tự do có nguy cơ chứa dữ liệu C2/C3.",
+      "additionalProperties": false,
+      "properties": {
+        "statusCodes": {
+          "type": "array",
+          "description": "Danh sách mã trạng thái chuẩn (ví dụ: DA_GIAO, DANG_THUC_HIEN, CHO_NGHIEM_THU, DA_NGHIEM_THU, QUA_HAN).",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$"
+          },
+          "uniqueItems": true,
+          "maxItems": 20
+        },
+        "ratingCodes": {
+          "type": "array",
+          "description": "Danh sách mã mức xếp loại chuẩn (KHTNV, HTNV, HTTNV, HTXSNV).",
+          "items": {
+            "type": "string",
+            "enum": [
+              "KHTNV",
+              "HTNV",
+              "HTTNV",
+              "HTXSNV",
+              "KHONG_HOAN_THANH",
+              "HOAN_THANH",
+              "HOAN_THANH_TOT",
+              "HOAN_THANH_XUAT_SAC"
+            ]
+          },
+          "uniqueItems": true,
+          "maxItems": 8
+        },
+        "orgUnitIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Uuid"
+          },
+          "uniqueItems": true,
+          "maxItems": 50
+        },
+        "periodIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Uuid"
+          },
+          "uniqueItems": true,
+          "maxItems": 12
+        },
+        "assigneeScope": {
+          "type": "string",
+          "enum": ["ME", "MY_UNIT", "SUBORDINATE_UNITS", "ALL_ALLOWED"]
+        },
+        "dateRanges": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/ColumnKey"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "type": "string",
+                "format": "date"
+              },
+              "to": {
+                "type": "string",
+                "format": "date"
+              },
+              "relativePreset": {
+                "type": "string",
+                "enum": ["TODAY", "THIS_WEEK", "THIS_MONTH", "THIS_QUARTER", "THIS_YEAR", "OVERDUE"]
+              }
+            }
+          },
+          "maxProperties": 10
+        },
+        "numberRanges": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/ColumnKey"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              }
+            }
+          },
+          "maxProperties": 10
+        },
+        "flags": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/ColumnKey"
+          },
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "maxProperties": 15
+        },
+        "sort": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["field", "direction"],
+          "properties": {
+            "field": {
+              "$ref": "#/$defs/ColumnKey"
+            },
+            "direction": {
+              "type": "string",
+              "enum": ["ASC", "DESC"]
+            }
+          }
+        }
+      }
+    }
+  }
+}
