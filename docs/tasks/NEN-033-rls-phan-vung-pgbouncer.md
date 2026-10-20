@@ -13,7 +13,7 @@
 | Cỡ việc | L (nên tách: a) hàm RLS chuẩn + cấu hình PgBouncer tham chiếu; b) `fn_create_period_partitions` + biến thể pool 16 phân vùng băm + kiểm thử) |
 | Phụ thuộc | NEN-031 |
 | Truy vết | ADR-07, ADR-22 → TL-03 "Bảo mật theo dòng (Row-Level Security)", "Đặt ngữ cảnh tenant an toàn qua PgBouncer", "Phân vùng", "Kết nối và PgBouncer" → mọi bảng có `tenant_id`; bảng theo kỳ có `period_bucket` |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Hoàn thành (20/10/2026, đã gộp vào `main`: `db/common/V0_1__fn_enable_tenant_rls.sql`, `V0_2__fn_create_period_partitions.sql`, `pgbouncer.ini.template`, `TenantRlsPartitionIT`) |
 
 ## 1. Mục tiêu
 

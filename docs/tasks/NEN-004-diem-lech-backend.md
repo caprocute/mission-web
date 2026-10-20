@@ -13,7 +13,7 @@
 | Cỡ việc | S |
 | Phụ thuộc | NEN-001 (nên làm sau hoặc song song NEN-002, NEN-003 để trỏ được sang trang 16–20) |
 | Truy vết | YC-TK-10 → BS-02 HD-01..HD-07 → TL-01, TL-03, TL-04, TL-05 và các tệp `_ghi-chu-TL-0*.md` |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Hoàn thành (20/10/2026, đã gộp vào `main`: mục Điểm lệch và Câu hỏi mở phía máy chủ trong `wiki/14-quyet-dinh-va-cau-hoi-mo.md`) |
 
 ## 1. Mục tiêu
 

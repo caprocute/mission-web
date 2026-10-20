@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | NEN-030 (bổ sung nên có: NEN-031 để kiểm quyền `cdc_`/`svc_` trên bảng mới) |
 | Truy vết | ADR-03, ADR-23, ADR-30, HD-02 → TL-03 "Cách trình bày và các bảng dùng chung" → `<schema>.outbox_event`, `<schema>.inbox_processed`, `<schema>.inbox_aggregate_version`, `<schema>.idempotency_key`, `modulith.event_publication`, `keyring.dek` |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Hoàn thành (20/10/2026, đã gộp vào `main`: `db/common-business/`, `db/migration/modulith/`, `db/migration/keyring/`, `SharedTablesIT` trong `backend/libs/vt-db-migration/`) |
 
 ## 1. Mục tiêu
 

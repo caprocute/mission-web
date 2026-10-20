@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | NEN-001 |
 | Truy vết | ADR-16, ADR-01 → TL-01 Phụ lục B (danh mục công nghệ), chương "Kiểm thử và tích hợp, triển khai liên tục" → SVC-04..SVC-08, SVC-10, SVC-11, SVC-13 (các service Java) |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Hoàn thành (20/10/2026, đã gộp vào `main`: `backend/pom.xml`, `backend/vt-bom/`, `backend/vt-build-verification/`) |
 
 ## 1. Mục tiêu
 

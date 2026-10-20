@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | NEN-030 |
 | Truy vết | ADR-02, ADR-22 → TL-03 "Không truy cập chéo và quyền tối thiểu", "Bố trí theo mô hình silo/bridge/pool" → 15 schema của CSDL `td_<mã>` (`config`, `policy`, `okr`, `task`, `product`, `appraisal`, `dossier`, `oversight`, `org_replica`, `org`, `scoring`, `evidence`, `docgen`, `modulith`, `keyring`) và 2 schema `cell_shared` (`notify`, `integ`) |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Hoàn thành (20/10/2026, đã gộp vào `main`: `DatabaseBootstrap`, `RoleBootstrapPlan`, `DatabaseBootstrapIT` trong `backend/libs/vt-db-migration/`) |
 
 ## 1. Mục tiêu
 

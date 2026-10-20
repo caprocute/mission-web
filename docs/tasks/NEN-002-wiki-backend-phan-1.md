@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | NEN-001 |
 | Truy vết | ADR-01, ADR-02, ADR-07, ADR-22, ADR-23 → SVC-01..SVC-18, MOD-01..MOD-08 → schema theo baseline mục 9 (`config`, `policy`, `okr`, `task`, `product`, `appraisal`, `dossier`, `oversight`, `org_replica`, `modulith`, `keyring`) |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Hoàn thành (20/10/2026, đã gộp vào `main`: `wiki/16-kien-truc-mission-core-va-microservice.md`, `wiki/17-thiet-ke-csdl-va-da-khach-thue.md`) |
 
 ## 1. Mục tiêu
 
