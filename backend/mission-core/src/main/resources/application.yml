@@ -1,0 +1,246 @@
+# CORE-00-01 · SVC-05 mission-core · TL-01 L760–894, TL-04 L883–969.
+# - Bật luồng ảo Java 21 (spring.threads.virtual.enabled=true).
+# - Tắt open-in-view và tắt Flyway lúc chạy (spring.flyway.enabled=false; đối chiếu bằng MissionCoreSchemaVersionGuard).
+# - Hibernate chỉ validate lược đồ, batch_size=50, order_updates=true, cảnh báo truy vấn chậm > 500 ms.
+# - Tám DataSource độc lập (okr, task, product, appraisal, policy, dossier, oversight, config) + org_replica
+#   tương thích PgBouncer transaction pooling (prepareThreshold=0, ApplicationName=mission-core-<module>).
+# - Tổng maximumPoolSize của 8 mô-đun nghiệp vụ = 8 + 4 + 4 + 3 + 2 + 1 + 1 + 1 = 24 <= 35.
+
+spring:
+  application:
+    name: ${SERVICE_NAME:mission-core}
+  threads:
+    virtual:
+      enabled: ${VIRTUAL_THREADS_ENABLED:true}
+  flyway:
+    enabled: false
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_updates: true
+        session:
+          events:
+            log:
+              LOG_QUERIES_SLOWER_THAN_MS: 500
+  modulith:
+    events:
+      republish-outstanding-events-on-restart: true
+      jdbc:
+        schema-initialization:
+          enabled: false
+        schema: modulith
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:25s}
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8081}
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+      group:
+        liveness:
+          include: livenessState,ping
+        readiness:
+          include: readinessState,db,missionCoreReadiness
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  observations:
+    key-values:
+      cell: ${CELL_ID:hcm}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+okrkpi:
+  tenant:
+    claim: ${TENANT_JWT_CLAIM:tenant_id}
+    db-setting: ${TENANT_DB_SETTING:app.current_tenant}
+  schema-guard:
+    enabled: ${SCHEMA_GUARD_ENABLED:true}
+    default-min-version: ${SCHEMA_MIN_VERSION:0.20}
+    min-versions:
+      okr: ${SCHEMA_MIN_VERSION_OKR:0.20}
+      task: ${SCHEMA_MIN_VERSION_TASK:0.20}
+      product: ${SCHEMA_MIN_VERSION_PRODUCT:0.20}
+      appraisal: ${SCHEMA_MIN_VERSION_APPRAISAL:0.20}
+      policy: ${SCHEMA_MIN_VERSION_POLICY:0.20}
+      dossier: ${SCHEMA_MIN_VERSION_DOSSIER:0.20}
+      oversight: ${SCHEMA_MIN_VERSION_OVERSIGHT:0.20}
+      config: ${SCHEMA_MIN_VERSION_CONFIG:0.20}
+      org_replica: ${SCHEMA_MIN_VERSION_ORG_REPLICA:0.20}
+  datasources:
+    okr:
+      url: ${DB_OKR_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=okr&prepareThreshold=0&ApplicationName=mission-core-okr}
+      username: ${DB_OKR_USER:svc_okr}
+      password: ${DB_OKR_PASSWORD:${DB_PASSWORD:}}
+      max-pool-size: ${DB_OKR_POOL_MAX:4}
+      min-idle: ${DB_OKR_POOL_MIN:2}
+      connection-timeout: 2000
+      max-lifetime: 1500000
+      idle-timeout: 300000
+      leak-detection-threshold: 20000
+      read-replica:
+        enabled: ${DB_OKR_REPLICA_ENABLED:${DB_REPLICA_ENABLED:false}}
+        url: ${DB_OKR_REPLICA_URL:jdbc:postgresql://${DB_RO_HOST:${DB_HOST:127.0.0.1}}:${DB_RO_PORT:${DB_PORT:35432}}/${DB_NAME:mission}?currentSchema=okr&prepareThreshold=0&ApplicationName=mission-core-okr}
+        username: ${DB_OKR_RO_USER:ro_okr}
+        password: ${DB_OKR_RO_PASSWORD:${DB_PASSWORD:}}
+        max-lag-ms: ${DB_REPLICA_MAX_LAG_MS:1000}
+    task:
+      url: ${DB_TASK_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=task&prepareThreshold=0&ApplicationName=mission-core-task}
+      username: ${DB_TASK_USER:svc_task}
+      password: ${DB_TASK_PASSWORD:${DB_PASSWORD:}}
+      max-pool-size: ${DB_TASK_POOL_MAX:8}
+      min-idle: ${DB_TASK_POOL_MIN:2}
+      connection-timeout: 2000
+      max-lifetime: 1500000
+      idle-timeout: 300000
+      leak-detection-threshold: 20000
+      read-replica:
+        enabled: ${DB_TASK_REPLICA_ENABLED:${DB_REPLICA_ENABLED:false}}
+        url: ${DB_TASK_REPLICA_URL:jdbc:postgresql://${DB_RO_HOST:${DB_HOST:127.0.0.1}}:${DB_RO_PORT:${DB_PORT:35432}}/${DB_NAME:mission}?currentSchema=task&prepareThreshold=0&ApplicationName=mission-core-task}
+        username: ${DB_TASK_RO_USER:ro_task}
+        password: ${DB_TASK_RO_PASSWORD:${DB_PASSWORD:}}
+        max-lag-ms: ${DB_REPLICA_MAX_LAG_MS:1000}
+    product:
+      url: ${DB_PRODUCT_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=product&prepareThreshold=0&ApplicationName=mission-core-product}
+      username: ${DB_PRODUCT_USER:svc_product}
+      password: ${DB_PRODUCT_PASSWORD:${DB_PASSWORD:}}
+      max-pool-size: ${DB_PRODUCT_POOL_MAX:3}
+      min-idle: ${DB_PRODUCT_POOL_MIN:1}
+      connection-timeout: 2000
+      max-lifetime: 1500000
+      idle-timeout: 300000
+      leak-detection-threshold: 20000
+      read-replica:
+        enabled: ${DB_PRODUCT_REPLICA_ENABLED:${DB_REPLICA_ENABLED:false}}
+        url: ${DB_PRODUCT_REPLICA_URL:jdbc:postgresql://${DB_RO_HOST:${DB_HOST:127.0.0.1}}:${DB_RO_PORT:${DB_PORT:35432}}/${DB_NAME:mission}?currentSchema=product&prepareThreshold=0&ApplicationName=mission-core-product}
+        username: ${DB_PRODUCT_RO_USER:ro_product}
+        password: ${DB_PRODUCT_RO_PASSWORD:${DB_PASSWORD:}}
+        max-lag-ms: ${DB_REPLICA_MAX_LAG_MS:1000}
+    appraisal:
+      url: ${DB_APPRAISAL_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=appraisal&prepareThreshold=0&ApplicationName=mission-core-appraisal}
+      username: ${DB_APPRAISAL_USER:svc_appraisal}
+      password: ${DB_APPRAISAL_PASSWORD:${DB_PASSWORD:}}
+      max-pool-size: ${DB_APPRAISAL_POOL_MAX:4}
+      min-idle: ${DB_APPRAISAL_POOL_MIN:1}
+      connection-timeout: 2000
+      max-lifetime: 1500000
+      idle-timeout: 300000
+      leak-detection-threshold: 20000
+      read-replica:
+        enabled: ${DB_APPRAISAL_REPLICA_ENABLED:${DB_REPLICA_ENABLED:false}}
+        url: ${DB_APPRAISAL_REPLICA_URL:jdbc:postgresql://${DB_RO_HOST:${DB_HOST:127.0.0.1}}:${DB_RO_PORT:${DB_PORT:35432}}/${DB_NAME:mission}?currentSchema=appraisal&prepareThreshold=0&ApplicationName=mission-core-appraisal}
+        username: ${DB_APPRAISAL_RO_USER:ro_appraisal}
+        password: ${DB_APPRAISAL_RO_PASSWORD:${DB_PASSWORD:}}
+        max-lag-ms: ${DB_REPLICA_MAX_LAG_MS:1000}
+    policy:
+      url: ${DB_POLICY_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=policy&prepareThreshold=0&ApplicationName=mission-core-policy}
+      username: ${DB_POLICY_USER:svc_policy}
+      password: ${DB_POLICY_PASSWORD:${DB_PASSWORD:}}
+      max-pool-size: ${DB_POLICY_POOL_MAX:1}
+      min-idle: ${DB_POLICY_POOL_MIN:1}
+      connection-timeout: 2000
+      max-lifetime: 1500000
+      idle-timeout: 300000
+      leak-detection-threshold: 20000
+      read-replica:
+        enabled: ${DB_POLICY_REPLICA_ENABLED:${DB_REPLICA_ENABLED:false}}
+        url: ${DB_POLICY_REPLICA_URL:jdbc:postgresql://${DB_RO_HOST:${DB_HOST:127.0.0.1}}:${DB_RO_PORT:${DB_PORT:35432}}/${DB_NAME:mission}?currentSchema=policy&prepareThreshold=0&ApplicationName=mission-core-policy}
+        username: ${DB_POLICY_RO_USER:ro_policy}
+        password: ${DB_POLICY_RO_PASSWORD:${DB_PASSWORD:}}
+        max-lag-ms: ${DB_REPLICA_MAX_LAG_MS:1000}
+    dossier:
+      url: ${DB_DOSSIER_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=dossier&prepareThreshold=0&ApplicationName=mission-core-dossier}
+      username: ${DB_DOSSIER_USER:svc_dossier}
+      password: ${DB_DOSSIER_PASSWORD:${DB_PASSWORD:}}
+      max-pool-size: ${DB_DOSSIER_POOL_MAX:1}
+      min-idle: ${DB_DOSSIER_POOL_MIN:1}
+      connection-timeout: 2000
+      max-lifetime: 1500000
+      idle-timeout: 300000
+      leak-detection-threshold: 20000
+      read-replica:
+        enabled: ${DB_DOSSIER_REPLICA_ENABLED:${DB_REPLICA_ENABLED:false}}
+        url: ${DB_DOSSIER_REPLICA_URL:jdbc:postgresql://${DB_RO_HOST:${DB_HOST:127.0.0.1}}:${DB_RO_PORT:${DB_PORT:35432}}/${DB_NAME:mission}?currentSchema=dossier&prepareThreshold=0&ApplicationName=mission-core-dossier}
+        username: ${DB_DOSSIER_RO_USER:ro_dossier}
+        password: ${DB_DOSSIER_RO_PASSWORD:${DB_PASSWORD:}}
+        max-lag-ms: ${DB_REPLICA_MAX_LAG_MS:1000}
+    oversight:
+      url: ${DB_OVERSIGHT_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=oversight&prepareThreshold=0&ApplicationName=mission-core-oversight}
+      username: ${DB_OVERSIGHT_USER:svc_oversight}
+      password: ${DB_OVERSIGHT_PASSWORD:${DB_PASSWORD:}}
+      max-pool-size: ${DB_OVERSIGHT_POOL_MAX:1}
+      min-idle: ${DB_OVERSIGHT_POOL_MIN:1}
+      connection-timeout: 2000
+      max-lifetime: 1500000
+      idle-timeout: 300000
+      leak-detection-threshold: 20000
+      read-replica:
+        enabled: ${DB_OVERSIGHT_REPLICA_ENABLED:${DB_REPLICA_ENABLED:false}}
+        url: ${DB_OVERSIGHT_REPLICA_URL:jdbc:postgresql://${DB_RO_HOST:${DB_HOST:127.0.0.1}}:${DB_RO_PORT:${DB_PORT:35432}}/${DB_NAME:mission}?currentSchema=oversight&prepareThreshold=0&ApplicationName=mission-core-oversight}
+        username: ${DB_OVERSIGHT_RO_USER:ro_oversight}
+        password: ${DB_OVERSIGHT_RO_PASSWORD:${DB_PASSWORD:}}
+        max-lag-ms: ${DB_REPLICA_MAX_LAG_MS:1000}
+    config:
+      url: ${DB_CONFIG_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=config&prepareThreshold=0&ApplicationName=mission-core-config}
+      username: ${DB_CONFIG_USER:svc_config}
+      password: ${DB_CONFIG_PASSWORD:${DB_PASSWORD:}}
+      max-pool-size: ${DB_CONFIG_POOL_MAX:2}
+      min-idle: ${DB_CONFIG_POOL_MIN:1}
+      connection-timeout: 2000
+      max-lifetime: 1500000
+      idle-timeout: 300000
+      leak-detection-threshold: 20000
+      read-replica:
+        enabled: ${DB_CONFIG_REPLICA_ENABLED:${DB_REPLICA_ENABLED:false}}
+        url: ${DB_CONFIG_REPLICA_URL:jdbc:postgresql://${DB_RO_HOST:${DB_HOST:127.0.0.1}}:${DB_RO_PORT:${DB_PORT:35432}}/${DB_NAME:mission}?currentSchema=config&prepareThreshold=0&ApplicationName=mission-core-config}
+        username: ${DB_CONFIG_RO_USER:ro_config}
+        password: ${DB_CONFIG_RO_PASSWORD:${DB_PASSWORD:}}
+        max-lag-ms: ${DB_REPLICA_MAX_LAG_MS:1000}
+    org_replica:
+      url: ${DB_ORG_REPLICA_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=org_replica&prepareThreshold=0&ApplicationName=mission-core-org_replica}
+      username: ${DB_ORG_REPLICA_USER:svc_org_replica}
+      password: ${DB_ORG_REPLICA_PASSWORD:${DB_PASSWORD:}}
+      max-pool-size: ${DB_ORG_REPLICA_POOL_MAX:4}
+      min-idle: ${DB_ORG_REPLICA_POOL_MIN:1}
+      connection-timeout: 2000
+      max-lifetime: 1500000
+      idle-timeout: 300000
+      leak-detection-threshold: 20000
+
+mission:
+  service:
+    code: ${SERVICE_CODE:SVC-05}
+    schema: task
+    kafka:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:35092}
+      apicurio-registry-url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
+      producer-ready: ${KAFKA_PRODUCER_READY:true}
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:35379}
+    security:
+      keycloak-issuer-uri: ${KEYCLOAK_ISSUER_URI:http://127.0.0.1:35080/realms/mission}
+      opa-url: ${OPA_URL:http://127.0.0.1:35181/v1/data/mission/authz}
+      openbao-url: ${OPENBAO_URL:http://127.0.0.1:35820}
+    observability:
+      otlp-endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://127.0.0.1:35317}

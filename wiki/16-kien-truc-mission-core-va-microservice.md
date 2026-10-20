@@ -48,3 +48,8 @@ Mọi microservice Go (`SVC-03`, `SVC-09`, `SVC-12`) bắt buộc nhập và s�
 ### 2.5. Quan sát & Bảo mật Nhật ký (`vtplatform/otel`, `vtplatform/logx`)
 - `otel.Init` bắt buộc khai báo `service.name` và `cell`. Middleware `otel.Provider.HTTPMiddleware` trích xuất hoặc khởi tạo mới header W3C `traceparent`.
 - `logx.NewLogger` xuất JSON một dòng kèm `trace.id`, `span.id`, `tenant.id`, `service.name`, `cell` ở cấp gốc và tự động che (`Scrub`) JWT Bearer token, số CCCD 12 số, số điện thoại Việt Nam và địa chỉ email.
+
+## Khung `mission-core`: 8 DataSource, định tuyến đọc/ghi và bảo vệ 9 schema (CORE-00-01)
+
+`backend/mission-core/` khởi tạo 8 pool HikariCP nghiệp vụ (`task=8, okr=4, appraisal=4, product=3, config=2, policy=1, dossier=1, oversight=1`, tổng 24 <= 35 kết nối/pod) cùng `orgReplicaDataSource`, gắn `prepareThreshold=0&ApplicationName=mission-core-<module>`, định tuyến đọc/ghi qua `ReadWriteRoutingDataSource` + `RecentWriteTracker` (ghim RW 2 giây sau khi ghi, lùi về RW khi trễ replica > 1000 ms) và kiểm tra `flyway_schema_history` của cả 9 schema qua `MissionCoreSchemaVersionGuard`.
+
