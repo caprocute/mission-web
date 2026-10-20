@@ -1,0 +1,39 @@
+# Cụm kind thử nghiệm: 1 control plane + 3 worker gắn nhãn ba vùng sự cố giả lập hl-a, hl-b, hl-c
+# (TL-04 mục 3.4). Không dùng CNI mặc định để cài Cilium (TL-04 bảng phiên bản mục 3.1).
+# Giới hạn so với cụm thật: một máy, không có node pool vật lý, không có taint pool dữ liệu (suy luận vị trí).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: vt-cell-kind
+networking:
+  disableDefaultCNI: true
+  podSubnet: 10.244.0.0/16
+  serviceSubnet: 10.96.0.0/16
+kubeadmConfigPatches:
+  # Lưu giữ log container của kubelet theo TL-04 mục 10.3 (lớp đệm thứ hai khi Fluent Bit gặp sự cố).
+  - |
+    kind: KubeletConfiguration
+    containerLogMaxSize: 100Mi
+    containerLogMaxFiles: 5
+containerdConfigPatches:
+  # Máy chạy kind trong container lồng nhau (môi trường cloud của agent) không cho hạ oom_score_adj;
+  # bật restrict_oom_score_adj để containerd không đặt giá trị âm cho sandbox. Vô hại trên máy thường.
+  - |-
+    [plugins."io.containerd.grpc.v1.cri"]
+      restrict_oom_score_adj = true
+nodes:
+  - role: control-plane
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: hl-a
+      vt.io/rack: r1
+      vt.io/pool: app-general
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: hl-b
+      vt.io/rack: r2
+      vt.io/pool: app-general
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: hl-c
+      vt.io/rack: r3
+      vt.io/pool: app-general
