@@ -268,6 +268,13 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 - **Kiểm tra:** .env có trong .gitignore; .env.example không chứa giá trị thật; quét lịch sử commit không phát hiện bí mật trước mỗi lần đẩy lên remote.
 - **Nguồn:** Dự án Mission, ngày 19/10/2026.
 
+#### YC-HT-03 – Sử dụng SSH Tunnel khi máy chủ hạn chế mở cổng và tham số hóa cấu hình động qua biến môi trường (.env) cho cả Backend và Frontend
+
+- **Nội dung:** Khi máy chủ phát triển/triển khai bị giới hạn tường lửa và không thể mở nhiều cổng ra ngoài, phải sử dụng cơ chế đường hầm SSH (SSH port forwarding `-L` / `-R` qua cổng SSH duy nhất được mở) thông qua kịch bản tự động để ánh xạ các cổng hạ tầng và dịch vụ về `127.0.0.1`. Đồng thời, toàn bộ cấu hình kết nối của cả Backend (cơ sở dữ liệu, cache, broker, IdP, OPA, kho khóa, cổng dịch vụ) và Frontend (cổng lắng nghe, `API_BASE_URL`, `AUTH_ENABLED`, `AUTH_ISSUER`, `USE_MOCK_API`, địa chỉ các micro-frontend và đích proxy API) phải được tham số hóa qua biến môi trường (`.env`) và nạp động lúc chạy (runtime) để có thể thay đổi tức thì mà không cần sửa mã hay biên dịch lại.
+- **Lý do:** Máy chủ thực tế thường chỉ mở cổng SSH để đảm bảo an toàn thông tin; nếu gán cứng địa chỉ máy chủ hoặc cổng trong mã nguồn hay bản build tĩnh thì ứng dụng sẽ không kết nối được qua tunnel và phải build lại mỗi khi đổi môi trường (giả lập, tunnel cục bộ, server dev, staging).
+- **Kiểm tra:** Có kịch bản quản lý SSH tunnel đọc thông số từ `.env`; `.env.example` liệt kê đầy đủ biến môi trường cho cả hạ tầng, Backend và Frontend; cấu hình Backend (`application.yml` / biến môi trường) và Frontend (`/config.json`, `/federation.manifest.json`, máy chủ phục vụ) đều đọc từ biến môi trường và đổi được hành vi chỉ bằng cách sửa `.env` rồi khởi động lại tiến trình.
+- **Nguồn:** Dự án Mission, ngày 20/10/2026 (anh Hiếu: "vì server không mở được cổng nhiều, nên tôi gợi ý phương pháp tunnel, chú ý là nên cấu hình cho backend và fe các tham số env để dễ dàng thay đổi động").
+
 ---
 
 ## 3. Tổng hợp số lượng quy tắc
@@ -277,8 +284,8 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 | GT | Giao tiếp và cách làm việc | 4 |
 | TK | Bộ tài liệu thiết kế | 10 |
 | PT | Tổ chức phát triển | 16 |
-| HT | Hạ tầng và bảo mật | 2 |
-| | **Tổng cộng** | **32** |
+| HT | Hạ tầng và bảo mật | 3 |
+| | **Tổng cộng** | **33** |
 
 ---
 
@@ -295,3 +302,4 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 | 20/10/2026 | YC-PT-14 | Công thức, bảng quyết định, tham số nghiệp vụ và mẫu biểu là cấu hình động có phiên bản; chưa có bản chính thức thì dùng bản giả lập đánh dấu rõ, sau chỉ phát hành phiên bản cấu hình mới. | Dự án Mission, thread "Kế hoạch tổng thể toàn hệ thống" |
 | 20/10/2026 | YC-PT-15 | Phần việc người dùng đã giao cho công cụ AI khác thì các luồng Claude dừng: đẩy phần đã làm lên nhánh riêng kèm ghi chú trạng thái từng task, không mở luồng mới, không gộp vào main khi chưa có quyết định; hợp đồng OpenAPI là ranh giới bàn giao, đề nghị sửa hợp đồng ghi trong repo. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh chung của dự án (tin nhắn 06:30 UTC) |
 | 20/10/2026 | YC-PT-16 | Hết hạn mức sử dụng thì tạm dừng có trật tự: đẩy phần dở lên nhánh kèm trạng thái, gộp nhánh đã xong, viết một hướng dẫn bàn giao ở gốc repo (có bản sao trong thư mục dùng chung) để công cụ AI khác làm tiếp. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh chung của dự án (tin nhắn 06:32 UTC) |
+| 20/10/2026 | YC-HT-03 | Sử dụng SSH Tunnel khi máy chủ hạn chế mở cổng và tham số hóa cấu hình động qua biến môi trường (.env) cho cả Backend và Frontend để thay đổi động không cần build lại. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh điều phối Antigravity |
