@@ -14,9 +14,9 @@
 
 - **Tổng tiến độ đã gộp `main`**: **77 / 401 task (19.2%)** — Khối lượng quy đổi đã gộp: **89.5 / 482.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **85 / 401 task (21.2%)** (gồm **77** đã gộp `main` + **8** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **10 task** (6 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **306 task**.
-- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **7 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-00-01`** (đang xử lý trên nhánh: `CORE-00-01`).
+- **Đang thực hiện / Làm một phần**: **11 task** (7 đang làm, 4 làm một phần).
+- **Chưa bắt đầu**: **305 task**.
+- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **7 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-00-01`** (đang xử lý trên nhánh: `CORE-00-01`, `CORE-00-02`).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
 
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **46** | 0 | 3 | 23 | **63.9%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **25** | 1 | 3 | 4 | **75.8%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **0** | 1 | 0 | 111 | **0.0%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **0** | 1 | 1 | 110 | **0.0%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **0** | 5 | 2 | 97 | **0.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **4** | 0 | 2 | 6 | **33.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **1** | 1 | 0 | 26 | **3.6%** |
@@ -32,14 +32,14 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **77** | **8** | **10** | **306** | **19.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **77** | **8** | **11** | **305** | **19.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 59 | **41** | 2 | 4 | 12 | **69.5%** |
-| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **5** | 6 | 2 | 27 | **12.5%** |
+| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **5** | 6 | 3 | 26 | **12.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **7** | 0 | 2 | 37 | **15.2%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **14** | 0 | 0 | 103 | **12.0%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **10** | 0 | 1 | 60 | **14.1%** |
@@ -51,7 +51,7 @@
 
 Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
-✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → 🔄 **`CORE-00-01`** (Xong, chờ gộp) → ⏳ `CORE-00-02` → ⏳ `CORE-05-01` → ⏳ `CORE-05-02` → ⏳ `CORE-05-03` → ⏳ `CORE-08-13` → ⏳ `CORE-08-14` → ⏳ `CORE-04-04` → ⏳ `CORE-04-05` → ⏳ `CORE-04-07` → ⏳ `CORE-04-08` → ⏳ `CORE-04-10` → ⏳ `QA-06` → ⏳ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
+✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → 🔄 **`CORE-00-01`** (Xong, chờ gộp) → 🔄 **`CORE-00-02`** (Đang làm) → ⏳ `CORE-05-01` → ⏳ `CORE-05-02` → ⏳ `CORE-05-03` → ⏳ `CORE-08-13` → ⏳ `CORE-08-14` → ⏳ `CORE-04-04` → ⏳ `CORE-04-05` → ⏳ `CORE-04-07` → ⏳ `CORE-04-08` → ⏳ `CORE-04-10` → ⏳ `QA-06` → ⏳ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
 
 ---
 
@@ -182,12 +182,12 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [NEN-042](docs/tasks/NEN-042-sua-hop-dong-nghiep-vu.md) | Sửa hợp đồng OpenAPI phần nghiệp vụ: thêm thao tác còn thiếu (huỷ OKR, phiên bản điều chỉnh mục tiêu, uỷ quyền check-in, kích hoạt danh mục, chấm việc ngoài danh mục, ngoại lệ điều chỉnh, xác nhận dòng kế hoạch, duyệt nhiệm vụ đăng ký, chuyển điểm nghẽn, danh bạ khoá E2EE và chia sẻ CEK, ghi trường hợp đặc thù, gợi ý khiếu nại trùng) và sửa mô tả `acceptComplaint` | M | B1 | 2 | NEN-001 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt |
 | [NEN-043](docs/tasks/NEN-043-sua-hop-dong-nen-tang.md) | Sửa hợp đồng OpenAPI phần nền tảng: cờ tính năng cho mọi người dùng, cấu hình tenant, thiết bị nhận thông báo đẩy, tuỳ chọn kênh, mã khôi phục MFA, `POST /org/assignments`, guest token Superset, kiểm quyền theo lô cho tìm kiếm, ký nội bộ cho sổ cái, OCR cho tài khoản dịch vụ, đề nghị chuyển cell | M | B1 | 3 | NEN-001, NEN-042 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt |
 
-### CORE-00 · mission-core: phần dùng chung (0/5 đã gộp `main`, 1 chờ gộp, 0 đang làm)
+### CORE-00 · mission-core: phần dùng chung (0/5 đã gộp `main`, 1 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [CORE-00-01](docs/tasks/CORE-00-01-khung-mission-core.md) | Khung ứng dụng mission-core: Spring Boot 3.5, luồng ảo, tám DataSource riêng theo module, actuator, cấu hình mẫu | L | B2 | 9 | NEN-019, NEN-031, NEN-006, NEN-013, NEN-030 | **Xong, chờ gộp** | Nhánh feat/CORE-00-mission-core: đã qua build, test, Jib buildTar |
-| [CORE-00-02](docs/tasks/CORE-00-02-tam-module-modulith.md) | Tám module lục giác, khai báo Spring Modulith, ma trận phụ thuộc, ArchUnit, sinh tài liệu module | M | B2 | 10 | CORE-00-01 | **Chưa bắt đầu** |  |
+| [CORE-00-02](docs/tasks/CORE-00-02-tam-module-modulith.md) | Tám module lục giác, khai báo Spring Modulith, ma trận phụ thuộc, ArchUnit, sinh tài liệu module | M | B2 | 10 | CORE-00-01 | **Đang làm** | Nhánh feat/CORE-00-mission-core: đang thực hiện |
 | [CORE-00-03](docs/tasks/CORE-00-03-org-replica-consumer.md) | Schema `org_replica` và consumer EVT-14, EVT-15, EVT-16 | M | B2 | 12 | CORE-00-02, NEN-012, DV-04-03 | **Chưa bắt đầu** |  |
 | [CORE-00-04](docs/tasks/CORE-00-04-api-trang-chu-hom-nay.md) | API tổng hợp trang chủ "Việc của tôi hôm nay" (SCR-0002) | M | B3 | 18 | CORE-02-18, CORE-01-08, CORE-08-09, CORE-08-02, NEN-041 | **Chưa bắt đầu** |  |
 | [CORE-00-05](docs/tasks/CORE-00-05-nhat-ky-truy-cap-c2.md) | Nhật ký truy cập dữ liệu C2 và ghi sổ cái lần giải mã | S | B4 | 11 | NEN-015, DV-09-02, NEN-011, NEN-016, CORE-00-02 | **Chưa bắt đầu** |  |
@@ -652,4 +652,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 20/10/2026 17:55 | Điều phối (`main`) | Toàn bộ 401 task | Khởi tạo tệp theo dõi tiến độ tổng hợp duy nhất `TIEN-DO-HE-THONG.md` theo yêu cầu `YC-PT-17`; đồng bộ trạng thái 74 task đã gộp `main` (bao gồm `NEN-006`, `008`, `017`, `018`, `021`, `022`, `034`, `041`, `CNH-01`, `INF-01` mới nhất). |
 | 20/10/2026 22:09 | Điều phối | `NEN-011`, `NEN-012`, `NEN-019` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (2006fc9, 6c2525d) |
 | 20/10/2026 22:46 | Luồng 2 - मिशन-core | `CORE-00-01` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh feat/CORE-00-mission-core: đã qua build, test, Jib buildTar |
+| 20/10/2026 22:48 | Luồng 2 - mission-core | `CORE-00-02` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/CORE-00-mission-core: đang thực hiện |
 <!-- PROGRESS_LOG_END -->

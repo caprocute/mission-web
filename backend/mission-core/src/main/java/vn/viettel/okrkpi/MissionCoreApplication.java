@@ -24,7 +24,7 @@ import vn.viettel.okrkpi.platform.db.migration.guard.SchemaVersionGuardAutoConfi
         @ComponentScan.Filter(
             type = FilterType.REGEX,
             pattern =
-                "vn\\.viettel\\.okrkpi\\.shared\\.(error|tenant|outbox|inbox|observability|resilience|audit)\\..*"))
+                "vn\\.viettel\\.okrkpi\\.shared\\.(error|tenant|outbox|inbox|observability|resilience|audit|idempotency|paging|job|authz|crypto|etag)\\..*"))
 public class MissionCoreApplication {
 
   public static void main(String[] args) {
