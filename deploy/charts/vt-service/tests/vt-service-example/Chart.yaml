@@ -1,0 +1,9 @@
+apiVersion: v2
+name: vt-service-example
+description: Chart thử dùng thư viện vt-service; values mô phỏng org-service (SVC-04) theo TL-04 mục 5.5.
+type: application
+version: 0.1.0
+dependencies:
+  - name: vt-service
+    version: 0.1.0
+    repository: file://../..

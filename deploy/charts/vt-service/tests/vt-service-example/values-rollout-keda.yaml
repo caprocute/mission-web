@@ -1,0 +1,52 @@
+# Ca thử: mission-core (SVC-05) dạng Rollout canary, co giãn bằng KEDA (TL-04 mục 5.2, 6.4), có OPA cùng pod (ADR-21).
+name: mission-core
+namespace: core
+workload:
+  kind: Rollout
+image:
+  repository: harbor.vt.local/okr/mission-core
+  digest: sha256:1111111111111111111111111111111111111111111111111111111111111111
+resources:
+  requests: { cpu: "3", memory: 8Gi }
+  limits: { cpu: "4", memory: 8Gi }
+probes:
+  startup: { failureThreshold: 30, periodSeconds: 5 }
+pdb:
+  maxUnavailable: 1
+  minAvailable: ""
+autoscaling:
+  hpa:
+    enabled: false
+  keda:
+    enabled: true
+    minReplicas: 6
+    maxReplicas: 24
+    triggers:
+      - type: cpu
+        metricType: Utilization
+        metadata: { value: "75" }
+      - type: cron
+        metadata: { timezone: Asia/Ho_Chi_Minh, start: "0 6 * * *", end: "0 22 * * *", desiredReplicas: "12" }
+opa:
+  enabled: true
+  image:
+    repository: harbor.vt.local/k8s/opa
+    digest: sha256:3c995dc8a59f6ddfd92eb7404d2f7ff9fe71cd025d9251199957a8a6afbfd76e
+externalSecret:
+  enabled: true
+  data:
+    - secretKey: SPRING_DATASOURCE_PASSWORD
+      remoteRef: { key: cell/hcm/mission-core/db, property: password }
+config:
+  SPRING_PROFILES_ACTIVE: saas,cell
+prometheusRule:
+  enabled: true
+  groups:
+    - name: mission-core.rules
+      rules:
+        - record: vt:mission_core_requests:rate5m
+          expr: sum(rate(http_server_requests_seconds_count{service="mission-core"}[5m]))
+networkPolicy:
+  ingressFrom:
+    - { namespace: edge, podLabels: { app.kubernetes.io/name: apisix }, ports: [{ port: 8080 }] }
+    - { namespace: observability, ports: [{ port: 8081 }] }
