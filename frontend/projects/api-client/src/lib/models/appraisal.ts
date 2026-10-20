@@ -1,5 +1,6 @@
 import type { components } from '../generated/appraisals';
 import type { components as DossierComponents } from '../generated/dossiers';
+import type { components as PolicyComponents } from '../generated/policies';
 
 type Schemas = components['schemas'];
 
@@ -86,6 +87,33 @@ export type AppraisalBatchDecisionStatus = Schemas['AppraisalBatchDecisionStatus
 export type AppraisalBatchDecisionItem = Schemas['AppraisalBatchDecisionItem'];
 export type AppraisalBatchDecisionInput = Schemas['AppraisalBatchDecisionInput'];
 export type AppraisalBatchDecision = Schemas['AppraisalBatchDecision'];
+
+/** Xếp loại năm và liên thông quý–năm (SCR-1001, `appraisal.annual_rating`, QT-10). */
+export type AnnualRatingRow = Schemas['AnnualRatingRow'];
+export type AnnualRatingCounts = Schemas['AnnualRatingCounts'];
+export type AnnualRatingPage = Schemas['AnnualRatingPage'];
+export type AnnualRatingExplanation = Schemas['AnnualRatingExplanation'];
+export type AnnualReassignmentInput = Schemas['AnnualReassignmentInput'];
+export type AnnualReassignmentResult = Schemas['AnnualReassignmentResult'];
+
+/** Phân nhóm triển vọng (SCR-1002, `appraisal.prospect_group`, PL 5); dữ liệu C2. */
+export type ProspectGroupCode = Schemas['ProspectGroupCode'];
+export type ProspectBoardStatus = Schemas['ProspectBoardStatus'];
+export type ProspectGroupEntry = Schemas['ProspectGroupEntry'];
+export type ProspectGroupBoard = Schemas['ProspectGroupBoard'];
+/**
+ * Một dòng khi lưu bảng phân nhóm. Lược đồ `ProspectGroupBoardInput` chưa có `trainingPlanRef` (kế hoạch
+ * bồi dưỡng, SCR-1002 trường 4) dù ví dụ của hợp đồng có gửi; màn hình gửi kèm trường này, chờ hợp đồng
+ * bổ sung (wiki/14).
+ */
+export type ProspectGroupEntryInput = Schemas['ProspectGroupBoardInput']['entries'][number] & {
+  trainingPlanRef?: string;
+};
+export interface ProspectGroupBoardInput {
+  entries: ProspectGroupEntryInput[];
+}
+/** Tiêu chí bốn nhóm theo PL 5 trong Policy Pack (`GET /policies/packs/{id}/prospect-criteria`). */
+export type ProspectCriteria = PolicyComponents['schemas']['ProspectCriteria'];
 
 /** Sinh biểu mẫu nháp từ danh sách hồ sơ (`POST /dossiers/forms`, "Xuất Mẫu 3" của SCR-0904). */
 export type DossierDraftFormsRequest = DossierComponents['schemas']['DossierDraftFormsRequest'];

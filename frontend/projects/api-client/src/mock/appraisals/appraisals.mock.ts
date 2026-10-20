@@ -17,6 +17,7 @@ import { Job } from '../../lib/models/job';
 import { mockSession } from '../mock-session';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import fixture from './appraisals.json';
+import { annualRoutes, resetAnnual } from './annual';
 import {
   DECISION_SCORES,
   batchDecisionRoutes,
@@ -52,6 +53,8 @@ import {
  * `CHO_QUYET_DINH`. Hồ sơ đã có quyết định của tôi nằm trong `profiles/mine`.
  *
  * Quyết định hàng loạt SCR-0904 (WEB-038): 48 hồ sơ chờ quyết định và quy tắc ký lô ở `batch-decision.ts`.
+ *
+ * Xếp loại năm SCR-1001 và phân nhóm triển vọng SCR-1002 (WEB-039): dữ liệu và quy tắc ở `annual.ts`.
  */
 
 const ME = [...fixture.mine, ...RESULT_MINE];
@@ -625,6 +628,7 @@ export const APPRAISALS_MOCK: MockModule = {
     jobs.clear();
     exportJobs.clear();
     resetBatchDecisions();
+    resetAnnual();
   },
   routes: [
     { method: 'GET', pattern: '/api/v1/appraisals/profiles', handle: list },
@@ -633,6 +637,7 @@ export const APPRAISALS_MOCK: MockModule = {
     { method: 'POST', pattern: '/api/v1/appraisals/profiles/:id/proposal', handle: propose },
     { method: 'POST', pattern: '/api/v1/appraisals/exports', handle: exportProfiles },
     ...batchDecisionRoutes({ store, stepUpRequired, pageQuery }),
+    ...annualRoutes(),
     {
       method: 'GET',
       pattern: '/api/v1/appraisals/export-jobs/:id',

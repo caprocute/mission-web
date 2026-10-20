@@ -1,0 +1,274 @@
+<div class="head">
+  <div>
+    <h1>Xếp loại năm {{ yearLabel() }}</h1>
+    <p class="sub">
+      @if (counts(); as c) {
+        {{ c.profilesTotal }} cán bộ ·
+      }
+      {{ policyNote() }}
+    </p>
+  </div>
+  <div class="acts">
+    <label class="filter">
+      <span>Đơn vị</span>
+      <select [value]="unit()" (change)="unit.set($any($event.target).value)">
+        <option value="">Tất cả</option>
+        @for (u of units(); track u.id) {
+          <option [value]="u.id">{{ u.name }}</option>
+        }
+      </select>
+    </label>
+    <button
+      type="button"
+      class="btn"
+      [attr.aria-pressed]="warningsOnly()"
+      (click)="toggleWarnings()"
+      data-act="loc-lien-thong"
+    >
+      Chỉ hiện hồ sơ có cảnh báo liên thông
+    </button>
+    @if (can('SCR-1002.xem')) {
+      <a class="btn" routerLink="../phan-nhom" [queryParams]="{ period: year()?.id }"
+        >Phân nhóm triển vọng</a
+      >
+    }
+    @if (canAppraise()) {
+      <a
+        class="btn primary"
+        routerLink="../tham-dinh"
+        [queryParams]="{ periodId: year()?.id }"
+        data-act="tham-dinh-nam"
+        >Chuyển thẩm định năm</a
+      >
+    }
+  </div>
+</div>
+
+@if (notice()) {
+  <p class="msg ok" role="status">{{ notice() }}</p>
+}
+@if (periods.error() || data.error()) {
+  <p class="msg err" role="alert">Chưa tải được dữ liệu xếp loại năm. Vui lòng thử lại sau.</p>
+} @else if (periods.hasValue() && !year()) {
+  <p class="msg info" role="status">Chưa có kỳ đánh giá năm.</p>
+}
+
+@if (counts(); as c) {
+  <ul class="cards" aria-label="Số liệu xếp loại năm">
+    <li class="stat">
+      <span>Hồ sơ năm đã lập</span>
+      <strong>{{ c.profilesCreated }}/{{ c.profilesTotal }}</strong>
+    </li>
+    <li class="stat warn">
+      <span>Không xếp loại xuất sắc do có quý không hoàn thành nhiệm vụ</span>
+      <strong>{{ c.blockedExcellent }}</strong>
+    </li>
+    <li class="stat bad">
+      <span>Đề xuất bố trí lại (hai quý liên tiếp không hoàn thành nhiệm vụ)</span>
+      <strong>{{ c.reassignProposed }}</strong>
+    </li>
+    <li class="stat">
+      <span>Chờ phân nhóm triển vọng</span>
+      <strong>{{ c.awaitingProspectGrouping }}</strong>
+      <small>Thực hiện sau khi có quyết định xếp loại năm</small>
+    </li>
+  </ul>
+}
+
+<div class="layout" [class.one]="simple()">
+  <section class="card" aria-labelledby="an-list">
+    <h2 id="an-list" class="sr">Bảng tổng hợp xếp loại năm</h2>
+    @if (data.isLoading() && !rows().length) {
+      <p class="muted" role="status">Đang tải…</p>
+    } @else if (!rows().length && data.hasValue()) {
+      <p class="muted" role="status">
+        {{ warningsOnly() ? 'Không có hồ sơ có cảnh báo liên thông.' : 'Chưa có hồ sơ năm.' }}
+      </p>
+    } @else {
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Cán bộ</th>
+              @for (q of quarterLabel; track q) {
+                <th scope="col">{{ q }}</th>
+              }
+              <th scope="col" class="num">Điểm năm</th>
+              @if (!simple()) {
+                <th scope="col">Tự đề xuất năm</th>
+              }
+              <th scope="col">Hệ thống đề xuất</th>
+              <th scope="col">Quy tắc liên thông</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of pageRows(); track r.id) {
+              @let l = linkage(r);
+              <tr
+                [class.on]="r.id === selectedId()"
+                [attr.aria-current]="r.id === selectedId() ? 'true' : null"
+                (click)="select(r)"
+              >
+                <th scope="row" class="who">
+                  <button type="button" class="link" (click)="select(r)" [attr.data-id]="r.id">
+                    {{ r.person.name }}
+                  </button>
+                  <small class="muted">{{ r.orgUnit?.name }}</small>
+                </th>
+                @for (q of quarterLabel; track q; let i = $index) {
+                  <td>
+                    @let ql = r.quarterRatings[i];
+                    <span class="lv" [attr.data-level]="ql" [attr.title]="ql ? full[ql] : null">{{
+                      level(ql)
+                    }}</span>
+                  </td>
+                }
+                <td class="num">{{ vn(r.annualScore) }}</td>
+                @if (!simple()) {
+                  <td>
+                    <span class="lv" [attr.data-level]="r.selfProposedLevel">{{
+                      level(r.selfProposedLevel)
+                    }}</span>
+                  </td>
+                }
+                <td>
+                  <span class="lv" [attr.data-level]="r.systemLevel">{{
+                    level(r.systemLevel)
+                  }}</span>
+                </td>
+                <td class="note" [attr.data-tone]="l.tone">{{ l.text || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (pageCount() > 1) {
+        <nav class="pager" aria-label="Phân trang">
+          <button
+            type="button"
+            class="btn"
+            [disabled]="pageIndex() === 0"
+            (click)="pageIndex.set(pageIndex() - 1)"
+          >
+            Trang trước
+          </button>
+          <span>Trang {{ pageIndex() + 1 }}/{{ pageCount() }}</span>
+          <button
+            type="button"
+            class="btn"
+            [disabled]="pageIndex() + 1 >= pageCount()"
+            (click)="pageIndex.set(pageIndex() + 1)"
+          >
+            Trang sau
+          </button>
+        </nav>
+      }
+    }
+  </section>
+
+  @if (selected(); as s) {
+    <aside class="card side" aria-labelledby="an-ex" aria-live="polite">
+      <h2 id="an-ex">Giải thích liên thông · {{ s.person.name }}</h2>
+      @if (explanation.error()) {
+        <p class="msg err" role="alert">Chưa tải được giải thích của hồ sơ này.</p>
+      } @else if (ex(); as e) {
+        <p>
+          Điểm năm = {{ method() || 'theo quy định của khối' }}:
+          @if (e.formula) {
+            <span class="formula">{{ e.formula }}</span>
+          } @else {
+            <strong>{{ vn(e.annualScore) }}</strong>
+          }
+        </p>
+        <ul class="conds">
+          @for (c of e.conditions; track c.label) {
+            <li [attr.data-met]="c.met">
+              <span class="ic" aria-hidden="true">{{ c.met ? '✓' : '✕' }}</span>
+              <span>
+                <span class="sr">{{ c.met ? 'Đạt' : 'Chưa đạt' }}: </span>{{ c.label }}
+                @if (!c.met && c.actual) {
+                  (thực tế {{ c.actual }})
+                }
+              </span>
+            </li>
+          }
+        </ul>
+        @if (e.text) {
+          <p class="msg warn">{{ e.text }}</p>
+        }
+        <h3>Kết quả bốn quý (đã khoá, chỉ đọc)</h3>
+        <ul class="quarters">
+          @for (q of e.quarters; track q.period.id) {
+            <li>
+              <span>{{ q.period.label }}</span>
+              <span class="lv" [attr.data-level]="q.ratingCode">{{ level(q.ratingCode) }}</span>
+              @if (q.totalScore !== null && q.totalScore !== undefined) {
+                <small class="muted">{{ vn(q.totalScore) }} điểm</small>
+              }
+            </li>
+          }
+        </ul>
+        <p class="muted small">
+          Quý IV gộp vào năm: phiếu quý IV đồng thời là đầu vào xếp loại năm. Kết quả các quý đã
+          khoá giữ nguyên quy định đã áp dụng tại thời điểm khoá.
+        </p>
+      } @else {
+        <p class="muted" role="status">Đang tải giải thích…</p>
+      }
+      @if (s.reassignFlag) {
+        <div class="reassign">
+          @if (s.relocationProposed) {
+            <p class="msg ok">Đã lập đề xuất bố trí lại công việc cho hồ sơ này.</p>
+          } @else if (can('SCR-1001.bo-tri-lai')) {
+            <button
+              type="button"
+              class="btn primary"
+              data-act="bo-tri-lai"
+              (click)="openReassign(s, $event)"
+            >
+              Lập đề xuất bố trí lại
+            </button>
+          } @else {
+            <p class="muted small">Cơ quan tổ chức sẽ lập đề xuất bố trí lại công việc.</p>
+          }
+        </div>
+      }
+    </aside>
+  }
+</div>
+
+@if (dialogRow(); as d) {
+  <div class="backdrop">
+    <div
+      class="dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rd-title"
+      (keydown)="onDialogKey($event)"
+    >
+      <h2 id="rd-title">Lập đề xuất bố trí lại công việc</h2>
+      <p>
+        Đồng chí {{ d.person.name }} có hai quý liên tiếp không hoàn thành nhiệm vụ. Hệ thống sẽ tạo
+        việc cho cơ quan tổ chức xem xét bố trí lại theo QĐ khoản 15.6; mức xếp loại không thay đổi.
+      </p>
+      <label for="rd-note">Ghi chú gửi cơ quan tổ chức (không bắt buộc)</label>
+      <textarea
+        id="rd-note"
+        #noteBox
+        rows="4"
+        maxlength="1000"
+        [value]="note()"
+        (input)="note.set($any($event.target).value)"
+      ></textarea>
+      @if (error()) {
+        <p class="msg err" role="alert">{{ error() }}</p>
+      }
+      <div class="row-acts end">
+        <button type="button" class="btn" [disabled]="busy()" (click)="closeDialog()">Huỷ</button>
+        <button type="button" class="btn primary" [disabled]="busy()" (click)="confirmReassign()">
+          {{ busy() ? 'Đang lập…' : 'Lập đề xuất' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

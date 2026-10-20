@@ -2,6 +2,10 @@ import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import {
+  AnnualRatingExplanation,
+  AnnualRatingPage,
+  AnnualRatingRow,
+  AnnualReassignmentResult,
   AppraisalBatchDecision,
   AppraisalBatchDecisionInput,
   AppraisalExportInput,
@@ -16,6 +20,8 @@ import {
   AppraisalSelfAssessmentInput,
   AppraisalSignRequestInput,
   DossierFormPreviewRequest,
+  ProspectGroupBoard,
+  ProspectGroupBoardInput,
 } from './models/appraisal';
 import { Job } from './models/job';
 
@@ -28,12 +34,13 @@ function accepted(res: HttpResponse<Job | null>): string {
   if (res.body?.id) return `/api/v1/jobs/${res.body.id}`;
   throw new Error('Phản hồi 202 thiếu Location');
 }
-const ifMatch = (p: Pick<AppraisalProfile, 'rowVersion'>) => ({ 'If-Match': `"${p.rowVersion}"` });
+const ifMatch = (p: { rowVersion: number }) => ({ 'If-Match': `"${p.rowVersion}"` });
 
 /**
  * Client cho `/api/v1/appraisals` của MOD-04 (QT-09, QT-10) theo hợp đồng
  * `contracts/openapi/modules/appraisals.yaml`: phiếu tự đánh giá SCR-0901 (WEB-035), thẩm định SCR-0902
- * (WEB-036), phiếu xếp loại SCR-0903 (WEB-037), quyết định hàng loạt SCR-0904 (WEB-038). Mọi thao tác ghi
+ * (WEB-036), phiếu xếp loại SCR-0903 (WEB-037), quyết định hàng loạt SCR-0904 (WEB-038), xếp loại năm
+ * SCR-1001 và phân nhóm triển vọng SCR-1002 (WEB-039). Mọi thao tác ghi
  * lên hồ sơ gửi `If-Match` bằng `rowVersion` của hồ sơ (điểm chốt AP-05).
  */
 @Injectable({ providedIn: 'root' })
@@ -178,6 +185,83 @@ export class AppraisalApi {
       `/api/v1/appraisals/batch-decisions/${enc(b.id)}/cancel`,
       null,
       { headers: { 'If-Match': `"${b.rowVersion}"` } },
+    );
+  }
+
+  /**
+   * Bảng tổng hợp xếp loại năm của kỳ năm (SCR-1001): bốn quý, điểm năm, mức tự đề xuất, mức hệ thống
+   * và quy tắc liên thông, kèm số đếm cho bốn thẻ. `warningsOnly` lọc hồ sơ có cảnh báo liên thông.
+   */
+  annual(filter: {
+    period: string;
+    unitId?: string;
+    flow?: AppraisalFlow;
+    warningsOnly?: boolean;
+    q?: string;
+    limit?: number;
+    cursor?: string | null;
+  }): Observable<AnnualRatingPage> {
+    const params: Record<string, string> = {
+      period: filter.period,
+      limit: String(Math.min(filter.limit ?? 200, 200)),
+    };
+    if (filter.unitId) params['unit'] = filter.unitId;
+    if (filter.flow) params['flow'] = filter.flow;
+    if (filter.warningsOnly) params['flag'] = 'lien_thong';
+    if (filter.q) params['q'] = filter.q;
+    if (filter.cursor) params['cursor'] = filter.cursor;
+    return this.http.get<AnnualRatingPage>('/api/v1/appraisals/annual', { params });
+  }
+
+  /** Giải thích liên thông quý–năm của một hồ sơ năm (vùng 2, 4 của SCR-1001). */
+  annualExplanation(id: string): Observable<AnnualRatingExplanation> {
+    return this.http.get<AnnualRatingExplanation>(
+      `/api/v1/appraisals/annual/${enc(id)}/explanation`,
+    );
+  }
+
+  /**
+   * "Lập đề xuất bố trí lại" cho hồ sơ có cờ hai quý liên tiếp không hoàn thành nhiệm vụ (QĐ khoản
+   * 15.6): tạo việc cho cơ quan tổ chức, không đổi mức xếp loại (EVT-04).
+   */
+  proposeReassignment(
+    row: Pick<AnnualRatingRow, 'id' | 'rowVersion'>,
+    note?: string,
+  ): Observable<AnnualReassignmentResult> {
+    return this.http.post<AnnualReassignmentResult>(
+      `/api/v1/appraisals/annual/${enc(row.id)}/reassignment-proposal`,
+      note ? { note } : {},
+      { headers: ifMatch(row) },
+    );
+  }
+
+  /** Bảng phân nhóm triển vọng của một đơn vị trong kỳ năm (SCR-1002); kỳ quý trả 409. */
+  prospectBoard(periodId: string, orgUnitId: string): Observable<ProspectGroupBoard> {
+    return this.http.get<ProspectGroupBoard>(
+      `/api/v1/appraisals/prospect-groups/${enc(periodId)}/${enc(orgUnitId)}`,
+    );
+  }
+
+  /** "Lưu nháp" toàn bộ danh sách phân nhóm, kèm `If-Match` của danh sách. */
+  saveProspectBoard(
+    board: Pick<ProspectGroupBoard, 'periodId' | 'orgUnit' | 'rowVersion'>,
+    body: ProspectGroupBoardInput,
+  ): Observable<ProspectGroupBoard> {
+    return this.http.put<ProspectGroupBoard>(
+      `/api/v1/appraisals/prospect-groups/${enc(board.periodId)}/${enc(board.orgUnit.id)}`,
+      body,
+      { headers: ifMatch(board) },
+    );
+  }
+
+  /** "Trình tập thể lãnh đạo": khoá chỉnh sửa, danh sách sang `DA_TRINH` (EVT-11). */
+  submitProspectBoard(
+    board: Pick<ProspectGroupBoard, 'periodId' | 'orgUnit' | 'rowVersion'>,
+  ): Observable<ProspectGroupBoard> {
+    return this.http.post<ProspectGroupBoard>(
+      `/api/v1/appraisals/prospect-groups/${enc(board.periodId)}/${enc(board.orgUnit.id)}/submit`,
+      null,
+      { headers: ifMatch(board) },
     );
   }
 

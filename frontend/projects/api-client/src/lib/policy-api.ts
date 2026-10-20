@@ -31,6 +31,7 @@ import {
   PolicyTestRunList,
   PolicyVersionDiff,
 } from './models/policy';
+import { ProspectCriteria } from './models/appraisal';
 
 /** Tham số đường dẫn của một phiên bản gói. */
 export interface PackVersionRef {
@@ -58,6 +59,17 @@ export class PolicyApi {
 
   packs(): Observable<PolicyPackList> {
     return this.http.get<PolicyPackList>(apiUrl('/policies/packs'), { params: { limit: 50 } });
+  }
+
+  /** Tiêu chí bốn nhóm triển vọng theo PL 5 của gói (ngăn "Xem tiêu chí" của SCR-1002). */
+  prospectCriteria(id: string, version?: string): Observable<ProspectCriteria> {
+    const params: Record<string, string> = version ? { version } : {};
+    return this.http.get<ProspectCriteria>(
+      apiUrl('/policies/packs/{id}/prospect-criteria', { id }),
+      {
+        params,
+      },
+    );
   }
 
   pack(id: string): Observable<PolicyPack> {
