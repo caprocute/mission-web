@@ -1,0 +1,299 @@
+<div class="head">
+  <div>
+    <h1>
+      Phân nhóm triển vọng
+      @if (yearValue(); as y) {
+        · {{ y.name }}
+      }
+    </h1>
+    <p class="sub">
+      @if (current(); as b) {
+        {{ b.orgUnit.name }} ·
+      }
+      Chỉ áp dụng ở kỳ năm (QĐ khoản 12.1.5); tên nhóm theo Phụ lục 5.
+    </p>
+  </div>
+  <div class="acts">
+    <button type="button" class="btn" (click)="openCriteria($event)">Xem tiêu chí phân nhóm</button>
+    @if (can('SCR-1001.xem')) {
+      <a class="btn" routerLink="../xep-loai-nam" [queryParams]="{ period: period() }"
+        >Xếp loại năm</a
+      >
+    }
+    @if (current()?.status === 'NHAP' && can('SCR-1002.xep-nhom')) {
+      <button type="button" class="btn" [disabled]="!!busy()" (click)="save()" data-act="luu-nhap">
+        {{ busy() === 'save' ? 'Đang lưu…' : 'Lưu nháp' }}
+      </button>
+    }
+    @if (canSubmit()) {
+      <button
+        type="button"
+        class="btn primary"
+        [disabled]="!!busy()"
+        (click)="openSubmit($event)"
+        data-act="trinh"
+      >
+        Trình tập thể lãnh đạo
+      </button>
+    }
+  </div>
+</div>
+
+<p class="msg warn">
+  Kết quả phân nhóm là thông tin hạn chế: chỉ lãnh đạo và cán bộ tổ chức của đơn vị được xem. Hệ
+  thống chỉ đưa gợi ý để tham khảo; khi xếp khác gợi ý, đồng chí ghi lý do điều chỉnh.
+</p>
+
+<p class="sr" role="status" aria-live="polite">{{ announce() }}</p>
+@if (notice()) {
+  <p class="msg ok" role="status">{{ notice() }}</p>
+}
+@if (errors().length) {
+  <div class="msg err" role="alert">
+    <ul class="errs">
+      @for (e of errors(); track e) {
+        <li>{{ e }}</li>
+      }
+    </ul>
+  </div>
+}
+
+@if (quarterLocked()) {
+  <p class="msg info" role="status" data-msg="MSG-10-05">{{ msg1005 }}</p>
+} @else if (loadError()) {
+  <p class="msg err" role="alert">
+    Chưa tải được danh sách phân nhóm.
+    <button type="button" class="btn" (click)="reload()">Tải lại</button>
+  </p>
+} @else if (year.hasValue() && !year.value()) {
+  <p class="msg info" role="status">Chưa có kỳ đánh giá năm.</p>
+} @else if (current(); as b) {
+  @if (statusText[b.status]) {
+    <p class="msg info" role="status">{{ statusText[b.status] }}</p>
+  }
+  @if (b.rejectionReason) {
+    <p class="msg warn">Tập thể lãnh đạo chưa thông qua lần trước: {{ b.rejectionReason }}</p>
+  }
+  @if (errors().length && !dirty()) {
+    <p><button type="button" class="btn" (click)="reload()">Tải lại danh sách</button></p>
+  }
+
+  <div class="board" [class.one]="simple()">
+    @for (g of groups; track g) {
+      <section
+        class="col"
+        [attr.aria-labelledby]="'pg-' + g"
+        [attr.data-group]="g"
+        [class.over]="dropTarget() === g"
+        (dragover)="onDragOver(g, $event)"
+        (dragleave)="dropTarget.set(null)"
+        (drop)="onDrop(g, $event)"
+      >
+        <h2 [id]="'pg-' + g">
+          <span class="gname" [attr.data-group]="g">{{ groupName(g) }}</span>
+          <small>{{ inGroup(g).length }} người</small>
+        </h2>
+        <ol class="cards">
+          @for (c of inGroup(g); track c.personId) {
+            <li
+              class="pc"
+              [class.on]="c.personId === selectedId()"
+              [class.drag]="dragging() === c.personId"
+              [attr.draggable]="editable() && !simple()"
+              [attr.data-person]="c.personId"
+              (dragstart)="onDragStart(c, $event)"
+              (dragend)="onDragEnd()"
+              (drop)="onDrop(g, $event, c)"
+            >
+              <div class="pc-head">
+                <span class="rank">#{{ rank(c) }}</span>
+                <button
+                  type="button"
+                  class="pname"
+                  [attr.aria-pressed]="c.personId === selectedId()"
+                  (click)="select(c)"
+                >
+                  {{ c.name }}
+                </button>
+                @if (editable()) {
+                  <button
+                    type="button"
+                    class="dots"
+                    [attr.aria-label]="'Đổi nhóm, thứ tự của ' + c.name"
+                    [attr.aria-expanded]="menuFor() === c.personId"
+                    [attr.data-menu-for]="c.personId"
+                    (click)="toggleMenu(c, $event); $event.stopPropagation()"
+                  >
+                    ⋮
+                  </button>
+                }
+              </div>
+              <p class="muted small">{{ c.summary }}</p>
+              <p class="tags">
+                <span class="chip" [class.off]="!c.plan">{{
+                  c.plan ? 'Kế hoạch bồi dưỡng: ' + c.plan : 'Chưa có kế hoạch bồi dưỡng'
+                }}</span>
+                @if (differs(c)) {
+                  <span class="chip" [class.bad]="reasonMissing(c)">
+                    {{
+                      reasonMissing(c) ? 'Khác gợi ý · chưa ghi lý do' : 'Khác gợi ý · đã ghi lý do'
+                    }}
+                  </span>
+                }
+              </p>
+              @if (menuFor() === c.personId) {
+                <div
+                  class="menu"
+                  role="group"
+                  [attr.aria-label]="'Thao tác với ' + c.name"
+                  (keydown)="onMenuKey($event)"
+                >
+                  <button type="button" [disabled]="rank(c) === 1" (click)="step(c, -1)">
+                    Đưa lên trên
+                  </button>
+                  <button
+                    type="button"
+                    [disabled]="rank(c) === inGroup(g).length"
+                    (click)="step(c, 1)"
+                  >
+                    Đưa xuống dưới
+                  </button>
+                  @for (o of groups; track o) {
+                    @if (o !== g) {
+                      <button type="button" (click)="moveTo(c, o)">
+                        Chuyển sang {{ short(o) }}
+                      </button>
+                    }
+                  }
+                </div>
+              }
+            </li>
+          }
+        </ol>
+        @if (editable() && !simple()) {
+          <p class="hint" aria-hidden="true">Kéo thả để chuyển nhóm, đổi thứ tự</p>
+        }
+      </section>
+    }
+  </div>
+
+  <div class="bottom">
+    <section class="card" aria-labelledby="pg-hint">
+      <h2 id="pg-hint">Gợi ý ban đầu của hệ thống (tham khảo)</h2>
+      <p>
+        Gợi ý sắp xếp theo điểm năm, số năm liền hoàn thành xuất sắc nhiệm vụ và kết quả quy hoạch.
+        Hệ thống <strong>không</strong> tự phân nhóm; người có thẩm quyền xếp nhóm và ghi lý do khi
+        khác gợi ý.
+      </p>
+      @if (adjusted().length) {
+        <h3>Điều chỉnh khác gợi ý ({{ adjusted().length }})</h3>
+        <ul class="adj">
+          @for (c of adjusted(); track c.personId) {
+            <li>
+              <button type="button" class="link" (click)="focusReason(c)">{{ c.name }}</button>
+              : {{ short(c.suggested!) }} → {{ short(c.group) }}
+              <span [class.bad]="reasonMissing(c)">
+                · {{ reasonMissing(c) ? 'chưa ghi lý do' : 'đã ghi lý do' }}</span
+              >
+            </li>
+          }
+        </ul>
+      }
+    </section>
+    <section class="card" aria-labelledby="pg-reason">
+      <h2 id="pg-reason">Lý do điều chỉnh so với gợi ý</h2>
+      @if (selected(); as s) {
+        <p>
+          <strong>{{ s.name }}</strong> · đang ở {{ short(s.group) }}
+          @if (s.suggested) {
+            · gợi ý {{ short(s.suggested) }}
+          }
+          @if (s.level) {
+            · xếp loại năm {{ levelLabel[s.level] }}
+          }
+        </p>
+        @if (differs(s)) {
+          <label for="pg-reason-box">
+            Lý do điều chỉnh <span class="req" aria-hidden="true">*</span>
+          </label>
+          <textarea
+            id="pg-reason-box"
+            #reasonBox
+            rows="4"
+            [attr.maxlength]="reasonMax"
+            [value]="s.reason"
+            [disabled]="!editable()"
+            [attr.aria-invalid]="reasonMissing(s)"
+            [attr.aria-describedby]="reasonMissing(s) ? 'pg-reason-err' : null"
+            (input)="setReason($any($event.target).value)"
+          ></textarea>
+          @if (reasonMissing(s)) {
+            <p class="ferr" id="pg-reason-err">Ghi lý do điều chỉnh từ 20 đến 1.000 ký tự.</p>
+          }
+        } @else {
+          <p class="muted">Cán bộ đang ở đúng nhóm gợi ý nên không cần ghi lý do.</p>
+        }
+        <label for="pg-plan">Kế hoạch bồi dưỡng (số hiệu kế hoạch đào tạo)</label>
+        <input
+          id="pg-plan"
+          type="text"
+          maxlength="200"
+          [value]="s.plan"
+          [disabled]="!editable()"
+          (input)="setPlan($any($event.target).value)"
+        />
+      }
+    </section>
+  </div>
+} @else {
+  <p class="muted" role="status">Đang tải…</p>
+}
+
+@if (showCriteria() || confirmSubmit()) {
+  <div class="backdrop">
+    <div
+      class="dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pg-dlg"
+      (keydown)="onDialogKey($event)"
+    >
+      @if (showCriteria()) {
+        <h2 id="pg-dlg">Tiêu chí phân nhóm triển vọng (Phụ lục 5)</h2>
+        <dl class="crit">
+          @for (r of criteriaRows(); track r.code) {
+            <dt>{{ r.name }}</dt>
+            <dd>{{ r.criteria || 'Theo quy định của khối.' }}</dd>
+          }
+        </dl>
+        <p class="muted small">
+          Người xếp loại năm không hoàn thành nhiệm vụ hoặc có hai quý liên tiếp không hoàn thành
+          nhiệm vụ không được đưa vào Nhóm 1, Nhóm 2.
+        </p>
+        <div class="row-acts">
+          <button type="button" class="btn" #dialogFirst (click)="closeDialogs()">Đóng</button>
+        </div>
+      } @else {
+        <h2 id="pg-dlg">Trình tập thể lãnh đạo</h2>
+        <p>
+          Danh sách gồm {{ cards().length }} cán bộ, {{ adjusted().length }} điều chỉnh khác gợi ý.
+          Sau khi trình, danh sách bị khoá chỉnh sửa cho tới khi tập thể lãnh đạo xem xét.
+        </p>
+        <div class="row-acts">
+          <button
+            type="button"
+            class="btn"
+            #dialogFirst
+            [disabled]="!!busy()"
+            (click)="closeDialogs()"
+          >
+            Huỷ
+          </button>
+          <button type="button" class="btn primary" [disabled]="!!busy()" (click)="submit()">
+            {{ busy() ? 'Đang trình…' : 'Trình' }}
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}

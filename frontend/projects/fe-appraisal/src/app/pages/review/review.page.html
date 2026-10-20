@@ -28,6 +28,9 @@
         {{ busy() === 'export' ? 'Đang xuất…' : 'Xuất danh sách' }}
       </button>
     }
+    @if (can('SCR-1001.xem')) {
+      <a class="btn" routerLink="../xep-loai-nam">Xếp loại năm</a>
+    }
   </div>
 </header>
 

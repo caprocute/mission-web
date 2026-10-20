@@ -20,7 +20,13 @@ export type AppraisalPermissionKey =
   | 'SCR-0904.xem'
   | 'SCR-0904.doi-muc'
   | 'SCR-0904.ky-lo'
-  | 'SCR-0904.theo-doi-huy';
+  | 'SCR-0904.theo-doi-huy'
+  | 'SCR-1001.xem'
+  | 'SCR-1001.tham-dinh-nam'
+  | 'SCR-1001.bo-tri-lai'
+  | 'SCR-1002.xem'
+  | 'SCR-1002.xep-nhom'
+  | 'SCR-1002.trinh';
 
 /**
  * Hàm hỏi "vai trò hiện tại có thể có quyền này không", nối vào `can()` của `@vt/auth` (WEB-054).

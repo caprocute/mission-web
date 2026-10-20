@@ -778,6 +778,15 @@ export const POLICIES_MOCK: MockModule = {
     },
     {
       method: 'GET',
+      pattern: '/api/v1/policies/packs/:id/prospect-criteria',
+      handle: (r) => {
+        const p = packs.find((x) => x.id === r.pathParams['id']);
+        if (!p) return problem(404, 'Không tìm thấy bộ quy định đánh giá');
+        return ok(prospectCriteria(p.id));
+      },
+    },
+    {
+      method: 'GET',
       pattern: '/api/v1/policies/packs/:id',
       handle: (r) => {
         const p = packs.find((x) => x.id === r.pathParams['id']);
@@ -848,3 +857,49 @@ export const POLICIES_MOCK: MockModule = {
     { method: 'POST', pattern: '/api/v1/policies/packs/:id/versions/:v/submit', handle: submit },
   ],
 };
+
+/**
+ * Tiêu chí bốn nhóm triển vọng theo PL 5 (SCR-1002, WEB-039): tên nhóm theo mockup TL-02b, người không
+ * hoàn thành nhiệm vụ năm hoặc có cờ bố trí lại không vào Nhóm 1, Nhóm 2 (BR-10-09), khoá ở kỳ quý
+ * (`phan_nhom.mo_o_ky_quy = false`, BR-10-07).
+ */
+function prospectCriteria(id: string) {
+  const top = { excludedRatingLevels: ['KHTNV' as const], excludeReassignmentFlag: true };
+  const rest = { excludedRatingLevels: [], excludeReassignmentFlag: false };
+  return {
+    policyPackId: id,
+    version: '2.0.0',
+    openInQuarter: false,
+    legalRef: 'QĐ khoản 12.1.5; Phụ lục 5',
+    groups: [
+      {
+        groupCode: 'NHOM_1',
+        name: 'Nhóm 1 – Phát triển vượt trội',
+        criteria:
+          'Hoàn thành xuất sắc nhiệm vụ nhiều năm liền, có năng lực nổi trội, có khả năng đảm nhiệm vị trí cao hơn.',
+        ...top,
+      },
+      {
+        groupCode: 'NHOM_2',
+        name: 'Nhóm 2 – Có triển vọng',
+        criteria:
+          'Hoàn thành tốt nhiệm vụ trở lên, có phẩm chất và năng lực đáp ứng yêu cầu quy hoạch, cần tiếp tục rèn luyện.',
+        ...top,
+      },
+      {
+        groupCode: 'NHOM_3',
+        name: 'Nhóm 3 – Cần bồi dưỡng thêm',
+        criteria:
+          'Hoàn thành nhiệm vụ, còn hạn chế về kiến thức hoặc kỹ năng, cần kế hoạch đào tạo, bồi dưỡng cụ thể.',
+        ...rest,
+      },
+      {
+        groupCode: 'NHOM_4',
+        name: 'Nhóm 4 – Cần xem xét bố trí',
+        criteria:
+          'Không hoàn thành nhiệm vụ hoặc không đáp ứng yêu cầu vị trí đang đảm nhiệm, cần xem xét bố trí lại.',
+        ...rest,
+      },
+    ],
+  };
+}

@@ -83,6 +83,8 @@ const PROVIDER_LABEL: Partial<Record<string, string>> = {
 export class ReviewPage {
   /** `:id` của tuyến `tham-dinh/:id`; trống thì mở hồ sơ đầu hàng đợi. */
   readonly id = input<string>();
+  /** Kỳ của hàng đợi qua `?periodId=`, ví dụ kỳ năm khi mở từ "Chuyển thẩm định năm" của SCR-1001. */
+  readonly periodId = input<string>();
 
   private readonly api = inject(AppraisalApi);
   private readonly jobs = inject(JobTracker);
@@ -108,9 +110,14 @@ export class ReviewPage {
   protected readonly status = signal<AppraisalProfileStatus>('CHO_THAM_DINH');
   private readonly cursor = signal<string | null>(null);
   protected readonly page = rxResource({
-    params: () => ({ status: this.status(), cursor: this.cursor() }),
+    params: () => ({ status: this.status(), cursor: this.cursor(), periodId: this.periodId() }),
     stream: ({ params }) =>
-      this.api.profiles({ status: [params.status], cursor: params.cursor, limit: 50 }),
+      this.api.profiles({
+        status: [params.status],
+        periodId: params.periodId,
+        cursor: params.cursor,
+        limit: 50,
+      }),
   });
   /** Các dòng đã tải, nối thêm khi bấm "Tải thêm". */
   protected readonly rows = linkedSignal<
