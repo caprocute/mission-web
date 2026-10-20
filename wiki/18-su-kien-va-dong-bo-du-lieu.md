@@ -91,6 +91,14 @@ Cấu hình connector của TL-03 có bốn điểm cần giữ: `snapshot.mode=
 
 Dòng outbox không bị Debezium xoá. Bảng phân vùng theo ngày bằng pg_partman (TL-03: 7 phân vùng tạo trước, `p_retention = '3 days'`), job bảo trì tách và xoá phân vùng cũ, không sinh WAL cho từng dòng. TL-04 ghi giữ 72 giờ để phát lại sau chuyển vùng, tức cùng con số. Giám sát bắt buộc gồm độ trễ slot (`pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)`), `MilliSecondsBehindSource` của Debezium và số dòng outbox chưa đọc; `max_slot_wal_keep_size = 64GB` để slot hỏng không làm đầy ổ đĩa. Ngưỡng cảnh báo lệch nhau: TL-03 đặt 1 GB WAL hoặc slot không hoạt động 5 phút và 10 giây độ trễ, TL-01 đặt 10 GB và 5 giây.
 
+### Phát lại outbox và danh mục nguồn (NEN-022)
+
+Khi replication slot `dbz_outbox_<db>` bị vô hiệu do vượt `max_slot_wal_keep_size`, khi connector hỏng lâu, hoặc sau khi chuyển vùng thảm hoạ (DR-10), người vận hành dùng công cụ `services-go/outbox-replay` để phát lại sự kiện từ bảng `<schema>.outbox_event` theo dải thời gian:
+
+- **Danh mục nguồn outbox (`contracts/events/outbox-sources.yaml`):** khai báo máy đọc được cho toàn bộ 18 schema có bảng `<schema>.outbox_event` (13 schema trong CSDL `tenant_data` theo `table.include.list` của TL-03 L4234 và 5 schema tách CSDL/connector riêng: `org`, `evidence`, `esign`, `ledger`, `registry`). Mỗi mục chỉ rõ `database`, `connector` (`outbox-<db>` theo TL-03, cho phép tách riêng từng schema), `slotName` (`dbz_outbox_<db>`), `cdcRole` (`cdc_<schema>`) và danh sách `events`/`topics` được phép phát đối chiếu hai chiều với `contracts/events/catalog.yaml`.
+- **Tái tạo thông điệp khớp từng byte với Debezium `EventRouter`:** giữ nguyên `event_id` (`ce_id`), khoá `event_key` (`tenantId:aggregateId`), thân nhị phân Avro `payload`, và các tiêu đề `ce_type`, `ce_tenantid`, `traceparent`, `ce_classification`, `apicurio.value.globalId`, `aggregate_version`. Hỗ trợ định tuyến về topic gốc hoặc `<topic>.replay.<consumer>` khi truyền `--consumer`.
+- **An toàn vận hành:** mặc định chạy `--dry-run=true` (chỉ đếm theo topic và tenant); chạy thật đòi hỏi `--confirm`, bắt buộc producer `enable.idempotence=true` và `acks=all`, từ chối mọi topic không có trong `outbox-sources.yaml`, kiểm tra thời hạn giữ phân vùng `partman.part_config` (`3 days` = `72h`) để cảnh báo khi `--from` vượt ngưỡng, in mốc `--after-created-at` / `--after-id` khi dừng giữa chừng và phát sự kiện kiểm toán `PHAT_LAI_OUTBOX` lên `sys.audit.v1`. Sổ tay vận hành chi tiết ở `ops/runbooks/phat-lai-outbox.md`.
+
 ## Thứ tự
 
 Khoá `tenantId:aggregateId` đưa mọi sự kiện của một đối tượng vào cùng một phân vùng Kafka, nên consumer nhận chúng đúng thứ tự ghi WAL. Sự kiện của hai aggregate khác nhau không có thứ tự tương đối; consumer hiếm khi cần thứ tự giữa aggregate thì dùng `occurredAt` và phiên bản aggregate. Sự kiện trùng xuất hiện khi connector khởi động lại trước khi kịp ghi offset, và được inbox chặn.

@@ -10,10 +10,22 @@ Thư mục này là nguồn sự thật của mọi sự kiện nội bộ trên
 contracts/events/
 ├── catalog.yaml            26 sự kiện EVT-01..EVT-26 và 8 topic kỹ thuật: mã, tên nghiệp vụ, topic,
 │                           khoá, outbox nguồn, phân loại, bên phát, bên tiêu thụ, tệp lược đồ, artifactId
+├── outbox-sources.yaml     danh mục bảng <schema>.outbox_event, CSDL, connector Debezium, slot,
+│                           và danh sách topic được phép phát (NEN-022)
 ├── avro/<miền>/<Tên>.avsc  một lược đồ cho mỗi topic; <miền> là đoạn đầu của topic,
 │                           namespace vn.vtokr.<miền>.v1, tên record là tên nghiệp vụ
 └── tools/doi-chieu-tl.py   đối chiếu catalog.yaml và tệp .avsc với bảng EVT của baseline và TL-03
 ```
+
+## Danh mục nguồn outbox (`outbox-sources.yaml`, NEN-022)
+
+Tệp `outbox-sources.yaml` ánh xạ từng schema có bảng `<schema>.outbox_event` sang:
+
+- CSDL sở hữu (`database`, `devDatabase`), vai trò đọc WAL (`cdcRole = cdc_<schema>`), tên connector Debezium (`outbox-<db>` theo TL-03, hoặc connector riêng khi tách CSDL) và replication slot (`dbz_outbox_<db>`);
+- danh sách mã sự kiện (`events`) và topic nghiệp vụ/kỹ thuật được phép phát từ bảng outbox của schema đó (`topics`), cộng các topic dùng chung `wildcardTopics` (`notify.message.requested.v1`, `sys.audit.v1`, `period.drain.marker`);
+- cấu hình ánh xạ cột của Debezium `EventRouter` và thời hạn giữ phân vùng `pg_partman` (`3 days` / `72h`).
+
+Tệp này là đầu vào cho công cụ phát lại `services-go/outbox-replay` (NEN-022), bộ sinh `KafkaConnector` trên Strimzi (INF-10), quy trình phát lại sau chuyển vùng DR-10 (INF-18) và lệnh `vtctl` (INF-26). Kiểm thử trong `services-go/outbox-replay/internal/sources` đối chiếu hai chiều giữa `outbox-sources.yaml` và `catalog.yaml`.
 
 ## Phong bì nằm ở tiêu đề Kafka, không nằm trong thân Avro
 
