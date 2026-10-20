@@ -7,6 +7,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,6 +16,7 @@ import (
 	"mission/services-go/tenant-registry/internal/platform/logx"
 	"mission/services-go/tenant-registry/internal/platform/problem"
 	"mission/services-go/tenant-registry/internal/resolve"
+	"mission/services-go/tenant-registry/internal/tenant"
 	"mission/services-go/tenant-registry/pkg/routecookie"
 )
 
@@ -29,12 +31,15 @@ type Deps struct {
 	Resolver     *resolve.Service
 	Cookies      *routecookie.Signer
 	CookieDomain string
+	// DV-03-03: nghiệp vụ vòng đời tenant.
+	Tenants *tenant.Service
 }
 
 // Server giữ phụ thuộc và bộ định tuyến.
 type Server struct {
 	Deps
-	mux *http.ServeMux
+	mux  *http.ServeMux
+	jobs sync.WaitGroup
 }
 
 // New dựng Server và đăng ký tuyến.

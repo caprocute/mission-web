@@ -16,8 +16,10 @@ import (
 	"mission/services-go/tenant-registry/internal/api"
 	"mission/services-go/tenant-registry/internal/config"
 	"mission/services-go/tenant-registry/internal/platform/auth"
+	"mission/services-go/tenant-registry/internal/platform/crypto"
 	"mission/services-go/tenant-registry/internal/platform/logx"
 	"mission/services-go/tenant-registry/internal/resolve"
+	"mission/services-go/tenant-registry/internal/tenant"
 	"mission/services-go/tenant-registry/pkg/routecookie"
 )
 
@@ -57,8 +59,18 @@ func main() {
 	}
 	resolver := resolve.New(&resolve.DBLoader{Pool: pool}, resolve.Options{TTL: cfg.ResolveCacheTTL, StaleMax: cfg.ResolveStaleMax})
 	go resolver.Listen(ctx, pool, log)
+	enc, err := crypto.NewAESGCM(cfg.C2Key)
+	if err != nil {
+		log.Error("khoá mã hoá C2 không hợp lệ", "err", err.Error())
+		os.Exit(2)
+	}
+	tenants := tenant.NewService(tenant.Rules{PoolMax: cfg.PoolMax, BridgeMax: cfg.BridgeMax, SiloRequiredAbove: cfg.SiloRequiredAbove,
+		SiloRequiredSectors: cfg.SiloSectors, SiloRequiredCodes: cfg.SiloCodes, CapacityThreshold: cfg.CapacityThreshold}, enc)
+	tenants.DomainSuffix, tenants.TenantLimit, tenants.AccountLimit = cfg.DomainSuffix, cfg.TenantLimit, cfg.AccountLimit
+	// Nguồn số tài khoản từ cell chưa có giao thức (điểm chờ): chạy với nil chỉ dọn khoá chống ghi trùng.
+	go tenants.RunPeriodic(ctx, pool, nil, cfg.AccountSyncInterval, log)
 	srv := api.New(api.Deps{Pool: pool, Log: log, Verifier: verifier, StepUpMaxAge: cfg.StepUpMaxAge,
-		Resolver: resolver, Cookies: signer, CookieDomain: cfg.CookieDomain})
+		Resolver: resolver, Cookies: signer, CookieDomain: cfg.CookieDomain, Tenants: tenants})
 
 	httpSrv := &http.Server{
 		Addr:              cfg.HTTPAddr,
@@ -79,6 +91,7 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 	_ = httpSrv.Shutdown(shutdownCtx)
+	srv.WaitJobs()
 	log.Info("tenant-registry đã dừng")
 }
 

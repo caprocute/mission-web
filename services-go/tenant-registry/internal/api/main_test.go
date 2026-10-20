@@ -19,7 +19,9 @@ import (
 	"mission/services-go/tenant-registry/internal/contract"
 	"mission/services-go/tenant-registry/internal/platform/auth"
 	"mission/services-go/tenant-registry/internal/platform/auth/authtest"
+	"mission/services-go/tenant-registry/internal/platform/crypto"
 	"mission/services-go/tenant-registry/internal/resolve"
+	"mission/services-go/tenant-registry/internal/tenant"
 	"mission/services-go/tenant-registry/internal/testdb"
 	"mission/services-go/tenant-registry/pkg/routecookie"
 )
@@ -68,8 +70,13 @@ func newFixture(t testing.TB, dsn string, opts ...fixtureOpt) *fixture {
 		t.Fatal(err)
 	}
 	ro := resolve.Options{}
+	enc, err := crypto.NewAESGCM([]byte(testdb.RandomSecret()[:32]))
+	if err != nil {
+		t.Fatal(err)
+	}
 	d := api.Deps{
-		Pool: pool, Log: slog.New(slog.NewJSONHandler(io.Discard, nil)),
+		Tenants: tenant.NewService(tenant.DefaultRules(), enc),
+		Pool:    pool, Log: testLog(),
 		Verifier: auth.NewJWKSVerifier(auth.JWKSConfig{JWKSURL: keys.JWKSURL(), Issuers: []string{authtest.Issuer}}),
 		Cookies:  signer,
 	}
@@ -121,3 +128,11 @@ func adminToken() string { return keys.PlatformAdmin("0192f1a2-3333-7000-8000-00
 type apiDeps = api.Deps
 
 func slogDiscard() *slog.Logger { return slog.New(slog.NewJSONHandler(io.Discard, nil)) }
+
+// testLog: đặt TEST_LOG=1 để xem nhật ký máy chủ khi gỡ lỗi.
+func testLog() *slog.Logger {
+	if os.Getenv("TEST_LOG") != "" {
+		return slog.New(slog.NewJSONHandler(os.Stderr, nil))
+	}
+	return slogDiscard()
+}

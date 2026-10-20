@@ -30,6 +30,18 @@ type Config struct {
 	CookieDomain       string
 	ResolveCacheTTL    time.Duration
 	ResolveStaleMax    time.Duration
+
+	// DV-03-03: khoá AES-256 mã hoá ứng dụng dữ liệu C2 (đầu mối quản trị tenant); thay bằng DEK do
+	// OpenBao Transit bọc khi có NEN-015.
+	C2Key []byte
+	// Tham số BR-01-01, BR-01-02 và gợi ý mô hình (mặc định TL-02a QT-01).
+	PoolMax, BridgeMax, SiloRequiredAbove int
+	SiloSectors, SiloCodes                []string
+	CapacityThreshold                     float64
+	DomainSuffix                          string
+	TenantLimit                           int
+	AccountLimit                          int64
+	AccountSyncInterval                   time.Duration
 }
 
 // Load đọc cấu hình; thiếu biến bắt buộc trả lỗi.
@@ -45,6 +57,17 @@ func Load() (Config, error) {
 		CookieDomain:    os.Getenv("ROUTING_COOKIE_DOMAIN"),
 		ResolveCacheTTL: dur("RESOLVE_CACHE_TTL", 30*time.Second),
 		ResolveStaleMax: dur("RESOLVE_STALE_MAX", 300*time.Second),
+
+		PoolMax:             intv("TENANT_POOL_MAX", 5000),
+		BridgeMax:           intv("TENANT_BRIDGE_MAX", 1_000_000),
+		SiloRequiredAbove:   intv("TENANT_SILO_REQUIRED_ABOVE", 1_000_000),
+		SiloSectors:         listDef("TENANT_SILO_SECTORS", []string{"LLVT"}),
+		SiloCodes:           list("TENANT_SILO_CODES"),
+		CapacityThreshold:   floatv("CELL_CAPACITY_THRESHOLD", 0.85),
+		DomainSuffix:        env("TENANT_DOMAIN_SUFFIX", "okr.viettel.vn"),
+		TenantLimit:         intv("TENANT_LIMIT", 5000),
+		AccountLimit:        int64(intv("ACCOUNT_LIMIT", 6_500_000)),
+		AccountSyncInterval: dur("ACCOUNT_SYNC_INTERVAL", time.Hour),
 	}
 	var err error
 	if c.RoutingKey, err = secret("ROUTING_COOKIE_KEY"); err != nil {
@@ -52,6 +75,15 @@ func Load() (Config, error) {
 	}
 	if c.RoutingKeyPrevious, err = secret("ROUTING_COOKIE_KEY_PREVIOUS"); err != nil {
 		return c, err
+	}
+	if c.C2Key, err = secret("C2_KEY"); err != nil {
+		return c, err
+	}
+	if len(c.C2Key) != 32 {
+		return c, fmt.Errorf("config: C2_KEY (base64) phải đúng 32 byte")
+	}
+	if c.CapacityThreshold <= 0 || c.CapacityThreshold > 1 {
+		return c, fmt.Errorf("config: CELL_CAPACITY_THRESHOLD phải trong (0, 1]")
 	}
 	if len(c.RoutingKey) < 32 {
 		return c, fmt.Errorf("config: ROUTING_COOKIE_KEY (base64) phải có tối thiểu 32 byte")
@@ -88,6 +120,22 @@ func intv(k string, def int) int {
 		}
 	}
 	return def
+}
+
+func floatv(k string, def float64) float64 {
+	if v := os.Getenv(k); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
+		}
+	}
+	return def
+}
+
+func listDef(k string, def []string) []string {
+	if os.Getenv(k) == "" {
+		return def
+	}
+	return list(k)
 }
 
 func list(k string) []string {

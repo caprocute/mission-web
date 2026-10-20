@@ -74,6 +74,31 @@ spec:
               value: {{ .Values.resolve.cacheTtl | quote }}
             - name: RESOLVE_STALE_MAX
               value: {{ .Values.resolve.staleMax | quote }}
+            - name: C2_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.c2Key.secretName }}
+                  key: {{ .Values.c2Key.key }}
+            - name: TENANT_POOL_MAX
+              value: {{ .Values.tenantRules.poolMax | quote }}
+            - name: TENANT_BRIDGE_MAX
+              value: {{ .Values.tenantRules.bridgeMax | int64 | quote }}
+            - name: TENANT_SILO_REQUIRED_ABOVE
+              value: {{ .Values.tenantRules.siloRequiredAbove | int64 | quote }}
+            - name: TENANT_SILO_SECTORS
+              value: {{ .Values.tenantRules.siloSectors | quote }}
+            - name: TENANT_SILO_CODES
+              value: {{ .Values.tenantRules.siloCodes | quote }}
+            - name: CELL_CAPACITY_THRESHOLD
+              value: {{ .Values.tenantRules.capacityThreshold | quote }}
+            - name: TENANT_DOMAIN_SUFFIX
+              value: {{ .Values.tenantRules.domainSuffix | quote }}
+            - name: TENANT_LIMIT
+              value: {{ .Values.tenantRules.tenantLimit | quote }}
+            - name: ACCOUNT_LIMIT
+              value: {{ .Values.tenantRules.accountLimit | int64 | quote }}
+            - name: ACCOUNT_SYNC_INTERVAL
+              value: {{ .Values.tenantRules.accountSyncInterval | quote }}
             - name: ROUTING_COOKIE_KEY
               valueFrom:
                 secretKeyRef:

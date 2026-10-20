@@ -53,9 +53,29 @@ resolve:
   cacheTtl: 30s      # TL-03: làm mới mỗi 30 giây
   staleMax: 300s     # phục vụ đệm cũ khi mất CSDL toàn cục
 
+# DV-03-03: khoá AES-256 (base64, 32 byte) mã hoá ứng dụng dữ liệu C2 (đầu mối quản trị tenant).
+# Chỉ tham chiếu Secret; giá trị nằm trong OpenBao. Thay bằng DEK bọc qua OpenBao Transit khi có NEN-015.
+c2Key:
+  secretName: tenant-registry-c2-key
+  key: C2_KEY
+
+# Tham số nghiệp vụ QT-01 (mặc định theo TL-02a; ngưỡng bridge TL-01 ghi 150.000, xem wiki trang 14).
+tenantRules:
+  poolMax: 5000
+  bridgeMax: 1000000
+  siloRequiredAbove: 1000000      # BR-01-01
+  siloSectors: LLVT               # BR-01-01, khối lực lượng vũ trang
+  siloCodes: ""                   # BR-01-01, mã tenant khối Đảng Trung ương (danh sách cách nhau dấu phẩy)
+  capacityThreshold: "0.85"       # BR-01-02
+  domainSuffix: okr.viettel.vn
+  tenantLimit: 5000
+  accountLimit: 6500000           # NFR-01 định cỡ 6,5 triệu
+  accountSyncInterval: 1h
+
 # Tạo ExternalSecret (external-secrets.io/v1) kéo khoá HMAC từ OpenBao; tắt khi cụm dùng cách nạp khác.
 externalSecrets:
   enabled: false
+  c2KeyPath: mission/global/tenant-registry/c2-key   # khoá trong OpenBao (không phải giá trị)
   secretStoreRef:
     kind: ClusterSecretStore
     name: openbao

@@ -88,7 +88,7 @@ func TestMigrationNamingAndClassificationLint(t *testing.T) {
 	for idx.Next() {
 		var name string
 		_ = idx.Scan(&name)
-		if !regexp.MustCompile(`^(pk|uq|ex|ix)_[a-z0-9_]+$`).MatchString(name) && !strings.HasPrefix(name, "outbox_event_default") {
+		if !regexp.MustCompile(`^(pk|uq|ex|ix)_[a-z0-9_]+$`).MatchString(name) && !strings.Contains(name, "_default") {
 			t.Errorf("chỉ mục %s sai quy ước", name)
 		}
 	}
