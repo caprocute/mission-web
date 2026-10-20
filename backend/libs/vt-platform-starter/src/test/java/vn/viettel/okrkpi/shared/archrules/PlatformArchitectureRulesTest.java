@@ -52,6 +52,27 @@ class PlatformArchitectureRulesTest {
   }
 
   @Test
+  void chanThuocTinhC2ThieuConverterVaToStringLoDuLieu() {
+    assertThatThrownBy(
+            () ->
+                PlatformArchitectureRules.C2_FIELDS_MUST_HAVE_CONVERTER.check(
+                    classes("vn.viettel.okrkpi.archfixture.bad")))
+        .isInstanceOf(AssertionError.class)
+        .hasMessageContaining("UnconvertedC2Entity.nhanXet");
+    PlatformArchitectureRules.C2_FIELDS_MUST_HAVE_CONVERTER.check(
+        classes("vn.viettel.okrkpi.archfixture.good"));
+
+    assertThatThrownBy(
+            () ->
+                PlatformArchitectureRules.C2_TYPES_MUST_MASK_TO_STRING.check(
+                    classes("vn.viettel.okrkpi.archfixture.bad")))
+        .isInstanceOf(AssertionError.class)
+        .hasMessageContaining("UnconvertedC2Entity");
+    PlatformArchitectureRules.C2_TYPES_MUST_MASK_TO_STRING.check(
+        classes("vn.viettel.okrkpi.archfixture.good"));
+  }
+
+  @Test
   void thuVienNenTuanThuLuat() {
     JavaClasses platform =
         new ClassFileImporter()
@@ -60,5 +81,7 @@ class PlatformArchitectureRulesTest {
     PlatformArchitectureRules.NO_REQUEST_LOGGING_FILTERS.check(platform);
     PlatformArchitectureRules.NO_UNBOUNDED_EXECUTORS.check(platform);
     PlatformArchitectureRules.NO_DIRECT_CONNECTION_ACCESS.check(platform);
+    PlatformArchitectureRules.C2_FIELDS_MUST_HAVE_CONVERTER.check(platform);
+    PlatformArchitectureRules.C2_TYPES_MUST_MASK_TO_STRING.check(platform);
   }
 }
