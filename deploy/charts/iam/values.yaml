@@ -1,0 +1,112 @@
+# Giá trị mặc định của chart iam (SVC-02). Giá trị theo môi trường, theo cell đặt ở
+# deploy/environments/<môi-trường>/iam/. Tệp này không chứa bí mật: secret lấy từ OpenBao qua External Secrets.
+#
+# Chart hiện chỉ gồm phần nạp realm (DV-02-01). Bản thân Keycloak do task INF triển khai;
+# keycloak.url trỏ tới Service của Keycloak trong cell.
+
+image:
+  repository: adorsys/keycloak-config-cli
+  # Bản hỗ trợ dòng Keycloak 26; khi lên Harbor nội bộ thì đổi repository và ghim digest.
+  tag: 6.5.1-26
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+keycloak:
+  # Địa chỉ nội bộ của Keycloak trong cell (Admin REST API chỉ mở trong mạng quản trị, TL-01 SVC-02).
+  url: http://keycloak-http.iam.svc.cluster.local:8080
+  # Client quản trị riêng cho keycloak-config-cli ở realm master, cấp bằng client credentials.
+  loginRealm: master
+  clientId: mission-config-cli
+  availabilityCheckTimeout: 300s
+  sslVerify: true
+
+realm:
+  # Điểm lệch tên realm (wiki/14): TL-01 `okrkpi`, TL-04 `platform`, dev `mission`. Để là biến, mặc định theo TL-01.
+  name: okrkpi
+  displayName: Mission
+  # Mã cell, ghi vào thuộc tính realm `mission.cell`.
+  cell: cell-01
+  # Production bắt buộc HTTPS mọi kết nối.
+  sslRequired: all
+
+  web:
+    # Tên miền phục vụ ứng dụng web của cell; mỗi tên miền sinh redirect URI https://<host>/*,
+    # web origin https://<host> và URI chuyển hướng sau đăng xuất.
+    hosts:
+      - app.cell-01.example.invalid
+  mobile:
+    # Redirect URI kiểu scheme riêng của ứng dụng di động (AppAuth, PKCE S256).
+    redirectUris:
+      - vn.viettel.mission:/oauth2redirect
+    postLogoutRedirectUris:
+      - vn.viettel.mission:/logout
+
+  # Thời hạn (giây). Điểm lệch ba nguồn (wiki/14): chọn TL-04 cho access và refresh, giữ nhàn rỗi 30 phút của TL-01.
+  tokens:
+    # TL-04 SEC-16: access token 5 phút.
+    accessTokenLifespan: 300
+    # TL-01: phiên SSO nhàn rỗi 30 phút, tối đa 10 giờ.
+    ssoSessionIdleTimeout: 1800
+    ssoSessionMaxLifespan: 36000
+    # Refresh token trượt theo nhàn rỗi 30 phút, không quá 8 giờ (TL-04 SEC-16).
+    clientSessionIdleTimeout: 1800
+    clientSessionMaxLifespan: 28800
+
+  # BR-00-05 và TL-04 SEC-14.
+  bruteForce:
+    failureFactor: 5
+    # Khoá tạm 15 phút.
+    waitSeconds: 900
+    # Bộ đếm lần sai chỉ xoá khi có khoảng lặng quá 24 giờ, để đếm được 20 lần sai trong 24 giờ.
+    maxDeltaTimeSeconds: 86400
+    # Keycloak 26 tính một lần khoá tạm cho mỗi lần sai từ lần thứ failureFactor; 15 = khoá cố định ở lần sai thứ 20.
+    maxTemporaryLockouts: 15
+
+  # Độ ưu tiên khoá ký ES256 sinh trong realm; xoay khoá bằng cách thêm khoá có độ ưu tiên cao hơn.
+  signingKeyPriority: 200
+
+secrets:
+  # Secret Kubernetes chứa bí mật cho Job, do External Secrets đồng bộ từ OpenBao (SEC-10, SEC-11).
+  name: iam-realm-import
+  keys:
+    configCliClientSecret: config-cli-client-secret
+    apisixClientSecret: apisix-gateway-client-secret
+
+externalSecret:
+  enabled: true
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: openbao
+  # Đường dẫn KV v2 trong OpenBao của cell; không có giá trị thật trong repo.
+  remoteRefs:
+    configCliClientSecret:
+      key: iam/realm-import
+      property: config-cli-client-secret
+    apisixClientSecret:
+      key: iam/apisix-gateway
+      property: client-secret
+
+job:
+  backoffLimit: 6
+  activeDeadlineSeconds: 900
+  ttlSecondsAfterFinished: 86400
+  javaOpts: "-XX:MaxRAMPercentage=75"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  nodeSelector: {}
+  tolerations: []
+
+networkPolicy:
+  enabled: true
+  # Nhãn pod Keycloak trong cùng namespace (do chart Keycloak của INF đặt).
+  keycloakPodLabels:
+    app.kubernetes.io/name: keycloak
+  keycloakPort: 8080

@@ -1,0 +1,144 @@
+package vn.viettel.okrkpi.iam.realm;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Kiểm tra tĩnh mẫu realm production (DV-02-01), không cần Keycloak:
+ * vai trò realm so khớp docs/phan-quyen/ma-tran.json, client đúng SEC-17, không có bí mật,
+ * mọi biến của mẫu đều được Job Helm truyền vào.
+ */
+class RealmTemplateStaticTest {
+
+  private static final String TEMPLATE = RepoFiles.read(RepoFiles.realmTemplate());
+
+  private static JsonNode realm() {
+    return RepoFiles.readYaml(RepoFiles.substitute(TEMPLATE,
+        RepoFiles.envFromChartValues("okrkpi", "gia-tri-kiem-thu", Map.of())));
+  }
+
+  /** Vai trò mong đợi lấy từ ma trận, cùng quy tắc với docs/phan-quyen/check_realm.py của WEB-056. */
+  static Map<String, String> expectedRolesFromMatrix() {
+    JsonNode m = RepoFiles.readJson(RepoFiles.matrix());
+    Map<String, String> expected = new LinkedHashMap<>();
+    Pattern sub = Pattern.compile("vai trò con `([a-z_]+)`");
+    for (JsonNode v : m.path("vai_tro")) {
+      String role = v.path("role").asText();
+      String ac = v.path("ac").asText();
+      // AC-11 là client credentials, không phải realm role
+      if (role.matches("[a-z_]+")) {
+        expected.put(role, ac);
+      }
+      Matcher mm = sub.matcher(v.path("keycloak").asText());
+      while (mm.find()) {
+        expected.put(mm.group(1), ac);
+      }
+    }
+    return expected;
+  }
+
+  @Test
+  void vaiTroRealmKhopMaTranPhanQuyen() {
+    Map<String, String> expected = expectedRolesFromMatrix();
+    Map<String, JsonNode> actual = new LinkedHashMap<>();
+    realm().path("roles").path("realm").forEach(r -> actual.put(r.path("name").asText(), r));
+
+    assertThat(actual.keySet()).as("realm role trong mẫu so với ma-tran.json")
+        .containsExactlyInAnyOrderElementsOf(expected.keySet());
+    // Mười một vai trò AC có realm role (AC-11 là client credentials) cộng một vai trò con của AC-01
+    assertThat(expected.values().stream().distinct().count()).isEqualTo(11);
+    actual.forEach((name, role) -> {
+      assertThat(role.path("description").asText()).as("mô tả của " + name)
+          .startsWith(expected.get(name) + " ");
+      assertThat(role.path("composite").asBoolean(false)).as(name + " không là composite").isFalse();
+      assertThat(role.has("composites")).as(name + " không có composites").isFalse();
+    });
+  }
+
+  @Test
+  void cauHinhRealmTheoAdr08VaBr0005() {
+    JsonNode r = realm();
+    assertThat(r.path("organizationsEnabled").asBoolean()).isTrue();
+    assertThat(r.path("registrationAllowed").asBoolean()).isFalse();
+    assertThat(r.path("defaultSignatureAlgorithm").asText()).isEqualTo("ES256");
+    assertThat(r.path("revokeRefreshToken").asBoolean()).isTrue();
+    assertThat(r.path("refreshTokenMaxReuse").asInt()).isZero();
+    assertThat(r.path("bruteForceProtected").asBoolean()).isTrue();
+    assertThat(r.path("failureFactor").asInt()).isEqualTo(5);
+    assertThat(r.path("waitIncrementSeconds").asInt()).isEqualTo(900);
+    assertThat(r.path("maxFailureWaitSeconds").asInt()).isEqualTo(900);
+    assertThat(r.path("permanentLockout").asBoolean()).isTrue();
+    // Khoá cố định ở lần sai thứ 20 (TL-04 SEC-14): failureFactor + maxTemporaryLockouts = 20
+    assertThat(r.path("failureFactor").asInt() + r.path("maxTemporaryLockouts").asInt()).isEqualTo(20);
+    assertThat(r.path("maxDeltaTimeSeconds").asInt()).isEqualTo(86400);
+    assertThat(r.path("accessTokenLifespan").asInt()).isEqualTo(300);
+    assertThat(r.path("ssoSessionIdleTimeout").asInt()).isEqualTo(1800);
+    assertThat(r.path("ssoSessionMaxLifespan").asInt()).isEqualTo(36000);
+    assertThat(r.path("clientSessionMaxLifespan").asInt()).isEqualTo(28800);
+    assertThat(r.path("passwordPolicy").asText()).contains("hashAlgorithm(argon2)", "length(12)", "passwordHistory(");
+    assertThat(r.path("sslRequired").asText()).isEqualTo("all");
+  }
+
+  @Test
+  void clientCongKhaiChiDungCodeVaPkceS256() {
+    JsonNode r = realm();
+    Map<String, JsonNode> clients = new LinkedHashMap<>();
+    r.path("clients").forEach(c -> clients.put(c.path("clientId").asText(), c));
+    assertThat(clients.keySet()).containsExactlyInAnyOrder("mission-web", "mission-mobile", "apisix-gateway");
+    for (String id : new String[] {"mission-web", "mission-mobile"}) {
+      JsonNode c = clients.get(id);
+      assertThat(c.path("publicClient").asBoolean()).as(id).isTrue();
+      assertThat(c.path("standardFlowEnabled").asBoolean()).as(id).isTrue();
+      assertThat(c.path("implicitFlowEnabled").asBoolean()).as(id).isFalse();
+      assertThat(c.path("directAccessGrantsEnabled").asBoolean()).as(id).isFalse();
+      assertThat(c.path("attributes").path("pkce.code.challenge.method").asText()).as(id).isEqualTo("S256");
+      assertThat(c.path("redirectUris").isArray() && !c.path("redirectUris").isEmpty()).as(id).isTrue();
+      c.path("redirectUris").forEach(u -> assertThat(u.asText()).as(id + " redirect URI").isNotEqualTo("*"));
+    }
+    JsonNode gw = clients.get("apisix-gateway");
+    assertThat(gw.path("publicClient").asBoolean()).isFalse();
+    assertThat(gw.path("standardFlowEnabled").asBoolean()).isFalse();
+    assertThat(gw.path("implicitFlowEnabled").asBoolean()).isFalse();
+    assertThat(gw.path("directAccessGrantsEnabled").asBoolean()).isFalse();
+    assertThat(gw.path("serviceAccountsEnabled").asBoolean()).isFalse();
+  }
+
+  @Test
+  void khongCoBiMatTrongMau() {
+    JsonNode raw = RepoFiles.readYaml(TEMPLATE);
+    raw.path("clients").forEach(c -> {
+      if (c.has("secret")) {
+        assertThat(c.path("secret").asText()).as("secret của " + c.path("clientId").asText())
+            .matches("\\$\\(env:[A-Z0-9_]+\\)");
+      }
+    });
+    assertThat(raw.has("users")).as("mẫu không chứa tài khoản người dùng").isFalse();
+    assertThat(TEMPLATE).doesNotContainPattern("(?i)-----BEGIN [A-Z ]*PRIVATE KEY-----");
+    raw.path("components").path("org.keycloak.keys.KeyProvider").forEach(k ->
+        assertThat(k.path("config").has("privateKey")).as("khoá ký không nằm trong mẫu").isFalse());
+  }
+
+  @Test
+  void moiBienCuaMauDeuDuocJobHelmTruyenVao() {
+    Set<String> used = RepoFiles.templateVariables(TEMPLATE);
+    // Mọi chỗ mở biến phải đúng cú pháp, kể cả trong chú thích (keycloak-config-cli thay cả chú thích)
+    assertThat(TEMPLATE.split("\\$\\(", -1).length - 1).as("số chỗ mở biến")
+        .isEqualTo((int) Pattern.compile("\\$\\(env:[A-Z0-9_]+\\)").matcher(TEMPLATE).results().count());
+    String job = RepoFiles.read(RepoFiles.chart().resolve("templates/job-realm-import.yaml"));
+    Set<String> provided = new TreeSet<>();
+    Matcher m = Pattern.compile("- name: (MISSION_[A-Z0-9_]+)").matcher(job);
+    while (m.find()) {
+      provided.add(m.group(1));
+    }
+    assertThat(provided).as("biến Job Helm truyền cho keycloak-config-cli").isEqualTo(used);
+    assertThat(job).contains("IMPORT_VARSUBSTITUTION_ENABLED", "secretKeyRef");
+  }
+}
