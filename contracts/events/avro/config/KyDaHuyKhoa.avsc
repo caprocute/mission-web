@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "KyDaHuyKhoa",
+  "namespace": "vn.vtokr.config.v1",
+  "doc": "EVT-26 · config.period.unlocked.v1 · MOD-08 phát qua saga SVC-06 khi bù trừ đưa kỳ từ DANG_KHOA về MO.",
+  "fields": [
+    {"name": "periodId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "config.period.id"},
+    {"name": "periodBucket", "type": "int", "doc": "Giá trị phân vùng năm × 10 + quý"},
+    {"name": "lockOrderId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "config.period_lock_order.id"},
+    {"name": "sagaId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "flowable.saga_instance.id"},
+    {"name": "reason", "type": "string", "doc": "Lý do huỷ khoá (C1 theo TL-03)"},
+    {"name": "unlockedAt", "type": {"type": "long", "logicalType": "timestamp-micros"}, "doc": "Thời điểm huỷ khoá"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

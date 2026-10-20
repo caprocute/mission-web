@@ -64,7 +64,7 @@ function rulesFor(slowVar: string, dayKind: string): Omit<PolicyRule, 'id'>[] {
   return [
     {
       ruleKey: 'A',
-      // ui-text-ok: biểu thức CEL của quy tắc chấm điểm (SCR-1501)
+      // ui-text-ok: biểu thức công thức do người soạn chính sách nhập, hiển thị trong ô soạn công thức
       expression: 'math.least(double(nv.so_luong_duyet) / double(nv.ke_hoach), 1.0)',
       resultType: 'DECIMAL',
       legalRef: 'PL 3 mục 1',
@@ -74,6 +74,7 @@ function rulesFor(slowVar: string, dayKind: string): Omit<PolicyRule, 'id'>[] {
     },
     {
       ruleKey: 'B',
+      // ui-text-ok: biểu thức công thức do người soạn chính sách nhập, hiển thị trong ô soạn công thức
       expression: 'nv.muc_chat_luong',
       resultType: 'DECIMAL',
       legalRef: 'PL 3 mục 2',
@@ -84,7 +85,7 @@ function rulesFor(slowVar: string, dayKind: string): Omit<PolicyRule, 'id'>[] {
     },
     {
       ruleKey: 'C',
-      // ui-text-ok: biểu thức CEL của quy tắc chấm điểm (SCR-1501)
+      // ui-text-ok: biểu thức công thức do người soạn chính sách nhập, hiển thị trong ô soạn công thức
       expression: `math.greatest(0.0, 1.0 - tham_so.tru_tien_do * double(${slowVar}))`,
       resultType: 'DECIMAL',
       legalRef: 'PL 3 mục 3',
@@ -95,6 +96,7 @@ function rulesFor(slowVar: string, dayKind: string): Omit<PolicyRule, 'id'>[] {
     },
     {
       ruleKey: 'kpi_nhiem_vu',
+      // ui-text-ok: biểu thức công thức do người soạn chính sách nhập, hiển thị trong ô soạn công thức
       expression: '(A + B + C) / 3.0',
       resultType: 'DECIMAL',
       rounding: { digits: 3, mode: 'NUA_LEN' },
@@ -105,7 +107,7 @@ function rulesFor(slowVar: string, dayKind: string): Omit<PolicyRule, 'id'>[] {
     },
     {
       ruleKey: 'nhom',
-      // ui-text-ok: biểu thức CEL của quy tắc chấm điểm (SCR-1501)
+      // ui-text-ok: biểu thức công thức do người soạn chính sách nhập, hiển thị trong ô soạn công thức
       expression: 'trung_binh(n.nhiem_vu.map(x, x.kpi_nhiem_vu))',
       resultType: 'DECIMAL',
       legalRef: 'PL A3',
@@ -116,7 +118,7 @@ function rulesFor(slowVar: string, dayKind: string): Omit<PolicyRule, 'id'>[] {
     },
     {
       ruleKey: 'diem',
-      // ui-text-ok: biểu thức CEL của quy tắc chấm điểm (SCR-1501)
+      // ui-text-ok: biểu thức công thức do người soạn chính sách nhập, hiển thị trong ô soạn công thức
       expression: 'sum(nhom.map(n, n.kpi_nhom * n.diem_toi_da))',
       resultType: 'DECIMAL',
       rounding: { digits: 1, mode: 'NUA_LEN' },
@@ -127,7 +129,7 @@ function rulesFor(slowVar: string, dayKind: string): Omit<PolicyRule, 'id'>[] {
     },
     {
       ruleKey: 'muc_cuoi',
-      // ui-text-ok: biểu thức CEL của quy tắc chấm điểm (SCR-1501)
+      // ui-text-ok: biểu thức công thức do người soạn chính sách nhập, hiển thị trong ô soạn công thức
       expression: 'min_muc(muc_ket_qua_nhiem_vu, muc_tu_tieu_chi_chung)',
       resultType: 'STRING',
       legalRef: 'QĐ Điều 11',
@@ -213,6 +215,7 @@ function xepLoai(): Omit<DecisionTable, 'id'> {
     explanationTemplates: {
       // ui-text-ok: mẫu câu giải thích có biến {muc_tren} của bảng quyết định (SCR-1502)
       ha_muc:
+        // ui-text-ok: mẫu diễn giải có tham số do người soạn chính sách nhập, tham số được thay khi hiển thị
         'Đủ điểm mức {muc_tren} ({diem} ≥ {nguong}) nhưng chưa đạt điều kiện {dieu_kien_thieu} (thực tế {gia_tri}, theo {dieu_khoan}), nên chuyển xuống mức liền kề theo PL 6 §12.',
     },
     dmnHash: '5b1e8c0a9d7f6e3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c',
@@ -545,7 +548,7 @@ function saveTable(r: MockRequest): MockResponse {
   touch(s);
   const warnings = shadowedDecisionRows(t.rules).map((w) => ({
     msg: 'MSG-15-04',
-    message: `Dòng ${w.row} không bao giờ được chọn vì dòng ${w.by} phía trên luôn thoả mãn trước.`,
+    message: `Dòng ${w.row} không bao giờ được chọn vì dòng ${w.by} phía trên luôn thoả mãn trước (bảng áp dụng dòng đầu tiên thoả mãn).`,
     row: w.row,
     shadowedBy: w.by,
   }));
@@ -571,7 +574,7 @@ function dmn(r: MockRequest): MockResponse {
           )}\n      <outputEntry><text>"${rule.ratingLevel}"</text></outputEntry>\n    </rule>`,
     )
     .join('\n');
-  // ui-text-ok: nội dung tệp XML xuất bảng quyết định
+  // ui-text-ok: nội dung tệp xuất ra, không hiển thị trên màn hình
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" id="${t.tableKey}" name="${t.tableKey}" namespace="https://okrkpi.vn/dmn">
   <decision id="${t.tableKey}_${s.version.version}">

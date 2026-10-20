@@ -60,6 +60,35 @@
     <docx4j.version>11.5.14</docx4j.version>
     <!-- OpenPDF 2.x: bản mới nhất của dòng 2 (thay iText 7 vì AGPL). -->
     <openpdf.version>2.4.0</openpdf.version>
+    <!--
+      uuid-creator 6.1: sinh UUIDv7 ở ứng dụng (TL-03 "Kiểu dữ liệu chuẩn", NEN-009);
+      bản mới nhất của dòng 6, không có phụ thuộc bắc cầu.
+    -->
+    <uuid-creator.version>6.1.1</uuid-creator.version>
+    <!--
+      NEN-016 · ADR-12. Annotation @WithSpan của OpenTelemetry instrumentation: dòng 2.15 là
+      dòng dựng trên OpenTelemetry API 1.49.0 mà Spring Boot 3.5.16 ghim (tránh lệch hội tụ).
+      Bản thân API OpenTelemetry, Resilience4j Spring Boot 3 (resilience4j-bom) và Log4j2
+      JsonTemplateLayout (log4j-bom của Spring Boot) đã được quản lý sẵn.
+    -->
+    <opentelemetry-instrumentation.version>2.15.0</opentelemetry-instrumentation.version>
+    <!--
+      LMAX Disruptor: bắt buộc cho AsyncLogger/AsyncRoot của Log4j2 (TL-01 "Log có cấu trúc");
+      Log4j 2.24 hỗ trợ Disruptor 4.x. Spring Boot không quản lý phiên bản này.
+    -->
+    <disruptor.version>4.0.0</disruptor.version>
+    <!--
+      NEN-007 · ADR-03: hợp đồng sự kiện Avro qua Apicurio Registry 3.x (Phụ lục B).
+      Apache Avro 1.12: dòng hiện hành, bản vá mới nhất 1.12.2; cùng phiên bản cho thư viện
+      chạy (org.apache.avro:avro) và plugin sinh lớp (avro-maven-plugin) để mã sinh khớp runtime.
+      Apicurio Registry 3.x: 3.3.3 là bản vá mới nhất của dòng 3; dùng cho plugin kiểm tương thích
+      (apicurio-registry-maven-plugin) và ảnh registry chạy thử trong profile schema-compat.
+      exec-maven-plugin: bước sinh lớp hằng EventTopics từ contracts/events/catalog.yaml và
+      bật/tắt registry thử (suy luận về cách sinh; thẻ NEN-007 cho phép "một bước Maven đơn giản").
+    -->
+    <avro.version>1.12.2</avro.version>
+    <apicurio-registry.version>3.3.3</apicurio-registry.version>
+    <exec-maven-plugin.version>3.6.4</exec-maven-plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -107,6 +136,26 @@
         <groupId>com.github.librepdf</groupId>
         <artifactId>openpdf</artifactId>
         <version>${openpdf.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.github.f4b6a3</groupId>
+        <artifactId>uuid-creator</artifactId>
+        <version>${uuid-creator.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry.instrumentation</groupId>
+        <artifactId>opentelemetry-instrumentation-annotations</artifactId>
+        <version>${opentelemetry-instrumentation.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.lmax</groupId>
+        <artifactId>disruptor</artifactId>
+        <version>${disruptor.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro</artifactId>
+        <version>${avro.version}</version>
       </dependency>
 
       <!-- BOM bên ngoài: Spring Boot (gồm Hibernate, Flyway, Log4j2, JUnit, Testcontainers). -->

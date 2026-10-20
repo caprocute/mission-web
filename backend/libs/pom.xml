@@ -17,6 +17,9 @@
 
   <modules>
     <!-- NEN-030: bộ chạy Flyway theo schema, kiểm phiên bản lược đồ, lint quy ước. -->
+    <module>vt-kernel</module>
+    <module>vt-platform-starter</module>
     <module>vt-db-migration</module>
+    <module>vt-events</module>
   </modules>
 </project>

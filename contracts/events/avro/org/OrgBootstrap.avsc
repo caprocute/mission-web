@@ -1,0 +1,12 @@
+{
+  "type": "record",
+  "name": "OrgBootstrap",
+  "namespace": "vn.vtokr.org.v1",
+  "doc": "org.bootstrap.v1 · Topic khởi tạo bản sao: lệnh org-republish của SVC-04 phát trạng thái hiện hành của mọi thực thể tổ chức của một tenant; consumer đọc hết rồi chuyển sang topic thường. Bọc lại đúng lược đồ EVT-14, EVT-15, EVT-16 (suy luận).",
+  "fields": [
+    {"name": "batchId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "(suy luận) Mã lần phát lại"},
+    {"name": "seq", "type": "long", "doc": "(suy luận) Số thứ tự trong lần phát lại"},
+    {"name": "isLast", "type": "boolean", "default": false, "doc": "(suy luận) Bản ghi cuối của lần phát lại"},
+    {"name": "entity", "type": ["vn.vtokr.org.v1.DonViDaThayDoi", "vn.vtokr.org.v1.PhanCongDaThayDoi", "vn.vtokr.org.v1.NhanSuDaThayDoi"], "doc": "(suy luận) Trạng thái thực thể, cùng lược đồ với topic thường"}
+  ]
+}

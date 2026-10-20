@@ -1,0 +1,18 @@
+{
+  "type": "record",
+  "name": "EvidenceObjectStored",
+  "namespace": "vn.vtokr.sys.v1",
+  "doc": "sys.evidence.object.stored.v1 · SVC-08 báo tệp đã lưu và khoá; MOD-03 tiêu thụ. Trường lấy theo evidence.object_meta, evidence.object_version (suy luận); không mang tên tệp (C2).",
+  "fields": [
+    {"name": "objectId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "(suy luận) evidence.object_meta.id"},
+    {"name": "objectVersionId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "(suy luận) evidence.object_version.id"},
+    {"name": "versionNo", "type": "int", "doc": "(suy luận) Số phiên bản đối tượng"},
+    {"name": "ownerModule", "type": "string", "doc": "(suy luận) Module sở hữu: product, dossier, oversight"},
+    {"name": "ownerRefId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "(suy luận) Bản ghi nghiệp vụ sở hữu"},
+    {"name": "sha256", "type": "bytes", "doc": "(suy luận) Băm nội dung"},
+    {"name": "sizeBytes", "type": "long", "doc": "(suy luận) Kích thước"},
+    {"name": "mediaType", "type": "string", "doc": "(suy luận) Kiểu MIME đã xác minh"},
+    {"name": "lockMode", "type": ["null", "string"], "default": null, "doc": "(suy luận) Chế độ Object Lock: COMPLIANCE, GOVERNANCE"},
+    {"name": "lockUntil", "type": ["null", {"type": "long", "logicalType": "timestamp-micros"}], "default": null, "doc": "(suy luận) Hạn khoá đối tượng"}
+  ]
+}

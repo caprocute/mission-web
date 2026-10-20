@@ -1,4 +1,4 @@
-> Nguồn: TL-01 mục kiểm thử (Pact, Playwright, k6), mục CI/CD (Jenkins, cổng chất lượng, chuỗi cung ứng), mục kiểm thử UI Pack bốn tầng, mục form engine (bộ test CEL dùng chung); TL-04 mục PERF (PERF-01, PERF-02, PERF-21), OPS-10, OPS-11, SEC-37 đến SEC-40; `AGENTS.md` quy tắc 11 và 12; `docs/tasks/README.md`, `WEB-001`, `WEB-002`, `WEB-005`; mã `frontend/angular.json`, `package.json`.
+> Nguồn: TL-01 mục kiểm thử (Pact, Playwright, k6), mục CI/CD (Jenkins, cổng chất lượng, chuỗi cung ứng), mục kiểm thử UI Pack bốn tầng, mục form engine (bộ test CEL dùng chung); TL-04 mục PERF (PERF-01, PERF-02, PERF-21), OPS-10, OPS-11, SEC-37 đến SEC-40; `AGENTS.md` quy tắc 11 và 12; `docs/tasks/README.md`, `WEB-001`, `WEB-002`, `WEB-005`; mã `frontend/angular.json`, `package.json`, `Jenkinsfile`, `deploy/web/ci/`.
 
 # Kiểm thử và chất lượng
 
@@ -54,7 +54,43 @@ Bài học khi soạn bộ ca: ca biên nên đặt ở đúng ranh giới mà n
 
 TL-01 và TL-04 quy định pipeline Jenkins với các cổng sau, và WEB-002 cụ thể hoá thành các stage cho frontend: `npm ci`, lint, test kèm báo cáo độ phủ cho tệp thay đổi, `build:all`, kiểm ngân sách bundle, Semgrep, gitleaks, Trivy (mã nguồn và image), SBOM CycloneDX, build image từ `deploy/web/Dockerfile`, ký bằng cosign. Ngoài ra TL-01 nêu SonarQube, OWASP Dependency-Check, `openapi-diff` để phát hiện thay đổi phá vỡ hợp đồng API và `pact can-i-deploy` trước khi triển khai. Lỗ hổng có điểm CVSS từ 7 trở lên chặn pipeline. Semgrep chặn merge khi vi phạm luật bảo mật (SEC-39); image đạt SLSA mức 3 và được ký (SEC-37, SEC-38).
 
-Mọi cổng thất bại đều dừng pipeline. Jenkinsfile và cách chạy pipeline sẽ được mô tả ở trang này khi WEB-002 hoàn thành, theo tiêu chí của task đó. Theo hướng hợp đồng trước (ADR-32, WEB-063, WEB-064), pipeline phải có thêm hai cổng chạy trước `npm run lint` của frontend: bước `cd contracts && npm ci && npm run lint` kiểm bộ hợp đồng OpenAPI bằng Redocly, và bước `npm run api:check` trong `frontend/` báo lỗi khi kiểu sinh trong `@vt/api-client` lệch với hợp đồng. Repo hiện chưa có Jenkinsfile nên hai bước này được ghi ở đây để WEB-002 đưa vào; trong lúc chờ, người sửa hợp đồng tự chạy cả hai lệnh trước khi commit. Phép kiểm model viết tay với hợp đồng nằm trong `npm run test:all` (`api-client/src/lib/models/contract-check.spec.ts`), nên không cần cổng riêng. PERF-01, PERF-02 và PERF-21 chạy ở mỗi lần phát hành lên staging theo TL-04.
+Mọi cổng thất bại đều dừng pipeline. Theo hướng hợp đồng trước (ADR-32, WEB-063, WEB-064), pipeline có thêm hai cổng chạy trước `npm run lint` của frontend: bước `cd contracts && npm ci && npm run lint` kiểm bộ hợp đồng OpenAPI bằng Redocly, và bước `npm run api:check` trong `frontend/` báo lỗi khi kiểu sinh trong `@vt/api-client` lệch với hợp đồng. Phép kiểm model viết tay với hợp đồng nằm trong `npm run test:all` (`api-client/src/lib/models/contract-check.spec.ts`), nên không cần cổng riêng. PERF-01, PERF-02 và PERF-21 chạy ở mỗi lần phát hành lên staging theo TL-04.
+
+## Pipeline Jenkins (WEB-002)
+
+`Jenkinsfile` ở gốc repo là pipeline khai báo (declarative) chạy trên agent Kubernetes kế thừa pod mẫu dùng một lần `vt-build-ephemeral` (TL-04 mục 9.6). Pod có các container: `node` (ảnh Playwright 1.56.1, gồm Node 22 và Chromium 1194 cho Lighthouse CI), `python`, `gitleaks`, `semgrep`, `trivy`, `syft`, `cosign`, `buildkit` (không root); container `provenance` lấy từ pod mẫu. Các stage chạy theo thứ tự dưới, stage song song có `failFast`, nên một cổng đỏ là pipeline dừng:
+
+| Stage | Lệnh | Cổng |
+|---|---|---|
+| Quét bí mật | `gitleaks git --config deploy/web/ci/gitleaks.toml --redact` (main quét toàn lịch sử, nhánh khác quét `origin/main..HEAD`) | Có bí mật thì dừng; giá trị bị che trong log và báo cáo SARIF |
+| Cài phụ thuộc | `npm ci` trong `frontend/` và `contracts/` (song song) | Lệch `package-lock.json` thì dừng |
+| Hợp đồng API | `npm run lint` trong `contracts/` (Redocly), rồi `npm run api:check` | Hợp đồng sai hoặc kiểu sinh lệch hợp đồng |
+| Lint, nội dung giao diện và phân quyền | `npm run lint`; `npm run check:ui-text`; `python3 docs/phan-quyen/gen_matrix.py --check` (cùng lệnh `npm run check:permissions`), chạy song song | Vi phạm ESLint; văn bản giao diện có mã thiết kế, mã trạng thái thô, tên kỹ thuật hoặc ghi chú giải pháp (`AGENTS.md` quy tắc 9); ma trận Markdown, TypeScript lệch `ma-tran.json` |
+| Kiểm thử đơn vị | `npm run test:all` | Một test đỏ |
+| Build | `npm run build:all` | Lỗi build hoặc vượt mức lỗi `budgets` của `angular.json` |
+| Ngân sách bundle | `node ../deploy/web/ci/bundle-budget.mjs --json bundle-budget.json` | Shell cùng design system và runtime Angular quá 250 KB gzip, hoặc một remote quá 180 KB (TL-01) |
+| Lighthouse CI | `workspace.mjs assemble dist/lhci` rồi `lhci autorun` theo `lighthouserc.json` (dùng lại bản build, không build lại) | Ngưỡng mức `error` trong `lighthouserc.json` (PERF-21) |
+| SAST và SCA | Semgrep (`p/typescript` và `deploy/web/ci/semgrep.yml`), `trivy fs` mức HIGH, CRITICAL | Lỗi Semgrep mức ERROR (SEC-39); lỗ hổng CVSS từ 7 |
+| Ảnh, SBOM, quét ảnh | BuildKit build và đẩy `deploy/web/Dockerfile` theo `GIT_COMMIT`, đọc digest; `syft` sinh SBOM CycloneDX; `trivy image` | Lỗ hổng CVSS từ 7 đã có bản vá |
+| Ký và chứng thực (chỉ `main`) | `cosign sign`, `cosign attest` SBOM và provenance SLSA, đẩy SBOM lên Dependency-Track | SEC-23, SEC-37, SEC-38, SEC-55 |
+
+Công cụ `bundle-budget.mjs` đo tĩnh trên `dist/` bằng gzip mức 6: với shell, nó đi từ `index.html` qua `main.js`, chunk khởi động mà `main.js` nạp động, rồi mọi import tĩnh lan truyền, tra tên gói trần qua `importmap.json` của shell; mã nạp lười (tuyến, widget, hộp thoại, dữ liệu giả lập) không tính. Với remote, nó lấy từng module công bố trong `remoteEntry.json` cộng màn hình nạp lười nặng nhất của module đó, không tính thư viện dùng chung do shell cấp. Đặt `BUDGET_VERBOSE=1` để in các tệp lớn nhất. Chạy được ở máy phát triển: `cd frontend && npm run build:all && node ../deploy/web/ci/bundle-budget.mjs`. Số đo ngày 19/10/2026 trên main `64a9646`: shell 347,8 KB (vượt ngân sách 250 KB; Angular core, router, common khoảng 136 KB, `@vt/api-client` 18,7 KB, design system 17,6 KB, angular-oauth2-oidc 14 KB, polyfills cùng es-module-shims 13,2 KB), remote nặng nhất là `fe-task` `./plan-routes` 29,9 KB. Vì vậy cùng với LCP của Lighthouse CI, stage "Ngân sách bundle" và "Lighthouse CI" hiện đỏ trên main cho tới khi WEB-052 đạt ngân sách; không hạ ngưỡng để pipeline xanh.
+
+Biến và credential Jenkins cần có (chỉ ghi tên, không ghi giá trị):
+
+| Tên | Loại | Dùng cho |
+|---|---|---|
+| `MISSION_REGISTRY` | Biến toàn cục | Đường dẫn dự án trên Harbor để đẩy ảnh |
+| `DTRACK_URL` | Biến toàn cục | Địa chỉ Dependency-Track |
+| `SLSA_BUILDER_ID` | Biến toàn cục | Định danh bộ dựng ghi trong provenance |
+| `mission-npmrc` | Credential dạng tệp | `.npmrc` trỏ proxy npm nội bộ (kèm xác thực nếu có) |
+| `harbor-push-dockerconfig` | Credential dạng tệp | `config.json` của Docker có quyền đẩy ảnh; chép vào thư mục tạm của workspace và xoá ở `post` |
+| `dtrack-api-key` | Credential dạng chuỗi | Khoá API Dependency-Track |
+| Khoá ký `hashivault://cosign-release` | OpenBao Transit | Tài khoản dịch vụ của pod chỉ có quyền `sign`; `VAULT_ADDR` và token do pod mẫu cấp |
+
+Plugin Jenkins cần có: Kubernetes, Pipeline Utility Steps (`readJSON`), Credentials Binding, Timestamper. Job dạng multibranch cần clone đầy đủ lịch sử và có ref `origin/main` để gitleaks quét đúng khoảng commit. Quy ước chống lộ bí mật trong log: mọi bí mật đi qua `withCredentials` (Jenkins tự che), lệnh `sh` dùng chuỗi nháy đơn để Groovy không nội suy bí mật, không dùng `set -x`, `curl` tới Dependency-Track không in phản hồi. Cấu hình gitleaks dùng toàn bộ luật mặc định và chỉ miễn trừ ba mẫu dòng mã định danh nghiệp vụ mà luật `generic-api-key` nhận nhầm (khoá `SCR-xxxx.<thao-tac>` của ma trận phân quyền, mã tiêu chí `NV-…` trong dữ liệu giả lập, `targetRef` dạng `<loại>:<UUID>` trong ví dụ của hợp đồng); lần quét toàn lịch sử ngày 19/10/2026 có 115 phát hiện, cả 115 thuộc ba mẫu này, sau miễn trừ còn 0, và một khoá ngẫu nhiên cài thử vào cùng tệp vẫn bị bắt.
+
+Chưa có trong pipeline: báo cáo độ phủ cho tệp thay đổi với ngưỡng 80% của TL-04, vì workspace chưa có gói `@vitest/coverage-v8` (thêm gói mới cần duyệt theo `AGENTS.md` quy tắc 1); SonarQube, OWASP Dependency-Check, `openapi-diff`, `pact can-i-deploy` (TL-01) và bước cập nhật digest vào kho GitOps (Argo CD ngoài phạm vi WEB-002).
 
 ## Tiêu chí hoàn thành một task
 

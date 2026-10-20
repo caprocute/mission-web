@@ -1,0 +1,5 @@
+{
+  "roots": ["okrkpi"],
+  "rego_version": 1,
+  "metadata": {"name": "okrkpi-authz", "source": "docs/phan-quyen/ma-tran.json"}
+}

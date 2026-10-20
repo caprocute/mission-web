@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "AuditEvent",
+  "namespace": "vn.vtokr.sys.v1",
+  "doc": "sys.audit.v1 · Sự kiện kiểm toán nội bộ: đăng nhập quản trị, đổi quyền, xem C2 của người khác, xuất hàng loạt. TL không mô tả trường; lược đồ tối thiểu (suy luận). Không mang nội dung dữ liệu được xem.",
+  "fields": [
+    {"name": "action", "type": "string", "doc": "(suy luận) Loại hành động kiểm toán, ví dụ DANG_NHAP_QUAN_TRI, DOI_QUYEN, XEM_C2, XUAT_HANG_LOAT"},
+    {"name": "objectType", "type": "string", "doc": "(suy luận) Loại đối tượng bị tác động"},
+    {"name": "objectId", "type": ["null", "string"], "default": null, "doc": "(suy luận) Mã đối tượng bị tác động"},
+    {"name": "outcome", "type": "string", "doc": "(suy luận) Kết quả: THANH_CONG, TU_CHOI, LOI"},
+    {"name": "purpose", "type": ["null", "string"], "default": null, "doc": "(suy luận) Mục đích truy cập khi xem dữ liệu C2 (mã lý do, không phải văn bản tự do)"}
+  ]
+}

@@ -1,0 +1,2 @@
+org.springframework.boot.env.EnvironmentPostProcessor=\
+vn.viettel.okrkpi.shared.config.PlatformDefaultsEnvironmentPostProcessor

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  NEN-009 · Loại trừ SpotBugs/Find Security Bugs có lý do, từng mục một (BACKEND.md mục 4).
+-->
+<FindBugsFilter>
+  <!--
+    Trang lỗi /error phải nhận mọi phương thức HTTP vì container chuyển tiếp nguyên phương thức của
+    yêu cầu gốc (cùng cách BasicErrorController của Spring Boot). Phương thức chỉ dựng Problem
+    Details, không đổi trạng thái, nên không có bề mặt CSRF.
+  -->
+  <Match>
+    <Class name="vn.viettel.okrkpi.shared.error.ProblemErrorController"/>
+    <Method name="error"/>
+    <Bug pattern="SPRING_CSRF_UNRESTRICTED_REQUEST_MAPPING"/>
+  </Match>
+</FindBugsFilter>
