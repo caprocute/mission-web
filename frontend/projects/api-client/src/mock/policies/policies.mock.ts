@@ -213,7 +213,7 @@ function xepLoai(): Omit<DecisionTable, 'id'> {
       },
     ],
     explanationTemplates: {
-      // ui-text-ok: mẫu câu giải thích có biến {muc_tren} của bảng quyết định (SCR-1502)
+      // ui-text-ok: mẫu câu giải thích, biến {..} được thay bằng giá trị khi xếp loại
       ha_muc:
         // ui-text-ok: mẫu diễn giải có tham số do người soạn chính sách nhập, tham số được thay khi hiển thị
         'Đủ điểm mức {muc_tren} ({diem} ≥ {nguong}) nhưng chưa đạt điều kiện {dieu_kien_thieu} (thực tế {gia_tri}, theo {dieu_khoan}), nên chuyển xuống mức liền kề theo PL 6 §12.',
@@ -378,7 +378,10 @@ const GOLDEN: GoldenTestCase[] = [
 /** Kết quả tính thử theo ca (giả lập đầu ra của cel-java). */
 const EVALUATIONS: Record<string, Record<string, unknown>> = {
   'TC-017': {
-    tasks: [{ name: 'Nhiệm vụ then chốt 2', A: 1, B: 0.5, C: 0.85, kpi: 0.783 }],
+    tasks: [
+      { ma: 'NV-TC-02', nhom: 'then_chot', A: 1, B: 0.5, C: 0.85, kpi_nhiem_vu: 0.783 },
+      { ma: 'NV-TX-05', nhom: 'thuong_xuyen', A: 1, B: 0.75, C: 1, kpi_nhiem_vu: 0.917 },
+    ],
     groups: [
       { key: 'then_chot', kpi: 0.909, score: 63.6 },
       { key: 'thuong_xuyen', kpi: 0.92, score: 27.6 },
@@ -389,7 +392,7 @@ const EVALUATIONS: Record<string, Record<string, unknown>> = {
       'Đủ điểm mức Hoàn thành xuất sắc nhiệm vụ (91,2 ≥ 90) nhưng chưa đạt điều kiện tỷ lệ việc vượt (thực tế 22%, theo QĐ Điều 11), nên chuyển xuống mức liền kề theo PL 6 §12.',
   },
   'TC-003': {
-    tasks: [{ name: 'Nhiệm vụ then chốt 1', A: 1, B: 1, C: 1, kpi: 1 }],
+    tasks: [{ ma: 'NV-TC-01', nhom: 'then_chot', A: 1, B: 1, C: 1, kpi_nhiem_vu: 1 }],
     groups: [
       { key: 'then_chot', kpi: 0.96, score: 67.2 },
       { key: 'thuong_xuyen', kpi: 0.973, score: 29.2 },
@@ -399,7 +402,7 @@ const EVALUATIONS: Record<string, Record<string, unknown>> = {
     explanation: 'Đủ mọi điều kiện xuất sắc theo QĐ Điều 11.',
   },
   'TC-021': {
-    tasks: [{ name: 'Nhiệm vụ then chốt 3', A: 1, B: 0.75, C: 0.7, kpi: 0.817 }],
+    tasks: [{ ma: 'NV-TC-03', nhom: 'then_chot', A: 1, B: 0.75, C: 0.7, kpi_nhiem_vu: 0.817 }],
     groups: [
       { key: 'then_chot', kpi: 0.75, score: 52.5 },
       { key: 'thuong_xuyen', kpi: 0.733, score: 22 },
@@ -657,7 +660,7 @@ function evaluate(r: MockRequest): MockResponse {
     string,
     number
   >;
-  const task = (e['tasks'] as Record<string, unknown>[])[0];
+  const tasks = e['tasks'] as { kpi_nhiem_vu: number }[];
   const groups = (e['groups'] as { key: string; kpi: number }[]).map((g) => ({
     key: g.key,
     kpi_nhom: g.kpi,
@@ -669,18 +672,14 @@ function evaluate(r: MockRequest): MockResponse {
     caseCode: code,
     engine: 'CEL_JAVA',
     outputs: {
-      nhiem_vu: task['name'],
-      A: task['A'],
-      B: task['B'],
-      C: task['C'],
-      kpi_nhiem_vu: task['kpi'],
+      nhiem_vu: tasks,
       nhom: groups,
       diem,
     },
     ratingLevel: e['level'],
     explanation: e['explanation'],
     trace: [
-      { ruleKey: 'kpi_nhiem_vu', value: task['kpi'] },
+      { ruleKey: 'kpi_nhiem_vu', value: tasks.map((t) => t.kpi_nhiem_vu) },
       { ruleKey: 'diem', value: diem },
     ],
   });

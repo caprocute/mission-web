@@ -66,6 +66,7 @@ describe('Config Studio · Công thức (SCR-1501)', () => {
     );
     const preview = text(el.querySelector('[data-testid=preview]'));
     expect(preview).toContain('0,783');
+    expect(el.querySelectorAll('[data-task]')).toHaveLength(2);
     expect(preview).toContain('63,6');
     expect(text(el.querySelector('[data-testid=preview-score]'))).toBe('91,2');
     expect(preview).toContain('Hoàn thành tốt nhiệm vụ');
