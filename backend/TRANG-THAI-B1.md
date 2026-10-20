@@ -8,17 +8,17 @@
 
 | Task | Nội dung | Ghi chú |
 |---|---|---|
-| NEN-002, 003, 004 | Wiki backend (trang 17 đến 21, trang 14) | đã gộp vào main |
-| NEN-005 | Khung Maven đa mô-đun, POM cha, BOM, cổng chất lượng | đã gộp vào main |
-| NEN-030 | `vt-db-migration`: Flyway theo schema, lặp nhiều CSDL, chặn phiên bản | đã gộp vào main |
-| NEN-031 | Vai trò CSDL `mig_`/`svc_`/`ro_`/`cdc_` và quyền mặc định | đã gộp vào main |
-| NEN-033 | RLS chuẩn, hàm phân vùng theo kỳ, cấu hình PgBouncer tham chiếu | đã gộp vào main |
-| NEN-032 | Bảng dùng chung outbox, inbox, idempotency, modulith, keyring; pg_partman | đã gộp vào main |
-| NEN-009 | `vt-kernel`, lỗi RFC 9457 theo danh mục mã lỗi | đã đẩy, chờ thread chính gộp |
-| NEN-016 | Chịu lỗi, timeout mặc định, quan sát, nhật ký che dữ liệu | đã đẩy, chờ thread chính gộp |
-| NEN-007 | Lược đồ Avro EVT-01..EVT-26, sinh lớp Java, kiểm tương thích | đã đẩy, chờ thread chính gộp |
-| NEN-040 | Gói chính sách OPA và kiểm thử Rego | đã đẩy, chờ thread chính gộp |
-| NEN-010 | Ngữ cảnh tenant từ JWT tới RLS, kiểm thử qua PgBouncer | đã đẩy, chờ thread chính gộp |
+| NEN-002, 003, 004 | Wiki backend (trang 17 đến 21, trang 14) | đã đẩy; thread chính đã gỡ khỏi main, chờ quyết định |
+| NEN-005 | Khung Maven đa mô-đun, POM cha, BOM, cổng chất lượng | đã đẩy; thread chính đã gỡ khỏi main, chờ quyết định |
+| NEN-030 | `vt-db-migration`: Flyway theo schema, lặp nhiều CSDL, chặn phiên bản | đã đẩy; thread chính đã gỡ khỏi main, chờ quyết định |
+| NEN-031 | Vai trò CSDL `mig_`/`svc_`/`ro_`/`cdc_` và quyền mặc định | đã đẩy; thread chính đã gỡ khỏi main, chờ quyết định |
+| NEN-033 | RLS chuẩn, hàm phân vùng theo kỳ, cấu hình PgBouncer tham chiếu | đã đẩy; thread chính đã gỡ khỏi main, chờ quyết định |
+| NEN-032 | Bảng dùng chung outbox, inbox, idempotency, modulith, keyring; pg_partman | đã đẩy; thread chính đã gỡ khỏi main, chờ quyết định |
+| NEN-009 | `vt-kernel`, lỗi RFC 9457 theo danh mục mã lỗi | đã đẩy, chưa gộp vào main |
+| NEN-016 | Chịu lỗi, timeout mặc định, quan sát, nhật ký che dữ liệu | đã đẩy, chưa gộp vào main |
+| NEN-007 | Lược đồ Avro EVT-01..EVT-26, sinh lớp Java, kiểm tương thích | đã đẩy, chưa gộp vào main |
+| NEN-040 | Gói chính sách OPA và kiểm thử Rego | đã đẩy, chưa gộp vào main |
+| NEN-010 | Ngữ cảnh tenant từ JWT tới RLS, kiểm thử qua PgBouncer | đã đẩy, chưa gộp vào main |
 
 ## Dừng dở dang, chưa vào nhánh nào
 
