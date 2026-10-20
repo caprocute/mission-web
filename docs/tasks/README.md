@@ -95,7 +95,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 |---|---|---|---|---|
 | [WEB-044](WEB-044-trung-tam-canh-bao.md) | SCR-1401 Trung tâm cảnh báo | M | WEB-015 | Xong, chờ gộp (nhánh `feat/WEB-044-canh-bao`, dựng trên WEB-042) |
 | [WEB-045](WEB-045-studio-cong-thuc.md) | SCR-1501 Config Studio – công thức và SCR-1502 Bảng quyết định | L | WEB-010, WEB-015 | Xong, đã gộp |
-| [WEB-046](WEB-046-test-vang-luong-duyet.md) | SCR-1503 Chạy test case vàng và SCR-1504 Cấu hình luồng duyệt | M | WEB-045 | Chưa bắt đầu |
+| [WEB-046](WEB-046-test-vang-luong-duyet.md) | SCR-1503 Chạy test case vàng và SCR-1504 Cấu hình luồng duyệt | M X
 | [WEB-047](WEB-047-bang-dieu-hanh.md) | SCR-1601 Bảng điều hành lãnh đạo và SCR-1603 Đi xuống tới minh chứng | L | WEB-015 | Xong, đã gộp |
 | [WEB-048](WEB-048-trinh-dung-dashboard.md) | SCR-1602 Trình dựng dashboard | M | WEB-047 | Xong, đã gộp |
 | [WEB-049](WEB-049-tro-ly-ai.md) | SCR-1701 Trợ lý AI soạn OKR và soát KR | M | WEB-022 | Chưa bắt đầu |

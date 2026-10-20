@@ -8,13 +8,28 @@ import {
   PolicyPackVersionStatus,
   PolicyRule,
   PolicyRuleUpdate,
-  PolicyTestRunSummary,
+  GoldenTestCaseCreate,
+  PolicyTestCaseResult,
+  PolicyTestRun,
+  PolicyTestRunCreate,
+  WorkflowBinding,
+  WorkflowBindingUpdate,
+  WorkflowSimulateRequest,
   shadowedDecisionRows,
 } from '../../lib/models/policy';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
+import { mockSession } from '../mock-session';
+import {
+  GOLDEN_SEED,
+  actualOf,
+  WF_TEMPLATES,
+  lintBinding,
+  simulateBinding,
+  templateVersion,
+} from './policy-tests.fixture';
 
 /**
- * Giả lập Policy Pack (QT-15; SCR-1501, SCR-1502) theo `policies.yaml`, dữ liệu theo mockup TL-02b
+ * Giả lập Policy Pack (QT-15; SCR-1501 … SCR-1504) theo `policies.yaml`, dữ liệu theo mockup TL-02b
  * Hình 12.3, 12.4: gói khối Đảng có bản 2.1 đang soạn và bản 2.0 đã phát hành; gói Nhà nước có bản 1.4
  * đạt kiểm thử để thử gửi phê duyệt. Kiểm tra cú pháp ở đây chỉ thô (ngoặc cân bằng); máy chủ thật kiểm
  * kiểu bằng cel-java. `manifest.labels`, `manifest.notes`, `manifest.variables` là cách giả lập đặt nhãn
@@ -26,6 +41,7 @@ const uuid = (n: number) => `0192a1b0-3c4d-7e5f-8a9b-${String(n).padStart(12, '0
 
 const P_DANG = uuid(4001);
 const P_NN = uuid(4002);
+const P_VC = uuid(4003);
 
 const VARIABLES = [
   { name: 'nv.so_luong_duyet', label: 'Số sản phẩm có minh chứng được xác nhận' },
@@ -215,7 +231,6 @@ function xepLoai(): Omit<DecisionTable, 'id'> {
     explanationTemplates: {
       // ui-text-ok: mẫu câu giải thích, biến {..} được thay bằng giá trị khi xếp loại
       ha_muc:
-        // ui-text-ok: mẫu diễn giải có tham số do người soạn chính sách nhập, tham số được thay khi hiển thị
         'Đủ điểm mức {muc_tren} ({diem} ≥ {nguong}) nhưng chưa đạt điều kiện {dieu_kien_thieu} (thực tế {gia_tri}, theo {dieu_khoan}), nên chuyển xuống mức liền kề theo PL 6 §12.',
     },
     dmnHash: '5b1e8c0a9d7f6e3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c',
@@ -227,7 +242,10 @@ interface VersionState {
   version: PolicyPackVersion;
   rules: PolicyRule[];
   tables: DecisionTable[];
-  runs: (PolicyTestRunSummary & { polls: number })[];
+  runs: (PolicyTestRun & { polls: number })[];
+  bindings: WorkflowBinding[];
+  /** Số lần đọc phiên bản còn lại trước khi saga phát hành giả lập xong. */
+  publishing: number | null;
 }
 
 let packs: PolicyPack[] = [];
@@ -235,6 +253,12 @@ let versions = new Map<string, VersionState>();
 let seq = 0;
 
 const vkey = (id: string, v: string) => `${id}@${v}`;
+
+const PACK_CODE: Record<string, string> = {
+  [P_DANG]: 'khoi-dang/quy-dinh-moi',
+  [P_NN]: 'nn-335',
+  [P_VC]: 'vc-su-nghiep',
+};
 
 function makeVersion(
   pack: string,
@@ -252,7 +276,7 @@ function makeVersion(
       policyPackId: pack,
       version,
       status,
-      packCode: pack === P_DANG ? 'khoi-dang/quy-dinh-moi' : 'nn-335',
+      packCode: PACK_CODE[pack],
       manifest: structuredClone(MANIFEST),
       rowVersion: 1,
       createdAt: '2026-10-12T09:00:00+07:00',
@@ -261,6 +285,8 @@ function makeVersion(
     rules: rulesFor(slowVar, dayKind).map((r, i) => ({ ...r, id: uuid(n * 100 + i) })),
     tables: [{ ...xepLoai(), id: uuid(n * 100 + 50) }],
     runs: [],
+    bindings: [],
+    publishing: null,
   };
 }
 
@@ -309,8 +335,67 @@ function seed() {
       'nv.ngay_cham_chu_quan',
       'NGAY_LAM_VIEC',
     ),
+    makeVersion(
+      P_VC,
+      4311,
+      '1.1.0',
+      'CHO_PHE_DUYET',
+      {
+        goldenPassRate: 1,
+        changeNote: 'Điều chỉnh ngưỡng xếp loại theo hướng dẫn năm 2027',
+        createdBy: { id: 'u-policy-author', name: 'Trần Thị Hạnh' },
+      },
+      'nv.ngay_cham_chu_quan',
+      'NGAY_LAM_VIEC',
+    ),
+    makeVersion(
+      P_VC,
+      4310,
+      '1.0.0',
+      'DA_PHAT_HANH',
+      { effectiveFrom: '2026-01-01', goldenPassRate: 1, publishedAt: '2025-12-15T09:00:00+07:00' },
+      'nv.ngay_cham_chu_quan',
+      'NGAY_LAM_VIEC',
+    ),
   ];
+  golden = structuredClone(GOLDEN_SEED).map((g, i) => ({
+    ...g,
+    id: uuid(5001 + i),
+    rowVersion: 1,
+    policyPackId: g.policyPackId === 'P_DANG' ? P_DANG : g.policyPackId === 'P_NN' ? P_NN : P_VC,
+  }));
   for (const s of all) versions.set(vkey(s.version.policyPackId, s.version.version), s);
+  seedRuns(all);
+  const draft = all[0];
+  draft.bindings.push({
+    id: uuid(7001),
+    processKind: 'DANH_GIA',
+    templateKey: 'duyet-ho-so-danh-gia',
+    templateVersionNo: 3,
+    versionNo: 1,
+    scope: { flow: 'DANG', fromPeriodId: 'p-2027q1', periodType: 'QUY', subjectGroupId: null },
+    params: {
+      so_cap: 4,
+      cap: [
+        { buoc: 'TU_DANH_GIA', vai_tro: 'member', ky_so: true },
+        { buoc: 'THAM_DINH', vai_tro: 'appraiser', don_vi: 'BAN_TO_CHUC', ky_so: true },
+        {
+          buoc: 'DE_XUAT',
+          vai_tro: 'manager',
+          bo_qua_khi:
+            "nguoi_duoc_danh_gia.chuc_danh in ['CHUYEN_VIEN'] && muc_tham_dinh == muc_tu_de_xuat",
+        },
+        { buoc: 'QUYET_DINH', vai_tro: 'decider', ky_lo: true, ky_so: true },
+      ],
+      thoi_han_moi_buoc: 'P3D_LV',
+      nhac_truoc: 'P1D_LV',
+      khi_qua_han: 'CHUYEN_CAP_PHO_UY_QUYEN',
+    },
+    status: 'NHAP',
+    lint: { passed: true, issues: [] },
+    templateTests: { passed: 42, total: 42 },
+    rowVersion: 2,
+  });
   const summaries = (id: string) =>
     all
       .filter((s) => s.version.policyPackId === id)
@@ -336,44 +421,20 @@ function seed() {
       legalBasis: 'NĐ 335/2025/NĐ-CP',
       versions: summaries(P_NN),
     },
+    {
+      id: P_VC,
+      code: 'vc-su-nghiep',
+      name: 'Đánh giá viên chức đơn vị sự nghiệp công lập',
+      sector: 'CHINH_QUYEN',
+      flow: 'NHA_NUOC',
+      origin: 'GOC_TOAN_CUC',
+      legalBasis: 'NĐ 335/2025/NĐ-CP; hướng dẫn của Bộ Nội vụ',
+      versions: summaries(P_VC),
+    },
   ];
 }
 
-const GOLDEN: GoldenTestCase[] = [
-  {
-    id: uuid(5017),
-    policyPackId: P_DANG,
-    caseCode: 'TC-017',
-    description: 'Đủ điểm xuất sắc nhưng tỷ lệ việc vượt chỉ 22%',
-    input: {},
-    expected: { diem: 91.2, muc: 'HTTNV' },
-    source: 'VAN_BAN',
-    status: 'DA_DUYET',
-    rowVersion: 1,
-  },
-  {
-    id: uuid(5003),
-    policyPackId: P_DANG,
-    caseCode: 'TC-003',
-    description: 'Hoàn thành đủ mọi nhiệm vụ đúng hạn',
-    input: {},
-    expected: { diem: 96.4, muc: 'HTXSNV' },
-    source: 'VAN_BAN',
-    status: 'DA_DUYET',
-    rowVersion: 1,
-  },
-  {
-    id: uuid(5021),
-    policyPackId: P_DANG,
-    caseCode: 'TC-021',
-    description: 'Chậm 6 ngày làm việc ở nhiệm vụ then chốt',
-    input: {},
-    expected: { diem: 74.5, muc: 'HTNV' },
-    source: 'VAN_BAN',
-    status: 'DA_DUYET',
-    rowVersion: 1,
-  },
-];
+let golden: GoldenTestCase[] = [];
 
 /** Kết quả tính thử theo ca (giả lập đầu ra của cel-java). */
 const EVALUATIONS: Record<string, Record<string, unknown>> = {
@@ -685,56 +746,401 @@ function evaluate(r: MockRequest): MockResponse {
   });
 }
 
+const dayKindOf = (s: VersionState) =>
+  s.rules.find((x) => x.ruleKey === 'C')?.params?.['loai_ngay'];
+const goldenOf = (packId: string) =>
+  golden.filter((g) => g.policyPackId === packId && g.status === 'DA_DUYET');
+
+/** Kết quả từng ca của một lần chạy trên phiên bản (giả lập cel-java và cel-js). */
+function caseResults(s: VersionState, jsMismatch?: string): PolicyTestCaseResult[] {
+  const day = dayKindOf(s);
+  return goldenOf(s.version.policyPackId).map((g) => {
+    const actual = actualOf(g, day);
+    const passed = JSON.stringify(actual) === JSON.stringify(g.expected);
+    const js = g.caseCode === jsMismatch ? { C: -0.05 } : null;
+    return {
+      goldenTestCaseId: g.id,
+      caseCode: g.caseCode,
+      description: g.description,
+      expected: g.expected,
+      actual,
+      actualJs: js,
+      passed,
+      engineMatch: !js,
+      diff: passed ? null : { expected: g.expected, actual },
+    };
+  });
+}
+
+type Run = VersionState['runs'][number];
+
+function makeRun(
+  s: VersionState,
+  runNo: number,
+  at: string,
+  cases: PolicyTestCaseResult[],
+  extra: Partial<Run> = {},
+): Run {
+  const passed = cases.filter((x) => x.passed).length;
+  const matched = cases.filter((x) => x.engineMatch).length;
+  return {
+    id: uuid(6000 + runNo * 10 + (s.version.policyPackId === P_DANG ? 1 : 2)),
+    runNo,
+    policyPackVersionId: s.version.id,
+    version: s.version.version,
+    result: passed === cases.length && matched === cases.length ? 'DAT' : 'KHONG_DAT',
+    engines: ['CEL_JAVA', 'CEL_JS'],
+    total: cases.length,
+    passed,
+    failed: cases.length - passed,
+    engineMatch: matched === cases.length,
+    engineMatchedCount: matched,
+    durationMs: 6800,
+    startedAt: at,
+    finishedAt: at,
+    createdBy: { id: 'u-policy-author', name: 'Trần Thị Hạnh' },
+    cases,
+    propertyResult: {
+      datasets: 10000,
+      invariants: ['0 <= diem && diem <= 100', 'C >= 0'],
+      violations: 0,
+    },
+    configDiff: null,
+    impact: null,
+    polls: 0,
+    ...extra,
+  };
+}
+
+/** Lịch sử chạy theo mockup: bản 2.1 có lần #13 lỗi TC-077 (loại ngày bị đổi sang ngày lịch). */
+function seedRuns(all: VersionState[]) {
+  const [d21, d20, nn14, nn13, vc11] = all;
+  d20.runs.push(makeRun(d20, 9, '2026-10-01T10:00:00+07:00', caseResults(d20).map(fixed)));
+  const bad = caseResults(d21).map((x) =>
+    x.caseCode === 'TC-077'
+      ? {
+          ...x,
+          actual: { C: 0.85 },
+          passed: false,
+          diff: { expected: x.expected, actual: { C: 0.85 } },
+        }
+      : x,
+  );
+  d21.runs.push(
+    makeRun(d21, 13, '2026-10-18T14:02:00+07:00', bad, {
+      configDiff: {
+        base: 'nháp 5',
+        target: 'nháp 6',
+        changes: [
+          {
+            kind: 'PARAM',
+            key: 'C',
+            path: 'params.loai_ngay',
+            change: 'SUA',
+            before: 'NGAY_LAM_VIEC',
+            after: 'NGAY_LICH',
+          },
+        ],
+      },
+    }),
+    makeRun(d21, 12, '2026-10-17T09:30:00+07:00', caseResults(d21)),
+  );
+  nn14.runs.push(makeRun(nn14, 5, '2026-10-15T08:20:00+07:00', caseResults(nn14)));
+  nn13.runs.push(makeRun(nn13, 3, '2026-06-01T08:00:00+07:00', caseResults(nn13)));
+  vc11.runs.push(
+    makeRun(vc11, 7, '2026-10-16T16:45:00+07:00', caseResults(vc11), {
+      impact: {
+        baseVersion: '1.0.0',
+        changedScoreCount: 0,
+        changedRatingCount: 1,
+        lockedPeriodNote: 'Không áp dụng, bản 1.1 chỉ có hiệu lực từ Quý I/2027.',
+      },
+    }),
+  );
+}
+
+/** Bản đã phát hành dùng ngày lịch từ trước nên ca TC-077 được ghi nhận đúng ở thời điểm đó. */
+const fixed = (x: PolicyTestCaseResult): PolicyTestCaseResult =>
+  x.passed ? x : { ...x, actual: x.expected, passed: true, diff: null };
+
+const runsOfPack = (packId: string) =>
+  [...versions.values()].filter((v) => v.version.policyPackId === packId).flatMap((v) => v.runs);
+
 function startRun(r: MockRequest): MockResponse {
   const s = state(r);
   if (!s) return notFound();
+  if (s.runs.some((x) => x.result === 'DANG_CHAY')) {
+    return problem(409, 'Đang có một lần chạy kiểm thử chưa xong.', {
+      code: 'POLICY-409-TEST-RUNNING',
+    } as never);
+  }
   if (s.version.status !== 'NHAP' && s.version.status !== 'DAT_KIEM_THU') {
     return problem(409, 'Phiên bản này không chạy kiểm thử được ở trạng thái hiện tại.', {
       code: 'POLICY-409-VERSION-FROZEN',
     } as never);
   }
+  const blocked = ifMatch(r, s.version.rowVersion);
+  if (blocked) return blocked;
   if (s.version.status === 'NHAP') s.version.status = 'DANG_KIEM_THU';
-  const id = uuid(6000 + ++seq);
-  s.runs.unshift({
-    id,
-    runNo: 13 + seq,
-    policyPackVersionId: s.version.id,
-    version: s.version.version,
+  const runNo = Math.max(0, ...runsOfPack(s.version.policyPackId).map((x) => x.runNo ?? 0)) + 1;
+  const body = (r.body ?? {}) as PolicyTestRunCreate;
+  const base = body.compareWithVersion;
+  const run = makeRun(s, runNo, new Date().toISOString(), caseResults(s), {
     result: 'DANG_CHAY',
-    engines: ['CEL_JAVA', 'CEL_JS'],
-    total: 48,
     passed: 0,
     failed: 0,
-    engineMatch: true,
-    startedAt: new Date().toISOString(),
     finishedAt: null,
-    polls: 0,
+    durationMs: null,
+    propertyResult: { datasets: body.propertyDatasets ?? 10000, invariants: [], violations: 0 },
+    impact: base
+      ? {
+          baseVersion: base,
+          changedScoreCount: 12,
+          changedRatingCount: 1,
+          lockedPeriodNote: 'Không áp dụng, phiên bản mới chỉ có hiệu lực từ kỳ chưa bắt đầu.',
+        }
+      : null,
   });
+  run.id = uuid(6900 + ++seq);
+  s.runs.unshift(run);
   return {
     status: 202,
-    body: { id, type: 'TEST_RUN', status: 'CHO', progress: 0 },
-    headers: { Location: `${r.path}/${id}` },
+    body: { id: run.id, type: 'TEST_RUN', status: 'CHO', progress: 0 },
+    headers: { Location: `${r.path}/${run.id}` },
   };
 }
+
+/** Lần chạy đang chờ: sau hai lần đọc thì có kết quả (BR-15-07). */
+function settle(s: VersionState) {
+  for (const run of s.runs.filter((x) => x.result === 'DANG_CHAY')) {
+    if (++run.polls < 2) continue;
+    const done = makeRun(s, run.runNo ?? 0, run.startedAt, run.cases ?? [], {
+      id: run.id,
+      impact: run.impact,
+      finishedAt: new Date().toISOString(),
+      durationMs: 6800,
+    });
+    Object.assign(run, done, { polls: run.polls });
+    if (s.version.status === 'DANG_KIEM_THU') {
+      const ok = run.result === 'DAT';
+      s.version.status = ok ? 'DAT_KIEM_THU' : 'NHAP';
+      s.version.goldenPassRate = run.total ? run.passed / run.total : null;
+      s.version.lastTestRunId = run.id;
+    }
+  }
+}
+
+const summary = ({
+  polls: _p,
+  cases: _c,
+  configDiff: _d,
+  impact: _i,
+  propertyResult: _r,
+  ...x
+}: Run) => x;
 
 function listRuns(r: MockRequest): MockResponse {
   const s = state(r);
   if (!s) return notFound();
-  for (const run of s.runs.filter((x) => x.result === 'DANG_CHAY')) {
-    if (++run.polls >= 2) {
-      Object.assign(run, { result: 'DAT', passed: 48, finishedAt: new Date().toISOString() });
-      if (s.version.status === 'DANG_KIEM_THU') {
-        s.version.status = 'DAT_KIEM_THU';
-        s.version.goldenPassRate = 1;
-        s.version.lastTestRunId = run.id;
-      }
-    }
-  }
+  settle(s);
   const limit = Number(r.params.get('limit') ?? 10) || 10;
+  return out({ items: s.runs.slice(0, limit).map(summary), nextCursor: null });
+}
+
+function getRun(r: MockRequest): MockResponse {
+  const s = state(r);
+  if (!s) return notFound();
+  settle(s);
+  const run = s.runs.find((x) => x.id === r.pathParams['runId']);
+  if (!run) return problem(404, 'Không tìm thấy lần chạy');
+  const { polls: _p, ...full } = run;
+  return out(run.result === 'DANG_CHAY' ? { ...full, cases: [] } : full);
+}
+
+function listTestCases(r: MockRequest): MockResponse {
+  const pack = r.params.get('pack');
+  const status = r.params.get('status');
+  const mine = golden.filter((g) => g.policyPackId === pack);
+  const approved = mine.filter((g) => g.status === 'DA_DUYET');
   return out({
-    items: s.runs.slice(0, limit).map(({ polls: _p, ...x }) => x),
+    suite: {
+      code:
+        pack === P_DANG
+          ? 'bo-ca-mau-ban-to-chuc-v3'
+          : `bo-ca-mau-${PACK_CODE[pack ?? ''] ?? 'goi'}`,
+      total: approved.length,
+      pending: mine.filter((g) => g.status === 'NHAP').length,
+      approvedBy: 'Ban Tổ chức Trung ương',
+      approvedAt: '2026-10-02T09:00:00+07:00',
+    },
+    items: status ? mine.filter((g) => g.status === status) : mine,
     nextCursor: null,
   });
+}
+
+function createTestCase(r: MockRequest): MockResponse {
+  const b = (r.body ?? {}) as Partial<GoldenTestCaseCreate>;
+  const errors: { field: string; message: string }[] = [];
+  if (!b.caseCode?.trim()) errors.push({ field: 'caseCode', message: 'Nhập mã ca kiểm thử.' });
+  if (!b.description?.trim()) errors.push({ field: 'description', message: 'Nhập mô tả ca.' });
+  if (!b.expected || !Object.keys(b.expected).length) {
+    errors.push({ field: 'expected', message: 'Nhập ít nhất một kết quả mong đợi.' });
+  }
+  if (golden.some((g) => g.policyPackId === b.policyPackId && g.caseCode === b.caseCode?.trim())) {
+    errors.push({ field: 'caseCode', message: 'Mã ca đã có trong bộ kiểm thử của gói.' });
+  }
+  if (errors.length) return problem(422, 'Thông tin ca kiểm thử chưa hợp lệ.', { errors } as never);
+  const g: GoldenTestCase = {
+    id: uuid(5500 + ++seq),
+    policyPackId: b.policyPackId!,
+    caseCode: b.caseCode!.trim(),
+    description: b.description!.trim(),
+    input: b.input ?? {},
+    expected: b.expected!,
+    source: b.source ?? 'BA',
+    legalRef: b.legalRef ?? null,
+    note: b.note,
+    status: 'NHAP',
+    signed: false,
+    createdBy: { id: 'dev-user', name: 'Nguyễn Văn Minh' },
+    rowVersion: 1,
+  };
+  golden.push(g);
+  return {
+    status: 201,
+    body: structuredClone(g),
+    headers: { ...etag(1), Location: `${r.path}/${g.id}` },
+  };
+}
+
+function approve(r: MockRequest): MockResponse {
+  const s = state(r);
+  if (!s) return notFound();
+  const blocked = ifMatch(r, s.version.rowVersion);
+  if (blocked) return blocked;
+  if (s.version.status !== 'CHO_PHE_DUYET') {
+    return problem(409, 'Phiên bản không ở trạng thái chờ phê duyệt.', {
+      code: 'POLICY-409-NOT-PENDING',
+    } as never);
+  }
+  if (!mockSession.recentMfa()) {
+    const res = problem(401, 'Cần xác thực nhiều lớp trước khi ký phê duyệt phát hành.', {
+      type: 'https://datatracker.ietf.org/doc/html/rfc9470',
+      code: 'insufficient_user_authentication',
+    });
+    res.headers = {
+      ...res.headers,
+      // ui-text-ok: tiêu đề HTTP theo RFC 9470, không hiện lên màn hình
+      'WWW-Authenticate': 'Bearer error="insufficient_user_authentication", acr_values="aal2"',
+    };
+    return res;
+  }
+  s.publishing = 2;
+  const id = uuid(6800 + ++seq);
+  return {
+    status: 202,
+    body: { id, type: 'POLICY_PUBLISH', status: 'DANG_CHAY', progress: 10 },
+    headers: { Location: `/api/v1/jobs/${id}` },
+  };
+}
+
+/** Saga phát hành giả lập: xong sau hai lần đọc phiên bản (EVT-13, MSG-15-08). */
+function readVersion(r: MockRequest): MockResponse {
+  const s = state(r);
+  if (!s) return notFound();
+  if (s.publishing !== null && --s.publishing <= 0) {
+    s.publishing = null;
+    s.version.status = 'DA_PHAT_HANH';
+    s.version.effectiveFrom = '2027-01-01';
+    s.version.publishedAt = new Date().toISOString();
+    s.version.approvedBy = { id: 'dev-user', name: 'Nguyễn Văn Minh' };
+    s.version.approvedAt = s.version.publishedAt;
+    s.version.rowVersion++;
+  }
+  return out(s.version, etag(s.version.rowVersion));
+}
+
+function reject(r: MockRequest): MockResponse {
+  const s = state(r);
+  if (!s) return notFound();
+  const blocked = ifMatch(r, s.version.rowVersion);
+  if (blocked) return blocked;
+  if (s.version.status !== 'CHO_PHE_DUYET') {
+    return problem(409, 'Phiên bản không ở trạng thái chờ phê duyệt.', {
+      code: 'POLICY-409-NOT-PENDING',
+    } as never);
+  }
+  const reason = ((r.body as { reason?: string })?.reason ?? '').trim();
+  if (reason.length < 10) {
+    return problem(422, 'Ý kiến từ chối cần ít nhất 10 ký tự.', {
+      errors: [{ field: 'reason', message: 'Ý kiến từ chối cần ít nhất 10 ký tự.' }],
+    } as never);
+  }
+  s.version.status = 'NHAP';
+  s.version.goldenPassRate = null;
+  s.version.rowVersion++;
+  return out(s.version, etag(s.version.rowVersion));
+}
+
+const findTemplate = (key: string, v: number) =>
+  WF_TEMPLATES.find((t) => t.key === key && t.versionNo === v);
+
+function saveBinding(r: MockRequest): MockResponse {
+  const s = state(r);
+  if (!s) return notFound();
+  const kind = r.pathParams['key'];
+  const cur = s.bindings.find((b) => b.processKind === kind);
+  const blocked = frozen(s) ?? (cur ? ifMatch(r, cur.rowVersion) : null);
+  if (blocked) return blocked;
+  const b = (r.body ?? {}) as WorkflowBindingUpdate;
+  const t = findTemplate(b.templateKey, b.templateVersionNo);
+  if (!t) {
+    return problem(422, 'Mẫu luồng chưa được phát hành.', {
+      code: 'POLICY-422-TEMPLATE-NOT-ACTIVE',
+    } as never);
+  }
+  if (!b.scope?.fromPeriodId) {
+    return problem(422, 'Chưa chọn kỳ bắt đầu áp dụng.', {
+      errors: [{ field: 'scope.fromPeriodId', message: 'Chọn kỳ bắt đầu áp dụng.' }],
+    } as never);
+  }
+  const lint = lintBinding(t, b.params ?? {});
+  if (!lint.passed) {
+    const cel = lint.issues.find((i) => i.rule === 'cel-type');
+    return problem(422, 'Tham số luồng duyệt chưa hợp lệ.', {
+      code: cel ? 'POLICY-422-CEL-TYPE' : 'POLICY-422-WF-PARAMS',
+      msg: 'MSG-15-09',
+      detail: `Tham số chưa hợp lệ với mẫu ${t.name}: ${lint.issues.map((i) => i.message).join('; ')}.`,
+      lint,
+    } as never);
+  }
+  const next: WorkflowBinding = {
+    id: cur?.id ?? uuid(7100 + ++seq),
+    processKind: kind,
+    templateKey: t.key,
+    templateVersionNo: t.versionNo,
+    versionNo: (cur?.versionNo ?? 0) + (cur ? 0 : 1),
+    scope: b.scope,
+    params: b.params,
+    status: 'NHAP',
+    lint,
+    templateTests: { passed: t.testCount, total: t.testCount },
+    rowVersion: (cur?.rowVersion ?? 0) + 1,
+  };
+  s.bindings = [...s.bindings.filter((x) => x.processKind !== kind), next];
+  touch(s);
+  return out(next, etag(next.rowVersion));
+}
+
+function simulate(r: MockRequest): MockResponse {
+  const b = (r.body ?? {}) as WorkflowSimulateRequest;
+  const t = findTemplate(b.templateKey, b.templateVersionNo);
+  if (!t) {
+    return problem(422, 'Mẫu luồng chưa được phát hành.', {
+      code: 'POLICY-422-TEMPLATE-NOT-ACTIVE',
+    } as never);
+  }
+  return out(simulateBinding(t, b.params ?? {}));
 }
 
 function submit(r: MockRequest): MockResponse {
@@ -775,16 +1181,35 @@ export const POLICIES_MOCK: MockModule = {
       pattern: '/api/v1/policies/packs',
       handle: () => out({ items: packs, nextCursor: null }),
     },
+    { method: 'GET', pattern: '/api/v1/policies/test-cases', handle: listTestCases },
+    { method: 'POST', pattern: '/api/v1/policies/test-cases', handle: createTestCase },
     {
       method: 'GET',
-      pattern: '/api/v1/policies/test-cases',
-      handle: (r) =>
-        out({
-          suite: { code: 'bo-ca-mau-ban-to-chuc-v3', total: 48, pending: 0 },
-          items: GOLDEN.filter((g) => g.policyPackId === r.params.get('pack')),
-          nextCursor: null,
-        }),
+      pattern: '/api/v1/policies/workflow-templates',
+      handle: (r) => {
+        const kind = r.params.get('processKind');
+        const items = WF_TEMPLATES.filter((t) => !kind || t.processKind === kind).map(
+          ({ key, name, versionNo, processKind, testCount }) => ({
+            key,
+            name,
+            versionNo,
+            processKind,
+            testCount,
+            status: 'HIEU_LUC',
+          }),
+        );
+        return out({ items, nextCursor: null });
+      },
     },
+    {
+      method: 'GET',
+      pattern: '/api/v1/policies/workflow-templates/:key/versions/:v',
+      handle: (r) => {
+        const t = templateVersion(r.pathParams['key'], Number(r.pathParams['v']));
+        return t ? out(t, etag(t.versionNo)) : problem(404, 'Không tìm thấy mẫu luồng');
+      },
+    },
+    { method: 'POST', pattern: '/api/v1/policies/workflow-bindings/simulate', handle: simulate },
     {
       method: 'GET',
       pattern: '/api/v1/policies/packs/:id',
@@ -800,10 +1225,7 @@ export const POLICIES_MOCK: MockModule = {
     {
       method: 'GET',
       pattern: '/api/v1/policies/packs/:id/versions/:v',
-      handle: (r) => {
-        const s = state(r);
-        return s ? out(s.version, etag(s.version.rowVersion)) : notFound();
-      },
+      handle: readVersion,
     },
     { method: 'GET', pattern: '/api/v1/policies/packs/:id/versions/:v/diff', handle: diff },
     {
@@ -854,6 +1276,34 @@ export const POLICIES_MOCK: MockModule = {
       pattern: '/api/v1/policies/packs/:id/versions/:v/test-runs',
       handle: listRuns,
     },
+    {
+      method: 'GET',
+      pattern: '/api/v1/policies/packs/:id/versions/:v/test-runs/:runId',
+      handle: getRun,
+    },
     { method: 'POST', pattern: '/api/v1/policies/packs/:id/versions/:v/submit', handle: submit },
+    { method: 'POST', pattern: '/api/v1/policies/packs/:id/versions/:v/approve', handle: approve },
+    { method: 'POST', pattern: '/api/v1/policies/packs/:id/versions/:v/reject', handle: reject },
+    {
+      method: 'GET',
+      pattern: '/api/v1/policies/packs/:id/versions/:v/workflow-bindings',
+      handle: (r) => {
+        const s = state(r);
+        return s ? out({ items: s.bindings }) : notFound();
+      },
+    },
+    {
+      method: 'GET',
+      pattern: '/api/v1/policies/packs/:id/versions/:v/workflow-bindings/:key',
+      handle: (r) => {
+        const b = state(r)?.bindings.find((x) => x.processKind === r.pathParams['key']);
+        return b ? out(b, etag(b.rowVersion)) : problem(404, 'Chưa có tham số luồng duyệt');
+      },
+    },
+    {
+      method: 'PUT',
+      pattern: '/api/v1/policies/packs/:id/versions/:v/workflow-bindings/:key',
+      handle: saveBinding,
+    },
   ],
 };

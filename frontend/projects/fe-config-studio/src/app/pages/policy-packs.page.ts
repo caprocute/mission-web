@@ -9,12 +9,7 @@ import {
   isPolicyVersionEditable,
   policyVersionLabel,
 } from '@vt/api-client';
-import { fmtDate } from '../studio-ui';
-
-const FLOW_LABEL: Record<string, string | undefined> = {
-  DANG: 'Khối Đảng',
-  NHA_NUOC: 'Khối Nhà nước',
-};
+import { FLOW_LABEL, fmtDate } from '../studio-ui';
 
 /**
  * Trang đầu Config Studio (QT-15): danh sách Policy Pack của tenant cùng các phiên bản, mở một phiên
