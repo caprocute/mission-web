@@ -2,17 +2,18 @@
   "type": "record",
   "name": "EvidenceObjectStored",
   "namespace": "vn.vtokr.sys.v1",
-  "doc": "sys.evidence.object.stored.v1 · SVC-08 báo tệp đã lưu và khoá; MOD-03 tiêu thụ. Trường lấy theo evidence.object_meta, evidence.object_version (suy luận); không mang tên tệp (C2).",
+  "doc": "Topic kỹ thuật sys.evidence.object.stored.v1 (TL-02 / TL-03 / TL-04) · SVC-08 phát từ evidence.outbox_event khi đối tượng minh chứng được lưu thành công; chỉ mang định danh và tham chiếu kho đối tượng, không mang tên tệp hay đường dẫn rõ.",
   "fields": [
-    {"name": "objectId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "(suy luận) evidence.object_meta.id"},
-    {"name": "objectVersionId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "(suy luận) evidence.object_version.id"},
-    {"name": "versionNo", "type": "int", "doc": "(suy luận) Số phiên bản đối tượng"},
-    {"name": "ownerModule", "type": "string", "doc": "(suy luận) Module sở hữu: product, dossier, oversight"},
-    {"name": "ownerRefId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "(suy luận) Bản ghi nghiệp vụ sở hữu"},
-    {"name": "sha256", "type": "bytes", "doc": "(suy luận) Băm nội dung"},
-    {"name": "sizeBytes", "type": "long", "doc": "(suy luận) Kích thước"},
-    {"name": "mediaType", "type": "string", "doc": "(suy luận) Kiểu MIME đã xác minh"},
-    {"name": "lockMode", "type": ["null", "string"], "default": null, "doc": "(suy luận) Chế độ Object Lock: COMPLIANCE, GOVERNANCE"},
-    {"name": "lockUntil", "type": ["null", {"type": "long", "logicalType": "timestamp-micros"}], "default": null, "doc": "(suy luận) Hạn khoá đối tượng"}
+    {"name": "objectId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "evidence.evidence_object.id"},
+    {"name": "version", "type": "int", "default": 1, "doc": "Phiên bản đối tượng minh chứng trong kho"},
+    {"name": "sha256", "type": "bytes", "doc": "Hàm băm SHA-256 (32 byte) của nội dung đã lưu"},
+    {"name": "sizeBytes", "type": "long", "doc": "Kích thước đối tượng tính bằng byte"},
+    {"name": "contentType", "type": "string", "doc": "Kiểu MIME đã xác thực của đối tượng (ví dụ: application/pdf)"},
+    {"name": "bucketRef", "type": "string", "doc": "Tham chiếu kho đối tượng nội bộ (bucket/key hàm băm), không phải đường dẫn hay tên tệp người dùng"},
+    {"name": "e2ee", "type": "boolean", "default": false, "doc": "Cờ đánh dấu đối tượng mã hoá đầu-cuối (C3, ADR-06)"},
+    {"name": "retentionUntil", "type": ["null", {"type": "long", "logicalType": "timestamp-micros"}], "default": null, "doc": "Mốc hết hạn lưu giữ Object Lock WORM; null nếu chưa ấn định"},
+    {"name": "uploadedBy", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Định danh tài khoản tải tệp lên (UUID, không mang họ tên)"},
+    {"name": "ownerRef", "type": "string", "doc": "Tham chiếu thực thể nghiệp vụ sở hữu đối tượng (ví dụ: product:<id>, task:<id>)"},
+    {"name": "storedAt", "type": {"type": "long", "logicalType": "timestamp-micros"}, "doc": "Thời điểm lưu xong vào kho đối tượng"}
   ]
 }

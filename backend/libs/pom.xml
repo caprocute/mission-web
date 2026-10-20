@@ -26,6 +26,8 @@
     <module>vt-kernel</module>
     <module>vt-platform-starter</module>
     <module>vt-db-migration</module>
+    <!-- NEN-034: bộ kiểm thử rò rỉ tenant lớp 1-4 (RLS danh mục, 2 tenant, PgBouncer pool, Semgrep). -->
+    <module>vt-tenant-test</module>
     <module>vt-events</module>
   </modules>
 </project>
