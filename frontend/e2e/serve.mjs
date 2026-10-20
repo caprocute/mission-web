@@ -140,6 +140,7 @@ function resolveProxyTarget(pathname) {
   const defaultApiTarget = process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:8080';
 
   if (
+    pathname.startsWith('/api/v1/registry') ||
     pathname.startsWith('/api/v1/tenants') ||
     pathname.startsWith('/api/v1/cells')
   ) {
