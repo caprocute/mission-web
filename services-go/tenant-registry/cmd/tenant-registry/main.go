@@ -1,0 +1,93 @@
+// Lệnh tenant-registry chạy SVC-03 (danh bạ tenant toàn cục, TL-01 mục SVC-03).
+package main
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"mission/services-go/tenant-registry/internal/api"
+	"mission/services-go/tenant-registry/internal/config"
+	"mission/services-go/tenant-registry/internal/platform/auth"
+	"mission/services-go/tenant-registry/internal/platform/logx"
+)
+
+// migrationDir là nơi Dockerfile chép migration Flyway vào ảnh.
+const migrationDir = "/db/migration/registry"
+
+func main() {
+	log := logx.New("tenant-registry")
+	// Lệnh phụ cho initContainer của Job migrate (ảnh distroless không có shell): chép migration ra thư mục.
+	if len(os.Args) == 3 && os.Args[1] == "copy-migrations" {
+		if err := copyMigrations(migrationDir, os.Args[2]); err != nil {
+			log.Error("không chép được migration", "err", err.Error())
+			os.Exit(1)
+		}
+		return
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		log.Error("cấu hình không hợp lệ", "err", err.Error())
+		os.Exit(2)
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Error("không tạo được pool CSDL", "err", err.Error())
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	verifier := auth.NewJWKSVerifier(auth.JWKSConfig{JWKSURL: cfg.JWKSURL, Issuers: cfg.Issuers, Audience: cfg.Audience})
+	srv := api.New(api.Deps{Pool: pool, Log: log, Verifier: verifier, StepUpMaxAge: cfg.StepUpMaxAge})
+
+	httpSrv := &http.Server{
+		Addr:              cfg.HTTPAddr,
+		Handler:           srv.Handler(),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	go func() {
+		log.Info("tenant-registry lắng nghe", "addr", cfg.HTTPAddr)
+		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Error("máy chủ HTTP dừng bất thường", "err", err.Error())
+			stop()
+		}
+	}()
+	<-ctx.Done()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+	defer cancel()
+	_ = httpSrv.Shutdown(shutdownCtx)
+	log.Info("tenant-registry đã dừng")
+}
+
+func copyMigrations(src, dst string) error {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".sql" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(src, e.Name()))
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(dst, e.Name()), b, 0o444); err != nil {
+			return err
+		}
+	}
+	return nil
+}
