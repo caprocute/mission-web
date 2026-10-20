@@ -34,7 +34,8 @@
       Đưa BOM vào reactor sẽ làm nó thành dự án đầu tiên và hỏng phân giải tiền tố plugin
       (ví dụ "./mvnw spotless:apply").
     -->
-    <!-- Thư viện nền vt-platform-* (NEN-009..NEN-016), vt-db-migration (NEN-030): libs/ -->
+    <!-- Thư viện nền vt-platform-* (NEN-009..NEN-016), vt-db-migration (NEN-030). -->
+    <module>libs</module>
     <!-- Khối nguyên khối theo mô-đun mission-core (CORE-00-01): mission-core/ -->
     <!-- Microservice Java (NEN-019 trở đi): services/ -->
     <!-- Mô-đun mẫu kiểm chuỗi plugin; xoá khi NEN-009 có mô-đun thật. -->
