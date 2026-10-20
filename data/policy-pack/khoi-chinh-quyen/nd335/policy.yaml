@@ -218,7 +218,7 @@ workflow_bindings:
   thu_muc: workflow-bindings/
 
 tests:
-  bo_ca_mau: null                    # DL-03
+  bo_ca_mau: tests/bo-ca-mau-gia-lap.yaml   # DL-03, bản giả lập chưa ký
   yeu_cau_dat: 1.0
 templates:
   thu_muc: templates/                # DL-05

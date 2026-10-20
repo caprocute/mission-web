@@ -504,7 +504,7 @@ workflow_bindings:
   thu_muc: workflow-bindings/
 
 tests:
-  bo_ca_mau: null                    # DL-03 bổ sung bộ ca vàng vào tests/
+  bo_ca_mau: tests/bo-ca-mau-gia-lap.yaml   # DL-03, bản giả lập chưa ký
   nguoi_ky: "Ban Tổ chức"
   yeu_cau_dat: 1.0
 templates:
