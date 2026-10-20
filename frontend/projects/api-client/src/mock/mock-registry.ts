@@ -16,6 +16,7 @@ import { REOPEN_MOCK } from './oversight/reopen.mock';
 import { LEDGER_MOCK } from './ledger/ledger.mock';
 import { ALERTS_MOCK } from './oversight/alerts.mock';
 import { COMPLAINTS_MOCK } from './oversight/complaints.mock';
+import { ANALYTICS_MOCK } from './analytics/analytics.mock';
 import { UI_FORMS_MOCK } from './ui-forms/ui-forms.mock';
 import { ROLE_ADMIN_MOCK } from './role-admin/role-admin.mock';
 import { POLICIES_MOCK } from './policies/policies.mock';
@@ -47,6 +48,7 @@ export const MOCK_MODULES: MockModule[] = [
   ROLE_ADMIN_MOCK,
   ALERTS_MOCK,
   POLICIES_MOCK,
+  ANALYTICS_MOCK,
 ];
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
