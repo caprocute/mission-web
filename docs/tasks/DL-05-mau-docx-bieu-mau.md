@@ -13,7 +13,7 @@
 | Cỡ việc | M (≤ 1 ngày) |
 | Phụ thuộc | – (DV-11-02, DV-11-03 phụ thuộc task này) |
 | Truy vết | H5; QT-09, QT-11 (BR-11-02, BR-11-03, BR-11-04) → API `POST /api/v1/dossiers/forms/preview` (`previewDossierForm`), `POST /api/v1/dossiers/forms` (`createDossierDraftForms`), `POST /api/v1/dossiers/render-jobs` (`createDossierRenderJob`) → SVC-11, MOD-06 → bảng `docgen.template`, `dossier.form_instance` → EVT-17 |
-| Trạng thái | Bị chặn bởi bên ngoài: cần bản mẫu chính thức Mẫu 1A, 1B, 1C, 1D, Mẫu 2, Mẫu 3 và bảng chấm điểm do cơ quan ban hành cung cấp |
+| Trạng thái | Bị chặn bởi bên ngoài: đã dựng khung kê khai bảy mẫu và công cụ kiểm tra (20/10/2026); chờ bản mẫu chính thức để dựng DOCX |
 
 ## 1. Mục tiêu
 

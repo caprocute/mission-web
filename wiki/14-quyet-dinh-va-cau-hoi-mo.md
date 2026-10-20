@@ -135,6 +135,97 @@ Câu hỏi năm là chốt các điểm lệch kỹ thuật trong bảng trên, 
 
 Câu hỏi sáu là bổ sung thiết kế cho quản trị phân quyền: bộ TL có bảng `config.role_binding` (vai trò có phạm vi, thời hạn, người duyệt thứ hai cho vai trò nhạy cảm) và có quy định duyệt thay, nghiệm thu thay, check-in thay, nhưng không có SCR, API, BR hay MSG cho màn hình cấp, thu hồi vai trò và uỷ quyền. Cần người phụ trách cấp mã trước khi làm pha 2 của WEB-058. Cùng nhóm này còn ba điểm nhỏ: nhiều ràng buộc tách vai trò chưa có MSG riêng (BR-04-08, BR-06-08, BR-07-06, BR-08-01, BR-15-09, BR-14-08, danh sách ở bảng ràng buộc của trang 15a), nguồn không nêu vai trò của "thư ký tổng hợp" ở SCR-0904 và của chủ trì hội nghị ở SCR-1101, và nguồn không nêu ai là người duyệt UI Pack ở SCR-1801 (ma trận tạm ghi `tenant_admin` khác người soạn, đánh dấu suy luận).
 
+## Dữ liệu nghiệp vụ nền, mẫu biểu và hệ hiện hành (luồng B11, bản nháp 20/10/2026)
+
+Phần này gom điểm lệch và câu hỏi phát sinh khi soạn dữ liệu nghiệp vụ nền của các task DL-01, DL-02, DL-04, DL-05, DL-07 và điểm chờ của nhóm LEG. Mọi dữ liệu nói ở đây là bản nháp do agent soạn để nghiệp vụ duyệt (kế hoạch tổng thể mục 10), chưa được dùng cho tenant thật. Khi một câu hỏi được trả lời, chuyển nó lên phần quyết định đã chốt.
+
+### Mẫu biểu sinh hồ sơ số (DL-05)
+
+**Chưa có bản mẫu chính thức.** Dự án chưa có bản DOCX hoặc PDF chính thức của Mẫu 1A, 1B, 1C, 1D, Mẫu 2, Mẫu 3 và bảng chấm điểm cùng số hiệu văn bản ban hành. Theo phạm vi DL-05, mỗi mẫu mới có tệp kê khai trường `manifest.json` ở trạng thái `KHUNG_CHO_BAN_MAU` dựng từ SCR-0903, SCR-1102 và từ điển dữ liệu TL-03, đặt ở `data/policy-pack/khoi-dang/quy-dinh-moi/templates/`; không có bố cục văn bản nào được tự dựng. Cần người dùng cung cấp bản mẫu chính thức và xác nhận phông chữ được phép nhúng vào PDF/A. Nguồn: DL-05 mục 3; `data/seed/docgen/README.md`.
+
+**Đối tượng của Mẫu 1B, 1C và nguồn số liệu Mẫu 1A.** TL chỉ ghi 1A là mẫu tập thể, 1B, 1C, 1D là mẫu cá nhân và 1D dành cho đảng viên ngoài hệ thống chính trị (PL 2E); đối tượng cụ thể của 1B và 1C, cùng các cột số liệu tập thể của 1A, chưa có trong TL. Kê khai để trống các phần này và đánh dấu suy luận. Nguồn: TL-02b QT-11 bước 3, bảng 13 trường hợp §11.
+
+**Nhãn tiêu chí chung theo cột `met`.** BR-11-04 yêu cầu nhãn "Đảm bảo, Không đảm bảo" ở Mẫu 1 và "Không vi phạm, Vi phạm" ở Mẫu 2 trên cùng dữ liệu gốc, nhưng `appraisal.general_criteria_result` có cả cột `level` bốn mức và cột `met`. Bảng nhãn `data/seed/docgen/nhan-dung-chung.json` ánh xạ theo `met` (suy luận). Câu giải thích hạ mức được kê khai ở Mẫu 2 (suy luận vị trí). Nguồn: TL-02b BR-11-04; TL-03 `appraisal.general_criteria_result`.
+
+**Gói luồng Nhà nước chưa có mẫu biểu.** TL không nói luồng Nhà nước dùng mẫu nào; `khoi-chinh-quyen/nd335/templates/` để trống. Cần xác nhận luồng Nhà nước dùng chung mẫu nào của gói Đảng hay có mẫu riêng theo NĐ 335/2025.
+
+### Policy Pack bản nháp (DL-01, DL-02, DL-04)
+
+Bản nháp gói `khoi-dang/quy-dinh-moi` 2.1.0 và `khoi-chinh-quyen/nd335` 1.4.0 nằm ở `data/policy-pack/`, trạng thái `NHAP`, chưa phê duyệt. Các mục dưới cần nghiệp vụ hoặc người phụ trách xác nhận; khi chốt, chuyển sang phần quyết định đã chốt.
+
+**Định danh gói luồng Nhà nước.** Chọn `khoi-chinh-quyen/nd335` vì TL-01 dùng đúng định danh này ở ví dụ `wf_binding` ("Policy Pack `khoi-chinh-quyen/nd335@1.4`") và ở UI Pack (`requires.policyPack: khoi-chinh-quyen/nd335@>=1.2.0 <2.0.0`). Phiên bản nháp 1.4.0; TL-02b SCR-0901 nhắc "NĐ 335 v1.3". Cần xác nhận định danh, tag tenant `khoi-chinh-quyen` và số phiên bản. Nguồn: TL-01 chương điều phối luồng, chương 7 (UI Pack); TL-02b SCR-0901.
+
+**Căn cứ NĐ 233/2026.** Thẻ DL-01 ghi TL chỉ dẫn NĐ 335/2025 cho luồng Nhà nước, nhưng bảng căn cứ TL-02a có NĐ 233/2026 ("luồng Nhà nước áp dụng cho viên chức, gói chính sách chuyên ngành") và trang này đã chốt (19/10/2026) căn cứ gồm cả NĐ 233/2026. Gói nháp ghi cả hai trong `can_cu_phap_ly`. Câu hỏi: viên chức dùng chung `khoi-chinh-quyen/nd335` hay cần gói chuyên ngành riêng theo NĐ 233/2026? Nguồn: TL-02a "Căn cứ"; TL-01 "Mục đích"; DL-01 mục 3.
+
+**Làm tròn.** TL-01 (ví dụ `policy.yaml`) ghi `scale: 2, HALF_UP`; TL-02b BR-09-03, SCR-1501 ghi 1 chữ số, nửa lên. Gói chọn 1 chữ số `NUA_LEN` (TL-02b, hợp đồng `PolicyRounding`), chỉ làm tròn điểm cuối trước khi vào DMN; KPI nhiệm vụ, KPI nhóm không làm tròn khi tính (suy luận). Ví dụ trong hợp đồng `PolicyRuleKpi` lại làm tròn KPI 3 chữ số: cần chốt có làm tròn trung gian hay không. Nguồn: TL-01 "Cấu trúc gói"; TL-02b BR-09-03; `contracts/openapi/modules/policies.yaml`.
+
+**Điều kiện HTXSNV.** Ví dụ DMN TL-01 chỉ có điểm, tỷ lệ O, tỷ lệ vượt; BR-09-07 thêm giải pháp đột phá được kiểm chứng và tiêu chí chung "Thực hiện tốt". Gói theo TL-02b. Nguồn: TL-01 "Ngôn ngữ biểu thức CEL và bảng quyết định DMN"; TL-02b BR-09-07.
+
+**Quy tắc người đứng đầu: DMN hay CEL.** BR-09-13 ghi "quy tắc riêng trong DMN"; SCR-1502 (vùng 4, trường 7) và hợp đồng (`RuleKey` ví dụ `nguoi_dung_dau`) ghi là quy tắc CEL. Gói viết CEL `nguoi_dung_dau`, áp trước `muc_cuoi`. Nguồn: TL-02b BR-09-13, SCR-1502.
+
+**Tiêu chí chung vừa trong dòng DMN vừa trong `min_muc`.** TL-02b (BR-09-07..09, SCR-1502 cột đầu vào) đặt mức tiêu chí chung trong điều kiện từng dòng, đồng thời SCR-1502 vùng 3 có `muc_cuoi = min_muc(...)`. Hai cách cho cùng kết quả; gói giữ cả hai. Cần chốt có bỏ một trong hai không. Nguồn: TL-02b BR-09-06..09, SCR-1502.
+
+**Ngưỡng và cách đếm "30% nhiệm vụ vượt mục tiêu".** BR-15-04 nêu "tối thiểu hay đúng; đếm theo số nhiệm vụ hay theo điểm". Gói diễn giải "tối thiểu" là ≥, "đúng" là > (tham số `htxs.phep_so_sanh`, suy luận); "theo điểm" là trọng số bằng điểm chuẩn danh mục (suy luận); "vượt" là số lượng được nghiệm thu lớn hơn kế hoạch (suy luận). Nguồn: TL-02b BR-09-04, BR-09-07, BR-15-04.
+
+**Nhóm không có nhiệm vụ.** BR-09-03 không nói KPI nhóm khi nhóm không có nhiệm vụ nào. Gói đặt bằng 0 (suy luận, không thể làm tăng điểm). Cần chốt: bằng 0, bỏ nhóm và chia lại điểm, hay lấy trọng số nhóm theo kế hoạch (`groupWeights` của kế hoạch quý). Nguồn: TL-02b BR-09-03; `contracts/openapi/modules/tasks.yaml` (`groupWeights`).
+
+**Cơ chế phạm vi đánh giá CEL.** TL-01 dùng biến phẳng (`so_luong_duyet`, `nhom_kpi` lấy KPI nhóm từ nguồn), SCR-1501 dùng biến theo nhiệm vụ `nv`. Gói khai ba phạm vi `nhiem_vu` → `nhom` → `ho_so` (và `xep_loai` sau DMN), biến do engine dựng (`nv`, `g`, `ket_qua_nhiem_vu`, `ket_qua_nhom`) khai ở `ngu_canh` (suy luận). NEN-041 và CORE-05-04 cần hiện thực đúng cơ chế này hoặc đề xuất cách khác. Nguồn: TL-01 "Cấu trúc gói"; TL-02b SCR-1501.
+
+**Tham số cách tính chất lượng.** Phương án `TRU_25_MOI_LAN` dùng tham số `tru_moi_lan_chinh_sua` = 0,25 và đầu vào số lần chỉnh sửa (suy luận); tham số "lý do trả lại tính vào chất lượng" (SCR-1501 trường 7) có ba lựa chọn nhưng TL chưa đặt tên, gói mới khai mặc định `CHI_LY_DO_COT_LOI` (suy luận khoá). Nguồn: TL-02b BR-15-02, SCR-1501.
+
+**Luồng Nhà nước: cách chấm 30 điểm tiêu chí chung và chia 70 điểm.** TL chỉ nêu 30/70 và ngưỡng 90/70/50. Gói tính 30 × tỷ lệ đáp ứng tiêu chí chung và một nhóm 70 điểm gồm mọi nhiệm vụ (suy luận); không có điều kiện phụ, không có bảng xếp loại năm, không có bảng trường hợp đặc thù riêng; hạn mức 20% áp cả luồng Nhà nước (suy luận). Nguồn: TL-02b BR-09-11, BR-09-17; TL-01 "Hai luồng Đảng và Nhà nước".
+
+**Điểm năm.** `nam.cach_tinh` mặc định `TRUNG_BINH_QUY`; phương án trung bình có trọng số dùng `nam.trong_so_quy` (mặc định bằng nhau, suy luận); quý không xếp loại (§4) không tính vào trung bình. Gói thêm dòng chặn HTXSNV năm cho trường hợp mới tuyển dụng, bổ nhiệm dưới 6 tháng (§6, suy luận). BR-10-04 (hai quý liên tiếp) chỉ xét trong năm, chưa xét quý IV năm trước với quý I năm sau. Nguồn: TL-02b BR-10-02..BR-10-04; QT-11 bảng 13 trường hợp.
+
+**13 trường hợp đặc thù.** Khoá do agent đặt theo ví dụ `DIEU_DONG_DUOI_2_THANG` của TL-03, ≤ 32 ký tự; hiệu ứng ánh xạ vào CHECK `dossier.special_case.effect` (suy luận ánh xạ). Còn thiếu: thời gian công tác tối thiểu của §10, bảng hình thức kỷ luật → điều kiện loại trừ của §8. Câu hỏi: luồng Nhà nước có áp cùng bảng 13 trường hợp không. Nguồn: TL-02b QT-11; TL-03 `dossier.special_case`.
+
+**Tiêu chí phân nhóm triển vọng.** TL chỉ có tên bốn nhóm theo PL 5, chưa trích tiêu chí; gói ghi câu dẫn chiếu Phụ lục 5. Cần nội dung tiêu chí chính thức. Nguồn: TL-02b QT-10, SCR-1002.
+
+**Cách gọi "QĐ Điều 11".** Cột căn cứ TL-02b ghi "QĐ Điều 11", phần căn cứ QT-09 lại ghi "Dự thảo Quy định mới Điều 10, Điều 11"; wiki trang 16 hướng dẫn hiển thị "Điều 11 Quy định 366". Gói hiển thị trung tính "Điều 11 của Quy định". Cần chốt "QĐ" là QĐ 366 hay dự thảo Quy định mới để viết đúng câu giải thích. Nguồn: TL-02b QT-09; `wiki/16-noi-dung-giao-dien.md`.
+
+**Tên lệnh chuyển trạng thái nhiệm vụ.** TL-01 dùng `ASSIGN`, `ACCEPT`, `SUBMIT`, `APPROVE`, `REWORK`, `SUSPEND`, `RESUME`, `CANCEL`; hợp đồng `tasks.yaml` `TaskTransition` chỉ có `TIEP_TUC`, `TRINH_NGHIEM_THU`, `HOAN_THANH` (các bước khác đi qua thao tác riêng). `task_lifecycle.yaml` dùng lệnh TL-01; mission-core cần ánh xạ tên của hợp đồng sang lệnh (CORE-02-13). Mã lỗi: TL-01 `TRANSITION_NOT_ALLOWED`, hợp đồng `TASK-409-INVALID-TRANSITION`. Nguồn: TL-01 "Máy trạng thái nhiệm vụ"; `contracts/openapi/modules/tasks.yaml`.
+
+**Nhận việc ngầm.** TL-02a ghi `DA_GIAO → DANG_THUC_HIEN` khi "nhận việc hoặc cập nhật lần đầu", TL-01 chỉ có `ACCEPT`. Gói giữ một dòng `ACCEPT`; cập nhật tiến độ lần đầu phát lệnh `ACCEPT` ngầm (suy luận). Nguồn: TL-02a QT-05; TL-01.
+
+**Loại đề nghị tạm dừng.** TL-02a QT-05, SCR-0602 có đề nghị tạm dừng; CHECK `task_change_request.request_type` của TL-03 không có `TAM_DUNG` (hợp đồng đã theo TL-02: `GIA_HAN`, `DOI_SO_LUONG`, `DOI_SAN_PHAM`, `TAM_DUNG`, `HUY`). Guard `SUSPEND`, `CANCEL` dùng giá trị của hợp đồng. Nguồn: TL-03 `task.task_change_request`; `tasks.yaml` `ChangeRequestType`.
+
+**Ngữ cảnh guard và vai trò.** Tên trường ngữ cảnh guard (`actor.person_id`, `task.chu_tri_id`, `task.nguoi_giao_id`, `task.nguoi_nghiem_thu_id`, `task.so_san_pham_da_nop`, `change_request.*`) do agent đặt (suy luận); vai trò `leader` được tạm dừng, huỷ khi đề nghị vượt ngưỡng theo ma trận (AC-04 `D/Cd*`). Bảng QT-05 có chín dòng nhưng dòng huỷ gộp ba trạng thái nguồn, nên `task_lifecycle.yaml` có mười dòng `from:command`. Nguồn: TL-02a QT-05; `docs/phan-quyen/ma-tran.json`.
+
+**Một nhiệm vụ, hai gói.** Nhiệm vụ dùng chung cho hai luồng nên chỉ có một vòng đời; gói Nhà nước tham chiếu `task_lifecycle` của gói Đảng. Cần chốt gói nào quyết định bảng chuyển trạng thái khi tenant chỉ bật luồng Nhà nước. Nguồn: TL-01 "Hai luồng Đảng và Nhà nước"; DL-04 mục 3.
+
+**Tên mẫu luồng và tham số luồng.** TL-02a gọi `duyet-ke-hoach`, TL-02b gọi `duyet-ke-hoach-quy` v2; gói dùng tên TL-02b. Khoá `processKind` (`DANH_GIA`, `KE_HOACH_QUY`, `DUYET_OKR`, `KHIEU_NAI`, `MO_LAI_KY`) là suy luận. Thời hạn mặc định `duyet-ho-so-danh-gia` 3/3/2/3 ngày làm việc theo bảng bước QT-09; thời hạn `duyet-okr`, `duyet-ke-hoach-quy` 3 ngày là suy luận; luồng Nhà nước ba cấp 3/3/3 là suy luận. Nguồn: TL-02a QT-02, QT-04; TL-02b QT-09, QT-12, QT-13, SCR-1504; `_ghi-chu-TL-02a.md` mục 6.
+
+**Thời hạn MFA bước lên.** BR-07-11 và `_ghi-chu-TL-02a` ghi 15 phút (`mfa_stepup_window_minutes` = 15), trong khi trang này ghi hợp đồng chốt độ tươi AAL2 khi nghiệm thu là 5 phút. Gói để 15 theo TL; cần thống nhất. Nguồn: TL-02a BR-07-11; `_ghi-chu-TL-02a.md` mục 5; wiki trang 14 (HD đã chốt).
+
+**Tham số vận hành chưa có giá trị trong TL.** `kiem_diem.cach_dem_ngay` mặc định `NGAY_LAM_VIEC` suy từ BR-11-01; `plan_approval_deadline_rule` theo cách hiểu TL-02a (cần đối chiếu PL 1); `difficulty_coefficients` (mức 4 = 1,2) là giả định chờ cơ quan tổ chức. Nguồn: `_ghi-chu-TL-02a.md` mục 5; `_ghi-chu-TL-02b.md`.
+
+**Phiên bản gói Đảng.** Gói dùng 2.1.0 theo TL-01 và SCR-1501 (đang soạn v2.1); TL nhắc v2.0 đã phát hành nhưng repo chưa có bản 2.0.0. Cần chốt số phiên bản khởi đầu. Nguồn: TL-01 "Cấu trúc gói"; TL-02b SCR-1501.
+
+**DMN 1.4 và Flowable.** Tệp `.dmn` dùng namespace DMN 1.4 (`https://www.omg.org/spec/DMN/20211108/MODEL/`) và cột chú thích (`annotation`, `annotationEntry`) để mang `legal_ref`, điều khoản hiển thị, câu giải thích. Chưa kiểm được Flowable DMN 7 có nạp namespace 1.4 và cột chú thích hay không; việc này thuộc kiểm thử của CORE-05-05. Nguồn: TL-01 ADR-19; DL-02 mục 6.
+
+### Dữ liệu khởi tạo (DL-07)
+
+**Câu hỏi và điểm chờ.**
+
+1. **Tên 9 khối PL 2A và luồng áp dụng chưa có.** TL-02a (QT-01, BR-01-05) và baseline mục 9 chỉ ghi "9 khối đối tượng PL 2A", TL-03 `org.subject_group` chỉ ghi mã `K1`..`K9`; thư mục `_inputs` không có PL 2A. `data/seed/org/subject_group.csv` giữ khung mã, để trống tên và `flow`. Chờ người dùng cấp PL 2A của dự thảo Quy định mới.
+2. **40 chức danh diện Trung ương quản lý (PL 2B) chưa có.** TL-02b BR-11-11 và TL-03 `org.job_title.is_central_managed` chỉ nhắc PL 2B. `data/seed/org/job_title.csv` mới có dòng tên cột. Cũng chưa rõ danh mục chức danh quốc gia ngoài 40 chức danh này lấy từ đâu (mã, `level`).
+3. **Ngày nghỉ mới 24/11 (Ngày Văn hóa Việt Nam).** Nghị quyết 28/2026/QH16 (hiệu lực 01/7/2026) thêm ngày nghỉ hưởng lương ngoài Bộ luật Lao động 2019 Điều 112. TL-03 nói "khoảng 20 dòng mỗi năm", không ảnh hưởng thiết kế bảng; đã đưa vào lịch 2026, 2027.
+4. **Ngày hoán đổi dùng `day_kind = NGHI_BU`.** TL-03 chỉ có `NGHI_LE`, `NGHI_BU`, `LAM_BU`; ngày nghỉ do hoán đổi (02/01/2026, 31/08/2026) được ghi `NGHI_BU`, ngày làm thay ghi `LAM_BU` (suy luận). Cần chốt.
+5. **Lịch quốc gia theo khu vực công.** Khối doanh nghiệp tự chọn phương án nghỉ Tết và ngày liền kề Quốc khánh; lịch tenant hệ thống lấy theo cán bộ, công chức, viên chức (suy luận). Tenant khác lịch nhập lịch riêng (`scope = TENANT`).
+6. **Ngày còn chờ thông báo chính thức:** nghỉ bù 03/05/2027 (1/5/2027 trùng thứ Bảy, theo Điều 111 khoản 3 thì sẽ có, nhưng chưa có văn bản năm 2027 nên chưa ghi); Giỗ Tổ 16/04/2027 đã quy đổi nhưng chưa có văn bản đối chiếu (`CHO_DOI_CHIEU`); hoán đổi (nếu có) dịp 01/01/2027, 24/11/2027.
+7. **Đối chiếu văn bản chưa mở được bản gốc.** Proxy phiên làm việc chặn các trang gov.vn; nội dung 9441/TB-BNV, 12729/VPCP-KGVX, 3383/BNV-CVL, 10065/VPCP-KGVX, 11483/TB-BNV được đối chiếu qua kết quả tìm kiếm trên trang chinhphu.vn, moha.gov.vn và cổng địa phương. Số hiệu thông báo hoán đổi Quốc khánh 2026 (31/8 ↔ 22/8) chưa xác định. Người phụ trách cần mở bản gốc trước khi nạp môi trường thật.
+
+**Quyết định đề xuất (chưa chốt).**
+
+- **Cơ chế nạp: migration lặp Flyway `R__`** sinh từ CSV trong `data/seed/`, chạy trong Job bằng vai trò `mig_org` / `mig_config` (TL-03 tiêu chí K1: ứng dụng không có quyền DDL và chạy bằng `svc_*`), dùng `ON CONFLICT (tenant_id, code|calendar_date) DO UPDATE`; mã tenant hệ thống qua placeholder Flyway. Chưa viết do chưa có `org-service` (DV-04-01) và `mission-core` (CORE-08-01).
+- Chưa rõ cách sinh `id` (UUIDv7 theo TL-03 sinh ở ứng dụng) trong migration SQL trên PostgreSQL 17 (không có hàm UUIDv7 dựng sẵn): cần thư viện nền cung cấp hàm hoặc chấp nhận sinh trước trong bước build (suy luận).
+
+Nguồn: TL-03 bảng `org.subject_group`, `org.job_title`, `config.holiday_calendar`, mục migration (K1); TL-02a QT-01 BR-01-05; TL-02b BR-11-11; baseline mục 9; Bộ luật Lao động 2019 Điều 111, 112; Nghị quyết 28/2026/QH16; các văn bản nêu trên (đường dẫn trong `data/seed/config/*.csv`).
+
+### Hệ hiện hành (LEG-01..LEG-12, DL-09..DL-11)
+
+**Đang chờ quyền truy cập, chưa làm gì và không giả định dữ liệu.** Mọi task LEG và DL-09..DL-11 cần người dùng cấp: quyền đọc các repo của hệ hiện hành (TL-01 nêu năm repo `backend-missions`, `dhtn_fe`, `backend2.0`, `web-spring`, `twd_mission`, TL-04 nói bốn repo, cần xác nhận danh sách); tài khoản Oracle chỉ đọc vào schema `VOFFICE` trên bản sao kèm quyền đọc từ điển dữ liệu; mô tả hoặc quyền xem hạ tầng đang chạy và đầu mối vận hành, đầu mối vOffice. Không có cách làm tạm, và các lỗ hổng S01–S05 của hệ hiện hành vẫn tồn tại cho tới khi LEG-03 làm được. Nguồn: thẻ LEG-01 mục 2; kế hoạch tổng thể mục 10.
+
 ## Liên quan
 
 - [README của wiki](README.md)

@@ -1,0 +1,19 @@
+# Tham số mặc định flowable.wf_binding cho mẫu duyet-ke-hoach-quy v2 (QT-04; TL-02b SCR-1504).
+# BẢN NHÁP (DL-04). TL-02a gọi mẫu là duyet-ke-hoach; TL-02b gọi duyet-ke-hoach-quy v2 (dùng tên TL-02b).
+processKind: KE_HOACH_QUY           # suy luận khoá
+templateKey: duyet-ke-hoach-quy
+templateVersionNo: 2
+scope: {flow: DANG, subjectGroupId: null, periodType: QUY, fromPeriod: 2027-Q1}
+params:
+  so_cap: 2
+  cap:
+    - {buoc: GUI_DUYET, vai_tro: manager, thoi_han: P3D_LV}
+    - {buoc: DUYET,     vai_tro: leader,  ky_so: true, thoi_han: P3D_LV}   # QT-04 bước 7a: duyệt và ký số
+  han_duyet: plan_approval_deadline_rule   # tham số Policy Pack; quá hạn không chặn duyệt, ghi dấu hiệu bất thường
+  nhac_truoc: P1D_LV
+  khi_qua_han: NHAC_LAI
+  ky_so_bat_buoc: [DUYET]
+mien:
+  so_cap: {min: 2, max: 4}
+  thoi_han_ngay_lam_viec: {min: 1, max: 15}
+legal_ref: "QT-04; QT-15; ADR-04"

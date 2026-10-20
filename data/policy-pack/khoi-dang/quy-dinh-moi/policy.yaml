@@ -1,0 +1,509 @@
+# Policy Pack luồng Đảng: dự thảo Quy định mới về đánh giá cán bộ theo kết quả thực hiện nhiệm vụ.
+# BẢN NHÁP do agent soạn (DL-01, DL-02, DL-04) để nghiệp vụ duyệt; chưa phê duyệt, chưa ký, chưa phát hành.
+# Cấu trúc theo TL-01 chương "Policy Pack", mục "Cấu trúc gói"; quy tắc theo TL-02b QT-09, QT-10, QT-11, QT-15.
+# Mọi điểm suy luận ghi trong CHANGELOG.md. Chỉ chú thích (#) và khoá kỹ thuật được chứa mã BR/QT/PL;
+# các trường văn bản hiển thị (nhan, mo_ta, cach_xu_ly, giai_thich) không chứa mã kỹ thuật.
+apiVersion: policy.okrkpi.vn/v1
+kind: PolicyPack
+metadata:
+  id: khoi-dang/quy-dinh-moi
+  version: 2.1.0                     # theo TL-01 (ví dụ policy.yaml) và SCR-1501 (đang soạn v2.1)
+  trang_thai: NHAP                   # policy_pack_version.status, baseline 9.1; bản nháp chưa kiểm thử
+  luong: DANG
+  ten: Bộ quy định đánh giá khối Đảng theo dự thảo Quy định mới
+  ap_dung_cho:
+    tenant_tags: [khoi-dang]
+    doi_tuong: [CAN_BO, CONG_CHUC, VIEN_CHUC]
+  hieu_luc:
+    tu_ky: 2027-Q1
+    den_ky: null
+  can_cu_phap_ly:                    # theo TL-02a mục "Căn cứ"; số hiệu, điều khoản cần đối chiếu bản gốc
+    - "Quy định số 366-QĐ/TW của Bộ Chính trị về kiểm điểm, đánh giá, xếp loại chất lượng hằng năm đối với tập thể, cá nhân trong hệ thống chính trị"
+    - "Hướng dẫn số 02-HD/BTCTW của Ban Tổ chức Trung ương"
+    - "Hướng dẫn số 43-HD/BTCTW của Ban Tổ chức Trung ương"
+    - "Dự thảo Quy định về đánh giá cán bộ theo kết quả thực hiện nhiệm vụ, kèm Phụ lục 1 đến Phụ lục 6"
+  phe_duyet:
+    ky_so: []
+    nguoi_soan: null                 # chờ nghiệp vụ chỉ định
+    nguoi_duyet: null                # khác người soạn (BR-15-09)
+  ghi_chu_ban_nhap: "Bản nháp chờ cơ quan tổ chức xác nhận công thức, ngưỡng, tham số và căn cứ."
+
+# ---------------------------------------------------------------------------
+# Kiểu dữ liệu dùng trong inputs và ngữ cảnh tính (BR-15-01: mọi biến phải khai báo kiểu)
+# ---------------------------------------------------------------------------
+types:
+  NhiemVu:                           # một nhiệm vụ được tính điểm của hồ sơ (chỉ sản phẩm DA_XAC_NHAN, BR-09-02)
+    ma:                          {type: string, source: task.aggregate.scored_tasks.code}
+    nhom:                        {type: string, source: task.aggregate.scored_tasks.task_group, enum: [THUONG_XUYEN, THEN_CHOT]}
+    ke_hoach:                    {type: int,    source: task.aggregate.planned_count, min: 0}
+    so_luong_duyet:              {type: int,    source: task.aggregate.approved_count, min: 0}
+    muc_chat_luong:              {type: double, source: product.aggregate.quality_avg, enum_scale: [1, 0.75, 0.5, 0.25, 0]}
+    so_lan_chinh_sua:            {type: int,    source: product.aggregate.revision_count, min: 0}
+    ngay_lam_viec_cham_chu_quan: {type: int,    source: task.aggregate.late_workdays, min: 0}
+    ngay_lich_cham_chu_quan:     {type: int,    source: task.aggregate.late_calendar_days, min: 0}
+    diem_chuan:                  {type: double, source: task.aggregate.catalog_base_score, min: 0, max: 100}
+    khong_hoan_thanh_chu_quan:   {type: bool,   source: task.aggregate.key_missed_subjective}
+  KetQuaNhiemVu:                     # do engine dựng sau phạm vi nhiem_vu (suy luận)
+    ma: {type: string}
+    nhom: {type: string}
+    diem_chuan: {type: double}
+    kpi_nhiem_vu: {type: double}
+    vuot_muc_tieu: {type: bool}
+  Nhom:                              # một nhóm nhiệm vụ của tham số nhom
+    ma: {type: string}
+    diem_toi_da: {type: int}
+    nhom_nhiem_vu: {type: "list<string>"}
+  KetQuaNhomDauVao:                  # biến g của phạm vi nhom: engine gom kpi_nhiem_vu theo nhom_nhiem_vu (suy luận)
+    ma: {type: string}
+    diem_toi_da: {type: int}
+    ds_kpi: {type: "list<double>"}
+  KetQuaNhom:
+    ma: {type: string}
+    diem_toi_da: {type: int}
+    kpi_nhom: {type: double}
+    diem_nhom: {type: double}
+  KetQuaQuy:                         # đầu vào xếp loại năm
+    quy: {type: int, min: 1, max: 4}
+    diem: {type: double}
+    xep_loai: {type: string}         # HTXSNV|HTTNV|HTNV|KHTNV hoặc '' khi không xếp loại (trường hợp đặc thù)
+    co_xep_loai: {type: bool}
+
+# ---------------------------------------------------------------------------
+# Đầu vào cấp hồ sơ (scoring-service gọi đúng API tổng hợp, không đọc bảng của module khác)
+# ---------------------------------------------------------------------------
+inputs:
+  nhiem_vu:                        {type: "list<NhiemVu>", source: task.aggregate.scored_tasks}
+  ty_le_O:                         {type: double, source: okr.aggregate.objective_ratio, min: 0, max: 1}
+  ty_le_dap_ung_tieu_chi_chung:    {type: double, source: appraisal.aggregate.general_criteria_ratio, min: 0, max: 1}
+  giai_phap_dot_pha_da_kiem_chung: {type: bool,   source: appraisal.aggregate.breakthrough_verified}
+  loai_tru:                        {type: bool,   source: appraisal.aggregate.exclusion_flag}
+  la_nguoi_dung_dau:               {type: bool,   source: org.aggregate.is_unit_head}
+  tap_the_dat_05_chi_tieu:         {type: bool,   source: appraisal.aggregate.collective_targets_met}
+  tap_the_dat_tat_ca_O:            {type: bool,   source: okr.aggregate.collective_objectives_met}
+  ty_le_don_vi_khtnv:              {type: double, source: appraisal.aggregate.subordinate_khtnv_ratio, min: 0, max: 1}
+  giu_chuc_vu:                     {type: bool,   source: org.aggregate.holds_position}
+  xep_loai_nha_nuoc:               {type: string, source: appraisal.aggregate.state_flow_rating}  # '' khi không có hồ sơ luồng Nhà nước
+
+# Biến do engine dựng giữa các phạm vi (không đến từ API tổng hợp), khai báo để kiểm kiểu (suy luận)
+ngu_canh:
+  nv:                 {type: NhiemVu,               pham_vi: nhiem_vu, mo_ta: "Phần tử đang tính của inputs.nhiem_vu"}
+  g:                  {type: KetQuaNhomDauVao,      pham_vi: nhom,     mo_ta: "Nhóm đang tính, ds_kpi gom từ kết quả phạm vi nhiem_vu"}
+  ket_qua_nhiem_vu:   {type: "list<KetQuaNhiemVu>", pham_vi: [ho_so, xep_loai]}
+  ket_qua_nhom:       {type: "list<KetQuaNhom>",    pham_vi: [ho_so, xep_loai]}
+  muc_tieu_chi_chung: {type: string, pham_vi: [xep_loai], nguon: "dmn tieu_chi_chung"}
+  muc_ket_qua_nhiem_vu: {type: string, pham_vi: [xep_loai], nguon: "dmn xep_loai"}
+
+# ---------------------------------------------------------------------------
+# Tham số (params_json). Khoá có dấu chấm được dựng thành map lồng khi nạp CEL: tham_so.nam.cach_tinh
+# overridable: tenant kế thừa được điều chỉnh (BR-15-13); chỉ được siết, không nới (TL-01 "Hiệu lực theo kỳ")
+# ---------------------------------------------------------------------------
+params:
+  # --- công thức (DL-01) ---
+  tru_tien_do:            {type: double, mac_dinh: 0.05, mien: {min: 0.00, max: 0.20}, chu_so: 2, overridable: false, legal_ref: "PL 3 mục 3; BR-09-01"}
+  loai_ngay:              {type: string, mac_dinh: NGAY_LAM_VIEC, mien: {enum: [NGAY_LAM_VIEC, NGAY_LICH]}, overridable: false, legal_ref: "PL 3; PL A4; BR-15-03"}
+  cach_tinh_chat_luong:   {type: string, mac_dinh: NAM_MUC_PL3, mien: {enum: [NAM_MUC_PL3, TRU_25_MOI_LAN]}, overridable: false, legal_ref: "PL 3 mục 2; PL A4; BR-15-02"}
+  tru_moi_lan_chinh_sua:  {type: double, mac_dinh: 0.25, mien: {min: 0.00, max: 1.00}, overridable: false, legal_ref: "Bảng chấm điểm; BR-15-02"}
+  ly_do_tra_lai:          {type: string, mac_dinh: CHI_LY_DO_COT_LOI, mien: {enum: [CHI_LY_DO_COT_LOI]}, overridable: false, legal_ref: "SCR-1501 trường 7", ghi_chu: "Ba lựa chọn của SCR-1501 chưa được TL đặt tên; chỉ khai giá trị mặc định (suy luận khoá)"}
+  lam_tron:               {type: map, mac_dinh: {digits: 1, mode: NUA_LEN}, overridable: false, legal_ref: "BR-09-03; SCR-1501"}
+  nhom:
+    type: "list<Nhom>"
+    mac_dinh:
+      - {ma: THUONG_XUYEN, diem_toi_da: 30, nhom_nhiem_vu: [THUONG_XUYEN]}
+      - {ma: THEN_CHOT,    diem_toi_da: 70, nhom_nhiem_vu: [THEN_CHOT]}
+    rang_buoc: {tong_diem_toi_da: 100}      # BR-15-05, MSG-15-02
+    overridable: true
+    legal_ref: "PL A3; BR-09-03; BR-15-05"
+  # --- xếp loại (DL-02) ---
+  htxs.nguong_ty_le_vuot: {type: double, mac_dinh: 0.30, mien: {min: 0.00, max: 1.00}, overridable: true, legal_ref: "QĐ Điều 11; PL A4; BR-15-04"}
+  htxs.phep_so_sanh:      {type: string, mac_dinh: TOI_THIEU, mien: {enum: [TOI_THIEU, LON_HON]}, overridable: false, legal_ref: "PL A4; BR-15-04", ghi_chu: "TOI_THIEU là >=, LON_HON là > (suy luận cách hiểu 'tối thiểu hay đúng')"}
+  htxs.cach_dem_vuot:     {type: string, mac_dinh: THEO_SO_NHIEM_VU, mien: {enum: [THEO_SO_NHIEM_VU, THEO_DIEM]}, overridable: false, legal_ref: "PL A4; BR-09-07; BR-15-04"}
+  nguoi_dung_dau.nguong_ty_le_don_vi_khtnv: {type: double, mac_dinh: 0.50, mien: {min: 0.00, max: 1.00}, overridable: false, legal_ref: "QĐ khoản 14.3.3; BR-09-13"}
+  phan_bo.toi_da_htxsnv:  {type: double, mac_dinh: 0.20, mien: {min: 0.00, max: 1.00}, overridable: true, legal_ref: "Dự thảo về tỷ lệ xuất sắc; BR-09-17"}
+  nam.cach_tinh:          {type: string, mac_dinh: TRUNG_BINH_QUY, mien: {enum: [TRUNG_BINH_QUY, TRUNG_BINH_CO_TRONG_SO, TOAN_BO_NHIEM_VU_NAM]}, overridable: false, legal_ref: "PL A4; BR-10-02"}
+  nam.trong_so_quy:       {type: "list<double>", mac_dinh: [1.0, 1.0, 1.0, 1.0], overridable: false, legal_ref: "BR-10-02", ghi_chu: "Chỉ dùng khi nam.cach_tinh = TRUNG_BINH_CO_TRONG_SO; giá trị chờ nghiệp vụ (suy luận)"}
+  phan_nhom.mo_o_ky_quy:  {type: bool, mac_dinh: false, overridable: false, legal_ref: "QĐ khoản 12.1.5; PL A4; BR-10-07"}
+  tham_dinh.so_lan_tra_lai_toi_da: {type: int, mac_dinh: 2, mien: {min: 0, max: 5}, overridable: true, legal_ref: "QT-09 trạng thái hồ sơ"}
+  # --- vận hành, luồng duyệt (DL-04); nguồn _ghi-chu-TL-02a mục 5, _ghi-chu-TL-02b ---
+  plan_approval_deadline_rule:
+    type: string
+    mac_dinh: NGAY_LAM_VIEC_CUOI_TUAN_LICH_THU_2
+    mien: {enum: [NGAY_LAM_VIEC_CUOI_TUAN_LICH_THU_2]}
+    mo_ta: "Hạn duyệt kế hoạch là ngày làm việc cuối cùng của tuần lịch thứ hai; tuần thứ nhất là tuần lịch chứa ngày đầu của tháng đầu quý."
+    vi_du: {"2026-Q4": "2026-10-09", "2027-Q1": "2027-01-08"}
+    overridable: false
+    legal_ref: "TL-02a QT-04; PL 1 (chờ đối chiếu)"
+  plan_max_adjustments_per_quarter: {type: int, mac_dinh: 2, mien: {min: 0, max: 6}, overridable: true, legal_ref: "QT-04 bước 9"}
+  extension_max_per_task_quarter:   {type: int, mac_dinh: 2, mien: {min: 0, max: 6}, overridable: true, legal_ref: "BR-06-06"}
+  extension_escalation_days:        {type: int, mac_dinh: 10, mien: {min: 1, max: 30}, don_vi: NGAY_LAM_VIEC, overridable: true, legal_ref: "BR-06-06"}
+  acceptance_sla_days:              {type: int, mac_dinh: 5, mien: {min: 1, max: 15}, don_vi: NGAY_LAM_VIEC, overridable: true, legal_ref: "BR-07-12"}
+  kr_risk_low_streak:               {type: int, mac_dinh: 2, mien: {min: 1, max: 6}, overridable: true, legal_ref: "QT-03"}
+  similarity_threshold:             {type: double, mac_dinh: 0.7, mien: {min: 0.5, max: 0.95}, overridable: false, legal_ref: "BR-05-06"}
+  mfa_stepup_window_minutes:        {type: int, mac_dinh: 15, mien: {min: 1, max: 15}, overridable: false, legal_ref: "BR-07-11; BR-00-02"}
+  khieu_nai.thoi_han:               {type: int, mac_dinh: 10, mien: {min: 1, max: 30}, don_vi: NGAY_LAM_VIEC, overridable: false, legal_ref: "QĐ khoản 16.1; BR-12-01"}
+  kiem_diem.cach_dem_ngay:          {type: string, mac_dinh: NGAY_LAM_VIEC, mien: {enum: [NGAY_LAM_VIEC, NGAY_LICH]}, overridable: false, legal_ref: "QĐ Điều 6, Điều 7; BR-11-01", ghi_chu: "Giá trị mặc định suy luận từ BR-11-01 (03 ngày làm việc)"}
+  kiem_diem.so_ngay_gui_du_thao:    {type: int, mac_dinh: 3, mien: {min: 1, max: 15}, overridable: false, legal_ref: "QĐ Điều 6, Điều 7; BR-11-01"}
+  difficulty_coefficients:
+    type: "map<int,double>"
+    mac_dinh: {4: 1.2}
+    gia_dinh: true                  # GIẢ ĐỊNH, chờ cơ quan tổ chức xác nhận (_ghi-chu-TL-02a mục 5)
+    mo_ta: "Hệ số mức khó chỉ dùng gợi ý điểm chuẩn khi xây danh mục; không dùng trong công thức tính điểm."
+    overridable: false
+    legal_ref: "TL-02a QT-04"
+
+# ---------------------------------------------------------------------------
+# Biểu thức CEL (policy.policy_rule). Chỉ dùng math, lists, sum, ngay_lam_viec, min_muc của vt-cel;
+# không dùng hàm phụ thuộc thời gian hay ngẫu nhiên. Biến tham_so là map params ở trên.
+# Thứ tự phạm vi: nhiem_vu -> nhom -> ho_so -> (DMN tieu_chi_chung, xep_loai) -> xep_loai -> (hạn mức theo lô)
+# ---------------------------------------------------------------------------
+definitions:
+  nhiem_vu:                          # đánh giá cho từng phần tử nv của inputs.nhiem_vu
+    kpi_A:
+      expression: "nv.ke_hoach == 0 ? 1.0 : math.least(double(nv.so_luong_duyet) / double(nv.ke_hoach), 1.0)"
+      result_type: DECIMAL
+      legal_ref: "PL 3 mục 1; BR-09-01; BR-09-04"
+      eval_order: 10
+      overridable: false
+    kpi_B:
+      expression: "tham_so.cach_tinh_chat_luong == 'TRU_25_MOI_LAN' ? math.greatest(0.0, 1.0 - tham_so.tru_moi_lan_chinh_sua * double(nv.so_lan_chinh_sua)) : nv.muc_chat_luong"
+      result_type: DECIMAL
+      legal_ref: "PL 3 mục 2; BR-09-01; BR-15-02"
+      eval_order: 20
+      overridable: false
+    ngay_cham:
+      expression: "tham_so.loai_ngay == 'NGAY_LICH' ? nv.ngay_lich_cham_chu_quan : nv.ngay_lam_viec_cham_chu_quan"
+      result_type: DECIMAL
+      legal_ref: "PL 3 mục 3; BR-15-03; BR-06-04; BR-06-10"
+      eval_order: 30
+      overridable: false
+    kpi_C:
+      expression: "math.greatest(0.0, 1.0 - tham_so.tru_tien_do * double(ngay_cham))"
+      result_type: DECIMAL
+      legal_ref: "PL 3 mục 3; BR-09-01; BR-06-01"
+      eval_order: 40
+      overridable: false
+    kpi_nhiem_vu:
+      expression: "(kpi_A + kpi_B + kpi_C) / 3.0"
+      result_type: DECIMAL
+      legal_ref: "PL 3; BR-09-01"
+      eval_order: 50
+      overridable: false
+    vuot_muc_tieu:
+      expression: "nv.ke_hoach > 0 && nv.so_luong_duyet > nv.ke_hoach"
+      result_type: BOOLEAN
+      legal_ref: "PL A3; BR-09-04"
+      eval_order: 60
+      overridable: false
+  nhom:                              # đánh giá cho từng nhóm g (theo tham_so.nhom)
+    kpi_nhom:
+      expression: "g.ds_kpi.size() == 0 ? 0.0 : sum(g.ds_kpi) / double(g.ds_kpi.size())"
+      result_type: DECIMAL
+      legal_ref: "PL A3; BR-09-03"
+      eval_order: 70
+      overridable: false
+    diem_nhom:
+      expression: "kpi_nhom * double(g.diem_toi_da)"
+      result_type: DECIMAL
+      legal_ref: "PL A3; Bảng chấm điểm; BR-09-03"
+      eval_order: 80
+      overridable: false
+  ho_so:
+    diem_ket_qua:
+      expression: "sum(ket_qua_nhom.map(k, k.diem_nhom))"
+      result_type: DECIMAL
+      legal_ref: "PL A3; BR-09-03"
+      eval_order: 90
+      overridable: false
+    diem:
+      expression: "diem_ket_qua"
+      result_type: DECIMAL
+      rounding: {digits: 1, mode: NUA_LEN}       # BR-09-03; làm tròn trước khi vào DMN
+      legal_ref: "BR-09-03"
+      eval_order: 100
+      overridable: false
+    ty_le_vuot:
+      expression: >-
+        ket_qua_nhiem_vu.size() == 0 ? 0.0 :
+        (tham_so.htxs.cach_dem_vuot == 'THEO_DIEM'
+          ? (sum(ket_qua_nhiem_vu.map(k, k.diem_chuan)) == 0.0 ? 0.0
+             : sum(ket_qua_nhiem_vu.filter(k, k.vuot_muc_tieu).map(k, k.diem_chuan)) / sum(ket_qua_nhiem_vu.map(k, k.diem_chuan)))
+          : double(ket_qua_nhiem_vu.filter(k, k.vuot_muc_tieu).size()) / double(ket_qua_nhiem_vu.size()))
+      result_type: DECIMAL
+      rounding: {digits: 4, mode: NUA_LEN}
+      legal_ref: "PL A3; PL A4; BR-09-04; BR-15-04"
+      eval_order: 110
+      overridable: false
+    dat_ty_le_vuot:
+      expression: "tham_so.htxs.phep_so_sanh == 'LON_HON' ? ty_le_vuot > tham_so.htxs.nguong_ty_le_vuot : ty_le_vuot >= tham_so.htxs.nguong_ty_le_vuot"
+      result_type: BOOLEAN
+      legal_ref: "QĐ Điều 11; BR-09-07; BR-15-04"
+      eval_order: 120
+      overridable: false
+    truot_then_chot_chu_quan:
+      expression: "nhiem_vu.exists(n, n.nhom == 'THEN_CHOT' && n.khong_hoan_thanh_chu_quan)"
+      result_type: BOOLEAN
+      legal_ref: "QĐ Điều 11; BR-09-08"
+      eval_order: 130
+      overridable: false
+  xep_loai:                          # sau khi chạy dmn/tieu-chi-chung.dmn và dmn/xep-loai-dang.dmn
+    muc_tu_tieu_chi_chung:
+      expression: "{'THUC_HIEN_TOT': 'HTXSNV', 'DAM_BAO': 'HTTNV', 'CO_BAN_DAM_BAO': 'HTNV', 'KHONG_DAM_BAO': 'KHTNV'}[muc_tieu_chi_chung]"
+      result_type: STRING
+      legal_ref: "QĐ Điều 10, Điều 11; BR-09-05; BR-09-06"
+      eval_order: 200
+      overridable: false
+    nguoi_dung_dau:
+      expression: "la_nguoi_dung_dau && (!tap_the_dat_05_chi_tieu || !tap_the_dat_tat_ca_O || ty_le_don_vi_khtnv > tham_so.nguoi_dung_dau.nguong_ty_le_don_vi_khtnv)"
+      result_type: BOOLEAN
+      legal_ref: "QĐ khoản 14.3.3; BR-09-13"
+      eval_order: 210
+      overridable: false
+    muc_cuoi:
+      expression: >-
+        nguoi_dung_dau ? 'KHTNV' :
+        (giu_chuc_vu && xep_loai_nha_nuoc != ''
+          ? min_muc(min_muc(muc_ket_qua_nhiem_vu, muc_tu_tieu_chi_chung), xep_loai_nha_nuoc)
+          : min_muc(muc_ket_qua_nhiem_vu, muc_tu_tieu_chi_chung))
+      result_type: STRING
+      legal_ref: "QĐ Điều 11; PL 6 §12; khoản 14.3.3; BR-09-06; BR-09-13"
+      eval_order: 220
+      overridable: false
+
+rounding:
+  diem: {digits: 1, mode: NUA_LEN}   # TL-02b BR-09-03, SCR-1501 (TL-01 ví dụ ghi scale 2, HALF_UP: xem CHANGELOG)
+
+# ---------------------------------------------------------------------------
+# Xếp loại (DL-02)
+# ---------------------------------------------------------------------------
+classification:
+  thu_tu: [HTXSNV, HTTNV, HTNV, KHTNV]
+  thieu_dieu_kien: muc_lien_ke
+  bang_quyet_dinh:                   # mỗi tệp là một dòng policy.decision_table (table_key)
+    - {table_key: tieu_chi_chung, dmn: dmn/tieu-chi-chung.dmn, hit_policy: FIRST, legal_ref: "QĐ Điều 10; PL A3; BR-09-05"}
+    - {table_key: xep_loai,       dmn: dmn/xep-loai-dang.dmn,  hit_policy: FIRST, legal_ref: "QĐ Điều 11; PL 6 §12; BR-09-07..BR-09-10"}
+    - {table_key: xep_loai_nam,   dmn: dmn/xep-loai-nam-dang.dmn, hit_policy: FIRST, legal_ref: "QĐ khoản 15.5; Điều 11; BR-10-03; BR-10-05"}
+  # Đầu vào DMN là biến đã tính ở phạm vi ho_so (và nam); ngưỡng tỷ lệ vượt áp ở CEL dat_ty_le_vuot
+  # để giữ được hai cách so sánh của BR-15-04. Ngưỡng điểm 90/80/60 viết trực tiếp trong DMN.
+  muc_cuoi: muc_cuoi                 # rule_key CEL áp sau DMN (SCR-1502 vùng 3)
+  nguoi_dung_dau: nguoi_dung_dau     # rule_key CEL (SCR-1502 vùng 4; BR-09-13)
+  nhan_hien_thi:
+    muc_xep_loai:
+      HTXSNV: Hoàn thành xuất sắc nhiệm vụ
+      HTTNV: Hoàn thành tốt nhiệm vụ
+      HTNV: Hoàn thành nhiệm vụ
+      KHTNV: Không hoàn thành nhiệm vụ
+    muc_tieu_chi_chung:
+      THUC_HIEN_TOT: Thực hiện tốt
+      DAM_BAO: Đảm bảo
+      CO_BAN_DAM_BAO: Cơ bản đảm bảo
+      KHONG_DAM_BAO: Không đảm bảo
+  dieu_kien:                         # nhãn điều kiện dùng ghép {dieu_kien_thieu} trong mẫu câu giải thích
+    diem_toi_thieu:       {nhan: "điểm kết quả thực hiện nhiệm vụ", legal_ref: "QĐ Điều 11"}
+    ty_le_O:              {nhan: "hoàn thành toàn bộ mục tiêu", legal_ref: "QĐ Điều 11"}
+    dat_ty_le_vuot:       {nhan: "tỷ lệ nhiệm vụ vượt mục tiêu tối thiểu {nguong}", legal_ref: "QĐ Điều 11; PL A4"}
+    giai_phap_dot_pha:    {nhan: "có giải pháp đột phá được kiểm chứng", legal_ref: "QĐ Điều 11"}
+    muc_tieu_chi_chung:   {nhan: "mức đánh giá tiêu chí chung", legal_ref: "QĐ Điều 10, Điều 11"}
+    truot_then_chot:      {nhan: "không có nhiệm vụ then chốt chưa hoàn thành do nguyên nhân chủ quan", legal_ref: "QĐ Điều 11"}
+    quy_khtnv:            {nhan: "không có quý xếp loại Không hoàn thành nhiệm vụ", legal_ref: "QĐ khoản 15.5"}
+  mau_cau:                           # explanation_templates_json; biến hợp lệ: muc_tren, muc, diem, nguong, dieu_kien_thieu, gia_tri, dieu_khoan, phien_ban, cac_quy
+    ha_muc: "Đủ điểm mức {muc_tren} ({diem} ≥ {nguong}) nhưng chưa đạt điều kiện {dieu_kien_thieu} (thực tế {gia_tri}, theo {dieu_khoan}), nên chuyển xuống mức liền kề. Bộ quy định đánh giá {phien_ban}."
+    nguoi_dung_dau: "Người đứng đầu xếp loại Không hoàn thành nhiệm vụ do {dieu_kien_thieu} (thực tế {gia_tri}), theo {dieu_khoan}. Bộ quy định đánh giá {phien_ban}."
+    gioi_han_luong_nha_nuoc: "Mức xếp loại đảng viên không cao hơn mức xếp loại công chức là {gia_tri} đối với người giữ chức vụ. Bộ quy định đánh giá {phien_ban}."
+  nam:
+    cach_tinh: nam.cach_tinh
+    dieu_kien_lap: "Đủ bốn quý đã quyết định hoặc có trường hợp đặc thù (BR-10-01)"
+    khong_tinh_lai_quy: true         # BR-10-06: giữ phiên bản gói của từng quý
+
+# Định nghĩa CEL cho xếp loại năm (phạm vi nam; đầu vào riêng của hồ sơ năm)
+inputs_nam:
+  ket_qua_quy:            {type: "list<KetQuaQuy>", source: appraisal.aggregate.quarter_results}
+  diem_toan_bo_nhiem_vu_nam: {type: double, source: appraisal.aggregate.annual_task_score}
+  ty_le_O_nam:            {type: double, source: okr.aggregate.annual_objective_ratio}
+  ty_le_vuot_nam:         {type: double, source: task.aggregate.annual_over_target_ratio}
+  giai_phap_dot_pha_da_kiem_chung: {type: bool, source: appraisal.aggregate.breakthrough_verified}
+  ty_le_dap_ung_tieu_chi_chung:   {type: double, source: appraisal.aggregate.general_criteria_ratio}
+  loai_tru:               {type: bool, source: appraisal.aggregate.exclusion_flag}
+  truot_then_chot_chu_quan_nam: {type: bool, source: task.aggregate.annual_key_missed_subjective}
+  khong_xet_htxsnv_nam:  {type: bool, source: dossier.special_case.no_annual_excellent}   # trường hợp đặc thù mục 6
+definitions_nam:
+  nam:
+    diem_nam:
+      expression: >-
+        tham_so.nam.cach_tinh == 'TOAN_BO_NHIEM_VU_NAM' ? diem_toan_bo_nhiem_vu_nam :
+        (ket_qua_quy.filter(q, q.co_xep_loai).size() == 0 ? 0.0 :
+          (tham_so.nam.cach_tinh == 'TRUNG_BINH_CO_TRONG_SO'
+            ? sum(ket_qua_quy.filter(q, q.co_xep_loai).map(q, q.diem * tham_so.nam.trong_so_quy[q.quy - 1]))
+              / sum(ket_qua_quy.filter(q, q.co_xep_loai).map(q, tham_so.nam.trong_so_quy[q.quy - 1]))
+            : sum(ket_qua_quy.filter(q, q.co_xep_loai).map(q, q.diem)) / double(ket_qua_quy.filter(q, q.co_xep_loai).size())))
+      result_type: DECIMAL
+      rounding: {digits: 1, mode: NUA_LEN}
+      legal_ref: "PL A4; BR-10-02; PL 6 §4"
+      eval_order: 300
+      overridable: false
+    so_quy_khtnv:
+      expression: "ket_qua_quy.filter(q, q.xep_loai == 'KHTNV').size()"
+      result_type: DECIMAL
+      legal_ref: "QĐ khoản 15.5; BR-10-03"
+      eval_order: 310
+      overridable: false
+    dat_ty_le_vuot_nam:
+      expression: "tham_so.htxs.phep_so_sanh == 'LON_HON' ? ty_le_vuot_nam > tham_so.htxs.nguong_ty_le_vuot : ty_le_vuot_nam >= tham_so.htxs.nguong_ty_le_vuot"
+      result_type: BOOLEAN
+      legal_ref: "QĐ Điều 11; BR-10-05"
+      eval_order: 320
+      overridable: false
+    co_bo_tri_lai:
+      expression: "[1, 2, 3].exists(i, ket_qua_quy.exists(a, a.quy == i && a.xep_loai == 'KHTNV') && ket_qua_quy.exists(b, b.quy == i + 1 && b.xep_loai == 'KHTNV'))"
+      result_type: BOOLEAN
+      legal_ref: "QĐ khoản 15.6; BR-10-04"
+      eval_order: 330
+      overridable: false
+
+# ---------------------------------------------------------------------------
+# Phân nhóm triển vọng (BR-10-07..BR-10-09); getProspectCriteria trả phần này
+# ---------------------------------------------------------------------------
+phan_nhom:
+  mo_o_ky_quy: phan_nhom.mo_o_ky_quy
+  legal_ref: "QĐ khoản 12.1.5; PL 5"
+  nhom:
+    - {groupCode: NHOM_1, name: "Phát triển vượt trội", criteria: "Cán bộ có kết quả và năng lực phát triển vượt trội theo tiêu chí của Phụ lục 5.", excludedRatingLevels: [KHTNV], excludeReassignmentFlag: true}
+    - {groupCode: NHOM_2, name: "Có triển vọng", criteria: "Cán bộ có triển vọng phát triển theo tiêu chí của Phụ lục 5.", excludedRatingLevels: [KHTNV], excludeReassignmentFlag: true}
+    - {groupCode: NHOM_3, name: "Cần bồi dưỡng thêm", criteria: "Cán bộ cần được bồi dưỡng thêm theo tiêu chí của Phụ lục 5.", excludedRatingLevels: [], excludeReassignmentFlag: false}
+    - {groupCode: NHOM_4, name: "Cần xem xét bố trí", criteria: "Cán bộ cần được xem xét bố trí công tác theo tiêu chí của Phụ lục 5.", excludedRatingLevels: [], excludeReassignmentFlag: false}
+  inputs:
+    nhom_chon:     {type: string, source: appraisal.prospect_group.group_code}
+    xep_loai_nam:  {type: string, source: appraisal.annual_rating.system_level}
+    co_bo_tri_lai: {type: bool,   source: appraisal.annual_rating.reassign_flag}
+  definitions:
+    phan_nhom_hop_le:
+      expression: "!(nhom_chon in ['NHOM_1', 'NHOM_2'] && (xep_loai_nam == 'KHTNV' || co_bo_tri_lai))"
+      result_type: BOOLEAN
+      legal_ref: "PL 5; BR-10-09"
+      eval_order: 400
+      overridable: false
+
+# Hạn mức: chỉ đánh dấu vượt để cấp có thẩm quyền quyết định, không tự hạ mức (TL-01; BR-09-17)
+quotas:
+  HTXSNV:
+    ty_le_toi_da: 0.20               # = tham_so phan_bo.toi_da_htxsnv
+    tham_so: phan_bo.toi_da_htxsnv
+    pham_vi: DON_VI_CAP_TREN
+    hanh_dong: DANH_DAU_VUOT         # không tự hạ mức
+    legal_ref: "Dự thảo về tỷ lệ xuất sắc; PL 4 V.6; BR-09-17"
+
+exemptions:
+  - ma: KHACH_QUAN_THIEN_TAI
+    tac_dong: loai_khoi_mau_so
+    can_phe_duyet: CAP_TREN_TRUC_TIEP
+
+# ---------------------------------------------------------------------------
+# 13 trường hợp đặc thù (BR-11-05). Khoá ma do agent đặt (suy luận), <= 32 ký tự (dossier.special_case.case_code);
+# hieu_ung theo CHECK dossier.special_case.effect của TL-03.
+# ---------------------------------------------------------------------------
+truong_hop_dac_thu:
+  - ma: DIEU_DONG_DUOI_2_THANG
+    muc: 1
+    mo_ta: "Cán bộ được điều động, luân chuyển trong kỳ với thời gian dưới 2 tháng."
+    cach_xu_ly: "Đơn vị cũ đánh giá, đơn vị mới cho ý kiến."
+    hieu_ung: XEP_LOAI_TAI_DON_VI_CU
+    tham_so: {nguong_thang: 2, don_vi_danh_gia: DON_VI_CU, don_vi_cho_y_kien: DON_VI_MOI}
+    legal_ref: "PL 6 §1"
+  - ma: DIEU_DONG_TU_2_THANG
+    muc: 2
+    mo_ta: "Cán bộ được điều động, luân chuyển trong kỳ với thời gian từ 2 tháng trở lên."
+    cach_xu_ly: "Đơn vị mới đánh giá; đơn vị cũ cung cấp kết quả phần thời gian công tác trước khi điều động."
+    hieu_ung: XEP_LOAI_BINH_THUONG
+    tham_so: {nguong_thang: 2, don_vi_danh_gia: DON_VI_MOI, don_vi_cung_cap_ket_qua: DON_VI_CU}
+    legal_ref: "PL 6 §2"
+  - ma: KIEM_NHIEM
+    muc: 3
+    mo_ta: "Cán bộ kiêm nhiệm nhiều chức vụ."
+    cach_xu_ly: "Đánh giá tại nơi giữ chức vụ chính; nơi kiêm nhiệm cho ý kiến."
+    hieu_ung: XEP_LOAI_BINH_THUONG
+    tham_so: {noi_danh_gia: CHUC_VU_CHINH, noi_cho_y_kien: NOI_KIEM_NHIEM}
+    legal_ref: "PL 6 §3"
+  - ma: NGHI_DAI_NGAY
+    muc: 4
+    mo_ta: "Cán bộ nghỉ thai sản hoặc ốm đau dài ngày trên một nửa thời gian của kỳ."
+    cach_xu_ly: "Không xếp loại kỳ quý và ghi chú trên Mẫu 2; quý này không tính vào điểm năm và không bị coi là không hoàn thành nhiệm vụ."
+    hieu_ung: KHONG_XEP_LOAI
+    tham_so: {ty_le_thoi_gian_toi_thieu: 0.5, ap_dung_ky: QUY, tinh_vao_nam: false}
+    legal_ref: "PL 6 §4; QT-10"
+  - ma: DI_HOC_BIET_PHAI
+    muc: 5
+    mo_ta: "Cán bộ đi học hoặc biệt phái dài hạn."
+    cach_xu_ly: "Cơ sở đào tạo hoặc nơi biệt phái cung cấp nhận xét; đơn vị quản lý xếp loại."
+    hieu_ung: XEP_LOAI_BINH_THUONG
+    tham_so: {noi_nhan_xet: CO_SO_DAO_TAO_HOAC_NOI_BIET_PHAI, noi_xep_loai: DON_VI_QUAN_LY}
+    legal_ref: "PL 6 §5"
+  - ma: MOI_TUYEN_DUNG_BO_NHIEM
+    muc: 6
+    mo_ta: "Cán bộ mới tuyển dụng hoặc mới bổ nhiệm dưới 6 tháng."
+    cach_xu_ly: "Đánh giá theo thời gian công tác thực tế; không xét mức Hoàn thành xuất sắc nhiệm vụ năm."
+    hieu_ung: XEP_LOAI_BINH_THUONG
+    tham_so: {nguong_thang: 6, khong_xet_htxsnv_nam: true}
+    legal_ref: "PL 6 §6"
+  - ma: DANG_XEM_XET_XAC_MINH
+    muc: 7
+    mo_ta: "Cán bộ đang bị xem xét, xác minh hoặc kiểm tra."
+    cach_xu_ly: "Tạm treo việc quyết định xếp loại cho đến khi có kết luận."
+    hieu_ung: CHO_KET_LUAN
+    tham_so: {tam_treo_buoc: QUYET_DINH}
+    legal_ref: "PL 6 §7"
+  - ma: BI_KY_LUAT
+    muc: 8
+    mo_ta: "Cán bộ đã bị kỷ luật trong kỳ."
+    cach_xu_ly: "Áp dụng điều kiện loại trừ tương ứng với hình thức kỷ luật."
+    hieu_ung: XEP_LOAI_BINH_THUONG
+    tham_so: {dat_co_loai_tru: true, bang_hinh_thuc_ky_luat: null}   # bảng hình thức kỷ luật -> mức chờ nghiệp vụ
+    legal_ref: "PL 6 §8; khoản 11.2.4"
+  - ma: DON_VI_TO_CHUC_LAI
+    muc: 9
+    mo_ta: "Đơn vị mới thành lập, sáp nhập hoặc chia tách trong kỳ."
+    cach_xu_ly: "Dùng cơ cấu tổ chức theo ngày hiệu lực; cấp trên trực tiếp đánh giá."
+    hieu_ung: XEP_LOAI_BINH_THUONG
+    tham_so: {co_cau_theo: NGAY_HIEU_LUC, noi_danh_gia: CAP_TREN_TRUC_TIEP}
+    legal_ref: "PL 6 §9"
+  - ma: NGHI_HUU_THOI_VIEC
+    muc: 10
+    mo_ta: "Cán bộ nghỉ hưu hoặc thôi việc trong kỳ."
+    cach_xu_ly: "Đánh giá đến thời điểm nghỉ nếu đủ thời gian công tác tối thiểu."
+    hieu_ung: XEP_LOAI_BINH_THUONG
+    hieu_ung_khi_khong_du: KHONG_XEP_LOAI
+    tham_so: {thoi_gian_toi_thieu_thang: null}   # chưa có trong TL, chờ nghiệp vụ
+    legal_ref: "PL 6 §10"
+  - ma: DANG_VIEN_NGOAI_HTCT
+    muc: 11
+    mo_ta: "Đảng viên công tác ngoài hệ thống chính trị (Mẫu 1D)."
+    cach_xu_ly: "Áp dụng bộ tiêu chí riêng theo Phụ lục 2E."
+    hieu_ung: XEP_LOAI_BINH_THUONG
+    tham_so: {bo_tieu_chi: PL_2E, mau_bieu: mau-1d}
+    legal_ref: "PL 6 §11; PL 2E"
+  - ma: KHONG_DU_DIEU_KIEN_MUC_DE_XUAT
+    muc: 12
+    mo_ta: "Cán bộ không đủ điều kiện của mức xếp loại đề xuất."
+    cach_xu_ly: "Chuyển xuống mức liền kề và hệ thống sinh câu giải thích nêu điều kiện còn thiếu."
+    hieu_ung: XEP_LOAI_BINH_THUONG
+    tham_so: {xu_ly_boi: classification.thieu_dieu_kien}
+    legal_ref: "PL 6 §12; BR-09-10"
+  - ma: NGUOI_DUNG_DAU_DON_VI_KHTNV
+    muc: 13
+    mo_ta: "Người đứng đầu có trên một nửa số đơn vị phụ trách xếp loại Không hoàn thành nhiệm vụ."
+    cach_xu_ly: "Áp dụng quy định về trách nhiệm của người đứng đầu; hồ sơ chỉ được quyết định sau khi các đơn vị trực thuộc đã có mức."
+    hieu_ung: XEP_LOAI_BINH_THUONG
+    tham_so: {nguong_ty_le: 0.5, quy_tac: nguoi_dung_dau}
+    legal_ref: "PL 6 §13; QĐ khoản 14.3.3; BR-09-13"
+
+# ---------------------------------------------------------------------------
+# Vòng đời nhiệm vụ (DL-04, ADR-04) và luồng duyệt
+# ---------------------------------------------------------------------------
+task_lifecycle:
+  tep: task_lifecycle.yaml
+workflow_bindings:
+  thu_muc: workflow-bindings/
+
+tests:
+  bo_ca_mau: null                    # DL-03 bổ sung bộ ca vàng vào tests/
+  nguoi_ky: "Ban Tổ chức"
+  yeu_cau_dat: 1.0
+templates:
+  thu_muc: templates/                # DL-05

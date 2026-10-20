@@ -1,0 +1,216 @@
+{
+  "$schema_note": "Khung kê khai trường mẫu biểu; xem data/seed/docgen/README.md.",
+  "form_code": "MAU_3",
+  "ten_mau": "Mẫu 3",
+  "mo_ta": "Tổng hợp kết quả xếp loại của tập thể, gồm bốn mức tự đề xuất, thẩm định, đề xuất, quyết định.",
+  "trang_thai": "KHUNG_CHO_BAN_MAU",
+  "template_version": "0.1.0-khung",
+  "tep_mau": "mau-3.docx",
+  "ban_chinh_thuc": {
+    "so_hieu_van_ban": null,
+    "ngay_ban_hanh": null,
+    "co_quan_ban_hanh": null,
+    "ghi_chu": "Chờ người dùng cung cấp bản mẫu chính thức."
+  },
+  "doi_tuong": "DANH_SACH",
+  "luong": [
+    "DANG"
+  ],
+  "nhan_tieu_chi_chung": null,
+  "can_cu": [
+    "QT-09",
+    "QT-11",
+    "QT-12",
+    "BR-09-12",
+    "BR-11-02",
+    "BR-11-03",
+    "BR-11-07",
+    "BR-12-09"
+  ],
+  "truong": [
+    {
+      "tag": "ten_don_vi",
+      "nhan": "Đơn vị",
+      "kieu": "van_ban",
+      "nguon": "org_replica.org_unit_v.name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "ten_ky",
+      "nhan": "Kỳ đánh giá",
+      "kieu": "van_ban",
+      "nguon": "config.period.name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "dau_trang"
+    },
+    {
+      "tag": "danh_sach_xep_loai",
+      "nhan": "Danh sách xếp loại",
+      "kieu": "bang",
+      "nguon": "appraisal.rating_proposal",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "than",
+      "cot": [
+        {
+          "tag": "stt",
+          "nhan": "STT",
+          "kieu": "so",
+          "nguon": "suy_ra:thu_tu_dong",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "ho_ten",
+          "nhan": "Họ và tên",
+          "kieu": "van_ban",
+          "nguon": "org_replica.person_v.full_name",
+          "khoa_so_lieu": false,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "chuc_danh",
+          "nhan": "Chức vụ, chức danh",
+          "kieu": "van_ban",
+          "nguon": "org.job_title.name",
+          "khoa_so_lieu": false,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than"
+        },
+        {
+          "tag": "muc_tu_de_xuat",
+          "nhan": "Tự xếp loại",
+          "kieu": "nhan_muc",
+          "nguon": "appraisal.rating_proposal.rating_code",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": false,
+          "vung": "than",
+          "ghi_chu": "level_kind = TU_DE_XUAT; để trống khi không tự đánh giá."
+        },
+        {
+          "tag": "khong_tu_danh_gia",
+          "nhan": "Không tự đánh giá",
+          "kieu": "co",
+          "nguon": "suy_ra:khong_co_dong_tu_de_xuat",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": false,
+          "vung": "than",
+          "ghi_chu": "QT-09 ngoại lệ thứ ba: quá hạn không nộp thì ghi rõ trên Mẫu 3, hệ thống không tự điền mức."
+        },
+        {
+          "tag": "muc_tham_dinh",
+          "nhan": "Thẩm định",
+          "kieu": "nhan_muc",
+          "nguon": "appraisal.rating_proposal.rating_code",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": false,
+          "vung": "than",
+          "ghi_chu": "level_kind = THAM_DINH."
+        },
+        {
+          "tag": "muc_de_xuat",
+          "nhan": "Đề xuất",
+          "kieu": "nhan_muc",
+          "nguon": "appraisal.rating_proposal.rating_code",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": false,
+          "vung": "than",
+          "ghi_chu": "level_kind = DE_XUAT; bước có thể được bỏ qua theo tham số mẫu luồng."
+        },
+        {
+          "tag": "muc_quyet_dinh",
+          "nhan": "Quyết định",
+          "kieu": "nhan_muc",
+          "nguon": "appraisal.rating_proposal.rating_code",
+          "khoa_so_lieu": true,
+          "muc_du_lieu": "C1",
+          "bat_buoc": true,
+          "vung": "than",
+          "ghi_chu": "level_kind = QUYET_DINH."
+        },
+        {
+          "tag": "giai_trinh_khac_muc",
+          "nhan": "Giải trình khi khác mức bước trước",
+          "kieu": "van_ban_dai",
+          "nguon": "appraisal.rating_explanation.explanation_enc",
+          "khoa_so_lieu": false,
+          "muc_du_lieu": "C2",
+          "bat_buoc": false,
+          "vung": "than",
+          "ghi_chu": "explanation_type = KHAC_MUC_TRUOC (BR-09-12)."
+        },
+        {
+          "tag": "ket_qua_bieu_quyet",
+          "nhan": "Kết quả biểu quyết tại hội nghị",
+          "kieu": "van_ban",
+          "nguon": "dossier.review_meeting.vote_json",
+          "khoa_so_lieu": false,
+          "muc_du_lieu": "C1",
+          "bat_buoc": false,
+          "vung": "than",
+          "ghi_chu": "Chỉ ghi nhận, không thay mức quyết định (BR-11-07)."
+        },
+        {
+          "tag": "y_kien_bao_luu",
+          "nhan": "Ý kiến bảo lưu",
+          "kieu": "van_ban_dai",
+          "nguon": "oversight.complaint_response.response_enc",
+          "khoa_so_lieu": false,
+          "muc_du_lieu": "C2",
+          "bat_buoc": false,
+          "vung": "than",
+          "ghi_chu": "record_kind = BAO_LUU (BR-12-09)."
+        }
+      ]
+    },
+    {
+      "tag": "nguoi_ky",
+      "nhan": "Trưởng ban",
+      "kieu": "van_ban",
+      "nguon": "org_replica.person_v.full_name",
+      "khoa_so_lieu": false,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "ky",
+      "ghi_chu": "QT-11 bước 11: Trưởng ban ký Mẫu 3.",
+      "suy_luan": true
+    },
+    {
+      "tag": "tem_phien_ban_quy_tac",
+      "nhan": "Phiên bản bộ quy tắc",
+      "kieu": "van_ban",
+      "nguon": "appraisal.score_snapshot.policy_version",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "chan_trang",
+      "ghi_chu": "BR-11-03: tem phiên bản Policy Pack in ở chân trang."
+    },
+    {
+      "tag": "tem_phien_ban_mau",
+      "nhan": "Phiên bản mẫu biểu",
+      "kieu": "van_ban",
+      "nguon": "dossier.form_instance.template_version",
+      "khoa_so_lieu": true,
+      "muc_du_lieu": "C1",
+      "bat_buoc": true,
+      "vung": "chan_trang",
+      "ghi_chu": "BR-11-03: phiên bản mẫu biểu đã dùng."
+    }
+  ]
+}

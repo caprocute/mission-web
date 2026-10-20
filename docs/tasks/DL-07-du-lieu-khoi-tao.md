@@ -13,7 +13,7 @@
 | Cỡ việc | S (≤ nửa ngày agent) |
 | Phụ thuộc | DV-04-01, CORE-08-04 |
 | Truy vết | QT-01 (BR-01-05), PL 2A, PL 2B → API `GET /api/v1/org/subject-groups` (`listSubjectGroups`), `GET /api/v1/config/holiday-calendars` (`listHolidayCalendarDays`), `GET /api/v1/config/calendar` (`getWorkingCalendar`) → SVC-04, MOD-08 → bảng `org.subject_group`, `org.job_title`, `config.holiday_calendar` → không phát EVT (dữ liệu của tenant hệ thống) |
-| Trạng thái | Chưa bắt đầu (danh sách tên 9 khối PL 2A và 40 chức danh PL 2B cần người dùng cung cấp nếu TL không có) |
+| Trạng thái | Một phần (20/10/2026): lịch nghỉ quốc gia 2026, 2027 có nguồn; khung khối và chức danh chờ PL 2A, PL 2B; migration lặp chờ DV-04-01, CORE-08-04 |
 
 ## 1. Mục tiêu
 
