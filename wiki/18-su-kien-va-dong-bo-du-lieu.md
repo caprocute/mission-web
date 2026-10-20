@@ -47,23 +47,32 @@ Ngoài 26 sự kiện, TL-03 còn nêu ba sự kiện nội bộ không thuộc 
 
 ## Topic kỹ thuật
 
-Topic kỹ thuật không thuộc danh mục EVT và không được ứng dụng nghiệp vụ tiêu thụ. TL-03 liệt kê các topic sau, phần lớn đã có trong TL-01.
+Topic kỹ thuật không thuộc danh mục EVT và không được ứng dụng nghiệp vụ tiêu thụ. TL-03 và TL-04 (L760–768) liệt kê các topic kỹ thuật cùng số phân vùng và thời gian giữ chuẩn (đã khai báo trong `contracts/events/catalog.yaml` ở NEN-021):
 
-| Topic | Bên phát và mục đích |
-|---|---|
-| `sys.ledger.append.v1` | Đầu vào nội bộ của SVC-09 ghi sổ cái |
-| `sys.audit.v1` | Sự kiện kiểm toán: đăng nhập quản trị, đổi quyền, xem C2 của người khác, xuất hàng loạt; SVC-09 ghi sổ, chi tiết ở [trang 20](20-bao-mat-phia-may-chu.md) |
-| `sys.evidence.object.stored.v1` | SVC-08 báo tệp minh chứng đã lưu và khoá Object Lock, MOD-03 tiêu thụ |
-| `sys.tenant.provisioned.v1` | SVC-03 báo tenant đã khởi tạo xong CSDL, realm, bucket |
-| `iam.auth.event.v1` | Sự kiện xác thực của Keycloak qua Event Listener SPI, cho SOC và kiểm toán |
-| `period.drain.marker` | Dòng outbox đánh dấu của saga chốt kỳ (bước 2) |
-| `org.bootstrap.v1` | Phát lại toàn bộ trạng thái tổ chức của một tenant để dựng bản sao mới |
-| `registry.tenant.changed.v1` | SVC-03 báo danh bạ tenant đổi, MirrorMaker 2 sao xuống mọi cell |
-| `cdc.<db>.<schema>.<table>` | Thay đổi dòng cho phân tích, do connector CDC thứ hai sinh |
-| `agg.*` | Số liệu tổng hợp đã ẩn danh, MirrorMaker 2 đẩy lên kho phân tích quốc gia |
-| `<topic>.retry.<consumer>`, `<topic>.dlq.<consumer>` | Thử lại có độ trễ và thư chết của từng consumer |
+| Topic | Phân vùng | Giữ | Bên phát → Tiêu thụ | Lược đồ Avro / Quy ước |
+|---|---|---|---|---|
+| `sys.ledger.append.v1` | 24 | 30d | SVC-09 → SVC-09 | `avro/sys/LedgerAppend.avsc` |
+| `sys.audit.v1` | 24 | 14d | `*` → SVC-09, audit-archiver, SIEM | `avro/sys/AuditEvent.avsc` |
+| `sys.evidence.object.stored.v1` | 12 | 7d | SVC-08 → MOD-03 | `avro/sys/EvidenceObjectStored.avsc` |
+| `evidence.object.scanned.v1` | 12 | 7d | SVC-08 → MOD-03 | `avro/evidence/ObjectScanned.avsc` |
+| `sys.tenant.provisioned.v1` | 3 | 30d | SVC-03 → `[]` | `avro/sys/TenantProvisioned.avsc` |
+| `iam.auth.event.v1` | 12 | 14d | SVC-02 → SVC-15, SIEM | `avro/iam/AuthEvent.avsc` |
+| `registry.tenant.changed.v1` | 3 | compact | SVC-03 → SVC-01 | `avro/registry/TenantChanged.avsc` |
+| `org.bootstrap.v1` | 12 | 7d | SVC-04 → org_replica, SVC-02, SVC-15 | `avro/org/OrgBootstrap.avsc` |
+| `period.drain.marker` | 24 | 7d | `*` → SVC-06 | `avro/period/DrainMarker.avsc` |
+| `agg.province.metric.v1` (họ `agg.*`) | 6 | 30d | SVC-15 → analytics-national | `avro/agg/AggregateMetric.avsc` (chỉ C0, k-anonymity $k \ge 5$) |
+| `cdc.<db>.<schema>.<table>` | 6 | 3d | Debezium → SVC-14, SVC-15 | Debezium Envelope JSON/Avro chuẩn |
+| `<topic>.retry.<consumer>` | 6 | 7d | `<consumer>` → `<consumer>` | Giữ nguyên lược đồ Avro value của `<topic>` |
+| `<topic>.dlq.<consumer>` | 3 | 30d | `<consumer>` → dlq-replayer, ops-alert | Giữ nguyên lược đồ Avro value của `<topic>` + header lỗi |
+| `<topic>.replay.<consumer>` | 6 | 7d | dlq-replayer → `<consumer>` | Giữ nguyên lược đồ Avro value của `<topic>` + `ce_replayed=true` |
 
-Tên topic kỹ thuật chưa thống nhất ở ba chỗ, đều được ghi ở trang 14. TL-01 quy ước topic kỹ thuật dùng tiền tố `sys.`, nhưng `iam.auth.event.v1`, `period.drain.marker`, `org.bootstrap.v1`, `registry.tenant.changed.v1` không theo; TL-03 mục SVC-02 lại ghi Keycloak phát `iam.audit.v1`. TL-01 mục SVC-08 dùng `evidence.object.stored.v1` (không có `sys.`) trong khi chính TL-01 ở chỗ khác và TL-03 dùng `sys.evidence.object.stored.v1`. TL-04 dùng thêm `sys.siem.v1` (SEC-43) và `sys.security.runtime.v1` (SEC-50) mà TL-03 không liệt kê.
+### Bảng chốt tên topic kỹ thuật còn lệch giữa các tài liệu (NEN-021)
+
+| Luồng sự kiện | Nguồn ghi khác nhau | Tên chuẩn đã chốt trong `catalog.yaml` | Lý do chọn |
+|---|---|---|---|
+| SVC-08 báo đối tượng minh chứng đã lưu | TL-01 L1106 ghi `evidence.object.stored.v1`; TL-01 L3094, TL-02, TL-03 L4470, TL-04 L765 ghi `sys.evidence.object.stored.v1` | `sys.evidence.object.stored.v1` | Khớp 4/5 vị trí trong bộ TL và bảng cấu hình topic vận hành TL-04 L765 |
+| SVC-08 báo kết quả quét mã độc | TL-01 quy ước chung tiền tố `sys.`; TL-02, TL-03, TL-04 L765 đều ghi `evidence.object.scanned.v1` | `evidence.object.scanned.v1` | Cả 3 tài liệu thiết kế chi tiết và vận hành đều dùng thống nhất tên không có `sys.` |
+| Keycloak SPI phát sự kiện xác thực | TL-03 L323 ghi `iam.audit.v1`; TL-01 L999, L2996, TL-03 L4470, TL-04 L766 ghi `iam.auth.event.v1` | `iam.auth.event.v1` | Khớp cấu hình SPI Keycloak và bảng cấu hình topic vận hành TL-04 L766 |
 
 ## Quy ước topic và cấu hình
 

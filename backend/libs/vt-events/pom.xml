@@ -517,6 +517,22 @@
                       <ifExists>FIND_OR_CREATE_VERSION</ifExists>
                       <canonicalize>true</canonicalize>
                     </artifact>
+                    <artifact>
+                      <groupId>${schema.compat.groupId}</groupId>
+                      <artifactId>evidence.object.scanned.v1-value</artifactId>
+                      <artifactType>AVRO</artifactType>
+                      <file>${schema.compat.baselineDir}/evidence/ObjectScanned.avsc</file>
+                      <ifExists>FIND_OR_CREATE_VERSION</ifExists>
+                      <canonicalize>true</canonicalize>
+                    </artifact>
+                    <artifact>
+                      <groupId>${schema.compat.groupId}</groupId>
+                      <artifactId>agg.province.metric.v1-value</artifactId>
+                      <artifactType>AVRO</artifactType>
+                      <file>${schema.compat.baselineDir}/agg/AggregateMetric.avsc</file>
+                      <ifExists>FIND_OR_CREATE_VERSION</ifExists>
+                      <canonicalize>true</canonicalize>
+                    </artifact>
                   </artifacts>
                 </configuration>
               </execution>
@@ -696,6 +712,16 @@
                       <groupId>${schema.compat.groupId}</groupId>
                       <artifactId>period.drain.marker-value</artifactId>
                       <file>${schema.compat.candidateDir}/period/DrainMarker.avsc</file>
+                    </artifact>
+                    <artifact>
+                      <groupId>${schema.compat.groupId}</groupId>
+                      <artifactId>evidence.object.scanned.v1-value</artifactId>
+                      <file>${schema.compat.candidateDir}/evidence/ObjectScanned.avsc</file>
+                    </artifact>
+                    <artifact>
+                      <groupId>${schema.compat.groupId}</groupId>
+                      <artifactId>agg.province.metric.v1-value</artifactId>
+                      <file>${schema.compat.candidateDir}/agg/AggregateMetric.avsc</file>
                     </artifact>
                   </artifacts>
                 </configuration>

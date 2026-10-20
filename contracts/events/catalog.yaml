@@ -320,12 +320,10 @@ events:
     schema: avro/config/KyDaHuyKhoa.avsc
     artifactId: config.period.unlocked.v1-value
 
-# Topic kỹ thuật (TL-03 "Danh mục lược đồ", TL-01 "Quy ước topic"): không thuộc danh mục EVT,
-# không được ứng dụng nghiệp vụ tiêu thụ. Tên record là (suy luận) đặt theo topic; trường của
-# lược đồ ghi "(suy luận)" ở chỗ TL không mô tả, chờ người phụ trách duyệt.
-# Không lập lược đồ ở đây cho các họ topic `cdc.<db>.<schema>.<table>` (lược đồ do Debezium sinh
-# theo bảng nguồn), `agg.*`, `<topic>.retry.<consumer>` và `<topic>.dlq.<consumer>` (mang lại
-# nguyên thông điệp của topic gốc).
+# Topic kỹ thuật (TL-03 "Danh mục lược đồ", TL-01 "Quy ước topic", TL-04 L760–768): không thuộc
+# danh mục EVT, không được ứng dụng nghiệp vụ tiêu thụ trực tiếp.
+# NEN-021 chốt tên chuẩn (bảng giải quyết lệch tên ở wiki/18 và wiki/14), số phân vùng, thời gian
+# giữ và lược đồ Avro cho từng topic kỹ thuật cũng như quy ước các họ topic mẫu.
 technicalTopics:
   - topic: sys.ledger.append.v1
     name: LedgerAppend
@@ -334,7 +332,9 @@ technicalTopics:
     classification: C1
     producer: SVC-09
     consumers: [SVC-09]
-    note: Bộ thu ledger-ingester của SVC-09 chuyển tiếp từ topic nghiệp vụ; khoá theo phân vùng chuỗi (TL-03 chương 8)
+    partitions: 24
+    retention: 30d
+    note: Bộ thu ledger-ingester của SVC-09 chuyển tiếp từ topic nghiệp vụ; khoá theo phân vùng chuỗi (TL-03 chương 8, TL-04 L763)
     schema: avro/sys/LedgerAppend.avsc
     artifactId: sys.ledger.append.v1-value
 
@@ -345,7 +345,9 @@ technicalTopics:
     classification: C1
     producer: "*"
     consumers: [SVC-09, audit-archiver, SIEM]
-    note: Sự kiện kiểm toán nội bộ phát qua outbox (TL-01 "Nhật ký kiểm toán"); khoá là (suy luận)
+    partitions: 24
+    retention: 14d
+    note: Sự kiện kiểm toán nội bộ phát qua outbox (TL-01 "Nhật ký kiểm toán", TL-04 L764)
     schema: avro/sys/AuditEvent.avsc
     artifactId: sys.audit.v1-value
 
@@ -356,9 +358,24 @@ technicalTopics:
     classification: C1
     producer: SVC-08
     consumers: [MOD-03]
-    note: SVC-08 báo tệp đã lưu và khoá; khoá và outbox là (suy luận)
+    partitions: 12
+    retention: 7d
+    note: SVC-08 báo đối tượng minh chứng đã lưu và khoá Object Lock; chọn tên có tiền tố sys. (TL-02/TL-03/TL-04 L765)
     schema: avro/sys/EvidenceObjectStored.avsc
     artifactId: sys.evidence.object.stored.v1-value
+
+  - topic: evidence.object.scanned.v1
+    name: ObjectScanned
+    key: tenant:objectId
+    outbox: evidence.outbox_event
+    classification: C1
+    producer: SVC-08
+    consumers: [MOD-03]
+    partitions: 12
+    retention: 7d
+    note: SVC-08 báo kết quả quét mã độc từ bảng evidence.scan_result; giữ tên không tiền tố sys. thống nhất ở TL-02/TL-03/TL-04 L765
+    schema: avro/evidence/ObjectScanned.avsc
+    artifactId: evidence.object.scanned.v1-value
 
   - topic: sys.tenant.provisioned.v1
     name: TenantProvisioned
@@ -367,7 +384,9 @@ technicalTopics:
     classification: C1
     producer: SVC-03
     consumers: []
-    note: SVC-03 báo tenant đã khởi tạo xong CSDL, realm, bucket; khoá, outbox và bên tiêu thụ là (suy luận), TL chưa nêu
+    partitions: 3
+    retention: 30d
+    note: SVC-03 báo tenant đã khởi tạo xong CSDL, realm, bucket (TL-01/TL-03)
     schema: avro/sys/TenantProvisioned.avsc
     artifactId: sys.tenant.provisioned.v1-value
 
@@ -378,7 +397,9 @@ technicalTopics:
     classification: C1
     producer: SVC-02
     consumers: [SVC-15, SIEM]
-    note: Keycloak đẩy qua SPI lắng nghe sự kiện (không có outbox); giữ tên không có tiền tố sys.; khoá là (suy luận)
+    partitions: 12
+    retention: 14d
+    note: Keycloak đẩy qua SPI lắng nghe sự kiện (không có outbox); giữ tên iam.auth.event.v1 theo TL-03/TL-04 L766 (không dùng tiền tố sys.)
     schema: avro/iam/AuthEvent.avsc
     artifactId: iam.auth.event.v1-value
 
@@ -389,7 +410,9 @@ technicalTopics:
     classification: C1
     producer: SVC-03
     consumers: [SVC-01]
-    note: Kafka toàn cục, MirrorMaker 2 sao xuống mọi cell; phục vụ bảng định tuyến tại cổng; khoá và outbox là (suy luận)
+    partitions: 3
+    retention: compact
+    note: Kafka toàn cục, MirrorMaker 2 sao xuống mọi cell; phục vụ bảng định tuyến tại cổng (TL-01/TL-03)
     schema: avro/registry/TenantChanged.avsc
     artifactId: registry.tenant.changed.v1-value
 
@@ -400,7 +423,9 @@ technicalTopics:
     classification: C1
     producer: SVC-04
     consumers: [org_replica, SVC-02, SVC-15]
-    note: Lệnh org-republish phát trạng thái hiện hành của mọi thực thể tổ chức của một tenant; khoá là (suy luận)
+    partitions: 12
+    retention: 7d
+    note: Lệnh org-republish phát trạng thái hiện hành của mọi thực thể tổ chức của một tenant (TL-03)
     schema: avro/org/OrgBootstrap.avsc
     artifactId: org.bootstrap.v1-value
     references:
@@ -415,6 +440,64 @@ technicalTopics:
     classification: C0
     producer: "*"
     consumers: [SVC-06]
-    note: Dòng outbox đặc biệt của bước 2 saga chốt kỳ (TL-03 "Saga điều phối chốt kỳ"); lược đồ tối thiểu (suy luận)
+    partitions: 24
+    retention: 7d
+    note: Dòng outbox đặc biệt của bước 2 saga chốt kỳ (TL-03 "Saga điều phối chốt kỳ")
     schema: avro/period/DrainMarker.avsc
     artifactId: period.drain.marker-value
+
+  - topic: agg.province.metric.v1
+    name: AggregateMetric
+    key: tenant:provinceUnitRef
+    outbox: null
+    classification: C0
+    producer: SVC-15
+    consumers: [analytics-national]
+    partitions: 6
+    retention: 30d
+    note: Topic chuẩn đại diện họ agg.* đẩy số liệu tổng hợp vô danh C0 (qua ngưỡng k-anonymity k >= 5) từ cấp tỉnh về Trung ương (TL-01, TL-04 L768)
+    schema: avro/agg/AggregateMetric.avsc
+    artifactId: agg.province.metric.v1-value
+
+# Quy ước họ topic kỹ thuật sinh theo mẫu (TL-01, TL-03, TL-04 L767–768):
+technicalTopicFamilies:
+  - pattern: "cdc.<db>.<schema>.<table>"
+    producer: Debezium Kafka Connect
+    consumers: [SVC-14, SVC-15]
+    key: primaryKey
+    partitions: 6
+    retention: 3d
+    classification: C1
+    schemaConvention: "Debezium Envelope JSON/Avro chuẩn (before, after, source, op, ts_ms) tự sinh từ DDL bảng nguồn"
+  - pattern: "<topic>.retry.<consumer>"
+    producer: "<consumer>"
+    consumers: ["<consumer>"]
+    key: "giữ nguyên khoá của <topic>"
+    partitions: 6
+    retention: 7d
+    classification: "giữ nguyên phân loại của <topic>"
+    schemaConvention: "Giữ nguyên lược đồ Avro value của <topic> gốc (<topic>-value) và bộ header CloudEvents + đếm số lần thử lại"
+  - pattern: "<topic>.dlq.<consumer>"
+    producer: "<consumer>"
+    consumers: [dlq-replayer, ops-alert]
+    key: "giữ nguyên khoá của <topic>"
+    partitions: 3
+    retention: 30d
+    classification: "giữ nguyên phân loại của <topic>"
+    schemaConvention: "Giữ nguyên lược đồ Avro value của <topic> gốc (<topic>-value), đính kèm header lỗi đã lọc C2 (x-dlq-error-code, x-dlq-failed-at, x-dlq-consumer-group)"
+  - pattern: "<topic>.replay.<consumer>"
+    producer: dlq-replayer
+    consumers: ["<consumer>"]
+    key: "giữ nguyên khoá của <topic>"
+    partitions: 6
+    retention: 7d
+    classification: "giữ nguyên phân loại của <topic>"
+    schemaConvention: "Giữ nguyên lược đồ Avro value của <topic> gốc (<topic>-value), đính kèm header ce_replayed=true"
+  - pattern: "agg.*"
+    producer: SVC-15
+    consumers: [analytics-national]
+    key: tenant:provinceUnitRef
+    partitions: 6
+    retention: 30d
+    classification: C0
+    schemaConvention: "Dùng chung lược đồ khung avro/agg/AggregateMetric.avsc (vn.vtokr.agg.v1.AggregateMetric)"

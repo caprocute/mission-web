@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "ObjectScanned",
+  "namespace": "vn.vtokr.evidence.v1",
+  "doc": "Topic kỹ thuật evidence.object.scanned.v1 (TL-02 / TL-03 / TL-04) · SVC-08 phát từ evidence.outbox_event khi hoàn tất quét mã độc đối tượng minh chứng; đối chiếu bảng evidence.scan_result.",
+  "fields": [
+    {"name": "objectId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "evidence.scan_result.object_id"},
+    {"name": "version", "type": "int", "default": 1, "doc": "Phiên bản đối tượng được quét"},
+    {"name": "verdict", "type": "string", "doc": "Kết quả quét theo CHECK của evidence.scan_result (CLEAN, INFECTED, UNSCANNABLE, ERROR)"},
+    {"name": "engine", "type": "string", "doc": "Tên bộ máy quét mã độc (ví dụ: clamav)"},
+    {"name": "engineVersion", "type": "string", "doc": "Phiên bản bộ máy và cơ sở dữ liệu chữ ký mã độc"},
+    {"name": "scannedAt", "type": {"type": "long", "logicalType": "timestamp-micros"}, "doc": "Thời điểm hoàn tất quét tại evidence.scan_result.scanned_at"}
+  ]
+}
