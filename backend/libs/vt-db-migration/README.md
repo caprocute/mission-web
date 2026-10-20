@@ -16,6 +16,27 @@ Mỗi schema có bảng lịch sử `flyway_schema_history` trong chính schema 
 
 Migration chỉ được thêm mới, không sửa tệp đã gộp vào main (BACKEND.md mục 3 quy ước 7). Thay đổi phá vỡ theo mô hình mở rộng rồi thu hẹp (expand and contract): bản N thêm cột cho phép NULL và ghi cả hai cột, job nền điền dữ liệu cũ, bản N+1 đọc cột mới, bản N+2 xoá cột cũ. Ràng buộc trên bảng lớn thêm bằng `NOT VALID` rồi `VALIDATE CONSTRAINT` ở migration sau (TL-03 "Flyway và quy trình thay đổi lược đồ").
 
+## Vai trò CSDL theo schema (NEN-031)
+
+Trước khi chạy migration, mỗi CSDL được khởi tạo vai trò và quyền bằng `vn.viettel.okrkpi.platform.db.migration.bootstrap.DatabaseBootstrap`, chạy bằng tài khoản quản trị cụm (không qua Flyway của ứng dụng). Bố trí `td` tạo 15 schema của CSDL dữ liệu tenant (`config`, `policy`, `okr`, `task`, `product`, `appraisal`, `dossier`, `oversight`, `org_replica`, `org`, `scoring`, `evidence`, `docgen`, `modulith`, `keyring`), bố trí `cell_shared` tạo `notify`, `integ`.
+
+```bash
+PG_ADMIN_USER=... PG_ADMIN_PASSWORD=... java -cp <classpath> \
+  vn.viettel.okrkpi.platform.db.migration.bootstrap.DatabaseBootstrap --db=jdbc:postgresql://pg-biz-rw/td_hcm --layout=td
+java -cp <classpath> vn.viettel.okrkpi.platform.db.migration.bootstrap.DatabaseBootstrap \
+  --print-sql --database=td_hcm --layout=td      # chỉ in SQL để DBA duyệt
+```
+
+Mỗi schema có bốn vai trò theo TL-03 "Không truy cập chéo và quyền tối thiểu". `mig_<schema>` sở hữu schema và mọi đối tượng, chỉ Flyway dùng. `svc_<schema>` là tài khoản ứng dụng, chỉ có DML (không DDL), được đặt `statement_timeout = 5s`, `idle_in_transaction_session_timeout = 10s` và `search_path` cố định. `ro_<schema>` chỉ đọc. `cdc_<schema>` có `REPLICATION` và chỉ đọc `outbox_event` (cấp khi bảng đã tồn tại, nên chạy lại bootstrap sau migration). Mọi vai trò đều `NOINHERIT NOBYPASSRLS NOSUPERUSER NOCREATEDB NOCREATEROLE`; quyền trên đối tượng mới do `mig_<schema>` tạo được cấp tự động bằng `ALTER DEFAULT PRIVILEGES`, và lần chạy lại cấp bù cho đối tượng đã có. CSDL thu hồi `CONNECT` của `PUBLIC` và chỉ cấp cho vai trò thuộc bố trí của nó; schema `public` bị thu hồi mọi quyền. Hàm trong schema chỉ `svc_<schema>` được `EXECUTE` (suy luận theo TL-03 L185 về hàm `SECURITY DEFINER`).
+
+Ngoại lệ theo TL-03 chỉ có ba. Mọi `svc_<mô-đun>` của mission-core (tám mô-đun MOD-01..MOD-08) đọc được `org_replica`, còn chỉ `svc_org_replica` ghi. Mọi `svc_<mô-đun>` của mission-core có DML trên `modulith` (Event Publication Registry). Mọi `svc_` của CSDL dữ liệu tenant chỉ có `SELECT, INSERT` trên `keyring`, riêng `svc_keyring` mới đổi trạng thái DEK. Ngoại lệ ở mức bảng (ví dụ `REVOKE UPDATE, DELETE ON task.task_state_log FROM svc_task`) viết trong migration của bảng đó.
+
+Giới hạn kết nối nằm ở `src/main/resources/db/bootstrap/role-limits.properties`: mặc định `svc` 400, `ro` 20, `cdc` 5, `mig` 5, lấy theo mẫu SQL TL-03 vì chương hiệu năng chỉ định cỡ PgBouncer (suy luận); ghi đè theo schema bằng `svc.<schema>=<số>`.
+
+Mật khẩu không có trong mã hay SQL sinh ra. Production để CloudNativePG (managed roles) và External Secrets cấp; ở dev, kiểm thử, nếu có biến `<VAI_TRO>_PASSWORD` (ví dụ `SVC_TASK_PASSWORD`) thì bootstrap đặt mật khẩu qua `PGConnection.alterUserPassword`, băm SCRAM phía client nên mật khẩu dạng rõ không đi qua nhật ký máy chủ.
+
+Vai trò PostgreSQL là toàn cụm, nên ở cell bridge mọi CSDL `td_<mã>` trên cùng cụm `pg-biz` dùng chung `svc_task`… Cô lập giữa các tỉnh vì vậy dựa vào việc định tuyến tới đúng CSDL (NEN-036) và RLS, không dựa vào vai trò (suy luận; TL-03 không nói rõ vai trò riêng theo CSDL).
+
 ## Bộ chạy migration
 
 `vn.viettel.okrkpi.platform.db.migration.MigrationRunner` là lớp `main` cho Kubernetes Job di trú (Helm hook `pre-upgrade`, Argo CD sync wave âm – INF-01, INF-02) và cho kiểm thử.
@@ -80,4 +101,4 @@ TL-03 yêu cầu kiểm migration trong CI bằng ba bước. Bước 1, áp tr�
 
 ## Kiểm thử của thư viện
 
-`./mvnw -pl libs/vt-db-migration -am verify` chạy: kiểm thử đơn vị tham số dòng lệnh và nguồn mật khẩu; `ConventionLinterIT` với mười lăm bộ migration mẫu sai trong `src/test/resources/db/test-bad/`, mỗi bộ làm đúng một luật thất bại; `SampleMigrationConventionsIT` với bộ mẫu đúng (gồm bảng phân vùng và migration dùng chung `V0_1`); `MigrationRunnerIT` với hai CSDL, CSDL lỗi không chặn CSDL kia và mã thoát là 1; `SchemaVersionGuardIT` cho các trường hợp đủ, thiếu phiên bản và chưa chạy migration.
+`./mvnw -pl libs/vt-db-migration -am verify` chạy: kiểm thử đơn vị tham số dòng lệnh và nguồn mật khẩu; `ConventionLinterIT` với mười lăm bộ migration mẫu sai trong `src/test/resources/db/test-bad/`, mỗi bộ làm đúng một luật thất bại; `SampleMigrationConventionsIT` với bộ mẫu đúng (gồm bảng phân vùng và migration dùng chung `V0_1`); `MigrationRunnerIT` với hai CSDL, CSDL lỗi không chặn CSDL kia và mã thoát là 1; `SchemaVersionGuardIT` cho các trường hợp đủ, thiếu phiên bản và chưa chạy migration; `DatabaseBootstrapIT` dựng 15 schema, chạy bootstrap ba lần (idempotent), kiểm ma trận quyền và in bảng vai trò × schema × quyền ra `target/role-matrix.md`.

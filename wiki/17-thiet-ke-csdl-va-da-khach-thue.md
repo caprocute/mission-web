@@ -2,7 +2,13 @@
 
 # Thiết kế CSDL và đa khách thuê
 
-Trang này gom tri thức CSDL cho người viết mã máy chủ. Phần tổng quan về sở hữu dữ liệu, ba mô hình thuê bao và RLS do task NEN-002 viết; hiện trang mới có mục "Viết migration" do NEN-030 tạo.
+Trang này gom tri thức CSDL cho người viết mã máy chủ. Phần tổng quan về sở hữu dữ liệu, ba mô hình thuê bao và RLS do task NEN-002 viết; hiện trang mới có mục "Vai trò CSDL" (NEN-031) và "Viết migration" (NEN-030).
+
+## Vai trò CSDL
+
+Mỗi schema có bốn vai trò: `mig_<schema>` sở hữu mọi đối tượng và chỉ Flyway dùng, `svc_<schema>` là tài khoản ứng dụng chỉ có DML, `ro_<schema>` chỉ đọc, `cdc_<schema>` cho Debezium chỉ đọc `outbox_event`. Không vai trò nào có `BYPASSRLS`, `INHERIT`, `SUPERUSER` hay quyền tạo CSDL, vai trò. `svc_<schema>` có `statement_timeout = 5s`, `idle_in_transaction_session_timeout = 10s`, nên một giao dịch quên đóng không giữ kết nối PgBouncer quá 10 giây. Vì mỗi mô-đun của mission-core dùng một DataSource đăng nhập bằng vai trò riêng, truy vấn nhầm sang schema mô-đun khác bị CSDL từ chối (`42501 permission denied`), ranh giới mô-đun trở thành ràng buộc kỹ thuật chứ không chỉ là quy ước ArchUnit.
+
+Ba ngoại lệ duy nhất: các mô-đun mission-core đọc `org_replica` (chỉ `svc_org_replica` ghi), có DML trên `modulith.event_publication`, và mọi `svc_` chỉ `SELECT, INSERT` trên `keyring.dek` (chỉ `svc_keyring` đổi trạng thái). Vai trò và quyền do `DatabaseBootstrap` của `vt-db-migration` tạo, idempotent; chạy lại sau migration để cấp quyền cho bảng mới mà quyền mặc định không phủ (ví dụ `outbox_event` cho `cdc_`). Bẫy: vai trò PostgreSQL là toàn cụm, nên ở cell bridge các CSDL `td_<mã>` trên cùng cụm dùng chung tên vai trò; cô lập tỉnh dựa vào định tuyến CSDL và RLS (suy luận). Hạ tầng dev hiện vẫn dùng một vai trò trùng tên schema trong một CSDL `mission`; NEN-020 chuyển dev sang bộ vai trò này.
 
 ## Viết migration
 
