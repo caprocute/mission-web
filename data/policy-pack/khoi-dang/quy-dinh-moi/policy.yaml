@@ -27,6 +27,8 @@ metadata:
     nguoi_soan: null                 # chờ nghiệp vụ chỉ định
     nguoi_duyet: null                # khác người soạn (BR-15-09)
   ghi_chu_ban_nhap: "Bản nháp chờ cơ quan tổ chức xác nhận công thức, ngưỡng, tham số và căn cứ."
+  gia_lap: true                      # YC-PT-14 (quyết định 20/10/2026): bản giả lập dùng để phát triển và kiểm thử
+  ghi_chu_gia_lap: "Bản giả lập soạn theo Quy định 366-QĐ/TW và dự thảo Quy định mới, chưa phải bản chính thức. Khi cơ quan có thẩm quyền ban hành nội dung chính thức, phát hành phiên bản mới của gói này với gia_lap: false; không sửa mã."
 
 # ---------------------------------------------------------------------------
 # Kiểu dữ liệu dùng trong inputs và ngữ cảnh tính (BR-15-01: mọi biến phải khai báo kiểu)

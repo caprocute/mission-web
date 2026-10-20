@@ -1,5 +1,9 @@
 # Nhật ký thay đổi – Bộ quy định đánh giá luồng Nhà nước (`khoi-chinh-quyen/nd335`)
 
+
+### Bản giả lập (20/10/2026)
+
+Theo quyết định của người dùng ngày 20/10/2026, gói này là bản giả lập (`metadata.gia_lap: true`) dùng để phát triển và kiểm thử, chưa phải nội dung chính thức. Khi cơ quan có thẩm quyền ban hành công thức, ngưỡng, tham số hay mẫu biểu chính thức, chỉ phát hành phiên bản mới của gói với `gia_lap: false`, không sửa mã.
 ## 1.4.0 – bản nháp (chưa phê duyệt)
 
 Trạng thái: `NHAP`. Bản nháp do agent soạn theo NĐ 335/2025 và bộ tài liệu thiết kế (TL-01 chương Policy Pack, TL-02b BR-09-11, BR-15-05) để cơ quan có thẩm quyền đối chiếu và duyệt. Chưa có người soạn, người duyệt, chữ ký số; chưa có bộ ca kiểm thử chuẩn.

@@ -122,6 +122,8 @@ def check_pack(path, d):
     md = d["metadata"]
     if md["phe_duyet"]["nguoi_soan"] or md["phe_duyet"]["nguoi_duyet"] or md["phe_duyet"]["ky_so"]: err(f"{path}: phe_duyet phải để trống")
     if not re.fullmatch(r"\d+\.\d+\.\d+", md["version"]): err("version không semver")
+    if not isinstance(md.get("gia_lap"), bool): err(f"{path}: thiếu cờ metadata.gia_lap (YC-PT-14)")
+    elif md["gia_lap"] and not md.get("ghi_chu_gia_lap"): err(f"{path}: bản giả lập phải có ghi_chu_gia_lap")
     return tong
 
 for p, d in docs.items():

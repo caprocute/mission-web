@@ -27,6 +27,8 @@ metadata:
     nguoi_soan: null
     nguoi_duyet: null
   ghi_chu_ban_nhap: "Bản nháp chờ cơ quan có thẩm quyền xác nhận cơ cấu điểm, cách tính tiêu chí chung và căn cứ."
+  gia_lap: true                      # YC-PT-14 (quyết định 20/10/2026): bản giả lập dùng để phát triển và kiểm thử
+  ghi_chu_gia_lap: "Bản giả lập soạn theo Nghị định 335/2025/NĐ-CP, chưa phải bản chính thức. Khi cơ quan có thẩm quyền ban hành nội dung chính thức, phát hành phiên bản mới của gói này với gia_lap: false; không sửa mã."
 
 types:
   NhiemVu:

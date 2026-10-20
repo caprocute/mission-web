@@ -1,5 +1,9 @@
 # Nhật ký thay đổi – Bộ quy định đánh giá khối Đảng (`khoi-dang/quy-dinh-moi`)
 
+
+### Bản giả lập (20/10/2026)
+
+Theo quyết định của người dùng ngày 20/10/2026, gói này là bản giả lập (`metadata.gia_lap: true`) dùng để phát triển và kiểm thử, chưa phải nội dung chính thức. Khi cơ quan có thẩm quyền ban hành công thức, ngưỡng, tham số hay mẫu biểu chính thức, chỉ phát hành phiên bản mới của gói với `gia_lap: false`, không sửa mã. Thư mục `templates/` chứa bảy mẫu biểu giả lập (Mẫu 1A, 1B, 1C, 1D, Mẫu 2, Mẫu 3, bảng chấm điểm) sinh từ tệp kê khai, phiên bản `0.9.0-gia-lap`, in dòng "MẪU GIẢ LẬP" trên mọi trang.
 ## 2.1.0 – bản nháp (chưa phê duyệt)
 
 Trạng thái: `NHAP`. Bản nháp do agent soạn theo dự thảo Quy định mới, QĐ 366-QĐ/TW và bộ tài liệu thiết kế (TL-01 chương Policy Pack, TL-02b QT-09, QT-10, QT-11, QT-15, TL-03 schema `policy`), để cơ quan tổ chức đối chiếu và duyệt. Chưa có người soạn, người duyệt, chữ ký số; chưa có bộ ca kiểm thử chuẩn (DL-03). Chưa được dùng để tính điểm chính thức.
