@@ -2,7 +2,6 @@
 DMN phủ kín [0;100], task_lifecycle theo bộ trạng thái chuẩn. Cần PyYAML.
 Cách chạy (từ gốc repo):  python -I data/policy-pack/kiem_goi.py .
 Đây là kiểm tra tạm cho tới khi có kiểm thử nạp gói bằng vt-cel trong mission-core (CORE-05-04)."""
-"""Kiểm tra tĩnh dữ liệu Policy Pack (script tạm, không đặt trong repo). Chạy: python3 -I kiem_tra.py <repo>"""
 import sys, re, json, glob, itertools, os
 from decimal import Decimal, ROUND_HALF_UP
 import xml.etree.ElementTree as ET

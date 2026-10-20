@@ -13,7 +13,7 @@
 | Cỡ việc | M (≤ 1 ngày) |
 | Phụ thuộc | DL-01, CORE-05-05 |
 | Truy vết | QT-09 (BR-09-05..BR-09-10, BR-09-13, BR-09-17), QT-10 (BR-10-02, BR-10-03, BR-10-05, BR-10-07, BR-10-09), QT-11 (BR-11-05), QT-15 (BR-15-04, BR-15-06) → API `PUT /api/v1/policies/packs/{id}/versions/{v}/decision-tables/{key}` (`saveDecisionTable`), `GET .../decision-tables/{key}/dmn` (`exportDecisionTableDmn`), `GET /api/v1/policies/packs/{id}/prospect-criteria` (`getProspectCriteria`) → MOD-05, SVC-07, MOD-06 → bảng `policy.decision_table`, `dossier.special_case` → EVT-10 (khi SVC-07 tính) |
-| Trạng thái | Chờ người dùng chốt: cần nghiệp vụ xác nhận ngưỡng, điều kiện và cách xử lý 13 trường hợp |
+| Trạng thái | Bản nháp dữ liệu xong 20/10/2026 (DMN quý, năm, Nhà nước; 13 trường hợp đặc thù); chờ nghiệp vụ xác nhận ngưỡng, điều kiện; kiểm thử Flowable DMN chờ CORE-05-05 |
 
 ## 1. Mục tiêu
 

@@ -13,7 +13,7 @@
 | Cỡ việc | S (≤ nửa ngày agent) |
 | Phụ thuộc | CORE-05-03 (bổ sung: nên gộp trước hoặc cùng CORE-02-13 vì máy trạng thái nhiệm vụ đọc bảng này) |
 | Truy vết | ADR-04; QT-05, QT-06, QT-07 (BR-05-01..BR-05-05, PL 4 III.5) → API `POST /api/v1/tasks/{id}/transitions` (`transitionTask`), `GET /api/v1/policies/resolve` (`resolvePolicyPack`) → MOD-02, MOD-05, SVC-06 → bảng `task.task`, `task.task_state_log`, `policy.policy_rule` (khoá `task_lifecycle`), `flowable.wf_binding` → EVT-06 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Bản nháp dữ liệu xong 20/10/2026 (`task_lifecycle.yaml`, `workflow-bindings/`); kiểm thử nạp chờ CORE-05-03, CORE-02-13 |
 
 ## 1. Mục tiêu
 
