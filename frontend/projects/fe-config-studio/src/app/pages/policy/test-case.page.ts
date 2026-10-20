@@ -800,7 +800,8 @@ export class TestCasePage {
   protected lockedTail(note: string | undefined) {
     const n = note ?? '';
     const i = n.search(/[,.;]/);
-    return i < 0 ? '' : n.slice(i + 1).trim();
+    const tail = i < 0 ? '' : n.slice(i + 1).trim();
+    return tail.charAt(0).toLocaleUpperCase('vi') + tail.slice(1);
   }
 
   /** Kỳ vọng hoặc kết quả của một ca bằng lời: "Hoàn thành tốt nhiệm vụ · 91,2 điểm", "Tiến độ = 0,9". */
