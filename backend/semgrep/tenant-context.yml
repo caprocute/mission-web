@@ -1,0 +1,74 @@
+# NEN-034 · ADR-07, ADR-22 · TL-03 "Kiểm thử rò rỉ tenant" (lớp 4) và "Đặt ngữ cảnh tenant an toàn qua PgBouncer".
+# Chặn đặt ngữ cảnh tenant ở mức phiên trên kết nối dùng chung qua PgBouncer (pool_mode = transaction):
+#   1) SET app.<biến> không có LOCAL (hoặc RESET app.<biến>)
+#   2) SET SESSION ...
+#   3) set_config(..., ..., false) (is_local = false)
+# Áp dụng cho Java, Go, Python và SQL.
+# Chạy kiểm tra:
+#   semgrep --config backend/semgrep/tenant-context.yml --error backend/semgrep/testdata/bad
+rules:
+  - id: mission-no-session-set-app-param
+    message: >-
+      Cấm dùng 'SET app.<biến>' không có 'LOCAL' hoặc 'RESET app.<biến>'. Qua PgBouncer
+      (pool_mode = transaction), biến mức phiên sẽ rò sang giao dịch của tenant kế tiếp
+      (ADR-07, ADR-22, TL-03 L706-734). Hãy dùng 'SELECT set_config(''app.tenant_id'', $1, true)'
+      hoặc 'SET LOCAL app.tenant_id = ...' bên trong giao dịch tường minh.
+    severity: ERROR
+    languages:
+      - regex
+    paths:
+      include:
+        - "*.java"
+        - "*.go"
+        - "*.py"
+        - "*.sql"
+      exclude:
+        - "**/TenantSql.java"
+        - "**/TenantSqlTest.java"
+        - "**/RoleBootstrapPlan.java"
+        - "**/DatabaseBootstrapIT.java"
+        - "**/SemgrepTenantRuleTest.java"
+    patterns:
+      - pattern-regex: '(?i)\b(?:SET|RESET)\s+(?!LOCAL\b)(?:SESSION\s+)?["'']?app\.[a-z0-9_]+\s*(?:=|TO\b|;|\b)'
+      - pattern-not-regex: '(?i)\bALTER\s+(?:DATABASE|ROLE|USER|SYSTEM)\b[^\n;]*\bSET\s+app\.[a-z0-9_]+'
+
+  - id: mission-no-set-session
+    message: >-
+      Cấm dùng 'SET SESSION' trên kết nối CSDL qua PgBouncer (pool_mode = transaction),
+      vì thiết lập mức phiên tồn tại sau COMMIT/ROLLBACK và ảnh hưởng tới giao dịch của
+      tenant khác dùng lại kết nối máy chủ (TL-03 L706-734). Chỉ dùng 'SET LOCAL' hoặc
+      'set_config(..., true)'.
+    severity: ERROR
+    languages:
+      - regex
+    paths:
+      include:
+        - "*.java"
+        - "*.go"
+        - "*.py"
+        - "*.sql"
+      exclude:
+        - "**/TenantSql.java"
+        - "**/TenantSqlTest.java"
+        - "**/SemgrepTenantRuleTest.java"
+    pattern-regex: '(?i)\bSET\s+SESSION\s+(?!CHARACTERISTICS\b)[a-z0-9_."]+'
+
+  - id: mission-no-set-config-is-local-false
+    message: >-
+      Cấm gọi 'set_config(..., false)' với tham số thứ ba is_local = false. Khi is_local = false,
+      giá trị sống ở mức phiên và rò rỉ sang tenant khác qua PgBouncer (TL-03 L706-734).
+      Bắt buộc truyền 'true': set_config('app.tenant_id', ?, true).
+    severity: ERROR
+    languages:
+      - regex
+    paths:
+      include:
+        - "*.java"
+        - "*.go"
+        - "*.py"
+        - "*.sql"
+      exclude:
+        - "**/TenantSql.java"
+        - "**/TenantSqlTest.java"
+        - "**/SemgrepTenantRuleTest.java"
+    pattern-regex: '(?is)\bset_config\s*\([^)]*,\s*[^,)]+,\s*false\s*\)'
