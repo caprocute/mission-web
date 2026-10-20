@@ -1,5 +1,7 @@
 package vn.viettel.okrkpi.shared.error;
 
+import io.github.resilience4j.bulkhead.BulkheadFullException;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -35,6 +37,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.util.WebUtils;
+import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
 
 /**
  * Bộ xử lý lỗi chung (ADR-24; TL-01 "Định dạng lỗi chuẩn RFC 9457"): mọi lỗi của controller trả
@@ -111,6 +114,43 @@ public class ProblemExceptionHandler extends ResponseEntityExceptionHandler {
     ProblemDetail pd = validationProblem(errors, request);
     logClientError(pd, request);
     return ProblemFactory.toResponse(pd, null);
+  }
+
+  /**
+   * Phụ thuộc ngoài không dùng được (NEN-016, TL-01 "Độ tin cậy và khả năng chịu lỗi"): 503 kèm
+   * {@code Retry-After} ({@code common.yaml} response ServiceUnavailable).
+   */
+  @ExceptionHandler(DependencyUnavailableException.class)
+  public ResponseEntity<ProblemDetail> handleDependencyUnavailable(
+      DependencyUnavailableException ex, HttpServletRequest request) {
+    return serviceUnavailable(ex.dependency(), ex.reason().name(), ex.retryAfterSeconds(), request);
+  }
+
+  /** Mạch mở khi service dùng trực tiếp annotation Resilience4j. */
+  @ExceptionHandler(CallNotPermittedException.class)
+  public ResponseEntity<ProblemDetail> handleCallNotPermitted(
+      CallNotPermittedException ex, HttpServletRequest request) {
+    return serviceUnavailable(ex.getCausingCircuitBreakerName(), "CIRCUIT_OPEN", 1, request);
+  }
+
+  /** Bulkhead đầy khi service dùng trực tiếp annotation Resilience4j. */
+  @ExceptionHandler(BulkheadFullException.class)
+  public ResponseEntity<ProblemDetail> handleBulkheadFull(
+      BulkheadFullException ex, HttpServletRequest request) {
+    return serviceUnavailable("bulkhead", "BULKHEAD_FULL", 1, request);
+  }
+
+  private ResponseEntity<ProblemDetail> serviceUnavailable(
+      String dependency, String reason, long retryAfterSeconds, HttpServletRequest request) {
+    ProblemDetail pd = problems.standard(503, null, List.of(), request);
+    log.warn(
+        "Phụ thuộc không dùng được dependency={} reason={} traceId={}",
+        dependency,
+        reason,
+        pd.getProperties().get(ProblemFactory.TRACE_ID));
+    HttpHeaders headers = new HttpHeaders();
+    headers.set(HttpHeaders.RETRY_AFTER, Long.toString(Math.max(1, retryAfterSeconds)));
+    return ProblemFactory.toResponse(pd, headers);
   }
 
   /** Ngoại lệ không lường trước: 500 chung, chi tiết chỉ vào nhật ký (TL-01, BACKEND.md mục 3). */

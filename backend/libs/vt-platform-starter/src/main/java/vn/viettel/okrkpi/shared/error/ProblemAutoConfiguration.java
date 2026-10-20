@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.servlet.DispatcherServlet;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import vn.viettel.okrkpi.shared.observability.OtelTraceIdResolver;
 
 /**
  * Auto-configuration lỗi RFC 9457 của vt-platform-starter (ADR-24). Chạy trước {@code
@@ -35,7 +36,8 @@ public class ProblemAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   public TraceIdResolver traceIdResolver() {
-    return new W3cTraceIdResolver();
+    // NEN-016: ưu tiên span OpenTelemetry hiện hành, lùi về header traceparent.
+    return new OtelTraceIdResolver(new W3cTraceIdResolver());
   }
 
   @Bean

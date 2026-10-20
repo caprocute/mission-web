@@ -6,6 +6,10 @@
   Spring Boot auto-configuration dùng chung cho mission-core và microservice Java. NEN-009 dựng
   khung và gói error; các gói khác (tenant, outbox, idempotency, authz, crypto, resilience,
   observability) do NEN-010..NEN-016 thêm vào.
+
+  NEN-016 · ADR-12, ADR-24: Resilience4j chuẩn, timeout mặc định, OpenTelemetry, Log4j2 JSON ECS
+  có che dữ liệu, nhật ký kiểm toán. Starter dùng Log4j2: service phải loại
+  spring-boot-starter-logging (Logback) khỏi các starter Spring Boot khác.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
@@ -20,7 +24,7 @@
   <artifactId>vt-platform-starter</artifactId>
 
   <name>Mission · vt-platform-starter</name>
-  <description>Thư viện nền Spring Boot: lỗi RFC 9457 theo danh mục mã lỗi của hợp đồng (ADR-24).</description>
+  <description>Thư viện nền Spring Boot: lỗi RFC 9457 theo danh mục mã lỗi của hợp đồng (ADR-24); chịu lỗi Resilience4j, timeout mặc định, quan sát OpenTelemetry/Micrometer, nhật ký ECS có che dữ liệu, nhật ký kiểm toán (ADR-12, ADR-24).</description>
 
   <properties>
     <pitest.targetClasses>vn.viettel.okrkpi.shared.*</pitest.targetClasses>
@@ -39,6 +43,52 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-json</artifactId>
+      <exclusions>
+        <!-- Nền tảng ghi nhật ký bằng Log4j2 (TL-01 "Log có cấu trúc"), không dùng Logback. -->
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-log4j2</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-layout-template-json</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.lmax</groupId>
+      <artifactId>disruptor</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+      <exclusions>
+        <!-- Nền tảng ghi nhật ký bằng Log4j2 (TL-01 "Log có cấu trúc"), không dùng Logback. -->
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-spring-boot3</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry.instrumentation</groupId>
+      <artifactId>opentelemetry-instrumentation-annotations</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
@@ -67,6 +117,18 @@
       <artifactId>spring-security-core</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- sqlcommenter qua StatementInspector, chỉ nạp khi service dùng JPA/Hibernate. -->
+    <dependency>
+      <groupId>org.hibernate.orm</groupId>
+      <artifactId>hibernate-core</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- Luật kiến trúc dùng chung (PlatformArchitectureRules) cho kiểm thử ArchUnit của service. -->
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit</artifactId>
+      <optional>true</optional>
+    </dependency>
 
     <dependency>
       <groupId>com.tngtech.archunit</groupId>
@@ -77,16 +139,37 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
+      <exclusions>
+        <!-- Nền tảng ghi nhật ký bằng Log4j2 (TL-01 "Log có cấu trúc"), không dùng Logback. -->
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
       <scope>test</scope>
+      <exclusions>
+        <!-- Nền tảng ghi nhật ký bằng Log4j2 (TL-01 "Log có cấu trúc"), không dùng Logback. -->
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
       <scope>test</scope>
+      <exclusions>
+        <!-- Nền tảng ghi nhật ký bằng Log4j2 (TL-01 "Log có cấu trúc"), không dùng Logback. -->
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
 

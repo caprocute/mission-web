@@ -39,7 +39,8 @@ class ProblemAutoConfigurationTest {
               assertThat(ctx.getBeansOfType(ErrorController.class))
                   .hasSize(1)
                   .containsValue(ctx.getBean(ProblemErrorController.class));
-              assertThat(ctx.getBean(TraceIdResolver.class)).isInstanceOf(W3cTraceIdResolver.class);
+              assertThat(ctx.getBean(TraceIdResolver.class))
+                  .isInstanceOf(vn.viettel.okrkpi.shared.observability.OtelTraceIdResolver.class);
             });
   }
 
