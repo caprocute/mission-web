@@ -77,8 +77,26 @@ python3 contracts/events/tools/doi-chieu-tl.py \
 
 Phụ thuộc `vn.viettel.okrkpi:vt-events`; lớp sinh nằm ở `vn.vtokr.<miền>.v1`, tên topic ở `vn.viettel.okrkpi.events.EventTopics` (ví dụ `EventTopics.EVT_05_TIEN_DO_DA_CAP_NHAT`). Avro từ 1.12.1 chỉ nạp lớp sinh nằm trong danh sách tin cậy; service gọi `EventContracts.trustContractPackages()` một lần khi khởi động, nếu không `SpecificDatumReader` ném `SecurityException`. Lược đồ và danh mục cũng được đóng vào jar ở `classpath:contracts/events/`.
 
+## Hợp đồng AsyncAPI 3.0 cho các topic công bố qua `SVC-13` (`NEN-008`)
+
+Các topic nghiệp vụ được công bố hoặc liên thông ra ngoài qua `SVC-13` (`integration-hub-svc`, `MOD-13`) có hợp đồng dành cho đối tác tiêu thụ tại [`../asyncapi/mission-events.asyncapi.yaml`](../asyncapi/mission-events.asyncapi.yaml):
+
+| Mã | Topic (`channel.address`) | Lược đồ Avro gốc | Đối tác tiêu thụ qua `SVC-13` |
+|---|---|---|---|
+| `EVT-04` | `task.task.assigned.v1` | `avro/task/NhiemVuDaGiao.avsc` | Hệ thống quản lý văn bản (VOffice), lịch công tác, cổng thông báo |
+| `EVT-12` | `appraisal.rating.decided.v1` | `avro/appraisal/XepLoaiDaQuyetDinh.avsc` | CSDL Quốc gia về CBCCVC (Bộ Nội vụ), CSDL Đảng viên 3.0 (Ban Tổ chức TW) |
+| `EVT-19` | `ledger.seal.created.v1` | `avro/ledger/SoCaiDaNiemPhong.avsc` | Hệ thống giám sát kiểm toán độc lập, cổng đối soát chữ ký TSA |
+
+Kiểm tra cú pháp AsyncAPI 3.0 và đối chiếu chéo tự động với `catalog.yaml` + `.avsc`:
+
+```bash
+cd contracts
+npm run asyncapi:lint
+```
+
 ## Liên quan
 
 - `wiki/18-su-kien-va-dong-bo-du-lieu.md`
 - `backend/libs/vt-events/`
-- NEN-008 (AsyncAPI), NEN-011 (outbox), NEN-012 (consumer, inbox), INF-10 (topic dạng mã), NEN-020 (topic dev)
+- `contracts/asyncapi/mission-events.asyncapi.yaml`
+- NEN-008 (AsyncAPI), NEN-011 (outbox), NEN-012 (consumer, inbox), NEN-021 (topic kỹ thuật), INF-10 (topic dạng mã), NEN-020 (topic dev)
