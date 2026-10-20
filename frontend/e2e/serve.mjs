@@ -1,9 +1,10 @@
 // Máy chủ tĩnh & reverse-proxy cấu hình động cho phân hệ Web Mission (WEB-057, YC-HT-03):
 // - Phục vụ bản ghép `dist/e2e` (shell ở gốc, remote ở `remotes/<project>`) như nginx, trả index.html cho tuyến SPA.
-// - Tự động nạp tệp `.env` ở gốc repo (nếu có) mà không ghi đè biến môi trường đã truyền trực tiếp.
-// - Sinh động `/config.json` và `/federation.manifest.json` theo biến môi trường lúc chạy (không cần build lại).
-// - Chuyển tiếp (reverse-proxy) các yêu cầu `/api/v1/*` và `/ui-pack/*` tới các dịch vụ backend tương ứng
-//   (`TENANT_REGISTRY_URL`, `ORG_SERVICE_URL`, `UI_PACK_SERVICE_URL`, `API_PROXY_TARGET`) để chỉ cần mở 1 cổng Web duy nhất.
+// - Tự động nạp tệp `.env` ở gốc repo theo thời gian thực (mỗi lần trình duyệt tải `/config.json`).
+// - Mặc định bật đăng nhập Keycloak SSO (`AUTH_ENABLED=true`) và truy vấn trực tiếp Backend (`USE_MOCK_API=false`).
+// - Tương thích ngược với bộ kiểm thử Playwright khi truyền `E2E_MODE=gia-lap` hoặc `E2E_MODE=keycloak`.
+// - Chuyển tiếp (reverse-proxy) các yêu cầu `/api/v1/*` tới các dịch vụ backend tương ứng
+//   (`TENANT_REGISTRY_URL`, `ORG_SERVICE_URL`, `UI_PACK_SERVICE_URL`, `API_PROXY_TARGET`).
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { createServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
@@ -13,9 +14,10 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('../dist/e2e/', import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
-function loadDotEnv() {
+function readDotEnvMap() {
   const envPath = join(REPO_ROOT, '.env');
-  if (!existsSync(envPath)) return;
+  const map = {};
+  if (!existsSync(envPath)) return map;
   const content = readFileSync(envPath, 'utf8');
   for (const rawLine of content.split(/\r?\n/)) {
     const line = rawLine.trim();
@@ -30,15 +32,23 @@ function loadDotEnv() {
     ) {
       val = val.slice(1, -1);
     }
-    if (process.env[key] === undefined) {
-      process.env[key] = val;
-    }
+    map[key] = val;
   }
+  return map;
 }
 
-loadDotEnv();
+function getEnv(key, fallback) {
+  if (process.env[key] !== undefined && process.env[key] !== '') {
+    return process.env[key];
+  }
+  const dotEnv = readDotEnvMap();
+  if (dotEnv[key] !== undefined && dotEnv[key] !== '') {
+    return dotEnv[key];
+  }
+  return fallback;
+}
 
-const PORT = Number(process.env.E2E_PORT ?? process.env.WEB_PORT ?? 4200);
+const PORT = Number(getEnv('E2E_PORT', getEnv('WEB_PORT', '4200')));
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -59,7 +69,7 @@ function parseBool(val, fallback) {
 function runtimeConfig() {
   const base = JSON.parse(readFileSync(join(ROOT, 'config.json'), 'utf8'));
 
-  // Tương thích ngược hoàn toàn với Playwright E2E khi đặt E2E_MODE
+  // Tương thích với bộ kiểm thử Playwright khi truyền rõ E2E_MODE
   if (process.env.E2E_MODE === 'keycloak') {
     const kc = (process.env.E2E_KC_URL ?? 'http://localhost:8180').replace(/\/$/, '');
     return {
@@ -68,40 +78,28 @@ function runtimeConfig() {
       useMockApi: true,
     };
   }
-  if (process.env.E2E_MODE && process.env.E2E_MODE !== 'env') {
+  if (process.env.E2E_MODE === 'gia-lap' || process.env.E2E_MODE === 'mock') {
     return { ...base, auth: { ...base.auth, enabled: false }, useMockApi: true };
   }
 
-  // Chế độ cấu hình động qua biến môi trường (.env hoặc process.env)
-  const hasExplicitEnv =
-    process.env.USE_MOCK_API !== undefined ||
-    process.env.AUTH_ENABLED !== undefined ||
-    process.env.API_BASE_URL !== undefined ||
-    process.env.AUTH_ISSUER !== undefined ||
-    process.env.CELL !== undefined ||
-    process.env.TENANT !== undefined;
-
-  if (!hasExplicitEnv) {
-    return { ...base, auth: { ...base.auth, enabled: false }, useMockApi: true };
-  }
-
-  const kcUrl = (process.env.E2E_KC_URL ?? process.env.KEYCLOAK_URL ?? 'http://127.0.0.1:35080').replace(/\/$/, '');
-  const realm = process.env.KEYCLOAK_REALM ?? 'mission';
-  const issuer = process.env.AUTH_ISSUER ?? `${kcUrl}/realms/${realm}`;
+  // Mặc định: nạp động từ .env / biến môi trường, bật Login SSO và gọi thẳng Backend (useMockApi=false)
+  const kcUrl = getEnv('E2E_KC_URL', getEnv('KEYCLOAK_URL', 'http://localhost:35080')).replace(/\/$/, '');
+  const realm = getEnv('KEYCLOAK_REALM', 'mission');
+  const issuer = getEnv('AUTH_ISSUER', `${kcUrl}/realms/${realm}`);
 
   return {
     ...base,
-    cell: process.env.CELL ?? base.cell ?? 'cell-tw',
-    tenant: process.env.TENANT ?? base.tenant ?? 'default',
-    apiBaseUrl: process.env.API_BASE_URL ?? base.apiBaseUrl ?? '/api/v1',
-    uiPackBaseUrl: process.env.UI_PACK_BASE_URL ?? base.uiPackBaseUrl ?? '/ui-pack',
+    cell: getEnv('CELL', base.cell ?? 'cell-tw'),
+    tenant: getEnv('TENANT', base.tenant ?? 'default'),
+    apiBaseUrl: getEnv('API_BASE_URL', '/api'),
+    uiPackBaseUrl: getEnv('UI_PACK_BASE_URL', '/ui-packs'),
     auth: {
       ...base.auth,
-      enabled: parseBool(process.env.AUTH_ENABLED, false),
+      enabled: parseBool(getEnv('AUTH_ENABLED', 'true'), true),
       issuer,
-      clientId: process.env.AUTH_CLIENT_ID ?? base.auth?.clientId ?? 'mission-web',
+      clientId: getEnv('AUTH_CLIENT_ID', base.auth?.clientId ?? 'mission-web'),
     },
-    useMockApi: parseBool(process.env.USE_MOCK_API, true),
+    useMockApi: parseBool(getEnv('USE_MOCK_API', 'false'), false),
   };
 }
 
@@ -111,18 +109,17 @@ function runtimeManifest() {
     ? JSON.parse(readFileSync(manifestPath, 'utf8'))
     : {};
   const mapEnv = {
-    'fe-task': process.env.FE_TASK_URL,
-    'fe-okr': process.env.FE_OKR_URL,
-    'fe-kpi': process.env.FE_KPI_URL,
-    'fe-eval': process.env.FE_EVAL_URL,
-    'fe-Scoring': process.env.FE_SCORING_URL,
-    'fe-scoring': process.env.FE_SCORING_URL,
-    'fe-report': process.env.FE_REPORT_URL,
-    'fe-admin': process.env.FE_ADMIN_URL,
-    'fe-workflow': process.env.FE_WORKFLOW_URL,
-    'fe-signature': process.env.FE_SIGNATURE_URL,
-    'fe-notification': process.env.FE_NOTIFICATION_URL,
-    'fe-sync': process.env.FE_SYNC_URL,
+    'fe-task': getEnv('FE_TASK_URL', undefined),
+    'fe-okr': getEnv('FE_OKR_URL', undefined),
+    'fe-kpi': getEnv('FE_KPI_URL', undefined),
+    'fe-eval': getEnv('FE_EVAL_URL', undefined),
+    'fe-scoring': getEnv('FE_SCORING_URL', undefined),
+    'fe-report': getEnv('FE_REPORT_URL', undefined),
+    'fe-admin': getEnv('FE_ADMIN_URL', undefined),
+    'fe-workflow': getEnv('FE_WORKFLOW_URL', undefined),
+    'fe-signature': getEnv('FE_SIGNATURE_URL', undefined),
+    'fe-notification': getEnv('FE_NOTIFICATION_URL', undefined),
+    'fe-sync': getEnv('FE_SYNC_URL', undefined),
   };
   const result = { ...base };
   for (const [remote, url] of Object.entries(mapEnv)) {
@@ -134,10 +131,10 @@ function runtimeManifest() {
 }
 
 function resolveProxyTarget(pathname) {
-  const tenantRegistry = process.env.TENANT_REGISTRY_URL ?? 'http://127.0.0.1:8083';
-  const orgService = process.env.ORG_SERVICE_URL ?? 'http://127.0.0.1:8084';
-  const uiPackService = process.env.UI_PACK_SERVICE_URL ?? 'http://127.0.0.1:8090';
-  const defaultApiTarget = process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:8080';
+  const tenantRegistry = getEnv('TENANT_REGISTRY_URL', 'http://127.0.0.1:8083');
+  const orgService = getEnv('ORG_SERVICE_URL', 'http://127.0.0.1:8084');
+  const uiPackService = getEnv('UI_PACK_SERVICE_URL', 'http://127.0.0.1:8090');
+  const defaultApiTarget = getEnv('API_PROXY_TARGET', 'http://127.0.0.1:8080');
 
   if (
     pathname.startsWith('/api/v1/registry') ||
@@ -155,7 +152,7 @@ function resolveProxyTarget(pathname) {
   ) {
     return orgService;
   }
-  if (pathname.startsWith('/ui-pack/') || pathname.startsWith('/api/v1/ui-packs')) {
+  if (pathname.startsWith('/api/v1/ui-packs')) {
     return uiPackService;
   }
   if (pathname.startsWith('/api/')) {
