@@ -18,6 +18,7 @@ public final class PostgresSupport {
 
   public static final PostgreSQLContainer<?> PG = new PostgreSQLContainer<>("postgres:17")
       .withDatabaseName("td_test")
+      .withUrlParam("reWriteBatchedInserts", "true")
       .withCommand("postgres", "-c", "max_connections=200", "-c", "fsync=off");
 
   public static final String SVC_PASSWORD = random();
@@ -25,6 +26,9 @@ public final class PostgresSupport {
   public static final String RO_PASSWORD = random();
 
   private static boolean started;
+  private static String jdbcUrl;
+  private static String adminUser;
+  private static String adminPass;
 
   private PostgresSupport() {
   }
@@ -33,12 +37,30 @@ public final class PostgresSupport {
     if (started) {
       return;
     }
-    PG.start();
+    String extUrl = System.getenv("TEST_PG_JDBC_URL");
+    if (extUrl != null && !extUrl.isBlank()) {
+      jdbcUrl = extUrl;
+      adminUser = System.getenv().getOrDefault("TEST_PG_USER", "mission");
+      adminPass = System.getenv().getOrDefault("TEST_PG_PASSWORD", "");
+    } else {
+      PG.start();
+      jdbcUrl = PG.getJdbcUrl();
+      adminUser = PG.getUsername();
+      adminPass = PG.getPassword();
+    }
     try (Connection c = admin(); Statement s = c.createStatement()) {
-      s.execute("CREATE ROLE mig_org LOGIN NOINHERIT PASSWORD '" + MIG_PASSWORD + "'");
-      s.execute("CREATE ROLE svc_org LOGIN NOINHERIT NOBYPASSRLS PASSWORD '" + SVC_PASSWORD + "'");
-      s.execute("CREATE ROLE ro_org LOGIN NOINHERIT NOBYPASSRLS PASSWORD '" + RO_PASSWORD + "'");
-      s.execute("CREATE ROLE cdc_org LOGIN REPLICATION NOINHERIT");
+      s.execute("DROP SCHEMA IF EXISTS org CASCADE");
+      s.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'mig_org') THEN "
+          + "CREATE ROLE mig_org LOGIN NOINHERIT; END IF; END $$");
+      s.execute("ALTER ROLE mig_org WITH LOGIN NOINHERIT PASSWORD '" + MIG_PASSWORD + "'");
+      s.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'svc_org') THEN "
+          + "CREATE ROLE svc_org LOGIN NOINHERIT NOBYPASSRLS; END IF; END $$");
+      s.execute("ALTER ROLE svc_org WITH LOGIN NOINHERIT NOBYPASSRLS PASSWORD '" + SVC_PASSWORD + "'");
+      s.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ro_org') THEN "
+          + "CREATE ROLE ro_org LOGIN NOINHERIT NOBYPASSRLS; END IF; END $$");
+      s.execute("ALTER ROLE ro_org WITH LOGIN NOINHERIT NOBYPASSRLS PASSWORD '" + RO_PASSWORD + "'");
+      s.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'cdc_org') THEN "
+          + "CREATE ROLE cdc_org LOGIN REPLICATION NOINHERIT; END IF; END $$");
       s.execute("CREATE SCHEMA org AUTHORIZATION mig_org");
       s.execute("REVOKE ALL ON SCHEMA org FROM PUBLIC");
       s.execute("CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public");
@@ -46,7 +68,7 @@ public final class PostgresSupport {
       throw new IllegalStateException(e);
     }
     Flyway.configure()
-        .dataSource(PG.getJdbcUrl(), "mig_org", MIG_PASSWORD)
+        .dataSource(jdbcUrl, "mig_org", MIG_PASSWORD)
         .schemas("org").defaultSchema("org").createSchemas(false)
         .locations("classpath:db/migration/org")
         .load()
@@ -54,12 +76,27 @@ public final class PostgresSupport {
     started = true;
   }
 
+  public static String jdbcUrl() {
+    start();
+    return jdbcUrl;
+  }
+
+  public static String adminUsername() {
+    start();
+    return adminUser;
+  }
+
+  public static String adminPassword() {
+    start();
+    return adminPass;
+  }
+
   public static Connection admin() throws SQLException {
-    return DriverManager.getConnection(PG.getJdbcUrl(), PG.getUsername(), PG.getPassword());
+    return DriverManager.getConnection(jdbcUrl, adminUser, adminPass);
   }
 
   public static Connection as(String role, String password) throws SQLException {
-    return DriverManager.getConnection(PG.getJdbcUrl(), role, password);
+    return DriverManager.getConnection(jdbcUrl(), role, password);
   }
 
   private static String random() {

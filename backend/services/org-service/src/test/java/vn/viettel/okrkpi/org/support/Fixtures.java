@@ -15,8 +15,8 @@ public final class Fixtures {
 
   public Fixtures() {
     PostgresSupport.start();
-    DriverManagerDataSource ds = new DriverManagerDataSource(PostgresSupport.PG.getJdbcUrl(),
-        PostgresSupport.PG.getUsername(), PostgresSupport.PG.getPassword());
+    DriverManagerDataSource ds = new DriverManagerDataSource(PostgresSupport.jdbcUrl(),
+        PostgresSupport.adminUsername(), PostgresSupport.adminPassword());
     this.admin = new JdbcTemplate(ds);
   }
 

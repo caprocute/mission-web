@@ -4,11 +4,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import vn.viettel.okrkpi.org.application.Actor;
+import vn.viettel.okrkpi.org.application.ChangeResult;
 import vn.viettel.okrkpi.org.application.OrgUnitCommandService;
 import vn.viettel.okrkpi.org.application.OrgUnitHistoryItem;
 import vn.viettel.okrkpi.org.application.OrgUnitQueryService;
@@ -21,6 +23,8 @@ import vn.viettel.okrkpi.org.infrastructure.web.api.OrgApi;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgUnitHistory200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgUnits200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListSubjectGroups200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgChangeOrder;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgChangeRequest;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgTree;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgTreeKind;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnit;
@@ -34,6 +38,7 @@ import vn.viettel.okrkpi.org.infrastructure.web.model.SearchOrgUnits200Response;
  */
 @RestController
 @RequestMapping("/api/v1")
+@ConditionalOnWebApplication
 public class OrgController implements OrgApi {
 
   private final OrgUnitQueryService queries;
@@ -60,6 +65,13 @@ public class OrgController implements OrgApi {
     OrgUnitView view = commands.update(actor(), id, expected,
         hasher.of(idempotencyKey, "PUT", request.getRequestURI(), input), OrgWebMapper.toCommand(input));
     return ResponseEntity.ok().eTag(etag(view.rowVersion())).body(OrgWebMapper.toDto(view));
+  }
+
+  @Override
+  public ResponseEntity<OrgChangeOrder> changeOrgUnit(String idempotencyKey, UUID id, OrgChangeRequest input) {
+    ChangeResult result = commands.change(actor(), id,
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), input), OrgWebMapper.toCommand(input));
+    return ResponseEntity.status(201).body(OrgWebMapper.toDto(result));
   }
 
   @Override

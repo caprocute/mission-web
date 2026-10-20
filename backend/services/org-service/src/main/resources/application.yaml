@@ -30,11 +30,11 @@ spring:
     problemdetails:
       enabled: true
 server:
-  port: 8080
+  port: ${PORT:8080}
   shutdown: graceful
 management:
   server:
-    port: 8081
+    port: ${MANAGEMENT_PORT:8081}
   endpoints:
     web:
       exposure:
@@ -63,6 +63,9 @@ okrkpi:
     zone: Asia/Ho_Chi_Minh
     step-up-window: PT5M
     locked-periods: []
+    auth-enabled: ${AUTH_ENABLED:true}
+    dev-tenant-id: ${DEV_TENANT_ID:01960000-0000-7000-8000-000000000001}
+    dev-user-id: ${DEV_USER_ID:01960000-0000-7000-8000-000000000101}
 ---
 spring:
   config:

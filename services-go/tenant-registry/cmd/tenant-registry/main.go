@@ -2,12 +2,16 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
+	"strings"
 	"syscall"
 	"time"
 
@@ -36,6 +40,7 @@ func main() {
 		}
 		return
 	}
+	loadDotEnvIfPresent()
 	cfg, err := config.Load()
 	if err != nil {
 		log.Error("cấu hình không hợp lệ", "err", err.Error())
@@ -50,6 +55,13 @@ func main() {
 		os.Exit(1)
 	}
 	defer pool.Close()
+
+	if os.Getenv("AUTO_MIGRATE") == "true" || os.Getenv("AUTO_MIGRATE") == "1" {
+		if err := autoMigrateDev(ctx, pool, log); err != nil {
+			log.Error("không chạy được auto-migrate", "err", err.Error())
+			os.Exit(1)
+		}
+	}
 
 	verifier := auth.NewJWKSVerifier(auth.JWKSConfig{JWKSURL: cfg.JWKSURL, Issuers: cfg.Issuers, Audience: cfg.Audience})
 	signer, err := routecookie.NewSigner(cfg.RoutingKey, cfg.RoutingKeyPrevious)
@@ -110,6 +122,86 @@ func copyMigrations(src, dst string) error {
 		}
 		if err := os.WriteFile(filepath.Join(dst, e.Name()), b, 0o444); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func loadDotEnvIfPresent() {
+	candidates := []string{".env", "../../.env"}
+	if custom := os.Getenv("ENV_FILE"); custom != "" {
+		candidates = append([]string{custom}, candidates...)
+	}
+	for _, p := range candidates {
+		f, err := os.Open(p)
+		if err != nil {
+			continue
+		}
+		sc := bufio.NewScanner(f)
+		for sc.Scan() {
+			line := strings.TrimSpace(sc.Text())
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			idx := strings.IndexByte(line, '=')
+			if idx <= 0 {
+				continue
+			}
+			k := strings.TrimSpace(line[:idx])
+			v := strings.TrimSpace(line[idx+1:])
+			v = strings.Trim(v, `"'`)
+			if os.Getenv(k) == "" {
+				_ = os.Setenv(k, v)
+			}
+		}
+		_ = f.Close()
+	}
+}
+
+func autoMigrateDev(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) error {
+	var regClass *string
+	if err := pool.QueryRow(ctx, "SELECT to_regclass('registry.cell')::text").Scan(&regClass); err != nil {
+		return err
+	}
+	migRoot := os.Getenv("MIGRATION_DIR")
+	if migRoot == "" {
+		for _, cand := range []string{"db/migration/registry", "services-go/tenant-registry/db/migration/registry", migrationDir} {
+			if st, err := os.Stat(cand); err == nil && st.IsDir() {
+				migRoot = cand
+				break
+			}
+		}
+	}
+	if regClass == nil && migRoot != "" {
+		entries, err := os.ReadDir(migRoot)
+		if err != nil {
+			return err
+		}
+		var files []string
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".sql") && strings.HasPrefix(e.Name(), "V") {
+				files = append(files, filepath.Join(migRoot, e.Name()))
+			}
+		}
+		sort.Strings(files)
+		for _, f := range files {
+			sqlBytes, err := os.ReadFile(f)
+			if err != nil {
+				return err
+			}
+			log.Info("áp migration registry", "file", filepath.Base(f))
+			if _, err := pool.Exec(ctx, string(sqlBytes)); err != nil {
+				return err
+			}
+		}
+	}
+	for _, seedCand := range []string{"db/seed/dev/R__seed_cells_dev.sql", "services-go/tenant-registry/db/seed/dev/R__seed_cells_dev.sql"} {
+		if sqlBytes, err := os.ReadFile(seedCand); err == nil {
+			log.Info("nạp seed cell dev", "file", seedCand)
+			if _, err := pool.Exec(ctx, string(sqlBytes)); err != nil {
+				return err
+			}
+			break
 		}
 	}
 	return nil

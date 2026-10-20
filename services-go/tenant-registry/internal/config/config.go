@@ -45,12 +45,47 @@ type Config struct {
 }
 
 // Load đọc cấu hình; thiếu biến bắt buộc trả lỗi.
+// Hỗ trợ nạp động qua biến môi trường chuẩn (.env): PORT/TENANT_REGISTRY_PORT, DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD,
+// KEYCLOAK_ISSUER_URI/KEYCLOAK_URL/KEYCLOAK_REALM, REDIS_ADDR, KAFKA_BOOTSTRAP_SERVERS, OPA_URL.
 func Load() (Config, error) {
+	httpAddr := os.Getenv("HTTP_ADDR")
+	if httpAddr == "" {
+		if p := firstNonEmptyEnv("TENANT_REGISTRY_PORT", "PORT"); p != "" {
+			if strings.HasPrefix(p, ":") {
+				httpAddr = p
+			} else {
+				httpAddr = ":" + p
+			}
+		} else {
+			httpAddr = ":8080"
+		}
+	}
+
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" && os.Getenv("DB_HOST") != "" {
+		dbHost := env("DB_HOST", "127.0.0.1")
+		dbPort := env("DB_PORT", "35432")
+		dbName := env("DB_NAME", "mission")
+		dbUser := env("DB_USER", "registry")
+		dbPass := os.Getenv("DB_PASSWORD")
+		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPass, dbHost, dbPort, dbName)
+	}
+
+	jwksURL := os.Getenv("OIDC_JWKS_URL")
+	if jwksURL == "" {
+		if issuer := os.Getenv("KEYCLOAK_ISSUER_URI"); issuer != "" {
+			jwksURL = strings.TrimRight(issuer, "/") + "/protocol/openid-connect/certs"
+		} else if kcURL := os.Getenv("KEYCLOAK_URL"); kcURL != "" {
+			realm := env("KEYCLOAK_REALM", "mission")
+			jwksURL = strings.TrimRight(kcURL, "/") + "/realms/" + realm + "/protocol/openid-connect/certs"
+		}
+	}
+
 	c := Config{
-		HTTPAddr:        env("HTTP_ADDR", ":8080"),
-		DatabaseURL:     os.Getenv("DATABASE_URL"),
+		HTTPAddr:        httpAddr,
+		DatabaseURL:     dbURL,
 		ShutdownTimeout: dur("SHUTDOWN_TIMEOUT", 20*time.Second),
-		JWKSURL:         os.Getenv("OIDC_JWKS_URL"),
+		JWKSURL:         jwksURL,
 		Issuers:         list("OIDC_ISSUERS"),
 		Audience:        os.Getenv("OIDC_AUDIENCE"),
 		StepUpMaxAge:    dur("STEP_UP_MAX_AGE", 5*time.Minute),
@@ -102,6 +137,15 @@ func env(k, def string) string {
 		return v
 	}
 	return def
+}
+
+func firstNonEmptyEnv(keys ...string) string {
+	for _, k := range keys {
+		if v := os.Getenv(k); v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func dur(k string, def time.Duration) time.Duration {

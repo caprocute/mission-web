@@ -1,5 +1,6 @@
 package vn.viettel.okrkpi.org.infrastructure.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -19,10 +20,17 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
   @Bean
-  SecurityFilterChain api(HttpSecurity http, ActorFilter actorFilter, ProblemAuthenticationEntryPoint entryPoint)
+  SecurityFilterChain api(HttpSecurity http, ActorFilter actorFilter, ProblemAuthenticationEntryPoint entryPoint,
+      @Value("${okrkpi.org.auth-enabled:true}") boolean authEnabled)
       throws Exception {
     http.securityMatcher("/api/**")
-        .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+        .authorizeHttpRequests(a -> {
+          if (authEnabled) {
+            a.anyRequest().authenticated();
+          } else {
+            a.anyRequest().permitAll();
+          }
+        })
         .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()).authenticationEntryPoint(entryPoint))
         .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint))
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

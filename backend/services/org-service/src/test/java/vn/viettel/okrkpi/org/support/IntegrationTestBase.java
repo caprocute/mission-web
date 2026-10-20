@@ -23,7 +23,7 @@ public abstract class IntegrationTestBase {
   @DynamicPropertySource
   static void db(DynamicPropertyRegistry registry) {
     PostgresSupport.start();
-    registry.add("spring.datasource.url", PostgresSupport.PG::getJdbcUrl);
+    registry.add("spring.datasource.url", PostgresSupport::jdbcUrl);
     registry.add("spring.datasource.username", () -> "svc_org");
     registry.add("spring.datasource.password", () -> PostgresSupport.SVC_PASSWORD);
   }

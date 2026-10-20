@@ -2,8 +2,6 @@ module mission/services-go/tenant-registry
 
 go 1.25.0
 
-toolchain go1.26.9
-
 require (
 	github.com/docker/docker v27.1.1+incompatible
 	github.com/golang-jwt/jwt/v5 v5.2.2

@@ -12,6 +12,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -31,11 +33,44 @@ public class ActorFilter extends OncePerRequestFilter {
 
   public static final String ATTRIBUTE = ActorFilter.class.getName() + ".actor";
 
+  private final boolean authEnabled;
+  private final UUID devTenantId;
+  private final UUID devUserId;
+
+  public ActorFilter() {
+    this(true, UUID.fromString("01960000-0000-7000-8000-000000000001"),
+        UUID.fromString("01960000-0000-7000-8000-000000000101"));
+  }
+
+  @Autowired
+  public ActorFilter(
+      @Value("${okrkpi.org.auth-enabled:true}") boolean authEnabled,
+      @Value("${okrkpi.org.dev-tenant-id:01960000-0000-7000-8000-000000000001}") UUID devTenantId,
+      @Value("${okrkpi.org.dev-user-id:01960000-0000-7000-8000-000000000101}") UUID devUserId) {
+    this.authEnabled = authEnabled;
+    this.devTenantId = devTenantId;
+    this.devUserId = devUserId;
+  }
+
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
     Authentication auth = SecurityContextHolder.getContext().getAuthentication();
     if (!(auth instanceof JwtAuthenticationToken token)) {
+      if (!authEnabled) {
+        UUID headerTenant = uuid(request.getHeader("X-Tenant-Id"));
+        UUID tenant = headerTenant != null ? headerTenant : devTenantId;
+        Actor devActor = new Actor(tenant, devUserId, Set.of("platform_admin", "tenant_admin", "unit_admin"),
+            "aal2", Instant.now(), null, request.getHeader("traceparent"));
+        request.setAttribute(ATTRIBUTE, devActor);
+        TenantContextHolder.set(tenant);
+        try {
+          chain.doFilter(request, response);
+        } finally {
+          TenantContextHolder.clear();
+        }
+        return;
+      }
       chain.doFilter(request, response);
       return;
     }

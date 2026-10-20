@@ -13,7 +13,7 @@ import vn.viettel.okrkpi.org.domain.TreeKind;
 public class JdbcTreeQuery implements TreeQueryPort {
 
   private static final String REL = "r.tenant_id = :tenant AND r.tree = :tree AND r.relation_type = 'TRUC_THUOC' "
-      + "AND r.valid_period @> CAST(:d AS date) AND ";
+      + "AND r.valid_from <= CAST(:d AS date) AND r.valid_to > CAST(:d AS date) AND ";
 
   private final JdbcClient jdbc;
 
@@ -28,7 +28,7 @@ public class JdbcTreeQuery implements TreeQueryPort {
    */
   private static String rel(TemporalQuery query) {
     return "rel AS MATERIALIZED (SELECT r.parent_unit_id, r.child_unit_id FROM org.org_unit_relation r WHERE " + REL
-        + Sql.recorded("r", query) + ")";
+        + Sql.recorded("r", query) + "), parents AS MATERIALIZED (SELECT DISTINCT parent_unit_id FROM rel)";
   }
 
   @Override
@@ -37,16 +37,16 @@ public class JdbcTreeQuery implements TreeQueryPort {
         // Quan hệ trực thuộc trên mọi cây: đơn vị không có quan hệ nào là gốc riêng của cây mặc định theo loại
         // (cùng quy tắc TreeKind.defaultFor), để không biến mất khỏi cây.
         + " anyrel AS MATERIALIZED (SELECT x.parent_unit_id, x.child_unit_id FROM org.org_unit_relation x"
-        + "  WHERE x.tenant_id = :tenant AND x.relation_type = 'TRUC_THUOC' AND x.valid_period @> CAST(:d AS date)"
+        + "  WHERE x.tenant_id = :tenant AND x.relation_type = 'TRUC_THUOC'"
+        + "  AND x.valid_from <= CAST(:d AS date) AND x.valid_to > CAST(:d AS date)"
         + "  AND " + Sql.recorded("x", query) + "),"
         + " roots AS ("
-        + " SELECT DISTINCT a.parent_unit_id AS id FROM rel a"
-        + "  WHERE NOT EXISTS (SELECT 1 FROM rel p WHERE p.child_unit_id = a.parent_unit_id)"
-        + " UNION SELECT u.id FROM org.org_unit u WHERE u.tenant_id = :tenant"
-        + "  AND u.valid_period @> CAST(:d AS date) AND " + Sql.recorded("u", query)
+        + " (SELECT a.parent_unit_id AS id FROM rel a EXCEPT SELECT p.child_unit_id FROM rel p)"
+        + " UNION (SELECT u.id FROM org.org_unit u WHERE u.tenant_id = :tenant"
+        + "  AND u.valid_from <= CAST(:d AS date) AND u.valid_to > CAST(:d AS date) AND " + Sql.recorded("u", query)
         + "  AND (CASE WHEN u.unit_type IN ('TO_CHUC_DANG', 'CHI_BO') THEN 'DANG' ELSE 'CHUYEN_MON' END) = :tree"
-        + "  AND NOT EXISTS (SELECT 1 FROM anyrel c WHERE c.child_unit_id = u.id)"
-        + "  AND NOT EXISTS (SELECT 1 FROM anyrel c WHERE c.parent_unit_id = u.id)"
+        + "  EXCEPT SELECT c.child_unit_id FROM anyrel c"
+        + "  EXCEPT SELECT c.parent_unit_id FROM anyrel c)"
         + "), t(id, parent_id, depth) AS ("
         + " SELECT id, CAST(NULL AS uuid), 0 FROM roots"
         + " UNION ALL"
@@ -77,15 +77,17 @@ public class JdbcTreeQuery implements TreeQueryPort {
         + "  WHERE " + REL + Sql.recorded("r", query) + " AND up.lvl < 64"
         + ") SELECT up.id, CAST(NULL AS uuid) AS parent_id, up.lvl AS depth, u.code, u.name, u.unit_type,"
         + " false AS has_more FROM up JOIN org.org_unit u ON u.tenant_id = :tenant AND u.id = up.id"
-        + " AND u.valid_period @> CAST(:d AS date) AND " + Sql.recorded("u", query) + " ORDER BY up.lvl DESC";
+        + " AND u.valid_from <= CAST(:d AS date) AND u.valid_to > CAST(:d AS date) AND " + Sql.recorded("u", query)
+        + " ORDER BY up.lvl DESC";
     return run(sql, tree, query, 0, unit);
   }
 
   private static String select(TemporalQuery query) {
     return " SELECT t.id, t.parent_id, t.depth, u.code, u.name, u.unit_type,"
-        + " (t.depth = :depth AND EXISTS (SELECT 1 FROM rel c WHERE c.parent_unit_id = t.id)) AS has_more"
+        + " (t.depth = :depth AND hp.parent_unit_id IS NOT NULL) AS has_more"
         + " FROM t JOIN org.org_unit u ON u.tenant_id = :tenant AND u.id = t.id"
-        + " AND u.valid_period @> CAST(:d AS date) AND " + Sql.recorded("u", query);
+        + " AND u.valid_from <= CAST(:d AS date) AND u.valid_to > CAST(:d AS date) AND " + Sql.recorded("u", query)
+        + " LEFT JOIN parents hp ON hp.parent_unit_id = t.id";
   }
 
   private List<TreeRow> run(String sql, TreeKind tree, TemporalQuery query, int depth, UUID root) {
