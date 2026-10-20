@@ -12,7 +12,7 @@
 | Cỡ việc | L (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-037 |
 | Truy vết | QT-09 → SCR-0904 → `/api/v1/appraisals`, `/api/v1/esign` → MOD-04, SVC-10 → EVT-12, EVT-18 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Xong, chờ gộp |
 
 ## 1. Mục tiêu
 

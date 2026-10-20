@@ -1,4 +1,4 @@
-# QUY ĐỊNH CHUNG CỦA DỰ ÁN MISSION – PHÂN HỆ WEB
+# QUY ĐỊNH CHUNG CỦA DỰ ÁN MISSION
 
 > Tệp này là quy định bắt buộc cho mọi người và mọi AI agent làm việc trong repo. Mỗi task trong `docs/tasks/` đều mở đầu bằng lời nhắc đọc tệp này; agent phải đọc hết tệp này **trước khi** đọc task và trước khi sửa bất kỳ dòng mã nào. Khi quy định ở đây mâu thuẫn với nội dung trong một task, quy định ở đây thắng, và agent ghi lại mâu thuẫn trong báo cáo cuối task.
 
@@ -15,6 +15,10 @@ Mission là phân hệ web (SVC-17 `web-frontend`) của nền tảng giao nhi�
 | TL-04 | Triển khai, hiệu năng, dự phòng, ATTT (SEC, OPS, PERF, DR) | `/mnt/project-files/kien-truc-okr-kpi/src/TL-04-trien-khai-van-hanh.md` |
 
 Bản .docx chính thức nằm ở `/mnt/project-files/kien-truc-okr-kpi/`. Wiki tri thức trong `wiki/` tóm tắt các tài liệu này cho người làm frontend; khi wiki và TL lệch nhau, TL thắng và wiki phải được sửa.
+
+### Phạm vi áp dụng: toàn hệ thống
+
+Từ kế hoạch tổng thể (`docs/KE-HOACH-TONG-THE-HE-THONG.md`), repo này là repo chung của toàn hệ thống Mission: phân hệ web, máy chủ (mission-core và các microservice), hợp đồng, hạ tầng, di động, dữ liệu và vận hành. Tệp này áp cho mọi task. Các quy tắc viết riêng cho web (quy tắc 5, 7, 8, 9, 10 và lệnh build ở quy tắc 11) áp cho task web; task phân hệ khác áp thêm quy định riêng: `docs/quy-dinh/BACKEND.md` cho task `NEN-`, `CORE-`, `DV-`, `DL-`; `docs/quy-dinh/HA-TANG.md` cho `INF-`, `VH-`; `docs/quy-dinh/DI-DONG.md` cho `MOB-`; task `QA-` và `LEG-` áp quy định của phần mà task đụng tới. Tài liệu thiết kế còn gồm TL-05 (`TL-05-dinh-co-he-thong.md`, định cỡ theo quy mô) và các bổ sung BS-01, BS-02 trong `/mnt/project-files/kien-truc-okr-kpi/bo-sung/`. Danh mục task toàn hệ thống: `docs/tasks/DANH-MUC-TOAN-HE-THONG.md`.
 
 ## 2. Mười hai quy tắc không được vi phạm
 
@@ -37,7 +41,9 @@ Bản .docx chính thức nằm ở `/mnt/project-files/kien-truc-okr-kpi/`. Wik
 mission-web/
 ├── AGENTS.md              ← quy định chung (tệp này); CLAUDE.md trỏ về đây
 ├── docs/
+│   ├── KE-HOACH-TONG-THE-HE-THONG.md        ← kế hoạch toàn hệ thống, đường găng, chia luồng, ma trận phủ
 │   ├── KE-HOACH-PHAT-TRIEN-PHAN-HE-WEB.md   ← kế hoạch, giai đoạn, mốc
+│   ├── quy-dinh/          ← quy định riêng: BACKEND.md, HA-TANG.md, DI-DONG.md
 │   ├── phan-quyen/        ← ma-tran.json (nguồn ma trận phân quyền), gen_matrix.py, ma-tran-phan-quyen.xlsx
 │   └── tasks/             ← task cho AI agent: README (danh mục, thứ tự), _MAU-TASK.md, WEB-xxx-*.md
 ├── wiki/                  ← tri thức chi tiết; README.md là mục lục

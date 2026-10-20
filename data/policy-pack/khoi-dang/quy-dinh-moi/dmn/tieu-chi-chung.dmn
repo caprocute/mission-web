@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- BẢN NHÁP chờ nghiệp vụ duyệt. BR-09-05; table_key tieu_chi_chung; gói khoi-dang/quy-dinh-moi -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20211108/MODEL/" id="tieu-chi-chung-dinh-nghia" name="Quy đổi tiêu chí chung"
+             namespace="https://policy.okrkpi.vn/khoi-dang/quy-dinh-moi" expressionLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/" typeLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/">
+  <decision id="tieu-chi-chung" name="Quy đổi tỷ lệ đáp ứng tiêu chí chung">
+    <variable id="tieu-chi-chung-var" name="muc_tieu_chi_chung" typeRef="string"/>
+    <decisionTable id="tieu-chi-chung-bang" hitPolicy="FIRST" outputLabel="Mức tiêu chí chung">
+      <input id="tieu-chi-chung-in1" label="Tỷ lệ đáp ứng tiêu chí chung">
+        <inputExpression id="tieu-chi-chung-in1-expr" typeRef="number"><text>ty_le_dap_ung_tieu_chi_chung</text></inputExpression>
+      </input>
+      <output id="tieu-chi-chung-out" name="muc_tieu_chi_chung" typeRef="string">
+        <outputValues id="tieu-chi-chung-out-values"><text>"THUC_HIEN_TOT","DAM_BAO","CO_BAN_DAM_BAO","KHONG_DAM_BAO"</text></outputValues>
+      </output>
+      <annotation name="legal_ref"/>
+      <annotation name="dieu_khoan"/>
+      <annotation name="giai_thich"/>
+      <annotation name="mau_ha_muc"/>
+      <rule id="tieu-chi-chung-dong-1">
+        <description>Đáp ứng toàn bộ tiêu chí chung</description>
+        <inputEntry id="tieu-chi-chung-dong-1-in1"><text>&gt;= 1</text></inputEntry>
+        <outputEntry id="tieu-chi-chung-dong-1-out"><text>"THUC_HIEN_TOT"</text></outputEntry>
+        <annotationEntry><text>QĐ Điều 10; PL A3; BR-09-05</text></annotationEntry>
+        <annotationEntry><text>Điều 10 của Quy định</text></annotationEntry>
+        <annotationEntry><text>Đáp ứng toàn bộ tiêu chí chung nên tiêu chí chung được đánh giá Thực hiện tốt.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+      <rule id="tieu-chi-chung-dong-2">
+        <description>Đáp ứng từ 90% đến dưới 100%</description>
+        <inputEntry id="tieu-chi-chung-dong-2-in1"><text>[0.9..1)</text></inputEntry>
+        <outputEntry id="tieu-chi-chung-dong-2-out"><text>"DAM_BAO"</text></outputEntry>
+        <annotationEntry><text>QĐ Điều 10; PL A3; BR-09-05</text></annotationEntry>
+        <annotationEntry><text>Điều 10 của Quy định</text></annotationEntry>
+        <annotationEntry><text>Đáp ứng {gia_tri} tiêu chí chung, từ 90% đến dưới 100%, nên tiêu chí chung được đánh giá Đảm bảo.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+      <rule id="tieu-chi-chung-dong-3">
+        <description>Đáp ứng từ 60% đến dưới 90%</description>
+        <inputEntry id="tieu-chi-chung-dong-3-in1"><text>[0.6..0.9)</text></inputEntry>
+        <outputEntry id="tieu-chi-chung-dong-3-out"><text>"CO_BAN_DAM_BAO"</text></outputEntry>
+        <annotationEntry><text>QĐ Điều 10; PL A3; BR-09-05</text></annotationEntry>
+        <annotationEntry><text>Điều 10 của Quy định</text></annotationEntry>
+        <annotationEntry><text>Đáp ứng {gia_tri} tiêu chí chung, từ 60% đến dưới 90%, nên tiêu chí chung được đánh giá Cơ bản đảm bảo.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+      <rule id="tieu-chi-chung-dong-4">
+        <description>Đáp ứng dưới 60%</description>
+        <inputEntry id="tieu-chi-chung-dong-4-in1"><text>-</text></inputEntry>
+        <outputEntry id="tieu-chi-chung-dong-4-out"><text>"KHONG_DAM_BAO"</text></outputEntry>
+        <annotationEntry><text>QĐ Điều 10; PL A3; BR-09-05</text></annotationEntry>
+        <annotationEntry><text>Điều 10 của Quy định</text></annotationEntry>
+        <annotationEntry><text>Đáp ứng {gia_tri} tiêu chí chung, dưới 60%, nên tiêu chí chung được đánh giá Không đảm bảo.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

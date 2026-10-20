@@ -1,0 +1,19 @@
+# Tham số mặc định flowable.wf_binding cho mẫu mo-lai-ky-hai-nguoi v1 (QT-13; BR-13-02..BR-13-04).
+# BẢN NHÁP (DL-04). Hai bước duyệt, mỗi bước 2 ngày làm việc, MFA bước lên và ký số.
+processKind: MO_LAI_KY              # suy luận khoá
+templateKey: mo-lai-ky-hai-nguoi
+templateVersionNo: 1
+scope: {flow: DANG, subjectGroupId: null, periodType: null, fromPeriod: 2027-Q1}
+params:
+  so_cap: 2
+  cap:
+    - {buoc: DUYET_THU_NHAT, vai_tro: decider,         ky_so: true, mfa_buoc_len: true, thoi_han: P2D_LV}
+    - {buoc: DUYET_THU_HAI,  vai_tro: second_approver, ky_so: true, mfa_buoc_len: true, thoi_han: P2D_LV}
+  chon_nguoi_duyet: OPA_TACH_VAI_TRO
+  nhac_truoc: P1D_LV
+  khi_qua_han: NHAC_LAI
+  ky_so_bat_buoc: [DUYET_THU_NHAT, DUYET_THU_HAI]
+mien:
+  so_cap: {min: 2, max: 2}          # bốn mắt: đúng hai người duyệt
+  thoi_han_ngay_lam_viec: {min: 1, max: 15}
+legal_ref: "QT-13; PL 4 V.2; BR-13-02; BR-13-04"

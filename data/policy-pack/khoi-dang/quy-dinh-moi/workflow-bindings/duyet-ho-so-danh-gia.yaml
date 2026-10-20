@@ -1,0 +1,23 @@
+# Tham số mặc định flowable.wf_binding cho mẫu duyet-ho-so-danh-gia v3 (QT-09; TL-02b SCR-1504, ví dụ bản ghi).
+# BẢN NHÁP (DL-04). Thời hạn theo bảng bước QT-09: tự đánh giá 3, thẩm định 3, đề xuất 2, quyết định 3 ngày làm việc.
+# Miền QT-15 (SCR-1504): số cấp 2..4; thời hạn 1..15 ngày làm việc; không bỏ bước ký số bắt buộc của mẫu.
+processKind: DANH_GIA                # suy luận khoá (hợp đồng policies.yaml ProcessKind)
+templateKey: duyet-ho-so-danh-gia
+templateVersionNo: 3
+scope: {flow: DANG, subjectGroupId: null, periodType: QUY, fromPeriod: 2027-Q1}
+params:
+  so_cap: 4
+  cap:
+    - {buoc: TU_DANH_GIA, vai_tro: member,    ky_so: true, thoi_han: P3D_LV}
+    - {buoc: THAM_DINH,   vai_tro: appraiser, don_vi: BAN_TO_CHUC, ky_so: true, thoi_han: P3D_LV}
+    - {buoc: DE_XUAT,     vai_tro: manager,   thoi_han: P2D_LV,
+       bo_qua_khi: "nguoi_duoc_danh_gia.chuc_danh in ['CHUYEN_VIEN'] && muc_tham_dinh == muc_tu_de_xuat"}
+    - {buoc: QUYET_DINH,  vai_tro: decider,   ky_lo: true, ky_so: true, thoi_han: P3D_LV}
+  nhac_truoc: P1D_LV
+  khi_qua_han: CHUYEN_CAP_PHO_UY_QUYEN
+  so_lan_tra_lai_toi_da: 2           # QT-09: trả lại bổ sung <= 2 lần (tham số)
+  ky_so_bat_buoc: [TU_DANH_GIA, THAM_DINH, QUYET_DINH]   # BR-09-15
+mien:
+  so_cap: {min: 2, max: 4}
+  thoi_han_ngay_lam_viec: {min: 1, max: 15}
+legal_ref: "QT-09; QT-15; BR-09-15; ADR-04"

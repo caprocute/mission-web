@@ -1,0 +1,393 @@
+<div class="head">
+  <div>
+    <h1>
+      Quyết định xếp loại hàng loạt
+      @if (title()) {
+        · {{ title() }}
+      }
+    </h1>
+    @if (inGroup().length) {
+      <p class="sub">
+        {{ inGroup().length }} hồ sơ chờ quyết định · {{ flowLabel[inGroup()[0].flow] }}
+      </p>
+    }
+  </div>
+  <div class="acts">
+    @if (groups().length > 1) {
+      <label class="filter">
+        <span>Kỳ đánh giá</span>
+        <select
+          [value]="group()"
+          [disabled]="locked()"
+          (change)="group.set($any($event.target).value)"
+        >
+          @for (g of groups(); track g.key) {
+            <option [value]="g.key">{{ g.label }} ({{ g.count }})</option>
+          }
+        </select>
+      </label>
+    }
+    <label class="filter">
+      <span>Đơn vị</span>
+      <select [value]="unit()" [disabled]="locked()" (change)="unit.set($any($event.target).value)">
+        <option value="">Tất cả</option>
+        @for (u of units(); track u.id) {
+          <option [value]="u.id">{{ u.name }}</option>
+        }
+      </select>
+    </label>
+    @if (!simple()) {
+      <button type="button" class="btn" [disabled]="!!busy()" (click)="exportForm()">
+        {{ busy() === 'export' ? 'Đang xuất…' : 'Xuất Mẫu 3' }}
+      </button>
+    }
+    @if (can('SCR-0903.xem')) {
+      <a class="btn" routerLink="../ket-qua">Kết quả xếp loại</a>
+    }
+  </div>
+</div>
+
+@if (formUrl(); as url) {
+  <p class="msg ok" role="status">
+    Đã sinh Mẫu 3 dạng nháp.
+    <a #formLink [href]="url" download="Mau-3-ban-nhap.pdf">Lưu tệp Mẫu 3</a>
+  </p>
+}
+@if (notice()) {
+  <p class="msg ok" role="status">{{ notice() }}</p>
+}
+@if (warning()) {
+  <p class="msg warn" role="status">{{ warning() }}</p>
+}
+@if (error()) {
+  <p class="msg err" role="alert">{{ error() }}</p>
+}
+
+<div class="layout" [class.one]="simple()">
+  <section class="card list" aria-labelledby="bd-list-h">
+    <div class="list-head">
+      <h2 id="bd-list-h">Đã chọn {{ items().length }}/{{ visible().length }} hồ sơ</h2>
+      <p class="muted small">
+        Cột "Quyết định" mặc định bằng mức đề xuất; đổi mức bắt buộc ghi lý do.
+      </p>
+    </div>
+    @if (queue.error()) {
+      <p class="msg err" role="alert">Không tải được danh sách hồ sơ. Vui lòng tải lại trang.</p>
+    } @else if (queue.isLoading() && !rows().length) {
+      <p class="muted" role="status">Đang tải danh sách…</p>
+    } @else if (!visible().length) {
+      <p class="muted">Không có hồ sơ nào chờ quyết định.</p>
+    } @else {
+      <div class="scroll">
+        <table>
+          <caption class="sr">
+            Hồ sơ chờ quyết định, trang
+            {{
+              pageIndex() + 1
+            }}/{{
+              pageCount()
+            }}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">
+                <input
+                  id="bd-selection"
+                  type="checkbox"
+                  aria-label="Chọn tất cả hồ sơ trong danh sách"
+                  [checked]="allSelected()"
+                  [indeterminate]="someSelected()"
+                  [disabled]="locked()"
+                  (change)="toggleAll($any($event.target).checked)"
+                />
+              </th>
+              <th scope="col">Cán bộ</th>
+              <th scope="col" class="num">Điểm</th>
+              @if (!simple()) {
+                <th scope="col">Tự đề xuất</th>
+                <th scope="col">Thẩm định</th>
+              }
+              <th scope="col">Đề xuất</th>
+              <th scope="col">Quyết định</th>
+              <th scope="col">Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of pageRows(); track r.id) {
+              <tr [attr.data-profile-id]="r.id" [class.off]="!selected().has(r.id)">
+                <td>
+                  <input
+                    type="checkbox"
+                    [attr.aria-label]="'Chọn hồ sơ của đồng chí ' + r.person.name"
+                    [checked]="selected().has(r.id)"
+                    [disabled]="locked()"
+                    (change)="toggle(r, $any($event.target).checked)"
+                  />
+                </td>
+                <th scope="row" class="who">
+                  <b>{{ r.person.name }}</b>
+                  <span class="muted">{{ r.jobTitle }}</span>
+                </th>
+                <td class="num">{{ vn(r.totalScore) }}</td>
+                @if (!simple()) {
+                  <td>
+                    @if (r.levels.selfProposed; as l) {
+                      <span class="lv" [attr.data-level]="l" [title]="full[l]">{{ short[l] }}</span>
+                    }
+                  </td>
+                  <td>
+                    @if (r.levels.appraised; as l) {
+                      <span class="lv" [attr.data-level]="l" [title]="full[l]">{{ short[l] }}</span>
+                    }
+                  </td>
+                }
+                <td>
+                  @if (r.levels.proposed; as l) {
+                    <span class="lv" [attr.data-level]="l" [title]="full[l]">{{ short[l] }}</span>
+                  }
+                </td>
+                <td>
+                  @if (canChange()) {
+                    <select
+                      [attr.aria-label]="'Mức quyết định cho đồng chí ' + r.person.name"
+                      [attr.data-level]="decisionOf(r)"
+                      (change)="changeLevel(r, $event)"
+                    >
+                      @for (l of levels; track l) {
+                        <option [value]="l" [selected]="l === decisionOf(r)">{{ short[l] }}</option>
+                      }
+                    </select>
+                  } @else if (decisionOf(r); as l) {
+                    <span class="lv" [attr.data-level]="l" [title]="full[l]">{{ short[l] }}</span>
+                  }
+                </td>
+                <td class="note" [class.bad]="blockedHeads().has(r.id)">{{ note(r) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (pageCount() > 1) {
+        <nav class="pager" aria-label="Phân trang danh sách hồ sơ">
+          <button
+            type="button"
+            class="btn"
+            [disabled]="pageIndex() === 0"
+            (click)="setPage(pageIndex() - 1)"
+          >
+            Trang trước
+          </button>
+          <span aria-live="polite">Trang {{ pageIndex() + 1 }}/{{ pageCount() }}</span>
+          <button
+            type="button"
+            class="btn"
+            [disabled]="pageIndex() + 1 >= pageCount()"
+            (click)="setPage(pageIndex() + 1)"
+          >
+            Trang sau
+          </button>
+        </nav>
+      }
+    }
+  </section>
+
+  <div class="side">
+    <section class="card" aria-labelledby="bd-dist-h">
+      <h2 id="bd-dist-h">Phân bố mức quyết định</h2>
+      <ul class="dist">
+        @for (d of dist(); track d.level) {
+          <li>
+            <span class="dl">{{ short[d.level] }}</span>
+            <span class="bar" aria-hidden="true"
+              ><span [attr.data-level]="d.level" [style.width.%]="d.share * 100"></span
+            ></span>
+            <span class="dv">{{ d.count }} · {{ percent(d.share) }}</span>
+          </li>
+        }
+      </ul>
+      @if (items().length) {
+        @if (overLimit()) {
+          <p class="msg warn" role="status">{{ msg0913() }}</p>
+          <label class="check">
+            <input
+              id="bd-calibration"
+              type="checkbox"
+              [checked]="calibrationAck()"
+              [disabled]="locked()"
+              [attr.aria-invalid]="!!fieldError('calibration')"
+              (change)="calibrationAck.set($any($event.target).checked)"
+            />
+            Đã tổ chức phiên hiệu chỉnh mức xếp loại
+          </label>
+        } @else {
+          <p class="msg info">{{ withinLimit() }}</p>
+        }
+      }
+    </section>
+
+    <section class="card" aria-labelledby="bd-sign-h">
+      <h2 id="bd-sign-h">Ký lô quyết định</h2>
+      <div id="bd-certificate" tabindex="-1" class="cert">
+        @if (certInfo(); as c) {
+          <p>
+            Chứng thư: <b>{{ c.holder }} · {{ c.provider }}</b>
+            @if (certOk()) {
+              (còn hạn đến {{ c.until }})
+            } @else {
+              <span class="bad">(đã hết hạn ngày {{ c.until }})</span>
+            }
+          </p>
+        } @else if (certs.isLoading()) {
+          <p class="muted">Đang đọc chứng thư ký số…</p>
+        } @else {
+          <p class="bad">Đồng chí chưa có chứng thư ký số đã đăng ký.</p>
+        }
+        <p>Phương thức: <b>một lần xác nhận cho cả lô</b>, mỗi hồ sơ một chữ ký số riêng.</p>
+      </div>
+
+      <fieldset class="no" [disabled]="locked()">
+        <legend>Số, ngày quyết định <span aria-hidden="true" class="req">*</span></legend>
+        <div class="pair">
+          <label>
+            <span class="sr">Số quyết định</span>
+            <input
+              id="bd-decisionNo"
+              type="text"
+              maxlength="64"
+              placeholder="Ví dụ: 215-QĐ/ĐUK"
+              autocomplete="off"
+              aria-required="true"
+              [attr.aria-invalid]="!!fieldError('decisionNo')"
+              [attr.aria-describedby]="fieldError('decisionNo') ? 'bd-no-err' : null"
+              [value]="decisionNo()"
+              (input)="decisionNo.set($any($event.target).value)"
+            />
+          </label>
+          <label>
+            <span class="sr">Ngày quyết định</span>
+            <input
+              id="bd-decisionDate"
+              type="date"
+              aria-required="true"
+              [attr.aria-invalid]="!!fieldError('decisionDate')"
+              [value]="decisionDate()"
+              (input)="decisionDate.set($any($event.target).value)"
+            />
+          </label>
+        </div>
+        @if (fieldError('decisionNo'); as e) {
+          <p id="bd-no-err" class="ferr">{{ e }}</p>
+        }
+      </fieldset>
+
+      @if (signing() || batch()) {
+        <div class="prog">
+          <p class="row">
+            <span id="bd-prog-l">Tiến độ ký lô</span>
+            <b>{{ signedCount() }}/{{ batchTotal() }}</b>
+          </p>
+          <div
+            class="track"
+            role="progressbar"
+            aria-labelledby="bd-prog-l"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            [attr.aria-valuenow]="progress()"
+            [attr.aria-valuetext]="signedCount() + ' trên ' + batchTotal() + ' hồ sơ đã ký'"
+          >
+            <span [style.width.%]="progress()"></span>
+          </div>
+          @if (signing()) {
+            <p class="muted small" aria-live="polite">
+              @if (failedCount()) {
+                {{ failedCount() }} hồ sơ lỗi sẽ được tự thử lại.
+              }
+              Hồ sơ chưa ký vẫn ở trạng thái chờ quyết định; đồng chí có thể đóng màn hình.
+            </p>
+          }
+        </div>
+      }
+
+      @if (errorList().length) {
+        <div class="msg err" role="alert">
+          <ul class="errs">
+            @for (e of errorList(); track e) {
+              <li>{{ e }}</li>
+            }
+          </ul>
+        </div>
+      }
+
+      <div class="row-acts">
+        @if (canCancel()) {
+          <button
+            type="button"
+            class="btn"
+            [disabled]="busy() === 'cancel'"
+            (click)="cancelBatch()"
+          >
+            Huỷ lô
+          </button>
+        }
+        @if (canSign()) {
+          <button
+            type="button"
+            class="btn primary"
+            [disabled]="locked() || !items().length"
+            (click)="sign()"
+          >
+            @if (locked()) {
+              Đang ký lô…
+            } @else {
+              Quyết định và ký lô ({{ items().length }})
+            }
+          </button>
+        }
+      </div>
+    </section>
+  </div>
+</div>
+
+@if (dialog(); as d) {
+  <div class="backdrop">
+    <div
+      class="dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bd-dlg-h"
+      tabindex="-1"
+      (keydown.escape)="cancelChange()"
+    >
+      <h2 id="bd-dlg-h">Đổi mức quyết định</h2>
+      <p>
+        Đồng chí {{ d.row.person.name }}: mức đề xuất
+        <b>{{ d.row.levels.proposed ? full[d.row.levels.proposed] : 'chưa có' }}</b
+        >, mức quyết định <b>{{ full[d.level] }}</b
+        >.
+      </p>
+      <label for="bd-reason">Lý do đổi mức <span aria-hidden="true" class="req">*</span></label>
+      <textarea
+        #reasonBox
+        id="bd-reason"
+        rows="4"
+        maxlength="2000"
+        aria-required="true"
+        [attr.aria-invalid]="!!dialogError()"
+        [attr.aria-describedby]="dialogError() ? 'bd-reason-err' : 'bd-reason-hint'"
+        [value]="dialogReason()"
+        (input)="dialogReason.set($any($event.target).value)"
+      ></textarea>
+      @if (dialogError(); as e) {
+        <p id="bd-reason-err" class="ferr">{{ e }}</p>
+      } @else {
+        <p id="bd-reason-hint" class="muted small">
+          Từ 20 đến 2.000 ký tự; lý do được lưu cùng quyết định.
+        </p>
+      }
+      <div class="row-acts end">
+        <button type="button" class="btn" (click)="cancelChange()">Huỷ</button>
+        <button type="button" class="btn primary" (click)="confirmChange()">Ghi lý do</button>
+      </div>
+    </div>
+  </div>
+}
