@@ -1,0 +1,2 @@
+-- Mẫu SAI cho luật lint: fk
+CREATE TABLE bad_fk.sample_parent (id uuid NOT NULL, CONSTRAINT pk_sample_parent PRIMARY KEY (id)); CREATE TABLE bad_fk.sample_row (id uuid NOT NULL, sample_parent_id uuid, CONSTRAINT pk_sample_row PRIMARY KEY (id), CONSTRAINT sample_row_parent_fk FOREIGN KEY (sample_parent_id) REFERENCES bad_fk.sample_parent (id)); COMMENT ON COLUMN bad_fk.sample_parent.id IS '{"cls":"C1"}'; COMMENT ON COLUMN bad_fk.sample_row.id IS '{"cls":"C1"}'; COMMENT ON COLUMN bad_fk.sample_row.sample_parent_id IS '{"cls":"C1"}';
