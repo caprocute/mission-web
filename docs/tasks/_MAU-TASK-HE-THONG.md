@@ -8,12 +8,12 @@
 
 | Thuộc tính | Giá trị |
 |---|---|
-| Giai đoạn | Đợt 0a / 0b / 0c / 1 / 2 / 3 (theo `docs/KE-HOACH-TONG-THE-HE-THONG.md`) |
+| Giai đoạn | Đợt 1 / 2 / 3 (theo `docs/KE-HOACH-TONG-THE-HE-THONG.md`) |
 | Luồng đề xuất | B1..B11, W, DP |
 | Cỡ việc | S (≤ nửa ngày agent) / M (≤ 1 ngày) / L (> 1 ngày, nên tách) |
 | Phụ thuộc | Mã task phải gộp trước |
 | Truy vết | QT-.. → API `/api/v1/..` → MOD-../SVC-.. → bảng `schema.bang` → EVT-.. (hoặc WI/PERF/DR/SEC/OPS với task hạ tầng) |
-| Trạng thái | Chưa bắt đầu / Chờ người dùng chốt / Bị chặn bởi bên ngoài |
+| Trạng thái | Chưa bắt đầu / Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) / Chờ người dùng chốt |
 
 ## 1. Mục tiêu
 Một đoạn văn nói rõ kết quả nhìn thấy hoặc kiểm chứng được khi task xong và vì sao nó cần cho hệ thống.

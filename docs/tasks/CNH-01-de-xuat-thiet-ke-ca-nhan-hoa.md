@@ -13,11 +13,11 @@
 | Cỡ việc | M |
 | Phụ thuộc | Không |
 | Truy vết | ADR-05, NFR-11 → SCR-0002, SCR-1602, các màn hình danh sách của TL-02 → API đề xuất dưới `/api/v1/config` (chưa có trong hợp đồng) → MOD-08 → bảng đề xuất `config.user_preference`; tham chiếu có sẵn `config.dashboard_def`, `notify.channel_pref` |
-| Trạng thái | Chờ người dùng chốt |
+| Trạng thái | Chưa bắt đầu |
 
 ## 1. Mục tiêu
 
-Viết một đề xuất bổ sung thiết kế đủ để người phụ trách duyệt và cấp mã, làm nền cho nhóm task cá nhân hoá: mỗi cán bộ lưu ở máy chủ bố cục trang chủ và dashboard của mình, cột và bộ lọc đã lưu trên các danh sách, và chế độ Đảng viên cao tuổi, để dùng lại trên mọi thiết bị. Bộ TL hiện gần như chưa thiết kế phần này; không có đề xuất được duyệt thì CNH-02 đến CNH-05 không được bắt đầu.
+Viết một đề xuất bổ sung thiết kế đủ để người phụ trách duyệt và cấp mã, làm nền cho nhóm task cá nhân hoá: mỗi cán bộ lưu ở máy chủ bố cục trang chủ và dashboard của mình, cột và bộ lọc đã lưu trên các danh sách, và chế độ Đảng viên cao tuổi, để dùng lại trên mọi thiết bị. Người dùng đã đồng ý làm nhóm tính năng cá nhân hoá (quyết định ngày 20/10/2026, `docs/KE-HOACH-TONG-THE-HE-THONG.md` mục 1a). Bộ TL hiện gần như chưa thiết kế phần này, nên task này là bước bổ sung thiết kế (màn hình, API, bảng `config.user_preference`) làm trước; không có đề xuất được người phụ trách duyệt thì CNH-02 đến CNH-05 không được bắt đầu.
 
 ## 2. Đầu vào bắt buộc đọc
 

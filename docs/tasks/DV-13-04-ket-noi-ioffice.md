@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | DV-13-03 |
 | Truy vết | QT-05 bước 1b → SVC-13 → bảng `integ.connector`, `integ.inbox_message`, `integ.mapping_xref`, `integ.dead_letter` → EVT-24 |
-| Trạng thái | Bị chặn bởi bên ngoài: cần môi trường thử iOffice (VNPT) và tài liệu giao diện của đối tác |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -37,6 +37,7 @@ Thêm bộ kết nối chiều vào cho iOffice (VNPT) và các hệ điều hà
 ## 4. Ngoài phạm vi
 
 - Chiều ra tới iOffice (chưa có yêu cầu trong TL); Trục liên thông EdXML (DV-13-05).
+- Nối và kiểm thử với iOffice (VNPT) thật khi có môi trường thử và tài liệu giao diện chính thức; khi đó chỉ đổi cấu hình kết nối, không đổi mã.
 
 ## 5. Tệp được phép sửa
 
@@ -47,7 +48,7 @@ Thêm bộ kết nối chiều vào cho iOffice (VNPT) và các hệ điều hà
 
 - `cd backend && mvn -q -pl services/integration-gateway -am verify` xanh, gồm kiểm thử với iOffice giả lập: văn bản đến sinh EVT-24 có cấu trúc giống hệt văn bản vOffice tương đương (so khớp lược đồ Avro).
 - Hợp đồng Pact được công bố lên Pact Broker của QA-02 (hoặc lưu tệp hợp đồng nếu Broker chưa có, ghi rõ).
-- Báo cáo ghi rõ đã hay chưa kiểm với iOffice thật.
+- Địa chỉ, chứng thư và tham số kết nối iOffice nằm trong bản ghi `integ.connector` và giá trị triển khai (bí mật qua `secret_path`), không nằm trong mã; đổi từ iOffice giả lập sang iOffice thật chỉ đổi cấu hình kết nối, không đổi mã.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo

@@ -122,7 +122,7 @@ describe('RatingSheetPage (SCR-0903, WEB-037)', () => {
       'Chờ đề xuất',
     ]);
     expect(el.querySelector('.pack')?.getAttribute('title')).toBe(
-      'Kết quả này được tính theo bộ tiêu chí Đảng v2.0, áp dụng cho kỳ Quý IV/2026.',
+      'Kết quả này được tính theo bộ tiêu chí khối Đảng, phiên bản 2.0, áp dụng cho kỳ Quý IV/2026.',
     );
     // YC-PT-10: không hiện mã kỹ thuật
     expect(el.textContent).not.toMatch(/HTXSNV|HTTNV|DA_THAM_DINH|Policy Pack|SCR-/);

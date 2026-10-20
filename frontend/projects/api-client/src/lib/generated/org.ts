@@ -852,7 +852,7 @@ export interface components {
         'application/problem+json': components['schemas']['ProblemDetails'];
       };
     };
-    /** @description OPA từ chối theo RBAC/ABAC hoặc quy tắc tách vai trò (Phụ lục 4, mục V.1). */
+    /** @description OPA từ chối theo RBAC/ABAC hoặc quy tắc tách vai trò (PL 4 V.1). */
     Forbidden: {
       headers: {
         [name: string]: unknown;

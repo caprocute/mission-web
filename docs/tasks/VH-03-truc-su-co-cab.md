@@ -36,7 +36,7 @@ Lập bộ quy trình con người cho vận hành: ca trực SRE 24/7 hai cấp
 
 ## 4. Ngoài phạm vi
 
-- Cấu hình Alertmanager và sync window (INF-15, INF-04); hệ thống gọi trực và hợp đồng SOC (bị chặn bởi bên ngoài: lựa chọn nhà cung cấp).
+- Cấu hình Alertmanager và sync window (INF-15, INF-04); hệ thống gọi trực và hợp đồng SOC (chờ lựa chọn nhà cung cấp; trong task này dùng đích cảnh báo giả lập, địa chỉ nhà cung cấp nằm trong cấu hình).
 
 ## 5. Tệp được phép sửa
 

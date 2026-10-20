@@ -813,10 +813,7 @@ export interface components {
     PolicyPackVersion: components['schemas']['PolicyPackVersionSummary'] & {
       /** @description Mã gói, để hiển thị thanh gói. */
       packCode?: string;
-      /** @description Tham số chung, quy tắc làm tròn, nhãn hiển thị, tham chiếu điều khoản (`manifest`). */
-      manifest?: {
-        [key: string]: unknown;
-      };
+      manifest?: components['schemas']['PolicyManifest'];
       /** @description SHA-256 dạng chuẩn hoá của quy tắc, DMN và manifest, mã hex; có từ `DAT_KIEM_THU`. */
       contentHash?: string | null;
       lastTestRunId?: components['schemas']['Uuid'] | null;
@@ -871,14 +868,57 @@ export interface components {
         after?: unknown;
       }[];
     };
+    /** @description Manifest của phiên bản (`manifest`): tham số chung, quy tắc làm tròn, nhãn hiển thị, tham chiếu điều khoản. Các khoá đã biết dưới đây phục vụ SCR-1501 (nhãn khối và ghi chú nguồn dữ liệu ở vùng 1) và SCR-1502 (trường 8 "mọi biến phải tồn tại trong ngữ cảnh"); khoá khác được giữ nguyên. */
+    PolicyManifest: {
+      /** @description Nhãn hiển thị theo `ruleKey` hoặc khoá nhóm, ví dụ `kpi_nhiem_vu` → "KPI nhiệm vụ". */
+      labels?: {
+        [key: string]: string;
+      };
+      /** @description Ghi chú nguồn dữ liệu theo `ruleKey`, hiện dưới thẻ biểu thức A, B, C. */
+      notes?: {
+        [key: string]: string;
+      };
+      /** @description Biến ngữ cảnh khai báo cho biểu thức CEL và mẫu câu giải thích; dùng để gợi ý khi soạn và để kiểm biến chưa khai báo (MSG-15-05). Máy chủ vẫn kiểm lại khi lưu. */
+      variables?: {
+        /** @example ngay_cham_chu_quan */
+        name: string;
+        label?: string;
+      }[];
+      lam_tron?: components['schemas']['PolicyRoundingParam'];
+      /** @description Dòng kế thừa, ví dụ "QĐ 366 v1.4 → dự thảo Quy định mới v2.x". */
+      ke_thua?: string;
+    } & {
+      [key: string]: unknown;
+    };
+    /**
+     * @description Kiểu làm tròn (SCR-1501 trường 8). TL-02b chỉ nêu "nửa lên" (BR-09-03); `CAT_BO` (bỏ phần thừa) là suy luận cho lựa chọn còn lại.
+     * @enum {string}
+     */
+    PolicyRoundingMode: 'NUA_LEN' | 'CAT_BO';
+    /** @description Quy tắc làm tròn dạng tham số của gói (`tham_so.lam_tron` trong TL-02b SCR-1501). */
+    PolicyRoundingParam: {
+      chu_so: number;
+      kieu: components['schemas']['PolicyRoundingMode'];
+    };
+    /**
+     * @description Cách tính chất lượng (SCR-1501 trường 4).
+     * @enum {string}
+     */
+    PolicyQualityMethod: 'NAM_MUC_PL3' | 'TRU_25_MOI_LAN';
+    /**
+     * @description Loại ngày tính chậm (SCR-1501 trường 6).
+     * @enum {string}
+     */
+    PolicyDayType: 'NGAY_LAM_VIEC' | 'NGAY_LICH';
+    /**
+     * @description Lý do trả lại tính vào chất lượng (SCR-1501 trường 7, "ba lựa chọn", mặc định "chỉ lý do cốt lõi"). TL-02b chỉ nêu tên lựa chọn mặc định; hai mã còn lại là suy luận: `TAT_CA` mọi lý do trả lại, `KHONG_TINH` không tính lý do trả lại vào chất lượng.
+     * @enum {string}
+     */
+    PolicyReturnReasonMode: 'CHI_COT_LOI' | 'TAT_CA' | 'KHONG_TINH';
     /** @description Quy tắc làm tròn (`policy_rule.rounding`). */
     PolicyRounding: {
       digits: number;
-      /**
-       * @description Kiểu làm tròn, ví dụ `NUA_LEN` (TL-02b SCR-1501).
-       * @example NUA_LEN
-       */
-      mode: string;
+      mode: components['schemas']['PolicyRoundingMode'];
     };
     /** @description Quy tắc CEL (`policy.policy_rule`). */
     PolicyRule: {
@@ -894,9 +934,9 @@ export interface components {
       evalOrder: number;
       /**
        * @description Tham số của quy tắc (`params_json`), khoá là tên biến CEL. Khoá đã biết (TL-02b SCR-1501):
-       *     `cach_tinh_chat_luong` (`NAM_MUC_PL3`, `TRU_25_MOI_LAN`), `tru_tien_do` (0,00 đến 0,20),
-       *     `loai_ngay` (`NGAY_LAM_VIEC`, `NGAY_LICH`), `ly_do_tra_lai`, `lam_tron`, `diem_toi_da` (quy tắc `nhom`),
-       *     `nam.cach_tinh`, `phan_nhom.mo_o_ky_quy`.
+       *     `cach_tinh_chat_luong` (`PolicyQualityMethod`), `tru_tien_do` (0,00 đến 0,20),
+       *     `loai_ngay` (`PolicyDayType`), `ly_do_tra_lai` (`PolicyReturnReasonMode`), `lam_tron`
+       *     (`PolicyRoundingParam`), `diem_toi_da` (quy tắc `nhom`), `nam.cach_tinh`, `phan_nhom.mo_o_ky_quy`.
        */
       params?: {
         [key: string]: unknown;
@@ -985,13 +1025,36 @@ export interface components {
       /** @description Mã ca trong bộ vàng (chỉ ca của bộ vàng, SCR-1501 dòng 10). */
       caseCode: string;
     };
+    /** @description Giá trị các quy tắc theo `rule_key`. Khoá cấu trúc dưới đây phục vụ thẻ xem trước SCR-1501 vùng 4 (KPI từng nhiệm vụ, điểm từng nhóm, điểm tổng); các `rule_key` khác trả kèm theo tên của chúng. */
+    PolicyEvaluateOutputs: {
+      /** @description Điểm kết quả nhiệm vụ (`diem_ket_qua`, BR-09-03). */
+      diem?: number;
+      /** @description Kết quả từng nhóm nhiệm vụ. */
+      nhom?: {
+        /** @example then_chot */
+        key: string;
+        kpi_nhom: number;
+        diem_toi_da: number;
+        diem: number;
+      }[];
+      /** @description Kết quả từng nhiệm vụ của ca kiểm thử. */
+      nhiem_vu?: {
+        /** @description Mã nhiệm vụ trong dữ liệu ca */
+        ma: string;
+        /** @description Khoá nhóm */
+        nhom?: string;
+        A?: number;
+        B?: number;
+        C?: number;
+        kpi_nhiem_vu: number;
+      }[];
+    } & {
+      [key: string]: unknown;
+    };
     PolicyEvaluateResult: {
       caseCode: string;
       engine: components['schemas']['PolicyEngine'];
-      /** @description Giá trị các quy tắc theo `rule_key`. */
-      outputs: {
-        [key: string]: unknown;
-      };
+      outputs: components['schemas']['PolicyEvaluateOutputs'];
       ratingLevel?: components['schemas']['RatingLevel'];
       /** @description Lời giải thích sinh từ mẫu câu. */
       explanation?: string;
@@ -1421,7 +1484,7 @@ export interface components {
         'application/problem+json': components['schemas']['ProblemDetails'];
       };
     };
-    /** @description OPA từ chối theo RBAC/ABAC hoặc quy tắc tách vai trò (Phụ lục 4, mục V.1). */
+    /** @description OPA từ chối theo RBAC/ABAC hoặc quy tắc tách vai trò (PL 4 V.1). */
     Forbidden: {
       headers: {
         [name: string]: unknown;

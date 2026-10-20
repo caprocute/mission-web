@@ -13,7 +13,7 @@
 | Cỡ việc | S |
 | Phụ thuộc | CNH-02 |
 | Truy vết | NFR-11, BR-18-09 → SCR-0002, SCR-1803 → API tuỳ chọn cá nhân (CNH-02), `GET /api/v1/ui/packs/current` (`modes.elderly`) → MOD-08 → `config.user_preference` (đề xuất) |
-| Trạng thái | Chờ người dùng chốt |
+| Trạng thái | Chưa bắt đầu |
 
 ## 1. Mục tiêu
 

@@ -13,7 +13,7 @@
 | Cỡ việc | L (> 1 ngày, nên tách) |
 | Phụ thuộc | INF-08 |
 | Truy vết | ADR-17, ADR-30 → TL-04 mục 9.4 "Quản lý bí mật và khoá: OpenBao, ESO, HSM" → SEC-10, SEC-11, SEC-12, SEC-20, SEC-31, SEC-59 → OPS-20 → bảng `keyring.dek` → tiêu chí D1, D8 |
-| Trạng thái | Bị chặn bởi bên ngoài: cần HSM thật cho production; làm và kiểm chứng tạm trên kind với HSM mềm |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -39,8 +39,9 @@ Dựng nền bí mật và khoá của cell theo TL-04 mục 9.4: OpenBao năm n
 
 ## 4. Ngoài phạm vi
 
-- Mua, lắp và khởi tạo HSM vật lý, lễ khởi tạo CA gốc, thẻ M trong N (bị chặn bởi bên ngoài; chỉ viết quy trình trong `ops/runbooks/`).
+- Mua, lắp và khởi tạo HSM vật lý, lễ khởi tạo CA gốc, thẻ M trong N (chỉ viết quy trình trong `ops/runbooks/`).
 - Thư viện mã hoá phía ứng dụng `FieldEncryptor`, `DekCache` (NEN-015); mã hoá Secret etcd bằng KMS v2 trên cụm thật (INF-19 kiểm cấu hình API server).
+- Nối và kiểm thử với HSM thật cho production khi có thiết bị; khi đó chỉ đổi cấu hình seal theo môi trường, không đổi chart.
 
 ## 5. Tệp được phép sửa
 
@@ -51,10 +52,10 @@ Dựng nền bí mật và khoá của cell theo TL-04 mục 9.4: OpenBao năm n
 ## 6. Tiêu chí hoàn thành
 
 - `helm lint`, `helm template`, `kubeconform -strict` không lỗi; `tofu plan` (nếu dùng OpenTofu) sạch trên OpenBao thử.
-- Trên kind: OpenBao 3–5 node Raft tự mở khoá bằng HSM mềm (SoftHSM2 qua PKCS#11 nếu bản OpenBao hỗ trợ seal PKCS#11; nếu không, seal transit từ một OpenBao thứ hai) và mở khoá lại sau khi xoá toàn bộ pod; báo cáo ghi rõ giới hạn so với HSM thật.
+- Trên kind: OpenBao 3–5 node Raft tự mở khoá bằng HSM mềm (SoftHSM2 qua PKCS#11 nếu bản OpenBao hỗ trợ seal PKCS#11; nếu không, seal transit từ một OpenBao thứ hai) và mở khoá lại sau khi xoá toàn bộ pod; cấu hình seal (thư viện PKCS#11, khe, nhãn khoá) nằm trong values theo môi trường, nên đổi sang HSM thật chỉ đổi cấu hình, không đổi chart.
 - Pod thử với ServiceAccount `mission-core` lấy được credential PostgreSQL động và kết nối được; ServiceAccount khác bị từ chối; lease bị thu hồi thì kết nối mới thất bại.
 - cert-manager cấp chứng thư từ `openbao-pki-cell`; ESO tạo Secret từ KV; `gitleaks detect` trên nhánh không có phát hiện.
-- Báo cáo cuối task theo AGENTS.md mục 6, ghi phần chờ HSM thật.
+- Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo
 

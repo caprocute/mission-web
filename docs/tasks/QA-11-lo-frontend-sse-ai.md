@@ -13,7 +13,7 @@
 | Cỡ việc | M (≤ 1 ngày) |
 | Phụ thuộc | QA-08 |
 | Truy vết | NFR-03, NFR-06 → TL-04 mục 7.4 → PERF-19..PERF-24, PERF-26 → SVC-06 scoring, document-service, esign-service, SVC-17 web-frontend, notification-service, SVC-02 Keycloak, analytics, SVC-14 ai-gateway → EVT-10, EVT-17, EVT-18 |
-| Trạng thái | Bị chặn bởi bên ngoài (một phần): PERF-26 cần GPU (kiểm tạm bằng mô hình giả lập) |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -41,6 +41,7 @@ Viết các kịch bản còn lại của danh mục PERF: tính lại 1,2 tri�
 
 - Chạy chiến dịch thật trên `CELL-PERF` (QA-12); mua và lắp GPU, triển khai vLLM thật (INF, đợt 3).
 - Tối ưu khi không đạt (mở task riêng).
+- Đo PERF-26 trên GPU và vLLM thật khi có; khi đó chỉ đổi tham số địa chỉ máy chủ mô hình.
 
 ## 5. Tệp được phép sửa
 
@@ -50,7 +51,7 @@ Viết các kịch bản còn lại của danh mục PERF: tính lại 1,2 tri�
 
 - `k6 inspect` sạch cho mọi tệp mới; `cd frontend && npx lhci autorun` chạy được trên bản build cục bộ và in kết quả so với ngưỡng.
 - PERF-22 rút gọn (2.500 kết nối, hồ sơ compact) và PERF-24 rút gọn chạy trên server dev hoặc kind; PERF-19 rút gọn 50.000 hồ sơ (hồ sơ compact) chạy hết và kiểm `result_hash` khớp.
-- PERF-26 chạy với máy chủ giả lập; báo cáo ghi "Bị chặn bởi bên ngoài: GPU" cho phép đo thật.
+- PERF-26 chạy xanh với máy chủ mô hình giả lập; địa chỉ máy chủ mô hình là tham số của kịch bản, nên đo trên vLLM thật chỉ đổi cấu hình.
 
 ## 7. Báo cáo
 

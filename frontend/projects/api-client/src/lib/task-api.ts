@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { CursorQuery, MAX_PAGE_LIMIT } from './paging';
+import { CursorPage, CursorQuery, MAX_PAGE_LIMIT } from './paging';
 import { apiUrl } from './api-path';
 import {
   AssigneeRole,
@@ -202,5 +202,41 @@ export class TaskApi {
     return this.http
       .post('/api/v1/tasks/bulk-assign', body, { observe: 'response' })
       .pipe(map((res: HttpResponse<unknown>) => ({ location: res.headers.get('Location') ?? '' })));
+  }
+
+  /**
+   * Nhiệm vụ của đơn vị trong phạm vi (`GET /tasks`, listUnitTasks): bảng điều hành SCR-1601 dùng với
+   * `overdue` và `includeSubunits` cho khối "Cần chỉ đạo ngay".
+   */
+  unitTasks(
+    query: {
+      overdue?: boolean;
+      includeSubunits?: boolean;
+      period?: string | null;
+      limit?: number;
+    } = {},
+  ): Observable<CursorPage<TaskSummary>> {
+    let params = new HttpParams().set('limit', Math.min(query.limit ?? 20, MAX_PAGE_LIMIT));
+    if (query.overdue) params = params.set('overdue', true);
+    if (query.includeSubunits) params = params.set('includeSubunits', true);
+    if (query.period) params = params.set('period', query.period);
+    return this.http.get<CursorPage<TaskSummary>>(apiUrl('/tasks'), { params });
+  }
+
+  /** Nhắc người chủ trì việc chậm (SCR-1601 "Nhắc", EVT-21); máy chủ trả 202 khi đã xếp hàng gửi. */
+  remind(taskId: string, note?: string): Observable<void> {
+    return this.http
+      .post(apiUrl('/tasks/{id}/reminders', { id: taskId }), note ? { note } : {})
+      .pipe(map(() => undefined));
+  }
+
+  /** Giao lại cho người chủ trì mới, bắt buộc lý do (SCR-1601 "Giao lại", EVT-04). */
+  reassign(
+    task: TaskSummary,
+    body: { leadPersonId: string; reason: string },
+  ): Observable<TaskDetail> {
+    return this.http.post<TaskDetail>(apiUrl('/tasks/{id}/reassign', { id: task.id }), body, {
+      headers: { 'If-Match': `"${task.rowVersion}"` },
+    });
   }
 }
