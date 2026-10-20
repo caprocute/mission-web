@@ -1,0 +1,76 @@
+# SVC-04 org-service. Không chứa mật khẩu: thông tin kết nối và issuer nạp từ biến môi trường (Secret do External
+# Secrets đồng bộ từ OpenBao, TL-03 "Không truy cập chéo và quyền tối thiểu").
+spring:
+  application:
+    name: org-service
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${ORG_DB_URL:jdbc:postgresql://localhost:5432/td_dev}
+    username: ${ORG_DB_USER:svc_org}
+    password: ${ORG_DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${ORG_DB_POOL:20}
+  flyway:
+    # Ứng dụng không có quyền DDL; migration chạy bằng hồ sơ "migrate" với mig_org (Job Helm pre-upgrade).
+    enabled: false
+    schemas: org
+    default-schema: org
+    create-schemas: false
+    locations: classpath:db/migration/org
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8080/realms/mission}
+  lifecycle:
+    timeout-per-shutdown-phase: 25s
+  mvc:
+    problemdetails:
+      enabled: true
+server:
+  port: 8080
+  shutdown: graceful
+management:
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
+  tracing:
+    sampling:
+      probability: ${OTEL_TRACES_SAMPLER_ARG:0.1}
+logging:
+  structured:
+    format:
+      console: ecs
+okrkpi:
+  org:
+    zone: Asia/Ho_Chi_Minh
+    step-up-window: PT5M
+    locked-periods: []
+---
+spring:
+  config:
+    activate:
+      on-profile: migrate
+  main:
+    web-application-type: none
+  flyway:
+    enabled: true
+    user: ${ORG_MIG_DB_USER:mig_org}
+    password: ${ORG_MIG_DB_PASSWORD:}
