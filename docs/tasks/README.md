@@ -4,6 +4,8 @@ Mỗi tệp `WEB-xxx-*.md` là một task đủ nhỏ để một AI agent làm 
 
 Thứ tự thực hiện đi theo cột Phụ thuộc: một task chỉ bắt đầu khi các task nó phụ thuộc đã xong. Những task cùng giai đoạn không phụ thuộc nhau có thể giao cho nhiều agent chạy song song, mỗi agent một nhánh `feat/WEB-xxx-…`. Cỡ việc S/M/L ước lượng cho một agent; người phụ trách duyệt PR của từng task trước khi gộp.
 
+Danh mục này chỉ gồm task của phân hệ web. Danh mục task của toàn hệ thống (backend, dữ liệu, hạ tầng, di động, kiểm thử, vận hành) nằm ở [`DANH-MUC-TOAN-HE-THONG.md`](DANH-MUC-TOAN-HE-THONG.md), được sinh từ `danh-muc-he-thong.tsv` bằng `scripts/sinh-danh-muc.py` theo kế hoạch tổng thể `docs/KE-HOACH-TONG-THE-HE-THONG.md`.
+
 ## Phân luồng phát triển song song (cập nhật 19/10/2026, năm luồng)
 
 Công việc được chia thành năm luồng chạy song song, mỗi luồng là một thread riêng trong dự án. Luồng **Nền tảng** do thread "Kế hoạch và mã nguồn phân hệ web Mission" giữ, sở hữu nhánh `main` trong `/mnt/project-files/mission-web`, là nơi duy nhất gộp code vào `main` và đẩy lên GitHub (`origin` = `github.com/caprocute/mission-web`). Các luồng còn lại làm trong git worktree riêng dưới `/mnt/project-files/mission-web-worktrees/<tên-luồng>`, mỗi task một nhánh `feat/WEB-xxx-…`, không ghi trực tiếp vào `main`; khi một task đạt build, kiểm thử và đã mở màn hình thật, luồng đó báo luồng Nền tảng để gộp, và rebase lên `main` mới nhất trước khi bàn giao task tiếp theo.
