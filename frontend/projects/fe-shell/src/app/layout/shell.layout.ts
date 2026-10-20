@@ -56,6 +56,12 @@ export class ShellLayout {
   protected readonly nav = computed(() =>
     visibleNav((...keys) => this.permissions.canAny(...keys)),
   );
+  protected readonly platformNav = computed(() =>
+    this.nav().filter((i) => i.section === 'platform'),
+  );
+  protected readonly workspaceNav = computed(() =>
+    this.nav().filter((i) => i.section !== 'platform'),
+  );
   protected readonly initials = computed(() =>
     (this.session.user()?.name ?? '?')
       .split(' ')

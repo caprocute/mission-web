@@ -1,7 +1,8 @@
 {
   "realm": "mission",
   "enabled": true,
-  "displayName": "Mission (dev)",
+  "displayName": "Hệ thống Giao nhiệm vụ, Quản lý OKR/KPI & Đánh giá Cán bộ",
+  "loginTheme": "mission",
   "organizationsEnabled": true,
   "internationalizationEnabled": true,
   "supportedLocales": [

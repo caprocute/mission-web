@@ -120,6 +120,7 @@ services:
       MISSION_CORE_CLIENT_SECRET: ${MISSION_CORE_CLIENT_SECRET:?}
     volumes:
       - ./keycloak/realm-mission.json:/opt/keycloak/data/import/realm-mission.json:ro
+      - ../keycloak-theme/mission:/opt/keycloak/themes/mission:ro
     ports:
       - "${BIND_ADDR:-0.0.0.0}:${KEYCLOAK_PORT:-35080}:8080"
     depends_on:

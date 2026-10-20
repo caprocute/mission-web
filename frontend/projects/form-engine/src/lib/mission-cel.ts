@@ -373,6 +373,7 @@ function validateStaticTypes(
       throw new MissionCelError(
         'POLICY-422-CEL-TYPE',
         expression,
+        // ui-text-ok: thông điệp lỗi kỹ thuật nội bộ
         `Function sum() expects LIST_DOUBLE or LIST_INT, got ${argType} for '${argVar}'`,
       );
     }
@@ -448,6 +449,7 @@ export function evaluateMissionCel(options: MissionCelEvalOptions): unknown {
       throw new MissionCelError(
         'POLICY-422-CEL-MISSING-VAR',
         expression,
+        // ui-text-ok: thông điệp lỗi kỹ thuật nội bộ
         `Missing or null required variable: '${requiredVar}'`,
       );
     }
@@ -474,6 +476,7 @@ export function evaluateMissionCel(options: MissionCelEvalOptions): unknown {
       throw new MissionCelError(
         'POLICY-422-CEL-EVAL-ERROR',
         expression,
+        // ui-text-ok: thông điệp lỗi kỹ thuật nội bộ
         `CEL expression evaluated to non-finite number: ${rawResult}`,
       );
     }
