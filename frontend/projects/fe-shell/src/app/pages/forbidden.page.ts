@@ -9,12 +9,12 @@ import { RouterLink } from '@angular/router';
   selector: 'vt-forbidden-page',
   imports: [RouterLink],
   template: `
-    <main class="forbidden" role="alert">
+    <section class="forbidden" role="alert">
       <h1>Không có quyền truy cập</h1>
       <p>Vai trò hiện tại của đồng chí không có chức năng nào trong mục này.</p>
       <p>Nếu cho rằng đây là nhầm lẫn, vui lòng liên hệ quản trị viên của đơn vị.</p>
       <a routerLink="/">Về trang chủ</a>
-    </main>
+    </section>
   `,
   styles: `
     .forbidden {

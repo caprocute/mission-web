@@ -114,8 +114,9 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
           ),
         )
       : from(import('./mock-registry')).pipe(
+          // WEB-052 pha 2: handleMockRequest chỉ nạp bộ giả lập của module API được gọi
           mergeMap(({ handleMockRequest }) =>
-            of(
+            from(
               handleMockRequest({
                 method: req.method,
                 path,
