@@ -16,6 +16,12 @@ import { Job } from '../../lib/models/job';
 import { mockSession } from '../mock-session';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import fixture from './appraisals.json';
+import {
+  DECISION_SCORES,
+  batchDecisionRoutes,
+  decisionQueue,
+  resetBatchDecisions,
+} from './batch-decision';
 import { MOCK_MANAGER, PROPOSAL_BLOCKED, RESULT_MINE, ratingSheets } from './rating-sheet';
 import {
   ACCEPTED_BY_VIEWER,
@@ -43,6 +49,8 @@ import {
  * `DA_THAM_DINH` (409), `If-Match`, lý do 20 đến 2.000 ký tự khi khác mức thẩm định (422 MSG-09-12),
  * tách vai trò với hồ sơ quản lý giả lập đã nghiệm thu (403); ghi mức `DE_XUAT`, hồ sơ sang
  * `CHO_QUYET_DINH`. Hồ sơ đã có quyết định của tôi nằm trong `profiles/mine`.
+ *
+ * Quyết định hàng loạt SCR-0904 (WEB-038): 48 hồ sơ chờ quyết định và quy tắc ký lô ở `batch-decision.ts`.
  */
 
 const ME = [...fixture.mine, ...RESULT_MINE];
@@ -80,7 +88,7 @@ function load(): void {
   const sheets = ratingSheets();
   const base = structuredClone(fixture.profiles) as unknown as AppraisalProfile[];
   base.forEach(patchFixtureProfile);
-  profiles = [...base, ...queue.profiles, ...sheets.profiles];
+  profiles = [...base, ...queue.profiles, ...sheets.profiles, ...decisionQueue()];
   scoreViews = {
     ...(fixture.scores as unknown as Record<string, AppraisalScoreView>),
     ...queue.views,
@@ -340,6 +348,7 @@ function exportProfiles(req: MockRequest): MockResponse {
 
 function row(p: AppraisalProfile): AppraisalProfileRow {
   const v = views()[p.id]?.snapshot;
+  const d = DECISION_SCORES.get(p.id);
   const level = (kind: string) =>
     p.ratingTrail.find((r) => r.levelKind === kind && r.isCurrent)?.ratingCode ?? null;
   return {
@@ -352,14 +361,15 @@ function row(p: AppraisalProfile): AppraisalProfileRow {
     flow: p.flow,
     status: p.status,
     isHead: p.isHead,
-    totalScore: v?.totalScore ?? null,
-    autoRatingCode: v?.autoRatingCode ?? null,
+    totalScore: v?.totalScore ?? d?.total ?? null,
+    autoRatingCode: v?.autoRatingCode ?? d?.auto ?? null,
     levels: {
       selfProposed: level('TU_DE_XUAT'),
       appraised: level('THAM_DINH'),
       proposed: level('DE_XUAT'),
       decided: level('QUYET_DINH'),
     },
+    differsExplained: p.ratingTrail.some((r) => r.isCurrent && r.explanationRequired && !!r.reason),
     noSelfAssessment: p.noSelfAssessment,
     dueDate: p.status === 'TU_DANH_GIA' ? p.selfAssessDue : APPRAISAL_DUE,
     anomalyHints: p.anomalyHints,
@@ -601,6 +611,7 @@ export const APPRAISALS_MOCK: MockModule = {
     scoreViews = null;
     jobs.clear();
     exportJobs.clear();
+    resetBatchDecisions();
   },
   routes: [
     { method: 'GET', pattern: '/api/v1/appraisals/profiles', handle: list },
@@ -608,6 +619,7 @@ export const APPRAISALS_MOCK: MockModule = {
     { method: 'POST', pattern: '/api/v1/appraisals/profiles/:id/appraisal', handle: appraise },
     { method: 'POST', pattern: '/api/v1/appraisals/profiles/:id/proposal', handle: propose },
     { method: 'POST', pattern: '/api/v1/appraisals/exports', handle: exportProfiles },
+    ...batchDecisionRoutes({ store, stepUpRequired, pageQuery }),
     {
       method: 'GET',
       pattern: '/api/v1/appraisals/export-jobs/:id',

@@ -79,8 +79,8 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 |---|---|---|---|---|
 | [WEB-035](WEB-035-tu-danh-gia.md) | SCR-0901 Phiếu tự đánh giá | L | WEB-010, WEB-015 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-035-tu-danh-gia`) |
 | [WEB-036](WEB-036-tham-dinh.md) | SCR-0902 Thẩm định | L | WEB-035 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-036-tham-dinh`, cần gộp sau WEB-035) |
-| [WEB-037](WEB-037-phieu-xep-loai.md) | SCR-0903 Phiếu xếp loại có giải thích | M | WEB-036 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-037-phieu-xep-loai`) |
-| [WEB-038](WEB-038-quyet-dinh-hang-loat.md) | SCR-0904 Quyết định xếp loại hàng loạt và ký số | L | WEB-037 | Chưa bắt đầu |
+| [WEB-037](WEB-037-phieu-xep-loai.md) | SCR-0903 Phiếu xếp loại có giải thích | M | WEB-036 | Xong, đã gộp |
+| [WEB-038](WEB-038-quyet-dinh-hang-loat.md) | SCR-0904 Quyết định xếp loại hàng loạt và ký số | L | WEB-037 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-038-quyet-dinh-hang-loat`) |
 | [WEB-039](WEB-039-xep-loai-nam.md) | SCR-1001 Xếp loại năm và SCR-1002 Phân nhóm triển vọng | M | WEB-037 | Chưa bắt đầu |
 | [WEB-040](WEB-040-hoi-nghi-kiem-diem.md) | SCR-1101 Hội nghị kiểm điểm | M | WEB-015 | Chưa bắt đầu |
 | [WEB-041](WEB-041-goi-ho-so-so.md) | SCR-1102 Gói hồ sơ số và ký số | M | WEB-040 | Chưa bắt đầu |

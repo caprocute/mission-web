@@ -1,5 +1,10 @@
-import { DossierFormPreviewRequest } from '../../lib/models/appraisal';
-import { MockModule, MockResponse, problem } from '../mock-router';
+import {
+  DossierDraftFormsRequest,
+  DossierFormPreviewRequest,
+  EsignCertificate,
+} from '../../lib/models/appraisal';
+import { Job } from '../../lib/models/job';
+import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 
 /**
  * Giả lập SVC-11 docgen dưới `/api/v1/dossiers` (dossiers.yaml). Hiện chỉ có "Xem trước" biểu mẫu
@@ -7,6 +12,10 @@ import { MockModule, MockResponse, problem } from '../mock-router';
  * có dấu "BAN NHAP". Bản giả lập dùng phông chuẩn Helvetica nên bỏ dấu tiếng Việt; bản thật do SVC-11
  * sinh từ mẫu `docgen.template`. Tải tệp biểu mẫu đã ký (`GET /dossiers/forms/{id}/file`) cho SCR-0903
  * "Tải Mẫu 1B" (WEB-037): biểu mẫu nào có trong `SIGNED_FORMS` thì trả PDF, còn lại 404. Các màn hình QT-11 (SCR-1101, SCR-1102) bổ sung tuyến khi làm.
+ *
+ * SCR-0904 (WEB-038): "Xuất Mẫu 3" (`POST /dossiers/forms`, 202, job hoàn tất ngay, tệp PDF nháp) và
+ * chứng thư của người ký (`GET /esign/certificates/mine`, còn hạn tới 14/08/2027; `?mock-cert=het-han`
+ * trả chứng thư đã hết hạn).
  */
 
 const FORM_NAME: Record<string, string> = {
@@ -80,10 +89,74 @@ const SIGNED_FORMS: Record<string, string[]> = {
   ],
 };
 
+/** Biểu mẫu nháp đã sinh qua `POST /dossiers/forms` (mã biểu mẫu → các dòng của tệp). */
+const draftForms = new Map<string, string[]>();
+const formJobs = new Map<string, Job>();
+
+function createDraftForms(req: MockRequest): MockResponse {
+  const body = (req.body ?? {}) as Partial<DossierDraftFormsRequest>;
+  const n = body.profileIds?.length ?? 0;
+  if (body.formCode !== 'MAU_3' || !body.periodId || n < 1 || n > 200)
+    return problem(422, 'Dữ liệu không hợp lệ', {
+      errors: [{ field: 'profileIds', message: 'Chọn từ 1 đến 200 hồ sơ để xuất Mẫu 3.' }],
+    });
+  const formId = crypto.randomUUID();
+  draftForms.set(formId, [
+    'Mau 3 - Tong hop ket qua danh gia, xep loai chat luong',
+    `So ho so: ${n}`,
+    `Sinh luc: ${new Date().toLocaleString('vi-VN')}`,
+    'Ban nhap tu danh sach dang chon, khong co gia tri phap ly.',
+  ]);
+  const id = crypto.randomUUID();
+  const job: Job = {
+    id,
+    type: 'RENDER',
+    status: 'HOAN_TAT',
+    progress: 100,
+    message: 'Đã sinh Mẫu 3 dạng nháp',
+    resultLocation: `/api/v1/dossiers/forms/${formId}`,
+  };
+  formJobs.set(id, job);
+  return {
+    status: 202,
+    body: { ...job, status: 'CHO', progress: 0 },
+    headers: { Location: `/api/v1/dossiers/form-jobs/${id}` },
+  };
+}
+
+function certificates(): MockResponse {
+  const expired =
+    new URLSearchParams(globalThis.location?.search ?? '').get('mock-cert') === 'het-han';
+  const cert: EsignCertificate = {
+    id: '01928f3e-7b1a-7c3e-9a51-3f2d9c1b0e91',
+    subjectDn: 'CN=Ngô Thanh Tâm, OU=Ban Tổ chức Đảng uỷ khối, O=Đảng uỷ khối, C=VN',
+    issuerDn: 'CN=MySign CA, O=Viettel Group, C=VN',
+    serialNo: '5403A1F2C9B0E7D1',
+    notBefore: '2025-08-15T00:00:00+07:00',
+    notAfter: expired ? '2026-08-14T23:59:59+07:00' : '2027-08-14T23:59:59+07:00',
+    lastOcspStatus: 'GOOD',
+    lastOcspAt: new Date().toISOString(),
+  };
+  return ok({ items: [cert] });
+}
+
 export const DOSSIERS_MOCK: MockModule = {
   name: 'dossiers',
-  reset: () => undefined,
+  reset: () => {
+    draftForms.clear();
+    formJobs.clear();
+  },
   routes: [
+    { method: 'POST', pattern: '/api/v1/dossiers/forms', handle: createDraftForms },
+    {
+      method: 'GET',
+      pattern: '/api/v1/dossiers/form-jobs/:id',
+      handle: (req) => {
+        const job = formJobs.get(req.pathParams['id']);
+        return job ? ok(job) : problem(404, 'Không tìm thấy tác vụ sinh biểu mẫu');
+      },
+    },
+    { method: 'GET', pattern: '/api/v1/esign/certificates/mine', handle: certificates },
     {
       method: 'POST',
       pattern: '/api/v1/dossiers/forms/preview',
@@ -93,14 +166,15 @@ export const DOSSIERS_MOCK: MockModule = {
       method: 'GET',
       pattern: '/api/v1/dossiers/forms/:id/file',
       handle: (req) => {
-        const lines = SIGNED_FORMS[req.pathParams['id']];
+        const draft = draftForms.get(req.pathParams['id']);
+        const lines = draft ?? SIGNED_FORMS[req.pathParams['id']];
         if (!lines) return problem(404, 'Không tìm thấy biểu mẫu');
         return {
           status: 200,
-          body: miniPdf(lines, false),
+          body: miniPdf(lines, !!draft),
           headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': 'attachment; filename="MAU_1B-Q3-2026.pdf"',
+            'Content-Disposition': `attachment; filename="${draft ? 'MAU_3-ban-nhap' : 'MAU_1B-Q3-2026'}.pdf"`,
           },
         };
       },
