@@ -1,0 +1,35 @@
+# NEN-016 · TL-01 "Timeout mặc định": mọi lời gọi ra ngoài tiến trình có giới hạn thời gian.
+# Độ ưu tiên thấp nhất; service ghi đè có lý do (ví dụ job báo cáo 60 s).
+spring:
+  http:
+    client:
+      # Service tới service (REST nội bộ): kết nối 500 ms, đọc 3 s (RestClient/RestTemplate của Spring Boot).
+      connect-timeout: 500ms
+      read-timeout: 3s
+  datasource:
+    hikari:
+      # PostgreSQL: lấy kết nối 2 s (Hikari, đơn vị mili giây).
+      connection-timeout: 2000
+  transaction:
+    # Giao dịch 5 s (TL-01 "Quản lý giao dịch": @Transactional(timeout = 5)).
+    default-timeout: 5s
+  jpa:
+    properties:
+      # Câu lệnh 5 s phía JDBC (setQueryTimeout), chạy được qua PgBouncer chế độ transaction;
+      # statement_timeout 30 s ở tài khoản CSDL là lưới an toàn cuối (TL-01, thuộc phần CSDL).
+      jakarta.persistence.query.timeout: 5000
+  data:
+    redis:
+      # Valkey: kết nối 200 ms, lệnh 300 ms; lỗi thì bỏ qua bộ đệm (LenientCacheErrorHandler).
+      connect-timeout: 200ms
+      timeout: 300ms
+  kafka:
+    properties:
+      # Kafka: kết nối 1 s.
+      socket.connection.setup.timeout.ms: 1000
+    producer:
+      properties:
+        # Kafka producer: tổng 30 s (chỉ Debezium và consumer; ứng dụng ghi outbox).
+        # request.timeout.ms phải nhỏ hơn delivery.timeout.ms - linger.ms (ràng buộc của Kafka).
+        delivery.timeout.ms: 30000
+        request.timeout.ms: 10000

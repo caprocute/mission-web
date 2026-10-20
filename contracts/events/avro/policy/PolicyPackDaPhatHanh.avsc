@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "PolicyPackDaPhatHanh",
+  "namespace": "vn.vtokr.policy.v1",
+  "doc": "EVT-13 · policy.pack.published.v1 · MOD-05 phát khi một phiên bản Policy Pack được phát hành.",
+  "fields": [
+    {"name": "packId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "policy.policy_pack.id"},
+    {"name": "versionId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "policy.policy_pack_version.id"},
+    {"name": "contentHash", "type": "bytes", "doc": "SHA-256 dạng chuẩn hoá của nội dung gói"},
+    {"name": "effectiveFrom", "type": ["null", {"type": "int", "logicalType": "date"}], "default": null, "doc": "Ngày bắt đầu áp dụng"},
+    {"name": "approvedBy", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người phê duyệt (bốn mắt)"},
+    {"name": "testRunId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "policy.test_run.id của lần kiểm thử ca vàng"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

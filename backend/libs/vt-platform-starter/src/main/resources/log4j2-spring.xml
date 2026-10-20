@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  NEN-016 · ADR-12 · TL-01 "Log có cấu trúc", "Che dữ liệu nhạy cảm", "Tách nhật ký kiểm toán".
+
+  Cấu hình Log4j2 mặc định của mọi service Java (Spring Boot tự nạp log4j2-spring.xml):
+    - JSON theo ECS (JsonTemplateLayout + EcsLayout.json), thêm service.name, trace.id, span.id,
+      tenant.id đọc từ MDC (OpenTelemetry agent đặt trace_id, span_id; starter đặt tenant_id);
+    - ghi ra đầu ra chuẩn, không ghi tệp trong container;
+    - AsyncRoot/AsyncLogger (LMAX Disruptor); hàng đợi đầy thì bỏ từ INFO trở xuống
+      (log4j2.component.properties) và đếm số dòng bị bỏ (metric log4j2.events.discarded);
+    - mọi dòng đi qua RewritePolicy MissionRedaction che JWT, token, cookie, số định danh 12 chữ
+      số, số điện thoại, email trước khi ghi;
+    - kênh kiểm toán OKRKPI_AUDIT có appender riêng (event.dataset=mission.audit), không cộng dồn
+      vào nhật ký vận hành.
+  Khác TL-01 nguyên văn: thêm Rewrite appender, kênh kiểm toán, follow="true" cho Console (để đầu
+  ra theo System.out hiện hành) và tắt các logger ghi chi tiết yêu cầu HTTP.
+-->
+<Configuration status="WARN" shutdownHook="disable">
+  <Properties>
+    <Property name="service">${env:OTEL_SERVICE_NAME:-unknown}</Property>
+  </Properties>
+  <Appenders>
+    <Console name="STDOUT" target="SYSTEM_OUT" follow="true">
+      <JsonTemplateLayout eventTemplateUri="classpath:EcsLayout.json">
+        <EventTemplateAdditionalField key="service.name" value="${service}"/>
+        <EventTemplateAdditionalField key="event.dataset" value="mission.app"/>
+        <EventTemplateAdditionalField key="trace.id" format="JSON"
+            value='{"$resolver": "mdc", "key": "trace_id"}'/>
+        <EventTemplateAdditionalField key="span.id" format="JSON"
+            value='{"$resolver": "mdc", "key": "span_id"}'/>
+        <EventTemplateAdditionalField key="tenant.id" format="JSON"
+            value='{"$resolver": "mdc", "key": "tenant_id"}'/>
+      </JsonTemplateLayout>
+    </Console>
+    <Console name="AUDIT_STDOUT" target="SYSTEM_OUT" follow="true">
+      <JsonTemplateLayout eventTemplateUri="classpath:EcsLayout.json">
+        <EventTemplateAdditionalField key="service.name" value="${service}"/>
+        <EventTemplateAdditionalField key="event.dataset" value="mission.audit"/>
+        <EventTemplateAdditionalField key="trace.id" format="JSON"
+            value='{"$resolver": "mdc", "key": "trace_id"}'/>
+        <EventTemplateAdditionalField key="tenant.id" format="JSON"
+            value='{"$resolver": "mdc", "key": "tenant_id"}'/>
+      </JsonTemplateLayout>
+    </Console>
+    <Rewrite name="REDACTED">
+      <MissionRedaction/>
+      <AppenderRef ref="STDOUT"/>
+    </Rewrite>
+    <Rewrite name="AUDIT">
+      <MissionRedaction/>
+      <AppenderRef ref="AUDIT_STDOUT"/>
+    </Rewrite>
+  </Appenders>
+  <Loggers>
+    <AsyncRoot level="INFO" includeLocation="false">
+      <AppenderRef ref="REDACTED"/>
+    </AsyncRoot>
+    <AsyncLogger name="vn.viettel.okrkpi" level="INFO" additivity="false">
+      <AppenderRef ref="REDACTED"/>
+    </AsyncLogger>
+    <AsyncLogger name="OKRKPI_AUDIT" level="INFO" additivity="false">
+      <AppenderRef ref="AUDIT"/>
+    </AsyncLogger>
+    <Logger name="org.hibernate.SQL" level="WARN"/>
+    <!-- Không ghi thân yêu cầu, header Authorization, cookie (TL-01 "Che dữ liệu nhạy cảm"). -->
+    <Logger name="org.springframework.web.filter.CommonsRequestLoggingFilter" level="OFF"/>
+    <Logger name="org.apache.hc.client5.http.wire" level="OFF"/>
+    <Logger name="org.apache.hc.client5.http.headers" level="OFF"/>
+    <Logger name="org.apache.http.wire" level="OFF"/>
+    <Logger name="org.apache.http.headers" level="OFF"/>
+    <Logger name="jdk.internal.httpclient.debug" level="OFF"/>
+  </Loggers>
+</Configuration>

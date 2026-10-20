@@ -47,6 +47,17 @@ public enum DatabaseLayout {
   /** Schema khoá dữ liệu DEK (TL-03 L913, ADR-30). */
   public static final String KEYRING = "keyring";
 
+  /**
+   * Schema kỹ thuật không phải schema nghiệp vụ: không nhận bảng kỹ thuật dùng chung {@code
+   * outbox_event}, {@code inbox_*}, {@code idempotency_key} (TL-03 L766, NEN-032).
+   */
+  public static final List<String> TECHNICAL_SCHEMAS = List.of(MODULITH, KEYRING);
+
+  /** Schema nghiệp vụ là mọi schema không thuộc {@link #TECHNICAL_SCHEMAS}. */
+  public static boolean isBusinessSchema(String schema) {
+    return !TECHNICAL_SCHEMAS.contains(schema);
+  }
+
   private final String code;
   private final List<String> schemas;
 
