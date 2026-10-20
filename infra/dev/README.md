@@ -1,80 +1,119 @@
-# Hạ tầng dùng chung môi trường DEV
+# Hạ tầng Dev dùng chung — Dự án Mission (`infra/dev/`)
 
-Thư mục này mô tả bộ hạ tầng dùng chung mà mọi lập trình viên và AI agent của phân hệ web Mission dùng khi phát triển. Bộ hạ tầng bám danh mục "hạ tầng dùng chung trong cell" của baseline (mục 5) và TL-04, nhưng thu gọn mỗi loại về một instance để chạy được trên một máy chủ dev. Mọi thành phần chạy bằng Docker Compose với tên dự án `mission-dev`, một mạng Docker riêng `mission-dev`, và cổng nằm trong dải 35xxx để không đụng các hệ thống khác đang chạy trên cùng máy.
+Thư mục này chứa cấu hình Docker Compose cho môi trường phát triển dùng chung của dự án **Mission** (QĐ 366 · OKR/KPI), bám sát danh mục công nghệ tại **TL-01 Phụ lục B**, **TL-03** và **TL-04**.
 
-## Thành phần và profile
+> **Quy tắc an toàn:** Server dev đang chạy các hệ thống khác. Tuyệt đối **không** dừng/xoá container không mang tiền tố `mission-dev-`, **không** dùng `docker system prune`, và **không** commit tệp `.env` chứa mật khẩu thật.
 
-Compose chia thành profile để chỉ bật phần cần dùng. Bảng dưới liệt kê thành phần, quyết định kiến trúc mà nó đại diện, và cổng mặc định trên máy chủ.
+---
 
-| Profile | Dịch vụ | Đại diện cho | Cổng mặc định |
-|---|---|---|---|
-| core | postgres (17) | ADR-02, mỗi module một schema + tài khoản | 35432 |
-| core | valkey (8) | ADR-18, cache theo cell | 35379 |
-| core | keycloak (26.4) realm `mission` | ADR-08, SVC-02 | 35080 |
-| core | minio + bucket `mission-evidence` có Object Lock | ADR-13 (thay Ceph RGW ở dev) | 35900 (API), 35901 (console) |
-| core | mailpit | Hộp thư giả cho SVC-12 | 35025 (SMTP), 35825 (UI) |
-| events | kafka (3.9, KRaft) + 26 topic EVT | ADR-03 | 35094 |
-| events | apicurio registry (3.0) | ADR-03 | 35081 |
-| events | connect (Debezium 3.1) | Outbox → Kafka | 35083 (chỉ 127.0.0.1) |
-| events | kafka-ui | Quan sát topic | 35082 |
-| search | opensearch (2.19) | ADR-15, SVC-16 | 35920 (chỉ 127.0.0.1) |
-| analytics | clickhouse (25.3) | ADR-14, SVC-15 | 35123 |
-| observability | grafana/otel-lgtm | ADR-12 thu gọn | 35300 (Grafana), 35317/35318 (OTLP) |
-| gateway | apisix (3.12, standalone) | SVC-01 | 35000 |
-| web | nginx phục vụ fe-shell + fe-task | SVC-17 | 35200 |
+## 1. Bảng cổng dịch vụ (dải `35xxx`) và biến môi trường động
 
-PostgreSQL tạo sẵn database `mission` với các schema `okr, task, product, appraisal, policy, dossier, oversight, config, org_replica, org, registry, scoring, evidence, esign, docgen, notify, integ, ai, apicurio`, mỗi schema có một role cùng tên dùng chung mật khẩu `MISSION_DB_PASSWORD`; hai database riêng `flowable` (SVC-06) và `ledger` (SVC-09); role `debezium` có quyền replication. Keycloak nạp realm `mission` (WEB-056) với 11 vai trò AC đúng theo `docs/phan-quyen/ma-tran.json`, client công khai `mission-web` (Authorization Code + PKCE S256) dùng client scope chung `mission-context` (vai trò realm, `tenant`, `unit_id`, `acr`), luồng đăng nhập `mission-browser` có mức xác thực `aal1`/`aal2` và OTP bắt buộc với năm vai trò AAL2 của BR-00-01, cùng mười tài khoản thử phủ đủ vai trò AC-01..AC-10:
+Toàn bộ cổng host đặt trong dải `35000–35999` và đều cấu hình động qua biến môi trường:
 
-| Tài khoản | Vai trò | Đơn vị (`unit_id`) | OTP khi đăng nhập |
-|---|---|---|---|
-| `nentang` | `platform_admin`, `wf_template_author` (vai trò con AC-01, BS-01) | – | Có |
-| `quantri` | `tenant_admin`, `policy_author` | `phong-tong-hop` | Có |
-| `chinhsach` | `policy_author` | `phong-tong-hop` | Không |
-| `lanhdao` | `member`, `leader` | `phong-tong-hop` | Không |
-| `quanly` | `member`, `manager` | `phong-tong-hop` | Không |
-| `canbo` | `member` | `phong-tong-hop` | Không |
-| `thamdinh` | `member`, `appraiser` | `ban-to-chuc` | Có |
-| `quyetdinh` | `decider` | `ban-to-chuc` | Có |
-| `duyet2` | `second_approver` | `ban-to-chuc` | Có |
-| `kiemtra` | `member`, `inspector` | `uy-ban-kiem-tra` | Không |
+| Dịch vụ | Container | Cổng host (mặc định) | Biến môi trường cổng | Profile | Ghi chú |
+|---|---|---|---|---|---|
+| PostgreSQL 17 (`+ pg_partman`) | `mission-dev-postgres` | `35432` | `POSTGRES_PORT` | `core` | Dành cho Flyway (`mig_<schema>`) & Debezium (`cdc_<schema>`) |
+| PgBouncer (`transaction` mode) | `mission-dev-pgbouncer` | `35433` | `PGBOUNCER_PORT` | `core` | Dành cho HikariCP của ứng dụng (`svc_<schema>`) |
+| Valkey 8 | `mission-dev-valkey` | `35379` | `VALKEY_PORT` | `core` | Cache L2, khoá phân tán, thu hồi JWT `jti` |
+| Keycloak 26 | `mission-dev-keycloak` | `35080` | `KEYCLOAK_PORT` | `core` | Realm `mission` được nạp tự động khi khởi động |
+| OPA 1.x | `mission-dev-opa` | `35181` | `OPA_PORT` | `security` | Đánh giá chính sách RBAC + ABAC Rego (`/v1/data/okrkpi/authz/decision`) |
+| OpenBao 2.x | `mission-dev-openbao` | `35820` | `OPENBAO_PORT` | `security` | Transit KEK (`kek-default`, `kek-tenant-demo`, `blind-index-default`) & `kv-v2` (`secret/`) |
+| Kafka 3.9 (KRaft) | `mission-dev-kafka` | `35092` / `35094` | `KAFKA_PORT` / `KAFKA_EXTERNAL_PORT` | `events` | Không dùng ZooKeeper; kết nối ngoài qua `35094` |
+| Apicurio Registry 3.x | `mission-dev-apicurio` | `35081` | `APICURIO_PORT` | `events` | Lưu schema Avro/JSON vào PostgreSQL (`schema=apicurio`) |
+| Debezium Connect 3.x | `mission-dev-debezium` | `35083` | `DEBEZIUM_PORT` | `events` | CDC Outbox từ PostgreSQL sang Kafka bằng `cdc_<schema>` |
+| MinIO (S3 API / Console) | `mission-dev-minio` | `35900` / `35901` | `MINIO_API_PORT` / `MINIO_CONSOLE_PORT` | `search` | Tương thích Ceph RGW; tự tạo 4 bucket chuẩn |
+| OpenSearch 2.x | `mission-dev-opensearch` | `35200` | `OPENSEARCH_PORT` | `search` | Tìm kiếm toàn văn (thay Elasticsearch theo Phụ lục B) |
+| OTel Collector (gRPC / HTTP) | `mission-dev-otel` | `35317` / `35318` | `OTEL_GRPC_PORT` / `OTEL_HTTP_PORT` | `obs` | Nhận trace/metric/log OTLP từ ứng dụng |
+| Loki 3.x | `mission-dev-loki` | `35310` | `LOKI_PORT` | `obs` | Lưu log tập trung |
+| Tempo 2.x | `mission-dev-tempo` | `35320` | `TEMPO_PORT` | `obs` | Lưu trace phân tán |
+| Prometheus 3.x | `mission-dev-prometheus` | `35990` | `PROMETHEUS_PORT` | `obs` | Thu thập metric |
+| Grafana 11.x | `mission-dev-grafana` | `35300` | `GRAFANA_PORT` | `obs` | Đã gắn sẵn datasource Prometheus, Loki, Tempo |
 
-Mọi tài khoản thử thuộc tenant `default`, dùng chung mật khẩu `KC_TEST_USER_PASSWORD` và đã có sẵn OTP với khoá `KC_TEST_OTP_SECRET` (cả hai trong `.env`, không commit); mã OTP sinh bằng ứng dụng TOTP bất kỳ hoặc trong kiểm thử tự động từ khoá này. Tài khoản không có vai trò AAL2 chỉ bị hỏi OTP khi ứng dụng yêu cầu `acr_values=aal2` (step-up). `ai_readonly` (AC-12) không có tài khoản vì trợ lý AI đọc dưới danh tính người dùng qua ai-gateway. Kiểm tra realm khớp ma trận bằng `python3 docs/phan-quyen/check_realm.py`.
+---
 
-## Cách chạy
+## 2. Kết nối qua cổng hầm SSH (SSH Tunnel) khi máy chủ hạn chế mở cổng
+
+Khi máy chủ dev chỉ mở cổng SSH (`22`) và không mở trực tiếp dải cổng `35xxx` ra mạng ngoài, lập trình viên mở một phiên hầm SSH từ máy trạm cá nhân:
+
+```bash
+ssh -N \
+  -L 35432:127.0.0.1:35432 \
+  -L 35433:127.0.0.1:35433 \
+  -L 35379:127.0.0.1:35379 \
+  -L 35080:127.0.0.1:35080 \
+  -L 35181:127.0.0.1:35181 \
+  -L 35820:127.0.0.1:35820 \
+  -L 35094:127.0.0.1:35094 \
+  -L 35081:127.0.0.1:35081 \
+  -L 35083:127.0.0.1:35083 \
+  -L 35900:127.0.0.1:35900 \
+  -L 35200:127.0.0.1:35200 \
+  -L 35318:127.0.0.1:35318 \
+  -L 35300:127.0.0.1:35300 \
+  <SSH_USER>@<SSH_HOST>
+```
+
+Mọi service backend (`application-dev.yaml`) và công cụ dev đều mặc định trỏ về `127.0.0.1` với các biến môi trường động (`DB_HOST`, `DB_PORT`, `PGBOUNCER_PORT`, `VALKEY_HOST`, `VALKEY_PORT`, `KEYCLOAK_ISSUER_URI`, `OPA_URL`, `OPENBAO_URL`, `KAFKA_BOOTSTRAP_SERVERS`, `APICURIO_REGISTRY_URL`, `OTLP_METRICS_URI`), nên chạy ngay qua hầm SSH mà không cần sửa mã hay tệp cấu hình.
+
+---
+
+## 3. Cách vận hành các profile
 
 ```bash
 cd infra/dev
-./scripts/gen-env.sh                       # sinh .env với mật khẩu ngẫu nhiên (một lần)
-# sửa PUBLIC_HOST, KEYCLOAK_PUBLIC_URL, WEB_PUBLIC_URL, DATA_DIR trong .env cho đúng máy chủ
-docker compose --profile core up -d        # bật lõi
-docker compose --profile core --profile events --profile observability up -d
-./scripts/health.sh                        # kiểm tra
+cp .env.example .env   # điền mật khẩu thật vào .env (không commit)
+
+# 1. Chỉ bật nền tảng cốt lõi (Postgres + PgBouncer, Valkey, Keycloak)
+docker compose up -d
+
+# 2. Bật thêm bảo mật (OPA 1.x + OpenBao 2.x kèm khoá KEK mẫu)
+docker compose --profile core --profile security up -d
+
+# 3. Bật thêm luồng sự kiện (Kafka KRaft, Apicurio, Debezium) và tạo đầy đủ topic
+docker compose --profile core --profile security --profile events up -d
+./scripts/create-topics.sh
+
+# 4. Bật toàn bộ hạ tầng
+docker compose --profile all up -d
+
+# 5. Kiểm tra sức khoẻ
+./scripts/health.sh
 ```
 
-### Nạp lại realm `mission` sau khi sửa `realm-mission.json`
+---
 
-Keycloak chỉ nhập realm khi realm chưa tồn tại (`--import-realm` bỏ qua realm đã có), nên sau khi sửa tệp realm phải xoá realm cũ rồi khởi động lại container. Việc này xoá cả phiên và tài khoản tạo tay trong realm `mission` ở dev; chỉ thao tác trên container của project `mission-dev`:
+## 4. Mô hình 4 tài khoản CSDL theo schema và nâng cấp volume `pg_data`
+
+Theo **TL-03 ("Tài khoản kết nối CSDL", "Ứng dụng không có quyền DDL")**, mỗi schema `<schema>` có đúng 4 tài khoản PostgreSQL (tất cả đều `NOBYPASSRLS`, `NOINHERIT`, `NOCREATEDB`, `NOCREATEROLE`):
+
+1. `mig_<schema>`: chủ sở hữu schema, chỉ dùng khi chạy Flyway DDL trực tiếp vào PostgreSQL (`35432`), có quyền gọi `partman.*`.
+2. `svc_<schema>`: tài khoản chạy ứng dụng qua PgBouncer (`35433`), chỉ có quyền DML (`SELECT, INSERT, UPDATE, DELETE`), bị áp RLS và khoá cứng `statement_timeout=5s`, `idle_in_transaction_session_timeout=10s`, `lock_timeout=2s`.
+3. `ro_<schema>`: chỉ đọc (`SELECT`), phục vụ đối soát/chẩn đoán.
+4. `cdc_<schema>`: có quyền `REPLICATION` + `SELECT` để Debezium đọc WAL và `outbox_event`.
+
+Các ngoại lệ liên schema theo TL-03 đã được cấu hình sẵn:
+- 8 tài khoản `svc_<module>` của `mission-core` (`config`, `policy`, `okr`, `task`, `product`, `appraisal`, `dossier`, `oversight`) chỉ có quyền `SELECT` trên `org_replica` (chỉ `svc_org_replica` mới có quyền ghi), và có quyền đọc/ghi trên `modulith`.
+- Mọi `svc_<schema>` nghiệp vụ có quyền `SELECT, INSERT` trên `keyring` (chỉ `svc_keyring` mới có `UPDATE, DELETE`).
+
+### Nâng cấp trên volume `pg_data` đã tồn tại (không cần xoá dữ liệu)
+
+Khi volume `pg_data` đã được tạo từ trước, `/docker-entrypoint-initdb.d/01-schemas.sh` sẽ không tự chạy lại. Để cập nhật `pg_partman`, các schema mới (`modulith`, `keyring`) và bộ tài khoản `mig_`/`svc_`/`ro_`/`cdc_` mà **không mất dữ liệu**:
 
 ```bash
-cd infra/dev
-# .env sinh trước WEB-056 chưa có ba biến mới: thêm với giá trị ngẫu nhiên (gen-env.sh không ghi đè .env đã có)
-for v in KC_TEST_USER_PASSWORD KC_TEST_OTP_SECRET MISSION_CORE_CLIENT_SECRET; do
-  grep -q "^$v=" .env || echo "$v=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)" >> .env
-done
-docker compose exec keycloak sh -c '/opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 \
-  --realm master --user "$KC_BOOTSTRAP_ADMIN_USERNAME" --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" \
-  && /opt/keycloak/bin/kcadm.sh delete realms/mission'
-docker compose --profile core up -d --force-recreate keycloak
+# Chạy lại build ảnh postgres (có cài postgresql-17-partman) và khởi động lại
+docker compose up -d --build postgres pgbouncer
+
+# Chạy script di trú role bất biến (idempotent)
+./postgres/migrate-roles.sh
 ```
 
-Dữ liệu nằm dưới `DATA_DIR` (bind mount) chứ không ở thư mục gốc của Docker, vì ổ chứa Docker trên máy chủ dev gần đầy. Mọi container giới hạn log ở 3 tệp × 20 MB, Kafka giữ dữ liệu 72 giờ, Valkey tối đa 512 MB.
+---
 
-## Khác biệt so với production
+## 5. Realm Keycloak dev (`mission`)
 
-Môi trường này không thay thế được kiến trúc production của TL-04: production chạy trên Kubernetes với CloudNativePG + PgBouncer, Valkey Cluster, Kafka nhiều broker, Ceph RGW với Object Lock chế độ COMPLIANCE, OpenSearch nhiều node có bảo mật, Istio ambient mTLS, OpenBao + HSM cho bí mật. Ở dev, các thành phần chỉ phục vụ phát triển và kiểm thử chức năng; không đặt dữ liệu thật hay dữ liệu cá nhân vào đây.
-
-## Ghi chú vận hành trên server dev (19/10/2026)
-
-Hạ tầng đã chạy trên server dev với sáu profile core, events, observability, search, analytics và gateway; profile web chưa bật. Khi triển khai trên CentOS 7 (kernel 3.10) có một số điều chỉnh so với bản gốc. Image `postgres:17-alpine` bị seccomp chặn ghi vào `pg_wal`, nên chuyển sang `postgres:17` bản Debian thay vì nới seccomp. Image `minio/mc` bản RELEASE cũ đã bị gỡ khỏi Docker Hub, nên dùng `minio/mc:latest`; image `minio/minio` đang dùng bản có sẵn trên server và sẽ không pull được ở máy mới, cần chọn nguồn khác khi dựng lại. `health.sh` dùng `docker ps` lọc theo nhãn project vì compose v2.17 không nhận `ps --format` dạng template. Khi chép bundle từ macOS phải xoá các tệp `._*`, vì một tệp như vậy trong `postgres/init` làm hỏng bước khởi tạo.
-
-Cổng 8081 trên server đã có dịch vụ khác, nên mission-core khi chạy dev phải nghe ở cổng 35100; `apisix/apisix.yaml` đã trỏ upstream tới `host.docker.internal:35100`. OpenSearch cảnh báo `vm.max_map_count=65530` (khuyến nghị 262144); một node dev vẫn chạy được, muốn sửa phải có sudo. Grafana LGTM khởi động mất khoảng ba phút. Debezium Connect và OpenSearch chỉ mở trên 127.0.0.1 của server, truy cập qua SSH tunnel. Mật khẩu dịch vụ nằm trong `/home/provision/mission-infra/.env` trên server (chmod 600), không chép vào repo hay chat.
+Tệp `keycloak/realm-mission.json` tạo sẵn:
+- **Realm**: `mission`
+- **Client SPA (PKCE)**: `mission-web` (`redirectUris`: `http://localhost:4200/*`)
+- **Client dịch vụ**: `mission-core`
+- **Các vai trò chuẩn**: `SYS_ADMIN`, `LANH_DAO_DON_VI`, `THU_TRUONG_CO_QUAN`, `CHUYEN_VIEN_THAM_MUU`, `CAN_BO`, `HOI_DONG_THAM_DINH`, `KIEM_TRA_GIAM_SAT`
+- **Protocol mappers**: tự động gắn `tenant_id`, `org_path`, `roles` vào access token và ID token.
