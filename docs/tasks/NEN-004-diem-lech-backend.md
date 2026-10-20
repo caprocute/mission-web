@@ -45,7 +45,7 @@ Gom vào `wiki/14-quyet-dinh-va-cau-hoi-mo.md` mọi điểm lệch giữa các 
   - Tên bảng: TL-01 `org.position_assignment`, `task.assignment` so với baseline và TL-03 `org.assignment`, `task.task_assignee`.
   - Vai trò trong token: TL-01 Phụ lục C (`staff`, `org_officer`, `policy_approver`) so với baseline mục 10 và HD-05; HD-07 `actor_role` dùng `staff`.
   - Phiên bản Formly (TL-01 Phụ lục B 6.x, AGENTS.md chốt 10) và vai trò `wf_template_author` (BS-01) chưa có trong `docs/phan-quyen/ma-tran.json`.
-- Thêm mục "Câu hỏi mở phía máy chủ" gồm những chỗ nguồn thiếu: DDL `period_state` cho `okr`/`product`, định nghĩa đầy đủ `fn_create_period_partitions`, số `CONNECTION LIMIT` từng vai trò, danh sách 23 bảng Oracle, cột trùng nghĩa trong `config`, `okr`, `task` (TL-03 phần 1 mục câu hỏi mở), lược đồ lưu trữ tác vụ dài `/jobs/{id}` không có bảng riêng trong TL-03.
+- Thêm mục "Câu hỏi mở phía máy chủ" gồm những chỗ nguồn thiếu: DDL `period_state` cho `okr`/`product`, định nghĩa đầy đủ `fn_create_period_partitions`, số `CONNECTION LIMIT` từng vai trò, cột trùng nghĩa trong `config`, `okr`, `task` (TL-03 phần 1 mục câu hỏi mở), lược đồ lưu trữ tác vụ dài `/jobs/{id}` không có bảng riêng trong TL-03.
 - Với mỗi điểm, đề xuất chốt theo nguyên tắc: hợp đồng OpenAPI và quyết định HD thắng với API; TL-03 thắng với chi tiết CSDL; TL mới hơn thắng khi cùng mức chi tiết; ghi "(suy luận)" cho đề xuất không có nguồn trực tiếp.
 - Đánh dấu rõ dòng nào "đã chốt" (có HD hoặc AGENTS.md) và dòng nào "chờ người phụ trách", không tự chuyển dòng chờ sang đã chốt.
 - Thêm vào trang 14 liên kết sang trang 16–20 (nếu NEN-002, NEN-003 đã gộp) và cập nhật dòng "Nguồn" của trang.

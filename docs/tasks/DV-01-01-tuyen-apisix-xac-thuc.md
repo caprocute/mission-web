@@ -12,7 +12,7 @@
 | Luồng đề xuất | B5 |
 | Cỡ việc | M |
 | Phụ thuộc | INF-08 (cụm cell có APISIX ingress); cần realm Keycloak của DV-02-01 để kiểm thử đầu cuối (suy luận) |
-| Truy vết | SVC-01 api-gateway → mọi tiền tố `/api/v1/<module>` của baseline mục 13 → SVC-05 (MOD-01..MOD-08), SVC-03, SVC-04, SVC-06, SVC-08…; ADR-08, ADR-11, ADR-20; TL-01 "SVC-01 api-gateway" |
+| Truy vết | SVC-01 api-gateway → mọi tiền tố `/api/v1/<module>` của baseline mục 13 → SVC-05 (MOD-01..MOD-08), SVC-03, SVC-04, SVC-06, SVC-08…; ADR-08, ADR-11; TL-01 "SVC-01 api-gateway" |
 | Trạng thái | Chưa bắt đầu |
 
 ## 1. Mục tiêu
@@ -42,7 +42,7 @@ Dựng lớp tuyến của cổng API trong mỗi cell: mọi tiền tố `/api/
 ## 4. Ngoài phạm vi
 
 - Giới hạn tốc độ, cắt tải, WAF (DV-01-02); danh sách tuyến công khai và kiểm thử quét CRD (DV-01-03); APISIX lớp ngoài toàn cục (DV-01-04).
-- Định tuyến strangler sang hệ cũ (LEG-06), cài APISIX và etcd lên cụm (INF-08).
+- Cài APISIX và etcd lên cụm (INF-08). Không có định tuyến Strangler Fig sang hệ cũ: Mission là hệ mới độc lập, phần Strangler của ADR-20 không áp dụng (quyết định ngày 20/10/2026).
 
 ## 5. Tệp được phép sửa
 

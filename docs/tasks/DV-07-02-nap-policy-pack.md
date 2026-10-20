@@ -49,6 +49,7 @@ scoring-service lấy đúng phiên bản Policy Pack ghim cho kỳ, tenant, kh�
 ## 6. Tiêu chí hoàn thành
 
 - `cd backend && mvn -q -pl services/scoring-service -am verify` chạy xanh gồm Testcontainers Kafka + Apicurio cho consumer EVT-13.
+- Đổi công thức không cần phát hành phần mềm: kiểm thử nhận EVT-13 của một phiên bản Policy Pack mới đổi công thức thì scoring-service đang chạy nạp phiên bản đó và tính kỳ ghim phiên bản mới theo công thức mới, không đổi mã, không khởi động lại.
 - Đo thời gian biên dịch một gói và thời gian đánh giá một hồ sơ khi trúng đệm; ghi số đo vào báo cáo.
 - Báo cáo cuối task theo AGENTS.md mục 6; wiki được cập nhật nếu có tri thức mới.
 

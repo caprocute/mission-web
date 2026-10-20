@@ -13,7 +13,7 @@
 | Cỡ việc | L |
 | Phụ thuộc | DV-10-01; DV-10-03 (dấu thời gian TSA cho PAdES-LTA) nên gộp trước khi bật chế độ LTA (bổ sung) |
 | Truy vết | QT-04, QT-09, QT-11 → API `POST /api/v1/esign/requests` (provider `MYSIGN`) → SVC-10 → bảng `esign.sign_request`, `esign.sign_item`, `esign.certificate_ref` → EVT-18 |
-| Trạng thái | Bị chặn bởi bên ngoài: cần tài khoản thử MySign (phần mã và kiểm thử với máy chủ CSC giả lập làm được ngay) |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -40,6 +40,7 @@ Hiện thực `MySignProvider` theo chuẩn Cloud Signature Consortium (CSC API)
 
 - Ký lô cho quyết định xếp loại (DV-10-06), ký bằng HSM của tổ chức (DV-10-03).
 - Ứng dụng di động gọi MySign trực tiếp (SVC-18, task MOB).
+- Nối và kiểm thử với MySign thật khi có tài khoản thử; khi đó chỉ đổi cấu hình kết nối, không đổi mã.
 
 ## 5. Tệp được phép sửa
 
@@ -51,7 +52,7 @@ Hiện thực `MySignProvider` theo chuẩn Cloud Signature Consortium (CSC API)
 - `cd backend && mvn -q -pl services/esign -am verify` xanh, gồm kiểm thử tích hợp với máy chủ CSC giả lập cho đủ năm trạng thái.
 - PDF đã ký trong kiểm thử được công cụ độc lập (ví dụ `pdfsig` của Poppler hoặc DSS demo) xác nhận chữ ký hợp lệ, có dấu thời gian; tài liệu không bị sửa ngoài vùng ký.
 - Không có lời gọi đồng bộ tới MySign trong luồng xử lý `createEsignRequest` (kiểm bằng kiểm thử: API trả 202 trong ≤ 200 ms khi giả lập trễ 3 giây).
-- Khi có tài khoản thử MySign: chạy một kịch bản ký thật ở môi trường thử và ghi kết quả vào báo cáo; nếu chưa có, ghi rõ "chưa kiểm với MySign thật".
+- Địa chỉ CSC, client và chứng thư MySign nằm trong cấu hình nhà cung cấp và giá trị triển khai (bí mật qua OpenBao), không nằm trong mã; đổi từ máy chủ CSC giả lập sang MySign thật chỉ đổi cấu hình kết nối, không đổi mã.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo

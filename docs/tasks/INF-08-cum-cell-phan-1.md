@@ -12,8 +12,8 @@
 | Luồng đề xuất | B8 |
 | Cỡ việc | L (> 1 ngày, nên tách) |
 | Phụ thuộc | – |
-| Truy vết | TL-04 ch.3 (mục 3.2–3.6, 3.9), mục 6.8 → SVC-01 → SEC-24, SEC-26, SEC-32, SEC-34 → ADR-20 → OPS-15 → tiêu chí A2, C7 |
-| Trạng thái | Bị chặn bởi bên ngoài (một phần): cụm Kubernetes thật trên Viettel Cloud chưa được cấp; làm và kiểm chứng trước trên kind/k3d |
+| Truy vết | TL-04 ch.3 (mục 3.2–3.6, 3.9), mục 6.8 → SVC-01 → SEC-24, SEC-26, SEC-32, SEC-34 → OPS-15 → tiêu chí A2, C7 |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -32,7 +32,7 @@ Mô tả dạng mã toàn bộ phần khung của một cụm cell theo TL-04 ch
 - Khai báo chín node pool, taint và nhãn đúng bảng TL-04 mục 3.3 (`vt.io/pool`, `vt.io/zone=secure`, `vt.io/rack`, `vt.io/pg-size`, `topology.kubernetes.io/zone`); pool dữ liệu và vùng bảo mật không co giãn.
 - Viết chart `deploy/charts/cell-base` tạo 13 namespace (`edge`, `core`, `identity`, `platform`, `workers`, `analytics`, `secure`, `secure-data`, `data-pg`, `data-kafka`, `data-search`, `observability`, `egress`) với nhãn `vt.io/security-zone`, `vt.io/cell`, chế độ dataplane ambient và Pod Security `restricted` cho enforce, audit, warn; chỉ `observability` và namespace CNI được miễn trừ (SEC-26).
 - Trong `cell-base`, mỗi namespace có `default-deny-all` (Ingress và Egress) và `allow-dns`; thêm luồng được phép theo mẫu TL-04 mục 3.6 (APISIX → mission-core 8080, observability → 8081, mission-core → Pooler `pg-core-rw`/`pg-core-ro` 5432, Kafka 9093, Valkey 6379), không có luồng `core` → `secure` (ADR-09); luồng `edge/apisix` → `platform/web-frontend` cho SVC-17.
-- Viết chart `deploy/charts/api-gateway` cho APISIX trong cell: ≥ 3 replica trên pool `ingress`, etcd 3 node riêng, APISIX Ingress Controller, TLS 1.3, Coraza với OWASP CRS (SEC-34), header bảo mật (SEC-24), sinh `traceparent`, route mẫu `mission-core` (timeout đọc 10 s) và route strangler `/kpi-legacy/*` (ADR-20).
+- Viết chart `deploy/charts/api-gateway` cho APISIX trong cell: ≥ 3 replica trên pool `ingress`, etcd 3 node riêng, APISIX Ingress Controller, TLS 1.3, Coraza với OWASP CRS (SEC-34), header bảo mật (SEC-24), sinh `traceparent`, route mẫu `mission-core` (timeout đọc 10 s); không có route Strangler `/kpi-legacy/*` vì Mission là hệ mới độc lập, phần Strangler của ADR-20 không áp dụng.
 - Viết plugin Lua `vt-claims` (đăng ký `vt_tenant`, `vt_sub`, từ chối JWT có claim `cell` khác cell) và `ApisixPluginConfig protected-api` (`openid-connect` `bearer_only`, `limit-count` 600/60 s theo tenant và người dùng trên Valkey, `limit-req`, 429 trả `application/problem+json` kèm `Retry-After: 30`).
 - Điểm lệch cần lưu ý: (1) discovery OIDC trong TL-04 dùng realm `platform`, realm dev và hợp đồng `contracts/openapi/common/common.yaml` dùng `mission`; đặt tên realm thành tham số values, mặc định `mission` theo hợp đồng (API-first), ghi câu hỏi vào wiki 14. (2) MachineDeployment app-general 3/6 mỗi vùng cho 9/18 node, khác bảng pool 8/16; chọn 3 vùng × min 3 (ràng buộc cân bằng vùng), ghi lệch vào wiki 14.
 - Gợi ý tách: (a) Cluster API và node pool; (b) `cell-base` namespace và NetworkPolicy; (c) APISIX, `vt-claims`, `protected-api`.
@@ -40,6 +40,7 @@ Mô tả dạng mã toàn bộ phần khung của một cụm cell theo TL-04 ch
 ## 4. Ngoài phạm vi
 
 - Istio ambient, StorageClass, egress gateway (INF-09); Falco, audit API (INF-19).
+- Nối và kiểm thử trên cụm Kubernetes thật của Viettel Cloud khi được cấp (provider Cluster API, NIC 25 Gbps, pool vật lý); khi đó chỉ đổi giá trị cấu hình theo môi trường, không đổi manifest dùng chung.
 - Bộ điều khiển suy giảm ba mức theo nhãn `vt.io/degrade-level` (đề xuất bổ sung hàng khung, xem báo cáo tổng); APISIX lớp ngoài và GeoDNS (INF-20).
 
 ## 5. Tệp được phép sửa
@@ -52,7 +53,8 @@ Mô tả dạng mã toàn bộ phần khung của một cụm cell theo TL-04 ch
 - `helm lint`, `helm template`, `kubeconform -strict` và Kyverno CLI cho `cell-base` và `api-gateway` không lỗi; `clusterctl` hoặc `kubeconform` (schema CAPI) kiểm manifest Cluster API.
 - Trên kind ba worker gắn nhãn `hl-a`, `hl-b`, `hl-c` có Cilium: pod thử trong `core` không gọi được `secure` và không ra Internet; DNS hoạt động; luồng APISIX → mission-core giả lập đi được.
 - Kiểm thử APISIX trên kind: request không JWT bị 401; JWT ký bởi Keycloak thử có claim `cell` khác bị từ chối; vượt 600 request/60 s trả 429 đúng thân RFC 9457 và có `Retry-After`; payload SQLi mẫu bị Coraza chặn.
-- Báo cáo cuối task theo AGENTS.md mục 6, ghi rõ phần chưa kiểm được vì chưa có cụm thật (Cluster API provider, NIC 25 Gbps, pool vật lý).
+- Thông số riêng của cụm thật (provider, địa chỉ, kích thước pool) nằm trong `deploy/environments/<môi trường>/`, manifest dùng chung không chứa giá trị riêng của Viettel Cloud.
+- Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo
 

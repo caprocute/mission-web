@@ -13,7 +13,7 @@
 | Cỡ việc | L |
 | Phụ thuộc | DV-12-01 |
 | Truy vết | QT-05, QT-06, QT-09, QT-11, QT-14 (MSG-14-01 thông báo đẩy) → SVC-12 → bảng `notify.delivery`, `notify.channel_pref`, `notify.template` → nhận EVT-21 |
-| Trạng thái | Bị chặn bởi bên ngoài: cần cổng SMS Viettel và tài khoản FCM/APNs thử (phần mã và kiểm thử với giả lập làm được ngay) |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -41,6 +41,7 @@ Gửi thông báo qua bốn kênh ngoài ứng dụng là email, SMS (cổng SMS
 
 - Thông báo hàng loạt cuối kỳ và giới hạn tốc độ (DV-12-04); đăng ký thiết bị đẩy phía ứng dụng di động (task MOB).
 - API cho người dùng tự đặt tuỳ chọn kênh: hợp đồng `platform.yaml` chưa có đường dẫn này; nếu cần, mở task sửa hợp đồng riêng.
+- Nối và kiểm thử với cổng SMS Viettel, FCM và APNs thật khi có tài khoản thử; khi đó chỉ đổi cấu hình kết nối, không đổi mã.
 
 ## 5. Tệp được phép sửa
 
@@ -51,7 +52,7 @@ Gửi thông báo qua bốn kênh ngoài ứng dụng là email, SMS (cổng SMS
 
 - `cd services-go/notification && go test ./...` xanh, gồm kiểm thử tích hợp với giả lập: cổng SMS trả lỗi liên tục thì mạch SMS mở, thông báo `INAPP` và email vẫn gửi đúng hạn; SMS xếp hàng và gửi lại khi cổng phục hồi.
 - Kiểm thử chứng minh giờ yên lặng hoãn thông báo thường và không hoãn thông báo ưu tiên cao; không có số điện thoại hay email dạng rõ trong CSDL và nhật ký.
-- Khi có tài khoản thử: gửi thật một SMS, một email, một thông báo FCM và ghi kết quả vào báo cáo; nếu chưa có, ghi rõ.
+- Email gửi tới hộp thư thử (ví dụ Mailpit) và SMS, FCM, APNs gửi tới giả lập; địa chỉ cổng, tài khoản và khoá của từng kênh nằm trong cấu hình và giá trị triển khai (bí mật qua OpenBao), không nằm trong mã, nên đổi sang cổng thật chỉ đổi cấu hình kết nối, không đổi mã.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo

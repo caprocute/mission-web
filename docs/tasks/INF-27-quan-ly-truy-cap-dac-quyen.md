@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | INF-13 (OpenBao, PKI); INF-19 (RBAC sáu vai trò, luồng SIEM), INF-11 (vai trò `dba_ops` trên CNPG) (bổ sung) |
 | Truy vết | SEC-42 (PAM ghi phiên truy cập đặc quyền, D6, cấp độ 4), SEC-29 (RBAC), SEC-58 (DBA không đọc được C2, phá kính) → TL-04 mục 9.3 (L2693–2703), L2971, L3163, L3169 → Kubernetes `ClusterRoleBinding` có thời hạn, PostgreSQL vai trò `dba_ops`, OpenBao, HSM → SIEM; VH-07 |
-| Trạng thái | Bị chặn bởi bên ngoài: cần giải pháp PAM (chưa chọn sản phẩm, cần mua sắm hoặc chủ đầu tư chỉ định) |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -38,6 +38,7 @@ TL-04 không cho ai có quyền cao thường trực: quyền `debug-app`, `oper
 ## 4. Ngoài phạm vi
 
 - RBAC sáu vai trò, audit API Kubernetes, Falco (INF-19); mua sắm sản phẩm PAM, dịch vụ SOC (VH-07, ngoài kỹ thuật).
+- Nối và kiểm thử với sản phẩm PAM thật và SIEM khi đã chọn sản phẩm và có môi trường; khi đó chỉ đổi cấu hình kết nối.
 
 ## 5. Tệp được phép sửa
 
@@ -49,8 +50,8 @@ TL-04 không cho ai có quyền cao thường trực: quyền `debug-app`, `oper
 ## 6. Tiêu chí hoàn thành
 
 - `helm lint`, `helm template`, `kubeconform -strict` sạch; CronJob quét trên kind phát hiện một `ClusterRoleBinding` tạo tay và một vai trò CSDL thừa quyền trong kiểm thử.
-- Khi có sản phẩm: biên bản thử cấp `debug-app` 4 giờ có ghi phiên, tự thu hồi đúng hạn; phá kính DBA đủ hai người duyệt; sự kiện PAM xuất hiện trong SIEM.
-- Runbook có bước kiểm chứng và quay lui; báo cáo cuối task theo AGENTS.md mục 6, nêu rõ phần nào bị chặn.
+- Với PAM giả lập trên kind (ví dụ một dịch vụ cấp quyền tạm qua API cùng giao diện bọc): thử cấp `debug-app` 4 giờ có ghi phiên, tự thu hồi đúng hạn; phá kính DBA đủ hai người duyệt; sự kiện cấp quyền xuất hiện ở đích nhật ký thử. Địa chỉ và tham số của sản phẩm PAM nằm trong cấu hình, nên thay bằng sản phẩm thật chỉ đổi cấu hình.
+- Runbook có bước kiểm chứng và quay lui; báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo
 

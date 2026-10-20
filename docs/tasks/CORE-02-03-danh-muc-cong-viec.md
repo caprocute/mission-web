@@ -17,13 +17,12 @@
 
 ## 1. Mục tiêu
 
-Hiện thực thư viện danh mục công việc theo Bảng 3: danh mục theo vị trí việc làm và đơn vị, có phiên bản, kế thừa danh mục mẫu của cấp trên, mỗi kỳ áp dụng đúng một phiên bản. Mục danh mục đã dùng ở kỳ đã khoá không sửa tại chỗ mà buộc tạo phiên bản mới, để điểm của kỳ cũ không bị thay đổi ngầm. Đây cũng là chức năng chuyển đầu tiên theo Strangler Fig, nên phải ổn định sớm.
+Hiện thực thư viện danh mục công việc theo Bảng 3: danh mục theo vị trí việc làm và đơn vị, có phiên bản, kế thừa danh mục mẫu của cấp trên, mỗi kỳ áp dụng đúng một phiên bản. Mục danh mục đã dùng ở kỳ đã khoá không sửa tại chỗ mà buộc tạo phiên bản mới, để điểm của kỳ cũ không bị thay đổi ngầm. Danh mục là đầu vào của giao việc và chấm điểm ở các quy trình sau, nên phải ổn định sớm.
 
 ## 2. Đầu vào bắt buộc đọc
 
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-02a-quy-trinh.md` QT-04 "Quy tắc nghiệp vụ" BR-04-13, BR-04-14 (L1211–1230), SCR-0401 (L1245–1290, ràng buộc trường L1259–1276, API L1280–1284).
 - `/mnt/project-files/kien-truc-okr-kpi/src/TL-03-thiet-ke-csdl.md` "Bảng task.work_catalog", "Bảng task.catalog_item".
-- `/mnt/project-files/kien-truc-okr-kpi/src/TL-01-thiet-ke-kien-truc.md` mục Strangler Fig với APISIX (ADR-20, L1428–1459).
 - `contracts/openapi/modules/tasks.yaml`: `listWorkCatalogs`, `listApplicableCatalogItems`, `listCatalogVersionItems`, `addCatalogItem`, `updateCatalogItem`, `cloneCatalogVersion`, `listCatalogPositions`.
 
 ## 3. Phạm vi công việc
@@ -39,7 +38,7 @@ Hiện thực thư viện danh mục công việc theo Bảng 3: danh mục theo
 ## 4. Ngoài phạm vi
 
 - Nhập Excel (CORE-02-04); chương trình, đề án (`task.program`) chưa có SCR riêng trong phạm vi này.
-- Tuyến APISIX cho Strangler (task hạ tầng).
+- Định tuyến Strangler Fig sang hệ cũ: không áp dụng, vì Mission là hệ mới độc lập (quyết định ngày 20/10/2026).
 
 ## 5. Tệp được phép sửa
 

@@ -50,6 +50,7 @@
 - `cd backend && mvn -q -pl mission-core -am verify` xanh; kiểm thử tích hợp Testcontainers (PostgreSQL, Kafka, saga giả lập) cho: phát hành thành công phát đúng một EVT-13; bước nạp lỗi thì bù trừ và giữ `CHO_PHE_DUYET`; phát hành lại không gọi ký; UI Pack không tương thích chặn trước khi gắn; thu hồi sau khi kỳ khoá bị chặn.
 - Lược đồ EVT-13 đăng ký được với Apicurio chế độ BACKWARD (kiểm bằng Testcontainers hoặc công cụ kiểm lược đồ).
 - Kiểm thử hợp đồng ba thao tác khớp `policies.yaml`.
+- Đổi công thức không cần phát hành phần mềm: kiểm thử phát hành một phiên bản Policy Pack mới đổi công thức trên cùng bản build mission-core đang chạy, kỳ ghim phiên bản mới dùng công thức mới mà không đổi mã, không build lại, không triển khai lại.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo
