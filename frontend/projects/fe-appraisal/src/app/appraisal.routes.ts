@@ -12,8 +12,9 @@ const selfAssessment = () =>
 
 /**
  * Trang đầu `/appraisal`: vai trò có SCR-0901 (`member`, `manager`) vào thẳng phiếu tự đánh giá, vai trò
- * có SCR-0902 (`appraiser`) vào hàng đợi thẩm định, vai trò còn lại có SCR-0903 (`decider`) vào danh
- * sách kết quả xếp loại; vai trò khác ở trang khung cho tới khi SCR-0904 … SCR-1002 được dựng.
+ * có SCR-0902 (`appraiser`) vào hàng đợi thẩm định, vai trò có SCR-0904 (`decider`) vào quyết định hàng
+ * loạt, vai trò còn lại có SCR-0903 vào danh sách kết quả xếp loại; vai trò khác ở trang khung cho tới khi
+ * SCR-1001, SCR-1002 được dựng.
  */
 const firstScreen: CanActivateFn = (_route, state) => {
   const perms = inject(PermissionService);
@@ -21,9 +22,11 @@ const firstScreen: CanActivateFn = (_route, state) => {
     ? 'tu-danh-gia'
     : perms.can('SCR-0902.xem')
       ? 'tham-dinh'
-      : perms.can('SCR-0903.xem')
-        ? 'ket-qua'
-        : null;
+      : perms.can('SCR-0904.xem')
+        ? 'quyet-dinh'
+        : perms.can('SCR-0903.xem')
+          ? 'ket-qua'
+          : null;
   if (!target) return true;
   const [path, query] = state.url.split('?');
   const url = path.replace(/\/$/, '') + '/' + target + (query ? '?' + query : '');
@@ -35,7 +38,8 @@ const firstScreen: CanActivateFn = (_route, state) => {
  * giá (WEB-035): `tu-danh-gia` là hồ sơ của tôi (`?flow=` chọn luồng), `tu-danh-gia/:id` mở một hồ sơ
  * theo mã (quản lý xem chỉ đọc). SCR-0902 Thẩm định (WEB-036): `tham-dinh` mở hồ sơ đầu hàng đợi,
  * `tham-dinh/:id` mở một hồ sơ. SCR-0903 Phiếu xếp loại (WEB-037): `ket-qua` là danh sách kết quả của tôi
- * và hồ sơ trong phạm vi, `ket-qua/:id` mở phiếu xếp loại của một hồ sơ. Tuyến con chặn theo chức năng của đúng SCR (wiki/15a).
+ * và hồ sơ trong phạm vi, `ket-qua/:id` mở phiếu xếp loại của một hồ sơ. SCR-0904 Quyết định xếp loại
+ * hàng loạt (WEB-038): `quyet-dinh`. Tuyến con chặn theo chức năng của đúng SCR (wiki/15a).
  */
 export const ROUTES: Routes = [
   {
@@ -79,6 +83,13 @@ export const ROUTES: Routes = [
     canActivate: [permissionGuard('SCR-0903.xem')],
     loadComponent: ratingSheet,
     title: 'Phiếu xếp loại',
+  },
+  {
+    path: 'quyet-dinh',
+    canActivate: [permissionGuard('SCR-0904.xem')],
+    loadComponent: () =>
+      import('./pages/batch-decision/batch-decision.page').then((m) => m.BatchDecisionPage),
+    title: 'Quyết định xếp loại hàng loạt',
   },
 ];
 

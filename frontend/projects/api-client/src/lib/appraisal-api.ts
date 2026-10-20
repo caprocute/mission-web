@@ -2,6 +2,8 @@ import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import {
+  AppraisalBatchDecision,
+  AppraisalBatchDecisionInput,
   AppraisalExportInput,
   AppraisalFlow,
   AppraisalProfile,
@@ -31,7 +33,7 @@ const ifMatch = (p: Pick<AppraisalProfile, 'rowVersion'>) => ({ 'If-Match': `"${
 /**
  * Client cho `/api/v1/appraisals` của MOD-04 (QT-09, QT-10) theo hợp đồng
  * `contracts/openapi/modules/appraisals.yaml`: phiếu tự đánh giá SCR-0901 (WEB-035), thẩm định SCR-0902
- * (WEB-036), phiếu xếp loại SCR-0903 (WEB-037). Mọi thao tác ghi
+ * (WEB-036), phiếu xếp loại SCR-0903 (WEB-037), quyết định hàng loạt SCR-0904 (WEB-038). Mọi thao tác ghi
  * lên hồ sơ gửi `If-Match` bằng `rowVersion` của hồ sơ (điểm chốt AP-05).
  */
 @Injectable({ providedIn: 'root' })
@@ -144,6 +146,38 @@ export class AppraisalApi {
       `/api/v1/appraisals/profiles/${enc(p.id)}/proposal`,
       body,
       { headers: ifMatch(p) },
+    );
+  }
+
+  /**
+   * "Quyết định và ký lô" (SCR-0904): ghi mức `QUYET_DINH` cho 1 đến 1.000 hồ sơ `CHO_QUYET_DINH` và tạo
+   * yêu cầu ký lô; trả 202 kèm `Location` của job. Mỗi mục mang `rowVersion` thay cho `If-Match`. Cần
+   * phiên AAL2 (401 step-up).
+   */
+  batchDecide(
+    body: AppraisalBatchDecisionInput,
+  ): Observable<{ location: string; job: Job | null }> {
+    return this.http
+      .post<Job | null>('/api/v1/appraisals/batch-decisions', body, { observe: 'response' })
+      .pipe(map((res) => ({ location: accepted(res), job: res.body })));
+  }
+
+  /** Lô quyết định theo mã, hoặc theo đường dẫn `resultLocation` của job ký lô. */
+  batchDecision(idOrLocation: string): Observable<AppraisalBatchDecision> {
+    const url = idOrLocation.startsWith('/')
+      ? idOrLocation
+      : `/api/v1/appraisals/batch-decisions/${enc(idOrLocation)}`;
+    return this.http.get<AppraisalBatchDecision>(url);
+  }
+
+  /** "Huỷ lô": dừng các chữ ký chưa thực hiện; hồ sơ đã ký giữ nguyên quyết định. */
+  cancelBatch(
+    b: Pick<AppraisalBatchDecision, 'id' | 'rowVersion'>,
+  ): Observable<AppraisalBatchDecision> {
+    return this.http.post<AppraisalBatchDecision>(
+      `/api/v1/appraisals/batch-decisions/${enc(b.id)}/cancel`,
+      null,
+      { headers: { 'If-Match': `"${b.rowVersion}"` } },
     );
   }
 
