@@ -38,6 +38,7 @@
     <module>libs</module>
     <!-- Khối nguyên khối theo mô-đun mission-core (CORE-00-01): mission-core/ -->
     <!-- Microservice Java (NEN-019 trở đi): services/ -->
+    <module>services</module>
   </modules>
 
   <properties>
