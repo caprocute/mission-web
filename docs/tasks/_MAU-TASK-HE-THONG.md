@@ -34,6 +34,7 @@ Một đoạn văn nói rõ kết quả nhìn thấy hoặc kiểm chứng đư�
 ## 6. Tiêu chí hoàn thành
 - Lệnh build và kiểm thử cụ thể chạy xanh (theo quy định phân hệ).
 - Tiêu chí nghiệp vụ hoặc phi chức năng đo được (BR, MSG, NFR, PERF…).
+- Cập nhật trạng thái task vào tệp theo dõi tiến độ tổng hợp duy nhất `TIEN-DO-HE-THONG.md` bằng `python3 scripts/cap-nhat-tien-do.py set <MÃ> ...`.
 - Báo cáo cuối task theo AGENTS.md mục 6; wiki được cập nhật nếu có tri thức mới.
 
 ## 7. Báo cáo

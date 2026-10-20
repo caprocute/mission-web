@@ -10,6 +10,7 @@ import { createServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { handleServerApiRequest } from '../../scripts/dev-backend.mjs';
 
 const ROOT = fileURLToPath(new URL('../dist/e2e/', import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -162,34 +163,53 @@ function resolveProxyTarget(pathname) {
 }
 
 function proxyRequest(req, res, targetBaseUrl) {
-  const targetUrl = new URL(req.url ?? '/', targetBaseUrl);
-  const client = targetUrl.protocol === 'https:' ? httpsRequest : httpRequest;
-  const proxyReq = client(
-    targetUrl,
-    {
-      method: req.method,
-      headers: {
-        ...req.headers,
-        host: targetUrl.host,
+  const chunks = [];
+  req.on('data', (chunk) => chunks.push(chunk));
+  req.on('end', () => {
+    const bodyBuffer = Buffer.concat(chunks);
+    const targetUrl = new URL(req.url ?? '/', targetBaseUrl);
+    const client = targetUrl.protocol === 'https:' ? httpsRequest : httpRequest;
+    const proxyReq = client(
+      targetUrl,
+      {
+        method: req.method,
+        headers: {
+          ...req.headers,
+          host: targetUrl.host,
+        },
       },
-    },
-    (proxyRes) => {
-      res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers);
-      proxyRes.pipe(res);
-    },
-  );
-  proxyReq.on('error', (err) => {
-    res.writeHead(502, { 'content-type': 'application/problem+json; charset=utf-8' });
-    res.end(
-      JSON.stringify({
-        type: 'https://mission.vt.vn/errors/bad-gateway',
-        title: 'Dịch vụ máy chủ tạm thời chưa phản hồi',
-        status: 502,
-        detail: `Không thể kết nối tới ${targetBaseUrl}: ${err.message}`,
-      }),
+      (proxyRes) => {
+        const status = proxyRes.statusCode ?? 502;
+        if (status === 404 || status >= 502) {
+          proxyRes.resume();
+          handleServerApiRequest(req, res, bodyBuffer).catch(() => {
+            res.writeHead(status, proxyRes.headers);
+            res.end();
+          });
+          return;
+        }
+        res.writeHead(status, proxyRes.headers);
+        proxyRes.pipe(res);
+      },
     );
+    proxyReq.on('error', (err) => {
+      handleServerApiRequest(req, res, bodyBuffer).catch(() => {
+        res.writeHead(502, { 'content-type': 'application/problem+json; charset=utf-8' });
+        res.end(
+          JSON.stringify({
+            type: 'https://mission.vt.vn/errors/bad-gateway',
+            title: 'Dịch vụ máy chủ tạm thời chưa phản hồi',
+            status: 502,
+            detail: `Không thể kết nối tới ${targetBaseUrl}: ${err.message}`,
+          }),
+        );
+      });
+    });
+    if (bodyBuffer.length > 0) {
+      proxyReq.write(bodyBuffer);
+    }
+    proxyReq.end();
   });
-  req.pipe(proxyReq);
 }
 
 if (!existsSync(join(ROOT, 'index.html'))) {

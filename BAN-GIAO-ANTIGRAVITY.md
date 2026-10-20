@@ -23,6 +23,8 @@ Các quy ước dưới đây là quyết định của người dùng, đã áp
 
 ## 3. Tiến độ trên toàn hệ thống
 
+> **Cập nhật ngày 20/10/2026 (`YC-PT-17`)**: Toàn bộ tiến độ thời gian thực của 401 task đã được hợp nhất vào một tệp duy nhất tại gốc repo: [`TIEN-DO-HE-THONG.md`](TIEN-DO-HE-THONG.md). Mọi AI agent bắt buộc đọc và cập nhật tiến độ vào `TIEN-DO-HE-THONG.md` thông qua `python3 scripts/cap-nhat-tien-do.py`. Bảng dưới đây là ảnh chụp tại thời điểm bàn giao từ Claude sang Antigravity.
+
 Kế hoạch có 336 task thuộc danh mục toàn hệ thống (`docs/tasks/danh-muc-he-thong.tsv`) cộng 65 task web WEB-001..065 lập trước đó. Bảng sau tóm tắt theo nhóm; "xong" nghĩa là đã kiểm thử và có trên main hoặc trên nhánh được ghi rõ.
 
 | Nhóm | Số task | Đã xong | Đang dở | Ghi chú |

@@ -1,5 +1,7 @@
 # Danh mục task cho AI agent – phân hệ web Mission
 
+> **LƯU Ý QUAN TRỌNG (`YC-PT-17`)**: Tệp theo dõi tiến độ tổng hợp **duy nhất** của toàn bộ hệ thống (gồm cả 65 task Web ở đây và 336 task hệ thống) nằm tại gốc repo: [`/TIEN-DO-HE-THONG.md`](../../TIEN-DO-HE-THONG.md). Mọi AI agent bắt buộc cập nhật trạng thái vào `TIEN-DO-HE-THONG.md` qua lệnh `python3 scripts/cap-nhat-tien-do.py set <MÃ_TASK> ...`.
+
 Mỗi tệp `WEB-xxx-*.md` là một task đủ nhỏ để một AI agent làm trọn trong một phiên. Mọi task đều mở đầu bằng khối **Quy định chung** bắt buộc đọc `AGENTS.md`; khi chạy bằng Claude Code trong repo này, hook `SessionStart` trong `.claude/settings.json` còn tự in lời nhắc `docs/tasks/_NHAC-QUY-DINH.md` ở đầu mỗi phiên. Với agent khác, dùng `./scripts/agent-task.sh WEB-xxx` để sinh prompt gồm quy định chung và nội dung task.
 
 Thứ tự thực hiện đi theo cột Phụ thuộc: một task chỉ bắt đầu khi các task nó phụ thuộc đã xong. Những task cùng giai đoạn không phụ thuộc nhau có thể giao cho nhiều agent chạy song song, mỗi agent một nhánh `feat/WEB-xxx-…`. Cỡ việc S/M/L ước lượng cho một agent; người phụ trách duyệt PR của từng task trước khi gộp.

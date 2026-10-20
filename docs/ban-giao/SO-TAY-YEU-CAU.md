@@ -252,6 +252,13 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 - **Kiểm tra:** Không còn luồng nào chạy; mọi nhánh dở có tệp trạng thái; main chứa các nhánh đã xong; tệp hướng dẫn bàn giao có trên main và trong thư mục dùng chung, đủ các mục nêu trên.
 - **Nguồn:** Dự án Mission, ngày 20/10/2026, kênh chung của dự án (tin nhắn của anh Hiếu lúc 06:32 UTC: "các task còn lại, do hết quota tuần rồi, tạm dừng. đóng gói tiến độ đã làm, viết hướng dẫn bàn giao cho antigravity làm tiếp"); thực hiện trong thread "Đóng gói tiến độ và bàn giao".
 
+#### YC-PT-17 – Theo dõi tiến độ toàn hệ thống trên một tệp tổng hợp duy nhất và bắt buộc mọi agent cập nhật
+
+- **Nội dung:** Toàn bộ dự án phải có một tệp theo dõi tiến độ tổng hợp duy nhất đặt ở gốc repo (`TIEN-DO-HE-THONG.md`), bao quát đầy đủ tất cả các task của mọi phân hệ (Web, nền móng, backend lõi, dịch vụ vệ tinh, dữ liệu, hạ tầng, kiểm thử, di động, vận hành, cá nhân hoá), bảng tổng hợp theo phân hệ và theo mốc triển khai, trạng thái đường găng, danh sách các luồng đang chạy và nhật ký cập nhật. Mọi AI agent (cả luồng điều phối giữ nhánh `main` lẫn các subagent chạy trên nhánh/worktree riêng) bắt buộc phải cập nhật trạng thái vào tệp này (thông qua kịch bản `python3 scripts/cap-nhat-tien-do.py set <MÃ_TASK> ...` hoặc sửa bảng rồi chạy `python3 scripts/cap-nhat-tien-do.py sync`) ở cả ba thời điểm: khi bắt đầu nhận task (`Đang làm`), khi hoàn thành kiểm thử trên nhánh (`Xong, chờ gộp`) và khi gộp vào `main` (`Đã gộp main`). Quy định bắt buộc này phải được ghi trực tiếp trong `AGENTS.md`, quy định riêng từng phân hệ (`docs/quy-dinh/*.md`), mẫu task và kịch bản giao việc `scripts/agent-task.sh`.
+- **Lý do:** Khi thông tin tiến độ nằm rải rác ở nhiều tệp danh mục hoặc chỉ nằm trong lịch sử git và các nhánh con, người phụ trách dự án không có một nơi duy nhất để nắm bắt tức thì mức độ hoàn thành thực tế của toàn hệ thống, và các agent dễ quên cập nhật sau khi làm xong task.
+- **Kiểm tra:** Tệp `TIEN-DO-HE-THONG.md` ở gốc repo chứa đủ 100% số task của dự án với số liệu tổng hợp khớp chính xác với bảng chi tiết (`python3 scripts/cap-nhat-tien-do.py sync` chạy không lỗi); `AGENTS.md`, `docs/tasks/_NHAC-QUY-DINH.md`, `scripts/agent-task.sh` và các tệp `docs/quy-dinh/*.md` đều có điều khoản bắt buộc cập nhật `TIEN-DO-HE-THONG.md`; mọi commit hoàn thành hoặc gộp task đều kèm cập nhật tiến độ trong tệp này.
+- **Nguồn:** Dự án Mission, ngày 20/10/2026, kênh điều phối Antigravity (anh Hiếu: "tôi cần 1 file tổng hợp duy nhất, và yêu cầu mọi agent phải cập nhật tiến độ vào").
+
 ### 2.4. Nhóm HT – Hạ tầng và bảo mật
 
 #### YC-HT-01 – Hạ tầng dùng chung triển khai bằng Docker Compose trên server dev
@@ -283,9 +290,9 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 |---|---|---|
 | GT | Giao tiếp và cách làm việc | 4 |
 | TK | Bộ tài liệu thiết kế | 10 |
-| PT | Tổ chức phát triển | 16 |
+| PT | Tổ chức phát triển | 17 |
 | HT | Hạ tầng và bảo mật | 3 |
-| | **Tổng cộng** | **33** |
+| | **Tổng cộng** | **34** |
 
 ---
 
@@ -303,3 +310,4 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 | 20/10/2026 | YC-PT-15 | Phần việc người dùng đã giao cho công cụ AI khác thì các luồng Claude dừng: đẩy phần đã làm lên nhánh riêng kèm ghi chú trạng thái từng task, không mở luồng mới, không gộp vào main khi chưa có quyết định; hợp đồng OpenAPI là ranh giới bàn giao, đề nghị sửa hợp đồng ghi trong repo. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh chung của dự án (tin nhắn 06:30 UTC) |
 | 20/10/2026 | YC-PT-16 | Hết hạn mức sử dụng thì tạm dừng có trật tự: đẩy phần dở lên nhánh kèm trạng thái, gộp nhánh đã xong, viết một hướng dẫn bàn giao ở gốc repo (có bản sao trong thư mục dùng chung) để công cụ AI khác làm tiếp. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh chung của dự án (tin nhắn 06:32 UTC) |
 | 20/10/2026 | YC-HT-03 | Sử dụng SSH Tunnel khi máy chủ hạn chế mở cổng và tham số hóa cấu hình động qua biến môi trường (.env) cho cả Backend và Frontend để thay đổi động không cần build lại. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh điều phối Antigravity |
+| 20/10/2026 | YC-PT-17 | Duy trì một tệp theo dõi tiến độ tổng hợp duy nhất cho toàn hệ thống (`TIEN-DO-HE-THONG.md`) kèm công cụ `scripts/cap-nhat-tien-do.py`, bắt buộc mọi AI agent phải cập nhật trạng thái vào tệp này khi nhận task, khi hoàn thành trên nhánh và khi gộp vào `main`. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh điều phối Antigravity |
