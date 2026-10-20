@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "KeHoachDaDuyet",
+  "namespace": "vn.vtokr.task.v1",
+  "doc": "EVT-03 · task.plan.approved.v1 · MOD-02 phát khi một phiên bản kế hoạch được phê duyệt.",
+  "fields": [
+    {"name": "planId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "task.plan.id"},
+    {"name": "planVersionId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "task.plan_version.id"},
+    {"name": "versionNo", "type": "int", "doc": "Số phiên bản, bắt đầu từ 1"},
+    {"name": "periodId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Kỳ đánh giá"},
+    {"name": "ownerType", "type": "string", "doc": "Loại kế hoạch: TAP_THE, CA_NHAN (task.plan.plan_type)"},
+    {"name": "ownerId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Đơn vị (TAP_THE) hoặc cá nhân (CA_NHAN) sở hữu kế hoạch"},
+    {"name": "itemCount", "type": "int", "doc": "Số dòng kế hoạch của phiên bản"},
+    {"name": "approvedBy", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người phê duyệt"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

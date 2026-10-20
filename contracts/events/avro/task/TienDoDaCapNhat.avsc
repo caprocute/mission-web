@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "TienDoDaCapNhat",
+  "namespace": "vn.vtokr.task.v1",
+  "doc": "EVT-05 · task.task.progressed.v1 · MOD-02 phát khi tiến độ nhiệm vụ được cập nhật. Đúng mẫu Avro EVT-05 của TL-03 \"Phong bì sự kiện\".",
+  "fields": [
+    {"name": "taskId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "periodId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "progressId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "reporterId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "progressPct", "type": {"type": "bytes", "logicalType": "decimal", "precision": 6, "scale": 3}},
+    {"name": "actualValue", "type": ["null", {"type": "bytes", "logicalType": "decimal", "precision": 18, "scale": 4}], "default": null},
+    {"name": "evidenceCount", "type": "int", "default": 0},
+    {"name": "reportedAt", "type": {"type": "long", "logicalType": "timestamp-micros"}},
+    {"name": "aggregateVersion", "type": "int"}
+  ]
+}

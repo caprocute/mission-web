@@ -77,6 +77,18 @@
       Log4j 2.24 hỗ trợ Disruptor 4.x. Spring Boot không quản lý phiên bản này.
     -->
     <disruptor.version>4.0.0</disruptor.version>
+    <!--
+      NEN-007 · ADR-03: hợp đồng sự kiện Avro qua Apicurio Registry 3.x (Phụ lục B).
+      Apache Avro 1.12: dòng hiện hành, bản vá mới nhất 1.12.2; cùng phiên bản cho thư viện
+      chạy (org.apache.avro:avro) và plugin sinh lớp (avro-maven-plugin) để mã sinh khớp runtime.
+      Apicurio Registry 3.x: 3.3.3 là bản vá mới nhất của dòng 3; dùng cho plugin kiểm tương thích
+      (apicurio-registry-maven-plugin) và ảnh registry chạy thử trong profile schema-compat.
+      exec-maven-plugin: bước sinh lớp hằng EventTopics từ contracts/events/catalog.yaml và
+      bật/tắt registry thử (suy luận về cách sinh; thẻ NEN-007 cho phép "một bước Maven đơn giản").
+    -->
+    <avro.version>1.12.2</avro.version>
+    <apicurio-registry.version>3.3.3</apicurio-registry.version>
+    <exec-maven-plugin.version>3.6.4</exec-maven-plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -139,6 +151,11 @@
         <groupId>com.lmax</groupId>
         <artifactId>disruptor</artifactId>
         <version>${disruptor.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro</artifactId>
+        <version>${avro.version}</version>
       </dependency>
 
       <!-- BOM bên ngoài: Spring Boot (gồm Hibernate, Flyway, Log4j2, JUnit, Testcontainers). -->

@@ -20,5 +20,6 @@
     <module>vt-kernel</module>
     <module>vt-platform-starter</module>
     <module>vt-db-migration</module>
+    <module>vt-events</module>
   </modules>
 </project>

@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "NhanSuDaThayDoi",
+  "namespace": "vn.vtokr.org.v1",
+  "doc": "EVT-16 · org.person.changed.v1 · SVC-04 phát trạng thái mới của nhân sự (chỉ trường C1; không mang ngày sinh, số định danh, số thẻ đảng viên).",
+  "fields": [
+    {"name": "personId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "org.person.id, trùng sub trong Keycloak"},
+    {"name": "displayName", "type": "string", "doc": "Họ và tên hiển thị (org.person.full_name, C1)"},
+    {"name": "subjectGroupId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "Khối đối tượng"},
+    {"name": "isPartyMember", "type": "boolean", "doc": "Là đảng viên"},
+    {"name": "status", "type": "string", "doc": "Tình trạng công tác: DANG_CONG_TAC, NGHI_HUU, THOI_VIEC, TAM_NGHI"},
+    {"name": "sourceVersion", "type": "long", "doc": "Phiên bản ở nguồn"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}
