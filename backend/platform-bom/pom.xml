@@ -210,6 +210,16 @@
         <artifactId>swagger-parser-safe-url-resolver</artifactId>
         <version>${swagger-parser.version}</version>
       </dependency>
+      <!--
+        NEN-011 · ADR-03: serde Avro của Apicurio Registry 3.x (cùng dòng với registry và plugin
+        NEN-007). OutboxWriter tra global id theo lược đồ và tuần tự hoá Avro nhị phân bằng serde này;
+        consumer NEN-012 giải tuần tự bằng cùng thư viện. Kafka client theo Spring Boot.
+      -->
+      <dependency>
+        <groupId>io.apicurio</groupId>
+        <artifactId>apicurio-registry-avro-serde-kafka</artifactId>
+        <version>${apicurio-registry.version}</version>
+      </dependency>
 
       <!-- BOM bên ngoài: Spring Boot (gồm Hibernate, Flyway, Log4j2, JUnit, Testcontainers). -->
       <dependency>

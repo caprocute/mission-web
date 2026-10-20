@@ -176,6 +176,110 @@ Topic nghiệp vụ theo dạng `<miền>.<thực-thể>.<sự-kiện>.v1`, kho�
 - Goal `test-update` của apicurio-registry-maven-plugin 3.3 bị đánh dấu lỗi thời (khuyên dùng `register` với `dryRun`) và không gửi kèm tham chiếu, nên `org.bootstrap.v1-value` (tham chiếu EVT-14..EVT-16) chỉ được đăng ký, không test-update.
 - CHECK `ck_outbox_event__topic` của TL-03 chỉ nhận topic bốn đoạn, trong khi `period.drain.marker` và `sys.audit.v1` được TL mô tả là đi qua outbox: điểm lệch đang chờ quyết định (xem trang 14 khi được ghi nhận).
 
+## Phát sự kiện trong mã (NEN-011)
+
+Thư viện `vt-platform-starter` cung cấp `OutboxWriter` (`vn.viettel.okrkpi.shared.outbox`) để ghi sự kiện miền vào bảng `<schema>.outbox_event` trong **cùng giao dịch CSDL** với thao tác nghiệp vụ (`Propagation.MANDATORY`).
+
+### Cấu hình dịch vụ phát sự kiện
+
+```yaml
+okrkpi:
+  outbox:
+    schema: task
+    registry:
+      url: http://apicurio-registry:8080/apis/registry/v3
+```
+
+### Sử dụng `OutboxWriter`
+
+```java
+@Transactional
+public void updateProgress(UUID taskId, UUID periodId, UUID reporterId, BigDecimal pct, long nextVersion) {
+  taskRepository.updateProgress(taskId, pct, nextVersion);
+
+  TienDoDaCapNhat payload = TienDoDaCapNhat.newBuilder()
+      .setTaskId(taskId)
+      .setPeriodId(periodId)
+      .setProgressId(Ids.newUuidV7())
+      .setReporterId(reporterId)
+      .setProgressPct(pct)
+      .setReportedAt(Instant.now().truncatedTo(ChronoUnit.MICROS))
+      .setAggregateVersion(nextVersion)
+      .build();
+
+  outboxWriter.append(
+      EventEnvelope.of(
+          EventTopics.EVT_05_TIEN_DO_DA_CAP_NHAT,
+          TenantContext.require(),
+          "Task",
+          taskId,
+          nextVersion,
+          payload,
+          Classification.C1));
+}
+```
+
+- `OutboxWriter.append(EventEnvelope)` kiểm tra đang có giao dịch mở (`TransactionSynchronizationManager.isActualTransactionActive()`), chặn sự kiện phân loại `C2`/`C3` (`SensitiveEventException`), tuần tự hoá payload sang Avro nhị phân kèm tra cứu `globalId` từ Apicurio Registry v3 (`ApicurioPayloadSerializer`, tắt `AUTO_REGISTER_ARTIFACT` và đệm kết quả theo `(topic, schema)`), và ghi cột `headers` (`jsonb`) chứa `traceparent`, `tenantid`, `actorid`, `classification`, `policyversion`, `aggregateversion`, `ce_type`, `occurredat`, `apicurio.value.globalId`.
+- Khi giao dịch nghiệp vụ rollback, dòng `outbox_event` cũng rollback theo; khi schema chưa đăng ký hoặc Registry lỗi, `OutboxSerializationException` được ném ra làm rollback toàn bộ giao dịch.
+- Cấu hình Debezium mẫu (`EventRouter` + SMT `OutboxHeadersTransform`) được đóng gói tại `classpath:vn/viettel/okrkpi/shared/outbox/debezium-outbox-connector.json`.
+
+## Viết consumer (NEN-012)
+
+Thư viện `vt-platform-starter` cung cấp `@InboxListener` và `InboxMessageProcessor` (`vn.viettel.okrkpi.shared.inbox`) để tiêu thụ sự kiện Kafka một cách lũy đẳng (idempotent) qua bảng `<schema>.inbox_processed` và `<schema>.inbox_aggregate_version`.
+
+### Cấu hình dịch vụ tiêu thụ sự kiện
+
+```yaml
+okrkpi:
+  inbox:
+    schema: appraisal
+    registry:
+      url: http://apicurio-registry:8080/apis/registry/v3
+    retry:
+      in-place-attempts: 3
+      initial-backoff: 50ms
+      multiplier: 2.0
+      tier-delays: [1m, 5m, 30m]
+    purge:
+      enabled: true
+      cron: "0 15 3 * * *"
+      retention: "14 days"
+      batch-size: 5000
+      max-batches-per-run: 20
+```
+
+### Khai báo `@InboxListener`
+
+```java
+@Component
+public class AppraisalTaskProgressConsumer {
+
+  @InboxListener(
+      topic = EventTopics.EVT_05_TIEN_DO_DA_CAP_NHAT,
+      consumer = "svc-appraisal.tien-do",
+      aggregateType = "Task")
+  public void onTaskProgressed(InboxEnvelope<TienDoDaCapNhat> envelope) {
+    TienDoDaCapNhat event = envelope.payload();
+    // Chạy trong cùng giao dịch với INSERT inbox_processed, đã đặt sẵn TenantContext + SET LOCAL app.tenant_id + span OTel con
+  }
+}
+```
+
+### Quy trình xử lý trong `InboxMessageProcessor`
+
+1. Khôi phục `TenantContext` và tạo span OpenTelemetry `CONSUMER` con từ Kafka header `traceparent`.
+2. Giải tuần tự thân Avro qua `ApicurioPayloadDeserializer` (bật `apicurio.registry.headers.enabled=true`, đọc `apicurio.value.globalId`).
+3. Trong một giao dịch CSDL (thử lại tại chỗ tối đa `in-place-attempts` lần cho lỗi tạm thời):
+   - Gọi `TenantSql.applyTenantSession(jdbc, tenantId)` để đặt `SET LOCAL app.tenant_id`.
+   - `INSERT INTO <schema>.inbox_processed (event_id, consumer, tenant_id, source_topic, kafka_partition, kafka_offset) VALUES (...) ON CONFLICT (consumer, event_id) DO NOTHING RETURNING event_id` — nếu không có dòng trả về, bỏ qua sự kiện trùng (`DUPLICATE_SKIPPED`) và tăng `inbox_messages_total{outcome="duplicate"}` + `inbox_duplicates_total`.
+   - Upsert `<schema>.inbox_aggregate_version (consumer, aggregate_type, aggregate_id, tenant_id, last_version, last_event_id)` với điều kiện `WHERE inbox_aggregate_version.last_version < EXCLUDED.last_version` — nếu sự kiện đến có `aggregateVersion <= last_version`, bỏ qua sự kiện cũ đến muộn (`STALE_SKIPPED`, giữ dòng `inbox_processed`) và tăng `inbox_stale_skipped_total`.
+   - Gọi phương thức `@InboxListener` để cập nhật bảng nghiệp vụ.
+   - Commit giao dịch rồi mới gọi `ack.acknowledge()`.
+4. Phân loại lỗi:
+   - **Lỗi tạm thời** (`TransientInboxException`, `TransientDataAccessException`, `SQLTransientException`): sau khi hết số lần thử tại chỗ sẽ rollback giao dịch (xoá dòng `inbox_processed` vừa chèn) và phát sang `<topic>.retry.<consumer>` qua 3 tầng độ trễ (`x-inbox-retry-tier = 1..3`); hết tầng 3 chuyển sang `<topic>.dlq.<consumer>`.
+   - **Lỗi vĩnh viễn** (`PermanentInboxException`, thiếu header, lỗi giải mã Avro): rollback và chuyển thẳng sang `<topic>.dlq.<consumer>` kèm header `x-inbox-dlq-reason`, `x-inbox-dlq-error-code`, `x-inbox-dlq-failed-at`, `x-inbox-dlq-consumer`, `x-inbox-dlq-original-topic`.
+5. Tác vụ dọn dẹp `InboxPurgeJob` gọi `<schema>.fn_purge_inbox_processed(?::interval, ?)` theo lô hàng ngày để giữ bảng `inbox_processed` gọn nhẹ theo chính sách giữ 14 ngày của TL-03.
+
 ## Liên quan
 
 - [Tổng quan hệ thống](01-tong-quan-he-thong.md)
