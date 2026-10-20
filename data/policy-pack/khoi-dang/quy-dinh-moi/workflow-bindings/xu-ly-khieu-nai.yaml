@@ -1,0 +1,21 @@
+# Tham số mặc định flowable.wf_binding cho mẫu xu-ly-khieu-nai v2 (QT-12; BR-12-01..BR-12-05).
+# BẢN NHÁP (DL-04). Thời hạn theo bảng bước QT-12; tổng thời gian <= 15 ngày làm việc (BR-12-05).
+processKind: KHIEU_NAI              # suy luận khoá
+templateKey: xu-ly-khieu-nai
+templateVersionNo: 2
+scope: {flow: DANG, subjectGroupId: null, periodType: null, fromPeriod: 2027-Q1}
+params:
+  so_cap: 2
+  cap:
+    - {buoc: XU_LY, vai_tro: appraiser, chon_nguoi_xu_ly: OPA_TACH_VAI_TRO, thoi_han_tiep_nhan: P2D_LV, thoi_han_giai_trinh: P3D_LV}
+    - {buoc: KY_TRA_LOI, vai_tro: decider, ky_so: true}
+  thoi_han_tong: P15D_LV
+  thoi_han_bao_luu: P5D_LV
+  thoi_han_khieu_nai: khieu_nai.thoi_han   # tham số Policy Pack, mặc định 10 ngày làm việc
+  nhac_truoc: P1D_LV
+  khi_qua_han: CHUYEN_CAP_TREN
+  ky_so_bat_buoc: [KY_TRA_LOI]
+mien:
+  so_cap: {min: 2, max: 4}
+  thoi_han_ngay_lam_viec: {min: 1, max: 15}
+legal_ref: "QT-12; QĐ khoản 16.1, 16.2; BR-12-04; BR-12-05"

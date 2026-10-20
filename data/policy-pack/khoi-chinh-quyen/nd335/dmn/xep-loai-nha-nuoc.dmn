@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- BẢN NHÁP chờ nghiệp vụ duyệt. BR-09-11; table_key xep_loai; gói khoi-chinh-quyen/nd335 -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20211108/MODEL/" id="xep-loai-nha-nuoc-dinh-nghia" name="Xếp loại chất lượng, luồng Nhà nước"
+             namespace="https://policy.okrkpi.vn/khoi-chinh-quyen/nd335" expressionLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/" typeLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/">
+  <decision id="xep-loai-nha-nuoc" name="Xếp loại chất lượng, luồng Nhà nước">
+    <variable id="xep-loai-nha-nuoc-var" name="xep_loai" typeRef="string"/>
+    <decisionTable id="xep-loai-nha-nuoc-bang" hitPolicy="FIRST" outputLabel="Mức xếp loại">
+      <input id="xep-loai-nha-nuoc-in1" label="Tổng điểm (tiêu chí chung và kết quả nhiệm vụ)">
+        <inputExpression id="xep-loai-nha-nuoc-in1-expr" typeRef="number"><text>diem</text></inputExpression>
+      </input>
+      <output id="xep-loai-nha-nuoc-out" name="xep_loai" typeRef="string">
+        <outputValues id="xep-loai-nha-nuoc-out-values"><text>"HTXSNV","HTTNV","HTNV","KHTNV"</text></outputValues>
+      </output>
+      <annotation name="legal_ref"/>
+      <annotation name="dieu_khoan"/>
+      <annotation name="giai_thich"/>
+      <annotation name="mau_ha_muc"/>
+      <rule id="xep-loai-nha-nuoc-dong-1">
+        <description>Từ 90 điểm</description>
+        <inputEntry id="xep-loai-nha-nuoc-dong-1-in1"><text>&gt;= 90</text></inputEntry>
+        <outputEntry id="xep-loai-nha-nuoc-dong-1-out"><text>"HTXSNV"</text></outputEntry>
+        <annotationEntry><text>NĐ 335/2025; PL A5; BR-09-11</text></annotationEntry>
+        <annotationEntry><text>Nghị định số 335/2025/NĐ-CP</text></annotationEntry>
+        <annotationEntry><text>Tổng điểm {diem} từ 90 điểm trở lên nên xếp loại Hoàn thành xuất sắc nhiệm vụ theo {dieu_khoan}. Bộ quy định đánh giá {phien_ban}.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+      <rule id="xep-loai-nha-nuoc-dong-2">
+        <description>Từ 70 đến dưới 90 điểm</description>
+        <inputEntry id="xep-loai-nha-nuoc-dong-2-in1"><text>&gt;= 70</text></inputEntry>
+        <outputEntry id="xep-loai-nha-nuoc-dong-2-out"><text>"HTTNV"</text></outputEntry>
+        <annotationEntry><text>NĐ 335/2025; PL A5; BR-09-11</text></annotationEntry>
+        <annotationEntry><text>Nghị định số 335/2025/NĐ-CP</text></annotationEntry>
+        <annotationEntry><text>Tổng điểm {diem} từ 70 đến dưới 90 điểm nên xếp loại Hoàn thành tốt nhiệm vụ theo {dieu_khoan}. Bộ quy định đánh giá {phien_ban}.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+      <rule id="xep-loai-nha-nuoc-dong-3">
+        <description>Từ 50 đến dưới 70 điểm</description>
+        <inputEntry id="xep-loai-nha-nuoc-dong-3-in1"><text>&gt;= 50</text></inputEntry>
+        <outputEntry id="xep-loai-nha-nuoc-dong-3-out"><text>"HTNV"</text></outputEntry>
+        <annotationEntry><text>NĐ 335/2025; PL A5; BR-09-11</text></annotationEntry>
+        <annotationEntry><text>Nghị định số 335/2025/NĐ-CP</text></annotationEntry>
+        <annotationEntry><text>Tổng điểm {diem} từ 50 đến dưới 70 điểm nên xếp loại Hoàn thành nhiệm vụ theo {dieu_khoan}. Bộ quy định đánh giá {phien_ban}.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+      <rule id="xep-loai-nha-nuoc-dong-4">
+        <description>Dưới 50 điểm</description>
+        <inputEntry id="xep-loai-nha-nuoc-dong-4-in1"><text>-</text></inputEntry>
+        <outputEntry id="xep-loai-nha-nuoc-dong-4-out"><text>"KHTNV"</text></outputEntry>
+        <annotationEntry><text>NĐ 335/2025; PL A5; BR-09-11</text></annotationEntry>
+        <annotationEntry><text>Nghị định số 335/2025/NĐ-CP</text></annotationEntry>
+        <annotationEntry><text>Tổng điểm {diem} dưới 50 điểm nên xếp loại Không hoàn thành nhiệm vụ theo {dieu_khoan}. Bộ quy định đánh giá {phien_ban}.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

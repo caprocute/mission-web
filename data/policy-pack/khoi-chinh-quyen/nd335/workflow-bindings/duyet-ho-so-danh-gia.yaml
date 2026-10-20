@@ -1,0 +1,21 @@
+# Tham số mặc định flowable.wf_binding cho mẫu duyet-ho-so-danh-gia v3, luồng Nhà nước (QT-09; SCR-1504).
+# BẢN NHÁP (DL-04). Luồng Nhà nước do thủ trưởng quyết định (TL-01 "Hai luồng Đảng và Nhà nước");
+# bỏ bước đề xuất, ba cấp và thời hạn 3/3/3 ngày làm việc là suy luận, chờ nghiệp vụ xác nhận.
+processKind: DANH_GIA               # suy luận khoá
+templateKey: duyet-ho-so-danh-gia
+templateVersionNo: 3
+scope: {flow: NHA_NUOC, subjectGroupId: null, periodType: QUY, fromPeriod: 2027-Q1}
+params:
+  so_cap: 3
+  cap:
+    - {buoc: TU_DANH_GIA, vai_tro: member,    ky_so: true, thoi_han: P3D_LV}
+    - {buoc: THAM_DINH,   vai_tro: appraiser, ky_so: true, thoi_han: P3D_LV}
+    - {buoc: QUYET_DINH,  vai_tro: decider,   ky_lo: true, ky_so: true, thoi_han: P3D_LV}
+  nhac_truoc: P1D_LV
+  khi_qua_han: CHUYEN_CAP_PHO_UY_QUYEN
+  so_lan_tra_lai_toi_da: 2
+  ky_so_bat_buoc: [TU_DANH_GIA, THAM_DINH, QUYET_DINH]
+mien:
+  so_cap: {min: 2, max: 4}
+  thoi_han_ngay_lam_viec: {min: 1, max: 15}
+legal_ref: "QT-09; QT-15; NĐ 335/2025; ADR-04"

@@ -1,0 +1,18 @@
+# Tham số mặc định flowable.wf_binding cho mẫu duyet-okr v2 (QT-02; _ghi-chu-TL-02a mục 6).
+# BẢN NHÁP (DL-04). Thời hạn bước duyệt TL ghi "theo tham số luồng duyệt"; 3 ngày làm việc là suy luận.
+processKind: DUYET_OKR              # suy luận khoá
+templateKey: duyet-okr
+templateVersionNo: 2
+scope: {flow: DANG, subjectGroupId: null, periodType: QUY, fromPeriod: 2027-Q1}
+params:
+  so_cap: 2
+  cap:
+    - {buoc: TRINH, vai_tro: [manager, member], thoi_han: P3D_LV}
+    - {buoc: DUYET, vai_tro: leader, cho_phep_duyet_hang_loat: true, thoi_han: P3D_LV}
+  nhac_truoc: P1D_LV
+  khi_qua_han: NHAC_LAI
+  ky_so_bat_buoc: []
+mien:
+  so_cap: {min: 2, max: 4}
+  thoi_han_ngay_lam_viec: {min: 1, max: 15}
+legal_ref: "QT-02; QT-15; ADR-04"

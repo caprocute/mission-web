@@ -1,0 +1,105 @@
+# Bảng chuyển trạng thái nhiệm vụ task.task (khoá task_lifecycle của Policy Pack, ADR-04).
+# BẢN NHÁP do agent soạn (DL-04) để nghiệp vụ duyệt.
+# Nguồn: TL-01 mục "Máy trạng thái nhiệm vụ" (Transition(from, command, to, allowedRoles, guardCel, reasonRequired));
+#        TL-02a QT-05 "Trạng thái đối tượng" (chín dòng), QT-06 (đề nghị tạm dừng, huỷ), QT-07 (nghiệm thu).
+# Tập trạng thái cố định theo baseline 9.1; Policy Pack chỉ bật/tắt dòng, thêm guard CEL, quy định vai trò.
+# Cờ qua_han KHÔNG phải trạng thái: là thuộc tính tính theo lịch ngày làm việc của tenant (TL-01, TL-02a QT-05).
+# Vai trò lấy đúng tên realm role trong docs/phan-quyen/ma-tran.json (baseline mục 10).
+# Gói luồng Nhà nước khoi-chinh-quyen/nd335 tham chiếu dùng chung tệp này (một nhiệm vụ, một vòng đời).
+apiVersion: policy.okrkpi.vn/v1
+kind: TaskLifecycle
+metadata:
+  rule_key: task_lifecycle
+  goi: khoi-dang/quy-dinh-moi
+  version: 2.1.0
+  legal_ref: "ADR-04; QT-05; QT-06; QT-07; PL 4 III.5"
+
+trang_thai: [NHAP, DA_GIAO, DANG_THUC_HIEN, CHO_NGHIEM_THU, HOAN_THANH, TAM_DUNG, HUY]   # baseline 9.1
+trang_thai_ket_thuc: [HOAN_THANH, HUY]
+thuoc_tinh_tinh_toan:
+  qua_han: "Bật khi ngày hiện tại vượt hạn tính điểm và nhiệm vụ chưa ở CHO_NGHIEM_THU hoặc HOAN_THANH; tính theo lịch ngày làm việc của tenant, không phải trạng thái."
+
+lenh: [ASSIGN, ACCEPT, SUBMIT, APPROVE, REWORK, SUSPEND, RESUME, CANCEL]   # TaskCommand.code() của TL-01
+
+# Ngữ cảnh guard CEL (task.activation(actor, now) của TL-01); tên trường do agent đặt (suy luận).
+# Không dùng hàm phụ thuộc thời gian trong guard.
+ngu_canh:
+  actor:          {type: map, fields: {person_id: string, roles: "list<string>"}}
+  task:           {type: map, fields: {chu_tri_id: string, nguoi_giao_id: string, nguoi_nghiem_thu_id: string, ke_hoach: int, so_san_pham_da_nop: int}}
+  deliverables:   {type: "list<map>", fields: {status: string}, mo_ta: "Phiên bản minh chứng hiện hành của từng sản phẩm (product.evidence_version.status)"}
+  change_request: {type: map, fields: {request_type: string, status: string}, mo_ta: "Đề nghị đang được áp dụng; loại theo hợp đồng tasks.yaml ChangeRequestType"}
+
+transitions:
+  - from: NHAP
+    command: ASSIGN
+    to: DA_GIAO
+    allowedRoles: [manager]
+    guardCel: null                    # BR-05-01..BR-05-05 kiểm ở thao tác giao (chặn giao), không lặp trong guard
+    reasonRequired: false
+    legal_ref: "QT-05; BR-05-01..BR-05-05"
+    su_kien: EVT-04
+  - from: DA_GIAO
+    command: ACCEPT
+    to: DANG_THUC_HIEN
+    allowedRoles: [member]
+    guardCel: "actor.person_id == task.chu_tri_id"
+    reasonRequired: false
+    legal_ref: "QT-05"
+    ghi_chu: "TL-02a: 'nhận việc hoặc cập nhật lần đầu'; cập nhật tiến độ lần đầu phát lệnh ACCEPT ngầm (suy luận)"
+  - from: DANG_THUC_HIEN
+    command: SUBMIT
+    to: CHO_NGHIEM_THU
+    allowedRoles: [member]
+    guardCel: "task.so_san_pham_da_nop >= task.ke_hoach"
+    reasonRequired: false
+    legal_ref: "QT-05; QT-07"
+    ghi_chu: "Ngày nộp đủ là ngày hoàn thành để tính tiến độ"
+  - from: CHO_NGHIEM_THU
+    command: REWORK
+    to: DANG_THUC_HIEN
+    allowedRoles: [manager]
+    guardCel: "actor.person_id == task.nguoi_nghiem_thu_id"
+    reasonRequired: true             # BR-07-08
+    legal_ref: "QT-07; BR-07-08"
+  - from: CHO_NGHIEM_THU
+    command: APPROVE
+    to: HOAN_THANH
+    allowedRoles: [manager]
+    guardCel: "deliverables.all(d, d.status == 'DA_XAC_NHAN')"
+    reasonRequired: false
+    legal_ref: "TL-01 task_lifecycle; QT-07; PL 4 III.5"
+  - from: DANG_THUC_HIEN
+    command: SUSPEND
+    to: TAM_DUNG
+    allowedRoles: [manager, leader]
+    guardCel: "change_request.request_type == 'TAM_DUNG' && change_request.status == 'DA_DUYET'"
+    reasonRequired: true
+    legal_ref: "QT-06; BR-06-10"
+  - from: TAM_DUNG
+    command: RESUME
+    to: DANG_THUC_HIEN
+    allowedRoles: [manager]
+    guardCel: "actor.person_id == task.nguoi_giao_id"
+    reasonRequired: false
+    legal_ref: "QT-05; BR-06-10"
+  - from: DA_GIAO
+    command: CANCEL
+    to: HUY
+    allowedRoles: [manager, leader]
+    guardCel: "change_request.request_type == 'HUY' && change_request.status == 'DA_DUYET' && !deliverables.exists(d, d.status == 'DA_XAC_NHAN')"
+    reasonRequired: true
+    legal_ref: "QT-06; BR-06-09"
+  - from: DANG_THUC_HIEN
+    command: CANCEL
+    to: HUY
+    allowedRoles: [manager, leader]
+    guardCel: "change_request.request_type == 'HUY' && change_request.status == 'DA_DUYET' && !deliverables.exists(d, d.status == 'DA_XAC_NHAN')"
+    reasonRequired: true
+    legal_ref: "QT-06; BR-06-09"
+  - from: TAM_DUNG
+    command: CANCEL
+    to: HUY
+    allowedRoles: [manager, leader]
+    guardCel: "change_request.request_type == 'HUY' && change_request.status == 'DA_DUYET' && !deliverables.exists(d, d.status == 'DA_XAC_NHAN')"
+    reasonRequired: true
+    legal_ref: "QT-06; BR-06-09"

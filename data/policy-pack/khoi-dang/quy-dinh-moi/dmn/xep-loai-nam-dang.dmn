@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- BẢN NHÁP chờ nghiệp vụ duyệt. BR-10-02..BR-10-05; dòng chặn đứng trước dòng HTXSNV; table_key xep_loai_nam -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20211108/MODEL/" id="xep-loai-nam-dang-dinh-nghia" name="Xếp loại chất lượng năm, luồng Đảng"
+             namespace="https://policy.okrkpi.vn/khoi-dang/quy-dinh-moi" expressionLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/" typeLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/">
+  <decision id="xep-loai-nam-dang" name="Xếp loại chất lượng năm, luồng Đảng">
+    <variable id="xep-loai-nam-dang-var" name="xep_loai_nam" typeRef="string"/>
+    <decisionTable id="xep-loai-nam-dang-bang" hitPolicy="FIRST" outputLabel="Mức xếp loại năm">
+      <input id="xep-loai-nam-dang-in1" label="Điểm năm">
+        <inputExpression id="xep-loai-nam-dang-in1-expr" typeRef="number"><text>diem_nam</text></inputExpression>
+      </input>
+      <input id="xep-loai-nam-dang-in2" label="Mức tiêu chí chung năm">
+        <inputExpression id="xep-loai-nam-dang-in2-expr" typeRef="string"><text>muc_tieu_chi_chung</text></inputExpression>
+        <inputValues id="xep-loai-nam-dang-in2-values"><text>"THUC_HIEN_TOT","DAM_BAO","CO_BAN_DAM_BAO","KHONG_DAM_BAO"</text></inputValues>
+      </input>
+      <input id="xep-loai-nam-dang-in3" label="Thuộc điều kiện loại trừ">
+        <inputExpression id="xep-loai-nam-dang-in3-expr" typeRef="boolean"><text>loai_tru</text></inputExpression>
+      </input>
+      <input id="xep-loai-nam-dang-in4" label="Số quý xếp loại Không hoàn thành nhiệm vụ">
+        <inputExpression id="xep-loai-nam-dang-in4-expr" typeRef="number"><text>so_quy_khtnv</text></inputExpression>
+      </input>
+      <input id="xep-loai-nam-dang-in5" label="Không xét mức xuất sắc năm do trường hợp đặc thù">
+        <inputExpression id="xep-loai-nam-dang-in5-expr" typeRef="boolean"><text>khong_xet_htxsnv_nam</text></inputExpression>
+      </input>
+      <input id="xep-loai-nam-dang-in6" label="Tỷ lệ hoàn thành mục tiêu năm">
+        <inputExpression id="xep-loai-nam-dang-in6-expr" typeRef="number"><text>ty_le_O_nam</text></inputExpression>
+      </input>
+      <input id="xep-loai-nam-dang-in7" label="Đạt tỷ lệ nhiệm vụ vượt mục tiêu năm">
+        <inputExpression id="xep-loai-nam-dang-in7-expr" typeRef="boolean"><text>dat_ty_le_vuot_nam</text></inputExpression>
+      </input>
+      <input id="xep-loai-nam-dang-in8" label="Có giải pháp đột phá được kiểm chứng">
+        <inputExpression id="xep-loai-nam-dang-in8-expr" typeRef="boolean"><text>giai_phap_dot_pha_da_kiem_chung</text></inputExpression>
+      </input>
+      <input id="xep-loai-nam-dang-in9" label="Có nhiệm vụ then chốt chưa hoàn thành do chủ quan trong năm">
+        <inputExpression id="xep-loai-nam-dang-in9-expr" typeRef="boolean"><text>truot_then_chot_chu_quan_nam</text></inputExpression>
+      </input>
+      <output id="xep-loai-nam-dang-out" name="xep_loai_nam" typeRef="string">
+        <outputValues id="xep-loai-nam-dang-out-values"><text>"HTXSNV","HTTNV","HTNV","KHTNV"</text></outputValues>
+      </output>
+      <annotation name="legal_ref"/>
+      <annotation name="dieu_khoan"/>
+      <annotation name="giai_thich"/>
+      <annotation name="mau_ha_muc"/>
+      <rule id="xep-loai-nam-dang-dong-1">
+        <description>Dưới 60 điểm</description>
+        <inputEntry id="xep-loai-nam-dang-dong-1-in1"><text>&lt; 60</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-1-in2"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-1-in3"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-1-in4"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-1-in5"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-1-in6"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-1-in7"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-1-in8"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-1-in9"><text>-</text></inputEntry>
+        <outputEntry id="xep-loai-nam-dang-dong-1-out"><text>"KHTNV"</text></outputEntry>
+        <annotationEntry><text>QĐ Điều 11; BR-09-09; BR-10-05</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của Quy định</text></annotationEntry>
+        <annotationEntry><text>Điểm năm {diem} dưới 60 nên xếp loại Không hoàn thành nhiệm vụ theo {dieu_khoan}. Bộ quy định đánh giá {phien_ban}.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+      <rule id="xep-loai-nam-dang-dong-2">
+        <description>Tiêu chí chung Không đảm bảo</description>
+        <inputEntry id="xep-loai-nam-dang-dong-2-in1"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-2-in2"><text>"KHONG_DAM_BAO"</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-2-in3"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-2-in4"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-2-in5"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-2-in6"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-2-in7"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-2-in8"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-2-in9"><text>-</text></inputEntry>
+        <outputEntry id="xep-loai-nam-dang-dong-2-out"><text>"KHTNV"</text></outputEntry>
+        <annotationEntry><text>QĐ Điều 10, Điều 11; BR-09-09; BR-10-05</text></annotationEntry>
+        <annotationEntry><text>Điều 10 và Điều 11 của Quy định</text></annotationEntry>
+        <annotationEntry><text>Tiêu chí chung được đánh giá Không đảm bảo nên xếp loại Không hoàn thành nhiệm vụ theo {dieu_khoan}. Bộ quy định đánh giá {phien_ban}.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+      <rule id="xep-loai-nam-dang-dong-3">
+        <description>Thuộc điều kiện loại trừ</description>
+        <inputEntry id="xep-loai-nam-dang-dong-3-in1"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-3-in2"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-3-in3"><text>true</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-3-in4"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-3-in5"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-3-in6"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-3-in7"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-3-in8"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-3-in9"><text>-</text></inputEntry>
+        <outputEntry id="xep-loai-nam-dang-dong-3-out"><text>"KHTNV"</text></outputEntry>
+        <annotationEntry><text>QĐ khoản 11.2.4; BR-09-09; BR-10-05</text></annotationEntry>
+        <annotationEntry><text>khoản 11.2.4 Điều 11 của Quy định</text></annotationEntry>
+        <annotationEntry><text>Thuộc trường hợp loại trừ nên xếp loại Không hoàn thành nhiệm vụ theo {dieu_khoan}. Bộ quy định đánh giá {phien_ban}.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+      <rule id="xep-loai-nam-dang-dong-4">
+        <description>Chặn mức xuất sắc năm khi có quý không hoàn thành nhiệm vụ</description>
+        <inputEntry id="xep-loai-nam-dang-dong-4-in1"><text>&gt;= 90</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-4-in2"><text>"THUC_HIEN_TOT"</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-4-in3"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-4-in4"><text>&gt;= 1</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-4-in5"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-4-in6"><text>&gt;= 1</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-4-in7"><text>true</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-4-in8"><text>true</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-4-in9"><text>false</text></inputEntry>
+        <outputEntry id="xep-loai-nam-dang-dong-4-out"><text>"HTTNV"</text></outputEntry>
+        <annotationEntry><text>QĐ khoản 15.5; BR-10-03</text></annotationEntry>
+        <annotationEntry><text>khoản 15.5 của Quy định</text></annotationEntry>
+        <annotationEntry><text>Đủ điều kiện mức Hoàn thành xuất sắc nhiệm vụ nhưng {cac_quy} xếp loại Không hoàn thành nhiệm vụ nên xếp mức liền kề theo {dieu_khoan}. Bộ quy định đánh giá {phien_ban}.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+      <rule id="xep-loai-nam-dang-dong-5">
+        <description>Chặn mức xuất sắc năm do trường hợp đặc thù</description>
+        <inputEntry id="xep-loai-nam-dang-dong-5-in1"><text>&gt;= 90</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-5-in2"><text>"THUC_HIEN_TOT"</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-5-in3"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-5-in4"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-5-in5"><text>true</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-5-in6"><text>&gt;= 1</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-5-in7"><text>true</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-5-in8"><text>true</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-5-in9"><text>false</text></inputEntry>
+        <outputEntry id="xep-loai-nam-dang-dong-5-out"><text>"HTTNV"</text></outputEntry>
+        <annotationEntry><text>PL 6 §6; BR-11-05</text></annotationEntry>
+        <annotationEntry><text>Phụ lục 6, mục 6 của Quy định</text></annotationEntry>
+        <annotationEntry><text>Thời gian công tác chưa đủ 6 tháng nên không xét mức Hoàn thành xuất sắc nhiệm vụ năm, xếp mức liền kề theo {dieu_khoan}. Bộ quy định đánh giá {phien_ban}.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+      <rule id="xep-loai-nam-dang-dong-6">
+        <description>Hoàn thành xuất sắc năm</description>
+        <inputEntry id="xep-loai-nam-dang-dong-6-in1"><text>&gt;= 90</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-6-in2"><text>"THUC_HIEN_TOT"</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-6-in3"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-6-in4"><text>0</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-6-in5"><text>false</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-6-in6"><text>&gt;= 1</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-6-in7"><text>true</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-6-in8"><text>true</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-6-in9"><text>-</text></inputEntry>
+        <outputEntry id="xep-loai-nam-dang-dong-6-out"><text>"HTXSNV"</text></outputEntry>
+        <annotationEntry><text>QĐ Điều 11; khoản 15.5; BR-10-03; BR-10-05</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của Quy định</text></annotationEntry>
+        <annotationEntry><text>Điểm năm {diem} và đủ các điều kiện của mức Hoàn thành xuất sắc nhiệm vụ trên số liệu cả năm theo {dieu_khoan}. Bộ quy định đánh giá {phien_ban}.</text></annotationEntry>
+        <annotationEntry><text>-</text></annotationEntry>
+      </rule>
+      <rule id="xep-loai-nam-dang-dong-7">
+        <description>Hoàn thành tốt năm</description>
+        <inputEntry id="xep-loai-nam-dang-dong-7-in1"><text>&gt;= 80</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-7-in2"><text>"THUC_HIEN_TOT","DAM_BAO"</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-7-in3"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-7-in4"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-7-in5"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-7-in6"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-7-in7"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-7-in8"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-7-in9"><text>false</text></inputEntry>
+        <outputEntry id="xep-loai-nam-dang-dong-7-out"><text>"HTTNV"</text></outputEntry>
+        <annotationEntry><text>QĐ Điều 11; PL 6 §12; BR-10-05</text></annotationEntry>
+        <annotationEntry><text>Điều 11 và Phụ lục 6, mục 12 của Quy định</text></annotationEntry>
+        <annotationEntry><text>Điểm năm {diem} và đủ các điều kiện của mức Hoàn thành tốt nhiệm vụ theo {dieu_khoan}. Bộ quy định đánh giá {phien_ban}.</text></annotationEntry>
+        <annotationEntry><text>ha_muc</text></annotationEntry>
+      </rule>
+      <rule id="xep-loai-nam-dang-dong-8">
+        <description>Hoàn thành năm</description>
+        <inputEntry id="xep-loai-nam-dang-dong-8-in1"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-8-in2"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-8-in3"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-8-in4"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-8-in5"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-8-in6"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-8-in7"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-8-in8"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-8-in9"><text>-</text></inputEntry>
+        <outputEntry id="xep-loai-nam-dang-dong-8-out"><text>"HTNV"</text></outputEntry>
+        <annotationEntry><text>QĐ Điều 11; PL 6 §12; BR-10-05</text></annotationEntry>
+        <annotationEntry><text>Điều 11 và Phụ lục 6, mục 12 của Quy định</text></annotationEntry>
+        <annotationEntry><text>Điểm năm {diem}, tiêu chí chung từ Cơ bản đảm bảo trở lên, xếp loại Hoàn thành nhiệm vụ theo {dieu_khoan}. Bộ quy định đánh giá {phien_ban}.</text></annotationEntry>
+        <annotationEntry><text>ha_muc</text></annotationEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>
