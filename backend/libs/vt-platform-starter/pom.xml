@@ -123,6 +123,27 @@
       <artifactId>hibernate-core</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- Ngữ cảnh tenant (NEN-010): trình quản lý giao dịch JDBC/JPA và bộ lọc JWT, chỉ nạp khi service có. -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-jdbc</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-orm</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-resource-server</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-jose</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- Luật kiến trúc dùng chung (PlatformArchitectureRules) cho kiểm thử ArchUnit của service. -->
     <dependency>
       <groupId>com.tngtech.archunit</groupId>
@@ -130,6 +151,21 @@
       <optional>true</optional>
     </dependency>
 
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>com.tngtech.archunit</groupId>
       <artifactId>archunit-junit5</artifactId>

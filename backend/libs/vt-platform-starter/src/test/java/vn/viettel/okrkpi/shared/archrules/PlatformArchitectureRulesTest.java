@@ -40,6 +40,18 @@ class PlatformArchitectureRulesTest {
   }
 
   @Test
+  void camTuLayKetNoiNgoaiThuVienNen() {
+    assertThatThrownBy(
+            () ->
+                PlatformArchitectureRules.NO_DIRECT_CONNECTION_ACCESS.check(
+                    classes("vn.viettel.okrkpi.archfixture.bad")))
+        .isInstanceOf(AssertionError.class)
+        .hasMessageContaining("RawConnectionDao");
+    PlatformArchitectureRules.NO_DIRECT_CONNECTION_ACCESS.check(
+        classes("vn.viettel.okrkpi.archfixture.good"));
+  }
+
+  @Test
   void thuVienNenTuanThuLuat() {
     JavaClasses platform =
         new ClassFileImporter()
@@ -47,5 +59,6 @@ class PlatformArchitectureRulesTest {
             .importPackages("vn.viettel.okrkpi.shared");
     PlatformArchitectureRules.NO_REQUEST_LOGGING_FILTERS.check(platform);
     PlatformArchitectureRules.NO_UNBOUNDED_EXECUTORS.check(platform);
+    PlatformArchitectureRules.NO_DIRECT_CONNECTION_ACCESS.check(platform);
   }
 }

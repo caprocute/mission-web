@@ -43,6 +43,22 @@ public final class PlatformArchitectureRules {
           .haveFullyQualifiedName("org.springframework.web.filter.CommonsRequestLoggingFilter")
           .because("TL-01: không ghi thân yêu cầu, header Authorization, cookie vào nhật ký");
 
+  /**
+   * NEN-010, TL-01 chặng bốn: mã nghiệp vụ không tự lấy {@code Connection} từ {@code DataSource}
+   * (bỏ qua trình quản lý giao dịch đặt {@code app.tenant_id}); chỉ thư viện nền được làm.
+   */
+  public static final ArchRule NO_DIRECT_CONNECTION_ACCESS =
+      noClasses()
+          .that()
+          .resideOutsideOfPackage("vn.viettel.okrkpi.shared..")
+          .should()
+          .callMethod(javax.sql.DataSource.class, "getConnection")
+          .orShould()
+          .callMethod(javax.sql.DataSource.class, "getConnection", String.class, String.class)
+          .because(
+              "NEN-010: truy cập CSDL qua giao dịch Spring để app.tenant_id được đặt cục bộ giao dịch")
+          .allowEmptyShould(true);
+
   private PlatformArchitectureRules() {}
 
   private static DescribedPredicate<JavaMethodCall> unboundedExecutorFactory() {

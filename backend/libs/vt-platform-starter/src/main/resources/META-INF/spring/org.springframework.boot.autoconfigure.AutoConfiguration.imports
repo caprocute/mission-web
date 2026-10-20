@@ -2,3 +2,4 @@ vn.viettel.okrkpi.shared.error.ProblemAutoConfiguration
 vn.viettel.okrkpi.shared.resilience.ResilienceAutoConfiguration
 vn.viettel.okrkpi.shared.observability.ObservabilityAutoConfiguration
 vn.viettel.okrkpi.shared.audit.AuditAutoConfiguration
+vn.viettel.okrkpi.shared.tenant.TenantAutoConfiguration
