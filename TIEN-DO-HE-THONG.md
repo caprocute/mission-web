@@ -12,18 +12,18 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **74 / 401 task (18.5%)** — Khối lượng quy đổi đã gộp: **86.5 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **81 / 401 task (20.2%)** (gồm **74** đã gộp `main` + **7** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **13 task** (9 đang làm, 4 làm một phần).
+- **Tổng tiến độ đã gộp `main`**: **77 / 401 task (19.2%)** — Khối lượng quy đổi đã gộp: **89.5 / 482.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **84 / 401 task (20.9%)** (gồm **77** đã gộp `main` + **7** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **10 task** (6 đang làm, 4 làm một phần).
 - **Chưa bắt đầu**: **307 task**.
-- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **6 / 23 task**; nút găng kế tiếp cần mở khoá: **`NEN-019`** (đang xử lý trên nhánh: `NEN-019`).
+- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **7 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-00-01`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
 
 | Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **46** | 0 | 3 | 23 | **63.9%** |
-| **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **22** | 1 | 6 | 4 | **66.7%** |
+| **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **25** | 1 | 3 | 4 | **75.8%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **0** | 0 | 0 | 112 | **0.0%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **0** | 5 | 2 | 97 | **0.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **4** | 0 | 2 | 6 | **33.3%** |
@@ -32,13 +32,13 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **74** | **7** | **13** | **307** | **18.5%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **77** | **7** | **10** | **307** | **19.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
-| **M0 – Nền móng phát triển & CSDL** | 59 | **38** | 2 | 7 | 12 | **64.4%** |
+| **M0 – Nền móng phát triển & CSDL** | 59 | **41** | 2 | 4 | 12 | **69.5%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **5** | 5 | 2 | 28 | **12.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **7** | 0 | 2 | 37 | **15.2%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **14** | 0 | 0 | 103 | **12.0%** |
@@ -51,7 +51,7 @@
 
 Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
-✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → 🔄 **`NEN-019`** (Đang làm) → ⏳ `CORE-00-01` → ⏳ `CORE-00-02` → ⏳ `CORE-05-01` → ⏳ `CORE-05-02` → ⏳ `CORE-05-03` → ⏳ `CORE-08-13` → ⏳ `CORE-08-14` → ⏳ `CORE-04-04` → ⏳ `CORE-04-05` → ⏳ `CORE-04-07` → ⏳ `CORE-04-08` → ⏳ `CORE-04-10` → ⏳ `QA-06` → ⏳ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
+✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ⏳ `CORE-00-01` → ⏳ `CORE-00-02` → ⏳ `CORE-05-01` → ⏳ `CORE-05-02` → ⏳ `CORE-05-03` → ⏳ `CORE-08-13` → ⏳ `CORE-08-14` → ⏳ `CORE-04-04` → ⏳ `CORE-04-05` → ⏳ `CORE-04-07` → ⏳ `CORE-04-08` → ⏳ `CORE-04-10` → ⏳ `QA-06` → ⏳ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
 
 ---
 
@@ -144,7 +144,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-064](docs/tasks/WEB-064-sinh-kieu-tu-hop-dong.md) | Sinh kiểu frontend từ bộ hợp đồng `contracts/openapi/`, kiểm model viết tay với hợp đồng (luồng Nền tảng) | M | W-Nền tảng | – | WEB-007, WEB-063 | **Đã gộp main** | Đã gộp `main` (sinh kiểu frontend từ `contracts/openapi/`, `npm run api:check`) |
 | [WEB-065](docs/tasks/WEB-065-doi-chieu-ke-hoach-hop-dong.md) | Đối chiếu client kế hoạch (SCR-0402, SCR-0403) với hợp đồng OpenAPI (luồng màn hình nghiệp vụ) | M | W-Nghiệp vụ | – | WEB-026, WEB-027, WEB-064 | **Đã gộp main** | Đã gộp `main` (đối chiếu client kế hoạch SCR-0402, SCR-0403 với hợp đồng OpenAPI) |
 
-### NEN · Nền móng hệ thống: repo, quy định, wiki, khung mã, thư viện nền, nền CSDL (22/33 đã gộp `main`, 1 chờ gộp, 6 đang làm)
+### NEN · Nền móng hệ thống: repo, quy định, wiki, khung mã, thư viện nền, nền CSDL (25/33 đã gộp `main`, 1 chờ gộp, 3 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -158,15 +158,15 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [NEN-008](docs/tasks/NEN-008-asyncapi-topic-cong-bo.md) | AsyncAPI 3.0 cho các topic công bố, lint trong CI | S | B1 | 4 | NEN-007 | **Đã gộp main** | Đã gộp `main` (commit `0359745`, gộp tại `275bb0f` – đặc tả AsyncAPI 3.0 và kiểm tra chéo Avro) |
 | [NEN-009](docs/tasks/NEN-009-starter-kernel-loi.md) | vt-platform-starter: nhân `kernel` (TenantId, PeriodId, Clock, UUIDv7, Result) và lỗi RFC 9457 theo bảng mã lỗi chuẩn | M | B1 | 3 | NEN-005 | **Đã gộp main** | Đã gộp `main` (commit `4d80c31` – `vt-platform-starter` nhân `kernel` và lỗi RFC 9457 chuẩn) |
 | [NEN-010](docs/tasks/NEN-010-starter-ngu-canh-tenant.md) | vt-platform-starter: ngữ cảnh tenant từ JWT, TenantFilter, đặt `app.tenant_id` cục bộ giao dịch qua PgBouncer | M | B1 | 6 | NEN-009, NEN-033 | **Đã gộp main** | Đã gộp `main` (commit `3af0823` – ngữ cảnh tenant từ JWT, `TenantFilter`, `SET LOCAL app.tenant_id`) |
-| [NEN-011](docs/tasks/NEN-011-starter-outbox-writer.md) | vt-platform-starter: OutboxWriter, EventEnvelope, tuần tự hoá Avro qua Apicurio | M | B1 | 6 | NEN-007, NEN-032 | **Đang làm** | Luồng 1 (nhánh `feat/NEN-011-NEN-012-outbox-inbox`): đang hoàn thiện `OutboxWriter`, `EventEnvelope`, Apicurio |
-| [NEN-012](docs/tasks/NEN-012-starter-consumer-inbox.md) | vt-platform-starter: consumer Kafka chuẩn với inbox idempotent, thử lại có backoff, DLQ | M | B1 | 7 | NEN-011 | **Đang làm** | Luồng 1 (nhánh `feat/NEN-011-NEN-012-outbox-inbox`): đang hoàn thiện consumer Kafka chuẩn với inbox idempotent, DLQ |
+| [NEN-011](docs/tasks/NEN-011-starter-outbox-writer.md) | vt-platform-starter: OutboxWriter, EventEnvelope, tuần tự hoá Avro qua Apicurio | M | B1 | 6 | NEN-007, NEN-032 | **Đã gộp main** | Đã gộp main (2006fc9, 6c2525d) |
+| [NEN-012](docs/tasks/NEN-012-starter-consumer-inbox.md) | vt-platform-starter: consumer Kafka chuẩn với inbox idempotent, thử lại có backoff, DLQ | M | B1 | 7 | NEN-011 | **Đã gộp main** | Đã gộp main (2006fc9, 6c2525d) |
 | [NEN-013](docs/tasks/NEN-013-starter-idempotency-etag.md) | vt-platform-starter: kho Idempotency-Key 48 giờ, ETag/If-Match, phân trang con trỏ, job 202 | M | B1 | 6 | NEN-009, NEN-032 | **Xong, chờ gộp** | Luồng 5 (commit `d49dfd3` trên nhánh `feat/NEN-013-014-015-platform-starter`): kho Idempotency-Key 48h, ETag/If-Match, con trỏ HMAC, job 202 |
 | [NEN-014](docs/tasks/NEN-014-starter-opa-step-up.md) | vt-platform-starter: OpaClient, `@RequiresPermission`, đánh giá từng phần thành điều kiện SQL, kiểm step-up `acr`/`auth_time` | L | B1 | 4 | NEN-009, NEN-040 | **Đang làm** | Luồng 5 (nhánh `feat/NEN-013-014-015-platform-starter`): đang hiện thực `OpaClient`, `@RequiresPermission`, step-up `acr`/`auth_time` |
 | [NEN-015](docs/tasks/NEN-015-starter-ma-hoa-truong.md) | vt-platform-starter: CryptoProvider, FieldEncryptor AES-256-GCM phong bì, DekCache 15 phút, chỉ mục mù HMAC, client OpenBao Transit | L | B1 | 6 | NEN-009, NEN-032 | **Đang làm** | Luồng 5 (nhánh `feat/NEN-013-014-015-platform-starter`): sẽ làm ngay sau `NEN-014` trên cùng nhánh |
 | [NEN-016](docs/tasks/NEN-016-starter-chiu-loi-quan-sat.md) | vt-platform-starter: Resilience4j chuẩn, timeout mặc định, OpenTelemetry, log ECS JSON có che dữ liệu, tách nhật ký kiểm toán | M | B1 | 4 | NEN-009 | **Đã gộp main** | Đã gộp `main` (`vt-platform-starter`: Resilience4j, OpenTelemetry, log ECS JSON che dữ liệu nhạy cảm) |
 | [NEN-017](docs/tasks/NEN-017-thu-vien-go-dung-chung.md) | Thư viện Go dùng chung: tenant, outbox/inbox với pgx và franz-go, lỗi RFC 9457, OpenTelemetry | M | B1 | 6 | NEN-007, NEN-032, NEN-009 | **Đã gộp main** | Đã gộp `main` (commit `fe40716` – thư viện Go dùng chung `vtplatform`: tenant, RLS, outbox/inbox, RFC 9457, OTel) |
 | [NEN-018](docs/tasks/NEN-018-thu-vien-python-dung-chung.md) | Thư viện Python dùng chung cho ai-gateway và job phân tích: tenant, OTel, lỗi, Kafka consumer | S | B1 | 4 | NEN-007, NEN-009 | **Đã gộp main** | Đã gộp `main` (commit `3b4e808` – thư viện Python dùng chung `vtplatform`: tenant, RLS, RFC 9457, OTel, Kafka) |
-| [NEN-019](docs/tasks/NEN-019-mau-service-java.md) | Mẫu service Java (lục giác, actuator, probe, Helm values) và lệnh `scripts/new-service.sh` | M | B1 | 8 | NEN-010, NEN-011, NEN-012, NEN-016 | **Đang làm** | Luồng 2 (nhánh `feat/NEN-019-NEN-020-template-testkit`): đang dựng mẫu service Java lục giác và `scripts/new-service.sh` |
+| [NEN-019](docs/tasks/NEN-019-mau-service-java.md) | Mẫu service Java (lục giác, actuator, probe, Helm values) và lệnh `scripts/new-service.sh` | M | B1 | 8 | NEN-010, NEN-011, NEN-012, NEN-016 | **Đã gộp main** | Đã gộp main (2006fc9, 6c2525d) |
 | [NEN-020](docs/tasks/NEN-020-moi-truong-dev-backend.md) | Môi trường dev backend: bổ sung profile Kafka, Apicurio, Debezium, OPA, OpenBao, Valkey vào `infra/dev`, chuẩn hoá tài khoản CSDL `svc_/mig_/ro_/cdc_`, cấu hình Testcontainers dùng chung | M | B1 | 6 | NEN-031, NEN-007, NEN-040, NEN-033 | **Đang làm** | Luồng 2 (nhánh `feat/NEN-019-NEN-020-template-testkit`): đang bổ sung cấu hình môi trường dev backend và Testcontainers |
 | [NEN-030](docs/tasks/NEN-030-quy-uoc-flyway-lint.md) | Quy ước Flyway theo schema, tài khoản `mig_<schema>`, lint tên, kiểu và chú thích phân loại cột trong CI | M | B1 | 3 | NEN-005 | **Đã gộp main** | Đã gộp `main` (quy ước Flyway theo schema, tài khoản `mig_<schema>`, linter kiểm tra migration) |
 | [NEN-031](docs/tasks/NEN-031-vai-tro-csdl-theo-schema.md) | Vai trò CSDL và quyền mặc định theo schema (svc, ro, mig, cdc) cùng các ngoại lệ | M | B1 | 4 | NEN-030 | **Đã gộp main** | Đã gộp `main` (vai trò CSDL và quyền mặc định theo schema `svc_`, `ro_`, `mig_`, `cdc_`) |
@@ -650,4 +650,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | Thời gian | Luồng / Agent | Task | Nội dung cập nhật |
 |---|---|---|---|
 | 20/10/2026 17:55 | Điều phối (`main`) | Toàn bộ 401 task | Khởi tạo tệp theo dõi tiến độ tổng hợp duy nhất `TIEN-DO-HE-THONG.md` theo yêu cầu `YC-PT-17`; đồng bộ trạng thái 74 task đã gộp `main` (bao gồm `NEN-006`, `008`, `017`, `018`, `021`, `022`, `034`, `041`, `CNH-01`, `INF-01` mới nhất). |
+| 20/10/2026 22:09 | Điều phối | `NEN-011`, `NEN-012`, `NEN-019` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (2006fc9, 6c2525d) |
 <!-- PROGRESS_LOG_END -->

@@ -143,9 +143,9 @@ def parse_existing_tracking():
         re.M,
     )
     for m in row_re.finditer(content):
-        tid = (m.group(1) or m.group(2)).strip()
-        status = (m.group(7) or m.group(8)).strip()
-        note = m.group(9).strip()
+        tid = (m.group(1) or m.group(2) or "").strip()
+        status = (m.group(8) or m.group(9) or "").strip()
+        note = (m.group(10) or "").strip()
         task_state[tid] = (status, note)
 
     # Extract active streams section if customized
