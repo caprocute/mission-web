@@ -133,6 +133,32 @@ Baseline mục 8 định nghĩa tám cơ chế dùng thống nhất; TL-03 chư�
 
 **Giữa các cell.** Các cell không chia sẻ CSDL; chỉ có ba luồng được phép: danh bạ tenant qua `registry.tenant.changed.v1`; MirrorMaker 2 sao các topic `agg.*` đã ẩn danh lên kho phân tích quốc gia (không topic nghiệp vụ chi tiết nào được sao); gói điều động cán bộ liên cell `integ.transfer_package` được mã hoá, ký, bọc khoá cho cell nhận và ghi sổ cái cả hai phía.
 
+## Hợp đồng sự kiện trong mã (NEN-007)
+
+### Hợp đồng sự kiện ở đâu
+
+Hợp đồng sự kiện nằm ở `contracts/events/` và là nguồn sự thật (BACKEND.md mục 2):
+
+- `contracts/events/catalog.yaml`: 26 sự kiện EVT-01 đến EVT-26 và 8 topic kỹ thuật, mỗi dòng có mã, tên nghiệp vụ, topic, khoá, bảng outbox nguồn, phân loại, bên phát, bên tiêu thụ, tệp lược đồ.
+- `contracts/events/avro/<miền>/<TênNghiệpVụ>.avsc`: lược đồ Avro, namespace `vn.vtokr.<miền>.v1`.
+- `backend/libs/vt-events`: lớp Java sinh từ lược đồ và lớp hằng `EventTopics` sinh từ danh mục; profile `-Pschema-compat` kiểm tương thích với Apicurio Registry 3.x thật.
+
+Topic nghiệp vụ theo dạng `<miền>.<thực-thể>.<sự-kiện>.v1`, khoá `tenantId:aggregateId`. Topic kỹ thuật (`sys.ledger.append.v1`, `sys.audit.v1`, `sys.evidence.object.stored.v1`, `sys.tenant.provisioned.v1`, `iam.auth.event.v1`, `registry.tenant.changed.v1`, `org.bootstrap.v1`, `period.drain.marker`) không được ứng dụng nghiệp vụ tiêu thụ; trường của đa số topic kỹ thuật là (suy luận) vì TL chưa mô tả.
+
+### Quy ước đã chốt
+
+- Phong bì CloudEvents (`id`, `source`, `type`, `time`, `subject`, `tenantid`, `actorid`, `traceparent`, `policyversion`, `classification`, `aggregateversion`) nằm ở tiêu đề Kafka chế độ nhị phân, không lặp trong thân Avro. Riêng `aggregateVersion` có trong thân mọi sự kiện đi qua outbox theo mẫu EVT-05 của TL-03.
+- Tương thích `BACKWARD_TRANSITIVE` (TL-03), chặt hơn `BACKWARD` mà TL-01 ghi; chỉ thêm trường có mặc định, thay đổi phá vỡ tạo topic `.v2`.
+- Không sự kiện nào mang dữ liệu C2, chỉ mang mã tham chiếu; kiểm thử chặn tên trùng cột C2 của TL-03.
+- Mã nghiệp vụ, trạng thái là `string`, không dùng `enum` Avro; `jsonb` là `string` chứa JSON.
+- Artifact Apicurio: nhóm `default`, artifactId `<topic>-value` (TopicIdStrategy, suy luận).
+
+### Bẫy kỹ thuật
+
+- Avro 1.12.1 trở đi chỉ nạp lớp sinh trong danh sách tin cậy (vá CVE-2024-47561). Thiếu bước này, `SpecificDatumReader` ném `SecurityException: Forbidden vn.vtokr...`. Gọi `EventContracts.trustContractPackages()` khi khởi động service.
+- Goal `test-update` của apicurio-registry-maven-plugin 3.3 bị đánh dấu lỗi thời (khuyên dùng `register` với `dryRun`) và không gửi kèm tham chiếu, nên `org.bootstrap.v1-value` (tham chiếu EVT-14..EVT-16) chỉ được đăng ký, không test-update.
+- CHECK `ck_outbox_event__topic` của TL-03 chỉ nhận topic bốn đoạn, trong khi `period.drain.marker` và `sys.audit.v1` được TL mô tả là đi qua outbox: điểm lệch đang chờ quyết định (xem trang 14 khi được ghi nhận).
+
 ## Liên quan
 
 - [Tổng quan hệ thống](01-tong-quan-he-thong.md)
