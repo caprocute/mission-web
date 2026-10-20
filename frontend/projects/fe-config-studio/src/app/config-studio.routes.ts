@@ -8,11 +8,6 @@ import { permissionGuard } from '@vt/auth';
 export const ROUTES: Routes = [
   {
     path: '',
-<<<<<<< HEAD
-    loadComponent: () =>
-      import('./pages/config-studio-home.page').then((m) => m.ConfigStudioHomePage),
-    title: 'Cấu hình nghiệp vụ',
-=======
     canActivate: [permissionGuard('SCR-1501.soan')],
     loadComponent: () => import('./pages/policy-packs.page').then((m) => m.PolicyPacksPage),
     title: 'Chính sách đánh giá',
@@ -36,7 +31,6 @@ export const ROUTES: Routes = [
         title: 'Bảng quyết định xếp loại',
       },
     ],
->>>>>>> feat/WEB-045-cong-thuc
   },
 ];
 

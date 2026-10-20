@@ -12,10 +12,6 @@ import { LeaderDashboardPage } from './leader-dashboard.page';
   selector: 'vt-dashboard-home-page',
   imports: [RouterLink, LeaderDashboardPage],
   template: `
-<<<<<<< HEAD
-    <h1>Bảng điều hành</h1>
-    <p-message severity="info">Chức năng này đang được chuẩn bị đưa vào sử dụng.</p-message>
-=======
     @if (can('SCR-1601.xem')) {
       <vt-leader-dashboard-page />
     } @else {
@@ -28,7 +24,6 @@ import { LeaderDashboardPage } from './leader-dashboard.page';
         <p><a routerLink="dashboards">Dashboard của tôi</a></p>
       }
     }
->>>>>>> feat/WEB-047-bang-dieu-hanh
   `,
   styles: `
     h1 {
