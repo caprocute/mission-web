@@ -52,7 +52,11 @@ describe('Preset Aura rút gọn', () => {
     expect(used.has('button')).toBe(true);
     const stack = [...used];
     while (stack.length) {
-      for (const d of primengDeps(stack.pop()!)) if (!used.has(d)) (used.add(d), stack.push(d));
+      for (const d of primengDeps(stack.pop()!)) {
+        if (used.has(d)) continue;
+        used.add(d);
+        stack.push(d);
+      }
     }
     const themed = new Set(readdirSync(AURA_DIR).filter((d) => d !== 'base' && d !== 'css'));
     const needed = [...used].filter((m) => themed.has(m)).sort();
