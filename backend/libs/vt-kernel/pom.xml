@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  NEN-009 · TL-01 "Cấu trúc gói Java theo module" (gói shared.kernel) · TL-03 "Kiểu dữ liệu chuẩn".
+
+  Nhân kiểu giá trị thuần Java cho lớp domain: không phụ thuộc Spring, JPA hay Jackson
+  (kiểm bằng ArchUnit trong vt-platform-starter). Phụ thuộc chạy duy nhất: uuid-creator.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>vn.viettel.okrkpi</groupId>
+    <artifactId>mission-backend-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>vt-kernel</artifactId>
+
+  <name>Mission · vt-kernel</name>
+  <description>Kiểu giá trị dùng chung cho lớp domain: định danh, Clock, Result, Money, phân loại dữ liệu.</description>
+
+  <properties>
+    <pitest.targetClasses>vn.viettel.okrkpi.shared.kernel.*</pitest.targetClasses>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.github.f4b6a3</groupId>
+      <artifactId>uuid-creator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>
