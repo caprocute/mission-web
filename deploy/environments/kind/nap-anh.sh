@@ -7,7 +7,7 @@ CLUSTER=${CLUSTER:-vt-cell-kind}
 NODES=$(kind get nodes --name "$CLUSTER")
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 for img in "$@"; do
-  docker pull -q --platform linux/amd64 "$img" >/dev/null
+  docker image inspect "$img" >/dev/null 2>&1 || docker pull -q --platform linux/amd64 "$img" >/dev/null
   docker save --platform linux/amd64 -o "$TMP/a.tar" "$img"
   for n in $NODES; do
     docker exec -i "$n" ctr --namespace=k8s.io images import --platform linux/amd64 --snapshotter=overlayfs - < "$TMP/a.tar" >/dev/null

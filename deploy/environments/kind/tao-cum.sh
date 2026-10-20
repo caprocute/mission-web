@@ -8,13 +8,9 @@ if ! kind get clusters 2>/dev/null | grep -qx vt-cell-kind; then
   kind create cluster --config cluster.yaml --image "$KIND_IMAGE" --wait 0s
 fi
 kubectl config use-context kind-vt-cell-kind >/dev/null
+./nap-anh.sh "docker.io/cilium/cilium:v${CILIUM_VERSION}" "docker.io/cilium/operator-generic:v${CILIUM_VERSION}"
 if ! kubectl -n kube-system get ds cilium >/dev/null 2>&1; then
-  cilium install --version "$CILIUM_VERSION" \
-    --set image.repository=docker.io/cilium/cilium --set image.useDigest=false \
-    --set operator.image.repository=docker.io/cilium/operator --set operator.image.useDigest=false \
-    --set operator.replicas=1 \
-    --set ipam.mode=kubernetes \
-    --set envoy.enabled=false
+  cilium install --version "$CILIUM_VERSION" -f cilium-values.yaml
 fi
 cilium status --wait --wait-duration 6m
 kubectl wait --for=condition=Ready nodes --all --timeout=180s
