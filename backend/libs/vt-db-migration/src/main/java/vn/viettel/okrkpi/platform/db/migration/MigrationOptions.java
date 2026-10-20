@@ -23,6 +23,14 @@ public record MigrationOptions(
     return new MigrationOptions(commonLocation, schemaLocationPrefix, true);
   }
 
+  /**
+   * Phần dùng chung chỉ cho schema nghiệp vụ ({@code <commonLocation>-business}: outbox, inbox,
+   * idempotency – NEN-032); schema kỹ thuật {@code modulith}, {@code keyring} không nhận.
+   */
+  public String businessCommonLocation() {
+    return commonLocation + "-business";
+  }
+
   public String schemaLocation(String schema) {
     return schemaLocationPrefix + SchemaNames.require(schema);
   }

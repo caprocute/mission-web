@@ -58,6 +58,14 @@ Chủ sở hữu `mig_<schema>` cũng chịu RLS vì `FORCE`, và không có ch�
 
 Cấu hình PgBouncer tham chiếu ở `src/main/resources/pgbouncer/pgbouncer.ini.template`: `pool_mode = transaction`, `max_prepared_statements = 200` (cần PgBouncer từ 1.21, Phụ lục B chọn 1.23), `server_reset_query` rỗng, `server_check_query = select 1`, `default_pool_size = 60`, `max_client_conn = 4000`, và ở bridge một mục `[databases]` cho mỗi `td_<mã>` với `max_db_connections = 30`. NEN-020 (dev), NEN-034 (kiểm thử rò rỉ) và INF-11 (CloudNativePG Pooler) dùng tệp này làm chuẩn.
 
+## Bảng kỹ thuật dùng chung (NEN-032)
+
+Thư mục `db/common-business` chứa migration chỉ áp cho schema nghiệp vụ (mọi schema trừ `modulith` và `keyring`, xem `DatabaseLayout.TECHNICAL_SCHEMAS`): `V0_20` tạo `outbox_event` phân vùng RANGE theo ngày bằng pg_partman (tạo trước 7 ngày, giữ 3 ngày, gỡ hẳn phân vùng cũ, không chỉ mục phụ, `cdc_<schema>` chỉ SELECT); `V0_21` tạo `inbox_processed` (không phân vùng) và `inbox_aggregate_version`, kèm hàm `fn_purge_inbox_processed(p_older_than default 14 ngày, p_batch_size)` xoá một lô mỗi lần gọi; `V0_22` tạo `idempotency_key` phân vùng theo `created_day`, giữ 48 giờ theo HD-02; `V0_23` tạo `fn_run_partition_maintenance()` bảo trì các bảng pg_partman của chính schema. Schema `modulith` có `event_publication` theo lược đồ Spring Modulith 1.4 cộng `tenant_id` (mặc định lấy từ `app.tenant_id`) và hàm `fn_purge_event_publication` (bản ghi hoàn tất quá 7 ngày); schema `keyring` có `dek` và phải được migrate trước mọi schema có cột `_enc`. `db/common` có thêm `V0_3__fn_protect_partitions.sql` để bảo vệ hai lớp mọi phân vùng con do pg_partman tạo.
+
+pg_partman cần quyền quản trị để cài, nên `DatabaseBootstrap` (NEN-031) tạo schema `partman`, `CREATE EXTENSION pg_partman SCHEMA partman` và cấp quyền tối thiểu cho từng `mig_<schema>` nghiệp vụ. Bảo trì không dùng `partman.run_maintenance_proc()` toàn CSDL mà gọi `SELECT <schema>.fn_run_partition_maintenance()` (svc_<schema> có EXECUTE) cho từng schema, vì thủ tục toàn CSDL tạo phân vùng thiếu RLS lớp thứ hai. Hai hàm dọn và hàm bảo trì là `SECURITY DEFINER`; vì `mig_` cũng chịu `FORCE` RLS, bảng inbox và event_publication có thêm chính sách `rls_<bảng>__purge` chỉ cho `mig_` thấy dòng đã cũ hơn một ngày và cấm chèn sửa. Lịch gọi các hàm này là việc của ứng dụng hoặc CronJob.
+
+Kiểm thử dùng `postgres:17-alpine` kèm tệp cài pg_partman 5.1.0 chép vào container (`src/test/resources/pg_partman`, lớp `TestPostgres`); `SharedTablesIT` kiểm lint, gỡ phân vùng outbox cũ sau bảo trì, CHECK topic, cô lập hai tenant trên inbox và idempotency, dọn inbox không theo tenant, quyền `cdc_`, tenant mặc định của `event_publication` và quyền đổi trạng thái DEK.
+
 ## Bộ chạy migration
 
 `vn.viettel.okrkpi.platform.db.migration.MigrationRunner` là lớp `main` cho Kubernetes Job di trú (Helm hook `pre-upgrade`, Argo CD sync wave âm – INF-01, INF-02) và cho kiểm thử.

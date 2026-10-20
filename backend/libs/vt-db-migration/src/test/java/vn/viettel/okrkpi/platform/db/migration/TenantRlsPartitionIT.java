@@ -33,8 +33,7 @@ import vn.viettel.okrkpi.platform.db.migration.bootstrap.RoleLimits;
 class TenantRlsPartitionIT {
 
   private static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>(MigrationConventionsTest.POSTGRES_IMAGE)
-          .withDatabaseName("td_bridge");
+      TestPostgres.container().withDatabaseName("td_bridge");
 
   private static final String SCHEMA = "rls_demo";
   private static final String PWD = "mat-khau-thu-nghiem";
@@ -181,7 +180,8 @@ class TenantRlsPartitionIT {
         ResultSet rs =
             st.executeQuery(
                 "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace"
-                    + " WHERE n.nspname = 'rls_demo' AND c.relispartition AND c.relkind = 'r'")) {
+                    + " WHERE n.nspname = 'rls_demo' AND c.relispartition AND c.relkind = 'r'"
+                    + " AND c.relname LIKE 'sample\\_task\\_%'")) {
       rs.next();
       assertThat(rs.getInt(1)).isEqualTo(db.equals("td_pool") ? 32 : 2);
     }

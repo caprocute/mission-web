@@ -9,16 +9,20 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.testcontainers.containers.PostgreSQLContainer;
-import vn.viettel.okrkpi.platform.db.migration.MigrationConventionsTest;
 import vn.viettel.okrkpi.platform.db.migration.MigrationCredentials;
 import vn.viettel.okrkpi.platform.db.migration.MigrationOptions;
 import vn.viettel.okrkpi.platform.db.migration.SchemaMigrator;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
+import vn.viettel.okrkpi.platform.db.migration.bootstrap.DatabaseBootstrap;
+import vn.viettel.okrkpi.platform.db.migration.bootstrap.RoleBootstrapPlan;
+import vn.viettel.okrkpi.platform.db.migration.bootstrap.RoleLimits;
 
 /** Ứng dụng dừng khởi động khi lược đồ thấp hơn phiên bản tối thiểu (TL-03 L183). */
 class SchemaVersionGuardIT {
 
-  private static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>(MigrationConventionsTest.POSTGRES_IMAGE);
+  private static final PostgreSQLContainer<?> POSTGRES = TestPostgres.container();
+
+  private static final String PWD = "mat-khau-thu-nghiem";
 
   private ApplicationContextRunner runner() {
     return new ApplicationContextRunner()
@@ -32,13 +36,23 @@ class SchemaVersionGuardIT {
   }
 
   @BeforeAll
-  static void prepare() {
+  static void prepare() throws java.sql.SQLException {
     POSTGRES.start();
-    new SchemaMigrator(MigrationOptions.defaults().withCreateSchemas())
+    java.util.Map<String, String> env = new java.util.HashMap<>();
+    for (String role : RoleBootstrapPlan.roles("runner_ok")) {
+      env.put(role.toUpperCase(java.util.Locale.ROOT) + "_PASSWORD", PWD);
+    }
+    try (java.sql.Connection admin =
+        java.sql.DriverManager.getConnection(
+            POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
+      new DatabaseBootstrap(RoleLimits.load(), env)
+          .applySchemas(admin, java.util.List.of("runner_ok"));
+    }
+    new SchemaMigrator(MigrationOptions.defaults())
         .migrate(
             POSTGRES.getJdbcUrl(),
             "runner_ok",
-            new MigrationCredentials.Credentials(POSTGRES.getUsername(), POSTGRES.getPassword()));
+            new MigrationCredentials.Credentials("mig_runner_ok", PWD));
   }
 
   @AfterAll

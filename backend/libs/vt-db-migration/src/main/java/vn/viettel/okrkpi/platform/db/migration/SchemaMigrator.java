@@ -2,6 +2,7 @@ package vn.viettel.okrkpi.platform.db.migration;
 
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.output.MigrateResult;
+import vn.viettel.okrkpi.platform.db.migration.bootstrap.DatabaseLayout;
 
 /**
  * Áp migration Flyway cho đúng một schema theo quy ước TL-03 "Flyway và quy trình thay đổi lược
@@ -35,12 +36,25 @@ public final class SchemaMigrator {
         .defaultSchema(schema)
         .createSchemas(options.createSchemas())
         .table(HISTORY_TABLE)
-        .locations(options.commonLocation(), options.schemaLocation(schema))
+        .locations(locations(schema))
         .failOnMissingLocations(false)
         .validateMigrationNaming(true)
         .cleanDisabled(true)
         .outOfOrder(false)
         .load();
+  }
+
+  /**
+   * Thư mục migration của schema: dùng chung, dùng chung nghiệp vụ (nếu là schema nghiệp vụ),
+   * riêng.
+   */
+  String[] locations(String schema) {
+    if (DatabaseLayout.isBusinessSchema(schema)) {
+      return new String[] {
+        options.commonLocation(), options.businessCommonLocation(), options.schemaLocation(schema)
+      };
+    }
+    return new String[] {options.commonLocation(), options.schemaLocation(schema)};
   }
 
   /** Áp mọi migration còn thiếu; ném lỗi Flyway nếu một migration thất bại. */

@@ -11,16 +11,15 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import vn.viettel.okrkpi.platform.db.migration.MigrationConventionsTest;
 import vn.viettel.okrkpi.platform.db.migration.MigrationCredentials;
 import vn.viettel.okrkpi.platform.db.migration.MigrationOptions;
 import vn.viettel.okrkpi.platform.db.migration.SchemaMigrator;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 
 /** Mỗi bộ migration mẫu sai làm đúng một luật lint thất bại, thông báo chỉ rõ đối tượng. */
 class ConventionLinterIT {
 
-  private static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>(MigrationConventionsTest.POSTGRES_IMAGE);
+  private static final PostgreSQLContainer<?> POSTGRES = TestPostgres.container();
 
   @BeforeAll
   static void start() {
