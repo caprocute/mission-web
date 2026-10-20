@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vtplatform"
+version = "0.1.0"
+description = "Shared platform library for Mission Python microservices (SVC-14 ai-analytics-service)"
+readme = "../README.md"
+requires-python = ">=3.9"
+license = { text = "Proprietary" }
+authors = [
+    { name = "Viettel Mission Platform Team" }
+]
+dependencies = []
+
+[project.optional-dependencies]
+fastapi = [
+    "fastapi>=0.115.0",
+    "starlette>=0.41.0",
+]
+db = [
+    "asyncpg>=0.30.0",
+]
+otel = [
+    "opentelemetry-api>=1.28.0",
+    "opentelemetry-sdk>=1.28.0",
+]
+kafka = [
+    "aiokafka>=0.11.0",
+    "fastavro>=1.9.0",
+]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vtplatform*"]
+
+[tool.setuptools.package-data]
+vtplatform = ["error-codes.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
