@@ -20,7 +20,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
-import vn.viettel.okrkpi.platform.db.migration.MigrationConventionsTest;
+import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
 
 /**
  * Ma trận quyền sau khi bootstrap CSDL dữ liệu tenant (NEN-031, TL-03 "Không truy cập chéo và quyền
@@ -29,8 +29,7 @@ import vn.viettel.okrkpi.platform.db.migration.MigrationConventionsTest;
  */
 class DatabaseBootstrapIT {
 
-  private static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>(MigrationConventionsTest.POSTGRES_IMAGE).withDatabaseName("td_thu");
+  private static final PostgreSQLContainer<?> POSTGRES = TestPostgres.container("td_thu");
 
   private static final String PWD = "mat-khau-thu-nghiem";
 

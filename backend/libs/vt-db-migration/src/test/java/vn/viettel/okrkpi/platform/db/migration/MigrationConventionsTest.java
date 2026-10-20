@@ -38,11 +38,10 @@ import vn.viettel.okrkpi.platform.db.migration.lint.Violation;
 public abstract class MigrationConventionsTest {
 
   /** Ảnh PostgreSQL dùng chung cho kiểm thử lược đồ (ADR-02: PostgreSQL 17). */
-  public static final String POSTGRES_IMAGE = "postgres:17-alpine";
+  public static final String POSTGRES_IMAGE = TestPostgres.IMAGE;
 
   /** Một container cho mọi lớp con trong cùng JVM; Ryuk của Testcontainers dọn khi JVM thoát. */
-  protected static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>(POSTGRES_IMAGE).withDatabaseName("lint");
+  protected static final PostgreSQLContainer<?> POSTGRES = TestPostgres.container("lint");
 
   static {
     POSTGRES.start();
