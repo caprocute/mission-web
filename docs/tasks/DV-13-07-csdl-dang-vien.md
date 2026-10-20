@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | DV-13-06 |
 | Truy vết | QT-01 bước 7, QT-03 (BR-03-04 số liệu nguồn), QT-07 (đường dẫn hệ thống nguồn) → SVC-13 → bảng `integ.connector`, `integ.sync_cursor`, `integ.inbox_message`, `integ.mapping_xref` → EVT-15, EVT-16 (do SVC-04 phát) |
-| Trạng thái | Bị chặn bởi bên ngoài: cần kết nối thử với hạ tầng CSDL đảng viên của khối Đảng |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -36,6 +36,7 @@ Kéo dữ liệu đảng viên và tổ chức đảng từ CSDL đảng viên q
 ## 4. Ngoài phạm vi
 
 - Khớp người và bảng lệch ở org-service (DV-04-07); giao diện đối soát (WEB-019).
+- Nối và kiểm thử với hạ tầng CSDL đảng viên thật của khối Đảng khi có môi trường; khi đó chỉ đổi cấu hình kết nối, không đổi mã.
 
 ## 5. Tệp được phép sửa
 
@@ -46,7 +47,7 @@ Kéo dữ liệu đảng viên và tổ chức đảng từ CSDL đảng viên q
 
 - `cd backend && mvn -q -pl services/integration-gateway -am verify` xanh, gồm kiểm thử với nguồn giả lập: đảng viên mới, chuyển sinh hoạt, ra khỏi Đảng được chuyển thành lệnh đúng cho org-service, không trùng khi chạy lại.
 - Không có số định danh dạng rõ trong thông điệp, bảng `integ` và nhật ký.
-- Báo cáo ghi rõ đã hay chưa kết nối thử nguồn thật.
+- Địa chỉ, chứng thư và tham số kết nối CSDL đảng viên nằm trong bản ghi `integ.connector` và giá trị triển khai, không nằm trong mã; đổi từ nguồn giả lập sang nguồn thật chỉ đổi cấu hình kết nối, không đổi mã.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo

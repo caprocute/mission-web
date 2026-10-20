@@ -13,7 +13,7 @@
 | Cỡ việc | L |
 | Phụ thuộc | DV-13-01; DV-13-02 (ký, mTLS chiều ra) nên gộp trước cho chiều gửi (bổ sung) |
 | Truy vết | QT-05 bước 1b, QT-11 (BR-11-11 gói con diện TW gửi EdXML) → SVC-13 → bảng `integ.connector` (`protocol` `EDXML`, `XROAD`), `integ.inbox_message`, `integ.outbound_message`, `integ.mapping_xref`, `integ.dead_letter` → EVT-24 → L01, L6 |
-| Trạng thái | Bị chặn bởi bên ngoài: cần kết nối thử Trục liên thông văn bản quốc gia và security server X-Road |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -38,6 +38,7 @@ Kết nối nền tảng với Trục liên thông văn bản quốc gia theo Ed
 ## 4. Ngoài phạm vi
 
 - Tách gói con, mã hoá theo chứng thư bên nhận và ký gói ở MOD-06 (CORE-06-08); cài đặt security server X-Road (hạ tầng của đơn vị).
+- Nối và kiểm thử với Trục liên thông văn bản quốc gia và security server X-Road thật khi có môi trường; khi đó chỉ đổi cấu hình kết nối, không đổi mã.
 
 ## 5. Tệp được phép sửa
 
@@ -49,7 +50,7 @@ Kết nối nền tảng với Trục liên thông văn bản quốc gia theo Ed
 - `cd backend && mvn -q -pl services/integration-gateway -am verify` xanh, gồm kiểm thử phân tích và dựng EdXML với bộ tệp mẫu (khứ hồi dựng rồi phân tích cho cùng nội dung), kiểm thử X-Road giả lập cho cả hai chiều.
 - Kiểm thử chứng minh gửi gói con thất bại được thử lại theo lịch và không gửi trùng khi đã có xác nhận.
 - `helm template` với values Deployment riêng không lỗi (nếu có sửa chart).
-- Báo cáo ghi rõ đã hay chưa kết nối thử Trục thật.
+- Địa chỉ Trục, security server X-Road, mã định danh thành viên và chứng thư nằm trong bản ghi `integ.connector` và giá trị triển khai, không nằm trong mã; đổi từ X-Road giả lập sang Trục thật chỉ đổi cấu hình kết nối, không đổi mã.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo

@@ -13,7 +13,7 @@
 | Cỡ việc | L (> 1 ngày, nên tách) |
 | Phụ thuộc | QA-14, INF-18, INF-20 |
 | Truy vết | NFR-05 (RPO 15 phút, RTO 4 giờ cấp TTDL) → TL-04 mục 8.2, 8.10, 8.11, 8.12 → DR-10..DR-16, OPS-18 → CNPG replica cluster `pg-*-sn`, MirrorMaker 2, Ceph multisite, PowerDNS GeoDNS, `dns-sync`, OpenBao, `ledger.verify_run` |
-| Trạng thái | Bị chặn bởi bên ngoài: cần TTDL thứ hai (kiểm tạm bằng hai cụm kind mô phỏng Hoà Lạc và phía Nam) |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -40,6 +40,7 @@ Hoàn thiện phần chờ ấm phía Nam còn thiếu (replica cluster CNPG), v
 
 - Mua sắm và dựng TTDL phía Nam, năng lực dự trữ 2.000 vCPU (hạ tầng thật); HSM vật lý (INF-13).
 - MirrorMaker 2, Ceph multisite, GeoDNS (INF-18, INF-20 đã viết cấu hình).
+- Diễn tập DR-10 thật cho một cell trên TTDL thứ hai khi có; khi đó chỉ đổi tham số môi trường của runbook.
 
 ## 5. Tệp được phép sửa
 
@@ -51,7 +52,7 @@ Hoàn thiện phần chờ ấm phía Nam còn thiếu (replica cluster CNPG), v
 - Trên hai cụm kind: DR-10 và DR-16 chạy trọn theo runbook, biên bản ghi RPO, RTO đo được; DR-13 chuyển GeoDNS thử thành công.
 - `helm template` chart `pg-cell` với values phía Nam hợp lệ; `kubeconform` sạch.
 - Biên bản diễn tập trên bàn cho DR-11, DR-12, DR-14, DR-15 có hạng mục khắc phục.
-- Khi có TTDL thứ hai: biên bản DR-10 thật cho một cell đạt RPO ≤ 15 phút, RTO ≤ 4 giờ. Khi chưa có: ghi "Bị chặn bởi bên ngoài".
+- Biên bản DR-10 trên hai cụm kind ghi RPO, RTO đo được so với mốc RPO ≤ 15 phút, RTO ≤ 4 giờ; runbook dùng tham số theo môi trường nên diễn tập trên TTDL thật chỉ đổi cấu hình.
 
 ## 7. Báo cáo
 
