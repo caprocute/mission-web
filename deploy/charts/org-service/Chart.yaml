@@ -1,0 +1,6 @@
+apiVersion: v2
+name: org-service
+description: SVC-04 org-service - cơ cấu tổ chức, nhân sự, phân công hai trục thời gian (QT-01)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
