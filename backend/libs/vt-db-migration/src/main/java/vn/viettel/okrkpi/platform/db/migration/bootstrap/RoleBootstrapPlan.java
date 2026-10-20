@@ -79,6 +79,38 @@ public final class RoleBootstrapPlan {
     return sql;
   }
 
+  /**
+   * Câu lệnh cho một schema đơn lẻ (bốn vai trò, sở hữu, quyền mặc định), không kèm ngoại lệ của bố
+   * trí và không đụng quyền CONNECT. Dùng cho schema ngoài hai bố trí chuẩn (ví dụ CSDL riêng
+   * {@code ledger}, {@code workflow}) và cho kiểm thử migration.
+   */
+  public static List<String> schemaStatements(String schema, RoleLimits limits) {
+    List<String> sql = new ArrayList<>(rolesFor(schema, limits));
+    sql.addAll(schemaGrants(schema));
+    return sql;
+  }
+
+  /** Bốn vai trò của một schema. */
+  public static List<String> roles(String schema) {
+    return ROLE_KINDS.stream().map(kind -> role(kind, schema)).toList();
+  }
+
+  /**
+   * Đặt mô hình thuê bao của CSDL ({@code silo}, {@code bridge}, {@code pool}) làm tham số mức CSDL
+   * {@code app.tenancy_model}; {@code fn_create_period_partitions} đọc giá trị này từ {@code
+   * pg_db_role_setting} để chia 16 phân vùng con HASH ở pool (NEN-033).
+   */
+  public static String tenancyModelStatement(String database, String model) {
+    if (!List.of("silo", "bridge", "pool").contains(model)) {
+      throw new IllegalArgumentException("Mô hình thuê bao không hợp lệ: " + model);
+    }
+    return "ALTER DATABASE "
+        + SchemaNames.require(database)
+        + " SET app.tenancy_model = '"
+        + model
+        + "'";
+  }
+
   static List<String> rolesFor(String schema, RoleLimits limits) {
     List<String> sql = new ArrayList<>();
     for (String kind : ROLE_KINDS) {

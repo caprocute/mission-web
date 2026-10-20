@@ -10,9 +10,15 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
+import vn.viettel.okrkpi.platform.db.migration.bootstrap.DatabaseBootstrap;
+import vn.viettel.okrkpi.platform.db.migration.bootstrap.RoleBootstrapPlan;
+import vn.viettel.okrkpi.platform.db.migration.bootstrap.RoleLimits;
 import vn.viettel.okrkpi.platform.db.migration.lint.ConventionLinter;
 import vn.viettel.okrkpi.platform.db.migration.lint.Violation;
 
@@ -45,12 +51,16 @@ public abstract class MigrationConventionsTest {
   /** Các schema cần áp migration và lint, theo thứ tự áp. */
   protected abstract List<String> schemas();
 
+  /** Mật khẩu thử nghiệm cho vai trò do lớp cơ sở tạo trong container. */
+  private static final String TEST_PASSWORD = "mat-khau-thu-nghiem";
+
   /**
-   * Tuỳ chọn Flyway; mặc định theo quy ước thư mục và cho Flyway tạo schema (trong kiểm thử chưa có
-   * bước tạo vai trò của NEN-031).
+   * Tuỳ chọn Flyway; mặc định theo quy ước thư mục. Schema và bốn vai trò được tạo trước bằng
+   * {@link DatabaseBootstrap#applySchemas} (NEN-031), rồi migration chạy bằng {@code mig_<schema>}
+   * đúng như Job di trú thật.
    */
   protected MigrationOptions options() {
-    return MigrationOptions.defaults().withCreateSchemas();
+    return MigrationOptions.defaults();
   }
 
   /** Thư mục ghi danh sách cột loại khỏi CDC. */
@@ -61,14 +71,22 @@ public abstract class MigrationConventionsTest {
   @Test
   void migrationDungQuyUocDatTenKieuVaPhanLoai() throws SQLException, IOException {
     SchemaMigrator migrator = new SchemaMigrator(options(), getClass().getClassLoader());
-    MigrationCredentials.Credentials admin =
-        new MigrationCredentials.Credentials(POSTGRES.getUsername(), POSTGRES.getPassword());
     List<Violation> violations = new ArrayList<>();
     try (Connection connection =
         DriverManager.getConnection(
             POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
+      Map<String, String> passwords = new HashMap<>();
       for (String schema : schemas()) {
-        migrator.migrate(POSTGRES.getJdbcUrl(), schema, admin);
+        for (String role : RoleBootstrapPlan.roles(schema)) {
+          passwords.put(role.toUpperCase(Locale.ROOT) + "_PASSWORD", TEST_PASSWORD);
+        }
+      }
+      new DatabaseBootstrap(RoleLimits.load(), passwords).applySchemas(connection, schemas());
+      for (String schema : schemas()) {
+        migrator.migrate(
+            POSTGRES.getJdbcUrl(),
+            schema,
+            new MigrationCredentials.Credentials(SchemaNames.migrationRole(schema), TEST_PASSWORD));
         violations.addAll(ConventionLinter.lint(connection, schema));
         writeCdcExcludeList(
             schema, ConventionLinter.analyticsCdcExcludedColumns(connection, schema));

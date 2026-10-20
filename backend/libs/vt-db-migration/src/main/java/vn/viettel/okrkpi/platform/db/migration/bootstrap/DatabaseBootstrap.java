@@ -46,6 +46,7 @@ public final class DatabaseBootstrap {
     String url = null;
     String database = null;
     DatabaseLayout layout = null;
+    String tenancy = null;
     boolean printOnly = false;
     for (String arg : args) {
       if (arg.startsWith("--db=")) {
@@ -54,6 +55,8 @@ public final class DatabaseBootstrap {
         database = arg.substring("--database=".length());
       } else if (arg.startsWith("--layout=")) {
         layout = DatabaseLayout.fromCode(arg.substring("--layout=".length()));
+      } else if (arg.startsWith("--tenancy=")) {
+        tenancy = arg.substring("--tenancy=".length());
       } else if ("--print-sql".equals(arg)) {
         printOnly = true;
       } else {
@@ -70,6 +73,9 @@ public final class DatabaseBootstrap {
       for (String s : RoleBootstrapPlan.statements(database, layout, RoleLimits.load())) {
         System.out.println(s + ";");
       }
+      if (tenancy != null) {
+        System.out.println(RoleBootstrapPlan.tenancyModelStatement(database, tenancy) + ";");
+      }
       return;
     }
     if (url == null) {
@@ -78,21 +84,54 @@ public final class DatabaseBootstrap {
     Map<String, String> env = System.getenv();
     try (Connection admin =
         DriverManager.getConnection(url, env.get("PG_ADMIN_USER"), env.get("PG_ADMIN_PASSWORD"))) {
-      new DatabaseBootstrap(RoleLimits.load(), env).apply(admin, layout);
+      DatabaseBootstrap bootstrap = new DatabaseBootstrap(RoleLimits.load(), env);
+      bootstrap.apply(admin, layout);
+      if (tenancy != null) {
+        bootstrap.setTenancyModel(admin, tenancy);
+      }
     }
   }
 
   /** Áp toàn bộ vai trò và quyền lên CSDL mà {@code admin} đang kết nối. */
   public void apply(Connection admin, DatabaseLayout layout) throws SQLException {
     String database = currentDatabase(admin);
-    List<String> statements = RoleBootstrapPlan.statements(database, layout, limits);
+    execute(
+        admin,
+        RoleBootstrapPlan.statements(database, layout, limits),
+        RoleBootstrapPlan.roles(layout));
+    LOG.info("Đã áp vai trò, quyền cho CSDL {} (bố trí {})", database, layout.code());
+  }
+
+  /**
+   * Áp vai trò và quyền cho các schema đơn lẻ, không kèm ngoại lệ bố trí (xem {@link
+   * RoleBootstrapPlan#schemaStatements}).
+   */
+  public void applySchemas(Connection admin, List<String> schemas) throws SQLException {
+    List<String> statements = new java.util.ArrayList<>();
+    List<String> roles = new java.util.ArrayList<>();
+    for (String schema : schemas) {
+      statements.addAll(RoleBootstrapPlan.schemaStatements(schema, limits));
+      roles.addAll(RoleBootstrapPlan.roles(schema));
+    }
+    execute(admin, statements, roles);
+  }
+
+  /** Ghi mô hình thuê bao của CSDL hiện tại vào tham số mức CSDL {@code app.tenancy_model}. */
+  public void setTenancyModel(Connection admin, String model) throws SQLException {
+    try (Statement st = admin.createStatement()) {
+      st.execute(RoleBootstrapPlan.tenancyModelStatement(currentDatabase(admin), model));
+    }
+  }
+
+  private void execute(Connection admin, List<String> statements, List<String> roles)
+      throws SQLException {
     boolean autoCommit = admin.getAutoCommit();
     admin.setAutoCommit(false);
     try (Statement st = admin.createStatement()) {
       for (String sql : statements) {
         st.execute(sql);
       }
-      setPasswords(admin, layout);
+      setPasswords(admin, roles);
       admin.commit();
     } catch (SQLException e) {
       admin.rollback();
@@ -100,15 +139,10 @@ public final class DatabaseBootstrap {
     } finally {
       admin.setAutoCommit(autoCommit);
     }
-    LOG.info(
-        "Đã áp {} câu lệnh vai trò, quyền cho CSDL {} (bố trí {})",
-        statements.size(),
-        database,
-        layout.code());
   }
 
-  private void setPasswords(Connection admin, DatabaseLayout layout) throws SQLException {
-    for (String role : RoleBootstrapPlan.roles(layout)) {
+  private void setPasswords(Connection admin, List<String> roles) throws SQLException {
+    for (String role : roles) {
       String password = passwords.get(role.toUpperCase(Locale.ROOT) + "_PASSWORD");
       if (password == null) {
         continue;

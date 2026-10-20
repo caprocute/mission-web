@@ -10,7 +10,7 @@ Migration của một schema nằm trong mô-đun sở hữu schema đó:
 |---|---|
 | Mô-đun của mission-core (MOD-01..MOD-08, `org_replica`) | `backend/mission-core/src/main/resources/db/migration/<schema>/` |
 | Microservice Java | `backend/services/<ten>/src/main/resources/db/migration/<schema>/` |
-| Phần dùng chung mọi schema (outbox, inbox, idempotency – NEN-032) | `db/common/` trong thư viện cung cấp nó |
+| Phần dùng chung mọi schema (hàm RLS, hàm phân vùng – NEN-033; outbox, inbox, idempotency – NEN-032) | `db/common/` của `vt-db-migration` |
 
 Mỗi schema có bảng lịch sử `flyway_schema_history` trong chính schema đó. Flyway nạp hai vị trí theo thứ tự `classpath:db/common` rồi `classpath:db/migration/<schema>`, nên hai nơi chung một dãy phiên bản. Để không đụng số, migration dùng chung lấy dải `V0_x__` (`V0_1__outbox_event.sql`, `V0_2__inbox_processed.sql`…) và luôn viết tên schema bằng placeholder `${flyway:defaultSchema}`; migration của từng schema bắt đầu từ `V1__` (suy luận về dải số, TL-03 không quy định). Tên tệp theo mẫu `V<phiên bản>__<mô tả_snake_case>.sql`; Flyway kiểm tên khi chạy (`validateMigrationNaming`).
 
@@ -36,6 +36,27 @@ Giới hạn kết nối nằm ở `src/main/resources/db/bootstrap/role-limits.
 Mật khẩu không có trong mã hay SQL sinh ra. Production để CloudNativePG (managed roles) và External Secrets cấp; ở dev, kiểm thử, nếu có biến `<VAI_TRO>_PASSWORD` (ví dụ `SVC_TASK_PASSWORD`) thì bootstrap đặt mật khẩu qua `PGConnection.alterUserPassword`, băm SCRAM phía client nên mật khẩu dạng rõ không đi qua nhật ký máy chủ.
 
 Vai trò PostgreSQL là toàn cụm, nên ở cell bridge mọi CSDL `td_<mã>` trên cùng cụm `pg-biz` dùng chung `svc_task`… Cô lập giữa các tỉnh vì vậy dựa vào việc định tuyến tới đúng CSDL (NEN-036) và RLS, không dựa vào vai trò (suy luận; TL-03 không nói rõ vai trò riêng theo CSDL).
+
+## RLS chuẩn và phân vùng theo kỳ (NEN-033)
+
+Thư viện mang sẵn hai migration dùng chung trong `db/common`, được Flyway áp vào mọi schema trước migration riêng của schema đó.
+
+`V0_1__fn_enable_tenant_rls.sql` tạo hàm `<schema>.fn_enable_tenant_rls(regclass)`. Migration của bảng có `tenant_id` gọi `SELECT task.fn_enable_tenant_rls('task.task');` thay vì tự viết chính sách: hàm bật `ENABLE` và `FORCE ROW LEVEL SECURITY` và tạo `rls_<bảng>__tenant FOR ALL TO svc_<schema>, ro_<schema>` với `USING` và `WITH CHECK (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid)`. Gọi lại không lỗi. Chỉ chủ sở hữu `mig_<schema>` được gọi. Biểu thức có `nullif` theo TL-01 (TL-03 bỏ `nullif`) để chuỗi rỗng không gây lỗi ép kiểu mà cho NULL, tức mặc định từ chối; tên chính sách theo quy ước CSDL của TL-03, không theo `tenant_isolation` của TL-01.
+
+`V0_2__fn_create_period_partitions.sql` tạo hàm `<schema>.fn_create_period_partitions(p_parent regclass, p_period_bucket int, p_hash_partitions int DEFAULT NULL)`, `SECURITY DEFINER`, `search_path` cố định, do `mig_<schema>` sở hữu và chỉ `svc_<schema>` có `EXECUTE`, để mission-core tạo phân vùng khi quản trị tenant tạo kỳ mà không cần quyền DDL (CORE-08-02 gọi hàm này). Hàm chỉ nhận bảng cha của chính schema, phân vùng LIST theo `period_bucket`; kiểm `period_bucket` có dạng năm×10 + quý (0 cho kỳ năm); tạo `<bảng>_p<period_bucket>`, và ở CSDL pool chia tiếp 16 phân vùng con `<bảng>_p<period_bucket>_h00..h15` theo `HASH (tenant_id)`. Trên mọi phân vùng mới, hàm thu hồi quyền trực tiếp của `svc_`, `ro_`, `cdc_` và `PUBLIC`, rồi bật RLS kèm chính sách `rls_<phân vùng>__tenant`, nên truy vấn thẳng vào phân vùng con bị từ chối, và nếu có ai cấp nhầm quyền thì RLS vẫn lọc (bảo vệ hai lớp, TL-03 L704). Gọi lại với cùng tham số không lỗi và trả 0. Không có phân vùng mặc định: chèn dòng của kỳ chưa mở phân vùng lỗi `23514 no partition of relation` ngay.
+
+Mô hình thuê bao của CSDL được ghi bằng tham số mức CSDL `app.tenancy_model` (`DatabaseBootstrap --tenancy=pool`, tức `ALTER DATABASE td_pool SET app.tenancy_model = 'pool'`). Hàm đọc giá trị này từ `pg_db_role_setting` chứ không từ biến phiên, nên vai trò ứng dụng không đổi được; `p_hash_partitions` ghi đè khi cần (0 là không chia băm). Đây là thiết kế tự chọn vì TL-03 hẹn định nghĩa hàm ở chương 14 nhưng không có (suy luận).
+
+Bốn quy tắc bắt buộc cho mã và migration:
+
+1. Ngữ cảnh tenant chỉ được đặt bằng `select set_config('app.tenant_id', ?, true)` (hoặc `SET LOCAL`) trong giao dịch tường minh, kể cả khi chỉ đọc (`@Transactional(readOnly = true)`). PgBouncer chạy chế độ giao dịch, nên `SET` mức phiên sẽ rò sang giao dịch của tenant khác dùng lại kết nối; truy vấn tự động cam kết không có ngữ cảnh và nhận kết quả rỗng.
+2. Mọi chỉ mục ở bảng của CSDL pool bắt đầu bằng `tenant_id` (TL-03 "Chỉ mục").
+3. Truy vấn bảng theo kỳ luôn kèm `period_bucket` để PostgreSQL loại phân vùng lúc lập kế hoạch; ở pool kèm thêm `tenant_id` thì chỉ chạm một phân vùng con.
+4. Vì cả ba mô hình dùng chung một lược đồ và pool chia `HASH (tenant_id)`, khoá chính và ràng buộc duy nhất của bảng theo kỳ phải chứa cả `period_bucket` và `tenant_id`, ví dụ `PRIMARY KEY (period_bucket, tenant_id, id)`; PostgreSQL từ chối khoá duy nhất thiếu cột khoá phân vùng. TL-03 ghi khoá chính `(period_bucket, id)`, chỉ đúng khi không chia băm (điểm lệch, ghi cho NEN-004).
+
+Chủ sở hữu `mig_<schema>` cũng chịu RLS vì `FORCE`, và không có chính sách nào cho nó, nên migration dữ liệu (điền dữ liệu cũ khi expand and contract) không đọc, ghi được bảng có RLS bằng `mig_`; job điền dữ liệu chạy bằng `svc_<schema>` theo từng tenant, đúng như TL-01 yêu cầu cho job nhiều tenant (suy luận).
+
+Cấu hình PgBouncer tham chiếu ở `src/main/resources/pgbouncer/pgbouncer.ini.template`: `pool_mode = transaction`, `max_prepared_statements = 200` (cần PgBouncer từ 1.21, Phụ lục B chọn 1.23), `server_reset_query` rỗng, `server_check_query = select 1`, `default_pool_size = 60`, `max_client_conn = 4000`, và ở bridge một mục `[databases]` cho mỗi `td_<mã>` với `max_db_connections = 30`. NEN-020 (dev), NEN-034 (kiểm thử rò rỉ) và INF-11 (CloudNativePG Pooler) dùng tệp này làm chuẩn.
 
 ## Bộ chạy migration
 
@@ -101,4 +122,4 @@ TL-03 yêu cầu kiểm migration trong CI bằng ba bước. Bước 1, áp tr�
 
 ## Kiểm thử của thư viện
 
-`./mvnw -pl libs/vt-db-migration -am verify` chạy: kiểm thử đơn vị tham số dòng lệnh và nguồn mật khẩu; `ConventionLinterIT` với mười lăm bộ migration mẫu sai trong `src/test/resources/db/test-bad/`, mỗi bộ làm đúng một luật thất bại; `SampleMigrationConventionsIT` với bộ mẫu đúng (gồm bảng phân vùng và migration dùng chung `V0_1`); `MigrationRunnerIT` với hai CSDL, CSDL lỗi không chặn CSDL kia và mã thoát là 1; `SchemaVersionGuardIT` cho các trường hợp đủ, thiếu phiên bản và chưa chạy migration; `DatabaseBootstrapIT` dựng 15 schema, chạy bootstrap ba lần (idempotent), kiểm ma trận quyền và in bảng vai trò × schema × quyền ra `target/role-matrix.md`.
+`./mvnw -pl libs/vt-db-migration -am verify` chạy: kiểm thử đơn vị tham số dòng lệnh và nguồn mật khẩu; `ConventionLinterIT` với mười lăm bộ migration mẫu sai trong `src/test/resources/db/test-bad/`, mỗi bộ làm đúng một luật thất bại; `SampleMigrationConventionsIT` với bộ mẫu đúng (gồm bảng phân vùng và migration dùng chung `V0_1`); `MigrationRunnerIT` với hai CSDL, CSDL lỗi không chặn CSDL kia và mã thoát là 1; `SchemaVersionGuardIT` cho các trường hợp đủ, thiếu phiên bản và chưa chạy migration; `TenantRlsPartitionIT` ở hai CSDL bridge và pool (cô lập hai tenant qua bảng cha, chặn truy cập phân vùng con, thiếu ngữ cảnh thì đọc rỗng ghi lỗi, kỳ chưa mở phân vùng thì lỗi, `EXPLAIN (FORMAT JSON)` chỉ quét một phân vùng); `CommonMigrationConventionsIT` kiểm chính migration dùng chung theo lint; `DatabaseBootstrapIT` dựng 15 schema, chạy bootstrap ba lần (idempotent), kiểm ma trận quyền và in bảng vai trò × schema × quyền ra `target/role-matrix.md`.

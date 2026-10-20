@@ -18,7 +18,7 @@ class SampleMigrationConventionsIT extends MigrationConventionsTest {
 
   @Override
   protected MigrationOptions options() {
-    return new MigrationOptions("classpath:db/test-common", "classpath:db/test-ok/", true);
+    return new MigrationOptions("classpath:db/test-common", "classpath:db/test-ok/", false);
   }
 
   @AfterAll

@@ -74,7 +74,8 @@ class MigrationRunnerIT {
     assertThat(outcomes.get(0).success()).isFalse();
     assertThat(outcomes.get(0).error()).contains("runner_ok");
     assertThat(outcomes.get(1).success()).isTrue();
-    assertThat(outcomes.get(1).appliedMigrations()).isEqualTo(1);
+    // V0_1, V0_2 dùng chung (db/common) + V1 của schema.
+    assertThat(outcomes.get(1).appliedMigrations()).isEqualTo(3);
     assertThat(MigrationRunner.exitCode(outcomes)).isEqualTo(1);
 
     try (Connection c = adminConnection("td_mot");
