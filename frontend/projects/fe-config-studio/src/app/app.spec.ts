@@ -24,6 +24,7 @@ describe('fe-config-studio', () => {
       'bieu-mau/:formKey/:formVersion',
       'mau-luong',
       'mau-luong/:templateId',
+      'tien-trinh',
     ]);
     expect(sections[0].title).toBe('Chính sách đánh giá');
     expect(sections[1].children?.map((r) => r.path)).toEqual([

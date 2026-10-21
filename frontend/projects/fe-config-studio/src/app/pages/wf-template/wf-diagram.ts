@@ -39,7 +39,12 @@ import { KIND_LABEL, readDiagram } from './wf-model';
             />
           }
           @for (s of d().shapes; track s.id) {
-            <g [class.bad]="bad().has(s.id)" [attr.data-el]="s.id">
+            <g
+              [class.bad]="bad().has(s.id)"
+              [class.active]="activeSet().has(s.id)"
+              [class.done]="doneSet().has(s.id)"
+              [attr.data-el]="s.id"
+            >
               <title>{{ kind(s.kind) }}: {{ s.name || s.id }}</title>
               @switch (shapeOf(s.kind)) {
                 @case ('circle') {
@@ -84,6 +89,12 @@ import { KIND_LABEL, readDiagram } from './wf-model';
             @if (bad().has(s.id)) {
               (có lỗi)
             }
+            @if (activeSet().has(s.id)) {
+              (bước hiện tại)
+            }
+            @if (doneSet().has(s.id)) {
+              (đã qua)
+            }
           </li>
         }
       </ol>
@@ -121,6 +132,19 @@ import { KIND_LABEL, readDiagram } from './wf-model';
       stroke: #4b5563;
       stroke-width: 1.5;
     }
+    .done rect,
+    .done circle,
+    .done polygon {
+      fill: #ecfdf3;
+      stroke: #166534;
+    }
+    .active rect,
+    .active circle,
+    .active polygon {
+      fill: #fff7e6;
+      stroke: #b45309;
+      stroke-width: 3;
+    }
     .bad rect,
     .bad circle,
     .bad polygon,
@@ -149,6 +173,11 @@ export class WfDiagram {
   readonly xml = input.required<string>();
   readonly issues = input<string[]>([]);
   readonly name = input('');
+  /** Phần tử đang chờ và đã qua của một tiến trình (SCR-1506). */
+  readonly active = input<string[]>([]);
+  readonly done = input<string[]>([]);
+  protected readonly activeSet = computed(() => new Set(this.active()));
+  protected readonly doneSet = computed(() => new Set(this.done()));
   protected readonly d = computed(() => readDiagram(this.xml()));
   protected readonly bad = computed(() => new Set(this.issues()));
   protected readonly label = computed(() => {

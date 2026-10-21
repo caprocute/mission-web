@@ -33,6 +33,8 @@ export * from './lib/ui-pack-api';
 export * from './lib/models/workflow-template';
 export * from './lib/workflow-template-api';
 export * from './lib/workflow/wf-lint';
+export * from './lib/models/workflow-instance';
+export * from './lib/workflow-instance-api';
 export * from './lib/models/source-doc';
 export * from './lib/source-doc-api';
 export * from './lib/ai-api';

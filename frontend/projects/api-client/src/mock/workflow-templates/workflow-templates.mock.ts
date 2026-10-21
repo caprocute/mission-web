@@ -572,3 +572,10 @@ export const WORKFLOW_TEMPLATES_MOCK: MockModule = {
     { method: 'GET', pattern: '/api/v1/workflow/templates/:id/rollouts', handle: rollouts },
   ],
 };
+
+/** BPMN của phiên bản mẫu đang hiệu lực, dùng cho sơ đồ tiến trình (SCR-1506). */
+export function activeTemplateBpmn(code: string): string {
+  return code === 'giao-nhiem-vu-nghiem-thu'
+    ? buildBpmn('nghiemThu', 'Giao nhiệm vụ và nghiệm thu', NGHIEM_THU_STEPS.slice(0, 3))
+    : buildBpmn('duyetHoSo', 'Duyệt hồ sơ đánh giá', DUYET_STEPS);
+}

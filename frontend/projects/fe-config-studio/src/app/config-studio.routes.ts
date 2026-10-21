@@ -6,6 +6,7 @@ import {
   POLICY_KEYS,
   StudioLayout,
   UI_PACK_KEYS,
+  WF_MONITOR_KEYS,
   WF_TEMPLATE_KEYS,
   studioLanding,
 } from './studio-layout';
@@ -77,6 +78,12 @@ const SECTIONS: Routes = [
       import('./pages/wf-template/wf-templates.page').then((m) => m.WfTemplatesPage),
     title: 'Mẫu quy trình dùng chung',
   })),
+  {
+    path: 'tien-trinh',
+    canActivate: [permissionGuard(...WF_MONITOR_KEYS)],
+    loadComponent: () => import('./pages/wf-monitor/wf-monitor.page').then((m) => m.WfMonitorPage),
+    title: 'Giám sát tiến trình',
+  },
 ];
 
 /**
