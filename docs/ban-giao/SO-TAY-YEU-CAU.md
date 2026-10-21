@@ -152,6 +152,13 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 - **Kiểm tra:** Trang đăng nhập IdP/Keycloak hiển thị giao diện tùy biến riêng có thương hiệu, hỗ trợ SSO/VNeID và responsive; khung ứng dụng và các màn hình chính có phân nhóm điều hướng rõ ràng, thẻ chỉ số có điểm nhấn thị giác và vượt qua kiểm thử hiển thị trên cả viewport desktop lẫn mobile.
 - **Nguồn:** Dự án Mission, ngày 20/10/2026, kênh điều phối Antigravity (anh Hiếu: "giao diện UI cũng đơn giản, không có điểm nhấn, css, responsive chưa tốt, các màn hình login chưa được custom. Đề nghị làm lại giao diện ấn tượng, đẹp, tham khảo top 10 ứng dụng kpi okr mà làm").
 
+#### YC-TK-13 – Việt hóa toàn bộ ngôn ngữ của hệ thống định danh tập trung (Keycloak/IdP), quản lý trong Git và tối ưu độ dài từ ngữ vừa khít khung hiển thị giao diện
+
+- **Nội dung:** Toàn bộ các gói ngôn ngữ của hệ thống định danh và xác thực tập trung (Keycloak/IdP — bao gồm đầy đủ các phân hệ `login`, `account`, `admin`, `email`, `common`) bắt buộc phải được dịch sang tiếng Việt (`messages_vi.properties`, mã hóa UTF-8 chuẩn), đóng gói thành theme tùy biến của dự án và đưa vào Git để quản lý phiên bản tập trung. Khi dịch thuật ngữ sang tiếng Việt, phải đặc biệt chú ý chọn từ ngữ ngắn gọn, cô đọng, chuẩn hành chính – công vụ và phù hợp với độ dài hiển thị trên giao diện (nút bấm tối đa 2–4 âm tiết, nhãn cột bảng, menu điều hướng, huy hiệu trạng thái không bị tràn khung, xuống dòng xấu hoặc cắt cụt chữ). Cấu hình mặc định của realm (`defaultLocale: "vi"`) phải kích hoạt sẵn bộ ngôn ngữ tiếng Việt này cho tất cả các phân hệ giao diện.
+- **Lý do:** Tiếng Việt thường dài hơn tiếng Anh từ 25–40% số ký tự; nếu dịch sát nghĩa từng từ hoặc dùng câu dài dòng thì các nút bấm, thanh điều hướng và bảng quản trị trên Keycloak sẽ bị vỡ bố cục, xuống dòng lệch lạc. Đồng thời, nếu không đưa toàn bộ tệp ngôn ngữ vào Git thì mỗi lần dựng lại container hoặc triển khai môi trường mới sẽ mất bản dịch.
+- **Kiểm tra:** Thư mục theme trong Git (`infra/keycloak-theme/mission/{common,login,account,admin,email}/`) có đầy đủ `theme.properties` và `messages/messages_vi.properties`覆盖 toàn bộ khóa ngôn ngữ; cấu hình realm và Docker Compose gắn theme tiếng Việt làm mặc định; kiểm tra thực tế trên giao diện đăng nhập, quản lý tài khoản và quản trị hệ thống không còn chuỗi tiếng Anh sót lại và không có nút/nhãn bị tràn khung.
+- **Nguồn:** Dự án Mission, ngày 21/10/2026, kênh điều phối Antigravity (anh Hiếu: "cho phép ngoại lệ 1 tiến trình thứ 6, dịch toàn bộ ngôn ngữ của keycloak sang tiếng việt, chú ý có đưa vào git quản lý, đặc biệt dịch từ phù hợp về độ dài hiển thị giao diện").
+
 ### 2.3. Nhóm PT – Tổ chức phát triển
 
 #### YC-PT-01 – Lập kế hoạch phát triển bám đúng thiết kế đã duyệt
@@ -233,7 +240,7 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 
 #### YC-PT-12 – Giới hạn tối đa 5 luồng phát triển chạy đồng thời
 
-- **Nội dung:** Tại mọi thời điểm, số luồng phát triển (thread hoặc agent) chạy đồng thời không được vượt quá 5. Khi cần mở thêm một luồng mới mà đã đủ 5 luồng đang chạy, phải tạm dừng một luồng khác hoặc chờ một luồng hoàn thành rồi mới mở. Luồng bị tạm dừng phải đẩy toàn bộ phần việc đang làm dở lên nhánh riêng của mình và ghi rõ trạng thái (đã làm đến đâu, còn lại việc gì, bước tiếp theo) để có thể chạy tiếp mà không mất công sức. Khi chọn luồng để giữ lại, ưu tiên các luồng nằm trên đường găng của dự án, như luồng điều phối giữ nhánh chính và các luồng làm phần nền móng mà nhiều luồng khác phụ thuộc vào.
+- **Nội dung:** Tại mọi thời điểm, số luồng phát triển (thread hoặc agent) chạy đồng thời không được vượt quá 5 (trừ trường hợp ngoại lệ có chỉ đạo trực tiếp của người giao việc cho phép mở thêm luồng chuyên biệt). Khi cần mở thêm một luồng mới mà đã đủ 5 luồng đang chạy, phải tạm dừng một luồng khác hoặc chờ một luồng hoàn thành rồi mới mở. Luồng bị tạm dừng phải đẩy toàn bộ phần việc đang làm dở lên nhánh riêng của mình và ghi rõ trạng thái (đã làm đến đâu, còn lại việc gì, bước tiếp theo) để có thể chạy tiếp mà không mất công sức. Khi chọn luồng để giữ lại, ưu tiên các luồng nằm trên đường găng của dự án, như luồng điều phối giữ nhánh chính và các luồng làm phần nền móng mà nhiều luồng khác phụ thuộc vào.
 - **Lý do:** Kiểm soát chi phí, hạn mức sử dụng và bảo đảm người dùng vẫn theo dõi được công việc. Chạy quá nhiều luồng cùng lúc khiến việc giám sát trở nên khó khăn và dễ làm cạn hạn mức sử dụng. Ví dụ minh hoạ: đêm 19/10/2026 ở dự án Mission, tất cả các luồng cùng bị dừng vì chạm giới hạn sử dụng.
 - **Kiểm tra:** Trước khi mở mới hoặc cho chạy tiếp một luồng, đếm số luồng đang chạy và xác nhận sau khi mở vẫn không vượt quá 5; mọi luồng đang tạm dừng đều có phần việc dở đã được đẩy lên nhánh riêng kèm ghi chú trạng thái.
 - **Nguồn:** Dự án Mission, ngày 20/10/2026, kênh chung của dự án (anh Hiếu: "Đang chạy nhiều luồng quá, tối đa 5 thôi").
@@ -310,10 +317,10 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 | Nhóm | Tên nhóm | Số quy tắc |
 |---|---|---|
 | GT | Giao tiếp và cách làm việc | 4 |
-| TK | Bộ tài liệu thiết kế | 12 |
+| TK | Bộ tài liệu thiết kế | 13 |
 | PT | Tổ chức phát triển | 18 |
 | HT | Hạ tầng và bảo mật | 3 |
-| | **Tổng cộng** | **37** |
+| | **Tổng cộng** | **38** |
 
 ---
 
@@ -333,3 +340,4 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 | 20/10/2026 | YC-HT-03 | Sử dụng SSH Tunnel khi máy chủ hạn chế mở cổng và tham số hóa cấu hình động qua biến môi trường (.env) cho cả Backend và Frontend để thay đổi động không cần build lại. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh điều phối Antigravity |
 | 20/10/2026 | YC-PT-17 | Duy trì một tệp theo dõi tiến độ tổng hợp duy nhất cho toàn hệ thống (`TIEN-DO-HE-THONG.md`) kèm công cụ `scripts/cap-nhat-tien-do.py`, bắt buộc mọi AI agent phải cập nhật trạng thái vào tệp này khi nhận task, khi hoàn thành trên nhánh và khi gộp vào `main`. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh điều phối Antigravity |
 | 20/10/2026 | YC-TK-11, YC-TK-12, YC-PT-18 | Tư duy lại UX và giải pháp màn hình nghiệp vụ trên cơ sở tham khảo Top 10 ứng dụng OKR/KPI quốc tế kết hợp quy định Việt Nam (QĐ 366, NĐ 335, NĐ 233); thiết kế lại UI/CSS/Responsive ấn tượng và tùy biến trang đăng nhập Keycloak; ưu tiên tập trung xây dựng hoàn chỉnh khung nền tảng (luồng động BPMN, quản lý người dùng/tổ chức, biểu mẫu/cấu hình động) trước khi mở rộng các tính năng nghiệp vụ. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh điều phối Antigravity |
+| 21/10/2026 | YC-TK-13, YC-PT-12 | Việt hóa toàn bộ ngôn ngữ của Keycloak/IdP (`login`, `account`, `admin`, `email`, `common`), đưa vào Git quản lý phiên bản và tối ưu từ ngữ ngắn gọn vừa khít khung hiển thị giao diện; cập nhật ghi chú ngoại lệ mở luồng thứ 6 theo chỉ đạo trực tiếp của người giao việc. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh điều phối Antigravity |
