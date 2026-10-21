@@ -67,6 +67,8 @@ public final class MissionCoreTestDatabase {
                 + "?currentSchema=org_replica&prepareThreshold=0&ApplicationName=mission-core-org_replica");
     registry.add("okrkpi.datasources.org_replica.username", () -> "svc_org_replica");
     registry.add("okrkpi.datasources.org_replica.password", () -> TEST_DB_PASSWORD);
+    // Kiểm thử Spring Boot không có Kafka: không khởi động consumer org_replica (CORE-00-03).
+    registry.add("okrkpi.inbox.listener-auto-startup", () -> "false");
   }
 
   private static void bootstrapAndMigrate() {
