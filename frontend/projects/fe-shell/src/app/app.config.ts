@@ -23,7 +23,7 @@ import {
   UiPackPrefetch,
   provideSduiComponents,
 } from '@vt/sdui-renderer';
-import { traceparentInterceptor } from '@vt/telemetry';
+import { TRACE_OPTIONS, debugTraceRequested, traceparentInterceptor } from '@vt/telemetry';
 import { routes } from './app.routes';
 import { SHELL_WIDGETS } from './widgets/shell-widgets';
 
@@ -36,6 +36,16 @@ export function buildAppConfig(
     providers: [
       provideBrowserGlobalErrorListeners(),
       { provide: RUNTIME_CONFIG, useValue: cfg },
+      {
+        // WEB-074: lấy mẫu theo cấu hình, Baggage tenant, X-Debug-Trace theo ?debug-trace=1
+        provide: TRACE_OPTIONS,
+        useValue: {
+          sampleRatio: cfg.telemetry?.sampleRatio ?? 1,
+          tenant: cfg.tenant,
+          debugTrace: debugTraceRequested(),
+          random: Math.random,
+        },
+      },
       provideRouter(
         routes,
         withComponentInputBinding(),

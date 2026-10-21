@@ -45,12 +45,20 @@ function parseBody(body: unknown): unknown {
 export function toProblem(err: unknown): ProblemDetails {
   if (err instanceof HttpErrorResponse) {
     const body = parseBody(err.error);
+    // WEB-074: mã tra cứu lấy từ thân lỗi, nếu không có thì từ header X-Trace-Id của APISIX
+    const traceId = err.headers?.get('X-Trace-Id') ?? undefined;
     if (isProblemBody(body)) {
-      return { ...body, status: body.status || err.status, type: body.type || 'about:blank' };
+      return {
+        ...body,
+        status: body.status || err.status,
+        type: body.type || 'about:blank',
+        traceId: body.traceId ?? traceId,
+      };
     }
     if (err.status === 0) return { type: 'about:blank', title: NETWORK_TITLE, status: 0 };
     return {
       type: 'about:blank',
+      traceId,
       // không dùng statusText (tiếng Anh, kỹ thuật) làm văn bản hiển thị (wiki/16)
       title: DEFAULT_TITLES[err.status] ?? UNKNOWN_TITLE,
       status: err.status,

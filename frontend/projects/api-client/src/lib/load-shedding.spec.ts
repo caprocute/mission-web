@@ -10,8 +10,8 @@ import {
   backoffMs,
   isLoadShed,
   loadSheddingInterceptor,
-  retryAfterMs,
 } from './load-shedding';
+import { retryAfterMs } from './job-tracker';
 
 const NOW = Date.parse('2026-10-21T08:00:00Z');
 const policy = {

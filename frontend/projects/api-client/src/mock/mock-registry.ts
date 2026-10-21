@@ -1,4 +1,5 @@
 import { MockModule, MockRequest, MockResponse, matchPath, problem } from './mock-router';
+import { mockSession } from './mock-session';
 
 /**
  * Danh mục fixture theo module API (`/api/v1/<module>`). Tệp này chỉ được nạp lười từ
@@ -131,5 +132,7 @@ export async function handleMockRequest(
  */
 export function resetMockData(): void {
   idempotency.clear();
+  // Phiên giả lập (MFA, ký số) dùng chung: đặt lại kể cả khi chưa nạp bộ giả lập nào (nạp lười)
+  mockSession.reset();
   for (const mod of loaded.values()) mod.reset();
 }

@@ -1,6 +1,7 @@
 import { HttpErrorResponse, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
 import { Injectable, InjectionToken, inject } from '@angular/core';
 import { retry, throwError, timer } from 'rxjs';
+import { retryAfterMs } from './job-tracker';
 
 /**
  * Xử lý cắt tải (WEB-073, TL-04 "Hành vi khi bão hoà"): 429 do vượt hạn mức và 503 do quá tải
@@ -46,15 +47,6 @@ export const LOAD_SHED_REPORTER = new InjectionToken<(e: LoadShedEvent) => void>
   'vt.loadShedReporter',
   { providedIn: 'root', factory: () => () => undefined },
 );
-
-/** Đọc `Retry-After` (số giây hoặc ngày giờ HTTP) ra mili giây; `null` nếu không có hoặc sai dạng. */
-export function retryAfterMs(value: string | null, now: number): number | null {
-  if (!value) return null;
-  const v = value.trim();
-  if (/^\d+$/.test(v)) return Number(v) * 1000;
-  const at = Date.parse(v);
-  return Number.isNaN(at) ? null : Math.max(0, at - now);
-}
 
 /** Lời gọi được tự thử lại: đọc, hoặc ghi có `Idempotency-Key`. */
 export function isSafeToRetry(req: HttpRequest<unknown>): boolean {
