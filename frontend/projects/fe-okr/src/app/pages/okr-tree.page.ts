@@ -141,6 +141,15 @@ const ROW_HEIGHT = 52;
               (onClick)="openReview()"
             />
           }
+          @if (canAssist()) {
+            <p-button
+              label="Trợ lý AI"
+              icon="pi pi-sparkles"
+              severity="secondary"
+              data-act="tro-ly"
+              (onClick)="openAssistant()"
+            />
+          }
           @if (canAdd()) {
             <p-button label="Thêm mục tiêu" icon="pi pi-plus" (onClick)="addObjective()" />
           }
@@ -681,6 +690,18 @@ export class OkrTreePage {
 
   protected addObjective() {
     this.router.navigate(['objectives', 'new'], {
+      relativeTo: this.route,
+      queryParams: { period: this.data()?.period.id },
+    });
+  }
+
+  /** "Trợ lý AI" (SCR-1701): người soạn OKR của đơn vị, kỳ chưa khoá. */
+  protected readonly canAssist = computed(
+    () => !!this.data()?.viewerOwnUnit && !this.locked() && this.can('SCR-1701.hoi'),
+  );
+
+  protected openAssistant() {
+    this.router.navigate(['tro-ly'], {
       relativeTo: this.route,
       queryParams: { period: this.data()?.period.id },
     });

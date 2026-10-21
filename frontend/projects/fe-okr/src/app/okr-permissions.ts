@@ -18,7 +18,10 @@ export type OkrPermissionKey =
   | 'SCR-0203.tra-lai'
   | 'SCR-0203.duyet-lo'
   | 'SCR-0301.check-in'
-  | 'SCR-0301.lich-su';
+  | 'SCR-0301.lich-su'
+  | 'SCR-1701.hoi'
+  | 'SCR-1701.dung-goi-y'
+  | 'SCR-1701.trinh';
 
 /**
  * Hàm hỏi "vai trò hiện tại có thể có quyền này không", nối vào `can()` của `@vt/auth` (WEB-054).
