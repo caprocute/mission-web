@@ -1,0 +1,59 @@
+# Mã cell, gắn vào nhãn vt.io/cell của mọi namespace (ví dụ hcm, g4).
+cell: g4
+
+# 13 namespace theo TL-04 mục 3.5. zone: nhãn vt.io/security-zone; ambient: gắn istio.io/dataplane-mode=ambient;
+# psaExempt: không gắn Pod Security restricted (chỉ observability được miễn, SEC-26).
+namespaces:
+  edge:          { zone: edge,       ambient: true }
+  core:          { zone: app,        ambient: true }
+  identity:      { zone: app,        ambient: true }
+  platform:      { zone: app,        ambient: true }
+  workers:       { zone: app,        ambient: true }
+  analytics:     { zone: app,        ambient: true }
+  secure:        { zone: secure,     ambient: true }
+  secure-data:   { zone: secure,     ambient: false }
+  data-pg:       { zone: data,       ambient: false }
+  data-kafka:    { zone: data,       ambient: false }
+  data-search:   { zone: data,       ambient: false }
+  observability: { zone: infra,      ambient: false, psaExempt: true }
+  egress:        { zone: egress,     ambient: true }
+
+# Bật NetworkPolicy default-deny-all và allow-dns cho mọi namespace trên.
+defaultDeny: true
+
+# Luồng được phép giữa namespace (TL-04 mục 3.6). Mỗi luồng sinh hai chính sách: egress ở phía nguồn,
+# ingress ở phía đích. from/to: { namespace, podLabels }; podLabels rỗng = mọi pod của namespace.
+# Không có luồng core → secure (ADR-09: trao đổi với sổ cái chỉ qua Kafka).
+flows:
+  - name: apisix-to-mission-core
+    from: { namespace: edge, podLabels: { app.kubernetes.io/name: apisix } }
+    to: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
+    ports: [8080]
+  - name: apisix-to-web-frontend
+    from: { namespace: edge, podLabels: { app.kubernetes.io/name: apisix } }
+    to: { namespace: platform, podLabels: { app.kubernetes.io/name: web-frontend } }
+    ports: [8080]
+  - name: observability-to-mission-core-mgmt
+    from: { namespace: observability }
+    to: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
+    ports: [8081]
+  - name: mission-core-to-pg-core-rw
+    from: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
+    to: { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-core-rw } }
+    ports: [5432]
+  - name: mission-core-to-pg-core-ro
+    from: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
+    to: { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-core-ro } }
+    ports: [5432]
+  - name: mission-core-to-kafka
+    from: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
+    to: { namespace: data-kafka, podLabels: { strimzi.io/cluster: kafka-cell } }
+    ports: [9093]
+  - name: mission-core-to-valkey
+    from: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
+    to: { namespace: data-kafka, podLabels: { app.kubernetes.io/name: valkey } }
+    ports: [6379]
+  - name: apisix-to-valkey-ratelimit
+    from: { namespace: edge, podLabels: { app.kubernetes.io/name: apisix } }
+    to: { namespace: data-kafka, podLabels: { app.kubernetes.io/name: valkey } }
+    ports: [6379]

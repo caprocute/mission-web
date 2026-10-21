@@ -1,0 +1,94 @@
+{{- if .Values.defaultDeny }}
+{{- range $name, $ns := .Values.namespaces }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ $name }}
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: {{ $name }}
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+{{- end }}
+{{- end }}
+{{- range .Values.flows }}
+{{- if not (hasKey $.Values.namespaces .from.namespace) }}{{ fail (printf "cell-base: luồng %s có namespace nguồn %s không nằm trong namespaces" .name .from.namespace) }}{{ end }}
+{{- if not (hasKey $.Values.namespaces .to.namespace) }}{{ fail (printf "cell-base: luồng %s có namespace đích %s không nằm trong namespaces" .name .to.namespace) }}{{ end }}
+{{- if and (eq .from.namespace "core") (eq .to.namespace "secure") }}{{ fail (printf "cell-base: luồng %s từ core vào secure bị cấm (ADR-09)" .name) }}{{ end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .name }}-egress
+  namespace: {{ .from.namespace }}
+spec:
+  podSelector:
+    {{- if .from.podLabels }}
+    matchLabels:
+      {{- toYaml .from.podLabels | nindent 6 }}
+    {{- else }} {}
+    {{- end }}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .to.namespace }}
+          {{- with .to.podLabels }}
+          podSelector:
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+          {{- end }}
+      ports:
+        {{- range .ports }}
+        - { protocol: TCP, port: {{ . }} }
+        {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .name }}-ingress
+  namespace: {{ .to.namespace }}
+spec:
+  podSelector:
+    {{- if .to.podLabels }}
+    matchLabels:
+      {{- toYaml .to.podLabels | nindent 6 }}
+    {{- else }} {}
+    {{- end }}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .from.namespace }}
+          {{- with .from.podLabels }}
+          podSelector:
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+          {{- end }}
+      ports:
+        {{- range .ports }}
+        - { protocol: TCP, port: {{ . }} }
+        {{- end }}
+{{- end }}
