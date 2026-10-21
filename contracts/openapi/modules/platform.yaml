@@ -52,6 +52,9 @@ tags:
     description: >-
       Tìm kiếm toàn văn SVC-16 trên OpenSearch: nhiệm vụ, văn bản chỉ đạo, danh mục công việc. Chỉ mục không
       chứa dữ liệu C2, C3; kết quả được kiểm quyền lại ở lõi trước khi hiển thị chi tiết.
+  - name: IAM
+    description: >-
+      Quản trị xác thực và mã khôi phục MFA một lần của SVC-02 iam-adapter (TL-02a QT-00 ngoại lệ mất SmartOTP).
 
 paths:
   # ───────────────────────────── Registry (SVC-03) ─────────────────────────────
@@ -444,6 +447,177 @@ paths:
         aal: 2
         fourEyes: true
         source: TL-01 PL C Dịch vụ nền ("hai người duyệt"), đường dẫn duyệt là suy luận
+
+  /registry/tenants/{id}/move/{moveId}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - name: moveId
+        in: path
+        required: true
+        description: Mã lệnh chuyển cell.
+        schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    get:
+      tags: [Registry]
+      operationId: getTenantMove
+      summary: Chi tiết và tiến độ lệnh chuyển cell
+      description: >-
+        Theo dõi trạng thái saga sáu bước chuyển cell của tenant (ADR-29: tạo đích, Debezium sao chép
+        ban đầu, bắt kịp WAL, chuyển tenant sang chỉ đọc `TAM_KHOA`, đổi `registry.tenant_cell.active`,
+        mở lại ghi ở cell mới).
+      responses:
+        '200':
+          description: Chi tiết lệnh chuyển cell.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantMove' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0101]
+        owner: SVC-03
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        source: 'ADR-29; TL-03 registry.tenant_cell (suy luận đường dẫn)'
+
+  /registry/tenants/{id}/move/{moveId}/cancel:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - name: moveId
+        in: path
+        required: true
+        description: Mã lệnh chuyển cell.
+        schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    post:
+      tags: [Registry]
+      operationId: cancelTenantMove
+      summary: Huỷ lệnh chuyển cell trước khi cắt chuyển hoặc quay lui an toàn
+      description: >-
+        Huỷ đề nghị chuyển cell khi đang `CHO_DUYET`, hoặc dừng/quay lui an toàn trước khi đổi
+        `registry.tenant_cell.active` (ADR-29). Yêu cầu AAL2 và hai người duyệt khi đang `DANG_CHUYEN`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApprovalComment' }
+      responses:
+        '200':
+          description: Lệnh chuyển cell đã chuyển sang `DA_HUY`.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantMove' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Xung đột phiên bản hoặc lệnh đã hoàn tất cắt chuyển (`REGISTRY-409-MOVE-ALREADY-CUTOVER`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0101]
+        owner: SVC-03
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        fourEyes: true
+        source: 'ADR-29; TL-01 SVC-03 (suy luận đường dẫn)'
+
+  # ───────────────────────────── IAM (SVC-02) ─────────────────────────────
+  /iam/users/{personId}/mfa-recovery-codes:
+    parameters:
+      - name: personId
+        in: path
+        required: true
+        description: Mã nhân sự (`org.person.id`) cần cấp mã khôi phục MFA.
+        schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    post:
+      tags: [IAM]
+      operationId: issueMfaRecoveryCode
+      summary: Cấp mã khôi phục MFA một lần có thời hạn 15 phút
+      description: >-
+        Quản trị viên đơn vị xác minh ngoại tuyến và cấp mã khôi phục một lần khi người dùng mất thiết bị
+        SmartOTP (TL-02a QT-00 mục 3.1.5). Mã có thời hạn tối đa 15 phút, chỉ dùng một lần để đăng nhập
+        và đăng ký thiết bị mới, ghi nhật ký kiểm toán.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MfaRecoveryCodeIssueRequest' }
+      responses:
+        '201':
+          description: Mã khôi phục một lần (chỉ trả dạng rõ đúng một lần khi cấp).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MfaRecoveryCodeIssued' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0001]
+        owner: SVC-02
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-00-01]
+        source: 'TL-02a QT-00 ngoại lệ mất SmartOTP (suy luận đường dẫn)'
+
+  /iam/users/{personId}/mfa-recovery-codes/revoke:
+    parameters:
+      - name: personId
+        in: path
+        required: true
+        description: Mã nhân sự (`org.person.id`) cần thu hồi các mã khôi phục MFA chưa dùng.
+        schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    post:
+      tags: [IAM]
+      operationId: revokeMfaRecoveryCodes
+      summary: Thu hồi mọi mã khôi phục MFA đang còn hiệu lực của người dùng
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MfaRecoveryCodeRevokeRequest' }
+      responses:
+        '200':
+          description: Số mã khôi phục đã thu hồi.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MfaRecoveryCodeRevokeResult' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0001]
+        owner: SVC-02
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        rules: [BR-00-01]
+        source: 'TL-02a QT-00 ngoại lệ mất SmartOTP (suy luận đường dẫn)'
 
   # ───────────────────────────── Workflow (SVC-06) ─────────────────────────────
   /workflow/inbox:
@@ -1485,6 +1659,136 @@ paths:
         scope: B
         source: TL-02a SCR-0002 bảng chức năng; ma trận SCR-0002.doc-thong-bao
 
+  /notifications/devices:
+    get:
+      tags: [Notification]
+      operationId: listMyPushDevices
+      summary: Danh sách thiết bị nhận thông báo đẩy của người dùng hiện hành
+      responses:
+        '200':
+          description: Danh sách thiết bị đã đăng ký.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushDeviceList' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002]
+        owner: SVC-12
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: 'TL-01 SVC-12 FCM/APNs/Web Push (suy luận đường dẫn)'
+    post:
+      tags: [Notification]
+      operationId: registerPushDevice
+      summary: Đăng ký hoặc làm mới token thiết bị nhận thông báo đẩy (FCM/APNs/Web Push)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PushDeviceRegisterRequest' }
+      responses:
+        '201':
+          description: Thiết bị đã đăng ký.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushDevice' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002]
+        owner: SVC-12
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: 'TL-01 SVC-12 FCM/APNs/Web Push (suy luận đường dẫn)'
+
+  /notifications/devices/{deviceId}:
+    parameters:
+      - name: deviceId
+        in: path
+        required: true
+        description: Định danh thiết bị đẩy đã đăng ký.
+        schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    delete:
+      tags: [Notification]
+      operationId: unregisterPushDevice
+      summary: Huỷ đăng ký thiết bị nhận thông báo đẩy khi đăng xuất hoặc thu hồi phiên
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: Đã xoá đăng ký thiết bị.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002]
+        owner: SVC-12
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: 'TL-01 SVC-12 FCM/APNs/Web Push (suy luận đường dẫn)'
+
+  /notifications/preferences:
+    get:
+      tags: [Notification]
+      operationId: getNotificationPreferences
+      summary: Tuỳ chọn kênh thông báo và khung giờ yên lặng của người dùng
+      responses:
+        '200':
+          description: Tuỳ chọn thông báo hiện hành.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPreferences' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002]
+        owner: SVC-12
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: 'TL-01 SVC-12 tuỳ chọn kênh thông báo (suy luận đường dẫn)'
+    put:
+      tags: [Notification]
+      operationId: updateNotificationPreferences
+      summary: Cập nhật tuỳ chọn kênh thông báo của người dùng
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NotificationPreferencesInput' }
+      responses:
+        '200':
+          description: Tuỳ chọn thông báo đã lưu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPreferences' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002]
+        owner: SVC-12
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: 'TL-01 SVC-12 tuỳ chọn kênh thông báo (suy luận đường dẫn)'
+
   # ───────────────────────────── AI (SVC-14) ─────────────────────────────
   /ai/suggestions:
     post:
@@ -2074,6 +2378,48 @@ paths:
         scope: B
         source: TL-02a SCR-0302; TL-02b SCR-1803; ma trận SCR-0302.check-in-dd, SCR-1803.dd
 
+  /ai/ocr:
+    post:
+      tags: [AI]
+      operationId: ocrEvidenceObject
+      summary: Nhận dạng chữ tiếng Việt (OCR) từ tệp ảnh hoặc PDF quét của minh chứng/văn bản
+      description: >-
+        Tác vụ nội bộ cho `evidence-service` (SVC-08) và `search-indexer` (SVC-16) bóc văn bản từ tệp
+        ảnh hoặc PDF quét thuộc mức C1/C2 (tuyệt đối từ chối C3 theo BR-17-07). Trả 200 khi tệp nhỏ
+        hoặc 202 kèm `Location` khi xử lý bất đồng bộ.
+      security:
+        - serviceClient: []
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AiOcrRequest' }
+      responses:
+        '200':
+          description: Văn bản OCR trích xuất được theo từng trang.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AiOcrResult' }
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: Từ chối khi đối tượng có mức độ mật `C3` (`AI-403-C3-FORBIDDEN`, BR-17-07).
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0702]
+        owner: SVC-14
+        roles: [service_client]
+        scope: B
+        rules: [BR-17-07]
+        source: 'TL-01 SVC-14 OCR (suy luận đường dẫn)'
+
   # ───────────────────────────── Analytics (SVC-15) ─────────────────────────────
   /analytics/query:
     post:
@@ -2581,6 +2927,42 @@ paths:
         scope: Cd
         source: TL-02b SCR-1603 "Xuất chuỗi bằng chứng"; ma trận SCR-1603.xuat
 
+  /analytics/embed-tokens:
+    post:
+      tags: [Analytics]
+      operationId: createAnalyticsEmbedToken
+      summary: Cấp guest token ngắn hạn để nhúng biểu đồ Superset có khoá phạm vi `org_path`
+      description: >-
+        Sinh JWT ngắn hạn (tối đa 5 phút) cho khung nhúng Apache Superset ở chế độ tự khai thác chỉ số
+        (TL-01 mục SVC-15), gắn chặt điều kiện RLS `tenant_id` và tiền tố `org_path` của người xem
+        (BR-16-01, BR-16-04).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnalyticsEmbedTokenRequest' }
+      responses:
+        '201':
+          description: Guest token ngắn hạn cho khung nhúng.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnalyticsEmbedToken' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-16]
+        scr: [SCR-1601]
+        owner: SVC-15
+        roles: [leader, manager]
+        scope: Cd
+        rules: [BR-16-01, BR-16-04]
+        source: 'TL-01 SVC-15 Superset nhúng (suy luận đường dẫn)'
+
   # ───────────────────────────── Search (SVC-16) ─────────────────────────────
   /search:
     get:
@@ -2879,6 +3261,10 @@ components:
         requestedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
         approvedBy: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         approvedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        currentStep:
+          type: [string, 'null']
+          enum: [PROVISION_TARGET, INITIAL_SNAPSHOT, WAL_CATCHUP, READ_ONLY_FREEZE, SWITCH_ACTIVE_CELL, REOPEN_WRITE, null]
+          description: Bước hiện hành của saga 6 bước chuyển cell (ADR-29).
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
     ApprovalComment:
       description: Ý kiến kèm thao tác phê duyệt hoặc đề nghị (tuỳ chọn).
@@ -3830,3 +4216,166 @@ components:
           type: array
           items: { $ref: '#/components/schemas/SearchResult' }
         nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+
+    # ── IAM MFA Recovery (SVC-02, NEN-043) ──
+    MfaRecoveryCodeIssueRequest:
+      type: object
+      required: [verificationMethod, reason]
+      properties:
+        verificationMethod:
+          type: string
+          enum: [TRUC_TIEP, VAN_BAN_DON_VI, GOI_VIDEO_NOI_BO]
+          description: Hình thức quản trị viên đã xác minh danh tính cán bộ mất thiết bị SmartOTP.
+        reason: { type: string, minLength: 10, maxLength: 500 }
+        ttlMinutes: { type: integer, minimum: 5, maximum: 15, default: 15 }
+    MfaRecoveryCodeIssued:
+      type: object
+      required: [codeId, personId, recoveryCode, expiresAt, issuedAt]
+      properties:
+        codeId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        recoveryCode:
+          type: string
+          x-classification: C2
+          description: Mã khôi phục một lần (hiển thị đúng một lần cho quản trị viên trao cho cán bộ).
+        expiresAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        issuedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - codeId: 0195f3f0-0000-7000-8000-000000000501
+          personId: 0195f3a0-0000-7000-8000-000000000101
+          recoveryCode: '9482-7310-5521'
+          expiresAt: '2026-04-01T08:15:00Z'
+          issuedAt: '2026-04-01T08:00:00Z'
+    MfaRecoveryCodeRevokeRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 5, maxLength: 500 }
+    MfaRecoveryCodeRevokeResult:
+      type: object
+      required: [revokedCount]
+      properties:
+        revokedCount: { type: integer, minimum: 0 }
+
+    # ── Notification Devices & Preferences (SVC-12, NEN-043) ──
+    PushPlatform:
+      type: string
+      enum: [FCM, APNS, WEB_PUSH]
+    PushDevice:
+      type: object
+      required: [id, platform, deviceName, registeredAt, lastSeenAt]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        platform: { $ref: '#/components/schemas/PushPlatform' }
+        deviceName: { type: string, maxLength: 120 }
+        appVersion: { type: string, maxLength: 32 }
+        registeredAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        lastSeenAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    PushDeviceList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PushDevice' }
+    PushDeviceRegisterRequest:
+      type: object
+      required: [platform, pushToken, deviceName]
+      properties:
+        platform: { $ref: '#/components/schemas/PushPlatform' }
+        pushToken: { type: string, minLength: 16, maxLength: 4096 }
+        deviceName: { type: string, minLength: 1, maxLength: 120 }
+        appVersion: { type: string, maxLength: 32 }
+        webPushKeys:
+          type: [object, 'null']
+          properties:
+            p256dh: { type: string }
+            auth: { type: string }
+    NotificationChannel:
+      type: string
+      enum: [IN_APP, PUSH, EMAIL, SMS]
+    NotificationCategory:
+      type: string
+      enum: [NHIEM_VU, PHE_DUYET, DANH_GIA, KY_SO, CANH_BAO_BAO_MAT, HE_THONG]
+    NotificationCategoryPreference:
+      type: object
+      required: [category, channels]
+      properties:
+        category: { $ref: '#/components/schemas/NotificationCategory' }
+        channels:
+          type: array
+          items: { $ref: '#/components/schemas/NotificationChannel' }
+    NotificationPreferences:
+      type: object
+      required: [categories, quietHoursEnabled, rowVersion, updatedAt]
+      properties:
+        categories:
+          type: array
+          items: { $ref: '#/components/schemas/NotificationCategoryPreference' }
+        quietHoursEnabled: { type: boolean, default: false }
+        quietHoursStart: { type: [string, 'null'], pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        quietHoursEnd: { type: [string, 'null'], pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    NotificationPreferencesInput:
+      type: object
+      required: [categories, quietHoursEnabled]
+      properties:
+        categories:
+          type: array
+          items: { $ref: '#/components/schemas/NotificationCategoryPreference' }
+        quietHoursEnabled: { type: boolean }
+        quietHoursStart: { type: [string, 'null'], pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        quietHoursEnd: { type: [string, 'null'], pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+
+    # ── AI OCR (SVC-14, NEN-043) ──
+    AiOcrRequest:
+      type: object
+      required: [objectKey, sha256, mimeType, classification]
+      properties:
+        objectKey: { type: string, minLength: 1, maxLength: 512 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        mimeType: { type: string, enum: [application/pdf, image/jpeg, image/png] }
+        classification:
+          type: string
+          enum: [C1, C2]
+          description: Chỉ cho phép C1/C2; tài liệu C3 bị từ chối theo BR-17-07.
+        languageHint: { type: string, default: vi }
+    AiOcrPage:
+      type: object
+      required: [pageNumber, text, confidence]
+      properties:
+        pageNumber: { type: integer, minimum: 1 }
+        text: { type: string }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+    AiOcrResult:
+      type: object
+      required: [objectKey, sha256, pages, fullText, modelId, processedAt]
+      properties:
+        objectKey: { type: string }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        pages:
+          type: array
+          items: { $ref: '#/components/schemas/AiOcrPage' }
+        fullText: { type: string }
+        modelId: { type: string }
+        processedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+
+    # ── Analytics Embed Token (SVC-15, NEN-043) ──
+    AnalyticsEmbedTokenRequest:
+      type: object
+      required: [dashboardCode]
+      properties:
+        dashboardCode: { type: string, minLength: 1, maxLength: 80 }
+        unitId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    AnalyticsEmbedToken:
+      type: object
+      required: [token, embedUrl, expiresAt, lockedOrgPathPrefix]
+      properties:
+        token: { type: string }
+        embedUrl: { type: string, format: uri }
+        expiresAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        lockedOrgPathPrefix:
+          type: string
+          description: Tiền tố `org_path` đã khoá cứng trong guest token (BR-16-01).

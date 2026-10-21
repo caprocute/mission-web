@@ -1,3150 +1,1980 @@
 {
-  "schemaVersion": "1.0",
-  "problemBaseUri": "https://okrkpi.vn/problems/",
+  "description": "Danh mục mã lỗi <MODULE>-<HTTP>-<TÊN> trích từ contracts/openapi (NEN-009). Không sửa tay: chạy tools/extract-error-codes.mjs.",
+  "source": "contracts/openapi/**/*.yaml",
+  "count": 189,
   "codes": [
     {
+      "code": "AI-403-C3-FORBIDDEN",
+      "module": "AI",
+      "status": 403,
+      "name": "C3-FORBIDDEN",
+      "type": "https://okrkpi.vn/problems/c3-forbidden",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
       "code": "AI-409-ALREADY-DECIDED",
-      "httpStatus": 409,
-      "slug": "already-decided",
-      "defaultTitleVi": "Gợi ý của trợ lý đã được xử lý trước đó",
-      "msg": null,
-      "rule": null
+      "module": "AI",
+      "status": 409,
+      "name": "ALREADY-DECIDED",
+      "type": "https://okrkpi.vn/problems/already-decided",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "AI-413-AUDIO-TOO-LARGE",
-      "httpStatus": 413,
-      "slug": "audio-too-large",
-      "defaultTitleVi": "Đoạn ghi âm vượt quá thời lượng hoặc dung lượng cho phép",
-      "msg": null,
-      "rule": null
+      "module": "AI",
+      "status": 413,
+      "name": "AUDIO-TOO-LARGE",
+      "type": "https://okrkpi.vn/problems/audio-too-large",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "AI-422-REASON-REQUIRED",
-      "httpStatus": 422,
-      "slug": "reason-required",
-      "defaultTitleVi": "Vui lòng nhập lý do khi bỏ qua gợi ý nhiệm vụ",
-      "msg": null,
-      "rule": null
+      "module": "AI",
+      "status": 422,
+      "name": "REASON-REQUIRED",
+      "type": "https://okrkpi.vn/problems/reason-required",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "AI-422-UNREADABLE",
-      "httpStatus": 422,
-      "slug": "unreadable",
-      "defaultTitleVi": "Tệp văn bản hoặc hình ảnh chưa đủ rõ để trích xuất nội dung",
+      "module": "AI",
+      "status": 422,
+      "name": "UNREADABLE",
+      "type": "https://okrkpi.vn/problems/unreadable",
       "msg": "MSG-07-06",
-      "rule": null
-    },
-    {
-      "code": "ANALYTICS-403-NOT-OWNER",
-      "httpStatus": 403,
-      "slug": "not-owner",
-      "defaultTitleVi": "Đồng chí không có quyền chỉnh sửa bảng theo dõi này",
-      "msg": null,
-      "rule": null
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "ANALYTICS-409-DUPLICATE-TITLE",
-      "httpStatus": 409,
-      "slug": "duplicate-title",
-      "defaultTitleVi": "Tên bảng theo dõi đã tồn tại",
-      "msg": null,
-      "rule": null
+      "module": "ANALYTICS",
+      "status": 409,
+      "name": "DUPLICATE-TITLE",
+      "type": "https://okrkpi.vn/problems/duplicate-title",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "ANALYTICS-422-INVALID-COMBINATION",
-      "httpStatus": 422,
-      "slug": "invalid-combination",
-      "defaultTitleVi": "Tổ hợp chỉ số và chiều phân tích không được hỗ trợ",
+      "module": "ANALYTICS",
+      "status": 422,
+      "name": "INVALID-COMBINATION",
+      "type": "https://okrkpi.vn/problems/invalid-combination",
       "msg": "MSG-16-04",
-      "rule": null
-    },
-    {
-      "code": "APPRAISAL-403-NOT-OWNER",
-      "httpStatus": 403,
-      "slug": "not-owner",
-      "defaultTitleVi": "Chỉ chủ hồ sơ mới được cập nhật phiếu tự đánh giá",
-      "msg": null,
-      "rule": null
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-403-SEPARATION-OF-DUTIES",
-      "httpStatus": 403,
-      "slug": "separation-of-duties",
-      "defaultTitleVi": "Vi phạm nguyên tắc tách vai trò khi đánh giá, xếp loại",
-      "msg": null,
-      "rule": "BR-09-12"
+      "module": "APPRAISAL",
+      "status": 403,
+      "name": "SEPARATION-OF-DUTIES",
+      "type": "https://okrkpi.vn/problems/separation-of-duties",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-409-BATCH-COMPLETED",
-      "httpStatus": 409,
-      "slug": "batch-completed",
-      "defaultTitleVi": "Lô quyết định đã hoàn tất ký số, không thể huỷ",
-      "msg": null,
-      "rule": null
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "BATCH-COMPLETED",
+      "type": "https://okrkpi.vn/problems/batch-completed",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-409-COMPLAINT-OPEN",
-      "httpStatus": 409,
-      "slug": "complaint-open",
-      "defaultTitleVi": "Còn khiếu nại quý chưa kết luận nên chưa thể chốt xếp loại năm",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "COMPLAINT-OPEN",
+      "type": "https://okrkpi.vn/problems/complaint-open",
       "msg": "MSG-10-03",
-      "rule": "BR-09-13"
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-409-DECISION-NO-DUPLICATE",
-      "httpStatus": 409,
-      "slug": "decision-no-duplicate",
-      "defaultTitleVi": "Số quyết định đã tồn tại trong năm của đơn vị",
-      "msg": "MSG-09-14",
-      "rule": "BR-09-13"
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "DECISION-NO-DUPLICATE",
+      "type": "https://okrkpi.vn/problems/decision-no-duplicate",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-409-INVALID-STATUS",
-      "httpStatus": 409,
-      "slug": "invalid-status",
-      "defaultTitleVi": "Hồ sơ đánh giá không ở bước cho phép thực hiện thao tác này",
-      "msg": null,
-      "rule": "BR-09-05"
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "INVALID-STATUS",
+      "type": "https://okrkpi.vn/problems/invalid-status",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-409-NO-REASSIGN-FLAG",
-      "httpStatus": 409,
-      "slug": "no-reassign-flag",
-      "defaultTitleVi": "Hồ sơ không thuộc diện gợi ý bố trí lại công tác",
-      "msg": null,
-      "rule": "BR-10-04"
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "NO-REASSIGN-FLAG",
+      "type": "https://okrkpi.vn/problems/no-reassign-flag",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-409-NOT-COMPUTED",
-      "httpStatus": 409,
-      "slug": "not-computed",
-      "defaultTitleVi": "Kết quả điểm của kỳ đang được tính toán, vui lòng thử lại sau",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "NOT-COMPUTED",
+      "type": "https://okrkpi.vn/problems/not-computed",
       "msg": "MSG-09-01",
-      "rule": null
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-409-PERIOD-LOCKED",
-      "httpStatus": 409,
-      "slug": "period-locked",
-      "defaultTitleVi": "Kỳ đánh giá đã khoá, không thể thay đổi hồ sơ",
-      "msg": null,
-      "rule": "BR-09-05"
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "PERIOD-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-locked",
+      "title": "Kỳ đánh giá đã khoá",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-409-PROSPECT-QUARTER",
-      "httpStatus": 409,
-      "slug": "prospect-quarter",
-      "defaultTitleVi": "Phân nhóm triển vọng chỉ thực hiện ở kỳ đánh giá năm",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "PROSPECT-QUARTER",
+      "type": "https://okrkpi.vn/problems/prospect-quarter",
       "msg": "MSG-10-05",
-      "rule": "BR-10-07"
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-409-REASSIGN-EXISTS",
-      "httpStatus": 409,
-      "slug": "reassign-exists",
-      "defaultTitleVi": "Đề xuất bố trí công tác cho hồ sơ này đã được lập",
-      "msg": null,
-      "rule": "BR-10-04"
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "REASSIGN-EXISTS",
+      "type": "https://okrkpi.vn/problems/reassign-exists",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-409-RETURN-LIMIT",
-      "httpStatus": 409,
-      "slug": "return-limit",
-      "defaultTitleVi": "Hồ sơ đã được trả lại đủ số lần tối đa cho phép",
-      "msg": "MSG-09-09",
-      "rule": "BR-09-14"
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "RETURN-LIMIT",
+      "type": "https://okrkpi.vn/problems/return-limit",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-409-VERSION-CONFLICT",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Hồ sơ đánh giá đã được người khác cập nhật, vui lòng tải lại",
-      "msg": "MSG-09-13",
-      "rule": "BR-09-05"
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-422-BREAKTHROUGH-REQUIRED",
-      "httpStatus": 422,
-      "slug": "breakthrough-required",
-      "defaultTitleVi": "Đề xuất mức Hoàn thành xuất sắc nhiệm vụ cần mô tả giải pháp đột phá và minh chứng",
+      "module": "APPRAISAL",
+      "status": 422,
+      "name": "BREAKTHROUGH-REQUIRED",
+      "type": "https://okrkpi.vn/problems/breakthrough-required",
       "msg": "MSG-09-03",
-      "rule": "BR-09-15"
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-422-CALIBRATION-REQUIRED",
-      "httpStatus": 422,
-      "slug": "calibration-required",
-      "defaultTitleVi": "Tỷ lệ xếp loại xuất sắc vượt ngưỡng quy định, cần thuyết minh hiệu chỉnh",
+      "module": "APPRAISAL",
+      "status": 422,
+      "name": "CALIBRATION-REQUIRED",
+      "type": "https://okrkpi.vn/problems/calibration-required",
       "msg": "MSG-09-13",
-      "rule": "BR-09-17"
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-422-HEAD-TOO-EARLY",
-      "httpStatus": 422,
-      "slug": "head-too-early",
-      "defaultTitleVi": "Chỉ quyết định xếp loại người đứng đầu sau khi đơn vị trực thuộc đã hoàn tất",
+      "module": "APPRAISAL",
+      "status": 422,
+      "name": "HEAD-TOO-EARLY",
+      "type": "https://okrkpi.vn/problems/head-too-early",
       "msg": "MSG-09-14",
-      "rule": "BR-09-13"
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-422-PROSPECT-NOT-ELIGIBLE",
-      "httpStatus": 422,
-      "slug": "prospect-not-eligible",
-      "defaultTitleVi": "Hồ sơ không đủ điều kiện đưa vào nhóm triển vọng đã chọn",
+      "module": "APPRAISAL",
+      "status": 422,
+      "name": "PROSPECT-NOT-ELIGIBLE",
+      "type": "https://okrkpi.vn/problems/prospect-not-eligible",
       "msg": "MSG-10-06",
-      "rule": "BR-10-09"
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "APPRAISAL-422-REASON-REQUIRED",
-      "httpStatus": 422,
-      "slug": "reason-required",
-      "defaultTitleVi": "Vui lòng nhập lý do giải trình khi thay đổi mức xếp loại",
+      "module": "APPRAISAL",
+      "status": 422,
+      "name": "REASON-REQUIRED",
+      "type": "https://okrkpi.vn/problems/reason-required",
       "msg": "MSG-09-02",
-      "rule": "BR-09-15"
-    },
-    {
-      "code": "AUTH-401-INVALID-CREDENTIALS",
-      "httpStatus": 401,
-      "slug": "invalid-credentials",
-      "defaultTitleVi": "Thông tin đăng nhập không hợp lệ",
-      "msg": "MSG-00-01",
-      "rule": "BR-AUTH-01"
-    },
-    {
-      "code": "COMMON-400-BAD-REQUEST",
-      "httpStatus": 400,
-      "slug": "bad-request",
-      "defaultTitleVi": "Yêu cầu không hợp lệ",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "COMMON-400-VALIDATION",
-      "httpStatus": 400,
-      "slug": "validation",
-      "defaultTitleVi": "Tham số yêu cầu không hợp lệ",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "COMMON-401-UNAUTHORIZED",
-      "httpStatus": 401,
-      "slug": "unauthorized",
-      "defaultTitleVi": "Phiên đăng nhập đã hết hạn hoặc chưa xác thực",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "COMMON-403-FORBIDDEN",
-      "httpStatus": 403,
-      "slug": "forbidden",
-      "defaultTitleVi": "Đồng chí không có quyền thực hiện thao tác này",
-      "msg": null,
-      "rule": null
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
     },
     {
       "code": "COMMON-403-OUT-OF-SCOPE",
-      "httpStatus": 403,
-      "slug": "forbidden",
-      "defaultTitleVi": "Không có quyền thực hiện thao tác ngoài phạm vi được phân công",
-      "msg": null,
-      "rule": "BR-14-02"
-    },
-    {
-      "code": "COMMON-404-NOT-FOUND",
-      "httpStatus": 404,
-      "slug": "not-found",
-      "defaultTitleVi": "Không tìm thấy dữ liệu yêu cầu",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "COMMON-405-METHOD-NOT-ALLOWED",
-      "httpStatus": 405,
-      "slug": "method-not-allowed",
-      "defaultTitleVi": "Phương thức truy cập không được hỗ trợ",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "COMMON-409-CONCURRENT-MODIFICATION",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Dữ liệu đã được người khác cập nhật, vui lòng tải lại",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "COMMON-409-VERSION-CONFLICT",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Dữ liệu đã được người khác cập nhật, vui lòng tải lại",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "COMMON-412-PRECONDITION-FAILED",
-      "httpStatus": 412,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Dữ liệu đã được người khác cập nhật, vui lòng tải lại",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "COMMON-415-UNSUPPORTED-MEDIA-TYPE",
-      "httpStatus": 415,
-      "slug": "unsupported-media-type",
-      "defaultTitleVi": "Định dạng dữ liệu gửi lên không được hỗ trợ",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "COMMON-422-BUSINESS-RULE",
-      "httpStatus": 422,
-      "slug": "business-rule",
-      "defaultTitleVi": "Dữ liệu vi phạm quy tắc nghiệp vụ",
-      "msg": null,
-      "rule": null
+      "module": "COMMON",
+      "status": 403,
+      "name": "OUT-OF-SCOPE",
+      "type": "https://okrkpi.vn/problems/forbidden",
+      "title": "Không có quyền thực hiện thao tác này",
+      "sources": [
+        "common/common.yaml",
+        "modules/oversight.yaml",
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "COMMON-422-IDEMPOTENCY-MISMATCH",
-      "httpStatus": 422,
-      "slug": "idempotency-mismatch",
-      "defaultTitleVi": "Khoá chống ghi trùng đã được dùng cho một yêu cầu có nội dung khác",
-      "msg": null,
-      "rule": null
+      "module": "COMMON",
+      "status": 422,
+      "name": "IDEMPOTENCY-MISMATCH",
+      "type": "https://okrkpi.vn/problems/idempotency-mismatch",
+      "sources": [
+        "common/common.yaml"
+      ]
     },
     {
       "code": "COMMON-422-VALIDATION",
-      "httpStatus": 422,
-      "slug": "validation",
-      "defaultTitleVi": "Dữ liệu chưa hợp lệ",
-      "msg": "MSG-12-01",
-      "rule": "BR-07-08"
-    },
-    {
-      "code": "COMMON-428-PRECONDITION-REQUIRED",
-      "httpStatus": 428,
-      "slug": "precondition-required",
-      "defaultTitleVi": "Thiếu thông tin phiên bản dữ liệu, vui lòng tải lại trang",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "COMMON-500-INTERNAL-ERROR",
-      "httpStatus": 500,
-      "slug": "internal-error",
-      "defaultTitleVi": "Hệ thống chưa xử lý được yêu cầu, vui lòng thử lại sau",
-      "msg": null,
-      "rule": null
+      "module": "COMMON",
+      "status": 422,
+      "name": "VALIDATION",
+      "type": "https://okrkpi.vn/problems/validation",
+      "title": "Dữ liệu chưa hợp lệ",
+      "sources": [
+        "common/common.yaml",
+        "modules/oversight.yaml",
+        "modules/policies.yaml",
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "CONFIG-403-SELF-GRANT",
-      "httpStatus": 403,
-      "slug": "self-grant",
-      "defaultTitleVi": "Không được tự cấp hoặc tự phê duyệt quyền cho chính mình",
-      "msg": "MSG-01-17",
-      "rule": "BR-01-14"
+      "module": "CONFIG",
+      "status": 403,
+      "name": "SELF-GRANT",
+      "type": "https://okrkpi.vn/problems/self-grant",
+      "msg": "MSG-01-16",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-409-ALREADY-ENDED",
-      "httpStatus": 409,
-      "slug": "already-ended",
-      "defaultTitleVi": "Phân quyền hoặc uỷ quyền này đã kết thúc hiệu lực",
-      "msg": null,
-      "rule": "BR-01-13"
+      "module": "CONFIG",
+      "status": 409,
+      "name": "ALREADY-ENDED",
+      "type": "https://okrkpi.vn/problems/already-ended",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-409-DATE-EXISTS",
-      "httpStatus": 409,
-      "slug": "date-exists",
-      "defaultTitleVi": "Ngày này đã có trong lịch làm việc của đơn vị",
-      "msg": null,
-      "rule": null
+      "module": "CONFIG",
+      "status": 409,
+      "name": "DATE-EXISTS",
+      "type": "https://okrkpi.vn/problems/date-exists",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-409-DOMAIN-TAKEN",
-      "httpStatus": 409,
-      "slug": "domain-taken",
-      "defaultTitleVi": "Tên miền truy cập đã được đăng ký cho đơn vị khác",
+      "module": "CONFIG",
+      "status": 409,
+      "name": "DOMAIN-TAKEN",
+      "type": "https://okrkpi.vn/problems/domain-taken",
       "msg": "MSG-01-04",
-      "rule": "BR-01-04"
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-409-DUPLICATE-BINDING",
-      "httpStatus": 409,
-      "slug": "duplicate-binding",
-      "defaultTitleVi": "Đã có phân quyền cùng vai trò và phạm vi đang còn hiệu lực",
-      "msg": "MSG-01-16",
-      "rule": "BR-01-15"
+      "module": "CONFIG",
+      "status": 409,
+      "name": "DUPLICATE-BINDING",
+      "type": "https://okrkpi.vn/problems/duplicate-binding",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-409-NOT-PENDING",
-      "httpStatus": 409,
-      "slug": "not-pending",
-      "defaultTitleVi": "Đề nghị phân quyền không còn ở trạng thái chờ phê duyệt",
-      "msg": "MSG-01-16",
-      "rule": "BR-01-13"
+      "module": "CONFIG",
+      "status": 409,
+      "name": "NOT-PENDING",
+      "type": "https://okrkpi.vn/problems/not-pending",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-409-TENANT-STATE",
-      "httpStatus": 409,
-      "slug": "tenant-state",
-      "defaultTitleVi": "Trạng thái hiện tại của đơn vị không cho phép thực hiện thao tác này",
-      "msg": null,
-      "rule": "BR-01-10"
+      "module": "CONFIG",
+      "status": 409,
+      "name": "TENANT-STATE",
+      "type": "https://okrkpi.vn/problems/tenant-state",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-409-VERSION-CONFLICT",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Cấu hình đã được người khác cập nhật, vui lòng tải lại",
-      "msg": "MSG-01-04",
-      "rule": "BR-01-04"
+      "module": "CONFIG",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-422-CELL-OVER-CAPACITY",
-      "httpStatus": 422,
-      "slug": "cell-over-capacity",
-      "defaultTitleVi": "Cụm máy chủ đích đã vượt ngưỡng dung lượng tiếp nhận",
+      "module": "CONFIG",
+      "status": 422,
+      "name": "CELL-OVER-CAPACITY",
+      "type": "https://okrkpi.vn/problems/cell-over-capacity",
       "msg": "MSG-01-03",
-      "rule": "BR-01-01"
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-422-FLOW-PACK-MISSING",
-      "httpStatus": 422,
-      "slug": "flow-pack-missing",
-      "defaultTitleVi": "Chưa cấu hình đầy đủ gói chính sách cho luồng đánh giá đã chọn",
-      "msg": "MSG-01-05",
-      "rule": "BR-01-03"
+      "module": "CONFIG",
+      "status": 422,
+      "name": "FLOW-PACK-MISSING",
+      "type": "https://okrkpi.vn/problems/flow-pack-missing",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-422-HIGH-DISCREPANCY",
-      "httpStatus": 422,
-      "slug": "high-discrepancy",
-      "defaultTitleVi": "Còn sai lệch dữ liệu mức độ cao chưa được xử lý",
-      "msg": null,
-      "rule": "BR-01-10"
+      "module": "CONFIG",
+      "status": 422,
+      "name": "HIGH-DISCREPANCY",
+      "type": "https://okrkpi.vn/problems/high-discrepancy",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-422-POLICY-PACK-NOT-READY",
-      "httpStatus": 422,
-      "slug": "policy-pack-not-ready",
-      "defaultTitleVi": "Gói chính sách chưa hoàn tất kiểm thử chuẩn",
+      "module": "CONFIG",
+      "status": 422,
+      "name": "POLICY-PACK-NOT-READY",
+      "type": "https://okrkpi.vn/problems/policy-pack-not-ready",
       "msg": "MSG-01-05",
-      "rule": "BR-01-03"
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-422-REDELEGATION",
-      "httpStatus": 422,
-      "slug": "redelegation",
-      "defaultTitleVi": "Người nhận uỷ quyền không được phép uỷ quyền lại cho người khác",
+      "module": "CONFIG",
+      "status": 422,
+      "name": "REDELEGATION",
+      "type": "https://okrkpi.vn/problems/redelegation",
       "msg": "MSG-01-18",
-      "rule": "BR-01-17"
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-422-SILO-REQUIRED",
-      "httpStatus": 422,
-      "slug": "silo-required",
-      "defaultTitleVi": "Quy mô đơn vị yêu cầu mô hình hạ tầng độc lập",
-      "msg": "MSG-01-03",
-      "rule": "BR-01-01"
+      "module": "CONFIG",
+      "status": 422,
+      "name": "SILO-REQUIRED",
+      "type": "https://okrkpi.vn/problems/silo-required",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "CONFIG-422-VALIDITY",
-      "httpStatus": 422,
-      "slug": "validity",
-      "defaultTitleVi": "Thời hạn hiệu lực bắt đầu và kết thúc không hợp lệ",
-      "msg": "MSG-01-16",
-      "rule": "BR-01-16"
+      "module": "CONFIG",
+      "status": 422,
+      "name": "VALIDITY",
+      "type": "https://okrkpi.vn/problems/validity",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "DOSSIER-403-NOT-CHAIR",
-      "httpStatus": 403,
-      "slug": "not-chair",
-      "defaultTitleVi": "Chỉ người chủ trì hội nghị mới có quyền thực hiện thao tác này",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 403,
+      "name": "NOT-CHAIR",
+      "type": "https://okrkpi.vn/problems/not-chair",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-403-NOT-PARTICIPANT",
-      "httpStatus": 403,
-      "slug": "not-participant",
-      "defaultTitleVi": "Đồng chí không thuộc thành phần tham dự của hội nghị này",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 403,
+      "name": "NOT-PARTICIPANT",
+      "type": "https://okrkpi.vn/problems/not-participant",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-403-NOT-SECRETARY",
-      "httpStatus": 403,
-      "slug": "not-secretary",
-      "defaultTitleVi": "Chỉ thư ký hội nghị mới có quyền ghi biên bản và kết quả bỏ phiếu",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 403,
+      "name": "NOT-SECRETARY",
+      "type": "https://okrkpi.vn/problems/not-secretary",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-403-NOT-SUBJECT",
-      "httpStatus": 403,
-      "slug": "not-subject",
-      "defaultTitleVi": "Chỉ cán bộ được kiểm điểm mới có quyền thực hiện thao tác này",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 403,
+      "name": "NOT-SUBJECT",
+      "type": "https://okrkpi.vn/problems/not-subject",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-CHECKLIST-NOT-PASSED",
-      "httpStatus": 409,
-      "slug": "checklist-not-passed",
-      "defaultTitleVi": "Danh mục kiểm tra hồ sơ chưa đạt đầy đủ các điều kiện bắt buộc",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "CHECKLIST-NOT-PASSED",
+      "type": "https://okrkpi.vn/problems/checklist-not-passed",
+      "title": "Chưa thể ký gói",
       "msg": "MSG-11-04",
-      "rule": null
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-COMMENTS-LOCKED",
-      "httpStatus": 409,
-      "slug": "comments-locked",
-      "defaultTitleVi": "Hội nghị đã kết thúc, không thể gửi thêm ý kiến góp ý",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "COMMENTS-LOCKED",
+      "type": "https://okrkpi.vn/problems/comments-locked",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-FORM-NOT-RENDERED",
-      "httpStatus": 409,
-      "slug": "form-not-rendered",
-      "defaultTitleVi": "Biểu mẫu hồ sơ đang được tạo hoặc gặp lỗi, chưa thể tải xuống",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "FORM-NOT-RENDERED",
+      "type": "https://okrkpi.vn/problems/form-not-rendered",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-INVALID-STATE",
-      "httpStatus": 409,
-      "slug": "invalid-state",
-      "defaultTitleVi": "Trạng thái gói hồ sơ hoặc hội nghị không cho phép thực hiện thao tác",
-      "msg": "MSG-11-04",
-      "rule": null
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "INVALID-STATE",
+      "type": "https://okrkpi.vn/problems/invalid-state",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-MEETING-EXISTS",
-      "httpStatus": 409,
-      "slug": "meeting-exists",
-      "defaultTitleVi": "Đã có hội nghị kiểm điểm cùng loại cho đối tượng này trong kỳ",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "MEETING-EXISTS",
+      "type": "https://okrkpi.vn/problems/meeting-exists",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-MEETING-HELD",
-      "httpStatus": 409,
-      "slug": "meeting-held",
-      "defaultTitleVi": "Hội nghị kiểm điểm đã diễn ra, không thể thay đổi thông tin triệu tập",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "MEETING-HELD",
+      "type": "https://okrkpi.vn/problems/meeting-held",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-NO-CENTRAL-PROFILES",
-      "httpStatus": 409,
-      "slug": "no-central-profiles",
-      "defaultTitleVi": "Gói hồ sơ không có cán bộ thuộc diện Trung ương quản lý",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "NO-CENTRAL-PROFILES",
+      "type": "https://okrkpi.vn/problems/no-central-profiles",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-NO-FAILED-FORMS",
-      "httpStatus": 409,
-      "slug": "no-failed-forms",
-      "defaultTitleVi": "Không có biểu mẫu lỗi nào cần tạo lại trong gói hồ sơ",
-      "msg": null,
-      "rule": "BR-11-10"
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "NO-FAILED-FORMS",
+      "type": "https://okrkpi.vn/problems/no-failed-forms",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-NO-VOTE",
-      "httpStatus": 409,
-      "slug": "no-vote",
-      "defaultTitleVi": "Chưa ghi nhận kết quả bỏ phiếu của hội nghị",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "NO-VOTE",
+      "type": "https://okrkpi.vn/problems/no-vote",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-PACKAGE-EXISTS",
-      "httpStatus": 409,
-      "slug": "package-exists",
-      "defaultTitleVi": "Đơn vị đã có gói hồ sơ còn hiệu lực cho kỳ đánh giá này",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PACKAGE-EXISTS",
+      "type": "https://okrkpi.vn/problems/package-exists",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-PACKAGE-LOCKED",
-      "httpStatus": 409,
-      "slug": "package-locked",
-      "defaultTitleVi": "Gói hồ sơ đã khoá hoặc đã ký số, không thể chỉnh sửa",
-      "msg": "MSG-11-04",
-      "rule": "BR-11-10"
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PACKAGE-LOCKED",
+      "type": "https://okrkpi.vn/problems/package-locked",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-PACKAGE-NOT-READY",
-      "httpStatus": 409,
-      "slug": "package-not-ready",
-      "defaultTitleVi": "Gói hồ sơ chưa sẵn sàng để trình ký",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PACKAGE-NOT-READY",
+      "type": "https://okrkpi.vn/problems/package-not-ready",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-PACKAGE-NOT-SIGNED",
-      "httpStatus": 409,
-      "slug": "package-not-signed",
-      "defaultTitleVi": "Gói hồ sơ chưa được ký số xác nhận",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PACKAGE-NOT-SIGNED",
+      "type": "https://okrkpi.vn/problems/package-not-signed",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-PERIOD-LOCKED",
-      "httpStatus": 409,
-      "slug": "period-locked",
-      "defaultTitleVi": "Kỳ đánh giá đã khoá, không thể thay đổi hồ sơ kiểm điểm",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PERIOD-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-locked",
+      "title": "Kỳ đánh giá đã khoá",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-PERIOD-NOT-DECIDED",
-      "httpStatus": 409,
-      "slug": "period-not-decided",
-      "defaultTitleVi": "Kỳ đánh giá chưa hoàn tất quyết định xếp loại",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PERIOD-NOT-DECIDED",
+      "type": "https://okrkpi.vn/problems/period-not-decided",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-PROFILES-NOT-DECIDED",
-      "httpStatus": 409,
-      "slug": "profiles-not-decided",
-      "defaultTitleVi": "Còn hồ sơ trong đơn vị chưa có quyết định xếp loại chính thức",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PROFILES-NOT-DECIDED",
+      "type": "https://okrkpi.vn/problems/profiles-not-decided",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-409-VERSION-CONFLICT",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Hồ sơ kiểm điểm đã được người khác cập nhật, vui lòng tải lại",
-      "msg": "MSG-11-04",
-      "rule": "BR-11-10"
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-422-DESTINATION-NOT-CONFIGURED",
-      "httpStatus": 422,
-      "slug": "destination-not-configured",
-      "defaultTitleVi": "Chưa cấu hình nơi nhận bàn giao gói hồ sơ",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 422,
+      "name": "DESTINATION-NOT-CONFIGURED",
+      "type": "https://okrkpi.vn/problems/destination-not-configured",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-422-VALIDATION",
-      "httpStatus": 422,
-      "slug": "validation",
-      "defaultTitleVi": "Thông tin hội nghị hoặc hồ sơ kiểm điểm chưa hợp lệ",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 422,
+      "name": "VALIDATION",
+      "type": "https://okrkpi.vn/problems/validation",
+      "title": "Dữ liệu chưa hợp lệ",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "DOSSIER-422-VOTE-EXCEEDS-ATTENDEES",
-      "httpStatus": 422,
-      "slug": "vote-exceeds-attendees",
-      "defaultTitleVi": "Tổng số phiếu bầu vượt quá số đại biểu có mặt tại hội nghị",
-      "msg": null,
-      "rule": null
+      "module": "DOSSIER",
+      "status": 422,
+      "name": "VOTE-EXCEEDS-ATTENDEES",
+      "type": "https://okrkpi.vn/problems/vote-exceeds-attendees",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "ESIGN-403-NOT-SIGNER",
-      "httpStatus": 403,
-      "slug": "not-signer",
-      "defaultTitleVi": "Đồng chí không phải người có thẩm quyền ký văn bản này",
-      "msg": null,
-      "rule": null
+      "module": "ESIGN",
+      "status": 403,
+      "name": "NOT-SIGNER",
+      "type": "https://okrkpi.vn/problems/not-signer",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "ESIGN-409-REQUEST-PENDING",
-      "httpStatus": 409,
-      "slug": "request-pending",
-      "defaultTitleVi": "Đang có một yêu cầu ký số khác chờ xác nhận cho hồ sơ này",
-      "msg": null,
-      "rule": null
+      "module": "ESIGN",
+      "status": 409,
+      "name": "REQUEST-PENDING",
+      "type": "https://okrkpi.vn/problems/request-pending",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "ESIGN-409-SOURCE-NOT-READY",
-      "httpStatus": 409,
-      "slug": "source-not-ready",
-      "defaultTitleVi": "Tài liệu gốc chưa sẵn sàng để thực hiện ký số",
-      "msg": null,
-      "rule": null
+      "module": "ESIGN",
+      "status": 409,
+      "name": "SOURCE-NOT-READY",
+      "type": "https://okrkpi.vn/problems/source-not-ready",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "ESIGN-422-CERTIFICATE-INVALID",
-      "httpStatus": 422,
-      "slug": "certificate-invalid",
-      "defaultTitleVi": "Chứng thư số hết hạn, bị thu hồi hoặc không hợp lệ",
-      "msg": null,
-      "rule": null
+      "module": "ESIGN",
+      "status": 422,
+      "name": "CERTIFICATE-INVALID",
+      "type": "https://okrkpi.vn/problems/certificate-invalid",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "ESIGN-422-PROVIDER-UNAVAILABLE",
-      "httpStatus": 422,
-      "slug": "provider-unavailable",
-      "defaultTitleVi": "Dịch vụ ký số tạm thời gián đoạn, vui lòng thử lại sau",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "ESIGN-503-UNAVAILABLE",
-      "httpStatus": 503,
-      "slug": "unavailable",
-      "defaultTitleVi": "Dịch vụ ký số tạm thời gián đoạn, vui lòng thử lại sau",
-      "msg": null,
-      "rule": null
+      "module": "ESIGN",
+      "status": 422,
+      "name": "PROVIDER-UNAVAILABLE",
+      "type": "https://okrkpi.vn/problems/provider-unavailable",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
     },
     {
       "code": "FILE-409-NOT-CLEAN",
-      "httpStatus": 409,
-      "slug": "not-clean",
-      "defaultTitleVi": "Tệp đính kèm đang chờ quét an toàn hoặc chứa mã độc",
+      "module": "FILE",
+      "status": 409,
+      "name": "NOT-CLEAN",
+      "type": "https://okrkpi.vn/problems/not-clean",
       "msg": "MSG-07-02",
-      "rule": null
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "FILE-409-UPLOAD-CLOSED",
-      "httpStatus": 409,
-      "slug": "upload-closed",
-      "defaultTitleVi": "Phiên tải tệp lên đã đóng hoặc đã hoàn tất",
-      "msg": null,
-      "rule": null
+      "module": "FILE",
+      "status": 409,
+      "name": "UPLOAD-CLOSED",
+      "type": "https://okrkpi.vn/problems/upload-closed",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "FILE-413-PART-TOO-LARGE",
-      "httpStatus": 413,
-      "slug": "part-too-large",
-      "defaultTitleVi": "Phần tệp tải lên vượt quá dung lượng tối đa cho phép",
-      "msg": null,
-      "rule": null
+      "module": "FILE",
+      "status": 413,
+      "name": "PART-TOO-LARGE",
+      "type": "https://okrkpi.vn/problems/part-too-large",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "FILE-413-TOO-LARGE",
-      "httpStatus": 413,
-      "slug": "too-large",
-      "defaultTitleVi": "Dung lượng tệp vượt quá giới hạn cho phép (50 MB)",
-      "msg": null,
-      "rule": null
+      "module": "FILE",
+      "status": 413,
+      "name": "TOO-LARGE",
+      "type": "https://okrkpi.vn/problems/too-large",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "FILE-415-UNSUPPORTED-TYPE",
-      "httpStatus": 415,
-      "slug": "unsupported-type",
-      "defaultTitleVi": "Định dạng tệp không nằm trong danh mục được phép tải lên",
-      "msg": null,
-      "rule": null
+      "module": "FILE",
+      "status": 415,
+      "name": "UNSUPPORTED-TYPE",
+      "type": "https://okrkpi.vn/problems/unsupported-type",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "FILE-422-CONTENT-TYPE-MISMATCH",
-      "httpStatus": 422,
-      "slug": "content-type-mismatch",
-      "defaultTitleVi": "Nội dung thực tế của tệp không khớp với định dạng khai báo",
-      "msg": "MSG-07-03",
-      "rule": null
+      "module": "FILE",
+      "status": 422,
+      "name": "CONTENT-TYPE-MISMATCH",
+      "type": "https://okrkpi.vn/problems/content-type-mismatch",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "FILE-422-HASH-MISMATCH",
-      "httpStatus": 422,
-      "slug": "hash-mismatch",
-      "defaultTitleVi": "Mã kiểm tra toàn vẹn của tệp không khớp, vui lòng tải lại tệp",
+      "module": "FILE",
+      "status": 422,
+      "name": "HASH-MISMATCH",
+      "type": "https://okrkpi.vn/problems/hash-mismatch",
       "msg": "MSG-07-03",
-      "rule": null
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "FILE-422-MISSING-PARTS",
-      "httpStatus": 422,
-      "slug": "missing-parts",
-      "defaultTitleVi": "Chưa nhận đủ các phần dữ liệu của tệp tải lên",
-      "msg": "MSG-07-03",
-      "rule": null
+      "module": "FILE",
+      "status": 422,
+      "name": "MISSING-PARTS",
+      "type": "https://okrkpi.vn/problems/missing-parts",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "FILE-422-SIZE-MISMATCH",
-      "httpStatus": 422,
-      "slug": "size-mismatch",
-      "defaultTitleVi": "Dung lượng tệp thực tế không khớp với dung lượng đã khai báo",
-      "msg": "MSG-07-03",
-      "rule": null
+      "module": "FILE",
+      "status": 422,
+      "name": "SIZE-MISMATCH",
+      "type": "https://okrkpi.vn/problems/size-mismatch",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "JOB-409-NOT-CANCELLABLE",
-      "httpStatus": 409,
-      "slug": "not-cancellable",
-      "defaultTitleVi": "Tác vụ đã hoàn tất hoặc không hỗ trợ huỷ giữa chừng",
-      "msg": null,
-      "rule": null
+      "module": "JOB",
+      "status": 409,
+      "name": "NOT-CANCELLABLE",
+      "type": "https://okrkpi.vn/problems/not-cancellable",
+      "sources": [
+        "modules/jobs.yaml"
+      ]
     },
     {
       "code": "LEDGER-409-NOT-SEALED",
-      "httpStatus": 409,
-      "slug": "not-sealed",
-      "defaultTitleVi": "Bản ghi sổ cái đang chờ niêm phong chuỗi băm, vui lòng thử lại sau",
-      "msg": null,
-      "rule": null
+      "module": "LEDGER",
+      "status": 409,
+      "name": "NOT-SEALED",
+      "type": "https://okrkpi.vn/problems/not-sealed",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
     },
     {
       "code": "LEDGER-422-RANGE-TOO-LONG",
-      "httpStatus": 422,
-      "slug": "range-too-long",
-      "defaultTitleVi": "Khoảng thời gian tra cứu sổ cái không được vượt quá 2 năm",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "MSG-00-01",
-      "httpStatus": 401,
-      "slug": "invalid-credentials",
-      "defaultTitleVi": "Thông tin đăng nhập không hợp lệ",
-      "msg": "MSG-00-01",
-      "rule": "BR-AUTH-01"
-    },
-    {
-      "code": "MSG-00-02",
-      "httpStatus": 422,
-      "slug": "msg-00-02",
-      "defaultTitleVi": "Thông báo xác thực và phiên làm việc",
-      "msg": "MSG-00-02",
-      "rule": null
-    },
-    {
-      "code": "MSG-00-03",
-      "httpStatus": 422,
-      "slug": "msg-00-03",
-      "defaultTitleVi": "Thông báo xác thực và phiên làm việc",
-      "msg": "MSG-00-03",
-      "rule": null
-    },
-    {
-      "code": "MSG-00-04",
-      "httpStatus": 422,
-      "slug": "msg-00-04",
-      "defaultTitleVi": "Thông báo xác thực và phiên làm việc",
-      "msg": "MSG-00-04",
-      "rule": null
-    },
-    {
-      "code": "MSG-00-05",
-      "httpStatus": 422,
-      "slug": "msg-00-05",
-      "defaultTitleVi": "Thông báo xác thực và phiên làm việc",
-      "msg": "MSG-00-05",
-      "rule": "BR-00-01"
-    },
-    {
-      "code": "MSG-00-06",
-      "httpStatus": 422,
-      "slug": "msg-00-06",
-      "defaultTitleVi": "Tài khoản chưa có phân công công tác còn hiệu lực. Vui lòng liên hệ quản trị của đơn vị.",
-      "msg": "MSG-00-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-00-07",
-      "httpStatus": 422,
-      "slug": "msg-00-07",
-      "defaultTitleVi": "Thông báo xác thực và phiên làm việc",
-      "msg": "MSG-00-07",
-      "rule": null
-    },
-    {
-      "code": "MSG-00-08",
-      "httpStatus": 422,
-      "slug": "msg-00-08",
-      "defaultTitleVi": "Thông báo xác thực và phiên làm việc",
-      "msg": "MSG-00-08",
-      "rule": null
-    },
-    {
-      "code": "MSG-00-09",
-      "httpStatus": 422,
-      "slug": "msg-00-09",
-      "defaultTitleVi": "Thông báo xác thực và phiên làm việc",
-      "msg": "MSG-00-09",
-      "rule": null
-    },
-    {
-      "code": "MSG-00-10",
-      "httpStatus": 422,
-      "slug": "msg-00-10",
-      "defaultTitleVi": "Thông báo xác thực và phiên làm việc",
-      "msg": "MSG-00-10",
-      "rule": null
-    },
-    {
-      "code": "MSG-00-11",
-      "httpStatus": 422,
-      "slug": "msg-00-11",
-      "defaultTitleVi": "Thông báo xác thực và phiên làm việc",
-      "msg": "MSG-00-11",
-      "rule": null
-    },
-    {
-      "code": "MSG-01-01",
-      "httpStatus": 422,
-      "slug": "msg-01-01",
-      "defaultTitleVi": "Thông báo cấu hình đơn vị và tổ chức cán bộ",
-      "msg": "MSG-01-01",
-      "rule": "BR-01-01"
-    },
-    {
-      "code": "MSG-01-02",
-      "httpStatus": 422,
-      "slug": "msg-01-02",
-      "defaultTitleVi": "Thông báo cấu hình đơn vị và tổ chức cán bộ",
-      "msg": "MSG-01-02",
-      "rule": null
-    },
-    {
-      "code": "MSG-01-03",
-      "httpStatus": 422,
-      "slug": "silo-required",
-      "defaultTitleVi": "Quy mô đơn vị yêu cầu mô hình hạ tầng độc lập",
-      "msg": "MSG-01-03",
-      "rule": "BR-01-01"
-    },
-    {
-      "code": "MSG-01-04",
-      "httpStatus": 409,
-      "slug": "domain-taken",
-      "defaultTitleVi": "Tên miền truy cập đã được đăng ký cho đơn vị khác",
-      "msg": "MSG-01-04",
-      "rule": "BR-01-04"
-    },
-    {
-      "code": "MSG-01-05",
-      "httpStatus": 422,
-      "slug": "policy-pack-not-ready",
-      "defaultTitleVi": "Gói chính sách chưa hoàn tất kiểm thử chuẩn",
-      "msg": "MSG-01-05",
-      "rule": "BR-01-03"
-    },
-    {
-      "code": "MSG-01-06",
-      "httpStatus": 422,
-      "slug": "msg-01-06",
-      "defaultTitleVi": "Thông báo cấu hình đơn vị và tổ chức cán bộ",
-      "msg": "MSG-01-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-01-07",
-      "httpStatus": 422,
-      "slug": "msg-01-07",
-      "defaultTitleVi": "Thông báo cấu hình đơn vị và tổ chức cán bộ",
-      "msg": "MSG-01-07",
-      "rule": "BR-01-01"
-    },
-    {
-      "code": "MSG-01-08",
-      "httpStatus": 422,
-      "slug": "msg-01-08",
-      "defaultTitleVi": "Thông báo cấu hình đơn vị và tổ chức cán bộ",
-      "msg": "MSG-01-08",
-      "rule": null
-    },
-    {
-      "code": "MSG-01-09",
-      "httpStatus": 422,
-      "slug": "msg-01-09",
-      "defaultTitleVi": "Sáp nhập cần khai báo ít nhất một đơn vị tiền thân.",
-      "msg": "MSG-01-09",
-      "rule": null
-    },
-    {
-      "code": "MSG-01-10",
-      "httpStatus": 422,
-      "slug": "msg-01-10",
-      "defaultTitleVi": "Thông báo cấu hình đơn vị và tổ chức cán bộ",
-      "msg": "MSG-01-10",
-      "rule": null
-    },
-    {
-      "code": "MSG-01-11",
-      "httpStatus": 422,
-      "slug": "msg-01-11",
-      "defaultTitleVi": "Thông báo cấu hình đơn vị và tổ chức cán bộ",
-      "msg": "MSG-01-11",
-      "rule": null
-    },
-    {
-      "code": "MSG-01-12",
-      "httpStatus": 422,
-      "slug": "msg-01-12",
-      "defaultTitleVi": "Thông báo cấu hình đơn vị và tổ chức cán bộ",
-      "msg": "MSG-01-12",
-      "rule": null
-    },
-    {
-      "code": "MSG-01-13",
-      "httpStatus": 422,
-      "slug": "msg-01-13",
-      "defaultTitleVi": "Thông báo cấu hình đơn vị và tổ chức cán bộ",
-      "msg": "MSG-01-13",
-      "rule": null
-    },
-    {
-      "code": "MSG-01-14",
-      "httpStatus": 422,
-      "slug": "msg-01-14",
-      "defaultTitleVi": "Thông báo cấu hình đơn vị và tổ chức cán bộ",
-      "msg": "MSG-01-14",
-      "rule": null
-    },
-    {
-      "code": "MSG-01-15",
-      "httpStatus": 422,
-      "slug": "msg-01-15",
-      "defaultTitleVi": "Hai hồ sơ trùng tên khác ngày sinh. Vui lòng đối soát thủ công.",
-      "msg": "MSG-01-15",
-      "rule": null
-    },
-    {
-      "code": "MSG-01-16",
-      "httpStatus": 422,
-      "slug": "validity",
-      "defaultTitleVi": "Thời hạn hiệu lực bắt đầu và kết thúc không hợp lệ",
-      "msg": "MSG-01-16",
-      "rule": "BR-01-13"
-    },
-    {
-      "code": "MSG-01-17",
-      "httpStatus": 403,
-      "slug": "self-grant",
-      "defaultTitleVi": "Không được tự cấp hoặc tự phê duyệt quyền cho chính mình",
-      "msg": "MSG-01-17",
-      "rule": "BR-01-14"
-    },
-    {
-      "code": "MSG-01-18",
-      "httpStatus": 422,
-      "slug": "redelegation",
-      "defaultTitleVi": "Người nhận uỷ quyền không được phép uỷ quyền lại cho người khác",
-      "msg": "MSG-01-18",
-      "rule": "BR-01-13"
-    },
-    {
-      "code": "MSG-02-01",
-      "httpStatus": 422,
-      "slug": "msg-02-01",
-      "defaultTitleVi": "Thông báo xây dựng và phê duyệt mục tiêu OKR",
-      "msg": "MSG-02-01",
-      "rule": "BR-02-01"
-    },
-    {
-      "code": "MSG-02-02",
-      "httpStatus": 422,
-      "slug": "msg-02-02",
-      "defaultTitleVi": "Thông báo xây dựng và phê duyệt mục tiêu OKR",
-      "msg": "MSG-02-02",
-      "rule": null
-    },
-    {
-      "code": "MSG-02-03",
-      "httpStatus": 422,
-      "slug": "parent-not-approved",
-      "defaultTitleVi": "Mục tiêu cấp trên chưa được phê duyệt",
-      "msg": "MSG-02-03",
-      "rule": "BR-02-02"
-    },
-    {
-      "code": "MSG-02-04",
-      "httpStatus": 409,
-      "slug": "period-locked",
-      "defaultTitleVi": "Kỳ đánh giá đã khoá, không thể thay đổi mục tiêu",
-      "msg": "MSG-02-04",
-      "rule": "BR-02-10"
-    },
-    {
-      "code": "MSG-02-05",
-      "httpStatus": 422,
-      "slug": "msg-02-05",
-      "defaultTitleVi": "Thông báo xây dựng và phê duyệt mục tiêu OKR",
-      "msg": "MSG-02-05",
-      "rule": null
-    },
-    {
-      "code": "MSG-02-06",
-      "httpStatus": 422,
-      "slug": "msg-02-06",
-      "defaultTitleVi": "Thông báo xây dựng và phê duyệt mục tiêu OKR",
-      "msg": "MSG-02-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-02-07",
-      "httpStatus": 422,
-      "slug": "msg-02-07",
-      "defaultTitleVi": "Thông báo xây dựng và phê duyệt mục tiêu OKR",
-      "msg": "MSG-02-07",
-      "rule": null
-    },
-    {
-      "code": "MSG-02-08",
-      "httpStatus": 422,
-      "slug": "validation",
-      "defaultTitleVi": "Thông tin mục tiêu hoặc kết quả then chốt chưa hợp lệ",
-      "msg": "MSG-02-08",
-      "rule": "BR-02-02"
-    },
-    {
-      "code": "MSG-02-09",
-      "httpStatus": 422,
-      "slug": "msg-02-09",
-      "defaultTitleVi": "Thông báo xây dựng và phê duyệt mục tiêu OKR",
-      "msg": "MSG-02-09",
-      "rule": null
-    },
-    {
-      "code": "MSG-02-10",
-      "httpStatus": 422,
-      "slug": "comment-required",
-      "defaultTitleVi": "Vui lòng nhập ý kiến nhận xét khi trả lại bộ mục tiêu",
-      "msg": "MSG-02-10",
-      "rule": "BR-02-09"
-    },
-    {
-      "code": "MSG-02-11",
-      "httpStatus": 403,
-      "slug": "self-approval",
-      "defaultTitleVi": "Người soạn thảo bộ mục tiêu không được tự phê duyệt",
-      "msg": "MSG-02-11",
-      "rule": "BR-02-08"
-    },
-    {
-      "code": "MSG-02-12",
-      "httpStatus": 422,
-      "slug": "msg-02-12",
-      "defaultTitleVi": "Thông báo xây dựng và phê duyệt mục tiêu OKR",
-      "msg": "MSG-02-12",
-      "rule": "BR-02-01"
-    },
-    {
-      "code": "MSG-03-01",
-      "httpStatus": 422,
-      "slug": "msg-03-01",
-      "defaultTitleVi": "Thông báo cập nhật tiến độ kết quả then chốt",
-      "msg": "MSG-03-01",
-      "rule": "BR-03-01"
-    },
-    {
-      "code": "MSG-03-02",
-      "httpStatus": 422,
-      "slug": "large-change-unconfirmed",
-      "defaultTitleVi": "Thay đổi tiến độ lớn cần được xác nhận và thuyết minh rõ lý do",
-      "msg": "MSG-03-02",
-      "rule": "BR-03-05"
-    },
-    {
-      "code": "MSG-03-03",
-      "httpStatus": 502,
-      "slug": "source-unavailable",
-      "defaultTitleVi": "Không kết nối được hệ thống nguồn để lấy số liệu tự động",
-      "msg": "MSG-03-03",
-      "rule": null
-    },
-    {
-      "code": "MSG-03-04",
-      "httpStatus": 422,
-      "slug": "override-reason-required",
-      "defaultTitleVi": "Vui lòng nhập lý do khi sửa giá trị tự động đồng bộ từ hệ thống nguồn",
-      "msg": "MSG-03-04",
-      "rule": "BR-03-02"
-    },
-    {
-      "code": "MSG-03-05",
-      "httpStatus": 409,
-      "slug": "objective-not-approved",
-      "defaultTitleVi": "Chỉ cập nhật được tiến độ cho kết quả then chốt thuộc mục tiêu đã duyệt",
-      "msg": "MSG-03-05",
-      "rule": "BR-03-01"
-    },
-    {
-      "code": "MSG-03-06",
-      "httpStatus": 422,
-      "slug": "msg-03-06",
-      "defaultTitleVi": "Thông báo cập nhật tiến độ kết quả then chốt",
-      "msg": "MSG-03-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-03-07",
-      "httpStatus": 422,
-      "slug": "msg-03-07",
-      "defaultTitleVi": "Thông báo cập nhật tiến độ kết quả then chốt",
-      "msg": "MSG-03-07",
-      "rule": "BR-03-01"
-    },
-    {
-      "code": "MSG-04-01",
-      "httpStatus": 422,
-      "slug": "msg-04-01",
-      "defaultTitleVi": "Thông báo danh mục công việc và kế hoạch kỳ",
-      "msg": "MSG-04-01",
-      "rule": "BR-04-13"
-    },
-    {
-      "code": "MSG-04-02",
-      "httpStatus": 422,
-      "slug": "msg-04-02",
-      "defaultTitleVi": "Thông báo danh mục công việc và kế hoạch kỳ",
-      "msg": "MSG-04-02",
-      "rule": null
-    },
-    {
-      "code": "MSG-04-03",
-      "httpStatus": 422,
-      "slug": "msg-04-03",
-      "defaultTitleVi": "Thông báo danh mục công việc và kế hoạch kỳ",
-      "msg": "MSG-04-03",
-      "rule": null
-    },
-    {
-      "code": "MSG-04-04",
-      "httpStatus": 422,
-      "slug": "msg-04-04",
-      "defaultTitleVi": "Thông báo danh mục công việc và kế hoạch kỳ",
-      "msg": "MSG-04-04",
-      "rule": null
-    },
-    {
-      "code": "MSG-04-05",
-      "httpStatus": 422,
-      "slug": "msg-04-05",
-      "defaultTitleVi": "Thông báo danh mục công việc và kế hoạch kỳ",
-      "msg": "MSG-04-05",
-      "rule": null
-    },
-    {
-      "code": "MSG-04-06",
-      "httpStatus": 422,
-      "slug": "msg-04-06",
-      "defaultTitleVi": "Thông báo danh mục công việc và kế hoạch kỳ",
-      "msg": "MSG-04-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-04-07",
-      "httpStatus": 422,
-      "slug": "msg-04-07",
-      "defaultTitleVi": "Thông báo danh mục công việc và kế hoạch kỳ",
-      "msg": "MSG-04-07",
-      "rule": "BR-04-10"
-    },
-    {
-      "code": "MSG-04-08",
-      "httpStatus": 422,
-      "slug": "msg-04-08",
-      "defaultTitleVi": "Thông báo danh mục công việc và kế hoạch kỳ",
-      "msg": "MSG-04-08",
-      "rule": null
-    },
-    {
-      "code": "MSG-04-09",
-      "httpStatus": 422,
-      "slug": "msg-04-09",
-      "defaultTitleVi": "Thông báo danh mục công việc và kế hoạch kỳ",
-      "msg": "MSG-04-09",
-      "rule": null
-    },
-    {
-      "code": "MSG-04-10",
-      "httpStatus": 422,
-      "slug": "msg-04-10",
-      "defaultTitleVi": "Thông báo danh mục công việc và kế hoạch kỳ",
-      "msg": "MSG-04-10",
-      "rule": null
-    },
-    {
-      "code": "MSG-04-11",
-      "httpStatus": 422,
-      "slug": "msg-04-11",
-      "defaultTitleVi": "Thông báo danh mục công việc và kế hoạch kỳ",
-      "msg": "MSG-04-11",
-      "rule": null
-    },
-    {
-      "code": "MSG-04-12",
-      "httpStatus": 422,
-      "slug": "msg-04-12",
-      "defaultTitleVi": "Thông báo danh mục công việc và kế hoạch kỳ",
-      "msg": "MSG-04-12",
-      "rule": null
-    },
-    {
-      "code": "MSG-04-13",
-      "httpStatus": 422,
-      "slug": "msg-04-13",
-      "defaultTitleVi": "Thông báo danh mục công việc và kế hoạch kỳ",
-      "msg": "MSG-04-13",
-      "rule": null
-    },
-    {
-      "code": "MSG-05-01",
-      "httpStatus": 422,
-      "slug": "msg-05-01",
-      "defaultTitleVi": "Thông báo giao việc và tiếp nhận nhiệm vụ",
-      "msg": "MSG-05-01",
-      "rule": null
-    },
-    {
-      "code": "MSG-05-02",
-      "httpStatus": 422,
-      "slug": "msg-05-02",
-      "defaultTitleVi": "Thông báo giao việc và tiếp nhận nhiệm vụ",
-      "msg": "MSG-05-02",
-      "rule": null
-    },
-    {
-      "code": "MSG-05-03",
-      "httpStatus": 422,
-      "slug": "msg-05-03",
-      "defaultTitleVi": "Thông báo giao việc và tiếp nhận nhiệm vụ",
-      "msg": "MSG-05-03",
-      "rule": "BR-05-06"
-    },
-    {
-      "code": "MSG-05-04",
-      "httpStatus": 422,
-      "slug": "msg-05-04",
-      "defaultTitleVi": "Thông báo giao việc và tiếp nhận nhiệm vụ",
-      "msg": "MSG-05-04",
-      "rule": "BR-05-11"
-    },
-    {
-      "code": "MSG-05-05",
-      "httpStatus": 422,
-      "slug": "msg-05-05",
-      "defaultTitleVi": "Thông báo giao việc và tiếp nhận nhiệm vụ",
-      "msg": "MSG-05-05",
-      "rule": null
-    },
-    {
-      "code": "MSG-05-06",
-      "httpStatus": 422,
-      "slug": "msg-05-06",
-      "defaultTitleVi": "Thông báo giao việc và tiếp nhận nhiệm vụ",
-      "msg": "MSG-05-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-05-07",
-      "httpStatus": 422,
-      "slug": "msg-05-07",
-      "defaultTitleVi": "Thông báo giao việc và tiếp nhận nhiệm vụ",
-      "msg": "MSG-05-07",
-      "rule": null
-    },
-    {
-      "code": "MSG-05-08",
-      "httpStatus": 422,
-      "slug": "msg-05-08",
-      "defaultTitleVi": "Thông báo giao việc và tiếp nhận nhiệm vụ",
-      "msg": "MSG-05-08",
-      "rule": null
-    },
-    {
-      "code": "MSG-05-09",
-      "httpStatus": 409,
-      "slug": "duplicate-paragraph",
-      "defaultTitleVi": "Đoạn văn bản chỉ đạo này đã được tách thành nhiệm vụ trước đó",
-      "msg": "MSG-05-09",
-      "rule": "BR-05-07"
-    },
-    {
-      "code": "MSG-05-10",
-      "httpStatus": 422,
-      "slug": "msg-05-10",
-      "defaultTitleVi": "Thông báo giao việc và tiếp nhận nhiệm vụ",
-      "msg": "MSG-05-10",
-      "rule": null
-    },
-    {
-      "code": "MSG-05-11",
-      "httpStatus": 422,
-      "slug": "msg-05-11",
-      "defaultTitleVi": "Thông báo giao việc và tiếp nhận nhiệm vụ",
-      "msg": "MSG-05-11",
-      "rule": null
-    },
-    {
-      "code": "MSG-05-12",
-      "httpStatus": 422,
-      "slug": "msg-05-12",
-      "defaultTitleVi": "Thông báo giao việc và tiếp nhận nhiệm vụ",
-      "msg": "MSG-05-12",
-      "rule": null
-    },
-    {
-      "code": "MSG-05-13",
-      "httpStatus": 422,
-      "slug": "msg-05-13",
-      "defaultTitleVi": "Thông báo giao việc và tiếp nhận nhiệm vụ",
-      "msg": "MSG-05-13",
-      "rule": null
-    },
-    {
-      "code": "MSG-05-14",
-      "httpStatus": 422,
-      "slug": "msg-05-14",
-      "defaultTitleVi": "Thông báo giao việc và tiếp nhận nhiệm vụ",
-      "msg": "MSG-05-14",
-      "rule": null
-    },
-    {
-      "code": "MSG-06-01",
-      "httpStatus": 422,
-      "slug": "msg-06-01",
-      "defaultTitleVi": "Thông báo theo dõi tiến độ và điều chỉnh nhiệm vụ",
-      "msg": "MSG-06-01",
-      "rule": null
-    },
-    {
-      "code": "MSG-06-02",
-      "httpStatus": 422,
-      "slug": "msg-06-02",
-      "defaultTitleVi": "Thông báo theo dõi tiến độ và điều chỉnh nhiệm vụ",
-      "msg": "MSG-06-02",
-      "rule": null
-    },
-    {
-      "code": "MSG-06-03",
-      "httpStatus": 422,
-      "slug": "msg-06-03",
-      "defaultTitleVi": "Thông báo theo dõi tiến độ và điều chỉnh nhiệm vụ",
-      "msg": "MSG-06-03",
-      "rule": null
-    },
-    {
-      "code": "MSG-06-04",
-      "httpStatus": 422,
-      "slug": "msg-06-04",
-      "defaultTitleVi": "Thông báo theo dõi tiến độ và điều chỉnh nhiệm vụ",
-      "msg": "MSG-06-04",
-      "rule": null
-    },
-    {
-      "code": "MSG-06-05",
-      "httpStatus": 409,
-      "slug": "period-locked",
-      "defaultTitleVi": "Kỳ đánh giá đã khoá, không thể thay đổi thông tin nhiệm vụ",
-      "msg": "MSG-06-05",
-      "rule": null
-    },
-    {
-      "code": "MSG-06-06",
-      "httpStatus": 422,
-      "slug": "msg-06-06",
-      "defaultTitleVi": "Thông báo theo dõi tiến độ và điều chỉnh nhiệm vụ",
-      "msg": "MSG-06-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-06-07",
-      "httpStatus": 422,
-      "slug": "msg-06-07",
-      "defaultTitleVi": "Thông báo theo dõi tiến độ và điều chỉnh nhiệm vụ",
-      "msg": "MSG-06-07",
-      "rule": "BR-06-06"
-    },
-    {
-      "code": "MSG-06-08",
-      "httpStatus": 422,
-      "slug": "msg-06-08",
-      "defaultTitleVi": "Thông báo theo dõi tiến độ và điều chỉnh nhiệm vụ",
-      "msg": "MSG-06-08",
-      "rule": null
-    },
-    {
-      "code": "MSG-06-09",
-      "httpStatus": 422,
-      "slug": "msg-06-09",
-      "defaultTitleVi": "Thông báo theo dõi tiến độ và điều chỉnh nhiệm vụ",
-      "msg": "MSG-06-09",
-      "rule": null
-    },
-    {
-      "code": "MSG-06-10",
-      "httpStatus": 422,
-      "slug": "msg-06-10",
-      "defaultTitleVi": "Thông báo theo dõi tiến độ và điều chỉnh nhiệm vụ",
-      "msg": "MSG-06-10",
-      "rule": null
-    },
-    {
-      "code": "MSG-07-01",
-      "httpStatus": 422,
-      "slug": "attestation-required",
-      "defaultTitleVi": "Vui lòng đánh dấu xác nhận cam kết tính trung thực của minh chứng",
-      "msg": "MSG-07-01",
-      "rule": "BR-07-01"
-    },
-    {
-      "code": "MSG-07-02",
-      "httpStatus": 422,
-      "slug": "not-clean",
-      "defaultTitleVi": "Tệp minh chứng đang trong quá trình quét an toàn hoặc không hợp lệ",
-      "msg": "MSG-07-02",
-      "rule": "BR-07-04"
-    },
-    {
-      "code": "MSG-07-03",
-      "httpStatus": 422,
-      "slug": "hash-mismatch",
-      "defaultTitleVi": "Mã băm kiểm tra toàn vẹn của tệp minh chứng không khớp",
-      "msg": "MSG-07-03",
-      "rule": "BR-07-02"
-    },
-    {
-      "code": "MSG-07-04",
-      "httpStatus": 422,
-      "slug": "msg-07-04",
-      "defaultTitleVi": "Thông báo nộp và nghiệm thu sản phẩm, minh chứng",
-      "msg": "MSG-07-04",
-      "rule": null
-    },
-    {
-      "code": "MSG-07-05",
-      "httpStatus": 422,
-      "slug": "msg-07-05",
-      "defaultTitleVi": "Thông báo nộp và nghiệm thu sản phẩm, minh chứng",
-      "msg": "MSG-07-05",
-      "rule": null
-    },
-    {
-      "code": "MSG-07-06",
-      "httpStatus": 422,
-      "slug": "unreadable",
-      "defaultTitleVi": "Tệp văn bản hoặc hình ảnh chưa đủ rõ để trích xuất nội dung",
-      "msg": "MSG-07-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-07-07",
-      "httpStatus": 422,
-      "slug": "msg-07-07",
-      "defaultTitleVi": "Thông báo nộp và nghiệm thu sản phẩm, minh chứng",
-      "msg": "MSG-07-07",
-      "rule": null
-    },
-    {
-      "code": "MSG-07-08",
-      "httpStatus": 422,
-      "slug": "msg-07-08",
-      "defaultTitleVi": "Thông báo nộp và nghiệm thu sản phẩm, minh chứng",
-      "msg": "MSG-07-08",
-      "rule": null
-    },
-    {
-      "code": "MSG-07-09",
-      "httpStatus": 422,
-      "slug": "criteria-incomplete",
-      "defaultTitleVi": "Vui lòng đánh giá đầy đủ tất cả các tiêu chuẩn chất lượng của sản phẩm",
-      "msg": "MSG-07-09",
-      "rule": "BR-07-08"
-    },
-    {
-      "code": "MSG-07-10",
-      "httpStatus": 422,
-      "slug": "comment-required",
-      "defaultTitleVi": "Vui lòng nhập nhận xét chi tiết khi đánh giá mức chất lượng dưới 1,0",
-      "msg": "MSG-07-10",
-      "rule": "BR-07-08"
-    },
-    {
-      "code": "MSG-07-11",
-      "httpStatus": 422,
-      "slug": "msg-07-11",
-      "defaultTitleVi": "Thông báo nộp và nghiệm thu sản phẩm, minh chứng",
-      "msg": "MSG-07-11",
-      "rule": null
-    },
-    {
-      "code": "MSG-07-12",
-      "httpStatus": 422,
-      "slug": "msg-07-12",
-      "defaultTitleVi": "Thông báo nộp và nghiệm thu sản phẩm, minh chứng",
-      "msg": "MSG-07-12",
-      "rule": null
-    },
-    {
-      "code": "MSG-07-13",
-      "httpStatus": 409,
-      "slug": "period-locked",
-      "defaultTitleVi": "Kỳ đánh giá đã khoá, không thể nộp hoặc nghiệm thu minh chứng",
-      "msg": "MSG-07-13",
-      "rule": null
-    },
-    {
-      "code": "MSG-07-14",
-      "httpStatus": 422,
-      "slug": "msg-07-14",
-      "defaultTitleVi": "Thông báo nộp và nghiệm thu sản phẩm, minh chứng",
-      "msg": "MSG-07-14",
-      "rule": "BR-07-01"
-    },
-    {
-      "code": "MSG-08-01",
-      "httpStatus": 403,
-      "slug": "same-person",
-      "defaultTitleVi": "Người phê duyệt hoặc khởi chạy khoá kỳ phải khác người lập lệnh",
-      "msg": "MSG-08-01",
-      "rule": "BR-08-01"
-    },
-    {
-      "code": "MSG-08-02",
-      "httpStatus": 409,
-      "slug": "saga-running",
-      "defaultTitleVi": "Đang có tiến trình khoá kỳ chạy cho kỳ đánh giá này",
-      "msg": "MSG-08-02",
-      "rule": "BR-08-02"
-    },
-    {
-      "code": "MSG-08-03",
-      "httpStatus": 422,
-      "slug": "msg-08-03",
-      "defaultTitleVi": "Thông báo kiểm tra và chốt khoá kỳ đánh giá",
-      "msg": "MSG-08-03",
-      "rule": null
-    },
-    {
-      "code": "MSG-08-04",
-      "httpStatus": 422,
-      "slug": "msg-08-04",
-      "defaultTitleVi": "Thông báo kiểm tra và chốt khoá kỳ đánh giá",
-      "msg": "MSG-08-04",
-      "rule": null
-    },
-    {
-      "code": "MSG-08-05",
-      "httpStatus": 409,
-      "slug": "point-of-no-return",
-      "defaultTitleVi": "Tiến trình khoá kỳ đã qua bước chốt sổ, không thể huỷ tự động",
-      "msg": "MSG-08-05",
-      "rule": "BR-08-09"
-    },
-    {
-      "code": "MSG-08-06",
-      "httpStatus": 422,
-      "slug": "msg-08-06",
-      "defaultTitleVi": "Thông báo kiểm tra và chốt khoá kỳ đánh giá",
-      "msg": "MSG-08-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-08-07",
-      "httpStatus": 422,
-      "slug": "msg-08-07",
-      "defaultTitleVi": "Thông báo kiểm tra và chốt khoá kỳ đánh giá",
-      "msg": "MSG-08-07",
-      "rule": null
-    },
-    {
-      "code": "MSG-08-08",
-      "httpStatus": 422,
-      "slug": "msg-08-08",
-      "defaultTitleVi": "Thông báo kiểm tra và chốt khoá kỳ đánh giá",
-      "msg": "MSG-08-08",
-      "rule": "BR-08-01"
-    },
-    {
-      "code": "MSG-09-01",
-      "httpStatus": 409,
-      "slug": "not-computed",
-      "defaultTitleVi": "Kết quả điểm của kỳ đang được tính toán, vui lòng thử lại sau",
-      "msg": "MSG-09-01",
-      "rule": "BR-09-01"
-    },
-    {
-      "code": "MSG-09-02",
-      "httpStatus": 422,
-      "slug": "reason-required",
-      "defaultTitleVi": "Mức tự đề xuất khác mức hệ thống tham khảo. Đồng chí cần ghi giải trình trước khi nộp (Điều 16 Quy định 366).",
-      "msg": "MSG-09-02",
-      "rule": "BR-09-15"
-    },
-    {
-      "code": "MSG-09-03",
-      "httpStatus": 422,
-      "slug": "breakthrough-required",
-      "defaultTitleVi": "Đề xuất mức Hoàn thành xuất sắc nhiệm vụ cần mô tả giải pháp đột phá và gắn ít nhất một minh chứng đã được xác nhận.",
-      "msg": "MSG-09-03",
-      "rule": "BR-09-15"
-    },
-    {
-      "code": "MSG-09-04",
-      "httpStatus": 422,
-      "slug": "msg-09-04",
-      "defaultTitleVi": "Thông báo tự đánh giá, thẩm định và quyết định xếp loại",
-      "msg": "MSG-09-04",
-      "rule": null
-    },
-    {
-      "code": "MSG-09-05",
-      "httpStatus": 422,
-      "slug": "msg-09-05",
-      "defaultTitleVi": "Thông báo tự đánh giá, thẩm định và quyết định xếp loại",
-      "msg": "MSG-09-05",
-      "rule": null
-    },
-    {
-      "code": "MSG-09-06",
-      "httpStatus": 422,
-      "slug": "msg-09-06",
-      "defaultTitleVi": "Mức thẩm định khác mức tự đề xuất. Theo Điều 16 Quy định 366, đồng chí cần ghi lý do trước khi ký.",
-      "msg": "MSG-09-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-09-07",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Hồ sơ vừa được người khác cập nhật. Vui lòng tải lại để xem thay đổi trước khi lưu.",
-      "msg": "MSG-09-07",
-      "rule": null
-    },
-    {
-      "code": "MSG-09-08",
-      "httpStatus": 422,
-      "slug": "msg-09-08",
-      "defaultTitleVi": "Đồng chí không thể thẩm định hồ sơ này vì đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (Phụ lục 4, mục V.1).",
-      "msg": "MSG-09-08",
-      "rule": null
-    },
-    {
-      "code": "MSG-09-09",
-      "httpStatus": 409,
-      "slug": "return-limit",
-      "defaultTitleVi": "Hồ sơ đã được trả lại đủ số lần tối đa cho phép",
-      "msg": "MSG-09-09",
-      "rule": "BR-09-14"
-    },
-    {
-      "code": "MSG-09-10",
-      "httpStatus": 422,
-      "slug": "msg-09-10",
-      "defaultTitleVi": "Thông báo tự đánh giá, thẩm định và quyết định xếp loại",
-      "msg": "MSG-09-10",
-      "rule": null
-    },
-    {
-      "code": "MSG-09-11",
-      "httpStatus": 422,
-      "slug": "msg-09-11",
-      "defaultTitleVi": "Thông báo tự đánh giá, thẩm định và quyết định xếp loại",
-      "msg": "MSG-09-11",
-      "rule": null
-    },
-    {
-      "code": "MSG-09-12",
-      "httpStatus": 422,
-      "slug": "msg-09-12",
-      "defaultTitleVi": "Mức đề xuất khác mức thẩm định. Vui lòng ghi lý do (khoản 16.3 Điều 16 Quy định 366).",
-      "msg": "MSG-09-12",
-      "rule": null
-    },
-    {
-      "code": "MSG-09-13",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Hồ sơ đánh giá đã được người khác cập nhật, vui lòng tải lại",
-      "msg": "MSG-09-13",
-      "rule": "BR-09-05"
-    },
-    {
-      "code": "MSG-09-14",
-      "httpStatus": 409,
-      "slug": "decision-no-duplicate",
-      "defaultTitleVi": "Hồ sơ của người đứng đầu chỉ được quyết định sau khi các đơn vị trực thuộc đã có mức (QĐ khoản 14.3.3).",
-      "msg": "MSG-09-14",
-      "rule": "BR-09-13"
-    },
-    {
-      "code": "MSG-09-15",
-      "httpStatus": 422,
-      "slug": "msg-09-15",
-      "defaultTitleVi": "Thông báo tự đánh giá, thẩm định và quyết định xếp loại",
-      "msg": "MSG-09-15",
-      "rule": null
-    },
-    {
-      "code": "MSG-09-16",
-      "httpStatus": 422,
-      "slug": "msg-09-16",
-      "defaultTitleVi": "Thông báo tự đánh giá, thẩm định và quyết định xếp loại",
-      "msg": "MSG-09-16",
-      "rule": "BR-09-01"
-    },
-    {
-      "code": "MSG-10-01",
-      "httpStatus": 422,
-      "slug": "msg-10-01",
-      "defaultTitleVi": "Thông báo đánh giá tổng hợp năm và phân nhóm triển vọng",
-      "msg": "MSG-10-01",
-      "rule": "BR-10-01"
-    },
-    {
-      "code": "MSG-10-02",
-      "httpStatus": 422,
-      "slug": "msg-10-02",
-      "defaultTitleVi": "Thông báo đánh giá tổng hợp năm và phân nhóm triển vọng",
-      "msg": "MSG-10-02",
-      "rule": null
-    },
-    {
-      "code": "MSG-10-03",
-      "httpStatus": 409,
-      "slug": "complaint-open",
-      "defaultTitleVi": "Còn khiếu nại quý chưa kết luận nên chưa thể chốt xếp loại năm",
-      "msg": "MSG-10-03",
-      "rule": "BR-09-13"
-    },
-    {
-      "code": "MSG-10-04",
-      "httpStatus": 422,
-      "slug": "msg-10-04",
-      "defaultTitleVi": "Thông báo đánh giá tổng hợp năm và phân nhóm triển vọng",
-      "msg": "MSG-10-04",
-      "rule": null
-    },
-    {
-      "code": "MSG-10-05",
-      "httpStatus": 409,
-      "slug": "prospect-quarter",
-      "defaultTitleVi": "Phân nhóm triển vọng chỉ thực hiện ở kỳ đánh giá năm",
-      "msg": "MSG-10-05",
-      "rule": "BR-10-07"
-    },
-    {
-      "code": "MSG-10-06",
-      "httpStatus": 422,
-      "slug": "prospect-not-eligible",
-      "defaultTitleVi": "Hồ sơ không đủ điều kiện đưa vào nhóm triển vọng đã chọn",
-      "msg": "MSG-10-06",
-      "rule": "BR-10-09"
-    },
-    {
-      "code": "MSG-10-07",
-      "httpStatus": 422,
-      "slug": "msg-10-07",
-      "defaultTitleVi": "Thông báo đánh giá tổng hợp năm và phân nhóm triển vọng",
-      "msg": "MSG-10-07",
-      "rule": "BR-10-01"
-    },
-    {
-      "code": "MSG-11-01",
-      "httpStatus": 422,
-      "slug": "msg-11-01",
-      "defaultTitleVi": "Thông báo hội nghị kiểm điểm và lập hồ sơ số",
-      "msg": "MSG-11-01",
-      "rule": "BR-11-01"
-    },
-    {
-      "code": "MSG-11-02",
-      "httpStatus": 422,
-      "slug": "msg-11-02",
-      "defaultTitleVi": "Thông báo hội nghị kiểm điểm và lập hồ sơ số",
-      "msg": "MSG-11-02",
-      "rule": null
-    },
-    {
-      "code": "MSG-11-03",
-      "httpStatus": 422,
-      "slug": "msg-11-03",
-      "defaultTitleVi": "Thông báo hội nghị kiểm điểm và lập hồ sơ số",
-      "msg": "MSG-11-03",
-      "rule": null
-    },
-    {
-      "code": "MSG-11-04",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Hồ sơ kiểm điểm đã được người khác cập nhật, vui lòng tải lại",
-      "msg": "MSG-11-04",
-      "rule": "BR-11-10"
-    },
-    {
-      "code": "MSG-11-05",
-      "httpStatus": 422,
-      "slug": "msg-11-05",
-      "defaultTitleVi": "Thông báo hội nghị kiểm điểm và lập hồ sơ số",
-      "msg": "MSG-11-05",
-      "rule": null
-    },
-    {
-      "code": "MSG-11-06",
-      "httpStatus": 422,
-      "slug": "msg-11-06",
-      "defaultTitleVi": "Thông báo hội nghị kiểm điểm và lập hồ sơ số",
-      "msg": "MSG-11-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-11-07",
-      "httpStatus": 422,
-      "slug": "msg-11-07",
-      "defaultTitleVi": "Thông báo hội nghị kiểm điểm và lập hồ sơ số",
-      "msg": "MSG-11-07",
-      "rule": "BR-11-01"
-    },
-    {
-      "code": "MSG-12-01",
-      "httpStatus": 422,
-      "slug": "validation",
-      "defaultTitleVi": "Dữ liệu chưa hợp lệ",
-      "msg": "MSG-12-01",
-      "rule": "BR-12-01"
-    },
-    {
-      "code": "MSG-12-02",
-      "httpStatus": 422,
-      "slug": "msg-12-02",
-      "defaultTitleVi": "Thông báo tiếp nhận và giải quyết kiến nghị, khiếu nại",
-      "msg": "MSG-12-02",
-      "rule": null
-    },
-    {
-      "code": "MSG-12-03",
-      "httpStatus": 422,
-      "slug": "no-target",
-      "defaultTitleVi": "Vui lòng chọn ít nhất một nội dung hoặc điểm số cần kiến nghị",
-      "msg": "MSG-12-03",
-      "rule": "BR-12-02"
-    },
-    {
-      "code": "MSG-12-04",
-      "httpStatus": 422,
-      "slug": "msg-12-04",
-      "defaultTitleVi": "Thông báo tiếp nhận và giải quyết kiến nghị, khiếu nại",
-      "msg": "MSG-12-04",
-      "rule": null
-    },
-    {
-      "code": "MSG-12-05",
-      "httpStatus": 403,
-      "slug": "separation-of-duties",
-      "defaultTitleVi": "Đồng chí không được xử lý cảnh báo hoặc khiếu nại liên quan tới hồ sơ của mình",
-      "msg": "MSG-12-05",
-      "rule": "BR-14-02"
-    },
-    {
-      "code": "MSG-12-06",
-      "httpStatus": 422,
-      "slug": "msg-12-06",
-      "defaultTitleVi": "Thông báo tiếp nhận và giải quyết kiến nghị, khiếu nại",
-      "msg": "MSG-12-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-12-07",
-      "httpStatus": 422,
-      "slug": "msg-12-07",
-      "defaultTitleVi": "Thông báo tiếp nhận và giải quyết kiến nghị, khiếu nại",
-      "msg": "MSG-12-07",
-      "rule": null
-    },
-    {
-      "code": "MSG-12-08",
-      "httpStatus": 422,
-      "slug": "msg-12-08",
-      "defaultTitleVi": "Thông báo tiếp nhận và giải quyết kiến nghị, khiếu nại",
-      "msg": "MSG-12-08",
-      "rule": "BR-12-01"
-    },
-    {
-      "code": "MSG-13-01",
-      "httpStatus": 403,
-      "slug": "four-eyes",
-      "defaultTitleVi": "Vi phạm nguyên tắc hai người phê duyệt độc lập (bốn mắt)",
-      "msg": "MSG-13-01",
-      "rule": "BR-13-01"
-    },
-    {
-      "code": "MSG-13-02",
-      "httpStatus": 422,
-      "slug": "msg-13-02",
-      "defaultTitleVi": "Cần xác thực bổ sung để phê duyệt mở lại kỳ.",
-      "msg": "MSG-13-02",
-      "rule": null
-    },
-    {
-      "code": "MSG-13-03",
-      "httpStatus": 422,
-      "slug": "msg-13-03",
-      "defaultTitleVi": "Thông báo mở lại kỳ đánh giá và tra cứu sổ cái",
-      "msg": "MSG-13-03",
-      "rule": null
-    },
-    {
-      "code": "MSG-13-04",
-      "httpStatus": 422,
-      "slug": "msg-13-04",
-      "defaultTitleVi": "Thông báo mở lại kỳ đánh giá và tra cứu sổ cái",
-      "msg": "MSG-13-04",
-      "rule": null
-    },
-    {
-      "code": "MSG-13-05",
-      "httpStatus": 422,
-      "slug": "msg-13-05",
-      "defaultTitleVi": "Thông báo mở lại kỳ đánh giá và tra cứu sổ cái",
-      "msg": "MSG-13-05",
-      "rule": null
-    },
-    {
-      "code": "MSG-13-06",
-      "httpStatus": 422,
-      "slug": "msg-13-06",
-      "defaultTitleVi": "Thông báo mở lại kỳ đánh giá và tra cứu sổ cái",
-      "msg": "MSG-13-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-13-07",
-      "httpStatus": 422,
-      "slug": "msg-13-07",
-      "defaultTitleVi": "Thông báo mở lại kỳ đánh giá và tra cứu sổ cái",
-      "msg": "MSG-13-07",
-      "rule": "BR-13-01"
-    },
-    {
-      "code": "MSG-14-01",
-      "httpStatus": 422,
-      "slug": "msg-14-01",
-      "defaultTitleVi": "Thông báo cảnh báo giám sát và hậu kiểm",
-      "msg": "MSG-14-01",
-      "rule": "BR-14-01"
-    },
-    {
-      "code": "MSG-14-02",
-      "httpStatus": 422,
-      "slug": "msg-14-02",
-      "defaultTitleVi": "Thông báo cảnh báo giám sát và hậu kiểm",
-      "msg": "MSG-14-02",
-      "rule": null
-    },
-    {
-      "code": "MSG-14-03",
-      "httpStatus": 422,
-      "slug": "msg-14-03",
-      "defaultTitleVi": "Thông báo cảnh báo giám sát và hậu kiểm",
-      "msg": "MSG-14-03",
-      "rule": null
-    },
-    {
-      "code": "MSG-14-04",
-      "httpStatus": 422,
-      "slug": "msg-14-04",
-      "defaultTitleVi": "Thông báo cảnh báo giám sát và hậu kiểm",
-      "msg": "MSG-14-04",
-      "rule": "BR-14-01"
-    },
-    {
-      "code": "MSG-15-01",
-      "httpStatus": 422,
-      "slug": "cel-type",
-      "defaultTitleVi": "Biểu thức công thức không hợp lệ hoặc sai kiểu dữ liệu kết quả",
-      "msg": "MSG-15-01",
-      "rule": "BR-15-01"
-    },
-    {
-      "code": "MSG-15-02",
-      "httpStatus": 422,
-      "slug": "group-sum",
-      "defaultTitleVi": "Tổng trọng số của các nhóm tiêu chí phải bằng đúng 100%",
-      "msg": "MSG-15-02",
-      "rule": null
-    },
-    {
-      "code": "MSG-15-03",
-      "httpStatus": 422,
-      "slug": "msg-15-03",
-      "defaultTitleVi": "Thông báo cấu hình gói chính sách, công thức và luồng duyệt",
-      "msg": "MSG-15-03",
-      "rule": null
-    },
-    {
-      "code": "MSG-15-04",
-      "httpStatus": 422,
-      "slug": "msg-15-04",
-      "defaultTitleVi": "Thông báo cấu hình gói chính sách, công thức và luồng duyệt",
-      "msg": "MSG-15-04",
-      "rule": null
-    },
-    {
-      "code": "MSG-15-05",
-      "httpStatus": 422,
-      "slug": "feel",
-      "defaultTitleVi": "Bảng quyết định có điều kiện hoặc kiểu dữ liệu chưa hợp lệ",
-      "msg": "MSG-15-05",
-      "rule": null
-    },
-    {
-      "code": "MSG-15-06",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Gói chính sách đã được người khác cập nhật, vui lòng tải lại",
-      "msg": "MSG-15-06",
-      "rule": "BR-15-10"
-    },
-    {
-      "code": "MSG-15-07",
-      "httpStatus": 422,
-      "slug": "msg-15-07",
-      "defaultTitleVi": "Thông báo cấu hình gói chính sách, công thức và luồng duyệt",
-      "msg": "MSG-15-07",
-      "rule": null
-    },
-    {
-      "code": "MSG-15-08",
-      "httpStatus": 422,
-      "slug": "msg-15-08",
-      "defaultTitleVi": "Thông báo cấu hình gói chính sách, công thức và luồng duyệt",
-      "msg": "MSG-15-08",
-      "rule": null
-    },
-    {
-      "code": "MSG-15-09",
-      "httpStatus": 422,
-      "slug": "wf-params",
-      "defaultTitleVi": "Tham số cấu hình luồng quy trình không khớp với mẫu chuẩn",
-      "msg": "MSG-15-09",
-      "rule": null
-    },
-    {
-      "code": "MSG-15-10",
-      "httpStatus": 422,
-      "slug": "msg-15-10",
-      "defaultTitleVi": "Thông báo cấu hình gói chính sách, công thức và luồng duyệt",
-      "msg": "MSG-15-10",
-      "rule": "BR-15-01"
-    },
-    {
-      "code": "MSG-16-01",
-      "httpStatus": 422,
-      "slug": "msg-16-01",
-      "defaultTitleVi": "Thông báo bảng điều hành và phân tích dữ liệu",
-      "msg": "MSG-16-01",
-      "rule": "BR-16-08"
-    },
-    {
-      "code": "MSG-16-02",
-      "httpStatus": 422,
-      "slug": "msg-16-02",
-      "defaultTitleVi": "Thông báo bảng điều hành và phân tích dữ liệu",
-      "msg": "MSG-16-02",
-      "rule": null
-    },
-    {
-      "code": "MSG-16-03",
-      "httpStatus": 422,
-      "slug": "msg-16-03",
-      "defaultTitleVi": "Thông báo bảng điều hành và phân tích dữ liệu",
-      "msg": "MSG-16-03",
-      "rule": null
-    },
-    {
-      "code": "MSG-16-04",
-      "httpStatus": 422,
-      "slug": "invalid-combination",
-      "defaultTitleVi": "Tổ hợp chỉ số và chiều phân tích không được hỗ trợ",
-      "msg": "MSG-16-04",
-      "rule": null
-    },
-    {
-      "code": "MSG-16-05",
-      "httpStatus": 422,
-      "slug": "msg-16-05",
-      "defaultTitleVi": "Thông báo bảng điều hành và phân tích dữ liệu",
-      "msg": "MSG-16-05",
-      "rule": null
-    },
-    {
-      "code": "MSG-16-06",
-      "httpStatus": 422,
-      "slug": "msg-16-06",
-      "defaultTitleVi": "Thông báo bảng điều hành và phân tích dữ liệu",
-      "msg": "MSG-16-06",
-      "rule": "BR-16-04"
-    },
-    {
-      "code": "MSG-16-07",
-      "httpStatus": 422,
-      "slug": "msg-16-07",
-      "defaultTitleVi": "Thông báo bảng điều hành và phân tích dữ liệu",
-      "msg": "MSG-16-07",
-      "rule": null
-    },
-    {
-      "code": "MSG-17-01",
-      "httpStatus": 422,
-      "slug": "msg-17-01",
-      "defaultTitleVi": "Thông báo trợ lý thông minh hỗ trợ nghiệp vụ",
-      "msg": "MSG-17-01",
-      "rule": null
-    },
-    {
-      "code": "MSG-17-02",
-      "httpStatus": 422,
-      "slug": "msg-17-02",
-      "defaultTitleVi": "Thông báo trợ lý thông minh hỗ trợ nghiệp vụ",
-      "msg": "MSG-17-02",
-      "rule": "BR-17-04"
-    },
-    {
-      "code": "MSG-17-03",
-      "httpStatus": 422,
-      "slug": "msg-17-03",
-      "defaultTitleVi": "Thông báo trợ lý thông minh hỗ trợ nghiệp vụ",
-      "msg": "MSG-17-03",
-      "rule": "BR-17-04"
-    },
-    {
-      "code": "MSG-17-04",
-      "httpStatus": 422,
-      "slug": "msg-17-04",
-      "defaultTitleVi": "Thông báo trợ lý thông minh hỗ trợ nghiệp vụ",
-      "msg": "MSG-17-04",
-      "rule": null
-    },
-    {
-      "code": "MSG-18-01",
-      "httpStatus": 422,
-      "slug": "contrast",
-      "defaultTitleVi": "Độ tương phản màu sắc chưa đạt chuẩn khả năng truy cập WCAG 2.1 AA",
-      "msg": "MSG-18-01",
-      "rule": "BR-18-01"
-    },
-    {
-      "code": "MSG-18-02",
-      "httpStatus": 422,
-      "slug": "unknown-component",
-      "defaultTitleVi": "Cấu hình giao diện chứa thành phần hiển thị không có trong danh mục chuẩn",
-      "msg": "MSG-18-02",
-      "rule": "BR-18-02"
-    },
-    {
-      "code": "MSG-18-03",
-      "httpStatus": 403,
-      "slug": "same-person",
-      "defaultTitleVi": "Người phê duyệt phát hành giao diện phải khác người soạn thảo",
-      "msg": "MSG-18-03",
-      "rule": null
-    },
-    {
-      "code": "MSG-18-04",
-      "httpStatus": 409,
-      "slug": "rollback-incompatible",
-      "defaultTitleVi": "Phiên bản giao diện muốn khôi phục không tương thích với gói chính sách hiện hành",
-      "msg": "MSG-18-04",
-      "rule": null
-    },
-    {
-      "code": "MSG-18-05",
-      "httpStatus": 422,
-      "slug": "msg-18-05",
-      "defaultTitleVi": "Thông báo cấu hình giao diện và biểu mẫu động",
-      "msg": "MSG-18-05",
-      "rule": null
-    },
-    {
-      "code": "MSG-18-06",
-      "httpStatus": 422,
-      "slug": "cel-invalid",
-      "defaultTitleVi": "Biểu thức điều kiện hiển thị hoặc kiểm tra hợp lệ có cú pháp không đúng",
-      "msg": "MSG-18-06",
-      "rule": null
-    },
-    {
-      "code": "MSG-18-07",
-      "httpStatus": 409,
-      "slug": "scored-field",
-      "defaultTitleVi": "Trường dùng để tính điểm chỉ được thêm hoặc bớt thông qua gói chính sách",
-      "msg": "MSG-18-07",
-      "rule": null
-    },
-    {
-      "code": "MSG-18-08",
-      "httpStatus": 422,
-      "slug": "msg-18-08",
-      "defaultTitleVi": "Thông báo cấu hình giao diện và biểu mẫu động",
-      "msg": "MSG-18-08",
-      "rule": "BR-18-01"
-    },
-    {
-      "code": "MSG-18-09",
-      "httpStatus": 422,
-      "slug": "msg-18-09",
-      "defaultTitleVi": "Thông báo cấu hình giao diện và biểu mẫu động",
-      "msg": "MSG-18-09",
-      "rule": null
-    },
-    {
-      "code": "MSG-18-10",
-      "httpStatus": 422,
-      "slug": "msg-18-10",
-      "defaultTitleVi": "Thông báo cấu hình giao diện và biểu mẫu động",
-      "msg": "MSG-18-10",
-      "rule": null
+      "module": "LEDGER",
+      "status": 422,
+      "name": "RANGE-TOO-LONG",
+      "type": "https://okrkpi.vn/problems/range-too-long",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
     },
     {
       "code": "OKR-403-SELF-APPROVAL",
-      "httpStatus": 403,
-      "slug": "self-approval",
-      "defaultTitleVi": "Người soạn thảo bộ mục tiêu không được tự phê duyệt",
+      "module": "OKR",
+      "status": 403,
+      "name": "SELF-APPROVAL",
+      "type": "https://okrkpi.vn/problems/self-approval",
+      "title": "Không thể tự phê duyệt",
       "msg": "MSG-02-11",
-      "rule": "BR-02-08"
+      "sources": [
+        "modules/okr.yaml"
+      ]
     },
     {
       "code": "OKR-409-INVALID-STATE",
-      "httpStatus": 409,
-      "slug": "invalid-state",
-      "defaultTitleVi": "Trạng thái hiện tại của mục tiêu không cho phép thực hiện thao tác",
-      "msg": "MSG-02-04",
-      "rule": "BR-02-10"
+      "module": "OKR",
+      "status": 409,
+      "name": "INVALID-STATE",
+      "type": "https://okrkpi.vn/problems/invalid-state",
+      "sources": [
+        "modules/okr.yaml"
+      ]
     },
     {
       "code": "OKR-409-LINK-EXISTS",
-      "httpStatus": 409,
-      "slug": "link-exists",
-      "defaultTitleVi": "Liên kết mục tiêu hoặc căn cứ này đã tồn tại",
-      "msg": null,
-      "rule": null
+      "module": "OKR",
+      "status": 409,
+      "name": "LINK-EXISTS",
+      "type": "https://okrkpi.vn/problems/link-exists",
+      "sources": [
+        "modules/okr.yaml"
+      ]
     },
     {
       "code": "OKR-409-OBJECTIVE-NOT-APPROVED",
-      "httpStatus": 409,
-      "slug": "objective-not-approved",
-      "defaultTitleVi": "Chỉ cập nhật được tiến độ cho kết quả then chốt thuộc mục tiêu đã duyệt",
-      "msg": "MSG-03-05",
-      "rule": "BR-03-01"
+      "module": "OKR",
+      "status": 409,
+      "name": "OBJECTIVE-NOT-APPROVED",
+      "type": "https://okrkpi.vn/problems/objective-not-approved",
+      "sources": [
+        "modules/okr.yaml"
+      ]
     },
     {
       "code": "OKR-409-PERIOD-LOCKED",
-      "httpStatus": 409,
-      "slug": "period-locked",
-      "defaultTitleVi": "Kỳ đánh giá đã khoá, không thể thay đổi mục tiêu",
-      "msg": "MSG-02-04",
-      "rule": "BR-02-10"
+      "module": "OKR",
+      "status": 409,
+      "name": "PERIOD-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-locked",
+      "title": "Kỳ đánh giá đã khoá",
+      "msg": "MSG-03-05",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-409-REVISION-PENDING",
+      "module": "OKR",
+      "status": 409,
+      "name": "REVISION-PENDING",
+      "type": "https://okrkpi.vn/problems/revision-pending",
+      "sources": [
+        "modules/okr.yaml"
+      ]
     },
     {
       "code": "OKR-409-VERSION-CONFLICT",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Mục tiêu đã được người khác cập nhật, vui lòng tải lại",
-      "msg": "MSG-02-04",
-      "rule": "BR-02-10"
+      "module": "OKR",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/okr.yaml"
+      ]
     },
     {
       "code": "OKR-422-COMMENT-REQUIRED",
-      "httpStatus": 422,
-      "slug": "comment-required",
-      "defaultTitleVi": "Vui lòng nhập ý kiến nhận xét khi trả lại bộ mục tiêu",
+      "module": "OKR",
+      "status": 422,
+      "name": "COMMENT-REQUIRED",
+      "type": "https://okrkpi.vn/problems/comment-required",
       "msg": "MSG-02-10",
-      "rule": "BR-02-09"
-    },
-    {
-      "code": "OKR-422-INVALID-WEIGHT-SUM",
-      "httpStatus": 422,
-      "slug": "invalid-weight-sum",
-      "defaultTitleVi": "Tổng trọng số các kết quả then chốt phải bằng 100%",
-      "msg": null,
-      "rule": null
+      "sources": [
+        "modules/okr.yaml"
+      ]
     },
     {
       "code": "OKR-422-LARGE-CHANGE-UNCONFIRMED",
-      "httpStatus": 422,
-      "slug": "large-change-unconfirmed",
-      "defaultTitleVi": "Thay đổi tiến độ lớn cần được xác nhận và thuyết minh rõ lý do",
+      "module": "OKR",
+      "status": 422,
+      "name": "LARGE-CHANGE-UNCONFIRMED",
+      "type": "https://okrkpi.vn/problems/large-change-unconfirmed",
       "msg": "MSG-03-02",
-      "rule": "BR-03-05"
+      "sources": [
+        "modules/okr.yaml"
+      ]
     },
     {
       "code": "OKR-422-OVER-LIMIT-REASON-REQUIRED",
-      "httpStatus": 422,
-      "slug": "over-limit-reason-required",
-      "defaultTitleVi": "Vui lòng nhập lý do khi số lượng mục tiêu vượt ngưỡng khuyến nghị",
+      "module": "OKR",
+      "status": 422,
+      "name": "OVER-LIMIT-REASON-REQUIRED",
+      "type": "https://okrkpi.vn/problems/over-limit-reason-required",
       "msg": "MSG-02-04",
-      "rule": "BR-02-11"
+      "sources": [
+        "modules/okr.yaml"
+      ]
     },
     {
       "code": "OKR-422-OVERRIDE-REASON-REQUIRED",
-      "httpStatus": 422,
-      "slug": "override-reason-required",
-      "defaultTitleVi": "Vui lòng nhập lý do khi sửa giá trị tự động đồng bộ từ hệ thống nguồn",
+      "module": "OKR",
+      "status": 422,
+      "name": "OVERRIDE-REASON-REQUIRED",
+      "type": "https://okrkpi.vn/problems/override-reason-required",
       "msg": "MSG-03-04",
-      "rule": "BR-03-02"
+      "sources": [
+        "modules/okr.yaml"
+      ]
     },
     {
       "code": "OKR-422-PARENT-NOT-APPROVED",
-      "httpStatus": 422,
-      "slug": "parent-not-approved",
-      "defaultTitleVi": "Mục tiêu cấp trên chưa được phê duyệt",
+      "module": "OKR",
+      "status": 422,
+      "name": "PARENT-NOT-APPROVED",
+      "type": "https://okrkpi.vn/problems/parent-not-approved",
       "msg": "MSG-02-03",
-      "rule": "BR-02-02"
+      "sources": [
+        "modules/okr.yaml"
+      ]
     },
     {
       "code": "OKR-422-VALIDATION",
-      "httpStatus": 422,
-      "slug": "validation",
-      "defaultTitleVi": "Thông tin mục tiêu hoặc kết quả then chốt chưa hợp lệ",
-      "msg": "MSG-02-08",
-      "rule": "BR-02-02"
+      "module": "OKR",
+      "status": 422,
+      "name": "VALIDATION",
+      "type": "https://okrkpi.vn/problems/validation",
+      "title": "Dữ liệu chưa hợp lệ",
+      "sources": [
+        "modules/okr.yaml"
+      ]
     },
     {
       "code": "OKR-502-SOURCE-UNAVAILABLE",
-      "httpStatus": 502,
-      "slug": "source-unavailable",
-      "defaultTitleVi": "Không kết nối được hệ thống nguồn để lấy số liệu tự động",
+      "module": "OKR",
+      "status": 502,
+      "name": "SOURCE-UNAVAILABLE",
+      "type": "https://okrkpi.vn/problems/source-unavailable",
       "msg": "MSG-03-03",
-      "rule": null
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "ORG-409-ASSIGNMENT-OVERLAP",
+      "module": "ORG",
+      "status": 409,
+      "name": "ASSIGNMENT-OVERLAP",
+      "type": "https://okrkpi.vn/problems/assignment-overlap",
+      "sources": [
+        "modules/org.yaml"
+      ]
     },
     {
       "code": "ORG-409-SYNC-RUNNING",
-      "httpStatus": 409,
-      "slug": "sync-running",
-      "defaultTitleVi": "Đang có tiến trình đồng bộ tổ chức, nhân sự đang chạy",
-      "msg": null,
-      "rule": null
+      "module": "ORG",
+      "status": 409,
+      "name": "SYNC-RUNNING",
+      "type": "https://okrkpi.vn/problems/sync-running",
+      "sources": [
+        "modules/org.yaml"
+      ]
     },
     {
       "code": "ORG-409-XREF-EXISTS",
-      "httpStatus": 409,
-      "slug": "xref-exists",
-      "defaultTitleVi": "Mã cán bộ tại hệ thống nguồn đã được ánh xạ với hồ sơ khác",
-      "msg": null,
-      "rule": null
+      "module": "ORG",
+      "status": 409,
+      "name": "XREF-EXISTS",
+      "type": "https://okrkpi.vn/problems/xref-exists",
+      "sources": [
+        "modules/org.yaml"
+      ]
     },
     {
       "code": "OVERSIGHT-403-FOUR-EYES",
-      "httpStatus": 403,
-      "slug": "four-eyes",
-      "defaultTitleVi": "Vi phạm nguyên tắc hai người phê duyệt độc lập (bốn mắt)",
+      "module": "OVERSIGHT",
+      "status": 403,
+      "name": "FOUR-EYES",
+      "type": "https://okrkpi.vn/problems/four-eyes",
+      "title": "Không đáp ứng nguyên tắc hai người duyệt",
       "msg": "MSG-13-01",
-      "rule": null
+      "sources": [
+        "modules/oversight.yaml"
+      ]
     },
     {
       "code": "OVERSIGHT-403-SEPARATION-OF-DUTIES",
-      "httpStatus": 403,
-      "slug": "separation-of-duties",
-      "defaultTitleVi": "Đồng chí không được xử lý cảnh báo hoặc khiếu nại liên quan tới hồ sơ của mình",
+      "module": "OVERSIGHT",
+      "status": 403,
+      "name": "SEPARATION-OF-DUTIES",
+      "type": "https://okrkpi.vn/problems/separation-of-duties",
+      "title": "Không thể xử lý khiếu nại này",
       "msg": "MSG-12-05",
-      "rule": "BR-14-02"
+      "sources": [
+        "modules/oversight.yaml"
+      ]
     },
     {
       "code": "OVERSIGHT-409-INVALID-STATE",
-      "httpStatus": 409,
-      "slug": "invalid-state",
-      "defaultTitleVi": "Trạng thái của hồ sơ khiếu nại hoặc yêu cầu hậu kiểm không hợp lệ",
-      "msg": null,
-      "rule": null
+      "module": "OVERSIGHT",
+      "status": 409,
+      "name": "INVALID-STATE",
+      "type": "https://okrkpi.vn/problems/invalid-state",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
     },
     {
       "code": "OVERSIGHT-409-PERIOD-NOT-LOCKED",
-      "httpStatus": 409,
-      "slug": "period-not-locked",
-      "defaultTitleVi": "Kỳ đánh giá chưa khoá hoặc đã có yêu cầu mở lại đang xử lý",
-      "msg": null,
-      "rule": null
+      "module": "OVERSIGHT",
+      "status": 409,
+      "name": "PERIOD-NOT-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-not-locked",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
     },
     {
       "code": "OVERSIGHT-409-VERSION-CONFLICT",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Hồ sơ giám sát đã được người khác cập nhật, vui lòng tải lại",
-      "msg": null,
-      "rule": null
+      "module": "OVERSIGHT",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
     },
     {
       "code": "OVERSIGHT-422-CONCLUSION-MISSING",
-      "httpStatus": 422,
-      "slug": "conclusion-missing",
-      "defaultTitleVi": "Vui lòng nhập đầy đủ nội dung kết luận và đính kèm văn bản giải quyết",
-      "msg": null,
-      "rule": null
+      "module": "OVERSIGHT",
+      "status": 422,
+      "name": "CONCLUSION-MISSING",
+      "type": "https://okrkpi.vn/problems/conclusion-missing",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
     },
     {
       "code": "OVERSIGHT-422-DEADLINE-PASSED",
-      "httpStatus": 422,
-      "slug": "deadline-passed",
-      "defaultTitleVi": "Đã quá thời hạn gửi khiếu nại theo quy định",
+      "module": "OVERSIGHT",
+      "status": 422,
+      "name": "DEADLINE-PASSED",
+      "type": "https://okrkpi.vn/problems/deadline-passed",
       "msg": "MSG-12-01",
-      "rule": null
+      "sources": [
+        "modules/oversight.yaml"
+      ]
     },
     {
       "code": "OVERSIGHT-422-NO-TARGET",
-      "httpStatus": 422,
-      "slug": "no-target",
-      "defaultTitleVi": "Vui lòng chọn ít nhất một nội dung hoặc điểm số cần kiến nghị",
+      "module": "OVERSIGHT",
+      "status": 422,
+      "name": "NO-TARGET",
+      "type": "https://okrkpi.vn/problems/validation",
+      "title": "Dữ liệu chưa hợp lệ",
       "msg": "MSG-12-03",
-      "rule": "BR-12-02"
+      "sources": [
+        "modules/oversight.yaml"
+      ]
     },
     {
       "code": "PERIOD-403-SAME-PERSON",
-      "httpStatus": 403,
-      "slug": "same-person",
-      "defaultTitleVi": "Người phê duyệt hoặc khởi chạy khoá kỳ phải khác người lập lệnh",
-      "msg": "MSG-08-01",
-      "rule": "BR-08-02"
+      "module": "PERIOD",
+      "status": 403,
+      "name": "SAME-PERSON",
+      "type": "https://okrkpi.vn/problems/same-person",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "PERIOD-409-NO-FAILURE",
-      "httpStatus": 409,
-      "slug": "no-failure",
-      "defaultTitleVi": "Không có hồ sơ lỗi nào cần chạy lại trong kỳ đánh giá",
-      "msg": null,
-      "rule": null
+      "module": "PERIOD",
+      "status": 409,
+      "name": "NO-FAILURE",
+      "type": "https://okrkpi.vn/problems/no-failure",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "PERIOD-409-ORDER-EXISTS",
-      "httpStatus": 409,
-      "slug": "order-exists",
-      "defaultTitleVi": "Kỳ đánh giá đã có lệnh khoá kỳ đang còn hiệu lực",
-      "msg": null,
-      "rule": null
+      "module": "PERIOD",
+      "status": 409,
+      "name": "ORDER-EXISTS",
+      "type": "https://okrkpi.vn/problems/order-exists",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "PERIOD-409-OVERLAP",
-      "httpStatus": 409,
-      "slug": "overlap",
-      "defaultTitleVi": "Thời gian của kỳ đánh giá bị trùng với một kỳ cùng loại đã có",
-      "msg": null,
-      "rule": "BR-08-07"
+      "module": "PERIOD",
+      "status": 409,
+      "name": "OVERLAP",
+      "type": "https://okrkpi.vn/problems/overlap",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "PERIOD-409-POINT-OF-NO-RETURN",
-      "httpStatus": 409,
-      "slug": "point-of-no-return",
-      "defaultTitleVi": "Tiến trình khoá kỳ đã qua bước chốt sổ, không thể huỷ tự động",
-      "msg": "MSG-08-05",
-      "rule": "BR-08-09"
+      "module": "PERIOD",
+      "status": 409,
+      "name": "POINT-OF-NO-RETURN",
+      "type": "https://okrkpi.vn/problems/point-of-no-return",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "PERIOD-409-SAGA-NOT-RUNNING",
-      "httpStatus": 409,
-      "slug": "saga-not-running",
-      "defaultTitleVi": "Tiến trình khoá kỳ hiện không ở trạng thái đang chạy hoặc tạm dừng",
-      "msg": null,
-      "rule": null
+      "module": "PERIOD",
+      "status": 409,
+      "name": "SAGA-NOT-RUNNING",
+      "type": "https://okrkpi.vn/problems/saga-not-running",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "PERIOD-409-SAGA-RUNNING",
-      "httpStatus": 409,
-      "slug": "saga-running",
-      "defaultTitleVi": "Đang có tiến trình khoá kỳ chạy cho kỳ đánh giá này",
-      "msg": "MSG-08-02",
-      "rule": "BR-08-02"
+      "module": "PERIOD",
+      "status": 409,
+      "name": "SAGA-RUNNING",
+      "type": "https://okrkpi.vn/problems/saga-running",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "PERIOD-422-PRECONDITION",
-      "httpStatus": 422,
-      "slug": "precondition",
-      "defaultTitleVi": "Kỳ đánh giá chưa đạt đầy đủ các điều kiện tiên quyết để khoá kỳ",
+      "module": "PERIOD",
+      "status": 422,
+      "name": "PRECONDITION",
+      "type": "https://okrkpi.vn/problems/precondition",
       "msg": "MSG-08-02",
-      "rule": null
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "POLICY-403-NOT-OVERRIDABLE",
-      "httpStatus": 403,
-      "slug": "not-overridable",
-      "defaultTitleVi": "Quy tắc cốt lõi của Trung ương không được phép ghi đè tại đơn vị",
-      "msg": null,
-      "rule": "BR-15-13"
+      "module": "POLICY",
+      "status": 403,
+      "name": "NOT-OVERRIDABLE",
+      "type": "https://okrkpi.vn/problems/not-overridable",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-403-SAME-AUTHOR",
-      "httpStatus": 403,
-      "slug": "same-author",
-      "defaultTitleVi": "Người phê duyệt phát hành gói chính sách phải khác người soạn thảo",
-      "msg": null,
-      "rule": "BR-15-09"
+      "module": "POLICY",
+      "status": 403,
+      "name": "SAME-AUTHOR",
+      "type": "https://okrkpi.vn/problems/same-author",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-404-NO-BINDING",
-      "httpStatus": 404,
-      "slug": "no-binding",
-      "defaultTitleVi": "Chưa có gói chính sách nào được gắn cho đơn vị và luồng đánh giá này",
-      "msg": null,
-      "rule": null
+      "module": "POLICY",
+      "status": 404,
+      "name": "NO-BINDING",
+      "type": "https://okrkpi.vn/problems/no-binding",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-409-NOT-PENDING",
-      "httpStatus": 409,
-      "slug": "not-pending",
-      "defaultTitleVi": "Phiên bản gói chính sách không ở trạng thái chờ phê duyệt",
-      "msg": null,
-      "rule": null
+      "module": "POLICY",
+      "status": 409,
+      "name": "NOT-PENDING",
+      "type": "https://okrkpi.vn/problems/not-pending",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-409-NOT-SIGNED",
-      "httpStatus": 409,
-      "slug": "not-signed",
-      "defaultTitleVi": "Phiên bản gói chính sách chưa hoàn tất ký số phê duyệt",
-      "msg": null,
-      "rule": null
+      "module": "POLICY",
+      "status": 409,
+      "name": "NOT-SIGNED",
+      "type": "https://okrkpi.vn/problems/not-signed",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-409-NOT-TESTED",
-      "httpStatus": 409,
-      "slug": "not-tested",
-      "defaultTitleVi": "Phiên bản gói chính sách chưa vượt qua toàn bộ bộ kiểm thử chuẩn",
+      "module": "POLICY",
+      "status": 409,
+      "name": "NOT-TESTED",
+      "type": "https://okrkpi.vn/problems/not-tested",
       "msg": "MSG-15-06",
-      "rule": "BR-15-10"
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-409-PERIOD-LOCKED",
-      "httpStatus": 409,
-      "slug": "period-locked",
-      "defaultTitleVi": "Kỳ đánh giá đã khoá, không thể thay đổi gói chính sách áp dụng",
-      "msg": "MSG-15-06",
-      "rule": "BR-15-10"
+      "module": "POLICY",
+      "status": 409,
+      "name": "PERIOD-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-locked",
+      "title": "Kỳ đánh giá đã khoá",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-409-PERIOD-STARTED",
-      "httpStatus": 409,
-      "slug": "period-started",
-      "defaultTitleVi": "Kỳ đánh giá đã bắt đầu, không thể đổi sang gói chính sách khác",
-      "msg": null,
-      "rule": null
+      "module": "POLICY",
+      "status": 409,
+      "name": "PERIOD-STARTED",
+      "type": "https://okrkpi.vn/problems/period-started",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-409-TEST-RUNNING",
-      "httpStatus": 409,
-      "slug": "test-running",
-      "defaultTitleVi": "Đang có tiến trình kiểm thử chạy trên phiên bản gói chính sách này",
-      "msg": null,
-      "rule": null
+      "module": "POLICY",
+      "status": 409,
+      "name": "TEST-RUNNING",
+      "type": "https://okrkpi.vn/problems/test-running",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-409-VERSION-CONFLICT",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Gói chính sách đã được người khác cập nhật, vui lòng tải lại",
-      "msg": "MSG-15-06",
-      "rule": "BR-15-10"
+      "module": "POLICY",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-409-VERSION-FROZEN",
-      "httpStatus": 409,
-      "slug": "version-frozen",
-      "defaultTitleVi": "Phiên bản gói chính sách đã chốt, không thể chỉnh sửa nội dung",
-      "msg": null,
-      "rule": null
+      "module": "POLICY",
+      "status": 409,
+      "name": "VERSION-FROZEN",
+      "type": "https://okrkpi.vn/problems/version-frozen",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-422-CASE-CODE-EXISTS",
-      "httpStatus": 422,
-      "slug": "case-code-exists",
-      "defaultTitleVi": "Mã tình huống kiểm thử đã tồn tại trong gói chính sách",
-      "msg": null,
-      "rule": null
+      "module": "POLICY",
+      "status": 422,
+      "name": "CASE-CODE-EXISTS",
+      "type": "https://okrkpi.vn/problems/case-code-exists",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-422-CASE-NOT-GOLDEN",
-      "httpStatus": 422,
-      "slug": "case-not-golden",
-      "defaultTitleVi": "Tình huống kiểm thử không thuộc bộ kiểm thử chuẩn",
-      "msg": null,
-      "rule": null
+      "module": "POLICY",
+      "status": 422,
+      "name": "CASE-NOT-GOLDEN",
+      "type": "https://okrkpi.vn/problems/case-not-golden",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-422-CEL-TYPE",
-      "httpStatus": 422,
-      "slug": "cel-type",
-      "defaultTitleVi": "Biểu thức công thức không hợp lệ hoặc sai kiểu dữ liệu kết quả",
+      "module": "POLICY",
+      "status": 422,
+      "name": "CEL-TYPE",
+      "type": "https://okrkpi.vn/problems/cel-type",
       "msg": "MSG-15-01",
-      "rule": null
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-422-FEEL",
-      "httpStatus": 422,
-      "slug": "feel",
-      "defaultTitleVi": "Bảng quyết định có điều kiện hoặc kiểu dữ liệu chưa hợp lệ",
-      "msg": "MSG-15-05",
-      "rule": null
+      "module": "POLICY",
+      "status": 422,
+      "name": "FEEL",
+      "type": "https://okrkpi.vn/problems/feel",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-422-GROUP-SUM",
-      "httpStatus": 422,
-      "slug": "group-sum",
-      "defaultTitleVi": "Tổng trọng số của các nhóm tiêu chí phải bằng đúng 100%",
+      "module": "POLICY",
+      "status": 422,
+      "name": "GROUP-SUM",
+      "type": "https://okrkpi.vn/problems/validation",
+      "title": "Dữ liệu chưa hợp lệ",
       "msg": "MSG-15-02",
-      "rule": null
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-422-TEMPLATE-NOT-ACTIVE",
-      "httpStatus": 422,
-      "slug": "template-not-active",
-      "defaultTitleVi": "Mẫu quy trình được chọn hiện không còn hiệu lực sử dụng",
-      "msg": "MSG-15-09",
-      "rule": null
+      "module": "POLICY",
+      "status": 422,
+      "name": "TEMPLATE-NOT-ACTIVE",
+      "type": "https://okrkpi.vn/problems/template-not-active",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-422-TEMPLATE-VAR",
-      "httpStatus": 422,
-      "slug": "template-var",
-      "defaultTitleVi": "Biến sử dụng trong công thức chưa được khai báo trong danh mục",
+      "module": "POLICY",
+      "status": 422,
+      "name": "TEMPLATE-VAR",
+      "type": "https://okrkpi.vn/problems/template-var",
       "msg": "MSG-15-05",
-      "rule": null
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-422-VERSION-EXISTS",
-      "httpStatus": 422,
-      "slug": "version-exists",
-      "defaultTitleVi": "Số hiệu phiên bản của gói chính sách đã tồn tại",
-      "msg": null,
-      "rule": null
+      "module": "POLICY",
+      "status": 422,
+      "name": "VERSION-EXISTS",
+      "type": "https://okrkpi.vn/problems/version-exists",
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "POLICY-422-WF-PARAMS",
-      "httpStatus": 422,
-      "slug": "wf-params",
-      "defaultTitleVi": "Tham số cấu hình luồng quy trình không khớp với mẫu chuẩn",
+      "module": "POLICY",
+      "status": 422,
+      "name": "WF-PARAMS",
+      "type": "https://okrkpi.vn/problems/wf-params",
       "msg": "MSG-15-09",
-      "rule": null
+      "sources": [
+        "modules/policies.yaml"
+      ]
     },
     {
       "code": "PRODUCT-403-NOT-TASK-OWNER",
-      "httpStatus": 403,
-      "slug": "not-task-owner",
-      "defaultTitleVi": "Chỉ người chủ trì nhiệm vụ mới được tạo và nộp sản phẩm, minh chứng",
-      "msg": null,
-      "rule": null
+      "module": "PRODUCT",
+      "status": 403,
+      "name": "NOT-TASK-OWNER",
+      "type": "https://okrkpi.vn/problems/not-task-owner",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-403-SELF-REVIEW",
-      "httpStatus": 403,
-      "slug": "self-review",
-      "defaultTitleVi": "Người nộp hoặc người phối hợp không được tự nghiệm thu minh chứng của mình",
-      "msg": null,
-      "rule": "BR-07-06"
+      "module": "PRODUCT",
+      "status": 403,
+      "name": "SELF-REVIEW",
+      "type": "https://okrkpi.vn/problems/self-review",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-409-INTEGRITY-FAILED",
-      "httpStatus": 409,
-      "slug": "integrity-failed",
-      "defaultTitleVi": "Kiểm tra toàn vẹn tệp minh chứng không đạt, vui lòng kiểm tra lại",
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "INTEGRITY-FAILED",
+      "type": "https://okrkpi.vn/problems/integrity-failed",
       "msg": "MSG-07-13",
-      "rule": null
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-409-INVALID-STATE",
-      "httpStatus": 409,
-      "slug": "invalid-state",
-      "defaultTitleVi": "Trạng thái hiện tại của minh chứng không cho phép thực hiện thao tác",
-      "msg": "MSG-07-13",
-      "rule": null
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "INVALID-STATE",
+      "type": "https://okrkpi.vn/problems/invalid-state",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-409-OPEN-VERSION-EXISTS",
-      "httpStatus": 409,
-      "slug": "open-version-exists",
-      "defaultTitleVi": "Đang có phiên bản minh chứng chờ nghiệm thu, chưa thể tạo phiên bản mới",
-      "msg": null,
-      "rule": null
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "OPEN-VERSION-EXISTS",
+      "type": "https://okrkpi.vn/problems/open-version-exists",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-409-PERIOD-LOCKED",
-      "httpStatus": 409,
-      "slug": "period-locked",
-      "defaultTitleVi": "Kỳ đánh giá đã khoá, không thể nộp hoặc nghiệm thu minh chứng",
-      "msg": "MSG-07-13",
-      "rule": null
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "PERIOD-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-locked",
+      "title": "Kỳ đánh giá đã khoá",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-409-TASK-STATE",
-      "httpStatus": 409,
-      "slug": "task-state",
-      "defaultTitleVi": "Nhiệm vụ không ở trạng thái cho phép tiếp nhận minh chứng",
-      "msg": null,
-      "rule": null
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "TASK-STATE",
+      "type": "https://okrkpi.vn/problems/task-state",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-409-VERSION-CONFLICT",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Hồ sơ minh chứng đã được người khác cập nhật, vui lòng tải lại",
-      "msg": "MSG-07-13",
-      "rule": null
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-409-VERSION-FROZEN",
-      "httpStatus": 409,
-      "slug": "version-frozen",
-      "defaultTitleVi": "Phiên bản minh chứng đã hoàn tất nghiệm thu, không thể sửa đổi",
-      "msg": null,
-      "rule": null
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "VERSION-FROZEN",
+      "type": "https://okrkpi.vn/problems/version-frozen",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-422-AI-NOT-CONFIRMED",
-      "httpStatus": 422,
-      "slug": "ai-not-confirmed",
-      "defaultTitleVi": "Vui lòng kiểm tra và xác nhận kết quả trích xuất tự động trước khi nộp",
-      "msg": "MSG-07-01",
-      "rule": "BR-07-03"
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "AI-NOT-CONFIRMED",
+      "type": "https://okrkpi.vn/problems/ai-not-confirmed",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-422-ATTESTATION-REQUIRED",
-      "httpStatus": 422,
-      "slug": "attestation-required",
-      "defaultTitleVi": "Vui lòng đánh dấu xác nhận cam kết tính trung thực của minh chứng",
-      "msg": "MSG-07-01",
-      "rule": "BR-07-03"
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "ATTESTATION-REQUIRED",
+      "type": "https://okrkpi.vn/problems/attestation-required",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-422-COMMENT-REQUIRED",
-      "httpStatus": 422,
-      "slug": "comment-required",
-      "defaultTitleVi": "Vui lòng nhập nhận xét chi tiết khi đánh giá mức chất lượng dưới 1,0",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "COMMENT-REQUIRED",
+      "type": "https://okrkpi.vn/problems/comment-required",
       "msg": "MSG-07-10",
-      "rule": "BR-07-08"
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-422-CRITERIA-INCOMPLETE",
-      "httpStatus": 422,
-      "slug": "criteria-incomplete",
-      "defaultTitleVi": "Vui lòng đánh giá đầy đủ tất cả các tiêu chuẩn chất lượng của sản phẩm",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "CRITERIA-INCOMPLETE",
+      "type": "https://okrkpi.vn/problems/criteria-incomplete",
       "msg": "MSG-07-09",
-      "rule": "BR-07-08"
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-422-HASH-MISMATCH",
-      "httpStatus": 422,
-      "slug": "hash-mismatch",
-      "defaultTitleVi": "Mã băm kiểm tra toàn vẹn của tệp minh chứng không khớp",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "HASH-MISMATCH",
+      "type": "https://okrkpi.vn/problems/hash-mismatch",
       "msg": "MSG-07-03",
-      "rule": "BR-07-02"
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-422-NO-OBJECT",
-      "httpStatus": 422,
-      "slug": "no-object",
-      "defaultTitleVi": "Minh chứng phải đính kèm ít nhất một tệp tài liệu hoặc văn bản định danh",
-      "msg": "MSG-07-02",
-      "rule": "BR-07-04"
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "NO-OBJECT",
+      "type": "https://okrkpi.vn/problems/no-object",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-422-NOT-CLEAN",
-      "httpStatus": 422,
-      "slug": "not-clean",
-      "defaultTitleVi": "Tệp minh chứng đang trong quá trình quét an toàn hoặc không hợp lệ",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "NOT-CLEAN",
+      "type": "https://okrkpi.vn/problems/not-clean",
       "msg": "MSG-07-02",
-      "rule": "BR-07-04"
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-422-REUSE-JUSTIFICATION-REQUIRED",
-      "httpStatus": 422,
-      "slug": "reuse-justification-required",
-      "defaultTitleVi": "Tệp minh chứng đã dùng cho nhiệm vụ khác, vui lòng ghi rõ lý do tái sử dụng",
-      "msg": "MSG-07-02",
-      "rule": "BR-07-04"
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "REUSE-JUSTIFICATION-REQUIRED",
+      "type": "https://okrkpi.vn/problems/reuse-justification-required",
+      "msg": "MSG-07-01",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-422-REVISION-CAUSE-REQUIRED",
-      "httpStatus": 422,
-      "slug": "revision-cause-required",
-      "defaultTitleVi": "Vui lòng chọn nguyên nhân phải nộp bổ sung, chỉnh sửa minh chứng",
-      "msg": "MSG-07-09",
-      "rule": "BR-07-08"
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "REVISION-CAUSE-REQUIRED",
+      "type": "https://okrkpi.vn/problems/revision-cause-required",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "PRODUCT-422-TASK-NOT-OPEN",
-      "httpStatus": 422,
-      "slug": "task-not-open",
-      "defaultTitleVi": "Nhiệm vụ chưa được nhận hoặc đã đóng nên không thể nộp minh chứng",
-      "msg": null,
-      "rule": null
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "TASK-NOT-OPEN",
+      "type": "https://okrkpi.vn/problems/task-not-open",
+      "sources": [
+        "modules/products.yaml"
+      ]
     },
     {
       "code": "REGISTRY-403-SAME-APPROVER",
-      "httpStatus": 403,
-      "slug": "same-approver",
-      "defaultTitleVi": "Người phê duyệt chuyển cụm máy chủ phải khác người tạo đề nghị",
-      "msg": null,
-      "rule": null
+      "module": "REGISTRY",
+      "status": 403,
+      "name": "SAME-APPROVER",
+      "type": "https://okrkpi.vn/problems/same-approver",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "REGISTRY-409-CELL-UNAVAILABLE",
-      "httpStatus": 409,
-      "slug": "cell-unavailable",
-      "defaultTitleVi": "Cụm máy chủ đích hiện không ở trạng thái sẵn sàng hoạt động",
-      "msg": null,
-      "rule": null
+      "module": "REGISTRY",
+      "status": 409,
+      "name": "CELL-UNAVAILABLE",
+      "type": "https://okrkpi.vn/problems/cell-unavailable",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "REGISTRY-409-DUPLICATE",
-      "httpStatus": 409,
-      "slug": "duplicate",
-      "defaultTitleVi": "Mã đơn vị, mã hồ sơ khởi tạo hoặc tên miền đã tồn tại trên hệ thống",
-      "msg": null,
-      "rule": null
+      "module": "REGISTRY",
+      "status": 409,
+      "name": "DUPLICATE",
+      "type": "https://okrkpi.vn/problems/duplicate",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "REGISTRY-409-MOVE-ALREADY-CUTOVER",
+      "module": "REGISTRY",
+      "status": 409,
+      "name": "MOVE-ALREADY-CUTOVER",
+      "type": "https://okrkpi.vn/problems/move-already-cutover",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "REGISTRY-409-MOVE-IN-PROGRESS",
-      "httpStatus": 409,
-      "slug": "move-in-progress",
-      "defaultTitleVi": "Đơn vị đang trong quá trình chuyển cụm máy chủ khác",
-      "msg": null,
-      "rule": null
+      "module": "REGISTRY",
+      "status": 409,
+      "name": "MOVE-IN-PROGRESS",
+      "type": "https://okrkpi.vn/problems/move-in-progress",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "REGISTRY-409-SAME-CELL",
-      "httpStatus": 409,
-      "slug": "same-cell",
-      "defaultTitleVi": "Cụm máy chủ đích trùng với cụm máy chủ hiện tại của đơn vị",
-      "msg": null,
-      "rule": null
+      "module": "REGISTRY",
+      "status": 409,
+      "name": "SAME-CELL",
+      "type": "https://okrkpi.vn/problems/same-cell",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "REGISTRY-409-VERSION-CONFLICT",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Thông tin định tuyến đơn vị đã thay đổi, vui lòng tải lại",
-      "msg": null,
-      "rule": null
+      "module": "REGISTRY",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "REGISTRY-421-TENANT-MOVED",
-      "httpStatus": 421,
-      "slug": "tenant-moved",
-      "defaultTitleVi": "Đơn vị đã chuyển sang cụm máy chủ khác, hệ thống sẽ tự động kết nối lại",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "TASK-403-FORBIDDEN",
-      "httpStatus": 403,
-      "slug": "forbidden",
-      "defaultTitleVi": "Đồng chí không có quyền thực hiện thao tác trên nhiệm vụ này",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "TASK-403-NOT-ASSIGNER",
-      "httpStatus": 403,
-      "slug": "not-assigner",
-      "defaultTitleVi": "Chỉ người giao việc hoặc lãnh đạo đơn vị mới được thực hiện thao tác này",
-      "msg": null,
-      "rule": null
+      "module": "REGISTRY",
+      "status": 421,
+      "name": "TENANT-MOVED",
+      "type": "https://okrkpi.vn/problems/tenant-moved",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "TASK-403-SAME-AUTHOR",
-      "httpStatus": 403,
-      "slug": "same-author",
-      "defaultTitleVi": "Người phê duyệt kế hoạch không được trùng với người lập kế hoạch",
-      "msg": null,
-      "rule": null
-    },
-    {
-      "code": "TASK-404-NOT-FOUND",
-      "httpStatus": 404,
-      "slug": "not-found",
-      "defaultTitleVi": "Không tìm thấy nhiệm vụ yêu cầu",
-      "msg": null,
-      "rule": null
+      "module": "TASK",
+      "status": 403,
+      "name": "SAME-AUTHOR",
+      "type": "https://okrkpi.vn/problems/same-author",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
     },
     {
       "code": "TASK-409-DUPLICATE-PARAGRAPH",
-      "httpStatus": 409,
-      "slug": "duplicate-paragraph",
-      "defaultTitleVi": "Đoạn văn bản chỉ đạo này đã được tách thành nhiệm vụ trước đó",
+      "module": "TASK",
+      "status": 409,
+      "name": "DUPLICATE-PARAGRAPH",
+      "type": "https://okrkpi.vn/problems/duplicate-paragraph",
       "msg": "MSG-05-09",
-      "rule": "BR-05-07"
+      "sources": [
+        "modules/tasks.yaml"
+      ]
     },
     {
       "code": "TASK-409-INVALID-TRANSITION",
-      "httpStatus": 409,
-      "slug": "invalid-transition",
-      "defaultTitleVi": "Chuyển đổi trạng thái nhiệm vụ không hợp lệ theo quy trình",
-      "msg": null,
-      "rule": null
+      "module": "TASK",
+      "status": 409,
+      "name": "INVALID-TRANSITION",
+      "type": "https://okrkpi.vn/problems/invalid-transition",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
     },
     {
       "code": "TASK-409-NOT-DRAFT",
-      "httpStatus": 409,
-      "slug": "not-draft",
-      "defaultTitleVi": "Chỉ được chỉnh sửa hoặc xoá nhiệm vụ khi đang ở trạng thái nháp",
-      "msg": null,
-      "rule": null
+      "module": "TASK",
+      "status": 409,
+      "name": "NOT-DRAFT",
+      "type": "https://okrkpi.vn/problems/not-draft",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
     },
     {
       "code": "TASK-409-PERIOD-LOCKED",
-      "httpStatus": 409,
-      "slug": "period-locked",
-      "defaultTitleVi": "Kỳ đánh giá đã khoá, không thể thay đổi thông tin nhiệm vụ",
-      "msg": "MSG-06-05",
-      "rule": null
+      "module": "TASK",
+      "status": 409,
+      "name": "PERIOD-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-locked",
+      "title": "Kỳ đánh giá đã khoá",
+      "sources": [
+        "common/common.yaml",
+        "modules/tasks.yaml"
+      ]
     },
     {
       "code": "TASK-409-PLAN-EXISTS",
-      "httpStatus": 409,
-      "slug": "plan-exists",
-      "defaultTitleVi": "Đơn vị đã có bản kế hoạch công tác cho kỳ đánh giá này",
-      "msg": null,
-      "rule": null
+      "module": "TASK",
+      "status": 409,
+      "name": "PLAN-EXISTS",
+      "type": "https://okrkpi.vn/problems/plan-exists",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
     },
     {
       "code": "TASK-409-VERSION-CONFLICT",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Dữ liệu nhiệm vụ đã được người khác cập nhật, vui lòng tải lại",
+      "module": "TASK",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
       "msg": "MSG-09-07",
-      "rule": null
+      "sources": [
+        "common/common.yaml",
+        "modules/tasks.yaml"
+      ]
     },
     {
       "code": "UI-403-SAME-PERSON",
-      "httpStatus": 403,
-      "slug": "same-person",
-      "defaultTitleVi": "Người phê duyệt phát hành giao diện phải khác người soạn thảo",
-      "msg": "MSG-18-03",
-      "rule": null
+      "module": "UI",
+      "status": 403,
+      "name": "SAME-PERSON",
+      "type": "https://okrkpi.vn/problems/same-person",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "UI-409-NOT-DRAFT",
-      "httpStatus": 409,
-      "slug": "not-draft",
-      "defaultTitleVi": "Phiên bản cấu hình giao diện không còn ở trạng thái nháp",
-      "msg": "MSG-18-02",
-      "rule": "BR-18-02"
+      "module": "UI",
+      "status": 409,
+      "name": "NOT-DRAFT",
+      "type": "https://okrkpi.vn/problems/not-draft",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "UI-409-ROLLBACK-INCOMPATIBLE",
-      "httpStatus": 409,
-      "slug": "rollback-incompatible",
-      "defaultTitleVi": "Phiên bản giao diện muốn khôi phục không tương thích với gói chính sách hiện hành",
+      "module": "UI",
+      "status": 409,
+      "name": "ROLLBACK-INCOMPATIBLE",
+      "type": "https://okrkpi.vn/problems/rollback-incompatible",
       "msg": "MSG-18-04",
-      "rule": null
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "UI-409-SCORED-FIELD",
-      "httpStatus": 409,
-      "slug": "scored-field",
-      "defaultTitleVi": "Trường dùng để tính điểm chỉ được thêm hoặc bớt thông qua gói chính sách",
+      "module": "UI",
+      "status": 409,
+      "name": "SCORED-FIELD",
+      "type": "https://okrkpi.vn/problems/scored-field",
       "msg": "MSG-18-07",
-      "rule": null
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "UI-422-CEL-INVALID",
-      "httpStatus": 422,
-      "slug": "cel-invalid",
-      "defaultTitleVi": "Biểu thức điều kiện hiển thị hoặc kiểm tra hợp lệ có cú pháp không đúng",
+      "module": "UI",
+      "status": 422,
+      "name": "CEL-INVALID",
+      "type": "https://okrkpi.vn/problems/cel-invalid",
       "msg": "MSG-18-06",
-      "rule": null
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "UI-422-CONTRAST",
-      "httpStatus": 422,
-      "slug": "contrast",
-      "defaultTitleVi": "Độ tương phản màu sắc chưa đạt chuẩn khả năng truy cập WCAG 2.1 AA",
+      "module": "UI",
+      "status": 422,
+      "name": "CONTRAST",
+      "type": "https://okrkpi.vn/problems/contrast",
       "msg": "MSG-18-01",
-      "rule": "BR-18-01"
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "UI-422-FORM-TEST-FAILED",
-      "httpStatus": 422,
-      "slug": "form-test-failed",
-      "defaultTitleVi": "Biểu mẫu động chưa vượt qua bộ tình huống kiểm thử bắt buộc",
-      "msg": null,
-      "rule": "BR-18-06"
+      "module": "UI",
+      "status": 422,
+      "name": "FORM-TEST-FAILED",
+      "type": "https://okrkpi.vn/problems/form-test-failed",
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "UI-422-UNKNOWN-COMPONENT",
-      "httpStatus": 422,
-      "slug": "unknown-component",
-      "defaultTitleVi": "Cấu hình giao diện chứa thành phần hiển thị không có trong danh mục chuẩn",
+      "module": "UI",
+      "status": 422,
+      "name": "UNKNOWN-COMPONENT",
+      "type": "https://okrkpi.vn/problems/unknown-component",
       "msg": "MSG-18-02",
-      "rule": "BR-18-02"
+      "sources": [
+        "modules/config.yaml"
+      ]
     },
     {
       "code": "WORKFLOW-403-SAME-AUTHOR",
-      "httpStatus": 403,
-      "slug": "same-author",
-      "defaultTitleVi": "Người phê duyệt mẫu quy trình phải khác người thiết kế mẫu",
-      "msg": null,
-      "rule": null
+      "module": "WORKFLOW",
+      "status": 403,
+      "name": "SAME-AUTHOR",
+      "type": "https://okrkpi.vn/problems/same-author",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "WORKFLOW-403-SELF-APPROVAL",
-      "httpStatus": 403,
-      "slug": "self-approval",
-      "defaultTitleVi": "Không được tự phê duyệt công việc do chính mình khởi tạo hoặc thực hiện",
+      "module": "WORKFLOW",
+      "status": 403,
+      "name": "SELF-APPROVAL",
+      "type": "https://okrkpi.vn/problems/self-approval",
       "msg": "MSG-02-11",
-      "rule": null
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "WORKFLOW-409-DRAFT-EXISTS",
-      "httpStatus": 409,
-      "slug": "draft-exists",
-      "defaultTitleVi": "Đã tồn tại một phiên bản nháp khác cho mẫu quy trình này",
-      "msg": null,
-      "rule": null
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "DRAFT-EXISTS",
+      "type": "https://okrkpi.vn/problems/draft-exists",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "WORKFLOW-409-NOT-TESTED",
-      "httpStatus": 409,
-      "slug": "not-tested",
-      "defaultTitleVi": "Mẫu quy trình chưa hoàn tất kiểm thử tự động",
-      "msg": null,
-      "rule": null
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "NOT-TESTED",
+      "type": "https://okrkpi.vn/problems/not-tested",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "WORKFLOW-409-ROLLOUT-WINDOW",
-      "httpStatus": 409,
-      "slug": "rollout-window",
-      "defaultTitleVi": "Đang trong khung giờ hạn chế phát hành thay đổi quy trình",
-      "msg": null,
-      "rule": null
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "ROLLOUT-WINDOW",
+      "type": "https://okrkpi.vn/problems/rollout-window",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "WORKFLOW-409-SAGA-EXISTS",
-      "httpStatus": 409,
-      "slug": "saga-exists",
-      "defaultTitleVi": "Tiến trình phối hợp cho kỳ đánh giá này đang chạy hoặc đã hoàn tất",
-      "msg": null,
-      "rule": null
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "SAGA-EXISTS",
+      "type": "https://okrkpi.vn/problems/saga-exists",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "WORKFLOW-409-TASK-COMPLETED",
-      "httpStatus": 409,
-      "slug": "task-completed",
-      "defaultTitleVi": "Bước xử lý này đã được hoàn thành bởi người có thẩm quyền khác",
-      "msg": null,
-      "rule": null
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "TASK-COMPLETED",
+      "type": "https://okrkpi.vn/problems/task-completed",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "WORKFLOW-409-TEMPLATE-IMMUTABLE",
-      "httpStatus": 409,
-      "slug": "template-immutable",
-      "defaultTitleVi": "Phiên bản mẫu quy trình đã phát hành, không được phép sửa đổi",
-      "msg": null,
-      "rule": null
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "TEMPLATE-IMMUTABLE",
+      "type": "https://okrkpi.vn/problems/template-immutable",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "WORKFLOW-409-VERSION-CONFLICT",
-      "httpStatus": 409,
-      "slug": "concurrent-modification",
-      "defaultTitleVi": "Thông tin bước xử lý đã thay đổi, vui lòng tải lại",
-      "msg": null,
-      "rule": null
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "WORKFLOW-422-ASSIGNEE-NOT-ELIGIBLE",
-      "httpStatus": 422,
-      "slug": "assignee-not-eligible",
-      "defaultTitleVi": "Người nhận bàn giao không thuộc nhóm cán bộ đủ điều kiện xử lý bước này",
-      "msg": null,
-      "rule": null
+      "module": "WORKFLOW",
+      "status": 422,
+      "name": "ASSIGNEE-NOT-ELIGIBLE",
+      "type": "https://okrkpi.vn/problems/assignee-not-eligible",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     },
     {
       "code": "WORKFLOW-422-BATCH-TOO-LARGE",
-      "httpStatus": 422,
-      "slug": "batch-too-large",
-      "defaultTitleVi": "Số lượng mục xử lý đồng loạt vượt quá giới hạn tối đa (200 mục)",
-      "msg": null,
-      "rule": null
+      "module": "WORKFLOW",
+      "status": 422,
+      "name": "BATCH-TOO-LARGE",
+      "type": "https://okrkpi.vn/problems/batch-too-large",
+      "sources": [
+        "modules/platform.yaml"
+      ]
     }
   ]
 }

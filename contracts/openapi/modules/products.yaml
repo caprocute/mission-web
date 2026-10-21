@@ -973,6 +973,44 @@ paths:
         rules: [BR-07-06, BR-07-08]
         source: TL-02a SCR-0703 "Từ chối"; ma trận SCR-0703.bo-sung-tu-choi
 
+  /evidences/{id}/versions/{v}/key-wraps:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - $ref: '#/components/parameters/VersionNo'
+    post:
+      tags: [Minh chứng]
+      operationId: addEvidenceVersionKeyWraps
+      summary: Bổ sung khoá bọc E2EE cho phiên bản minh chứng C3
+      description: >-
+        Thêm các bản ghi `product.e2ee_key_wrap` cho người thẩm định, thành viên hội đồng hoặc người nhận uỷ quyền
+        cần giải mã minh chứng C3 trên trình duyệt (ADR-06; TL-01 chương 9).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvidenceKeyWrapBatchInput' }
+      responses:
+        '200':
+          description: Phiên bản minh chứng sau khi bổ sung khoá bọc.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07, QT-09, QT-16]
+        scr: [SCR-0701, SCR-0703, SCR-0902, SCR-1603]
+        owner: MOD-03
+        roles: [member, manager]
+        scope: B; Gn
+        source: 'ADR-06; TL-01 chương 9; TL-03 product.e2ee_key_wrap (suy luận đường dẫn)'
+
   /files/uploads:
     post:
       tags: [Tệp]
@@ -1391,6 +1429,34 @@ paths:
         scope: B; Gn
         rules: [BR-07-04]
         source: TL-01 SVC-08 GET /files/{objectId}/scan; TL-03 evidence.scan_result; SEC-47
+
+  /files/{objectId}/rescan:
+    parameters:
+      - $ref: '#/components/parameters/ObjectId'
+    post:
+      tags: [Tệp]
+      operationId: rescanFileObject
+      summary: Yêu cầu quét lại mã độc cho tệp bị lỗi quét
+      description: >-
+        Khi bộ quét mã độc gặp sự cố (`scanStatus = LOI`), người nộp hoặc quản trị yêu cầu đưa tệp vào lại hàng đợi
+        quét mà không phải tải lên lại từ đầu (TL-02a QT-07 ngoại lệ, BR-07-04).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-07]
+        scr: [SCR-0701, SCR-0702]
+        owner: SVC-08
+        roles: [member, manager, tenant_admin]
+        scope: B; Gn; Tn
+        rules: [BR-07-04]
+        source: 'TL-01 SVC-08; TL-02a QT-07 ngoại lệ (quét lại khi scanStatus = LOI)'
 
 components:
   securitySchemes:
@@ -2156,3 +2222,11 @@ components:
         engine: { type: string }
         engineVersion: { type: string }
         scannedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+    EvidenceKeyWrapBatchInput:
+      type: object
+      required: [keyWraps]
+      properties:
+        keyWraps:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/EvidenceKeyWrap' }

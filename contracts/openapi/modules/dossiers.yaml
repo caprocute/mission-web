@@ -888,6 +888,57 @@ components:
         certificateId:
           $ref: '../common/common.yaml#/components/schemas/Uuid'
           description: Chứng thư chọn để ký; bỏ trống dùng chứng thư mặc định.
+    DossierFormDraftContentInput:
+      description: Nội dung tự nhận xét dự thảo bản kiểm điểm trước khi gửi thành viên góp ý (QT-11 bước 4).
+      type: object
+      required: [sections, commitmentConfirmed]
+      properties:
+        sections:
+          type: object
+          additionalProperties: { type: string, maxLength: 10000 }
+          description: Nội dung từng mục tự kiểm điểm theo mẫu biểu mẫu.
+        selfRating: { type: string, enum: [HTXSNV, HTTNV, HTNV, KHTNV] }
+        commitmentConfirmed: { type: boolean }
+    DossierSpecialCaseUpdate:
+      description: Xác minh và ghi cách xử lý trường hợp đặc thù PL 6 (BR-11-05, `dossier.special_case`).
+      type: object
+      required: [verified]
+      properties:
+        verified: { type: boolean }
+        caseCode: { type: string, maxLength: 32 }
+        detail: { type: object, additionalProperties: true }
+        handlingNote: { type: string, maxLength: 2000 }
+    EsignCertificateCreateInput:
+      description: Đăng ký chứng thư số cá nhân/tổ chức cho người gọi (`esign.certificate_ref`).
+      type: object
+      required: [provider, serialNumber, subjectDn, issuerDn, validFrom, validTo]
+      properties:
+        provider: { $ref: '#/components/schemas/EsignProvider' }
+        serialNumber: { type: string, minLength: 1, maxLength: 128 }
+        subjectDn: { type: string, minLength: 1, maxLength: 500 }
+        issuerDn: { type: string, minLength: 1, maxLength: 500 }
+        validFrom: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        validTo: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        isDefault: { type: boolean, default: false }
+    LedgerSealSignRequest:
+      description: Yêu cầu ký con dấu thời gian và chữ ký tổ chức cho lô sổ cái kiểm toán (`ledger.audit_seal`, SVC-09 gọi SVC-10).
+      type: object
+      required: [sealDate, merkleRoot, eventCount]
+      properties:
+        sealDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        merkleRoot: { type: string, pattern: '^[0-9a-f]{64}$' }
+        prevMerkleRoot: { type: [string, 'null'], pattern: '^[0-9a-f]{64}$' }
+        eventCount: { type: integer, minimum: 0 }
+    LedgerSealSignature:
+      type: object
+      required: [sealDate, merkleRoot, signatureB64, tsaTokenB64, certificateSerial, signedAt]
+      properties:
+        sealDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        merkleRoot: { type: string, pattern: '^[0-9a-f]{64}$' }
+        signatureB64: { type: string, contentEncoding: base64 }
+        tsaTokenB64: { type: string, contentEncoding: base64 }
+        certificateSerial: { type: string }
+        signedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
 
 paths:
   # ---------------------------------------------------------------- Hội nghị kiểm điểm
@@ -2006,6 +2057,47 @@ paths:
         scope: B
         source: TL-03 dossier.form_instance (đường dẫn suy luận)
 
+  /dossiers/forms/{id}/draft-content:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    put:
+      tags: [Biểu mẫu]
+      operationId: saveDossierFormDraftContent
+      summary: Lưu nội dung dự thảo bản kiểm điểm trước khi gửi hội nghị
+      description: >-
+        Người được kiểm điểm hoàn thiện các mục tự nhận xét, cam kết và tự nhận mức xếp loại trên dự thảo
+        bản kiểm điểm trước khi gửi thành viên góp ý (QT-11 bước 4, SCR-1101).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierFormDraftContentInput' }
+      responses:
+        '200':
+          description: Biểu mẫu dự thảo sau khi lưu nội dung.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierForm' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101]
+        owner: MOD-06
+        roles: [member, manager, leader]
+        scope: B
+        source: 'TL-02b QT-11 bước 4 (hoàn thiện dự thảo bản kiểm điểm trước khi gửi); SCR-1101 (suy luận đường dẫn)'
+
   /dossiers/forms/{id}/file:
     parameters:
       - $ref: '../common/common.yaml#/components/parameters/IdPath'
@@ -2123,6 +2215,44 @@ paths:
         scope: Đv
         rules: [BR-11-05]
         source: TL-02b SCR-1102 bảng trường 3 (suy luận)
+    patch:
+      tags: [Trường hợp đặc thù]
+      operationId: verifyDossierSpecialCase
+      summary: Xác minh và cập nhật trường hợp đặc thù PL 6
+      description: >-
+        Cơ quan tổ chức/thẩm định xác minh trường hợp đặc thù (`dossier.special_case.verified_by`) và ghi chú
+        xử lý theo quy tắc Policy Pack (QT-11 bước 2, BR-11-05).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DossierSpecialCaseUpdate' }
+      responses:
+        '200':
+          description: Trường hợp đặc thù sau khi xác minh.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DossierSpecialCase' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-11]
+        scr: [SCR-1101, SCR-1102]
+        owner: MOD-06
+        roles: [appraiser]
+        scope: Đv
+        rules: [BR-11-05]
+        source: 'TL-02b QT-11 bước 2; TL-03 dossier.special_case.verified_by (suy luận đường dẫn)'
 
   # ---------------------------------------------------------------- Ký số (SVC-10)
   /esign/requests:
@@ -2319,3 +2449,98 @@ paths:
         roles: [leader, member, appraiser, decider, second_approver]
         scope: B
         source: TL-02b SCR-1102 bảng trường 6, SCR-0904 bảng trường 7; TL-03 esign.certificate_ref (đường dẫn suy luận)
+    post:
+      tags: [Ký số]
+      operationId: registerMyEsignCertificate
+      summary: Đăng ký chứng thư số cho người gọi
+      description: >-
+        Đăng ký chứng thư số (`esign.certificate_ref`) để dùng khi ký số biểu mẫu, gói hồ sơ hoặc quyết định (SVC-10).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EsignCertificateCreateInput' }
+      responses:
+        '201':
+          description: Chứng thư số đã đăng ký.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EsignCertificate' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-11]
+        scr: [SCR-0904, SCR-1102]
+        owner: SVC-10
+        roles: [leader, member, appraiser, decider, second_approver]
+        scope: B
+        aal: 2
+        source: 'TL-01 SVC-10; TL-03 esign.certificate_ref (suy luận đường dẫn)'
+
+  /esign/certificates/mine/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    delete:
+      tags: [Ký số]
+      operationId: deleteMyEsignCertificate
+      summary: Gỡ chứng thư số đã đăng ký của người gọi
+      description: >-
+        Gỡ chứng thư số không còn sử dụng khỏi danh sách chứng thư của người gọi (`esign.certificate_ref`).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: Đã gỡ chứng thư số.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-11]
+        scr: [SCR-0904, SCR-1102]
+        owner: SVC-10
+        roles: [leader, member, appraiser, decider, second_approver]
+        scope: B
+        aal: 2
+        source: 'TL-01 SVC-10; TL-03 esign.certificate_ref (suy luận đường dẫn)'
+
+  /esign/seals:
+    post:
+      tags: [Ký số]
+      operationId: signLedgerSeal
+      summary: Ký HSM tổ chức và đóng dấu thời gian RFC 3161 cho Merkle root hàng ngày của sổ cái (SVC-09)
+      description: >-
+        Điểm vào nội bộ để `audit-ledger` (SVC-09) yêu cầu `esign-service` (SVC-10) ký chữ ký số tổ chức
+        qua HSM và lấy dấu thời gian TSA chuẩn RFC 3161 cho gốc Merkle hàng ngày (`ledger.audit_seal`,
+        TL-03 mục 3.16). Không qua luồng xác nhận của người dùng trên di động.
+      security:
+        - serviceClient: []
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LedgerSealSignRequest' }
+      responses:
+        '201':
+          description: Chữ ký HSM và dấu thời gian TSA cho lô sổ cái.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LedgerSealSignature' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-13]
+        scr: [SCR-1302]
+        owner: SVC-10
+        roles: [service_client]
+        scope: N
+        source: 'TL-01 SVC-09, SVC-10; TL-03 ledger.audit_seal (suy luận đường dẫn)'

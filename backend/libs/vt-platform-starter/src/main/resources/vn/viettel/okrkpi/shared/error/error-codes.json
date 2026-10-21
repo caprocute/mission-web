@@ -1,8 +1,18 @@
 {
   "description": "Danh mục mã lỗi <MODULE>-<HTTP>-<TÊN> trích từ contracts/openapi (NEN-009). Không sửa tay: chạy tools/extract-error-codes.mjs.",
   "source": "contracts/openapi/**/*.yaml",
-  "count": 185,
+  "count": 189,
   "codes": [
+    {
+      "code": "AI-403-C3-FORBIDDEN",
+      "module": "AI",
+      "status": 403,
+      "name": "C3-FORBIDDEN",
+      "type": "https://okrkpi.vn/problems/c3-forbidden",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
     {
       "code": "AI-409-ALREADY-DECIDED",
       "module": "AI",
@@ -910,6 +920,16 @@
       ]
     },
     {
+      "code": "OKR-409-REVISION-PENDING",
+      "module": "OKR",
+      "status": 409,
+      "name": "REVISION-PENDING",
+      "type": "https://okrkpi.vn/problems/revision-pending",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
       "code": "OKR-409-VERSION-CONFLICT",
       "module": "OKR",
       "status": 409,
@@ -995,6 +1015,16 @@
       "msg": "MSG-03-03",
       "sources": [
         "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "ORG-409-ASSIGNMENT-OVERLAP",
+      "module": "ORG",
+      "status": 409,
+      "name": "ASSIGNMENT-OVERLAP",
+      "type": "https://okrkpi.vn/problems/assignment-overlap",
+      "sources": [
+        "modules/org.yaml"
       ]
     },
     {
@@ -1618,6 +1648,16 @@
       "status": 409,
       "name": "DUPLICATE",
       "type": "https://okrkpi.vn/problems/duplicate",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "REGISTRY-409-MOVE-ALREADY-CUTOVER",
+      "module": "REGISTRY",
+      "status": 409,
+      "name": "MOVE-ALREADY-CUTOVER",
+      "type": "https://okrkpi.vn/problems/move-already-cutover",
       "sources": [
         "modules/platform.yaml"
       ]

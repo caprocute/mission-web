@@ -59,6 +59,8 @@ tags:
     description: Bố cục SDUI đã phân giải cho trang chủ "Việc của tôi hôm nay" (SCR-0002).
   - name: Vai trò và uỷ quyền
     description: Cấp, duyệt thứ hai, thu hồi vai trò `config.role_binding`, lịch sử quyền và uỷ quyền khi vắng mặt `config.delegation` (QT-01, SCR-0105, SCR-0106, SCR-0107; WEB-058).
+  - name: Cấu hình tenant
+    description: Cấu hình dạng khoá–giá trị của tenant hoặc ghi đè theo đơn vị (`config.tenant_setting`).
 
 paths:
   # ---------------------------------------------------------------- /config/tenants
@@ -2000,6 +2002,99 @@ paths:
         '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
 
+  # ---------------------------------------------------------------- /ui/feature-flags (NEN-043)
+  /ui/feature-flags:
+    get:
+      tags: [Cờ tính năng]
+      operationId: getEffectiveFeatureFlags
+      summary: Bản đồ cờ tính năng hiệu lực của người dùng hiện hành
+      description: >-
+        Tính tập cờ hiệu lực từ `config.feature_flag` theo tenant, đơn vị (`target_org_unit_ids`),
+        vai trò (`target_roles`) và phần trăm triển khai tăng dần (`rollout_percent` băm ổn định theo
+        `person_id`) để client web/di động kiểm tra mà không cần quyền `tenant_admin` (TL-04 OPS-04).
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002]
+        owner: MOD-08
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: 'TL-04 OPS-04; TL-03 config.feature_flag (suy luận đường dẫn)'
+      responses:
+        '200':
+          description: Bản đồ `flagKey -> boolean`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EffectiveFeatureFlagMap' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  # ---------------------------------------------------------------- /config/settings (NEN-043)
+  /config/settings:
+    get:
+      tags: [Cấu hình tenant]
+      operationId: listTenantSettings
+      summary: Danh sách cấu hình chung của tenant hoặc đơn vị
+      description: >-
+        Đọc các dòng `config.tenant_setting` của tenant hiện hành (ngoài những khoá đã có đường dẫn
+        chuyên biệt như `working_days`, `anomaly_thresholds`), lọc tuỳ chọn theo `unitId`.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0102]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        source: 'TL-03 config.tenant_setting (suy luận đường dẫn)'
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/UnitId'
+      responses:
+        '200':
+          description: Danh sách cấu hình.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantSettingList' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/settings/{key}:
+    parameters:
+      - $ref: '#/components/parameters/SettingKeyPath'
+    put:
+      tags: [Cấu hình tenant]
+      operationId: setTenantSetting
+      summary: Ghi cấu hình theo khoá của tenant hoặc đơn vị
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0102]
+        owner: MOD-08
+        roles: [tenant_admin]
+        scope: Tn
+        aal: 2
+        source: 'TL-03 config.tenant_setting (suy luận đường dẫn)'
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TenantSettingUpdate' }
+      responses:
+        '200':
+          description: Cấu hình đã lưu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantSetting' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
   # ---------------------------------------------------------------- /config/role-bindings (WEB-058)
   /config/role-bindings:
     get:
@@ -2508,6 +2603,15 @@ components:
       required: false
       description: ETag đã lưu ở client; khớp thì máy chủ trả 304.
       schema: { type: string, examples: ['"uipack-1.8.0-9f2c"'] }
+    SettingKeyPath:
+      name: key
+      in: path
+      required: true
+      description: Khoá cấu hình (`config.tenant_setting.key`).
+      schema:
+        type: string
+        maxLength: 100
+        pattern: '^[a-z0-9][a-z0-9._-]*$'
 
   schemas:
     # ------------------------------------------------------------ Tenant
@@ -4333,3 +4437,51 @@ components:
           type: array
           items: { $ref: '#/components/schemas/Delegation' }
         nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    EffectiveFeatureFlagMap:
+      type: object
+      required: [flags, evaluatedAt]
+      properties:
+        flags:
+          type: object
+          additionalProperties: { type: boolean }
+        evaluatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - flags:
+            elderly_mode_auto_prompt: true
+            ai_summary_3_lines: true
+          evaluatedAt: '2026-04-01T08:00:00Z'
+    TenantSetting:
+      type: object
+      required: [key, value, version, updatedAt]
+      properties:
+        key: { type: string, maxLength: 100 }
+        orgUnitId: { type: ['string', 'null'], format: uuid }
+        value:
+          type: object
+          additionalProperties: true
+        version: { type: integer, minimum: 1 }
+        updatedBy: { type: ['string', 'null'], format: uuid }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+      examples:
+        - key: dossier.retention_years
+          orgUnitId: null
+          value: { years: 10 }
+          version: 2
+          updatedBy: 0195f3a0-0000-7000-8000-000000000101
+          updatedAt: '2026-04-01T08:00:00Z'
+    TenantSettingList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/TenantSetting' }
+    TenantSettingUpdate:
+      type: object
+      required: [value]
+      properties:
+        orgUnitId: { type: ['string', 'null'], format: uuid }
+        value:
+          type: object
+          additionalProperties: true
+        reason: { type: string, maxLength: 500 }

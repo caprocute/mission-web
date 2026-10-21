@@ -184,6 +184,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/oversight/complaints/{id}/duplicate-candidates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Tra cứu các khiếu nại nghi trùng nội dung đã trả lời
+     * @description Hỗ trợ cán bộ thụ lý kiểm tra điều kiện trùng nội dung đã trả lời không có tình tiết mới (BR-12-11) trước khi quyết định thụ lý hoặc không thụ lý ở SCR-1202.
+     */
+    get: operations['listComplaintDuplicateCandidates'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/oversight/complaints/{id}/explanation-requests': {
     parameters: {
       query?: never;
@@ -1293,6 +1315,17 @@ export interface components {
       tsaToken?: string;
       anchors?: components['schemas']['LedgerAnchorReceipt'][];
     };
+    /** @description Khiếu nại trước đó nghi trùng nội dung để đối chiếu theo BR-12-11. */
+    ComplaintDuplicateCandidate: {
+      id: components['schemas']['Uuid'];
+      code: string;
+      subjectLine: string;
+      status: components['schemas']['ComplaintStatus'];
+      filedAt: components['schemas']['DateTime'];
+      similarityScore: number;
+      matchedTargets?: string[];
+      conclusionSummary?: string | null;
+    };
     FieldError: {
       /** @description Tên trường theo JSON của thân yêu cầu, dạng đường dẫn chấm */
       field: string;
@@ -1878,6 +1911,34 @@ export interface operations {
       409: components['responses']['Conflict'];
       422: components['responses']['UnprocessableEntity'];
       428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listComplaintDuplicateCandidates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Danh sách khiếu nại tương tự của cùng người khiếu nại hoặc cùng nội dung mục tiêu. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['ComplaintDuplicateCandidate'][];
+          };
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       default: components['responses']['Problem'];
     };
   };
