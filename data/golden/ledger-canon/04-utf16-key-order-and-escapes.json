@@ -1,0 +1,24 @@
+{
+  "id": "04-utf16-key-order-and-escapes",
+  "description": "Kiểm tra sắp xếp khoá theo đơn vị mã UTF-16 (U+1F600 surrogate 0xD83D đứng trước U+E000) và thoát ký tự điều khiển chuẩn RFC 8785",
+  "input_payload_raw": "{\"\":\"bmp-private-use\",\"😀\":\"supplementary-surrogate\",\"ctrl\":\"dòng 1\\ndòng 2\\t\\\"trích dẫn\\\"\\\\gạch chéo\\u001f\",\"html\":\"\u003ca\u003e\u0026\u003c/a\u003e\"}",
+  "metadata_header": {
+    "tenant_id": "11111111-1111-4111-8111-111111111111",
+    "chain_partition": 53,
+    "seq_no": 1,
+    "event_type": "EVT-13",
+    "aggregate_type": "PolicyPack",
+    "aggregate_id": "0192b300-0000-7000-8000-000000000003",
+    "actor_id": "0192b000-0000-7000-8000-000000000099",
+    "actor_kind": "NGUOI",
+    "occurred_at": "2026-10-21T10:00:00.000000Z",
+    "recorded_at": "2026-10-21T10:00:00.010000Z"
+  },
+  "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "canonical_payload": "{\"ctrl\":\"dòng 1\\ndòng 2\\t\\\"trích dẫn\\\"\\\\gạch chéo\\u001f\",\"html\":\"\u003ca\u003e\u0026\u003c/a\u003e\",\"😀\":\"supplementary-surrogate\",\"\":\"bmp-private-use\"}",
+  "canonical_metadata": "{\"actor_id\":\"0192b000-0000-7000-8000-000000000099\",\"actor_kind\":\"NGUOI\",\"aggregate_id\":\"0192b300-0000-7000-8000-000000000003\",\"aggregate_type\":\"PolicyPack\",\"chain_partition\":53,\"event_type\":\"EVT-13\",\"occurred_at\":\"2026-10-21T10:00:00.000000Z\",\"recorded_at\":\"2026-10-21T10:00:00.010000Z\",\"seq_no\":1,\"tenant_id\":\"11111111-1111-4111-8111-111111111111\"}",
+  "payload_hash": "fd53fd8de84ada020ee7f185acc6c54713d12d1950d9e5447d7726761f881d94",
+  "metadata_hash": "af429d863015152f8577f15edad61c8b44217af3dffb5ef7454c9a2c72c8a887",
+  "entry_hash": "ae3b4ec372a9c3f17e8fd758b07819a413d34905b770a8fa2309678ba3fe5fe9",
+  "chain_partition": 53
+}

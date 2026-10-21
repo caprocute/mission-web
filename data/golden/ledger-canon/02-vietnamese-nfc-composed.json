@@ -1,0 +1,25 @@
+{
+  "id": "02-vietnamese-nfc-composed",
+  "description": "Tải trọng tiếng Việt ở dạng dựng sẵn Unicode NFC chuẩn",
+  "equivalent_to": "03-vietnamese-nfd-decomposed",
+  "input_payload_raw": "{\"don_vi\":\"Đảng ủy Khối các cơ quan Trung ương\",\"ket_qua\":\"Hoàn thành xuất sắc nhiệm vụ\",\"diem_tong\":\"96.750\",\"ky_danh_gia\":\"2026-Q4\"}",
+  "metadata_header": {
+    "tenant_id": "11111111-1111-4111-8111-111111111111",
+    "chain_partition": 9,
+    "seq_no": 1,
+    "event_type": "EVT-08",
+    "aggregate_type": "AppraisalProfile",
+    "aggregate_id": "0192b200-0000-7000-8000-000000000002",
+    "actor_id": "0192b000-0000-7000-8000-000000000099",
+    "actor_kind": "NGUOI",
+    "occurred_at": "2026-10-21T09:15:00.000000Z",
+    "recorded_at": "2026-10-21T09:15:00.050000Z"
+  },
+  "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "canonical_payload": "{\"diem_tong\":\"96.750\",\"don_vi\":\"Đảng ủy Khối các cơ quan Trung ương\",\"ket_qua\":\"Hoàn thành xuất sắc nhiệm vụ\",\"ky_danh_gia\":\"2026-Q4\"}",
+  "canonical_metadata": "{\"actor_id\":\"0192b000-0000-7000-8000-000000000099\",\"actor_kind\":\"NGUOI\",\"aggregate_id\":\"0192b200-0000-7000-8000-000000000002\",\"aggregate_type\":\"AppraisalProfile\",\"chain_partition\":9,\"event_type\":\"EVT-08\",\"occurred_at\":\"2026-10-21T09:15:00.000000Z\",\"recorded_at\":\"2026-10-21T09:15:00.050000Z\",\"seq_no\":1,\"tenant_id\":\"11111111-1111-4111-8111-111111111111\"}",
+  "payload_hash": "e5366fa05a57e1c6cdd8419f0f2b572243397e82758fb0d0f4638aafe8b9344c",
+  "metadata_hash": "4676ced7009dc12019b2595bc41365d94db927e8ff2bd5d5763693a45185e64f",
+  "entry_hash": "632029fa89f790636285a5fd49f1d8f35832cde9690fe227a43d0ab351dd71b7",
+  "chain_partition": 9
+}
