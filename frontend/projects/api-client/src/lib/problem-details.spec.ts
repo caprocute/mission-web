@@ -121,4 +121,12 @@ describe('ProblemPresenter', () => {
     expect(presenter.present(httpError(409)).conflict).toBe(true);
     expect(add).not.toHaveBeenCalled();
   });
+  it('lấy mã tra cứu từ header X-Trace-Id khi thân lỗi không có (WEB-074)', () => {
+    const err = new HttpErrorResponse({
+      status: 502,
+      headers: new HttpHeaders({ 'X-Trace-Id': 'abc123' }),
+      error: null,
+    });
+    expect(toProblem(err).traceId).toBe('abc123');
+  });
 });

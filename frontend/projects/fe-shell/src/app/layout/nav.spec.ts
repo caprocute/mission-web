@@ -118,6 +118,21 @@ describe('menu shell theo ma trận phân quyền', () => {
       '/',
     ]);
   });
+
+  it('mục gắn cờ tính năng chỉ hiện khi cờ bật (WEB-076)', () => {
+    const items = [
+      { label: 'A', icon: '', link: '/' },
+      { label: 'B', icon: '', link: '/ai', flag: 'ai.weeklySummary' },
+    ];
+    const links = (on: boolean) =>
+      visibleNav(
+        () => true,
+        () => on,
+        items,
+      ).map((i) => i.link);
+    expect(links(false)).toEqual(['/']);
+    expect(links(true)).toEqual(['/', '/ai']);
+  });
 });
 
 describe('tuyến cha của shell dùng cùng nhóm khoá với menu', () => {
