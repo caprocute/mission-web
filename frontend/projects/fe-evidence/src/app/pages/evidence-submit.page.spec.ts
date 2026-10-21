@@ -35,7 +35,13 @@ async function render(can: (k: string) => boolean = () => true, elderly = false)
   fixture.componentRef.setInput('id', EV);
   fixture.autoDetectChanges();
   const el = fixture.nativeElement as HTMLElement;
-  await until(() => el.querySelector('.tbl tbody tr') && el.querySelector('.sep, .meta .chip'));
+  // chờ cả minh chứng lẫn nhiệm vụ (vai trò chủ trì, hạn): hai request có thể về theo thứ tự bất kỳ
+  await until(
+    () =>
+      el.querySelector('.tbl tbody tr') &&
+      el.querySelector('.sep, .meta .chip') &&
+      el.querySelector('.sub')?.textContent?.includes('hạn'),
+  );
   return el;
 }
 

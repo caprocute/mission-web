@@ -1,5 +1,5 @@
 import { definePreset } from '@primeuix/themes';
-import Aura from '@primeuix/themes/aura';
+import { AuraCore } from './aura-core';
 
 /**
  * Màu dùng cho chữ và cho nền có chữ trắng (WCAG 2.1 AA, WEB-059). Màu nhận diện
@@ -18,7 +18,7 @@ const MUTED = 'var(--vt-color-text-muted, #566275)';
  * Thang màu (50..950) vẫn pha từ màu nhận diện để giữ sắc hồng quen thuộc cho nền nhạt,
  * viền và thanh tiến độ; chỉ màu chữ và nền nút chuyển sang bản đậm.
  */
-export const VtPreset = definePreset(Aura, {
+export const VtPreset = definePreset(AuraCore, {
   semantic: {
     primary: {
       50: 'color-mix(in srgb, var(--vt-color-primary) 8%, white)',
