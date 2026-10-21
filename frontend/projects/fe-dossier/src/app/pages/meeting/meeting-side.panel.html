@@ -1,0 +1,108 @@
+<section class="card" aria-labelledby="sp-rem">
+  <h2 id="sp-rem">Khắc phục hạn chế kỳ trước</h2>
+  @if (previous().length === 0) {
+    <p class="muted">Không có hạn chế nào từ kỳ trước.</p>
+  }
+  <ul class="rem">
+    @for (i of previous(); track i.id) {
+      <li>
+        @if (canRemediate()) {
+          <label class="sr" [for]="'sp-r-' + i.id">Trạng thái khắc phục: {{ i.content }}</label>
+          <select [id]="'sp-r-' + i.id" (change)="setStatus(i, $any($event.target).value)">
+            @for (s of remStatuses; track s) {
+              <option [value]="s" [selected]="s === i.status">{{ remLabel[s] }}</option>
+            }
+          </select>
+        } @else {
+          <span class="chip" [attr.data-s]="i.status">{{ remLabel[i.status] }}</span>
+        }
+        <span>{{ i.content }}</span>
+      </li>
+    }
+  </ul>
+  @if (remError(); as e) {
+    <p class="err" role="alert">{{ e }}</p>
+  }
+  @if (previous().length) {
+    <p class="muted">Lấy từ biên bản các kỳ kiểm điểm trước.</p>
+  }
+  @if (created().length) {
+    <h3>Hạn chế cần khắc phục ghi nhận tại hội nghị này</h3>
+    <ul class="rem" data-created>
+      @for (i of created(); track i.id) {
+        <li>
+          <span class="chip">{{ remLabel[i.status] }}</span
+          ><span>{{ i.content }}</span>
+        </li>
+      }
+    </ul>
+  }
+</section>
+
+<section class="card" aria-labelledby="sp-vote">
+  <h2 id="sp-vote">Biểu quyết xếp loại tại hội nghị</h2>
+  @if (meeting().proposedLevel; as lv) {
+    <p>
+      Mức đề xuất của hệ thống: <strong>{{ levelLabel[lv] }}</strong>
+    </p>
+  }
+  @if (meeting().vote; as v) {
+    <ul class="votes" data-vote>
+      @for (l of levels; track l) {
+        <li>
+          {{ levelLabel[l] }}: <strong>{{ v[l] ?? 0 }}</strong>
+        </li>
+      }
+    </ul>
+    <div class="bar" role="img" [attr.aria-label]="'Tỷ lệ phiếu cho mức đề xuất: ' + share() + '%'">
+      <span [style.width.%]="share()"></span>
+    </div>
+  } @else if (!canMinutes()) {
+    <p class="muted">Chưa có kết quả biểu quyết.</p>
+  }
+  @if (canMinutes()) {
+    <fieldset>
+      <legend>Điểm danh ({{ presentCount() }}/{{ attendance().length }} có mặt)</legend>
+      @for (a of attendance(); track a.personId; let i = $index) {
+        <label class="chk">
+          <input type="checkbox" [checked]="a.present" (change)="togglePresent(i)" />
+          {{ a.name }}
+        </label>
+      }
+    </fieldset>
+    <fieldset>
+      <legend>Số phiếu theo mức</legend>
+      @for (l of levels; track l) {
+        <label class="num" [for]="'sp-vote-' + l">
+          {{ levelLabel[l] }}
+          <input
+            [id]="'sp-vote-' + l"
+            type="number"
+            min="0"
+            inputmode="numeric"
+            [value]="vote()[l]"
+            [attr.aria-invalid]="!!voteErr()"
+            [attr.aria-describedby]="voteErr() ? 'sp-vote-err' : null"
+            (input)="setVote(l, $any($event.target).value)"
+          />
+        </label>
+      }
+    </fieldset>
+    @if (voteErr(); as e) {
+      <p id="sp-vote-err" class="err" role="alert">{{ e }}</p>
+    }
+    <button
+      type="button"
+      class="btn primary"
+      data-act="sinh-bien-ban"
+      (click)="submit()"
+      [disabled]="busy()"
+    >
+      Sinh biên bản
+    </button>
+  }
+  <p class="muted">
+    Kết quả biểu quyết được ghi vào biên bản và Mẫu 3, không thay mức quyết định của cấp có thẩm
+    quyền.
+  </p>
+</section>
