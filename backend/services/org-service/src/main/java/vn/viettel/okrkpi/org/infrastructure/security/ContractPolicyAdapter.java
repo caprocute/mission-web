@@ -30,6 +30,7 @@ import vn.viettel.okrkpi.org.application.port.PolicyPort;
 public class ContractPolicyAdapter implements PolicyPort {
 
   private final Map<String, Rule> rules;
+  private final Set<String> tenantScopeRoles;
   private final Duration stepUpWindow;
   private final Clock clock;
 
@@ -38,6 +39,10 @@ public class ContractPolicyAdapter implements PolicyPort {
     this.clock = clock;
     this.stepUpWindow = stepUpWindow;
     this.rules = load();
+    this.tenantScopeRoles = rules.values().stream()
+        .filter(r -> "Tn".equals(r.scope()) && r.roles().size() == 1)
+        .flatMap(r -> r.roles().stream())
+        .collect(java.util.stream.Collectors.toUnmodifiableSet());
   }
 
   @Override
@@ -54,6 +59,11 @@ public class ContractPolicyAdapter implements PolicyPort {
         throw new StepUpRequiredException(stepUpWindow.toSeconds());
       }
     }
+  }
+
+  @Override
+  public boolean hasTenantScope(Actor actor) {
+    return actor != null && actor.roles() != null && actor.roles().stream().anyMatch(tenantScopeRoles::contains);
   }
 
   Map<String, Rule> rules() {
@@ -77,7 +87,8 @@ public class ContractPolicyAdapter implements PolicyPort {
           }
           List<String> roles = (List<String>) mission.getOrDefault("roles", List.of());
           Number aal = (Number) mission.getOrDefault("aal", 1);
-          out.put(operation.get("operationId").toString(), new Rule(Set.copyOf(roles), aal.intValue()));
+          String scope = (String) mission.get("scope");
+          out.put(operation.get("operationId").toString(), new Rule(Set.copyOf(roles), aal.intValue(), scope));
         }
       }
     } catch (IOException e) {
@@ -86,6 +97,6 @@ public class ContractPolicyAdapter implements PolicyPort {
     return Map.copyOf(out);
   }
 
-  record Rule(Set<String> roles, int aal) {
+  record Rule(Set<String> roles, int aal, String scope) {
   }
 }

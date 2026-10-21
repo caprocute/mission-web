@@ -10,4 +10,8 @@ import vn.viettel.okrkpi.org.application.Actor;
 public interface PolicyPort {
 
   void authorize(Actor actor, String operationId);
+
+  default boolean hasTenantScope(Actor actor) {
+    return false;
+  }
 }
