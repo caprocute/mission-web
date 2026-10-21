@@ -121,7 +121,8 @@ describe('SCR-0904 Quyết định xếp loại hàng loạt (WEB-038)', () => {
       '2 · 4%',
     ]);
     expect(text(el.querySelector('.msg.info'))).toContain('trong giới hạn 20%');
-    expect(text(el.querySelector('#bd-certificate'))).toContain('Ngô Thanh Tâm · MySign');
+    // chứng thư ký số nạp bất đồng bộ (bộ giả lập nạp lười theo module từ WEB-052 pha 2)
+    await until(el, '#bd-certificate', (e) => text(e).includes('Ngô Thanh Tâm · MySign'));
     expect(text(el.querySelector('.btn.primary'))).toBe('Quyết định và ký lô (48)');
     const notes = [...el.querySelectorAll('.note')].map(text);
     expect(notes).toContain('Khác mức · đã giải trình');
