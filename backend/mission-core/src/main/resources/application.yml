@@ -71,9 +71,11 @@ management:
       application: ${spring.application.name}
 
 okrkpi:
+  opa:
+    enabled: ${OPA_ENABLED:false}
   tenant:
     claim: ${TENANT_JWT_CLAIM:tenant_id}
-    db-setting: ${TENANT_DB_SETTING:app.current_tenant}
+    db-setting: ${TENANT_DB_SETTING:app.tenant_id}
   schema-guard:
     enabled: ${SCHEMA_GUARD_ENABLED:true}
     default-min-version: ${SCHEMA_MIN_VERSION:0.20}

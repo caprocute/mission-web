@@ -4,6 +4,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.modulith.Modulithic;
+import org.springframework.scheduling.annotation.EnableAsync;
 import vn.viettel.okrkpi.platform.db.migration.guard.SchemaVersionGuardAutoConfiguration;
 
 /**
@@ -17,6 +19,10 @@ import vn.viettel.okrkpi.platform.db.migration.guard.SchemaVersionGuardAutoConfi
  * vt-platform-starter} khỏi quét thành phần trực tiếp để chúng được nạp đúng qua {@code
  * AutoConfiguration.imports}.
  */
+@Modulithic(
+    systemName = "SVC-05 mission-core",
+    sharedModules = {"shared", "contract", "cel", "platform"})
+@EnableAsync
 @SpringBootApplication(exclude = SchemaVersionGuardAutoConfiguration.class)
 @ComponentScan(
     basePackages = "vn.viettel.okrkpi",
