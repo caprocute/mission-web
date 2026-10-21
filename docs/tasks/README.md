@@ -103,7 +103,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-049](WEB-049-tro-ly-ai.md) | SCR-1701 Trợ lý AI soạn OKR và soát KR | M | WEB-022 | Chưa bắt đầu |
 | [WEB-050](WEB-050-studio-giao-dien.md) | SCR-1801 Cấu hình giao diện tenant và SCR-1802 Trình dựng biểu mẫu động | L | WEB-004, WEB-009, WEB-010 | Chưa bắt đầu |
 | [WEB-051](WEB-051-plugin-chuyen-nganh.md) | Plugin chuyên ngành mẫu và manifest theo tenant | M | WEB-015 | Chưa bắt đầu |
-| [WEB-052](WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | WEB-003, WEB-011 | Làm một phần (nhánh `feat/WEB-052-toi-uu-hieu-nang`): `/` 729→578 KB, LCP 8,3→6,6 s; `/tasks` 798→607 KB, LCP 9,2→6,7 s; vẫn chưa đạt ngân sách 250 KB và 2,5 s, chưa có k6 browser (xem wiki/09) |
+| [WEB-052](WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | WEB-003, WEB-011 | Làm một phần (nhánh `feat/WEB-052-toi-uu-hieu-nang`): `/` 729→578 KB, LCP 8,3→6,6 s; `/tasks` 798→607 KB, LCP 9,2→6,7 s; pha 2 (preset Aura rút gọn, nạp giả lập theo module): `/` 626→562 KB, LCP 6,33→6,13 s; `/tasks` 653→592 KB; vẫn chưa đạt ngân sách 250 KB và 2,5 s, chưa có k6 browser (xem wiki/09) |
 | [WEB-053](WEB-053-danh-gia-attt.md) | Đánh giá ATTT frontend: OWASP ZAP và ASVS mức 2 | M | WEB-014 | Chưa bắt đầu |
 
 ## Phân quyền (xuyên giai đoạn)
