@@ -53,6 +53,15 @@ flows:
     from: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
     to: { namespace: data-kafka, podLabels: { app.kubernetes.io/name: valkey } }
     ports: [6379]
+  # APISIX lấy JWKS và discovery của Keycloak trong cell để kiểm chữ ký JWT (TL-04 mục 3.7).
+  - name: apisix-to-keycloak
+    from: { namespace: edge, podLabels: { app.kubernetes.io/name: apisix } }
+    to: { namespace: identity, podLabels: { app.kubernetes.io/name: keycloak } }
+    ports: [8080]
+  - name: apisix-to-otel-collector
+    from: { namespace: edge, podLabels: { app.kubernetes.io/name: apisix } }
+    to: { namespace: observability, podLabels: { app.kubernetes.io/name: otel-collector } }
+    ports: [4318]
   - name: apisix-to-valkey-ratelimit
     from: { namespace: edge, podLabels: { app.kubernetes.io/name: apisix } }
     to: { namespace: data-kafka, podLabels: { app.kubernetes.io/name: valkey } }

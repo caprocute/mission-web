@@ -1,0 +1,358 @@
+{{- $v := .Values }}
+{{- if eq $v.mode "controller" }}
+{{- $n := int $v.etcd.replicas }}
+{{- $peers := list }}
+{{- range $i, $_ := until $n }}{{ $peers = append $peers (printf "apisix-etcd-%d=http://apisix-etcd-%d.apisix-etcd.edge.svc:2380" $i $i) }}{{ end }}
+# etcd 3 node riêng của APISIX (TL-04 mục 3.7), trên pool ingress.
+apiVersion: v1
+kind: Service
+metadata:
+  name: apisix-etcd
+  namespace: edge
+  labels:
+    {{- include "api-gateway.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: { app.kubernetes.io/name: apisix-etcd }
+  ports:
+    - { name: client, port: 2379 }
+    - { name: peer, port: 2380 }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: apisix-etcd
+  namespace: edge
+  labels:
+    app.kubernetes.io/name: apisix-etcd
+    {{- include "api-gateway.labels" . | nindent 4 }}
+spec:
+  serviceName: apisix-etcd
+  replicas: {{ $n }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels: { app.kubernetes.io/name: apisix-etcd }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apisix-etcd
+        {{- include "api-gateway.labels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml $v.podSecurityContext | nindent 8 }}
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      {{- include "api-gateway.scheduling" . | nindent 6 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels: { app.kubernetes.io/name: apisix-etcd }
+      containers:
+        - name: etcd
+          image: {{ include "api-gateway.image" (list $v.etcd.image "etcd") }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+          command:
+            - /usr/local/bin/etcd
+            - --name=$(POD_NAME)
+            - --data-dir=/var/lib/etcd
+            - --listen-client-urls=http://0.0.0.0:2379
+            - --advertise-client-urls=http://$(POD_NAME).apisix-etcd.edge.svc:2379
+            - --listen-peer-urls=http://0.0.0.0:2380
+            - --initial-advertise-peer-urls=http://$(POD_NAME).apisix-etcd.edge.svc:2380
+            - --initial-cluster={{ join "," $peers }}
+            - --initial-cluster-state=new
+            - --initial-cluster-token=apisix-etcd-{{ $v.cell }}
+            - --auto-compaction-retention=1
+          ports:
+            - { name: client, containerPort: 2379 }
+            - { name: peer, containerPort: 2380 }
+          resources:
+            {{- toYaml $v.etcd.resources | nindent 12 }}
+          securityContext:
+            {{- include "api-gateway.containerSecurity" . | nindent 12 }}
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            httpGet: { path: /health, port: client }
+            periodSeconds: 10
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/etcd }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with $v.etcd.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests: { storage: {{ $v.etcd.storage }} }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: apisix-etcd
+  namespace: edge
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: apisix-etcd }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apisix-etcd
+  namespace: edge
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: apisix-etcd }
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: apisix } }
+      ports: [{ protocol: TCP, port: 2379 }]
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: apisix-etcd } }
+      ports: [{ protocol: TCP, port: 2379 }, { protocol: TCP, port: 2380 }]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: apisix-etcd } }
+      ports: [{ protocol: TCP, port: 2380 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apisix-to-etcd
+  namespace: edge
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: apisix }
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: apisix-etcd } }
+      ports: [{ protocol: TCP, port: 2379 }]
+---
+# APISIX Ingress Controller: đồng bộ CRD từ kho GitOps vào APISIX qua Admin API.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: apisix-ingress-controller
+  namespace: edge
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: apisix-ingress-controller
+rules:
+  - apiGroups: [""]
+    resources: [services, endpoints, secrets, namespaces, pods, configmaps]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+  - apiGroups: [discovery.k8s.io]
+    resources: [endpointslices]
+    verbs: [get, list, watch]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses, ingressclasses]
+    verbs: [get, list, watch]
+  - apiGroups: [apisix.apache.org]
+    resources: ["*"]
+    verbs: [get, list, watch, update, patch]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, watch, create, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: apisix-ingress-controller
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: apisix-ingress-controller }
+subjects:
+  - { kind: ServiceAccount, name: apisix-ingress-controller, namespace: edge }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apisix-ingress-controller
+  namespace: edge
+data:
+  config.yaml: |
+    log_level: info
+    http_listen: ":8080"
+    enable_profiling: false
+    kubernetes:
+      election_id: apisix-ingress-controller-leader
+      ingress_class: apisix
+      ingress_version: networking/v1
+      api_version: apisix.apache.org/v2
+      enable_gateway_api: false
+      namespace_selector:
+        - "vt.io/cell={{ $v.cell }}"
+    {{- if $v.opentelemetry.enabled }}
+    plugin_metadata_cm: apisix-plugin-metadata
+    {{- end }}
+    apisix:
+      admin_api_version: v3
+      default_cluster_name: default
+      default_cluster_base_url: http://apisix-admin.edge.svc:9180/apisix/admin
+{{- if $v.opentelemetry.enabled }}
+---
+# Controller đồng bộ plugin_metadata từ ConfigMap này vào APISIX (collector của opentelemetry).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apisix-plugin-metadata
+  namespace: edge
+data:
+  opentelemetry: |
+    {{- include "api-gateway.otelMetadata" . | fromYaml | toJson | nindent 4 }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apisix-ingress-controller
+  namespace: edge
+  labels:
+    app.kubernetes.io/name: apisix-ingress-controller
+    {{- include "api-gateway.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $v.ingressController.replicas | int }}
+  selector:
+    matchLabels: { app.kubernetes.io/name: apisix-ingress-controller }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apisix-ingress-controller
+        {{- include "api-gateway.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: apisix-ingress-controller
+      securityContext:
+        {{- toYaml $v.podSecurityContext | nindent 8 }}
+        runAsUser: 10001
+      {{- include "api-gateway.scheduling" . | nindent 6 }}
+      containers:
+        - name: controller
+          image: {{ include "api-gateway.image" (list $v.ingressController.image "ingressController") }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - ingress
+            - --config-path=/ingress-apisix/conf/config.yaml
+            - --default-apisix-cluster-admin-key=$(APISIX_ADMIN_KEY)
+          env:
+            - name: APISIX_ADMIN_KEY
+              valueFrom:
+                secretKeyRef: { name: apisix-admin, key: admin-key }
+          resources:
+            {{- toYaml $v.ingressController.resources | nindent 12 }}
+          securityContext:
+            {{- include "api-gateway.containerSecurity" . | nindent 12 }}
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+          volumeMounts:
+            - { name: config, mountPath: /ingress-apisix/conf }
+      volumes:
+        - name: config
+          configMap: { name: apisix-ingress-controller }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apisix-ingress-controller
+  namespace: edge
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: apisix-ingress-controller }
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: apisix } }
+      ports: [{ protocol: TCP, port: 9180 }]
+    # Kube API server: dải địa chỉ control plane của cụm (khai trong values của môi trường).
+    {{- with $v.ingressController.apiServerCIDRs }}
+    - to:
+        {{- range . }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+      ports: [{ protocol: TCP, port: 6443 }, { protocol: TCP, port: 443 }]
+    {{- end }}
+---
+# Plugin toàn cục: Coraza (SEC-34), header bảo mật (SEC-24), OpenTelemetry (traceparent).
+apiVersion: apisix.apache.org/v2
+kind: ApisixGlobalRule
+metadata:
+  name: vt-global
+  namespace: edge
+spec:
+  plugins:
+    {{- range $name, $conf := fromYaml (include "api-gateway.globalPlugins" .) }}
+    - name: {{ $name }}
+      enable: true
+      config:
+        {{- toYaml $conf | nindent 8 }}
+    {{- end }}
+{{- $nss := list }}
+{{- range $v.routes }}{{ $nss = append $nss .namespace }}{{ end }}
+{{- range $ns := uniq $nss }}
+---
+# protected-api đặt cạnh ApisixRoute của cùng namespace (plugin_config_name chỉ tra trong namespace của tuyến).
+apiVersion: apisix.apache.org/v2
+kind: ApisixPluginConfig
+metadata:
+  name: protected-api
+  namespace: {{ $ns }}
+spec:
+  plugins:
+    {{- range $name, $conf := fromYaml (include "api-gateway.protectedApi" $) }}
+    - name: {{ $name }}
+      enable: true
+      config:
+        {{- toYaml $conf | nindent 8 }}
+    {{- end }}
+{{- end }}
+{{- range $v.routes }}
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: {{ .name }}
+  namespace: {{ .namespace }}
+spec:
+  http:
+    - name: {{ .name }}
+      match:
+        hosts: {{ toJson .hosts }}
+        paths: {{ toJson .paths }}
+      backends:
+        - serviceName: {{ .service }}
+          servicePort: {{ .port }}
+          resolveGranularity: service
+      {{- with .pluginConfig }}
+      plugin_config_name: {{ . }}
+      {{- end }}
+      timeout:
+        connect: {{ .timeout.connect }}s
+        send: {{ .timeout.send }}s
+        read: {{ .timeout.read }}s
+{{- end }}
+{{- with $v.apisix.tls.secretName }}
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixTls
+metadata:
+  name: apisix-tls
+  namespace: edge
+spec:
+  hosts: {{ toJson $v.apisix.tls.hosts }}
+  secret: { name: {{ . }}, namespace: edge }
+{{- end }}
+{{- end }}

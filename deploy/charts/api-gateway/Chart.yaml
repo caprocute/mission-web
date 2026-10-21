@@ -1,0 +1,9 @@
+apiVersion: v2
+name: api-gateway
+description: >-
+  Cổng API của cell (SVC-01, TL-04 mục 3.7 và 6.8): APISIX trên pool ingress, etcd 3 node, APISIX Ingress
+  Controller, TLS 1.3, Coraza với OWASP CRS (SEC-34), header bảo mật (SEC-24), traceparent W3C,
+  plugin vt-claims và cấu hình protected-api giới hạn tần suất theo tenant và người dùng.
+type: application
+version: 0.1.0
+appVersion: "3.13.0"
