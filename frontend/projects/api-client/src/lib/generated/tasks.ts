@@ -519,7 +519,7 @@ export interface paths {
     get: operations['getTaskSecretContent'];
     /**
      * Lưu bản mã C3 và danh sách khoá bọc ban đầu
-     * @description Lưu bản mã AES-256-GCM (`ciphertext`, `nonce`, `aadHash`, `sha256`) và danh sách khoá bọc cho những người được phép giải mã (ADR-06).
+     * @description Lưu bản mã AES256-GCM (`ciphertext`, `nonce`, `aadHash`, `sha256`) và danh sách khoá bọc cho những người được phép giải mã (ADR-06).
      */
     put: operations['saveTaskSecretContent'];
     post?: never;

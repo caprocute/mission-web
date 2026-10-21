@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   CelRoundingMode,
   CelVariableType,
@@ -57,7 +55,8 @@ function parseGoldenYaml(yamlText: string): GoldenYamlSuite {
 
   let section: 'root' | 'holidays' | 'compensatory' | 'cases' = 'root';
   let currentCase: GoldenYamlCase | null = null;
-  let subMap: 'none' | 'variableTypes' | 'inputs' = 'none';
+  let subMap: 'none' | 'variableTypes' | 'inputs' | 'rounding' = 'none';
+  let nestedInput: Record<string, unknown> | null = null;
 
   for (const rawLine of lines) {
     const trimmed = rawLine.trim();
@@ -114,10 +113,23 @@ function parseGoldenYaml(yamlText: string): GoldenYamlSuite {
         if (colonIdx > 0) {
           const k = trimmed.slice(0, colonIdx).trim();
           const vRaw = trimmed.slice(colonIdx + 1).trim();
-          if (subMap === 'variableTypes') {
+          if (subMap === 'inputs' && rawLine.startsWith('        ') && nestedInput) {
+            // Map lồng một cấp, ví dụ formData.minhChungUrl
+            nestedInput[k] = parseScalarOrInlineJson(vRaw);
+          } else if (subMap === 'variableTypes') {
             currentCase.variableTypes[k] = vRaw as CelVariableType;
           } else if (subMap === 'inputs') {
-            currentCase.inputs[k] = parseScalarOrInlineJson(vRaw);
+            nestedInput = null;
+            if (vRaw === '') {
+              nestedInput = {};
+              currentCase.inputs[k] = nestedInput;
+            } else {
+              currentCase.inputs[k] = parseScalarOrInlineJson(vRaw);
+            }
+          } else if (k === 'scale') {
+            currentCase.scale = Number(vRaw);
+          } else if (k === 'mode') {
+            currentCase.roundingMode = vRaw as CelRoundingMode;
           }
         }
         continue;
@@ -157,7 +169,11 @@ function parseGoldenYaml(yamlText: string): GoldenYamlSuite {
               subMap = 'variableTypes';
             }
             break;
+          case 'rounding':
+            subMap = 'rounding';
+            break;
           case 'inputs':
+            nestedInput = null;
             if (valRaw === '{}') {
               currentCase.inputs = {};
             } else {
@@ -168,7 +184,7 @@ function parseGoldenYaml(yamlText: string): GoldenYamlSuite {
             currentCase.expected = parseScalarOrInlineJson(valRaw);
             break;
           case 'expectedError':
-            currentCase.expectedError = valRaw;
+            currentCase.expectedError = parseScalarOrInlineJson(valRaw) as string;
             break;
         }
       }
@@ -185,7 +201,17 @@ function parseGoldenYaml(yamlText: string): GoldenYamlSuite {
   };
 }
 
-const goldenYamlPath = resolve(process.cwd(), '../data/golden/cel/golden-cases.yaml');
+// Test chạy trong Node (Vitest); lấy fs, path qua getBuiltinModule để không cần kiểu @types/node
+const nodeProcess = (
+  globalThis as unknown as { process: { cwd(): string; getBuiltinModule(id: string): unknown } }
+).process;
+const { readFileSync } = nodeProcess.getBuiltinModule('node:fs') as {
+  readFileSync(p: string, enc: 'utf-8'): string;
+};
+const { resolve } = nodeProcess.getBuiltinModule('node:path') as {
+  resolve(...p: string[]): string;
+};
+const goldenYamlPath = resolve(nodeProcess.cwd(), '../data/golden/cel/golden-cases.yaml');
 const suite = parseGoldenYaml(readFileSync(goldenYamlPath, 'utf-8'));
 
 describe('NEN-041: đối chiếu 100% bộ Golden Test Suite YAML giữa cel-java và cel-js', () => {
@@ -234,7 +260,8 @@ describe('NEN-041: đối chiếu 100% bộ Golden Test Suite YAML giữa cel-ja
     expect(roundCelScore(59.995, 2, 'CAT_BO')).toBe(59.99);
     expect(roundCelScore(89.995, 2, 'HALF_UP')).toBe(90);
     expect(roundCelScore(89.995, 2, 'DOWN')).toBe(89.99);
-    expect(minMucXepLoai('HOAN_THANH_XUAT_SAC', 'HOAN_THANH_TOT')).toBe('HTTNV');
+    expect(minMucXepLoai('HOAN_THANH_XUAT_SAC', 'HOAN_THANH_TOT')).toBe('HOAN_THANH_TOT');
+    expect(minMucXepLoai('HTXSNV', 'HTTNV')).toBe('HTTNV');
     expect(countWorkingDays('2026-03-02', '2026-03-06', suite.calendar)).toBe(4);
     expect(() =>
       evaluateMissionCel({
