@@ -77,3 +77,16 @@ spring:
     enabled: true
     user: ${ORG_MIG_DB_USER:mig_org}
     password: ${ORG_MIG_DB_PASSWORD:}
+---
+# DV-04-08: lệnh org-republish chạy như Job (không mở cổng web), đọc bằng svc_org, phát thẳng lên Kafka.
+spring:
+  config:
+    activate:
+      on-profile: republish
+  main:
+    web-application-type: none
+okrkpi:
+  org:
+    republish:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      registry-url: ${APICURIO_REGISTRY_URL:http://localhost:8080/apis/registry/v3}

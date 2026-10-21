@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **101 / 401 task (25.2%)** — Khối lượng quy đổi đã gộp: **120 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **105 / 401 task (26.2%)** (gồm **101** đã gộp `main` + **4** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **106 / 401 task (26.4%)** (gồm **101** đã gộp `main` + **5** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **13 task** (9 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **283 task**.
+- **Chưa bắt đầu**: **282 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **8 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-00-02`** (đang xử lý trên nhánh: `CORE-00-02`).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,21 +25,21 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **47** | 0 | 3 | 22 | **65.3%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **2** | 3 | 0 | 107 | **1.8%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **14** | 0 | 8 | 82 | **13.5%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **14** | 1 | 8 | 81 | **13.5%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **4** | 0 | 2 | 6 | **33.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **1** | 1 | 0 | 26 | **3.6%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **101** | **4** | **13** | **283** | **25.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **101** | **5** | **13** | **282** | **25.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 59 | **48** | 1 | 1 | 9 | **81.4%** |
-| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **20** | 3 | 4 | 13 | **50.0%** |
+| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **20** | 4 | 4 | 12 | **50.0%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **7** | 0 | 2 | 37 | **15.2%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **16** | 0 | 4 | 97 | **13.7%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **10** | 0 | 1 | 60 | **14.1%** |
@@ -373,7 +373,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-03-06](docs/tasks/DV-03-06-idp-cua-tenant.md) | Khai báo IdP của tenant và kiểm kết nối OIDC, SAML, LDAP | S | B5 | 9 | DV-03-03 | **Đã gộp main** | Đã gộp main (2975c79): khai báo IdP OIDC/SAML/LDAP, kiểm kết nối chống SSRF, NetworkPolicy |
 | [DV-03-07](docs/tasks/DV-03-07-chuyen-tenant-cell.md) | Chuyển tenant giữa các cell bằng sao chép logic, hai người duyệt | L | B5 | 13 | DV-03-05, NEN-043 | **Đang làm** | Nhánh feat/DV-03-05-06-07-tenant-registry: tạm dừng chờ phiên tiếp theo (sau DV-03-05) |
 
-### DV-04 · SVC-04 org-service (4/8 đã gộp `main`, 0 chờ gộp, 2 đang làm)
+### DV-04 · SVC-04 org-service (4/8 đã gộp `main`, 1 chờ gộp, 2 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -384,7 +384,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-04-05](docs/tasks/DV-04-05-nhap-cay-excel.md) | Nhập cây tổ chức từ Excel (202, báo cáo lỗi) | S | B5 | 11 | DV-04-02 | **Đang làm** | Nhánh feat/DV-04-phan-cong-scim: tạm dừng chờ phiên tiếp theo (sau DV-04-04) |
 | [DV-04-06](docs/tasks/DV-04-06-scim.md) | SCIM 2.0 cho HRM và IdP khách hàng | M | B5 | 12 | DV-04-04 | **Đang làm** | Nhánh feat/DV-04-phan-cong-scim: tạm dừng chờ phiên tiếp theo (sau DV-04-05) |
 | [DV-04-07](docs/tasks/DV-04-07-doi-soat-nhan-su.md) | Đối soát nhân sự: khớp người bằng HMAC và ngày sinh, bảng lệch, phân loại, API giải quyết | L | B5 | 12 | DV-04-04, DV-13-06 | **Chưa bắt đầu** |  |
-| [DV-04-08](docs/tasks/DV-04-08-org-republish.md) | Lệnh phát lại sự kiện tổ chức (`org-republish`) cho bên nhận bị lệch | S | B5 | 12 | DV-04-03, NEN-022 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
+| [DV-04-08](docs/tasks/DV-04-08-org-republish.md) | Lệnh phát lại sự kiện tổ chức (`org-republish`) cho bên nhận bị lệch | S | B5 | 12 | DV-04-03, NEN-022 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: org-republish, 85 kiểm thử org-service xanh, 100k nhân sự 4,3 s |
 
 ### DV-06 · SVC-06 workflow-service (Flowable) (1/12 đã gộp `main`, 0 chờ gộp, 2 đang làm)
 
@@ -715,4 +715,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 21/10/2026 21:31 | B1 (Claude) | `CORE-00-03` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: schema org_replica, consumer EVT-14/15/16 + bootstrap, bao đóng 2 cây, OrgDirectoryApi; IT xanh, 10k sự kiện p99 ~0,3 s |
 | 21/10/2026 21:36 | B1 (Claude) | `CORE-00-05` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: điểm móc FieldEncryptor, gom sự kiện sys.audit.v1 |
 | 21/10/2026 22:17 | B1 (Claude) | `CORE-00-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: DecryptListener + C2AccessAuditor gom sys.audit.v1 qua outbox, @C2Access; IT xanh, chi phí thêm 0,08 ms p95; V0_24 nới ck_outbox_event__topic |
+| 21/10/2026 22:20 | B1 (Claude) | `DV-04-08` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm |
+| 21/10/2026 22:46 | B1 (Claude) | `DV-04-08` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: org-republish, 85 kiểm thử org-service xanh, 100k nhân sự 4,3 s |
 <!-- PROGRESS_LOG_END -->

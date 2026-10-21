@@ -76,6 +76,11 @@ public class OrgReplicaListeners {
    */
   @InboxListener(topic = EventTopics.ORG_BOOTSTRAP_V1, consumer = CONSUMER_BOOTSTRAP)
   public void onBootstrap(InboxEnvelope<OrgBootstrap> e) {
+    if (e.payload().getMarker() != null) {
+      // Thông điệp đánh dấu đầu, cuối loạt (DV-04-08): không có thực thể để áp; đối chiếu số
+      // lượng và băm bucket thuộc job đối soát DL-12.
+      return;
+    }
     if (!(e.payload().getEntity() instanceof SpecificRecord entity)) {
       throw new PermanentInboxException("org.bootstrap.v1 thiếu thực thể");
     }

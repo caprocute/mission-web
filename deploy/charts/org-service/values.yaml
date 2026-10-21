@@ -49,3 +49,18 @@ networkPolicy:
 serviceAccount:
   create: true
   name: ""
+
+# DV-04-08 · Mẫu Job org-republish (chỉ dựng khi chạy theo ops/runbooks/org-republish.md, không cài cùng bản phát hành).
+republish:
+  enabled: false
+  tenant: ""
+  entities: []        # unit, assignment, person; rỗng là cả ba
+  buckets: []         # 0..255; rỗng là mọi bucket
+  asOf: ""            # ISO-8601 có múi giờ; rỗng là hiện tại
+  dryRun: true        # mặc định chạy thử, chạy thật phải đặt false
+  operator: ""
+  kafkaBootstrapServers: kafka-bootstrap.kafka:9093
+  registryUrl: http://apicurio-registry.kafka:8080/apis/registry/v3
+  kafkaClientSecret: ""
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 86400

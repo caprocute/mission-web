@@ -29,6 +29,7 @@
     <openapi-generator.version>7.24.0</openapi-generator.version>
     <archunit.version>1.4.1</archunit.version>
     <swagger-request-validator.version>2.46.1</swagger-request-validator.version>
+    <apicurio-registry.version>3.3.3</apicurio-registry.version>
     <jacoco.version>0.8.13</jacoco.version>
     <test.jvm>-Xmx768m -XX:+UseSerialGC</test.jvm>
   </properties>
@@ -84,6 +85,22 @@
       <artifactId>snakeyaml</artifactId>
     </dependency>
 
+    <!-- DV-04-08: lệnh org-republish phát thẳng lên org.bootstrap.v1 bằng Avro sinh từ hợp đồng -->
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-events</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.apicurio</groupId>
+      <artifactId>apicurio-registry-avro-serde-kafka</artifactId>
+      <version>${apicurio-registry.version}</version>
+    </dependency>
+
     <!-- Kiểm thử -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -108,11 +125,6 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>junit-jupiter</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka-clients</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

@@ -1,0 +1,93 @@
+{{- if .Values.republish.enabled }}
+{{- if not .Values.republish.tenant }}
+{{- fail "republish.tenant là bắt buộc khi republish.enabled=true" }}
+{{- end }}
+# DV-04-08 · Lệnh org-republish (TL-03 "Event-carried State Transfer cho dữ liệu tổ chức"): Job chạy một lần, không
+# phải hook. Dựng bằng `helm template ... -s templates/republish-job.yaml --set republish.enabled=true
+# --set republish.tenant=<uuid>` rồi `kubectl create -f -`; quy trình ở ops/runbooks/org-republish.md.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: {{ include "org-service.fullname" . }}-republish-
+  labels:
+    {{- include "org-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: republish
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: {{ .Values.republish.activeDeadlineSeconds }}
+  ttlSecondsAfterFinished: {{ .Values.republish.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+        {{- include "org-service.selector" . | nindent 8 }}
+        app.kubernetes.io/component: republish
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "org-service.serviceAccount" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: republish
+          image: {{ include "org-service.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- include "org-service.securityContext" . | nindent 12 }}
+          args:
+            - --tenant={{ .Values.republish.tenant }}
+            {{- range .Values.republish.entities }}
+            - --entity={{ . }}
+            {{- end }}
+            {{- range .Values.republish.buckets }}
+            - --bucket={{ . }}
+            {{- end }}
+            {{- with .Values.republish.asOf }}
+            - --as-of={{ . }}
+            {{- end }}
+            {{- if .Values.republish.dryRun }}
+            - --dry-run
+            {{- end }}
+            - --operator={{ required "republish.operator là bắt buộc (người chạy, ghi kiểm toán)" .Values.republish.operator }}
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: republish
+            - name: ORG_DB_URL
+              value: {{ .Values.database.url | quote }}
+            - name: ORG_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.appSecret }}
+                  key: username
+            - name: ORG_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.appSecret }}
+                  key: password
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.republish.kafkaBootstrapServers | quote }}
+            - name: APICURIO_REGISTRY_URL
+              value: {{ .Values.republish.registryUrl | quote }}
+            - name: JAVA_TOOL_OPTIONS
+              value: {{ .Values.jvm.opts | quote }}
+          {{- with .Values.republish.kafkaClientSecret }}
+          # Cấu hình xác thực Kafka dạng OKRKPI_ORG_REPUBLISH_KAFKA_<KHOÁ>, do External Secrets đồng bộ.
+          envFrom:
+            - secretRef:
+                name: {{ . }}
+          {{- end }}
+          resources:
+            requests:
+              cpu: 500m
+              memory: 768Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+{{- end }}

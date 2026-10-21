@@ -22,5 +22,6 @@
   <modules>
     <module>service-template</module>
     <module>workflow-service</module>
+    <module>org-service</module>
   </modules>
 </project>
