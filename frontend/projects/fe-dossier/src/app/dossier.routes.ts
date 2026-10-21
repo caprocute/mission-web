@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, Routes } from '@angular/router';
-import { PermissionService, permissionGuard } from '@vt/auth';
+import { PermissionService, permissionGuard, screenKeys } from '@vt/auth';
 import { MEETING_KEYS } from './dossier-permissions';
 
 /**
@@ -29,13 +29,13 @@ export const ROUTES: Routes = [
   },
   {
     path: 'kiem-diem',
-    canActivate: [permissionGuard(...MEETING_KEYS)],
+    canActivate: [permissionGuard(...screenKeys('SCR-1101'))],
     loadComponent: () => import('./pages/meetings/meetings.page').then((m) => m.MeetingsPage),
     title: 'Hội nghị kiểm điểm',
   },
   {
     path: 'kiem-diem/:id',
-    canActivate: [permissionGuard(...MEETING_KEYS)],
+    canActivate: [permissionGuard(...screenKeys('SCR-1101'))],
     loadComponent: () => import('./pages/meeting/meeting.page').then((m) => m.MeetingPage),
     title: 'Hội nghị kiểm điểm',
   },
