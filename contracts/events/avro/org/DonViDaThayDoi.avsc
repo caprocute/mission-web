@@ -18,6 +18,8 @@
     {"name": "validFrom", "type": {"type": "int", "logicalType": "date"}, "doc": "Ngày bắt đầu hiệu lực"},
     {"name": "validTo", "type": ["null", {"type": "int", "logicalType": "date"}], "default": null, "doc": "(suy luận) Ngày hết hiệu lực; null nghĩa là vô thời hạn ('infinity' ở nguồn)"},
     {"name": "changeOrderId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "Quyết định sinh ra phiên bản (org.org_change_order)"},
-    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."},
+    {"name": "partyParentId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "(bổ sung CORE-00-03) Cấp trên trực thuộc trên cây Đảng tại validFrom; null là gốc. Cần cho org_replica.org_unit_v.party_parent_id và bao đóng unit_closure_v."},
+    {"name": "adminParentId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "(bổ sung CORE-00-03) Cấp trên trực thuộc trên cây chuyên môn tại validFrom; null là gốc."}
   ]
 }

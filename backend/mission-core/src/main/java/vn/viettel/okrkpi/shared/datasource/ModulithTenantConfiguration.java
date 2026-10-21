@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.sql.DataSource;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -18,11 +17,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Role;
 import org.springframework.core.task.TaskDecorator;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
-import vn.viettel.okrkpi.shared.tenant.TenantDataSourceTransactionManager;
-import vn.viettel.okrkpi.shared.tenant.TenantProperties;
 
 /**
  * Cấu hình tích hợp Spring Modulith Event Publication Registry ({@code modulith.event_publication})
@@ -60,8 +58,7 @@ public class ModulithTenantConfiguration {
   @Bean
   @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
   public static BeanPostProcessor tenantAwareEventPublicationRepositoryPostProcessor(
-      @Qualifier("taskDataSource") ObjectProvider<DataSource> taskDataSourceProvider,
-      ObjectProvider<TenantProperties> tenantPropertiesProvider) {
+      @Qualifier("transactionManager") ObjectProvider<PlatformTransactionManager> transactionManagerProvider) {
     return new BeanPostProcessor() {
       @Override
       public Object postProcessAfterInitialization(Object bean, String beanName)
@@ -73,8 +70,7 @@ public class ModulithTenantConfiguration {
         return Proxy.newProxyInstance(
             repoInterface.getClassLoader(),
             new Class<?>[] {repoInterface},
-            new TenantAwareEventPublicationHandler(
-                bean, taskDataSourceProvider, tenantPropertiesProvider));
+            new TenantAwareEventPublicationHandler(bean, transactionManagerProvider));
       }
     };
   }
@@ -96,18 +92,14 @@ public class ModulithTenantConfiguration {
       implements java.lang.reflect.InvocationHandler {
 
     private final Object delegate;
-    private final ObjectProvider<DataSource> dataSourceProvider;
-    private final ObjectProvider<TenantProperties> tenantPropertiesProvider;
+    private final ObjectProvider<PlatformTransactionManager> transactionManagerProvider;
     private final Set<TenantId> knownTenants = ConcurrentHashMap.newKeySet();
     private volatile TransactionTemplate transactionTemplate;
 
     private TenantAwareEventPublicationHandler(
-        Object delegate,
-        ObjectProvider<DataSource> dataSourceProvider,
-        ObjectProvider<TenantProperties> tenantPropertiesProvider) {
+        Object delegate, ObjectProvider<PlatformTransactionManager> transactionManagerProvider) {
       this.delegate = delegate;
-      this.dataSourceProvider = dataSourceProvider;
-      this.tenantPropertiesProvider = tenantPropertiesProvider;
+      this.transactionManagerProvider = transactionManagerProvider;
     }
 
     @Override
@@ -159,10 +151,11 @@ public class ModulithTenantConfiguration {
     private TransactionTemplate getTransactionTemplate() {
       TransactionTemplate local = this.transactionTemplate;
       if (local == null) {
-        DataSource ds = dataSourceProvider.getIfAvailable();
-        TenantProperties props = tenantPropertiesProvider.getIfAvailable();
-        if (ds != null && props != null) {
-          local = new TransactionTemplate(new TenantDataSourceTransactionManager(ds, props));
+        // Cùng trình quản lý giao dịch JPA mà JdbcEventPublicationRepository dùng (taskDataSource),
+        // để giao dịch của repository tham gia giao dịch này thay vì mở giao dịch thứ hai.
+        PlatformTransactionManager tm = transactionManagerProvider.getIfAvailable();
+        if (tm != null) {
+          local = new TransactionTemplate(tm);
           this.transactionTemplate = local;
         }
       }

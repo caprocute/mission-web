@@ -81,7 +81,7 @@ class ModulithEventPublicationIT {
             "Kỳ đánh giá Quý 4/2026",
             LocalDate.of(2026, 10, 1),
             LocalDate.of(2026, 12, 31),
-            PeriodStatus.CHUA_MO);
+            PeriodStatus.DANG_KHOA);
 
     TenantContext.run(TENANT_ID, () -> periodConfigService.openPeriod(snapshot));
 
@@ -107,7 +107,7 @@ class ModulithEventPublicationIT {
             "Kỳ đánh giá Quý 1/2027",
             LocalDate.of(2027, 1, 1),
             LocalDate.of(2027, 3, 31),
-            PeriodStatus.CHUA_MO);
+            PeriodStatus.DANG_KHOA);
 
     okrPeriodOpenedListener.setFailNextExecution(true);
     TenantContext.run(TENANT_ID, () -> periodConfigService.openPeriod(snapshot));

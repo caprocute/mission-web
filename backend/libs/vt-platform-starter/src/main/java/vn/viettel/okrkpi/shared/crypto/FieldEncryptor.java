@@ -2,6 +2,7 @@ package vn.viettel.okrkpi.shared.crypto;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -45,6 +46,7 @@ public final class FieldEncryptor {
 
   private final DekService dekService;
   private final CryptoProvider cryptoProvider;
+  private volatile DecryptListener decryptListener;
 
   public FieldEncryptor(DekService dekService, CryptoProvider cryptoProvider) {
     this.dekService = Objects.requireNonNull(dekService, "dekService");
@@ -128,10 +130,29 @@ public final class FieldEncryptor {
       int bodyWithTagLength = envelope.length - HEADER_LENGTH;
       byte[] bodyWithTag = new byte[bodyWithTagLength];
       System.arraycopy(envelope, HEADER_LENGTH, bodyWithTag, 0, bodyWithTagLength);
-      return cryptoProvider.decrypt(rawKey, nonce, aad, bodyWithTag);
+      byte[] plain = cryptoProvider.decrypt(rawKey, nonce, aad, bodyWithTag);
+      DecryptListener listener = decryptListener;
+      if (listener != null) {
+        try {
+          listener.onDecrypt(tenantId, dek.purpose(), aadParts);
+        } catch (RuntimeException e) {
+          // Không ghi được vết truy cập C2 thì không trả bản rõ (CORE-00-05, BR-12-10).
+          Arrays.fill(plain, (byte) 0);
+          throw e;
+        }
+      }
+      return plain;
     } finally {
       DekCache.zeroKey(rawKey);
     }
+  }
+
+  /**
+   * Đặt điểm móc gọi sau mỗi lần giải mã thành công (CORE-00-05: ghi nhật ký truy cập C2); {@code
+   * null} để gỡ. Điểm móc ném lỗi thì {@code decrypt} ném lại và không trả bản rõ.
+   */
+  public void setDecryptListener(DecryptListener listener) {
+    this.decryptListener = listener;
   }
 
   /** Giải mã bản mã phong bì C2 theo {@code dek_id} nhúng trong phần đầu bản mã. */

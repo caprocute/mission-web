@@ -49,9 +49,11 @@ public record EventEnvelope(
     String policyVersion,
     Instant occurredAt) {
 
-  /** Quy ước topic, trùng CHECK {@code ck_outbox_event__topic} của bảng outbox (NEN-032). */
-  public static final Pattern TOPIC_PATTERN =
-      Pattern.compile("^[a-z]+\\.[a-z]+\\.[a-z]+\\.v[0-9]+$");
+  /**
+   * Quy ước topic, trùng CHECK {@code ck_outbox_event__topic} của bảng outbox (NEN-032, nới ở V0_24
+   * cho topic kỹ thuật ba đến năm đoạn như {@code sys.audit.v1}, CORE-00-05).
+   */
+  public static final Pattern TOPIC_PATTERN = Pattern.compile("^[a-z]+(\\.[a-z]+){1,3}\\.v[0-9]+$");
 
   /** Độ dài cột {@code topic}. */
   static final int TOPIC_MAX = 128;

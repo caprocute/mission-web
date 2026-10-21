@@ -7,6 +7,8 @@
 # - Tổng maximumPoolSize của 8 mô-đun nghiệp vụ = 8 + 4 + 4 + 3 + 2 + 1 + 1 + 1 = 24 <= 35.
 
 spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:35092}
   application:
     name: ${SERVICE_NAME:mission-core}
   threads:
@@ -71,6 +73,12 @@ management:
       application: ${spring.application.name}
 
 okrkpi:
+  # CORE-00-03: inbox ghi org_replica.inbox_* (bản sao tổ chức nhận EVT-14/15/16, org.bootstrap.v1).
+  inbox:
+    schema: org_replica
+    registry:
+      url: ${APICURIO_REGISTRY_V3_URL:http://127.0.0.1:35081/apis/registry/v3}
+    listener-auto-startup: ${ORG_REPLICA_CONSUMERS_ENABLED:true}
   opa:
     enabled: ${OPA_ENABLED:false}
   tenant:

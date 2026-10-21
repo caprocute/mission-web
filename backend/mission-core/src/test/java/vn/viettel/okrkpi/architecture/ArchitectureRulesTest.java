@@ -133,6 +133,24 @@ public class ArchitectureRulesTest {
               "Mô-đun chỉ được giao tiếp với mô-đun được phép trong ma trận phụ thuộc thông qua gói"
                   + " .api (TL-01 mục 2.1).");
 
+  /**
+   * Quy tắc 3c (CORE-00-03, TL-03 L464): bản sao tổ chức {@code org_replica} chỉ được đọc qua
+   * {@code replica.api} ({@code OrgDirectoryApi}); mô-đun khác không chạm tầng ghi của bản sao.
+   */
+  @ArchTest
+  static final ArchRule orgReplicaOnlyViaApi =
+      noClasses()
+          .that()
+          .resideOutsideOfPackage("vn.viettel.okrkpi.replica..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage(
+              "vn.viettel.okrkpi.replica.application..",
+              "vn.viettel.okrkpi.replica.domain..",
+              "vn.viettel.okrkpi.replica.infrastructure..",
+              "vn.viettel.okrkpi.replica.internal..")
+          .because("Bản sao tổ chức chỉ do consumer của nó ghi; mô-đun khác đọc qua replica.api.");
+
   /** Quy tắc 4 (TL-01): Controller REST chỉ đặt trong {@code ..infrastructure.web..}. */
   @ArchTest
   static final ArchRule controllersOnlyInWebAdapter =

@@ -78,10 +78,19 @@ class EventEnvelopeTest {
   }
 
   @ParameterizedTest
+  @ValueSource(strings = {"sys.audit.v1", "sys.evidence.object.stored.v1"})
+  void nhanTopicKyThuatBaDenNamDoan(String topic) {
+    UUID task = UUID.randomUUID();
+    assertThat(
+            EventEnvelope.of(topic, TENANT, "Task", task, 1, tienDo(task, 1), Classification.C1)
+                .topic())
+        .isEqualTo(topic);
+  }
+
+  @ParameterizedTest
   @ValueSource(
       strings = {
-        // Topic kỹ thuật ba đoạn: CHECK ck_outbox_event__topic (NEN-032) không nhận, xem báo cáo.
-        "sys.audit.v1",
+        "period.drain.marker",
         "Task.task.progressed.v1",
         "task.task.progressed",
         "task.task-x.progressed.v1",

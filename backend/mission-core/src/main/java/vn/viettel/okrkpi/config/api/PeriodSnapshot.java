@@ -36,13 +36,13 @@ public record PeriodSnapshot(
     Objects.requireNonNull(status, "status must not be null");
   }
 
-  /** Kiểm tra kỳ có đang ở trạng thái mở ({@link PeriodStatus#DANG_HOAT_DONG}) hay không. */
+  /** Kỳ cho phép ghi ({@link PeriodStatus#MO} hoặc {@link PeriodStatus#MO_LAI_HAU_KIEM}). */
   public boolean isOpen() {
-    return status == PeriodStatus.DANG_HOAT_DONG;
+    return status == PeriodStatus.MO || status == PeriodStatus.MO_LAI_HAU_KIEM;
   }
 
-  /** Kiểm tra kỳ đã bị khóa ({@link PeriodStatus#DA_KHOA}) hay chưa. */
+  /** Kỳ đang chốt hoặc đã khóa ({@link PeriodStatus#DANG_KHOA}, {@link PeriodStatus#DA_KHOA}). */
   public boolean isLocked() {
-    return status == PeriodStatus.DA_KHOA;
+    return status == PeriodStatus.DANG_KHOA || status == PeriodStatus.DA_KHOA;
   }
 }
