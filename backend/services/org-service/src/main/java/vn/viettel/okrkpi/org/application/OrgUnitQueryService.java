@@ -15,6 +15,10 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.viettel.okrkpi.org.application.port.AssignmentStore;
+import vn.viettel.okrkpi.org.application.port.AssignmentStore.PersonAssignmentRow;
+import vn.viettel.okrkpi.org.application.port.AssignmentStore.PersonSummaryRow;
+import vn.viettel.okrkpi.org.application.port.AssignmentStore.UnitAssignmentRow;
 import vn.viettel.okrkpi.org.application.port.ChangeOrderStore;
 import vn.viettel.okrkpi.org.application.port.OrgUnitStore;
 import vn.viettel.okrkpi.org.application.port.PersonDirectory;
@@ -46,12 +50,14 @@ public class OrgUnitQueryService {
   private final SubjectGroupStore groups;
   private final ChangeOrderStore orders;
   private final PersonDirectory persons;
+  private final AssignmentStore assignments;
   private final PolicyPort policy;
   private final UnitSupport support;
   private final Clock clock;
 
   public OrgUnitQueryService(OrgUnitStore units, RelationStore relations, TreeQueryPort trees,
-      SubjectGroupStore groups, ChangeOrderStore orders, PersonDirectory persons, PolicyPort policy,
+      SubjectGroupStore groups, ChangeOrderStore orders, PersonDirectory persons,
+      AssignmentStore assignments, PolicyPort policy,
       UnitSupport support, Clock clock) {
     this.units = units;
     this.relations = relations;
@@ -59,6 +65,7 @@ public class OrgUnitQueryService {
     this.groups = groups;
     this.orders = orders;
     this.persons = persons;
+    this.assignments = assignments;
     this.policy = policy;
     this.support = support;
     this.clock = clock;
@@ -148,6 +155,117 @@ public class OrgUnitQueryService {
   public List<SubjectGroupRecord> listSubjectGroups(Actor actor, LocalDate asOf) {
     policy.authorize(actor, "listSubjectGroups");
     return groups.list(asOf);
+  }
+
+  /**
+   * Danh sách cán bộ trong phạm vi đơn vị ({@code scope=unit} hoặc {@code scope=subtree}) phục vụ hộp chọn nghiệp vụ
+   * (SCR-0501, {@code listOrgPersons}). Kiểm tra ABAC theo cây đơn vị khi chủ thể có {@code unitId} trong ngữ cảnh.
+   */
+  public Page<PersonSummaryRow> listPersons(
+      Actor actor, String scope, UUID unitId, String text, int limit, String cursor) {
+    policy.authorize(actor, "listOrgPersons");
+    UUID targetUnit = unitId != null ? unitId : actor.unitId();
+    if (targetUnit == null) {
+      return new Page<>(List.of(), null);
+    }
+    TemporalQuery query = support.resolve(null, null);
+    requireUnitInScope(actor, targetUnit, query);
+    Set<UUID> targetUnits = new HashSet<>();
+    targetUnits.add(targetUnit);
+    if ("subtree".equals(scope)) {
+      for (TreeRow r : trees.subtree(TreeKind.CHUYEN_MON, targetUnit, query, 6)) {
+        targetUnits.add(r.id());
+      }
+      for (TreeRow r : trees.subtree(TreeKind.DANG, targetUnit, query, 6)) {
+        targetUnits.add(r.id());
+      }
+    }
+    String folded = text == null || text.isBlank() ? null : TextFold.fold(text);
+    List<PersonSummaryRow> rows = assignments.findPersonsInUnitsAt(targetUnits, query).stream()
+        .filter(r -> folded == null
+            || TextFold.fold(r.fullName()).contains(folded)
+            || TextFold.fold(r.jobTitleName()).contains(folded)
+            || TextFold.fold(r.unitName()).contains(folded))
+        .sorted(Comparator.comparing(PersonSummaryRow::fullName).thenComparing(PersonSummaryRow::personId))
+        .toList();
+    return paginate(
+        rows,
+        limit,
+        cursor,
+        2,
+        r -> new String[] {r.fullName(), r.personId().toString()},
+        (r, keys) -> compare(r.fullName(), r.personId().toString(), keys) > 0);
+  }
+
+  /**
+   * Danh sách phân công của một cán bộ tại thời điểm {@code asOf} / {@code recordedAsOf} (SCR-0103,
+   * {@code listPersonAssignments}).
+   */
+  public List<PersonAssignmentRow> listPersonAssignments(
+      Actor actor, UUID personId, LocalDate asOf, OffsetDateTime recordedAsOf) {
+    policy.authorize(actor, "listPersonAssignments");
+    TemporalQuery query = support.resolve(asOf, recordedAsOf);
+    if (!assignments.personExists(personId, query)) {
+      throw new OrgNotFoundException("Không tìm thấy cán bộ.");
+    }
+    List<PersonAssignmentRow> rows = assignments.findByPersonAt(personId, query);
+    if (actor.unitId() != null && !policy.hasTenantScope(actor) && !personId.equals(actor.actorId())
+        && !rows.isEmpty()) {
+      Set<UUID> allowed = allowedUnits(actor, query);
+      boolean anyInScope = rows.stream().anyMatch(r -> allowed.contains(r.orgUnitId()));
+      if (!anyInScope) {
+        throw new ForbiddenOperationException("Không có quyền truy cập phân công của cán bộ ngoài phạm vi đơn vị.");
+      }
+    }
+    return rows;
+  }
+
+  /**
+   * Danh sách phân công thuộc một đơn vị tại thời điểm {@code asOf} / {@code recordedAsOf} (SCR-0103 vùng 3,
+   * {@code listOrgUnitAssignments}).
+   */
+  public Page<UnitAssignmentRow> listUnitAssignments(
+      Actor actor, UUID unitId, LocalDate asOf, OffsetDateTime recordedAsOf, String text, int limit, String cursor) {
+    policy.authorize(actor, "listOrgUnitAssignments");
+    TemporalQuery query = support.resolve(asOf, recordedAsOf);
+    units.findAt(unitId, query)
+        .orElseThrow(() -> new OrgNotFoundException("Không tìm thấy đơn vị tại thời điểm hỏi."));
+    requireUnitInScope(actor, unitId, query);
+    String folded = text == null || text.isBlank() ? null : TextFold.fold(text);
+    List<UnitAssignmentRow> rows = assignments.findByUnitAt(unitId, query).stream()
+        .filter(r -> folded == null
+            || TextFold.fold(r.personName()).contains(folded)
+            || TextFold.fold(r.jobTitleName()).contains(folded))
+        .sorted(Comparator.comparing(UnitAssignmentRow::personName).thenComparing(UnitAssignmentRow::id))
+        .toList();
+    return paginate(
+        rows,
+        limit,
+        cursor,
+        2,
+        r -> new String[] {r.personName(), r.id().toString()},
+        (r, keys) -> compare(r.personName(), r.id().toString(), keys) > 0);
+  }
+
+  private void requireUnitInScope(Actor actor, UUID targetUnitId, TemporalQuery query) {
+    if (actor.unitId() == null || policy.hasTenantScope(actor)) {
+      return;
+    }
+    if (!allowedUnits(actor, query).contains(targetUnitId)) {
+      throw new ForbiddenOperationException("Không có quyền truy cập đơn vị ngoài phạm vi phân công.");
+    }
+  }
+
+  private Set<UUID> allowedUnits(Actor actor, TemporalQuery query) {
+    Set<UUID> allowed = new HashSet<>();
+    allowed.add(actor.unitId());
+    for (TreeRow r : trees.subtree(TreeKind.CHUYEN_MON, actor.unitId(), query, 6)) {
+      allowed.add(r.id());
+    }
+    for (TreeRow r : trees.subtree(TreeKind.DANG, actor.unitId(), query, 6)) {
+      allowed.add(r.id());
+    }
+    return allowed;
   }
 
   /** Lịch sử phiên bản trên trục hiệu lực, mới nhất trước (BR-01-06). */

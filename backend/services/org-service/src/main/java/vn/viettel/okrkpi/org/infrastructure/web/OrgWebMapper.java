@@ -6,19 +6,27 @@ import vn.viettel.okrkpi.org.application.ChangeCommand;
 import vn.viettel.okrkpi.org.application.ChangeResult;
 import vn.viettel.okrkpi.org.application.OrgUnitHistoryItem;
 import vn.viettel.okrkpi.org.application.OrgUnitView;
+import vn.viettel.okrkpi.org.application.Page;
 import vn.viettel.okrkpi.org.application.SearchHit;
 import vn.viettel.okrkpi.org.application.SubjectGroupRecord;
 import vn.viettel.okrkpi.org.application.TreeView;
 import vn.viettel.okrkpi.org.application.UnitCommand;
 import vn.viettel.okrkpi.org.application.UnitRef;
+import vn.viettel.okrkpi.org.application.port.AssignmentStore.PersonAssignmentRow;
+import vn.viettel.okrkpi.org.application.port.AssignmentStore.PersonSummaryRow;
+import vn.viettel.okrkpi.org.application.port.AssignmentStore.UnitAssignmentRow;
 import vn.viettel.okrkpi.org.domain.OrgChangeType;
 import vn.viettel.okrkpi.org.domain.OrgUnitContent;
 import vn.viettel.okrkpi.org.domain.OrgUnitVersion;
+import vn.viettel.okrkpi.org.infrastructure.web.model.Assignment;
+import vn.viettel.okrkpi.org.infrastructure.web.model.AssignmentKind;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgChangeOrder;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgChangeRequest;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgPerson;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgTree;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgTreeNode;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnit;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnitAssignment;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnitInput;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnitRef;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnitSearchHit;
@@ -174,6 +182,43 @@ final class OrgWebMapper {
           "Thay đổi có hiệu lực trước ngày khoá của kỳ " + r.lockedPeriodLabel()
               + ". Kết quả kỳ đã khoá sẽ không tự tính lại; nếu cần, đề nghị mở lại kỳ.")));
     }
+    return dto;
+  }
+
+  static OrgPerson toDto(PersonSummaryRow item) {
+    OrgPerson dto = new OrgPerson();
+    dto.setId(item.personId());
+    dto.setName(item.fullName());
+    dto.setTitle(item.jobTitleName());
+    dto.setUnitId(item.unitId());
+    dto.setUnitName(item.unitName());
+    return dto;
+  }
+
+  static Assignment toDto(PersonAssignmentRow item) {
+    Assignment dto = new Assignment();
+    dto.setId(item.id().toString());
+    dto.setOrgUnitId(item.orgUnitId().toString());
+    dto.setOrgUnitName(item.orgUnitName());
+    dto.setJobTitleName(item.jobTitleName());
+    dto.setKind(AssignmentKind.fromValue(item.kind()));
+    dto.setBranch(Assignment.BranchEnum.fromValue(item.branch()));
+    dto.setRoles(new ArrayList<>());
+    dto.setValidFrom(item.validFrom());
+    dto.setValidTo(item.validTo());
+    return dto;
+  }
+
+  static OrgUnitAssignment toDto(UnitAssignmentRow item) {
+    OrgUnitAssignment dto = new OrgUnitAssignment();
+    dto.setId(item.id());
+    dto.setPersonId(item.personId());
+    dto.setPersonName(item.personName());
+    dto.setJobTitleName(item.jobTitleName());
+    dto.setKind(AssignmentKind.fromValue(item.kind()));
+    dto.setBranch(OrgUnitAssignment.BranchEnum.fromValue(item.branch()));
+    dto.setValidFrom(item.validFrom());
+    dto.setValidTo(item.validTo());
     return dto;
   }
 }

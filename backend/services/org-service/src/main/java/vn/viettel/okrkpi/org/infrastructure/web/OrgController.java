@@ -17,11 +17,16 @@ import vn.viettel.okrkpi.org.application.OrgUnitQueryService;
 import vn.viettel.okrkpi.org.application.OrgUnitView;
 import vn.viettel.okrkpi.org.application.Page;
 import vn.viettel.okrkpi.org.application.UnitRef;
+import vn.viettel.okrkpi.org.application.port.AssignmentStore.PersonSummaryRow;
+import vn.viettel.okrkpi.org.application.port.AssignmentStore.UnitAssignmentRow;
 import vn.viettel.okrkpi.org.domain.TreeKind;
 import vn.viettel.okrkpi.org.infrastructure.security.ActorFilter;
 import vn.viettel.okrkpi.org.infrastructure.web.api.OrgApi;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgPersons200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgUnitAssignments200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgUnitHistory200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgUnits200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ListPersonAssignments200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListSubjectGroups200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgChangeOrder;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgChangeRequest;
@@ -121,6 +126,36 @@ public class OrgController implements OrgApi {
   public ResponseEntity<ListSubjectGroups200Response> listSubjectGroups(LocalDate asOf) {
     ListSubjectGroups200Response body = new ListSubjectGroups200Response();
     body.setItems(queries.listSubjectGroups(actor(), asOf).stream().map(OrgWebMapper::toDto).toList());
+    return ResponseEntity.ok(body);
+  }
+
+  @Override
+  public ResponseEntity<ListOrgPersons200Response> listOrgPersons(String scope, UUID unit, String q, Integer limit,
+      String cursor) {
+    Page<PersonSummaryRow> page = queries.listPersons(actor(), scope, unit, q, limit == null ? 20 : limit, cursor);
+    ListOrgPersons200Response body = new ListOrgPersons200Response();
+    body.setItems(page.items().stream().map(OrgWebMapper::toDto).toList());
+    body.setNextCursor(page.nextCursor());
+    return ResponseEntity.ok(body);
+  }
+
+  @Override
+  public ResponseEntity<ListPersonAssignments200Response> listPersonAssignments(UUID id, LocalDate asOf,
+      OffsetDateTime recordedAsOf) {
+    ListPersonAssignments200Response body = new ListPersonAssignments200Response();
+    body.setItems(queries.listPersonAssignments(actor(), id, asOf, recordedAsOf).stream()
+        .map(OrgWebMapper::toDto).toList());
+    return ResponseEntity.ok(body);
+  }
+
+  @Override
+  public ResponseEntity<ListOrgUnitAssignments200Response> listOrgUnitAssignments(UUID id, LocalDate asOf,
+      OffsetDateTime recordedAsOf, String q, Integer limit, String cursor) {
+    Page<UnitAssignmentRow> page = queries.listUnitAssignments(actor(), id, asOf, recordedAsOf, q,
+        limit == null ? 20 : limit, cursor);
+    ListOrgUnitAssignments200Response body = new ListOrgUnitAssignments200Response();
+    body.setItems(page.items().stream().map(OrgWebMapper::toDto).toList());
+    body.setNextCursor(page.nextCursor());
     return ResponseEntity.ok(body);
   }
 

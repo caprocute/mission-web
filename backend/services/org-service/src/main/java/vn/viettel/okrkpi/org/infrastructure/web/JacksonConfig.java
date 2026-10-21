@@ -5,6 +5,8 @@ import java.util.UUID;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgPersons200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgUnitAssignments200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgUnitHistory200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgUnits200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnitRef;
@@ -21,6 +23,8 @@ public class JacksonConfig {
     return b -> b.serializationInclusion(JsonInclude.Include.NON_NULL)
         .mixIn(ListOrgUnits200Response.class, NextCursorAlways.class)
         .mixIn(ListOrgUnitHistory200Response.class, NextCursorAlways.class)
+        .mixIn(ListOrgPersons200Response.class, NextCursorAlways.class)
+        .mixIn(ListOrgUnitAssignments200Response.class, NextCursorAlways.class)
         .mixIn(OrgUnitRef.class, ParentIdAlways.class);
   }
 
