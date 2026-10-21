@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **101 / 401 task (25.2%)** — Khối lượng quy đổi đã gộp: **120 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **104 / 401 task (25.9%)** (gồm **101** đã gộp `main` + **3** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **14 task** (10 đang làm, 4 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **105 / 401 task (26.2%)** (gồm **101** đã gộp `main` + **4** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **13 task** (9 đang làm, 4 làm một phần).
 - **Chưa bắt đầu**: **283 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **8 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-00-02`** (đang xử lý trên nhánh: `CORE-00-02`).
 
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **47** | 0 | 3 | 22 | **65.3%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **2** | 2 | 1 | 107 | **1.8%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **2** | 3 | 0 | 107 | **1.8%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **14** | 0 | 8 | 82 | **13.5%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **4** | 0 | 2 | 6 | **33.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **1** | 1 | 0 | 26 | **3.6%** |
@@ -32,14 +32,14 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **101** | **3** | **14** | **283** | **25.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **101** | **4** | **13** | **283** | **25.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 59 | **48** | 1 | 1 | 9 | **81.4%** |
-| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **20** | 2 | 5 | 13 | **50.0%** |
+| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **20** | 3 | 4 | 13 | **50.0%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **7** | 0 | 2 | 37 | **15.2%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **16** | 0 | 4 | 97 | **13.7%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **10** | 0 | 1 | 60 | **14.1%** |
@@ -182,7 +182,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [NEN-042](docs/tasks/NEN-042-sua-hop-dong-nghiep-vu.md) | Sửa hợp đồng OpenAPI phần nghiệp vụ: thêm thao tác còn thiếu (huỷ OKR, phiên bản điều chỉnh mục tiêu, uỷ quyền check-in, kích hoạt danh mục, chấm việc ngoài danh mục, ngoại lệ điều chỉnh, xác nhận dòng kế hoạch, duyệt nhiệm vụ đăng ký, chuyển điểm nghẽn, danh bạ khoá E2EE và chia sẻ CEK, ghi trường hợp đặc thù, gợi ý khiếu nại trùng) và sửa mô tả `acceptComplaint` | M | B1 | 2 | NEN-001 | **Đã gộp main** | Đã gộp main: hợp đồng OpenAPI 3.1 các phân hệ nghiệp vụ |
 | [NEN-043](docs/tasks/NEN-043-sua-hop-dong-nen-tang.md) | Sửa hợp đồng OpenAPI phần nền tảng: cờ tính năng cho mọi người dùng, cấu hình tenant, thiết bị nhận thông báo đẩy, tuỳ chọn kênh, mã khôi phục MFA, `POST /org/assignments`, guest token Superset, kiểm quyền theo lô cho tìm kiếm, ký nội bộ cho sổ cái, OCR cho tài khoản dịch vụ, đề nghị chuyển cell | M | B1 | 3 | NEN-001, NEN-042 | **Đã gộp main** | Đã gộp main: bổ sung các thao tác OpenAPI 3.1 cho cấu hình và dịch vụ nền |
 
-### CORE-00 · mission-core: phần dùng chung (2/5 đã gộp `main`, 2 chờ gộp, 1 đang làm)
+### CORE-00 · mission-core: phần dùng chung (2/5 đã gộp `main`, 3 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -190,7 +190,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-00-02](docs/tasks/CORE-00-02-tam-module-modulith.md) | Tám module lục giác, khai báo Spring Modulith, ma trận phụ thuộc, ArchUnit, sinh tài liệu module | M | B2 | 10 | CORE-00-01 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: sửa cancelJob đảo tham số, EPR dùng chung TM JPA, trạng thái kỳ theo hợp đồng; mission-core verify xanh |
 | [CORE-00-03](docs/tasks/CORE-00-03-org-replica-consumer.md) | Schema `org_replica` và consumer EVT-14, EVT-15, EVT-16 | M | B2 | 12 | CORE-00-02, NEN-012, DV-04-03 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: schema org_replica, consumer EVT-14/15/16 + bootstrap, bao đóng 2 cây, OrgDirectoryApi; IT xanh, 10k sự kiện p99 ~0,3 s |
 | [CORE-00-04](docs/tasks/CORE-00-04-api-trang-chu-hom-nay.md) | API tổng hợp trang chủ "Việc của tôi hôm nay" (SCR-0002) | M | B3 | 18 | CORE-02-18, CORE-01-08, CORE-08-09, CORE-08-02, NEN-041 | **Đã gộp main** | Đã gộp main (03e9c83): ranh giới 8 mô-đun Spring Modulith, hợp đồng API nội bộ, JobsController và kiểm thử kiến trúc |
-| [CORE-00-05](docs/tasks/CORE-00-05-nhat-ky-truy-cap-c2.md) | Nhật ký truy cập dữ liệu C2 và ghi sổ cái lần giải mã | S | B4 | 11 | NEN-015, DV-09-02, NEN-011, NEN-016, CORE-00-02 | **Đang làm** | Nhánh feat/CORE-00-mission-core: tạm dừng chờ phiên tiếp theo |
+| [CORE-00-05](docs/tasks/CORE-00-05-nhat-ky-truy-cap-c2.md) | Nhật ký truy cập dữ liệu C2 và ghi sổ cái lần giải mã | S | B4 | 11 | NEN-015, DV-09-02, NEN-011, NEN-016, CORE-00-02 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: DecryptListener + C2AccessAuditor gom sys.audit.v1 qua outbox, @C2Access; IT xanh, chi phí thêm 0,08 ms p95; V0_24 nới ck_outbox_event__topic |
 
 ### CORE-08 · MOD-08 config: kỳ, lịch, cờ, UI Pack, biểu mẫu (G1 phía máy chủ) (0/17 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -713,4 +713,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 21/10/2026 12:49 | Luồng 3 (Mission Core) | `CORE-00-02` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/CORE-00-mission-core: tạm dừng chờ phiên tiếp theo |
 | 21/10/2026 20:48 | B1 (Claude) | `CORE-00-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: sửa cancelJob đảo tham số, EPR dùng chung TM JPA, trạng thái kỳ theo hợp đồng; mission-core verify xanh |
 | 21/10/2026 21:31 | B1 (Claude) | `CORE-00-03` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: schema org_replica, consumer EVT-14/15/16 + bootstrap, bao đóng 2 cây, OrgDirectoryApi; IT xanh, 10k sự kiện p99 ~0,3 s |
+| 21/10/2026 21:36 | B1 (Claude) | `CORE-00-05` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: điểm móc FieldEncryptor, gom sự kiện sys.audit.v1 |
+| 21/10/2026 22:17 | B1 (Claude) | `CORE-00-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: DecryptListener + C2AccessAuditor gom sys.audit.v1 qua outbox, @C2Access; IT xanh, chi phí thêm 0,08 ms p95; V0_24 nới ck_outbox_event__topic |
 <!-- PROGRESS_LOG_END -->

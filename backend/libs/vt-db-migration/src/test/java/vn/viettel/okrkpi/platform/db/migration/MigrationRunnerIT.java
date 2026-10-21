@@ -83,8 +83,8 @@ class MigrationRunnerIT {
     assertThat(outcomes.get(0).success()).isFalse();
     assertThat(outcomes.get(0).error()).contains("runner_ok");
     assertThat(outcomes.get(1).success()).isTrue();
-    // V0_1..V0_3 (db/common), V0_20..V0_23 (db/common-business) + V1 của schema.
-    assertThat(outcomes.get(1).appliedMigrations()).isEqualTo(8);
+    // V0_1..V0_3 (db/common), V0_20..V0_24 (db/common-business) + V1 của schema.
+    assertThat(outcomes.get(1).appliedMigrations()).isEqualTo(9);
     assertThat(MigrationRunner.exitCode(outcomes)).isEqualTo(1);
 
     try (Connection c = adminConnection("td_mot");

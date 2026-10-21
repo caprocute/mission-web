@@ -10,4 +10,5 @@ vn.viettel.okrkpi.shared.paging.PagingAutoConfiguration
 vn.viettel.okrkpi.shared.job.JobAutoConfiguration
 vn.viettel.okrkpi.shared.authz.AuthzAutoConfiguration
 vn.viettel.okrkpi.shared.crypto.CryptoAutoConfiguration
+vn.viettel.okrkpi.shared.audit.C2AccessAutoConfiguration
 vn.viettel.okrkpi.shared.routing.TenantRoutingAutoConfiguration

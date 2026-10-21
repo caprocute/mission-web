@@ -849,7 +849,8 @@ public abstract class TenantIsolationCatalogTest {
       return SAMPLE_PERIOD_BUCKET;
     }
     for (String checkDef : col.checkDefs()) {
-      if (checkDef.contains("^[a-z]+\\.[a-z]+\\.[a-z]+\\.v[0-9]+$")) {
+      if (checkDef.contains("^[a-z]+\\.[a-z]+\\.[a-z]+\\.v[0-9]+$")
+          || checkDef.contains("^[a-z]+(\\.[a-z]+){1,3}\\.v[0-9]+$")) {
         return "task.task.assigned.v1";
       }
       Matcher m = SQL_STRING_LITERAL.matcher(checkDef);

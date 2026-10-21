@@ -8,6 +8,18 @@
     {"name": "objectType", "type": "string", "doc": "(suy luận) Loại đối tượng bị tác động"},
     {"name": "objectId", "type": ["null", "string"], "default": null, "doc": "(suy luận) Mã đối tượng bị tác động"},
     {"name": "outcome", "type": "string", "doc": "(suy luận) Kết quả: THANH_CONG, TU_CHOI, LOI"},
-    {"name": "purpose", "type": ["null", "string"], "default": null, "doc": "(suy luận) Mục đích truy cập khi xem dữ liệu C2 (mã lý do, không phải văn bản tự do)"}
+    {"name": "purpose", "type": ["null", "string"], "default": null, "doc": "(suy luận) Mục đích truy cập khi xem dữ liệu C2 (mã lý do, không phải văn bản tự do)"},
+    {"name": "actorAssignmentId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "(bổ sung CORE-00-05) Phân công đang chọn của người xem (BR-00-08)"},
+    {"name": "actorRole", "type": ["null", "string"], "default": null, "doc": "(bổ sung CORE-00-05) Vai trò đang chọn của người xem (BR-00-08)"},
+    {"name": "system", "type": "boolean", "default": false, "doc": "(bổ sung CORE-00-05) true khi tác vụ hệ thống của dịch vụ giải mã, không có người xem"},
+    {"name": "targets", "type": ["null", {"type": "array", "items": {
+        "type": "record", "name": "AuditTarget", "doc": "(bổ sung CORE-00-05) Một đối tượng C2 được giải mã; không mang bản rõ hay bản mã",
+        "fields": [
+          {"name": "objectType", "type": "string", "doc": "Loại đối tượng"},
+          {"name": "objectId", "type": "string", "doc": "Mã đối tượng (mã dòng)"},
+          {"name": "column", "type": "string", "doc": "Toạ độ schema.bảng.cột, hoặc FILE khi đọc tệp"},
+          {"name": "dekPurpose", "type": ["null", "string"], "default": null, "doc": "Mục đích DEK"},
+          {"name": "self", "type": ["null", "boolean"], "default": null, "doc": "true khi là dữ liệu của chính người xem, null khi không xác định"}
+        ]}}], "default": null, "doc": "(bổ sung CORE-00-05) Danh sách đối tượng C2 được giải mã trong một yêu cầu (gom theo giao dịch)"}
   ]
 }
