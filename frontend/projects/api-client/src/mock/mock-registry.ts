@@ -31,6 +31,10 @@ export const MOCK_LOADERS = {
   complaints: () => import('./oversight/complaints.mock').then((m) => m.COMPLAINTS_MOCK),
   uiForms: () => import('./ui-forms/ui-forms.mock').then((m) => m.UI_FORMS_MOCK),
   uiPacks: () => import('./ui-packs/ui-packs.mock').then((m) => m.UI_PACKS_MOCK),
+  workflowTemplates: () =>
+    import('./workflow-templates/workflow-templates.mock').then((m) => m.WORKFLOW_TEMPLATES_MOCK),
+  workflowInstances: () =>
+    import('./workflow-instances/workflow-instances.mock').then((m) => m.WORKFLOW_INSTANCES_MOCK),
   roleAdmin: () => import('./role-admin/role-admin.mock').then((m) => m.ROLE_ADMIN_MOCK),
   alerts: () => import('./oversight/alerts.mock').then((m) => m.ALERTS_MOCK),
   featureFlags: () =>
@@ -67,6 +71,7 @@ export const MOCK_PREFIXES: Record<string, MockLoaderKey[]> = {
   registry: ['tenants'],
   tasks: ['sourceDocs', 'tasks', 'analytics'],
   ui: ['uiForms', 'uiPacks'],
+  workflow: ['workflowTemplates', 'workflowInstances'],
 };
 
 /** Đoạn module của đường dẫn `/api/v1/<module>/...`. */

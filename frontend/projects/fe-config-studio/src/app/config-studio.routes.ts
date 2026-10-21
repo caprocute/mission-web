@@ -1,7 +1,15 @@
 import { Routes } from '@angular/router';
 import { firstPolicyTab } from './pages/policy/policy-tabs';
 import { permissionGuard } from '@vt/auth';
-import { FORM_KEYS, POLICY_KEYS, StudioLayout, UI_PACK_KEYS, studioLanding } from './studio-layout';
+import {
+  FORM_KEYS,
+  POLICY_KEYS,
+  StudioLayout,
+  UI_PACK_KEYS,
+  WF_MONITOR_KEYS,
+  WF_TEMPLATE_KEYS,
+  studioLanding,
+} from './studio-layout';
 
 const SECTIONS: Routes = [
   {
@@ -62,6 +70,19 @@ const SECTIONS: Routes = [
     loadComponent: () =>
       import('./pages/form-builder/form-builder.page').then((m) => m.FormBuilderPage),
     title: 'Trình dựng biểu mẫu',
+  },
+  ...['mau-luong', 'mau-luong/:templateId'].map((path) => ({
+    path,
+    canActivate: [permissionGuard(...WF_TEMPLATE_KEYS)],
+    loadComponent: () =>
+      import('./pages/wf-template/wf-templates.page').then((m) => m.WfTemplatesPage),
+    title: 'Mẫu quy trình dùng chung',
+  })),
+  {
+    path: 'tien-trinh',
+    canActivate: [permissionGuard(...WF_MONITOR_KEYS)],
+    loadComponent: () => import('./pages/wf-monitor/wf-monitor.page').then((m) => m.WfMonitorPage),
+    title: 'Giám sát tiến trình',
   },
 ];
 
