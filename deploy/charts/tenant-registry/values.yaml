@@ -116,3 +116,23 @@ networkPolicy:
         matchLabels:
           kubernetes.io/metadata.name: keycloak
   keycloakPort: 8443
+  # DV-03-06: OpenBao (lưu tham chiếu bí mật IdP) và kiểm kết nối IdP ngoài cụm (HTTPS 443, LDAPS 636),
+  # chặn toàn bộ dải nội bộ RFC 1918 / link-local / metadata ở tầng NetworkPolicy (chống SSRF).
+  openbaoTo:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: openbao
+  openbaoPort: 8200
+  idpProbeEgress:
+    enabled: true
+    cidr: 0.0.0.0/0
+    except:
+      - 10.0.0.0/8
+      - 100.64.0.0/10
+      - 127.0.0.0/8
+      - 169.254.0.0/16
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+    ports:
+      - 443
+      - 636

@@ -41,6 +41,25 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.networkPolicy.keycloakPort }}
+    {{- if .Values.networkPolicy.openbaoTo }}
+    - to:
+        {{- toYaml .Values.networkPolicy.openbaoTo | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.openbaoPort }}
+    {{- end }}
+    {{- if and .Values.networkPolicy.idpProbeEgress .Values.networkPolicy.idpProbeEgress.enabled }}
+    - to:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.idpProbeEgress.cidr }}
+            except:
+              {{- toYaml .Values.networkPolicy.idpProbeEgress.except | nindent 14 }}
+      ports:
+        {{- range .Values.networkPolicy.idpProbeEgress.ports }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+    {{- end }}
     - to:
         - namespaceSelector:
             matchLabels:

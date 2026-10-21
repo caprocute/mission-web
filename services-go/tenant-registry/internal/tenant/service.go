@@ -23,9 +23,11 @@ import (
 // tầng API mở (cùng giao dịch với khoá chống ghi trùng), ghi nhật ký trạng thái khi đổi trạng thái, ghi
 // outbox và NOTIFY làm mới bộ đệm phân giải trong cùng giao dịch.
 type Service struct {
-	Rules  Rules
-	Crypto crypto.Encryptor // mã hoá ứng dụng dữ liệu C2 (đầu mối quản trị)
-	Now    func() time.Time
+	Rules   Rules
+	Crypto  crypto.Encryptor // mã hoá ứng dụng dữ liệu C2 (đầu mối quản trị)
+	Secrets SecretStore      // kho bí mật OpenBao cho clientSecret / khoá riêng của IdP
+	Prober  *IdpProber       // bộ kiểm kết nối OIDC, SAML, LDAPS chống SSRF
+	Now     func() time.Time
 	// DomainSuffix: tên miền mặc định <mã>.<hậu tố> (SCR-0102 trường 7, ví dụ thainguyen.okr.viettel.vn).
 	DomainSuffix string
 	// TenantLimit, AccountLimit: giới hạn thiết kế hiển thị ở SCR-0101 (NFR-01).
@@ -35,7 +37,16 @@ type Service struct {
 
 // NewService dựng Service với giá trị mặc định.
 func NewService(r Rules, enc crypto.Encryptor) *Service {
-	return &Service{Rules: r, Crypto: enc, Now: time.Now, DomainSuffix: "okr.viettel.vn", TenantLimit: 5000, AccountLimit: 6_500_000}
+	return &Service{
+		Rules:        r,
+		Crypto:       enc,
+		Secrets:      NewMemorySecretStore(),
+		Prober:       NewIdpProber(),
+		Now:          time.Now,
+		DomainSuffix: "okr.viettel.vn",
+		TenantLimit:  5000,
+		AccountLimit: 6_500_000,
+	}
 }
 
 // Actor là người gọi đã xác thực, rút gọn cho tầng nghiệp vụ.
@@ -648,13 +659,14 @@ func (s *Service) openContact(o *store.Onboarding, tenantID uuid.UUID) *AdminCon
 func (s *Service) patchSteps45(ctx context.Context, tx pgx.Tx, a Actor, t *store.Tenant, o *store.Onboarding, patch map[string]json.RawMessage) error {
 	v := &validator{}
 	if r, ok := patch["idps"]; ok {
-		var idps []IdpView
+		var idps []IdpProbeInput
 		if !isNull(r) {
 			if err := json.Unmarshal(r, &idps); err != nil {
 				return &ValidationError{Fields: []FieldError{{Field: "idps", Message: "Kiểu dữ liệu không đúng"}}}
 			}
 		}
 		seen := map[string]bool{}
+		seenDomains := map[string]bool{}
 		keep := []string{}
 		for i, d := range idps {
 			d.IdpAlias = strings.TrimSpace(d.IdpAlias)
@@ -666,7 +678,40 @@ func (s *Service) patchSteps45(ctx context.Context, tx pgx.Tx, a Actor, t *store
 			}
 			if d.Issuer == "" || len(d.Issuer) > 255 {
 				v.add("idps", "Địa chỉ phát hành bắt buộc, tối đa 255 ký tự")
+			} else if _, err := ValidateExternalURL(d.Issuer, "https"); err != nil {
+				v.add("idps", err.Error())
 			}
+			if d.MetadataURL != "" {
+				if _, err := ValidateExternalURL(d.MetadataURL, "https"); err != nil {
+					v.add("idps", err.Error())
+				}
+			}
+			if d.IsVneid {
+				if len(d.AttributeMapping) == 0 {
+					d.AttributeMapping = map[string]string{
+						"cccd":      "citizen_id",
+						"ho_ten":    "full_name",
+						"ngay_sinh": "birth_date",
+					}
+				} else if strings.TrimSpace(d.AttributeMapping["cccd"]) == "" {
+					v.add("idps", "IdP VNeID bắt buộc ánh xạ trường định danh cá nhân (cccd)")
+				}
+			}
+			normDomains := make([]string, 0, len(d.EmailDomains))
+			for _, ed := range d.EmailDomains {
+				ed = strings.ToLower(strings.TrimSpace(ed))
+				if ed == "" || len(ed) > 253 || !domainRe.MatchString(ed) {
+					v.add("idps", "Tên miền thư điện tử không đúng định dạng")
+					continue
+				}
+				if seenDomains[ed] {
+					v.add("idps", "Tên miền thư điện tử bị trùng trong danh sách IdP")
+					continue
+				}
+				seenDomains[ed] = true
+				normDomains = append(normDomains, ed)
+			}
+			d.EmailDomains = normDomains
 			seen[d.IdpAlias] = true
 			keep = append(keep, d.IdpAlias)
 			idps[i] = d
@@ -674,9 +719,33 @@ func (s *Service) patchSteps45(ctx context.Context, tx pgx.Tx, a Actor, t *store
 		if err := v.err(); err != nil {
 			return err
 		}
+		for _, d := range idps {
+			for _, ed := range d.EmailDomains {
+				taken, err := store.EmailDomainTaken(ctx, tx, ed, t.ID)
+				if err != nil {
+					return err
+				}
+				if taken {
+					return &ValidationError{Fields: []FieldError{{Field: "idps", Message: "Tên miền thư điện tử " + ed + " đã được đơn vị khác đăng ký cho đăng nhập một lần"}}}
+				}
+			}
+		}
 		cur, err := store.ListIdps(ctx, tx, t.ID, false)
 		if err != nil {
 			return err
+		}
+		metaMap, err := store.LoadIdpMeta(ctx, tx, t.ID)
+		if err != nil {
+			return err
+		}
+		// Xoá bí mật trong OpenBao của các IdP bị gỡ.
+		for _, old := range cur {
+			if !seen[old.IdpAlias] {
+				if m, ok := metaMap[old.IdpAlias]; ok && m.SecretRef != "" && s.Secrets != nil {
+					_ = s.Secrets.DeleteIdpSecret(ctx, m.SecretRef)
+				}
+				delete(metaMap, old.IdpAlias)
+			}
 		}
 		if err := store.DeleteIdps(ctx, tx, t.ID, keep); err != nil {
 			return err
@@ -686,19 +755,55 @@ func (s *Service) patchSteps45(ctx context.Context, tx pgx.Tx, a Actor, t *store
 			if ed == nil {
 				ed = []string{}
 			}
+			m := metaMap[d.IdpAlias]
 			i := slices.IndexFunc(cur, func(x store.Idp) bool { return x.IdpAlias == d.IdpAlias })
 			if i >= 0 {
 				x := cur[i]
+				connChanged := x.Protocol != d.Protocol || x.Issuer != d.Issuer ||
+					(d.ClientID != "" && d.ClientID != m.ClientID) ||
+					(d.MetadataURL != "" && d.MetadataURL != m.MetadataURL) ||
+					d.ClientSecret != ""
 				x.Protocol, x.Issuer, x.IsVneid, x.EmailDomains = d.Protocol, d.Issuer, d.IsVneid, ed
 				if err := store.UpdateIdp(ctx, tx, &x, a.ID); err != nil {
 					return err
 				}
-				continue
+				if connChanged {
+					m.LastTestOk = nil
+				}
+			} else {
+				if err := store.InsertIdp(ctx, tx, &store.Idp{TenantID: t.ID, IdpAlias: d.IdpAlias, Protocol: d.Protocol, Issuer: d.Issuer,
+					IsVneid: d.IsVneid, EmailDomains: ed}, a.ID); err != nil {
+					return err
+				}
 			}
-			if err := store.InsertIdp(ctx, tx, &store.Idp{TenantID: t.ID, IdpAlias: d.IdpAlias, Protocol: d.Protocol, Issuer: d.Issuer,
-				IsVneid: d.IsVneid, EmailDomains: ed}, a.ID); err != nil {
-				return err
+			if d.ClientID != "" {
+				m.ClientID = d.ClientID
 			}
+			if d.MetadataURL != "" {
+				m.MetadataURL = d.MetadataURL
+			}
+			if d.MetadataXML != "" {
+				m.MetadataXML = d.MetadataXML
+			}
+			if len(d.AttributeMapping) > 0 {
+				m.AttributeMapping = d.AttributeMapping
+			}
+			if (d.ClientSecret != "" || d.BindPassword != "") && s.Secrets != nil {
+				ref, err := s.Secrets.PutIdpSecret(ctx, t.ID, d.IdpAlias, map[string]string{
+					"clientSecret": d.ClientSecret,
+					"bindPassword": d.BindPassword,
+				})
+				if err != nil {
+					return err
+				}
+				m.SecretRef = ref
+			} else if m.SecretRef == "" {
+				m.SecretRef = IdpSecretRef(t.ID, d.IdpAlias)
+			}
+			metaMap[d.IdpAlias] = m
+		}
+		if err := store.SaveIdpMeta(ctx, tx, t.ID, metaMap, a.ID); err != nil {
+			return err
 		}
 	}
 	if r, ok := patch["staffSources"]; ok {

@@ -61,7 +61,7 @@ type AdminContact struct {
 	Phone    string `json:"phone,omitempty"`
 }
 
-// IdpView là TenantIdp.
+// IdpView là TenantIdp (không bao giờ chứa clientSecret hay khoá bí mật).
 type IdpView struct {
 	ID           *uuid.UUID `json:"id,omitempty"`
 	IdpAlias     string     `json:"idpAlias"`
@@ -70,6 +70,8 @@ type IdpView struct {
 	IsVneid      bool       `json:"isVneid"`
 	EmailDomains []string   `json:"emailDomains"`
 	Status       string     `json:"status,omitempty"`
+	LastTestedAt *time.Time `json:"lastTestedAt,omitempty"`
+	LastTestOk   *bool      `json:"lastTestOk,omitempty"`
 }
 
 // StatusLogEntry là TenantStatusLogEntry.
@@ -321,10 +323,15 @@ func (s *Service) loadConfig(ctx context.Context, q store.Querier, id uuid.UUID,
 	if err != nil {
 		return nil, nil, err
 	}
+	idpMeta, err := store.LoadIdpMeta(ctx, q, id)
+	if err != nil {
+		return nil, nil, err
+	}
 	for _, i := range idps {
 		iid := i.ID
+		m := idpMeta[i.IdpAlias]
 		v.Idps = append(v.Idps, IdpView{ID: &iid, IdpAlias: i.IdpAlias, Protocol: i.Protocol, Issuer: i.Issuer, IsVneid: i.IsVneid,
-			EmailDomains: i.EmailDomains, Status: i.Status})
+			EmailDomains: i.EmailDomains, Status: i.Status, LastTestedAt: m.LastTestedAt, LastTestOk: m.LastTestOk})
 	}
 	logs, err := store.ListStatusLog(ctx, q, id, 50)
 	if err != nil {

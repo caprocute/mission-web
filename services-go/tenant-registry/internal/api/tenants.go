@@ -355,6 +355,37 @@ func (s *Server) cancelConfigTenant(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// testConfigTenantIdp: POST /api/v1/config/tenants/{id}/idp/test (DV-03-06).
+func (s *Server) testConfigTenantIdp(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.requireRole(w, r, true, auth.RolePlatformAdmin, auth.RoleTenantAdmin)
+	if !ok {
+		return
+	}
+	id, err := pathID(r)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	raw, err := httpx.ReadBody(r, "application/json")
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	var in tenant.IdpTestRequest
+	if err := httpx.DecodeStrict(raw, &in); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	a := s.actor(r, p)
+	s.idempotentWrite(w, r, a, raw, modConfig, func(ctx context.Context, _ pgx.Tx) (*writeOut, error) {
+		res, err := s.Tenants.TestIdp(ctx, s.Pool, a, id, in)
+		if err != nil {
+			return nil, err
+		}
+		return &writeOut{code: http.StatusOK, body: res}, nil
+	})
+}
+
 // exportConfigTenants: POST /api/v1/config/tenants/export → 202 + Location /api/v1/jobs/{id}.
 func (s *Server) exportConfigTenants(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requireRole(w, r, true, auth.RolePlatformAdmin)
@@ -418,7 +449,7 @@ func (s *Server) getJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	j, err := store.GetJob(r.Context(), s.Pool, id)
-	if err != nil || j.CreatedBy != s.actor(r, p).ID {
+	if err != nil || j.CreatedBy != s.actor(r, p).ID || j.Type == store.JobTypeIdpMeta {
 		if err != nil && !errors.Is(err, store.ErrNotFound) {
 			s.fail(w, r, err)
 			return

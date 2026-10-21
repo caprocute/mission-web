@@ -15,6 +15,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/config/tenants/{id}", s.getConfigTenant)
 	s.mux.HandleFunc("PATCH /api/v1/config/tenants/{id}", s.updateConfigTenant)
 	s.mux.HandleFunc("DELETE /api/v1/config/tenants/{id}", s.cancelConfigTenant)
+	s.mux.HandleFunc("POST /api/v1/config/tenants/{id}/idp/test", s.testConfigTenantIdp)
 
 	// jobs.yaml getJob cho tác vụ do SVC-03 tạo (owner SVC-05; cổng định tuyến theo tác vụ, wiki trang 14).
 	s.mux.HandleFunc("GET /api/v1/jobs/{id}", s.getJob)
