@@ -64,6 +64,7 @@ export const traceparentInterceptor: HttpInterceptorFn = (req, next) => {
   const headers: Record<string, string> = {};
   if (!req.headers.has('traceparent')) headers['traceparent'] = buildTraceparent(opts);
   if (opts.tenant && !req.headers.has('baggage')) {
+    // ui-text-ok: giá trị header W3C Baggage gửi máy chủ, không hiển thị cho người dùng
     headers['baggage'] = `tenant=${encodeURIComponent(opts.tenant)}`;
   }
   if (opts.debugTrace) headers['X-Debug-Trace'] = '1';
