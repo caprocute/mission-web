@@ -5,6 +5,7 @@ import {
 } from '../../lib/models/appraisal';
 import { Job } from '../../lib/models/job';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
+import { MEETING_ROUTES, meetingDraftFile, meetingJob, resetMeetings } from './meetings';
 
 /**
  * Giả lập SVC-11 docgen dưới `/api/v1/dossiers` (dossiers.yaml). Hiện chỉ có "Xem trước" biểu mẫu
@@ -16,6 +17,9 @@ import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-rout
  * SCR-0904 (WEB-038): "Xuất Mẫu 3" (`POST /dossiers/forms`, 202, job hoàn tất ngay, tệp PDF nháp) và
  * chứng thư của người ký (`GET /esign/certificates/mine`, còn hạn tới 14/08/2027; `?mock-cert=het-han`
  * trả chứng thư đã hết hạn).
+ *
+ * SCR-1101 (WEB-040): hội nghị kiểm điểm, góp ý, biên bản, khắc phục hạn chế và trường hợp đặc thù ở
+ * `meetings.ts`; dự thảo Mẫu 1B của hội nghị và job sinh biên bản đi qua hai tuyến tệp và job dưới đây.
  */
 
 const FORM_NAME: Record<string, string> = {
@@ -147,14 +151,16 @@ export const DOSSIERS_MOCK: MockModule = {
   reset: () => {
     draftForms.clear();
     formJobs.clear();
+    resetMeetings();
   },
   routes: [
+    ...MEETING_ROUTES,
     { method: 'POST', pattern: '/api/v1/dossiers/forms', handle: createDraftForms },
     {
       method: 'GET',
       pattern: '/api/v1/dossiers/form-jobs/:id',
       handle: (req) => {
-        const job = formJobs.get(req.pathParams['id']);
+        const job = formJobs.get(req.pathParams['id']) ?? meetingJob(req.pathParams['id']);
         return job ? ok(job) : problem(404, 'Không tìm thấy tác vụ sinh biểu mẫu');
       },
     },
@@ -169,14 +175,15 @@ export const DOSSIERS_MOCK: MockModule = {
       pattern: '/api/v1/dossiers/forms/:id/file',
       handle: (req) => {
         const draft = draftForms.get(req.pathParams['id']);
-        const lines = draft ?? SIGNED_FORMS[req.pathParams['id']];
+        const meetingDraft = meetingDraftFile(req.pathParams['id']);
+        const lines = draft ?? meetingDraft ?? SIGNED_FORMS[req.pathParams['id']];
         if (!lines) return problem(404, 'Không tìm thấy biểu mẫu');
         return {
           status: 200,
-          body: miniPdf(lines, !!draft),
+          body: miniPdf(lines, !!draft || !!meetingDraft),
           headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="${draft ? 'Mau-3-ban-nhap' : 'Mau-1B-Quy-III-2026'}.pdf"`,
+            'Content-Disposition': `attachment; filename="${draft ? 'Mau-3-ban-nhap' : meetingDraft ? 'Mau-1B-du-thao' : 'Mau-1B-Quy-III-2026'}.pdf"`,
           },
         };
       },
