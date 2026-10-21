@@ -49,6 +49,8 @@ export interface NavItem {
   section?: NavSection;
   /** Mô tả ngắn gọn dưới nhãn chính */
   subtitle?: string;
+  /** Cờ tính năng (WEB-076): mục chỉ hiện khi cờ bật, dùng cho tính năng đang phát hành dần. */
+  flag?: string;
 }
 
 /** Menu chính; mục chỉ hiện khi vai trò có chức năng trong nhóm, quyền thật vẫn do máy chủ quyết định. */
@@ -146,6 +148,10 @@ export const NAV: NavItem[] = [
 ];
 
 /** Mục menu mà người dùng có quyền thấy, theo hàm `canAny` của `PermissionService`. */
-export function visibleNav(canAny: (...keys: PermissionKey[]) => boolean): NavItem[] {
-  return NAV.filter((i) => !i.perms || canAny(...i.perms));
+export function visibleNav(
+  canAny: (...keys: PermissionKey[]) => boolean,
+  flagOn: (key: string) => boolean = () => true,
+  items: NavItem[] = NAV,
+): NavItem[] {
+  return items.filter((i) => (!i.perms || canAny(...i.perms)) && (!i.flag || flagOn(i.flag)));
 }

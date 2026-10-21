@@ -1,6 +1,7 @@
 import { firstValueFrom } from 'rxjs';
 import {
   ApplicationConfig,
+  effect,
   inject,
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
@@ -15,6 +16,7 @@ import {
   idempotencyInterceptor,
   loadSheddingInterceptor,
   mockApiInterceptor,
+  FeatureFlagService,
 } from '@vt/api-client';
 import { SessionService, authInterceptor, provideVtAuth } from '@vt/auth';
 import { provideDesignSystem } from '@vt/design-system';
@@ -79,6 +81,20 @@ export function buildAppConfig(
         if (cfg.useMockApi) return;
         const tenant = inject(SessionService).user()?.tenant ?? cfg.tenant;
         return firstValueFrom(inject(CellRouter).resolve(tenant)).then(() => undefined);
+      }),
+      // Cờ tính năng (WEB-076): nạp khi khởi động và nạp lại khi đổi phân công; lỗi thì mọi cờ tắt
+      provideAppInitializer(() => {
+        const flags = inject(FeatureFlagService);
+        const session = inject(SessionService);
+        let loaded = session.assignment()?.id;
+        effect(() => {
+          const id = session.assignment()?.id;
+          if (id !== loaded) {
+            loaded = id;
+            void flags.load();
+          }
+        });
+        return flags.load();
       }),
     ],
   };

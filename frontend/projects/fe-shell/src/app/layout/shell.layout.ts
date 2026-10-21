@@ -17,6 +17,7 @@ import { ButtonModule } from 'primeng/button';
 import { AvatarModule } from 'primeng/avatar';
 // Giữ TooltipModule trong shell để thư viện dùng chung của remote được chia sẻ (AGENTS.md quy tắc 8)
 import { TooltipModule } from 'primeng/tooltip';
+import { FeatureFlagService } from '@vt/api-client';
 import { visibleNav } from './nav';
 
 /** Khung ứng dụng: thanh trên, menu bên, vùng nội dung (dùng cho mọi màn hình sau đăng nhập). */
@@ -53,8 +54,12 @@ export class ShellLayout {
   );
 
   private readonly permissions = inject(PermissionService);
+  private readonly flags = inject(FeatureFlagService);
   protected readonly nav = computed(() =>
-    visibleNav((...keys) => this.permissions.canAny(...keys)),
+    visibleNav(
+      (...keys) => this.permissions.canAny(...keys),
+      (key) => this.flags.isEnabled(key),
+    ),
   );
   protected readonly platformNav = computed(() =>
     this.nav().filter((i) => i.section === 'platform'),

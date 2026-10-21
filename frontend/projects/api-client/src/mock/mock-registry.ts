@@ -33,6 +33,8 @@ export const MOCK_LOADERS = {
   uiPacks: () => import('./ui-packs/ui-packs.mock').then((m) => m.UI_PACKS_MOCK),
   roleAdmin: () => import('./role-admin/role-admin.mock').then((m) => m.ROLE_ADMIN_MOCK),
   alerts: () => import('./oversight/alerts.mock').then((m) => m.ALERTS_MOCK),
+  featureFlags: () =>
+    import('./feature-flags/feature-flags.mock').then((m) => m.FEATURE_FLAGS_MOCK),
   policies: () => import('./policies/policies.mock').then((m) => m.POLICIES_MOCK),
   analytics: () => import('./analytics/analytics.mock').then((m) => m.ANALYTICS_MOCK),
 } satisfies Record<string, () => Promise<MockModule>>;
@@ -48,7 +50,7 @@ export const MOCK_PREFIXES: Record<string, MockLoaderKey[]> = {
   analytics: ['analytics'],
   appraisals: ['evidence', 'appraisals', 'complaints'],
   catalog: ['catalog'],
-  config: ['tenants', 'roleAdmin', 'alerts'],
+  config: ['tenants', 'roleAdmin', 'alerts', 'featureFlags'],
   dossiers: ['dossiers'],
   esign: ['plans', 'dossiers'],
   evidences: ['evidence'],
