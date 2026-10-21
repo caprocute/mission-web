@@ -32,8 +32,12 @@ async function visit(page: Page, url: string): Promise<string> {
 }
 
 async function menuLabels(page: Page): Promise<string[]> {
-  const links = page.getByRole('navigation', { name: 'Menu chính' }).getByRole('link');
-  return (await links.allTextContents()).map((t) => t.trim());
+  // Mục menu có nhãn và dòng mô tả (`.nav-sub`); chỉ so nhãn chính
+  const labels = page
+    .getByRole('navigation', { name: 'Menu chính' })
+    .getByRole('link')
+    .locator('.nav-copy > span:first-child');
+  return (await labels.allTextContents()).map((t) => t.trim());
 }
 
 function record(info: TestInfo, row: CaseResult) {
