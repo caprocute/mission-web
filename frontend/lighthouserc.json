@@ -3,7 +3,7 @@
     "collect": {
       "staticDistDir": "./lhci",
       "isSinglePageApplication": true,
-      "url": ["http://localhost/", "http://localhost/tasks", "http://localhost/khong-co-quyen"],
+      "url": ["http://localhost/", "http://localhost/tasks"],
       "numberOfRuns": 3,
       "settings": {
         "formFactor": "mobile",
@@ -40,7 +40,7 @@
           }
         },
         {
-          "matchingUrlPattern": "/khong-co-quyen$",
+          "matchingUrlPattern": "^http://[^/]+/$",
           "assertions": {
             "resource-summary:total:size": [
               "error",
@@ -49,11 +49,11 @@
           }
         },
         {
-          "matchingUrlPattern": "^http://[^/]+/(tasks)?$",
+          "matchingUrlPattern": "/tasks$",
           "assertions": {
             "resource-summary:total:size": [
-              "warn",
-              { "maxNumericValue": 471040, "aggregationMethod": "median-run" }
+              "error",
+              { "maxNumericValue": 440320, "aggregationMethod": "median-run" }
             ]
           }
         }
