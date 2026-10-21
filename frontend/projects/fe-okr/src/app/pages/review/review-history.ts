@@ -10,6 +10,7 @@ const ACTION: Record<OkrHistoryAction, string> = {
   RUT_LAI: 'rút lại',
   DUYET: 'phê duyệt',
   TRA_LAI: 'trả lại',
+  TAO_PHIEN_BAN: 'tạo phiên bản mới',
   DONG: 'đóng',
 };
 
