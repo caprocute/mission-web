@@ -78,13 +78,6 @@ const RATING_RANKS: Readonly<Record<string, { rank: number; shortCode: string }>
   HOAN_THANH_XUAT_SAC: { rank: 4, shortCode: 'HTXSNV' },
 };
 
-const RANK_TO_SHORT_CODE: Readonly<Record<number, string>> = {
-  1: 'KHTNV',
-  2: 'HTNV',
-  3: 'HTTNV',
-  4: 'HTXSNV',
-};
-
 function parseDecimalToBigInt(value: number): { unscaled: bigint; scale: number } {
   if (!Number.isFinite(value)) {
     throw new Error(`Non-finite numeric value is not allowed: ${value}`);
@@ -170,8 +163,9 @@ export function minMucXepLoai(levelA: string, levelB: string): string {
   if (!normA || !normB) {
     throw new Error(`Unsupported rating level in min_muc('${levelA}', '${levelB}')`);
   }
-  const minRank = Math.min(normA.rank, normB.rank);
-  return RANK_TO_SHORT_CODE[minRank];
+  // Trả lại đúng mã của mức thấp hơn theo cách người gọi truyền vào (mã viết tắt hay mã đầy đủ),
+  // khớp bộ ca vàng dùng chung với vt-cel phía máy chủ
+  return normA.rank <= normB.rank ? levelA.trim().toUpperCase() : levelB.trim().toUpperCase();
 }
 
 function parseStrictIsoDate(iso: string): Date {
@@ -180,11 +174,7 @@ function parseStrictIsoDate(iso: string): Date {
   }
   const [y, m, d] = iso.split('-').map((p) => Number.parseInt(p, 10));
   const dt = new Date(Date.UTC(y, m - 1, d));
-  if (
-    dt.getUTCFullYear() !== y ||
-    dt.getUTCMonth() + 1 !== m ||
-    dt.getUTCDate() !== d
-  ) {
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() + 1 !== m || dt.getUTCDate() !== d) {
     throw new Error(`Invalid calendar date: '${iso}'`);
   }
   return dt;
@@ -317,6 +307,7 @@ const RESERVED_IDENTIFIERS = new Set([
   'exists_one',
   'filter',
   'map',
+  'in',
 ]);
 
 function extractMacroBoundVars(codeWithoutStrings: string): Set<string> {
@@ -401,6 +392,25 @@ function validateStaticTypes(
 
 const cstCache = new Map<string, Cst>();
 
+/** Lỗi kiểu của cel-js, hàm mở rộng nhận sai kiểu, hàm hoặc macro không được phép (ví dụ now()). */
+const TYPE_ERROR_PATTERN =
+  /CelTypeError|cannot be applied|is not a finite number|requires (?:an array|string) argument|not recognized|Unknown function|not found/i;
+
+function matchesReturnType(value: unknown, returnType: CelVariableType): boolean {
+  switch (returnType) {
+    case 'BOOL':
+      return typeof value === 'boolean';
+    case 'STRING':
+      return typeof value === 'string';
+    case 'DOUBLE':
+    case 'DECIMAL':
+    case 'INT':
+      return typeof value === 'number' || typeof value === 'bigint';
+    default:
+      return true;
+  }
+}
+
 /**
  * Biên dịch, kiểm kiểu tĩnh, thực thi biểu thức CEL trên `cel-js` và làm tròn điểm ở lớp sau
  * theo đúng hợp đồng đối chiếu với `CelEngine` (`vt-cel` trên máy chủ Java).
@@ -468,7 +478,19 @@ export function evaluateMissionCel(options: MissionCelEvalOptions): unknown {
     if (/Identifier ".*" not found/.test(msg)) {
       throw new MissionCelError('POLICY-422-CEL-MISSING-VAR', expression, msg);
     }
+    if (TYPE_ERROR_PATTERN.test(msg)) {
+      throw new MissionCelError('POLICY-422-CEL-TYPE', expression, msg);
+    }
     throw new MissionCelError('POLICY-422-CEL-EVAL-ERROR', expression, msg);
+  }
+
+  if (!matchesReturnType(rawResult, options.returnType)) {
+    throw new MissionCelError(
+      'POLICY-422-CEL-TYPE',
+      expression,
+      // ui-text-ok: thông điệp lỗi kỹ thuật nội bộ
+      `Result type ${typeof rawResult} does not match declared return type ${options.returnType}`,
+    );
   }
 
   if (typeof rawResult === 'number') {
