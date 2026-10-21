@@ -1,0 +1,22 @@
+{{- if .Values.executor.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: workflow-async-executor
+  labels:
+    {{- include "workflow-service.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ .Values.executor.name }}
+  minReplicaCount: {{ .Values.executor.keda.minReplicaCount }}
+  maxReplicaCount: {{ .Values.executor.keda.maxReplicaCount }}
+  pollingInterval: {{ .Values.executor.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.executor.keda.cooldownPeriod }}
+  triggers:
+    - type: postgresql
+      metadata:
+        targetQueryValue: {{ .Values.executor.keda.targetQueryValue | quote }}
+        query: {{ .Values.executor.keda.query | quote }}
+      authenticationRef:
+        name: {{ .Values.executor.keda.authenticationRefName }}
+{{- end }}

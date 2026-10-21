@@ -1,0 +1,76 @@
+# Cấu hình Helm chart SVC-06 workflow-service (TL-01 mục 5.6.3 & chương 8 mục 8.8 · DV-06-01).
+# Tách 2 Deployment dùng chung image:
+# - workflow-api: WF_ASYNC_ENABLED=false, HPA 3..12 pod
+# - workflow-executor: WF_ASYNC_ENABLED=true, KEDA ScaledObject 2..8 pod theo hàng đợi act_ru_job
+
+image:
+  repository: harbor.invalid/mission/workflow-service
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+api:
+  name: workflow-api
+  replicaCount: 3
+  asyncEnabled: "false"
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 12
+    targetCpuUtilizationPercentage: 70
+
+executor:
+  name: workflow-executor
+  replicaCount: 2
+  asyncEnabled: "true"
+  keda:
+    enabled: true
+    minReplicaCount: 2
+    maxReplicaCount: 8
+    pollingInterval: 15
+    cooldownPeriod: 300
+    targetQueryValue: "500"
+    query: >-
+      SELECT count(*) FROM flowable.act_ru_job
+      WHERE lock_owner_ IS NULL AND (duedate_ IS NULL OR duedate_ <= now())
+    authenticationRefName: keda-flowable-pg
+
+database:
+  url: jdbc:postgresql://pg-flowable-rw:5432/flowable?currentSchema=flowable
+  appSecret: flowable-db-svc-flowable
+  migrationSecret: flowable-db-mig-flowable
+
+oidc:
+  issuerUri: https://sso.invalid/realms/mission
+
+otel:
+  endpoint: http://otel-collector.observability:4317
+
+migration:
+  enabled: true
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 1Gi
+
+jvm:
+  opts: "-XX:MaxRAMPercentage=70.0 -XX:+UseZGC -XX:+ZGenerational -XX:+ExitOnOutOfMemoryError -Djava.io.tmpdir=/tmp"
+
+podDisruptionBudget:
+  minAvailable: 2
+
+networkPolicy:
+  enabled: true
+  ingressNamespaces: [gateway, mission-core]
+  monitoringNamespace: observability
+  databaseNamespace: flowable-db
+  databasePort: 5432
+
+serviceAccount:
+  create: true
+  name: ""

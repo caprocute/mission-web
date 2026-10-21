@@ -1,0 +1,22 @@
+# Cấu hình kiểm thử tự động: dùng H2 chế độ tương thích PostgreSQL cho kiểm thử nhanh;
+# kiểm thử tích hợp (*IT) dùng Testcontainers PostgreSQL 17 với Flyway bật thật.
+spring:
+  datasource:
+    url: jdbc:h2:mem:workflow_service_test;MODE=LEGACY;DB_CLOSE_DELAY=-1;INIT=RUNSCRIPT FROM 'classpath:h2-init.sql'
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  flyway:
+    enabled: false
+
+flowable:
+  database-schema: FLOWABLE
+  database-schema-update: true
+  async-executor-activate: false
+  check-process-definitions: false
+  dmn:
+    deploy-resources: false
+
+management:
+  server:
+    port: 8080

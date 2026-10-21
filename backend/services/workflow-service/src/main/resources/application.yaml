@@ -1,0 +1,113 @@
+# Cấu hình dịch vụ SVC-06 workflow-service (TL-01 chương 8 mục 8.7 · TL-03 mục 6.13 · DV-06-01).
+# - Luồng ảo Java 21 bật mặc định.
+# - Tắt open-in-view, tắt tự nâng cấp DDL của Flowable (database-schema-update=false).
+# - Cổng ứng dụng SERVER_PORT (8080), cổng quản trị MANAGEMENT_PORT (8081).
+# - Tắt êm (graceful shutdown) với pha chờ tối đa 25s.
+
+spring:
+  application:
+    name: ${SERVICE_NAME:workflow-service}
+  threads:
+    virtual:
+      enabled: ${VIRTUAL_THREADS_ENABLED:true}
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
+    schemas: flowable
+    default-schema: flowable
+    locations: classpath:db/migration/flowable
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:25s}
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=${DB_SCHEMA:flowable}}
+    username: ${DB_USER:svc_flowable}
+    password: ${DB_PASSWORD:}
+    hikari:
+      pool-name: workflow-service-hikari
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:4}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:2000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT_MS:1000}
+      max-lifetime: ${DB_MAX_LIFETIME_MS:1800000}
+
+flowable:
+  database-schema: flowable
+  database-schema-update: false
+  history-level: audit
+  async-executor-activate: ${WF_ASYNC_ENABLED:false}
+  task-invoker:
+    core-pool-size: 16
+    max-pool-size: 32
+    queue-size: 256
+  process:
+    definition-cache-limit: 200
+    async:
+      executor:
+        core-pool-size: 16
+        max-pool-size: 32
+        queue-capacity: 256
+        max-async-jobs-due-per-acquisition: 64
+        max-timer-jobs-per-acquisition: 64
+        default-async-job-acquire-wait-time: 1s
+        default-timer-job-acquire-wait-time: 5s
+        async-job-lock-time: 5m
+        timer-lock-time: 5m
+  dmn:
+    enabled: true
+    history-enabled: false
+    deploy-resources: true
+  idm:
+    enabled: false
+  eventregistry:
+    enabled: false
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8081}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+      group:
+        liveness:
+          include: livenessState,ping
+        readiness:
+          include: readinessState,db,templateReadiness
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+mission:
+  service:
+    code: ${SERVICE_CODE:SVC-06}
+    schema: ${DB_SCHEMA:flowable}
+    kafka:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:35092}
+      apicurio-registry-url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
+      producer-ready: ${KAFKA_PRODUCER_READY:true}
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:35379}
+    security:
+      keycloak-issuer-uri: ${KEYCLOAK_ISSUER_URI:http://127.0.0.1:35080/realms/mission}
+      opa-url: ${OPA_URL:http://127.0.0.1:35181/v1/data/mission/authz}
+      openbao-url: ${OPENBAO_URL:http://127.0.0.1:35820}
+    observability:
+      otlp-endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://127.0.0.1:35317}
