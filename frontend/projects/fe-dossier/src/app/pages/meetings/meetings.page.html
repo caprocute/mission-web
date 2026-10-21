@@ -1,0 +1,215 @@
+<vt-dossier-tabs />
+<header class="head">
+  <div>
+    <h1>Hội nghị kiểm điểm</h1>
+    <p class="sub">Các hội nghị đồng chí tham gia hoặc đơn vị đồng chí chuẩn bị.</p>
+  </div>
+  <div class="acts">
+    <label for="mt-status" class="inline">Trạng thái</label>
+    <select id="mt-status" (change)="status.set($any($event.target).value)">
+      <option value="">Tất cả</option>
+      @for (s of statuses; track s) {
+        <option [value]="s">{{ statusLabel[s] }}</option>
+      }
+    </select>
+    @if (can('SCR-1101.tao')) {
+      <button
+        type="button"
+        class="btn primary"
+        data-act="lap-hoi-nghi"
+        (click)="openCreate($event)"
+      >
+        Lập hội nghị
+      </button>
+    }
+  </div>
+</header>
+
+@if (list.isLoading() && !items().length) {
+  <p role="status">Đang tải danh sách…</p>
+} @else if (list.error()) {
+  <p class="err" role="alert">Không tải được danh sách hội nghị. Vui lòng thử lại.</p>
+} @else if (!items().length) {
+  <p class="muted">Không có hội nghị kiểm điểm nào.</p>
+} @else {
+  <div class="wrap">
+    <table>
+      <caption class="sr">
+        Danh sách hội nghị kiểm điểm
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Hội nghị</th>
+          <th scope="col">Kỳ</th>
+          <th scope="col">Ngày họp</th>
+          <th scope="col">Vai trò của đồng chí</th>
+          <th scope="col">Trạng thái</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (m of items(); track m.id) {
+          <tr>
+            <td>
+              <a [routerLink]="[m.id]">{{ m.title ?? typeLabel[m.meetingType] }}</a>
+            </td>
+            <td>{{ m.period.label }}</td>
+            <td>{{ m.scheduledAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+            <td>{{ m.myRole ? roleLabel[m.myRole] : '—' }}</td>
+            <td>{{ statusLabel[m.status] }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+@if (open()) {
+  <div class="backdrop">
+    <section
+      #dialog
+      class="dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mc-title"
+      (keydown)="onKey($event)"
+    >
+      <h2 id="mc-title">Lập hội nghị kiểm điểm</h2>
+      <div class="fields">
+        <label for="mc-meetingType">Loại hội nghị</label>
+        <select id="mc-meetingType" (change)="set('meetingType', $any($event.target).value)">
+          @for (t of types; track t) {
+            <option [value]="t" [selected]="form().meetingType === t">{{ typeLabel[t] }}</option>
+          }
+        </select>
+
+        <label for="mc-periodId">Kỳ kiểm điểm</label>
+        <select
+          id="mc-periodId"
+          [attr.aria-invalid]="!!errors()['periodId']"
+          (change)="set('periodId', $any($event.target).value)"
+        >
+          <option value="">Chọn kỳ</option>
+          @if (periods.hasValue()) {
+            @for (p of periods.value(); track p.id) {
+              <option [value]="p.id" [selected]="form().periodId === p.id">{{ p.name }}</option>
+            }
+          }
+        </select>
+        @if (errors()['periodId']; as e) {
+          <p class="ferr">{{ e }}</p>
+        }
+
+        <label for="mc-scheduledAt">Ngày giờ hội nghị</label>
+        <input
+          id="mc-scheduledAt"
+          type="datetime-local"
+          [attr.aria-invalid]="!!errors()['scheduledAt']"
+          [value]="form().scheduledAt"
+          (input)="set('scheduledAt', $any($event.target).value)"
+        />
+        @if (errors()['scheduledAt']; as e) {
+          <p class="ferr">{{ e }}</p>
+        }
+
+        <label for="mc-location">Địa điểm</label>
+        <input
+          id="mc-location"
+          type="text"
+          maxlength="500"
+          [value]="form().location"
+          (input)="set('location', $any($event.target).value)"
+        />
+        @if (errors()['location']; as e) {
+          <p class="ferr">{{ e }}</p>
+        }
+
+        <label for="mc-subjectPersonId">Người được kiểm điểm</label>
+        <select
+          id="mc-subjectPersonId"
+          (change)="set('subjectPersonId', $any($event.target).value)"
+        >
+          <option value="">Kiểm điểm tập thể</option>
+          @for (p of people(); track p.id) {
+            <option [value]="p.id" [selected]="form().subjectPersonId === p.id">
+              {{ p.name }} – {{ p.title }}
+            </option>
+          }
+        </select>
+        @for (c of subjectCases(); track c.id) {
+          <p class="info" data-special>
+            Trường hợp đặc thù: <strong>{{ caseLabel(c.legalRef) }}</strong> ({{ c.legalRef }}).
+            @if (c.handling) {
+              Cách xử lý: {{ c.handling }}.
+            }
+          </p>
+        }
+
+        <label for="mc-chairPersonId">Chủ trì</label>
+        <select
+          id="mc-chairPersonId"
+          [attr.aria-invalid]="!!errors()['chairPersonId']"
+          (change)="set('chairPersonId', $any($event.target).value)"
+        >
+          <option value="">Chọn chủ trì</option>
+          @for (p of people(); track p.id) {
+            <option [value]="p.id" [selected]="form().chairPersonId === p.id">
+              {{ p.name }} – {{ p.title }}
+            </option>
+          }
+        </select>
+        @if (errors()['chairPersonId']; as e) {
+          <p class="ferr">{{ e }}</p>
+        }
+
+        <label for="mc-secretaryPersonId">Thư ký</label>
+        <select
+          id="mc-secretaryPersonId"
+          [attr.aria-invalid]="!!errors()['secretaryPersonId']"
+          (change)="set('secretaryPersonId', $any($event.target).value)"
+        >
+          <option value="">Chọn thư ký</option>
+          @for (p of people(); track p.id) {
+            <option [value]="p.id" [selected]="form().secretaryPersonId === p.id">
+              {{ p.name }} – {{ p.title }}
+            </option>
+          }
+        </select>
+        @if (errors()['secretaryPersonId']; as e) {
+          <p class="ferr">{{ e }}</p>
+        }
+
+        <fieldset>
+          <legend>Thành phần dự</legend>
+          @for (p of people(); track p.id) {
+            <label class="chk">
+              <input
+                type="checkbox"
+                [checked]="form().participantIds.includes(p.id)"
+                (change)="toggleParticipant(p.id)"
+              />
+              {{ p.name }} – {{ p.title }}
+            </label>
+          }
+        </fieldset>
+        @if (errors()['participantPersonIds']; as e) {
+          <p class="ferr">{{ e }}</p>
+        }
+      </div>
+      @if (formError(); as e) {
+        <p class="err" role="alert">{{ e }}</p>
+      }
+      <div class="acts end">
+        <button type="button" class="btn" (click)="closeCreate()" [disabled]="busy()">Huỷ</button>
+        <button
+          type="button"
+          class="btn primary"
+          data-act="tao"
+          (click)="create()"
+          [disabled]="busy()"
+        >
+          Lập hội nghị
+        </button>
+      </div>
+    </section>
+  </div>
+}

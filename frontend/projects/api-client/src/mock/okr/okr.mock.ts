@@ -23,6 +23,7 @@ import { krProgress, objectiveProgress } from '../../lib/okr-progress';
 import { MockModule, MockRequest, ok, problem } from '../mock-router';
 import { checkinRoutes, myKeyResults, resetCheckins } from './okr-checkin.mock';
 import fixture from './okr.json';
+import { assistRoutes, resetOkrAssist } from './okr-assist';
 
 type KrFixture = Omit<KeyResult, 'progress'>;
 type ObjectiveFixture = Omit<Objective, 'progress' | 'keyResults'> & { keyResults: KrFixture[] };
@@ -625,12 +626,14 @@ const exportJobs = new Map<string, Job>();
 
 /**
  * Giả lập `/api/v1/okr`: KR để liên kết nhiệm vụ (WEB-028), cây mục tiêu, lịch sử check-in và
- * xuất mẫu (WEB-021, SCR-0201); check-in KR (WEB-024, SCR-0301) ở `okr-checkin.mock.ts`.
+ * xuất mẫu (WEB-021, SCR-0201); check-in KR (WEB-024, SCR-0301) ở `okr-checkin.mock.ts`; trợ lý AI soạn OKR
+ * (WEB-049, SCR-1701) ở `okr-assist.ts`.
  */
 export const OKR_MOCK: MockModule = {
   name: 'okr',
   reset: () => {
     exportJobs.clear();
+    resetOkrAssist();
     objectivesByPeriod = null;
     drafts = null;
     reviewSets = null;
@@ -638,6 +641,7 @@ export const OKR_MOCK: MockModule = {
     resetCheckins();
   },
   routes: [
+    ...assistRoutes((id) => draftsState().get(id)),
     {
       method: 'GET',
       pattern: '/api/v1/okr/key-results',

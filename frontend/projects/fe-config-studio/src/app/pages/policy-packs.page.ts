@@ -80,7 +80,10 @@ import { FLOW_LABEL, fmtDate } from '../studio-ui';
                     {{ editable(v) ? 'Mở để soạn' : 'Xem' }}
                     <span class="sr-only">phiên bản {{ vlabel(v.version) }}</span>
                   </a>
-                  <a class="btn-link secondary" [routerLink]="['goi', p.id, v.version, 'luong']">
+                  <a
+                    class="btn-link secondary"
+                    [routerLink]="['goi', p.id, v.version, 'luong-duyet']"
+                  >
                     Luồng duyệt động
                   </a>
                 </td>

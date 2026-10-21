@@ -87,6 +87,10 @@ Bảng dưới gom các mã trạng thái có hành vi riêng mà giao diện ph
 
 TL-01 đặt giới hạn mỗi người dùng 20 request/giây (cho phép đột biến 40), thân JSON tối đa 1 MB và xuất tối đa 100.000 dòng; cắt tải có ba lớp ưu tiên. TL-04 hiện thực giới hạn ở APISIX bằng plugin `limit-count`, `limit-req`, `limit-conn` với khoá theo tenant và người dùng lấy từ JWT qua plugin nền tảng `vt-claims`. `POST /api/v1/workflow/tasks/batch-complete` nhận tối đa 200 mục mỗi lần.
 
+### Cắt tải: 429, 503 và Retry-After (WEB-073)
+
+Khi APISIX cắt tải (TL-04 "Hành vi khi bão hoà"), máy chủ trả 429 nếu người dùng hoặc tenant vượt hạn mức, và trả 503 nếu hệ thống quá tải; cả hai mang header `Retry-After`. `loadSheddingInterceptor` của `@vt/api-client` (`load-shedding.ts`) được đăng ký ở shell, đặt ngay sau `idempotencyInterceptor`. Interceptor này tự thử lại tối đa 3 lần, với thời gian chờ tăng theo cấp số nhân (1 s, 2 s, 4 s) cộng thêm nhiễu ngẫu nhiên tới 50%. Thời gian chờ không bao giờ ngắn hơn `Retry-After`, dù header ghi theo số giây hay theo ngày giờ HTTP. Interceptor chỉ tự thử lại các lời gọi an toàn, tức là GET, HEAD và lệnh ghi có `Idempotency-Key`; khi gửi lại, khoá được giữ nguyên nên máy chủ khử trùng được. Nếu `Retry-After` dài hơn 20 giây, đây là ngưỡng chọn theo suy luận, interceptor không chờ mà trả lỗi ngay để người dùng tự gửi lại sau. Khi gặp lỗi cắt tải, `ProblemPresenter` đặt `retryable = true` và hiện thông báo `LOAD_SHED_MESSAGE` bằng lời nghiệp vụ, không kèm mã kỹ thuật. Mỗi lần cắt tải được báo qua `LOAD_SHED_REPORTER`, mặc định không làm gì; khi có telemetry thì nối vào đây, chỉ gửi trạng thái, số lần thử và thời gian chờ. Để thử trên dữ liệu giả lập, dùng `?mock-error=429` hoặc `?mock-error=503`; bộ giả lập trả `Retry-After: 2`.
+
 ## Định tuyến cell
 
 Theo TL-01, shell gọi `GET /api/v1/registry/resolve?tenant=` để biết tenant đang ở cell nào. Khi tenant đã chuyển cell (trạng thái `DANG_CHUYEN_CELL` của `registry.tenant` theo TL-03), máy chủ trả 421 kèm địa chỉ mới và shell tự chuyển hướng. Vùng toàn cục lưu đệm ánh xạ tenant sang cell 5 phút và dùng cookie có HMAC. Mã hiện tại chưa gọi `registry/resolve`; cell lấy từ `/config.json`.

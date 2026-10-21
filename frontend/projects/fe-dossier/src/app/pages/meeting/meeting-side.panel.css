@@ -1,0 +1,124 @@
+:host {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.card {
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--p-content-background);
+}
+h2 {
+  font-size: 1.05rem;
+  margin: 0 0 12px;
+}
+h3 {
+  font-size: 1rem;
+  margin: 16px 0 8px;
+}
+p {
+  margin: 4px 0;
+}
+.muted {
+  color: #4b5563;
+}
+.rem,
+.votes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.rem li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--p-content-border-color);
+}
+.chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #1f2937;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.chip[data-s='DA_KHAC_PHUC'] {
+  background: #dcfce7;
+  color: #14532d;
+}
+.chip[data-s='DANG_KHAC_PHUC'] {
+  background: #fef3c7;
+  color: #78350f;
+}
+select,
+input[type='number'] {
+  font: inherit;
+  padding: 6px 8px;
+  min-height: 40px;
+  border: 1px solid #9ca3af;
+  border-radius: 6px;
+  background: #fff;
+}
+.bar {
+  height: 10px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+  margin: 8px 0;
+}
+.bar span {
+  display: block;
+  height: 100%;
+  background: #1d4ed8;
+}
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 12px 0 0;
+}
+legend {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.chk {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 40px;
+}
+.num {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+.num input {
+  width: 5rem;
+}
+.err {
+  border-left: 4px solid #b91c1c;
+  background: #fef2f2;
+  color: #7f1d1d;
+  padding: 8px 12px;
+}
+.btn {
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font: inherit;
+  cursor: pointer;
+  background: #b4001f;
+  border: 1px solid #b4001f;
+  color: #fff;
+}
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}

@@ -1,0 +1,267 @@
+<p class="back"><a routerLink="..">← Danh sách hội nghị kiểm điểm</a></p>
+
+@if (data.isLoading() && !m()) {
+  <p role="status">Đang tải hội nghị…</p>
+} @else if (data.error() && !m()) {
+  <p class="err" role="alert">Không tải được hội nghị kiểm điểm. Vui lòng thử lại.</p>
+} @else if (m(); as m) {
+  <header class="head">
+    <div>
+      <h1>{{ m.title }}</h1>
+      <p class="sub">
+        @if (m.subjectPerson) {
+          Đối tượng kiểm điểm: <strong>{{ m.subjectPerson.name }}</strong> ·
+        } @else {
+          Kiểm điểm tập thể ·
+        }
+        hội nghị {{ m.scheduledAt | date: 'dd/MM/yyyy HH:mm' }}
+        @if (m.location) {
+          , {{ m.location }}
+        }
+        · chủ trì: {{ m.chair.name }} · thư ký: {{ m.secretary.name }}
+      </p>
+      <p class="sub">
+        Trạng thái: <strong data-status>{{ statusLabel[m.status] }}</strong>
+        @if (m.myRole) {
+          · Vai trò của đồng chí: <strong>{{ roleLabel[m.myRole] }}</strong>
+        }
+      </p>
+    </div>
+    <div class="acts">
+      @if (allow('downloadDraft')) {
+        <button
+          type="button"
+          class="btn"
+          data-act="tai-du-thao"
+          (click)="downloadDraft()"
+          [disabled]="busy()"
+        >
+          Tải dự thảo Mẫu 1B
+        </button>
+      }
+      @if (allow('sendDraft')) {
+        <button
+          type="button"
+          class="btn primary"
+          data-act="gui-du-thao"
+          (click)="sendDraft()"
+          [disabled]="busy()"
+        >
+          Gửi dự thảo
+        </button>
+      }
+      @if (allow('close')) {
+        <button
+          type="button"
+          class="btn primary"
+          data-act="ket-thuc"
+          (click)="close()"
+          [disabled]="busy()"
+        >
+          Kết thúc hội nghị
+        </button>
+      }
+    </div>
+  </header>
+
+  <ol class="steps" aria-label="Trình tự kiểm điểm">
+    @for (s of steps; track s; let i = $index) {
+      <li
+        [class.done]="i < step()"
+        [class.cur]="i === step()"
+        [attr.aria-current]="i === step() ? 'step' : null"
+      >
+        <span class="dot" aria-hidden="true">{{ i < step() ? '✓' : i + 1 }}</span
+        >{{ s }}
+      </li>
+    }
+  </ol>
+
+  <div aria-live="polite" class="live">
+    @if (notice(); as n) {
+      <p class="ok" role="status">{{ n }}</p>
+    }
+    @if (warn(); as w) {
+      <p class="warn" role="alert" data-msg="MSG-11-01">{{ w }}</p>
+    }
+    @if (error(); as e) {
+      <p class="err" role="alert">{{ e }}</p>
+    }
+  </div>
+
+  @for (c of specialCases(); track c.id) {
+    <p class="info" data-special>
+      Trường hợp đặc thù: <strong>{{ caseLabel(c.legalRef) }}</strong> ({{ c.legalRef }}).
+      @if (c.handling) {
+        Cách xử lý: {{ c.handling }}.
+      }
+    </p>
+  }
+
+  <div class="grid" [class.one]="simple()">
+    <div class="col">
+      <section class="card" aria-labelledby="mt-dl">
+        <h2 id="mt-dl">Kiểm tra thời hạn gửi dự thảo</h2>
+        @if (m.draftSentAt) {
+          <p>
+            Gửi dự thảo: <strong>{{ m.draftSentAt | date: 'dd/MM/yyyy HH:mm' }}</strong>
+          </p>
+        } @else {
+          <p>Dự thảo chưa được gửi tới thành viên.</p>
+        }
+        <p>
+          Hội nghị: <strong>{{ m.scheduledAt | date: 'dd/MM/yyyy' }}</strong>
+        </p>
+        @if (m.deadlineCheck.workingDays !== null && m.deadlineCheck.workingDays !== undefined) {
+          <p>
+            Số ngày làm việc ở giữa: <strong data-days>{{ m.deadlineCheck.workingDays }}</strong>
+            (trừ thứ Bảy, Chủ nhật và ngày nghỉ theo lịch của đơn vị)
+          </p>
+          @if (m.deadlineCheck.passed) {
+            <p class="pass">{{ passedText(m.deadlineCheck) }}</p>
+          } @else {
+            <p class="fail">{{ lateText(m.deadlineCheck) }}</p>
+          }
+        }
+        @if (m.deadlineCheck.overrideReason) {
+          <p class="note">
+            Lý do giữ ngày họp (in vào biên bản): {{ m.deadlineCheck.overrideReason }}
+          </p>
+        }
+        @if (allow('keepDate')) {
+          <label for="mt-reason">Lý do được cấp uỷ chấp thuận để giữ nguyên ngày họp</label>
+          <textarea
+            id="mt-reason"
+            rows="3"
+            maxlength="2000"
+            [value]="reason()"
+            (input)="reason.set($any($event.target).value)"
+          ></textarea>
+          <button
+            type="button"
+            class="btn"
+            data-act="giu-ngay"
+            (click)="keepDate()"
+            [disabled]="busy()"
+          >
+            Ghi lý do giữ ngày
+          </button>
+        }
+        @if (allow('reschedule')) {
+          <label for="mt-date">Dời hội nghị sang ngày giờ</label>
+          <input
+            id="mt-date"
+            type="datetime-local"
+            [value]="newDate()"
+            (input)="newDate.set($any($event.target).value)"
+          />
+          <button
+            type="button"
+            class="btn"
+            data-act="doi-ngay"
+            (click)="reschedule()"
+            [disabled]="busy()"
+          >
+            Dời ngày hội nghị
+          </button>
+        }
+      </section>
+
+      <section class="card" aria-labelledby="mt-pp">
+        <h2 id="mt-pp">Thành phần dự ({{ present() }}/{{ m.participants?.length ?? 0 }} có mặt)</h2>
+        <ul class="people">
+          @for (p of m.participants ?? []; track p.person.id) {
+            <li>
+              <span>
+                <strong>{{ p.person.name }}</strong>
+                <small>{{ roleLabel[p.role] }}</small>
+              </span>
+              @if (p.status) {
+                <span class="chip" [attr.data-s]="p.status">{{ partLabel[p.status] }}</span>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    </div>
+
+    <section class="card col" aria-labelledby="mt-cm">
+      <h2 id="mt-cm">
+        Góp ý cho dự thảo kiểm điểm <small>{{ commentList().length }} góp ý</small>
+      </h2>
+      @if (commentList().length === 0) {
+        <p class="muted">Chưa có góp ý.</p>
+      }
+      <ul class="comments">
+        @for (c of commentList(); track c.id) {
+          <li>
+            <p class="meta">
+              <strong>{{ c.commenter?.name ?? 'Thành viên hội nghị' }}</strong>
+              {{ c.createdAt | date: 'dd/MM HH:mm' }} ·
+              {{ c.phase === 'HOI_NGHI' ? 'ý kiến tại hội nghị, thư ký ghi' : 'trước hội nghị' }}
+              <span class="chip" [attr.data-k]="c.kind">{{ kindLabel[c.kind] }}</span>
+            </p>
+            <p>{{ c.content }}</p>
+          </li>
+        }
+      </ul>
+      @if (allow('comment') || allow('record')) {
+        <fieldset class="kinds">
+          <legend>
+            {{ allow('record') ? 'Thư ký ghi ý kiến tại hội nghị' : 'Góp ý của đồng chí' }}
+          </legend>
+          @for (k of kinds; track k) {
+            <label>
+              <input
+                type="radio"
+                name="mt-kind"
+                [value]="k"
+                [checked]="kind() === k"
+                (change)="kind.set(k)"
+              />
+              {{ kindLabel[k] }}
+            </label>
+          }
+        </fieldset>
+        <label for="mt-content" class="sr">Nội dung</label>
+        <textarea
+          id="mt-content"
+          rows="4"
+          maxlength="4000"
+          [attr.aria-invalid]="!!contentError()"
+          [attr.aria-describedby]="contentError() ? 'mt-content-err' : null"
+          [placeholder]="allow('record') ? 'Nhập ý kiến phát biểu…' : 'Nhập nội dung góp ý…'"
+          [value]="content()"
+          (input)="content.set($any($event.target).value)"
+        ></textarea>
+        @if (contentError(); as ce) {
+          <p id="mt-content-err" class="err">{{ ce }}</p>
+        }
+        <button
+          type="button"
+          class="btn primary"
+          [attr.data-act]="allow('record') ? 'ghi-y-kien' : 'gop-y'"
+          (click)="addComment(allow('record') ? 'HOI_NGHI' : 'TRUOC_HOI_NGHI')"
+          [disabled]="busy()"
+        >
+          {{ allow('record') ? 'Ghi ý kiến' : 'Gửi góp ý' }}
+        </button>
+      }
+      <p class="muted">
+        Nội dung góp ý được bảo mật và chỉ thành phần hội nghị được xem.
+        @if (anonymous()) {
+          Người được kiểm điểm thấy nội dung góp ý nhưng không thấy tên người góp ý.
+        }
+      </p>
+    </section>
+
+    <vt-meeting-side
+      class="col"
+      [meeting]="m"
+      [canRemediate]="allow('remediation')"
+      [canMinutes]="allow('minutes')"
+      [busy]="busy()"
+      (minutes)="minutes($event)"
+    />
+  </div>
+}

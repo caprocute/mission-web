@@ -7,7 +7,8 @@ const compose = () =>
 /**
  * Tuyến của remote fe-okr, shell gắn dưới `/okr` (QT-02, QT-03). Trang đầu là SCR-0201; tuyến con
  * chặn theo chức năng của đúng SCR (wiki/15a). SCR-0202 soạn mục tiêu (WEB-022); SCR-0203 phê duyệt
- * (WEB-023, `phe-duyet` theo `deepLink` của hộp việc); SCR-0301 check-in KR (WEB-024).
+ * (WEB-023, `phe-duyet` theo `deepLink` của hộp việc); SCR-0301 check-in KR (WEB-024); SCR-1701 trợ lý AI soạn
+ * OKR (WEB-049).
  */
 export const ROUTES: Routes = [
   {
@@ -39,6 +40,13 @@ export const ROUTES: Routes = [
     canActivate: [permissionGuard('SCR-0301.check-in')],
     loadComponent: () => import('./pages/checkin/checkin.page').then((m) => m.OkrCheckinPage),
     title: 'Check-in KR',
+  },
+  {
+    path: 'tro-ly',
+    canActivate: [permissionGuard('SCR-1701.hoi', 'SCR-1701.dung-goi-y', 'SCR-1701.trinh')],
+    loadComponent: () =>
+      import('./pages/assistant/okr-assistant.page').then((m) => m.OkrAssistantPage),
+    title: 'Trợ lý AI soạn OKR',
   },
 ];
 

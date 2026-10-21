@@ -56,3 +56,7 @@ Trạng thái: `NHAP`. Bản nháp do agent soạn theo dự thảo Quy định 
 
 - Kiểm thử nạp gói trong `backend/mission-core` (biên dịch CEL bằng `vt-cel`, kiểm thử thuộc tính jqwik, nạp DMN bằng Flowable DMN, `savePolicyRule`, `saveDecisionTable`, `evaluatePolicyVersion` trên Testcontainers): chưa làm vì chưa có mô-đun mission-core, thư viện `vt-cel` (NEN-041) và API CORE-05-xx.
 - Bộ ca kiểm thử chuẩn (DL-03); mẫu biểu (DL-05).
+
+### Chạy trên vt-cel (21/10/2026)
+
+Biểu thức `kpi_B`, `diem_nam` ép kiểu `double()` cho trường lấy từ danh sách đầu vào, vì CEL không tự đổi int sang double và phép nhân hay cộng trộn hai kiểu báo lỗi "No matching overload" khi điểm quý hoặc mức chất lượng đến dưới dạng số nguyên. Phát hiện khi chạy bộ ca mẫu bằng `vt-cel` (kiểm thử `PolicyGoldenCelTest` của mission-core). Kết quả tính không đổi.

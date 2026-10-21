@@ -9,6 +9,7 @@ import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -24,6 +25,8 @@ import vn.viettel.okrkpi.shared.error.ErrorCatalog;
  */
 @AutoConfiguration
 @EnableConfigurationProperties(OpaProperties.class)
+// Chủ thể lấy từ JWT: service không có spring-security-oauth2-jose (service-template) thì không bật
+@ConditionalOnClass(name = "org.springframework.security.oauth2.jwt.Jwt")
 @ConditionalOnProperty(
     prefix = "okrkpi.opa",
     name = "enabled",

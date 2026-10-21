@@ -1,0 +1,238 @@
+<p class="back"><a routerLink="..">← Cây mục tiêu OKR</a></p>
+
+@if (loadError(); as e) {
+  <p class="err" role="alert">{{ e }}</p>
+} @else if (!ctx.value()) {
+  <p class="muted" role="status">Đang tải bản nháp OKR…</p>
+} @else {
+  @let c = ctx.value()!;
+  <header class="head">
+    <h1>Soạn OKR cùng trợ lý AI</h1>
+    <p class="muted">{{ c.period.label }} · {{ c.unit.name }}</p>
+  </header>
+
+  <div class="live" aria-live="polite">
+    @if (notice(); as n) {
+      <p class="ok" role="status" data-msg="MSG-17-04">{{ n }}</p>
+    }
+    @if (error(); as e) {
+      <div class="err" role="alert">
+        <p>{{ e }}</p>
+        @if (errorList().length) {
+          <ul>
+            @for (m of errorList(); track $index) {
+              <li>{{ m }}</li>
+            }
+          </ul>
+          @if (canEdit()) {
+            <p>Đồng chí bấm "Sửa bản nháp" để bổ sung rồi trình lại.</p>
+          }
+        }
+      </div>
+    }
+  </div>
+
+  <div class="grid" [class.one]="simple()">
+    <section class="card" aria-labelledby="as-draft">
+      <h2 id="as-draft">Bản nháp OKR {{ c.period.label }}</h2>
+      <p class="muted small" [class.warn]="overLimit()" data-limit>
+        Khuyến nghị từ 1 đến {{ recommendedMax() }} mục tiêu mỗi kỳ.
+        @if (overLimit()) {
+          Bản nháp đang có {{ draftList().length }} mục tiêu, đồng chí cân nhắc gộp hoặc bớt.
+        }
+      </p>
+      @if (drafts.isLoading() && !draftList().length) {
+        <p class="muted" role="status">Đang tải bản nháp…</p>
+      } @else if (!draftList().length) {
+        <p class="muted">
+          Kỳ này chưa có bản nháp. Đồng chí có thể hỏi trợ lý để nhận gợi ý mục tiêu và KR.
+        </p>
+      }
+      @for (d of draftList(); track d.id) {
+        <article class="obj" [attr.data-objective]="d.code">
+          <h3>
+            {{ d.code }}. {{ d.title }}
+            @if (d.keyResults.some(aiAssisted)) {
+              <span class="chip ai" data-ai>AI hỗ trợ</span>
+            }
+          </h3>
+          <p class="muted small">Bản nháp {{ d.draftNo }} · cập nhật {{ day(d.updatedAt) }}</p>
+          <ul class="krs">
+            @for (k of d.keyResults; track k.code) {
+              <li [class.vague]="vague().has(k.code)" [attr.data-kr]="k.code">
+                <span class="code">{{ k.code }}</span>
+                <span class="kt">
+                  {{ k.title }}
+                  <small class="muted">
+                    @if (k.targetValue !== null) {
+                      Chỉ tiêu {{ k.targetValue }}{{ k.unit === '%' ? '%' : ' ' + k.unit }}
+                    } @else {
+                      Chưa có chỉ tiêu
+                    }
+                    · trọng số {{ pct(k.weight) }}%
+                  </small>
+                </span>
+                @if (vague().has(k.code)) {
+                  <span class="chip bad">Chưa đo được</span>
+                } @else if (aiAssisted(k)) {
+                  <span class="chip ai">AI hỗ trợ</span>
+                }
+              </li>
+            }
+          </ul>
+          <div class="acts">
+            @if (canEdit()) {
+              <a class="btn" [routerLink]="['../objectives', d.id, 'edit']">Sửa bản nháp</a>
+            }
+            @if (can('SCR-1701.trinh')) {
+              <button
+                type="button"
+                class="btn primary"
+                data-act="trinh"
+                [disabled]="busy()"
+                (click)="submit(d)"
+              >
+                Trình phê duyệt
+              </button>
+            }
+          </div>
+        </article>
+      }
+      <p class="muted small">
+        Chỉ người dùng mới có nút Trình phê duyệt. Trợ lý AI không có quyền ghi vào mục tiêu và KR.
+      </p>
+    </section>
+
+    <section class="card assist" aria-labelledby="as-ai">
+      <h2 id="as-ai">Trợ lý AI <span class="chip ro">Chỉ đọc · không ghi</span></h2>
+      <ol class="talk" aria-live="polite">
+        @for (t of turns(); track t.id) {
+          <li class="q">
+            <span class="who">Đồng chí hỏi</span>
+            <p>{{ t.question }}</p>
+          </li>
+          <li class="a" [attr.data-turn]="t.id">
+            <span class="who">Trợ lý trả lời</span>
+            @if (t.pending) {
+              @if (t.queued) {
+                <p class="info" role="status" data-msg="MSG-17-03">{{ msg1703 }}</p>
+              } @else {
+                <p class="muted" role="status">Trợ lý đang soạn trả lời…</p>
+              }
+            } @else if (t.error) {
+              <p class="err">{{ t.error }}</p>
+            } @else if (t.result; as r) {
+              @if (r.blocked; as b) {
+                <p class="info" data-msg="MSG-17-02">{{ b.message }}</p>
+              } @else {
+                <p>
+                  <span class="chip ai">{{ r.label }}</span>
+                  {{ r.answer }}
+                </p>
+                @for (s of r.suggestions; track s.id) {
+                  <article class="sug" [attr.data-kind]="s.kind">
+                    @switch (s.kind) {
+                      @case ('MUC_TIEU') {
+                        <h3>Gợi ý mục tiêu: {{ s.objective?.title }}</h3>
+                        @if (s.objective?.basisRef) {
+                          <p class="small">Căn cứ: {{ s.objective?.basisRef }}</p>
+                        }
+                        <ul class="small">
+                          @for (k of s.objective?.keyResults ?? []; track $index) {
+                            <li>{{ k.title }}</li>
+                          }
+                        </ul>
+                      }
+                      @case ('SOAT_KR') {
+                        <h3>Soát {{ s.krCode }}</h3>
+                        <p class="warn" data-msg="MSG-17-01">{{ rewriteText(s) }}</p>
+                      }
+                      @default {
+                        <h3>Lưu ý liên kết ngang</h3>
+                        <p>{{ s.text }}</p>
+                      }
+                    }
+                    @if (s.reason) {
+                      <p class="small">Lý do: {{ s.reason }}</p>
+                    }
+                    <p class="small muted">Nguồn: {{ sourceText(s) }}</p>
+                    @if (decisions()[s.id]; as dec) {
+                      <p class="small done" data-decided>
+                        {{ dec === 'CHAP_NHAN' ? 'Đã dùng gợi ý.' : 'Đã bỏ qua gợi ý.' }}
+                      </p>
+                    } @else if (can('SCR-1701.dung-goi-y')) {
+                      <div class="acts">
+                        <button
+                          type="button"
+                          class="btn"
+                          data-act="bo-qua"
+                          [disabled]="busy()"
+                          (click)="dismiss(s)"
+                        >
+                          Bỏ qua
+                        </button>
+                        @if (s.kind !== 'LIEN_KET_NGANG') {
+                          <button
+                            type="button"
+                            class="btn primary"
+                            data-act="dung-goi-y"
+                            [disabled]="busy()"
+                            (click)="use(s)"
+                          >
+                            Dùng gợi ý
+                          </button>
+                        }
+                      </div>
+                    }
+                  </article>
+                }
+              }
+            }
+          </li>
+        }
+      </ol>
+
+      @if (can('SCR-1701.hoi')) {
+        <form class="ask" (submit)="$event.preventDefault(); ask()">
+          @if (c.bases.length) {
+            <fieldset>
+              <legend>Văn bản căn cứ cho trợ lý</legend>
+              @for (b of c.bases; track b.id) {
+                <label class="chk">
+                  <input
+                    type="checkbox"
+                    [checked]="basisIds().includes(b.id)"
+                    (change)="toggleBasis(b.id)"
+                  />
+                  {{ b.docNumber ? b.title + ' (' + b.docNumber + ')' : b.title }}
+                </label>
+              }
+            </fieldset>
+          }
+          <label for="as-q">Câu hỏi cho trợ lý</label>
+          <textarea
+            id="as-q"
+            rows="3"
+            [attr.maxlength]="max"
+            [attr.aria-invalid]="!!questionError()"
+            [attr.aria-describedby]="questionError() ? 'as-q-err' : 'as-q-hint'"
+            placeholder="Ví dụ: Soạn OKR quý cho đơn vị theo kế hoạch công tác"
+            [value]="question()"
+            (input)="onQuestion($any($event.target).value)"
+          ></textarea>
+          @if (questionError(); as qe) {
+            <p id="as-q-err" class="err small">{{ qe }}</p>
+          } @else {
+            <p id="as-q-hint" class="muted small">
+              {{ question().length }}/2.000 ký tự. Trợ lý chỉ đọc văn bản và dữ liệu đồng chí được
+              xem.
+            </p>
+          }
+          <button type="submit" class="btn primary" data-act="hoi" [disabled]="asking()">
+            Gửi câu hỏi
+          </button>
+        </form>
+      }
+    </section>
+  </div>
+}

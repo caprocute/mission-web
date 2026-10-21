@@ -10,7 +10,9 @@ export function observeWebVitals(report: (name: 'LCP' | 'INP', value: number) =>
       if (last) report('LCP', last.startTime);
     }).observe({ type: 'largest-contentful-paint', buffered: true });
     new PerformanceObserver((list) => {
-      for (const e of list.getEntries() as (PerformanceEventTiming & { interactionId?: number })[]) {
+      for (const e of list.getEntries() as (PerformanceEventTiming & {
+        interactionId?: number;
+      })[]) {
         if (e.interactionId) report('INP', e.duration);
       }
     }).observe({ type: 'event', buffered: true, durationThreshold: 40 } as PerformanceObserverInit);

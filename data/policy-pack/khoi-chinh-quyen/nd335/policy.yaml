@@ -110,7 +110,7 @@ definitions:
       eval_order: 10
       overridable: false
     kpi_B:
-      expression: "tham_so.cach_tinh_chat_luong == 'TRU_25_MOI_LAN' ? math.greatest(0.0, 1.0 - tham_so.tru_moi_lan_chinh_sua * double(nv.so_lan_chinh_sua)) : nv.muc_chat_luong"
+      expression: "tham_so.cach_tinh_chat_luong == 'TRU_25_MOI_LAN' ? math.greatest(0.0, 1.0 - tham_so.tru_moi_lan_chinh_sua * double(nv.so_lan_chinh_sua)) : double(nv.muc_chat_luong)"
       result_type: DECIMAL
       legal_ref: "NĐ 335/2025; PL 3 mục 2"
       eval_order: 20

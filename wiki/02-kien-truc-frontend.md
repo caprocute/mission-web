@@ -102,6 +102,14 @@ sequenceDiagram
 
 Thứ tự trên có hai ràng buộc kỹ thuật. Thứ nhất, `main.ts` chỉ được gọi `initFederation` rồi `import('./bootstrap')`; mọi import thư viện dùng chung (kể cả `@vt/*`) phải nằm trong `bootstrap.ts` trở đi, vì import map chỉ tồn tại sau bước dựng federation. Các yêu cầu gửi sớm của WEB-052 (`fe-shell/src/early-fetch.ts`) vì thế chỉ dùng `fetch` của trình duyệt; `UiPackLoader` dùng lại kết quả qua token `UI_PACK_PREFETCH` khi gốc và tenant khớp cấu hình. Thứ hai, `UiPackLoader.load()` chạy trong `provideAppInitializer` để token của tenant được áp trước khi giao diện hiển thị, tránh hiện tượng nháy màu mặc định.
 
+## Cờ tính năng phía web (WEB-076)
+
+Tính năng mới được phát hành dần theo tenant bằng cờ tính năng. Khi khởi động, shell gọi `GET /api/v1/config/feature-flags` qua `FeatureFlagService` (thư viện `@vt/api-client`) và nạp lại mỗi khi người dùng đổi phân công. Một cờ chỉ có hiệu lực khi `enabled` bật và thời điểm hiện tại nằm trong khoảng `validFrom`–`validTo` nếu có khai báo. Giao diện dùng cờ theo ba cách: chỉ thị `*vtFeature="'khoa.co'"` để ẩn hoặc hiện một khối, `canMatch: [featureFlagGuard('khoa.co')]` để chặn một tuyến, và trường `flag` của mục menu trong `fe-shell/src/app/layout/nav.ts`.
+
+Mọi lỗi khi nạp cờ (403, lỗi mạng, 5xx) đều được coi là mọi cờ tắt. Nhờ vậy một tính năng chưa phát hành không bao giờ lộ ra chỉ vì máy chủ trả lỗi. Cờ phía web chỉ quyết định ẩn hay hiện; máy chủ vẫn phải tự kiểm cờ ở API.
+
+Hợp đồng hiện tại chỉ cho vai trò quản trị tenant đọc `/config/feature-flags`, nên với các vai trò khác máy chủ thật sẽ trả 403 và web thấy mọi cờ tắt. Phía web vì thế đang chạy với dữ liệu giả lập; khi chạy giả lập, tham số trang `?ff=khoa1,khoa2` bật thêm cờ để thử giao diện. Cần bổ sung hợp đồng một API đọc cờ cho mọi người dùng đã đăng nhập (gợi ý thuộc CORE-08-07) trước khi dùng cờ với máy chủ thật; đây là đề xuất, chưa sửa hợp đồng.
+
 ## Hiện trạng mã
 
 Tại thời điểm viết, workspace `frontend/` là một Angular workspace (không dùng Nx) gồm hai ứng dụng và sáu thư viện, với các phiên bản chính sau: Angular 21.2, Native Federation 21.2.6, PrimeNG 21.1.10 với preset Aura qua `@primeuix/themes`, `@ngx-formly/core` và `@ngx-formly/primeng` 10.0.1, `cel-js` 0.8, `angular-oauth2-oidc` 21, TypeScript 5.9, Vitest 4 cho kiểm thử đơn vị. Thư viện được ánh xạ qua `paths` trong `tsconfig.json` tới `projects/<thư-viện>/src/public-api.ts`, nên shell và remote dùng mã nguồn thư viện trực tiếp, không cần build thư viện trước.
