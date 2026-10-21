@@ -324,6 +324,10 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 15. **Khoá ngoại `scim_sync_log` và tên bảng phân công trong `org` (DV-04-01):** Bảng `org.scim_sync_log` được phân vùng theo `received_at` (PK gồm `(id, received_at)`), nên bảng `org.sync_discrepancy` (chỉ lưu `sync_log_id`) không thể đặt khoá ngoại vật lý trực tiếp tới `scim_sync_log` trên PostgreSQL; migration `V4` giữ tham chiếu logic kèm chỉ mục trên `sync_log_id` (suy luận). Tên bảng phân công dùng `org.assignment` theo baseline và TL-03 thay cho `org.position_assignment` trong TL-01.
 16. **Lưu danh sách đơn vị tiền thân khi sáp nhập, hợp nhất, chia tách (DV-04-03):** TL-02a ghi quan hệ tiền thân bằng loại `PREDECESSOR` trong bảng `org.org_unit_relation`, nhưng ràng buộc CHECK `ck_unit_rel__type` của TL-03 chỉ cho phép các loại cây (`HANH_CHINH`, `DANG`, `NGANH_DOC`, `MA_TRAN`). Theo hướng dẫn của thẻ DV-04-03, `org-service` lưu danh sách định danh đơn vị tiền thân (`predecessorIds`) và đơn vị mới tạo (`createdUnitIds`) trong cột JSONB `org.org_change_order.payload`, rồi đọc ra khi trả `OrgUnit.predecessorIds`.
 
+### Ghi chú và quyết định từ luồng Sổ cái & Ký số (DV-09, DV-10)
+
+1. **Chuẩn hoá cột băm và cột mở rộng của `ledger.ledger_entry` và `ledger.chain_head` (DV-09-01, DV-09-02):** Giữa TL-01 §14.1 (L1803–1817: nêu tên cột `curr_hash`, dùng `chain_partition smallint`) và TL-03 §2.8 (L941–1025: DDL chính thức dùng 3 cột `payload_hash bytea`, `prev_hash bytea`, `entry_hash bytea` đều kèm `CHECK (octet_length(...) = 32)`), dịch vụ `SVC-09` (`services-go/ledger`) tuân thủ DDL của **TL-03 §2.8** (`payload_hash`, `prev_hash`, `entry_hash` 32 byte SHA-256). Ngoài ra, để đáp ứng yêu cầu khoá phân vùng khi phát hiện đứt chuỗi băm trong `DV-09-02`, bảng `ledger.chain_head` được bổ sung hai cột trạng thái `is_locked boolean NOT NULL DEFAULT false` và `locked_reason text`.
+
 ## Liên quan
 
 - [README của wiki](README.md)
