@@ -4,7 +4,8 @@
   "description": "Hợp đồng OpenAPI 3.1 của nền tảng Mission (WEB-063, ADR-32)",
   "scripts": {
     "lint": "redocly lint openapi/modules/*.yaml",
-    "bundle": "node openapi/bundle.mjs"
+    "bundle": "node openapi/bundle.mjs",
+    "asyncapi:lint": "node asyncapi/check.mjs"
   },
   "devDependencies": {
     "@redocly/cli": "1.34.21"

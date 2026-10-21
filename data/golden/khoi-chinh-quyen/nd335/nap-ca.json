@@ -1,0 +1,260 @@
+{
+ "goi": "khoi-chinh-quyen/nd335",
+ "phien_ban": "1.4.0",
+ "ca": [
+  {
+   "policyPackId": null,
+   "caseCode": "S-001",
+   "description": "Đủ 30 điểm tiêu chí chung và 70 điểm kết quả",
+   "input": {
+    "loai": "NHA_NUOC",
+    "tham_so": {},
+    "dau_vao": {
+     "ty_le_dap_ung_tieu_chi_chung": 1.0,
+     "nhiem_vu": [
+      {
+       "ke_hoach": 10,
+       "so_luong_duyet": 10,
+       "muc_chat_luong": 1.0,
+       "so_lan_chinh_sua": 0,
+       "ngay_lam_viec_cham_chu_quan": 0,
+       "ngay_lich_cham_chu_quan": 0,
+       "diem_chuan": 10,
+       "khong_hoan_thanh_chu_quan": false,
+       "nhom": "THUONG_XUYEN"
+      },
+      {
+       "ke_hoach": 10,
+       "so_luong_duyet": 10,
+       "muc_chat_luong": 1.0,
+       "so_lan_chinh_sua": 0,
+       "ngay_lam_viec_cham_chu_quan": 0,
+       "ngay_lich_cham_chu_quan": 0,
+       "diem_chuan": 10,
+       "khong_hoan_thanh_chu_quan": false,
+       "nhom": "THEN_CHOT"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "diem": 100.0,
+    "dong_dmn": "xep-loai-nha-nuoc-dong-1",
+    "xep_loai": "HTXSNV"
+   },
+   "legalRef": "NĐ 335/2025; BR-09-11",
+   "source": "BA",
+   "note": "Ca giả lập, chờ nghiệp vụ rà soát và ký duyệt."
+  },
+  {
+   "policyPackId": null,
+   "caseCode": "S-002",
+   "description": "Điểm thô 89,95 làm tròn thành 90,0",
+   "input": {
+    "loai": "NHA_NUOC",
+    "tham_so": {},
+    "dau_vao": {
+     "ty_le_dap_ung_tieu_chi_chung": 0.665,
+     "nhiem_vu": [
+      {
+       "ke_hoach": 10,
+       "so_luong_duyet": 10,
+       "muc_chat_luong": 1.0,
+       "so_lan_chinh_sua": 0,
+       "ngay_lam_viec_cham_chu_quan": 0,
+       "ngay_lich_cham_chu_quan": 0,
+       "diem_chuan": 10,
+       "khong_hoan_thanh_chu_quan": false,
+       "nhom": "THUONG_XUYEN"
+      },
+      {
+       "ke_hoach": 10,
+       "so_luong_duyet": 10,
+       "muc_chat_luong": 1.0,
+       "so_lan_chinh_sua": 0,
+       "ngay_lam_viec_cham_chu_quan": 0,
+       "ngay_lich_cham_chu_quan": 0,
+       "diem_chuan": 10,
+       "khong_hoan_thanh_chu_quan": false,
+       "nhom": "THEN_CHOT"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "diem": 90.0,
+    "dong_dmn": "xep-loai-nha-nuoc-dong-1",
+    "xep_loai": "HTXSNV"
+   },
+   "legalRef": "NĐ 335/2025; BR-09-03; BR-09-11",
+   "source": "BA",
+   "note": "Ca giả lập, chờ nghiệp vụ rà soát và ký duyệt."
+  },
+  {
+   "policyPackId": null,
+   "caseCode": "S-003",
+   "description": "Điểm thô 69,95 làm tròn thành 70,0",
+   "input": {
+    "loai": "NHA_NUOC",
+    "tham_so": {},
+    "dau_vao": {
+     "ty_le_dap_ung_tieu_chi_chung": 0.675,
+     "nhiem_vu": [
+      {
+       "ke_hoach": 25,
+       "so_luong_duyet": 7,
+       "muc_chat_luong": 1.0,
+       "so_lan_chinh_sua": 0,
+       "ngay_lam_viec_cham_chu_quan": 3,
+       "ngay_lich_cham_chu_quan": 0,
+       "diem_chuan": 10,
+       "khong_hoan_thanh_chu_quan": false,
+       "nhom": "THEN_CHOT"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "diem": 70.0,
+    "dong_dmn": "xep-loai-nha-nuoc-dong-2",
+    "xep_loai": "HTTNV"
+   },
+   "legalRef": "NĐ 335/2025; BR-09-11",
+   "source": "BA",
+   "note": "Ca giả lập, chờ nghiệp vụ rà soát và ký duyệt."
+  },
+  {
+   "policyPackId": null,
+   "caseCode": "S-004",
+   "description": "Điểm 69,9 dưới ngưỡng 70",
+   "input": {
+    "loai": "NHA_NUOC",
+    "tham_so": {},
+    "dau_vao": {
+     "ty_le_dap_ung_tieu_chi_chung": 0.9,
+     "nhiem_vu": [
+      {
+       "ke_hoach": 25,
+       "so_luong_duyet": 1,
+       "muc_chat_luong": 1.0,
+       "so_lan_chinh_sua": 0,
+       "ngay_lam_viec_cham_chu_quan": 4,
+       "ngay_lich_cham_chu_quan": 0,
+       "diem_chuan": 10,
+       "khong_hoan_thanh_chu_quan": false,
+       "nhom": "THEN_CHOT"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "diem": 69.9,
+    "dong_dmn": "xep-loai-nha-nuoc-dong-3",
+    "xep_loai": "HTNV"
+   },
+   "legalRef": "NĐ 335/2025; BR-09-11",
+   "source": "BA",
+   "note": "Ca giả lập, chờ nghiệp vụ rà soát và ký duyệt."
+  },
+  {
+   "policyPackId": null,
+   "caseCode": "S-005",
+   "description": "Điểm thô 49,95 làm tròn thành 50,0",
+   "input": {
+    "loai": "NHA_NUOC",
+    "tham_so": {},
+    "dau_vao": {
+     "ty_le_dap_ung_tieu_chi_chung": 0.125,
+     "nhiem_vu": [
+      {
+       "ke_hoach": 25,
+       "so_luong_duyet": 2,
+       "muc_chat_luong": 1.0,
+       "so_lan_chinh_sua": 0,
+       "ngay_lam_viec_cham_chu_quan": 2,
+       "ngay_lich_cham_chu_quan": 0,
+       "diem_chuan": 10,
+       "khong_hoan_thanh_chu_quan": false,
+       "nhom": "THEN_CHOT"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "diem": 50.0,
+    "dong_dmn": "xep-loai-nha-nuoc-dong-3",
+    "xep_loai": "HTNV"
+   },
+   "legalRef": "NĐ 335/2025; BR-09-11",
+   "source": "BA",
+   "note": "Ca giả lập, chờ nghiệp vụ rà soát và ký duyệt."
+  },
+  {
+   "policyPackId": null,
+   "caseCode": "S-006",
+   "description": "Điểm 49,9 dưới ngưỡng 50",
+   "input": {
+    "loai": "NHA_NUOC",
+    "tham_so": {},
+    "dau_vao": {
+     "ty_le_dap_ung_tieu_chi_chung": 0.35,
+     "nhiem_vu": [
+      {
+       "ke_hoach": 25,
+       "so_luong_duyet": 1,
+       "muc_chat_luong": 1.0,
+       "so_lan_chinh_sua": 0,
+       "ngay_lam_viec_cham_chu_quan": 7,
+       "ngay_lich_cham_chu_quan": 0,
+       "diem_chuan": 10,
+       "khong_hoan_thanh_chu_quan": false,
+       "nhom": "THEN_CHOT"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "diem": 49.9,
+    "dong_dmn": "xep-loai-nha-nuoc-dong-4",
+    "xep_loai": "KHTNV"
+   },
+   "legalRef": "NĐ 335/2025; BR-09-11",
+   "source": "BA",
+   "note": "Ca giả lập, chờ nghiệp vụ rà soát và ký duyệt."
+  },
+  {
+   "policyPackId": null,
+   "caseCode": "S-007",
+   "description": "Cách tính chất lượng trừ 25% mỗi lần chỉnh sửa (một lần)",
+   "input": {
+    "loai": "NHA_NUOC",
+    "tham_so": {
+     "cach_tinh_chat_luong": "TRU_25_MOI_LAN"
+    },
+    "dau_vao": {
+     "ty_le_dap_ung_tieu_chi_chung": 1.0,
+     "nhiem_vu": [
+      {
+       "ke_hoach": 10,
+       "so_luong_duyet": 10,
+       "muc_chat_luong": 1.0,
+       "so_lan_chinh_sua": 1,
+       "ngay_lam_viec_cham_chu_quan": 0,
+       "ngay_lich_cham_chu_quan": 0,
+       "diem_chuan": 10,
+       "khong_hoan_thanh_chu_quan": false,
+       "nhom": "THEN_CHOT"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "diem": 94.2,
+    "xep_loai": "HTXSNV"
+   },
+   "legalRef": "Bảng chấm điểm; BR-15-02",
+   "source": "BA",
+   "note": "Ca giả lập, chờ nghiệp vụ rà soát và ký duyệt."
+  }
+ ]
+}

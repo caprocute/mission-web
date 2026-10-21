@@ -581,6 +581,7 @@ export function hoangChain(): TraceLink[] {
       details: {
         fileName: 'BC-so-ket-TCCS-v3.pdf',
         sizeBytes: 1_887_437,
+        // ui-text-ok: mã tệp lưu trữ của dữ liệu giả lập, không hiển thị
         objectId: '0192a1c3-0000-7000-8000-000000000001',
         retainUntil: '2037-12-31',
         scan: 'SACH',
@@ -694,6 +695,7 @@ export function genericChain(p: PersonFact, unitName: string, periodLabel: strin
           details: {
             fileName: 'Báo cáo chuyên đề.pdf',
             sizeBytes: 640_000,
+            // ui-text-ok: mã tệp lưu trữ của dữ liệu giả lập, không hiển thị
             objectId: '0192a1c3-0000-7000-8000-000000000001',
             scan: 'SACH',
             versions: [

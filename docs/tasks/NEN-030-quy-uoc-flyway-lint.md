@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | NEN-005 |
 | Truy vết | ADR-02 → TL-03 "Quy ước đặt tên", "Kiểu dữ liệu chuẩn", "Phân loại dữ liệu C0 đến C3 trên từng cột", "Ứng dụng không có quyền DDL", "Flyway và quy trình thay đổi lược đồ" → mọi schema của baseline mục 9 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Hoàn thành (20/10/2026, đã gộp vào `main`: `backend/libs/vt-db-migration/`, `MigrationRunner`, `SchemaVersionGuard`, `ConventionLinter`) |
 
 ## 1. Mục tiêu
 

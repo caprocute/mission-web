@@ -32,6 +32,9 @@ public final class RoleBootstrapPlan {
   /** Bảng outbox mà {@code cdc_<schema>} được đọc (TL-03; tạo ở NEN-032). */
   public static final String OUTBOX_TABLE = "outbox_event";
 
+  /** Schema cài pg_partman (TL-03 L806 gọi {@code partman.create_parent}). */
+  public static final String PARTMAN_SCHEMA = "partman";
+
   static final String STATEMENT_TIMEOUT = "5s";
   static final String IDLE_IN_TRANSACTION_TIMEOUT = "10s";
 
@@ -153,6 +156,9 @@ public final class RoleBootstrapPlan {
     sql.add("ALTER SCHEMA " + schema + " OWNER TO " + mig);
     sql.add("REVOKE ALL ON SCHEMA " + schema + " FROM PUBLIC");
     sql.add("GRANT USAGE ON SCHEMA " + schema + " TO " + svc + ", " + ro + ", " + cdc);
+    if (DatabaseLayout.isBusinessSchema(schema)) {
+      sql.addAll(partmanGrants(mig));
+    }
     // Quyền mặc định cho đối tượng mig_<schema> tạo về sau.
     sql.add(defaults + "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO " + svc);
     sql.add(defaults + "GRANT USAGE, SELECT ON SEQUENCES TO " + svc);
@@ -179,6 +185,31 @@ public final class RoleBootstrapPlan {
             + " TO "
             + cdc
             + "; END IF; END $$");
+    return sql;
+  }
+
+  /**
+   * Cài pg_partman vào schema {@code partman} (cần quyền quản trị, nên thuộc bootstrap chứ không
+   * thuộc migration) và cấp cho {@code mig_<schema>} quyền tối thiểu theo hướng dẫn pg_partman cho
+   * vai trò không phải superuser, để migration của NEN-032 gọi {@code partman.create_parent} và hàm
+   * bảo trì của schema gọi {@code partman.run_maintenance}. Bảng {@code partman.part_config} dùng
+   * chung trong CSDL nên mọi {@code mig_} đọc ghi được cấu hình của nhau (suy luận, chấp nhận vì
+   * {@code mig_} chỉ dùng cho Job di trú).
+   */
+  public static List<String> partmanGrants(String mig) {
+    String partman = PARTMAN_SCHEMA;
+    List<String> sql = new ArrayList<>();
+    sql.add("CREATE SCHEMA IF NOT EXISTS " + partman);
+    sql.add("CREATE EXTENSION IF NOT EXISTS pg_partman SCHEMA " + partman);
+    sql.add("REVOKE ALL ON SCHEMA " + partman + " FROM PUBLIC");
+    sql.add("GRANT ALL ON SCHEMA " + partman + " TO " + mig);
+    sql.add("GRANT ALL ON ALL TABLES IN SCHEMA " + partman + " TO " + mig);
+    sql.add("GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA " + partman + " TO " + mig);
+    sql.add("GRANT EXECUTE ON ALL PROCEDURES IN SCHEMA " + partman + " TO " + mig);
+    sql.add(
+        "DO $$ BEGIN EXECUTE format('GRANT TEMPORARY ON DATABASE %I TO "
+            + mig
+            + "', current_database()); END $$");
     return sql;
   }
 
@@ -213,6 +244,15 @@ public final class RoleBootstrapPlan {
               + modulith
               + " TO "
               + svc);
+      // Hàm dọn modulith.fn_purge_event_publication (NEN-032) do mission-core gọi.
+      sql.add(
+          "ALTER DEFAULT PRIVILEGES FOR ROLE "
+              + role("mig", modulith)
+              + " IN SCHEMA "
+              + modulith
+              + " GRANT EXECUTE ON FUNCTIONS TO "
+              + svc);
+      sql.add("GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA " + modulith + " TO " + svc);
     }
     // keyring.dek: svc_ của mọi schema nghiệp vụ chỉ SELECT, INSERT (TL-03 L913).
     for (String schema : layout.schemas()) {

@@ -27,7 +27,7 @@ Hợp đồng OpenAPI 3.1 trong `contracts/openapi/` là nguồn sự thật cho
 
 ## 4. Kiểm thử và tiêu chí hoàn thành mặc định
 
-Một task máy chủ chỉ hoàn thành khi `mvn -q verify` (hoặc `go test ./...`, `pytest`) của mô-đun hay dịch vụ bị đụng tới chạy xanh, gồm kiểm thử đơn vị, kiểm thử tích hợp bằng Testcontainers (PostgreSQL, Kafka, Keycloak khi cần), kiểm thử kiến trúc ArchUnit/Modulith, kiểm thử hợp đồng (Spring Cloud Contract hoặc so khớp phản hồi với OpenAPI) và kiểm tra `openapi-diff` không phá tương thích. Mã mới đạt độ phủ dòng tối thiểu 80% cho lớp `domain` và `application`. Quét bảo mật (SpotBugs + Find Security Bugs, `govulncheck`, `pip-audit`) không có lỗi mức cao. Báo cáo cuối task theo `AGENTS.md` mục 6, ghi lệnh đã chạy và kết quả thật.
+Một task máy chủ chỉ hoàn thành khi `mvn -q verify` (hoặc `go test ./...`, `pytest`) của mô-đun hay dịch vụ bị đụng tới chạy xanh, gồm kiểm thử đơn vị, kiểm thử tích hợp bằng Testcontainers (PostgreSQL, Kafka, Keycloak khi cần), kiểm thử kiến trúc ArchUnit/Modulith, kiểm thử hợp đồng (Spring Cloud Contract hoặc so khớp phản hồi với OpenAPI) và kiểm tra `openapi-diff` không phá tương thích. Mã mới đạt độ phủ dòng tối thiểu 80% cho lớp `domain` và `application`. Quét bảo mật (SpotBugs + Find Security Bugs, `govulncheck`, `pip-audit`) không có lỗi mức cao. Agent **bắt buộc cập nhật trạng thái task vào tệp theo dõi tiến độ tổng hợp duy nhất `TIEN-DO-HE-THONG.md`** bằng lệnh `python3 scripts/cap-nhat-tien-do.py set <MÃ_TASK> --status "..." --note "..." --agent "..."` (xem `AGENTS.md` quy tắc 12). Báo cáo cuối task theo `AGENTS.md` mục 6, ghi lệnh đã chạy và kết quả thật.
 
 ## 5. Môi trường
 
@@ -35,4 +35,4 @@ Kiểm thử trong phiên đám mây dùng Testcontainers hoặc Docker Compose 
 
 ## Liên quan
 
-- `AGENTS.md`, `docs/KE-HOACH-TONG-THE-HE-THONG.md`, `docs/quy-dinh/HA-TANG.md`
+- `AGENTS.md`, `TIEN-DO-HE-THONG.md`, `docs/KE-HOACH-TONG-THE-HE-THONG.md`, `docs/quy-dinh/HA-TANG.md`

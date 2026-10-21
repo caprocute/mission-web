@@ -1,0 +1,329 @@
+# NEN-022 · ADR-03 · Danh mục nguồn outbox và connector Debezium theo schema.
+#
+# Nguồn:
+#   - TL-03 "Transactional Outbox và Debezium" (L4205–4267: connector mẫu outbox-<db>,
+#     table.include.list, publication pub_outbox, slot dbz_outbox_<db>, dọn bảng outbox
+#     bằng pg_partman p_retention = '3 days', phát lại từ bảng outbox theo dải thời gian)
+#   - TL-03 "Bảng outbox_event" (L768) và chương 2 "Bảng sở hữu dữ liệu"
+#   - TL-01 mục "Outbox" và "Quy ước topic" (L1279–1283)
+#   - TL-04 "Giữ outbox 72 giờ để phát lại sau chuyển vùng" (L2332) và OPS-24 (L3869)
+#   - contracts/events/catalog.yaml (NEN-007)
+#
+# Điểm lệch đã chốt (mục 3 NEN-022):
+#   - TL-01 đặt mỗi schema một connector và một slot; TL-03 chọn một connector cho mỗi CSDL
+#     liệt kê mọi bảng outbox trong table.include.list (vì mỗi slot sao chép logic giải mã
+#     toàn bộ WAL của CSDL). Danh mục này chọn theo TL-03 (connector `outbox-<db>`, slot
+#     `dbz_outbox_<db>`), đồng thời cho phép tách một schema sang CSDL/connector riêng bằng
+#     cách đổi trường `database`, `connector`, `slotName` trên dòng schema đó.
+#   - Thời hạn giữ phân vùng outbox: TL-03 ghi `3 days` (pg_partman), TL-04 ghi `72h`; hai
+#     giá trị tương đương (72 giờ = 3 ngày).
+#
+# Tệp này là đầu vào cho:
+#   - CLI `services-go/outbox-replay` (NEN-022) để kiểm tra bảng nguồn, topic hợp lệ và ACL;
+#   - Bộ sinh tài nguyên `KafkaConnector` trên Strimzi (INF-10);
+#   - Quy trình phát lại sự kiện sau chuyển vùng DR-10 (INF-18) và lệnh `vtctl` (INF-26).
+
+version: 1
+
+defaults:
+  publicationName: pub_outbox
+  heartbeatTable: platform.dbz_heartbeat
+  retentionDays: 3
+  retentionHours: 72
+  partmanRetention: "3 days"
+  eventRouter:
+    keyField: event_key
+    payloadField: payload
+    topicField: topic
+    headerFields:
+      - column: id
+        header: ce_id
+      - column: event_type
+        header: ce_type
+      - column: tenant_id
+        header: ce_tenantid
+      - column: aggregate_version
+        header: aggregate_version
+      - column: schema_version
+        header: apicurio.value.globalId
+      - jsonbKey: traceparent
+        header: traceparent
+      - jsonbKey: classification
+        header: ce_classification
+
+# Các topic kỹ thuật / thông báo có `outbox: "*.outbox_event"` trong catalog.yaml,
+# được phép phát từ mọi bảng `<schema>.outbox_event`.
+wildcardTopics:
+  - notify.message.requested.v1
+  - sys.audit.v1
+  - period.drain.marker
+
+# Các sự kiện / topic kỹ thuật không đi qua outbox PostgreSQL (`outbox: null` trong catalog.yaml).
+nonOutboxTopics:
+  - code: EVT-20
+    topic: analytics.anomaly.detected.v1
+    reason: Producer ClickHouse job đọc bảng anomaly_out, không có outbox PostgreSQL
+  - topic: sys.ledger.append.v1
+    reason: Bộ thu ledger-ingester của SVC-09 chuyển tiếp nội bộ từ topic nghiệp vụ
+  - topic: iam.auth.event.v1
+    reason: Keycloak đẩy trực tiếp qua Event Listener SPI
+  - topic: org.bootstrap.v1
+    reason: Lệnh org-republish của SVC-04 phát trực tiếp trạng thái tổ chức hiện hành
+
+sources:
+  # ============================================================================
+  # 1. CSDL dữ liệu tenant (mission-core MOD-01..MOD-08 + các service dùng chung
+  #    CSDL tenant hoặc tách riêng theo cấu hình triển khai)
+  # ============================================================================
+  - schema: okr
+    outboxTable: okr.outbox_event
+    owner: MOD-01
+    database: tenant_data
+    devDatabase: mission_tenant
+    connector: outbox-${db}
+    slotName: dbz_outbox_${db}
+    cdcRole: cdc_okr
+    events:
+      - EVT-01
+      - EVT-02
+    topics:
+      - okr.objective.approved.v1
+      - okr.keyresult.checkedin.v1
+
+  - schema: task
+    outboxTable: task.outbox_event
+    owner: MOD-02
+    database: tenant_data
+    devDatabase: mission_tenant
+    connector: outbox-${db}
+    slotName: dbz_outbox_${db}
+    cdcRole: cdc_task
+    events:
+      - EVT-03
+      - EVT-04
+      - EVT-05
+      - EVT-06
+    topics:
+      - task.plan.approved.v1
+      - task.task.assigned.v1
+      - task.task.progressed.v1
+      - task.task.statuschanged.v1
+
+  - schema: product
+    outboxTable: product.outbox_event
+    owner: MOD-03
+    database: tenant_data
+    devDatabase: mission_tenant
+    connector: outbox-${db}
+    slotName: dbz_outbox_${db}
+    cdcRole: cdc_product
+    events:
+      - EVT-07
+      - EVT-08
+    topics:
+      - product.evidence.submitted.v1
+      - product.evidence.accepted.v1
+
+  - schema: appraisal
+    outboxTable: appraisal.outbox_event
+    owner: MOD-04
+    database: tenant_data
+    devDatabase: mission_tenant
+    connector: outbox-${db}
+    slotName: dbz_outbox_${db}
+    cdcRole: cdc_appraisal
+    events:
+      - EVT-11
+      - EVT-12
+    topics:
+      - appraisal.profile.stepcompleted.v1
+      - appraisal.rating.decided.v1
+
+  - schema: policy
+    outboxTable: policy.outbox_event
+    owner: MOD-05
+    database: tenant_data
+    devDatabase: mission_tenant
+    connector: outbox-${db}
+    slotName: dbz_outbox_${db}
+    cdcRole: cdc_policy
+    events:
+      - EVT-13
+    topics:
+      - policy.pack.published.v1
+
+  - schema: dossier
+    outboxTable: dossier.outbox_event
+    owner: MOD-06
+    database: tenant_data
+    devDatabase: mission_tenant
+    connector: outbox-${db}
+    slotName: dbz_outbox_${db}
+    cdcRole: cdc_dossier
+    events: []
+    topics: []
+
+  - schema: oversight
+    outboxTable: oversight.outbox_event
+    owner: MOD-07
+    database: tenant_data
+    devDatabase: mission_tenant
+    connector: outbox-${db}
+    slotName: dbz_outbox_${db}
+    cdcRole: cdc_oversight
+    events:
+      - EVT-22
+      - EVT-25
+    topics:
+      - oversight.period.reopened.v1
+      - oversight.complaint.filed.v1
+
+  - schema: config
+    outboxTable: config.outbox_event
+    owner: MOD-08
+    database: tenant_data
+    devDatabase: mission_tenant
+    connector: outbox-${db}
+    slotName: dbz_outbox_${db}
+    cdcRole: cdc_config
+    events:
+      - EVT-09
+      - EVT-23
+      - EVT-26
+    topics:
+      - config.period.locked.v1
+      - config.uipack.published.v1
+      - config.period.unlocked.v1
+
+  - schema: scoring
+    outboxTable: scoring.outbox_event
+    owner: SVC-07
+    database: tenant_data
+    devDatabase: mission_tenant
+    connector: outbox-${db}
+    slotName: dbz_outbox_${db}
+    cdcRole: cdc_scoring
+    events:
+      - EVT-10
+    topics:
+      - scoring.score.computed.v1
+
+  - schema: org_replica
+    outboxTable: org_replica.outbox_event
+    owner: MOD-*
+    database: tenant_data
+    devDatabase: mission_tenant
+    connector: outbox-${db}
+    slotName: dbz_outbox_${db}
+    cdcRole: cdc_org_replica
+    events: []
+    topics: []
+
+  - schema: docgen
+    outboxTable: docgen.outbox_event
+    owner: SVC-11
+    database: tenant_data
+    devDatabase: mission_tenant
+    connector: outbox-${db}
+    slotName: dbz_outbox_${db}
+    cdcRole: cdc_docgen
+    events:
+      - EVT-17
+    topics:
+      - dossier.form.generated.v1
+
+  - schema: notify
+    outboxTable: notify.outbox_event
+    owner: SVC-12
+    database: tenant_data
+    devDatabase: mission_tenant
+    connector: outbox-${db}
+    slotName: dbz_outbox_${db}
+    cdcRole: cdc_notify
+    events: []
+    topics: []
+
+  - schema: integ
+    outboxTable: integ.outbox_event
+    owner: SVC-13
+    database: tenant_data
+    devDatabase: mission_tenant
+    connector: outbox-${db}
+    slotName: dbz_outbox_${db}
+    cdcRole: cdc_integ
+    events:
+      - EVT-24
+    topics:
+      - integ.document.received.v1
+
+  # ============================================================================
+  # 2. Các microservice có CSDL/connector độc lập (hoặc chạy chung mission_tenant
+  #    ở môi trường dev nhưng tách connector riêng khi triển khai độc lập)
+  # ============================================================================
+  - schema: org
+    outboxTable: org.outbox_event
+    owner: SVC-04
+    database: org
+    devDatabase: mission_tenant
+    connector: outbox-org
+    slotName: dbz_outbox_org
+    cdcRole: cdc_org
+    events:
+      - EVT-14
+      - EVT-15
+      - EVT-16
+    topics:
+      - org.unit.changed.v1
+      - org.assignment.changed.v1
+      - org.person.changed.v1
+
+  - schema: evidence
+    outboxTable: evidence.outbox_event
+    owner: SVC-08
+    database: evidence
+    devDatabase: mission_tenant
+    connector: outbox-evidence
+    slotName: dbz_outbox_evidence
+    cdcRole: cdc_evidence
+    events: []
+    topics:
+      - sys.evidence.object.stored.v1
+
+  - schema: esign
+    outboxTable: esign.outbox_event
+    owner: SVC-10
+    database: esign
+    devDatabase: mission_tenant
+    connector: outbox-esign
+    slotName: dbz_outbox_esign
+    cdcRole: cdc_esign
+    events:
+      - EVT-18
+    topics:
+      - esign.signature.completed.v1
+
+  - schema: ledger
+    outboxTable: ledger.outbox_event
+    owner: SVC-09
+    database: ledger
+    devDatabase: mission_ledger
+    connector: outbox-ledger
+    slotName: dbz_outbox_ledger
+    cdcRole: cdc_ledger
+    events:
+      - EVT-19
+    topics:
+      - ledger.seal.created.v1
+
+  - schema: registry
+    outboxTable: registry.outbox_event
+    owner: SVC-03
+    database: registry
+    devDatabase: mission_registry
+    connector: outbox-registry
+    slotName: dbz_outbox_registry
+    cdcRole: cdc_registry
+    events: []
+    topics:
+      - sys.tenant.provisioned.v1
+      - registry.tenant.changed.v1

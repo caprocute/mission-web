@@ -3,14 +3,14 @@
   "form_code": "MAU_1C",
   "ten_mau": "Mẫu 1C",
   "mo_ta": "Bản kiểm điểm cá nhân; đối tượng áp dụng chờ đối chiếu bản mẫu chính thức.",
-  "trang_thai": "KHUNG_CHO_BAN_MAU",
-  "template_version": "0.1.0-khung",
+  "trang_thai": "GIA_LAP",
+  "template_version": "0.9.0-gia-lap",
   "tep_mau": "mau-1c.docx",
   "ban_chinh_thuc": {
     "so_hieu_van_ban": null,
     "ngay_ban_hanh": null,
     "co_quan_ban_hanh": null,
-    "ghi_chu": "Chờ người dùng cung cấp bản mẫu chính thức."
+    "ghi_chu": "Mẫu giả lập theo quyết định ngày 20/10/2026 (YC-PT-14): dựng đủ vùng trộn để phát triển và kiểm thử, không phải bố cục văn bản pháp lý. Khi có bản chính thức, thay tệp DOCX, điền số hiệu, nâng phiên bản và phát hành Policy Pack mới."
   },
   "doi_tuong": "CA_NHAN",
   "luong": [

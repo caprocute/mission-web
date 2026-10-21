@@ -16,8 +16,8 @@ Có năm loại môi trường theo TL-05: dev dùng chung (Docker Compose `miss
 
 ## 4. Tiêu chí hoàn thành mặc định
 
-Chart dựng được bằng `helm lint` và `helm template` không lỗi, cài được lên kind/k3d trong kiểm thử, các pod sẵn sàng, kiểm tra sức khoẻ qua. Thay đổi Terraform/OpenTofu (nếu có) phải `plan` sạch. Runbook vận hành viết bằng tiếng Việt, có bước kiểm chứng và bước quay lui. Báo cáo theo `AGENTS.md` mục 6.
+Chart dựng được bằng `helm lint` và `helm template` không lỗi, cài được lên kind/k3d trong kiểm thử, các pod sẵn sàng, kiểm tra sức khoẻ qua. Thay đổi Terraform/OpenTofu (nếu có) phải `plan` sạch. Runbook vận hành viết bằng tiếng Việt, có bước kiểm chứng và bước quay lui. Agent **bắt buộc cập nhật trạng thái task vào tệp theo dõi tiến độ tổng hợp duy nhất `TIEN-DO-HE-THONG.md`** bằng lệnh `python3 scripts/cap-nhat-tien-do.py set <MÃ_TASK> ...` (xem `AGENTS.md` quy tắc 12). Báo cáo theo `AGENTS.md` mục 6.
 
 ## Liên quan
 
-- `AGENTS.md`, `docs/quy-dinh/BACKEND.md`, `docs/KE-HOACH-TONG-THE-HE-THONG.md`, `wiki/12-ha-tang-dev-va-trien-khai.md`
+- `AGENTS.md`, `TIEN-DO-HE-THONG.md`, `docs/quy-dinh/BACKEND.md`, `docs/KE-HOACH-TONG-THE-HE-THONG.md`, `wiki/12-ha-tang-dev-va-trien-khai.md`

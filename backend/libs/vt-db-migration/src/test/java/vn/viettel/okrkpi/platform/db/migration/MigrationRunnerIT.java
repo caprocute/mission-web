@@ -7,11 +7,17 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
+import vn.viettel.okrkpi.platform.db.migration.bootstrap.DatabaseBootstrap;
+import vn.viettel.okrkpi.platform.db.migration.bootstrap.RoleBootstrapPlan;
+import vn.viettel.okrkpi.platform.db.migration.bootstrap.RoleLimits;
 
 /**
  * MigrationRunner trên hai CSDL: CSDL thứ hai có migration lỗi thì CSDL thứ nhất vẫn hoàn tất, mã
@@ -20,8 +26,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
  */
 class MigrationRunnerIT {
 
-  private static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>(MigrationConventionsTest.POSTGRES_IMAGE).withDatabaseName("td_mot");
+  private static final PostgreSQLContainer<?> POSTGRES = TestPostgres.container("td_mot");
 
   private static final String MIG_PASSWORD = "mat-khau-thu-nghiem";
 
@@ -30,13 +35,17 @@ class MigrationRunnerIT {
     POSTGRES.start();
     try (Connection admin = adminConnection("td_mot");
         Statement st = admin.createStatement()) {
-      st.execute("CREATE ROLE mig_runner_ok LOGIN PASSWORD '" + MIG_PASSWORD + "'");
       st.execute("CREATE DATABASE td_hai");
     }
+    // Vai trò và schema tạo bằng bootstrap như môi trường thật (vai trò dùng chung toàn cụm).
+    Map<String, String> env = new HashMap<>();
+    for (String role : RoleBootstrapPlan.roles("runner_ok")) {
+      env.put(role.toUpperCase(Locale.ROOT) + "_PASSWORD", MIG_PASSWORD);
+    }
+    DatabaseBootstrap bootstrap = new DatabaseBootstrap(RoleLimits.load(), env);
     for (String db : List.of("td_mot", "td_hai")) {
-      try (Connection admin = adminConnection(db);
-          Statement st = admin.createStatement()) {
-        st.execute("CREATE SCHEMA runner_ok AUTHORIZATION mig_runner_ok");
+      try (Connection admin = adminConnection(db)) {
+        bootstrap.applySchemas(admin, List.of("runner_ok"));
       }
     }
     // CSDL thứ hai đã có sẵn bảng trùng tên nên migration V1 thất bại.
@@ -74,8 +83,8 @@ class MigrationRunnerIT {
     assertThat(outcomes.get(0).success()).isFalse();
     assertThat(outcomes.get(0).error()).contains("runner_ok");
     assertThat(outcomes.get(1).success()).isTrue();
-    // V0_1, V0_2 dùng chung (db/common) + V1 của schema.
-    assertThat(outcomes.get(1).appliedMigrations()).isEqualTo(3);
+    // V0_1..V0_3 (db/common), V0_20..V0_23 (db/common-business) + V1 của schema.
+    assertThat(outcomes.get(1).appliedMigrations()).isEqualTo(8);
     assertThat(MigrationRunner.exitCode(outcomes)).isEqualTo(1);
 
     try (Connection c = adminConnection("td_mot");

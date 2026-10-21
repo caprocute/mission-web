@@ -1,0 +1,808 @@
+suite: mission-cel-golden
+version: "1.0.0"
+description: >
+  Bộ kiểm thử chuẩn (Golden Test Suite) dùng chung cho cel-java (backend/libs/vt-cel)
+  và cel-js (frontend/projects/form-engine) theo TL-01 §4.3, TL-02 BR-021..028 và ADR-10.
+calendar:
+  holidays:
+    - "2026-01-01"
+    - "2026-02-16"
+    - "2026-02-17"
+    - "2026-02-18"
+    - "2026-02-19"
+    - "2026-02-20"
+    - "2026-04-27"
+    - "2026-04-30"
+    - "2026-05-01"
+    - "2026-09-02"
+    - "2026-09-03"
+  compensatoryWorkingDays:
+    - "2026-02-14"
+    - "2026-04-25"
+    - "2026-08-29"
+
+cases:
+  # ============================================================================
+  # NHÓM 1: CÔNG THỨC TÍNH ĐIỂM & QUY ĐỔI OKR/KPI (TL-02 BR-021..028) & sum(list)
+  # ============================================================================
+  - id: G-CEL-001
+    category: scoring_formula
+    description: Tỷ lệ hoàn thành mục tiêu chuẩn (ket_qua / muc_tieu) * 100
+    expression: "(ket_qua / muc_tieu) * 100.0"
+    returnType: DOUBLE
+    variableTypes:
+      ket_qua: DOUBLE
+      muc_tieu: DOUBLE
+    inputs:
+      ket_qua: 85.0
+      muc_tieu: 100.0
+    expected: 85.0
+
+  - id: G-CEL-002
+    category: scoring_formula
+    description: Điểm tổng hợp có trọng số giữa chuyên môn (70%) và tiêu chí chung (30%)
+    expression: "diem_chuyen_mon * 0.7 + diem_chung * 0.3"
+    returnType: DOUBLE
+    variableTypes:
+      diem_chuyen_mon: DOUBLE
+      diem_chung: DOUBLE
+    inputs:
+      diem_chuyen_mon: 90.0
+      diem_chung: 80.0
+    expected: 87.0
+
+  - id: G-CEL-003
+    category: scoring_formula
+    description: Áp trần điểm nhiệm vụ tối đa 100 khi vượt chỉ tiêu
+    expression: "diem_thuc_te > 100.0 ? 100.0 : diem_thuc_te"
+    returnType: DOUBLE
+    variableTypes:
+      diem_thuc_te: DOUBLE
+    inputs:
+      diem_thuc_te: 112.5
+    expected: 100.0
+
+  - id: G-CEL-004
+    category: scoring_formula
+    description: Hàm sum(list) tính tổng điểm danh sách nhiệm vụ thành phần
+    expression: "sum(ds_diem)"
+    returnType: DOUBLE
+    variableTypes:
+      ds_diem: LIST_DOUBLE
+    inputs:
+      ds_diem: [25.5, 30.25, 14.25, 20.0]
+    expected: 90.0
+
+  - id: G-CEL-005
+    category: scoring_formula
+    description: Hàm sum(list) trên danh sách rỗng trả về 0.0
+    expression: "sum(ds_diem)"
+    returnType: DOUBLE
+    variableTypes:
+      ds_diem: LIST_DOUBLE
+    inputs:
+      ds_diem: []
+    expected: 0.0
+
+  - id: G-CEL-006
+    category: scoring_formula
+    description: Hàm sum(list) kết hợp cộng điểm thưởng sáng kiến
+    expression: "sum(ds_diem) + diem_thuong"
+    returnType: DOUBLE
+    variableTypes:
+      ds_diem: LIST_DOUBLE
+      diem_thuong: DOUBLE
+    inputs:
+      ds_diem: [20.0, 30.0, 25.0]
+      diem_thuong: 5.5
+    expected: 80.5
+
+  - id: G-CEL-007
+    category: scoring_formula
+    description: Hàm sum(list) dùng BigDecimal tránh sai số dấu phẩy động IEEE-754 (0.1 + 0.2 + 0.3)
+    expression: "sum(ds_diem)"
+    returnType: DOUBLE
+    variableTypes:
+      ds_diem: LIST_DOUBLE
+    inputs:
+      ds_diem: [0.1, 0.2, 0.3]
+    rounding:
+      scale: 2
+      mode: NUA_LEN
+    expected: 0.6
+
+  - id: G-CEL-008
+    category: scoring_formula
+    description: Cộng điểm thưởng có điều kiện khi có sáng kiến được công nhận
+    expression: "co_sang_kien ? (diem_goc + 5.0) : diem_goc"
+    returnType: DOUBLE
+    variableTypes:
+      co_sang_kien: BOOL
+      diem_goc: DOUBLE
+    inputs:
+      co_sang_kien: true
+      diem_goc: 88.0
+    expected: 93.0
+
+  - id: G-CEL-009
+    category: scoring_formula
+    description: Trừ điểm khi có nhiệm vụ trễ hạn theo hệ số phạt
+    expression: "diem_goc - so_lan_tre * 2.5"
+    returnType: DOUBLE
+    variableTypes:
+      diem_goc: DOUBLE
+      so_lan_tre: DOUBLE
+    inputs:
+      diem_goc: 95.0
+      so_lan_tre: 2.0
+    expected: 90.0
+
+  - id: G-CEL-010
+    category: scoring_formula
+    description: Công thức tổng hợp 3 nhóm tiêu chí theo Quy định 366-QĐ/TW
+    expression: "diem_chinh_tri * 0.2 + diem_chuyen_mon * 0.6 + diem_pham_chat * 0.2"
+    returnType: DOUBLE
+    variableTypes:
+      diem_chinh_tri: DOUBLE
+      diem_chuyen_mon: DOUBLE
+      diem_pham_chat: DOUBLE
+    inputs:
+      diem_chinh_tri: 95.0
+      diem_chuyen_mon: 88.0
+      diem_pham_chat: 91.0
+    rounding:
+      scale: 2
+      mode: NUA_LEN
+    expected: 90.0
+
+  # ============================================================================
+  # NHÓM 2: CÁC CA BIÊN LÀM TRÒN 59.995 VÀ 89.995 (NUA_LEN / HALF_UP vs CAT_BO / DOWN)
+  # ============================================================================
+  - id: G-CEL-011
+    category: boundary_rounding
+    description: Ca biên 59.995 với chế độ làm tròn NUA_LEN (HALF_UP) lên 60.00 (đạt HTNV)
+    expression: "diem_thanh_phan_1 + diem_thanh_phan_2"
+    returnType: DOUBLE
+    variableTypes:
+      diem_thanh_phan_1: DOUBLE
+      diem_thanh_phan_2: DOUBLE
+    inputs:
+      diem_thanh_phan_1: 30.0
+      diem_thanh_phan_2: 29.995
+    rounding:
+      scale: 2
+      mode: NUA_LEN
+    expected: 60.0
+
+  - id: G-CEL-012
+    category: boundary_rounding
+    description: Ca biên 59.995 với chế độ làm tròn CAT_BO (DOWN) giữ 59.99 (dưới ngưỡng HTNV)
+    expression: "diem_thanh_phan_1 + diem_thanh_phan_2"
+    returnType: DOUBLE
+    variableTypes:
+      diem_thanh_phan_1: DOUBLE
+      diem_thanh_phan_2: DOUBLE
+    inputs:
+      diem_thanh_phan_1: 30.0
+      diem_thanh_phan_2: 29.995
+    rounding:
+      scale: 2
+      mode: CAT_BO
+    expected: 59.99
+
+  - id: G-CEL-013
+    category: boundary_rounding
+    description: Ca biên 89.995 với chế độ làm tròn NUA_LEN (HALF_UP) lên 90.00 (đạt HTXSNV)
+    expression: "diem_thanh_phan_1 + diem_thanh_phan_2"
+    returnType: DOUBLE
+    variableTypes:
+      diem_thanh_phan_1: DOUBLE
+      diem_thanh_phan_2: DOUBLE
+    inputs:
+      diem_thanh_phan_1: 60.0
+      diem_thanh_phan_2: 29.995
+    rounding:
+      scale: 2
+      mode: NUA_LEN
+    expected: 90.0
+
+  - id: G-CEL-014
+    category: boundary_rounding
+    description: Ca biên 89.995 với chế độ làm tròn CAT_BO (DOWN) giữ 89.99 (dưới ngưỡng HTXSNV)
+    expression: "diem_thanh_phan_1 + diem_thanh_phan_2"
+    returnType: DOUBLE
+    variableTypes:
+      diem_thanh_phan_1: DOUBLE
+      diem_thanh_phan_2: DOUBLE
+    inputs:
+      diem_thanh_phan_1: 60.0
+      diem_thanh_phan_2: 29.995
+    rounding:
+      scale: 2
+      mode: CAT_BO
+    expected: 89.99
+
+  - id: G-CEL-015
+    category: boundary_rounding
+    description: Ca biên 79.995 với chế độ làm tròn HALF_UP lên 80.00 (đạt HTTNV)
+    expression: "diem_goc * 1.0"
+    returnType: DOUBLE
+    variableTypes:
+      diem_goc: DOUBLE
+    inputs:
+      diem_goc: 79.995
+    rounding:
+      scale: 2
+      mode: HALF_UP
+    expected: 80.0
+
+  - id: G-CEL-016
+    category: boundary_rounding
+    description: Ca biên 79.995 với chế độ làm tròn DOWN giữ 79.99 (dưới ngưỡng HTTNV)
+    expression: "diem_goc * 1.0"
+    returnType: DOUBLE
+    variableTypes:
+      diem_goc: DOUBLE
+    inputs:
+      diem_goc: 79.995
+    rounding:
+      scale: 2
+      mode: DOWN
+    expected: 79.99
+
+  # ============================================================================
+  # NHÓM 3: MA TRẬN 4x4 HÀM min_muc(a, b) THEO THỨ TỰ KHTNV < HTNV < HTTNV < HTXSNV
+  # ============================================================================
+  - id: G-CEL-017
+    category: min_muc_matrix
+    description: min_muc(KHTNV, KHTNV) -> KHTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "KHTNV"
+      muc_b: "KHTNV"
+    expected: "KHTNV"
+
+  - id: G-CEL-018
+    category: min_muc_matrix
+    description: min_muc(KHTNV, HTNV) -> KHTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "KHTNV"
+      muc_b: "HTNV"
+    expected: "KHTNV"
+
+  - id: G-CEL-019
+    category: min_muc_matrix
+    description: min_muc(KHTNV, HTTNV) -> KHTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "KHTNV"
+      muc_b: "HTTNV"
+    expected: "KHTNV"
+
+  - id: G-CEL-020
+    category: min_muc_matrix
+    description: min_muc(KHTNV, HTXSNV) -> KHTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "KHTNV"
+      muc_b: "HTXSNV"
+    expected: "KHTNV"
+
+  - id: G-CEL-021
+    category: min_muc_matrix
+    description: min_muc(HTNV, KHTNV) -> KHTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "HTNV"
+      muc_b: "KHTNV"
+    expected: "KHTNV"
+
+  - id: G-CEL-022
+    category: min_muc_matrix
+    description: min_muc(HTNV, HTNV) -> HTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "HTNV"
+      muc_b: "HTNV"
+    expected: "HTNV"
+
+  - id: G-CEL-023
+    category: min_muc_matrix
+    description: min_muc(HTNV, HTTNV) -> HTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "HTNV"
+      muc_b: "HTTNV"
+    expected: "HTNV"
+
+  - id: G-CEL-024
+    category: min_muc_matrix
+    description: min_muc(HTNV, HTXSNV) -> HTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "HTNV"
+      muc_b: "HTXSNV"
+    expected: "HTNV"
+
+  - id: G-CEL-025
+    category: min_muc_matrix
+    description: min_muc(HTTNV, KHTNV) -> KHTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "HTTNV"
+      muc_b: "KHTNV"
+    expected: "KHTNV"
+
+  - id: G-CEL-026
+    category: min_muc_matrix
+    description: min_muc(HTTNV, HTNV) -> HTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "HTTNV"
+      muc_b: "HTNV"
+    expected: "HTNV"
+
+  - id: G-CEL-027
+    category: min_muc_matrix
+    description: min_muc(HTTNV, HTTNV) -> HTTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "HTTNV"
+      muc_b: "HTTNV"
+    expected: "HTTNV"
+
+  - id: G-CEL-028
+    category: min_muc_matrix
+    description: min_muc(HTTNV, HTXSNV) -> HTTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "HTTNV"
+      muc_b: "HTXSNV"
+    expected: "HTTNV"
+
+  - id: G-CEL-029
+    category: min_muc_matrix
+    description: min_muc(HTXSNV, KHTNV) -> KHTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "HTXSNV"
+      muc_b: "KHTNV"
+    expected: "KHTNV"
+
+  - id: G-CEL-030
+    category: min_muc_matrix
+    description: min_muc(HTXSNV, HTNV) -> HTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "HTXSNV"
+      muc_b: "HTNV"
+    expected: "HTNV"
+
+  - id: G-CEL-031
+    category: min_muc_matrix
+    description: min_muc(HTXSNV, HTTNV) -> HTTNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "HTXSNV"
+      muc_b: "HTTNV"
+    expected: "HTTNV"
+
+  - id: G-CEL-032
+    category: min_muc_matrix
+    description: min_muc(HTXSNV, HTXSNV) -> HTXSNV
+    expression: "min_muc(muc_a, muc_b)"
+    returnType: STRING
+    variableTypes:
+      muc_a: STRING
+      muc_b: STRING
+    inputs:
+      muc_a: "HTXSNV"
+      muc_b: "HTXSNV"
+    expected: "HTXSNV"
+
+  - id: G-CEL-033
+    category: min_muc_matrix
+    description: min_muc hỗ trợ mã đầy đủ HOAN_THANH_TOT và HOAN_THANH_XUAT_SAC
+    expression: "min_muc(muc_don_vi, muc_ca_nhan)"
+    returnType: STRING
+    variableTypes:
+      muc_don_vi: STRING
+      muc_ca_nhan: STRING
+    inputs:
+      muc_don_vi: "HOAN_THANH_TOT"
+      muc_ca_nhan: "HOAN_THANH_XUAT_SAC"
+    expected: "HOAN_THANH_TOT"
+
+  - id: G-CEL-034
+    category: min_muc_matrix
+    description: min_muc lồng nhau kết hợp 3 điều kiện cần và đủ
+    expression: "min_muc(min_muc(muc_diem, muc_tu_danh_gia), muc_tran_don_vi)"
+    returnType: STRING
+    variableTypes:
+      muc_diem: STRING
+      muc_tu_danh_gia: STRING
+      muc_tran_don_vi: STRING
+    inputs:
+      muc_diem: "HTXSNV"
+      muc_tu_danh_gia: "HTTNV"
+      muc_tran_don_vi: "HTNV"
+    expected: "HTNV"
+
+  # ============================================================================
+  # NHÓM 4: HÀM ngay_lam_viec(tu, den) VÀ workdays(tu, den) QUA CUỐI TUẦN & LỄ
+  # ============================================================================
+  - id: G-CEL-035
+    category: working_calendar
+    description: Số ngày làm việc trong tuần thường (thứ Hai 2026-03-02 đến thứ Sáu 2026-03-06)
+    expression: "ngay_lam_viec(tu_ngay, den_ngay)"
+    returnType: INT
+    variableTypes:
+      tu_ngay: STRING
+      den_ngay: STRING
+    inputs:
+      tu_ngay: "2026-03-02"
+      den_ngay: "2026-03-06"
+    expected: 4
+
+  - id: G-CEL-036
+    category: working_calendar
+    description: Số ngày làm việc qua cuối tuần (thứ Sáu 2026-03-06 đến thứ Hai 2026-03-09)
+    expression: "ngay_lam_viec(tu_ngay, den_ngay)"
+    returnType: INT
+    variableTypes:
+      tu_ngay: STRING
+      den_ngay: STRING
+    inputs:
+      tu_ngay: "2026-03-06"
+      den_ngay: "2026-03-09"
+    expected: 1
+
+  - id: G-CEL-037
+    category: working_calendar
+    description: Số ngày làm việc qua Tết Dương lịch 2026-01-01 (thứ Năm nghỉ lễ)
+    expression: "ngay_lam_viec(tu_ngay, den_ngay)"
+    returnType: INT
+    variableTypes:
+      tu_ngay: STRING
+      den_ngay: STRING
+    inputs:
+      tu_ngay: "2025-12-31"
+      den_ngay: "2026-01-02"
+    expected: 1
+
+  - id: G-CEL-038
+    category: working_calendar
+    description: Số ngày làm việc qua đợt lễ 30/4 - 1/5 và Giỗ Tổ (có thứ Bảy làm bù 2026-04-25)
+    expression: "ngay_lam_viec(tu_ngay, den_ngay)"
+    returnType: INT
+    variableTypes:
+      tu_ngay: STRING
+      den_ngay: STRING
+    inputs:
+      tu_ngay: "2026-04-24"
+      den_ngay: "2026-05-04"
+    expected: 4
+
+  - id: G-CEL-039
+    category: working_calendar
+    description: Số ngày làm việc qua lễ Quốc khánh 2/9 (có thứ Bảy làm bù 2026-08-29)
+    expression: "ngay_lam_viec(tu_ngay, den_ngay)"
+    returnType: INT
+    variableTypes:
+      tu_ngay: STRING
+      den_ngay: STRING
+    inputs:
+      tu_ngay: "2026-08-28"
+      den_ngay: "2026-09-04"
+    expected: 4
+
+  - id: G-CEL-040
+    category: working_calendar
+    description: Số ngày làm việc khi ngày bắt đầu trùng ngày kết thúc bằng 0
+    expression: "ngay_lam_viec(tu_ngay, den_ngay)"
+    returnType: INT
+    variableTypes:
+      tu_ngay: STRING
+      den_ngay: STRING
+    inputs:
+      tu_ngay: "2026-03-10"
+      den_ngay: "2026-03-10"
+    expected: 0
+
+  - id: G-CEL-041
+    category: working_calendar
+    description: Số ngày làm việc khi ngày kết thúc nhỏ hơn ngày bắt đầu bằng 0
+    expression: "ngay_lam_viec(tu_ngay, den_ngay)"
+    returnType: INT
+    variableTypes:
+      tu_ngay: STRING
+      den_ngay: STRING
+    inputs:
+      tu_ngay: "2026-03-10"
+      den_ngay: "2026-03-05"
+    expected: 0
+
+  - id: G-CEL-042
+    category: working_calendar
+    description: Bí danh workdays(tu, den) kiểm tra hạn nộp phiếu tự đánh giá Mẫu 1B
+    expression: "workdays(ngay_mo_phieu, ngay_nop) <= han_ngay_lam_viec"
+    returnType: BOOL
+    variableTypes:
+      ngay_mo_phieu: STRING
+      ngay_nop: STRING
+      han_ngay_lam_viec: INT
+    inputs:
+      ngay_mo_phieu: "2026-03-02"
+      ngay_nop: "2026-03-06"
+      han_ngay_lam_viec: 3
+    expected: false
+
+  # ============================================================================
+  # NHÓM 5: BIỂU THỨC SDUI visibleWhen & RÀNG BUỘC BIỂU MẪU (TL-01, TL-02)
+  # ============================================================================
+  - id: G-CEL-043
+    category: sdui_and_validation
+    description: SDUI visibleWhen hiện trường giải pháp đột phá khi tự đề xuất HTXSNV
+    expression: "mucTuDeXuat == 'HTXSNV'"
+    returnType: BOOL
+    variableTypes:
+      mucTuDeXuat: STRING
+    inputs:
+      mucTuDeXuat: "HTXSNV"
+    expected: true
+
+  - id: G-CEL-044
+    category: sdui_and_validation
+    description: SDUI visibleWhen hiện trường giải trình khi mức tự đề xuất khác mức tham khảo
+    expression: "mucTuDeXuat != '' && mucTuDeXuat != mucThamKhao"
+    returnType: BOOL
+    variableTypes:
+      mucTuDeXuat: STRING
+      mucThamKhao: STRING
+    inputs:
+      mucTuDeXuat: "HTXSNV"
+      mucThamKhao: "HTTNV"
+    expected: true
+
+  - id: G-CEL-045
+    category: sdui_and_validation
+    description: Quy tắc R-1B-02 vi phạm khi đề xuất HTXSNV nhưng giải pháp đột phá dưới 50 ký tự
+    expression: "mucTuDeXuat == 'HTXSNV' ? size(giaiPhapDotPha) >= 50 : true"
+    returnType: BOOL
+    variableTypes:
+      mucTuDeXuat: STRING
+      giaiPhapDotPha: STRING
+    inputs:
+      mucTuDeXuat: "HTXSNV"
+      giaiPhapDotPha: "Giải pháp còn quá ngắn."
+    expected: false
+
+  - id: G-CEL-046
+    category: sdui_and_validation
+    description: Quy tắc R-1B-02 đạt khi giải pháp đột phá đủ từ 50 ký tự trở lên
+    expression: "mucTuDeXuat == 'HTXSNV' ? size(giaiPhapDotPha) >= 50 : true"
+    returnType: BOOL
+    variableTypes:
+      mucTuDeXuat: STRING
+      giaiPhapDotPha: STRING
+    inputs:
+      mucTuDeXuat: "HTXSNV"
+      giaiPhapDotPha: "Triển khai tự động hóa quy trình thẩm định hồ sơ giúp giảm 45% thời gian xử lý tại đơn vị."
+    expected: true
+
+  - id: G-CEL-047
+    category: sdui_and_validation
+    description: Macro all() kiểm tra toàn bộ tiêu chí chung đều đạt
+    expression: "ds_tieu_chi_chung.all(tc, tc == true)"
+    returnType: BOOL
+    variableTypes:
+      ds_tieu_chi_chung: LIST_DYN
+    inputs:
+      ds_tieu_chi_chung: [true, true, true, true, true]
+    expected: true
+
+  - id: G-CEL-048
+    category: sdui_and_validation
+    description: Macro exists() phát hiện có ít nhất một nhiệm vụ trễ hạn
+    expression: "ds_so_ngay_tre.exists(d, d > 0)"
+    returnType: BOOL
+    variableTypes:
+      ds_so_ngay_tre: LIST_INT
+    inputs:
+      ds_so_ngay_tre: [0, 0, 3, 0]
+    expected: true
+
+  - id: G-CEL-049
+    category: sdui_and_validation
+    description: Macro filter() kết hợp size() đếm số nhiệm vụ đạt từ 90 điểm trở lên
+    expression: "size(ds_diem.filter(d, d >= 90.0)) >= 2"
+    returnType: BOOL
+    variableTypes:
+      ds_diem: LIST_DOUBLE
+    inputs:
+      ds_diem: [92.5, 84.0, 95.0, 78.0]
+    expected: true
+
+  - id: G-CEL-050
+    category: sdui_and_validation
+    description: Macro has() kiểm tra trường minh chứng tùy chọn trong đối tượng formData
+    expression: "has(formData.minhChungUrl) && size(formData.minhChungUrl) > 0"
+    returnType: BOOL
+    variableTypes:
+      formData: MAP_STRING_DYN
+    inputs:
+      formData:
+        minhChungUrl: "https://minio.mission.local/evidence/mc-001.pdf"
+    expected: true
+
+  - id: G-CEL-051
+    category: sdui_and_validation
+    description: Toán tử in kiểm tra mã khối đối tượng nằm trong tập hợp cho phép
+    expression: "khoi_doi_tuong in ['LANH_DAO_QUAN_LY', 'CHUYEN_MON_NGHIEP_VU']"
+    returnType: BOOL
+    variableTypes:
+      khoi_doi_tuong: STRING
+    inputs:
+      khoi_doi_tuong: "LANH_DAO_QUAN_LY"
+    expected: true
+
+  - id: G-CEL-052
+    category: sdui_and_validation
+    description: Kết hợp macro map() và hàm sum() tính tổng điểm quy đổi theo hệ số 0.5
+    expression: "sum(ds_diem.map(x, x * 0.5))"
+    returnType: DOUBLE
+    variableTypes:
+      ds_diem: LIST_DOUBLE
+    inputs:
+      ds_diem: [80.0, 90.0, 100.0]
+    expected: 135.0
+
+  # ============================================================================
+  # NHÓM 6: CA THIẾU BIẾN & LỖI KIỂM KIỂU TĨNH / SANDBOX (KHÔNG TRẢ NaN/null ÂM THẦM)
+  # ============================================================================
+  - id: G-CEL-053
+    category: error_handling
+    description: Báo lỗi rõ khi thiếu biến đầu vào bắt buộc lúc thực thi
+    expression: "diem_chuyen_mon * 0.7 + diem_chung * 0.3"
+    returnType: DOUBLE
+    variableTypes:
+      diem_chuyen_mon: DOUBLE
+      diem_chung: DOUBLE
+    inputs:
+      diem_chuyen_mon: 90.0
+    expectedError: "POLICY-422-CEL-MISSING-VAR"
+
+  - id: G-CEL-054
+    category: error_handling
+    description: Báo lỗi rõ khi biến đầu vào có giá trị null lúc thực thi
+    expression: "diem_chuyen_mon * 0.7 + diem_chung * 0.3"
+    returnType: DOUBLE
+    variableTypes:
+      diem_chuyen_mon: DOUBLE
+      diem_chung: DOUBLE
+    inputs:
+      diem_chuyen_mon: 90.0
+      diem_chung: null
+    expectedError: "POLICY-422-CEL-MISSING-VAR"
+
+  - id: G-CEL-055
+    category: error_handling
+    description: Báo lỗi rõ khi truy cập thuộc tính không tồn tại trong map mà không dùng has()
+    expression: "formData.truongKhongTonTai == 'CO_SO'"
+    returnType: BOOL
+    variableTypes:
+      formData: MAP_STRING_DYN
+    inputs:
+      formData:
+        loaiDonVi: "CO_SO"
+    expectedError: "POLICY-422-CEL-MISSING-VAR"
+
+  - id: G-CEL-056
+    category: error_handling
+    description: Từ chối biểu thức cộng số với chuỗi (1 + 'a') với mã lỗi POLICY-422-CEL-TYPE
+    expression: "1 + 'a'"
+    returnType: DOUBLE
+    variableTypes: {}
+    inputs: {}
+    expectedError: "POLICY-422-CEL-TYPE"
+
+  - id: G-CEL-057
+    category: error_handling
+    description: Từ chối gọi sum(['a', 'b']) với danh sách chuỗi với mã lỗi POLICY-422-CEL-TYPE
+    expression: "sum(['a', 'b'])"
+    returnType: DOUBLE
+    variableTypes: {}
+    inputs: {}
+    expectedError: "POLICY-422-CEL-TYPE"
+
+  - id: G-CEL-058
+    category: error_handling
+    description: Từ chối biến không khai báo trong schema kỳ đánh giá với mã lỗi POLICY-422-CEL-TYPE
+    expression: "bien_chua_khai_bao * 2.0"
+    returnType: DOUBLE
+    variableTypes:
+      diem_goc: DOUBLE
+    inputs:
+      diem_goc: 80.0
+    expectedError: "POLICY-422-CEL-TYPE"
+
+  - id: G-CEL-059
+    category: error_handling
+    description: Từ chối hàm không được phép now() để bảo đảm tính tất định
+    expression: "now()"
+    returnType: STRING
+    variableTypes: {}
+    inputs: {}
+    expectedError: "POLICY-422-CEL-TYPE"
+
+  - id: G-CEL-060
+    category: error_handling
+    description: Từ chối biểu thức trả về số khi mong đợi kiểu logic BOOL
+    expression: "ket_qua + 10.0"
+    returnType: BOOL
+    variableTypes:
+      ket_qua: DOUBLE
+    inputs:
+      ket_qua: 80.0
+    expectedError: "POLICY-422-CEL-TYPE"

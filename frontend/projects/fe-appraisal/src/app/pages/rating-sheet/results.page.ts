@@ -39,6 +39,12 @@ const UNIT_VIEW: AppraisalProfileStatus[] = [
       @if (can('SCR-0904.xem')) {
         <a class="go" routerLink="../quyet-dinh">Quyết định xếp loại hàng loạt</a>
       }
+      @if (can('SCR-1001.xem')) {
+        <a class="go" routerLink="../xep-loai-nam">Xếp loại năm</a>
+      }
+      @if (can('SCR-1002.xem')) {
+        <a class="go" routerLink="../phan-nhom">Phân nhóm triển vọng</a>
+      }
     </div>
 
     <section class="card" aria-labelledby="mine-h">

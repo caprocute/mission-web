@@ -1,0 +1,155 @@
+# Bản chép nguyên văn manifest mẫu org-service ở TL-04 mục 5.5 (dòng 1041–1193 bản Markdown).
+# Dùng làm golden cho so-khop-golden.py; không sửa tay.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: org-service
+  namespace: identity
+  labels:
+    app.kubernetes.io/name: org-service
+    app.kubernetes.io/part-of: vt-platform
+    vt.io/cell: hcm
+spec:
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: org-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: org-service
+        vt.io/cell: hcm
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      serviceAccountName: org-service
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: org-service
+          matchLabelKeys: ["pod-template-hash"]
+      containers:
+        - name: app
+          image: harbor.vt.local/platform/org-service@sha256:REPLACE_WITH_DIGEST_FROM_CI
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: mgmt, containerPort: 8081 }
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=70 -XX:+UseZGC -XX:+ZGenerational -XX:+ExitOnOutOfMemoryError -javaagent:/otel/opentelemetry-javaagent.jar"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "saas,cell"
+            - name: OTEL_SERVICE_NAME
+              value: org-service
+          envFrom:
+            - secretRef:
+                name: org-service-db
+          resources:
+            requests: { cpu: "1", memory: 3Gi }
+            limits:   { cpu: "2", memory: 3Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: mgmt }
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: mgmt }
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: mgmt }
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 2
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 5
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: org-service
+  namespace: identity
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: org-service
+  minReplicas: 3
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 85
+    - type: Pods
+      pods:
+        metric:
+          name: http_server_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "350"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
+      policies:
+        - { type: Percent, value: 100, periodSeconds: 30 }
+        - { type: Pods, value: 2, periodSeconds: 30 }
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      selectPolicy: Min
+      policies:
+        - { type: Percent, value: 20, periodSeconds: 120 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: org-service
+  namespace: identity
+spec:
+  minAvailable: 2
+  unhealthyPodEvictionPolicy: AlwaysAllow
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: org-service

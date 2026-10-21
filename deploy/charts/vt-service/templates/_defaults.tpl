@@ -1,0 +1,202 @@
+{{/*
+Giá trị mặc định của chart thư viện vt-service (TL-04 mục 5.1, 5.2, 6.1, 6.2; TL-05 Phụ lục A).
+Chart con chỉ khai báo phần khác mặc định trong values.yaml của nó; "vt-service.config" trộn
+values của chart con lên trên các giá trị dưới đây.
+*/}}
+{{- define "vt-service.defaults" -}}
+global:
+  # Mã cell (ví dụ hcm, g4); gắn vào nhãn vt.io/cell.
+  cell: ""
+  # Hồ sơ định cỡ: S, M, L, XL hoặc compact. compact chỉ có một vùng sự cố (TL-05 Phụ lục A).
+  sizing: M
+  partOf: vt-platform
+  topology:
+    zones: [hl-a, hl-b, hl-c]
+# Tên service, mặc định lấy tên release.
+name: ""
+namespace: ""
+labels: {}
+podLabels: {}
+podAnnotations: {}
+
+workload:
+  # Deployment hoặc Rollout (Argo Rollouts, cho service phát hành canary).
+  kind: Deployment
+  # Số replica khi không bật bộ co giãn.
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    maxSurge: 25%
+    maxUnavailable: 0
+  rollout:
+    canarySteps:
+      - setWeight: 5
+      - pause: { duration: 15m }
+      - setWeight: 25
+      - pause: { duration: 15m }
+      - setWeight: 50
+      - pause: { duration: 15m }
+    analysisTemplates: []
+  terminationGracePeriodSeconds: 40
+  preStopSleepSeconds: 5
+  priorityClassName: ""
+
+image:
+  # Ảnh bắt buộc tham chiếu theo digest (SEC-49, SEC-55): repository@sha256:<64 hex>.
+  repository: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# java | go | python | nginx | custom: chọn preset runtime, probe và biến môi trường mặc định.
+runtime: java
+java:
+  # zgc cho service API (độ trễ đuôi), g1 cho service xử lý lô.
+  gc: zgc
+  maxRamPercentage: 70
+  otelAgent: true
+  otelAgentPath: /otel/opentelemetry-javaagent.jar
+  extraOpts: ""
+go:
+  # GOMEMLIMIT = tỷ lệ % của limits.memory (TL-04 mục 5.1).
+  memLimitPercent: 80
+python:
+  # Số worker Uvicorn; 0 nghĩa là bằng số vCPU limit (làm tròn lên).
+  workers: 0
+
+ports:
+  http: 8080
+  mgmt: 8081
+service:
+  enabled: true
+  type: ClusterIP
+  # Cổng mgmt chỉ mở trên Service khi cần scrape qua ServiceMonitor.
+  exposeMgmt: true
+
+probes:
+  # Đường dẫn và cổng để trống thì lấy theo preset runtime.
+  startup: { path: "", port: "", periodSeconds: 5, failureThreshold: 30, timeoutSeconds: 2 }
+  liveness: { path: "", port: "", periodSeconds: 10, failureThreshold: 3, timeoutSeconds: 2 }
+  readiness: { path: "", port: "", periodSeconds: 5, failureThreshold: 2, timeoutSeconds: 2 }
+
+resources:
+  requests: { cpu: 500m, memory: 512Mi }
+  limits: { cpu: "1", memory: 512Mi }
+
+# Ghi đè command/args của container app (thường để trống, dùng ENTRYPOINT của ảnh).
+command: []
+args: []
+env: []
+envFrom: []
+extraVolumes: []
+extraVolumeMounts: []
+tmpSizeLimit: 1Gi
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Dữ liệu ConfigMap; rỗng thì không sinh ConfigMap.
+config: {}
+
+externalSecret:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreRef: { kind: ClusterSecretStore, name: openbao }
+  targetName: ""
+  data: []
+  dataFrom: []
+
+# Khoá node pool theo TL-04 mục 3.3: app-general | worker | ingress | secure | system | gpu | none.
+nodePool: app-general
+
+pdb:
+  enabled: true
+  minAvailable: ""
+  maxUnavailable: 1
+
+autoscaling:
+  hpa:
+    enabled: false
+    minReplicas: 3
+    maxReplicas: 6
+    cpuUtilization: 75
+    memoryUtilization: 85
+    # Chỉ số RPS mỗi pod qua Prometheus Adapter; để trống thì không dùng.
+    rpsPerPod: ""
+    rpsMetricName: http_server_requests_per_second
+    extraMetrics: []
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 0
+        selectPolicy: Max
+        policies:
+          - { type: Percent, value: 100, periodSeconds: 30 }
+          - { type: Pods, value: 4, periodSeconds: 30 }
+      scaleDown:
+        stabilizationWindowSeconds: 600
+        selectPolicy: Min
+        policies:
+          - { type: Percent, value: 20, periodSeconds: 120 }
+  keda:
+    enabled: false
+    minReplicas: 3
+    maxReplicas: 6
+    pollingInterval: 15
+    cooldownPeriod: 300
+    triggers: []
+
+networkPolicy:
+  enabled: true
+  # Mỗi phần tử: { namespace, podLabels, ports: [{port, protocol}] }.
+  ingressFrom: []
+  # Mỗi phần tử: { namespace, podLabels, ipBlock, ports: [{port, protocol}] }.
+  egressTo: []
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+  path: ""
+  port: mgmt
+
+prometheusRule:
+  enabled: false
+  groups: []
+
+opa:
+  enabled: false
+  image:
+    repository: ""
+    digest: ""
+  args: ["run", "--server", "--addr=127.0.0.1:8181", "--disable-telemetry", "/policies"]
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+{{- end -}}
+
+{{/* Preset probe theo runtime. */}}
+{{- define "vt-service.probePreset" -}}
+{{- $rt := . -}}
+{{- if eq $rt "java" -}}
+startup: { path: /actuator/health/liveness, port: mgmt }
+liveness: { path: /actuator/health/liveness, port: mgmt }
+readiness: { path: /actuator/health/readiness, port: mgmt }
+metricsPath: /actuator/prometheus
+{{- else if eq $rt "go" -}}
+startup: { path: /healthz, port: mgmt }
+liveness: { path: /healthz, port: mgmt }
+readiness: { path: /readyz, port: mgmt }
+metricsPath: /metrics
+{{- else if eq $rt "python" -}}
+startup: { path: /healthz, port: http }
+liveness: { path: /healthz, port: http }
+readiness: { path: /readyz, port: http }
+metricsPath: /metrics
+{{- else -}}
+startup: { path: /healthz, port: http }
+liveness: { path: /healthz, port: http }
+readiness: { path: /healthz, port: http }
+metricsPath: /metrics
+{{- end -}}
+{{- end -}}

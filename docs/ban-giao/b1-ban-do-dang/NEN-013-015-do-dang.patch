@@ -1,0 +1,3921 @@
+diff --git a/backend/libs/vt-platform-starter/pom.xml b/backend/libs/vt-platform-starter/pom.xml
+index 66d676e..340411b 100644
+--- a/backend/libs/vt-platform-starter/pom.xml
++++ b/backend/libs/vt-platform-starter/pom.xml
+@@ -98,6 +98,12 @@
+       <groupId>org.springframework</groupId>
+       <artifactId>spring-tx</artifactId>
+     </dependency>
++    <!-- NEN-013: kho Idempotency-Key trên JDBC, chỉ nạp khi service có JdbcTemplate. -->
++    <dependency>
++      <groupId>org.springframework</groupId>
++      <artifactId>spring-jdbc</artifactId>
++      <optional>true</optional>
++    </dependency>
+     <dependency>
+       <groupId>jakarta.validation</groupId>
+       <artifactId>jakarta.validation-api</artifactId>
+@@ -135,6 +141,38 @@
+       <artifactId>archunit-junit5</artifactId>
+       <scope>test</scope>
+     </dependency>
++    <!--
++      NEN-013: kiểm thử tích hợp trên idempotency_key, outbox_event của NEN-032 (PostgreSQL 17 và
++      pg_partman qua TestPostgres của test-jar vt-db-migration).
++    -->
++    <dependency>
++      <groupId>vn.viettel.okrkpi</groupId>
++      <artifactId>vt-db-migration</artifactId>
++      <version>${project.version}</version>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>vn.viettel.okrkpi</groupId>
++      <artifactId>vt-db-migration</artifactId>
++      <version>${project.version}</version>
++      <type>test-jar</type>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>org.postgresql</groupId>
++      <artifactId>postgresql</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>org.testcontainers</groupId>
++      <artifactId>junit-jupiter</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>org.testcontainers</groupId>
++      <artifactId>postgresql</artifactId>
++      <scope>test</scope>
++    </dependency>
+     <dependency>
+       <groupId>org.springframework.boot</groupId>
+       <artifactId>spring-boot-starter-test</artifactId>
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/etag/ETags.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/etag/ETags.java
+new file mode 100644
+index 0000000..862f4bd
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/etag/ETags.java
+@@ -0,0 +1,159 @@
++package vn.viettel.okrkpi.shared.etag;
++
++import java.util.ArrayList;
++import java.util.List;
++import java.util.OptionalLong;
++import java.util.function.Supplier;
++import org.springframework.http.HttpHeaders;
++import org.springframework.http.HttpStatus;
++import org.springframework.http.ResponseEntity;
++import vn.viettel.okrkpi.shared.error.PreconditionRequiredException;
++import vn.viettel.okrkpi.shared.error.VersionConflictException;
++
++/**
++ * Khoá lạc quan qua {@code ETag}/{@code If-Match} (baseline mục 13; BS-02 HD-01; {@code
++ * common.yaml} tham số {@code IfMatch}, header {@code ETag}, lược đồ {@code RowVersion}).
++ *
++ * <ul>
++ *   <li>ETag là {@code row_version} trong dấu nháy kép: {@code "7"};
++ *   <li>cập nhật thiếu {@code If-Match} → 428 ({@link PreconditionRequiredException}); lệch phiên
++ *       bản → 409 {@code <MODULE>-409-VERSION-CONFLICT} ({@link VersionConflictException}), không
++ *       dùng 412;
++ *   <li>đọc có {@code If-None-Match} trùng ETag hiện tại → 304 không thân.
++ * </ul>
++ *
++ * <p>Controller sinh từ hợp đồng nhận {@code If-Match} dạng chuỗi rồi gọi {@link
++ * #requireMatch(String, long, String)} trước khi ghi; kiểm cuối cùng vẫn là {@code @Version} của
++ * JPA hoặc {@code WHERE row_version = ?} để bắt ghi đồng thời giữa lúc kiểm và lúc ghi.
++ */
++public final class ETags {
++
++  private ETags() {}
++
++  /** ETag của một {@code row_version}: {@code 7} → {@code "7"}. */
++  public static String of(long rowVersion) {
++    if (rowVersion < 0) {
++      throw new IllegalArgumentException("row_version không âm");
++    }
++    return "\"" + rowVersion + "\"";
++  }
++
++  /**
++   * Đọc phiên bản từ một ETag mạnh {@code "7"}. ETag yếu ({@code W/"7"}), {@code *} hay giá trị lạ
++   * trả rỗng.
++   */
++  public static OptionalLong parse(String etag) {
++    if (etag == null) {
++      return OptionalLong.empty();
++    }
++    String v = etag.trim();
++    if (v.length() < 3 || v.charAt(0) != '"' || v.charAt(v.length() - 1) != '"') {
++      return OptionalLong.empty();
++    }
++    String digits = v.substring(1, v.length() - 1);
++    if (digits.isEmpty() || digits.length() > 18 || !digits.chars().allMatch(Character::isDigit)) {
++      return OptionalLong.empty();
++    }
++    return OptionalLong.of(Long.parseLong(digits));
++  }
++
++  /**
++   * Kiểm {@code If-Match} trước khi cập nhật.
++   *
++   * @param ifMatch giá trị header, có thể nhiều ETag cách nhau bằng dấu phẩy
++   * @param currentVersion {@code row_version} hiện tại
++   * @param module phần MODULE của mã lỗi ({@code TASK}…), {@code null} để bộ xử lý lỗi tự xác định
++   *     theo gói controller
++   * @return phiên bản người gọi gửi (bằng {@code currentVersion})
++   * @throws PreconditionRequiredException thiếu header (428)
++   * @throws VersionConflictException không ETag nào khớp (409)
++   */
++  public static long requireMatch(String ifMatch, long currentVersion, String module) {
++    if (ifMatch == null || ifMatch.isBlank()) {
++      throw new PreconditionRequiredException();
++    }
++    Long first = null;
++    for (String candidate : split(ifMatch)) {
++      OptionalLong v = parse(candidate);
++      if (v.isPresent()) {
++        if (v.getAsLong() == currentVersion) {
++          return currentVersion;
++        }
++        if (first == null) {
++          first = v.getAsLong();
++        }
++      }
++    }
++    throw new VersionConflictException(module, first, currentVersion);
++  }
++
++  /** Phiên bản người gọi gửi trong {@code If-Match}; thiếu → 428, sai dạng → 409. */
++  public static long expectedVersion(String ifMatch, String module) {
++    if (ifMatch == null || ifMatch.isBlank()) {
++      throw new PreconditionRequiredException();
++    }
++    for (String candidate : split(ifMatch)) {
++      OptionalLong v = parse(candidate);
++      if (v.isPresent()) {
++        return v.getAsLong();
++      }
++    }
++    throw new VersionConflictException(module, null, null);
++  }
++
++  /**
++   * Đúng khi {@code If-None-Match} khớp ETag hiện tại (so sánh yếu theo RFC 9110: bỏ {@code W/};
++   * {@code *} khớp mọi phiên bản).
++   */
++  public static boolean notModified(String ifNoneMatch, long currentVersion) {
++    if (ifNoneMatch == null || ifNoneMatch.isBlank()) {
++      return false;
++    }
++    for (String candidate : split(ifNoneMatch)) {
++      if ("*".equals(candidate)) {
++        return true;
++      }
++      String strong = candidate.startsWith("W/") ? candidate.substring(2) : candidate;
++      OptionalLong v = parse(strong);
++      if (v.isPresent() && v.getAsLong() == currentVersion) {
++        return true;
++      }
++    }
++    return false;
++  }
++
++  /** 200 kèm header {@code ETag}. */
++  public static <T> ResponseEntity<T> ok(T body, long rowVersion) {
++    return ResponseEntity.ok().eTag(of(rowVersion)).body(body);
++  }
++
++  /**
++   * Phản hồi đọc có ETag: 304 không thân khi {@code If-None-Match} khớp, ngược lại 200 kèm thân
++   * dựng lười từ {@code body}.
++   */
++  public static <T> ResponseEntity<T> conditional(
++      String ifNoneMatch, long rowVersion, Supplier<T> body) {
++    if (notModified(ifNoneMatch, rowVersion)) {
++      return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(of(rowVersion)).build();
++    }
++    return ok(body.get(), rowVersion);
++  }
++
++  /** Header {@code ETag} để gắn vào phản hồi khác 200 (ví dụ 201 sau khi tạo). */
++  public static HttpHeaders headers(long rowVersion) {
++    HttpHeaders h = new HttpHeaders();
++    h.setETag(of(rowVersion));
++    return h;
++  }
++
++  private static List<String> split(String header) {
++    List<String> out = new ArrayList<>();
++    for (String part : header.split(",")) {
++      String p = part.trim();
++      if (!p.isEmpty()) {
++        out.add(p);
++      }
++    }
++    return out;
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/BeginResult.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/BeginResult.java
+new file mode 100644
+index 0000000..52ae355
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/BeginResult.java
+@@ -0,0 +1,32 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import java.time.LocalDate;
++import java.util.Objects;
++
++/** Kết quả {@link IdempotencyStore#begin}: một trong bốn nhánh của TL-03 "Bảng idempotency_key". */
++public sealed interface BeginResult {
++
++  /**
++   * Khoá mới đã được chèn {@code DANG_XU_LY}; người gọi thực hiện tác dụng rồi {@code complete}.
++   */
++  record Started(IdempotencyScope scope, String key, LocalDate createdDay) implements BeginResult {
++    public Started {
++      Objects.requireNonNull(scope, "scope");
++      Objects.requireNonNull(key, "key");
++      Objects.requireNonNull(createdDay, "createdDay");
++    }
++  }
++
++  /** Cùng khoá, cùng băm, đã {@code XONG}: phát lại phản hồi đã lưu. */
++  record Replay(IdempotencyRecord record) implements BeginResult {
++    public Replay {
++      Objects.requireNonNull(record, "record");
++    }
++  }
++
++  /** Cùng khoá, khác băm: 422 {@code COMMON-422-IDEMPOTENCY-MISMATCH}. */
++  record Mismatch() implements BeginResult {}
++
++  /** Cùng khoá đang được yêu cầu khác xử lý: 409 kèm {@code Retry-After}. */
++  record InProgress() implements BeginResult {}
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyAutoConfiguration.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyAutoConfiguration.java
+new file mode 100644
+index 0000000..997ea69
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyAutoConfiguration.java
+@@ -0,0 +1,98 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import com.fasterxml.jackson.databind.ObjectMapper;
++import org.springframework.aop.Advisor;
++import org.springframework.aop.support.DefaultPointcutAdvisor;
++import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
++import org.springframework.beans.factory.ObjectProvider;
++import org.springframework.beans.factory.config.BeanDefinition;
++import org.springframework.boot.autoconfigure.AutoConfiguration;
++import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
++import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
++import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
++import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Role;
++import org.springframework.core.Ordered;
++import org.springframework.core.env.Environment;
++import org.springframework.jdbc.core.JdbcTemplate;
++import org.springframework.transaction.PlatformTransactionManager;
++import org.springframework.transaction.support.TransactionTemplate;
++import vn.viettel.okrkpi.shared.error.ProblemFactory;
++import vn.viettel.okrkpi.shared.observability.TenantIdProvider;
++
++/**
++ * Auto-configuration quy ước {@code Idempotency-Key} (baseline mục 13, BS-02 HD-02): kho JDBC trên
++ * {@code <schema>.idempotency_key}, advisor cho {@link Idempotent} và bộ xử lý lỗi. Chỉ nạp khi
++ * service có {@link JdbcTemplate} và {@link PlatformTransactionManager}.
++ *
++ * <p>Thuộc tính {@code okrkpi.idempotency.schema}: schema mặc định khi controller không nằm trong
++ * gói module ({@code vn.viettel.okrkpi.<module>..}), ví dụ microservice một schema.
++ */
++@AutoConfiguration(
++    afterName = {
++      "org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration",
++      "org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration",
++      "org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration",
++      "org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration",
++      "vn.viettel.okrkpi.shared.error.ProblemAutoConfiguration",
++      "vn.viettel.okrkpi.shared.observability.ObservabilityAutoConfiguration"
++    })
++@ConditionalOnClass({JdbcTemplate.class, PlatformTransactionManager.class})
++@ConditionalOnBean({JdbcTemplate.class, PlatformTransactionManager.class})
++public class IdempotencyAutoConfiguration {
++
++  /** Giới hạn giao dịch mặc định của TL-01 "Quản lý giao dịch" (5 giây). */
++  static final int TX_TIMEOUT_SECONDS = 5;
++
++  @Bean
++  @ConditionalOnMissingBean
++  public IdempotencyStore idempotencyStore(JdbcTemplate jdbcTemplate) {
++    return new JdbcIdempotencyStore(jdbcTemplate);
++  }
++
++  @Bean
++  @ConditionalOnMissingBean
++  public IdempotencyCallerResolver idempotencyCallerResolver(
++      ObjectProvider<TenantIdProvider> tenants) {
++    return IdempotencyCallerResolver.fromPrincipal(tenants.getIfAvailable(TenantIdProvider::none));
++  }
++
++  /**
++   * Advisor hạ tầng (được mọi auto-proxy creator nhận), phụ thuộc lấy lười để không khởi tạo sớm
++   * bean JDBC.
++   */
++  @Bean
++  @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
++  static Advisor idempotentAdvisor(
++      ObjectProvider<IdempotencyStore> store,
++      ObjectProvider<PlatformTransactionManager> transactionManager,
++      ObjectProvider<ObjectMapper> mapper,
++      ObjectProvider<IdempotencyCallerResolver> callers,
++      Environment environment) {
++    IdempotencyInterceptor interceptor =
++        new IdempotencyInterceptor(
++            store::getObject,
++            () -> {
++              TransactionTemplate tx = new TransactionTemplate(transactionManager.getObject());
++              tx.setTimeout(TX_TIMEOUT_SECONDS);
++              return tx;
++            },
++            () -> mapper.getIfAvailable(ObjectMapper::new),
++            callers::getObject,
++            environment.getProperty("okrkpi.idempotency.schema"));
++    DefaultPointcutAdvisor advisor =
++        new DefaultPointcutAdvisor(
++            new AnnotationMatchingPointcut(null, Idempotent.class, true), interceptor);
++    advisor.setOrder(Ordered.LOWEST_PRECEDENCE - 100);
++    return advisor;
++  }
++
++  @Bean
++  @ConditionalOnMissingBean
++  @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
++  @ConditionalOnBean(ProblemFactory.class)
++  public IdempotencyProblemHandler idempotencyProblemHandler(ProblemFactory problemFactory) {
++    return new IdempotencyProblemHandler(problemFactory);
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyCallerResolver.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyCallerResolver.java
+new file mode 100644
+index 0000000..4a9f7ab
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyCallerResolver.java
+@@ -0,0 +1,42 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import jakarta.servlet.http.HttpServletRequest;
++import java.security.Principal;
++import java.util.Optional;
++import vn.viettel.okrkpi.shared.kernel.ActorId;
++import vn.viettel.okrkpi.shared.kernel.Ids;
++import vn.viettel.okrkpi.shared.kernel.TenantId;
++import vn.viettel.okrkpi.shared.observability.TenantIdProvider;
++
++/**
++ * Xác định (tenant, người gọi) cho {@link Idempotent}. Mặc định: tenant từ {@link TenantIdProvider}
++ * (ngữ cảnh tenant đã kiểm của NEN-010), người gọi là tên {@link Principal} của yêu cầu, tức claim
++ * {@code sub} của JWT khi dùng Spring Security resource server. Không đọc giá trị client tự khai
++ * trong header.
++ */
++@FunctionalInterface
++public interface IdempotencyCallerResolver {
++
++  /** Người gọi đã xác thực, rỗng khi chưa đủ thông tin. */
++  Optional<Caller> resolve(HttpServletRequest request);
++
++  /** Tenant và người gọi. */
++  record Caller(TenantId tenant, ActorId actor) {}
++
++  /** Bộ xác định mặc định từ ngữ cảnh tenant và {@link Principal}. */
++  static IdempotencyCallerResolver fromPrincipal(TenantIdProvider tenants) {
++    return request -> {
++      Optional<TenantId> tenant = tenants.currentTenant(request);
++      Principal principal = request.getUserPrincipal();
++      if (tenant.isEmpty() || principal == null || principal.getName() == null) {
++        return Optional.empty();
++      }
++      try {
++        return Optional.of(
++            new Caller(tenant.get(), ActorId.of(Ids.parse(principal.getName().trim()))));
++      } catch (IllegalArgumentException e) {
++        return Optional.empty();
++      }
++    };
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyExceptions.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyExceptions.java
+new file mode 100644
+index 0000000..dccd263
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyExceptions.java
+@@ -0,0 +1,58 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import java.io.Serial;
++import vn.viettel.okrkpi.shared.error.BusinessException;
++
++/** Lỗi của quy ước {@code Idempotency-Key}; {@link IdempotencyProblemHandler} trả Problem. */
++public final class IdempotencyExceptions {
++
++  /** Mã hợp đồng của cùng khoá khác nội dung ({@code common.yaml} tham số IdempotencyKey). */
++  public static final String MISMATCH_CODE = "COMMON-422-IDEMPOTENCY-MISMATCH";
++
++  private IdempotencyExceptions() {}
++
++  /** Thiếu hoặc sai dạng header ở thao tác bắt buộc: 400. */
++  public static final class KeyRequired extends RuntimeException {
++    @Serial private static final long serialVersionUID = 1L;
++
++    private final boolean present;
++
++    public KeyRequired(boolean present) {
++      super("IDEMPOTENCY-KEY-REQUIRED", null, false, false);
++      this.present = present;
++    }
++
++    /** Header có mặt nhưng sai dạng (rỗng, quá 64 ký tự, ký tự lạ). */
++    public boolean present() {
++      return present;
++    }
++  }
++
++  /** Cùng khoá đang được yêu cầu khác xử lý: 409 kèm {@code Retry-After}. */
++  public static final class InProgress extends RuntimeException {
++    @Serial private static final long serialVersionUID = 1L;
++
++    private final long retryAfterSeconds;
++
++    public InProgress(long retryAfterSeconds) {
++      super("IDEMPOTENCY-IN-PROGRESS", null, false, false);
++      this.retryAfterSeconds = retryAfterSeconds;
++    }
++
++    public long retryAfterSeconds() {
++      return retryAfterSeconds;
++    }
++  }
++
++  /** Cùng khoá, khác nội dung: 422 {@value #MISMATCH_CODE}. */
++  public static final class Mismatch extends BusinessException {
++    @Serial private static final long serialVersionUID = 1L;
++
++    public Mismatch() {
++      super(
++          MISMATCH_CODE,
++          "Mã chống gửi trùng đã được dùng cho một yêu cầu có nội dung khác. Vui lòng tạo yêu cầu"
++              + " mới.");
++    }
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyInterceptor.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyInterceptor.java
+new file mode 100644
+index 0000000..511b366
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyInterceptor.java
+@@ -0,0 +1,285 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import com.fasterxml.jackson.core.JsonProcessingException;
++import com.fasterxml.jackson.databind.JavaType;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import jakarta.servlet.http.HttpServletRequest;
++import java.lang.annotation.Annotation;
++import java.lang.reflect.Method;
++import java.lang.reflect.Type;
++import java.util.Locale;
++import java.util.Objects;
++import java.util.function.Supplier;
++import org.aopalliance.intercept.MethodInterceptor;
++import org.aopalliance.intercept.MethodInvocation;
++import org.springframework.aop.support.AopUtils;
++import org.springframework.core.ResolvableType;
++import org.springframework.core.annotation.AnnotatedElementUtils;
++import org.springframework.http.HttpHeaders;
++import org.springframework.http.ResponseEntity;
++import org.springframework.transaction.support.TransactionTemplate;
++import org.springframework.web.bind.annotation.RequestBody;
++import org.springframework.web.bind.annotation.ResponseStatus;
++import org.springframework.web.context.request.RequestAttributes;
++import org.springframework.web.context.request.RequestContextHolder;
++import org.springframework.web.context.request.ServletRequestAttributes;
++
++/**
++ * Hiện thực {@link Idempotent}: bao phương thức controller trong một giao dịch, gọi {@link
++ * IdempotencyStore#begin}, chạy phương thức khi khoá mới, rồi {@link IdempotencyStore#complete} với
++ * mã trạng thái, thân (nếu được lưu) và {@code Location} trong cùng giao dịch.
++ *
++ * <p>Phụ thuộc lấy lười qua {@link Supplier} để advisor không kéo theo việc khởi tạo sớm các bean
++ * JDBC.
++ */
++public class IdempotencyInterceptor implements MethodInterceptor {
++
++  /** Tên header của hợp đồng. */
++  public static final String HEADER = "Idempotency-Key";
++
++  /** Số giây gợi ý chờ khi cùng khoá đang được xử lý. */
++  static final long RETRY_AFTER_SECONDS = 1;
++
++  private static final String ROOT_PACKAGE = "vn.viettel.okrkpi.";
++  private static final String SHARED = "shared";
++  private static final int MAX_REF = 128;
++
++  private final Supplier<IdempotencyStore> store;
++  private final Supplier<TransactionTemplate> transactions;
++  private final Supplier<ObjectMapper> mapper;
++  private final Supplier<IdempotencyCallerResolver> callers;
++  private final String defaultSchema;
++
++  public IdempotencyInterceptor(
++      Supplier<IdempotencyStore> store,
++      Supplier<TransactionTemplate> transactions,
++      Supplier<ObjectMapper> mapper,
++      Supplier<IdempotencyCallerResolver> callers,
++      String defaultSchema) {
++    this.store = Objects.requireNonNull(store, "store");
++    this.transactions = Objects.requireNonNull(transactions, "transactions");
++    this.mapper = Objects.requireNonNull(mapper, "mapper");
++    this.callers = Objects.requireNonNull(callers, "callers");
++    this.defaultSchema =
++        defaultSchema == null || defaultSchema.isBlank() ? null : defaultSchema.trim();
++  }
++
++  @Override
++  public Object invoke(MethodInvocation invocation) throws Throwable {
++    Method method = invocation.getMethod();
++    Class<?> target =
++        invocation.getThis() == null
++            ? method.getDeclaringClass()
++            : AopUtils.getTargetClass(invocation.getThis());
++    Method specific = AopUtils.getMostSpecificMethod(method, target);
++    Idempotent annotation = AnnotatedElementUtils.findMergedAnnotation(specific, Idempotent.class);
++    if (annotation == null) {
++      return invocation.proceed();
++    }
++    HttpServletRequest request = currentRequest();
++    String key = request.getHeader(HEADER);
++    if (key == null || key.isEmpty()) {
++      if (annotation.required()) {
++        throw new IdempotencyExceptions.KeyRequired(false);
++      }
++      return invocation.proceed();
++    }
++    if (!JdbcIdempotencyStore.isValidKey(key)) {
++      throw new IdempotencyExceptions.KeyRequired(true);
++    }
++    IdempotencyCallerResolver.Caller caller =
++        callers
++            .get()
++            .resolve(request)
++            .orElseThrow(
++                () ->
++                    new IllegalStateException(
++                        "Không xác định được tenant và người gọi cho Idempotency-Key"));
++    IdempotencyScope scope =
++        new IdempotencyScope(schema(annotation, target), caller.tenant(), caller.actor());
++    byte[] hash =
++        new RequestHasher(mapper.get())
++            .hash(request.getMethod(), pathAndQuery(request), body(specific, invocation));
++
++    Holder holder = new Holder();
++    try {
++      return transactions
++          .get()
++          .execute(
++              tx -> {
++                BeginResult begin = store.get().begin(scope, key, hash);
++                return switch (begin) {
++                  case BeginResult.Replay replay -> replay(replay.record(), specific, target);
++                  case BeginResult.Mismatch m -> throw new IdempotencyExceptions.Mismatch();
++                  case BeginResult.InProgress p ->
++                      throw new IdempotencyExceptions.InProgress(RETRY_AFTER_SECONDS);
++                  case BeginResult.Started started ->
++                      proceed(invocation, started, annotation, specific, holder);
++                };
++              });
++    } catch (CheckedFailure e) {
++      throw holder.failure;
++    }
++  }
++
++  private Object proceed(
++      MethodInvocation invocation,
++      BeginResult.Started started,
++      Idempotent annotation,
++      Method method,
++      Holder holder) {
++    Object result;
++    try {
++      result = invocation.proceed();
++    } catch (RuntimeException | Error e) {
++      throw e;
++    } catch (Throwable t) {
++      // Ngoại lệ checked: huỷ giao dịch bằng một RuntimeException rồi ném lại nguyên bản.
++      holder.failure = t;
++      throw new CheckedFailure();
++    }
++    int status = status(result, method);
++    if (status < 200 || status > 299) {
++      store.get().abandon(started);
++      return result;
++    }
++    store.get().complete(started, status, body(result, annotation), location(result));
++    return result;
++  }
++
++  private String body(Object result, Idempotent annotation) {
++    Object body = result instanceof ResponseEntity<?> e ? e.getBody() : result;
++    if (body == null
++        || !annotation.storeBody()
++        || SensitivePayloads.containsSensitive(body.getClass())) {
++      return null;
++    }
++    try {
++      return mapper.get().writeValueAsString(body);
++    } catch (JsonProcessingException e) {
++      throw new IllegalStateException("Không tuần tự hoá được phản hồi để lưu khoá", e);
++    }
++  }
++
++  private static String location(Object result) {
++    if (result instanceof ResponseEntity<?> e) {
++      String location = e.getHeaders().getFirst(HttpHeaders.LOCATION);
++      if (location != null && location.length() <= MAX_REF) {
++        return location;
++      }
++    }
++    return null;
++  }
++
++  private static int status(Object result, Method method) {
++    if (result instanceof ResponseEntity<?> e) {
++      return e.getStatusCode().value();
++    }
++    ResponseStatus rs = AnnotatedElementUtils.findMergedAnnotation(method, ResponseStatus.class);
++    return rs == null ? 200 : rs.code().value();
++  }
++
++  /** Dựng lại giá trị trả về từ phản hồi đã lưu. */
++  private Object replay(IdempotencyRecord record, Method method, Class<?> target) {
++    boolean entity = ResponseEntity.class.isAssignableFrom(method.getReturnType());
++    ResolvableType returnType = ResolvableType.forMethodReturnType(method, target);
++    Type bodyType =
++        entity ? returnType.as(ResponseEntity.class).getGeneric(0).getType() : returnType.getType();
++    Object body = null;
++    if (record.responseBody() != null && method.getReturnType() != void.class) {
++      body = readBody(record.responseBody(), bodyType);
++    }
++    if (!entity) {
++      return body;
++    }
++    ResponseEntity.BodyBuilder builder =
++        ResponseEntity.status(record.responseCode() == null ? 200 : record.responseCode());
++    if (record.resourceRef() != null) {
++      builder.header(HttpHeaders.LOCATION, record.resourceRef());
++    }
++    return builder.body(body);
++  }
++
++  private Object readBody(String json, Type type) {
++    ObjectMapper om = mapper.get();
++    try {
++      JavaType javaType = om.getTypeFactory().constructType(type);
++      if (javaType.isJavaLangObject() || javaType.hasRawClass(Void.class)) {
++        return om.readTree(json);
++      }
++      return om.readValue(json, javaType);
++    } catch (JsonProcessingException e) {
++      throw new IllegalStateException("Không đọc lại được phản hồi đã lưu", e);
++    }
++  }
++
++  private String schema(Idempotent annotation, Class<?> target) {
++    if (!annotation.schema().isBlank()) {
++      return annotation.schema().trim();
++    }
++    String fromPackage = schemaFromPackage(target.getPackageName());
++    if (fromPackage != null) {
++      return fromPackage;
++    }
++    if (defaultSchema != null) {
++      return defaultSchema;
++    }
++    throw new IllegalStateException(
++        "Không xác định được schema idempotency_key: đặt @Idempotent(schema) hoặc"
++            + " okrkpi.idempotency.schema");
++  }
++
++  /** {@code vn.viettel.okrkpi.<module>..} → {@code <module>} (TL-01 cấu trúc gói theo module). */
++  static String schemaFromPackage(String packageName) {
++    if (packageName == null || !packageName.startsWith(ROOT_PACKAGE)) {
++      return null;
++    }
++    String rest = packageName.substring(ROOT_PACKAGE.length());
++    int dot = rest.indexOf('.');
++    String segment = (dot < 0 ? rest : rest.substring(0, dot)).toLowerCase(Locale.ROOT);
++    if (segment.isEmpty() || SHARED.equals(segment)) {
++      return null;
++    }
++    return IdempotencyScope.SCHEMA.matcher(segment).matches() ? segment : null;
++  }
++
++  private static Object body(Method method, MethodInvocation invocation) {
++    Annotation[][] annotations = method.getParameterAnnotations();
++    Object[] args = invocation.getArguments();
++    for (int i = 0; i < annotations.length && i < args.length; i++) {
++      for (Annotation a : annotations[i]) {
++        if (a instanceof RequestBody) {
++          return args[i];
++        }
++      }
++    }
++    return null;
++  }
++
++  private static String pathAndQuery(HttpServletRequest request) {
++    String query = request.getQueryString();
++    String uri = request.getRequestURI();
++    return query == null ? uri : uri + '?' + query;
++  }
++
++  private static HttpServletRequest currentRequest() {
++    RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
++    if (attributes instanceof ServletRequestAttributes sra) {
++      return sra.getRequest();
++    }
++    throw new IllegalStateException("@Idempotent chỉ dùng cho phương thức xử lý yêu cầu HTTP");
++  }
++
++  private static final class Holder {
++    private Throwable failure;
++  }
++
++  /** Báo cho TransactionTemplate huỷ giao dịch khi phương thức ném ngoại lệ checked. */
++  private static final class CheckedFailure extends RuntimeException {
++    private static final long serialVersionUID = 1L;
++
++    CheckedFailure() {
++      super(null, null, false, false);
++    }
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyProblemHandler.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyProblemHandler.java
+new file mode 100644
+index 0000000..e18b41e
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyProblemHandler.java
+@@ -0,0 +1,58 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import jakarta.servlet.http.HttpServletRequest;
++import java.util.List;
++import org.springframework.core.Ordered;
++import org.springframework.core.annotation.Order;
++import org.springframework.http.HttpHeaders;
++import org.springframework.http.ProblemDetail;
++import org.springframework.http.ResponseEntity;
++import org.springframework.web.bind.annotation.ExceptionHandler;
++import org.springframework.web.bind.annotation.RestControllerAdvice;
++import vn.viettel.okrkpi.shared.error.ProblemFactory;
++import vn.viettel.okrkpi.shared.error.ProblemFieldError;
++
++/**
++ * Problem Details cho lỗi quy ước {@code Idempotency-Key} không có mã riêng trong hợp đồng: thiếu
++ * hoặc sai header → 400 kèm {@code errors[]} trỏ vào header; cùng khoá đang xử lý → 409 {@code type
++ * .../conflict} kèm {@code Retry-After}. Lệch nội dung là {@link
++ * vn.viettel.okrkpi.shared.error.BusinessException} nên đi qua bộ xử lý chung (422 {@code
++ * COMMON-422-IDEMPOTENCY-MISMATCH}).
++ */
++@RestControllerAdvice
++@Order(Ordered.LOWEST_PRECEDENCE - 20)
++public class IdempotencyProblemHandler {
++
++  static final String MISSING = "Thao tác này cần mã chống gửi trùng.";
++  static final String INVALID = "Mã chống gửi trùng không hợp lệ (tối đa 64 ký tự).";
++  static final String IN_PROGRESS =
++      "Yêu cầu trước đó với cùng mã chống gửi trùng đang được xử lý. Vui lòng thử lại sau ít giây.";
++
++  private final ProblemFactory problems;
++
++  public IdempotencyProblemHandler(ProblemFactory problems) {
++    this.problems = problems;
++  }
++
++  @ExceptionHandler(IdempotencyExceptions.KeyRequired.class)
++  public ResponseEntity<ProblemDetail> handleKeyRequired(
++      IdempotencyExceptions.KeyRequired ex, HttpServletRequest request) {
++    String message = ex.present() ? INVALID : MISSING;
++    ProblemDetail pd =
++        problems.standard(
++            400,
++            message,
++            List.of(ProblemFieldError.of(IdempotencyInterceptor.HEADER, message)),
++            request);
++    return ProblemFactory.toResponse(pd, null);
++  }
++
++  @ExceptionHandler(IdempotencyExceptions.InProgress.class)
++  public ResponseEntity<ProblemDetail> handleInProgress(
++      IdempotencyExceptions.InProgress ex, HttpServletRequest request) {
++    ProblemDetail pd = problems.standard(409, IN_PROGRESS, List.of(), request);
++    HttpHeaders headers = new HttpHeaders();
++    headers.set(HttpHeaders.RETRY_AFTER, Long.toString(Math.max(1, ex.retryAfterSeconds())));
++    return ProblemFactory.toResponse(pd, headers);
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyRecord.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyRecord.java
+new file mode 100644
+index 0000000..f7908e5
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyRecord.java
+@@ -0,0 +1,84 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import java.time.Instant;
++import java.time.LocalDate;
++import java.util.Arrays;
++import java.util.Objects;
++
++/**
++ * Một dòng {@code <schema>.idempotency_key} (TL-03 "Bảng idempotency_key").
++ *
++ * @param key giá trị header {@code Idempotency-Key}
++ * @param createdDay khoá phân vùng ngày
++ * @param requestHash SHA-256 của phương thức, đường dẫn, thân chuẩn hoá
++ * @param status {@link Status#DANG_XU_LY} hoặc {@link Status#XONG}
++ * @param responseCode mã HTTP đã trả, {@code null} khi chưa xong
++ * @param responseBody JSON đã trả, {@code null} khi chưa xong hoặc thân có trường C2
++ * @param resourceRef tài nguyên đã tạo (header {@code Location}), có thể {@code null}
++ * @param createdAt thời điểm tạo
++ */
++public record IdempotencyRecord(
++    String key,
++    LocalDate createdDay,
++    byte[] requestHash,
++    Status status,
++    Integer responseCode,
++    String responseBody,
++    String resourceRef,
++    Instant createdAt) {
++
++  /** Giá trị CHECK của cột {@code status}. */
++  public enum Status {
++    DANG_XU_LY,
++    XONG
++  }
++
++  public IdempotencyRecord {
++    Objects.requireNonNull(key, "key");
++    Objects.requireNonNull(requestHash, "requestHash");
++    Objects.requireNonNull(status, "status");
++    requestHash = requestHash.clone();
++  }
++
++  @Override
++  public byte[] requestHash() {
++    return requestHash.clone();
++  }
++
++  /** So băm theo thời gian hằng (không lộ độ dài tiền tố khớp). */
++  public boolean sameRequest(byte[] otherHash) {
++    return java.security.MessageDigest.isEqual(requestHash, otherHash);
++  }
++
++  @Override
++  public boolean equals(Object o) {
++    return o instanceof IdempotencyRecord r
++        && key.equals(r.key)
++        && Objects.equals(createdDay, r.createdDay)
++        && Arrays.equals(requestHash, r.requestHash)
++        && status == r.status
++        && Objects.equals(responseCode, r.responseCode)
++        && Objects.equals(responseBody, r.responseBody)
++        && Objects.equals(resourceRef, r.resourceRef)
++        && Objects.equals(createdAt, r.createdAt);
++  }
++
++  @Override
++  public int hashCode() {
++    return Objects.hash(key, createdDay, Arrays.hashCode(requestHash), status, responseCode);
++  }
++
++  /** Không in thân phản hồi (có thể chứa dữ liệu người dùng) ra nhật ký. */
++  @Override
++  public String toString() {
++    return "IdempotencyRecord[key="
++        + key
++        + ", createdDay="
++        + createdDay
++        + ", status="
++        + status
++        + ", responseCode="
++        + responseCode
++        + "]";
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyScope.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyScope.java
+new file mode 100644
+index 0000000..0f6d397
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyScope.java
+@@ -0,0 +1,29 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import java.util.Objects;
++import java.util.regex.Pattern;
++import vn.viettel.okrkpi.shared.kernel.ActorId;
++import vn.viettel.okrkpi.shared.kernel.TenantId;
++
++/**
++ * Phạm vi của một khoá: khoá chỉ có nghĩa trong (tenant, người gọi) của một schema (TL-03 cột
++ * {@code actor_id}: "khoá chỉ có nghĩa trong phạm vi một người").
++ *
++ * @param schema schema nghiệp vụ chứa {@code idempotency_key}, ví dụ {@code task}
++ * @param tenant tenant đã kiểm
++ * @param actor người gọi ({@code sub} của JWT)
++ */
++public record IdempotencyScope(String schema, TenantId tenant, ActorId actor) {
++
++  /** Tên schema hợp lệ theo TL-03 "Quy ước đặt tên" (chữ thường, số, gạch dưới). */
++  static final Pattern SCHEMA = Pattern.compile("[a-z][a-z0-9_]{0,62}");
++
++  public IdempotencyScope {
++    Objects.requireNonNull(schema, "schema");
++    Objects.requireNonNull(tenant, "tenant");
++    Objects.requireNonNull(actor, "actor");
++    if (!SCHEMA.matcher(schema).matches()) {
++      throw new IllegalArgumentException("Tên schema không hợp lệ: " + schema);
++    }
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyStore.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyStore.java
+new file mode 100644
+index 0000000..fb821d4
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/IdempotencyStore.java
+@@ -0,0 +1,41 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import java.time.Duration;
++import java.util.Optional;
++
++/**
++ * Kho khoá chống ghi trùng trên bảng {@code <schema>.idempotency_key} (TL-01 "Quản lý giao dịch":
++ * {@code IdempotencyStore}; TL-03 "Bảng idempotency_key"). Mọi thao tác phải chạy trong giao dịch
++ * của tác dụng nghiệp vụ, để khoá và tác dụng cùng được ghi hoặc cùng huỷ.
++ *
++ * <p>Dùng trực tiếp trong use case (mẫu {@code UpdateProgressUseCase} của TL-01) hoặc gián tiếp qua
++ * {@link Idempotent} trên controller.
++ */
++public interface IdempotencyStore {
++
++  /** Thời hạn giữ khoá (BS-02 HD-02: 48 giờ, TL-03 thắng TL-01). */
++  Duration RETENTION = Duration.ofHours(48);
++
++  /** Khoá còn hạn (48 giờ) của phạm vi, nếu có. */
++  Optional<IdempotencyRecord> find(IdempotencyScope scope, String key);
++
++  /**
++   * Bắt đầu xử lý một khoá: chèn {@code DANG_XU_LY} nếu khoá mới, hoặc trả nhánh phát lại, lệch
++   * băm, đang xử lý. Không chờ khi yêu cầu khác đang giữ cùng khoá.
++   *
++   * @param requestHash SHA-256 của yêu cầu ({@link RequestHasher})
++   */
++  BeginResult begin(IdempotencyScope scope, String key, byte[] requestHash);
++
++  /**
++   * Chuyển khoá sang {@code XONG} kèm phản hồi, trong cùng giao dịch với tác dụng.
++   *
++   * @param responseBody JSON đã trả; {@code null} khi không lưu thân (thân có trường C2)
++   * @param resourceRef tài nguyên đã tạo, tối đa 128 ký tự, có thể {@code null}
++   */
++  void complete(
++      BeginResult.Started started, int responseCode, String responseBody, String resourceRef);
++
++  /** Bỏ khoá {@code DANG_XU_LY} khi thao tác không thành công, để client gửi lại được. */
++  void abandon(BeginResult.Started started);
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/Idempotent.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/Idempotent.java
+new file mode 100644
+index 0000000..2210853
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/Idempotent.java
+@@ -0,0 +1,51 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import java.lang.annotation.Documented;
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++/**
++ * Đánh dấu phương thức controller của thao tác ghi nhận header {@code Idempotency-Key} (baseline
++ * mục 13; {@code common.yaml} tham số {@code IdempotencyKey}; BS-02 HD-02; TL-03 "Bảng
++ * idempotency_key").
++ *
++ * <p>Thư viện nền chạy phương thức trong một giao dịch (tham gia giao dịch sẵn có nếu có), chèn
++ * khoá {@code DANG_XU_LY} vào {@code <schema>.idempotency_key} trước khi gọi, và chuyển {@code
++ * XONG} kèm phản hồi trong cùng giao dịch đó, nên không có trường hợp đã thực hiện mà chưa lưu
++ * khoá:
++ *
++ * <ul>
++ *   <li>cùng khoá, cùng băm yêu cầu, đã {@code XONG} trong 48 giờ: trả lại phản hồi đã lưu, không
++ *       chạy lại phương thức;
++ *   <li>cùng khoá, khác băm: 422 {@code COMMON-422-IDEMPOTENCY-MISMATCH};
++ *   <li>cùng khoá đang được một yêu cầu khác xử lý: 409 kèm {@code Retry-After} (suy luận, hợp đồng
++ *       không ghi);
++ *   <li>thiếu header khi {@link #required()}: 400.
++ * </ul>
++ *
++ * <p>Phương thức ném lỗi hoặc trả mã khác 2xx thì khoá không được lưu (giao dịch huỷ hoặc dòng
++ * {@code DANG_XU_LY} bị xoá) để client sửa rồi gửi lại.
++ */
++@Documented
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.METHOD)
++public @interface Idempotent {
++
++  /** Thiếu header thì trả 400; {@code false} cho thao tác chỉ khuyến nghị gửi khoá. */
++  boolean required() default true;
++
++  /**
++   * Schema chứa bảng {@code idempotency_key}. Rỗng: lấy từ gói của controller ({@code
++   * vn.viettel.okrkpi.<module>..} → {@code <module>}), rồi tới {@code okrkpi.idempotency.schema}.
++   */
++  String schema() default "";
++
++  /**
++   * Lưu thân phản hồi để phát lại. Thân có thuộc tính {@code @Classified} mức C2 trở lên không bao
++   * giờ được lưu (TL-03: chỉ lưu {@code resource_ref}); đặt {@code false} để không lưu thân cả khi
++   * không có đánh dấu.
++   */
++  boolean storeBody() default true;
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/JdbcIdempotencyStore.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/JdbcIdempotencyStore.java
+new file mode 100644
+index 0000000..07b1e43
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/JdbcIdempotencyStore.java
+@@ -0,0 +1,209 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import java.sql.Date;
++import java.sql.ResultSet;
++import java.sql.SQLException;
++import java.sql.Timestamp;
++import java.util.List;
++import java.util.Objects;
++import java.util.Optional;
++import org.springframework.jdbc.core.JdbcTemplate;
++import org.springframework.transaction.support.TransactionSynchronizationManager;
++
++/**
++ * {@link IdempotencyStore} trên JDBC, bảng {@code <schema>.idempotency_key} của NEN-032: PK {@code
++ * (tenant_id, actor_id, idem_key, created_day)} phân vùng RANGE ngày, RLS FORCE theo {@code
++ * app.tenant_id}.
++ *
++ * <ul>
++ *   <li>Mọi thao tác đòi giao dịch đang mở (khoá ghi cùng giao dịch với tác dụng) và đặt {@code
++ *       app.tenant_id} cục bộ giao dịch nếu chưa có; ngữ cảnh đã đặt cho tenant khác thì từ chối.
++ *   <li>Hai yêu cầu đồng thời cùng khoá: khoá tư vấn {@code pg_try_advisory_xact_lock} theo
++ *       (schema, tenant, người gọi, khoá) không chờ; yêu cầu thua nhận {@link
++ *       BeginResult.InProgress} ngay thay vì chờ giao dịch kia. Khoá tư vấn mức giao dịch dùng được
++ *       với PgBouncer chế độ transaction.
++ *   <li>Vì PK có {@code created_day}, khoá được tìm trên mọi phân vùng còn trong 48 giờ.
++ * </ul>
++ */
++public class JdbcIdempotencyStore implements IdempotencyStore {
++
++  private static final int MAX_KEY = 64;
++  private static final int MAX_REF = 128;
++  private static final String COLUMNS =
++      "idem_key, created_day, request_hash, status, response_code, response_body::text,"
++          + " resource_ref, created_at";
++
++  private final JdbcTemplate jdbc;
++
++  public JdbcIdempotencyStore(JdbcTemplate jdbc) {
++    this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
++  }
++
++  @Override
++  public Optional<IdempotencyRecord> find(IdempotencyScope scope, String key) {
++    prepare(scope, key);
++    return findCurrent(scope, key);
++  }
++
++  @Override
++  public BeginResult begin(IdempotencyScope scope, String key, byte[] requestHash) {
++    Objects.requireNonNull(requestHash, "requestHash");
++    prepare(scope, key);
++    Boolean locked =
++        jdbc.queryForObject(
++            "SELECT pg_try_advisory_xact_lock(hashtextextended(?, 0))",
++            Boolean.class,
++            scope.schema() + '|' + scope.tenant() + '|' + scope.actor() + '|' + key);
++    if (!Boolean.TRUE.equals(locked)) {
++      return new BeginResult.InProgress();
++    }
++    Optional<IdempotencyRecord> existing = findCurrent(scope, key);
++    if (existing.isPresent()) {
++      IdempotencyRecord r = existing.get();
++      if (!r.sameRequest(requestHash)) {
++        return new BeginResult.Mismatch();
++      }
++      return r.status() == IdempotencyRecord.Status.XONG
++          ? new BeginResult.Replay(r)
++          : new BeginResult.InProgress();
++    }
++    List<Date> day =
++        jdbc.query(
++            "INSERT INTO "
++                + table(scope)
++                + " (tenant_id, actor_id, idem_key, request_hash, status)"
++                + " VALUES (?, ?, ?, ?, 'DANG_XU_LY') ON CONFLICT DO NOTHING RETURNING created_day",
++            (rs, i) -> rs.getDate(1),
++            scope.tenant().value(),
++            scope.actor().value(),
++            key,
++            requestHash);
++    if (day.isEmpty()) {
++      return new BeginResult.InProgress();
++    }
++    return new BeginResult.Started(scope, key, day.get(0).toLocalDate());
++  }
++
++  @Override
++  public void complete(
++      BeginResult.Started started, int responseCode, String responseBody, String resourceRef) {
++    if (resourceRef != null && resourceRef.length() > MAX_REF) {
++      throw new IllegalArgumentException("resource_ref dài quá " + MAX_REF + " ký tự");
++    }
++    if (responseCode < 100 || responseCode > 599) {
++      throw new IllegalArgumentException("Mã HTTP không hợp lệ: " + responseCode);
++    }
++    IdempotencyScope scope = started.scope();
++    prepare(scope, started.key());
++    int n =
++        jdbc.update(
++            "UPDATE "
++                + table(scope)
++                + " SET status = 'XONG', response_code = ?, response_body = ?::jsonb,"
++                + " resource_ref = ? WHERE tenant_id = ? AND actor_id = ? AND idem_key = ?"
++                + " AND created_day = ? AND status = 'DANG_XU_LY'",
++            (short) responseCode,
++            responseBody,
++            resourceRef,
++            scope.tenant().value(),
++            scope.actor().value(),
++            started.key(),
++            Date.valueOf(started.createdDay()));
++    if (n != 1) {
++      throw new IllegalStateException("Không tìm thấy khoá đang xử lý để hoàn tất");
++    }
++  }
++
++  @Override
++  public void abandon(BeginResult.Started started) {
++    IdempotencyScope scope = started.scope();
++    prepare(scope, started.key());
++    jdbc.update(
++        "DELETE FROM "
++            + table(scope)
++            + " WHERE tenant_id = ? AND actor_id = ? AND idem_key = ? AND created_day = ?"
++            + " AND status = 'DANG_XU_LY'",
++        scope.tenant().value(),
++        scope.actor().value(),
++        started.key(),
++        Date.valueOf(started.createdDay()));
++  }
++
++  private Optional<IdempotencyRecord> findCurrent(IdempotencyScope scope, String key) {
++    // created_day >= current_date - 2 để chỉ quét các phân vùng có thể còn hạn.
++    List<IdempotencyRecord> rows =
++        jdbc.query(
++            "SELECT "
++                + COLUMNS
++                + " FROM "
++                + table(scope)
++                + " WHERE tenant_id = ? AND actor_id = ? AND idem_key = ?"
++                + " AND created_day >= current_date - 2"
++                + " AND created_at > now() - make_interval(hours => ?)"
++                + " ORDER BY created_at DESC LIMIT 1",
++            JdbcIdempotencyStore::map,
++            scope.tenant().value(),
++            scope.actor().value(),
++            key,
++            (int) RETENTION.toHours());
++    return rows.stream().findFirst();
++  }
++
++  private static IdempotencyRecord map(ResultSet rs, int row) throws SQLException {
++    int code = rs.getInt(5);
++    Integer responseCode = rs.wasNull() ? null : code;
++    Timestamp created = rs.getTimestamp(8);
++    return new IdempotencyRecord(
++        rs.getString(1),
++        rs.getDate(2).toLocalDate(),
++        rs.getBytes(3),
++        IdempotencyRecord.Status.valueOf(rs.getString(4)),
++        responseCode,
++        rs.getString(6),
++        rs.getString(7),
++        created == null ? null : created.toInstant());
++  }
++
++  /** Kiểm đầu vào, giao dịch, và ngữ cảnh tenant của giao dịch. */
++  private void prepare(IdempotencyScope scope, String key) {
++    Objects.requireNonNull(scope, "scope");
++    validateKey(key);
++    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
++      throw new IllegalStateException(
++          "IdempotencyStore phải chạy trong giao dịch của thao tác nghiệp vụ");
++    }
++    String tenant = scope.tenant().toString();
++    String current =
++        jdbc.queryForObject("SELECT current_setting('app.tenant_id', true)", String.class);
++    if (current == null || current.isEmpty()) {
++      jdbc.queryForObject("SELECT set_config('app.tenant_id', ?, true)", String.class, tenant);
++    } else if (!current.equals(tenant)) {
++      throw new IllegalStateException("Ngữ cảnh tenant của giao dịch khác tenant của khoá");
++    }
++  }
++
++  /** Khoá hợp lệ: 1..64 ký tự ASCII in được (cột {@code varchar(64)}). */
++  static void validateKey(String key) {
++    if (!isValidKey(key)) {
++      throw new IllegalArgumentException("Idempotency-Key không hợp lệ");
++    }
++  }
++
++  static boolean isValidKey(String key) {
++    if (key == null || key.isEmpty() || key.length() > MAX_KEY) {
++      return false;
++    }
++    for (int i = 0; i < key.length(); i++) {
++      char c = key.charAt(i);
++      if (c < 0x21 || c > 0x7e) {
++        return false;
++      }
++    }
++    return true;
++  }
++
++  private static String table(IdempotencyScope scope) {
++    // Tên schema đã kiểm bằng IdempotencyScope.SCHEMA nên ghép chuỗi an toàn.
++    return scope.schema() + ".idempotency_key";
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/RequestHasher.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/RequestHasher.java
+new file mode 100644
+index 0000000..3658846
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/RequestHasher.java
+@@ -0,0 +1,125 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import com.fasterxml.jackson.core.JsonProcessingException;
++import com.fasterxml.jackson.databind.JsonNode;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import com.fasterxml.jackson.databind.node.ArrayNode;
++import com.fasterxml.jackson.databind.node.JsonNodeFactory;
++import com.fasterxml.jackson.databind.node.ObjectNode;
++import java.nio.charset.StandardCharsets;
++import java.security.MessageDigest;
++import java.security.NoSuchAlgorithmException;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Locale;
++import java.util.Objects;
++
++/**
++ * Băm yêu cầu cho cột {@code request_hash}: SHA-256 của phương thức, đường dẫn (kèm chuỗi truy vấn)
++ * và thân chuẩn hoá (TL-03 "Bảng idempotency_key").
++ *
++ * <p>Thân chuẩn hoá là JSON gọn, khoá đối tượng sắp theo thứ tự từ điển ở mọi mức, nên cùng nội
++ * dung gửi với thứ tự trường hay khoảng trắng khác vẫn cùng băm. Thân không phải JSON băm nguyên
++ * byte.
++ */
++public final class RequestHasher {
++
++  private static final ObjectMapper CANONICAL = new ObjectMapper();
++
++  private final ObjectMapper mapper;
++
++  /**
++   * @param mapper ObjectMapper của ứng dụng, dùng để chuyển đối tượng thân thành JSON đúng như khi
++   *     đọc (tên trường, định dạng ngày)
++   */
++  public RequestHasher(ObjectMapper mapper) {
++    this.mapper = Objects.requireNonNull(mapper, "mapper");
++  }
++
++  /** Băm từ đối tượng thân đã đọc ({@code @RequestBody}), {@code null} khi không có thân. */
++  public byte[] hash(String method, String pathAndQuery, Object body) {
++    return hash(method, pathAndQuery, canonicalBody(body));
++  }
++
++  /** Băm từ thân đã chuẩn hoá. */
++  public static byte[] hash(String method, String pathAndQuery, byte[] canonicalBody) {
++    Objects.requireNonNull(method, "method");
++    Objects.requireNonNull(pathAndQuery, "pathAndQuery");
++    MessageDigest sha = sha256();
++    sha.update(method.toUpperCase(Locale.ROOT).getBytes(StandardCharsets.UTF_8));
++    sha.update((byte) '\n');
++    sha.update(pathAndQuery.getBytes(StandardCharsets.UTF_8));
++    sha.update((byte) '\n');
++    if (canonicalBody != null) {
++      sha.update(canonicalBody);
++    }
++    return sha.digest();
++  }
++
++  /**
++   * Thân chuẩn hoá của một đối tượng ({@code byte[]}/{@code String} không phải JSON giữ nguyên).
++   */
++  public byte[] canonicalBody(Object body) {
++    if (body == null) {
++      return new byte[0];
++    }
++    try {
++      JsonNode tree;
++      if (body instanceof byte[] raw) {
++        tree = tryParse(raw);
++        if (tree == null) {
++          return raw.clone();
++        }
++      } else if (body instanceof String s) {
++        tree = tryParse(s.getBytes(StandardCharsets.UTF_8));
++        if (tree == null) {
++          return s.getBytes(StandardCharsets.UTF_8);
++        }
++      } else {
++        tree = mapper.valueToTree(body);
++      }
++      return CANONICAL.writeValueAsBytes(sorted(tree));
++    } catch (JsonProcessingException | IllegalArgumentException e) {
++      throw new IllegalStateException("Không chuẩn hoá được thân yêu cầu", e);
++    }
++  }
++
++  private JsonNode tryParse(byte[] raw) {
++    try {
++      return mapper.readTree(raw);
++    } catch (java.io.IOException e) {
++      return null;
++    }
++  }
++
++  /** Bản sao cây JSON với khoá đối tượng sắp xếp ở mọi mức. */
++  static JsonNode sorted(JsonNode node) {
++    if (node == null) {
++      return JsonNodeFactory.instance.nullNode();
++    }
++    if (node.isObject()) {
++      List<String> names = new ArrayList<>();
++      node.fieldNames().forEachRemaining(names::add);
++      names.sort(null);
++      ObjectNode out = JsonNodeFactory.instance.objectNode();
++      for (String name : names) {
++        out.set(name, sorted(node.get(name)));
++      }
++      return out;
++    }
++    if (node.isArray()) {
++      ArrayNode out = JsonNodeFactory.instance.arrayNode();
++      node.forEach(child -> out.add(sorted(child)));
++      return out;
++    }
++    return node;
++  }
++
++  private static MessageDigest sha256() {
++    try {
++      return MessageDigest.getInstance("SHA-256");
++    } catch (NoSuchAlgorithmException e) {
++      throw new IllegalStateException("JVM thiếu SHA-256", e);
++    }
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/SensitivePayloads.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/SensitivePayloads.java
+new file mode 100644
+index 0000000..8f17a2a
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/idempotency/SensitivePayloads.java
+@@ -0,0 +1,103 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import java.lang.reflect.Field;
++import java.lang.reflect.GenericArrayType;
++import java.lang.reflect.Modifier;
++import java.lang.reflect.ParameterizedType;
++import java.lang.reflect.RecordComponent;
++import java.lang.reflect.Type;
++import java.lang.reflect.WildcardType;
++import java.util.HashSet;
++import java.util.Set;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.ConcurrentMap;
++import vn.viettel.okrkpi.shared.kernel.Classified;
++
++/**
++ * Phát hiện kiểu thân phản hồi có thuộc tính {@code @Classified} mức C2 trở lên (kể cả lồng trong
++ * thuộc tính, phần tử danh sách, giá trị map), để kho idempotency không lưu thân đó (TL-03: {@code
++ * response_body} không chứa trường C2, chỉ lưu {@code resource_ref}).
++ *
++ * <p>Chỉ duyệt kiểu của nền tảng ({@code vn.viettel.okrkpi..}); kiểu động ({@code Map}, {@code
++ * JsonNode}) không có đánh dấu nên được coi là không nhạy cảm, controller trả dữ liệu C2 qua kiểu
++ * động phải đặt {@link Idempotent#storeBody()} = {@code false}.
++ */
++final class SensitivePayloads {
++
++  private static final String ROOT = "vn.viettel.okrkpi.";
++  private static final ConcurrentMap<Class<?>, Boolean> CACHE = new ConcurrentHashMap<>();
++
++  private SensitivePayloads() {}
++
++  static boolean containsSensitive(Class<?> type) {
++    if (type == null) {
++      return false;
++    }
++    Boolean cached = CACHE.get(type);
++    if (cached != null) {
++      return cached;
++    }
++    boolean result = scan(type, new HashSet<>());
++    CACHE.putIfAbsent(type, result);
++    return result;
++  }
++
++  private static boolean scan(Type type, Set<Class<?>> seen) {
++    if (type instanceof ParameterizedType p) {
++      if (scan(p.getRawType(), seen)) {
++        return true;
++      }
++      for (Type arg : p.getActualTypeArguments()) {
++        if (scan(arg, seen)) {
++          return true;
++        }
++      }
++      return false;
++    }
++    if (type instanceof GenericArrayType g) {
++      return scan(g.getGenericComponentType(), seen);
++    }
++    if (type instanceof WildcardType w) {
++      for (Type b : w.getUpperBounds()) {
++        if (scan(b, seen)) {
++          return true;
++        }
++      }
++      return false;
++    }
++    if (!(type instanceof Class<?> c)) {
++      return false;
++    }
++    if (c.isArray()) {
++      return scan(c.getComponentType(), seen);
++    }
++    if (c.isPrimitive() || !c.getName().startsWith(ROOT) || !seen.add(c)) {
++      return false;
++    }
++    if (sensitive(c.getAnnotation(Classified.class))) {
++      return true;
++    }
++    if (c.isRecord()) {
++      for (RecordComponent rc : c.getRecordComponents()) {
++        if (sensitive(rc.getAnnotation(Classified.class)) || scan(rc.getGenericType(), seen)) {
++          return true;
++        }
++      }
++    }
++    for (Class<?> k = c; k != null && k.getName().startsWith(ROOT); k = k.getSuperclass()) {
++      for (Field f : k.getDeclaredFields()) {
++        if (Modifier.isStatic(f.getModifiers())) {
++          continue;
++        }
++        if (sensitive(f.getAnnotation(Classified.class)) || scan(f.getGenericType(), seen)) {
++          return true;
++        }
++      }
++    }
++    return false;
++  }
++
++  private static boolean sensitive(Classified c) {
++    return c != null && c.value().isSensitive();
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/Job.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/Job.java
+new file mode 100644
+index 0000000..0529510
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/Job.java
+@@ -0,0 +1,49 @@
++package vn.viettel.okrkpi.shared.job;
++
++import com.fasterxml.jackson.annotation.JsonInclude;
++import java.time.OffsetDateTime;
++import java.util.Objects;
++import org.springframework.http.ProblemDetail;
++
++/**
++ * Tác vụ dài đúng lược đồ {@code Job} của {@code common.yaml} (BS-02 HD-06), trả trong thân 202 và
++ * ở {@code GET /api/v1/jobs/{id}} ({@code getJob}). Thuộc tính không bắt buộc bỏ khỏi JSON khi
++ * {@code null}.
++ *
++ * @param id mã tác vụ
++ * @param type loại tác vụ, ví dụ {@code PERIOD_LOCK}, {@code EXPORT}
++ * @param status trạng thái
++ * @param progress phần trăm 0..100, có thể {@code null}
++ * @param message mô tả bước đang chạy, tiếng Việt
++ * @param resultLocation đường dẫn kết quả khi {@code HOAN_TAT}
++ * @param problem lỗi khi {@code THAT_BAI}
++ * @param updatedAt thời điểm cập nhật
++ */
++@JsonInclude(JsonInclude.Include.NON_NULL)
++public record Job(
++    String id,
++    String type,
++    JobStatus status,
++    Integer progress,
++    String message,
++    String resultLocation,
++    ProblemDetail problem,
++    OffsetDateTime updatedAt) {
++
++  public Job {
++    Objects.requireNonNull(id, "id");
++    Objects.requireNonNull(type, "type");
++    Objects.requireNonNull(status, "status");
++    if (id.isBlank() || type.isBlank()) {
++      throw new IllegalArgumentException("id và type không rỗng");
++    }
++    if (progress != null && (progress < 0 || progress > 100)) {
++      throw new IllegalArgumentException("progress ngoài 0..100");
++    }
++  }
++
++  /** Tác vụ vừa nhận ({@code CHO}, tiến độ 0), như ví dụ {@code moi-nhan} của hợp đồng. */
++  public static Job accepted(String id, String type, OffsetDateTime at) {
++    return new Job(id, type, JobStatus.CHO, 0, null, null, null, at);
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobAutoConfiguration.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobAutoConfiguration.java
+new file mode 100644
+index 0000000..22ce29b
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobAutoConfiguration.java
+@@ -0,0 +1,58 @@
++package vn.viettel.okrkpi.shared.job;
++
++import jakarta.servlet.http.HttpServletRequest;
++import java.util.List;
++import org.springframework.beans.factory.ObjectProvider;
++import org.springframework.boot.autoconfigure.AutoConfiguration;
++import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
++import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
++import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
++import org.springframework.context.annotation.Bean;
++import org.springframework.core.Ordered;
++import org.springframework.core.annotation.Order;
++import org.springframework.http.ProblemDetail;
++import org.springframework.http.ResponseEntity;
++import org.springframework.web.bind.annotation.ExceptionHandler;
++import org.springframework.web.bind.annotation.RestControllerAdvice;
++import vn.viettel.okrkpi.shared.error.ProblemFactory;
++
++/**
++ * Auto-configuration tác vụ dài: {@link JobQueryService} gộp mọi bean {@link JobSource} (theo thứ
++ * tự {@code @Order}) và ánh xạ {@link JobNotFoundException} → 404.
++ */
++@AutoConfiguration(afterName = "vn.viettel.okrkpi.shared.error.ProblemAutoConfiguration")
++public class JobAutoConfiguration {
++
++  @Bean
++  @ConditionalOnMissingBean
++  public JobQueryService jobQueryService(ObjectProvider<JobSource> sources) {
++    List<JobSource> ordered = sources.orderedStream().toList();
++    return new JobQueryService(ordered);
++  }
++
++  @Bean
++  @ConditionalOnMissingBean
++  @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
++  @ConditionalOnBean(ProblemFactory.class)
++  public JobProblemHandler jobProblemHandler(ProblemFactory problemFactory) {
++    return new JobProblemHandler(problemFactory);
++  }
++
++  /** {@link JobNotFoundException} → 404 chuẩn ({@code common.yaml} response NotFound). */
++  @RestControllerAdvice
++  @Order(Ordered.LOWEST_PRECEDENCE - 20)
++  public static class JobProblemHandler {
++
++    private final ProblemFactory problems;
++
++    public JobProblemHandler(ProblemFactory problems) {
++      this.problems = problems;
++    }
++
++    @ExceptionHandler(JobNotFoundException.class)
++    public ResponseEntity<ProblemDetail> handleNotFound(
++        JobNotFoundException ex, HttpServletRequest request) {
++      return ProblemFactory.toResponse(problems.standard(404, null, List.of(), request), null);
++    }
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobNotFoundException.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobNotFoundException.java
+new file mode 100644
+index 0000000..a9ce7ae
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobNotFoundException.java
+@@ -0,0 +1,13 @@
++package vn.viettel.okrkpi.shared.job;
++
++import java.io.Serial;
++
++/** Tác vụ không tồn tại hoặc người gọi không phải người khởi tạo: 404 ({@code jobs.yaml}). */
++public class JobNotFoundException extends RuntimeException {
++
++  @Serial private static final long serialVersionUID = 1L;
++
++  public JobNotFoundException() {
++    super("JOB-NOT-FOUND", null, false, false);
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobQueryService.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobQueryService.java
+new file mode 100644
+index 0000000..90df676
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobQueryService.java
+@@ -0,0 +1,73 @@
++package vn.viettel.okrkpi.shared.job;
++
++import java.util.List;
++import java.util.Objects;
++import java.util.Optional;
++import vn.viettel.okrkpi.shared.error.BusinessException;
++import vn.viettel.okrkpi.shared.kernel.ActorId;
++import vn.viettel.okrkpi.shared.kernel.TenantId;
++
++/**
++ * Gộp các {@link JobSource} cho {@code GET /api/v1/jobs/{id}} ({@code getJob}) và {@code DELETE}
++ * ({@code cancelJob}) của {@code jobs.yaml}: chỉ người khởi tạo xem và huỷ được, người khác nhận
++ * 404 như khi tác vụ không tồn tại (không lộ sự tồn tại).
++ */
++public class JobQueryService {
++
++  /** Mã hợp đồng khi tác vụ đã kết thúc hoặc không cho huỷ. */
++  public static final String NOT_CANCELLABLE = "JOB-409-NOT-CANCELLABLE";
++
++  private final List<JobSource> sources;
++
++  public JobQueryService(List<JobSource> sources) {
++    this.sources = List.copyOf(Objects.requireNonNull(sources, "sources"));
++  }
++
++  /** Trạng thái tác vụ nếu người gọi là người khởi tạo. */
++  public Optional<Job> find(TenantId tenant, ActorId caller, String jobId) {
++    return locate(tenant, caller, jobId).map(f -> f.tracked().job());
++  }
++
++  /**
++   * Trạng thái tác vụ cho {@code getJob}.
++   *
++   * @throws JobNotFoundException không có hoặc người gọi không phải người khởi tạo (404)
++   */
++  public Job get(TenantId tenant, ActorId caller, String jobId) {
++    return find(tenant, caller, jobId).orElseThrow(JobNotFoundException::new);
++  }
++
++  /**
++   * Yêu cầu huỷ cho {@code cancelJob}; thành công thì service trả 202.
++   *
++   * @throws JobNotFoundException không có hoặc người gọi không phải người khởi tạo (404)
++   * @throws BusinessException {@value #NOT_CANCELLABLE} khi đã kết thúc hoặc không cho huỷ (409)
++   */
++  public Job cancel(TenantId tenant, ActorId caller, String jobId) {
++    Found found = locate(tenant, caller, jobId).orElseThrow(JobNotFoundException::new);
++    TrackedJob tracked = found.tracked();
++    if (!tracked.cancellable()
++        || tracked.job().status().isTerminal()
++        || !found.source().requestCancel(tenant, jobId)) {
++      throw new BusinessException(NOT_CANCELLABLE);
++    }
++    return tracked.job();
++  }
++
++  private Optional<Found> locate(TenantId tenant, ActorId caller, String jobId) {
++    Objects.requireNonNull(tenant, "tenant");
++    Objects.requireNonNull(caller, "caller");
++    if (jobId == null || jobId.isBlank()) {
++      return Optional.empty();
++    }
++    for (JobSource source : sources) {
++      Optional<TrackedJob> tracked = source.find(tenant, jobId);
++      if (tracked.isPresent()) {
++        return tracked.filter(t -> t.initiator().equals(caller)).map(t -> new Found(source, t));
++      }
++    }
++    return Optional.empty();
++  }
++
++  private record Found(JobSource source, TrackedJob tracked) {}
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobSource.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobSource.java
+new file mode 100644
+index 0000000..b2930da
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobSource.java
+@@ -0,0 +1,30 @@
++package vn.viettel.okrkpi.shared.job;
++
++import java.util.Optional;
++import vn.viettel.okrkpi.shared.kernel.TenantId;
++
++/**
++ * Nguồn trạng thái tác vụ dài của một module (ví dụ {@code score_job}, {@code render_job}, saga
++ * khoá kỳ). Mỗi module khai một bean; {@link JobQueryService} gộp các nguồn cho {@code getJob} và
++ * {@code cancelJob} của {@code jobs.yaml} (CORE-00-02 gắn đường dẫn).
++ */
++public interface JobSource {
++
++  /** Tên nguồn để ghi nhật ký, ví dụ {@code scoring.score_job}. */
++  String name();
++
++  /**
++   * Tác vụ có mã {@code jobId} của tenant, rỗng khi nguồn không quản lý mã này. Nguồn đọc trong ngữ
++   * cảnh tenant (RLS) nên không trả tác vụ của tenant khác.
++   */
++  Optional<TrackedJob> find(TenantId tenant, String jobId);
++
++  /**
++   * Yêu cầu huỷ một tác vụ chưa kết thúc mà nguồn đã khai {@link TrackedJob#cancellable()}.
++   *
++   * @return {@code false} khi tác vụ vừa kết thúc hoặc không dừng được nữa
++   */
++  default boolean requestCancel(TenantId tenant, String jobId) {
++    return false;
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobStatus.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobStatus.java
+new file mode 100644
+index 0000000..54407d9
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/JobStatus.java
+@@ -0,0 +1,18 @@
++package vn.viettel.okrkpi.shared.job;
++
++/**
++ * Trạng thái tác vụ dài ({@code common.yaml} lược đồ {@code JobStatus}; BS-02 HD-06 giữ bộ giá trị
++ * của WEB-007).
++ */
++public enum JobStatus {
++  CHO,
++  DANG_CHAY,
++  HOAN_TAT,
++  THAT_BAI,
++  DA_HUY;
++
++  /** Đúng khi tác vụ đã kết thúc (không còn chạy, không huỷ được nữa). */
++  public boolean isTerminal() {
++    return this == HOAN_TAT || this == THAT_BAI || this == DA_HUY;
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/Jobs.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/Jobs.java
+new file mode 100644
+index 0000000..d879758
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/Jobs.java
+@@ -0,0 +1,58 @@
++package vn.viettel.okrkpi.shared.job;
++
++import java.net.URI;
++import java.util.Objects;
++import org.springframework.http.HttpHeaders;
++import org.springframework.http.HttpStatus;
++import org.springframework.http.ResponseEntity;
++import org.springframework.web.util.UriComponentsBuilder;
++
++/**
++ * Phản hồi tác vụ dài (baseline mục 13; TL-01 "San phẳng đỉnh bằng hàng đợi"; {@code common.yaml}
++ * response {@code Accepted}): 202, thân {@link Job}, {@code Location: /api/v1/jobs/{id}} và {@code
++ * Retry-After} gợi ý giãn cách thăm dò.
++ */
++public final class Jobs {
++
++  /** Tiền tố đường dẫn theo dõi tác vụ ({@code jobs.yaml}). */
++  public static final String JOBS_PATH = "/api/v1/jobs/";
++
++  /** Giãn cách thăm dò mặc định (giây). */
++  public static final long DEFAULT_RETRY_AFTER_SECONDS = 2;
++
++  private Jobs() {}
++
++  /** Đường dẫn theo dõi {@code /api/v1/jobs/{id}} (mã được mã hoá an toàn cho đường dẫn). */
++  public static URI location(String jobId) {
++    Objects.requireNonNull(jobId, "jobId");
++    return URI.create(
++        UriComponentsBuilder.fromPath(JOBS_PATH + "{id}")
++            .encode()
++            .buildAndExpand(jobId)
++            .toUriString());
++  }
++
++  /** 202 kèm {@code Location} và {@code Retry-After} mặc định. */
++  public static ResponseEntity<Job> accepted(Job job) {
++    return accepted(job, DEFAULT_RETRY_AFTER_SECONDS);
++  }
++
++  /** 202 kèm {@code Location} và {@code Retry-After}. */
++  public static ResponseEntity<Job> accepted(Job job, long retryAfterSeconds) {
++    Objects.requireNonNull(job, "job");
++    return ResponseEntity.status(HttpStatus.ACCEPTED)
++        .location(location(job.id()))
++        .header(HttpHeaders.RETRY_AFTER, Long.toString(Math.max(0, retryAfterSeconds)))
++        .body(job);
++  }
++
++  /** 200 cho {@code getJob}; tác vụ chưa kết thúc kèm {@code Retry-After}. */
++  public static ResponseEntity<Job> status(Job job) {
++    Objects.requireNonNull(job, "job");
++    ResponseEntity.BodyBuilder b = ResponseEntity.ok();
++    if (!job.status().isTerminal()) {
++      b.header(HttpHeaders.RETRY_AFTER, Long.toString(DEFAULT_RETRY_AFTER_SECONDS));
++    }
++    return b.body(job);
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/TrackedJob.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/TrackedJob.java
+new file mode 100644
+index 0000000..e48cc8b
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/job/TrackedJob.java
+@@ -0,0 +1,20 @@
++package vn.viettel.okrkpi.shared.job;
++
++import java.util.Objects;
++import vn.viettel.okrkpi.shared.kernel.ActorId;
++
++/**
++ * Tác vụ do một {@link JobSource} trả về, kèm người khởi tạo (chỉ người này xem và huỷ được, theo
++ * {@code jobs.yaml}) và cờ cho phép huỷ.
++ *
++ * @param job trạng thái theo lược đồ hợp đồng
++ * @param initiator người khởi tạo tác vụ
++ * @param cancellable tác vụ khai báo huỷ được qua {@code cancelJob}
++ */
++public record TrackedJob(Job job, ActorId initiator, boolean cancellable) {
++
++  public TrackedJob {
++    Objects.requireNonNull(job, "job");
++    Objects.requireNonNull(initiator, "initiator");
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/CursorCodec.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/CursorCodec.java
+new file mode 100644
+index 0000000..05cbe97
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/CursorCodec.java
+@@ -0,0 +1,200 @@
++package vn.viettel.okrkpi.shared.paging;
++
++import com.fasterxml.jackson.databind.JsonNode;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import com.fasterxml.jackson.databind.node.ArrayNode;
++import com.fasterxml.jackson.databind.node.ObjectNode;
++import java.io.IOException;
++import java.nio.charset.StandardCharsets;
++import java.security.InvalidKeyException;
++import java.security.MessageDigest;
++import java.security.NoSuchAlgorithmException;
++import java.time.Duration;
++import java.time.Instant;
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.Base64;
++import java.util.List;
++import java.util.Objects;
++import java.util.function.Function;
++import javax.crypto.Mac;
++import javax.crypto.spec.SecretKeySpec;
++import vn.viettel.okrkpi.shared.kernel.Clock;
++
++/**
++ * Mã hoá con trỏ mờ của phân trang keyset ({@code common.yaml} tham số {@code Cursor}: "Không tự
++ * dựng giá trị").
++ *
++ * <p>Định dạng: {@code base64url(payload || mac)} không đệm, trong đó {@code payload} là JSON gọn
++ * {@code {"v":1,"t":<giây phát hành>,"k":[<keyset>]}} và {@code mac} là 16 byte đầu của
++ * HMAC-SHA256(khoá, {@code scope || 0x00 || payload}). {@code scope} (tên danh sách kèm bộ lọc, thứ
++ * tự) không nằm trong con trỏ nhưng nằm trong MAC, nên con trỏ của danh sách này không dùng được
++ * cho danh sách khác. Con trỏ hết hạn sau {@code ttl}; tối đa 512 ký tự theo hợp đồng.
++ */
++public final class CursorCodec {
++
++  /** Độ dài tối đa của con trỏ ({@code common.yaml}: {@code maxLength: 512}). */
++  public static final int MAX_LENGTH = 512;
++
++  static final int MAC_LENGTH = 16;
++  private static final int VERSION = 1;
++  private static final int MIN_KEY_BYTES = 32;
++  private static final Duration CLOCK_SKEW = Duration.ofMinutes(1);
++  private static final ObjectMapper JSON = new ObjectMapper();
++
++  static final String INVALID =
++      "Vị trí trang không hợp lệ hoặc đã hết hạn. Vui lòng tải lại danh sách.";
++  static final String LIMIT_RANGE = "Số dòng mỗi trang phải từ 1 đến 200.";
++
++  private final byte[] key;
++  private final Duration ttl;
++  private final Clock clock;
++
++  /**
++   * @param key khoá HMAC tối thiểu 32 byte (lấy từ tệp bí mật do ESO/CSI gắn, không đặt trong cấu
++   *     hình dạng rõ)
++   * @param ttl thời hạn con trỏ
++   * @param clock đồng hồ
++   */
++  public CursorCodec(byte[] key, Duration ttl, Clock clock) {
++    Objects.requireNonNull(key, "key");
++    if (key.length < MIN_KEY_BYTES) {
++      throw new IllegalArgumentException("Khoá ký con trỏ cần tối thiểu 32 byte");
++    }
++    this.key = key.clone();
++    this.ttl = Objects.requireNonNull(ttl, "ttl");
++    this.clock = Objects.requireNonNull(clock, "clock");
++    if (ttl.isNegative() || ttl.isZero()) {
++      throw new IllegalArgumentException("ttl phải dương");
++    }
++  }
++
++  /** Con trỏ cho keyset của dòng cuối trang. */
++  public String encode(String scope, CursorKey after) {
++    Objects.requireNonNull(scope, "scope");
++    Objects.requireNonNull(after, "after");
++    ObjectNode node = JSON.createObjectNode();
++    node.put("v", VERSION);
++    node.put("t", clock.instant().getEpochSecond());
++    ArrayNode k = node.putArray("k");
++    after.parts().forEach(k::add);
++    byte[] payload;
++    try {
++      payload = JSON.writeValueAsBytes(node);
++    } catch (IOException e) {
++      throw new IllegalStateException("Không mã hoá được con trỏ", e);
++    }
++    byte[] mac = mac(scope, payload);
++    byte[] token = Arrays.copyOf(payload, payload.length + MAC_LENGTH);
++    System.arraycopy(mac, 0, token, payload.length, MAC_LENGTH);
++    String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(token);
++    if (encoded.length() > MAX_LENGTH) {
++      throw new IllegalArgumentException("Con trỏ vượt " + MAX_LENGTH + " ký tự, keyset quá dài");
++    }
++    return encoded;
++  }
++
++  /**
++   * Đọc con trỏ.
++   *
++   * @throws InvalidPageRequestException con trỏ sai dạng, bị sửa, sai phạm vi hoặc hết hạn
++   */
++  public CursorKey decode(String scope, String cursor) {
++    Objects.requireNonNull(scope, "scope");
++    if (cursor == null || cursor.isEmpty() || cursor.length() > MAX_LENGTH) {
++      throw invalid();
++    }
++    byte[] token;
++    try {
++      token = Base64.getUrlDecoder().decode(cursor);
++    } catch (IllegalArgumentException e) {
++      throw invalid();
++    }
++    if (token.length <= MAC_LENGTH) {
++      throw invalid();
++    }
++    byte[] payload = Arrays.copyOf(token, token.length - MAC_LENGTH);
++    byte[] mac = Arrays.copyOfRange(token, token.length - MAC_LENGTH, token.length);
++    if (!MessageDigest.isEqual(mac, mac(scope, payload))) {
++      throw invalid();
++    }
++    JsonNode node;
++    try {
++      node = JSON.readTree(payload);
++    } catch (IOException e) {
++      throw invalid();
++    }
++    if (node == null
++        || node.path("v").asInt(-1) != VERSION
++        || !node.path("t").canConvertToLong()
++        || !node.path("k").isArray()) {
++      throw invalid();
++    }
++    Instant issued = Instant.ofEpochSecond(node.path("t").asLong());
++    Instant now = clock.instant();
++    if (issued.plus(ttl).isBefore(now) || issued.isAfter(now.plus(CLOCK_SKEW))) {
++      throw invalid();
++    }
++    List<String> parts = new ArrayList<>();
++    for (JsonNode part : node.path("k")) {
++      if (!part.isTextual()) {
++        throw invalid();
++      }
++      parts.add(part.asText());
++    }
++    try {
++      return CursorKey.ofParts(parts);
++    } catch (IllegalArgumentException e) {
++      throw invalid();
++    }
++  }
++
++  /**
++   * Kiểm tham số trang của hợp đồng.
++   *
++   * @param limit tham số {@code limit}, {@code null} dùng mặc định 20
++   * @param cursor tham số {@code cursor}, {@code null}/rỗng là trang đầu
++   * @param scope phạm vi con trỏ: tên danh sách kèm bộ lọc và thứ tự
++   */
++  public PageRequest pageRequest(Integer limit, String cursor, String scope) {
++    int l = limit == null ? PageRequest.DEFAULT_LIMIT : limit;
++    if (l < 1 || l > PageRequest.MAX_LIMIT) {
++      throw new InvalidPageRequestException(InvalidPageRequestException.LIMIT, LIMIT_RANGE);
++    }
++    CursorKey after = cursor == null || cursor.isEmpty() ? null : decode(scope, cursor);
++    return new PageRequest(l, after, scope);
++  }
++
++  /**
++   * Dựng trang từ các dòng đã đọc với {@link PageRequest#fetchSize()} ({@code limit + 1}) theo thứ
++   * tự keyset: nếu đọc được hơn {@code limit} dòng thì còn trang sau, con trỏ lấy keyset dòng cuối
++   * của trang.
++   */
++  public <T> CursorPage<T> page(
++      List<T> fetched, PageRequest request, Function<? super T, CursorKey> keyOf) {
++    Objects.requireNonNull(fetched, "fetched");
++    if (fetched.size() <= request.limit()) {
++      return CursorPage.last(fetched);
++    }
++    List<T> items = fetched.subList(0, request.limit());
++    String next = encode(request.scope(), keyOf.apply(items.get(items.size() - 1)));
++    return new CursorPage<>(items, next);
++  }
++
++  private static InvalidPageRequestException invalid() {
++    return new InvalidPageRequestException(InvalidPageRequestException.CURSOR, INVALID);
++  }
++
++  private byte[] mac(String scope, byte[] payload) {
++    try {
++      Mac hmac = Mac.getInstance("HmacSHA256");
++      hmac.init(new SecretKeySpec(key, "HmacSHA256"));
++      hmac.update(scope.getBytes(StandardCharsets.UTF_8));
++      hmac.update((byte) 0);
++      hmac.update(payload);
++      return Arrays.copyOf(hmac.doFinal(), MAC_LENGTH);
++    } catch (NoSuchAlgorithmException | InvalidKeyException e) {
++      throw new IllegalStateException("Không ký được con trỏ", e);
++    }
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/CursorKey.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/CursorKey.java
+new file mode 100644
+index 0000000..a9433a6
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/CursorKey.java
+@@ -0,0 +1,104 @@
++package vn.viettel.okrkpi.shared.paging;
++
++import java.time.Instant;
++import java.time.LocalDate;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Objects;
++import java.util.UUID;
++
++/**
++ * Giá trị keyset của dòng cuối trang: các cột sắp xếp theo thứ tự, cột cuối là {@code id} để thứ tự
++ * duy nhất (baseline mục 13 "phân trang con trỏ"). Giá trị lưu dạng chuỗi chuẩn ({@link
++ * Instant#toString()}, {@link UUID#toString()}...), đọc lại bằng các hàm có kiểu.
++ */
++public final class CursorKey {
++
++  private final List<String> parts;
++
++  private CursorKey(List<String> parts) {
++    this.parts = List.copyOf(parts);
++  }
++
++  /**
++   * Dựng từ các giá trị cột sắp xếp; mỗi giá trị là {@link String}, {@link Number}, {@link
++   * Boolean}, {@link UUID}, {@link Instant}, {@link LocalDate} hoặc {@link Enum}.
++   */
++  public static CursorKey of(Object... values) {
++    Objects.requireNonNull(values, "values");
++    if (values.length == 0) {
++      throw new IllegalArgumentException("CursorKey cần ít nhất một giá trị");
++    }
++    List<String> out = new ArrayList<>(values.length);
++    for (Object v : values) {
++      out.add(stringOf(v));
++    }
++    return new CursorKey(out);
++  }
++
++  static CursorKey ofParts(List<String> parts) {
++    if (parts.isEmpty() || parts.stream().anyMatch(Objects::isNull)) {
++      throw new IllegalArgumentException("CursorKey rỗng hoặc có phần tử null");
++    }
++    return new CursorKey(parts);
++  }
++
++  private static String stringOf(Object v) {
++    if (v instanceof String
++        || v instanceof Number
++        || v instanceof Boolean
++        || v instanceof UUID
++        || v instanceof Instant
++        || v instanceof LocalDate) {
++      return v.toString();
++    }
++    if (v instanceof Enum<?> e) {
++      return e.name();
++    }
++    throw new IllegalArgumentException(
++        "Kiểu không dùng được trong con trỏ: " + (v == null ? "null" : v.getClass().getName()));
++  }
++
++  public int size() {
++    return parts.size();
++  }
++
++  List<String> parts() {
++    return parts;
++  }
++
++  public String getString(int index) {
++    return parts.get(index);
++  }
++
++  public long getLong(int index) {
++    return Long.parseLong(parts.get(index));
++  }
++
++  public UUID getUuid(int index) {
++    return UUID.fromString(parts.get(index));
++  }
++
++  public Instant getInstant(int index) {
++    return Instant.parse(parts.get(index));
++  }
++
++  public LocalDate getDate(int index) {
++    return LocalDate.parse(parts.get(index));
++  }
++
++  @Override
++  public boolean equals(Object o) {
++    return o instanceof CursorKey k && parts.equals(k.parts);
++  }
++
++  @Override
++  public int hashCode() {
++    return parts.hashCode();
++  }
++
++  @Override
++  public String toString() {
++    return "CursorKey" + parts;
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/CursorPage.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/CursorPage.java
+new file mode 100644
+index 0000000..2d358dc
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/CursorPage.java
+@@ -0,0 +1,29 @@
++package vn.viettel.okrkpi.shared.paging;
++
++import com.fasterxml.jackson.annotation.JsonInclude;
++import java.util.List;
++import java.util.Objects;
++
++/**
++ * Một trang kết quả đúng dạng hợp đồng: {@code items} và {@code nextCursor} (bắt buộc, {@code null}
++ * khi đã hết; {@code common.yaml} lược đồ {@code NextCursor}). {@code nextCursor} luôn được tuần tự
++ * hoá kể cả khi ứng dụng đặt {@code NON_NULL}.
++ *
++ * @param items các dòng của trang
++ * @param nextCursor con trỏ trang kế tiếp, {@code null} khi hết
++ */
++public record CursorPage<T>(
++    List<T> items, @JsonInclude(JsonInclude.Include.ALWAYS) String nextCursor) {
++
++  public CursorPage {
++    items = List.copyOf(Objects.requireNonNull(items, "items"));
++  }
++
++  public static <T> CursorPage<T> last(List<T> items) {
++    return new CursorPage<>(items, null);
++  }
++
++  public boolean hasNext() {
++    return nextCursor != null;
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/InvalidPageRequestException.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/InvalidPageRequestException.java
+new file mode 100644
+index 0000000..63c7df7
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/InvalidPageRequestException.java
+@@ -0,0 +1,35 @@
++package vn.viettel.okrkpi.shared.paging;
++
++import java.io.Serial;
++
++/**
++ * Tham số phân trang sai: {@code limit} ngoài 1..200, con trỏ sai, bị sửa, hết hạn hoặc dùng cho
++ * danh sách khác. {@link PagingProblemHandler} trả 400 kèm {@code errors[]} trỏ vào tham số.
++ */
++public class InvalidPageRequestException extends RuntimeException {
++
++  @Serial private static final long serialVersionUID = 1L;
++
++  /** Tên tham số truy vấn của hợp đồng. */
++  public static final String LIMIT = "limit";
++
++  public static final String CURSOR = "cursor";
++
++  private final String parameter;
++  private final String userMessage;
++
++  public InvalidPageRequestException(String parameter, String userMessage) {
++    super("INVALID-PAGE-REQUEST", null, false, false);
++    this.parameter = parameter;
++    this.userMessage = userMessage;
++  }
++
++  public String parameter() {
++    return parameter;
++  }
++
++  /** Câu tiếng Việt cho người dùng, không chứa nội dung con trỏ. */
++  public String userMessage() {
++    return userMessage;
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/PageRequest.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/PageRequest.java
+new file mode 100644
+index 0000000..63c7b1d
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/PageRequest.java
+@@ -0,0 +1,40 @@
++package vn.viettel.okrkpi.shared.paging;
++
++import java.util.Optional;
++
++/**
++ * Yêu cầu một trang đã kiểm: {@code limit} 1..200 (mặc định 20) và vị trí sau dòng cuối trang trước
++ * ({@code common.yaml} tham số {@code Limit}, {@code Cursor}). Dựng bằng {@link
++ * CursorCodec#pageRequest(Integer, String, String)}.
++ *
++ * @param limit số dòng của trang
++ * @param after keyset của dòng cuối trang trước, {@code null} ở trang đầu
++ * @param scope phạm vi con trỏ (danh sách, bộ lọc, thứ tự) đã dùng khi kiểm
++ */
++public record PageRequest(int limit, CursorKey after, String scope) {
++
++  /** Mặc định theo TL-02 ({@code common.yaml} tham số Limit). */
++  public static final int DEFAULT_LIMIT = 20;
++
++  /** Trần theo baseline mục 13. */
++  public static final int MAX_LIMIT = 200;
++
++  public PageRequest {
++    if (limit < 1 || limit > MAX_LIMIT) {
++      throw new IllegalArgumentException("limit ngoài 1.." + MAX_LIMIT);
++    }
++  }
++
++  /** Số dòng cần đọc: {@code limit + 1} để biết còn trang sau. */
++  public int fetchSize() {
++    return limit + 1;
++  }
++
++  public Optional<CursorKey> afterKey() {
++    return Optional.ofNullable(after);
++  }
++
++  public boolean firstPage() {
++    return after == null;
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/PagingAutoConfiguration.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/PagingAutoConfiguration.java
+new file mode 100644
+index 0000000..9a2e5d8
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/PagingAutoConfiguration.java
+@@ -0,0 +1,67 @@
++package vn.viettel.okrkpi.shared.paging;
++
++import java.io.IOException;
++import java.io.UncheckedIOException;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.security.SecureRandom;
++import java.time.Duration;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.springframework.beans.factory.ObjectProvider;
++import org.springframework.boot.autoconfigure.AutoConfiguration;
++import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
++import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
++import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
++import org.springframework.context.annotation.Bean;
++import org.springframework.core.env.Environment;
++import vn.viettel.okrkpi.shared.error.ProblemFactory;
++import vn.viettel.okrkpi.shared.kernel.Clock;
++
++/**
++ * Auto-configuration phân trang con trỏ (baseline mục 13).
++ *
++ * <ul>
++ *   <li>{@code okrkpi.paging.cursor-key-file}: tệp khoá ký con trỏ (tối thiểu 32 byte) do ESO hoặc
++ *       CSI gắn từ OpenBao; mọi bản sao của service phải dùng cùng khoá. Không có tệp thì sinh khoá
++ *       ngẫu nhiên trong tiến trình và ghi cảnh báo: chỉ đúng khi chạy một bản sao (dev, kiểm thử).
++ *   <li>{@code okrkpi.paging.cursor-ttl}: thời hạn con trỏ, mặc định 24 giờ.
++ * </ul>
++ */
++@AutoConfiguration(afterName = "vn.viettel.okrkpi.shared.error.ProblemAutoConfiguration")
++public class PagingAutoConfiguration {
++
++  private static final Logger log = LoggerFactory.getLogger(PagingAutoConfiguration.class);
++
++  static final Duration DEFAULT_TTL = Duration.ofHours(24);
++
++  @Bean
++  @ConditionalOnMissingBean
++  public CursorCodec cursorCodec(Environment environment, ObjectProvider<Clock> clock) {
++    Duration ttl = environment.getProperty("okrkpi.paging.cursor-ttl", Duration.class, DEFAULT_TTL);
++    String file = environment.getProperty("okrkpi.paging.cursor-key-file");
++    byte[] key;
++    if (file != null && !file.isBlank()) {
++      try {
++        key = Files.readAllBytes(Path.of(file.trim()));
++      } catch (IOException e) {
++        throw new UncheckedIOException("Không đọc được tệp khoá ký con trỏ", e);
++      }
++    } else {
++      log.warn(
++          "Chưa đặt okrkpi.paging.cursor-key-file: dùng khoá ký con trỏ ngẫu nhiên trong tiến"
++              + " trình, con trỏ không dùng được giữa các bản sao");
++      key = new byte[32];
++      new SecureRandom().nextBytes(key);
++    }
++    return new CursorCodec(key, ttl, clock.getIfAvailable(Clock::systemUtc));
++  }
++
++  @Bean
++  @ConditionalOnMissingBean
++  @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
++  @ConditionalOnBean(ProblemFactory.class)
++  public PagingProblemHandler pagingProblemHandler(ProblemFactory problemFactory) {
++    return new PagingProblemHandler(problemFactory);
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/PagingProblemHandler.java b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/PagingProblemHandler.java
+new file mode 100644
+index 0000000..1a65696
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/main/java/vn/viettel/okrkpi/shared/paging/PagingProblemHandler.java
+@@ -0,0 +1,36 @@
++package vn.viettel.okrkpi.shared.paging;
++
++import jakarta.servlet.http.HttpServletRequest;
++import java.util.List;
++import org.springframework.core.Ordered;
++import org.springframework.core.annotation.Order;
++import org.springframework.http.ProblemDetail;
++import org.springframework.http.ResponseEntity;
++import org.springframework.web.bind.annotation.ExceptionHandler;
++import org.springframework.web.bind.annotation.RestControllerAdvice;
++import vn.viettel.okrkpi.shared.error.ProblemFactory;
++import vn.viettel.okrkpi.shared.error.ProblemFieldError;
++
++/** Tham số phân trang sai → 400 {@code application/problem+json} kèm {@code errors[]}. */
++@RestControllerAdvice
++@Order(Ordered.LOWEST_PRECEDENCE - 20)
++public class PagingProblemHandler {
++
++  private final ProblemFactory problems;
++
++  public PagingProblemHandler(ProblemFactory problems) {
++    this.problems = problems;
++  }
++
++  @ExceptionHandler(InvalidPageRequestException.class)
++  public ResponseEntity<ProblemDetail> handleInvalidPage(
++      InvalidPageRequestException ex, HttpServletRequest request) {
++    ProblemDetail pd =
++        problems.standard(
++            400,
++            ex.userMessage(),
++            List.of(ProblemFieldError.of(ex.parameter(), ex.userMessage())),
++            request);
++    return ProblemFactory.toResponse(pd, null);
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports b/backend/libs/vt-platform-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+index eb66c79..ef82048 100644
+--- a/backend/libs/vt-platform-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
++++ b/backend/libs/vt-platform-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+@@ -2,3 +2,6 @@ vn.viettel.okrkpi.shared.error.ProblemAutoConfiguration
+ vn.viettel.okrkpi.shared.resilience.ResilienceAutoConfiguration
+ vn.viettel.okrkpi.shared.observability.ObservabilityAutoConfiguration
+ vn.viettel.okrkpi.shared.audit.AuditAutoConfiguration
++vn.viettel.okrkpi.shared.idempotency.IdempotencyAutoConfiguration
++vn.viettel.okrkpi.shared.paging.PagingAutoConfiguration
++vn.viettel.okrkpi.shared.job.JobAutoConfiguration
+diff --git a/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/etag/ETagsTest.java b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/etag/ETagsTest.java
+new file mode 100644
+index 0000000..14c153f
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/etag/ETagsTest.java
+@@ -0,0 +1,84 @@
++package vn.viettel.okrkpi.shared.etag;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
++
++import org.junit.jupiter.api.Test;
++import org.springframework.http.ResponseEntity;
++import vn.viettel.okrkpi.shared.error.PreconditionRequiredException;
++import vn.viettel.okrkpi.shared.error.VersionConflictException;
++
++class ETagsTest {
++
++  @Test
++  void etagLaRowVersionTrongNhayKep() {
++    assertThat(ETags.of(7)).isEqualTo("\"7\"");
++    assertThat(ETags.parse("\"7\"")).hasValue(7);
++    assertThat(ETags.parse(" \"12\" ")).hasValue(12);
++    assertThat(ETags.parse("W/\"7\"")).isEmpty();
++    assertThat(ETags.parse("*")).isEmpty();
++    assertThat(ETags.parse("\"abc\"")).isEmpty();
++    assertThat(ETags.parse("\"\"")).isEmpty();
++    assertThat(ETags.parse("7")).isEmpty();
++    assertThat(ETags.parse(null)).isEmpty();
++    assertThat(ETags.parse("\"1234567890123456789\"")).isEmpty();
++    assertThatThrownBy(() -> ETags.of(-1)).isInstanceOf(IllegalArgumentException.class);
++  }
++
++  @Test
++  void thieuIfMatchLa428() {
++    assertThatThrownBy(() -> ETags.requireMatch(null, 3, "TASK"))
++        .isInstanceOf(PreconditionRequiredException.class);
++    assertThatThrownBy(() -> ETags.requireMatch("  ", 3, "TASK"))
++        .isInstanceOf(PreconditionRequiredException.class);
++    assertThatThrownBy(() -> ETags.expectedVersion(null, "TASK"))
++        .isInstanceOf(PreconditionRequiredException.class);
++  }
++
++  @Test
++  void lechPhienBanLa409KemPhienBan() {
++    assertThatThrownBy(() -> ETags.requireMatch("\"2\"", 3, "OKR"))
++        .isInstanceOfSatisfying(
++            VersionConflictException.class,
++            e -> {
++              assertThat(e.module()).isEqualTo("OKR");
++              assertThat(e.expectedVersion()).isEqualTo(2);
++              assertThat(e.currentVersion()).isEqualTo(3);
++            });
++    assertThatThrownBy(() -> ETags.requireMatch("*", 3, null))
++        .isInstanceOfSatisfying(
++            VersionConflictException.class, e -> assertThat(e.expectedVersion()).isNull());
++    assertThatThrownBy(() -> ETags.expectedVersion("rác", "TASK"))
++        .isInstanceOf(VersionConflictException.class);
++  }
++
++  @Test
++  void khopMotTrongNhieuEtag() {
++    assertThat(ETags.requireMatch("\"1\", \"3\"", 3, "TASK")).isEqualTo(3);
++    assertThat(ETags.expectedVersion("W/\"1\", \"4\"", "TASK")).isEqualTo(4);
++  }
++
++  @Test
++  void ifNoneMatchSoSanhYeu() {
++    assertThat(ETags.notModified("\"5\"", 5)).isTrue();
++    assertThat(ETags.notModified("W/\"5\"", 5)).isTrue();
++    assertThat(ETags.notModified("*", 5)).isTrue();
++    assertThat(ETags.notModified("\"4\", \"5\"", 5)).isTrue();
++    assertThat(ETags.notModified("\"4\"", 5)).isFalse();
++    assertThat(ETags.notModified(null, 5)).isFalse();
++    assertThat(ETags.notModified("", 5)).isFalse();
++  }
++
++  @Test
++  void phanHoiCoEtag() {
++    ResponseEntity<String> ok = ETags.ok("x", 2);
++    assertThat(ok.getStatusCode().value()).isEqualTo(200);
++    assertThat(ok.getHeaders().getETag()).isEqualTo("\"2\"");
++    ResponseEntity<String> nm = ETags.conditional("\"2\"", 2, () -> "không gọi");
++    assertThat(nm.getStatusCode().value()).isEqualTo(304);
++    assertThat(nm.getBody()).isNull();
++    assertThat(nm.getHeaders().getETag()).isEqualTo("\"2\"");
++    assertThat(ETags.conditional("\"1\"", 2, () -> "mới").getBody()).isEqualTo("mới");
++    assertThat(ETags.headers(9).getETag()).isEqualTo("\"9\"");
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/idempotency/IdempotencySupportTest.java b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/idempotency/IdempotencySupportTest.java
+new file mode 100644
+index 0000000..18497c9
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/idempotency/IdempotencySupportTest.java
+@@ -0,0 +1,178 @@
++package vn.viettel.okrkpi.shared.idempotency;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
++
++import com.fasterxml.jackson.databind.ObjectMapper;
++import java.nio.charset.StandardCharsets;
++import java.security.Principal;
++import java.time.LocalDate;
++import java.util.List;
++import java.util.Map;
++import java.util.Optional;
++import java.util.UUID;
++import org.junit.jupiter.api.Test;
++import org.springframework.mock.web.MockHttpServletRequest;
++import vn.viettel.okrkpi.shared.kernel.ActorId;
++import vn.viettel.okrkpi.shared.kernel.Classification;
++import vn.viettel.okrkpi.shared.kernel.Classified;
++import vn.viettel.okrkpi.shared.kernel.TenantId;
++
++class IdempotencySupportTest {
++
++  private static final TenantId TENANT = TenantId.of(UUID.randomUUID());
++  private static final ActorId ACTOR = ActorId.of(UUID.randomUUID());
++
++  private final RequestHasher hasher = new RequestHasher(new ObjectMapper());
++
++  record Input(int percent, String note) {}
++
++  record Nested(List<Secret> items) {}
++
++  record Secret(@Classified(Classification.C2) String content) {}
++
++  record Plain(String title, Map<String, Integer> counts) {}
++
++  static class Holder {
++    @Classified(Classification.C3)
++    private String cipher;
++
++    private static String constant;
++  }
++
++  static class Child extends Holder {}
++
++  @Classified(Classification.C2)
++  record WholeType(String a) {}
++
++  record Recursive(Recursive next, Plain plain) {}
++
++  @Test
++  void bamKhongPhuThuocThuTuTruongVaKhoangTrang() {
++    byte[] a =
++        hasher.hash("post", "/api/v1/x", "{\"a\":1,\"b\":{\"d\":[1,{\"z\":1,\"y\":2}],\"c\":2}}");
++    byte[] b =
++        hasher.hash(
++            "POST", "/api/v1/x", "{ \"b\" : {\"c\":2, \"d\":[1,{\"y\":2,\"z\":1}]}, \"a\" : 1 }");
++    assertThat(a).isEqualTo(b).hasSize(32);
++    assertThat(hasher.hash("POST", "/api/v1/x", new Input(1, "n")))
++        .isEqualTo(hasher.hash("POST", "/api/v1/x", "{\"note\":\"n\",\"percent\":1}"));
++    assertThat(hasher.hash("POST", "/api/v1/y", "{\"a\":1}"))
++        .isNotEqualTo(hasher.hash("POST", "/api/v1/x", "{\"a\":1}"));
++    assertThat(hasher.hash("PUT", "/api/v1/x", "{\"a\":1}"))
++        .isNotEqualTo(hasher.hash("POST", "/api/v1/x", "{\"a\":1}"));
++    assertThat(hasher.hash("POST", "/api/v1/x", "{\"a\":2}"))
++        .isNotEqualTo(hasher.hash("POST", "/api/v1/x", "{\"a\":1}"));
++    assertThat(hasher.hash("POST", "/x?b=1", (Object) null))
++        .isNotEqualTo(hasher.hash("POST", "/x?b=2", (Object) null));
++  }
++
++  @Test
++  void thanKhongPhaiJsonBamNguyenByte() {
++    assertThat(hasher.canonicalBody("không phải json"))
++        .isEqualTo("không phải json".getBytes(StandardCharsets.UTF_8));
++    byte[] raw = {(byte) 0xff, 0x00};
++    assertThat(hasher.canonicalBody(raw)).isEqualTo(raw);
++    assertThat(hasher.canonicalBody("{\"b\":1,\"a\":null}".getBytes(StandardCharsets.UTF_8)))
++        .isEqualTo("{\"a\":null,\"b\":1}".getBytes(StandardCharsets.UTF_8));
++    assertThat(hasher.canonicalBody(null)).isEmpty();
++  }
++
++  @Test
++  void phatHienThanCoTruongNhayCam() {
++    assertThat(SensitivePayloads.containsSensitive(Secret.class)).isTrue();
++    assertThat(SensitivePayloads.containsSensitive(Nested.class)).isTrue();
++    assertThat(SensitivePayloads.containsSensitive(Child.class)).isTrue();
++    assertThat(SensitivePayloads.containsSensitive(WholeType.class)).isTrue();
++    assertThat(SensitivePayloads.containsSensitive(Secret[].class)).isTrue();
++    assertThat(SensitivePayloads.containsSensitive(Plain.class)).isFalse();
++    assertThat(SensitivePayloads.containsSensitive(Recursive.class)).isFalse();
++    assertThat(SensitivePayloads.containsSensitive(Input.class)).isFalse();
++    assertThat(SensitivePayloads.containsSensitive(String.class)).isFalse();
++    assertThat(SensitivePayloads.containsSensitive(null)).isFalse();
++    // Lần hai lấy từ bộ đệm.
++    assertThat(SensitivePayloads.containsSensitive(Nested.class)).isTrue();
++  }
++
++  @Test
++  void schemaTheoGoiModule() {
++    assertThat(IdempotencyInterceptor.schemaFromPackage("vn.viettel.okrkpi.task.web"))
++        .isEqualTo("task");
++    assertThat(IdempotencyInterceptor.schemaFromPackage("vn.viettel.okrkpi.appraisal"))
++        .isEqualTo("appraisal");
++    assertThat(IdempotencyInterceptor.schemaFromPackage("vn.viettel.okrkpi.shared.x")).isNull();
++    assertThat(IdempotencyInterceptor.schemaFromPackage("com.other")).isNull();
++    assertThat(IdempotencyInterceptor.schemaFromPackage(null)).isNull();
++    assertThat(IdempotencyInterceptor.schemaFromPackage("vn.viettel.okrkpi.9bad")).isNull();
++  }
++
++  @Test
++  void khoaVaPhamViHopLe() {
++    assertThat(JdbcIdempotencyStore.isValidKey("01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a77")).isTrue();
++    assertThat(JdbcIdempotencyStore.isValidKey("k".repeat(64))).isTrue();
++    assertThat(JdbcIdempotencyStore.isValidKey("k".repeat(65))).isFalse();
++    assertThat(JdbcIdempotencyStore.isValidKey("")).isFalse();
++    assertThat(JdbcIdempotencyStore.isValidKey(null)).isFalse();
++    assertThat(JdbcIdempotencyStore.isValidKey("a b")).isFalse();
++    assertThat(JdbcIdempotencyStore.isValidKey("ă")).isFalse();
++    assertThatThrownBy(() -> JdbcIdempotencyStore.validateKey(" "))
++        .isInstanceOf(IllegalArgumentException.class);
++    assertThatThrownBy(() -> new IdempotencyScope("Task; DROP", TENANT, ACTOR))
++        .isInstanceOf(IllegalArgumentException.class);
++    assertThat(new IdempotencyScope("task", TENANT, ACTOR).schema()).isEqualTo("task");
++  }
++
++  @Test
++  void banGhiKhongInThanVaSoBamThoiGianHang() {
++    byte[] hash = new byte[32];
++    IdempotencyRecord r =
++        new IdempotencyRecord(
++            "k",
++            LocalDate.of(2026, 10, 20),
++            hash,
++            IdempotencyRecord.Status.XONG,
++            201,
++            "{\"bi_mat\":1}",
++            null,
++            null);
++    assertThat(r.toString()).doesNotContain("bi_mat");
++    assertThat(r.sameRequest(new byte[32])).isTrue();
++    assertThat(r.sameRequest(new byte[31])).isFalse();
++    hash[0] = 1;
++    assertThat(r.requestHash()[0]).isZero();
++    IdempotencyRecord same =
++        new IdempotencyRecord(
++            "k",
++            LocalDate.of(2026, 10, 20),
++            new byte[32],
++            IdempotencyRecord.Status.XONG,
++            201,
++            "{\"bi_mat\":1}",
++            null,
++            null);
++    assertThat(r).isEqualTo(same).hasSameHashCodeAs(same);
++    assertThat(r).isNotEqualTo("k");
++  }
++
++  @Test
++  void nguoiGoiTuPrincipalVaNguCanhTenant() {
++    MockHttpServletRequest req = new MockHttpServletRequest();
++    IdempotencyCallerResolver none = IdempotencyCallerResolver.fromPrincipal(r -> Optional.empty());
++    assertThat(none.resolve(req)).isEmpty();
++    IdempotencyCallerResolver resolver =
++        IdempotencyCallerResolver.fromPrincipal(r -> Optional.of(TENANT));
++    assertThat(resolver.resolve(req)).isEmpty();
++    req.setUserPrincipal(() -> "khong-phai-uuid");
++    assertThat(resolver.resolve(req)).isEmpty();
++    Principal p = () -> ACTOR.toString();
++    req.setUserPrincipal(p);
++    assertThat(resolver.resolve(req)).contains(new IdempotencyCallerResolver.Caller(TENANT, ACTOR));
++  }
++
++  @Test
++  void ngoaiLe() {
++    assertThat(new IdempotencyExceptions.KeyRequired(true).present()).isTrue();
++    assertThat(new IdempotencyExceptions.InProgress(3).retryAfterSeconds()).isEqualTo(3);
++    assertThat(new IdempotencyExceptions.Mismatch().errorCode().status()).isEqualTo(422);
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/job/JobQueryServiceTest.java b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/job/JobQueryServiceTest.java
+new file mode 100644
+index 0000000..99e74b0
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/job/JobQueryServiceTest.java
+@@ -0,0 +1,124 @@
++package vn.viettel.okrkpi.shared.job;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
++
++import java.time.OffsetDateTime;
++import java.util.List;
++import java.util.Optional;
++import java.util.UUID;
++import org.junit.jupiter.api.Test;
++import org.springframework.http.ResponseEntity;
++import vn.viettel.okrkpi.shared.error.BusinessException;
++import vn.viettel.okrkpi.shared.kernel.ActorId;
++import vn.viettel.okrkpi.shared.kernel.TenantId;
++
++class JobQueryServiceTest {
++
++  private static final TenantId TENANT = TenantId.of(UUID.randomUUID());
++  private static final ActorId OWNER = ActorId.of(UUID.randomUUID());
++  private static final ActorId OTHER = ActorId.of(UUID.randomUUID());
++  private static final OffsetDateTime AT = OffsetDateTime.parse("2026-12-31T17:05:00+07:00");
++
++  private static JobSource source(String id, JobStatus status, boolean cancellable, boolean stops) {
++    return new JobSource() {
++      @Override
++      public String name() {
++        return "thu." + id;
++      }
++
++      @Override
++      public Optional<TrackedJob> find(TenantId tenant, String jobId) {
++        if (!jobId.equals(id)) {
++          return Optional.empty();
++        }
++        return Optional.of(
++            new TrackedJob(
++                new Job(id, "PERIOD_LOCK", status, 45, "Đang chốt", null, null, AT),
++                OWNER,
++                cancellable));
++      }
++
++      @Override
++      public boolean requestCancel(TenantId tenant, String jobId) {
++        return stops;
++      }
++    };
++  }
++
++  private final JobQueryService service =
++      new JobQueryService(
++          List.of(
++              source("a", JobStatus.DANG_CHAY, true, true),
++              source("b", JobStatus.HOAN_TAT, true, true),
++              source("c", JobStatus.DANG_CHAY, false, true),
++              source("d", JobStatus.CHO, true, false),
++              new JobSource() {
++                @Override
++                public String name() {
++                  return "mac-dinh";
++                }
++
++                @Override
++                public Optional<TrackedJob> find(TenantId tenant, String jobId) {
++                  return jobId.equals("e")
++                      ? Optional.of(new TrackedJob(Job.accepted("e", "EXPORT", AT), OWNER, true))
++                      : Optional.empty();
++                }
++              }));
++
++  @Test
++  void chiNguoiKhoiTaoXemDuoc() {
++    assertThat(service.get(TENANT, OWNER, "a").progress()).isEqualTo(45);
++    assertThat(service.find(TENANT, OTHER, "a")).isEmpty();
++    assertThatThrownBy(() -> service.get(TENANT, OTHER, "a"))
++        .isInstanceOf(JobNotFoundException.class);
++    assertThatThrownBy(() -> service.get(TENANT, OWNER, "khong-co"))
++        .isInstanceOf(JobNotFoundException.class);
++    assertThat(service.find(TENANT, OWNER, " ")).isEmpty();
++    assertThat(service.find(TENANT, OWNER, null)).isEmpty();
++  }
++
++  @Test
++  void huyTacVu() {
++    assertThat(service.cancel(TENANT, OWNER, "a").id()).isEqualTo("a");
++    for (String id : List.of("b", "c", "d", "e")) {
++      assertThatThrownBy(() -> service.cancel(TENANT, OWNER, id))
++          .as(id)
++          .isInstanceOfSatisfying(
++              BusinessException.class,
++              e -> assertThat(e.errorCode().code()).isEqualTo("JOB-409-NOT-CANCELLABLE"));
++    }
++    assertThatThrownBy(() -> service.cancel(TENANT, OTHER, "a"))
++        .isInstanceOf(JobNotFoundException.class);
++  }
++
++  @Test
++  void phanHoi202VaTrangThai() {
++    Job job = Job.accepted("01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a77", "EXPORT", AT);
++    ResponseEntity<Job> r = Jobs.accepted(job);
++    assertThat(r.getStatusCode().value()).isEqualTo(202);
++    assertThat(r.getHeaders().getLocation())
++        .hasToString("/api/v1/jobs/01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a77");
++    assertThat(r.getHeaders().getFirst("Retry-After")).isEqualTo("2");
++    assertThat(Jobs.accepted(job, -5).getHeaders().getFirst("Retry-After")).isEqualTo("0");
++    assertThat(Jobs.location("a b/c")).hasToString("/api/v1/jobs/a%20b%2Fc");
++    assertThat(Jobs.status(job).getHeaders().getFirst("Retry-After")).isEqualTo("2");
++    Job done = new Job("x", "EXPORT", JobStatus.HOAN_TAT, 100, null, "/api/v1/files/1", null, AT);
++    assertThat(Jobs.status(done).getHeaders().containsKey("Retry-After")).isFalse();
++    assertThat(JobStatus.THAT_BAI.isTerminal()).isTrue();
++    assertThat(JobStatus.CHO.isTerminal()).isFalse();
++  }
++
++  @Test
++  void jobHopLe() {
++    assertThatThrownBy(() -> new Job(" ", "EXPORT", JobStatus.CHO, 0, null, null, null, AT))
++        .isInstanceOf(IllegalArgumentException.class);
++    assertThatThrownBy(() -> new Job("a", "EXPORT", JobStatus.CHO, 101, null, null, null, AT))
++        .isInstanceOf(IllegalArgumentException.class);
++    assertThatThrownBy(() -> new Job("a", "EXPORT", JobStatus.CHO, -1, null, null, null, AT))
++        .isInstanceOf(IllegalArgumentException.class);
++    assertThat(new Job("a", "EXPORT", JobStatus.CHO, null, null, null, null, null).progress())
++        .isNull();
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/paging/CursorCodecTest.java b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/paging/CursorCodecTest.java
+new file mode 100644
+index 0000000..c314521
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/paging/CursorCodecTest.java
+@@ -0,0 +1,139 @@
++package vn.viettel.okrkpi.shared.paging;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
++
++import java.nio.charset.StandardCharsets;
++import java.time.Duration;
++import java.time.Instant;
++import java.time.LocalDate;
++import java.util.ArrayList;
++import java.util.Base64;
++import java.util.List;
++import java.util.UUID;
++import java.util.concurrent.atomic.AtomicReference;
++import java.util.stream.IntStream;
++import org.junit.jupiter.api.Test;
++import vn.viettel.okrkpi.shared.kernel.Clock;
++
++class CursorCodecTest {
++
++  private static final byte[] KEY =
++      "khoa-ky-con-tro-thu-nghiem-32-byte!!".getBytes(StandardCharsets.UTF_8);
++  private final AtomicReference<Instant> now =
++      new AtomicReference<>(Instant.parse("2026-10-20T01:00:00Z"));
++  private final Clock clock = () -> now.get();
++  private final CursorCodec codec = new CursorCodec(KEY, Duration.ofHours(24), clock);
++
++  @Test
++  void maHoaRoiDocLaiKeyset() {
++    UUID id = UUID.randomUUID();
++    Instant at = Instant.parse("2026-10-19T08:30:00.123456Z");
++    String cursor =
++        codec.encode("ds", CursorKey.of(at, id, 7L, "Quý IV", LocalDate.of(2026, 12, 31)));
++    assertThat(cursor).matches("[A-Za-z0-9_-]+").hasSizeLessThanOrEqualTo(CursorCodec.MAX_LENGTH);
++    CursorKey k = codec.decode("ds", cursor);
++    assertThat(k.size()).isEqualTo(5);
++    assertThat(k.getInstant(0)).isEqualTo(at);
++    assertThat(k.getUuid(1)).isEqualTo(id);
++    assertThat(k.getLong(2)).isEqualTo(7);
++    assertThat(k.getString(3)).isEqualTo("Quý IV");
++    assertThat(k.getDate(4)).isEqualTo(LocalDate.of(2026, 12, 31));
++    assertThat(k).isEqualTo(CursorKey.of(at, id, 7L, "Quý IV", LocalDate.of(2026, 12, 31)));
++    assertThat(k.hashCode())
++        .isEqualTo(CursorKey.of(at, id, 7L, "Quý IV", LocalDate.of(2026, 12, 31)).hashCode());
++    assertThat(k.toString()).startsWith("CursorKey[");
++  }
++
++  @Test
++  void conTroBiSuaSaiPhamViHetHanDeuBiTuChoi() {
++    String cursor = codec.encode("ds-a", CursorKey.of("x", 1));
++    byte[] raw = Base64.getUrlDecoder().decode(cursor);
++    raw[3] ^= 1;
++    String tampered = Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
++    assertInvalid("ds-a", tampered);
++    assertInvalid("ds-b", cursor);
++    assertInvalid("ds-a", "!!!");
++    assertInvalid("ds-a", "");
++    assertInvalid("ds-a", "AAAA");
++    assertInvalid("ds-a", "A".repeat(513));
++    // Con trỏ do client tự dựng (không có MAC đúng).
++    String forged =
++        Base64.getUrlEncoder()
++            .withoutPadding()
++            .encodeToString(
++                ("{\"v\":1,\"t\":1792459200,\"k\":[\"x\"]}" + "0123456789abcdef")
++                    .getBytes(StandardCharsets.UTF_8));
++    assertInvalid("ds-a", forged);
++
++    now.set(now.get().plus(Duration.ofHours(25)));
++    assertInvalid("ds-a", cursor);
++    // Phát hành ở "tương lai" quá độ lệch đồng hồ cho phép.
++    CursorCodec future =
++        new CursorCodec(KEY, Duration.ofHours(24), () -> now.get().plus(Duration.ofMinutes(5)));
++    assertInvalid("ds-a", future.encode("ds-a", CursorKey.of("x")));
++  }
++
++  @Test
++  void kiemLimitMacDinh20ToiDa200() {
++    assertThat(codec.pageRequest(null, null, "ds").limit()).isEqualTo(20);
++    assertThat(codec.pageRequest(200, "", "ds").firstPage()).isTrue();
++    assertThat(codec.pageRequest(1, null, "ds").fetchSize()).isEqualTo(2);
++    for (int bad : new int[] {0, -1, 201}) {
++      assertThatThrownBy(() -> codec.pageRequest(bad, null, "ds"))
++          .isInstanceOfSatisfying(
++              InvalidPageRequestException.class,
++              e -> {
++                assertThat(e.parameter()).isEqualTo("limit");
++                assertThat(e.userMessage()).contains("1 đến 200");
++              });
++    }
++    assertThatThrownBy(() -> new PageRequest(0, null, "ds"))
++        .isInstanceOf(IllegalArgumentException.class);
++  }
++
++  @Test
++  void dungTrangTuLimitCongMot() {
++    List<Integer> rows = new ArrayList<>(IntStream.rangeClosed(1, 450).boxed().toList());
++    List<Integer> all = new ArrayList<>();
++    PageRequest req = codec.pageRequest(200, null, "so");
++    int pages = 0;
++    while (true) {
++      int from = req.firstPage() ? 0 : (int) req.after().getLong(0);
++      List<Integer> fetched = rows.subList(from, Math.min(rows.size(), from + req.fetchSize()));
++      CursorPage<Integer> page = codec.page(fetched, req, r -> CursorKey.of(r));
++      pages++;
++      all.addAll(page.items());
++      if (!page.hasNext()) {
++        break;
++      }
++      req = codec.pageRequest(200, page.nextCursor(), "so");
++      assertThat(req.afterKey()).isPresent();
++    }
++    assertThat(pages).isEqualTo(3);
++    assertThat(all).isEqualTo(rows);
++    assertThat(CursorPage.last(List.of(1)).nextCursor()).isNull();
++  }
++
++  @Test
++  void dauVaoSai() {
++    assertThatThrownBy(() -> new CursorCodec(new byte[31], Duration.ofHours(1), clock))
++        .isInstanceOf(IllegalArgumentException.class);
++    assertThatThrownBy(() -> new CursorCodec(KEY, Duration.ZERO, clock))
++        .isInstanceOf(IllegalArgumentException.class);
++    assertThatThrownBy(CursorKey::of).isInstanceOf(IllegalArgumentException.class);
++    assertThatThrownBy(() -> CursorKey.of(new Object()))
++        .isInstanceOf(IllegalArgumentException.class);
++    assertThatThrownBy(() -> CursorKey.of((Object) null))
++        .isInstanceOf(IllegalArgumentException.class);
++    assertThat(CursorKey.of(Thread.State.NEW, true).getString(0)).isEqualTo("NEW");
++    assertThatThrownBy(() -> codec.encode("ds", CursorKey.of("x".repeat(600))))
++        .isInstanceOf(IllegalArgumentException.class);
++  }
++
++  private void assertInvalid(String scope, String cursor) {
++    assertThatThrownBy(() -> codec.decode(scope, cursor))
++        .isInstanceOfSatisfying(
++            InvalidPageRequestException.class, e -> assertThat(e.parameter()).isEqualTo("cursor"));
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/testdb/TenantDatabase.java b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/testdb/TenantDatabase.java
+new file mode 100644
+index 0000000..f0a5b3f
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/shared/testdb/TenantDatabase.java
+@@ -0,0 +1,91 @@
++package vn.viettel.okrkpi.shared.testdb;
++
++import java.sql.Connection;
++import java.sql.DriverManager;
++import java.sql.SQLException;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Locale;
++import java.util.Map;
++import org.springframework.jdbc.datasource.DriverManagerDataSource;
++import org.testcontainers.containers.PostgreSQLContainer;
++import vn.viettel.okrkpi.platform.db.migration.MigrationCredentials;
++import vn.viettel.okrkpi.platform.db.migration.MigrationOptions;
++import vn.viettel.okrkpi.platform.db.migration.SchemaMigrator;
++import vn.viettel.okrkpi.platform.db.migration.SchemaNames;
++import vn.viettel.okrkpi.platform.db.migration.TestPostgres;
++import vn.viettel.okrkpi.platform.db.migration.bootstrap.DatabaseBootstrap;
++import vn.viettel.okrkpi.platform.db.migration.bootstrap.DatabaseLayout;
++import vn.viettel.okrkpi.platform.db.migration.bootstrap.RoleBootstrapPlan;
++import vn.viettel.okrkpi.platform.db.migration.bootstrap.RoleLimits;
++
++/**
++ * CSDL dữ liệu tenant dùng chung cho kiểm thử tích hợp của starter: PostgreSQL 17 + pg_partman
++ * ({@link TestPostgres} của NEN-032), bootstrap vai trò như môi trường thật ({@link
++ * DatabaseBootstrap}), migrate {@code keyring} rồi {@code task} bằng {@code mig_<schema>}. Ứng dụng
++ * kết nối bằng {@code svc_task} (chỉ DML, RLS FORCE), không bằng siêu người dùng.
++ *
++ * <p>Khởi động một lần cho cả JVM kiểm thử; Ryuk của Testcontainers dọn container khi JVM thoát.
++ */
++public final class TenantDatabase {
++
++  /** Mật khẩu thử của mọi vai trò (chỉ trong container kiểm thử). */
++  public static final String PASSWORD = "mat-khau-thu-nghiem";
++
++  /** Schema được migrate, theo thứ tự (keyring trước schema có cột _enc). */
++  public static final List<String> SCHEMAS = List.of("keyring", "task");
++
++  private static PostgreSQLContainer<?> container;
++
++  private TenantDatabase() {}
++
++  /** Container đã khởi động và đã migrate. */
++  public static synchronized PostgreSQLContainer<?> start() {
++    if (container != null) {
++      return container;
++    }
++    PostgreSQLContainer<?> pg = TestPostgres.container("td_starter");
++    pg.start();
++    Map<String, String> env = new HashMap<>();
++    for (String role : RoleBootstrapPlan.roles(DatabaseLayout.TENANT_DATA)) {
++      env.put(role.toUpperCase(Locale.ROOT) + "_PASSWORD", PASSWORD);
++    }
++    try (Connection admin =
++        DriverManager.getConnection(pg.getJdbcUrl(), pg.getUsername(), pg.getPassword())) {
++      new DatabaseBootstrap(RoleLimits.load(), env).apply(admin, DatabaseLayout.TENANT_DATA);
++    } catch (SQLException e) {
++      throw new IllegalStateException("Không bootstrap được CSDL kiểm thử", e);
++    }
++    SchemaMigrator migrator = new SchemaMigrator(MigrationOptions.defaults());
++    for (String schema : SCHEMAS) {
++      migrator.migrate(
++          pg.getJdbcUrl(),
++          schema,
++          new MigrationCredentials.Credentials(SchemaNames.migrationRole(schema), PASSWORD));
++    }
++    container = pg;
++    return pg;
++  }
++
++  public static String jdbcUrl() {
++    return start().getJdbcUrl();
++  }
++
++  /** Kết nối bằng một vai trò đã bootstrap, ví dụ {@code svc_task}. */
++  public static Connection connect(String role) throws SQLException {
++    return DriverManager.getConnection(jdbcUrl(), role, PASSWORD);
++  }
++
++  /** Kết nối siêu người dùng của container (chỉ để kiểm tra, không dùng cho ứng dụng). */
++  public static Connection admin() throws SQLException {
++    PostgreSQLContainer<?> pg = start();
++    return DriverManager.getConnection(pg.getJdbcUrl(), pg.getUsername(), pg.getPassword());
++  }
++
++  /** DataSource không gộp kết nối của một vai trò. */
++  public static DriverManagerDataSource dataSource(String role) {
++    DriverManagerDataSource ds = new DriverManagerDataSource(jdbcUrl(), role, PASSWORD);
++    ds.setDriverClassName("org.postgresql.Driver");
++    return ds;
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/task/web/ApiConventionsIT.java b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/task/web/ApiConventionsIT.java
+new file mode 100644
+index 0000000..486354f
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/task/web/ApiConventionsIT.java
+@@ -0,0 +1,491 @@
++package vn.viettel.okrkpi.task.web;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import com.fasterxml.jackson.databind.JsonNode;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import java.net.URI;
++import java.net.URLEncoder;
++import java.net.http.HttpClient;
++import java.net.http.HttpRequest;
++import java.net.http.HttpResponse;
++import java.nio.charset.StandardCharsets;
++import java.sql.Connection;
++import java.sql.PreparedStatement;
++import java.sql.ResultSet;
++import java.sql.SQLException;
++import java.time.Duration;
++import java.util.ArrayList;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Set;
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.TimeUnit;
++import org.junit.jupiter.api.BeforeAll;
++import org.junit.jupiter.api.Test;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.context.SpringBootTest;
++import org.springframework.boot.test.web.server.LocalServerPort;
++import vn.viettel.okrkpi.shared.error.ProblemSchema;
++import vn.viettel.okrkpi.shared.kernel.Ids;
++import vn.viettel.okrkpi.shared.testdb.TenantDatabase;
++
++/**
++ * Kiểm thử tích hợp NEN-013 trên PostgreSQL 17 thật (bảng {@code task.idempotency_key}, {@code
++ * task.outbox_event} của NEN-032, kết nối {@code svc_task}, RLS FORCE) qua HTTP thật: các kịch bản
++ * mục 3 của thẻ, phản hồi lỗi khớp lược đồ {@code ProblemDetails} và mã trong hợp đồng.
++ */
++@SpringBootTest(
++    classes = ApiConventionsTestApplication.class,
++    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
++    properties = {"spring.flyway.enabled=false", "vt.db.schema-guard.enabled=false"})
++class ApiConventionsIT {
++
++  private static final String TENANT = "01927a00-0000-7000-8000-00000000000a";
++  private static final String ACTOR = "01927a00-0000-7000-8000-0000000000a1";
++  private static final String OTHER_ACTOR = "01927a00-0000-7000-8000-0000000000a2";
++  private static final String PROBLEM_JSON = "application/problem+json";
++
++  private static ProblemSchema schema;
++
++  @LocalServerPort private int port;
++  @Autowired private ObjectMapper json;
++
++  private final HttpClient http =
++      HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
++
++  @BeforeAll
++  static void start() {
++    TenantDatabase.start();
++    schema = ProblemSchema.fromCommonYaml();
++  }
++
++  // ---------- Idempotency-Key ----------
++
++  @Test
++  void guiLaiCungKhoaBaLanChiMotTacDung() throws Exception {
++    UUID task = UUID.randomUUID();
++    String key = Ids.newUuidV7().toString();
++    String body = "{\"percent\":40,\"note\":\"Đã xong phần khảo sát\"}";
++    List<HttpResponse<String>> responses = new ArrayList<>();
++    for (int i = 0; i < 3; i++) {
++      responses.add(post("/api/v1/tasks/" + task + "/progress", key, ACTOR, body));
++    }
++    for (HttpResponse<String> r : responses) {
++      assertThat(r.statusCode()).isEqualTo(201);
++      assertThat(r.headers().firstValue("Location")).hasValue("/api/v1/tasks/" + task);
++      assertThat(json.readTree(r.body())).isEqualTo(json.readTree(responses.get(0).body()));
++    }
++    assertThat(json.readTree(responses.get(0).body()).get("percent").asInt()).isEqualTo(40);
++    assertThat(effects(task)).isEqualTo(1);
++    assertThat(keyRow(key)).isEqualTo("XONG|201|true|/api/v1/tasks/" + task);
++  }
++
++  @Test
++  void cungKhoaThuTuTruongKhacVanLaCungYeuCau() throws Exception {
++    UUID task = UUID.randomUUID();
++    String key = Ids.newUuidV7().toString();
++    assertThat(
++            post(
++                    "/api/v1/tasks/" + task + "/progress",
++                    key,
++                    ACTOR,
++                    "{\"percent\":10,\"note\":\"a\"}")
++                .statusCode())
++        .isEqualTo(201);
++    HttpResponse<String> again =
++        post(
++            "/api/v1/tasks/" + task + "/progress",
++            key,
++            ACTOR,
++            "{ \"note\" : \"a\", \"percent\" : 10 }");
++    assertThat(again.statusCode()).isEqualTo(201);
++    assertThat(effects(task)).isEqualTo(1);
++  }
++
++  @Test
++  void cungKhoaKhacNoiDungTra422() throws Exception {
++    UUID task = UUID.randomUUID();
++    String key = Ids.newUuidV7().toString();
++    post("/api/v1/tasks/" + task + "/progress", key, ACTOR, "{\"percent\":40,\"note\":\"x\"}");
++    HttpResponse<String> r =
++        post("/api/v1/tasks/" + task + "/progress", key, ACTOR, "{\"percent\":50,\"note\":\"x\"}");
++    JsonNode p = problem(r, 422);
++    assertThat(p.get("code").asText()).isEqualTo("COMMON-422-IDEMPOTENCY-MISMATCH");
++    // Cùng khoá, đường dẫn khác cũng là nội dung khác.
++    JsonNode p2 =
++        problem(
++            post(
++                "/api/v1/tasks/" + UUID.randomUUID() + "/progress",
++                key,
++                ACTOR,
++                "{\"percent\":40,\"note\":\"x\"}"),
++            422);
++    assertThat(p2.get("code").asText()).isEqualTo("COMMON-422-IDEMPOTENCY-MISMATCH");
++    assertThat(effects(task)).isEqualTo(1);
++  }
++
++  @Test
++  void thieuHoacSaiKhoaTra400() throws Exception {
++    UUID task = UUID.randomUUID();
++    JsonNode missing =
++        problem(post("/api/v1/tasks/" + task + "/progress", null, ACTOR, "{\"percent\":1}"), 400);
++    assertThat(missing.get("errors").get(0).get("field").asText()).isEqualTo("Idempotency-Key");
++    problem(
++        post("/api/v1/tasks/" + task + "/progress", "k".repeat(65), ACTOR, "{\"percent\":1}"), 400);
++    problem(post("/api/v1/tasks/" + task + "/progress", "có dấu", ACTOR, "{\"percent\":1}"), 400);
++    assertThat(effects(task)).isZero();
++  }
++
++  @Test
++  void haiYeuCauDongThoiCungKhoaMotThanhCongMotNhan409() throws Exception {
++    UUID task = UUID.randomUUID();
++    String key = Ids.newUuidV7().toString();
++    String body = "{\"percent\":70,\"note\":\"đồng thời\"}";
++    TaskProbeController.entered = new CountDownLatch(1);
++    TaskProbeController.release = new CountDownLatch(1);
++    CompletableFuture<HttpResponse<String>> first =
++        CompletableFuture.supplyAsync(
++            () -> {
++              try {
++                return send(
++                    request("/api/v1/tasks/" + task + "/progress", key, ACTOR)
++                        .header("X-Test-Hold", "1")
++                        .POST(HttpRequest.BodyPublishers.ofString(body))
++                        .build());
++              } catch (Exception e) {
++                throw new IllegalStateException(e);
++              }
++            });
++    assertThat(TaskProbeController.entered.await(15, TimeUnit.SECONDS)).isTrue();
++    HttpResponse<String> second = post("/api/v1/tasks/" + task + "/progress", key, ACTOR, body);
++    JsonNode p = problem(second, 409);
++    assertThat(p.get("type").asText()).isEqualTo("https://okrkpi.vn/problems/conflict");
++    assertThat(second.headers().firstValue("Retry-After")).hasValue("1");
++    TaskProbeController.release.countDown();
++    assertThat(first.get(20, TimeUnit.SECONDS).statusCode()).isEqualTo(201);
++    // Sau khi yêu cầu đầu xong, gửi lại nhận phản hồi đã lưu.
++    assertThat(post("/api/v1/tasks/" + task + "/progress", key, ACTOR, body).statusCode())
++        .isEqualTo(201);
++    assertThat(effects(task)).isEqualTo(1);
++  }
++
++  @Test
++  void khoaTheoNguoiGoiKhongDungChung() throws Exception {
++    UUID task = UUID.randomUUID();
++    String key = Ids.newUuidV7().toString();
++    String body = "{\"percent\":5}";
++    assertThat(post("/api/v1/tasks/" + task + "/progress", key, ACTOR, body).statusCode())
++        .isEqualTo(201);
++    assertThat(post("/api/v1/tasks/" + task + "/progress", key, OTHER_ACTOR, body).statusCode())
++        .isEqualTo(201);
++    assertThat(effects(task)).isEqualTo(2);
++  }
++
++  @Test
++  void thanCoTruongC2KhongDuocLuu() throws Exception {
++    UUID task = UUID.randomUUID();
++    String key = Ids.newUuidV7().toString();
++    String body = "{\"content\":\"Đồng chí cần cải thiện tác phong\"}";
++    HttpResponse<String> first = post("/api/v1/tasks/" + task + "/comments", key, ACTOR, body);
++    assertThat(first.statusCode()).isEqualTo(201);
++    assertThat(first.body()).contains("tác phong");
++    HttpResponse<String> replay = post("/api/v1/tasks/" + task + "/comments", key, ACTOR, body);
++    assertThat(replay.statusCode()).isEqualTo(201);
++    assertThat(replay.headers().firstValue("Location"))
++        .hasValue("/api/v1/tasks/" + task + "/comments/1");
++    assertThat(replay.body()).isEmpty();
++    assertThat(keyRow(key)).isEqualTo("XONG|201|false|/api/v1/tasks/" + task + "/comments/1");
++    assertThat(effects(task)).isEqualTo(1);
++  }
++
++  @Test
++  void loiNghiepVuKhongLuuKhoaVaHuyTacDung() throws Exception {
++    UUID task = UUID.randomUUID();
++    String key = Ids.newUuidV7().toString();
++    for (int i = 0; i < 2; i++) {
++      JsonNode p =
++          problem(post("/api/v1/tasks/" + task + "/locked", key, ACTOR, "{\"percent\":1}"), 409);
++      assertThat(p.get("code").asText()).isEqualTo("TASK-409-PERIOD-LOCKED");
++    }
++    assertThat(effects(task)).isZero();
++    assertThat(keyRow(key)).isNull();
++  }
++
++  // ---------- ETag / If-Match ----------
++
++  @Test
++  void etagIfMatchVaIfNoneMatch() throws Exception {
++    UUID id = UUID.randomUUID();
++    String path = "/api/v1/tasks/" + id + "/doc";
++    HttpResponse<String> read = send(request(path, null, ACTOR).GET().build());
++    assertThat(read.statusCode()).isEqualTo(200);
++    assertThat(read.headers().firstValue("ETag")).hasValue("\"0\"");
++
++    HttpResponse<String> notModified =
++        send(request(path, null, ACTOR).header("If-None-Match", "\"0\"").GET().build());
++    assertThat(notModified.statusCode()).isEqualTo(304);
++    assertThat(notModified.body()).isEmpty();
++
++    JsonNode missing = problem(put(path, null, "{\"title\":\"Mới\"}"), 428);
++    assertThat(missing.get("type").asText())
++        .isEqualTo("https://okrkpi.vn/problems/precondition-required");
++
++    JsonNode conflict = problem(put(path, "\"5\"", "{\"title\":\"Mới\"}"), 409);
++    assertThat(conflict.get("code").asText()).isEqualTo("TASK-409-VERSION-CONFLICT");
++    assertThat(conflict.get("type").asText())
++        .isEqualTo("https://okrkpi.vn/problems/concurrent-modification");
++    assertThat(conflict.get("detail").asText())
++        .isEqualTo("Phiên bản bạn sửa là 5, phiên bản hiện tại là 0.");
++
++    HttpResponse<String> ok = put(path, "\"0\"", "{\"title\":\"Mới\"}");
++    assertThat(ok.statusCode()).isEqualTo(200);
++    assertThat(ok.headers().firstValue("ETag")).hasValue("\"1\"");
++    assertThat(json.readTree(ok.body()).get("rowVersion").asLong()).isEqualTo(1);
++    // Phiên bản cũ giờ lệch.
++    problem(put(path, "\"0\"", "{\"title\":\"Lần hai\"}"), 409);
++    assertThat(
++            send(request(path, null, ACTOR).header("If-None-Match", "\"0\"").GET().build())
++                .statusCode())
++        .isEqualTo(200);
++  }
++
++  // ---------- Phân trang con trỏ ----------
++
++  @Test
++  void phanTrang450DongLimit200BaTrangKhongTrungKhongSot() throws Exception {
++    UUID task = UUID.randomUUID();
++    seedEvents(task, 450);
++    Set<String> seen = new HashSet<>();
++    List<Integer> sizes = new ArrayList<>();
++    String cursor = null;
++    String lastKey = null;
++    do {
++      String path =
++          "/api/v1/tasks/"
++              + task
++              + "/events?limit=200"
++              + (cursor == null
++                  ? ""
++                  : "&cursor=" + URLEncoder.encode(cursor, StandardCharsets.UTF_8));
++      HttpResponse<String> r = send(request(path, null, ACTOR).GET().build());
++      assertThat(r.statusCode()).isEqualTo(200);
++      JsonNode page = json.readTree(r.body());
++      assertThat(page.has("nextCursor")).isTrue();
++      sizes.add(page.get("items").size());
++      for (JsonNode item : page.get("items")) {
++        String k = item.get("createdAt").asText() + "|" + item.get("id").asText();
++        if (lastKey != null) {
++          assertThat(compareKey(k, lastKey)).isPositive();
++        }
++        lastKey = k;
++        assertThat(seen.add(item.get("id").asText())).isTrue();
++      }
++      cursor = page.get("nextCursor").isNull() ? null : page.get("nextCursor").asText();
++      if (cursor != null) {
++        assertThat(cursor).hasSizeLessThanOrEqualTo(512).matches("[A-Za-z0-9_-]+");
++      }
++    } while (cursor != null);
++    assertThat(sizes).containsExactly(200, 200, 50);
++    assertThat(seen).hasSize(450);
++
++    // Mặc định 20 dòng.
++    JsonNode first =
++        json.readTree(
++            send(request("/api/v1/tasks/" + task + "/events", null, ACTOR).GET().build()).body());
++    assertThat(first.get("items").size()).isEqualTo(20);
++    String firstCursor = first.get("nextCursor").asText();
++
++    // limit ngoài 1..200, con trỏ bị sửa, con trỏ của danh sách khác: 400.
++    for (String bad : List.of("limit=0", "limit=201")) {
++      JsonNode p =
++          problem(
++              send(request("/api/v1/tasks/" + task + "/events?" + bad, null, ACTOR).GET().build()),
++              400);
++      assertThat(p.get("errors").get(0).get("field").asText()).isEqualTo("limit");
++    }
++    String tampered = (firstCursor.charAt(0) == 'A' ? "B" : "A") + firstCursor.substring(1);
++    for (String path :
++        List.of(
++            "/api/v1/tasks/" + task + "/events?cursor=" + tampered,
++            "/api/v1/tasks/" + task + "/events?cursor=khong-phai-con-tro",
++            "/api/v1/tasks/" + UUID.randomUUID() + "/events?cursor=" + firstCursor)) {
++      JsonNode p = problem(send(request(path, null, ACTOR).GET().build()), 400);
++      assertThat(p.get("errors").get(0).get("field").asText()).isEqualTo("cursor");
++    }
++  }
++
++  // ---------- Tác vụ dài 202 ----------
++
++  @Test
++  void tacVuDaiTra202KemLocationVaChiNguoiKhoiTaoXemDuoc() throws Exception {
++    String key = Ids.newUuidV7().toString();
++    HttpResponse<String> accepted =
++        post("/api/v1/tasks/exports", key, ACTOR, "{\"format\":\"xlsx\"}");
++    assertThat(accepted.statusCode()).isEqualTo(202);
++    JsonNode job = json.readTree(accepted.body());
++    assertThat(schema.validate(job, "Job")).isEmpty();
++    assertThat(job.get("status").asText()).isEqualTo("CHO");
++    String id = job.get("id").asText();
++    assertThat(accepted.headers().firstValue("Location")).hasValue("/api/v1/jobs/" + id);
++    assertThat(accepted.headers().firstValue("Retry-After")).isPresent();
++
++    // Gửi lại cùng khoá: cùng tác vụ, không tạo tác vụ mới.
++    HttpResponse<String> replay =
++        post("/api/v1/tasks/exports", key, ACTOR, "{\"format\":\"xlsx\"}");
++    assertThat(replay.statusCode()).isEqualTo(202);
++    assertThat(json.readTree(replay.body()).get("id").asText()).isEqualTo(id);
++    assertThat(replay.headers().firstValue("Location")).hasValue("/api/v1/jobs/" + id);
++
++    HttpResponse<String> status = send(request("/api/v1/jobs/" + id, null, ACTOR).GET().build());
++    assertThat(status.statusCode()).isEqualTo(200);
++    assertThat(schema.validate(json.readTree(status.body()), "Job")).isEmpty();
++    assertThat(status.headers().firstValue("Retry-After")).isPresent();
++
++    problem(send(request("/api/v1/jobs/" + id, null, OTHER_ACTOR).GET().build()), 404);
++    problem(send(request("/api/v1/jobs/" + UUID.randomUUID(), null, ACTOR).GET().build()), 404);
++    problem(send(request("/api/v1/jobs/" + id, null, OTHER_ACTOR).DELETE().build()), 404);
++
++    assertThat(send(request("/api/v1/jobs/" + id, null, ACTOR).DELETE().build()).statusCode())
++        .isEqualTo(202);
++    JsonNode cancelled =
++        json.readTree(send(request("/api/v1/jobs/" + id, null, ACTOR).GET().build()).body());
++    assertThat(cancelled.get("status").asText()).isEqualTo("DA_HUY");
++    JsonNode again =
++        problem(send(request("/api/v1/jobs/" + id, null, ACTOR).DELETE().build()), 409);
++    assertThat(again.get("code").asText()).isEqualTo("JOB-409-NOT-CANCELLABLE");
++  }
++
++  // ---------- tiện ích ----------
++
++  private static int compareKey(String a, String b) {
++    String[] x = a.split("\\|");
++    String[] y = b.split("\\|");
++    int c = java.time.Instant.parse(x[0]).compareTo(java.time.Instant.parse(y[0]));
++    return c != 0
++        ? c
++        : UUID.fromString(x[1]).toString().compareTo(UUID.fromString(y[1]).toString());
++  }
++
++  private JsonNode problem(HttpResponse<String> r, int status) throws Exception {
++    assertThat(r.statusCode()).as(r.body()).isEqualTo(status);
++    assertThat(r.headers().firstValue("Content-Type"))
++        .hasValueSatisfying(ct -> assertThat(ct).startsWith(PROBLEM_JSON));
++    JsonNode p = json.readTree(r.body());
++    assertThat(schema.validate(p, "ProblemDetails")).isEmpty();
++    assertThat(p.get("status").asInt()).isEqualTo(status);
++    assertThat(p.get("traceId").asText()).isNotBlank();
++    assertThat(r.body()).doesNotContainIgnoringCase("exception").doesNotContain("idempotency_key");
++    return p;
++  }
++
++  private HttpRequest.Builder request(String path, String key, String actor) {
++    HttpRequest.Builder b =
++        HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
++            .timeout(Duration.ofSeconds(30))
++            .header("Content-Type", "application/json")
++            .header(ApiConventionsTestApplication.TENANT_HEADER, TENANT)
++            .header(ApiConventionsTestApplication.ACTOR_HEADER, actor);
++    if (key != null) {
++      b.header("Idempotency-Key", key);
++    }
++    return b;
++  }
++
++  private HttpResponse<String> post(String path, String key, String actor, String body)
++      throws Exception {
++    return send(request(path, key, actor).POST(HttpRequest.BodyPublishers.ofString(body)).build());
++  }
++
++  private HttpResponse<String> put(String path, String ifMatch, String body) throws Exception {
++    HttpRequest.Builder b = request(path, null, ACTOR);
++    if (ifMatch != null) {
++      b.header("If-Match", ifMatch);
++    }
++    return send(b.PUT(HttpRequest.BodyPublishers.ofString(body)).build());
++  }
++
++  private HttpResponse<String> send(HttpRequest r) throws Exception {
++    return http.send(r, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
++  }
++
++  /** Số dòng outbox (tác dụng) của nhiệm vụ, đọc bằng svc_task trong ngữ cảnh tenant. */
++  private static long effects(UUID task) throws SQLException {
++    return inTenant(
++        c -> {
++          try (PreparedStatement ps =
++              c.prepareStatement("SELECT count(*) FROM task.outbox_event WHERE aggregate_id = ?")) {
++            ps.setObject(1, task);
++            try (ResultSet rs = ps.executeQuery()) {
++              rs.next();
++              return rs.getLong(1);
++            }
++          }
++        });
++  }
++
++  /** {@code status|response_code|có thân|resource_ref} của khoá, {@code null} khi không có. */
++  private static String keyRow(String key) throws SQLException {
++    return inTenant(
++        c -> {
++          try (PreparedStatement ps =
++              c.prepareStatement(
++                  "SELECT status, response_code, response_body IS NOT NULL, resource_ref"
++                      + " FROM task.idempotency_key WHERE idem_key = ?")) {
++            ps.setString(1, key);
++            try (ResultSet rs = ps.executeQuery()) {
++              if (!rs.next()) {
++                return null;
++              }
++              return rs.getString(1)
++                  + "|"
++                  + rs.getInt(2)
++                  + "|"
++                  + rs.getBoolean(3)
++                  + "|"
++                  + rs.getString(4);
++            }
++          }
++        });
++  }
++
++  private static void seedEvents(UUID task, int n) throws SQLException {
++    inTenant(
++        c -> {
++          try (PreparedStatement ps =
++              c.prepareStatement(
++                  "INSERT INTO task.outbox_event (id, tenant_id, aggregate_type, aggregate_id,"
++                      + " aggregate_version, event_type, topic, event_key, payload, schema_version,"
++                      + " created_at) SELECT gen_random_uuid(), ?::uuid, 'Task', ?, g, 'TienDoDaCapNhat',"
++                      + " 'task.task.progressed.v1', 'k', '\\x00'::bytea, 1,"
++                      + " date_trunc('second', now()) - (g % 7) * interval '1 second'"
++                      + " FROM generate_series(1, ?) g")) {
++            ps.setString(1, TENANT);
++            ps.setObject(2, task);
++            ps.setInt(3, n);
++            return (long) ps.executeUpdate();
++          }
++        });
++  }
++
++  @FunctionalInterface
++  private interface SqlWork<T> {
++    T run(Connection c) throws SQLException;
++  }
++
++  private static <T> T inTenant(SqlWork<T> work) throws SQLException {
++    try (Connection c = TenantDatabase.connect("svc_task")) {
++      c.setAutoCommit(false);
++      try (PreparedStatement ps =
++          c.prepareStatement("SELECT set_config('app.tenant_id', ?, true)")) {
++        ps.setString(1, TENANT);
++        ps.execute();
++      }
++      T result = work.run(c);
++      c.commit();
++      return result;
++    }
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/task/web/ApiConventionsTestApplication.java b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/task/web/ApiConventionsTestApplication.java
+new file mode 100644
+index 0000000..f6ad882
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/task/web/ApiConventionsTestApplication.java
+@@ -0,0 +1,99 @@
++package vn.viettel.okrkpi.task.web;
++
++import java.time.OffsetDateTime;
++import java.time.ZoneOffset;
++import java.util.Map;
++import java.util.Optional;
++import java.util.concurrent.ConcurrentHashMap;
++import javax.sql.DataSource;
++import org.springframework.boot.autoconfigure.SpringBootApplication;
++import org.springframework.context.annotation.Bean;
++import vn.viettel.okrkpi.shared.idempotency.IdempotencyCallerResolver;
++import vn.viettel.okrkpi.shared.job.Job;
++import vn.viettel.okrkpi.shared.job.JobSource;
++import vn.viettel.okrkpi.shared.job.JobStatus;
++import vn.viettel.okrkpi.shared.job.TrackedJob;
++import vn.viettel.okrkpi.shared.kernel.ActorId;
++import vn.viettel.okrkpi.shared.kernel.TenantId;
++import vn.viettel.okrkpi.shared.testdb.TenantDatabase;
++
++/**
++ * Ứng dụng thử của NEN-013 đặt trong gói module {@code task} (schema {@code task}, mã lỗi {@code
++ * TASK-...}), kết nối CSDL bằng {@code svc_task}.
++ */
++@SpringBootApplication
++public class ApiConventionsTestApplication {
++
++  /** Header chỉ có trong kiểm thử, thay cho ngữ cảnh tenant và JWT của NEN-010. */
++  public static final String TENANT_HEADER = "X-Test-Tenant";
++
++  public static final String ACTOR_HEADER = "X-Test-Actor";
++
++  @Bean
++  DataSource dataSource() {
++    return TenantDatabase.dataSource("svc_task");
++  }
++
++  @Bean
++  IdempotencyCallerResolver testCallers() {
++    return request -> {
++      String t = request.getHeader(TENANT_HEADER);
++      String a = request.getHeader(ACTOR_HEADER);
++      if (t == null || a == null) {
++        return Optional.empty();
++      }
++      return Optional.of(new IdempotencyCallerResolver.Caller(TenantId.parse(t), ActorId.parse(a)));
++    };
++  }
++
++  @Bean
++  MemoryJobs memoryJobs() {
++    return new MemoryJobs();
++  }
++
++  /** Nguồn tác vụ trong bộ nhớ, giả lập một module có tác vụ xuất báo cáo huỷ được. */
++  public static class MemoryJobs implements JobSource {
++
++    private final Map<String, TrackedJob> jobs = new ConcurrentHashMap<>();
++    private final Map<String, TenantId> owners = new ConcurrentHashMap<>();
++
++    public void put(TenantId tenant, TrackedJob job) {
++      jobs.put(job.job().id(), job);
++      owners.put(job.job().id(), tenant);
++    }
++
++    @Override
++    public String name() {
++      return "task.export";
++    }
++
++    @Override
++    public Optional<TrackedJob> find(TenantId tenant, String jobId) {
++      return Optional.ofNullable(jobs.get(jobId)).filter(j -> tenant.equals(owners.get(jobId)));
++    }
++
++    @Override
++    public boolean requestCancel(TenantId tenant, String jobId) {
++      TrackedJob current = jobs.get(jobId);
++      if (current == null || current.job().status().isTerminal()) {
++        return false;
++      }
++      Job j = current.job();
++      jobs.put(
++          jobId,
++          new TrackedJob(
++              new Job(
++                  j.id(),
++                  j.type(),
++                  JobStatus.DA_HUY,
++                  j.progress(),
++                  "Đã huỷ theo yêu cầu",
++                  null,
++                  null,
++                  OffsetDateTime.now(ZoneOffset.UTC)),
++              current.initiator(),
++              current.cancellable()));
++      return true;
++    }
++  }
++}
+diff --git a/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/task/web/TaskProbeController.java b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/task/web/TaskProbeController.java
+new file mode 100644
+index 0000000..d2254f5
+--- /dev/null
++++ b/backend/libs/vt-platform-starter/src/test/java/vn/viettel/okrkpi/task/web/TaskProbeController.java
+@@ -0,0 +1,222 @@
++package vn.viettel.okrkpi.task.web;
++
++import java.net.URI;
++import java.time.Instant;
++import java.time.OffsetDateTime;
++import java.time.ZoneOffset;
++import java.util.List;
++import java.util.Map;
++import java.util.UUID;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.TimeUnit;
++import org.springframework.http.ResponseEntity;
++import org.springframework.jdbc.core.JdbcTemplate;
++import org.springframework.transaction.PlatformTransactionManager;
++import org.springframework.transaction.support.TransactionTemplate;
++import org.springframework.web.bind.annotation.DeleteMapping;
++import org.springframework.web.bind.annotation.GetMapping;
++import org.springframework.web.bind.annotation.PathVariable;
++import org.springframework.web.bind.annotation.PostMapping;
++import org.springframework.web.bind.annotation.PutMapping;
++import org.springframework.web.bind.annotation.RequestBody;
++import org.springframework.web.bind.annotation.RequestHeader;
++import org.springframework.web.bind.annotation.RequestMapping;
++import org.springframework.web.bind.annotation.RequestParam;
++import org.springframework.web.bind.annotation.RestController;
++import vn.viettel.okrkpi.shared.error.BusinessException;
++import vn.viettel.okrkpi.shared.etag.ETags;
++import vn.viettel.okrkpi.shared.idempotency.Idempotent;
++import vn.viettel.okrkpi.shared.job.Job;
++import vn.viettel.okrkpi.shared.job.JobQueryService;
++import vn.viettel.okrkpi.shared.job.Jobs;
++import vn.viettel.okrkpi.shared.job.TrackedJob;
++import vn.viettel.okrkpi.shared.kernel.ActorId;
++import vn.viettel.okrkpi.shared.kernel.Classification;
++import vn.viettel.okrkpi.shared.kernel.Classified;
++import vn.viettel.okrkpi.shared.kernel.Ids;
++import vn.viettel.okrkpi.shared.kernel.TenantId;
++import vn.viettel.okrkpi.shared.paging.CursorCodec;
++import vn.viettel.okrkpi.shared.paging.CursorKey;
++import vn.viettel.okrkpi.shared.paging.CursorPage;
++import vn.viettel.okrkpi.shared.paging.PageRequest;
++
++/** Controller thử dùng bốn quy ước của NEN-013 như controller nghiệp vụ thật. */
++@RestController
++@RequestMapping("/api/v1")
++public class TaskProbeController {
++
++  /** Cho kiểm thử đồng thời: yêu cầu có header giữ giao dịch tới khi được thả. */
++  public static volatile CountDownLatch entered = new CountDownLatch(1);
++
++  public static volatile CountDownLatch release = new CountDownLatch(1);
++
++  private final JdbcTemplate jdbc;
++  private final TransactionTemplate tx;
++  private final CursorCodec cursors;
++  private final JobQueryService jobs;
++  private final ApiConventionsTestApplication.MemoryJobs memoryJobs;
++  private final Map<UUID, Long> versions = new ConcurrentHashMap<>();
++
++  public TaskProbeController(
++      JdbcTemplate jdbc,
++      PlatformTransactionManager transactionManager,
++      CursorCodec cursors,
++      JobQueryService jobs,
++      ApiConventionsTestApplication.MemoryJobs memoryJobs) {
++    this.jdbc = jdbc;
++    this.tx = new TransactionTemplate(transactionManager);
++    this.cursors = cursors;
++    this.jobs = jobs;
++    this.memoryJobs = memoryJobs;
++  }
++
++  public record ProgressInput(int percent, String note) {}
++
++  public record ProgressView(UUID taskId, int percent, String message) {}
++
++  public record CommentInput(@Classified(Classification.C2) String content) {}
++
++  public record CommentView(UUID taskId, @Classified(Classification.C2) String content) {}
++
++  public record EventRow(UUID id, Instant createdAt) {}
++
++  public record DocView(UUID id, long rowVersion, String title) {}
++
++  /** Ghi tiến độ: tác dụng là một dòng outbox trong cùng giao dịch với khoá. */
++  @PostMapping("/tasks/{id}/progress")
++  @Idempotent
++  public ResponseEntity<ProgressView> progress(
++      @PathVariable UUID id,
++      @RequestBody ProgressInput in,
++      @RequestHeader(value = "X-Test-Hold", required = false) String hold)
++      throws InterruptedException {
++    insertOutbox(id);
++    if (hold != null) {
++      entered.countDown();
++      if (!release.await(20, TimeUnit.SECONDS)) {
++        throw new IllegalStateException("Hết thời gian chờ thả");
++      }
++    }
++    return ResponseEntity.created(URI.create("/api/v1/tasks/" + id))
++        .body(new ProgressView(id, in.percent(), "Đã ghi nhận tiến độ"));
++  }
++
++  /** Nhận xét C2: thân phản hồi không được lưu vào idempotency_key. */
++  @PostMapping("/tasks/{id}/comments")
++  @Idempotent
++  public ResponseEntity<CommentView> comment(@PathVariable UUID id, @RequestBody CommentInput in) {
++    insertOutbox(id);
++    return ResponseEntity.created(URI.create("/api/v1/tasks/" + id + "/comments/1"))
++        .body(new CommentView(id, in.content()));
++  }
++
++  /** Lỗi nghiệp vụ sau khi đã ghi tác dụng: giao dịch huỷ, khoá không được lưu. */
++  @PostMapping("/tasks/{id}/locked")
++  @Idempotent
++  public ProgressView locked(@PathVariable UUID id, @RequestBody ProgressInput in) {
++    insertOutbox(id);
++    throw new BusinessException("TASK-409-PERIOD-LOCKED", "Kỳ đánh giá đã khoá.");
++  }
++
++  @GetMapping("/tasks/{id}/doc")
++  public ResponseEntity<DocView> readDoc(
++      @PathVariable UUID id,
++      @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
++    long v = versions.getOrDefault(id, 0L);
++    return ETags.conditional(ifNoneMatch, v, () -> new DocView(id, v, "Kế hoạch quý IV"));
++  }
++
++  @PutMapping("/tasks/{id}/doc")
++  public ResponseEntity<DocView> updateDoc(
++      @PathVariable UUID id,
++      @RequestHeader(value = "If-Match", required = false) String ifMatch,
++      @RequestBody Map<String, Object> body) {
++    long current = versions.getOrDefault(id, 0L);
++    ETags.requireMatch(ifMatch, current, null);
++    long next = current + 1;
++    versions.put(id, next);
++    return ETags.ok(new DocView(id, next, String.valueOf(body.get("title"))), next);
++  }
++
++  /** Danh sách sự kiện outbox của một nhiệm vụ, phân trang keyset theo (created_at, id). */
++  @GetMapping("/tasks/{id}/events")
++  public CursorPage<EventRow> events(
++      @PathVariable UUID id,
++      @RequestHeader(ApiConventionsTestApplication.TENANT_HEADER) String tenant,
++      @RequestParam(value = "limit", required = false) Integer limit,
++      @RequestParam(value = "cursor", required = false) String cursor) {
++    PageRequest page = cursors.pageRequest(limit, cursor, "task.events:" + id);
++    List<EventRow> rows =
++        tx.execute(
++            s -> {
++              jdbc.queryForObject(
++                  "SELECT set_config('app.tenant_id', ?, true)", String.class, tenant);
++              StringBuilder sql =
++                  new StringBuilder(
++                      "SELECT id, created_at FROM task.outbox_event WHERE aggregate_id = ?");
++              Object[] args;
++              if (page.firstPage()) {
++                args = new Object[] {id, page.fetchSize()};
++              } else {
++                CursorKey k = page.after();
++                sql.append(" AND (created_at, id) > (?, ?)");
++                args =
++                    new Object[] {
++                      id, k.getInstant(0).atOffset(ZoneOffset.UTC), k.getUuid(1), page.fetchSize()
++                    };
++              }
++              sql.append(" ORDER BY created_at, id LIMIT ?");
++              return jdbc.query(
++                  sql.toString(),
++                  (rs, i) ->
++                      new EventRow(
++                          rs.getObject(1, UUID.class),
++                          rs.getObject(2, OffsetDateTime.class).toInstant()),
++                  args);
++            });
++    return cursors.page(rows, page, r -> CursorKey.of(r.createdAt(), r.id()));
++  }
++
++  /** Xuất báo cáo: tác vụ dài trả 202 + Location. */
++  @PostMapping("/tasks/exports")
++  @Idempotent
++  public ResponseEntity<Job> export(
++      @RequestHeader(ApiConventionsTestApplication.TENANT_HEADER) String tenant,
++      @RequestHeader(ApiConventionsTestApplication.ACTOR_HEADER) String actor,
++      @RequestBody Map<String, Object> body) {
++    Job job =
++        Job.accepted(Ids.newUuidV7().toString(), "EXPORT", OffsetDateTime.now(ZoneOffset.UTC));
++    memoryJobs.put(TenantId.parse(tenant), new TrackedJob(job, ActorId.parse(actor), true));
++    return Jobs.accepted(job);
++  }
++
++  @GetMapping("/jobs/{id}")
++  public ResponseEntity<Job> getJob(
++      @PathVariable String id,
++      @RequestHeader(ApiConventionsTestApplication.TENANT_HEADER) String tenant,
++      @RequestHeader(ApiConventionsTestApplication.ACTOR_HEADER) String actor) {
++    return Jobs.status(jobs.get(TenantId.parse(tenant), ActorId.parse(actor), id));
++  }
++
++  @DeleteMapping("/jobs/{id}")
++  public ResponseEntity<Void> cancelJob(
++      @PathVariable String id,
++      @RequestHeader(ApiConventionsTestApplication.TENANT_HEADER) String tenant,
++      @RequestHeader(ApiConventionsTestApplication.ACTOR_HEADER) String actor) {
++    jobs.cancel(TenantId.parse(tenant), ActorId.parse(actor), id);
++    return ResponseEntity.accepted().build();
++  }
++
++  private void insertOutbox(UUID taskId) {
++    jdbc.update(
++        "INSERT INTO task.outbox_event (id, tenant_id, aggregate_type, aggregate_id,"
++            + " aggregate_version, event_type, topic, event_key, payload, schema_version)"
++            + " VALUES (?, current_setting('app.tenant_id')::uuid, 'Task', ?, 1,"
++            + " 'TienDoDaCapNhat', 'task.task.progressed.v1', ?, ?, 1)",
++        Ids.newUuidV7(),
++        taskId,
++        taskId.toString(),
++        new byte[] {0});
++  }
++}

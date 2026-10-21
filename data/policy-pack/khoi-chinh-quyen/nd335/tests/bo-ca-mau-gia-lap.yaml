@@ -1,0 +1,77 @@
+# Bộ ca mẫu GIẢ LẬP cho gói khoi-chinh-quyen/nd335 (DL-03, YC-PT-14). Xem ghi chú ở gói khoi-dang/quy-dinh-moi.
+# Chạy: python -I data/golden/chay_ca_mau.py data/policy-pack
+bo_ca_mau: bo-ca-mau-gia-lap-nd335
+goi: khoi-chinh-quyen/nd335
+gia_lap: true
+nguoi_ky: null
+yeu_cau_dat: 1.0
+trang_thai_ky: NHAP
+
+mac_dinh:
+  nhiem_vu: {ke_hoach: 10, so_luong_duyet: 10, muc_chat_luong: 1.0, so_lan_chinh_sua: 0,
+             ngay_lam_viec_cham_chu_quan: 0, ngay_lich_cham_chu_quan: 0, diem_chuan: 10, khong_hoan_thanh_chu_quan: false}
+  NHA_NUOC: {ty_le_dap_ung_tieu_chi_chung: 1.0}
+
+ca:
+  - id: S-001
+    loai: NHA_NUOC
+    mo_ta: "Đủ 30 điểm tiêu chí chung và 70 điểm kết quả"
+    legal_ref: "NĐ 335/2025; BR-09-11"
+    source: BA
+    dau_vao:
+      nhiem_vu: [{nhom: THUONG_XUYEN}, {nhom: THEN_CHOT}]
+    mong_doi: {diem: 100.0, dong_dmn: xep-loai-nha-nuoc-dong-1, xep_loai: HTXSNV}
+  - id: S-002
+    loai: NHA_NUOC
+    mo_ta: "Điểm thô 89,95 làm tròn thành 90,0"
+    legal_ref: "NĐ 335/2025; BR-09-03; BR-09-11"
+    source: BA
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.665
+      nhiem_vu: [{nhom: THUONG_XUYEN}, {nhom: THEN_CHOT}]
+    mong_doi: {diem: 90.0, dong_dmn: xep-loai-nha-nuoc-dong-1, xep_loai: HTXSNV}
+  - id: S-003
+    loai: NHA_NUOC
+    mo_ta: "Điểm thô 69,95 làm tròn thành 70,0"
+    legal_ref: "NĐ 335/2025; BR-09-11"
+    source: BA
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.675
+      nhiem_vu: [{nhom: THEN_CHOT, ke_hoach: 25, so_luong_duyet: 7, ngay_lam_viec_cham_chu_quan: 3}]
+    mong_doi: {diem: 70.0, dong_dmn: xep-loai-nha-nuoc-dong-2, xep_loai: HTTNV}
+  - id: S-004
+    loai: NHA_NUOC
+    mo_ta: "Điểm 69,9 dưới ngưỡng 70"
+    legal_ref: "NĐ 335/2025; BR-09-11"
+    source: BA
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.9
+      nhiem_vu: [{nhom: THEN_CHOT, ke_hoach: 25, so_luong_duyet: 1, ngay_lam_viec_cham_chu_quan: 4}]
+    mong_doi: {diem: 69.9, dong_dmn: xep-loai-nha-nuoc-dong-3, xep_loai: HTNV}
+  - id: S-005
+    loai: NHA_NUOC
+    mo_ta: "Điểm thô 49,95 làm tròn thành 50,0"
+    legal_ref: "NĐ 335/2025; BR-09-11"
+    source: BA
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.125
+      nhiem_vu: [{nhom: THEN_CHOT, ke_hoach: 25, so_luong_duyet: 2, ngay_lam_viec_cham_chu_quan: 2}]
+    mong_doi: {diem: 50.0, dong_dmn: xep-loai-nha-nuoc-dong-3, xep_loai: HTNV}
+  - id: S-006
+    loai: NHA_NUOC
+    mo_ta: "Điểm 49,9 dưới ngưỡng 50"
+    legal_ref: "NĐ 335/2025; BR-09-11"
+    source: BA
+    dau_vao:
+      ty_le_dap_ung_tieu_chi_chung: 0.35
+      nhiem_vu: [{nhom: THEN_CHOT, ke_hoach: 25, so_luong_duyet: 1, ngay_lam_viec_cham_chu_quan: 7}]
+    mong_doi: {diem: 49.9, dong_dmn: xep-loai-nha-nuoc-dong-4, xep_loai: KHTNV}
+  - id: S-007
+    loai: NHA_NUOC
+    mo_ta: "Cách tính chất lượng trừ 25% mỗi lần chỉnh sửa (một lần)"
+    legal_ref: "Bảng chấm điểm; BR-15-02"
+    source: BA
+    tham_so: {cach_tinh_chat_luong: TRU_25_MOI_LAN}
+    dau_vao:
+      nhiem_vu: [{nhom: THEN_CHOT, so_lan_chinh_sua: 1}]
+    mong_doi: {diem: 94.2, xep_loai: HTXSNV}

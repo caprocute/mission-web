@@ -9,23 +9,27 @@ import {
   isPolicyVersionEditable,
   policyVersionLabel,
 } from '@vt/api-client';
-import { fmtDate } from '../studio-ui';
-
-const FLOW_LABEL: Record<string, string | undefined> = {
-  DANG: 'Khối Đảng',
-  NHA_NUOC: 'Khối Nhà nước',
-};
+import { FLOW_LABEL, fmtDate } from '../studio-ui';
 
 /**
  * Trang đầu Config Studio (QT-15): danh sách Policy Pack của tenant cùng các phiên bản, mở một phiên
- * bản để xem hoặc soạn công thức (SCR-1501) và bảng quyết định (SCR-1502).
+ * bản để xem hoặc soạn công thức (SCR-1501), bảng quyết định (SCR-1502) và luồng phê duyệt động (SCR-1504).
  */
 @Component({
   selector: 'vt-policy-packs-page',
   imports: [RouterLink],
   template: `
-    <h1>Chính sách đánh giá</h1>
-    <p class="sub">Công thức tính điểm và bảng xếp loại áp dụng cho các kỳ đánh giá của đơn vị.</p>
+    <header class="studio-hero">
+      <div>
+        <span class="badge">KHUNG NỀN TẢNG · LUỒNG ĐỘNG & CHÍNH SÁCH</span>
+        <h1>Chính sách đánh giá &amp; Luồng quy trình động</h1>
+        <p class="sub">
+          Công thức tính điểm, bảng xếp loại, gói biểu mẫu động và luồng phê duyệt áp dụng cho các
+          kỳ đánh giá của đơn vị.
+        </p>
+      </div>
+    </header>
+
     @if (packs.error()) {
       <p class="err" role="alert">Không tải được danh sách. Vui lòng thử lại.</p>
     } @else if (packs.isLoading() && !packs.value()) {
@@ -33,13 +37,17 @@ const FLOW_LABEL: Record<string, string | undefined> = {
     }
     @for (p of packs.value()?.items ?? []; track p.id) {
       <section class="card" [attr.data-pack]="p.code">
-        <h2>{{ p.name }}</h2>
-        <p class="meta">
-          {{ flow[p.flow] ?? p.flow }}
-          @if (p.legalBasis) {
-            · Căn cứ: {{ p.legalBasis }}
-          }
-        </p>
+        <div class="card-head">
+          <div>
+            <h2>{{ p.name }}</h2>
+            <p class="meta">
+              <span class="flow-pill">{{ flow[p.flow] ?? p.flow }}</span>
+              @if (p.legalBasis) {
+                · Căn cứ pháp lý: <strong>{{ p.legalBasis }}</strong>
+              }
+            </p>
+          </div>
+        </div>
         <table>
           <caption class="sr-only">
             Các phiên bản của
@@ -59,16 +67,21 @@ const FLOW_LABEL: Record<string, string | undefined> = {
           <tbody>
             @for (v of sorted(p); track v.id) {
               <tr [attr.data-version]="v.version">
-                <td>{{ vlabel(v.version) }}</td>
+                <td>
+                  <strong class="ver">{{ vlabel(v.version) }}</strong>
+                </td>
                 <td>
                   <span class="st" [attr.data-status]="v.status">{{ statusLabel[v.status] }}</span>
                 </td>
                 <td>{{ date(v.effectiveFrom) }}</td>
                 <td>{{ v.changeNote ?? '—' }}</td>
                 <td class="act">
-                  <a [routerLink]="['goi', p.id, v.version, 'cong-thuc']">
+                  <a class="btn-link" [routerLink]="['goi', p.id, v.version, 'cong-thuc']">
                     {{ editable(v) ? 'Mở để soạn' : 'Xem' }}
                     <span class="sr-only">phiên bản {{ vlabel(v.version) }}</span>
+                  </a>
+                  <a class="btn-link secondary" [routerLink]="['goi', p.id, v.version, 'luong']">
+                    Luồng duyệt động
                   </a>
                 </td>
               </tr>
@@ -83,29 +96,71 @@ const FLOW_LABEL: Record<string, string | undefined> = {
     }
   `,
   styles: `
+    .studio-hero {
+      padding: 20px 24px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 65%, #3b0714 100%);
+      color: #f8fafc;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.16);
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(238, 0, 51, 0.22);
+      border: 1px solid rgba(251, 113, 133, 0.35);
+      color: #fda4af;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
     h1 {
-      font-size: 1.5rem;
+      font-size: 1.45rem;
+      font-weight: 800;
       margin: 0;
+      color: #ffffff;
     }
     .sub {
-      color: #4b5563;
-      margin: 4px 0 16px;
+      color: #cbd5e1;
+      margin: 6px 0 0;
+      font-size: 0.92rem;
     }
     .card {
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 18px 20px;
       margin-bottom: 16px;
       background: #fff;
       overflow-x: auto;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
     }
     h2 {
-      font-size: 1.125rem;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #0f172a;
       margin: 0;
     }
     .meta {
-      color: #4b5563;
-      margin: 4px 0 12px;
+      color: #475569;
+      margin: 6px 0 0;
+      font-size: 0.875rem;
+    }
+    .flow-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 600;
+      font-size: 0.8rem;
     }
     table {
       width: 100%;
@@ -114,18 +169,27 @@ const FLOW_LABEL: Record<string, string | undefined> = {
     th,
     td {
       text-align: left;
-      padding: 8px;
+      padding: 10px 12px;
       border-bottom: 1px solid #f1f5f9;
     }
     th {
-      color: #374151;
-      font-weight: 500;
+      color: #334155;
+      font-weight: 700;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
       background: #f8fafc;
     }
+    .ver {
+      color: #0f172a;
+    }
     .st {
-      padding: 2px 8px;
+      display: inline-block;
+      padding: 3px 10px;
       border-radius: 999px;
       background: #f1f5f9;
+      font-size: 0.8rem;
+      font-weight: 600;
       white-space: nowrap;
     }
     .st[data-status='DA_PHAT_HANH'] {
@@ -141,9 +205,23 @@ const FLOW_LABEL: Record<string, string | undefined> = {
       text-align: right;
       white-space: nowrap;
     }
-    .act a {
-      color: #1d4ed8;
-      font-weight: 500;
+    .btn-link {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 8px;
+      background: #fff1f2;
+      color: #b4001f;
+      font-weight: 600;
+      font-size: 0.84rem;
+      text-decoration: none;
+      margin-left: 6px;
+    }
+    .btn-link.secondary {
+      background: #f1f5f9;
+      color: #1e293b;
+    }
+    .btn-link:hover {
+      text-decoration: underline;
     }
     .err {
       color: #b4001f;

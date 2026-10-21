@@ -375,3 +375,117 @@ describe('appraisals mock, thẩm định (WEB-036)', () => {
     expect([b.status, b.signedCount, b.failedCount]).toEqual(['LOI_MOT_PHAN', 34, 2]);
   });
 });
+
+describe('appraisals mock: xếp loại năm và phân nhóm triển vọng (WEB-039)', () => {
+  const YEAR = 'p-2026';
+
+  it('bảng năm có bốn thẻ số liệu, lọc liên thông và đề xuất bố trí lại một lần', async () => {
+    const { api } = setup();
+    const page = await firstValueFrom(api.annual({ period: YEAR }));
+    expect(page.items.length).toBe(48);
+    expect(page.counts).toEqual({
+      profilesCreated: 48,
+      profilesTotal: 48,
+      blockedExcellent: 3,
+      reassignProposed: 1,
+      awaitingProspectGrouping: 48,
+    });
+    const flagged = await firstValueFrom(api.annual({ period: YEAR, warningsOnly: true }));
+    expect(flagged.items.map((r) => r.person.name)).toEqual([
+      'Phạm Đức Long',
+      'Bùi Văn Khánh',
+      'Đặng Hữu Phúc',
+    ]);
+    const hoang = page.items.find((r) => r.person.name === 'Trần Minh Hoàng')!;
+    const ex = await firstValueFrom(api.annualExplanation(hoang.id));
+    expect(ex.formula).toBe('(91,8 + 88,6 + 90,2 + 91,0) / 4 = 90,4');
+    expect(ex.conditions.filter((c) => !c.met).map((c) => c.actual)).toEqual(['24%']);
+
+    const khanh = flagged.items.find((r) => r.reassignFlag)!;
+    expect((await errorOf(firstValueFrom(api.proposeReassignment(hoang)))).error.code).toBe(
+      'APPRAISAL-409-NO-REASSIGN-FLAG',
+    );
+    const stale = await errorOf(
+      firstValueFrom(api.proposeReassignment({ ...khanh, rowVersion: 1 })),
+    );
+    expect(stale.error.code).toBe('APPRAISAL-409-VERSION-CONFLICT');
+    const res = await firstValueFrom(api.proposeReassignment(khanh, 'Đề nghị Ban xem xét.'));
+    expect(res.relocationProposed).toBe(true);
+    const again = await errorOf(
+      firstValueFrom(api.proposeReassignment({ ...khanh, rowVersion: 3 })),
+    );
+    expect(again.error.code).toBe('APPRAISAL-409-REASSIGN-EXISTS');
+  });
+
+  it('bảng phân nhóm: khoá ở kỳ quý, BR-10-09, lý do khi khác gợi ý, lưu rồi trình', async () => {
+    const { api } = setup();
+    const quarter = await errorOf(firstValueFrom(api.prospectBoard('p-2026q4', P + '0101')));
+    expect([quarter.status, quarter.error.code]).toEqual([409, 'APPRAISAL-409-PROSPECT-QUARTER']);
+
+    const board = await firstValueFrom(api.prospectBoard(YEAR, P + '0101'));
+    expect(board.status).toBe('NHAP');
+    const son = board.entries.find((e) => e.person.name === 'Vũ Ngọc Sơn')!;
+    expect([son.groupCode, son.suggestedGroup, son.rankInGroup]).toEqual(['NHOM_1', 'NHOM_2', 2]);
+    const input = (
+      patch: (x: { personId: string; groupCode: string; reason?: string }) => void,
+    ) => ({
+      entries: board.entries.map((e) => {
+        const x = {
+          personId: e.person.id,
+          groupCode: e.groupCode,
+          rankInGroup: e.rankInGroup!,
+          reason: e.reason,
+          trainingPlanRef: e.trainingPlanRef,
+        };
+        patch(x);
+        return x as never;
+      }),
+    });
+    const khanh = board.entries.find((e) => e.reassignFlag)!;
+    const bad = await errorOf(
+      firstValueFrom(
+        api.saveProspectBoard(
+          board,
+          input((x) => {
+            if (x.personId === khanh.person.id) {
+              x.groupCode = 'NHOM_2';
+              x.reason = 'Đồng chí có nhiều đóng góp trong công tác chuyên môn của Ban.';
+            }
+          }),
+        ),
+      ),
+    );
+    expect(bad.error.code).toBe('APPRAISAL-422-PROSPECT-NOT-ELIGIBLE');
+    const noReason = await errorOf(
+      firstValueFrom(
+        api.saveProspectBoard(
+          board,
+          input((x) => {
+            if (x.personId === son.person.id) x.reason = '';
+          }),
+        ),
+      ),
+    );
+    expect(noReason.error.errors[0].code).toBe('MSG-10-07');
+
+    const saved = await firstValueFrom(
+      api.saveProspectBoard(
+        board,
+        input(() => undefined),
+      ),
+    );
+    expect(saved.rowVersion).toBe(board.rowVersion + 1);
+    expect((await errorOf(firstValueFrom(api.submitProspectBoard(board)))).status).toBe(409);
+    const submitted = await firstValueFrom(api.submitProspectBoard(saved));
+    expect(submitted.status).toBe('DA_TRINH');
+    const locked = await errorOf(
+      firstValueFrom(
+        api.saveProspectBoard(
+          submitted,
+          input(() => undefined),
+        ),
+      ),
+    );
+    expect(locked.error.code).toBe('APPRAISAL-409-INVALID-STATUS');
+  });
+});

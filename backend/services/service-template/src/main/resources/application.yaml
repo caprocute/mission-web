@@ -1,0 +1,84 @@
+# NEN-019 · TL-04 WI-20, WI-23 "Nguyên tắc cấu hình chung cho mọi service".
+# - Luồng ảo Java 21 bật mặc định.
+# - Tắt open-in-view và Flyway lúc chạy (migration chạy ở InitContainer vt-db-migration).
+# - Hibernate chỉ validate lược đồ.
+# - Cổng ứng dụng SERVER_PORT (8080), cổng quản trị MANAGEMENT_PORT (8081).
+# - Tắt êm (graceful shutdown) với pha chờ tối đa 25s (nhỏ hơn terminationGracePeriodSeconds=40s trừ preStop=5s).
+# - Mọi thông số kết nối và cổng dùng biến môi trường ${BIEN_MOI_TRUONG:gia_tri_mac_dinh}, mặc định
+#   trỏ tới 127.0.0.1 qua dải cổng SSH tunnel 35xxx của infra/dev để dễ dàng thay đổi động qua .env.
+
+spring:
+  application:
+    name: ${SERVICE_NAME:service-template}
+  threads:
+    virtual:
+      enabled: ${VIRTUAL_THREADS_ENABLED:true}
+  flyway:
+    enabled: false
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:25s}
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=${DB_SCHEMA:template}}
+    username: ${DB_USER:svc_template}
+    password: ${DB_PASSWORD:}
+    hikari:
+      pool-name: service-template-hikari
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:3000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT_MS:1000}
+      max-lifetime: ${DB_MAX_LIFETIME_MS:1800000}
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8081}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+      group:
+        # Liveness chỉ kiểm tra nội tại JVM, tuyệt đối không phụ thuộc CSDL/Kafka/dịch vụ ngoài (TL-04 WI-20).
+        liveness:
+          include: livenessState,ping
+        # Readiness kiểm tra pool CSDL và trạng thái sẵn sàng của kết nối hạ tầng (pool CSDL, producer Kafka).
+        readiness:
+          include: readinessState,db,templateReadiness
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+mission:
+  service:
+    code: ${SERVICE_CODE:SVC-TEMPLATE}
+    schema: ${DB_SCHEMA:template}
+    kafka:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:35092}
+      apicurio-registry-url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
+      producer-ready: ${KAFKA_PRODUCER_READY:true}
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:35379}
+    security:
+      keycloak-issuer-uri: ${KEYCLOAK_ISSUER_URI:http://127.0.0.1:35080/realms/mission}
+      opa-url: ${OPA_URL:http://127.0.0.1:35181/v1/data/mission/authz}
+      openbao-url: ${OPENBAO_URL:http://127.0.0.1:35820}
+    observability:
+      otlp-endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://127.0.0.1:35317}

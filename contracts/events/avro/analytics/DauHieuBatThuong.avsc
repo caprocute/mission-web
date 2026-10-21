@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "DauHieuBatThuong",
+  "namespace": "vn.vtokr.analytics.v1",
+  "doc": "EVT-20 · analytics.anomaly.detected.v1 · SVC-15 phát từ job ClickHouse (không qua outbox PostgreSQL nên không có aggregateVersion); event_id tất định theo alertKey.",
+  "fields": [
+    {"name": "alertKey", "type": "string", "doc": "Khoá tất định: băm của tín hiệu, đối tượng và cửa sổ thời gian"},
+    {"name": "signalCode", "type": "string", "doc": "Dấu hiệu: TU_CHAM_CAO, CAO_BANG, MUC_TIEU_DE, MINH_CHUNG_TRUNG, CAP_NHAT_DON, SUA_SAU_KHOA, CHE_NHO, MIEN_TRU_LAP"},
+    {"name": "severity", "type": "string", "doc": "Mức: CAO, VUA, THAP"},
+    {"name": "subjectType", "type": "string", "doc": "Đối tượng: CA_NHAN, DON_VI, NGUOI_DUYET"},
+    {"name": "subjectId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Mã đối tượng"},
+    {"name": "evidenceChain", "type": "string", "doc": "Danh sách mã bằng chứng dạng JSON (jsonb → string theo bảng kiểu chuẩn TL-03)"},
+    {"name": "modelVersion", "type": "string", "doc": "Phiên bản quy tắc hoặc mô hình phát hiện"}
+  ]
+}

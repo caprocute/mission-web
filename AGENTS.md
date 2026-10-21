@@ -33,13 +33,14 @@ Từ kế hoạch tổng thể (`docs/KE-HOACH-TONG-THE-HE-THONG.md`), repo này
 9. **Trải nghiệm và khả năng truy cập là yêu cầu chức năng.** WCAG 2.1 AA, thao tác thường ngày ≤ 3 chạm, chế độ "Đảng viên cao tuổi" (`data-mode="elderly"`, cờ `reducedSteps`) phải hoạt động trên mọi màn hình mới (NFR-11). Văn bản giao diện bằng tiếng Việt có dấu, đúng thuật ngữ trong TL-02. Giao diện là sản phẩm cho cán bộ, viên chức: chỉ hiện thông tin người dùng cần, văn phong nghiêm túc, chỉn chu, đơn giản, không kỹ thuật; không in ghi chú giải pháp, mã SCR/QT/BR/MSG/ADR, tên bảng, tên trường, mã trạng thái thô (`DA_GIAO`…) hay tên API lên màn hình, mà dùng nhãn nghiệp vụ OKR/KPI chuẩn (mã chỉ đặt trong chú thích mã nguồn, `data-*` hoặc nhật ký). Quy định chi tiết, bảng từ thay thế và hai lớp kiểm tra tự động (`npm run check:ui-text`, `e2e/gia-lap.noi-dung.spec.ts`) ở `wiki/16-noi-dung-giao-dien.md`.
 10. **Ngân sách hiệu năng.** Shell + design system ≤ 250 KB gzip, mỗi remote tải đầu ≤ 180 KB gzip, UI Pack ≤ 30 KB, LCP ≤ 2,5 s trên 4G, INP ≤ 200 ms (TL-01 "Ngân sách hiệu năng"). Component nặng phải nạp lười.
 11. **Có kiểm thử và đã chạy thử.** Task chỉ hoàn thành khi `npx ng build fe-task && npx ng build fe-shell` (và remote mà task đụng tới) thành công, kiểm thử của task chạy xanh, và màn hình đã được mở thật trên trình duyệt (Playwright hoặc thủ công) không có lỗi console.
-12. **Báo cáo trung thực.** Cuối task, viết báo cáo theo mục 6. Việc chưa làm, kiểm thử chưa chạy, giả định đã chọn: ghi rõ. Không tuyên bố "xong" khi chưa kiểm chứng.
+12. **Cập nhật tiến độ vào tệp tổng hợp duy nhất (`TIEN-DO-HE-THONG.md`) và báo cáo trung thực (`YC-PT-17`).** Tệp `TIEN-DO-HE-THONG.md` ở gốc repo là nguồn sự thật duy nhất về tiến độ của toàn bộ 401 task trong hệ thống; mọi agent được phép và **bắt buộc** phải cập nhật tệp này (kể cả khi task không liệt kê trong mục "Tệp được phép sửa") thông qua công cụ `python3 scripts/cap-nhat-tien-do.py set <MÃ_TASK> --status "<Trạng thái>" --note "<Ghi chú>" --agent "<Tên luồng>"` ở 3 thời điểm: (a) khi bắt đầu làm task (`Đang làm`), (b) khi hoàn thành và kiểm thử xanh trên nhánh (`Xong, chờ gộp`), và (c) khi luồng điều phối gộp vào `main` (`Đã gộp main`). Cuối task, viết báo cáo theo mục 6. Việc chưa làm, kiểm thử chưa chạy, giả định đã chọn: ghi rõ. Không tuyên bố "xong" khi chưa kiểm chứng và chưa cập nhật `TIEN-DO-HE-THONG.md`.
 
 ## 3. Bản đồ repo
 
 ```
 mission-web/
 ├── AGENTS.md              ← quy định chung (tệp này); CLAUDE.md trỏ về đây
+├── TIEN-DO-HE-THONG.md    ← tệp theo dõi tiến độ tổng hợp duy nhất của toàn hệ thống (401 task, mọi agent bắt buộc cập nhật)
 ├── docs/
 │   ├── KE-HOACH-TONG-THE-HE-THONG.md        ← kế hoạch toàn hệ thống, đường găng, chia luồng, ma trận phủ
 │   ├── KE-HOACH-PHAT-TRIEN-PHAN-HE-WEB.md   ← kế hoạch, giai đoạn, mốc
@@ -50,7 +51,9 @@ mission-web/
 ├── frontend/              ← Angular workspace (fe-shell, fe-task, thư viện @vt/*)
 ├── deploy/web/            ← Dockerfile + nginx cho SVC-17
 ├── infra/dev/             ← Docker Compose hạ tầng dùng chung dev (xem README trong đó)
-├── scripts/agent-task.sh  ← in quy định chung + task thành một prompt cho agent
+├── scripts/
+│   ├── agent-task.sh          ← in quy định chung + task thành một prompt cho agent
+│   └── cap-nhat-tien-do.py    ← công cụ cập nhật trạng thái task và đồng bộ số liệu trong TIEN-DO-HE-THONG.md
 └── .env(.example)         ← thông tin truy cập server dev (không commit)
 ```
 
@@ -67,20 +70,24 @@ Mặc định `public/config.json` bật `useMockApi` và tắt đăng nhập; �
 
 ## 5. Quy trình làm một task
 
-1. Đọc tệp này, rồi đọc task `docs/tasks/WEB-xxx-*.md` và các trang wiki/TL mà task liệt kê ở mục "Đầu vào bắt buộc đọc".
-2. Tạo nhánh `feat/WEB-xxx-<ten-ngan>` (hoặc `fix/…`, `docs/…`).
-3. Làm trong phạm vi tệp được phép; commit nhỏ, thông điệp dạng `WEB-xxx: <mô tả tiếng Việt>`, ghi mã SCR/QT liên quan trong thân commit.
-4. Chạy build, kiểm thử và mở màn hình trên trình duyệt.
-5. Cập nhật wiki nếu task tạo ra tri thức mới (quy ước, bẫy kỹ thuật, quyết định); cập nhật trạng thái task trong `docs/tasks/README.md`.
+1. Đọc tệp này, rồi đọc task `docs/tasks/<MÃ>-*.md` và các trang wiki/TL mà task liệt kê ở mục "Đầu vào bắt buộc đọc".
+2. Tạo nhánh `feat/<MÃ>-<ten-ngan>` (hoặc `fix/…`, `docs/…`), và đánh dấu bắt đầu làm trong tệp tiến độ tổng hợp:
+   `python3 scripts/cap-nhat-tien-do.py set <MÃ> --status "Đang làm" --note "Nhánh feat/<MÃ>-...: đang thực hiện" --agent "<Tên luồng>"`
+3. Làm trong phạm vi tệp được phép; commit nhỏ, thông điệp dạng `<MÃ>: <mô tả tiếng Việt>`, ghi mã SCR/QT liên quan trong thân commit.
+4. Chạy build, kiểm thử và mở màn hình trên trình duyệt (với task giao diện) hoặc chạy bộ kiểm thử đơn vị/tích hợp (với task máy chủ, hạ tầng, di động).
+5. Cập nhật wiki nếu task tạo ra tri thức mới (quy ước, bẫy kỹ thuật, quyết định); **bắt buộc cập nhật tiến độ vào `TIEN-DO-HE-THONG.md`** bằng lệnh:
+   `python3 scripts/cap-nhat-tien-do.py set <MÃ> --status "Xong, chờ gộp" --note "Nhánh feat/<MÃ>-...: đã qua build & test" --agent "<Tên luồng>"`
+   (hoặc `--status "Đã gộp main"` khi luồng điều phối gộp vào `main`). Nếu sửa trực tiếp bảng trong `TIEN-DO-HE-THONG.md`, chạy `python3 scripts/cap-nhat-tien-do.py sync` để tính lại số liệu tổng hợp.
 6. Viết báo cáo cuối task.
 
 ## 6. Mẫu báo cáo cuối task
 
 ```
-## Báo cáo WEB-xxx
-- Kết quả: <đã làm gì, màn hình/tệp nào>
+## Báo cáo <MÃ-TASK>
+- Kết quả: <đã làm gì, màn hình/dịch vụ/tệp nào>
 - Truy vết: QT-.. → SCR-.. → API .. → MOD-..
 - Kiểm chứng: <lệnh build/test đã chạy và kết quả; ảnh chụp nếu có>
+- Cập nhật tiến độ: <đã cập nhật TIEN-DO-HE-THONG.md sang trạng thái nào>
 - Giả định đã chọn: <...>
 - Chưa làm / rủi ro: <...>
 - Cập nhật wiki: <trang nào hoặc "không">

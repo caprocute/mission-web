@@ -15,6 +15,9 @@ case "$ID" in
 esac
 echo "Bạn là AI agent thực hiện task $ID của dự án Mission."
 echo "BẮT BUỘC: đọc và tuân thủ toàn bộ quy định chung dưới đây trước khi làm."
+echo "BẮT BUỘC CẬP NHẬT TIẾN ĐỘ (YC-PT-17): cập nhật trạng thái task $ID vào tệp duy nhất TIEN-DO-HE-THONG.md bằng lệnh:"
+echo "  - Khi bắt đầu: python3 scripts/cap-nhat-tien-do.py set $ID --status \"Đang làm\" --note \"Nhánh ...: đang thực hiện\" --agent \"<Tên luồng>\""
+echo "  - Khi hoàn thành trên nhánh: python3 scripts/cap-nhat-tien-do.py set $ID --status \"Xong, chờ gộp\" --note \"Nhánh ...: đã qua build & test\" --agent \"<Tên luồng>\""
 echo
 cat AGENTS.md
 if [ -n "$RIENG" ]; then
@@ -26,4 +29,4 @@ echo
 echo "=================================== TASK ==================================="
 cat "$TASK"
 echo
-echo "Khi xong, trả lời bằng báo cáo theo mẫu ở AGENTS.md mục 6."
+echo "Khi xong, BẮT BUỘC cập nhật TIEN-DO-HE-THONG.md (python3 scripts/cap-nhat-tien-do.py set $ID ...) và trả lời bằng báo cáo theo mẫu ở AGENTS.md mục 6."

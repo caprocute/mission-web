@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "HoSoSoDaSinh",
+  "namespace": "vn.vtokr.dossier.v1",
+  "doc": "EVT-17 · dossier.form.generated.v1 · SVC-11 phát khi sinh xong biểu mẫu hồ sơ số.",
+  "fields": [
+    {"name": "renderJobId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "docgen.render_job.id"},
+    {"name": "formInstanceId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "dossier.form_instance.id"},
+    {"name": "formCode", "type": "string", "doc": "Mẫu: MAU_1A, MAU_1B, MAU_1C, MAU_1D, MAU_2, MAU_3, BANG_CHAM_DIEM"},
+    {"name": "objectKey", "type": "string", "doc": "Khoá đối tượng Ceph của tệp PDF/A"},
+    {"name": "pdfSha256", "type": "bytes", "doc": "SHA-256 của tệp PDF/A"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

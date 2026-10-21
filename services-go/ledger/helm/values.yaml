@@ -1,0 +1,42 @@
+# Giá trị triển khai Helm mặc định cho SVC-09 Ledger Service (TL-04 §3.6, ADR-07).
+serviceName: ledger-service
+serviceCode: SVC-09
+replicaCount: 2
+
+image:
+  repository: registry.viettel.vn/mission/ledger-service
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 8080
+
+probes:
+  livenessPath: /healthz
+  readinessPath: /readyz
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 256Mi
+  limits:
+    cpu: 2000m
+    memory: 512Mi
+
+env:
+  HTTP_ADDR: ":8080"
+  KAFKA_LEDGER_TOPIC: "sys.ledger.append.v1"
+  KAFKA_GROUP_ID: "ledger-ingester"
+  PARTITION_SYNC_INTERVAL: "6h"
+  SHUTDOWN_TIMEOUT: "15s"

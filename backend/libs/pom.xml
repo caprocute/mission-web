@@ -16,7 +16,20 @@
   <name>Mission · thư viện nền</name>
 
   <modules>
+    <!-- NEN-006: giao diện controller và DTO sinh từ hợp đồng OpenAPI 3.1 (ADR-32). -->
+    <module>vt-api-contract</module>
+    <!-- NEN-006: khung kiểm thử tương thích hợp đồng OpenAPI và openapi-diff (ADR-32). -->
+    <module>vt-contract-test</module>
+    <!-- NEN-041: thư viện CEL dùng chung (vt-cel) cho Policy Pack và biểu mẫu động. -->
+    <module>vt-cel</module>
     <!-- NEN-030: bộ chạy Flyway theo schema, kiểm phiên bản lược đồ, lint quy ước. -->
+    <module>vt-kernel</module>
+    <module>vt-platform-starter</module>
     <module>vt-db-migration</module>
+    <!-- NEN-034: bộ kiểm thử rò rỉ tenant lớp 1-4 (RLS danh mục, 2 tenant, PgBouncer pool, Semgrep). -->
+    <module>vt-tenant-test</module>
+    <module>vt-events</module>
+    <!-- NEN-020: bộ công cụ kiểm thử tích hợp Testcontainers dùng chung và sinh JWT thử nghiệm. -->
+    <module>vt-testkit</module>
   </modules>
 </project>

@@ -1015,6 +1015,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/ui/feature-flags': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Bản đồ cờ tính năng hiệu lực của người dùng hiện hành
+     * @description Tính tập cờ hiệu lực từ `config.feature_flag` theo tenant, đơn vị (`target_org_unit_ids`), vai trò (`target_roles`) và phần trăm triển khai tăng dần (`rollout_percent` băm ổn định theo `person_id`) để client web/di động kiểm tra mà không cần quyền `tenant_admin` (TL-04 OPS-04).
+     */
+    get: operations['getEffectiveFeatureFlags'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/settings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Danh sách cấu hình chung của tenant hoặc đơn vị
+     * @description Đọc các dòng `config.tenant_setting` của tenant hiện hành (ngoài những khoá đã có đường dẫn chuyên biệt như `working_days`, `anomaly_thresholds`), lọc tuỳ chọn theo `unitId`.
+     */
+    get: operations['listTenantSettings'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/settings/{key}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Khoá cấu hình (`config.tenant_setting.key`). */
+        key: components['parameters']['SettingKeyPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    /** Ghi cấu hình theo khoá của tenant hoặc đơn vị */
+    put: operations['setTenantSetting'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/config/role-bindings': {
     parameters: {
       query?: never;
@@ -3368,6 +3428,56 @@ export interface components {
       items: components['schemas']['Delegation'][];
       nextCursor: components['schemas']['NextCursor'];
     };
+    /**
+     * @example {
+     *       "flags": {
+     *         "elderly_mode_auto_prompt": true,
+     *         "ai_summary_3_lines": true
+     *       },
+     *       "evaluatedAt": "2026-04-01T08:00:00Z"
+     *     }
+     */
+    EffectiveFeatureFlagMap: {
+      flags: {
+        [key: string]: boolean;
+      };
+      evaluatedAt: components['schemas']['DateTime'];
+    };
+    /**
+     * @example {
+     *       "key": "dossier.retention_years",
+     *       "orgUnitId": null,
+     *       "value": {
+     *         "years": 10
+     *       },
+     *       "version": 2,
+     *       "updatedBy": "0195f3a0-0000-7000-8000-000000000101",
+     *       "updatedAt": "2026-04-01T08:00:00Z"
+     *     }
+     */
+    TenantSetting: {
+      key: string;
+      /** Format: uuid */
+      orgUnitId?: string | null;
+      value: {
+        [key: string]: unknown;
+      };
+      version: number;
+      /** Format: uuid */
+      updatedBy?: string | null;
+      updatedAt: components['schemas']['DateTime'];
+    };
+    TenantSettingList: {
+      items: components['schemas']['TenantSetting'][];
+    };
+    TenantSettingUpdate: {
+      /** Format: uuid */
+      orgUnitId?: string | null;
+      value: {
+        [key: string]: unknown;
+      };
+      reason?: string;
+    };
     FieldError: {
       /** @description Tên trường theo JSON của thân yêu cầu, dạng đường dẫn chấm */
       field: string;
@@ -3561,6 +3671,8 @@ export interface components {
     FormVersionPath: string;
     /** @description ETag đã lưu ở client; khớp thì máy chủ trả 304. */
     IfNoneMatch: string;
+    /** @description Khoá cấu hình (`config.tenant_setting.key`). */
+    SettingKeyPath: string;
     /** @description Từ khoá tìm kiếm, không phân biệt dấu. */
     Q: string;
     /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
@@ -3572,6 +3684,8 @@ export interface components {
     IdPath: components['schemas']['Uuid'];
     /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
     IfMatch: string;
+    /** @description Đơn vị (`org.org_unit.id`); máy chủ kiểm phạm vi theo ABAC. */
+    UnitId: components['schemas']['Uuid'];
   };
   requestBodies: never;
   headers: {
@@ -5387,6 +5501,94 @@ export interface operations {
         content?: never;
       };
       401: components['responses']['Unauthorized'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getEffectiveFeatureFlags: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Bản đồ `flagKey -> boolean`. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['EffectiveFeatureFlagMap'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listTenantSettings: {
+    parameters: {
+      query?: {
+        /** @description Đơn vị (`org.org_unit.id`); máy chủ kiểm phạm vi theo ABAC. */
+        unit?: components['parameters']['UnitId'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Danh sách cấu hình. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TenantSettingList'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  setTenantSetting: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        /** @description Khoá cấu hình (`config.tenant_setting.key`). */
+        key: components['parameters']['SettingKeyPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TenantSettingUpdate'];
+      };
+    };
+    responses: {
+      /** @description Cấu hình đã lưu. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TenantSetting'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
       default: components['responses']['Problem'];
     };
   };

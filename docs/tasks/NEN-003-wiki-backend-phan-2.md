@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | NEN-001 |
 | Truy vết | ADR-03, ADR-11, ADR-12, ADR-16, ADR-17, ADR-21, ADR-23 → EVT-01..EVT-26, topic kỹ thuật `sys.*` → `<schema>.outbox_event`, `inbox_processed` → SEC, OPS theo TL-04 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Hoàn thành (20/10/2026, đã gộp vào `main`: `wiki/18-su-kien-va-dong-bo-du-lieu.md`, `wiki/19-ha-tang-production-va-trien-khai.md`, `wiki/20-bao-mat-phia-may-chu.md`) |
 
 ## 1. Mục tiêu
 

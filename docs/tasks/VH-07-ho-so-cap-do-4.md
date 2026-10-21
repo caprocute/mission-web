@@ -13,7 +13,7 @@
 | Cỡ việc | M (≤ 1 ngày) |
 | Phụ thuộc | QA-13, INF-19 |
 | Truy vết | NFR-08 → TL-04 mục 9.7 "Tuân thủ TCVN 11930:2017 cấp độ 4" → SEC-02..SEC-59 theo bảng ánh xạ, DR-14, OPS-18, OPS-22 → bằng chứng từ QA-13, QA-14, QA-15, INF-19 |
-| Trạng thái | Bị chặn bởi bên ngoài (một phần): thẩm định cấp độ do cơ quan có thẩm quyền thực hiện; HSM, PAM, hợp đồng SOC phụ thuộc mua sắm |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -37,6 +37,7 @@ Lập hồ sơ đề xuất cấp độ 4 cho hệ thống: thuyết minh phân 
 ## 4. Ngoài phạm vi
 
 - Thẩm định và cấp phép của cơ quan có thẩm quyền; kiểm thử xâm nhập độc lập (SEC-41); mua sắm HSM, PAM, dịch vụ SOC.
+- Nối bằng chứng của HSM, PAM và dịch vụ SOC thật vào hồ sơ khi có; trong task này, các hạng mục đó lấy bằng chứng từ bản giả lập (SoftHSM, PAM giả lập) và ghi rõ là bằng chứng giả lập.
 
 ## 5. Tệp được phép sửa
 

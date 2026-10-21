@@ -1,0 +1,71 @@
+{{- if .Values.migration.enabled }}
+# Job Flyway áp db/migration/registry bằng vai trò mig_registry trước khi cài hoặc nâng cấp. Migration lấy
+# từ ảnh tenant-registry (initContainer chép sang emptyDir) để luôn khớp phiên bản mã.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "tenant-registry.fullname" . }}-migrate
+  labels:
+    {{- include "tenant-registry.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        {{- include "tenant-registry.selector" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "tenant-registry.serviceAccount" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: sql
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+      initContainers:
+        - name: copy-sql
+          image: {{ include "tenant-registry.image" . }}
+          command: ["/tenant-registry", "copy-migrations", "/sql"]
+          volumeMounts:
+            - name: sql
+              mountPath: /sql
+          resources:
+            {{- toYaml .Values.migration.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      containers:
+        - name: flyway
+          image: {{ .Values.migration.image }}
+          args: ["-schemas=registry", "-defaultSchema=registry", "-locations=filesystem:/sql", "-connectRetries=10", "migrate"]
+          envFrom:
+            - secretRef:
+                name: {{ .Values.migration.secretName }}
+          volumeMounts:
+            - name: sql
+              mountPath: /sql
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.migration.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+{{- end }}

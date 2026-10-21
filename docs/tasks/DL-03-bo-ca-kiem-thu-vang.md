@@ -13,11 +13,13 @@
 | Cỡ việc | L (> 1 ngày, nên tách: xem cuối mục 3) |
 | Phụ thuộc | DL-02, CORE-05-06 |
 | Truy vết | J6; QT-15 (BR-15-07, BR-15-08), QT-09, QT-10 → API `POST /api/v1/policies/test-cases` (`createGoldenTestCase`), `POST /api/v1/policies/test-cases/{id}/approve` (`approveGoldenTestCase`), `POST /api/v1/policies/packs/{id}/versions/{v}/test-runs` (`runPolicyTests`) → MOD-05, SVC-07 → bảng `policy.golden_test_case`, `policy.test_run`, `policy.test_case_result` → không phát EVT (EVT-13 thuộc bước phát hành) |
-| Trạng thái | Chờ người dùng chốt: cần nghiệp vụ (Ban Tổ chức) rà soát và ký số bộ ca |
+| Trạng thái | Bộ ca giả lập xong 20/10/2026: 70 ca, đạt 70/70, phủ mọi dòng DMN và 13 trường hợp đặc thù (`data/golden/`); 0 ca đã ký, chờ nghiệp vụ rà và ký; so khớp cel-java với cel-js, jqwik và nạp qua API chờ NEN-041, CORE-05-06 |
 
 ## 1. Mục tiêu
 
 Mỗi Policy Pack của DL-01, DL-02 có bộ ca mẫu vàng phủ mọi công thức, mọi dòng DMN, mọi tham số có nhiều giá trị và cả 13 trường hợp đặc thù, chạy đạt 100% trên cel-java và cho kết quả trùng với cel-js. Bộ ca là điều kiện để phiên bản gói chuyển `DAT_KIEM_THU` (BR-15-07) và là bằng chứng tiêu chí J6; agent chuẩn bị trọn bộ ca và bảng đối chiếu để nghiệp vụ rà và ký, không tự ký thay.
+
+Theo quyết định ngày 20/10/2026 (`docs/KE-HOACH-TONG-THE-HE-THONG.md` mục 1a), bộ ca vàng là bản giả lập theo QĐ 366-QĐ/TW và NĐ 335/2025, đánh dấu rõ là giả lập trong `metadata` của Policy Pack, và chỉ được nạp vào hệ thống qua Policy Pack. Khi nghiệp vụ đưa ra công thức và bộ ca chính thức hoặc quy định thay đổi, quản trị viên soạn phiên bản Policy Pack mới, chạy ca vàng, duyệt và phát hành theo QT-15 mà không sửa mã và không phát hành phần mềm. Bộ ca giả lập là ca vàng của phiên bản gói giả lập; nghiệp vụ (Ban Tổ chức) rà và ký khi có bản chính thức, việc này không chặn task.
 
 ## 2. Đầu vào bắt buộc đọc
 
@@ -28,7 +30,8 @@ Mỗi Policy Pack của DL-01, DL-02 có bộ ca mẫu vàng phủ mọi công t
 
 ## 3. Phạm vi công việc
 
-- Viết tệp `tests/bo-ca-mau-<tên>.yaml` cho mỗi gói theo định dạng `bo_ca_mau` của TL-01 (`ca[].id`, `mo_ta`, `dau_vao`, `mong_doi`), mỗi ca có `legal_ref` và `source` thuộc `KHACH_HANG`, `BA`, `VAN_BAN`.
+- Viết tệp `tests/bo-ca-mau-<tên>.yaml` cho mỗi gói theo định dạng `bo_ca_mau` của TL-01 (`ca[].id`, `mo_ta`, `dau_vao`, `mong_doi`), mỗi ca có `legal_ref` và `source` thuộc `KHACH_HANG`, `BA`, `VAN_BAN`; đầu tệp ghi rõ bộ ca là giả lập, gắn với phiên bản gói giả lập (`metadata.gia_lap: true`).
+- Viết thêm một bộ ca cho phiên bản gói thứ hai (đổi công thức hoặc tham số so với phiên bản đầu) để chứng minh thay phiên bản Policy Pack thì kết quả tính lại theo công thức mới.
 - Phủ ít nhất: mỗi dòng của mọi bảng DMN một ca; mỗi giá trị tham số `cach_tinh_chat_luong` (BR-15-02), `loai_ngay` (BR-15-03) và `nam.cach_tinh` (BR-10-02) một ca riêng; 13 trường hợp đặc thù §1–§13; ca BR-09-10 hạ mức liền kề kèm câu giải thích mong đợi; ca người đứng đầu BR-09-13; ca luồng Nhà nước BR-09-11.
 - Thêm ca biên tự sinh theo TL-01: điểm 59,995 và 89,995, kế hoạch = 0, ngày chậm rất lớn, tỷ lệ O < 1.
 - Viết kiểm thử thuộc tính jqwik: điểm ∈ [0; 100]; tăng `so_luong_duyet` không làm giảm mức; `ty_le_O < 1` không bao giờ cho HTXSNV.
@@ -55,7 +58,8 @@ Mỗi Policy Pack của DL-01, DL-02 có bộ ca mẫu vàng phủ mọi công t
 - Bộ so khớp cel-java với cel-js báo `engine_match = true` cho 100% ca; kiểm thử thuộc tính chạy 10.000 bộ không vi phạm bất biến.
 - Ma trận phủ (dòng DMN × ca, tham số × ca, §1–§13 × ca) được in trong báo cáo, không còn ô trống.
 - Với CORE-05-06 đã gộp: nạp toàn bộ ca qua API trên Testcontainers, `runPolicyTests` trả 202 rồi `test_run.result = DAT`.
-- Báo cáo nêu rõ số ca đã được nghiệp vụ ký và số ca còn chờ ký.
+- Ca chứng minh cấu hình động: chạy bộ ca của phiên bản 1 trên phiên bản 1 đạt 100%, rồi nạp phiên bản 2 và chạy bộ ca của phiên bản 2 đạt 100%, các ca có kỳ vọng khác giữa hai phiên bản cho đúng kết quả theo công thức mới; cùng bản build, không đổi mã.
+- Báo cáo nêu rõ bộ ca là giả lập, số ca đã được nghiệp vụ ký (nếu có) và số ca còn chờ ký khi có bản chính thức.
 
 ## 7. Báo cáo
 

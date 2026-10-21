@@ -1,0 +1,24 @@
+{
+  "id": "05-evt18-esign-completed-chained",
+  "description": "Bản ghi nối tiếp chuỗi băm (seq_no=2, prev_hash = entry_hash của vector 01) cho EVT-18 (Ký số hoàn tất)",
+  "input_payload_raw": "{\n  \"request_id\": \"0192b500-0000-7000-8000-000000000018\",\n  \"aggregate_id\": \"0192b100-0000-7000-8000-000000000001\",\n  \"signature_format\": \"PADES_B_LTA\",\n  \"signed_pdf_sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n}",
+  "metadata_header": {
+    "tenant_id": "11111111-1111-4111-8111-111111111111",
+    "chain_partition": 11,
+    "seq_no": 2,
+    "event_type": "EVT-18",
+    "aggregate_type": "Task",
+    "aggregate_id": "0192b100-0000-7000-8000-000000000001",
+    "actor_id": "0192b000-0000-7000-8000-000000000099",
+    "actor_kind": "NGUOI",
+    "occurred_at": "2026-10-21T08:05:00.000000Z",
+    "recorded_at": "2026-10-21T08:05:00.250000Z"
+  },
+  "prev_hash": "b097fbbfe81928119626ed37a171025872b47748ec7092901f84bfbb704a16a7",
+  "canonical_payload": "{\"aggregate_id\":\"0192b100-0000-7000-8000-000000000001\",\"request_id\":\"0192b500-0000-7000-8000-000000000018\",\"signature_format\":\"PADES_B_LTA\",\"signed_pdf_sha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"}",
+  "canonical_metadata": "{\"actor_id\":\"0192b000-0000-7000-8000-000000000099\",\"actor_kind\":\"NGUOI\",\"aggregate_id\":\"0192b100-0000-7000-8000-000000000001\",\"aggregate_type\":\"Task\",\"chain_partition\":11,\"event_type\":\"EVT-18\",\"occurred_at\":\"2026-10-21T08:05:00.000000Z\",\"recorded_at\":\"2026-10-21T08:05:00.250000Z\",\"seq_no\":2,\"tenant_id\":\"11111111-1111-4111-8111-111111111111\"}",
+  "payload_hash": "8546710f5ac4049e14247767efd2619e0cab3b27ff176d2d8a108165202a5573",
+  "metadata_hash": "a9e984c4c047fd3b6fecf873652c1e920d1df5f79b0ec61b91e16302e669b66e",
+  "entry_hash": "6ac07eb9361b26eca9b6cc4482cc986f2e4fb82f14d6f7ea4ef4ce34eef37282",
+  "chain_partition": 11
+}

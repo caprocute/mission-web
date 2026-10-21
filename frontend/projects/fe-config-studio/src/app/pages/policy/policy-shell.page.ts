@@ -1,13 +1,15 @@
-import { Component, effect, inject, input } from '@angular/core';
+import { Component, computed, effect, inject, input } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { POLICY_VERSION_STATUS_LABEL, policyVersionLabel } from '@vt/api-client';
 import { STUDIO_ACCESS } from '../../studio-permissions';
 import { fmtDate } from '../../studio-ui';
+import { POLICY_TABS } from './policy-tabs';
 import { PolicyWorkspace } from './policy-workspace';
 
 /**
  * Khung một phiên bản Policy Pack (QT-15): tên gói, phiên bản đang soạn và bản đang áp dụng, kết quả
- * kiểm thử gần nhất, các thẻ "Công thức" (SCR-1501) và "Bảng quyết định" (SCR-1502).
+ * kiểm thử gần nhất, các thẻ "Công thức" (SCR-1501), "Bảng quyết định" (SCR-1502), "Luồng duyệt"
+ * (SCR-1504) và "Test case" (SCR-1503) hiện theo quyền.
  */
 @Component({
   selector: 'vt-policy-shell-page',
@@ -58,10 +60,9 @@ import { PolicyWorkspace } from './policy-workspace';
         <p class="err" role="alert">{{ e }}</p>
       }
       <nav class="tabs" aria-label="Nội dung phiên bản">
-        <a routerLink="cong-thuc" routerLinkActive="on" ariaCurrentWhenActive="page">Công thức</a>
-        @if (access.can('SCR-1502.soan')) {
-          <a routerLink="bang-quyet-dinh" routerLinkActive="on" ariaCurrentWhenActive="page">
-            Bảng quyết định
+        @for (t of tabs(); track t.path) {
+          <a [routerLink]="t.path" routerLinkActive="on" ariaCurrentWhenActive="page">
+            {{ t.label }}
           </a>
         }
       </nav>
@@ -145,6 +146,9 @@ export class PolicyShellPage {
 
   protected readonly ws = inject(PolicyWorkspace);
   protected readonly access = inject(STUDIO_ACCESS);
+  protected readonly tabs = computed(() =>
+    POLICY_TABS.filter((t) => t.keys.some((k) => this.access.can(k))),
+  );
   protected readonly statusLabel = POLICY_VERSION_STATUS_LABEL;
   protected readonly vlabel = policyVersionLabel;
   protected readonly date = fmtDate;

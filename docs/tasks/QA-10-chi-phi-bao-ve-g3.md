@@ -29,7 +29,7 @@ Viết các kịch bản đo chi phí của từng lớp bảo vệ: mã hoá tr
 ## 3. Phạm vi công việc
 
 - PERF-14: chạy PERF-01 rút gọn 30 phút hai lần với cờ mã hoá trường bật và tắt; xuất chênh lệch p95 đọc, ghi, CPU và tỷ lệ trúng `DekCache`.
-- PERF-15: bộ đo trên thiết bị bằng Playwright (Chromium, giả lập CPU chậm 4× và 6× cho điện thoại tầm trung và cấp thấp, suy luận về hệ số) đo mã hoá AES-256-GCM bằng WebCrypto cho 100 KB, 1 MB, 10 MB, bọc khoá cho 1, 5, 20 người nhận (ECDH P-256 và RSA-OAEP 2048), giải mã; tiêu chí mã hoá 1 MB ≤ 50 ms (≤ 150 ms máy cấp thấp). Đo trên điện thoại thật là bị chặn bởi bên ngoài nếu chưa có bộ thiết bị tham chiếu; giả lập là cách kiểm tạm.
+- PERF-15: bộ đo trên thiết bị bằng Playwright (Chromium, giả lập CPU chậm 4× và 6× cho điện thoại tầm trung và cấp thấp, suy luận về hệ số) đo mã hoá AES-256-GCM bằng WebCrypto cho 100 KB, 1 MB, 10 MB, bọc khoá cho 1, 5, 20 người nhận (ECDH P-256 và RSA-OAEP 2048), giải mã; tiêu chí mã hoá 1 MB ≤ 50 ms (≤ 150 ms máy cấp thấp). Tiêu chí hoàn thành đo trên giả lập; đo trên điện thoại thật để lại khi có bộ thiết bị tham chiếu, khi đó chỉ đổi cấu hình thiết bị của bộ đo.
 - PERF-16: k6 phát 1.800 sự kiện mỗi giây trong 2 giờ; đo chênh p95 API ghi khi có và không có dòng outbox cho sổ cái (tiêu chí ≤ 1 ms) và độ trễ tới khi bản ghi vào chuỗi băm, niêm phong mỗi giờ và mỗi 5 phút.
 - PERF-17: gửi 100 phiên ký lô, mỗi phiên ≤ 1.000 phiếu, tổng 100.000 băm; dùng bộ kết nối MySign giả lập độ trễ 1–3 s; đo thời gian hoàn tất và tỷ lệ chữ ký hợp lệ.
 - PERF-18: 33 tệp mỗi giây, 1–10 MB, 10% là 10 MB, mạng giả lập 50 Mbps; đo thời gian tải lên p95, phần tăng do SHA-256 luồng (≤ 25 ms cho 10 MB) và thời gian quét ClamAV.

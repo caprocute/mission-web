@@ -1,0 +1,358 @@
+asyncapi: 3.0.0
+id: 'urn:vt-okrkpi:contracts:asyncapi:mission-events'
+info:
+  title: 'Nền tảng Quản lý Nhiệm vụ, OKR/KPI & Đánh giá Cán bộ — Hợp đồng Sự kiện Liên thông (SVC-13)'
+  version: 1.0.0
+  description: |
+    Hợp đồng AsyncAPI 3.0 cho các topic sự kiện nghiệp vụ được công bố hoặc liên thông ra ngoài
+    qua `SVC-13` (`integration-hub-svc`, `MOD-13`) theo `TL-01` mục 2.5.4 và mục 9.5 (`ADR-07`).
+
+    ### Cơ chế truyền tải và bảo mật (`SVC-13`)
+    - **Phong bì chuẩn**: Mọi thông điệp đều bọc trong phong bì **CloudEvents 1.0** (`application/cloudevents+json`).
+    - **Bảo mật kênh truyền**: Kết nối qua cổng liên thông `SVC-13` bắt buộc sử dụng **mTLS 1.3** kết hợp chữ ký số **JWS (RS256/PS256)** ở thuộc tính mở rộng `x-jws-signature`.
+    - **Kiểm soát cấp độ dữ liệu**:
+      - Chỉ công bố siêu dữ liệu mức `C0` và `C1` trên các kênh liên thông.
+      - Với nhiệm vụ mật `C3` (`isSecret = true`), trường `title` trong `EVT-04` luôn được che thành nhãn `C1` `"Nhiệm vụ mật #<mã ngắn>"`; nội dung mật nằm trong bản mã E2EE (`SVC-12`, `ADR-06`) và không bao giờ đi vào Kafka hay webhook.
+      - Với sự kiện xếp loại `EVT-12`, lớp chống tham nhũng (ACL) của `SVC-13` ánh xạ `personId` nội bộ sang định danh liên thông `subjectRef` (`scheme=cbccvc` cho CSDL Quốc gia về CBCCVC hoặc `scheme=dang_vien` cho CSDL Đảng viên 3.0) trước khi phát ra ngoài ranh giới bảo mật.
+
+    ### Chính sách phiên bản và tương thích (`Compatibility Policy`)
+    - **Nguồn sự thật lược đồ**: Mọi trường trong `payload` của tài liệu AsyncAPI này là tập con nghiêm ngặt của lược đồ Avro tương ứng trong `contracts/events/avro/` và được kiểm tra tự động trong CI (`npm run asyncapi:lint`).
+    - **Thay đổi tương thích lùi (`BACKWARD_TRANSITIVE`)**: Chỉ thêm trường tuỳ chọn mới (có `default` trong `.avsc`), giữ nguyên hậu tố kênh `.v1` và tăng phiên bản phụ của tài liệu (`1.0.0` -> `1.1.0`).
+    - **Thay đổi phá vỡ tương thích (`Breaking Change`)**: Đổi kiểu dữ liệu, đổi ngữ nghĩa hoặc xoá trường bắt buộc phải tạo kênh mới với hậu tố `.v2` (ví dụ `task.task.assigned.v2`), tăng phiên bản chính (`2.0.0`) và duy trì phát song song (`dual-publish`) `.v1` + `.v2` tối thiểu **90 ngày** trước khi ngắt `.v1`.
+  contact:
+    name: Nhóm Kiến trúc Nền tảng Mission (Viettel)
+  license:
+    name: Proprietary
+
+defaultContentType: application/cloudevents+json
+
+servers:
+  integrationHubKafka:
+    host: 'kafka-ext.okrkpi.vn:9093'
+    protocol: kafka-secure
+    description: Cổng Kafka liên thông đối tác qua SVC-13 (mTLS 1.3 + SASL/SCRAM-SHA-512).
+  integrationHubWebhook:
+    host: hub.okrkpi.vn
+    pathname: /webhooks/v1
+    protocol: https
+    description: Cổng Webhook liên thông đối tác qua SVC-13 (mTLS 1.3 + chữ ký JWS RS256/PS256).
+
+channels:
+  taskAssignedV1:
+    address: task.task.assigned.v1
+    title: EVT-04 — Nhiệm vụ đã giao
+    description: |
+      Phát khi nhiệm vụ chuyển sang trạng thái `DA_GIAO` (`BR-01`, `BR-06`).
+      Đối tác tiêu thụ qua `SVC-13`: hệ thống quản lý văn bản và điều hành (VOffice), lịch công tác và cổng thông báo liên thông.
+    x-event-id: EVT-04
+    x-avro-schema: contracts/events/avro/task/NhiemVuDaGiao.avsc
+    messages:
+      taskAssigned:
+        $ref: '#/components/messages/TaskAssigned'
+
+  appraisalRatingDecidedV1:
+    address: appraisal.rating.decided.v1
+    title: EVT-12 — Xếp loại đánh giá đã quyết định
+    description: |
+      Phát khi cấp có thẩm quyền ký số phê duyệt kết quả xếp loại cuối kỳ (`QT-05`, QĐ 366-QĐ/TW, NĐ 335/2025, NĐ 233/2026).
+      Đối tác tiêu thụ qua `SVC-13`: CSDL Quốc gia về CBCCVC (Bộ Nội vụ) và CSDL Đảng viên 3.0 (Ban Tổ chức Trung ương).
+    x-event-id: EVT-12
+    x-avro-schema: contracts/events/avro/appraisal/XepLoaiDaQuyetDinh.avsc
+    messages:
+      appraisalRatingDecided:
+        $ref: '#/components/messages/AppraisalRatingDecided'
+
+  ledgerSealCreatedV1:
+    address: ledger.seal.created.v1
+    title: EVT-19 — Sổ cái bất biến đã niêm phong
+    description: |
+      Phát mỗi chu kỳ niêm phong lô Merkle root kèm dấu thời gian chuẩn RFC 3161 từ TSA VGCA (`SVC-14`, `ADR-12`).
+      Đối tác tiêu thụ qua `SVC-13`: hệ thống giám sát kiểm toán độc lập và cổng đối soát tính toàn vẹn nhật ký.
+    x-event-id: EVT-19
+    x-avro-schema: contracts/events/avro/ledger/SoCaiDaNiemPhong.avsc
+    messages:
+      ledgerSealCreated:
+        $ref: '#/components/messages/LedgerSealCreated'
+
+operations:
+  receiveTaskAssigned:
+    action: receive
+    channel:
+      $ref: '#/channels/taskAssignedV1'
+    summary: Nhận sự kiện nhiệm vụ đã giao (EVT-04) từ SVC-13
+    messages:
+      - $ref: '#/channels/taskAssignedV1/messages/taskAssigned'
+
+  receiveAppraisalRatingDecided:
+    action: receive
+    channel:
+      $ref: '#/channels/appraisalRatingDecidedV1'
+    summary: Nhận sự kiện xếp loại đánh giá đã được cấp có thẩm quyền quyết định (EVT-12) từ SVC-13
+    messages:
+      - $ref: '#/channels/appraisalRatingDecidedV1/messages/appraisalRatingDecided'
+
+  receiveLedgerSealCreated:
+    action: receive
+    channel:
+      $ref: '#/channels/ledgerSealCreatedV1'
+    summary: Nhận sự kiện sổ cái kiểm toán bất biến đã niêm phong Merkle root + TSA (EVT-19) từ SVC-13
+    messages:
+      - $ref: '#/channels/ledgerSealCreatedV1/messages/ledgerSealCreated'
+
+components:
+  messageTraits:
+    CloudEventsEnvelopeTrait:
+      name: CloudEventsEnvelopeTrait
+      summary: Phong bì chuẩn CloudEvents 1.0 kèm thuộc tính mở rộng của nền tảng Mission và chữ ký JWS liên thông.
+      contentType: application/cloudevents+json
+      headers:
+        $ref: '#/components/schemas/CloudEventsHeaders'
+
+  messages:
+    TaskAssigned:
+      name: TaskAssigned
+      title: EVT-04 — Nhiệm vụ đã giao
+      summary: Sự kiện phát khi nhiệm vụ chuyển sang trạng thái DA_GIAO (BR-01, BR-06).
+      contentType: application/cloudevents+json
+      traits:
+        - $ref: '#/components/messageTraits/CloudEventsEnvelopeTrait'
+      payload:
+        $ref: '#/components/schemas/TaskAssignedPayload'
+
+    AppraisalRatingDecided:
+      name: AppraisalRatingDecided
+      title: EVT-12 — Xếp loại đánh giá đã quyết định
+      summary: Sự kiện phát khi cấp có thẩm quyền ký số phê duyệt kết quả xếp loại cuối kỳ (QT-05).
+      contentType: application/cloudevents+json
+      traits:
+        - $ref: '#/components/messageTraits/CloudEventsEnvelopeTrait'
+      payload:
+        $ref: '#/components/schemas/AppraisalRatingDecidedPayload'
+
+    LedgerSealCreated:
+      name: LedgerSealCreated
+      title: EVT-19 — Sổ cái bất biến đã niêm phong
+      summary: Sự kiện phát khi SVC-14 hoàn tất niêm phong lô Merkle root và nhận chứng thư dấu thời gian TSA RFC 3161.
+      contentType: application/cloudevents+json
+      traits:
+        - $ref: '#/components/messageTraits/CloudEventsEnvelopeTrait'
+      payload:
+        $ref: '#/components/schemas/LedgerSealCreatedPayload'
+
+  schemas:
+    CloudEventsHeaders:
+      type: object
+      description: Thuộc tính chuẩn CloudEvents 1.0 và thuộc tính mở rộng bắt buộc của nền tảng Mission.
+      required:
+        - specversion
+        - id
+        - source
+        - type
+        - time
+        - datacontenttype
+        - traceparent
+        - tenantid
+        - classification
+        - policyversion
+      properties:
+        specversion:
+          type: string
+          const: '1.0'
+          description: Phiên bản đặc tả CloudEvents (luôn là "1.0").
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7 duy nhất của sự kiện (dùng để khử trùng lặp idempotent tại consumer).
+        source:
+          type: string
+          format: uri-reference
+          description: 'Định danh nguồn phát theo mẫu urn:vt-okrkpi:<cell>:<module>.'
+        type:
+          type: string
+          description: 'Loại sự kiện đầy đủ theo mẫu vn.viettel.okrkpi.<topic>.'
+        subject:
+          type: string
+          description: Khóa thực thể nghiệp vụ chính (ví dụ task:<taskId>, profile:<profileId>, seal:<sealId>).
+        time:
+          type: string
+          format: date-time
+          description: Thời điểm phát sinh sự kiện theo chuẩn RFC 3339 (UTC).
+        datacontenttype:
+          type: string
+          const: application/json
+          description: Kiểu MIME của phần dữ liệu nghiệp vụ bên trong phong bì.
+        dataschema:
+          type: string
+          format: uri
+          description: URI định danh phiên bản lược đồ Avro trong Schema Registry.
+        traceparent:
+          type: string
+          pattern: '^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$'
+          description: Ngữ cảnh truy vết phân tán theo chuẩn W3C Trace Context.
+        tenantid:
+          type: string
+          format: uuid
+          description: UUID của đơn vị/tổ chức (tenant) sở hữu sự kiện.
+        classification:
+          type: string
+          enum:
+            - C0
+            - C1
+          description: Cấp độ phân loại dữ liệu của thông điệp trên kênh liên thông (chỉ cho phép C0 hoặc C1).
+        policyversion:
+          type: integer
+          minimum: 1
+          description: Phiên bản chính sách phân quyền/bảo mật áp dụng tại thời điểm phát sự kiện.
+        x-jws-signature:
+          type: string
+          description: Chữ ký JWS detached (RS256/PS256) do SVC-13 ký khi phát thông điệp ra đối tác ngoài.
+
+    TaskAssignedPayload:
+      type: object
+      description: 'Payload sự kiện nhiệm vụ đã giao (EVT-04, tương ứng Avro vn.vtokr.task.v1.NhiemVuDaGiao).'
+      x-avro-record: vn.vtokr.task.v1.NhiemVuDaGiao
+      required:
+        - taskId
+        - title
+        - leadAssigneeId
+        - dueDate
+        - weight
+      properties:
+        taskId:
+          type: string
+          format: uuid
+          description: UUIDv7 của nhiệm vụ.
+        planItemId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+          description: UUID mục kế hoạch hoặc KR cha (nếu nhiệm vụ gắn với mục kế hoạch/OKR).
+        title:
+          type: string
+          maxLength: 500
+          description: 'Tiêu đề hiển thị mức C1; nếu là nhiệm vụ mật C3 thì đã được che thành "Nhiệm vụ mật #<mã ngắn>".'
+        leadAssigneeId:
+          type: string
+          format: uuid
+          description: UUID cán bộ chủ trì thực hiện nhiệm vụ.
+        assigneeIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Danh sách UUID người phối hợp thực hiện.
+        dueDate:
+          type: string
+          format: date
+          description: Hạn hoàn thành nhiệm vụ (YYYY-MM-DD).
+        weight:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Trọng số nhiệm vụ (%), tương ứng kiểu decimal(6,3) trong Avro.
+        isKeyTask:
+          type: boolean
+          default: false
+          description: Cờ đánh dấu nhiệm vụ trọng tâm.
+        isSecret:
+          type: boolean
+          default: false
+          description: Cờ nhiệm vụ mật C3 (nội dung chi tiết nằm trong vùng mã hóa đầu-cuối E2EE).
+
+    AppraisalRatingDecidedPayload:
+      type: object
+      description: 'Payload sự kiện xếp loại đánh giá đã quyết định (EVT-12, tương ứng Avro vn.vtokr.appraisal.v1.XepLoaiDaQuyetDinh).'
+      x-avro-record: vn.vtokr.appraisal.v1.XepLoaiDaQuyetDinh
+      x-external-mapping:
+        personId: 'Khi phát ra cổng ngoài (CSDL Quốc gia CBCCVC / CSDL Đảng viên 3.0), lớp ACL của SVC-13 ánh xạ personId nội bộ sang subjectRef (scheme=cbccvc hoặc scheme=dang_vien) theo quy tắc bảo vệ dữ liệu C2.'
+      required:
+        - profileId
+        - personId
+        - flow
+        - ratingCode
+        - scoreSnapshotId
+        - deciderId
+      properties:
+        profileId:
+          type: string
+          format: uuid
+          description: UUIDv7 của phiếu đánh giá cuối kỳ.
+        personId:
+          type: string
+          format: uuid
+          description: UUID cán bộ/đảng viên được xếp loại (SVC-13 ACL ánh xạ sang subjectRef khi phát ra đối tác ngoài).
+        flow:
+          type: string
+          enum:
+            - DANG
+            - NHA_NUOC
+          description: 'Luồng đánh giá: DANG (QĐ 366-QĐ/TW) hoặc NHA_NUOC (NĐ 335/2025, NĐ 233/2026).'
+        ratingCode:
+          type: string
+          enum:
+            - HTXSNV
+            - HTTNV
+            - HTNV
+            - KHTNV
+          description: Mã mức xếp loại chất lượng cuối kỳ đã được phê duyệt.
+        scoreSnapshotId:
+          type: string
+          format: uuid
+          description: UUID bản chụp điểm số làm căn cứ xếp loại.
+        deciderId:
+          type: string
+          format: uuid
+          description: UUID người có thẩm quyền ký quyết định xếp loại.
+        signRequestId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+          description: UUID yêu cầu ký số VGCA gắn với quyết định xếp loại (nếu có).
+
+    LedgerSealCreatedPayload:
+      type: object
+      description: 'Payload sự kiện sổ cái kiểm toán bất biến đã niêm phong (EVT-19, tương ứng Avro vn.vtokr.ledger.v1.SoCaiDaNiemPhong).'
+      x-avro-record: vn.vtokr.ledger.v1.SoCaiDaNiemPhong
+      required:
+        - sealId
+        - sealKind
+        - windowStart
+        - windowEnd
+        - merkleRoot
+        - tsaSerial
+      properties:
+        sealId:
+          type: string
+          format: uuid
+          description: UUIDv7 của bản ghi niêm phong (audit_seals.id).
+        sealKind:
+          type: string
+          enum:
+            - HOURLY
+            - PEAK_5MIN
+            - PERIOD_CLOSE
+            - CELL_TRANSFER
+          description: Loại mốc niêm phong sổ cái kiểm toán.
+        windowStart:
+          type: string
+          format: date-time
+          description: Thời điểm bắt đầu cửa sổ niêm phong (RFC 3339 UTC, ánh xạ từ timestamp-millis trong Avro).
+        windowEnd:
+          type: string
+          format: date-time
+          description: Thời điểm kết thúc cửa sổ niêm phong (RFC 3339 UTC, ánh xạ từ timestamp-millis trong Avro).
+        merkleRoot:
+          type: string
+          pattern: '^[0-9a-fA-F]{64}$'
+          description: Giá trị băm SHA-256 gốc cây Merkle của lô sự kiện kiểm toán (hex 64 ký tự).
+        prevSealRoot:
+          type:
+            - string
+            - 'null'
+          pattern: '^[0-9a-fA-F]{64}$'
+          description: Merkle root của lô niêm phong liền trước để tạo chuỗi móc xích (null ở lô đầu tiên).
+        tsaSerial:
+          type: string
+          description: Số sê-ri chứng thư dấu thời gian chuẩn RFC 3161 do TSA VGCA cấp.

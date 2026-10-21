@@ -1,0 +1,43 @@
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowType: TIME_BASED
+        slidingWindowSize: 30            # giây
+        minimumNumberOfCalls: 20
+        failureRateThreshold: 50
+        slowCallDurationThreshold: 2s
+        slowCallRateThreshold: 80
+        waitDurationInOpenState: 20s
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        recordExceptions: [java.io.IOException, java.util.concurrent.TimeoutException,
+                           org.springframework.web.client.HttpServerErrorException]
+        ignoreExceptions: [vn.viettel.okrkpi.shared.error.BusinessException]
+    instances:
+      esign-mysign:   {baseConfig: default, waitDurationInOpenState: 60s}
+      vneid:          {baseConfig: default}
+      cbccvc:         {baseConfig: default, slowCallDurationThreshold: 5s}
+  timelimiter:
+    configs:
+      default: {timeoutDuration: 3s, cancelRunningFuture: true}
+    instances:
+      esign-mysign: {timeoutDuration: 10s}
+      cbccvc:       {timeoutDuration: 8s}
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 200ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        enableRandomizedWait: true
+        randomizedWaitFactor: 0.5
+        retryExceptions: [java.io.IOException, java.util.concurrent.TimeoutException]
+        ignoreExceptions: [vn.viettel.okrkpi.shared.error.BusinessException]
+  bulkhead:
+    configs:
+      default: {maxConcurrentCalls: 25, maxWaitDuration: 50ms}
+    instances:
+      esign-mysign: {maxConcurrentCalls: 50}
+      docgen:       {maxConcurrentCalls: 8}

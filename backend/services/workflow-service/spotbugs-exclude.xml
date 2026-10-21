@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+  <!-- Bỏ qua mã sinh tự động từ OpenAPI Generator (contracts/openapi/modules/platform.yaml). -->
+  <Match>
+    <Package name="~vn\.viettel\.okrkpi\.workflow\.infrastructure\.web\.(api|model).*"/>
+  </Match>
+</FindBugsFilter>

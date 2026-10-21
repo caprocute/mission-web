@@ -1,0 +1,103 @@
+# CORE-00-01 · Giá trị Helm cho SVC-05 mission-core (TL-04 L883–969).
+# Không chứa mật khẩu hoặc khoá bí mật; mật khẩu CSDL từng schema nạp qua ExternalSecret từ OpenBao.
+fullnameOverride: mission-core
+
+image:
+  repository: registry.internal/okrkpi/mission-core
+  tag: "1.4.2"
+  pullPolicy: IfNotPresent
+
+replicaCount: 16
+
+resources:
+  requests:
+    cpu: "4"
+    memory: "8Gi"
+  limits:
+    cpu: "4"
+    memory: "8Gi"
+
+env:
+  - name: JAVA_TOOL_OPTIONS
+    value: >-
+      -XX:+UseZGC -XX:+ZGenerational
+      -Xms6g -Xmx6g
+      -XX:MaxDirectMemorySize=512m
+      -XX:+ExitOnOutOfMemoryError
+      -XX:+HeapDumpOnOutOfMemoryError
+      -XX:HeapDumpPath=/tmp/heapdump.hprof
+      -Dspring.threads.virtual.enabled=true
+  - name: SPRING_PROFILES_ACTIVE
+    value: "prod,cell-hcm"
+  - name: SERVER_SHUTDOWN
+    value: "graceful"
+  - name: SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE
+    value: "25s"
+
+secretEnvFrom:
+  - secretRef:
+      name: mission-core-db-credentials # đồng bộ từ OpenBao bởi ExternalSecret
+
+ports:
+  - name: http
+    containerPort: 8080
+  - name: actuator
+    containerPort: 8081
+
+startupProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: actuator
+  failureThreshold: 30
+  periodSeconds: 2
+
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: actuator
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: actuator
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 2
+
+terminationGracePeriodSeconds: 35
+
+lifecycle:
+  preStop:
+    exec:
+      command: ["sh", "-c", "sleep 5"]
+
+autoscaling:
+  enabled: true
+  minReplicas: 16
+  maxReplicas: 28
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 600
+
+pdb:
+  minAvailable: "75%"
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: mission-core

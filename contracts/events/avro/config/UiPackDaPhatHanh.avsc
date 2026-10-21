@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "UiPackDaPhatHanh",
+  "namespace": "vn.vtokr.config.v1",
+  "doc": "EVT-23 · config.uipack.published.v1 · MOD-08 phát khi UI Pack được phát hành; SVC-17 vô hiệu cache CDN.",
+  "fields": [
+    {"name": "uiPackId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "config.ui_pack.id"},
+    {"name": "versionId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "config.ui_pack_version.id"},
+    {"name": "contentHash", "type": "bytes", "doc": "Băm gói (bundle_sha256)"},
+    {"name": "cdnPaths", "type": {"type": "array", "items": "string"}, "default": [], "doc": "Các đường dẫn CDN cần vô hiệu"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

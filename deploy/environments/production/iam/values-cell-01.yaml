@@ -1,0 +1,28 @@
+# Giá trị chart iam cho một cell production (mẫu cho cell-01; mỗi cell một tệp values-<cell>.yaml).
+# Chỉ biến và tham chiếu bí mật (OpenBao của cell qua External Secrets), không có giá trị bí mật.
+# Tên miền dưới đây là chỗ giữ chỗ; tên miền thật đặt khi dựng cell.
+realm:
+  name: okrkpi
+  displayName: Mission
+  cell: cell-01
+  sslRequired: all
+  web:
+    hosts:
+      - app.cell-01.example.invalid
+  tokens:
+    accessTokenLifespan: 300
+    ssoSessionIdleTimeout: 1800
+    ssoSessionMaxLifespan: 36000
+    clientSessionIdleTimeout: 1800
+    clientSessionMaxLifespan: 28800
+externalSecret:
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: openbao
+  remoteRefs:
+    configCliClientSecret:
+      key: cell-01/iam/realm-import
+      property: config-cli-client-secret
+    apisixClientSecret:
+      key: cell-01/iam/apisix-gateway
+      property: client-secret

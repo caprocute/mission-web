@@ -13,11 +13,13 @@
 | Cỡ việc | M (≤ 1 ngày) |
 | Phụ thuộc | DL-01, CORE-05-05 |
 | Truy vết | QT-09 (BR-09-05..BR-09-10, BR-09-13, BR-09-17), QT-10 (BR-10-02, BR-10-03, BR-10-05, BR-10-07, BR-10-09), QT-11 (BR-11-05), QT-15 (BR-15-04, BR-15-06) → API `PUT /api/v1/policies/packs/{id}/versions/{v}/decision-tables/{key}` (`saveDecisionTable`), `GET .../decision-tables/{key}/dmn` (`exportDecisionTableDmn`), `GET /api/v1/policies/packs/{id}/prospect-criteria` (`getProspectCriteria`) → MOD-05, SVC-07, MOD-06 → bảng `policy.decision_table`, `dossier.special_case` → EVT-10 (khi SVC-07 tính) |
-| Trạng thái | Bản nháp dữ liệu xong 20/10/2026 (DMN quý, năm, Nhà nước; 13 trường hợp đặc thù); chờ nghiệp vụ xác nhận ngưỡng, điều kiện; kiểm thử Flowable DMN chờ CORE-05-05 |
+| Trạng thái | Bản giả lập xong 20/10/2026 (DMN quý, năm, Nhà nước; 13 trường hợp đặc thù), đã sửa điều kiện then chốt ở dòng xuất sắc nhờ bộ ca DL-03; kiểm thử Flowable DMN chờ CORE-05-05 |
 
 ## 1. Mục tiêu
 
 Hai gói của DL-01 có đủ phần xếp loại: bảng quyết định DMN 1.4 cho mức quý luồng Đảng, luồng Nhà nước, mức năm, quy tắc người đứng đầu, hạn mức HTXSNV và bảng 13 trường hợp đặc thù dạng tham số. Mỗi dòng DMN có căn cứ điều khoản và mẫu câu giải thích, nên SVC-07 sinh được câu giải thích "chuyển xuống mức liền kề" theo BR-09-10 mà không cần người viết. Khi xong, Config Studio (SCR-1502) mở được các bảng này và xuất lại đúng XML.
+
+Theo quyết định ngày 20/10/2026 (`docs/KE-HOACH-TONG-THE-HE-THONG.md` mục 1a), ngưỡng, điều kiện và câu giải thích trong các bảng DMN là bản giả lập theo QĐ 366-QĐ/TW và NĐ 335/2025, đánh dấu rõ là giả lập trong `metadata` của Policy Pack, và chỉ được nạp vào hệ thống qua Policy Pack. Khi nghiệp vụ đưa ra bảng xếp loại chính thức hoặc quy định thay đổi, quản trị viên soạn phiên bản Policy Pack mới, chạy ca vàng, duyệt và phát hành theo QT-15 mà không sửa mã và không phát hành phần mềm.
 
 ## 2. Đầu vào bắt buộc đọc
 
@@ -29,6 +31,7 @@ Hai gói của DL-01 có đủ phần xếp loại: bảng quyết định DMN 1
 
 ## 3. Phạm vi công việc
 
+- Ghi chú giả lập: mỗi tệp `.dmn` có chú thích đầu tệp và `CHANGELOG.md` ghi rõ ngưỡng, điều kiện là giả lập; `metadata` của gói giữ `gia_lap: true` do DL-01 đặt; không có ngưỡng hay điều kiện xếp loại nào được viết cứng trong mã.
 - Viết `dmn/xep-loai-dang.dmn` (DMN 1.4, FEEL, hit policy `FIRST` từ mức cao xuống) với các dòng HTXSNV, HTTNV, HTNV, KHTNV và dòng loại trừ đúng điều kiện BR-09-07, BR-09-08, BR-09-09; ngưỡng 30% nhiệm vụ vượt và cách đếm là tham số (BR-15-04).
 - Gắn cho mỗi dòng `legal_ref` (≤ 100 ký tự) và mẫu câu giải thích (≤ 200 ký tự) có biến điều kiện thiếu, giá trị thực tế, điều khoản và phiên bản gói (BR-09-10, BR-15-06); hiện thực mức cuối = `min_muc`(mức theo điểm, mức theo tiêu chí chung) theo BR-09-06.
 - Viết bảng quy tắc người đứng đầu theo BR-09-13 (tập thể không đạt 05 chỉ tiêu, không đạt mọi mục tiêu O, hoặc trên 50% đơn vị phụ trách KHTNV).
@@ -56,7 +59,8 @@ Hai gói của DL-01 có đủ phần xếp loại: bảng quyết định DMN 1
 - `cd backend && mvn -q -pl mission-core -am verify` xanh; kiểm thử nạp mọi tệp `.dmn` bằng Flowable DMN, mỗi dòng có ít nhất một ca đơn vị cho kết quả đúng mức và đúng câu giải thích.
 - Phân tích tĩnh báo 0 dòng bị che, 0 khoảng hở; ca biên 59,995 và 89,995 cho mức đúng sau làm tròn của DL-01.
 - Với CORE-05-05 đã gộp: `saveDecisionTable` trên Testcontainers trả 200 cho mọi bảng và `exportDecisionTableDmn` trả XML có `dmn_hash` trùng với tệp trong repo.
-- Danh sách điều kiện chờ nghiệp vụ xác nhận được liệt kê trong báo cáo và wiki trang 14.
+- Ca chứng minh cấu hình động: nạp phiên bản gói mới đổi ngưỡng HTXSNV (ví dụ 90 thành 92); cùng hồ sơ mẫu được xếp loại lại theo bảng mới, trên cùng bản build, không đổi mã.
+- Danh sách ngưỡng, điều kiện đang là giả lập được liệt kê trong báo cáo và wiki trang 14.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo

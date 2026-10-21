@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "KrDaCheckIn",
+  "namespace": "vn.vtokr.okr.v1",
+  "doc": "EVT-02 · okr.keyresult.checkedin.v1 · MOD-01 phát khi kết quả then chốt được check-in.",
+  "fields": [
+    {"name": "keyResultId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "okr.key_result.id"},
+    {"name": "objectiveId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "okr.objective.id"},
+    {"name": "value", "type": {"type": "bytes", "logicalType": "decimal", "precision": 18, "scale": 4}, "doc": "Giá trị báo cáo, okr.kr_checkin.value (numeric(18,4))"},
+    {"name": "confidence", "type": "string", "doc": "Mức tự tin: CAO, TRUNG_BINH, THAP"},
+    {"name": "checkinAt", "type": {"type": "long", "logicalType": "timestamp-micros"}, "doc": "Thời điểm check-in"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

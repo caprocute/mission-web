@@ -1,0 +1,1980 @@
+{
+  "description": "Danh mục mã lỗi <MODULE>-<HTTP>-<TÊN> trích từ contracts/openapi (NEN-009). Không sửa tay: chạy tools/extract-error-codes.mjs.",
+  "source": "contracts/openapi/**/*.yaml",
+  "count": 189,
+  "codes": [
+    {
+      "code": "AI-403-C3-FORBIDDEN",
+      "module": "AI",
+      "status": 403,
+      "name": "C3-FORBIDDEN",
+      "type": "https://okrkpi.vn/problems/c3-forbidden",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "AI-409-ALREADY-DECIDED",
+      "module": "AI",
+      "status": 409,
+      "name": "ALREADY-DECIDED",
+      "type": "https://okrkpi.vn/problems/already-decided",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "AI-413-AUDIO-TOO-LARGE",
+      "module": "AI",
+      "status": 413,
+      "name": "AUDIO-TOO-LARGE",
+      "type": "https://okrkpi.vn/problems/audio-too-large",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "AI-422-REASON-REQUIRED",
+      "module": "AI",
+      "status": 422,
+      "name": "REASON-REQUIRED",
+      "type": "https://okrkpi.vn/problems/reason-required",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "AI-422-UNREADABLE",
+      "module": "AI",
+      "status": 422,
+      "name": "UNREADABLE",
+      "type": "https://okrkpi.vn/problems/unreadable",
+      "msg": "MSG-07-06",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "ANALYTICS-409-DUPLICATE-TITLE",
+      "module": "ANALYTICS",
+      "status": 409,
+      "name": "DUPLICATE-TITLE",
+      "type": "https://okrkpi.vn/problems/duplicate-title",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "ANALYTICS-422-INVALID-COMBINATION",
+      "module": "ANALYTICS",
+      "status": 422,
+      "name": "INVALID-COMBINATION",
+      "type": "https://okrkpi.vn/problems/invalid-combination",
+      "msg": "MSG-16-04",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-403-SEPARATION-OF-DUTIES",
+      "module": "APPRAISAL",
+      "status": 403,
+      "name": "SEPARATION-OF-DUTIES",
+      "type": "https://okrkpi.vn/problems/separation-of-duties",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-409-BATCH-COMPLETED",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "BATCH-COMPLETED",
+      "type": "https://okrkpi.vn/problems/batch-completed",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-409-COMPLAINT-OPEN",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "COMPLAINT-OPEN",
+      "type": "https://okrkpi.vn/problems/complaint-open",
+      "msg": "MSG-10-03",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-409-DECISION-NO-DUPLICATE",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "DECISION-NO-DUPLICATE",
+      "type": "https://okrkpi.vn/problems/decision-no-duplicate",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-409-INVALID-STATUS",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "INVALID-STATUS",
+      "type": "https://okrkpi.vn/problems/invalid-status",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-409-NO-REASSIGN-FLAG",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "NO-REASSIGN-FLAG",
+      "type": "https://okrkpi.vn/problems/no-reassign-flag",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-409-NOT-COMPUTED",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "NOT-COMPUTED",
+      "type": "https://okrkpi.vn/problems/not-computed",
+      "msg": "MSG-09-01",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-409-PERIOD-LOCKED",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "PERIOD-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-locked",
+      "title": "Kỳ đánh giá đã khoá",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-409-PROSPECT-QUARTER",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "PROSPECT-QUARTER",
+      "type": "https://okrkpi.vn/problems/prospect-quarter",
+      "msg": "MSG-10-05",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-409-REASSIGN-EXISTS",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "REASSIGN-EXISTS",
+      "type": "https://okrkpi.vn/problems/reassign-exists",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-409-RETURN-LIMIT",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "RETURN-LIMIT",
+      "type": "https://okrkpi.vn/problems/return-limit",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-409-VERSION-CONFLICT",
+      "module": "APPRAISAL",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-422-BREAKTHROUGH-REQUIRED",
+      "module": "APPRAISAL",
+      "status": 422,
+      "name": "BREAKTHROUGH-REQUIRED",
+      "type": "https://okrkpi.vn/problems/breakthrough-required",
+      "msg": "MSG-09-03",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-422-CALIBRATION-REQUIRED",
+      "module": "APPRAISAL",
+      "status": 422,
+      "name": "CALIBRATION-REQUIRED",
+      "type": "https://okrkpi.vn/problems/calibration-required",
+      "msg": "MSG-09-13",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-422-HEAD-TOO-EARLY",
+      "module": "APPRAISAL",
+      "status": 422,
+      "name": "HEAD-TOO-EARLY",
+      "type": "https://okrkpi.vn/problems/head-too-early",
+      "msg": "MSG-09-14",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-422-PROSPECT-NOT-ELIGIBLE",
+      "module": "APPRAISAL",
+      "status": 422,
+      "name": "PROSPECT-NOT-ELIGIBLE",
+      "type": "https://okrkpi.vn/problems/prospect-not-eligible",
+      "msg": "MSG-10-06",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-422-REASON-REQUIRED",
+      "module": "APPRAISAL",
+      "status": 422,
+      "name": "REASON-REQUIRED",
+      "type": "https://okrkpi.vn/problems/reason-required",
+      "msg": "MSG-09-02",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "COMMON-403-OUT-OF-SCOPE",
+      "module": "COMMON",
+      "status": 403,
+      "name": "OUT-OF-SCOPE",
+      "type": "https://okrkpi.vn/problems/forbidden",
+      "title": "Không có quyền thực hiện thao tác này",
+      "sources": [
+        "common/common.yaml",
+        "modules/oversight.yaml",
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "COMMON-422-IDEMPOTENCY-MISMATCH",
+      "module": "COMMON",
+      "status": 422,
+      "name": "IDEMPOTENCY-MISMATCH",
+      "type": "https://okrkpi.vn/problems/idempotency-mismatch",
+      "sources": [
+        "common/common.yaml"
+      ]
+    },
+    {
+      "code": "COMMON-422-VALIDATION",
+      "module": "COMMON",
+      "status": 422,
+      "name": "VALIDATION",
+      "type": "https://okrkpi.vn/problems/validation",
+      "title": "Dữ liệu chưa hợp lệ",
+      "sources": [
+        "common/common.yaml",
+        "modules/oversight.yaml",
+        "modules/policies.yaml",
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-403-SELF-GRANT",
+      "module": "CONFIG",
+      "status": 403,
+      "name": "SELF-GRANT",
+      "type": "https://okrkpi.vn/problems/self-grant",
+      "msg": "MSG-01-16",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-409-ALREADY-ENDED",
+      "module": "CONFIG",
+      "status": 409,
+      "name": "ALREADY-ENDED",
+      "type": "https://okrkpi.vn/problems/already-ended",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-409-DATE-EXISTS",
+      "module": "CONFIG",
+      "status": 409,
+      "name": "DATE-EXISTS",
+      "type": "https://okrkpi.vn/problems/date-exists",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-409-DOMAIN-TAKEN",
+      "module": "CONFIG",
+      "status": 409,
+      "name": "DOMAIN-TAKEN",
+      "type": "https://okrkpi.vn/problems/domain-taken",
+      "msg": "MSG-01-04",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-409-DUPLICATE-BINDING",
+      "module": "CONFIG",
+      "status": 409,
+      "name": "DUPLICATE-BINDING",
+      "type": "https://okrkpi.vn/problems/duplicate-binding",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-409-NOT-PENDING",
+      "module": "CONFIG",
+      "status": 409,
+      "name": "NOT-PENDING",
+      "type": "https://okrkpi.vn/problems/not-pending",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-409-TENANT-STATE",
+      "module": "CONFIG",
+      "status": 409,
+      "name": "TENANT-STATE",
+      "type": "https://okrkpi.vn/problems/tenant-state",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-409-VERSION-CONFLICT",
+      "module": "CONFIG",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-422-CELL-OVER-CAPACITY",
+      "module": "CONFIG",
+      "status": 422,
+      "name": "CELL-OVER-CAPACITY",
+      "type": "https://okrkpi.vn/problems/cell-over-capacity",
+      "msg": "MSG-01-03",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-422-FLOW-PACK-MISSING",
+      "module": "CONFIG",
+      "status": 422,
+      "name": "FLOW-PACK-MISSING",
+      "type": "https://okrkpi.vn/problems/flow-pack-missing",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-422-HIGH-DISCREPANCY",
+      "module": "CONFIG",
+      "status": 422,
+      "name": "HIGH-DISCREPANCY",
+      "type": "https://okrkpi.vn/problems/high-discrepancy",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-422-POLICY-PACK-NOT-READY",
+      "module": "CONFIG",
+      "status": 422,
+      "name": "POLICY-PACK-NOT-READY",
+      "type": "https://okrkpi.vn/problems/policy-pack-not-ready",
+      "msg": "MSG-01-05",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-422-REDELEGATION",
+      "module": "CONFIG",
+      "status": 422,
+      "name": "REDELEGATION",
+      "type": "https://okrkpi.vn/problems/redelegation",
+      "msg": "MSG-01-18",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-422-SILO-REQUIRED",
+      "module": "CONFIG",
+      "status": 422,
+      "name": "SILO-REQUIRED",
+      "type": "https://okrkpi.vn/problems/silo-required",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-422-VALIDITY",
+      "module": "CONFIG",
+      "status": 422,
+      "name": "VALIDITY",
+      "type": "https://okrkpi.vn/problems/validity",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-403-NOT-CHAIR",
+      "module": "DOSSIER",
+      "status": 403,
+      "name": "NOT-CHAIR",
+      "type": "https://okrkpi.vn/problems/not-chair",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-403-NOT-PARTICIPANT",
+      "module": "DOSSIER",
+      "status": 403,
+      "name": "NOT-PARTICIPANT",
+      "type": "https://okrkpi.vn/problems/not-participant",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-403-NOT-SECRETARY",
+      "module": "DOSSIER",
+      "status": 403,
+      "name": "NOT-SECRETARY",
+      "type": "https://okrkpi.vn/problems/not-secretary",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-403-NOT-SUBJECT",
+      "module": "DOSSIER",
+      "status": 403,
+      "name": "NOT-SUBJECT",
+      "type": "https://okrkpi.vn/problems/not-subject",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-CHECKLIST-NOT-PASSED",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "CHECKLIST-NOT-PASSED",
+      "type": "https://okrkpi.vn/problems/checklist-not-passed",
+      "title": "Chưa thể ký gói",
+      "msg": "MSG-11-04",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-COMMENTS-LOCKED",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "COMMENTS-LOCKED",
+      "type": "https://okrkpi.vn/problems/comments-locked",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-FORM-NOT-RENDERED",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "FORM-NOT-RENDERED",
+      "type": "https://okrkpi.vn/problems/form-not-rendered",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-INVALID-STATE",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "INVALID-STATE",
+      "type": "https://okrkpi.vn/problems/invalid-state",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-MEETING-EXISTS",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "MEETING-EXISTS",
+      "type": "https://okrkpi.vn/problems/meeting-exists",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-MEETING-HELD",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "MEETING-HELD",
+      "type": "https://okrkpi.vn/problems/meeting-held",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-NO-CENTRAL-PROFILES",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "NO-CENTRAL-PROFILES",
+      "type": "https://okrkpi.vn/problems/no-central-profiles",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-NO-FAILED-FORMS",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "NO-FAILED-FORMS",
+      "type": "https://okrkpi.vn/problems/no-failed-forms",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-NO-VOTE",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "NO-VOTE",
+      "type": "https://okrkpi.vn/problems/no-vote",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-PACKAGE-EXISTS",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PACKAGE-EXISTS",
+      "type": "https://okrkpi.vn/problems/package-exists",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-PACKAGE-LOCKED",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PACKAGE-LOCKED",
+      "type": "https://okrkpi.vn/problems/package-locked",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-PACKAGE-NOT-READY",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PACKAGE-NOT-READY",
+      "type": "https://okrkpi.vn/problems/package-not-ready",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-PACKAGE-NOT-SIGNED",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PACKAGE-NOT-SIGNED",
+      "type": "https://okrkpi.vn/problems/package-not-signed",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-PERIOD-LOCKED",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PERIOD-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-locked",
+      "title": "Kỳ đánh giá đã khoá",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-PERIOD-NOT-DECIDED",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PERIOD-NOT-DECIDED",
+      "type": "https://okrkpi.vn/problems/period-not-decided",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-PROFILES-NOT-DECIDED",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "PROFILES-NOT-DECIDED",
+      "type": "https://okrkpi.vn/problems/profiles-not-decided",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-409-VERSION-CONFLICT",
+      "module": "DOSSIER",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-422-DESTINATION-NOT-CONFIGURED",
+      "module": "DOSSIER",
+      "status": 422,
+      "name": "DESTINATION-NOT-CONFIGURED",
+      "type": "https://okrkpi.vn/problems/destination-not-configured",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-422-VALIDATION",
+      "module": "DOSSIER",
+      "status": 422,
+      "name": "VALIDATION",
+      "type": "https://okrkpi.vn/problems/validation",
+      "title": "Dữ liệu chưa hợp lệ",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "DOSSIER-422-VOTE-EXCEEDS-ATTENDEES",
+      "module": "DOSSIER",
+      "status": 422,
+      "name": "VOTE-EXCEEDS-ATTENDEES",
+      "type": "https://okrkpi.vn/problems/vote-exceeds-attendees",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "ESIGN-403-NOT-SIGNER",
+      "module": "ESIGN",
+      "status": 403,
+      "name": "NOT-SIGNER",
+      "type": "https://okrkpi.vn/problems/not-signer",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "ESIGN-409-REQUEST-PENDING",
+      "module": "ESIGN",
+      "status": 409,
+      "name": "REQUEST-PENDING",
+      "type": "https://okrkpi.vn/problems/request-pending",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "ESIGN-409-SOURCE-NOT-READY",
+      "module": "ESIGN",
+      "status": 409,
+      "name": "SOURCE-NOT-READY",
+      "type": "https://okrkpi.vn/problems/source-not-ready",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "ESIGN-422-CERTIFICATE-INVALID",
+      "module": "ESIGN",
+      "status": 422,
+      "name": "CERTIFICATE-INVALID",
+      "type": "https://okrkpi.vn/problems/certificate-invalid",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "ESIGN-422-PROVIDER-UNAVAILABLE",
+      "module": "ESIGN",
+      "status": 422,
+      "name": "PROVIDER-UNAVAILABLE",
+      "type": "https://okrkpi.vn/problems/provider-unavailable",
+      "sources": [
+        "modules/dossiers.yaml"
+      ]
+    },
+    {
+      "code": "FILE-409-NOT-CLEAN",
+      "module": "FILE",
+      "status": 409,
+      "name": "NOT-CLEAN",
+      "type": "https://okrkpi.vn/problems/not-clean",
+      "msg": "MSG-07-02",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "FILE-409-UPLOAD-CLOSED",
+      "module": "FILE",
+      "status": 409,
+      "name": "UPLOAD-CLOSED",
+      "type": "https://okrkpi.vn/problems/upload-closed",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "FILE-413-PART-TOO-LARGE",
+      "module": "FILE",
+      "status": 413,
+      "name": "PART-TOO-LARGE",
+      "type": "https://okrkpi.vn/problems/part-too-large",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "FILE-413-TOO-LARGE",
+      "module": "FILE",
+      "status": 413,
+      "name": "TOO-LARGE",
+      "type": "https://okrkpi.vn/problems/too-large",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "FILE-415-UNSUPPORTED-TYPE",
+      "module": "FILE",
+      "status": 415,
+      "name": "UNSUPPORTED-TYPE",
+      "type": "https://okrkpi.vn/problems/unsupported-type",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "FILE-422-CONTENT-TYPE-MISMATCH",
+      "module": "FILE",
+      "status": 422,
+      "name": "CONTENT-TYPE-MISMATCH",
+      "type": "https://okrkpi.vn/problems/content-type-mismatch",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "FILE-422-HASH-MISMATCH",
+      "module": "FILE",
+      "status": 422,
+      "name": "HASH-MISMATCH",
+      "type": "https://okrkpi.vn/problems/hash-mismatch",
+      "msg": "MSG-07-03",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "FILE-422-MISSING-PARTS",
+      "module": "FILE",
+      "status": 422,
+      "name": "MISSING-PARTS",
+      "type": "https://okrkpi.vn/problems/missing-parts",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "FILE-422-SIZE-MISMATCH",
+      "module": "FILE",
+      "status": 422,
+      "name": "SIZE-MISMATCH",
+      "type": "https://okrkpi.vn/problems/size-mismatch",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "JOB-409-NOT-CANCELLABLE",
+      "module": "JOB",
+      "status": 409,
+      "name": "NOT-CANCELLABLE",
+      "type": "https://okrkpi.vn/problems/not-cancellable",
+      "sources": [
+        "modules/jobs.yaml"
+      ]
+    },
+    {
+      "code": "LEDGER-409-NOT-SEALED",
+      "module": "LEDGER",
+      "status": 409,
+      "name": "NOT-SEALED",
+      "type": "https://okrkpi.vn/problems/not-sealed",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
+    },
+    {
+      "code": "LEDGER-422-RANGE-TOO-LONG",
+      "module": "LEDGER",
+      "status": 422,
+      "name": "RANGE-TOO-LONG",
+      "type": "https://okrkpi.vn/problems/range-too-long",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
+    },
+    {
+      "code": "OKR-403-SELF-APPROVAL",
+      "module": "OKR",
+      "status": 403,
+      "name": "SELF-APPROVAL",
+      "type": "https://okrkpi.vn/problems/self-approval",
+      "title": "Không thể tự phê duyệt",
+      "msg": "MSG-02-11",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-409-INVALID-STATE",
+      "module": "OKR",
+      "status": 409,
+      "name": "INVALID-STATE",
+      "type": "https://okrkpi.vn/problems/invalid-state",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-409-LINK-EXISTS",
+      "module": "OKR",
+      "status": 409,
+      "name": "LINK-EXISTS",
+      "type": "https://okrkpi.vn/problems/link-exists",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-409-OBJECTIVE-NOT-APPROVED",
+      "module": "OKR",
+      "status": 409,
+      "name": "OBJECTIVE-NOT-APPROVED",
+      "type": "https://okrkpi.vn/problems/objective-not-approved",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-409-PERIOD-LOCKED",
+      "module": "OKR",
+      "status": 409,
+      "name": "PERIOD-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-locked",
+      "title": "Kỳ đánh giá đã khoá",
+      "msg": "MSG-03-05",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-409-REVISION-PENDING",
+      "module": "OKR",
+      "status": 409,
+      "name": "REVISION-PENDING",
+      "type": "https://okrkpi.vn/problems/revision-pending",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-409-VERSION-CONFLICT",
+      "module": "OKR",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-422-COMMENT-REQUIRED",
+      "module": "OKR",
+      "status": 422,
+      "name": "COMMENT-REQUIRED",
+      "type": "https://okrkpi.vn/problems/comment-required",
+      "msg": "MSG-02-10",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-422-LARGE-CHANGE-UNCONFIRMED",
+      "module": "OKR",
+      "status": 422,
+      "name": "LARGE-CHANGE-UNCONFIRMED",
+      "type": "https://okrkpi.vn/problems/large-change-unconfirmed",
+      "msg": "MSG-03-02",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-422-OVER-LIMIT-REASON-REQUIRED",
+      "module": "OKR",
+      "status": 422,
+      "name": "OVER-LIMIT-REASON-REQUIRED",
+      "type": "https://okrkpi.vn/problems/over-limit-reason-required",
+      "msg": "MSG-02-04",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-422-OVERRIDE-REASON-REQUIRED",
+      "module": "OKR",
+      "status": 422,
+      "name": "OVERRIDE-REASON-REQUIRED",
+      "type": "https://okrkpi.vn/problems/override-reason-required",
+      "msg": "MSG-03-04",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-422-PARENT-NOT-APPROVED",
+      "module": "OKR",
+      "status": 422,
+      "name": "PARENT-NOT-APPROVED",
+      "type": "https://okrkpi.vn/problems/parent-not-approved",
+      "msg": "MSG-02-03",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-422-VALIDATION",
+      "module": "OKR",
+      "status": 422,
+      "name": "VALIDATION",
+      "type": "https://okrkpi.vn/problems/validation",
+      "title": "Dữ liệu chưa hợp lệ",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "OKR-502-SOURCE-UNAVAILABLE",
+      "module": "OKR",
+      "status": 502,
+      "name": "SOURCE-UNAVAILABLE",
+      "type": "https://okrkpi.vn/problems/source-unavailable",
+      "msg": "MSG-03-03",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
+      "code": "ORG-409-ASSIGNMENT-OVERLAP",
+      "module": "ORG",
+      "status": 409,
+      "name": "ASSIGNMENT-OVERLAP",
+      "type": "https://okrkpi.vn/problems/assignment-overlap",
+      "sources": [
+        "modules/org.yaml"
+      ]
+    },
+    {
+      "code": "ORG-409-SYNC-RUNNING",
+      "module": "ORG",
+      "status": 409,
+      "name": "SYNC-RUNNING",
+      "type": "https://okrkpi.vn/problems/sync-running",
+      "sources": [
+        "modules/org.yaml"
+      ]
+    },
+    {
+      "code": "ORG-409-XREF-EXISTS",
+      "module": "ORG",
+      "status": 409,
+      "name": "XREF-EXISTS",
+      "type": "https://okrkpi.vn/problems/xref-exists",
+      "sources": [
+        "modules/org.yaml"
+      ]
+    },
+    {
+      "code": "OVERSIGHT-403-FOUR-EYES",
+      "module": "OVERSIGHT",
+      "status": 403,
+      "name": "FOUR-EYES",
+      "type": "https://okrkpi.vn/problems/four-eyes",
+      "title": "Không đáp ứng nguyên tắc hai người duyệt",
+      "msg": "MSG-13-01",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
+    },
+    {
+      "code": "OVERSIGHT-403-SEPARATION-OF-DUTIES",
+      "module": "OVERSIGHT",
+      "status": 403,
+      "name": "SEPARATION-OF-DUTIES",
+      "type": "https://okrkpi.vn/problems/separation-of-duties",
+      "title": "Không thể xử lý khiếu nại này",
+      "msg": "MSG-12-05",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
+    },
+    {
+      "code": "OVERSIGHT-409-INVALID-STATE",
+      "module": "OVERSIGHT",
+      "status": 409,
+      "name": "INVALID-STATE",
+      "type": "https://okrkpi.vn/problems/invalid-state",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
+    },
+    {
+      "code": "OVERSIGHT-409-PERIOD-NOT-LOCKED",
+      "module": "OVERSIGHT",
+      "status": 409,
+      "name": "PERIOD-NOT-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-not-locked",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
+    },
+    {
+      "code": "OVERSIGHT-409-VERSION-CONFLICT",
+      "module": "OVERSIGHT",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
+    },
+    {
+      "code": "OVERSIGHT-422-CONCLUSION-MISSING",
+      "module": "OVERSIGHT",
+      "status": 422,
+      "name": "CONCLUSION-MISSING",
+      "type": "https://okrkpi.vn/problems/conclusion-missing",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
+    },
+    {
+      "code": "OVERSIGHT-422-DEADLINE-PASSED",
+      "module": "OVERSIGHT",
+      "status": 422,
+      "name": "DEADLINE-PASSED",
+      "type": "https://okrkpi.vn/problems/deadline-passed",
+      "msg": "MSG-12-01",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
+    },
+    {
+      "code": "OVERSIGHT-422-NO-TARGET",
+      "module": "OVERSIGHT",
+      "status": 422,
+      "name": "NO-TARGET",
+      "type": "https://okrkpi.vn/problems/validation",
+      "title": "Dữ liệu chưa hợp lệ",
+      "msg": "MSG-12-03",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
+    },
+    {
+      "code": "PERIOD-403-SAME-PERSON",
+      "module": "PERIOD",
+      "status": 403,
+      "name": "SAME-PERSON",
+      "type": "https://okrkpi.vn/problems/same-person",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "PERIOD-409-NO-FAILURE",
+      "module": "PERIOD",
+      "status": 409,
+      "name": "NO-FAILURE",
+      "type": "https://okrkpi.vn/problems/no-failure",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "PERIOD-409-ORDER-EXISTS",
+      "module": "PERIOD",
+      "status": 409,
+      "name": "ORDER-EXISTS",
+      "type": "https://okrkpi.vn/problems/order-exists",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "PERIOD-409-OVERLAP",
+      "module": "PERIOD",
+      "status": 409,
+      "name": "OVERLAP",
+      "type": "https://okrkpi.vn/problems/overlap",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "PERIOD-409-POINT-OF-NO-RETURN",
+      "module": "PERIOD",
+      "status": 409,
+      "name": "POINT-OF-NO-RETURN",
+      "type": "https://okrkpi.vn/problems/point-of-no-return",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "PERIOD-409-SAGA-NOT-RUNNING",
+      "module": "PERIOD",
+      "status": 409,
+      "name": "SAGA-NOT-RUNNING",
+      "type": "https://okrkpi.vn/problems/saga-not-running",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "PERIOD-409-SAGA-RUNNING",
+      "module": "PERIOD",
+      "status": 409,
+      "name": "SAGA-RUNNING",
+      "type": "https://okrkpi.vn/problems/saga-running",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "PERIOD-422-PRECONDITION",
+      "module": "PERIOD",
+      "status": 422,
+      "name": "PRECONDITION",
+      "type": "https://okrkpi.vn/problems/precondition",
+      "msg": "MSG-08-02",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-403-NOT-OVERRIDABLE",
+      "module": "POLICY",
+      "status": 403,
+      "name": "NOT-OVERRIDABLE",
+      "type": "https://okrkpi.vn/problems/not-overridable",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-403-SAME-AUTHOR",
+      "module": "POLICY",
+      "status": 403,
+      "name": "SAME-AUTHOR",
+      "type": "https://okrkpi.vn/problems/same-author",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-404-NO-BINDING",
+      "module": "POLICY",
+      "status": 404,
+      "name": "NO-BINDING",
+      "type": "https://okrkpi.vn/problems/no-binding",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-409-NOT-PENDING",
+      "module": "POLICY",
+      "status": 409,
+      "name": "NOT-PENDING",
+      "type": "https://okrkpi.vn/problems/not-pending",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-409-NOT-SIGNED",
+      "module": "POLICY",
+      "status": 409,
+      "name": "NOT-SIGNED",
+      "type": "https://okrkpi.vn/problems/not-signed",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-409-NOT-TESTED",
+      "module": "POLICY",
+      "status": 409,
+      "name": "NOT-TESTED",
+      "type": "https://okrkpi.vn/problems/not-tested",
+      "msg": "MSG-15-06",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-409-PERIOD-LOCKED",
+      "module": "POLICY",
+      "status": 409,
+      "name": "PERIOD-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-locked",
+      "title": "Kỳ đánh giá đã khoá",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-409-PERIOD-STARTED",
+      "module": "POLICY",
+      "status": 409,
+      "name": "PERIOD-STARTED",
+      "type": "https://okrkpi.vn/problems/period-started",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-409-TEST-RUNNING",
+      "module": "POLICY",
+      "status": 409,
+      "name": "TEST-RUNNING",
+      "type": "https://okrkpi.vn/problems/test-running",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-409-VERSION-CONFLICT",
+      "module": "POLICY",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-409-VERSION-FROZEN",
+      "module": "POLICY",
+      "status": 409,
+      "name": "VERSION-FROZEN",
+      "type": "https://okrkpi.vn/problems/version-frozen",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-422-CASE-CODE-EXISTS",
+      "module": "POLICY",
+      "status": 422,
+      "name": "CASE-CODE-EXISTS",
+      "type": "https://okrkpi.vn/problems/case-code-exists",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-422-CASE-NOT-GOLDEN",
+      "module": "POLICY",
+      "status": 422,
+      "name": "CASE-NOT-GOLDEN",
+      "type": "https://okrkpi.vn/problems/case-not-golden",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-422-CEL-TYPE",
+      "module": "POLICY",
+      "status": 422,
+      "name": "CEL-TYPE",
+      "type": "https://okrkpi.vn/problems/cel-type",
+      "msg": "MSG-15-01",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-422-FEEL",
+      "module": "POLICY",
+      "status": 422,
+      "name": "FEEL",
+      "type": "https://okrkpi.vn/problems/feel",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-422-GROUP-SUM",
+      "module": "POLICY",
+      "status": 422,
+      "name": "GROUP-SUM",
+      "type": "https://okrkpi.vn/problems/validation",
+      "title": "Dữ liệu chưa hợp lệ",
+      "msg": "MSG-15-02",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-422-TEMPLATE-NOT-ACTIVE",
+      "module": "POLICY",
+      "status": 422,
+      "name": "TEMPLATE-NOT-ACTIVE",
+      "type": "https://okrkpi.vn/problems/template-not-active",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-422-TEMPLATE-VAR",
+      "module": "POLICY",
+      "status": 422,
+      "name": "TEMPLATE-VAR",
+      "type": "https://okrkpi.vn/problems/template-var",
+      "msg": "MSG-15-05",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-422-VERSION-EXISTS",
+      "module": "POLICY",
+      "status": 422,
+      "name": "VERSION-EXISTS",
+      "type": "https://okrkpi.vn/problems/version-exists",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-422-WF-PARAMS",
+      "module": "POLICY",
+      "status": 422,
+      "name": "WF-PARAMS",
+      "type": "https://okrkpi.vn/problems/wf-params",
+      "msg": "MSG-15-09",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-403-NOT-TASK-OWNER",
+      "module": "PRODUCT",
+      "status": 403,
+      "name": "NOT-TASK-OWNER",
+      "type": "https://okrkpi.vn/problems/not-task-owner",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-403-SELF-REVIEW",
+      "module": "PRODUCT",
+      "status": 403,
+      "name": "SELF-REVIEW",
+      "type": "https://okrkpi.vn/problems/self-review",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-409-INTEGRITY-FAILED",
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "INTEGRITY-FAILED",
+      "type": "https://okrkpi.vn/problems/integrity-failed",
+      "msg": "MSG-07-13",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-409-INVALID-STATE",
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "INVALID-STATE",
+      "type": "https://okrkpi.vn/problems/invalid-state",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-409-OPEN-VERSION-EXISTS",
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "OPEN-VERSION-EXISTS",
+      "type": "https://okrkpi.vn/problems/open-version-exists",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-409-PERIOD-LOCKED",
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "PERIOD-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-locked",
+      "title": "Kỳ đánh giá đã khoá",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-409-TASK-STATE",
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "TASK-STATE",
+      "type": "https://okrkpi.vn/problems/task-state",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-409-VERSION-CONFLICT",
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-409-VERSION-FROZEN",
+      "module": "PRODUCT",
+      "status": 409,
+      "name": "VERSION-FROZEN",
+      "type": "https://okrkpi.vn/problems/version-frozen",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-422-AI-NOT-CONFIRMED",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "AI-NOT-CONFIRMED",
+      "type": "https://okrkpi.vn/problems/ai-not-confirmed",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-422-ATTESTATION-REQUIRED",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "ATTESTATION-REQUIRED",
+      "type": "https://okrkpi.vn/problems/attestation-required",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-422-COMMENT-REQUIRED",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "COMMENT-REQUIRED",
+      "type": "https://okrkpi.vn/problems/comment-required",
+      "msg": "MSG-07-10",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-422-CRITERIA-INCOMPLETE",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "CRITERIA-INCOMPLETE",
+      "type": "https://okrkpi.vn/problems/criteria-incomplete",
+      "msg": "MSG-07-09",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-422-HASH-MISMATCH",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "HASH-MISMATCH",
+      "type": "https://okrkpi.vn/problems/hash-mismatch",
+      "msg": "MSG-07-03",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-422-NO-OBJECT",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "NO-OBJECT",
+      "type": "https://okrkpi.vn/problems/no-object",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-422-NOT-CLEAN",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "NOT-CLEAN",
+      "type": "https://okrkpi.vn/problems/not-clean",
+      "msg": "MSG-07-02",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-422-REUSE-JUSTIFICATION-REQUIRED",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "REUSE-JUSTIFICATION-REQUIRED",
+      "type": "https://okrkpi.vn/problems/reuse-justification-required",
+      "msg": "MSG-07-01",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-422-REVISION-CAUSE-REQUIRED",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "REVISION-CAUSE-REQUIRED",
+      "type": "https://okrkpi.vn/problems/revision-cause-required",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "PRODUCT-422-TASK-NOT-OPEN",
+      "module": "PRODUCT",
+      "status": 422,
+      "name": "TASK-NOT-OPEN",
+      "type": "https://okrkpi.vn/problems/task-not-open",
+      "sources": [
+        "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "REGISTRY-403-SAME-APPROVER",
+      "module": "REGISTRY",
+      "status": 403,
+      "name": "SAME-APPROVER",
+      "type": "https://okrkpi.vn/problems/same-approver",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "REGISTRY-409-CELL-UNAVAILABLE",
+      "module": "REGISTRY",
+      "status": 409,
+      "name": "CELL-UNAVAILABLE",
+      "type": "https://okrkpi.vn/problems/cell-unavailable",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "REGISTRY-409-DUPLICATE",
+      "module": "REGISTRY",
+      "status": 409,
+      "name": "DUPLICATE",
+      "type": "https://okrkpi.vn/problems/duplicate",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "REGISTRY-409-MOVE-ALREADY-CUTOVER",
+      "module": "REGISTRY",
+      "status": 409,
+      "name": "MOVE-ALREADY-CUTOVER",
+      "type": "https://okrkpi.vn/problems/move-already-cutover",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "REGISTRY-409-MOVE-IN-PROGRESS",
+      "module": "REGISTRY",
+      "status": 409,
+      "name": "MOVE-IN-PROGRESS",
+      "type": "https://okrkpi.vn/problems/move-in-progress",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "REGISTRY-409-SAME-CELL",
+      "module": "REGISTRY",
+      "status": 409,
+      "name": "SAME-CELL",
+      "type": "https://okrkpi.vn/problems/same-cell",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "REGISTRY-409-VERSION-CONFLICT",
+      "module": "REGISTRY",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "REGISTRY-421-TENANT-MOVED",
+      "module": "REGISTRY",
+      "status": 421,
+      "name": "TENANT-MOVED",
+      "type": "https://okrkpi.vn/problems/tenant-moved",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "TASK-403-SAME-AUTHOR",
+      "module": "TASK",
+      "status": 403,
+      "name": "SAME-AUTHOR",
+      "type": "https://okrkpi.vn/problems/same-author",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
+    },
+    {
+      "code": "TASK-409-DUPLICATE-PARAGRAPH",
+      "module": "TASK",
+      "status": 409,
+      "name": "DUPLICATE-PARAGRAPH",
+      "type": "https://okrkpi.vn/problems/duplicate-paragraph",
+      "msg": "MSG-05-09",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
+    },
+    {
+      "code": "TASK-409-INVALID-TRANSITION",
+      "module": "TASK",
+      "status": 409,
+      "name": "INVALID-TRANSITION",
+      "type": "https://okrkpi.vn/problems/invalid-transition",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
+    },
+    {
+      "code": "TASK-409-NOT-DRAFT",
+      "module": "TASK",
+      "status": 409,
+      "name": "NOT-DRAFT",
+      "type": "https://okrkpi.vn/problems/not-draft",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
+    },
+    {
+      "code": "TASK-409-PERIOD-LOCKED",
+      "module": "TASK",
+      "status": 409,
+      "name": "PERIOD-LOCKED",
+      "type": "https://okrkpi.vn/problems/period-locked",
+      "title": "Kỳ đánh giá đã khoá",
+      "sources": [
+        "common/common.yaml",
+        "modules/tasks.yaml"
+      ]
+    },
+    {
+      "code": "TASK-409-PLAN-EXISTS",
+      "module": "TASK",
+      "status": 409,
+      "name": "PLAN-EXISTS",
+      "type": "https://okrkpi.vn/problems/plan-exists",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
+    },
+    {
+      "code": "TASK-409-VERSION-CONFLICT",
+      "module": "TASK",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "msg": "MSG-09-07",
+      "sources": [
+        "common/common.yaml",
+        "modules/tasks.yaml"
+      ]
+    },
+    {
+      "code": "UI-403-SAME-PERSON",
+      "module": "UI",
+      "status": 403,
+      "name": "SAME-PERSON",
+      "type": "https://okrkpi.vn/problems/same-person",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "UI-409-NOT-DRAFT",
+      "module": "UI",
+      "status": 409,
+      "name": "NOT-DRAFT",
+      "type": "https://okrkpi.vn/problems/not-draft",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "UI-409-ROLLBACK-INCOMPATIBLE",
+      "module": "UI",
+      "status": 409,
+      "name": "ROLLBACK-INCOMPATIBLE",
+      "type": "https://okrkpi.vn/problems/rollback-incompatible",
+      "msg": "MSG-18-04",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "UI-409-SCORED-FIELD",
+      "module": "UI",
+      "status": 409,
+      "name": "SCORED-FIELD",
+      "type": "https://okrkpi.vn/problems/scored-field",
+      "msg": "MSG-18-07",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "UI-422-CEL-INVALID",
+      "module": "UI",
+      "status": 422,
+      "name": "CEL-INVALID",
+      "type": "https://okrkpi.vn/problems/cel-invalid",
+      "msg": "MSG-18-06",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "UI-422-CONTRAST",
+      "module": "UI",
+      "status": 422,
+      "name": "CONTRAST",
+      "type": "https://okrkpi.vn/problems/contrast",
+      "msg": "MSG-18-01",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "UI-422-FORM-TEST-FAILED",
+      "module": "UI",
+      "status": 422,
+      "name": "FORM-TEST-FAILED",
+      "type": "https://okrkpi.vn/problems/form-test-failed",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "UI-422-UNKNOWN-COMPONENT",
+      "module": "UI",
+      "status": 422,
+      "name": "UNKNOWN-COMPONENT",
+      "type": "https://okrkpi.vn/problems/unknown-component",
+      "msg": "MSG-18-02",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "WORKFLOW-403-SAME-AUTHOR",
+      "module": "WORKFLOW",
+      "status": 403,
+      "name": "SAME-AUTHOR",
+      "type": "https://okrkpi.vn/problems/same-author",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "WORKFLOW-403-SELF-APPROVAL",
+      "module": "WORKFLOW",
+      "status": 403,
+      "name": "SELF-APPROVAL",
+      "type": "https://okrkpi.vn/problems/self-approval",
+      "msg": "MSG-02-11",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "WORKFLOW-409-DRAFT-EXISTS",
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "DRAFT-EXISTS",
+      "type": "https://okrkpi.vn/problems/draft-exists",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "WORKFLOW-409-NOT-TESTED",
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "NOT-TESTED",
+      "type": "https://okrkpi.vn/problems/not-tested",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "WORKFLOW-409-ROLLOUT-WINDOW",
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "ROLLOUT-WINDOW",
+      "type": "https://okrkpi.vn/problems/rollout-window",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "WORKFLOW-409-SAGA-EXISTS",
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "SAGA-EXISTS",
+      "type": "https://okrkpi.vn/problems/saga-exists",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "WORKFLOW-409-TASK-COMPLETED",
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "TASK-COMPLETED",
+      "type": "https://okrkpi.vn/problems/task-completed",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "WORKFLOW-409-TEMPLATE-IMMUTABLE",
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "TEMPLATE-IMMUTABLE",
+      "type": "https://okrkpi.vn/problems/template-immutable",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "WORKFLOW-409-VERSION-CONFLICT",
+      "module": "WORKFLOW",
+      "status": 409,
+      "name": "VERSION-CONFLICT",
+      "type": "https://okrkpi.vn/problems/concurrent-modification",
+      "title": "Dữ liệu đã được người khác cập nhật",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "WORKFLOW-422-ASSIGNEE-NOT-ELIGIBLE",
+      "module": "WORKFLOW",
+      "status": 422,
+      "name": "ASSIGNEE-NOT-ELIGIBLE",
+      "type": "https://okrkpi.vn/problems/assignee-not-eligible",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    },
+    {
+      "code": "WORKFLOW-422-BATCH-TOO-LARGE",
+      "module": "WORKFLOW",
+      "status": 422,
+      "name": "BATCH-TOO-LARGE",
+      "type": "https://okrkpi.vn/problems/batch-too-large",
+      "sources": [
+        "modules/platform.yaml"
+      ]
+    }
+  ]
+}

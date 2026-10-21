@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -12,6 +13,7 @@ from pathlib import Path
 THU_MUC = Path(__file__).resolve().parent
 sys.path.insert(0, str(THU_MUC))
 import kiem_mau  # noqa: E402
+import sinh_mau_gia_lap  # noqa: E402
 
 GOC_REPO = THU_MUC.parent.parent / "policy-pack"
 MAU_GOC = GOC_REPO / "khoi-dang" / "quy-dinh-moi" / "templates"
@@ -41,10 +43,8 @@ class KiemMauTest(unittest.TestCase):
         self.goc = Path(self.tmp.name)
         self.mau = {}
         for tep in sorted(MAU_GOC.glob("*/manifest.json")):
-            dich = self.goc / "goi" / "templates" / tep.parent.name
-            dich.mkdir(parents=True)
+            shutil.copytree(tep.parent, self.goc / "goi" / "templates" / tep.parent.name)
             self.mau[tep.parent.name] = json.loads(tep.read_text(encoding="utf-8"))
-            (dich / "manifest.json").write_text(tep.read_text(encoding="utf-8"), encoding="utf-8")
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -56,15 +56,38 @@ class KiemMauTest(unittest.TestCase):
         kq = kiem_mau.chay(GOC_REPO)
         self.assertEqual(kq.loi, [])
 
-    def test_nghiem_ngat_bao_loi_khi_thieu_docx(self) -> None:
-        kq = kiem_mau.chay(self.goc, nghiem_ngat=True)
+    def test_mau_gia_lap_thieu_docx_la_loi(self) -> None:
+        for d in (self.goc / "goi" / "templates").glob("*/*.docx"):
+            d.unlink()
+        kq = kiem_mau.chay(self.goc)
         self.assertEqual(len([x for x in kq.loi if "chưa có tệp mẫu DOCX" in x]), 7)
 
-    def test_docx_trung_khit_tag(self) -> None:
+    def test_khung_thieu_docx_chi_canh_bao_tru_che_do_nghiem_ngat(self) -> None:
+        m = copy.deepcopy(self.mau["mau-2"])
+        m["trang_thai"] = "KHUNG_CHO_BAN_MAU"
+        self.ghi("mau-2", m)
+        (self.goc / "goi" / "templates" / "mau-2" / m["tep_mau"]).unlink()
+        self.assertEqual(kiem_mau.chay(self.goc).loi, [])
+        self.assertEqual(len(kiem_mau.chay(self.goc).canh_bao), 1)
+        self.assertEqual(len(kiem_mau.chay(self.goc, nghiem_ngat=True).loi), 1)
+
+    def test_bo_mau_gia_lap_trung_khit_tag(self) -> None:
+        kq = kiem_mau.chay(self.goc, nghiem_ngat=True)
+        self.assertEqual(kq.loi, [])
+
+    def test_mau_gia_lap_phai_co_dong_gia_lap(self) -> None:
         m = self.mau["mau-2"]
         tao_docx(self.goc / "goi" / "templates" / "mau-2" / m["tep_mau"], tat_ca_tag(m["truong"]))
-        kq = kiem_mau.chay(self.goc, nghiem_ngat=False)
-        self.assertEqual(kq.loi, [])
+        self.assertIn("MẪU GIẢ LẬP", "\n".join(kiem_mau.chay(self.goc).loi))
+
+    def test_doi_ke_khai_chi_can_sinh_lai_mau(self) -> None:
+        # YC-PT-14: thêm trường vào kê khai rồi sinh lại mẫu là đủ, không sửa mã.
+        m = copy.deepcopy(self.mau["mau-2"])
+        m["truong"].insert(4, dict(m["truong"][0], tag="ma_ho_so_can_bo", nhan="Mã hồ sơ", nguon="org_replica.person_v.cbccvc_code"))
+        self.ghi("mau-2", m)
+        self.assertIn("ma_ho_so_can_bo", "\n".join(kiem_mau.chay(self.goc).loi))
+        sinh_mau_gia_lap.main([str(self.goc)])
+        self.assertEqual(kiem_mau.chay(self.goc, nghiem_ngat=True).loi, [])
 
     def test_docx_thieu_va_thua_tag(self) -> None:
         m = self.mau["mau-2"]

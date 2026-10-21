@@ -13,7 +13,7 @@
 | Cỡ việc | L (> 1 ngày, nên tách) |
 | Phụ thuộc | – |
 | Truy vết | TL-04 ch.5 (mục 5.1, 5.2, 5.5) → SEC-26, SEC-28, SEC-49, SEC-55 → ADR-17 (ESO + OpenBao), ADR-21 (OPA cùng pod) → tiêu chí C1–C7 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Hoàn thành (20/10/2026, đã gộp vào `main`: `deploy/charts/vt-service/`, `deploy/charts/vt-service/tests/chay-kiem-thu.sh`) |
 
 ## 1. Mục tiêu
 

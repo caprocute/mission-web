@@ -12,7 +12,7 @@ backend/
 ├── libs/                   thư viện nền (NEN-009..NEN-016, vt-db-migration NEN-030) – chưa có
 ├── mission-core/           khối nguyên khối theo mô-đun MOD-01..MOD-08 (CORE-00-01) – chưa có
 ├── services/               microservice Java (NEN-019 trở đi) – chưa có
-└── tools/build-smoke/      mô-đun mẫu kiểm chuỗi plugin; xoá khi NEN-009 có mô-đun thật
+└── libs/vt-kernel, libs/vt-platform-starter   nhân kernel và starter nền (NEN-009, NEN-016)
 ```
 
 `platform-bom` không nằm trong reactor: POM cha kế thừa nó qua `relativePath`, nên build cục bộ không cần cài BOM trước. Khi phát hành, đường ống (INF-05) chạy `./mvnw -f platform-bom deploy` trước rồi mới deploy phần còn lại; dự án Java nằm ngoài reactor import BOM với `scope=import`.

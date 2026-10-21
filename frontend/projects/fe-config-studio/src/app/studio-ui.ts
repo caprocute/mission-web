@@ -26,3 +26,9 @@ export function errorText(err: unknown, fallback: string): string {
 
 /** Mã lỗi nghiệp vụ của RFC 9457 (`code`), nếu có. */
 export const problemCode = (err: unknown) => toProblem(err).code;
+
+/** Tên khối theo luồng của gói. */
+export const FLOW_LABEL: Record<string, string | undefined> = {
+  DANG: 'Khối Đảng',
+  NHA_NUOC: 'Khối Nhà nước',
+};

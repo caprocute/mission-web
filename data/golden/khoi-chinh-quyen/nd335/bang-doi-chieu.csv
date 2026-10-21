@@ -1,0 +1,8 @@
+ma_ca,loai,mo_ta,can_cu,mong_doi,ket_qua_tinh,dat,nguoi_ky,ngay_ky,y_kien
+S-001,NHA_NUOC,Đủ 30 điểm tiêu chí chung và 70 điểm kết quả,NĐ 335/2025; BR-09-11,diem=100.0; dong_dmn=xep-loai-nha-nuoc-dong-1; xep_loai=HTXSNV,diem=100.0; dong_dmn=xep-loai-nha-nuoc-dong-1; xep_loai=HTXSNV,DAT,,,
+S-002,NHA_NUOC,"Điểm thô 89,95 làm tròn thành 90,0",NĐ 335/2025; BR-09-03; BR-09-11,diem=90.0; dong_dmn=xep-loai-nha-nuoc-dong-1; xep_loai=HTXSNV,diem=90.0; dong_dmn=xep-loai-nha-nuoc-dong-1; xep_loai=HTXSNV,DAT,,,
+S-003,NHA_NUOC,"Điểm thô 69,95 làm tròn thành 70,0",NĐ 335/2025; BR-09-11,diem=70.0; dong_dmn=xep-loai-nha-nuoc-dong-2; xep_loai=HTTNV,diem=70.0; dong_dmn=xep-loai-nha-nuoc-dong-2; xep_loai=HTTNV,DAT,,,
+S-004,NHA_NUOC,"Điểm 69,9 dưới ngưỡng 70",NĐ 335/2025; BR-09-11,diem=69.9; dong_dmn=xep-loai-nha-nuoc-dong-3; xep_loai=HTNV,diem=69.9; dong_dmn=xep-loai-nha-nuoc-dong-3; xep_loai=HTNV,DAT,,,
+S-005,NHA_NUOC,"Điểm thô 49,95 làm tròn thành 50,0",NĐ 335/2025; BR-09-11,diem=50.0; dong_dmn=xep-loai-nha-nuoc-dong-3; xep_loai=HTNV,diem=50.0; dong_dmn=xep-loai-nha-nuoc-dong-3; xep_loai=HTNV,DAT,,,
+S-006,NHA_NUOC,"Điểm 49,9 dưới ngưỡng 50",NĐ 335/2025; BR-09-11,diem=49.9; dong_dmn=xep-loai-nha-nuoc-dong-4; xep_loai=KHTNV,diem=49.9; dong_dmn=xep-loai-nha-nuoc-dong-4; xep_loai=KHTNV,DAT,,,
+S-007,NHA_NUOC,Cách tính chất lượng trừ 25% mỗi lần chỉnh sửa (một lần),Bảng chấm điểm; BR-15-02,diem=94.2; xep_loai=HTXSNV,diem=94.2; xep_loai=HTXSNV,DAT,,,

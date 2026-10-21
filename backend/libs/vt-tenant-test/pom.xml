@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  NEN-034 · ADR-07, ADR-22 · TL-03 "Kiểm thử rò rỉ tenant" (lớp 1–4):
+  Gói phụ thuộc kiểm thử hợp nhất cho các mô-đun có migration và giao dịch đa khách thuê:
+    - Lớp 1 & 2 & Phân vùng: kế thừa TenantIsolationCatalogTest (từ vt-db-migration test-jar);
+    - Lớp 3 (PgBouncer pool_mode = transaction, default_pool_size = 1): PgBouncerReferenceConfig
+      đọc cấu hình tham chiếu NEN-033 (pgbouncer/pgbouncer.ini.template) + kiểm thử 5.000 giao dịch
+      xen kẽ qua TenantJpaTransactionManager và JdbcClient;
+    - Lớp 4 (Semgrep): kiểm chứng luật backend/semgrep/tenant-context.yml trên mẫu sai/đúng và mã nguồn.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>vn.viettel.okrkpi</groupId>
+    <artifactId>libs</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>vt-tenant-test</artifactId>
+
+  <name>Mission · kiểm thử cô lập tenant CSDL (RLS &amp; PgBouncer)</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.zaxxer</groupId>
+      <artifactId>HikariCP</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.hibernate.orm</groupId>
+      <artifactId>hibernate-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-jdbc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-orm</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-db-migration</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-db-migration</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-platform-starter</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+</project>

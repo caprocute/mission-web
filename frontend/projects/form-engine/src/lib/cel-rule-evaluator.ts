@@ -1,6 +1,8 @@
 import { evaluate, parse } from 'cel-js';
 import { FormRule, RuleViolation } from './form-rule';
 
+export * from './mission-cel';
+
 type Cst = Extract<ReturnType<typeof parse>, { isSuccess: true }>['cst'];
 
 /** Hàm mở rộng dùng trong biểu thức (ví dụ `workdays`), hiện thực song song với cel-java. */

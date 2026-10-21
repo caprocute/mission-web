@@ -1,0 +1,5 @@
+# Ca thử hồ sơ compact (TL-05 Phụ lục A): một vùng sự cố, spread chỉ theo node.
+global:
+  sizing: compact
+  topology:
+    zones: [dc-1]

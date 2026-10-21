@@ -450,6 +450,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/dossiers/forms/{id}/draft-content': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Lưu nội dung dự thảo bản kiểm điểm trước khi gửi hội nghị
+     * @description Người được kiểm điểm hoàn thiện các mục tự nhận xét, cam kết và tự nhận mức xếp loại trên dự thảo bản kiểm điểm trước khi gửi thành viên góp ý (QT-11 bước 4, SCR-1101).
+     */
+    put: operations['saveDossierFormDraftContent'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/dossiers/forms/{id}/file': {
     parameters: {
       query?: never;
@@ -511,7 +533,11 @@ export interface paths {
     delete?: never;
     options?: never;
     head?: never;
-    patch?: never;
+    /**
+     * Xác minh và cập nhật trường hợp đặc thù PL 6
+     * @description Cơ quan tổ chức/thẩm định xác minh trường hợp đặc thù (`dossier.special_case.verified_by`) và ghi chú xử lý theo quy tắc Policy Pack (QT-11 bước 2, BR-11-05).
+     */
+    patch: operations['verifyDossierSpecialCase'];
     trace?: never;
   };
   '/esign/requests': {
@@ -573,7 +599,53 @@ export interface paths {
      */
     get: operations['listMyEsignCertificates'];
     put?: never;
+    /**
+     * Đăng ký chứng thư số cho người gọi
+     * @description Đăng ký chứng thư số (`esign.certificate_ref`) để dùng khi ký số biểu mẫu, gói hồ sơ hoặc quyết định (SVC-10).
+     */
+    post: operations['registerMyEsignCertificate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/esign/certificates/mine/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post?: never;
+    /**
+     * Gỡ chứng thư số đã đăng ký của người gọi
+     * @description Gỡ chứng thư số không còn sử dụng khỏi danh sách chứng thư của người gọi (`esign.certificate_ref`).
+     */
+    delete: operations['deleteMyEsignCertificate'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/esign/seals': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Ký HSM tổ chức và đóng dấu thời gian RFC 3161 cho Merkle root hàng ngày của sổ cái (SVC-09)
+     * @description Điểm vào nội bộ để `audit-ledger` (SVC-09) yêu cầu `esign-service` (SVC-10) ký chữ ký số tổ chức qua HSM và lấy dấu thời gian TSA chuẩn RFC 3161 cho gốc Merkle hàng ngày (`ledger.audit_seal`, TL-03 mục 3.16). Không qua luồng xác nhận của người dùng trên di động.
+     */
+    post: operations['signLedgerSeal'];
     delete?: never;
     options?: never;
     head?: never;
@@ -1283,6 +1355,51 @@ export interface components {
       provider?: components['schemas']['EsignProvider'];
       /** @description Chứng thư chọn để ký; bỏ trống dùng chứng thư mặc định. */
       certificateId?: components['schemas']['Uuid'];
+    };
+    /** @description Nội dung tự nhận xét dự thảo bản kiểm điểm trước khi gửi thành viên góp ý (QT-11 bước 4). */
+    DossierFormDraftContentInput: {
+      /** @description Nội dung từng mục tự kiểm điểm theo mẫu biểu mẫu. */
+      sections: {
+        [key: string]: string;
+      };
+      /** @enum {string} */
+      selfRating?: 'HTXSNV' | 'HTTNV' | 'HTNV' | 'KHTNV';
+      commitmentConfirmed: boolean;
+    };
+    /** @description Xác minh và ghi cách xử lý trường hợp đặc thù PL 6 (BR-11-05, `dossier.special_case`). */
+    DossierSpecialCaseUpdate: {
+      verified: boolean;
+      caseCode?: string;
+      detail?: {
+        [key: string]: unknown;
+      };
+      handlingNote?: string;
+    };
+    /** @description Đăng ký chứng thư số cá nhân/tổ chức cho người gọi (`esign.certificate_ref`). */
+    EsignCertificateCreateInput: {
+      provider: components['schemas']['EsignProvider'];
+      serialNumber: string;
+      subjectDn: string;
+      issuerDn: string;
+      validFrom: components['schemas']['DateTime'];
+      validTo: components['schemas']['DateTime'];
+      /** @default false */
+      isDefault: boolean;
+    };
+    /** @description Yêu cầu ký con dấu thời gian và chữ ký tổ chức cho lô sổ cái kiểm toán (`ledger.audit_seal`, SVC-09 gọi SVC-10). */
+    LedgerSealSignRequest: {
+      sealDate: components['schemas']['Date'];
+      merkleRoot: string;
+      prevMerkleRoot?: string | null;
+      eventCount: number;
+    };
+    LedgerSealSignature: {
+      sealDate: components['schemas']['Date'];
+      merkleRoot: string;
+      signatureB64: string;
+      tsaTokenB64: string;
+      certificateSerial: string;
+      signedAt: components['schemas']['DateTime'];
     };
     /**
      * Format: uuid
@@ -2403,6 +2520,45 @@ export interface operations {
       default: components['responses']['Problem'];
     };
   };
+  saveDossierFormDraftContent: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DossierFormDraftContentInput'];
+      };
+    };
+    responses: {
+      /** @description Biểu mẫu dự thảo sau khi lưu nội dung. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DossierForm'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
   downloadDossierFormFile: {
     parameters: {
       query?: never;
@@ -2499,6 +2655,45 @@ export interface operations {
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  verifyDossierSpecialCase: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DossierSpecialCaseUpdate'];
+      };
+    };
+    responses: {
+      /** @description Trường hợp đặc thù sau khi xác minh. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DossierSpecialCase'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
       default: components['responses']['Problem'];
     };
   };
@@ -2642,6 +2837,96 @@ export interface operations {
         };
       };
       401: components['responses']['Unauthorized'];
+      default: components['responses']['Problem'];
+    };
+  };
+  registerMyEsignCertificate: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['EsignCertificateCreateInput'];
+      };
+    };
+    responses: {
+      /** @description Chứng thư số đã đăng ký. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['EsignCertificate'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  deleteMyEsignCertificate: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Đã gỡ chứng thư số. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  signLedgerSeal: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LedgerSealSignRequest'];
+      };
+    };
+    responses: {
+      /** @description Chữ ký HSM và dấu thời gian TSA cho lô sổ cái. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LedgerSealSignature'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['UnprocessableEntity'];
       default: components['responses']['Problem'];
     };
   };

@@ -19,7 +19,7 @@ Thư mục này là **nguồn sự thật của giao tiếp giữa frontend và 
 | `modules/oversight.yaml` | MOD-07 `oversight`, SVC-09 | `/oversight`, `/ledger` | 3 |
 | `modules/policies.yaml` | MOD-05 `policy` | `/policies` | 3 |
 | `modules/config.yaml` | MOD-08 `config` | `/config`, `/periods`, `/ui` | 3 |
-| `modules/platform.yaml` | SVC-03, SVC-06, SVC-12, SVC-14, SVC-15, SVC-16 | `/registry`, `/workflow`, `/notifications`, `/ai`, `/analytics`, `/search` | 3 |
+| `modules/platform.yaml` | SVC-02, SVC-03, SVC-06, SVC-12, SVC-14, SVC-15, SVC-16 | `/registry`, `/iam`, `/workflow`, `/notifications`, `/ai`, `/analytics`, `/search` | 3 |
 
 Mỗi tệp module là một tài liệu OpenAPI 3.1 đầy đủ (`servers: [{url: /api/v1}]`), tham chiếu thành phần dùng chung bằng `$ref: '../common/common.yaml#/components/...'`. API đối tác qua SVC-13 (integration-gateway) không nằm ở đây; theo TL-01 nó đã theo hướng hợp đồng trước và có kho riêng.
 

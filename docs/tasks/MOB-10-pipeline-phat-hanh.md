@@ -13,7 +13,7 @@
 | Cỡ việc | M (≤ 1 ngày) |
 | Phụ thuộc | MOB-03, INF-06 (nên chạy lại sau khi MOB-04..MOB-09 gộp để phủ đủ màn hình) |
 | Truy vết | SVC-18; NFR-11, NFR-08; SEC-09 (gitleaks), SEC-23, SEC-37 (chuỗi cung ứng, theo TL-04) → pipeline `vt-pipeline` (INF-06) → kho bí mật OpenBao (khoá ký ứng dụng) |
-| Trạng thái | Bị chặn bởi bên ngoài: cần tài khoản nhà phát triển Google Play và Apple cho bước phát hành; phần build, ký nội bộ, kiểm thử làm được ngay |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -40,6 +40,7 @@
 ## 4. Ngoài phạm vi
 
 - Thư viện `vt-pipeline` và giai đoạn Flutter dùng chung (INF-06); tạo tài khoản cửa hàng (người dùng).
+- Phát hành thật lên Google Play và App Store khi có tài khoản nhà phát triển; khi đó chỉ đổi cấu hình bí mật CI, không đổi pipeline.
 
 ## 5. Tệp được phép sửa
 
@@ -52,7 +53,7 @@
 - Pipeline chạy xanh trên nhánh thử; ba yêu cầu gộp cố ý (kiểm thử lỗi, bí mật giả, phụ thuộc có lỗ hổng mức cao) đều bị chặn.
 - Bộ đầu cuối chạy xanh trên trình giả lập Android; iOS chạy xanh hoặc được ghi rõ là chưa có máy build.
 - Kiểm tra khả năng truy cập đạt cho 100% màn hình đã có ở hai chế độ.
-- Có bản build ký nội bộ tải được từ kênh nội bộ; bước phát hành cửa hàng ghi rõ trạng thái chờ tài khoản.
+- Có bản build ký nội bộ tải được từ kênh nội bộ; bước phát hành cửa hàng chạy thử ở chế độ khô (ví dụ `fastlane` với `--validate_only` hoặc bản giả lập API cửa hàng), tài khoản và khoá cửa hàng lấy từ biến bí mật CI nên khi có tài khoản thật chỉ đổi cấu hình.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo

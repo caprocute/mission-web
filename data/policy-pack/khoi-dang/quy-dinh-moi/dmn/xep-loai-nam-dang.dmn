@@ -135,7 +135,7 @@
         <inputEntry id="xep-loai-nam-dang-dong-6-in6"><text>&gt;= 1</text></inputEntry>
         <inputEntry id="xep-loai-nam-dang-dong-6-in7"><text>true</text></inputEntry>
         <inputEntry id="xep-loai-nam-dang-dong-6-in8"><text>true</text></inputEntry>
-        <inputEntry id="xep-loai-nam-dang-dong-6-in9"><text>-</text></inputEntry>
+        <inputEntry id="xep-loai-nam-dang-dong-6-in9"><text>false</text></inputEntry>
         <outputEntry id="xep-loai-nam-dang-dong-6-out"><text>"HTXSNV"</text></outputEntry>
         <annotationEntry><text>QĐ Điều 11; khoản 15.5; BR-10-03; BR-10-05</text></annotationEntry>
         <annotationEntry><text>Điều 11 của Quy định</text></annotationEntry>

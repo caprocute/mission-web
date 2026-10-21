@@ -13,7 +13,7 @@
 | Cỡ việc | M |
 | Phụ thuộc | DV-10-01; NEN-015 (lớp `CryptoProvider` trong `vt-platform-starter`) phải gộp trước (bổ sung) |
 | Truy vết | QT-09, QT-11 (bản cách ly) → API `POST /api/v1/esign/requests` (provider `BAN_CO_YEU`) → SVC-10 → bảng `esign.sign_request`, `esign.sign_item` → EVT-18 → ADR-06 |
-| Trạng thái | Bị chặn bởi bên ngoài: cần thư viện và tài liệu giao diện mật mã của Ban Cơ yếu Chính phủ |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -38,6 +38,7 @@ Cho bản cài cách ly (LLVT, Công an) ký số và mã hoá bằng thuật to
 
 - Đóng gói Helm ngoại tuyến và Harbor nội bộ cho bản cách ly (INF-23).
 - Xử lý bí mật nhà nước trên cell SaaS (không được phép theo TL-01).
+- Nối và kiểm thử với thư viện, tài liệu giao diện mật mã thật của Ban Cơ yếu Chính phủ trên máy thử cách ly khi có; khi đó chỉ đổi cấu hình kết nối, không đổi mã.
 
 ## 5. Tệp được phép sửa
 
@@ -48,7 +49,7 @@ Cho bản cài cách ly (LLVT, Công an) ký số và mã hoá bằng thuật to
 ## 6. Tiêu chí hoàn thành
 
 - `cd backend && mvn -q -pl services/esign -am verify` xanh ở chế độ `standard`; bộ kiểm thử hợp đồng `CryptoProvider` chạy xanh với hiện thực tiêu chuẩn.
-- Khi có thư viện Ban Cơ yếu: bộ kiểm thử hợp đồng chạy xanh ở chế độ `bcy` trên máy thử cách ly, kết quả ghi vào báo cáo; khi chưa có, hiện thực dừng ở giao diện bọc có kiểm thử với bản giả lập và báo cáo ghi rõ.
+- Bộ kiểm thử hợp đồng `CryptoProvider` chạy xanh ở chế độ `bcy` với thư viện Ban Cơ yếu giả lập (cùng giao diện bọc); đường dẫn thư viện, cấu hình khe khoá và tham số nạp nằm trong cấu hình triển khai, nên thay bằng thư viện thật chỉ đổi cấu hình, không đổi mã.
 - Khởi động ở chế độ `bcy` mà thiếu thư viện thì dịch vụ không sẵn sàng và nhật ký nêu lý do bằng tiếng Việt.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 

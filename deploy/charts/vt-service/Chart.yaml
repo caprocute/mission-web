@@ -1,0 +1,9 @@
+apiVersion: v2
+name: vt-service
+description: >-
+  Chart thư viện dùng chung cho mọi service SVC-01..SVC-17 của nền tảng Mission (TL-04 chương 5).
+  Sinh Deployment hoặc Rollout, Service, ServiceAccount, ConfigMap, ExternalSecret, PodDisruptionBudget,
+  NetworkPolicy, HPA hoặc ScaledObject, ServiceMonitor, PrometheusRule với mặc định an toàn.
+type: library
+version: 0.1.0
+keywords: [mission, vt-platform, library]

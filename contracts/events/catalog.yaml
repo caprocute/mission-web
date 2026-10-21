@@ -1,0 +1,503 @@
+# NEN-007 · ADR-03 · Danh mục hợp đồng sự kiện máy đọc được.
+#
+# Nguồn: baseline mục 7 (bảng EVT: tên nghiệp vụ, topic, phát bởi, tiêu thụ chính);
+#        TL-03 "Danh mục lược đồ EVT-01 đến EVT-26" (outbox nguồn, khoá, trường chính, phân loại);
+#        TL-03 "Phong bì sự kiện" và TL-01 "Quy ước topic" (topic kỹ thuật);
+#        _ghi-chu-TL-03 mục 6 (EVT-26, topic kỹ thuật).
+#
+# Quy ước trường:
+#   code            mã EVT, giữ nguyên baseline.
+#   name            tên nghiệp vụ = tên record Avro.
+#   topic           topic Kafka (khớp ^[a-z]+\.[a-z]+\.[a-z]+\.v[0-9]+$ như CHECK của outbox_event).
+#   key             khoá thông điệp theo TL-03 (`tenant:<aggregateId>`; thực tế là `tenantId:aggregateId`).
+#   outbox          bảng outbox nguồn; null khi sự kiện không đi qua outbox PostgreSQL.
+#   classification  phân loại cao nhất của dữ liệu trong sự kiện (C0/C1); không sự kiện nào mang C2.
+#   producer        mã bên phát (baseline cột "Phát bởi").
+#   consumers       mã bên tiêu thụ chính (baseline cột "Tiêu thụ chính").
+#   note            phần chú thích trong ngoặc của baseline/TL-03, giữ nguyên ý.
+#   schema          đường dẫn tệp .avsc, tương đối với contracts/events/.
+#   artifactId      tên artifact trong Apicurio (nhóm `default`, chiến lược TopicIdStrategy: `<topic>-value`).
+#
+# Tệp này là nguồn sinh lớp hằng vn.viettel.okrkpi.events.EventTopics (backend/libs/vt-events)
+# và là đầu vào của NEN-008 (AsyncAPI), INF-10 (topic dạng mã trên Strimzi), NEN-020 (topic dev).
+
+version: 1
+compatibility: BACKWARD_TRANSITIVE
+
+events:
+  - code: EVT-01
+    name: MucTieuDaDuyet
+    topic: okr.objective.approved.v1
+    key: tenant:objectiveId
+    outbox: okr.outbox_event
+    classification: C1
+    producer: MOD-01
+    consumers: [SVC-15, SVC-09, MOD-02]
+    schema: avro/okr/MucTieuDaDuyet.avsc
+    artifactId: okr.objective.approved.v1-value
+
+  - code: EVT-02
+    name: KrDaCheckIn
+    topic: okr.keyresult.checkedin.v1
+    key: tenant:keyResultId
+    outbox: okr.outbox_event
+    classification: C1
+    producer: MOD-01
+    consumers: [SVC-15, SVC-12, SVC-09]
+    schema: avro/okr/KrDaCheckIn.avsc
+    artifactId: okr.keyresult.checkedin.v1-value
+
+  - code: EVT-03
+    name: KeHoachDaDuyet
+    topic: task.plan.approved.v1
+    key: tenant:planId
+    outbox: task.outbox_event
+    classification: C1
+    producer: MOD-02
+    consumers: [SVC-09, SVC-15, SVC-12]
+    schema: avro/task/KeHoachDaDuyet.avsc
+    artifactId: task.plan.approved.v1-value
+
+  - code: EVT-04
+    name: NhiemVuDaGiao
+    topic: task.task.assigned.v1
+    key: tenant:taskId
+    outbox: task.outbox_event
+    classification: C1
+    producer: MOD-02
+    consumers: [SVC-12, SVC-15, SVC-16, SVC-09]
+    schema: avro/task/NhiemVuDaGiao.avsc
+    artifactId: task.task.assigned.v1-value
+
+  - code: EVT-05
+    name: TienDoDaCapNhat
+    topic: task.task.progressed.v1
+    key: tenant:taskId
+    outbox: task.outbox_event
+    classification: C1
+    producer: MOD-02
+    consumers: [SVC-15, SVC-09]
+    schema: avro/task/TienDoDaCapNhat.avsc
+    artifactId: task.task.progressed.v1-value
+
+  - code: EVT-06
+    name: TrangThaiNhiemVuDoi
+    topic: task.task.statuschanged.v1
+    key: tenant:taskId
+    outbox: task.outbox_event
+    classification: C1
+    producer: MOD-02
+    consumers: [SVC-07, SVC-12, SVC-15]
+    schema: avro/task/TrangThaiNhiemVuDoi.avsc
+    artifactId: task.task.statuschanged.v1-value
+
+  - code: EVT-07
+    name: MinhChungDaNop
+    topic: product.evidence.submitted.v1
+    key: tenant:evidenceId
+    outbox: product.outbox_event
+    classification: C1
+    producer: MOD-03
+    consumers: [SVC-12, SVC-15, SVC-09]
+    schema: avro/product/MinhChungDaNop.avsc
+    artifactId: product.evidence.submitted.v1-value
+
+  - code: EVT-08
+    name: MinhChungDaXacNhan
+    topic: product.evidence.accepted.v1
+    key: tenant:evidenceId
+    outbox: product.outbox_event
+    classification: C1
+    producer: MOD-03
+    consumers: [SVC-07, SVC-09, SVC-15]
+    note: SVC-07 tính dần
+    schema: avro/product/MinhChungDaXacNhan.avsc
+    artifactId: product.evidence.accepted.v1-value
+
+  - code: EVT-09
+    name: KyDaKhoa
+    topic: config.period.locked.v1
+    key: tenant:periodId
+    outbox: config.outbox_event
+    classification: C1
+    producer: MOD-08
+    consumers: [SVC-07, MOD-04, SVC-09, SVC-12]
+    note: MOD-08 phát qua saga SVC-06
+    schema: avro/config/KyDaKhoa.avsc
+    artifactId: config.period.locked.v1-value
+
+  - code: EVT-10
+    name: DiemDaTinh
+    topic: scoring.score.computed.v1
+    key: tenant:profileId
+    outbox: scoring.outbox_event
+    classification: C1
+    producer: SVC-07
+    consumers: [MOD-04, SVC-15]
+    schema: avro/scoring/DiemDaTinh.avsc
+    artifactId: scoring.score.computed.v1-value
+
+  - code: EVT-11
+    name: HoSoDanhGiaChuyenBuoc
+    topic: appraisal.profile.stepcompleted.v1
+    key: tenant:profileId
+    outbox: appraisal.outbox_event
+    classification: C1
+    producer: MOD-04
+    consumers: [SVC-12, SVC-09, SVC-15]
+    schema: avro/appraisal/HoSoDanhGiaChuyenBuoc.avsc
+    artifactId: appraisal.profile.stepcompleted.v1-value
+
+  - code: EVT-12
+    name: XepLoaiDaQuyetDinh
+    topic: appraisal.rating.decided.v1
+    key: tenant:profileId
+    outbox: appraisal.outbox_event
+    classification: C1
+    producer: MOD-04
+    consumers: [MOD-06, SVC-09, SVC-13, SVC-15]
+    schema: avro/appraisal/XepLoaiDaQuyetDinh.avsc
+    artifactId: appraisal.rating.decided.v1-value
+
+  - code: EVT-13
+    name: PolicyPackDaPhatHanh
+    topic: policy.pack.published.v1
+    key: tenant:packId
+    outbox: policy.outbox_event
+    classification: C0
+    producer: MOD-05
+    consumers: [SVC-07, SVC-06, SVC-17, SVC-09]
+    note: SVC-17 (UI)
+    schema: avro/policy/PolicyPackDaPhatHanh.avsc
+    artifactId: policy.pack.published.v1-value
+
+  - code: EVT-14
+    name: DonViDaThayDoi
+    topic: org.unit.changed.v1
+    key: tenant:unitId
+    outbox: org.outbox_event
+    classification: C1
+    producer: SVC-04
+    consumers: [MOD-*, SVC-02, SVC-15]
+    note: MOD-* qua org_replica
+    schema: avro/org/DonViDaThayDoi.avsc
+    artifactId: org.unit.changed.v1-value
+
+  - code: EVT-15
+    name: PhanCongDaThayDoi
+    topic: org.assignment.changed.v1
+    key: tenant:personId
+    outbox: org.outbox_event
+    classification: C1
+    producer: SVC-04
+    consumers: [MOD-02, MOD-04, org_replica]
+    schema: avro/org/PhanCongDaThayDoi.avsc
+    artifactId: org.assignment.changed.v1-value
+
+  - code: EVT-16
+    name: NhanSuDaThayDoi
+    topic: org.person.changed.v1
+    key: tenant:personId
+    outbox: org.outbox_event
+    classification: C1
+    producer: SVC-04
+    consumers: [SVC-02, org_replica]
+    schema: avro/org/NhanSuDaThayDoi.avsc
+    artifactId: org.person.changed.v1-value
+
+  - code: EVT-17
+    name: HoSoSoDaSinh
+    topic: dossier.form.generated.v1
+    key: tenant:formInstanceId
+    outbox: docgen.outbox_event
+    classification: C1
+    producer: SVC-11
+    consumers: [MOD-06, SVC-10]
+    schema: avro/dossier/HoSoSoDaSinh.avsc
+    artifactId: dossier.form.generated.v1-value
+
+  - code: EVT-18
+    name: KySoDaHoanTat
+    topic: esign.signature.completed.v1
+    key: tenant:signRequestId
+    outbox: esign.outbox_event
+    classification: C1
+    producer: SVC-10
+    consumers: [MOD-04, MOD-06, MOD-02, SVC-09]
+    schema: avro/esign/KySoDaHoanTat.avsc
+    artifactId: esign.signature.completed.v1-value
+
+  - code: EVT-19
+    name: SoCaiDaNiemPhong
+    topic: ledger.seal.created.v1
+    key: tenant:sealId
+    outbox: ledger.outbox_event
+    classification: C1
+    producer: SVC-09
+    consumers: [SVC-13]
+    note: SVC-13 gửi bản neo
+    schema: avro/ledger/SoCaiDaNiemPhong.avsc
+    artifactId: ledger.seal.created.v1-value
+
+  - code: EVT-20
+    name: DauHieuBatThuong
+    topic: analytics.anomaly.detected.v1
+    key: tenant:subjectId
+    outbox: null
+    classification: C1
+    producer: SVC-15
+    consumers: [MOD-07, SVC-12]
+    note: Producer ClickHouse job đọc bảng anomaly_out (không có outbox PostgreSQL); event_id tất định theo alertKey
+    schema: avro/analytics/DauHieuBatThuong.avsc
+    artifactId: analytics.anomaly.detected.v1-value
+
+  - code: EVT-21
+    name: YeuCauThongBao
+    topic: notify.message.requested.v1
+    key: tenant:recipientId
+    outbox: "*.outbox_event"
+    classification: C1
+    producer: "*"
+    consumers: [SVC-12]
+    note: Phát bởi mọi module, qua outbox của module yêu cầu
+    schema: avro/notify/YeuCauThongBao.avsc
+    artifactId: notify.message.requested.v1-value
+
+  - code: EVT-22
+    name: KyDaMoLaiHauKiem
+    topic: oversight.period.reopened.v1
+    key: tenant:periodId
+    outbox: oversight.outbox_event
+    classification: C1
+    producer: MOD-07
+    consumers: [MOD-08, SVC-07, SVC-09]
+    schema: avro/oversight/KyDaMoLaiHauKiem.avsc
+    artifactId: oversight.period.reopened.v1-value
+
+  - code: EVT-23
+    name: UiPackDaPhatHanh
+    topic: config.uipack.published.v1
+    key: tenant:uiPackId
+    outbox: config.outbox_event
+    classification: C0
+    producer: MOD-08
+    consumers: [SVC-17]
+    note: SVC-17 vô hiệu cache CDN
+    schema: avro/config/UiPackDaPhatHanh.avsc
+    artifactId: config.uipack.published.v1-value
+
+  - code: EVT-24
+    name: VanBanChiDaoDaNhan
+    topic: integ.document.received.v1
+    key: tenant:documentId
+    outbox: integ.outbox_event
+    classification: C1
+    producer: SVC-13
+    consumers: [MOD-02, SVC-14]
+    schema: avro/integ/VanBanChiDaoDaNhan.avsc
+    artifactId: integ.document.received.v1-value
+
+  - code: EVT-25
+    name: KhieuNaiDaGui
+    topic: oversight.complaint.filed.v1
+    key: tenant:complaintId
+    outbox: oversight.outbox_event
+    classification: C1
+    producer: MOD-07
+    consumers: [SVC-06, SVC-12, SVC-09]
+    schema: avro/oversight/KhieuNaiDaGui.avsc
+    artifactId: oversight.complaint.filed.v1-value
+
+  - code: EVT-26
+    name: KyDaHuyKhoa
+    topic: config.period.unlocked.v1
+    key: tenant:periodId
+    outbox: config.outbox_event
+    classification: C1
+    producer: MOD-08
+    consumers: [SVC-07, MOD-04, SVC-09, SVC-12]
+    note: Saga bù trừ về MO; MOD-08 phát qua saga SVC-06
+    schema: avro/config/KyDaHuyKhoa.avsc
+    artifactId: config.period.unlocked.v1-value
+
+# Topic kỹ thuật (TL-03 "Danh mục lược đồ", TL-01 "Quy ước topic", TL-04 L760–768): không thuộc
+# danh mục EVT, không được ứng dụng nghiệp vụ tiêu thụ trực tiếp.
+# NEN-021 chốt tên chuẩn (bảng giải quyết lệch tên ở wiki/18 và wiki/14), số phân vùng, thời gian
+# giữ và lược đồ Avro cho từng topic kỹ thuật cũng như quy ước các họ topic mẫu.
+technicalTopics:
+  - topic: sys.ledger.append.v1
+    name: LedgerAppend
+    key: tenant:partition
+    outbox: null
+    classification: C1
+    producer: SVC-09
+    consumers: [SVC-09]
+    partitions: 24
+    retention: 30d
+    note: Bộ thu ledger-ingester của SVC-09 chuyển tiếp từ topic nghiệp vụ; khoá theo phân vùng chuỗi (TL-03 chương 8, TL-04 L763)
+    schema: avro/sys/LedgerAppend.avsc
+    artifactId: sys.ledger.append.v1-value
+
+  - topic: sys.audit.v1
+    name: AuditEvent
+    key: tenant:objectId
+    outbox: "*.outbox_event"
+    classification: C1
+    producer: "*"
+    consumers: [SVC-09, audit-archiver, SIEM]
+    partitions: 24
+    retention: 14d
+    note: Sự kiện kiểm toán nội bộ phát qua outbox (TL-01 "Nhật ký kiểm toán", TL-04 L764)
+    schema: avro/sys/AuditEvent.avsc
+    artifactId: sys.audit.v1-value
+
+  - topic: sys.evidence.object.stored.v1
+    name: EvidenceObjectStored
+    key: tenant:objectId
+    outbox: evidence.outbox_event
+    classification: C1
+    producer: SVC-08
+    consumers: [MOD-03]
+    partitions: 12
+    retention: 7d
+    note: SVC-08 báo đối tượng minh chứng đã lưu và khoá Object Lock; chọn tên có tiền tố sys. (TL-02/TL-03/TL-04 L765)
+    schema: avro/sys/EvidenceObjectStored.avsc
+    artifactId: sys.evidence.object.stored.v1-value
+
+  - topic: evidence.object.scanned.v1
+    name: ObjectScanned
+    key: tenant:objectId
+    outbox: evidence.outbox_event
+    classification: C1
+    producer: SVC-08
+    consumers: [MOD-03]
+    partitions: 12
+    retention: 7d
+    note: SVC-08 báo kết quả quét mã độc từ bảng evidence.scan_result; giữ tên không tiền tố sys. thống nhất ở TL-02/TL-03/TL-04 L765
+    schema: avro/evidence/ObjectScanned.avsc
+    artifactId: evidence.object.scanned.v1-value
+
+  - topic: sys.tenant.provisioned.v1
+    name: TenantProvisioned
+    key: tenant:tenantId
+    outbox: registry.outbox_event
+    classification: C1
+    producer: SVC-03
+    consumers: []
+    partitions: 3
+    retention: 30d
+    note: SVC-03 báo tenant đã khởi tạo xong CSDL, realm, bucket (TL-01/TL-03)
+    schema: avro/sys/TenantProvisioned.avsc
+    artifactId: sys.tenant.provisioned.v1-value
+
+  - topic: iam.auth.event.v1
+    name: AuthEvent
+    key: tenant:userId
+    outbox: null
+    classification: C1
+    producer: SVC-02
+    consumers: [SVC-15, SIEM]
+    partitions: 12
+    retention: 14d
+    note: Keycloak đẩy qua SPI lắng nghe sự kiện (không có outbox); giữ tên iam.auth.event.v1 theo TL-03/TL-04 L766 (không dùng tiền tố sys.)
+    schema: avro/iam/AuthEvent.avsc
+    artifactId: iam.auth.event.v1-value
+
+  - topic: registry.tenant.changed.v1
+    name: TenantChanged
+    key: tenant:tenantId
+    outbox: registry.outbox_event
+    classification: C1
+    producer: SVC-03
+    consumers: [SVC-01]
+    partitions: 3
+    retention: compact
+    note: Kafka toàn cục, MirrorMaker 2 sao xuống mọi cell; phục vụ bảng định tuyến tại cổng (TL-01/TL-03)
+    schema: avro/registry/TenantChanged.avsc
+    artifactId: registry.tenant.changed.v1-value
+
+  - topic: org.bootstrap.v1
+    name: OrgBootstrap
+    key: tenant:entityId
+    outbox: null
+    classification: C1
+    producer: SVC-04
+    consumers: [org_replica, SVC-02, SVC-15]
+    partitions: 12
+    retention: 7d
+    note: Lệnh org-republish phát trạng thái hiện hành của mọi thực thể tổ chức của một tenant (TL-03)
+    schema: avro/org/OrgBootstrap.avsc
+    artifactId: org.bootstrap.v1-value
+    references:
+      - vn.vtokr.org.v1.DonViDaThayDoi
+      - vn.vtokr.org.v1.PhanCongDaThayDoi
+      - vn.vtokr.org.v1.NhanSuDaThayDoi
+
+  - topic: period.drain.marker
+    name: DrainMarker
+    key: tenant:periodId
+    outbox: "*.outbox_event"
+    classification: C0
+    producer: "*"
+    consumers: [SVC-06]
+    partitions: 24
+    retention: 7d
+    note: Dòng outbox đặc biệt của bước 2 saga chốt kỳ (TL-03 "Saga điều phối chốt kỳ")
+    schema: avro/period/DrainMarker.avsc
+    artifactId: period.drain.marker-value
+
+  - topic: agg.province.metric.v1
+    name: AggregateMetric
+    key: tenant:provinceUnitRef
+    outbox: null
+    classification: C0
+    producer: SVC-15
+    consumers: [analytics-national]
+    partitions: 6
+    retention: 30d
+    note: Topic chuẩn đại diện họ agg.* đẩy số liệu tổng hợp vô danh C0 (qua ngưỡng k-anonymity k >= 5) từ cấp tỉnh về Trung ương (TL-01, TL-04 L768)
+    schema: avro/agg/AggregateMetric.avsc
+    artifactId: agg.province.metric.v1-value
+
+# Quy ước họ topic kỹ thuật sinh theo mẫu (TL-01, TL-03, TL-04 L767–768):
+technicalTopicFamilies:
+  - pattern: "cdc.<db>.<schema>.<table>"
+    producer: Debezium Kafka Connect
+    consumers: [SVC-14, SVC-15]
+    key: primaryKey
+    partitions: 6
+    retention: 3d
+    classification: C1
+    schemaConvention: "Debezium Envelope JSON/Avro chuẩn (before, after, source, op, ts_ms) tự sinh từ DDL bảng nguồn"
+  - pattern: "<topic>.retry.<consumer>"
+    producer: "<consumer>"
+    consumers: ["<consumer>"]
+    key: "giữ nguyên khoá của <topic>"
+    partitions: 6
+    retention: 7d
+    classification: "giữ nguyên phân loại của <topic>"
+    schemaConvention: "Giữ nguyên lược đồ Avro value của <topic> gốc (<topic>-value) và bộ header CloudEvents + đếm số lần thử lại"
+  - pattern: "<topic>.dlq.<consumer>"
+    producer: "<consumer>"
+    consumers: [dlq-replayer, ops-alert]
+    key: "giữ nguyên khoá của <topic>"
+    partitions: 3
+    retention: 30d
+    classification: "giữ nguyên phân loại của <topic>"
+    schemaConvention: "Giữ nguyên lược đồ Avro value của <topic> gốc (<topic>-value), đính kèm header lỗi đã lọc C2 (x-dlq-error-code, x-dlq-failed-at, x-dlq-consumer-group)"
+  - pattern: "<topic>.replay.<consumer>"
+    producer: dlq-replayer
+    consumers: ["<consumer>"]
+    key: "giữ nguyên khoá của <topic>"
+    partitions: 6
+    retention: 7d
+    classification: "giữ nguyên phân loại của <topic>"
+    schemaConvention: "Giữ nguyên lược đồ Avro value của <topic> gốc (<topic>-value), đính kèm header ce_replayed=true"
+  - pattern: "agg.*"
+    producer: SVC-15
+    consumers: [analytics-national]
+    key: tenant:provinceUnitRef
+    partitions: 6
+    retention: 30d
+    classification: C0
+    schemaConvention: "Dùng chung lược đồ khung avro/agg/AggregateMetric.avsc (vn.vtokr.agg.v1.AggregateMetric)"

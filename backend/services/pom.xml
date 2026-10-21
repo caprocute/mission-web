@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  NEN-019 · TL-04 WI-23 · TL-01 "Ranh giới microservice" & "Cấu trúc mô-đun chuẩn".
+  POM gom các microservice Java của hệ thống (service-template và các dịch vụ sinh từ mẫu).
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>vn.viettel.okrkpi</groupId>
+    <artifactId>mission-backend-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>services</artifactId>
+  <packaging>pom</packaging>
+
+  <name>Mission · microservice Java</name>
+  <description>Danh sách microservice Java độc lập (SVC-04, SVC-06..SVC-08, SVC-10, SVC-11, SVC-13) và mẫu service-template (NEN-019).</description>
+
+  <modules>
+    <module>service-template</module>
+    <module>workflow-service</module>
+  </modules>
+</project>

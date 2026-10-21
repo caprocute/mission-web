@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+  <!-- Loại trừ mã nguồn sinh tự động từ OpenAPI Generator khỏi kiểm tra SpotBugs -->
+  <Match>
+    <Package name="~vn\.viettel\.okrkpi\.contract\.[a-z]+\.(api|model)"/>
+  </Match>
+</FindBugsFilter>

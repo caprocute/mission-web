@@ -31,6 +31,33 @@ export type GoldenTestCaseList = S['GoldenTestCaseList'];
 export type PolicyTestRunSummary = S['PolicyTestRunSummary'];
 export type PolicyTestRunList = S['PolicyTestRunList'];
 export type PolicyPackSubmit = S['PolicyPackSubmit'];
+export type PolicyManifest = S['PolicyManifest'];
+export type PolicyEvaluateOutputs = S['PolicyEvaluateOutputs'];
+export type PolicyRoundingMode = S['PolicyRoundingMode'];
+export type PolicyQualityMethod = S['PolicyQualityMethod'];
+export type PolicyDayType = S['PolicyDayType'];
+export type PolicyReturnReasonMode = S['PolicyReturnReasonMode'];
+export type PolicyTestRun = S['PolicyTestRun'];
+export type PolicyTestRunCreate = Partial<S['PolicyTestRunCreate']>;
+export type PolicyTestCaseResult = S['PolicyTestCaseResult'];
+export type PolicyImpact = S['PolicyImpact'];
+export type PolicyPropertyResult = S['PolicyPropertyResult'];
+export type GoldenTestSuite = S['GoldenTestSuite'];
+export type GoldenTestCaseCreate = S['GoldenTestCaseCreate'];
+export type GoldenTestCaseSource = S['GoldenTestCaseSource'];
+export type PolicyPackApprove = S['PolicyPackApprove'];
+export type PolicyDecisionReason = S['PolicyDecisionReason'];
+export type PolicyWorkflowTemplateSummary = S['PolicyWorkflowTemplateSummary'];
+export type PolicyWorkflowTemplateList = S['PolicyWorkflowTemplateList'];
+export type PolicyWorkflowTemplateVersion = S['PolicyWorkflowTemplateVersion'];
+export type WorkflowStepPreview = S['WorkflowStepPreview'];
+export type WorkflowLintResult = S['WorkflowLintResult'];
+export type WorkflowTestSummary = S['WorkflowTestSummary'];
+export type WorkflowBinding = S['WorkflowBinding'];
+export type WorkflowBindingUpdate = S['WorkflowBindingUpdate'];
+export type WorkflowBindingScope = S['WorkflowBindingScope'];
+export type WorkflowSimulateRequest = S['WorkflowSimulateRequest'];
+export type WorkflowSimulateResult = S['WorkflowSimulateResult'];
 
 /** Nhãn trạng thái phiên bản (baseline mục 9.1) hiển thị cho người dùng. */
 export const POLICY_VERSION_STATUS_LABEL: Record<PolicyPackVersionStatus, string> = {
@@ -50,26 +77,26 @@ export const isPolicyVersionEditable = (s: PolicyPackVersionStatus) =>
 export const policyVersionLabel = (v: string) => v.replace(/\.0$/, '');
 
 /** Cách tính chất lượng B (BR-15-02). */
-export const QUALITY_METHOD_LABEL: Record<string, string> = {
+export const QUALITY_METHOD_LABEL: Record<PolicyQualityMethod, string> = {
   NAM_MUC_PL3: 'Theo 5 mức của Phụ lục 3',
   TRU_25_MOI_LAN: 'Trừ 25% cho mỗi lần chỉnh sửa (Bảng chấm điểm)',
 };
 
 /** Loại ngày tính chậm (BR-15-03). */
-export const DAY_KIND_LABEL: Record<string, string> = {
+export const DAY_KIND_LABEL: Record<PolicyDayType, string> = {
   NGAY_LAM_VIEC: 'ngày làm việc theo lịch của đơn vị',
   NGAY_LICH: 'ngày lịch',
 };
 
-/** Lý do trả lại có tính vào chất lượng không (SCR-1501 trường 7; khoá giá trị là suy luận). */
-export const RETURN_REASON_LABEL: Record<string, string> = {
+/** Lý do trả lại có tính vào chất lượng không (SCR-1501 trường 7). */
+export const RETURN_REASON_LABEL: Record<PolicyReturnReasonMode, string> = {
   CHI_COT_LOI: 'Chỉ lý do thuộc nội dung cốt lõi',
   TAT_CA: 'Mọi lý do trả lại',
   KHONG_TINH: 'Không tính vào chất lượng',
 };
 
 /** Kiểu làm tròn (SCR-1501 trường 8; ngoài `NUA_LEN` là suy luận). */
-export const ROUNDING_MODE_LABEL: Record<string, string> = {
+export const ROUNDING_MODE_LABEL: Record<PolicyRoundingMode, string> = {
   NUA_LEN: 'nửa lên',
   CAT_BO: 'cắt bỏ phần lẻ',
 };
@@ -118,4 +145,46 @@ export function shadowedDecisionRows(
     }
   });
   return res;
+}
+
+/** Nguồn ca kiểm thử vàng. */
+export const GOLDEN_CASE_SOURCE_LABEL: Record<GoldenTestCaseSource, string> = {
+  KHACH_HANG: 'Đơn vị sử dụng cung cấp',
+  BA: 'Bộ phận nghiệp vụ soạn',
+  VAN_BAN: 'Ví dụ trong văn bản quy định',
+};
+
+/** Một bước duyệt trong tham số luồng (`params.cap[]` của mẫu, SCR-1504 trường 4, 7, 8). */
+export interface WorkflowLevelParam {
+  buoc: string;
+  vai_tro?: string;
+  don_vi?: string;
+  ky_so?: boolean;
+  ky_lo?: boolean;
+  bo_qua_khi?: string;
+}
+
+/** Hành vi khi quá hạn (SCR-1504 trường 6). */
+export const OVERDUE_ACTION_LABEL: Record<string, string> = {
+  NHAC_LAI: 'Nhắc lại người xử lý',
+  CHUYEN_CAP_PHO_UY_QUYEN: 'Tự chuyển cấp phó được uỷ quyền',
+  CHUYEN_CAP_TREN: 'Chuyển lên cấp trên',
+};
+
+/** Thời lượng ISO rút gọn theo ngày làm việc của mẫu luồng: `P3D_LV` ↔ 3 (SCR-1504 trường 5). */
+export const workDays = (d: unknown): number | null => {
+  const m = /^P(\d+)D_LV$/.exec(String(d ?? ''));
+  return m ? Number(m[1]) : null;
+};
+// ui-text-ok: giá trị tham số gửi máy chủ, không hiện trên màn hình
+export const workDaysParam = (n: number) => `P${n}D_LV`;
+
+/**
+ * Bước còn lại khi giảm số cấp duyệt của mẫu: giữ bước đầu và bước cuối, bỏ dần các bước giữa từ
+ * cuối lên (suy luận; máy chủ quyết định qua mô phỏng).
+ */
+export function stepsForLevels<T>(steps: readonly T[], n: number): T[] {
+  if (n >= steps.length) return [...steps];
+  if (n <= 1) return steps.slice(-1);
+  return [...steps.slice(0, n - 1), steps[steps.length - 1]];
 }

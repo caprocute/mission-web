@@ -1,0 +1,66 @@
+{{- if .Values.migration.enabled }}
+# Flyway chạy bằng mig_org trước khi cài hoặc nâng cấp (expand/contract); pod ứng dụng dùng svc_org không có DDL.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "org-service.fullname" . }}-migrate
+  labels:
+    {{- include "org-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.migration.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migration.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "org-service.selector" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "org-service.serviceAccount" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: {{ include "org-service.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- include "org-service.securityContext" . | nindent 12 }}
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: migrate
+            - name: ORG_DB_URL
+              value: {{ .Values.database.url | quote }}
+            - name: ORG_MIG_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.migrationSecret }}
+                  key: username
+            - name: ORG_MIG_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.migrationSecret }}
+                  key: password
+            - name: JAVA_TOOL_OPTIONS
+              value: {{ .Values.jvm.opts | quote }}
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              memory: 768Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+{{- end }}

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "iam.fullname" . }}-realm
+  labels:
+    {{- include "iam.labels" . | nindent 4 }}
+    app.kubernetes.io/component: realm-import
+data:
+  realm-cell.yaml: |-
+{{ .Files.Get "files/realm/realm-cell.yaml" | indent 4 }}

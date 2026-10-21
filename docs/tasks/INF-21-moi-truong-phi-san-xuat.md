@@ -13,7 +13,7 @@
 | Cỡ việc | M (≤ 1 ngày) |
 | Phụ thuộc | INF-04 |
 | Truy vết | TL-05 "Môi trường phi sản xuất" (QM-1, QM-3) → TL-04 mục 7.3 "Môi trường và công cụ thử tải" → TL-01 ch.18 "Tháp kiểm thử" (Playwright trên môi trường tạm theo nhánh) → SEC-52 (không dữ liệu thật) → OPS-02, OPS-15 → tiêu chí J5, J7 |
-| Trạng thái | Bị chặn bởi bên ngoài: cần tài nguyên hạ tầng (staging khoảng 22 node, tầng dữ liệu CELL-PERF 14 máy vật lý, `perf-gen` khoảng 10 VM); làm sẵn cấu hình và kiểm chứng tạm trên kind/k3d |
+| Trạng thái | Chưa bắt đầu (làm với bản giả lập; nối hệ thật khi có môi trường) |
 
 ## 1. Mục tiêu
 
@@ -38,7 +38,8 @@ Khai báo dạng mã các môi trường phi sản xuất mà TL-05 yêu cầu: 
 ## 4. Ngoài phạm vi
 
 - Kịch bản thử tải và chiến dịch thử tải (QA-08..QA-12); bộ sinh dữ liệu quy mô (DL-08).
-- Mua sắm, cấp phát máy thật (bị chặn bởi bên ngoài).
+- Mua sắm, cấp phát máy thật.
+- Dựng và kiểm thử trên tài nguyên hạ tầng thật (staging khoảng 22 node, CELL-PERF 14 máy vật lý, `perf-gen` khoảng 10 VM) khi được cấp; khi đó chỉ đổi values theo môi trường.
 
 ## 5. Tệp được phép sửa
 
@@ -49,7 +50,7 @@ Khai báo dạng mã các môi trường phi sản xuất mà TL-05 yêu cầu: 
 
 - `helm template` cho staging, CELL-PERF (M và L) và môi trường tạm chạy sạch; `kubeconform -strict` đạt; ApplicationSet sinh đúng Application.
 - Trên kind/k3d: dựng bản thu nhỏ của môi trường tạm theo nhánh (hồ sơ `compact`) và cài k6-operator; chạy một `TestRun` mẫu 1 phút tới service thử, số đo xuất ra Prometheus.
-- Tài liệu tài nguyên cần cấp có đủ con số TL-05 cho từng môi trường; báo cáo nêu rõ phần đang chờ cấp tài nguyên.
+- Tài liệu tài nguyên cần cấp có đủ con số TL-05 cho từng môi trường; kích thước và địa chỉ của staging, CELL-PERF, `perf-gen` nằm trong values theo môi trường, nên dựng trên tài nguyên thật chỉ đổi cấu hình.
 - Báo cáo cuối task theo AGENTS.md mục 6.
 
 ## 7. Báo cáo
