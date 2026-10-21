@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **101 / 401 task (25.2%)** — Khối lượng quy đổi đã gộp: **120 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **105 / 401 task (26.2%)** (gồm **101** đã gộp `main` + **4** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **13 task** (9 đang làm, 4 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **106 / 401 task (26.4%)** (gồm **101** đã gộp `main` + **5** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **12 task** (9 đang làm, 3 làm một phần).
 - **Chưa bắt đầu**: **283 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **8 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-00-02`** (đang xử lý trên nhánh: `CORE-00-02`).
 
@@ -26,13 +26,13 @@
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **2** | 3 | 0 | 107 | **1.8%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **14** | 0 | 8 | 82 | **13.5%** |
-| **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **4** | 0 | 2 | 6 | **33.3%** |
+| **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **4** | 1 | 1 | 6 | **33.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **1** | 1 | 0 | 26 | **3.6%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **101** | **4** | **13** | **283** | **25.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **101** | **5** | **12** | **283** | **25.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -40,7 +40,7 @@
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 59 | **48** | 1 | 1 | 9 | **81.4%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **20** | 3 | 4 | 13 | **50.0%** |
-| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **7** | 0 | 2 | 37 | **15.2%** |
+| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **7** | 1 | 1 | 37 | **15.2%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **16** | 0 | 4 | 97 | **13.7%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **10** | 0 | 1 | 60 | **14.1%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **0** | 0 | 1 | 41 | **0.0%** |
@@ -518,17 +518,17 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-16-01](docs/tasks/DV-16-01-chi-muc-opensearch.md) | Chỉ mục OpenSearch, alias lọc theo tenant, indexer consumer EVT-04, EVT-24 | M | B7 | 8 | INF-11, NEN-012 | **Chưa bắt đầu** |  |
 | [DV-16-02](docs/tasks/DV-16-02-api-tim-kiem.md) | API tìm kiếm toàn cục, kiểm quyền lại ở lõi trước khi trả chi tiết | M | B7 | 11 | DV-16-01, CORE-00-02, NEN-013, NEN-014 | **Chưa bắt đầu** |  |
 
-### DL · Dữ liệu, nội dung nghiệp vụ và chuyển đổi (4/12 đã gộp `main`, 0 chờ gộp, 2 đang làm)
+### DL · Dữ liệu, nội dung nghiệp vụ và chuyển đổi (4/12 đã gộp `main`, 1 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DL-01](docs/tasks/DL-01-policy-pack-quy-dinh-moi.md) | Policy Pack "quy định mới": công thức CEL tính điểm luồng Đảng và luồng Nhà nước theo QĐ 366, NĐ 335/2025 | L | B11 | 14 | CORE-05-04 | **Đã gộp main** | Đã gộp `main` (commit `cf3eafd` – Policy Pack giả lập cấu hình động theo QĐ 366 và NĐ 335/2025) |
 | [DL-02](docs/tasks/DL-02-dmn-xep-loai-dac-thu.md) | Bảng DMN xếp loại quý, năm và bảng 13 trường hợp đặc thù | M | B11 | 15 | DL-01, CORE-05-05 | **Đã gộp main** | Đã gộp `main` (commit `6aaab2d` – bảng DMN xếp loại quý, năm và 13 trường hợp đặc thù giả lập) |
 | [DL-03](docs/tasks/DL-03-bo-ca-kiem-thu-vang.md) | Bộ ca kiểm thử vàng đầy đủ do nghiệp vụ ký | L | B11 | 16 | DL-02, CORE-05-06 | **Đã gộp main** | Đã gộp `main` (commit `f00b178` – bộ ca kiểm thử vàng giả lập cho hai gói quy tắc và trình chạy tham chiếu) |
-| [DL-04](docs/tasks/DL-04-task-lifecycle-tham-so.md) | Bảng chuyển trạng thái `task_lifecycle` và tham số luồng duyệt mặc định | S | B11 | 14 | CORE-05-03 | **Làm một phần** | Đã có bảng chuyển trạng thái `task_lifecycle` trong gói Policy Pack nháp trên `main` (commit `7cb036b`) |
+| [DL-04](docs/tasks/DL-04-task-lifecycle-tham-so.md) | Bảng chuyển trạng thái `task_lifecycle` và tham số luồng duyệt mặc định | S | B11 | 14 | CORE-05-03 | **Xong, chờ gộp** | Nhánh claude/b11-noi-dung-26rl4b: kiểm thử nạp TaskLifecycleLoadTest 10/10 trên vt-cel; kiểm thử chạy thử với Testcontainers chờ CORE-02-13 |
 | [DL-05](docs/tasks/DL-05-mau-docx-bieu-mau.md) | Mẫu DOCX 1A–1D, 2, 3 và bảng chấm điểm theo văn bản pháp lý | M | B11 | 1 | – | **Đã gộp main** | Đã gộp `main` (commit `cf3eafd` – mẫu biểu DOCX 1A–1D, 2, 3 và bảng chấm điểm bản giả lập) |
 | [DL-06](docs/tasks/DL-06-ui-pack-mac-dinh.md) | UI Pack mặc định, bộ token người cao tuổi, danh mục công việc mẫu theo khối | M | B11 | 18 | CORE-08-11, CORE-02-04 | **Chưa bắt đầu** |  |
-| [DL-07](docs/tasks/DL-07-du-lieu-khoi-tao.md) | Dữ liệu khởi tạo: 9 khối đối tượng, lịch nghỉ lễ quốc gia, danh mục chức danh | S | B11 | 13 | DV-04-01, CORE-08-04 | **Làm một phần** | Đã có lịch nghỉ lễ quốc gia 2026–2027 và khung danh mục khối, chức danh trên `main` (commit `c939a88`) |
+| [DL-07](docs/tasks/DL-07-du-lieu-khoi-tao.md) | Dữ liệu khởi tạo: 9 khối đối tượng, lịch nghỉ lễ quốc gia, danh mục chức danh | S | B11 | 13 | DV-04-01, CORE-08-04 | **Làm một phần** | Lịch nghỉ 2026–2027 có nguồn trên main; migration lặp chờ tên 9 khối (PL 2A), danh mục chức danh (PL 2B) và bảng config.holiday_calendar của mission-core (CORE-08-01) |
 | [DL-08](docs/tasks/DL-08-sinh-du-lieu-thu-tai.md) | Bộ sinh dữ liệu thử quy mô (1,2 triệu hồ sơ một cell) cho kiểm thử hiệu năng | M | B9 | 13 | CORE-04-01, CORE-02-02, DV-04-01, CORE-03-01 | **Chưa bắt đầu** |  |
 | [DL-12](docs/tasks/DL-12-job-doi-soat.md) | Job đối soát R1–R8 và bốn job kiểm tra sổ cái | L | B11 | 14 | CORE-04-02, DV-09-04, DV-15-02 | **Chưa bắt đầu** |  |
 | [DL-13](docs/tasks/DL-13-luu-giu-xoa-mat-ma.md) | Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ | M | B11 | 13 | NEN-015, INF-18, CORE-08-07 | **Chưa bắt đầu** |  |
@@ -715,4 +715,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 21/10/2026 21:31 | B1 (Claude) | `CORE-00-03` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: schema org_replica, consumer EVT-14/15/16 + bootstrap, bao đóng 2 cây, OrgDirectoryApi; IT xanh, 10k sự kiện p99 ~0,3 s |
 | 21/10/2026 21:36 | B1 (Claude) | `CORE-00-05` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: điểm móc FieldEncryptor, gom sự kiện sys.audit.v1 |
 | 21/10/2026 22:17 | B1 (Claude) | `CORE-00-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: DecryptListener + C2AccessAuditor gom sys.audit.v1 qua outbox, @C2Access; IT xanh, chi phí thêm 0,08 ms p95; V0_24 nới ck_outbox_event__topic |
+| 21/10/2026 22:20 | B11 | `DL-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b11-noi-dung-26rl4b: kiểm thử nạp TaskLifecycleLoadTest 10/10 trên vt-cel; kiểm thử chạy thử với Testcontainers chờ CORE-02-13 |
+| 21/10/2026 22:20 | B11 | `DL-07` | Chuyển trạng thái sang **Làm một phần** — Lịch nghỉ 2026–2027 có nguồn trên main; migration lặp chờ tên 9 khối (PL 2A), danh mục chức danh (PL 2B) và bảng config.holiday_calendar của mission-core (CORE-08-01) |
 <!-- PROGRESS_LOG_END -->
