@@ -81,7 +81,7 @@ class ModuleApisUnitTest {
             "Quý 1/2026",
             LocalDate.of(2026, 1, 1),
             LocalDate.of(2026, 3, 31),
-            PeriodStatus.KHOI_TAO);
+            PeriodStatus.DANG_KHOA);
     periodConfig.registerPeriod(draftSnapshot);
     assertThat(periodConfig.findCurrent(TENANT)).isEmpty();
     assertThat(periodConfig.current(TENANT)).isEmpty();

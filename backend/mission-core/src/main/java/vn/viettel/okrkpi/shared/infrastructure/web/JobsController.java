@@ -54,7 +54,7 @@ public class JobsController implements JobsApi {
   }
 
   @Override
-  public ResponseEntity<Void> cancelJob(String id, String idempotencyKey) {
+  public ResponseEntity<Void> cancelJob(String idempotencyKey, String id) {
     TenantId tenantId = resolveTenantId();
     ActorId caller = resolveActorId();
     jobQueryService.cancel(tenantId, caller, id);

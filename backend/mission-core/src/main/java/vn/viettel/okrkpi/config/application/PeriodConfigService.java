@@ -57,7 +57,7 @@ public class PeriodConfigService implements PeriodApi {
             snapshot.name(),
             snapshot.startDate(),
             snapshot.endDate(),
-            PeriodStatus.DANG_HOAT_DONG);
+            PeriodStatus.MO);
     periods.put(new PeriodKey(opened.tenantId(), opened.id()), opened);
     eventPublisher.publishEvent(
         new PeriodOpenedEvent(opened.id(), opened.tenantId(), opened.code(), Instant.now()));
@@ -67,7 +67,7 @@ public class PeriodConfigService implements PeriodApi {
   public Optional<PeriodSnapshot> findCurrent(TenantId tenantId) {
     Objects.requireNonNull(tenantId, "tenantId must not be null");
     return periods.values().stream()
-        .filter(p -> p.tenantId().equals(tenantId) && p.status() == PeriodStatus.DANG_HOAT_DONG)
+        .filter(p -> p.tenantId().equals(tenantId) && p.status() == PeriodStatus.MO)
         .findFirst();
   }
 
