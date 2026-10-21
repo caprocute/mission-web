@@ -53,6 +53,8 @@ Toàn bộ cổng host đặt trong dải `35000–35999` và đều cấu hình
 
 ## 2. Kết nối qua cổng hầm SSH (SSH Tunnel) khi máy chủ hạn chế mở cổng
 
+> **Bảo mật cổng (bắt buộc):** mọi cổng ở bảng trên được Docker gắn vào `${BIND_ADDRESS:-127.0.0.1}`, tức chỉ nghe trên loopback của server dev. Không đặt `BIND_ADDRESS=0.0.0.0`: server dev có IP công khai và Docker công bố cổng bỏ qua tường lửa `ufw`, nên Postgres, Keycloak admin, OpenBao… sẽ lộ ra Internet. Truy cập từ máy trạm luôn đi qua hầm SSH bên dưới. Sau mỗi lần `docker compose up`, chạy `scripts/kiem-tra-cong.sh` trên server để xác nhận không còn cổng `0.0.0.0`. Địa chỉ server, tài khoản SSH chỉ ghi trong `.env` ở gốc repo (không commit), không ghi vào tài liệu, wiki hay thông điệp commit.
+
 Khi máy chủ dev chỉ mở cổng SSH (`22`) và không mở trực tiếp dải cổng `35xxx` ra mạng ngoài, lập trình viên mở một phiên hầm SSH từ máy trạm cá nhân:
 
 ```bash

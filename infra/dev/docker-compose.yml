@@ -129,7 +129,7 @@ services:
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Chưa đặt KEYCLOAK_DB_PASSWORD trong .env}
       TZ: Asia/Ho_Chi_Minh
     ports:
-      - "${POSTGRES_PORT:-35432}:5432"
+      - "${BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-35432}:5432"
     volumes:
       - ${POSTGRES_DATA:-pg_data}:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
@@ -157,7 +157,7 @@ services:
       DB_ROLE_PASSWORD_DEFAULT: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:-}}}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
     ports:
-      - "${PGBOUNCER_PORT:-35433}:6432"
+      - "${BIND_ADDRESS:-127.0.0.1}:${PGBOUNCER_PORT:-35433}:6432"
     volumes:
       - ./postgres/pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
       - ./postgres/pgbouncer/entrypoint.sh:/etc/pgbouncer/entrypoint.sh:ro
@@ -186,7 +186,7 @@ services:
       - "--requirepass"
       - "${VALKEY_PASSWORD:?Chưa đặt VALKEY_PASSWORD trong .env}"
     ports:
-      - "${VALKEY_PORT:-35379}:6379"
+      - "${BIND_ADDRESS:-127.0.0.1}:${VALKEY_PORT:-35379}:6379"
     volumes:
       - ${VALKEY_DATA:-valkey_data}:/data
     healthcheck:
@@ -237,7 +237,7 @@ services:
       KC_PROXY_HEADERS: xforwarded
       TZ: Asia/Ho_Chi_Minh
     ports:
-      - "${KEYCLOAK_PORT:-35080}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${KEYCLOAK_PORT:-35080}:8080"
     volumes:
       - ./keycloak/realm-mission.json:/opt/keycloak/data/import/realm-mission.json:ro
       - ../keycloak-theme/mission:/opt/keycloak/themes/mission:ro
@@ -267,7 +267,7 @@ services:
       - "--watch"
       - "/policies"
     ports:
-      - "${OPA_PORT:-35181}:8181"
+      - "${BIND_ADDRESS:-127.0.0.1}:${OPA_PORT:-35181}:8181"
     # Gói chính sách thật okrkpi (NEN-040, sinh từ ma trận phân quyền) như bundle của cụm thật; thư mục gắn ở
     # /policies/okrkpi để generated/data.json nằm đúng data.okrkpi.generated. Mission-core hỏi
     # /v1/data/okrkpi/authz/decision; bản khởi tạo ./opa/policies chỉ từ chối mặc định nên mọi API trả 403.
@@ -295,14 +295,14 @@ services:
       - "server"
       - "-dev"
       - "-dev-listen-address=0.0.0.0:8200"
-      - "-dev-root-token-id=${OPENBAO_DEV_ROOT_TOKEN:-mission_openbao_dev_token}"
+      - "-dev-root-token-id=${OPENBAO_DEV_ROOT_TOKEN:?Chưa đặt OPENBAO_DEV_ROOT_TOKEN trong .env}"
     cap_add:
       - IPC_LOCK
     environment:
-      BAO_DEV_ROOT_TOKEN_ID: ${OPENBAO_DEV_ROOT_TOKEN:-mission_openbao_dev_token}
+      BAO_DEV_ROOT_TOKEN_ID: ${OPENBAO_DEV_ROOT_TOKEN:?Chưa đặt OPENBAO_DEV_ROOT_TOKEN trong .env}
       BAO_ADDR: http://127.0.0.1:8200
     ports:
-      - "${OPENBAO_PORT:-35820}:8200"
+      - "${BIND_ADDRESS:-127.0.0.1}:${OPENBAO_PORT:-35820}:8200"
     healthcheck:
       test: ["CMD", "bao", "status"]
       interval: 10s
@@ -320,7 +320,7 @@ services:
         condition: service_healthy
     environment:
       OPENBAO_ADDR: http://openbao:8200
-      OPENBAO_DEV_ROOT_TOKEN: ${OPENBAO_DEV_ROOT_TOKEN:-mission_openbao_dev_token}
+      OPENBAO_DEV_ROOT_TOKEN: ${OPENBAO_DEV_ROOT_TOKEN:?Chưa đặt OPENBAO_DEV_ROOT_TOKEN trong .env}
     volumes:
       - ./openbao/init.sh:/init.sh:ro
     entrypoint: ["/bin/sh", "/init.sh"]
@@ -361,7 +361,7 @@ services:
     ports:
       # TUNNEL chỉ mở trên loopback của máy chủ; truy cập từ máy trạm đi qua hầm SSH.
       - "${KAFKA_TUNNEL_BIND:-127.0.0.1}:${KAFKA_PORT:-35092}:9095"
-      - "${KAFKA_EXTERNAL_PORT:-35094}:9094"
+      - "${BIND_ADDRESS:-127.0.0.1}:${KAFKA_EXTERNAL_PORT:-35094}:9094"
     volumes:
       - ${KAFKA_DATA:-kafka_data}:/var/lib/kafka/data
     healthcheck:
@@ -413,7 +413,7 @@ services:
       QUARKUS_HTTP_CORS_ENABLED: "true"
       QUARKUS_HTTP_CORS_ORIGINS: "*"
     ports:
-      - "${APICURIO_PORT:-35081}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${APICURIO_PORT:-35081}:8080"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/apis/registry/v3/system/info >/dev/null || exit 1"]
       interval: 15s
@@ -456,7 +456,7 @@ services:
       PG_CDC_ANALYTICS_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-${POSTGRES_PASSWORD:-${PG_SUPERUSER_PASSWORD:-}}}
       ANALYTICS_PSEUDONYM_KEY: ${ANALYTICS_PSEUDONYM_KEY:-}
     ports:
-      - "${DEBEZIUM_PORT:-35083}:8083"
+      - "${BIND_ADDRESS:-127.0.0.1}:${DEBEZIUM_PORT:-35083}:8083"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8083/connectors >/dev/null || exit 1"]
       interval: 15s
@@ -482,8 +482,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-mission_minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Chưa đặt MINIO_ROOT_PASSWORD trong .env}
     ports:
-      - "${MINIO_API_PORT:-35900}:9000"
-      - "${MINIO_CONSOLE_PORT:-35901}:9001"
+      - "${BIND_ADDRESS:-127.0.0.1}:${MINIO_API_PORT:-35900}:9000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${MINIO_CONSOLE_PORT:-35901}:9001"
     volumes:
       - ${MINIO_DATA:-minio_data}:/data
     healthcheck:
@@ -533,7 +533,7 @@ services:
       DISABLE_INSTALL_DEMO_CONFIG: "true"
       OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
     ports:
-      - "${OPENSEARCH_PORT:-35200}:9200"
+      - "${BIND_ADDRESS:-127.0.0.1}:${OPENSEARCH_PORT:-35200}:9200"
     volumes:
       - ${OPENSEARCH_DATA:-opensearch_data}:/usr/share/opensearch/data
     healthcheck:
@@ -556,8 +556,8 @@ services:
     volumes:
       - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
     ports:
-      - "${OTEL_GRPC_PORT:-35317}:4317"
-      - "${OTEL_HTTP_PORT:-35318}:4318"
+      - "${BIND_ADDRESS:-127.0.0.1}:${OTEL_GRPC_PORT:-35317}:4317"
+      - "${BIND_ADDRESS:-127.0.0.1}:${OTEL_HTTP_PORT:-35318}:4318"
     networks:
       - mission-net
 
@@ -571,7 +571,7 @@ services:
       - ./observability/tempo.yaml:/etc/tempo.yaml:ro
       - ${TEMPO_DATA:-tempo_data}:/var/tempo
     ports:
-      - "${TEMPO_PORT:-35320}:3200"
+      - "${BIND_ADDRESS:-127.0.0.1}:${TEMPO_PORT:-35320}:3200"
     networks:
       - mission-net
 
@@ -584,7 +584,7 @@ services:
     volumes:
       - ${LOKI_DATA:-loki_data}:/loki
     ports:
-      - "${LOKI_PORT:-35310}:3100"
+      - "${BIND_ADDRESS:-127.0.0.1}:${LOKI_PORT:-35310}:3100"
     networks:
       - mission-net
 
@@ -601,7 +601,7 @@ services:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ${PROMETHEUS_DATA:-prometheus_data}:/prometheus
     ports:
-      - "${PROMETHEUS_PORT:-35990}:9090"
+      - "${BIND_ADDRESS:-127.0.0.1}:${PROMETHEUS_PORT:-35990}:9090"
     networks:
       - mission-net
 
@@ -619,7 +619,7 @@ services:
       - ./observability/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
       - ${GRAFANA_DATA:-grafana_data}:/var/lib/grafana
     ports:
-      - "${GRAFANA_PORT:-35300}:3000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-35300}:3000"
     networks:
       - mission-net
 
@@ -636,7 +636,7 @@ services:
       - "--api-timeout=60s"
       - "--libreoffice-auto-start=true"
     ports:
-      - "${GOTENBERG_PORT:-35330}:3000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${GOTENBERG_PORT:-35330}:3000"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
       interval: 15s
@@ -688,7 +688,7 @@ services:
       - "--alias"
       - "viettel-llm-vi"
     ports:
-      - "${LLM_MOCK_PORT:-35340}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${LLM_MOCK_PORT:-35340}:8080"
     volumes:
       - llm_cache:/root/.cache/llama.cpp
     healthcheck:
@@ -728,7 +728,7 @@ services:
     profiles: ["backend", "all"]
     command: ["/opt/mission/tsa-mock.sh"]
     ports:
-      - "${TSA_MOCK_PORT:-35350}:8318"
+      - "${BIND_ADDRESS:-127.0.0.1}:${TSA_MOCK_PORT:-35350}:8318"
     volumes:
       - ./softhsm/tsa:/var/lib/tsa
     healthcheck:
@@ -753,7 +753,7 @@ services:
       # Issuer công khai của token (claim iss), thay vào apisix.yaml lúc nạp.
       KEYCLOAK_PUBLIC_ISSUER: ${KEYCLOAK_PUBLIC_URL:-http://127.0.0.1:35080}/realms/mission
     ports:
-      - "${APISIX_PORT:-35000}:9080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${APISIX_PORT:-35000}:9080"
     volumes:
       - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
       - ./apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
@@ -820,7 +820,7 @@ services:
       MISSION_CONFIG_KEYCLOAKADMIN_BASEURL: http://keycloak:8080
       MISSION_CONFIG_KEYCLOAKADMIN_CLIENTSECRET: ${MISSION_CORE_CLIENT_SECRET:-}
     ports:
-      - "${MISSION_CORE_PORT:-35100}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${MISSION_CORE_PORT:-35100}:8080"
       # Cổng quản trị chỉ mở trên loopback của máy chủ (health.sh, Prometheus cục bộ).
       - "127.0.0.1:${MISSION_CORE_MGMT_PORT:-35101}:8081"
 
@@ -872,7 +872,7 @@ services:
       OKRKPI_CRYPTO_AUTOCREATEKEK: "true"
     secrets: [openbao_token]
     ports:
-      - "${ORG_SERVICE_PORT:-35111}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${ORG_SERVICE_PORT:-35111}:8080"
 
   # SVC-06: Flowable ở CSDL flowable, schema flowable.
   workflow-service:
@@ -895,7 +895,7 @@ services:
       SPRING_FLYWAY_USER: mig_flowable
       SPRING_FLYWAY_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
     ports:
-      - "${WORKFLOW_SERVICE_PORT:-35112}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${WORKFLOW_SERVICE_PORT:-35112}:8080"
 
   # SVC-07.
   scoring-service:
@@ -911,7 +911,7 @@ services:
       JAVA_TOOL_OPTIONS: "-Xmx${SCORING_SERVICE_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
       MISSION_CORE_URL: http://mission-core:8080
     ports:
-      - "${SCORING_SERVICE_PORT:-35113}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${SCORING_SERVICE_PORT:-35113}:8080"
 
   # SVC-11: dựng biểu mẫu qua gotenberg, lưu tệp ở MinIO (profile search).
   document-service:
@@ -938,7 +938,7 @@ services:
       S3_ACCESS_KEY: ${MINIO_ROOT_USER:-}
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-}
     ports:
-      - "${DOCUMENT_SERVICE_PORT:-35114}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${DOCUMENT_SERVICE_PORT:-35114}:8080"
 
   # SVC-08: API và worker quét chung một container ở dev, quét bằng clamd của dịch vụ clamav (đặt
   # EVIDENCE_SCAN_ENABLED=false trong .env để tắt khi không bật clamav).
@@ -961,7 +961,7 @@ services:
       CLAMD_HOST: clamav
       CLAMD_PORT: "3310"
     ports:
-      - "${EVIDENCE_SERVICE_PORT:-35115}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${EVIDENCE_SERVICE_PORT:-35115}:8080"
 
   # SVC-10: ký số qua nhà cung cấp giả lập ở dev (ESIGN_FAKE_PROVIDER), HSM tắt.
   esign-service:
@@ -984,7 +984,7 @@ services:
       SPRING_FLYWAY_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
       ESIGN_FAKE_PROVIDER: ${ESIGN_FAKE_PROVIDER:-true}
     ports:
-      - "${ESIGN_SERVICE_PORT:-35116}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${ESIGN_SERVICE_PORT:-35116}:8080"
 
   # SVC-13: chỉ có cổng nội bộ /internal/v1, không có tuyến qua APISIX.
   # Nguồn nhân sự giả lập (YC-PT-13, HT-07): CSDL CBCCVC và CSDL đảng viên cho "Đồng bộ ngay" (SCR-0104), chỉ trong
@@ -1033,7 +1033,7 @@ services:
       JAVA_TOOL_OPTIONS: "-Xmx${INTEGRATION_GATEWAY_XMX:-${JAVA_XMX:-384m}} -XX:+ExitOnOutOfMemoryError"
     secrets: [openbao_token]
     ports:
-      - "${INTEGRATION_GATEWAY_PORT:-35117}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${INTEGRATION_GATEWAY_PORT:-35117}:8080"
 
   # SVC-15: đọc ClickHouse và Cube (profile analytics).
   analytics-api:
@@ -1063,7 +1063,7 @@ services:
       S3_ACCESS_KEY: ${MINIO_ROOT_USER:-}
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-}
     ports:
-      - "${ANALYTICS_API_PORT:-35118}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${ANALYTICS_API_PORT:-35118}:8080"
 
   # SVC-16: chỉ mục OpenSearch (profile search).
   search:
@@ -1080,7 +1080,7 @@ services:
       OPA_URL: http://opa:8181
       OPENSEARCH_URL: http://opensearch:9200
     ports:
-      - "${SEARCH_SERVICE_PORT:-35119}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${SEARCH_SERVICE_PORT:-35119}:8080"
 
   # Service Go dựng trong Docker từ services-go/ (backend/Dockerfile.go). Chuỗi kết nối CSDL ghép mật khẩu
   # svc_<schema>, nên DB_ROLE_PASSWORD_DEFAULT không được chứa ký tự phải mã hoá URL (@ : / ? #).
@@ -1133,7 +1133,7 @@ services:
       provision-gia-lap:
         condition: service_healthy
     ports:
-      - "${TENANT_REGISTRY_PORT:-35110}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${TENANT_REGISTRY_PORT:-35110}:8080"
 
   # Bộ giả lập hệ ngoài của saga cấp phát (YC-PT-13, VH-04): chỉ dùng dev, không mở cổng ra máy chủ.
   provision-gia-lap:
@@ -1175,7 +1175,7 @@ services:
       OIDC_JWKS_URL: http://keycloak:8080/realms/mission/protocol/openid-connect/certs
       TZ: Asia/Ho_Chi_Minh
     ports:
-      - "${LEDGER_SERVICE_PORT:-35120}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${LEDGER_SERVICE_PORT:-35120}:8080"
 
   # SVC-12: schema notify (CSDL mission); kênh email, SMS, đẩy tắt cho tới khi cấu hình ở .env.
   notification-service:
@@ -1197,7 +1197,7 @@ services:
       VALKEY_PASSWORD: ${VALKEY_PASSWORD:-}
       TZ: Asia/Ho_Chi_Minh
     ports:
-      - "${NOTIFICATION_SERVICE_PORT:-35121}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${NOTIFICATION_SERVICE_PORT:-35121}:8080"
 
   # ---------------------------------------------------------------------------
   # PROFILE: analytics — Kho phân tích ClickHouse của SVC-15 (DV-15-01, ADR-14)
@@ -1214,7 +1214,7 @@ services:
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Đặt CLICKHOUSE_PASSWORD trong .env}
       CLICKHOUSE_SKIP_USER_SETUP: "1"
     ports:
-      - "${CLICKHOUSE_HTTP_PORT:-35123}:8123"
+      - "${BIND_ADDRESS:-127.0.0.1}:${CLICKHOUSE_HTTP_PORT:-35123}:8123"
     volumes:
       - ${CLICKHOUSE_DATA:-clickhouse_data}:/var/lib/clickhouse
       - ./clickhouse/config.d/cell-dev.xml:/etc/clickhouse-server/config.d/cell-dev.xml:ro
@@ -1282,7 +1282,7 @@ services:
       CUBEJS_SQL_USER: ${CUBE_SQL_USER:-superset_ky_thuat}
       CUBEJS_SQL_PASSWORD: ${CUBE_SQL_PASSWORD:?Đặt CUBE_SQL_PASSWORD trong .env}
     ports:
-      - "${CUBE_PORT:-35400}:4000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${CUBE_PORT:-35400}:4000"
     volumes:
       - ../../analytics/cube/cube.js:/cube/conf/cube.js:ro
       - ../../analytics/cube/model:/cube/conf/model:ro
@@ -1320,7 +1320,7 @@ services:
       CUBE_SQL_PASSWORD: ${CUBE_SQL_PASSWORD:?Đặt CUBE_SQL_PASSWORD trong .env}
       CUBE_SQL_HOST: cube:15432
     ports:
-      - "${SUPERSET_PORT:-35088}:8088"
+      - "${BIND_ADDRESS:-127.0.0.1}:${SUPERSET_PORT:-35088}:8088"
     volumes:
       - superset_home:/app/superset_home
     healthcheck:

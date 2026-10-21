@@ -14,7 +14,7 @@
   "contracts/openapi/modules/scim.yaml": "e7a560b74af11e5c1a444ea081b02cd497e42a2108c448d511b51f2580a56f8d",
   "contracts/openapi/modules/tasks.yaml": "92996bb8fc94c049c3f8a51b8d8679490c33cd540eac723c8acf6b092bf91614",
   "infra/dev/apisix/apisix.yaml": "b0de0fbedc936988ab3d46a44b6c7bf93500d7edf8853ec025d6ef67259a61dc",
-  "infra/dev/docker-compose.yml": "6349ba4d5edba69c912e79ff9d106c195ca0a5506d84d1b1f347eb882e5d888d"
+  "infra/dev/docker-compose.yml": "c7446d3f07277d78c3493ff20d9bbe9c3f9c3fd6ba1a33991fa6ace5d2218734"
  },
  "operations": [
   {
@@ -512,126 +512,126 @@
  ],
  "ports": {
   "analytics-api": [
-   "${ANALYTICS_API_PORT:-35118}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${ANALYTICS_API_PORT:-35118}:8080"
   ],
   "apicurio": [
-   "${APICURIO_PORT:-35081}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${APICURIO_PORT:-35081}:8080"
   ],
   "apisix": [
-   "${APISIX_PORT:-35000}:9080"
+   "${BIND_ADDRESS:-127.0.0.1}:${APISIX_PORT:-35000}:9080"
   ],
   "cel-js-runner": [],
   "clamav": [],
   "clickhouse": [
-   "${CLICKHOUSE_HTTP_PORT:-35123}:8123"
+   "${BIND_ADDRESS:-127.0.0.1}:${CLICKHOUSE_HTTP_PORT:-35123}:8123"
   ],
   "clickhouse-lam-moi": [],
   "cube": [
-   "${CUBE_PORT:-35400}:4000"
+   "${BIND_ADDRESS:-127.0.0.1}:${CUBE_PORT:-35400}:4000"
   ],
   "debezium": [
-   "${DEBEZIUM_PORT:-35083}:8083"
+   "${BIND_ADDRESS:-127.0.0.1}:${DEBEZIUM_PORT:-35083}:8083"
   ],
   "document-service": [
-   "${DOCUMENT_SERVICE_PORT:-35114}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${DOCUMENT_SERVICE_PORT:-35114}:8080"
   ],
   "esign-service": [
-   "${ESIGN_SERVICE_PORT:-35116}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${ESIGN_SERVICE_PORT:-35116}:8080"
   ],
   "evidence-service": [
-   "${EVIDENCE_SERVICE_PORT:-35115}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${EVIDENCE_SERVICE_PORT:-35115}:8080"
   ],
   "gotenberg": [
-   "${GOTENBERG_PORT:-35330}:3000"
+   "${BIND_ADDRESS:-127.0.0.1}:${GOTENBERG_PORT:-35330}:3000"
   ],
   "grafana": [
-   "${GRAFANA_PORT:-35300}:3000"
+   "${BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-35300}:3000"
   ],
   "hr-gia-lap": [],
   "integration-gateway": [
-   "${INTEGRATION_GATEWAY_PORT:-35117}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${INTEGRATION_GATEWAY_PORT:-35117}:8080"
   ],
   "kafka": [
    "${KAFKA_TUNNEL_BIND:-127.0.0.1}:${KAFKA_PORT:-35092}:9095",
-   "${KAFKA_EXTERNAL_PORT:-35094}:9094"
+   "${BIND_ADDRESS:-127.0.0.1}:${KAFKA_EXTERNAL_PORT:-35094}:9094"
   ],
   "kafka-init": [],
   "keycloak": [
-   "${KEYCLOAK_PORT:-35080}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${KEYCLOAK_PORT:-35080}:8080"
   ],
   "ledger-service": [
-   "${LEDGER_SERVICE_PORT:-35120}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${LEDGER_SERVICE_PORT:-35120}:8080"
   ],
   "llm-mock": [
-   "${LLM_MOCK_PORT:-35340}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${LLM_MOCK_PORT:-35340}:8080"
   ],
   "loki": [
-   "${LOKI_PORT:-35310}:3100"
+   "${BIND_ADDRESS:-127.0.0.1}:${LOKI_PORT:-35310}:3100"
   ],
   "minio": [
-   "${MINIO_API_PORT:-35900}:9000",
-   "${MINIO_CONSOLE_PORT:-35901}:9001"
+   "${BIND_ADDRESS:-127.0.0.1}:${MINIO_API_PORT:-35900}:9000",
+   "${BIND_ADDRESS:-127.0.0.1}:${MINIO_CONSOLE_PORT:-35901}:9001"
   ],
   "minio-init": [],
   "mission-core": [
-   "${MISSION_CORE_PORT:-35100}:8080",
+   "${BIND_ADDRESS:-127.0.0.1}:${MISSION_CORE_PORT:-35100}:8080",
    "127.0.0.1:${MISSION_CORE_MGMT_PORT:-35101}:8081"
   ],
   "notification-service": [
-   "${NOTIFICATION_SERVICE_PORT:-35121}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${NOTIFICATION_SERVICE_PORT:-35121}:8080"
   ],
   "opa": [
-   "${OPA_PORT:-35181}:8181"
+   "${BIND_ADDRESS:-127.0.0.1}:${OPA_PORT:-35181}:8181"
   ],
   "openbao": [
-   "${OPENBAO_PORT:-35820}:8200"
+   "${BIND_ADDRESS:-127.0.0.1}:${OPENBAO_PORT:-35820}:8200"
   ],
   "openbao-init": [],
   "opensearch": [
-   "${OPENSEARCH_PORT:-35200}:9200"
+   "${BIND_ADDRESS:-127.0.0.1}:${OPENSEARCH_PORT:-35200}:9200"
   ],
   "org-service": [
-   "${ORG_SERVICE_PORT:-35111}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${ORG_SERVICE_PORT:-35111}:8080"
   ],
   "otel-collector": [
-   "${OTEL_GRPC_PORT:-35317}:4317",
-   "${OTEL_HTTP_PORT:-35318}:4318"
+   "${BIND_ADDRESS:-127.0.0.1}:${OTEL_GRPC_PORT:-35317}:4317",
+   "${BIND_ADDRESS:-127.0.0.1}:${OTEL_HTTP_PORT:-35318}:4318"
   ],
   "pgbouncer": [
-   "${PGBOUNCER_PORT:-35433}:6432"
+   "${BIND_ADDRESS:-127.0.0.1}:${PGBOUNCER_PORT:-35433}:6432"
   ],
   "postgres": [
-   "${POSTGRES_PORT:-35432}:5432"
+   "${BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-35432}:5432"
   ],
   "prometheus": [
-   "${PROMETHEUS_PORT:-35990}:9090"
+   "${BIND_ADDRESS:-127.0.0.1}:${PROMETHEUS_PORT:-35990}:9090"
   ],
   "provision-gia-lap": [],
   "scoring-service": [
-   "${SCORING_SERVICE_PORT:-35113}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${SCORING_SERVICE_PORT:-35113}:8080"
   ],
   "search": [
-   "${SEARCH_SERVICE_PORT:-35119}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${SEARCH_SERVICE_PORT:-35119}:8080"
   ],
   "softhsm-init": [],
   "superset": [
-   "${SUPERSET_PORT:-35088}:8088"
+   "${BIND_ADDRESS:-127.0.0.1}:${SUPERSET_PORT:-35088}:8088"
   ],
   "tempo": [
-   "${TEMPO_PORT:-35320}:3200"
+   "${BIND_ADDRESS:-127.0.0.1}:${TEMPO_PORT:-35320}:3200"
   ],
   "tenant-registry": [
-   "${TENANT_REGISTRY_PORT:-35110}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${TENANT_REGISTRY_PORT:-35110}:8080"
   ],
   "tsa-mock": [
-   "${TSA_MOCK_PORT:-35350}:8318"
+   "${BIND_ADDRESS:-127.0.0.1}:${TSA_MOCK_PORT:-35350}:8318"
   ],
   "valkey": [
-   "${VALKEY_PORT:-35379}:6379"
+   "${BIND_ADDRESS:-127.0.0.1}:${VALKEY_PORT:-35379}:6379"
   ],
   "web": [],
   "workflow-service": [
-   "${WORKFLOW_SERVICE_PORT:-35112}:8080"
+   "${BIND_ADDRESS:-127.0.0.1}:${WORKFLOW_SERVICE_PORT:-35112}:8080"
   ]
  },
  "routes": [
