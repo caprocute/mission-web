@@ -8,9 +8,20 @@ NODES=$(kind get nodes --name "$CLUSTER")
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 for img in "$@"; do
   docker image inspect "$img" >/dev/null 2>&1 || docker pull -q --platform linux/amd64 "$img" >/dev/null
-  docker save --platform linux/amd64 -o "$TMP/a.tar" "$img"
+  # Ảnh tham chiếu theo digest (chart vt-service bắt buộc): lưu dưới một tag tạm, nạp vào node rồi gắn lại
+  # đúng tên "repo@sha256:..." để kubelet thấy ảnh có sẵn và không kéo từ registry.
+  ten="$img"
+  if [[ "$img" == *@sha256:* ]]; then
+    ten="${img%@*}:vt-nap"
+    docker tag "$img" "$ten"
+  fi
+  docker save --platform linux/amd64 -o "$TMP/a.tar" "$ten"
   for n in $NODES; do
     docker exec -i "$n" ctr --namespace=k8s.io images import --platform linux/amd64 --snapshotter=overlayfs - < "$TMP/a.tar" >/dev/null
+    if [ "$ten" != "$img" ]; then
+      docker exec "$n" ctr --namespace=k8s.io images rm "$img" >/dev/null 2>&1 || true
+      docker exec "$n" ctr --namespace=k8s.io images tag "$ten" "$img" >/dev/null
+    fi
   done
   echo "đã nạp $img"
 done

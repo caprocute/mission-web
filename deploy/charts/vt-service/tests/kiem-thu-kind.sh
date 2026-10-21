@@ -28,7 +28,7 @@ pdb=$(kubectl -n "$NS" get pdb echo-service -o jsonpath='{.status.disruptionsAll
 echo "== NetworkPolicy"
 chay_client() { # $1 tên pod, $2 nhãn vai trò
   kubectl -n "$NS" run "$1" --image=docker.io/library/alpine:latest --restart=Never --labels="vt.io/vai-tro=$2" \
-    --overrides='{"spec":{"securityContext":{"runAsNonRoot":true,"runAsUser":10001,"seccompProfile":{"type":"RuntimeDefault"}},"containers":[{"name":"c","image":"docker.io/library/alpine:latest","command":["sh","-c","wget -qO- -T 5 http://echo-service.'"$NS"'.svc:8080/ && echo THANH_CONG || echo THAT_BAI"],"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}}]}}' >/dev/null
+    --overrides='{"spec":{"securityContext":{"runAsNonRoot":true,"runAsUser":10001,"seccompProfile":{"type":"RuntimeDefault"}},"containers":[{"name":"c","image":"docker.io/library/alpine:latest","imagePullPolicy":"IfNotPresent","command":["sh","-c","wget -qO- -T 5 http://echo-service.'"$NS"'.svc:8080/ && echo THANH_CONG || echo THAT_BAI"],"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}}]}}' >/dev/null
   kubectl -n "$NS" wait --for=jsonpath='{.status.phase}'=Succeeded "pod/$1" --timeout=60s >/dev/null || true
   kubectl -n "$NS" logs "$1" | tail -1; kubectl -n "$NS" delete pod "$1" --wait=false >/dev/null
 }

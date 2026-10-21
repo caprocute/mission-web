@@ -4,7 +4,7 @@ Luồng tạm dừng vì hết quota. Nhánh: `claude/b8-ha-tang-g7g48k` (dựng
 
 | Task | Trạng thái | Chi tiết |
 |---|---|---|
-| INF-01 chart `vt-service` | Gần xong | Chart thư viện `deploy/charts/vt-service` xong; `tests/chay-kiem-thu.sh` đạt 23/23 (helm lint, kubeconform -strict kèm CRD, kube-linter, golden TL-04 mục 5.5, 5 ca phải thất bại). **Còn lại:** chạy `tests/kiem-thu-kind.sh` (pod Ready, rải 3 vùng, PDB, NetworkPolicy, xoá node ≤ 120 s) – lần chạy cuối dừng ở `helm upgrade --wait` (context deadline), chưa điều tra; cập nhật wiki 12 (mục cách dùng `vt-service`) và wiki 14 (điểm lệch +2/+4 pod của HPA, compact đổi spread sang node `DoNotSchedule` – suy luận). |
+| INF-01 chart `vt-service` | Xong (21/10/2026) | Kiểm thử tĩnh 23/23; kiểm thử kind 6/6 (`tests/kiem-thu-kind.sh`). Nguyên nhân hết thời gian chờ trước đó: ảnh nạp theo digest đa nền tảng không khớp manifest amd64, đã sửa trong `nap-anh.sh`. Wiki 12, 14 đã cập nhật. |
 | INF-05 pipeline Jenkins Java | Xong (chờ backend thật) | `ci/vt-pipeline`, `backend/Jenkinsfile`, `.semgrep/`, `.gitleaks.toml`, wiki 11, 14. 4/4 MR sai bị chặn trên Jenkinsfile Runner, cosign verify/verify-attestation đạt. Chưa chạy trên `backend/` thật (chờ NEN-005) và Jenkins/Sonar/Dependency-Track thật. Chi tiết trong commit INF-05. |
 | INF-08 cụm cell phần 1 | Chưa làm | Chỉ có cụm kind nền `deploy/environments/kind` (1 control plane + 3 worker vùng hl-a/b/c, Cilium 1.18.1 chạy được). Chưa có Cluster API, `cell-base`, `api-gateway`, `vt-claims`. |
 | INF-14 quan sát phần 1 | Chưa làm | Phụ thuộc INF-08. |
