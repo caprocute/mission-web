@@ -14,7 +14,7 @@ describe('fe-config-studio', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('router-outlet')).not.toBeNull();
   });
 
-  it('khung có các phần chính sách, giao diện, biểu mẫu; phiên bản chính sách có bốn thẻ', () => {
+  it('khung có các phần chính sách, giao diện, biểu mẫu, mẫu quy trình; phiên bản chính sách có bốn thẻ', () => {
     const sections = ROUTES[0].children ?? [];
     expect(sections.map((r) => r.path)).toEqual([
       '',
@@ -22,6 +22,8 @@ describe('fe-config-studio', () => {
       'giao-dien',
       'bieu-mau',
       'bieu-mau/:formKey/:formVersion',
+      'mau-luong',
+      'mau-luong/:templateId',
     ]);
     expect(sections[0].title).toBe('Chính sách đánh giá');
     expect(sections[1].children?.map((r) => r.path)).toEqual([

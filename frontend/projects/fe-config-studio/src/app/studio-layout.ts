@@ -23,12 +23,15 @@ export const UI_PACK_KEYS: PermissionKey[] = [
   'SCR-1801.quay-lui',
 ];
 export const FORM_KEYS: PermissionKey[] = ['SCR-1802.dung'];
+/** Thư viện mẫu quy trình dùng chung: chỉ đội sản phẩm nền tảng (BS-01 SCR-1505). */
+export const WF_TEMPLATE_KEYS: PermissionKey[] = ['SCR-1505.thu-vien'];
 
 /** Các phần của Config Studio theo ma trận wiki/15a; trang đầu là phần đầu tiên người dùng có quyền. */
 export const STUDIO_SECTIONS: { path: string; label: string; keys: PermissionKey[] }[] = [
   { path: '', label: 'Chính sách đánh giá', keys: POLICY_KEYS },
   { path: 'giao-dien', label: 'Giao diện đơn vị', keys: UI_PACK_KEYS },
   { path: 'bieu-mau', label: 'Biểu mẫu động', keys: FORM_KEYS },
+  { path: 'mau-luong', label: 'Mẫu quy trình dùng chung', keys: WF_TEMPLATE_KEYS },
 ];
 
 /**
