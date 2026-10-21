@@ -35,11 +35,30 @@ import vn.viettel.okrkpi.org.infrastructure.web.model.OrgTreeKind;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnit;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgUnitInput;
 import vn.viettel.okrkpi.org.infrastructure.web.model.SearchOrgUnits200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.AssignOrgDiscrepancyRequest;
+import vn.viettel.okrkpi.org.infrastructure.web.model.DiscrepancySeverity;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ImportOrgExcel202Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgDiscrepancies200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgSyncRuns200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgSyncSchedules200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.MapOrgDiscrepancyRequest;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgDiscrepancy;
+import vn.viettel.okrkpi.org.infrastructure.web.model.OrgDiscrepancyField;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ResolveOrgDiscrepancies200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.ResolveOrgDiscrepanciesRequest;
+import vn.viettel.okrkpi.org.infrastructure.web.model.StartOrgSyncRunRequest;
+import vn.viettel.okrkpi.org.infrastructure.web.model.SyncSource;
+import vn.viettel.okrkpi.org.application.sync.DiscrepancyService;
+import vn.viettel.okrkpi.org.application.sync.SyncRunService;
+import vn.viettel.okrkpi.org.application.port.SyncRunStore.Run;
+import vn.viettel.okrkpi.org.application.port.SyncScheduleStore.ScheduleSet;
+import java.net.URI;
 
 /**
  * Hiện thực giao diện {@link OrgApi} sinh từ {@code contracts/openapi/modules/org.yaml} (ADR-32, interfaceOnly) cho
  * các thao tác cây tổ chức của QT-01, SCR-0103. Thao tác chưa thuộc phạm vi (phân công, nhập Excel, đồng bộ) giữ
- * hiện thực mặc định 501 của giao diện sinh.
+ * hiện thực mặc định 501 của giao diện sinh. Đồng bộ nguồn nhân sự và đối soát (DV-04-07) ánh xạ qua
+ * {@link SyncWebMapper}.
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -50,10 +69,15 @@ public class OrgController implements OrgApi {
   private final OrgUnitCommandService commands;
   private final RequestHasher hasher;
   private final HttpServletRequest request;
+  private final DiscrepancyService discrepancies;
+  private final SyncRunService syncRuns;
 
-  public OrgController(OrgUnitQueryService queries, OrgUnitCommandService commands, RequestHasher hasher, HttpServletRequest request) {
+  public OrgController(OrgUnitQueryService queries, OrgUnitCommandService commands, RequestHasher hasher,
+      HttpServletRequest request, DiscrepancyService discrepancies, SyncRunService syncRuns) {
     this.queries = queries;
     this.commands = commands;
+    this.discrepancies = discrepancies;
+    this.syncRuns = syncRuns;
     this.hasher = hasher;
     this.request = request;
   }
@@ -157,6 +181,87 @@ public class OrgController implements OrgApi {
     body.setItems(page.items().stream().map(OrgWebMapper::toDto).toList());
     body.setNextCursor(page.nextCursor());
     return ResponseEntity.ok(body);
+  }
+
+  // DV-04-07 · QT-01, SCR-0104: đồng bộ nguồn nhân sự và đối soát chênh lệch.
+
+  @Override
+  public ResponseEntity<ListOrgDiscrepancies200Response> listOrgDiscrepancies(OrgDiscrepancyField field,
+      DiscrepancySeverity severity, Boolean unresolved, Integer limit, String cursor) {
+    return ResponseEntity.ok(SyncWebMapper.toDto(discrepancies.list(actor(),
+        field == null ? null : field.getValue(), severity == null ? null : severity.getValue(), unresolved,
+        limit == null ? 20 : limit, cursor)));
+  }
+
+  @Override
+  public ResponseEntity<ResolveOrgDiscrepancies200Response> resolveOrgDiscrepancies(String idempotencyKey,
+      ResolveOrgDiscrepanciesRequest body) {
+    return ResponseEntity.ok(SyncWebMapper.toDto(discrepancies.resolve(actor(),
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), body), body.getIds(),
+        body.getResolution().getValue(), body.getEffectiveFrom(), body.getNote()), request.getRequestURI()));
+  }
+
+  @Override
+  public ResponseEntity<OrgDiscrepancy> mapOrgDiscrepancy(String idempotencyKey, UUID id,
+      MapOrgDiscrepancyRequest body) {
+    return ResponseEntity.ok(SyncWebMapper.toDto(discrepancies.map(actor(),
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), body), id, body.getPersonId())));
+  }
+
+  @Override
+  public ResponseEntity<OrgDiscrepancy> assignOrgDiscrepancy(String idempotencyKey, UUID id,
+      AssignOrgDiscrepancyRequest body) {
+    return ResponseEntity.ok(SyncWebMapper.toDto(discrepancies.assign(actor(),
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), body), id, body.getAssigneeId(),
+        body.getNote())));
+  }
+
+  @Override
+  public ResponseEntity<ImportOrgExcel202Response> startOrgSyncRun(String idempotencyKey,
+      StartOrgSyncRunRequest body) {
+    String connector = body == null || body.getConnector() == null ? null : body.getConnector().getValue();
+    SyncRunService.Started started = syncRuns.start(actor(),
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), body), connector);
+    return ResponseEntity.accepted().location(URI.create("/api/v1/org/sync-runs"))
+        .body(SyncWebMapper.job(started.runIds().getFirst(), "DANG_CHAY"));
+  }
+
+  @Override
+  public ResponseEntity<ListOrgSyncRuns200Response> listOrgSyncRuns(SyncSource connector, Integer limit,
+      String cursor) {
+    Page<Run> page = syncRuns.list(actor(), connector == null ? null : connector.getValue(),
+        limit == null ? 20 : limit, cursor);
+    ListOrgSyncRuns200Response body = new ListOrgSyncRuns200Response();
+    body.setItems(page.items().stream().map(SyncWebMapper::toDto).toList());
+    body.setNextCursor(page.nextCursor());
+    return ResponseEntity.ok(body);
+  }
+
+  @Override
+  public ResponseEntity<ImportOrgExcel202Response> retryOrgSyncRun(String idempotencyKey, UUID id) {
+    Run run = syncRuns.retry(actor(), hasher.of(idempotencyKey, "POST", request.getRequestURI(), null), id);
+    return ResponseEntity.accepted().location(URI.create("/api/v1/org/sync-runs"))
+        .body(SyncWebMapper.job(run.id(), "DANG_CHAY"));
+  }
+
+  @Override
+  public ResponseEntity<ListOrgSyncSchedules200Response> listOrgSyncSchedules() {
+    return schedules(syncRuns.schedules(actor()));
+  }
+
+  @Override
+  public ResponseEntity<ListOrgSyncSchedules200Response> saveOrgSyncSchedules(String ifMatch, String idempotencyKey,
+      ListOrgSyncSchedules200Response body) {
+    int expected = IfMatch.parse(ifMatch);
+    return schedules(syncRuns.saveSchedules(actor(),
+        hasher.of(idempotencyKey, "PUT", request.getRequestURI(), body), expected,
+        body.getItems().stream().map(SyncWebMapper::toSchedule).toList()));
+  }
+
+  private static ResponseEntity<ListOrgSyncSchedules200Response> schedules(ScheduleSet set) {
+    ListOrgSyncSchedules200Response body = new ListOrgSyncSchedules200Response();
+    body.setItems(set.items().stream().map(SyncWebMapper::toDto).toList());
+    return ResponseEntity.ok().eTag(etag(set.version())).body(body);
   }
 
   private Actor actor() {

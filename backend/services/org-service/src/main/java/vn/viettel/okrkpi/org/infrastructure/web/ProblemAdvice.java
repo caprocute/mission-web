@@ -29,6 +29,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import vn.viettel.okrkpi.org.application.ForbiddenOperationException;
 import vn.viettel.okrkpi.org.application.IdempotencyMismatchException;
 import vn.viettel.okrkpi.org.application.StepUpRequiredException;
+import vn.viettel.okrkpi.org.application.port.IntegrationUnavailableException;
 import vn.viettel.okrkpi.org.domain.OrgConflictException;
 import vn.viettel.okrkpi.org.domain.OrgNotFoundException;
 import vn.viettel.okrkpi.org.domain.OrgRuleViolation;
@@ -155,6 +156,13 @@ public class ProblemAdvice {
     LOG.warn("Vi phạm toàn vẹn dữ liệu sqlState={}", state);
     return send(problem(HttpStatus.UNPROCESSABLE_ENTITY, "validation", "Dữ liệu chưa hợp lệ", null,
         "COMMON-422-VALIDATION", req));
+  }
+
+  @ExceptionHandler(IntegrationUnavailableException.class)
+  ResponseEntity<ProblemDetail> integration(IntegrationUnavailableException e, HttpServletRequest req) {
+    return send(problem(HttpStatus.SERVICE_UNAVAILABLE, "unavailable", "Chưa kết nối được nguồn dữ liệu",
+        "Không gửi được yêu cầu tới hệ thống tích hợp, vui lòng thử lại sau.", "ORG-503-INTEGRATION-UNAVAILABLE",
+        req));
   }
 
   @ExceptionHandler(Exception.class)
