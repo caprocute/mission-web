@@ -18,6 +18,7 @@ import { ALERTS_MOCK } from './oversight/alerts.mock';
 import { COMPLAINTS_MOCK } from './oversight/complaints.mock';
 import { ANALYTICS_MOCK } from './analytics/analytics.mock';
 import { UI_FORMS_MOCK } from './ui-forms/ui-forms.mock';
+import { UI_PACKS_MOCK } from './ui-packs/ui-packs.mock';
 import { ROLE_ADMIN_MOCK } from './role-admin/role-admin.mock';
 import { POLICIES_MOCK } from './policies/policies.mock';
 
@@ -45,6 +46,7 @@ export const MOCK_MODULES: MockModule[] = [
   LEDGER_MOCK,
   COMPLAINTS_MOCK,
   UI_FORMS_MOCK,
+  UI_PACKS_MOCK,
   ROLE_ADMIN_MOCK,
   ALERTS_MOCK,
   POLICIES_MOCK,
