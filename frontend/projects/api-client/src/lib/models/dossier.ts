@@ -77,3 +77,65 @@ export const REMEDIATION_STATUS_LABEL: Record<DossierRemediationStatus, string> 
   DA_KHAC_PHUC: 'Đã khắc phục',
   CHUA_KHAC_PHUC: 'Chưa khắc phục',
 };
+
+/** Gói hồ sơ số, biểu mẫu và danh sách kiểm tra trước khi ký (SCR-1102, WEB-041). */
+export type DossierPackageKind = Schemas['DossierPackageKind'];
+export type DossierPackageStatus = Schemas['DossierPackageStatus'];
+export type DossierPackage = Schemas['DossierPackage'];
+export type DossierPackagePage = Schemas['DossierPackagePage'];
+export type DossierPackageChecklist = Schemas['DossierPackageChecklist'];
+export type DossierChecklistItem = Schemas['DossierChecklistItem'];
+export type DossierCentralTransfer = Schemas['DossierCentralTransfer'];
+export type DossierTransferDestination = Schemas['DossierTransferDestination'];
+export type DossierTransferRequest = Schemas['DossierTransferRequest'];
+export type DossierPackageSignRequest = Schemas['DossierPackageSignRequest'];
+export type DossierSignJob = Schemas['DossierSignJob'];
+export type DossierFormCode = Schemas['DossierFormCode'];
+export type DossierFormStatus = Schemas['DossierFormStatus'];
+export type DossierForm = Schemas['DossierForm'];
+export type DossierFormPage = Schemas['DossierFormPage'];
+export type DossierSpecialCaseGroup = Schemas['DossierSpecialCaseGroup'];
+
+export const PACKAGE_KIND_LABEL: Record<DossierPackageKind, string> = {
+  QUY: 'Gói quý',
+  NAM: 'Gói năm',
+  DIEN_TW: 'Gói diện Trung ương quản lý',
+};
+
+export const PACKAGE_STATUS_LABEL: Record<DossierPackageStatus, string> = {
+  DANG_LAP: 'Đang lập',
+  DANG_SINH: 'Đang sinh biểu mẫu',
+  CHO_KY: 'Chờ ký',
+  DA_KY: 'Đã ký',
+  DA_NOP: 'Đã nộp',
+  DA_LUU_TRU: 'Đã lưu trữ',
+};
+
+export const FORM_CODE_LABEL: Record<DossierFormCode, string> = {
+  MAU_1A: 'Mẫu 1A',
+  MAU_1B: 'Mẫu 1B',
+  MAU_1C: 'Mẫu 1C',
+  MAU_1D: 'Mẫu 1D',
+  MAU_2: 'Mẫu 2',
+  MAU_3: 'Mẫu 3',
+  BANG_CHAM_DIEM: 'Bảng chấm điểm',
+};
+
+export const FORM_STATUS_LABEL: Record<DossierFormStatus, string> = {
+  CHO_SINH: 'Chờ sinh',
+  DA_SINH: 'Đã sinh',
+  DA_KY: 'Đã ký',
+  LOI: 'Sinh lỗi',
+};
+
+export const TRANSFER_DESTINATION_LABEL: Record<DossierTransferDestination, string> = {
+  BTC_TW: 'Ban Tổ chức Trung ương',
+  VPTW: 'Văn phòng Trung ương Đảng',
+};
+
+export const TRANSFER_STATUS_LABEL: Record<DossierCentralTransfer['transferStatus'], string> = {
+  CHUA_GUI: 'Chưa gửi',
+  DANG_GUI: 'Đang gửi',
+  DA_GUI: 'Đã gửi',
+  LOI: 'Gửi chưa thành công',
+};

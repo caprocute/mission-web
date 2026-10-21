@@ -85,7 +85,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-038](WEB-038-quyet-dinh-hang-loat.md) | SCR-0904 Quyết định xếp loại hàng loạt và ký số | L | WEB-037 | Xong, đã gộp |
 | [WEB-039](WEB-039-xep-loai-nam.md) | SCR-1001 Xếp loại năm và SCR-1002 Phân nhóm triển vọng | M | WEB-037 | Xong, đã gộp |
 | [WEB-040](WEB-040-hoi-nghi-kiem-diem.md) | SCR-1101 Hội nghị kiểm điểm | M | WEB-015 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-040-hoi-nghi-kiem-diem`) |
-| [WEB-041](WEB-041-goi-ho-so-so.md) | SCR-1102 Gói hồ sơ số và ký số | M | WEB-040 | Chưa bắt đầu |
+| [WEB-041](WEB-041-goi-ho-so-so.md) | SCR-1102 Gói hồ sơ số và ký số | M | WEB-040 | Xong, chờ gộp (luồng OKR, đánh giá; nhánh `feat/WEB-041-goi-ho-so-so`) |
 | [WEB-042](WEB-042-khieu-nai.md) | SCR-1201 Gửi khiếu nại và SCR-1202 Xử lý khiếu nại | L | WEB-015 | Xong, chờ gộp (nhánh `feat/WEB-042-khieu-nai`, dựng trên WEB-043) |
 | [WEB-043](WEB-043-mo-lai-ky-so-cai.md) | SCR-1301 Yêu cầu mở lại kỳ và SCR-1302 Tra cứu sổ cái | M | WEB-034 | Xong, chờ gộp (nhánh `feat/WEB-043-mo-lai-ky-so-cai`) |
 

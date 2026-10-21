@@ -1,0 +1,267 @@
+<p class="back"><a routerLink="..">← Danh sách gói hồ sơ số</a></p>
+
+@if (data.isLoading() && !p()) {
+  <p role="status">Đang tải gói hồ sơ…</p>
+} @else if (data.error() && !p()) {
+  <p class="err" role="alert">Không tải được gói hồ sơ. Vui lòng thử lại.</p>
+} @else if (p(); as p) {
+  <header class="head">
+    <div>
+      <h1>Gói hồ sơ số {{ lowerFirst(p.period.label) }}</h1>
+      <p class="sub">
+        {{ kindLabel[p.packageKind] }}, mã gói <strong>{{ p.code }}</strong>
+        @if (p.orgUnit) {
+          · {{ p.orgUnit.name }}
+        }
+        @if (p.deadline) {
+          · hạn nộp cấp trên {{ p.deadline | date: 'dd/MM/yyyy' }}
+        }
+      </p>
+      <p class="sub">
+        Trạng thái: <strong data-status>{{ statusLabel[p.status] }}</strong>
+        @if (p.submittedAt) {
+          · nộp lúc {{ p.submittedAt | date: 'HH:mm dd/MM/yyyy' }}
+        }
+      </p>
+    </div>
+    <div class="acts">
+      @if (allow('export')) {
+        <button
+          type="button"
+          class="btn"
+          data-act="tai-goi"
+          (click)="exportPackage()"
+          [disabled]="busy()"
+        >
+          Tải gói (ZIP và manifest)
+        </button>
+      }
+    </div>
+  </header>
+
+  <div aria-live="polite" class="live">
+    @if (notice(); as n) {
+      <p class="ok" role="status">{{ n }}</p>
+    }
+    @if (warn(); as w) {
+      <p class="warn" role="alert" data-msg="MSG-11-06">{{ w }}</p>
+    }
+    @if (error(); as e) {
+      <p class="err" role="alert">{{ e }}</p>
+    }
+  </div>
+  @if (locked()) {
+    <p class="info">Gói đã ký và nộp nên bị khoá; mọi thay đổi phải qua mở lại kỳ.</p>
+  }
+
+  <div class="grid" [class.one]="simple()">
+    <div class="col">
+      <section class="card" aria-labelledby="pk-forms">
+        <h2 id="pk-forms">
+          Biểu mẫu sinh từ dữ liệu
+          <small>{{ p.formCounts.rendered }}/{{ p.formCounts.total }} tệp xong</small>
+        </h2>
+        @if (p.formCounts.failed) {
+          <p class="warn" data-msg="MSG-11-07">{{ lateText(p.formCounts.failed) }}</p>
+        }
+        @if (allow('regenerate')) {
+          <button
+            type="button"
+            class="btn primary"
+            data-act="sinh-lai"
+            (click)="regenerate()"
+            [disabled]="busy()"
+          >
+            Sinh lại mẫu lỗi
+          </button>
+        }
+        @if (forms.isLoading() && !formList().length) {
+          <p role="status">Đang tải biểu mẫu…</p>
+        } @else {
+          <div class="wrap">
+            <table>
+              <caption class="sr">
+                Biểu mẫu của gói
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Biểu mẫu</th>
+                  <th scope="col">Đối tượng</th>
+                  <th scope="col">Trạng thái</th>
+                  <th scope="col">Định dạng</th>
+                  <th scope="col"><span class="sr">Thao tác</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (f of formList(); track f.id) {
+                  <tr [attr.data-form-status]="f.status">
+                    <td>{{ formLabel[f.formCode] }}</td>
+                    <td>{{ f.subjectPerson?.name ?? 'Cả đơn vị' }}</td>
+                    <td>
+                      <span class="chip" [attr.data-s]="f.status">{{
+                        formStatusLabel[f.status]
+                      }}</span>
+                      @if (f.renderError) {
+                        <small class="why">{{ f.renderError }}</small>
+                      }
+                    </td>
+                    <td>{{ f.format ?? 'PDF/A' }} · mẫu {{ f.templateVersion }}</td>
+                    <td>
+                      @if (canView(f)) {
+                        <button
+                          type="button"
+                          class="btn sm"
+                          data-act="xem"
+                          [attr.aria-label]="
+                            'Xem ' + formLabel[f.formCode] + ' ' + (f.subjectPerson?.name ?? '')
+                          "
+                          (click)="view(f)"
+                          [disabled]="busy()"
+                        >
+                          Xem
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <section class="card" aria-labelledby="pk-special">
+        <h2 id="pk-special">
+          Trường hợp đặc thù trong kỳ
+          @if (groups().length) {
+            <small>{{ groups().length }}/13 trường hợp, {{ specialTotal() }} hồ sơ</small>
+          }
+        </h2>
+        @if (!groups().length) {
+          <p class="muted">Không phát hiện trường hợp đặc thù nào.</p>
+        } @else {
+          <div class="wrap">
+            <table data-special>
+              <caption class="sr">
+                Trường hợp đặc thù phát hiện trong kỳ
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Trường hợp</th>
+                  <th scope="col">Cách xử lý</th>
+                  <th scope="col">Số hồ sơ</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (g of groups(); track g.legalRef) {
+                  <tr>
+                    <td>{{ caseLabel(g.legalRef) }} ({{ g.legalRef }})</td>
+                    <td>{{ g.handling ?? '—' }}</td>
+                    <td>{{ g.count }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="card" aria-labelledby="pk-check" id="pk-check" tabindex="-1">
+        <h2 id="pk-check-h">Kiểm tra trước khi ký gói</h2>
+        @if (checks(); as c) {
+          <ul class="checks">
+            @for (i of c.items; track i.code) {
+              <li [attr.data-check]="i.status">
+                <span class="mark" aria-hidden="true">{{ i.status === 'DAT' ? '✓' : '!' }}</span>
+                <span>
+                  {{ i.label }}
+                  <span class="sr">{{ i.status === 'DAT' ? '(đạt)' : '(cảnh báo)' }}</span>
+                </span>
+              </li>
+            }
+          </ul>
+          @if (c.passed) {
+            <p class="pass">Đạt đủ điều kiện ký gói.</p>
+          } @else {
+            <p class="fail">Còn {{ failing() }} mục cần xử lý trước khi ký gói.</p>
+          }
+        } @else {
+          <p role="status">Đang kiểm tra…</p>
+        }
+      </section>
+
+      @if (p.central; as ct) {
+        <section class="card" aria-labelledby="pk-central">
+          <h2 id="pk-central">Chuyển hồ sơ diện Trung ương quản lý</h2>
+          <p>
+            Số hồ sơ: <strong>{{ ct.profileCount }}</strong>
+          </p>
+          <p>
+            Trạng thái: <strong data-transfer>{{ transferLabel[ct.transferStatus] }}</strong>
+          </p>
+          @if (allow('transfer')) {
+            <label for="pk-dest">Nơi nhận</label>
+            <select id="pk-dest" (change)="destination.set($any($event.target).value)">
+              @for (d of destinations; track d) {
+                <option [value]="d" [selected]="destination() === d">{{ destLabel[d] }}</option>
+              }
+            </select>
+            <button
+              type="button"
+              class="btn"
+              data-act="goi-con"
+              (click)="transfer()"
+              [disabled]="busy()"
+            >
+              Gửi gói con
+            </button>
+          } @else if (ct.destination) {
+            <p>
+              Nơi nhận: <strong>{{ destLabel[ct.destination] }}</strong>
+            </p>
+          }
+          @if (!locked()) {
+            <p class="muted">Gói con được gửi sau khi gói chính đã ký số.</p>
+          }
+        </section>
+      }
+
+      <section class="card" aria-labelledby="pk-sign">
+        <h2 id="pk-sign">Ký số gói và nộp cấp trên</h2>
+        @if (signer(); as s) {
+          <p>
+            Người ký: <strong>{{ s.name }}</strong>
+          </p>
+          <p>Nhà cung cấp chữ ký số: {{ s.ca }}</p>
+          @if (certExpired()) {
+            <p class="fail">Chứng thư số đã hết hạn. Đề nghị gia hạn chứng thư trước khi ký.</p>
+          }
+        }
+        <p>Chữ ký được gắn dấu thời gian tin cậy khi ký.</p>
+        <p>
+          Mã băm gói: <code>{{ short(p.packageSha256 ?? p.manifestHash) }}</code> ({{
+            p.formCounts.total
+          }}
+          tệp)
+        </p>
+        @if (allow('sign')) {
+          <button
+            type="button"
+            class="btn primary"
+            data-act="ky-goi"
+            (click)="sign()"
+            [disabled]="busy()"
+          >
+            Ký số gói và nộp
+          </button>
+        } @else if (p.submittedAt) {
+          <p class="pass">
+            Gói đã được ký số và nộp lúc {{ p.submittedAt | date: 'HH:mm dd/MM/yyyy' }}.
+          </p>
+        }
+      </section>
+    </div>
+  </div>
+}

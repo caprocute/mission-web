@@ -1,24 +1,29 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, Routes } from '@angular/router';
 import { PermissionService, permissionGuard, screenKeys } from '@vt/auth';
-import { MEETING_KEYS } from './dossier-permissions';
+import { MEETING_KEYS, PACKAGE_KEYS } from './dossier-permissions';
 
 /**
- * Trang đầu `/dossier`: vai trò có một chức năng của SCR-1101 vào thẳng danh sách hội nghị kiểm điểm; vai trò
- * khác ở trang khung cho tới khi SCR-1102 được dựng.
+ * Trang đầu `/dossier`: vai trò có một chức năng của SCR-1101 vào thẳng danh sách hội nghị kiểm điểm, vai trò
+ * chỉ có chức năng của SCR-1102 vào danh sách gói hồ sơ số; vai trò khác ở trang khung.
  */
 const firstScreen: CanActivateFn = (_route, state) => {
-  if (!inject(PermissionService).canAny(...MEETING_KEYS)) return true;
+  const perms = inject(PermissionService);
+  const target = perms.canAny(...MEETING_KEYS)
+    ? '/kiem-diem'
+    : perms.canAny(...PACKAGE_KEYS)
+      ? '/goi-ho-so'
+      : null;
+  if (!target) return true;
   const [path, query] = state.url.split('?');
-  return inject(Router).parseUrl(
-    path.replace(/\/$/, '') + '/kiem-diem' + (query ? '?' + query : ''),
-  );
+  return inject(Router).parseUrl(path.replace(/\/$/, '') + target + (query ? '?' + query : ''));
 };
 
 /**
  * Tuyến của remote fe-dossier, shell gắn dưới `/dossier` (QT-11). SCR-1101 Hội nghị kiểm điểm (WEB-040):
  * `kiem-diem` là danh sách và hộp "Lập hội nghị", `kiem-diem/:id` là màn hình điều hành một hội nghị. Tuyến con
- * chặn theo chức năng của SCR-1101 (wiki/15a); SCR-1102 bổ sung khi làm WEB-041.
+ * chặn theo chức năng của SCR-1101 (wiki/15a). SCR-1102 Gói hồ sơ số và ký số (WEB-041): `goi-ho-so` là danh
+ * sách gói, `goi-ho-so/:id` là màn hình theo dõi sinh biểu mẫu, kiểm tra trước khi ký, gửi gói con và ký gói.
  */
 export const ROUTES: Routes = [
   {
@@ -38,6 +43,18 @@ export const ROUTES: Routes = [
     canActivate: [permissionGuard(...screenKeys('SCR-1101'))],
     loadComponent: () => import('./pages/meeting/meeting.page').then((m) => m.MeetingPage),
     title: 'Hội nghị kiểm điểm',
+  },
+  {
+    path: 'goi-ho-so',
+    canActivate: [permissionGuard(...screenKeys('SCR-1102'))],
+    loadComponent: () => import('./pages/packages/packages.page').then((m) => m.PackagesPage),
+    title: 'Gói hồ sơ số',
+  },
+  {
+    path: 'goi-ho-so/:id',
+    canActivate: [permissionGuard(...screenKeys('SCR-1102'))],
+    loadComponent: () => import('./pages/package/package.page').then((m) => m.PackagePage),
+    title: 'Gói hồ sơ số',
   },
 ];
 

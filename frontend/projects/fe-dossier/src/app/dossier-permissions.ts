@@ -10,7 +10,11 @@ export type DossierPermissionKey =
   | 'SCR-1101.gui-du-thao'
   | 'SCR-1101.gop-y'
   | 'SCR-1101.thu-ky'
-  | 'SCR-1101.ket-thuc';
+  | 'SCR-1101.ket-thuc'
+  | 'SCR-1102.chuan-bi'
+  | 'SCR-1102.tai-goi'
+  | 'SCR-1102.ky-goi'
+  | 'SCR-1102.goi-con';
 
 /** Mọi khoá của SCR-1101: có một khoá là vào được màn hình hội nghị kiểm điểm. */
 export const MEETING_KEYS: DossierPermissionKey[] = [
@@ -19,6 +23,14 @@ export const MEETING_KEYS: DossierPermissionKey[] = [
   'SCR-1101.gop-y',
   'SCR-1101.thu-ky',
   'SCR-1101.ket-thuc',
+];
+
+/** Mọi khoá của SCR-1102: có một khoá là vào được màn hình gói hồ sơ số. */
+export const PACKAGE_KEYS: DossierPermissionKey[] = [
+  'SCR-1102.chuan-bi',
+  'SCR-1102.tai-goi',
+  'SCR-1102.ky-goi',
+  'SCR-1102.goi-con',
 ];
 
 /**

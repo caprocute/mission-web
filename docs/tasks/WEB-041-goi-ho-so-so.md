@@ -12,7 +12,7 @@
 | Cỡ việc | M (S ≈ ½ ngày agent, M ≈ 1 ngày, L ≈ 2 ngày; L nên tách nhỏ khi làm) |
 | Phụ thuộc | WEB-040 |
 | Truy vết | QT-11 → SCR-1102 → `/api/v1/dossiers`, `/api/v1/esign` → MOD-06, SVC-11, SVC-10 → EVT-17, EVT-18 |
-| Trạng thái | Chưa bắt đầu |
+| Trạng thái | Xong, chờ gộp |
 
 ## 1. Mục tiêu
 
