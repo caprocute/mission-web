@@ -30,23 +30,23 @@ class OperationPolicyCatalogTest {
   void defaultCatalogMatchesOpenApiContractCounts() {
     OperationPolicyCatalog catalog = OperationPolicyCatalog.getDefault();
 
-    assertThat(catalog.size()).isEqualTo(372);
-    assertThat(catalog.all()).hasSize(372);
+    // 372 thao tác trước NEN-042/043 + 42 thao tác bổ sung trong NEN-042/043 = 414 thao tác.
+    assertThat(catalog.size()).isEqualTo(414);
+    assertThat(catalog.all()).hasSize(414);
 
     List<OperationPolicy> aal2 = catalog.aal2Operations();
-    // 54 thao tác AAL2 gốc của hợp đồng + 7 thao tác của WEB-058 trong config.yaml = 61 thao tác.
-    assertThat(aal2).hasSize(61);
-    long baselineAal2 =
+    // 54 thao tác AAL2 gốc + 7 thao tác của WEB-058 + 12 thao tác của NEN-042/043 = 73 thao tác.
+    assertThat(aal2).hasSize(73);
+    long nonWeb058Aal2 =
         aal2.stream().filter(p -> !WEB_058_AAL2_OPS.contains(p.operationId())).count();
-    assertThat(baselineAal2).isEqualTo(54);
+    assertThat(nonWeb058Aal2).isEqualTo(66);
 
     List<OperationPolicy> fourEyes = catalog.fourEyesOperations();
-    // 15 thao tác bốn mắt gốc của hợp đồng + 2 thao tác của WEB-058 trong config.yaml = 17 thao
-    // tác.
-    assertThat(fourEyes).hasSize(17);
-    long baselineFourEyes =
+    // 15 thao tác bốn mắt gốc + 2 thao tác của WEB-058 + 1 thao tác của NEN-043 = 18 thao tác.
+    assertThat(fourEyes).hasSize(18);
+    long nonWeb058FourEyes =
         fourEyes.stream().filter(p -> !WEB_058_FOUR_EYES_OPS.contains(p.operationId())).count();
-    assertThat(baselineFourEyes).isEqualTo(15);
+    assertThat(nonWeb058FourEyes).isEqualTo(16);
   }
 
   @Test
