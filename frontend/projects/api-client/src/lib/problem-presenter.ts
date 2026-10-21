@@ -1,6 +1,11 @@
 import { Injectable, InjectionToken, inject } from '@angular/core';
 import { MessageService } from 'primeng/api';
+import { isLoadShed } from './load-shedding';
 import { ProblemDetails, fieldErrors, isConcurrencyConflict, toProblem } from './problem-details';
+
+/** Thông báo xếp hàng khi hệ thống cắt tải (WEB-073); không hiện mã kỹ thuật. */
+export const LOAD_SHED_MESSAGE =
+  'Hệ thống đang bận do nhiều người dùng cùng lúc. Nội dung đồng chí nhập vẫn được giữ, vui lòng gửi lại sau ít phút.';
 
 /**
  * Bảng `code` của Problem Details → văn bản MSG của TL-02 (ví dụ `TASK-409-PERIOD-LOCKED` →
@@ -24,6 +29,8 @@ export interface PresentedProblem {
   fields: Record<string, string>;
   /** Xung đột ghi đồng thời (409/412): giao diện phải giữ dữ liệu và cho so sánh, tải lại. */
   conflict: boolean;
+  /** Hệ thống cắt tải (429/503): nội dung được giữ, người dùng có thể gửi lại. */
+  retryable: boolean;
   /** Mã truy vết hiển thị cho người dùng báo hỗ trợ (chỉ khi không có MSG riêng). */
   traceId?: string;
 }
@@ -47,12 +54,14 @@ export class ProblemPresenter {
     const problem = toProblem(err);
     const mapped = problem.code ? this.lookup(problem.code) : undefined;
     const fields = fieldErrors(problem);
+    const retryable = isLoadShed(problem);
     return {
       problem,
-      message: mapped ?? problem.title,
+      message: mapped ?? (retryable ? LOAD_SHED_MESSAGE : problem.title),
       fields,
       conflict: isConcurrencyConflict(problem),
-      traceId: mapped ? undefined : problem.traceId,
+      retryable,
+      traceId: mapped || retryable ? undefined : problem.traceId,
     };
   }
 
@@ -64,7 +73,7 @@ export class ProblemPresenter {
       this.toastService.add({
         severity: p.problem.status >= 500 || p.problem.status === 0 ? 'error' : 'warn',
         summary: p.message,
-        detail: p.traceId ? `Mã tra cứu: ${p.traceId}` : p.problem.detail,
+        detail: p.traceId ? `Mã tra cứu: ${p.traceId}` : p.retryable ? undefined : p.problem.detail,
         life: 8000,
       });
     }

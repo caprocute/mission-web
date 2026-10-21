@@ -30,6 +30,9 @@ const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
  */
 const WRITE_ONLY_ERRORS = new Set([401, 409, 412, 422]);
 const FORCED_HEADERS: Record<number, Record<string, string>> = {
+  // Cắt tải (WEB-073): máy chủ báo thời gian chờ trước khi gửi lại
+  429: { 'Retry-After': '2' },
+  503: { 'Retry-After': '2' },
   401: {
     // ui-text-ok: tiêu đề HTTP, không hiện lên màn hình
     'WWW-Authenticate':
@@ -42,8 +45,9 @@ const FORCED_TITLES: Record<number, string> = {
   409: 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại',
   412: 'Dữ liệu đã được người khác cập nhật, vui lòng tải lại',
   422: 'Dữ liệu không hợp lệ',
+  429: 'Hệ thống đang bận, vui lòng gửi lại sau ít phút',
   500: 'Lỗi máy chủ, vui lòng thử lại sau',
-  503: 'Hệ thống đang quá tải, vui lòng thử lại sau',
+  503: 'Hệ thống đang bận, vui lòng gửi lại sau ít phút',
 };
 
 const stepUpDone = new Set<string>();

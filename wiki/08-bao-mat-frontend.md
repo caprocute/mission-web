@@ -43,6 +43,8 @@ Baseline mục 10 chia dữ liệu thành bốn lớp: C0 công khai, C1 nội b
 
 SEC-07 và SEC-53 yêu cầu không ghi token và che thông tin cá nhân trong log. Ở frontend, điều này có nghĩa là không đưa token, nội dung biểu mẫu hay dữ liệu C2 vào `console`, vào thuộc tính span hay sự kiện Faro; TL-01 cũng quy định Faro không thu nội dung người dùng nhập (xem [Hiệu năng và trải nghiệm](09-hieu-nang-va-trai-nghiem.md)).
 
+Bản nháp khi cắt tải (WEB-073): TL-04 yêu cầu "giữ bản nháp cục bộ", trong khi AGENTS.md cấm lưu dữ liệu C2 dạng rõ ở trình duyệt. Hai yêu cầu này được dung hoà bằng `DraftKeeper` của `@vt/api-client`. Dịch vụ này giữ nội dung đang soạn trong bộ nhớ của phiên, theo khoá của từng biểu mẫu, và không ghi xuống `localStorage` hay IndexedDB. Hệ quả là bản nháp mất khi người dùng tải lại trang. Việc lưu IndexedDB cho các trường C0 và C1 theo `x-classification` chưa làm; đây là phương án suy luận, chờ chốt.
+
 ## Mã hoá đầu cuối cho dữ liệu C3 (ADR-27)
 
 ADR-27 quy định dữ liệu C3 được mã hoá đầu cuối (E2EE) ngay trong trình duyệt, máy chủ chỉ giữ bản mã. TL-01 mô tả cơ chế: mỗi tài liệu có khoá nội dung (CEK) AES-256-GCM; CEK được bọc cho từng người nhận bằng ECDH-ES trên đường cong P-256 kết hợp HKDF-SHA256 và AES-KW; khoá riêng của người dùng là `CryptoKey` tạo với `extractable: false` và lưu trong IndexedDB, nên mã JavaScript cũng không đọc được giá trị khoá. Khôi phục khoá dùng chia sẻ bí mật Shamir 3 trên 5. Tài liệu C3 được giải mã và hiển thị bằng PDF.js trong `iframe` có `sandbox`, không tải về dạng rõ. TL-01 ước tính C3 chiếm dưới 1% nhiệm vụ.

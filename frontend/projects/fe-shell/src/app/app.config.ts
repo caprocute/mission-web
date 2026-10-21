@@ -1,4 +1,9 @@
-import { ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  ApplicationConfig,
+  inject,
+  provideAppInitializer,
+  provideBrowserGlobalErrorListeners,
+} from '@angular/core';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
 import {
@@ -6,6 +11,7 @@ import {
   RuntimeConfig,
   apiBaseUrlInterceptor,
   idempotencyInterceptor,
+  loadSheddingInterceptor,
   mockApiInterceptor,
 } from '@vt/api-client';
 import { authInterceptor, provideVtAuth } from '@vt/auth';
@@ -30,7 +36,11 @@ export function buildAppConfig(
     providers: [
       provideBrowserGlobalErrorListeners(),
       { provide: RUNTIME_CONFIG, useValue: cfg },
-      provideRouter(routes, withComponentInputBinding(), withInMemoryScrolling({ scrollPositionRestoration: 'top' })),
+      provideRouter(
+        routes,
+        withComponentInputBinding(),
+        withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
+      ),
       provideHttpClient(
         withFetch(),
         // mockApiInterceptor đứng cuối: chỉ trả fixture khi useMockApi bật (WEB-008)
@@ -38,6 +48,8 @@ export function buildAppConfig(
           apiBaseUrlInterceptor,
           authInterceptor,
           idempotencyInterceptor,
+          // Thử lại 429/503 theo Retry-After (WEB-073); sau Idempotency-Key để giữ nguyên khoá
+          loadSheddingInterceptor,
           traceparentInterceptor,
           mockApiInterceptor,
         ]),
