@@ -37,6 +37,7 @@
     <!-- Thư viện nền vt-kernel, vt-platform-* (NEN-009..NEN-016), vt-db-migration (NEN-030): libs/ -->
     <module>libs</module>
     <!-- Khối nguyên khối theo mô-đun mission-core (CORE-00-01): mission-core/ -->
+    <module>mission-core</module>
     <!-- Microservice Java (NEN-019 trở đi): services/ -->
     <module>services</module>
   </modules>
