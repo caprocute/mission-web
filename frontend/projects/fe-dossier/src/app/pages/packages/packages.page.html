@@ -1,0 +1,61 @@
+<vt-dossier-tabs />
+<header class="head">
+  <div>
+    <h1>Gói hồ sơ số</h1>
+    <p class="sub">Gói hồ sơ đánh giá, xếp loại của đơn vị chuẩn bị nộp cấp trên.</p>
+  </div>
+  <div class="acts">
+    <label for="pk-status" class="inline">Trạng thái</label>
+    <select id="pk-status" (change)="status.set($any($event.target).value)">
+      <option value="">Tất cả</option>
+      @for (s of statuses; track s) {
+        <option [value]="s">{{ statusLabel[s] }}</option>
+      }
+    </select>
+  </div>
+</header>
+
+@if (list.isLoading() && !items().length) {
+  <p role="status">Đang tải danh sách…</p>
+} @else if (list.error()) {
+  <p class="err" role="alert">Không tải được danh sách gói hồ sơ. Vui lòng thử lại.</p>
+} @else if (!items().length) {
+  <p class="muted">Không có gói hồ sơ nào.</p>
+} @else {
+  <div class="wrap">
+    <table>
+      <caption class="sr">
+        Danh sách gói hồ sơ số
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Mã gói</th>
+          <th scope="col">Loại gói</th>
+          <th scope="col">Kỳ</th>
+          <th scope="col">Hạn nộp cấp trên</th>
+          <th scope="col">Biểu mẫu</th>
+          <th scope="col">Trạng thái</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of items(); track p.id) {
+          <tr>
+            <td>
+              <a [routerLink]="[p.id]">{{ p.code }}</a>
+            </td>
+            <td>{{ kindLabel[p.packageKind] }}</td>
+            <td>{{ p.period.label }}</td>
+            <td>{{ p.deadline ? (p.deadline | date: 'dd/MM/yyyy') : '—' }}</td>
+            <td>
+              {{ p.formCounts.rendered }}/{{ p.formCounts.total }} tệp đã sinh
+              @if (p.formCounts.failed) {
+                , {{ p.formCounts.failed }} tệp lỗi
+              }
+            </td>
+            <td>{{ statusLabel[p.status] }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

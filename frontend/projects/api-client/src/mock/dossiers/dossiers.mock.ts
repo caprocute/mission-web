@@ -6,6 +6,13 @@ import {
 import { Job } from '../../lib/models/job';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import { MEETING_ROUTES, meetingDraftFile, meetingJob, resetMeetings } from './meetings';
+import {
+  PACKAGE_ROUTES,
+  packageFormFailed,
+  packageFormFile,
+  packageJob,
+  resetPackages,
+} from './packages';
 
 /**
  * Giả lập SVC-11 docgen dưới `/api/v1/dossiers` (dossiers.yaml). Hiện chỉ có "Xem trước" biểu mẫu
@@ -20,6 +27,9 @@ import { MEETING_ROUTES, meetingDraftFile, meetingJob, resetMeetings } from './m
  *
  * SCR-1101 (WEB-040): hội nghị kiểm điểm, góp ý, biên bản, khắc phục hạn chế và trường hợp đặc thù ở
  * `meetings.ts`; dự thảo Mẫu 1B của hội nghị và job sinh biên bản đi qua hai tuyến tệp và job dưới đây.
+ *
+ * SCR-1102 (WEB-041): gói hồ sơ số, danh sách kiểm tra, sinh lại, tải gói, gửi gói con và ký gói ở
+ * `packages.ts`; tệp biểu mẫu của gói và job của gói cũng đi qua hai tuyến tệp và job dưới đây.
  */
 
 const FORM_NAME: Record<string, string> = {
@@ -152,15 +162,18 @@ export const DOSSIERS_MOCK: MockModule = {
     draftForms.clear();
     formJobs.clear();
     resetMeetings();
+    resetPackages();
   },
   routes: [
     ...MEETING_ROUTES,
+    ...PACKAGE_ROUTES,
     { method: 'POST', pattern: '/api/v1/dossiers/forms', handle: createDraftForms },
     {
       method: 'GET',
       pattern: '/api/v1/dossiers/form-jobs/:id',
       handle: (req) => {
-        const job = formJobs.get(req.pathParams['id']) ?? meetingJob(req.pathParams['id']);
+        const id = req.pathParams['id'];
+        const job = formJobs.get(id) ?? meetingJob(id) ?? packageJob(id);
         return job ? ok(job) : problem(404, 'Không tìm thấy tác vụ sinh biểu mẫu');
       },
     },
@@ -176,14 +189,20 @@ export const DOSSIERS_MOCK: MockModule = {
       handle: (req) => {
         const draft = draftForms.get(req.pathParams['id']);
         const meetingDraft = meetingDraftFile(req.pathParams['id']);
-        const lines = draft ?? meetingDraft ?? SIGNED_FORMS[req.pathParams['id']];
+        const packageForm = packageFormFile(req.pathParams['id']);
+        if (packageFormFailed(req.pathParams['id']))
+          return problem(409, 'Biểu mẫu chưa sinh xong hoặc sinh lỗi.', {
+            code: 'DOSSIER-409-FORM-NOT-RENDERED',
+          });
+        const lines =
+          draft ?? meetingDraft ?? packageForm?.lines ?? SIGNED_FORMS[req.pathParams['id']];
         if (!lines) return problem(404, 'Không tìm thấy biểu mẫu');
         return {
           status: 200,
           body: miniPdf(lines, !!draft || !!meetingDraft),
           headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="${draft ? 'Mau-3-ban-nhap' : meetingDraft ? 'Mau-1B-du-thao' : 'Mau-1B-Quy-III-2026'}.pdf"`,
+            'Content-Disposition': `attachment; filename="${draft ? 'Mau-3-ban-nhap' : meetingDraft ? 'Mau-1B-du-thao' : packageForm ? 'Bieu-mau' : 'Mau-1B-Quy-III-2026'}.pdf"`,
           },
         };
       },

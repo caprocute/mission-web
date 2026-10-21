@@ -33,12 +33,13 @@ import {
 } from '@vt/api-client';
 import { firstValueFrom, map } from 'rxjs';
 import { DOSSIER_CAN } from '../../dossier-permissions';
+import { DossierTabs } from '../dossier-tabs';
 import { problemMessage, specialCaseLabel } from '../meeting/meeting-rules';
 import { CreateForm, createErrors, toCreate } from './meetings-rules';
 
 @Component({
   selector: 'vt-meetings-page',
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, RouterLink, DossierTabs],
   templateUrl: './meetings.page.html',
   styleUrl: './meetings.page.css',
 })
