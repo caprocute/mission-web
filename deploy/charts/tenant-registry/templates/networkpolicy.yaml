@@ -60,6 +60,34 @@ spec:
           port: {{ . }}
         {{- end }}
     {{- end }}
+    {{- if .Values.provisioning.enabled }}
+    {{- with .Values.provisioning.egress }}
+    # DV-03-05: Keycloak, mission-core, org-service của cell; PowerDNS; API Kubernetes; Prometheus.
+    - to:
+        {{- toYaml .cells | nindent 8 }}
+      ports:
+        {{- range .cellPorts }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+    - to:
+        {{- toYaml .dns | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: {{ .dnsPort }}
+    - to:
+        - ipBlock:
+            cidr: {{ .kubeApiCidr }}
+      ports:
+        - protocol: TCP
+          port: {{ .kubeApiPort }}
+    - to:
+        {{- toYaml .prometheus | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: {{ .prometheusPort }}
+    {{- end }}
+    {{- end }}
     - to:
         - namespaceSelector:
             matchLabels:

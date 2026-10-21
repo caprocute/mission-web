@@ -42,6 +42,23 @@ type Config struct {
 	TenantLimit                           int
 	AccountLimit                          int64
 	AccountSyncInterval                   time.Duration
+
+	// DV-03-05: saga cấp phát phần 2 và kích hoạt. Mẫu địa chỉ có chỗ {cell} (mã cell chữ thường).
+	Provision ProvisionConfig
+}
+
+// ProvisionConfig là cấu hình saga cấp phát (để trống KeycloakURL thì tắt provision/activate, trả 503).
+type ProvisionConfig struct {
+	KeycloakURL, Realm, TokenURL, CoreURL, OrgURL string
+	ClientID                                      string
+	ClientSecret                                  string // tài khoản dịch vụ cấp phát (OpenBao → External Secrets)
+	DNSURL, DNSZone, DNSServerID, DNSAPIKey       string
+	CertAPIServer, CertNamespace, CertIssuer      string
+	CertIssuerKind, CertTokenFile, CertCAFile     string
+	CertWait                                      time.Duration
+	PrometheusURL, LagQuery                       string
+	MaxAttempts                                   int
+	Backoff, StepTimeout, RPO, ReadinessInterval  time.Duration
 }
 
 // Load đọc cấu hình; thiếu biến bắt buộc trả lỗi.
@@ -104,7 +121,31 @@ func Load() (Config, error) {
 		AccountLimit:        int64(intv("ACCOUNT_LIMIT", 6_500_000)),
 		AccountSyncInterval: dur("ACCOUNT_SYNC_INTERVAL", time.Hour),
 	}
+	c.Provision = ProvisionConfig{
+		KeycloakURL: os.Getenv("PROVISION_KEYCLOAK_URL"), Realm: env("PROVISION_KEYCLOAK_REALM", "mission"),
+		TokenURL: os.Getenv("PROVISION_TOKEN_URL"), CoreURL: os.Getenv("PROVISION_CORE_URL"), OrgURL: os.Getenv("PROVISION_ORG_URL"),
+		ClientID: os.Getenv("PROVISION_CLIENT_ID"),
+		DNSURL:   os.Getenv("PDNS_API_URL"), DNSZone: os.Getenv("PDNS_ZONE"), DNSServerID: env("PDNS_SERVER_ID", "localhost"),
+		CertAPIServer: env("CERT_K8S_API", "https://kubernetes.default.svc"), CertNamespace: os.Getenv("CERT_NAMESPACE"),
+		CertIssuer: os.Getenv("CERT_ISSUER"), CertIssuerKind: env("CERT_ISSUER_KIND", "ClusterIssuer"),
+		CertTokenFile:     env("CERT_TOKEN_FILE", "/var/run/secrets/tenant-registry/k8s-token"),
+		CertCAFile:        env("CERT_CA_FILE", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"),
+		CertWait:          dur("CERT_WAIT", 3*time.Minute),
+		PrometheusURL:     os.Getenv("PROMETHEUS_URL"),
+		LagQuery:          env("REPLICA_LAG_QUERY", `max(cnpg_pg_replication_lag{cell="{cell}"})`),
+		MaxAttempts:       intv("PROVISION_MAX_ATTEMPTS", 3),
+		Backoff:           dur("PROVISION_BACKOFF", 10*time.Second),
+		StepTimeout:       dur("PROVISION_STEP_TIMEOUT", 10*time.Minute),
+		RPO:               dur("ACTIVATION_RPO", 15*time.Minute),
+		ReadinessInterval: dur("READINESS_INTERVAL", 5*time.Minute),
+	}
 	var err error
+	if c.Provision.ClientSecret, err = plain("PROVISION_CLIENT_SECRET"); err != nil {
+		return c, err
+	}
+	if c.Provision.DNSAPIKey, err = plain("PDNS_API_KEY"); err != nil {
+		return c, err
+	}
 	if c.RoutingKey, err = secret("ROUTING_COOKIE_KEY"); err != nil {
 		return c, err
 	}
@@ -210,4 +251,17 @@ func secret(k string) ([]byte, error) {
 		return nil, fmt.Errorf("config: %s không phải base64", k)
 	}
 	return b, nil
+}
+
+// plain đọc bí mật dạng chuỗi từ biến K hoặc tệp K_FILE.
+func plain(k string) (string, error) {
+	v := os.Getenv(k)
+	if f := os.Getenv(k + "_FILE"); v == "" && f != "" {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			return "", fmt.Errorf("config: đọc %s_FILE: %w", k, err)
+		}
+		v = strings.TrimSpace(string(b))
+	}
+	return v, nil
 }

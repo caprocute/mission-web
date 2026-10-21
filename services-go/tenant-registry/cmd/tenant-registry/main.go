@@ -4,6 +4,8 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -22,6 +24,7 @@ import (
 	"mission/services-go/tenant-registry/internal/platform/auth"
 	"mission/services-go/tenant-registry/internal/platform/crypto"
 	"mission/services-go/tenant-registry/internal/platform/logx"
+	"mission/services-go/tenant-registry/internal/provision"
 	"mission/services-go/tenant-registry/internal/resolve"
 	"mission/services-go/tenant-registry/internal/tenant"
 	"mission/services-go/tenant-registry/pkg/routecookie"
@@ -81,8 +84,21 @@ func main() {
 	tenants.DomainSuffix, tenants.TenantLimit, tenants.AccountLimit = cfg.DomainSuffix, cfg.TenantLimit, cfg.AccountLimit
 	// Nguồn số tài khoản từ cell chưa có giao thức (điểm chờ): chạy với nil chỉ dọn khoá chống ghi trùng.
 	go tenants.RunPeriodic(ctx, pool, nil, cfg.AccountSyncInterval, log)
+	saga, err := newSaga(cfg.Provision, pool, tenants, log)
+	if err != nil {
+		log.Error("cấu hình saga cấp phát không hợp lệ", "err", err.Error())
+		os.Exit(2)
+	}
+	if saga != nil {
+		if err := saga.ResumePending(ctx); err != nil {
+			log.Warn("không tiếp tục được saga cấp phát còn dở", "err", err.Error())
+		}
+		go saga.RunPromoter(ctx, cfg.Provision.ReadinessInterval, log)
+	} else {
+		log.Warn("chưa cấu hình saga cấp phát (PROVISION_KEYCLOAK_URL): provision/activate trả 503")
+	}
 	srv := api.New(api.Deps{Pool: pool, Log: log, Verifier: verifier, StepUpMaxAge: cfg.StepUpMaxAge,
-		Resolver: resolver, Cookies: signer, CookieDomain: cfg.CookieDomain, Tenants: tenants})
+		Resolver: resolver, Cookies: signer, CookieDomain: cfg.CookieDomain, Tenants: tenants, Provision: saga})
 
 	httpSrv := &http.Server{
 		Addr:              cfg.HTTPAddr,
@@ -104,7 +120,41 @@ func main() {
 	defer cancel()
 	_ = httpSrv.Shutdown(shutdownCtx)
 	srv.WaitJobs()
+	srv.WaitSagas()
 	log.Info("tenant-registry đã dừng")
+}
+
+// newSaga dựng saga cấp phát DV-03-05 từ cấu hình; trả nil khi chưa cấu hình Keycloak của cell.
+func newSaga(c config.ProvisionConfig, pool *pgxpool.Pool, tenants *tenant.Service, log *slog.Logger) (*provision.Saga, error) {
+	if c.KeycloakURL == "" {
+		return nil, nil
+	}
+	hc := &http.Client{Timeout: 30 * time.Second}
+	tokens := &provision.ClientCredentials{ClientID: c.ClientID, ClientSecret: c.ClientSecret, HTTP: hc}
+	k8s := &http.Client{Timeout: 30 * time.Second}
+	if b, err := os.ReadFile(c.CertCAFile); err == nil {
+		roots := x509.NewCertPool()
+		roots.AppendCertsFromPEM(b)
+		k8s.Transport = &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}}
+	}
+	s := &provision.Saga{
+		Pool: pool, Tenants: tenants, Log: log,
+		Endpoints: provision.TemplateResolver{KeycloakURL: c.KeycloakURL, Realm: c.Realm, TokenURL: c.TokenURL, CoreURL: c.CoreURL, OrgURL: c.OrgURL},
+		Keycloak:  &provision.KeycloakAdmin{HTTP: hc, Tokens: tokens},
+		DNS:       &provision.PowerDNS{BaseURL: c.DNSURL, Zone: c.DNSZone, ServerID: c.DNSServerID, APIKey: c.DNSAPIKey, HTTP: hc},
+		Certs: &provision.CertManager{APIServer: c.CertAPIServer, Namespace: c.CertNamespace, IssuerName: c.CertIssuer,
+			IssuerKind: c.CertIssuerKind, Token: provision.TokenFile(c.CertTokenFile), HTTP: k8s, Wait: c.CertWait},
+		Core:        &provision.CoreHTTP{HTTP: hc, Tokens: tokens},
+		Org:         &provision.OrgHTTP{HTTP: hc, Tokens: tokens},
+		MaxAttempts: c.MaxAttempts, Backoff: c.Backoff, StepTimeout: c.StepTimeout, RPO: c.RPO,
+	}
+	if c.PrometheusURL != "" {
+		s.Lag = &provision.PrometheusLag{BaseURL: c.PrometheusURL, Query: c.LagQuery, HTTP: hc}
+	}
+	if c.DNSURL == "" || c.DNSZone == "" || c.CertNamespace == "" || c.CertIssuer == "" || c.CoreURL == "" || c.OrgURL == "" {
+		return nil, errors.New("thiếu PDNS_API_URL, PDNS_ZONE, CERT_NAMESPACE, CERT_ISSUER, PROVISION_CORE_URL hoặc PROVISION_ORG_URL")
+	}
+	return s, nil
 }
 
 func copyMigrations(src, dst string) error {

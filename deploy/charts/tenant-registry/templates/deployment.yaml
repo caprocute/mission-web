@@ -47,6 +47,22 @@ spec:
             matchLabels:
               {{- include "tenant-registry.selector" . | nindent 14 }}
       terminationGracePeriodSeconds: 30
+      {{- if .Values.provisioning.enabled }}
+      # Token chiếu hạn 1 giờ, chỉ để gọi API Kubernetes tạo Certificate (cert-manager); không gắn token mặc định.
+      volumes:
+        - name: kube-api
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: k8s-token
+                  expirationSeconds: 3600
+                  audience: {{ .Values.provisioning.certManager.tokenAudience | quote }}
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+      {{- end }}
       containers:
         - name: tenant-registry
           image: {{ include "tenant-registry.image" . }}
@@ -115,6 +131,72 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.database.secretName }}
                   key: {{ .Values.database.secretKey }}
+            {{- with .Values.provisioning }}
+            {{- if .enabled }}
+            - name: PROVISION_KEYCLOAK_URL
+              value: {{ .keycloakUrl | quote }}
+            - name: PROVISION_KEYCLOAK_REALM
+              value: {{ .keycloakRealm | quote }}
+            - name: PROVISION_TOKEN_URL
+              value: {{ .tokenUrl | quote }}
+            - name: PROVISION_CORE_URL
+              value: {{ .coreUrl | quote }}
+            - name: PROVISION_ORG_URL
+              value: {{ .orgUrl | quote }}
+            - name: PROVISION_CLIENT_ID
+              value: {{ .clientId | quote }}
+            - name: PROVISION_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: PROVISION_CLIENT_SECRET
+            - name: PDNS_API_URL
+              value: {{ .dns.apiUrl | quote }}
+            - name: PDNS_ZONE
+              value: {{ .dns.zone | quote }}
+            - name: PDNS_SERVER_ID
+              value: {{ .dns.serverId | quote }}
+            - name: PDNS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: PDNS_API_KEY
+            - name: CERT_K8S_API
+              value: {{ .certManager.apiServer | quote }}
+            - name: CERT_NAMESPACE
+              value: {{ .certManager.namespace | quote }}
+            - name: CERT_ISSUER
+              value: {{ .certManager.issuer | quote }}
+            - name: CERT_ISSUER_KIND
+              value: {{ .certManager.issuerKind | quote }}
+            - name: CERT_WAIT
+              value: {{ .certManager.wait | quote }}
+            - name: CERT_TOKEN_FILE
+              value: /var/run/secrets/tenant-registry/k8s-token
+            - name: CERT_CA_FILE
+              value: /var/run/secrets/tenant-registry/ca.crt
+            - name: PROMETHEUS_URL
+              value: {{ .prometheusUrl | quote }}
+            - name: REPLICA_LAG_QUERY
+              value: {{ .replicaLagQuery | quote }}
+            - name: PROVISION_MAX_ATTEMPTS
+              value: {{ .maxAttempts | quote }}
+            - name: PROVISION_BACKOFF
+              value: {{ .backoff | quote }}
+            - name: PROVISION_STEP_TIMEOUT
+              value: {{ .stepTimeout | quote }}
+            - name: ACTIVATION_RPO
+              value: {{ .activationRpo | quote }}
+            - name: READINESS_INTERVAL
+              value: {{ .readinessInterval | quote }}
+            {{- end }}
+            {{- end }}
+          {{- if .Values.provisioning.enabled }}
+          volumeMounts:
+            - name: kube-api
+              mountPath: /var/run/secrets/tenant-registry
+              readOnly: true
+          {{- end }}
           readinessProbe:
             httpGet:
               path: /readyz
