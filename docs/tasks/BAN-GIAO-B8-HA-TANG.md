@@ -6,7 +6,7 @@ Luồng tạm dừng vì hết quota. Nhánh: `claude/b8-ha-tang-g7g48k` (dựng
 |---|---|---|
 | INF-01 chart `vt-service` | Xong (21/10/2026) | Kiểm thử tĩnh 23/23; kiểm thử kind 6/6 (`tests/kiem-thu-kind.sh`). Nguyên nhân hết thời gian chờ trước đó: ảnh nạp theo digest đa nền tảng không khớp manifest amd64, đã sửa trong `nap-anh.sh`. Wiki 12, 14 đã cập nhật. |
 | INF-05 pipeline Jenkins Java | Xong (chờ backend thật) | `ci/vt-pipeline`, `backend/Jenkinsfile`, `.semgrep/`, `.gitleaks.toml`, wiki 11, 14. 4/4 MR sai bị chặn trên Jenkinsfile Runner, cosign verify/verify-attestation đạt. Chưa chạy trên `backend/` thật (chờ NEN-005) và Jenkins/Sonar/Dependency-Track thật. Chi tiết trong commit INF-05. |
-| INF-08 cụm cell phần 1 | Chưa làm | Chỉ có cụm kind nền `deploy/environments/kind` (1 control plane + 3 worker vùng hl-a/b/c, Cilium 1.18.1 chạy được). Chưa có Cluster API, `cell-base`, `api-gateway`, `vt-claims`. |
+| INF-08 cụm cell phần 1 | Xong (21/10/2026) | `deploy/clusters/cell-cluster` + `cell-g4-hl` (Cluster API, kiểm tĩnh 11/11), `deploy/charts/cell-base` (tĩnh 8/8, kind 7/7), `deploy/charts/api-gateway` (tĩnh 16/16, kind 16/16). Chế độ controller, etcd, Ingress Controller mới kiểm schema; provider Viettel Cloud ở dạng mẫu. Điểm lệch ghi ở wiki 14. |
 | INF-14 quan sát phần 1 | Chưa làm | Phụ thuộc INF-08. |
 | Các INF khác của B8 | Chưa làm | |
 
