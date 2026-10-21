@@ -166,7 +166,7 @@ definitions:
       eval_order: 10
       overridable: false
     kpi_B:
-      expression: "tham_so.cach_tinh_chat_luong == 'TRU_25_MOI_LAN' ? math.greatest(0.0, 1.0 - tham_so.tru_moi_lan_chinh_sua * double(nv.so_lan_chinh_sua)) : nv.muc_chat_luong"
+      expression: "tham_so.cach_tinh_chat_luong == 'TRU_25_MOI_LAN' ? math.greatest(0.0, 1.0 - tham_so.tru_moi_lan_chinh_sua * double(nv.so_lan_chinh_sua)) : double(nv.muc_chat_luong)"
       result_type: DECIMAL
       legal_ref: "PL 3 mục 2; BR-09-01; BR-15-02"
       eval_order: 20
@@ -333,9 +333,9 @@ definitions_nam:
         tham_so.nam.cach_tinh == 'TOAN_BO_NHIEM_VU_NAM' ? diem_toan_bo_nhiem_vu_nam :
         (ket_qua_quy.filter(q, q.co_xep_loai).size() == 0 ? 0.0 :
           (tham_so.nam.cach_tinh == 'TRUNG_BINH_CO_TRONG_SO'
-            ? sum(ket_qua_quy.filter(q, q.co_xep_loai).map(q, q.diem * tham_so.nam.trong_so_quy[q.quy - 1]))
-              / sum(ket_qua_quy.filter(q, q.co_xep_loai).map(q, tham_so.nam.trong_so_quy[q.quy - 1]))
-            : sum(ket_qua_quy.filter(q, q.co_xep_loai).map(q, q.diem)) / double(ket_qua_quy.filter(q, q.co_xep_loai).size())))
+            ? sum(ket_qua_quy.filter(q, q.co_xep_loai).map(q, double(q.diem) * double(tham_so.nam.trong_so_quy[q.quy - 1])))
+              / sum(ket_qua_quy.filter(q, q.co_xep_loai).map(q, double(tham_so.nam.trong_so_quy[q.quy - 1])))
+            : sum(ket_qua_quy.filter(q, q.co_xep_loai).map(q, double(q.diem))) / double(ket_qua_quy.filter(q, q.co_xep_loai).size())))
       result_type: DECIMAL
       rounding: {digits: 1, mode: NUA_LEN}
       legal_ref: "PL A4; BR-10-02; PL 6 §4"
