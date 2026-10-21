@@ -33,6 +33,7 @@ export * from './lib/ui-pack-api';
 export * from './lib/models/source-doc';
 export * from './lib/source-doc-api';
 export * from './lib/ai-api';
+export * from './lib/models/ai-assist';
 export * from './lib/models/evidence';
 export * from './lib/evidence-api';
 export * from './lib/file-api';

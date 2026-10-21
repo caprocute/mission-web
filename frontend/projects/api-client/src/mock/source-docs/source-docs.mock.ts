@@ -30,6 +30,7 @@ import {
 } from '../tasks/assign.mock';
 import taskFixture from '../tasks/tasks.json';
 import fixture from './source-docs.json';
+import { okrAssistDecision } from '../okr/okr-assist';
 
 /**
  * Giả lập văn bản chỉ đạo đến và tạo nhiệm vụ từ văn bản (QT-05 bước 1–7, SCR-0502, WEB-029):
@@ -262,7 +263,8 @@ function merge(req: MockRequest): MockResponse {
 
 function reject(req: MockRequest): MockResponse {
   const hit = locate(req.pathParams['id']);
-  if (!hit) return problem(404, 'Không tìm thấy nhiệm vụ trích');
+  // Cùng đường dẫn ghi quyết định với gợi ý của trợ lý soạn OKR (SCR-1701, WEB-049)
+  if (!hit) return okrAssistDecision(req) ?? problem(404, 'Không tìm thấy nhiệm vụ trích');
   const b = (req.body ?? {}) as { decision?: string; reason?: string };
   if (b.decision !== 'BO_QUA') return problem(422, 'Quyết định không hợp lệ');
   if (!b.reason?.trim())
