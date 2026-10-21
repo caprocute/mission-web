@@ -358,15 +358,24 @@ const ROW_HEIGHT = 52;
     }
     .head {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 16px;
       flex-wrap: wrap;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
+      padding: 18px 22px;
+      background: linear-gradient(135deg, #ffffff 0%, #fff8f9 100%);
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid var(--okr-accent);
+      border-radius: 14px;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
     }
     h1 {
-      font-size: 1.4rem;
-      margin: 4px 0;
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #0f172a;
+      margin: 2px 0 4px;
     }
     .muted {
       color: #4b5563;

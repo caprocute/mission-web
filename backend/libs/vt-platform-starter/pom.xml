@@ -227,7 +227,10 @@
       <artifactId>archunit-junit5</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- NEN-011/NEN-012: kiểm thử đầu cuối outbox -> Debezium -> Kafka -> inbox trên lược đồ thật của NEN-032. -->
+    <!--
+      NEN-011/NEN-012/NEN-013: kiểm thử tích hợp outbox -> Debezium -> Kafka -> inbox và
+      idempotency_key trên lược đồ thật của NEN-032 (PostgreSQL 17 và pg_partman qua TestPostgres).
+    -->
     <dependency>
       <groupId>vn.viettel.okrkpi</groupId>
       <artifactId>vt-db-migration</artifactId>

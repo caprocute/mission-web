@@ -1,0 +1,27 @@
+{
+  "description": "Vector kiểm thử chuẩn cho mã hoá phong bì C2 (AES-256-GCM) và chỉ mục mù (HMAC-SHA256 cắt 16 byte) dùng đối chiếu giữa Java (NEN-015), Go (NEN-017) và Python (NEN-018).",
+  "envelopeVector": {
+    "version": 1,
+    "tenantId": "01950000-0000-7000-8000-000000000001",
+    "dekId": "01950000-0000-7000-8000-0000000000aa",
+    "purpose": "NHAN_XET_DANH_GIA",
+    "validMonth": "2026-10-01",
+    "keyHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "nonceHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+    "aadParts": [
+      "appraisal.self_review.comment_enc",
+      "01950000-0000-7000-8000-000000000099"
+    ],
+    "aadUtf8": "01950000-0000-7000-8000-000000000001|appraisal.self_review.comment_enc|01950000-0000-7000-8000-000000000099",
+    "plaintextUtf8": "Đồng chí hoàn thành xuất sắc nhiệm vụ quý IV.",
+    "envelopeHex": "01019500000000700080000000000000aaa0a1a2a3a4a5a6a7a8a9aaab22889d96d6a5659f010d447e2712af1dd0c27964fa74e202f42e5ef39e11d075f205a6450041735337f5e5738e17a38fa6a0e36813a5d9c361175d70887b81a0ee4eb9d2d3069074f574e87a"
+  },
+  "blindIndexVector": {
+    "tenantId": "01950000-0000-7000-8000-000000000001",
+    "column": "identity.user_profile.national_id",
+    "rootKeyHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "rawInput": "  001089012345 \n ",
+    "normalizedInput": "001089012345",
+    "blindIndexHex": "572a5523b2d1a9fa5c6652cce62cf565"
+  }
+}

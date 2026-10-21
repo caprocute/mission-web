@@ -12,36 +12,36 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **77 / 401 task (19.2%)** — Khối lượng quy đổi đã gộp: **89.5 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **86 / 401 task (21.4%)** (gồm **77** đã gộp `main` + **9** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **10 task** (6 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **305 task**.
-- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **7 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-00-01`** (đang xử lý trên nhánh: không).
+- **Tổng tiến độ đã gộp `main`**: **92 / 401 task (22.9%)** — Khối lượng quy đổi đã gộp: **109.5 / 482.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **93 / 401 task (23.2%)** (gồm **92** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **16 task** (12 đang làm, 4 làm một phần).
+- **Chưa bắt đầu**: **292 task**.
+- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **7 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-00-01`** (đang xử lý trên nhánh: `CORE-00-01`, `CORE-00-02`).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
 
 | Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **46** | 0 | 3 | 23 | **63.9%** |
-| **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **25** | 3 | 3 | 2 | **75.8%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **0** | 0 | 0 | 112 | **0.0%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **0** | 5 | 2 | 97 | **0.0%** |
+| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **47** | 0 | 3 | 22 | **65.3%** |
+| **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **29** | 0 | 0 | 4 | **87.9%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **0** | 0 | 2 | 110 | **0.0%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **10** | 0 | 9 | 85 | **9.6%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **4** | 0 | 2 | 6 | **33.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **1** | 1 | 0 | 26 | **3.6%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **77** | **9** | **10** | **305** | **19.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **92** | **1** | **16** | **292** | **22.9%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
-| **M0 – Nền móng phát triển & CSDL** | 59 | **41** | 4 | 4 | 10 | **69.5%** |
-| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **5** | 5 | 2 | 28 | **12.5%** |
+| **M0 – Nền móng phát triển & CSDL** | 59 | **45** | 1 | 1 | 12 | **76.3%** |
+| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **16** | 0 | 5 | 19 | **40.0%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **7** | 0 | 2 | 37 | **15.2%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **14** | 0 | 0 | 103 | **12.0%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **14** | 0 | 6 | 97 | **12.0%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **10** | 0 | 1 | 60 | **14.1%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **0** | 0 | 1 | 41 | **0.0%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **0** | 0 | 0 | 23 | **0.0%** |
@@ -51,7 +51,7 @@
 
 Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
-✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ⏳ `CORE-00-01` → ⏳ `CORE-00-02` → ⏳ `CORE-05-01` → ⏳ `CORE-05-02` → ⏳ `CORE-05-03` → ⏳ `CORE-08-13` → ⏳ `CORE-08-14` → ⏳ `CORE-04-04` → ⏳ `CORE-04-05` → ⏳ `CORE-04-07` → ⏳ `CORE-04-08` → ⏳ `CORE-04-10` → ⏳ `QA-06` → ⏳ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
+✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → 🔄 **`CORE-00-01`** (Đang làm) → 🔄 **`CORE-00-02`** (Đang làm) → ⏳ `CORE-05-01` → ⏳ `CORE-05-02` → ⏳ `CORE-05-03` → ⏳ `CORE-08-13` → ⏳ `CORE-08-14` → ⏳ `CORE-04-04` → ⏳ `CORE-04-05` → ⏳ `CORE-04-07` → ⏳ `CORE-04-08` → ⏳ `CORE-04-10` → ⏳ `QA-06` → ⏳ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
 
 ---
 
@@ -61,8 +61,8 @@ Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 | Luồng | Worktree / Nhánh | Phạm vi đang thực hiện | Task đang xử lý | Trạng thái |
 |---|---|---|---|---|
 | **Điều phối (`DP`)** | `main` | Kiểm tra cổng chất lượng, gộp nhánh vào `main`, đồng bộ `TIEN-DO-HE-THONG.md`, quản lý hạ tầng `.env` & SSH tunnel | Toàn hệ thống | Đang hoạt động |
-| **Luồng 1 (`B1`)** | `feat/NEN-011-NEN-012-outbox-inbox` | Hoàn thiện Outbox/Inbox Kafka & Apicurio trong `vt-platform-starter` | `NEN-011`, `NEN-012` | Đang làm |
-| **Luồng 2 (`B1`)** | `feat/NEN-019-NEN-020-template-testkit` | Mẫu dịch vụ Java lục giác (`NEN-019` đã xong `7d0fc19`) và môi trường dev backend / Testcontainers (`NEN-020`) | `NEN-019`, `NEN-020` | 1 xong chờ gộp, 1 đang làm |
+| **Luồng 1 (`B1`)** | `feat/NEN-042-043-036-hop-dong-dinh-tuyen` | Đã gộp `NEN-011`, `NEN-012` (`2006fc9`); đang thực hiện `NEN-042`, `NEN-043`, `NEN-036` | `NEN-042`, `NEN-043`, `NEN-036` | Đang làm |
+| **Luồng 2 (`B1`)** | `feat/NEN-019-NEN-020-template-testkit` | Đã gộp `NEN-019` (`6c2525d`); đang hoàn thiện môi trường dev backend & Testcontainers (`NEN-020`) | `NEN-020` | Đang làm |
 | **Luồng 3 (`B2`)** | `feat/CORE-00-mission-core` | Khởi tạo `backend/mission-core` đa mô-đun (MOD-01..MOD-08) và cổng nội bộ `api` Spring Modulith | `CORE-00-01`, `CORE-00-02` | Đang làm |
 | **Luồng 4 (`B5`)** | `feat/B5-dinh-danh-to-chuc` | Dịch vụ `tenant-registry` (Go), `org-service` (Java) và mẫu realm Keycloak | `DV-02-01`, `DV-03-01..03`, `DV-04-01..03` | 5 xong chờ gộp, 2 đang làm |
 | **Luồng 5 (`B1`)** | `feat/NEN-013-014-015-platform-starter` | Idempotency/ETag (`NEN-013` đã xong), OPA client & step-up (`NEN-014`), mã hoá trường C2 (`NEN-015`) | `NEN-013`, `NEN-014`, `NEN-015` | 1 xong chờ gộp, 2 đang làm |
@@ -74,7 +74,7 @@ Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
 Mọi thay đổi trạng thái task đều được cập nhật trực tiếp vào bảng dưới đây. Các giá trị cột **Trạng thái** hợp lệ: `Đã gộp main`, `Xong, chờ gộp`, `Đang làm`, `Làm một phần`, `Chưa bắt đầu`.
 
-### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (46/65 đã gộp `main`, 0 chờ gộp, 3 đang làm)
+### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (47/65 đã gộp `main`, 0 chờ gộp, 3 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -97,7 +97,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-017](docs/tasks/WEB-017-wizard-tenant.md) | SCR-0102 Khởi tạo tenant (wizard) | M | W-Giám sát/CH | – | WEB-016 | **Đã gộp main** | Đã gộp `main` (SCR-0102 Wizard khởi tạo tenant) |
 | [WEB-018](docs/tasks/WEB-018-cay-to-chuc.md) | SCR-0103 Cây tổ chức có lịch sử | L | W-Giám sát/CH | – | WEB-015 | **Đã gộp main** | Đã gộp `main` (SCR-0103 Cây tổ chức có lịch sử hai trục thời gian) |
 | [WEB-019](docs/tasks/WEB-019-doi-soat-nhan-su.md) | SCR-0104 Đồng bộ và đối soát nhân sự | M | W-Giám sát/CH | – | WEB-018 | **Đã gộp main** | Đã gộp `main` (SCR-0104 Đồng bộ và đối soát nhân sự) |
-| [WEB-020](docs/tasks/WEB-020-theme-keycloak.md) | SCR-0001 Giao diện trang đăng nhập (theme Keycloak) | M | W-Nền tảng | – | WEB-004, WEB-006 | **Chưa bắt đầu** |  |
+| [WEB-020](docs/tasks/WEB-020-theme-keycloak.md) | SCR-0001 Giao diện trang đăng nhập (theme Keycloak) | M | W-Nền tảng | – | WEB-004, WEB-006 | **Đã gộp main** | Theme Keycloak mission (SCR-0001) đã triển khai live trên 14.232.210.125:35080 |
 | [WEB-021](docs/tasks/WEB-021-cay-okr.md) | SCR-0201 Cây mục tiêu OKR | L | W-OKR/Đánh giá | – | WEB-015 | **Đã gộp main** | Đã gộp `main` (SCR-0201 Cây mục tiêu OKR) |
 | [WEB-022](docs/tasks/WEB-022-tao-sua-okr.md) | SCR-0202 Tạo/sửa O và KR | M | W-OKR/Đánh giá | – | WEB-021 | **Đã gộp main** | Đã gộp `main` (SCR-0202 Tạo/sửa O và KR) |
 | [WEB-023](docs/tasks/WEB-023-duyet-okr.md) | SCR-0203 Phê duyệt OKR | M | W-OKR/Đánh giá | – | WEB-022 | **Đã gộp main** | Đã gộp `main` (SCR-0203 Phê duyệt OKR) |
@@ -144,7 +144,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-064](docs/tasks/WEB-064-sinh-kieu-tu-hop-dong.md) | Sinh kiểu frontend từ bộ hợp đồng `contracts/openapi/`, kiểm model viết tay với hợp đồng (luồng Nền tảng) | M | W-Nền tảng | – | WEB-007, WEB-063 | **Đã gộp main** | Đã gộp `main` (sinh kiểu frontend từ `contracts/openapi/`, `npm run api:check`) |
 | [WEB-065](docs/tasks/WEB-065-doi-chieu-ke-hoach-hop-dong.md) | Đối chiếu client kế hoạch (SCR-0402, SCR-0403) với hợp đồng OpenAPI (luồng màn hình nghiệp vụ) | M | W-Nghiệp vụ | – | WEB-026, WEB-027, WEB-064 | **Đã gộp main** | Đã gộp `main` (đối chiếu client kế hoạch SCR-0402, SCR-0403 với hợp đồng OpenAPI) |
 
-### NEN · Nền móng hệ thống: repo, quy định, wiki, khung mã, thư viện nền, nền CSDL (25/33 đã gộp `main`, 3 chờ gộp, 3 đang làm)
+### NEN · Nền móng hệ thống: repo, quy định, wiki, khung mã, thư viện nền, nền CSDL (29/33 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -160,14 +160,14 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [NEN-010](docs/tasks/NEN-010-starter-ngu-canh-tenant.md) | vt-platform-starter: ngữ cảnh tenant từ JWT, TenantFilter, đặt `app.tenant_id` cục bộ giao dịch qua PgBouncer | M | B1 | 6 | NEN-009, NEN-033 | **Đã gộp main** | Đã gộp `main` (commit `3af0823` – ngữ cảnh tenant từ JWT, `TenantFilter`, `SET LOCAL app.tenant_id`) |
 | [NEN-011](docs/tasks/NEN-011-starter-outbox-writer.md) | vt-platform-starter: OutboxWriter, EventEnvelope, tuần tự hoá Avro qua Apicurio | M | B1 | 6 | NEN-007, NEN-032 | **Đã gộp main** | Đã gộp main (2006fc9, 6c2525d) |
 | [NEN-012](docs/tasks/NEN-012-starter-consumer-inbox.md) | vt-platform-starter: consumer Kafka chuẩn với inbox idempotent, thử lại có backoff, DLQ | M | B1 | 7 | NEN-011 | **Đã gộp main** | Đã gộp main (2006fc9, 6c2525d) |
-| [NEN-013](docs/tasks/NEN-013-starter-idempotency-etag.md) | vt-platform-starter: kho Idempotency-Key 48 giờ, ETag/If-Match, phân trang con trỏ, job 202 | M | B1 | 6 | NEN-009, NEN-032 | **Xong, chờ gộp** | Luồng 5 (commit `d49dfd3` trên nhánh `feat/NEN-013-014-015-platform-starter`): kho Idempotency-Key 48h, ETag/If-Match, con trỏ HMAC, job 202 |
-| [NEN-014](docs/tasks/NEN-014-starter-opa-step-up.md) | vt-platform-starter: OpaClient, `@RequiresPermission`, đánh giá từng phần thành điều kiện SQL, kiểm step-up `acr`/`auth_time` | L | B1 | 4 | NEN-009, NEN-040 | **Đang làm** | Luồng 5 (nhánh `feat/NEN-013-014-015-platform-starter`): đang hiện thực `OpaClient`, `@RequiresPermission`, step-up `acr`/`auth_time` |
-| [NEN-015](docs/tasks/NEN-015-starter-ma-hoa-truong.md) | vt-platform-starter: CryptoProvider, FieldEncryptor AES-256-GCM phong bì, DekCache 15 phút, chỉ mục mù HMAC, client OpenBao Transit | L | B1 | 6 | NEN-009, NEN-032 | **Đang làm** | Luồng 5 (nhánh `feat/NEN-013-014-015-platform-starter`): sẽ làm ngay sau `NEN-014` trên cùng nhánh |
-| [NEN-016](docs/tasks/NEN-016-starter-chiu-loi-quan-sat.md) | vt-platform-starter: Resilience4j chuẩn, timeout mặc định, OpenTelemetry, log ECS JSON có che dữ liệu, tách nhật ký kiểm toán | M | B1 | 4 | NEN-009 | **Đã gộp main** | Đã gộp `main` (`vt-platform-starter`: Resilience4j, OpenTelemetry, log ECS JSON che dữ liệu nhạy cảm) |
-| [NEN-017](docs/tasks/NEN-017-thu-vien-go-dung-chung.md) | Thư viện Go dùng chung: tenant, outbox/inbox với pgx và franz-go, lỗi RFC 9457, OpenTelemetry | M | B1 | 6 | NEN-007, NEN-032, NEN-009 | **Đã gộp main** | Đã gộp `main` (commit `fe40716` – thư viện Go dùng chung `vtplatform`: tenant, RLS, outbox/inbox, RFC 9457, OTel) |
-| [NEN-018](docs/tasks/NEN-018-thu-vien-python-dung-chung.md) | Thư viện Python dùng chung cho ai-gateway và job phân tích: tenant, OTel, lỗi, Kafka consumer | S | B1 | 4 | NEN-007, NEN-009 | **Đã gộp main** | Đã gộp `main` (commit `3b4e808` – thư viện Python dùng chung `vtplatform`: tenant, RLS, RFC 9457, OTel, Kafka) |
-| [NEN-019](docs/tasks/NEN-019-mau-service-java.md) | Mẫu service Java (lục giác, actuator, probe, Helm values) và lệnh `scripts/new-service.sh` | M | B1 | 8 | NEN-010, NEN-011, NEN-012, NEN-016 | **Đã gộp main** | Đã gộp main (2006fc9, 6c2525d) |
-| [NEN-020](docs/tasks/NEN-020-moi-truong-dev-backend.md) | Môi trường dev backend: bổ sung profile Kafka, Apicurio, Debezium, OPA, OpenBao, Valkey vào `infra/dev`, chuẩn hoá tài khoản CSDL `svc_/mig_/ro_/cdc_`, cấu hình Testcontainers dùng chung | M | B1 | 6 | NEN-031, NEN-007, NEN-040, NEN-033 | **Đang làm** | Luồng 2 (nhánh `feat/NEN-019-NEN-020-template-testkit`): đang bổ sung cấu hình môi trường dev backend và Testcontainers |
+| [NEN-013](docs/tasks/NEN-013-starter-idempotency-etag.md) | vt-platform-starter: kho Idempotency-Key 48 giờ, ETag/If-Match, phân trang con trỏ, job 202 | M | B1 | 6 | NEN-009, NEN-032 | **Đã gộp main** | Đã gộp feat/NEN-013-014-015-platform-starter vào main |
+| [NEN-014](docs/tasks/NEN-014-starter-opa-step-up.md) | vt-platform-starter: OpaClient, `@RequiresPermission`, đánh giá từng phần thành điều kiện SQL, kiểm step-up `acr`/`auth_time` | L | B1 | 4 | NEN-009, NEN-040 | **Đã gộp main** | Đã gộp feat/NEN-013-014-015-platform-starter vào main |
+| [NEN-015](docs/tasks/NEN-015-starter-ma-hoa-truong.md) | vt-platform-starter: CryptoProvider, FieldEncryptor AES-256-GCM phong bì, DekCache 15 phút, chỉ mục mù HMAC, client OpenBao Transit | L | B1 | 6 | NEN-009, NEN-032 | **Đã gộp main** | Đã gộp feat/NEN-013-014-015-platform-starter vào main |
+| [NEN-016](docs/tasks/NEN-016-starter-chiu-loi-quan-sat.md) | vt-platform-starter: Resilience4j chuẩn, timeout mặc định, OpenTelemetry, log ECS JSON có che dữ liệu, tách nhật ký kiểm toán | M | B1 | 4 | NEN-009 | **Đã gộp main** | Đã gộp main (vt-platform-starter: Resilience4j, OpenTelemetry, log ECS JSON che dữ liệu nhạy cảm) |
+| [NEN-017](docs/tasks/NEN-017-thu-vien-go-dung-chung.md) | Thư viện Go dùng chung: tenant, outbox/inbox với pgx và franz-go, lỗi RFC 9457, OpenTelemetry | M | B1 | 6 | NEN-007, NEN-032, NEN-009 | **Đã gộp main** | Đã gộp main (commit fe40716 – thư viện Go dùng chung vtplatform) |
+| [NEN-018](docs/tasks/NEN-018-thu-vien-python-dung-chung.md) | Thư viện Python dùng chung cho ai-gateway và job phân tích: tenant, OTel, lỗi, Kafka consumer | S | B1 | 4 | NEN-007, NEN-009 | **Đã gộp main** | Đã gộp main (commit 3b4e808 – thư viện Python dùng chung vtplatform) |
+| [NEN-019](docs/tasks/NEN-019-mau-service-java.md) | Mẫu service Java (lục giác, actuator, probe, Helm values) và lệnh `scripts/new-service.sh` | M | B1 | 8 | NEN-010, NEN-011, NEN-012, NEN-016 | **Đã gộp main** | Đã gộp feat/NEN-019-NEN-020-template-testkit vào main |
+| [NEN-020](docs/tasks/NEN-020-moi-truong-dev-backend.md) | Môi trường dev backend: bổ sung profile Kafka, Apicurio, Debezium, OPA, OpenBao, Valkey vào `infra/dev`, chuẩn hoá tài khoản CSDL `svc_/mig_/ro_/cdc_`, cấu hình Testcontainers dùng chung | M | B1 | 6 | NEN-031, NEN-007, NEN-040, NEN-033 | **Đã gộp main** | Đã gộp feat/NEN-019-NEN-020-template-testkit vào main |
 | [NEN-030](docs/tasks/NEN-030-quy-uoc-flyway-lint.md) | Quy ước Flyway theo schema, tài khoản `mig_<schema>`, lint tên, kiểu và chú thích phân loại cột trong CI | M | B1 | 3 | NEN-005 | **Đã gộp main** | Đã gộp `main` (quy ước Flyway theo schema, tài khoản `mig_<schema>`, linter kiểm tra migration) |
 | [NEN-031](docs/tasks/NEN-031-vai-tro-csdl-theo-schema.md) | Vai trò CSDL và quyền mặc định theo schema (svc, ro, mig, cdc) cùng các ngoại lệ | M | B1 | 4 | NEN-030 | **Đã gộp main** | Đã gộp `main` (vai trò CSDL và quyền mặc định theo schema `svc_`, `ro_`, `mig_`, `cdc_`) |
 | [NEN-032](docs/tasks/NEN-032-bang-dung-chung-mau.md) | Bảng dùng chung mẫu: `outbox_event` phân vùng, `inbox_processed`, `inbox_aggregate_version`, `idempotency_key`, schema `modulith`, `keyring.dek` | M | B1 | 5 | NEN-030, NEN-031 | **Đã gộp main** | Đã gộp `main` (bảng dùng chung mẫu: `outbox_event`, `inbox_processed`, `idempotency_key`, `keyring.dek`) |
@@ -179,15 +179,15 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [NEN-041](docs/tasks/NEN-041-thu-vien-cel-dung-chung.md) | Thư viện CEL dùng chung `vt-cel` (cel-java): môi trường, hàm mở rộng `sum`, `ngay_lam_viec`, `min_muc`, bộ ca kiểm thử chung với cel-js | L | B2 | 3 | NEN-005 | **Đã gộp main** | Đã gộp `main` (commit `e22cb71` – thư viện CEL dùng chung `vt-cel` và bộ ca kiểm thử đối chiếu `cel-js`) |
 | [NEN-021](docs/tasks/NEN-021-luoc-do-topic-ky-thuat.md) | Lược đồ Avro cho sự kiện kỹ thuật `evidence.object.*` và các topic kỹ thuật còn thiếu | S | B1 | 4 | NEN-007 | **Đã gộp main** | Đã gộp `main` (commit `f32a1d7`, gộp tại `275bb0f` – lược đồ Avro cho các topic sự kiện kỹ thuật) |
 | [NEN-022](docs/tasks/NEN-022-phat-lai-outbox-connector.md) | Công cụ phát lại outbox và cấu hình connector Debezium outbox theo schema | M | B1 | 7 | NEN-011 | **Đã gộp main** | Đã gộp `main` (commit `3b0f87e` – công cụ phát lại outbox và cấu hình connector Debezium theo schema) |
-| [NEN-042](docs/tasks/NEN-042-sua-hop-dong-nghiep-vu.md) | Sửa hợp đồng OpenAPI phần nghiệp vụ: thêm thao tác còn thiếu (huỷ OKR, phiên bản điều chỉnh mục tiêu, uỷ quyền check-in, kích hoạt danh mục, chấm việc ngoài danh mục, ngoại lệ điều chỉnh, xác nhận dòng kế hoạch, duyệt nhiệm vụ đăng ký, chuyển điểm nghẽn, danh bạ khoá E2EE và chia sẻ CEK, ghi trường hợp đặc thù, gợi ý khiếu nại trùng) và sửa mô tả `acceptComplaint` | M | B1 | 2 | NEN-001 | **Xong, chờ gộp** | Đã bổ sung hợp đồng OpenAPI 3.1 các phân hệ nghiệp vụ (okr, tasks, products, org, dossiers, oversight), sinh lại kiểu TS và kiểm thử vt-api-contract/vt-contract-test xanh |
-| [NEN-043](docs/tasks/NEN-043-sua-hop-dong-nen-tang.md) | Sửa hợp đồng OpenAPI phần nền tảng: cờ tính năng cho mọi người dùng, cấu hình tenant, thiết bị nhận thông báo đẩy, tuỳ chọn kênh, mã khôi phục MFA, `POST /org/assignments`, guest token Superset, kiểm quyền theo lô cho tìm kiếm, ký nội bộ cho sổ cái, OCR cho tài khoản dịch vụ, đề nghị chuyển cell | M | B1 | 3 | NEN-001, NEN-042 | **Xong, chờ gộp** | Bổ sung 16 thao tác OpenAPI 3.1 còn thiếu cho config, platform (registry, iam, notifications, ai, analytics), org, tasks, dossiers và đồng bộ api-client/vt-api-contract |
+| [NEN-042](docs/tasks/NEN-042-sua-hop-dong-nghiep-vu.md) | Sửa hợp đồng OpenAPI phần nghiệp vụ: thêm thao tác còn thiếu (huỷ OKR, phiên bản điều chỉnh mục tiêu, uỷ quyền check-in, kích hoạt danh mục, chấm việc ngoài danh mục, ngoại lệ điều chỉnh, xác nhận dòng kế hoạch, duyệt nhiệm vụ đăng ký, chuyển điểm nghẽn, danh bạ khoá E2EE và chia sẻ CEK, ghi trường hợp đặc thù, gợi ý khiếu nại trùng) và sửa mô tả `acceptComplaint` | M | B1 | 2 | NEN-001 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt |
+| [NEN-043](docs/tasks/NEN-043-sua-hop-dong-nen-tang.md) | Sửa hợp đồng OpenAPI phần nền tảng: cờ tính năng cho mọi người dùng, cấu hình tenant, thiết bị nhận thông báo đẩy, tuỳ chọn kênh, mã khôi phục MFA, `POST /org/assignments`, guest token Superset, kiểm quyền theo lô cho tìm kiếm, ký nội bộ cho sổ cái, OCR cho tài khoản dịch vụ, đề nghị chuyển cell | M | B1 | 3 | NEN-001, NEN-042 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt |
 
-### CORE-00 · mission-core: phần dùng chung (0/5 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### CORE-00 · mission-core: phần dùng chung (0/5 đã gộp `main`, 0 chờ gộp, 2 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
-| [CORE-00-01](docs/tasks/CORE-00-01-khung-mission-core.md) | Khung ứng dụng mission-core: Spring Boot 3.5, luồng ảo, tám DataSource riêng theo module, actuator, cấu hình mẫu | L | B2 | 9 | NEN-019, NEN-031, NEN-006, NEN-013, NEN-030 | **Chưa bắt đầu** |  |
-| [CORE-00-02](docs/tasks/CORE-00-02-tam-module-modulith.md) | Tám module lục giác, khai báo Spring Modulith, ma trận phụ thuộc, ArchUnit, sinh tài liệu module | M | B2 | 10 | CORE-00-01 | **Chưa bắt đầu** |  |
+| [CORE-00-01](docs/tasks/CORE-00-01-khung-mission-core.md) | Khung ứng dụng mission-core: Spring Boot 3.5, luồng ảo, tám DataSource riêng theo module, actuator, cấu hình mẫu | L | B2 | 9 | NEN-019, NEN-031, NEN-006, NEN-013, NEN-030 | **Đang làm** | Đang phát triển trên nhánh feat/CORE-00-mission-core (Luồng 3 – khởi tạo backend/mission-core 8 mô-đun & kiểm thử ArchUnit/Modulith) |
+| [CORE-00-02](docs/tasks/CORE-00-02-tam-module-modulith.md) | Tám module lục giác, khai báo Spring Modulith, ma trận phụ thuộc, ArchUnit, sinh tài liệu module | M | B2 | 10 | CORE-00-01 | **Đang làm** | Đang phát triển trên nhánh feat/CORE-00-mission-core (Luồng 3 – cổng nội bộ api giữa 8 mô-đun và sự kiện nội bộ Modulith) |
 | [CORE-00-03](docs/tasks/CORE-00-03-org-replica-consumer.md) | Schema `org_replica` và consumer EVT-14, EVT-15, EVT-16 | M | B2 | 12 | CORE-00-02, NEN-012, DV-04-03 | **Chưa bắt đầu** |  |
 | [CORE-00-04](docs/tasks/CORE-00-04-api-trang-chu-hom-nay.md) | API tổng hợp trang chủ "Việc của tôi hôm nay" (SCR-0002) | M | B3 | 18 | CORE-02-18, CORE-01-08, CORE-08-09, CORE-08-02, NEN-041 | **Chưa bắt đầu** |  |
 | [CORE-00-05](docs/tasks/CORE-00-05-nhat-ky-truy-cap-c2.md) | Nhật ký truy cập dữ liệu C2 và ghi sổ cái lần giải mã | S | B4 | 11 | NEN-015, DV-09-02, NEN-011, NEN-016, CORE-00-02 | **Chưa bắt đầu** |  |
@@ -348,51 +348,51 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-01-03](docs/tasks/DV-01-03-tuyen-cong-khai-ci.md) | Danh sách tuyến công khai tường minh và kiểm thử CI quét toàn bộ CRD | S | B5 | 3 | DV-01-01 | **Chưa bắt đầu** |  |
 | [DV-01-04](docs/tasks/DV-01-04-apisix-lop-ngoai.md) | APISIX lớp ngoài ở vùng toàn cục: phân giải tenant sang cell, đệm 5 phút, khám phá cell | M | B5 | 9 | DV-01-01, DV-03-02 | **Chưa bắt đầu** |  |
 
-### DV-02 · SVC-02 iam (Keycloak) (0/8 đã gộp `main`, 1 chờ gộp, 0 đang làm)
+### DV-02 · SVC-02 iam (Keycloak) (3/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
-| [DV-02-01](docs/tasks/DV-02-01-mau-realm-production.md) | Mẫu realm production theo cell với Organizations, PKCE, chính sách mật khẩu, khoá sau 5 lần sai, thời hạn phiên | M | B5 | 1 | – | **Xong, chờ gộp** | Luồng 4 (nhánh `feat/B5-dinh-danh-to-chuc`): mẫu realm Keycloak 26.4, đạt 16/16 kiểm thử |
-| [DV-02-02](docs/tasks/DV-02-02-claim-ngu-canh.md) | Protocol mapper claim ngữ cảnh và API chọn đơn vị, vai trò (`PUT /org/me/context`) | M | B5 | 12 | DV-02-01, DV-04-04 | **Chưa bắt đầu** |  |
-| [DV-02-03](docs/tasks/DV-02-03-mfa-step-up.md) | MFA theo vai trò, thiết bị, rủi ro; step-up `acr` và `auth_time` | M | B5 | 2 | DV-02-01 | **Chưa bắt đầu** |  |
+| [DV-02-01](docs/tasks/DV-02-01-mau-realm-production.md) | Mẫu realm production theo cell với Organizations, PKCE, chính sách mật khẩu, khoá sau 5 lần sai, thời hạn phiên | M | B5 | 1 | – | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| [DV-02-02](docs/tasks/DV-02-02-claim-ngu-canh.md) | Protocol mapper claim ngữ cảnh và API chọn đơn vị, vai trò (`PUT /org/me/context`) | M | B5 | 12 | DV-02-01, DV-04-04 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| [DV-02-03](docs/tasks/DV-02-03-mfa-step-up.md) | MFA theo vai trò, thiết bị, rủi ro; step-up `acr` và `auth_time` | M | B5 | 2 | DV-02-01 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
 | [DV-02-04](docs/tasks/DV-02-04-moi-gioi-vneid.md) | Môi giới VNeID: state, nonce, PKCE, liên kết danh tính bằng HMAC | L | B5 | 10 | DV-02-01, DV-04-01, NEN-015 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần môi trường thử VNeID |
 | [DV-02-05](docs/tasks/DV-02-05-su-kien-keycloak.md) | Event listener Keycloak đẩy `iam.auth.event.v1`, báo truy cập bất thường, thu hồi phiên | M | B5 | 4 | DV-02-01, NEN-007 | **Chưa bắt đầu** |  |
 | [DV-02-06](docs/tasks/DV-02-06-dong-bo-nguoi-dung.md) | Consumer EVT-16 đồng bộ người dùng qua Admin API | M | B5 | 12 | DV-02-01, DV-04-03 | **Chưa bắt đầu** |  |
 | [DV-02-07](docs/tasks/DV-02-07-consumer-evt14-keycloak.md) | Consumer EVT-14 cập nhật Organizations Keycloak khi tổ chức thay đổi | S | B5 | 12 | DV-02-01, DV-04-03 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 | [DV-02-08](docs/tasks/DV-02-08-ma-khoi-phuc-mfa.md) | Mã khôi phục MFA: cấp, dùng một lần, thu hồi | S | B5 | 4 | DV-02-03, NEN-043 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 
-### DV-03 · SVC-03 tenant-registry (Go, toàn cục) (0/7 đã gộp `main`, 3 chờ gộp, 0 đang làm)
+### DV-03 · SVC-03 tenant-registry (Go, toàn cục) (4/7 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
-| [DV-03-01](docs/tasks/DV-03-01-khung-tenant-registry.md) | Khung service Go và migration schema `registry` | M | B5 | 7 | NEN-017 | **Xong, chờ gộp** | Luồng 4 (nhánh `feat/B5-dinh-danh-to-chuc`): khung dịch vụ Go `tenant-registry` và migration schema `registry` |
-| [DV-03-02](docs/tasks/DV-03-02-phan-giai-tenant.md) | API phân giải tenant theo tên miền, danh sách cell, đệm | M | B5 | 8 | DV-03-01 | **Xong, chờ gộp** | Luồng 4 (nhánh `feat/B5-dinh-danh-to-chuc`): API phân giải tenant theo tên miền, danh sách cell, bộ đệm |
-| [DV-03-03](docs/tasks/DV-03-03-vong-doi-tenant.md) | Tenant: máy trạng thái bảy trạng thái, API nháp, gợi ý mô hình thuê bao và chọn cell theo tải | L | B5 | 8 | DV-03-01 | **Xong, chờ gộp** | Luồng 4 (nhánh `feat/B5-dinh-danh-to-chuc`): máy trạng thái 7 trạng thái vòng đời tenant, API nháp wizard, gợi ý mô hình |
-| [DV-03-04](docs/tasks/DV-03-04-saga-cap-phat-1.md) | Saga cấp phát tenant phần 1: CSDL hoặc schema, đăng ký pool, KEK trong HSM | L | B5 | 11 | DV-03-03, DV-06-05 | **Chưa bắt đầu** |  |
+| [DV-03-01](docs/tasks/DV-03-01-khung-tenant-registry.md) | Khung service Go và migration schema `registry` | M | B5 | 7 | NEN-017 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| [DV-03-02](docs/tasks/DV-03-02-phan-giai-tenant.md) | API phân giải tenant theo tên miền, danh sách cell, đệm | M | B5 | 8 | DV-03-01 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| [DV-03-03](docs/tasks/DV-03-03-vong-doi-tenant.md) | Tenant: máy trạng thái bảy trạng thái, API nháp, gợi ý mô hình thuê bao và chọn cell theo tải | L | B5 | 8 | DV-03-01 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| [DV-03-04](docs/tasks/DV-03-04-saga-cap-phat-1.md) | Saga cấp phát tenant phần 1: CSDL hoặc schema, đăng ký pool, KEK trong HSM | L | B5 | 11 | DV-03-03, DV-06-05 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
 | [DV-03-05](docs/tasks/DV-03-05-saga-cap-phat-2.md) | Saga cấp phát tenant phần 2: Organization Keycloak, tên miền và TLS, sao chép Policy Pack và UI Pack, lịch mặc định, kích hoạt | L | B5 | 12 | DV-03-04, DV-02-01 | **Chưa bắt đầu** |  |
 | [DV-03-06](docs/tasks/DV-03-06-idp-cua-tenant.md) | Khai báo IdP của tenant và kiểm kết nối OIDC, SAML, LDAP | S | B5 | 9 | DV-03-03 | **Chưa bắt đầu** |  |
 | [DV-03-07](docs/tasks/DV-03-07-chuyen-tenant-cell.md) | Chuyển tenant giữa các cell bằng sao chép logic, hai người duyệt | L | B5 | 13 | DV-03-05, NEN-043 | **Chưa bắt đầu** |  |
 
-### DV-04 · SVC-04 org-service (0/8 đã gộp `main`, 1 chờ gộp, 2 đang làm)
+### DV-04 · SVC-04 org-service (3/8 đã gộp `main`, 0 chờ gộp, 3 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
-| [DV-04-01](docs/tasks/DV-04-01-khung-org-service.md) | Khung service và migration schema `org` hai trục thời gian có ràng buộc loại trừ | L | B5 | 9 | NEN-019, NEN-033 | **Xong, chờ gộp** | Luồng 4 (nhánh `feat/B5-dinh-danh-to-chuc`): khung `org-service` và migration schema `org` hai trục thời gian |
-| [DV-04-02](docs/tasks/DV-04-02-don-vi-asof.md) | Đơn vị và quan hệ: truy vấn `asOf`, `knownAt`, cây con, chặn vòng | M | B5 | 10 | DV-04-01 | **Đang làm** | Luồng 4 (nhánh `feat/B5-dinh-danh-to-chuc`): đang hoàn thiện kiểm thử truy vấn `asOf`, `knownAt` của `org-service` |
-| [DV-04-03](docs/tasks/DV-04-03-thay-doi-to-chuc.md) | Thay đổi tổ chức (sáp nhập, chia tách, đổi tên) có tiền thân, phát EVT-14, EVT-15, EVT-16 | M | B5 | 11 | DV-04-02, NEN-011 | **Đang làm** | Luồng 4 (nhánh `feat/B5-dinh-danh-to-chuc`): đã có lớp nghiệp vụ thay đổi tổ chức, đang hoàn thiện phát sự kiện EVT-14..16 |
-| [DV-04-04](docs/tasks/DV-04-04-phan-cong.md) | Phân công: một vị trí chính tại một thời điểm, kiêm nhiệm, điều động tương lai | M | B5 | 11 | DV-04-02 | **Chưa bắt đầu** |  |
-| [DV-04-05](docs/tasks/DV-04-05-nhap-cay-excel.md) | Nhập cây tổ chức từ Excel (202, báo cáo lỗi) | S | B5 | 11 | DV-04-02 | **Chưa bắt đầu** |  |
-| [DV-04-06](docs/tasks/DV-04-06-scim.md) | SCIM 2.0 cho HRM và IdP khách hàng | M | B5 | 12 | DV-04-04 | **Chưa bắt đầu** |  |
+| [DV-04-01](docs/tasks/DV-04-01-khung-org-service.md) | Khung service và migration schema `org` hai trục thời gian có ràng buộc loại trừ | L | B5 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| [DV-04-02](docs/tasks/DV-04-02-don-vi-asof.md) | Đơn vị và quan hệ: truy vấn `asOf`, `knownAt`, cây con, chặn vòng | M | B5 | 10 | DV-04-01 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main (p95=38.7ms trên 11.111 đơn vị) |
+| [DV-04-03](docs/tasks/DV-04-03-thay-doi-to-chuc.md) | Thay đổi tổ chức (sáp nhập, chia tách, đổi tên) có tiền thân, phát EVT-14, EVT-15, EVT-16 | M | B5 | 11 | DV-04-02, NEN-011 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main (65/65 test PASS) |
+| [DV-04-04](docs/tasks/DV-04-04-phan-cong.md) | Phân công: một vị trí chính tại một thời điểm, kiêm nhiệm, điều động tương lai | M | B5 | 11 | DV-04-02 | **Đang làm** | Nhánh feat/DV-04-phan-cong-scim: đang thực hiện |
+| [DV-04-05](docs/tasks/DV-04-05-nhap-cay-excel.md) | Nhập cây tổ chức từ Excel (202, báo cáo lỗi) | S | B5 | 11 | DV-04-02 | **Đang làm** | Nhánh feat/DV-04-phan-cong-scim: đang thực hiện |
+| [DV-04-06](docs/tasks/DV-04-06-scim.md) | SCIM 2.0 cho HRM và IdP khách hàng | M | B5 | 12 | DV-04-04 | **Đang làm** | Nhánh feat/DV-04-phan-cong-scim: đang thực hiện |
 | [DV-04-07](docs/tasks/DV-04-07-doi-soat-nhan-su.md) | Đối soát nhân sự: khớp người bằng HMAC và ngày sinh, bảng lệch, phân loại, API giải quyết | L | B5 | 12 | DV-04-04, DV-13-06 | **Chưa bắt đầu** |  |
 | [DV-04-08](docs/tasks/DV-04-08-org-republish.md) | Lệnh phát lại sự kiện tổ chức (`org-republish`) cho bên nhận bị lệch | S | B5 | 12 | DV-04-03, NEN-022 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 
-### DV-06 · SVC-06 workflow-service (Flowable) (0/12 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-06 · SVC-06 workflow-service (Flowable) (0/12 đã gộp `main`, 0 chờ gộp, 3 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
-| [DV-06-01](docs/tasks/DV-06-01-khung-flowable.md) | Khung Flowable 7 nhúng Spring Boot, CSDL `flowable`, lịch sử mức audit, tách API và async executor | L | B6 | 9 | NEN-019 | **Chưa bắt đầu** |  |
-| [DV-06-02](docs/tasks/DV-06-02-hop-viec.md) | `wf_template`, `wf_binding`, `wf_task_projection`; API hộp việc, hoàn thành, hoàn thành hàng loạt | M | B6 | 10 | DV-06-01 | **Chưa bắt đầu** |  |
-| [DV-06-03](docs/tasks/DV-06-03-bpmn-duyet-phan-1.md) | Mẫu BPMN luồng duyệt phần 1: OKR, kế hoạch, đề nghị gia hạn, kèm DMN chọn cấp duyệt, kiểm thử và linter | L | B6 | 11 | DV-06-02 | **Chưa bắt đầu** |  |
+| [DV-06-01](docs/tasks/DV-06-01-khung-flowable.md) | Khung Flowable 7 nhúng Spring Boot, CSDL `flowable`, lịch sử mức audit, tách API và async executor | L | B6 | 9 | NEN-019 | **Đang làm** | Nhánh feat/DV-06-workflow-service: đang thực hiện |
+| [DV-06-02](docs/tasks/DV-06-02-hop-viec.md) | `wf_template`, `wf_binding`, `wf_task_projection`; API hộp việc, hoàn thành, hoàn thành hàng loạt | M | B6 | 10 | DV-06-01 | **Đang làm** | Nhánh feat/DV-06-workflow-service: đang thực hiện |
+| [DV-06-03](docs/tasks/DV-06-03-bpmn-duyet-phan-1.md) | Mẫu BPMN luồng duyệt phần 1: OKR, kế hoạch, đề nghị gia hạn, kèm DMN chọn cấp duyệt, kiểm thử và linter | L | B6 | 11 | DV-06-02 | **Đang làm** | Nhánh feat/DV-06-workflow-service: đang thực hiện |
 | [DV-06-04](docs/tasks/DV-06-04-bpmn-duyet-phan-2.md) | Mẫu BPMN luồng duyệt phần 2: hồ sơ đánh giá, khiếu nại, mở lại kỳ, phát hành Policy Pack | L | B6 | 12 | DV-06-03 | **Chưa bắt đầu** |  |
 | [DV-06-05](docs/tasks/DV-06-05-khung-saga.md) | Khung saga tầng 3: bước, bù trừ, trạng thái bền, 202 và theo dõi | L | B6 | 10 | DV-06-01 | **Chưa bắt đầu** |  |
 | [DV-06-06](docs/tasks/DV-06-06-saga-chot-ky.md) | Saga chốt kỳ: tiền điều kiện, khoá, tính điểm, sinh biểu mẫu, ký lô, niêm phong, lập hồ sơ | L | B6 | 19 | DV-06-05, CORE-08-05, DV-07-06, DV-11-04, DV-10-06, DV-09-03 | **Chưa bắt đầu** |  |
@@ -427,21 +427,21 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-08-05](docs/tasks/DV-08-05-ocr-qua-ai.md) | Gọi OCR qua ai-gateway cho minh chứng | S | B3 | 12 | DV-08-02, DV-14-05, DV-08-04 | **Chưa bắt đầu** |  |
 | [DV-08-06](docs/tasks/DV-08-06-xem-truoc-tep-minh-chung.md) | Xem trước tệp minh chứng (`getFilePreview`) qua Gotenberg, chỉ tệp đã quét sạch | S | B3 | 12 | DV-08-04, DV-11-01 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 
-### DV-09 · SVC-09 ledger-service (Go) (0/5 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-09 · SVC-09 ledger-service (Go) (0/5 đã gộp `main`, 0 chờ gộp, 2 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
-| [DV-09-01](docs/tasks/DV-09-01-khung-ledger-migration.md) | Khung service và migration CSDL `ledger` chỉ ghi thêm | M | B6 | 7 | NEN-017 | **Chưa bắt đầu** |  |
-| [DV-09-02](docs/tasks/DV-09-02-ghi-chuoi-bam.md) | Consumer ghi chuỗi băm 64 phân vùng theo tenant, chuẩn hoá RFC 8785 | L | B6 | 8 | DV-09-01 | **Chưa bắt đầu** |  |
+| [DV-09-01](docs/tasks/DV-09-01-khung-ledger-migration.md) | Khung service và migration CSDL `ledger` chỉ ghi thêm | M | B6 | 7 | NEN-017 | **Đang làm** | Nhánh feat/DV-09-01-02-DV-10-01-ledger-esign: đang thực hiện |
+| [DV-09-02](docs/tasks/DV-09-02-ghi-chuoi-bam.md) | Consumer ghi chuỗi băm 64 phân vùng theo tenant, chuẩn hoá RFC 8785 | L | B6 | 8 | DV-09-01 | **Đang làm** | Nhánh feat/DV-09-01-02-DV-10-01-ledger-esign: đang thực hiện |
 | [DV-09-03](docs/tasks/DV-09-03-niem-phong-merkle.md) | Niêm phong Merkle hai cấp mỗi giờ, dấu thời gian RFC 3161, ký qua esign, EVT-19, bản neo | L | B6 | 11 | DV-09-02, DV-10-03 | **Chưa bắt đầu** |  |
 | [DV-09-04](docs/tasks/DV-09-04-kiem-tra-toan-ven.md) | Kiểm tra toàn vẹn định kỳ, chỉ ra bản ghi bị phá, phát EVT-20 | M | B6 | 12 | DV-09-03 | **Chưa bắt đầu** |  |
 | [DV-09-05](docs/tasks/DV-09-05-tra-cuu-xuat-bang-chung.md) | API tra cứu, xuất bằng chứng có ký và công cụ kiểm chứng độc lập `ledger-verify` | L | B6 | 12 | DV-09-03 | **Chưa bắt đầu** |  |
 
-### DV-10 · SVC-10 esign-service (0/6 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-10 · SVC-10 esign-service (0/6 đã gộp `main`, 0 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
-| [DV-10-01](docs/tasks/DV-10-01-khung-esign-provider.md) | Khung service, migration schema `esign`, giao diện nhà cung cấp `SignatureProvider` | M | B6 | 9 | NEN-019, NEN-033 | **Chưa bắt đầu** |  |
+| [DV-10-01](docs/tasks/DV-10-01-khung-esign-provider.md) | Khung service, migration schema `esign`, giao diện nhà cung cấp `SignatureProvider` | M | B6 | 9 | NEN-019, NEN-033 | **Đang làm** | Nhánh feat/DV-09-01-02-DV-10-01-ledger-esign: đang thực hiện |
 | [DV-10-02](docs/tasks/DV-10-02-nha-cung-cap-mysign.md) | Nhà cung cấp MySign (CSC API) ký từ xa bất đồng bộ, EVT-18 | L | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tài khoản thử MySign |
 | [DV-10-03](docs/tasks/DV-10-03-hsm-pkcs11-tsa.md) | Nhà cung cấp HSM qua PKCS#11 và dấu thời gian TSA | L | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Dev dùng SoftHSM |
 | [DV-10-04](docs/tasks/DV-10-04-viettel-ca-ca-chinh-phu.md) | Nhà cung cấp Viettel-CA và CA chuyên dùng Chính phủ | M | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần môi trường thử CA |
@@ -651,8 +651,39 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 |---|---|---|---|
 | 20/10/2026 17:55 | Điều phối (`main`) | Toàn bộ 401 task | Khởi tạo tệp theo dõi tiến độ tổng hợp duy nhất `TIEN-DO-HE-THONG.md` theo yêu cầu `YC-PT-17`; đồng bộ trạng thái 74 task đã gộp `main` (bao gồm `NEN-006`, `008`, `017`, `018`, `021`, `022`, `034`, `041`, `CNH-01`, `INF-01` mới nhất). |
 | 20/10/2026 22:09 | Điều phối | `NEN-011`, `NEN-012`, `NEN-019` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (2006fc9, 6c2525d) |
-| 20/10/2026 22:14 | B1 | `NEN-042` | Chuyển trạng thái sang **Đang làm** — Đang bổ sung các thao tác nghiệp vụ còn thiếu vào OpenAPI 3.1 |
-| 20/10/2026 22:32 | B1 | `NEN-042` | Chuyển trạng thái sang **Xong, chờ gộp** — Đã bổ sung hợp đồng OpenAPI 3.1 các phân hệ nghiệp vụ (okr, tasks, products, org, dossiers, oversight), sinh lại kiểu TS và kiểm thử vt-api-contract/vt-contract-test xanh |
-| 20/10/2026 22:33 | B1 | `NEN-043` | Chuyển trạng thái sang **Đang làm** — Đang bổ sung hợp đồng OpenAPI 3.1 các phân hệ nền tảng (config, platform, org, tasks, dossiers) |
-| 20/10/2026 22:48 | B1 | `NEN-043` | Chuyển trạng thái sang **Xong, chờ gộp** — Bổ sung 16 thao tác OpenAPI 3.1 còn thiếu cho config, platform (registry, iam, notifications, ai, analytics), org, tasks, dossiers và đồng bộ api-client/vt-api-contract |
+| 20/10/2026 22:15 | Luồng 2 (B1) | `NEN-019` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh feat/NEN-019-NEN-020-template-testkit (commit 7d0fc19 – mẫu service-template Java lục giác, cổng 8081 và scripts/new-service.sh) |
+| 20/10/2026 22:15 | Luồng 3 (B2) | `CORE-00-01` | Chuyển trạng thái sang **Đang làm** — Đang phát triển trên nhánh feat/CORE-00-mission-core (Luồng 3 – khởi tạo backend/mission-core 8 mô-đun & kiểm thử ArchUnit/Modulith) |
+| 20/10/2026 22:15 | Luồng 3 (B2) | `CORE-00-02` | Chuyển trạng thái sang **Đang làm** — Đang phát triển trên nhánh feat/CORE-00-mission-core (Luồng 3 – cổng nội bộ api giữa 8 mô-đun và sự kiện nội bộ Modulith) |
+| 20/10/2026 22:20 | Điều phối | `WEB-020` | Chuyển trạng thái sang **Đang làm** — Xây dựng theme Keycloak SCR-0001 và tái cấu trúc UX/UI nền tảng |
+| 20/10/2026 22:44 | Điều phối + WEB | `WEB-020` | Chuyển trạng thái sang **Đã gộp main** — Theme Keycloak mission (SCR-0001) đã triển khai live trên 14.232.210.125:35080 |
+| 20/10/2026 22:44 | Luồng 2 - B2 CEL & Thực thể nền | `NEN-019` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/NEN-019-NEN-020-template-testkit vào main |
+| 20/10/2026 22:44 | Luồng 2 - B2 CEL & Thực thể nền | `NEN-020` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/NEN-019-NEN-020-template-testkit vào main |
+| 20/10/2026 22:44 | Luồng 2 - B2 CEL & Thực thể nền | `DV-06-01` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/DV-06-workflow-service: đang thực hiện |
+| 20/10/2026 22:44 | Luồng 2 - B2 CEL & Thực thể nền | `DV-06-02` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/DV-06-workflow-service: đang thực hiện |
+| 20/10/2026 22:44 | Luồng 2 - B2 CEL & Thực thể nền | `DV-06-03` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/DV-06-workflow-service: đang thực hiện |
+| 20/10/2026 22:46 | Luồng 4 - B5 Định danh & Tổ chức | `DV-02-01` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| 20/10/2026 22:46 | Luồng 4 - B5 Định danh & Tổ chức | `DV-02-02` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| 20/10/2026 22:46 | Luồng 4 - B5 Định danh & Tổ chức | `DV-02-03` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| 20/10/2026 22:46 | Luồng 4 - B5 Định danh & Tổ chức | `DV-03-01` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| 20/10/2026 22:46 | Luồng 4 - B5 Định danh & Tổ chức | `DV-03-02` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| 20/10/2026 22:46 | Luồng 4 - B5 Định danh & Tổ chức | `DV-03-03` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| 20/10/2026 22:46 | Luồng 4 - B5 Định danh & Tổ chức | `DV-03-04` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| 20/10/2026 22:46 | Luồng 4 - B5 Định danh & Tổ chức | `DV-04-01` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| 20/10/2026 22:46 | Luồng 4 - B5 Định danh & Tổ chức | `DV-04-02` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/B5-dinh-danh-to-chuc vào main (p95=38.7ms trên 11.111 đơn vị) |
+| 20/10/2026 22:46 | Luồng 4 - B5 Định danh & Tổ chức | `DV-04-03` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/B5-dinh-danh-to-chuc vào main (65/65 test PASS) |
+| 20/10/2026 22:46 | Luồng 4 - B5 Định danh & Tổ chức | `DV-04-04` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/DV-04-phan-cong-scim: đang thực hiện |
+| 20/10/2026 22:46 | Luồng 4 - B5 Định danh & Tổ chức | `DV-04-05` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/DV-04-phan-cong-scim: đang thực hiện |
+| 20/10/2026 22:46 | Luồng 4 - B5 Định danh & Tổ chức | `DV-04-06` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/DV-04-phan-cong-scim: đang thực hiện |
+| 20/10/2026 22:49 | Luồng 5 - B1 Starter Platform | `NEN-013` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/NEN-013-014-015-platform-starter vào main |
+| 20/10/2026 22:49 | Luồng 5 - B1 Starter Platform | `NEN-014` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/NEN-013-014-015-platform-starter vào main |
+| 20/10/2026 22:49 | Luồng 5 - B1 Starter Platform | `NEN-015` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp feat/NEN-013-014-015-platform-starter vào main |
+| 20/10/2026 22:49 | Luồng 5 - B1 Starter Platform | `NEN-016` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/NEN-016-017-018-starter-libs: đang thực hiện |
+| 20/10/2026 22:49 | Luồng 5 - B1 Starter Platform | `NEN-017` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/NEN-016-017-018-starter-libs: đang thực hiện |
+| 20/10/2026 22:49 | Luồng 5 - B1 Starter Platform | `NEN-018` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/NEN-016-017-018-starter-libs: đang thực hiện |
+| 20/10/2026 22:50 | Luồng 5 - B1 Starter Platform | `NEN-016` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (vt-platform-starter: Resilience4j, OpenTelemetry, log ECS JSON che dữ liệu nhạy cảm) |
+| 20/10/2026 22:50 | Luồng 5 - B1 Starter Platform | `NEN-017` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (commit fe40716 – thư viện Go dùng chung vtplatform) |
+| 20/10/2026 22:50 | Luồng 5 - B1 Starter Platform | `NEN-018` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (commit 3b4e808 – thư viện Python dùng chung vtplatform) |
+| 20/10/2026 22:50 | Luồng 5 - B6 Sổ cái & Ký số nền tảng | `DV-09-01` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/DV-09-01-02-DV-10-01-ledger-esign: đang thực hiện |
+| 20/10/2026 22:50 | Luồng 5 - B6 Sổ cái & Ký số nền tảng | `DV-09-02` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/DV-09-01-02-DV-10-01-ledger-esign: đang thực hiện |
+| 20/10/2026 22:50 | Luồng 5 - B6 Sổ cái & Ký số nền tảng | `DV-10-01` | Chuyển trạng thái sang **Đang làm** — Nhánh feat/DV-09-01-02-DV-10-01-ledger-esign: đang thực hiện |
 <!-- PROGRESS_LOG_END -->

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: tenant-registry
+description: SVC-03 tenant-registry – danh bạ tenant toàn cục của nền tảng Mission (vùng điều phối toàn cục).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

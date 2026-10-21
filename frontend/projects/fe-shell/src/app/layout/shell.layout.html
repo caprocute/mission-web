@@ -10,14 +10,19 @@
   ></button>
   <a routerLink="/" class="brand">
     @if (theme.logoUrl(); as logo) {
-      <img [src]="logo" alt="" height="32" />
+      <img [src]="logo" alt="" height="34" />
+    } @else {
+      <span class="brand-mark" aria-hidden="true">★</span>
     }
     <span>Mission <small>Giao nhiệm vụ · OKR · KPI</small></span>
   </a>
   <span class="page-title">{{ pageTitle() }}</span>
   <span class="spacer"></span>
   @if (session.assignment(); as a) {
-    <span class="unit-name">{{ a.orgUnitName }}</span>
+    <span class="unit-name">
+      <i class="pi pi-building" aria-hidden="true"></i>
+      {{ a.orgUnitName }}
+    </span>
   }
   @if (session.canSwitchContext()) {
     <!-- SCR-0002 "Đổi phân công" (QT-00 bước 7) -->
@@ -53,17 +58,50 @@
   }
 </header>
 <div class="body">
+  @if (navOpen()) {
+    <div class="sidenav-backdrop" (click)="navOpen.set(false)" aria-hidden="true"></div>
+  }
   <nav class="sidenav" [class.open]="navOpen()" aria-label="Menu chính">
-    @for (item of nav(); track item.link) {
-      <a
-        [routerLink]="item.link"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: item.link === '/' }"
-        (click)="navOpen.set(false)"
-      >
-        <i [class]="item.icon" aria-hidden="true"></i><span>{{ item.label }}</span>
-      </a>
+    @if (platformNav().length > 0) {
+      <div class="nav-group nav-group--platform">
+        <div class="nav-group__title">Khung nền tảng &amp; Quản trị</div>
+        @for (item of platformNav(); track item.link) {
+          <a
+            [routerLink]="item.link"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: item.link === '/' }"
+            (click)="navOpen.set(false)"
+          >
+            <i [class]="item.icon" aria-hidden="true"></i>
+            <span class="nav-copy">
+              <span>{{ item.label }}</span>
+              @if (item.subtitle) {
+                <small class="nav-sub">{{ item.subtitle }}</small>
+              }
+            </span>
+          </a>
+        }
+      </div>
     }
+    <div class="nav-group">
+      <div class="nav-group__title">Không gian làm việc</div>
+      @for (item of workspaceNav(); track item.link) {
+        <a
+          [routerLink]="item.link"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: item.link === '/' }"
+          (click)="navOpen.set(false)"
+        >
+          <i [class]="item.icon" aria-hidden="true"></i>
+          <span class="nav-copy">
+            <span>{{ item.label }}</span>
+            @if (item.subtitle) {
+              <small class="nav-sub">{{ item.subtitle }}</small>
+            }
+          </span>
+        </a>
+      }
+    </div>
   </nav>
   <main id="main" class="content" tabindex="-1">
     <vt-session-notice />

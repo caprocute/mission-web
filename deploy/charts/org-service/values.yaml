@@ -1,0 +1,51 @@
+# Giá trị mặc định; giá trị theo môi trường đặt ở deploy/environments/<môi-trường>/ (HA-TANG.md mục 1).
+# Không ghi bí mật ở đây: mật khẩu CSDL do External Secrets (OpenBao) tạo thành Secret có tên dưới đây.
+image:
+  repository: harbor.invalid/mission/org-service
+  tag: ""
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+database:
+  url: jdbc:postgresql://org-db-rw:5432/td_org
+  # Secret do External Secrets đồng bộ từ OpenBao; khoá username/password.
+  appSecret: org-db-svc-org
+  migrationSecret: org-db-mig-org
+
+oidc:
+  issuerUri: https://sso.invalid/realms/mission
+
+otel:
+  endpoint: http://otel-collector.observability:4318
+
+migration:
+  enabled: true
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 768Mi
+  limits:
+    memory: 1Gi
+
+jvm:
+  opts: "-XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError"
+
+podDisruptionBudget:
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+  # Nhãn namespace được phép gọi vào cổng API (APISIX, mission-core).
+  ingressNamespaces: [gateway, mission-core]
+  # Nhãn namespace giám sát được phép thu cổng quản trị 8081.
+  monitoringNamespace: observability
+  databaseNamespace: org-db
+  databasePort: 5432
+
+serviceAccount:
+  create: true
+  name: ""
