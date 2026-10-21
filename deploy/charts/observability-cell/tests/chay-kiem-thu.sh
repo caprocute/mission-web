@@ -58,5 +58,12 @@ ok(m["login"]["trace"]["id"] == "0123456789012345678901234567abcd" and m["CCCD"]
 PY
 sed 's/^/  /' "$OUT/kq"; dat=$((dat + $(grep -c '^\[ĐẠT\]' "$OUT/kq" || true))); truot=$((truot + $(grep -c '^\[HỎNG\]' "$OUT/kq" || true)))
 grep -q '^\[' "$OUT/kq" || { hong "chạy thử redact.lua"; cat "$OUT/ra.txt" | tail -5; }
+echo "== Luật SLO, cảnh báo và tín hiệu năng lực (INF-15)"
+promtool check rules rules/*.yaml > "$OUT/pt" 2>&1 && ok "promtool check rules ($(grep -o '[0-9]* rules found' "$OUT/pt" | awk '{s+=$1} END {print s}') luật)" || { hong "promtool check rules"; cat "$OUT/pt"; }
+for t in rules/tests/*.test.yaml; do
+  (cd rules/tests && promtool test rules "$(basename "$t")") > "$OUT/pt" 2>&1 && ok "promtool test rules $(basename "$t")" || { hong "promtool test $(basename "$t")"; tail -20 "$OUT/pt"; }
+done
+n=$(grep -A2 "^kind: PrometheusRule" "$OUT/mac-dinh.yaml" | grep -c "name: vt-" || true)
+[ "$n" -ge 3 ] && ok "chart sinh $n PrometheusRule từ rules/*.yaml" || hong "PrometheusRule: $n"
 echo "Tổng: $dat đạt, $truot hỏng"
 [ "$truot" -eq 0 ]

@@ -37,6 +37,10 @@ flows:
     from: { namespace: observability }
     to: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
     ports: [8081]
+  - name: observability-to-apisix-metrics
+    from: { namespace: observability }
+    to: { namespace: edge, podLabels: { app.kubernetes.io/name: apisix } }
+    ports: [9091]
   - name: mission-core-to-pg-core-rw
     from: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
     to: { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-core-rw } }

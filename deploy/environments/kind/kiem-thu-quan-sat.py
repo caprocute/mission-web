@@ -50,7 +50,12 @@ elif cmd == "targets":
     xuong = [(x["labels"].get("job"), x["scrapeUrl"], x.get("lastError")) for x in t if x["health"] != "up"]
     jobs = sorted({x["labels"].get("job") for x in t})
     kq(t and not xuong, f"{len(t) - len(xuong)}/{len(t)} target up; job: {jobs}" + (f"; xuống: {xuong}" if xuong else ""))
-    ratio = get(PROM + "/api/v1/query?" + urllib.parse.urlencode({"query": "trace_completeness_ratio"}))["data"]["result"]
+    # Luật ghi dùng rate trên số liệu servicegraph nên cần vài lượt thu thập sau request đầu tiên.
+    for _ in range(12):
+        ratio = get(PROM + "/api/v1/query?" + urllib.parse.urlencode({"query": "trace_completeness_ratio"}))["data"]["result"]
+        if ratio:
+            break
+        time.sleep(10)
     kq(bool(ratio), f"trace_completeness_ratio = {ratio[0]['value'][1] if ratio else 'chưa có'}")
 elif cmd == "dem":
     run, n = sys.argv[2], int(sys.argv[3])
@@ -65,6 +70,26 @@ elif cmd == "dem":
     n_pod = get(PROM + "/api/v1/query?" + urllib.parse.urlencode({"query": "count(fluentbit_uptime)"}))["data"]["result"]
     drop = float(r[0]["value"][1]) if r else -1
     kq(drop == 0, f"fluentbit_output_dropped_records_total trên {n_pod[0]['value'][1] if n_pod else '?'} pod Fluent Bit = {drop:g}")
+elif cmd == "sli":
+    import base64, os
+    def prom(q):
+        return get(PROM + "/api/v1/query?" + urllib.parse.urlencode({"query": q}))["data"]["result"]
+    r = prom('sum by (kind) (apisix_http_status{route="mission-core"})')
+    kq(any(x["metric"].get("kind") == "read" for x in r), f"APISIX xuất apisix_http_status kèm nhãn kind: {[x['metric'].get('kind') for x in r]}")
+    b = prom('count(apisix_http_latency_bucket{type="request", le=~"300(\\.0)?"})')
+    kq(bool(b), "histogram độ trễ APISIX có bucket 300 ms cho SLO-READ")
+    r = prom("slo:api_requests:rate5m")
+    kq(bool(r), f"luật ghi slo:api_requests:rate5m có {len(r)} chuỗi")
+    r = prom("slo:api_availability_errors:ratio_rate5m")
+    kq(bool(r), f"slo:api_availability_errors:ratio_rate5m = {r[0]['value'][1] if r else '-'}")
+    g = get(PROM + "/api/v1/rules")["data"]["groups"]
+    ten = {x["name"] for x in g}
+    kq({"slo-api.rules", "slo-api.alerts", "vt-nen-tang.alerts", "ng-nang-luc.rules"} <= ten, f"Prometheus nạp các nhóm luật INF-15 ({len(ten)} nhóm)")
+    req = urllib.request.Request("http://om-grafana.observability.svc/api/search?tag=inf-15",
+        headers={"Authorization": "Basic " + base64.b64encode(("admin:" + os.environ["GF_PASS"]).encode()).decode()})
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        ds = json.loads(resp.read())
+    kq(len(ds) == 4, f"Grafana nạp {len(ds)} dashboard: {sorted(d['title'] for d in ds)}")
 elif cmd == "pii":
     # Bỏ log của chính Loki: nhật ký truy vấn của Loki in lại câu LogQL có chuỗi "eyJ".
     jwt = loki('{cell="kind", service!="loki"} |= "eyJ"')

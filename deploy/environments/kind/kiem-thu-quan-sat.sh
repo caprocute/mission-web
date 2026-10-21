@@ -22,6 +22,7 @@ echo "== Ảnh"
 ./nap-anh.sh "$OTEL" "$FB" ghcr.io/prometheus-operator/prometheus-operator@sha256:8f132dc8c2e8a5c852e864231fc85bcb8edecea184dfff34c77593f8f454cb06 \
   ghcr.io/prometheus-operator/prometheus-config-reloader@sha256:bb94799c84286eea0aad22d83ba4889264ae9af26a7fb3023b7fae75e541e87e >/dev/null
 NAP_NODES="$WORKERS" ./nap-anh.sh docker.io/grafana/tempo:2.9.0 docker.io/grafana/loki:3.5.7 docker.io/vt-local/prometheus:v3.7.2 >/dev/null
+NAP_NODES="$WORKERS" ./nap-anh.sh docker.io/grafana/grafana@sha256:2175aaa91c96733d86d31cf270d5310b278654b03f5718c59de12a865380a31f >/dev/null
 NAP_NODES="$KNODE" ./nap-anh.sh "$KAFKA" >/dev/null
 (cd mau-otel && [ -f mau-otel ] || CGO_ENABLED=0 go build -o mau-otel . ; docker build -q -t docker.io/vt-local/mau-otel:0.1 . >/dev/null)
 NAP_NODES="$WORKERS" ./nap-anh.sh docker.io/vt-local/mau-otel:0.1 >/dev/null
@@ -29,6 +30,10 @@ NAP_NODES="$WORKERS" ./nap-anh.sh docker.io/vt-local/mau-otel:0.1 >/dev/null
 echo "== Cài các chart"
 helm upgrade --install cell-base "$CH/cell-base" --set cell=kind --wait >/dev/null
 for c in observability-cell observability-mgmt; do helm dependency build "$CH/$c" >/dev/null; done
+# Mật khẩu quản trị Grafana sinh ngẫu nhiên cho mỗi lần chạy, chỉ nằm trong Secret của cụm kind.
+GF_PASS=$(openssl rand -hex 12)
+kubectl -n observability create secret generic grafana-admin --from-literal=admin-user=admin \
+  --from-literal=admin-password="$GF_PASS" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 helm upgrade --install om "$CH/observability-mgmt" -n observability -f "$CH/observability-mgmt/tests/values-kind.yaml" \
   --set tempo.tempo.image.tag=2.9.0 --set loki.loki.image.tag=3.5.7 --wait --timeout 5m >/dev/null && ok "Tempo và Loki Ready" || hong "Tempo/Loki chưa Ready"
 helm upgrade --install oc "$CH/observability-cell" -n observability -f "$CH/observability-cell/tests/values-kind.yaml" --wait --timeout 5m >/dev/null \
@@ -157,6 +162,13 @@ dat=$((dat + $(grep -c '^\[ĐẠT\]' "$TMP/o" || true))); truot=$((truot + $(gre
 
 echo "== Prometheus (B3)"
 qs targets > "$TMP/o" 2>&1 || true; sed 's/^/  /' "$TMP/o"
+dat=$((dat + $(grep -c '^\[ĐẠT\]' "$TMP/o" || true))); truot=$((truot + $(grep -c '^\[HỎNG\]' "$TMP/o" || true)))
+
+echo "== SLI từ APISIX, luật SLO và dashboard Grafana (INF-15)"
+for _ in $(seq 5); do goi x >/dev/null || true; done
+sleep 75
+kubectl -n observability exec -i tra-cuu -- env GF_PASS="$GF_PASS" python - sli < kiem-thu-quan-sat.py > "$TMP/o" 2>&1 || true
+sed 's/^/  /' "$TMP/o"
 dat=$((dat + $(grep -c '^\[ĐẠT\]' "$TMP/o" || true))); truot=$((truot + $(grep -c '^\[HỎNG\]' "$TMP/o" || true)))
 
 echo "== Chặn Loki ${CHAN_PHUT} phút trong lúc sinh log đều (G4 rút gọn)"

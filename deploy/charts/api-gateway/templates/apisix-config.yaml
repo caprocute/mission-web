@@ -24,6 +24,14 @@ data:
       {{- with $v.apisix.trustedAddresses }}
       trusted_addresses: {{ toJson . }}
       {{- end }}
+    plugin_attr:
+      prometheus:
+        export_addr: { ip: 0.0.0.0, port: {{ $v.metrics.port | int }} }
+        # Có sẵn bucket 200, 300, 800 ms cho SLO-ASYNC, SLO-READ, SLO-WRITE (TL-04 mục 7.1).
+        default_buckets: {{ toJson $v.metrics.buckets }}
+        metrics:
+          http_status: { extra_labels: [{ kind: $vt_kind }] }
+          http_latency: { extra_labels: [{ kind: $vt_kind }] }
     nginx_config:
       worker_processes: {{ $v.apisix.workerProcesses | int }}
       envs: [APISIX_OIDC_CLIENT_SECRET]

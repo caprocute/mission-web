@@ -1,0 +1,157 @@
+# Bảng cảnh báo tối thiểu của TL-04 mục 10.5 (trừ nhóm SLO ở slo-api.yaml và các luật cần cửa sổ dài hơn
+# dữ liệu cục bộ của Prometheus cell: RestoreCheckStale, ErrorBudgetHalfSpent chạy ở Thanos Ruler).
+# Nhãn doi chọn người nhận trong Alertmanager (observability-mgmt/alertmanager). Tên metric có tiền tố vt_
+# là metric ứng dụng chưa có trong mã (suy luận), xem danh mục ở rules/README.md.
+groups:
+  - name: vt-nghiep-vu.alerts
+    rules:
+      - alert: ScoringLagHigh
+        expr: histogram_quantile(0.99, sum by (le) (rate(vt_scoring_lag_seconds_bucket[10m]))) > 60
+        for: 10m
+        labels: { severity: warning, doi: sre, service: scoring }
+        annotations:
+          summary: "Độ trễ từ minh chứng đã xác nhận tới điểm đã tính p99 {{ $value | humanizeDuration }} (SLO-SCORE 60 s)"
+          runbook_url: https://runbook.vt.local/okr/scoring-lag
+      - alert: OutboxBacklog
+        expr: sum by (service) (vt_outbox_pending_events) > 10000 or max by (service) (vt_outbox_oldest_pending_age_seconds) > 60
+        for: 2m
+        labels: { severity: critical, doi: sre-dba }
+        annotations:
+          summary: "Outbox của {{ $labels.service }} tồn đọng: {{ $value }}"
+          runbook_url: https://runbook.vt.local/okr/outbox
+      - alert: LedgerLagHigh
+        expr: histogram_quantile(0.999, sum by (le) (rate(vt_ledger_lag_seconds_bucket[10m]))) > 30
+        for: 10m
+        labels: { severity: warning, doi: sre, slo: ledger }
+        annotations:
+          summary: "Độ trễ ghi sổ cái p99,9 {{ $value | humanizeDuration }} (SLO-LEDGER 30 s)"
+          runbook_url: https://runbook.vt.local/okr/ledger-lag
+      - alert: LedgerChainBroken
+        expr: increase(ledger_verify_failures_total[5m]) > 0
+        labels: { severity: critical, doi: soc }
+        annotations:
+          summary: "Kiểm tra chuỗi băm sổ cái thất bại"
+          runbook_url: https://runbook.vt.local/okr/dr-14
+      - alert: SaturationLevel2
+        expr: max(vt_degrade_level) >= 2
+        labels: { severity: critical, doi: ic }
+        annotations:
+          summary: "Cell vào mức suy giảm {{ $value }} (TL-04 mục 6.9)"
+          runbook_url: https://runbook.vt.local/okr/degradation
+
+  - name: vt-kafka.alerts
+    rules:
+      - alert: KafkaConsumerLagGrowing
+        expr: deriv(kafka_consumergroup_lag[15m]) > 0 and kafka_consumergroup_lag > 100000
+        for: 5m
+        labels: { severity: warning, doi: sre }
+        annotations:
+          summary: "Lag của {{ $labels.consumergroup }} trên {{ $labels.topic }} tăng liên tục"
+          runbook_url: https://runbook.vt.local/okr/kafka-lag
+      - alert: DLQNotEmpty
+        expr: increase(kafka_topic_partition_current_offset{topic=~".*\\.dlq\\..*"}[10m]) > 0
+        labels: { severity: warning, doi: chu-service }
+        annotations:
+          summary: "Có bản ghi mới trong hàng thư chết {{ $labels.topic }}"
+          runbook_url: https://runbook.vt.local/okr/dlq
+
+  - name: vt-du-lieu.alerts
+    rules:
+      # Mọi instance của replica cluster phía Nam đều là standby nên lấy trễ lớn nhất theo cụm.
+      - alert: CNPGReplicaClusterLag
+        expr: max by (cluster) (cnpg_pg_replication_lag) > 300
+        for: 2m
+        labels: { severity: warning, doi: dba }
+        annotations:
+          summary: "Replica cluster {{ $labels.cluster }} trễ {{ $value | humanizeDuration }} (> 5 phút)"
+          runbook_url: https://runbook.vt.local/okr/pg-replica-lag
+      - alert: CNPGReplicaClusterLag
+        expr: max by (cluster) (cnpg_pg_replication_lag) > 600
+        for: 2m
+        labels: { severity: critical, doi: dba }
+        annotations:
+          summary: "Replica cluster {{ $labels.cluster }} trễ {{ $value | humanizeDuration }} (> 10 phút)"
+          runbook_url: https://runbook.vt.local/okr/pg-replica-lag
+      - alert: CNPGPrimaryCPUHigh
+        expr: |
+          sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{container="postgres"}[5m]))
+          / sum by (namespace, pod) (kube_pod_container_resource_limits{resource="cpu", container="postgres"})
+          > 0.75
+          and on (namespace, pod) (cnpg_pg_replication_in_recovery == 0)
+        for: 15m
+        labels: { severity: warning, doi: dba }
+        annotations:
+          summary: "CPU primary {{ $labels.namespace }}/{{ $labels.pod }} {{ $value | humanizePercentage }}"
+          runbook_url: https://runbook.vt.local/okr/pg-cpu
+      - alert: PgBouncerWaitingClients
+        expr: pgbouncer_pools_client_waiting_connections > 50
+        for: 2m
+        labels: { severity: warning, doi: dba }
+        annotations:
+          summary: "PgBouncer {{ $labels.database }} có {{ $value }} client chờ kết nối"
+          runbook_url: https://runbook.vt.local/okr/pgbouncer
+      - alert: BackupMissing
+        expr: |
+          (time() - max by (namespace, cluster) (cnpg_collector_last_available_backup_timestamp)) > 26 * 3600
+          or max by (namespace, cluster) (cnpg_pg_stat_archiver_seconds_since_last_archival) > 300
+        labels: { severity: critical, doi: dba }
+        annotations:
+          summary: "Cụm {{ $labels.cluster }} không có bản sao lưu nền trong 26 giờ hoặc lưu WAL trễ quá 5 phút"
+          runbook_url: https://runbook.vt.local/okr/backup
+      - alert: CephSyncBehind
+        expr: max by (zone) (vt_ceph_multisite_oldest_unsynced_seconds) > 600
+        labels: { severity: warning, doi: sre-luu-tru }
+        annotations:
+          summary: "Đồng bộ multisite Ceph vùng {{ $labels.zone }} chậm {{ $value | humanizeDuration }}"
+          runbook_url: https://runbook.vt.local/okr/ceph-sync
+
+  - name: vt-nen-tang.alerts
+    rules:
+      - alert: FluentBitDropping
+        expr: increase(fluentbit_output_dropped_records_total[5m]) > 0
+        labels: { severity: critical, doi: sre }
+        annotations:
+          summary: "Fluent Bit trên {{ $labels.pod }} bỏ bản ghi log ở đầu ra {{ $labels.name }}"
+          runbook_url: https://runbook.vt.local/okr/logging
+      - alert: TraceCompletenessLow
+        expr: trace_completeness_ratio < 0.99
+        for: 1h
+        labels: { severity: warning, doi: sre }
+        annotations:
+          summary: "Độ đầy đủ ngữ cảnh trace {{ $value | humanizePercentage }} (NFR-10 ≥ 99%)"
+          runbook_url: https://runbook.vt.local/okr/tracing
+      - alert: CertificateExpiringSoon
+        expr: (certmanager_certificate_expiration_timestamp_seconds - time()) < 14 * 86400
+        labels: { severity: warning, doi: sre }
+        annotations:
+          summary: "Chứng thư {{ $labels.namespace }}/{{ $labels.name }} hết hạn sau {{ $value | humanizeDuration }}"
+          runbook_url: https://runbook.vt.local/okr/certs
+      - alert: OpenBaoSealed
+        expr: vault_core_unsealed == 0
+        labels: { severity: critical, doi: quan-tri-khoa }
+        annotations:
+          summary: "Node OpenBao {{ $labels.pod }} đang bị niêm phong"
+          runbook_url: https://runbook.vt.local/okr/openbao
+      - alert: KyvernoImageRejected
+        expr: increase(kyverno_policy_results_total{rule_result="fail", rule_type="verifyImages"}[10m]) > 0
+        labels: { severity: warning, doi: soc }
+        annotations:
+          summary: "Kyverno từ chối ảnh không ký theo chính sách {{ $labels.policy_name }}"
+          runbook_url: https://runbook.vt.local/okr/supply-chain
+      - alert: FalcoCritical
+        expr: increase(falcosecurity_falcosidekick_falco_events_total{priority="Critical"}[5m]) > 0
+        labels: { severity: critical, doi: soc }
+        annotations:
+          summary: "Falco ghi nhận quy tắc mức Critical: {{ $labels.rule }}"
+          runbook_url: https://runbook.vt.local/okr/runtime-security
+      - alert: NodeCapacityHeadroomLow
+        expr: |
+          1 - (
+            sum by (label_vt_io_pool) (kube_pod_container_resource_requests{resource="cpu"} * on (node) group_left (label_vt_io_pool) kube_node_labels)
+            / sum by (label_vt_io_pool) (kube_node_status_allocatable{resource="cpu"} * on (node) group_left (label_vt_io_pool) kube_node_labels)
+          ) < 0.15
+        for: 30m
+        labels: { severity: warning, doi: sre }
+        annotations:
+          summary: "Pool {{ $labels.label_vt_io_pool }} còn {{ $value | humanizePercentage }} CPU dự phòng (< 15%)"
+          runbook_url: https://runbook.vt.local/okr/capacity

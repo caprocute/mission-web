@@ -31,6 +31,16 @@ local function claim_tenant(ctx)
 end
 
 core.ctx.register_var("vt_tenant", claim_tenant)
+-- vt_kind: nhãn kind (read, write, async) của metric APISIX cho SLI (TL-04 mục 10.4). Tuyến trả 202 khai nhãn
+-- vt.io/kind: async; còn lại GET, HEAD là read, phương thức khác là write. Biến đăng ký toàn cục nên dùng được
+-- ở plugin prometheus của mọi tuyến, kể cả tuyến không gắn vt-claims.
+core.ctx.register_var("vt_kind", function(ctx)
+    local route = ctx.matched_route and ctx.matched_route.value
+    if route and route.labels and route.labels["vt.io/kind"] == "async" then return "async" end
+    local m = ctx.var.request_method
+    if m == "GET" or m == "HEAD" then return "read" end
+    return "write"
+end)
 core.ctx.register_var("vt_sub", function(ctx)
     local c = ctx.vt_claims
     return c and c.sub and tostring(c.sub) or nil

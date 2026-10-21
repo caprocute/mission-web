@@ -63,6 +63,7 @@ spec:
           ports:
             - { name: http, containerPort: {{ $v.apisix.ports.http | int }} }
             - { name: https, containerPort: {{ $v.apisix.ports.https | int }} }
+            - { name: metrics, containerPort: {{ $v.metrics.port | int }} }
             {{- if eq $v.mode "controller" }}
             - { name: admin, containerPort: 9180 }
             {{- end }}
@@ -167,3 +168,22 @@ spec:
       ports:
         - { protocol: TCP, port: 9180 }
     {{- end }}
+{{- if $v.metrics.podMonitor }}
+---
+# Prometheus của cell thu metric APISIX làm SLI (TL-04 mục 7.1, 10.4); gắn nhãn cell để luật và dashboard lọc.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: apisix
+  namespace: edge
+  labels:
+    {{- include "api-gateway.labels" . | nindent 4 }}
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: apisix } }
+  podMetricsEndpoints:
+    - port: metrics
+      path: /apisix/prometheus/metrics
+      interval: 15s
+      relabelings:
+        - { targetLabel: cell, replacement: {{ $v.cell | quote }} }
+{{- end }}

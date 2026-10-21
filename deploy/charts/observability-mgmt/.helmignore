@@ -1,1 +1,6 @@
 tests/
+dashboards/vendor/
+dashboards/src/
+dashboards/lib/
+dashboards/*.sh
+dashboards/jsonnetfile*.json

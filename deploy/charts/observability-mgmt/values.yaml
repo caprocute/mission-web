@@ -98,6 +98,13 @@ grafana:
   enabled: true
   admin:
     existingSecret: grafana-admin
+  # Dashboard Grafonnet (dashboards/json) nạp qua ConfigMap vt-grafana-dashboards, không cần sidecar.
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - { name: vt, folder: Mission, type: file, disableDeletion: true, editable: false, options: { path: /var/lib/grafana/dashboards/vt } }
+  dashboardsConfigMaps: { vt: vt-grafana-dashboards }
   datasources:
     datasources.yaml:
       apiVersion: 1
@@ -107,6 +114,9 @@ grafana:
           uid: thanos
           url: http://thanos-query.observability.svc:9090
           isDefault: true
+          # Chấm exemplar trên biểu đồ độ trễ mở trace tương ứng trên Tempo (B5).
+          jsonData:
+            exemplarTraceIdDestinations: [{ name: trace_id, datasourceUid: tempo }]
         - name: Loki
           type: loki
           uid: loki
@@ -131,8 +141,20 @@ thanos:
   objstoreSecret: thanos-objstore
   query: { replicas: 2 }
   store: { replicas: 2, storage: 50Gi }
+  # Thanos Ruler chạy các luật cần dữ liệu dài (rules/dai-han.yaml, rules/nang-luc.yaml; INF-15).
+  ruler: { enabled: true, replicas: 2, storage: 10Gi }
   compactor:
     storage: 200Gi
     retentionRaw: 30d
     retention5m: 180d
     retention1h: 2y
+
+# Alertmanager của cụm quản trị (INF-15): cấu hình ở alertmanager/alertmanager.yaml; Prometheus các cell và
+# Thanos Ruler gửi cảnh báo tới đây. Secret webhookSecret chứa mỗi người nhận một khoá là địa chỉ webhook.
+alertmanager:
+  enabled: true
+  replicas: 3
+  image:
+    repository: quay.io/prometheus/alertmanager
+    digest: ""
+  webhookSecret: alertmanager-webhooks

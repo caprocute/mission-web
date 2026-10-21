@@ -61,6 +61,7 @@ response-rewrite:
   headers:
     set:
       {{- toYaml $v.securityHeaders | nindent 6 }}
+prometheus: {}
 {{- if $v.opentelemetry.enabled }}
 opentelemetry:
   sampler:

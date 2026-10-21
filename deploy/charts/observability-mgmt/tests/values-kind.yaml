@@ -39,5 +39,27 @@ loki:
   test: { enabled: false }
   sidecar: { rules: { enabled: false } }
 lokiColdCopy: { enabled: false }
-grafana: { enabled: false }
+# Grafana trên kind để nạp thử dashboard (INF-15): đọc thẳng Prometheus của cell (uid thanos), Loki, Tempo
+# đơn khối. Mật khẩu quản trị nằm trong Secret grafana-admin do kiem-thu-quan-sat.sh sinh ngẫu nhiên.
+grafana:
+  enabled: true
+  image: { registry: docker.io, repository: grafana/grafana, tag: 12.3.1, sha: 2175aaa91c96733d86d31cf270d5310b278654b03f5718c59de12a865380a31f }
+  initChownData: { enabled: false }
+  testFramework: { enabled: false }
+  persistence: { enabled: false }
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - { name: Prometheus, type: prometheus, uid: thanos, url: "http://prometheus-operated.observability.svc:9090", isDefault: true,
+            jsonData: { exemplarTraceIdDestinations: [{ name: trace_id, datasourceUid: tempo }] } }
+        - name: Loki
+          type: loki
+          uid: loki
+          url: http://loki.observability.svc:3100
+          jsonData:
+            derivedFields:
+              - { name: trace_id, matcherType: label, matcherRegex: trace_id, datasourceUid: tempo, url: "$${__value.raw}" }
+        - { name: Tempo, type: tempo, uid: tempo, url: "http://tempo.observability.svc:3200" }
+alertmanager: { enabled: false }
 thanos: { enabled: false }
