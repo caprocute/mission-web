@@ -1,0 +1,6 @@
+# Chỉ để render/lint: digest giả cho ảnh lấy từ Docker Hub (bản thật ghim theo Harbor ở values của môi trường).
+thanos:
+  image: { digest: sha256:2222222222222222222222222222222222222222222222222222222222222222 }
+  sidecarEndpoints: ["thanos-sidecar.cell-g4-hl.mgmt.internal:10901"]
+lokiColdCopy:
+  image: { digest: sha256:3333333333333333333333333333333333333333333333333333333333333333 }

@@ -1,0 +1,138 @@
+# Bản cài tại chỗ khi pháp chế chưa duyệt AGPL (TL-04 mục 9.9, INF-23): đặt true và tắt tempo-distributed,
+# loki, grafana; OTel gateway (agplThayThe của otel-collector) và Fluent Bit chuyển sang đích Apache-2.0.
+agplThayThe: false
+
+# Ceph S3 của cụm quản trị; khoá truy cập nằm trong Secret do ExternalSecret tạo (không ghi ở đây).
+s3:
+  endpoint: rgw.mgmt-hl.svc:443
+  credentialsSecret: observability-s3
+
+tempo-distributed:
+  enabled: true
+  fullnameOverride: tempo
+  storage:
+    trace:
+      backend: s3
+      s3:
+        bucket: tempo-traces
+        endpoint: rgw.mgmt-hl.svc:443
+        insecure: false
+  compactor:
+    config:
+      compaction:
+        # Giữ trace 14 ngày (TL-04 mục 10.2).
+        block_retention: 336h
+  distributor:
+    replicas: 3
+    extraArgs: ["-config.expand-env=true"]
+    extraEnvFrom:
+      - secretRef: { name: observability-s3 }
+  ingester: { replicas: 3 }
+  traces:
+    otlp:
+      grpc: { enabled: true }
+  global:
+    extraEnvFrom:
+      - secretRef: { name: observability-s3 }
+
+tempo:
+  enabled: false
+
+loki:
+  enabled: true
+  deploymentMode: SimpleScalable
+  loki:
+    auth_enabled: false
+    schemaConfig:
+      configs:
+        - from: "2026-01-01"
+          store: tsdb
+          object_store: s3
+          schema: v13
+          index: { prefix: loki_index_, period: 24h }
+    storage:
+      type: s3
+      bucketNames: { chunks: loki-chunks, ruler: loki-ruler, admin: loki-admin }
+      s3:
+        endpoint: rgw.mgmt-hl.svc:443
+        s3ForcePathStyle: true
+        accessKeyId: ${AWS_ACCESS_KEY_ID}
+        secretAccessKey: ${AWS_SECRET_ACCESS_KEY}
+    limits_config:
+      # Giữ nóng 90 ngày (G5, NFR-09).
+      retention_period: 2160h
+      allow_structured_metadata: true
+      volume_enabled: true
+    compactor:
+      retention_enabled: true
+      delete_request_store: s3
+  write:
+    extraArgs: ["-config.expand-env=true"]
+    extraEnvFrom: [{ secretRef: { name: observability-s3 } }]
+    # Giữ PVC chứa WAL khi thu nhỏ hay xoá StatefulSet, để log đã nhận mà chưa đẩy lên S3 không mất.
+    persistence: { enableStatefulSetAutoDeletePVC: false }
+  read:
+    extraArgs: ["-config.expand-env=true"]
+    extraEnvFrom: [{ secretRef: { name: observability-s3 } }]
+  backend:
+    extraArgs: ["-config.expand-env=true"]
+    extraEnvFrom: [{ secretRef: { name: observability-s3 } }]
+    persistence: { enableStatefulSetAutoDeletePVC: false }
+  minio: { enabled: false }
+  lokiCanary: { enabled: false }
+  test: { enabled: false }
+
+# Chép khối Loki sắp hết hạn nóng sang bucket lạnh, giữ thêm 1 năm (TL-04 mục 10.3).
+lokiColdCopy:
+  enabled: true
+  schedule: "30 1 * * *"
+  minAge: 85d
+  hotBucket: loki-chunks
+  coldBucket: loki-chunks-cold
+  coldEndpoint: backup-s3.mgmt-hl.svc:443
+  image:
+    repository: docker.io/rclone/rclone
+    digest: ""
+
+grafana:
+  enabled: true
+  admin:
+    existingSecret: grafana-admin
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Thanos
+          type: prometheus
+          uid: thanos
+          url: http://thanos-query.observability.svc:9090
+          isDefault: true
+        - name: Loki
+          type: loki
+          uid: loki
+          url: http://loki-gateway.observability.svc
+          jsonData:
+            derivedFields:
+              - { name: trace_id, matcherType: label, matcherRegex: trace_id, datasourceUid: tempo, url: "$${__value.raw}" }
+        - name: Tempo
+          type: tempo
+          uid: tempo
+          url: http://tempo-query-frontend.observability.svc:3200
+          jsonData:
+            tracesToLogsV2: { datasourceUid: loki, filterByTraceID: true, customQuery: true, query: '{cell=~".+"} | trace_id="$${__trace.traceId}"' }
+
+thanos:
+  enabled: true
+  image:
+    repository: docker.io/thanosio/thanos
+    digest: ""
+  # Địa chỉ gRPC của Thanos sidecar ở các cell (qua cổng gRPC nội bộ có mTLS); giá trị của môi trường.
+  sidecarEndpoints: []
+  objstoreSecret: thanos-objstore
+  query: { replicas: 2 }
+  store: { replicas: 2, storage: 50Gi }
+  compactor:
+    storage: 200Gi
+    retentionRaw: 30d
+    retention5m: 180d
+    retention1h: 2y

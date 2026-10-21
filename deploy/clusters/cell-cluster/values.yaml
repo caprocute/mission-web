@@ -21,6 +21,13 @@ infrastructure:
   image: ""
   sshKeyName: ""
 
+kubelet:
+  containerLogMaxSize: 100Mi
+  containerLogMaxFiles: 5
+# Volume đệm Fluent Bit mỗi node (TL-04 mục 10.3).
+logBuffer:
+  sizeGiB: 20
+
 controlPlane:
   replicas: 3
   flavor: ""

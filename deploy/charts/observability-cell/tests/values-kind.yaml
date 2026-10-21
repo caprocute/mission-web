@@ -1,0 +1,52 @@
+# Cụm kind: Prometheus dựng cục bộ từ bản phát hành GitHub (Docker Hub giới hạn lượt kéo), không Thanos (không có S3),
+# tắt thành phần mà ảnh nằm ở registry bị chặn (registry.k8s.io, quay.io); Fluent Bit gửi Loki và Kafka không TLS.
+cell: kind
+kube-prometheus-stack:
+  defaultRules: { create: false }
+  kubeStateMetrics: { enabled: false }
+  nodeExporter: { enabled: false }
+  kubeControllerManager: { enabled: false }
+  kubeScheduler: { enabled: false }
+  kubeProxy: { enabled: false }
+  kubeEtcd: { enabled: false }
+  prometheusOperator:
+    admissionWebhooks: { enabled: false }
+    tls: { enabled: false }
+    nodeSelector: null
+    tolerations: []
+  prometheus:
+    prometheusSpec:
+      image: { registry: docker.io, repository: vt-local/prometheus, tag: v3.7.2, sha: "" }
+      externalLabels: { cell: kind }
+      resources:
+        requests: { cpu: 100m, memory: 512Mi }
+        limits: { cpu: "1", memory: 512Mi }
+      storageSpec: null
+      nodeSelector: null
+      tolerations: []
+      thanos: null
+fluent-bit:
+  env:
+    - { name: CELL, value: kind }
+  config:
+    outputs: |
+      [OUTPUT]
+          Name                loki
+          Match               kube.*
+          Host                loki.observability.svc
+          Port                3100
+          labels              cell=${CELL}, namespace=$kubernetes['namespace_name'], service=$kubernetes['labels']['app.kubernetes.io/name'], level=$level
+          structured_metadata trace_id=$trace['id'], tenant_id=$tenant['id']
+          line_format         json
+          Retry_Limit         no_limits
+          storage.total_limit_size 1G
+
+      [OUTPUT]
+          Name                kafka
+          Match               audit.*
+          Brokers             kafka-kafka-bootstrap.data-kafka.svc:9093
+          Topics              sys.audit.v1
+          rdkafka.acks                all
+          rdkafka.enable.idempotence  true
+          Retry_Limit         no_limits
+          storage.total_limit_size 512M

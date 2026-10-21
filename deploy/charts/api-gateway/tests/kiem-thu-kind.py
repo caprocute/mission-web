@@ -30,7 +30,7 @@ thieu = [k for k in ("Strict-Transport-Security", "X-Content-Type-Options", "Ref
 kq(not thieu, "header bảo mật SEC-24 có đủ" + (f" (thiếu {thieu})" if thieu else ""))
 s, h, b = goi("/api/v1/tasks?id=1%27%20OR%20%271%27=%271%27--", tok)
 kq(s == 403, f"payload SQLi mẫu bị Coraza chặn → {s}")
-s, h, b = goi("/api/v1/tasks?q=%3Cscript%3Ealert(1)%3C/script%3E")
+s, h, b = goi("/api/v1/tasks?id=7&q=%3Cscript%3Ealert(1)%3C/script%3E")
 kq(s == 403, f"payload XSS mẫu bị Coraza chặn (trước bước xác thực) → {s}")
 
 dau = None

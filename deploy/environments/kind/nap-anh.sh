@@ -4,7 +4,8 @@
 # ảnh đa nền tảng khi Docker dùng kho ảnh containerd. Dùng: nap-anh.sh <ảnh> [<ảnh>...]
 set -euo pipefail
 CLUSTER=${CLUSTER:-vt-cell-kind}
-NODES=$(kind get nodes --name "$CLUSTER")
+# NAP_NODES: chỉ nạp vào các node này (tiết kiệm đĩa với ảnh lớn); mặc định mọi node.
+NODES=${NAP_NODES:-$(kind get nodes --name "$CLUSTER")}
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 for img in "$@"; do
   docker image inspect "$img" >/dev/null 2>&1 || docker pull -q --platform linux/amd64 "$img" >/dev/null

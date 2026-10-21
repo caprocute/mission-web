@@ -92,6 +92,11 @@ coraza:
   anomalyThreshold: 5
   # On: chặn; DetectionOnly: chỉ ghi nhật ký (2 tuần đầu với tuyến mới, TL-04 SEC-34).
   ruleEngine: "On"
+  # Quy tắc loại trừ theo tuyến, quản lý trong Git (TL-04 SEC-34); nạp trước CRS, dạng ctl lúc chạy
+  # (coraza-proxy-wasm 0.5.0 lỗi khi gặp SecRuleUpdateTargetById). 932236 (PL2) coi tên tham số "id" là lệnh Unix.
+  exclusions:
+    - SecRule ARGS_NAMES "@streq id" "id:10001,phase:1,pass,nolog,ctl:ruleRemoveTargetById=932236;ARGS_NAMES:id"
+    - SecRule ARGS_GET_NAMES "@streq id" "id:10002,phase:1,pass,nolog,ctl:ruleRemoveTargetById=932236;ARGS_GET_NAMES:id"
 
 # SEC-24: header bảo mật gắn toàn cục. CSP của giao diện do SVC-17 (nginx của web-frontend) đặt theo TL-01.
 securityHeaders:
@@ -101,11 +106,11 @@ securityHeaders:
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Cross-Origin-Opener-Policy: same-origin
 
-# Sinh và truyền traceparent W3C (B2).
+# Sinh và truyền traceparent W3C (B2). APISIX ghi mọi span (always_on); quyết định lưu trace do lấy mẫu theo đuôi
+# ở OTel gateway (TL-04 mục 10.2). Header X-Debug-Trace thành thuộc tính để gateway giữ 100% trace đó.
 opentelemetry:
   enabled: true
-  collector: otel-collector.observability.svc:4318
-  samplerRatio: 0.1
+  collector: otel-agent.observability.svc:4318
 
 # Tuyến; ApisixRoute đặt ở namespace của backend (CRD chỉ trỏ được Service cùng namespace).
 # Không có tuyến Strangler /kpi-legacy/* (Mission là hệ mới độc lập).

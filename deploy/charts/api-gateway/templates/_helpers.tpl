@@ -45,8 +45,8 @@ capabilities:
   "Include @crs-setup-conf"
   (printf "SecRuleEngine %s" $c.ruleEngine)
   (printf "SecAction \"id:900000,phase:1,pass,t:none,nolog,setvar:tx.blocking_paranoia_level=%d\"" (int $c.paranoiaLevel))
-  (printf "SecAction \"id:900110,phase:1,pass,t:none,nolog,setvar:tx.inbound_anomaly_score_threshold=%d\"" (int $c.anomalyThreshold))
-  "Include @owasp_crs/*.conf" -}}
+  (printf "SecAction \"id:900110,phase:1,pass,t:none,nolog,setvar:tx.inbound_anomaly_score_threshold=%d\"" (int $c.anomalyThreshold)) -}}
+{{- $d = concat $d (default list $c.exclusions) (list "Include @owasp_crs/*.conf") -}}
 {{- dict "directives_map" (dict "default" $d) "default_directives" "default" | toJson -}}
 {{- end -}}
 
@@ -64,8 +64,8 @@ response-rewrite:
 {{- if $v.opentelemetry.enabled }}
 opentelemetry:
   sampler:
-    name: trace_id_ratio
-    options: { fraction: {{ $v.opentelemetry.samplerRatio }} }
+    name: always_on
+  additional_attributes: ["http_x_debug_trace"]
 {{- end }}
 {{- end -}}
 

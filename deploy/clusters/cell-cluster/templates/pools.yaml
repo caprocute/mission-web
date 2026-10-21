@@ -21,6 +21,11 @@ spec:
       {{- with $i.sshKeyName }}
       sshKeyName: {{ . }}
       {{- end }}
+      # Volume riêng cho bộ đệm Fluent Bit, không dùng chung đĩa của container runtime (TL-04 mục 10.3).
+      additionalBlockDevices:
+        - name: fluentbit
+          sizeGiB: {{ $v.logBuffer.sizeGiB | int }}
+          storage: { type: Volume }
 {{- range $zi, $zone := $v.zones }}
 {{- $n := 0 }}
 {{- if $p.autoscale }}{{ $n = int $p.autoscale.min }}{{ else }}{{ $n = int (index $p.perZone $zi) }}{{ end }}
@@ -34,11 +39,19 @@ metadata:
 spec:
   template:
     spec:
+      # Định dạng và gắn volume đệm log ở /var/fluent-bit trước khi kubelet chạy.
+      preKubeadmCommands:
+        - {{ printf "d=$(lsblk -bdnpo NAME,SIZE,FSTYPE | awk '$2==%d && $3==\"\" {print $1; exit}'); if [ -n \"$d\" ]; then mkfs.ext4 -L fluentbit \"$d\"; fi" (mul (int $v.logBuffer.sizeGiB) 1073741824) | quote }}
+      mounts:
+        - ["LABEL=fluentbit", "/var/fluent-bit", "ext4", "defaults,nofail", "0", "2"]
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
             cloud-provider: external
             node-labels: {{ include "cell-cluster.nodeLabels" (list $p $zone $) | quote }}
+            # Kubelet giữ log container làm lớp đệm khi Fluent Bit gặp sự cố (TL-04 mục 10.3).
+            container-log-max-size: {{ $v.kubelet.containerLogMaxSize }}
+            container-log-max-files: {{ $v.kubelet.containerLogMaxFiles | quote }}
           {{- with $p.taint }}
           taints:
             - {{ toJson . }}

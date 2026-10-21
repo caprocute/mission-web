@@ -216,6 +216,14 @@ spec:
       {{- include "vt-service.selectorLabels" . | nindent 6 }}
   policyTypes: ["Ingress", "Egress"]
   ingress:
+    {{- if .v.serviceMonitor.enabled }}
+    # Prometheus của cell (observability-cell, INF-14) thu metric qua cổng quản trị.
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: observability } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: prometheus } }
+      ports:
+        - { protocol: TCP, port: {{ .v.ports.mgmt | int }} }
+    {{- end }}
     {{- range $np.ingressFrom }}
     - from:
         {{- include "vt-service.peer" . | nindent 8 }}
@@ -235,6 +243,15 @@ spec:
       ports:
         - { protocol: UDP, port: 53 }
         - { protocol: TCP, port: 53 }
+    {{- if has .v.runtime (list "java" "go" "python") }}
+    # Span OTLP gửi tới OTel agent cùng node (otel-collector, INF-14).
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: observability } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: otel-agent } }
+      ports:
+        - { protocol: TCP, port: 4317 }
+        - { protocol: TCP, port: 4318 }
+    {{- end }}
     {{- range $np.egressTo }}
     - to:
         {{- include "vt-service.peer" . | nindent 8 }}
