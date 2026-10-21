@@ -84,8 +84,77 @@
       {
         "name": "service_client",
         "description": "Client dịch vụ nội bộ được gọi API nội bộ và khởi động saga của workflow-service (SVC-06)"
+      },
+      {
+        "name": "offline_access",
+        "description": "${role_offline_access}"
+      },
+      {
+        "name": "uma_authorization",
+        "description": "${role_uma_authorization}"
+      },
+      {
+        "name": "default-roles-mission",
+        "description": "${role_default-roles}",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "offline_access",
+            "uma_authorization"
+          ],
+          "client": {
+            "account": [
+              "view-profile",
+              "manage-account"
+            ]
+          }
+        }
       }
-    ]
+    ],
+    "client": {
+      "account": [
+        {
+          "name": "view-profile"
+        },
+        {
+          "name": "manage-account",
+          "composite": true,
+          "composites": {
+            "client": {
+              "account": [
+                "manage-account-links"
+              ]
+            }
+          }
+        },
+        {
+          "name": "manage-account-links"
+        },
+        {
+          "name": "view-applications"
+        },
+        {
+          "name": "view-consent"
+        },
+        {
+          "name": "manage-consent",
+          "composite": true,
+          "composites": {
+            "client": {
+              "account": [
+                "view-consent"
+              ]
+            }
+          }
+        },
+        {
+          "name": "view-groups"
+        },
+        {
+          "name": "delete-account"
+        }
+      ]
+    }
   },
   "clientScopes": [
     {
@@ -360,6 +429,52 @@
           }
         }
       ]
+    },
+    {
+      "name": "roles",
+      "description": "Scope chuẩn của Keycloak: đưa vai trò vào token cho các client có sẵn (trang tài khoản cần resource_access.account).",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "multivalued": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true",
+            "user.attribute": "foo"
+          }
+        },
+        {
+          "name": "client roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "config": {
+            "multivalued": "true",
+            "claim.name": "resource_access.${client_id}.roles",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true",
+            "user.attribute": "foo"
+          }
+        },
+        {
+          "name": "audience resolve",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-resolve-mapper",
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "defaultDefaultClientScopes": [
@@ -367,7 +482,8 @@
     "profile",
     "email",
     "web-origins",
-    "mission-context"
+    "mission-context",
+    "roles"
   ],
   "defaultOptionalClientScopes": [],
   "clients": [
@@ -501,6 +617,65 @@
         "profile",
         "mission-context"
       ]
+    },
+    {
+      "clientId": "account",
+      "name": "${client_account}",
+      "rootUrl": "${authBaseUrl}",
+      "baseUrl": "/realms/mission/account/",
+      "redirectUris": [
+        "/realms/mission/account/*"
+      ],
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "fullScopeAllowed": false,
+      "attributes": {
+        "post.logout.redirect.uris": "+"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "roles",
+        "profile",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "account-console",
+      "name": "${client_account-console}",
+      "rootUrl": "${authBaseUrl}",
+      "baseUrl": "/realms/mission/account/",
+      "redirectUris": [
+        "/realms/mission/account/*"
+      ],
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "fullScopeAllowed": false,
+      "attributes": {
+        "post.logout.redirect.uris": "+",
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience resolve",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-resolve-mapper",
+          "config": {}
+        }
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "roles",
+        "profile",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": []
     }
   ],
   "components": {
@@ -981,6 +1156,7 @@
         }
       ],
       "realmRoles": [
+        "default-roles-mission",
         "platform_admin",
         "wf_template_author"
       ]
@@ -1015,6 +1191,7 @@
         }
       ],
       "realmRoles": [
+        "default-roles-mission",
         "tenant_admin",
         "policy_author"
       ]
@@ -1083,6 +1260,7 @@
         }
       ],
       "realmRoles": [
+        "default-roles-mission",
         "policy_author"
       ]
     },
@@ -1116,6 +1294,7 @@
         }
       ],
       "realmRoles": [
+        "default-roles-mission",
         "member",
         "leader"
       ]
@@ -1150,6 +1329,7 @@
         }
       ],
       "realmRoles": [
+        "default-roles-mission",
         "member",
         "manager"
       ]
@@ -1184,6 +1364,7 @@
         }
       ],
       "realmRoles": [
+        "default-roles-mission",
         "member"
       ]
     },
@@ -1217,6 +1398,7 @@
         }
       ],
       "realmRoles": [
+        "default-roles-mission",
         "member",
         "appraiser"
       ]
@@ -1251,6 +1433,7 @@
         }
       ],
       "realmRoles": [
+        "default-roles-mission",
         "decider"
       ]
     },
@@ -1284,6 +1467,7 @@
         }
       ],
       "realmRoles": [
+        "default-roles-mission",
         "second_approver"
       ]
     },
@@ -1317,6 +1501,7 @@
         }
       ],
       "realmRoles": [
+        "default-roles-mission",
         "member",
         "inspector"
       ]
@@ -1456,5 +1641,23 @@
         ]
       }
     }
-  ]
+  ],
+  "accountTheme": "mission",
+  "adminTheme": "mission",
+  "emailTheme": "mission",
+  "clientScopeMappings": {
+    "account": [
+      {
+        "client": "account-console",
+        "roles": [
+          "manage-account",
+          "view-groups"
+        ]
+      }
+    ]
+  },
+  "defaultRole": {
+    "name": "default-roles-mission",
+    "composite": true
+  }
 }
