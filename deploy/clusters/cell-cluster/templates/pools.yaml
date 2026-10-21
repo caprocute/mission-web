@@ -1,0 +1,110 @@
+{{- $v := .Values }}
+{{- $name := $v.clusterName }}
+{{- $i := $v.infrastructure }}
+{{- $vm := list "system" "ingress" "app-general" "app-worker" }}
+{{- $known := list "system" "ingress" "app-general" "app-worker" "data-postgres-large" "data-postgres-small" "data-kafka" "data-search" "security-zone" "gpu" }}
+{{- range $pool, $p := $v.pools }}
+{{- if not (has $pool $known) }}{{ fail (printf "cell-cluster: pool %s không có trong bảng TL-04 mục 3.3" $pool) }}{{ end }}
+{{- if and $p.autoscale (not (has $pool (list "ingress" "app-general" "app-worker"))) }}{{ fail (printf "cell-cluster: pool %s không được co giãn tự động (TL-04 mục 3.3)" $pool) }}{{ end }}
+{{- if $p.enabled }}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: {{ $name }}-{{ $pool }}
+  namespace: {{ $v.namespace }}
+spec:
+  template:
+    spec:
+      flavor: {{ include "cell-cluster.req" (list $p.flavor (printf "pools.%s.flavor" $pool)) }}
+      image: { filter: { name: {{ $i.image }} } }
+      {{- with $i.sshKeyName }}
+      sshKeyName: {{ . }}
+      {{- end }}
+{{- range $zi, $zone := $v.zones }}
+{{- $n := 0 }}
+{{- if $p.autoscale }}{{ $n = int $p.autoscale.min }}{{ else }}{{ $n = int (index $p.perZone $zi) }}{{ end }}
+{{- if or (gt $n 0) $p.autoscale }}
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: {{ $name }}-{{ $pool }}-{{ $zone }}
+  namespace: {{ $v.namespace }}
+spec:
+  template:
+    spec:
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            cloud-provider: external
+            node-labels: {{ include "cell-cluster.nodeLabels" (list $p $zone $) | quote }}
+          {{- with $p.taint }}
+          taints:
+            - {{ toJson . }}
+          {{- else }}
+          taints: []
+          {{- end }}
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: {{ $name }}-{{ $pool }}-{{ $zone }}
+  namespace: {{ $v.namespace }}
+  labels:
+    vt.io/pool: {{ $pool }}
+  {{- if $p.autoscale }}
+  annotations:
+    cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size: {{ $p.autoscale.min | quote }}
+    cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size: {{ $p.autoscale.max | quote }}
+  {{- end }}
+spec:
+  clusterName: {{ $name }}
+  {{- if not $p.autoscale }}
+  replicas: {{ $n }}
+  {{- end }}
+  selector:
+    matchLabels: { cluster.x-k8s.io/deployment-name: {{ $name }}-{{ $pool }}-{{ $zone }} }
+  strategy:
+    type: RollingUpdate
+    # Pool máy vật lý (dữ liệu, vùng bảo mật, gpu) thay từng node, không tạo thêm node (OPS-15).
+    rollingUpdate: {{ ternary "{ maxSurge: 1, maxUnavailable: 0 }" "{ maxSurge: 0, maxUnavailable: 1 }" (has $pool $vm) }}
+  template:
+    metadata:
+      labels:
+        vt.io/pool: {{ $pool }}
+        cluster.x-k8s.io/deployment-name: {{ $name }}-{{ $pool }}-{{ $zone }}
+    spec:
+      clusterName: {{ $name }}
+      version: {{ $v.kubernetesVersion }}
+      failureDomain: {{ $zone }}
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+          name: {{ $name }}-{{ $pool }}-{{ $zone }}
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: OpenStackMachineTemplate
+        name: {{ $name }}-{{ $pool }}
+{{- end }}
+{{- end }}
+{{- if has $pool $vm }}
+# Tự thay node VM hỏng; máy vật lý xử lý thủ công theo OPS-15.
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineHealthCheck
+metadata:
+  name: {{ $name }}-{{ $pool }}
+  namespace: {{ $v.namespace }}
+spec:
+  clusterName: {{ $name }}
+  maxUnhealthy: 34%
+  selector:
+    matchLabels: { vt.io/pool: {{ $pool }} }
+  unhealthyConditions:
+    - { type: Ready, status: Unknown, timeout: 300s }
+    - { type: Ready, status: "False", timeout: 300s }
+{{- end }}
+{{- end }}
+{{- end }}

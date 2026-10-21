@@ -1,0 +1,30 @@
+# Tên cụm, ví dụ cell-g4-hl (cell G4, TTDL Hòa Lạc).
+clusterName: ""
+namespace: capi-cells
+cell: ""
+# Kubernetes n-1 (TL-04 mục 3.1); bản vá cụ thể ghim theo bảng phiên bản trong kho GitOps.
+kubernetesVersion: v1.36.0
+zones: [hl-a, hl-b, hl-c]
+# Tủ máy theo vùng (nhãn vt.io/rack); node VM nhận giá trị của vùng, node vật lý ghi đè theo máy khi có.
+racks: { hl-a: hl-a-r01, hl-b: hl-b-r01, hl-c: hl-c-r01 }
+network:
+  podCIDR: 10.244.0.0/16
+  serviceCIDR: 10.96.0.0/12
+
+# Provider hạ tầng: OpenStack (CAPO). Máy vật lý cấp qua flavor bare metal (Ironic). Mọi giá trị dưới đây là
+# của môi trường, khai trong values của cell; để trống thì render dừng với thông báo.
+infrastructure:
+  cloudName: ""
+  identitySecret: ""
+  externalNetwork: ""
+  nodeCIDR: ""
+  image: ""
+  sshKeyName: ""
+
+controlPlane:
+  replicas: 3
+  flavor: ""
+
+# Chín node pool (TL-04 mục 3.3). perZone: số node mỗi vùng; autoscale: min/max mỗi vùng cho Cluster Autoscaler
+# (chỉ ingress, app-general, app-worker). Pool dữ liệu và vùng bảo mật không co giãn.
+pools: {}
