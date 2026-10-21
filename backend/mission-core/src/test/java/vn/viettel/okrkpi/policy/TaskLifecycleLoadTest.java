@@ -29,7 +29,8 @@ class TaskLifecycleLoadTest {
 
   /** Bộ trạng thái chuẩn của nhiệm vụ (baseline mục 9.1). */
   private static final Set<String> TRANG_THAI_CHUAN =
-      Set.of("NHAP", "DA_GIAO", "DANG_THUC_HIEN", "CHO_NGHIEM_THU", "HOAN_THANH", "TAM_DUNG", "HUY");
+      Set.of(
+          "NHAP", "DA_GIAO", "DANG_THUC_HIEN", "CHO_NGHIEM_THU", "HOAN_THANH", "TAM_DUNG", "HUY");
 
   /** Lệnh của TL-01 (TaskCommand). */
   private static final Set<String> LENH =
@@ -53,7 +54,8 @@ class TaskLifecycleLoadTest {
 
   @Test
   void trangThaiVaLenhThuocBoChuan() {
-    assertThat((List<String>) lifecycle.get("trang_thai")).containsExactlyInAnyOrderElementsOf(TRANG_THAI_CHUAN);
+    assertThat((List<String>) lifecycle.get("trang_thai"))
+        .containsExactlyInAnyOrderElementsOf(TRANG_THAI_CHUAN);
     assertThat((List<String>) lifecycle.get("lenh")).containsExactlyInAnyOrderElementsOf(LENH);
     // qua_han là thuộc tính tính theo lịch ngày làm việc, không phải trạng thái (TL-01, QT-05).
     assertThat((Map<String, Object>) lifecycle.get("thuoc_tinh_tinh_toan")).containsKey("qua_han");
@@ -61,7 +63,8 @@ class TaskLifecycleLoadTest {
       assertThat(TRANG_THAI_CHUAN).as("from của %s", t).contains((String) t.get("from"));
       assertThat(TRANG_THAI_CHUAN).as("to của %s", t).contains((String) t.get("to"));
       assertThat(LENH).as("command của %s", t).contains((String) t.get("command"));
-      assertThat((List<String>) lifecycle.get("trang_thai_ket_thuc")).doesNotContain((String) t.get("from"));
+      assertThat((List<String>) lifecycle.get("trang_thai_ket_thuc"))
+          .doesNotContain((String) t.get("from"));
       assertThat(t.get("reasonRequired")).isInstanceOf(Boolean.class);
     }
   }
@@ -74,16 +77,25 @@ class TaskLifecycleLoadTest {
     }
     assertThat(cap)
         .contains(
-            "NHAP:ASSIGN", "DA_GIAO:ACCEPT", "DANG_THUC_HIEN:SUBMIT", "CHO_NGHIEM_THU:REWORK",
-            "CHO_NGHIEM_THU:APPROVE", "DANG_THUC_HIEN:SUSPEND", "TAM_DUNG:RESUME",
-            "DA_GIAO:CANCEL", "DANG_THUC_HIEN:CANCEL", "TAM_DUNG:CANCEL");
+            "NHAP:ASSIGN",
+            "DA_GIAO:ACCEPT",
+            "DANG_THUC_HIEN:SUBMIT",
+            "CHO_NGHIEM_THU:REWORK",
+            "CHO_NGHIEM_THU:APPROVE",
+            "DANG_THUC_HIEN:SUSPEND",
+            "TAM_DUNG:RESUME",
+            "DA_GIAO:CANCEL",
+            "DANG_THUC_HIEN:CANCEL",
+            "TAM_DUNG:CANCEL");
   }
 
   @Test
   void vaiTroLayTuMaTranPhanQuyen() {
     Set<String> roles = PolicyPackFixtures.realmRoles();
     for (Map<String, Object> t : transitions) {
-      assertThat((List<String>) t.get("allowedRoles")).isNotEmpty().allSatisfy(r -> assertThat(roles).contains(r));
+      assertThat((List<String>) t.get("allowedRoles"))
+          .isNotEmpty()
+          .allSatisfy(r -> assertThat(roles).contains(r));
     }
   }
 
@@ -101,8 +113,12 @@ class TaskLifecycleLoadTest {
   void guardNghiemThuChiChoQuaKhiMoiMinhChungDaXacNhan() {
     String guard = guard("CHO_NGHIEM_THU", "APPROVE");
     assertThat(guard).isEqualTo("deliverables.all(d, d.status == 'DA_XAC_NHAN')");
-    assertThat(eval(guard, List.of(Map.of("status", "DA_XAC_NHAN"), Map.of("status", "DA_XAC_NHAN")))).isTrue();
-    assertThat(eval(guard, List.of(Map.of("status", "DA_XAC_NHAN"), Map.of("status", "CHO_XAC_NHAN")))).isFalse();
+    assertThat(
+            eval(guard, List.of(Map.of("status", "DA_XAC_NHAN"), Map.of("status", "DA_XAC_NHAN"))))
+        .isTrue();
+    assertThat(
+            eval(guard, List.of(Map.of("status", "DA_XAC_NHAN"), Map.of("status", "CHO_XAC_NHAN"))))
+        .isFalse();
   }
 
   @Test
@@ -119,8 +135,10 @@ class TaskLifecycleLoadTest {
   @ParameterizedTest
   @MethodSource("goi")
   void thamSoMacDinhNamTrongMien(String id) {
-    Map<String, Object> policy = PolicyPackFixtures.yaml(PolicyPackFixtures.pack(id).resolve("policy.yaml"));
-    Map<String, Map<String, Object>> params = (Map<String, Map<String, Object>>) policy.get("params");
+    Map<String, Object> policy =
+        PolicyPackFixtures.yaml(PolicyPackFixtures.pack(id).resolve("policy.yaml"));
+    Map<String, Map<String, Object>> params =
+        (Map<String, Map<String, Object>>) policy.get("params");
     assertThat(params).isNotEmpty();
     params.forEach(
         (ten, p) -> {
@@ -134,10 +152,14 @@ class TaskLifecycleLoadTest {
             assertThat((List<Object>) mien.get("enum")).as(ten).contains(md);
           }
           if (mien.containsKey("min")) {
-            assertThat(((Number) md).doubleValue()).as(ten).isGreaterThanOrEqualTo(((Number) mien.get("min")).doubleValue());
+            assertThat(((Number) md).doubleValue())
+                .as(ten)
+                .isGreaterThanOrEqualTo(((Number) mien.get("min")).doubleValue());
           }
           if (mien.containsKey("max")) {
-            assertThat(((Number) md).doubleValue()).as(ten).isLessThanOrEqualTo(((Number) mien.get("max")).doubleValue());
+            assertThat(((Number) md).doubleValue())
+                .as(ten)
+                .isLessThanOrEqualTo(((Number) mien.get("max")).doubleValue());
           }
         });
     // Tham số giả định chờ cơ quan tổ chức xác nhận phải được đánh dấu (DL-04).
@@ -148,7 +170,9 @@ class TaskLifecycleLoadTest {
   @MethodSource("goi")
   void thamSoLuongDuyetTrongMienQt15(String id) {
     Set<String> roles = PolicyPackFixtures.realmRoles();
-    List<Path> tep = PolicyPackFixtures.files(PolicyPackFixtures.pack(id).resolve("workflow-bindings"), "*.yaml");
+    List<Path> tep =
+        PolicyPackFixtures.files(
+            PolicyPackFixtures.pack(id).resolve("workflow-bindings"), "*.yaml");
     assertThat(tep).isNotEmpty();
     for (Path f : tep) {
       Map<String, Object> b = PolicyPackFixtures.yaml(f);
@@ -160,7 +184,9 @@ class TaskLifecycleLoadTest {
       if (params.containsKey("so_cap")) {
         int soCap = ((Number) params.get("so_cap")).intValue();
         assertThat(cap).as(ten).hasSize(soCap);
-        assertThat(soCap).as(ten).isBetween(intOf(mien.get("so_cap"), "min"), intOf(mien.get("so_cap"), "max"));
+        assertThat(soCap)
+            .as(ten)
+            .isBetween(intOf(mien.get("so_cap"), "min"), intOf(mien.get("so_cap"), "max"));
       }
       for (Map<String, Object> c : cap) {
         // Một bước có thể cho một hoặc nhiều vai trò (duyet-okr bước trình: manager hoặc member).
@@ -174,7 +200,9 @@ class TaskLifecycleLoadTest {
         assertThat(m.matches()).as("%s: thời hạn %s", ten, c.get("thoi_han")).isTrue();
         assertThat(Integer.parseInt(m.group(1)))
             .as(ten)
-            .isBetween(intOf(mien.get("thoi_han_ngay_lam_viec"), "min"), intOf(mien.get("thoi_han_ngay_lam_viec"), "max"));
+            .isBetween(
+                intOf(mien.get("thoi_han_ngay_lam_viec"), "min"),
+                intOf(mien.get("thoi_han_ngay_lam_viec"), "max"));
       }
     }
   }
@@ -207,7 +235,18 @@ class TaskLifecycleLoadTest {
     Map<String, Object> vars =
         Map.of(
             "actor", Map.of("person_id", "p1", "roles", List.of("manager")),
-            "task", Map.of("chu_tri_id", "p2", "nguoi_giao_id", "p1", "nguoi_nghiem_thu_id", "p1", "ke_hoach", 1L, "so_san_pham_da_nop", 1L),
+            "task",
+                Map.of(
+                    "chu_tri_id",
+                    "p2",
+                    "nguoi_giao_id",
+                    "p1",
+                    "nguoi_nghiem_thu_id",
+                    "p1",
+                    "ke_hoach",
+                    1L,
+                    "so_san_pham_da_nop",
+                    1L),
             "deliverables", deliverables,
             "change_request", Map.of("request_type", "HUY", "status", "DA_DUYET"));
     return (Boolean) cel.evaluate(guard, NGU_CANH_GUARD, CelValueType.BOOL, vars);

@@ -58,7 +58,8 @@ final class PolicyPackFixtures {
       return List.of();
     }
     try (Stream<Path> s = Files.list(dir)) {
-      return s.filter(f -> f.getFileSystem().getPathMatcher("glob:" + glob).matches(f.getFileName()))
+      return s.filter(
+              f -> f.getFileSystem().getPathMatcher("glob:" + glob).matches(f.getFileName()))
           .sorted()
           .toList();
     } catch (IOException e) {
