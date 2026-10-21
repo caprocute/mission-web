@@ -47,9 +47,17 @@ spec:
             matchLabels:
               {{- include "tenant-registry.selector" . | nindent 14 }}
       terminationGracePeriodSeconds: 30
+      {{- if or .Values.provisioning.enabled .Values.move.enabled }}
+      volumes:
+      {{- end }}
+      {{- if .Values.move.enabled }}
+        - name: move-secrets
+          secret:
+            secretName: {{ .Values.move.secretName }}
+            defaultMode: 0400
+      {{- end }}
       {{- if .Values.provisioning.enabled }}
       # Token chiếu hạn 1 giờ, chỉ để gọi API Kubernetes tạo Certificate (cert-manager); không gắn token mặc định.
-      volumes:
         - name: kube-api
           projected:
             sources:
@@ -191,11 +199,36 @@ spec:
               value: {{ .readinessInterval | quote }}
             {{- end }}
             {{- end }}
-          {{- if .Values.provisioning.enabled }}
+            {{- if .Values.move.enabled }}
+            - name: MOVE_CELL_DB_FILE
+              value: /var/run/secrets/tenant-registry-move/cell-db.json
+            - name: MOVE_OBJECTS_FILE
+              value: /var/run/secrets/tenant-registry-move/objects.json
+            - name: MOVE_LEDGER_URL
+              value: {{ .Values.move.ledgerUrl | quote }}
+            - name: MOVE_POLL_EVERY
+              value: {{ .Values.move.pollEvery | quote }}
+            - name: MOVE_CATCHUP_TIMEOUT
+              value: {{ .Values.move.catchUpTimeout | quote }}
+            - name: MOVE_FREEZE_TIMEOUT
+              value: {{ .Values.move.freezeTimeout | quote }}
+            - name: MOVE_RETENTION
+              value: {{ .Values.move.retention | quote }}
+            - name: MOVE_PURGE_INTERVAL
+              value: {{ .Values.move.purgeInterval | quote }}
+            {{- end }}
+          {{- if or .Values.provisioning.enabled .Values.move.enabled }}
           volumeMounts:
+            {{- if .Values.provisioning.enabled }}
             - name: kube-api
               mountPath: /var/run/secrets/tenant-registry
               readOnly: true
+            {{- end }}
+            {{- if .Values.move.enabled }}
+            - name: move-secrets
+              mountPath: /var/run/secrets/tenant-registry-move
+              readOnly: true
+            {{- end }}
           {{- end }}
           readinessProbe:
             httpGet:

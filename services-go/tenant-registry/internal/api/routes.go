@@ -7,6 +7,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/registry/cells", s.listCells)
 	s.mux.HandleFunc("POST /api/v1/registry/tenants", s.createRegistryTenant)
 	s.mux.HandleFunc("GET /api/v1/registry/tenants/{id}", s.getRegistryTenant)
+	// DV-03-07: chuyển tenant giữa các cell (ADR-29, bốn mắt).
+	s.mux.HandleFunc("POST /api/v1/registry/tenants/{id}/move", s.requestTenantMove)
+	s.mux.HandleFunc("POST /api/v1/registry/tenants/{id}/move/{moveId}/approve", s.approveTenantMove)
+	s.mux.HandleFunc("GET /api/v1/registry/tenants/{id}/move/{moveId}", s.getTenantMove)
+	s.mux.HandleFunc("POST /api/v1/registry/tenants/{id}/move/{moveId}/cancel", s.cancelTenantMove)
 
 	// config.yaml, tag Tenant, phần /config/tenants* (DV-03-03; hợp đồng ghi owner MOD-08, hiện thực tại SVC-03).
 	s.mux.HandleFunc("GET /api/v1/config/tenants", s.listConfigTenants)

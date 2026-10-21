@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"mission/services-go/tenant-registry/internal/move"
 	"mission/services-go/tenant-registry/internal/platform/auth"
 	"mission/services-go/tenant-registry/internal/platform/dbx"
 	"mission/services-go/tenant-registry/internal/platform/httpx"
@@ -449,7 +450,9 @@ func (s *Server) getJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	j, err := store.GetJob(r.Context(), s.Pool, id)
-	if err != nil || j.CreatedBy != s.actor(r, p).ID || j.Type == store.JobTypeIdpMeta {
+	// Lệnh chuyển cell (DV-03-07) do hai quản trị nền tảng cùng xử lý: quản trị nền tảng nào cũng theo dõi được.
+	sharedMove := err == nil && j.Type == move.JobType && p.HasRole(auth.RolePlatformAdmin)
+	if err != nil || (j.CreatedBy != s.actor(r, p).ID && !sharedMove) || j.Type == store.JobTypeIdpMeta {
 		if err != nil && !errors.Is(err, store.ErrNotFound) {
 			s.fail(w, r, err)
 			return

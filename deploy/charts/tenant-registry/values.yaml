@@ -186,3 +186,24 @@ provisioning:
           matchLabels:
             kubernetes.io/metadata.name: monitoring
     prometheusPort: 9090
+
+# DV-03-07: chuyển tenant giữa các cell (ADR-29). Secret secretName chứa hai tệp JSON (OpenBao → External Secrets):
+#   cell-db.json: {"<mã cell>": {"adminUrl": "...", "peerConnInfo": "host=... user=... password=..."}} — vai trò
+#     quản trị sao chép của cụm PostgreSQL mỗi cell (REPLICATION, tạo publication/subscription/trigger);
+#   objects.json: {"<mã cell>": {"url": "...", "region": "...", "accessKey": "...", "secretKey": "..."}} — Ceph RGW.
+move:
+  enabled: false
+  secretName: tenant-registry-move
+  ledgerUrl: http://ledger-service.{cell}.svc:8080   # API chuyển giao sổ cái (suy luận, wiki trang 14)
+  pollEvery: 1s
+  catchUpTimeout: 6h
+  freezeTimeout: 15m                                 # ADR-29: chỉ đọc 5–15 phút
+  retention: 720h                                    # giữ dữ liệu nguồn 30 ngày rồi dọn
+  purgeInterval: 24h
+  egress:
+    postgres:
+      - namespaceSelector:
+          matchLabels:
+            mission.vn/plane: cell
+    postgresPort: 5432
+    rgwPort: 8443

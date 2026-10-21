@@ -45,6 +45,15 @@ type Config struct {
 
 	// DV-03-05: saga cấp phát phần 2 và kích hoạt. Mẫu địa chỉ có chỗ {cell} (mã cell chữ thường).
 	Provision ProvisionConfig
+	// DV-03-07: chuyển tenant giữa các cell.
+	Move MoveConfig
+}
+
+// MoveConfig là cấu hình chuyển cell. Hai tệp JSON là bí mật (External Secrets gắn tệp): kết nối quản trị sao
+// chép PostgreSQL theo cell và khoá S3 của Ceph RGW theo cell. Để trống CellDBFile thì tắt (thao tác /move trả 503).
+type MoveConfig struct {
+	CellDBFile, ObjectsFile, LedgerURL                         string
+	PollEvery, CatchUpTimeout, FreezeTimeout, Retention, Purge time.Duration
 }
 
 // ProvisionConfig là cấu hình saga cấp phát (để trống KeycloakURL thì tắt provision/activate, trả 503).
@@ -139,6 +148,10 @@ func Load() (Config, error) {
 		RPO:               dur("ACTIVATION_RPO", 15*time.Minute),
 		ReadinessInterval: dur("READINESS_INTERVAL", 5*time.Minute),
 	}
+	c.Move = MoveConfig{CellDBFile: os.Getenv("MOVE_CELL_DB_FILE"), ObjectsFile: os.Getenv("MOVE_OBJECTS_FILE"),
+		LedgerURL: os.Getenv("MOVE_LEDGER_URL"), PollEvery: dur("MOVE_POLL_EVERY", time.Second),
+		CatchUpTimeout: dur("MOVE_CATCHUP_TIMEOUT", 6*time.Hour), FreezeTimeout: dur("MOVE_FREEZE_TIMEOUT", 15*time.Minute),
+		Retention: dur("MOVE_RETENTION", 30*24*time.Hour), Purge: dur("MOVE_PURGE_INTERVAL", 24*time.Hour)}
 	var err error
 	if c.Provision.ClientSecret, err = plain("PROVISION_CLIENT_SECRET"); err != nil {
 		return c, err

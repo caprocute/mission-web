@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 
 	"mission/services-go/tenant-registry/internal/api"
 	"mission/services-go/tenant-registry/internal/config"
+	"mission/services-go/tenant-registry/internal/move"
 	"mission/services-go/tenant-registry/internal/platform/auth"
 	"mission/services-go/tenant-registry/internal/platform/crypto"
 	"mission/services-go/tenant-registry/internal/platform/logx"
@@ -97,8 +99,21 @@ func main() {
 	} else {
 		log.Warn("chưa cấu hình saga cấp phát (PROVISION_KEYCLOAK_URL): provision/activate trả 503")
 	}
+	moves, runner, err := newMover(cfg, pool, tenants, log)
+	if err != nil {
+		log.Error("cấu hình chuyển cell không hợp lệ", "err", err.Error())
+		os.Exit(2)
+	}
+	if runner != nil {
+		if err := runner.ResumePending(ctx); err != nil {
+			log.Warn("không tiếp tục được lệnh chuyển cell còn dở", "err", err.Error())
+		}
+		go runPurge(ctx, runner, cfg.Move.Purge, log)
+		defer runner.DB.Close()
+	}
 	srv := api.New(api.Deps{Pool: pool, Log: log, Verifier: verifier, StepUpMaxAge: cfg.StepUpMaxAge,
-		Resolver: resolver, Cookies: signer, CookieDomain: cfg.CookieDomain, Tenants: tenants, Provision: saga})
+		Resolver: resolver, Cookies: signer, CookieDomain: cfg.CookieDomain, Tenants: tenants, Provision: saga,
+		Moves: moves, MoveRunner: runner})
 
 	httpSrv := &http.Server{
 		Addr:              cfg.HTTPAddr,
@@ -121,6 +136,9 @@ func main() {
 	_ = httpSrv.Shutdown(shutdownCtx)
 	srv.WaitJobs()
 	srv.WaitSagas()
+	if runner != nil {
+		runner.Wait()
+	}
 	log.Info("tenant-registry đã dừng")
 }
 
@@ -155,6 +173,72 @@ func newSaga(c config.ProvisionConfig, pool *pgxpool.Pool, tenants *tenant.Servi
 		return nil, errors.New("thiếu PDNS_API_URL, PDNS_ZONE, CERT_NAMESPACE, CERT_ISSUER, PROVISION_CORE_URL hoặc PROVISION_ORG_URL")
 	}
 	return s, nil
+}
+
+// newMover dựng nghiệp vụ và saga chuyển cell DV-03-07; trả nil khi chưa cấu hình MOVE_CELL_DB_FILE.
+func newMover(cfg config.Config, pool *pgxpool.Pool, tenants *tenant.Service, log *slog.Logger) (*move.Service, *move.Runner, error) {
+	c := cfg.Move
+	if c.CellDBFile == "" {
+		return nil, nil, nil
+	}
+	cells := map[string]move.CellDBConfig{}
+	if err := readJSON(c.CellDBFile, &cells); err != nil {
+		return nil, nil, err
+	}
+	r := &move.Runner{Pool: pool, Tenants: tenants, DB: &move.PGCells{Cells: cells}, Log: log, PollEvery: c.PollEvery,
+		CatchUpTimeout: c.CatchUpTimeout, FreezeTimeout: c.FreezeTimeout, Retention: c.Retention, MaxAttempts: 3}
+	if c.ObjectsFile != "" {
+		s3 := map[string]move.S3Endpoint{}
+		if err := readJSON(c.ObjectsFile, &s3); err != nil {
+			return nil, nil, err
+		}
+		r.Objects = &move.S3Sync{Cells: s3, Buckets: move.DefaultBuckets()}
+	}
+	if c.LedgerURL != "" {
+		l := &move.LedgerHTTP{BaseURL: c.LedgerURL}
+		if p := cfg.Provision; p.KeycloakURL != "" {
+			tokens := &provision.ClientCredentials{ClientID: p.ClientID, ClientSecret: p.ClientSecret}
+			res := provision.TemplateResolver{KeycloakURL: p.KeycloakURL, Realm: p.Realm, TokenURL: p.TokenURL}
+			l.Token = func(ctx context.Context, cell string) (string, error) {
+				ep, err := res.Endpoints(cell, "https://"+strings.ToLower(cell)+".invalid")
+				if err != nil {
+					return "", err
+				}
+				return tokens.Token(ctx, ep.TokenURL)
+			}
+		}
+		r.Ledger = l
+	}
+	return &move.Service{Tenants: tenants}, r, nil
+}
+
+func readJSON(path string, v any) error {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(b, v)
+}
+
+// runPurge dọn dữ liệu cell nguồn của các lần chuyển đã quá thời hạn giữ.
+func runPurge(ctx context.Context, r *move.Runner, every time.Duration, log *slog.Logger) {
+	if every <= 0 {
+		return
+	}
+	tk := time.NewTicker(every)
+	defer tk.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tk.C:
+			if n, err := r.PurgeExpired(ctx); err != nil {
+				log.Warn("dọn dữ liệu cell nguồn lỗi", "err", err.Error())
+			} else if n > 0 {
+				log.Info("đã dọn dữ liệu cell nguồn sau chuyển cell", "count", n)
+			}
+		}
+	}
 }
 
 func copyMigrations(src, dst string) error {
