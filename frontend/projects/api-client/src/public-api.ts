@@ -8,6 +8,7 @@ export * from './lib/problem-presenter';
 export * from './lib/paging';
 export * from './lib/interceptors';
 export * from './lib/load-shedding';
+export * from './lib/cell-router';
 export * from './lib/api-path';
 export * from './lib/models/task';
 export * from './lib/models/job';

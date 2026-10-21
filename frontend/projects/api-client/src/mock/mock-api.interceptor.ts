@@ -28,6 +28,9 @@ const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
  * Lỗi có nghĩa với lệnh ghi (bước lên MFA, xung đột `If-Match`, dữ liệu không hợp lệ) chỉ áp
  * cho lệnh ghi. 401 giả lập là yêu cầu bước lên RFC 9470 (BR-00-02, WEB-006).
  */
+/** `?mock-error=421` đã trả một lần trong lần tải trang này. */
+let movedOnce = false;
+
 const WRITE_ONLY_ERRORS = new Set([401, 409, 412, 422]);
 const FORCED_HEADERS: Record<number, Record<string, string>> = {
   // Cắt tải (WEB-073): máy chủ báo thời gian chờ trước khi gửi lại
@@ -91,6 +94,11 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
   const opts = inject(MOCK_API_OPTIONS);
   const query = (opts.pageQuery ?? (() => globalThis.location?.search ?? ''))();
   let forced = forcedError(req, query);
+  if (forced === 421) {
+    // Tenant chuyển cell (WEB-075): chỉ trả 421 một lần mỗi lần tải trang, lần gửi lại sang cell mới thì qua
+    if (movedOnce) forced = null;
+    else movedOnce = true;
+  }
   if (forced === 401) {
     // Bước lên chỉ đòi một lần cho mỗi ý định ghi: gửi lại cùng Idempotency-Key sau MFA thì qua
     const key = req.headers.get('Idempotency-Key') ?? '';
@@ -114,7 +122,7 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
                 code: `MOCK-${forced}`,
               },
             ),
-            FORCED_HEADERS[forced],
+            forced === 421 ? { Location: cfg.apiBaseUrl } : FORCED_HEADERS[forced],
           ),
         )
       : from(import('./mock-registry')).pipe(

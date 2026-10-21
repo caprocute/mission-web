@@ -1,3 +1,4 @@
+import { firstValueFrom } from 'rxjs';
 import {
   ApplicationConfig,
   inject,
@@ -9,12 +10,13 @@ import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from 
 import {
   RUNTIME_CONFIG,
   RuntimeConfig,
-  apiBaseUrlInterceptor,
+  CellRouter,
+  cellBaseUrlInterceptor,
   idempotencyInterceptor,
   loadSheddingInterceptor,
   mockApiInterceptor,
 } from '@vt/api-client';
-import { authInterceptor, provideVtAuth } from '@vt/auth';
+import { SessionService, authInterceptor, provideVtAuth } from '@vt/auth';
 import { provideDesignSystem } from '@vt/design-system';
 import {
   BUILTIN_SDUI_COMPONENTS,
@@ -55,7 +57,8 @@ export function buildAppConfig(
         withFetch(),
         // mockApiInterceptor đứng cuối: chỉ trả fixture khi useMockApi bật (WEB-008)
         withInterceptors([
-          apiBaseUrlInterceptor,
+          // Gốc API theo cell của tenant, đổi cell khi gặp 421 (WEB-075)
+          cellBaseUrlInterceptor,
           authInterceptor,
           idempotencyInterceptor,
           // Thử lại 429/503 theo Retry-After (WEB-073); sau Idempotency-Key để giữ nguyên khoá
@@ -71,6 +74,12 @@ export function buildAppConfig(
       ...(uiPackPrefetch ? [{ provide: UI_PACK_PREFETCH, useValue: uiPackPrefetch }] : []),
       // nạp token của tenant trước khi render để không nháy giao diện
       provideAppInitializer(() => inject(UiPackLoader).load()),
+      // Khám phá cell sau đăng nhập (WEB-075); dữ liệu giả lập thì giữ gốc API của config.json
+      provideAppInitializer(() => {
+        if (cfg.useMockApi) return;
+        const tenant = inject(SessionService).user()?.tenant ?? cfg.tenant;
+        return firstValueFrom(inject(CellRouter).resolve(tenant)).then(() => undefined);
+      }),
     ],
   };
 }
