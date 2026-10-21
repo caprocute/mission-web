@@ -10,36 +10,129 @@
     --vt-color-primary-strong: #d1002d;
     --vt-color-on-primary: #ffffff;
     --vt-color-surface: #ffffff;
-    --vt-color-text: #1f2329;
-    --vt-color-text-muted: #566275;
-    --vt-color-background: #f5f6f8;
-    --vt-font-family: 'Be Vietnam Pro', Roboto, 'Segoe UI', sans-serif;
+    --vt-color-surface-elevated: #ffffff;
+    --vt-color-border: #e2e8f0;
+    --vt-color-text: #0f172a;
+    --vt-color-text-muted: #475569;
+    --vt-color-background: #f1f5f9;
+    --vt-font-family: 'Be Vietnam Pro', 'Inter', Roboto, 'Segoe UI', sans-serif;
     --vt-font-size-body: 14px;
-    --vt-radius-card: 8px;
+    --vt-radius-card: 12px;
     --vt-space-lg: 16px;
     --vt-min-touch: 40px;
+    --vt-shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+    --vt-shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.07), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
+    --vt-shadow-md: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.05);
   }
   /* Chế độ Đảng viên cao tuổi (NFR-11): chữ ≥ 17 px, tương phản cao, vùng chạm ≥ 48 px */
   :root[data-mode='elderly'] {
     --vt-font-size-body: 18px;
     --vt-color-text: #000000;
-    --vt-color-text-muted: #3d4756;
+    --vt-color-text-muted: #334155;
     /* BR-18-09: tương phản ≥ 7:1 cho chữ trắng trên nút ở chế độ cao tuổi */
     --vt-color-primary-strong: #a30023;
     --vt-min-touch: 48px;
   }
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
   html {
     font-size: var(--vt-font-size-body);
+    -webkit-font-smoothing: antialiased;
   }
   body {
     margin: 0;
     font-family: var(--vt-font-family);
     color: var(--vt-color-text);
     background: var(--vt-color-background);
+    line-height: 1.5;
   }
   :focus-visible {
     /* viền tiêu điểm đạt 3:1 với nền trắng (WCAG 1.4.11), WEB-059 */
     outline: 3px solid var(--vt-color-primary-strong, #d1002d);
     outline-offset: 2px;
+  }
+}
+
+@layer app {
+  .vt-hero-banner {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #4c0519 100%);
+    color: #ffffff;
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: var(--vt-shadow-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+
+  .vt-hero-banner h1 {
+    margin: 0 0 4px;
+    color: #ffffff;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .vt-hero-banner p {
+    margin: 0;
+    color: rgba(241, 245, 249, 0.86);
+    font-size: 0.92rem;
+  }
+
+  .vt-hero-kicker {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #fde047;
+    background: rgba(250, 204, 21, 0.14);
+    border: 1px solid rgba(250, 204, 21, 0.32);
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 6px;
+  }
+
+  .vt-stat-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .vt-stat-card {
+    background: var(--vt-color-surface, #ffffff);
+    border: 1px solid var(--vt-color-border, #e2e8f0);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: var(--vt-shadow-xs);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .vt-stat-card__label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--vt-color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .vt-stat-card__value {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: var(--vt-color-text);
+  }
+
+  .vt-stat-card__sub {
+    font-size: 0.82rem;
+    color: var(--vt-color-text-muted);
   }
 }

@@ -138,6 +138,20 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 - **Kiểm tra:** Trang quyết định/câu hỏi mở trên wiki liệt kê đủ các mâu thuẫn đã phát hiện, mỗi mục có trạng thái (chờ chốt/đã chốt) và quyết định cuối cùng.
 - **Nguồn:** Dự án Mission, ngày 19/10/2026.
 
+#### YC-TK-11 – Tư duy lại trải nghiệm người dùng (UX) và giải pháp màn hình nghiệp vụ trên cơ sở kết hợp chuẩn quốc tế (Top 10 ứng dụng) với quy định Việt Nam
+
+- **Nội dung:** Khi thiết kế giải pháp và trải nghiệm người dùng cho các màn hình nghiệp vụ, phải khảo sát và học hỏi từ tối thiểu 10 nền tảng chuẩn mực hàng đầu thế giới trong lĩnh vực đó (ví dụ với OKR/KPI và quản trị hiệu suất: Lattice, 15Five, Microsoft Viva Goals, Workboard, Perdoo, Profit.co, Betterworks, Leapsome, Culture Amp, Linear), sau đó kết hợp nhuần nhuyễn với các quy định pháp lý và đặc thù quản trị tại Việt Nam (ví dụ QĐ 366-QĐ/TW, NĐ 335/2025, NĐ 233/2026). Giải pháp đưa ra phải tối giản, tự nhiên, gom các thao tác liên quan về một luồng trực quan tại chỗ (inline check-in, ngăn kéo chi tiết, tự động tổng hợp dữ liệu minh chứng), đảm bảo thao tác thường ngày không quá 3 bước chạm và người dùng nhìn vào hiểu ngay việc cần làm mà không bị choáng ngợp bởi hàng chục trường dữ liệu hay màn hình rời rạc.
+- **Lý do:** Nếu chỉ dịch cơ học các biểu mẫu hành chính hoặc quy trình giấy tờ lên phần mềm thì giao diện sẽ cực kỳ phức tạp, nặng nề và khó sử dụng; ngược lại nếu chỉ sao chép phần mềm nước ngoài thì không đáp ứng được quy định pháp lý của Nhà nước.
+- **Kiểm tra:** Có tài liệu đối chiếu giải pháp UX với Top 10 ứng dụng chuẩn quốc tế và quy định Việt Nam; mỗi màn hình nghiệp vụ đều có luồng thao tác chính ≤ 3 bước chạm, phân tách rõ lớp thông tin trọng tâm và lớp chi tiết mở rộng.
+- **Nguồn:** Dự án Mission, ngày 20/10/2026, kênh điều phối Antigravity (anh Hiếu: "tôi xem qua giao diện thấy đang quá phức tạp, cần tư duy lại cách xây dựng trải nghiệm người dùng... cần tham khảo các hệ thống kpi, okr chuẩn trên thế giới, từ đó kết hợp với các quy định của việt nam để đưa ra các tính năng vừa đơn giản, dễ dùng mà hiệu quả").
+
+#### YC-TK-12 – Thiết kế giao diện (UI), CSS, khả năng đáp ứng (responsive) và tùy biến màn hình đăng nhập (IdP/Keycloak) ấn tượng, có điểm nhấn thị giác
+
+- **Nội dung:** Giao diện người dùng (UI) của toàn bộ hệ thống và các màn hình xác thực tập trung (như trang đăng nhập, OTP, đổi mật khẩu trên Keycloak/IdP) bắt buộc phải được thiết kế và tùy biến đồng bộ, hiện đại, có điểm nhấn thị giác rõ nét theo chuẩn thẩm mỹ của các sản phẩm phần mềm doanh nghiệp hàng đầu thế giới. Phải đầu tư kỹ lưỡng vào hệ thống token thiết kế (màu sắc chủ đạo và màu nhấn, độ tương phản, bóng đổ tinh tế, bo góc, khoảng trắng, phân cấp chữ rõ ràng), bố cục thẻ chỉ số có biểu đồ/thanh tiến độ trực quan, điều hướng phân nhóm gọn gàng, và bố cục đáp ứng (responsive) mượt mà trên mọi kích thước màn hình (máy tính để bàn, máy tính bảng, điện thoại). Tuyệt đối không để giao diện mặc định thô sơ của Keycloak/IdP hoặc các màn hình phẳng, thiếu điểm nhấn và vỡ bố cục khi thu hẹp màn hình.
+- **Lý do:** Ấn tượng đầu tiên khi đăng nhập và trải nghiệm thị giác hằng ngày quyết định mức độ hào hứng và niềm tin của người dùng cũng như lãnh đạo đối với chất lượng của nền tảng.
+- **Kiểm tra:** Trang đăng nhập IdP/Keycloak hiển thị giao diện tùy biến riêng có thương hiệu, hỗ trợ SSO/VNeID và responsive; khung ứng dụng và các màn hình chính có phân nhóm điều hướng rõ ràng, thẻ chỉ số có điểm nhấn thị giác và vượt qua kiểm thử hiển thị trên cả viewport desktop lẫn mobile.
+- **Nguồn:** Dự án Mission, ngày 20/10/2026, kênh điều phối Antigravity (anh Hiếu: "giao diện UI cũng đơn giản, không có điểm nhấn, css, responsive chưa tốt, các màn hình login chưa được custom. Đề nghị làm lại giao diện ấn tượng, đẹp, tham khảo top 10 ứng dụng kpi okr mà làm").
+
 ### 2.3. Nhóm PT – Tổ chức phát triển
 
 #### YC-PT-01 – Lập kế hoạch phát triển bám đúng thiết kế đã duyệt
@@ -259,6 +273,13 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 - **Kiểm tra:** Tệp `TIEN-DO-HE-THONG.md` ở gốc repo chứa đủ 100% số task của dự án với số liệu tổng hợp khớp chính xác với bảng chi tiết (`python3 scripts/cap-nhat-tien-do.py sync` chạy không lỗi); `AGENTS.md`, `docs/tasks/_NHAC-QUY-DINH.md`, `scripts/agent-task.sh` và các tệp `docs/quy-dinh/*.md` đều có điều khoản bắt buộc cập nhật `TIEN-DO-HE-THONG.md`; mọi commit hoàn thành hoặc gộp task đều kèm cập nhật tiến độ trong tệp này.
 - **Nguồn:** Dự án Mission, ngày 20/10/2026, kênh điều phối Antigravity (anh Hiếu: "tôi cần 1 file tổng hợp duy nhất, và yêu cầu mọi agent phải cập nhật tiến độ vào").
 
+#### YC-PT-18 – Ưu tiên xây dựng hoàn chỉnh khung nền tảng (Platform Foundation) trước khi triển khai sâu các tính năng nghiệp vụ
+
+- **Nội dung:** Khi tổ chức thứ tự phát triển và phân bổ các luồng agent, bắt buộc phải ưu tiên tập trung xây dựng xong khung nền tảng (Platform Foundation) trước, bao gồm: xác thực tập trung & phân quyền động (IdP/Keycloak, OPA, phân công vai trò), quản trị tổ chức/đơn vị/người dùng/tenant, động cơ quy trình động (BPMN workflow engine & trình thiết kế quy trình), động cơ biểu mẫu động/giao diện động theo tenant (UI Pack, Form Engine, CEL rule/công thức động), và khung ứng dụng Shell/Design System. Chỉ sau khi khung nền tảng đã chạy thông suốt và giải pháp trải nghiệm người dùng cho nghiệp vụ đã được thiết kế lại tinh gọn thì mới đẩy mạnh triển khai các màn hình nghiệp vụ chuyên sâu trên nền tảng đó.
+- **Lý do:** Nếu dàn trải nguồn lực làm các màn hình nghiệp vụ khi khung nền tảng (luồng động, người dùng, tổ chức, cấu hình động, hệ thống giao diện) chưa hoàn chỉnh thì các màn hình nghiệp vụ chỉ là vỏ cứng rời rạc, khó vận hành thực tế và phải đập đi làm lại khi nền tảng thay đổi.
+- **Kiểm tra:** Thứ tự ưu tiên trên bảng điều phối (`TIEN-DO-HE-THONG.md`) và danh sách các luồng đang chạy luôn ưu tiên hoàn tất các nhóm task nền tảng (`NEN-*`, `DV-02/03/04`, `DV-06` luồng động BPMN, `DV-10` UI Pack/Form động, `CORE-00`, `fe-shell`, `fe-admin`, `fe-config-studio`, `WEB-020`, `WEB-036`) trước các màn hình nghiệp vụ thứ cấp.
+- **Nguồn:** Dự án Mission, ngày 20/10/2026, kênh điều phối Antigravity (anh Hiếu: "trước mắt tập trung vào xây dựng khung nền tảng, tức là các tính năng nền tảng (ví dụ luồng động, quản lý người dùng,...) để chạy được nghiệp vụ về sau, các tính năng nghiệp vụ thì bố trí làm sau").
+
 ### 2.4. Nhóm HT – Hạ tầng và bảo mật
 
 #### YC-HT-01 – Hạ tầng dùng chung triển khai bằng Docker Compose trên server dev
@@ -289,10 +310,10 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 | Nhóm | Tên nhóm | Số quy tắc |
 |---|---|---|
 | GT | Giao tiếp và cách làm việc | 4 |
-| TK | Bộ tài liệu thiết kế | 10 |
-| PT | Tổ chức phát triển | 17 |
+| TK | Bộ tài liệu thiết kế | 12 |
+| PT | Tổ chức phát triển | 18 |
 | HT | Hạ tầng và bảo mật | 3 |
-| | **Tổng cộng** | **34** |
+| | **Tổng cộng** | **37** |
 
 ---
 
@@ -311,3 +332,4 @@ Nguyên tắc chung của nhóm: không được bắt đầu viết mã khi b�
 | 20/10/2026 | YC-PT-16 | Hết hạn mức sử dụng thì tạm dừng có trật tự: đẩy phần dở lên nhánh kèm trạng thái, gộp nhánh đã xong, viết một hướng dẫn bàn giao ở gốc repo (có bản sao trong thư mục dùng chung) để công cụ AI khác làm tiếp. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh chung của dự án (tin nhắn 06:32 UTC) |
 | 20/10/2026 | YC-HT-03 | Sử dụng SSH Tunnel khi máy chủ hạn chế mở cổng và tham số hóa cấu hình động qua biến môi trường (.env) cho cả Backend và Frontend để thay đổi động không cần build lại. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh điều phối Antigravity |
 | 20/10/2026 | YC-PT-17 | Duy trì một tệp theo dõi tiến độ tổng hợp duy nhất cho toàn hệ thống (`TIEN-DO-HE-THONG.md`) kèm công cụ `scripts/cap-nhat-tien-do.py`, bắt buộc mọi AI agent phải cập nhật trạng thái vào tệp này khi nhận task, khi hoàn thành trên nhánh và khi gộp vào `main`. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh điều phối Antigravity |
+| 20/10/2026 | YC-TK-11, YC-TK-12, YC-PT-18 | Tư duy lại UX và giải pháp màn hình nghiệp vụ trên cơ sở tham khảo Top 10 ứng dụng OKR/KPI quốc tế kết hợp quy định Việt Nam (QĐ 366, NĐ 335, NĐ 233); thiết kế lại UI/CSS/Responsive ấn tượng và tùy biến trang đăng nhập Keycloak; ưu tiên tập trung xây dựng hoàn chỉnh khung nền tảng (luồng động BPMN, quản lý người dùng/tổ chức, biểu mẫu/cấu hình động) trước khi mở rộng các tính năng nghiệp vụ. Cập nhật bảng tổng hợp số lượng quy tắc. | Dự án Mission, kênh điều phối Antigravity |

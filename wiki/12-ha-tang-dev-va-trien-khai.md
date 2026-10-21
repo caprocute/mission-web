@@ -10,15 +10,20 @@ Hạ tầng dev chạy bằng Docker Compose với tên project `mission-dev`, m
 
 | Profile | Thành phần | Ghi chú |
 |---|---|---|
-| `core` | PostgreSQL 17, Valkey 8, Keycloak 26.4, MinIO, Mailpit | Realm `mission` (11 vai trò theo ma trận, 10 tài khoản thử, OTP theo vai trò AAL2, WEB-056); bucket minh chứng có Object Lock |
-| `events` | Kafka 3.9 chế độ KRaft, Apicurio Registry 3.0, Debezium Connect 3.1, Kafka UI | 26 topic theo danh mục EVT; Connect chỉ nghe trên giao diện cục bộ |
-| `search` | OpenSearch 2.19 | Chỉ nghe trên giao diện cục bộ |
-| `analytics` | ClickHouse 25.3 | Dữ liệu dashboard |
-| `observability` | Gói Grafana LGTM có OTel Collector | Log, trace, metric một container |
-| `gateway` | APISIX 3.12 chế độ standalone | Định tuyến `/api/v1/*` và trang web |
-| `web` | Ảnh `mission/web:dev` build từ `deploy/web/Dockerfile` | nginx phục vụ `fe-shell` và `fe-task` |
+| `core` | PostgreSQL 17 (`+ pg_partman`, `35432`), PgBouncer (`35433`), Valkey 8 (`35379`), Keycloak 26.4 (`35080`) | Realm `mission`; PgBouncer ở chế độ `transaction` (`max_prepared_statements=200`, `default_pool_size=20`) |
+| `security` | OPA 1.x (`35181`), OpenBao 2.x (`35820`) + `openbao-init` | Chính sách Rego tại `infra/dev/opa/policies/`; OpenBao tự bật `transit/`, `secret/` (`kv-v2`) và tạo khoá KEK `kek-default`, `kek-tenant-demo`, `blind-index-default` (NEN-020) |
+| `events` | Kafka 3.9 chế độ KRaft (`35092`/`35094`), Apicurio Registry 3.0 (`35081`), Debezium Connect 3.x (`35083`) | 26 topic nghiệp vụ EVT-01..EVT-26 + topic kỹ thuật (`sys.ledger.append.v1`, `sys.audit.v1`, `sys.evidence.object.stored.v1`, `sys.tenant.provisioned.v1`, `iam.auth.event.v1`, `registry.tenant.changed.v1`, `org.bootstrap.v1`, `period.drain.marker`) + `.retry.<consumer>` / `.dlq.<consumer>`; `org.*` dùng `cleanup.policy=compact,delete` |
+| `search` | MinIO (`35900`/`35901`), OpenSearch 2.x (`35200`) | MinIO tự tạo 4 bucket chuẩn |
+| `obs` | OTel Collector (`35317`/`35318`), Prometheus (`35990`), Loki (`35310`), Tempo (`35320`), Grafana (`35300`) | Thu thập trace, metric, log tập trung |
 
-PostgreSQL có cơ sở dữ liệu `mission` với một schema cho mỗi module (`okr`, `task`, `product`, `appraisal`, `policy`, `dossier`, `oversight`, `config`, `org_replica`, `org`, `registry`, `scoring`, `evidence`, `esign`, `docgen`, `notify`, `integ`, `ai`, `apicurio`), mỗi schema có một role riêng; Flowable và sổ cái (`ledger`) có cơ sở dữ liệu riêng, và có role riêng cho Debezium. Keycloak nạp realm `mission` với 11 vai trò AC và client công khai `mission-web` dùng Authorization Code + PKCE S256 (xem [Xác thực và phân quyền](07-xac-thuc-phan-quyen.md)). MinIO được dùng ở dev thay cho Ceph RGW của ADR-13; bucket minh chứng bật Object Lock để mô phỏng lưu giữ không sửa được.
+PostgreSQL 17 (`infra/dev/postgres/Dockerfile`, cài sẵn `postgresql-17-partman` trong schema `partman`) có cơ sở dữ liệu `mission` với 21 schema (`config`, `policy`, `okr`, `task`, `product`, `appraisal`, `dossier`, `oversight`, `org_replica`, `modulith`, `keyring`, `org`, `scoring`, `evidence`, `docgen`, `notify`, `integ`, `registry`, `esign`, `ai`, `apicurio`), cùng các CSDL tách riêng `keycloak`, `flowable`, `ledger`. Theo TL-03 ("Tài khoản kết nối CSDL", NEN-020, NEN-031), mỗi schema `<schema>` có đúng 4 tài khoản PostgreSQL (tất cả đều `NOBYPASSRLS`, `NOINHERIT`, `NOCREATEDB`, `NOCREATEROLE`):
+- `mig_<schema>`: chủ sở hữu schema, chạy Flyway DDL trực tiếp qua cổng `35432` và có quyền gọi `partman.*`;
+- `svc_<schema>`: tài khoản chạy ứng dụng qua PgBouncer (`35433`), chỉ có quyền DML, khoá cứng `statement_timeout=5s`, `idle_in_transaction_session_timeout=10s`, `lock_timeout=2s`;
+- `ro_<schema>`: chỉ đọc (`SELECT`);
+- `cdc_<schema>`: có quyền `REPLICATION` + `SELECT` cho Debezium.
+Các ngoại lệ liên schema theo TL-03 đã được cấu hình sẵn: 8 tài khoản `svc_<module>` của `mission-core` chỉ có `SELECT` trên `org_replica` (chỉ `svc_org_replica` được ghi) và có quyền đọc/ghi trên `modulith`; mọi `svc_<schema>` nghiệp vụ có `SELECT, INSERT` trên `keyring` (chỉ `svc_keyring` được `UPDATE, DELETE`). Khi nâng cấp trên volume `pg_data` đã tồn tại, chạy `./infra/dev/postgres/migrate-roles.sh` để áp dụng bất biến mà không cần xoá dữ liệu.
+
+Toàn bộ cổng dải `35xxx` đều cấu hình động qua biến môi trường (`POSTGRES_PORT`, `PGBOUNCER_PORT`, `VALKEY_PORT`, `KEYCLOAK_PORT`, `OPA_PORT`, `OPENBAO_PORT`, `KAFKA_EXTERNAL_PORT`, `APICURIO_PORT`, `DEBEZIUM_PORT`, `OTEL_HTTP_PORT`...) và mặc định trỏ về `127.0.0.1` để lập trình viên dễ dàng kết nối qua cổng hầm SSH (`ssh -N -L 35432:127.0.0.1:35432 ...`) khi máy chủ dev không mở nhiều cổng tường lửa. Ở phía kiểm thử tự động, thư viện `backend/libs/vt-testkit` cung cấp các lớp Testcontainers dùng chung (`PostgresContainerSupport`, `KafkaContainerSupport`, `ValkeyContainerSupport`, `KeycloakContainerSupport`, `SecurityContainerSupport` với `.withReuse(true)`), `TestJwtFactory` (sinh JWT `RS256` kèm JWKS nội bộ đầy đủ claim `sub`, `tenant_id`, `org_path`, `roles`, `scope`, `acr`, `auth_time`, `jti`) và `@IntegrationTest`.
 
 Cách chạy theo README: sinh tệp biến môi trường bằng `scripts/gen-env.sh`, bật `docker compose --profile core up -d`, thêm các profile `events`, `observability` khi cần, rồi kiểm tra bằng `scripts/health.sh`. Dữ liệu lưu qua bind mount theo biến `DATA_DIR`. Để không chiếm tài nguyên máy dùng chung, log container giới hạn 3 tệp 20 MB, Kafka giữ dữ liệu 72 giờ, Valkey giới hạn 512 MB.
 

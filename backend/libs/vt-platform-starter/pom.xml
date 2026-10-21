@@ -228,8 +228,8 @@
       <scope>test</scope>
     </dependency>
     <!--
-      NEN-011/NEN-012/NEN-013: kiểm thử tích hợp trên outbox_event, inbox_processed, idempotency_key
-      của NEN-032 (PostgreSQL 17 và pg_partman qua TestPostgres của test-jar vt-db-migration).
+      NEN-011/NEN-012/NEN-013: kiểm thử tích hợp outbox -> Debezium -> Kafka -> inbox và
+      idempotency_key trên lược đồ thật của NEN-032 (PostgreSQL 17 và pg_partman qua TestPostgres).
     -->
     <dependency>
       <groupId>vn.viettel.okrkpi</groupId>

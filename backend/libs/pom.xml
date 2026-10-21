@@ -29,5 +29,7 @@
     <!-- NEN-034: bộ kiểm thử rò rỉ tenant lớp 1-4 (RLS danh mục, 2 tenant, PgBouncer pool, Semgrep). -->
     <module>vt-tenant-test</module>
     <module>vt-events</module>
+    <!-- NEN-020: bộ công cụ kiểm thử tích hợp Testcontainers dùng chung và sinh JWT thử nghiệm. -->
+    <module>vt-testkit</module>
   </modules>
 </project>

@@ -1,0 +1,118 @@
+# Giá trị mặc định của SVC-03 tenant-registry (TL-01 mục SVC-03: 3 pod trải ba vùng sẵn sàng).
+# Không đặt bí mật ở đây: mật khẩu CSDL và khoá do External Secrets nạp từ OpenBao vào Secret tham chiếu dưới.
+replicaCount: 3
+
+image:
+  repository: harbor.example.invalid/mission/tenant-registry
+  tag: ""            # mặc định lấy appVersion
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  name: ""
+
+service:
+  port: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 256Mi
+
+# Trải đều theo vùng sẵn sàng (zone) và theo node.
+topologySpread:
+  maxSkew: 1
+
+podDisruptionBudget:
+  minAvailable: 2
+
+env:
+  logLevel: info
+  oidcJwksUrl: https://sso.global.example.invalid/realms/mission/protocol/openid-connect/certs
+  oidcIssuers: https://sso.global.example.invalid/realms/mission
+  oidcAudience: ""
+  stepUpMaxAge: 5m
+
+# Secret chứa DATABASE_URL của vai trò svc_registry (CloudNativePG hoặc External Secrets tạo).
+database:
+  secretName: tenant-registry-db
+  secretKey: DATABASE_URL
+
+# DV-03-02: khoá HMAC cookie định tuyến (TL-01 "Định tuyến tới cell"). Khoá nằm trong OpenBao, External
+# Secrets đồng bộ vào Secret dưới đây; ứng dụng đọc base64 từ biến môi trường ROUTING_COOKIE_KEY.
+routingCookie:
+  secretName: tenant-registry-routing-key
+  keyCurrent: ROUTING_COOKIE_KEY
+  keyPrevious: ROUTING_COOKIE_KEY_PREVIOUS   # tuỳ chọn, dùng khi xoay khoá
+  domain: ""                                 # ví dụ .okrkpi.vn để cookie tới được cổng các cell
+resolve:
+  cacheTtl: 30s      # TL-03: làm mới mỗi 30 giây
+  staleMax: 300s     # phục vụ đệm cũ khi mất CSDL toàn cục
+
+# DV-03-03: khoá AES-256 (base64, 32 byte) mã hoá ứng dụng dữ liệu C2 (đầu mối quản trị tenant).
+# Chỉ tham chiếu Secret; giá trị nằm trong OpenBao. Thay bằng DEK bọc qua OpenBao Transit khi có NEN-015.
+c2Key:
+  secretName: tenant-registry-c2-key
+  key: C2_KEY
+
+# Tham số nghiệp vụ QT-01 (mặc định theo TL-02a; ngưỡng bridge TL-01 ghi 150.000, xem wiki trang 14).
+tenantRules:
+  poolMax: 5000
+  bridgeMax: 1000000
+  siloRequiredAbove: 1000000      # BR-01-01
+  siloSectors: LLVT               # BR-01-01, khối lực lượng vũ trang
+  siloCodes: ""                   # BR-01-01, mã tenant khối Đảng Trung ương (danh sách cách nhau dấu phẩy)
+  capacityThreshold: "0.85"       # BR-01-02
+  domainSuffix: okr.viettel.vn
+  tenantLimit: 5000
+  accountLimit: 6500000           # NFR-01 định cỡ 6,5 triệu
+  accountSyncInterval: 1h
+
+# Tạo ExternalSecret (external-secrets.io/v1) kéo khoá HMAC từ OpenBao; tắt khi cụm dùng cách nạp khác.
+externalSecrets:
+  enabled: false
+  c2KeyPath: mission/global/tenant-registry/c2-key   # khoá trong OpenBao (không phải giá trị)
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: openbao
+  refreshInterval: 1h
+  routingKeyPath: mission/global/tenant-registry/routing-cookie   # khoá trong OpenBao (không phải giá trị)
+
+# Job migrate chạy Flyway bằng vai trò mig_registry trước khi cài hoặc nâng cấp (helm hook).
+migration:
+  enabled: true
+  image: flyway/flyway:11
+  secretName: tenant-registry-db-migrator   # khoá FLYWAY_URL, FLYWAY_USER, FLYWAY_PASSWORD
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+# NetworkPolicy: mặc định chặn mọi lưu lượng vào/ra, chỉ mở những luồng dưới đây.
+networkPolicy:
+  enabled: true
+  # Nguồn được gọi API: APISIX lớp ngoài và điểm vào toàn cục.
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: apisix
+  # Prometheus/OTel collector lấy số đo (nếu có).
+  monitoringFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: monitoring
+  # PostgreSQL toàn cục (CloudNativePG).
+  databaseTo:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: registry-db
+  databasePort: 5432
+  # Keycloak (JWKS) qua HTTPS.
+  keycloakTo:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: keycloak
+  keycloakPort: 8443
