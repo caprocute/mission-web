@@ -1,0 +1,83 @@
+{{- /*
+SVC-05 mission-core (INF-02). values.yaml giữ các khoá theo mẫu TL-04 mục 5.3 (datasources, resilience,
+scaling, rollout, secrets, egressServices); tệp này đổi chúng sang khoá của thư viện vt-service rồi gọi
+vt-service.all, và sinh thêm một ExternalSecret cho mỗi phần tử secrets (một tài khoản CSDL mỗi module, ADR-02).
+*/ -}}
+{{- $v := deepCopy .Values -}}
+{{- $cell := default "cell" $v.global.cell -}}
+
+{{- /* Rollout canary: [5, 25, 50, 100] thành setWeight + pause; bước 100 là thăng cấp cuối của Argo Rollouts. */ -}}
+{{- $steps := list -}}
+{{- range $w := $v.rollout.canarySteps -}}
+{{- if lt (int $w) 100 -}}
+{{- $steps = append $steps (dict "setWeight" (int $w)) -}}
+{{- $steps = append $steps (dict "pause" (dict "duration" (printf "%dm" (int $v.rollout.pauseMinutes)))) -}}
+{{- end -}}
+{{- end -}}
+{{- $_ := set $v.workload "rollout" (dict "canarySteps" $steps "analysisTemplates" (list $v.rollout.analysisTemplate)) -}}
+
+{{- /* KEDA: CPU, RPS mỗi pod qua Prometheus (TL-04 mục 6.4); cửa sổ deadline-default do vt-service thêm. */ -}}
+{{- $rps := printf "sum(rate(http_server_requests_seconds_count{namespace=%q,service=%q,uri!~\"/actuator.*\"}[1m]))" $v.namespace $v.name -}}
+{{- $trig := list
+  (dict "type" "cpu" "metricType" "Utilization" "metadata" (dict "value" (toString (int $v.scaling.cpuUtilization))))
+  (dict "type" "prometheus" "name" "rps-per-pod" "metadata" (dict "serverAddress" "http://prometheus-operated.observability.svc:9090" "query" $rps "threshold" (toString (int $v.scaling.rpsPerPod)) "activationThreshold" "50")) -}}
+{{- $_ := set $v.autoscaling.keda "triggers" $trig -}}
+
+{{- /* Cấu hình nguồn dữ liệu và độ bền vững thành biến môi trường qua ConfigMap. */ -}}
+{{- $ds := $v.datasources -}}
+{{- $cfg := dict
+  "VT_DATASOURCE_POOLER" $ds.pooler "VT_DATASOURCE_READ_POOLER" $ds.readPooler "VT_DATASOURCE_DATABASE" $ds.database
+  "VT_HIKARI_CONNECTION_TIMEOUT_MS" (toString $ds.hikari.connectionTimeoutMs) "VT_HIKARI_MAX_LIFETIME_MS" (toString $ds.hikari.maxLifetimeMs)
+  "VT_HIKARI_IDLE_TIMEOUT_MS" (toString $ds.hikari.idleTimeoutMs) "VT_HIKARI_LEAK_DETECTION_THRESHOLD_MS" (toString $ds.hikari.leakDetectionThresholdMs)
+  "VT_HTTP_CONNECT_TIMEOUT" $v.resilience.httpClient.connectTimeout "VT_HTTP_READ_TIMEOUT" $v.resilience.httpClient.readTimeout
+  "VT_PRESCALE_WINDOWS" $v.scaling.preScaleWindows -}}
+{{- range $m, $c := $ds.modules -}}
+{{- $_ := set $cfg (printf "VT_DATASOURCE_%s_POOL" (upper $m)) (toString $c.pool) -}}
+{{- end -}}
+{{- range $dep, $b := $v.resilience.bulkhead -}}
+{{- $k := regexReplaceAll "([a-z])([A-Z])" $dep "${1}_${2}" | upper -}}
+{{- $_ := set $cfg (printf "VT_BULKHEAD_%s_MAX_CONCURRENT_CALLS" $k) (toString $b.maxConcurrentCalls) -}}
+{{- $_ := set $cfg (printf "VT_BULKHEAD_%s_MAX_WAIT_DURATION" $k) $b.maxWaitDuration -}}
+{{- end -}}
+{{- $_ := set $v "config" (merge $cfg ($v.config | default dict)) -}}
+
+{{- /* Secret mỗi module gắn dạng tệp ở /etc/vt/db/<module> để tên khoá không đụng nhau. */ -}}
+{{- $vols := $v.extraVolumes | default list -}}
+{{- $mounts := $v.extraVolumeMounts | default list -}}
+{{- range $m, $c := $ds.modules -}}
+{{- $vols = append $vols (dict "name" (printf "db-%s" $m) "secret" (dict "secretName" $c.secretRef)) -}}
+{{- $mounts = append $mounts (dict "name" (printf "db-%s" $m) "mountPath" (printf "/etc/vt/db/%s" $m) "readOnly" true) -}}
+{{- end -}}
+{{- $_ := set $v "extraVolumes" $vols -}}
+{{- $_ := set $v "extraVolumeMounts" $mounts -}}
+
+{{- /* egressServices (TL-04 mục 5.3) đổi sang luật NetworkPolicy theo bảng egressMap. */ -}}
+{{- $egress := $v.networkPolicy.egressTo | default list -}}
+{{- range $s := $v.egressServices -}}
+{{- $r := index $v.egressMap $s -}}
+{{- if not $r -}}{{- fail (printf "mission-core: egressServices %q chưa có trong egressMap" $s) -}}{{- end -}}
+{{- $egress = concat $egress $r -}}
+{{- end -}}
+{{- $_ := set $v.networkPolicy "egressTo" $egress -}}
+
+{{ include "vt-service.all" (dict "Values" $v "Release" .Release "Chart" .Chart) }}
+{{- range $s := $v.secrets }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $s.name }}
+  namespace: {{ $v.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $v.name }}
+    app.kubernetes.io/part-of: {{ $v.global.partOf | default "vt-platform" }}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { kind: ClusterSecretStore, name: openbao }
+  target:
+    name: {{ $s.name }}
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: {{ $s.remoteKey | replace "{cell}" $cell }}
+{{- end }}

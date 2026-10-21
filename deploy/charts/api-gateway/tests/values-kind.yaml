@@ -4,6 +4,8 @@ cell: kind
 mode: standalone
 apisix:
   replicas: 3
+  autoscaling: { enabled: false }
+  pdb: { minAvailable: 2 }
   nodePool: none
   workerProcesses: 1
   resources:

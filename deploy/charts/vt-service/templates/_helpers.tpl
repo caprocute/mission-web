@@ -25,6 +25,18 @@ Kết quả: dict { root: <ngữ cảnh gốc>, v: <values đã trộn>, name, n
 {{- $name := default $root.Release.Name $v.name | trunc 63 | trimSuffix "-" -}}
 {{- $_ := set $v "name" $name -}}
 {{- $_ := set $v "namespace" (default $root.Release.Namespace $v.namespace) -}}
+{{- if $v.global.objectStore.inCluster -}}
+{{- $doi := list -}}
+{{- range $v.networkPolicy.egressTo -}}
+{{- if .objectStore -}}{{- $doi = append $doi (omit $v.global.objectStore.rgw "x") -}}{{- else -}}{{- $doi = append $doi . -}}{{- end -}}
+{{- end -}}
+{{- $_ := set $v.networkPolicy "egressTo" $doi -}}
+{{- end -}}
+{{- if not $v.global.egress.allowInternet -}}
+{{- $giu := list -}}
+{{- range $v.networkPolicy.egressTo -}}{{- if not .internet -}}{{- $giu = append $giu . -}}{{- end -}}{{- end -}}
+{{- $_ := set $v.networkPolicy "egressTo" $giu -}}
+{{- end -}}
 {{- include "vt-service.validate" $v -}}
 {{- toYaml $v -}}
 {{- end -}}

@@ -8,7 +8,9 @@ metadata:
     app.kubernetes.io/name: apisix
     {{- include "api-gateway.labels" . | nindent 4 }}
 spec:
+  {{- if not $v.apisix.autoscaling.enabled }}
   replicas: {{ $v.apisix.replicas | int }}
+  {{- end }}
   selector:
     matchLabels: { app.kubernetes.io/name: apisix }
   strategy:
@@ -71,6 +73,10 @@ spec:
             {{- toYaml $v.apisix.resources | nindent 12 }}
           securityContext:
             {{- include "api-gateway.containerSecurity" . | nindent 12 }}
+          startupProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 2
+            failureThreshold: 30
           readinessProbe:
             tcpSocket: { port: http }
             periodSeconds: 5
@@ -142,10 +148,25 @@ metadata:
   name: apisix
   namespace: edge
 spec:
-  maxUnavailable: 1
+  minAvailable: {{ $v.apisix.pdb.minAvailable }}
   unhealthyPodEvictionPolicy: AlwaysAllow
   selector:
     matchLabels: { app.kubernetes.io/name: apisix }
+{{- if $v.apisix.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: apisix
+  namespace: edge
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: apisix }
+  minReplicas: {{ $v.apisix.autoscaling.minReplicas | int }}
+  maxReplicas: {{ $v.apisix.autoscaling.maxReplicas | int }}
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: {{ $v.apisix.autoscaling.cpuUtilization | int }} } }
+{{- end }}
 ---
 # Cổng nhận lưu lượng từ bộ cân bằng tải và mọi nguồn trong cụm (namespace edge mặc định từ chối, cell-base).
 apiVersion: networking.k8s.io/v1

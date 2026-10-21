@@ -1,0 +1,10 @@
+apiVersion: v2
+name: mission-core
+description: 'SVC-05 mission-core: lõi nghiệp vụ, phát hành canary bằng Argo Rollouts (TL-04 mục 5.2, 5.3).'
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+dependencies:
+  - name: vt-service
+    version: 0.1.0
+    repository: file://../vt-service

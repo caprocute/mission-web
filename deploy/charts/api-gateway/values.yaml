@@ -11,12 +11,15 @@ apisix:
     repository: docker.io/apache/apisix
     digest: sha256:c5c7a55ebb5c07abc210dbb963a37f41030e12c91d23bacedbaa168fec633bd7
   replicas: 3
+  # Co giãn và PDB theo bảng TL-04 mục 5.2 (SVC-01: 3/8 replica, minAvailable 2), thêm ở INF-02.
+  autoscaling: { enabled: true, minReplicas: 3, maxReplicas: 8, cpuUtilization: 70 }
+  pdb: { minAvailable: 2 }
   # Pool ingress theo TL-04 mục 3.3 (taint vt.io/pool=ingress:NoSchedule); none để bỏ ràng buộc.
   nodePool: ingress
   workerProcesses: 4
   resources:
-    requests: { cpu: "2", memory: 4Gi }
-    limits: { cpu: "4", memory: 4Gi }
+    requests: { cpu: "2", memory: 2Gi }
+    limits: { cpu: "4", memory: 2Gi }
   ports: { http: 9080, https: 9443 }
   service:
     type: LoadBalancer

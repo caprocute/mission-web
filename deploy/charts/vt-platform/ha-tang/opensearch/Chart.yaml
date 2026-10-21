@@ -1,0 +1,5 @@
+apiVersion: v2
+name: opensearch
+description: "Khung chart hạ tầng trong cell: OpenSearch cho tìm kiếm (SVC-16). Nội dung CR do INF-11 điền (INF-02 chỉ giữ chỗ)."
+type: application
+version: 0.1.0

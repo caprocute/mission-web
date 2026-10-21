@@ -1,0 +1,10 @@
+apiVersion: v2
+name: document-service
+description: 'SVC-11 document-service: sinh văn bản, kèm Gotenberg chuyển đổi PDF (TL-04 mục 5.2).'
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+dependencies:
+  - name: vt-service
+    version: 0.1.0
+    repository: file://../vt-service

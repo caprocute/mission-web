@@ -1,0 +1,5 @@
+apiVersion: v2
+name: valkey
+description: "Khung chart hạ tầng trong cell: Valkey cho cache, phiên và giới hạn tốc độ. Nội dung CR do INF-11 điền (INF-02 chỉ giữ chỗ)."
+type: application
+version: 0.1.0

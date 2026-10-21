@@ -9,6 +9,7 @@ Luồng tạm dừng vì hết quota. Nhánh: `claude/b8-ha-tang-g7g48k` (dựng
 | INF-08 cụm cell phần 1 | Xong (21/10/2026) | `deploy/clusters/cell-cluster` + `cell-g4-hl` (Cluster API, kiểm tĩnh 11/11), `deploy/charts/cell-base` (tĩnh 8/8, kind 7/7), `deploy/charts/api-gateway` (tĩnh 16/16, kind 16/16). Chế độ controller, etcd, Ingress Controller mới kiểm schema; provider Viettel Cloud ở dạng mẫu. Điểm lệch ghi ở wiki 14. |
 | INF-14 quan sát phần 1 | Xong (chờ gộp) | Chart `otel-collector`, `observability-cell`, `observability-mgmt`; kiểm thử kind `deploy/environments/kind/kiem-thu-quan-sat.sh`. Còn thiếu digest thật của ảnh Thanos, rclone (Docker Hub giới hạn lượt kéo). |
 | INF-15 SLO, cảnh báo, dashboard | Xong (chờ gộp) | Luật ở `observability-cell/rules` và `observability-mgmt/rules` (Thanos Ruler), Alertmanager `observability-mgmt/alertmanager`, dashboard Grafonnet `observability-mgmt/dashboards`; metric APISIX nhãn `kind`. Tên metric ứng dụng `vt_*` là suy luận (wiki 12). Ảnh chụp đường cảnh báo tới trace: `/mnt/project-files/b8-ha-tang/inf-15/`. |
+| INF-02 chart dịch vụ, `vt-platform` | Xong (chờ gộp) | 12 chart dịch vụ dựng trên `vt-service`, Keycloak trong chart `iam` (khoá `mayChu`), chart cha `deploy/charts/vt-platform` với `values-saas/private/airgap.yaml`; kiểm bằng `vt-platform/ci/kiem-ba-mo-hinh.sh`, cài thử bằng `ci/kiem-thu-kind.sh`. org-service và workflow-service vẫn là chart của luồng backend, lệch ghi ở `ci/lech-da-ghi.yaml`. |
 | Các INF khác của B8 | Chưa làm | |
 
 ## Bẫy môi trường đã gặp (máy cloud chạy kind trong container lồng nhau)

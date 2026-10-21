@@ -1,0 +1,5 @@
+apiVersion: v2
+name: data-pg
+description: "Khung chart hạ tầng trong cell: PostgreSQL CloudNativePG: pg-core, pg-flowable, pg-platform, pg-iam, pg-ledger, pg-secure và Pooler PgBouncer. Nội dung CR do INF-11 điền (INF-02 chỉ giữ chỗ)."
+type: application
+version: 0.1.0

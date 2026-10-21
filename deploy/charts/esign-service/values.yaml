@@ -1,0 +1,76 @@
+# SVC-10 esign-service: ký số, kiểm tra HSM ở readiness (TL-04 mục 5.2).
+# Mặc định là cell hạng L theo bảng TL-04 mục 5.2. Digest ảnh toàn số 0 là giả lập; CI thay bằng digest thật (INF-05).
+global:
+  cell: ''
+  sizing: L
+name: esign-service
+namespace: secure
+image:
+  repository: harbor.vt.local/platform/esign-service
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+runtime: java
+resources:
+  requests:
+    cpu: '1'
+    memory: 2Gi
+  limits:
+    cpu: '2'
+    memory: 2Gi
+probes:
+  startup:
+    periodSeconds: 5
+    failureThreshold: 24
+pdb:
+  minAvailable: 1
+  maxUnavailable: ''
+autoscaling:
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    cpuUtilization: 75
+java:
+  gc: g1
+nodePool: secure
+networkPolicy:
+  ingressFrom:
+    - namespace: core
+      podLabels:
+        app.kubernetes.io/name: mission-core
+      ports:
+        - port: 8080
+    - namespace: workers
+      podLabels:
+        app.kubernetes.io/name: document-service
+      ports:
+        - port: 8080
+    - namespace: observability
+      ports:
+        - port: 8081
+  egressTo:
+    - namespace: secure-data
+      podLabels:
+        cnpg.io/cluster: pg-secure
+      ports:
+        - port: 5432
+    - namespace: data-kafka
+      podLabels:
+        strimzi.io/cluster: kafka-cell
+      ports:
+        - port: 9093
+    - namespace: secure-data
+      podLabels:
+        app.kubernetes.io/name: openbao
+      ports:
+        - port: 8200
+    - namespace: egress
+      podLabels:
+        app.kubernetes.io/name: egress-gateway
+      ports:
+        - port: 443
+      internet: true
+    - namespace: observability
+      podLabels:
+        app.kubernetes.io/name: otel-agent
+      ports:
+        - port: 4317

@@ -172,6 +172,19 @@ spec:
       metadata:
         value: {{ .v.autoscaling.hpa.cpuUtilization | int | quote }}
     {{- end }}
+    {{- /* Cửa sổ tăng trước deadline-default (TL-04 mục 6.4): mỗi cửa sổ một trigger cron 06:00–23:00. */}}
+    {{- $ps := $k.preScale | default dict }}
+    {{- range $w := list (list "cuoi-quy" "24-31" "3,6,9,12" $ps.cuoiQuy) (list "truoc-ngay-10-dau-quy" "1-10" "1,4,7,10" $ps.dauQuy) (list "ho-so-nam-thang-1" "20-31" "1" $ps.hoSoNam) (list "ho-so-nam-ngay-1-2" "1" "2" $ps.hoSoNam) }}
+    {{- if gt (int (index $w 3)) 0 }}
+    - type: cron
+      name: {{ index $w 0 }}
+      metadata:
+        timezone: Asia/Ho_Chi_Minh
+        start: {{ printf "0 6 %s %s *" (index $w 1) (index $w 2) | quote }}
+        end: {{ printf "0 23 %s %s *" (index $w 1) (index $w 2) | quote }}
+        desiredReplicas: {{ index $w 3 | int | quote }}
+    {{- end }}
+    {{- end }}
 {{- end }}
 {{- end -}}
 

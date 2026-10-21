@@ -4,6 +4,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ include "org-service.fullname" . }}-migrate
+  namespace: {{ include "org-service.namespace" . }}
   labels:
     {{- include "org-service.labels" . | nindent 4 }}
     app.kubernetes.io/component: migration

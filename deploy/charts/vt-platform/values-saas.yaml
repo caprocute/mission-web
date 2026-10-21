@@ -1,0 +1,30 @@
+# Mô hình 1: SaaS trên Viettel Cloud (TL-04 mục 2.1, 2.2). Chỉ chứa các khoá của bảng mục 2.1.
+global:
+  deploymentModel: saas
+  # Nhiều cell theo danh bạ SVC-03.
+  capCaiDat: nhieu-cell
+  objectStore:
+    kind: ceph-rgw
+    # Ceph RGW do đội hạ tầng vận hành bằng cephadm, ngoài cụm Kubernetes (TL-04 mục 3.8).
+    inCluster: false
+  crypto:
+    provider: standard
+  egress:
+    # Chỉ ra Internet qua egress gateway tới danh sách đích.
+    allowInternet: true
+  identity:
+    providers: [vneid, mysign, viettel-ca, ca-chinh-phu]
+  updateChannel: lien-tuc
+  sizing: L
+  featureFlags:
+    publicMobileApp: true
+integration-gateway:
+  config:
+    VT_KET_NOI_VNEID: "true"
+    VT_KET_NOI_MYSIGN: "true"
+    VT_KET_NOI_LGSP: "true"
+ai-gateway:
+  thanhPhan:
+    vllm:
+      # vLLM trên GPU của cell.
+      enabled: true

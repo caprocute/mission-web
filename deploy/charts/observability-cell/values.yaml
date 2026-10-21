@@ -16,8 +16,17 @@ kube-prometheus-stack:
     nodeSelector: { vt.io/pool: system }
     tolerations:
       - { key: CriticalAddonsOnly, operator: Exists, effect: NoSchedule }
+    # Ghim digest cho mọi ảnh để qua chính sách ảnh theo digest (SEC-55) khi render cùng vt-platform (INF-02).
+    admissionWebhooks:
+      patch:
+        image: { registry: ghcr.io, repository: jkroepke/kube-webhook-certgen, tag: 1.11.0, sha: 778d97dc3986355625e14392419b3364c487a7c807d4d86ddad1df369129b082 }
+  kube-state-metrics:
+    image: { registry: registry.k8s.io, repository: kube-state-metrics/kube-state-metrics, tag: v2.20.0, sha: "sha256:42cfe3723a5f058171c627537fb57a3ea0f26e4380fa18555a95cb1a1b4cfc5b" }
+  prometheus-node-exporter:
+    image: { registry: quay.io, repository: prometheus/node-exporter, tag: v1.12.1, digest: "sha256:8c9bac11973b94b59be88d6e11fee4429aa743c8846cdc75d65b18db33f6a106" }
   prometheus:
     prometheusSpec:
+      image: { registry: quay.io, repository: prometheus/prometheus, tag: v3.15.0-distroless, sha: b2a413d5a03ea6a76782a508d1c7947440bba3b973931a25676e278431891b01 }
       # Một cặp Prometheus mỗi cell, khử trùng ở Thanos Query (TL-04 mục 10.4).
       replicas: 2
       scrapeInterval: 15s
@@ -48,6 +57,8 @@ kube-prometheus-stack:
           existingSecret: { name: thanos-objstore, key: objstore.yml }
 
 fluent-bit:
+  # Pod thử kết nối của chart dùng busybox:latest, không qua chính sách ảnh theo digest.
+  testFramework: { enabled: false }
   image:
     digest: sha256:2a5cb41f99b7c5f3386bb34d42ce3b19eb47fbef6d93b64c0bd4afe9e6ec389c
   # Fluent Bit chạy trên mọi node.

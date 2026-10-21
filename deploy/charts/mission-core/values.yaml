@@ -1,103 +1,173 @@
-# CORE-00-01 · Giá trị Helm cho SVC-05 mission-core (TL-04 L883–969).
-# Không chứa mật khẩu hoặc khoá bí mật; mật khẩu CSDL từng schema nạp qua ExternalSecret từ OpenBao.
-fullnameOverride: mission-core
-
+# SVC-05 mission-core: lõi nghiệp vụ, phát hành canary bằng Argo Rollouts (TL-04 mục 5.2, 5.3).
+# Mặc định là cell hạng L theo bảng TL-04 mục 5.2. Digest ảnh toàn số 0 là giả lập; CI thay bằng digest thật (INF-05).
+global:
+  cell: ''
+  sizing: L
+name: mission-core
+namespace: core
 image:
-  repository: registry.internal/okrkpi/mission-core
-  tag: "1.4.2"
-  pullPolicy: IfNotPresent
-
-replicaCount: 16
-
+  repository: harbor.vt.local/platform/mission-core
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+runtime: java
 resources:
   requests:
-    cpu: "4"
-    memory: "8Gi"
+    cpu: '3'
+    memory: 8Gi
   limits:
-    cpu: "4"
-    memory: "8Gi"
-
-env:
-  - name: JAVA_TOOL_OPTIONS
-    value: >-
-      -XX:+UseZGC -XX:+ZGenerational
-      -Xms6g -Xmx6g
-      -XX:MaxDirectMemorySize=512m
-      -XX:+ExitOnOutOfMemoryError
-      -XX:+HeapDumpOnOutOfMemoryError
-      -XX:HeapDumpPath=/tmp/heapdump.hprof
-      -Dspring.threads.virtual.enabled=true
-  - name: SPRING_PROFILES_ACTIVE
-    value: "prod,cell-hcm"
-  - name: SERVER_SHUTDOWN
-    value: "graceful"
-  - name: SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE
-    value: "25s"
-
-secretEnvFrom:
-  - secretRef:
-      name: mission-core-db-credentials # đồng bộ từ OpenBao bởi ExternalSecret
-
-ports:
-  - name: http
-    containerPort: 8080
-  - name: actuator
-    containerPort: 8081
-
-startupProbe:
-  httpGet:
-    path: /actuator/health/liveness
-    port: actuator
-  failureThreshold: 30
-  periodSeconds: 2
-
-livenessProbe:
-  httpGet:
-    path: /actuator/health/liveness
-    port: actuator
-  periodSeconds: 10
-  timeoutSeconds: 2
-  failureThreshold: 3
-
-readinessProbe:
-  httpGet:
-    path: /actuator/health/readiness
-    port: actuator
-  periodSeconds: 5
-  timeoutSeconds: 2
-  failureThreshold: 2
-
-terminationGracePeriodSeconds: 35
-
-lifecycle:
-  preStop:
-    exec:
-      command: ["sh", "-c", "sleep 5"]
-
-autoscaling:
-  enabled: true
-  minReplicas: 16
-  maxReplicas: 28
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 65
-  behavior:
-    scaleUp:
-      stabilizationWindowSeconds: 60
-    scaleDown:
-      stabilizationWindowSeconds: 600
-
+    cpu: '4'
+    memory: 8Gi
+probes:
+  startup:
+    periodSeconds: 5
+    failureThreshold: 30
 pdb:
-  minAvailable: "75%"
+  maxUnavailable: 1
+autoscaling:
+  keda:
+    enabled: true
+    minReplicas: 6
+    maxReplicas: 24
+    preScale:
+      cuoiQuy: 16
+      dauQuy: 16
+      hoSoNam: 18
+java:
+  gc: zgc
+  extraOpts: -XX:InitialRAMPercentage=50 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof -Djava.security.egd=file:/dev/urandom
+workload:
+  kind: Rollout
+opa:
+  enabled: true
+  image:
+    repository: harbor.vt.local/k8s/opa
+    digest: sha256:3c995dc8a59f6ddfd92eb7404d2f7ff9fe71cd025d9251199957a8a6afbfd76e
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: saas,cell
+  - name: SPRING_THREADS_VIRTUAL_ENABLED
+    value: 'true'
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: http://otel-agent.observability.svc:4317
+  - name: OTEL_TRACES_SAMPLER
+    value: parentbased_always_on
+networkPolicy:
+  ingressFrom:
+    - namespace: edge
+      podLabels:
+        app.kubernetes.io/name: apisix
+      ports:
+        - port: 8080
+    - namespace: observability
+      ports:
+        - port: 8081
+    - namespace: core
+      podLabels:
+        app.kubernetes.io/name: workflow-api
+      ports:
+        - port: 8080
+  egressTo:
+    - namespace: observability
+      podLabels:
+        app.kubernetes.io/name: otel-agent
+      ports:
+        - port: 4317
+datasources:
+  pooler: pg-core-rw.data-pg.svc
+  readPooler: pg-core-ro.data-pg.svc
+  database: core
+  modules:
+    task:
+      pool: 8
+      secretRef: pg-core-task
+    okr:
+      pool: 4
+      secretRef: pg-core-okr
+    appraisal:
+      pool: 4
+      secretRef: pg-core-appraisal
+    product:
+      pool: 3
+      secretRef: pg-core-product
+    config:
+      pool: 2
+      secretRef: pg-core-config
+    policy:
+      pool: 1
+      secretRef: pg-core-policy
+    dossier:
+      pool: 1
+      secretRef: pg-core-dossier
+    oversight:
+      pool: 1
+      secretRef: pg-core-oversight
+  hikari:
+    connectionTimeoutMs: 2000
+    maxLifetimeMs: 1500000
+    idleTimeoutMs: 300000
+    leakDetectionThresholdMs: 20000
+resilience:
+  httpClient:
+    connectTimeout: 2s
+    readTimeout: 3s
+  bulkhead:
+    orgService:
+      maxConcurrentCalls: 50
+      maxWaitDuration: 100ms
+    evidenceService:
+      maxConcurrentCalls: 30
+      maxWaitDuration: 100ms
+scaling:
+  cpuUtilization: 85
+  rpsPerPod: 220
+  preScaleWindows: deadline-default
+rollout:
+  canarySteps:
+    - 5
+    - 25
+    - 50
+    - 100
+  pauseMinutes: 15
+  analysisTemplate: slo-api
+secrets:
+  - name: pg-core-task
+    remoteKey: kv/cells/{cell}/pg-core/task
+  - name: pg-core-okr
+    remoteKey: kv/cells/{cell}/pg-core/okr
+  - name: pg-core-appraisal
+    remoteKey: kv/cells/{cell}/pg-core/appraisal
+  - name: pg-core-product
+    remoteKey: kv/cells/{cell}/pg-core/product
+  - name: pg-core-config
+    remoteKey: kv/cells/{cell}/pg-core/config
+  - name: pg-core-policy
+    remoteKey: kv/cells/{cell}/pg-core/policy
+  - name: pg-core-dossier
+    remoteKey: kv/cells/{cell}/pg-core/dossier
+  - name: pg-core-oversight
+    remoteKey: kv/cells/{cell}/pg-core/oversight
+  - name: kafka-mission-core
+    remoteKey: pki/cells/{cell}/kafka/mission-core
+egressServices:
+  - pg-core
+  - kafka
+  - valkey
+  - org-service
+  - evidence-service
+  - opa-bundle
 
-topologySpreadConstraints:
-  - maxSkew: 1
-    topologyKey: topology.kubernetes.io/zone
-    whenUnsatisfiable: DoNotSchedule
-    labelSelector:
-      matchLabels:
-        app.kubernetes.io/name: mission-core
+# Bảng đổi tên phụ thuộc trong egressServices sang luật NetworkPolicy. opa-bundle là máy chủ gói chính sách
+# OPA (ADR-21); vị trí namespace platform là suy luận, chờ task OPA chốt.
+egressMap:
+  pg-core:
+    - { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-core-rw }, ports: [{ port: 5432 }] }
+    - { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-core-ro }, ports: [{ port: 5432 }] }
+  kafka:
+    - { namespace: data-kafka, podLabels: { strimzi.io/cluster: kafka-cell }, ports: [{ port: 9093 }] }
+  valkey:
+    - { namespace: data-kafka, podLabels: { app.kubernetes.io/name: valkey }, ports: [{ port: 6379 }] }
+  org-service:
+    - { namespace: identity, podLabels: { app.kubernetes.io/name: org-service }, ports: [{ port: 8080 }] }
+  evidence-service:
+    - { namespace: platform, podLabels: { app.kubernetes.io/name: evidence-service }, ports: [{ port: 8080 }] }
+  opa-bundle:
+    - { namespace: platform, podLabels: { app.kubernetes.io/name: opa-bundle }, ports: [{ port: 8080 }] }

@@ -1,0 +1,14 @@
+# Miễn trừ có ghi danh (TL-04 mục 3.5, SEC-26): Fluent Bit đọc /var/log, node-exporter đọc /proc, /sys của node.
+apiVersion: kyverno.io/v2
+kind: PolicyException
+metadata:
+  name: vt-mien-tru-quan-sat
+spec:
+  exceptions:
+    - policyName: vt-pss-restricted
+      ruleNames: [restricted, autogen-restricted]
+  match:
+    any:
+      - resources:
+          kinds: [DaemonSet, Pod]
+          names: ["*fluent-bit*", "*prometheus-node-exporter*"]

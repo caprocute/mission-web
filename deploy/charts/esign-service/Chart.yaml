@@ -1,0 +1,10 @@
+apiVersion: v2
+name: esign-service
+description: 'SVC-10 esign-service: ký số, kiểm tra HSM ở readiness (TL-04 mục 5.2).'
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+dependencies:
+  - name: vt-service
+    version: 0.1.0
+    repository: file://../vt-service

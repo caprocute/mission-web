@@ -1,0 +1,126 @@
+# Values chung của chart vt-platform cho mọi mô hình phân phối (TL-04 chương 2). Mặc định là cell hạng L
+# theo bảng TL-04 mục 5.2; ba tệp values-saas.yaml, values-private.yaml, values-airgap.yaml chỉ ghi đè các
+# khoá liệt kê ở TL-04 mục 2.1, còn values riêng của từng cell (mã cell, định cỡ M/S) do INF-03 thêm sau.
+# Thứ tự chồng: values.yaml → values-<mô hình>.yaml → sizing/values-sizing-<hồ sơ>.yaml → values của cell.
+global:
+  cell: ""
+  sizing: L
+  partOf: vt-platform
+  # saas | private | airgap; đặt ở tệp values của mô hình.
+  deploymentModel: ""
+  crypto:
+    provider: standard
+  egress:
+    allowInternet: true
+  featureFlags: {}
+
+# Dịch vụ trong cell. tenant-registry (SVC-03) là chart toàn cục, cài ở vùng điều phối, không nằm ở đây.
+api-gateway:
+  enabled: true
+  coraza:
+    image:
+      # Digest giả lập; CI thay bằng digest thật của ảnh coraza-proxy-wasm trên Harbor (INF-05).
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+iam:
+  enabled: true
+  namespace: identity
+  image:
+    # Ghim digest của keycloak-config-cli 6.5.1-26 (SEC-55).
+    digest: sha256:1b22dfaa9ae0c71f74b0342f9221a6510f272da5def683dbba26a98e6b1b1411
+  # Máy chủ Keycloak (bảng TL-04 mục 5.2, dòng SVC-02) bật trong vt-platform; phần nạp realm giữ như DV-02-01.
+  mayChu:
+    enabled: true
+org-service:
+  enabled: true
+  # Chart org-service của DV-04-01 có khoá riêng (chưa dựng trên vt-service); ghi đè cho đúng hạng L.
+  fullnameOverride: org-service
+  namespace: identity
+  networkPolicy:
+    # Tên namespace theo TL-04 mục 3.5 (chart DV-04-01 mặc định dùng tên dev).
+    ingressNamespaces: [edge, core]
+    databaseNamespace: data-pg
+  image:
+    repository: harbor.vt.local/platform/org-service
+    # Chart chỉ nhận tag; dạng "tag@sha256:..." vẫn là tham chiếu ảnh hợp lệ và ghim theo digest (SEC-55).
+    # Digest giả lập; CI thay bằng digest thật (INF-05).
+    tag: "0.1.0@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  replicaCount: 3
+  resources:
+    requests: { cpu: "1", memory: 3Gi }
+    limits: { cpu: "2", memory: 3Gi }
+  jvm:
+    opts: "-XX:MaxRAMPercentage=70 -XX:+UseZGC -XX:+ZGenerational -XX:+ExitOnOutOfMemoryError"
+  podDisruptionBudget:
+    minAvailable: 2
+mission-core:
+  enabled: true
+workflow-service:
+  enabled: true
+  namespace: core
+  networkPolicy:
+    ingressNamespaces: [edge, core]
+    databaseNamespace: data-pg
+  # Chart workflow-service của DV-06-01 dùng chung một khối resources cho hai workload; đặt theo workflow API.
+  image:
+    repository: harbor.vt.local/platform/workflow-service
+    tag: "0.1.0@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  api:
+    hpa: { enabled: true, minReplicas: 3, maxReplicas: 8 }
+  executor:
+    keda: { enabled: true, minReplicaCount: 2, maxReplicaCount: 10 }
+  resources:
+    requests: { cpu: "2", memory: 6Gi }
+    limits: { cpu: "3", memory: 6Gi }
+  podDisruptionBudget:
+    minAvailable: 2
+scoring-service:
+  enabled: true
+evidence-service:
+  enabled: true
+ledger-service:
+  enabled: true
+esign-service:
+  enabled: true
+document-service:
+  enabled: true
+notification-service:
+  enabled: true
+integration-gateway:
+  enabled: true
+ai-gateway:
+  enabled: true
+  thanhPhan:
+    vllm:
+      enabled: true
+analytics:
+  enabled: true
+search:
+  enabled: true
+web-frontend:
+  enabled: true
+
+# Hạ tầng trong cell.
+cell-base:
+  enabled: true
+observability-cell:
+  enabled: true
+  # Hai DaemonSet đọc dữ liệu node được miễn Pod Security có ghi danh (TL-04 mục 3.5, SEC-26).
+  # Chart con của ngăn xếp quan sát đặt theo namespace của release; trong vt-platform ép về observability.
+  kube-prometheus-stack:
+    namespaceOverride: observability
+    kube-state-metrics: { namespaceOverride: observability }
+    prometheus-node-exporter: { namespaceOverride: observability }
+  fluent-bit:
+    namespaceOverride: observability
+data-pg:
+  enabled: true
+kafka:
+  enabled: true
+valkey:
+  enabled: true
+opensearch:
+  enabled: true
+clickhouse:
+  enabled: true
+openbao:
+  enabled: true

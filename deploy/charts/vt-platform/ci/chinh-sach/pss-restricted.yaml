@@ -1,0 +1,43 @@
+# Bộ chính sách tạm cho kiem-ba-mo-hinh.sh khi deploy/policies (INF-07, SEC-28) chưa có trên nhánh:
+# Pod Security Standards mức restricted, cùng mức nhãn namespace của TL-04 mục 3.5.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: vt-pss-restricted
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: restricted
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        podSecurity:
+          level: restricted
+          version: latest
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: vt-anh-theo-digest
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: digest
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        message: "Ảnh phải tham chiếu theo digest sha256 (SEC-49, SEC-55)."
+        foreach:
+          - list: "request.object.spec.[containers, initContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.image }}"
+                    operator: NotEquals
+                    value: "*@sha256:*"

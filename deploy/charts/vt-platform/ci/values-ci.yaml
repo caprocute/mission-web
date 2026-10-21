@@ -1,0 +1,9 @@
+# Giá trị chỉ dùng khi render trong CI: mã cell giả cho các chart đọc khoá cell ở mức trên cùng.
+global:
+  cell: ci
+api-gateway:
+  cell: ci
+cell-base:
+  cell: ci
+observability-cell:
+  cell: ci
