@@ -14,10 +14,17 @@ describe('fe-config-studio', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('router-outlet')).not.toBeNull();
   });
 
-  it('tuyến gốc là danh sách chính sách, phiên bản có thẻ công thức, bảng quyết định, test case, luồng duyệt', () => {
-    expect(ROUTES[0].path).toBe('');
-    expect(ROUTES[0].title).toBe('Chính sách đánh giá');
-    expect(ROUTES[1].children?.map((r) => r.path)).toEqual([
+  it('khung có các phần chính sách, giao diện, biểu mẫu; phiên bản chính sách có bốn thẻ', () => {
+    const sections = ROUTES[0].children ?? [];
+    expect(sections.map((r) => r.path)).toEqual([
+      '',
+      'goi/:packId/:version',
+      'giao-dien',
+      'bieu-mau',
+      'bieu-mau/:formKey/:formVersion',
+    ]);
+    expect(sections[0].title).toBe('Chính sách đánh giá');
+    expect(sections[1].children?.map((r) => r.path)).toEqual([
       '',
       'cong-thuc',
       'bang-quyet-dinh',
