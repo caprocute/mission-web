@@ -221,13 +221,14 @@ def kyVaChungThuc(Map cfg) {
       withEnv(["VAULT_ADDR=${cfg.vaultAddr}", "VT_COMMIT=${commitHienTai()}",
                "VT_BUILDER_ID=${cfg.builderId}", "VT_REPO=${env.GIT_URL ?: ''}",
                "VT_BASE_IMAGE=${cfg.baseImage ?: ''}"]) {
-        sh 'cosign sign --yes --key "$COSIGN_KEY" --tlog-upload=false --use-signing-config=false "$IMAGE_REF"'
-        sh 'cosign attest --yes --key "$COSIGN_KEY" --tlog-upload=false --use-signing-config=false ' +
+        // --new-bundle-format=false: Kyverno 1.15 chỉ đọc chữ ký dạng thẻ .sig/.att, không đọc bundle mới của cosign 3 (INF-07)
+        sh 'cosign sign --yes --key "$COSIGN_KEY" --tlog-upload=false --use-signing-config=false --new-bundle-format=false "$IMAGE_REF"'
+        sh 'cosign attest --yes --key "$COSIGN_KEY" --tlog-upload=false --use-signing-config=false --new-bundle-format=false ' +
            '--type cyclonedx --predicate sbom.cdx.json "$IMAGE_REF"'
         sh '''vt-provenance --builder-id "$VT_BUILDER_ID" --repo "$VT_REPO" --commit "$VT_COMMIT" \
                 --digest "$DIGEST" --ref "refs/heads/$BRANCH_NAME" --build-url "${BUILD_URL:-}" \
                 ${VT_BASE_IMAGE:+--base-image "$VT_BASE_IMAGE"} > provenance.json'''
-        sh 'cosign attest --yes --key "$COSIGN_KEY" --tlog-upload=false --use-signing-config=false ' +
+        sh 'cosign attest --yes --key "$COSIGN_KEY" --tlog-upload=false --use-signing-config=false --new-bundle-format=false ' +
            '--type slsaprovenance1 --predicate provenance.json "$IMAGE_REF"'
         // Kiểm lại ngay bằng khoá công khai, như Kyverno sẽ kiểm ở cụm (SEC-28, SEC-38)
         sh 'cosign verify --key "$COSIGN_VERIFY_KEY" --insecure-ignore-tlog=true "$IMAGE_REF" > cosign-verify.json'

@@ -1,0 +1,23 @@
+# Miễn trừ có ghi danh (TL-04 mục 3.5, SEC-26): Fluent Bit đọc /var/log và node-exporter đọc /proc, /sys của
+# node nên chạy root hoặc dùng hostPath, hostNetwork; chỉ trong namespace observability.
+apiVersion: kyverno.io/v2
+kind: PolicyException
+metadata:
+  name: quan-sat-doc-node
+  namespace: kyverno
+  annotations:
+    vt.io/ly-do: "DaemonSet thu thập nhật ký và số đo của node cần quyền đọc hệ thống tệp của node (SEC-26)."
+    vt.io/nguoi-xin: "Luồng B8 hạ tầng (INF-14)"
+    vt.io/nguoi-duyet: "Chờ nhóm bảo mật duyệt"
+    vt.io/het-han: "2027-04-15"
+    vt.io/phieu: "INF-07"
+spec:
+  exceptions:
+    - policyName: vt-pod-hardening
+      ruleNames: [readonly-rootfs-nonroot, autogen-readonly-rootfs-nonroot]
+  match:
+    any:
+      - resources:
+          kinds: [Pod, DaemonSet]
+          namespaces: [observability]
+          names: ["*fluent-bit*", "*prometheus-node-exporter*"]

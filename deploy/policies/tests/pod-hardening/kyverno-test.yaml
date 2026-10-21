@@ -1,0 +1,76 @@
+# kyverno test cho vt-pod-hardening và vt-probe-on-mgmt-port (INF-07): mỗi quy tắc một ca đạt, một ca vi phạm.
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: vt-pod-hardening
+policies:
+- ../../vt-pod-hardening.yaml
+resources:
+- resources.yaml
+variables: values.yaml
+results:
+- policy: vt-pod-hardening
+  rule: only-internal-registry-by-digest
+  kind: Pod
+  resources:
+  - dat-chuan
+  - dat-uid-container
+  result: pass
+- policy: vt-pod-hardening
+  rule: only-internal-registry-by-digest
+  kind: Pod
+  resources:
+  - hong-registry
+  - hong-tag
+  result: fail
+- policy: vt-pod-hardening
+  rule: readonly-rootfs-nonroot
+  kind: Pod
+  resources:
+  - dat-chuan
+  - dat-uid-container
+  result: pass
+- policy: vt-pod-hardening
+  rule: readonly-rootfs-nonroot
+  kind: Pod
+  resources:
+  - hong-root
+  - hong-uid-thap
+  result: fail
+- policy: vt-pod-hardening
+  rule: require-resources-and-probes
+  kind: Pod
+  resources:
+  - dat-chuan
+  result: pass
+- policy: vt-pod-hardening
+  rule: require-resources-and-probes
+  kind: Pod
+  resources:
+  - hong-thieu-probe
+  - hong-thieu-tai-nguyen
+  result: fail
+- policy: vt-pod-hardening
+  rule: no-automount-sa-token-unless-needed
+  kind: Pod
+  resources:
+  - dat-khong-token
+  result: pass
+- policy: vt-pod-hardening
+  rule: no-automount-sa-token-unless-needed
+  kind: Pod
+  resources:
+  - hong-con-token
+  result: fail
+- policy: vt-probe-on-mgmt-port
+  rule: probe-port-8081
+  kind: Pod
+  resources:
+  - dat-probe-mgmt
+  result: pass
+- policy: vt-probe-on-mgmt-port
+  rule: probe-port-8081
+  kind: Pod
+  resources:
+  - hong-probe-http
+  result: fail

@@ -1,0 +1,71 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dat-hpa
+  namespace: ung-dung
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: mot
+  minReplicas: 3
+  maxReplicas: 6
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 75
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hong-hpa
+  namespace: ung-dung
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hai
+  minReplicas: 3
+  maxReplicas: 6
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 75
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: dat-so
+  namespace: ung-dung
+spec:
+  scaleTargetRef:
+    name: ba
+  minReplicaCount: 3
+  maxReplicaCount: 6
+  triggers:
+  - type: cpu
+    metricType: Utilization
+    metadata:
+      value: '75'
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: hong-so
+  namespace: ung-dung
+spec:
+  scaleTargetRef:
+    name: bon
+  minReplicaCount: 3
+  maxReplicaCount: 6
+  triggers:
+  - type: cpu
+    metricType: Utilization
+    metadata:
+      value: '75'

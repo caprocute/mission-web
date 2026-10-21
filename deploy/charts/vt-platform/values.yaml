@@ -67,6 +67,8 @@ workflow-service:
   api:
     hpa: { enabled: true, minReplicas: 3, maxReplicas: 8 }
   executor:
+    # Số pod lúc tạo để qua vt-require-ha (≥ 3 khi khai spec.replicas); KEDA giữ mức sàn 2 theo TL-04 mục 5.2.
+    replicaCount: 3
     keda: { enabled: true, minReplicaCount: 2, maxReplicaCount: 10 }
   resources:
     requests: { cpu: "2", memory: 6Gi }

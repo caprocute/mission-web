@@ -12,13 +12,11 @@ CHARTS=..
 OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT
 CRD_SCHEMA='https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
-# Bộ chính sách thật của cụm (INF-07) nếu đã có; nếu chưa thì dùng bộ PSS restricted + ảnh theo digest tạm.
-CHINH_SACH=${CHINH_SACH:-$CHARTS/../policies}
-MIEN_TRU=()
-if [ ! -d "$CHINH_SACH" ]; then
-  CHINH_SACH=ci/chinh-sach/pss-restricted.yaml
-  MIEN_TRU=(--exceptions ci/chinh-sach/mien-tru.yaml)
-fi
+# Bộ chính sách thật của cụm (INF-07, deploy/policies), trừ vt-require-signed-images vì kiểm chữ ký cần registry
+# thật (kiểm trên kind ở deploy/environments/kind/kiem-thu-chinh-sach.sh). Ngoại lệ lấy ở exceptions/, bỏ tệp mẫu "_".
+CS_DIR=$CHARTS/../policies
+CHINH_SACH=(); for p in "$CS_DIR"/vt-*.yaml; do [ "$(basename "$p")" = vt-require-signed-images.yaml ] || CHINH_SACH+=("$p"); done
+MIEN_TRU=(); for e in "$CS_DIR"/exceptions/*.yaml; do [[ "$(basename "$e")" == _* ]] || MIEN_TRU+=(--exceptions "$e"); done
 dat=0; truot=0
 ok()  { echo "  [ĐẠT] $*"; dat=$((dat+1)); }
 hong(){ echo "  [HỎNG] $*"; truot=$((truot+1)); }
@@ -31,6 +29,9 @@ for c in mission-core scoring-service evidence-service ledger-service esign-serv
 done
 helm dependency build . >/dev/null && ok "helm dependency build vt-platform" || hong "dependency vt-platform"
 helm lint . -f values-saas.yaml -f ci/values-ci.yaml >/dev/null && ok "helm lint vt-platform" || hong "helm lint vt-platform"
+
+echo "== Ngoại lệ chính sách còn hạn, đủ chú thích (deploy/policies/README.md)"
+python3 "$CS_DIR/kiem-ngoai-le.py" > "$OUT/nl.log" 2>&1 && ok "$(tail -1 "$OUT/nl.log")" || { hong "ngoại lệ chính sách"; cat "$OUT/nl.log"; }
 
 for m in saas private airgap; do
   echo "== Mô hình $m"
@@ -55,9 +56,12 @@ for m in saas private airgap; do
   else
     hong "kube-linter $m"; grep -E '^/|Error' "$OUT/kl.log" | sed "s|^$OUT/||" | cut -c1-260 | head -30 || true
   fi
-  if kyverno apply "$CHINH_SACH" "${MIEN_TRU[@]}" --resource "$f" > "$OUT/ky.log" 2>&1 \
+  python3 ci/chuan-bi-kyverno.py "$f" "$OUT/$m-harbor.yaml" "$OUT/kv.yaml"
+  MT=("${MIEN_TRU[@]}")
+  grep -qE '^\s*sizing: compact' "values-$m.yaml" && MT+=(--exceptions "$CS_DIR/ho-so/compact/mot-vung-su-co.yaml")
+  if kyverno apply "${CHINH_SACH[@]}" "${MT[@]}" --resource "$OUT/$m-harbor.yaml" --values-file "$OUT/kv.yaml" > "$OUT/ky.log" 2>&1 \
        && grep -q 'fail: 0, warn: 0, error: 0' "$OUT/ky.log"; then
-    ok "Kyverno ($(basename "$CHINH_SACH"): $(grep -o 'pass: [0-9]*' "$OUT/ky.log"))"
+    ok "Kyverno deploy/policies ($(grep -o 'pass: [0-9]*' "$OUT/ky.log"), ảnh qua proxy-cache Harbor)"
   else
     hong "Kyverno $m"; grep -E 'failed|fail:' "$OUT/ky.log" | head -20 || true
   fi

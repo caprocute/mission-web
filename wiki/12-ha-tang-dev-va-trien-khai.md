@@ -143,7 +143,7 @@ Chart cha `deploy/charts/vt-platform` khai mọi chart dịch vụ và chart h�
 
 Thư viện `vt-service` được mở rộng nhỏ để biểu diễn các khác biệt này thành tham số: biến `VT_DEPLOYMENT_MODEL`, `VT_CRYPTO_PROVIDER`, `VT_CELL_ID` và `VT_FF_<CỜ>` cho container khi có `global.deploymentModel`; luật `egressTo` đánh dấu `internet: true` bị bỏ khi `global.egress.allowInternet` là `false`; luật đánh dấu `objectStore: true` trỏ về RGW của Rook-Ceph trong cụm khi `global.objectStore.inCluster` là `true`; thêm probe TCP (`tcp: true`), chiến lược `Recreate`, `resources.gpu` và cửa sổ tăng trước `autoscaling.keda.preScale` (`cuoiQuy`, `dauQuy`, `hoSoNam` theo bảng `deadline-default` của TL-04 mục 6.4). Release `vt-platform` cài vào namespace `observability` vì chart Fluent Bit chỉ dùng namespace của release; mọi chart khác ghi namespace tường minh theo TL-04 mục 3.5.
 
-Kiểm thử: `deploy/charts/vt-platform/ci/kiem-ba-mo-hinh.sh` chạy `helm lint` mọi chart, `helm template` cho ba mô hình, `kubeconform -strict`, `kube-linter` (cấu hình chặt của `vt-service`, chỉ trên đối tượng của chart dựng bằng `vt-service`), Kyverno CLI với `deploy/policies` khi INF-07 đã gộp hoặc bộ tạm PSS restricted cộng ảnh theo digest ở `ci/chinh-sach`, các khẳng định riêng từng mô hình (`ci/kiem-mo-hinh.py`, ví dụ bản cách ly không còn luật ra egress gateway) và bảng đối chiếu với TL-04 mục 5.2 (`ci/doi-chieu-tl04.py`, ô lệch được chấp nhận ghi lý do ở `ci/lech-da-ghi.yaml`). `ci/kiem-thu-kind.sh` cài `vt-platform` lên kind với `web-frontend` (ảnh thử dựng từ `deploy/web`) và `notification-service` (ảnh http-echo).
+Kiểm thử: `deploy/charts/vt-platform/ci/kiem-ba-mo-hinh.sh` chạy `helm lint` mọi chart, `helm template` cho ba mô hình, `kubeconform -strict`, `kube-linter` (cấu hình chặt của `vt-service`, chỉ trên đối tượng của chart dựng bằng `vt-service`), Kyverno CLI với bộ chính sách thật `deploy/policies` (INF-07; ảnh bên thứ ba được đổi sang proxy-cache Harbor trước khi kiểm), các khẳng định riêng từng mô hình (`ci/kiem-mo-hinh.py`, ví dụ bản cách ly không còn luật ra egress gateway) và bảng đối chiếu với TL-04 mục 5.2 (`ci/doi-chieu-tl04.py`, ô lệch được chấp nhận ghi lý do ở `ci/lech-da-ghi.yaml`). `ci/kiem-thu-kind.sh` cài `vt-platform` lên kind với `web-frontend` (ảnh thử dựng từ `deploy/web`) và `notification-service` (ảnh http-echo).
 
 Bẫy gặp khi làm:
 
@@ -152,6 +152,22 @@ Bẫy gặp khi làm:
 - `helm dependency update` của chart cha chép nguyên thư mục chart con, kể cả bản `vt-service-*.tgz` cũ trong `charts/` của chart con, nên sửa thư viện `vt-service` không tới được bản render. Chạy `vt-platform/ci/cap-nhat-phu-thuoc.sh` để cập nhật từ dưới lên.
 - Khi `ports.mgmt` bằng `ports.http`, container chỉ mở cổng tên `http`; probe theo preset (`port: mgmt`) làm kubelet báo `strconv.Atoi: parsing "mgmt"` và pod không bao giờ Ready. `vt-service` nay tự đổi cổng probe sang `http` trong trường hợp này (lỗi phát hiện khi cài thử trên kind).
 - Ảnh SVC-17 cũ ghi `config.json` vào thư mục html, hỏng khi container chạy với hệ thống tệp gốc chỉ đọc. `40-runtime-config.sh` nay ghi vào `RUNTIME_DIR` (chart đặt `/tmp/runtime`) và nginx ưu tiên thư mục đó; chạy Docker thường không đặt biến thì vẫn ghi vào html như trước.
+
+## Harbor và chính sách Kyverno (INF-07)
+
+Harbor của cụm quản trị dùng chart chính thức `harbor/harbor` 1.19.4 (Harbor 2.15.4), values ở `deploy/clusters/mgmt/harbor/values.yaml` (thêm `values-sn.yaml` cho `harbor-sn`). Mọi bí mật là `existingSecret` do External Secrets đồng bộ từ OpenBao `kv/mgmt/harbor/*`; ảnh lưu trên Ceph RGW, CSDL và Redis dùng PostgreSQL, Valkey của cụm quản trị, Trivy lấy CSDL lỗ hổng qua proxy-cache của chính Harbor. Project, proxy-cache, robot account và quy tắc nhân bản không phải values của chart: chúng được khai báo ở `cau-hinh.yaml` và áp bằng `ap-dung-cau-hinh.sh` qua API Harbor (chạy lại được, `--thu` để xem trước, `--xoay` để sinh lại mật khẩu robot, mật khẩu ghi thẳng vào OpenBao). Ba project `platform`, `okr`, `k8s` bật quét khi đẩy, chặn kéo ảnh có lỗ hổng Critical và chặn ảnh chưa ký cosign; sáu project proxy-cache (`dockerhub`, `quay`, `ghcr`, `k8s-registry`, `fluentbit`, `gcr`) cũng quét và chặn Critical. Robot `jenkins-push` chỉ đẩy vào `okr`, `platform`; mỗi cụm có robot chỉ kéo. Quy tắc `nhan-ban-sang-sn` tạo sẵn ở trạng thái tắt để INF-18 bật.
+
+Chính sách Kyverno nằm ở `deploy/policies/`; README của thư mục mô tả từng chính sách và quy trình xin ngoại lệ. Tóm tắt cách xin ngoại lệ: chép `exceptions/_mau-ngoai-le.yaml`, thu hẹp tới đúng quy tắc, namespace, workload, điền năm chú thích `vt.io/ly-do`, `nguoi-xin`, `nguoi-duyet`, `het-han` (tối đa 180 ngày), `phieu`, mở merge request có nhóm bảo mật duyệt; `kiem-ngoai-le.py` làm đỏ CI khi ngoại lệ thiếu chú thích hoặc hết hạn. Chính sách mới ở Audit ít nhất hai tuần trước khi Enforce.
+
+Kiểm thử: `kyverno test deploy/policies/tests` (26 ca), CI của INF-02 áp bộ chính sách lên ba mô hình, và `deploy/environments/kind/kiem-thu-chinh-sach.sh` chạy đầu cuối trên kind (11 khẳng định). Chưa cài Harbor lên kind vì máy thử chỉ còn khoảng 2 GB đĩa; registry cục bộ đóng vai Harbor trong kiểm thử chữ ký.
+
+Bẫy đã gặp:
+
+- Kyverno 1.15 không đọc chữ ký cosign 3 định dạng bundle mới (lưu qua referrers) và trả "no signatures found"; pipeline phải ký và chứng thực với `--new-bundle-format=false` để có thẻ `.sig`, `.att`.
+- Lỗi chữ ký đến từ webhook mutate (`verifyImages`) trước mọi quy tắc validate, nên ca kiểm "pod chạy root" hay "thiếu probe" phải dùng ảnh đã ký thật, nếu không thông báo lỗi là của chữ ký.
+- Chart Kyverno khi tắt job dọn webhook (`webhooksCleanup.enabled=false`) để lại các `ValidatingWebhookConfiguration`, `MutatingWebhookConfiguration` sau khi gỡ; với `failurePolicy: Fail` chúng chặn mọi lệnh tạo pod của cụm. Script kind xoá chúng khi dọn.
+- Danh sách trong mẫu Kyverno cần neo tồn tại `^(...)` thì mới bắt buộc có phần tử thoả; mẫu thường chỉ kiểm phần tử nếu có.
+- `cosign sign --tlog-upload=false` với cosign 3 cần thêm `--use-signing-config=false`, nên attestor của Kyverno đặt `rekor.ignoreTlog` và `ctlog.ignoreSCT`.
 
 ## Lộ trình theo TL-04
 

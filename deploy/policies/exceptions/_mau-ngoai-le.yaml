@@ -1,0 +1,23 @@
+# MẪU — không áp lên cụm (tên tệp bắt đầu bằng "_"). Chép thành <tên-ngắn>.yaml khi xin ngoại lệ, điền đủ
+# các chú thích vt.io/* và nộp qua merge request có người của nhóm bảo mật duyệt (README mục "Xin ngoại lệ").
+apiVersion: kyverno.io/v2
+kind: PolicyException
+metadata:
+  name: ten-ngan-cua-ngoai-le
+  namespace: kyverno
+  annotations:
+    vt.io/ly-do: "Vì sao workload không đáp ứng được chính sách, và vì sao không sửa được trong kỳ này."
+    vt.io/nguoi-xin: "Tên đội hoặc người chịu trách nhiệm"
+    vt.io/nguoi-duyet: "Người của nhóm bảo mật đã duyệt"
+    vt.io/het-han: "2026-12-31"
+    vt.io/phieu: "Mã phiếu theo dõi"
+spec:
+  exceptions:
+    - policyName: vt-pod-hardening
+      ruleNames: [readonly-rootfs-nonroot, autogen-readonly-rootfs-nonroot]
+  match:
+    any:
+      - resources:
+          kinds: [Pod, Deployment, DaemonSet, StatefulSet]
+          namespaces: [ten-namespace]
+          names: [ten-workload*]
