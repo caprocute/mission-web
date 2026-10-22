@@ -92,6 +92,20 @@ public class EvidenceLifecycleService {
   @Transactional(TX)
   public Result submitVersion(
       TenantId tenant, UUID versionId, long expectedVersion, EvidenceActor actor) {
+    return submitVersion(tenant, versionId, expectedVersion, actor, false);
+  }
+
+  /**
+   * Nộp; {@code aiFieldsConfirmed} là người nộp xác nhận các ô do AI điền ngay ở bước nộp ("Xác
+   * nhận và nộp" của SCR-0702, BR-07-09).
+   */
+  @Transactional(TX)
+  public Result submitVersion(
+      TenantId tenant,
+      UUID versionId,
+      long expectedVersion,
+      EvidenceActor actor,
+      boolean aiFieldsConfirmed) {
     LockedVersion locked = lock(tenant, versionId, expectedVersion);
     try {
       periods.assertWritable(tenant, PeriodId.of(locked.periodId()));
@@ -99,7 +113,16 @@ public class EvidenceLifecycleService {
       throw periodLocked(locked);
     }
     Instant now = clock.instant();
-    return apply(tenant, locked, actor, null, v -> v.submit(actor.personId(), now));
+    return apply(
+        tenant,
+        locked,
+        actor,
+        null,
+        v ->
+            (aiFieldsConfirmed && v.aiPrefill() && v.userConfirmedAt() == null
+                    ? v.confirmAiFields(now)
+                    : v)
+                .submit(actor.personId(), now));
   }
 
   @Transactional(TX)
