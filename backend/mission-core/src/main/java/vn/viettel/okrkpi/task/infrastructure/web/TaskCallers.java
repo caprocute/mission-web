@@ -48,6 +48,20 @@ public class TaskCallers {
     }
   }
 
+  /** Người duyệt kèm {@code acr} và {@code auth_time} để tầng ứng dụng kiểm bước lên. */
+  public vn.viettel.okrkpi.task.application.plan.PlanApprovalService.Approver approver() {
+    UUID id = current().personId();
+    TaskCaller caller = callers.getIfAvailable();
+    if (caller != null) {
+      return new vn.viettel.okrkpi.task.application.plan.PlanApprovalService.Approver(
+          id, caller.acr().orElse(null), caller.authTime().orElse(null));
+    }
+    AuthzSubjectResolver resolver = subjects.getIfAvailable();
+    OpaInput.Subject subject = resolver == null ? null : resolver.currentSubject();
+    return new vn.viettel.okrkpi.task.application.plan.PlanApprovalService.Approver(
+        id, subject == null ? null : subject.acr(), subject == null ? null : subject.authTime());
+  }
+
   private static ResponseStatusException unauthorized() {
     return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cần đăng nhập");
   }
