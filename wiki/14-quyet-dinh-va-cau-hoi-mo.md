@@ -709,6 +709,14 @@ Bảng chuyển trạng thái của nhiệm vụ được đọc từ khoá `tas
 
 Danh mục lỗi sinh từ hợp đồng chưa có mã riêng cho trường hợp sai vai trò và guard không đạt, nên máy chủ dùng mã chung `COMMON-403-OUT-OF-SCOPE` (403) và `COMMON-422-VALIDATION` (422); lệnh không có trong bảng hoặc trạng thái đã kết thúc trả `TASK-409-INVALID-TRANSITION`, kỳ đã khoá trả `TASK-409-PERIOD-LOCKED`. Thông báo guard không lộ biểu thức CEL. Khi MOD-03 chưa cung cấp sản phẩm, biến `task.so_san_pham_da_nop` của guard lấy từ khối lượng đã làm (suy luận). Câu hỏi mở: hợp đồng có nên bổ sung mã `TASK-403-…` và `TASK-422-…` riêng cho hai trường hợp này hay không.
 
+### Ghi chú và quyết định từ kế hoạch công tác quý (CORE-02-05, 22/10/2026)
+
+Máy trạng thái phiên bản kế hoạch nằm ở `task.domain.plan` để các task gửi duyệt, trả lại, duyệt và điều chỉnh dùng chung: chỉ phiên bản `NHAP` và `TRA_LAI` được lưu nháp hay sao chép, phiên bản `DA_DUYET` bất biến, và phiên bản hiệu lực là phiên bản `DA_DUYET` có số lớn nhất. Khi sao chép từ quý trước, hạn của dòng được dịch sang kỳ mới theo cùng số ngày tính từ đầu quý và kẹp về cuối kỳ nếu vượt (suy luận, vì TL-02a chỉ ghi "hạn dịch theo kỳ"); "dòng chưa xong" được hiểu là dòng chưa có nhiệm vụ ở trạng thái `HOAN_THANH` hoặc `HUY` (suy luận). Dòng gợi ý từ OKR thuộc nhóm then chốt, do đơn vị chủ trì, khối lượng 1, hạn là hạn của KR và không vượt cuối kỳ (suy luận).
+
+Điểm lệch nguồn: hợp đồng yêu cầu trường `productName` cho mỗi dòng kế hoạch, nhưng bảng `task.plan_item` của TL-03 không có cột sản phẩm. Vì vậy dòng thuộc danh mục lấy sản phẩm từ `catalog_item.product_name`, còn dòng ngoài danh mục lấy nội dung công việc làm tên sản phẩm; sản phẩm người dùng nhập riêng cho dòng ngoài danh mục chưa được lưu. Câu hỏi mở: có bổ sung cột `product_name` cho `task.plan_item` hay không. Tên người, tên đơn vị trong phản hồi để trống vì `replica :: api` chưa có danh bạ tên, và trọng số nhóm tạm lấy 30/70 của gói mẫu cho tới khi CORE-02-06 đọc từ Policy Pack.
+
+Bẫy kỹ thuật kiểm thử: lớp `@TestConfiguration` lồng trong một kiểm thử tích hợp ở gói `task.infrastructure.web` bị quét vào ngữ cảnh của mọi kiểm thử khác, nên hai kiểm thử cùng khai báo bean `TaskCaller` sẽ gây lỗi trùng bean. Bean người gọi dùng chung được đặt ở `TestTaskCallers`, và từng kiểm thử chỉ đặt giá trị người gọi hiện tại.
+
 ## Liên quan
 
 - [README của wiki](README.md)
