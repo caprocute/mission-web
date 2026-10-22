@@ -1,0 +1,74 @@
+{
+  "index_patterns": [
+    "audit-*"
+  ],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "refresh_interval": "1s",
+      "plugins.index_state_management.policy_id": "audit-luu-giu"
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "_source": {
+        "enabled": true
+      },
+      "properties": {
+        "doc_id": {
+          "type": "keyword"
+        },
+        "event_id": {
+          "type": "keyword"
+        },
+        "tenant_id": {
+          "type": "keyword"
+        },
+        "occurred_at": {
+          "type": "date"
+        },
+        "actor_id": {
+          "type": "keyword"
+        },
+        "actor_assignment_id": {
+          "type": "keyword"
+        },
+        "actor_role": {
+          "type": "keyword"
+        },
+        "action": {
+          "type": "keyword"
+        },
+        "outcome": {
+          "type": "keyword"
+        },
+        "object_type": {
+          "type": "keyword"
+        },
+        "object_id": {
+          "type": "keyword"
+        },
+        "column": {
+          "type": "keyword"
+        },
+        "purpose": {
+          "type": "keyword"
+        },
+        "self": {
+          "type": "boolean"
+        },
+        "system": {
+          "type": "boolean"
+        },
+        "traceparent": {
+          "type": "keyword",
+          "index": false
+        }
+      }
+    }
+  },
+  "_meta": {
+    "description": "CORE-07-12 · Mẫu chỉ mục kiểm toán audit-* (TL-01 G6). Chỉ siêu dữ liệu, không bao giờ có bản rõ hay bản mã C2; dynamic strict để không trường lạ nào lọt vào."
+  }
+}

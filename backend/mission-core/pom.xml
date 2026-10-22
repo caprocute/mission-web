@@ -26,9 +26,32 @@
     <awssdk.version>2.31.6</awssdk.version>
     <!-- CORE-02-04: đọc, ghi .xlsx theo luồng (Apache 2.0); người phụ trách đã duyệt 22/10/2026. -->
     <fastexcel.version>0.18.4</fastexcel.version>
+    <!-- CORE-07-12: client chỉ mục kiểm toán OpenSearch (Apache 2.0), không dùng client Elasticsearch. -->
+    <opensearch-java.version>2.22.0</opensearch-java.version>
   </properties>
 
   <dependencies>
+    <!-- CORE-07-12: ghi và tra cứu chỉ mục kiểm toán audit-* (TL-01 G6) qua transport Apache HttpClient 5. -->
+    <dependency>
+      <groupId>org.opensearch.client</groupId>
+      <artifactId>opensearch-java</artifactId>
+      <version>${opensearch-java.version}</version>
+      <!-- Dùng transport HttpClient 5 và JacksonJsonpMapper: bỏ rest-client cũ và yasson để không lệch phiên bản commons-logging, parsson. -->
+      <exclusions>
+        <exclusion>
+          <groupId>org.opensearch.client</groupId>
+          <artifactId>opensearch-rest-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.eclipse</groupId>
+          <artifactId>yasson</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents.client5</groupId>
+      <artifactId>httpclient5</artifactId>
+    </dependency>
     <!-- CORE-08-11: kho gốc CDN của UI Pack qua giao diện S3 (Ceph RGW), cùng bản với document-service. -->
     <dependency>
       <groupId>software.amazon.awssdk</groupId>

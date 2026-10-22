@@ -1,7 +1,7 @@
 {
   "description": "Danh mục mã lỗi <MODULE>-<HTTP>-<TÊN> trích từ contracts/openapi (NEN-009). Không sửa tay: chạy tools/extract-error-codes.mjs.",
   "source": "contracts/openapi/**/*.yaml",
-  "count": 198,
+  "count": 199,
   "codes": [
     {
       "code": "AI-403-C3-FORBIDDEN",
@@ -1181,6 +1181,16 @@
       "type": "https://okrkpi.vn/problems/validation",
       "title": "Dữ liệu chưa hợp lệ",
       "msg": "MSG-12-03",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
+    },
+    {
+      "code": "OVERSIGHT-503-AUDIT-INDEX-UNAVAILABLE",
+      "module": "OVERSIGHT",
+      "status": 503,
+      "name": "AUDIT-INDEX-UNAVAILABLE",
+      "type": "https://okrkpi.vn/problems/audit-index-unavailable",
       "sources": [
         "modules/oversight.yaml"
       ]
