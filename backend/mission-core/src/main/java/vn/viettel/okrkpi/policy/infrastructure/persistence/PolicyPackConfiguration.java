@@ -17,6 +17,7 @@ import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
 import vn.viettel.okrkpi.policy.application.PolicyPackService;
 import vn.viettel.okrkpi.policy.application.PolicyPeriodCalendar;
 import vn.viettel.okrkpi.policy.application.PolicyResolutionService;
+import vn.viettel.okrkpi.policy.application.PolicyRuleService;
 import vn.viettel.okrkpi.policy.application.PolicySchemaAdapter;
 import vn.viettel.okrkpi.policy.application.port.PolicyAudit;
 import vn.viettel.okrkpi.policy.infrastructure.web.PolicyIdempotency;
@@ -59,6 +60,26 @@ public class PolicyPackConfiguration {
       ObjectProvider<ObjectMapper> json) {
     return new PolicyPackService(
         policyPackRepository,
+        policyAudit,
+        json.getIfAvailable(ObjectMapper::new),
+        Clock.systemUtc());
+  }
+
+  @Bean
+  JdbcPolicyRuleRepository policyRuleRepository(
+      @Qualifier("policyDataSource") DataSource dataSource) {
+    return new JdbcPolicyRuleRepository(JdbcClient.create(dataSource));
+  }
+
+  @Bean
+  PolicyRuleService policyRuleService(
+      JdbcPolicyPackRepository policyPackRepository,
+      JdbcPolicyRuleRepository policyRuleRepository,
+      PolicyAudit policyAudit,
+      ObjectProvider<ObjectMapper> json) {
+    return new PolicyRuleService(
+        policyPackRepository,
+        policyRuleRepository,
         policyAudit,
         json.getIfAvailable(ObjectMapper::new),
         Clock.systemUtc());
