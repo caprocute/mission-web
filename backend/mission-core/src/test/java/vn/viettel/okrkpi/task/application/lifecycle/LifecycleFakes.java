@@ -61,6 +61,7 @@ final class LifecycleFakes {
     final List<String> beforeAfter = new ArrayList<>();
     final List<StatusUpdate> updates = new ArrayList<>();
     UUID lead;
+    final List<UUID> coordinators = new ArrayList<>();
     ChangeRequestRow change;
 
     @Override
@@ -80,7 +81,11 @@ final class LifecycleFakes {
 
     @Override
     public List<UUID> activeAssignees(TenantId tenant, int periodBucket, UUID taskId) {
-      return lead == null ? List.of() : List.of(lead);
+      List<UUID> all = new ArrayList<>(coordinators);
+      if (lead != null) {
+        all.add(0, lead);
+      }
+      return all;
     }
 
     @Override

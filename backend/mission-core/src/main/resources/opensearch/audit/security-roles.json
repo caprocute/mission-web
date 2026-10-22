@@ -1,0 +1,39 @@
+{
+  "_meta": {
+    "type": "roles",
+    "config_version": 2
+  },
+  "audit_writer": {
+    "cluster_permissions": [
+      "cluster_composite_ops"
+    ],
+    "index_permissions": [
+      {
+        "index_patterns": [
+          "audit-*"
+        ],
+        "allowed_actions": [
+          "indices:data/write/bulk*",
+          "indices:data/write/index",
+          "indices:admin/create",
+          "indices:admin/mapping/put"
+        ]
+      }
+    ]
+  },
+  "audit_reader": {
+    "cluster_permissions": [
+      "cluster_composite_ops_ro"
+    ],
+    "index_permissions": [
+      {
+        "index_patterns": [
+          "audit-*"
+        ],
+        "allowed_actions": [
+          "read"
+        ]
+      }
+    ]
+  }
+}

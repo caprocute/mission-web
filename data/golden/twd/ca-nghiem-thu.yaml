@@ -1,0 +1,89 @@
+# Danh mục ca nghiệm thu không tính điểm của hồ sơ TWĐ (DL-16). GIẢ LẬP theo YC-PT-14.
+#
+# Bộ ca vàng `data/policy-pack/twd/diem-cong-viec/tests/bo-ca-mau-twd.yaml` (1441 ca, trình chạy DL-03 đạt 100%) phủ
+# mọi ca có kết quả là một con số hay một mức: 11.8, mục 32 (120 người), G1–G7, G10, G11, G13, 32.4 tình huống 1–4
+# và 20, CTT1, CTT4, CTT10, CTT11 (chính là ca G1), CTT13, CTT14, CTB12, CTB15, CTB17, CTB19, CTB29, CTB30.
+# Các ca dưới đây kiểm luồng, chặn, thông báo, quyền hay lịch, nên không chạy được trên trình chạy tham chiếu; mỗi ca
+# ghi task lõi chịu trách nhiệm hiện thực và kiểm thử tích hợp. Câu thông báo trong `mong_doi` là chữ của tài liệu
+# UEB, giữ nguyên để nghiệm thu. Nguồn: UEB-BTCTW-QTCV-02 v1.2 mục 11.12 điểm h, 32.4, Phụ lục C.2, C.3.
+metadata:
+  id: twd/ca-nghiem-thu
+  version: 0.1.0
+  gia_lap: true
+  ghi_chu_gia_lap: "Thí điểm – dùng để đối chiếu; ca chưa ký, chờ nghiệp vụ duyệt."
+
+ca:
+  # --- Gói điểm (11.12 điểm h) ---
+  - {ma: G8, nguon: "11.12 h", task: [CORE-05-12, DV-07-03],
+     tinh_huong: "Lưu dòng gói 80 và 25; chọn gói điểm cho một kỳ khi chưa có dòng không giữ chức vụ",
+     mong_doi: ["Gói trọng tâm, then chốt và gói thường xuyên phải cộng lại bằng 100.",
+                "Chưa có gói điểm của nhóm không giữ chức vụ; chưa chọn được gói điểm cho kỳ này."],
+     phu_mot_phan: "Câu thứ nhất đã kiểm trong test_goi_diem_mot_nhom_lay_100 (ValueError của trình chạy); chặn lưu là việc của lõi."}
+  - {ma: G9, nguon: "11.12 h, đ", task: [CORE-04-10, DV-07-07],
+     tinh_huong: "Kỳ năm tính theo gói điểm, cách (b); dòng nhập kết quả quý trước chỉ có tổng, chưa tách nhóm",
+     mong_doi: ["Không duyệt được dòng nhập; báo như 11.12 điểm đ (phải tách điểm theo nhóm trọng tâm và thường xuyên)."]}
+  - {ma: G12, nguon: "11.12 h, c; R41", task: [CORE-05-12, CORE-04-13],
+     tinh_huong: "Lưu bảng tỷ trọng theo trục 1 0%, trục 4 100% khi trục 1 đang có mục tiêu; hoặc bảng 30/70, thêm mục tiêu ở trục 2, khoá sổ khi trục 2 chưa có tỷ trọng",
+     mong_doi: ["Trục [tên trục 1] đang có mục tiêu trong kỳ, phải có tỷ trọng lớn hơn 0.",
+                "Không khoá sổ được, báo như 11.12 điểm c với tên trục 2."],
+     phu_mot_phan: "Phép tính khi thiếu tỷ trọng đã kiểm (ValueError 'Còn trục … chưa có tỷ trọng theo trục.'); chặn lưu, chặn khoá sổ là việc của lõi."}
+
+  # --- 32.4: tình huống luồng (1–4 và 20 đã có trong bộ ca vàng) ---
+  - {ma: TH5, nguon: "32.4/5; DR04", task: [CORE-04-13, CORE-04-03], tinh_huong: "Sự việc của Chuyên viên Vụ Cán bộ-1 ở trạng thái Đang xác minh", mong_doi: ["Phiếu mang nhãn “tạm thời”; mức gợi ý chưa đổi; ghi mức quyết định phải xác nhận ghi kết quả tạm thời."]}
+  - {ma: TH6, nguon: "32.4/6; DR05", task: [CORE-04-13], tinh_huong: "Ghi mức quyết định cao hơn mức gợi ý mà không ghi lý do", mong_doi: ["Bị chặn."]}
+  - {ma: TH7, nguon: "32.4/7; DR08", task: [CORE-04-10], tinh_huong: "Ghi Hoàn thành xuất sắc cả năm khi một quý xếp Không hoàn thành nhiệm vụ", mong_doi: ["Bị chặn."], phu_mot_phan: "Ràng buộc giữa các kỳ ở bảng rang-buoc-twd đã kiểm (XL-DR08); chặn ghi là việc của lõi."}
+  - {ma: TH8, nguon: "32.4/8; DR07", task: [CORE-04-03], tinh_huong: "Ghi mức quyết định cho Vụ trưởng khi tập thể lãnh đạo vụ chưa có mức quyết định", mong_doi: ["Bị chặn."]}
+  - {ma: TH9, nguon: "32.4/9; DR09, DR05", task: [CORE-04-13], tinh_huong: "Nhập theo văn bản mức Xuất sắc cho Phó Trưởng Ban khi giải pháp đột phá chưa được công nhận", mong_doi: ["Không bị chặn; phiếu hiện cảnh báo, ghi lịch sử; lý do ghi số, ngày văn bản."]}
+  - {ma: TH10, nguon: "32.4/10; DR12", task: [CORE-04-05], tinh_huong: "Vụ trưởng gọi API hoàn thành rà soát trên phiếu của chính mình", mong_doi: ["Bị chặn; giao diện không có nút."]}
+  - {ma: TH11, nguon: "32.4/11; 15.6, DR12", task: [CORE-04-05], tinh_huong: "Đầu mối thẩm định thẩm định phiếu chuyên viên cùng đơn vị và phiếu của chính mình", mong_doi: ["Phiếu chuyên viên: được thẩm định.", "Phiếu của chính mình: bị chặn; cấp trưởng chỉ định người khác."]}
+  - {ma: TH12, nguon: "32.4/12; DR11", task: [CORE-06-04, CORE-04-03], tinh_huong: "Phiếu năm của người kiêm nhiệm chưa có biên bản kiểm điểm tại nơi kiêm nhiệm", mong_doi: ["Không chuyển được sang Chờ quyết định."]}
+  - {ma: TH13, nguon: "32.4/13; 15.4", task: [CORE-04-03], tinh_huong: "Quá hạn tự đánh giá; cấp trực tiếp chuyển phiếu sang rà soát", mong_doi: ["Phiếu ghi “chưa tự đánh giá”; có gợi ý cho tiêu chí 5.1."]}
+  - {ma: TH14, nguon: "32.4/14; 13.7", task: [CORE-04-10, DV-07-04], tinh_huong: "Mở sổ lại quý IV, sửa điểm một công việc, khoá lại", mong_doi: ["Phiếu năm chưa có mức quyết định tự cập nhật điểm và mức gợi ý theo ảnh chụp mới, báo người giữ phiếu."]}
+  - {ma: TH15, nguon: "32.4/15; DR16", task: [CORE-05-12], tinh_huong: "Đổi danh mục tiêu chí con khi đợt đang mở", mong_doi: ["Bị chặn; áp dụng từ đợt sau."]}
+  - {ma: TH16, nguon: "32.4/16; DT12", task: [CORE-07-02], tinh_huong: "Cấp có thẩm quyền kết luận kiến nghị là điều chỉnh", mong_doi: ["Tạo phiên bản 2 của phiếu ở Chờ rà soát; phiên bản 1 chỉ đọc, trạng thái Đã thay bằng phiên bản mới."]}
+  - {ma: TH17, nguon: "32.4/17; 14.2", task: [CORE-04-02], tinh_huong: "Khoá sổ quý IV/2026", mong_doi: ["Không mở đợt đánh giá quý IV; số liệu quý IV đi vào phiếu năm."]}
+  - {ma: TH18, nguon: "32.4/18; 15.4, TK-27", task: [CORE-04-03], tinh_huong: "Đợt quý I/2027 mở sau khoá sổ 17h00 thứ Năm 01/04/2027 (lịch 2027 không có ngày lễ 01–08/04)", mong_doi: ["Tự đánh giá đến hết 02/04; rà soát 05–06/04; thẩm định 07/04; quyết định 08/04."], tham_so: "data/seed/twd/twd-tham-quyen.yaml danh_gia_quy.han_buoc_ngay_lam_viec"}
+  - {ma: TH19, nguon: "32.4/19; 15.4", task: [CORE-04-05], tinh_huong: "Phiếu quý I/2027 bị trả lại từ thẩm định về rà soát ngày 07/04/2027", mong_doi: ["Hạn rà soát mới 08/04/2027; quá hạn hoàn thành đánh giá quý thì cảnh báo bộ phận tổ chức cán bộ."]}
+  - {ma: TH21, nguon: "32.4/21", task: [CORE-04-13, DV-07-05], tinh_huong: "Như tình huống 20, một nhiệm vụ có nguyên nhân khách quan được xác nhận", mong_doi: ["Vẫn áp như tình huống 20; cả hai nhiệm vụ khách quan thì không áp."]}
+  - {ma: TH22, nguon: "32.4/22; DB6", task: [CORE-04-08], tinh_huong: "Chuyên viên Không hoàn thành nhiệm vụ quý I và quý II/2027", mong_doi: ["Quý I: cảnh báo cấp quản lý cán bộ.", "Quý II: cảnh báo “từ 02 quý liên tiếp”, xem xét bố trí công tác khác."]}
+  - {ma: TH23, nguon: "32.4/23; 18.4", task: [CORE-04-08], tinh_huong: "Không hoàn thành nhiệm vụ năm 2026 và quý I/2027", mong_doi: ["Hai lần cảnh báo; không tính là “02 quý liên tiếp”."]}
+  - {ma: TH24, nguon: "32.4/24; DB5", task: [CORE-04-13], tinh_huong: "Vụ trưởng tự xác nhận nguyên nhân khách quan cho nhiệm vụ mình phụ trách", mong_doi: ["Ba phiếu liên quan hiện nhãn “tự xác nhận” kèm căn cứ; vào danh sách ưu tiên hậu kiểm."]}
+  - {ma: TH25, nguon: "32.4/25; 10.1", task: [CORE-02-20], tinh_huong: "Người của bộ phận tổ chức cán bộ mở bảng điều hành", mong_doi: ["Xem toàn đơn vị chỉ đọc; không thấy “Hạn chế trong nội bộ”; không có nút thao tác trên cây."]}
+
+  # --- Phụ lục C.2: ca thử tay chưa có trong bộ ca vàng ---
+  - {ma: CTT2, nguon: "C.2", task: [CORE-01-14], tinh_huong: "KPI kiểu Số lượng chiều tối đa, kế hoạch 2, thực tế 4 và 1", mong_doi: ["Thực tế 4: tỷ lệ 50%, Không đạt chỉ tiêu."]}
+  - {ma: CTT3, nguon: "C.2", task: [CORE-01-14], tinh_huong: "KR kiểu Mốc có mốc trung gian 30%, 60%; chỉ xác nhận mốc 60%", mong_doi: ["Tỷ lệ hoàn thành KR 60%; KR không đạt."]}
+  - {ma: CTT5, nguon: "C.2", task: [CORE-04-10], tinh_huong: "Ngày khoá sổ năm khác ngày khoá sổ quý IV", mong_doi: ["Công việc vẫn trong điểm quý IV nhưng thuộc kỳ năm theo ngày khoá sổ năm."]}
+  - {ma: CTT6, nguon: "C.2", task: [CORE-01-14, CORE-04-13], tinh_huong: "KR năm ngày chốt số liệu sau khoá sổ năm, chưa đạt", mong_doi: ["KR năm ghi “chưa đến kỳ đo”, không tính vào điều kiện 100% mục tiêu trọng tâm."]}
+  - {ma: CTT7, nguon: "C.2; B.5", task: [CORE-02-22], tinh_huong: "Phó Vụ trưởng xin gia hạn việc mình giao; Trưởng Ban huỷ việc mình giao", mong_doi: ["Đề nghị thứ nhất chờ Vụ trưởng duyệt; quá 5 ngày báo cấp trên của người duyệt.", "Trưởng Ban tự quyết, ghi lý do."], tham_so: "data/seed/twd/twd-tham-quyen.yaml duyet_de_nghi"}
+  - {ma: CTT8, nguon: "C.2", task: [CORE-02-22], tinh_huong: "Huỷ sau duyệt kế hoạch với lý do khác, chọn trách nhiệm người thực hiện hoặc người giao", mong_doi: ["Theo trách nhiệm đã chọn, việc giữ hay rời điểm được giao."]}
+  - {ma: CTT9, nguon: "C.2", task: [CORE-02-22], tinh_huong: "Chuyển giao giữa chừng với lý do khác", mong_doi: ["Người cũ giữ điểm được giao (đạt 0) và có gợi ý tiêu chí 8.1."]}
+  - {ma: CTT12, nguon: "C.2", task: [CORE-02-28], tinh_huong: "Mức sớm hạn cách 2, tỷ lệ 20%, việc 7 ngày làm việc", mong_doi: ["Mức sớm hạn 2 ngày; xong 07/10 có cờ vượt, xong 08/10 không."]}
+  - {ma: CTT15, nguon: "C.2", task: [], tinh_huong: "Lớp cấp trên nhiều cấp giữa tenant", mong_doi: ["Ngoài phạm vi (BS-03, B7)."], ngoai_pham_vi: true}
+  - {ma: CTT16, nguon: "C.2", task: [CORE-02-28], tinh_huong: "Khôi phục KPI đã huỷ khi mọi công việc đã được duyệt", mong_doi: ["KPI về Chưa bắt đầu rồi hệ thống chạy lại chuyển trạng thái."]}
+
+  # --- Phụ lục C.3: CTB chưa có trong bộ ca vàng ---
+  - {ma: CTB1, nguon: "C.3", task: [CORE-02-22], tinh_huong: "Khôi phục mục trọng tâm chờ phê duyệt", mong_doi: ["Theo T9, R26."]}
+  - {ma: CTB2, nguon: "C.3", task: [CORE-02-22], tinh_huong: "Khôi phục mục bị huỷ kèm mục con", mong_doi: ["Chỉ khôi phục các việc bị huỷ cùng lần."]}
+  - {ma: CTB3, nguon: "C.3; 7.8", task: [CORE-02-22], tinh_huong: "Khôi phục mục tiêu, KR mang cờ được giao", mong_doi: ["Phải đính kèm văn bản của cấp trên."], tham_so: "data/seed/twd/twd-tham-quyen.yaml duyet_de_nghi.tham_quyen tt 8"}
+  - {ma: CTB4, nguon: "C.3; DR07, DR13", task: [CORE-04-03], tinh_huong: "Mức người đứng đầu – tập thể, hai thứ tự ghi", mong_doi: ["Theo 15.7, 18.4."]}
+  - {ma: CTB5, nguon: "C.3; 15.3", task: [CORE-04-03], tinh_huong: "Phiếu không có bước rà soát", mong_doi: ["Vụ trưởng thay mặt tập thể; quá hạn thì đầu mối thẩm định chuyển sang thẩm định."], tham_so: "data/seed/twd/twd-tham-quyen.yaml danh_gia_quy.tham_quyen TAP_THE_VU"}
+  - {ma: CTB6, nguon: "C.3; quy tắc 6", task: [CORE-02-20], tinh_huong: "Cách đếm thời hạn chờ xác nhận", mong_doi: ["Sinh điểm nghẽn lúc 8h ngày làm việc thứ 6."], tham_so: "data/seed/twd/diem-nghen.yaml TWD-DN-06"}
+  - {ma: CTB7, nguon: "C.3; R37", task: [CORE-02-28], tinh_huong: "Việc lặp theo lịch", mong_doi: ["Theo F72, R37."]}
+  - {ma: CTB8, nguon: "C.3; R01", task: [CORE-01-14], tinh_huong: "Sửa số mục tiêu năm nhập nhầm", mong_doi: ["Theo 3.2, R01."]}
+  - {ma: CTB9, nguon: "C.3; 10.2", task: [CORE-02-28], tinh_huong: "Ai thấy mục ở Nháp", mong_doi: ["Theo 8.1, 10.2."]}
+  - {ma: CTB10, nguon: "C.3; F63", task: [CORE-01-14], tinh_huong: "Trọng số KR khai một phần", mong_doi: ["Tỷ lệ hoàn thành mục tiêu = (2 × 80% + 100% + 100%) ÷ 4 = 90%."]}
+  - {ma: CTB11, nguon: "C.3; 7.7", task: [CORE-01-14, CORE-02-22], tinh_huong: "Tăng, giảm chỉ tiêu kiểu Mốc của KR mang cờ", mong_doi: ["Xếp tăng, giảm theo bậc điều kiện công nhận."], tham_so: "data/seed/twd/danh-muc/danh-muc-dung-chung.yaml dieu_kien_cong_nhan_moc"}
+  - {ma: CTB13, nguon: "C.3; T11a", task: [CORE-02-22], tinh_huong: "Mở lại việc duyệt nhầm sau khoá sổ quý", mong_doi: ["Theo T7, T11a."]}
+  - {ma: CTB14, nguon: "C.3; R30", task: [CORE-01-14], tinh_huong: "Khoá chỉ tiêu KR năm", mong_doi: ["Phải qua người duyệt theo bảng thẩm quyền."]}
+  - {ma: CTB16, nguon: "C.3; R07", task: [CORE-02-28], tinh_huong: "Đổi loại sản phẩm của CV có công việc con", mong_doi: ["Theo 3.6, R07."]}
+  - {ma: CTB18, nguon: "C.3; 13.7", task: [CORE-01-14], tinh_huong: "Mở sổ lại rồi khoá lại – chưa đến kỳ đo", mong_doi: ["KR vẫn chưa đến kỳ đo."]}
+  - {ma: CTB20, nguon: "C.3; DT13", task: [CORE-04-03], tinh_huong: "Phiếu quý chuyển sang kỳ sau", mong_doi: ["Theo 14.3, DT13."]}
+  - {ma: CTB21, nguon: "C.3; 16.4", task: [CORE-04-13], tinh_huong: "Sự việc có văn bản kết luận", mong_doi: ["Lưu ở Đã kết luận – Không đảm bảo; phiếu không mang nhãn tạm thời."], tham_so: "data/seed/twd/danh-muc/danh-muc-dung-chung.yaml loai_can_cu_su_viec"}
+  - {ma: CTB22, nguon: "C.3; DR11", task: [CORE-06-04], tinh_huong: "Kiểm điểm", mong_doi: ["Theo 21.3, 21.4, DR11."]}
+  - {ma: CTB23, nguon: "C.3; 16.6", task: [CORE-04-13], tinh_huong: "Gợi ý kế hoạch duyệt quá hạn", mong_doi: ["Gợi ý tiêu chí 7.1 chỉ ở phiếu người được phân công duyệt."]}
+  - {ma: CTB24, nguon: "C.3; 11.4", task: [CORE-02-20], tinh_huong: "Trung bình vụ trong cảnh báo điểm được giao thấp", mong_doi: ["Theo 11.4."], tham_so: "data/seed/twd/diem-nghen.yaml TWD-DN-08"}
+  - {ma: CTB25, nguon: "C.3; NR09", task: [CORE-02-20], tinh_huong: "Chủ thể xử lý là cấp trên ngoài đơn vị", mong_doi: ["Theo NR09, 4.4."]}
+  - {ma: CTB26, nguon: "C.3; quy tắc 7", task: [CORE-02-20], tinh_huong: "Đóng bản ghi quy tắc 7", mong_doi: ["Bản ghi không tự đóng; đóng theo luồng 4.4."], tham_so: "data/seed/twd/diem-nghen.yaml TWD-DN-07 tu_dong_khi_het_dieu_kien"}
+  - {ma: CTB27, nguon: "C.3; DR19", task: [CORE-04-13], tinh_huong: "Lý do, căn cứ theo DR19", mong_doi: ["Chỉ áp cho phiếu đang ghi."]}
+  - {ma: CTB28, nguon: "C.3; R36", task: [CORE-01-14], tinh_huong: "KR quý chưa đến kỳ đo", mong_doi: ["Ảnh chụp ghi “Chưa đến kỳ đo”."]}

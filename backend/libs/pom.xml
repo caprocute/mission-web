@@ -31,5 +31,9 @@
     <module>vt-events</module>
     <!-- NEN-020: bộ công cụ kiểm thử tích hợp Testcontainers dùng chung và sinh JWT thử nghiệm. -->
     <module>vt-testkit</module>
+    <!-- DL-14: job xoay vòng DEK đầu tháng, bọc lại theo KEK mới, mã hoá lại khi nghi lộ DEK. -->
+    <module>key-rotation</module>
+    <!-- DL-13: lưu trữ, xoá bằng mật mã, khôi phục theo bảy lớp lưu giữ. -->
+    <module>retention</module>
   </modules>
 </project>

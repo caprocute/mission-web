@@ -2,6 +2,7 @@ package vn.viettel.okrkpi.okr.infrastructure.web;
 
 import java.net.URI;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -28,6 +29,9 @@ import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.config.api.FeatureFlagApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.contract.okr.model.CopyOkrObjectivesFromPeriod201Response;
+import vn.viettel.okrkpi.contract.okr.model.OkrApproveBatchRequest;
+import vn.viettel.okrkpi.contract.okr.model.OkrApproveRequest;
+import vn.viettel.okrkpi.contract.okr.model.OkrCancelRequest;
 import vn.viettel.okrkpi.contract.okr.model.OkrComposeContext;
 import vn.viettel.okrkpi.contract.okr.model.OkrCopyFromPeriodRequest;
 import vn.viettel.okrkpi.contract.okr.model.OkrKeyResult;
@@ -37,15 +41,22 @@ import vn.viettel.okrkpi.contract.okr.model.OkrLink;
 import vn.viettel.okrkpi.contract.okr.model.OkrLinkCreate;
 import vn.viettel.okrkpi.contract.okr.model.OkrObjective;
 import vn.viettel.okrkpi.contract.okr.model.OkrObjectiveCreate;
+import vn.viettel.okrkpi.contract.okr.model.OkrObjectiveHistoryEntry;
+import vn.viettel.okrkpi.contract.okr.model.OkrObjectiveHistoryPage;
 import vn.viettel.okrkpi.contract.okr.model.OkrObjectiveStatus;
 import vn.viettel.okrkpi.contract.okr.model.OkrObjectiveUpdate;
 import vn.viettel.okrkpi.contract.okr.model.OkrParentOption;
 import vn.viettel.okrkpi.contract.okr.model.OkrPeriodInfo;
 import vn.viettel.okrkpi.contract.okr.model.OkrPersonOption;
 import vn.viettel.okrkpi.contract.okr.model.OkrPolicy;
+import vn.viettel.okrkpi.contract.okr.model.OkrReturnRequest;
+import vn.viettel.okrkpi.contract.okr.model.OkrReviewComment;
+import vn.viettel.okrkpi.contract.okr.model.OkrReviewDecision;
+import vn.viettel.okrkpi.contract.okr.model.OkrRevisionCreateRequest;
 import vn.viettel.okrkpi.contract.okr.model.OkrRule;
 import vn.viettel.okrkpi.contract.okr.model.PeriodRef;
 import vn.viettel.okrkpi.contract.okr.model.Ref;
+import vn.viettel.okrkpi.okr.application.OkrAiProvenance;
 import vn.viettel.okrkpi.okr.application.OkrCheckService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService.LinkDraft;
@@ -53,6 +64,8 @@ import vn.viettel.okrkpi.okr.application.OkrComposeService.ObjectiveDraft;
 import vn.viettel.okrkpi.okr.application.OkrComposeService.Owner;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.OkrReadService.ObjectiveView;
+import vn.viettel.okrkpi.okr.application.OkrReviewService;
+import vn.viettel.okrkpi.okr.application.OkrReviewService.HistoryEntry;
 import vn.viettel.okrkpi.okr.application.OkrRuleChecker.Policy;
 import vn.viettel.okrkpi.okr.application.OkrSubmitService;
 import vn.viettel.okrkpi.okr.application.port.OkrReadRepository.ObjectiveFilter;
@@ -63,7 +76,13 @@ import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
 import vn.viettel.okrkpi.shared.authz.OpaInput;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
 import vn.viettel.okrkpi.shared.etag.ETags;
+import vn.viettel.okrkpi.shared.job.Job;
+import vn.viettel.okrkpi.shared.job.Jobs;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
+import vn.viettel.okrkpi.shared.paging.CursorCodec;
+import vn.viettel.okrkpi.shared.paging.CursorKey;
+import vn.viettel.okrkpi.shared.paging.CursorPage;
+import vn.viettel.okrkpi.shared.paging.PageRequest;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
 /**
@@ -91,6 +110,10 @@ public class OkrComposeController {
   private final ObjectProvider<AuthzSubjectResolver> subjects;
   private final ObjectProvider<OkrCaller> callers;
   private final OkrSubmitService submits;
+  private final OkrReviewService reviews;
+  private final OkrApproveBatchJobs batches;
+  private final CursorCodec cursors;
+  private final OkrAiProvenance provenance;
 
   public OkrComposeController(
       OkrComposeService compose,
@@ -101,8 +124,16 @@ public class OkrComposeController {
       ObjectProvider<FeatureFlagApi> flags,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<OkrCaller> callers,
-      OkrSubmitService submits) {
+      OkrSubmitService submits,
+      OkrReviewService reviews,
+      OkrApproveBatchJobs batches,
+      CursorCodec cursors,
+      OkrAiProvenance provenance) {
+    this.provenance = Objects.requireNonNull(provenance, "provenance");
     this.submits = Objects.requireNonNull(submits, "submits");
+    this.reviews = Objects.requireNonNull(reviews, "reviews");
+    this.batches = Objects.requireNonNull(batches, "batches");
+    this.cursors = Objects.requireNonNull(cursors, "cursors");
     this.compose = Objects.requireNonNull(compose, "compose");
     this.reads = Objects.requireNonNull(reads, "reads");
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
@@ -117,6 +148,7 @@ public class OkrComposeController {
   @RequiresPermission(operationId = "createOkrObjective", module = "okr")
   public ResponseEntity<OkrObjective> createOkrObjective(
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "Authorization", required = false) String authorization,
       @RequestBody OkrObjectiveCreate body) {
     TenantId tenant = TenantContext.require();
     UUID actor = actor();
@@ -139,6 +171,8 @@ public class OkrComposeController {
             body.getOverLimitReason(),
             body.getAiSuggestionId(),
             keyResults(body.getKeyResults()));
+    // CORE-01-13: kiểm gợi ý AI ngoài giao dịch CSDL của lệnh lưu.
+    var ai = provenance.verify(tenant, actor, authorization, draft);
     return idempotency.run(
         tenant,
         actor,
@@ -150,7 +184,7 @@ public class OkrComposeController {
         OkrObjective::getRowVersion,
         () -> {
           int max = recommendedMax(tenant, body.getPeriodId(), body.getOwnerUnitId());
-          UUID id = compose.create(tenant, actor, owner, draft, max);
+          UUID id = compose.create(tenant, actor, owner, draft, max, ai);
           OkrObjective dto = detail(tenant, id);
           return ResponseEntity.created(URI.create(BASE + "/objectives/" + id))
               .eTag(ETags.of(dto.getRowVersion()))
@@ -186,12 +220,258 @@ public class OkrComposeController {
         });
   }
 
+  /** CORE-01-06: phê duyệt (BR-02-08), phát EVT-01 cùng giao dịch. */
+  @PostMapping("/objectives/{id}/approve")
+  @RequiresPermission(operationId = "approveOkrObjective", module = "okr")
+  public ResponseEntity<OkrObjective> approveOkrObjective(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody(required = false) OkrApproveRequest body) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = actor();
+    long expected = ETags.expectedVersion(ifMatch, "OKR");
+    String comment = body == null ? null : body.getComment();
+    return decide(
+        tenant,
+        actor,
+        id,
+        idempotencyKey,
+        "/approve#" + ifMatch,
+        body,
+        true,
+        () -> reviews.approve(tenant, actor, id, expected, comment, false));
+  }
+
+  /** CORE-01-06: trả lại có ý kiến bắt buộc (BR-02-09), thông báo người soạn qua EVT-21. */
+  @PostMapping("/objectives/{id}/return")
+  @RequiresPermission(operationId = "returnOkrObjective", module = "okr")
+  public ResponseEntity<OkrObjective> returnOkrObjective(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody(required = false) OkrReturnRequest body) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = actor();
+    long expected = ETags.expectedVersion(ifMatch, "OKR");
+    String comment = body == null ? null : body.getComment();
+    return decide(
+        tenant,
+        actor,
+        id,
+        idempotencyKey,
+        "/return#" + ifMatch,
+        body,
+        true,
+        () -> reviews.sendBack(tenant, actor, id, expected, comment));
+  }
+
+  /** CORE-01-06: người soạn rút lại mục tiêu đang chờ duyệt. */
+  @PostMapping("/objectives/{id}/withdraw")
+  @RequiresPermission(operationId = "withdrawOkrObjective", module = "okr")
+  public ResponseEntity<OkrObjective> withdrawOkrObjective(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody(required = false) OkrReviewComment body) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = actor();
+    long expected = ETags.expectedVersion(ifMatch, "OKR");
+    return decide(
+        tenant,
+        actor,
+        id,
+        idempotencyKey,
+        "/withdraw#" + ifMatch,
+        body,
+        false,
+        () -> reviews.withdraw(tenant, actor, id, expected));
+  }
+
+  /** CORE-01-06: người duyệt huỷ mục tiêu có lý do, báo đơn vị sở hữu qua EVT-21. */
+  @PostMapping("/objectives/{id}/cancel")
+  @RequiresPermission(operationId = "cancelObjective", module = "okr")
+  public ResponseEntity<OkrObjective> cancelObjective(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody(required = false) OkrCancelRequest body) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = actor();
+    long expected = ETags.expectedVersion(ifMatch, "OKR");
+    String reason = body == null ? null : body.getReason();
+    return decide(
+        tenant,
+        actor,
+        id,
+        idempotencyKey,
+        "/cancel#" + ifMatch,
+        body,
+        true,
+        () -> reviews.cancel(tenant, actor, id, expected, reason));
+  }
+
+  /** CORE-01-07: tạo phiên bản điều chỉnh của mục tiêu đã duyệt (BR-02-10). */
+  @PostMapping("/objectives/{id}/revisions")
+  @RequiresPermission(operationId = "createObjectiveRevision", module = "okr")
+  public ResponseEntity<OkrObjective> createObjectiveRevision(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody(required = false) OkrRevisionCreateRequest body) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = actor();
+    long expected = ETags.expectedVersion(ifMatch, "OKR");
+    String reason = body == null ? null : body.getReason();
+    boolean submit = body != null && Boolean.TRUE.equals(body.getSubmitImmediately());
+    return idempotency.run(
+        tenant,
+        actor,
+        idempotencyKey,
+        "POST",
+        BASE + "/objectives/" + id + "/revisions#" + ifMatch,
+        body,
+        OkrObjective.class,
+        OkrObjective::getRowVersion,
+        () -> {
+          var head = found(() -> compose.head(tenant, id).orElseThrow());
+          requireUnitScope(tenant, head.ownerUnitId());
+          UUID revision = found(() -> reviews.createRevision(tenant, actor, id, expected, reason));
+          if (submit) {
+            found(() -> submits.submit(tenant, actor, revision, 0));
+          }
+          OkrObjective dto = detail(tenant, revision);
+          return ResponseEntity.created(URI.create(BASE + "/objectives/" + revision))
+              .eTag(ETags.of(dto.getRowVersion()))
+              .body(dto);
+        });
+  }
+
+  /** CORE-01-06: duyệt hàng loạt các bộ "Đạt", trả 202 và chạy nền, mỗi bộ một giao dịch. */
+  @PostMapping("/objectives/approve-batch")
+  @RequiresPermission(operationId = "approveOkrObjectivesBatch", module = "okr")
+  public ResponseEntity<Job> approveOkrObjectivesBatch(
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestBody OkrApproveBatchRequest body) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = actor();
+    if (body == null || body.getItems() == null || body.getItems().isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Chưa chọn bộ OKR nào");
+    }
+    List<OkrApproveBatchJobs.Item> items =
+        body.getItems().stream()
+            .map(i -> new OkrApproveBatchJobs.Item(i.getId(), i.getRowVersion()))
+            .toList();
+    UUID own = currentUnit().orElseThrow(OkrComposeController::forbidden);
+    OrgDirectoryApi directory = org.getIfAvailable();
+    return idempotency.run(
+        tenant,
+        actor,
+        idempotencyKey,
+        "POST",
+        BASE + "/objectives/approve-batch",
+        body,
+        Job.class,
+        j -> 0,
+        () ->
+            Jobs.accepted(
+                batches.start(
+                    tenant,
+                    actor,
+                    items,
+                    body.getComment(),
+                    objective -> {
+                      UUID unit = compose.head(tenant, objective).orElseThrow().ownerUnitId();
+                      if (!inScope(tenant, directory, own, unit)) {
+                        throw forbidden();
+                      }
+                    })));
+  }
+
+  /** CORE-01-06: lịch sử quyết định của mục tiêu, mới nhất trước. */
+  @GetMapping("/objectives/{id}/history")
+  @RequiresPermission(operationId = "listOkrObjectiveHistory", module = "okr")
+  public OkrObjectiveHistoryPage listOkrObjectiveHistory(
+      @PathVariable("id") UUID id,
+      @RequestParam(value = "limit", required = false) Integer limit,
+      @RequestParam(value = "cursor", required = false) String cursor) {
+    TenantId tenant = TenantContext.require();
+    PageRequest page = cursors.pageRequest(limit, cursor, "okr-history:" + id);
+    List<HistoryEntry> fetched =
+        found(
+            () ->
+                reviews.history(
+                    tenant,
+                    id,
+                    page.afterKey().map(k -> k.getInstant(0)).orElse(null),
+                    page.afterKey().map(k -> k.getUuid(1)).orElse(null),
+                    page.fetchSize()));
+    CursorPage<HistoryEntry> result =
+        cursors.page(fetched, page, e -> CursorKey.of(e.at(), e.id()));
+    return new OkrObjectiveHistoryPage(
+        result.items().stream().map(OkrComposeController::historyEntry).toList(),
+        result.nextCursor());
+  }
+
+  private static OkrObjectiveHistoryEntry historyEntry(HistoryEntry e) {
+    OkrObjectiveHistoryEntry dto =
+        new OkrObjectiveHistoryEntry(
+            e.at().atOffset(ZoneOffset.UTC),
+            OkrObjectiveHistoryEntry.ActionEnum.fromValue(e.action()),
+            e.versionNo(),
+            new Ref(e.actor(), ""));
+    dto.status(OkrObjectiveStatus.fromValue(e.status()));
+    if (e.decision() != null) {
+      dto.decision(OkrReviewDecision.fromValue(e.decision()));
+    }
+    dto.comment(e.comment());
+    if (e.aiAssisted()) {
+      dto.aiAssisted(true);
+    }
+    return dto;
+  }
+
+  /** Quyết định trên một mục tiêu: idempotent theo khoá và {@code If-Match}, trả mục tiêu mới. */
+  private ResponseEntity<OkrObjective> decide(
+      TenantId tenant,
+      UUID actor,
+      UUID id,
+      String idempotencyKey,
+      String suffix,
+      Object body,
+      boolean reviewerScope,
+      Supplier<Long> work) {
+    return idempotency.run(
+        tenant,
+        actor,
+        idempotencyKey,
+        "POST",
+        BASE + "/objectives/" + id + suffix,
+        body,
+        OkrObjective.class,
+        OkrObjective::getRowVersion,
+        () -> {
+          var head = found(() -> compose.head(tenant, id).orElseThrow());
+          if (reviewerScope) {
+            requireUnitScope(tenant, head.ownerUnitId());
+          }
+          try {
+            found(work);
+          } catch (OkrReviewService.Forbidden e) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
+          }
+          OkrObjective dto = detail(tenant, id);
+          return ETags.ok(dto, dto.getRowVersion());
+        });
+  }
+
   @PutMapping("/objectives/{id}")
   @RequiresPermission(operationId = "updateOkrObjective", module = "okr")
   public ResponseEntity<OkrObjective> updateOkrObjective(
       @PathVariable("id") UUID id,
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
       @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestHeader(value = "Authorization", required = false) String authorization,
       @RequestBody OkrObjectiveUpdate body) {
     TenantId tenant = TenantContext.require();
     UUID actor = actor();
@@ -206,6 +486,7 @@ public class OkrComposeController {
             body.getOverLimitReason(),
             body.getAiSuggestionId(),
             keyResults(body.getKeyResults()));
+    var ai = provenance.verify(tenant, actor, authorization, draft);
     return idempotency.run(
         tenant,
         actor,
@@ -219,7 +500,7 @@ public class OkrComposeController {
           var head = found(() -> compose.head(tenant, id).orElseThrow());
           requireUnitScope(tenant, head.ownerUnitId());
           int max = recommendedMax(tenant, head.periodId(), head.ownerUnitId());
-          found(() -> compose.update(tenant, actor, id, ifMatch, draft, max));
+          found(() -> compose.update(tenant, actor, id, ifMatch, draft, max, ai));
           OkrObjective dto = detail(tenant, id);
           return ETags.ok(dto, dto.getRowVersion());
         });
@@ -266,6 +547,7 @@ public class OkrComposeController {
   @RequiresPermission(operationId = "createOkrKeyResult", module = "okr")
   public ResponseEntity<OkrKeyResult> createOkrKeyResult(
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "Authorization", required = false) String authorization,
       @RequestBody OkrKeyResultCreate body) {
     TenantId tenant = TenantContext.require();
     UUID actor = actor();
@@ -285,7 +567,10 @@ public class OkrComposeController {
             body.getFormulaText(),
             body.getCheckinFrequency() == null ? null : body.getCheckinFrequency().getValue(),
             body.getContentSource() == null ? null : body.getContentSource().getValue(),
-            body.getAiSuggestionId());
+            body.getAiSuggestionId(),
+            body.getNumeratorLabel(),
+            body.getDenominatorLabel());
+    var ai = provenance.verify(tenant, actor, authorization, data);
     return idempotency.run(
         tenant,
         actor,
@@ -301,7 +586,7 @@ public class OkrComposeController {
                 .head(tenant, body.getObjectiveId())
                 .ifPresent(h -> requireUnitScope(tenant, h.ownerUnitId()));
           }
-          UUID id = compose.addKeyResult(tenant, actor, body.getObjectiveId(), data);
+          UUID id = compose.addKeyResult(tenant, actor, body.getObjectiveId(), data, ai);
           OkrKeyResult dto = OkrReadController.keyResult(reads.keyResult(tenant, id).orElseThrow());
           return ResponseEntity.created(URI.create(BASE + "/key-results/" + id))
               .eTag(ETags.of(dto.getRowVersion()))
@@ -519,25 +804,33 @@ public class OkrComposeController {
                     k.getFormulaText(),
                     k.getCheckinFrequency() == null ? null : k.getCheckinFrequency().getValue(),
                     k.getContentSource() == null ? null : k.getContentSource().getValue(),
-                    k.getAiSuggestionId()))
+                    k.getAiSuggestionId(),
+                    k.getNumeratorLabel(),
+                    k.getDenominatorLabel()))
         .toList();
   }
 
   /** Đơn vị sở hữu phải là đơn vị của người gọi hoặc đơn vị cấp dưới trên một trong hai cây. */
   private void requireUnitScope(TenantId tenant, UUID ownerUnit) {
     UUID own = currentUnit().orElseThrow(OkrComposeController::forbidden);
-    if (own.equals(ownerUnit)) {
-      return;
+    if (!inScope(tenant, org.getIfAvailable(), own, ownerUnit)) {
+      throw forbidden();
     }
-    OrgDirectoryApi directory = org.getIfAvailable();
+  }
+
+  private static boolean inScope(
+      TenantId tenant, OrgDirectoryApi directory, UUID own, UUID ownerUnit) {
+    if (own.equals(ownerUnit)) {
+      return true;
+    }
     if (directory != null) {
       for (OrgTree tree : OrgTree.values()) {
         if (directory.isDescendant(tenant, tree, own, ownerUnit)) {
-          return;
+          return true;
         }
       }
     }
-    throw forbidden();
+    return false;
   }
 
   private UUID actor() {

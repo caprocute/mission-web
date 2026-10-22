@@ -2,6 +2,7 @@ import { Component, ComponentRef, OnChanges, ViewContainerRef, inject, input } f
 import { ComponentRegistry } from './component-registry';
 import { PropsValidator } from './props-validator';
 import { CelContext } from './cel-context';
+import { SduiTelemetry } from './sdui-telemetry';
 import { SduiNode } from './ui-pack';
 
 /**
@@ -19,6 +20,7 @@ export class SduiNodeComponent implements OnChanges {
   private readonly registry = inject(ComponentRegistry);
   private readonly validator = inject(PropsValidator);
   private readonly cel = inject(CelContext);
+  private readonly telemetry = inject(SduiTelemetry);
   private ref: ComponentRef<unknown> | null = null;
   /** Lượt dựng hiện tại; bỏ kết quả của lượt cũ nếu `node` đổi trong lúc chờ nạp lười. */
   private run = 0;
@@ -30,7 +32,8 @@ export class SduiNodeComponent implements OnChanges {
     const node = this.node();
     const entry = this.registry.get(node.component);
     if (!entry) {
-      console.warn(`[sdui] Component "${node.component}" không có trong registry, bỏ qua`);
+      // component lạ không bao giờ được dựng (ADR-05 lớp 2)
+      this.telemetry.record('sdui.component.unknown', { component: String(node.component) });
       return;
     }
     // cel-js nạp lười (WEB-052): chỉ chờ khi nút có visibleWhen, và chưa tải widget nếu nút bị ẩn

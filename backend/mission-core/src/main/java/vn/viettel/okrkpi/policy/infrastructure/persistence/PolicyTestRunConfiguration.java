@@ -17,6 +17,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.policy.application.PolicyDecisionTableService;
+import vn.viettel.okrkpi.policy.application.PolicyEvaluators;
+import vn.viettel.okrkpi.policy.application.PolicyPreviewService;
 import vn.viettel.okrkpi.policy.application.PolicyTestRunService;
 import vn.viettel.okrkpi.policy.application.port.CelJsRunner;
 import vn.viettel.okrkpi.policy.application.port.PolicyAudit;
@@ -82,12 +84,36 @@ public class PolicyTestRunConfiguration {
   }
 
   @Bean
+  PolicyEvaluators policyEvaluators(
+      JdbcPolicyPackRepository policyPackRepository,
+      PolicyDecisionTableService policyDecisionTableService,
+      ObjectProvider<ObjectMapper> json) {
+    return new PolicyEvaluators(
+        policyPackRepository, policyDecisionTableService, json.getIfAvailable(ObjectMapper::new));
+  }
+
+  @Bean
+  PolicyPreviewService policyPreviewService(
+      JdbcPolicyPackRepository policyPackRepository,
+      JdbcGoldenTestCaseRepository goldenTestCaseRepository,
+      PolicyDecisionTableService policyDecisionTableService,
+      PolicyEvaluators policyEvaluators,
+      ObjectProvider<ObjectMapper> json) {
+    return new PolicyPreviewService(
+        policyPackRepository,
+        goldenTestCaseRepository,
+        policyDecisionTableService,
+        policyEvaluators,
+        json.getIfAvailable(ObjectMapper::new));
+  }
+
+  @Bean
   @SuppressWarnings("java:S107")
   PolicyTestRunService policyTestRunService(
       JdbcPolicyPackRepository policyPackRepository,
       JdbcGoldenTestCaseRepository goldenTestCaseRepository,
       JdbcPolicyTestRunRepository policyTestRunRepository,
-      PolicyDecisionTableService policyDecisionTableService,
+      PolicyEvaluators policyEvaluators,
       InMemoryPolicyTestJobs policyTestJobs,
       CelJsRunner policyCelJsRunner,
       @Value("${mission.policy.cel-js.required:true}") boolean celJsRequired,
@@ -99,7 +125,7 @@ public class PolicyTestRunConfiguration {
         policyPackRepository,
         goldenTestCaseRepository,
         policyTestRunRepository,
-        policyDecisionTableService,
+        policyEvaluators,
         policyTestJobs,
         policyCelJsRunner,
         celJsRequired,

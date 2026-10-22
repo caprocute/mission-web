@@ -2,6 +2,7 @@ package vn.viettel.okrkpi.task.infrastructure.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -210,6 +211,82 @@ class TaskTransitionApiIT extends ContractConformanceTest {
                     .query(Boolean.class)
                     .single());
     assertThat(completed).isTrue();
+  }
+
+  @Test
+  void duBaoTreHanChiNhanTuBoDuBao() throws Exception {
+    UUID review = task("CHO_NGHIEM_THU");
+    String at = "2027-02-10T01:00:00Z";
+    assertThat(perform(delayRisk(review, "CAO", at)).getResponse().getStatus()).isEqualTo(403);
+
+    TestTaskCallers.current = new TaskActor(UUID.randomUUID(), Set.of("service_client"));
+    try {
+      assertThat(perform(delayRisk(review, "CAO", at)).getResponse().getStatus()).isEqualTo(204);
+      MvcResult stale = perform(delayRisk(review, "THAP", "2027-02-09T01:00:00Z"));
+      assertThat(stale.getResponse().getStatus()).isEqualTo(409);
+      assertThat(stale.getResponse().getContentAsString(StandardCharsets.UTF_8))
+          .contains("TASK-409-STALE-DELAY-RISK");
+      assertThat(perform(delayRisk(review, "VUA", at)).getResponse().getStatus()).isEqualTo(204);
+    } finally {
+      TestTaskCallers.reset();
+    }
+    // Ghi dự báo không đổi row_version: If-Match "0" của người dùng vẫn đúng.
+    MvcResult done = perform(transition(review, "\"0\"", "HOAN_THANH", "Đạt yêu cầu"));
+    assertThat(done.getResponse().getStatus()).isEqualTo(200);
+    assertThat(body(done).path("delayRisk").isObject()).isFalse();
+    Boolean cleared =
+        inTask(
+            jdbc ->
+                jdbc.sql(
+                        "SELECT delay_risk IS NULL AND delay_risk_detail IS NULL"
+                            + " AND delay_risk_at IS NULL FROM task.task WHERE id = ?")
+                    .param(review)
+                    .query(Boolean.class)
+                    .single());
+    assertThat(cleared).isTrue();
+    TestTaskCallers.current = new TaskActor(UUID.randomUUID(), Set.of("service_client"));
+    try {
+      MvcResult closed = perform(delayRisk(review, "CAO", "2027-02-11T01:00:00Z"));
+      assertThat(closed.getResponse().getStatus()).isEqualTo(409);
+      assertThat(closed.getResponse().getContentAsString(StandardCharsets.UTF_8))
+          .contains("TASK-409-INVALID-STATE");
+    } finally {
+      TestTaskCallers.reset();
+    }
+
+    // Chi tiết nhiệm vụ trả lược đồ DelayRisk từ cột đã lưu.
+    UUID paused = task("TAM_DUNG");
+    inTask(
+        jdbc ->
+            jdbc.sql(
+                    "UPDATE task.task SET delay_risk = 'CAO', delay_risk_at = now(),"
+                        + " delay_risk_detail = '{\"neededWorkingDays\": 6,"
+                        + " \"explanation\": \"Nhịp thực hiện chậm\"}'::jsonb WHERE id = ?")
+                .param(paused)
+                .update());
+    JsonNode resumed = body(perform(transition(paused, "\"0\"", "TIEP_TUC", null)));
+    assertThat(resumed.get("delayRisk").get("level").asText()).isEqualTo("CAO");
+    assertThat(resumed.get("delayRisk").get("neededWorkingDays").asInt()).isEqualTo(6);
+    assertThat(resumed.get("delayRisk").get("explanation").asText())
+        .isEqualTo("Nhịp thực hiện chậm");
+  }
+
+  private MockHttpServletRequestBuilder delayRisk(UUID id, String level, String computedAt)
+      throws Exception {
+    return put("/api/v1/tasks/" + id + "/delay-risk")
+        .header("Idempotency-Key", UUID.randomUUID().toString())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(
+            json.writeValueAsString(
+                Map.of(
+                    "level",
+                    level,
+                    "neededWorkingDays",
+                    3,
+                    "explanation",
+                    "Còn nhiều việc so với thời gian còn lại",
+                    "computedAt",
+                    computedAt)));
   }
 
   private UUID task(String status) throws Exception {

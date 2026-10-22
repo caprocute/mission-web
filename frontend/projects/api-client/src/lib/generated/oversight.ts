@@ -704,10 +704,52 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/oversight/access-logs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Tra cứu nhật ký truy cập dữ liệu C2
+     * @description Trả lời câu hỏi ai đã xem dữ liệu C2 (nội dung khiếu nại, nhận xét đánh giá…), lúc nào, trong vai trò gì, từ chỉ mục kiểm toán `audit-*` chỉ đọc (TL-01 "Tách nhật ký kiểm toán"). Mỗi dòng là một đối tượng C2 đã giải mã trong một lần truy cập; không có bản rõ hay bản mã. Mỗi lần tra cứu tự ghi một sự kiện kiểm toán `XEM_NHAT_KY_KIEM_TOAN` lên `sys.audit.v1`. Sắp mới nhất trước.
+     */
+    get: operations['searchAccessLogs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** @description Một đối tượng C2 đã giải mã trong một lần truy cập, đọc từ chỉ mục kiểm toán. Chỉ có siêu dữ liệu; trường không có giá trị thì bị bỏ, `actorId` không có khi là tác vụ hệ thống (`system`). Tên người xem do màn hình tra qua danh bạ tổ chức (`org.yaml`). */
+    AccessLogEntry: {
+      eventId: components['schemas']['Uuid'];
+      occurredAt: components['schemas']['DateTime'];
+      actorId?: components['schemas']['Uuid'];
+      actorRole?: string;
+      actorAssignmentId?: components['schemas']['Uuid'];
+      objectType: string;
+      objectId: string;
+      /** @description Toạ độ `schema.bảng.cột`, hoặc `FILE` khi đọc tệp. */
+      column: string;
+      /** @description Mã mục đích truy cập hoặc mục đích DEK. */
+      purpose?: string;
+      /** @description `true` khi là dữ liệu của chính người xem; không có khi không xác định. */
+      self?: boolean;
+      system: boolean;
+      traceparent?: string;
+    };
+    AccessLogPage: {
+      items: components['schemas']['AccessLogEntry'][];
+      nextCursor: components['schemas']['NextCursor'];
+    };
     /**
      * @description Hình thức (`oversight.complaint.kind`, BR-12-03).
      * @enum {string}
@@ -2903,6 +2945,56 @@ export interface operations {
       404: components['responses']['NotFound'];
       /** @description Sự kiện chưa được niêm phong (`LEDGER-409-NOT-SEALED`); thử lại sau cửa sổ niêm phong kế tiếp. */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      default: components['responses']['Problem'];
+    };
+  };
+  searchAccessLogs: {
+    parameters: {
+      query?: {
+        /** @description Người xem (mã người dùng). */
+        actor?: components['schemas']['Uuid'];
+        /** @description Loại đối tượng C2, ví dụ `oversight.complaint`. */
+        objectType?: string;
+        /** @description Mã đối tượng (mã dòng) bị xem. */
+        objectId?: string;
+        /** @description Chỉ lần xem dữ liệu của người khác (bỏ lần xem dữ liệu của chính mình). */
+        othersOnly?: boolean;
+        /** @description Từ thời điểm (bao gồm). */
+        from?: components['schemas']['DateTime'];
+        /** @description Đến thời điểm (không bao gồm). */
+        to?: components['schemas']['DateTime'];
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Một trang nhật ký truy cập. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AccessLogPage'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['UnprocessableEntity'];
+      /** @description Chỉ mục kiểm toán tạm thời không truy cập được. Mã lỗi: `OVERSIGHT-503-AUDIT-INDEX-UNAVAILABLE`. */
+      503: {
         headers: {
           [name: string]: unknown;
         };

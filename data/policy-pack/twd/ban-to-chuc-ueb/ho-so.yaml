@@ -1,0 +1,36 @@
+# Bản kê hồ sơ tập khách hàng TWĐ (DL-16; BS-03 "Bản kê hồ sơ", ADR-33). GIẢ LẬP theo YC-PT-14.
+# Hồ sơ chỉ chứa tham chiếu và cờ, không chứa công thức. Mọi giá trị riêng của Ban nằm trong các thành phần được trỏ
+# tới; không giá trị nào trở thành mặc định của lõi hay của hồ sơ khác (YC-TK-11). Thư mục này không có policy.yaml
+# nên trình chạy ca vàng (DL-03) không coi là một gói; ca vàng của hồ sơ nằm trong gói twd/diem-cong-viec.
+# Khi nạp qua API (createCustomerProfileVersion), khoá tiếng Việt dưới đây ánh xạ sang CustomerProfileManifest:
+#   thanh_phan.policy_pack → components.policyPack, danh_muc → catalog, bo_quy_tac_canh_bao → alertRuleSet,
+#   tham_so_luong → workflowParams {templateCode, paramSet}, ui_pack → uiPack; diem_cam → pluginPoints
+#   (DC-01 workItemScore, DC-02 boundedInheritance, DC-03 responsibilityScope, DC-04 milestoneMetric,
+#   DC-05 classificationChain, DC-06 assignmentMode); khung_tham_so → ParamConstraintReplace.
+apiVersion: policy.okrkpi.vn/v1
+kind: CustomerProfile
+metadata:
+  id: twd/ban-to-chuc-ueb
+  version: 0.1.0
+  ten: "Khối Đảng ở Trung ương – mẫu Ban Tổ chức (giả lập theo UEB)"
+  gia_lap: true
+  ghi_chu_gia_lap: "Thí điểm – dùng để đối chiếu; dự thảo chưa ban hành, nhiều tham số chờ Ban Tổ chức chọn (33.2)."
+  can_cu: ["Dự thảo Quy định kiểm điểm, đánh giá, xếp loại (12/10/2026)", "UEB-BTCTW-QTCV-02 v1.2"]
+  phe_duyet: []                    # hai người khác nhau soạn và duyệt (BR-15-09); chưa ai duyệt
+thanh_phan:
+  policy_pack: {id: twd/diem-cong-viec, version: "0.1.0", luong: DANG}
+  danh_muc: {code: TWD-DM-25, version: 25, nguon: data/seed/twd/danh-muc/}
+  danh_muc_dung_chung: {id: twd/danh-muc-dung-chung, version: "0.1.0", nguon: data/seed/twd/danh-muc/danh-muc-dung-chung.yaml}
+  bo_quy_tac_canh_bao: {id: twd/diem-nghen, version: "0.1.0", nguon: data/seed/twd/diem-nghen.yaml}
+  tham_so_luong: {mau: duyet-de-nghi, bo: twd-tham-quyen, nguon: data/seed/twd/twd-tham-quyen.yaml}
+  ui_pack: null                    # dùng UI Pack của tenant
+diem_cam:
+  DC-01_diem_cong_viec: BAT
+  DC-02_khung_ke_thua: BAT
+  DC-03_pham_vi_phu_trach: BAT
+  DC-04_kieu_do_moc: BAT
+  DC-05_chuoi_xep_loai: BAT
+  DC-06_che_do_phan_cong: MOT_NGUOI_MOT_VIEC
+khung_tham_so: tham-so/khung-twd.yaml   # ràng buộc DC-02 cho cấp dưới
+ap_dung_cho:
+  tenant_tags: [khoi-dang-tw]

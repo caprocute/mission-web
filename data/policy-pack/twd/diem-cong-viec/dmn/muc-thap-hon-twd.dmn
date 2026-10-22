@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- BẢN GIẢ LẬP chờ nghiệp vụ duyệt (DL-16). Bước 3 của chuỗi xếp loại; table_key muc_thap_hon; gói twd/diem-cong-viec -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20211108/MODEL/" id="muc-thap-hon-twd-dinh-nghia" name="Lấy mức thấp hơn của hai trần"
+             namespace="https://policy.okrkpi.vn/twd/diem-cong-viec" expressionLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/" typeLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/">
+  <decision id="muc-thap-hon-twd" name="Lấy mức thấp hơn của hai trần">
+    <variable id="muc-thap-hon-twd-var" name="muc_sau_buoc_3" typeRef="string"/>
+    <decisionTable id="muc-thap-hon-twd-bang" hitPolicy="FIRST" outputLabel="Mức sau bước 3">
+      <input id="muc-thap-hon-twd-in1" label="Trần theo điểm">
+        <inputExpression id="muc-thap-hon-twd-in1-expr" typeRef="string"><text>tran_theo_diem</text></inputExpression>
+        <inputValues id="muc-thap-hon-twd-in1-values"><text>"HTXSNV","HTTNV","HTNV","KHTNV"</text></inputValues>
+      </input>
+      <input id="muc-thap-hon-twd-in2" label="Trần theo tiêu chí chung">
+        <inputExpression id="muc-thap-hon-twd-in2-expr" typeRef="string"><text>tran_theo_tieu_chi_chung</text></inputExpression>
+        <inputValues id="muc-thap-hon-twd-in2-values"><text>"HTXSNV","HTTNV","HTNV","KHTNV"</text></inputValues>
+      </input>
+      <output id="muc-thap-hon-twd-out" name="muc_sau_buoc_3" typeRef="string">
+        <outputValues id="muc-thap-hon-twd-out-values"><text>"HTXSNV","HTTNV","HTNV","KHTNV"</text></outputValues>
+      </output>
+      <annotation name="legal_ref"/>
+      <annotation name="dieu_khoan"/>
+      <annotation name="giai_thich"/>
+      <rule id="muc-thap-hon-twd-dong-1">
+        <description>Một trong hai trần là Không hoàn thành nhiệm vụ</description>
+        <inputEntry id="muc-thap-hon-twd-dong-1-in1"><text>"KHTNV"</text></inputEntry>
+        <inputEntry id="muc-thap-hon-twd-dong-1-in2"><text>-</text></inputEntry>
+        <outputEntry id="muc-thap-hon-twd-dong-1-out"><text>"KHTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 3</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Lấy mức thấp hơn của hai trần, ở đây là mức Không hoàn thành nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="muc-thap-hon-twd-dong-2">
+        <description>Một trong hai trần là Không hoàn thành nhiệm vụ</description>
+        <inputEntry id="muc-thap-hon-twd-dong-2-in1"><text>-</text></inputEntry>
+        <inputEntry id="muc-thap-hon-twd-dong-2-in2"><text>"KHTNV"</text></inputEntry>
+        <outputEntry id="muc-thap-hon-twd-dong-2-out"><text>"KHTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 3</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Lấy mức thấp hơn của hai trần, ở đây là mức Không hoàn thành nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="muc-thap-hon-twd-dong-3">
+        <description>Một trong hai trần là Hoàn thành nhiệm vụ</description>
+        <inputEntry id="muc-thap-hon-twd-dong-3-in1"><text>"HTNV"</text></inputEntry>
+        <inputEntry id="muc-thap-hon-twd-dong-3-in2"><text>-</text></inputEntry>
+        <outputEntry id="muc-thap-hon-twd-dong-3-out"><text>"HTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 3</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Lấy mức thấp hơn của hai trần, ở đây là mức Hoàn thành nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="muc-thap-hon-twd-dong-4">
+        <description>Một trong hai trần là Hoàn thành nhiệm vụ</description>
+        <inputEntry id="muc-thap-hon-twd-dong-4-in1"><text>-</text></inputEntry>
+        <inputEntry id="muc-thap-hon-twd-dong-4-in2"><text>"HTNV"</text></inputEntry>
+        <outputEntry id="muc-thap-hon-twd-dong-4-out"><text>"HTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 3</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Lấy mức thấp hơn của hai trần, ở đây là mức Hoàn thành nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="muc-thap-hon-twd-dong-5">
+        <description>Một trong hai trần là Hoàn thành tốt nhiệm vụ</description>
+        <inputEntry id="muc-thap-hon-twd-dong-5-in1"><text>"HTTNV"</text></inputEntry>
+        <inputEntry id="muc-thap-hon-twd-dong-5-in2"><text>-</text></inputEntry>
+        <outputEntry id="muc-thap-hon-twd-dong-5-out"><text>"HTTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 3</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Lấy mức thấp hơn của hai trần, ở đây là mức Hoàn thành tốt nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="muc-thap-hon-twd-dong-6">
+        <description>Một trong hai trần là Hoàn thành tốt nhiệm vụ</description>
+        <inputEntry id="muc-thap-hon-twd-dong-6-in1"><text>-</text></inputEntry>
+        <inputEntry id="muc-thap-hon-twd-dong-6-in2"><text>"HTTNV"</text></inputEntry>
+        <outputEntry id="muc-thap-hon-twd-dong-6-out"><text>"HTTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 3</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Lấy mức thấp hơn của hai trần, ở đây là mức Hoàn thành tốt nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="muc-thap-hon-twd-dong-7">
+        <description>Cả hai trần là mức Hoàn thành xuất sắc nhiệm vụ</description>
+        <inputEntry id="muc-thap-hon-twd-dong-7-in1"><text>-</text></inputEntry>
+        <inputEntry id="muc-thap-hon-twd-dong-7-in2"><text>-</text></inputEntry>
+        <outputEntry id="muc-thap-hon-twd-dong-7-out"><text>"HTXSNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 3</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Cả hai trần đều là mức Hoàn thành xuất sắc nhiệm vụ nên mức sau bước này giữ mức đó.</text></annotationEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

@@ -43,21 +43,6 @@ export const VALUE_LABEL: Record<string, string> = {
   ...DAY_KIND_LABEL,
 };
 
-export const DIALOG_STYLES = `
-  .muted { color: #4b5563; }
-  .err { color: #b4001f; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; vertical-align: top; padding: 8px; border-bottom: 1px solid #e5e7eb; }
-  th { font-weight: 500; background: #f8fafc; }
-  code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.875rem; }
-  pre { white-space: pre-wrap; margin: 0; background: #f8fafc; padding: 8px; border-radius: 6px; }
-  .before { color: #7f1d1d; }
-  .after { color: #14532d; }
-  .f { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-  .f > span { font-weight: 500; }
-  .native { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; min-height: 40px; background: #fff; }
-`;
-
 /** So sánh phiên bản đang mở với bản đang áp dụng (SCR-1501 nút "So sánh"). */
 @Component({
   selector: 'vt-policy-diff-dialog',
@@ -112,7 +97,7 @@ export const DIALOG_STYLES = `
       }
     </p-dialog>
   `,
-  styles: DIALOG_STYLES,
+  styleUrl: './policy-dialogs.css',
 })
 export class PolicyDiffDialog {
   readonly base = input.required<string>();
@@ -190,7 +175,7 @@ export class PolicyDiffDialog {
       </table>
     </p-dialog>
   `,
-  styles: DIALOG_STYLES,
+  styleUrl: './policy-dialogs.css',
 })
 export class PolicyExpressionsDialog {
   readonly rules = input.required<PolicyRule[]>();
@@ -267,7 +252,7 @@ export class PolicyExpressionsDialog {
       </ng-template>
     </p-dialog>
   `,
-  styles: DIALOG_STYLES,
+  styleUrl: './policy-dialogs.css',
 })
 export class PolicySubmitDialog {
   readonly visible = model(false);

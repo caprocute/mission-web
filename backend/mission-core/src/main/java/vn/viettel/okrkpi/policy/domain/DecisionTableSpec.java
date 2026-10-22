@@ -131,6 +131,11 @@ public record DecisionTableSpec(String hitPolicy, List<Column> columns, List<Row
    * PRIORITY} lấy mức cao nhất trong các dòng khớp, {@code UNIQUE} cần đúng một dòng khớp.
    */
   public Optional<String> evaluate(Map<String, Object> input) {
+    return matchedRow(input).map(Row::ratingLevel);
+  }
+
+  /** Dòng được chọn cho một bộ đầu vào theo hit policy (giống {@link #evaluate}). */
+  public Optional<Row> matchedRow(Map<String, Object> input) {
     List<Integer> hits = match(conditions(), input);
     if (hits.isEmpty()) {
       return Optional.empty();
@@ -138,15 +143,18 @@ public record DecisionTableSpec(String hitPolicy, List<Column> columns, List<Row
     return switch (hitPolicy) {
       case "PRIORITY" ->
           hits.stream()
-              .map(h -> rows.get(h).ratingLevel())
-              .min((a, b) -> Integer.compare(LEVELS.indexOf(a), LEVELS.indexOf(b)));
+              .map(rows::get)
+              .min(
+                  (a, b) ->
+                      Integer.compare(
+                          LEVELS.indexOf(a.ratingLevel()), LEVELS.indexOf(b.ratingLevel())));
       case "UNIQUE" -> {
         if (hits.size() > 1) {
           throw new IllegalStateException("Nhiều dòng cùng khớp với hit policy UNIQUE");
         }
-        yield Optional.of(rows.get(hits.get(0)).ratingLevel());
+        yield Optional.of(rows.get(hits.get(0)));
       }
-      default -> Optional.of(rows.get(hits.get(0)).ratingLevel());
+      default -> Optional.of(rows.get(hits.get(0)));
     };
   }
 

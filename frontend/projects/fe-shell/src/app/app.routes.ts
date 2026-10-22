@@ -1,6 +1,8 @@
+import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
 import { authGuard, permissionGuard } from '@vt/auth';
 import { remoteRoutes } from './remotes';
+import { PluginHost } from './plugins/plugin-host';
 import { ShellLayout } from './layout/shell.layout';
 import { SECTION_KEYS as K } from './layout/nav';
 
@@ -87,6 +89,16 @@ export const routes: Routes = [
         canMatch: [permissionGuard(...K.admin)],
         loadChildren: remoteRoutes('feAdmin'),
         title: 'Quản trị',
+      },
+      // Plugin chuyên ngành theo UI Pack của tenant (ADR-05 lớp 4, WEB-051): `/plugin/<ngành>`
+      {
+        path: 'plugin',
+        loadChildren: () => inject(PluginHost).routes(),
+      },
+      {
+        path: 'loi',
+        loadComponent: () => import('./pages/error.page').then((m) => m.ErrorPage),
+        title: 'Chưa mở được trang',
       },
       {
         path: 'khong-co-quyen',

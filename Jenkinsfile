@@ -31,7 +31,7 @@ spec:
       resources:
         requests: { cpu: "2", memory: 6Gi }
         limits: { cpu: "4", memory: 8Gi }
-    - name: python          # docs/phan-quyen/gen_matrix.py --check (chỉ thư viện chuẩn)
+    - name: python          # gen_matrix.py --check, cdc_config_gen.py --check (chỉ thư viện chuẩn)
       image: python:3.12-alpine
       command: [sleep]
       args: [infinity]
@@ -144,6 +144,10 @@ spec:
         stage('ESLint') {
           steps { dir('frontend') { sh 'npm run lint' } }
         }
+        stage('Định dạng mã web') {
+          // WEB-060: toàn bộ mã frontend đã theo Prettier; tệp sai định dạng làm đỏ pipeline
+          steps { dir('frontend') { sh 'npm run format:check' } }
+        }
         stage('Nội dung giao diện') {
           // AGENTS.md quy tắc 9, YC-PT-10: chặn mã SCR/QT, mã trạng thái thô, tên kỹ thuật,
           // ghi chú giải pháp lộ ra màn hình (wiki/16)
@@ -152,6 +156,12 @@ spec:
         stage('Ma trận phân quyền') {
           steps {
             container('python') { sh 'python3 docs/phan-quyen/gen_matrix.py --check' }   // = npm run check:permissions
+          }
+        }
+        stage('Cấu hình CDC phân tích') {
+          steps {
+            // DV-15-02: cấu hình connector Debezium phân tích sinh từ COMMENT phân loại cột phải trùng tệp đã commit
+            container('python') { sh 'python3 analytics/cdc/cdc_config_gen.py --check' }
           }
         }
       }

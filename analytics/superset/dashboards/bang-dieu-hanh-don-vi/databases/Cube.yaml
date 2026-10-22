@@ -1,0 +1,18 @@
+# Nguồn dữ liệu duy nhất của Superset: Cube SQL API (cổng Postgres wire). Người dùng và địa chỉ thế từ biến môi trường
+# lúc nạp (khoi_tao.py); mật khẩu không nằm trong tệp. Không mở cho SQL Lab, không cho tải tệp hay DML.
+database_name: Cube
+sqlalchemy_uri: postgresql+psycopg2://${CUBE_SQL_USER}:XXXXXXXXXX@${CUBE_SQL_HOST}/cube
+cache_timeout: null
+expose_in_sqllab: false
+allow_run_async: false
+allow_ctas: false
+allow_cvas: false
+allow_dml: false
+allow_file_upload: false
+extra:
+  allows_virtual_table_explore: false
+  disable_data_preview: true
+  metadata_params: {}
+  engine_params: {}
+uuid: 14ddca6a-dc9f-518a-ba8e-aae7fd6b7b19
+version: 1.0.0

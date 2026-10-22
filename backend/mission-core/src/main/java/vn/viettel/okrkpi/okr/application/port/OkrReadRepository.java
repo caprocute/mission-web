@@ -67,7 +67,9 @@ public interface OkrReadRepository {
       UUID aiSuggestionId,
       String formulaText,
       long rowVersion,
-      LastCheckin lastCheckin) {}
+      LastCheckin lastCheckin,
+      String numeratorLabel,
+      String denominatorLabel) {}
 
   /** Check-in đã gửi gần nhất. */
   record LastCheckin(BigDecimal value, String confidence, Instant checkinAt, String blockerNote) {}

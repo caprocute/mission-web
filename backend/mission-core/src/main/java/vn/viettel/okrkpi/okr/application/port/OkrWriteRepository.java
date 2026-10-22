@@ -54,7 +54,9 @@ public interface OkrWriteRepository {
       String formulaText,
       String checkinFrequency,
       String contentSource,
-      UUID aiSuggestionId) {}
+      UUID aiSuggestionId,
+      String numeratorLabel,
+      String denominatorLabel) {}
 
   /** Nội dung chữ của mục tiêu nguồn khi sao chép kỳ trước. */
   record ObjectiveText(String title, String description, int tier) {}

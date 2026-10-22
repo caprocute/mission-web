@@ -1,0 +1,14 @@
+<!--
+  DV-15-01: tài khoản `default` chỉ dùng cho bộ áp migration ở dev và kiểm thử, có quyền quản lý tài khoản
+  (access_management) để tạo vai trò, người dùng và row policy. Mật khẩu lấy từ biến môi trường
+  CLICKHOUSE_PASSWORD của container, không ghi vào repo.
+-->
+<clickhouse>
+  <users>
+    <default>
+      <password from_env="CLICKHOUSE_PASSWORD"/>
+      <access_management>1</access_management>
+      <named_collection_control>1</named_collection_control>
+    </default>
+  </users>
+</clickhouse>

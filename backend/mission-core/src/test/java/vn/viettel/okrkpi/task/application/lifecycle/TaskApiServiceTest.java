@@ -185,4 +185,57 @@ class TaskApiServiceTest {
     assertThat(page2).hasSize(1);
     assertThat(api.find(TENANT, page2.get(0).id())).isPresent();
   }
+
+  @Test
+  void yeuCauBoSungVoiSnapshotThieuMaVaHanGiaHan() {
+    UUID id = UUID.randomUUID();
+    var base = LifecycleFakes.task(id, period, TaskStatus.CHO_NGHIEM_THU, UUID.randomUUID());
+    java.time.LocalDate extended = java.time.LocalDate.of(2027, 1, 15);
+    UUID acceptor = UUID.randomUUID();
+    repo.rows.put(
+        id,
+        new vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.TaskRow(
+            base.id(),
+            base.periodId(),
+            base.periodBucket(),
+            base.code(),
+            base.title(),
+            base.description(),
+            base.taskGroup(),
+            base.source(),
+            base.keyResultId(),
+            base.assignerId(),
+            base.assignedAt(),
+            acceptor,
+            base.dueDate(),
+            extended,
+            base.scoreDueDate(),
+            base.plannedQuantity(),
+            base.doneQuantity(),
+            base.unit(),
+            base.difficulty(),
+            base.standardScore(),
+            base.progressPct(),
+            base.status(),
+            base.overdue(),
+            base.delayRisk(),
+            base.stateMachineVersion(),
+            base.rowVersion()));
+    assertThat(api.find(TENANT, id)).get().extracting(s -> s.dueDate()).isEqualTo(extended);
+
+    var out =
+        api.requestTransition(
+            TENANT,
+            new TransitionRequest(
+                id,
+                TaskApi.Command.REWORK,
+                acceptor,
+                Set.of("manager"),
+                "Bổ sung số liệu quý",
+                List.of(new DeliverableState(null, null)),
+                null));
+    assertThat(out.outcome()).isEqualTo(Outcome.APPLIED);
+    assertThat(out.task().status()).isEqualTo("DANG_THUC_HIEN");
+    assertThat(api.listForUnit(TENANT, PeriodId.of(period), UUID.randomUUID(), null, 0)).hasSize(1);
+  }
 }

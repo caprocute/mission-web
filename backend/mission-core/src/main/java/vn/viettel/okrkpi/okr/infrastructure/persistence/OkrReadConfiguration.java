@@ -4,36 +4,56 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.config.api.PeriodApi;
+import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
+import vn.viettel.okrkpi.okr.application.OkrAiProvenance;
 import vn.viettel.okrkpi.okr.application.OkrCheckService;
+import vn.viettel.okrkpi.okr.application.OkrCheckinDelegateService;
+import vn.viettel.okrkpi.okr.application.OkrCheckinReminders;
 import vn.viettel.okrkpi.okr.application.OkrCheckinService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService;
+import vn.viettel.okrkpi.okr.application.OkrMilestoneService;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
+import vn.viettel.okrkpi.okr.application.OkrReviewService;
+import vn.viettel.okrkpi.okr.application.OkrRevisionCarryOver;
 import vn.viettel.okrkpi.okr.application.OkrRuleChecker;
 import vn.viettel.okrkpi.okr.application.OkrSubmitService;
+import vn.viettel.okrkpi.okr.application.port.OkrAiSuggestions;
+import vn.viettel.okrkpi.okr.application.port.OkrApprovalEvents;
+import vn.viettel.okrkpi.okr.application.port.OkrApprovalSignal;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalStarter;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinDelegatePort;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinEvents;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinExtension;
 import vn.viettel.okrkpi.okr.application.port.OkrSimilarityPort;
+import vn.viettel.okrkpi.okr.infrastructure.client.HttpOkrAiSuggestions;
+import vn.viettel.okrkpi.okr.infrastructure.scheduling.OkrCheckinReminderJob;
+import vn.viettel.okrkpi.okr.infrastructure.web.OkrApproveBatchJobs;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrExportJobs;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrIdempotency;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
+import vn.viettel.okrkpi.shared.infrastructure.ai.AiSuggestionClient;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
+import vn.viettel.okrkpi.shared.routing.TenantDirectory;
 
 /**
  * CORE-01-02: nối phía đọc của MOD-01 với {@code okrDataSource}; giao dịch chỉ đọc chạy trên {@code
@@ -63,8 +83,36 @@ public class OkrReadConfiguration {
   /** CORE-01-03: phía soạn của SCR-0202 cùng {@code okrDataSource}. */
   @Bean
   OkrComposeService okrComposeService(
-      JdbcOkrWriteRepository okrWriteRepository, PeriodApi periods) {
-    return new OkrComposeService(okrWriteRepository, periods);
+      JdbcOkrWriteRepository okrWriteRepository,
+      PeriodApi periods,
+      JdbcOkrAiTraceRepository okrAiTraceRepository) {
+    return new OkrComposeService(okrWriteRepository, periods, okrAiTraceRepository);
+  }
+
+  /** CORE-01-13: dấu vết nội dung chèn từ gợi ý AI (BR-17-08). */
+  @Bean
+  JdbcOkrAiTraceRepository okrAiTraceRepository(@Qualifier("okrDataSource") DataSource dataSource) {
+    return new JdbcOkrAiTraceRepository(new NamedParameterJdbcTemplate(dataSource));
+  }
+
+  /**
+   * CORE-01-13: đọc gợi ý của SVC-14 thay mặt người soạn. Chưa đặt {@code mission.okr.ai.base-url}
+   * thì nội dung có nguồn AI trả {@code OKR-502-SOURCE-UNAVAILABLE}, nội dung tự soạn vẫn lưu được.
+   */
+  @Bean
+  OkrAiProvenance okrAiProvenance(
+      @Value("${mission.okr.ai.base-url:}") String baseUrl,
+      @Value("${mission.okr.ai.timeout:PT2S}") java.time.Duration timeout,
+      ObjectProvider<ObjectMapper> json,
+      ObjectProvider<OkrAiSuggestions> override) {
+    OkrAiSuggestions port = override.getIfAvailable();
+    if (port == null && !baseUrl.isBlank()) {
+      port =
+          new HttpOkrAiSuggestions(
+              new AiSuggestionClient(baseUrl, timeout), json.getIfAvailable(ObjectMapper::new));
+    }
+    OkrAiSuggestions resolved = port;
+    return new OkrAiProvenance(() -> resolved);
   }
 
   /** CORE-01-04: bộ kiểm tra BR-02-01..07 dùng chung bộ quy tắc CEL với trình duyệt. */
@@ -156,5 +204,157 @@ public class OkrReadConfiguration {
   @Bean
   OkrExportJobs okrExportJobs() {
     return new OkrExportJobs();
+  }
+
+  /** CORE-01-12: uỷ quyền check-in thay, đồng thời là cổng người được check-in của CORE-01-08. */
+  @Bean
+  JdbcOkrCheckinDelegates okrCheckinDelegates(@Qualifier("okrDataSource") DataSource dataSource) {
+    return new JdbcOkrCheckinDelegates(
+        new NamedParameterJdbcTemplate(dataSource), java.time.Clock.system(VIET_NAM));
+  }
+
+  @Bean
+  OkrCheckinDelegateService okrCheckinDelegateService(
+      JdbcOkrCheckinRepository okrCheckinRepository,
+      JdbcOkrCheckinDelegates okrCheckinDelegates,
+      PeriodApi periods) {
+    return new OkrCheckinDelegateService(
+        okrCheckinRepository, okrCheckinDelegates, periods, java.time.Clock.system(VIET_NAM));
+  }
+
+  /** CORE-01-12: chuyển giá trị KR sang phiên bản điều chỉnh vừa được duyệt. */
+  @Bean
+  OkrRevisionCarryOver okrRevisionCarryOver(
+      JdbcOkrCheckinRepository okrCheckinRepository, JdbcOkrCheckinDelegates okrCheckinDelegates) {
+    return new OkrRevisionCarryOver(okrCheckinRepository, okrCheckinDelegates);
+  }
+
+  /** CORE-01-14: kiểu đo mốc (BS-03 DC-04), số ngày làm việc chậm theo lịch MOD-08. */
+  @Bean
+  JdbcOkrMilestoneRepository okrMilestoneRepository(
+      @Qualifier("okrDataSource") DataSource dataSource) {
+    return new JdbcOkrMilestoneRepository(new NamedParameterJdbcTemplate(dataSource));
+  }
+
+  @Bean
+  OkrMilestoneService okrMilestoneService(
+      JdbcOkrCheckinRepository okrCheckinRepository,
+      JdbcOkrMilestoneRepository okrMilestoneRepository,
+      PeriodApi periods,
+      ObjectProvider<WorkingCalendarApi> calendar,
+      ObjectProvider<OkrCheckinDelegatePort> delegates,
+      OkrCheckinService okrCheckinService) {
+    return new OkrMilestoneService(
+        okrCheckinRepository,
+        okrMilestoneRepository,
+        periods,
+        calendar::getIfAvailable,
+        delegates::getIfAvailable,
+        okrCheckinService,
+        java.time.Clock.system(VIET_NAM));
+  }
+
+  /** CORE-01-06: duyệt, trả lại, rút lại mục tiêu; EVT-01, EVT-21 ghi outbox cùng giao dịch. */
+  @Bean
+  JdbcOkrReviewRepository okrReviewRepository(@Qualifier("okrDataSource") DataSource dataSource) {
+    return new JdbcOkrReviewRepository(new NamedParameterJdbcTemplate(dataSource));
+  }
+
+  @Bean
+  OkrApprovalEvents okrApprovalEvents(
+      @Qualifier("okrDataSource") DataSource dataSource,
+      @Value("${mission.okr.outbox.registry-url:${okrkpi.inbox.registry.url}}") String registry,
+      ObjectProvider<ObjectMapper> json,
+      ObjectProvider<OrgDirectoryApi> org) {
+    return new OutboxOkrApprovalEvents(
+        new OutboxWriter(
+            new JdbcTemplate(dataSource),
+            "okr",
+            new ApicurioPayloadSerializer(registry, Map.of()),
+            json.getIfAvailable(ObjectMapper::new),
+            Clock.systemUtc()),
+        org::getIfAvailable);
+  }
+
+  @Bean
+  OkrReviewService okrReviewService(
+      JdbcOkrReviewRepository okrReviewRepository,
+      OkrReadService okrReadService,
+      OkrCheckService okrCheckService,
+      PeriodApi periods,
+      OkrApprovalEvents okrApprovalEvents,
+      ObjectProvider<OkrApprovalSignal> signal,
+      ApplicationEventPublisher publisher,
+      JdbcOkrAiTraceRepository okrAiTraceRepository) {
+    return new OkrReviewService(
+        okrReviewRepository,
+        okrReadService,
+        okrCheckService,
+        periods,
+        okrApprovalEvents,
+        signal::getIfAvailable,
+        publisher::publishEvent,
+        okrAiTraceRepository);
+  }
+
+  /** Lô duyệt chạy nền trên luồng ảo, mỗi lô một luồng, mỗi bộ một giao dịch. */
+  @Bean(destroyMethod = "close")
+  ExecutorService okrApproveBatchExecutor() {
+    return Executors.newThreadPerTaskExecutor(
+        Thread.ofVirtual().name("okr-duyet-lo-", 0).factory());
+  }
+
+  @Bean
+  OkrApproveBatchJobs okrApproveBatchJobs(
+      OkrReviewService okrReviewService,
+      @Qualifier("okrApproveBatchExecutor") ExecutorService okrApproveBatchExecutor) {
+    return new OkrApproveBatchJobs(okrReviewService, okrApproveBatchExecutor);
+  }
+
+  /** CORE-01-11: nhắc check-in OKR chạy nền, EVT-21 ghi outbox cùng giao dịch với khoá giữ chỗ. */
+  @Bean
+  OkrCheckinReminders okrCheckinReminders(
+      @Qualifier("okrDataSource") DataSource dataSource,
+      @Value("${mission.okr.outbox.registry-url:${okrkpi.inbox.registry.url}}") String registry,
+      @Value("${mission.okr.checkin-reminder.page-size:500}") int pageSize,
+      ObjectProvider<ObjectMapper> json,
+      PeriodApi periods,
+      ObjectProvider<WorkingCalendarApi> calendar,
+      ObjectProvider<OrgDirectoryApi> org,
+      @Qualifier("okrTransactionManager") PlatformTransactionManager tm) {
+    return new OkrCheckinReminders(
+        new JdbcOkrCheckinReminderRepository(new NamedParameterJdbcTemplate(dataSource)),
+        periods,
+        calendar::getIfAvailable,
+        org::getIfAvailable,
+        new OutboxOkrReminderEvents(
+            new OutboxWriter(
+                new JdbcTemplate(dataSource),
+                "okr",
+                new ApicurioPayloadSerializer(registry, Map.of()),
+                json.getIfAvailable(ObjectMapper::new),
+                Clock.systemUtc())),
+        new TransactionTemplate(tm),
+        java.time.Clock.system(VIET_NAM),
+        pageSize);
+  }
+
+  /** Tác vụ nhắc check-in; tắt bằng {@code mission.okr.checkin-reminder.enabled=false}. */
+  @Configuration(proxyBeanMethods = false)
+  @EnableScheduling
+  @ConditionalOnProperty(
+      prefix = "mission.okr.checkin-reminder",
+      name = "enabled",
+      havingValue = "true",
+      matchIfMissing = true)
+  static class CheckinReminderJob {
+
+    @Bean
+    OkrCheckinReminderJob okrCheckinReminderJob(
+        OkrCheckinReminders okrCheckinReminders,
+        ObjectProvider<TenantDirectory> directory,
+        @Value("${mission.config.period-opening.cell:${CELL_ID:}}") String cell) {
+      return new OkrCheckinReminderJob(okrCheckinReminders, directory, cell);
+    }
   }
 }

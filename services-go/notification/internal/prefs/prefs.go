@@ -42,6 +42,9 @@ var (
 	ErrInvalid         = errors.New("prefs: dữ liệu không hợp lệ")
 )
 
+// APIToDB đổi tên kênh theo hợp đồng (IN_APP) sang tên trong CSDL (INAPP).
+func APIToDB(c string) string { return apiToDB(c) }
+
 // Kênh theo hợp đồng (IN_APP) và theo CSDL (INAPP).
 func apiToDB(c string) string {
 	if c == "IN_APP" {
@@ -504,4 +507,60 @@ func (s Store) Plan(ctx context.Context, tenantID, userID, templateCode, priorit
 		return rows.Err()
 	})
 	return &rp, err
+}
+
+// Local là giờ Việt Nam dùng cho giờ yên lặng (UTC+7, không có giờ mùa hè), không cần tzdata trong ảnh.
+var Local = time.FixedZone("ICT", 7*3600)
+
+// Verdict là quyết định gửi một kênh ngoài tại thời điểm gửi (DV-12-03).
+type Verdict struct {
+	// Off là kênh đã bị người dùng tắt cho nhóm thông báo: bỏ qua (BO_QUA).
+	Off bool
+	// ResumeAt khác không khi đang trong giờ yên lặng: hoãn tới hết giờ yên lặng.
+	ResumeAt time.Time
+	Devices  []PushTarget
+}
+
+// Decide xét lại tuỳ chọn lúc gửi: kênh còn bật, giờ yên lặng (giờ Việt Nam) hoãn trừ ưu tiên CAO; với PUSH trả
+// thêm các thiết bị chưa thu hồi đã giải mã trong bộ nhớ.
+func (s Store) Decide(ctx context.Context, tenantID, userID, templateCode, priority, channel string, now time.Time) (*Verdict, error) {
+	rp, err := s.Plan(ctx, tenantID, userID, templateCode, "CAO", now)
+	if err != nil {
+		return nil, err
+	}
+	v := &Verdict{Off: true}
+	for _, c := range rp.Channels {
+		if c == channel {
+			v.Off = false
+		}
+	}
+	if v.Off {
+		return v, nil
+	}
+	v.Devices = rp.Devices
+	if priority == "CAO" {
+		return v, nil
+	}
+	p, err := s.Get(ctx, tenantID, userID)
+	if err != nil {
+		return nil, err
+	}
+	local := now.In(Local)
+	if p.QuietHoursEnabled && p.QuietHoursStart != nil && inWindow(*p.QuietHoursStart, *p.QuietHoursEnd, local) {
+		v.ResumeAt = quietEnd(*p.QuietHoursEnd, local)
+	}
+	return v, nil
+}
+
+// quietEnd trả thời điểm kết thúc giờ yên lặng gần nhất sau now (giờ địa phương).
+func quietEnd(to string, now time.Time) time.Time {
+	t, err := time.ParseInLocation("15:04", to, now.Location())
+	if err != nil {
+		return now.Add(time.Hour)
+	}
+	end := time.Date(now.Year(), now.Month(), now.Day(), t.Hour(), t.Minute(), 0, 0, now.Location())
+	if !end.After(now) {
+		end = end.AddDate(0, 0, 1)
+	}
+	return end
 }

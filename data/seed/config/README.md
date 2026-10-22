@@ -34,23 +34,22 @@ Mỗi năm một tệp để thêm năm mới không đụng năm cũ. CSV UTF-8
 - Ngày nghỉ bù, làm bù chỉ ghi khi có văn bản. Chưa ghi: nghỉ bù 03/05/2027 (1/5/2027 trùng thứ Bảy) và mọi hoán đổi năm 2027 ngoài Tết, Quốc khánh, vì đang chờ thông báo chính thức.
 - Hạn chế: phiên soạn dữ liệu không mở trực tiếp được trang gov.vn (proxy chặn); nội dung các văn bản được đối chiếu qua kết quả tìm kiếm trên trang chính phủ, nhiều nguồn khớp nhau. Trước khi nạp môi trường thật, người phụ trách cần mở bản gốc từng văn bản trong cột `nguon_url` để xác nhận. Số hiệu thông báo hoán đổi Quốc khánh 2026 (31/8 ↔ 22/8) chưa xác định.
 
-## Cách nạp đề xuất
+## Cách nạp
 
-Đề xuất migration lặp Flyway `R__config_holiday_calendar_quoc_gia.sql` trong `backend/mission-core/src/main/resources/db/migration/config/`, sinh từ các tệp CSV này lúc build (CSV là nguồn, SQL là sản phẩm sinh, không sửa tay), thay vì bộ nạp khi khởi động, vì:
+Lịch quốc gia được nạp bằng migration lặp Flyway `R__config_lich_nghi_quoc_gia.sql` trong `backend/mission-core/src/main/resources/db/migration/config/`, sinh từ các tệp CSV này bằng `sinh_migration.py` (CSV là nguồn, SQL là sản phẩm sinh, không sửa tay), thay vì bộ nạp khi khởi động, vì:
 
 1. TL-03 (tiêu chí K1) tách quyền: migration chạy trong Job với vai trò `mig_config`, ứng dụng chạy với `svc_config` không có quyền DDL; ghi dữ liệu tenant hệ thống từ Job đúng tài khoản có thẩm quyền, không phải mở RLS hay cấp quyền ghi cho ứng dụng.
 2. Flyway chạy lại `R__` khi checksum đổi, tức là mỗi lần sửa CSV; không đổi thì không chạy.
-3. Có vết trong `flyway_schema_history`, đi cùng phiên bản phát hành.
-
-Câu lệnh dự kiến: `INSERT … ON CONFLICT (tenant_id, calendar_date) DO UPDATE SET day_kind, name, updated_at, updated_by, row_version = row_version + 1` cho tenant hệ thống; xoá các dòng `scope = 'QUOC_GIA'` của tenant hệ thống không còn trong tệp. Mã tenant hệ thống và tài khoản dịch vụ ghi `created_by` lấy từ placeholder Flyway, không ghi cứng. Chưa viết migration vì mô-đun `mission-core` (CORE-08-01) chưa có.
-
-## Kiểm tra tĩnh
+3. Có vết trong `flyway_schema_history`, đi cùng phiên bản phát hành. Danh mục khối và chức danh của `org/` dùng cùng cách (`R__org_danh_muc_quoc_gia.sql`).
 
 ```bash
-python -I data/seed/config/kiem_du_lieu_nen.py data/seed
+python3 -I data/seed/config/sinh_migration.py            # sau khi sửa CSV: ghi lại tệp SQL
+python3 -I data/seed/config/sinh_migration.py --kiem-tra # chỉ so, lệch thì thoát mã 1
 ```
 
-Tập lệnh kiểm tra cấu trúc tệp lịch nghỉ và khung danh mục khối, chức danh: đúng cột, ngày hợp lệ và không trùng, mọi dòng có nguồn, ngày làm bù rơi vào cuối tuần, ngày nghỉ bù rơi vào ngày thường, và ngày Tết, Giỗ Tổ khớp phép quy đổi âm lịch.
+Câu lệnh sinh ra là `INSERT … ON CONFLICT (tenant_id, calendar_date) DO UPDATE` (chỉ cập nhật khi loại ngày hoặc tên đổi, tăng `row_version`) cho tenant hệ thống, rồi xoá các dòng `scope = 'QUOC_GIA'` của tenant hệ thống không còn trong tệp; lịch không bị bảng khác tham chiếu nên xoá được. Mã dòng là `UUID.nameUUIDFromBytes("QUOC_GIA:<ngày>")`, trùng `NationalHolidays.idOf` của CORE-08-04. Mã tenant hệ thống là UUID rỗng như danh mục org (suy luận, wiki trang 14), chưa lấy từ placeholder Flyway vì cấu hình Flyway ngoài phạm vi DL-07. Bảng có FORCE RLS và chính sách chỉ cho `svc_config`, `ro_config`, nên migration tạm tắt FORCE trong giao dịch rồi bật lại.
+
+Tenant thường không đọc dòng của tenant hệ thống (RLS giữ nguyên): `HolidayCalendarService` gộp lịch dựng sẵn trên classpath (`NationalHolidays`, bản sao các tệp CSV này) với dòng của chính tenant, nên `listHolidayCalendarDays` và `getWorkingCalendar` của mọi tenant trả cùng lịch quốc gia. Kiểm thử: `NationalHolidaySeedTest` (tệp SQL khớp lịch dựng sẵn; số ngày làm việc tháng 2, 4, 5/2026 là 15, 20, 20) và `NationalHolidaySeedIT` (Testcontainers: nạp đủ, chạy lại không đổi, tenant thường không thấy dòng của tenant hệ thống).
 
 ## Kiểm tra tĩnh
 

@@ -1,5 +1,7 @@
 package vn.viettel.okrkpi.product.application.evidence.port;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
@@ -39,6 +41,34 @@ public interface EvidenceEvents {
   void integrityFailed(
       TenantId tenantId,
       List<UUID> recipientIds,
+      String taskCode,
+      UUID evidenceId,
+      int versionNo,
+      UUID actorId,
+      long aggregateVersion);
+
+  /** Dữ liệu EVT-08 {@code product.evidence.accepted.v1}. */
+  record Accepted(
+      TenantId tenantId,
+      UUID evidenceId,
+      UUID versionId,
+      UUID taskId,
+      BigDecimal qualityLevel,
+      UUID acceptedBy,
+      Instant acceptedAt,
+      long aggregateVersion) {}
+
+  /** EVT-08: phiên bản minh chứng đã được xác nhận nghiệm thu. */
+  void accepted(Accepted event);
+
+  /**
+   * EVT-21: báo người nộp minh chứng bị yêu cầu bổ sung hoặc bị từ chối; không mang nhận xét (C2),
+   * người nộp xem nhận xét trên màn hình.
+   */
+  void returned(
+      TenantId tenantId,
+      UUID submitterId,
+      boolean rejected,
       String taskCode,
       UUID evidenceId,
       int versionNo,

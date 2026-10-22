@@ -13,16 +13,18 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository;
+import vn.viettel.okrkpi.task.domain.lifecycle.DelayForecast;
 import vn.viettel.okrkpi.task.domain.lifecycle.TaskStatus;
 
 /** {@link TaskLifecycleRepository} trên {@code taskDataSource} (vai trò {@code svc_task}, RLS). */
 public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
 
-  private static final String COLUMNS =
+  static final String COLUMNS =
       "id, period_id, period_bucket, code, title, description, task_group, source, key_result_id,"
           + " assigner_id, assigned_at, acceptor_id, due_date, extended_due_date, score_due_date,"
           + " planned_quantity, done_quantity, unit, difficulty, standard_score, progress_pct,"
-          + " status, is_overdue, delay_risk, state_machine_version, row_version";
+          + " status, is_overdue, delay_risk, state_machine_version, row_version, node_kind,"
+          + " parent_task_id, component_score";
 
   private final JdbcClient jdbc;
 
@@ -114,12 +116,17 @@ public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
   @Override
   public long changeStatus(
       TenantId tenant, int periodBucket, UUID taskId, long expectedVersion, StatusUpdate u) {
+    // CORE-02-26: nhiệm vụ kết thúc hoặc tạm dừng thì xoá dự báo trễ hạn.
+    boolean closesForecast = !DelayForecast.accepts(u.to());
     int n =
         jdbc.sql(
                 "UPDATE task.task SET status = ?, state_machine_version = ?, updated_by = ?,"
                     + " updated_at = ?, row_version = row_version + 1,"
                     + " completed_at = coalesce(?, completed_at),"
-                    + " cancelled_reason = coalesce(?, cancelled_reason)"
+                    + " cancelled_reason = coalesce(?, cancelled_reason),"
+                    + " delay_risk = CASE WHEN ? THEN NULL ELSE delay_risk END,"
+                    + " delay_risk_detail = CASE WHEN ? THEN NULL ELSE delay_risk_detail END,"
+                    + " delay_risk_at = CASE WHEN ? THEN NULL ELSE delay_risk_at END"
                     + " WHERE period_bucket = ? AND tenant_id = ? AND id = ? AND row_version = ?")
             .params(
                 u.to().name(),
@@ -128,6 +135,9 @@ public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
                 Timestamp.from(u.at()),
                 u.completedAt() == null ? null : Timestamp.from(u.completedAt()),
                 u.cancelledReason(),
+                closesForecast,
+                closesForecast,
+                closesForecast,
                 periodBucket,
                 tenant.value(),
                 taskId,
@@ -135,6 +145,16 @@ public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
             .update();
     if (n != 1) {
       throw new NoSuchElementException("Nhiệm vụ đã bị thay đổi hoặc không còn");
+    }
+    if (u.to() == TaskStatus.DANG_THUC_HIEN) {
+      // CORE-02-18: lần đầu vào DANG_THUC_HIEN (nhận việc hoặc cập nhật tiến độ đầu) ghi
+      // accepted_at.
+      jdbc.sql(
+              "UPDATE task.task_assignee SET accepted_at = ? WHERE period_bucket = ? AND tenant_id = ?"
+                  + " AND task_id = ? AND role = 'CHU_TRI' AND accepted_at IS NULL"
+                  + " AND removed_at IS NULL AND recorded_to = 'infinity' AND valid_to = 'infinity'")
+          .params(Timestamp.from(u.at()), periodBucket, tenant.value(), taskId)
+          .update();
     }
     return expectedVersion + 1;
   }
@@ -187,7 +207,7 @@ public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
         .list();
   }
 
-  private static TaskRow task(ResultSet rs, int i) throws SQLException {
+  static TaskRow task(ResultSet rs, int i) throws SQLException {
     int difficulty = rs.getInt("difficulty");
     boolean noDifficulty = rs.wasNull();
     return new TaskRow(
@@ -216,7 +236,10 @@ public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
         rs.getBoolean("is_overdue"),
         rs.getString("delay_risk"),
         rs.getString("state_machine_version"),
-        rs.getLong("row_version"));
+        rs.getLong("row_version"),
+        rs.getString("node_kind"),
+        rs.getObject("parent_task_id", UUID.class),
+        rs.getBigDecimal("component_score"));
   }
 
   private static TaskStatus status(String s) {

@@ -33,6 +33,9 @@ export * from './lib/models/ui-form';
 export * from './lib/ui-form-api';
 export * from './lib/models/ui-pack';
 export * from './lib/ui-pack-api';
+export * from './lib/models/preference';
+export * from './lib/preference-api';
+export * from './lib/list-personalization';
 export * from './lib/models/workflow-template';
 export * from './lib/workflow-template-api';
 export * from './lib/workflow/wf-lint';
@@ -73,7 +76,11 @@ export * from './lib/models/policy';
 export * from './lib/policy-api';
 export * from './lib/models/analytics';
 export * from './lib/analytics-api';
+export * from './lib/models/notification';
+export * from './lib/sse';
+export * from './lib/notification-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
+export { setMockHomeBase } from './mock/mock-home-base';
 export {
   failMockIntegrityOnce,
   failMockUploadPartOnce,

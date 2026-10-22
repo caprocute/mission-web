@@ -1,0 +1,50 @@
+{
+  "description": "Vector RFC 8785 (JCS) + Unicode NFC + SHA-256 dùng chung cho scoring-service (Java, vt-kernel Jcs) và ledger-service (Go, internal/canon). sha256 là băm hex của chuỗi canonical mã hoá UTF-8.",
+  "cases": [
+    {
+      "id": "01-so-ecmascript",
+      "description": "Số theo Number.prototype.toString của ECMAScript: -0, mũ, làm tròn double, ngoài vùng an toàn",
+      "input": "[0, -0, 1, -1, 1.5, 0.1, 1e21, 1e20, 1e-7, 0.000001, 333333333.33333329, 1E30, 4.50, 2e-3, 0.000000000000000000000000001, 9007199254740993, -1.5e-10]",
+      "canonical": "[0,0,1,-1,1.5,0.1,1e+21,100000000000000000000,1e-7,0.000001,333333333.3333333,1e+30,4.5,0.002,1e-27,9007199254740992,-1.5e-10]",
+      "sha256": "8b63f5efc1915bf783f05756b616a67979c8b53e6541836b9598a760ea1f8a55"
+    },
+    {
+      "id": "02-rfc8785-mau",
+      "description": "Ví dụ mục 3.2.2 của RFC 8785: thoát chuỗi tối thiểu và sắp khoá",
+      "input": "{\"numbers\":[333333333.33333329,1E30,4.50,2e-3,0.000000000000000000000000001],\"string\":\"\\u20ac$\\u000F\\u000aA'\\u0042\\u0022\\u005c\\\\\\\"\\/\",\"literals\":[null,true,false]}",
+      "canonical": "{\"literals\":[null,true,false],\"numbers\":[333333333.3333333,1e+30,4.5,0.002,1e-27],\"string\":\"€$\\u000f\\nA'B\\\"\\\\\\\\\\\"/\"}",
+      "sha256": "2d5e01a318d0f0879ab568c4be289c8b1f64ef8921a53c6277d5e069978baacb"
+    },
+    {
+      "id": "03-dau-vao-tinh-diem-nfd",
+      "description": "Tập đầu vào tính điểm có khoá và giá trị tiếng Việt dạng tổ hợp NFD; dạng chuẩn hoá là NFC, điểm thập phân giữ dạng chuỗi",
+      "input": "{\"nhiệm_vụ\": [{\"ma\": \"NV-01\", \"tỷ_trọng\": \"0.40\", \"tiến_độ\": 1, \"kết_quả\": \"Hoàn thành\"}], \"flow\": \"DANG\", \"person_id\": \"0192b200-0000-7000-8000-000000000002\", \"tiêu_chí_chung\": {\"CT01\": true, \"CT02\": false}}",
+      "canonical": "{\"flow\":\"DANG\",\"nhiệm_vụ\":[{\"kết_quả\":\"Hoàn thành\",\"ma\":\"NV-01\",\"tiến_độ\":1,\"tỷ_trọng\":\"0.40\"}],\"person_id\":\"0192b200-0000-7000-8000-000000000002\",\"tiêu_chí_chung\":{\"CT01\":true,\"CT02\":false}}",
+      "sha256": "83188b3c11a9cae5f3db5ae2187a6e4e1d805bb1aef2e459807e6cde73481353"
+    },
+    {
+      "id": "04-long-nhau-va-rong",
+      "description": "Đối tượng, mảng rỗng và lồng nhau; thứ tự mảng giữ nguyên",
+      "input": "{ \"b\" : [ ] , \"a\" : { } , \"c\" : { \"z\" : null , \"y\" : [ { \"k\" : \"v\" } , 2 , 1 ] } }",
+      "canonical": "{\"a\":{},\"b\":[],\"c\":{\"y\":[{\"k\":\"v\"},2,1],\"z\":null}}",
+      "sha256": "1e76dfe6394564ef522654b6420a8b5b07728c60fdfcf5c8bb812a6864a2f0e1"
+    }
+  ],
+  "errors": [
+    {
+      "id": "91-trung-khoa-sau-nfc",
+      "description": "Hai khoá chỉ khác dạng NFC/NFD là trùng khoá, phải báo lỗi",
+      "input": "{\"điểm\": 1, \"điểm\": 2}"
+    },
+    {
+      "id": "92-so-0-dau",
+      "description": "Số có chữ số 0 đứng đầu không hợp lệ theo RFC 8259",
+      "input": "[01]"
+    },
+    {
+      "id": "93-du-lieu-thua",
+      "description": "Còn dữ liệu sau giá trị gốc",
+      "input": "{} {}"
+    }
+  ]
+}

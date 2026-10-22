@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- BẢN GIẢ LẬP chờ nghiệp vụ duyệt (DL-16). Bước 5, 6 của chuỗi xếp loại; table_key rang_buoc; gói twd/diem-cong-viec -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20211108/MODEL/" id="rang-buoc-twd-dinh-nghia" name="Loại trừ và ràng buộc sau điều kiện"
+             namespace="https://policy.okrkpi.vn/twd/diem-cong-viec" expressionLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/" typeLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/">
+  <decision id="rang-buoc-twd" name="Loại trừ và ràng buộc sau điều kiện">
+    <variable id="rang-buoc-twd-var" name="muc_goi_y" typeRef="string"/>
+    <decisionTable id="rang-buoc-twd-bang" hitPolicy="FIRST" outputLabel="Mức gợi ý">
+      <input id="rang-buoc-twd-in1" label="Mức sau điều kiện Tốt">
+        <inputExpression id="rang-buoc-twd-in1-expr" typeRef="string"><text>muc_sau_dieu_kien_tot</text></inputExpression>
+        <inputValues id="rang-buoc-twd-in1-values"><text>"HTXSNV","HTTNV","HTNV","KHTNV"</text></inputValues>
+      </input>
+      <input id="rang-buoc-twd-in2" label="Có điều kiện loại trừ">
+        <inputExpression id="rang-buoc-twd-in2-expr" typeRef="boolean"><text>loai_tru</text></inputExpression>
+      </input>
+      <input id="rang-buoc-twd-in3" label="Có quý xếp loại Không hoàn thành nhiệm vụ trong năm">
+        <inputExpression id="rang-buoc-twd-in3-expr" typeRef="boolean"><text>co_quy_khong_hoan_thanh</text></inputExpression>
+      </input>
+      <input id="rang-buoc-twd-in4" label="Người đứng đầu tập thể không hoàn thành được mục tiêu, nhiệm vụ trọng tâm nào">
+        <inputExpression id="rang-buoc-twd-in4-expr" typeRef="boolean"><text>rang_buoc_tap_the_thap_nhat</text></inputExpression>
+      </input>
+      <input id="rang-buoc-twd-in5" label="Cấp phó, thành viên tập thể lãnh đạo của tập thể đó">
+        <inputExpression id="rang-buoc-twd-in5-expr" typeRef="boolean"><text>rang_buoc_tap_the_ha_xuat_sac</text></inputExpression>
+      </input>
+      <output id="rang-buoc-twd-out" name="muc_goi_y" typeRef="string">
+        <outputValues id="rang-buoc-twd-out-values"><text>"HTXSNV","HTTNV","HTNV","KHTNV"</text></outputValues>
+      </output>
+      <annotation name="legal_ref"/>
+      <annotation name="dieu_khoan"/>
+      <annotation name="giai_thich"/>
+      <rule id="rang-buoc-twd-dong-1">
+        <description>Có điều kiện loại trừ</description>
+        <inputEntry id="rang-buoc-twd-dong-1-in1"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-1-in2"><text>true</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-1-in3"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-1-in4"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-1-in5"><text>-</text></inputEntry>
+        <outputEntry id="rang-buoc-twd-dong-1-out"><text>"KHTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 5, 6; 18.4; Điều 11, Điều 14 khoản 3.3</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Có điều kiện loại trừ nên xếp mức Không hoàn thành nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="rang-buoc-twd-dong-2">
+        <description>Người đứng đầu, tập thể không hoàn thành mục tiêu trọng tâm nào</description>
+        <inputEntry id="rang-buoc-twd-dong-2-in1"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-2-in2"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-2-in3"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-2-in4"><text>true</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-2-in5"><text>-</text></inputEntry>
+        <outputEntry id="rang-buoc-twd-dong-2-out"><text>"KHTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 5, 6; 18.4; Điều 11, Điều 14 khoản 3.3</text></annotationEntry>
+        <annotationEntry><text>Điều 14 khoản 3.3 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Tập thể do người này đứng đầu không hoàn thành được mục tiêu, nhiệm vụ trọng tâm nào nên xếp mức Không hoàn thành nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="rang-buoc-twd-dong-3">
+        <description>Có quý Không hoàn thành nhiệm vụ</description>
+        <inputEntry id="rang-buoc-twd-dong-3-in1"><text>"HTXSNV"</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-3-in2"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-3-in3"><text>true</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-3-in4"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-3-in5"><text>-</text></inputEntry>
+        <outputEntry id="rang-buoc-twd-dong-3-out"><text>"HTTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 5, 6; 18.4; Điều 11, Điều 14 khoản 3.3</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Có quý xếp loại Không hoàn thành nhiệm vụ nên không xếp mức Hoàn thành xuất sắc nhiệm vụ cả năm.</text></annotationEntry>
+      </rule>
+      <rule id="rang-buoc-twd-dong-4">
+        <description>Cấp phó, thành viên của tập thể không hoàn thành mục tiêu trọng tâm nào</description>
+        <inputEntry id="rang-buoc-twd-dong-4-in1"><text>"HTXSNV"</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-4-in2"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-4-in3"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-4-in4"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-4-in5"><text>true</text></inputEntry>
+        <outputEntry id="rang-buoc-twd-dong-4-out"><text>"HTTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 5, 6; 18.4; Điều 11, Điều 14 khoản 3.3</text></annotationEntry>
+        <annotationEntry><text>Điều 14 khoản 3.3 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Tập thể lãnh đạo không hoàn thành được mục tiêu, nhiệm vụ trọng tâm nào nên không xếp mức Hoàn thành xuất sắc nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="rang-buoc-twd-dong-5">
+        <description>Giữ mức Hoàn thành xuất sắc nhiệm vụ</description>
+        <inputEntry id="rang-buoc-twd-dong-5-in1"><text>"HTXSNV"</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-5-in2"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-5-in3"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-5-in4"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-5-in5"><text>-</text></inputEntry>
+        <outputEntry id="rang-buoc-twd-dong-5-out"><text>"HTXSNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 5, 6; 18.4; Điều 11, Điều 14 khoản 3.3</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Không có điều kiện loại trừ hay ràng buộc nào áp dụng nên giữ nguyên mức.</text></annotationEntry>
+      </rule>
+      <rule id="rang-buoc-twd-dong-6">
+        <description>Giữ mức Hoàn thành tốt nhiệm vụ</description>
+        <inputEntry id="rang-buoc-twd-dong-6-in1"><text>"HTTNV"</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-6-in2"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-6-in3"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-6-in4"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-6-in5"><text>-</text></inputEntry>
+        <outputEntry id="rang-buoc-twd-dong-6-out"><text>"HTTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 5, 6; 18.4; Điều 11, Điều 14 khoản 3.3</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Không có điều kiện loại trừ hay ràng buộc nào áp dụng nên giữ nguyên mức.</text></annotationEntry>
+      </rule>
+      <rule id="rang-buoc-twd-dong-7">
+        <description>Giữ mức Hoàn thành nhiệm vụ</description>
+        <inputEntry id="rang-buoc-twd-dong-7-in1"><text>"HTNV"</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-7-in2"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-7-in3"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-7-in4"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-7-in5"><text>-</text></inputEntry>
+        <outputEntry id="rang-buoc-twd-dong-7-out"><text>"HTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 5, 6; 18.4; Điều 11, Điều 14 khoản 3.3</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Không có điều kiện loại trừ hay ràng buộc nào áp dụng nên giữ nguyên mức.</text></annotationEntry>
+      </rule>
+      <rule id="rang-buoc-twd-dong-8">
+        <description>Giữ mức Không hoàn thành nhiệm vụ</description>
+        <inputEntry id="rang-buoc-twd-dong-8-in1"><text>"KHTNV"</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-8-in2"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-8-in3"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-8-in4"><text>-</text></inputEntry>
+        <inputEntry id="rang-buoc-twd-dong-8-in5"><text>-</text></inputEntry>
+        <outputEntry id="rang-buoc-twd-dong-8-out"><text>"KHTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 5, 6; 18.4; Điều 11, Điều 14 khoản 3.3</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Không có điều kiện loại trừ hay ràng buộc nào áp dụng nên giữ nguyên mức.</text></annotationEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

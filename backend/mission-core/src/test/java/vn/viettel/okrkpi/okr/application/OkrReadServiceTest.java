@@ -287,7 +287,9 @@ class OkrReadServiceTest {
         null,
         null,
         0,
-        last);
+        last,
+        null,
+        null);
   }
 
   private static <T> org.springframework.beans.factory.ObjectProvider<T> provider(T bean) {

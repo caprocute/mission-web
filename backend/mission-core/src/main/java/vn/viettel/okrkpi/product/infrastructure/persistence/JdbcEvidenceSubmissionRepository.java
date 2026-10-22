@@ -7,6 +7,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -402,6 +403,31 @@ public class JdbcEvidenceSubmissionRepository implements EvidenceSubmissionRepos
                 + " tenant_id = ? AND id = ? AND status = 'NHAP'")
         .params(ts(at), periodBucket, tenant.value(), versionId)
         .update();
+  }
+
+  @Override
+  public Set<UUID> confirmedOf(TenantId tenant, UUID personId, Set<UUID> ids) {
+    return new HashSet<>(
+        jdbc.sql(
+                "SELECT DISTINCT v.evidence_id FROM product.evidence_version v WHERE v.tenant_id = ?"
+                    + " AND v.evidence_id = ANY(?::uuid[]) AND v.status = 'DA_XAC_NHAN' AND"
+                    + " v.excluded_period_id IS NULL AND v.submitted_by = ?")
+            .params(tenant.value(), ids.toArray(new UUID[0]), personId)
+            .query(UUID.class)
+            .list());
+  }
+
+  @Override
+  public Set<UUID> acceptorsOf(TenantId tenant, UUID periodId, UUID personId) {
+    return new HashSet<>(
+        jdbc.sql(
+                "SELECT DISTINCT a.reviewer_id FROM product.acceptance a JOIN"
+                    + " product.evidence_version v ON v.period_bucket = a.period_bucket AND"
+                    + " v.tenant_id = a.tenant_id AND v.id = a.evidence_version_id WHERE"
+                    + " a.tenant_id = ? AND a.period_id = ? AND v.submitted_by = ?")
+            .params(tenant.value(), periodId, personId)
+            .query(UUID.class)
+            .list());
   }
 
   @Override

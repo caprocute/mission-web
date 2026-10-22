@@ -1,0 +1,56 @@
+/*
+ * Kiểu toàn cục của phần nhúng (WEB-013). Tệp này nạp vào trang của cổng văn phòng số, nên chỉ đặt
+ * biến --vt-* (không trùng tên với cổng) và kiểu dưới phần tử vt-okr-app; không đặt kiểu cho html,
+ * body hay thẻ chung để không làm đổi giao diện của cổng.
+ */
+@layer base, primeng, app;
+@import 'primeicons/primeicons.css';
+
+@layer base {
+  /* Token mặc định khi UI Pack chưa nạp; UI Pack ghi đè dưới :root[data-tenant] */
+  :root {
+    --vt-color-primary: #ee0033;
+    --vt-color-primary-strong: #d1002d;
+    --vt-color-on-primary: #ffffff;
+    --vt-color-surface: #ffffff;
+    --vt-color-surface-elevated: #ffffff;
+    --vt-color-border: #e2e8f0;
+    --vt-color-text: #0f172a;
+    --vt-color-text-muted: #475569;
+    --vt-color-background: #f1f5f9;
+    --vt-font-family: 'Be Vietnam Pro', 'Inter', Roboto, 'Segoe UI', sans-serif;
+    --vt-font-size-body: 14px;
+    --vt-radius-card: 12px;
+    --vt-space-lg: 16px;
+    --vt-min-touch: 40px;
+    --vt-shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+    --vt-shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.07), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
+    --vt-shadow-md: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.05);
+  }
+  /* Chế độ Đảng viên cao tuổi (NFR-11): ThemeService đặt data-mode trên html của trang */
+  :root[data-mode='elderly'] {
+    --vt-font-size-body: 18px;
+    --vt-color-text: #000000;
+    --vt-color-text-muted: #334155;
+    --vt-color-primary-strong: #a30023;
+    --vt-min-touch: 48px;
+  }
+  vt-okr-app {
+    display: block;
+    font-family: var(--vt-font-family);
+    font-size: var(--vt-font-size-body);
+    color: var(--vt-color-text);
+    background: var(--vt-color-surface);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  vt-okr-app *,
+  vt-okr-app *::before,
+  vt-okr-app *::after {
+    box-sizing: border-box;
+  }
+  vt-okr-app :focus-visible {
+    outline: 3px solid var(--vt-color-primary-strong, #d1002d);
+    outline-offset: 2px;
+  }
+}

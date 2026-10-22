@@ -38,7 +38,7 @@ export const VtPreset = definePreset(AuraCore, {
         surface: { 0: 'var(--vt-color-surface)' },
         primary: {
           color: STRONG,
-          contrastColor: 'var(--vt-color-on-primary, #ffffff)',
+          contrastColor: 'var(--vt-color-on-primary-strong, var(--vt-color-on-primary, #ffffff))',
           hoverColor: `color-mix(in srgb, ${STRONG} 88%, black)`,
           activeColor: `color-mix(in srgb, ${STRONG} 76%, black)`,
         },
@@ -52,5 +52,15 @@ export const VtPreset = definePreset(AuraCore, {
   },
   components: {
     card: { root: { borderRadius: 'var(--vt-radius-card)' } },
+    // Nút phụ viền và nút chữ của Aura dùng {surface.500} (#64748b), chỉ 4,4:1 trên nền trang;
+    // lấy màu chữ phụ của UI Pack, đã qua kiểm tra tương phản của bộ biên dịch token (WEB-004).
+    button: {
+      colorScheme: {
+        light: {
+          outlined: { secondary: { color: MUTED } },
+          text: { secondary: { color: MUTED } },
+        },
+      },
+    },
   },
 });

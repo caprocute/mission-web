@@ -543,6 +543,229 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/policies/customer-profiles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Danh sách hồ sơ tập khách hàng
+     * @description Hồ sơ người gọi được xem (hồ sơ gốc toàn cục đã đồng bộ), mỗi hồ sơ kèm tóm tắt phiên bản gần nhất.
+     */
+    get: operations['listCustomerProfiles'];
+    put?: never;
+    /**
+     * Tạo hồ sơ tập khách hàng
+     * @description Tạo hồ sơ ở tenant gốc toàn cục; hồ sơ được phát tán xuống các cell qua saga phát hành đa cell (EVT-13) như Policy Pack. Mã trùng trả `POLICY-422-PROFILE-CODE-EXISTS`.
+     */
+    post: operations['createCustomerProfile'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/policies/customer-profiles/{profileId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+      };
+      cookie?: never;
+    };
+    /** Xem một hồ sơ tập khách hàng */
+    get: operations['getCustomerProfile'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/policies/customer-profiles/{profileId}/versions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+      };
+      cookie?: never;
+    };
+    /** Danh sách phiên bản của hồ sơ */
+    get: operations['listCustomerProfileVersions'];
+    put?: never;
+    /**
+     * Tạo phiên bản nháp của hồ sơ
+     * @description Tạo phiên bản `NHAP`, nhân bản bản kê và khung tham số từ `baseVersion` nếu có. Lỗi `POLICY-422-VERSION-EXISTS` (số phiên bản đã có), `POLICY-422-PROFILE-REF` (bản kê trỏ tới thành phần hoặc phiên bản không tồn tại).
+     */
+    post: operations['createCustomerProfileVersion'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/policies/customer-profiles/{profileId}/versions/{v}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    /** Xem chi tiết một phiên bản hồ sơ */
+    get: operations['getCustomerProfileVersion'];
+    /**
+     * Sửa bản kê của phiên bản nháp
+     * @description Chỉ sửa khi `NHAP` hoặc `DAT_KIEM_THU`; sửa khi `DAT_KIEM_THU` đưa phiên bản về `NHAP` (như MSG-15-03 của gói). Từ `CHO_PHE_DUYET` trở đi nội dung bị đóng băng (`POLICY-409-VERSION-FROZEN`); tham chiếu sai trả `POLICY-422-PROFILE-REF`.
+     */
+    put: operations['updateCustomerProfileVersion'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/policies/customer-profiles/{profileId}/versions/{v}/param-constraints': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Khung tham số của phiên bản hồ sơ
+     * @description Các ràng buộc cho cấp dưới (`policy.param_constraint`, BS-03 DC-02). ETag là của phiên bản hồ sơ.
+     */
+    get: operations['listParamConstraints'];
+    /**
+     * Khai báo khung tham số cho cấp dưới
+     * @description Thay toàn bộ khung tham số của phiên bản `NHAP` (BS-03 DC-02). Không có ràng buộc nào thì hành vi giữ đúng cờ `overridable` hiện tại. `minValue` lớn hơn `maxValue` trả `COMMON-422-VALIDATION`.
+     */
+    put: operations['replaceParamConstraints'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/policies/customer-profiles/{profileId}/versions/{v}/validate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Kiểm tra phiên bản hồ sơ
+     * @description Đối chiếu mọi tham chiếu của bản kê (thành phần phải `DA_PHAT_HANH` hoặc `DAT_KIEM_THU`), kiểm khung tham số và chạy bộ ca vàng của gói được trỏ tới; đạt 100% thì phiên bản `NHAP` → `DAT_KIEM_THU`, không đạt thì giữ `NHAP` (PC-07, suy luận). Theo dõi bằng `Location` (`Job.type = POLICY_TEST`, suy luận).
+     */
+    post: operations['validateCustomerProfileVersion'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/policies/customer-profiles/{profileId}/versions/{v}/submit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Gửi phê duyệt phiên bản hồ sơ
+     * @description `DAT_KIEM_THU` → `CHO_PHE_DUYET`, báo người phê duyệt (EVT-21). Chưa kiểm tra đạt trả `POLICY-409-NOT-TESTED`.
+     */
+    post: operations['submitCustomerProfileVersion'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/policies/customer-profiles/{profileId}/versions/{v}/approve': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Ký số phê duyệt và phát hành phiên bản hồ sơ
+     * @description Người phê duyệt khác người soạn ký số trên `content_hash` rồi khởi động saga phát hành đa cell (EVT-13) như Policy Pack; xong saga thì `DA_PHAT_HANH`. Người duyệt trùng người soạn trả `POLICY-403-SAME-AUTHOR`.
+     */
+    post: operations['approveCustomerProfileVersion'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/policies/customer-profiles/{profileId}/versions/{v}/reject': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Từ chối phát hành phiên bản hồ sơ
+     * @description `CHO_PHE_DUYET` → `NHAP`, bắt buộc ý kiến.
+     */
+    post: operations['rejectCustomerProfileVersion'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/policies/resolve': {
     parameters: {
       query?: never;
@@ -843,6 +1066,8 @@ export interface components {
       orgUnitId?: components['schemas']['Uuid'] | null;
       /** @description true khi kỳ đã `DA_KHOA`; không đổi phiên bản được nữa. */
       isFrozen: boolean;
+      /** @description Phiên bản hồ sơ tập khách hàng áp cho kỳ (`customer_profile_version_id`, BS-03); null với dữ liệu trước BS-03. Khi kỳ khoá, mọi thành phần mà hồ sơ trỏ tới bị đóng băng cùng kỳ. */
+      customerProfileVersionId?: components['schemas']['Uuid'] | null;
     };
     PolicyVersionDiff: {
       base: string;
@@ -887,8 +1112,46 @@ export interface components {
       lam_tron?: components['schemas']['PolicyRoundingParam'];
       /** @description Dòng kế thừa, ví dụ "QĐ 366 v1.4 → dự thảo Quy định mới v2.x". */
       ke_thua?: string;
+      /** @description Khai báo đầu vào của gói (BS-03 DC-01, DC-03). Ngoài biến đếm cũ, gói khai `list<WorkItem>` với nguồn `task.aggregate.work_items` hoặc `list<ResponsibilityItem>`; gói không khai thì scoring-service không nhận danh sách đó. */
+      inputs?: components['schemas']['PolicyInputDeclaration'][];
+      classification?: components['schemas']['PolicyClassification'];
+      /** @description Trần tỷ lệ theo mức, tuỳ chọn (BS-03 DC-05); ví dụ `{HTXSNV: 0.2}` của TL-01 chỉ là ví dụ cấu hình, không phải mặc định. */
+      quotas?: {
+        [key: string]: number;
+      } | null;
     } & {
       [key: string]: unknown;
+    };
+    /** @description Một đầu vào khai báo của gói (BS-03 DC-01, DC-03). */
+    PolicyInputDeclaration: {
+      /** @example work_items */
+      name: string;
+      /**
+       * @description Kiểu CEL của đầu vào, ví dụ `int`, `double`, `list<WorkItem>`, `list<ResponsibilityItem>`.
+       * @example list<WorkItem>
+       */
+      type: string;
+      /** @description Nguồn dữ liệu của lõi, ví dụ `task.aggregate.work_items`. */
+      source?: string;
+    };
+    /** @description Cách xếp loại của gói (BS-03 DC-05). Dạng `dmn` (một bảng `FIRST`, như cũ) hoặc dạng `chain` (danh sách bước có thứ tự, mỗi bước là một bảng DMN hoặc một biểu thức CEL). Mỗi bước ghi vào `score_trace` số bước, mã quy tắc, đầu vào, đầu ra và câu lý do; `downgrade_reasons` được điền từ các bước. Chỉ một trong hai trường có mặt. */
+    PolicyClassification: {
+      /** @description Khoá bảng quyết định xếp loại, ví dụ `xep_loai`. */
+      dmn?: string;
+      chain?: components['schemas']['PolicyClassificationStep'][];
+    };
+    PolicyClassificationStep: {
+      stepNo: number;
+      /** @description Mã bước, ghi vào `score_trace`. */
+      ruleCode: string;
+      /** @enum {string} */
+      kind: 'DMN' | 'CEL';
+      /** @description Bảng DMN của bước khi `kind = DMN`. */
+      tableKey?: string;
+      /** @description Biểu thức CEL của bước khi `kind = CEL`. */
+      expression?: string;
+      /** @description Câu mô tả bước, dùng cho câu "vì sao bị hạ mức". */
+      label?: string;
     };
     /**
      * @description Kiểu làm tròn (SCR-1501 trường 8). TL-02b chỉ nêu "nửa lên" (BR-09-03); `CAT_BO` (bỏ phần thừa) là suy luận cho lựa chọn còn lại.
@@ -1232,6 +1495,157 @@ export interface components {
     PolicyDecisionComment: {
       comment?: string;
     };
+    /** @description Hồ sơ tập khách hàng (`policy.customer_profile`, BS-03 ADR-33) kèm tóm tắt phiên bản. */
+    CustomerProfile: {
+      id: components['schemas']['Uuid'];
+      /** @description Mã hồ sơ, duy nhất trong tenant gốc toàn cục, ví dụ `twd/ban-to-chuc-ueb`. */
+      code: string;
+      name: string;
+      /** @description Hồ sơ giả lập theo dự thảo chưa ban hành (`is_simulated`, YC-PT-14). */
+      isSimulated: boolean;
+      /** @description Văn bản căn cứ (`legal_basis`). */
+      legalBasis?: string[];
+      /** @description Thẻ tenant mà hồ sơ áp dụng (`ap_dung_cho.tenant_tags`), cùng cách gắn của Policy Pack. */
+      tenantTags?: string[];
+      /** @description Tóm tắt các phiên bản gần nhất, mới nhất trước. */
+      versions?: components['schemas']['CustomerProfileVersionSummary'][];
+    };
+    CustomerProfileList: {
+      items: components['schemas']['CustomerProfile'][];
+      nextCursor: components['schemas']['NextCursor'];
+    };
+    CustomerProfileCreate: {
+      code: string;
+      name: string;
+      isSimulated: boolean;
+      legalBasis?: string[];
+      tenantTags?: string[];
+    };
+    /** @description Tóm tắt một phiên bản hồ sơ (`policy.customer_profile_version`). */
+    CustomerProfileVersionSummary: {
+      id: components['schemas']['Uuid'];
+      customerProfileId: components['schemas']['Uuid'];
+      version: string;
+      status: components['schemas']['PolicyPackVersionStatus'];
+      changeNote?: string;
+      publishedAt?: components['schemas']['DateTime'] | null;
+      createdAt?: components['schemas']['DateTime'];
+      createdBy?: components['schemas']['Ref'];
+      rowVersion: components['schemas']['RowVersion'];
+    };
+    /** @description Chi tiết phiên bản hồ sơ. Cùng ràng buộc của `policy_pack_version`: đã phát hành phải có chữ ký và người duyệt khác người soạn. */
+    CustomerProfileVersion: components['schemas']['CustomerProfileVersionSummary'] & {
+      manifest?: components['schemas']['CustomerProfileManifest'];
+      /** @description SHA-256 dạng chuẩn hoá của bản kê và khung tham số, mã hex; có từ `DAT_KIEM_THU`. */
+      contentHash?: string | null;
+      approvedBy?: components['schemas']['Ref'] | null;
+      approvedAt?: components['schemas']['DateTime'] | null;
+      signedAt?: components['schemas']['DateTime'] | null;
+      paramConstraintCount?: number;
+    };
+    CustomerProfileVersionList: {
+      items: components['schemas']['CustomerProfileVersionSummary'][];
+      nextCursor: components['schemas']['NextCursor'];
+    };
+    CustomerProfileVersionCreate: {
+      /** @description Phiên bản nguồn để nhân bản; bỏ trống khi tạo phiên bản đầu. */
+      baseVersion?: string;
+      /** @description Số phiên bản mới; bỏ trống thì máy chủ tăng số phụ (suy luận). */
+      version?: string;
+      changeNote: string;
+      manifest?: components['schemas']['CustomerProfileManifest'];
+    };
+    CustomerProfileVersionUpdate: {
+      manifest: components['schemas']['CustomerProfileManifest'];
+      changeNote?: string;
+    };
+    /** @description Bản kê của hồ sơ (`manifest jsonb`, BS-03 "Bản kê hồ sơ"): chỉ chứa tham chiếu và cờ, không chứa công thức. Mọi giá trị riêng của khách hàng nằm trong các thành phần được trỏ tới; mặc định của mỗi điểm cắm giữ đúng hành vi hiện tại. */
+    CustomerProfileManifest: {
+      /** @description Phiên bản từng thành phần cấu hình mà tập khách hàng dùng. */
+      components: {
+        policyPack?: {
+          code: string;
+          version: string;
+          flow?: components['schemas']['Flow'];
+        };
+        catalog?: {
+          code: string;
+          version: number;
+        } | null;
+        /** @description Bộ quy tắc cảnh báo điểm nghẽn (suy luận tên trường). */
+        alertRuleSet?: {
+          code: string;
+          version: string;
+        } | null;
+        /** @description Mẫu luồng và bộ tham số luồng (BS-01). */
+        workflowParams?: {
+          templateCode?: string;
+          paramSet?: string;
+        } | null;
+        /** @description UI Pack riêng; null là dùng UI Pack của tenant. */
+        uiPack?: string | null;
+      };
+      pluginPoints: components['schemas']['CustomerProfilePluginPoints'];
+    };
+    /** @description Cờ bật tắt sáu điểm cắm DC-01..DC-06 của lõi (BS-03); vắng là tắt, DC-06 vắng là `CHU_TRI_PHOI_HOP`. */
+    CustomerProfilePluginPoints: {
+      /**
+       * @description DC-01 đầu vào theo điểm công việc.
+       * @default false
+       */
+      workItemScore: boolean;
+      /**
+       * @description DC-02 khung tham số kế thừa có giới hạn.
+       * @default false
+       */
+      boundedInheritance: boolean;
+      /**
+       * @description DC-03 phạm vi phụ trách cho điểm quản lý.
+       * @default false
+       */
+      responsibilityScope: boolean;
+      /**
+       * @description DC-04 kiểu đo mốc và cây KPI.
+       * @default false
+       */
+      milestoneMetric: boolean;
+      /**
+       * @description DC-05 chuỗi xếp loại nhiều bước.
+       * @default false
+       */
+      classificationChain: boolean;
+      /**
+       * @description DC-06 chế độ phân công (`che_do_phan_cong`).
+       * @default CHU_TRI_PHOI_HOP
+       * @enum {string}
+       */
+      assignmentMode: 'CHU_TRI_PHOI_HOP' | 'MOT_NGUOI_MOT_VIEC';
+    };
+    /** @description Khung một tham số mà cấp dưới được phép chỉnh (`policy.param_constraint`, BS-03 DC-02). */
+    ParamConstraint: {
+      id?: components['schemas']['Uuid'];
+      /** @description Khoá tham số, ví dụ `tham_so.tru_moi_ngay_cham`. */
+      paramKey: string;
+      /** @description Được bật tắt tham số. */
+      canToggle: boolean;
+      /** @description Được đổi số mức. */
+      canChangeLevels: boolean;
+      minValue?: number | null;
+      maxValue?: number | null;
+      /**
+       * @description Chiều được phép siết (`tighten_direction`).
+       * @enum {string}
+       */
+      tightenDirection: 'TANG' | 'GIAM' | 'KHONG';
+      /** @description Các cấp được phép chỉnh (`allowed_scopes`). */
+      allowedScopes?: ('KHOI' | 'TINH' | 'DON_VI')[];
+    };
+    ParamConstraintList: {
+      items: components['schemas']['ParamConstraint'][];
+    };
+    ParamConstraintReplace: {
+      items: components['schemas']['ParamConstraint'][];
+    };
     ResolvedPolicyPack: {
       policyPackId: components['schemas']['Uuid'];
       code: string;
@@ -1244,6 +1658,8 @@ export interface components {
       bindingId: components['schemas']['Uuid'];
       /** @description Kỳ đã khoá, phiên bản không đổi được nữa. */
       frozen: boolean;
+      /** @description Phiên bản hồ sơ tập khách hàng ghim trong `policy_binding` (BS-03); null khi không có. */
+      customerProfileVersionId?: components['schemas']['Uuid'] | null;
     };
     ProspectCriteria: {
       policyPackId: components['schemas']['Uuid'];
@@ -1556,6 +1972,8 @@ export interface components {
     ProcessKind: string;
     /** @description Mã mẫu luồng (`wf_template.template_code`), ví dụ `duyet-ho-so-danh-gia`. */
     TemplateKey: string;
+    /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+    ProfileId: components['schemas']['Uuid'];
     /** @description Số phiên bản mẫu (`wf_template.version_no`). */
     TemplateVersion: number;
     /** @description Từ khoá tìm kiếm, không phân biệt dấu. */
@@ -2449,7 +2867,15 @@ export interface operations {
           'application/problem+json': components['schemas']['ProblemDetails'];
         };
       };
-      422: components['responses']['UnprocessableEntity'];
+      /** @description Dữ liệu không hợp lệ. Mã lỗi `POLICY-422-PARAM-CONSTRAINT` khi phiên bản của cấp dưới vi phạm khung tham số của hồ sơ tập khách hàng (BS-03 DC-02); `errors[]` nêu tham số, giá trị và khung. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
       428: components['responses']['PreconditionRequired'];
       default: components['responses']['Problem'];
     };
@@ -2626,6 +3052,454 @@ export interface operations {
           'application/problem+json': components['schemas']['ProblemDetails'];
         };
       };
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listCustomerProfiles: {
+    parameters: {
+      query?: {
+        /** @description Từ khoá tìm kiếm, không phân biệt dấu. */
+        q?: components['parameters']['Q'];
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Trang danh sách hồ sơ. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CustomerProfileList'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  createCustomerProfile: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CustomerProfileCreate'];
+      };
+    };
+    responses: {
+      /** @description Đã tạo hồ sơ. */
+      201: {
+        headers: {
+          Location: components['headers']['Location'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CustomerProfile'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getCustomerProfile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Hồ sơ và tóm tắt phiên bản. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CustomerProfile'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listCustomerProfileVersions: {
+    parameters: {
+      query?: {
+        /** @description Lọc theo trạng thái phiên bản. */
+        status?: components['schemas']['PolicyPackVersionStatus'];
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Trang phiên bản, mới nhất trước. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CustomerProfileVersionList'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  createCustomerProfileVersion: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CustomerProfileVersionCreate'];
+      };
+    };
+    responses: {
+      /** @description Đã tạo phiên bản nháp. */
+      201: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          Location: components['headers']['Location'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CustomerProfileVersion'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getCustomerProfileVersion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Chi tiết phiên bản. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CustomerProfileVersion'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  updateCustomerProfileVersion: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CustomerProfileVersionUpdate'];
+      };
+    };
+    responses: {
+      /** @description Đã lưu. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CustomerProfileVersion'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listParamConstraints: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Danh sách khung tham số. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ParamConstraintList'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  replaceParamConstraints: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ParamConstraintReplace'];
+      };
+    };
+    responses: {
+      /** @description Đã lưu khung tham số. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ParamConstraintList'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  validateCustomerProfileVersion: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      202: components['responses']['Accepted'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  submitCustomerProfileVersion: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['PolicyDecisionComment'];
+      };
+    };
+    responses: {
+      /** @description Đã gửi phê duyệt. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CustomerProfileVersion'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  approveCustomerProfileVersion: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['PolicyPackApprove'];
+      };
+    };
+    responses: {
+      202: components['responses']['Accepted'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  rejectCustomerProfileVersion: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        /** @description Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03). */
+        profileId: components['parameters']['ProfileId'];
+        /** @description Số phiên bản semver ba phần của gói (`policy_pack_version.version`, PC-03). */
+        v: components['parameters']['PackVersion'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PolicyDecisionReason'];
+      };
+    };
+    responses: {
+      /** @description Đã từ chối, phiên bản về nháp. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CustomerProfileVersion'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
       428: components['responses']['PreconditionRequired'];
       default: components['responses']['Problem'];
     };

@@ -22,6 +22,7 @@ import vn.viettel.okrkpi.contract.tasks.model.StateLogEntry;
 import vn.viettel.okrkpi.contract.tasks.model.TaskDetail;
 import vn.viettel.okrkpi.contract.tasks.model.TaskDetailAllOfProducts;
 import vn.viettel.okrkpi.contract.tasks.model.TaskGroup;
+import vn.viettel.okrkpi.contract.tasks.model.TaskNodeKind;
 import vn.viettel.okrkpi.contract.tasks.model.TaskSource;
 import vn.viettel.okrkpi.contract.tasks.model.TaskStatus;
 import vn.viettel.okrkpi.contract.tasks.model.TaskTransitionRequest;
@@ -32,6 +33,8 @@ import vn.viettel.okrkpi.shared.etag.ETags;
 import vn.viettel.okrkpi.shared.idempotency.Idempotent;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
+import vn.viettel.okrkpi.task.application.change.TaskChangeDecisionService;
+import vn.viettel.okrkpi.task.application.lifecycle.TaskDelayRiskService;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.StateLogRow;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.TaskRow;
@@ -51,10 +54,18 @@ public class TaskTransitionController {
 
   private final TaskTransitionService transitions;
   private final TaskCallers callers;
+  private final TaskDelayRiskService delayRisks;
+  private final TaskChangeDecisionService decisions;
 
-  public TaskTransitionController(TaskTransitionService transitions, TaskCallers callers) {
+  public TaskTransitionController(
+      TaskTransitionService transitions,
+      TaskCallers callers,
+      TaskDelayRiskService delayRisks,
+      TaskChangeDecisionService decisions) {
     this.transitions = Objects.requireNonNull(transitions, "transitions");
     this.callers = Objects.requireNonNull(callers, "callers");
+    this.delayRisks = Objects.requireNonNull(delayRisks, "delayRisks");
+    this.decisions = Objects.requireNonNull(decisions, "decisions");
   }
 
   @PostMapping("/{id}/transitions")
@@ -76,14 +87,19 @@ public class TaskTransitionController {
           case HOAN_THANH -> new TaskCommand.ApproveAcceptance(null);
         };
     TaskActor actor = callers.current();
-    TaskTransitionService.Transitioned done;
+    TaskRow task;
     try {
-      done = transitions.transition(tenant, id, command, actor, expected);
+      // CORE-02-22: tiếp tục sau tạm dừng dời hạn theo số ngày làm việc đã dừng (BR-06-10).
+      task =
+          command instanceof TaskCommand.Resume
+              ? decisions.resume(tenant, id, expected, actor)
+              : transitions.transition(tenant, id, command, actor, expected).task();
     } catch (NoSuchElementException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     }
-    TaskRow task = done.task();
-    return ETags.ok(detail(task, transitions.stateLog(tenant, task)), task.rowVersion());
+    TaskDetail dto = detail(task, transitions.stateLog(tenant, task));
+    TaskDelayRiskController.view(delayRisks.find(tenant, task)).ifPresent(dto::delayRisk);
+    return ETags.ok(dto, task.rowVersion());
   }
 
   static TaskDetail detail(TaskRow t, List<StateLogRow> log) {
@@ -122,6 +138,9 @@ public class TaskTransitionController {
             .keyResultId(t.keyResultId())
             .difficulty(t.difficulty())
             .standardScore(t.standardScore())
+            .nodeKind(TaskNodeKind.fromValue(t.nodeKind()))
+            .parentTaskId(t.parentTaskId())
+            .componentScore(t.componentScore())
             .assignedAt(time(t.assignedAt()));
     return dto;
   }

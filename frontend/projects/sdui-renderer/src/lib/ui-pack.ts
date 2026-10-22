@@ -1,4 +1,5 @@
 import { TokenGroup } from '@vt/design-system';
+import type { UiPackPluginRef } from './plugin-contract';
 
 /** Một nút bố cục SDUI: chỉ tham chiếu component có trong registry, không chứa HTML/JS. */
 export interface SduiNode {
@@ -21,12 +22,21 @@ export interface UiPack {
   compiledCss?: string;
   layouts: Record<string, SduiNode>;
   forms?: Record<string, { schemaRef: string; ui?: unknown }>;
-  plugins?: { name: string; remoteEntry: string; exposedModule: string; routePath: string; title: string }[];
+  /** Plugin chuyên ngành tenant được nạp (WEB-051); xem `UiPackPluginRef` và `VtPlugin`. */
+  plugins?: UiPackPluginRef[];
   i18n?: Record<string, Record<string, string>>;
+  /** SHA-256 (hex) của nội dung được ký (`bundle_sha256`), máy chủ gắn lúc phát hành. */
+  contentHash?: string;
+  /** Chữ ký ES256 của nội dung được ký, base64 (WEB-009). */
+  signature?: string;
+  publishedAt?: string;
 }
 
 /** Con trỏ phiên bản hiện hành: `/ui-packs/{tenant}/current.json`. */
 export interface UiPackPointer {
   version: string;
+  /** Mã khoá nền tảng đã ký gói, dùng để chọn khoá công khai trong `config.json`. */
+  keyId?: string;
+  contentHash?: string;
   signature?: string;
 }

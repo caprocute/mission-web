@@ -3,7 +3,7 @@
  * (`GET /analytics/dashboards/{id}?period=`), số liệu tính với phạm vi của chính người xem (BR-16-01,
  * MSG-16-05). Người tạo có nút "Sửa". Biểu đồ dựng theo `CHART_REGISTRY`; bấm giá trị theo đơn vị mở SCR-1603.
  */
-import { Component, computed, inject, input, linkedSignal } from '@angular/core';
+import { Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -13,6 +13,7 @@ import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { WidgetCard } from '../charts/widget-card';
 import { DASHBOARD_CAN, DASHBOARD_USER_ID } from '../dashboard-permissions';
+import { DefaultDashboardStore } from '../default-dashboard';
 import { errorText, fmtDateTime } from '../dashboard-ui';
 import { gridArea } from './dashboard-layout';
 
@@ -48,6 +49,17 @@ import { gridArea } from './dashboard-layout';
               (ngModelChange)="periodId.set($event)"
             />
           </div>
+          @if (defaults.ready()) {
+            <p-button
+              [label]="isDefault() ? 'Bỏ dashboard mặc định' : 'Đặt làm dashboard mặc định'"
+              [icon]="isDefault() ? 'pi pi-star-fill' : 'pi pi-star'"
+              severity="secondary"
+              [outlined]="true"
+              [loading]="savingDefault()"
+              (onClick)="toggleDefault()"
+              data-testid="dashboard-default"
+            />
+          }
           @if (mine() && can('SCR-1602.dung')) {
             <a
               pButton
@@ -59,6 +71,9 @@ import { gridArea } from './dashboard-layout';
           }
         </div>
       </div>
+      @if (defaultMsg(); as m) {
+        <p-message [severity]="m.ok ? 'success' : 'error'" role="status">{{ m.text }}</p-message>
+      }
       @if (b.data?.stale) {
         <p-message severity="warn" role="status">
           Số liệu cập nhật lúc {{ dt(b.data?.dataAsOf) }}, chậm hơn thường lệ.
@@ -106,6 +121,38 @@ export class DashboardViewPage {
   });
   protected readonly board = computed(() => (this.res.hasValue() ? this.res.value() : null));
   protected readonly mine = computed(() => this.board()?.ownerUserId === this.me());
+
+  protected readonly defaults = inject(DefaultDashboardStore);
+  protected readonly isDefault = computed(() => this.defaults.defaultId() === this.id());
+  protected readonly savingDefault = signal(false);
+  protected readonly defaultMsg = signal<{ ok: boolean; text: string } | null>(null);
+
+  constructor() {
+    this.defaults.load().subscribe({ error: () => undefined });
+  }
+
+  /** CNH-03: đặt hoặc bỏ dashboard này làm trang mở đầu của bảng điều hành. */
+  protected toggleDefault(): void {
+    const setting = !this.isDefault();
+    this.savingDefault.set(true);
+    this.defaultMsg.set(null);
+    this.defaults.set(setting ? this.id() : null).subscribe({
+      next: () => {
+        this.savingDefault.set(false);
+        this.defaultMsg.set({
+          ok: true,
+          text: setting
+            ? 'Đã đặt làm dashboard mặc định. Bảng điều hành sẽ mở dashboard này khi đồng chí đăng nhập.'
+            : 'Đã bỏ dashboard mặc định.',
+        });
+      },
+      error: (e) => {
+        this.savingDefault.set(false);
+        this.defaultMsg.set({ ok: false, text: errorText(e, 'Chưa lưu được dashboard mặc định.') });
+        this.defaults.load().subscribe({ error: () => undefined });
+      },
+    });
+  }
 
   protected dataOf(widgetId: string) {
     return this.board()?.data?.widgets?.find((w) => w.widgetId === widgetId) ?? null;
