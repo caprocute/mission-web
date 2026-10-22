@@ -55,8 +55,7 @@ public final class PolicyContentHash {
               Map<String, Object> m = new LinkedHashMap<>();
               m.put("key", t.tableKey());
               m.put("hit_policy", t.hitPolicy());
-              m.put(
-                  "dmn_sha256", t.dmnHash() == null ? null : HexFormat.of().formatHex(t.dmnHash()));
+              m.put("dmn_sha256", HexFormat.of().formatHex(t.dmnHash()));
               m.put("legal_ref", t.legalRef());
               m.put("rules", parse(json, t.rulesJson()));
               m.put("explanation_templates", parse(json, t.explanationTemplatesJson()));

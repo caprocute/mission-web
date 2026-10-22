@@ -12,7 +12,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.policy.application.PolicyApprovalService;
+import vn.viettel.okrkpi.policy.application.port.PolicyApprovalNotices;
+import vn.viettel.okrkpi.policy.application.port.PolicyApprovers;
 import vn.viettel.okrkpi.policy.application.port.PolicyAudit;
+import vn.viettel.okrkpi.policy.application.port.PolicyPackSigner;
+import vn.viettel.okrkpi.policy.application.port.PolicyPublishLauncher;
 import vn.viettel.okrkpi.policy.infrastructure.client.KeycloakPolicyApprovers;
 import vn.viettel.okrkpi.policy.infrastructure.job.InMemoryPolicyPublishJobs;
 import vn.viettel.okrkpi.policy.infrastructure.signing.KeyPairPolicyCaseSigner;
@@ -70,10 +74,10 @@ public class PolicyApprovalConfiguration {
       JdbcPolicyPublishRepository policyPublishRepository,
       JdbcPolicyTestRunRepository policyTestRunRepository,
       PeriodApi periodApi,
-      PlatformKeyPolicyPackSigner policyPackSigner,
-      InMemoryPolicyPublishJobs policyPublishJobs,
-      OutboxPolicyApprovalNotices policyApprovalNotices,
-      KeycloakPolicyApprovers policyApprovers,
+      PolicyPackSigner policyPackSigner,
+      PolicyPublishLauncher policyPublishJobs,
+      PolicyApprovalNotices policyApprovalNotices,
+      PolicyApprovers policyApprovers,
       PolicyAudit policyAudit) {
     return new PolicyApprovalService(
         policyPackRepository,
