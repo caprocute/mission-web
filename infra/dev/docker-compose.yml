@@ -21,6 +21,7 @@
 #   obs                : otel-collector, prometheus, loki, tempo, grafana
 #   backend            : gotenberg (chuyển DOCX sang PDF/A-2b cho document-service, DV-11-01),
 #                        llm-mock (máy chủ mô hình nhỏ chạy CPU, API tương thích vLLM cho ai-gateway, DV-14-01)
+#   analytics          : clickhouse (kho phân tích một nút của SVC-15, DV-15-01; migration ở analytics/clickhouse)
 #   all                : tất cả dịch vụ trên
 # =============================================================================
 
@@ -530,7 +531,40 @@ services:
     networks:
       - mission-net
 
+  # ---------------------------------------------------------------------------
+  # PROFILE: analytics — Kho phân tích ClickHouse của SVC-15 (DV-15-01, ADR-14)
+  # ---------------------------------------------------------------------------
+  # Một nút có Keeper nhúng và cụm `cell_dev` một shard một bản sao, để DDL `ON CLUSTER` và
+  # `ReplicatedReplacingMergeTree` của analytics/clickhouse/migrations chạy y như cụm của INF-11.
+  # Đọc topic cdc.* từ Kafka qua cổng nội bộ kafka:9092; áp migration: xem analytics/clickhouse/README.md.
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    container_name: mission-dev-clickhouse
+    restart: unless-stopped
+    profiles: ["analytics", "all"]
+    environment:
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Đặt CLICKHOUSE_PASSWORD trong .env}
+      CLICKHOUSE_SKIP_USER_SETUP: "1"
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT:-35123}:8123"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/config.d/cell-dev.xml:/etc/clickhouse-server/config.d/cell-dev.xml:ro
+      - ./clickhouse/users.d/migrator.xml:/etc/clickhouse-server/users.d/migrator.xml:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8123/ping | grep -q Ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks:
+      - mission-net
+
 volumes:
+  clickhouse_data:
   pg_data:
   valkey_data:
   kafka_data:

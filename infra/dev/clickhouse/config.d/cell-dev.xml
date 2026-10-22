@@ -1,0 +1,75 @@
+<!--
+  DV-15-01 · SVC-15/ADR-14: ClickHouse một nút cho dev và kiểm thử, dựng giống cụm của cell để DDL
+  `ON CLUSTER` và `ReplicatedReplacingMergeTree` chạy nguyên vẹn: cụm `cell_dev` một shard một bản sao,
+  Keeper nhúng một nút thay cho ba Keeper của INF-11 (TL-04 định cỡ 2 shard × 2 bản sao ở CELL-HCM).
+-->
+<clickhouse>
+  <display_name>mission-dev-analytics</display_name>
+  <listen_host>0.0.0.0</listen_host>
+
+  <keeper_server>
+    <tcp_port>9181</tcp_port>
+    <server_id>1</server_id>
+    <enable_ipv6>false</enable_ipv6>
+    <log_storage_path>/var/lib/clickhouse/coordination/log</log_storage_path>
+    <snapshot_storage_path>/var/lib/clickhouse/coordination/snapshots</snapshot_storage_path>
+    <raft_configuration>
+      <server>
+        <id>1</id>
+        <hostname>localhost</hostname>
+        <port>9234</port>
+      </server>
+    </raft_configuration>
+  </keeper_server>
+
+  <zookeeper>
+    <node>
+      <host>localhost</host>
+      <port>9181</port>
+    </node>
+  </zookeeper>
+
+  <remote_servers>
+    <cell_dev>
+      <shard>
+        <internal_replication>true</internal_replication>
+        <replica>
+          <host>localhost</host>
+          <port>9000</port>
+        </replica>
+      </shard>
+    </cell_dev>
+  </remote_servers>
+
+  <macros>
+    <cluster>cell_dev</cluster>
+    <shard>01</shard>
+    <replica>r1</replica>
+  </macros>
+
+  <distributed_ddl>
+    <path>/clickhouse/task_queue/ddl</path>
+  </distributed_ddl>
+
+  <!-- Cube đặt SQL_tenant_id cho từng truy vấn; row policy đọc giá trị này (lớp phòng thủ thứ hai, TL-03). -->
+  <!-- Mỗi bảng Kafka engine giữ một luồng nền; 16 nguồn CDC cần nhiều hơn mặc định 16. -->
+  <background_message_broker_schedule_pool_size>32</background_message_broker_schedule_pool_size>
+
+  <!-- Nhóm tiêu thụ mới của Kafka engine đọc từ đầu topic (librdkafka mặc định đọc từ cuối): bản chụp ban đầu
+       của Debezium và thay đổi ghi trước khi bảng được tạo không bị bỏ sót. Cụm của INF-11 phải đặt giống. -->
+  <kafka>
+    <auto_offset_reset>earliest</auto_offset_reset>
+  </kafka>
+
+  <custom_settings_prefixes>SQL_</custom_settings_prefixes>
+
+  <!-- Người dùng, vai trò, row policy tạo bằng SQL được lưu và sao chép qua Keeper. -->
+  <user_directories replace="replace">
+    <users_xml>
+      <path>users.xml</path>
+    </users_xml>
+    <replicated>
+      <zookeeper_path>/clickhouse/access</zookeeper_path>
+    </replicated>
+  </user_directories>
+</clickhouse>
