@@ -97,7 +97,13 @@ class TaskTransitionServiceTest {
               assertThat(e.aggregateVersion()).isEqualTo(4);
               assertThat(e.occurredAt()).isEqualTo(NOW);
             });
-    assertThat(published).containsExactlyElementsOf(outbox);
+    assertThat(published)
+        .filteredOn(TaskStatusChangedEvent.class::isInstance)
+        .containsExactlyElementsOf(outbox);
+    // CORE-02-12: kèm sự kiện trong tiến trình TrangThaiNhiemVuDoi.
+    assertThat(published)
+        .filteredOn(vn.viettel.okrkpi.task.api.events.TrangThaiNhiemVuDoi.class::isInstance)
+        .hasSize(1);
     assertThat(repo.updates.get(0).completedAt()).isNull();
     assertThat(service().stateLog(TENANT, r.task())).hasSize(1);
     assertThat(service().find(TENANT, taskId)).isPresent();
