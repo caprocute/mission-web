@@ -1,7 +1,7 @@
 {{- define "org-service.name" -}}org-service{{- end -}}
 
 {{- define "org-service.fullname" -}}
-{{- printf "%s" .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- default .Release.Name .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{- define "org-service.labels" -}}
@@ -40,4 +40,9 @@ capabilities:
   drop: ["ALL"]
 seccompProfile:
   type: RuntimeDefault
+{{- end -}}
+
+{{/* Namespace đích (INF-02): khoá namespace trong values, mặc định là namespace của release. */}}
+{{- define "org-service.namespace" -}}
+{{- default .Release.Namespace .Values.namespace -}}
 {{- end -}}

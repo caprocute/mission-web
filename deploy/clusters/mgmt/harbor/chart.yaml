@@ -1,0 +1,5 @@
+# Ghim chart Harbor dùng cho cụm quản trị (Argo CD Application ở INF-08 đọc tệp này).
+repo: https://helm.goharbor.io
+chart: harbor
+version: 1.19.4        # Harbor 2.15.4
+namespace: harbor

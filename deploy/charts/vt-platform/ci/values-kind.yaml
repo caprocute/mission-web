@@ -1,0 +1,50 @@
+# Cài thử vt-platform trên kind (INF-02): chỉ bật web-frontend và một service mẫu (notification-service chạy
+# ảnh http-echo), các chart khác tắt vì đã cài riêng ở INF-08, INF-14 hoặc chưa có ảnh. Ảnh theo digest do
+# kiem-thu-kind.sh nạp vào node; nodePool none vì node kind không có nhãn vt.io/pool.
+global:
+  cell: kind
+  sizing: compact
+api-gateway: { enabled: false }
+iam: { enabled: false }
+org-service: { enabled: false }
+mission-core: { enabled: false }
+workflow-service: { enabled: false }
+scoring-service: { enabled: false }
+evidence-service: { enabled: false }
+ledger-service: { enabled: false }
+esign-service: { enabled: false }
+document-service: { enabled: false }
+integration-gateway: { enabled: false }
+ai-gateway: { enabled: false }
+analytics: { enabled: false }
+search: { enabled: false }
+cell-base: { enabled: false }
+observability-cell: { enabled: false }
+data-pg: { enabled: false }
+kafka: { enabled: false }
+valkey: { enabled: false }
+opensearch: { enabled: false }
+clickhouse: { enabled: false }
+openbao: { enabled: false }
+web-frontend:
+  enabled: true
+  nodePool: none
+  image:
+    repository: docker.io/vt-local/web-frontend-thu
+    digest: ANH_WEB
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+notification-service:
+  enabled: true
+  nodePool: none
+  image:
+    repository: docker.io/hashicorp/http-echo
+    digest: sha256:fcb75f691c8b0414d670ae570240cbf95502cc18a9ba57e982ecac589760a186
+  args: ["-listen=:8080", "-text=ok"]
+  ports: { http: 8080, mgmt: 8080 }
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 128Mi }
+  autoscaling:
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 4 }
+  serviceMonitor: { enabled: false }

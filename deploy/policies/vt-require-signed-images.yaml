@@ -1,0 +1,51 @@
+# SEC-28, SEC-38, SEC-55 (TL-04 mục 9.3 "Chính sách Kyverno bắt buộc"): chỉ chạy ảnh Harbor nội bộ theo digest,
+# có chữ ký cosign và chứng thực SLSA Provenance v1 do builder Jenkins của dự án sinh ra.
+# Khác mẫu TL-04 ở hai điểm (wiki 14): nhãn namespace là vt.io/security-zone do cell-base gắn (vt.io/zone là nhãn
+# node của pool secure), và attestor bỏ qua Rekor/CT log vì pipeline INF-05 ký với --tlog-upload=false trong mạng nội bộ.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: vt-require-signed-images
+  annotations:
+    policies.kyverno.io/title: Ảnh đã ký và có chứng thực SLSA
+    policies.kyverno.io/description: "Chỉ chạy ảnh từ Harbor nội bộ, theo digest, có chữ ký cosign và chứng thực SLSA (SEC-38, SEC-55)."
+spec:
+  validationFailureAction: Enforce
+  webhookTimeoutSeconds: 15
+  background: false
+  rules:
+    - name: verify-signature-and-provenance
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+              namespaceSelector:
+                matchExpressions:
+                  - { key: vt.io/security-zone, operator: In, values: ["app", "data", "secure", "edge", "egress"] }
+      verifyImages:
+        - imageReferences: ["harbor.vt.local/*"]
+          mutateDigest: false
+          verifyDigest: true
+          required: true
+          attestors:
+            - entries:
+                - keys:
+                    kms: "hashivault://cosign-release"
+                    rekor: { ignoreTlog: true }
+                    ctlog: { ignoreSCT: true }
+          attestations:
+            - type: https://slsa.dev/provenance/v1
+              attestors:
+                - entries:
+                    - keys:
+                        kms: "hashivault://cosign-release"
+                        rekor: { ignoreTlog: true }
+                        ctlog: { ignoreSCT: true }
+              conditions:
+                - all:
+                    - key: "{{ buildDefinition.externalParameters.repository }}"
+                      operator: AnyIn
+                      value: ["https://git.vt.local/okr/*"]
+                    - key: "{{ runDetails.builder.id }}"
+                      operator: Equals
+                      value: "https://jenkins.vt.local/okr-builder"

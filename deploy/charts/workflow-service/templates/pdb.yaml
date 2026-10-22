@@ -2,6 +2,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: {{ .Values.api.name }}-pdb
+  namespace: {{ include "workflow-service.namespace" . }}
   labels:
     {{- include "workflow-service.labels" . | nindent 4 }}
 spec:

@@ -1,0 +1,12 @@
+{{- /*
+Chart nhiều workload (INF-02): mỗi phần tử trong thanhPhan là một bộ values của vt-service, dùng chung global.
+Đặt thanhPhan.<tên>.enabled: false để tắt một thành phần.
+*/ -}}
+{{- range $ten, $c := .Values.thanhPhan }}
+{{- if ne (toString $c.enabled) "false" }}
+{{- $vals := deepCopy (omit $c "enabled") }}
+{{- $_ := set $vals "global" (deepCopy ($.Values.global | default dict)) }}
+{{- if not $vals.name }}{{ $_ := set $vals "name" $ten }}{{ end }}
+{{ include "vt-service.all" (dict "Values" $vals "Release" $.Release "Chart" $.Chart) }}
+{{- end }}
+{{- end }}

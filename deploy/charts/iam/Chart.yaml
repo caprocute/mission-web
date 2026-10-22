@@ -7,3 +7,8 @@ appVersion: "26.4.0"
 annotations:
   mission/svc: SVC-02
   mission/task: DV-02-01
+dependencies:
+  # INF-02: workload máy chủ Keycloak dựng bằng thư viện vt-service (khoá mayChu trong values).
+  - name: vt-service
+    version: 0.1.0
+    repository: file://../vt-service

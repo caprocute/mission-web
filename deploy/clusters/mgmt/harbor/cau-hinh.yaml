@@ -1,0 +1,58 @@
+# Cấu hình khai báo của Harbor (INF-07): project, proxy-cache, robot account, nhân bản. Áp bằng ap-dung-cau-hinh.sh
+# (gọi API Harbor v2.0, chạy lại nhiều lần không đổi kết quả). Không chứa bí mật: mật khẩu robot do Harbor sinh,
+# script ghi thẳng vào OpenBao kv/mgmt/harbor/robots/<tên>.
+
+# Chính sách chung cho mọi project chứa ảnh tự build: quét khi đẩy, chặn kéo ảnh có lỗ hổng Critical (SEC-38),
+# chặn kéo ảnh chưa ký cosign (lớp thứ hai, lớp đầu là Kyverno vt-require-signed-images).
+macDinhProject: &md
+  public: "false"
+  auto_scan: "true"
+  prevent_vul: "true"
+  severity: critical
+  enable_content_trust_cosign: "true"
+  reuse_sys_cve_allowlist: "true"
+
+projects:
+  - {ten: platform, mucDich: "ảnh nền tảng: base image, công cụ CI, Jenkins agent", metadata: *md}
+  - {ten: okr, mucDich: "ảnh dịch vụ OKR/KPI do pipeline ký (INF-05)", metadata: *md}
+  - {ten: k8s, mucDich: "ảnh thành phần cụm đã kiểm duyệt và ký lại (Kyverno, Argo CD, Istio...)", metadata: *md}
+
+# Proxy-cache cho ảnh bên thứ ba: cụm không kéo trực tiếp từ Internet. Ảnh qua cache cũng bị quét và chặn
+# Critical; không bật kiểm chữ ký cosign vì ảnh upstream không ký bằng khoá của ta (Kyverno chỉ cho chạy qua
+# PolicyException có hạn, xem deploy/policies/README.md).
+proxyCache:
+  - {ten: dockerhub,    loai: docker-hub, url: https://registry-1.docker.io}
+  - {ten: quay,         loai: quay,       url: https://quay.io}
+  - {ten: ghcr,         loai: github-ghcr, url: https://ghcr.io}
+  - {ten: k8s-registry, loai: docker-registry, url: https://registry.k8s.io}
+  - {ten: fluentbit,    loai: docker-registry, url: https://cr.fluentbit.io}
+  - {ten: gcr,          loai: docker-registry, url: https://gcr.io}
+macDinhProxyCache:
+  public: "false"
+  auto_scan: "true"
+  prevent_vul: "true"
+  severity: critical
+
+# Robot account cấp hệ thống. Jenkins chỉ đẩy và kéo trong hai project okr, platform (kéo cần cho cosign gắn chữ ký),
+# mỗi cụm chỉ kéo. Thời hạn 90 ngày, xoay vòng bằng chạy lại script với --xoay.
+robots:
+  - ten: jenkins-push
+    moTa: Jenkins đẩy ảnh đã ký và chữ ký, attestation (INF-05)
+    hanNgay: 90
+    quyen:
+      - {project: okr,      hanhDong: [push, pull]}
+      - {project: platform, hanhDong: [push, pull]}
+  - {ten: pull-cell-g4-hl, moTa: "cụm cell G4 Hòa Lạc chỉ kéo", hanNgay: 90, quyen: [{project: "*", hanhDong: [pull]}]}
+  - {ten: pull-cell-g4-sn, moTa: "cụm cell G4 Sơn Nam chỉ kéo", hanNgay: 90, quyen: [{project: "*", hanhDong: [pull]}]}
+  - {ten: pull-mgmt-hl,    moTa: "cụm quản trị Hòa Lạc chỉ kéo", hanNgay: 90, quyen: [{project: "*", hanhDong: [pull]}]}
+  - {ten: pull-mgmt-sn,    moTa: "cụm quản trị Sơn Nam chỉ kéo", hanNgay: 90, quyen: [{project: "*", hanhDong: [pull]}]}
+
+# Nhân bản sang harbor-sn (TL-04 mục 12, DR). Tạo sẵn ở trạng thái tắt; INF-18 bật khi harbor-sn đã dựng.
+nhanBan:
+  dich: {ten: harbor-sn, loai: harbor, url: https://harbor-sn.vt.local, secretOpenBao: kv/mgmt/harbor/robots/replicate-sn}
+  quyTac:
+    - ten: nhan-ban-sang-sn
+      bat: false
+      kichHoat: event_based          # đẩy ngay khi có ảnh mới, kèm chữ ký và attestation (artifact phụ)
+      xoaTheo: true
+      boLoc: [{type: name, value: "{okr,platform,k8s}/**"}]

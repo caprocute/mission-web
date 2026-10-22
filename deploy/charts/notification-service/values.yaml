@@ -1,0 +1,65 @@
+# SVC-12 notification-service: thông báo và SSE, đóng SSE dần trong 30 s (TL-04 mục 5.2).
+# Mặc định là cell hạng L theo bảng TL-04 mục 5.2. Digest ảnh toàn số 0 là giả lập; CI thay bằng digest thật (INF-05).
+global:
+  cell: ''
+  sizing: L
+name: notification-service
+namespace: platform
+image:
+  repository: harbor.vt.local/platform/notification-service
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+runtime: go
+resources:
+  requests:
+    cpu: '2'
+    memory: 2Gi
+  limits:
+    cpu: '2'
+    memory: 2Gi
+probes:
+  startup:
+    periodSeconds: 5
+    failureThreshold: 6
+pdb:
+  maxUnavailable: 1
+autoscaling:
+  hpa:
+    enabled: true
+    minReplicas: 4
+    maxReplicas: 10
+    cpuUtilization: 75
+workload:
+  terminationGracePeriodSeconds: 40
+  preStopSleepSeconds: 30
+networkPolicy:
+  ingressFrom:
+    - namespace: edge
+      podLabels:
+        app.kubernetes.io/name: apisix
+      ports:
+        - port: 8080
+    - namespace: observability
+      ports:
+        - port: 8081
+  egressTo:
+    - namespace: data-kafka
+      podLabels:
+        strimzi.io/cluster: kafka-cell
+      ports:
+        - port: 9093
+    - namespace: data-kafka
+      podLabels:
+        app.kubernetes.io/name: valkey
+      ports:
+        - port: 6379
+    - namespace: egress
+      podLabels:
+        app.kubernetes.io/name: egress-gateway
+      ports:
+        - port: 443
+      internet: true
+    - namespace: observability
+      podLabels:
+        app.kubernetes.io/name: otel-agent
+      ports:
+        - port: 4317

@@ -1,0 +1,95 @@
+{{- $v := .Values }}
+{{- $name := include "cell-cluster.req" (list $v.clusterName "clusterName") }}
+{{- $i := $v.infrastructure }}
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: {{ $name }}
+  namespace: {{ $v.namespace }}
+  labels:
+    vt.io/cell: {{ $v.cell | quote }}
+spec:
+  clusterNetwork:
+    pods: { cidrBlocks: [{{ $v.network.podCIDR }}] }
+    services: { cidrBlocks: [{{ $v.network.serviceCIDR }}] }
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: KubeadmControlPlane
+    name: {{ $name }}-cp
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: OpenStackCluster
+    name: {{ $name }}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackCluster
+metadata:
+  name: {{ $name }}
+  namespace: {{ $v.namespace }}
+spec:
+  identityRef:
+    type: Secret
+    cloudName: {{ include "cell-cluster.req" (list $i.cloudName "infrastructure.cloudName") }}
+    name: {{ include "cell-cluster.req" (list $i.identitySecret "infrastructure.identitySecret") }}
+  externalNetwork:
+    filter: { name: {{ include "cell-cluster.req" (list $i.externalNetwork "infrastructure.externalNetwork") }} }
+  managedSubnets:
+    - cidr: {{ include "cell-cluster.req" (list $i.nodeCIDR "infrastructure.nodeCIDR") }}
+  apiServerLoadBalancer: { enabled: true }
+  # Ba master trên ba vùng sự cố (TL-04 mục 3.2, hình 3.1).
+  controlPlaneAvailabilityZones: {{ toJson $v.zones }}
+  # Cilium quản lý NetworkPolicy; nhóm bảo mật của OpenStack chỉ mở cổng control plane và node.
+  managedSecurityGroups:
+    allowAllInClusterTraffic: true
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: {{ $name }}-cp
+  namespace: {{ $v.namespace }}
+spec:
+  replicas: {{ $v.controlPlane.replicas | int }}
+  version: {{ $v.kubernetesVersion }}
+  # Nâng cấp lần lượt từng master (OPS-15).
+  rolloutStrategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1 }
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: OpenStackMachineTemplate
+      name: {{ $name }}-cp
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+        extraArgs:
+          tls-min-version: VersionTLS13
+          profiling: "false"
+      controllerManager:
+        extraArgs: { profiling: "false" }
+      scheduler:
+        extraArgs: { profiling: "false" }
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: external
+          node-labels: vt.io/cell={{ $v.cell }}
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: external
+          node-labels: vt.io/cell={{ $v.cell }}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: {{ $name }}-cp
+  namespace: {{ $v.namespace }}
+spec:
+  template:
+    spec:
+      flavor: {{ include "cell-cluster.req" (list $v.controlPlane.flavor "controlPlane.flavor") }}
+      image: { filter: { name: {{ include "cell-cluster.req" (list $i.image "infrastructure.image") }} } }
+      {{- with $i.sshKeyName }}
+      sshKeyName: {{ . }}
+      {{- end }}

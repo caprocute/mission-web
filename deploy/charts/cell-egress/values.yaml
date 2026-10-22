@@ -1,0 +1,42 @@
+# Cổng ra của cell (TL-04 mục 9.5, SEC-36). Danh sách đích là minh hoạ theo TL-04; danh sách thật lấy từ hồ sơ tích
+# hợp của từng tenant (SVC-13) và được sinh vào kho GitOps khi một tích hợp mới được duyệt.
+destinations:
+  - { name: vneid,   fqdn: api.vneid.gov.vn, ports: [443] }
+  - { name: mysign,  fqdn: rs.mysign.vn, ports: [443] }
+  - { name: tsa,     fqdn: tsa.ca.gov.vn, ports: [443] }
+  - { name: lgsp,    pattern: "*.lgsp.vt-province.gov.vn", ports: [443] }
+  - { name: ndxp,    fqdn: ndxp.gov.vn, ports: [443] }
+  - { name: voffice, fqdn: voffice.vt-province.gov.vn, ports: [443] }
+  - { name: sms,     fqdn: sms-gw.vt-provider.vn, ports: [443] }
+  - { name: email,   fqdn: smtp.vt-provider.vn, ports: [587] }
+
+gateway:
+  name: egress-gateway
+  replicas: 3
+  # Envoy bản distroless, ghim digest (SEC-55); cụm thật kéo qua proxy-cache Harbor (INF-07).
+  image:
+    repository: harbor.vt.local/proxy-docker/envoyproxy/envoy
+    digest: sha256:fc09f2e087b6a68f8464738f6bcc0757ff8be9ad50c9aec0450e82615fdb9e66
+  # Cổng 443 khớp egressTo của các chart dịch vụ (vt-service, cờ internet: true); ứng dụng dùng
+  # HTTPS_PROXY=http://egress-gateway.egress.svc:443 (CONNECT). Chặng ứng dụng → gateway đã có mTLS của ztunnel.
+  port: 443
+  # IP cố định để đối tác lọc: gateway chỉ chạy trên pool có địa chỉ node cố định, gói ra được SNAT về IP node
+  # (masquerade iptables của Cilium). Không dùng Cilium Egress Gateway vì cần bpf.masquerade, không tương thích
+  # Istio ambient (suy luận, ghi ở wiki 14).
+  nodeSelector: { vt.io/pool: ingress }
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits: { cpu: "1", memory: 256Mi }
+
+# Namespace được gọi egress gateway (vùng ứng dụng và bảo mật; không có vùng dữ liệu).
+callerNamespaces: [core, identity, platform, workers, analytics, secure]
+
+# Chặn ra Internet cho mọi pod ngoài namespace egress (CiliumClusterwideNetworkPolicy, egressDeny). Dải nội bộ được
+# phép (cụm quản trị, Ceph RGW, mạng HSM…) khai theo cell; giữ trống ở mặc định.
+denyWorld:
+  enabled: true
+  exceptCIDRs: []
+
+# Cảnh báo luồng bị chặn ra ngoài (số liệu Hubble của Cilium, Prometheus của cell INF-14).
+alerts:
+  enabled: true

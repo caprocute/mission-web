@@ -1,0 +1,54 @@
+# SVC-17 web-frontend: origin nginx không root phục vụ shell và remote (TL-04 mục 5.2).
+# Mặc định là cell hạng L theo bảng TL-04 mục 5.2. Digest ảnh toàn số 0 là giả lập; CI thay bằng digest thật (INF-05).
+global:
+  cell: ''
+  sizing: L
+name: web-frontend
+namespace: platform
+image:
+  repository: harbor.vt.local/platform/web-frontend
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+runtime: nginx
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+probes:
+  startup:
+    periodSeconds: 2
+    failureThreshold: 15
+pdb:
+  minAvailable: 1
+  maxUnavailable: ''
+autoscaling:
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    cpuUtilization: 75
+ports:
+  http: 8080
+  mgmt: 8080
+serviceMonitor:
+  enabled: false
+tmpSizeLimit: 64Mi
+env:
+  - name: RUNTIME_DIR
+    value: /tmp/runtime
+  - name: API_BASE_URL
+    value: /api
+  - name: AUTH_ENABLED
+    value: 'true'
+  - name: USE_MOCK_API
+    value: 'false'
+networkPolicy:
+  ingressFrom:
+    - namespace: edge
+      podLabels:
+        app.kubernetes.io/name: apisix
+      ports:
+        - port: 8080
+  egressTo: []

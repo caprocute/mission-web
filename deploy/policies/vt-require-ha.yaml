@@ -1,0 +1,58 @@
+# TL-04 mục 9.3 (vt-require-ha) và mục 6.1: độ sẵn sàng tối thiểu của workload sản xuất.
+# Khác mẫu TL-04 (wiki 14): workload do HPA hoặc ScaledObject quản lý không khai spec.replicas, nên quy tắc
+# đọc replicas khi có, và chỉ bắt buộc spread theo vùng; require-pdb chạy Audit như TL-04 ghi.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: vt-require-ha
+  annotations:
+    policies.kyverno.io/title: Độ sẵn sàng tối thiểu
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: deployment-min-replicas-and-spread
+      match:
+        any:
+          - resources:
+              kinds: ["Deployment", "Rollout"]
+              namespaceSelector: { matchLabels: { vt.io/security-zone: app } }
+      validate:
+        message: "Service sản xuất cần ít nhất 3 replica (hoặc do bộ co giãn quản lý) và topologySpreadConstraints theo zone với DoNotSchedule."
+        pattern:
+          spec:
+            =(replicas): ">=3"
+            template:
+              spec:
+                # ^() : chỉ cần một phần tử khớp (vt-service thêm ràng buộc thứ hai theo node, ScheduleAnyway).
+                ^(topologySpreadConstraints):
+                  - topologyKey: topology.kubernetes.io/zone
+                    whenUnsatisfiable: DoNotSchedule
+    - name: require-pdb
+      match:
+        any:
+          - resources:
+              kinds: ["Deployment", "Rollout"]
+              namespaceSelector: { matchLabels: { vt.io/security-zone: app } }
+      preconditions:
+        all:
+          - key: "{{ request.operation || 'BACKGROUND' }}"
+            operator: Equals
+            value: CREATE
+      # Đếm PDB cùng tên qua apiCall (tương đương lookup của mẫu TL-04, nhưng giả lập được trong kyverno test).
+      context:
+        - name: soPdb
+          apiCall:
+            urlPath: "/apis/policy/v1/namespaces/{{ request.namespace }}/poddisruptionbudgets"
+            jmesPath: "items[?metadata.name == '{{ request.object.metadata.name }}'] | length(@)"
+            default: 0
+      validate:
+        # Audit cho tới khi mọi chart sinh PDB trước Deployment trong cùng sóng đồng bộ Argo CD (TL-04).
+        failureAction: Audit
+        message: "Mỗi workload phải có PodDisruptionBudget cùng tên."
+        deny:
+          conditions:
+            all:
+              - key: "{{ soPdb }}"
+                operator: Equals
+                value: 0

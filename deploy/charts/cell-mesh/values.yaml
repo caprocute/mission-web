@@ -1,0 +1,38 @@
+# Lớp mesh của cell (TL-04 mục 3.7, mục 9.5 SEC-21). Namespace và nhãn ambient do cell-base tạo.
+
+# PeerAuthentication default ở istio-system: STRICT cho toàn cụm (ADR-11). Namespace dữ liệu ngoài mesh dùng TLS gốc.
+mtlsMode: STRICT
+
+# Namespace có waypoint L7 (TL-04 mục 3.5: secure và egress). cell-base gắn nhãn istio.io/use-waypoint tương ứng.
+# Mỗi namespace có ALLOW ở ztunnel chỉ cho danh tính của waypoint, để không ai gọi thẳng IP pod bỏ qua chính sách L7.
+waypoints:
+  secure: { name: waypoint }
+  egress: { name: waypoint }
+# Tham số Deployment waypoint do istiod sinh (parametersRef): đủ Pod Security restricted và trải ba vùng sự cố.
+waypointDeployment:
+  replicas: 3
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits: { memory: 256Mi }
+
+# Cổng thu số liệu của Prometheus (namespace observability ngoài mesh, lưu lượng không mTLS): PeerAuthentication
+# theo workload cho phép PERMISSIVE riêng các cổng này, NetworkPolicy vẫn chỉ cho Prometheus tới (INF-14).
+# Service dựng bằng vt-service tự sinh ngoại lệ cho cổng mgmt; danh sách dưới đây cho thành phần bên thứ ba.
+scrapePorts:
+  - { namespace: edge, name: apisix-metrics, selector: { app.kubernetes.io/name: apisix }, ports: [9091] }
+  - { namespace: identity, name: keycloak-metrics, selector: { app.kubernetes.io/name: keycloak }, ports: [9000] }
+
+# esign-allow-callers đúng mẫu TL-04 mục 3.7: chỉ mission-core và workflow executor tạo yêu cầu ký và lô ký.
+esign:
+  enabled: true
+  namespace: secure
+  service: esign-service
+  callers:
+    - cluster.local/ns/core/sa/mission-core
+    - cluster.local/ns/core/sa/workflow-executor
+  methods: ["POST"]
+  paths: ["/internal/v1/sign-requests", "/internal/v1/sign-batches"]
+
+# Namespace trong mesh (khớp nhãn ambient của cell-base): nguồn được gửi HBONE tới waypoint. Điều khiển ai được
+# gọi service nào nằm ở AuthorizationPolicy của waypoint; NetworkPolicy chỉ mở cổng HBONE 15008 giữa các pod mesh.
+meshNamespaces: [edge, core, identity, platform, workers, analytics, secure, egress]

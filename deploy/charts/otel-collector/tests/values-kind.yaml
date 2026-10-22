@@ -1,0 +1,23 @@
+cell: kind
+agent:
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+gateway:
+  replicas: 3
+  nodePool: none
+  queueStorage: 1Gi
+  resources:
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  tailSampling:
+    # Bằng giá trị chính: APISIX gửi span theo lô nên span gốc có thể tới sau span của dịch vụ vài giây;
+    # chờ quá ngắn thì quyết định lấy mẫu được đưa ra trước khi thấy `vt.debug` và trace bị bỏ.
+    decisionWait: 15s
+    numTraces: 10000
+    expectedNewTracesPerSec: 100
+tempo:
+  endpoint: tempo.observability.svc:4317
+  caSecret: ""
+faro:
+  lokiOtlpEndpoint: http://loki.observability.svc:3100/otlp

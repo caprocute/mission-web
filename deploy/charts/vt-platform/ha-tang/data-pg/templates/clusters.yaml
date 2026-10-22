@@ -1,0 +1,129 @@
+{{- $root := . }}
+{{- $v := .Values }}
+{{- if not (regexMatch "^sha256:[a-f0-9]{64}$" (toString $v.image.digest)) }}{{ fail "data-pg: ảnh PostgreSQL phải ghim digest sha256 (SEC-55)" }}{{ end }}
+{{- $hs := index $v.hoSo (include "data-pg.sizing" .) }}
+{{- $cums := fromYaml (include "data-pg.clusters" .) }}
+{{- range $ten, $c := $cums }}
+{{- $k := fromYaml (include "data-pg.size" (dict "root" $root "ten" $ten)) }}
+{{- $pl := ternary $v.placement.secure $v.placement.app (eq $c.zone "secure") }}
+{{- $mem := int $k.memGi }}
+{{- /* Vai trò của mọi schema trong cụm (tên vai trò là toàn cụm, các CSDL tenant dùng chung vai trò). */}}
+{{- $schemas := fromYamlArray (include "data-pg.schemas" $c) }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ $ten }}
+  namespace: {{ include "data-pg.ns" (dict "root" $root "zone" $c.zone) }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+    vt.io/security-zone: {{ $c.zone }}
+spec:
+  instances: {{ $v.instances }}
+  imageName: "{{ $v.image.repository }}:{{ $v.image.tag }}@{{ $v.image.digest }}"
+  primaryUpdateStrategy: supervised
+  smartShutdownTimeout: {{ $v.shutdown.smartShutdownTimeout }}
+  stopDelay: {{ $v.shutdown.stopDelay }}
+  switchoverDelay: {{ $v.shutdown.switchoverDelay }}
+  enableSuperuserAccess: false
+  postgresql:
+    synchronous:
+      method: any
+      number: 1
+      dataDurability: required
+    parameters:
+      max_connections: {{ $k.maxConn | quote }}
+      shared_buffers: "{{ div (mul $mem 1024) 4 }}MB"
+      effective_cache_size: "{{ div (mul $mem 1024 3) 4 }}MB"
+      maintenance_work_mem: "{{ max 64 (div (mul $mem 1024) 64) }}MB"
+      max_wal_size: "{{ max 2 (div $mem 4) }}GB"
+      min_wal_size: "{{ max 1 (div $mem 32) }}GB"
+      {{- range $p, $gt := $v.parameters }}
+      {{ $p }}: {{ $gt | quote }}
+      {{- end }}
+    pg_hba:
+      # Từ chối mọi kết nối không TLS (SEC-57). CNPG tự thêm cert cho streaming_replica và cnpg_pooler_pgbouncer.
+      - hostnossl all all 0.0.0.0/0 reject
+      - hostnossl all all ::/0 reject
+      # Vai trò ứng dụng đi qua PgBouncer nên xác thực bằng SCRAM trên TLS, không dùng chứng thư khách (wiki 14).
+      - hostssl all all 0.0.0.0/0 scram-sha-256
+  managed:
+    roles:
+      {{- range $s := $schemas }}
+      {{- $nguon := include "data-pg.nguonCuaSchema" (dict "root" $root "schema" $s) }}
+      {{- $pool := int (include "data-pg.pool" (dict "root" $root "schema" $s "nguon" $nguon)) }}
+      - name: mig_{{ $s }}
+        ensure: present
+        login: true
+        inherit: false
+        connectionLimit: {{ $v.roleLimits.mig }}
+        passwordSecret: { name: {{ $ten }}-mig-{{ $s | replace "_" "-" }} }
+      - name: svc_{{ $s }}
+        ensure: present
+        login: true
+        inherit: false
+        bypassrls: false
+        connectionLimit: {{ mul (max $pool 1) $hs.pooler }}
+        passwordSecret: { name: {{ $ten }}-svc-{{ $s | replace "_" "-" }} }
+      - name: ro_{{ $s }}
+        ensure: present
+        login: true
+        inherit: false
+        bypassrls: false
+        connectionLimit: {{ $v.roleLimits.ro }}
+        passwordSecret: { name: {{ $ten }}-ro-{{ $s | replace "_" "-" }} }
+      - name: cdc_{{ $s }}
+        ensure: present
+        login: true
+        inherit: false
+        replication: true
+        connectionLimit: {{ $v.roleLimits.cdc }}
+        passwordSecret: { name: {{ $ten }}-cdc-{{ $s | replace "_" "-" }} }
+      {{- end }}
+  certificates:
+    # PgBouncer của Pooler dùng chứng thư máy chủ của cụm, nên chứng thư phải có tên dịch vụ Pooler để client
+    # kiểm sslmode=verify-full.
+    serverAltDNSNames:
+      {{- range $loai := list "rw" "ro" }}
+      - {{ $ten }}-pooler-{{ $loai }}
+      - {{ $ten }}-pooler-{{ $loai }}.{{ include "data-pg.ns" (dict "root" $root "zone" $c.zone) }}.svc
+      {{- end }}
+  bootstrap:
+    initdb:
+      database: khoi_tao
+      owner: khoi_tao
+      {{- if and $v.baoAdmin.enabled (has $ten $v.baoAdmin.clusters) }}
+      postInitSQLRefs:
+        secretRefs:
+          - { name: {{ $ten }}-bao-admin-khoi-tao, key: khoi-tao.sql }
+      {{- end }}
+  resources:
+    requests:
+      cpu: {{ sub (int $k.cpu) (ternary 2 0 (gt (int $k.cpu) 8)) | quote }}
+      memory: {{ printf "%dGi" (ternary (sub $mem 16) $mem (gt $mem 64)) }}
+    limits:
+      cpu: {{ $k.cpu | quote }}
+      memory: {{ printf "%dGi" (ternary (sub $mem 16) $mem (gt $mem 64)) }}
+  storage:
+    storageClass: {{ $v.storageClass }}
+    size: {{ $k.data }}
+  {{- if $k.wal }}
+  walStorage:
+    storageClass: {{ $v.storageClass }}
+    size: {{ $k.wal }}
+  {{- end }}
+  affinity:
+    enablePodAntiAffinity: true
+    podAntiAffinityType: {{ ternary "preferred" $v.placement.antiAffinity (eq (include "data-pg.sizing" $root) "compact") }}
+    topologyKey: {{ ternary "kubernetes.io/hostname" "topology.kubernetes.io/zone" (eq (include "data-pg.sizing" $root) "compact") }}
+    {{- with $pl.nodeSelector }}
+    nodeSelector:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with $pl.tolerations }}
+    tolerations:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  monitoring:
+    enablePodMonitor: {{ $v.monitoring.enablePodMonitor }}
+{{- end }}

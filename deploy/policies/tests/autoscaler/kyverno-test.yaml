@@ -1,0 +1,35 @@
+# kyverno test cho vt-autoscaler-conflict (INF-07). soTrung giả lập số bộ co giãn trùng mà apiCall trả về.
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: vt-autoscaler-conflict
+policies:
+- ../../vt-autoscaler-conflict.yaml
+resources:
+- resources.yaml
+variables: values.yaml
+results:
+- policy: vt-autoscaler-conflict
+  rule: hpa-trung-scaledobject
+  kind: HorizontalPodAutoscaler
+  resources:
+  - dat-hpa
+  result: pass
+- policy: vt-autoscaler-conflict
+  rule: hpa-trung-scaledobject
+  kind: HorizontalPodAutoscaler
+  resources:
+  - hong-hpa
+  result: fail
+- policy: vt-autoscaler-conflict
+  rule: scaledobject-trung-hpa
+  kind: ScaledObject
+  resources:
+  - dat-so
+  result: pass
+- policy: vt-autoscaler-conflict
+  rule: scaledobject-trung-hpa
+  kind: ScaledObject
+  resources:
+  - hong-so
+  result: fail

@@ -1,0 +1,106 @@
+# Ca kiểm promtool cho rules/slo-api.yaml: mỗi cảnh báo có ca kích hoạt và ca không kích hoạt.
+rule_files: [../slo-api.yaml]
+evaluation_interval: 30s
+tests:
+  # 5% request lỗi 5xx: vượt cả 14,4 × 0,1% (cửa sổ 1 giờ và 5 phút) lẫn 6 × 0,1% (6 giờ và 30 phút).
+  - interval: 1m
+    external_labels: { cell: g4 }
+    input_series:
+      - { series: 'apisix_http_status{code="200", route="mission-core"}', values: '0+950x120' }
+      - { series: 'apisix_http_status{code="500", route="mission-core"}', values: '0+50x120' }
+    promql_expr_test:
+      - expr: slo:api_availability_errors:ratio_rate5m
+        eval_time: 70m
+        exp_samples: [{ labels: 'slo:api_availability_errors:ratio_rate5m', value: 4.9999999999999996E-02 }]
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: SLOAvailabilityFastBurn
+        exp_alerts:
+          - exp_labels: { severity: critical, slo: availability }
+            exp_annotations:
+              summary: "Cell g4 tiêu ngân sách lỗi khả dụng nhanh (14,4 lần)"
+              runbook_url: https://runbook.vt.local/okr/slo-availability
+              dashboard_url: https://grafana.vt.local/d/vt-slo-cell
+      - eval_time: 70m
+        alertname: SLOAvailabilitySlowBurn
+        exp_alerts:
+          - exp_labels: { severity: warning, slo: availability }
+            exp_annotations:
+              summary: "Cell g4 tiêu ngân sách lỗi khả dụng (6 lần)"
+              runbook_url: https://runbook.vt.local/okr/slo-availability
+              dashboard_url: https://grafana.vt.local/d/vt-slo-cell
+  # 1% lỗi: chỉ tiêu chậm (≥ 0,6%) kích hoạt, tiêu nhanh (≥ 1,44%) thì không.
+  - interval: 1m
+    external_labels: { cell: g4 }
+    input_series:
+      - { series: 'apisix_http_status{code="200"}', values: '0+990x120' }
+      - { series: 'apisix_http_status{code="503"}', values: '0+10x120' }
+    alert_rule_test:
+      - { eval_time: 70m, alertname: SLOAvailabilityFastBurn, exp_alerts: [] }
+      - eval_time: 70m
+        alertname: SLOAvailabilitySlowBurn
+        exp_alerts:
+          - exp_labels: { severity: warning, slo: availability }
+            exp_annotations:
+              summary: "Cell g4 tiêu ngân sách lỗi khả dụng (6 lần)"
+              runbook_url: https://runbook.vt.local/okr/slo-availability
+              dashboard_url: https://grafana.vt.local/d/vt-slo-cell
+  # 0,5% lỗi: dưới cả hai ngưỡng. Lỗi 4xx không tính vào ngân sách.
+  - interval: 1m
+    external_labels: { cell: g4 }
+    input_series:
+      - { series: 'apisix_http_status{code="200"}', values: '0+895x120' }
+      - { series: 'apisix_http_status{code="404"}', values: '0+100x120' }
+      - { series: 'apisix_http_status{code="502"}', values: '0+5x120' }
+    alert_rule_test:
+      - { eval_time: 70m, alertname: SLOAvailabilityFastBurn, exp_alerts: [] }
+      - { eval_time: 70m, alertname: SLOAvailabilitySlowBurn, exp_alerts: [] }
+  # Độ trễ: 80% request đọc và ghi chậm hơn ngưỡng thì kích hoạt; 10% thì không.
+  - interval: 1m
+    external_labels: { cell: g4 }
+    input_series:
+      - { series: 'apisix_http_latency_bucket{type="request", kind="read", le="300"}', values: '0+20x30' }
+      - { series: 'apisix_http_latency_count{type="request", kind="read"}', values: '0+100x30' }
+      - { series: 'apisix_http_latency_bucket{type="request", kind="write", le="800"}', values: '0+20x30' }
+      - { series: 'apisix_http_latency_count{type="request", kind="write"}', values: '0+100x30' }
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: SLOReadLatencyBurn
+        exp_alerts:
+          - exp_labels: { severity: critical, slo: read-latency }
+            exp_annotations:
+              summary: "Cell g4: hơn 72% request đọc chậm hơn 300 ms trong 5 phút"
+              runbook_url: https://runbook.vt.local/okr/slo-latency
+              dashboard_url: https://grafana.vt.local/d/vt-slo-cell
+      - eval_time: 15m
+        alertname: SLOWriteLatencyBurn
+        exp_alerts:
+          - exp_labels: { severity: critical, slo: write-latency }
+            exp_annotations:
+              summary: "Cell g4: hơn 72% request ghi chậm hơn 800 ms trong 5 phút"
+              runbook_url: https://runbook.vt.local/okr/slo-latency
+              dashboard_url: https://grafana.vt.local/d/vt-slo-cell
+  - interval: 1m
+    external_labels: { cell: g4 }
+    input_series:
+      - { series: 'apisix_http_latency_bucket{type="request", kind="read", le="300"}', values: '0+90x30' }
+      - { series: 'apisix_http_latency_count{type="request", kind="read"}', values: '0+100x30' }
+      - { series: 'apisix_http_latency_bucket{type="request", kind="write", le="800"}', values: '0+90x30' }
+      - { series: 'apisix_http_latency_count{type="request", kind="write"}', values: '0+100x30' }
+    alert_rule_test:
+      - { eval_time: 15m, alertname: SLOReadLatencyBurn, exp_alerts: [] }
+      - { eval_time: 15m, alertname: SLOWriteLatencyBurn, exp_alerts: [] }
+  # Không có request 5xx: tỷ lệ lỗi bằng 0 (không rỗng); nhãn le dạng "300.0" của Prometheus 3 vẫn được tính.
+  - interval: 1m
+    external_labels: { cell: g4 }
+    input_series:
+      - { series: 'apisix_http_status{code="200"}', values: '0+100x30' }
+      - { series: 'apisix_http_latency_bucket{type="request", kind="read", le="300.0"}', values: '0+99x30' }
+      - { series: 'apisix_http_latency_count{type="request", kind="read"}', values: '0+100x30' }
+    promql_expr_test:
+      - expr: slo:api_availability_errors:ratio_rate5m
+        eval_time: 15m
+        exp_samples: [{ labels: 'slo:api_availability_errors:ratio_rate5m', value: 0 }]
+      - expr: slo:api_read_fast:ratio_rate5m
+        eval_time: 15m
+        exp_samples: [{ labels: 'slo:api_read_fast:ratio_rate5m', value: 9.899999999999999E-01 }]

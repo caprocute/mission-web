@@ -1,0 +1,8 @@
+apiVersion: v2
+name: cell-egress
+description: >-
+  Cổng ra của một cell (TL-04 mục 9.5, SEC-36): egress gateway (Envoy proxy CONNECT) trong namespace egress, chỉ
+  chuyển tiếp tới danh sách đích được duyệt; CiliumNetworkPolicy toFQDNs chỉ cho egress gateway ra ngoài, chính sách
+  toàn cụm chặn mọi pod khác ra Internet; Hubble ghi luồng bị chặn và cảnh báo.
+type: application
+version: 0.1.0

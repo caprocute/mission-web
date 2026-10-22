@@ -1,0 +1,19 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Value
+metadata:
+  name: values
+policies:
+- name: vt-autoscaler-conflict
+  resources:
+  - name: dat-hpa
+    values:
+      soTrung: 0
+  - name: hong-hpa
+    values:
+      soTrung: 1
+  - name: dat-so
+    values:
+      soTrung: 0
+  - name: hong-so
+    values:
+      soTrung: 1

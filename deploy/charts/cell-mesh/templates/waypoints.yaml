@@ -1,0 +1,68 @@
+{{- $d := $.Values.waypointDeployment }}
+{{- range $ns, $w := .Values.waypoints }}
+---
+# Istio trộn các mảnh dưới đây vào Deployment, PDB của waypoint: namespace {{ $ns }} chạy Pod Security restricted.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $w.name }}-tham-so
+  namespace: {{ $ns }}
+data:
+  deployment: |
+    spec:
+      replicas: {{ $d.replicas }}
+      template:
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile: { type: RuntimeDefault }
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector:
+                matchLabels: { gateway.networking.k8s.io/gateway-name: {{ $w.name }} }
+          containers:
+            - name: istio-proxy
+              resources:
+                {{- toYaml $d.resources | nindent 16 }}
+  podDisruptionBudget: |
+    spec:
+      minAvailable: 1
+      selector:
+        matchLabels: { gateway.networking.k8s.io/gateway-name: {{ $w.name }} }
+---
+# Waypoint L7 của namespace {{ $ns }} (TL-04 mục 3.7): thực thi AuthorizationPolicy có targetRefs theo đường dẫn, phương thức.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ $w.name }}
+  namespace: {{ $ns }}
+  labels:
+    istio.io/waypoint-for: service
+spec:
+  gatewayClassName: istio-waypoint
+  infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: {{ $w.name }}-tham-so
+  listeners:
+    - name: mesh
+      port: 15008
+      protocol: HBONE
+---
+# Pod trong {{ $ns }} chỉ nhận lưu lượng mesh đi qua waypoint: ztunnel thấy danh tính của waypoint, nên chính sách
+# theo người gọi thật được đặt ở waypoint (targetRefs). Cổng thu số liệu được mở riêng bằng scrapePorts/vt-service.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: chi-qua-waypoint
+  namespace: {{ $ns }}
+spec:
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/{{ $ns }}/sa/{{ $w.name }}"]
+{{- end }}

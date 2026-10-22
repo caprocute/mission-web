@@ -1,0 +1,8 @@
+# Chỉ để render/lint: digest giả cho ảnh Coraza (ảnh thật nằm trên Harbor, điền ở values của môi trường).
+coraza:
+  image:
+    digest: sha256:1111111111111111111111111111111111111111111111111111111111111111
+apisix:
+  tls: { secretName: apisix-tls, hosts: ["*.danhgia.vn"] }
+ingressController:
+  apiServerCIDRs: ["10.0.0.0/24"]

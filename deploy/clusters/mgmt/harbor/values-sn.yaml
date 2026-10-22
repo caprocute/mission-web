@@ -1,0 +1,18 @@
+# Harbor ở trung tâm dự phòng (harbor-sn, cụm mgmt-sn). Ghép sau values.yaml. Nhận ảnh nhân bản từ harbor-hl
+# theo quy tắc "nhan-ban-sang-sn" trong cau-hinh.yaml; INF-18 bật quy tắc đó.
+expose:
+  ingress:
+    hosts:
+      core: harbor-sn.vt.local
+externalURL: https://harbor-sn.vt.local
+persistence:
+  imageChartStorage:
+    s3:
+      bucket: harbor-mgmt-sn
+      regionendpoint: https://rgw.mgmt-sn.vt.local
+database:
+  external:
+    host: pg-mgmt-sn-rw.data.svc
+redis:
+  external:
+    addr: valkey-mgmt-sn.data.svc:6379

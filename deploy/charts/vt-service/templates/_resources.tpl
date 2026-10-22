@@ -28,7 +28,11 @@ data:
 {{- end }}
 {{- end -}}
 
-{{/* ExternalSecret nạp bí mật từ OpenBao (ADR-17); không bao giờ chứa giá trị bí mật. */}}
+{{/*
+ExternalSecret nạp bí mật từ OpenBao (ADR-17) qua ClusterSecretStore openbao-cell (INF-13); không bao giờ chứa giá
+trị bí mật. Làm mới 15 phút; Secret thuộc sở hữu ExternalSecret (Owner) nhưng giữ lại khi xoá ExternalSecret hay
+khi OpenBao tạm mất (deletionPolicy Retain), để pod đang chạy không mất cấu hình (TL-04 mục 9.4, DR-15).
+*/}}
 {{- define "vt-service.externalSecret" -}}
 {{- $es := .v.externalSecret -}}
 {{- if $es.enabled }}
@@ -44,6 +48,7 @@ spec:
   target:
     name: {{ default (printf "%s-secrets" .v.name) $es.targetName }}
     creationPolicy: Owner
+    deletionPolicy: Retain
   {{- with $es.data }}
   data:
     {{- toYaml . | nindent 4 }}
@@ -172,6 +177,19 @@ spec:
       metadata:
         value: {{ .v.autoscaling.hpa.cpuUtilization | int | quote }}
     {{- end }}
+    {{- /* Cửa sổ tăng trước deadline-default (TL-04 mục 6.4): mỗi cửa sổ một trigger cron 06:00–23:00. */}}
+    {{- $ps := $k.preScale | default dict }}
+    {{- range $w := list (list "cuoi-quy" "24-31" "3,6,9,12" $ps.cuoiQuy) (list "truoc-ngay-10-dau-quy" "1-10" "1,4,7,10" $ps.dauQuy) (list "ho-so-nam-thang-1" "20-31" "1" $ps.hoSoNam) (list "ho-so-nam-ngay-1-2" "1" "2" $ps.hoSoNam) }}
+    {{- if gt (int (index $w 3)) 0 }}
+    - type: cron
+      name: {{ index $w 0 }}
+      metadata:
+        timezone: Asia/Ho_Chi_Minh
+        start: {{ printf "0 6 %s %s *" (index $w 1) (index $w 2) | quote }}
+        end: {{ printf "0 23 %s %s *" (index $w 1) (index $w 2) | quote }}
+        desiredReplicas: {{ index $w 3 | int | quote }}
+    {{- end }}
+    {{- end }}
 {{- end }}
 {{- end -}}
 
@@ -216,12 +234,24 @@ spec:
       {{- include "vt-service.selectorLabels" . | nindent 6 }}
   policyTypes: ["Ingress", "Egress"]
   ingress:
+    {{- if .v.serviceMonitor.enabled }}
+    # Prometheus của cell (observability-cell, INF-14) thu metric qua cổng quản trị.
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: observability } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: prometheus } }
+      ports:
+        - { protocol: TCP, port: {{ .v.ports.mgmt | int }} }
+    {{- end }}
     {{- range $np.ingressFrom }}
+    {{- $hb := include "vt-service.hbone" (dict "v" $.v "peer" .) }}
     - from:
         {{- include "vt-service.peer" . | nindent 8 }}
       {{- with .ports }}
       ports:
         {{- include "vt-service.ports" . | nindent 8 }}
+        {{- if eq $hb "cong" }}
+        - { protocol: TCP, port: 15008 }
+        {{- end }}
       {{- end }}
     {{- end }}
   egress:
@@ -235,14 +265,157 @@ spec:
       ports:
         - { protocol: UDP, port: 53 }
         - { protocol: TCP, port: 53 }
+    {{- if has .v.runtime (list "java" "go" "python") }}
+    # Span OTLP gửi tới OTel agent cùng node (otel-collector, INF-14).
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: observability } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: otel-agent } }
+      ports:
+        - { protocol: TCP, port: 4317 }
+        - { protocol: TCP, port: 4318 }
+    {{- end }}
     {{- range $np.egressTo }}
+    {{- $hb := include "vt-service.hbone" (dict "v" $.v "peer" .) }}
     - to:
         {{- include "vt-service.peer" . | nindent 8 }}
       {{- with .ports }}
       ports:
         {{- include "vt-service.ports" . | nindent 8 }}
+        {{- if eq $hb "cong" }}
+        - { protocol: TCP, port: 15008 }
+        {{- end }}
+      {{- end }}
+    {{- if eq $hb "waypoint" }}
+    # Đích ở namespace có waypoint: ztunnel gửi HBONE tới pod waypoint, waypoint chuyển tiếp (cell-mesh).
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .namespace }} } }
+          podSelector: { matchLabels: { gateway.networking.k8s.io/gateway-name: {{ $.v.global.mesh.waypointName }} } }
+      ports:
+        - { protocol: TCP, port: 15008 }
+    {{- end }}
+    {{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Cách lưu lượng mesh ambient đi tới hoặc từ một nguồn/đích của networkPolicy (INF-09). Trả về:
+"cong": hai đầu trong mesh, thêm cổng HBONE 15008; "waypoint": đích ở namespace có waypoint (chỉ dùng cho egressTo,
+ingress trong namespace có waypoint đến từ pod waypoint, do cell-mesh mở); rỗng: không liên quan mesh.
+*/}}
+{{- define "vt-service.hbone" -}}
+{{- $m := .v.global.mesh -}}
+{{- $ns := default .v.namespace .peer.namespace -}}
+{{- if and (has .v.namespace $m.ambientNamespaces) (has $ns $m.ambientNamespaces) (not .peer.ipBlock) -}}
+{{- if has $ns $m.waypointNamespaces -}}
+{{- if ne $ns .v.namespace -}}waypoint{{- end -}}
+{{- else -}}cong{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+AuthorizationPolicy và PeerAuthentication sinh từ networkPolicy.ingressFrom (INF-09, TL-04 mục 3.7). Namespace có
+waypoint: chính sách theo danh tính đặt ở waypoint (targetRefs tới Service); ztunnel chỉ cho waypoint và các cổng
+mở cho nguồn ngoài mesh. Namespace không có waypoint: ztunnel thực thi theo selector của workload.
+*/}}
+{{- define "vt-service.mesh" -}}
+{{- $v := .v -}}
+{{- $m := $v.global.mesh -}}
+{{- if and $v.authorizationPolicy.enabled (has $v.namespace $m.ambientNamespaces) -}}
+{{- $coWaypoint := has $v.namespace $m.waypointNamespaces -}}
+{{- $trongMesh := list -}}
+{{- $ngoaiMesh := list -}}
+{{- if and $v.serviceMonitor.enabled $v.service.enabled -}}
+{{- $ngoaiMesh = append $ngoaiMesh (int $v.ports.mgmt) -}}
+{{- end -}}
+{{- range $v.networkPolicy.ingressFrom -}}
+{{- $ns := default $v.namespace .namespace -}}
+{{- $cong := list -}}
+{{- range .ports -}}{{- $cong = append $cong (int .port) -}}{{- end -}}
+{{- if and (has $ns $m.ambientNamespaces) (not .ipBlock) -}}
+{{- $nguon := dict -}}
+{{- $ten := "" -}}
+{{- if .podLabels -}}{{- $ten = index .podLabels "app.kubernetes.io/name" | default "" -}}{{- end -}}
+{{- if $ten -}}
+{{- $_ := set $nguon "principals" (list (printf "cluster.local/ns/%s/sa/%s" $ns $ten)) -}}
+{{- else if .podLabels -}}
+{{- fail (printf "vt-service[%s]: ingressFrom từ namespace %s trong mesh cần nhãn app.kubernetes.io/name để suy ra danh tính SPIFFE" $v.name $ns) -}}
+{{- else -}}
+{{- $_ := set $nguon "namespaces" (list $ns) -}}
+{{- end -}}
+{{- $trongMesh = append $trongMesh (dict "source" $nguon "ports" $cong) -}}
+{{- else -}}
+{{- if not $cong -}}{{- fail (printf "vt-service[%s]: ingressFrom từ %s ngoài mesh phải khai ports" $v.name $ns) -}}{{- end -}}
+{{- $ngoaiMesh = concat $ngoaiMesh $cong -}}
+{{- end -}}
+{{- end -}}
+{{- $ngoaiMesh = $ngoaiMesh | uniq | sortAlpha -}}
+{{- $l7 := has (printf "%s/%s" $v.namespace $v.name) $m.l7Services -}}
+{{- if and $trongMesh (not $l7) }}
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  {{- include "vt-service.metadata" . | nindent 2 }}
+spec:
+  {{- if $coWaypoint }}
+  targetRefs:
+    - kind: Service
+      group: ""
+      name: {{ $v.name }}
+  {{- else }}
+  selector:
+    matchLabels:
+      {{- include "vt-service.selectorLabels" . | nindent 6 }}
+  {{- end }}
+  action: ALLOW
+  rules:
+    {{- range $trongMesh }}
+    - from:
+        - source:
+            {{- toYaml .source | nindent 12 }}
+      {{- if .ports }}
+      to:
+        - operation:
+            ports: [{{ range $i, $p := .ports }}{{ if $i }}, {{ end }}"{{ $p }}"{{ end }}]
       {{- end }}
     {{- end }}
+{{- end }}
+{{- if $ngoaiMesh }}
+---
+# Nguồn ngoài mesh (Prometheus, namespace dữ liệu) tới cổng {{ join ", " $ngoaiMesh }}: lưu lượng không mTLS, chỉ NetworkPolicy
+# giới hạn nguồn. Cổng khác của pod vẫn STRICT.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $v.name }}-ngoai-mesh
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "vt-service.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "vt-service.selectorLabels" . | nindent 6 }}
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            ports: [{{ range $i, $p := $ngoaiMesh }}{{ if $i }}, {{ end }}"{{ $p }}"{{ end }}]
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  {{- include "vt-service.metadata" . | nindent 2 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "vt-service.selectorLabels" . | nindent 6 }}
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    {{- range $ngoaiMesh }}
+    {{ . }}:
+      mode: PERMISSIVE
+    {{- end }}
+{{- end }}
 {{- end }}
 {{- end -}}
 
@@ -291,7 +464,7 @@ NetworkPolicy, ServiceMonitor, PrometheusRule.
 {{- fail (printf "vt-service: lỗi dựng cấu hình: %v" $v.Error) -}}
 {{- end -}}
 {{- $ctx := dict "root" . "v" $v -}}
-{{- range $t := list "serviceAccount" "configMap" "externalSecret" "pdb" "service" "workload" "hpa" "scaledObject" "networkPolicy" "serviceMonitor" "prometheusRule" }}
+{{- range $t := list "serviceAccount" "configMap" "externalSecret" "pdb" "service" "workload" "hpa" "scaledObject" "networkPolicy" "mesh" "serviceMonitor" "prometheusRule" }}
 {{- $out := include (printf "vt-service.%s" $t) $ctx | trim }}
 {{- if $out }}
 ---

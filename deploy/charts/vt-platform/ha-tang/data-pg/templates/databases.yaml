@@ -1,0 +1,39 @@
+{{- /*
+CSDL và schema theo TL-03 bằng CR Database của CNPG: mỗi schema thuộc vai trò mig_<schema> (chủ sở hữu, chạy
+migration), CSDL thuộc vai trò mig_ của schema đầu tiên. Extension (pgvector cho ai) do CR tạo.
+*/}}
+{{- $root := . }}
+{{- $cums := fromYaml (include "data-pg.clusters" .) }}
+{{- range $ten, $c := $cums }}
+{{- range $db, $sc := $c.dbs }}
+{{- $sc = $sc | uniq | sortAlpha }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: {{ $ten }}-{{ $db | replace "_" "-" }}
+  namespace: {{ include "data-pg.ns" (dict "root" $root "zone" $c.zone) }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+spec:
+  name: {{ $db }}
+  owner: mig_{{ first $sc }}
+  cluster:
+    name: {{ $ten }}
+  ensure: present
+  databaseReclaimPolicy: retain
+  schemas:
+    {{- range $s := $sc }}
+    - name: {{ $s }}
+      owner: mig_{{ $s }}
+      ensure: present
+    {{- end }}
+  {{- with (index $c.ext $db) }}
+  extensions:
+    {{- range . }}
+    - name: {{ . }}
+      ensure: present
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

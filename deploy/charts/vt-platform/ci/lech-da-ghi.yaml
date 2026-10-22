@@ -1,0 +1,13 @@
+# Ô lệch giữa bản render hạng L và bảng TL-04 mục 5.2 đã được xem xét và ghi lý do (INF-02).
+# Khoá: tên workload → cột → lý do. doi-chieu-tl04.py chỉ báo đỏ các ô lệch không có ở đây.
+apisix:
+  readiness: "TL ghi /apisix/status (plugin node-status); chart api-gateway của INF-08 dùng TCP. Đổi khi INF-08 bật node-status qua public-api, ghi ở wiki 14."
+org-service:
+  max: "Chart org-service của DV-04-01 chưa có HPA (replicaCount cố định 3). Cần chuyển chart sang vt-service; ghi ở wiki 14."
+workflow-api:
+  startup: "Chart workflow-service của DV-06-01 cố định ngân sách khởi động 150 s; TL ghi 180 s. Chờ chuyển chart sang vt-service."
+  phatHanh: "Chart DV-06-01 sinh Deployment, chưa có Argo Rollouts canary như TL. Chờ chuyển chart sang vt-service."
+workflow-executor:
+  mem: "Chart DV-06-01 dùng chung một khối resources cho API và executor (6 GiB theo API); TL ghi executor 4 GiB."
+  startup: "Như workflow-api: chart DV-06-01 cố định 150 s."
+  pdb: "Chart DV-06-01 chỉ sinh PDB cho workflow-api; executor chưa có PDB maxUnavailable 1."

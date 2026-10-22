@@ -1,0 +1,8 @@
+apiVersion: v2
+name: cell-mesh
+description: >-
+  Lớp mesh của một cell (TL-04 mục 3.7, ADR-11, SEC-21): PeerAuthentication mTLS STRICT toàn cụm, waypoint L7 cho
+  namespace secure và egress, AuthorizationPolicy esign-allow-callers, chính sách chỉ nhận qua waypoint và ngoại lệ
+  cổng thu số liệu cho Prometheus ngoài mesh. Istio ambient cài bằng các chart chính thức theo istio/chart.yaml.
+type: application
+version: 0.1.0

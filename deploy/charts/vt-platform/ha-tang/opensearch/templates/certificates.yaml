@@ -1,0 +1,44 @@
+{{- /* Chứng thư nút (transport và HTTP) và chứng thư quản trị do cert-manager cấp từ OpenBao PKI (SEC-59). */}}
+{{- $v := .Values }}
+{{- $ns := $v.namespace }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: opensearch-node-tls
+  namespace: {{ $ns }}
+  labels:
+    {{- include "opensearch.labels" . | nindent 4 }}
+spec:
+  secretName: opensearch-node-tls
+  duration: {{ $v.tls.duration }}
+  renewBefore: {{ $v.tls.renewBefore }}
+  privateKey: { algorithm: RSA, size: 2048, encoding: PKCS8, rotationPolicy: Always }
+  usages: [server auth, client auth]
+  subject: { organizations: [vt-platform] }
+  commonName: opensearch-node
+  dnsNames:
+    - opensearch
+    - opensearch.{{ $ns }}.svc
+    - "*.opensearch-discovery.{{ $ns }}.svc"
+    - "*.opensearch.{{ $ns }}.svc"
+    - "*.{{ $ns }}.svc.cluster.local"
+  issuerRef:
+    {{- toYaml $v.tls.issuerRef | nindent 4 }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: opensearch-admin-tls
+  namespace: {{ $ns }}
+  labels:
+    {{- include "opensearch.labels" . | nindent 4 }}
+spec:
+  secretName: opensearch-admin-tls
+  duration: {{ $v.tls.duration }}
+  renewBefore: {{ $v.tls.renewBefore }}
+  privateKey: { algorithm: RSA, size: 2048, encoding: PKCS8, rotationPolicy: Always }
+  usages: [client auth]
+  subject: { organizations: [vt-platform] }
+  commonName: opensearch-admin
+  issuerRef:
+    {{- toYaml $v.tls.issuerRef | nindent 4 }}

@@ -1,0 +1,6 @@
+{{- $v := .Values }}
+{{- if $v.agplThayThe }}
+{{- range $c := list "tempo-distributed" "tempo" "loki" "grafana" }}
+{{- if (index $v $c).enabled }}{{ fail (printf "observability-mgmt: agplThayThe=true nhưng %s (AGPL) vẫn bật; bản cài tại chỗ dùng thành phần Apache-2.0 (TL-04 mục 9.9)" $c) }}{{ end }}
+{{- end }}
+{{- end }}

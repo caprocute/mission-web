@@ -1,0 +1,10 @@
+apiVersion: v2
+name: ledger-service
+description: 'SVC-09 ledger-service: sổ cái chống chối bỏ, phát hành mỗi lần một pod (TL-04 mục 5.2).'
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+dependencies:
+  - name: vt-service
+    version: 0.1.0
+    repository: file://../vt-service

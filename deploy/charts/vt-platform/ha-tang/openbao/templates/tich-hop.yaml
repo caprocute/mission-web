@@ -1,0 +1,84 @@
+{{- $v := .Values }}
+{{- $ca := required "openbao: cần tls.caBundle (PEM CA kiểm chứng thư OpenBao)" $v.tls.caBundle }}
+{{- if $v.certManager.enabled }}
+{{- $cm := $v.certManager }}
+# ServiceAccount riêng mà cert-manager xin token (TokenRequest, audience openbao) để đăng nhập auth kubernetes.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: openbao-issuer
+  namespace: {{ $cm.namespace }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: openbao-issuer-token
+  namespace: {{ $cm.namespace }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [serviceaccounts/token]
+    resourceNames: [openbao-issuer]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: openbao-issuer-token
+  namespace: {{ $cm.namespace }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: openbao-issuer-token }
+subjects:
+  - { kind: ServiceAccount, name: {{ $cm.serviceAccount }}, namespace: {{ $cm.namespace }} }
+---
+# Cấp chứng thư nội bộ (PostgreSQL, Kafka, Valkey, OpenSearch, ClickHouse, APISIX nội bộ) từ CA trung gian của cell.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ $cm.issuerName }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+spec:
+  vault:
+    server: {{ include "openbao.addr" . }}
+    path: {{ include "openbao.pkiMount" . }}/sign/{{ $cm.role }}
+    caBundle: {{ $ca | b64enc }}
+    auth:
+      kubernetes:
+        mountPath: /v1/auth/{{ include "openbao.authMount" . }}
+        role: cert-manager
+        serviceAccountRef:
+          name: openbao-issuer
+          audiences: [openbao]
+{{- end }}
+{{- if $v.eso.enabled }}
+{{- $e := $v.eso }}
+---
+# ESO đồng bộ bí mật tĩnh từ KV v2 (ADR-17); ứng dụng chỉ thấy Secret Kubernetes chuẩn.
+apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata:
+  name: {{ $e.storeName }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+spec:
+  provider:
+    vault:
+      server: {{ include "openbao.addr" . }}
+      path: {{ $v.cell.kvMount }}
+      version: v2
+      caBundle: {{ $ca | b64enc }}
+      auth:
+        kubernetes:
+          mountPath: {{ include "openbao.authMount" . }}
+          role: {{ $e.role }}
+          serviceAccountRef:
+            name: {{ $e.serviceAccount }}
+            namespace: {{ $e.namespace }}
+            audiences: [openbao]
+{{- end }}

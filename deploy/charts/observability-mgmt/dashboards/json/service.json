@@ -1,0 +1,402 @@
+{
+   "panels": [
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "reqps"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 0
+         },
+         "id": 1,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum by (method) (rate(http_server_requests_seconds_count{cell=~\"$cell\", service=~\"$service\"}[$__rate_interval]))",
+               "legendFormat": "{{method}}"
+            }
+         ],
+         "title": "Lưu lượng",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 0
+         },
+         "id": 2,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum(rate(http_server_requests_seconds_count{cell=~\"$cell\", service=~\"$service\", status=~\"5..\"}[$__rate_interval])) / sum(rate(http_server_requests_seconds_count{cell=~\"$cell\", service=~\"$service\"}[$__rate_interval]))",
+               "legendFormat": "lỗi"
+            }
+         ],
+         "title": "Tỷ lệ lỗi 5xx",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "s"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+         },
+         "id": 3,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": true,
+               "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{cell=~\"$cell\", service=~\"$service\"}[$__rate_interval])))",
+               "legendFormat": "p95"
+            },
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": true,
+               "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{cell=~\"$cell\", service=~\"$service\"}[$__rate_interval])))",
+               "legendFormat": "p99"
+            }
+         ],
+         "title": "Độ trễ (kèm exemplar sang Tempo)",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+         },
+         "id": 4,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum(rate(container_cpu_usage_seconds_total{container=~\"$service\"}[$__rate_interval]))",
+               "legendFormat": "CPU (lõi)"
+            },
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum(container_memory_working_set_bytes{container=~\"$service\"}) / 2^30",
+               "legendFormat": "bộ nhớ (GiB)"
+            }
+         ],
+         "title": "Bão hoà: CPU và bộ nhớ",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 16
+         },
+         "id": 5,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum by (pool) (hikaricp_connections_active{cell=~\"$cell\", service=~\"$service\"})",
+               "legendFormat": "{{pool}} đang dùng"
+            },
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum by (pool) (hikaricp_connections_pending{cell=~\"$cell\", service=~\"$service\"})",
+               "legendFormat": "{{pool}} chờ"
+            }
+         ],
+         "title": "Pool kết nối Hikari",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 16
+         },
+         "id": 6,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum by (consumergroup, topic) (kafka_consumergroup_lag{cell=~\"$cell\", consumergroup=~\"$service.*\"})",
+               "legendFormat": "{{consumergroup}} / {{topic}}"
+            }
+         ],
+         "title": "Kafka lag của consumer group",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 24
+         },
+         "id": 7,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum by (name) (resilience4j_circuitbreaker_state{cell=~\"$cell\", service=~\"$service\", state=~\"open|half_open\"})",
+               "legendFormat": "{{name}}"
+            }
+         ],
+         "title": "Circuit breaker đang mở",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 24
+         },
+         "id": 8,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "min by (name) (resilience4j_bulkhead_available_concurrent_calls{cell=~\"$cell\", service=~\"$service\"} / resilience4j_bulkhead_max_allowed_concurrent_calls{cell=~\"$cell\", service=~\"$service\"})",
+               "legendFormat": "{{name}}"
+            }
+         ],
+         "title": "Bulkhead: chỗ trống",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "loki",
+            "uid": "loki"
+         },
+         "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 34
+         },
+         "id": 9,
+         "options": {
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showTime": true,
+            "wrapLogMessage": false
+         },
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "loki",
+                  "uid": "loki"
+               },
+               "expr": "{cell=~\"$cell\", namespace=~\".+\", service=~\"$service\"} | json"
+            }
+         ],
+         "title": "Log của dịch vụ",
+         "type": "logs"
+      }
+   ],
+   "refresh": "1m",
+   "schemaVersion": 39,
+   "tags": [
+      "vt",
+      "inf-15"
+   ],
+   "templating": {
+      "list": [
+         {
+            "allValue": ".*",
+            "current": {
+               "text": "All",
+               "value": "$__all"
+            },
+            "datasource": {
+               "type": "prometheus",
+               "uid": "thanos"
+            },
+            "includeAll": true,
+            "label": "Cell",
+            "name": "cell",
+            "query": "label_values(up, cell)",
+            "refresh": "time",
+            "type": "query"
+         },
+         {
+            "allValue": ".*",
+            "current": {
+               "text": "All",
+               "value": "$__all"
+            },
+            "datasource": {
+               "type": "prometheus",
+               "uid": "thanos"
+            },
+            "includeAll": true,
+            "label": "Dịch vụ",
+            "name": "service",
+            "query": "label_values(http_server_requests_seconds_count, service)",
+            "refresh": "time",
+            "type": "query"
+         }
+      ]
+   },
+   "time": {
+      "from": "now-6h",
+      "to": "now"
+   },
+   "timezone": "Asia/Ho_Chi_Minh",
+   "title": "Dịch vụ: tín hiệu vàng",
+   "uid": "vt-service"
+}

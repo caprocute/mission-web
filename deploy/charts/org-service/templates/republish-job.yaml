@@ -9,6 +9,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   generateName: {{ include "org-service.fullname" . }}-republish-
+  namespace: {{ include "org-service.namespace" . }}
   labels:
     {{- include "org-service.labels" . | nindent 4 }}
     app.kubernetes.io/component: republish

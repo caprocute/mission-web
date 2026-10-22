@@ -1,0 +1,8 @@
+apiVersion: v2
+name: cell-cluster
+description: >-
+  Khuôn Cluster API cho cụm Kubernetes của một cell (TL-04 chương 3): control plane 3 master trên 3 vùng sự cố,
+  chín node pool với taint và nhãn theo mục 3.3, MachineDeployment theo pool và vùng. Không chứa giá trị riêng
+  của môi trường; mỗi cell khai values riêng (ví dụ deploy/clusters/cell-g4-hl/values.yaml).
+type: application
+version: 0.1.0

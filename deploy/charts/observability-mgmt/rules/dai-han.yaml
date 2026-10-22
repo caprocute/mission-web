@@ -1,0 +1,26 @@
+# Cảnh báo cần dữ liệu dài hơn phần Prometheus cell giữ cục bộ (TL-04 mục 10.5); chạy ở Thanos Ruler,
+# đọc qua Thanos Query nên mọi chuỗi đã có nhãn cell.
+groups:
+  - name: vt-dai-han.alerts
+    interval: 5m
+    rules:
+      # OPS-19: tiêu quá 50% ngân sách lỗi của tháng trước ngày 15 thì dừng phát hành tính năng cho cell.
+      # Lượng đã tiêu xấp xỉ bằng tổng tỷ lệ lỗi theo giờ trong 14 ngày gần nhất chia cho ngân sách 30 ngày
+      # (0,1% × 720 giờ); dùng cửa sổ trượt 14 ngày thay cho "từ đầu tháng" vì PromQL không có cửa sổ theo
+      # lịch (suy luận về cách hiện thực).
+      - alert: ErrorBudgetHalfSpent
+        expr: |
+          sum by (cell) (sum_over_time(slo:api_availability_errors:ratio_rate1h[14d:1h])) / (0.001 * 720) > 0.5
+          and on () (day_of_month() < 15)
+        labels: { severity: info, doi: chu-san-pham }
+        annotations:
+          summary: "Cell {{ $labels.cell }} đã tiêu {{ $value | humanizePercentage }} ngân sách lỗi tháng trước ngày 15: tạm dừng phát hành tính năng"
+          runbook_url: https://runbook.vt.local/okr/release-freeze
+      - alert: RestoreCheckStale
+        expr: |
+          max by (cell, cluster) (max_over_time(backup_restore_check_success[8d])) < 1
+          or absent_over_time(backup_restore_check_success[8d])
+        labels: { severity: warning, doi: dba }
+        annotations:
+          summary: "Cụm {{ $labels.cluster }} của cell {{ $labels.cell }} không có lần khôi phục thử thành công trong 8 ngày"
+          runbook_url: https://runbook.vt.local/okr/restore-check

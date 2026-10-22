@@ -1,0 +1,30 @@
+# Mô hình 2: đám mây riêng của tỉnh hoặc bộ (TL-04 mục 2.1, 2.3). Chỉ chứa các khoá của bảng mục 2.1.
+global:
+  deploymentModel: private
+  # Một cell, một hoặc vài tenant.
+  capCaiDat: mot-cell
+  objectStore:
+    # Rook-Ceph trong cụm, hoặc đổi sang s3 khi khách hàng có kho S3 tương thích.
+    kind: rook-ceph
+    inCluster: true
+  crypto:
+    provider: standard
+  egress:
+    # Theo chính sách của khách hàng; mặc định giữ như SaaS (qua egress gateway).
+    allowInternet: true
+  identity:
+    providers: [vneid, mysign, viettel-ca, ca-chinh-phu, idp-khach-hang]
+  updateChannel: theo-quy
+  sizing: M
+  featureFlags:
+    publicMobileApp: true
+integration-gateway:
+  config:
+    VT_KET_NOI_VNEID: "true"
+    VT_KET_NOI_MYSIGN: "true"
+    VT_KET_NOI_LGSP: "true"
+ai-gateway:
+  thanhPhan:
+    vllm:
+      # AI là tuỳ chọn ở đám mây riêng; bật khi khách hàng cấp GPU.
+      enabled: false

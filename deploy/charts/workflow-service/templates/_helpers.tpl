@@ -54,3 +54,8 @@ capabilities:
   drop:
     - ALL
 {{- end -}}
+
+{{/* Namespace đích (INF-02): khoá namespace trong values, mặc định là namespace của release. */}}
+{{- define "workflow-service.namespace" -}}
+{{- default .Release.Namespace .Values.namespace -}}
+{{- end -}}

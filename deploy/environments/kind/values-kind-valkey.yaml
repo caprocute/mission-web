@@ -1,0 +1,14 @@
+# Valkey thu nhỏ cho kind (INF-11, kiem-thu-du-lieu.sh): ba vùng hl-a, hl-b, hl-c mỗi vùng một node nên hai pod
+# cùng vùng nằm chung node (anti-affinity preferred); không exporter.
+global:
+  sizing: compact
+  topology: { zones: [hl-a, hl-b, hl-c] }
+image:
+  repository: docker.io/valkey/valkey
+  tag: 8.1.4-alpine
+  digest: sha256:e706d1213aaba6896c162bb6a3a9e1894e1a435f28f8f856d14fab2e10aa098b
+hoSo:
+  compact: { cpu: 200m, memory: 256Mi, maxmemory: 100mb }
+storage: { storageClass: standard, size: 64Mi }
+placement: { antiAffinity: preferred, nodeSelector: null, tolerations: [] }
+metrics: { enabled: false }

@@ -51,7 +51,7 @@ networkPolicy:
       ports: [{ port: 8081 }]
   egressTo:
     - namespace: data-pg
-      podLabels: { cnpg.io/poolerName: pg-platform-rw }
+      podLabels: { cnpg.io/poolerName: pg-platform-pooler-rw }
       ports: [{ port: 5432 }]
     - namespace: data-kafka
       podLabels: { strimzi.io/cluster: kafka-cell }

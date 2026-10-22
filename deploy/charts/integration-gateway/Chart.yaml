@@ -1,0 +1,10 @@
+apiVersion: v2
+name: integration-gateway
+description: 'SVC-13 integration-gateway: kết nối VNeID, MySign, LGSP và hệ thống ngoài (TL-04 mục 5.2).'
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+dependencies:
+  - name: vt-service
+    version: 0.1.0
+    repository: file://../vt-service

@@ -1,0 +1,42 @@
+# Chính sách nền dùng kiểm tĩnh bằng Kyverno CLI cho các chart của cell (INF-08): Pod Security restricted
+# (SEC-26), ảnh theo digest (SEC-55), namespace phải gắn nhãn vùng, cell và Pod Security.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: vt-co-so-cell
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: pod-security-restricted
+      match:
+        any:
+          - resources: { kinds: [Pod] }
+      validate:
+        podSecurity: { level: restricted, version: latest }
+    - name: anh-theo-digest
+      match:
+        any:
+          - resources: { kinds: [Pod] }
+      validate:
+        message: "Ảnh phải tham chiếu theo digest sha256 (SEC-55)."
+        foreach:
+          - list: "request.object.spec.[containers, initContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.image }}"
+                    operator: NotEquals
+                    value: "*@sha256:*"
+    - name: nhan-namespace
+      match:
+        any:
+          - resources: { kinds: [Namespace] }
+      validate:
+        message: "Namespace của cell phải có nhãn vt.io/security-zone, vt.io/cell và pod-security enforce."
+        pattern:
+          metadata:
+            labels:
+              vt.io/security-zone: "?*"
+              vt.io/cell: "?*"
+              pod-security.kubernetes.io/enforce: "?*"

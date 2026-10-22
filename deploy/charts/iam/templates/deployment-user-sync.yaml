@@ -4,6 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "iam.fullname" . }}-user-sync
+  namespace: {{ include "iam.namespace" . }}
   labels:
     {{- include "iam.labels" . | nindent 4 }}
     app.kubernetes.io/component: user-sync
@@ -73,6 +74,7 @@ apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: {{ .Values.userSync.secret.name }}
+  namespace: {{ include "iam.namespace" . }}
   labels:
     {{- include "iam.labels" . | nindent 4 }}
     app.kubernetes.io/component: user-sync
@@ -96,6 +98,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: {{ include "iam.fullname" . }}-user-sync
+  namespace: {{ include "iam.namespace" . }}
   labels:
     {{- include "iam.labels" . | nindent 4 }}
     app.kubernetes.io/component: user-sync

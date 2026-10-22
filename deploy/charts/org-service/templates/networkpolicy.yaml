@@ -5,6 +5,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: {{ include "org-service.fullname" . }}
+  namespace: {{ include "org-service.namespace" . }}
   labels:
     {{- include "org-service.labels" . | nindent 4 }}
 spec:

@@ -1,0 +1,45 @@
+{{- if .Values.monitoring.prometheusRule }}
+{{- $v := .Values }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: openbao
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+spec:
+  # OpenBaoSealed và CertificateExpiringSoon (< 14 ngày) đã có trong observability-cell (INF-14), không lặp ở đây.
+  groups:
+    - name: openbao
+      rules:
+        - alert: OpenBaoMatLeader
+          expr: absent(vault_core_active{namespace="{{ $v.namespace }}"} == 1)
+          for: 1m
+          labels: { severity: critical, doi: quan-tri-khoa }
+          annotations:
+            summary: "Cụm OpenBao không có node hoạt động"
+            runbook_url: https://runbook.vt.local/okr/openbao-van-hanh
+        - alert: OpenBaoKiemToanLoi
+          expr: sum(rate(vault_audit_log_request_failure{namespace="{{ $v.namespace }}"}[5m])) > 0
+          for: 1m
+          labels: { severity: critical, doi: quan-tri-khoa }
+          annotations:
+            summary: "Thiết bị kiểm toán OpenBao ghi lỗi; OpenBao sẽ từ chối yêu cầu"
+            runbook_url: https://runbook.vt.local/okr/openbao-van-hanh
+    - name: xoay-vong-khoa
+      rules:
+        - alert: VtKhoaQuaHan
+          expr: vt_key_age_days{loai="kek"} > {{ add $v.rotation.kekMaxAgeDays 7 }} or vt_key_age_days{loai="cosign"} > {{ add $v.rotation.cosignMaxAgeDays 7 }}
+          for: 1h
+          labels: { severity: warning, doi: quan-tri-khoa }
+          annotations:
+            summary: "Khoá {{ "{{ $labels.khoa }}" }} quá hạn xoay vòng (SEC-12)"
+            runbook_url: https://runbook.vt.local/okr/openbao-van-hanh
+        - alert: VtXoayKhoaKhongChay
+          expr: time() - push_time_seconds{job="openbao-xoay-khoa"} > 2 * 86400
+          for: 1h
+          labels: { severity: warning, doi: quan-tri-khoa }
+          annotations:
+            summary: "CronJob xoay khoá OpenBao không đẩy chỉ số quá 2 ngày"
+            runbook_url: https://runbook.vt.local/okr/openbao-van-hanh
+{{- end }}

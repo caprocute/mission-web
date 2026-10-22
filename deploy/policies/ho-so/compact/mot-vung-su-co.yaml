@@ -1,0 +1,22 @@
+# Chỉ áp cho cài đặt hồ sơ compact (bản cách ly, đám mây riêng nhỏ: 3 node, một vùng sự cố, TL-05 Phụ lục A).
+# Không đặt trong exceptions/ vì cụm nhiều vùng không được miễn quy tắc spread theo vùng. INF-04 và INF-23 đưa
+# tệp này vào cấu hình đồng bộ của cell compact; vt-platform/ci/kiem-ba-mo-hinh.sh dùng nó khi values chọn compact.
+apiVersion: kyverno.io/v2
+kind: PolicyException
+metadata:
+  name: compact-mot-vung-su-co
+  namespace: kyverno
+  annotations:
+    vt.io/ly-do: "Hồ sơ compact chỉ có một vùng sự cố; vt-service rải pod theo node thay cho theo vùng."
+    vt.io/nguoi-xin: "Luồng B8 hạ tầng (INF-07)"
+    vt.io/nguoi-duyet: "Chờ nhóm bảo mật duyệt"
+    vt.io/het-han: "2027-04-15"
+    vt.io/phieu: "INF-07"
+spec:
+  exceptions:
+    - policyName: vt-require-ha
+      ruleNames: [deployment-min-replicas-and-spread]
+  match:
+    any:
+      - resources:
+          kinds: [Deployment, Rollout]

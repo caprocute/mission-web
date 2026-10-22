@@ -1,0 +1,351 @@
+# Thành phần dùng chung cho mọi hợp đồng OpenAPI của nền tảng Mission (WEB-063, ADR-32 trong BS-02).
+# Tệp này chỉ chứa `components`; các tệp module tham chiếu bằng `../common/common.yaml#/components/...`.
+# Nguồn: baseline mục 9, 9.1, 10, 13; TL-01 mục "Hợp đồng API theo OpenAPI", "Idempotency",
+# "Định dạng lỗi chuẩn RFC 9457"; TL-03 bảng `idempotency_key`; wiki/06.
+openapi: 3.1.0
+info:
+  title: Mission – thành phần dùng chung
+  version: 1.0.0-draft.1
+  description: >-
+    Lược đồ, tham số, header và phản hồi lỗi dùng chung cho mọi module. Không có đường dẫn nào
+    ở đây; mỗi module có tệp riêng trong `../modules/`.
+servers:
+  - url: /api/v1
+paths: {}
+components:
+  securitySchemes:
+    keycloak:
+      type: oauth2
+      description: >-
+        Keycloak 26 của cell (ADR-08), OIDC Authorization Code + PKCE S256. Token đi qua header
+        `Authorization: Bearer`. Thao tác có `x-mission.aal: 2` yêu cầu `acr=aal2` và `auth_time`
+        không quá 5 phút; thiếu thì máy chủ trả 401 kèm `WWW-Authenticate` mang
+        `error="insufficient_user_authentication"` (RFC 9470).
+      flows:
+        authorizationCode:
+          authorizationUrl: /realms/mission/protocol/openid-connect/auth
+          tokenUrl: /realms/mission/protocol/openid-connect/token
+          scopes:
+            openid: Định danh OIDC
+    serviceClient:
+      type: oauth2
+      description: >-
+        Client nội bộ hoặc hệ thống ngoài (AC-11) dùng client credentials. Chỉ dùng cho thao tác
+        ghi rõ "Client nội bộ" trong TL-01 Phụ lục C.
+      flows:
+        clientCredentials:
+          tokenUrl: /realms/mission/protocol/openid-connect/token
+          scopes: {}
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >-
+        Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng
+        lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi
+        (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần
+        đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`.
+      schema: { type: string, maxLength: 64, examples: ['01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a77'] }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: >-
+        ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`).
+        Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428.
+      schema: { type: string, examples: ['"7"'] }
+    Limit:
+      name: limit
+      in: query
+      description: Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02.
+      schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+    Cursor:
+      name: cursor
+      in: query
+      description: Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị.
+      schema: { type: string, maxLength: 512 }
+    PeriodId:
+      name: period
+      in: query
+      description: Mã kỳ đánh giá (`config.period.id`).
+      schema: { $ref: '#/components/schemas/Uuid' }
+    UnitId:
+      name: unit
+      in: query
+      description: Đơn vị (`org.org_unit.id`); máy chủ kiểm phạm vi theo ABAC.
+      schema: { $ref: '#/components/schemas/Uuid' }
+    Q:
+      name: q
+      in: query
+      description: Từ khoá tìm kiếm, không phân biệt dấu.
+      schema: { type: string, maxLength: 200 }
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Uuid' }
+
+  headers:
+    ETag:
+      description: Phiên bản hiện tại của đối tượng (`row_version`), gửi lại trong `If-Match`.
+      schema: { type: string, examples: ['"7"'] }
+    Location:
+      description: Đường dẫn theo dõi tác vụ dài `/api/v1/jobs/{id}` hoặc đối tượng vừa tạo.
+      schema: { type: string, format: uri-reference, examples: ['/api/v1/jobs/01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a77'] }
+    RetryAfter:
+      description: Số giây nên chờ trước lần gọi kế tiếp.
+      schema: { type: integer, minimum: 0 }
+    Deprecation:
+      description: RFC 9745, có mặt khi đường dẫn sắp ngừng hỗ trợ.
+      schema: { type: string }
+    Sunset:
+      description: RFC 8594, thời điểm ngừng hỗ trợ.
+      schema: { type: string }
+
+  responses:
+    Accepted:
+      description: >-
+        Tác vụ nền đã nhận (trả trong 200 ms, NFR-03). Theo dõi bằng `Location` hoặc luồng SSE
+        `/api/v1/notifications/stream`.
+      headers:
+        Location: { $ref: '#/components/headers/Location' }
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Job' }
+          examples:
+            moi-nhan:
+              value: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a77, type: EXPORT, status: CHO, progress: 0 }
+    BadRequest:
+      description: Yêu cầu sai cú pháp hoặc tham số không hợp lệ.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Unauthorized:
+      description: >-
+        Chưa xác thực, token hết hạn, hoặc thao tác cần xác thực bước lên AAL2 (RFC 9470); khi đó
+        `WWW-Authenticate` mang `error="insufficient_user_authentication", acr_values="aal2"`.
+      headers:
+        WWW-Authenticate:
+          schema: { type: string }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Forbidden:
+      description: OPA từ chối theo RBAC/ABAC hoặc quy tắc tách vai trò (PL 4 V.1).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          examples:
+            ngoai-pham-vi:
+              value:
+                type: https://okrkpi.vn/problems/forbidden
+                title: Không có quyền thực hiện thao tác này
+                status: 403
+                code: COMMON-403-OUT-OF-SCOPE
+                traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+    NotFound:
+      description: Không tìm thấy, hoặc đối tượng nằm ngoài phạm vi người gọi (không lộ sự tồn tại).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Conflict:
+      description: >-
+        Xung đột. Hai nghĩa phân biệt bằng `code`: xung đột ghi đồng thời (`<MODULE>-409-VERSION-CONFLICT`,
+        `type` kết thúc bằng `concurrent-modification`) hoặc vi phạm trạng thái nghiệp vụ (ví dụ
+        `TASK-409-PERIOD-LOCKED`). Với xung đột ghi, giao diện giữ dữ liệu đang nhập và hiện khác biệt.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          examples:
+            xung-dot-ghi:
+              value:
+                type: https://okrkpi.vn/problems/concurrent-modification
+                title: Dữ liệu đã được người khác cập nhật
+                status: 409
+                code: TASK-409-VERSION-CONFLICT
+                detail: Phiên bản bạn sửa là 6, phiên bản hiện tại là 7.
+                traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+            ky-da-khoa:
+              value:
+                type: https://okrkpi.vn/problems/period-locked
+                title: Kỳ đánh giá đã khoá
+                status: 409
+                code: TASK-409-PERIOD-LOCKED
+                detail: Kỳ Quý IV/2026 của đơn vị đã khoá. Muốn sửa cần đề nghị mở lại kỳ.
+                traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+    PreconditionRequired:
+      description: Thiếu header `If-Match` cho thao tác cập nhật (RFC 6585).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    UnprocessableEntity:
+      description: >-
+        Dữ liệu không hợp lệ theo quy tắc nghiệp vụ (BR), thiếu lý do bắt buộc, hoặc
+        `Idempotency-Key` dùng lại với nội dung khác. Lỗi theo trường nằm trong `errors[]`.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          examples:
+            loi-truong:
+              value:
+                type: https://okrkpi.vn/problems/validation
+                title: Dữ liệu chưa hợp lệ
+                status: 422
+                code: COMMON-422-VALIDATION
+                errors: [{ field: percent, message: Phần trăm phải từ 0 đến 100 }]
+                traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+    MisdirectedRequest:
+      description: Tenant đã chuyển sang cell khác; shell gọi lại `registry/resolve` rồi chuyển hướng.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    TooManyRequests:
+      description: Vượt giới hạn tốc độ (mặc định 20 request/giây mỗi người dùng, đột biến 40).
+      headers:
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    ServiceUnavailable:
+      description: Cắt tải khi cell gần bão hoà; thử lại có giãn cách.
+      headers:
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Problem:
+      description: Lỗi khác theo RFC 9457.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+
+  schemas:
+    Uuid:
+      description: Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).
+      type: string
+      format: uuid
+      examples: ['01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a77']
+    Date:
+      description: Ngày theo lịch (ISO 8601), không có giờ.
+      type: string
+      format: date
+      examples: ['2026-12-15']
+    DateTime:
+      description: Thời điểm ISO 8601 có múi giờ.
+      type: string
+      format: date-time
+      examples: ['2026-10-19T08:30:00+07:00']
+    RowVersion:
+      description: Giá trị `row_version` (khoá lạc quan). Cùng giá trị với ETag, gửi lại trong `If-Match`.
+      type: integer
+      minimum: 0
+      examples: [7]
+    NextCursor:
+      description: Con trỏ trang kế tiếp; `null` khi đã hết.
+      type: [string, 'null']
+    Ref:
+      description: Tham chiếu rút gọn tới một đối tượng kèm tên hiển thị.
+      type: object
+      required: [id, name]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string }
+    PeriodRef:
+      description: Kỳ đánh giá rút gọn (`config.period`).
+      type: object
+      required: [id, label, startDate, endDate]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        label: { type: string, examples: ['Quý IV/2026'] }
+        startDate: { $ref: '#/components/schemas/Date' }
+        endDate: { $ref: '#/components/schemas/Date' }
+    Classification:
+      description: Phân loại dữ liệu theo ADR-06.
+      type: string
+      enum: [C0, C1, C2, C3]
+    Flow:
+      description: Luồng đánh giá (baseline mục 9.1).
+      type: string
+      enum: [DANG, NHA_NUOC]
+    Branch:
+      description: Nhánh của phân công (`org.assignment.branch`, TL-03).
+      type: string
+      enum: [DANG, CHINH_QUYEN]
+    RatingLevel:
+      description: Mức xếp loại (baseline mục 9.1).
+      type: string
+      enum: [HTXSNV, HTTNV, HTNV, KHTNV]
+    QualityLevel:
+      description: Mức chất lượng nghiệm thu năm mức (baseline mục 9.1).
+      type: number
+      enum: [1, 0.75, 0.5, 0.25, 0]
+    RevisionCause:
+      description: >-
+        Nguyên nhân chỉnh sửa minh chứng khi nghiệm thu (`product.acceptance.revision_cause`, CHECK của TL-03), dùng
+        chung cho nghiệm thu (MOD-03) và xem trước, tính điểm (MOD-04, SVC-07). Tính chủ quan hay khách quan của
+        việc chỉnh sửa (TL-02 SCR-0703 trường 4 "Chủ quan, Khách quan, Không có") đi kèm ở cờ `isObjectiveRevision`;
+        "Không có" là bỏ trống cả hai.
+      type: string
+      enum: [THE_THUC, NOI_DUNG_KHONG_COT_LOI, NOI_DUNG_CO_BAN, SAI_SOT_NGHIEM_TRONG, SAI_CHU_TRUONG]
+    PeriodStatus:
+      description: Trạng thái kỳ `config.period.status` (baseline mục 9.1).
+      type: string
+      enum: [MO, DANG_KHOA, DA_KHOA, MO_LAI_HAU_KIEM]
+    FieldError:
+      type: object
+      required: [field, message]
+      properties:
+        field: { type: string, description: 'Tên trường theo JSON của thân yêu cầu, dạng đường dẫn chấm' }
+        message: { type: string, description: 'Thông điệp tiếng Việt' }
+        rule: { type: string, description: 'Mã quy tắc nghiệp vụ nếu có, ví dụ `BR-05-01`' }
+    ProblemDetails:
+      description: >-
+        RFC 9457, kiểu nội dung `application/problem+json`. Mở rộng theo TL-01: `code` dạng
+        `<MODULE>-<HTTP>-<TÊN>`, `errors[]` cho lỗi theo trường, `traceId` để tra cứu. `detail`
+        không chứa thông tin nội bộ.
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, description: 'URI ổn định của loại lỗi, ví dụ `https://okrkpi.vn/problems/period-locked`' }
+        title: { type: string, description: 'Tiêu đề tiếng Việt' }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code: { type: string, description: 'Mã lỗi, ví dụ `TASK-409-PERIOD-LOCKED`; ánh xạ sang MSG ở giao diện' }
+        msg: { type: string, description: 'Mã thông điệp TL-02 tương ứng nếu có, ví dụ `MSG-06-05`' }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/FieldError' }
+        traceId: { type: string }
+    JobStatus:
+      description: >-
+        Trạng thái tác vụ dài. TL chưa đặc tả lược đồ job; hợp đồng giữ bộ giá trị WEB-007 đã dùng
+        (lấy từ các trạng thái job trong TL-03).
+      type: string
+      enum: [CHO, DANG_CHAY, HOAN_TAT, THAT_BAI, DA_HUY]
+    Job:
+      description: Tác vụ dài trả qua `GET /api/v1/jobs/{id}`.
+      type: object
+      required: [id, type, status]
+      properties:
+        id: { type: string }
+        type:
+          type: string
+          description: Loại tác vụ, ví dụ PERIOD_LOCK, ESIGN_BATCH, EXPORT, IMPORT, RENDER, TEST_RUN, BULK_ASSIGN
+        status: { $ref: '#/components/schemas/JobStatus' }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        message: { type: string, description: 'Mô tả bước đang chạy, tiếng Việt' }
+        resultLocation: { type: string, description: 'Đường dẫn kết quả khi HOAN_TAT' }
+        problem: { $ref: '#/components/schemas/ProblemDetails' }
+        updatedAt: { $ref: '#/components/schemas/DateTime' }
+    BatchItemResult:
+      description: Kết quả từng mục của thao tác lô; mục lỗi không làm hỏng mục khác.
+      type: object
+      required: [id, status]
+      properties:
+        id: { type: string, description: 'Mã đối tượng của mục' }
+        status: { type: integer, description: 'Mã HTTP tương đương cho mục này' }
+        problem: { $ref: '#/components/schemas/ProblemDetails' }

@@ -1,0 +1,32 @@
+# Bộ quy tắc Semgrep riêng của Mission cho ứng dụng Flutter/Dart (INF-06, docs/quy-dinh/DI-DONG.md).
+# Semgrep chưa có bộ quy tắc Dart trong registry nên vtFlutterPipeline chỉ chạy tệp này (Dart: hỗ trợ thử nghiệm).
+# Kiểm thử: semgrep --test --metrics=off --config .semgrep/vt-rules-dart.yml .semgrep/vt-rules-dart.dart
+rules:
+  - id: vt-dart-tls-bypass
+    languages: [dart]
+    severity: ERROR
+    message: "Không bỏ qua lỗi chứng chỉ TLS; ứng dụng ghim chứng chỉ theo DI-DONG.md (SEC-20)."
+    metadata: { cwe: "CWE-295", sec: "SEC-20" }
+    pattern: $C.badCertificateCallback = (...) => true
+  - id: vt-dart-plain-storage-token
+    languages: [dart]
+    severity: ERROR
+    message: "Không lưu token, mật khẩu vào SharedPreferences (dữ liệu rõ); dùng flutter_secure_storage (ADR-06, dữ liệu C2)."
+    metadata: { cwe: "CWE-312" }
+    patterns:
+      - pattern: $P.setString($K, ...)
+      - metavariable-regex:
+          metavariable: $K
+          regex: (?i).*(token|password|secret|refresh).*
+  - id: vt-dart-print-secret
+    languages: [dart]
+    severity: ERROR
+    message: "Không in token, mật khẩu ra log (SEC-07)."
+    metadata: { cwe: "CWE-532", sec: "SEC-07" }
+    patterns:
+      - pattern-either:
+          - pattern: print($X)
+          - pattern: debugPrint($X)
+      - metavariable-regex:
+          metavariable: $X
+          regex: (?i).*(token|password|secret).*

@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dat-ba-replica
+  namespace: ung-dung
+spec:
+  selector:
+    matchLabels:
+      app: dat-ba-replica
+  template:
+    metadata:
+      labels:
+        app: dat-ba-replica
+    spec:
+      containers:
+      - name: app
+        image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: dat-ba-replica
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dat-co-gian
+  namespace: ung-dung
+spec:
+  selector:
+    matchLabels:
+      app: dat-co-gian
+  template:
+    metadata:
+      labels:
+        app: dat-co-gian
+    spec:
+      containers:
+      - name: app
+        image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: dat-co-gian
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hong-mot-replica
+  namespace: ung-dung
+spec:
+  selector:
+    matchLabels:
+      app: hong-mot-replica
+  template:
+    metadata:
+      labels:
+        app: hong-mot-replica
+    spec:
+      containers:
+      - name: app
+        image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: hong-mot-replica
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hong-khong-spread
+  namespace: ung-dung
+spec:
+  selector:
+    matchLabels:
+      app: hong-khong-spread
+  template:
+    metadata:
+      labels:
+        app: hong-khong-spread
+    spec:
+      containers:
+      - name: app
+        image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dat-hai-rang-buoc
+  namespace: ung-dung
+spec:
+  selector:
+    matchLabels:
+      app: dat-ba-replica
+  template:
+    metadata:
+      labels:
+        app: dat-ba-replica
+    spec:
+      containers:
+      - name: app
+        image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: dat-ba-replica
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: dat-ba-replica
+  replicas: 3

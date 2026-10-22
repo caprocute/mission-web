@@ -1,0 +1,599 @@
+# Ca kiểm promtool cho rules/canh-bao-toi-thieu.yaml: mỗi cảnh báo có ca kích hoạt và ca không kích hoạt.
+rule_files:
+- ../canh-bao-toi-thieu.yaml
+evaluation_interval: 30s
+tests:
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: vt_scoring_lag_seconds_bucket{le="60"}
+    values: 0+10x40
+  - series: vt_scoring_lag_seconds_bucket{le="120"}
+    values: 0+100x40
+  - series: vt_scoring_lag_seconds_bucket{le="+Inf"}
+    values: 0+100x40
+  alert_rule_test:
+  - eval_time: 25m
+    alertname: ScoringLagHigh
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        doi: sre
+        service: scoring
+      exp_annotations:
+        summary: Độ trễ từ minh chứng đã xác nhận tới điểm đã tính p99 1m 59s (SLO-SCORE 60 s)
+        runbook_url: https://runbook.vt.local/okr/scoring-lag
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: vt_scoring_lag_seconds_bucket{le="60"}
+    values: 0+100x40
+  - series: vt_scoring_lag_seconds_bucket{le="+Inf"}
+    values: 0+100x40
+  alert_rule_test:
+  - eval_time: 25m
+    alertname: ScoringLagHigh
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: vt_outbox_pending_events{service="task"}
+    values: 20000x10
+  alert_rule_test:
+  - eval_time: 5m
+    alertname: OutboxBacklog
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        doi: sre-dba
+        service: task
+      exp_annotations:
+        summary: 'Outbox của task tồn đọng: 20000'
+        runbook_url: https://runbook.vt.local/okr/outbox
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: vt_outbox_pending_events{service="task"}
+    values: 500x10
+  - series: vt_outbox_oldest_pending_age_seconds{service="task"}
+    values: 5x10
+  alert_rule_test:
+  - eval_time: 5m
+    alertname: OutboxBacklog
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: vt_ledger_lag_seconds_bucket{le="30"}
+    values: 0+10x40
+  - series: vt_ledger_lag_seconds_bucket{le="60"}
+    values: 0+100x40
+  - series: vt_ledger_lag_seconds_bucket{le="+Inf"}
+    values: 0+100x40
+  alert_rule_test:
+  - eval_time: 25m
+    alertname: LedgerLagHigh
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        doi: sre
+        slo: ledger
+      exp_annotations:
+        summary: Độ trễ ghi sổ cái p99,9 59.97s (SLO-LEDGER 30 s)
+        runbook_url: https://runbook.vt.local/okr/ledger-lag
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: vt_ledger_lag_seconds_bucket{le="30"}
+    values: 0+100x40
+  - series: vt_ledger_lag_seconds_bucket{le="+Inf"}
+    values: 0+100x40
+  alert_rule_test:
+  - eval_time: 25m
+    alertname: LedgerLagHigh
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: ledger_verify_failures_total
+    values: 0 0 0 1 1 1
+  alert_rule_test:
+  - eval_time: 4m
+    alertname: LedgerChainBroken
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        doi: soc
+      exp_annotations:
+        summary: Kiểm tra chuỗi băm sổ cái thất bại
+        runbook_url: https://runbook.vt.local/okr/dr-14
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: ledger_verify_failures_total
+    values: '0x5'
+  alert_rule_test:
+  - eval_time: 4m
+    alertname: LedgerChainBroken
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: vt_degrade_level
+    values: 2x5
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: SaturationLevel2
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        doi: ic
+      exp_annotations:
+        summary: Cell vào mức suy giảm 2 (TL-04 mục 6.9)
+        runbook_url: https://runbook.vt.local/okr/degradation
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: vt_degrade_level
+    values: 1x5
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: SaturationLevel2
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: kafka_consumergroup_lag{consumergroup="scoring",topic="appraisal.v1",partition="0"}
+    values: 100000+1000x30
+  alert_rule_test:
+  - eval_time: 25m
+    alertname: KafkaConsumerLagGrowing
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        doi: sre
+        consumergroup: scoring
+        topic: appraisal.v1
+        partition: '0'
+      exp_annotations:
+        summary: Lag của scoring trên appraisal.v1 tăng liên tục
+        runbook_url: https://runbook.vt.local/okr/kafka-lag
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: kafka_consumergroup_lag{consumergroup="scoring",topic="appraisal.v1",partition="0"}
+    values: 200000-1000x30
+  alert_rule_test:
+  - eval_time: 25m
+    alertname: KafkaConsumerLagGrowing
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: kafka_topic_partition_current_offset{topic="task.dlq.scoring",partition="0"}
+    values: 0 0 0 3 3 3
+  alert_rule_test:
+  - eval_time: 4m
+    alertname: DLQNotEmpty
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        doi: chu-service
+        topic: task.dlq.scoring
+        partition: '0'
+      exp_annotations:
+        summary: Có bản ghi mới trong hàng thư chết task.dlq.scoring
+        runbook_url: https://runbook.vt.local/okr/dlq
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: kafka_topic_partition_current_offset{topic="task.dlq.scoring",partition="0"}
+    values: 7x5
+  - series: kafka_topic_partition_current_offset{topic="task.v1",partition="0"}
+    values: 0+50x5
+  alert_rule_test:
+  - eval_time: 4m
+    alertname: DLQNotEmpty
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: container_cpu_usage_seconds_total{container="postgres",namespace="data-pg",pod="pg-core-1"}
+    values: 0+48x30
+  - series: kube_pod_container_resource_limits{resource="cpu",container="postgres",namespace="data-pg",pod="pg-core-1"}
+    values: 1x30
+  - series: cnpg_pg_replication_in_recovery{namespace="data-pg",pod="pg-core-1"}
+    values: '0x30'
+  alert_rule_test:
+  - eval_time: 25m
+    alertname: CNPGPrimaryCPUHigh
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        doi: dba
+        namespace: data-pg
+        pod: pg-core-1
+      exp_annotations:
+        summary: CPU primary data-pg/pg-core-1 80%
+        runbook_url: https://runbook.vt.local/okr/pg-cpu
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: container_cpu_usage_seconds_total{container="postgres",namespace="data-pg",pod="pg-core-2"}
+    values: 0+48x30
+  - series: kube_pod_container_resource_limits{resource="cpu",container="postgres",namespace="data-pg",pod="pg-core-2"}
+    values: 1x30
+  - series: cnpg_pg_replication_in_recovery{namespace="data-pg",pod="pg-core-2"}
+    values: 1x30
+  alert_rule_test:
+  - eval_time: 25m
+    alertname: CNPGPrimaryCPUHigh
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: pgbouncer_pools_client_waiting_connections{database="core"}
+    values: 80x5
+  alert_rule_test:
+  - eval_time: 4m
+    alertname: PgBouncerWaitingClients
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        doi: dba
+        database: core
+      exp_annotations:
+        summary: PgBouncer core có 80 client chờ kết nối
+        runbook_url: https://runbook.vt.local/okr/pgbouncer
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: pgbouncer_pools_client_waiting_connections{database="core"}
+    values: 10x5
+  alert_rule_test:
+  - eval_time: 4m
+    alertname: PgBouncerWaitingClients
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: vt_ceph_multisite_oldest_unsynced_seconds{zone="hl"}
+    values: 900x5
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: CephSyncBehind
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        doi: sre-luu-tru
+        zone: hl
+      exp_annotations:
+        summary: Đồng bộ multisite Ceph vùng hl chậm 15m 0s
+        runbook_url: https://runbook.vt.local/okr/ceph-sync
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: vt_ceph_multisite_oldest_unsynced_seconds{zone="hl"}
+    values: 60x5
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: CephSyncBehind
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: fluentbit_output_dropped_records_total{pod="fb-1",name="loki.0"}
+    values: 0 0 5 5 5
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: FluentBitDropping
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        doi: sre
+        pod: fb-1
+        name: loki.0
+      exp_annotations:
+        summary: Fluent Bit trên fb-1 bỏ bản ghi log ở đầu ra loki.0
+        runbook_url: https://runbook.vt.local/okr/logging
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: fluentbit_output_dropped_records_total{pod="fb-1",name="loki.0"}
+    values: '0x4'
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: FluentBitDropping
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: trace_completeness_ratio
+    values: 0.95x80
+  alert_rule_test:
+  - eval_time: 70m
+    alertname: TraceCompletenessLow
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        doi: sre
+      exp_annotations:
+        summary: Độ đầy đủ ngữ cảnh trace 95% (NFR-10 ≥ 99%)
+        runbook_url: https://runbook.vt.local/okr/tracing
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: trace_completeness_ratio
+    values: 0.995x80
+  alert_rule_test:
+  - eval_time: 70m
+    alertname: TraceCompletenessLow
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: certmanager_certificate_expiration_timestamp_seconds{namespace="edge",name="cell-tls"}
+    values: 864000x5
+  alert_rule_test:
+  - eval_time: 0m
+    alertname: CertificateExpiringSoon
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        doi: sre
+        namespace: edge
+        name: cell-tls
+      exp_annotations:
+        summary: Chứng thư edge/cell-tls hết hạn sau 10d 0h 0m 0s
+        runbook_url: https://runbook.vt.local/okr/certs
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: certmanager_certificate_expiration_timestamp_seconds{namespace="edge",name="cell-tls"}
+    values: 5184000x5
+  alert_rule_test:
+  - eval_time: 0m
+    alertname: CertificateExpiringSoon
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: vault_core_unsealed{pod="openbao-1"}
+    values: '0x5'
+  alert_rule_test:
+  - eval_time: 2m
+    alertname: OpenBaoSealed
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        doi: quan-tri-khoa
+        pod: openbao-1
+      exp_annotations:
+        summary: Node OpenBao openbao-1 đang bị niêm phong
+        runbook_url: https://runbook.vt.local/okr/openbao
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: vault_core_unsealed{pod="openbao-1"}
+    values: 1x5
+  alert_rule_test:
+  - eval_time: 2m
+    alertname: OpenBaoSealed
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: kyverno_policy_results_total{rule_result="fail",rule_type="verifyImages",policy_name="verify-image-signature"}
+    values: 0 0 2 2 2
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: KyvernoImageRejected
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        doi: soc
+        rule_result: fail
+        rule_type: verifyImages
+        policy_name: verify-image-signature
+      exp_annotations:
+        summary: Kyverno từ chối ảnh không ký theo chính sách verify-image-signature
+        runbook_url: https://runbook.vt.local/okr/supply-chain
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: kyverno_policy_results_total{rule_result="pass",rule_type="verifyImages",policy_name="verify-image-signature"}
+    values: 0+5x4
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: KyvernoImageRejected
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: falcosecurity_falcosidekick_falco_events_total{priority="Critical",rule="Terminal shell in container"}
+    values: 0 0 1 1 1
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: FalcoCritical
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        doi: soc
+        priority: Critical
+        rule: Terminal shell in container
+      exp_annotations:
+        summary: 'Falco ghi nhận quy tắc mức Critical: Terminal shell in container'
+        runbook_url: https://runbook.vt.local/okr/runtime-security
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: falcosecurity_falcosidekick_falco_events_total{priority="Warning",rule="Terminal shell in container"}
+    values: 0 0 1 1 1
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: FalcoCritical
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: kube_pod_container_resource_requests{resource="cpu",node="n1",pod="a"}
+    values: 15x40
+  - series: kube_node_status_allocatable{resource="cpu",node="n1"}
+    values: 16x40
+  - series: kube_node_labels{node="n1",label_vt_io_pool="app-general"}
+    values: 1x40
+  alert_rule_test:
+  - eval_time: 35m
+    alertname: NodeCapacityHeadroomLow
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        doi: sre
+        label_vt_io_pool: app-general
+      exp_annotations:
+        summary: Pool app-general còn 6.25% CPU dự phòng (< 15%)
+        runbook_url: https://runbook.vt.local/okr/capacity
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: kube_pod_container_resource_requests{resource="cpu",node="n1",pod="a"}
+    values: 8x40
+  - series: kube_node_status_allocatable{resource="cpu",node="n1"}
+    values: 16x40
+  - series: kube_node_labels{node="n1",label_vt_io_pool="app-general"}
+    values: 1x40
+  alert_rule_test:
+  - eval_time: 35m
+    alertname: NodeCapacityHeadroomLow
+    exp_alerts: []
+- interval: 1h
+  external_labels:
+    cell: g4
+  input_series:
+  - series: cnpg_collector_last_available_backup_timestamp{namespace="data-pg",cluster="pg-core"}
+    values: '0x30'
+  - series: cnpg_pg_stat_archiver_seconds_since_last_archival{namespace="data-pg",cluster="pg-core"}
+    values: 30x30
+  alert_rule_test:
+  - eval_time: 27h
+    alertname: BackupMissing
+    exp_alerts:
+    - exp_labels: &id001
+        severity: critical
+        doi: dba
+        namespace: data-pg
+        cluster: pg-core
+      exp_annotations: &id002
+        summary: Cụm pg-core không có bản sao lưu nền trong 26 giờ hoặc lưu WAL trễ quá 5 phút
+        runbook_url: https://runbook.vt.local/okr/backup
+- interval: 1h
+  external_labels:
+    cell: g4
+  input_series:
+  - series: cnpg_collector_last_available_backup_timestamp{namespace="data-pg",cluster="pg-core"}
+    values: 0+3600x30
+  - series: cnpg_pg_stat_archiver_seconds_since_last_archival{namespace="data-pg",cluster="pg-core"}
+    values: 600x30
+  alert_rule_test:
+  - eval_time: 27h
+    alertname: BackupMissing
+    exp_alerts:
+    - exp_labels: *id001
+      exp_annotations: *id002
+- interval: 1h
+  external_labels:
+    cell: g4
+  input_series:
+  - series: cnpg_collector_last_available_backup_timestamp{namespace="data-pg",cluster="pg-core"}
+    values: 0+3600x30
+  - series: cnpg_pg_stat_archiver_seconds_since_last_archival{namespace="data-pg",cluster="pg-core"}
+    values: 30x30
+  alert_rule_test:
+  - eval_time: 27h
+    alertname: BackupMissing
+    exp_alerts: []
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: cnpg_pg_replication_lag{cluster="pg-core",pod="pg-core-1"}
+    values: 400x5
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: CNPGReplicaClusterLag
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        doi: dba
+        cluster: pg-core
+      exp_annotations:
+        summary: Replica cluster pg-core trễ 6m 40s (> 5 phút)
+        runbook_url: https://runbook.vt.local/okr/pg-replica-lag
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: cnpg_pg_replication_lag{cluster="pg-core",pod="pg-core-1"}
+    values: 700x5
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: CNPGReplicaClusterLag
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        doi: dba
+        cluster: pg-core
+      exp_annotations:
+        summary: Replica cluster pg-core trễ 11m 40s (> 5 phút)
+        runbook_url: https://runbook.vt.local/okr/pg-replica-lag
+    - exp_labels:
+        severity: critical
+        doi: dba
+        cluster: pg-core
+      exp_annotations:
+        summary: Replica cluster pg-core trễ 11m 40s (> 10 phút)
+        runbook_url: https://runbook.vt.local/okr/pg-replica-lag
+- interval: 1m
+  external_labels:
+    cell: g4
+  input_series:
+  - series: cnpg_pg_replication_lag{cluster="pg-core",pod="pg-core-1"}
+    values: 100x5
+  alert_rule_test:
+  - eval_time: 3m
+    alertname: CNPGReplicaClusterLag
+    exp_alerts: []

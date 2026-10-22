@@ -1,0 +1,65 @@
+# Valkey Cluster (INF-11). Không dùng operator: ba StatefulSet theo vùng (a, b, c), mỗi StatefulSet hai pod, chung
+# dịch vụ headless valkey-headless; Job tạo cụm đặt primary ở pod -0 và replica của shard vùng a ở pod -1 của vùng b
+# (b → c, c → a), nên primary và replica của một shard luôn khác vùng (lý do chọn ở wiki 14).
+global:
+  cell: ""
+  sizing: L
+  # Danh sách vùng sự cố (TL-05 phụ lục A). Hồ sơ compact một vùng: ba StatefulSet cùng vùng, tách theo node.
+  topology:
+    zones: [hl-a, hl-b, hl-c]
+
+namespace: data-kafka
+
+image:
+  repository: harbor.vt.local/dockerhub/valkey/valkey
+  tag: 8.1.4-alpine
+  digest: sha256:e706d1213aaba6896c162bb6a3a9e1894e1a435f28f8f856d14fab2e10aa098b
+
+# Kích thước mỗi pod theo hồ sơ (TL-05 "Kafka và Valkey"). maxmemory compact suy luận (60% bộ nhớ pod).
+hoSo:
+  L:       { cpu: "4",    memory: 16Gi, maxmemory: 10gb }
+  M:       { cpu: "2",    memory: 8Gi,  maxmemory: 5gb }
+  S:       { cpu: "1",    memory: 4Gi,  maxmemory: 2500mb }
+  compact: { cpu: 500m,   memory: 2Gi,  maxmemory: 1200mb }
+
+# Valkey chỉ là bộ nhớ đệm (TL-04 mục 6.8): không RDB, không AOF. PVC nhỏ chỉ giữ nodes.conf để pod khởi động lại
+# vẫn nhận lại vị trí trong cụm.
+storage: { storageClass: nvme-local, size: 1Gi }
+
+placement:
+  # required: sáu pod trên sáu node khác nhau (cụm thật 6 node data-kafka); preferred cho môi trường thử ít node.
+  antiAffinity: required
+  nodeSelector: { vt.io/pool: kafka }
+  tolerations: [{ key: vt.io/pool, operator: Equal, value: kafka, effect: NoSchedule }]
+
+# Chứng thư máy chủ do cert-manager cấp từ OpenBao PKI (SEC-59, INF-13 dựng ClusterIssuer).
+tls:
+  issuerRef: { kind: ClusterIssuer, name: openbao-pki-cell }
+  duration: 2160h
+  renewBefore: 720h
+
+# Người dùng ACL (SEC-57, ADR-18). Mật khẩu ở OpenBao <externalSecrets.path>/<tên>, thuộc tính password; tệp ACL
+# chỉ chứa băm SHA-256. default bị tắt nên kết nối không xác thực bị từ chối. vt-admin dùng cho Job tạo cụm và
+# vận hành qua PAM; vt-replica cho đồng bộ primary → replica; client theo service.
+users:
+  vt-admin:    { rules: "~* &* +@all" }
+  vt-replica:  { rules: "+psync +replconf +ping" }
+  vt-exporter: { rules: "-@all +@connection +info +config|get +cluster|info +cluster|nodes +slowlog|get +latency|latest +memory|stats +client|list +dbsize +scan +type +strlen +llen +scard +zcard +hlen" }
+  mission-core:         { rules: "~* &* +@all -@admin -@dangerous", namespace: core }
+  apisix:               { rules: "~plugin-limit-* ~vt:revoked:* +@read +@write +@scripting +@connection -@dangerous", namespace: edge }
+  notification-service: { rules: "~* &* +@all -@admin -@dangerous", namespace: platform }
+  iam-session:          { rules: "~vt:revoked:* +@read +@write +@connection -@dangerous", namespace: identity }
+
+externalSecrets:
+  secretStore: { kind: ClusterSecretStore, name: openbao-cell }
+  path: kv/valkey
+  refreshInterval: 1h
+
+metrics:
+  enabled: true
+  image:
+    repository: harbor.vt.local/dockerhub/oliver006/redis_exporter
+    tag: v1.77.0
+    digest: sha256:4c8000eb3525e0f6ed1327499861e272fcce358a9e7a87dd9db74c44607e6d8e
+
+observabilityNamespace: observability

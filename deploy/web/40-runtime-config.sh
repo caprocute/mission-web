@@ -6,7 +6,10 @@
 set -e
 H=/usr/share/nginx/html
 REMOTES=${REMOTES_TSV:-/etc/mission-web/remotes.tsv}
-cat > $H/config.json <<JSON
+# RUNTIME_DIR: nơi ghi hai tệp cấu hình; chart đặt /tmp/runtime vì hệ thống tệp gốc chỉ đọc.
+OUT=${RUNTIME_DIR:-$H}
+mkdir -p "$OUT"
+cat > $OUT/config.json <<JSON
 {
   "cell": "${CELL:-DEV}",
   "tenant": "${TENANT:-default}",
@@ -26,4 +29,4 @@ JSON
     sep=','
   done < "$REMOTES"
   printf '\n}\n'
-} > $H/federation.manifest.json
+} > $OUT/federation.manifest.json

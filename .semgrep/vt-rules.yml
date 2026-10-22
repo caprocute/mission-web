@@ -1,0 +1,222 @@
+# Bộ quy tắc Semgrep riêng của Mission cho mã Java (INF-05).
+# Nguồn: TL-04 mục 9.1 (SEC-05 quy tắc `vt-sql-string-concat`, SEC-07 không ghi token, body request vào log),
+#        mục 9.4 (SEC-20 mật mã được phê duyệt), mục 9.6 (SEC-39 Semgrep chặn merge).
+# Pipeline chạy: semgrep scan --config p/java --config .semgrep/vt-rules.yml --error --sarif (vtJavaPipeline).
+# Kiểm thử quy tắc: semgrep --test --metrics=off --config .semgrep/vt-rules.yml .semgrep/vt-rules.java
+#   (mỗi quy tắc có ca dương và ca âm trong vt-rules.java; thư mục bắt đầu bằng dấu chấm nên phải chỉ rõ tệp).
+# Mọi quy tắc ở mức ERROR để `--error` làm pipeline thất bại; không hạ mức khi chưa có ngoại lệ được duyệt.
+rules:
+  # ─────────────── SEC-05: SQL Injection qua nối chuỗi (CWE-89) ───────────────
+  # Gốc từ quy tắc mẫu TL-04 mục 9.1 (executeQuery, execute, createNativeQuery, query, append "ORDER BY "),
+  # mở rộng (suy luận) sang các API JDBC, JPA, Spring JDBC, jOOQ khác nhận chuỗi SQL, sang trường hợp
+  # chuỗi được nối ở giữa ("..." + x + "...") và câu SQL dựng sẵn vào biến rồi mới thực thi.
+  - id: vt-sql-string-concat
+    languages: [java]
+    severity: ERROR
+    message: "Không nối chuỗi vào câu SQL. Dùng tham số ràng buộc hoặc jOOQ (SEC-05)."
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021"
+      sec: "SEC-05"
+    pattern-either:
+      # Nối chuỗi trực tiếp trong lời gọi thực thi
+      - patterns:
+          - pattern: $RECV.$EXEC($SQL, ...)
+          - metavariable-regex:
+              metavariable: $EXEC
+              regex: ^(executeQuery|execute|executeUpdate|executeLargeUpdate|addBatch|prepareStatement|prepareCall|createNativeQuery|createQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|update|batchUpdate|fetch|resultQuery)$
+          - metavariable-pattern:
+              metavariable: $SQL
+              patterns:
+                - pattern-either:
+                    - pattern: '"..." + $X'
+                    - pattern: '"..." + $X + "..."'
+                    - pattern: String.format("...", ...)
+                - pattern-not: '"..." + "..."'
+      # ORDER BY ghép từ tham số của người dùng
+      - pattern: $SB.append("ORDER BY " + $X)
+      - pattern: $SB.append(" ORDER BY " + $X)
+      # Câu SQL dựng sẵn vào biến rồi mới thực thi
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  String $Q = "..." + $X;
+                  ...
+                  $RECV.$EXEC($Q, ...);
+              - pattern: |
+                  String $Q = "..." + $X + "...";
+                  ...
+                  $RECV.$EXEC($Q, ...);
+              - pattern: |
+                  String $Q = String.format("...", ...);
+                  ...
+                  $RECV.$EXEC($Q, ...);
+          - metavariable-regex:
+              metavariable: $EXEC
+              regex: ^(executeQuery|execute|executeUpdate|executeLargeUpdate|addBatch|prepareStatement|prepareCall|createNativeQuery|createQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|update|batchUpdate|fetch|resultQuery)$
+
+  # ─────────────── SEC-07: không ghi thân request vào log (CWE-532) ───────────────
+  - id: vt-log-request-body
+    languages: [java]
+    severity: ERROR
+    message: "Không ghi thân request hoặc phản hồi vào log; dữ liệu nghiệp vụ có thể chứa dữ liệu C2, C3 và token (SEC-07). Ghi mã định danh hoặc kích thước thay vì nội dung."
+    metadata:
+      cwe: "CWE-532"
+      sec: "SEC-07"
+    patterns:
+      - pattern-either:
+          - pattern: $LOG.$LVL(..., (HttpServletRequest $R).getReader(), ...)
+          - pattern: $LOG.$LVL(..., (HttpServletRequest $R).getInputStream(), ...)
+          - pattern: $LOG.$LVL(..., (ContentCachingRequestWrapper $R).getContentAsByteArray(), ...)
+          - pattern: $LOG.$LVL(..., new String((ContentCachingRequestWrapper $R).getContentAsByteArray(), ...), ...)
+          - pattern: $LOG.$LVL(..., (ContentCachingRequestWrapper $R).getContentAsString(), ...)
+          - pattern: $LOG.$LVL(..., (HttpEntity $E).getBody(), ...)
+          - pattern: $LOG.$LVL(..., (ResponseEntity $E).getBody(), ...)
+          - pattern: $LOG.$LVL(..., (ServerHttpRequest $R).getBody(), ...)
+          # Tham số có @RequestBody trong controller
+          - patterns:
+              - pattern-inside: |
+                  $RET $METHOD(..., @RequestBody $T $BODY, ...) {
+                    ...
+                  }
+              - pattern: $LOG.$LVL(..., $BODY, ...)
+          # Biến đặt tên rõ là thân request hoặc payload
+          - patterns:
+              - pattern: $LOG.$LVL(..., $VAR, ...)
+              - metavariable-regex:
+                  metavariable: $VAR
+                  regex: (?i)^(request_?body|req_?body|raw_?body|body|payload|raw_?payload)$
+      - metavariable-regex:
+          metavariable: $LOG
+          regex: (?i)^(log|logger|LOG|LOGGER|.*log|.*logger)$
+      - metavariable-regex:
+          metavariable: $LVL
+          regex: ^(trace|debug|info|warn|error|fatal|log|printf|atTrace|atDebug|atInfo|atWarn|atError)$
+
+  # ─────────────── SEC-07: không ghi token, mật khẩu, bí mật vào log (CWE-532) ───────────────
+  - id: vt-log-secret-token
+    languages: [java]
+    severity: ERROR
+    message: "Không ghi JWT, refresh token, header Authorization, mật khẩu hay khoá bí mật vào log (SEC-07). Nếu cần truy vết, ghi `jti` hoặc mã băm cắt ngắn."
+    metadata:
+      cwe: "CWE-532"
+      sec: "SEC-07"
+    patterns:
+      - pattern-either:
+          - pattern: $LOG.$LVL(..., (HttpServletRequest $R).getHeader("Authorization"), ...)
+          - pattern: $LOG.$LVL(..., (HttpServletRequest $R).getHeader("authorization"), ...)
+          - pattern: $LOG.$LVL(..., (HttpHeaders $H).getFirst("Authorization"), ...)
+          - pattern: $LOG.$LVL(..., (Jwt $J).getTokenValue(), ...)
+          - pattern: $LOG.$LVL(..., (OAuth2AccessToken $J).getTokenValue(), ...)
+          - pattern: $LOG.$LVL(..., (OAuth2RefreshToken $J).getTokenValue(), ...)
+          - pattern: $LOG.$LVL(..., (AbstractOAuth2Token $J).getTokenValue(), ...)
+          - pattern: $LOG.$LVL(..., $X.getTokenValue(), ...)
+          - pattern: $LOG.$LVL(..., $X.getPassword(), ...)
+          - pattern: $LOG.$LVL(..., $X.getSecret(), ...)
+          - pattern: $LOG.$LVL(..., $X.getClientSecret(), ...)
+          - pattern: $LOG.$LVL(..., $X.getAccessToken(), ...)
+          - pattern: $LOG.$LVL(..., $X.getRefreshToken(), ...)
+          - pattern: $LOG.$LVL(..., $X.getIdToken(), ...)
+          - patterns:
+              - pattern: $LOG.$LVL(..., $VAR, ...)
+              - metavariable-regex:
+                  metavariable: $VAR
+                  regex: (?i)^(.*token|jwt|.*jwt|bearer|authorization|auth_?header|password|passwd|pwd|mat_?khau|matKhau|.*secret|api_?key|private_?key|credentials?)$
+          - patterns:
+              - pattern: $LOG.$LVL(..., "..." + $VAR, ...)
+              - metavariable-regex:
+                  metavariable: $VAR
+                  regex: (?i)^(.*token|jwt|.*jwt|bearer|authorization|auth_?header|password|passwd|pwd|mat_?khau|matKhau|.*secret|api_?key|private_?key|credentials?)$
+      - metavariable-regex:
+          metavariable: $LOG
+          regex: (?i)^(log|logger|LOG|LOGGER|.*log|.*logger)$
+      - metavariable-regex:
+          metavariable: $LVL
+          regex: ^(trace|debug|info|warn|error|fatal|log|printf)$
+
+  # ─────────────── SEC-20: cấm DES, 3DES, RC4, ECB (CWE-327) ───────────────
+  - id: vt-crypto-weak-cipher
+    languages: [java]
+    severity: ERROR
+    message: "Thuật toán mã hoá không nằm trong danh sách SEC-20 (cấm DES, 3DES, RC4, Blowfish, chế độ ECB, PBEWithMD5AndDES). Dùng AES-256-GCM hoặc ChaCha20-Poly1305."
+    metadata:
+      cwe: "CWE-327"
+      sec: "SEC-20"
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: javax.crypto.Cipher.getInstance($ALG, ...)
+              - pattern: javax.crypto.KeyGenerator.getInstance($ALG, ...)
+              - pattern: javax.crypto.SecretKeyFactory.getInstance($ALG, ...)
+              - pattern: new javax.crypto.spec.SecretKeySpec($K, $ALG)
+              - pattern: new javax.crypto.spec.SecretKeySpec($K, $O, $L, $ALG)
+          - metavariable-regex:
+              metavariable: $ALG
+              regex: (?i)^"(DES|DESede|TripleDES|3DES|RC2|RC4|ARCFOUR|Blowfish|PBEWithMD5AndDES|PBEWithMD5AndTripleDES|PBEWithSHA1AndDESede|PBEWithSHA1AndRC4_\d+|PBEWithSHA1AndRC2_\d+)(/.*)?"$|^"[^"]*/ECB/[^"]*"$
+      # "AES" không ghi chế độ thì nhà cung cấp mặc định dùng ECB
+      - pattern: javax.crypto.Cipher.getInstance("AES", ...)
+
+  # ─────────────── SEC-20: cấm MD5 và SHA-1 (CWE-328) ───────────────
+  - id: vt-crypto-weak-hash
+    languages: [java]
+    severity: ERROR
+    message: "MD5 và SHA-1 không được dùng để băm bảo mật hay ký (SEC-20). Dùng SHA-256, SHA-384 hoặc SHA-3; chữ ký dùng ECDSA P-256/P-384, RSA ≥ 2048 với SHA-256 trở lên, Ed25519."
+    metadata:
+      cwe: "CWE-328"
+      sec: "SEC-20"
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: java.security.MessageDigest.getInstance($ALG, ...)
+              - pattern: java.security.Signature.getInstance($ALG, ...)
+              - pattern: javax.crypto.Mac.getInstance($ALG, ...)
+          - metavariable-regex:
+              metavariable: $ALG
+              regex: (?i)^"(MD2|MD4|MD5|SHA|SHA-?1|SHA1with.*|MD5with.*|MD2with.*|HmacMD5)"$
+      - pattern: org.apache.commons.codec.digest.DigestUtils.md5(...)
+      - pattern: org.apache.commons.codec.digest.DigestUtils.md5Hex(...)
+      - pattern: org.apache.commons.codec.digest.DigestUtils.sha1(...)
+      - pattern: org.apache.commons.codec.digest.DigestUtils.sha1Hex(...)
+      - pattern: org.springframework.util.DigestUtils.md5Digest(...)
+      - pattern: org.springframework.util.DigestUtils.md5DigestAsHex(...)
+      - pattern: com.google.common.hash.Hashing.md5()
+      - pattern: com.google.common.hash.Hashing.sha1()
+
+  # ─────────────── SEC-20: cấm TrustManager tin mọi chứng thư (CWE-295) ───────────────
+  - id: vt-tls-trust-all
+    languages: [java]
+    severity: ERROR
+    message: "Cấm TrustManager hoặc HostnameVerifier chấp nhận mọi chứng thư (SEC-20). Dùng kho tin cậy của nền tảng (PKI OpenBao, mTLS Istio) thay vì tắt kiểm tra."
+    metadata:
+      cwe: "CWE-295"
+      sec: "SEC-20"
+    pattern-either:
+      # checkServerTrusted rỗng trong lớp hoặc lớp ẩn danh cài X509TrustManager
+      - pattern: |
+          public void checkServerTrusted(...) {}
+      - pattern: |
+          public void checkServerTrusted(...) throws $E {}
+      - pattern: |
+          public void checkServerTrusted(...) { return; }
+      - pattern: |
+          public void checkClientTrusted(...) {}
+      - pattern: |
+          public void checkClientTrusted(...) throws $E {}
+      # HostnameVerifier luôn đúng
+      - pattern: |
+          public boolean verify(String $H, javax.net.ssl.SSLSession $S) { return true; }
+      - patterns:
+          - pattern-either:
+              - pattern: $C.setHostnameVerifier(($H, $S) -> true)
+              - pattern: $C.setDefaultHostnameVerifier(($H, $S) -> true)
+              - pattern: $C.hostnameVerifier(($H, $S) -> true)
+              - pattern: $C.setSSLHostnameVerifier(($H, $S) -> true)
+      # Tiện ích tắt kiểm tra của các thư viện phổ biến
+      - pattern: io.netty.handler.ssl.util.InsecureTrustManagerFactory.INSTANCE
+      - pattern: org.apache.http.conn.ssl.NoopHostnameVerifier.INSTANCE
+      - pattern: org.apache.hc.client5.http.ssl.NoopHostnameVerifier.INSTANCE
+      - pattern: new org.apache.http.conn.ssl.TrustAllStrategy()
+      - pattern: new org.apache.http.conn.ssl.TrustSelfSignedStrategy()
+      - pattern: org.apache.hc.client5.http.ssl.TrustAllStrategy.INSTANCE
+      - pattern: new org.apache.hc.client5.http.ssl.TrustAllStrategy()
+      - pattern: org.apache.http.conn.ssl.SSLConnectionSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER

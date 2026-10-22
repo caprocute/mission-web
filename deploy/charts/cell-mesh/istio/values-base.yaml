@@ -1,0 +1,2 @@
+# Chart istio/base: CRD và ValidatingWebhook mặc định.
+defaultRevision: default
