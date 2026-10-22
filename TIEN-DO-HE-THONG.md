@@ -528,7 +528,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DL-04](docs/tasks/DL-04-task-lifecycle-tham-so.md) | Bảng chuyển trạng thái `task_lifecycle` và tham số luồng duyệt mặc định | S | B11 | 14 | CORE-05-03 | **Đã gộp main** | Đã gộp main (e9620db) |
 | [DL-05](docs/tasks/DL-05-mau-docx-bieu-mau.md) | Mẫu DOCX 1A–1D, 2, 3 và bảng chấm điểm theo văn bản pháp lý | M | B11 | 1 | – | **Đã gộp main** | Đã gộp `main` (commit `cf3eafd` – mẫu biểu DOCX 1A–1D, 2, 3 và bảng chấm điểm bản giả lập) |
 | [DL-06](docs/tasks/DL-06-ui-pack-mac-dinh.md) | UI Pack mặc định, bộ token người cao tuổi, danh mục công việc mẫu theo khối | M | B11 | 18 | CORE-08-11, CORE-02-04 | **Chưa bắt đầu** |  |
-| [DL-07](docs/tasks/DL-07-du-lieu-khoi-tao.md) | Dữ liệu khởi tạo: 9 khối đối tượng, lịch nghỉ lễ quốc gia, danh mục chức danh | S | B11 | 13 | DV-04-01, CORE-08-04 | **Làm một phần** | Lịch nghỉ 2026–2027 có nguồn trên main; migration lặp chờ tên 9 khối (PL 2A), danh mục chức danh (PL 2B) và bảng config.holiday_calendar của mission-core (CORE-08-01) |
+| [DL-07](docs/tasks/DL-07-du-lieu-khoi-tao.md) | Dữ liệu khởi tạo: 9 khối đối tượng, lịch nghỉ lễ quốc gia, danh mục chức danh | S | B11 | 13 | DV-04-01, CORE-08-04 | **Làm một phần** | Nhánh claude/b11-noi-dung-26rl4b: khối, chức danh giả lập + R__ org (NationalCatalogSeedIT xanh); lịch nghỉ chờ CORE-08-01; tenant thường chưa đọc được danh mục hệ thống (wiki 14) |
 | [DL-08](docs/tasks/DL-08-sinh-du-lieu-thu-tai.md) | Bộ sinh dữ liệu thử quy mô (1,2 triệu hồ sơ một cell) cho kiểm thử hiệu năng | M | B9 | 13 | CORE-04-01, CORE-02-02, DV-04-01, CORE-03-01 | **Chưa bắt đầu** |  |
 | [DL-12](docs/tasks/DL-12-job-doi-soat.md) | Job đối soát R1–R8 và bốn job kiểm tra sổ cái | L | B11 | 14 | CORE-04-02, DV-09-04, DV-15-02 | **Chưa bắt đầu** |  |
 | [DL-13](docs/tasks/DL-13-luu-giu-xoa-mat-ma.md) | Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ | M | B11 | 13 | NEN-015, INF-18, CORE-08-07 | **Chưa bắt đầu** |  |
@@ -740,4 +740,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 00:08 | B1 (Claude) | `DV-04-06` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: đang thực hiện |
 | 22/10/2026 00:37 | B1 (Claude) | `DV-04-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: SCIM 2.0 trên org-service, verify org-service xanh (110 IT), lint scim.yaml đạt |
 | 22/10/2026 00:44 | Điều phối | `DV-04-06` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (fcff925) |
+| 22/10/2026 00:47 | B11 | `DL-07` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b11-noi-dung-26rl4b: người dùng chấp nhận khối, chức danh giả lập (22/10); đang viết migration lặp org |
+| 22/10/2026 00:59 | B11 | `DL-07` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b11-noi-dung-26rl4b: khối, chức danh giả lập + R__ org (NationalCatalogSeedIT xanh); lịch nghỉ chờ CORE-08-01; tenant thường chưa đọc được danh mục hệ thống (wiki 14) |
 <!-- PROGRESS_LOG_END -->
