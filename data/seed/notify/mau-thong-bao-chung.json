@@ -1,0 +1,96 @@
+{
+  "_ghiChu": "DV-12-01 · Bộ mẫu thông báo dùng chung (notify.template, tenant_id NULL), kênh INAPP, ngôn ngữ vi. Văn phong theo MSG của TL-02, không in mã kỹ thuật, không chứa tham số C2. Tenant có thể ghi mẫu riêng cùng mã để thay mẫu chung.",
+  "templates": [
+    {
+      "templateCode": "NV_DUOC_GIAO",
+      "channel": "INAPP",
+      "locale": "vi",
+      "subject": "Đồng chí được giao nhiệm vụ mới",
+      "body": "Nhiệm vụ \"{{title}}\", hạn {{dueDate}}."
+    },
+    {
+      "templateCode": "NV_PHOI_HOP",
+      "channel": "INAPP",
+      "locale": "vi",
+      "subject": "Đồng chí được phân công phối hợp thực hiện nhiệm vụ",
+      "body": "Nhiệm vụ \"{{title}}\", hạn {{dueDate}}."
+    },
+    {
+      "templateCode": "NV_SAP_DEN_HAN",
+      "channel": "INAPP",
+      "locale": "vi",
+      "subject": "Nhiệm vụ sắp đến hạn",
+      "body": "Nhiệm vụ \"{{title}}\" đến hạn ngày {{dueDate}}."
+    },
+    {
+      "templateCode": "NV_QUA_HAN",
+      "channel": "INAPP",
+      "locale": "vi",
+      "subject": "Nhiệm vụ đã quá hạn",
+      "body": "Nhiệm vụ \"{{title}}\" đã quá hạn ngày {{dueDate}}, đề nghị đồng chí cập nhật tiến độ."
+    },
+    {
+      "templateCode": "MC_DA_NOP",
+      "channel": "INAPP",
+      "locale": "vi",
+      "subject": "Minh chứng đã được nộp",
+      "body": "Minh chứng của đồng chí đã được ghi nhận và chuyển tới người xác nhận."
+    },
+    {
+      "templateCode": "MC_CAN_XAC_NHAN",
+      "channel": "INAPP",
+      "locale": "vi",
+      "subject": "Có minh chứng cần xác nhận",
+      "body": "Đề nghị đồng chí xem và xác nhận minh chứng mới nộp."
+    },
+    {
+      "templateCode": "HS_DA_CHUYEN_BUOC",
+      "channel": "INAPP",
+      "locale": "vi",
+      "subject": "Đã hoàn tất bước {{stageLabel}} của hồ sơ đánh giá",
+      "body": "Hồ sơ đánh giá đã được chuyển sang bước tiếp theo."
+    },
+    {
+      "templateCode": "HS_CAN_THAM_DINH",
+      "channel": "INAPP",
+      "locale": "vi",
+      "subject": "Có hồ sơ cần thẩm định",
+      "body": "Đề nghị đồng chí mở hồ sơ để thẩm định."
+    },
+    {
+      "templateCode": "HS_CAN_QUYET_DINH",
+      "channel": "INAPP",
+      "locale": "vi",
+      "subject": "Có hồ sơ cần quyết định xếp loại",
+      "body": "Đề nghị đồng chí mở hồ sơ để xem xét và quyết định."
+    },
+    {
+      "templateCode": "OKR_CHO_DUYET",
+      "channel": "INAPP",
+      "locale": "vi",
+      "subject": "Có bộ OKR cần phê duyệt",
+      "body": "{{unitName}} trình OKR {{periodName}}, hạn duyệt {{dueDate}}."
+    },
+    {
+      "templateCode": "OKR_NHAC_CHECKIN",
+      "channel": "INAPP",
+      "locale": "vi",
+      "subject": "Đến kỳ cập nhật tiến độ OKR",
+      "body": "Đề nghị đồng chí cập nhật tiến độ các kết quả then chốt trước ngày {{dueDate}}."
+    },
+    {
+      "templateCode": "CANH_BAO_BAT_THUONG",
+      "channel": "INAPP",
+      "locale": "vi",
+      "subject": "Có dấu hiệu bất thường cần xem xét",
+      "body": "Mức độ: {{severityLabel}}. Đề nghị đồng chí mở trang giám sát để xem chi tiết."
+    },
+    {
+      "templateCode": "THONG_BAO_CHUNG",
+      "channel": "INAPP",
+      "locale": "vi",
+      "subject": "Đồng chí có thông báo mới",
+      "body": "Mở ứng dụng để xem chi tiết."
+    }
+  ]
+}
