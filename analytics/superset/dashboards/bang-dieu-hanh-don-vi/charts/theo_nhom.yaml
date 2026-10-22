@@ -1,0 +1,28 @@
+slice_name: Nhiệm vụ theo nhóm
+description: null
+certified_by: null
+certification_details: null
+viz_type: table
+params:
+  viz_type: table
+  query_mode: aggregate
+  groupby:
+  - nhom
+  metrics:
+  - so_viec
+  - ty_le_dung_han
+  all_columns: []
+  percent_metrics: []
+  adhoc_filters: []
+  order_by_cols: []
+  row_limit: 100
+  server_page_length: 10
+  order_desc: true
+  table_timestamp_format: smart_date
+  show_cell_bars: false
+  color_pn: false
+query_context: null
+cache_timeout: null
+uuid: 1ddd14d0-ef9a-5ed2-a7a4-c4e220657a32
+version: 1.0.0
+dataset_uuid: 35130eef-a7dc-5a54-9f61-adb57c483391

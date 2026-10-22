@@ -75,6 +75,9 @@ class Env:
     api_secret: str
     cube_password: str
     cube: Any
+    net: Any = None
+    sql_user: str = ""
+    sql_password: str = ""
 
     def ch(self, sql: str, **settings: str) -> str:
         return migrate.ClickHouse(self.ch_http, "default", self.admin_password).run(sql, **settings)
@@ -124,6 +127,7 @@ def env() -> Iterator[Env]:
     net = Network()
     net.create()
     admin_pw, cube_pw, secret = secrets.token_hex(16), secrets.token_hex(16), secrets.token_hex(32)
+    sql_user, sql_pw = "superset_ky_thuat", secrets.token_hex(16)
     ch = (
         DockerContainer(CH_IMAGE)
         .with_network(net)
@@ -151,7 +155,8 @@ def env() -> Iterator[Env]:
         cube = (
             DockerContainer(CUBE_IMAGE)
             .with_network(net)
-            .with_exposed_ports(4000)
+            .with_network_aliases("cube")
+            .with_exposed_ports(4000, 15432)
             .with_volume_mapping(str(CUBE_DIR / "cube.js"), "/cube/conf/cube.js")
             .with_volume_mapping(str(CUBE_DIR / "model"), "/cube/conf/model")
             .with_env("CUBEJS_DB_TYPE", "clickhouse")
@@ -167,11 +172,15 @@ def env() -> Iterator[Env]:
             .with_env("CUBE_REFRESH_TENANTS", tenants)
             .with_env("CUBEJS_TELEMETRY", "false")
             .with_env("CUBEJS_LOG_LEVEL", "info")
+            # SQL API cho Superset nhúng (DV-15-05).
+            .with_env("CUBEJS_PG_SQL_PORT", "15432")
+            .with_env("CUBEJS_SQL_USER", sql_user)
+            .with_env("CUBEJS_SQL_PASSWORD", sql_pw)
         )
         cube.start()
         url = f"http://{cube.get_container_host_ip()}:{cube.get_exposed_port(4000)}"
         _wait(url + "/readyz", None, timeout=120)
-        yield Env(http, admin_pw, db, url, secret, cube_pw, cube)
+        yield Env(http, admin_pw, db, url, secret, cube_pw, cube, net, sql_user, sql_pw)
     finally:
         if cube is not None:
             if os.environ.get("CUBE_LOGS"):

@@ -342,7 +342,7 @@ public class JdbcSelfAssessmentRepository implements SelfAssessmentRepository {
         .list();
   }
 
-  private static ProfileSummary summary(ResultSet rs) throws SQLException {
+  static ProfileSummary summary(ResultSet rs) throws SQLException {
     return new ProfileSummary(
         rs.getObject(1, UUID.class),
         rs.getObject(2, UUID.class),

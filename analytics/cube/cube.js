@@ -6,6 +6,10 @@
 //   tiền tố, của đường dẫn đơn vị trên cây Đảng hoặc cây chuyên môn) cho mọi cube gắn đơn vị.
 // - driverFactory: mỗi tenant một driver ClickHouse đặt SQL_tenant_id, để row policy của kho (V009) lọc thêm một lớp;
 //   pre-aggregation của mỗi tenant nằm trong CSDL riêng <db>_pa_<tenant>.
+// - checkSqlAuth, canSwitchSqlUser (DV-15-05): SQL API (cổng Postgres wire) chỉ cho tài khoản kỹ thuật của Superset
+//   đăng nhập; tài khoản này không có ngữ cảnh an ninh nên chỉ đọc được danh mục, mọi truy vấn số liệu bị từ chối.
+//   Superset nhúng gắn điều kiện RLS `__user = '<JWT>'` từ guest token; Cube đổi người dùng sang JWT đó (HS256 ký bằng
+//   CUBEJS_API_SECRET, cùng dạng token REST) và áp đúng queryRewrite như REST.
 // Chỉ các cube, measure, dimension trong model/ được truy vấn; không có SQL tự do (BR-16-02).
 
 const ClickHouseDriver = require('@cubejs-backend/clickhouse-driver');
@@ -29,11 +33,24 @@ const TENANT_ONLY = new Set(['period', 'subject_group', 'data_freshness']);
 class TenantClickHouseDriver extends ClickHouseDriver {
   constructor(tenant) {
     super({});
-    this.config.clickhouseSettings.SQL_tenant_id = tenant;
-    this.client = this.createClient(Number(process.env.CUBEJS_DB_MAX_POOL || 8));
+    this.tenant = tenant;
+    if (tenant) {
+      this.config.clickhouseSettings.SQL_tenant_id = tenant;
+      this.client = this.createClient(Number(process.env.CUBEJS_DB_MAX_POOL || 8));
+    }
+  }
+
+  guard() {
+    if (!this.tenant) throw new ForbiddenError('Thiếu ngữ cảnh an ninh: tenant');
+  }
+
+  async command(sql) {
+    this.guard();
+    return super.command(sql);
   }
 
   async query(sql, values, options) {
+    this.guard();
     if (/^\s*(ALTER|CREATE|DROP|INSERT|TRUNCATE|RENAME)\b/i.test(sql)) {
       await this.command(sqlstring.format(sql, values || []));
       return [];
@@ -54,6 +71,19 @@ function tenantOf(securityContext) {
     throw new ForbiddenError('Thiếu ngữ cảnh an ninh: tenant');
   }
   return tenant;
+}
+
+function verifyToken(token) {
+  try {
+    return jwt.verify(token, process.env.CUBEJS_API_SECRET, { algorithms: ['HS256'] });
+  } catch (e) {
+    throw new ForbiddenError('Token không hợp lệ');
+  }
+}
+
+function tenantOrMeta(securityContext) {
+  const tenant = securityContext && securityContext.tenant;
+  return typeof tenant === 'string' && UUID.test(tenant) ? tenant : 'META';
 }
 
 function scopeOf(securityContext) {
@@ -92,15 +122,28 @@ function branchFilter(orgPath) {
 module.exports = {
   checkAuth: (req, auth) => {
     const token = typeof auth === 'string' ? auth.replace(/^Bearer\s+/i, '') : '';
-    let payload;
-    try {
-      payload = jwt.verify(token, process.env.CUBEJS_API_SECRET, { algorithms: ['HS256'] });
-    } catch (e) {
-      throw new ForbiddenError('Token không hợp lệ');
-    }
+    const payload = verifyToken(token);
     const { tenant, orgPath } = scopeOf(payload);
     req.securityContext = { tenant, org_path: orgPath, sub: payload.sub };
   },
+
+  // Đăng nhập SQL API: chỉ tài khoản kỹ thuật (mật khẩu so khớp trong Cube). Đổi người dùng qua __user gọi lại hàm
+  // này với password = null: khi đó user phải là JWT hợp lệ, ngữ cảnh an ninh lấy từ JWT.
+  checkSqlAuth: async (req, user, password) => {
+    const sqlUser = process.env.CUBEJS_SQL_USER;
+    if (password === null && user !== sqlUser) {
+      const payload = verifyToken(user);
+      const { tenant, orgPath } = scopeOf(payload);
+      return { securityContext: { tenant, org_path: orgPath, sub: payload.sub }, skipPasswordCheck: true };
+    }
+    if (!sqlUser || user !== sqlUser || !process.env.CUBEJS_SQL_PASSWORD) {
+      throw new ForbiddenError('Tài khoản SQL không hợp lệ');
+    }
+    return { password: process.env.CUBEJS_SQL_PASSWORD, securityContext: {} };
+  },
+
+  canSwitchSqlUser: async (current, newUser) => Boolean(process.env.CUBEJS_SQL_USER)
+    && current === process.env.CUBEJS_SQL_USER && newUser !== current,
 
   queryRewrite: (query, { securityContext }) => {
     const { tenant, orgPath } = scopeOf(securityContext);
@@ -119,12 +162,19 @@ module.exports = {
     return { ...query, filters };
   },
 
-  contextToAppId: ({ securityContext }) => `CUBE_APP_${tenantOf(securityContext)}`,
-  contextToOrchestratorId: ({ securityContext }) => `CUBE_APP_${tenantOf(securityContext)}`,
+  // Phiên SQL của tài khoản kỹ thuật không có tenant: chỉ dùng bản biên dịch chung để đọc danh mục (mô hình giống nhau
+  // giữa các tenant); driver và pre-aggregation vẫn bắt buộc tenant nên không chạy được truy vấn số liệu.
+  contextToAppId: ({ securityContext }) => `CUBE_APP_${tenantOrMeta(securityContext)}`,
+  contextToOrchestratorId: ({ securityContext }) => `CUBE_APP_${tenantOrMeta(securityContext)}`,
 
-  driverFactory: ({ securityContext }) => new TenantClickHouseDriver(tenantOf(securityContext)),
+  // Phiên kỹ thuật (META) vẫn cần một driver để Cube biết loại CSDL khi mở kết nối SQL API, nhưng driver đó từ chối
+  // mọi câu lệnh.
+  driverFactory: ({ securityContext }) => {
+    const tenant = tenantOrMeta(securityContext);
+    return new TenantClickHouseDriver(tenant === 'META' ? null : tenant);
+  },
 
-  preAggregationsSchema: ({ securityContext }) => `${DB}_pa_${tenantOf(securityContext).replace(/-/g, '')}`,
+  preAggregationsSchema: ({ securityContext }) => `${DB}_pa_${tenantOrMeta(securityContext).replace(/-/g, '')}`,
 
   // Danh sách tenant của cell cần làm mới pre-aggregation (mỗi 5 phút theo refresh_key của model).
   scheduledRefreshContexts: async () => (process.env.CUBE_REFRESH_TENANTS || '')

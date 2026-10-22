@@ -572,6 +572,9 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
                     .single());
     assertThat(new String(cipher, StandardCharsets.UTF_8)).doesNotContain("chi bộ");
     assertThat(cipher[0]).isEqualTo((byte) 0x01);
+    // Nhóm người nghiệm thu của BR-09-14 (CORE-04-05).
+    assertThat(as(() -> evidenceQuery.acceptors(tenant, period, ACTOR))).containsExactly(ASSIGNER);
+    assertThat(as(() -> evidenceQuery.acceptors(tenant, period, ASSIGNER))).isEmpty();
 
     // Yêu cầu bổ sung: nhiệm vụ về đang thực hiện, người nộp được báo.
     UUID task2 = task(ACTOR);
