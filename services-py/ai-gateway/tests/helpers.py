@@ -19,6 +19,7 @@ TENANT_A = "0192f000-0000-7000-8000-00000000000a"
 TENANT_B = "0192f000-0000-7000-8000-00000000000b"
 USER_1 = "0192f000-0000-7000-8000-000000000001"
 USER_2 = "0192f000-0000-7000-8000-000000000002"
+SERVICE = "0192f000-0000-7000-8000-0000000000ff"
 
 _KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 _KID = "test-key"
@@ -54,6 +55,9 @@ class FakeIdp:
             form = dict(httpx.QueryParams(request.content.decode()))
             form["authorization"] = request.headers.get("authorization", "")
             self.exchanges.append(form)
+            if form.get("grant_type") == "client_credentials":
+                svc = token(SERVICE, TENANT_A, ("ai_readonly",), aud="mission-core", azp="ai-gateway")
+                return httpx.Response(200, json={"access_token": svc, "token_type": "Bearer", "expires_in": 300})
             subject = jwt.decode(form["subject_token"], options={"verify_signature": False})
             out = self.issue(subject)
             if out is None:

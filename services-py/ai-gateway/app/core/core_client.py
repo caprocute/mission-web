@@ -85,6 +85,19 @@ class CoreClient:
         r.raise_for_status()
         return sanitize(r.json(), allow_c2)
 
+    async def download(self, principal: Principal, object_id: str, max_bytes: int) -> tuple[str, bytes]:
+        """Tải tệp người dùng đính kèm: xin URL ký trước qua lõi (lõi kiểm quyền, ghi nhật ký), rồi tải không kèm
+        token. Trả (tên tệp suy từ kiểu nội dung, nội dung)."""
+        meta = await self.get_json(principal, f"/api/v1/files/{object_id}/download-url")
+        if int(meta.get("sizeBytes") or 0) > max_bytes:
+            raise ValueError("tệp vượt giới hạn")
+        ext = {"application/pdf": ".pdf"}.get(str(meta.get("mediaType")), ".docx")
+        r = await self._http.get(str(meta["url"]), headers={"Authorization": ""})
+        r.raise_for_status()
+        if len(r.content) > max_bytes:
+            raise ValueError("tệp vượt giới hạn")
+        return f"{object_id}{ext}", r.content
+
     def __getattr__(self, name: str) -> Any:
         if name in ("post", "put", "patch", "delete", "request", "send", "stream"):
             raise WriteForbiddenError(f"CoreClient không có thao tác {name}")
