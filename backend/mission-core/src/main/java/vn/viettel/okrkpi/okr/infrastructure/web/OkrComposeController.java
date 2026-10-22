@@ -56,6 +56,7 @@ import vn.viettel.okrkpi.contract.okr.model.OkrRevisionCreateRequest;
 import vn.viettel.okrkpi.contract.okr.model.OkrRule;
 import vn.viettel.okrkpi.contract.okr.model.PeriodRef;
 import vn.viettel.okrkpi.contract.okr.model.Ref;
+import vn.viettel.okrkpi.okr.application.OkrAiProvenance;
 import vn.viettel.okrkpi.okr.application.OkrCheckService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService.LinkDraft;
@@ -112,6 +113,7 @@ public class OkrComposeController {
   private final OkrReviewService reviews;
   private final OkrApproveBatchJobs batches;
   private final CursorCodec cursors;
+  private final OkrAiProvenance provenance;
 
   public OkrComposeController(
       OkrComposeService compose,
@@ -125,7 +127,9 @@ public class OkrComposeController {
       OkrSubmitService submits,
       OkrReviewService reviews,
       OkrApproveBatchJobs batches,
-      CursorCodec cursors) {
+      CursorCodec cursors,
+      OkrAiProvenance provenance) {
+    this.provenance = Objects.requireNonNull(provenance, "provenance");
     this.submits = Objects.requireNonNull(submits, "submits");
     this.reviews = Objects.requireNonNull(reviews, "reviews");
     this.batches = Objects.requireNonNull(batches, "batches");
@@ -144,6 +148,7 @@ public class OkrComposeController {
   @RequiresPermission(operationId = "createOkrObjective", module = "okr")
   public ResponseEntity<OkrObjective> createOkrObjective(
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "Authorization", required = false) String authorization,
       @RequestBody OkrObjectiveCreate body) {
     TenantId tenant = TenantContext.require();
     UUID actor = actor();
@@ -166,6 +171,8 @@ public class OkrComposeController {
             body.getOverLimitReason(),
             body.getAiSuggestionId(),
             keyResults(body.getKeyResults()));
+    // CORE-01-13: kiểm gợi ý AI ngoài giao dịch CSDL của lệnh lưu.
+    var ai = provenance.verify(tenant, actor, authorization, draft);
     return idempotency.run(
         tenant,
         actor,
@@ -177,7 +184,7 @@ public class OkrComposeController {
         OkrObjective::getRowVersion,
         () -> {
           int max = recommendedMax(tenant, body.getPeriodId(), body.getOwnerUnitId());
-          UUID id = compose.create(tenant, actor, owner, draft, max);
+          UUID id = compose.create(tenant, actor, owner, draft, max, ai);
           OkrObjective dto = detail(tenant, id);
           return ResponseEntity.created(URI.create(BASE + "/objectives/" + id))
               .eTag(ETags.of(dto.getRowVersion()))
@@ -464,6 +471,7 @@ public class OkrComposeController {
       @PathVariable("id") UUID id,
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
       @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestHeader(value = "Authorization", required = false) String authorization,
       @RequestBody OkrObjectiveUpdate body) {
     TenantId tenant = TenantContext.require();
     UUID actor = actor();
@@ -478,6 +486,7 @@ public class OkrComposeController {
             body.getOverLimitReason(),
             body.getAiSuggestionId(),
             keyResults(body.getKeyResults()));
+    var ai = provenance.verify(tenant, actor, authorization, draft);
     return idempotency.run(
         tenant,
         actor,
@@ -491,7 +500,7 @@ public class OkrComposeController {
           var head = found(() -> compose.head(tenant, id).orElseThrow());
           requireUnitScope(tenant, head.ownerUnitId());
           int max = recommendedMax(tenant, head.periodId(), head.ownerUnitId());
-          found(() -> compose.update(tenant, actor, id, ifMatch, draft, max));
+          found(() -> compose.update(tenant, actor, id, ifMatch, draft, max, ai));
           OkrObjective dto = detail(tenant, id);
           return ETags.ok(dto, dto.getRowVersion());
         });
@@ -538,6 +547,7 @@ public class OkrComposeController {
   @RequiresPermission(operationId = "createOkrKeyResult", module = "okr")
   public ResponseEntity<OkrKeyResult> createOkrKeyResult(
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "Authorization", required = false) String authorization,
       @RequestBody OkrKeyResultCreate body) {
     TenantId tenant = TenantContext.require();
     UUID actor = actor();
@@ -560,6 +570,7 @@ public class OkrComposeController {
             body.getAiSuggestionId(),
             body.getNumeratorLabel(),
             body.getDenominatorLabel());
+    var ai = provenance.verify(tenant, actor, authorization, data);
     return idempotency.run(
         tenant,
         actor,
@@ -575,7 +586,7 @@ public class OkrComposeController {
                 .head(tenant, body.getObjectiveId())
                 .ifPresent(h -> requireUnitScope(tenant, h.ownerUnitId()));
           }
-          UUID id = compose.addKeyResult(tenant, actor, body.getObjectiveId(), data);
+          UUID id = compose.addKeyResult(tenant, actor, body.getObjectiveId(), data, ai);
           OkrKeyResult dto = OkrReadController.keyResult(reads.keyResult(tenant, id).orElseThrow());
           return ResponseEntity.created(URI.create(BASE + "/key-results/" + id))
               .eTag(ETags.of(dto.getRowVersion()))

@@ -108,17 +108,19 @@ def samples() -> dict[str, tuple[str, dict[str, Any], str, Any, str, Any]]:
             **c, "id": u(), "deliverable_id": u(), "task_id": u(), "created_by": key(person),
             "current_status": "DA_NOP", "source_type": "TAI_LEN"}, "current_status", "DA_XAC_NHAN",
             "current_status", "DA_XAC_NHAN"),
-        "cdc.tenant_data.okr.objective": ("lk_objective", {"tenant_id": TENANT_A, "id": u(), "owner_unit_id": unit},
-                                          "owner_unit_id", unit, "owner_unit_id", unit),
+        "cdc.tenant_data.okr.objective": ("fact_okr_objective", {
+            **c, "id": u(), "owner_type": "DON_VI", "owner_unit_id": unit, "tier": 1, "status": "NHAP",
+            "progress": "0.0000", "title_enc": "AAEC"}, "progress", "0.4500", "progress", "0.45"),
         "cdc.tenant_data.okr.key_result": ("lk_key_result", {"tenant_id": TENANT_A, "id": u(), "objective_id": u()},
                                            "objective_id", "0192f000-0000-7000-8000-0000000000c1",
                                            "objective_id", "0192f000-0000-7000-8000-0000000000c1"),
         "cdc.tenant_data.okr.kr_checkin": ("fact_okr_checkin", {
             **c, "id": u(), "key_result_id": u(), "created_by": key(person), "checkin_at": ts(), "value": "12.5000",
             "confidence": "CAO", "channel": "WEB", "status": "NHAP"}, "status", "DA_GUI", "status", "DA_GUI"),
-        "cdc.tenant_data.appraisal.appraisal_profile": ("lk_appraisal_profile", {
-            "tenant_id": TENANT_A, "period_bucket": 202604, "id": u(), "person_id": key(person), "org_unit_id": unit,
-            "flow": "DANG"}, "flow", "NHA_NUOC", "flow", "NHA_NUOC"),
+        "cdc.tenant_data.appraisal.appraisal_profile": ("fact_appraisal_profile", {
+            **c, "id": u(), "person_id": key(person), "org_unit_id": unit, "flow": "DANG", "is_head": False,
+            "is_leadership": False, "status": "DANG_TU_DANH_GIA"}, "status", "CHO_THAM_DINH", "status",
+            "CHO_THAM_DINH"),
         "cdc.tenant_data.appraisal.score_snapshot": ("fact_score", {
             **c, "id": u(), "profile_id": u(), "flow": "DANG", "snapshot_kind": "TAM_TINH",
             "policy_pack_version_id": u(), "policy_version": "KHOI_DANG v2.0", "total_score": "86.500",
@@ -140,6 +142,9 @@ def samples() -> dict[str, tuple[str, dict[str, Any], str, Any, str, Any]]:
             "tenant_id": TENANT_A, "id": u(), "valid_from": EPOCH_DAYS, "valid_to": INFINITY_DAYS,
             "person_id": key(person), "org_unit_id": unit, "job_title_id": u(), "kind": "KIEM_NHIEM",
             "branch": "DANG", "is_head": False}, "kind", "CHINH", "kind", "CHINH"),
+        "cdc.tenant_data.org_replica.unit_closure_v": ("dim_org_closure", {
+            "tenant_id": TENANT_A, "tree": "DANG", "ancestor_id": unit, "descendant_id": u(), "depth": 1},
+            "depth", 2, "depth", 2),
         "cdc.tenant_data.config.period": ("dim_period", {
             **c, "id": u(), "code": "2026-Q4", "name": "Quý IV năm 2026", "kind": "QUY", "flow": "DANG",
             "start_date": EPOCH_DAYS, "end_date": EPOCH_DAYS + 70, "status": "MO"}, "status", "DA_KHOA",
@@ -155,11 +160,13 @@ def samples() -> dict[str, tuple[str, dict[str, Any], str, Any, str, Any]]:
 
 
 def _key_column(table: str) -> str:
-    return "person_key" if table == "dim_person" else "id"
+    return {"dim_person": "person_key", "dim_org_closure": "descendant_id"}.get(table, "id")
 
 
 def _key_value(table: str, row: dict[str, Any]) -> str:
-    return f"unhex('{row['id']}')" if table == "dim_person" else f"toUUID('{row['id']}')"
+    if table == "dim_person":
+        return f"unhex('{row['id']}')"
+    return f"toUUID('{row[_key_column(table)]}')"
 
 
 def test_create_update_delete_each_source(analytics: Analytics, cdc: Cdc) -> None:
@@ -169,6 +176,8 @@ def test_create_update_delete_each_source(analytics: Analytics, cdc: Cdc) -> Non
     seconds: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {}
     for topic, (table, row, col, new, _, _) in cases.items():
         other = {**row, "id": key(u()) if table == "dim_person" else u()}
+        if table == "dim_org_closure":
+            other["descendant_id"] = u()
         seconds[topic] = (row, other)
         cdc.send(topic, row, "c")
         cdc.send(topic, other, "c")
@@ -219,15 +228,17 @@ def test_units_resolved_through_dictionaries(analytics: Analytics, cdc: Cdc) -> 
         "tenant_id": TENANT_A, "period_bucket": 202604, "id": u(), "task_id": task_b, "assignee_type": "CA_NHAN",
         "person_id": key(person), "role": "CHU_TRI", "valid_from": EPOCH_DAYS, "valid_to": INFINITY_DAYS})
     objective, kr, profile, sg = u(), u(), u(), u()
-    cdc.send("cdc.tenant_data.okr.objective", {"tenant_id": TENANT_A, "id": objective, "owner_unit_id": unit_a})
+    cdc.send("cdc.tenant_data.okr.objective", {
+        **common(), "id": objective, "owner_type": "DON_VI", "owner_unit_id": unit_a, "tier": 1, "status": "DA_DUYET",
+        "progress": "0.2000"})
     cdc.send("cdc.tenant_data.okr.key_result", {"tenant_id": TENANT_A, "id": kr, "objective_id": objective})
     cdc.send("cdc.tenant_data.appraisal.appraisal_profile", {
-        "tenant_id": TENANT_A, "period_bucket": 202604, "id": profile, "person_id": key(person), "org_unit_id": unit_b,
-        "subject_group_id": sg, "flow": "NHA_NUOC"})
+        **common(), "id": profile, "person_id": key(person), "org_unit_id": unit_b, "subject_group_id": sg,
+        "flow": "NHA_NUOC", "is_head": False, "is_leadership": False, "status": "CHO_THAM_DINH"})
     cdc.flush()
     wait(lambda: count(analytics, "fact_task_assignee", f"task_id = '{task_b}'") == 1
          and count(analytics, "lk_key_result", f"id = '{kr}'") == 1
-         and count(analytics, "lk_appraisal_profile", f"id = '{profile}'") == 1, what="bảng tra cứu")
+         and count(analytics, "fact_appraisal_profile", f"id = '{profile}'") == 1, what="bảng tra cứu")
     analytics.query("SYSTEM RELOAD DICTIONARIES")
 
     p1, p2, ev, ck, sc, rt = u(), u(), u(), u(), u(), u()
@@ -331,7 +342,7 @@ def test_row_policy_and_column_grants(analytics: Analytics) -> None:
 
     for user, pw in ((cube, p["cube_password"]), (ano, p["anomaly_password"])):
         denied(f"SELECT _version FROM {db}.fact_task", user, pw)        # cột kỹ thuật ngoài danh sách cho phép
-        denied(f"SELECT * FROM {db}.lk_appraisal_profile", user, pw)    # bảng tra cứu nội bộ
+        denied(f"SELECT * FROM {db}.lk_assignment", user, pw)           # bảng tra cứu nội bộ
         denied(f"SELECT * FROM {db}.src_task__task", user, pw)          # bảng Kafka engine
         denied(f"SELECT * FROM {db}.cdc_error", user, pw)
         denied(f"INSERT INTO {db}.dim_period (tenant_id) VALUES ('{TENANT_A}')", user, pw)
@@ -355,3 +366,46 @@ def test_migrate_is_idempotent_and_detects_edited_files(analytics: Analytics, tm
     edited.write_text(edited.read_text(encoding="utf-8") + "\n-- sửa tệp đã áp\n", encoding="utf-8")
     with pytest.raises(SystemExit, match="đã áp nhưng nội dung đã đổi"):
         migrate.migrate(ch, analytics.params, folder=tmp_path)
+
+
+def test_derived_tables_and_cube_pre_aggregation_grants(analytics: Analytics, cdc: Cdc) -> None:
+    """DV-15-03: dim_org_scope ghép org_path theo cây từ bảng bao đóng; data_freshness theo nguồn; Cube chỉ ghi được
+    vào CSDL pre-aggregation {db}_pa_*."""
+    db, p = analytics.db, analytics.params
+    root, mid, leaf = u(), u(), u()
+    for uid, code in ((root, "TW"), (mid, "VPTW"), (leaf, "VU-TONG-HOP")):
+        cdc.send("cdc.tenant_data.org_replica.org_unit_v", {
+            "tenant_id": TENANT_A, "id": uid, "valid_from": EPOCH_DAYS, "valid_to": INFINITY_DAYS, "code": code,
+            "name": code, "unit_type": "BAN", "source_version": 1})
+    for anc, desc, depth in ((root, root, 0), (mid, mid, 0), (leaf, leaf, 0), (root, mid, 1), (mid, leaf, 1),
+                             (root, leaf, 2)):
+        cdc.send("cdc.tenant_data.org_replica.unit_closure_v", {
+            "tenant_id": TENANT_A, "tree": "DANG", "ancestor_id": anc, "descendant_id": desc, "depth": depth})
+    cdc.flush()
+    wait(lambda: count(analytics, "dim_org_closure", f"descendant_id = '{leaf}'") == 3
+         and count(analytics, "dim_org_unit", f"id = '{leaf}'") == 1, what="cây đơn vị")
+    analytics.query(f"SYSTEM REFRESH VIEW {db}.mv_dim_org_scope")
+    analytics.query(f"SYSTEM WAIT VIEW {db}.mv_dim_org_scope")
+    analytics.query(f"SYSTEM REFRESH VIEW {db}.mv_data_freshness")
+    analytics.query(f"SYSTEM WAIT VIEW {db}.mv_data_freshness")
+    got = analytics.rows(f"SELECT toString(id) AS id, org_path_dang AS p, org_path_chuyen_mon AS c "
+                         f"FROM {db}.dim_org_scope WHERE id IN ('{root}', '{leaf}') ORDER BY p")
+    assert got == [{"id": root, "p": "/tw", "c": ""}, {"id": leaf, "p": "/tw/vptw/vu-tong-hop", "c": ""}]
+    assert count(analytics, "data_freshness", f"tenant_id = '{TENANT_A}' AND source = 'task'") == 1
+
+    cube, pw = f"{db}_cube", p["cube_password"]
+    q = f"SELECT org_path_dang FROM {db}.dim_org_scope WHERE id = '{leaf}'"
+    assert analytics.rows(q, user=cube, password=pw, SQL_tenant_id=TENANT_A) == [
+        {"org_path_dang": "/tw/vptw/vu-tong-hop"}]
+    assert analytics.rows(q, user=cube, password=pw, SQL_tenant_id=TENANT_B) == []
+    pa = f"{db}_pa_kiemthu"
+    analytics.query(f"CREATE DATABASE IF NOT EXISTS {pa}", user=cube, password=pw)
+    analytics.query(f"CREATE TABLE {pa}.r ENGINE = MergeTree ORDER BY tenant_id AS SELECT tenant_id, count() AS n "
+                    f"FROM {db}.fact_task GROUP BY tenant_id", user=cube, password=pw, SQL_tenant_id=TENANT_A)
+    assert analytics.rows(f"SELECT DISTINCT toString(tenant_id) AS t FROM {pa}.r", user=cube, password=pw) in (
+        [], [{"t": TENANT_A}])
+    analytics.query(f"DROP TABLE {pa}.r", user=cube, password=pw)
+    for sql in (f"CREATE DATABASE {db}_khac", f"CREATE TABLE {db}.x (a UInt8) ENGINE = Memory",
+                f"INSERT INTO {db}.dim_period (tenant_id) VALUES ('{TENANT_A}')", f"DROP TABLE {db}.fact_task"):
+        with pytest.raises(RuntimeError, match=r"ACCESS_DENIED|Not enough privileges"):
+            analytics.query(sql, user=cube, password=pw, SQL_tenant_id=TENANT_A)

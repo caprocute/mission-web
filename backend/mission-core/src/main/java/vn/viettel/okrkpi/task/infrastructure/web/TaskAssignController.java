@@ -63,6 +63,7 @@ import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.Assign
 import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.DraftRow;
 import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.UnitTaskRow;
 import vn.viettel.okrkpi.task.application.blocker.TaskBlockerService;
+import vn.viettel.okrkpi.task.application.change.TaskChangeRequestService;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskDelayRiskService;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.TaskRow;
@@ -92,6 +93,7 @@ public class TaskAssignController {
   private final TaskCallers callers;
   private final CursorCodec cursors;
   private final TaskBlockerService blockers;
+  private final TaskChangeRequestService changes;
 
   public TaskAssignController(
       TaskDraftService drafts,
@@ -101,7 +103,8 @@ public class TaskAssignController {
       TaskDelayRiskService delayRisks,
       TaskCallers callers,
       CursorCodec cursors,
-      TaskBlockerService blockers) {
+      TaskBlockerService blockers,
+      TaskChangeRequestService changes) {
     this.drafts = Objects.requireNonNull(drafts, "drafts");
     this.assign = Objects.requireNonNull(assign, "assign");
     this.queries = Objects.requireNonNull(queries, "queries");
@@ -110,6 +113,7 @@ public class TaskAssignController {
     this.callers = Objects.requireNonNull(callers, "callers");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
     this.blockers = Objects.requireNonNull(blockers, "blockers");
+    this.changes = Objects.requireNonNull(changes, "changes");
   }
 
   @PostMapping
@@ -238,6 +242,7 @@ public class TaskAssignController {
       dto.setDescription("");
     } else {
       dto.setBlockers(blockers.listOf(tenant, t).stream().map(TaskBlockerController::dto).toList());
+      TaskChangeRequestController.decorate(dto, changes, tenant, t);
     }
     TaskDelayRiskController.view(delayRisks.find(tenant, t)).ifPresent(dto::delayRisk);
     return ETags.ok(dto, t.rowVersion());

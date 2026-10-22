@@ -5,6 +5,7 @@ import {
   SavedFilter,
   UserPreferenceItem,
 } from '../../lib/models/preference';
+import { mockHomeBase } from '../mock-home-base';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 
 /**
@@ -28,7 +29,8 @@ const BASE_HOME: HomeLayoutNode = {
   ],
 };
 
-const KEY = /^(ui\.display|ui\.home\.layout|ui\.dashboard\.default|ui\.table\.SCR-[0-9]{4}|notify\.channel_pref)$/;
+const KEY =
+  /^(ui\.display|ui\.home\.layout|ui\.dashboard\.default|ui\.table\.SCR-[0-9]{4}|notify\.channel_pref)$/;
 
 /**
  * Dữ liệu giả lập giữ trong `sessionStorage` (giá trị C1) để tải lại trang vẫn còn, giống máy chủ
@@ -53,7 +55,10 @@ let seq = initial.seq;
 
 function persist(): void {
   try {
-    globalThis.sessionStorage?.setItem(PERSIST_KEY, JSON.stringify({ store: [...store], filters, seq }));
+    globalThis.sessionStorage?.setItem(
+      PERSIST_KEY,
+      JSON.stringify({ store: [...store], filters, seq }),
+    );
   } catch {
     /* trình duyệt chặn bộ nhớ: chỉ giữ trong trang */
   }
@@ -81,7 +86,8 @@ function checkFilter(
   selfId: string | null,
 ): MockResponse | null {
   const name = typeof body.name === 'string' ? body.name.trim() : '';
-  if (!name || name.length > 100) return fieldError('name', 'Tên bộ lọc phải có từ 1 đến 100 ký tự.');
+  if (!name || name.length > 100)
+    return fieldError('name', 'Tên bộ lọc phải có từ 1 đến 100 ký tự.');
   if (!body.criteria || typeof body.criteria !== 'object' || Array.isArray(body.criteria)) {
     return fieldError('criteria', 'Điều kiện lọc không đúng định dạng.');
   }
@@ -120,6 +126,22 @@ function saveFilter(f: SavedFilter): SavedFilter {
 
 const widgetId = (n: HomeLayoutNode): string => n.id ?? n.component;
 
+/**
+ * Bố cục gốc: UI Pack của tenant khi shell đã đặt (WEB-051), giữ cờ bắt buộc của bố cục mặc định
+ * cho widget trùng mã; không thì bố cục mặc định.
+ */
+function tenantBase(): HomeLayoutNode {
+  const pack = mockHomeBase();
+  if (!pack) return BASE_HOME;
+  const mandatory = new Set((BASE_HOME.children ?? []).filter((c) => c.mandatory).map(widgetId));
+  return {
+    ...pack,
+    children: (pack.children ?? []).map((c) =>
+      mandatory.has(widgetId(c)) ? { ...c, mandatory: true } : c,
+    ),
+  };
+}
+
 /** Ghép lớp phủ như máy chủ; xuất ra để kiểm thử dùng chung. */
 export function applyHomeOverlay(
   base: HomeLayoutNode,
@@ -140,11 +162,16 @@ export function applyHomeOverlay(
     .forEach((p) => byId.has(p.id) && ordered.add(p.id));
   byId.forEach((_, id) => ordered.add(id));
   const layout = structuredClone(base);
-  layout.children = [...ordered].filter((id) => !hidden.has(id)).map((id) => structuredClone(byId.get(id)!));
+  layout.children = [...ordered]
+    .filter((id) => !hidden.has(id))
+    .map((id) => structuredClone(byId.get(id)!));
   return { layout, mandatory };
 }
 
-function versionCheck(r: MockRequest, current: UserPreferenceItem | undefined): MockResponse | null {
+function versionCheck(
+  r: MockRequest,
+  current: UserPreferenceItem | undefined,
+): MockResponse | null {
   const h = r.headers.get('If-Match');
   if (!current) {
     return h && h.replace(/"/g, '') !== '0'
@@ -240,7 +267,11 @@ export const ME_PREFERENCES_MOCK: MockModule = {
           updatedAt: new Date().toISOString(),
           rowVersion: 1,
         });
-        return { status: 201, body: f, headers: { ...etag(1), Location: `/api/v1/config/me/saved-filters/${f.id}` } };
+        return {
+          status: 201,
+          body: f,
+          headers: { ...etag(1), Location: `/api/v1/config/me/saved-filters/${f.id}` },
+        };
       },
     },
     {
@@ -259,7 +290,8 @@ export const ME_PREFERENCES_MOCK: MockModule = {
           name: String(body.name).trim(),
           criteria: body.criteria as Record<string, unknown>,
           isDefault: body.isDefault === true,
-          displayOrder: typeof body.displayOrder === 'number' ? body.displayOrder : current.displayOrder,
+          displayOrder:
+            typeof body.displayOrder === 'number' ? body.displayOrder : current.displayOrder,
           updatedAt: new Date().toISOString(),
           rowVersion: current.rowVersion + 1,
         });
@@ -284,9 +316,10 @@ export const ME_PREFERENCES_MOCK: MockModule = {
       pattern: '/api/v1/ui/layouts/home',
       handle: () => {
         const pref = store.get('ui.home.layout');
-        const display = store.get('ui.display')?.value as { mode?: string; reducedSteps?: boolean } | undefined;
+        const display = store.get('ui.display')?.value as
+          { mode?: string; reducedSteps?: boolean } | undefined;
         const { layout, mandatory } = applyHomeOverlay(
-          BASE_HOME,
+          tenantBase(),
           (pref?.value as HomeLayoutOverlay | undefined) ?? null,
         );
         const body: HomeLayout = {

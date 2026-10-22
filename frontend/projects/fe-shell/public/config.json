@@ -3,6 +3,11 @@
   "tenant": "default",
   "apiBaseUrl": "/api",
   "uiPackBaseUrl": "/ui-packs",
-  "auth": { "enabled": true, "issuer": "http://localhost:35080/realms/mission", "clientId": "mission-web", "scope": "openid profile email" },
+  "auth": {
+    "enabled": true,
+    "issuer": "http://localhost:35080/realms/mission",
+    "clientId": "mission-web",
+    "scope": "openid profile email"
+  },
   "useMockApi": false
 }

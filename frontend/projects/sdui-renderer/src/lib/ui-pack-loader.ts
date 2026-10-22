@@ -49,6 +49,11 @@ export class UiPackLoader {
   private prefetch = inject(UI_PACK_PREFETCH, { optional: true });
 
   readonly pack = signal<UiPack | null>(null);
+  /**
+   * Gói đang áp đã kiểm chữ ký với khoá nền tảng (WEB-009). `false` khi `config.json` chưa có khoá
+   * (môi trường phát triển); plugin chuyên ngành (WEB-051) dựa vào cờ này.
+   */
+  readonly verified = signal(false);
 
   async load(tenant = this.cfg.tenant): Promise<void> {
     const base = `${this.cfg.uiPackBaseUrl}/${tenant}`;
@@ -134,6 +139,8 @@ export class UiPackLoader {
     );
     const flags = pack.modes?.['elderly']?.flags as { reducedSteps?: boolean } | undefined;
     this.theme.reducedSteps.set(!!flags?.reducedSteps);
+    // accept() đã kiểm chữ ký khi có khoá, nên gói đã áp là gói đã ký
+    this.verified.set(Object.keys(this.keys).length > 0);
     this.pack.set(pack);
   }
 }

@@ -29,10 +29,12 @@ import vn.viettel.okrkpi.appraisal.application.selfassessment.port.SelfAssessmen
 import vn.viettel.okrkpi.appraisal.application.selfassessment.port.SignRequests;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.port.TextSealer;
 import vn.viettel.okrkpi.appraisal.infrastructure.client.EsignSignRequests;
+import vn.viettel.okrkpi.appraisal.infrastructure.evidence.ProductConfirmedEvidence;
 import vn.viettel.okrkpi.appraisal.infrastructure.listener.SelfAssessmentSignedListener;
 import vn.viettel.okrkpi.appraisal.infrastructure.web.SelfAssessmentJobs;
 import vn.viettel.okrkpi.config.api.FormValidationApi;
 import vn.viettel.okrkpi.events.EventTopics;
+import vn.viettel.okrkpi.product.api.EvidenceQueryApi;
 import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
 import vn.viettel.okrkpi.shared.inbox.InboxEndpoint;
 import vn.viettel.okrkpi.shared.inbox.InboxEnvelope;
@@ -104,15 +106,17 @@ public class SelfAssessmentConfiguration {
       AppraisalProfileService appraisalProfileService,
       TextSealer appraisalTextSealer,
       ObjectProvider<FormValidationApi> validator,
+      ObjectProvider<EvidenceQueryApi> evidenceQuery,
       SelfAssessmentNotices selfAssessmentNotices,
       ObjectProvider<ObjectMapper> json) {
+    EvidenceQueryApi evidenceApi = evidenceQuery.getIfAvailable();
     return new SelfAssessmentService(
         appraisalProfileRepository,
         selfAssessmentRepository,
         appraisalProfileService,
         appraisalTextSealer,
         validator.getIfAvailable(),
-        null,
+        evidenceApi == null ? null : new ProductConfirmedEvidence(evidenceApi),
         selfAssessmentNotices,
         json.getIfAvailable(ObjectMapper::new),
         java.time.Clock.systemUTC());

@@ -5,6 +5,8 @@ import { RouterOutlet } from '@angular/router';
 @Component({
   selector: 'vt-root',
   imports: [RouterOutlet],
-  template: `<main style="padding: 24px; max-width: 1200px; margin: 0 auto"><router-outlet /></main>`,
+  template: `<main style="padding: 24px; max-width: 1200px; margin: 0 auto">
+    <router-outlet />
+  </main>`,
 })
 export class App {}

@@ -3,7 +3,9 @@ package vn.viettel.okrkpi.okr.application;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -19,6 +21,8 @@ import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.PeriodStatus;
 import vn.viettel.okrkpi.config.api.PeriodWriteTarget;
 import vn.viettel.okrkpi.okr.application.OkrReadService.ObjectiveView;
+import vn.viettel.okrkpi.okr.application.port.OkrAiTraceRepository;
+import vn.viettel.okrkpi.okr.application.port.OkrAiTraceRepository.AiTrace;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalEvents;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalSignal;
 import vn.viettel.okrkpi.okr.application.port.OkrReviewRepository;
@@ -53,6 +57,7 @@ public class OkrReviewService {
   private final OkrCheckService checks;
   private final PeriodApi periods;
   private final OkrApprovalEvents events;
+  private final OkrAiTraceRepository traces;
   private final Supplier<OkrApprovalSignal> signal;
   private final Consumer<Object> publisher;
 
@@ -64,6 +69,20 @@ public class OkrReviewService {
       OkrApprovalEvents events,
       Supplier<OkrApprovalSignal> signal,
       Consumer<Object> publisher) {
+    this(reviews, reads, checks, periods, events, signal, publisher, null);
+  }
+
+  /** {@code traces} rỗng thì lịch sử và EVT-01 không mang dấu vết nội dung AI (CORE-01-13). */
+  public OkrReviewService(
+      OkrReviewRepository reviews,
+      OkrReadService reads,
+      OkrCheckService checks,
+      PeriodApi periods,
+      OkrApprovalEvents events,
+      Supplier<OkrApprovalSignal> signal,
+      Consumer<Object> publisher,
+      OkrAiTraceRepository traces) {
+    this.traces = traces;
     this.publisher = Objects.requireNonNull(publisher, "publisher");
     this.reviews = Objects.requireNonNull(reviews, "reviews");
     this.reads = Objects.requireNonNull(reads, "reads");
@@ -104,8 +123,13 @@ public class OkrReviewService {
     }
     long version = reviews.markApproved(tenant, target, actor);
     reviews.appendReview(tenant, target, actor, DUYET, blankToNull(comment));
-    events.approved(
-        tenant, target, actor, reviews.basisIds(tenant, target.periodBucket(), id), version);
+    List<UUID> basisIds = reviews.basisIds(tenant, target.periodBucket(), id);
+    List<AiTrace> aiContent = traces == null ? List.of() : traces.traces(tenant, id);
+    if (aiContent.isEmpty()) {
+      events.approved(tenant, target, actor, basisIds, version);
+    } else {
+      events.approved(tenant, target, actor, basisIds, version, aiContent);
+    }
     reviews
         .previousApproved(tenant, target)
         .ifPresent(previous -> supersede(tenant, previous, target, actor, version));
@@ -258,6 +282,59 @@ public class OkrReviewService {
     return version;
   }
 
+  /** Nhãn nghiệp vụ của trường so với gợi ý AI, dùng trong ý kiến của mốc lịch sử. */
+  static final Map<String, String> AI_FIELD_LABELS =
+      Map.of(
+          "title", "tên",
+          "unit", "đơn vị đo",
+          "baselineValue", "giá trị ban đầu",
+          "targetValue", "chỉ tiêu");
+
+  /**
+   * Mỗi lần lưu có nội dung chèn từ gợi ý AI thành một mốc {@code LUU_NHAP} mang cờ AI; ý kiến liệt
+   * kê trường giữ nguyên, trường đã sửa của mục tiêu và từng KR (SCR-1701 "Lịch sử nháp").
+   */
+  static List<HistoryEntry> aiSaves(List<AiTrace> traces) {
+    Map<String, List<AiTrace>> bySave = new LinkedHashMap<>();
+    for (AiTrace t : traces) {
+      bySave.computeIfAbsent(t.at() + "|" + t.actor(), k -> new ArrayList<>()).add(t);
+    }
+    List<HistoryEntry> out = new ArrayList<>();
+    for (List<AiTrace> save : bySave.values()) {
+      AiTrace first = save.get(0);
+      List<String> parts = new ArrayList<>();
+      for (AiTrace t : save) {
+        String target = t.keyResultId() == null ? "Mục tiêu" : "Kết quả then chốt";
+        parts.add(
+            target
+                + ": giữ nguyên "
+                + labels(t.keptFields())
+                + "; đã sửa "
+                + labels(t.editedFields()));
+      }
+      out.add(
+          new HistoryEntry(
+              UUID.nameUUIDFromBytes(
+                  (first.objectiveId() + "|" + first.at() + "|" + first.actor())
+                      .getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+              first.at(),
+              "LUU_NHAP",
+              first.versionNo(),
+              ObjectiveLifecycle.NHAP,
+              first.actor(),
+              null,
+              "Chèn từ gợi ý của trợ lý. " + String.join(". ", parts) + ".",
+              true));
+    }
+    return out;
+  }
+
+  private static String labels(List<String> fields) {
+    return fields.isEmpty()
+        ? "không có"
+        : String.join(", ", fields.stream().map(f -> AI_FIELD_LABELS.getOrDefault(f, f)).toList());
+  }
+
   /** Một mốc lịch sử của mục tiêu. */
   public record HistoryEntry(
       UUID id,
@@ -293,6 +370,9 @@ public class OkrReviewService {
               r.decision(),
               r.comment(),
               false));
+    }
+    if (traces != null) {
+      all.addAll(aiSaves(traces.traces(tenant, id)));
     }
     all.add(
         new HistoryEntry(

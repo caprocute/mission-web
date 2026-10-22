@@ -1,0 +1,114 @@
+# DV-15-03 · QT-16 (BR-16-01) → SCR-1601 (okr.tien_do_o), SCR-1602 (mức tự tin KR) → fact_okr_objective,
+# fact_okr_checkin (DV-15-01). Tiến độ mục tiêu O dùng tiến độ mà mission-core đã tổng hợp từ KR và check-in
+# (okr.objective.progress), tính trên mục tiêu đã duyệt hoặc đã đóng (suy luận, ghi ở wiki/14).
+cubes:
+  - name: okr
+    title: Mục tiêu O
+    description: Mục tiêu O đã duyệt của đơn vị và cá nhân
+    sql_table: cube_okr
+    meta:
+      phien_ban: "2026.4"
+    joins:
+      - name: org_unit
+        relationship: many_to_one
+        sql: "{CUBE}.tenant_id = {org_unit}.tenant_id AND {CUBE}.org_unit_id = {org_unit}.id"
+      - name: period
+        relationship: many_to_one
+        sql: "{CUBE}.tenant_id = {period}.tenant_id AND {CUBE}.period_id = {period}.id"
+    dimensions:
+      - name: tenant_id
+        sql: "{CUBE}.tenant_id"
+        type: string
+        public: false
+      - name: id
+        sql: "toString({CUBE}.id)"
+        type: string
+        primary_key: true
+        public: false
+      - name: chu_the
+        title: Chủ thể mục tiêu
+        description: Đơn vị hoặc cá nhân
+        sql: "{CUBE}.owner_type"
+        type: string
+      - name: cap
+        title: Cấp mục tiêu
+        sql: "{CUBE}.tier"
+        type: number
+    measures:
+      - name: so_muc_tieu
+        title: Số mục tiêu O
+        type: count
+      - name: mau_muc_tieu
+        type: count
+        public: false
+      - name: tong_tien_do
+        type: sum
+        sql: "{CUBE}.progress"
+        public: false
+      - name: tien_do_o
+        title: Tiến độ mục tiêu O
+        description: Tiến độ bình quân (phần trăm) của các mục tiêu O đã duyệt trong phạm vi
+        type: number
+        sql: "round(100.0 * {tong_tien_do} / nullIf({mau_muc_tieu}, 0), 1)"
+        format: percent
+    pre_aggregations:
+      - name: theo_don_vi_ky
+        type: rollup
+        external: false
+        measures: [so_muc_tieu, mau_muc_tieu, tong_tien_do]
+        dimensions: [tenant_id, chu_the, org_unit.id, org_unit.ma, org_unit.ten, org_unit.org_path_dang,
+                     org_unit.org_path_chuyen_mon, period.id, period.ma, period.ten, period.luong]
+        refresh_key:
+          every: 5 minute
+        indexes:
+          - name: theo_tenant_nhanh
+            columns: [tenant_id]
+
+  # Mức tự tin lấy từ lần check-in gần nhất đã gửi của mỗi KR; quy đổi CAO = 100, TRUNG_BINH = 50, THAP = 0 (suy luận).
+  - name: okr_checkin
+    title: Check-in kết quả then chốt
+    description: Lần check-in gần nhất của mỗi kết quả then chốt
+    sql_table: cube_okr_checkin
+    meta:
+      phien_ban: "2026.4"
+    joins:
+      - name: org_unit
+        relationship: many_to_one
+        sql: "{CUBE}.tenant_id = {org_unit}.tenant_id AND {CUBE}.org_unit_id = {org_unit}.id"
+      - name: period
+        relationship: many_to_one
+        sql: "{CUBE}.tenant_id = {period}.tenant_id AND {CUBE}.period_id = {period}.id"
+    dimensions:
+      - name: tenant_id
+        sql: "{CUBE}.tenant_id"
+        type: string
+        public: false
+      - name: key_result_id
+        sql: "toString({CUBE}.key_result_id)"
+        type: string
+        primary_key: true
+        public: false
+      - name: muc_tu_tin
+        title: Mức tự tin
+        sql: "{CUBE}.confidence"
+        type: string
+      - name: thoi_diem
+        title: Thời điểm check-in
+        sql: "{CUBE}.lan_gan_nhat"
+        type: time
+    measures:
+      - name: so_kr
+        title: Số kết quả then chốt đã check-in
+        type: count
+      - name: mau_kr
+        type: count
+        public: false
+      - name: tong_diem_tu_tin
+        type: sum
+        sql: "multiIf({CUBE}.confidence = 'CAO', 100, {CUBE}.confidence = 'TRUNG_BINH', 50, 0)"
+        public: false
+      - name: chi_so_tu_tin
+        title: Mức tự tin KR
+        description: Chỉ số tự tin bình quân (0 đến 100) theo lần check-in gần nhất của mỗi KR
+        type: number
+        sql: "round({tong_diem_tu_tin} / nullIf({mau_kr}, 0), 1)"

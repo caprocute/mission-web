@@ -65,7 +65,7 @@ def kafka_tables() -> list[tuple[str, str, str, str, list[tuple[str, bool]]]]:
 
 def test_every_source_table_is_parsed() -> None:
     tables = kafka_tables()
-    assert len(tables) == 16
+    assert len(tables) == 17
     assert {(s, t) for _, _, s, t, _ in tables} >= {("task", "task_progress"), ("org", "subject_group"),
                                                    ("appraisal", "rating_proposal"), ("org_replica", "person_v")}
 
@@ -132,13 +132,17 @@ def test_hashed_columns_only_reach_targets_as_pseudonymous_keys() -> None:
 
 @pytest.mark.parametrize("role", ["cube", "anomaly"])
 def test_read_grants_exclude_internal_objects(role: str) -> None:
-    sql = (MIG / "V008__phan_quyen_doc.sql").read_text(encoding="utf-8")
+    sql = (MIG / "V009__phan_quyen_doc.sql").read_text(encoding="utf-8")
     grants = re.findall(rf"SELECT\((.*?)\)\n  ON \{{\{{db\}}\}}\.(\w+) TO \{{\{{db\}}\}}_{role};", sql)
     assert grants
     for cols, table in grants:
-        assert table.startswith(("dim_", "fact_", "agg_")), table
+        assert table.startswith(("dim_", "fact_", "agg_")) or table == "data_freshness", table
         assert not {c.strip() for c in cols.split(",")} & {"_version", "_is_deleted", "_source_ts", "_ingested_at"}
     assert not re.search(rf"GRANT .*SELECT ON .* TO \{{\{{db\}}\}}_{role}", sql), "không cấp cả bảng"
     policies = set(re.findall(r"ROW POLICY IF NOT EXISTS \w+ ON \{\{db\}\}\.(\w+) ON CLUSTER '\{\{cluster\}\}'\n"
                               rf"  USING .*? TO \{{\{{db\}}\}}_{role};", sql))
     assert policies == {t for _, t in grants}, "mỗi bảng được đọc có row policy"
+    # Quyền ghi duy nhất: Cube dựng pre-aggregation trong CSDL {db}_pa_*.
+    writes = re.findall(rf"GRANT ON CLUSTER '\{{\{{cluster\}}\}}' ((?:CREATE|DROP|ALTER|INSERT|TRUNCATE)[^\n]*)\n"
+                        rf"  ON (\S+) TO \{{\{{db\}}\}}_{role};", sql)
+    assert writes == ([] if role == "anomaly" else [(writes[0][0], "{{db}}_pa_*.*")])

@@ -31,7 +31,8 @@ import { SelfForm, compareRating, formRules } from './self-assessment-rules';
       }
       @if (direction()) {
         <p class="warn" aria-live="polite">
-          Mức tự đề xuất {{ direction() }} mức hệ thống tham khảo, đồng chí cần ghi giải trình (Điều 16 Quy định 366).
+          Mức tự đề xuất {{ direction() }} mức hệ thống tham khảo, đồng chí cần ghi giải trình (Điều
+          16 Quy định 366).
         </p>
       }
       <vt-form

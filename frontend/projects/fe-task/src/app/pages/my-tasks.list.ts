@@ -1,4 +1,10 @@
-import { AssigneeRole, FilterCodec, ListColumnDef, MyTasksQuickFilter, TaskGroup } from '@vt/api-client';
+import {
+  AssigneeRole,
+  FilterCodec,
+  ListColumnDef,
+  MyTasksQuickFilter,
+  TaskGroup,
+} from '@vt/api-client';
 
 /** Mã màn hình dùng cho tuỳ chọn cột và bộ lọc đã lưu (CNH-04). */
 export const MY_TASKS_SCREEN = 'SCR-0503';
@@ -41,7 +47,8 @@ export const MY_TASKS_CODEC: FilterCodec<MyTasksFilterState> = {
       if (!on) continue;
       const [kind, ...rest] = k.split('_');
       const v = rest.join('_');
-      if (kind === 'quick' && QUICK.includes(v as MyTasksQuickFilter)) state.filter = v as MyTasksQuickFilter;
+      if (kind === 'quick' && QUICK.includes(v as MyTasksQuickFilter))
+        state.filter = v as MyTasksQuickFilter;
       else if (kind === 'role' && ROLES.includes(v as AssigneeRole)) state.role = v as AssigneeRole;
       else if (kind === 'group' && GROUPS.includes(v as TaskGroup)) state.group = v as TaskGroup;
       else dropped++;

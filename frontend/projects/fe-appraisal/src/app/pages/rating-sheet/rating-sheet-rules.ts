@@ -17,7 +17,8 @@ import {
  * ghi mức đề xuất (422 `APPRAISAL-422-REASON-REQUIRED`, 403 tách vai trò, 409 trạng thái hoặc phiên bản).
  */
 
-export const MSG_09_12 = 'Mức đề xuất khác mức thẩm định. Vui lòng ghi lý do (khoản 16.3 Điều 16 Quy định 366).';
+export const MSG_09_12 =
+  'Mức đề xuất khác mức thẩm định. Vui lòng ghi lý do (khoản 16.3 Điều 16 Quy định 366).';
 export const MSG_PROPOSAL_SOD =
   'Đồng chí không thể đề xuất mức cho hồ sơ này vì đã tham gia nghiệm thu một nhiệm vụ của hồ sơ (Phụ lục 4, mục V.1).';
 

@@ -75,7 +75,11 @@ export class DisplayPreferenceSync {
         .pipe(
           switchMap((all) => {
             this.item = all.items[KEY] ?? null;
-            return this.api.put(KEY, { ...(this.item?.value ?? {}), ...mine }, this.item?.rowVersion ?? null);
+            return this.api.put(
+              KEY,
+              { ...(this.item?.value ?? {}), ...mine },
+              this.item?.rowVersion ?? null,
+            );
           }),
         )
         .subscribe({ next: (saved) => (this.item = saved), error: () => this.scheduleRetry() });
