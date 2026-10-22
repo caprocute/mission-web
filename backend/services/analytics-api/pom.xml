@@ -24,6 +24,8 @@
   <properties>
     <pitest.targetClasses>vn.viettel.okrkpi.analytics.*</pitest.targetClasses>
     <jib.jvm.gc>-XX:+UseZGC</jib.jvm.gc>
+    <awssdk.version>2.31.6</awssdk.version>
+    <fastexcel.version>0.19.0</fastexcel.version>
   </properties>
 
   <dependencies>
@@ -80,6 +82,33 @@
     <dependency>
       <groupId>io.lettuce</groupId>
       <artifactId>lettuce-core</artifactId>
+    </dependency>
+    <!-- DV-15-06: tệp xuất lưu ở kho đối tượng của cell, tải bằng URL ký ngắn hạn. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <version>${awssdk.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>apache-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>netty-nio-client</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>url-connection-client</artifactId>
+      <version>${awssdk.version}</version>
+    </dependency>
+    <!-- DV-15-06: báo cáo XLSX ghi theo luồng, không cần Apache POI. -->
+    <dependency>
+      <groupId>org.dhatim</groupId>
+      <artifactId>fastexcel</artifactId>
+      <version>${fastexcel.version}</version>
     </dependency>
     <dependency>
       <groupId>io.micrometer</groupId>

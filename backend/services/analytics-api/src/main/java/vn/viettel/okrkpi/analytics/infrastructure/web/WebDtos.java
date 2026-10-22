@@ -14,12 +14,16 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import vn.viettel.okrkpi.analytics.application.ExportService;
 import vn.viettel.okrkpi.analytics.domain.AnalyticsRequest;
 import vn.viettel.okrkpi.analytics.domain.Dashboard;
 import vn.viettel.okrkpi.analytics.domain.DashboardPage;
 import vn.viettel.okrkpi.analytics.domain.DashboardWidget;
 import vn.viettel.okrkpi.analytics.domain.Filter;
 import vn.viettel.okrkpi.analytics.domain.SemanticCatalog;
+import vn.viettel.okrkpi.analytics.domain.TraceChain;
+import vn.viettel.okrkpi.analytics.domain.TraceLink;
+import vn.viettel.okrkpi.analytics.domain.TraceObjectType;
 import vn.viettel.okrkpi.analytics.domain.WidgetData;
 
 /**
@@ -97,6 +101,71 @@ final class WebDtos {
 
     List<DashboardWidget> widgets() {
       return layout.stream().map(WidgetBody::toDomain).toList();
+    }
+  }
+
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  record TraceChainBody(Focus focus, List<TraceLinkBody> links, String ledgerRef) {
+
+    record Focus(String objectType, UUID id) {}
+
+    static TraceChainBody of(TraceChain c) {
+      return new TraceChainBody(
+          new Focus(c.focusType().name(), c.focusId()),
+          c.links().stream().map(TraceLinkBody::of).toList(),
+          c.ledgerRef());
+    }
+  }
+
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  record TraceLinkBody(
+      String objectType,
+      UUID id,
+      String label,
+      String value,
+      String status,
+      Integer versionNo,
+      String unitName,
+      boolean masked,
+      String msg,
+      java.util.Map<String, Object> details) {
+
+    static TraceLinkBody of(TraceLink l) {
+      return new TraceLinkBody(
+          l.objectType().name(),
+          l.id(),
+          l.label(),
+          l.value(),
+          l.status(),
+          l.versionNo(),
+          l.unitName(),
+          l.masked(),
+          l.msg(),
+          l.details());
+    }
+  }
+
+  record TraceExportBody(
+      @NotNull TraceObjectType objectType,
+      @NotNull UUID id,
+      @NotNull @Size(min = 1, max = 2) List<@NotNull @Pattern(regexp = "JSON|PDF") String> formats) {}
+
+  record ReportBody(
+      @NotBlank @Size(max = 48) String templateCode,
+      @NotNull UUID periodId,
+      UUID unitId,
+      UUID dashboardId,
+      Boolean compareToPreviousPeriod,
+      @NotNull @Pattern(regexp = "PDF|XLSX") String format) {
+
+    ExportService.ReportRequest toDomain() {
+      return new ExportService.ReportRequest(
+          templateCode,
+          periodId,
+          unitId,
+          dashboardId,
+          Boolean.TRUE.equals(compareToPreviousPeriod),
+          format);
     }
   }
 
