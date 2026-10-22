@@ -13,7 +13,7 @@ import yaml
 HERE = pathlib.Path(__file__).resolve().parent
 OUT = HERE / "schemas.json"
 NAMES = ("AiSuggestionRequest", "AiSuggestion", "DocExtraction", "OkrReviewRequest", "OkrReviewResult",
-         "OkrAssistRequest", "OkrAssistResult")
+         "OkrAssistRequest", "OkrAssistResult", "AiSuggestionDecisionRequest", "AiSourceList", "AiSuggestionPage")
 COMMON = ("Job",)
 
 
@@ -50,6 +50,8 @@ def build(root: pathlib.Path | None = None) -> dict[str, Any]:
     platform = base / "platform.yaml"
     schemas = load(platform)["components"]["schemas"]
     out = {n: resolve(schemas[n], platform) for n in NAMES}
+    tasks = (base / "tasks.yaml").resolve()
+    out["TaskSuggestion"] = resolve(load(tasks)["components"]["schemas"]["TaskSuggestion"], tasks)
     common = (base.parent / "common" / "common.yaml").resolve()
     for n in COMMON:
         out[n] = resolve(load(common)["components"]["schemas"][n], common)

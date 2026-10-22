@@ -97,6 +97,10 @@ def to_api(row: Any) -> dict[str, Any]:
         "confidence": float(row["confidence"]) if row["confidence"] is not None else None,
         "decision": row["decision"] or row["user_action"],
     }
+    if row["kind"] == "TOM_TAT_TUAN" and row["output_text"]:
+        # Tóm tắt tuần lưu câu chung và các ý dạng JSON (DV-14-06).
+        doc = json.loads(row["output_text"])
+        out["outputText"], out["items"] = doc.get("text"), doc.get("items") or []
     return out
 
 

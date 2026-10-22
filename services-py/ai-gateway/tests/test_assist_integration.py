@@ -33,6 +33,8 @@ DRAFT = "0192f2c4-5d6e-7f80-91a2-b3c4d5e6f701"
 BASIS = "0192f1a2-5555-7aaa-8bbb-00000000d025"
 FILE = "0192f1a2-6666-7aaa-8bbb-00000000e001"
 PROFILE = "0192f1a2-7777-7aaa-8bbb-00000000f001"
+LEADER_1 = "0192f1a2-8888-7aaa-8bbb-0000000000a1"
+LEADER_2 = "0192f1a2-8888-7aaa-8bbb-0000000000a2"
 
 
 class ScriptedLlm(MockLlm):
@@ -58,12 +60,25 @@ class FakeCore:
     def __init__(self) -> None:
         self.docs: dict[str, Any] = {}
         self.calls: list[str] = []
+        self.analytics: list[str] = []
 
     def __call__(self, r: httpx.Request) -> httpx.Response:
         path = r.url.path
         self.calls.append(f"{r.method} {path}")
+        if r.method == "POST" and path == "/api/v1/analytics/query":
+            q = json.loads(r.content)
+            self.analytics.append(r.headers.get("authorization", ""))
+            if q["measures"] == ["okr.tien_do_o"]:
+                return httpx.Response(200, json={"dataAsOf": "2026-11-16T05:55:00+07:00", "stale": False, "columns": [
+                    {"name": "org_unit.name", "title": "Đơn vị"}, {"name": "okr.tien_do_o", "title": "Tiến độ"}],
+                    "rows": [["Ban Tuyên giáo", 92], ["Văn phòng E", 41]]})
+            return httpx.Response(200, json={"dataAsOf": "2026-11-16T05:55:00+07:00", "columns": [
+                {"name": "org_unit.name"}, {"name": "task.so_viec_cham"}], "rows": [["Văn phòng E", 2]]})
         if r.method != "GET":
             return httpx.Response(405)
+        if path == "/api/v1/config/role-bindings":
+            return httpx.Response(200, json={"items": [{"person": {"id": LEADER_1, "name": "A"}},
+                                                       {"person": {"id": LEADER_2, "name": "B"}}], "nextCursor": None})
         if r.url.host == "s3.test":
             assert "authorization" not in {k.lower() for k, v in r.headers.items() if v}
             return httpx.Response(200, content=_docx(["Điều 1. Kế hoạch 2027", "1. Tỷ lệ hồ sơ giải quyết đúng hạn."]))
@@ -358,3 +373,133 @@ def test_with_dev_model(db: dict[str, str], opa: str) -> None:
                         break
     ttft.sort()
     print(f"\nmô hình dev: soạn OKR {assist_s:.1f} s; TTFT p50 {ttft[2] * 1000:.0f} ms, max {ttft[-1] * 1000:.0f} ms")
+
+
+def test_decision_recipient_only_and_once(env: tuple[TestClient, ScriptedLlm, FakeCore], db: dict[str, str]) -> None:
+    client, _, _ = env
+    r = client.post("/api/v1/ai/suggestions", headers=auth("member"),
+                    json={"useCase": "HOI_DAP_QUY_DINH", "question": "Một mục tiêu nên có bao nhiêu KR?"})
+    sid = r.json()["id"]
+    url = f"/api/v1/ai/suggestions/{sid}/decision"
+    other = {"Authorization": "Bearer " + token(user=str(uuid.uuid4()), roles=("member",)),
+             "Idempotency-Key": str(uuid.uuid4())}
+    assert client.post(url, json={"decision": "CHAP_NHAN"}, headers=other).status_code == 403
+    h = auth("member")
+    ok = client.post(url, json={"decision": "SUA", "editedFields": ["title", "title"],
+                                "targetRef": "okr.key_result:0192f2c4-5d6e-7f80-91a2-b3c4d5e6f7b3"}, headers=h)
+    assert ok.status_code == 200, ok.text
+    check("AiSuggestion", ok.json())
+    assert ok.json()["decision"] == "SUA"
+    assert client.post(url, json={"decision": "SUA", "editedFields": ["title", "title"],
+                                  "targetRef": "okr.key_result:0192f2c4-5d6e-7f80-91a2-b3c4d5e6f7b3"},
+                       headers=h).json() == ok.json()  # cùng khoá: trả lại phản hồi lần đầu
+    again = client.post(url, json={"decision": "BO_QUA"}, headers=auth("member"))
+    assert again.status_code == 409 and again.json()["code"] == "AI-409-ALREADY-DECIDED"
+    with psycopg.connect(db["admin"]) as c:
+        row = c.execute("SELECT user_action, edited_fields, accepted_by::text, target_ref FROM ai.suggestion_log "
+                        "WHERE id = %s", (sid,)).fetchone()
+        rate = c.execute("SELECT sum(decided) FROM ai.v_suggestion_acceptance WHERE tenant_id = %s",
+                         (TENANT_A,)).fetchone()
+    assert row == ("SUA", ["title"], USER_1, "okr.key_result:0192f2c4-5d6e-7f80-91a2-b3c4d5e6f7b3")
+    assert rate is not None and rate[0] >= 1
+
+
+def test_task_suggestion_dismiss_needs_reason_and_sources(env: tuple[TestClient, ScriptedLlm, FakeCore]) -> None:
+    client, llm, core = env
+    indexer = client.app.state.svc.indexer  # type: ignore[attr-defined]
+    doc = str(uuid.uuid4())
+    core.docs[doc] = _source_doc(doc, ["Giao Sở Nội vụ chủ trì xây dựng đề án."])
+    llm.script = {"trích nhiệm vụ": json.dumps({"tasks": [
+        {"paragraphNo": 1, "title": "Xây dựng đề án", "leadUnitName": "Sở Nội vụ", "dueDate": "2026-11-30"}]})}
+    ev = to_event("integ.document.received.v1", 0, 9, {"id": str(uuid.uuid4()), "tenantid": TENANT_A})
+    assert client.portal is not None
+    try:
+        client.portal.call(indexer.handle_document_received, ev, {"documentId": doc, "aggregateVersion": 1})
+    finally:
+        llm.script = {}
+    sid = client.get(f"/api/v1/ai/extractions?sourceDocId={doc}", headers=auth()).json()["suggestions"][0]["id"]
+    url = f"/api/v1/ai/suggestions/{sid}/decision"
+    r = client.post(url, json={"decision": "BO_QUA"}, headers=auth())
+    assert r.status_code == 422 and r.json()["code"] == "AI-422-REASON-REQUIRED"
+    r = client.post(url, json={"decision": "BO_QUA", "reason": "Đoạn này chỉ để biết, gọi 0912345678."},
+                    headers=auth())
+    assert r.status_code == 200, r.text
+    check("TaskSuggestion", r.json())
+    assert r.json()["decision"] == "DA_BO" and "0912345678" not in r.json()["reason"]
+    src = client.get(f"/api/v1/ai/suggestions/{sid}/sources", headers=auth())
+    assert src.status_code == 200, src.text
+    check("AiSourceList", src.json())
+    assert src.json()["items"][0]["ref"] == doc
+
+
+def test_sources_masked_when_chunk_no_longer_readable(env: tuple[TestClient, ScriptedLlm, FakeCore],
+                                                     db: dict[str, str]) -> None:
+    client, _, _ = env
+    st = client.app.state.svc  # type: ignore[attr-defined]
+    unit_b = str(uuid.uuid4())
+
+    async def seed() -> str:
+        await st.indexer.index_text(tenant_id=TENANT_A, source_type="VAN_BAN", source_id=str(uuid.uuid4()),
+                                    title="Quy chế mẫu", text="Điều 1. Hệ số chất lượng tính theo bảng 3 của quy chế.",
+                                    acl=[UNIT])
+        p = await st.verifier.verify(token(roles=("manager",), unit_id=UNIT))
+        ask = {"useCase": "HOI_DAP_QUY_DINH", "question": "Hệ số chất lượng tính theo bảng nào?"}
+        res = await st.assist.ask(p, ask)
+        return str(res.body["id"])
+
+    assert client.portal is not None
+    sid = client.portal.call(seed)
+    h = {"Authorization": "Bearer " + token(roles=("manager",), unit_id=UNIT)}
+    items = client.get(f"/api/v1/ai/suggestions/{sid}/sources", headers=h).json()["items"]
+    assert items and not any(i.get("masked") for i in items)
+    # Người hỏi chuyển sang đơn vị khác: đoạn chỉ đơn vị cũ đọc được trả dạng che.
+    h2 = {"Authorization": "Bearer " + token(roles=("manager",), unit_id=unit_b)}
+    items2 = client.get(f"/api/v1/ai/suggestions/{sid}/sources", headers=h2).json()["items"]
+    assert any(i.get("masked") for i in items2)
+    check("AiSourceList", {"suggestionId": sid, "items": items2})
+
+
+def test_weekly_summary_one_per_leader_per_week(env: tuple[TestClient, ScriptedLlm, FakeCore],
+                                               db: dict[str, str]) -> None:
+    from datetime import date
+
+    from app.assist.weekly import WeeklySummary
+
+    client, llm, core = env
+    st = client.app.state.svc  # type: ignore[attr-defined]
+    job = WeeklySummary(st.pool, st.gateway.queue, st.core, st.core._ex, st.indexer._token.get)
+    monday = date(2026, 11, 16)
+    assert client.portal is not None
+    llm.script = {"tóm tắt tuần": json.dumps({"text": "Tuần qua tiến độ chung đạt khá.", "items": [
+        {"text": "Ban Tuyên giáo đạt 92%.", "sources": ["[#1]"]}, {"text": "Văn phòng E đạt 41%.", "sources": ["[#1]"]},
+        {"text": "Văn phòng E có 2 nhiệm vụ quá hạn.", "sources": ["[#2]"]},
+        {"text": "Ý không nguồn bị loại.", "sources": []}]}, ensure_ascii=False)}
+    try:
+        first = client.portal.call(job.run, TENANT_A, None, monday)
+        again = client.portal.call(job.run, TENANT_A, None, date(2026, 11, 18))  # cùng tuần ISO
+    finally:
+        llm.script = {}
+    assert first == {"created": 2, "skipped": 0, "failed": 0} and again == {"created": 0, "skipped": 2, "failed": 0}
+    assert len(core.analytics) == 4 and len(set(core.analytics)) == 2  # đọc bằng token của từng lãnh đạo
+    h = {"Authorization": "Bearer " + token(user=LEADER_1, roles=("leader",))}
+    page = client.get("/api/v1/ai/suggestions?kind=TOM_TAT_TUAN", headers=h)
+    assert page.status_code == 200, page.text
+    body = page.json()
+    check("AiSuggestionPage", body)
+    [s] = body["items"]
+    assert s["items"] == ["Ban Tuyên giáo đạt 92%.", "Văn phòng E đạt 41%.", "Văn phòng E có 2 nhiệm vụ quá hạn."]
+    assert {x["ref"] for x in s["sources"]} == {"okr.tien_do_o", "task.so_viec_cham"}
+    assert all(x.get("asOf") for x in s["sources"]) and s["label"] == "Nội dung do AI tạo"
+    # Mô hình trả sai định dạng: dùng tóm tắt theo mẫu, vẫn đủ nguồn.
+    llm.script = {"tóm tắt tuần": "không phải JSON"}
+    try:
+        out = client.portal.call(job.run, TENANT_A, None, date(2026, 11, 23))
+    finally:
+        llm.script = {}
+    assert out["created"] == 2
+    h2 = {"Authorization": "Bearer " + token(user=LEADER_2, roles=("leader",))}
+    items = client.get("/api/v1/ai/suggestions?kind=TOM_TAT_TUAN&limit=1", headers=h2).json()
+    assert len(items["items"]) == 1 and items["nextCursor"]
+    assert 3 <= len(items["items"][0]["items"]) <= 5
+    nxt = client.get(f"/api/v1/ai/suggestions?kind=TOM_TAT_TUAN&limit=1&cursor={items['nextCursor']}", headers=h2)
+    assert nxt.status_code == 200 and nxt.json()["items"][0]["id"] != items["items"][0]["id"]

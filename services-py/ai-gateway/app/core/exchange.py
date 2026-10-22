@@ -102,3 +102,36 @@ class TokenExchanger:
                 self._cache = {k: v for k, v in self._cache.items() if v.expires_at > now}
             self._cache[key] = out
         return out
+
+    async def impersonate(self, actor: ReadOnlyToken, tenant_id: str, user_id: str) -> ReadOnlyToken:
+        """Job nền (tóm tắt tuần) đọc dưới danh tính người nhận: đổi token dịch vụ lấy token chỉ đọc của người dùng
+        `user_id` (RFC 8693 với `requested_subject`, quyền mạo danh cấp cho client ai-gateway ở Keycloak), để
+        analytics-api áp đúng phạm vi của người nhận (suy luận, ghi wiki/14)."""
+        try:
+            r = await self._http.post(
+                self._url,
+                data={
+                    "grant_type": GRANT,
+                    "subject_token": actor.value,
+                    "subject_token_type": ACCESS_TOKEN,
+                    "requested_token_type": ACCESS_TOKEN,
+                    "requested_subject": user_id,
+                    "audience": self._audience,
+                    "scope": self._scope,
+                },
+                auth=(self._client_id, self._secret),
+            )
+        except httpx.HTTPError as e:
+            raise ExchangeError(type(e).__name__) from e
+        if r.status_code != 200 or not isinstance(r.json().get("access_token"), str):
+            raise ExchangeError(f"máy chủ cấp token trả {r.status_code}")
+        tok = r.json()["access_token"]
+        try:
+            claims = await self._verifier.verify_claims(tok, self._audience or None)
+        except AuthError as e:
+            raise ExchangeError("token đổi về không hợp lệ") from e
+        if claims.get("sub") != user_id or claims.get("tenant_id") != tenant_id:
+            raise ExchangeError("token đổi về không cùng danh tính")
+        if not only_role(roles_of(claims), self._role):
+            raise ExchangeError("token đổi về mang vai trò ngoài vai trò chỉ đọc")
+        return ReadOnlyToken(tok, user_id, float(claims["exp"]))

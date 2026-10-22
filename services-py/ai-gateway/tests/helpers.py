@@ -59,6 +59,10 @@ class FakeIdp:
                 svc = token(SERVICE, TENANT_A, ("ai_readonly",), aud="mission-core", azp="ai-gateway")
                 return httpx.Response(200, json={"access_token": svc, "token_type": "Bearer", "expires_in": 300})
             subject = jwt.decode(form["subject_token"], options={"verify_signature": False})
+            if form.get("requested_subject"):  # mạo danh cho job nền: token chỉ đọc của người nhận
+                tok = token(form["requested_subject"], subject["tenant_id"], ("ai_readonly",), aud="mission-core",
+                            azp="ai-gateway")
+                return httpx.Response(200, json={"access_token": tok, "token_type": "Bearer", "expires_in": 300})
             out = self.issue(subject)
             if out is None:
                 return httpx.Response(403, json={"error": "access_denied"})

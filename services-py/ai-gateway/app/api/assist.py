@@ -1,4 +1,5 @@
-"""API trợ lý của SVC-14 (DV-14-04): requestAiSuggestion, reviewOkrKeyResults, assistOkrDraft, getDocExtraction.
+"""API trợ lý của SVC-14 (DV-14-04, DV-14-06): requestAiSuggestion, reviewOkrKeyResults, assistOkrDraft,
+getDocExtraction, listAiSuggestions, listAiSuggestionSources, decideAiSuggestion.
 POST bắt buộc `Idempotency-Key`; thân yêu cầu kiểm theo lược đồ hợp đồng (app/assist/schemas.json), sai thì 422.
 Kết quả 200 khi xong trong thời gian chờ, 202 kèm job khi hàng đợi suy luận đầy (MSG-17-03)."""
 
@@ -17,7 +18,7 @@ from vtplatform import problem as vp
 from vtplatform.db import in_tenant_tx
 
 from app.api.deps import authorize, state
-from app.assist import extract
+from app.assist import decisions, extract
 from app.assist.service import Done, UnsupportedUseCase
 from app.core import problems
 from app.core.auth import Principal
@@ -126,3 +127,65 @@ async def get_extraction(request: Request, p: Annotated[Principal, Depends(autho
     if out is None:
         raise _problem(vp.CODE_NOT_FOUND, "Chưa có kết quả trích nhiệm vụ cho văn bản này.", request.url.path)
     return JSONResponse(out)
+
+
+@router.get("/suggestions")
+async def list_suggestions(
+    request: Request, p: Annotated[Principal, Depends(authorize())],
+    kind: Annotated[str | None, Query(max_length=24)] = None,
+    use_case: Annotated[str | None, Query(alias="useCase", max_length=32)] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 20,
+    cursor: Annotated[str | None, Query(max_length=200)] = None,
+) -> JSONResponse:
+    """listAiSuggestions: gợi ý của chính người gọi; `unitId`, `periodId` của hợp đồng nhận nhưng chưa lọc vì
+    tóm tắt tuần là theo người nhận (suy luận, wiki/14)."""
+    try:
+        async with in_tenant_tx(state(request).pool, p.tenant_id) as tx:
+            out = await decisions.page(tx, p.tenant_id, p.user_id, kind=kind, use_case=use_case, limit=limit,
+                                       cursor=cursor)
+    except ValueError as e:
+        raise _problem(vp.CODE_BAD_REQUEST, "Con trỏ trang không hợp lệ.", request.url.path) from e
+    return JSONResponse(out)
+
+
+def _sid(raw: str, path: str) -> str:
+    try:
+        return str(uuid.UUID(raw))
+    except ValueError as e:
+        raise _problem(vp.CODE_NOT_FOUND, "Không tìm thấy gợi ý.", path) from e
+
+
+@router.get("/suggestions/{suggestion_id}/sources")
+async def suggestion_sources(suggestion_id: str, request: Request,
+                             p: Annotated[Principal, Depends(authorize())]) -> JSONResponse:
+    sid = _sid(suggestion_id, request.url.path)
+    try:
+        async with in_tenant_tx(state(request).pool, p.tenant_id) as tx:
+            out = await decisions.sources(tx, p.tenant_id, p.user_id, state(request).retriever.readers(p), sid)
+    except decisions.NotFound as e:
+        raise _problem(vp.CODE_NOT_FOUND, "Không tìm thấy gợi ý.", request.url.path) from e
+    except decisions.NotRecipient as e:
+        raise problems.forbidden(request.url.path) from e
+    return JSONResponse(out)
+
+
+@router.post("/suggestions/{suggestion_id}/decision")
+async def decide_suggestion(suggestion_id: str, request: Request,
+                            p: Annotated[Principal, Depends(authorize())]) -> JSONResponse:
+    path = request.url.path
+    sid = _sid(suggestion_id, path)
+
+    async def run(pr: Principal, body: dict[str, Any]) -> Done | Accepted:
+        try:
+            async with in_tenant_tx(state(request).pool, pr.tenant_id) as tx:
+                return Done(await decisions.decide(tx, pr.tenant_id, pr.user_id, sid, body))
+        except decisions.NotFound as e:
+            raise _problem(vp.CODE_NOT_FOUND, "Không tìm thấy gợi ý.", path) from e
+        except decisions.NotRecipient as e:
+            raise problems.forbidden(path) from e
+        except decisions.AlreadyDecided as e:
+            raise _problem("AI-409-ALREADY-DECIDED", "Gợi ý này đã có quyết định.", path) from e
+        except decisions.ReasonRequired as e:
+            raise _problem("AI-422-REASON-REQUIRED", "Đề nghị nêu lý do bỏ nhiệm vụ này.", path) from e
+
+    return await _idempotent(request, p, "AiSuggestionDecisionRequest", run)
