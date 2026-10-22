@@ -1,0 +1,93 @@
+suite: mission-plan-rules
+version: "1.0.0"
+description: >
+  Bộ ca vàng của quy tắc dòng kế hoạch quý BR-04-03 (KPI mơ hồ) và BR-04-04 (đủ sản phẩm, số
+  lượng, đơn vị tính, hạn trong kỳ) theo TL-02a QT-04 (CORE-02-05, CORE-02-06). Cùng định dạng với
+  data/golden/cel/golden-cases.yaml để cel-java (PlanChecker của MOD-02) và cel-js (SCR-0402) chạy
+  chung. Ngày truyền dạng chuỗi ISO yyyy-MM-dd; chuỗi rỗng là chưa nhập. Biến co_tu_mo_ho do bên gọi
+  tính bằng danh sách từ mơ hồ của Policy Pack (so khớp cả từ, không phân biệt dấu).
+calendar:
+  holidays: []
+  compensatoryWorkingDays: []
+
+cases:
+  - id: PR-0404-01
+    category: plan_item_complete
+    description: Dòng đủ sản phẩm, số lượng, đơn vị tính và hạn trong kỳ đạt BR-04-04
+    expression: "san_pham.size() > 0 && so_luong > 0.0 && don_vi_tinh.size() > 0 && han.size() > 0 && han >= dau_ky && han <= cuoi_ky"
+    returnType: BOOL
+    variableTypes: {san_pham: STRING, so_luong: DOUBLE, don_vi_tinh: STRING, han: STRING, dau_ky: STRING, cuoi_ky: STRING}
+    inputs: {san_pham: "Báo cáo quý", so_luong: 1.0, don_vi_tinh: "báo cáo", han: "2027-03-20", dau_ky: "2027-01-01", cuoi_ky: "2027-03-31"}
+    expected: true
+
+  - id: PR-0404-02
+    category: plan_item_complete
+    description: Thiếu sản phẩm vi phạm BR-04-04
+    expression: "san_pham.size() > 0 && so_luong > 0.0 && don_vi_tinh.size() > 0 && han.size() > 0 && han >= dau_ky && han <= cuoi_ky"
+    returnType: BOOL
+    variableTypes: {san_pham: STRING, so_luong: DOUBLE, don_vi_tinh: STRING, han: STRING, dau_ky: STRING, cuoi_ky: STRING}
+    inputs: {san_pham: "", so_luong: 1.0, don_vi_tinh: "báo cáo", han: "2027-03-20", dau_ky: "2027-01-01", cuoi_ky: "2027-03-31"}
+    expected: false
+
+  - id: PR-0404-03
+    category: plan_item_complete
+    description: Số lượng bằng 0 vi phạm BR-04-04
+    expression: "san_pham.size() > 0 && so_luong > 0.0 && don_vi_tinh.size() > 0 && han.size() > 0 && han >= dau_ky && han <= cuoi_ky"
+    returnType: BOOL
+    variableTypes: {san_pham: STRING, so_luong: DOUBLE, don_vi_tinh: STRING, han: STRING, dau_ky: STRING, cuoi_ky: STRING}
+    inputs: {san_pham: "Báo cáo quý", so_luong: 0.0, don_vi_tinh: "báo cáo", han: "2027-03-20", dau_ky: "2027-01-01", cuoi_ky: "2027-03-31"}
+    expected: false
+
+  - id: PR-0404-04
+    category: plan_item_complete
+    description: Hạn ngoài kỳ vi phạm BR-04-04
+    expression: "san_pham.size() > 0 && so_luong > 0.0 && don_vi_tinh.size() > 0 && han.size() > 0 && han >= dau_ky && han <= cuoi_ky"
+    returnType: BOOL
+    variableTypes: {san_pham: STRING, so_luong: DOUBLE, don_vi_tinh: STRING, han: STRING, dau_ky: STRING, cuoi_ky: STRING}
+    inputs: {san_pham: "Báo cáo quý", so_luong: 1.0, don_vi_tinh: "báo cáo", han: "2027-04-05", dau_ky: "2027-01-01", cuoi_ky: "2027-03-31"}
+    expected: false
+
+  - id: PR-0404-05
+    category: plan_item_complete
+    description: Thiếu hạn và đơn vị tính vi phạm BR-04-04
+    expression: "san_pham.size() > 0 && so_luong > 0.0 && don_vi_tinh.size() > 0 && han.size() > 0 && han >= dau_ky && han <= cuoi_ky"
+    returnType: BOOL
+    variableTypes: {san_pham: STRING, so_luong: DOUBLE, don_vi_tinh: STRING, han: STRING, dau_ky: STRING, cuoi_ky: STRING}
+    inputs: {san_pham: "Báo cáo quý", so_luong: 1.0, don_vi_tinh: "", han: "", dau_ky: "2027-01-01", cuoi_ky: "2027-03-31"}
+    expected: false
+
+  - id: PR-0403-01
+    category: plan_item_vague
+    description: Dòng không có từ mơ hồ đạt BR-04-03 dù thiếu thông tin (BR-04-04 bắt riêng)
+    expression: "!co_tu_mo_ho || (san_pham.size() > 0 && don_vi_tinh.size() > 0 && han.size() > 0)"
+    returnType: BOOL
+    variableTypes: {co_tu_mo_ho: BOOL, san_pham: STRING, don_vi_tinh: STRING, han: STRING}
+    inputs: {co_tu_mo_ho: false, san_pham: "", don_vi_tinh: "", han: ""}
+    expected: true
+
+  - id: PR-0403-02
+    category: plan_item_vague
+    description: Từ mơ hồ kèm đủ sản phẩm, đơn vị tính, hạn đạt BR-04-03
+    expression: "!co_tu_mo_ho || (san_pham.size() > 0 && don_vi_tinh.size() > 0 && han.size() > 0)"
+    returnType: BOOL
+    variableTypes: {co_tu_mo_ho: BOOL, san_pham: STRING, don_vi_tinh: STRING, han: STRING}
+    inputs: {co_tu_mo_ho: true, san_pham: "Kế hoạch tuyên truyền", don_vi_tinh: "kế hoạch", han: "2027-02-28"}
+    expected: true
+
+  - id: PR-0403-03
+    category: plan_item_vague
+    description: Từ mơ hồ thiếu sản phẩm là KPI mơ hồ (BR-04-03, MSG-04-04)
+    expression: "!co_tu_mo_ho || (san_pham.size() > 0 && don_vi_tinh.size() > 0 && han.size() > 0)"
+    returnType: BOOL
+    variableTypes: {co_tu_mo_ho: BOOL, san_pham: STRING, don_vi_tinh: STRING, han: STRING}
+    inputs: {co_tu_mo_ho: true, san_pham: "", don_vi_tinh: "kế hoạch", han: "2027-02-28"}
+    expected: false
+
+  - id: PR-0403-04
+    category: plan_item_vague
+    description: Từ mơ hồ thiếu hạn là KPI mơ hồ (BR-04-03, MSG-04-04)
+    expression: "!co_tu_mo_ho || (san_pham.size() > 0 && don_vi_tinh.size() > 0 && han.size() > 0)"
+    returnType: BOOL
+    variableTypes: {co_tu_mo_ho: BOOL, san_pham: STRING, don_vi_tinh: STRING, han: STRING}
+    inputs: {co_tu_mo_ho: true, san_pham: "Kế hoạch tuyên truyền", don_vi_tinh: "kế hoạch", han: ""}
+    expected: false
