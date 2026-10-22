@@ -23,6 +23,7 @@ import vn.viettel.okrkpi.esign.domain.sign.SignRequestStatus;
 import vn.viettel.okrkpi.esign.spi.SignSession;
 import vn.viettel.okrkpi.esign.spi.SignStatus;
 import vn.viettel.okrkpi.esign.spi.SignatureProvider;
+import vn.viettel.okrkpi.esign.spi.SignatureProviderException;
 import vn.viettel.okrkpi.esign.spi.SignedItem;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.kernel.Ids;
@@ -91,6 +92,10 @@ public class EsignService {
                 () ->
                     new BusinessException(
                         PROVIDER_UNAVAILABLE, "Nhà cung cấp chữ ký số này chưa được cấu hình."));
+    if (!provider.available()) {
+      throw new BusinessException(
+          PROVIDER_UNAVAILABLE, "Dịch vụ ký số đang tạm gián đoạn, vui lòng thử lại sau.");
+    }
     SourceDocumentPort.SourceDocuments source =
         sources
             .fetch(cmd.tenantId(), cmd.sourceModule(), cmd.sourceRefId(), cmd.purpose())
@@ -132,18 +137,9 @@ public class EsignService {
             certificate == null ? null : certificate.id(),
             now,
             now.plus(confirmWindow));
+    // DV-10-02: không gọi đồng bộ nhà cung cấp; worker mở phiên ở vòng thăm dò đầu tiên.
+    request.awaitProvider();
     requests.insert(request, cmd.caller());
-    SignSession session =
-        provider.begin(
-            new vn.viettel.okrkpi.esign.spi.SignRequest(
-                request.id(),
-                request.tenantId(),
-                request.signerPersonId(),
-                certificate == null ? null : certificate.certSha256(),
-                documents,
-                request.expiresAt()));
-    request.submitted(session.sessionId(), session.expiresAt());
-    requests.update(request, cmd.caller());
     return reload(request.id());
   }
 
@@ -196,9 +192,14 @@ public class EsignService {
       requests.update(request, request.signerPersonId());
       return request.status();
     }
+    if (request.awaitingProvider()) {
+      return begin(request, provider.get(), now);
+    }
     SignStatus status;
     try {
       status = provider.get().poll(request.providerTxnId());
+    } catch (SignatureProviderException e) {
+      return providerFailed(request, e, now);
     } catch (RuntimeException e) {
       LOG.warn("Thăm dò yêu cầu ký {} lỗi: {}", id, e.toString());
       if (request.expireIfDue(now)) {
@@ -210,7 +211,64 @@ public class EsignService {
       case PENDING -> request.expireIfDue(now);
       case REJECTED -> request.rejected(now);
       case EXPIRED -> request.expired(now);
-      case SIGNED -> collect(request, provider.get(), now);
+      case SIGNED -> {
+        try {
+          collect(request, provider.get(), now);
+        } catch (SignatureProviderException e) {
+          return providerFailed(request, e, now);
+        }
+      }
+    }
+    if (request.status() != SignRequestStatus.CHO_XAC_NHAN) {
+      requests.update(request, request.signerPersonId());
+    }
+    return request.status();
+  }
+
+  /** Mở phiên ở nhà cung cấp cho yêu cầu vừa tạo; lỗi tạm để lại cho vòng sau tới khi hết hạn. */
+  private SignRequestStatus begin(SignRequest request, SignatureProvider provider, Instant now) {
+    if (request.expireIfDue(now)) {
+      requests.update(request, request.signerPersonId());
+      return request.status();
+    }
+    byte[] certificateSha256 =
+        certificate(request.certificateRefId()).map(CertificateRef::certSha256).orElse(null);
+    List<vn.viettel.okrkpi.esign.spi.SignRequest.Document> documents =
+        request.items().stream()
+            .map(
+                i ->
+                    new vn.viettel.okrkpi.esign.spi.SignRequest.Document(
+                        i.documentRef(), i.documentSha256(), ProviderRegistry.toSpi(i.format())))
+            .toList();
+    SignSession session;
+    try {
+      session =
+          provider.begin(
+              new vn.viettel.okrkpi.esign.spi.SignRequest(
+                  request.id(),
+                  request.tenantId(),
+                  request.signerPersonId(),
+                  certificateSha256,
+                  documents,
+                  request.expiresAt()));
+    } catch (SignatureProviderException e) {
+      return providerFailed(request, e, now);
+    } catch (RuntimeException e) {
+      LOG.warn("Mở phiên ký {} lỗi: {}", request.id(), e.toString());
+      return request.status();
+    }
+    request.submitted(session.sessionId(), session.expiresAt());
+    requests.update(request, request.signerPersonId());
+    return request.status();
+  }
+
+  private SignRequestStatus providerFailed(
+      SignRequest request, SignatureProviderException e, Instant now) {
+    LOG.warn("Nhà cung cấp báo lỗi cho yêu cầu ký {}: {}", request.id(), e.getMessage());
+    if (e.permanent()) {
+      request.failed(now);
+    } else {
+      request.expireIfDue(now);
     }
     if (request.status() != SignRequestStatus.CHO_XAC_NHAN) {
       requests.update(request, request.signerPersonId());

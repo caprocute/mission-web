@@ -179,6 +179,11 @@ public class OkrReadService {
   }
 
   @Transactional(transactionManager = TX, readOnly = true)
+  public long countKeyResults(TenantId tenant, KeyResultFilter filter) {
+    return repository.countKeyResults(tenant, filter);
+  }
+
+  @Transactional(transactionManager = TX, readOnly = true)
   public Optional<KeyResultView> keyResult(TenantId tenant, UUID id) {
     return repository.keyResult(tenant, id).map(OkrReadService::view);
   }

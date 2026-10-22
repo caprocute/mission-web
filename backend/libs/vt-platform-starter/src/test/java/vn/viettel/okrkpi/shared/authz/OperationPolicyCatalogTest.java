@@ -32,10 +32,10 @@ class OperationPolicyCatalogTest {
 
     // 372 thao tác trước NEN-042/043 + 42 thao tác bổ sung trong NEN-042/043 + 17 thao tác SCIM của
     // DV-04-06 (scim.yaml) + 1 thao tác listAppraisalBatchDecisions của WEB-063 + 20 thao tác của
-    // NEN-044
-    // (BS-03: 13 hồ sơ tập khách hàng, 4 đánh giá, 3 mốc KR) = 452 thao tác.
-    assertThat(catalog.size()).isEqualTo(452);
-    assertThat(catalog.all()).hasSize(452);
+    // NEN-044 (BS-03: 13 hồ sơ tập khách hàng, 4 đánh giá, 3 mốc KR) + 7 thao tác tuỳ chọn cá nhân
+    // của CNH-02 = 459 thao tác.
+    assertThat(catalog.size()).isEqualTo(459);
+    assertThat(catalog.all()).hasSize(459);
 
     List<OperationPolicy> aal2 = catalog.aal2Operations();
     // 54 thao tác AAL2 gốc + 7 thao tác của WEB-058 + 12 thao tác của NEN-042/043 + 1 thao tác

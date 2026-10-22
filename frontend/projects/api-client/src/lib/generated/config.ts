@@ -1035,6 +1035,103 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/config/me/preferences': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Tuỳ chọn trình bày của người dùng đang đăng nhập
+     * @description Trả mọi khoá tuỳ chọn người dùng đã lưu (chế độ hiển thị, bố cục trang chủ, cột bảng, bảng điều khiển mặc định, kênh thông báo). Khoá chưa lưu không có trong `items`; máy khách dùng mặc định của UI Pack. ETag tính trên phiên bản mọi khoá nên `If-None-Match` khớp thì trả 304.
+     */
+    get: operations['getMyPreferences'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/me/preferences/{prefKey}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Khoá tuỳ chọn cá nhân (`config.user_preference.pref_key`). */
+        prefKey: components['parameters']['PrefKeyPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Lưu một khoá tuỳ chọn cá nhân
+     * @description Tạo hoặc thay giá trị một khoá. Giá trị kiểm theo lược đồ của khoá trong `contracts/schemas/user-preference.schema.json` và tối đa 16 KB; sai lược đồ trả 422. Khoá chưa có thì bỏ `If-Match` (trả 201); khoá đã có thì bắt buộc `If-Match`, lệch phiên bản trả 409 khi hai thiết bị cùng sửa.
+     */
+    put: operations['putMyPreference'];
+    post?: never;
+    /**
+     * Khôi phục mặc định của một khoá tuỳ chọn
+     * @description Xoá lớp phủ cá nhân của khoá; giao diện trở về mặc định của UI Pack đơn vị.
+     */
+    delete: operations['deleteMyPreference'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/me/saved-filters': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Bộ lọc đã lưu của người dùng trên một màn hình danh sách
+     * @description Tối đa 20 bộ lọc, bộ lọc mặc định đứng đầu rồi theo thứ tự hiển thị.
+     */
+    get: operations['listMySavedFilters'];
+    put?: never;
+    /**
+     * Lưu bộ lọc mới cho màn hình danh sách
+     * @description Điều kiện lọc chỉ gồm mã, mã định danh và khoảng giá trị (`SavedFilterCriteria`), không nhận văn bản tự do. Quá 20 bộ lọc trên một màn hình, trùng tên hoặc sai lược đồ trả 422. Đặt `isDefault` thì bộ lọc mặc định cũ của màn hình được bỏ cờ.
+     */
+    post: operations['createMySavedFilter'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/me/saved-filters/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Sửa bộ lọc đã lưu
+     * @description Đổi tên, điều kiện, thứ tự hoặc cờ mặc định; bộ lọc của người khác trả 404.
+     */
+    put: operations['updateMySavedFilter'];
+    post?: never;
+    /**
+     * Xoá bộ lọc đã lưu
+     * @description Bộ lọc của người khác trả 404.
+     */
+    delete: operations['deleteMySavedFilter'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/config/settings': {
     parameters: {
       query?: never;
@@ -2547,6 +2644,10 @@ export interface components {
         [key: string]: unknown;
       };
       visibleWhen?: string;
+      /** @description Mã widget dùng cho lớp phủ cá nhân trang chủ (CNH-02); thiếu thì lấy `component`. */
+      id?: string;
+      /** @description Widget bắt buộc của đơn vị, người dùng không ẩn được (CNH-02). */
+      mandatory?: boolean;
       children?: components['schemas']['SduiNode'][];
     };
     /** @description Tài nguyên của UI Pack (`assets_json`), ví dụ logo SVG đã làm sạch ≤ 50 KB. */
@@ -3192,6 +3293,67 @@ export interface components {
       /** @description Cờ "ít bước" (NFR-11) */
       reducedSteps?: boolean;
       layout: components['schemas']['SduiNode'];
+      personalizationMeta?: components['schemas']['HomePersonalizationMeta'];
+    };
+    /** @description Một khoá tuỳ chọn đã lưu. `value` theo lược đồ của khoá trong `contracts/schemas/user-preference.schema.json` (`ui.display` → `UiDisplayPreference`, `ui.home.layout` → `UiHomeLayoutOverlay`, `ui.table.SCR-xxxx` → `UiTableScreenPreference`…). */
+    UserPreferenceItem: {
+      prefKey: string;
+      value: {
+        [key: string]: unknown;
+      };
+      schemaVersion: number;
+      updatedAt?: components['schemas']['DateTime'];
+      rowVersion: components['schemas']['RowVersion'];
+    };
+    /** @description Mọi tuỳ chọn đã lưu của người dùng, theo khoá. */
+    UserPreferenceMap: {
+      schemaVersion: number;
+      items: {
+        [key: string]: components['schemas']['UserPreferenceItem'];
+      };
+    };
+    /** @description Giá trị mới của một khoá tuỳ chọn. */
+    UserPreferenceInput: {
+      value: {
+        [key: string]: unknown;
+      };
+      /** @default 1 */
+      schemaVersion: number;
+    };
+    /** @description Bộ lọc danh sách đã đặt tên (`config.saved_filter`). */
+    SavedFilter: {
+      id: components['schemas']['Uuid'];
+      screenCode: string;
+      name: string;
+      /** @description Theo `SavedFilterCriteria` của `user-preference.schema.json`. */
+      criteria: {
+        [key: string]: unknown;
+      };
+      isDefault: boolean;
+      displayOrder: number;
+      updatedAt?: components['schemas']['DateTime'];
+      rowVersion: components['schemas']['RowVersion'];
+    };
+    /** @description Nội dung tạo hoặc sửa bộ lọc đã lưu; `screenCode` chỉ dùng khi tạo. */
+    SavedFilterInput: {
+      screenCode?: string;
+      name: string;
+      criteria: {
+        [key: string]: unknown;
+      };
+      /** @default false */
+      isDefault: boolean;
+      /** @default 0 */
+      displayOrder: number;
+    };
+    SavedFilterList: {
+      items: components['schemas']['SavedFilter'][];
+    };
+    /** @description Thông tin lớp phủ cá nhân đã áp lên bố cục trang chủ (CNH-02): có lớp phủ hay không, phiên bản lớp phủ và các widget bắt buộc không được ẩn. */
+    HomePersonalizationMeta: {
+      hasOverlay: boolean;
+      overlayVersionNo?: number;
+      mandatoryWidgetIds: string[];
     };
     /**
      * @description Vai trò hệ thống gán theo đơn vị (`config.role_binding.role_code`, CHECK của TL-03).
@@ -3671,6 +3833,10 @@ export interface components {
     FormVersionPath: string;
     /** @description ETag đã lưu ở client; khớp thì máy chủ trả 304. */
     IfNoneMatch: string;
+    /** @description Khoá tuỳ chọn cá nhân (`config.user_preference.pref_key`). */
+    PrefKeyPath: string;
+    /** @description ETag của khoá đã đọc. Bỏ trống khi lưu khoá lần đầu; khoá đã có mà thiếu header trả 428, lệch phiên bản trả 409 mã `CONFIG-409-VERSION-CONFLICT`. */
+    IfMatchWhenExists: string;
     /** @description Khoá cấu hình (`config.tenant_setting.key`). */
     SettingKeyPath: string;
     /** @description Từ khoá tìm kiếm, không phân biệt dấu. */
@@ -5523,6 +5689,244 @@ export interface operations {
         };
       };
       401: components['responses']['Unauthorized'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getMyPreferences: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description ETag đã lưu ở client; khớp thì máy chủ trả 304. */
+        'If-None-Match'?: components['parameters']['IfNoneMatch'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Tuỳ chọn của người dùng. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserPreferenceMap'];
+        };
+      };
+      /** @description Tuỳ chọn không đổi so với `If-None-Match`. */
+      304: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      default: components['responses']['Problem'];
+    };
+  };
+  putMyPreference: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag của khoá đã đọc. Bỏ trống khi lưu khoá lần đầu; khoá đã có mà thiếu header trả 428, lệch phiên bản trả 409 mã `CONFIG-409-VERSION-CONFLICT`. */
+        'If-Match'?: components['parameters']['IfMatchWhenExists'];
+      };
+      path: {
+        /** @description Khoá tuỳ chọn cá nhân (`config.user_preference.pref_key`). */
+        prefKey: components['parameters']['PrefKeyPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserPreferenceInput'];
+      };
+    };
+    responses: {
+      /** @description Đã cập nhật tuỳ chọn. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserPreferenceItem'];
+        };
+      };
+      /** @description Đã lưu tuỳ chọn lần đầu. */
+      201: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserPreferenceItem'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  deleteMyPreference: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        /** @description Khoá tuỳ chọn cá nhân (`config.user_preference.pref_key`). */
+        prefKey: components['parameters']['PrefKeyPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Đã xoá tuỳ chọn. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listMySavedFilters: {
+    parameters: {
+      query: {
+        /** @description Mã màn hình danh sách. */
+        screenCode: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Danh sách bộ lọc. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SavedFilterList'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  createMySavedFilter: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SavedFilterInput'];
+      };
+    };
+    responses: {
+      /** @description Đã lưu bộ lọc. */
+      201: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          Location: components['headers']['Location'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SavedFilter'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  updateMySavedFilter: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SavedFilterInput'];
+      };
+    };
+    responses: {
+      /** @description Đã sửa bộ lọc. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SavedFilter'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  deleteMySavedFilter: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Đã xoá bộ lọc. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      428: components['responses']['PreconditionRequired'];
       default: components['responses']['Problem'];
     };
   };

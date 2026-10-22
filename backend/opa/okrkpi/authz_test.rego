@@ -490,3 +490,40 @@ test_action_and_request_both_required if {
 		with data.org as org
 	bad.deny == {"role_not_allowed"}
 }
+
+# ------------------------------------------------------------------ Tài nguyên tự phục vụ (CNH-02)
+
+test_member_writes_own_preference if {
+	d := api(user(["member"]), "config", "PUT", {"tenant_id": "t1", "type": "user_preference", "owner_ids": ["nv1"]})
+	d.allow
+}
+
+test_member_deletes_own_saved_filter_without_owner_ids if {
+	d := api(user(["member"]), "config", "DELETE", {"tenant_id": "t1", "type": "saved_filter"})
+	d.allow
+}
+
+test_member_cannot_write_other_users_preference if {
+	d := api(user(["member"]), "config", "PUT", {"tenant_id": "t1", "type": "user_preference", "owner_ids": ["nv2"]})
+	not d.allow
+}
+
+test_self_service_other_tenant_denied if {
+	d := api(user(["member"]), "config", "POST", {"tenant_id": "t2", "type": "saved_filter"})
+	not d.allow
+}
+
+test_self_service_needs_role if {
+	d := api(user([]), "config", "PUT", {"tenant_id": "t1", "type": "user_preference"})
+	not d.allow
+}
+
+test_member_still_cannot_put_other_config if {
+	d := api(user(["member"]), "config", "PUT", {"tenant_id": "t1", "type": "feature_flag"})
+	d.deny == {"role_not_allowed"}
+}
+
+test_client_cannot_self_service if {
+	d := api({"kind": "client", "tenant_id": "t1", "user_id": "svc"}, "config", "PUT", {"tenant_id": "t1", "type": "user_preference"})
+	not d.allow
+}
