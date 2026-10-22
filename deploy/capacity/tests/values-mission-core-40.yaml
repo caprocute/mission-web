@@ -1,0 +1,5 @@
+# Ca thử: tăng maxReplicas của mission-core lên 40 vượt ngân sách của hồ sơ M (TL-05 vòng hiệu chuẩn: CI phải từ chối).
+mission-core:
+  autoscaling:
+    keda:
+      maxReplicas: 40
