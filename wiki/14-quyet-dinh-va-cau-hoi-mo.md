@@ -735,6 +735,14 @@ Nhóm điểm của BR-04-06 lấy từ tham số `nhom` của Policy Pack hiệ
 - Chính sách OPA `okrkpi.authz` có thêm nhánh tài nguyên tự phục vụ: `request.module = config`, `resource.type` là `user_preference` hoặc `saved_filter`, người dùng (không phải hệ thống ngoài) có ít nhất một vai trò hiệu lực, cùng tenant, và nếu dịch vụ gửi `owner_ids` thì người gọi phải nằm trong đó. Lý do: dòng API `config` của ma trận chỉ cho đa số vai trò `GET`, nên không có nhánh này thì cán bộ thường không lưu được tuỳ chọn của chính mình. Task ghi đường dẫn `deploy/policies/**`, nhưng chính sách OPA thật nằm ở `backend/opa/okrkpi/`; `deploy/policies` là Kyverno. Công cụ `backend/opa/tools/doi-chieu-hop-dong.py` chưa gửi `resource.type` nên vẫn báo các thao tác `/config/me` là "ma trận không cho phương thức"; đây là cảnh báo đã biết.
 - Chưa làm: xoá tuỳ chọn và bộ lọc khi tài khoản bị vô hiệu hoá hoặc chuyển tenant, vì hệ thống chưa có sự kiện vô hiệu hoá tài khoản để lắng nghe; khi có sự kiện, thêm consumer xoá theo `(tenant_id, user_id)`.
 
+### Ghi chú và quyết định từ bố cục trang chủ và dashboard cá nhân (CNH-03, 22/10/2026)
+
+- Trang chủ SCR-0002 nay dựng bố cục từ máy chủ (`getHomeLayout`, đã lọc vai trò và ghép lớp phủ cá nhân); khi lời gọi lỗi, trang quay về bố cục UI Pack ở trình duyệt như trước. Chế độ "Tuỳ chỉnh trang chủ" dùng nút lên, xuống, ẩn hoặc hiện cho từng khối (thao tác được bằng bàn phím, không kéo thả), xem trước ngay trên trang và lưu một lần vào `ui.home.layout` kèm `If-Match`; xung đột hiện `<vt-conflict-notice>`; "Khôi phục mặc định" xoá khoá. Khối bắt buộc của đơn vị không có nút ẩn.
+- Màn hình sắp xếp trực tiếp nên khi lưu đặt `pinnedWidgets` rỗng (ghim cũ bị bỏ), giữ nguyên `colSpan`, `collapsedSections` và các trường khác của lớp phủ đã có (suy luận). Khối đang ẩn được lấy nút từ bố cục gốc của UI Pack để còn hiện lại được.
+- Task ghi khoá `dashboard.default`, nhưng hợp đồng và lược đồ CNH-02 dùng `ui.dashboard.default` (`defaultDashboardId`); web dùng khoá của hợp đồng. Nút "Đặt làm dashboard mặc định" nằm ở màn hình xem dashboard (SCR-1602), giữ các trường khác của khoá; bỏ mặc định khi khoá không còn trường nào thì xoá khoá.
+- Bảng điều hành `/dashboard` chỉ mở thẳng dashboard mặc định ở lần vào đầu tiên trong phiên làm việc và chỉ khi máy chủ còn trả dashboard đó (không 403, 404); các lần sau vẫn hiện bảng điều hành chung để không mất lối vào SCR-1601 (suy luận).
+- Giả lập `me-preferences` phục vụ `/config/me/preferences` và `/ui/layouts/home` theo cùng thuật toán ghép lớp phủ của máy chủ, đánh dấu "Việc của tôi hôm nay" là khối bắt buộc để thử.
+
 ## Liên quan
 
 - [README của wiki](README.md)
