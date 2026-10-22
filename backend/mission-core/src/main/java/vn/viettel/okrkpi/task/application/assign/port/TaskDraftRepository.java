@@ -80,6 +80,7 @@ public interface TaskDraftRepository {
       TaskDraftSpec spec,
       Integer difficulty,
       java.math.BigDecimal standardScore,
+      byte[] fingerprint,
       UUID actorId,
       Instant at);
 
