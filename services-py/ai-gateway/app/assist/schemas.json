@@ -1,0 +1,1987 @@
+{
+ "AiOcrRequest": {
+  "properties": {
+   "classification": {
+    "description": "Chỉ cho phép C1/C2; tài liệu C3 bị từ chối theo BR-17-07.",
+    "enum": [
+     "C1",
+     "C2"
+    ],
+    "type": "string"
+   },
+   "languageHint": {
+    "default": "vi",
+    "type": "string"
+   },
+   "mimeType": {
+    "enum": [
+     "application/pdf",
+     "image/jpeg",
+     "image/png"
+    ],
+    "type": "string"
+   },
+   "objectKey": {
+    "maxLength": 512,
+    "minLength": 1,
+    "type": "string"
+   },
+   "sha256": {
+    "pattern": "^[0-9a-f]{64}$",
+    "type": "string"
+   }
+  },
+  "required": [
+   "objectKey",
+   "sha256",
+   "mimeType",
+   "classification"
+  ],
+  "type": "object"
+ },
+ "AiOcrResult": {
+  "properties": {
+   "fullText": {
+    "type": "string"
+   },
+   "modelId": {
+    "type": "string"
+   },
+   "objectKey": {
+    "type": "string"
+   },
+   "pages": {
+    "items": {
+     "properties": {
+      "confidence": {
+       "maximum": 1,
+       "minimum": 0,
+       "type": "number"
+      },
+      "pageNumber": {
+       "minimum": 1,
+       "type": "integer"
+      },
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "pageNumber",
+      "text",
+      "confidence"
+     ],
+     "type": "object"
+    },
+    "type": "array"
+   },
+   "processedAt": {
+    "description": "Thời điểm ISO 8601 có múi giờ.",
+    "format": "date-time",
+    "type": "string"
+   },
+   "sha256": {
+    "pattern": "^[0-9a-f]{64}$",
+    "type": "string"
+   }
+  },
+  "required": [
+   "objectKey",
+   "sha256",
+   "pages",
+   "fullText",
+   "modelId",
+   "processedAt"
+  ],
+  "type": "object"
+ },
+ "AiSourceList": {
+  "properties": {
+   "items": {
+    "items": {
+     "description": "Một nguồn mà gợi ý AI đã dùng (BR-17-02).",
+     "properties": {
+      "asOf": {
+       "description": "Thời điểm ISO 8601 có múi giờ.",
+       "format": "date-time",
+       "type": "string"
+      },
+      "excerpt": {
+       "description": "Đoạn trích hoặc số liệu đã dùng (chỉ C0, C1).",
+       "type": "string"
+      },
+      "kind": {
+       "description": "Loại nguồn trích dẫn (suy luận từ `ai.suggestion_log.sources_json`).",
+       "enum": [
+        "VAN_BAN",
+        "DU_LIEU",
+        "TRUY_VAN"
+       ],
+       "type": "string"
+      },
+      "location": {
+       "description": "Trang, mục trong văn bản, ví dụ `tr. 4–6`.",
+       "type": "string"
+      },
+      "masked": {
+       "description": "Nguồn ngoài phạm vi quyền hiện tại của người xem.",
+       "type": "boolean"
+      },
+      "ref": {
+       "description": "Mã văn bản, mã đoạn `ai.doc_chunk` hoặc tên chỉ số Cube.",
+       "type": "string"
+      },
+      "title": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "kind",
+      "title"
+     ],
+     "type": "object"
+    },
+    "type": "array"
+   },
+   "suggestionId": {
+    "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+    "format": "uuid",
+    "type": "string"
+   }
+  },
+  "required": [
+   "suggestionId",
+   "items"
+  ],
+  "type": "object"
+ },
+ "AiSuggestion": {
+  "description": "Một lượt gợi ý AI (`ai.suggestion_log`), luôn mang nhãn \"Nội dung do AI tạo\".",
+  "properties": {
+   "aiGenerated": {
+    "const": true
+   },
+   "blocked": {
+    "oneOf": [
+     {
+      "description": "Rào chắn đã chặn yêu cầu (`ai.guardrail_event`).",
+      "properties": {
+       "action": {
+        "enum": [
+         "CHAN",
+         "CHE",
+         "CANH_BAO"
+        ],
+        "type": "string"
+       },
+       "message": {
+        "type": "string"
+       },
+       "msg": {
+        "type": "string"
+       },
+       "ruleCode": {
+        "enum": [
+         "PII_OUT",
+         "PROMPT_INJECTION",
+         "OUT_OF_SCOPE",
+         "C2_REQUEST"
+        ],
+        "type": "string"
+       }
+      },
+      "required": [
+       "ruleCode",
+       "action",
+       "message"
+      ],
+      "type": "object"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "confidence": {
+    "maximum": 1,
+    "minimum": 0,
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "createdAt": {
+    "description": "Thời điểm ISO 8601 có múi giờ.",
+    "format": "date-time",
+    "type": "string"
+   },
+   "decision": {
+    "oneOf": [
+     {
+      "description": "Phản hồi của người dùng với gợi ý (`ai.suggestion_log.user_action`).",
+      "enum": [
+       "CHAP_NHAN",
+       "SUA",
+       "BO_QUA"
+      ],
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "id": {
+    "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+    "format": "uuid",
+    "type": "string"
+   },
+   "items": {
+    "description": "Các ý tách dòng (tóm tắt tuần 3 đến 5 ý).",
+    "items": {
+     "type": "string"
+    },
+    "type": "array"
+   },
+   "kind": {
+    "description": "Ví dụ `TOM_TAT_TUAN`.",
+    "maxLength": 24,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "label": {
+    "const": "Nội dung do AI tạo",
+    "type": "string"
+   },
+   "model": {
+    "maxLength": 64,
+    "type": "string"
+   },
+   "outputText": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "sources": {
+    "items": {
+     "description": "Một nguồn mà gợi ý AI đã dùng (BR-17-02).",
+     "properties": {
+      "asOf": {
+       "description": "Thời điểm ISO 8601 có múi giờ.",
+       "format": "date-time",
+       "type": "string"
+      },
+      "excerpt": {
+       "description": "Đoạn trích hoặc số liệu đã dùng (chỉ C0, C1).",
+       "type": "string"
+      },
+      "kind": {
+       "description": "Loại nguồn trích dẫn (suy luận từ `ai.suggestion_log.sources_json`).",
+       "enum": [
+        "VAN_BAN",
+        "DU_LIEU",
+        "TRUY_VAN"
+       ],
+       "type": "string"
+      },
+      "location": {
+       "description": "Trang, mục trong văn bản, ví dụ `tr. 4–6`.",
+       "type": "string"
+      },
+      "masked": {
+       "description": "Nguồn ngoài phạm vi quyền hiện tại của người xem.",
+       "type": "boolean"
+      },
+      "ref": {
+       "description": "Mã văn bản, mã đoạn `ai.doc_chunk` hoặc tên chỉ số Cube.",
+       "type": "string"
+      },
+      "title": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "kind",
+      "title"
+     ],
+     "type": "object"
+    },
+    "type": "array"
+   },
+   "useCase": {
+    "description": "Ví dụ `GOI_Y_NHIEM_VU`, `TOM_TAT_VAN_BAN`, `OCR`.",
+    "maxLength": 32,
+    "type": "string"
+   }
+  },
+  "required": [
+   "id",
+   "useCase",
+   "model",
+   "createdAt",
+   "aiGenerated",
+   "label",
+   "sources"
+  ],
+  "type": "object"
+ },
+ "AiSuggestionDecisionRequest": {
+  "description": "Quyết định của người dùng. Frontend SCR-0502 gửi `{ decision: 'BO_QUA', reason }`.",
+  "properties": {
+   "decision": {
+    "description": "Phản hồi của người dùng với gợi ý (`ai.suggestion_log.user_action`).",
+    "enum": [
+     "CHAP_NHAN",
+     "SUA",
+     "BO_QUA"
+    ],
+    "type": "string"
+   },
+   "editedFields": {
+    "items": {
+     "description": "Tên ô ghi vào `edited_fields` khi người giao sửa (SCR-0502 trường 13).",
+     "enum": [
+      "title",
+      "leadUnitId",
+      "coUnits",
+      "dueDate",
+      "productName",
+      "catalogItemId",
+      "keyResultId"
+     ],
+     "type": "string"
+    },
+    "type": "array"
+   },
+   "reason": {
+    "description": "Bắt buộc khi bỏ nhiệm vụ trích (SCR-0502).",
+    "maxLength": 1000,
+    "type": "string"
+   },
+   "targetRef": {
+    "description": "Bản ghi nhận gợi ý (`ai.suggestion_log.target_ref`), ví dụ `okr.key_result:<id>`.",
+    "maxLength": 128,
+    "type": "string"
+   }
+  },
+  "required": [
+   "decision"
+  ],
+  "type": "object"
+ },
+ "AiSuggestionPage": {
+  "properties": {
+   "items": {
+    "items": {
+     "description": "Một lượt gợi ý AI (`ai.suggestion_log`), luôn mang nhãn \"Nội dung do AI tạo\".",
+     "properties": {
+      "aiGenerated": {
+       "const": true
+      },
+      "blocked": {
+       "oneOf": [
+        {
+         "description": "Rào chắn đã chặn yêu cầu (`ai.guardrail_event`).",
+         "properties": {
+          "action": {
+           "enum": [
+            "CHAN",
+            "CHE",
+            "CANH_BAO"
+           ],
+           "type": "string"
+          },
+          "message": {
+           "type": "string"
+          },
+          "msg": {
+           "type": "string"
+          },
+          "ruleCode": {
+           "enum": [
+            "PII_OUT",
+            "PROMPT_INJECTION",
+            "OUT_OF_SCOPE",
+            "C2_REQUEST"
+           ],
+           "type": "string"
+          }
+         },
+         "required": [
+          "ruleCode",
+          "action",
+          "message"
+         ],
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "confidence": {
+       "maximum": 1,
+       "minimum": 0,
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "createdAt": {
+       "description": "Thời điểm ISO 8601 có múi giờ.",
+       "format": "date-time",
+       "type": "string"
+      },
+      "decision": {
+       "oneOf": [
+        {
+         "description": "Phản hồi của người dùng với gợi ý (`ai.suggestion_log.user_action`).",
+         "enum": [
+          "CHAP_NHAN",
+          "SUA",
+          "BO_QUA"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "id": {
+       "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+       "format": "uuid",
+       "type": "string"
+      },
+      "items": {
+       "description": "Các ý tách dòng (tóm tắt tuần 3 đến 5 ý).",
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "kind": {
+       "description": "Ví dụ `TOM_TAT_TUAN`.",
+       "maxLength": 24,
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "label": {
+       "const": "Nội dung do AI tạo",
+       "type": "string"
+      },
+      "model": {
+       "maxLength": 64,
+       "type": "string"
+      },
+      "outputText": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "sources": {
+       "items": {
+        "description": "Một nguồn mà gợi ý AI đã dùng (BR-17-02).",
+        "properties": {
+         "asOf": {
+          "description": "Thời điểm ISO 8601 có múi giờ.",
+          "format": "date-time",
+          "type": "string"
+         },
+         "excerpt": {
+          "description": "Đoạn trích hoặc số liệu đã dùng (chỉ C0, C1).",
+          "type": "string"
+         },
+         "kind": {
+          "description": "Loại nguồn trích dẫn (suy luận từ `ai.suggestion_log.sources_json`).",
+          "enum": [
+           "VAN_BAN",
+           "DU_LIEU",
+           "TRUY_VAN"
+          ],
+          "type": "string"
+         },
+         "location": {
+          "description": "Trang, mục trong văn bản, ví dụ `tr. 4–6`.",
+          "type": "string"
+         },
+         "masked": {
+          "description": "Nguồn ngoài phạm vi quyền hiện tại của người xem.",
+          "type": "boolean"
+         },
+         "ref": {
+          "description": "Mã văn bản, mã đoạn `ai.doc_chunk` hoặc tên chỉ số Cube.",
+          "type": "string"
+         },
+         "title": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "kind",
+         "title"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "useCase": {
+       "description": "Ví dụ `GOI_Y_NHIEM_VU`, `TOM_TAT_VAN_BAN`, `OCR`.",
+       "maxLength": 32,
+       "type": "string"
+      }
+     },
+     "required": [
+      "id",
+      "useCase",
+      "model",
+      "createdAt",
+      "aiGenerated",
+      "label",
+      "sources"
+     ],
+     "type": "object"
+    },
+    "type": "array"
+   },
+   "nextCursor": {
+    "description": "Con trỏ trang kế tiếp; `null` khi đã hết.",
+    "type": [
+     "string",
+     "null"
+    ]
+   }
+  },
+  "required": [
+   "items",
+   "nextCursor"
+  ],
+  "type": "object"
+ },
+ "AiSuggestionRequest": {
+  "properties": {
+   "contextRefs": {
+    "items": {
+     "properties": {
+      "id": {
+       "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+       "format": "uuid",
+       "type": "string"
+      },
+      "type": {
+       "description": "Loại đối tượng làm ngữ cảnh, ví dụ `OKR_BASIS`, `TASK`, `SCORE`.",
+       "maxLength": 32,
+       "type": "string"
+      }
+     },
+     "required": [
+      "type",
+      "id"
+     ],
+     "type": "object"
+    },
+    "maxItems": 20,
+    "type": "array"
+   },
+   "question": {
+    "maxLength": 2000,
+    "minLength": 1,
+    "type": "string"
+   },
+   "useCase": {
+    "description": "Ca dùng, ví dụ `HOI_DAP_QUY_DINH`, `GIAI_THICH_DIEM`, `TOM_TAT_VAN_BAN` (giá trị ngoài TL-03 là suy luận).",
+    "maxLength": 32,
+    "type": "string"
+   }
+  },
+  "required": [
+   "useCase",
+   "question"
+  ],
+  "type": "object"
+ },
+ "DocExtraction": {
+  "description": "Kết quả trích nhiệm vụ của SVC-14 cho một văn bản (frontend `DocExtraction`).",
+  "properties": {
+   "extractedAt": {
+    "description": "Thời điểm ISO 8601 có múi giờ.",
+    "format": "date-time",
+    "type": "string"
+   },
+   "model": {
+    "type": "string"
+   },
+   "sourceDocId": {
+    "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+    "format": "uuid",
+    "type": "string"
+   },
+   "status": {
+    "description": "Tình trạng trích nhiệm vụ của SVC-14 (QT-05 bước 2, ≤ 1 phút).",
+    "enum": [
+     "DANG_TRICH",
+     "XONG",
+     "KHONG_TRICH_DUOC"
+    ],
+    "type": "string"
+   },
+   "suggestions": {
+    "items": {
+     "description": "Một nhiệm vụ do AI trích từ văn bản (`ai.suggestion_log`, use_case `GOI_Y_NHIEM_VU`), dùng chung giữa MOD-02 và SVC-14.",
+     "properties": {
+      "aiFields": {
+       "description": "Các ô AI điền trên thẻ nhiệm vụ (SCR-0502 trường 5–10), tên theo `task.task`.",
+       "properties": {
+        "catalogItemCode": {
+         "type": "string"
+        },
+        "catalogItemId": {
+         "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+         "format": "uuid",
+         "type": "string"
+        },
+        "coUnits": {
+         "items": {
+          "description": "Người hoặc đơn vị phối hợp.",
+          "properties": {
+           "id": {
+            "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+            "format": "uuid",
+            "type": "string"
+           },
+           "kind": {
+            "enum": [
+             "PERSON",
+             "UNIT"
+            ],
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "kind",
+           "id",
+           "name"
+          ],
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "dueDate": {
+         "description": "Ngày theo lịch (ISO 8601), không có giờ.",
+         "format": "date",
+         "type": "string"
+        },
+        "keyResultCode": {
+         "type": "string"
+        },
+        "keyResultId": {
+         "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+         "format": "uuid",
+         "type": "string"
+        },
+        "leadUnitId": {
+         "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+         "format": "uuid",
+         "type": "string"
+        },
+        "leadUnitName": {
+         "type": "string"
+        },
+        "productName": {
+         "maxLength": 500,
+         "type": "string"
+        },
+        "title": {
+         "maxLength": 500,
+         "type": "string"
+        }
+       },
+       "required": [
+        "title",
+        "leadUnitId",
+        "leadUnitName",
+        "coUnits",
+        "dueDate",
+        "productName"
+       ],
+       "type": "object"
+      },
+      "confidence": {
+       "maximum": 1,
+       "minimum": 0,
+       "type": "number"
+      },
+      "decision": {
+       "description": "Quyết định của người giao với một nhiệm vụ AI trích (`ai.suggestion_log.decision`).",
+       "enum": [
+        "CHO_XAC_NHAN",
+        "DA_XAC_NHAN",
+        "DA_BO",
+        "DA_GOP"
+       ],
+       "type": "string"
+      },
+      "editedFields": {
+       "items": {
+        "description": "Tên ô ghi vào `edited_fields` khi người giao sửa (SCR-0502 trường 13).",
+        "enum": [
+         "title",
+         "leadUnitId",
+         "coUnits",
+         "dueDate",
+         "productName",
+         "catalogItemId",
+         "keyResultId"
+        ],
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "fields": {
+       "description": "Các ô AI điền trên thẻ nhiệm vụ (SCR-0502 trường 5–10), tên theo `task.task`.",
+       "properties": {
+        "catalogItemCode": {
+         "type": "string"
+        },
+        "catalogItemId": {
+         "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+         "format": "uuid",
+         "type": "string"
+        },
+        "coUnits": {
+         "items": {
+          "description": "Người hoặc đơn vị phối hợp.",
+          "properties": {
+           "id": {
+            "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+            "format": "uuid",
+            "type": "string"
+           },
+           "kind": {
+            "enum": [
+             "PERSON",
+             "UNIT"
+            ],
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "kind",
+           "id",
+           "name"
+          ],
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "dueDate": {
+         "description": "Ngày theo lịch (ISO 8601), không có giờ.",
+         "format": "date",
+         "type": "string"
+        },
+        "keyResultCode": {
+         "type": "string"
+        },
+        "keyResultId": {
+         "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+         "format": "uuid",
+         "type": "string"
+        },
+        "leadUnitId": {
+         "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+         "format": "uuid",
+         "type": "string"
+        },
+        "leadUnitName": {
+         "type": "string"
+        },
+        "productName": {
+         "maxLength": 500,
+         "type": "string"
+        },
+        "title": {
+         "maxLength": 500,
+         "type": "string"
+        }
+       },
+       "required": [
+        "title",
+        "leadUnitId",
+        "leadUnitName",
+        "coUnits",
+        "dueDate",
+        "productName"
+       ],
+       "type": "object"
+      },
+      "id": {
+       "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+       "format": "uuid",
+       "type": "string"
+      },
+      "paragraphNo": {
+       "minimum": 1,
+       "type": "integer"
+      },
+      "reason": {
+       "type": "string"
+      },
+      "similar": {
+       "items": {
+        "description": "Nhiệm vụ gần giống (BR-05-06, MSG-05-03).",
+        "properties": {
+         "code": {
+          "type": "string"
+         },
+         "dueDate": {
+          "description": "Ngày theo lịch (ISO 8601), không có giờ.",
+          "format": "date",
+          "type": "string"
+         },
+         "id": {
+          "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+          "format": "uuid",
+          "type": "string"
+         },
+         "leadName": {
+          "type": "string"
+         },
+         "progress": {
+          "maximum": 100,
+          "minimum": 0,
+          "type": "integer"
+         },
+         "similarity": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+         },
+         "status": {
+          "description": "Trạng thái `task.task.status` (baseline mục 9.1).",
+          "enum": [
+           "NHAP",
+           "DA_GIAO",
+           "DANG_THUC_HIEN",
+           "CHO_NGHIEM_THU",
+           "HOAN_THANH",
+           "TAM_DUNG",
+           "HUY"
+          ],
+          "type": "string"
+         },
+         "title": {
+          "type": "string"
+         },
+         "unitName": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "id",
+         "code",
+         "title",
+         "status",
+         "similarity",
+         "unitName",
+         "leadName",
+         "dueDate",
+         "progress"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "taskCode": {
+       "type": "string"
+      },
+      "taskId": {
+       "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+       "format": "uuid",
+       "type": "string"
+      },
+      "taskStatus": {
+       "description": "Trạng thái `task.task.status` (baseline mục 9.1).",
+       "enum": [
+        "NHAP",
+        "DA_GIAO",
+        "DANG_THUC_HIEN",
+        "CHO_NGHIEM_THU",
+        "HOAN_THANH",
+        "TAM_DUNG",
+        "HUY"
+       ],
+       "type": "string"
+      }
+     },
+     "required": [
+      "id",
+      "paragraphNo",
+      "confidence",
+      "decision",
+      "fields",
+      "aiFields",
+      "editedFields",
+      "similar"
+     ],
+     "type": "object"
+    },
+    "type": "array"
+   }
+  },
+  "required": [
+   "sourceDocId",
+   "status",
+   "model",
+   "extractedAt",
+   "suggestions"
+  ],
+  "type": "object"
+ },
+ "EvidenceExtractRequest": {
+  "properties": {
+   "objectId": {
+    "description": "Đối tượng đã tải lên (`evidence.object_meta`).",
+    "format": "uuid",
+    "type": "string"
+   }
+  },
+  "required": [
+   "objectId"
+  ],
+  "type": "object"
+ },
+ "EvidenceExtraction": {
+  "description": "Kết quả OCR minh chứng (SCR-0702 trường 2–5); các ô do AI điền chờ người nộp xác nhận.",
+  "properties": {
+   "aiGenerated": {
+    "const": true
+   },
+   "alternatives": {
+    "items": {
+     "properties": {
+      "code": {
+       "type": "string"
+      },
+      "confidence": {
+       "maximum": 1,
+       "minimum": 0,
+       "type": "number"
+      },
+      "id": {
+       "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+       "format": "uuid",
+       "type": "string"
+      },
+      "title": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "id",
+      "code",
+      "title",
+      "confidence"
+     ],
+     "type": "object"
+    },
+    "maxItems": 5,
+    "type": "array"
+   },
+   "docDate": {
+    "oneOf": [
+     {
+      "description": "Ngày theo lịch (ISO 8601), không có giờ.",
+      "format": "date",
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "docNumber": {
+    "maxLength": 64,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "docSummary": {
+    "maxLength": 500,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "label": {
+    "const": "Nội dung do AI tạo",
+    "type": "string"
+   },
+   "matchedTask": {
+    "oneOf": [
+     {
+      "properties": {
+       "code": {
+        "type": "string"
+       },
+       "confidence": {
+        "maximum": 1,
+        "minimum": 0,
+        "type": "number"
+       },
+       "id": {
+        "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+        "format": "uuid",
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "code",
+       "title",
+       "confidence"
+      ],
+      "type": "object"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "model": {
+    "type": "string"
+   },
+   "objectId": {
+    "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+    "format": "uuid",
+    "type": "string"
+   },
+   "suggestionId": {
+    "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+    "format": "uuid",
+    "type": "string"
+   }
+  },
+  "required": [
+   "suggestionId",
+   "objectId",
+   "model",
+   "aiGenerated",
+   "label"
+  ],
+  "type": "object"
+ },
+ "Job": {
+  "description": "Tác vụ dài trả qua `GET /api/v1/jobs/{id}`.",
+  "properties": {
+   "id": {
+    "type": "string"
+   },
+   "message": {
+    "description": "Mô tả bước đang chạy, tiếng Việt",
+    "type": "string"
+   },
+   "problem": {
+    "description": "RFC 9457, kiểu nội dung `application/problem+json`. Mở rộng theo TL-01: `code` dạng `<MODULE>-<HTTP>-<TÊN>`, `errors[]` cho lỗi theo trường, `traceId` để tra cứu. `detail` không chứa thông tin nội bộ.",
+    "properties": {
+     "code": {
+      "description": "Mã lỗi, ví dụ `TASK-409-PERIOD-LOCKED`; ánh xạ sang MSG ở giao diện",
+      "type": "string"
+     },
+     "detail": {
+      "type": "string"
+     },
+     "errors": {
+      "items": {
+       "properties": {
+        "field": {
+         "description": "Tên trường theo JSON của thân yêu cầu, dạng đường dẫn chấm",
+         "type": "string"
+        },
+        "message": {
+         "description": "Thông điệp tiếng Việt",
+         "type": "string"
+        },
+        "rule": {
+         "description": "Mã quy tắc nghiệp vụ nếu có, ví dụ `BR-05-01`",
+         "type": "string"
+        }
+       },
+       "required": [
+        "field",
+        "message"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "instance": {
+      "type": "string"
+     },
+     "msg": {
+      "description": "Mã thông điệp TL-02 tương ứng nếu có, ví dụ `MSG-06-05`",
+      "type": "string"
+     },
+     "status": {
+      "type": "integer"
+     },
+     "title": {
+      "description": "Tiêu đề tiếng Việt",
+      "type": "string"
+     },
+     "traceId": {
+      "type": "string"
+     },
+     "type": {
+      "description": "URI ổn định của loại lỗi, ví dụ `https://okrkpi.vn/problems/period-locked`",
+      "type": "string"
+     }
+    },
+    "required": [
+     "type",
+     "title",
+     "status"
+    ],
+    "type": "object"
+   },
+   "progress": {
+    "maximum": 100,
+    "minimum": 0,
+    "type": "integer"
+   },
+   "resultLocation": {
+    "description": "Đường dẫn kết quả khi HOAN_TAT",
+    "type": "string"
+   },
+   "status": {
+    "description": "Trạng thái tác vụ dài. TL chưa đặc tả lược đồ job; hợp đồng giữ bộ giá trị WEB-007 đã dùng (lấy từ các trạng thái job trong TL-03).",
+    "enum": [
+     "CHO",
+     "DANG_CHAY",
+     "HOAN_TAT",
+     "THAT_BAI",
+     "DA_HUY"
+    ],
+    "type": "string"
+   },
+   "type": {
+    "description": "Loại tác vụ, ví dụ PERIOD_LOCK, ESIGN_BATCH, EXPORT, IMPORT, RENDER, TEST_RUN, BULK_ASSIGN",
+    "type": "string"
+   },
+   "updatedAt": {
+    "description": "Thời điểm ISO 8601 có múi giờ.",
+    "format": "date-time",
+    "type": "string"
+   }
+  },
+  "required": [
+   "id",
+   "type",
+   "status"
+  ],
+  "type": "object"
+ },
+ "OkrAssistRequest": {
+  "properties": {
+   "attachmentObjectIds": {
+    "description": "Tệp căn cứ PDF, DOCX ≤ 20 MB đã tải lên qua `/files/uploads`; được lập chỉ mục trước khi trả lời.",
+    "items": {
+     "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+     "format": "uuid",
+     "type": "string"
+    },
+    "type": "array"
+   },
+   "basisIds": {
+    "items": {
+     "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+     "format": "uuid",
+     "type": "string"
+    },
+    "type": "array"
+   },
+   "draftObjectiveIds": {
+    "description": "Bản nháp OKR đang soạn để trợ lý soát.",
+    "items": {
+     "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+     "format": "uuid",
+     "type": "string"
+    },
+    "type": "array"
+   },
+   "periodId": {
+    "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+    "format": "uuid",
+    "type": "string"
+   },
+   "question": {
+    "description": "Câu hỏi cho trợ lý (`prompt_redacted` sau khi che).",
+    "maxLength": 2000,
+    "minLength": 1,
+    "type": "string"
+   },
+   "unitId": {
+    "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+    "format": "uuid",
+    "type": "string"
+   }
+  },
+  "required": [
+   "question",
+   "periodId",
+   "unitId"
+  ],
+  "type": "object"
+ },
+ "OkrAssistResult": {
+  "properties": {
+   "aiGenerated": {
+    "const": true
+   },
+   "answer": {
+    "type": "string"
+   },
+   "blocked": {
+    "oneOf": [
+     {
+      "description": "Rào chắn đã chặn yêu cầu (`ai.guardrail_event`).",
+      "properties": {
+       "action": {
+        "enum": [
+         "CHAN",
+         "CHE",
+         "CANH_BAO"
+        ],
+        "type": "string"
+       },
+       "message": {
+        "type": "string"
+       },
+       "msg": {
+        "type": "string"
+       },
+       "ruleCode": {
+        "enum": [
+         "PII_OUT",
+         "PROMPT_INJECTION",
+         "OUT_OF_SCOPE",
+         "C2_REQUEST"
+        ],
+        "type": "string"
+       }
+      },
+      "required": [
+       "ruleCode",
+       "action",
+       "message"
+      ],
+      "type": "object"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "createdAt": {
+    "description": "Thời điểm ISO 8601 có múi giờ.",
+    "format": "date-time",
+    "type": "string"
+   },
+   "label": {
+    "const": "Nội dung do AI tạo",
+    "type": "string"
+   },
+   "model": {
+    "type": "string"
+   },
+   "suggestions": {
+    "items": {
+     "properties": {
+      "id": {
+       "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+       "format": "uuid",
+       "type": "string"
+      },
+      "kind": {
+       "description": "(suy luận)",
+       "enum": [
+        "MUC_TIEU",
+        "SOAT_KR",
+        "LIEN_KET_NGANG"
+       ],
+       "type": "string"
+      },
+      "krCode": {
+       "type": "string"
+      },
+      "objective": {
+       "properties": {
+        "basisRef": {
+         "type": "string"
+        },
+        "keyResults": {
+         "items": {
+          "properties": {
+           "baselineValue": {
+            "type": [
+             "number",
+             "null"
+            ]
+           },
+           "code": {
+            "maxLength": 16,
+            "type": "string"
+           },
+           "targetValue": {
+            "type": [
+             "number",
+             "null"
+            ]
+           },
+           "title": {
+            "maxLength": 300,
+            "type": "string"
+           },
+           "unit": {
+            "maxLength": 32,
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "weight": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": [
+             "number",
+             "null"
+            ]
+           }
+          },
+          "required": [
+           "title"
+          ],
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "title": {
+         "maxLength": 300,
+         "type": "string"
+        }
+       },
+       "type": "object"
+      },
+      "reason": {
+       "type": "string"
+      },
+      "sources": {
+       "items": {
+        "description": "Một nguồn mà gợi ý AI đã dùng (BR-17-02).",
+        "properties": {
+         "asOf": {
+          "description": "Thời điểm ISO 8601 có múi giờ.",
+          "format": "date-time",
+          "type": "string"
+         },
+         "excerpt": {
+          "description": "Đoạn trích hoặc số liệu đã dùng (chỉ C0, C1).",
+          "type": "string"
+         },
+         "kind": {
+          "description": "Loại nguồn trích dẫn (suy luận từ `ai.suggestion_log.sources_json`).",
+          "enum": [
+           "VAN_BAN",
+           "DU_LIEU",
+           "TRUY_VAN"
+          ],
+          "type": "string"
+         },
+         "location": {
+          "description": "Trang, mục trong văn bản, ví dụ `tr. 4–6`.",
+          "type": "string"
+         },
+         "masked": {
+          "description": "Nguồn ngoài phạm vi quyền hiện tại của người xem.",
+          "type": "boolean"
+         },
+         "ref": {
+          "description": "Mã văn bản, mã đoạn `ai.doc_chunk` hoặc tên chỉ số Cube.",
+          "type": "string"
+         },
+         "title": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "kind",
+         "title"
+        ],
+        "type": "object"
+       },
+       "minItems": 1,
+       "type": "array"
+      },
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "id",
+      "kind",
+      "sources"
+     ],
+     "type": "object"
+    },
+    "maxItems": 10,
+    "type": "array"
+   }
+  },
+  "required": [
+   "model",
+   "createdAt",
+   "aiGenerated",
+   "label",
+   "suggestions"
+  ],
+  "type": "object"
+ },
+ "OkrReviewRequest": {
+  "properties": {
+   "keyResults": {
+    "items": {
+     "properties": {
+      "baselineValue": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "code": {
+       "maxLength": 16,
+       "type": "string"
+      },
+      "targetValue": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "title": {
+       "maxLength": 300,
+       "type": "string"
+      },
+      "unit": {
+       "maxLength": 32,
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "weight": {
+       "maximum": 100,
+       "minimum": 0,
+       "type": [
+        "number",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "title"
+     ],
+     "type": "object"
+    },
+    "maxItems": 5,
+    "minItems": 1,
+    "type": "array"
+   },
+   "objectiveId": {
+    "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+    "format": "uuid",
+    "type": "string"
+   },
+   "objectiveTitle": {
+    "maxLength": 300,
+    "type": "string"
+   },
+   "periodId": {
+    "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+    "format": "uuid",
+    "type": "string"
+   }
+  },
+  "required": [
+   "periodId",
+   "objectiveTitle",
+   "keyResults"
+  ],
+  "type": "object"
+ },
+ "OkrReviewResult": {
+  "properties": {
+   "aiGenerated": {
+    "const": true
+   },
+   "createdAt": {
+    "description": "Thời điểm ISO 8601 có múi giờ.",
+    "format": "date-time",
+    "type": "string"
+   },
+   "findings": {
+    "items": {
+     "properties": {
+      "krCode": {
+       "type": "string"
+      },
+      "message": {
+       "type": "string"
+      },
+      "msg": {
+       "type": "string"
+      },
+      "rewrites": {
+       "items": {
+        "maxLength": 300,
+        "type": "string"
+       },
+       "maxItems": 3,
+       "type": "array"
+      },
+      "rule": {
+       "type": "string"
+      },
+      "severity": {
+       "description": "(suy luận)",
+       "enum": [
+        "LOI",
+        "CANH_BAO"
+       ],
+       "type": "string"
+      },
+      "sources": {
+       "items": {
+        "description": "Một nguồn mà gợi ý AI đã dùng (BR-17-02).",
+        "properties": {
+         "asOf": {
+          "description": "Thời điểm ISO 8601 có múi giờ.",
+          "format": "date-time",
+          "type": "string"
+         },
+         "excerpt": {
+          "description": "Đoạn trích hoặc số liệu đã dùng (chỉ C0, C1).",
+          "type": "string"
+         },
+         "kind": {
+          "description": "Loại nguồn trích dẫn (suy luận từ `ai.suggestion_log.sources_json`).",
+          "enum": [
+           "VAN_BAN",
+           "DU_LIEU",
+           "TRUY_VAN"
+          ],
+          "type": "string"
+         },
+         "location": {
+          "description": "Trang, mục trong văn bản, ví dụ `tr. 4–6`.",
+          "type": "string"
+         },
+         "masked": {
+          "description": "Nguồn ngoài phạm vi quyền hiện tại của người xem.",
+          "type": "boolean"
+         },
+         "ref": {
+          "description": "Mã văn bản, mã đoạn `ai.doc_chunk` hoặc tên chỉ số Cube.",
+          "type": "string"
+         },
+         "title": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "kind",
+         "title"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "suggestionId": {
+       "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+       "format": "uuid",
+       "type": "string"
+      }
+     },
+     "required": [
+      "suggestionId",
+      "krCode",
+      "severity",
+      "message",
+      "sources"
+     ],
+     "type": "object"
+    },
+    "type": "array"
+   },
+   "label": {
+    "const": "Nội dung do AI tạo",
+    "type": "string"
+   },
+   "model": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "model",
+   "createdAt",
+   "aiGenerated",
+   "label",
+   "findings"
+  ],
+  "type": "object"
+ },
+ "SpeechToTextResult": {
+  "properties": {
+   "confidence": {
+    "maximum": 1,
+    "minimum": 0,
+    "type": "number"
+   },
+   "durationMs": {
+    "minimum": 0,
+    "type": "integer"
+   },
+   "model": {
+    "type": "string"
+   },
+   "text": {
+    "maxLength": 1000,
+    "type": "string"
+   }
+  },
+  "required": [
+   "text",
+   "model"
+  ],
+  "type": "object"
+ },
+ "TaskSuggestion": {
+  "description": "Một nhiệm vụ do AI trích từ văn bản (`ai.suggestion_log`, use_case `GOI_Y_NHIEM_VU`), dùng chung giữa MOD-02 và SVC-14.",
+  "properties": {
+   "aiFields": {
+    "description": "Các ô AI điền trên thẻ nhiệm vụ (SCR-0502 trường 5–10), tên theo `task.task`.",
+    "properties": {
+     "catalogItemCode": {
+      "type": "string"
+     },
+     "catalogItemId": {
+      "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+      "format": "uuid",
+      "type": "string"
+     },
+     "coUnits": {
+      "items": {
+       "description": "Người hoặc đơn vị phối hợp.",
+       "properties": {
+        "id": {
+         "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+         "format": "uuid",
+         "type": "string"
+        },
+        "kind": {
+         "enum": [
+          "PERSON",
+          "UNIT"
+         ],
+         "type": "string"
+        },
+        "name": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "kind",
+        "id",
+        "name"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "dueDate": {
+      "description": "Ngày theo lịch (ISO 8601), không có giờ.",
+      "format": "date",
+      "type": "string"
+     },
+     "keyResultCode": {
+      "type": "string"
+     },
+     "keyResultId": {
+      "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+      "format": "uuid",
+      "type": "string"
+     },
+     "leadUnitId": {
+      "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+      "format": "uuid",
+      "type": "string"
+     },
+     "leadUnitName": {
+      "type": "string"
+     },
+     "productName": {
+      "maxLength": 500,
+      "type": "string"
+     },
+     "title": {
+      "maxLength": 500,
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "leadUnitId",
+     "leadUnitName",
+     "coUnits",
+     "dueDate",
+     "productName"
+    ],
+    "type": "object"
+   },
+   "confidence": {
+    "maximum": 1,
+    "minimum": 0,
+    "type": "number"
+   },
+   "decision": {
+    "description": "Quyết định của người giao với một nhiệm vụ AI trích (`ai.suggestion_log.decision`).",
+    "enum": [
+     "CHO_XAC_NHAN",
+     "DA_XAC_NHAN",
+     "DA_BO",
+     "DA_GOP"
+    ],
+    "type": "string"
+   },
+   "editedFields": {
+    "items": {
+     "description": "Tên ô ghi vào `edited_fields` khi người giao sửa (SCR-0502 trường 13).",
+     "enum": [
+      "title",
+      "leadUnitId",
+      "coUnits",
+      "dueDate",
+      "productName",
+      "catalogItemId",
+      "keyResultId"
+     ],
+     "type": "string"
+    },
+    "type": "array"
+   },
+   "fields": {
+    "description": "Các ô AI điền trên thẻ nhiệm vụ (SCR-0502 trường 5–10), tên theo `task.task`.",
+    "properties": {
+     "catalogItemCode": {
+      "type": "string"
+     },
+     "catalogItemId": {
+      "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+      "format": "uuid",
+      "type": "string"
+     },
+     "coUnits": {
+      "items": {
+       "description": "Người hoặc đơn vị phối hợp.",
+       "properties": {
+        "id": {
+         "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+         "format": "uuid",
+         "type": "string"
+        },
+        "kind": {
+         "enum": [
+          "PERSON",
+          "UNIT"
+         ],
+         "type": "string"
+        },
+        "name": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "kind",
+        "id",
+        "name"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "dueDate": {
+      "description": "Ngày theo lịch (ISO 8601), không có giờ.",
+      "format": "date",
+      "type": "string"
+     },
+     "keyResultCode": {
+      "type": "string"
+     },
+     "keyResultId": {
+      "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+      "format": "uuid",
+      "type": "string"
+     },
+     "leadUnitId": {
+      "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+      "format": "uuid",
+      "type": "string"
+     },
+     "leadUnitName": {
+      "type": "string"
+     },
+     "productName": {
+      "maxLength": 500,
+      "type": "string"
+     },
+     "title": {
+      "maxLength": 500,
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "leadUnitId",
+     "leadUnitName",
+     "coUnits",
+     "dueDate",
+     "productName"
+    ],
+    "type": "object"
+   },
+   "id": {
+    "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+    "format": "uuid",
+    "type": "string"
+   },
+   "paragraphNo": {
+    "minimum": 1,
+    "type": "integer"
+   },
+   "reason": {
+    "type": "string"
+   },
+   "similar": {
+    "items": {
+     "description": "Nhiệm vụ gần giống (BR-05-06, MSG-05-03).",
+     "properties": {
+      "code": {
+       "type": "string"
+      },
+      "dueDate": {
+       "description": "Ngày theo lịch (ISO 8601), không có giờ.",
+       "format": "date",
+       "type": "string"
+      },
+      "id": {
+       "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+       "format": "uuid",
+       "type": "string"
+      },
+      "leadName": {
+       "type": "string"
+      },
+      "progress": {
+       "maximum": 100,
+       "minimum": 0,
+       "type": "integer"
+      },
+      "similarity": {
+       "maximum": 1,
+       "minimum": 0,
+       "type": "number"
+      },
+      "status": {
+       "description": "Trạng thái `task.task.status` (baseline mục 9.1).",
+       "enum": [
+        "NHAP",
+        "DA_GIAO",
+        "DANG_THUC_HIEN",
+        "CHO_NGHIEM_THU",
+        "HOAN_THANH",
+        "TAM_DUNG",
+        "HUY"
+       ],
+       "type": "string"
+      },
+      "title": {
+       "type": "string"
+      },
+      "unitName": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "id",
+      "code",
+      "title",
+      "status",
+      "similarity",
+      "unitName",
+      "leadName",
+      "dueDate",
+      "progress"
+     ],
+     "type": "object"
+    },
+    "type": "array"
+   },
+   "taskCode": {
+    "type": "string"
+   },
+   "taskId": {
+    "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+    "format": "uuid",
+    "type": "string"
+   },
+   "taskStatus": {
+    "description": "Trạng thái `task.task.status` (baseline mục 9.1).",
+    "enum": [
+     "NHAP",
+     "DA_GIAO",
+     "DANG_THUC_HIEN",
+     "CHO_NGHIEM_THU",
+     "HOAN_THANH",
+     "TAM_DUNG",
+     "HUY"
+    ],
+    "type": "string"
+   }
+  },
+  "required": [
+   "id",
+   "paragraphNo",
+   "confidence",
+   "decision",
+   "fields",
+   "aiFields",
+   "editedFields",
+   "similar"
+  ],
+  "type": "object"
+ }
+}

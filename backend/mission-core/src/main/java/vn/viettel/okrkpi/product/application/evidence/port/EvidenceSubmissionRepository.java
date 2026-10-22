@@ -72,7 +72,12 @@ public interface EvidenceSubmissionRepository {
 
   /** Bộ lọc danh sách minh chứng; trường {@code null} là không lọc. */
   record EvidenceFilter(
-      UUID taskId, UUID deliverableId, Set<String> statuses, UUID submitter, UUID periodId) {}
+      UUID taskId,
+      UUID deliverableId,
+      Set<String> statuses,
+      UUID submitter,
+      UUID reviewer,
+      UUID periodId) {}
 
   /** Dòng rút gọn của lịch sử phiên bản. */
   record VersionSummary(int versionNo, String status, Instant submittedAt, Instant acceptedAt) {}
@@ -207,6 +212,14 @@ public interface EvidenceSubmissionRepository {
 
   /** Ghi thời điểm cam kết của người nộp. */
   void markAttested(TenantId tenant, int periodBucket, UUID versionId, Instant at);
+
+  /**
+   * Minh chứng trong {@code ids} có phiên bản {@code DA_XAC_NHAN} chưa bị loại, do người này nộp.
+   */
+  Set<UUID> confirmedOf(TenantId tenant, UUID personId, Set<UUID> ids);
+
+  /** Ghi người nghiệm thu được chỉ định lúc nộp, để lập hàng chờ nghiệm thu (CORE-03-06). */
+  void markReviewer(TenantId tenant, int periodBucket, UUID evidenceId, UUID reviewerId);
 
   /**
    * Ghi bản chiếu khi nhận sự kiện lưu: thêm mới, hoặc cập nhật khi phiên bản đối tượng mới hơn hay

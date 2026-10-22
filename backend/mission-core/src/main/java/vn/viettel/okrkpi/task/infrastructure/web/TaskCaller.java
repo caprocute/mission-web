@@ -10,4 +10,14 @@ import vn.viettel.okrkpi.task.domain.lifecycle.TaskActor;
 public interface TaskCaller {
 
   Optional<TaskActor> current();
+
+  /** Mức xác thực ({@code acr}) của phiên, để kiểm xác thực bước lên (CORE-02-09). */
+  default Optional<String> acr() {
+    return Optional.empty();
+  }
+
+  /** Thời điểm xác thực ({@code auth_time}, giây epoch). */
+  default Optional<Long> authTime() {
+    return Optional.empty();
+  }
 }

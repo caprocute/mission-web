@@ -42,6 +42,21 @@ public final class EvidenceRuleViolation extends IllegalStateException {
   /** Phiên bản mới nhất chưa kết thúc nên chưa tạo được phiên bản kế tiếp. */
   public static final String OPEN_VERSION_EXISTS = "PRODUCT-409-OPEN-VERSION-EXISTS";
 
+  /** Tệp không còn khớp bản ghi của SVC-08 khi mở nghiệm thu (MSG-07-13). */
+  public static final String INTEGRITY_FAILED = "PRODUCT-409-INTEGRITY-FAILED";
+
+  /** Không phải người nghiệm thu được chỉ định, hoặc là người nộp, người phối hợp (BR-07-06). */
+  public static final String SELF_REVIEW = "PRODUCT-403-SELF-REVIEW";
+
+  /** Chưa đánh giá hết tiêu chuẩn chất lượng (MSG-07-09). */
+  public static final String CRITERIA_INCOMPLETE = "PRODUCT-422-CRITERIA-INCOMPLETE";
+
+  /** Đã có phiên bản bị yêu cầu bổ sung mà thiếu nguyên nhân chỉnh sửa. */
+  public static final String REVISION_CAUSE_REQUIRED = "PRODUCT-422-REVISION-CAUSE-REQUIRED";
+
+  /** Giá trị ngoài miền cho phép (mức chất lượng ngoài năm mức, BR-07-07; độ dài nhận xét). */
+  public static final String VALIDATION = "COMMON-422-VALIDATION";
+
   private final String code;
 
   public EvidenceRuleViolation(String code, String message) {

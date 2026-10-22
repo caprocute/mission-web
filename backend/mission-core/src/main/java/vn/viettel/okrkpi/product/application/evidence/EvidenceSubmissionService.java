@@ -344,8 +344,9 @@ public class EvidenceSubmissionService {
             !submitted.aiPrefill() || submitted.userConfirmedAt() != null,
             actor.personId(),
             result.rowVersion()));
-    UUID reviewer = task.acceptorId() != null ? task.acceptorId() : task.assignerId();
+    UUID reviewer = designatedReviewer(task);
     if (reviewer != null) {
+      repository.markReviewer(tenant, e.periodBucket(), e.id(), reviewer);
       events.reviewRequested(
           tenant,
           reviewer,
@@ -512,7 +513,12 @@ public class EvidenceSubmissionService {
     }
   }
 
-  private static EvidenceFile file(FileView v) {
+  /** Người nghiệm thu được chỉ định: người nghiệm thu của nhiệm vụ, thiếu thì người giao. */
+  static UUID designatedReviewer(TaskSummary task) {
+    return task.acceptorId() != null ? task.acceptorId() : task.assignerId();
+  }
+
+  static EvidenceFile file(FileView v) {
     FileRow f = v.file();
     StoredObject o = v.object();
     return new EvidenceFile(

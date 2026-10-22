@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import uuid
 from typing import Any
 
 import httpx
@@ -15,6 +16,8 @@ from app.core.auth import Principal
 from app.core.exchange import ReadOnlyToken, TokenExchanger
 
 READ_METHODS = frozenset({"GET", "HEAD"})
+# Thao tác đọc mà hợp đồng định nghĩa bằng POST vì thân truy vấn phức tạp (queryAnalytics, BR-16-02).
+READ_POSTS = frozenset({"/api/v1/analytics/query"})
 
 
 class WriteForbiddenError(Exception):
@@ -44,6 +47,8 @@ def sanitize(data: Any, allow_c2: bool = False) -> Any:
 
 
 async def _deny_writes(request: httpx.Request) -> None:
+    if request.method.upper() == "POST" and request.url.path in READ_POSTS:
+        return
     if request.method.upper() not in READ_METHODS:
         raise WriteForbiddenError(f"ai-gateway không được gọi {request.method} tới API lõi")
 
@@ -84,6 +89,30 @@ class CoreClient:
         r = await self.get(principal, path, params)
         r.raise_for_status()
         return sanitize(r.json(), allow_c2)
+
+    async def query_analytics(self, tok: ReadOnlyToken, query: dict[str, Any]) -> Any:
+        """queryAnalytics trên lớp ngữ nghĩa: truy vấn đọc dùng POST, analytics-api áp phạm vi của chủ token."""
+        r = await self._http.post("/api/v1/analytics/query", json=query, headers={
+            "Authorization": f"Bearer {tok.value}", "Idempotency-Key": str(uuid.uuid4())})
+        r.raise_for_status()
+        return sanitize(r.json())
+
+    async def download(self, principal: Principal, object_id: str, max_bytes: int) -> tuple[str, bytes]:
+        """Tải tệp người dùng đính kèm: xin URL ký trước qua lõi (lõi kiểm quyền, ghi nhật ký), rồi tải không kèm
+        token. Trả (tên tệp suy từ kiểu nội dung, nội dung)."""
+        meta = await self.get_json(principal, f"/api/v1/files/{object_id}/download-url")
+        if int(meta.get("sizeBytes") or 0) > max_bytes:
+            raise ValueError("tệp vượt giới hạn")
+        ext = {"application/pdf": ".pdf"}.get(str(meta.get("mediaType")), ".docx")
+        return f"{object_id}{ext}", await self.fetch_signed(str(meta["url"]), max_bytes)
+
+    async def fetch_signed(self, url: str, max_bytes: int) -> bytes:
+        """Tải từ URL ký trước của lõi, không kèm token người dùng."""
+        r = await self._http.get(url, headers={"Authorization": ""})
+        r.raise_for_status()
+        if len(r.content) > max_bytes:
+            raise ValueError("tệp vượt giới hạn")
+        return r.content
 
     def __getattr__(self, name: str) -> Any:
         if name in ("post", "put", "patch", "delete", "request", "send", "stream"):

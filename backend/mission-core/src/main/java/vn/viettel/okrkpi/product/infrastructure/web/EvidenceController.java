@@ -35,9 +35,15 @@ import vn.viettel.okrkpi.contract.products.model.DeliverableList;
 import vn.viettel.okrkpi.contract.products.model.DeliverableStatus;
 import vn.viettel.okrkpi.contract.products.model.DeliverableType;
 import vn.viettel.okrkpi.contract.products.model.Evidence;
+import vn.viettel.okrkpi.contract.products.model.EvidenceAcceptRequest;
+import vn.viettel.okrkpi.contract.products.model.EvidenceAcceptance;
+import vn.viettel.okrkpi.contract.products.model.EvidenceAcceptanceDecision;
 import vn.viettel.okrkpi.contract.products.model.EvidenceCreate;
+import vn.viettel.okrkpi.contract.products.model.EvidenceCriterionResult;
+import vn.viettel.okrkpi.contract.products.model.EvidenceDecisionResult;
 import vn.viettel.okrkpi.contract.products.model.EvidenceDuplicateMatch;
 import vn.viettel.okrkpi.contract.products.model.EvidenceList;
+import vn.viettel.okrkpi.contract.products.model.EvidenceReturnRequest;
 import vn.viettel.okrkpi.contract.products.model.EvidenceSourceType;
 import vn.viettel.okrkpi.contract.products.model.EvidenceSubmit;
 import vn.viettel.okrkpi.contract.products.model.EvidenceSubmitResult;
@@ -50,8 +56,15 @@ import vn.viettel.okrkpi.contract.products.model.EvidenceVersionStatus;
 import vn.viettel.okrkpi.contract.products.model.EvidenceVersionSummary;
 import vn.viettel.okrkpi.contract.products.model.FileScanStatus;
 import vn.viettel.okrkpi.contract.products.model.ProductTaskRef;
+import vn.viettel.okrkpi.contract.products.model.QualityLevel;
 import vn.viettel.okrkpi.contract.products.model.Ref;
+import vn.viettel.okrkpi.contract.products.model.RevisionCause;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService.AcceptInput;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService.AcceptanceView;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService.Decision;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceActor;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceReviewService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService.DraftInput;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService.EvidenceDetail;
@@ -65,6 +78,7 @@ import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRep
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.StoredObject;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.VersionSummary;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.VersionView;
+import vn.viettel.okrkpi.product.domain.evidence.CriterionResult;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
 import vn.viettel.okrkpi.shared.authz.OpaInput;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
@@ -82,9 +96,9 @@ import vn.viettel.okrkpi.task.api.TaskSummary;
 
 /**
  * Mười thao tác khai báo sản phẩm và nộp minh chứng của {@code products.yaml} (QT-07, SCR-0701,
- * CORE-03-03). Tên tệp gốc là C2 ở SVC-08 và sự kiện lưu không mang tên tệp, nên {@code
- * files[].fileName} trả rỗng (suy luận, wiki 14); tên người trong {@code Ref} cũng rỗng như các API
- * khác của mission-core.
+ * CORE-03-03) và mở nghiệm thu, hàng chờ người nghiệm thu (SCR-0703, CORE-03-06). Tên tệp gốc là C2
+ * ở SVC-08 và sự kiện lưu không mang tên tệp, nên {@code files[].fileName} trả rỗng (suy luận, wiki
+ * 14); tên người trong {@code Ref} cũng rỗng như các API khác của mission-core.
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -93,16 +107,22 @@ public class EvidenceController {
   private static final String MODULE = "products";
 
   private final EvidenceSubmissionService service;
+  private final EvidenceReviewService reviews;
+  private final EvidenceAcceptanceService acceptances;
   private final CursorCodec cursors;
   private final ObjectProvider<EvidenceCaller> callers;
   private final ObjectProvider<AuthzSubjectResolver> subjects;
 
   public EvidenceController(
       EvidenceSubmissionService service,
+      EvidenceReviewService reviews,
+      EvidenceAcceptanceService acceptances,
       CursorCodec cursors,
       ObjectProvider<EvidenceCaller> callers,
       ObjectProvider<AuthzSubjectResolver> subjects) {
     this.service = Objects.requireNonNull(service, "service");
+    this.reviews = Objects.requireNonNull(reviews, "reviews");
+    this.acceptances = Objects.requireNonNull(acceptances, "acceptances");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
     this.callers = Objects.requireNonNull(callers, "callers");
     this.subjects = Objects.requireNonNull(subjects, "subjects");
@@ -176,12 +196,12 @@ public class EvidenceController {
       @RequestParam(value = "limit", required = false) Integer limit,
       @RequestParam(value = "cursor", required = false) String cursor) {
     TenantId tenant = TenantContext.require();
+    UUID reviewerId = null;
     if (reviewer != null) {
-      // Hàng chờ nghiệm thu theo người nghiệm thu thuộc CORE-03-06.
-      throw new BusinessException(
-          "COMMON-422-VALIDATION",
-          "Bộ lọc người nghiệm thu chưa được hỗ trợ",
-          List.of(new ProblemFieldError("reviewer", "Bộ lọc chưa được hỗ trợ", null)));
+      if (!"me".equals(reviewer)) {
+        throw invalid("reviewer");
+      }
+      reviewerId = actor().personId();
     }
     UUID submitterId = null;
     if (submitter != null) {
@@ -210,12 +230,14 @@ public class EvidenceController {
             + ":"
             + submitterId
             + ":"
+            + reviewerId
+            + ":"
             + periodId;
     PageRequest page = cursors.pageRequest(limit, cursor, scope);
     List<EvidenceView> rows =
         service.listEvidences(
             tenant,
-            new EvidenceFilter(task, deliverable, statuses, submitterId, periodId),
+            new EvidenceFilter(task, deliverable, statuses, submitterId, reviewerId, periodId),
             page.afterKey().map(k -> k.getUuid(0)).orElse(null),
             page.fetchSize());
     CursorPage<EvidenceView> result = cursors.page(rows, page, e -> CursorKey.of(e.id()));
@@ -359,7 +381,155 @@ public class EvidenceController {
     return ETags.ok(result, done.version().version().rowVersion());
   }
 
+  // ---------------------------------------------------------------- nghiệm thu
+
+  @PostMapping("/evidences/{id}/versions/{v}/open-review")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "openEvidenceReview",
+      module = MODULE,
+      resourceType = "evidence")
+  public ResponseEntity<EvidenceVersion> openEvidenceReview(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") int versionNo,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch) {
+    long expected = ETags.expectedVersion(ifMatch, "PRODUCT");
+    EvidenceActor actor = actor();
+    TenantId tenant = TenantContext.require();
+    found(() -> reviews.openReview(tenant, id, versionNo, expected, actor));
+    VersionDetail v = found(() -> service.getVersion(tenant, id, versionNo));
+    return ETags.ok(version(v), v.version().rowVersion());
+  }
+
+  @PostMapping("/evidences/{id}/versions/{v}/accept")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "acceptEvidenceVersion",
+      module = MODULE,
+      resourceType = "evidence")
+  public ResponseEntity<EvidenceDecisionResult> acceptEvidenceVersion(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") int versionNo,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody EvidenceAcceptRequest body) {
+    long expected = ETags.expectedVersion(ifMatch, "PRODUCT");
+    if (body == null || body.getQualityLevel() == null) {
+      throw invalid("qualityLevel");
+    }
+    AcceptInput input =
+        new AcceptInput(
+            body.getQualityLevel().getValue(),
+            criteria(body.getCriteriaResults()),
+            body.getRevisionCause() == null ? null : body.getRevisionCause().getValue(),
+            body.getIsObjectiveRevision(),
+            body.getComment());
+    EvidenceActor actor = actor();
+    Decision d =
+        found(
+            () ->
+                acceptances.acceptVersion(
+                    TenantContext.require(), id, versionNo, expected, input, actor));
+    return ETags.ok(decision(d), d.rowVersion());
+  }
+
+  @PostMapping("/evidences/{id}/versions/{v}/request-revision")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "requestEvidenceRevision",
+      module = MODULE,
+      resourceType = "evidence")
+  public ResponseEntity<EvidenceDecisionResult> requestEvidenceRevision(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") int versionNo,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody EvidenceReturnRequest body) {
+    long expected = ETags.expectedVersion(ifMatch, "PRODUCT");
+    EvidenceActor actor = actor();
+    Decision d =
+        found(
+            () ->
+                acceptances.requestRevision(
+                    TenantContext.require(),
+                    id,
+                    versionNo,
+                    expected,
+                    criteria(body == null ? null : body.getCriteriaResults()),
+                    body == null ? null : body.getComment(),
+                    actor));
+    return ETags.ok(decision(d), d.rowVersion());
+  }
+
+  @PostMapping("/evidences/{id}/versions/{v}/reject")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "rejectEvidenceVersion",
+      module = MODULE,
+      resourceType = "evidence")
+  public ResponseEntity<EvidenceDecisionResult> rejectEvidenceVersion(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") int versionNo,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody EvidenceReturnRequest body) {
+    long expected = ETags.expectedVersion(ifMatch, "PRODUCT");
+    EvidenceActor actor = actor();
+    Decision d =
+        found(
+            () ->
+                acceptances.rejectVersion(
+                    TenantContext.require(),
+                    id,
+                    versionNo,
+                    expected,
+                    criteria(body == null ? null : body.getCriteriaResults()),
+                    body == null ? null : body.getComment(),
+                    actor));
+    return ETags.ok(decision(d), d.rowVersion());
+  }
+
   // ---------------------------------------------------------------- ánh xạ
+
+  private static List<CriterionResult> criteria(List<EvidenceCriterionResult> items) {
+    if (items == null) {
+      return List.of();
+    }
+    return items.stream()
+        .map(
+            c ->
+                new CriterionResult(
+                    c.getCriterionCode(), Boolean.TRUE.equals(c.getPassed()), c.getNote()))
+        .toList();
+  }
+
+  static EvidenceDecisionResult decision(Decision d) {
+    AcceptanceView a = d.acceptance();
+    EvidenceAcceptance dto =
+        new EvidenceAcceptance()
+            .id(a.id())
+            .evidenceVersionId(a.versionId())
+            .decision(EvidenceAcceptanceDecision.fromValue(a.decision()))
+            .qualityLevel(
+                a.qualityLevel() == null ? null : QualityLevel.fromValue(a.qualityLevel()))
+            .criteriaResults(
+                a.criteria().stream()
+                    .map(
+                        c ->
+                            new EvidenceCriterionResult()
+                                .criterionCode(c.code())
+                                .passed(c.passed())
+                                .note(c.note()))
+                    .toList())
+            .revisionCause(
+                a.revisionCause() == null ? null : RevisionCause.fromValue(a.revisionCause()))
+            .isObjectiveRevision(a.objectiveRevision())
+            .revisionCount(a.revisionCount())
+            .comment(a.comment())
+            .reviewer(new Ref().id(a.reviewerId()).name(""))
+            .decidedAt(time(a.decidedAt()));
+    return new EvidenceDecisionResult()
+        .acceptance(dto)
+        .versionStatus(EvidenceVersionStatus.fromValue(d.versionStatus()))
+        .taskStatusChanged(d.taskStatusChanged());
+  }
 
   static Deliverable deliverable(DeliverableView d) {
     return new Deliverable()
@@ -505,7 +675,9 @@ public class EvidenceController {
     try {
       return new EvidenceActor(
           UUID.fromString(subject.userId()),
-          new LinkedHashSet<>(subject.roles() == null ? List.of() : subject.roles()));
+          new LinkedHashSet<>(subject.roles() == null ? List.of() : subject.roles()),
+          subject.acr(),
+          subject.authTime());
     } catch (IllegalArgumentException e) {
       throw unauthorized();
     }

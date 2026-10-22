@@ -9,6 +9,8 @@
 #   - một tệp module có ở mốc bị xoá hoặc đổi tên ở nhánh;
 #   - openapi-diff báo thay đổi phá vỡ tương thích (--fail-on-incompatible), ví dụ xoá thao tác,
 #     xoá trường phản hồi, thêm tham số bắt buộc.
+# Thêm giá trị enum ở phản hồi được coi là tương thích theo quy ước API-first của dự án (client phải
+# chịu được giá trị lạ, wiki 14), nên tắt luật incompatible.response.enum.increased của openapi-diff.
 # Lệnh openapi-diff lấy từ biến OPENAPI_DIFF (mặc định `openapi-diff`), nhận hai đường dẫn tương đối
 # so với thư mục làm việc hiện tại.
 set -euo pipefail
@@ -52,7 +54,8 @@ for tep_moc in "${KET_QUA}/moc/${THU_MUC}"/modules/*.yaml "${KET_QUA}/moc/${THU_
   fi
   bao_cao="${KET_QUA}/${ten//\//_}.md"
   set +e
-  ${OPENAPI_DIFF} "${tep_moc}" "${tep_nhanh}" --fail-on-incompatible --markdown "${bao_cao}" > "${bao_cao%.md}.log" 2>&1
+  ${OPENAPI_DIFF} "${tep_moc}" "${tep_nhanh}" --fail-on-incompatible \
+    --config-prop incompatible.response.enum.increased:false --markdown "${bao_cao}" > "${bao_cao%.md}.log" 2>&1
   ma=$?
   set -e
   if [ "${ma}" -ne 0 ]; then

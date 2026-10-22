@@ -1,0 +1,59 @@
+{
+  "version": "1.0.0",
+  "componentRegistryVersion": "2026.3",
+  "elderMode": true,
+  "fewSteps": false,
+  "tokens": {
+    "color": {
+      "primary": { "$type": "color", "$value": "#EE0033", "$description": "Màu nhận diện; chỉ dùng cho điểm nhấn, không làm nền chữ trắng (4,48 : 1)" },
+      "primary-strong": { "$type": "color", "$value": "#D1002D", "$description": "Nền nút, liên kết, tab đang chọn" },
+      "on-primary-strong": { "$type": "color", "$value": "#FFFFFF" },
+      "surface": { "$type": "color", "$value": "#FFFFFF" },
+      "surface-elevated": { "$type": "color", "$value": "#FFFFFF" },
+      "background": { "$type": "color", "$value": "#F1F5F9" },
+      "border": { "$type": "color", "$value": "#E2E8F0" },
+      "text": { "$type": "color", "$value": "#0F172A" },
+      "text-muted": { "$type": "color", "$value": "#475569" }
+    },
+    "font": {
+      "family": { "$type": "fontFamily", "$value": ["Be Vietnam Pro", "Inter", "Roboto", "Segoe UI", "sans-serif"] },
+      "size": { "body": { "$type": "dimension", "$value": "14px" } }
+    },
+    "radius": { "card": { "$type": "dimension", "$value": "12px" } },
+    "space": { "lg": { "$type": "dimension", "$value": "16px" } },
+    "border": { "width": { "$type": "dimension", "$value": "1px" } },
+    "min-touch": { "$type": "dimension", "$value": "40px" },
+    "$extensions": {
+      "modes": {
+        "elderly": {
+          "color": {
+            "primary-strong": { "$value": "#A30023" },
+            "text": { "$value": "#000000" },
+            "text-muted": { "$value": "#334155" }
+          },
+          "font": { "size": { "body": { "$value": "18px" } } },
+          "border": { "width": { "$value": "2px" } },
+          "min-touch": { "$value": "48px" },
+          "flags": { "minTouchTarget": "48px" }
+        }
+      }
+    }
+  },
+  "layouts": {
+    "home": {
+      "component": "vt.layout.grid",
+      "props": { "columns": { "xs": 1, "md": 2, "xl": 3 } },
+      "children": [
+        { "component": "vt.widget.myTasksToday", "props": { "limit": 7 }, "mandatory": true },
+        { "component": "vt.widget.okrProgress", "props": { "scope": "me" } },
+        {
+          "id": "okrProgressUnit",
+          "component": "vt.widget.okrProgress",
+          "props": { "scope": "unit" },
+          "visibleWhen": "user.roles.exists(r, r in ['leader', 'manager'])"
+        },
+        { "component": "vt.widget.pendingApprovals", "visibleWhen": "'manager' in user.roles" }
+      ]
+    }
+  }
+}

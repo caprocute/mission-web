@@ -40,7 +40,7 @@
     "d3-drag": "^3.0.0",
     "d3-selection": "^3.0.0",
     "d3-zoom": "^3.0.0",
-    "es-module-shims": "^1.10.0",
+    "es-module-shims": "^2.8.4",
     "ngx-vflow": "^2.7.0",
     "primeicons": "^7.0.0",
     "primeng": "21.1.10",

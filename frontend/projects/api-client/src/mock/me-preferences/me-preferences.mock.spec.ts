@@ -1,0 +1,98 @@
+import { HttpHeaders, HttpParams } from '@angular/common/http';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { MockRequest, matchPath } from '../mock-router';
+import { ME_PREFERENCES_MOCK, applyHomeOverlay } from './me-preferences.mock';
+
+function call(method: string, path: string, body: unknown = null, headers: Record<string, string> = {}) {
+  for (const r of ME_PREFERENCES_MOCK.routes) {
+    const pathParams = r.method === method ? matchPath(r.pattern, path) : null;
+    if (pathParams) {
+      const req: MockRequest = {
+        method,
+        path,
+        params: new HttpParams(),
+        headers: new HttpHeaders(headers),
+        body,
+        pathParams,
+      };
+      return r.handle(req);
+    }
+  }
+  throw new Error(`không có tuyến ${method} ${path}`);
+}
+
+const PREF = '/api/v1/config/me/preferences/ui.home.layout';
+
+describe('ME_PREFERENCES_MOCK (CNH-03)', () => {
+  beforeEach(() => ME_PREFERENCES_MOCK.reset());
+
+  it('tạo mới 201, ghi tiếp cần If-Match (428), sai phiên bản thì 409', () => {
+    const value = { hiddenWidgets: ['vt.widget.announcement'] };
+    expect(call('PUT', PREF, { value }).status).toBe(201);
+    expect(call('PUT', PREF, { value }).status).toBe(428);
+    const conflict = call('PUT', PREF, { value }, { 'If-Match': '"9"' });
+    expect(conflict.status).toBe(409);
+    expect((conflict.body as { code: string }).code).toBe('CONFIG-409-VERSION-CONFLICT');
+    expect(call('PUT', PREF, { value }, { 'If-Match': '"1"' }).status).toBe(200);
+  });
+
+  it('bố cục trang chủ áp lớp phủ, không ẩn khối bắt buộc, xoá thì về mặc định', () => {
+    call('PUT', PREF, {
+      value: {
+        hiddenWidgets: ['vt.widget.announcement', 'vt.widget.myTasksToday'],
+        widgetOrder: [{ id: 'vt.widget.pendingApprovals', order: 0 }],
+      },
+    });
+    const home = call('GET', '/api/v1/ui/layouts/home').body as {
+      layout: { children: { component: string }[] };
+      personalizationMeta: { hasOverlay: boolean; mandatoryWidgetIds: string[] };
+    };
+    expect(home.layout.children.map((c) => c.component)).toEqual([
+      'vt.widget.pendingApprovals',
+      'vt.widget.myTasksToday',
+      'vt.widget.okrProgress',
+    ]);
+    expect(home.personalizationMeta).toMatchObject({ hasOverlay: true, mandatoryWidgetIds: ['vt.widget.myTasksToday'] });
+    expect(call('DELETE', PREF, null, { 'If-Match': '"1"' }).status).toBe(204);
+    const reset = call('GET', '/api/v1/ui/layouts/home').body as { layout: { children: unknown[] } };
+    expect(reset.layout.children).toHaveLength(4);
+  });
+
+  it('ghim thắng ẩn, mã lạ bị bỏ qua', () => {
+    const base = { component: 'g', children: [{ component: 'a' }, { component: 'b' }] };
+    const { layout } = applyHomeOverlay(base, { pinnedWidgets: ['b', 'x'], hiddenWidgets: ['b'] });
+    expect(layout.children?.map((c) => c.component)).toEqual(['b', 'a']);
+  });
+});
+
+describe('ME_PREFERENCES_MOCK bộ lọc đã lưu (CNH-04)', () => {
+  beforeEach(() => ME_PREFERENCES_MOCK.reset());
+  const URL = '/api/v1/config/me/saved-filters';
+  const body = (name: string, isDefault = false) => ({
+    screenCode: 'SCR-0503',
+    name,
+    criteria: { flags: { quick_CHAM: true } },
+    isDefault,
+    displayOrder: 0,
+  });
+
+  it('tạo, trùng tên 422, một mặc định trên màn hình, sửa và xoá cần If-Match', () => {
+    const a = call('POST', URL, body('Việc chậm', true)).body as { id: string };
+    expect(call('POST', URL, body('việc chậm')).status).toBe(422);
+    const b = call('POST', URL, body('Sắp hạn', true)).body as { id: string; rowVersion: number };
+    const list = (s: string) =>
+      ME_PREFERENCES_MOCK.routes.find((r) => r.method === 'GET' && r.pattern === URL)!.handle({
+        method: 'GET',
+        path: URL,
+        params: new HttpParams().set('screenCode', s),
+        headers: new HttpHeaders(),
+        body: null,
+        pathParams: {},
+      }).body as { items: { id: string; isDefault: boolean }[] };
+    expect(list('SCR-0503').items.filter((f) => f.isDefault).map((f) => f.id)).toEqual([b.id]);
+    expect(list('SCR-0101').items).toHaveLength(0);
+    expect(call('PUT', `${URL}/${a.id}`, body('Đổi tên')).status).toBe(428);
+    expect(call('PUT', `${URL}/${a.id}`, body('Đổi tên'), { 'If-Match': '"9"' }).status).toBe(409);
+    expect(call('DELETE', `${URL}/${b.id}`, null, { 'If-Match': `"${b.rowVersion}"` }).status).toBe(204);
+  });
+});

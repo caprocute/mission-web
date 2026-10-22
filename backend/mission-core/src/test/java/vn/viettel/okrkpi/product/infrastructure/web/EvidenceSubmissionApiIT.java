@@ -11,6 +11,7 @@ import io.swagger.v3.oas.models.PathItem;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
@@ -26,6 +27,7 @@ import org.apache.kafka.common.header.internals.RecordHeader;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -48,11 +50,20 @@ import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.events.EventTopics;
+import vn.viettel.okrkpi.product.api.EvidenceQueryApi;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceActor;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceLifecycleService;
+import vn.viettel.okrkpi.product.application.evidence.port.CommentSealer;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceEvents;
 import vn.viettel.okrkpi.product.infrastructure.listener.EvidenceObjectListener;
 import vn.viettel.okrkpi.product.infrastructure.persistence.EvidenceSubmissionConfiguration;
+import vn.viettel.okrkpi.product.infrastructure.persistence.FieldEncryptorCommentSealer;
 import vn.viettel.okrkpi.product.infrastructure.persistence.OutboxEvidenceEvents;
+import vn.viettel.okrkpi.shared.crypto.DekCache.CachedDek;
+import vn.viettel.okrkpi.shared.crypto.DekService;
+import vn.viettel.okrkpi.shared.crypto.DekStatus;
+import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
+import vn.viettel.okrkpi.shared.crypto.JcaAesGcmCryptoProvider;
 import vn.viettel.okrkpi.shared.inbox.InboxEndpoint;
 import vn.viettel.okrkpi.shared.inbox.InboxMessageProcessor;
 import vn.viettel.okrkpi.shared.inbox.InboxMetrics;
@@ -91,12 +102,46 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
   static final UUID ACTOR = UUID.fromString("01927a03-0000-7000-8000-00000000d303");
   static final UUID ASSIGNER = UUID.fromString("01927a03-0000-7000-8000-00000000d304");
 
+  /** Người gọi hiện tại của ngữ cảnh, mức xác thực và thời điểm xác thực (giây epoch). */
+  static volatile UUID caller = ACTOR;
+
+  static volatile String callerAcr;
+  static volatile Long callerAuthTime;
+
+  static final byte[] KEY = new byte[32];
+
   /** Người gọi và outbox giả (không cần registry) chỉ của ngữ cảnh này. */
   static class Beans {
 
     @Bean
     EvidenceCaller evidenceCaller() {
-      return () -> Optional.of(new EvidenceActor(ACTOR, Set.of("member")));
+      return () ->
+          Optional.of(
+              new EvidenceActor(
+                  caller,
+                  Set.of(ASSIGNER.equals(caller) ? "manager" : "member"),
+                  callerAcr,
+                  callerAuthTime));
+    }
+
+    /** Mã hoá thật AES-GCM với DEK giả (không cần OpenBao). */
+    @Bean
+    @Primary
+    CommentSealer testCommentSealer() {
+      DekService deks = Mockito.mock(DekService.class);
+      UUID dekId = UUID.randomUUID();
+      Mockito.when(deks.getOrCreateActiveDek(Mockito.any(), Mockito.any()))
+          .thenAnswer(
+              inv ->
+                  new CachedDek(
+                      dekId,
+                      inv.getArgument(0),
+                      inv.getArgument(1),
+                      LocalDate.of(2027, 1, 1),
+                      DekStatus.ACTIVE,
+                      KEY.clone()));
+      FieldEncryptor encryptor = new FieldEncryptor(deks, new JcaAesGcmCryptoProvider());
+      return new FieldEncryptorCommentSealer(() -> encryptor);
     }
 
     @Bean
@@ -121,6 +166,8 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper json;
   @Autowired private EvidenceObjectListener listener;
+  @Autowired private EvidenceQueryApi evidenceQuery;
+  @Autowired private EvidenceLifecycleService lifecycle;
   @Autowired private InboxProperties inboxProperties;
   @Autowired private InboxRetryDlqPublisher dlq;
   @Autowired private InboxMetrics metrics;
@@ -137,7 +184,7 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
   @Autowired
   @Qualifier("productTransactionManager") private PlatformTransactionManager productTm;
 
-  private final TenantId tenant = TenantId.of(UUID.randomUUID());
+  private TenantId tenant = TenantId.of(UUID.randomUUID());
   private final UUID period = UUID.randomUUID();
 
   @Override
@@ -164,7 +211,12 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
         productDataSource,
         jdbc -> {
           for (String t :
-              List.of("deliverable", "evidence", "evidence_version", "evidence_version_file")) {
+              List.of(
+                  "deliverable",
+                  "evidence",
+                  "evidence_version",
+                  "evidence_version_file",
+                  "acceptance")) {
             jdbc.sql("SELECT product.fn_create_period_partitions(?::regclass, ?)")
                 .params("product." + t, BUCKET)
                 .query()
@@ -176,6 +228,10 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
 
   @Test
   void khaiBaoLuuNhapVaNop() throws Exception {
+    tenant = TenantId.of(UUID.randomUUID());
+    caller = ACTOR;
+    callerAcr = null;
+    callerAuthTime = null;
     UUID task = task(ACTOR);
     UUID otherTask = task(ACTOR);
     UUID foreignTask = task(UUID.randomUUID());
@@ -349,6 +405,251 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
     assertThat(body(mine).get("items")).hasSize(2);
   }
 
+  /**
+   * CORE-03-06: người nộp tự mở bị 403; người giao mở lần đầu chuyển sang đang nghiệm thu, mở lại
+   * không đổi trạng thái; tệp đổi ở SVC-08 sau khi nộp thì chặn, có EVT-21 cảnh báo trong outbox.
+   */
+  @Test
+  void moNghiemThuVaKiemToanVen() throws Exception {
+    tenant = TenantId.of(UUID.randomUUID());
+    caller = ACTOR;
+    callerAcr = null;
+    callerAuthTime = null;
+    UUID task = task(ACTOR);
+    UUID obj = UUID.randomUUID();
+    assertThat(stored(UUID.randomUUID(), obj, 1, sha(11))).isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(scanned(obj, 1, "CLEAN")).isEqualTo(InboxOutcome.PROCESSED);
+    String evidence = evidence(deliverable(task));
+    String etag = draft(evidence, List.of(obj), null);
+    MvcResult submitted = submit(evidence, 1, etag, UUID.randomUUID().toString());
+    assertThat(submitted.getResponse().getStatus()).isEqualTo(200);
+    String afterSubmit = submitted.getResponse().getHeader("ETag");
+
+    // Người nộp (chủ trì) không tự nghiệm thu.
+    MvcResult self = openReview(evidence, afterSubmit);
+    assertThat(self.getResponse().getStatus()).isEqualTo(403);
+    assertThat(body(self).get("code").asText()).isEqualTo("PRODUCT-403-SELF-REVIEW");
+
+    caller = ASSIGNER;
+    MvcResult queue =
+        perform(
+            get("/api/v1/evidences")
+                .param("reviewer", "me")
+                .param("status", "DA_NOP,DANG_NGHIEM_THU"));
+    assertResponseConforms(queue, "/evidences", PathItem.HttpMethod.GET);
+    assertThat(body(queue).get("items")).hasSize(1);
+    assertThat(body(queue).get("items").get(0).get("id").asText()).isEqualTo(evidence);
+    assertThat(
+            perform(
+                    post("/api/v1/evidences/" + evidence + "/versions/1/open-review")
+                        .header("Idempotency-Key", UUID.randomUUID().toString()))
+                .getResponse()
+                .getStatus())
+        .isEqualTo(428);
+
+    MvcResult opened = openReview(evidence, afterSubmit);
+    assertThat(opened.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(
+        opened, "/evidences/{id}/versions/{v}/open-review", PathItem.HttpMethod.POST);
+    assertThat(body(opened).get("status").asText()).isEqualTo("DANG_NGHIEM_THU");
+    String inReview = opened.getResponse().getHeader("ETag");
+    MvcResult again = openReview(evidence, inReview);
+    assertThat(again.getResponse().getStatus()).isEqualTo(200);
+    assertThat(again.getResponse().getHeader("ETag")).isEqualTo(inReview);
+    assertThat(body(again).get("status").asText()).isEqualTo("DANG_NGHIEM_THU");
+
+    // Đối tượng bị ghi phiên bản mới ở SVC-08 sau khi nộp: chặn, giữ trạng thái, có cảnh báo.
+    long alertsBefore = outbox(EventTopics.EVT_21_YEU_CAU_THONG_BAO);
+    assertThat(stored(UUID.randomUUID(), obj, 2, sha(12))).isEqualTo(InboxOutcome.PROCESSED);
+    MvcResult tampered = openReview(evidence, inReview);
+    assertThat(tampered.getResponse().getStatus()).isEqualTo(409);
+    assertThat(body(tampered).get("code").asText()).isEqualTo("PRODUCT-409-INTEGRITY-FAILED");
+    assertThat(outbox(EventTopics.EVT_21_YEU_CAU_THONG_BAO)).isEqualTo(alertsBefore + 1);
+    assertThat(
+            body(perform(get("/api/v1/evidences/" + evidence + "/versions/1")))
+                .get("status")
+                .asText())
+        .isEqualTo("DANG_NGHIEM_THU");
+
+    // Cổng đọc cho MOD-04: chỉ minh chứng đã xác nhận của chính người nộp.
+    UUID evidenceId = UUID.fromString(evidence);
+    UUID versionId = UUID.fromString(body(again).get("id").asText());
+    assertThat(as(() -> evidenceQuery.confirmedEvidence(tenant, ACTOR, List.of(evidenceId))))
+        .isEmpty();
+    long rowVersion = Long.parseLong(inReview.replace("\"", ""));
+    as(
+        () ->
+            lifecycle.acceptVersion(
+                tenant, versionId, rowVersion, new EvidenceActor(ASSIGNER, Set.of("manager"))));
+    assertThat(
+            as(
+                () ->
+                    evidenceQuery.confirmedEvidence(
+                        tenant, ACTOR, List.of(evidenceId, UUID.randomUUID()))))
+        .containsExactly(evidenceId);
+    assertThat(as(() -> evidenceQuery.confirmedEvidence(tenant, ASSIGNER, List.of(evidenceId))))
+        .isEmpty();
+  }
+
+  /**
+   * CORE-03-07: thiếu AAL2 hoặc AAL2 quá 15 phút bị chặn; người phối hợp không được nghiệm thu; mức
+   * 0,5 thiếu nhận xét 422; xác nhận ghi nhận xét đã mã hoá, EVT-08 một lần dù gửi lại cùng khoá,
+   * nhiệm vụ hoàn thành; yêu cầu bổ sung đưa nhiệm vụ về đang thực hiện và báo người nộp.
+   */
+  @Test
+  void nghiemThuNamMuc() throws Exception {
+    tenant = TenantId.of(UUID.randomUUID());
+    caller = ACTOR;
+    callerAcr = null;
+    callerAuthTime = null;
+    UUID task = task(ACTOR);
+    String[] first = submitted(task, 21);
+    String evidence = first[0];
+
+    // Người phối hợp của nhiệm vụ không được mở (BR-07-06).
+    UUID coTask = task(ACTOR);
+    coordinator(coTask, ASSIGNER);
+    String[] co = submitted(coTask, 22);
+
+    caller = ASSIGNER;
+    MvcResult denied = openReview(co[0], co[1]);
+    assertThat(body(denied).get("code").asText()).isEqualTo("PRODUCT-403-SELF-REVIEW");
+    MvcResult opened = openReview(evidence, first[1]);
+    assertThat(opened.getResponse().getStatus()).isEqualTo(200);
+    String inReview = opened.getResponse().getHeader("ETag");
+
+    String acceptBody =
+        """
+        {"qualityLevel":0.75,"criteriaResults":[{"criterionCode":"TC-1","passed":true}],
+         "comment":"Thiếu bảng tổng hợp chi bộ 3"}
+        """;
+    MvcResult noAal2 =
+        decide(evidence, "accept", inReview, UUID.randomUUID().toString(), acceptBody);
+    assertThat(noAal2.getResponse().getStatus()).isEqualTo(401);
+    callerAcr = "aal2";
+    callerAuthTime = Instant.now().minusSeconds(16 * 60).getEpochSecond();
+    assertThat(
+            decide(evidence, "accept", inReview, UUID.randomUUID().toString(), acceptBody)
+                .getResponse()
+                .getStatus())
+        .isEqualTo(401);
+    callerAuthTime = Instant.now().minusSeconds(60).getEpochSecond();
+    MvcResult noComment =
+        decide(
+            evidence,
+            "accept",
+            inReview,
+            UUID.randomUUID().toString(),
+            """
+            {"qualityLevel":0.5,"criteriaResults":[{"criterionCode":"TC-1","passed":false}]}
+            """);
+    assertThat(noComment.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(noComment).get("code").asText()).isEqualTo("PRODUCT-422-COMMENT-REQUIRED");
+
+    String key = UUID.randomUUID().toString();
+    MvcResult accepted = decide(evidence, "accept", inReview, key, acceptBody);
+    assertThat(accepted.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(
+        accepted, "/evidences/{id}/versions/{v}/accept", PathItem.HttpMethod.POST);
+    JsonNode result = body(accepted);
+    assertThat(result.get("versionStatus").asText()).isEqualTo("DA_XAC_NHAN");
+    assertThat(result.get("acceptance").get("comment").asText())
+        .isEqualTo("Thiếu bảng tổng hợp chi bộ 3");
+    assertThat(result.get("taskStatusChanged").asText()).isEqualTo("HOAN_THANH");
+    assertThat(body(decide(evidence, "accept", inReview, key, acceptBody))).isEqualTo(result);
+    assertThat(outbox(EventTopics.EVT_08_MINH_CHUNG_DA_XAC_NHAN)).isEqualTo(1);
+    assertThat(taskStatus(task)).isEqualTo("HOAN_THANH");
+    byte[] cipher =
+        in(
+            productTm,
+            productDataSource,
+            jdbc ->
+                jdbc.sql(
+                        "SELECT comment_enc FROM product.acceptance WHERE tenant_id = ? AND"
+                            + " decision = 'DA_XAC_NHAN'")
+                    .param(tenant.value())
+                    .query(byte[].class)
+                    .single());
+    assertThat(new String(cipher, StandardCharsets.UTF_8)).doesNotContain("chi bộ");
+    assertThat(cipher[0]).isEqualTo((byte) 0x01);
+
+    // Yêu cầu bổ sung: nhiệm vụ về đang thực hiện, người nộp được báo.
+    UUID task2 = task(ACTOR);
+    caller = ACTOR;
+    String[] second = submitted(task2, 23);
+    String evidence2 = second[0];
+    assertThat(taskStatus(task2)).isEqualTo("CHO_NGHIEM_THU");
+    caller = ASSIGNER;
+    String review2 = openReview(evidence2, second[1]).getResponse().getHeader("ETag");
+    long notices = outbox(EventTopics.EVT_21_YEU_CAU_THONG_BAO);
+    MvcResult empty =
+        decide(
+            evidence2,
+            "request-revision",
+            review2,
+            UUID.randomUUID().toString(),
+            "{\"comment\":\" \"}");
+    assertThat(body(empty).get("code").asText()).isEqualTo("PRODUCT-422-COMMENT-REQUIRED");
+    MvcResult revision =
+        decide(
+            evidence2,
+            "request-revision",
+            review2,
+            UUID.randomUUID().toString(),
+            "{\"comment\":\"Đề nghị bổ sung số liệu chi bộ 3\"}");
+    assertThat(revision.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(
+        revision, "/evidences/{id}/versions/{v}/request-revision", PathItem.HttpMethod.POST);
+    assertThat(body(revision).get("versionStatus").asText()).isEqualTo("YEU_CAU_BO_SUNG");
+    assertThat(body(revision).get("acceptance").get("revisionCount").asInt()).isEqualTo(1);
+    assertThat(taskStatus(task2)).isEqualTo("DANG_THUC_HIEN");
+    assertThat(outbox(EventTopics.EVT_21_YEU_CAU_THONG_BAO)).isEqualTo(notices + 1);
+  }
+
+  /** Người nộp (ACTOR) tạo minh chứng một tệp sạch mới và nộp; trả mã minh chứng và ETag. */
+  private String[] submitted(UUID task, int shaByte) throws Exception {
+    UUID previous = caller;
+    caller = ACTOR;
+    UUID obj = UUID.randomUUID();
+    assertThat(stored(UUID.randomUUID(), obj, 1, sha(shaByte))).isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(scanned(obj, 1, "CLEAN")).isEqualTo(InboxOutcome.PROCESSED);
+    String evidence = evidence(deliverable(task));
+    String etag = draft(evidence, List.of(obj), null);
+    MvcResult r = submit(evidence, 1, etag, UUID.randomUUID().toString());
+    assertThat(r.getResponse().getStatus()).isEqualTo(200);
+    caller = previous;
+    return new String[] {evidence, r.getResponse().getHeader("ETag")};
+  }
+
+  private MvcResult decide(String evidence, String action, String ifMatch, String key, String body)
+      throws Exception {
+    return perform(
+        post("/api/v1/evidences/" + evidence + "/versions/1/" + action)
+            .header("Idempotency-Key", key)
+            .header("If-Match", ifMatch),
+        body);
+  }
+
+  private void coordinator(UUID task, UUID person) throws Exception {
+    in(
+        taskTm,
+        taskDataSource,
+        jdbc ->
+            jdbc.sql(
+                    "INSERT INTO task.task_assignee (id, created_by, updated_by, period_id,"
+                        + " period_bucket, task_id, assignee_type, person_id, role, valid_from)"
+                        + " VALUES (?, ?, ?, ?, ?, ?, 'CA_NHAN', ?, 'PHOI_HOP', DATE '2027-01-01')")
+                .params(UUID.randomUUID(), ASSIGNER, ASSIGNER, period, BUCKET, task, person)
+                .update());
+  }
+
+  private MvcResult openReview(String evidence, String ifMatch) throws Exception {
+    return perform(
+        post("/api/v1/evidences/" + evidence + "/versions/1/open-review")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .header("If-Match", ifMatch));
+  }
+
   // ---------------------------------------------------------------- dữ liệu
 
   private UUID task(UUID lead) throws Exception {
@@ -359,9 +660,9 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
         jdbc -> {
           jdbc.sql(
                   "INSERT INTO task.task (id, created_by, updated_by, period_id, period_bucket, code,"
-                      + " title, task_group, source, assigner_id, due_date, unit,"
+                      + " title, task_group, source, assigner_id, acceptor_id, due_date, unit,"
                       + " planned_quantity, dup_fingerprint, state_machine_version, status) VALUES (?, ?,"
-                      + " ?, ?, ?, ?, 'Báo cáo tổng kết công tác quý', 'THUONG_XUYEN', 'KE_HOACH', ?,"
+                      + " ?, ?, ?, ?, 'Báo cáo tổng kết công tác quý', 'THUONG_XUYEN', 'KE_HOACH', ?, ?,"
                       + " DATE '2027-03-20', 'báo cáo', 1, ?, 'mac-dinh@2.1.0', 'DANG_THUC_HIEN')")
               .params(
                   id,
@@ -370,6 +671,7 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
                   period,
                   BUCKET,
                   "NV-" + id.toString().substring(0, 8),
+                  ASSIGNER,
                   ASSIGNER,
                   id.toString().getBytes(StandardCharsets.UTF_8))
               .update();
@@ -539,7 +841,8 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
   }
 
   private MvcResult perform(MockHttpServletRequestBuilder request) throws Exception {
-    return as(() -> mvc.perform(request.principal(ACTOR::toString)).andReturn());
+    UUID who = caller;
+    return as(() -> mvc.perform(request.principal(who::toString)).andReturn());
   }
 
   private MvcResult perform(MockHttpServletRequestBuilder request, String body) throws Exception {

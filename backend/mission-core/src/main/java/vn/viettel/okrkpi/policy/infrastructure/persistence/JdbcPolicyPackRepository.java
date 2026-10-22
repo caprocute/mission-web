@@ -264,7 +264,7 @@ public class JdbcPolicyPackRepository implements PolicyPackRepository {
                 """
                 UPDATE policy.policy_pack_version
                    SET status = ?, golden_pass_rate = ?, last_test_run_id = ?, updated_at = ?,
-                       updated_by = ?, row_version = ?
+                       updated_by = ?, row_version = ?, content_hash = ?
                  WHERE tenant_id = ? AND id = ? AND row_version = ?
                 """)
             .param(v.status().name())
@@ -273,6 +273,7 @@ public class JdbcPolicyPackRepository implements PolicyPackRepository {
             .param(Timestamp.from(v.updatedAt()))
             .param(v.updatedBy())
             .param(v.rowVersion())
+            .param(v.contentHash() == null ? null : HexFormat.of().parseHex(v.contentHash()))
             .param(tenant.value())
             .param(v.id())
             .param(expected)

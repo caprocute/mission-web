@@ -24,6 +24,7 @@ public class OutboxPlanNotices implements PlanNotices {
   static final String TEMPLATE_REMIND = "KE_HOACH_SAP_HET_HAN_DUYET";
   static final String TEMPLATE_OVERDUE = "KE_HOACH_QUA_HAN_DUYET";
   static final String TEMPLATE_RETURNED = "KE_HOACH_BI_TRA_LAI";
+  static final String TEMPLATE_APPROVED = "KE_HOACH_DA_DUYET";
   private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
   private final OutboxWriter outbox;
@@ -54,6 +55,17 @@ public class OutboxPlanNotices implements PlanNotices {
         List.of(author),
         TEMPLATE_RETURNED,
         "CAO");
+  }
+
+  @Override
+  public void approved(TenantId tenant, PendingPlan plan, String periodName, UUID approver) {
+    send(
+        tenant,
+        plan,
+        "{\"ky\":" + quote(periodName) + "}",
+        List.of(approver),
+        TEMPLATE_APPROVED,
+        "BINH_THUONG");
   }
 
   private void send(
