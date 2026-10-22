@@ -16,7 +16,6 @@ import { DialogModule } from 'primeng/dialog';
 import { TextareaModule } from 'primeng/textarea';
 import { STUDIO_STEP_UP } from '../../studio-step-up';
 import { errorText, problemCode } from '../../studio-ui';
-import { DIALOG_STYLES } from './policy-dialogs';
 import { PolicyWorkspace } from './policy-workspace';
 
 const SOURCES = Object.keys(GOLDEN_CASE_SOURCE_LABEL) as GoldenTestCaseSource[];
@@ -166,13 +165,24 @@ const SOURCES = Object.keys(GOLDEN_CASE_SOURCE_LABEL) as GoldenTestCaseSource[];
       </ng-template>
     </p-dialog>
   `,
-  styles:
-    DIALOG_STYLES +
-    `
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .row > .f { min-width: 0; }
-    .req { color: #b4001f; }
-    @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
+  styleUrls: ['./policy-dialogs.css'],
+  styles: `
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .row > .f {
+      min-width: 0;
+    }
+    .req {
+      color: #b4001f;
+    }
+    @media (max-width: 560px) {
+      .row {
+        grid-template-columns: 1fr;
+      }
+    }
   `,
 })
 export class AddTestCaseDialog {
@@ -325,7 +335,7 @@ export class AddTestCaseDialog {
       </ng-template>
     </p-dialog>
   `,
-  styles: DIALOG_STYLES,
+  styleUrl: './policy-dialogs.css',
 })
 export class ApprovePolicyDialog {
   readonly visible = model(false);
@@ -419,7 +429,7 @@ export class ApprovePolicyDialog {
       </ng-template>
     </p-dialog>
   `,
-  styles: DIALOG_STYLES,
+  styleUrl: './policy-dialogs.css',
 })
 export class RejectPolicyDialog {
   readonly visible = model(false);
