@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.policy.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.Collection;
@@ -11,11 +12,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.policy.application.port.PolicyAudit;
 import vn.viettel.okrkpi.policy.application.port.PolicyPackRepository;
 import vn.viettel.okrkpi.policy.domain.PackOrigin;
 import vn.viettel.okrkpi.policy.domain.PolicyBinding;
+import vn.viettel.okrkpi.policy.domain.PolicyEffectiveRange;
 import vn.viettel.okrkpi.policy.domain.PolicyManifestRules;
 import vn.viettel.okrkpi.policy.domain.PolicyPack;
 import vn.viettel.okrkpi.policy.domain.PolicyPackVersion;
@@ -68,6 +71,7 @@ public class PolicyPackService {
   private final PolicyAudit audit;
   private final ObjectMapper json;
   private final Clock clock;
+  private ApplicationEventPublisher events;
 
   public PolicyPackService(
       PolicyPackRepository repo, PolicyAudit audit, ObjectMapper json, Clock clock) {
@@ -75,6 +79,11 @@ public class PolicyPackService {
     this.audit = Objects.requireNonNull(audit, "audit");
     this.json = Objects.requireNonNull(json, "json");
     this.clock = Objects.requireNonNull(clock, "clock");
+  }
+
+  /** Nơi phát {@link PolicyVersionStatusChanged} cho bộ đệm phân giải (CORE-05-03). */
+  public void setEvents(ApplicationEventPublisher events) {
+    this.events = events;
   }
 
   @Transactional(transactionManager = TX, readOnly = true)
@@ -218,8 +227,15 @@ public class PolicyPackService {
     } catch (PolicyTransitionException e) {
       throw new BusinessException(e.code(), e.getMessage());
     }
+    if (target == PolicyVersionStatus.DA_PHAT_HANH) {
+      assertNoOverlap(tenant, moved);
+    }
     if (!repo.storeStatus(tenant, moved, expectedRowVersion)) {
       throw new VersionConflictException("POLICY", expectedRowVersion, null);
+    }
+    if (events != null) {
+      events.publishEvent(
+          new PolicyVersionStatusChanged(tenant, moved.packId(), moved.id(), moved.status()));
     }
     audit.changed(
         tenant,
@@ -340,6 +356,52 @@ public class PolicyPackService {
       return items.stream().map(String::valueOf).collect(Collectors.joining("; "));
     }
     return value == null ? "" : String.valueOf(value);
+  }
+
+  /**
+   * Chống chồng khoảng hiệu lực ở tầng ứng dụng (TL-01 "Hiệu lực theo kỳ", wiki trang 14 mục 4):
+   * phiên bản mới cùng {@code tu_ky} với một phiên bản đã phát hành thì thay thế nó, phiên bản có
+   * {@code tu_ky} muộn hơn nối tiếp phiên bản mở; còn hai khoảng có {@code tu_ky} khác nhau mà một
+   * bên đã khai {@code den_ky} và hai khoảng giao nhau thì từ chối (suy luận).
+   */
+  private void assertNoOverlap(TenantId tenant, PolicyPackVersion target) {
+    PolicyEffectiveRange range =
+        range(target)
+            .orElseThrow(
+                () ->
+                    new BusinessException(
+                        "POLICY-409-VERSION-CONFLICT",
+                        "Khoảng hiệu lực của phiên bản " + target.version() + " viết sai dạng"));
+    for (PolicyPackVersion other :
+        repo.listVersions(tenant, target.packId(), PolicyVersionStatus.DA_PHAT_HANH, null, 200)) {
+      if (other.id().equals(target.id())) {
+        continue;
+      }
+      Optional<PolicyEffectiveRange> o = range(other);
+      if (o.isPresent()
+          && range.overlaps(o.get())
+          && !range.start().equals(o.get().start())
+          && (range.to() != null || o.get().to() != null)) {
+        throw new BusinessException(
+            "POLICY-409-VERSION-CONFLICT",
+            "Khoảng hiệu lực của phiên bản "
+                + target.version()
+                + " chồng với phiên bản đã phát hành "
+                + other.version());
+      }
+    }
+  }
+
+  private Optional<PolicyEffectiveRange> range(PolicyPackVersion v) {
+    try {
+      JsonNode hieuLuc = json.readTree(v.manifestJson()).path("metadata").path("hieu_luc");
+      return PolicyEffectiveRange.of(
+          hieuLuc.path("tu_ky").isTextual() ? hieuLuc.path("tu_ky").asText() : null,
+          hieuLuc.path("den_ky").isTextual() ? hieuLuc.path("den_ky").asText() : null,
+          v.effectiveFrom());
+    } catch (JsonProcessingException e) {
+      return Optional.empty();
+    }
   }
 
   private String write(Map<String, ?> manifest) {
