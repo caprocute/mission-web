@@ -1,0 +1,17 @@
+apiVersion: v2
+name: autoscaling-cell
+description: >-
+  Co giãn tự động của một cell (TL-04 chương 6, INF-16): KEDA (ScaledObject theo độ trễ Kafka, lịch mốc hạn,
+  Prometheus), Prometheus Adapter cấp chỉ số RPS mỗi pod cho HPA, PriorityClass và pod giữ chỗ cho Cluster
+  Autoscaler. Cluster Autoscaler chạy ở cụm quản trị cùng Cluster API (deploy/clusters/cell-cluster).
+type: application
+version: 0.1.0
+dependencies:
+  - name: keda
+    version: 2.21.0
+    repository: https://kedacore.github.io/charts
+    condition: keda.enabled
+  - name: prometheus-adapter
+    version: 5.3.0
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: prometheus-adapter.enabled

@@ -24,12 +24,17 @@ thanhPhan:
         failureThreshold: 24
     pdb:
       maxUnavailable: 25%
+    # KEDA thay HPA để có cửa sổ tăng trước (TL-04 mục 6.4: document 8 trước hạn quý, 12 trước hạn hồ sơ năm).
+    # Hợp đồng sự kiện chưa có topic đầu vào cho document-service nên chưa có trigger độ trễ Kafka (wiki 14).
     autoscaling:
-      hpa:
+      keda:
         enabled: true
         minReplicas: 2
         maxReplicas: 20
         cpuUtilization: 75
+        preScale:
+          dauQuy: 8
+          hoSoNam: 12
     java:
       gc: g1
     nodePool: worker
@@ -105,12 +110,15 @@ thanhPhan:
         path: /health
     pdb:
       maxUnavailable: 25%
+    # Gotenberg 12 pod trước hạn hồ sơ năm (TL-04 mục 6.4).
     autoscaling:
-      hpa:
+      keda:
         enabled: true
         minReplicas: 2
         maxReplicas: 24
         cpuUtilization: 75
+        preScale:
+          hoSoNam: 12
     nodePool: worker
     ports:
       http: 3000

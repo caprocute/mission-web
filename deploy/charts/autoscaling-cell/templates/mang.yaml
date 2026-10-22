@@ -1,0 +1,35 @@
+{{- /*
+Prometheus Adapter trong observability (default-deny của cell-base): kube-apiserver gọi vào cổng 6443 qua
+APIService, adapter gọi kube-apiserver và Prometheus của cell (9090), cùng DNS. Ingress từ kube-apiserver phải
+chọn theo thực thể của Cilium vì apiserver chạy ở mạng host.
+*/ -}}
+{{- if index .Values "prometheus-adapter" "enabled" }}
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: prometheus-adapter
+  namespace: {{ index .Values "prometheus-adapter" "namespaceOverride" }}
+  labels:
+    app.kubernetes.io/part-of: vt-platform
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-adapter
+  ingress:
+    - fromEntities: [kube-apiserver, host, remote-node]
+      toPorts:
+        - ports: [{ port: "6443", protocol: TCP }]
+  egress:
+    - toEntities: [kube-apiserver]
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: prometheus
+      toPorts:
+        - ports: [{ port: "9090", protocol: TCP }]
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports: [{ port: "53", protocol: UDP }, { port: "53", protocol: TCP }]
+{{- end }}

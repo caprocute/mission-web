@@ -119,6 +119,9 @@ resilience:
 scaling:
   cpuUtilization: 85
   rpsPerPod: 220
+  # Ngưỡng p95 (ms) của tín hiệu phụ "p95 khi bận" (TL-04 mục 6.2); TL-04 không nêu số, 500 ms là giá trị
+  # khởi điểm giữa SLO đọc 300 ms và ghi 800 ms (suy luận), hiệu chuẩn ở QA-11. 0 thì bỏ trigger.
+  p95KhiBanMs: 500
   preScaleWindows: deadline-default
 rollout:
   canarySteps:

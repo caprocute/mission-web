@@ -32,6 +32,9 @@ thanhPhan:
         enabled: true
         minReplicas: 3
         maxReplicas: 8
+        # Tuần cuối quý: evidence 6 pod (TL-04 mục 6.4).
+        preScale:
+          cuoiQuy: 6
         triggers:
           - type: prometheus
             name: ket-noi-dang-mo
