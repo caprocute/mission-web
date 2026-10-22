@@ -13,16 +13,16 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **179 / 401 task (44.6%)** — Khối lượng quy đổi đã gộp: **212.5 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **185 / 401 task (46.1%)** (gồm **179** đã gộp `main` + **6** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **186 / 401 task (46.4%)** (gồm **179** đã gộp `main` + **7** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **5 task** (3 đang làm, 2 làm một phần).
-- **Chưa bắt đầu**: **211 task**.
+- **Chưa bắt đầu**: **210 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **14 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-04`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
 
 | Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
+| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 1 | 2 | 12 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **36** | 0 | 0 | 76 | **32.1%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **32** | 0 | 3 | 69 | **30.8%** |
@@ -32,13 +32,13 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 4 | 0 | 0 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **179** | **6** | **5** | **211** | **44.6%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **179** | **7** | **5** | **210** | **44.6%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
-| **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 0 | 1 | 9 | **83.1%** |
+| **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 1 | 1 | 8 | **83.1%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **32** | 6 | 0 | 8 | **69.6%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **34** | 0 | 3 | 80 | **29.1%** |
@@ -74,14 +74,14 @@ Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
 Mọi thay đổi trạng thái task đều được cập nhật trực tiếp vào bảng dưới đây. Các giá trị cột **Trạng thái** hợp lệ: `Đã gộp main`, `Xong, chờ gộp`, `Đang làm`, `Làm một phần`, `Chưa bắt đầu`.
 
-### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (53/65 đã gộp `main`, 0 chờ gộp, 2 đang làm)
+### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (53/65 đã gộp `main`, 1 chờ gộp, 2 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [WEB-001](docs/tasks/WEB-001-cong-cu-chat-luong.md) | Công cụ chất lượng mã: ESLint, Prettier, Vitest cho toàn workspace | S | W-Nền tảng | – | – | **Đã gộp main** | Đã gộp `main` (ESLint, Prettier, Vitest toàn workspace) |
 | [WEB-002](docs/tasks/WEB-002-pipeline-jenkins.md) | Pipeline Jenkins cho frontend có cổng chất lượng | M | W-Nền tảng | – | WEB-001 | **Đã gộp main** | Đã gộp `main` (`Jenkinsfile` đủ cổng chất lượng, gitleaks, Semgrep, Trivy, SBOM) |
 | [WEB-003](docs/tasks/WEB-003-ngan-sach-hieu-nang.md) | Ngân sách bundle và Lighthouse CI | S | W-Nền tảng | – | WEB-001 | **Đã gộp main** | Đã gộp `main` (cấu hình ngân sách bundle và Lighthouse CI) |
-| [WEB-004](docs/tasks/WEB-004-bien-dich-token.md) | Biên dịch Design Token và kiểm tra tương phản | M | W-Nền tảng | – | WEB-001 | **Chưa bắt đầu** |  |
+| [WEB-004](docs/tasks/WEB-004-bien-dich-token.md) | Biên dịch Design Token và kiểm tra tương phản | M | W-Nền tảng | – | WEB-001 | **Xong, chờ gộp** | Nhánh claude/b8-ha-tang-g7g48k: token-compiler.ts dùng chung quy tắc máy chủ, CLI tools/token-compiler, 4 bộ mẫu đạt (0,9 KB gzip), bộ tương phản thấp bị từ chối; Vitest, build fe-task/fe-shell/fe-config-studio xanh; 4 bộ mở trên trình duyệt, axe 0 lỗi serious |
 | [WEB-005](docs/tasks/WEB-005-storybook-hoi-quy.md) | Storybook và kiểm thử hồi quy giao diện theo bộ token | M | W-Nền tảng | – | WEB-004 | **Chưa bắt đầu** |  |
 | [WEB-006](docs/tasks/WEB-006-dang-nhap-keycloak.md) | Đăng nhập Keycloak, chọn đơn vị và vai trò (phần web của QT-00) | M | W-Nền tảng | – | WEB-001 | **Đã gộp main** | Đã gộp `main` (OIDC Keycloak, chọn đơn vị/vai trò, step-up MFA) |
 | [WEB-007](docs/tasks/WEB-007-api-client-openapi.md) | `@vt/api-client`: sinh client từ OpenAPI, xử lý lỗi, 409, job 202 | M | W-Nền tảng | – | WEB-001 | **Đã gộp main** | Đã gộp `main` (`@vt/api-client`, xử lý lỗi RFC 9457, 409, JobTracker 202) |
@@ -846,4 +846,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 17:09 | Luồng B8 hạ tầng | `DL-06` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: đang thực hiện |
 | 22/10/2026 17:22 | Luồng B8 hạ tầng | `DL-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b8-ha-tang-g7g48k: UI Pack mặc định 1.0.0 (820 B gzip, AA và 7:1 đạt), danh mục mẫu K1..K9 54 mục Excel, bộ nạp qua API, kiểm thử Python 16 và Java xanh; chưa chạy Testcontainers publish (thiếu ảnh S3 mock) |
 | 22/10/2026 17:27 | Luồng B8 hạ tầng | `DL-07` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b8-ha-tang-g7g48k: migration lặp R__config_lich_nghi_quoc_gia.sql sinh từ CSV (31 ngày 2026-2027), kiểm thử ngày làm việc T2/T4/T5-2026 = 15/20/20 xanh; NationalHolidaySeedIT (Testcontainers) chưa chạy được ở phiên này vì không có Docker. DV-04-01 đã gộp main |
+| 22/10/2026 17:28 | Luồng B8 hạ tầng | `WEB-004` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: đang thực hiện |
+| 22/10/2026 17:52 | Luồng B8 hạ tầng | `WEB-004` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b8-ha-tang-g7g48k: token-compiler.ts dùng chung quy tắc máy chủ, CLI tools/token-compiler, 4 bộ mẫu đạt (0,9 KB gzip), bộ tương phản thấp bị từ chối; Vitest, build fe-task/fe-shell/fe-config-studio xanh; 4 bộ mở trên trình duyệt, axe 0 lỗi serious |
 <!-- PROGRESS_LOG_END -->
