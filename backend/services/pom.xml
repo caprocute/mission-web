@@ -27,5 +27,6 @@
     <module>document-service</module>
     <module>evidence-service</module>
     <module>search</module>
+    <module>analytics-api</module>
   </modules>
 </project>
