@@ -21,4 +21,14 @@ public interface PeriodCaller {
   default Optional<Long> authTime() {
     return Optional.empty();
   }
+
+  /** Vai trò trong ngữ cảnh phân công đang chọn (bố cục trang chủ, CORE-08-11). */
+  default java.util.List<String> roles() {
+    return java.util.List.of();
+  }
+
+  /** Đơn vị trong ngữ cảnh phân công đang chọn. */
+  default Optional<String> unitId() {
+    return Optional.empty();
+  }
 }

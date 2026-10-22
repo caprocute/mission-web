@@ -1,5 +1,6 @@
 package vn.viettel.okrkpi.config.application.port;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -40,4 +41,16 @@ public interface UiPackRepository {
    * @return {@code false} khi dòng đã bị người khác đổi
    */
   boolean updateVersion(TenantId tenantId, UiPackVersion version, int expectedVersion);
+
+  /** UI Pack đang có phiên bản phát hành của tenant, phát hành gần nhất trước. */
+  Optional<UiPack> findCurrentPack(TenantId tenantId);
+
+  /**
+   * Gắn phiên bản hiện hành cho UI Pack khi phiên bản dòng của gói còn là {@code
+   * pack.rowVersion()}.
+   *
+   * @return {@code false} khi dòng đã bị người khác đổi
+   */
+  boolean setCurrentVersion(
+      TenantId tenantId, UiPack pack, UUID versionId, UUID actorId, Instant at);
 }

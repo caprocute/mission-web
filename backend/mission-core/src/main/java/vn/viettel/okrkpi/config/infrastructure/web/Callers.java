@@ -1,5 +1,6 @@
 package vn.viettel.okrkpi.config.infrastructure.web;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
@@ -51,6 +52,23 @@ final class Callers {
     OpaInput.Subject subject = resolver == null ? null : resolver.currentSubject();
     return new vn.viettel.okrkpi.config.application.Actor(
         id, subject == null ? null : subject.acr(), subject == null ? null : subject.authTime());
+  }
+
+  /** Người xem kèm vai trò và đơn vị của ngữ cảnh phân công đang chọn. */
+  vn.viettel.okrkpi.config.application.UiPackPublishService.Viewer viewer() {
+    UUID id = current();
+    PeriodCaller caller = custom.getIfAvailable();
+    if (caller != null) {
+      return new vn.viettel.okrkpi.config.application.UiPackPublishService.Viewer(
+          id, caller.roles(), caller.unitId().orElse(null), false);
+    }
+    AuthzSubjectResolver resolver = subjects.getIfAvailable();
+    OpaInput.Subject subject = resolver == null ? null : resolver.currentSubject();
+    return new vn.viettel.okrkpi.config.application.UiPackPublishService.Viewer(
+        id,
+        subject == null ? List.of() : subject.roles(),
+        subject == null ? null : subject.unitId(),
+        false);
   }
 
   private static ResponseStatusException unauthorized() {
