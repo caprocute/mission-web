@@ -74,6 +74,9 @@ final class FakeUpstream implements AutoCloseable {
   /** Header Authorization của mỗi lần gọi API chi tiết. */
   final List<String> coreAuthorizations = Collections.synchronizedList(new ArrayList<>());
 
+  /** Thân multipart Gotenberg đã nhận (route Chromium chuyển HTML). */
+  final List<String> gotenbergForms = Collections.synchronizedList(new ArrayList<>());
+
   final java.util.concurrent.atomic.AtomicInteger supersetLogins =
       new java.util.concurrent.atomic.AtomicInteger();
   private final AtomicBoolean waited = new AtomicBoolean();
@@ -94,6 +97,7 @@ final class FakeUpstream implements AutoCloseable {
       server.createContext(prefix, this::coreDetail);
     }
     server.createContext("/api/v1/security/guest_token/", this::supersetGuest);
+    server.createContext("/forms/chromium/convert/html", this::gotenberg);
     server.start();
   }
 
@@ -221,6 +225,22 @@ final class FakeUpstream implements AutoCloseable {
     ObjectNode body = json.createObjectNode();
     body.putArray("data").add(row);
     send(ex, 200, json.writeValueAsString(body));
+  }
+
+  /** Gotenberg 8 giả: nhận multipart có tệp index.html, trả một PDF tối giản. */
+  private void gotenberg(HttpExchange ex) throws IOException {
+    String type = ex.getRequestHeaders().getFirst("Content-Type");
+    String form = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+    if (type == null || !type.startsWith("multipart/form-data") || !form.contains("index.html")) {
+      send(ex, 400, "{}");
+      return;
+    }
+    gotenbergForms.add(form);
+    byte[] pdf = "%PDF-1.7\n%gia lap\n%%EOF\n".getBytes(StandardCharsets.US_ASCII);
+    ex.getResponseHeaders().add("Content-Type", "application/pdf");
+    ex.sendResponseHeaders(200, pdf.length);
+    ex.getResponseBody().write(pdf);
+    ex.close();
   }
 
   private void config(HttpExchange ex) throws IOException {

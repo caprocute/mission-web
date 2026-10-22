@@ -66,6 +66,18 @@ mission:
     embed-ttl: ${ANALYTICS_EMBED_TTL:5m}
     superset-dashboards:
       BANG_DIEU_HANH_DON_VI: cda0f042-a44d-5667-a5ca-6ea85a36d3d1
+    # DV-15-06 · tác vụ xuất: tệp lưu kho đối tượng của cell (bucket riêng của SVC-15), URL tải ký 15 phút,
+    # PDF dựng qua Gotenberg; khoá S3 chỉ đặt bằng biến môi trường.
+    export:
+      endpoint: ${S3_ENDPOINT:http://127.0.0.1:35900}
+      public-endpoint: ${S3_PUBLIC_ENDPOINT:${mission.analytics.export.endpoint}}
+      region: ${S3_REGION:us-east-1}
+      access-key: ${S3_ACCESS_KEY:}
+      secret-key: ${S3_SECRET_KEY:}
+      bucket: ${ANALYTICS_EXPORT_BUCKET:analytics-export}
+      url-ttl: ${ANALYTICS_EXPORT_URL_TTL:15m}
+      gotenberg-url: ${GOTENBERG_URL:http://127.0.0.1:35330}
+      workers: ${ANALYTICS_EXPORT_WORKERS:4}
 
 okrkpi:
   opa:
@@ -79,9 +91,11 @@ resilience4j:
       mission-core-config: {baseConfig: default}
       mission-core-detail: {baseConfig: default}
       superset: {baseConfig: default}
+      gotenberg: {baseConfig: default, slowCallDurationThreshold: 20s}
   timelimiter:
     instances:
       cube: {timeoutDuration: 10s}
+      gotenberg: {timeoutDuration: 30s}
   bulkhead:
     instances:
       cube: {maxConcurrentCalls: 50}

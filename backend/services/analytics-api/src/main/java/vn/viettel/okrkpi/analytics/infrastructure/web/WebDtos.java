@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import vn.viettel.okrkpi.analytics.application.ExportService;
 import vn.viettel.okrkpi.analytics.domain.AnalyticsRequest;
 import vn.viettel.okrkpi.analytics.domain.Dashboard;
 import vn.viettel.okrkpi.analytics.domain.DashboardPage;
@@ -22,6 +23,7 @@ import vn.viettel.okrkpi.analytics.domain.Filter;
 import vn.viettel.okrkpi.analytics.domain.SemanticCatalog;
 import vn.viettel.okrkpi.analytics.domain.TraceChain;
 import vn.viettel.okrkpi.analytics.domain.TraceLink;
+import vn.viettel.okrkpi.analytics.domain.TraceObjectType;
 import vn.viettel.okrkpi.analytics.domain.WidgetData;
 
 /**
@@ -140,6 +142,30 @@ final class WebDtos {
           l.masked(),
           l.msg(),
           l.details());
+    }
+  }
+
+  record TraceExportBody(
+      @NotNull TraceObjectType objectType,
+      @NotNull UUID id,
+      @NotNull @Size(min = 1, max = 2) List<@NotNull @Pattern(regexp = "JSON|PDF") String> formats) {}
+
+  record ReportBody(
+      @NotBlank @Size(max = 48) String templateCode,
+      @NotNull UUID periodId,
+      UUID unitId,
+      UUID dashboardId,
+      Boolean compareToPreviousPeriod,
+      @NotNull @Pattern(regexp = "PDF|XLSX") String format) {
+
+    ExportService.ReportRequest toDomain() {
+      return new ExportService.ReportRequest(
+          templateCode,
+          periodId,
+          unitId,
+          dashboardId,
+          Boolean.TRUE.equals(compareToPreviousPeriod),
+          format);
     }
   }
 
