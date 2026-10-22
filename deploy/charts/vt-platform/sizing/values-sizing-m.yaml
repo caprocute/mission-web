@@ -74,17 +74,17 @@ document-service:
   thanhPhan:
     document-service:
       autoscaling:
-        hpa:
+        keda:
           minReplicas: 2
           maxReplicas: 14
     gotenberg:
       autoscaling:
-        hpa:
+        keda:
           minReplicas: 2
           maxReplicas: 16
 notification-service:
   autoscaling:
-    hpa:
+    keda:
       minReplicas: 3
       maxReplicas: 6
 integration-gateway:
@@ -133,7 +133,7 @@ analytics:
           maxReplicas: 3
 search:
   autoscaling:
-    hpa:
+    keda:
       minReplicas: 2
       maxReplicas: 4
   api:

@@ -32,6 +32,9 @@ thanhPhan:
         enabled: true
         minReplicas: 3
         maxReplicas: 8
+        # Tuần cuối quý: evidence 6 pod (TL-04 mục 6.4).
+        preScale:
+          cuoiQuy: 6
         triggers:
           - type: prometheus
             name: ket-noi-dang-mo
@@ -148,6 +151,12 @@ thanhPhan:
             app.kubernetes.io/name: clamav-scanner
           ports:
             - port: 3310
+        # Gotenberg của document-service chuyển tệp văn phòng sang PDF trước khi quét (DV-08-06).
+        - namespace: workers
+          podLabels:
+            app.kubernetes.io/name: gotenberg
+          ports:
+            - port: 3000
         - namespace: egress
           podLabels:
             app.kubernetes.io/name: egress-gateway
@@ -208,7 +217,14 @@ thanhPhan:
     extraVolumeMounts:
       - name: chu-ky
         mountPath: /var/lib/clamav
-    # clamd nhận luồng từ worker quét; ảnh clamav-scanner phải đặt StreamMaxLength ≥ 200M (trần tệp SEC-48).
+    # clamd nhận luồng từ worker quét tệp minh chứng tới 200 MB (trần tệp SEC-48). Điểm vào của ảnh
+    # clamav-scanner ghi mỗi biến CLAMD_CONF_<Khoá> thành dòng "<Khoá> <giá trị>" trong clamd.conf.
+    # MaxScanSize gấp đôi trần tệp vì tệp nén được giải ra khi quét; ReadTimeout đủ cho luồng 200 MB.
+    config:
+      CLAMD_CONF_StreamMaxLength: 200M
+      CLAMD_CONF_MaxFileSize: 200M
+      CLAMD_CONF_MaxScanSize: 400M
+      CLAMD_CONF_ReadTimeout: "300"
     networkPolicy:
       ingressFrom:
         - namespace: workers

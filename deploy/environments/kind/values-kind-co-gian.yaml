@@ -1,0 +1,22 @@
+# Chart autoscaling-cell trên kind (INF-16): KEDA một bản mỗi thành phần, ảnh lấy thẳng từ ghcr.io theo digest
+# (nạp sẵn vào node), không nodeSelector pool; Prometheus Adapter tắt vì kind không có Prometheus của cell; pod giữ
+# chỗ chỉ dùng pool app-general, kích thước do script kiểm thử đặt theo CPU còn trống của node thử.
+keda:
+  image:
+    keda: { registry: ghcr.io, repository: kedacore/keda }
+    metricsApiServer: { registry: ghcr.io, repository: kedacore/keda-metrics-apiserver }
+    webhooks: { registry: ghcr.io, repository: kedacore/keda-admission-webhooks }
+  operator: { replicaCount: 1 }
+  metricsServer: { replicaCount: 1 }
+  webhooks: { replicaCount: 1 }
+  nodeSelector: {}
+  tolerations: []
+  networkPolicy: { enabled: false }
+prometheus-adapter:
+  enabled: false
+giuCho:
+  image:
+    repository: registry.k8s.io/pause
+  pools:
+    app-general: { nhanPool: app-general, replicas: 1, cpu: 100m, memory: 16Mi }
+    app-worker: { replicas: 0 }

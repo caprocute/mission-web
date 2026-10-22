@@ -1,7 +1,7 @@
 # Cấu hình Helm chart SVC-06 workflow-service (TL-01 mục 5.6.3 & chương 8 mục 8.8 · DV-06-01).
 # Tách 2 Deployment dùng chung image:
-# - workflow-api: WF_ASYNC_ENABLED=false, HPA 3..12 pod
-# - workflow-executor: WF_ASYNC_ENABLED=true, KEDA ScaledObject 2..8 pod theo hàng đợi act_ru_job
+# - workflow-api: WF_ASYNC_ENABLED=false, co giãn theo CPU 3..12 pod, kèm cửa sổ tăng trước mốc hạn (INF-16)
+# - workflow-executor: WF_ASYNC_ENABLED=true, KEDA 2..10 pod theo số job Flowable đến hạn (TL-04 mục 6.6, INF-16)
 
 image:
   repository: harbor.invalid/mission/workflow-service
@@ -17,6 +17,11 @@ api:
     minReplicas: 3
     maxReplicas: 12
     targetCpuUtilizationPercentage: 70
+  # Số pod tối thiểu trong cửa sổ deadline-default (TL-04 mục 6.4): "workflow API 6" trước hạn báo cáo quý,
+  # "workflow 8" trước hạn hồ sơ năm. Có cửa sổ thì HPA được thay bằng ScaledObject (CPU + cron).
+  tangTruoc:
+    dauQuy: 6
+    hoSoNam: 8
 
 executor:
   name: workflow-executor
@@ -25,14 +30,39 @@ executor:
   keda:
     enabled: true
     minReplicaCount: 2
-    maxReplicaCount: 8
+    maxReplicaCount: 10
     pollingInterval: 15
-    cooldownPeriod: 300
+    cooldownPeriod: 600
+    cpuUtilization: 75
+    # Trigger chính theo TL-04 mục 6.6; query rỗng thì dùng trigger postgresql ở dưới.
+    prometheus:
+      serverAddress: http://prometheus-operated.observability.svc:9090
+      query: max(flowable_async_jobs_due_unlocked{namespace="core"})
+      threshold: "400"
+      activationThreshold: "50"
     targetQueryValue: "500"
     query: >-
       SELECT count(*) FROM flowable.act_ru_job
       WHERE lock_owner_ IS NULL AND (duedate_ IS NULL OR duedate_ <= now())
     authenticationRefName: keda-flowable-pg
+  # Cửa sổ tăng trước: "executor 6" trước hạn báo cáo quý (TL-04 mục 6.4); "workflow 8" trước hạn hồ sơ năm
+  # áp cho cả API và executor (suy luận).
+  tangTruoc:
+    dauQuy: 6
+    hoSoNam: 8
+
+# behavior chuẩn của HPA cho service API (TL-04 mục 6.2), dùng cho cả hai ScaledObject.
+behavior:
+  scaleUp:
+    stabilizationWindowSeconds: 0
+    selectPolicy: Max
+    policies:
+      - { type: Percent, value: 100, periodSeconds: 30 }
+      - { type: Pods, value: 4, periodSeconds: 30 }
+  scaleDown:
+    stabilizationWindowSeconds: 600
+    policies:
+      - { type: Percent, value: 20, periodSeconds: 120 }
 
 database:
   url: jdbc:postgresql://pg-flowable-pooler-rw.data-pg.svc:5432/flowable?currentSchema=flowable
