@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DL-13 · Loại trừ SpotBugs có lý do, từng mục một (BACKEND.md mục 4).
+-->
+<FindBugsFilter>
+  <!--
+    CREATE DATABASE, COMMENT ON DATABASE, CREATE SCHEMA, CREATE TABLE và DROP DATABASE của công cụ
+    khôi phục không tham số hoá được. Tên CSDL tạm dựng từ số phiếu đã kiểm bằng biểu thức chính quy
+    ở Approval, mọi định danh đi qua ParquetCodec.quote (chỉ chữ thường, số, gạch dưới), kiểu cột
+    qua RestoreTool.safeType, chú thích là JSON đã nhân đôi dấu nháy đơn.
+  -->
+  <Match>
+    <Class name="vn.viettel.okrkpi.platform.retention.RestoreTool"/>
+    <Or>
+      <Method name="restore"/>
+      <Method name="cleanup"/>
+    </Or>
+    <Bug pattern="SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"/>
+  </Match>
+</FindBugsFilter>

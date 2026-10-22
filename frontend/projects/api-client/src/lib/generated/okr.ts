@@ -366,6 +366,56 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/okr/key-results/{id}/milestones': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Danh sách mốc của KR kiểu mốc
+     * @description Các mốc của KR `metricType = MOC` theo thứ tự (`okr.kr_milestone`, BS-03 DC-04), gồm cả mốc trung gian, kèm ngày đạt và số ngày làm việc chậm tính theo lịch nghỉ của tenant. ETag là `row_version` của KR.
+     */
+    get: operations['listOkrKrMilestones'];
+    /**
+     * Khai báo các mốc của KR
+     * @description Thay toàn bộ danh sách mốc khi mục tiêu còn `NHAP` (suy luận: cùng điều kiện sửa KR của SCR-0202). Mốc sắp theo `seq`, hạn không giảm dần, hạn mốc cuối không sau hạn KR. Lỗi: `OKR-409-VERSION-CONFLICT`, `OKR-409-INVALID-STATE` (mục tiêu không còn `NHAP`), `OKR-422-NOT-MILESTONE-KR` (KR không phải kiểu `MOC`), `OKR-422-VALIDATION` (thứ tự, hạn).
+     */
+    put: operations['replaceOkrKrMilestones'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/okr/key-results/{id}/milestones/{milestoneId}/achieve': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Mốc (`okr.kr_milestone.id`). */
+        milestoneId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Ghi nhận đạt mốc
+     * @description Chủ sở hữu KR ghi ngày đạt mốc kèm tham chiếu minh chứng; máy chủ tính số ngày làm việc chậm theo lịch nghỉ của tenant (CORE-08-04) và cập nhật tiến độ KR như một check-in (phát EVT-02). Ghi nhận đã gửi là bất biến, đính chính bằng lần ghi nhận mới (suy luận theo BR-03-03). Lỗi: `OKR-409-OBJECTIVE-NOT-APPROVED`, `OKR-409-PERIOD-LOCKED`, `OKR-409-VERSION-CONFLICT`, `OKR-422-VALIDATION` (ngày đạt ở tương lai).
+     */
+    post: operations['achieveOkrKrMilestone'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/okr/key-results/{id}/source-value': {
     parameters: {
       query?: never;
@@ -549,15 +599,15 @@ export interface components {
      */
     OkrOwnerType: 'TAP_THE' | 'CA_NHAN';
     /**
-     * @description Loại đo của KR (`okr.key_result.metric_type`).
+     * @description Loại đo của KR (`okr.key_result.metric_type`). `MOC` là mốc có thời hạn (BS-03 DC-04): KR gồm các mốc ở `/okr/key-results/{id}/milestones`, lõi ghi ngày đạt và số ngày làm việc chậm, cách quy đổi ra tỷ lệ hoàn thành nằm trong Policy Pack.
      * @enum {string}
      */
-    OkrMetricType: 'SO_LUONG' | 'TY_LE' | 'CO_KHONG' | 'CHI_SO';
+    OkrMetricType: 'SO_LUONG' | 'TY_LE' | 'CO_KHONG' | 'CHI_SO' | 'MOC';
     /**
-     * @description Chiều tốt của KR (`okr.key_result.direction`).
+     * @description Chiều tốt của KR (`okr.key_result.direction`); `TOI_DA` là không được vượt quá chỉ tiêu (BS-03 DC-04).
      * @enum {string}
      */
-    OkrDirection: 'TANG' | 'GIAM' | 'DAT';
+    OkrDirection: 'TANG' | 'GIAM' | 'DAT' | 'TOI_DA';
     /**
      * @description Mức tự tin (`okr.kr_checkin.confidence`, `okr.key_result.confidence`).
      * @enum {string}
@@ -858,6 +908,10 @@ export interface components {
       owner?: components['schemas']['Ref'];
       /** @description Người đang được giao check-in thay (suy luận). */
       checkinDelegate?: components['schemas']['Ref'];
+      /** @description Nhãn tử số của KR kiểu `TY_LE` (`numerator_label`, BS-03 DC-04); khi có cả hai nhãn, check-in nhập tử số và mẫu số, máy chủ tính giá trị. */
+      numeratorLabel?: string | null;
+      /** @description Nhãn mẫu số của KR kiểu `TY_LE` (`denominator_label`, BS-03 DC-04). */
+      denominatorLabel?: string | null;
       dataSource?: string;
       formulaText?: string;
       confidence?: components['schemas']['OkrConfidence'];
@@ -902,6 +956,10 @@ export interface components {
       dueDate?: components['schemas']['Date'] | null;
       /** @description Người xác nhận, khác chủ sở hữu KR. */
       verifierPersonId: components['schemas']['Uuid'];
+      /** @description Nhãn tử số của KR kiểu `TY_LE` (`numerator_label`, BS-03 DC-04); khi có cả hai nhãn, check-in nhập tử số và mẫu số, máy chủ tính giá trị. */
+      numeratorLabel?: string | null;
+      /** @description Nhãn mẫu số của KR kiểu `TY_LE` (`denominator_label`, BS-03 DC-04). */
+      denominatorLabel?: string | null;
       dataSource?: string;
       formulaText?: string;
       checkinFrequency?: components['schemas']['OkrCheckinFrequency'];
@@ -943,6 +1001,38 @@ export interface components {
       fetchedAt: components['schemas']['DateTime'];
       dataSource?: string;
     };
+    /** @description Một mốc của KR kiểu `MOC` (`okr.kr_milestone`, BS-03 DC-04). */
+    OkrKrMilestone: {
+      id: components['schemas']['Uuid'];
+      /** @description Thứ tự mốc trong KR. */
+      seq: number;
+      dueDate: components['schemas']['Date'];
+      /** @description Điều kiện công nhận đạt mốc. */
+      recognitionCondition?: string;
+      /** @description Ngày đạt mốc; null khi chưa đạt. */
+      achievedAt?: components['schemas']['Date'] | null;
+      /** @description Số ngày làm việc chậm so với hạn, máy chủ tính theo lịch nghỉ của tenant. */
+      lateWorkdays?: number | null;
+      /** @description Tham chiếu minh chứng. */
+      evidenceRef?: string | null;
+    };
+    OkrKrMilestoneList: {
+      keyResultId: components['schemas']['Uuid'];
+      items: components['schemas']['OkrKrMilestone'][];
+    };
+    OkrKrMilestoneReplace: {
+      items: {
+        /** @description Có khi giữ mốc đã có. */
+        id?: components['schemas']['Uuid'];
+        seq: number;
+        dueDate: components['schemas']['Date'];
+        recognitionCondition?: string;
+      }[];
+    };
+    OkrKrMilestoneAchieve: {
+      achievedAt: components['schemas']['Date'];
+      evidenceRef?: string;
+    };
     /** @description Một lần check-in (`okr.kr_checkin`), chỉ ghi thêm. */
     OkrCheckin: {
       id: components['schemas']['Uuid'];
@@ -957,6 +1047,10 @@ export interface components {
       status: components['schemas']['OkrCheckinStatus'];
       sourceValue?: number | null;
       sourceFetchedAt?: components['schemas']['DateTime'];
+      /** @description Tử số khi KR khai nhãn tử số và mẫu số (BS-03 DC-04); máy chủ tính `value` từ tử số và mẫu số. */
+      numeratorValue?: number;
+      /** @description Mẫu số đi cùng `numeratorValue` (BS-03 DC-04). */
+      denominatorValue?: number;
       overrideReason?: string;
       verifiedBy?: components['schemas']['Ref'];
       verifiedAt?: components['schemas']['DateTime'];
@@ -970,6 +1064,10 @@ export interface components {
       /** @description Giá trị hiện tại, tối đa 4 chữ số lẻ (BR-03-02). */
       value: number;
       confidence: components['schemas']['OkrConfidence'];
+      /** @description Tử số khi KR khai nhãn tử số và mẫu số (BS-03 DC-04); máy chủ tính `value` từ tử số và mẫu số. */
+      numeratorValue?: number;
+      /** @description Mẫu số đi cùng `numeratorValue` (BS-03 DC-04). */
+      denominatorValue?: number;
       /** @description Giá trị nguồn đã lấy (nếu có) */
       sourceValue?: number;
       sourceFetchedAt?: components['schemas']['DateTime'];
@@ -2198,6 +2296,113 @@ export interface operations {
       404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
       422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listOkrKrMilestones: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Danh sách mốc. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OkrKrMilestoneList'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  replaceOkrKrMilestones: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OkrKrMilestoneReplace'];
+      };
+    };
+    responses: {
+      /** @description Đã lưu danh sách mốc. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OkrKrMilestoneList'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  achieveOkrKrMilestone: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+        /** @description Mốc (`okr.kr_milestone.id`). */
+        milestoneId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OkrKrMilestoneAchieve'];
+      };
+    };
+    responses: {
+      /** @description Đã ghi nhận; trả mốc kèm số ngày chậm. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OkrKrMilestone'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
       default: components['responses']['Problem'];
     };
   };

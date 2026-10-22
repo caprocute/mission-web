@@ -21,7 +21,7 @@ import {
 } from '@angular/core';
 import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { debounceTime } from 'rxjs';
 import {
   AssigneeRole,
@@ -34,9 +34,13 @@ import {
   TaskDetail,
   TaskGroup,
   TaskSummary,
+  FILTER_QUERY_PARAM,
+  createListPersonalization,
+  decodeCriteria,
+  encodeCriteria,
   toProblem,
 } from '@vt/api-client';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtColumnPickerComponent, VtSavedFiltersComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputTextModule } from 'primeng/inputtext';
@@ -46,6 +50,12 @@ import { TagModule } from 'primeng/tag';
 import { TASK_CAN } from '../task-permissions';
 import { formatDate, progressTone, situation } from '../task-ui';
 import { BulkProgressDialog } from './my-tasks/bulk-progress.dialog';
+import {
+  MY_TASKS_CODEC,
+  MY_TASKS_COLUMNS,
+  MY_TASKS_SCREEN,
+  MyTasksFilterState,
+} from './my-tasks.list';
 import { TaskPreviewPanel } from './my-tasks/task-preview.panel';
 import { TaskRegistrationPanel } from './my-tasks/task-registration.panel';
 
@@ -89,6 +99,8 @@ export function readSavedFilters(
     MessageModule,
     SelectModule,
     TagModule,
+    VtColumnPickerComponent,
+    VtSavedFiltersComponent,
     TaskPreviewPanel,
     TaskRegistrationPanel,
     BulkProgressDialog,
@@ -171,6 +183,28 @@ export function readSavedFilters(
           />
         </div>
       }
+      <div class="list-tools">
+        <vt-saved-filters
+          [filters]="list.filters()"
+          [activeId]="list.activeId()"
+          [busy]="list.busy()"
+          (apply)="applySaved($event)"
+          (save)="list.saveFilter($event.name, state(), $event.isDefault)"
+          (rename)="list.rename($event.id, $event.name)"
+          (toggleDefault)="list.toggleDefault($event)"
+          (remove)="list.remove($event)"
+        />
+        @if (!reduced()) {
+          <vt-column-picker
+            [columns]="list.columns"
+            [visible]="list.visible()"
+            (visibleChange)="list.setVisible($event)"
+          />
+        }
+      </div>
+      @if (list.message(); as m) {
+        <p class="list-msg" [class.err]="!m.ok" role="status">{{ m.text }}</p>
+      }
     </section>
 
     @if (notice(); as n) {
@@ -201,14 +235,22 @@ export function readSavedFilters(
                   </th>
                 }
                 <th scope="col">Nhiệm vụ</th>
-                @if (!reduced()) {
+                @if (!reduced() && list.shows('taskGroup')) {
                   <th scope="col">Nhóm</th>
                 }
-                <th scope="col">Vai trò</th>
-                <th scope="col">Hạn</th>
-                <th scope="col" class="pct">Tiến độ</th>
-                <th scope="col">Tình trạng</th>
-                @if (!reduced()) {
+                @if (list.shows('role')) {
+                  <th scope="col">Vai trò</th>
+                }
+                @if (list.shows('dueDate')) {
+                  <th scope="col">Hạn</th>
+                }
+                @if (list.shows('progress')) {
+                  <th scope="col" class="pct">Tiến độ</th>
+                }
+                @if (list.shows('situation')) {
+                  <th scope="col">Tình trạng</th>
+                }
+                @if (!reduced() && list.shows('status')) {
                   <th scope="col">Trạng thái</th>
                 }
               </tr>
@@ -242,42 +284,50 @@ export function readSavedFilters(
                       Xem nhanh
                     </button>
                   </td>
-                  @if (!reduced()) {
+                  @if (!reduced() && list.shows('taskGroup')) {
                     <td>
                       <span class="group">{{ groupLabel[t.taskGroup] }}</span>
                     </td>
                   }
-                  <td>{{ t.role === 'CHU_TRI' ? 'Chủ trì' : 'Phối hợp' }}</td>
-                  <td>{{ date(t.dueDate) }}</td>
-                  <td class="pct">
-                    <div
-                      class="bar"
-                      role="progressbar"
-                      [attr.aria-valuenow]="t.progress"
-                      aria-valuemin="0"
-                      aria-valuemax="100"
-                      [attr.aria-label]="'Tiến độ ' + t.code"
-                    >
-                      <span [class]="'fill ' + tone(t)" [style.width.%]="t.progress"></span>
-                    </div>
-                    <span class="small">{{ t.progress }}%</span>
-                  </td>
-                  <td>
-                    <p-tag
-                      [value]="s.label"
-                      [severity]="s.severity"
-                      [rounded]="true"
-                      styleClass="nowrap"
-                    />
-                  </td>
-                  @if (!reduced()) {
+                  @if (list.shows('role')) {
+                    <td>{{ t.role === 'CHU_TRI' ? 'Chủ trì' : 'Phối hợp' }}</td>
+                  }
+                  @if (list.shows('dueDate')) {
+                    <td>{{ date(t.dueDate) }}</td>
+                  }
+                  @if (list.shows('progress')) {
+                    <td class="pct">
+                      <div
+                        class="bar"
+                        role="progressbar"
+                        [attr.aria-valuenow]="t.progress"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        [attr.aria-label]="'Tiến độ ' + t.code"
+                      >
+                        <span [class]="'fill ' + tone(t)" [style.width.%]="t.progress"></span>
+                      </div>
+                      <span class="small">{{ t.progress }}%</span>
+                    </td>
+                  }
+                  @if (list.shows('situation')) {
+                    <td>
+                      <p-tag
+                        [value]="s.label"
+                        [severity]="s.severity"
+                        [rounded]="true"
+                        styleClass="nowrap"
+                      />
+                    </td>
+                  }
+                  @if (!reduced() && list.shows('status')) {
                     <td class="status">{{ statusLabel[t.status] }}</td>
                   }
                 </tr>
               } @empty {
                 @if (!page.isLoading()) {
                   <tr>
-                    <td [attr.colspan]="reduced() ? 5 : 8" class="muted">
+                    <td [attr.colspan]="colspan()" class="muted">
                       Không có nhiệm vụ nào phù hợp bộ lọc.
                     </td>
                   </tr>
@@ -389,6 +439,21 @@ export function readSavedFilters(
       padding: 18px;
       border: 1px solid var(--vt-color-border, #e2e8f0);
       box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    }
+    .list-tools {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .list-msg {
+      margin: 8px 0 0;
+      color: #047857;
+    }
+    .list-msg.err {
+      color: #b91c1c;
     }
     .filters {
       display: flex;
@@ -593,6 +658,26 @@ export class MyTasksPage {
   protected readonly group = signal<TaskGroup | null>(this.saved.group);
   protected readonly kr = signal<string | null>(this.saved.kr);
   protected readonly q = signal('');
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  /** CNH-04: cột tuỳ chọn và bộ lọc đã lưu, lưu theo người dùng trên máy chủ. */
+  protected readonly list = createListPersonalization(
+    MY_TASKS_SCREEN,
+    MY_TASKS_COLUMNS,
+    MY_TASKS_CODEC,
+  );
+  protected readonly state = computed<MyTasksFilterState>(() => ({
+    filter: this.filter(),
+    role: this.role(),
+    group: this.group(),
+  }));
+  protected readonly colspan = computed(
+    () =>
+      1 +
+      (this.reduced() ? 0 : 1) +
+      ['role', 'dueDate', 'progress', 'situation'].filter((k) => this.list.shows(k)).length +
+      (this.reduced() ? 0 : ['taskGroup', 'status'].filter((k) => this.list.shows(k)).length),
+  );
   /** Từ khoá tìm kiếm được trễ 250 ms để không gọi API theo từng phím gõ. */
   private readonly debouncedQ = toSignal(toObservable(this.q).pipe(debounceTime(250)), {
     initialValue: '',
@@ -683,6 +768,18 @@ export class MyTasksPage {
   protected tone(t: TaskSummary) {
     return progressTone(t);
   }
+  constructor() {
+    const shared = decodeCriteria(this.route.snapshot.queryParamMap.get(FILTER_QUERY_PARAM));
+    if (shared) {
+      const { state } = MY_TASKS_CODEC.fromCriteria(shared);
+      this.filter.set(state.filter);
+      this.role.set(state.role);
+      this.group.set(state.group);
+    }
+    // đường dẫn chia sẻ thắng bộ lọc mặc định đã lưu
+    this.list.load(shared ? undefined : (s) => this.setState(s, true));
+  }
+
   protected date(d: string) {
     return formatDate(d);
   }
@@ -699,12 +796,32 @@ export class MyTasksPage {
     this.group.set(v ?? null);
     this.persist();
   }
+
+  /** CNH-04: áp dụng một bộ lọc đã lưu bằng một chạm; `null` trở về "Tất cả". */
+  protected applySaved(id: string | null) {
+    this.setState(this.list.apply(id) ?? { filter: 'TAT_CA', role: null, group: null }, true);
+  }
+
+  private setState(s: MyTasksFilterState, keepActive = false) {
+    this.filter.set(s.filter);
+    this.role.set(s.role);
+    this.group.set(s.group);
+    this.persist(keepActive);
+  }
   protected setKr(v: string | null) {
     this.kr.set(v ?? null);
     this.persist();
   }
 
-  private persist(): void {
+  private persist(keepActive = false): void {
+    if (!keepActive) this.list.activeId.set(null);
+    // trạng thái lọc lên URL để chia sẻ đường dẫn trong nội bộ; quyền xem do máy chủ quyết định
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { [FILTER_QUERY_PARAM]: encodeCriteria(this.list.criteriaOf(this.state())) },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
     const v: SavedFilters = {
       filter: this.filter(),
       role: this.role(),

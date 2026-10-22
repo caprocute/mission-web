@@ -20,9 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import vn.viettel.okrkpi.cel.application.CelEngine;
-import vn.viettel.okrkpi.cel.domain.CelSandboxOptions;
-import vn.viettel.okrkpi.cel.domain.StaticWorkingCalendar;
 import vn.viettel.okrkpi.policy.application.port.CelJsRunner;
 import vn.viettel.okrkpi.policy.application.port.GoldenTestCaseRepository;
 import vn.viettel.okrkpi.policy.application.port.PolicyAudit;
@@ -31,8 +28,6 @@ import vn.viettel.okrkpi.policy.application.port.PolicyTestJobs;
 import vn.viettel.okrkpi.policy.application.port.PolicyTestRunRepository;
 import vn.viettel.okrkpi.policy.application.port.PolicyTestRunRepository.CaseResult;
 import vn.viettel.okrkpi.policy.application.port.PolicyTestRunRepository.NumberedRun;
-import vn.viettel.okrkpi.policy.domain.DecisionTable;
-import vn.viettel.okrkpi.policy.domain.DecisionTableSpec;
 import vn.viettel.okrkpi.policy.domain.GoldenCaseStatus;
 import vn.viettel.okrkpi.policy.domain.GoldenTestCase;
 import vn.viettel.okrkpi.policy.domain.PolicyPack;
@@ -127,7 +122,7 @@ public class PolicyTestRunService {
   private final PolicyPackRepository packs;
   private final GoldenTestCaseRepository cases;
   private final PolicyTestRunRepository runs;
-  private final PolicyDecisionTableService tables;
+  private final PolicyEvaluators evaluators;
   private final PolicyTestJobs jobs;
   private final CelJsRunner celJs;
   private final boolean celJsRequired;
@@ -136,23 +131,13 @@ public class PolicyTestRunService {
   private final Clock clock;
   private final Executor executor;
   private final TransactionOperations writes;
-  private final CelEngine cel =
-      new CelEngine(
-          StaticWorkingCalendar.weekendsOnly(),
-          new CelSandboxOptions(
-              CelSandboxOptions.DEFAULT_MAX_EXPRESSION_LENGTH,
-              CelSandboxOptions.DEFAULT_MAX_AST_DEPTH,
-              CelSandboxOptions.DEFAULT_MAX_AST_NODE_COUNT,
-              CelSandboxOptions.DEFAULT_MAX_COMPREHENSION_ITERATIONS,
-              Duration.ofSeconds(2),
-              CelSandboxOptions.DEFAULT_PROGRAM_CACHE_MAX_SIZE));
 
   @SuppressWarnings("java:S107")
   public PolicyTestRunService(
       PolicyPackRepository packs,
       GoldenTestCaseRepository cases,
       PolicyTestRunRepository runs,
-      PolicyDecisionTableService tables,
+      PolicyEvaluators evaluators,
       PolicyTestJobs jobs,
       CelJsRunner celJs,
       boolean celJsRequired,
@@ -164,7 +149,7 @@ public class PolicyTestRunService {
     this.packs = Objects.requireNonNull(packs, "packs");
     this.cases = Objects.requireNonNull(cases, "cases");
     this.runs = Objects.requireNonNull(runs, "runs");
-    this.tables = Objects.requireNonNull(tables, "tables");
+    this.evaluators = Objects.requireNonNull(evaluators, "evaluators");
     this.jobs = Objects.requireNonNull(jobs, "jobs");
     this.celJs = Objects.requireNonNull(celJs, "celJs");
     this.celJsRequired = celJsRequired;
@@ -392,14 +377,9 @@ public class PolicyTestRunService {
     }
   }
 
-  /** Bộ đánh giá của phiên bản: manifest, quy tắc và bảng quyết định đã lưu. */
+  /** Bộ đánh giá của phiên bản (đệm chung với tính thử một ca). */
   PolicyEvaluator evaluator(TenantId tenant, PolicyPackVersion v) {
-    Map<String, DecisionTableSpec> specs = new LinkedHashMap<>();
-    for (DecisionTable t : packs.decisionTables(tenant, v.id())) {
-      specs.put(t.tableKey(), tables.spec(t));
-    }
-    return new PolicyEvaluator(
-        cel, json, read(v.manifestJson()), packs.rules(tenant, v.id()), specs);
+    return evaluators.of(tenant, v);
   }
 
   /**
@@ -647,6 +627,15 @@ public class PolicyTestRunService {
     }
     boolean ok = finished.result() == TestRunResult.DAT;
     PolicyPackVersion moved = v.testOutcome(ok, finished.passRate(), finished.id(), actor, now);
+    if (ok) {
+      moved =
+          moved.withContentHash(
+              PolicyContentHash.of(
+                  json,
+                  v.manifestJson(),
+                  packs.rules(tenant, v.id()),
+                  packs.decisionTables(tenant, v.id())));
+    }
     if (!packs.storeTestOutcome(tenant, moved, v.rowVersion())) {
       throw new VersionConflictException("POLICY", v.rowVersion(), null);
     }

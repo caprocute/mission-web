@@ -20,6 +20,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const REGISTRY = join(ROOT, 'tools/remotes/remotes.json');
 const LIBS = ['design-system', 'auth', 'sdui-renderer', 'form-engine', 'telemetry', 'api-client'];
+// WEB-051: plugin chuyên ngành, không nằm trong federation.manifest.json; shell nạp theo UI Pack của
+// tenant từ /plugins/<project>/remoteEntry.json
+const PLUGINS = ['fe-plugin-giaoduc'];
 
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
 const registry = () => readJson(REGISTRY);
@@ -37,10 +40,19 @@ const commands = {
   build() {
     for (const r of registry().remotes) ng('build', r.project);
     ng('build', 'fe-shell');
+    // WEB-013: gói nhúng <vt-okr-app> cho cổng văn phòng số (host thứ hai, phục vụ ở /embed/)
+    ng('build', 'fe-embed');
+    for (const p of PLUGINS) ng('build', p);
   },
 
   test() {
-    const projects = [...LIBS, ...registry().remotes.map((r) => r.project), 'fe-shell'];
+    const projects = [
+      ...LIBS,
+      ...registry().remotes.map((r) => r.project),
+      'fe-shell',
+      'fe-embed',
+      ...PLUGINS,
+    ];
     for (const p of projects) {
       if (!hasSpec(join(ROOT, 'projects', p))) {
         console.log(`[test:all] ${p}: chưa có tệp *.spec.ts, bỏ qua`);
@@ -64,6 +76,11 @@ const commands = {
       cpSync(src, join(out, 'remotes', r.project), { recursive: true });
       manifest[r.key] = `/remotes/${r.project}/remoteEntry.json`;
       tsv.push(`${r.key}\t${envVar(r.project)}\t${r.project}`);
+    }
+    for (const p of PLUGINS) {
+      const src = join(ROOT, 'dist', p, 'browser');
+      if (!existsSync(src)) throw new Error(`Chưa build ${p}`);
+      cpSync(src, join(out, 'plugins', p), { recursive: true });
     }
     writeFileSync(join(out, 'federation.manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
     if (tsvPath) {

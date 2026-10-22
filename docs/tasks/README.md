@@ -36,16 +36,16 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-002](WEB-002-pipeline-jenkins.md) | Pipeline Jenkins cho frontend có cổng chất lượng | M | WEB-001 | Hoàn thành (nhánh `feat/WEB-002-pipeline-jenkins`): `Jenkinsfile` đủ cổng, gitleaks, Semgrep, Trivy, SBOM, cosign; chưa chạy trên Jenkins thật; chưa có độ phủ tệp thay đổi (thiếu `@vitest/coverage-v8`); cổng ngân sách và Lighthouse CI đỏ cho tới khi WEB-052 đạt (xem wiki/11) |
 | [WEB-003](WEB-003-ngan-sach-hieu-nang.md) | Ngân sách bundle và Lighthouse CI | S | WEB-001 | Hoàn thành cấu hình; số đo chưa đạt, tối ưu ở WEB-052 |
 | [WEB-004](WEB-004-bien-dich-token.md) | Biên dịch Design Token và kiểm tra tương phản | M | WEB-001 | Chưa bắt đầu |
-| [WEB-005](WEB-005-storybook-hoi-quy.md) | Storybook và kiểm thử hồi quy giao diện theo bộ token | M | WEB-004 | Chưa bắt đầu |
+| [WEB-005](WEB-005-storybook-hoi-quy.md) | Storybook và kiểm thử hồi quy giao diện theo bộ token | M | WEB-004 | Xong, chờ gộp |
 | [WEB-006](WEB-006-dang-nhap-keycloak.md) | Đăng nhập Keycloak, chọn đơn vị và vai trò (phần web của QT-00) | M | WEB-001 | Hoàn thành với OIDC giả lập (nhánh `feat/WEB-006-dang-nhap-keycloak`); chưa thử với Keycloak dev thật |
 | [WEB-007](WEB-007-api-client-openapi.md) | `@vt/api-client`: sinh client từ OpenAPI, xử lý lỗi, 409, job 202 | M | WEB-001 | Hoàn thành (hợp đồng mẫu, chờ OpenAPI thật của mission-core) |
 | [WEB-008](WEB-008-mock-api.md) | Tách dữ liệu giả lập thành interceptor và fixture theo module | S | WEB-007 | Hoàn thành (axe còn lỗi có sẵn, xem WEB-059) |
-| [WEB-009](WEB-009-sdui-chu-ky.md) | SDUI: kiểm chữ ký UI Pack, kiểm phiên bản registry, telemetry | M | WEB-004 | Chưa bắt đầu |
+| [WEB-009](WEB-009-sdui-chu-ky.md) | SDUI: kiểm chữ ký UI Pack, kiểm phiên bản registry, telemetry | M | WEB-004 | Xong, chờ gộp (nhánh `claude/b8-ha-tang-g7g48k`) |
 | [WEB-010](WEB-010-form-engine.md) | Form engine: widget, test CEL dùng chung, benchmark | M | WEB-001 | Hoàn thành một phần (nhánh `feat/WEB-010-form-engine`): ngân sách dựng 50 trường ≤ 50 ms chưa đạt (khoảng 95 ms trên Chromium), xem wiki/09 |
-| [WEB-011](WEB-011-telemetry-faro.md) | Telemetry: Grafana Faro + OpenTelemetry web | S | WEB-001 | Chưa bắt đầu |
-| [WEB-012](WEB-012-shell-hoan-thien.md) | Shell: thông báo thời gian thực, tìm kiếm, xử lý lỗi toàn cục | M | WEB-006, WEB-007 | Chưa bắt đầu |
-| [WEB-013](WEB-013-web-component-nhung.md) | Chế độ nhúng `<vt-okr-app>` cho cổng văn phòng số | M | WEB-006 | Chưa bắt đầu |
-| [WEB-014](WEB-014-csp-trusted-types.md) | CSP chặt và Trusted Types cho bản phục vụ nginx | S | WEB-002 | Chưa bắt đầu |
+| [WEB-011](WEB-011-telemetry-faro.md) | Telemetry: Grafana Faro + OpenTelemetry web | S | WEB-001 | Xong, chờ gộp (nhánh `claude/b8-ha-tang-g7g48k`) |
+| [WEB-012](WEB-012-shell-hoan-thien.md) | Shell: thông báo thời gian thực, tìm kiếm, xử lý lỗi toàn cục | M | WEB-006, WEB-007 | Xong, chờ gộp |
+| [WEB-013](WEB-013-web-component-nhung.md) | Chế độ nhúng `<vt-okr-app>` cho cổng văn phòng số | M | WEB-006 | Xong, chờ gộp |
+| [WEB-014](WEB-014-csp-trusted-types.md) | CSP chặt và Trusted Types cho bản phục vụ nginx | S | WEB-002 | Xong, chờ gộp (nhánh `claude/b8-ha-tang-g7g48k`) |
 | [WEB-015](WEB-015-khung-remote.md) | Công cụ tạo remote mới và dựng khung 8 remote | M | WEB-001 | Hoàn thành (chặn tuyến theo ma trận để WEB-055) |
 
 ## GĐ1 – Định danh, tổ chức (đợt 1 TL-04)
@@ -102,7 +102,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-048](WEB-048-trinh-dung-dashboard.md) | SCR-1602 Trình dựng dashboard | M | WEB-047 | Xong, đã gộp |
 | [WEB-049](WEB-049-tro-ly-ai.md) | SCR-1701 Trợ lý AI soạn OKR và soát KR | M | WEB-022 | Xong, chờ gộp |
 | [WEB-050](WEB-050-studio-giao-dien.md) | SCR-1801 Cấu hình giao diện tenant và SCR-1802 Trình dựng biểu mẫu động | L | WEB-004, WEB-009, WEB-010 | Xong, chờ gộp (nhánh `feat/WEB-050-studio-giao-dien`) |
-| [WEB-051](WEB-051-plugin-chuyen-nganh.md) | Plugin chuyên ngành mẫu và manifest theo tenant | M | WEB-015 | Chưa bắt đầu |
+| [WEB-051](WEB-051-plugin-chuyen-nganh.md) | Plugin chuyên ngành mẫu và manifest theo tenant | M | WEB-015 | Xong, chờ gộp |
 | [WEB-052](WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | WEB-003, WEB-011 | Làm một phần (nhánh `feat/WEB-052-toi-uu-hieu-nang`): `/` 729→578 KB, LCP 8,3→6,6 s; `/tasks` 798→607 KB, LCP 9,2→6,7 s; pha 2 (preset Aura rút gọn, nạp giả lập theo module): `/` 626→562 KB, LCP 6,33→6,13 s; `/tasks` 653→592 KB; vẫn chưa đạt ngân sách 250 KB và 2,5 s, chưa có k6 browser (xem wiki/09) |
 | [WEB-053](WEB-053-danh-gia-attt.md) | Đánh giá ATTT frontend: OWASP ZAP và ASVS mức 2 | M | WEB-014 | Chưa bắt đầu |
 
@@ -123,7 +123,7 @@ Nhóm này hiện thực ma trận phân quyền ở [wiki/15a](../../wiki/15a-m
 | Mã | Task | Cỡ | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
 | [WEB-059](WEB-059-kha-nang-truy-cap-nen.md) | Sửa lỗi khả năng truy cập nền: progressbar, slider, tương phản token | S | WEB-001 | Hoàn thành (nhánh `feat/WEB-059-kha-nang-truy-cap-nen`): axe 0 lỗi critical/serious, Lighthouse accessibility 1,00 ở `/` và `/tasks`, CLS trang chủ 0,001; LCP và tổng tải vẫn thuộc WEB-052 |
-| [WEB-060](WEB-060-format-toan-bo.md) | Chạy Prettier toàn workspace một lần | S | WEB-001 | Chưa bắt đầu |
+| [WEB-060](WEB-060-format-toan-bo.md) | Chạy Prettier toàn workspace một lần | S | WEB-001 | Xong, chờ gộp |
 | [WEB-061](WEB-061-trinh-soan-mau-luong.md) | SCR-1505 Thư viện và trình soạn mẫu luồng (BS-01) | L | WEB-015, WEB-046 | Xong (trình soạn kéo thả bằng ngx-vflow, nhánh `feat/WEB-061-trinh-soan-keo-tha`) |
 | [WEB-062](WEB-062-giam-sat-tien-trinh.md) | SCR-1506 Giám sát tiến trình theo mẫu (BS-01) | M | WEB-015 | Xong, chờ gộp (nhánh `feat/WEB-062-giam-sat-tien-trinh`) |
 | [WEB-063](WEB-063-hop-dong-openapi.md) | Bộ hợp đồng OpenAPI 3.1 toàn dự án theo hướng API-first (ADR-32, BS-02) | L | WEB-007 | Hoàn thành (11 tệp, 351 thao tác; điểm chốt đã chấp nhận 19/10) |

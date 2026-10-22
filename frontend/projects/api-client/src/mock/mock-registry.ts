@@ -41,6 +41,11 @@ export const MOCK_LOADERS = {
     import('./feature-flags/feature-flags.mock').then((m) => m.FEATURE_FLAGS_MOCK),
   policies: () => import('./policies/policies.mock').then((m) => m.POLICIES_MOCK),
   analytics: () => import('./analytics/analytics.mock').then((m) => m.ANALYTICS_MOCK),
+  mePreferences: () =>
+    import('./me-preferences/me-preferences.mock').then((m) => m.ME_PREFERENCES_MOCK),
+  notifications: () =>
+    import('./notifications/notifications.mock').then((m) => m.NOTIFICATIONS_MOCK),
+  search: () => import('./search/search.mock').then((m) => m.SEARCH_MOCK),
 } satisfies Record<string, () => Promise<MockModule>>;
 
 export type MockLoaderKey = keyof typeof MOCK_LOADERS;
@@ -54,13 +59,14 @@ export const MOCK_PREFIXES: Record<string, MockLoaderKey[]> = {
   analytics: ['analytics'],
   appraisals: ['evidence', 'appraisals', 'complaints'],
   catalog: ['catalog'],
-  config: ['tenants', 'roleAdmin', 'alerts', 'featureFlags'],
+  config: ['tenants', 'roleAdmin', 'alerts', 'featureFlags', 'mePreferences'],
   dossiers: ['dossiers'],
   esign: ['plans', 'dossiers'],
   evidences: ['evidence'],
   files: ['evidence'],
   jobs: ['orgSync'],
   ledger: ['ledger'],
+  notifications: ['notifications'],
   okr: ['okr'],
   org: ['org', 'orgTree', 'orgSync'],
   oversight: ['reopen', 'complaints', 'alerts'],
@@ -69,8 +75,9 @@ export const MOCK_PREFIXES: Record<string, MockLoaderKey[]> = {
   plans: ['plans'],
   products: ['evidence'],
   registry: ['tenants'],
+  search: ['search'],
   tasks: ['sourceDocs', 'tasks', 'analytics'],
-  ui: ['uiForms', 'uiPacks'],
+  ui: ['uiForms', 'uiPacks', 'mePreferences'],
   workflow: ['workflowTemplates', 'workflowInstances'],
 };
 

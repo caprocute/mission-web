@@ -20,16 +20,22 @@ import org.springframework.kafka.listener.AcknowledgingMessageListener;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.transaction.PlatformTransactionManager;
+import vn.viettel.okrkpi.config.api.DelegationApi;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.events.EventTopics;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceIntegrityAlarm;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceLifecycleService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceObjectProjector;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceQueryService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceReviewService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService;
+import vn.viettel.okrkpi.product.application.evidence.ReviewerAuthority;
+import vn.viettel.okrkpi.product.application.evidence.port.CommentSealer;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceEvents;
 import vn.viettel.okrkpi.product.infrastructure.listener.EvidenceObjectListener;
 import vn.viettel.okrkpi.shared.audit.AuditLogger;
+import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
 import vn.viettel.okrkpi.shared.inbox.InboxEndpoint;
 import vn.viettel.okrkpi.shared.inbox.InboxEnvelope;
 import vn.viettel.okrkpi.shared.inbox.InboxMessageProcessor;
@@ -46,7 +52,8 @@ import vn.vtokr.sys.v1.EvidenceObjectStored;
 
 /**
  * CORE-03-03: khai báo sản phẩm, nộp minh chứng, outbox {@code product.outbox_event} và consumer
- * bản chiếu đối tượng SVC-08 qua inbox của schema product; CORE-03-06: mở nghiệm thu.
+ * bản chiếu đối tượng SVC-08 qua inbox của schema product; CORE-03-06: mở nghiệm thu; CORE-03-07:
+ * quyết định nghiệm thu.
  */
 @Configuration(proxyBeanMethods = false)
 public class EvidenceSubmissionConfiguration {
@@ -93,13 +100,63 @@ public class EvidenceSubmissionConfiguration {
       EvidenceLifecycleService evidenceLifecycleService,
       TaskApi tasks,
       EvidenceIntegrityAlarm evidenceIntegrityAlarm,
-      AuditLogger audit) {
-    return new EvidenceReviewService(
-        evidenceSubmissionRepository,
-        evidenceLifecycleService,
-        tasks,
-        evidenceIntegrityAlarm,
-        audit);
+      AuditLogger audit,
+      ObjectProvider<DelegationApi> delegations) {
+    EvidenceReviewService service =
+        new EvidenceReviewService(
+            evidenceSubmissionRepository,
+            evidenceLifecycleService,
+            tasks,
+            evidenceIntegrityAlarm,
+            audit);
+    service.setAuthority(
+        new ReviewerAuthority(tasks, delegations.getIfAvailable(), java.time.Clock.systemUTC()));
+    return service;
+  }
+
+  @Bean
+  JdbcAcceptanceRepository acceptanceRepository(
+      @Qualifier("productDataSource") DataSource dataSource, ObjectProvider<ObjectMapper> json) {
+    return new JdbcAcceptanceRepository(
+        JdbcClient.create(dataSource), json.getIfAvailable(ObjectMapper::new));
+  }
+
+  @Bean
+  CommentSealer acceptanceCommentSealer(ObjectProvider<FieldEncryptor> encryptor) {
+    return new FieldEncryptorCommentSealer(encryptor::getIfAvailable);
+  }
+
+  @Bean
+  EvidenceAcceptanceService evidenceAcceptanceService(
+      JdbcEvidenceSubmissionRepository evidenceSubmissionRepository,
+      JdbcAcceptanceRepository acceptanceRepository,
+      EvidenceLifecycleService evidenceLifecycleService,
+      EvidenceReviewService evidenceReviewService,
+      TaskApi tasks,
+      EvidenceEvents evidenceEvents,
+      CommentSealer acceptanceCommentSealer,
+      AuditLogger audit,
+      ObjectProvider<DelegationApi> delegations) {
+    EvidenceAcceptanceService service =
+        new EvidenceAcceptanceService(
+            evidenceSubmissionRepository,
+            acceptanceRepository,
+            evidenceLifecycleService,
+            evidenceReviewService,
+            tasks,
+            evidenceEvents,
+            acceptanceCommentSealer,
+            audit,
+            java.time.Clock.systemUTC());
+    service.setAuthority(
+        new ReviewerAuthority(tasks, delegations.getIfAvailable(), java.time.Clock.systemUTC()));
+    return service;
+  }
+
+  @Bean
+  EvidenceQueryService evidenceQueryService(
+      JdbcEvidenceSubmissionRepository evidenceSubmissionRepository) {
+    return new EvidenceQueryService(evidenceSubmissionRepository);
   }
 
   @Bean

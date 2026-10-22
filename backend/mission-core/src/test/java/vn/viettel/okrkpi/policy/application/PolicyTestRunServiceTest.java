@@ -151,8 +151,11 @@ class PolicyTestRunServiceTest {
         packs,
         cases,
         runs,
-        new PolicyDecisionTableService(
-            packs, mock(PolicyDecisionTableRepository.class), audit, JSON),
+        new PolicyEvaluators(
+            packs,
+            new PolicyDecisionTableService(
+                packs, mock(PolicyDecisionTableRepository.class), audit, JSON),
+            JSON),
         jobs,
         runner,
         required,

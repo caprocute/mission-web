@@ -18,6 +18,11 @@ export interface RuntimeConfig {
     issuer: string;
     clientId: string;
     scope: string;
+    /**
+     * Địa chỉ Keycloak trả về sau đăng nhập và đăng xuất; mặc định gốc của trang. Chế độ nhúng
+     * `<vt-okr-app>` (WEB-013) đặt bằng địa chỉ trang của cổng đang nhúng.
+     */
+    redirectUri?: string;
   };
   /** Bật dữ liệu giả lập khi mission-core chưa sẵn sàng. */
   useMockApi: boolean;
@@ -49,7 +54,11 @@ export async function loadRuntimeConfig(
     const res = await (typeof source === 'string' ? fetch(source, { cache: 'no-cache' }) : source);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const cfg = (await res.json()) as Partial<RuntimeConfig>;
-    return { ...DEFAULT_RUNTIME_CONFIG, ...cfg, auth: { ...DEFAULT_RUNTIME_CONFIG.auth, ...cfg.auth } };
+    return {
+      ...DEFAULT_RUNTIME_CONFIG,
+      ...cfg,
+      auth: { ...DEFAULT_RUNTIME_CONFIG.auth, ...cfg.auth },
+    };
   } catch (err) {
     console.warn('[vt] Không đọc được config.json, dùng cấu hình mặc định', err);
     return DEFAULT_RUNTIME_CONFIG;

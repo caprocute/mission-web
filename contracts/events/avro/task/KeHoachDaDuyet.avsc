@@ -12,6 +12,7 @@
     {"name": "ownerId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Đơn vị (TAP_THE) hoặc cá nhân (CA_NHAN) sở hữu kế hoạch"},
     {"name": "itemCount", "type": "int", "doc": "Số dòng kế hoạch của phiên bản"},
     {"name": "approvedBy", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người phê duyệt"},
+    {"name": "supersededVersionId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "Phiên bản hiệu lực trước đó khi đây là kế hoạch điều chỉnh; null ở lần duyệt đầu (CORE-02-09)"},
     {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
   ]
 }

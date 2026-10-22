@@ -29,8 +29,13 @@ MA_TINH_GIA = "999"
 
 def ho_ten(rng: NguonNgauNhien) -> tuple[str, str]:
     gioi = "NAM" if rng.random() < 0.52 else "NU"
+    return ho_ten_theo_gioi(rng, gioi), gioi
+
+
+def ho_ten_theo_gioi(rng, gioi: str) -> str:
+    """Họ tên giả theo giới cho trước; dùng chung với tác vụ ẩn danh hoá DL-15 (giữ phân phối giới)."""
     dem, ten = (DEM_NAM, TEN_NAM) if gioi == "NAM" else (DEM_NU, TEN_NU)
-    return f"{rng.choice(HO)} {rng.choice(dem)} {rng.choice(ten)}", gioi
+    return f"{rng.choice(HO)} {rng.choice(dem)} {rng.choice(ten)}"
 
 
 def so_dinh_danh_gia(rng: NguonNgauNhien, gioi: str, nam_sinh: int) -> str:

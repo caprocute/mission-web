@@ -3,6 +3,8 @@ import { TestBed } from '@angular/core/testing';
 import { DEFAULT_RUNTIME_CONFIG, RUNTIME_CONFIG } from '@vt/api-client';
 import { UI_PACK_PREFETCH, UiPackLoader, UiPackPrefetch } from './ui-pack-loader';
 import { UiPack } from './ui-pack';
+import { signedContent } from './pack-signature';
+import { SDUI_TELEMETRY_SINK, SduiTelemetryRecord } from './sdui-telemetry';
 
 const PACK: UiPack = {
   pack: 'default',
@@ -71,5 +73,89 @@ describe('UiPackLoader', () => {
       '/ui-packs/default/current.json',
       '/ui-packs/default/1.0.0/pack.json',
     ]);
+  });
+});
+
+/** WEB-009: chỉ áp gói tương thích registry và, khi có khoá nền tảng, gói đúng chữ ký. */
+describe('UiPackLoader kiểm gói', () => {
+  const KEY_ID = 'k-thu';
+  let signed: UiPack;
+  let keys: Record<string, string>;
+  let events: SduiTelemetryRecord[];
+
+  beforeAll(async () => {
+    const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, [
+      'sign',
+      'verify',
+    ]);
+    const b64 = (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+    const pack: UiPack = { ...PACK, pack: 'tinh-mau/ui', requires: { registry: '^2.4.0' } };
+    const sig = await crypto.subtle.sign(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      pair.privateKey,
+      signedContent(pack),
+    );
+    signed = { ...pack, signature: b64(sig) };
+    keys = { [KEY_ID]: b64(await crypto.subtle.exportKey('spki', pair.publicKey)) };
+  });
+
+  function setup(pack: UiPack, keys?: Record<string, string>) {
+    events = [];
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) =>
+      String(url).endsWith('current.json')
+        ? json({ version: pack.version, keyId: KEY_ID })
+        : json(pack),
+    );
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: RUNTIME_CONFIG,
+          useValue: { ...DEFAULT_RUNTIME_CONFIG, uiPackPublicKeys: keys },
+        },
+        { provide: SDUI_TELEMETRY_SINK, useValue: (r: SduiTelemetryRecord) => events.push(r) },
+      ],
+    });
+    return TestBed.inject(UiPackLoader);
+  }
+  afterEach(() => vi.restoreAllMocks());
+
+  it('áp gói đúng chữ ký của khoá nền tảng', async () => {
+    const loader = setup(signed, keys);
+    await loader.load();
+    expect(loader.pack()?.pack).toBe('tinh-mau/ui');
+    expect(events).toEqual([]);
+  });
+
+  it('từ chối gói sai chữ ký và giữ giao diện mặc định', async () => {
+    const tampered = structuredClone(signed);
+    tampered.i18n = { vi: { 'home.notice': 'Nội dung bị chèn' } };
+    const loader = setup(tampered, keys);
+    await loader.load();
+    expect(loader.pack()).toBeNull();
+    expect(events.map((e) => e.event)).toEqual(['ui-pack.signature.invalid']);
+  });
+
+  it('từ chối gói không có chữ ký khi đã cấu hình khoá', async () => {
+    const loader = setup(PACK, keys);
+    await loader.load();
+    expect(loader.pack()).toBeNull();
+    expect(events.map((e) => e.event)).toEqual(['ui-pack.signature.missing']);
+  });
+
+  it('từ chối gói đòi registry mới hơn của shell', async () => {
+    const loader = setup({ ...PACK, requires: { registry: '^3.0.0' } });
+    await loader.load();
+    expect(loader.pack()).toBeNull();
+    expect(events[0]).toMatchObject({
+      event: 'ui-pack.registry.incompatible',
+      attributes: { requires: '^3.0.0', registry: '2.4.0' },
+    });
+  });
+
+  it('chưa cấu hình khoá (dev, dữ liệu giả lập) thì áp gói không chữ ký', async () => {
+    const loader = setup(PACK);
+    await loader.load();
+    expect(loader.pack()?.version).toBe('1.0.0');
   });
 });

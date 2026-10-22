@@ -48,6 +48,15 @@ public final class EvidenceRuleViolation extends IllegalStateException {
   /** Không phải người nghiệm thu được chỉ định, hoặc là người nộp, người phối hợp (BR-07-06). */
   public static final String SELF_REVIEW = "PRODUCT-403-SELF-REVIEW";
 
+  /** Chưa đánh giá hết tiêu chuẩn chất lượng (MSG-07-09). */
+  public static final String CRITERIA_INCOMPLETE = "PRODUCT-422-CRITERIA-INCOMPLETE";
+
+  /** Đã có phiên bản bị yêu cầu bổ sung mà thiếu nguyên nhân chỉnh sửa. */
+  public static final String REVISION_CAUSE_REQUIRED = "PRODUCT-422-REVISION-CAUSE-REQUIRED";
+
+  /** Giá trị ngoài miền cho phép (mức chất lượng ngoài năm mức, BR-07-07; độ dài nhận xét). */
+  public static final String VALIDATION = "COMMON-422-VALIDATION";
+
   private final String code;
 
   public EvidenceRuleViolation(String code, String message) {

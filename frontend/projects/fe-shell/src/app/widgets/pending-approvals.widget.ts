@@ -10,12 +10,27 @@ import { BadgeModule } from 'primeng/badge';
     <p-card header="Chờ tôi duyệt">
       <ul>
         @for (i of items; track i.label) {
-          <li><span>{{ i.label }}</span><p-badge [value]="i.count" /></li>
+          <li>
+            <span>{{ i.label }}</span
+            ><p-badge [value]="i.count" />
+          </li>
         }
       </ul>
     </p-card>
   `,
-  styles: `ul { list-style: none; padding: 0; margin: 0; } li { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--p-content-border-color, #eee); }`,
+  styles: `
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    li {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--p-content-border-color, #eee);
+    }
+  `,
 })
 export class PendingApprovalsWidget {
   protected readonly items = [

@@ -2,24 +2,12 @@
   "compileOnSave": false,
   "compilerOptions": {
     "paths": {
-      "@vt/design-system": [
-        "./projects/design-system/src/public-api.ts"
-      ],
-      "@vt/auth": [
-        "./projects/auth/src/public-api.ts"
-      ],
-      "@vt/sdui-renderer": [
-        "./projects/sdui-renderer/src/public-api.ts"
-      ],
-      "@vt/form-engine": [
-        "./projects/form-engine/src/public-api.ts"
-      ],
-      "@vt/telemetry": [
-        "./projects/telemetry/src/public-api.ts"
-      ],
-      "@vt/api-client": [
-        "./projects/api-client/src/public-api.ts"
-      ]
+      "@vt/design-system": ["./projects/design-system/src/public-api.ts"],
+      "@vt/auth": ["./projects/auth/src/public-api.ts"],
+      "@vt/sdui-renderer": ["./projects/sdui-renderer/src/public-api.ts"],
+      "@vt/form-engine": ["./projects/form-engine/src/public-api.ts"],
+      "@vt/telemetry": ["./projects/telemetry/src/public-api.ts"],
+      "@vt/api-client": ["./projects/api-client/src/public-api.ts"]
     },
     "strict": true,
     "noImplicitOverride": true,
@@ -100,6 +88,12 @@
     },
     {
       "path": "./projects/fe-admin/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/fe-plugin-giaoduc/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/fe-plugin-giaoduc/tsconfig.spec.json"
     },
     {
       "path": "./projects/design-system/tsconfig.lib.json"

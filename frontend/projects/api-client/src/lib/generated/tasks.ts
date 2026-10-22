@@ -210,6 +210,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/tasks/exports/{jobId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        jobId: components['parameters']['JobId'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Tải tệp xuất danh sách nhiệm vụ
+     * @description Tệp Excel do `exportTasks` tạo; `resultLocation` của job trỏ tới đây. Chỉ người tạo tác vụ tải được, tệp giữ trong một giờ. (suy luận: TL-02 không ghi đường tải tệp xuất.)
+     */
+    get: operations['downloadTaskExport'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/tasks/{id}': {
     parameters: {
       query?: never;
@@ -363,6 +385,28 @@ export interface paths {
      * @description Chuyển trạng thái chung cho những bước không có thao tác riêng (ví dụ tiếp tục sau `TAM_DUNG`). Giao, nhận việc, tạm dừng và huỷ có duyệt đi qua thao tác riêng (`assign`, `accept`, `change-requests`). Máy chủ kiểm bảng chuyển của baseline mục 9.1; chuyển không hợp lệ trả 409 mã `TASK-409-INVALID-TRANSITION`.
      */
     post: operations['transitionTask'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tasks/{id}/delay-risk': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Ghi dự báo nguy cơ trễ hạn của nhiệm vụ (bộ dự báo SVC-15)
+     * @description Cổng ghi nội bộ cho tài khoản dịch vụ của bộ dự báo nguy cơ trễ (DV-15-10), vì SVC-15 không được ghi schema `task` (TL-03 chương 2). Chỉ nhận token client credentials; token người dùng trả 403. Kết quả có `computedAt` cũ hơn dự báo đang lưu trả 409 `TASK-409-STALE-DELAY-RISK`; nhiệm vụ ở `HOAN_THANH`, `HUY` hoặc `TAM_DUNG` trả 409 `TASK-409-INVALID-STATE`. Ghi dự báo không đổi `rowVersion` (ETag) của nhiệm vụ và không phát sự kiện nghiệp vụ. `getTask` trả kết quả trong `delayRisk`.
+     */
+    put: operations['setTaskDelayRisk'];
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -1389,6 +1433,33 @@ export interface components {
      */
     TaskGroup: 'THUONG_XUYEN' | 'THEN_CHOT';
     /**
+     * @description Mức của từng loại hệ số mở (`coefficient_levels`, BS-03 DC-01), khoá là mã loại hệ số do Policy Pack khai báo, giá trị là mã mức; mặc định `{}`. Lõi chỉ lưu mức, bảng quy đổi mức ra giá trị nằm trong gói theo kỳ. Mức khó năm mức vẫn ở `difficulty`.
+     * @example {
+     *       "he_so_nhom": "NHOM_2"
+     *     }
+     */
+    CoefficientLevels: {
+      [key: string]: string;
+    };
+    /** @description Mã trục công việc theo danh mục dùng chung của hồ sơ (`axis_code`, BS-03 DC-01), ví dụ `TR1`; null là không gắn trục. */
+    AxisCode: string | null;
+    /**
+     * @description Loại nút trong cây phân rã (`task.task.node_kind`, BS-03 DC-04); mặc định `NHIEM_VU`. Hồ sơ có khuôn phân rã nhiều bậc dùng `KPI` làm nút đo được giữa nhiệm vụ và công việc.
+     * @default NHIEM_VU
+     * @enum {string}
+     */
+    TaskNodeKind: 'NHIEM_VU' | 'KPI' | 'CONG_VIEC' | 'CONG_VIEC_CON';
+    /**
+     * @description Phạm vi của phiên bản danh mục (`task.work_catalog.scope`). Kế thừa bốn cấp hệ thống → khối → tỉnh → đơn vị (BS-03 DC-02); `KHOI`, `TINH` là giá trị bổ sung.
+     * @enum {string}
+     */
+    CatalogScope: 'QUOC_GIA' | 'KHOI' | 'TINH' | 'DON_VI' | 'VI_TRI';
+    /**
+     * @description Nguồn điểm nghẽn (`task_blocker.origin`, BS-03): `NGUOI_DUNG` do người báo (mặc định), `TU_DONG` do job của lõi sinh khi một quy tắc cảnh báo của hồ sơ khớp.
+     * @enum {string}
+     */
+    BlockerOrigin: 'NGUOI_DUNG' | 'TU_DONG';
+    /**
      * @description Nguồn nhiệm vụ (`task.task.source`, ràng buộc `ck_task__source` của TL-03). TL-02 gọi nguồn ngoài kế hoạch là "phát sinh"; giá trị giữ `DOT_XUAT` theo TL-03.
      * @enum {string}
      */
@@ -1522,6 +1593,9 @@ export interface components {
       handlerName?: string;
       resolveBy?: components['schemas']['Date'];
       status: components['schemas']['BlockerStatus'];
+      origin?: components['schemas']['BlockerOrigin'];
+      /** @description Mã quy tắc cảnh báo đã sinh điểm nghẽn khi `origin = TU_DONG`; dòng tự sinh idempotent theo (`task_id`, `rule_code`, ngày chạy). */
+      ruleCode?: string | null;
       createdAt: components['schemas']['DateTime'];
       rowVersion?: components['schemas']['RowVersion'];
     };
@@ -1610,6 +1684,15 @@ export interface components {
       neededWorkingDays: number;
       explanation: string;
     };
+    /** @description Kết quả dự báo nguy cơ trễ hạn do SVC-15 gửi về (CORE-02-26, DV-15-10). */
+    TaskDelayRiskInput: {
+      /** @enum {string} */
+      level: 'THAP' | 'VUA' | 'CAO';
+      neededWorkingDays: number;
+      explanation: string;
+      computedAt: components['schemas']['DateTime'];
+      basedOnProgressId?: components['schemas']['Uuid'];
+    };
     /** @description Chi tiết nhiệm vụ (SCR-0601). */
     TaskDetail: components['schemas']['TaskSummary'] & {
       description: string;
@@ -1622,6 +1705,13 @@ export interface components {
       catalogItemCode?: string;
       difficulty?: number;
       standardScore?: number;
+      coefficientLevels?: components['schemas']['CoefficientLevels'];
+      axisCode?: components['schemas']['AxisCode'];
+      nodeKind?: components['schemas']['TaskNodeKind'];
+      /** @description Việc cha trong cây phân rã (`parent_task_id`); null là nút gốc. */
+      parentTaskId?: components['schemas']['Uuid'] | null;
+      /** @description Điểm thành phần của việc con (`component_score numeric(6,3)`, BS-03 DC-06) khi hồ sơ dùng chế độ `MOT_NGUOI_MOT_VIEC`; tổng điểm thành phần của các việc con bằng điểm của việc cha. */
+      componentScore?: number | null;
       assignedAt?: components['schemas']['DateTime'];
       acceptorName: string;
       /** @description Hạn tính hệ số tiến độ C, khác `dueDate` là hạn thực hiện (BR-06-04, BR-06-05). */
@@ -1744,6 +1834,13 @@ export interface components {
       };
       /** @description Căn cứ của nhiệm vụ phát sinh ngoài kế hoạch (BR-05-09) */
       basis?: string;
+      coefficientLevels?: components['schemas']['CoefficientLevels'];
+      axisCode?: components['schemas']['AxisCode'];
+      nodeKind?: components['schemas']['TaskNodeKind'];
+      /** @description Việc cha trong cây phân rã (`parent_task_id`); null là nút gốc. */
+      parentTaskId?: components['schemas']['Uuid'] | null;
+      /** @description Điểm thành phần của việc con (`component_score numeric(6,3)`, BS-03 DC-06) khi hồ sơ dùng chế độ `MOT_NGUOI_MOT_VIEC`; tổng điểm thành phần của các việc con bằng điểm của việc cha. */
+      componentScore?: number | null;
     };
     TaskDraftTemplate: {
       period: components['schemas']['PeriodRef'];
@@ -1976,6 +2073,11 @@ export interface components {
       flows?: components['schemas']['Flow'][];
       /** @description Bắt buộc với mỗi thay đổi ở phiên bản điều chỉnh (BR-04-10) */
       changeReason?: string;
+      coefficientLevels?: components['schemas']['CoefficientLevels'];
+      axisCode?: components['schemas']['AxisCode'];
+      nodeKind?: components['schemas']['TaskNodeKind'];
+      /** @description Điểm thành phần của dòng con khi hồ sơ dùng chế độ `MOT_NGUOI_MOT_VIEC` (BS-03 DC-06). */
+      componentScore?: number | null;
     };
     PlanItem: components['schemas']['PlanItemInput'] & {
       lineNo: number;
@@ -2090,6 +2192,8 @@ export interface components {
       effectiveFromLabel?: string;
       effectiveFromDate?: components['schemas']['Date'];
       parentCatalogName?: string;
+      /** @description Phạm vi kế thừa của phiên bản danh mục (BS-03 DC-02). */
+      scope?: components['schemas']['CatalogScope'];
       itemCount: number;
       positionCount: number;
       rowVersion: components['schemas']['RowVersion'];
@@ -2132,6 +2236,13 @@ export interface components {
       usagePeriods?: number;
       /** @description Đã dùng ở kỳ đã khoá (BR-04-13) */
       usedInLockedPeriod?: boolean;
+      coefficientLevels?: components['schemas']['CoefficientLevels'];
+      axisCode?: components['schemas']['AxisCode'];
+      nodeKind?: components['schemas']['TaskNodeKind'];
+      /** @description Tỷ lệ chỉnh điểm chuẩn tối thiểu cho phép so với dòng cha ở danh mục cấp trên (`score_adjust_min`, BS-03 DC-02), ví dụ -0.2 là giảm tối đa 20%; null là không được chỉnh. */
+      scoreAdjustMin?: number | null;
+      /** @description Tỷ lệ chỉnh điểm chuẩn tối đa so với dòng cha (`score_adjust_max`, BS-03 DC-02); null là không được chỉnh. */
+      scoreAdjustMax?: number | null;
       rowVersion?: components['schemas']['RowVersion'];
     };
     CatalogItemInput: {
@@ -2148,6 +2259,13 @@ export interface components {
       defaultGroup: components['schemas']['TaskGroup'];
       standardDays?: number;
       status?: components['schemas']['CatalogItemStatus'];
+      coefficientLevels?: components['schemas']['CoefficientLevels'];
+      axisCode?: components['schemas']['AxisCode'];
+      nodeKind?: components['schemas']['TaskNodeKind'];
+      /** @description Tỷ lệ chỉnh điểm chuẩn tối thiểu cho phép so với dòng cha ở danh mục cấp trên (`score_adjust_min`, BS-03 DC-02), ví dụ -0.2 là giảm tối đa 20%; null là không được chỉnh. */
+      scoreAdjustMin?: number | null;
+      /** @description Tỷ lệ chỉnh điểm chuẩn tối đa so với dòng cha (`score_adjust_max`, BS-03 DC-02); null là không được chỉnh. */
+      scoreAdjustMax?: number | null;
     };
     CatalogItemSaveResult: {
       item: components['schemas']['CatalogItem'];
@@ -2803,7 +2921,32 @@ export interface operations {
     };
     responses: {
       202: components['responses']['Accepted'];
+      /** @description Người dùng đang có một tác vụ xuất chưa xong (`TASK-429-EXPORT-RUNNING`). */
       429: components['responses']['TooManyRequests'];
+      default: components['responses']['Problem'];
+    };
+  };
+  downloadTaskExport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        jobId: components['parameters']['JobId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Tệp Excel danh sách nhiệm vụ theo các cột đang hiển thị. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': string;
+        };
+      };
+      404: components['responses']['NotFound'];
       default: components['responses']['Problem'];
     };
   };
@@ -2960,7 +3103,7 @@ export interface operations {
       403: components['responses']['Forbidden'];
       /** @description Lệch phiên bản, kỳ đã khoá, hoặc nhiệm vụ không còn `NHAP`. */
       409: components['responses']['Conflict'];
-      /** @description Vi phạm quy tắc chặn của QT-05 bước 5 (mỗi lỗi trong `errors[]` có `rule`). */
+      /** @description Vi phạm quy tắc chặn của QT-05 bước 5 (mỗi lỗi trong `errors[]` có `rule`). Mã lỗi `TASK-422-ASSIGNMENT-MODE` khi hồ sơ tập khách hàng đặt chế độ phân công `MOT_NGUOI_MOT_VIEC` mà việc lá có nhiều hơn một người, hoặc điểm thành phần của việc con không cộng bằng điểm việc cha (BS-03 DC-06; tham số đọc qua Policy Pack, không viết cứng). */
       422: components['responses']['UnprocessableEntity'];
       428: components['responses']['PreconditionRequired'];
       default: components['responses']['Problem'];
@@ -3087,6 +3230,40 @@ export interface operations {
       default: components['responses']['Problem'];
     };
   };
+  setTaskDelayRisk: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TaskDelayRiskInput'];
+      };
+    };
+    responses: {
+      /** @description Đã lưu dự báo. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      /** @description Đã có dự báo mới hơn (`TASK-409-STALE-DELAY-RISK`) hoặc nhiệm vụ đã kết thúc, tạm dừng (`TASK-409-INVALID-STATE`). */
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
   remindTask: {
     parameters: {
       query?: never;
@@ -3115,6 +3292,7 @@ export interface operations {
         content?: never;
       };
       403: components['responses']['Forbidden'];
+      /** @description Đã nhắc nhiệm vụ này trong 24 giờ qua (`TASK-429-REMINDED`). */
       429: components['responses']['TooManyRequests'];
       default: components['responses']['Problem'];
     };
