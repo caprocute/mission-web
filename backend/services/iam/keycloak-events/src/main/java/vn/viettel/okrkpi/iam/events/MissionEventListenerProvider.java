@@ -29,7 +29,9 @@ import org.keycloak.models.utils.KeycloakModelUtils;
  * consumer ghi danh sách thu hồi cho APISIX.
  * <p>Tenant của người dùng là thuộc tính {@code tenant_id} (đồng bộ người dùng DV-02-06 ghi). Thiết bị nhận diện bằng
  * băm SHA-256 của User-Agent, lưu tối đa {@value #MAX_DEVICES} giá trị gần nhất ở thuộc tính
- * {@value #DEVICES_ATTRIBUTE}; lần đăng nhập đầu tiên chỉ ghi nhận, không báo (suy luận, ghi ở wiki trang 14).
+ * {@value #DEVICES_ATTRIBUTE}; lần đăng nhập đầu tiên chỉ ghi nhận, không báo (suy luận, ghi ở wiki trang 14). Khi
+ * đăng nhập qua luồng {@code mission-browser} (DV-02-03), thiết bị và vị trí mới do bước đánh giá MFA quyết định và ghi
+ * ở chi tiết sự kiện {@code mission_device_new}.
  */
 final class MissionEventListenerProvider implements EventListenerProvider {
 
@@ -59,8 +61,14 @@ final class MissionEventListenerProvider implements EventListenerProvider {
       String userAgent = header("User-Agent");
       String traceparent = header("traceparent");
       Instant at = Instant.ofEpochMilli(event.getTime());
-      Lookup lookup = userId == null ? new Lookup(EventMapper.UNKNOWN_TENANT, false, 0)
-          : lookup(event.getRealmId(), event.getUserId(), "LOGIN".equals(type) ? deviceKey(userAgent) : null);
+      // Luồng mission-browser (DV-02-03) đã tự đánh giá và ghi thiết bị; luồng khác dùng dấu vân tay User-Agent.
+      String fromFlow = event.getDetails() == null ? null
+          : event.getDetails().get(MissionMfaPolicyAuthenticator.DETAIL_NEW_DEVICE);
+      String key = "LOGIN".equals(type) && fromFlow == null ? deviceKey(userAgent) : null;
+      Lookup found = userId == null ? new Lookup(EventMapper.UNKNOWN_TENANT, false, 0)
+          : lookup(event.getRealmId(), event.getUserId(), key);
+      Lookup lookup = fromFlow == null || !"LOGIN".equals(type) ? found
+          : new Lookup(found.tenant(), Boolean.parseBoolean(fromFlow), found.waitSeconds());
       EventMapper.Context c = new EventMapper.Context(lookup.tenant(), at, userId, traceparent);
       EventMapper.authEvent(c, type, userId, event.getClientId(), event.getSessionId(), event.getError())
           .ifPresent(queue::offer);

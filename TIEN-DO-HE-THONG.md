@@ -354,7 +354,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-02-01](docs/tasks/DV-02-01-mau-realm-production.md) | Mẫu realm production theo cell với Organizations, PKCE, chính sách mật khẩu, khoá sau 5 lần sai, thời hạn phiên | M | B5 | 1 | – | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
 | [DV-02-02](docs/tasks/DV-02-02-claim-ngu-canh.md) | Protocol mapper claim ngữ cảnh và API chọn đơn vị, vai trò (`PUT /org/me/context`) | M | B5 | 12 | DV-02-01, DV-04-04 | **Đã gộp main** | Đã gộp main (nhánh B1 d598b9e) |
-| [DV-02-03](docs/tasks/DV-02-03-mfa-step-up.md) | MFA theo vai trò, thiết bị, rủi ro; step-up `acr` và `auth_time` | M | B5 | 2 | DV-02-01 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
+| [DV-02-03](docs/tasks/DV-02-03-mfa-step-up.md) | MFA theo vai trò, thiết bị, rủi ro; step-up `acr` và `auth_time` | M | B5 | 2 | DV-02-01 | **Đã gộp main** | Luồng đăng nhập theo bậc xác thực, MFA theo vai trò, thiết bị, rủi ro |
 | [DV-02-04](docs/tasks/DV-02-04-moi-gioi-vneid.md) | Môi giới VNeID: state, nonce, PKCE, liên kết danh tính bằng HMAC | L | B5 | 10 | DV-02-01, DV-04-01, NEN-015 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần môi trường thử VNeID |
 | [DV-02-05](docs/tasks/DV-02-05-su-kien-keycloak.md) | Event listener Keycloak đẩy `iam.auth.event.v1`, báo truy cập bất thường, thu hồi phiên | M | B5 | 4 | DV-02-01, NEN-007 | **Đã gộp main** | Đã gộp main (nhánh B1 37a1606) |
 | [DV-02-06](docs/tasks/DV-02-06-dong-bo-nguoi-dung.md) | Consumer EVT-16 đồng bộ người dùng qua Admin API | M | B5 | 12 | DV-02-01, DV-04-03 | **Đã gộp main** | Đã gộp main (nhánh B1 6389317) |
@@ -751,4 +751,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 02:12 | Điều phối | `DV-06-05` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (nhánh B6 fad5653) |
 | 22/10/2026 02:25 | Điều phối | `DV-02-02` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (nhánh B1 d598b9e) |
 | 22/10/2026 02:38 | Điều phối | `DV-10-01` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (nhánh B6 bd3538e) |
+| 22/10/2026 03:03 | Điều phối | `DV-02-03` | Chuyển trạng thái sang **Đã gộp main** — Luồng đăng nhập theo bậc xác thực, MFA theo vai trò, thiết bị, rủi ro |
 <!-- PROGRESS_LOG_END -->

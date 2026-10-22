@@ -184,6 +184,81 @@ class RealmTemplateKeycloakIT {
   }
 
   // ------------------------------------------------------------------------------------------
+  // Bậc xác thực và MFA (DV-02-03, BR-00-01, BR-00-06)
+  // ------------------------------------------------------------------------------------------
+
+  /** Cài SmartOTP trên trang bắt buộc cài đặt rồi gửi mã; trả về {@code code}. */
+  private static String configureTotp(OidcBrowser b) {
+    assertThat(b.hasForm("kc-totp-settings-form")).as(b.pageSummary()).isTrue();
+    String secret = b.hiddenValue("totpSecret");
+    return b.submitForm("kc-totp-settings-form", Map.of("totp", OidcBrowser.totp(secret), "totpSecret", secret,
+        "userLabel", "SmartOTP")).orElseThrow(() -> new AssertionError(b.pageSummary()));
+  }
+
+  private static JsonNode accessClaims(OidcBrowser b, String code) {
+    HttpResponse<String> tr = b.exchange(code, b.codeVerifier);
+    assertThat(tr.statusCode()).as(tr.body()).isEqualTo(200);
+    return OidcBrowser.decodeJwt(RepoFiles.readYaml(tr.body()).path("access_token").asText())[1];
+  }
+
+  @Test
+  void vaiTroAal2KhongVaoDuocChiBangMatKhau() {
+    String password = newPassword();
+    String userId = admin.createUser(REALM, "tham.dinh", password);
+    JsonNode role = admin.get("/admin/realms/" + REALM + "/roles/appraiser");
+    assertThat(admin.post("/admin/realms/" + REALM + "/users/" + userId + "/role-mappings/realm",
+        RepoFiles.JSON.createArrayNode().add(role)).statusCode()).isEqualTo(204);
+
+    OidcBrowser b = browser(REALM);
+    assertThat(b.openLoginPage()).isTrue();
+    assertThat(b.submitLogin("tham.dinh", password)).as("chỉ mật khẩu không nhận được code").isEmpty();
+    JsonNode claims = accessClaims(b, configureTotp(b));
+    assertThat(claims.path("acr").asText()).isEqualTo("aal2");
+  }
+
+  @Test
+  void thietBiMoiBiHoiOtp() {
+    String password = newPassword();
+    admin.createUser(REALM, "thiet.bi.moi", password);
+    OidcBrowser quen = browser(REALM);
+    quen.userAgent = "Mozilla/5.0 (Windows NT 10.0) Trinh-duyet-co-quan/1.0";
+    assertThat(quen.openLoginPage()).isTrue();
+    String code = quen.submitLogin("thiet.bi.moi", password).orElseThrow(() -> new AssertionError(quen.pageSummary()));
+    assertThat(accessClaims(quen, code).path("acr").asText()).isEqualTo("aal1");
+
+    // Trình duyệt khác trên cùng thiết bị (cùng dấu vân tay User-Agent) đăng nhập lại: không hỏi OTP.
+    OidcBrowser quenLai = browser(REALM);
+    quenLai.userAgent = quen.userAgent;
+    assertThat(quenLai.openLoginPage()).isTrue();
+    assertThat(quenLai.submitLogin("thiet.bi.moi", password)).isPresent();
+
+    OidcBrowser moi = browser(REALM);
+    moi.userAgent = "Mozilla/5.0 (Linux; Android 14) Thiet-bi-la/2.0";
+    assertThat(moi.openLoginPage()).isTrue();
+    assertThat(moi.submitLogin("thiet.bi.moi", password)).as("thiết bị mới phải qua bậc 2").isEmpty();
+    assertThat(moi.hasForm("kc-totp-settings-form") || moi.hasForm("kc-otp-login-form")).as(moi.pageSummary())
+        .isTrue();
+  }
+
+  @Test
+  void xinAal2TraTokenAal2VaAuthTimeMoi() throws InterruptedException {
+    String password = newPassword();
+    admin.createUser(REALM, "buoc.len", password);
+    OidcBrowser b = browser(REALM);
+    assertThat(b.openLoginPage()).isTrue();
+    String code = b.submitLogin("buoc.len", password).orElseThrow(() -> new AssertionError(b.pageSummary()));
+    JsonNode aal1 = accessClaims(b, code);
+    assertThat(aal1.path("acr").asText()).isEqualTo("aal1");
+
+    Thread.sleep(1500);
+    assertThat(b.authorizeWith(Map.of("acr_values", "aal2"))).as("phải hỏi bậc 2").isEmpty();
+    JsonNode aal2 = accessClaims(b, configureTotp(b));
+    assertThat(aal2.path("acr").asText()).isEqualTo("aal2");
+    assertThat(aal2.path("auth_time").asLong()).isGreaterThan(aal1.path("auth_time").asLong());
+    assertThat(aal2.path("sid").asText()).isEqualTo(aal1.path("sid").asText());
+  }
+
+  // ------------------------------------------------------------------------------------------
   // Authorization Code + PKCE (SEC-17)
   // ------------------------------------------------------------------------------------------
 
