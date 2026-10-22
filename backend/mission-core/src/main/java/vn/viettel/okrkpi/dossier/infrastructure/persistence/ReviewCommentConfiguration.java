@@ -36,12 +36,12 @@ public class ReviewCommentConfiguration {
     }
     return new CommentSealer() {
       @Override
-      public Sealed seal(TenantId tenant, UUID commentId, String plain) {
+      public Sealed seal(TenantId tenant, String column, UUID rowId, String plain) {
         throw new IllegalStateException("Chưa cấu hình mã hoá trường C2");
       }
 
       @Override
-      public String open(TenantId tenant, UUID commentId, byte[] cipher) {
+      public String open(TenantId tenant, String column, UUID rowId, byte[] cipher) {
         throw new IllegalStateException("Chưa cấu hình mã hoá trường C2");
       }
     };

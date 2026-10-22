@@ -289,6 +289,7 @@ public class ReviewMeetingService {
             current.voteJson(),
             current.minutesSha256(),
             current.signRequestId(),
+            current.proceedings(),
             current.rowVersion());
     return view(tenant, save(tenant, next, expectedVersion, actor));
   }
@@ -332,6 +333,7 @@ public class ReviewMeetingService {
             current.voteJson(),
             current.minutesSha256(),
             current.signRequestId(),
+            current.proceedings(),
             current.rowVersion());
     MeetingRow saved = save(tenant, next, expectedVersion, actor);
     List<UUID> recipients =
@@ -404,7 +406,8 @@ public class ReviewMeetingService {
     return start.getYear() * 10 + (yearly ? 0 : (start.getMonthValue() - 1) / 3 + 1);
   }
 
-  private MeetingView view(TenantId tenant, MeetingRow row) {
+  /** Hội nghị kèm kiểm tra thời hạn tính lại theo lịch làm việc hiện hành. */
+  public MeetingView view(TenantId tenant, MeetingRow row) {
     return new MeetingView(row, deadline(tenant, row.draftSentAt(), row.scheduledAt()));
   }
 
@@ -413,26 +416,7 @@ public class ReviewMeetingService {
     if (version == 0) {
       throw VersionConflictException.of(MODULE, expectedVersion, next.rowVersion() + 1);
     }
-    return new MeetingRow(
-        next.id(),
-        next.periodId(),
-        next.periodBucket(),
-        next.orgUnitId(),
-        next.meetingType(),
-        next.scheduledAt(),
-        next.location(),
-        next.draftSentAt(),
-        next.chairPersonId(),
-        next.secretaryPersonId(),
-        next.status(),
-        next.meetingAt(),
-        next.subjectPersonId(),
-        next.participants(),
-        next.deadlineOverrideReason(),
-        next.voteJson(),
-        next.minutesSha256(),
-        next.signRequestId(),
-        version);
+    return next.withVersion(version);
   }
 
   private void prepare(TenantId tenant, MeetingRow row) {

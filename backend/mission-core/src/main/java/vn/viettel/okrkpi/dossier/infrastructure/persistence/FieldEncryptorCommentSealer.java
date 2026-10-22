@@ -11,12 +11,10 @@ import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
 /**
- * Nội dung góp ý C2 mã hoá phong bì bằng DEK mục đích {@code GOP_Y_KIEM_DIEM}; AAD là {@code
- * dossier.review_comment.comment_enc} và mã dòng, tenant đi kèm DEK (TL-03, ADR-06).
+ * Nội dung C2 của kiểm điểm (góp ý, hạn chế cần khắc phục) mã hoá phong bì bằng DEK mục đích {@code
+ * GOP_Y_KIEM_DIEM}; AAD là tenant, tên cột đủ và mã dòng (TL-03, ADR-06).
  */
 public class FieldEncryptorCommentSealer implements CommentSealer {
-
-  static final String COLUMN = "dossier.review_comment.comment_enc";
 
   private final FieldEncryptor encryptor;
 
@@ -25,23 +23,23 @@ public class FieldEncryptorCommentSealer implements CommentSealer {
   }
 
   @Override
-  public Sealed seal(TenantId tenant, UUID commentId, String plain) {
+  public Sealed seal(TenantId tenant, String column, UUID rowId, String plain) {
     EncryptedField f =
         encryptor.encryptField(
             tenant.value(),
             DekPurpose.GOP_Y_KIEM_DIEM,
-            aad(tenant, commentId),
+            aad(tenant, column, rowId),
             plain.getBytes(StandardCharsets.UTF_8));
     return new Sealed(f.ciphertext(), f.dekId());
   }
 
   @Override
-  public String open(TenantId tenant, UUID commentId, byte[] cipher) {
+  public String open(TenantId tenant, String column, UUID rowId, byte[] cipher) {
     return encryptor.decryptToString(
-        tenant.value(), DekPurpose.GOP_Y_KIEM_DIEM, aad(tenant, commentId), cipher);
+        tenant.value(), DekPurpose.GOP_Y_KIEM_DIEM, aad(tenant, column, rowId), cipher);
   }
 
-  private static List<String> aad(TenantId tenant, UUID commentId) {
-    return List.of(tenant.value().toString(), COLUMN, commentId.toString());
+  private static List<String> aad(TenantId tenant, String column, UUID rowId) {
+    return List.of(tenant.value().toString(), column, rowId.toString());
   }
 }
