@@ -813,6 +813,18 @@ Mã nguồn ở `services-py/anomaly-job`, bảng kết quả ở migration `ana
 7. **Lấy ngưỡng theo tenant** dựa vào client dịch vụ `anomaly-job` được khai báo trong danh sách client ủy quyền tenant (`X-Tenant-Id`) của mission-core; khai báo client ở Keycloak và danh sách đó thuộc phần cấu hình môi trường. Không lấy được ngưỡng thì bỏ qua tenant (fail closed) và job thoát mã khác 0.
 8. **Chờ INF:** chart, ExternalSecret, NetworkPolicy và lịch chạy thật của CronJob (`deploy/cronjob.yaml` chỉ là mẫu).
 
+## Ghi chú và quyết định từ dự báo nguy cơ trễ hạn (DV-15-10, 22/10/2026)
+
+Mã nguồn ở `services-py/anomaly-job/app/delay_risk`, bộ ca vàng ở `data/golden/delay-risk`.
+
+1. **Cách tính (suy luận).** TL-02a chỉ nói "tính nhịp thực hiện từ lịch sử tiến độ và sản phẩm đã nộp, so với số ngày làm việc còn lại". Dịch vụ lấy nhịp là lượng hoàn thành mỗi ngày làm việc trong 5 ngày làm việc gần nhất (hoặc từ ngày bắt đầu nếu muộn hơn), lượng là số lượng đã hoàn thành khi nhiệm vụ có số lượng kế hoạch, ngược lại là tỷ lệ tiến độ; n = trần(phần còn lại / nhịp), m = số ngày làm việc trong (hôm nay, hạn hiện hành], hạn hiện hành là hạn gia hạn nếu có. Ví dụ của SCR-0601 (nhịp 3 hồ sơ mỗi ngày, còn 7 hồ sơ, còn 2 ngày, mức Cao) là ca T01 của bộ ca vàng. Số sản phẩm đã nộp chưa đi vào công thức vì kho chưa có số lượng sản phẩm yêu cầu theo nhiệm vụ; khi có, có thể lấy mức thấp hơn của hai nhịp.
+2. **Ngưỡng mặc định (suy luận):** Thấp khi n/m ≤ 0,8, Trung bình khi 0,8 < n/m ≤ 1,0, Cao khi n/m > 1,0, khi đã hết hạn mà chưa xong hoặc khi nhịp bằng 0; cần tối thiểu 1 ngày làm việc từ khi bắt đầu mới dự báo. Các ngưỡng đặt trong cấu hình dịch vụ (`DELAY_RISK_*`), chưa có trong bộ cấu hình tenant. Dữ liệu giữ giá trị `VUA`, giao diện hiển thị "Trung bình".
+3. **Chỉ dự báo nhiệm vụ trạng thái `DA_GIAO`, `DANG_THUC_HIEN`.** Nhiệm vụ đã chuyển trạng thái khác giữ giá trị cũ; dịch vụ không xoá `delay_risk`.
+4. **Cổng ghi đề xuất cho MOD-02 (chờ duyệt hợp đồng, CORE-02 hiện thực).** `tasks.yaml` chưa có operation nội bộ cập nhật `delay_risk`, và theo TL-03 chương 2 SVC-15 không ghi được schema `task`. Đề xuất `PUT /api/v1/tasks/{taskId}/delay-risk` cho client dịch vụ (ủy quyền tenant qua `X-Tenant-Id`, có `Idempotency-Key`), thân `{level, neededWorkingDays (null khi nhịp bằng 0), remainingWorkingDays, pace, unit (SO_LUONG, PHAN_TRAM), remainingQuantity, asOf, basedOnReportedAt}`. Thay cho `If-Match` (SVC-15 không biết `row_version` của nhiệm vụ), MOD-02 chỉ nhận khi `basedOnReportedAt` không cũ hơn giá trị đã lưu, ngược lại trả 409; MOD-02 dựng `DelayRisk.explanation` (MSG-06-02) từ n, m. Kiểm thử dùng cổng giả theo đúng hành vi này.
+5. **Thứ tự và CDC chậm.** Dịch vụ không dùng giá trị trong EVT-05 mà luôn tính lại từ trạng thái mới nhất của kho, nên sự kiện phát lại hoặc đến lệch thứ tự không làm lùi kết quả. Dịch vụ chờ tới khi bản ghi tiến độ của sự kiện có trong kho, tối đa 240 giây để giữ ngân sách 5 phút, quá thì bỏ và giữ giá trị cũ. Offset chỉ được ghi tới sự kiện sớm nhất còn chờ của mỗi phân vùng.
+6. **Lịch ngày làm việc** lấy qua `getWorkingCalendar` theo tenant và năm, đệm một giờ; ngữ nghĩa đếm và cộng ngày khớp bộ ca `data/golden/ngay-lam-viec` (kiểm thử chạy lại cả bộ ca đó).
+7. **Chờ INF:** chart, ExternalSecret, NetworkPolicy của `deploy/delay-risk.yaml`, khai báo client dịch vụ `delay-risk` ở Keycloak và trong danh sách client ủy quyền tenant của mission-core.
+
 ## Liên quan
 
 - [README của wiki](README.md)

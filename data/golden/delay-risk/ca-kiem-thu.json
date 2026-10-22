@@ -1,0 +1,67 @@
+{
+ "_ghi_chu": "n, m tính tay: m = số ngày làm việc trong (19/10, hạn]; nhịp = (giá trị 19/10 − giá trị đầu cửa sổ) / số ngày làm việc của cửa sổ (12/10 hoặc ngày bắt đầu nếu muộn hơn, tới 19/10]; n = trần(phần còn lại / nhịp). null là không dự báo (giữ giá trị cũ).",
+ "ket_qua": {
+  "T01": {
+   "muc": "CAO",
+   "n": 3,
+   "m": 2,
+   "giai_thich": "cửa sổ (14/10, 19/10] 3 ngày, nhịp (11−2)/3 = 3, còn 7 → n = 3; m = 20, 21/10"
+  },
+  "T02": {
+   "muc": "THAP",
+   "n": 7,
+   "m": 9,
+   "giai_thich": "nhịp 0,30/5 = 0,06, còn 0,40 → n = 7; m = 20–23, 26–30/10; 7/9 = 0,78"
+  },
+  "T03": {
+   "muc": "VUA",
+   "n": 7,
+   "m": 7,
+   "giai_thich": "m = 20–23, 26–28/10; 7/7 = 1,0"
+  },
+  "T04": {
+   "muc": "CAO",
+   "n": 7,
+   "m": 6,
+   "giai_thich": "m = 20–23, 26, 27/10; 7/6 = 1,17"
+  },
+  "T05": {
+   "muc": "THAP",
+   "n": 0,
+   "m": 4,
+   "giai_thich": "đã đủ 10/10"
+  },
+  "T06": {
+   "muc": "CAO",
+   "n": null,
+   "m": 30,
+   "giai_thich": "nhịp 0; m = 9 ngày tháng 10 + 21 ngày tháng 11"
+  },
+  "T07": {
+   "muc": "CAO",
+   "n": 8,
+   "m": 0,
+   "giai_thich": "hạn 16/10 đã qua; nhịp 0,20/5 = 0,04, còn 0,30 → n = 8"
+  },
+  "T08": null,
+  "T09": null,
+  "T10": {
+   "muc": "VUA",
+   "n": 13,
+   "m": 14,
+   "giai_thich": "hạn gia hạn 06/11; nhịp 0,25/5 = 0,05, còn 0,65 → n = 13; m = 9 + 5"
+  },
+  "T11": {
+   "muc": "THAP",
+   "n": 40,
+   "m": 54,
+   "giai_thich": "nhịp 0,02, còn 0,80 → n = 40; m = 9 + 21 + 23 + 1 (01/01/2027 nghỉ)"
+  },
+  "T12": {
+   "muc": "VUA",
+   "n": 8,
+   "m": 8,
+   "giai_thich": "đầu cửa sổ 12/10 chưa có báo cáo nên là 0; nhịp 8/5 = 1,6, còn 12 → n = 8; m = 20–23, 26–29/10"
+  }
+ }
+}

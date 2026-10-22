@@ -82,6 +82,10 @@ class Stub(http.server.BaseHTTPRequestHandler):
 
     thresholds: ClassVar[dict[str, dict[str, Any]]] = {}
     calls: ClassVar[list[tuple[str, str | None, str | None]]] = []
+    calendar: ClassVar[list[dict[str, str]]] = []
+    # Cổng MOD-02 giả cho dự báo trễ hạn: (tenant, task) → thân đã lưu; mọi lời gọi ghi kèm thời điểm nhận.
+    delay_risk: ClassVar[dict[tuple[str, str], dict[str, Any]]] = {}
+    delay_calls: ClassVar[list[tuple[float, str, str, dict[str, Any], int]]] = []
 
     def log_message(self, *_: Any) -> None:
         pass
@@ -98,8 +102,30 @@ class Stub(http.server.BaseHTTPRequestHandler):
         self.rfile.read(int(self.headers.get("Content-Length", "0")))
         self._send(200, {"access_token": "tok-" + secrets.token_hex(4), "expires_in": 300})
 
+    def do_PUT(self) -> None:
+        tenant = self.headers.get("X-Tenant-Id") or ""
+        body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
+        parts = self.path.split("/")
+        if len(parts) != 6 or parts[1:4] != ["api", "v1", "tasks"] or parts[5] != "delay-risk" \
+                or not self.headers.get("Idempotency-Key", "").strip() or not self.headers.get("Authorization"):
+            self._send(400, {"status": 400})
+            return
+        key = (tenant, parts[4])
+        old = self.delay_risk.get(key)
+        code = 409 if old and old["basedOnReportedAt"] > body["basedOnReportedAt"] else 200
+        if code == 200:
+            self.delay_risk[key] = body
+        self.delay_calls.append((time.monotonic(), tenant, parts[4], body, code))
+        self._send(code, {"status": code})
+
     def do_GET(self) -> None:
         tenant = self.headers.get("X-Tenant-Id")
+        if self.path.startswith("/api/v1/config/calendar?year="):
+            year = self.path.rsplit("=", 1)[1]
+            self._send(200, {"year": int(year), "weekendDays": [6, 7],
+                             "days": [{**d, "name": "Nghỉ", "scope": "QUOC_GIA"} for d in self.calendar
+                                      if d["date"].startswith(year)]})
+            return
         self.calls.append((self.path, tenant, self.headers.get("Authorization")))
         if self.path != "/api/v1/config/anomaly-thresholds" or tenant not in self.thresholds:
             self._send(503, {"type": "about:blank", "status": 503})
@@ -180,7 +206,8 @@ def env() -> Iterator[Env]:
         load_golden(migrate.ClickHouse(ch_http, "default", admin_pw), db)
         _wait(reg + "/health/ready")
         _register_schema(reg + "/apis/registry/v3")
-        _create_topic(f"127.0.0.1:{kport}")
+        _create_topic(f"127.0.0.1:{kport}", TOPIC)
+        _create_topic(f"127.0.0.1:{kport}", "task.task.progressed.v1")
         Stub.thresholds = {sym("A"): json.loads((GOLDEN / "nguong-mac-dinh.json").read_text(encoding="utf-8"))}
         yield Env(ch_http, admin_pw, db, anomaly_pw, f"127.0.0.1:{kport}", reg + "/apis/registry/v3",
                   f"http://127.0.0.1:{server.server_port}")
@@ -241,7 +268,7 @@ def _register_schema(registry: str) -> None:
         assert r.status == 200
 
 
-def _create_topic(bootstrap: str) -> None:
+def _create_topic(bootstrap: str, topic: str) -> None:
     from confluent_kafka.admin import AdminClient, NewTopic
 
     admin = AdminClient({"bootstrap.servers": bootstrap})
@@ -254,5 +281,5 @@ def _create_topic(bootstrap: str) -> None:
             if time.monotonic() > deadline:
                 raise
             time.sleep(1)
-    for f in admin.create_topics([NewTopic(TOPIC, num_partitions=3, replication_factor=1)]).values():
+    for f in admin.create_topics([NewTopic(topic, num_partitions=3, replication_factor=1)]).values():
         f.result(30)

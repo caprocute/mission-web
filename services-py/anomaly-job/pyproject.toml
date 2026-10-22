@@ -21,10 +21,12 @@ dev = [
     "ruff>=0.8",
     "mypy>=1.13",
     "pip-audit>=2.7",
+    "pyyaml>=6.0.2",
 ]
 
 [project.scripts]
 anomaly-job = "app.main:main"
+delay-risk = "app.delay_risk.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
