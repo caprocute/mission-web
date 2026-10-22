@@ -50,14 +50,15 @@ public class FlowableExternalJobQueue implements ExternalJobQueue {
               .topic(topic, lock)
               .acquireAndLock(remaining, workerId);
       for (AcquiredExternalWorkerJob job : jobs) {
-        toCallback(topic, job).ifPresentOrElse(
-            result::add,
-            () ->
-                management
-                    .createExternalWorkerJobFailureBuilder(job.getId(), workerId)
-                    .errorMessage("Tiến trình không có khoá nghiệp vụ hoặc tenant hợp lệ")
-                    .retries(0)
-                    .fail());
+        toCallback(topic, job)
+            .ifPresentOrElse(
+                result::add,
+                () ->
+                    management
+                        .createExternalWorkerJobFailureBuilder(job.getId(), workerId)
+                        .errorMessage("Tiến trình không có khoá nghiệp vụ hoặc tenant hợp lệ")
+                        .retries(0)
+                        .fail());
       }
     }
     return result;

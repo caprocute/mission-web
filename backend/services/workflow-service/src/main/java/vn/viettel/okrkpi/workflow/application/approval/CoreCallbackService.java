@@ -79,7 +79,8 @@ public class CoreCallbackService {
     try {
       request = request(job, action.get());
     } catch (IllegalArgumentException e) {
-      queue.fail(job, workerId, "Biến tiến trình thiếu hoặc sai: " + e.getMessage(), 0, RETRY_AFTER);
+      queue.fail(
+          job, workerId, "Biến tiến trình thiếu hoặc sai: " + e.getMessage(), 0, RETRY_AFTER);
       return false;
     }
     CoreApprovalGateway.Outcome outcome = core.apply(request);
@@ -141,11 +142,12 @@ public class CoreCallbackService {
         cause);
   }
 
-  /** Khoá cố định theo (tiến trình, bước): lần thử lại dùng lại khoá cũ (quy ước Idempotency-Key). */
+  /**
+   * Khoá cố định theo (tiến trình, bước): lần thử lại dùng lại khoá cũ (quy ước Idempotency-Key).
+   */
   static UUID idempotencyKey(CallbackJob job) {
     return UUID.nameUUIDFromBytes(
-        ("wf:" + job.processInstanceId() + ':' + job.elementId())
-            .getBytes(StandardCharsets.UTF_8));
+        ("wf:" + job.processInstanceId() + ':' + job.elementId()).getBytes(StandardCharsets.UTF_8));
   }
 
   private static long number(Object value) {

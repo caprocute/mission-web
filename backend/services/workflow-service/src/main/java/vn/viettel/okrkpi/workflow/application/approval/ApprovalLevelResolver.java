@@ -101,7 +101,9 @@ public class ApprovalLevelResolver {
       case DON_VI_TRUC_TIEP -> unit.id();
       case CAP_TREN_TRUC_TIEP -> required(unit.parentOn(subject.flow()), "cấp trên trực tiếp");
       case QUAN_LY_TRUC_TIEP ->
-          subject.headOfUnit() ? required(unit.adminParentId(), "đơn vị quản lý trực tiếp") : unit.id();
+          subject.headOfUnit()
+              ? required(unit.adminParentId(), "đơn vị quản lý trực tiếp")
+              : unit.id();
       case CAP_UY_CO_THAM_QUYEN -> partyCommittee(subject.tenantId(), unit, today);
     };
   }

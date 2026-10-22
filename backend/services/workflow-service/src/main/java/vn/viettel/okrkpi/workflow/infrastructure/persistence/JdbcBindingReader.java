@@ -23,10 +23,10 @@ import vn.viettel.okrkpi.workflow.domain.approval.ApprovalScope;
  * sơ ({@code process_kind}), ưu tiên dòng khớp luồng rồi dòng không ghi luồng; dòng gắn khối đối
  * tượng hoặc loại kỳ cụ thể chưa được xét ở DV-06-03 (suy luận, ghi ở wiki trang 14).
  *
- * <p>Khoá của {@code params_json}: {@code remindAfter}, {@code allowDelegation}, {@code
- * signMethod} (TL-01 "Bảng tham số theo tenant") và {@code cap} là danh sách cấp {@code {vai_tro,
- * pham_vi, han_ngay_lam_viec}} hoặc {@code thoi_han_moi_buoc} dạng {@code P3D_LV} (TL-02b
- * SCR-1504). Khoá thiếu lấy mặc định của khối.
+ * <p>Khoá của {@code params_json}: {@code remindAfter}, {@code allowDelegation}, {@code signMethod}
+ * (TL-01 "Bảng tham số theo tenant") và {@code cap} là danh sách cấp {@code {vai_tro, pham_vi,
+ * han_ngay_lam_viec}} hoặc {@code thoi_han_moi_buoc} dạng {@code P3D_LV} (TL-02b SCR-1504). Khoá
+ * thiếu lấy mặc định của khối.
  */
 @Repository
 public class JdbcBindingReader implements BindingReader {

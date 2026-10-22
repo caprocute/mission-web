@@ -24,7 +24,9 @@ public class ApproverTransferService {
     this.engine = engine;
   }
 
-  /** Chuyển user task cho người duyệt mới; trả {@code false} khi người mới đã là người được giao. */
+  /**
+   * Chuyển user task cho người duyệt mới; trả {@code false} khi người mới đã là người được giao.
+   */
   @Transactional(timeout = 5)
   public boolean transfer(Command command) {
     String reason = command.reason() == null ? "" : command.reason().strip();
@@ -32,7 +34,9 @@ public class ApproverTransferService {
       throw new ApprovalSetupException("Lý do chuyển người duyệt phải có và tối đa 2.000 ký tự");
     }
     TaskReassignment.ReassignableTask task =
-        engine.find(command.tenantId(), command.taskId()).orElseThrow(WorkflowNotFoundException::new);
+        engine
+            .find(command.tenantId(), command.taskId())
+            .orElseThrow(WorkflowNotFoundException::new);
     if (!task.delegationAllowed()) {
       throw new ApprovalSetupException("Mẫu luồng của đơn vị không cho phép chuyển người duyệt");
     }

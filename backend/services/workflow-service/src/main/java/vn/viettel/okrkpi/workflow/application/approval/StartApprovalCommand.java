@@ -6,9 +6,9 @@ import vn.viettel.okrkpi.workflow.domain.approval.ApprovalFlow;
 import vn.viettel.okrkpi.workflow.domain.approval.ApprovalTemplate;
 
 /**
- * Yêu cầu khởi tạo luồng duyệt do module lõi gửi khi một đối tượng chuyển {@code CHO_DUYET}
- * (MOD-01 trình OKR, MOD-02 gửi duyệt kế hoạch hoặc đề nghị vượt ngưỡng). Chỉ mang id, mã và tham
- * số nhỏ; dữ liệu nghiệp vụ ở lõi (TL-01 G2).
+ * Yêu cầu khởi tạo luồng duyệt do module lõi gửi khi một đối tượng chuyển {@code CHO_DUYET} (MOD-01
+ * trình OKR, MOD-02 gửi duyệt kế hoạch hoặc đề nghị vượt ngưỡng). Chỉ mang id, mã và tham số nhỏ;
+ * dữ liệu nghiệp vụ ở lõi (TL-01 G2).
  *
  * @param tenantId tenant
  * @param template mẫu luồng
@@ -24,8 +24,8 @@ import vn.viettel.okrkpi.workflow.domain.approval.ApprovalTemplate;
  * @param policyPackVersion phiên bản Policy Pack áp dụng, có thể {@code null}
  * @param planVersionNo số phiên bản kế hoạch, bắt buộc với {@code duyet-ke-hoach-quy}
  * @param taskId nhiệm vụ của đề nghị, bắt buộc với {@code duyet-de-nghi}
- * @param causeClaimed nguyên nhân người gửi nêu ({@code KHACH_QUAN}, {@code CHU_QUAN}), bắt buộc với
- *     {@code duyet-de-nghi}
+ * @param causeClaimed nguyên nhân người gửi nêu ({@code KHACH_QUAN}, {@code CHU_QUAN}), bắt buộc
+ *     với {@code duyet-de-nghi}
  */
 public record StartApprovalCommand(
     UUID tenantId,

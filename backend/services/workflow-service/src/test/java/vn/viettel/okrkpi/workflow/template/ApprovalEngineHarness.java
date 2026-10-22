@@ -83,7 +83,8 @@ final class ApprovalEngineHarness implements AutoCloseable {
     new TemplateDeployer(engine.getRepositoryService(), engine.getRuntimeService(), json)
         .deploy(TemplateCatalog.load(json));
     FlowableApprovalProcesses processes =
-        new FlowableApprovalProcesses(engine.getRuntimeService(), engine.getHistoryService(), null) {
+        new FlowableApprovalProcesses(
+            engine.getRuntimeService(), engine.getHistoryService(), null) {
           @Override
           public void lockStart(UUID tenantId, String templateCode, BusinessKey businessKey) {
             // Khoá tư vấn chỉ có trên PostgreSQL; kiểm ở ApprovalTemplatesIT.
@@ -124,7 +125,9 @@ final class ApprovalEngineHarness implements AutoCloseable {
     return groups;
   }
 
-  /** Hoàn thành task qua bộ chuyển engine thật của DV-06-02 (nhận việc, biến quyết định, ý kiến). */
+  /**
+   * Hoàn thành task qua bộ chuyển engine thật của DV-06-02 (nhận việc, biến quyết định, ý kiến).
+   */
   void complete(UUID tenant, Task task, UUID actor, Decision decision, String comment) {
     OpenTask open = taskEngine.findOpen(tenant, task.getId()).orElseThrow();
     taskEngine.complete(open, new Approver(tenant, actor, Set.of(), null), decision, comment);
@@ -136,7 +139,11 @@ final class ApprovalEngineHarness implements AutoCloseable {
    */
   void runAsyncJobs(String processInstanceId) {
     for (org.flowable.job.api.Job job :
-        engine.getManagementService().createJobQuery().processInstanceId(processInstanceId).list()) {
+        engine
+            .getManagementService()
+            .createJobQuery()
+            .processInstanceId(processInstanceId)
+            .list()) {
       engine.getManagementService().executeJob(job.getId());
     }
   }
@@ -174,7 +181,8 @@ final class ApprovalEngineHarness implements AutoCloseable {
 
     Tree tree(UUID tenant) {
       Tree t =
-          new Tree(tenant, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+          new Tree(
+              tenant, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
       Map<UUID, OrgUnit> m = units.computeIfAbsent(tenant, k -> new HashMap<>());
       m.put(t.dangUy(), new OrgUnit(t.dangUy(), "TO_CHUC_DANG", null, null));
       m.put(t.chiBo(), new OrgUnit(t.chiBo(), "CHI_BO", t.dangUy(), null));

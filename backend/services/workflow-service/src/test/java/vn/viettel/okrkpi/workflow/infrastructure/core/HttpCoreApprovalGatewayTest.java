@@ -34,7 +34,18 @@ class HttpCoreApprovalGatewayTest {
 
   static CoreApprovalGateway.Request request(ApprovalTemplate t, Decision d, String comment) {
     return new CoreApprovalGateway.Request(
-        TENANT, t, d, ID, 7, KEY, UUID.randomUUID(), comment, 3, "MYSIGN", UUID.randomUUID(), "CHU_QUAN");
+        TENANT,
+        t,
+        d,
+        ID,
+        7,
+        KEY,
+        UUID.randomUUID(),
+        comment,
+        3,
+        "MYSIGN",
+        UUID.randomUUID(),
+        "CHU_QUAN");
   }
 
   @Test
@@ -74,7 +85,8 @@ class HttpCoreApprovalGatewayTest {
     CoreApprovalGateway.Request reject =
         request(ApprovalTemplate.DUYET_DE_NGHI, Decision.TRA_LAI, "Không đủ căn cứ");
     server
-        .expect(requestTo(BASE + "/tasks/" + reject.taskId() + "/change-requests/" + ID + "/decision"))
+        .expect(
+            requestTo(BASE + "/tasks/" + reject.taskId() + "/change-requests/" + ID + "/decision"))
         .andExpect(headerDoesNotExist("If-Match"))
         .andExpect(jsonPath("$.approve").value(false))
         .andExpect(jsonPath("$.causeDecided").value("CHU_QUAN"))
@@ -85,7 +97,9 @@ class HttpCoreApprovalGatewayTest {
         .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
     assertThat(gateway.apply(request(ApprovalTemplate.DUYET_KE_HOACH_QUY, Decision.DUYET, null)))
         .isEqualTo(Outcome.APPLIED);
-    assertThat(gateway.apply(request(ApprovalTemplate.DUYET_KE_HOACH_QUY, Decision.TRA_LAI, "Sửa lại")))
+    assertThat(
+            gateway.apply(
+                request(ApprovalTemplate.DUYET_KE_HOACH_QUY, Decision.TRA_LAI, "Sửa lại")))
         .isEqualTo(Outcome.RETRY);
     assertThat(gateway.apply(reject)).isEqualTo(Outcome.REJECTED);
     assertThat(gateway.apply(request(ApprovalTemplate.DUYET_OKR, Decision.TRA_LAI, "x")))
@@ -96,7 +110,8 @@ class HttpCoreApprovalGatewayTest {
   @Test
   void loiMangThiThuLaiVaTepTokenThieuThiBoQua() {
     HttpCoreApprovalGateway gateway =
-        new HttpCoreApprovalGateway(RestClient.builder(), "http://127.0.0.1:1/api/v1", "/khong/ton/tai");
+        new HttpCoreApprovalGateway(
+            RestClient.builder(), "http://127.0.0.1:1/api/v1", "/khong/ton/tai");
     assertThat(gateway.apply(request(ApprovalTemplate.DUYET_OKR, Decision.DUYET, null)))
         .isEqualTo(Outcome.RETRY);
   }

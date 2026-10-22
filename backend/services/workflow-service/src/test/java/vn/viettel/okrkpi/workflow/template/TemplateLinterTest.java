@@ -111,7 +111,8 @@ class TemplateLinterTest {
         .extracting(LintViolation::rule)
         .containsExactly(LintRule.R8_TOI_DA_3_PHIEN_BAN);
     // Không đổi nội dung (không sinh phiên bản mới) thì vẫn đạt.
-    RuntimeSnapshot unchanged = new RuntimeSnapshot(Map.of("mau-hop-le", Set.of(1, 2, 3)), Set.of());
+    RuntimeSnapshot unchanged =
+        new RuntimeSnapshot(Map.of("mau-hop-le", Set.of(1, 2, 3)), Set.of());
     assertThat(LINTER.lint(catalog.templates(), catalog.decisionKeys(), unchanged)).isEmpty();
   }
 
@@ -142,8 +143,11 @@ class TemplateLinterTest {
       deployer.deploy(TemplateCatalog.load(JSON));
       assertThat(engine.getRepositoryService().createProcessDefinitionQuery().count()).isEqualTo(3);
       assertThat(
-              engine.getRepositoryService().createProcessDefinitionQuery()
-                  .processDefinitionWithoutTenantId().count())
+              engine
+                  .getRepositoryService()
+                  .createProcessDefinitionQuery()
+                  .processDefinitionWithoutTenantId()
+                  .count())
           .isEqualTo(3);
       assertThatThrownBy(() -> deployer.deploy(fixture("r4")))
           .isInstanceOf(IllegalStateException.class)

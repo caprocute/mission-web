@@ -5,8 +5,8 @@ import java.util.Map;
 
 /**
  * Khai báo đi kèm mỗi mẫu luồng ({@code processes/<mã>.mau.json}): mô tả nghiệp vụ, người sở hữu,
- * bộ kiểm thử, bảng quyết định dùng, ngân sách biến (TL-01 G2 quy tắc 5, 7) và giới hạn đa thể
- * hiện song song (quy tắc 6).
+ * bộ kiểm thử, bảng quyết định dùng, ngân sách biến (TL-01 G2 quy tắc 5, 7) và giới hạn đa thể hiện
+ * song song (quy tắc 6).
  *
  * @param templateCode mã mẫu, trùng {@code id} của process
  * @param majorVersion phiên bản chính

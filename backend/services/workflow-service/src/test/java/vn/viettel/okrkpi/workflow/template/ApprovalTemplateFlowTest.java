@@ -33,8 +33,9 @@ import vn.viettel.okrkpi.workflow.infrastructure.flowable.FlowableTaskReassignme
 
 /**
  * Kiểm thử Flowable cho một mẫu luồng duyệt phần 1 trên engine thật (H2): duyệt đủ cấp, trả lại ở
- * cấp giữa, quá hạn nhắc, đổi người duyệt khi điều động là uỷ quyền có lưu vết, cấp mặc định từ DMN,
- * khởi tạo idempotent và ngân sách biến. Lớp con chọn mẫu và kiểm trường riêng của lời gọi lõi.
+ * cấp giữa, quá hạn nhắc, đổi người duyệt khi điều động là uỷ quyền có lưu vết, cấp mặc định từ
+ * DMN, khởi tạo idempotent và ngân sách biến. Lớp con chọn mẫu và kiểm trường riêng của lời gọi
+ * lõi.
  */
 abstract class ApprovalTemplateFlowTest {
 
@@ -49,7 +50,9 @@ abstract class ApprovalTemplateFlowTest {
   /** Mẫu đang kiểm. */
   abstract ApprovalTemplate template();
 
-  /** Đơn vị và số ngày làm việc của cấp mặc định do DMN chọn (khối Đảng, không phải người đứng đầu). */
+  /**
+   * Đơn vị và số ngày làm việc của cấp mặc định do DMN chọn (khối Đảng, không phải người đứng đầu).
+   */
   abstract UUID defaultUnit(ApprovalEngineHarness.Tree tree);
 
   abstract int defaultWorkingDays();
@@ -114,7 +117,11 @@ abstract class ApprovalTemplateFlowTest {
   }
 
   List<ExternalWorkerJob> externalJobs(String pid) {
-    return h.engine.getManagementService().createExternalWorkerJobQuery().processInstanceId(pid).list();
+    return h.engine
+        .getManagementService()
+        .createExternalWorkerJobQuery()
+        .processInstanceId(pid)
+        .list();
   }
 
   @Test
@@ -152,7 +159,9 @@ abstract class ApprovalTemplateFlowTest {
     assertThat(call.objectVersion()).isEqualTo(7);
     assertThat(call.deciderId()).isEqualTo(lastActor);
     assertThat(call.idempotencyKey())
-        .isEqualTo(UUID.nameUUIDFromBytes(("wf:" + pid + ":applyApprove").getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        .isEqualTo(
+            UUID.nameUUIDFromBytes(
+                ("wf:" + pid + ":applyApprove").getBytes(java.nio.charset.StandardCharsets.UTF_8)));
     assertTemplateFields(call);
     assertThat(h.ended(pid)).isFalse();
     h.runAsyncJobs(pid);
@@ -175,7 +184,11 @@ abstract class ApprovalTemplateFlowTest {
         .singleElement()
         .satisfies(j -> assertThat(j.getElementId()).isEqualTo("applyReturn"));
     assertThat(
-            h.engine.getHistoryService().createHistoricTaskInstanceQuery().processInstanceId(pid).count())
+            h.engine
+                .getHistoryService()
+                .createHistoricTaskInstanceQuery()
+                .processInstanceId(pid)
+                .count())
         .isEqualTo(2);
 
     h.callbacks.runOnce(WORKER);
@@ -203,7 +216,9 @@ abstract class ApprovalTemplateFlowTest {
     management.executeJob(executable.getId());
 
     List<ExternalWorkerJob> jobs = externalJobs(pid);
-    assertThat(jobs).singleElement().satisfies(j -> assertThat(j.getElementId()).isEqualTo("notifyRemind"));
+    assertThat(jobs)
+        .singleElement()
+        .satisfies(j -> assertThat(j.getElementId()).isEqualTo("notifyRemind"));
     assertThat(h.openTask(pid).getId()).isEqualTo(task.getId());
     // Worker gọi lại lõi không nhận chủ đề nhắc việc.
     assertThat(h.callbacks.runOnce(WORKER)).isZero();
@@ -216,7 +231,9 @@ abstract class ApprovalTemplateFlowTest {
             .acquireAndLock(5, "notification-service");
     assertThat(remind).hasSize(1);
     assertThat(remind.get(0).getTenantId()).isEqualTo(tenant.toString());
-    management.createExternalWorkerCompletionBuilder(remind.get(0).getId(), "notification-service").complete();
+    management
+        .createExternalWorkerCompletionBuilder(remind.get(0).getId(), "notification-service")
+        .complete();
     h.runAsyncJobs(pid);
 
     assertThat(externalJobs(pid)).isEmpty();
@@ -234,18 +251,29 @@ abstract class ApprovalTemplateFlowTest {
     boolean changed =
         h.transfers.transfer(
             new vn.viettel.okrkpi.workflow.application.approval.ApproverTransferService.Command(
-                tenant, first.getId(), substitute, admin, "Trưởng ban được điều động sang đơn vị khác"));
+                tenant,
+                first.getId(),
+                substitute,
+                admin,
+                "Trưởng ban được điều động sang đơn vị khác"));
     assertThat(changed).isTrue();
     Task reassigned = h.openTask(pid);
     assertThat(reassigned.getAssignee()).isEqualTo(substitute.toString());
     List<Comment> comments =
-        h.engine.getTaskService().getTaskComments(first.getId(), FlowableTaskReassignment.COMMENT_TYPE);
-    assertThat(comments).singleElement().satisfies(c -> {
-      assertThat(c.getUserId()).isEqualTo(admin.toString());
-      assertThat(c.getFullMessage()).contains(substitute.toString()).contains("điều động");
-    });
+        h.engine
+            .getTaskService()
+            .getTaskComments(first.getId(), FlowableTaskReassignment.COMMENT_TYPE);
+    assertThat(comments)
+        .singleElement()
+        .satisfies(
+            c -> {
+              assertThat(c.getUserId()).isEqualTo(admin.toString());
+              assertThat(c.getFullMessage()).contains(substitute.toString()).contains("điều động");
+            });
     Map<String, Object> local = h.engine.getTaskService().getVariablesLocal(first.getId());
-    assertThat(local).containsEntry(FlowableTaskReassignment.REASON_VARIABLE, "Trưởng ban được điều động sang đơn vị khác");
+    assertThat(local)
+        .containsEntry(
+            FlowableTaskReassignment.REASON_VARIABLE, "Trưởng ban được điều động sang đơn vị khác");
     // Lặp lại cùng người thay không ghi thêm vết.
     assertThat(
             h.transfers.transfer(
@@ -260,8 +288,12 @@ abstract class ApprovalTemplateFlowTest {
     h.complete(tenant, reassigned, substitute, Decision.DUYET, null);
     assertThat(h.candidateGroups(h.openTask(pid))).containsExactly(group("leader", tree.chiBo()));
     assertThat(
-            h.engine.getHistoryService().createHistoricTaskInstanceQuery()
-                .taskId(first.getId()).singleResult().getAssignee())
+            h.engine
+                .getHistoryService()
+                .createHistoricTaskInstanceQuery()
+                .taskId(first.getId())
+                .singleResult()
+                .getAssignee())
         .isEqualTo(substitute.toString());
   }
 
@@ -273,7 +305,8 @@ abstract class ApprovalTemplateFlowTest {
     assertThatThrownBy(
             () ->
                 h.transfers.transfer(
-                    new vn.viettel.okrkpi.workflow.application.approval.ApproverTransferService.Command(
+                    new vn.viettel.okrkpi.workflow.application.approval.ApproverTransferService
+                        .Command(
                         tenant, first.getId(), UUID.randomUUID(), UUID.randomUUID(), "Điều động")))
         .isInstanceOf(ApprovalSetupException.class);
     assertThat(h.openTask(pid).getAssignee()).isNull();
@@ -295,9 +328,12 @@ abstract class ApprovalTemplateFlowTest {
       }
     }
     assertThat(task.getDueDate().toInstant())
-        .isEqualTo(expected.atTime(17, 0).atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toInstant());
+        .isEqualTo(
+            expected.atTime(17, 0).atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toInstant());
     h.complete(tenant, task, UUID.randomUUID(), Decision.DUYET, null);
-    assertThat(externalJobs(pid)).singleElement().satisfies(j -> assertThat(j.getElementId()).isEqualTo("applyApprove"));
+    assertThat(externalJobs(pid))
+        .singleElement()
+        .satisfies(j -> assertThat(j.getElementId()).isEqualTo("applyApprove"));
     Map<String, Object> vars = h.engine.getRuntimeService().getVariables(pid);
     assertThat(vars).doesNotContainKey(ApprovalVariables.DMN_RESULT);
   }
@@ -313,7 +349,9 @@ abstract class ApprovalTemplateFlowTest {
     assertThat(resubmitted.created()).isTrue();
     assertThat(resubmitted.processInstanceId()).isNotEqualTo(first.processInstanceId());
     assertThat(
-            h.engine.getRuntimeService().createProcessInstanceQuery()
+            h.engine
+                .getRuntimeService()
+                .createProcessInstanceQuery()
                 .processInstanceBusinessKey(template().businessType() + ":" + businessId)
                 .count())
         .isEqualTo(2);
@@ -327,7 +365,9 @@ abstract class ApprovalTemplateFlowTest {
     assertThat(ApprovalVariables.sizeOf(vars)).isLessThan(ApprovalVariables.MAX_TOTAL_BYTES);
     assertThat(vars).containsKeys(ApprovalVariables.APPROVAL_LEVELS, ApprovalVariables.TENANT_ID);
     assertThat(
-            h.engine.getRepositoryService().createProcessDefinitionQuery()
+            h.engine
+                .getRepositoryService()
+                .createProcessDefinitionQuery()
                 .processDefinitionKey(template().code())
                 .singleResult()
                 .getTenantId())

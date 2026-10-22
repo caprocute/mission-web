@@ -15,9 +15,9 @@ import vn.viettel.okrkpi.workflow.domain.BusinessKey;
 import vn.viettel.okrkpi.workflow.domain.approval.ApprovalVariables;
 
 /**
- * {@link ApprovalProcesses} trên engine Flowable. Định nghĩa triển khai không gắn tenant; tenant đặt
- * trên thể hiện bằng {@code overrideProcessDefinitionTenantId}, nên số định nghĩa không tăng theo số
- * tenant (TL-01 G2 quy tắc 1). Khoá khởi tạo dùng khoá tư vấn giao dịch của PostgreSQL.
+ * {@link ApprovalProcesses} trên engine Flowable. Định nghĩa triển khai không gắn tenant; tenant
+ * đặt trên thể hiện bằng {@code overrideProcessDefinitionTenantId}, nên số định nghĩa không tăng
+ * theo số tenant (TL-01 G2 quy tắc 1). Khoá khởi tạo dùng khoá tư vấn giao dịch của PostgreSQL.
  */
 @Component
 public class FlowableApprovalProcesses implements ApprovalProcesses {

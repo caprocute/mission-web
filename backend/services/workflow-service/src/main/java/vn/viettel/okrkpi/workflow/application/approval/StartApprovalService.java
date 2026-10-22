@@ -14,8 +14,8 @@ import vn.viettel.okrkpi.workflow.domain.approval.ApprovalTemplate;
 import vn.viettel.okrkpi.workflow.domain.approval.ApprovalVariables;
 
 /**
- * Khởi tạo luồng duyệt theo yêu cầu của module lõi (ADR-04 tầng 1 → tầng 2). Cổng vào là API nội
- * bộ trong tiến trình (lớp này); bộ chuyển HTTP chờ hợp đồng có thao tác khởi tạo (ghi ở wiki trang
+ * Khởi tạo luồng duyệt theo yêu cầu của module lõi (ADR-04 tầng 1 → tầng 2). Cổng vào là API nội bộ
+ * trong tiến trình (lớp này); bộ chuyển HTTP chờ hợp đồng có thao tác khởi tạo (ghi ở wiki trang
  * 14). Khoá nghiệp vụ là id đối tượng; idempotent theo (tenant, mẫu, khoá nghiệp vụ, phiên bản đối
  * tượng): gửi lại cùng yêu cầu trả tiến trình đã có.
  *
@@ -63,8 +63,7 @@ public class StartApprovalService {
       throw new ApprovalSetupException("Biến khởi tạo tiến trình vượt ngân sách 1,5 KB");
     }
     String id =
-        processes.start(
-            command.tenantId(), template.code(), key, command.initiatorId(), variables);
+        processes.start(command.tenantId(), template.code(), key, command.initiatorId(), variables);
     return new Result(id, true);
   }
 

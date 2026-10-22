@@ -107,7 +107,8 @@ class ApprovalDomainTest {
 
   @Test
   void maDanhMucDocDung() {
-    assertThat(ApprovalScope.parse("CAP_TREN_TRUC_TIEP")).contains(ApprovalScope.CAP_TREN_TRUC_TIEP);
+    assertThat(ApprovalScope.parse("CAP_TREN_TRUC_TIEP"))
+        .contains(ApprovalScope.CAP_TREN_TRUC_TIEP);
     assertThat(ApprovalScope.parse("KHAC")).isEmpty();
     assertThat(ApprovalScope.parse(null)).isEmpty();
     assertThat(ApprovalFlow.parse("NHA_NUOC")).contains(ApprovalFlow.NHA_NUOC);
@@ -116,7 +117,8 @@ class ApprovalDomainTest {
         .contains(ApprovalTemplate.DUYET_KE_HOACH_QUY);
     assertThat(ApprovalTemplate.byCode("tpl-appraisal-review")).isEmpty();
     assertThat(ApprovalTemplate.byTopic("core-change-request-reject"))
-        .contains(new ApprovalTemplate.TopicAction(ApprovalTemplate.DUYET_DE_NGHI, Decision.TRA_LAI));
+        .contains(
+            new ApprovalTemplate.TopicAction(ApprovalTemplate.DUYET_DE_NGHI, Decision.TRA_LAI));
     assertThat(ApprovalTemplate.byTopic("core-okr-approve"))
         .contains(new ApprovalTemplate.TopicAction(ApprovalTemplate.DUYET_OKR, Decision.DUYET));
     assertThat(ApprovalTemplate.byTopic("notify-remind")).isEmpty();

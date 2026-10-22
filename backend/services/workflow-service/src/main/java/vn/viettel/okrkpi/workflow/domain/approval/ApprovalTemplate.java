@@ -99,5 +99,4 @@ public enum ApprovalTemplate {
    * @param decision quyết định cần áp về lõi
    */
   public record TopicAction(ApprovalTemplate template, Decision decision) {}
-
 }

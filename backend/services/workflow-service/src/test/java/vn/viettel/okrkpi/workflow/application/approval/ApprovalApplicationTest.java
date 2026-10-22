@@ -71,7 +71,9 @@ class ApprovalApplicationTest {
                 rule(1, ApprovalScope.DON_VI_TRUC_TIEP, 1),
                 rule(3, ApprovalScope.CAP_UY_CO_THAM_QUYEN, 1),
                 rule(2, ApprovalScope.CAP_TREN_TRUC_TIEP, 2)));
-    assertThat(levels).extracting(ApprovalLevel::orgUnitId).containsExactly(BAN, CHI_BO, DANG_UY, BAN);
+    assertThat(levels)
+        .extracting(ApprovalLevel::orgUnitId)
+        .containsExactly(BAN, CHI_BO, DANG_UY, BAN);
     // 21/10 (thứ Tư) + 1 = 22/10; +3 = 26/10; +4 = 27/10; +5 = 28/10; 17 giờ giờ Việt Nam.
     assertThat(levels)
         .extracting(ApprovalLevel::dueAt)
@@ -117,15 +119,19 @@ class ApprovalApplicationTest {
         .isInstanceOf(ApprovalSetupException.class);
     ApprovalLevelResolver.Subject unknown =
         new ApprovalLevelResolver.Subject(TENANT, ApprovalFlow.DANG, UUID.randomUUID(), false);
-    assertThatThrownBy(() -> resolver.resolve(unknown, List.of(rule(1, ApprovalScope.DON_VI_TRUC_TIEP, 1))))
+    assertThatThrownBy(
+            () -> resolver.resolve(unknown, List.of(rule(1, ApprovalScope.DON_VI_TRUC_TIEP, 1))))
         .isInstanceOf(ApprovalSetupException.class);
     ApprovalLevelResolver.Subject top =
         new ApprovalLevelResolver.Subject(TENANT, ApprovalFlow.DANG, DANG_UY, true);
-    assertThatThrownBy(() -> resolver.resolve(top, List.of(rule(1, ApprovalScope.CAP_TREN_TRUC_TIEP, 1))))
+    assertThatThrownBy(
+            () -> resolver.resolve(top, List.of(rule(1, ApprovalScope.CAP_TREN_TRUC_TIEP, 1))))
         .isInstanceOf(ApprovalSetupException.class);
-    assertThatThrownBy(() -> resolver.resolve(top, List.of(rule(1, ApprovalScope.CAP_UY_CO_THAM_QUYEN, 1))))
+    assertThatThrownBy(
+            () -> resolver.resolve(top, List.of(rule(1, ApprovalScope.CAP_UY_CO_THAM_QUYEN, 1))))
         .isInstanceOf(ApprovalSetupException.class);
-    assertThatThrownBy(() -> resolver.resolve(top, List.of(rule(1, ApprovalScope.QUAN_LY_TRUC_TIEP, 1))))
+    assertThatThrownBy(
+            () -> resolver.resolve(top, List.of(rule(1, ApprovalScope.QUAN_LY_TRUC_TIEP, 1))))
         .isInstanceOf(ApprovalSetupException.class);
   }
 
@@ -134,50 +140,107 @@ class ApprovalApplicationTest {
     ApprovalLevelsAssembler assembler = new ApprovalLevelsAssembler(resolver);
     List<Map<String, Object>> rows =
         List.of(
-            Map.of("thuTu", 2.0, "role", "decider", "scope", "CAP_UY_CO_THAM_QUYEN", "hanNgayLamViec", 5.0),
-            Map.of("thuTu", "1", "role", "appraiser", "scope", "DON_VI_TRUC_TIEP", "hanNgayLamViec", 3));
+            Map.of(
+                "thuTu",
+                2.0,
+                "role",
+                "decider",
+                "scope",
+                "CAP_UY_CO_THAM_QUYEN",
+                "hanNgayLamViec",
+                5.0),
+            Map.of(
+                "thuTu",
+                "1",
+                "role",
+                "appraiser",
+                "scope",
+                "DON_VI_TRUC_TIEP",
+                "hanNgayLamViec",
+                3));
     List<ApprovalLevel> fromDmn =
         assembler.assemble(
-            new ApprovalLevelsAssembler.Inputs(TENANT.toString(), "DANG", BAN.toString(), false, null, rows));
+            new ApprovalLevelsAssembler.Inputs(
+                TENANT.toString(), "DANG", BAN.toString(), false, null, rows));
     assertThat(fromDmn).extracting(ApprovalLevel::role).containsExactly("appraiser", "decider");
     List<ApprovalLevel> custom =
         assembler.assemble(
             new ApprovalLevelsAssembler.Inputs(
-                TENANT.toString(), "DANG", BAN.toString(), false, "manager:DON_VI_TRUC_TIEP:2", rows));
+                TENANT.toString(),
+                "DANG",
+                BAN.toString(),
+                false,
+                "manager:DON_VI_TRUC_TIEP:2",
+                rows));
     assertThat(custom).extracting(ApprovalLevel::role).containsExactly("manager");
     assertThat(
             assembler.assemble(
-                new ApprovalLevelsAssembler.Inputs(TENANT.toString(), "DANG", BAN.toString(), false, " ", rows)))
+                new ApprovalLevelsAssembler.Inputs(
+                    TENANT.toString(), "DANG", BAN.toString(), false, " ", rows)))
         .hasSize(2);
 
     assertThatThrownBy(
-            () -> assembler.assemble(new ApprovalLevelsAssembler.Inputs(TENANT.toString(), "QUAN_DOI", BAN.toString(), false, null, rows)))
+            () ->
+                assembler.assemble(
+                    new ApprovalLevelsAssembler.Inputs(
+                        TENANT.toString(), "QUAN_DOI", BAN.toString(), false, null, rows)))
         .isInstanceOf(ApprovalSetupException.class);
     assertThatThrownBy(
-            () -> assembler.assemble(new ApprovalLevelsAssembler.Inputs(null, "DANG", BAN.toString(), false, null, rows)))
+            () ->
+                assembler.assemble(
+                    new ApprovalLevelsAssembler.Inputs(
+                        null, "DANG", BAN.toString(), false, null, rows)))
         .isInstanceOf(ApprovalSetupException.class);
     assertThatThrownBy(
-            () -> assembler.assemble(new ApprovalLevelsAssembler.Inputs(TENANT.toString(), "DANG", "khong-phai-uuid", false, null, rows)))
+            () ->
+                assembler.assemble(
+                    new ApprovalLevelsAssembler.Inputs(
+                        TENANT.toString(), "DANG", "khong-phai-uuid", false, null, rows)))
         .isInstanceOf(ApprovalSetupException.class);
     assertThatThrownBy(
-            () -> assembler.assemble(new ApprovalLevelsAssembler.Inputs(TENANT.toString(), "DANG", BAN.toString(), false, null, null)))
+            () ->
+                assembler.assemble(
+                    new ApprovalLevelsAssembler.Inputs(
+                        TENANT.toString(), "DANG", BAN.toString(), false, null, null)))
         .isInstanceOf(ApprovalSetupException.class);
     assertThatThrownBy(
-            () -> assembler.assemble(new ApprovalLevelsAssembler.Inputs(TENANT.toString(), "DANG", BAN.toString(), false, "sai", rows)))
+            () ->
+                assembler.assemble(
+                    new ApprovalLevelsAssembler.Inputs(
+                        TENANT.toString(), "DANG", BAN.toString(), false, "sai", rows)))
         .isInstanceOf(ApprovalSetupException.class);
     List<Map<String, Object>> badScope =
         List.of(Map.of("thuTu", 1, "role", "leader", "scope", "KHAC", "hanNgayLamViec", 1));
     assertThatThrownBy(
-            () -> assembler.assemble(new ApprovalLevelsAssembler.Inputs(TENANT.toString(), "DANG", BAN.toString(), false, null, badScope)))
+            () ->
+                assembler.assemble(
+                    new ApprovalLevelsAssembler.Inputs(
+                        TENANT.toString(), "DANG", BAN.toString(), false, null, badScope)))
         .isInstanceOf(ApprovalSetupException.class);
     List<Map<String, Object>> badNumber =
-        List.of(Map.of("thuTu", "mot", "role", "leader", "scope", "DON_VI_TRUC_TIEP", "hanNgayLamViec", 1));
+        List.of(
+            Map.of(
+                "thuTu",
+                "mot",
+                "role",
+                "leader",
+                "scope",
+                "DON_VI_TRUC_TIEP",
+                "hanNgayLamViec",
+                1));
     assertThatThrownBy(
-            () -> assembler.assemble(new ApprovalLevelsAssembler.Inputs(TENANT.toString(), "DANG", BAN.toString(), false, null, badNumber)))
+            () ->
+                assembler.assemble(
+                    new ApprovalLevelsAssembler.Inputs(
+                        TENANT.toString(), "DANG", BAN.toString(), false, null, badNumber)))
         .isInstanceOf(ApprovalSetupException.class);
-    List<Map<String, Object>> missing = List.of(Map.of("role", "leader", "scope", "DON_VI_TRUC_TIEP"));
+    List<Map<String, Object>> missing =
+        List.of(Map.of("role", "leader", "scope", "DON_VI_TRUC_TIEP"));
     assertThatThrownBy(
-            () -> assembler.assemble(new ApprovalLevelsAssembler.Inputs(TENANT.toString(), "DANG", BAN.toString(), false, null, missing)))
+            () ->
+                assembler.assemble(
+                    new ApprovalLevelsAssembler.Inputs(
+                        TENANT.toString(), "DANG", BAN.toString(), false, null, missing)))
         .isInstanceOf(ApprovalSetupException.class);
   }
 
@@ -201,7 +264,11 @@ class ApprovalApplicationTest {
 
     @Override
     public String start(
-        UUID tenantId, String templateCode, BusinessKey key, UUID initiatorId, Map<String, Object> vars) {
+        UUID tenantId,
+        String templateCode,
+        BusinessKey key,
+        UUID initiatorId,
+        Map<String, Object> vars) {
       String id = UUID.randomUUID().toString();
       started.put(templateCode + key + vars.get(ApprovalVariables.PHIEN_BAN_DOI_TUONG), id);
       variables.add(vars);
@@ -210,10 +277,27 @@ class ApprovalApplicationTest {
   }
 
   static StartApprovalCommand command(
-      ApprovalTemplate template, long version, String title, Integer plan, UUID task, String cause) {
+      ApprovalTemplate template,
+      long version,
+      String title,
+      Integer plan,
+      UUID task,
+      String cause) {
     return new StartApprovalCommand(
-        TENANT, template, UUID.fromString("00000000-0000-7000-8000-000000000001"), version,
-        ApprovalFlow.DANG, BAN, false, UUID.randomUUID(), UUID.randomUUID(), title, "goi@1.0", plan, task, cause);
+        TENANT,
+        template,
+        UUID.fromString("00000000-0000-7000-8000-000000000001"),
+        version,
+        ApprovalFlow.DANG,
+        BAN,
+        false,
+        UUID.randomUUID(),
+        UUID.randomUUID(),
+        title,
+        "goi@1.0",
+        plan,
+        task,
+        cause);
   }
 
   @Test
@@ -221,7 +305,8 @@ class ApprovalApplicationTest {
     Processes processes = new Processes();
     Map<UUID, ApprovalParams> bindings = new HashMap<>();
     StartApprovalService service =
-        new StartApprovalService(processes, (t, kind, flow) -> Optional.ofNullable(bindings.get(t)));
+        new StartApprovalService(
+            processes, (t, kind, flow) -> Optional.ofNullable(bindings.get(t)));
     StartApprovalService.Result first =
         service.start(command(ApprovalTemplate.DUYET_OKR, 1, "Phê duyệt", null, null, null));
     StartApprovalService.Result again =
@@ -239,7 +324,10 @@ class ApprovalApplicationTest {
     bindings.put(
         TENANT,
         new ApprovalParams(
-            "P1D", false, List.of(rule(1, ApprovalScope.DON_VI_TRUC_TIEP, 2)), "CHUNG_THU_TO_CHUC"));
+            "P1D",
+            false,
+            List.of(rule(1, ApprovalScope.DON_VI_TRUC_TIEP, 2)),
+            "CHUNG_THU_TO_CHUC"));
     service.start(command(ApprovalTemplate.DUYET_KE_HOACH_QUY, 2, "Kế hoạch", 4, null, null));
     assertThat(processes.variables.get(1))
         .containsEntry(ApprovalVariables.CAP_TUY_CHINH, "leader:DON_VI_TRUC_TIEP:2")
@@ -257,24 +345,53 @@ class ApprovalApplicationTest {
   void tuChoiYeuCauKhoiTaoSai() {
     StartApprovalService service =
         new StartApprovalService(new Processes(), (t, kind, flow) -> Optional.empty());
-    assertThatThrownBy(() -> service.start(command(ApprovalTemplate.DUYET_OKR, -1, "A", null, null, null)))
+    assertThatThrownBy(
+            () -> service.start(command(ApprovalTemplate.DUYET_OKR, -1, "A", null, null, null)))
         .isInstanceOf(ApprovalSetupException.class);
-    assertThatThrownBy(() -> service.start(command(ApprovalTemplate.DUYET_OKR, 1, " ", null, null, null)))
+    assertThatThrownBy(
+            () -> service.start(command(ApprovalTemplate.DUYET_OKR, 1, " ", null, null, null)))
         .isInstanceOf(ApprovalSetupException.class);
-    assertThatThrownBy(() -> service.start(command(ApprovalTemplate.DUYET_OKR, 1, "x".repeat(256), null, null, null)))
+    assertThatThrownBy(
+            () ->
+                service.start(
+                    command(ApprovalTemplate.DUYET_OKR, 1, "x".repeat(256), null, null, null)))
         .isInstanceOf(ApprovalSetupException.class);
-    assertThatThrownBy(() -> service.start(command(ApprovalTemplate.DUYET_KE_HOACH_QUY, 1, "A", null, null, null)))
+    assertThatThrownBy(
+            () ->
+                service.start(
+                    command(ApprovalTemplate.DUYET_KE_HOACH_QUY, 1, "A", null, null, null)))
         .isInstanceOf(ApprovalSetupException.class);
-    assertThatThrownBy(() -> service.start(command(ApprovalTemplate.DUYET_KE_HOACH_QUY, 1, "A", 0, null, null)))
+    assertThatThrownBy(
+            () ->
+                service.start(command(ApprovalTemplate.DUYET_KE_HOACH_QUY, 1, "A", 0, null, null)))
         .isInstanceOf(ApprovalSetupException.class);
-    assertThatThrownBy(() -> service.start(command(ApprovalTemplate.DUYET_DE_NGHI, 1, "A", null, null, "KHACH_QUAN")))
+    assertThatThrownBy(
+            () ->
+                service.start(
+                    command(ApprovalTemplate.DUYET_DE_NGHI, 1, "A", null, null, "KHACH_QUAN")))
         .isInstanceOf(ApprovalSetupException.class);
-    assertThatThrownBy(() -> service.start(command(ApprovalTemplate.DUYET_DE_NGHI, 1, "A", null, UUID.randomUUID(), "KHAC")))
+    assertThatThrownBy(
+            () ->
+                service.start(
+                    command(
+                        ApprovalTemplate.DUYET_DE_NGHI, 1, "A", null, UUID.randomUUID(), "KHAC")))
         .isInstanceOf(ApprovalSetupException.class);
     StartApprovalCommand longPack =
         new StartApprovalCommand(
-            TENANT, ApprovalTemplate.DUYET_OKR, UUID.randomUUID(), 1, ApprovalFlow.DANG, BAN, true,
-            null, null, "A", "p".repeat(65), null, null, null);
+            TENANT,
+            ApprovalTemplate.DUYET_OKR,
+            UUID.randomUUID(),
+            1,
+            ApprovalFlow.DANG,
+            BAN,
+            true,
+            null,
+            null,
+            "A",
+            "p".repeat(65),
+            null,
+            null,
+            null);
     assertThatThrownBy(() -> service.start(longPack)).isInstanceOf(ApprovalSetupException.class);
     // Tiêu đề dài 255 ký tự, 3 byte mỗi ký tự, cộng tham số: vượt ngân sách biến khởi tạo.
     StartApprovalService overBudget =
@@ -292,8 +409,20 @@ class ApprovalApplicationTest {
                         "MYSIGN")));
     StartApprovalCommand huge =
         new StartApprovalCommand(
-            TENANT, ApprovalTemplate.DUYET_OKR, UUID.randomUUID(), 1, ApprovalFlow.DANG, BAN, true,
-            null, UUID.randomUUID(), "ữ".repeat(255), "ữ".repeat(64), null, null, null);
+            TENANT,
+            ApprovalTemplate.DUYET_OKR,
+            UUID.randomUUID(),
+            1,
+            ApprovalFlow.DANG,
+            BAN,
+            true,
+            null,
+            UUID.randomUUID(),
+            "ữ".repeat(255),
+            "ữ".repeat(64),
+            null,
+            null,
+            null);
     assertThatThrownBy(() -> overBudget.start(huge))
         .isInstanceOf(ApprovalSetupException.class)
         .hasMessageContaining("ngân sách");
@@ -333,10 +462,15 @@ class ApprovalApplicationTest {
     engine.task = new TaskReassignment.ReassignableTask("t1", TENANT, "p1", next, true);
     assertThat(service.transfer(ok)).isFalse();
     assertThatThrownBy(
-            () -> service.transfer(new ApproverTransferService.Command(TENANT, "t1", next, next, null)))
+            () ->
+                service.transfer(
+                    new ApproverTransferService.Command(TENANT, "t1", next, next, null)))
         .isInstanceOf(ApprovalSetupException.class);
     assertThatThrownBy(
-            () -> service.transfer(new ApproverTransferService.Command(TENANT, "t1", next, next, "x".repeat(2001))))
+            () ->
+                service.transfer(
+                    new ApproverTransferService.Command(
+                        TENANT, "t1", next, next, "x".repeat(2001))))
         .isInstanceOf(ApprovalSetupException.class);
   }
 
@@ -358,15 +492,25 @@ class ApprovalApplicationTest {
     }
 
     @Override
-    public void fail(CallbackJob job, String workerId, String message, int retriesLeft, Duration retryAfter) {
+    public void fail(
+        CallbackJob job, String workerId, String message, int retriesLeft, Duration retryAfter) {
       failed.put(job.jobId(), retriesLeft);
     }
   }
 
-  static ExternalJobQueue.CallbackJob job(String id, String topic, String type, Map<String, Object> vars) {
+  static ExternalJobQueue.CallbackJob job(
+      String id, String topic, String type, Map<String, Object> vars) {
     return new ExternalJobQueue.CallbackJob(
-        id, topic, TENANT, "pi-" + id, "applyApprove", new BusinessKey(type, UUID.randomUUID()), vars,
-        UUID.randomUUID(), "Ý kiến", 3);
+        id,
+        topic,
+        TENANT,
+        "pi-" + id,
+        "applyApprove",
+        new BusinessKey(type, UUID.randomUUID()),
+        vars,
+        UUID.randomUUID(),
+        "Ý kiến",
+        3);
   }
 
   @Test
@@ -382,17 +526,33 @@ class ApprovalApplicationTest {
               return outcome[0];
             });
     Map<String, Object> plan =
-        Map.of(ApprovalVariables.PHIEN_BAN_DOI_TUONG, 5L, ApprovalVariables.KE_HOACH_PHIEN_BAN, 2,
-            ApprovalVariables.PHUONG_THUC_KY, "MYSIGN");
+        Map.of(
+            ApprovalVariables.PHIEN_BAN_DOI_TUONG,
+            5L,
+            ApprovalVariables.KE_HOACH_PHIEN_BAN,
+            2,
+            ApprovalVariables.PHUONG_THUC_KY,
+            "MYSIGN");
     UUID taskId = UUID.randomUUID();
     Map<String, Object> request =
-        Map.of(ApprovalVariables.PHIEN_BAN_DOI_TUONG, 1, ApprovalVariables.NHIEM_VU_ID, taskId.toString(),
-            ApprovalVariables.NGUYEN_NHAN, "KHACH_QUAN");
+        Map.of(
+            ApprovalVariables.PHIEN_BAN_DOI_TUONG,
+            1,
+            ApprovalVariables.NHIEM_VU_ID,
+            taskId.toString(),
+            ApprovalVariables.NGUYEN_NHAN,
+            "KHACH_QUAN");
     queue.jobs.add(job("a", "core-plan-approve", "PLAN", plan));
     queue.jobs.add(job("b", "core-change-request-reject", "TASK_CHANGE_REQUEST", request));
-    queue.jobs.add(job("c", "core-okr-return", "OKR_OBJECTIVE", Map.of(ApprovalVariables.PHIEN_BAN_DOI_TUONG, 2L)));
+    queue.jobs.add(
+        job(
+            "c",
+            "core-okr-return",
+            "OKR_OBJECTIVE",
+            Map.of(ApprovalVariables.PHIEN_BAN_DOI_TUONG, 2L)));
     queue.jobs.add(job("d", "chu-de-la", "OKR_OBJECTIVE", Map.of()));
-    queue.jobs.add(job("e", "core-okr-approve", "PLAN", Map.of(ApprovalVariables.PHIEN_BAN_DOI_TUONG, 2L)));
+    queue.jobs.add(
+        job("e", "core-okr-approve", "PLAN", Map.of(ApprovalVariables.PHIEN_BAN_DOI_TUONG, 2L)));
     queue.jobs.add(job("f", "core-okr-approve", "OKR_OBJECTIVE", Map.of()));
     assertThat(service.runOnce("w")).isEqualTo(3);
     assertThat(queue.completed).containsExactly("a", "b", "c");
@@ -409,7 +569,12 @@ class ApprovalApplicationTest {
     queue.jobs.clear();
     queue.completed.clear();
     queue.failed.clear();
-    queue.jobs.add(job("g", "core-okr-approve", "OKR_OBJECTIVE", Map.of(ApprovalVariables.PHIEN_BAN_DOI_TUONG, 1L)));
+    queue.jobs.add(
+        job(
+            "g",
+            "core-okr-approve",
+            "OKR_OBJECTIVE",
+            Map.of(ApprovalVariables.PHIEN_BAN_DOI_TUONG, 1L)));
     outcome[0] = CoreApprovalGateway.Outcome.RETRY;
     assertThat(service.runOnce("w")).isZero();
     assertThat(queue.failed).containsEntry("g", 2);
@@ -424,7 +589,8 @@ class ApprovalApplicationTest {
     // 23:30 UTC ngày 20/10 là 06:30 ngày 21/10 giờ Việt Nam: hạn tính từ ngày 21/10.
     ApprovalLevelResolver late =
         new ApprovalLevelResolver(
-            org, (t, from, to) -> {
+            org,
+            (t, from, to) -> {
               assertThat(from).isEqualTo(LocalDate.of(2026, 10, 21));
               return Map.of();
             },
@@ -436,5 +602,11 @@ class ApprovalApplicationTest {
                 .get(0)
                 .dueAt())
         .isEqualTo(Instant.parse("2026-10-22T10:00:00Z"));
+  }
+
+  @Test
+  void viecGoiLaiKhongBienThiDungMapRong() {
+    assertThat(job("j-0", "core-approve", "OKR", null).variables()).isEmpty();
+    assertThat(job("j-1", "core-approve", "OKR", Map.of("a", 1)).variables()).containsEntry("a", 1);
   }
 }

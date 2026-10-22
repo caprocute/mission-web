@@ -31,7 +31,8 @@ class ChonCapDuyetDmnTest {
     cfg.setJdbcUrl("jdbc:h2:mem:dmn-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1");
     cfg.setDatabaseSchemaUpdate("true");
     engine = cfg.buildDmnEngine();
-    engine.getDmnRepositoryService()
+    engine
+        .getDmnRepositoryService()
         .createDeployment()
         .addClasspathResource("dmn/chon-cap-duyet.dmn")
         .deploy();

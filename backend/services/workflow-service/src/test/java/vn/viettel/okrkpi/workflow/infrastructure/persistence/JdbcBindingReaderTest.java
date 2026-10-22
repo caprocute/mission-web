@@ -18,7 +18,8 @@ class JdbcBindingReaderTest {
 
   @Test
   void khoaThieuLayMacDinhKhoi() {
-    assertThat(reader.parse(null, ApprovalFlow.DANG)).isEqualTo(ApprovalParams.defaults(ApprovalFlow.DANG));
+    assertThat(reader.parse(null, ApprovalFlow.DANG))
+        .isEqualTo(ApprovalParams.defaults(ApprovalFlow.DANG));
     assertThat(reader.parse("{}", ApprovalFlow.NHA_NUOC))
         .isEqualTo(ApprovalParams.defaults(ApprovalFlow.NHA_NUOC));
   }
@@ -44,7 +45,10 @@ class JdbcBindingReaderTest {
   void thamSoSaiThiTuChoi() {
     assertThatThrownBy(() -> reader.parse("{khong-phai-json", ApprovalFlow.DANG))
         .isInstanceOf(ApprovalSetupException.class);
-    assertThatThrownBy(() -> reader.parse("{\"cap\":[{\"vai_tro\":\"leader\",\"pham_vi\":\"KHAC\"}]}", ApprovalFlow.DANG))
+    assertThatThrownBy(
+            () ->
+                reader.parse(
+                    "{\"cap\":[{\"vai_tro\":\"leader\",\"pham_vi\":\"KHAC\"}]}", ApprovalFlow.DANG))
         .isInstanceOf(ApprovalSetupException.class);
     assertThatThrownBy(() -> reader.parse("{\"remindAfter\":\"2 ngay\"}", ApprovalFlow.DANG))
         .isInstanceOf(ApprovalSetupException.class);

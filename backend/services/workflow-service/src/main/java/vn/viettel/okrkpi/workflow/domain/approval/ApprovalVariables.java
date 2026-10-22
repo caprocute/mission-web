@@ -7,8 +7,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Tên và ngân sách biến của ba mẫu luồng duyệt (TL-01 G2 quy tắc 5: biến chỉ mang id, mã và tham
- * số nhỏ, tổng dưới 4 KB; dữ liệu nghiệp vụ nằm ở lõi).
+ * Tên và ngân sách biến của ba mẫu luồng duyệt (TL-01 G2 quy tắc 5: biến chỉ mang id, mã và tham số
+ * nhỏ, tổng dưới 4 KB; dữ liệu nghiệp vụ nằm ở lõi).
  */
 public final class ApprovalVariables {
 
@@ -64,7 +64,11 @@ public final class ApprovalVariables {
     List<String> parts = new ArrayList<>(rules.size());
     for (ApprovalRule rule : rules) {
       parts.add(
-          rule.role() + FIELD_SEPARATOR + rule.scope().name() + FIELD_SEPARATOR + rule.workingDays());
+          rule.role()
+              + FIELD_SEPARATOR
+              + rule.scope().name()
+              + FIELD_SEPARATOR
+              + rule.workingDays());
     }
     return String.join(LEVEL_SEPARATOR, parts);
   }

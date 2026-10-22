@@ -54,8 +54,8 @@ public record ApprovalParams(
   }
 
   /**
-   * Mặc định của khối khi tenant chưa có dòng {@code wf_binding} (suy luận: nhắc sau 2 ngày theo
-   * ví dụ TL-01, cho phép uỷ quyền theo TL-02a QT-02 "người duyệt vắng mặt", ký bằng MySign).
+   * Mặc định của khối khi tenant chưa có dòng {@code wf_binding} (suy luận: nhắc sau 2 ngày theo ví
+   * dụ TL-01, cho phép uỷ quyền theo TL-02a QT-02 "người duyệt vắng mặt", ký bằng MySign).
    */
   public static ApprovalParams defaults(ApprovalFlow flow) {
     Objects.requireNonNull(flow, "flow");

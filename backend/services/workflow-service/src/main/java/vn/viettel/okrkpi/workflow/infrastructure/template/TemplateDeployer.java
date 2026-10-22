@@ -22,10 +22,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * Triển khai mẫu luồng dùng chung khi khởi động (thay cho tự triển khai của Flowable Spring Boot, đã
- * tắt bằng {@code flowable.check-process-definitions=false}): chạy linter tám quy tắc, rồi triển
+ * Triển khai mẫu luồng dùng chung khi khởi động (thay cho tự triển khai của Flowable Spring Boot,
+ * đã tắt bằng {@code flowable.check-process-definitions=false}): chạy linter tám quy tắc, rồi triển
  * khai BPMN cùng DMN trong một lần triển khai không gắn tenant, có lọc trùng nên khởi động lại
- * không sinh phiên bản mới. Linter đỏ thì dịch vụ không lên (vi phạm làm việc đăng ký mẫu thất bại).
+ * không sinh phiên bản mới. Linter đỏ thì dịch vụ không lên (vi phạm làm việc đăng ký mẫu thất
+ * bại).
  */
 @Component
 @ConditionalOnProperty(
@@ -108,7 +109,8 @@ public class TemplateDeployer implements ApplicationRunner {
 
   private boolean sameContent(ProcessDefinition definition, String xml) {
     try (InputStream in =
-        repository.getResourceAsStream(definition.getDeploymentId(), definition.getResourceName())) {
+        repository.getResourceAsStream(
+            definition.getDeploymentId(), definition.getResourceName())) {
       return Arrays.equals(in.readAllBytes(), bytes(xml));
     } catch (IOException e) {
       return false;

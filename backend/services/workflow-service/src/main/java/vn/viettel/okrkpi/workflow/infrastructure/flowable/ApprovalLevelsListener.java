@@ -90,7 +90,10 @@ public class ApprovalLevelsListener implements ExecutionListener {
     Map<String, Object> row = new LinkedHashMap<>();
     node.fields()
         .forEachRemaining(
-            e -> row.put(e.getKey(), e.getValue().isNumber() ? e.getValue().numberValue() : e.getValue().asText()));
+            e ->
+                row.put(
+                    e.getKey(),
+                    e.getValue().isNumber() ? e.getValue().numberValue() : e.getValue().asText()));
     return row;
   }
 

@@ -42,7 +42,10 @@ public class ApprovalLevelsAssembler {
     }
     ApprovalLevelResolver.Subject subject =
         new ApprovalLevelResolver.Subject(
-            uuid(inputs.tenantId(), "tenant"), flow, uuid(inputs.unitId(), "đơn vị"), inputs.head());
+            uuid(inputs.tenantId(), "tenant"),
+            flow,
+            uuid(inputs.unitId(), "đơn vị"),
+            inputs.head());
     return resolver.resolve(subject, rules);
   }
 

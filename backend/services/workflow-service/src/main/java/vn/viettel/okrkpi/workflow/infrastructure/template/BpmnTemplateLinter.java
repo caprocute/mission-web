@@ -56,7 +56,8 @@ public final class BpmnTemplateLinter {
   static final Set<String> ALLOWED_SERVICE_TYPES = Set.of("external-worker", "dmn");
 
   private static final Pattern UUID_LITERAL =
-      Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
+      Pattern.compile(
+          "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
   private static final Pattern EXPRESSION = Pattern.compile("[$#]\\{([^}]*)}");
   private static final Pattern TENANT_TOKEN = Pattern.compile("[A-Za-z_]*[Tt]enant[A-Za-z_]*");
   private static final Pattern DELEGATE_BEAN = Pattern.compile("\\$\\{([A-Za-z][A-Za-z0-9]*)}");
@@ -153,8 +154,7 @@ public final class BpmnTemplateLinter {
       out.add(violation(LintRule.R1_KHONG_GAN_TENANT, p, "Lần triển khai gắn tenant"));
     }
     if (p.descriptor() != null && !p.processId().equals(p.descriptor().templateCode())) {
-      out.add(
-          violation(LintRule.R1_KHONG_GAN_TENANT, p, "Mã process khác mã mẫu trong khai báo"));
+      out.add(violation(LintRule.R1_KHONG_GAN_TENANT, p, "Mã process khác mã mẫu trong khai báo"));
     }
     for (Element e : descendants(p.definitions())) {
       NamedNodeMap attrs = e.getAttributes();
@@ -271,7 +271,8 @@ public final class BpmnTemplateLinter {
             violation(
                 LintRule.R4_KHONG_GOI_DONG_BO,
                 p,
-                "Listener ở " + id((Element) listener.getParentNode().getParentNode())
+                "Listener ở "
+                    + id((Element) listener.getParentNode().getParentNode())
                     + " không thuộc danh sách tính toán thuần"));
       }
     }
@@ -469,7 +470,8 @@ public final class BpmnTemplateLinter {
     return new LintViolation(rule, p.processId(), detail);
   }
 
-  private record Parsed(String processId, TemplateSource source, Element definitions, Element process) {
+  private record Parsed(
+      String processId, TemplateSource source, Element definitions, Element process) {
 
     TemplateDescriptor descriptor() {
       return source.descriptor();

@@ -6,8 +6,8 @@ import vn.viettel.okrkpi.workflow.domain.Decision;
 import vn.viettel.okrkpi.workflow.domain.approval.ApprovalTemplate;
 
 /**
- * Cổng gọi API công bố của lõi để áp kết quả luồng duyệt (TL-01 G2: "tầng 2 gọi API công bố của
- * lõi ... bằng external worker có idempotency key, không gọi trong giao dịch engine").
+ * Cổng gọi API công bố của lõi để áp kết quả luồng duyệt (TL-01 G2: "tầng 2 gọi API công bố của lõi
+ * ... bằng external worker có idempotency key, không gọi trong giao dịch engine").
  */
 public interface CoreApprovalGateway {
 

@@ -57,7 +57,11 @@ class ApprovalTemplatesIT extends WorkflowIntegrationTest {
   private Tree tree() {
     Tree t =
         new Tree(
-            UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            UUID.randomUUID());
     unit(t.tenant(), t.dangUy(), "TO_CHUC_DANG", null, null);
     unit(t.tenant(), t.chiBo(), "CHI_BO", t.dangUy(), null);
     unit(t.tenant(), t.coQuan(), "CO_QUAN", null, null);
@@ -121,7 +125,10 @@ class ApprovalTemplatesIT extends WorkflowIntegrationTest {
       for (ApprovalTemplate template : ApprovalTemplate.values()) {
         StartApprovalService.Result r = starter.start(command(t, template, UUID.randomUUID(), 1));
         ProcessInstance instance =
-            runtime.createProcessInstanceQuery().processInstanceId(r.processInstanceId()).singleResult();
+            runtime
+                .createProcessInstanceQuery()
+                .processInstanceId(r.processInstanceId())
+                .singleResult();
         assertThat(instance.getTenantId()).isEqualTo(t.tenant().toString());
         assertThat(instance.getProcessDefinitionKey()).isEqualTo(template.code());
       }
@@ -137,7 +144,10 @@ class ApprovalTemplatesIT extends WorkflowIntegrationTest {
               t.tenant());
       assertThat(rows).hasSize(3);
       Map<String, Object> okr =
-          rows.stream().filter(r -> "duyet-okr".equals(r.get("template_code"))).findFirst().orElseThrow();
+          rows.stream()
+              .filter(r -> "duyet-okr".equals(r.get("template_code")))
+              .findFirst()
+              .orElseThrow();
       assertThat(okr.get("candidate_role")).isEqualTo("leader");
       assertThat(okr.get("candidate_unit_id")).isEqualTo(t.chiBo());
       assertThat(okr.get("business_type")).isEqualTo("OKR_OBJECTIVE");
@@ -214,7 +224,8 @@ class ApprovalTemplatesIT extends WorkflowIntegrationTest {
         .hasSize(1);
     assertThat(results.stream().filter(StartApprovalService.Result::created)).hasSize(1);
     assertThat(
-            runtime.createProcessInstanceQuery()
+            runtime
+                .createProcessInstanceQuery()
                 .processInstanceBusinessKey("OKR_OBJECTIVE:" + businessId)
                 .count())
         .isEqualTo(1);
@@ -242,7 +253,8 @@ class ApprovalTemplatesIT extends WorkflowIntegrationTest {
             null);
     assertThatThrownBy(() -> starter.start(unknownUnit)).isInstanceOf(ApprovalSetupException.class);
     assertThat(
-            runtime.createProcessInstanceQuery()
+            runtime
+                .createProcessInstanceQuery()
                 .processInstanceBusinessKey("OKR_OBJECTIVE:" + businessId)
                 .count())
         .isZero();
@@ -253,10 +265,13 @@ class ApprovalTemplatesIT extends WorkflowIntegrationTest {
     Tree t = tree();
     UUID leader = UUID.randomUUID();
     String pid =
-        starter.start(command(t, ApprovalTemplate.DUYET_OKR, UUID.randomUUID(), 1)).processInstanceId();
+        starter
+            .start(command(t, ApprovalTemplate.DUYET_OKR, UUID.randomUUID(), 1))
+            .processInstanceId();
 
     mvc.perform(
-            get("/api/v1/workflow/inbox?limit=10").with(user(t.tenant(), leader, t.chiBo(), "leader")))
+            get("/api/v1/workflow/inbox?limit=10")
+                .with(user(t.tenant(), leader, t.chiBo(), "leader")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items.length()").value(1))
         .andExpect(jsonPath("$.items[0].templateCode").value("duyet-okr"))
@@ -273,12 +288,12 @@ class ApprovalTemplatesIT extends WorkflowIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.processEnded").value(false));
 
-    assertThat(
-            management.createExternalWorkerJobQuery().processInstanceId(pid).list())
+    assertThat(management.createExternalWorkerJobQuery().processInstanceId(pid).list())
         .singleElement()
-        .satisfies(j -> {
-          assertThat(j.getElementId()).isEqualTo("applyApprove");
-          assertThat(j.getTenantId()).isEqualTo(t.tenant().toString());
-        });
+        .satisfies(
+            j -> {
+              assertThat(j.getElementId()).isEqualTo("applyApprove");
+              assertThat(j.getTenantId()).isEqualTo(t.tenant().toString());
+            });
   }
 }

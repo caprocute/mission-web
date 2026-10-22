@@ -10,7 +10,8 @@ import java.util.Set;
  * @param runningVersions mã mẫu → các phiên bản còn tiến trình chạy
  * @param changedTemplates mã mẫu sẽ có phiên bản mới
  */
-public record RuntimeSnapshot(Map<String, Set<Integer>> runningVersions, Set<String> changedTemplates) {
+public record RuntimeSnapshot(
+    Map<String, Set<Integer>> runningVersions, Set<String> changedTemplates) {
 
   /** Ảnh chụp rỗng (CI, engine mới). */
   public static final RuntimeSnapshot EMPTY = new RuntimeSnapshot(Map.of(), Set.of());
