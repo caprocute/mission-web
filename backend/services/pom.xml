@@ -23,5 +23,7 @@
     <module>service-template</module>
     <module>workflow-service</module>
     <module>org-service</module>
+    <module>esign-service</module>
+    <module>document-service</module>
   </modules>
 </project>

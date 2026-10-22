@@ -1,0 +1,26 @@
+# NEN-019 · Hồ sơ môi trường phát triển cục bộ (infra/dev, kết nối qua SSH tunnel 127.0.0.1:35xxx).
+# Không chứa mật khẩu hay khoá bí mật; mật khẩu truyền qua biến môi trường từ infra/dev/.env.
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35433}/${DB_NAME:mission}?currentSchema=${DB_SCHEMA:docgen}}
+    username: ${DB_USER:svc_docgen}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:5}
+      minimum-idle: ${DB_POOL_MIN_IDLE:1}
+
+mission:
+  service:
+    kafka:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:35092}
+      apicurio-registry-url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:35379}
+    security:
+      keycloak-issuer-uri: ${KEYCLOAK_ISSUER_URI:http://127.0.0.1:35080/realms/mission}
+      opa-url: ${OPA_URL:http://127.0.0.1:35181/v1/data/mission/authz}
+      openbao-url: ${OPENBAO_URL:http://127.0.0.1:35820}
+    observability:
+      otlp-endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://127.0.0.1:35317}
