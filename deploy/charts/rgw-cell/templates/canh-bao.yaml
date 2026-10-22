@@ -1,0 +1,34 @@
+{{- /* Cảnh báo đồng bộ multisite RGW (TL-04 mục 8.4): shard tụt lại và tuổi đối tượng cũ nhất chưa đồng bộ vượt ngưỡng.
+ceph_rgw_sync_behind_shards do ceph-mgr (mô-đun prometheus) xuất; tuổi đối tượng do bộ xuất rgw-sync xuất
+(ceph_rgw_sync_oldest_unsynced_seconds, suy luận, INF-15 dùng lại). */}}
+{{- $v := .Values }}
+{{- if $v.canhBao.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: rgw-cell-{{ include "rgw.ma" . }}
+  namespace: {{ $v.canhBao.namespace }}
+  labels:
+    {{- include "rgw.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: ceph-rgw-multisite
+      rules:
+        - alert: CephSyncBehind
+          expr: |
+            max by (source_zone) (ceph_rgw_sync_behind_shards{zonegroup="cell-{{ include "rgw.ma" . }}-zg"}) > 0
+            and on (source_zone)
+            max by (source_zone) (ceph_rgw_sync_oldest_unsynced_seconds{zonegroup="cell-{{ include "rgw.ma" . }}-zg"}) > {{ $v.canhBao.tuoiChuaDongBoToiDaGiay }}
+          for: 5m
+          labels: { severity: warning, doi: sre-luu-tru }
+          annotations:
+            summary: "Đồng bộ multisite RGW của cell {{ include "rgw.ma" . }} chậm: đối tượng chưa đồng bộ quá {{ div $v.canhBao.tuoiChuaDongBoToiDaGiay 60 }} phút (zone nguồn {{ "{{ $labels.source_zone }}" }})"
+            runbook_url: https://runbook.vt.local/okr/ceph-multisite
+        - alert: CephSyncDung
+          expr: absent(ceph_rgw_sync_behind_shards{zonegroup="cell-{{ include "rgw.ma" . }}-zg"})
+          for: 15m
+          labels: { severity: warning, doi: sre-luu-tru }
+          annotations:
+            summary: "Không có số liệu đồng bộ multisite RGW của cell {{ include "rgw.ma" . }}"
+            runbook_url: https://runbook.vt.local/okr/ceph-multisite
+{{- end }}

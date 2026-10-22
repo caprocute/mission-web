@@ -1,0 +1,32 @@
+{{- /* Job khai báo bucket chỉ ra RGW: trong cụm (Rook-Ceph) thì tới pod RGW, ngoài cụm thì qua egress gateway của cell
+(INF-09), cùng quy ước objectStore của vt-service. */}}
+{{- $v := .Values }}
+{{- $o := $v.global.objectStore }}
+{{- if $v.job.mang }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rgw-bucket
+  namespace: {{ $v.job.namespace }}
+  labels:
+    {{- include "rgw.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { vt.io/thanh-phan: rgw-bucket }
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to:
+        {{- if $o.inCluster }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $o.rgw.namespace }} } }
+          podSelector: { matchLabels: {{ toJson $o.rgw.podLabels }} }
+      ports:
+        {{- range $o.rgw.ports }}
+        - { port: {{ .port }}, protocol: TCP }
+        {{- end }}
+        {{- else }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: egress } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: egress-gateway } }
+      ports:
+        - { port: 443, protocol: TCP }
+        {{- end }}
+{{- end }}

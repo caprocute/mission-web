@@ -1,0 +1,32 @@
+{{- /* Khoá S3 từ OpenBao (<duongDan>/<uid>, khoá access-key, secret-key do khoi-tao-multisite.sh ghi) thành Secret qua ESO:
+rgw-quan-tri cho Job khai báo bucket, rgw-<uid> trong namespace của từng service. */}}
+{{- $v := .Values }}
+{{- if $v.externalSecrets.enabled }}
+{{- $ds := list (dict "uid" (include "rgw.quanTri" .) "ten" "rgw-quan-tri" "ns" $v.job.namespace) }}
+{{- range $uid, $u := $v.nguoiDung }}
+{{- if $u.namespace }}{{ $ds = append $ds (dict "uid" $uid "ten" (printf "rgw-%s" $uid) "ns" $u.namespace) }}{{ end }}
+{{- end }}
+{{- range $x := $ds }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $x.ten }}
+  namespace: {{ $x.ns }}
+  labels:
+    {{- include "rgw.labels" $ | nindent 4 }}
+spec:
+  refreshInterval: {{ $v.externalSecrets.refreshInterval }}
+  secretStoreRef:
+    kind: {{ $v.externalSecrets.secretStore.kind }}
+    name: {{ $v.externalSecrets.secretStore.name }}
+  target:
+    name: {{ $x.ten }}
+    creationPolicy: Owner
+  data:
+    {{- range $k := list "access-key" "secret-key" }}
+    - secretKey: {{ $k }}
+      remoteRef: { key: {{ $v.externalSecrets.duongDan }}/cell-{{ include "rgw.ma" $ }}/{{ $x.uid }}, property: {{ $k }} }
+    {{- end }}
+{{- end }}
+{{- end }}
