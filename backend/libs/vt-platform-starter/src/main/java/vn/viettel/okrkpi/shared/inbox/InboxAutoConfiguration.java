@@ -138,8 +138,8 @@ public class InboxAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   @ConditionalOnBean(InboxMessageProcessor.class)
-  public InboxListenerRegistrar inboxListenerRegistrar(
-      InboxMessageProcessor processor,
+  public static InboxListenerRegistrar inboxListenerRegistrar(
+      ObjectProvider<InboxMessageProcessor> processor,
       ObjectProvider<ConcurrentKafkaListenerContainerFactory<String, byte[]>>
           inboxKafkaListenerContainerFactory,
       InboxProperties properties) {

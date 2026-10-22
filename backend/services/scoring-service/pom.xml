@@ -100,10 +100,21 @@
       <artifactId>postgresql</artifactId>
     </dependency>
 
+    <!-- DV-07-02: biên dịch CEL (NEN-041) và bảng DMN bằng Flowable DMN độc lập, kho định nghĩa H2 trong bộ nhớ. -->
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-cel</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.flowable</groupId>
+      <artifactId>flowable-dmn-engine</artifactId>
+      <version>${flowable.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
-      <scope>test</scope>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
