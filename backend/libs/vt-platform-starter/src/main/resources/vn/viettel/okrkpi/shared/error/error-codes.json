@@ -1910,6 +1910,16 @@
       ]
     },
     {
+      "code": "TASK-429-REMINDED",
+      "module": "TASK",
+      "status": 429,
+      "name": "REMINDED",
+      "type": "https://okrkpi.vn/problems/reminded",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
+    },
+    {
       "code": "UI-403-SAME-PERSON",
       "module": "UI",
       "status": 403,

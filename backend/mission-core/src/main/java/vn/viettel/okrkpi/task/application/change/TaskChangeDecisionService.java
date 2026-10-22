@@ -174,7 +174,7 @@ public class TaskChangeDecisionService {
     LocalDate today = LocalDate.now(clock.withZone(VN));
     LocalDate suspended =
         tasks.stateLog(tenant, task.periodBucket(), taskId).stream()
-            .filter(l -> l.to() == TaskStatus.TAM_DUNG)
+            .filter(l -> l.to() == TaskStatus.TAM_DUNG && l.from() != TaskStatus.TAM_DUNG)
             .max(Comparator.comparing(StateLogRow::occurredAt))
             .map(l -> LocalDate.ofInstant(l.occurredAt(), VN))
             .orElse(today);
