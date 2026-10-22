@@ -16,13 +16,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.client.RestClient;
 import vn.viettel.okrkpi.policy.application.PolicyDecisionTableService;
 import vn.viettel.okrkpi.policy.application.PolicyTestRunService;
 import vn.viettel.okrkpi.policy.application.port.CelJsRunner;
 import vn.viettel.okrkpi.policy.application.port.PolicyAudit;
 import vn.viettel.okrkpi.policy.infrastructure.client.HttpCelJsRunner;
 import vn.viettel.okrkpi.policy.infrastructure.job.InMemoryPolicyTestJobs;
+import vn.viettel.okrkpi.shared.infrastructure.cel.CelJsClient;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 
 /**
@@ -49,13 +49,11 @@ public class PolicyTestRunConfiguration {
   @Bean
   CelJsRunner policyCelJsRunner(
       @Value("${mission.policy.cel-js.url:}") String url,
-      @Value("${mission.policy.cel-js.timeout:30s}") Duration timeout,
-      ObjectProvider<RestClient.Builder> builder) {
+      @Value("${mission.policy.cel-js.timeout:30s}") Duration timeout) {
     if (url == null || url.isBlank()) {
       return CelJsRunner.NONE;
     }
-    return new HttpCelJsRunner(
-        builder.getIfAvailable(RestClient::builder), URI.create(url), timeout);
+    return new HttpCelJsRunner(new CelJsClient(URI.create(url), timeout));
   }
 
   /**
