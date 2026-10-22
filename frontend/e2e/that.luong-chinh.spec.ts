@@ -241,11 +241,20 @@ test.describe('Luồng chính với máy chủ thật', { tag: '@qa-03' }, () =>
     let page = await s.as('quanly', '/okr/objectives/new');
     let m = main(page);
     await expect(m.getByRole('heading', { level: 1, name: /^Soạn mục tiêu/ })).toBeVisible();
+    // Chờ ngữ cảnh soạn (kỳ, căn cứ, mục tiêu cấp trên) nạp xong rồi mới điền
+    await expect(m.getByRole('region', { name: 'Kiểm tra trước khi trình' })).toBeVisible();
     const basis = m.getByRole('combobox', { name: 'Căn cứ, bắt buộc' });
-    await basis.focus();
-    await page.keyboard.press('ArrowDown');
-    await page.getByRole('listbox').getByRole('option').first().click();
+    const basisList = page.getByRole('listbox');
+    await expect(async () => {
+      if (!(await basisList.isVisible())) {
+        await basis.focus();
+        await page.keyboard.press('ArrowDown');
+      }
+      await expect(basisList.getByRole('option').first()).toBeVisible({ timeout: 1_000 });
+    }).toPass();
+    await basisList.getByRole('option').first().click();
     await page.keyboard.press('Escape');
+    await expect(basisList).toBeHidden();
     const parent = m.getByRole('combobox', { name: 'Chọn mục tiêu cấp trên' });
     if (await parent.isVisible()) await chon(page, parent);
     await m.getByRole('textbox', { name: 'Tên mục tiêu' }).fill(title);
@@ -266,7 +275,9 @@ test.describe('Luồng chính với máy chủ thật', { tag: '@qa-03' }, () =>
         .fill('100');
     }
     const unit = await m.getByRole('textbox', { name: 'Đơn vị sở hữu' }).inputValue();
-    await m.getByRole('button', { name: 'Trình phê duyệt' }).click();
+    const submit = m.getByRole('button', { name: 'Trình phê duyệt' });
+    await expect(submit).toBeEnabled();
+    await submit.click();
     await expect(m.getByRole('status').filter({ hasText: /Đã trình phê duyệt/ })).toBeVisible();
 
     // Lãnh đạo phê duyệt bộ OKR của đơn vị (SCR-0203)

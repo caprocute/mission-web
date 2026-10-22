@@ -14,7 +14,7 @@
 
 - **Tổng tiến độ đã gộp `main`**: **277 / 408 task (67.9%)** — Khối lượng quy đổi đã gộp: **317 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **278 / 408 task (68.1%)** (gồm **277** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **5 task** (2 đang làm, 3 làm một phần).
+- **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
 - **Chưa bắt đầu**: **125 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **18 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-10`** (đang xử lý trên nhánh: không).
 
@@ -629,7 +629,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
-| [WEB-070](docs/tasks/WEB-070-noi-api-that-okr-viec-minh-chung.md) | Nối các màn hình OKR, giao việc, minh chứng với API thật, tắt giả lập theo module bằng cấu hình | L | W | 20 | QA-03, CORE-01-08, CORE-02-19, CORE-03-07 | **Đang làm** | Nhánh claude/b8-ha-tang-g7g48k: công tắc giả lập theo module |
+| [WEB-070](docs/tasks/WEB-070-noi-api-that-okr-viec-minh-chung.md) | Nối các màn hình OKR, giao việc, minh chứng với API thật, tắt giả lập theo module bằng cấu hình | L | W | 20 | QA-03, CORE-01-08, CORE-02-19, CORE-03-07 | **Làm một phần** | Nhánh claude/b8-ha-tang-g7g48k: công tắc giả lập theo module (MOCK_API_MODULES) và 3 kịch bản luồng chính xanh ở chế độ giả lập; chờ QA-03 để chạy với máy chủ thật |
 | [WEB-071](docs/tasks/WEB-071-noi-api-that-danh-gia-giam-sat.md) | Nối các màn hình đánh giá, hồ sơ số, giám sát với API thật | L | W | 23 | WEB-070, CORE-04-10, CORE-06-08, CORE-07-11 | **Chưa bắt đầu** |  |
 | [WEB-072](docs/tasks/WEB-072-noi-api-that-quan-tri-cau-hinh.md) | Nối các màn hình quản trị, cấu hình, Policy Pack, bảng điều hành với API thật | L | W | 21 | WEB-070, CORE-05-10, CORE-08-11, DV-15-04 | **Chưa bắt đầu** |  |
 | [WEB-073](docs/tasks/WEB-073-xu-ly-cat-tai-retry-after.md) | Xử lý 429 và 503 có `Retry-After`, thử lại có backoff, giữ bản nháp | S | W | 1 | WEB-007 | **Đã gộp main** | Đã gộp main (f4fca53); máy chủ thật chờ CORE tương ứng |
@@ -968,4 +968,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 22:57 | Điều phối | `CORE-04-08` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (74591707) |
 | 22/10/2026 22:53 | Luồng B8 hạ tầng | `WEB-070` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: công tắc giả lập theo module |
 | 22/10/2026 23:06 | Luồng B8 hạ tầng | `WEB-010` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b8-ha-tang-g7g48k: dựng dần theo nhóm, lượt vẽ đầu 13-20 ms, không tác vụ dài trên 50 ms (wiki/09) |
+| 22/10/2026 23:29 | Luồng B8 hạ tầng | `WEB-070` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: công tắc giả lập theo module (MOCK_API_MODULES) và 3 kịch bản luồng chính xanh ở chế độ giả lập; chờ QA-03 để chạy với máy chủ thật |
 <!-- PROGRESS_LOG_END -->
