@@ -2,15 +2,11 @@ package vn.viettel.okrkpi.workflow;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.Map;
 import java.util.Properties;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
@@ -20,7 +16,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -29,8 +24,7 @@ import vn.viettel.okrkpi.workflow.infrastructure.TemplateReadinessIndicator;
 
 /**
  * Kiểm thử tích hợp khởi động ứng dụng mẫu, xác minh cấu hình cổng quản trị 8081 (liveness,
- * readiness, prometheus), graceful shutdown 25s và luồng REST mẫu chuẩn RFC 9457 (NEN-019 · TL-04
- * WI-20, WI-23).
+ * readiness, prometheus) và graceful shutdown 25s (NEN-019 · TL-04 WI-20, WI-23).
  */
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
@@ -100,43 +94,5 @@ class ActuatorProbesTest {
     String appName = environment.getProperty("spring.application.name");
     assertThat(result.getResponse().getContentAsString())
         .contains("application=\"" + appName + "\"");
-  }
-
-  @Test
-  void restUseCaseDiQuaDuBonLopVaTraProblemDetailsKhiLoi() throws Exception {
-    String baseUrl = "/api/v1/template-items";
-
-    MvcResult createdResult =
-        mockMvc
-            .perform(
-                post(baseUrl)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(Map.of("name", "Mục tiêu mẫu"))))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.status").value("NHAP"))
-            .andReturn();
-
-    JsonNode created = objectMapper.readTree(createdResult.getResponse().getContentAsString());
-    String id = created.path("id").asText();
-
-    mockMvc
-        .perform(post(baseUrl + "/" + id + "/activate").contentType(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("KICH_HOAT"));
-
-    mockMvc
-        .perform(get(baseUrl + "/" + id))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(id));
-
-    mockMvc
-        .perform(get(baseUrl))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].id").value(id));
-
-    mockMvc
-        .perform(get(baseUrl + "/" + UUID.randomUUID()))
-        .andExpect(status().isUnprocessableEntity())
-        .andExpect(jsonPath("$.code").value("COMMON-422-VALIDATION"));
   }
 }

@@ -1,0 +1,43 @@
+# DL-08 · Hồ sơ phân phối dữ liệu thử tải cho cell hồ sơ compact (TL-05 GD-01: 50000 tài khoản), cùng tỷ lệ với hồ sơ L,
+# theo phân phối CELL-HCM của TL-04 "Môi trường và công cụ thử tải": cây tổ chức 5 cấp khoảng
+# 12.000 đơn vị, 36 triệu nhiệm vụ trên 4 quý, 10 triệu phiên bản minh chứng (trung vị 600 KB),
+# 1,2 triệu hồ sơ đánh giá. Toàn bộ là dữ liệu giả (SEC-52). Số lượng nhân với --he-so.
+ho_so: compact
+hat_giong: 20261022
+tenant: 1                     # cell L ở CELL-PERF chạy một tenant lớn (suy luận)
+nam: 2026
+quy: [1, 2, 3, 4]
+quy_hien_hanh: 4
+tai_khoan: 50000
+don_vi: 500
+# Tỷ lệ số đơn vị theo cấp 1..5 (cấp 1 là gốc, luôn 1 đơn vị mỗi tenant).
+ty_le_cap: [0, 0.004, 0.04, 0.30, 0.656]
+# Trọng số phân người vào đơn vị theo cấp (cấp sâu đông người hơn).
+trong_so_nguoi_theo_cap: [0.5, 1, 2, 4, 8]
+ty_le_dang_vien: 0.62
+ty_le_doi_phien_ban: 0.02     # đơn vị, người có phiên bản thứ hai (đổi tên, điều động) giữa năm
+nhiem_vu: 1500000
+ty_le_nhiem_vu_then_chot: 0.12
+# Phân phối trạng thái nhiệm vụ theo quý: quý đã qua và quý hiện hành.
+trang_thai_quy_cu:
+  HOAN_THANH: 0.86
+  CHO_NGHIEM_THU: 0.03
+  TAM_DUNG: 0.02
+  HUY: 0.04
+  DANG_THUC_HIEN: 0.05
+trang_thai_quy_hien_hanh:
+  NHAP: 0.05
+  DA_GIAO: 0.25
+  DANG_THUC_HIEN: 0.45
+  CHO_NGHIEM_THU: 0.10
+  HOAN_THANH: 0.12
+  TAM_DUNG: 0.02
+  HUY: 0.01
+phien_ban_minh_chung: 416667
+so_phien_ban_moi_minh_chung: {1: 0.80, 2: 0.15, 3: 0.05}
+kich_thuoc_tep:
+  trung_vi_byte: 614400       # 600 KB
+  sigma: 1.0                  # log-chuẩn
+  tran_byte: 104857600        # 100 MB
+ho_so_danh_gia: 50000       # appraisal.appraisal_profile: chờ migration CORE-04-01
+tien_trinh_flowable: 50000  # tách DL-08b

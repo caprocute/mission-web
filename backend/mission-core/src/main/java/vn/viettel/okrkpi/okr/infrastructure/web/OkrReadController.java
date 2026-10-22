@@ -35,6 +35,8 @@ import vn.viettel.okrkpi.contract.okr.model.OkrBasis;
 import vn.viettel.okrkpi.contract.okr.model.OkrBasisKind;
 import vn.viettel.okrkpi.contract.okr.model.OkrBasisPage;
 import vn.viettel.okrkpi.contract.okr.model.OkrBasisRef;
+import vn.viettel.okrkpi.contract.okr.model.OkrCheckLevel;
+import vn.viettel.okrkpi.contract.okr.model.OkrCheckResult;
 import vn.viettel.okrkpi.contract.okr.model.OkrCheckinFrequency;
 import vn.viettel.okrkpi.contract.okr.model.OkrConfidence;
 import vn.viettel.okrkpi.contract.okr.model.OkrContentSource;
@@ -43,6 +45,7 @@ import vn.viettel.okrkpi.contract.okr.model.OkrExportRequest;
 import vn.viettel.okrkpi.contract.okr.model.OkrKeyResult;
 import vn.viettel.okrkpi.contract.okr.model.OkrKeyResultListItem;
 import vn.viettel.okrkpi.contract.okr.model.OkrKeyResultPage;
+import vn.viettel.okrkpi.contract.okr.model.OkrKeyResultPageCounts;
 import vn.viettel.okrkpi.contract.okr.model.OkrLastCheckin;
 import vn.viettel.okrkpi.contract.okr.model.OkrLink;
 import vn.viettel.okrkpi.contract.okr.model.OkrLinkFromType;
@@ -63,6 +66,7 @@ import vn.viettel.okrkpi.contract.okr.model.OkrTree;
 import vn.viettel.okrkpi.contract.okr.model.PeriodRef;
 import vn.viettel.okrkpi.contract.okr.model.PeriodStatus;
 import vn.viettel.okrkpi.contract.okr.model.Ref;
+import vn.viettel.okrkpi.okr.application.OkrCheckService;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.OkrReadService.AlignmentNode;
 import vn.viettel.okrkpi.okr.application.OkrReadService.AlignmentView;
@@ -71,6 +75,7 @@ import vn.viettel.okrkpi.okr.application.OkrReadService.ObjectiveView;
 import vn.viettel.okrkpi.okr.application.OkrReadService.PeerLinkView;
 import vn.viettel.okrkpi.okr.application.OkrReadService.PeriodView;
 import vn.viettel.okrkpi.okr.application.OkrReadService.TreeView;
+import vn.viettel.okrkpi.okr.application.OkrRuleChecker.Finding;
 import vn.viettel.okrkpi.okr.application.port.OkrReadRepository.BasisRow;
 import vn.viettel.okrkpi.okr.application.port.OkrReadRepository.KeyResultFilter;
 import vn.viettel.okrkpi.okr.application.port.OkrReadRepository.KeyResultRow;
@@ -115,6 +120,7 @@ public class OkrReadController {
   private final ObjectProvider<OrgDirectoryApi> org;
   private final ObjectProvider<AuthzSubjectResolver> subjects;
   private final ObjectProvider<OkrCaller> callers;
+  private final OkrCheckService checks;
 
   public OkrReadController(
       OkrReadService reads,
@@ -123,7 +129,9 @@ public class OkrReadController {
       OkrExportJobs exports,
       ObjectProvider<OrgDirectoryApi> org,
       ObjectProvider<AuthzSubjectResolver> subjects,
-      ObjectProvider<OkrCaller> callers) {
+      ObjectProvider<OkrCaller> callers,
+      OkrCheckService checks) {
+    this.checks = Objects.requireNonNull(checks, "checks");
     this.reads = Objects.requireNonNull(reads, "reads");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
@@ -152,7 +160,9 @@ public class OkrReadController {
         tree.bases().stream().map(OkrReadController::basisRef).toList(),
         tree.parent() == null ? null : objectiveRef(tree.parent()),
         tree.recommendedMax(),
-        tree.objectives().stream().map(o -> objective(o, List.of())).toList(),
+        tree.objectives().stream()
+            .map(o -> objective(o, List.of()).checks(checks(checks.check(tenant, o))))
+            .toList(),
         tree.peerLinks().stream().map(OkrReadController::peerLink).toList());
   }
 
@@ -241,7 +251,8 @@ public class OkrReadController {
         reads
             .objective(tenant, id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-    OkrObjective dto = objective(view, reads.linksOf(tenant, view));
+    OkrObjective dto =
+        objective(view, reads.linksOf(tenant, view)).checks(checks(checks.check(tenant, view)));
     if (view.row().parentObjectiveId() != null) {
       reads
           .objectiveRow(tenant, view.row().parentObjectiveId())
@@ -325,6 +336,10 @@ public class OkrReadController {
         new OkrKeyResultPage(
             result.items().stream().map(OkrReadController::listItem).toList(), result.nextCursor());
     p.ifPresent(x -> dto.period(periodInfo(reads.periodView(x))));
+    if (check) {
+      dto.counts(
+          new OkrKeyResultPageCounts().needCheckin((int) reads.countKeyResults(tenant, filter)));
+    }
     return dto;
   }
 
@@ -536,7 +551,7 @@ public class OkrReadController {
 
   // ---------------------------------------------------------------- ánh xạ hợp đồng
 
-  private static OkrPeriodInfo periodInfo(PeriodView v) {
+  static OkrPeriodInfo periodInfo(PeriodView v) {
     PeriodSnapshot p = v.period();
     return new OkrPeriodInfo(
             p.id().value(),
@@ -548,7 +563,7 @@ public class OkrReadController {
         .weekCount(v.weekCount());
   }
 
-  private static OkrObjective objective(ObjectiveView v, List<LinkRow> links) {
+  static OkrObjective objective(ObjectiveView v, List<LinkRow> links) {
     ObjectiveRow o = v.row();
     OkrObjective dto =
         new OkrObjective(
@@ -583,12 +598,23 @@ public class OkrReadController {
     return dto;
   }
 
-  private static OkrObjectiveRef objectiveRef(ObjectiveRow o) {
+  /** Kết quả kiểm tra BR-02-01..07 theo {@code OkrCheckResult} (CORE-01-04). */
+  static List<OkrCheckResult> checks(List<Finding> findings) {
+    return findings.stream()
+        .map(
+            f ->
+                new OkrCheckResult(OkrCheckLevel.fromValue(f.level()), f.br(), f.message())
+                    .keyResultId(f.keyResultId())
+                    .similarTaskCode(f.similarTaskCode()))
+        .toList();
+  }
+
+  static OkrObjectiveRef objectiveRef(ObjectiveRow o) {
     return new OkrObjectiveRef(o.id(), o.code(), o.title())
         .status(OkrObjectiveStatus.fromValue(o.status()));
   }
 
-  private static OkrKeyResult keyResult(KeyResultView v) {
+  static OkrKeyResult keyResult(KeyResultView v) {
     KeyResultRow k = v.row();
     return new OkrKeyResult(
             k.id(),
@@ -658,7 +684,7 @@ public class OkrReadController {
         .fromKeyResultId(v.localKeyResult() == null ? null : v.localKeyResult().id());
   }
 
-  private static OkrLink link(LinkRow l) {
+  static OkrLink link(LinkRow l) {
     return new OkrLink(
             l.id(),
             OkrLinkFromType.fromValue(l.fromType()),
@@ -702,7 +728,7 @@ public class OkrReadController {
         .contributionWeight(l.contributionWeight());
   }
 
-  private static OkrBasisRef basisRef(BasisRow b) {
+  static OkrBasisRef basisRef(BasisRow b) {
     return new OkrBasisRef(b.id(), b.title())
         .basisKind(OkrBasisKind.fromValue(b.basisKind()))
         .docNumber(b.docNumber());
@@ -750,7 +776,7 @@ public class OkrReadController {
         "COMMON-422-VALIDATION", message, List.of(new ProblemFieldError(field, message, null)));
   }
 
-  private static BusinessException missing(String field) {
+  static BusinessException missing(String field) {
     String message = "Thiếu thông tin bắt buộc";
     return new BusinessException(
         "COMMON-422-VALIDATION", message, List.of(new ProblemFieldError(field, message, null)));

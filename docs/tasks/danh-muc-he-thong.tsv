@@ -33,6 +33,7 @@ NEN-021	Lược đồ Avro cho sự kiện kỹ thuật `evidence.object.*` và 
 NEN-022	Công cụ phát lại outbox và cấu hình connector Debezium outbox theo schema	M	NEN-011	ADR-03; TL-03 ch.11	B1		Bổ sung sau khi viết thẻ
 NEN-042	Sửa hợp đồng OpenAPI phần nghiệp vụ: thêm thao tác còn thiếu (huỷ OKR, phiên bản điều chỉnh mục tiêu, uỷ quyền check-in, kích hoạt danh mục, chấm việc ngoài danh mục, ngoại lệ điều chỉnh, xác nhận dòng kế hoạch, duyệt nhiệm vụ đăng ký, chuyển điểm nghẽn, danh bạ khoá E2EE và chia sẻ CEK, ghi trường hợp đặc thù, gợi ý khiếu nại trùng) và sửa mô tả `acceptComplaint`	M	NEN-001	ADR-32; YC-PT-09	B1		Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt
 NEN-043	Sửa hợp đồng OpenAPI phần nền tảng: cờ tính năng cho mọi người dùng, cấu hình tenant, thiết bị nhận thông báo đẩy, tuỳ chọn kênh, mã khôi phục MFA, `POST /org/assignments`, guest token Superset, kiểm quyền theo lô cho tìm kiếm, ký nội bộ cho sổ cái, OCR cho tài khoản dịch vụ, đề nghị chuyển cell	M	NEN-001, NEN-042	ADR-32; YC-PT-09	B1		Bổ sung sau khi viết thẻ; người phụ trách hợp đồng duyệt
+NEN-044	Sửa hợp đồng OpenAPI theo BS-03: hồ sơ tập khách hàng, khung tham số, điểm công việc và phạm vi phụ trách trong `inputs`, kiểu đo mốc, cây KPI, chế độ phân công, sự việc	M	NEN-043; người phụ trách hợp đồng duyệt	ADR-33; BS-03	B1		Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng
 ## CORE-00	mission-core: phần dùng chung
 CORE-00-01	Khung ứng dụng mission-core: Spring Boot 3.5, luồng ảo, tám DataSource riêng theo module, actuator, cấu hình mẫu	L	NEN-019, NEN-031, NEN-006, NEN-013, NEN-030	SVC-05; TL-01 ch.5	B2	tl01-thanh-phan §A1, A10, A14
 CORE-00-02	Tám module lục giác, khai báo Spring Modulith, ma trận phụ thuộc, ArchUnit, sinh tài liệu module	M	CORE-00-01	ADR-01, ADR-23	B2	tl01-thanh-phan §A3-A6
@@ -69,6 +70,7 @@ CORE-05-08	So sánh phiên bản và đánh giá xem trước	S	CORE-05-04	QT-15
 CORE-05-09	Trình và phê duyệt: người duyệt khác người soạn, ký số, ghi sổ cái	M	CORE-05-07, DV-10-01	QT-15	B2	tl02b §QT-15 BE-Q15-08
 CORE-05-10	Phát hành: saga đa cell có bù trừ, `policy_binding`, EVT-13	L	CORE-05-09, DV-06-05, CORE-08-12	EVT-13	B2	tl02b §QT-15 BE-Q15-09
 CORE-05-11	Lớp công bố `/policies/.../workflow-bindings` thuộc MOD-05, gọi API `wf_binding` của workflow-service	S	CORE-05-02, DV-06-08	SCR-1504	B2		Bổ sung sau khi viết thẻ
+CORE-05-12	Hồ sơ tập khách hàng có phiên bản (bản kê, ký, hai người), khung tham số kế thừa có giới hạn, ghim phiên bản hồ sơ vào `policy_binding`	L	NEN-044, CORE-05-02, CORE-05-04	ADR-33; BS-03	B2		Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng
 ## CORE-01	MOD-01 okr
 CORE-01-01	Migration schema `okr` (basis, objective, key_result, okr_link, kr_checkin) và phiên bản mục tiêu	M	CORE-00-02, NEN-033	MOD-01; TL-03 schema okr	B2	tl03-phan1 §C6; tl02a §QT-02 BE-02-1
 CORE-01-02	`OkrApi` công bố và API đọc cây, bảng, bản đồ liên kết, tính tiến độ KR và mục tiêu	M	CORE-01-01	SCR-0201	B2	tl02a §QT-02 BE-02-2
@@ -83,6 +85,7 @@ CORE-01-10	Lấy số liệu nguồn của KR qua cổng tích hợp, ghi đè c
 CORE-01-11	Nhắc check-in, nhắc trước hạn và quá hạn OKR	S	CORE-01-08, DV-12-01	BR-03-08	B2	tl02a §QT-03 BE-03-5; §QT-02 BE-02-9
 CORE-01-12	Uỷ quyền check-in thay và chuyển giá trị khi phiên bản mục tiêu mới được duyệt	S	CORE-01-08, CORE-01-07, NEN-042	QT-03	B2	tl02a §QT-03 BE-03-6
 CORE-01-13	Trợ lý AI cho OKR qua ai-gateway: soát KR, ghi `ai.suggestion_log`, cờ `content_source`	M	CORE-01-04, DV-14-04	QT-17 → SCR-1701; BR-02-11	B2	tl02a §QT-02 BE-02-8; tl02b §QT-17
+CORE-01-14	Kiểu đo `MOC` với bảng `okr.kr_milestone`, chiều `TOI_DA`, nhãn tử số và mẫu số cho KR tỷ lệ; ghi ngày đạt và số ngày làm việc chậm	M	NEN-044, CORE-01-01, CORE-08-04	ADR-33; BS-03	B2		Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng
 ## CORE-02	MOD-02 task: danh mục, kế hoạch, nhiệm vụ
 CORE-02-01	Migration schema `task` phần danh mục và kế hoạch (work_catalog, catalog_item, plan, plan_version, plan_item)	M	CORE-00-02, NEN-033	MOD-02; TL-03 schema task	B3	tl03-phan1 §C7
 CORE-02-02	Migration schema `task` phần nhiệm vụ (task, task_assignee, task_progress, task_blocker, task_change_request, task_source_doc, task_state_log) có phân vùng	M	CORE-02-01	MOD-02; TL-03 schema task	B3	tl03-phan1 §C7
@@ -110,6 +113,8 @@ CORE-02-23	Tác vụ 00:05 đặt cờ `qua_han`, nhắc, tính lại khi lịch
 CORE-02-24	Nội dung mật C3 của nhiệm vụ: `task.task_secret_content`, `task.e2ee_key_wrap`, chia sẻ và thu hồi khoá	M	CORE-02-02, CORE-07-06, NEN-042	ADR-27; C3	B3		Bổ sung sau khi viết thẻ
 CORE-02-25	Nhắc việc, giao lại (`remindTask`, `reassignTask`) và đổi người chủ trì khi điều động	M	CORE-02-14, CORE-00-03	QT-16; QT-05	B3		Bổ sung sau khi viết thẻ
 CORE-02-26	Cột `delay_risk` và cổng ghi nội bộ cho dự báo nguy cơ trễ	S	CORE-02-02	QT-06	B3		Bổ sung sau khi viết thẻ
+CORE-02-27	Danh mục bốn cấp kế thừa (thêm `KHOI`, `TINH`), khoảng chỉnh điểm chuẩn so với dòng cha, `coefficient_levels` và `axis_code` trên mục danh mục, kế hoạch, nhiệm vụ	M	NEN-044, CORE-02-03, CORE-05-12	ADR-33; BS-03	B3		Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng
+CORE-02-28	Cây nhiệm vụ nhiều bậc (`node_kind`), điểm thành phần của công việc con, chế độ phân công `MOT_NGUOI_MOT_VIEC` theo tham số hồ sơ	M	NEN-044, CORE-02-13, CORE-05-12	ADR-33; BS-03	B3		Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng
 ## CORE-03	MOD-03 product: sản phẩm, minh chứng, nghiệm thu
 CORE-03-01	Migration schema `product` và trigger đóng băng phiên bản minh chứng	M	CORE-00-02, NEN-033	MOD-03; TL-03 schema product	B3	tl03-phan1 §C8
 CORE-03-02	Máy trạng thái phiên bản minh chứng và liên động với máy trạng thái nhiệm vụ	M	CORE-03-01, CORE-02-13	BR-07-10; baseline §9.1	B3	tl02a §QT-07 BE-07-4
@@ -132,6 +137,7 @@ CORE-04-09	Tra cứu vết tính điểm, điểm theo luồng, xuất XLSX	S	CO
 CORE-04-10	Xếp loại năm: lập từ bốn quý, xử lý thiếu quý, chặn khi còn khiếu nại, tính lại	L	CORE-04-08, DV-07-07	QT-10 → SCR-1001	B4	tl02b §QT-10 BE-Q10-01, 04, 05
 CORE-04-11	"Cờ ""không hoàn thành hai năm liền"" và đề xuất bố trí lại sang MOD-02"	S	CORE-04-10	QT-10	B4	tl02b §QT-10 BE-Q10-03
 CORE-04-12	Phân nhóm triển vọng: lưu nháp, BR-10-07..09, trình tập thể, ký danh sách	M	CORE-04-10	SCR-1002	B4	tl02b §QT-10 BE-Q10-06, 07
+CORE-04-13	Đầu vào `workItems` và `responsibilityScope` trong `inputs`, bảng `appraisal.incident`, bắt buộc lý do khi mức của `rating_proposal` khác mức gợi ý	L	NEN-044, CORE-04-06, CORE-02-27, CORE-02-28, CORE-01-14	ADR-33; BS-03	B4		Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng
 ## CORE-06	MOD-06 dossier: kiểm điểm, hồ sơ số
 CORE-06-01	Migration schema `dossier`	M	CORE-00-02, NEN-033	MOD-06; TL-03 schema dossier	B4	tl03-phan2 §A2
 CORE-06-02	Hội nghị kiểm điểm: tạo, thành phần, quyền thư ký và chủ trì, gửi dự thảo	M	CORE-06-01, CORE-08-04	QT-11 → SCR-1101	B4	tl02b §QT-11 BE-Q11-01, 02
@@ -286,6 +292,7 @@ DL-12	Job đối soát R1–R8 và bốn job kiểm tra sổ cái	L	CORE-04-02, 
 DL-13	Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ	M	NEN-015, INF-18, CORE-08-07	NFR-09; TL-03 ch.16	B11	tl03-phan2 §C
 DL-14	Xoay vòng DEK định kỳ và bọc lại khoá theo KEK mới	M	NEN-015, INF-13	ADR-17	B11		Bổ sung sau khi viết thẻ
 DL-15	Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`)	M	NEN-015, DL-08, NEN-005, NEN-006	SEC-52	B11		Bổ sung sau khi viết thẻ
+DL-16	Hồ sơ TWĐ (giả lập theo UEB): Policy Pack điểm công việc, bảng hệ số, chuỗi xếp loại, ca vàng UEB, danh mục dự thảo số 25, chín quy tắc điểm nghẽn, tham số thẩm quyền và hạn	L	CORE-05-12, CORE-02-27, CORE-02-28, CORE-01-14, CORE-04-13, DV-07-03, DV-07-05	ADR-33; BS-03	B11		Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng
 ## INF	Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng
 INF-01	Chart thư viện `vt-service`: probe, PDB, phân bố vùng, HPA, NetworkPolicy, tài nguyên	L	–	TL-04 ch.5	B8	tl04-phan1 §A, §E
 INF-02	Chart từng service, chart tổng `vt-platform` và values cho ba mô hình phân phối	L	INF-01	TL-04 ch.2, ch.5	B8	tl04-phan1 §A, §E

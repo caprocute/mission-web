@@ -244,6 +244,11 @@ public class ArchitectureRulesTest {
   static final ArchRule platformC2TypesMustMaskToString =
       PlatformArchitectureRules.C2_TYPES_MUST_MASK_TO_STRING;
 
+  /** NEN-035: bộ đệm chỉ qua TenantCache/TenantCacheKey, khoá luôn mang tenant. */
+  @ArchTest
+  static final ArchRule platformNoDirectValkeyClient =
+      PlatformArchitectureRules.NO_DIRECT_VALKEY_CLIENT;
+
   /**
    * CORE-08-03 (TL-01 "chặn ghi khi kỳ khoá"): mọi phương thức ghi công khai của lớp ứng dụng ở
    * MOD-01, MOD-02, MOD-04 và lớp gắn chính sách (MOD-03) phải gọi {@code PeriodApi.assertWritable}

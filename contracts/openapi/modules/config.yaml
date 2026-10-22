@@ -35,6 +35,8 @@ servers:
 security:
   - keycloak: []
 tags:
+  - name: Tuỳ chọn cá nhân
+    description: Tuỳ chọn trình bày và bộ lọc đã lưu của chính người dùng (CNH-01, CNH-02, NFR-11).
   - name: Tenant
     description: Danh sách tenant, wizard khởi tạo sáu bước, saga cấp phát, kiểm tra IdP, kích hoạt, xuất danh sách (QT-01, SCR-0101, SCR-0102).
   - name: Bảo mật tài khoản
@@ -2028,6 +2030,233 @@ paths:
         '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
 
+  # ---------------------------------------------------------------- /config/me (CNH-02, đề xuất CNH-01)
+  /config/me/preferences:
+    get:
+      tags: [Tuỳ chọn cá nhân]
+      operationId: getMyPreferences
+      summary: Tuỳ chọn trình bày của người dùng đang đăng nhập
+      description: >-
+        Trả mọi khoá tuỳ chọn người dùng đã lưu (chế độ hiển thị, bố cục trang chủ, cột bảng, bảng
+        điều khiển mặc định, kênh thông báo). Khoá chưa lưu không có trong `items`; máy khách dùng mặc
+        định của UI Pack. ETag tính trên phiên bản mọi khoá nên `If-None-Match` khớp thì trả 304.
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002, SCR-1803]
+        owner: MOD-08
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: Đề xuất CNH-01 mục 4.1 (docs/de-xuat/de-xuat-ca-nhan-hoa.md), NFR-11
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Tuỳ chọn của người dùng.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserPreferenceMap' }
+        '304':
+          description: Tuỳ chọn không đổi so với `If-None-Match`.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/me/preferences/{prefKey}:
+    parameters:
+      - $ref: '#/components/parameters/PrefKeyPath'
+    put:
+      tags: [Tuỳ chọn cá nhân]
+      operationId: putMyPreference
+      summary: Lưu một khoá tuỳ chọn cá nhân
+      description: >-
+        Tạo hoặc thay giá trị một khoá. Giá trị kiểm theo lược đồ của khoá trong
+        `contracts/schemas/user-preference.schema.json` và tối đa 16 KB; sai lược đồ trả 422. Khoá chưa
+        có thì bỏ `If-Match` (trả 201); khoá đã có thì bắt buộc `If-Match`, lệch phiên bản trả 409 khi
+        hai thiết bị cùng sửa.
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002, SCR-1803]
+        owner: MOD-08
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: Đề xuất CNH-01 mục 4.1; NFR-11
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatchWhenExists'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserPreferenceInput' }
+      responses:
+        '200':
+          description: Đã cập nhật tuỳ chọn.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserPreferenceItem' }
+        '201':
+          description: Đã lưu tuỳ chọn lần đầu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserPreferenceItem' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    delete:
+      tags: [Tuỳ chọn cá nhân]
+      operationId: deleteMyPreference
+      summary: Khôi phục mặc định của một khoá tuỳ chọn
+      description: Xoá lớp phủ cá nhân của khoá; giao diện trở về mặc định của UI Pack đơn vị.
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0002, SCR-1803]
+        owner: MOD-08
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: Đề xuất CNH-01 mục 4.1
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Đã xoá tuỳ chọn.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/me/saved-filters:
+    get:
+      tags: [Tuỳ chọn cá nhân]
+      operationId: listMySavedFilters
+      summary: Bộ lọc đã lưu của người dùng trên một màn hình danh sách
+      description: Tối đa 20 bộ lọc, bộ lọc mặc định đứng đầu rồi theo thứ tự hiển thị.
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0201, SCR-0301, SCR-0901, SCR-1001]
+        owner: MOD-08
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: Đề xuất CNH-01 mục 4.1
+      parameters:
+        - name: screenCode
+          in: query
+          required: true
+          description: Mã màn hình danh sách.
+          schema: { type: string, pattern: '^SCR-[0-9]{4}$', examples: ['SCR-0201'] }
+      responses:
+        '200':
+          description: Danh sách bộ lọc.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedFilterList' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    post:
+      tags: [Tuỳ chọn cá nhân]
+      operationId: createMySavedFilter
+      summary: Lưu bộ lọc mới cho màn hình danh sách
+      description: >-
+        Điều kiện lọc chỉ gồm mã, mã định danh và khoảng giá trị (`SavedFilterCriteria`), không nhận
+        văn bản tự do. Quá 20 bộ lọc trên một màn hình, trùng tên hoặc sai lược đồ trả 422. Đặt
+        `isDefault` thì bộ lọc mặc định cũ của màn hình được bỏ cờ.
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0201, SCR-0301, SCR-0901, SCR-1001]
+        owner: MOD-08
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: Đề xuất CNH-01 mục 4.1
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavedFilterInput' }
+      responses:
+        '201':
+          description: Đã lưu bộ lọc.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedFilter' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
+  /config/me/saved-filters/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    put:
+      tags: [Tuỳ chọn cá nhân]
+      operationId: updateMySavedFilter
+      summary: Sửa bộ lọc đã lưu
+      description: Đổi tên, điều kiện, thứ tự hoặc cờ mặc định; bộ lọc của người khác trả 404.
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0201, SCR-0301, SCR-0901, SCR-1001]
+        owner: MOD-08
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: Đề xuất CNH-01 mục 4.1
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavedFilterInput' }
+      responses:
+        '200':
+          description: Đã sửa bộ lọc.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedFilter' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+    delete:
+      tags: [Tuỳ chọn cá nhân]
+      operationId: deleteMySavedFilter
+      summary: Xoá bộ lọc đã lưu
+      description: Bộ lọc của người khác trả 404.
+      x-mission:
+        qt: [QT-00]
+        scr: [SCR-0201, SCR-0301, SCR-0901, SCR-1001]
+        owner: MOD-08
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        scope: B
+        source: Đề xuất CNH-01 mục 4.1
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Đã xoá bộ lọc.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
   # ---------------------------------------------------------------- /config/settings (NEN-043)
   /config/settings:
     get:
@@ -2603,6 +2832,24 @@ components:
       required: false
       description: ETag đã lưu ở client; khớp thì máy chủ trả 304.
       schema: { type: string, examples: ['"uipack-1.8.0-9f2c"'] }
+    PrefKeyPath:
+      name: prefKey
+      in: path
+      required: true
+      description: Khoá tuỳ chọn cá nhân (`config.user_preference.pref_key`).
+      schema:
+        type: string
+        maxLength: 100
+        pattern: '^(ui\.display|ui\.home\.layout|ui\.dashboard\.default|ui\.table\.SCR-[0-9]{4}|notify\.channel_pref)$'
+        examples: ['ui.display']
+    IfMatchWhenExists:
+      name: If-Match
+      in: header
+      required: false
+      description: >-
+        ETag của khoá đã đọc. Bỏ trống khi lưu khoá lần đầu; khoá đã có mà thiếu header trả 428, lệch
+        phiên bản trả 409 mã `CONFIG-409-VERSION-CONFLICT`.
+      schema: { type: string, examples: ['"3"'] }
     SettingKeyPath:
       name: key
       in: path
@@ -3685,6 +3932,13 @@ components:
           type: object
           additionalProperties: true
         visibleWhen: { type: string, maxLength: 500 }
+        id:
+          type: string
+          maxLength: 64
+          description: Mã widget dùng cho lớp phủ cá nhân trang chủ (CNH-02); thiếu thì lấy `component`.
+        mandatory:
+          type: boolean
+          description: Widget bắt buộc của đơn vị, người dùng không ẩn được (CNH-02).
         children:
           type: array
           items: { $ref: '#/components/schemas/SduiNode' }
@@ -4191,6 +4445,7 @@ components:
         mode: { type: string, enum: [default, elderly], description: 'Chế độ đang áp cho người dùng' }
         reducedSteps: { type: boolean, description: 'Cờ "ít bước" (NFR-11)' }
         layout: { $ref: '#/components/schemas/SduiNode' }
+        personalizationMeta: { $ref: '#/components/schemas/HomePersonalizationMeta' }
       examples:
         - uiPackVersion: 2.3.0
           registryVersion: '2026.3'
@@ -4204,6 +4459,89 @@ components:
               - { component: vt.widget.krCheckinDue }
               - { component: vt.widget.periodMilestones }
               - { component: vt.widget.weeklySummaryAi }
+
+    # ------------------------------------------------------------ Tuỳ chọn cá nhân (CNH-02)
+    UserPreferenceItem:
+      description: >-
+        Một khoá tuỳ chọn đã lưu. `value` theo lược đồ của khoá trong
+        `contracts/schemas/user-preference.schema.json` (`ui.display` → `UiDisplayPreference`,
+        `ui.home.layout` → `UiHomeLayoutOverlay`, `ui.table.SCR-xxxx` → `UiTableScreenPreference`…).
+      type: object
+      required: [prefKey, value, schemaVersion, rowVersion]
+      properties:
+        prefKey: { type: string, maxLength: 100 }
+        value:
+          type: object
+          additionalProperties: true
+        schemaVersion: { type: integer, minimum: 1 }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    UserPreferenceMap:
+      description: Mọi tuỳ chọn đã lưu của người dùng, theo khoá.
+      type: object
+      required: [schemaVersion, items]
+      properties:
+        schemaVersion: { type: integer, minimum: 1 }
+        items:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/UserPreferenceItem' }
+    UserPreferenceInput:
+      description: Giá trị mới của một khoá tuỳ chọn.
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: object
+          additionalProperties: true
+        schemaVersion: { type: integer, minimum: 1, default: 1 }
+    SavedFilter:
+      description: Bộ lọc danh sách đã đặt tên (`config.saved_filter`).
+      type: object
+      required: [id, screenCode, name, criteria, isDefault, displayOrder, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        screenCode: { type: string, pattern: '^SCR-[0-9]{4}$' }
+        name: { type: string, maxLength: 120 }
+        criteria:
+          description: Theo `SavedFilterCriteria` của `user-preference.schema.json`.
+          type: object
+          additionalProperties: true
+        isDefault: { type: boolean }
+        displayOrder: { type: integer, minimum: 0, maximum: 19 }
+        updatedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    SavedFilterInput:
+      description: Nội dung tạo hoặc sửa bộ lọc đã lưu; `screenCode` chỉ dùng khi tạo.
+      type: object
+      required: [name, criteria]
+      properties:
+        screenCode: { type: string, pattern: '^SCR-[0-9]{4}$' }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        criteria:
+          type: object
+          additionalProperties: true
+        isDefault: { type: boolean, default: false }
+        displayOrder: { type: integer, minimum: 0, maximum: 19, default: 0 }
+    SavedFilterList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/SavedFilter' }
+    HomePersonalizationMeta:
+      description: >-
+        Thông tin lớp phủ cá nhân đã áp lên bố cục trang chủ (CNH-02): có lớp phủ hay không, phiên bản
+        lớp phủ và các widget bắt buộc không được ẩn.
+      type: object
+      required: [hasOverlay, mandatoryWidgetIds]
+      properties:
+        hasOverlay: { type: boolean }
+        overlayVersionNo: { type: integer, minimum: 0 }
+        mandatoryWidgetIds:
+          type: array
+          items: { type: string, maxLength: 64 }
 
     # ------------------------------------------------------------ Vai trò và uỷ quyền (WEB-058)
     RoleCode:

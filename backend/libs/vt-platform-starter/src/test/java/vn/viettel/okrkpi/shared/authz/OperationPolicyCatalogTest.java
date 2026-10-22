@@ -31,9 +31,10 @@ class OperationPolicyCatalogTest {
     OperationPolicyCatalog catalog = OperationPolicyCatalog.getDefault();
 
     // 372 thao tác trước NEN-042/043 + 42 thao tác bổ sung trong NEN-042/043 + 17 thao tác SCIM của
-    // DV-04-06 (scim.yaml) + 1 thao tác listAppraisalBatchDecisions của WEB-063 = 432 thao tác.
-    assertThat(catalog.size()).isEqualTo(432);
-    assertThat(catalog.all()).hasSize(432);
+    // DV-04-06 (scim.yaml) + 1 thao tác listAppraisalBatchDecisions của WEB-063 + 7 thao tác tuỳ
+    // chọn cá nhân của CNH-02 = 439 thao tác.
+    assertThat(catalog.size()).isEqualTo(439);
+    assertThat(catalog.all()).hasSize(439);
 
     List<OperationPolicy> aal2 = catalog.aal2Operations();
     // 54 thao tác AAL2 gốc + 7 thao tác của WEB-058 + 12 thao tác của NEN-042/043 = 73 thao tác.

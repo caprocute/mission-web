@@ -1,0 +1,11 @@
+{
+  "note": "Kho văn bản dùng chung của trợ lý AI (DV-14-02). Nạp vào tenant dùng chung với ACL mở, mức C0. Nội dung là tài liệu mẫu cho môi trường phát triển.",
+  "documents": [
+    {
+      "file": "huong-dan-viet-okr.md",
+      "sourceId": "0192f7b9-0000-7000-8000-00000000c001",
+      "sourceType": "HUONG_DAN",
+      "title": "Hướng dẫn viết mục tiêu và kết quả then chốt (tài liệu mẫu)"
+    }
+  ]
+}

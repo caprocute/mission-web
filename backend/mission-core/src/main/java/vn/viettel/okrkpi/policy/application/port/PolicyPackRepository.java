@@ -48,6 +48,12 @@ public interface PolicyPackRepository {
   /** Ghi trạng thái mới nếu {@code row_version} còn bằng {@code expected}. */
   boolean storeStatus(TenantId tenant, PolicyPackVersion version, long expected);
 
+  /**
+   * Ghi trạng thái kèm {@code golden_pass_rate}, {@code last_test_run_id} sau lần chạy kiểm thử nếu
+   * {@code row_version} còn bằng {@code expected} (CORE-05-07).
+   */
+  boolean storeTestOutcome(TenantId tenant, PolicyPackVersion version, long expected);
+
   List<PolicyRule> rules(TenantId tenant, UUID versionId);
 
   Optional<PolicyRule> findRule(TenantId tenant, UUID versionId, String ruleKey);

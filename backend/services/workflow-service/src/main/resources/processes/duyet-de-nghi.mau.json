@@ -1,0 +1,41 @@
+{
+  "templateCode": "duyet-de-nghi",
+  "phienBanChinh": 1,
+  "moTa": "Duyệt đề nghị gia hạn hoặc điều chỉnh nhiệm vụ vượt ngưỡng: luồng chọn cấp duyệt, giao lần lượt cho từng cấp; người duyệt chấp nhận hoặc từ chối có lý do; kết quả được gửi về lõi.",
+  "chuSoHuu": "Luồng B6 - nhóm workflow-service (SVC-06)",
+  "truyVet": "QT-06 bước 6 → SCR-0601 → decideTaskChangeRequest (tasks.yaml) → MOD-02, SVC-06",
+  "bangQuyetDinh": [
+    "chon-cap-duyet"
+  ],
+  "kiemThu": [
+    "vn.viettel.okrkpi.workflow.template.DuyetDeNghiFlowTest",
+    "vn.viettel.okrkpi.workflow.template.ApprovalTemplatesIT"
+  ],
+  "kiemThuDmn": [
+    "vn.viettel.okrkpi.workflow.template.ChonCapDuyetDmnTest"
+  ],
+  "bien": {
+    "tenantId": 50,
+    "khoi": 16,
+    "loaiHoSo": 24,
+    "laNguoiDungDau": 20,
+    "donViId": 48,
+    "tieuDe": 780,
+    "periodId": 48,
+    "remindAfter": 24,
+    "phienBanDoiTuong": 40,
+    "phienBanPolicyPack": 84,
+    "choPhepUyQuyen": 20,
+    "capTuyChinh": 200,
+    "decision": 16,
+    "approvalLevels": 1600,
+    "level": 260,
+    "loopCounter": 16,
+    "nrOfInstances": 20,
+    "nrOfActiveInstances": 24,
+    "nrOfCompletedInstances": 28,
+    "nhiemVuId": 50,
+    "nguyenNhan": 24
+  },
+  "songSongToiDa": {}
+}

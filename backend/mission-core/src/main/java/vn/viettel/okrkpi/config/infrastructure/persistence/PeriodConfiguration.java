@@ -34,6 +34,7 @@ import vn.viettel.okrkpi.config.application.PeriodLockService;
 import vn.viettel.okrkpi.config.application.PeriodReopenService;
 import vn.viettel.okrkpi.config.application.PeriodStateCache;
 import vn.viettel.okrkpi.config.application.TenantSettingService;
+import vn.viettel.okrkpi.config.application.UserPreferenceService;
 import vn.viettel.okrkpi.config.application.port.ConfigAudit;
 import vn.viettel.okrkpi.config.application.port.LockOrderNotices;
 import vn.viettel.okrkpi.config.application.port.PeriodLockSaga;
@@ -382,6 +383,16 @@ public class PeriodConfiguration {
     return new TenantSettingService(
         tenantSettingRepository,
         configAudit,
+        json.getIfAvailable(ObjectMapper::new),
+        Clock.systemUtc());
+  }
+
+  /** CNH-02: tuỳ chọn cá nhân và bộ lọc đã lưu của người dùng. */
+  @Bean
+  UserPreferenceService userPreferenceService(
+      @Qualifier("configDataSource") DataSource dataSource, ObjectProvider<ObjectMapper> json) {
+    return new UserPreferenceService(
+        new JdbcUserPreferenceRepository(JdbcClient.create(dataSource)),
         json.getIfAvailable(ObjectMapper::new),
         Clock.systemUtc());
   }

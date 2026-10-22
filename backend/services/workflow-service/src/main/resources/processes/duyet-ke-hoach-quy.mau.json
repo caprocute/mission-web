@@ -1,0 +1,41 @@
+{
+  "templateCode": "duyet-ke-hoach-quy",
+  "phienBanChinh": 1,
+  "moTa": "Duyệt kế hoạch công tác quý: sau khi kế hoạch được gửi duyệt và khoá nội dung, luồng chọn cấp duyệt, giao lần lượt cho từng cấp; người duyệt duyệt và ký hoặc trả lại kèm ý kiến; kết quả được gửi về lõi.",
+  "chuSoHuu": "Luồng B6 - nhóm workflow-service (SVC-06)",
+  "truyVet": "QT-04 bước 5 → SCR-0403 → approvePlanVersion, returnPlanVersion (tasks.yaml) → MOD-02, SVC-06",
+  "bangQuyetDinh": [
+    "chon-cap-duyet"
+  ],
+  "kiemThu": [
+    "vn.viettel.okrkpi.workflow.template.DuyetKeHoachQuyFlowTest",
+    "vn.viettel.okrkpi.workflow.template.ApprovalTemplatesIT"
+  ],
+  "kiemThuDmn": [
+    "vn.viettel.okrkpi.workflow.template.ChonCapDuyetDmnTest"
+  ],
+  "bien": {
+    "tenantId": 50,
+    "khoi": 16,
+    "loaiHoSo": 24,
+    "laNguoiDungDau": 20,
+    "donViId": 48,
+    "tieuDe": 780,
+    "periodId": 48,
+    "remindAfter": 24,
+    "phienBanDoiTuong": 40,
+    "phienBanPolicyPack": 84,
+    "choPhepUyQuyen": 20,
+    "capTuyChinh": 200,
+    "decision": 16,
+    "approvalLevels": 1600,
+    "level": 260,
+    "loopCounter": 16,
+    "nrOfInstances": 20,
+    "nrOfActiveInstances": 24,
+    "nrOfCompletedInstances": 28,
+    "keHoachPhienBan": 32,
+    "phuongThucKy": 40
+  },
+  "songSongToiDa": {}
+}

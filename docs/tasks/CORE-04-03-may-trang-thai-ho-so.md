@@ -35,6 +35,12 @@ Hiện thực trong lớp `domain` của MOD-04 máy trạng thái hồ sơ đá
 - Phát EVT-11 qua outbox ở mọi bước chuyển, kèm bước, người thực hiện, mã tác nhân AC; không chứa trường C2.
 - Kiểm thử bảng chuyển trạng thái đầy đủ và kiểm thử thuộc tính "không có chuỗi lệnh nào đưa hồ sơ ra khỏi `DA_KHOA`".
 
+### Bổ sung theo BS-03 (ADR-33, 22/10/2026)
+
+Nguồn: `/mnt/project-files/kien-truc-okr-kpi/bo-sung/BS-03-ho-so-tap-khach-hang-va-diem-cam-loi.md`. Phần dưới mở rộng phạm vi của thẻ; mọi giá trị riêng của khách hàng đi qua cấu hình, không viết cứng trong mã (YC-TK-11). Nếu thẻ phụ thuộc chưa gộp, làm phần gốc của thẻ trước và để phần bổ sung sau cờ hoặc ghi rõ trong báo cáo.
+
+- Máy trạng thái chặn chuyển bước khi mức của dòng `appraisal.rating_proposal` khác `score_snapshot.auto_rating_code` của ảnh chụp người đó đã thấy mà thiếu lý do trong `appraisal.rating_explanation` (DC-05). Bốn mức con người đưa ra vẫn là bốn giá trị `stage` như TL-03, không thêm cột.
+
 ## 4. Ngoài phạm vi
 
 - API HTTP, ký số, OPA tách vai trò (CORE-04-04, CORE-04-05, CORE-04-07, CORE-04-08); luồng BPMN `duyet-ho-so-danh-gia` (DV-06-04).

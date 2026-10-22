@@ -19,7 +19,8 @@
 #   events             : kafka, apicurio, debezium
 #   search             : minio, minio-init, opensearch
 #   obs                : otel-collector, prometheus, loki, tempo, grafana
-#   backend            : gotenberg (chuyển DOCX sang PDF/A-2b cho document-service, DV-11-01)
+#   backend            : gotenberg (chuyển DOCX sang PDF/A-2b cho document-service, DV-11-01),
+#                        llm-mock (máy chủ mô hình nhỏ chạy CPU, API tương thích vLLM cho ai-gateway, DV-14-01)
 #   all                : tất cả dịch vụ trên
 # =============================================================================
 
@@ -495,6 +496,40 @@ services:
     networks:
       - mission-net
 
+  # Máy chủ mô hình nhỏ chạy CPU cho ai-gateway (DV-14-01): llama.cpp server có API tương thích OpenAI như vLLM,
+  # mô hình Qwen2.5-0.5B-Instruct GGUF (giấy phép Apache 2.0) tải từ Hugging Face lần đầu. ai-gateway trỏ tới bằng
+  # LLM_MODE=openai, LLM_BASE_URL=http://127.0.0.1:${LLM_MOCK_PORT}; mặc định ai-gateway dùng bản giả lập trong mã.
+  llm-mock:
+    image: ghcr.io/ggml-org/llama.cpp:server-b11804
+    container_name: mission-dev-llm-mock
+    restart: unless-stopped
+    profiles: ["backend", "all"]
+    command:
+      - "-hf"
+      - "Qwen/Qwen2.5-0.5B-Instruct-GGUF:Q4_K_M"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8080"
+      - "--ctx-size"
+      - "4096"
+      - "--parallel"
+      - "2"
+      - "--alias"
+      - "viettel-llm-vi"
+    ports:
+      - "${LLM_MOCK_PORT:-35340}:8080"
+    volumes:
+      - llm_cache:/root/.cache/llama.cpp
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+    networks:
+      - mission-net
+
 volumes:
   pg_data:
   valkey_data:
@@ -505,6 +540,7 @@ volumes:
   loki_data:
   prometheus_data:
   grafana_data:
+  llm_cache:
 
 networks:
   mission-net:
