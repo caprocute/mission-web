@@ -272,8 +272,7 @@ class CatalogApiIT extends ContractConformanceTest {
     long started = System.nanoTime();
     MvcResult accepted = perform(upload(importCatalog, "danh-muc.xlsx", workbook(1000)));
     assertThat(accepted.getResponse().getStatus()).isEqualTo(202);
-    assertResponseConforms(
-        accepted, "/catalog/{catalogId}/imports", PathItem.HttpMethod.POST);
+    assertResponseConforms(accepted, "/catalog/{catalogId}/imports", PathItem.HttpMethod.POST);
     String location = accepted.getResponse().getHeader("Location");
     String jobId = body(accepted).get("id").asText();
     assertThat(location).isEqualTo(BASE + "/imports/" + jobId);
@@ -294,8 +293,7 @@ class CatalogApiIT extends ContractConformanceTest {
     assertResponseConforms(
         perform(get(location)), "/catalog/imports/{jobId}", PathItem.HttpMethod.GET);
     MvcResult latest = perform(get(BASE + "/" + importCatalog + "/imports/latest"));
-    assertResponseConforms(
-        latest, "/catalog/{catalogId}/imports/latest", PathItem.HttpMethod.GET);
+    assertResponseConforms(latest, "/catalog/{catalogId}/imports/latest", PathItem.HttpMethod.GET);
     assertThat(body(latest).get("id").asText()).isEqualTo(jobId);
     assertThat(itemCount()).isEqualTo(963);
 
