@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -57,16 +58,14 @@ public class JdbcOkrMilestoneRepository implements OkrMilestoneRepository {
   public void replaceMilestones(
       TenantId tenant, UUID keyResultId, List<MilestoneDraft> drafts, UUID actor) {
     jdbc.update(
-        "DELETE FROM okr.kr_milestone WHERE tenant_id = :t AND key_result_id = :k"
-            + " AND achieved_at IS NULL",
+        "DELETE FROM okr.kr_milestone WHERE tenant_id = :t AND key_result_id = :k",
         p(tenant, keyResultId));
     for (MilestoneDraft d : drafts) {
       jdbc.update(
           "INSERT INTO okr.kr_milestone (id, created_by, updated_by, key_result_id, seq, due_date,"
-              + " recognition_condition) VALUES (:id, :actor, :actor, :k, :seq, :due, :cond)"
-              + " ON CONFLICT (tenant_id, key_result_id, seq) DO NOTHING",
+              + " recognition_condition) VALUES (:id, :actor, :actor, :k, :seq, :due, :cond)",
           p(tenant, keyResultId)
-              .addValue("id", UUID.randomUUID())
+              .addValue("id", d.id() == null ? UUID.randomUUID() : d.id())
               .addValue("actor", actor)
               .addValue("seq", d.seq())
               .addValue("due", Date.valueOf(d.dueDate()))
@@ -78,28 +77,53 @@ public class JdbcOkrMilestoneRepository implements OkrMilestoneRepository {
   public Optional<MilestoneRow> markAchieved(
       TenantId tenant,
       UUID keyResultId,
-      int seq,
+      UUID milestoneId,
       Instant achievedAt,
       String evidenceRef,
       UUID actor) {
-    jdbc.update(
-        "UPDATE okr.kr_milestone SET achieved_at = :at, evidence_ref = :ev, updated_at = now(),"
-            + " updated_by = :actor, row_version = row_version + 1"
-            + " WHERE tenant_id = :t AND key_result_id = :k AND seq = :seq AND achieved_at IS NULL",
-        p(tenant, keyResultId)
-            .addValue("at", Timestamp.from(achievedAt))
-            .addValue("ev", evidenceRef)
-            .addValue("actor", actor)
-            .addValue("seq", seq));
     return jdbc
         .query(
-            "SELECT "
-                + COLUMNS
-                + " FROM okr.kr_milestone WHERE tenant_id = :t"
-                + " AND key_result_id = :k AND seq = :seq",
-            p(tenant, keyResultId).addValue("seq", seq),
+            "UPDATE okr.kr_milestone SET achieved_at = :at, evidence_ref = :ev, updated_at = now(),"
+                + " updated_by = :actor, row_version = row_version + 1"
+                + " WHERE tenant_id = :t AND key_result_id = :k AND id = :id RETURNING "
+                + COLUMNS,
+            p(tenant, keyResultId)
+                .addValue("at", Timestamp.from(achievedAt))
+                .addValue("ev", evidenceRef)
+                .addValue("actor", actor)
+                .addValue("id", milestoneId),
             JdbcOkrMilestoneRepository::row)
         .stream()
         .findFirst();
+  }
+
+  @Override
+  public Optional<LocalDate> keyResultDueDate(TenantId tenant, int bucket, UUID keyResultId) {
+    return jdbc
+        .query(
+            "SELECT due_date FROM okr.key_result WHERE period_bucket = :b AND tenant_id = :t"
+                + " AND id = :k",
+            p(tenant, keyResultId).addValue("b", bucket),
+            (rs, i) -> rs.getDate(1).toLocalDate())
+        .stream()
+        .findFirst();
+  }
+
+  @Override
+  public long touchKeyResult(
+      TenantId tenant, int bucket, UUID keyResultId, long rowVersion, UUID actor) {
+    return jdbc
+        .query(
+            "UPDATE okr.key_result SET row_version = row_version + 1, updated_at = now(),"
+                + " updated_by = :actor WHERE period_bucket = :b AND tenant_id = :t AND id = :k"
+                + " AND row_version = :v RETURNING row_version",
+            p(tenant, keyResultId)
+                .addValue("b", bucket)
+                .addValue("v", rowVersion)
+                .addValue("actor", actor),
+            (rs, i) -> rs.getLong(1))
+        .stream()
+        .findFirst()
+        .orElse(0L);
   }
 }

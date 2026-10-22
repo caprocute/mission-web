@@ -114,6 +114,25 @@ public class OkrCheckinService {
     return submit(tenant, actor, target, idempotencyKey, cmd, onBehalf);
   }
 
+  /**
+   * Giá trị check-in của KR tỷ lệ khai tử số, mẫu số (BS-03 DC-04): đủ cả hai thì {@code tử / mẫu ×
+   * 100} (đơn vị %, suy luận), làm tròn 4 chữ số; thiếu một trong hai thì giữ {@code value} gửi
+   * lên.
+   */
+  public static BigDecimal ratioValue(
+      BigDecimal value, BigDecimal numerator, BigDecimal denominator) {
+    if (numerator == null || denominator == null) {
+      return value;
+    }
+    if (denominator.signum() <= 0 || numerator.signum() < 0) {
+      throw new BusinessException(
+          "OKR-422-VALIDATION", "Tử số không được âm và mẫu số phải lớn hơn 0.");
+    }
+    return numerator
+        .multiply(BigDecimal.valueOf(100))
+        .divide(denominator, MAX_SCALE, RoundingMode.HALF_UP);
+  }
+
   /** Lịch sử check-in {@code DA_GUI}, mới nhất trước; bản nháp chỉ trả cho người tạo. */
   @Transactional(transactionManager = TX, readOnly = true)
   public History history(
