@@ -12,10 +12,10 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **120 / 401 task (29.9%)** — Khối lượng quy đổi đã gộp: **138 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **121 / 401 task (30.2%)** (gồm **120** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ đã gộp `main`**: **122 / 401 task (30.4%)** — Khối lượng quy đổi đã gộp: **139.5 / 482.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **123 / 401 task (30.7%)** (gồm **122** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **9 task** (6 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **271 task**.
+- **Chưa bắt đầu**: **269 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **9 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-05-01`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,21 +25,21 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **5** | 0 | 0 | 107 | **4.5%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **19** | 0 | 6 | 79 | **18.3%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **21** | 0 | 6 | 77 | **20.2%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **1** | 1 | 0 | 26 | **3.6%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **120** | **1** | **9** | **271** | **29.9%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **122** | **1** | **9** | **269** | **30.4%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 59 | **48** | 1 | 1 | 9 | **81.4%** |
-| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **28** | 0 | 2 | 10 | **70.0%** |
+| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **30** | 0 | 2 | 8 | **75.0%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **11** | 0 | 1 | 34 | **23.9%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **16** | 0 | 4 | 97 | **13.7%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 0 | 0 | 54 | **23.9%** |
@@ -348,7 +348,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-01-03](docs/tasks/DV-01-03-tuyen-cong-khai-ci.md) | Danh sách tuyến công khai tường minh và kiểm thử CI quét toàn bộ CRD | S | B5 | 3 | DV-01-01 | **Chưa bắt đầu** |  |
 | [DV-01-04](docs/tasks/DV-01-04-apisix-lop-ngoai.md) | APISIX lớp ngoài ở vùng toàn cục: phân giải tenant sang cell, đệm 5 phút, khám phá cell | M | B5 | 9 | DV-01-01, DV-03-02 | **Chưa bắt đầu** |  |
 
-### DV-02 · SVC-02 iam (Keycloak) (4/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-02 · SVC-02 iam (Keycloak) (6/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -357,8 +357,8 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-02-03](docs/tasks/DV-02-03-mfa-step-up.md) | MFA theo vai trò, thiết bị, rủi ro; step-up `acr` và `auth_time` | M | B5 | 2 | DV-02-01 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
 | [DV-02-04](docs/tasks/DV-02-04-moi-gioi-vneid.md) | Môi giới VNeID: state, nonce, PKCE, liên kết danh tính bằng HMAC | L | B5 | 10 | DV-02-01, DV-04-01, NEN-015 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần môi trường thử VNeID |
 | [DV-02-05](docs/tasks/DV-02-05-su-kien-keycloak.md) | Event listener Keycloak đẩy `iam.auth.event.v1`, báo truy cập bất thường, thu hồi phiên | M | B5 | 4 | DV-02-01, NEN-007 | **Đã gộp main** | Đã gộp main (nhánh B1 37a1606) |
-| [DV-02-06](docs/tasks/DV-02-06-dong-bo-nguoi-dung.md) | Consumer EVT-16 đồng bộ người dùng qua Admin API | M | B5 | 12 | DV-02-01, DV-04-03 | **Chưa bắt đầu** |  |
-| [DV-02-07](docs/tasks/DV-02-07-consumer-evt14-keycloak.md) | Consumer EVT-14 cập nhật Organizations Keycloak khi tổ chức thay đổi | S | B5 | 12 | DV-02-01, DV-04-03 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
+| [DV-02-06](docs/tasks/DV-02-06-dong-bo-nguoi-dung.md) | Consumer EVT-16 đồng bộ người dùng qua Admin API | M | B5 | 12 | DV-02-01, DV-04-03 | **Đã gộp main** | Đã gộp main (nhánh B1 6389317) |
+| [DV-02-07](docs/tasks/DV-02-07-consumer-evt14-keycloak.md) | Consumer EVT-14 cập nhật Organizations Keycloak khi tổ chức thay đổi | S | B5 | 12 | DV-02-01, DV-04-03 | **Đã gộp main** | Đã gộp main (nhánh B1 6389317) |
 | [DV-02-08](docs/tasks/DV-02-08-ma-khoi-phuc-mfa.md) | Mã khôi phục MFA: cấp, dùng một lần, thu hồi | S | B5 | 4 | DV-02-03, NEN-043 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 
 ### DV-03 · SVC-03 tenant-registry (Go, toàn cục) (5/7 đã gộp `main`, 0 chờ gộp, 2 đang làm)
@@ -746,4 +746,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 01:59 | Điều phối | `DL-07` | Chuyển trạng thái sang **Làm một phần** — Phần org (9 khối, 23 chức danh) đã gộp main |
 | 22/10/2026 01:59 | Điều phối | `WEB-061` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (25c670a) |
 | 22/10/2026 01:59 | Điều phối | `WEB-063` | Chuyển trạng thái sang **Đã gộp main** — Hợp đồng và màn hình đã gộp main (4f1e4b0) |
+| 22/10/2026 02:07 | Điều phối | `DV-02-06` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (nhánh B1 6389317) |
+| 22/10/2026 02:07 | Điều phối | `DV-02-07` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (nhánh B1 6389317) |
 <!-- PROGRESS_LOG_END -->

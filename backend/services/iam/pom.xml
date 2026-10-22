@@ -26,6 +26,7 @@
     <module>realm-template</module>
     <module>keycloak-events</module>
     <module>revocation-consumer</module>
+    <module>user-sync</module>
   </modules>
   <properties>
     <java.version>21</java.version>
