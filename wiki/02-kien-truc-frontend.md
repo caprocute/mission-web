@@ -73,7 +73,27 @@ Cấu hình `deploy/web/nginx.conf` hiện tại theo đúng nguyên tắc này:
 
 ## Nhúng vào cổng khác: `<vt-okr-app>`
 
-TL-01 mục SVC-17 yêu cầu ứng dụng nhúng được vào cổng của tenant hoặc của vOffice dưới dạng web component `<vt-okr-app>` dựng bằng Angular Elements, dùng SSO OIDC; khi đăng xuất, ứng dụng gọi `end_session_endpoint` của Keycloak thay vì trỏ về trang đăng nhập riêng của hệ cũ. Chỉ thị CSP `frame-ancestors` cho phép các nguồn cổng của tenant (xem [Bảo mật frontend](08-bao-mat-frontend.md)). Mã hiện tại chưa có web component này; phần đăng xuất qua `end_session_endpoint` đã có trong `SessionService.logout()`.
+TL-01 mục SVC-17 yêu cầu ứng dụng nhúng được vào cổng của tenant hoặc của vOffice dưới dạng web component `<vt-okr-app>` dựng bằng Angular Elements, dùng SSO OIDC; khi đăng xuất, ứng dụng gọi `end_session_endpoint` của Keycloak thay vì trỏ về trang đăng nhập riêng của hệ cũ. Chỉ thị CSP `frame-ancestors` cho phép các nguồn cổng của tenant (xem [Bảo mật frontend](08-bao-mat-frontend.md)).
+
+WEB-013 hiện thực yêu cầu này bằng project `fe-embed`, một host Native Federation thứ hai bên cạnh shell. Gói build được đặt ở `/embed/` của máy chủ web (Dockerfile chép `dist/fe-embed/browser` vào đó). Cổng chỉ cần hai thẻ:
+
+```html
+<script src="https://<máy chủ web>/embed/vt-okr-app.js" nonce="<nonce của cổng>"></script>
+<vt-okr-app tenant="<mã tenant>" route="tasks" ngCspNonce="<nonce của cổng>"></vt-okr-app>
+```
+
+Bộ nạp `vt-okr-app.js` (tệp tĩnh, không qua build) lấy mọi tệp theo địa chỉ của chính nó, chép nonce của thẻ script sang các thẻ nó thêm, bật chế độ shim của es-module-shims rồi nạp `main.js`. `main.ts` của `fe-embed` đọc `config.json` và `federation.manifest.json` ở gốc ứng dụng (thư mục cha của `/embed/`), gọi `initFederation` với `deployUrl` là `/embed/`, rồi `bootstrap.ts` dựng ứng dụng bằng `createApplication` và đăng ký phần tử bằng `createCustomElement`. Vì ứng dụng chạy trong trang của cổng, mọi địa chỉ tương đối trong `config.json` (`apiBaseUrl`, `uiPackBaseUrl`, URL remote) được đổi sang tuyệt đối theo gốc ứng dụng (`embed-config.ts`). Router dùng `MemoryLocationStrategy`: không đọc, không ghi thanh địa chỉ của cổng; `href` của liên kết trỏ tới cùng màn hình ở ứng dụng đầy đủ, nên mở thẻ mới vẫn đúng chỗ. Thuộc tính `route` chọn màn hình mở đầu (mặc định `tasks`, chỉ nhận đường dẫn nội bộ), sự kiện `routeChange` báo cho cổng đường dẫn nội bộ mỗi lần đổi màn hình. Thuộc tính `tenant` chỉ được đọc lúc khởi động (từ phần tử đầu tiên trên trang) để chọn UI Pack; tenant thật vẫn lấy theo token. Mỗi trang chỉ nên có một phần tử, vì các phần tử dùng chung một router.
+
+Phần nhúng hiện chỉ mở mục "Việc của tôi" (`/tasks` của fe-task, chặn theo cùng nhóm chức năng SCR-0401, SCR-0501, SCR-0502, SCR-0503, SCR-0601, SCR-0602 như shell); tuyến khác hiện lời mời mở ứng dụng đầy đủ ở thẻ mới. Thanh nhỏ phía trên có nút "Chữ lớn" (chế độ cao tuổi, `aria-pressed`) và liên kết "Mở ứng dụng đầy đủ". Kiểu toàn cục của phần nhúng chỉ đặt biến `--vt-*` và kiểu dưới thẻ `vt-okr-app`, không đặt cho `html`, `body` hay thẻ chung.
+
+Đăng nhập một lần: `RuntimeConfig.auth.redirectUri` (tuỳ chọn, mới ở WEB-013) cho phép Keycloak trả về đúng trang của cổng; phần nhúng đặt giá trị này bằng địa chỉ trang cổng (bỏ truy vấn và `#`). Khi người dùng đã đăng nhập cổng bằng cùng IdP, lượt chuyển sang Keycloak trả về ngay không hỏi lại. Đăng xuất vẫn qua `end_session_endpoint`. Trang thử `frontend/projects/fe-embed/demo/index.html` mô phỏng một cổng ở nguồn khác với CSP nonce và `strict-dynamic`; máy chủ phục vụ trang thay `__APP_ORIGIN__` và `__CSP_NONCE__`.
+
+Điều kiện phía cổng và máy chủ khi tích hợp thật (suy luận từ cách chạy trong cùng trang):
+
+- CSP của trang cổng phải cho phép nguồn máy chủ web Mission trong `script-src` (hoặc dùng nonce kèm `'strict-dynamic'` như trang thử), `style-src` (kèm nonce qua thuộc tính `ngCspNonce`), `font-src`, `img-src`, và cho phép nguồn máy chủ web, API của cell, IdP trong `connect-src`. Nếu cổng bật Trusted Types, cần thêm chính sách `native-federation` và `es-module-shims`.
+- Client `mission-web` trên Keycloak phải khai địa chỉ trang cổng trong "Valid redirect URIs" và nguồn cổng trong "Web origins"; APISIX phải cho CORS từ nguồn cổng với header `Authorization`, `Idempotency-Key`, `If-Match`, `traceparent`, `baggage` (TL-04 D7 đã nêu CORS theo danh sách cổng của tenant).
+- Kiểu CSS của cổng đặt theo tên thẻ chung (ví dụ `header { ... }`) sẽ áp cả vào nội dung nhúng, vì phần nhúng không dùng Shadow DOM: PrimeNG chèn kiểu vào `document.head` nên không áp được bên trong shadow root. Cổng nên đặt kiểu theo lớp; nếu không sửa được, dùng cách nhúng khung `<iframe>` trỏ tới ứng dụng đầy đủ, khi đó nguồn cổng phải có trong `CSP_FRAME_ANCESTORS`.
+
 
 ## Luồng khởi động
 

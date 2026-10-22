@@ -159,13 +159,15 @@ export class SessionService {
       void this.loadContext();
       return;
     }
+    // WEB-013: khi nhúng vào cổng khác, Keycloak trả về đúng trang của cổng đang chứa ứng dụng
+    const back = this.cfg.auth.redirectUri ?? location.origin + '/';
     this.oauth.configure({
       issuer: this.cfg.auth.issuer,
       clientId: this.cfg.auth.clientId,
       responseType: 'code',
       scope: this.cfg.auth.scope,
-      redirectUri: location.origin + '/',
-      postLogoutRedirectUri: location.origin + '/',
+      redirectUri: back,
+      postLogoutRedirectUri: back,
       // Trang nhận kết quả của cửa sổ bước lên (MFA) để không rời màn hình đang nhập
       silentRefreshRedirectUri: location.origin + '/silent-refresh.html',
       useSilentRefresh: false,
