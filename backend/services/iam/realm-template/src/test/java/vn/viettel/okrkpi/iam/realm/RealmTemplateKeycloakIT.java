@@ -67,6 +67,10 @@ class RealmTemplateKeycloakIT {
         .withExposedPorts(8080)
         .withEnv("KC_BOOTSTRAP_ADMIN_USERNAME", adminUser)
         .withEnv("KC_BOOTSTRAP_ADMIN_PASSWORD", adminPassword)
+        // Mẫu realm dùng mapper mission-context-mapper của DV-02-02 (module keycloak-events dựng trước).
+        .withCopyFileToContainer(MountableFile.forHostPath(java.nio.file.Path.of(System.getProperty("provider.jar",
+            "../keycloak-events/target/mission-keycloak-events.jar"))), "/opt/keycloak/providers/mission-keycloak-events.jar")
+        .withEnv("MISSION_EVENTS_QUEUE_DIR", "/tmp/mission-events")
         .withCommand("start-dev")
         .waitingFor(Wait.forHttp("/realms/master").forPort(8080).withStartupTimeout(Duration.ofMinutes(4)));
     keycloak.start();
@@ -138,6 +142,24 @@ class RealmTemplateKeycloakIT {
     JsonNode vi = admin.get("/admin/realms/" + REALM + "/localization/vi");
     assertThat(vi.path("invalidUserMessage").asText()).startsWith("Tên đăng nhập hoặc mật khẩu không đúng.");
     assertThat(vi.path("accountTemporarilyDisabledMessage").asText()).startsWith("Tài khoản tạm khoá");
+  }
+
+  @Test
+  void clientScopeNguCanhCoMapperVaGanChoClientNguoiDung() {
+    JsonNode scope = null;
+    for (JsonNode s : admin.get("/admin/realms/" + REALM + "/client-scopes")) {
+      if ("mission-context".equals(s.path("name").asText())) {
+        scope = s;
+      }
+    }
+    assertThat(scope).as("client scope mission-context (DV-02-02)").isNotNull();
+    assertThat(scope.path("protocolMappers").get(0).path("protocolMapper").asText())
+        .isEqualTo("mission-context-mapper");
+    for (String clientId : new String[] {"mission-web", "mission-mobile"}) {
+      String id = admin.get("/admin/realms/" + REALM + "/clients?clientId=" + clientId).get(0).path("id").asText();
+      assertThat(admin.get("/admin/realms/" + REALM + "/clients/" + id + "/default-client-scopes").findValuesAsText(
+          "name")).contains("mission-context");
+    }
   }
 
   @Test

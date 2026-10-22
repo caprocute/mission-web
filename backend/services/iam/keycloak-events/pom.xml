@@ -32,6 +32,19 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <!-- DV-02-02: lớp nền protocol mapper OIDC (AbstractOIDCProtocolMapper) -->
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-services</artifactId>
+      <version>${keycloak.version}</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-core</artifactId>
       <version>${keycloak.version}</version>

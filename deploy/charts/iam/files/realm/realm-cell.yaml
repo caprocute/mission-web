@@ -173,6 +173,29 @@ roles:
       description: AC-12 Trợ lý AI (chỉ đọc)
 
 # ---------------------------------------------------------------------------
+# DV-02-02 · QT-00 bước 7: client scope mang claim ngữ cảnh (tenant_id, tenant, cell, unit_id,
+# active_assignment_id, flows, roles, org) do SPI mission-context-mapper (provider mission-keycloak-events)
+# đọc từ thuộc tính người dùng mission_context_* mà org-service ghi qua PUT /org/me/context.
+# Mapper chỉ đọc thuộc tính người dùng và realm, không đọc tham số hay header của client.
+# ---------------------------------------------------------------------------
+clientScopes:
+  - name: mission-context
+    description: Ngữ cảnh làm việc (tenant, đơn vị, phân công, luồng đánh giá)
+    protocol: openid-connect
+    attributes:
+      include.in.token.scope: "false"
+      display.on.consent.screen: "false"
+    protocolMappers:
+      - name: mission-context
+        protocol: openid-connect
+        protocolMapper: mission-context-mapper
+        consentRequired: false
+        config:
+          access.token.claim: "true"
+          id.token.claim: "true"
+          userinfo.token.claim: "true"
+
+# ---------------------------------------------------------------------------
 # Client OIDC (SEC-17): Authorization Code + PKCE S256 bắt buộc; không implicit, không direct grant.
 # state và nonce do thư viện OIDC của ứng dụng sinh và kiểm (angular-oauth2-oidc, AppAuth trên di động).
 # ---------------------------------------------------------------------------
@@ -206,6 +229,7 @@ clients:
       - roles
       - web-origins
       - acr
+      - mission-context
     optionalClientScopes:
       - organization
 
@@ -236,6 +260,7 @@ clients:
       - roles
       - web-origins
       - acr
+      - mission-context
     optionalClientScopes:
       - organization
 
