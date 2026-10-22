@@ -1,7 +1,7 @@
 {
   "description": "Bảng chính sách thao tác trích từ mở rộng x-mission trong contracts/openapi/modules/*.yaml (NEN-014). Không sửa tay: chạy tools/extract-x-mission.mjs.",
   "source": "contracts/openapi/modules/*.yaml",
-  "count": 431,
+  "count": 432,
   "aal2Count": 73,
   "fourEyesCount": 18,
   "operations": [
@@ -5206,6 +5206,29 @@
       "source": "TL-01 PL C \"GET /catalog/items\""
     },
     {
+      "operationId": "listAppraisalBatchDecisions",
+      "file": "appraisals.yaml",
+      "module": "appraisals",
+      "errorModule": "APPRAISAL",
+      "method": "GET",
+      "path": "/appraisals/batch-decisions",
+      "owner": "MOD-04",
+      "qt": [
+        "QT-09",
+        "QT-10"
+      ],
+      "scr": [
+        "SCR-0904"
+      ],
+      "roles": [
+        "decider"
+      ],
+      "scope": "Cd",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-02b SCR-0904 \"Theo dõi tiến độ\" (khi có lô đang chạy), MSG-09-15; TL-03 appraisal.batch_decision (decider_id, status CHO_KY)"
+    },
+    {
       "operationId": "listAppraisalProfiles",
       "file": "appraisals.yaml",
       "module": "appraisals",
@@ -5227,7 +5250,7 @@
       "scope": "Cd",
       "aal": 1,
       "fourEyes": false,
-      "source": "TL-02b SCR-0902 trường 1–2; SCR-0904 trường 1–3; TL-02b part-06 bảng liên kết"
+      "source": "TL-02b SCR-0902 trường 1–2; SCR-0904 trường 1–3, 5; TL-02b part-06 bảng liên kết; TL-03 appraisal_profile.subject_group_id, policy_pack_version_id"
     },
     {
       "operationId": "listAppraisalScoringInputs",
@@ -8850,7 +8873,7 @@
       "scope": "Đv",
       "aal": 1,
       "fourEyes": false,
-      "source": "TL-02b SCR-1002 \"Lưu nháp\""
+      "source": "TL-02b SCR-1002 \"Lưu nháp\" (điều kiện chỉ là trạng thái nháp), \"Trình tập thể lãnh đạo\" (đủ lý do), trường 4, 6"
     },
     {
       "operationId": "saveTaskDraft",
