@@ -10,8 +10,6 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -62,7 +60,7 @@ class ReopenRequestServiceTest {
   private final UUID complaint = UUID.randomUUID();
   private final UUID me = UUID.randomUUID();
 
-  private FakeRepo repo;
+  private FakeReopenRepository repo;
   private FakePeriods periods;
   private List<String> audits;
   private ReopenRequestService service;
@@ -70,7 +68,7 @@ class ReopenRequestServiceTest {
 
   @BeforeEach
   void setUp() {
-    repo = new FakeRepo();
+    repo = new FakeReopenRepository();
     repo.bases.add(complaint);
     periods = new FakePeriods();
     periods.status = PeriodStatus.DA_KHOA;
@@ -457,7 +455,7 @@ class ReopenRequestServiceTest {
   @Test
   void huyGapXungDotGhiDongThoi409() {
     UUID id = service.create(T, inspector(), profileDraft(3)).request().id();
-    repo.failCancel = true;
+    repo.failUpdate = true;
     assertThatThrownBy(() -> service.cancel(T, inspector(), id, "\"0\"", "Không còn cần thiết nữa"))
         .satisfies(e -> assertThat(code(e)).isEqualTo("OVERSIGHT-409-VERSION-CONFLICT"));
     assertThatThrownBy(
@@ -539,6 +537,7 @@ class ReopenRequestServiceTest {
         CLOCK.instant(),
         relocked == null ? null : CLOCK.instant(),
         relocked,
+        null,
         null,
         CLOCK.instant(),
         0);
@@ -636,78 +635,5 @@ class ReopenRequestServiceTest {
 
     @Override
     public void assertOpen(TenantId tenantId, PeriodId periodId) throws PeriodLockedException {}
-  }
-
-  private final class FakeRepo implements ReopenRequestRepository {
-    final Map<UUID, ReopenRequest> rows = new HashMap<>();
-    final List<UUID> bases = new ArrayList<>();
-    final Map<UUID, List<Approval>> approvals = new HashMap<>();
-    final List<Integer> locked = new ArrayList<>();
-    List<Adjustment> adjustments = List.of();
-    Filter lastFilter;
-    int writes;
-    boolean failCancel;
-
-    @Override
-    public void lockCodes(TenantId tenant, int year) {
-      locked.add(year);
-    }
-
-    @Override
-    public List<String> codesOfYear(TenantId tenant, int year) {
-      return rows.values().stream().map(ReopenRequest::code).toList();
-    }
-
-    @Override
-    public List<ReopenRequest> ofPeriod(TenantId tenant, UUID id) {
-      return rows.values().stream().filter(r -> r.periodId().equals(id)).toList();
-    }
-
-    @Override
-    public void insert(TenantId tenant, ReopenRequest request, UUID actorId) {
-      writes++;
-      rows.put(request.id(), request);
-    }
-
-    @Override
-    public Optional<ReopenRequest> find(TenantId tenant, UUID id) {
-      return Optional.ofNullable(rows.get(id));
-    }
-
-    @Override
-    public boolean cancel(TenantId tenant, ReopenRequest cancelled, int expected, UUID actorId) {
-      if (failCancel) {
-        return false;
-      }
-      writes++;
-      rows.put(cancelled.id(), cancelled);
-      return true;
-    }
-
-    @Override
-    public boolean basisExists(TenantId tenant, UUID id, ReopenBasis basis) {
-      return bases.contains(basis.id());
-    }
-
-    @Override
-    public List<Adjustment> complaintAdjustments(TenantId tenant, UUID complaintId) {
-      return adjustments;
-    }
-
-    @Override
-    public List<Approval> approvals(TenantId tenant, int bucket, UUID requestId) {
-      return approvals.getOrDefault(requestId, List.of());
-    }
-
-    @Override
-    public List<ReopenRequest> page(TenantId tenant, Filter filter, After after, int fetchSize) {
-      lastFilter = filter;
-      return rows.values().stream()
-          .filter(r -> filter.periodId() == null || r.periodId().equals(filter.periodId()))
-          .filter(r -> filter.statuses().isEmpty() || filter.statuses().contains(r.status()))
-          .sorted(Comparator.comparing(ReopenRequest::createdAt).reversed())
-          .limit(fetchSize)
-          .toList();
-    }
   }
 }

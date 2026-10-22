@@ -29,6 +29,7 @@ import vn.viettel.okrkpi.oversight.domain.reopen.ReopenRules;
 import vn.viettel.okrkpi.oversight.domain.reopen.ReopenScope;
 import vn.viettel.okrkpi.oversight.domain.reopen.ReopenScopeItem;
 import vn.viettel.okrkpi.oversight.domain.reopen.ReopenStatus;
+import vn.viettel.okrkpi.oversight.domain.reopen.ReopenWorkflow;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
 import vn.viettel.okrkpi.shared.authz.StepUpRequiredException;
 import vn.viettel.okrkpi.shared.error.BusinessException;
@@ -42,7 +43,7 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
  * Yêu cầu mở lại kỳ đã khoá (CORE-07-07, QT-13 bước 4, SCR-1301): lập, xem, tính thử ảnh hưởng và
  * huỷ. {@link #createInternal} là cổng nội bộ cho kết luận khiếu nại (CORE-07-04) và kết luận vi
  * phạm (CORE-07-11): cùng kiểm tra nghiệp vụ, bỏ kiểm phạm vi {@code Cd} vì nơi gọi đã kiểm quyền
- * của chính nó. Chỉ định người duyệt và phê duyệt thuộc CORE-07-08.
+ * của chính nó. Khi lập, {@link ReopenApprovalService#assign} chọn hai người duyệt (CORE-07-08).
  */
 public class ReopenRequestService {
 
@@ -63,6 +64,7 @@ public class ReopenRequestService {
   private final OversightAuditLog audit;
   private final ReopenImpactSimulator simulator;
   private final Clock clock;
+  private final ReopenApprovalService approval;
 
   public ReopenRequestService(
       ReopenRequestRepository requests,
@@ -72,6 +74,18 @@ public class ReopenRequestService {
       OversightAuditLog audit,
       ReopenImpactSimulator simulator,
       Clock clock) {
+    this(requests, periods, calendar, directory, audit, simulator, clock, null);
+  }
+
+  public ReopenRequestService(
+      ReopenRequestRepository requests,
+      PeriodApi periods,
+      WorkingCalendarApi calendar,
+      AccessDirectory directory,
+      OversightAuditLog audit,
+      ReopenImpactSimulator simulator,
+      Clock clock,
+      ReopenApprovalService approval) {
     this.requests = Objects.requireNonNull(requests, "requests");
     this.periods = Objects.requireNonNull(periods, "periods");
     this.calendar = calendar;
@@ -79,12 +93,17 @@ public class ReopenRequestService {
     this.audit = Objects.requireNonNull(audit, "audit");
     this.simulator = simulator;
     this.clock = Objects.requireNonNull(clock, "clock");
+    this.approval = approval;
   }
 
   /** Người gọi: mã người, vai trò đang chọn, đơn vị của phân công đang chọn, mức xác thực. */
-  public record Actor(UUID userId, List<String> roles, UUID unitId, String acr) {
+  public record Actor(UUID userId, List<String> roles, UUID unitId, String acr, Long authTime) {
     public Actor(UUID userId, List<String> roles, UUID unitId) {
-      this(userId, roles, unitId, null);
+      this(userId, roles, unitId, null, null);
+    }
+
+    public Actor(UUID userId, List<String> roles, UUID unitId, String acr) {
+      this(userId, roles, unitId, acr, null);
     }
 
     public Actor {
@@ -164,17 +183,14 @@ public class ReopenRequestService {
       boolean awaitingMyApproval,
       ReopenRequestRepository.After after,
       int fetchSize) {
-    if (awaitingMyApproval) {
-      // Lượt duyệt được chỉ định ở CORE-07-08; chưa có lượt nào được giao.
-      return List.of();
-    }
     ReopenRequestRepository.Filter filter =
         new ReopenRequestRepository.Filter(
             periodId,
             statuses == null ? List.of() : List.copyOf(statuses),
             actor.inspector(),
             actor.userId(),
-            actor.appraiser() ? unitsOf(tenant, actor.unitId()) : List.of());
+            actor.appraiser() ? unitsOf(tenant, actor.unitId()) : List.of(),
+            awaitingMyApproval ? actor.userId() : null);
     List<View> out = new ArrayList<>();
     for (ReopenRequest r : requests.page(tenant, filter, after, fetchSize)) {
       out.add(view(tenant, r));
@@ -220,7 +236,7 @@ public class ReopenRequestService {
   /** Người lập huỷ yêu cầu trước khi đủ hai phê duyệt (SCR-1301 "Huỷ yêu cầu"). */
   @Transactional(TX)
   public View cancel(TenantId tenant, Actor actor, UUID id, String ifMatch, String reason) {
-    ReopenRequest r = requests.find(tenant, id).orElseThrow(NotFoundException::new);
+    ReopenRequest r = requests.lock(tenant, id).orElseThrow(NotFoundException::new);
     if (!r.requestedBy().equals(actor.userId())) {
       if (!canSee(tenant, actor, r)) {
         throw new NotFoundException();
@@ -236,7 +252,7 @@ public class ReopenRequestService {
       throw invalid("reason", "Lý do huỷ cần từ 10 đến 2.000 ký tự.");
     }
     ReopenRequest cancelled = r.cancelled(reason.strip(), r.rowVersion() + 1);
-    if (!requests.cancel(tenant, cancelled, r.rowVersion(), actor.userId())) {
+    if (!requests.update(tenant, cancelled, r.rowVersion(), actor.userId())) {
       throw new BusinessException(
           "OVERSIGHT-409-VERSION-CONFLICT", "Yêu cầu đã được người khác cập nhật.");
     }
@@ -345,8 +361,12 @@ public class ReopenRequestService {
             null,
             null,
             null,
+            ReopenWorkflow.empty(scopedTo == null ? null : scopedTo.unitId()),
             clock.instant(),
             0);
+    if (approval != null) {
+      r = approval.assign(tenant, r);
+    }
     requests.insert(tenant, r, requester);
     audit.record(
         tenant,
@@ -416,6 +436,9 @@ public class ReopenRequestService {
       if (r.units().stream().anyMatch(allowed::contains)) {
         return true;
       }
+    }
+    if (r.workflow().slots().stream().anyMatch(s -> actor.userId().equals(s.assignee()))) {
+      return true;
     }
     return requests.approvals(tenant, r.periodBucket(), r.id()).stream()
         .anyMatch(a -> actor.userId().equals(a.approverId()));
