@@ -5,7 +5,7 @@
 -- nhân: subject_id là mã hồ sơ đánh giá của người đó trong kỳ như dấu hiệu 1; chưa có hồ sơ thì đối tượng là đơn vị
 -- của người đó lúc được giao (suy luận). Mức theo e (tỷ lệ tăng / ngưỡng; số nhiệm vụ cùng hạn / ngưỡng): thoả cả hai
 -- điều kiện hoặc e ≥ 2 là CAO, e ≥ 1,5 là VUA, còn lại THAP (suy luận).
-INSERT INTO anomaly_out (tenant_id, alert_key, signal_code, severity, subject_type, subject_id, period_id,
+INSERT INTO anomaly_run (tenant_id, alert_key, signal_code, severity, subject_type, subject_id, period_id,
                          evidence_chain, model_version, detected_at, run_id, published_at, _version)
 WITH
 ky AS
@@ -111,4 +111,3 @@ SELECT {tenant:UUID} AS tenant_id,
        1 AS _version
 FROM phat_hien
 WHERE (ho_so_id != toUUID('00000000-0000-0000-0000-000000000000') OR don_vi IS NOT NULL)
-  AND alert_key NOT IN (SELECT alert_key FROM anomaly_out WHERE tenant_id = {tenant:UUID})

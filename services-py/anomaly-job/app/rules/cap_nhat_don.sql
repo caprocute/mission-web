@@ -4,7 +4,7 @@
 -- tuần"). Ngày làm việc theo lịch của tenant (getWorkingCalendar): job truyền ngày nghỉ {off} và ngày làm bù {extra}.
 -- Kỳ của lượt cập nhật là kỳ của nhiệm vụ. Mức theo e = tỷ lệ / ngưỡng: thoả cả hai điều kiện hoặc e ≥ 1,5 là CAO,
 -- e ≥ 1,25 là VUA, còn lại THAP (suy luận).
-INSERT INTO anomaly_out (tenant_id, alert_key, signal_code, severity, subject_type, subject_id, period_id,
+INSERT INTO anomaly_run (tenant_id, alert_key, signal_code, severity, subject_type, subject_id, period_id,
                          evidence_chain, model_version, detected_at, run_id, published_at, _version)
 WITH
 ky AS
@@ -64,4 +64,3 @@ SELECT {tenant:UUID} AS tenant_id,
        NULL AS published_at,
        1 AS _version
 FROM phat_hien
-WHERE alert_key NOT IN (SELECT alert_key FROM anomaly_out WHERE tenant_id = {tenant:UUID})

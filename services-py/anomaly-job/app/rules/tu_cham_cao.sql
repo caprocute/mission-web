@@ -3,7 +3,7 @@
 -- xuất cao hơn điểm của ảnh chụp mà người thẩm định thấy từ {gap} điểm trở lên ở {score_quarters} quý liên tiếp.
 -- Đối tượng là cán bộ (mã giả danh person_key), một cảnh báo cho mỗi (cán bộ, luồng, quý cuối của chuỗi);
 -- subject_id là mã hồ sơ của quý cuối vì kho không có mã người dạng rõ (suy luận, wiki/14).
-INSERT INTO anomaly_out (tenant_id, alert_key, signal_code, severity, subject_type, subject_id, period_id,
+INSERT INTO anomaly_run (tenant_id, alert_key, signal_code, severity, subject_type, subject_id, period_id,
                          evidence_chain, model_version, detected_at, run_id, published_at, _version)
 WITH
 quy AS
@@ -91,4 +91,3 @@ SELECT {tenant:UUID} AS tenant_id,
        NULL AS published_at,
        1 AS _version
 FROM phat_hien
-WHERE alert_key NOT IN (SELECT alert_key FROM anomaly_out WHERE tenant_id = {tenant:UUID})

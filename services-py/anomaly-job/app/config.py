@@ -31,6 +31,8 @@ class Settings:
     client_secret: str
     schema_path: pathlib.Path
     kafka_extra: Mapping[str, str]
+    # Phát tín hiệu hết dấu hiệu (DV-15-09); mặc định tắt cho tới khi NEN-007 duyệt cách đánh dấu trên EVT-20.
+    publish_resolved: bool = False
 
     @staticmethod
     def from_env(env: Mapping[str, str] | None = None) -> Settings:
@@ -62,4 +64,5 @@ class Settings:
             client_secret=need("OIDC_CLIENT_SECRET"),
             schema_path=pathlib.Path(e.get("EVT20_SCHEMA_PATH", "").strip() or REPO_SCHEMA),
             kafka_extra=extra,
+            publish_resolved=e.get("ANOMALY_PUBLISH_RESOLVED", "").strip().lower() in ("1", "true", "yes"),
         )

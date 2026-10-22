@@ -1,5 +1,5 @@
 {
- "_ghi_chu": "Kết quả mong đợi: 'canh_bao' cho tenant A với ngưỡng mặc định TL-02b (B không có cảnh báo); 'canh_bao_nguong_thay_doi' cho tenant D. Trong 'chuoi', '#X' là mã cố định của X trong tenant đang xét; danh sách so sánh không theo thứ tự.",
+ "_ghi_chu": "Kết quả mong đợi: 'canh_bao' cho tenant A với ngưỡng mặc định TL-02b (B không có cảnh báo); 'canh_bao_nguong_thay_doi' cho tenant D. Trong 'chuoi', '#X' là mã cố định của X trong tenant đang xét; danh sách so sánh không theo thứ tự. Dấu hiệu 6, 8 (DV-15-09): R1 chỉ đủ số lần miễn trừ (VUA), R2 đủ cả số lần và tỷ lệ chấp nhận so với tỷ lệ chung 9/21 (CAO); R4 có đề nghị chủ quan và đề nghị không phải gia hạn (không tính), R5 không miễn trừ, S2 không sửa sau mốc.",
  "canh_bao": [
   {
    "dau_hieu": "TU_CHAM_CAO",
@@ -219,6 +219,61 @@
     "task:#NV-N3-Q3-4",
     "task:#NV-N3-Q3-5"
    ]
+  },
+  {
+   "dau_hieu": "SUA_SAU_KHOA",
+   "loai": "CA_NHAN",
+   "doi_tuong": "#S1Q3",
+   "ky": "Q3",
+   "muc": "CAO",
+   "chuoi": [
+    "dieu_kien:NGHIEM_THU_SAU_TAM_TINH",
+    "dieu_kien:MUC_TIEU_DUYET_SAU_TAM_TINH",
+    "dieu_kien:SUA_SAU_KHOA_KY",
+    "so_lieu:CHENH_DIEM=6",
+    "ky:#Q3",
+    "appraisal_profile:#S1Q3",
+    "task:#NV-S1-1",
+    "task:#NV-S1-3",
+    "objective:#MT-S1"
+   ]
+  },
+  {
+   "dau_hieu": "MIEN_TRU_LAP",
+   "loai": "NGUOI_DUYET",
+   "doi_tuong": "#DN-R1-Q4-2",
+   "ky": "Q4",
+   "muc": "VUA",
+   "chuoi": [
+    "dieu_kien:MIEN_TRU_KHACH_QUAN_LAP_LAI",
+    "so_lieu:SO_LAN_MIEN_TRU=3",
+    "ky:#Q4",
+    "task_change_request:#DN-R1-Q3-1",
+    "task_change_request:#DN-R1-Q4-1",
+    "task_change_request:#DN-R1-Q4-2"
+   ]
+  },
+  {
+   "dau_hieu": "MIEN_TRU_LAP",
+   "loai": "NGUOI_DUYET",
+   "doi_tuong": "#DN-R2-Q4-5",
+   "ky": "Q4",
+   "muc": "CAO",
+   "chuoi": [
+    "dieu_kien:MIEN_TRU_KHACH_QUAN_LAP_LAI",
+    "dieu_kien:TY_LE_CHAP_NHAN_KHACH_QUAN_CAO",
+    "so_lieu:SO_DE_NGHI_KHACH_QUAN=6",
+    "so_lieu:TY_LE_CHAP_NHAN_PHAN_TRAM=83.3",
+    "so_lieu:TY_LE_CHUNG_PHAN_TRAM=42.9",
+    "so_lieu:SO_LAN_MIEN_TRU=5",
+    "ky:#Q4",
+    "task_change_request:#DN-R2-Q4-1",
+    "task_change_request:#DN-R2-Q4-2",
+    "task_change_request:#DN-R2-Q4-3",
+    "task_change_request:#DN-R2-Q4-4",
+    "task_change_request:#DN-R2-Q4-5",
+    "task_change_request:#DN-R2-Q4-6"
+   ]
   }
  ],
  "canh_bao_nguong_thay_doi": [
@@ -299,6 +354,27 @@
     "task:#NV-N1-Q3-6",
     "task:#NV-N1-Q3-7",
     "task:#NV-N1-Q3-8"
+   ]
+  },
+  {
+   "dau_hieu": "MIEN_TRU_LAP",
+   "loai": "NGUOI_DUYET",
+   "doi_tuong": "#DN-R2-Q4-5",
+   "ky": "Q4",
+   "muc": "VUA",
+   "chuoi": [
+    "dieu_kien:TY_LE_CHAP_NHAN_KHACH_QUAN_CAO",
+    "so_lieu:SO_DE_NGHI_KHACH_QUAN=6",
+    "so_lieu:TY_LE_CHAP_NHAN_PHAN_TRAM=83.3",
+    "so_lieu:TY_LE_CHUNG_PHAN_TRAM=42.9",
+    "so_lieu:SO_LAN_MIEN_TRU=5",
+    "ky:#Q4",
+    "task_change_request:#DN-R2-Q4-1",
+    "task_change_request:#DN-R2-Q4-2",
+    "task_change_request:#DN-R2-Q4-3",
+    "task_change_request:#DN-R2-Q4-4",
+    "task_change_request:#DN-R2-Q4-5",
+    "task_change_request:#DN-R2-Q4-6"
    ]
   }
  ]

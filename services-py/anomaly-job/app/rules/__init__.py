@@ -1,6 +1,8 @@
-"""Luật phát hiện: mỗi dấu hiệu một tệp SQL `INSERT ... SELECT` vào `anomaly_out`, chạy theo từng tenant với tham số
-lấy từ bộ ngưỡng của tenant. Dấu hiệu 1, 2 (DV-15-07); 3, 5, 7 (DV-15-08); 6, 8 thêm ở DV-15-09 theo cùng mẫu. Luật cần
-lịch ngày làm việc nhận thêm tham số `off` (ngày nghỉ lễ, nghỉ bù) và `extra` (ngày làm bù) của tenant."""
+"""Luật phát hiện: mỗi dấu hiệu một tệp SQL `INSERT ... SELECT` vào `anomaly_run`, chạy theo từng tenant với tham số
+lấy từ bộ ngưỡng của tenant. Dấu hiệu 1, 2 (DV-15-07); 3, 5, 7 (DV-15-08); 6, 8 (DV-15-09). Luật ghi vào `anomaly_run`
+mọi dòng phát hiện được trong lượt chạy (kể cả cảnh báo đã có); bộ chạy chép dòng mới sang `anomaly_out` và đánh dấu
+tự đóng cảnh báo đang mở không còn được phát hiện. Luật cần lịch ngày làm việc nhận thêm tham số `off` (ngày nghỉ
+lễ, nghỉ bù) và `extra` (ngày làm bù) của tenant."""
 
 from __future__ import annotations
 
@@ -14,7 +16,7 @@ from app.thresholds import Signal
 RULES_DIR = pathlib.Path(__file__).resolve().parent
 
 # Phiên bản bộ luật; thay đổi khi sửa SQL của bất kỳ luật nào.
-RULESET_VERSION = "2026.10.2"
+RULESET_VERSION = "2026.10.3"
 
 
 @dataclass(frozen=True)
@@ -55,5 +57,12 @@ RULES: list[Rule] = [
         "tol_pct": s.param("volumeTolerancePercent"),
         "min_tasks": int(s.param("minTasks")),
         "same_due": int(s.param("sameDueTasks")),
+    }),
+    Rule("SUA_SAU_KHOA", "sua_sau_khoa.sql", lambda s: {}),
+    Rule("MIEN_TRU_LAP", "mien_tru_lap.sql", lambda s: {
+        "exemptions": int(s.param("exemptionsIn2Quarters")),
+        "window": int(s.param("windowQuarters")),
+        "rate_gap": s.param("rateGapPercent"),
+        "min_decisions": int(s.param("minDecisions")),
     }),
 ]

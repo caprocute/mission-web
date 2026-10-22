@@ -3,7 +3,7 @@
 -- {excellent_pct}% (ngưỡng khối, suy luận), từ {same_pct}% cán bộ trở lên cùng một mức, độ lệch chuẩn điểm hiện hành
 -- dưới {min_std} điểm. Mức xếp loại của hồ sơ là mức hiện hành ở cấp cao nhất đã có (quyết định, đề xuất, thẩm định);
 -- mức tự đề xuất không tính. Mức cảnh báo theo số điều kiện thoả: 1 THAP, 2 VUA, 3 CAO (suy luận).
-INSERT INTO anomaly_out (tenant_id, alert_key, signal_code, severity, subject_type, subject_id, period_id,
+INSERT INTO anomaly_run (tenant_id, alert_key, signal_code, severity, subject_type, subject_id, period_id,
                          evidence_chain, model_version, detected_at, run_id, published_at, _version)
 WITH
 muc AS
@@ -67,4 +67,3 @@ SELECT {tenant:UUID} AS tenant_id,
        NULL AS published_at,
        1 AS _version
 FROM phat_hien
-WHERE alert_key NOT IN (SELECT alert_key FROM anomaly_out WHERE tenant_id = {tenant:UUID})
