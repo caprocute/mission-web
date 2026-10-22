@@ -10,24 +10,25 @@ import vn.viettel.okrkpi.shared.kernel.Classification;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.outbox.EventEnvelope;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
-import vn.viettel.okrkpi.task.application.plan.port.PlanDeadlineNotices;
+import vn.viettel.okrkpi.task.application.plan.port.PlanNotices;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.PendingPlan;
 import vn.vtokr.notify.v1.YeuCauThongBao;
 
 /**
- * EVT-21 {@code notify.message.requested.v1} nhắc hạn duyệt kế hoạch, ghi {@code
- * task.outbox_event}. Tham số mẫu chỉ có tên kỳ và ngày hạn (C1); MSG-04-08 do SVC-12 ghép theo mã
- * mẫu {@link #TEMPLATE_OVERDUE}.
+ * EVT-21 {@code notify.message.requested.v1} nhắc hạn duyệt (CORE-02-07) và báo trả lại kế hoạch
+ * (CORE-02-08), ghi {@code task.outbox_event}. Tham số mẫu chỉ có tên kỳ và ngày hạn (C1);
+ * MSG-04-08 do SVC-12 ghép theo mã mẫu {@link #TEMPLATE_OVERDUE}.
  */
-public class OutboxPlanDeadlineNotices implements PlanDeadlineNotices {
+public class OutboxPlanNotices implements PlanNotices {
 
   static final String TEMPLATE_REMIND = "KE_HOACH_SAP_HET_HAN_DUYET";
   static final String TEMPLATE_OVERDUE = "KE_HOACH_QUA_HAN_DUYET";
+  static final String TEMPLATE_RETURNED = "KE_HOACH_BI_TRA_LAI";
   private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
   private final OutboxWriter outbox;
 
-  public OutboxPlanDeadlineNotices(OutboxWriter outbox) {
+  public OutboxPlanNotices(OutboxWriter outbox) {
     this.outbox = Objects.requireNonNull(outbox, "outbox");
   }
 
@@ -43,11 +44,39 @@ public class OutboxPlanDeadlineNotices implements PlanDeadlineNotices {
     send(tenant, plan, periodName, deadline, to, TEMPLATE_OVERDUE, "CAO");
   }
 
+  /** Ý kiến người duyệt không vào tham số mẫu; người nhận mở kế hoạch để đọc (suy luận). */
+  @Override
+  public void returned(TenantId tenant, PendingPlan plan, String periodName, UUID author) {
+    send(
+        tenant,
+        plan,
+        "{\"ky\":" + quote(periodName) + "}",
+        List.of(author),
+        TEMPLATE_RETURNED,
+        "CAO");
+  }
+
   private void send(
       TenantId tenant,
       PendingPlan plan,
       String periodName,
       LocalDate deadline,
+      List<UUID> to,
+      String template,
+      String priority) {
+    send(
+        tenant,
+        plan,
+        "{\"ky\":" + quote(periodName) + ",\"ngay\":" + quote(DAY.format(deadline)) + "}",
+        to,
+        template,
+        priority);
+  }
+
+  private void send(
+      TenantId tenant,
+      PendingPlan plan,
+      String params,
       List<UUID> to,
       String template,
       String priority) {
@@ -58,8 +87,7 @@ public class OutboxPlanDeadlineNotices implements PlanDeadlineNotices {
         YeuCauThongBao.newBuilder()
             .setRecipientIds(to)
             .setTemplateCode(template)
-            .setParams(
-                "{\"ky\":" + quote(periodName) + ",\"ngay\":" + quote(DAY.format(deadline)) + "}")
+            .setParams(params)
             .setDeepLink("/ke-hoach/" + plan.planId())
             .setPriority(priority)
             .setAggregateVersion((int) plan.rowVersion())

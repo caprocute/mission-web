@@ -154,4 +154,23 @@ public interface PlanRepository {
    * gửi); {@code false} khi khoá đã có.
    */
   boolean claimNotice(TenantId tenant, String key);
+
+  /** Phiên bản chờ duyệt kèm kế hoạch (SCR-0403 "Chờ tôi duyệt"). */
+  record ReviewRow(PlanRow plan, VersionRow version) {}
+
+  /**
+   * Chuyển phiên bản sang {@code CHO_DUYET}, ghi thời điểm gửi và mã băm, xoá lý do trả lại cũ; trả
+   * {@code row_version} mới.
+   */
+  long markSubmitted(
+      TenantId tenant, PlanRow plan, VersionRow version, byte[] contentHash, UUID actor);
+
+  /** Chuyển phiên bản sang {@code TRA_LAI} kèm ý kiến; trả người lập phiên bản. */
+  UUID markReturned(TenantId tenant, PlanRow plan, VersionRow version, String comment, UUID actor);
+
+  /**
+   * Phiên bản {@code CHO_DUYET} của các đơn vị, theo mã kế hoạch tăng dần sau {@code afterPlanId}.
+   */
+  List<ReviewRow> awaitingReview(
+      TenantId tenant, java.util.Collection<UUID> unitIds, UUID afterPlanId, int limit);
 }

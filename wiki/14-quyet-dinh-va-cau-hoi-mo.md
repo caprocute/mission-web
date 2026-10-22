@@ -730,6 +730,27 @@ Hạn duyệt BR-04-01 không được ghi vào `config.period.plan_deadline` nh
 
 Tác vụ nhắc hạn chạy vài lần mỗi ngày và chỉ xét ngày làm việc. Ngày làm việc còn đúng 3 ngày làm việc tới hạn, tác vụ ghi EVT-21 mẫu `KE_HOACH_SAP_HET_HAN_DUYET` gửi người lập (người tạo phiên bản 1) và lãnh đạo đơn vị. Ngày làm việc đầu tiên sau hạn, tác vụ ghi EVT-21 mẫu `KE_HOACH_QUA_HAN_DUYET` (MSG-04-08) gửi người đứng đầu đơn vị. Để mỗi mốc chỉ gửi một lần khi nhiều bản sao cùng chạy, tác vụ giữ chỗ bằng một dòng trong `task.idempotency_key` với người gọi hệ thống. Khoá chính của bảng có ngày tạo, nên giữ chỗ có hiệu lực trong ngày, vừa đúng với cách chọn ngày gửi (suy luận, không thêm bảng mới). Quá hạn không chặn duyệt. Dấu "duyệt muộn" không lưu thành cột mà được tính bằng `PlanDeadlines.late`: phiên bản 1 duyệt sau hạn, hoặc đã qua hạn mà chưa duyệt (suy luận, không thêm trạng thái); bảng điều hành và QT-14 đọc dấu này qua mô-đun. Câu hỏi mở: SVC-12 cần khai báo hai mã mẫu thông báo trên, và có nên công bố hạn duyệt qua `PeriodApi` để mọi mô-đun dùng chung hay không.
 
+### Ghi chú và quyết định từ gửi duyệt và trả lại kế hoạch (CORE-02-08, 22/10/2026)
+
+Khi gửi duyệt, máy chủ chạy lại toàn bộ `PlanChecker`. Nếu còn kết quả mức chặn, máy chủ trả 422 và liệt kê từng lỗi trong `errors[]`, trong đó `field` là `items[i]` và `rule` là mã BR. Nếu đạt, phiên bản chuyển sang `CHO_DUYET`, được ghi `submitted_at` và mã băm `content_hash`. Trạng thái `CHO_DUYET` chính là cơ chế khoá nội dung, vì máy trạng thái chỉ cho lưu nháp ở `NHAP` và `TRA_LAI`, nên mọi lần lưu vào phiên bản chờ duyệt đều trả 409.
+
+Mã băm là SHA-256 của một biểu diễn chuẩn hoá, mã hoá UTF-8, mỗi bản ghi một dòng kết thúc bằng `\n`. Dòng đầu có dạng `KE_HOACH|v1|<planId>|<periodId>|<ownerUnitId>|<ownerPersonId>|<versionNo>`. Tiếp theo là mỗi dòng kế hoạch, sắp theo `item_no` tăng dần, gồm 16 trường cách nhau bằng `|`: `item_no, catalog_item_id, key_result_id, title, task_group, lead, co_assignees, product_name, quantity, unit, difficulty, standard_score, due_date, origin_item_id, change_reason, recurrence`. Quy ước giá trị như sau:
+
+- Giá trị thiếu ghi là chuỗi rỗng.
+- UUID viết chữ thường.
+- Số thập phân bỏ số 0 thừa và không dùng dạng mũ.
+- Ngày theo dạng ISO.
+- Người chủ trì ghi là `<kind>:<id>`.
+- Người phối hợp ghi các cặp `<kind>:<id>` sắp tăng dần, nối bằng dấu phẩy.
+- Tên người không đưa vào băm.
+- Trong văn bản, `\`, `|`, xuống dòng và về đầu dòng được thoát thành `\\`, `\|`, `\n`, `\r`.
+
+Đặc tả đầy đủ nằm ở `PlanContentHash` để esign-service và công cụ kiểm tra độc lập tính lại được.
+
+Điểm lệch TL-01 (L1066) và TL-02a: tài liệu được làm theo TL-02a, tức tiến trình `duyet-ke-hoach` khởi tạo khi gửi duyệt chứ không đợi EVT-03. Tuy vậy, cơ chế khởi tạo của CORE-01-05 chưa có và workflow-service chưa có API khởi tạo tiến trình BPMN (DV-06-03 đang làm). MOD-02 vì vậy phát sự kiện trong tiến trình `PlanVersionSubmittedEvent` (và `PlanVersionReturnedEvent` khi trả lại) trong cùng giao dịch, được Spring Modulith ghi vào bảng xuất bản sự kiện. Cầu nối workflow sẽ nghe hai sự kiện này để khởi tạo hoặc kết thúc tiến trình với business key `PLAN_VERSION:<versionId>`. Hai sự kiện này không có mã EVT riêng. Cho tới khi có `wf_binding`, người duyệt là người đứng đầu đơn vị lập kế hoạch theo bản sao tổ chức (suy luận). `listPlanApprovals` cũng tạm đọc phiên bản `CHO_DUYET` của các đơn vị mà người gọi đứng đầu, chưa đọc `flowable.wf_task_projection`.
+
+Trả lại bắt buộc có ý kiến, nếu thiếu thì trả 422. Ý kiến được ghi vào cả `return_reason` lẫn `review_comment`, vì hợp đồng trả trường `reviewComment`. Sau đó hệ thống ghi EVT-21 mẫu `KE_HOACH_BI_TRA_LAI` gửi người lập. Câu hỏi mở gồm ba việc: SVC-12 khai báo mẫu này; chốt cơ chế khởi tạo tiến trình chung cho `duyet-okr` và `duyet-ke-hoach`; và khi có cầu nối, chuyển `listPlanApprovals` sang đọc `wf_task_projection`.
+
 ## Liên quan
 
 - [README của wiki](README.md)

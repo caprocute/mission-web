@@ -457,6 +457,53 @@ public class JdbcPlanRepository implements PlanRepository {
         .list();
   }
 
+  @Override
+  public long markSubmitted(
+      TenantId tenant, PlanRow plan, VersionRow version, byte[] contentHash, UUID actor) {
+    return jdbc.sql(
+            "UPDATE task.plan_version SET status = 'CHO_DUYET', submitted_at = now(),"
+                + " content_hash = ?, return_reason = NULL, updated_by = ?, updated_at = now(),"
+                + " row_version = row_version + 1 WHERE period_bucket = ? AND tenant_id = ? AND id = ?"
+                + " RETURNING row_version")
+        .params(contentHash, actor, plan.periodBucket(), tenant.value(), version.id())
+        .query(Long.class)
+        .single();
+  }
+
+  @Override
+  public UUID markReturned(
+      TenantId tenant, PlanRow plan, VersionRow version, String comment, UUID actor) {
+    return jdbc.sql(
+            "UPDATE task.plan_version SET status = 'TRA_LAI', return_reason = ?,"
+                + " review_comment = ?, updated_by = ?, updated_at = now(),"
+                + " row_version = row_version + 1 WHERE period_bucket = ? AND tenant_id = ? AND id = ?"
+                + " RETURNING created_by")
+        .params(comment, comment, actor, plan.periodBucket(), tenant.value(), version.id())
+        .query(UUID.class)
+        .single();
+  }
+
+  @Override
+  public List<ReviewRow> awaitingReview(
+      TenantId tenant, Collection<UUID> unitIds, UUID afterPlanId, int limit) {
+    return jdbc.sql(
+            "SELECT "
+                + PLAN_COLS
+                + ", "
+                + VERSION_COLS
+                + " FROM task.plan p JOIN task.plan_version v ON v.period_bucket = p.period_bucket"
+                + " AND v.tenant_id = p.tenant_id AND v.plan_id = p.id"
+                + " WHERE p.tenant_id = ? AND p.owner_unit_id = ANY (?::uuid[])"
+                + " AND v.status = 'CHO_DUYET' AND p.id > ? ORDER BY p.id, v.version_no LIMIT ?")
+        .params(
+            tenant.value(),
+            uuidArray(unitIds),
+            afterPlanId == null ? new UUID(0L, 0L) : afterPlanId,
+            limit)
+        .query((rs, n) -> new ReviewRow(plan(rs, n), version(rs, n)))
+        .list();
+  }
+
   /**
    * Giữ chỗ bằng {@code task.idempotency_key} của người gọi hệ thống: khoá chính có ngày tạo nên
    * chặn trùng trong ngày, đúng phạm vi của tác vụ nhắc hạn (suy luận, không thêm bảng mới).

@@ -13,7 +13,7 @@ import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
-import vn.viettel.okrkpi.task.application.plan.port.PlanDeadlineNotices;
+import vn.viettel.okrkpi.task.application.plan.port.PlanNotices;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.PendingPlan;
 import vn.viettel.okrkpi.task.domain.plan.PlanSchedule;
@@ -34,7 +34,7 @@ public class PlanDeadlineReminders {
   private final PeriodApi periods;
   private final WorkingCalendarApi calendar;
   private final PlanDeadlines deadlines;
-  private final PlanDeadlineNotices notices;
+  private final PlanNotices notices;
   private final OrgDirectoryApi org;
 
   public PlanDeadlineReminders(
@@ -42,7 +42,7 @@ public class PlanDeadlineReminders {
       PeriodApi periods,
       WorkingCalendarApi calendar,
       PlanDeadlines deadlines,
-      PlanDeadlineNotices notices,
+      PlanNotices notices,
       OrgDirectoryApi org) {
     this.plans = Objects.requireNonNull(plans, "plans");
     this.periods = Objects.requireNonNull(periods, "periods");

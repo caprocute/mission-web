@@ -31,6 +31,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -42,7 +45,10 @@ import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
+import vn.viettel.okrkpi.task.api.PlanVersionReturnedEvent;
+import vn.viettel.okrkpi.task.api.PlanVersionSubmittedEvent;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository;
+import vn.viettel.okrkpi.task.infrastructure.persistence.OutboxPlanNotices;
 
 /**
  * Kiểm thử tích hợp CORE-02-05 trên PostgreSQL thật: tám thao tác kế hoạch quý khớp {@code
@@ -55,6 +61,7 @@ import vn.viettel.okrkpi.task.application.plan.port.PlanRepository;
     properties = "mission.outbox.relay.enabled=false")
 @AutoConfigureMockMvc(addFilters = false)
 @DirtiesContext
+@RecordApplicationEvents
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PlanApiIT extends ContractConformanceTest {
 
@@ -82,6 +89,17 @@ class PlanApiIT extends ContractConformanceTest {
 
   @Autowired
   @Qualifier("configTransactionManager") private PlatformTransactionManager configTm;
+
+  @Autowired
+  @Qualifier("orgReplicaDataSource") private DataSource orgReplicaDataSource;
+
+  @Autowired
+  @Qualifier("orgReplicaTransactionManager") private PlatformTransactionManager orgReplicaTm;
+
+  @Autowired private ApplicationEvents events;
+
+  /** EVT-21 cần Apicurio; kiểm thử chỉ xác nhận lời gọi, mã hoá Avro có kiểm thử riêng. */
+  @MockitoBean private OutboxPlanNotices planNotices;
 
   @Autowired
   @Qualifier("okrDataSource") private DataSource okrDataSource;
@@ -227,7 +245,9 @@ class PlanApiIT extends ContractConformanceTest {
     // BR-04-01: Quý I/2027 hạn thứ Sáu 08/01/2027 (CORE-02-07).
     assertThat(body(created).get("approvalDeadline").asText()).isEqualTo("2027-01-08");
     List<PlanRepository.PendingPlan> pending =
-        inTask(j -> planRepository.pendingApproval(tenant, 20271, q1));
+        inTask(j -> planRepository.pendingApproval(tenant, 20271, q1)).stream()
+            .filter(p -> p.planId().toString().equals(id))
+            .toList();
     assertThat(pending)
         .singleElement()
         .satisfies(
@@ -249,7 +269,8 @@ class PlanApiIT extends ContractConformanceTest {
     assertThat(duplicate.getResponse().getStatus()).isEqualTo(409);
     assertThat(body(duplicate).get("code").asText()).isEqualTo("TASK-409-PLAN-EXISTS");
 
-    MvcResult list = perform(get("/api/v1/plans").param("period", q1.toString()));
+    MvcResult list =
+        perform(get("/api/v1/plans").param("period", q1.toString()).param("unit", unit.toString()));
     assertResponseConforms(list, "/plans", PathItem.HttpMethod.GET);
     assertThat(body(list).get("items")).hasSize(1);
     assertThat(body(list).get("items").get(0).get("previousPeriod").get("id").asText())
@@ -356,6 +377,110 @@ class PlanApiIT extends ContractConformanceTest {
     assertThat(body(page2).get("items").get(0).get("lineNo").asInt()).isEqualTo(201);
   }
 
+  /**
+   * CORE-02-08: gửi duyệt kiểm lại quy tắc (422), khoá và tính băm, gửi lặp cùng khoá chỉ phát một
+   * yêu cầu tiến trình, sửa khi chờ duyệt 409, trả lại cần ý kiến và đúng người duyệt.
+   */
+  @Test
+  void guiDuyetVaTraLaiKhopHopDong() throws Exception {
+    UUID unit2 = UUID.randomUUID();
+    in(
+        orgReplicaDataSource,
+        orgReplicaTm,
+        jdbc ->
+            jdbc.sql(
+                    "INSERT INTO org_replica.assignment_v (id, valid_from, person_id, org_unit_id,"
+                        + " job_title_id, kind, branch, is_head, source_version, source_event_id)"
+                        + " VALUES (?, DATE '2020-01-01', ?, ?, ?, 'BIEN_CHE', 'CHINH', true, 1, ?)")
+                .params(UUID.randomUUID(), MANAGER, unit2, UUID.randomUUID(), UUID.randomUUID())
+                .update());
+    MvcResult created =
+        perform(
+            post("/api/v1/plans")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("periodId", q1, "unitId", unit2))));
+    String id = body(created).get("id").asText();
+
+    List<Map<String, Object>> items = lines(3);
+    items.get(1).put("dueDate", "2027-05-01");
+    assertThat(perform(save(id, "\"0\"", items)).getResponse().getStatus()).isEqualTo(200);
+    MvcResult invalid = perform(submit(id, "\"1\"", UUID.randomUUID().toString()));
+    assertThat(invalid.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(invalid).get("errors").get(0).get("field").asText()).isEqualTo("items[1]");
+    assertThat(body(invalid).get("errors").get(0).get("rule").asText()).isEqualTo("BR-04-04");
+
+    assertThat(perform(save(id, "\"1\"", lines(3))).getResponse().getStatus()).isEqualTo(200);
+    String key = UUID.randomUUID().toString();
+    MvcResult submitted = perform(submit(id, "\"2\"", key));
+    assertThat(submitted.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(submitted, "/plans/{id}/versions/{v}/submit", PathItem.HttpMethod.POST);
+    assertThat(body(submitted).get("status").asText()).isEqualTo("CHO_DUYET");
+    String hash = body(submitted).get("contentHash").asText();
+    assertThat(hash).hasSize(64);
+    assertThat(submitted.getResponse().getHeader("ETag")).isEqualTo("\"3\"");
+    MvcResult replay = perform(submit(id, "\"2\"", key));
+    assertThat(replay.getResponse().getStatus()).isEqualTo(200);
+    assertThat(body(replay).get("contentHash").asText()).isEqualTo(hash);
+    assertThat(events.stream(PlanVersionSubmittedEvent.class))
+        .singleElement()
+        .satisfies(e -> assertThat(e.contentHash()).isEqualTo(hash));
+
+    MvcResult locked = perform(save(id, "\"3\"", lines(1)));
+    assertThat(locked.getResponse().getStatus()).isEqualTo(409);
+
+    MvcResult waiting = perform(get("/api/v1/plans/approvals"));
+    assertResponseConforms(waiting, "/plans/approvals", PathItem.HttpMethod.GET);
+    assertThat(body(waiting).get("items"))
+        .singleElement()
+        .satisfies(n -> assertThat(n.get("planId").asText()).isEqualTo(id));
+
+    assertThat(perform(giveBack(id, "\"3\"", " ")).getResponse().getStatus()).isEqualTo(422);
+    TestTaskCallers.current =
+        new vn.viettel.okrkpi.task.domain.lifecycle.TaskActor(
+            UUID.randomUUID(), java.util.Set.of("leader"));
+    try {
+      MvcResult stranger = perform(giveBack(id, "\"3\"", "Bổ sung sản phẩm dòng 2"));
+      assertThat(stranger.getResponse().getStatus()).isEqualTo(403);
+    } finally {
+      TestTaskCallers.reset();
+    }
+    MvcResult returned = perform(giveBack(id, "\"3\"", "Bổ sung sản phẩm dòng 2"));
+    assertThat(returned.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(returned, "/plans/{id}/versions/{v}/return", PathItem.HttpMethod.POST);
+    assertThat(body(returned).get("status").asText()).isEqualTo("TRA_LAI");
+    assertThat(body(returned).get("reviewComment").asText()).isEqualTo("Bổ sung sản phẩm dòng 2");
+    assertThat(events.stream(PlanVersionReturnedEvent.class)).hasSize(1);
+    org.mockito.Mockito.verify(planNotices)
+        .returned(
+            org.mockito.ArgumentMatchers.eq(tenant),
+            org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.eq("Quý I năm 2027"),
+            org.mockito.ArgumentMatchers.eq(MANAGER));
+    assertThat(body(perform(get("/api/v1/plans/approvals"))).get("items")).isEmpty();
+
+    // Sửa sau khi trả lại rồi gửi lại: băm mới.
+    List<Map<String, Object>> fixed = lines(3);
+    fixed.get(1).put("title", "Báo cáo chuyên đề");
+    assertThat(perform(save(id, "\"4\"", fixed)).getResponse().getStatus()).isEqualTo(200);
+    MvcResult again = perform(submit(id, "\"5\"", UUID.randomUUID().toString()));
+    assertThat(again.getResponse().getStatus()).isEqualTo(200);
+    assertThat(body(again).get("contentHash").asText()).isNotEqualTo(hash);
+  }
+
+  private MockHttpServletRequestBuilder submit(String id, String ifMatch, String key) {
+    return post("/api/v1/plans/" + id + "/versions/1/submit")
+        .header("If-Match", ifMatch)
+        .header(KEY, key);
+  }
+
+  private MockHttpServletRequestBuilder giveBack(String id, String ifMatch, String comment)
+      throws Exception {
+    return post("/api/v1/plans/" + id + "/versions/1/return")
+        .header("If-Match", ifMatch)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json.writeValueAsString(Map.of("comment", comment)));
+  }
+
   private List<Map<String, Object>> lines(int n) {
     List<Map<String, Object>> out = new ArrayList<>(n);
     for (int i = 1; i <= n; i++) {
@@ -408,13 +533,20 @@ class PlanApiIT extends ContractConformanceTest {
 
   private MvcResult perform(MockHttpServletRequestBuilder request) throws Exception {
     return TenantContext.call(
-        tenant,
-        () ->
-            mvc.perform(
-                    request
-                        .header("Idempotency-Key", UUID.randomUUID().toString())
-                        .principal(MANAGER::toString))
-                .andReturn());
+        tenant, () -> mvc.perform(withKey(request).principal(MANAGER::toString)).andReturn());
+  }
+
+  private static final String KEY = "Idempotency-Key";
+
+  /** Thêm khoá ngẫu nhiên khi yêu cầu chưa có khoá riêng. */
+  private static MockHttpServletRequestBuilder withKey(MockHttpServletRequestBuilder request) {
+    return request.with(
+        r -> {
+          if (r.getHeader(KEY) == null) {
+            r.addHeader(KEY, UUID.randomUUID().toString());
+          }
+          return r;
+        });
   }
 
   private JsonNode body(MvcResult r) throws Exception {

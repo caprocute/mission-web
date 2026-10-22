@@ -7,6 +7,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
@@ -26,6 +27,7 @@ import vn.viettel.okrkpi.task.application.catalog.CatalogPolicy;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker;
 import vn.viettel.okrkpi.task.application.plan.PlanDeadlineReminders;
 import vn.viettel.okrkpi.task.application.plan.PlanDeadlines;
+import vn.viettel.okrkpi.task.application.plan.PlanReviewService;
 import vn.viettel.okrkpi.task.application.plan.PlanService;
 import vn.viettel.okrkpi.task.infrastructure.scheduling.PlanDeadlineJob;
 
@@ -95,28 +97,48 @@ public class PlanConfiguration {
   }
 
   @Bean
+  OutboxPlanNotices planNotices(
+      @Qualifier("taskDataSource") DataSource dataSource,
+      @Value("${mission.task.outbox.registry-url:${okrkpi.inbox.registry.url}}") String registry,
+      ObjectProvider<ObjectMapper> json) {
+    return new OutboxPlanNotices(
+        new OutboxWriter(
+            new JdbcTemplate(dataSource),
+            "task",
+            new ApicurioPayloadSerializer(registry, java.util.Map.of()),
+            json.getIfAvailable(ObjectMapper::new),
+            vn.viettel.okrkpi.shared.kernel.Clock.systemUtc()));
+  }
+
+  /** CORE-02-08: gửi duyệt, trả lại, danh sách chờ duyệt. */
+  @Bean
+  PlanReviewService planReviewService(
+      JdbcPlanRepository planRepository,
+      PlanService planService,
+      PeriodApi periods,
+      ObjectProvider<OrgDirectoryApi> org,
+      OutboxPlanNotices planNotices,
+      ApplicationEventPublisher publisher) {
+    return new PlanReviewService(
+        planRepository,
+        planService,
+        periods,
+        org.getIfAvailable(),
+        planNotices,
+        publisher,
+        Clock.systemUTC());
+  }
+
+  @Bean
   PlanDeadlineReminders planDeadlineReminders(
       JdbcPlanRepository planRepository,
       PeriodApi periods,
       WorkingCalendarApi calendar,
       PlanDeadlines planDeadlines,
-      @Qualifier("taskDataSource") DataSource dataSource,
-      @Value("${mission.task.outbox.registry-url:${okrkpi.inbox.registry.url}}") String registry,
-      ObjectProvider<ObjectMapper> json,
+      OutboxPlanNotices planNotices,
       ObjectProvider<OrgDirectoryApi> org) {
     return new PlanDeadlineReminders(
-        planRepository,
-        periods,
-        calendar,
-        planDeadlines,
-        new OutboxPlanDeadlineNotices(
-            new OutboxWriter(
-                new JdbcTemplate(dataSource),
-                "task",
-                new ApicurioPayloadSerializer(registry, java.util.Map.of()),
-                json.getIfAvailable(ObjectMapper::new),
-                vn.viettel.okrkpi.shared.kernel.Clock.systemUtc())),
-        org.getIfAvailable());
+        planRepository, periods, calendar, planDeadlines, planNotices, org.getIfAvailable());
   }
 
   /** Tác vụ nhắc hạn; tắt bằng {@code mission.task.plan-deadline.enabled=false}. */

@@ -25,7 +25,7 @@ import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
-import vn.viettel.okrkpi.task.application.plan.port.PlanDeadlineNotices;
+import vn.viettel.okrkpi.task.application.plan.port.PlanNotices;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.PendingPlan;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.VersionRow;
@@ -145,8 +145,8 @@ class PlanDeadlineRemindersTest {
               new Class<?>[] {OrgDirectoryApi.class},
               (proxy, m, args) -> m.getName().equals("headsOf") ? List.of(HEAD) : null);
 
-  private final PlanDeadlineNotices notices =
-      new PlanDeadlineNotices() {
+  private final PlanNotices notices =
+      new PlanNotices() {
         @Override
         public void remind(TenantId t, PendingPlan p, String name, LocalDate d, List<UUID> to) {
           sent.add(new Sent("nhac", to, d));
@@ -155,6 +155,11 @@ class PlanDeadlineRemindersTest {
         @Override
         public void overdue(TenantId t, PendingPlan p, String name, LocalDate d, List<UUID> to) {
           sent.add(new Sent("qua-han", to, d));
+        }
+
+        @Override
+        public void returned(TenantId t, PendingPlan p, String name, UUID author) {
+          throw new UnsupportedOperationException();
         }
       };
 
