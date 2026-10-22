@@ -130,3 +130,10 @@ okrkpi:
       lease: ${EVIDENCE_SCAN_LEASE:PT10M}
       retry-base: ${EVIDENCE_SCAN_RETRY_BASE:PT30S}
       max-attempts: ${EVIDENCE_SCAN_MAX_ATTEMPTS:5}
+    # DV-08-06: ảnh xem trước dựng ở worker quét; Gotenberg 8 dùng chung của cell (SVC-11).
+    preview:
+      gotenberg-url: ${GOTENBERG_URL:http://gotenberg.workers.svc:3000}
+      gotenberg-timeout: ${GOTENBERG_TIMEOUT:PT60S}
+      dpi: ${EVIDENCE_PREVIEW_DPI:150}
+      max-pages: ${EVIDENCE_PREVIEW_MAX_PAGES:300}
+      max-width: ${EVIDENCE_PREVIEW_MAX_WIDTH:1240}
