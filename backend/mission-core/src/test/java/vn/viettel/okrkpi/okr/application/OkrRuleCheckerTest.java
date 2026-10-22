@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -127,7 +128,9 @@ class OkrRuleCheckerTest {
     assertThat(checker.check(objective(List.of(kr("1"))), policy)).isEmpty();
   }
 
+  /** Bài đo hiệu năng, tắt mặc định theo YC-PT-19; bật bằng {@code -Dmission.perf=true}. */
   @Test
+  @EnabledIfSystemProperty(named = "mission.perf", matches = "true")
   void namKrKiemDuoiNamMuoiMiliGiayP95() {
     ObjectiveInput input =
         objective(List.of(kr("0.2"), kr("0.2"), kr("0.2"), kr("0.2"), kr("0.2")));

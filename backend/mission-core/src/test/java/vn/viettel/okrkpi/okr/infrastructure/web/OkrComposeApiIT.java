@@ -1,6 +1,12 @@
 package vn.viettel.okrkpi.okr.infrastructure.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -47,6 +53,7 @@ import vn.viettel.okrkpi.MissionCoreApplication;
 import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
+import vn.viettel.okrkpi.okr.application.port.OkrApprovalStarter;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
@@ -89,6 +96,9 @@ class OkrComposeApiIT extends ContractConformanceTest {
    */
   @MockitoBean(name = "testOkrCaller")
   private OkrCaller caller;
+
+  /** Cổng khởi tạo tiến trình duyet-okr (CORE-01-05), giả lập workflow-service. */
+  @MockitoBean private OkrApprovalStarter starter;
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper json;
@@ -427,6 +437,66 @@ class OkrComposeApiIT extends ContractConformanceTest {
     assertThat(body.at("/policy/recommendedMax").asInt()).isEqualTo(3);
     assertThat(body.at("/policy/rules")).hasSize(14);
     assertResponseConforms(r, "/okr/compose-context", PathItem.HttpMethod.GET);
+  }
+
+  @Test
+  void trinhHopLeChuyenChoDuyetVaKhoiTaoTienTrinhMotLan() throws Exception {
+    when(starter.start(any(), any(), any(), anyLong(), any()))
+        .thenReturn(
+            Optional.of(
+                new OkrApprovalStarter.ApprovalStarted(
+                    "wf-1", VERIFIER, java.time.LocalDate.of(2027, 1, 8))));
+    UUID id = id(create(UNIT, period, "Nâng chất lượng sinh hoạt chi bộ trình duyệt", 3, null));
+    String key = UUID.randomUUID().toString();
+    MvcResult first = submit(id, key, "\"0\"");
+    assertThat(first.getResponse().getStatus())
+        .as(first.getResponse().getContentAsString(StandardCharsets.UTF_8))
+        .isEqualTo(200);
+    assertThat(body(first).get("status").asText()).isEqualTo("CHO_DUYET");
+    assertThat(first.getResponse().getHeader("ETag")).isEqualTo("\"1\"");
+    assertThat(body(first).at("/keyResults/0/status").asText()).isEqualTo("CHO_DUYET");
+    assertResponseConforms(first, "/okr/objectives/{id}/submit", PathItem.HttpMethod.POST);
+    MvcResult replay = submit(id, key, "\"0\"");
+    assertThat(replay.getResponse().getStatus()).isEqualTo(200);
+    verify(starter, times(1)).start(any(), eq(id), eq(UNIT), eq(1L), eq(ACTOR));
+    String wf =
+        inTenant(
+            jdbc ->
+                jdbc.sql("SELECT wf_process_instance_id FROM okr.objective WHERE id = ?")
+                    .param(id)
+                    .query(String.class)
+                    .single());
+    assertThat(wf).isEqualTo("wf-1");
+    MvcResult again = submit(id, UUID.randomUUID().toString(), "\"1\"");
+    assertThat(again.getResponse().getStatus()).isEqualTo(409);
+    assertThat(body(again).get("code").asText()).isEqualTo("OKR-409-INVALID-STATE");
+  }
+
+  @Test
+  void trinhConLoiChanTra422VaGiuNhap() throws Exception {
+    UUID id = id(create(UNIT, period, "Mục tiêu trình thiếu trọng số", 2, null));
+    MvcResult r = submit(id, UUID.randomUUID().toString(), "\"0\"");
+    assertThat(r.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(r).get("code").asText()).isEqualTo("OKR-422-VALIDATION");
+    List<String> rules = new ArrayList<>();
+    body(r).get("errors").forEach(e -> rules.add(e.get("rule").asText()));
+    assertThat(rules).contains("BR-02-07");
+    String status =
+        inTenant(
+            jdbc ->
+                jdbc.sql("SELECT status FROM okr.objective WHERE id = ?")
+                    .param(id)
+                    .query(String.class)
+                    .single());
+    assertThat(status).isEqualTo("NHAP");
+    verify(starter, never()).start(any(), eq(id), any(), anyLong(), any());
+  }
+
+  private MvcResult submit(UUID id, String key, String ifMatch) throws Exception {
+    return perform(
+        post("/api/v1/okr/objectives/" + id + "/submit")
+            .header("Idempotency-Key", key)
+            .header("If-Match", ifMatch));
   }
 
   // ---------------------------------------------------------------- tiện ích

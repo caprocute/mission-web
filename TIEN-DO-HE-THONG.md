@@ -14,8 +14,8 @@
 
 - **Tổng tiến độ đã gộp `main`**: **175 / 401 task (43.6%)** — Khối lượng quy đổi đã gộp: **207 / 482.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **179 / 401 task (44.6%)** (gồm **175** đã gộp `main` + **4** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **216 task**.
+- **Đang thực hiện / Làm một phần**: **7 task** (4 đang làm, 3 làm một phần).
+- **Chưa bắt đầu**: **215 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **14 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-04`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **34** | 4 | 0 | 74 | **30.4%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **34** | 4 | 1 | 73 | **30.4%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **31** | 0 | 3 | 70 | **29.8%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **15** | 0 | 0 | 13 | **53.6%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **175** | **4** | **6** | **216** | **43.6%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **175** | **4** | **7** | **215** | **43.6%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,7 +41,7 @@
 | **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 0 | 1 | 9 | **83.1%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **32** | 0 | 1 | 13 | **69.6%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **31** | 4 | 3 | 79 | **26.5%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **31** | 4 | 4 | 78 | **26.5%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 0 | 0 | 54 | **23.9%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **13** | 0 | 1 | 28 | **31.0%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **0** | 0 | 0 | 23 | **0.0%** |
@@ -230,7 +230,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-05-10](docs/tasks/CORE-05-10-saga-phat-hanh-chinh-sach.md) | Phát hành: saga đa cell có bù trừ, `policy_binding`, EVT-13 | L | B2 | 16 | CORE-05-09, DV-06-05, CORE-08-12 | **Chưa bắt đầu** |  |
 | [CORE-05-11](docs/tasks/CORE-05-11-cong-bo-workflow-bindings.md) | Lớp công bố `/policies/.../workflow-bindings` thuộc MOD-05, gọi API `wf_binding` của workflow-service | S | B2 | 13 | CORE-05-02, DV-06-08 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 
-### CORE-01 · MOD-01 okr (2/13 đã gộp `main`, 4 chờ gộp, 0 đang làm)
+### CORE-01 · MOD-01 okr (2/13 đã gộp `main`, 4 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -238,7 +238,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-01-02](docs/tasks/CORE-01-02-okrapi-doc-cay-tien-do.md) | `OkrApi` công bố và API đọc cây, bảng, bản đồ liên kết, tính tiến độ KR và mục tiêu | M | B2 | 12 | CORE-01-01 | **Đã gộp main** | Gộp main (cherry-pick 2e2e1cb, chưa kèm DV-08-06); OkrApi, 9 API đọc, ProgressCalculator |
 | [CORE-01-03](docs/tasks/CORE-01-03-soan-muc-tieu-kr.md) | API soạn mục tiêu và KR: If-Match, sinh mã, sao chép kỳ trước | M | B2 | 16 | CORE-01-02, CORE-08-03 | **Xong, chờ gộp** | Nhánh claude/project-thread-n43ag0: đã qua mvn -pl mission-core verify (392 unit + 157 IT xanh) |
 | [CORE-01-04](docs/tasks/CORE-01-04-kiem-tra-quy-tac-okr.md) | Kiểm tra quy tắc BR-02-01..07 ở máy chủ, danh sách từ mơ hồ, trọng số 100% | M | B2 | 17 | CORE-01-03, NEN-041 | **Xong, chờ gộp** | Nhánh claude/project-thread-n43ag0: đã qua mvn -pl mission-core verify (392 unit + 157 IT xanh) |
-| [CORE-01-05](docs/tasks/CORE-01-05-trinh-duyet-okr-bpmn.md) | Trình duyệt OKR qua BPMN `duyet-okr`, chọn người duyệt và người thay từ `wf_binding` | L | B2 | 18 | CORE-01-03, DV-06-03, CORE-01-04 | **Chưa bắt đầu** |  |
+| [CORE-01-05](docs/tasks/CORE-01-05-trinh-duyet-okr-bpmn.md) | Trình duyệt OKR qua BPMN `duyet-okr`, chọn người duyệt và người thay từ `wf_binding` | L | B2 | 18 | CORE-01-03, DV-06-03, CORE-01-04 | **Đang làm** | Nhánh claude/project-thread-n43ag0: xong phần trình (submitOkrObjective, cổng OkrApprovalStarter sau commit); còn hàng chờ listOkrReviews và bộ chuyển HTTP, chờ DV-06-03 vào main và hợp đồng POST /workflow/instances |
 | [CORE-01-06](docs/tasks/CORE-01-06-duyet-tra-lai-okr.md) | Duyệt, trả lại, rút, huỷ, duyệt hàng loạt 202, EVT-01 | M | B2 | 19 | CORE-01-05, NEN-042 | **Chưa bắt đầu** |  |
 | [CORE-01-07](docs/tasks/CORE-01-07-dieu-chinh-muc-tieu.md) | Điều chỉnh mục tiêu giữa kỳ bằng phiên bản mới | S | B2 | 20 | CORE-01-06, NEN-042 | **Chưa bắt đầu** |  |
 | [CORE-01-08](docs/tasks/CORE-01-08-check-in-kr.md) | Check-in KR: bảng chỉ thêm, nháp và gửi idempotent, tính lại giá trị và tiến độ | M | B2 | 13 | CORE-01-02 | **Xong, chờ gộp** | Nhánh claude/project-thread-n43ag0: đã qua mvn -pl mission-core verify (392 unit + 157 IT xanh) |
@@ -843,4 +843,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 15:44 | B2 backend | `CORE-01-08` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0: đã qua mvn -pl mission-core verify (392 unit + 157 IT xanh) |
 | 22/10/2026 15:44 | B2 backend | `CORE-01-09` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0: đã qua mvn -pl mission-core verify (392 unit + 157 IT xanh) |
 | 22/10/2026 15:44 | B2 backend | `CNH-02` | Chuyển trạng thái sang **Chưa bắt đầu** — Đã chuyển cho luồng B8; config.yaml chưa có đường dẫn /config/me/preferences, /config/me/saved-filters |
+| 22/10/2026 16:37 | B2 backend | `CORE-01-05` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-n43ag0: xong phần trình (submitOkrObjective, cổng OkrApprovalStarter sau commit); còn hàng chờ listOkrReviews và bộ chuyển HTTP, chờ DV-06-03 vào main và hợp đồng POST /workflow/instances |
 <!-- PROGRESS_LOG_END -->

@@ -172,6 +172,49 @@ public class JdbcOkrWriteRepository implements OkrWriteRepository {
   }
 
   @Override
+  public long transitionObjective(TenantId tenant, ObjectiveHead head, String status, UUID actor) {
+    MapSqlParameterSource p =
+        t(tenant)
+            .addValue("actor", actor)
+            .addValue("b", head.periodBucket())
+            .addValue("id", head.id())
+            .addValue("status", status);
+    jdbc.update(
+        "UPDATE okr.objective SET status = :status, updated_at = now(), updated_by = :actor,"
+            + " row_version = row_version + 1"
+            + " WHERE period_bucket = :b AND tenant_id = :t AND id = :id",
+        p);
+    jdbc.update(
+        "UPDATE okr.key_result SET status = :status, updated_at = now(), updated_by = :actor,"
+            + " row_version = row_version + 1"
+            + " WHERE period_bucket = :b AND tenant_id = :t AND objective_id = :id",
+        p);
+    return head.rowVersion() + 1;
+  }
+
+  @Override
+  public void attachProcessInstance(
+      TenantId tenant, int bucket, UUID id, String processInstanceId) {
+    jdbc.update(
+        "UPDATE okr.objective SET wf_process_instance_id = :wf"
+            + " WHERE period_bucket = :b AND tenant_id = :t AND id = :id",
+        t(tenant).addValue("b", bucket).addValue("id", id).addValue("wf", processInstanceId));
+  }
+
+  @Override
+  public Optional<String> processInstanceOf(TenantId tenant, int bucket, UUID id) {
+    return jdbc
+        .query(
+            "SELECT wf_process_instance_id FROM okr.objective"
+                + " WHERE period_bucket = :b AND tenant_id = :t AND id = :id",
+            t(tenant).addValue("b", bucket).addValue("id", id),
+            (rs, i) -> rs.getString(1))
+        .stream()
+        .filter(java.util.Objects::nonNull)
+        .findFirst();
+  }
+
+  @Override
   public Optional<ObjectiveHead> lockObjective(TenantId tenant, UUID id) {
     return head(id, tenant, " FOR UPDATE");
   }

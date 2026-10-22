@@ -703,6 +703,12 @@ Bảng chuyển trạng thái của nhiệm vụ được đọc từ khoá `tas
 
 Danh mục lỗi sinh từ hợp đồng chưa có mã riêng cho trường hợp sai vai trò và guard không đạt, nên máy chủ dùng mã chung `COMMON-403-OUT-OF-SCOPE` (403) và `COMMON-422-VALIDATION` (422); lệnh không có trong bảng hoặc trạng thái đã kết thúc trả `TASK-409-INVALID-TRANSITION`, kỳ đã khoá trả `TASK-409-PERIOD-LOCKED`. Thông báo guard không lộ biểu thức CEL. Khi MOD-03 chưa cung cấp sản phẩm, biến `task.so_san_pham_da_nop` của guard lấy từ khối lượng đã làm (suy luận). Câu hỏi mở: hợp đồng có nên bổ sung mã `TASK-403-…` và `TASK-422-…` riêng cho hai trường hợp này hay không.
 
+### Ghi chú và quyết định từ check-in và trình duyệt OKR (CORE-01-08, CORE-01-09, CORE-01-05, 22/10/2026)
+
+Bảng `okr.kr_checkin` chỉ ghi thêm và vai trò `svc_okr` không có quyền sửa cột nội dung, nên "lưu nháp ghi đè" được hiện thực bằng cách ghi một dòng `NHAP` mới; bản nháp hiệu lực là dòng `NHAP` mới nhất của người tạo sau lần gửi gần nhất của chính người đó, các dòng nháp cũ không còn được đọc (suy luận). Gửi check-in khoá dòng mục tiêu rồi dòng KR theo cùng thứ tự để tính lại tiến độ không mất cập nhật; tiến độ mục tiêu ghi vào cột nhưng không tăng `row_version` của mục tiêu, để `If-Match` của luồng duyệt và điều chỉnh không bị lệch mỗi lần có check-in (suy luận). Chủ sở hữu KR là người sở hữu mục tiêu cá nhân, còn mục tiêu tập thể thì là người soạn, vì TL-03 không có cột `owner_id` của KR (suy luận). EVT-21 khi KR chuyển `RUI_RO` dùng mã mẫu `OKR_KR_RUI_RO` (chờ SVC-12 xác nhận).
+
+Khởi tạo tiến trình `duyet-okr`: theo quyết định của DV-06-03 (API nội bộ `StartApprovalService`, không có mã EVT "mục tiêu đã trình"), mission-core không ghi outbox mà gọi cổng `OkrApprovalStarter` sau khi giao dịch trình đã commit; workflow-service idempotent theo (tenant, mẫu, `OKR_OBJECTIVE:<id>`, `row_version` lúc trình) nên gọi lại an toàn. Mục tiêu `CHO_DUYET` mà `wf_process_instance_id` còn rỗng là đang chờ khởi tạo. Còn thiếu: hợp đồng `POST /workflow/instances` trong `platform.yaml` để viết bộ chuyển HTTP, tác vụ quét lại các mục tiêu chờ khởi tạo, và hàng chờ `listOkrReviews` (cần API đọc `wf_task_projection` của workflow-service).
+
 ## Liên quan
 
 - [README của wiki](README.md)

@@ -54,6 +54,7 @@ import vn.viettel.okrkpi.okr.application.OkrComposeService.Owner;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.OkrReadService.ObjectiveView;
 import vn.viettel.okrkpi.okr.application.OkrRuleChecker.Policy;
+import vn.viettel.okrkpi.okr.application.OkrSubmitService;
 import vn.viettel.okrkpi.okr.application.port.OkrReadRepository.ObjectiveFilter;
 import vn.viettel.okrkpi.okr.application.port.OkrWriteRepository.KeyResultData;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
@@ -89,6 +90,7 @@ public class OkrComposeController {
   private final ObjectProvider<FeatureFlagApi> flags;
   private final ObjectProvider<AuthzSubjectResolver> subjects;
   private final ObjectProvider<OkrCaller> callers;
+  private final OkrSubmitService submits;
 
   public OkrComposeController(
       OkrComposeService compose,
@@ -98,7 +100,9 @@ public class OkrComposeController {
       OkrCheckService checks,
       ObjectProvider<FeatureFlagApi> flags,
       ObjectProvider<AuthzSubjectResolver> subjects,
-      ObjectProvider<OkrCaller> callers) {
+      ObjectProvider<OkrCaller> callers,
+      OkrSubmitService submits) {
+    this.submits = Objects.requireNonNull(submits, "submits");
     this.compose = Objects.requireNonNull(compose, "compose");
     this.reads = Objects.requireNonNull(reads, "reads");
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
@@ -151,6 +155,34 @@ public class OkrComposeController {
           return ResponseEntity.created(URI.create(BASE + "/objectives/" + id))
               .eTag(ETags.of(dto.getRowVersion()))
               .body(dto);
+        });
+  }
+
+  /** CORE-01-05: trình phê duyệt, kiểm lại toàn bộ quy tắc rồi chuyển {@code CHO_DUYET}. */
+  @PostMapping("/objectives/{id}/submit")
+  @RequiresPermission(operationId = "submitOkrObjective", module = "okr")
+  public ResponseEntity<OkrObjective> submitOkrObjective(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = actor();
+    long expected = ETags.expectedVersion(ifMatch, "OKR");
+    return idempotency.run(
+        tenant,
+        actor,
+        idempotencyKey,
+        "POST",
+        BASE + "/objectives/" + id + "/submit#" + ifMatch,
+        null,
+        OkrObjective.class,
+        OkrObjective::getRowVersion,
+        () -> {
+          var head = found(() -> compose.head(tenant, id).orElseThrow());
+          requireUnitScope(tenant, head.ownerUnitId());
+          found(() -> submits.submit(tenant, actor, id, expected));
+          OkrObjective dto = detail(tenant, id);
+          return ETags.ok(dto, dto.getRowVersion());
         });
   }
 

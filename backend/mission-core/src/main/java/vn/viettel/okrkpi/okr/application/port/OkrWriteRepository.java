@@ -94,6 +94,18 @@ public interface OkrWriteRepository {
 
   Optional<ObjectiveHead> lockObjective(TenantId tenant, UUID id);
 
+  /**
+   * Chuyển mục tiêu và các KR của nó sang {@code status}, tăng {@code row_version} của mục tiêu;
+   * trả phiên bản mới (CORE-01-05).
+   */
+  long transitionObjective(TenantId tenant, ObjectiveHead head, String status, UUID actor);
+
+  /** Ghi mã tiến trình duyệt khi workflow-service báo đã tạo (không tăng {@code row_version}). */
+  void attachProcessInstance(TenantId tenant, int bucket, UUID id, String processInstanceId);
+
+  /** Mã tiến trình duyệt đang gắn với mục tiêu, rỗng khi chưa tạo. */
+  Optional<String> processInstanceOf(TenantId tenant, int bucket, UUID id);
+
   Optional<ObjectiveHead> findObjective(TenantId tenant, UUID id);
 
   /** Mục tiêu sở hữu KR, rỗng khi không có KR. */

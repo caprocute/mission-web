@@ -13,12 +13,16 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.okr.application.OkrCheckService;
 import vn.viettel.okrkpi.okr.application.OkrCheckinService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.OkrRuleChecker;
+import vn.viettel.okrkpi.okr.application.OkrSubmitService;
+import vn.viettel.okrkpi.okr.application.port.OkrApprovalStarter;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinDelegatePort;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinEvents;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinExtension;
@@ -78,6 +82,27 @@ public class OkrReadConfiguration {
         policies::getIfAvailable,
         org::getIfAvailable,
         similarity::getIfAvailable);
+  }
+
+  /** CORE-01-05: trình phê duyệt; tiến trình duyet-okr khởi tạo sau commit qua cổng. */
+  @Bean
+  OkrSubmitService okrSubmitService(
+      JdbcOkrWriteRepository okrWriteRepository,
+      OkrReadService okrReadService,
+      OkrCheckService okrCheckService,
+      PeriodApi periods,
+      ObjectProvider<OkrApprovalStarter> starter,
+      @Qualifier("okrTransactionManager") PlatformTransactionManager tm) {
+    // Chạy trong afterCommit nên phải mở giao dịch mới, không tham gia giao dịch vừa commit.
+    TransactionTemplate afterCommit = new TransactionTemplate(tm);
+    afterCommit.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    return new OkrSubmitService(
+        okrWriteRepository,
+        okrReadService,
+        okrCheckService,
+        periods,
+        starter::getIfAvailable,
+        afterCommit);
   }
 
   /** CORE-01-08: check-in KR của QT-03 trên {@code okrDataSource}. */
