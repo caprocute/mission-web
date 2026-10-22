@@ -43,6 +43,7 @@ import vn.viettel.okrkpi.contract.tasks.model.TaskDraft;
 import vn.viettel.okrkpi.contract.tasks.model.TaskDraftTemplate;
 import vn.viettel.okrkpi.contract.tasks.model.TaskGroup;
 import vn.viettel.okrkpi.contract.tasks.model.TaskMilestone;
+import vn.viettel.okrkpi.contract.tasks.model.TaskNodeKind;
 import vn.viettel.okrkpi.contract.tasks.model.TaskPriority;
 import vn.viettel.okrkpi.contract.tasks.model.TaskSource;
 import vn.viettel.okrkpi.contract.tasks.model.TaskStatus;
@@ -390,7 +391,11 @@ public class TaskAssignController {
         d.getQualityCriteria(),
         doc == null ? null : doc.getNumber(),
         doc == null ? null : doc.getTitle(),
-        d.getBasis());
+        d.getBasis(),
+        new TaskDraftSpec.Node(
+            d.getNodeKind() == null ? null : d.getNodeKind().getValue(),
+            d.getParentTaskId(),
+            d.getComponentScore()));
   }
 
   static TaskDraft draft(DraftRow row) {
@@ -425,7 +430,10 @@ public class TaskAssignController {
             .leadPersonId(s.leadPersonId())
             .dueDate(s.dueDate())
             .acceptorId(s.acceptorId())
-            .basis(s.basis());
+            .basis(s.basis())
+            .nodeKind(TaskNodeKind.fromValue(s.node().kind()))
+            .parentTaskId(s.node().parentTaskId())
+            .componentScore(s.node().componentScore());
     if (row.id() != null) {
       dto.setRowVersion((int) row.rowVersion());
     }

@@ -23,7 +23,8 @@ public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
       "id, period_id, period_bucket, code, title, description, task_group, source, key_result_id,"
           + " assigner_id, assigned_at, acceptor_id, due_date, extended_due_date, score_due_date,"
           + " planned_quantity, done_quantity, unit, difficulty, standard_score, progress_pct,"
-          + " status, is_overdue, delay_risk, state_machine_version, row_version";
+          + " status, is_overdue, delay_risk, state_machine_version, row_version, node_kind,"
+          + " parent_task_id, component_score";
 
   private final JdbcClient jdbc;
 
@@ -235,7 +236,10 @@ public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
         rs.getBoolean("is_overdue"),
         rs.getString("delay_risk"),
         rs.getString("state_machine_version"),
-        rs.getLong("row_version"));
+        rs.getLong("row_version"),
+        rs.getString("node_kind"),
+        rs.getObject("parent_task_id", UUID.class),
+        rs.getBigDecimal("component_score"));
   }
 
   private static TaskStatus status(String s) {

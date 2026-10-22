@@ -31,11 +31,74 @@ public record TaskDraftSpec(
     String qualityCriteria,
     String sourceDocNumber,
     String sourceDocTitle,
-    String basis) {
+    String basis,
+    Node node) {
 
   public TaskDraftSpec {
     coAssignees = List.copyOf(coAssignees == null ? List.of() : coAssignees);
     milestones = List.copyOf(milestones == null ? List.of() : milestones);
+    node = node == null ? Node.ROOT : node;
+  }
+
+  /** Bản soạn không nằm trong cây phân rã (nút gốc {@code NHIEM_VU}). */
+  public TaskDraftSpec(
+      UUID periodId,
+      String source,
+      UUID planItemId,
+      UUID catalogItemId,
+      String title,
+      String taskGroup,
+      UUID keyResultId,
+      String priority,
+      UUID leadPersonId,
+      List<Assignee> coAssignees,
+      LocalDate dueDate,
+      UUID acceptorId,
+      List<Milestone> milestones,
+      String productName,
+      BigDecimal quantity,
+      String unit,
+      String evidenceRequired,
+      String qualityCriteria,
+      String sourceDocNumber,
+      String sourceDocTitle,
+      String basis) {
+    this(
+        periodId,
+        source,
+        planItemId,
+        catalogItemId,
+        title,
+        taskGroup,
+        keyResultId,
+        priority,
+        leadPersonId,
+        coAssignees,
+        dueDate,
+        acceptorId,
+        milestones,
+        productName,
+        quantity,
+        unit,
+        evidenceRequired,
+        qualityCriteria,
+        sourceDocNumber,
+        sourceDocTitle,
+        basis,
+        Node.ROOT);
+  }
+
+  /**
+   * Vị trí trong cây phân rã (BS-03 DC-04, DC-06): loại nút, việc cha và điểm thành phần; {@code
+   * kind} rỗng là {@code NHIEM_VU}.
+   */
+  public record Node(String kind, UUID parentTaskId, BigDecimal componentScore) {
+
+    public static final Node ROOT = new Node("NHIEM_VU", null, null);
+
+    public Node {
+      kind = kind == null ? "NHIEM_VU" : kind;
+    }
   }
 
   /** Người hoặc đơn vị phối hợp; {@code kind} là {@code PERSON} hoặc {@code UNIT}. */
@@ -72,6 +135,34 @@ public record TaskDraftSpec(
         qualityCriteria,
         sourceDocNumber,
         sourceDocTitle,
-        basis);
+        basis,
+        node);
+  }
+
+  /** Cùng nội dung, khác vị trí trong cây. */
+  public TaskDraftSpec withNode(Node n) {
+    return new TaskDraftSpec(
+        periodId,
+        source,
+        planItemId,
+        catalogItemId,
+        title,
+        taskGroup,
+        keyResultId,
+        priority,
+        leadPersonId,
+        coAssignees,
+        dueDate,
+        acceptorId,
+        milestones,
+        productName,
+        quantity,
+        unit,
+        evidenceRequired,
+        qualityCriteria,
+        sourceDocNumber,
+        sourceDocTitle,
+        basis,
+        n);
   }
 }

@@ -23,14 +23,21 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -46,6 +53,9 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import vn.viettel.okrkpi.shared.audit.AuditEvent;
+import vn.viettel.okrkpi.shared.audit.AuditEventType;
+import vn.viettel.okrkpi.shared.audit.AuditSink;
 
 /**
  * DV-15-04 trên ClickHouse 25.8 và Valkey 8 thật, Cube, Keycloak và MOD-08 giả lập: ngữ cảnh an
@@ -70,6 +80,17 @@ class AnalyticsApiIT {
   static final String BI_THU = "0192f000-0000-7000-8000-000000000101";
   static final String TRUONG_HUYEN = "0192f000-0000-7000-8000-000000000102";
   static final String DB = "analytics_it";
+  static final String DIEM = "0192f000-0000-7000-8000-00000000d001";
+  static final String HO_SO = "0192f000-0000-7000-8000-00000000d002";
+  static final String NHIEM_VU = "0192f000-0000-7000-8000-00000000d003";
+  static final String SAN_PHAM = "0192f000-0000-7000-8000-00000000d004";
+  static final String MINH_CHUNG = "0192f000-0000-7000-8000-00000000d005";
+  static final String MINH_CHUNG_KHAC = "0192f000-0000-7000-8000-00000000d006";
+  static final String KR = "0192f000-0000-7000-8000-00000000d007";
+  static final String MUC_TIEU = "0192f000-0000-7000-8000-00000000d008";
+  static final String CAN_CU = "0192f000-0000-7000-8000-00000000d009";
+  static final String KE_HOACH = "0192f000-0000-7000-8000-00000000d00a";
+  static final String MA_NGUOI = "ma-nguoi-gia-danh-khong-duoc-lo1";
   static final String CH_PASSWORD = "mat-khau-kiem-thu";
   static final KeyPair KEYS = keys();
   private static final ObjectMapper JSON = new ObjectMapper();
@@ -87,6 +108,20 @@ class AnalyticsApiIT {
                       "validation.schema.additionalProperties", ValidationReport.Level.IGNORE)
                   .build())
           .build();
+  private static final OpenApiInteractionValidator JOBS =
+      OpenApiInteractionValidator.createForSpecificationUrl(
+              Path.of("../../../contracts/openapi/modules/jobs.yaml")
+                  .toAbsolutePath()
+                  .toUri()
+                  .toString())
+          .withLevelResolver(
+              LevelResolver.create()
+                  .withLevel("validation.request.security.missing", ValidationReport.Level.IGNORE)
+                  .build())
+          .build();
+
+  /** Sự kiện kiểm toán đã phát (thay outbox {@code sys.audit.v1} trong kiểm thử). */
+  static final List<AuditEvent> AUDITS = new CopyOnWriteArrayList<>();
 
   static FakeUpstream upstream;
 
@@ -96,6 +131,13 @@ class AnalyticsApiIT {
           .withEnv("CLICKHOUSE_PASSWORD", CH_PASSWORD)
           .withExposedPorts(8123)
           .waitingFor(Wait.forHttp("/ping").forPort(8123));
+
+  @Container
+  static final GenericContainer<?> S3 =
+      new GenericContainer<>("mirror.gcr.io/localstack/localstack:4.4")
+          .withEnv("SERVICES", "s3")
+          .withExposedPorts(4566)
+          .waitingFor(Wait.forHttp("/_localstack/health").forPort(4566));
 
   @Container
   static final GenericContainer<?> VALKEY =
@@ -122,6 +164,12 @@ class AnalyticsApiIT {
     r.add("mission.analytics.clickhouse-username", () -> "default");
     r.add("mission.analytics.clickhouse-password", () -> CH_PASSWORD);
     r.add(
+        "mission.analytics.export.endpoint",
+        () -> "http://" + S3.getHost() + ":" + S3.getMappedPort(4566));
+    r.add("mission.analytics.export.access-key", () -> "test");
+    r.add("mission.analytics.export.secret-key", () -> "test");
+    r.add("mission.analytics.export.gotenberg-url", upstream::url);
+    r.add(
         "mission.analytics.valkey-url",
         () -> "redis://" + VALKEY.getHost() + ":" + VALKEY.getMappedPort(6379));
   }
@@ -135,6 +183,11 @@ class AnalyticsApiIT {
     @Bean
     JwtDecoder testJwtDecoder() {
       return NimbusJwtDecoder.withPublicKey((RSAPublicKey) KEYS.getPublic()).build();
+    }
+
+    @Bean
+    AuditSink testAuditSink() {
+      return AUDITS::add;
     }
   }
 
@@ -227,6 +280,483 @@ class AnalyticsApiIT {
             + " ('"
             + TENANT
             + "', '0192f000-0000-7000-8000-0000000000a9', 'Q3D', 'Quý III Đảng', 'QUY', 'DANG', '2026-07-01', '2026-09-30', 'DA_KHOA')");
+    traceFacts();
+    coreDetails();
+  }
+
+  /** Bảng sự kiện tối giản cho chuỗi truy vết, cùng tên cột với V003 của DV-15-01. */
+  static void traceFacts() throws Exception {
+    String rmt = " _version UInt64) ENGINE = ReplacingMergeTree(_version) ORDER BY (tenant_id, id)";
+    ch("CREATE TABLE " + DB + ".dim_period (tenant_id UUID, id UUID, name String," + rmt);
+    ch(
+        "CREATE TABLE "
+            + DB
+            + ".fact_score (tenant_id UUID, id UUID, period_id UUID, profile_id UUID,"
+            + " person_key FixedString(32), org_unit_id UUID, policy_version String,"
+            + " total_score Decimal(6, 3), regular_score Nullable(Decimal(6, 3)),"
+            + " key_task_score Nullable(Decimal(6, 3)), general_criteria_score Nullable(Decimal(6, 3)),"
+            + " kpi_score Nullable(Decimal(6, 3)), is_current UInt8, computed_at DateTime64(3),"
+            + rmt);
+    ch(
+        "CREATE TABLE "
+            + DB
+            + ".fact_appraisal_profile (tenant_id UUID, id UUID, period_id UUID,"
+            + " person_key FixedString(32),"
+            + rmt);
+    ch(
+        "CREATE TABLE "
+            + DB
+            + ".fact_task (tenant_id UUID, id UUID, period_id UUID, code String,"
+            + " task_group LowCardinality(String), is_key_task UInt8, key_result_id Nullable(UUID),"
+            + " status LowCardinality(String), progress_pct Decimal(6, 4),"
+            + rmt);
+    ch(
+        "CREATE TABLE "
+            + DB
+            + ".fact_task_assignee (tenant_id UUID, id UUID, task_id UUID,"
+            + " person_key Nullable(FixedString(32)), resolved_unit_id UUID, role LowCardinality(String),"
+            + " removed_at Nullable(DateTime64(3)),"
+            + rmt);
+    ch(
+        "CREATE TABLE "
+            + DB
+            + ".fact_evidence (tenant_id UUID, id UUID, deliverable_id UUID, task_id UUID,"
+            + " created_at DateTime64(3),"
+            + rmt);
+    ch(
+        "CREATE TABLE "
+            + DB
+            + ".fact_okr_checkin (tenant_id UUID, id UUID, key_result_id UUID, objective_id UUID,"
+            + rmt);
+    String t = "'" + TENANT + "'";
+    ch("INSERT INTO " + DB + ".dim_period VALUES (" + t + ", '" + KY_Q4 + "', 'quý IV/2026', 1)");
+    ch(
+        "INSERT INTO "
+            + DB
+            + ".fact_score VALUES ("
+            + t
+            + ", '"
+            + DIEM
+            + "', '"
+            + KY_Q4
+            + "', '"
+            + HO_SO
+            + "', '"
+            + MA_NGUOI
+            + "', '"
+            + UNIT_HUYEN
+            + "', 'Đảng v2.0', 91.2, 20.5, 63.6, 7.1, NULL, 1, now64(3), 1)");
+    ch(
+        "INSERT INTO "
+            + DB
+            + ".fact_appraisal_profile VALUES ("
+            + t
+            + ", '"
+            + HO_SO
+            + "', '"
+            + KY_Q4
+            + "', '"
+            + MA_NGUOI
+            + "', 1)");
+    ch(
+        "INSERT INTO "
+            + DB
+            + ".fact_task VALUES ("
+            + t
+            + ", '"
+            + NHIEM_VU
+            + "', '"
+            + KY_Q4
+            + "', 'NV-01', 'THEN_CHOT', 1, '"
+            + KR
+            + "', 'DANG_THUC_HIEN', 0.6, 1)");
+    ch(
+        "INSERT INTO "
+            + DB
+            + ".fact_task_assignee VALUES ("
+            + t
+            + ", generateUUIDv4(), '"
+            + NHIEM_VU
+            + "', '"
+            + MA_NGUOI
+            + "', '"
+            + UNIT_HUYEN
+            + "', 'CHU_TRI', NULL, 1)");
+    ch(
+        "INSERT INTO "
+            + DB
+            + ".fact_evidence VALUES ("
+            + t
+            + ", '"
+            + MINH_CHUNG
+            + "', '"
+            + SAN_PHAM
+            + "', '"
+            + NHIEM_VU
+            + "', now64(3) - 10, 1), ("
+            + t
+            + ", '"
+            + MINH_CHUNG_KHAC
+            + "', '"
+            + SAN_PHAM
+            + "', '"
+            + NHIEM_VU
+            + "', now64(3), 1)");
+    ch(
+        "INSERT INTO "
+            + DB
+            + ".fact_okr_checkin VALUES ("
+            + t
+            + ", generateUUIDv4(), '"
+            + KR
+            + "', '"
+            + MUC_TIEU
+            + "', 1)");
+  }
+
+  /** API chi tiết giả của mission-core cho chuỗi truy vết; minh chứng thứ hai bị từ chối. */
+  static void coreDetails() throws Exception {
+    if (upstream == null) {
+      upstream = new FakeUpstream();
+    }
+    upstream.core.put(
+        "/api/v1/tasks/" + NHIEM_VU,
+        new Object[] {
+          200,
+          "{\"id\":\""
+              + NHIEM_VU
+              + "\",\"code\":\"NV-01\",\"title\":\"Báo cáo sơ kết công tác tổ chức\","
+              + "\"status\":\"DANG_THUC_HIEN\",\"unitName\":\"Huyện uỷ\",\"periodId\":\""
+              + KY_Q4
+              + "\",\"keyResultId\":\""
+              + KR
+              + "\",\"progress\":60}"
+        });
+    upstream.core.put(
+        "/api/v1/products",
+        new Object[] {
+          200,
+          "{\"items\":[{\"id\":\""
+              + SAN_PHAM
+              + "\",\"taskId\":\""
+              + NHIEM_VU
+              + "\",\"name\":\"Báo cáo sơ kết\",\"unit\":\"báo cáo\",\"quantityPlanned\":1,"
+              + "\"quantityAccepted\":1,\"status\":\"DA_XAC_NHAN\"}],\"nextCursor\":null}"
+        });
+    upstream.core.put(
+        "/api/v1/products/" + SAN_PHAM,
+        new Object[] {
+          200,
+          "{\"id\":\""
+              + SAN_PHAM
+              + "\",\"taskId\":\""
+              + NHIEM_VU
+              + "\",\"name\":\"Báo cáo sơ kết\"}"
+        });
+    upstream.core.put(
+        "/api/v1/evidences/" + MINH_CHUNG,
+        new Object[] {
+          200,
+          "{\"id\":\""
+              + MINH_CHUNG
+              + "\",\"deliverableId\":\""
+              + SAN_PHAM
+              + "\",\"task\":{\"id\":\""
+              + NHIEM_VU
+              + "\"},\"title\":\"BC-so-ket-v3.pdf\",\"currentStatus\":\"DA_NOP\","
+              + "\"currentVersionNo\":3,\"versions\":[{\"versionNo\":1,\"status\":\"YEU_CAU_BO_SUNG\","
+              + "\"decisionNote\":\"Y-KIEN-NGHIEM-THU-C2\"},{\"versionNo\":2,\"status\":\"DA_XAC_NHAN\"},"
+              + "{\"versionNo\":3,\"status\":\"DA_NOP\"}]}"
+        });
+    upstream.core.put("/api/v1/evidences/" + MINH_CHUNG_KHAC, new Object[] {403, null});
+    upstream.core.put(
+        "/api/v1/plans",
+        new Object[] {
+          200,
+          "{\"items\":[{\"id\":\""
+              + KE_HOACH
+              + "\",\"code\":\"KH-Q4\",\"unitName\":\"Huyện uỷ\",\"currentVersion\":"
+              + "{\"versionNo\":2,\"status\":\"DA_DUYET\"}}],\"nextCursor\":null}"
+        });
+    upstream.core.put(
+        "/api/v1/okr/key-results/" + KR,
+        new Object[] {
+          200,
+          "{\"id\":\""
+              + KR
+              + "\",\"objectiveId\":\""
+              + MUC_TIEU
+              + "\",\"code\":\"KR 1.2\",\"title\":\"Hoàn thành sơ kết\",\"status\":\"DA_DUYET\"}"
+        });
+    upstream.core.put(
+        "/api/v1/okr/objectives/" + MUC_TIEU,
+        new Object[] {
+          200,
+          "{\"id\":\""
+              + MUC_TIEU
+              + "\",\"code\":\"O1\",\"title\":\"Nâng cao chất lượng tổ chức\",\"status\":\"DA_DUYET\","
+              + "\"ownerUnit\":{\"id\":\""
+              + UNIT_HUYEN
+              + "\",\"name\":\"Huyện uỷ\"},\"bases\":[{\"id\":\""
+              + CAN_CU
+              + "\",\"docNumber\":\"05-NQ/ĐH\",\"title\":\"Nghị quyết Đại hội\"}]}"
+        });
+  }
+
+  @Test
+  void traceChainMasksDeniedEvidenceAndKeepsBasis() {
+    String bt = token(BI_THU, "leader", UNIT_TINH);
+    upstream.coreAuthorizations.clear();
+    Reply r = get("/analytics/trace/MINH_CHUNG/" + MINH_CHUNG, bt, Map.of());
+    assertThat(r.status()).as(r.body()).isEqualTo(200);
+    assertThat(r.headers().get("cache-control")).isEqualTo("no-store");
+    assertThat(r.json().path("focus").path("objectType").asText()).isEqualTo("MINH_CHUNG");
+    List<String> types = new ArrayList<>();
+    r.json().path("links").forEach(l -> types.add(l.path("objectType").asText()));
+    assertThat(types)
+        .containsExactly(
+            "DIEM",
+            "CAU_PHAN",
+            "KPI_NHIEM_VU",
+            "KET_QUA_THEN_CHOT",
+            "SAN_PHAM",
+            "MINH_CHUNG",
+            "MINH_CHUNG",
+            "KE_HOACH",
+            "MUC_TIEU",
+            "CAN_CU");
+    JsonNode diem = r.json().path("links").get(0);
+    assertThat(diem.path("value").asText()).isEqualTo("91,2");
+    assertThat(diem.path("label").asText()).isEqualTo("Điểm quý IV/2026");
+    assertThat(r.json().path("links").get(1).path("value").asText()).isEqualTo("63,6");
+    JsonNode mc = r.json().path("links").get(5);
+    assertThat(mc.path("id").asText()).isEqualTo(MINH_CHUNG);
+    assertThat(mc.path("versionNo").asInt()).isEqualTo(2);
+    assertThat(mc.path("msg").asText()).isEqualTo("MSG-16-07");
+    JsonNode masked = r.json().path("links").get(6);
+    assertThat(masked.path("id").asText()).isEqualTo(MINH_CHUNG_KHAC);
+    assertThat(masked.path("masked").asBoolean()).isTrue();
+    assertThat(masked.path("msg").asText()).isEqualTo("MSG-16-06");
+    assertThat(masked.has("value")).isFalse();
+    JsonNode basis = r.json().path("links").get(9);
+    assertThat(basis.path("masked").asBoolean()).isFalse();
+    assertThat(basis.path("label").asText()).isEqualTo("05-NQ/ĐH – Nghị quyết Đại hội");
+    // Không lộ mã người giả danh của kho hay ý kiến nghiệm thu (C2).
+    assertThat(r.body()).doesNotContain(MA_NGUOI).doesNotContain("Y-KIEN-NGHIEM-THU-C2");
+    // Mọi lời gọi mission-core mang token của chính người xem.
+    assertThat(upstream.coreAuthorizations).isNotEmpty().allMatch(("Bearer " + bt)::equals);
+
+    Reply score = get("/analytics/trace/DIEM/" + DIEM, bt, Map.of());
+    assertThat(score.status()).isEqualTo(200);
+    List<String> fromScore = new ArrayList<>();
+    score.json().path("links").forEach(l -> fromScore.add(l.path("objectType").asText()));
+    assertThat(fromScore)
+        .containsExactly(
+            "DIEM", "CAU_PHAN", "CAU_PHAN", "CAU_PHAN", "KPI_NHIEM_VU", "KET_QUA_THEN_CHOT");
+
+    assertThat(
+            get("/analytics/trace/DIEM/" + DIEM, token(BI_THU, "leader", UNIT_KHAC), Map.of())
+                .status())
+        .isEqualTo(403);
+    assertThat(get("/analytics/trace/DIEM/" + UUID.randomUUID(), bt, Map.of()).status())
+        .isEqualTo(404);
+    assertThat(get("/analytics/trace/KE_HOACH/" + KE_HOACH, bt, Map.of()).status()).isEqualTo(422);
+    assertThat(
+            get("/analytics/trace/DIEM/" + DIEM, token(BI_THU, "member", UNIT_TINH), Map.of())
+                .status())
+        .isEqualTo(403);
+  }
+
+  /**
+   * DV-15-06 {@code exportTraceChain}: 202 kèm {@code Location}, theo dõi tới {@code HOAN_TAT}, tải
+   * gói ZIP từ kho S3 qua URL ký; JSON có mã băm từng mắt xích và cả chuỗi, mắt xích bị che không
+   * lộ nội dung; việc xuất lên kênh kiểm toán; chỉ người khởi tạo xem được tác vụ.
+   */
+  @Test
+  void traceExportProducesHashedBundleAndAudits() throws Exception {
+    String bt = token(BI_THU, "leader", UNIT_TINH);
+    Map<String, Object> body =
+        Map.of("objectType", "MINH_CHUNG", "id", MINH_CHUNG, "formats", List.of("JSON", "PDF"));
+    String key = UUID.randomUUID().toString();
+    Reply accepted = post("/analytics/trace/exports", bt, body, Map.of("Idempotency-Key", key));
+    assertThat(accepted.status()).as(accepted.body()).isEqualTo(202);
+    String jobId = accepted.json().path("id").asText();
+    assertThat(accepted.headers().get("location")).isEqualTo("/api/v1/jobs/" + jobId);
+    assertThat(accepted.json().path("type").asText()).isEqualTo("EXPORT");
+
+    JsonNode done = awaitJob(jobId, bt);
+    assertThat(done.path("status").asText()).as(done.toString()).isEqualTo("HOAN_TAT");
+    Map<String, byte[]> zip = unzip(download(done.path("resultLocation").asText()));
+    assertThat(zip).containsOnlyKeys("chuoi-bang-chung.json", "chuoi-bang-chung.pdf");
+    assertThat(new String(zip.get("chuoi-bang-chung.pdf"), StandardCharsets.US_ASCII))
+        .startsWith("%PDF");
+    JsonNode json = JSON.readTree(zip.get("chuoi-bang-chung.json"));
+    List<String> hashes = new ArrayList<>();
+    json.path("links").forEach(l -> hashes.add(l.path("hash").asText()));
+    assertThat(hashes).hasSize(10).allMatch(h -> h.matches("[0-9a-f]{64}"));
+    assertThat(json.path("chainHash").asText()).isEqualTo(sha256(String.join("\n", hashes)));
+    JsonNode masked = json.path("links").get(6);
+    assertThat(masked.path("masked").asBoolean()).isTrue();
+    assertThat(masked.has("value")).isFalse();
+    assertThat(masked.has("details")).isFalse();
+    String all = new String(zip.get("chuoi-bang-chung.json"), StandardCharsets.UTF_8);
+    assertThat(all).doesNotContain(MA_NGUOI).doesNotContain("Y-KIEN-NGHIEM-THU-C2");
+    String html = upstream.gotenbergForms.get(upstream.gotenbergForms.size() - 1);
+    assertThat(html).contains("Chuỗi bằng chứng").doesNotContain("MSG-16").doesNotContain(MA_NGUOI);
+
+    assertThat(AUDITS)
+        .anySatisfy(
+            e -> {
+              assertThat(e.type()).isEqualTo(AuditEventType.DATA_EXPORT);
+              assertThat(e.actorId().value().toString()).isEqualTo(BI_THU);
+              assertThat(e.objectId()).isEqualTo(MINH_CHUNG);
+              assertThat(e.attributes()).containsEntry("jobId", jobId);
+            });
+
+    // Cùng khoá trả đúng tác vụ cũ; người khác không thấy tác vụ.
+    Reply again = post("/analytics/trace/exports", bt, body, Map.of("Idempotency-Key", key));
+    assertThat(again.json().path("id").asText()).isEqualTo(jobId);
+    assertThat(get("/jobs/" + jobId, token(TRUONG_HUYEN, "manager", UNIT_HUYEN), Map.of()).status())
+        .isEqualTo(404);
+    assertThat(
+            post(
+                    "/analytics/trace/exports",
+                    token(BI_THU, "leader", UNIT_KHAC),
+                    Map.of("objectType", "DIEM", "id", DIEM, "formats", List.of("PDF")),
+                    Map.of())
+                .status())
+        .isEqualTo(403);
+    assertThat(
+            post(
+                    "/analytics/trace/exports",
+                    bt,
+                    Map.of(
+                        "objectType", "DIEM", "id", UUID.randomUUID(), "formats", List.of("PDF")),
+                    Map.of())
+                .status())
+        .isEqualTo(404);
+  }
+
+  /** DV-15-06 {@code exportAnalyticsReport}: XLSX và PDF trong phạm vi người xem, xong ≤ 1 phút. */
+  @Test
+  void dashboardReportExportsWithinOneMinute() throws Exception {
+    String bt = token(BI_THU, "leader", UNIT_TINH);
+    long start = System.nanoTime();
+    Reply accepted =
+        post(
+            "/analytics/reports",
+            bt,
+            Map.of(
+                "templateCode",
+                "BANG_DIEU_HANH",
+                "periodId",
+                KY_Q4,
+                "unitId",
+                UNIT_HUYEN,
+                "compareToPreviousPeriod",
+                true,
+                "format",
+                "XLSX"),
+            Map.of());
+    assertThat(accepted.status()).as(accepted.body()).isEqualTo(202);
+    JsonNode done = awaitJob(accepted.json().path("id").asText(), bt);
+    Duration took = Duration.ofNanos(System.nanoTime() - start);
+    assertThat(done.path("status").asText()).as(done.toString()).isEqualTo("HOAN_TAT");
+    assertThat(took).isLessThanOrEqualTo(Duration.ofMinutes(1));
+    byte[] xlsx = download(done.path("resultLocation").asText());
+    Map<String, byte[]> parts = unzip(xlsx);
+    // FastExcel ghi ký tự ngoài ASCII dạng tham chiếu số &#x..;
+    String strings =
+        java.util.regex.Pattern.compile("&#x([0-9a-fA-F]+);")
+            .matcher(new String(parts.get("xl/sharedStrings.xml"), StandardCharsets.UTF_8))
+            .replaceAll(m -> Character.toString(Integer.parseInt(m.group(1), 16)));
+    assertThat(strings).contains("Báo cáo bảng điều hành").contains("(kỳ trước)");
+
+    Reply pdf =
+        post(
+            "/analytics/reports",
+            bt,
+            Map.of("templateCode", "BANG_DIEU_HANH", "periodId", KY_Q4, "format", "PDF"),
+            Map.of());
+    assertThat(awaitJob(pdf.json().path("id").asText(), bt).path("status").asText())
+        .isEqualTo("HOAN_TAT");
+
+    assertThat(
+            post(
+                    "/analytics/reports",
+                    bt,
+                    Map.of("templateCode", "KHAC", "periodId", KY_Q4, "format", "PDF"),
+                    Map.of())
+                .status())
+        .isEqualTo(422);
+    assertThat(
+            post(
+                    "/analytics/reports",
+                    token(TRUONG_HUYEN, "manager", UNIT_HUYEN),
+                    Map.of(
+                        "templateCode",
+                        "BANG_DIEU_HANH",
+                        "periodId",
+                        KY_Q4,
+                        "unitId",
+                        UNIT_TINH,
+                        "format",
+                        "PDF"),
+                    Map.of())
+                .status())
+        .isEqualTo(403);
+    assertThat(
+            post(
+                    "/analytics/reports",
+                    token(BI_THU, "member", UNIT_TINH),
+                    Map.of("templateCode", "BANG_DIEU_HANH", "periodId", KY_Q4, "format", "PDF"),
+                    Map.of())
+                .status())
+        .isEqualTo(403);
+  }
+
+  private JsonNode awaitJob(String id, String token) throws InterruptedException {
+    long deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
+    while (true) {
+      Reply r = get("/jobs/" + id, token, Map.of());
+      assertThat(r.status()).as(r.body()).isEqualTo(200);
+      String st = r.json().path("status").asText();
+      if (st.equals("HOAN_TAT") || st.equals("THAT_BAI") || System.nanoTime() > deadline) {
+        return r.json();
+      }
+      Thread.sleep(100);
+    }
+  }
+
+  private static byte[] download(String url) throws Exception {
+    HttpResponse<byte[]> r =
+        HTTP.send(
+            HttpRequest.newBuilder(URI.create(url)).GET().build(),
+            HttpResponse.BodyHandlers.ofByteArray());
+    assertThat(r.statusCode()).isEqualTo(200);
+    return r.body();
+  }
+
+  private static Map<String, byte[]> unzip(byte[] bytes) throws Exception {
+    // ZipFile (đọc thư mục trung tâm) vì FastExcel ghi theo luồng, kích thước nằm sau dữ liệu.
+    Path f = java.nio.file.Files.createTempFile("xuat", ".zip");
+    try {
+      java.nio.file.Files.write(f, bytes);
+      Map<String, byte[]> out = new LinkedHashMap<>();
+      try (ZipFile z = new ZipFile(f.toFile())) {
+        for (ZipEntry e : java.util.Collections.list(z.entries())) {
+          out.put(e.getName(), z.getInputStream(e).readAllBytes());
+        }
+      }
+      return out;
+    } finally {
+      java.nio.file.Files.deleteIfExists(f);
+    }
+  }
+
+  private static String sha256(String s) throws Exception {
+    return HexFormat.of()
+        .formatHex(MessageDigest.getInstance("SHA-256").digest(s.getBytes(StandardCharsets.UTF_8)));
   }
 
   @AfterAll
@@ -621,10 +1151,11 @@ class AnalyticsApiIT {
         rs.withContentType(h.getOrDefault("content-type", "application/json"));
         // Ca lỗi có thể cố ý gửi yêu cầu sai hợp đồng (thiếu If-Match, 21 widget): chỉ so khớp phản
         // hồi.
+        OpenApiInteractionValidator contract = path.startsWith("/jobs/") ? JOBS : CONTRACT;
         ValidationReport report =
             r.statusCode() >= 400
-                ? CONTRACT.validateResponse(path, Request.Method.valueOf(method), rs.build())
-                : CONTRACT.validate(rq.build(), rs.build());
+                ? contract.validateResponse(path, Request.Method.valueOf(method), rs.build())
+                : contract.validate(rq.build(), rs.build());
         assertThat(report.getMessages()).as(report.toString()).isEmpty();
       }
       return new Reply(r.statusCode(), r.body(), node, h);

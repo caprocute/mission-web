@@ -32,6 +32,18 @@ final class Viewers {
     return new Viewer(TenantContext.require().value(), user, uuid(unit));
   }
 
+  /**
+   * Token gốc của người xem ({@code Bearer ...}) để gọi API chi tiết của mission-core bằng chính
+   * quyền của người đó (BR-16-04).
+   */
+  static String bearer() {
+    var auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth == null || !(auth.getPrincipal() instanceof Jwt jwt)) {
+      throw new AccessDeniedException("viewer");
+    }
+    return "Bearer " + jwt.getTokenValue();
+  }
+
   private static UUID uuid(String s) {
     try {
       return s == null ? null : UUID.fromString(s);

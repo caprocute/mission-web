@@ -1,0 +1,109 @@
+# Danh mục dùng chung của hồ sơ TWĐ (DL-16, BS-03 "Hồ sơ TWĐ" mục 4). GIẢ LẬP theo YC-PT-14: dự thảo Quy định
+# kiểm điểm, đánh giá, xếp loại (12/10/2026) chưa ban hành; giá trị lấy từ UEB-BTCTW-QTCV-02 v1.2 (Đặc tả 4.4 NR06,
+# F59, F66, F67, 13.23, 16.2, 16.3, 18.3; Phụ lục B.1 dòng 18, B.6 dòng 1). Tên ghi nguyên văn dự thảo, khoá tên.
+# Các danh mục ghi pham_vi TOAN_HE_THONG là danh mục lõi đã có điểm nạp; danh mục ghi DON_VI do đơn vị mở rộng.
+metadata:
+  id: twd/danh-muc-dung-chung
+  version: 0.1.0
+  gia_lap: true
+  ghi_chu_gia_lap: "Thí điểm – dùng để đối chiếu; tên trục, chỉ tiêu, tiêu chí theo dự thảo chưa ban hành."
+
+# F66: trục kết quả trọng tâm (dự thảo Quy định Điều 10 khoản 2 điểm 2.1). Mã trục là axisCode của việc (DC-01).
+truc:
+  pham_vi: TOAN_HE_THONG
+  khoa_ten: true
+  muc:
+    - {ma: TR1, ten: "Thực hiện mục tiêu phát triển kinh tế - xã hội và nhiệm vụ chính trị được giao"}
+    - {ma: TR2, ten: "Xây dựng thể chế, tổ chức thực thi và phân cấp, phân quyền"}
+    - {ma: TR3, ten: "Phát triển khoa học, công nghệ, đổi mới sáng tạo, chuyển đổi số và dữ liệu"}
+    - {ma: TR4, ten: "Xây dựng Đảng, hệ thống chính trị, tổ chức bộ máy, đội ngũ cán bộ và liêm chính"}
+    - {ma: TR5, ten: "Phục vụ Nhân dân, phát triển con người, văn hóa và xã hội"}
+    - {ma: TR6, ten: "Quốc phòng, an ninh, đối ngoại và hội nhập quốc tế"}
+  # Dự thảo Phụ lục 2 mục III.1: trục bắt buộc theo loại tập thể gắn với nút.
+  truc_bat_buoc:
+    - {loai_tap_the: CO_QUAN_DON_VI, truc: [TR1]}
+    - {loai_tap_the: TAP_THE_LANH_DAO, truc: [TR1, TR4]}
+
+# F67: chỉ tiêu kinh tế - xã hội (dự thảo Điều 10 khoản 2 điểm 2.2). Chỉ áp dụng cho địa phương; Ban để trống.
+chi_tieu_kt_xh:
+  pham_vi: TOAN_HE_THONG
+  khoa_ten: true
+  ma_bo_sung_tu: CT6          # địa phương thêm chỉ tiêu bổ sung, phạm vi địa phương
+  chi_ap_dung_dia_phuong: true
+  muc:
+    - {ma: CT1, ten: "Tốc độ tăng trưởng kinh tế", thu_tu_uu_tien: 1}
+    - {ma: CT2, ten: "Thu ngân sách nhà nước", thu_tu_uu_tien: 2}
+    - {ma: CT3, ten: "Tỷ lệ giải ngân vốn đầu tư công", thu_tu_uu_tien: 3}
+    - {ma: CT4, ten: "Thu nhập bình quân đầu người", thu_tu_uu_tien: 4}
+    - {ma: CT5, ten: "Tỷ lệ giảm hộ nghèo", thu_tu_uu_tien: 5}
+
+# F59: điều kiện công nhận của KR, KPI kiểu Mốc (DC-04). Danh mục có thứ tự; "bac" dùng xếp tăng, giảm chỉ tiêu kiểu
+# Mốc ở 7.7 ("được thông qua" và "được phê duyệt" cùng bậc). "cum_tu" sinh khung hướng dẫn khi khai KR (TK-03).
+dieu_kien_cong_nhan_moc:
+  pham_vi: TOAN_HE_THONG
+  muc:
+    - {ma: XONG_DU_THAO, ten: "Xong dự thảo", bac: 1, cum_tu: []}
+    - {ma: DA_TRINH, ten: "Đã trình", bac: 2, cum_tu: ["được gửi", "được trình"]}
+    - {ma: DUOC_THONG_QUA, ten: "Được thông qua", bac: 3, cum_tu: ["được thông qua"]}
+    - {ma: DUOC_PHE_DUYET, ten: "Được phê duyệt", bac: 3, cum_tu: ["được phê duyệt"]}
+    - {ma: DUOC_KY_BAN_HANH, ten: "Được ký ban hành", bac: 4, cum_tu: ["được ký ban hành"]}
+    - {ma: DUA_VAO_SU_DUNG, ten: "Đưa vào sử dụng", bac: 5, cum_tu: []}
+
+# Đặc tả 16.2, 16.3: bộ tiêu chí chung năm 2026. Lãnh đạo 12 tiêu chí, không giữ chức vụ 10 (bỏ 2.2 và 9.1), tập
+# thể 11. Ngưỡng mức (100% / 90% / 60%) nằm ở bảng quyết định tieu-chi-chung-twd của gói twd/diem-cong-viec.
+tieu_chi_chung:
+  ca_nhan:
+    - {ma: "1.1", ten: "Chấp hành chủ trương, nghị quyết; kỷ luật phát ngôn"}
+    - {ma: "1.2", ten: "Phẩm chất đạo đức, lối sống"}
+    - {ma: "1.3", ten: "Chấp hành phân công, quy chế; đoàn kết"}
+    - {ma: "2.1", ten: "Không tham nhũng, tiêu cực, lãng phí; kê khai tài sản"}
+    - {ma: "2.2", ten: "Phòng ngừa, xử lý tham nhũng trong phạm vi phụ trách", chi_lanh_dao: true}
+    - {ma: "3.1", ten: "Học tập, quán triệt, triển khai nghị quyết"}
+    - {ma: "4.1", ten: "Nêu gương; giải trình; kiểm soát quyền lực"}
+    - {ma: "5.1", ten: "Tự phê bình, tự đánh giá đúng hạn; khắc phục hạn chế"}
+    - {ma: "6.1", ten: "Cam kết tu dưỡng, rèn luyện"}
+    - {ma: "7.1", ten: "Đổi mới, năng lực; lãnh đạo: cụ thể hóa mục tiêu đúng hạn"}
+    - {ma: "8.1", ten: "Chủ động, dám làm, không đùn đẩy"}
+    - {ma: "9.1", ten: "Quy tụ, phát triển đội ngũ; giao việc, đánh giá cấp dưới đúng hạn", chi_lanh_dao: true}
+  tap_the:
+    - {ma: "1.1", ten: "Quán triệt, chấp hành nghị quyết, chỉ đạo của cấp trên"}
+    - {ma: "1.2", ten: "Đoàn kết, kỷ luật, kỷ cương trong tập thể"}
+    - {ma: "2.1", ten: "Nền nếp sinh hoạt; công tác cán bộ, đảng viên"}
+    - {ma: "3.1", ten: "Không để xảy ra tham nhũng, lãng phí, tiêu cực; kê khai, công khai"}
+    - {ma: "4.1", ten: "Tập trung dân chủ, quy chế làm việc"}
+    - {ma: "4.2", ten: "Kế hoạch phân công, danh mục công việc đúng hạn; mỗi việc một đầu mối"}
+    - {ma: "5.1", ten: "Báo cáo, giải trình trung thực, đúng hạn; kiểm soát quyền lực"}
+    - {ma: "6.1", ten: "Kiểm điểm tập thể đúng hạn, đủ nội dung"}
+    - {ma: "6.2", ten: "Kế hoạch khắc phục, khắc phục đúng hạn"}
+    - {ma: "7.1", ten: "Chương trình kiểm tra, giám sát"}
+    - {ma: "7.2", ten: "Tổ chức bộ máy, biên chế, nền tảng số, văn hóa công vụ"}
+  so_tieu_chi: {LANH_DAO: 12, KHONG_GIU_CHUC_VU: 10, TAP_THE: 11}
+
+# Đặc tả 16.4: loại căn cứ của sự việc gắn với tiêu chí con.
+loai_can_cu_su_viec:
+  - {ma: VAN_BAN_KET_LUAN, ten: "Có văn bản kết luận, quyết định của cấp có thẩm quyền", tu_khong_dam_bao: true}
+  - {ma: HAN_CHE_CHUA_KET_LUAN, ten: "Hạn chế, thiếu sót hoặc hành vi chưa đến mức bị kết luận là vi phạm", tu_khong_dam_bao: false}
+  - {ma: TU_NHAN, ten: "Cá nhân, tập thể tự nhận khi tự đánh giá, kiểm điểm", tu_khong_dam_bao: false}
+
+# Đặc tả 18.3: loại sự việc có văn bản kết luận làm tự bật điều kiện loại trừ (DF44) của đối tượng tương ứng.
+loai_su_viec_loai_tru:
+  - {ma: KY_LUAT_CONG_VU, ten: "Vi phạm liên quan đến chức trách, công vụ bị kỷ luật từ khiển trách trở lên", ap_cho: [TAP_THE_LANH_DAO, LANH_DAO, KHONG_GIU_CHUC_VU]}
+  - {ma: SUY_THOAI, ten: "Bị kết luận có biểu hiện suy thoái, “tự diễn biến”, “tự chuyển hoá”", ap_cho: [TAP_THE_LANH_DAO, LANH_DAO, KHONG_GIU_CHUC_VU]}
+  - {ma: SAI_PHAM_CONG_TAC_CAN_BO, ten: "Kết luận sai phạm trong công tác cán bộ, mất đoàn kết nội bộ, bè phái, chạy chức, chạy quyền", ap_cho: [TAP_THE_LANH_DAO]}
+  - {ma: DIEU_DANG_VIEN_KHONG_DUOC_LAM, ten: "Vi phạm những điều đảng viên không được làm", ap_cho: [LANH_DAO, KHONG_GIU_CHUC_VU]}
+  - {ma: NEU_GUONG, ten: "Vi phạm quy định về trách nhiệm nêu gương, gây ảnh hưởng xấu đến uy tín", ap_cho: [LANH_DAO, KHONG_GIU_CHUC_VU]}
+
+# NR06, NR15 (Đặc tả 4.4; Phụ lục B.6 dòng 1): danh mục nguyên nhân điểm nghẽn, rủi ro kèm nhóm. Cột
+# ma_hop_dong là giá trị BlockerCauseCategory gần nhất của tasks.yaml (suy luận); hợp đồng chỉ có năm giá trị nên
+# mã nguyên nhân chi tiết đi kèm ở nội dung, xem phát hiện ở CHANGELOG của gói và wiki 14.
+nguyen_nhan_diem_nghen:
+  pham_vi: TOAN_HE_THONG
+  muc:
+    - {ma: CHO_Y_KIEN_CAP_CO_THAM_QUYEN, ten: "Chờ ý kiến, phê duyệt của cấp có thẩm quyền", nhom: KHACH_QUAN, ma_hop_dong: THU_TUC}
+    - {ma: CHO_PHOI_HOP, ten: "Chờ phối hợp của cơ quan, đơn vị, cá nhân khác", nhom: KHACH_QUAN, ma_hop_dong: PHOI_HOP}
+    - {ma: VUONG_QUY_DINH, ten: "Vướng quy định, cơ chế, chính sách", nhom: KHACH_QUAN, ma_hop_dong: THU_TUC}
+    - {ma: THIEU_DU_LIEU, ten: "Thiếu dữ liệu, thông tin đầu vào", nhom: KHACH_QUAN, ma_hop_dong: KHACH_QUAN}
+    - {ma: THIEU_NGUON_LUC, ten: "Thiếu nguồn lực (nhân lực, kinh phí, thời gian)", nhom: THEO_TUNG_BAN_GHI, ma_hop_dong: NGUON_LUC}
+    - {ma: QUA_TAI, ten: "Quá tải công việc", nhom: CHU_QUAN, ma_hop_dong: NGUON_LUC}
+    - {ma: THAY_DOI_CHU_TRUONG, ten: "Thay đổi chủ trương, yêu cầu của cấp trên", nhom: KHACH_QUAN, ma_hop_dong: KHACH_QUAN}
+    - {ma: KHAC, ten: "Khác", nhom: THEO_TUNG_BAN_GHI, ma_hop_dong: KHAC}
