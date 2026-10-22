@@ -23,8 +23,8 @@
   <packaging>pom</packaging>
   <name>iam (SVC-02)</name>
   <modules>
-    <module>realm-template</module>
     <module>keycloak-events</module>
+    <module>realm-template</module>
     <module>revocation-consumer</module>
     <module>user-sync</module>
   </modules>

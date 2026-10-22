@@ -88,6 +88,7 @@
             <mission.repo.root>${mission.repo.root}</mission.repo.root>
             <keycloak.image>${keycloak.image}</keycloak.image>
             <keycloak-config-cli.image>${keycloak-config-cli.image}</keycloak-config-cli.image>
+            <provider.jar>${project.basedir}/../keycloak-events/target/mission-keycloak-events.jar</provider.jar>
           </systemPropertyVariables>
         </configuration>
         <executions>
