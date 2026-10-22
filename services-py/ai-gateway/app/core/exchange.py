@@ -16,6 +16,14 @@ GRANT = "urn:ietf:params:oauth:grant-type:token-exchange"
 ACCESS_TOKEN = "urn:ietf:params:oauth:token-type:access_token"  # noqa: S105 - tên loại token, không phải bí mật
 
 
+_IGNORED_ROLES = ("default-roles", "offline_access", "uma_authorization")
+
+
+def only_role(roles: tuple[str, ...], role: str) -> bool:
+    """Token mang vai trò `role` và không mang vai trò nghiệp vụ nào khác (bỏ qua vai trò mặc định của Keycloak)."""
+    return role in roles and all(r == role or r.startswith(_IGNORED_ROLES) for r in roles)
+
+
 class ExchangeError(Exception):
     """Không đổi được token; lời gọi tới API lõi không được thực hiện."""
 
@@ -85,9 +93,7 @@ class TokenExchanger:
         # Token đổi về phải là của cùng người dùng và chỉ mang vai trò chỉ đọc.
         if claims.get("sub") != principal.user_id or claims.get("tenant_id") != principal.tenant_id:
             raise ExchangeError("token đổi về không cùng danh tính")
-        roles = roles_of(claims)
-        if self._role not in roles or any(r != self._role and not r.startswith(("default-roles", "offline_access",
-                                                                           "uma_authorization")) for r in roles):
+        if not only_role(roles_of(claims), self._role):
             raise ExchangeError("token đổi về mang vai trò ngoài vai trò chỉ đọc")
         out = ReadOnlyToken(tok, principal.user_id, float(claims["exp"]))
         async with self._lock:

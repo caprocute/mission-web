@@ -9,6 +9,8 @@ from app.core.auth import JwtVerifier
 from app.core.core_client import CoreClient
 from app.core.opa import OpaClient
 from app.core.pipeline import Gateway
+from app.rag.ingest import Indexer
+from app.rag.retriever import Retriever
 from app.store.suggestions import SuggestionStore
 
 
@@ -20,3 +22,5 @@ class State:
     gateway: Gateway
     store: SuggestionStore
     pool: Any
+    retriever: Retriever
+    indexer: Indexer

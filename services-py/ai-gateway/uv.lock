@@ -7,12 +7,15 @@ name = "ai-gateway"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "aiokafka" },
     { name = "asyncpg" },
     { name = "fastapi" },
+    { name = "fastavro" },
     { name = "httpx" },
     { name = "jsonschema" },
     { name = "prometheus-client" },
     { name = "pyjwt", extra = ["crypto"] },
+    { name = "pypdf" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -31,9 +34,11 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiokafka", specifier = ">=0.14.0,<1" },
     { name = "anyio", marker = "extra == 'dev'", specifier = ">=4.6" },
     { name = "asyncpg", specifier = ">=0.30,<1" },
     { name = "fastapi", specifier = ">=0.115,<1" },
+    { name = "fastavro", specifier = ">=1.13.1,<2" },
     { name = "httpx", specifier = ">=0.28,<1" },
     { name = "jsonschema", specifier = ">=4.23,<5" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
@@ -42,6 +47,7 @@ requires-dist = [
     { name = "prometheus-client", specifier = ">=0.21,<1" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'dev'", specifier = ">=3.2" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10,<3" },
+    { name = "pypdf", specifier = ">=6.21.2,<7" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3" },
     { name = "pyyaml", marker = "extra == 'dev'", specifier = ">=6" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8" },
@@ -49,6 +55,25 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32,<1" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "aiokafka"
+version = "0.14.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "async-timeout" },
+    { name = "packaging" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/89/5f/dfc1180fd22d1acdc91949ec36e97199c43742dacb057cb8efed3679ed04/aiokafka-0.14.0.tar.gz", hash = "sha256:8ffdc945798ba4d3d132b705d4244d0a1f493925efb57c637a2ca88ee82794e1", size = 601374, upload-time = "2026-04-29T10:43:03.574Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f9/9d/3441db94829f9feb802a2f4052df61c0d1a01272accd174c351d7e9e1f6a/aiokafka-0.14.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:284a90d617584d7e42688a181aaa8c2a909d9c658ab9b69c6cf92f4df5c4b320", size = 348458, upload-time = "2026-04-29T10:42:37.243Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/10/7297589aac95654596af13301b31da2c9502c80e7e308530ee7a9bd5b9f1/aiokafka-0.14.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:b4f211d9e03a1fc83871a37eefcf307bc0943ee99adae25aa39bd1722e70747b", size = 351057, upload-time = "2026-04-29T10:42:38.69Z" },
+    { url = "https://files.pythonhosted.org/packages/26/4e/5c0aa8db717fff0ffb8f3e16deece8f98ded6ca17c6a543b6b20cc9a7f84/aiokafka-0.14.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:be517b9b9513eba43ba19961dd770a6e26d08325743093feb47182770d235dd9", size = 1142238, upload-time = "2026-04-29T10:42:39.96Z" },
+    { url = "https://files.pythonhosted.org/packages/88/78/322f797b9593a4cc8afd647342fa66b9ad732ee55098e5e084188c6202aa/aiokafka-0.14.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:219d2dc66b97b1aaea100697c928024b6a0348b7baa370b824900054bf86916e", size = 1131567, upload-time = "2026-04-29T10:42:41.542Z" },
+    { url = "https://files.pythonhosted.org/packages/8d/0a/a45320778385142299a7fc3ae402152ec1f383537130b8aa8e8587742fad/aiokafka-0.14.0-cp312-cp312-win32.whl", hash = "sha256:1086b470f6c452471603a2d9c8d6933739230c75758d777d8d113ff8112bad68", size = 312160, upload-time = "2026-04-29T10:42:42.811Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/fb/7802a0ed69200e3e8e8791df06bd6daf9b00523839d045662de4ff061b18/aiokafka-0.14.0-cp312-cp312-win_amd64.whl", hash = "sha256:bcf3a8f6592d73f45965ca0750bfdfccf2555c8625358175c92f75f2cce1261a", size = 331897, upload-time = "2026-04-29T10:42:43.984Z" },
+]
 
 [[package]]
 name = "annotated-doc"
@@ -123,6 +148,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/66/83/6607060659998f00afdea0d8375c1e6e2b7d515ab905090d9a5a02f48851/ast_serialize-0.13.1-cp39-abi3-win32.whl", hash = "sha256:4f98da562e5901d69c7dd30885594c5438f859edf354e9ac7517d188fb026c3a", size = 1131889, upload-time = "2026-10-17T00:04:12.953Z" },
     { url = "https://files.pythonhosted.org/packages/9f/6f/bafd6490fe7b355627fabe95f4417e3d02da93102c8552550eb9a0774e1e/ast_serialize-0.13.1-cp39-abi3-win_amd64.whl", hash = "sha256:ddf7cbc9c8abf70102c4a088efe154bb86bfb825b0a10e556d2b15972cf99bd7", size = 1171153, upload-time = "2026-10-17T00:04:14.362Z" },
     { url = "https://files.pythonhosted.org/packages/11/25/4235f4b375a67a37ac595bf478a5407a744eaf7b64113c1c3a5432b8d954/ast_serialize-0.13.1-cp39-abi3-win_arm64.whl", hash = "sha256:48f11d96c9ec71119612f8e79a8c55c12f2b136716d68347433c561d27a25f43", size = 1139035, upload-time = "2026-10-17T00:04:15.767Z" },
+]
+
+[[package]]
+name = "async-timeout"
+version = "5.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a5/ae/136395dfbfe00dfc94da3f3e136d0b13f394cba8f4841120e34226265780/async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3", size = 9274, upload-time = "2024-11-06T16:41:39.6Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fe/ba/e2081de779ca30d473f21f5b30e0e737c438205440784c7dfc81efc2b029/async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c", size = 6233, upload-time = "2024-11-06T16:41:37.9Z" },
 ]
 
 [[package]]
@@ -373,6 +407,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/9a/40/a212bffb9809afb9a94b250f11e0c29fd8b2589ec92e4bedd1cc7adf9938/fastapi-0.159.1.tar.gz", hash = "sha256:b45b1ec57f3aa4d2f80f09bfbcf068b46764a2ee892e56753f35bb3d9d845ce2", size = 522004, upload-time = "2026-10-21T20:59:29.054Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8d/35/b03b5df04a1a8ee400c9df4b1795af84370b2bb6f1cc4be57c0b79688d00/fastapi-0.159.1-py3-none-any.whl", hash = "sha256:49b94c29afec2fca1390e9c39be202c59755d5cda8e4f1148a133761e4313e7e", size = 149604, upload-time = "2026-10-21T20:59:27.58Z" },
+]
+
+[[package]]
+name = "fastavro"
+version = "1.13.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d6/ee/05cae1eeb332f876a1226b382a1f1be4ac8ce66634c313f2746beadab16f/fastavro-1.13.1.tar.gz", hash = "sha256:6f05aa2539bf7a19e9eb3bdaf6580c4d0f082a8230f641eaf9c84e4bcf0e6bc4", size = 1126240, upload-time = "2026-10-08T00:28:07.552Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1b/1e/15d747d7f0be74a4b0c352515ac9b04603af112745274556f10b26b30de9/fastavro-1.13.1-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:6bc39e1b87893307df49c6117cb2525e216af02da6b292d78685396366a41205", size = 1049588, upload-time = "2026-10-08T00:28:22.34Z" },
+    { url = "https://files.pythonhosted.org/packages/db/bf/636aa99b2d255781e16c9caac189fe82bbe9082adb0923580a8c40e80bc9/fastavro-1.13.1-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ffa4b0b942e3aa7e66cc97a1862a2da6a3fce3dbcbd17a9b4be6ff1c33c93976", size = 3535403, upload-time = "2026-10-08T00:28:24.786Z" },
+    { url = "https://files.pythonhosted.org/packages/95/06/9579551055e993740e2b7d7af0e3a4d961f8a4854e698d3ad9de3e478899/fastavro-1.13.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:2f56a127d71e45083306d2650efff827cad0f4b0744dd42cb69c631d77943b1d", size = 3630934, upload-time = "2026-10-08T00:28:26.868Z" },
+    { url = "https://files.pythonhosted.org/packages/0e/6d/6ed2122434c11ec0e2edfd80a2c2de52996661540c67abd8fd90af6f7269/fastavro-1.13.1-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:f4126ba2e1097e42e5f911f16efca9df62ec54d40c27e18ff304c017c32a8af9", size = 3440414, upload-time = "2026-10-08T00:28:29.07Z" },
+    { url = "https://files.pythonhosted.org/packages/6a/b7/f932c3e32ebf89b6e778973cf368c96252d8a69d24be1c6aed6894bb73f3/fastavro-1.13.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:47ddd4d831eced3765b0f98d597bea8e07973b62be5aefce75ff7fc12fdb0f9e", size = 3579233, upload-time = "2026-10-08T00:28:31.551Z" },
+    { url = "https://files.pythonhosted.org/packages/5a/a9/9ca2e921f90f1dec8c6f33c2d9b478b91b1cc2614f0b3315aae734eec977/fastavro-1.13.1-cp312-cp312-win_amd64.whl", hash = "sha256:0994c545a4e2038b6d0b3ca54214d9573024e659fc5e618c4577329c89b9e016", size = 463186, upload-time = "2026-10-08T00:28:32.902Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/c3/b3d3c0ba56cc3abc875fa6d9f77e9299936aaff578a8d7086a82c8877141/fastavro-1.13.1-cp312-cp312-win_arm64.whl", hash = "sha256:045af8ab8fec214e3ff6241fed32c5124582888d5dce1da3ef3fa48629bd25b2", size = 425007, upload-time = "2026-10-08T00:28:34.093Z" },
 ]
 
 [[package]]
@@ -995,6 +1044,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e4/11/b213bebff182584360cb8d17c72c1677fec5c5c228de439e63bcf8ab1c8f/pyparsing-3.3.3.tar.gz", hash = "sha256:928ae7e20211f3b6f3915a72f06a0cfd29ab9d24279dd6346b6b1a7146397d36", size = 1050487, upload-time = "2026-09-20T20:59:05.609Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/38/bb/d215ee7c73b61497b28a5503f9f53523f294fcc936762b7caf90e0c1c2b5/pyparsing-3.3.3-py3-none-any.whl", hash = "sha256:ece8c00a69cf01b45d0b1dedabb469c90d8caf996d4fda40f147627a122849a4", size = 126420, upload-time = "2026-09-20T20:59:04.025Z" },
+]
+
+[[package]]
+name = "pypdf"
+version = "6.21.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/06/28/081f1cbcca7042441dafc8de00f48ba60853f89e5bff92c5f26477346d81/pypdf-6.21.2.tar.gz", hash = "sha256:0a3e1c5c886a1be03646c16a04827cc166c2a0575c971b26a4bf89686551c2d4", size = 7144571, upload-time = "2026-10-21T16:44:55.272Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1b/4d/c9d2d67f204eff463237a1a8f5e25a6923b7b1043982b91fcaf104c8ef60/pypdf-6.21.2-py3-none-any.whl", hash = "sha256:1d44d1a3a200f25062adff0085b02040e4646431ac2ccac22e42679e91466084", size = 407766, upload-time = "2026-10-21T16:44:53.626Z" },
 ]
 
 [[package]]

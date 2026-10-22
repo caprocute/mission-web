@@ -16,6 +16,9 @@ dependencies = [
     "pyjwt[crypto]>=2.10,<3",
     "prometheus-client>=0.21,<1",
     "jsonschema>=4.23,<5",
+    "pypdf>=6.21.2,<7",
+    "aiokafka>=0.14.0,<1",
+    "fastavro>=1.13.1,<2",
 ]
 
 [project.optional-dependencies]
@@ -61,7 +64,7 @@ follow_imports = "silent"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["asyncpg.*", "yaml.*", "jsonschema.*"]
+module = ["asyncpg.*", "yaml.*", "jsonschema.*", "aiokafka.*", "docker.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
