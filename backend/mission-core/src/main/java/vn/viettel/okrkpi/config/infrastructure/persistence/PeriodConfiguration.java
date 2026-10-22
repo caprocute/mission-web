@@ -12,6 +12,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
@@ -27,12 +28,18 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.config.api.PeriodCalendarPort;
 import vn.viettel.okrkpi.config.application.HolidayCalendarService;
 import vn.viettel.okrkpi.config.application.PeriodConfigService;
+import vn.viettel.okrkpi.config.application.PeriodLockService;
 import vn.viettel.okrkpi.config.application.PeriodStateCache;
+import vn.viettel.okrkpi.config.application.port.LockOrderNotices;
+import vn.viettel.okrkpi.config.application.port.PeriodLockSaga;
+import vn.viettel.okrkpi.config.infrastructure.client.WorkflowPeriodLockSaga;
 import vn.viettel.okrkpi.config.infrastructure.listener.PeriodCacheEvictionListener;
 import vn.viettel.okrkpi.config.infrastructure.scheduling.PeriodOpeningJob;
 import vn.viettel.okrkpi.config.infrastructure.web.ConfigIdempotency;
 import vn.viettel.okrkpi.config.infrastructure.web.RequestModule;
 import vn.viettel.okrkpi.events.EventTopics;
+import vn.viettel.okrkpi.shared.authz.AuthzProblemHandler;
+import vn.viettel.okrkpi.shared.infrastructure.workflow.WorkflowSagaClient;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
@@ -144,11 +151,68 @@ public class PeriodConfiguration {
   }
 
   @Bean
+  JdbcLockOrderRepository lockOrderRepository(
+      @Qualifier("configDataSource") DataSource dataSource, ObjectProvider<ObjectMapper> json) {
+    return new JdbcLockOrderRepository(
+        JdbcClient.create(dataSource), json.getIfAvailable(ObjectMapper::new));
+  }
+
+  @Bean
+  PeriodLockSaga periodLockSaga(ObjectProvider<WorkflowSagaClient> client) {
+    return new WorkflowPeriodLockSaga(client);
+  }
+
+  /** EVT-21 của lệnh khoá kỳ qua {@code config.outbox_event}. */
+  @Bean
+  LockOrderNotices lockOrderNotices(
+      @Qualifier("configDataSource") DataSource dataSource,
+      @Value("${mission.config.outbox.registry-url:${okrkpi.inbox.registry.url}}") String registry,
+      ObjectProvider<ObjectMapper> json) {
+    return new OutboxLockOrderNotices(
+        new OutboxWriter(
+            new JdbcTemplate(dataSource),
+            "config",
+            new ApicurioPayloadSerializer(registry, Map.of()),
+            json.getIfAvailable(ObjectMapper::new),
+            Clock.systemUtc()));
+  }
+
+  /** CORE-08-05: lệnh khoá kỳ. */
+  @Bean
+  PeriodLockService periodLockService(
+      JdbcLockOrderRepository lockOrderRepository,
+      JdbcPeriodRepository periodRepository,
+      PeriodLockSaga periodLockSaga,
+      LockOrderNotices lockOrderNotices,
+      HolidayCalendarService holidayCalendarService,
+      @Qualifier("configDataSource") DataSource dataSource) {
+    return new PeriodLockService(
+        lockOrderRepository,
+        periodRepository,
+        periodLockSaga,
+        lockOrderNotices,
+        new JdbcRoleHolders(JdbcClient.create(dataSource)),
+        holidayCalendarService,
+        Clock.systemUtc());
+  }
+
+  @Bean
   ConfigIdempotency configIdempotency(
       @Qualifier("configDataSource") DataSource dataSource,
       @Qualifier("configTransactionManager") PlatformTransactionManager tm,
       ObjectProvider<ObjectMapper> json) {
     return new ConfigIdempotency(dataSource, tm, json.getIfAvailable(ObjectMapper::new));
+  }
+
+  /**
+   * Bộ chuyển {@code StepUpRequiredException} thành 401 kèm {@code WWW-Authenticate} (RFC 9470) của
+   * thư viện nền. Cấu hình tự động của nó cần lớp JWT của Spring Security, mà mission-core chưa có,
+   * nên lệnh khoá kỳ (BR-08-02) đăng ký lại ở đây; có bản tự động thì bỏ qua bản này.
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  AuthzProblemHandler authzProblemHandler() {
+    return new AuthzProblemHandler();
   }
 
   /** Tác vụ mở kỳ; tắt bằng {@code mission.config.period-opening.enabled=false}. */

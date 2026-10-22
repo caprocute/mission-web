@@ -66,9 +66,36 @@ class PeriodApiIT extends ContractConformanceTest {
   static class CallerConfig {
     static final UUID ACTOR = UUID.randomUUID();
 
+    /** Người gọi hiện tại; IT khoá kỳ đổi tạm để thử tách vai trò, rồi trả về {@link #ACTOR}. */
+    static volatile UUID current = ACTOR;
+
+    static volatile String acr;
+    static volatile Long authTime;
+
+    static void reset() {
+      current = ACTOR;
+      acr = null;
+      authTime = null;
+    }
+
     @Bean
     PeriodCaller periodCaller() {
-      return () -> Optional.of(ACTOR);
+      return new PeriodCaller() {
+        @Override
+        public Optional<UUID> currentUserId() {
+          return Optional.of(current);
+        }
+
+        @Override
+        public Optional<String> acr() {
+          return Optional.ofNullable(acr);
+        }
+
+        @Override
+        public Optional<Long> authTime() {
+          return Optional.ofNullable(authTime);
+        }
+      };
     }
   }
 

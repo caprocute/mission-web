@@ -120,6 +120,14 @@ public class KeycloakAdminClient {
     return "/realms/" + props.realm() + "/login-actions/required-action?execution=UPDATE_PASSWORD";
   }
 
+  /**
+   * Token client-credentials của mission-core để gọi dịch vụ nội bộ có vai trò {@code
+   * service_client} (CORE-08-05 gọi {@code startPeriodCloseSaga}).
+   */
+  public String serviceToken() {
+    return call(this::bearer);
+  }
+
   private RestClient admin() {
     String bearer = bearer();
     return http.mutate()
