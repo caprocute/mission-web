@@ -1,8 +1,22 @@
 import { Injectable, InjectionToken, inject, signal } from '@angular/core';
-import { RUNTIME_CONFIG } from '@vt/api-client';
+import { RUNTIME_CONFIG, RuntimeConfig } from '@vt/api-client';
 import { ThemeService, tokensToCss } from '@vt/design-system';
+import { REGISTRY_VERSION } from './component-registry';
 import { PackCache } from './pack-cache';
+import { verifyPackSignature } from './pack-signature';
+import { SduiTelemetry } from './sdui-telemetry';
+import { satisfiesRange } from './semver-range';
 import { UiPack, UiPackPointer } from './ui-pack';
+
+/**
+ * Trường `config.json` cho WEB-009: khoá công khai của nền tảng dùng kiểm chữ ký UI Pack, ánh xạ
+ * mã khoá (`keyId` trong `current.json`) sang SubjectPublicKeyInfo base64 của khoá EC P-256.
+ * Có ít nhất một khoá thì gói không có chữ ký hoặc sai chữ ký đều bị từ chối; không có khoá nào
+ * (môi trường dev, dữ liệu giả lập) thì gói được áp không kiểm.
+ */
+export interface UiPackTrustConfig {
+  uiPackPublicKeys?: Record<string, string>;
+}
 
 /** UI Pack shell đã gửi yêu cầu từ trước khi bootstrap (WEB-052). */
 export interface UiPackPrefetch {
@@ -29,6 +43,8 @@ export const UI_PACK_PREFETCH = new InjectionToken<Promise<UiPackPrefetch | null
 export class UiPackLoader {
   private readonly cfg = inject(RUNTIME_CONFIG);
   private readonly theme = inject(ThemeService);
+  private readonly telemetry = inject(SduiTelemetry);
+  private readonly keys = (this.cfg as RuntimeConfig & UiPackTrustConfig).uiPackPublicKeys ?? {};
 
   private prefetch = inject(UI_PACK_PREFETCH, { optional: true });
 
@@ -39,7 +55,9 @@ export class UiPackLoader {
     // bản tải sớm chỉ dùng một lần, cho đúng gốc và tenant đã tải
     const prefetch = this.prefetch;
     this.prefetch = null;
-    const cached = await PackCache.get(tenant);
+    // bản lưu cũng kiểm lại: có thể được lưu trước khi cấu hình khoá, hoặc trước khi shell nâng registry
+    let cached = await PackCache.get(tenant);
+    if (cached && !(await this.accept(cached))) cached = undefined;
     if (cached) this.apply(tenant, cached);
     const early = prefetch ? await prefetch.catch(() => null) : null;
     const usable = early?.base === base ? early : null;
@@ -47,7 +65,9 @@ export class UiPackLoader {
     try {
       const ptr =
         usable?.pointer ??
-        ((await (await fetch(`${base}/current.json`, { cache: 'no-cache' })).json()) as UiPackPointer);
+        ((await (
+          await fetch(`${base}/current.json`, { cache: 'no-cache' })
+        ).json()) as UiPackPointer);
       if (cached?.version === ptr.version) return;
       let fresh = usable?.pack?.version === ptr.version ? usable.pack : null;
       if (!fresh) {
@@ -55,13 +75,46 @@ export class UiPackLoader {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         fresh = (await res.json()) as UiPack;
       }
-      // TODO(ADR-05): kiểm chữ ký gói bằng khoá công khai của nền tảng trước khi áp
+      // gói không tương thích hoặc sai chữ ký: giữ bản đang dùng (hoặc token mặc định), không lưu
+      if (!(await this.accept(fresh, ptr))) return;
       await PackCache.put(tenant, fresh);
       // Lần đầu (chưa có bản lưu) áp ngay; nếu đã có bản lưu, để lần điều hướng sau mới đổi
       if (!cached) this.apply(tenant, fresh);
     } catch (err) {
       if (!cached) console.error('[ui-pack] Không nạp được UI Pack, dùng token mặc định', err);
     }
+  }
+
+  /**
+   * Gói có được áp không (ADR-05 lớp 2): `requires.registry` phải khớp `REGISTRY_VERSION` của shell,
+   * và khi `config.json` có khoá nền tảng thì chữ ký ES256 phải hợp lệ.
+   */
+  private async accept(pack: UiPack, pointer?: UiPackPointer): Promise<boolean> {
+    const range = pack.requires?.registry;
+    if (!range || !satisfiesRange(REGISTRY_VERSION, range)) {
+      this.telemetry.record('ui-pack.registry.incompatible', {
+        pack: pack.pack,
+        version: pack.version,
+        requires: String(range ?? ''),
+        registry: REGISTRY_VERSION,
+      });
+      return false;
+    }
+    if (Object.keys(this.keys).length === 0) return true;
+    const check =
+      pointer?.contentHash && pack.contentHash && pointer.contentHash !== pack.contentHash
+        ? 'invalid'
+        : await verifyPackSignature(pack, this.keys, pointer?.keyId);
+    if (check === 'ok') return true;
+    this.telemetry.record(
+      check === 'missing' ? 'ui-pack.signature.missing' : 'ui-pack.signature.invalid',
+      {
+        pack: pack.pack,
+        version: pack.version,
+        reason: check,
+      },
+    );
+    return false;
   }
 
   layout(name: string) {
@@ -76,7 +129,9 @@ export class UiPackLoader {
     const css = pack.compiledCss ?? tokensToCss(pack.tokens, pack.modes ?? {});
     this.theme.applyTenant(tenant, css);
     const logo = (pack.tokens['brand'] as { logo?: { $value: string } } | undefined)?.logo?.$value;
-    this.theme.logoUrl.set(logo ? `${this.cfg.uiPackBaseUrl}/${tenant}/${pack.version}/${logo}` : null);
+    this.theme.logoUrl.set(
+      logo ? `${this.cfg.uiPackBaseUrl}/${tenant}/${pack.version}/${logo}` : null,
+    );
     const flags = pack.modes?.['elderly']?.flags as { reducedSteps?: boolean } | undefined;
     this.theme.reducedSteps.set(!!flags?.reducedSteps);
     this.pack.set(pack);
