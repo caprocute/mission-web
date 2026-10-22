@@ -91,7 +91,7 @@ public final class GenerateEventTopics {
           .append("\";\n\n");
       tech.append("        ").append(constant).append(",\n");
     }
-    sb.append("  /** Topic của 26 sự kiện nghiệp vụ, theo thứ tự EVT-01..EVT-26. */\n");
+    sb.append("  /** Topic của các sự kiện nghiệp vụ, theo thứ tự mã EVT. */\n");
     sb.append("  public static List<String> businessTopics() {\n");
     sb.append("    return List.of(\n").append(trimComma(business)).append(");\n  }\n\n");
     sb.append("  /** Topic kỹ thuật (tiền tố sys., iam., registry., org.bootstrap, period.). */\n");

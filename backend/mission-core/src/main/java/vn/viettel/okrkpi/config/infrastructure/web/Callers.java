@@ -71,6 +71,25 @@ final class Callers {
         false);
   }
 
+  /**
+   * Người gọi thao tác quản trị vai trò, uỷ quyền (CORE-08-16): vai trò, {@code acr}, {@code
+   * auth_time}.
+   */
+  vn.viettel.okrkpi.config.application.AccessActor accessActor() {
+    UUID id = current();
+    PeriodCaller caller = custom.getIfAvailable();
+    if (caller != null) {
+      return new vn.viettel.okrkpi.config.application.AccessActor(
+          id, caller.roles(), caller.acr().orElse(null), caller.authTime().orElse(null));
+    }
+    AuthzSubjectResolver resolver = subjects.getIfAvailable();
+    OpaInput.Subject subject = resolver == null ? null : resolver.currentSubject();
+    return subject == null
+        ? new vn.viettel.okrkpi.config.application.AccessActor(id, List.of(), null, null)
+        : new vn.viettel.okrkpi.config.application.AccessActor(
+            id, subject.roles(), subject.acr(), subject.authTime());
+  }
+
   private static ResponseStatusException unauthorized() {
     return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cần đăng nhập");
   }
