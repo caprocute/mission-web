@@ -87,6 +87,21 @@ spec:
         - protocol: TCP
           port: {{ .prometheusPort }}
     {{- end }}
+    {{- if .Values.provisioning.data.enabled }}
+    {{- with .Values.provisioning.data.egress }}
+    # DV-03-04: cụm PostgreSQL của các cell (tạo CSDL) và OpenBao (Transit).
+    - to:
+        {{- toYaml .postgres | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: {{ .postgresPort }}
+    - to:
+        {{- toYaml .openbao | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: {{ .openbaoPort }}
+    {{- end }}
+    {{- end }}
     {{- end }}
     {{- if .Values.move.enabled }}
     # DV-03-07: cụm PostgreSQL, Ceph RGW và ledger-service của các cell.

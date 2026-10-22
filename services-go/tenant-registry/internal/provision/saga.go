@@ -44,6 +44,11 @@ type Saga struct {
 	Org       Org
 	Lag       ReplicaLag // nil: không đo được độ trễ bản sao (chỉ cảnh báo)
 
+	// Cổng của phần 1 (DV-03-04, DataSteps): CSDL của cell, Job di trú, OpenBao Transit.
+	Databases CellDatabases
+	Migrator  Migrator
+	Keys      Keys
+
 	// PreSteps là các bước phần 1 (DV-03-04: CSDL hoặc schema, đăng ký pool, KEK) chạy trước phần 2.
 	PreSteps []Step
 	// MaxAttempts: số lần thử mỗi bước (TL-02a: tối đa 3 lần với thời gian chờ tăng dần).

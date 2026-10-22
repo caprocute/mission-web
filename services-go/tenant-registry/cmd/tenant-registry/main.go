@@ -166,6 +166,23 @@ func newSaga(c config.ProvisionConfig, pool *pgxpool.Pool, tenants *tenant.Servi
 		Org:         &provision.OrgHTTP{HTTP: hc, Tokens: tokens},
 		MaxAttempts: c.MaxAttempts, Backoff: c.Backoff, StepTimeout: c.StepTimeout, RPO: c.RPO,
 	}
+	if c.CellDBFile != "" {
+		cells := map[string]provision.CellDBAdmin{}
+		if err := readJSON(c.CellDBFile, &cells); err != nil {
+			return nil, err
+		}
+		if c.BaoURL == "" || c.MigrationImage == "" || c.MigrationNamespace == "" {
+			return nil, errors.New("thiếu PROVISION_OPENBAO_URL, PROVISION_MIGRATION_IMAGE hoặc PROVISION_MIGRATION_NAMESPACE")
+		}
+		s.Databases = &provision.PGCellDatabases{Cells: cells}
+		s.Migrator = &provision.MigrationJob{APIServer: c.CertAPIServer, Namespace: c.MigrationNamespace, Image: c.MigrationImage,
+			SecretPrefix: c.MigrationSecretPfx, JDBCBase: c.MigrationJDBCBase, Token: provision.TokenFile(c.CertTokenFile), HTTP: k8s,
+			Wait: c.MigrationWait}
+		s.Keys = &provision.Transit{BaseURL: c.BaoURL, Mount: c.TransitMount, Token: provision.TokenFile(c.BaoTokenFile), HTTP: hc}
+		s.PreSteps = provision.DataSteps()
+	} else {
+		log.Warn("chưa cấu hình PROVISION_CELL_DB_FILE: saga cấp phát bỏ qua bước CSDL và khoá (chỉ dùng cho dev)")
+	}
 	if c.PrometheusURL != "" {
 		s.Lag = &provision.PrometheusLag{BaseURL: c.PrometheusURL, Query: c.LagQuery, HTTP: hc}
 	}

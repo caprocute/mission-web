@@ -186,6 +186,32 @@ provisioning:
           matchLabels:
             kubernetes.io/metadata.name: monitoring
     prometheusPort: 9090
+  # DV-03-04: bước CSDL và khoá của saga. Secret secretName chứa hai tệp (OpenBao → External Secrets):
+  #   cell-db.json: {"<mã cell>": {"adminUrl": "postgres://..."}} — tài khoản quản trị hẹp CREATEDB (không SUPERUSER);
+  #   openbao-token: token OpenBao chỉ có quyền transit/keys/t-*, transit/keys/cell-* (tạo, đọc, cấu hình, xoá).
+  # Job di trú chạy ảnh vt-db-migration trong migration.namespace, đọc Secret <secretPrefix><mã cell chữ thường>.
+  data:
+    enabled: false
+    secretName: tenant-registry-provision-data
+    openbaoUrl: https://openbao.security.svc:8200
+    transitMount: transit
+    migration:
+      image: ""                                        # ảnh vt-db-migration (DatabaseBootstrap + MigrationRunner)
+      namespace: mission-migrate
+      secretPrefix: td-migrate-
+      jdbcBase: jdbc:postgresql://pg-biz-rw.{cell}.svc:5432
+      wait: 8m                                         # nhỏ hơn stepTimeout
+    egress:
+      postgres:
+        - namespaceSelector:
+            matchLabels:
+              mission.vn/plane: cell
+      postgresPort: 5432
+      openbao:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: security
+      openbaoPort: 8200
 
 # DV-03-07: chuyển tenant giữa các cell (ADR-29). Secret secretName chứa hai tệp JSON (OpenBao → External Secrets):
 #   cell-db.json: {"<mã cell>": {"adminUrl": "...", "peerConnInfo": "host=... user=... password=..."}} — vai trò

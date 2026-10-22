@@ -24,8 +24,9 @@ import (
 // org-service, Prometheus là máy chủ giả theo giao thức (provisiontest).
 
 var (
-	db *testdb.DB
-	kc *keycloakC
+	db  *testdb.DB
+	kc  *keycloakC
+	bao *baoC
 )
 
 type keycloakC struct {
@@ -60,7 +61,15 @@ func TestMain(m *testing.M) {
 		_ = pgc.Terminate(ctx)
 		os.Exit(1)
 	}
+	bao, err = startOpenBao(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "không khởi động được OpenBao:", err)
+		_ = kc.c.Terminate(ctx)
+		_ = pgc.Terminate(ctx)
+		os.Exit(1)
+	}
 	code := m.Run()
+	_ = bao.c.Terminate(ctx)
 	_ = kc.c.Terminate(ctx)
 	_ = pgc.Terminate(ctx)
 	os.Exit(code)
@@ -111,6 +120,47 @@ func startKeycloak(ctx context.Context) (*keycloakC, error) {
 		return nil, fmt.Errorf("tạo realm: %d %s", resp.StatusCode, b)
 	}
 	return k, nil
+}
+
+type baoC struct {
+	c       testcontainers.Container
+	baseURL string
+	token   string
+}
+
+// startOpenBao chạy OpenBao 2.2 chế độ dev (cùng phiên bản hạ tầng dev) và bật Transit.
+func startOpenBao(ctx context.Context) (*baoC, error) {
+	tok := testdb.RandomSecret()
+	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{Started: true,
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "quay.io/openbao/openbao:2.2.0",
+			Cmd:          []string{"server", "-dev", "-dev-root-token-id=" + tok, "-dev-listen-address=0.0.0.0:8200"},
+			ExposedPorts: []string{"8200/tcp"},
+			WaitingFor:   wait.ForHTTP("/v1/sys/health").WithPort("8200/tcp").WithStartupTimeout(time.Minute),
+		}})
+	if err != nil {
+		return nil, err
+	}
+	host, err := c.Host(ctx)
+	if err != nil {
+		return nil, err
+	}
+	port, err := c.MappedPort(ctx, "8200/tcp")
+	if err != nil {
+		return nil, err
+	}
+	b := &baoC{c: c, baseURL: "http://" + host + ":" + port.Port(), token: tok}
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, b.baseURL+"/v1/sys/mounts/transit", strings.NewReader(`{"type":"transit"}`))
+	req.Header.Set("X-Vault-Token", tok)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	resp.Body.Close()
+	if resp.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("bật transit: HTTP %d", resp.StatusCode)
+	}
+	return b, nil
 }
 
 // kcGet đọc trực tiếp Admin API (kiểm chứng độc lập với mã đang kiểm).

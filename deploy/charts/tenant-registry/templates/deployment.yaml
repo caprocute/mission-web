@@ -71,6 +71,12 @@ spec:
                     - key: ca.crt
                       path: ca.crt
       {{- end }}
+      {{- if and .Values.provisioning.enabled .Values.provisioning.data.enabled }}
+        - name: provision-data
+          secret:
+            secretName: {{ .Values.provisioning.data.secretName }}
+            defaultMode: 0400
+      {{- end }}
       containers:
         - name: tenant-registry
           image: {{ include "tenant-registry.image" . }}
@@ -197,6 +203,26 @@ spec:
               value: {{ .activationRpo | quote }}
             - name: READINESS_INTERVAL
               value: {{ .readinessInterval | quote }}
+            {{- if .data.enabled }}
+            - name: PROVISION_CELL_DB_FILE
+              value: /var/run/secrets/tenant-registry-provision/cell-db.json
+            - name: PROVISION_OPENBAO_URL
+              value: {{ .data.openbaoUrl | quote }}
+            - name: PROVISION_OPENBAO_TOKEN_FILE
+              value: /var/run/secrets/tenant-registry-provision/openbao-token
+            - name: PROVISION_TRANSIT_MOUNT
+              value: {{ .data.transitMount | quote }}
+            - name: PROVISION_MIGRATION_IMAGE
+              value: {{ required "provisioning.data.migration.image" .data.migration.image | quote }}
+            - name: PROVISION_MIGRATION_NAMESPACE
+              value: {{ .data.migration.namespace | quote }}
+            - name: PROVISION_MIGRATION_SECRET_PREFIX
+              value: {{ .data.migration.secretPrefix | quote }}
+            - name: PROVISION_MIGRATION_JDBC_BASE
+              value: {{ .data.migration.jdbcBase | quote }}
+            - name: PROVISION_MIGRATION_WAIT
+              value: {{ .data.migration.wait | quote }}
+            {{- end }}
             {{- end }}
             {{- end }}
             {{- if .Values.move.enabled }}
@@ -222,6 +248,11 @@ spec:
             {{- if .Values.provisioning.enabled }}
             - name: kube-api
               mountPath: /var/run/secrets/tenant-registry
+              readOnly: true
+            {{- end }}
+            {{- if and .Values.provisioning.enabled .Values.provisioning.data.enabled }}
+            - name: provision-data
+              mountPath: /var/run/secrets/tenant-registry-provision
               readOnly: true
             {{- end }}
             {{- if .Values.move.enabled }}

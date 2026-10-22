@@ -9,6 +9,8 @@ Sau khi quản trị nền tảng bấm "Tiếp tục" ở cuối bước 3 củ
 
 | Thứ tự | Mã bước | Việc làm | Bù trừ |
 |---|---|---|---|
+| 0a | `CSDL` | Bridge, silo: tạo CSDL `td_<mã>` bằng tài khoản quản trị hẹp của cell, chạy Job `td-migrate-<mã>` (ảnh vt-db-migration: vai trò rồi Flyway mọi schema); pool: kiểm `td_pool` đã có và mang `app.tenancy_model = 'pool'`. Ghi `registry.tenant_cell.database_name`, `valid_from` | Xoá CSDL do saga tạo khi mọi bảng còn rỗng |
+| 0b | `KHOA_MA_HOA` | KEK `t-<mã>` (hoặc KEK chung `cell-<mã cell>` của pool) và khoá HMAC chỉ mục mù `t-<mã>-bidx` trong OpenBao Transit, ghi `registry.tenant.kek_ref` | Huỷ khoá do saga tạo còn ở phiên bản 1; không bao giờ huỷ KEK chung của cell |
 | 1 | `TO_CHUC_DINH_DANH` | Tạo Organization trong Keycloak của cell (alias = mã tenant), đăng ký IdP `<mã>-<bí danh>` và gắn vào Organization, tạo tài khoản đầu mối quản trị | Xoá tài khoản (nếu saga tạo), xoá Organization, gỡ IdP saga đã đăng ký |
 | 2 | `TEN_MIEN` | CNAME tên miền tenant tới điểm vào cell (PowerDNS), ghi `verified_at` | Xoá CNAME, xoá `verified_at` |
 | 3 | `CHUNG_CHI_TLS` | Certificate cert-manager `tenant-<mã>-tls` trong namespace cổng vào, ghi `tls_cert_ref` | Xoá Certificate và Secret, xoá `tls_cert_ref` |
@@ -81,3 +83,11 @@ Kiểm chứng sau kích hoạt: tenant `DANG_VAN_HANH`, nhật ký trạng thá
 
 - Cấp phát thành công nhưng cần huỷ trước khi kích hoạt: chưa có thao tác tự động (`DANG_CAU_HINH` không quay về `KHOI_TAO` theo máy trạng thái TL-02a); dọn tay theo cột "Bù trừ" ở mục 1, ghi biên bản và báo người phụ trách để xử lý trạng thái.
 - Kích hoạt nhầm: chuyển `DANG_VAN_HANH → TAM_NGUNG` theo quyết định của quản trị nền tảng (chặn đăng nhập người dùng, giữ dữ liệu).
+
+## 7. Bước CSDL và khoá (DV-03-04)
+
+- **Job di trú lỗi hoặc quá hạn** (`PROVISION_MIGRATION_WAIT`, mặc định 8 phút): xem nhật ký `kubectl -n <namespace di trú> logs job/td-migrate-<mã>`. Job lỗi bị saga xoá để lần thử sau tạo lại; hết ba lần thì saga bù trừ và xoá CSDL vừa tạo. Lỗi thường gặp là thiếu Secret `td-migrate-<mã cell>` hoặc mật khẩu `mig_<schema>` chưa đồng bộ từ OpenBao.
+- **Bù trừ báo "CSDL đã có dữ liệu, không xoá"**: không xoá tay ngay. Kiểm bảng nào có dòng (`SELECT schemaname, relname, n_live_tup FROM pg_stat_user_tables WHERE n_live_tup > 0`), xác nhận với quản trị nền tảng rằng đó không phải dữ liệu thật, rồi `DROP DATABASE td_<mã> WITH (FORCE)` bằng tài khoản quản trị hẹp và chạy lại job.
+- **Bù trừ báo "khoá đã được dùng, không huỷ"**: khoá đã xoay vòng nên có thể đã bọc DEK; giữ khoá, báo bộ phận ATTT. Chỉ huỷ khi chắc chắn không còn DEK nào bọc bằng khoá đó (`keyring.dek` của CSDL tenant rỗng).
+- **Pool báo "Cơ sở dữ liệu dùng chung của cell chưa sẵn sàng"**: `td_pool` chưa được dựng bằng `DatabaseBootstrap --tenancy=pool` (INF-11); lỗi không thử lại, dựng xong thì cấp phát lại.
+- Trạng thái job chỉ chứa tên CSDL, tên khoá và cờ đã tạo; chuỗi kết nối và token OpenBao nằm ở Secret `provisioning.data.secretName`, không bao giờ trong `registry.job.params` hay nhật ký.
