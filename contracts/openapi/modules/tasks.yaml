@@ -437,7 +437,9 @@ paths:
             schema: { $ref: '#/components/schemas/TaskExportRequest' }
       responses:
         '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
-        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        '429':
+          description: Người dùng đang có một tác vụ xuất chưa xong (`TASK-429-EXPORT-RUNNING`).
+          $ref: '../common/common.yaml#/components/responses/TooManyRequests'
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
       x-mission:
         qt: [QT-05]
@@ -446,6 +448,32 @@ paths:
         roles: [member, manager, leader]
         scope: B
         source: 'TL-02a SCR-0503 "Xuất Excel"'
+
+  /tasks/exports/{jobId}:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      tags: [Nhiệm vụ]
+      operationId: downloadTaskExport
+      summary: Tải tệp xuất danh sách nhiệm vụ
+      description: >-
+        Tệp Excel do `exportTasks` tạo; `resultLocation` của job trỏ tới đây. Chỉ người tạo tác vụ tải
+        được, tệp giữ trong một giờ. (suy luận: TL-02 không ghi đường tải tệp xuất.)
+      responses:
+        '200':
+          description: Tệp Excel danh sách nhiệm vụ theo các cột đang hiển thị.
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, contentMediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0503]
+        owner: MOD-02
+        roles: [member, manager, leader]
+        scope: B
+        source: 'TL-02a SCR-0503 "Xuất Excel" (suy luận đường tải)'
 
   /tasks/{id}:
     parameters:
@@ -742,6 +770,48 @@ paths:
         roles: [manager, leader]
         scope: Đv
         source: 'TL-01 PL C "/tasks/{id}/transitions"'
+
+  /tasks/{id}/delay-risk:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    put:
+      tags: [Nhiệm vụ]
+      operationId: setTaskDelayRisk
+      summary: Ghi dự báo nguy cơ trễ hạn của nhiệm vụ (bộ dự báo SVC-15)
+      description: >-
+        Cổng ghi nội bộ cho tài khoản dịch vụ của bộ dự báo nguy cơ trễ (DV-15-10), vì SVC-15 không
+        được ghi schema `task` (TL-03 chương 2). Chỉ nhận token client credentials; token người dùng
+        trả 403. Kết quả có `computedAt` cũ hơn dự báo đang lưu trả 409 `TASK-409-STALE-DELAY-RISK`;
+        nhiệm vụ ở `HOAN_THANH`, `HUY` hoặc `TAM_DUNG` trả 409 `TASK-409-INVALID-STATE`. Ghi dự báo
+        không đổi `rowVersion` (ETag) của nhiệm vụ và không phát sự kiện nghiệp vụ. `getTask` trả
+        kết quả trong `delayRisk`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskDelayRiskInput' }
+      responses:
+        '204':
+          description: Đã lưu dự báo.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Đã có dự báo mới hơn (`TASK-409-STALE-DELAY-RISK`) hoặc nhiệm vụ đã kết thúc, tạm dừng
+            (`TASK-409-INVALID-STATE`).
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-06]
+        scr: [SCR-0601]
+        owner: MOD-02
+        roles: [service_client]
+        scope: Tn
+        source: 'Bổ sung CORE-02-26 (TL-02a SCR-0601 "Dự báo trễ hạn", ghi bởi SVC-15)'
 
   /tasks/{id}/reminders:
     parameters:
@@ -2902,6 +2972,16 @@ components:
         level: { type: string, enum: [THAP, VUA, CAO] }
         neededWorkingDays: { type: integer }
         explanation: { type: string }
+    TaskDelayRiskInput:
+      description: Kết quả dự báo nguy cơ trễ hạn do SVC-15 gửi về (CORE-02-26, DV-15-10).
+      type: object
+      required: [level, neededWorkingDays, explanation, computedAt]
+      properties:
+        level: { type: string, enum: [THAP, VUA, CAO] }
+        neededWorkingDays: { type: integer, minimum: 0 }
+        explanation: { type: string, maxLength: 1000 }
+        computedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        basedOnProgressId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
     TaskDetail:
       description: Chi tiết nhiệm vụ (SCR-0601).
       allOf:

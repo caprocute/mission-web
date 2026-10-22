@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **230 / 408 task (56.4%)** — Khối lượng quy đổi đã gộp: **269.5 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **230 / 408 task (56.4%)** (gồm **230** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **235 / 408 task (57.6%)** (gồm **230** đã gộp `main` + **5** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **173 task**.
+- **Chưa bắt đầu**: **168 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **15 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-05`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **59** | 0 | 2 | 11 | **81.9%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **55** | 0 | 2 | 60 | **47.0%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **55** | 5 | 2 | 55 | **47.0%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **50** | 0 | 1 | 53 | **48.1%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **11** | 0 | 0 | 2 | **84.6%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **230** | **0** | **5** | **173** | **56.4%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **230** | **5** | **5** | **168** | **56.4%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,7 +41,7 @@
 | **M0 – Nền móng phát triển & CSDL** | 60 | **53** | 0 | 1 | 6 | **88.3%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **41** | 0 | 0 | 6 | **87.2%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **54** | 0 | 3 | 63 | **45.0%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **54** | 5 | 3 | 58 | **45.0%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **31** | 0 | 0 | 41 | **43.1%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **15** | 0 | 1 | 26 | **35.7%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
@@ -251,7 +251,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-01-13](docs/tasks/CORE-01-13-tro-ly-ai-okr.md) | Trợ lý AI cho OKR qua ai-gateway: soát KR, ghi `ai.suggestion_log`, cờ `content_source` | M | B2 | 18 | CORE-01-04, DV-14-04 | **Chưa bắt đầu** |  |
 | [CORE-01-14](docs/tasks/CORE-01-14-kieu-do-moc.md) | Kiểu đo `MOC` với bảng `okr.kr_milestone`, chiều `TOI_DA`, nhãn tử số và mẫu số cho KR tỷ lệ; ghi ngày đạt và số ngày làm việc chậm | M | B2 | 13 | NEN-044, CORE-01-01, CORE-08-04 | **Chưa bắt đầu** | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
 
-### CORE-02 · MOD-02 task: danh mục, kế hoạch, nhiệm vụ (10/28 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### CORE-02 · MOD-02 task: danh mục, kế hoạch, nhiệm vụ (10/28 đã gộp `main`, 5 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -268,19 +268,19 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-02-11](docs/tasks/CORE-02-11-sinh-nhiem-vu-tu-ke-hoach.md) | Consumer EVT-03 sinh, cập nhật, huỷ nhiệm vụ; xác nhận dòng của đơn vị chủ trì khác | M | B3 | 21 | CORE-02-09, CORE-02-13 | **Chưa bắt đầu** |  |
 | [CORE-02-12](docs/tasks/CORE-02-12-taskapi-cong-bo.md) | `TaskApi` công bố và listener nội bộ cho MOD-04 | S | B3 | 16 | CORE-02-13 | **Đã gộp main** | Gộp main; TaskApi công bố, sự kiện nhiệm vụ |
 | [CORE-02-13](docs/tasks/CORE-02-13-may-trang-thai-nhiem-vu.md) | Máy trạng thái nhiệm vụ khai báo, bảng chuyển trạng thái từ Policy Pack, guard CEL, `task_state_log`, EVT-06 | L | B3 | 15 | CORE-02-02, CORE-05-03, NEN-041, DL-04 | **Đã gộp main** | Gộp main (cherry-pick 0c363cd); máy trạng thái nhiệm vụ, task_state_log, EVT-06 |
-| [CORE-02-14](docs/tasks/CORE-02-14-giao-viec.md) | Giao việc: nháp, sửa, xoá, giao đơn lẻ và đồng loạt 202, kiểm BR-05-01..05, BR-05-09, EVT-04 | L | B3 | 16 | CORE-02-13, CORE-00-03 | **Chưa bắt đầu** |  |
+| [CORE-02-14](docs/tasks/CORE-02-14-giao-viec.md) | Giao việc: nháp, sửa, xoá, giao đơn lẻ và đồng loạt 202, kiểm BR-05-01..05, BR-05-09, EVT-04 | L | B3 | 16 | CORE-02-13, CORE-00-03 | **Xong, chờ gộp** | Nhánh claude/project-thread-gmqu4z: soạn, giao, giao đồng loạt; migration task V7; đã qua build & test |
 | [CORE-02-15](docs/tasks/CORE-02-15-nhiem-vu-gan-giong.md) | Phát hiện nhiệm vụ gần giống và gộp có lý do | M | B3 | 17 | CORE-02-14, DV-16-01 | **Chưa bắt đầu** |  |
 | [CORE-02-16](docs/tasks/CORE-02-16-nhiem-vu-tu-van-ban.md) | Nhiệm vụ từ văn bản chỉ đạo: consumer EVT-24, trích bằng AI, xác nhận và khoá đoạn | L | B3 | 17 | CORE-02-14, DV-13-03, DV-14-04 | **Chưa bắt đầu** |  |
 | [CORE-02-17](docs/tasks/CORE-02-17-dang-ky-nhiem-vu.md) | Đăng ký nhiệm vụ, duyệt hoặc từ chối, đưa vào điều chỉnh kế hoạch | M | B3 | 17 | CORE-02-14, NEN-042 | **Chưa bắt đầu** |  |
-| [CORE-02-18](docs/tasks/CORE-02-18-viec-cua-toi.md) | Việc của tôi: danh sách con trỏ, lọc nhanh, nhận việc, xuất 202, cảnh báo khối lượng | M | B3 | 17 | CORE-02-14 | **Chưa bắt đầu** |  |
-| [CORE-02-19](docs/tasks/CORE-02-19-cap-nhat-tien-do.md) | Cập nhật tiến độ chỉ thêm, EVT-05, xung đột 409, cập nhật hàng loạt | M | B3 | 16 | CORE-02-13 | **Chưa bắt đầu** |  |
-| [CORE-02-20](docs/tasks/CORE-02-20-diem-nghen.md) | Điểm nghẽn: tạo, giao xử lý, chuyển cấp trên, đóng | S | B3 | 17 | CORE-02-19, NEN-042 | **Chưa bắt đầu** |  |
+| [CORE-02-18](docs/tasks/CORE-02-18-viec-cua-toi.md) | Việc của tôi: danh sách con trỏ, lọc nhanh, nhận việc, xuất 202, cảnh báo khối lượng | M | B3 | 17 | CORE-02-14 | **Xong, chờ gộp** | Nhánh claude/project-thread-gmqu4z: việc của tôi, nhận việc, xuất Excel; đã qua build & test |
+| [CORE-02-19](docs/tasks/CORE-02-19-cap-nhat-tien-do.md) | Cập nhật tiến độ chỉ thêm, EVT-05, xung đột 409, cập nhật hàng loạt | M | B3 | 16 | CORE-02-13 | **Xong, chờ gộp** | Nhánh claude/project-thread-gmqu4z: cập nhật tiến độ, EVT-05; đã qua build & test |
+| [CORE-02-20](docs/tasks/CORE-02-20-diem-nghen.md) | Điểm nghẽn: tạo, giao xử lý, chuyển cấp trên, đóng | S | B3 | 17 | CORE-02-19, NEN-042 | **Xong, chờ gộp** | Nhánh claude/project-thread-gmqu4z: điểm nghẽn, migration task V8; đã qua build & test |
 | [CORE-02-21](docs/tasks/CORE-02-21-de-nghi-gia-han.md) | Đề nghị gia hạn, điều chỉnh: máy trạng thái năm trạng thái, gửi, rút, xem trước hệ số C | M | B3 | 17 | CORE-02-19, CORE-08-04 | **Chưa bắt đầu** |  |
 | [CORE-02-22](docs/tasks/CORE-02-22-duyet-de-nghi.md) | Duyệt đề nghị, tạm dừng, tiếp tục, huỷ; vượt ngưỡng chuyển BPMN `duyet-de-nghi`, người duyệt thay | L | B3 | 18 | CORE-02-21, DV-06-03 | **Chưa bắt đầu** |  |
 | [CORE-02-23](docs/tasks/CORE-02-23-co-qua-han.md) | Tác vụ 00:05 đặt cờ `qua_han`, nhắc, tính lại khi lịch nghỉ đổi | S | B3 | 17 | CORE-02-19, CORE-08-04 | **Chưa bắt đầu** |  |
 | [CORE-02-24](docs/tasks/CORE-02-24-noi-dung-mat-c3-nhiem-vu.md) | Nội dung mật C3 của nhiệm vụ: `task.task_secret_content`, `task.e2ee_key_wrap`, chia sẻ và thu hồi khoá | M | B3 | 22 | CORE-02-02, CORE-07-06, NEN-042 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 | [CORE-02-25](docs/tasks/CORE-02-25-nhac-viec-giao-lai.md) | Nhắc việc, giao lại (`remindTask`, `reassignTask`) và đổi người chủ trì khi điều động | M | B3 | 17 | CORE-02-14, CORE-00-03 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
-| [CORE-02-26](docs/tasks/CORE-02-26-cong-ghi-delay-risk.md) | Cột `delay_risk` và cổng ghi nội bộ cho dự báo nguy cơ trễ | S | B3 | 13 | CORE-02-02 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
+| [CORE-02-26](docs/tasks/CORE-02-26-cong-ghi-delay-risk.md) | Cột `delay_risk` và cổng ghi nội bộ cho dự báo nguy cơ trễ | S | B3 | 13 | CORE-02-02 | **Xong, chờ gộp** | Nhánh claude/project-thread-gmqu4z: cổng ghi dự báo trễ hạn, migration task V6; đã qua build & test |
 | [CORE-02-27](docs/tasks/CORE-02-27-danh-muc-pham-vi-khoi-tinh-he-so.md) | Danh mục bốn cấp kế thừa (thêm `KHOI`, `TINH`), khoảng chỉnh điểm chuẩn so với dòng cha, `coefficient_levels` và `axis_code` trên mục danh mục, kế hoạch, nhiệm vụ | M | B3 | 17 | NEN-044, CORE-02-03, CORE-05-12 | **Chưa bắt đầu** | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
 | [CORE-02-28](docs/tasks/CORE-02-28-cay-kpi-che-do-phan-cong.md) | Cây nhiệm vụ nhiều bậc (`node_kind`), điểm thành phần của công việc con, chế độ phân công `MOT_NGUOI_MOT_VIEC` theo tham số hồ sơ | M | B3 | 16 | NEN-044, CORE-02-13, CORE-05-12 | **Chưa bắt đầu** | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
 
@@ -904,4 +904,9 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 18:44 | Điều phối | `DL-15` | Chuyển trạng thái sang **Đã gộp main** — Gộp main 2026-10-22 |
 | 22/10/2026 18:44 | Điều phối | `DL-14` | Chuyển trạng thái sang **Đã gộp main** — Gộp main 2026-10-22 |
 | 22/10/2026 18:44 | Điều phối | `DL-13` | Chuyển trạng thái sang **Đã gộp main** — Gộp main 2026-10-22 |
+| 22/10/2026 19:20 | B3 (Claude) | `CORE-02-26` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-gmqu4z: cổng ghi dự báo trễ hạn, migration task V6; đã qua build & test |
+| 22/10/2026 19:20 | B3 (Claude) | `CORE-02-19` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-gmqu4z: cập nhật tiến độ, EVT-05; đã qua build & test |
+| 22/10/2026 19:20 | B3 (Claude) | `CORE-02-14` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-gmqu4z: soạn, giao, giao đồng loạt; migration task V7; đã qua build & test |
+| 22/10/2026 19:20 | B3 (Claude) | `CORE-02-18` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-gmqu4z: việc của tôi, nhận việc, xuất Excel; đã qua build & test |
+| 22/10/2026 19:20 | B3 (Claude) | `CORE-02-20` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-gmqu4z: điểm nghẽn, migration task V8; đã qua build & test |
 <!-- PROGRESS_LOG_END -->
