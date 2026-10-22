@@ -26,7 +26,7 @@ public class JdbcUiPackRepository implements UiPackRepository {
   private static final String PACK_COLUMNS = "id, code, name, current_version_id, row_version";
   private static final String VERSION_COLUMNS =
       "id, ui_pack_id, version, status, tokens::text AS tokens, layouts::text AS layouts,"
-          + " assets_json::text AS assets, component_registry_version, policy_pack_version_id,"
+          + " assets_json::text AS assets, forms_json::text AS forms, component_registry_version, policy_pack_version_id,"
           + " elder_mode, few_steps, bundle_sha256, bundle_object_key, signature, published_at, created_by, created_at,"
           + " updated_by, updated_at, row_version";
 
@@ -152,8 +152,9 @@ public class JdbcUiPackRepository implements UiPackRepository {
                   INSERT INTO config.ui_pack_version
                     (id, tenant_id, created_at, created_by, updated_at, updated_by, row_version,
                      ui_pack_id, version, tokens, layouts, assets_json, component_registry_version,
-                     policy_pack_version_id, status, elder_mode, few_steps)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?, ?, ?, ?, ?)
+                     policy_pack_version_id, status, elder_mode, few_steps, forms_json)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?, ?, ?, ?, ?,
+                          ?::jsonb)
                   ON CONFLICT (ui_pack_id, version) DO NOTHING
                   """)
               .param(v.id())
@@ -173,6 +174,7 @@ public class JdbcUiPackRepository implements UiPackRepository {
               .param(v.status().name())
               .param(c.elderMode())
               .param(c.fewSteps())
+              .param(c.formsJson())
               .update()
           == 1;
     } catch (DuplicateKeyException e) {
@@ -188,7 +190,7 @@ public class JdbcUiPackRepository implements UiPackRepository {
                 UPDATE config.ui_pack_version
                    SET status = ?, tokens = ?::jsonb, layouts = ?::jsonb, assets_json = ?::jsonb,
                        component_registry_version = ?, policy_pack_version_id = ?, elder_mode = ?,
-                       few_steps = ?, bundle_sha256 = ?, bundle_object_key = ?,
+                       few_steps = ?, forms_json = ?::jsonb, bundle_sha256 = ?, bundle_object_key = ?,
                        signature = ?, published_at = ?, updated_at = ?, updated_by = ?, row_version = ?
                  WHERE tenant_id = ? AND id = ? AND row_version = ?
                 """)
@@ -200,6 +202,7 @@ public class JdbcUiPackRepository implements UiPackRepository {
             .param(c.policyPackVersionId())
             .param(c.elderMode())
             .param(c.fewSteps())
+            .param(c.formsJson())
             .param(v.bundleSha256() == null ? null : HexFormat.of().parseHex(v.bundleSha256()))
             .param(v.bundleObjectKey())
             .param(v.signature() == null ? null : Base64.getDecoder().decode(v.signature()))
@@ -272,7 +275,8 @@ public class JdbcUiPackRepository implements UiPackRepository {
               rs.getString("component_registry_version"),
               rs.getObject("policy_pack_version_id", UUID.class),
               rs.getBoolean("elder_mode"),
-              rs.getBoolean("few_steps")),
+              rs.getBoolean("few_steps"),
+              rs.getString("forms")),
           sha == null ? null : HexFormat.of().formatHex(sha),
           rs.getString("bundle_object_key"),
           signature == null ? null : Base64.getEncoder().encodeToString(signature),

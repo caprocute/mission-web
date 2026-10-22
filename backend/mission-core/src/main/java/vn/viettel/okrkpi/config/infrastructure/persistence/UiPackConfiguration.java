@@ -34,6 +34,8 @@ import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import vn.viettel.okrkpi.config.api.PolicySchemaPort;
+import vn.viettel.okrkpi.config.application.FormSchemaService;
+import vn.viettel.okrkpi.config.application.FormSchemaValidator;
 import vn.viettel.okrkpi.config.application.UiPackCompiler;
 import vn.viettel.okrkpi.config.application.UiPackPublishService;
 import vn.viettel.okrkpi.config.application.UiPackService;
@@ -158,6 +160,7 @@ public class UiPackConfiguration {
       UiPackEvents uiPackEvents,
       ObjectProvider<CdnInvalidator> cdn,
       ObjectProvider<PolicySchemaPort> schemas,
+      FormSchemaService formSchemaService,
       InMemoryUiPackJobs uiPackJobs,
       ConfigAudit configAudit,
       CheckThreads uiPackCheckThreads,
@@ -179,6 +182,33 @@ public class UiPackConfiguration {
             Clock.systemUtc(),
             uiPackCheckThreads.pool(),
             new TransactionTemplate(tm));
+    service.setPolicySchemas(schemas.getIfAvailable());
+    service.setForms(formSchemaService);
+    return service;
+  }
+
+  @Bean
+  JdbcFormSchemaRepository formSchemaRepository(
+      @Qualifier("configDataSource") DataSource dataSource) {
+    return new JdbcFormSchemaRepository(JdbcClient.create(dataSource));
+  }
+
+  /** Biểu mẫu động theo phiên bản (CORE-08-13). */
+  @Bean
+  FormSchemaService formSchemaService(
+      JdbcFormSchemaRepository formSchemaRepository,
+      JdbcUiPackRepository uiPackRepository,
+      ConfigAudit configAudit,
+      ObjectProvider<PolicySchemaPort> schemas,
+      ObjectProvider<ObjectMapper> json) {
+    FormSchemaService service =
+        new FormSchemaService(
+            formSchemaRepository,
+            uiPackRepository,
+            new FormSchemaValidator(),
+            configAudit,
+            json.getIfAvailable(ObjectMapper::new),
+            Clock.systemUtc());
     service.setPolicySchemas(schemas.getIfAvailable());
     return service;
   }

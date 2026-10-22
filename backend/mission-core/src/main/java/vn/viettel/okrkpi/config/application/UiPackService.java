@@ -207,7 +207,9 @@ public class UiPackService {
     expect(current, expectedVersion);
     UiPackVersion next;
     try {
-      next = current.edit(content, actorId, clock.instant());
+      // Biểu mẫu chỉ đổi qua attachUiPackForm (CORE-08-13), lưu nháp giữ nguyên.
+      next =
+          current.edit(content.withForms(current.content().formsJson()), actorId, clock.instant());
     } catch (IllegalUiPackTransitionException e) {
       throw notDraft(current);
     }
