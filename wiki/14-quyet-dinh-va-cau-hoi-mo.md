@@ -609,6 +609,12 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 - `getCurrentUiPack` dựng lại thân gói một cách tất định từ CSDL, ETag là băm gói; `getHomeLayout` lọc nút có `visibleWhen` sai theo vai trò và đơn vị trong ngữ cảnh đang chọn, chế độ mặc định `default` cho tới khi có cá nhân hoá (CNH).
 - Câu hỏi mở: `UiPackRuntime` không có trường tài nguyên (logo, phông), nên tài nguyên chưa có đường phục vụ; cần bổ sung hợp đồng hoặc API tài nguyên. Trạng thái job `RENDER` giữ trong bộ nhớ pod như `TEST_RUN`.
 
+### Ghi chú và quyết định từ quay lui UI Pack (CORE-08-12, 22/10/2026)
+
+- `activateUiPackVersion` chỉ nhận phiên bản `THAY_THE` đã có gói ký; phiên bản ở trạng thái khác trả 409 `UI-409-NOT-DRAFT` (danh mục lỗi chưa có mã riêng cho trường hợp này, suy luận). Ma trận dòng `SCR-1801.quay-lui` không yêu cầu MFA bước lên nên quay lui không đòi step-up.
+- Quay lui không biên dịch, không ký lại: phiên bản đích giữ `bundle_sha256`, chữ ký và `published_at` cũ, nên ETag của `getCurrentUiPack` trở về giá trị cũ; EVT-23 phát một lần qua outbox và consumer trỏ `current.json` về gói bất biến đã có.
+- Tương thích: Policy Pack mà phiên bản đích ghim (`requires.policyPack`) chưa ngừng, và mọi biểu mẫu `forms.*.schemaRef` giải được qua `PolicySchemaPort`. Cổng có thêm phương thức mặc định `retired(...)` (trả `false`) chờ MOD-05 hiện thực; khi chưa có MOD-05, chỉ UI Pack không có biểu mẫu là tương thích. `config.api.UiPackCompatibilityApi.isCompatible(tenant, policyPackRef)` dùng cùng quy tắc cho UI Pack hiện hành; lời gọi từ MOD-05 thuộc CORE-05-10.
+
 ## Liên quan
 
 - [README của wiki](README.md)

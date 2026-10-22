@@ -29,6 +29,8 @@ import vn.viettel.okrkpi.cel.domain.CelCompilationException;
 import vn.viettel.okrkpi.cel.domain.CelExecutionException;
 import vn.viettel.okrkpi.cel.domain.CelValueType;
 import vn.viettel.okrkpi.cel.domain.StaticWorkingCalendar;
+import vn.viettel.okrkpi.config.api.PolicySchemaPort;
+import vn.viettel.okrkpi.config.api.UiPackCompatibilityApi;
 import vn.viettel.okrkpi.config.application.port.CdnInvalidator;
 import vn.viettel.okrkpi.config.application.port.ConfigAudit;
 import vn.viettel.okrkpi.config.application.port.UiPackBundleStore;
@@ -55,7 +57,7 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
  * cũ sang {@code THAY_THE}, gắn {@code ui_pack.current_version_id} và ghi EVT-23 vào outbox. Con
  * trỏ {@code current.json} do consumer EVT-23 ghi rồi vô hiệu CDN.
  */
-public class UiPackPublishService {
+public class UiPackPublishService implements UiPackCompatibilityApi {
 
   private static final Logger log = LoggerFactory.getLogger(UiPackPublishService.class);
 
@@ -76,6 +78,7 @@ public class UiPackPublishService {
   private final Clock clock;
   private final Executor renders;
   private final TransactionOperations writes;
+  private PolicySchemaPort schemas;
   private final CelEngine cel =
       new CelEngine(StaticWorkingCalendar.weekendsOnly(), LayoutValidator.VISIBLE_WHEN_LIMITS);
 
@@ -320,6 +323,100 @@ public class UiPackPublishService {
       throw new IllegalStateException(e);
     }
     cdn.invalidate(List.copyOf(cdnPaths));
+  }
+
+  /** Cổng tra Policy Pack của MOD-05; chưa có thì chỉ UI Pack không có biểu mẫu là tương thích. */
+  public void setPolicySchemas(PolicySchemaPort schemas) {
+    this.schemas = schemas;
+  }
+
+  /**
+   * Quay lui về phiên bản {@code THAY_THE} ({@code activateUiPackVersion}, BR-18-10, ADR-25): kiểm
+   * tương thích Policy Pack, đổi phiên bản hiện hành, phát EVT-23 để consumer trỏ {@code
+   * current.json} về gói bất biến đã có.
+   */
+  @Transactional(UiPackService.TX)
+  public UiPackVersion activate(
+      TenantId tenantId, UUID actorId, UUID packId, String version, long expectedVersion) {
+    UiPack pack = repo.findPack(tenantId, packId).orElseThrow();
+    UiPackVersion target = repo.findVersion(tenantId, packId, version).orElseThrow();
+    UiPackService.expect(target, expectedVersion);
+    if (target.status() != UiPackVersionStatus.THAY_THE || target.bundleSha256() == null) {
+      throw new BusinessException(
+          "UI-409-NOT-DRAFT", "Chỉ quay lui được về phiên bản đã phát hành trước đây.");
+    }
+    JsonNode document = packs.document(pack, target);
+    if (!compatible(
+        tenantId, document, document.path("requires").path("policyPack").asText(null))) {
+      throw new BusinessException(
+          "UI-409-ROLLBACK-INCOMPATIBLE",
+          "Không thể quay lui về v"
+              + version
+              + " vì biểu mẫu của phiên bản này tham chiếu Policy Pack đã ngừng.");
+    }
+    Instant at = clock.instant().truncatedTo(ChronoUnit.MICROS);
+    if (pack.currentVersionId() != null) {
+      repo.findVersionById(tenantId, pack.currentVersionId())
+          .filter(old -> old.status() == UiPackVersionStatus.DA_PHAT_HANH)
+          .ifPresent(
+              old -> {
+                if (!repo.updateVersion(tenantId, old.supersede(actorId, at), old.rowVersion())) {
+                  throw VersionConflictException.of("CONFIG", old.rowVersion(), -1);
+                }
+              });
+    }
+    UiPackVersion next = target.reactivate(actorId, at);
+    if (!repo.updateVersion(tenantId, next, target.rowVersion())) {
+      throw VersionConflictException.of("CONFIG", target.rowVersion(), -1);
+    }
+    if (!repo.setCurrentVersion(tenantId, pack, next.id(), actorId, at)) {
+      throw VersionConflictException.of("CONFIG", pack.rowVersion(), -1);
+    }
+    events.published(tenantId, next, List.of("/" + pointerKey(tenantId)));
+    audit.changed(
+        tenantId,
+        actorId,
+        "QUAY_LUI_UI_PACK",
+        UiPackService.OBJECT_TYPE,
+        version,
+        next.id(),
+        next.rowVersion());
+    return next;
+  }
+
+  @Override
+  @Transactional(transactionManager = UiPackService.TX, readOnly = true)
+  public boolean isCompatible(TenantId tenantId, String policyPackRef) {
+    return repo.findCurrentPack(tenantId)
+        .flatMap(
+            pack ->
+                repo.findVersionById(tenantId, pack.currentVersionId())
+                    .map(v -> compatible(tenantId, packs.document(pack, v), policyPackRef)))
+        .orElse(true);
+  }
+
+  /**
+   * Policy Pack chưa ngừng và mọi biểu mẫu ({@code forms.*.schemaRef}) giải được trong {@code
+   * policyPackRef}.
+   */
+  private boolean compatible(TenantId tenantId, JsonNode document, String policyPackRef) {
+    JsonNode forms = document.path("forms");
+    boolean hasForms = forms.isObject() && forms.size() > 0;
+    if (schemas == null) {
+      return !hasForms;
+    }
+    if (policyPackRef != null && schemas.retired(tenantId, policyPackRef)) {
+      return false;
+    }
+    if (hasForms) {
+      for (JsonNode form : forms) {
+        String ref = form.path("schemaRef").asText("");
+        if (ref.isEmpty() || schemas.fields(tenantId, ref, policyPackRef).isEmpty()) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   /** UI Pack hiện hành của tenant ({@code getCurrentUiPack}). */

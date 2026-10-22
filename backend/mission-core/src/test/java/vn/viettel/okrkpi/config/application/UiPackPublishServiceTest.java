@@ -147,6 +147,10 @@ class UiPackPublishServiceTest {
 
   /** Tạo phiên bản, gắn bố cục có khối chỉ lãnh đạo thấy, gửi duyệt. */
   private void waiting(UUID pack, String version) throws Exception {
+    waiting(pack, version, null);
+  }
+
+  private void waiting(UUID pack, String version, UUID policyPack) throws Exception {
     UiPackVersion v = packs.create(TENANT, AUTHOR, pack, version, null);
     UiPackContent c = v.content();
     JsonNode layouts =
@@ -162,7 +166,7 @@ class UiPackPublishServiceTest {
             layouts,
             (ArrayNode) JSON.readTree(c.assetsJson()),
             c.componentRegistryVersion(),
-            null,
+            policyPack,
             true,
             true);
     UiPackVersion updated = packs.update(TENANT, AUTHOR, pack, version, v.rowVersion(), next);
@@ -279,5 +283,85 @@ class UiPackPublishServiceTest {
     assertThat(leader.layout().path("children")).hasSize(2);
     assertThat(leader.mode()).isEqualTo("elderly");
     assertThat(leader.reducedSteps()).isTrue();
+  }
+
+  private void publish(UUID pack, String version, UUID policyPack) throws Exception {
+    waiting(pack, version, policyPack);
+    service.publish(
+        TENANT, mfa(REVIEWER), pack, version, packs.get(TENANT, pack, version).rowVersion());
+  }
+
+  @Test
+  void activateRollsBackToSupersededBundleWithoutRecompiling() throws Exception {
+    UUID pack = packId();
+    publish(pack, "1.0.0", null);
+    UiPackVersion first = packs.get(TENANT, pack, "1.0.0");
+    publish(pack, "1.1.0", null);
+    String etagBefore = service.current(TENANT).orElseThrow().etag();
+    int stored = objects.size();
+    events.clear();
+
+    UiPackVersion back = service.activate(TENANT, REVIEWER, pack, "1.0.0", first.rowVersion() + 1);
+
+    assertThat(back.status()).isEqualTo(UiPackVersionStatus.DA_PHAT_HANH);
+    assertThat(back.bundleSha256()).isEqualTo(first.bundleSha256());
+    assertThat(back.publishedAt()).isEqualTo(first.publishedAt());
+    assertThat(packs.get(TENANT, pack, "1.1.0").status()).isEqualTo(UiPackVersionStatus.THAY_THE);
+    assertThat(repo.packs.get(pack).currentVersionId()).isEqualTo(first.id());
+    assertThat(service.current(TENANT).orElseThrow().etag())
+        .isEqualTo(first.bundleSha256())
+        .isNotEqualTo(etagBefore);
+    assertThat(objects).hasSize(stored);
+    assertThat(events).hasSize(1).first().asString().startsWith("1.0.0:");
+    assertThat(audits).contains("QUAY_LUI_UI_PACK:1.0.0");
+    service.onPublished(TENANT, back.id(), List.of());
+    assertThat(
+            JSON.readTree(objects.get("ui-packs/" + TENANT.value() + "/current.json"))
+                .path("version")
+                .asText())
+        .isEqualTo("1.0.0");
+
+    assertThatThrownBy(() -> service.activate(TENANT, REVIEWER, pack, "1.0.0", back.rowVersion()))
+        .isInstanceOf(BusinessException.class)
+        .hasMessage("UI-409-NOT-DRAFT");
+    packs.create(TENANT, AUTHOR, pack, "2.0.0", null);
+    assertThatThrownBy(() -> service.activate(TENANT, REVIEWER, pack, "2.0.0", 0))
+        .isInstanceOf(BusinessException.class)
+        .hasMessage("UI-409-NOT-DRAFT");
+  }
+
+  @Test
+  void activateRefusesVersionBoundToRetiredPolicyPack() throws Exception {
+    UUID retired = UUID.randomUUID();
+    service.setPolicySchemas(
+        new vn.viettel.okrkpi.config.api.PolicySchemaPort() {
+          @Override
+          public Optional<java.util.Set<String>> fields(TenantId t, String ref, String range) {
+            return Optional.empty();
+          }
+
+          @Override
+          public boolean retired(TenantId t, String ref) {
+            return retired.toString().equals(ref);
+          }
+        });
+    UUID pack = packId();
+    publish(pack, "1.0.0", retired);
+    publish(pack, "1.1.0", null);
+    int rv = packs.get(TENANT, pack, "1.0.0").rowVersion();
+
+    assertThatThrownBy(() -> service.activate(TENANT, REVIEWER, pack, "1.0.0", rv))
+        .isInstanceOf(BusinessException.class)
+        .hasMessage("UI-409-ROLLBACK-INCOMPATIBLE")
+        .satisfies(
+            e ->
+                assertThat(((BusinessException) e).detail())
+                    .isEqualTo(
+                        "Không thể quay lui về v1.0.0 vì biểu mẫu của phiên bản này tham chiếu"
+                            + " Policy Pack đã ngừng."));
+    assertThat(packs.get(TENANT, pack, "1.1.0").status())
+        .isEqualTo(UiPackVersionStatus.DA_PHAT_HANH);
+    assertThat(service.isCompatible(TENANT, UUID.randomUUID().toString())).isTrue();
+    assertThat(service.isCompatible(TENANT, retired.toString())).isFalse();
   }
 }
