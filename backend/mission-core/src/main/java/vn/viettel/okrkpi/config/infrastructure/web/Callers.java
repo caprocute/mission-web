@@ -39,6 +39,20 @@ final class Callers {
     }
   }
 
+  /** Người gọi kèm {@code acr} và {@code auth_time} để tầng ứng dụng kiểm MFA bước lên. */
+  vn.viettel.okrkpi.config.application.Actor actor() {
+    UUID id = current();
+    PeriodCaller caller = custom.getIfAvailable();
+    if (caller != null) {
+      return new vn.viettel.okrkpi.config.application.Actor(
+          id, caller.acr().orElse(null), caller.authTime().orElse(null));
+    }
+    AuthzSubjectResolver resolver = subjects.getIfAvailable();
+    OpaInput.Subject subject = resolver == null ? null : resolver.currentSubject();
+    return new vn.viettel.okrkpi.config.application.Actor(
+        id, subject == null ? null : subject.acr(), subject == null ? null : subject.authTime());
+  }
+
   private static ResponseStatusException unauthorized() {
     return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cần đăng nhập");
   }
