@@ -14,6 +14,10 @@ anomaly-job --chi-phat         # chỉ phát các dòng còn sót
 
 Biến môi trường bắt buộc: `ANALYTICS_CELL`, `CLICKHOUSE_URL`, `CLICKHOUSE_PASSWORD`, `KAFKA_BOOTSTRAP_SERVERS`, `REGISTRY_URL`, `CONFIG_API_URL`, `OIDC_TOKEN_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`. Biến `KAFKA_<X>` khác được chuyển thành cấu hình librdkafka `x`. Bí mật lấy từ OpenBao, không ghi vào repo.
 
+## Dự báo nguy cơ trễ hạn (DV-15-10)
+
+Gói `app/delay_risk` là dịch vụ chạy liên tục (`python -m app.delay_risk.main`, mẫu `deploy/delay-risk.yaml`) cho QT-06 bước 2. Dịch vụ tiêu thụ EVT-05 `task.task.progressed.v1`, chờ bản ghi tiến độ của sự kiện tới kho qua CDC (tối đa `DELAY_RISK_MAX_WAIT_S`, mặc định 240 giây, quá thì giữ giá trị cũ), rồi tính lại từ trạng thái hiện tại của kho: nhịp là lượng hoàn thành mỗi ngày làm việc trong 5 ngày làm việc gần nhất, n là số ngày làm việc cần để làm nốt, m là số ngày làm việc còn lại tới hạn theo lịch `getWorkingCalendar`. Mức Thấp khi n/m ≤ 0,8, Trung bình khi ≤ 1,0, Cao khi lớn hơn hoặc đã hết hạn hay nhịp bằng 0 (đổi bằng `DELAY_RISK_WINDOW_DAYS`, `DELAY_RISK_MIN_DAYS`, `DELAY_RISK_VUA_RATIO`, `DELAY_RISK_CAO_RATIO`). Kết quả ghi qua cổng MOD-02 `PUT /api/v1/tasks/{taskId}/delay-risk` (operation đề xuất, chưa có trong hợp đồng), thân chỉ là dữ liệu n, m, nhịp để giao diện dựng MSG-06-02. Biến bắt buộc: `ANALYTICS_CELL`, `CLICKHOUSE_URL`, `CLICKHOUSE_PASSWORD`, `KAFKA_BOOTSTRAP_SERVERS`, `CORE_API_URL`, `OIDC_TOKEN_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`.
+
 ## Kiểm thử
 
 ```bash
@@ -21,7 +25,7 @@ uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -e '.[de
 .venv/bin/ruff check . && .venv/bin/mypy app && .venv/bin/python -m pytest -q
 ```
 
-Kiểm thử tích hợp dựng ClickHouse 25.8, Kafka 3.9 và Apicurio 3.0.9, áp toàn bộ migration kho, nạp dữ liệu vàng `data/golden/anomaly`, rồi kiểm tra hai luật đầu, việc chạy lại, hợp đồng EVT-20 và quyền của tài khoản job.
+Kiểm thử tích hợp dựng ClickHouse 25.8, Kafka 3.9 và Apicurio 3.0.9, áp toàn bộ migration kho, nạp dữ liệu vàng `data/golden/anomaly`, rồi kiểm tra hai luật đầu, việc chạy lại, hợp đồng EVT-20 và quyền của tài khoản job. Phần dự báo trễ hạn kiểm với bộ ca vàng `data/golden/delay-risk` (công thức) và luồng EVT-05 → kho → cổng MOD-02 giả.
 
 ## Còn chờ
 
