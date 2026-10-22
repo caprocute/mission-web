@@ -1,6 +1,7 @@
 import { HttpHeaders, HttpParams } from '@angular/common/http';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { MockRequest, matchPath } from '../mock-router';
+import { setMockHomeBase } from '../mock-home-base';
 import { ME_PREFERENCES_MOCK, applyHomeOverlay } from './me-preferences.mock';
 
 function call(
@@ -66,6 +67,27 @@ describe('ME_PREFERENCES_MOCK (CNH-03)', () => {
       layout: { children: unknown[] };
     };
     expect(reset.layout.children).toHaveLength(4);
+  });
+
+  it('bố cục gốc theo UI Pack của tenant khi shell đã đặt, giữ cờ bắt buộc (WEB-051)', () => {
+    setMockHomeBase({
+      component: 'vt.layout.grid',
+      children: [
+        { component: 'vt.widget.myTasksToday' },
+        { component: 'giaoduc.widget.tienDoChuyenMon' },
+      ],
+    });
+    try {
+      const home = call('GET', '/api/v1/ui/layouts/home').body as {
+        layout: { children: { component: string; mandatory?: boolean }[] };
+      };
+      expect(home.layout.children).toEqual([
+        { component: 'vt.widget.myTasksToday', mandatory: true },
+        { component: 'giaoduc.widget.tienDoChuyenMon' },
+      ]);
+    } finally {
+      setMockHomeBase(null);
+    }
   });
 
   it('ghim thắng ẩn, mã lạ bị bỏ qua', () => {

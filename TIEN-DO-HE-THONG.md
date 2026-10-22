@@ -13,16 +13,16 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **202 / 408 task (49.5%)** — Khối lượng quy đổi đã gộp: **239 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **214 / 408 task (52.5%)** (gồm **202** đã gộp `main` + **12** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **215 / 408 task (52.7%)** (gồm **202** đã gộp `main` + **13** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **189 task**.
+- **Chưa bắt đầu**: **188 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **14 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-04`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
 
 | Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 7 | 2 | 6 | **79.2%** |
+| **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 8 | 2 | 5 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **33** | 0 | 0 | 1 | **97.1%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **46** | 0 | 2 | 69 | **39.3%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **42** | 0 | 1 | 61 | **40.4%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **2** | 3 | 0 | 0 | **40.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **202** | **12** | **5** | **189** | **49.5%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **202** | **13** | **5** | **188** | **49.5%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -40,7 +40,7 @@
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 60 | **50** | 7 | 1 | 2 | **83.3%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
-| **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **34** | 5 | 0 | 8 | **72.3%** |
+| **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **34** | 6 | 0 | 7 | **72.3%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **49** | 0 | 3 | 68 | **40.8%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **21** | 0 | 0 | 51 | **29.2%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **15** | 0 | 1 | 26 | **35.7%** |
@@ -74,7 +74,7 @@ Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
 Mọi thay đổi trạng thái task đều được cập nhật trực tiếp vào bảng dưới đây. Các giá trị cột **Trạng thái** hợp lệ: `Đã gộp main`, `Xong, chờ gộp`, `Đang làm`, `Làm một phần`, `Chưa bắt đầu`.
 
-### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (53/65 đã gộp `main`, 7 chờ gộp, 2 đang làm)
+### WEB-001..065 · Phân hệ giao diện Web (Kế hoạch Web GĐ0–GĐ4) (53/65 đã gộp `main`, 8 chờ gộp, 2 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -128,7 +128,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-048](docs/tasks/WEB-048-trinh-dung-dashboard.md) | SCR-1602 Trình dựng dashboard | M | W-Nghiệp vụ | – | WEB-047 | **Đã gộp main** | Đã gộp `main` (SCR-1602 Trình dựng dashboard) |
 | [WEB-049](docs/tasks/WEB-049-tro-ly-ai.md) | SCR-1701 Trợ lý AI soạn OKR và soát KR | M | W-OKR/Đánh giá | – | WEB-022 | **Đã gộp main** | Đã gộp main (f4fca53) |
 | [WEB-050](docs/tasks/WEB-050-studio-giao-dien.md) | SCR-1801 Cấu hình giao diện tenant và SCR-1802 Trình dựng biểu mẫu động | L | W-Giám sát/CH | – | WEB-004, WEB-009, WEB-010 | **Đã gộp main** | Đã gộp main (f4fca53) |
-| [WEB-051](docs/tasks/WEB-051-plugin-chuyen-nganh.md) | Plugin chuyên ngành mẫu và manifest theo tenant | M | W-Nền tảng | – | WEB-015 | **Chưa bắt đầu** |  |
+| [WEB-051](docs/tasks/WEB-051-plugin-chuyen-nganh.md) | Plugin chuyên ngành mẫu và manifest theo tenant | M | W-Nền tảng | – | WEB-015 | **Xong, chờ gộp** | Nhánh claude/b8-ha-tang-g7g48k: đã qua build & test, kiểm Playwright hai tenant |
 | [WEB-052](docs/tasks/WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | W-Nền tảng | – | WEB-003, WEB-011 | **Làm một phần** | Đã gộp pha 1 trên `main`; pha 2 đang ở nhánh `feat/WEB-052-pha-2` |
 | [WEB-053](docs/tasks/WEB-053-danh-gia-attt.md) | Đánh giá ATTT frontend: OWASP ZAP và ASVS mức 2 | M | W-Nền tảng | – | WEB-014 | **Chưa bắt đầu** |  |
 | [WEB-054](docs/tasks/WEB-054-bang-quyen-frontend.md) | Bảng quyền phía giao diện sinh từ ma trận (`can()`, `*vtCan`, `permissionGuard`) | M | W-Phân quyền | – | WEB-001, WEB-006 | **Đã gộp main** | Đã gộp `main` (bảng quyền sinh từ `ma-tran.json`: `can()`, `*vtCan`, `permissionGuard`) |
@@ -888,4 +888,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 19:34 | Luồng B8 hạ tầng | `WEB-013` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b8-ha-tang-g7g48k: fe-embed với <vt-okr-app> (Angular Elements), bộ nạp /embed/vt-okr-app.js, định tuyến trong bộ nhớ, auth.redirectUri cho SSO, nginx CORS /embed /ui-packs, trang thử nhúng; test/lint/build xanh, đã mở trang thử |
 | 22/10/2026 19:34 | Luồng B8 hạ tầng | `WEB-060` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: đang thực hiện |
 | 22/10/2026 20:00 | Luồng B8 hạ tầng | `WEB-060` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b8-ha-tang-g7g48k: Prettier toàn bộ frontend trong commit riêng, format:check vào Jenkinsfile; lint, test, build xanh (fe-config-studio treo do lỗi d3-zoom có sẵn) |
+| 22/10/2026 20:01 | Luồng B8 hạ tầng | `WEB-051` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: đang thực hiện |
+| 22/10/2026 20:15 | Luồng B8 hạ tầng | `WEB-051` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b8-ha-tang-g7g48k: đã qua build & test, kiểm Playwright hai tenant |
 <!-- PROGRESS_LOG_END -->

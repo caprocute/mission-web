@@ -5,6 +5,7 @@ import {
   SavedFilter,
   UserPreferenceItem,
 } from '../../lib/models/preference';
+import { mockHomeBase } from '../mock-home-base';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 
 /**
@@ -124,6 +125,22 @@ function saveFilter(f: SavedFilter): SavedFilter {
 }
 
 const widgetId = (n: HomeLayoutNode): string => n.id ?? n.component;
+
+/**
+ * Bố cục gốc: UI Pack của tenant khi shell đã đặt (WEB-051), giữ cờ bắt buộc của bố cục mặc định
+ * cho widget trùng mã; không thì bố cục mặc định.
+ */
+function tenantBase(): HomeLayoutNode {
+  const pack = mockHomeBase();
+  if (!pack) return BASE_HOME;
+  const mandatory = new Set((BASE_HOME.children ?? []).filter((c) => c.mandatory).map(widgetId));
+  return {
+    ...pack,
+    children: (pack.children ?? []).map((c) =>
+      mandatory.has(widgetId(c)) ? { ...c, mandatory: true } : c,
+    ),
+  };
+}
 
 /** Ghép lớp phủ như máy chủ; xuất ra để kiểm thử dùng chung. */
 export function applyHomeOverlay(
@@ -302,7 +319,7 @@ export const ME_PREFERENCES_MOCK: MockModule = {
         const display = store.get('ui.display')?.value as
           { mode?: string; reducedSteps?: boolean } | undefined;
         const { layout, mandatory } = applyHomeOverlay(
-          BASE_HOME,
+          tenantBase(),
           (pref?.value as HomeLayoutOverlay | undefined) ?? null,
         );
         const body: HomeLayout = {

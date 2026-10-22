@@ -63,7 +63,7 @@ Tệp minh chứng được tải lên qua URL ký trước (presigned) tới kh
 
 ## Plugin và chuỗi cung ứng
 
-Plugin của tenant (lớp bốn của ADR-05) là remote Native Federation do bên thứ ba viết, nên phải được ký, quét và duyệt trước khi khai trong UI Pack; `UiPackLoader` hiện chưa kiểm chữ ký (`TODO(ADR-05)` trong mã), vì vậy chưa được bật plugin ở môi trường có dữ liệu thật (suy luận từ TODO). Chuỗi cung ứng của chính frontend theo SEC-37, SEC-38 và SEC-55: ảnh container ký bằng cosign, đạt SLSA mức 3, tham chiếu theo digest; ảnh nền distroless chạy không quyền root (SEC-49), ảnh web hiện dùng `nginx-unprivileged` với `USER 101`. Kiểm thử bảo mật động bằng ZAP thuộc SEC-40, tường lửa ứng dụng Coraza thuộc SEC-34.
+Plugin của tenant (lớp bốn của ADR-05) là remote Native Federation do bên thứ ba viết, nên phải được ký, quét và duyệt trước khi khai trong UI Pack; `UiPackLoader` kiểm chữ ký gói từ WEB-009, và từ WEB-051 shell chỉ nạp plugin qua chính sách Trusted Types `vt-federation`: chính sách này chỉ nhận URL `remoteEntry.json` có trong phần `plugins` của gói đã kiểm chữ ký, URL ngoài danh sách bị chặn và ghi telemetry `plugin.url.blocked`. Sau đó shell so băm `integrity` của `remoteEntry.json` và chỉ cho tệp nằm trong thư mục plugin (trang 03, mục Lớp plugin). Gói chưa ký chỉ được nạp plugin ở môi trường chưa cấu hình khoá, tức môi trường phát triển. Chuỗi cung ứng của chính frontend theo SEC-37, SEC-38 và SEC-55: ảnh container ký bằng cosign, đạt SLSA mức 3, tham chiếu theo digest; ảnh nền distroless chạy không quyền root (SEC-49), ảnh web hiện dùng `nginx-unprivileged` với `USER 101`. Kiểm thử bảo mật động bằng ZAP thuộc SEC-40, tường lửa ứng dụng Coraza thuộc SEC-34.
 
 ## Bảng kiểm khi viết mã giao diện
 

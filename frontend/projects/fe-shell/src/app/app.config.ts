@@ -27,6 +27,7 @@ import {
   loadSheddingInterceptor,
   mockApiInterceptor,
   FeatureFlagService,
+  setMockHomeBase,
 } from '@vt/api-client';
 import { SessionService, authInterceptor, provideVtAuth } from '@vt/auth';
 import { provideDesignSystem } from '@vt/design-system';
@@ -48,6 +49,7 @@ import {
   traceparentInterceptor,
 } from '@vt/telemetry';
 import { routes } from './app.routes';
+import { PluginHost } from './plugins/plugin-host';
 import { GlobalErrorHandler } from './layout/app-status';
 import { SHELL_WIDGETS } from './widgets/shell-widgets';
 
@@ -119,8 +121,19 @@ export function buildAppConfig(
       provideSduiComponents(BUILTIN_SDUI_COMPONENTS),
       provideSduiComponents(SHELL_WIDGETS),
       ...(uiPackPrefetch ? [{ provide: UI_PACK_PREFETCH, useValue: uiPackPrefetch }] : []),
-      // nạp token của tenant trước khi render để không nháy giao diện
-      provideAppInitializer(() => inject(UiPackLoader).load()),
+      // nạp token của tenant trước khi render để không nháy giao diện; sau đó nạp plugin chuyên ngành
+      // có trong UI Pack (WEB-051) để menu và widget của plugin có ngay ở lần vẽ đầu
+      provideAppInitializer(() => {
+        const plugins = inject(PluginHost);
+        const loader = inject(UiPackLoader);
+        return loader
+          .load()
+          .then(() => plugins.init())
+          .then(() => {
+            // giả lập không biết tenant: bố cục trang chủ gốc lấy theo UI Pack đã nạp, như máy chủ
+            if (cfg.useMockApi) setMockHomeBase(loader.layout('home'));
+          });
+      }),
       // Khám phá cell sau đăng nhập (WEB-075); dữ liệu giả lập thì giữ gốc API của config.json
       provideAppInitializer(() => {
         if (cfg.useMockApi) return;
