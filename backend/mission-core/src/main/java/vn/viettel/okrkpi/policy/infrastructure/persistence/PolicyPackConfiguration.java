@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.policy.infrastructure.persistence;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
 import java.util.Map;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
@@ -11,7 +12,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
+import vn.viettel.okrkpi.config.api.PeriodApi;
+import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
+import vn.viettel.okrkpi.policy.application.PolicyDecisionTableService;
 import vn.viettel.okrkpi.policy.application.PolicyPackService;
+import vn.viettel.okrkpi.policy.application.PolicyPeriodCalendar;
+import vn.viettel.okrkpi.policy.application.PolicyResolutionService;
+import vn.viettel.okrkpi.policy.application.PolicyRuleService;
+import vn.viettel.okrkpi.policy.application.PolicySchemaAdapter;
 import vn.viettel.okrkpi.policy.application.port.PolicyAudit;
 import vn.viettel.okrkpi.policy.infrastructure.web.PolicyIdempotency;
 import vn.viettel.okrkpi.shared.kernel.Clock;
@@ -56,6 +64,87 @@ public class PolicyPackConfiguration {
         policyAudit,
         json.getIfAvailable(ObjectMapper::new),
         Clock.systemUtc());
+  }
+
+  @Bean
+  JdbcPolicyDecisionTableRepository policyDecisionTableRepository(
+      @Qualifier("policyDataSource") DataSource dataSource) {
+    return new JdbcPolicyDecisionTableRepository(JdbcClient.create(dataSource));
+  }
+
+  @Bean
+  PolicyDecisionTableService policyDecisionTableService(
+      JdbcPolicyPackRepository policyPackRepository,
+      JdbcPolicyDecisionTableRepository policyDecisionTableRepository,
+      PolicyAudit policyAudit,
+      ObjectProvider<ObjectMapper> json) {
+    return new PolicyDecisionTableService(
+        policyPackRepository,
+        policyDecisionTableRepository,
+        policyAudit,
+        json.getIfAvailable(ObjectMapper::new));
+  }
+
+  @Bean
+  JdbcPolicyRuleRepository policyRuleRepository(
+      @Qualifier("policyDataSource") DataSource dataSource) {
+    return new JdbcPolicyRuleRepository(JdbcClient.create(dataSource));
+  }
+
+  @Bean
+  PolicyRuleService policyRuleService(
+      JdbcPolicyPackRepository policyPackRepository,
+      JdbcPolicyRuleRepository policyRuleRepository,
+      PolicyAudit policyAudit,
+      ObjectProvider<ObjectMapper> json) {
+    return new PolicyRuleService(
+        policyPackRepository,
+        policyRuleRepository,
+        policyAudit,
+        json.getIfAvailable(ObjectMapper::new),
+        Clock.systemUtc());
+  }
+
+  @Bean
+  JdbcPolicyResolutionRepository policyResolutionRepository(
+      @Qualifier("policyDataSource") DataSource dataSource) {
+    return new JdbcPolicyResolutionRepository(JdbcClient.create(dataSource));
+  }
+
+  /** Bộ phân giải theo kỳ (CORE-05-03); đệm trong pod, bỏ đệm khi phát hành hoặc ngừng gói. */
+  @Bean
+  PolicyResolutionService policyResolutionService(
+      JdbcPolicyResolutionRepository policyResolutionRepository,
+      JdbcPolicyPackRepository policyPackRepository,
+      ObjectProvider<PeriodApi> periodApi,
+      PolicyPackService policyPackService,
+      @Value("${mission.policy.resolution-cache.ttl:5m}") Duration ttl,
+      ObjectProvider<ObjectMapper> json) {
+    PolicyResolutionService service =
+        new PolicyResolutionService(
+            policyResolutionRepository,
+            policyPackRepository,
+            periodApi::getObject,
+            json.getIfAvailable(ObjectMapper::new),
+            ttl);
+    policyPackService.onEffectiveChange(service::evict);
+    return service;
+  }
+
+  /** Cổng lịch kỳ của MOD-08 (đảo phụ thuộc). */
+  @Bean
+  PolicyPeriodCalendar policyPeriodCalendar(
+      PolicyResolutionService policyResolutionService,
+      ObjectProvider<WorkingCalendarApi> workingCalendar) {
+    return new PolicyPeriodCalendar(policyResolutionService, workingCalendar::getIfAvailable);
+  }
+
+  /** Cổng schema biểu mẫu của MOD-08 (đảo phụ thuộc). */
+  @Bean
+  PolicySchemaAdapter policySchemaAdapter(
+      PolicyResolutionService policyResolutionService,
+      JdbcPolicyPackRepository policyPackRepository) {
+    return new PolicySchemaAdapter(policyResolutionService, policyPackRepository);
   }
 
   @Bean
