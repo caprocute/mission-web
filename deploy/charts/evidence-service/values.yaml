@@ -151,6 +151,12 @@ thanhPhan:
             app.kubernetes.io/name: clamav-scanner
           ports:
             - port: 3310
+        # Gotenberg của document-service chuyển tệp văn phòng sang PDF trước khi quét (DV-08-06).
+        - namespace: workers
+          podLabels:
+            app.kubernetes.io/name: gotenberg
+          ports:
+            - port: 3000
         - namespace: egress
           podLabels:
             app.kubernetes.io/name: egress-gateway

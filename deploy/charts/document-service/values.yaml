@@ -132,5 +132,11 @@ thanhPhan:
           podLabels:
             app.kubernetes.io/name: document-service
           ports:
-            - port: 8080
+            - port: 3000
+        # Worker quét minh chứng gọi Gotenberg để chuyển đổi tệp (DV-08-06).
+        - namespace: workers
+          podLabels:
+            app.kubernetes.io/name: evidence-scan-worker
+          ports:
+            - port: 3000
       egressTo: []
