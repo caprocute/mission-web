@@ -15,7 +15,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Function;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,7 +51,6 @@ import vn.viettel.okrkpi.dossier.domain.meeting.DraftDeadline;
 import vn.viettel.okrkpi.dossier.domain.meeting.MeetingStatus;
 import vn.viettel.okrkpi.dossier.domain.meeting.Participant;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
-import vn.viettel.okrkpi.shared.authz.OpaInput;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.error.ProblemFieldError;
@@ -83,8 +81,7 @@ public class DossierMeetingController {
           "CHUYEN_DE", "Hội nghị kiểm điểm chuyên đề");
 
   private final ReviewMeetingService service;
-  private final ObjectProvider<DossierCaller> callers;
-  private final ObjectProvider<AuthzSubjectResolver> subjects;
+  private final DossierCallers callers;
   private final ObjectProvider<PeriodApi> periods;
 
   public DossierMeetingController(
@@ -93,8 +90,7 @@ public class DossierMeetingController {
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<PeriodApi> periods) {
     this.service = Objects.requireNonNull(service, "service");
-    this.callers = Objects.requireNonNull(callers, "callers");
-    this.subjects = Objects.requireNonNull(subjects, "subjects");
+    this.callers = new DossierCallers(callers, subjects);
     this.periods = Objects.requireNonNull(periods, "periods");
   }
 
@@ -122,12 +118,12 @@ public class DossierMeetingController {
         throw invalid("status", "Trạng thái hội nghị không hợp lệ.");
       }
     }
-    UUID actor = actor();
+    UUID actor = callers.actor();
     List<MeetingRow> rows =
         service.list(
             tenant,
             actor,
-            unit().orElse(null),
+            callers.unit().orElse(null),
             period,
             unit,
             filter,
@@ -164,12 +160,12 @@ public class DossierMeetingController {
   public ResponseEntity<DossierMeeting> createDossierMeeting(
       @RequestBody DossierMeetingCreate body) {
     TenantId tenant = TenantContext.require();
-    UUID actor = actor();
+    UUID actor = callers.actor();
     MeetingView view =
         service.create(
             tenant,
             actor,
-            unit().orElse(null),
+            callers.unit().orElse(null),
             new NewMeeting(
                 body.getPeriodId(),
                 body.getOrgUnitId(),
@@ -193,10 +189,10 @@ public class DossierMeetingController {
       resourceType = "review_meeting")
   public ResponseEntity<DossierMeeting> getDossierMeeting(@PathVariable("id") UUID id) {
     TenantId tenant = TenantContext.require();
-    UUID actor = actor();
+    UUID actor = callers.actor();
     MeetingView view =
         service
-            .get(tenant, actor, unit().orElse(null), id)
+            .get(tenant, actor, callers.unit().orElse(null), id)
             .orElseThrow(DossierMeetingController::notFound);
     return ETags.ok(meeting(tenant, view, actor), view.row().rowVersion());
   }
@@ -213,11 +209,11 @@ public class DossierMeetingController {
       @RequestBody JsonNode body) {
     TenantId tenant = TenantContext.require();
     long expected = ETags.expectedVersion(ifMatch, "DOSSIER");
-    UUID actor = actor();
+    UUID actor = callers.actor();
     Patch patch = patch(body);
     MeetingView view;
     try {
-      view = service.update(tenant, actor, unit().orElse(null), id, expected, patch);
+      view = service.update(tenant, actor, callers.unit().orElse(null), id, expected, patch);
     } catch (NoSuchElementException e) {
       throw notFound();
     }
@@ -235,7 +231,7 @@ public class DossierMeetingController {
       @RequestHeader(value = "If-Match", required = false) String ifMatch) {
     TenantId tenant = TenantContext.require();
     long expected = ETags.expectedVersion(ifMatch, "DOSSIER");
-    UUID actor = actor();
+    UUID actor = callers.actor();
     MeetingView view;
     try {
       view = service.sendDraft(tenant, actor, id, expected);
@@ -384,35 +380,6 @@ public class DossierMeetingController {
 
   private static OffsetDateTime time(Instant at) {
     return at == null ? null : at.atZone(ReviewMeetingService.ZONE).toOffsetDateTime();
-  }
-
-  private UUID actor() {
-    return caller(DossierCaller::currentUserId, OpaInput.Subject::userId)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-  }
-
-  private Optional<UUID> unit() {
-    return caller(DossierCaller::currentUnitId, OpaInput.Subject::unitId);
-  }
-
-  private Optional<UUID> caller(
-      Function<DossierCaller, Optional<UUID>> fromCaller,
-      Function<OpaInput.Subject, String> fromSubject) {
-    DossierCaller c = callers.getIfAvailable();
-    if (c != null) {
-      return fromCaller.apply(c);
-    }
-    AuthzSubjectResolver resolver = subjects.getIfAvailable();
-    OpaInput.Subject subject = resolver == null ? null : resolver.currentSubject();
-    String raw = subject == null ? null : fromSubject.apply(subject);
-    if (raw == null) {
-      return Optional.empty();
-    }
-    try {
-      return Optional.of(UUID.fromString(raw));
-    } catch (IllegalArgumentException e) {
-      return Optional.empty();
-    }
   }
 
   static String encodeCursor(UUID last) {

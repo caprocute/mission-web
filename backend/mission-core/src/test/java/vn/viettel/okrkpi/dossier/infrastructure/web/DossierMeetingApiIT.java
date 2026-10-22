@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.dossier.infrastructure.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.swagger.v3.oas.models.PathItem;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -42,9 +44,17 @@ import vn.viettel.okrkpi.MissionCoreApplication;
 import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
+import vn.viettel.okrkpi.dossier.application.comment.port.CommentSealer;
 import vn.viettel.okrkpi.dossier.application.meeting.port.MeetingNotices;
+import vn.viettel.okrkpi.dossier.infrastructure.persistence.FieldEncryptorCommentSealer;
 import vn.viettel.okrkpi.dossier.infrastructure.persistence.OutboxMeetingNotices;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
+import vn.viettel.okrkpi.shared.crypto.DekCache.CachedDek;
+import vn.viettel.okrkpi.shared.crypto.DekPurpose;
+import vn.viettel.okrkpi.shared.crypto.DekService;
+import vn.viettel.okrkpi.shared.crypto.DekStatus;
+import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
+import vn.viettel.okrkpi.shared.crypto.JcaAesGcmCryptoProvider;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer.SerializedPayload;
@@ -105,6 +115,30 @@ class DossierMeetingApiIT extends ContractConformanceTest {
               Clock.systemUtc()),
           json);
     }
+
+    /** Mã hoá C2 thật (AES-GCM) với DEK giả, không cần OpenBao. */
+    @Bean
+    @Primary
+    CommentSealer testCommentSealer() {
+      DekService deks = org.mockito.Mockito.mock(DekService.class);
+      UUID dekId = UUID.randomUUID();
+      org.mockito.Mockito.when(deks.getOrCreateActiveDek(any(), any()))
+          .thenAnswer(inv -> dek(dekId, inv.getArgument(0)));
+      org.mockito.Mockito.when(deks.getDekForDecryption(any(), any()))
+          .thenAnswer(inv -> dek(dekId, inv.getArgument(0)));
+      return new FieldEncryptorCommentSealer(
+          new FieldEncryptor(deks, new JcaAesGcmCryptoProvider()));
+    }
+
+    private static CachedDek dek(UUID dekId, UUID tenant) {
+      return new CachedDek(
+          dekId,
+          tenant,
+          DekPurpose.GOP_Y_KIEM_DIEM,
+          LocalDate.of(2026, 10, 1),
+          DekStatus.ACTIVE,
+          new byte[32]);
+    }
   }
 
   @Autowired private MockMvc mvc;
@@ -148,6 +182,10 @@ class DossierMeetingApiIT extends ContractConformanceTest {
           for (int bucket : List.of(20250, 20260)) {
             jdbc.sql("SELECT dossier.fn_create_period_partitions(?::regclass, ?)")
                 .params("dossier.review_meeting", bucket)
+                .query()
+                .listOfRows();
+            jdbc.sql("SELECT dossier.fn_create_period_partitions(?::regclass, ?)")
+                .params("dossier.review_comment", bucket)
                 .query()
                 .listOfRows();
           }
@@ -321,6 +359,106 @@ class DossierMeetingApiIT extends ContractConformanceTest {
     MvcResult bad = create(invalid, UUID.randomUUID().toString());
     assertThat(bad.getResponse().getStatus()).isEqualTo(422);
     assertThat(body(bad).get("code").asText()).isEqualTo("DOSSIER-422-VALIDATION");
+  }
+
+  @Test
+  void gopYMaHoaC2ThuKyGhiTaiHoiNghiVaAnDanh() throws Exception {
+    UUID subject = UUID.randomUUID();
+    UUID id = createdId(subject);
+    USER.set(MEMBER);
+    String text = "Việc tham mưu rà soát quy hoạch cán bộ còn chậm khoảng hai tuần.";
+    MvcResult early = comment(id, subject, "HAN_CHE", "TRUOC_HOI_NGHI", text);
+    assertThat(early.getResponse().getStatus()).isEqualTo(409);
+    assertThat(body(early).get("code").asText()).isEqualTo("DOSSIER-409-INVALID-STATE");
+
+    USER.set(subject);
+    assertThat(send(id, "\"0\"").getResponse().getStatus()).isEqualTo(200);
+    USER.set(MEMBER);
+    MvcResult created = comment(id, subject, "HAN_CHE", "TRUOC_HOI_NGHI", text);
+    assertThat(created.getResponse().getStatus()).isEqualTo(201);
+    assertResponseConforms(created, "/dossiers/meetings/{id}/comments", PathItem.HttpMethod.POST);
+    assertThat(body(created).get("content").asText()).isEqualTo(text);
+    byte[] stored =
+        inTenant(
+            jdbc ->
+                jdbc.sql("SELECT comment_enc FROM dossier.review_comment WHERE meeting_id = ?")
+                    .param(id)
+                    .query(byte[].class)
+                    .single());
+    assertThat(new String(stored, StandardCharsets.UTF_8)).doesNotContain("tham mưu");
+    assertThat(new String(stored, StandardCharsets.ISO_8859_1)).doesNotContain("quy ho");
+
+    MvcResult notSecretary = comment(id, subject, "UU_DIEM", "HOI_NGHI", "Ý kiến tại hội nghị");
+    assertThat(notSecretary.getResponse().getStatus()).isEqualTo(403);
+    assertThat(body(notSecretary).get("code").asText()).isEqualTo("DOSSIER-403-NOT-SECRETARY");
+    USER.set(SECRETARY);
+    assertThat(
+            comment(id, subject, "UU_DIEM", "HOI_NGHI", "Ý kiến tại hội nghị")
+                .getResponse()
+                .getStatus())
+        .isEqualTo(201);
+    USER.set(OUTSIDER);
+    MvcResult outsider = comment(id, subject, "UU_DIEM", "TRUOC_HOI_NGHI", "x");
+    assertThat(body(outsider).get("code").asText()).isEqualTo("DOSSIER-403-NOT-PARTICIPANT");
+
+    enableAnonymousComments();
+    USER.set(subject);
+    MvcResult mine = perform(get("/api/v1/dossiers/meetings/" + id + "/comments?limit=1"));
+    assertThat(mine.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(mine, "/dossiers/meetings/{id}/comments", PathItem.HttpMethod.GET);
+    JsonNode page = body(mine);
+    assertThat(page.get("anonymous").asBoolean()).isTrue();
+    assertThat(page.at("/items/0/content").asText()).isEqualTo(text);
+    assertThat(page.at("/items/0/commenter").isNull()).isTrue();
+    JsonNode next =
+        body(
+            perform(
+                get(
+                    "/api/v1/dossiers/meetings/"
+                        + id
+                        + "/comments?limit=1&cursor="
+                        + page.get("nextCursor").asText())));
+    assertThat(next.at("/items/0/phase").asText()).isEqualTo("HOI_NGHI");
+    USER.set(CHAIR);
+    JsonNode chair = body(perform(get("/api/v1/dossiers/meetings/" + id + "/comments")));
+    assertThat(chair.at("/items/0/commenter/id").asText()).isEqualTo(MEMBER.toString());
+    USER.set(OUTSIDER);
+    USER_UNIT.set(OTHER_UNIT);
+    assertThat(
+            perform(get("/api/v1/dossiers/meetings/" + id + "/comments")).getResponse().getStatus())
+        .isEqualTo(403);
+  }
+
+  private void enableAnonymousComments() {
+    JdbcClient jdbc = JdbcClient.create(configDataSource);
+    TenantContext.run(
+        tenant,
+        () ->
+            new TransactionTemplate(configTm)
+                .executeWithoutResult(
+                    s ->
+                        jdbc.sql(
+                                "INSERT INTO config.tenant_setting (id, created_by, updated_by,"
+                                    + " setting_key, scope_unit_id, value, value_schema) VALUES"
+                                    + " (?, ?, ?, 'dossier.comment.anonymous', ?, 'true'::jsonb,"
+                                    + " 'json.boolean') ON CONFLICT DO NOTHING")
+                            .params(UUID.randomUUID(), OFFICER, OFFICER, UNIT)
+                            .update()));
+  }
+
+  private MvcResult comment(UUID id, UUID subject, String kind, String phase, String content)
+      throws Exception {
+    ObjectNode req =
+        json.createObjectNode()
+            .put("subjectPersonId", subject.toString())
+            .put("kind", kind)
+            .put("phase", phase)
+            .put("content", content);
+    return perform(
+        post("/api/v1/dossiers/meetings/" + id + "/comments")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(req.toString()));
   }
 
   private ObjectNode createBody(UUID period, UUID subject) {

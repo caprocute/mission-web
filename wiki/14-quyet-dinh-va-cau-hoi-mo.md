@@ -1130,6 +1130,12 @@ Mã lõi: khoá `retention.<LỚP>` với lược đồ `retention-class.v1` đ�
 
 **Việc chưa nối.** EVT-21 dùng mã mẫu `MOI_GOP_Y_KIEM_DIEM` (suy luận) với tham số mã người được kiểm điểm và ngày họp để SVC-12 ghép MSG-11-02. Phát hiện trường hợp đặc thù (CORE-06-05) và yêu cầu SVC-11 sinh dự thảo Mẫu 1A đến 1D (DV-11-02) là các bean `MeetingPreparation` chạy sau khi tạo; chưa có bean nào nên bỏ qua. `draftForms`, `proposedLevel`, `vote` chưa có dữ liệu; tên người và đơn vị trả rỗng như các API khác của mission-core. Hạn chế kỳ trước còn mở (BR-11-08) trả ở `listDossierMeetingRemediationItems` của CORE-06-04 vì `DossierMeeting` trong hợp đồng không có trường này.
 
+### Ghi chú và quyết định từ góp ý kiểm điểm (CORE-06-03, 22/10/2026)
+
+**Mã hoá và ẩn danh.** Nội dung góp ý (`dossier.review_comment.comment_enc`, C2) được mã hoá phong bì bằng `FieldEncryptor` với DEK mục đích `GOP_Y_KIEM_DIEM`; AAD gồm mã tenant, `dossier.review_comment.comment_enc` và mã dòng. Không có bộ mã hoá thì lệnh ghi và đọc đều lỗi, không bao giờ lưu dạng rõ. Chế độ ẩn danh (BR-11-06) đọc khoá cấu hình `dossier.comment.anonymous` (lược đồ `json.boolean`, ưu tiên giá trị của đơn vị tổ chức hội nghị rồi giá trị toàn tenant) qua `TenantSettingApi`; tên khoá là suy luận vì TL không đặt tên. Khi bật, người được góp ý nhận nội dung với `commenter = null`, chủ trì, thư ký và người thuộc đơn vị tổ chức vẫn thấy người góp ý; trang trả `anonymous` để giao diện ghi chú chế độ này. Cờ `c2_anonymous_feedback` của OPA đã có sẵn trong ma trận sinh tự động, nên không viết Rego tay; dịch vụ thực hiện việc che trường.
+
+**Quyền và trạng thái.** Thành viên (mọi vai trò trong `participants_json`) gửi góp ý `TRUOC_HOI_NGHI` sau khi dự thảo đã gửi (`DU_KIEN` trả `DOSSIER-409-INVALID-STATE`, suy luận vì hợp đồng chỉ ghi 409 khoá góp ý); chỉ thư ký ghi `HOI_NGHI` (`DOSSIER-403-NOT-SECRETARY`); từ `DA_HOP` trở đi trả `DOSSIER-409-COMMENTS-LOCKED`. Hội nghị một người thì người được góp ý phải là người được kiểm điểm; hội nghị tập thể thì là một thành phần (suy luận). Góp ý ghi `comment_kind = GOP_Y`; `remediation_due` để trống vì hợp đồng không có trường này, CORE-06-04 lấy các góp ý `HAN_CHE` khi chủ trì kết thúc hội nghị để tạo `remediation_item`. Danh sách phân trang theo (thời điểm ghi, mã góp ý). Thao tác khai `classification = "C2"` để lớp OPA ghi nhật ký truy cập C2 khi OPA bật.
+
 ## Liên quan
 
 - [README của wiki](README.md)
