@@ -1,0 +1,11 @@
+{
+  "_ghi_chu": "Dashboard mẫu được nhúng: mã dashboard (dashboardCode của createAnalyticsEmbedToken) -> thư mục nguồn, uuid dashboard và uuid nhúng cố định. analytics-api đọc cùng bảng mã này qua cấu hình ANALYTICS_SUPERSET_DASHBOARDS.",
+  "dashboards": [
+    {
+      "code": "BANG_DIEU_HANH_DON_VI",
+      "source": "bang-dieu-hanh-don-vi",
+      "dashboard_uuid": "50cb2a35-aa33-5872-85e2-bbecbcca6189",
+      "embedded_uuid": "cda0f042-a44d-5667-a5ca-6ea85a36d3d1"
+    }
+  ]
+}

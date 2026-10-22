@@ -1,0 +1,52 @@
+# Bảng ảo `task` của Cube SQL API (cube nhiệm vụ, DV-15-03). Chỉ số là MEASURE() của chỉ số công bố (BR-16-02).
+table_name: task
+main_dttm_col: null
+description: Nhiệm vụ trong phạm vi người xem
+default_endpoint: null
+offset: 0
+cache_timeout: null
+catalog: null
+schema: public
+sql: null
+params: null
+template_params: null
+filter_select_enabled: true
+fetch_values_predicate: null
+extra: null
+normalize_columns: false
+always_filter_main_dttm: false
+uuid: 35130eef-a7dc-5a54-9f61-adb57c483391
+metrics:
+- metric_name: so_viec
+  verbose_name: Số nhiệm vụ
+  metric_type: null
+  expression: MEASURE(so_viec)
+  description: null
+  d3format: null
+  currency: null
+  extra: {}
+  warning_text: null
+- metric_name: ty_le_dung_han
+  verbose_name: Tỷ lệ đúng hạn (%)
+  metric_type: null
+  expression: MEASURE(ty_le_dung_han)
+  description: null
+  d3format: null
+  currency: null
+  extra: {}
+  warning_text: null
+columns:
+- column_name: nhom
+  verbose_name: Nhóm nhiệm vụ
+  is_dttm: false
+  is_active: true
+  type: TEXT
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+version: 1.0.0
+database_uuid: 14ddca6a-dc9f-518a-ba8e-aae7fd6b7b19

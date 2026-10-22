@@ -834,7 +834,9 @@ paths:
         '202':
           description: Đã xếp hàng gửi nhắc (EVT-21).
         '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
-        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        '429':
+          $ref: '../common/common.yaml#/components/responses/TooManyRequests'
+          description: Đã nhắc nhiệm vụ này trong 24 giờ qua (`TASK-429-REMINDED`).
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
       x-mission:
         qt: [QT-16]

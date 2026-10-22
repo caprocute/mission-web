@@ -218,6 +218,9 @@ public interface EvidenceSubmissionRepository {
    */
   Set<UUID> confirmedOf(TenantId tenant, UUID personId, Set<UUID> ids);
 
+  /** Người đã ra quyết định nghiệm thu một phiên bản minh chứng do người này nộp trong kỳ. */
+  Set<UUID> acceptorsOf(TenantId tenant, UUID periodId, UUID personId);
+
   /** Ghi người nghiệm thu được chỉ định lúc nộp, để lập hàng chờ nghiệm thu (CORE-03-06). */
   void markReviewer(TenantId tenant, int periodBucket, UUID evidenceId, UUID reviewerId);
 

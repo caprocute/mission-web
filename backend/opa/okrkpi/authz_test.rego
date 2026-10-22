@@ -286,6 +286,43 @@ test_appraiser_not_appraisee if {
 	d.deny == {"separation_of_duties"}
 }
 
+# BR-09-14 (CORE-04-05): người đã nghiệm thu minh chứng của hồ sơ không thẩm định, không trả lại.
+test_appraiser_not_evidence_acceptor if {
+	some action in ["SCR-0902.ky", "SCR-0902.tra-lai"]
+	ko := decide(user(["appraiser"]), action, {
+		"owner_unit_id": "u11",
+		"flow": "DANG",
+		"participants": {"appraisee": ["nv2"], "acceptor": ["nv3", "nv1"]},
+	})
+	ko.deny == {"separation_of_duties"}
+	ok := decide(user(["appraiser"]), action, {
+		"owner_unit_id": "u11",
+		"flow": "DANG",
+		"participants": {"appraisee": ["nv2"], "acceptor": ["nv3"]},
+	})
+	ok.allow
+}
+
+test_proposer_not_appraiser if {
+	ko := decide(user(["manager"]), "SCR-0903.de-xuat", {
+		"owner_unit_id": "u1",
+		"participants": {"appraisee": ["nv2"], "appraiser": ["nv1"]},
+	})
+	ko.deny == {"separation_of_duties"}
+	ok := decide(user(["manager"]), "SCR-0903.de-xuat", {
+		"owner_unit_id": "u1",
+		"participants": {"appraisee": ["nv2"], "appraiser": ["nv3"], "acceptor": ["nv1"]},
+	})
+	ok.allow
+}
+
+test_service_account_cannot_record_rating if {
+	some action in ["SCR-0902.ky", "SCR-0903.de-xuat"]
+	d := decide(client, action, {"owner_unit_id": "u11"})
+	not d.allow
+	"role_not_allowed" in d.deny
+}
+
 test_complaint_handler_not_decider if {
 	d := decide(user(["appraiser"]), "SCR-1202.tiep-nhan", {
 		"designated_ids": ["nv1"],

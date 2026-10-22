@@ -12,6 +12,7 @@ from confluent_kafka import Producer
 
 from app.clickhouse import ClickHouse
 from app.config import Settings
+from app.delay_risk.calendar import CalendarClient
 from app.detector import detect
 from app.producer import Evt20Codec, Publisher, PublishError, registry_global_id
 from app.thresholds import ServiceToken, ThresholdClient
@@ -29,14 +30,15 @@ def main(argv: list[str] | None = None) -> int:
     with httpx.Client(timeout=30) as http:
         if not args.chi_phat:
             token = ServiceToken(http, s.token_url, s.client_id, s.client_secret)
-            result = detect(ch, ThresholdClient(http, s.config_api_url, token), args.tenant)
+            result = detect(ch, ThresholdClient(http, s.config_api_url, token), args.tenant,
+                            CalendarClient(http, s.config_api_url, token))
             ok = not result.failed_tenants
         codec = Evt20Codec(s.schema_path)
         producer = Producer({"bootstrap.servers": s.kafka_bootstrap, "enable.idempotence": True, "acks": "all",
                              "client.id": f"anomaly-job-{s.cell}", **s.kafka_extra})
         try:
-            n = Publisher(ch, producer, codec, registry_global_id(http, s.registry_url, codec.schema_text)) \
-                .publish_pending()
+            n = Publisher(ch, producer, codec, registry_global_id(http, s.registry_url, codec.schema_text),
+                          publish_resolved=s.publish_resolved).publish_pending()
             logging.getLogger("anomaly-job").info("đã phát %d EVT-20", n)
         except PublishError as e:
             logging.getLogger("anomaly-job").error("%s", e)

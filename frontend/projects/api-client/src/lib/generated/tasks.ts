@@ -3292,6 +3292,7 @@ export interface operations {
         content?: never;
       };
       403: components['responses']['Forbidden'];
+      /** @description Đã nhắc nhiệm vụ này trong 24 giờ qua (`TASK-429-REMINDED`). */
       429: components['responses']['TooManyRequests'];
       default: components['responses']['Problem'];
     };

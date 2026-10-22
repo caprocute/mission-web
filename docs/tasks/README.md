@@ -36,7 +36,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-002](WEB-002-pipeline-jenkins.md) | Pipeline Jenkins cho frontend có cổng chất lượng | M | WEB-001 | Hoàn thành (nhánh `feat/WEB-002-pipeline-jenkins`): `Jenkinsfile` đủ cổng, gitleaks, Semgrep, Trivy, SBOM, cosign; chưa chạy trên Jenkins thật; chưa có độ phủ tệp thay đổi (thiếu `@vitest/coverage-v8`); cổng ngân sách và Lighthouse CI đỏ cho tới khi WEB-052 đạt (xem wiki/11) |
 | [WEB-003](WEB-003-ngan-sach-hieu-nang.md) | Ngân sách bundle và Lighthouse CI | S | WEB-001 | Hoàn thành cấu hình; số đo chưa đạt, tối ưu ở WEB-052 |
 | [WEB-004](WEB-004-bien-dich-token.md) | Biên dịch Design Token và kiểm tra tương phản | M | WEB-001 | Chưa bắt đầu |
-| [WEB-005](WEB-005-storybook-hoi-quy.md) | Storybook và kiểm thử hồi quy giao diện theo bộ token | M | WEB-004 | Chưa bắt đầu |
+| [WEB-005](WEB-005-storybook-hoi-quy.md) | Storybook và kiểm thử hồi quy giao diện theo bộ token | M | WEB-004 | Xong, chờ gộp |
 | [WEB-006](WEB-006-dang-nhap-keycloak.md) | Đăng nhập Keycloak, chọn đơn vị và vai trò (phần web của QT-00) | M | WEB-001 | Hoàn thành với OIDC giả lập (nhánh `feat/WEB-006-dang-nhap-keycloak`); chưa thử với Keycloak dev thật |
 | [WEB-007](WEB-007-api-client-openapi.md) | `@vt/api-client`: sinh client từ OpenAPI, xử lý lỗi, 409, job 202 | M | WEB-001 | Hoàn thành (hợp đồng mẫu, chờ OpenAPI thật của mission-core) |
 | [WEB-008](WEB-008-mock-api.md) | Tách dữ liệu giả lập thành interceptor và fixture theo module | S | WEB-007 | Hoàn thành (axe còn lỗi có sẵn, xem WEB-059) |
@@ -104,7 +104,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-050](WEB-050-studio-giao-dien.md) | SCR-1801 Cấu hình giao diện tenant và SCR-1802 Trình dựng biểu mẫu động | L | WEB-004, WEB-009, WEB-010 | Xong, chờ gộp (nhánh `feat/WEB-050-studio-giao-dien`) |
 | [WEB-051](WEB-051-plugin-chuyen-nganh.md) | Plugin chuyên ngành mẫu và manifest theo tenant | M | WEB-015 | Xong, chờ gộp |
 | [WEB-052](WEB-052-toi-uu-hieu-nang.md) | Kiểm thử và tối ưu hiệu năng frontend | M | WEB-003, WEB-011 | Làm một phần (nhánh `feat/WEB-052-toi-uu-hieu-nang`): `/` 729→578 KB, LCP 8,3→6,6 s; `/tasks` 798→607 KB, LCP 9,2→6,7 s; pha 2 (preset Aura rút gọn, nạp giả lập theo module): `/` 626→562 KB, LCP 6,33→6,13 s; `/tasks` 653→592 KB; vẫn chưa đạt ngân sách 250 KB và 2,5 s, chưa có k6 browser (xem wiki/09) |
-| [WEB-053](WEB-053-danh-gia-attt.md) | Đánh giá ATTT frontend: OWASP ZAP và ASVS mức 2 | M | WEB-014 | Chưa bắt đầu |
+| [WEB-053](WEB-053-danh-gia-attt.md) | Đánh giá ATTT frontend: OWASP ZAP và ASVS mức 2 | M | WEB-014 | Xong, chờ gộp |
 
 ## Phân quyền (xuyên giai đoạn)
 

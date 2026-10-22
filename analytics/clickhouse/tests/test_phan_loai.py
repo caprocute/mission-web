@@ -23,7 +23,8 @@ SOURCES = {
 }
 # Cột chứa mã một con người cụ thể (TL-03: person_id, actor_id, created_by và các cột cùng nghĩa).
 PERSON_COLUMNS = {"person_id", "actor_id", "created_by", "updated_by", "assigner_id", "acceptor_id", "verified_by",
-                  "approved_by", "owner_person_id", "verifier_person_id", "appraiser_id", "decider_id", "locked_by"}
+                  "approved_by", "owner_person_id", "verifier_person_id", "appraiser_id", "decider_id", "locked_by",
+                  "decided_by", "approver_id"}
 # Thuộc tính định danh trực tiếp: không vào kho phân tích dù phân loại C1 (dim_person chỉ có thuộc tính làm thô).
 IDENTIFYING = {("org_replica", "person_v", "full_name"), ("org_replica", "person_v", "cbccvc_code")}
 COMMENT_RE = re.compile(
@@ -50,22 +51,26 @@ def classifications() -> dict[tuple[str, str, str], dict[str, object]]:
     return out
 
 
+def migrations_from(first: str) -> str:
+    """Nội dung các migration từ tệp `first` trở đi, theo thứ tự áp (tệp sau dựng lại bảng thì định nghĩa sau thắng)."""
+    return "\n".join(f.read_text(encoding="utf-8") for f in sorted(MIG.glob("V*.sql")) if f.name >= first)
+
+
 def kafka_tables() -> list[tuple[str, str, str, str, list[tuple[str, bool]]]]:
-    sql = (MIG / "V005__nguon_cdc_kafka.sql").read_text(encoding="utf-8")
-    out = []
-    for m in KAFKA_RE.finditer(sql):
+    out: dict[str, tuple[str, str, str, str, list[tuple[str, bool]]]] = {}
+    for m in KAFKA_RE.finditer(migrations_from("V005")):
         cols = []
         for line in m.group(2).strip().splitlines():
             c = re.match(r"\s*`(\w+)` String( COMMENT 'gia_danh')?,?$", line)
             assert c, f"{m.group(1)}: dòng cột không đúng dạng: {line!r}"
             cols.append((c.group(1), bool(c.group(2))))
-        out.append((m.group(1), DB_OF_TOPIC[m.group(3)], m.group(4), m.group(5), cols))
-    return out
+        out[m.group(1)] = (m.group(1), DB_OF_TOPIC[m.group(3)], m.group(4), m.group(5), cols)
+    return list(out.values())
 
 
 def test_every_source_table_is_parsed() -> None:
     tables = kafka_tables()
-    assert len(tables) == 17
+    assert len(tables) == 18
     assert {(s, t) for _, _, s, t, _ in tables} >= {("task", "task_progress"), ("org", "subject_group"),
                                                    ("appraisal", "rating_proposal"), ("org_replica", "person_v")}
 
@@ -112,13 +117,15 @@ def test_check_rejects_bad_columns() -> None:
 
 
 def test_hashed_columns_only_reach_targets_as_pseudonymous_keys() -> None:
-    mv = (MIG / "V006__nap_bang_dich.sql").read_text(encoding="utf-8")
-    views = {m.group(2): m.group(1) for m in re.finditer(
+    mv = migrations_from("V006")
+    views: dict[str, str] = {}
+    for m in re.finditer(
         r"CREATE MATERIALIZED VIEW \{\{db\}\}\.mv__\w+ .*?\n(SELECT .*?)FROM \{\{db\}\}\.(src_\w+)"
         r" WHERE length\(_error\) = 0",
-        mv, re.S)}
+        mv, re.S):
+        views[m.group(2)] = views.get(m.group(2), "") + m.group(1)
     tables = kafka_tables()
-    assert set(views) == {t[0] for t in tables}, "mỗi nguồn có đúng một view nạp dữ liệu"
+    assert set(views) == {t[0] for t in tables}, "mỗi nguồn có view nạp dữ liệu"
     for name, _, _, _, cols in tables:
         body = views[name]
         for col, hashed in cols:
@@ -132,7 +139,8 @@ def test_hashed_columns_only_reach_targets_as_pseudonymous_keys() -> None:
 
 @pytest.mark.parametrize("role", ["cube", "anomaly"])
 def test_read_grants_exclude_internal_objects(role: str) -> None:
-    sql = (MIG / "V009__phan_quyen_doc.sql").read_text(encoding="utf-8")
+    # V010 cấp cả view cube_* (định nghĩa dòng đã lọc cột), V011 cấp bảng kết quả anomaly_out: không thuộc kiểm tra này.
+    sql = (MIG / "V009__phan_quyen_doc.sql").read_text(encoding="utf-8") + migrations_from("V012")
     grants = re.findall(rf"SELECT\((.*?)\)\n  ON \{{\{{db\}}\}}\.(\w+) TO \{{\{{db\}}\}}_{role};", sql)
     assert grants
     for cols, table in grants:
