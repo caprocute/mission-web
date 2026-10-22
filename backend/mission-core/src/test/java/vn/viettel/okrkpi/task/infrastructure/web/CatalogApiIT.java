@@ -3,26 +3,37 @@ package vn.viettel.okrkpi.task.infrastructure.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.models.PathItem;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.stream.Stream;
+import org.dhatim.fastexcel.Workbook;
+import org.dhatim.fastexcel.Worksheet;
+import org.dhatim.fastexcel.reader.ReadableWorkbook;
+import org.dhatim.fastexcel.reader.Row;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -50,7 +61,10 @@ import vn.viettel.okrkpi.task.application.catalog.CatalogService;
  * Kiểm thử tích hợp CORE-02-03 trên PostgreSQL thật: tám thao tác {@code /catalog} khớp {@code
  * tasks.yaml}; kế thừa danh mục mẫu (chỉ đọc ở danh mục con); BR-04-14 trả 422; BR-04-13 lưu thay
  * đổi của mục đã dùng ở kỳ đã khoá vào phiên bản nháp mới ({@code movedToNewVersion}); nhân bản giữ
- * đủ mục và mã; áp dụng phiên bản chuyển bản cũ sang hết hiệu lực; chặn vòng kế thừa.
+ * đủ mục và mã; áp dụng phiên bản chuyển bản cũ sang hết hiệu lực; chặn vòng kế thừa. CORE-02-04
+ * (cùng lớp để dùng chung ngữ cảnh Spring và kết nối CSDL): tệp 1.000 dòng có 37 dòng lỗi cho 963
+ * mục mới và tệp lỗi 37 dòng trong 30 giây; tệp sai định dạng trả 422; bốn thao tác nhập khớp hợp
+ * đồng.
  */
 @SpringBootTest(
     classes = MissionCoreApplication.class,
@@ -61,6 +75,20 @@ class CatalogApiIT extends ContractConformanceTest {
 
   private static final String BASE = "/api/v1/catalog";
   private static final int BUCKET = 20271;
+  private static final String XLSX =
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  private static final List<String> IMPORT_HEADER =
+      List.of(
+          "Mã công việc",
+          "Tên công việc",
+          "Sản phẩm",
+          "Đơn vị tính",
+          "Mức khó (1-5)",
+          "Điểm chuẩn",
+          "Tiêu chuẩn chất lượng",
+          "Minh chứng yêu cầu",
+          "Nhóm mặc định",
+          "Thời hạn chuẩn (ngày)");
 
   @DynamicPropertySource
   static void registerProperties(DynamicPropertyRegistry registry) {
@@ -83,6 +111,7 @@ class CatalogApiIT extends ContractConformanceTest {
   private final UUID usedItem = UUID.randomUUID();
   private final UUID freeItem = UUID.randomUUID();
   private final UUID templateItem = UUID.randomUUID();
+  private final UUID importCatalog = UUID.randomUUID();
 
   @Override
   protected ContractModule contractModule() {
@@ -229,6 +258,154 @@ class CatalogApiIT extends ContractConformanceTest {
         .isInstanceOfSatisfying(
             BusinessException.class,
             e -> assertThat(e.errorCode().code()).isEqualTo("COMMON-422-VALIDATION"));
+  }
+
+  // ---------------------------------------------------------------- nhập Excel (CORE-02-04)
+
+  @Test
+  void importThousandRowsWithErrors() throws Exception {
+    seedImportCatalog();
+    MvcResult none = perform(get(BASE + "/" + importCatalog + "/imports/latest"));
+    assertThat(none.getResponse().getStatus()).isEqualTo(200);
+    assertThat(none.getResponse().getContentAsString().trim()).isEqualTo("null");
+
+    long started = System.nanoTime();
+    MvcResult accepted = perform(upload(importCatalog, "danh-muc.xlsx", workbook(1000)));
+    assertThat(accepted.getResponse().getStatus()).isEqualTo(202);
+    assertResponseConforms(accepted, "/catalog/{catalogId}/imports", PathItem.HttpMethod.POST);
+    String location = accepted.getResponse().getHeader("Location");
+    String jobId = body(accepted).get("id").asText();
+    assertThat(location).isEqualTo(BASE + "/imports/" + jobId);
+
+    JsonNode job = body(perform(get(location)));
+    while (job.get("status").asText().equals("DANG_XU_LY")) {
+      assertThat(System.nanoTime() - started).isLessThan(30_000_000_000L);
+      Thread.sleep(200);
+      job = body(perform(get(location)));
+    }
+    assertThat(System.nanoTime() - started).isLessThan(30_000_000_000L);
+    assertThat(job.get("status").asText()).isEqualTo("XONG");
+    assertThat(job.get("totalRows").asInt()).isEqualTo(1000);
+    assertThat(job.get("validRows").asInt()).isEqualTo(963);
+    assertThat(job.get("errorGroups")).hasSize(1);
+    assertThat(job.get("errorGroups").get(0).get("kind").asText()).isEqualTo("THIEU");
+    assertThat(job.get("errorGroups").get(0).get("count").asInt()).isEqualTo(37);
+    assertResponseConforms(
+        perform(get(location)), "/catalog/imports/{jobId}", PathItem.HttpMethod.GET);
+    MvcResult latest = perform(get(BASE + "/" + importCatalog + "/imports/latest"));
+    assertResponseConforms(latest, "/catalog/{catalogId}/imports/latest", PathItem.HttpMethod.GET);
+    assertThat(body(latest).get("id").asText()).isEqualTo(jobId);
+    assertThat(itemCount()).isEqualTo(963);
+
+    MvcResult errors = perform(get(location + "/errors"));
+    errors.getAsyncResult();
+    MvcResult file =
+        as(
+            () ->
+                mvc.perform(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                            .asyncDispatch(errors))
+                    .andReturn());
+    assertThat(file.getResponse().getStatus()).isEqualTo(200);
+    assertThat(file.getResponse().getContentType()).isEqualTo(XLSX);
+    assertThat(file.getResponse().getHeader("Content-Disposition"))
+        .contains("danh-muc-dong-loi.xlsx");
+    try (ReadableWorkbook wb =
+            new ReadableWorkbook(
+                new ByteArrayInputStream(file.getResponse().getContentAsByteArray()));
+        Stream<Row> rows = wb.getFirstSheet().openStream()) {
+      List<Row> all = rows.toList();
+      assertThat(all).hasSize(38);
+      assertThat(all.get(0).getCellText(0)).isEqualTo("Dòng");
+      assertThat(all.get(1).getCellText(0)).isEqualTo("28");
+      assertThat(all.get(1).getCellText(11)).contains("Sản phẩm là bắt buộc");
+    }
+    assertThat(perform(get(BASE + "/imports/" + UUID.randomUUID())).getResponse().getStatus())
+        .isEqualTo(404);
+    assertThat(perform(get(BASE + "/imports/khong-phai-ma")).getResponse().getStatus())
+        .isEqualTo(404);
+  }
+
+  @Test
+  void wrongFormatIsRejected() throws Exception {
+    seedImportCatalog();
+    MvcResult csv =
+        perform(upload(importCatalog, "danh-muc.csv", "Mã,Tên\n".getBytes(StandardCharsets.UTF_8)));
+    assertThat(csv.getResponse().getStatus()).isEqualTo(422);
+    MvcResult fake =
+        perform(
+            upload(
+                importCatalog,
+                "danh-muc.xlsx",
+                "khong phai excel".getBytes(StandardCharsets.UTF_8)));
+    assertThat(fake.getResponse().getStatus()).isEqualTo(422);
+    assertResponseConforms(fake, "/catalog/{catalogId}/imports", PathItem.HttpMethod.POST);
+    assertThat(perform(upload(UUID.randomUUID(), "a.xlsx", workbook(1))).getResponse().getStatus())
+        .isEqualTo(404);
+  }
+
+  private byte[] workbook(int rows) throws Exception {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    Workbook wb = new Workbook(out, "Mission", "1.0");
+    Worksheet ws = wb.newWorksheet("Danh mục");
+    for (int c = 0; c < IMPORT_HEADER.size(); c++) {
+      ws.value(0, c, IMPORT_HEADER.get(c));
+    }
+    for (int i = 1; i <= rows; i++) {
+      ws.value(i, 1, "Soạn văn bản hướng dẫn số " + i);
+      ws.value(i, 2, i % 27 == 0 ? "" : "Văn bản");
+      ws.value(i, 3, "Bản");
+      ws.value(i, 4, 1 + i % 5);
+      ws.value(i, 5, 10 + i % 7);
+      ws.value(i, 6, "Đúng thể thức, đúng hạn");
+      ws.value(i, 7, "Văn bản đã ký");
+      ws.value(i, 8, i % 2 == 0 ? "Thường xuyên" : "Then chốt");
+      ws.value(i, 9, 5);
+    }
+    wb.finish();
+    return out.toByteArray();
+  }
+
+  private MockHttpServletRequestBuilder upload(UUID catalogId, String name, byte[] content) {
+    return multipart(BASE + "/" + catalogId + "/imports")
+        .file(new MockMultipartFile("file", name, XLSX, content))
+        .header("Idempotency-Key", UUID.randomUUID().toString());
+  }
+
+  private void seedImportCatalog() throws Exception {
+    PostgreSQLContainer<?> pg = MissionCoreTestDatabase.container();
+    try (Connection admin =
+            DriverManager.getConnection(pg.getJdbcUrl(), pg.getUsername(), pg.getPassword());
+        PreparedStatement ps =
+            admin.prepareStatement(
+                """
+                INSERT INTO task.work_catalog
+                  (id, tenant_id, created_by, updated_by, code, name, scope, version, version_no,
+                   source, status)
+                VALUES (?, ?, ?, ?, 'CV-NHAP', 'Chuyên viên tổng hợp', 'VI_TRI', 1, 1, 'TU_TAO',
+                        'NHAP')
+                """)) {
+      ps.setObject(1, importCatalog);
+      ps.setObject(2, tenant.value());
+      ps.setObject(3, actor);
+      ps.setObject(4, actor);
+      ps.executeUpdate();
+    }
+  }
+
+  private int itemCount() throws Exception {
+    PostgreSQLContainer<?> pg = MissionCoreTestDatabase.container();
+    try (Connection admin =
+            DriverManager.getConnection(pg.getJdbcUrl(), pg.getUsername(), pg.getPassword());
+        PreparedStatement ps =
+            admin.prepareStatement(
+                "SELECT count(*) FROM task.catalog_item WHERE work_catalog_id = ?")) {
+      ps.setObject(1, importCatalog);
+      try (ResultSet rs = ps.executeQuery()) {
+        rs.next();
+        return rs.getInt(1);
+      }
+    }
   }
 
   private String codes(UUID catalogId) throws Exception {
