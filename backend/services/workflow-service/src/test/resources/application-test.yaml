@@ -20,3 +20,8 @@ flowable:
 management:
   server:
     port: 8080
+
+# H2 không có jsonb, advisory lock: khung saga chỉ kiểm thử trên PostgreSQL thật (*IT).
+okrkpi:
+  saga:
+    enabled: false

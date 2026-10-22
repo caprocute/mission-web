@@ -187,6 +187,11 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>com.tngtech.archunit</groupId>
       <artifactId>archunit-junit5</artifactId>
       <scope>test</scope>
@@ -230,6 +235,63 @@
                 <interfaceOnly>true</interfaceOnly>
                 <useSpringBoot3>true</useSpringBoot3>
                 <useTags>true</useTags>
+                <openApiNullable>false</openApiNullable>
+                <annotationLibrary>none</annotationLibrary>
+                <documentationProvider>none</documentationProvider>
+                <useBeanValidation>true</useBeanValidation>
+                <skipDefaultInterface>true</skipDefaultInterface>
+              </configOptions>
+            </configuration>
+          </execution>
+          <!-- DV-06-05: interface riêng cho thao tác saga và getJob, để hiện thực từng phần hợp đồng. -->
+          <execution>
+            <id>workflow-saga-api</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${contract.dir}/modules/platform.yaml</inputSpec>
+              <generatorName>spring</generatorName>
+              <openapiNormalizer>FILTER=operationId:startPeriodCloseSaga</openapiNormalizer>
+              <apiPackage>vn.viettel.okrkpi.workflow.infrastructure.web.saga.api</apiPackage>
+              <modelPackage>vn.viettel.okrkpi.workflow.infrastructure.web.saga.model</modelPackage>
+              <generateSupportingFiles>false</generateSupportingFiles>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
+              <generateApiDocumentation>false</generateApiDocumentation>
+              <generateModelDocumentation>false</generateModelDocumentation>
+              <configOptions>
+                <interfaceOnly>true</interfaceOnly>
+                <useSpringBoot3>true</useSpringBoot3>
+                <useTags>false</useTags>
+                <openApiNullable>false</openApiNullable>
+                <annotationLibrary>none</annotationLibrary>
+                <documentationProvider>none</documentationProvider>
+                <useBeanValidation>true</useBeanValidation>
+                <skipDefaultInterface>true</skipDefaultInterface>
+              </configOptions>
+            </configuration>
+          </execution>
+          <execution>
+            <id>jobs-api</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${contract.dir}/modules/jobs.yaml</inputSpec>
+              <generatorName>spring</generatorName>
+              <openapiNormalizer>FILTER=operationId:getJob</openapiNormalizer>
+              <apiPackage>vn.viettel.okrkpi.workflow.infrastructure.web.jobs.api</apiPackage>
+              <modelPackage>vn.viettel.okrkpi.workflow.infrastructure.web.jobs.model</modelPackage>
+              <generateSupportingFiles>false</generateSupportingFiles>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
+              <generateApiDocumentation>false</generateApiDocumentation>
+              <generateModelDocumentation>false</generateModelDocumentation>
+              <configOptions>
+                <interfaceOnly>true</interfaceOnly>
+                <useSpringBoot3>true</useSpringBoot3>
+                <useTags>false</useTags>
                 <openApiNullable>false</openApiNullable>
                 <annotationLibrary>none</annotationLibrary>
                 <documentationProvider>none</documentationProvider>

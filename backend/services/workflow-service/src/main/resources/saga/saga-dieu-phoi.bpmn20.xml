@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DV-06-05 · ADR-04 tầng 3 · TL-01 "Thiết kế ba tầng điều phối".
+  Mẫu BPMN chung cho mọi saga: mỗi lượt là một external worker task (topic saga-buoc). Worker của
+  workflow-service lấy lượt, làm đúng một việc kế tiếp theo flowable.saga_step (bước, bù trừ, bỏ qua
+  bù trừ) rồi hoàn thành lượt với biến sagaNext: TIEP (lượt mới), CHO (dừng ở nút chờ tới khi có trả
+  lời hoặc lệnh điều khiển), XONG (kết thúc). Engine không chờ hệ ngoài trong giao dịch của nó.
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="https://okrkpi.vn/bpmn/saga">
+  <process id="saga-dieu-phoi" name="Điều phối quy trình nền nhiều bước" isExecutable="true">
+    <startEvent id="batDau"/>
+    <sequenceFlow id="f-bat-dau" sourceRef="batDau" targetRef="thucHienLuot"/>
+
+    <serviceTask id="thucHienLuot" name="Thực hiện bước" flowable:type="external-worker"
+                 flowable:topic="saga-buoc"/>
+    <sequenceFlow id="f-luot" sourceRef="thucHienLuot" targetRef="reNhanh"/>
+
+    <exclusiveGateway id="reNhanh" name="Việc kế tiếp"/>
+    <sequenceFlow id="f-tiep" sourceRef="reNhanh" targetRef="thucHienLuot">
+      <conditionExpression xsi:type="tFormalExpression"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><![CDATA[${sagaNext == 'TIEP'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-cho" sourceRef="reNhanh" targetRef="choSuKien">
+      <conditionExpression xsi:type="tFormalExpression"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><![CDATA[${sagaNext == 'CHO'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-xong" sourceRef="reNhanh" targetRef="ketThuc">
+      <conditionExpression xsi:type="tFormalExpression"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><![CDATA[${sagaNext == 'XONG'}]]></conditionExpression>
+    </sequenceFlow>
+
+    <receiveTask id="choSuKien" name="Chờ sự kiện hoặc lệnh điều khiển"/>
+    <sequenceFlow id="f-danh-thuc" sourceRef="choSuKien" targetRef="thucHienLuot"/>
+
+    <endEvent id="ketThuc"/>
+  </process>
+</definitions>
