@@ -1,1 +1,24 @@
 code,name,level,is_central_managed,subject_group_code,valid_from,valid_to,nguon,ghi_chu
+CD-TW-01,"Bí thư tỉnh ủy, thành ủy",1,true,K2,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-TW-02,"Phó Bí thư thường trực tỉnh ủy, thành ủy",2,true,K2,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-TW-03,Trưởng ban của Đảng ở Trung ương,1,true,K1,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-TW-04,Phó Trưởng ban của Đảng ở Trung ương,2,true,K1,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-TW-05,"Bộ trưởng, Thủ trưởng cơ quan ngang bộ",1,true,K5,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-TW-06,"Thứ trưởng, Phó Thủ trưởng cơ quan ngang bộ",2,true,K5,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-TW-07,Chủ tịch Ủy ban nhân dân cấp tỉnh,1,true,K6,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-TW-08,Chủ tịch Hội đồng nhân dân cấp tỉnh,1,true,K6,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-TW-09,Người đứng đầu tổ chức chính trị - xã hội ở Trung ương,1,true,K4,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-TW-10,Chủ tịch Hội đồng thành viên tập đoàn kinh tế nhà nước,1,true,K9,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-01,"Trưởng ban, cơ quan tham mưu của tỉnh ủy",3,false,K2,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-02,Bí thư đảng ủy cấp xã,4,false,K3,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-03,Phó Bí thư đảng ủy cấp xã,5,false,K3,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-04,Vụ trưởng và tương đương,3,false,K5,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-05,Phó Vụ trưởng và tương đương,4,false,K5,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-06,Giám đốc sở và tương đương,3,false,K6,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-07,Phó Giám đốc sở và tương đương,4,false,K6,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-08,Chủ tịch Ủy ban nhân dân cấp xã,4,false,K7,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-09,Phó Chủ tịch Ủy ban nhân dân cấp xã,5,false,K7,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-10,Người đứng đầu đơn vị sự nghiệp công lập,4,false,K8,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-11,Trưởng phòng và tương đương,5,false,,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-12,Phó Trưởng phòng và tương đương,6,false,,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
+CD-13,Chuyên viên và tương đương,7,false,,2026-01-01,,Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2B,giả lập
