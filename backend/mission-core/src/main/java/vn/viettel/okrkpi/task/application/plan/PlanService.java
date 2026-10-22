@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -15,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.okr.api.OkrApi;
+import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
+import vn.viettel.okrkpi.policy.api.PolicyQueryApi.ResolvedPack;
 import vn.viettel.okrkpi.replica.api.AssignmentView;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 import vn.viettel.okrkpi.shared.error.BusinessException;
@@ -22,6 +25,9 @@ import vn.viettel.okrkpi.shared.error.ProblemFieldError;
 import vn.viettel.okrkpi.shared.error.VersionConflictException;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
+import vn.viettel.okrkpi.task.application.catalog.CatalogPolicy;
+import vn.viettel.okrkpi.task.application.plan.PlanChecker.Check;
+import vn.viettel.okrkpi.task.application.plan.PlanChecker.GroupWeight;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.ApprovedItemRow;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.Assignee;
@@ -51,20 +57,41 @@ public class PlanService {
   /** Đơn vị tính mặc định của dòng gợi ý từ KR (suy luận). */
   static final String DEFAULT_UNIT = "sản phẩm";
 
+  /** Nhiệm vụ không mang luồng: dò gói Nhà nước rồi Đảng như bảng chuyển trạng thái (suy luận). */
+  static final List<String> FLOWS = List.of("NHA_NUOC", "DANG");
+
   private final PlanRepository plans;
   private final PeriodApi periods;
   private final OkrApi okr;
   private final OrgDirectoryApi org;
+  private final PlanChecker checker;
+  private final PolicyQueryApi policies;
+  private final CatalogPolicy catalogPolicy;
   private final Clock clock;
 
   public PlanService(
-      PlanRepository plans, PeriodApi periods, OkrApi okr, OrgDirectoryApi org, Clock clock) {
+      PlanRepository plans,
+      PeriodApi periods,
+      OkrApi okr,
+      OrgDirectoryApi org,
+      PlanChecker checker,
+      PolicyQueryApi policies,
+      CatalogPolicy catalogPolicy,
+      Clock clock) {
     this.plans = Objects.requireNonNull(plans, "plans");
     this.periods = Objects.requireNonNull(periods, "periods");
     this.okr = Objects.requireNonNull(okr, "okr");
     this.org = org;
+    this.checker = Objects.requireNonNull(checker, "checker");
+    this.policies = policies;
+    this.catalogPolicy = catalogPolicy == null ? CatalogPolicy.defaults() : catalogPolicy;
     this.clock = Objects.requireNonNull(clock, "clock");
   }
+
+  /**
+   * Nhóm điểm áp cho kế hoạch và gói Policy Pack đã cho ra nhóm, {@code null} khi dùng mặc định.
+   */
+  public record Groups(List<GroupWeight> weights, ResolvedPack pack, String flow) {}
 
   /** Kế hoạch kèm kỳ, phiên bản mới nhất, phiên bản hiệu lực và kỳ trước có kế hoạch đã duyệt. */
   public record PlanView(
@@ -77,7 +104,12 @@ public class PlanService {
 
   /** Phiên bản kèm dòng. */
   public record VersionView(
-      PlanRow plan, PeriodSnapshot period, VersionRow version, List<ItemRow> items) {}
+      PlanRow plan,
+      PeriodSnapshot period,
+      VersionRow version,
+      List<ItemRow> items,
+      List<PlanChecker.Check> checks,
+      Groups groups) {}
 
   /** Dòng đã duyệt kèm kỳ để dựng mã kế hoạch. */
   public record ApprovedItem(ApprovedItemRow row, PeriodSnapshot period) {}
@@ -116,12 +148,10 @@ public class PlanService {
     PlanRow plan = plan(tenant, planId);
     periods.assertWritable(tenant, PeriodId.of(plan.periodId()));
     VersionRow version = editable(tenant, plan, versionNo, expectedVersion, PlanCommand.SAVE);
-    Map<UUID, CatalogRow> catalog =
-        plans.catalogItems(
-            tenant, drafts.stream().map(ItemRow::catalogItemId).filter(Objects::nonNull).toList());
+    Map<UUID, CatalogRow> catalog = catalog(tenant, drafts);
     List<ItemRow> items = new ArrayList<>(drafts.size());
     for (ItemRow d : drafts) {
-      items.add(numbered(d, items.size() + 1, catalog));
+      items.add(storable(resolved(d, items.size() + 1, catalog)));
     }
     plans.replaceItems(tenant, plan, version, items, actor);
     return version(tenant, planId, versionNo);
@@ -282,8 +312,96 @@ public class PlanService {
             .filter(x -> x.versionNo() == versionNo)
             .findFirst()
             .orElseThrow(NoSuchElementException::new);
+    PeriodSnapshot period = period(tenant, plan.periodId());
+    List<ItemRow> items = plans.items(tenant, plan.periodBucket(), v.id());
+    Groups groups = groups(tenant, plan);
     return new VersionView(
-        plan, period(tenant, plan.periodId()), v, plans.items(tenant, plan.periodBucket(), v.id()));
+        plan,
+        period,
+        v,
+        items,
+        checker.check(items, context(tenant, plan, period, groups)),
+        groups);
+  }
+
+  /**
+   * Kiểm tra tức thì các dòng chưa lưu (BR-04-02..07), không ghi CSDL; dòng thuộc danh mục lấy điểm
+   * từ danh mục như khi lưu.
+   */
+  @Transactional(transactionManager = TX, readOnly = true)
+  public List<Check> check(TenantId tenant, UUID planId, int versionNo, List<ItemRow> drafts) {
+    PlanRow plan = plan(tenant, planId);
+    plans.versions(tenant, plan.periodBucket(), planId).stream()
+        .filter(x -> x.versionNo() == versionNo)
+        .findFirst()
+        .orElseThrow(NoSuchElementException::new);
+    Map<UUID, CatalogRow> catalog = catalog(tenant, drafts);
+    List<ItemRow> items = new ArrayList<>(drafts.size());
+    for (ItemRow d : drafts) {
+      items.add(resolved(d, items.size() + 1, catalog));
+    }
+    PeriodSnapshot period = period(tenant, plan.periodId());
+    return checker.check(items, context(tenant, plan, period, groups(tenant, plan)));
+  }
+
+  /** Nhóm điểm từ tham số {@code nhom} của Policy Pack mà kỳ đã ghim, mặc định 30/70. */
+  Groups groups(TenantId tenant, PlanRow plan) {
+    if (policies != null) {
+      for (String flow : FLOWS) {
+        Optional<ResolvedPack> pack =
+            policies.resolve(tenant, PeriodId.of(plan.periodId()), flow, null, null);
+        if (pack.isPresent()) {
+          List<GroupWeight> weights =
+              policies
+                  .parameter(tenant, pack.get().versionId(), "nhom")
+                  .map(PlanService::weights)
+                  .orElse(PlanChecker.DEFAULT_GROUPS);
+          return new Groups(weights, pack.get(), flow);
+        }
+      }
+    }
+    return new Groups(PlanChecker.DEFAULT_GROUPS, null, null);
+  }
+
+  private PlanChecker.Context context(
+      TenantId tenant, PlanRow plan, PeriodSnapshot period, Groups groups) {
+    List<PlanChecker.KeyResultRef> krs =
+        okr
+            .listApprovedKeyResults(tenant, PeriodId.of(plan.periodId()), plan.ownerUnitId())
+            .stream()
+            .map(k -> new PlanChecker.KeyResultRef(k.id(), k.title()))
+            .toList();
+    return new PlanChecker.Context(
+        period.startDate(),
+        period.endDate(),
+        catalogPolicy.vagueWords(tenant),
+        groups.weights(),
+        krs);
+  }
+
+  /** {@code params.nhom}: danh sách {@code {ma, diem_toi_da, nhom_nhiem_vu}}. */
+  static List<GroupWeight> weights(Object value) {
+    if (!(value instanceof Collection<?> rows) || rows.isEmpty()) {
+      return PlanChecker.DEFAULT_GROUPS;
+    }
+    List<GroupWeight> out = new ArrayList<>();
+    for (Object row : rows) {
+      if (!(row instanceof Map<?, ?> m) || m.get("ma") == null || m.get("diem_toi_da") == null) {
+        return PlanChecker.DEFAULT_GROUPS;
+      }
+      Set<String> taskGroups = new java.util.LinkedHashSet<>();
+      if (m.get("nhom_nhiem_vu") instanceof Collection<?> gs) {
+        gs.forEach(g -> taskGroups.add(String.valueOf(g)));
+      } else {
+        taskGroups.add(String.valueOf(m.get("ma")));
+      }
+      out.add(
+          new GroupWeight(
+              String.valueOf(m.get("ma")),
+              new BigDecimal(String.valueOf(m.get("diem_toi_da"))),
+              Set.copyOf(taskGroups)));
+    }
+    return out;
   }
 
   @Transactional(transactionManager = TX, readOnly = true)
@@ -350,31 +468,21 @@ public class PlanService {
     return version;
   }
 
-  private static ItemRow numbered(ItemRow d, int itemNo, Map<UUID, CatalogRow> catalog) {
+  private Map<UUID, CatalogRow> catalog(TenantId tenant, List<ItemRow> drafts) {
+    return plans.catalogItems(
+        tenant, drafts.stream().map(ItemRow::catalogItemId).filter(Objects::nonNull).toList());
+  }
+
+  /**
+   * Dòng có số thứ tự; dòng thuộc danh mục lấy điểm, mức khó, đơn vị tính, sản phẩm từ danh mục,
+   * dòng ngoài danh mục để trống điểm cho bước duyệt (BR-04-05).
+   */
+  private static ItemRow resolved(ItemRow d, int itemNo, Map<UUID, CatalogRow> catalog) {
     CatalogRow c = d.catalogItemId() == null ? null : catalog.get(d.catalogItemId());
     if (d.catalogItemId() != null && c == null) {
-      throw new BusinessException(
-          VALIDATION,
-          "Công việc không có trong danh mục áp dụng",
-          List.of(
-              new ProblemFieldError(
-                  "items[" + (itemNo - 1) + "].catalogItemId",
-                  "Mục danh mục không tồn tại",
-                  null)));
+      throw invalid(
+          "items[" + (itemNo - 1) + "].catalogItemId", "Công việc không có trong danh mục áp dụng");
     }
-    String unit = c == null ? d.unit() : c.unit();
-    String field = "items[" + (itemNo - 1) + "]";
-    if (d.lead() == null || d.lead().id() == null) {
-      throw invalid(field + ".leadAssignee", "Chọn một chủ trì duy nhất");
-    }
-    if (d.quantity() == null || d.quantity().signum() <= 0) {
-      throw invalid(field + ".quantity", "Khối lượng phải lớn hơn 0");
-    }
-    if (unit == null || unit.isBlank()) {
-      throw invalid(field + ".unit", "Nhập đơn vị tính");
-    }
-    // Dòng thuộc danh mục lấy điểm, mức khó, đơn vị tính từ danh mục; dòng ngoài danh mục để trống
-    // điểm cho bước duyệt (BR-04-05).
     return new ItemRow(
         d.id() == null ? UUID.randomUUID() : d.id(),
         itemNo,
@@ -387,13 +495,37 @@ public class PlanService {
         d.coAssignees() == null ? List.of() : d.coAssignees(),
         c == null ? d.productName() : c.productName(),
         d.quantity(),
-        unit,
+        c == null ? d.unit() : c.unit(),
         c == null ? null : c.difficulty(),
         c == null ? null : c.standardScore(),
         d.dueDate(),
         d.originItemId(),
         d.changeReason(),
         d.recurrence());
+  }
+
+  /**
+   * Bản nháp lưu được dù còn lỗi chặn của BR-04-02..07; chỉ từ chối giá trị mà bảng {@code
+   * task.plan_item} không giữ được (thiếu chủ trì, nội dung, hạn, đơn vị tính, khối lượng ≤ 0).
+   */
+  private static ItemRow storable(ItemRow i) {
+    String field = "items[" + (i.itemNo() - 1) + "]";
+    if (i.lead() == null || i.lead().id() == null) {
+      throw invalid(field + ".leadAssignee", "Chọn một chủ trì duy nhất");
+    }
+    if (i.title() == null || i.title().isBlank()) {
+      throw invalid(field + ".title", "Nhập nội dung công việc");
+    }
+    if (i.quantity() == null || i.quantity().signum() <= 0) {
+      throw invalid(field + ".quantity", "Khối lượng phải lớn hơn 0");
+    }
+    if (i.unit() == null || i.unit().isBlank()) {
+      throw invalid(field + ".unit", "Nhập đơn vị tính");
+    }
+    if (i.dueDate() == null) {
+      throw invalid(field + ".dueDate", "Nhập hạn hoàn thành");
+    }
+    return i;
   }
 
   private static BusinessException invalid(String field, String message) {

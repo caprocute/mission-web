@@ -122,7 +122,15 @@ class PlanServiceTest {
       };
 
   private final PlanService service =
-      new PlanService(repo, periods, okr, org, Clock.fixed(Instant.EPOCH, ZoneOffset.UTC));
+      new PlanService(
+          repo,
+          periods,
+          okr,
+          org,
+          new PlanChecker(new vn.viettel.okrkpi.cel.application.CelEngine()),
+          null,
+          null,
+          Clock.fixed(Instant.EPOCH, ZoneOffset.UTC));
 
   @Test
   void taoKeHoachVaTrungTra409() {

@@ -256,6 +256,31 @@ class PlanApiIT extends ContractConformanceTest {
     assertThat(suggestions).hasSize(2);
     assertThat(suggestions.get(0).get("keyResultId").asText()).isEqualTo(krs.get(1).toString());
 
+    // Kiểm tra tức thì (CORE-02-06): dòng mơ hồ thiếu đơn vị tính bị chặn, không ghi CSDL.
+    List<Map<String, Object>> draft = lines(2);
+    draft.get(0).put("title", "Tăng cường công tác tuyên truyền");
+    draft.get(0).put("unit", "");
+    MvcResult checked =
+        perform(
+            post("/api/v1/plans/" + id + "/versions/1/check")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("items", draft))));
+    assertThat(checked.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(checked, "/plans/{id}/versions/{v}/check", PathItem.HttpMethod.POST);
+    List<String> blocked = new ArrayList<>();
+    body(checked)
+        .get("checks")
+        .forEach(
+            c -> {
+              if (c.get("level").asText().equals("CHAN")) {
+                blocked.add(c.get("rule").asText() + "@" + c.get("lineNo").asInt());
+              }
+            });
+    assertThat(blocked).containsExactlyInAnyOrder("BR-04-03@1", "BR-04-04@1");
+    assertThat(body(checked).get("checks").findValuesAsText("msg")).contains("MSG-04-04");
+    assertThat(perform(get("/api/v1/plans/" + id + "/versions/1")).getResponse().getHeader("ETag"))
+        .isEqualTo("\"1\"");
+
     assertThat(perform(save(id, null, lines(3))).getResponse().getStatus()).isEqualTo(428);
     long[] ms = new long[20];
     MvcResult saved = null;
@@ -270,6 +295,10 @@ class PlanApiIT extends ContractConformanceTest {
     assertResponseConforms(saved, "/plans/{id}/versions/{v}", PathItem.HttpMethod.PUT);
     assertThat(body(saved).get("items")).hasSize(300);
     assertThat(body(saved).get("items").get(299).get("lineNo").asInt()).isEqualTo(300);
+    assertThat(body(saved).get("groupWeights").get("THEN_CHOT").decimalValue())
+        .isEqualByComparingTo("70");
+    // Việc ngoài danh mục chưa có điểm: BR-04-05 cảnh báo, không chặn.
+    assertThat(body(saved).get("checks").findValuesAsText("level")).doesNotContain("CHAN");
 
     MvcResult versions = perform(get("/api/v1/plans/" + id + "/versions"));
     assertResponseConforms(versions, "/plans/{id}/versions", PathItem.HttpMethod.GET);
