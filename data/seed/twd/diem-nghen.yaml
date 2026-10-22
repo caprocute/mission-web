@@ -1,0 +1,170 @@
+# Bộ quy tắc cảnh báo twd/diem-nghen của hồ sơ TWĐ (DL-16; BS-03 "Hồ sơ TWĐ" mục 5). GIẢ LẬP theo YC-PT-14.
+# Nguồn: UEB-BTCTW-QTCV-02 v1.2 mục 11.6 (chín quy tắc), 4.4 (NR06, NR11), Phụ lục B.6, TK-16.
+#
+# Hợp đồng giữa bộ quy tắc và lõi. BS-03 chưa giao task cho job tự sinh; suy luận là thuộc phạm vi điểm nghẽn của
+# CORE-02-20 (ghi thành phát hiện ở wiki 14):
+# - Job của lõi chạy theo `thoi_diem_xet`, dựng ngữ cảnh `muc` (kiểu MucTheoDoi) cho từng mục đang mở, đánh giá
+#   `dieu_kien` bằng vt-cel, khớp thì ghi `task.task_blocker` với origin = TU_DONG, rule_code = `ma`; khoá
+#   idempotent (task_id, rule_code, ngày chạy). Không sinh trùng khi bản ghi cùng mục, cùng quy tắc còn mở.
+# - Bản ghi tự đóng ("tự đóng do hết điều kiện") khi `dieu_kien` không còn đúng, trừ quy tắc có
+#   `tu_dong_khi_het_dieu_kien: false` (đóng theo luồng 4.4 sau khi Đã xử lý `tham_so.so_ngay_tu_dong` ngày làm việc).
+# - Mọi số, mốc, giờ chạy và cờ bật tắt là tham số có phiên bản theo kỳ, đặt theo khung kế thừa (DC-02); lõi không
+#   viết cứng giá trị nào. `ngay_lam_viec` do lõi tính theo lịch làm việc của tenant, không dùng now().
+# - `nguoi_nhan` là vai trò tương đối với mục (lõi phân giải theo cây và bảng phân công); `bao_kem_tu_muc` thêm người
+#   nhận khi bản ghi đạt mức đó. Mẫu nội dung dùng biến {chuc_danh_nguoi_nhan} theo TK-16 điểm b.
+apiVersion: policy.okrkpi.vn/v1
+kind: AlertRuleSet
+metadata:
+  id: twd/diem-nghen
+  version: 0.1.0
+  gia_lap: true
+  ghi_chu_gia_lap: "Thí điểm – dùng để đối chiếu; các số là giá trị thí điểm của bộ cấu hình mẫu (Phụ lục B.6)."
+  can_cu: ["UEB-BTCTW-QTCV-02 v1.2 mục 11.6, 4.4, Phụ lục B.6"]
+
+types:
+  MucTheoDoi:
+    loai: string                      # O_NAM, KR_NAM, KR, NV, KPI, CV, CVC, NVTX
+    trang_thai: string                # task.task.status chuẩn: DA_GIAO, DANG_THUC_HIEN, CHO_NGHIEM_THU, HOAN_THANH, HUY...
+    khong_hoan_thanh: bool            # đã chốt "Không hoàn thành" (chưa có trạng thái chuẩn, xem CHANGELOG gói)
+    da_chuyen_ky: bool                # deferredByDecision (DC-01)
+    co_viec_con: bool
+    la_viec_la: bool
+    so_viec_con_chua_xong: int
+    diem_da_lam_chua_tinh: double     # tổng điểm công việc của việc con đã xong khi việc cha chưa xong
+    khoi_luong_hoan_thanh: double     # F17, 0..1
+    co_ngay_bat_dau: bool
+    ty_le_thoi_gian_da_qua: double    # ngày làm việc từ F13 tới hết ngày xét ÷ ngày làm việc F13..F14
+    da_qua_han: bool
+    kieu_do: string                   # SO_LUONG, TY_LE, MOC
+    da_xac_nhan_so_thuc_te: bool
+    dat_chi_tieu: bool
+    moi_viec_ben_duoi_xong: bool
+    viec_truoc_qua_han: bool          # F39: có việc đứng trước đã quá hạn
+    dang_cho_viec_truoc: bool
+    so_ngay_cho_duyet: int            # ngày làm việc đề nghị hoặc xác nhận đang chờ (8.3)
+    cho_nhap_ket_qua: bool            # trạng thái Chờ nhập kết quả đo (T3a)
+    so_ngay_cho_nhap_ket_qua: int     # ngày chuyển trạng thái là ngày thứ 1
+
+inputs:
+  muc: {type: MucTheoDoi, source: task.alert.tracked_item}
+
+params:
+  gio_chay: {type: string, default: "08:00", pham_vi: TOAN_HE_THONG}
+  so_ngay_xu_ly_mac_dinh: {type: int, default: 5, min: 1}          # NR11
+  so_ngay_tu_dong: {type: int, default: 3, min: 1}                 # B.6 dòng 5
+  q2: {type: map, default: {moc_1: 0.50, moc_2: 0.30}}             # mốc 1: tỷ lệ thời gian; mốc 2: chênh điểm %
+  q4: {type: map, default: {so_ngay_truoc_han: 3}}
+  q6: {type: map, default: {so_ngay_cho_toi_da: 5, ngay_nhac: 3}}
+  q9: {type: map, default: {ngay_bat_dau: 2, nang_trung_binh: 5, nang_cao: 8, chu_ky_nhac: 2}}
+  bat: {type: map, default: {Q1: true, Q2: true, Q3: true, Q5: true, Q6: true, Q7: true, Q9: true}}
+
+quy_tac:
+  - ma: TWD-DN-01
+    so: 1
+    ten: "Điểm nghẽn công việc con"
+    thoi_diem_xet: KHI_DOI_KHOI_LUONG
+    sinh_ban_ghi: true
+    bat: tham_so.bat.Q1
+    dieu_kien: "muc.loai == 'CV' && muc.co_viec_con && muc.khoi_luong_hoan_thanh > 0.0 && muc.khoi_luong_hoan_thanh < 1.0"
+    ban_ghi: {loai: DIEM_NGHEN, muc_do: "'TRUNG_BINH'", nguyen_nhan: KHAC}
+    nguoi_nhan: {chu_the: NGUOI_PHU_TRACH_MUC_CHA, thay_khi_giao_thang: NGUOI_GIAO, bao_kem: [CAP_TRUONG_DON_VI]}
+    hien_o_truong: F42
+    mau_noi_dung: "Điểm nghẽn: còn {so_viec_con_chua_xong} công việc con chưa xong; {diem_da_lam_chua_tinh} điểm đã làm nhưng chưa được tính. {chuc_danh_nguoi_nhan} cần xử lý."
+    mau_khi_chua_co_viec_con_xong: "Chưa công việc con nào xong."
+
+  - ma: TWD-DN-02
+    so: 2
+    ten: "Nguy cơ chậm tiến độ"
+    thoi_diem_xet: HANG_NGAY
+    sinh_ban_ghi: true
+    bat: tham_so.bat.Q2
+    dieu_kien: >-
+      muc.loai in ['KR_NAM', 'KR', 'NV', 'KPI', 'CV', 'NVTX'] && muc.co_ngay_bat_dau && !muc.la_viec_la
+      && muc.trang_thai != 'HOAN_THANH'
+      && muc.ty_le_thoi_gian_da_qua >= tham_so.q2.moc_1
+      && muc.ty_le_thoi_gian_da_qua - muc.khoi_luong_hoan_thanh >= tham_so.q2.moc_2
+    ban_ghi: {loai: RUI_RO, muc_do: "'TRUNG_BINH'", nguyen_nhan: KHAC}
+    nguoi_nhan: {chu_the: NGUOI_PHU_TRACH_MUC, thay_cho_cv_co_con: NGUOI_CHU_TRI, bao_kem: [NGUOI_PHU_TRACH_MUC_CHA]}
+    mau_noi_dung: "Nguy cơ chậm tiến độ: đã qua {ty_le_thoi_gian_da_qua} thời gian, khối lượng hoàn thành {khoi_luong_hoan_thanh}."
+
+  - ma: TWD-DN-03
+    so: 3
+    ten: "Quá hạn chưa hoàn thành"
+    thoi_diem_xet: HANG_NGAY
+    sinh_ban_ghi: true
+    bat: tham_so.bat.Q3
+    dieu_kien: "muc.da_qua_han && muc.trang_thai != 'HOAN_THANH' && muc.trang_thai != 'HUY' && !muc.khong_hoan_thanh && !muc.da_chuyen_ky"
+    ban_ghi: {loai: DIEM_NGHEN, muc_do: "muc.loai in ['KR', 'KR_NAM'] ? 'CAO' : 'TRUNG_BINH'", nguyen_nhan: KHAC}
+    nguoi_nhan: {chu_the: NGUOI_PHU_TRACH_MUC_CHA, thay_cho_cong_viec: NGUOI_XAC_NHAN, khi_khong_co_muc_cha: NGUOI_PHU_TRACH_MUC}
+    hien_gop: {theo: VIEC_GOC_CUNG_NGAY, mau: "{ma_viec_goc} {tieu_de_viec_goc} quá hạn – kéo theo {so_muc} mục cấp trên"}   # TK-16 điểm a
+    mau_noi_dung: "Quá hạn chưa hoàn thành."
+
+  - ma: TWD-DN-04
+    so: 4
+    ten: "Sắp đến hạn"
+    thoi_diem_xet: HANG_NGAY
+    sinh_ban_ghi: false               # chỉ là thông báo nhắc việc (9.5)
+    thong_bao: {so_ngay_truoc_han: tham_so.q4.so_ngay_truoc_han, nguoi_nhan: NGUOI_THUC_HIEN}
+
+  - ma: TWD-DN-05
+    so: 5
+    ten: "Phải chờ việc đứng trước"
+    thoi_diem_xet: HANG_NGAY
+    sinh_ban_ghi: true
+    bat: tham_so.bat.Q5
+    dieu_kien: "muc.viec_truoc_qua_han && muc.dang_cho_viec_truoc"
+    ban_ghi: {loai: DIEM_NGHEN, muc_do: "'TRUNG_BINH'", nguyen_nhan: CHO_PHOI_HOP}
+    nguoi_nhan: {chu_the: NGUOI_PHU_TRACH_MUC_CHA_CUA_VIEC_TRUOC}
+    mau_noi_dung: "Đang chờ việc đứng trước đã quá hạn."
+
+  - ma: TWD-DN-06
+    so: 6
+    ten: "Chờ duyệt, chờ xác nhận quá hạn"
+    thoi_diem_xet: HANG_NGAY
+    sinh_ban_ghi: true
+    bat: tham_so.bat.Q6
+    dieu_kien: "muc.so_ngay_cho_duyet > tham_so.q6.so_ngay_cho_toi_da"
+    ban_ghi: {loai: DIEM_NGHEN, muc_do: "'TRUNG_BINH'", nguyen_nhan: CHO_Y_KIEN_CAP_CO_THAM_QUYEN}
+    nguoi_nhan: {chu_the: CAP_TREN_TRUC_TIEP_CUA_NGUOI_DUYET}
+    nhac_tu_ngay: tham_so.q6.ngay_nhac
+    mau_noi_dung: "Đề nghị, xác nhận đã chờ quá {so_ngay_cho_duyet} ngày làm việc."
+
+  - ma: TWD-DN-07
+    so: 7
+    ten: "Đã xong việc mà chưa đạt chỉ tiêu"
+    thoi_diem_xet: KHI_XAC_NHAN_SO_THUC_TE
+    sinh_ban_ghi: true
+    bat: tham_so.bat.Q7
+    tu_dong_khi_het_dieu_kien: false  # điều kiện không tự hết sau khi đã xác nhận "Hoàn thành, không đạt chỉ tiêu"
+    dieu_kien: "muc.loai in ['KR', 'KPI'] && muc.kieu_do in ['SO_LUONG', 'TY_LE'] && muc.moi_viec_ben_duoi_xong && muc.da_xac_nhan_so_thuc_te && !muc.dat_chi_tieu"
+    ban_ghi: {loai: RUI_RO, muc_do: "'CAO'", nguyen_nhan: KHAC}
+    nguoi_nhan: {chu_the: NGUOI_PHU_TRACH_MUC}
+    mau_noi_dung: "Mọi việc bên dưới đã xong nhưng chưa đạt chỉ tiêu; cần rà soát phân rã việc."
+
+  - ma: TWD-DN-08
+    so: 8
+    ten: "Cảnh báo kiểm soát dữ liệu"
+    thoi_diem_xet: HANG_NGAY
+    sinh_ban_ghi: false               # hiện ở khối Kiểm soát của bảng điều hành (11.10), không ghi task_blocker
+    canh_bao: [KR_DAT_MA_VIEC_CON_DO, TU_KIEM_SO_DO, MUC_KHO_VUOT_NGUONG, DIEM_GIAO_THAP, TY_TRONG_BAT_THUONG, CHUA_DUOC_GIAO_VIEC]
+
+  - ma: TWD-DN-09
+    so: 9
+    ten: "Chờ nhập kết quả đo"
+    thoi_diem_xet: HANG_NGAY
+    sinh_ban_ghi: true
+    bat: tham_so.bat.Q9
+    dieu_kien: "muc.loai in ['KR', 'KPI'] && muc.cho_nhap_ket_qua && muc.so_ngay_cho_nhap_ket_qua >= tham_so.q9.ngay_bat_dau"
+    ban_ghi:
+      loai: DIEM_NGHEN
+      nguyen_nhan: KHAC
+      # Mức chỉ do số ngày chờ quyết định, không ai sửa tay; mỗi lần nâng có lưu vết và báo người nhận mức mới.
+      muc_do: >-
+        muc.so_ngay_cho_nhap_ket_qua >= tham_so.q9.nang_cao ? 'CAO'
+        : (muc.so_ngay_cho_nhap_ket_qua >= tham_so.q9.nang_trung_binh ? 'TRUNG_BINH' : 'THAP')
+    nguoi_nhan:
+      chu_the: NGUOI_PHU_TRACH_MUC
+      bao_kem: [NGUOI_DUOC_PHAN_CONG_NHAP]
+      bao_kem_tu_muc: {TRUNG_BINH: [NGUOI_XAC_NHAN_MUC]}
+    nhac_lai_moi: tham_so.q9.chu_ky_nhac
+    mau_noi_dung: "Chưa nhập kết quả đo sau {so_ngay_cho_nhap_ket_qua} ngày làm việc."
