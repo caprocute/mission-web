@@ -66,7 +66,7 @@ class S3ObjectLockIT {
 
   @Test
   void bucketKhoaComplianceVaKhongXoaDuocTruocHan() throws NoSuchAlgorithmException {
-    S3ObjectStorage storage = new S3ObjectStorage(s3);
+    S3ObjectStorage storage = new S3ObjectStorage(s3, null);
     TenantBucketService buckets = new TenantBucketService(storage, "dev", 1);
     UUID tenant = UUID.randomUUID();
 

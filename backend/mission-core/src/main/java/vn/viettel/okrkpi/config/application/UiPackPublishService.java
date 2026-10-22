@@ -80,6 +80,7 @@ public class UiPackPublishService implements UiPackCompatibilityApi {
   private final TransactionOperations writes;
   private PolicySchemaPort schemas;
   private FormSchemaService forms;
+  private PluginManifestService plugins;
   private final CelEngine cel =
       new CelEngine(StaticWorkingCalendar.weekendsOnly(), LayoutValidator.VISIBLE_WHEN_LIMITS);
 
@@ -189,6 +190,9 @@ public class UiPackPublishService implements UiPackCompatibilityApi {
       UiPackService.expect(v, expectedVersion);
       Instant at = clock.instant().truncatedTo(ChronoUnit.MICROS);
       ObjectNode body = runtimeBody(pack, v);
+      // Manifest plugin kiểm lại lúc phát hành rồi chốt vào phiên bản cùng băm đã ký (BR-18-12).
+      body.set("plugins", plugins == null ? json.createArrayNode() : plugins.manifest(tenantId));
+      String pluginsJson = json.writeValueAsString(body.get("plugins"));
       byte[] canonical = compiler.canonical(body);
       String sha = HexFormat.of().formatHex(sha256(canonical));
       String signature = Base64.getEncoder().encodeToString(signer.sign(canonical));
@@ -217,7 +221,15 @@ public class UiPackPublishService implements UiPackCompatibilityApi {
       writes.executeWithoutResult(
           s ->
               commit(
-                  tenantId, packId, version, reviewer, at, sha, prefix + "pack.json", signature));
+                  tenantId,
+                  packId,
+                  version,
+                  reviewer,
+                  at,
+                  sha,
+                  prefix + "pack.json",
+                  signature,
+                  pluginsJson));
       jobs.passed(
           tenantId,
           jobId,
@@ -244,12 +256,13 @@ public class UiPackPublishService implements UiPackCompatibilityApi {
       Instant at,
       String sha,
       String key,
-      String signature) {
+      String signature,
+      String pluginsJson) {
     UiPack pack = repo.findPack(tenantId, packId).orElseThrow();
     UiPackVersion current = repo.findVersion(tenantId, packId, version).orElseThrow();
     UiPackVersion next;
     try {
-      next = current.publish(reviewer, at, sha, key, signature);
+      next = current.publish(reviewer, at, sha, key, signature).withPlugins(pluginsJson);
     } catch (UiPackVersion.SameReviewerException e) {
       throw new BusinessException(
           "UI-403-SAME-PERSON", "Người duyệt phải khác người soạn và người gửi duyệt.");
@@ -330,6 +343,11 @@ public class UiPackPublishService implements UiPackCompatibilityApi {
   }
 
   /** Biểu mẫu gắn trong UI Pack chuyển {@code DA_PHAT_HANH} cùng gói (CORE-08-13). */
+  /** Manifest plugin chuyên ngành (CORE-08-15); không gắn thì gói không có plugin. */
+  public void setPlugins(PluginManifestService plugins) {
+    this.plugins = plugins;
+  }
+
   public void setForms(FormSchemaService forms) {
     this.forms = forms;
   }
@@ -549,7 +567,11 @@ public class UiPackPublishService implements UiPackCompatibilityApi {
       body.putObject("forms");
     }
     if (!body.has("plugins")) {
-      body.putArray("plugins");
+      try {
+        body.set("plugins", json.readTree(v.content().pluginsJson()));
+      } catch (java.io.IOException e) {
+        throw new java.io.UncheckedIOException(e);
+      }
     }
     if (!body.has("i18n")) {
       body.putObject("i18n");

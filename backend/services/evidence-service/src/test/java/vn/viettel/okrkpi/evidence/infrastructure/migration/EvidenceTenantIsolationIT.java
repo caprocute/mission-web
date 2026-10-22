@@ -92,6 +92,12 @@ class EvidenceTenantIsolationIT extends TenantIsolationCatalogTest {
           r.put("declared_sha256", sha(seed));
           r.put("declared_size", 1024L);
           r.put("expires_at", OffsetDateTime.parse("2027-01-02T00:00:00Z"));
+          r.put("part_size", 8388608);
+          r.put("media_type", "application/pdf");
+          r.put("classification", "C1");
+          r.put("owner_module", "product");
+          r.put("file_name_enc", new byte[] {1, 2, 3});
+          r.put("dek_id", id(tenant, "dek"));
           return r;
         });
     return f;

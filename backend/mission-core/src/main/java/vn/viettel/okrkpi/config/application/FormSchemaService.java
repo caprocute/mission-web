@@ -223,7 +223,10 @@ public class FormSchemaService {
     }
   }
 
-  /** Bộ test gần nhất đạt hết, hai engine khớp và còn hiệu lực với phần tính điểm hiện tại. */
+  /**
+   * Bộ test gần nhất đạt hết, hai engine khớp, thời gian dựng trong ngân sách BR-18-08 và còn hiệu
+   * lực với phần tính điểm hiện tại.
+   */
   public boolean testsPassed(FormSchema form) {
     if (form.lastTestRunJson() == null) {
       return false;
@@ -232,6 +235,8 @@ public class FormSchemaService {
       JsonNode run = json.readTree(form.lastTestRunJson());
       return run.path("parity").asBoolean(false)
           && run.path("total").asInt(-1) == run.path("passed").asInt(-2)
+          && (!run.path("renderMs50Fields").isNumber()
+              || run.get("renderMs50Fields").asDouble() <= FormValidationService.RENDER_BUDGET_MS)
           && run.path(SCORING_HASH).asText("").equals(scoringHash(form));
     } catch (JsonProcessingException e) {
       return false;

@@ -13,6 +13,9 @@ public interface FormSchemaRepository {
 
   Optional<FormSchema> find(TenantId tenantId, String formKey, String version);
 
+  /** Mọi phiên bản của một khoá theo thứ tự tạo (UUIDv7 tăng dần). */
+  List<FormSchema> listVersions(TenantId tenantId, String formKey);
+
   /** Phiên bản {@code DA_PHAT_HANH} cập nhật gần nhất của khoá. */
   Optional<FormSchema> findCurrent(TenantId tenantId, String formKey);
 

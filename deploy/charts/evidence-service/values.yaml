@@ -87,6 +87,81 @@ thanhPhan:
             app.kubernetes.io/name: otel-agent
           ports:
             - port: 4317
+  # DV-08-04: worker quét mã độc (cùng ảnh evidence-service, bật EVIDENCE_SCAN_ENABLED), tách khỏi pod API;
+  # nhận việc từ evidence.object_version (CHO_QUET), đọc đối tượng trên RGW, gửi clamav-scanner qua INSTREAM.
+  # KEDA co giãn theo độ dài hàng đợi evidence_scan_pending (cùng giá trị ở mọi pod nên lấy max).
+  scan-worker:
+    name: evidence-scan-worker
+    namespace: workers
+    image:
+      repository: harbor.vt.local/platform/evidence-service
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    runtime: java
+    nodePool: worker
+    resources:
+      requests:
+        cpu: '1'
+        memory: 1Gi
+      limits:
+        cpu: '2'
+        memory: 1Gi
+    probes:
+      startup:
+        periodSeconds: 5
+        failureThreshold: 24
+    pdb:
+      maxUnavailable: 50%
+    env:
+      - name: EVIDENCE_SCAN_ENABLED
+        value: 'true'
+      - name: EVIDENCE_UPLOAD_SWEEP
+        value: 'false'
+      - name: CLAMD_HOST
+        value: clamav-scanner.workers.svc
+      - name: CLAMD_PORT
+        value: '3310'
+    autoscaling:
+      keda:
+        enabled: true
+        minReplicas: 2
+        maxReplicas: 12
+        triggers:
+          - type: prometheus
+            name: hang-doi-quet
+            metadata:
+              serverAddress: http://prometheus-operated.observability.svc:9090
+              query: max(evidence_scan_pending{namespace="workers",application="evidence-scan-worker"})
+              threshold: '20'
+    java:
+      gc: zgc
+      maxRamPercentage: 65
+    networkPolicy:
+      ingressFrom:
+        - namespace: observability
+          ports:
+            - port: 8081
+      egressTo:
+        - namespace: data-pg
+          podLabels:
+            cnpg.io/poolerName: pg-platform-pooler-rw
+          ports:
+            - port: 5432
+        - namespace: workers
+          podLabels:
+            app.kubernetes.io/name: clamav-scanner
+          ports:
+            - port: 3310
+        - namespace: egress
+          podLabels:
+            app.kubernetes.io/name: egress-gateway
+          ports:
+            - port: 443
+          objectStore: true
+        - namespace: observability
+          podLabels:
+            app.kubernetes.io/name: otel-agent
+          ports:
+            - port: 4317
   clamav:
     name: clamav-scanner
     namespace: workers
@@ -136,8 +211,14 @@ thanhPhan:
     extraVolumeMounts:
       - name: chu-ky
         mountPath: /var/lib/clamav
+    # clamd nhận luồng từ worker quét; ảnh clamav-scanner phải đặt StreamMaxLength ≥ 200M (trần tệp SEC-48).
     networkPolicy:
-      ingressFrom: []
+      ingressFrom:
+        - namespace: workers
+          podLabels:
+            app.kubernetes.io/name: evidence-scan-worker
+          ports:
+            - port: 3310
       egressTo:
         - namespace: data-kafka
           podLabels:

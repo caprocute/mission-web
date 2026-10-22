@@ -110,3 +110,23 @@ okrkpi:
       cell: ${VT_CELL_ID:dev}
       # Thời hạn giữ mặc định của Object Lock chế độ compliance; lớp lưu giữ cụ thể ở chương 16 TL-03.
       lock-days: ${EVIDENCE_LOCK_DAYS:3650}
+      # Địa chỉ RGW người dùng tới được (qua APISIX) để ký URL tải; mặc định trùng địa chỉ nội bộ.
+      public-endpoint: ${S3_PUBLIC_ENDPOINT:${okrkpi.evidence.storage.endpoint}}
+    # DV-08-02 · SEC-48: 50 MB mặc định (tenant cấu hình tối đa 200 MB), phần 8 MB, phiên sống 24 giờ.
+    upload:
+      max-file-bytes: ${EVIDENCE_MAX_FILE_BYTES:52428800}
+      part-size: ${EVIDENCE_PART_SIZE:8388608}
+      session-ttl: ${EVIDENCE_UPLOAD_TTL:PT24H}
+      sweep-enabled: ${EVIDENCE_UPLOAD_SWEEP:true}
+      sweep-interval: ${EVIDENCE_UPLOAD_SWEEP_INTERVAL:PT10M}
+    # DV-08-04 · SEC-47: worker quét ở Deployment riêng (pod API đặt EVIDENCE_SCAN_ENABLED=false);
+    # clamd là Deployment clamav-scanner, đặt StreamMaxLength không nhỏ hơn max-file-bytes.
+    scan:
+      enabled: ${EVIDENCE_SCAN_ENABLED:false}
+      clamd-host: ${CLAMD_HOST:clamav-scanner.workers.svc}
+      clamd-port: ${CLAMD_PORT:3310}
+      clamd-timeout: ${CLAMD_TIMEOUT:PT60S}
+      poll-interval: ${EVIDENCE_SCAN_POLL:PT2S}
+      lease: ${EVIDENCE_SCAN_LEASE:PT10M}
+      retry-base: ${EVIDENCE_SCAN_RETRY_BASE:PT30S}
+      max-attempts: ${EVIDENCE_SCAN_MAX_ATTEMPTS:5}

@@ -12,11 +12,11 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **163 / 401 task (40.6%)** — Khối lượng quy đổi đã gộp: **191.5 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **163 / 401 task (40.6%)** (gồm **163** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ đã gộp `main`**: **169 / 401 task (42.1%)** — Khối lượng quy đổi đã gộp: **199 / 482.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **169 / 401 task (42.1%)** (gồm **169** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **7 task** (4 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **231 task**.
-- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **11 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-05-02`** (đang xử lý trên nhánh: không).
+- **Chưa bắt đầu**: **225 task**.
+- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **13 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-05-03`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
 
@@ -24,15 +24,15 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **25** | 0 | 0 | 87 | **22.3%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **28** | 0 | 3 | 73 | **26.9%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **28** | 0 | 0 | 84 | **25.0%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **31** | 0 | 3 | 70 | **29.8%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **15** | 0 | 1 | 12 | **53.6%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **163** | **0** | **7** | **231** | **40.6%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **169** | **0** | **7** | **225** | **42.1%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -40,8 +40,8 @@
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 0 | 1 | 9 | **83.1%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
-| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **25** | 0 | 1 | 20 | **54.3%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **26** | 0 | 3 | 88 | **22.2%** |
+| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **28** | 0 | 1 | 17 | **60.9%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **29** | 0 | 3 | 85 | **24.8%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 0 | 0 | 54 | **23.9%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **13** | 0 | 2 | 27 | **31.0%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **0** | 0 | 0 | 23 | **0.0%** |
@@ -51,7 +51,7 @@
 
 Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
-✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → ⏳ `CORE-05-02` → ⏳ `CORE-05-03` → ✅ `CORE-08-13` → ⏳ `CORE-08-14` → ⏳ `CORE-04-04` → ⏳ `CORE-04-05` → ⏳ `CORE-04-07` → ⏳ `CORE-04-08` → ⏳ `CORE-04-10` → ⏳ `QA-06` → ⏳ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
+✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → ✅ `CORE-05-02` → ⏳ `CORE-05-03` → ✅ `CORE-08-13` → ✅ `CORE-08-14` → ⏳ `CORE-04-04` → ⏳ `CORE-04-05` → ⏳ `CORE-04-07` → ⏳ `CORE-04-08` → ⏳ `CORE-04-10` → ⏳ `QA-06` → ⏳ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
 
 ---
 
@@ -192,7 +192,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-00-04](docs/tasks/CORE-00-04-api-trang-chu-hom-nay.md) | API tổng hợp trang chủ "Việc của tôi hôm nay" (SCR-0002) | M | B3 | 18 | CORE-02-18, CORE-01-08, CORE-08-09, CORE-08-02, NEN-041 | **Đã gộp main** | Đã gộp main (03e9c83): ranh giới 8 mô-đun Spring Modulith, hợp đồng API nội bộ, JobsController và kiểm thử kiến trúc |
 | [CORE-00-05](docs/tasks/CORE-00-05-nhat-ky-truy-cap-c2.md) | Nhật ký truy cập dữ liệu C2 và ghi sổ cái lần giải mã | S | B4 | 11 | NEN-015, DV-09-02, NEN-011, NEN-016, CORE-00-02 | **Đã gộp main** | Đã gộp main (e9620db) |
 
-### CORE-08 · MOD-08 config: kỳ, lịch, cờ, UI Pack, biểu mẫu (G1 phía máy chủ) (13/17 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### CORE-08 · MOD-08 config: kỳ, lịch, cờ, UI Pack, biểu mẫu (G1 phía máy chủ) (15/17 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -209,17 +209,17 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-08-11](docs/tasks/CORE-08-11-phat-hanh-ui-pack.md) | Biên dịch token sang CSS và preset PrimeNG, ký UI Pack, đẩy CDN với ETag, `GET /ui/packs/current`, EVT-23 | L | B2 | 14 | CORE-08-09, CORE-08-10, DV-10-01, WEB-004 | **Đã gộp main** | Phát hành UI Pack: ký ES256, S3, EVT-23, ETag/304 |
 | [CORE-08-12](docs/tasks/CORE-08-12-quay-lui-ui-pack.md) | Quay lui UI Pack có kiểm tương thích phiên bản Policy Pack | S | B2 | 15 | CORE-08-11, CORE-05-03 | **Đã gộp main** | Quay lui UI Pack, UiPackCompatibilityApi |
 | [CORE-08-13](docs/tasks/CORE-08-13-form-schema-api.md) | API `form_schema`: lưu, phục vụ theo phiên bản, kiểm trường tính điểm theo Policy Pack | M | B2 | 14 | CORE-08-08, CORE-05-03 | **Đã gộp main** | API biểu mẫu động form_schema, migration config V7 |
-| [CORE-08-14](docs/tasks/CORE-08-14-kiem-tra-json-schema-cel.md) | Bộ kiểm tra JSON Schema có `x-cel`, `x-classification` dùng chung cho API nghiệp vụ, đối chiếu cel-js | L | B2 | 15 | CORE-08-13, NEN-041 | **Chưa bắt đầu** |  |
-| [CORE-08-15](docs/tasks/CORE-08-15-manifest-plugin-tenant.md) | Manifest plugin theo tenant và kiểm chữ ký bản dựng plugin | S | B2 | 15 | CORE-08-11 | **Chưa bắt đầu** |  |
+| [CORE-08-14](docs/tasks/CORE-08-14-kiem-tra-json-schema-cel.md) | Bộ kiểm tra JSON Schema có `x-cel`, `x-classification` dùng chung cho API nghiệp vụ, đối chiếu cel-js | L | B2 | 15 | CORE-08-13, NEN-041 | **Đã gộp main** | FormValidationApi kiểm phiếu tại máy chủ, runUiFormTests hai engine |
+| [CORE-08-15](docs/tasks/CORE-08-15-manifest-plugin-tenant.md) | Manifest plugin theo tenant và kiểm chữ ký bản dựng plugin | S | B2 | 15 | CORE-08-11 | **Đã gộp main** | Plugin chuyên ngành theo manifest tenant, cosign + SRI, migration config V8 |
 | [CORE-08-16](docs/tasks/CORE-08-16-phan-cong-vai-tro-uy-quyen.md) | Lưu phân công vai trò và uỷ quyền (`config.role_binding`) theo đề xuất WEB-058 | M | B2 | 12 | CORE-08-01, NEN-040, NEN-043 | **Chưa bắt đầu** | Chờ người dùng duyệt đề xuất WEB-058 |
 | [CORE-08-17](docs/tasks/CORE-08-17-luu-dinh-nghia-dashboard.md) | Lưu định nghĩa dashboard `config.dashboard_def` và cổng `api` cho analytics-api | S | B2 | 12 | CORE-08-01 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 
-### CORE-05 · MOD-05 policy: Policy Pack (1/11 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### CORE-05 · MOD-05 policy: Policy Pack (2/11 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [CORE-05-01](docs/tasks/CORE-05-01-migration-schema-policy.md) | Migration schema `policy` và trigger đóng băng phiên bản đã phát hành | M | B2 | 11 | CORE-00-02, NEN-033 | **Đã gộp main** | Migration schema kèm IT RLS và ràng buộc |
-| [CORE-05-02](docs/tasks/CORE-05-02-phien-ban-goi-chinh-sach.md) | Mô hình phiên bản gói, nhân bản, máy trạng thái, kế thừa theo cờ `overridable` | M | B2 | 12 | CORE-05-01 | **Chưa bắt đầu** |  |
+| [CORE-05-02](docs/tasks/CORE-05-02-phien-ban-goi-chinh-sach.md) | Mô hình phiên bản gói, nhân bản, máy trạng thái, kế thừa theo cờ `overridable` | M | B2 | 12 | CORE-05-01 | **Đã gộp main** | Gộp main; domain Policy Pack MOD-05, 5 thao tác API |
 | [CORE-05-03](docs/tasks/CORE-05-03-policy-query-api.md) | `PolicyQueryApi` và API phân giải nội bộ có bộ đệm, cung cấp `task_lifecycle` và tham số theo tenant/khối/kỳ | M | B2 | 13 | CORE-05-02 | **Chưa bắt đầu** |  |
 | [CORE-05-04](docs/tasks/CORE-05-04-quy-tac-cel-tham-so.md) | API quy tắc CEL và tham số, kiểm kiểu theo khai báo ngữ cảnh | M | B2 | 13 | CORE-05-02, NEN-041 | **Chưa bắt đầu** |  |
 | [CORE-05-05](docs/tasks/CORE-05-05-bang-quyet-dinh-dmn.md) | Bảng quyết định DMN 1.4: lưu, kiểm FEEL, mẫu câu giải thích, xuất XML | L | B2 | 13 | CORE-05-02 | **Chưa bắt đầu** |  |
@@ -416,14 +416,14 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-07-07](docs/tasks/DV-07-07-snapshot-nam.md) | Snapshot năm (băm của các băm quý) và DMN năm | M | B4 | 17 | DV-07-05 | **Chưa bắt đầu** |  |
 | [DV-07-08](docs/tasks/DV-07-08-mo-phong-xem-truoc.md) | API mô phỏng và xem trước với phiên bản Policy Pack gốc | M | B4 | 17 | DV-07-05 | **Chưa bắt đầu** |  |
 
-### DV-08 · SVC-08 evidence-service (1/6 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-08 · SVC-08 evidence-service (4/6 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-08-01](docs/tasks/DV-08-01-khung-evidence-service.md) | Khung WebFlux, migration schema `evidence`, client S3 cho Ceph RGW | M | B3 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Khung evidence-service SVC-08, RLS, Object Lock |
-| [DV-08-02](docs/tasks/DV-08-02-tai-len-nhieu-phan.md) | Tải lên nhiều phần có tiếp tục, SHA-256 khi nhận, Object Lock, URL tải ký 5 phút | L | B3 | 10 | DV-08-01 | **Chưa bắt đầu** |  |
-| [DV-08-03](docs/tasks/DV-08-03-khu-trung-theo-bam.md) | Khử trùng theo băm và phát hiện trùng tức thời phát EVT-20 | M | B3 | 11 | DV-08-02 | **Chưa bắt đầu** |  |
-| [DV-08-04](docs/tasks/DV-08-04-quet-ma-doc.md) | Quét mã độc ClamAV bất đồng bộ, cách ly, thông báo | M | B3 | 11 | DV-08-02 | **Chưa bắt đầu** |  |
+| [DV-08-02](docs/tasks/DV-08-02-tai-len-nhieu-phan.md) | Tải lên nhiều phần có tiếp tục, SHA-256 khi nhận, Object Lock, URL tải ký 5 phút | L | B3 | 10 | DV-08-01 | **Đã gộp main** | Tải tệp minh chứng nhiều phần, khớp hợp đồng products.yaml |
+| [DV-08-03](docs/tasks/DV-08-03-khu-trung-theo-bam.md) | Khử trùng theo băm và phát hiện trùng tức thời phát EVT-20 | M | B3 | 11 | DV-08-02 | **Đã gộp main** | Khử trùng minh chứng theo băm; EVT-20 do SVC-15 phát theo hợp đồng |
+| [DV-08-04](docs/tasks/DV-08-04-quet-ma-doc.md) | Quét mã độc ClamAV bất đồng bộ, cách ly, thông báo | M | B3 | 11 | DV-08-02 | **Đã gộp main** | Gộp main; quét mã độc nền, KEDA worker, V3 migration |
 | [DV-08-05](docs/tasks/DV-08-05-ocr-qua-ai.md) | Gọi OCR qua ai-gateway cho minh chứng | S | B3 | 12 | DV-08-02, DV-14-05, DV-08-04 | **Chưa bắt đầu** |  |
 | [DV-08-06](docs/tasks/DV-08-06-xem-truoc-tep-minh-chung.md) | Xem trước tệp minh chứng (`getFilePreview`) qua Gotenberg, chỉ tệp đã quét sạch | S | B3 | 12 | DV-08-04, DV-11-01 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 
@@ -814,5 +814,13 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 10:12 | Điều phối | `CORE-08-12` | Chuyển trạng thái sang **Đã gộp main** — Quay lui UI Pack, UiPackCompatibilityApi |
 | 22/10/2026 10:19 | B2 (luồng B6) | `CORE-08-13` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: API biểu mẫu động, migration V7 (ngoại lệ phạm vi), đã qua verify mission-core |
 | 22/10/2026 10:28 | Điều phối | `CORE-08-13` | Chuyển trạng thái sang **Đã gộp main** — API biểu mẫu động form_schema, migration config V7 |
-| 22/10/2026 10:47 | Luồng B8 hạ tầng | `INF-16` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: chart, công cụ, kiểm thử tĩnh xanh; chờ chạy kiểm thử kind (cụm thử hỏng sau khởi động lại máy) |
+| 22/10/2026 10:43 | B2 (luồng B6) | `CORE-08-14` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: FormValidationApi, runUiFormTests, bộ ca data/golden/form-tests; đã qua verify mission-core |
+| 22/10/2026 10:50 | Điều phối | `CORE-08-14` | Chuyển trạng thái sang **Đã gộp main** — FormValidationApi kiểm phiếu tại máy chủ, runUiFormTests hai engine |
+| 22/10/2026 11:02 | Điều phối | `DV-08-02` | Chuyển trạng thái sang **Đã gộp main** — Tải tệp minh chứng nhiều phần, khớp hợp đồng products.yaml |
+| 22/10/2026 11:13 | Điều phối | `CORE-08-15` | Chuyển trạng thái sang **Đã gộp main** — Plugin chuyên ngành theo manifest tenant, cosign + SRI, migration config V8 |
+| 22/10/2026 11:23 | Điều phối | `DV-08-03` | Chuyển trạng thái sang **Đã gộp main** — Khử trùng minh chứng theo băm; EVT-20 do SVC-15 phát theo hợp đồng |
+| 22/10/2026 11:43 | B2 (luồng B6) | `CORE-05-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: đã qua build & test (mission-core verify xanh) |
+| 22/10/2026 11:51 | Điều phối | `CORE-05-02` | Chuyển trạng thái sang **Đã gộp main** — Gộp main; domain Policy Pack MOD-05, 5 thao tác API |
+| 22/10/2026 12:04 | Điều phối | `DV-08-04` | Chuyển trạng thái sang **Đã gộp main** — Gộp main; quét mã độc nền, KEDA worker, V3 migration |
+| 22/10/2026 12:12 | Luồng B8 hạ tầng | `INF-16` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: chart, công cụ, kiểm thử tĩnh xanh; chờ chạy kiểm thử kind (cụm thử hỏng sau khởi động lại máy) |
 <!-- PROGRESS_LOG_END -->
