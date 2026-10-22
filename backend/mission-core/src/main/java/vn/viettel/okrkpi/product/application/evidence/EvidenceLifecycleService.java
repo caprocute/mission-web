@@ -89,12 +89,6 @@ public class EvidenceLifecycleService {
     return apply(tenant, locked, actor, null, v -> v.saveDraft(content));
   }
 
-  @Transactional(TX)
-  public Result submitVersion(
-      TenantId tenant, UUID versionId, long expectedVersion, EvidenceActor actor) {
-    return submitVersion(tenant, versionId, expectedVersion, actor, false);
-  }
-
   /**
    * Nộp; {@code aiFieldsConfirmed} là người nộp xác nhận các ô do AI điền ngay ở bước nộp ("Xác
    * nhận và nộp" của SCR-0702, BR-07-09).
