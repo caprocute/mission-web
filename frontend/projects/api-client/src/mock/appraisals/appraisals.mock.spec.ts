@@ -456,25 +456,25 @@ describe('appraisals mock: xếp loại năm và phân nhóm triển vọng (WEB
       ),
     );
     expect(bad.error.code).toBe('APPRAISAL-422-PROSPECT-NOT-ELIGIBLE');
-    const noReason = await errorOf(
-      firstValueFrom(
-        api.saveProspectBoard(
-          board,
-          input((x) => {
-            if (x.personId === son.person.id) x.reason = '';
-          }),
-        ),
+    // Lưu nháp không bắt buộc lý do (WEB-063); trình khi còn thiếu lý do thì 422 MSG-10-07
+    const draft = await firstValueFrom(
+      api.saveProspectBoard(
+        board,
+        input((x) => {
+          if (x.personId === son.person.id) x.reason = '';
+        }),
       ),
     );
+    const noReason = await errorOf(firstValueFrom(api.submitProspectBoard(draft)));
     expect(noReason.error.errors[0].code).toBe('MSG-10-07');
 
     const saved = await firstValueFrom(
       api.saveProspectBoard(
-        board,
+        draft,
         input(() => undefined),
       ),
     );
-    expect(saved.rowVersion).toBe(board.rowVersion + 1);
+    expect(saved.rowVersion).toBe(board.rowVersion + 2);
     expect((await errorOf(firstValueFrom(api.submitProspectBoard(board)))).status).toBe(409);
     const submitted = await firstValueFrom(api.submitProspectBoard(saved));
     expect(submitted.status).toBe('DA_TRINH');
