@@ -143,6 +143,19 @@ public class JdbcAppraisalProfileRepository implements AppraisalProfileRepositor
       SealedText reason,
       SealedText comment,
       Instant at) {
+    insertRating(tenant, row, snapshotId, recorded, reason, comment, at, null);
+  }
+
+  @Override
+  public void insertRating(
+      TenantId tenant,
+      ProfileRow row,
+      UUID snapshotId,
+      RatingRecorded recorded,
+      SealedText reason,
+      SealedText comment,
+      Instant at,
+      UUID batchDecisionId) {
     CurrentRating r = recorded.rating();
     UUID dek = reason != null ? reason.dekId() : comment != null ? comment.dekId() : null;
     jdbc.sql(
@@ -150,8 +163,9 @@ public class JdbcAppraisalProfileRepository implements AppraisalProfileRepositor
             INSERT INTO appraisal.rating_proposal (id, tenant_id, created_at, created_by, updated_at,
                 updated_by, period_id, period_bucket, profile_id, level_kind, rating_code,
                 score_snapshot_id, actor_id, actor_role, is_current, differs_from_prev,
-                explanation_required, reason_enc, comment_enc, dek_id, proposed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?)
+                explanation_required, reason_enc, comment_enc, dek_id, proposed_at,
+                is_bulk_decision, batch_decision_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?)
             """)
         .params(
             r.proposalId(),
@@ -173,7 +187,9 @@ public class JdbcAppraisalProfileRepository implements AppraisalProfileRepositor
             reason == null ? null : reason.cipher(),
             comment == null ? null : comment.cipher(),
             dek,
-            Timestamp.from(at))
+            Timestamp.from(at),
+            batchDecisionId != null,
+            batchDecisionId)
         .update();
   }
 
