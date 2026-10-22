@@ -382,7 +382,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-04-03](docs/tasks/DV-04-03-thay-doi-to-chuc.md) | Thay đổi tổ chức (sáp nhập, chia tách, đổi tên) có tiền thân, phát EVT-14, EVT-15, EVT-16 | M | B5 | 11 | DV-04-02, NEN-011 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main (65/65 test PASS) |
 | [DV-04-04](docs/tasks/DV-04-04-phan-cong.md) | Phân công: một vị trí chính tại một thời điểm, kiêm nhiệm, điều động tương lai | M | B5 | 11 | DV-04-02 | **Đã gộp main** | Đã gộp main (b55b7d1): quản lý phân công 2 trục thời gian, đường báo cáo ReportingLineVersion và tra cứu cán bộ |
 | [DV-04-05](docs/tasks/DV-04-05-nhap-cay-excel.md) | Nhập cây tổ chức từ Excel (202, báo cáo lỗi) | S | B5 | 11 | DV-04-02 | **Đã gộp main** | Đã gộp main (a36f8d0) |
-| [DV-04-06](docs/tasks/DV-04-06-scim.md) | SCIM 2.0 cho HRM và IdP khách hàng | M | B5 | 12 | DV-04-04 | **Đang làm** | Nhánh feat/DV-04-phan-cong-scim: tạm dừng chờ phiên tiếp theo (sau DV-04-05) |
+| [DV-04-06](docs/tasks/DV-04-06-scim.md) | SCIM 2.0 cho HRM và IdP khách hàng | M | B5 | 12 | DV-04-04 | **Đang làm** | Nhánh claude/b1-nen-mong-backend-8pacfm: đang thực hiện |
 | [DV-04-07](docs/tasks/DV-04-07-doi-soat-nhan-su.md) | Đối soát nhân sự: khớp người bằng HMAC và ngày sinh, bảng lệch, phân loại, API giải quyết | L | B5 | 12 | DV-04-04, DV-13-06 | **Đã gộp main** | Đã gộp main (8b84e3a) |
 | [DV-04-08](docs/tasks/DV-04-08-org-republish.md) | Lệnh phát lại sự kiện tổ chức (`org-republish`) cho bên nhận bị lệch | S | B5 | 12 | DV-04-03, NEN-022 | **Đã gộp main** | Đã gộp main (nhánh B1 7dca3d2) |
 
@@ -737,4 +737,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 21/10/2026 23:37 | B1 (Claude) | `DV-04-05` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: đang thực hiện |
 | 22/10/2026 00:02 | B1 (Claude) | `DV-04-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: nhập cây Excel 202 + /jobs/{id}, 1.000 đơn vị ~9 s; verify org-service xanh 105 kiểm thử |
 | 22/10/2026 00:07 | Điều phối | `DV-04-05` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (a36f8d0) |
+| 22/10/2026 00:08 | B1 (Claude) | `DV-04-06` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: đang thực hiện |
 <!-- PROGRESS_LOG_END -->
