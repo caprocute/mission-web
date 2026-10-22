@@ -13,6 +13,8 @@ import org.springframework.web.client.RestClient;
 import vn.viettel.okrkpi.analytics.application.CubePort;
 import vn.viettel.okrkpi.analytics.application.DashboardService;
 import vn.viettel.okrkpi.analytics.application.DashboardStorePort;
+import vn.viettel.okrkpi.analytics.application.EmbedPort;
+import vn.viettel.okrkpi.analytics.application.EmbedService;
 import vn.viettel.okrkpi.analytics.application.OrgScopePort;
 import vn.viettel.okrkpi.analytics.application.QueryService;
 import vn.viettel.okrkpi.analytics.application.ResultCache;
@@ -38,16 +40,22 @@ public class AnalyticsConfiguration {
   }
 
   @Bean
+  CubeTokens cubeTokens(AnalyticsProperties p, Clock clock) {
+    return new CubeTokens(p.cubeApiSecret(), clock);
+  }
+
+  @Bean
   CubePort cubePort(
       AnalyticsProperties p,
       ResilientClientFactory clients,
       ObjectProvider<RestClient.Builder> builders,
       ObjectMapper json,
+      CubeTokens tokens,
       Clock clock) {
     RestClient.Builder builder = builders.getIfAvailable(RestClient::builder);
     return new CubeRestClient(
         clients.create("cube", builder.baseUrl(p.cubeUrl()).build()),
-        new CubeTokens(p.cubeApiSecret(), clock),
+        tokens,
         json,
         p.cubeTimeout(),
         clock);
@@ -107,6 +115,29 @@ public class AnalyticsConfiguration {
       AnalyticsProperties p,
       Clock clock) {
     return new QueryService(scopes, models, cube, org, cache, p.cacheTtl(), p.staleAfter(), clock);
+  }
+
+  @Bean
+  EmbedPort embedPort(
+      AnalyticsProperties p,
+      ResilientClientFactory clients,
+      ObjectProvider<RestClient.Builder> builders,
+      CubeTokens tokens,
+      Clock clock) {
+    RestClient.Builder builder = builders.getIfAvailable(RestClient::builder);
+    return new SupersetGuestTokens(
+        clients.create("superset", builder.clone().baseUrl(p.supersetUrl()).build()),
+        tokens,
+        p.supersetUsername(),
+        p.supersetPassword(),
+        p.supersetPublicUrl(),
+        clock);
+  }
+
+  @Bean
+  EmbedService embedService(
+      ScopeService scopes, EmbedPort superset, AnalyticsProperties p, Clock clock) {
+    return new EmbedService(scopes, superset, p.supersetDashboards(), p.embedTtl(), clock);
   }
 
   @Bean

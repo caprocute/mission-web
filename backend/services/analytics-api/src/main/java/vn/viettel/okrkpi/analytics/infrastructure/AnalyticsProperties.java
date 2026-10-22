@@ -1,6 +1,8 @@
 package vn.viettel.okrkpi.analytics.infrastructure;
 
 import java.time.Duration;
+import java.util.Map;
+import java.util.UUID;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /** Cấu hình {@code mission.analytics.*} của analytics-api; bí mật chỉ đặt bằng biến môi trường. */
@@ -21,12 +23,21 @@ public record AnalyticsProperties(
     String coreUrl,
     String tokenUrl,
     String clientId,
-    String clientSecret) {
+    String clientSecret,
+    String supersetUrl,
+    String supersetPublicUrl,
+    String supersetUsername,
+    String supersetPassword,
+    Map<String, UUID> supersetDashboards,
+    Duration embedTtl) {
 
   public AnalyticsProperties {
     cubeTimeout = cubeTimeout == null ? Duration.ofSeconds(20) : cubeTimeout;
     cacheTtl = cacheTtl == null ? Duration.ofSeconds(60) : cacheTtl;
     staleAfter = staleAfter == null ? Duration.ofMinutes(5) : staleAfter;
     modelRefresh = modelRefresh == null ? Duration.ofMinutes(5) : modelRefresh;
+    supersetPublicUrl = supersetPublicUrl == null ? supersetUrl : supersetPublicUrl;
+    supersetDashboards = supersetDashboards == null ? Map.of() : Map.copyOf(supersetDashboards);
+    embedTtl = embedTtl == null ? Duration.ofMinutes(5) : embedTtl;
   }
 }

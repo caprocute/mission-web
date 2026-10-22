@@ -29,6 +29,9 @@ final class FakeUpstream implements AutoCloseable {
 
   static final String CUBE_SECRET = "khoa-ky-cube-cho-kiem-thu-tich-hop-0001";
   static final String SERVICE_TOKEN = "token-dich-vu-analytics";
+  static final String SUPERSET_USER = "analytics_api";
+  static final String SUPERSET_PASSWORD = "mat-khau-superset-kiem-thu";
+  static final String SUPERSET_ACCESS = "token-truy-cap-superset";
 
   static final String META =
       """
@@ -63,6 +66,9 @@ final class FakeUpstream implements AutoCloseable {
   final List<CubeCall> cubeCalls = Collections.synchronizedList(new ArrayList<>());
   final List<Map<String, String>> configHeaders = Collections.synchronizedList(new ArrayList<>());
   final Map<String, ObjectNode> dashboards = Collections.synchronizedMap(new LinkedHashMap<>());
+  final List<JsonNode> guestRequests = Collections.synchronizedList(new ArrayList<>());
+  final java.util.concurrent.atomic.AtomicInteger supersetLogins =
+      new java.util.concurrent.atomic.AtomicInteger();
   private final AtomicBoolean waited = new AtomicBoolean();
 
   FakeUpstream() throws IOException {
@@ -70,6 +76,8 @@ final class FakeUpstream implements AutoCloseable {
     server.createContext("/realms/mission/protocol/openid-connect/token", this::token);
     server.createContext("/cubejs-api/v1/", this::cube);
     server.createContext("/api/v1/config/dashboard-defs", this::config);
+    server.createContext("/api/v1/security/login", this::supersetLogin);
+    server.createContext("/api/v1/security/guest_token/", this::supersetGuest);
     server.start();
   }
 
@@ -98,6 +106,30 @@ final class FakeUpstream implements AutoCloseable {
       return;
     }
     send(ex, 200, "{\"access_token\":\"" + SERVICE_TOKEN + "\",\"expires_in\":300}");
+  }
+
+  /** Superset 4.x {@code /api/v1/security/login}: chỉ tài khoản dịch vụ, nhà cung cấp db. */
+  private void supersetLogin(HttpExchange ex) throws IOException {
+    JsonNode body = json.readTree(ex.getRequestBody());
+    if (!SUPERSET_USER.equals(body.path("username").asText())
+        || !SUPERSET_PASSWORD.equals(body.path("password").asText())
+        || !"db".equals(body.path("provider").asText())) {
+      send(ex, 401, "{\"message\":\"Invalid login\"}");
+      return;
+    }
+    supersetLogins.incrementAndGet();
+    send(ex, 200, "{\"access_token\":\"" + SUPERSET_ACCESS + "\"}");
+  }
+
+  /** Superset 4.x {@code /api/v1/security/guest_token/}: ghi lại yêu cầu, trả token khách. */
+  private void supersetGuest(HttpExchange ex) throws IOException {
+    if (!("Bearer " + SUPERSET_ACCESS).equals(ex.getRequestHeaders().getFirst("Authorization"))) {
+      send(ex, 401, "{\"msg\":\"Token has expired\"}");
+      return;
+    }
+    JsonNode body = json.readTree(ex.getRequestBody());
+    guestRequests.add(body);
+    send(ex, 200, "{\"token\":\"token-khach-" + guestRequests.size() + "\"}");
   }
 
   private void cube(HttpExchange ex) throws IOException {
