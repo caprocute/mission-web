@@ -17,6 +17,10 @@ import java.util.Collection;
  *       lớn hơn chỉ tiêu, thì chỉ xét đạt hay chưa đạt ({@code hiện tại ≤ chỉ tiêu}).
  *   <li>Chiều {@code DAT} (giữ đạt một mốc): đạt khi hiện tại không thấp hơn chỉ tiêu, chưa đạt thì
  *       tính như chiều tăng.
+ *   <li>Chiều {@code TOI_DA} (không vượt quá, BS-03 DC-04): đạt (1) khi hiện tại không vượt chỉ
+ *       tiêu, vượt thì 0.
+ *   <li>Loại {@code MOC} (BS-03 DC-04): lõi không quy đổi riêng, hiện tại là số mốc đã đạt và chỉ
+ *       tiêu là số mốc nên công thức chiều tăng áp nguyên; quy đổi theo hạn nằm trong gói.
  *   <li>Loại {@code CO_KHONG}: hiện tại khác 0 là "có", tiến độ 1; bằng 0 là 0.
  *   <li>Chỉ tiêu bằng giá trị đầu ở chiều tăng: đạt (1) khi hiện tại không thấp hơn chỉ tiêu.
  *   <li>Mục tiêu không có KR, hoặc tổng trọng số bằng 0, thì tiến độ 0; tổng trọng số nhỏ hơn 1 (KR
@@ -46,6 +50,9 @@ public final class ProgressCalculator {
       return current.signum() != 0 ? one() : zero();
     }
     BigDecimal base = baseline == null ? BigDecimal.ZERO : baseline;
+    if ("TOI_DA".equals(direction)) {
+      return current.compareTo(target) <= 0 ? one() : zero();
+    }
     if ("GIAM".equals(direction)) {
       if (baseline == null || base.compareTo(target) <= 0) {
         return current.compareTo(target) <= 0 ? one() : zero();

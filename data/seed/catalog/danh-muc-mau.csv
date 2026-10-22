@@ -1,0 +1,55 @@
+khoi,ma,ten,san_pham,don_vi_tinh,muc_kho,diem_chuan,tieu_chuan,minh_chung,nhom,thoi_han
+K1,TC-K1-01,Xây dựng đề án trình Ban Bí thư,Đề án kèm tờ trình,đề án,5,30,Đúng thể thức văn bản Đảng; có số liệu và đánh giá tác động; được lãnh đạo ban thông qua,Tờ trình và đề án đã ký; biên bản họp thông qua,Then chốt,60
+K1,TC-K1-02,Thẩm định văn bản của cấp ủy trực thuộc,Báo cáo thẩm định,văn bản,3,10,Nêu rõ ý kiến đồng ý hoặc đề nghị sửa từng nội dung; đúng hạn quy chế,Báo cáo thẩm định đã ký,Thường xuyên,7
+K1,TC-K1-03,Tổng hợp báo cáo chuyên đề định kỳ,Báo cáo chuyên đề,báo cáo,3,12,Số liệu khớp nguồn; có nhận định và kiến nghị,Báo cáo đã phát hành; bảng số liệu gốc,Thường xuyên,15
+K1,TC-K1-04,Tổ chức hội nghị chuyên đề của ban,Hội nghị được tổ chức,hội nghị,4,20,Có kế hoạch được duyệt; tài liệu phát trước 3 ngày; có kết luận hội nghị,Kế hoạch; giấy mời; kết luận hội nghị,Then chốt,30
+K1,TC-K1-05,Kiểm tra việc thực hiện nghị quyết tại đơn vị,Báo cáo kết quả kiểm tra,cuộc,4,20,Đúng kế hoạch kiểm tra; có kết luận và kiến nghị cụ thể,Quyết định kiểm tra; báo cáo kết quả,Then chốt,45
+K1,TC-K1-06,Trả lời đơn thư thuộc thẩm quyền,Văn bản trả lời,văn bản,2,5,Trả lời đúng thẩm quyền và thời hạn luật định,Văn bản trả lời đã ký; sổ theo dõi đơn thư,Thường xuyên,10
+K2,TC-K2-01,Xây dựng chương trình công tác toàn khóa của tỉnh ủy,Chương trình công tác,chương trình,5,30,Bám nghị quyết đại hội; phân công rõ cơ quan chủ trì và thời hạn,Chương trình đã ban hành,Then chốt,45
+K2,TC-K2-02,Chuẩn bị nội dung hội nghị ban chấp hành,Bộ tài liệu hội nghị,bộ,4,20,Đủ tài liệu theo quy chế; gửi đại biểu đúng hạn,Danh mục tài liệu; công văn gửi tài liệu,Then chốt,20
+K2,TC-K2-03,Theo dõi tiến độ thực hiện kết luận của ban thường vụ,Báo cáo tiến độ,báo cáo,3,10,Cập nhật đủ các kết luận đến hạn; nêu vướng mắc và đề xuất,Báo cáo tiến độ đã trình,Thường xuyên,30
+K2,TC-K2-04,Thẩm định hồ sơ nhân sự thuộc diện quản lý,Tờ trình thẩm định,hồ sơ,4,15,Đúng quy trình công tác cán bộ; đủ thành phần hồ sơ,Tờ trình; phiếu thẩm định hồ sơ,Thường xuyên,15
+K2,TC-K2-05,Sơ kết sáu tháng thực hiện nghị quyết,Báo cáo sơ kết,báo cáo,3,15,Đánh giá theo chỉ tiêu nghị quyết; có bài học kinh nghiệm,Báo cáo sơ kết đã phát hành,Thường xuyên,20
+K2,TC-K2-06,Biên tập bản tin nội bộ của cơ quan,Bản tin,số,2,5,Đúng định kỳ; nội dung được duyệt trước khi phát hành,Bản tin đã phát hành; phiếu duyệt,Thường xuyên,30
+K3,TC-K3-01,Tổ chức sinh hoạt chi bộ thường kỳ,Buổi sinh hoạt chi bộ,buổi,2,8,Đúng định kỳ hằng tháng; có biên bản và nghị quyết tháng,Biên bản sinh hoạt; nghị quyết tháng,Thường xuyên,30
+K3,TC-K3-02,Tổ chức sinh hoạt chuyên đề của chi bộ,Buổi sinh hoạt chuyên đề,buổi,3,10,Có chủ đề được cấp ủy duyệt; có báo cáo đề dẫn,Báo cáo đề dẫn; biên bản sinh hoạt,Thường xuyên,90
+K3,TC-K3-03,Thu và nộp đảng phí,Sổ thu nộp đảng phí,kỳ,1,3,Thu đủ và nộp cấp trên đúng hạn; sổ ghi chép rõ ràng,Sổ thu đảng phí; chứng từ nộp,Thường xuyên,30
+K3,TC-K3-04,Kiểm điểm và đánh giá đảng viên cuối năm,Hồ sơ đánh giá xếp loại,hồ sơ,3,15,Đủ bản kiểm điểm cá nhân; xếp loại đúng hướng dẫn,Bản kiểm điểm; biên bản họp chi bộ,Then chốt,30
+K3,TC-K3-05,Bồi dưỡng quần chúng ưu tú để kết nạp,Hồ sơ đề nghị kết nạp,hồ sơ,4,15,Đủ điều kiện theo Điều lệ; hồ sơ đầy đủ theo hướng dẫn,Hồ sơ kết nạp đảng viên,Then chốt,180
+K3,TC-K3-06,Cập nhật dữ liệu đảng viên trên hệ thống,Dữ liệu đảng viên được cập nhật,lượt,1,2,Thông tin khớp hồ sơ gốc; cập nhật trong 5 ngày khi có biến động,Nhật ký cập nhật trên hệ thống,Thường xuyên,5
+K4,TC-K4-01,Tổ chức hội nghị phản biện xã hội,Báo cáo phản biện,hội nghị,5,25,Có dự thảo văn bản được phản biện; tổng hợp đủ ý kiến chuyên gia,Kế hoạch; báo cáo kết quả phản biện,Then chốt,45
+K4,TC-K4-02,Giám sát việc thực hiện chính sách tại địa phương,Báo cáo giám sát,cuộc,4,20,Đúng kế hoạch giám sát; có kiến nghị gửi cơ quan liên quan,Quyết định giám sát; báo cáo kết quả,Then chốt,30
+K4,TC-K4-03,Tổ chức phong trào thi đua của hội viên,Kế hoạch và báo cáo tổng kết phong trào,phong trào,3,15,Có tiêu chí thi đua; tổng kết và khen thưởng đúng quy định,Kế hoạch; báo cáo tổng kết,Thường xuyên,90
+K4,TC-K4-04,Tiếp nhận và chuyển kiến nghị của Nhân dân,Văn bản chuyển kiến nghị,văn bản,2,5,Chuyển đúng cơ quan có thẩm quyền trong 7 ngày,Sổ tiếp nhận; văn bản chuyển,Thường xuyên,7
+K4,TC-K4-05,Phát triển hội viên mới,Hội viên được kết nạp,hội viên,2,3,Đủ điều kiện theo điều lệ; hồ sơ đầy đủ,Danh sách kết nạp; quyết định công nhận,Thường xuyên,30
+K4,TC-K4-06,Tổ chức tập huấn nghiệp vụ cho cán bộ cơ sở,Lớp tập huấn,lớp,3,12,Có chương trình và tài liệu; đánh giá kết quả học viên,Chương trình; danh sách học viên; phiếu đánh giá,Thường xuyên,30
+K5,TC-K5-01,Xây dựng dự thảo văn bản quy phạm pháp luật,Hồ sơ dự thảo trình thẩm định,dự thảo,5,30,Đúng trình tự Luật Ban hành văn bản quy phạm pháp luật; có đánh giá tác động,Hồ sơ dự thảo; báo cáo đánh giá tác động,Then chốt,90
+K5,TC-K5-02,Giải quyết thủ tục hành chính đúng hạn,Hồ sơ thủ tục được giải quyết,hồ sơ,2,3,Đúng thời hạn công bố; trả kết quả qua hệ thống một cửa,Phiếu trả kết quả trên hệ thống,Thường xuyên,10
+K5,TC-K5-03,Tham mưu văn bản chỉ đạo điều hành của bộ,Văn bản chỉ đạo,văn bản,3,10,Đúng thẩm quyền và thể thức; được lãnh đạo ký ban hành,Văn bản đã ban hành,Thường xuyên,10
+K5,TC-K5-04,Thanh tra chuyên ngành theo kế hoạch năm,Kết luận thanh tra,cuộc,5,25,Đúng quy trình thanh tra; kết luận có kiến nghị xử lý,Quyết định thanh tra; kết luận thanh tra,Then chốt,60
+K5,TC-K5-05,Tổng hợp số liệu thống kê ngành định kỳ,Báo cáo thống kê,báo cáo,3,10,Đúng biểu mẫu và kỳ báo cáo; số liệu khớp nguồn,Báo cáo thống kê đã gửi,Thường xuyên,15
+K5,TC-K5-06,Rà soát thủ tục hành chính để cắt giảm,Báo cáo rà soát và phương án cắt giảm,báo cáo,4,15,Đánh giá từng thủ tục; nêu chi phí tuân thủ trước và sau,Báo cáo rà soát; phương án đã trình,Then chốt,45
+K6,TC-K6-01,Xây dựng kế hoạch phát triển kinh tế - xã hội năm,Kế hoạch năm,kế hoạch,5,30,Có chỉ tiêu định lượng; phân công sở ngành chủ trì,Kế hoạch đã trình hội đồng nhân dân,Then chốt,60
+K6,TC-K6-02,Thẩm định dự án đầu tư công,Báo cáo thẩm định,dự án,4,20,Đúng Luật Đầu tư công; có ý kiến các sở liên quan,Báo cáo thẩm định; văn bản góp ý,Then chốt,30
+K6,TC-K6-03,Tổng hợp báo cáo tình hình kinh tế - xã hội tháng,Báo cáo tháng,báo cáo,3,10,Số liệu đầy đủ các ngành; nêu giải pháp tháng sau,Báo cáo tháng đã ban hành,Thường xuyên,7
+K6,TC-K6-04,Giải quyết kiến nghị của doanh nghiệp,Văn bản trả lời doanh nghiệp,kiến nghị,3,8,Trả lời đúng hạn; nêu rõ căn cứ pháp lý,Văn bản trả lời; sổ theo dõi kiến nghị,Thường xuyên,15
+K6,TC-K6-05,Kiểm tra công tác cải cách hành chính tại sở ngành,Báo cáo kiểm tra,cuộc,4,15,Đúng kế hoạch; có chấm điểm theo bộ chỉ số,Kế hoạch; báo cáo kết quả kiểm tra,Thường xuyên,30
+K6,TC-K6-06,Chuẩn bị nội dung kỳ họp hội đồng nhân dân,Bộ tờ trình và dự thảo nghị quyết,bộ,5,25,Đủ hồ sơ theo quy chế kỳ họp; gửi đúng hạn,Tờ trình; dự thảo nghị quyết,Then chốt,30
+K7,TC-K7-01,Tiếp nhận và trả kết quả hồ sơ một cửa,Hồ sơ được trả kết quả,hồ sơ,1,2,Đúng hạn; cập nhật trạng thái trên hệ thống,Phiếu tiếp nhận và trả kết quả,Thường xuyên,5
+K7,TC-K7-02,Đăng ký và quản lý hộ tịch,Bản ghi hộ tịch,trường hợp,2,3,Đúng Luật Hộ tịch; dữ liệu khớp sổ hộ tịch điện tử,Sổ hộ tịch; dữ liệu trên hệ thống,Thường xuyên,3
+K7,TC-K7-03,Hòa giải tranh chấp tại cơ sở,Biên bản hòa giải,vụ việc,3,8,Đúng Luật Hòa giải ở cơ sở; có kết quả hòa giải,Biên bản hòa giải,Thường xuyên,15
+K7,TC-K7-04,Kiểm tra trật tự xây dựng trên địa bàn,Biên bản kiểm tra,cuộc,3,10,Lập biên bản đúng mẫu; xử lý hoặc chuyển cấp có thẩm quyền,Biên bản kiểm tra; quyết định xử lý,Thường xuyên,10
+K7,TC-K7-05,Thu ngân sách xã theo dự toán,Báo cáo thu ngân sách,kỳ,3,12,Đạt tiến độ dự toán; báo cáo đúng biểu,Báo cáo thu ngân sách quý,Then chốt,90
+K7,TC-K7-06,Cập nhật cơ sở dữ liệu dân cư,Dữ liệu được cập nhật,lượt,1,2,Khớp giấy tờ gốc; cập nhật trong 3 ngày làm việc,Nhật ký cập nhật,Thường xuyên,3
+K8,TC-K8-01,Xây dựng kế hoạch hoạt động năm của đơn vị,Kế hoạch năm,kế hoạch,4,20,Có chỉ tiêu dịch vụ công; phân bổ nguồn lực,Kế hoạch đã được phê duyệt,Then chốt,30
+K8,TC-K8-02,Cung ứng dịch vụ sự nghiệp công theo đặt hàng,Báo cáo nghiệm thu dịch vụ,đợt,4,20,Đạt số lượng và chất lượng theo hợp đồng đặt hàng,Biên bản nghiệm thu; báo cáo kết quả,Then chốt,90
+K8,TC-K8-03,Đo lường sự hài lòng của người sử dụng dịch vụ,Báo cáo khảo sát,báo cáo,3,12,Mẫu khảo sát đủ cỡ; có phân tích và kiến nghị,Phiếu khảo sát; báo cáo kết quả,Thường xuyên,30
+K8,TC-K8-04,Quản lý tài sản công của đơn vị,Báo cáo kiểm kê tài sản,kỳ,2,8,Kiểm kê đúng kỳ; số liệu khớp sổ kế toán,Biên bản kiểm kê; báo cáo tài sản,Thường xuyên,15
+K8,TC-K8-05,Thực hiện đề tài khoa học cấp cơ sở,Báo cáo tổng kết đề tài,đề tài,5,25,Đạt mục tiêu thuyết minh; được hội đồng nghiệm thu,Biên bản nghiệm thu; báo cáo tổng kết,Then chốt,180
+K8,TC-K8-06,Lập báo cáo tài chính năm,Báo cáo tài chính,báo cáo,3,15,Đúng chế độ kế toán hành chính sự nghiệp; nộp đúng hạn,Báo cáo tài chính đã nộp,Thường xuyên,30
+K9,TC-K9-01,Xây dựng kế hoạch sản xuất kinh doanh năm,Kế hoạch sản xuất kinh doanh,kế hoạch,5,30,Có chỉ tiêu doanh thu và lợi nhuận; được hội đồng thành viên duyệt,Nghị quyết phê duyệt kế hoạch,Then chốt,45
+K9,TC-K9-02,Báo cáo giám sát tài chính của chủ sở hữu,Báo cáo giám sát tài chính,báo cáo,4,15,Đúng biểu mẫu Nghị định về giám sát tài chính; nộp đúng hạn,Báo cáo đã gửi cơ quan đại diện chủ sở hữu,Thường xuyên,30
+K9,TC-K9-03,Thực hiện dự án đầu tư theo tiến độ,Báo cáo tiến độ dự án,dự án,5,25,Đạt mốc tiến độ được duyệt; giải ngân theo kế hoạch,Báo cáo tiến độ; biên bản nghiệm thu giai đoạn,Then chốt,90
+K9,TC-K9-04,Tổ chức đấu thầu mua sắm,Kết quả lựa chọn nhà thầu,gói thầu,4,15,Đúng Luật Đấu thầu; công khai kết quả trên hệ thống mạng đấu thầu,Quyết định phê duyệt kết quả,Thường xuyên,45
+K9,TC-K9-05,Rà soát định mức kinh tế kỹ thuật,Bộ định mức được cập nhật,bộ,4,15,Có căn cứ đo đạc thực tế; được cấp có thẩm quyền ban hành,Quyết định ban hành định mức,Thường xuyên,60
+K9,TC-K9-06,Công bố thông tin doanh nghiệp theo quy định,Báo cáo công bố thông tin,kỳ,2,5,Đủ nội dung và đúng hạn theo nghị định về công bố thông tin,Trang công bố thông tin; báo cáo đã gửi,Thường xuyên,15

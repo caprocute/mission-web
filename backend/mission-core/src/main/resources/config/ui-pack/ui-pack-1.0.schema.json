@@ -157,6 +157,8 @@
         "component": { "type": "string", "maxLength": 64, "pattern": "^[a-z][a-zA-Z0-9]*([.][a-zA-Z0-9-]+)+$" },
         "props": { "type": "object", "additionalProperties": { "$ref": "#/$defs/safeJson" } },
         "visibleWhen": { "type": "string", "maxLength": 500, "pattern": "^[^<>]*$" },
+        "id": { "type": "string", "maxLength": 64, "pattern": "^[a-z][a-zA-Z0-9._-]{1,63}$" },
+        "mandatory": { "type": "boolean" },
         "children": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/sduiNode" } }
       }
     }

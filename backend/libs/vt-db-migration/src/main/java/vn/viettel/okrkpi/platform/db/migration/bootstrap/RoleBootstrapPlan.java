@@ -145,6 +145,9 @@ public final class RoleBootstrapPlan {
     return sql;
   }
 
+  /** Schema ghi lô bằng {@code COPY} vào bảng tạm, nên {@code svc_<schema>} có quyền TEMPORARY. */
+  static final List<String> BULK_LOAD_SCHEMAS = List.of("scoring");
+
   static List<String> schemaGrants(String schema) {
     String mig = role("mig", schema);
     String svc = role("svc", schema);
@@ -161,6 +164,15 @@ public final class RoleBootstrapPlan {
       // btree_gist cho ràng buộc EXCLUDE trộn cột uuid/varchar với khoảng ngày (TL-03
       // ex_period__no_overlap, CORE-08-01); cài extension cần quyền quản trị nên thuộc bootstrap.
       sql.add("CREATE EXTENSION IF NOT EXISTS btree_gist SCHEMA public");
+    }
+    if (BULK_LOAD_SCHEMAS.contains(schema)) {
+      // Ghi lô bằng COPY vào bảng tạm rồi INSERT ... SELECT (TL-03 "Schema scoring"): COPY FROM
+      // không
+      // chạy trên bảng có RLS nên svc_ cần bảng tạm riêng phiên (DV-07-01, wiki trang 14).
+      sql.add(
+          "DO $$ BEGIN EXECUTE format('GRANT TEMPORARY ON DATABASE %I TO "
+              + svc
+              + "', current_database()); END $$");
     }
     // Quyền mặc định cho đối tượng mig_<schema> tạo về sau.
     sql.add(defaults + "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO " + svc);

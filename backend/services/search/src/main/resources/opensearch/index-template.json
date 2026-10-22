@@ -1,0 +1,51 @@
+{
+  "index_patterns": ["t_*_task_v*", "pool_task_v*"],
+  "priority": 100,
+  "_meta": {"owner": "SVC-16", "task": "DV-16-01"},
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "${shards}",
+        "number_of_replicas": "${replicas}",
+        "refresh_interval": "1s"
+      },
+      "analysis": {
+        "filter": {
+          "vi_synonyms": {"type": "synonym_graph", "synonyms": "${synonyms}"}
+        },
+        "analyzer": {
+          "vi_index": {"type": "custom", "tokenizer": "icu_tokenizer", "filter": ["icu_folding"]},
+          "vi_search": {"type": "custom", "tokenizer": "icu_tokenizer", "filter": ["icu_folding", "vi_synonyms"]}
+        },
+        "normalizer": {
+          "vi_keyword": {"type": "custom", "filter": ["icu_folding"]}
+        }
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "tenant_id": {"type": "keyword"},
+        "doc_type": {"type": "keyword"},
+        "entity_id": {"type": "keyword"},
+        "updated_at": {"type": "date"},
+        "versions": {"type": "object", "enabled": false},
+        "title": {"type": "text", "analyzer": "vi_index", "search_analyzer": "vi_search",
+          "fields": {"sort": {"type": "keyword", "normalizer": "vi_keyword", "ignore_above": 512}}},
+        "summary": {"type": "text", "analyzer": "vi_index", "search_analyzer": "vi_search"},
+        "doc_number": {"type": "text", "analyzer": "vi_index",
+          "fields": {"raw": {"type": "keyword", "normalizer": "vi_keyword"}}},
+        "issuer": {"type": "text", "analyzer": "vi_index", "search_analyzer": "vi_search"},
+        "issued_date": {"type": "date", "format": "strict_date"},
+        "status": {"type": "keyword"},
+        "is_overdue": {"type": "boolean"},
+        "is_key_task": {"type": "boolean"},
+        "is_restricted": {"type": "boolean"},
+        "due_date": {"type": "date", "format": "strict_date"},
+        "lead_assignee_id": {"type": "keyword"},
+        "assignee_ids": {"type": "keyword"},
+        "plan_item_id": {"type": "keyword"}
+      }
+    }
+  }
+}

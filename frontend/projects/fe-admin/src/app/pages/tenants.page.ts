@@ -19,7 +19,7 @@
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   CellLoad,
   JOB_STATUS_LABEL,
@@ -35,8 +35,12 @@ import {
   TenantRow,
   TenantStats,
   TenantStatus,
+  FILTER_QUERY_PARAM,
+  createListPersonalization,
+  decodeCriteria,
+  encodeCriteria,
 } from '@vt/api-client';
-import { ThemeService } from '@vt/design-system';
+import { ThemeService, VtColumnPickerComponent, VtSavedFiltersComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
@@ -44,6 +48,7 @@ import { SelectModule } from 'primeng/select';
 import { Subject, debounceTime, finalize } from 'rxjs';
 import { ADMIN_CAN } from '../admin-permissions';
 import { errorText, fmtAccounts, fmtInt, fmtPercent } from '../admin-ui';
+import { TENANTS_CODEC, TENANTS_COLUMNS, TENANTS_SCREEN, TenantsFilterState } from './tenants.list';
 
 const PAGE_SIZE = 8;
 
@@ -63,7 +68,16 @@ export const MSG_01_02 = (tenant: string, step: number) =>
 
 @Component({
   selector: 'vt-tenants-page',
-  imports: [FormsModule, RouterLink, ButtonModule, InputTextModule, MessageModule, SelectModule],
+  imports: [
+    FormsModule,
+    RouterLink,
+    ButtonModule,
+    InputTextModule,
+    MessageModule,
+    SelectModule,
+    VtColumnPickerComponent,
+    VtSavedFiltersComponent,
+  ],
   template: `
     <header class="head">
       <div>
@@ -190,6 +204,28 @@ export const MSG_01_02 = (tenant: string, step: number) =>
             appendTo="body"
           />
         </div>
+        <div class="list-tools">
+          <vt-saved-filters
+            [filters]="list.filters()"
+            [activeId]="list.activeId()"
+            [busy]="list.busy()"
+            (apply)="applySaved($event)"
+            (save)="list.saveFilter($event.name, state(), $event.isDefault)"
+            (rename)="list.rename($event.id, $event.name)"
+            (toggleDefault)="list.toggleDefault($event)"
+            (remove)="list.remove($event)"
+          />
+          @if (!simple()) {
+            <vt-column-picker
+              [columns]="list.columns"
+              [visible]="list.visible()"
+              (visibleChange)="list.setVisible($event)"
+            />
+          }
+        </div>
+        @if (list.message(); as m) {
+          <p class="list-msg" [class.err]="!m.ok" role="status">{{ m.text }}</p>
+        }
 
         @if (page.error()) {
           <p-message severity="error" styleClass="msg">
@@ -205,14 +241,24 @@ export const MSG_01_02 = (tenant: string, step: number) =>
             <thead>
               <tr>
                 <th scope="col">Đơn vị triển khai</th>
-                <th scope="col">Cụm máy chủ</th>
-                <th scope="col">Mức cô lập</th>
-                <th scope="col" class="num">Tài khoản</th>
-                @if (!simple()) {
+                @if (list.shows('cellCode')) {
+                  <th scope="col">Cụm máy chủ</th>
+                }
+                @if (list.shows('tenancyModel')) {
+                  <th scope="col">Mức cô lập</th>
+                }
+                @if (list.shows('accountCount')) {
+                  <th scope="col" class="num">Tài khoản</th>
+                }
+                @if (!simple() && list.shows('policyPacks')) {
                   <th scope="col">Bộ quy định đánh giá</th>
+                }
+                @if (!simple() && list.shows('uiPack')) {
                   <th scope="col">Bộ giao diện</th>
                 }
-                <th scope="col">Trạng thái</th>
+                @if (list.shows('status')) {
+                  <th scope="col">Trạng thái</th>
+                }
                 <th scope="col"><span class="sr-only">Thao tác</span></th>
               </tr>
             </thead>
@@ -223,18 +269,28 @@ export const MSG_01_02 = (tenant: string, step: number) =>
                     <span class="name">{{ t.name }}</span>
                     <span class="muted small block">{{ t.domain }}</span>
                   </td>
-                  <td class="nowrap">{{ t.cellCode }}</td>
-                  <td>
-                    <span class="chip">{{ modelLabel[t.tenancyModel] }}</span>
-                  </td>
-                  <td class="num">{{ int(t.accountCount) }}</td>
-                  @if (!simple()) {
+                  @if (list.shows('cellCode')) {
+                    <td class="nowrap">{{ t.cellCode }}</td>
+                  }
+                  @if (list.shows('tenancyModel')) {
+                    <td>
+                      <span class="chip">{{ modelLabel[t.tenancyModel] }}</span>
+                    </td>
+                  }
+                  @if (list.shows('accountCount')) {
+                    <td class="num">{{ int(t.accountCount) }}</td>
+                  }
+                  @if (!simple() && list.shows('policyPacks')) {
                     <td>{{ (t.policyPacks ?? []).join(' + ') || '—' }}</td>
+                  }
+                  @if (!simple() && list.shows('uiPack')) {
                     <td>{{ t.uiPack ?? '—' }}</td>
                   }
-                  <td>
-                    <span class="status" [class]="'status st-' + tone(t)">{{ statusText(t) }}</span>
-                  </td>
+                  @if (list.shows('status')) {
+                    <td>
+                      <span class="status" [class]="'status st-' + tone(t)">{{ statusText(t) }}</span>
+                    </td>
+                  }
                   <td>
                     <a
                       pButton
@@ -251,7 +307,7 @@ export const MSG_01_02 = (tenant: string, step: number) =>
               } @empty {
                 @if (!page.isLoading()) {
                   <tr>
-                    <td [attr.colspan]="simple() ? 6 : 8" class="empty muted">
+                    <td [attr.colspan]="colspan()" class="empty muted">
                       Không có đơn vị nào phù hợp với điều kiện lọc.
                     </td>
                   </tr>
@@ -432,6 +488,21 @@ export const MSG_01_02 = (tenant: string, step: number) =>
         grid-template-columns: 1fr;
       }
     }
+    .list-tools {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin: 8px 0;
+    }
+    .list-msg {
+      margin: 0 0 8px;
+      color: #047857;
+    }
+    .list-msg.err {
+      color: #b91c1c;
+    }
     .filters {
       display: flex;
       flex-wrap: wrap;
@@ -596,6 +667,20 @@ export class TenantsPage {
   protected readonly cursors = signal<string[]>([]);
   private readonly cursor = signal<string | undefined>(undefined);
   protected readonly search$ = new Subject<string>();
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  /** CNH-04: cột tuỳ chọn và bộ lọc đã lưu, lưu theo người dùng trên máy chủ. */
+  protected readonly list = createListPersonalization(TENANTS_SCREEN, TENANTS_COLUMNS, TENANTS_CODEC);
+  protected readonly state = computed<TenantsFilterState>(() => {
+    const { cell, model, status } = this.filters();
+    return { cell, model, status };
+  });
+  protected readonly colspan = computed(
+    () =>
+      2 +
+      ['cellCode', 'tenancyModel', 'accountCount', 'status'].filter((k) => this.list.shows(k)).length +
+      (this.simple() ? 0 : ['policyPacks', 'uiPack'].filter((k) => this.list.shows(k)).length),
+  );
 
   protected readonly page = rxResource({
     params: () => ({ ...this.query(), cursor: this.cursor(), limit: PAGE_SIZE }),
@@ -627,6 +712,33 @@ export class TenantsPage {
 
   constructor() {
     this.search$.pipe(debounceTime(300)).subscribe((q) => this.setFilter('q', q));
+    const shared = decodeCriteria(this.route.snapshot.queryParamMap.get(FILTER_QUERY_PARAM));
+    if (shared) this.filters.update((f) => ({ ...f, ...TENANTS_CODEC.fromCriteria(shared).state }));
+    // đường dẫn chia sẻ thắng bộ lọc mặc định đã lưu
+    this.list.load(shared ? undefined : (s) => this.setState(s, true));
+  }
+
+  /** CNH-04: áp dụng một bộ lọc đã lưu bằng một chạm; `null` bỏ mọi điều kiện đã lưu. */
+  protected applySaved(id: string | null) {
+    this.setState(this.list.apply(id) ?? { cell: null, model: null, status: null }, true);
+  }
+
+  private setState(s: TenantsFilterState, keepActive = false) {
+    this.filters.update((f) => ({ ...f, ...s }));
+    this.cursors.set([]);
+    this.cursor.set(undefined);
+    this.syncUrl(keepActive);
+  }
+
+  /** Trạng thái lọc lên URL để chia sẻ trong nội bộ; quyền xem dữ liệu do máy chủ quyết định. */
+  private syncUrl(keepActive: boolean) {
+    if (!keepActive) this.list.activeId.set(null);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { [FILTER_QUERY_PARAM]: encodeCriteria(this.list.criteriaOf(this.state())) },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   private query(): Omit<TenantQuery, 'cursor' | 'limit'> {
@@ -643,6 +755,7 @@ export class TenantsPage {
     this.filters.update((f) => ({ ...f, [key]: value ?? (key === 'q' ? '' : null) }));
     this.cursors.set([]);
     this.cursor.set(undefined);
+    if (key !== 'q') this.syncUrl(false);
   }
 
   protected next(nextCursor: string | null) {

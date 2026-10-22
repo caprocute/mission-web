@@ -22,4 +22,7 @@ public interface PlanNotices {
 
   /** Báo người lập kế hoạch bị trả lại kèm ý kiến người duyệt (QT-04 bước 7b). */
   void returned(TenantId tenant, PendingPlan plan, String periodName, UUID author);
+
+  /** Báo người duyệt kế hoạch đã ký và duyệt xong (MSG-04-13, CORE-02-09). */
+  void approved(TenantId tenant, PendingPlan plan, String periodName, UUID approver);
 }

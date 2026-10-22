@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -67,6 +68,7 @@ import vn.viettel.okrkpi.contract.okr.model.PeriodRef;
 import vn.viettel.okrkpi.contract.okr.model.PeriodStatus;
 import vn.viettel.okrkpi.contract.okr.model.Ref;
 import vn.viettel.okrkpi.okr.application.OkrCheckService;
+import vn.viettel.okrkpi.okr.application.OkrCheckinDelegateService;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.OkrReadService.AlignmentNode;
 import vn.viettel.okrkpi.okr.application.OkrReadService.AlignmentView;
@@ -121,6 +123,7 @@ public class OkrReadController {
   private final ObjectProvider<AuthzSubjectResolver> subjects;
   private final ObjectProvider<OkrCaller> callers;
   private final OkrCheckService checks;
+  private final ObjectProvider<OkrCheckinDelegateService> delegates;
 
   public OkrReadController(
       OkrReadService reads,
@@ -130,7 +133,9 @@ public class OkrReadController {
       ObjectProvider<OrgDirectoryApi> org,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<OkrCaller> callers,
-      OkrCheckService checks) {
+      OkrCheckService checks,
+      ObjectProvider<OkrCheckinDelegateService> delegates) {
+    this.delegates = Objects.requireNonNull(delegates, "delegates");
     this.checks = Objects.requireNonNull(checks, "checks");
     this.reads = Objects.requireNonNull(reads, "reads");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
@@ -362,6 +367,17 @@ public class OkrReadController {
               }
               currentUser().ifPresent(me -> dto.viewerIsOwner(me.equals(o.ownerPersonId())));
             });
+    // CORE-01-12: người được giao check-in thay còn hiệu lực cũng là "chủ" khi xem KR.
+    OkrCheckinDelegateService delegation = delegates.getIfAvailable();
+    if (delegation != null) {
+      delegation
+          .delegateOf(tenant, id)
+          .ifPresent(
+              d -> {
+                dto.checkinDelegate(new Ref(d.personId(), ""));
+                currentUser().filter(d.personId()::equals).ifPresent(me -> dto.viewerIsOwner(true));
+              });
+    }
     if (view.row().lastCheckin() != null) {
       dto.latestBlocker(view.row().lastCheckin().blockerNote());
     }
@@ -630,10 +646,10 @@ public class OkrReadController {
             OkrRiskFlag.fromValue(k.riskFlag()),
             (int) k.rowVersion())
         .periodId(k.periodId())
-        .metricType(k.metricType() == null ? null : OkrMetricType.fromValue(k.metricType()))
+        .metricType(knownMetricType(k.metricType()))
         .baselineValue(k.baselineValue())
         .currentValue(k.currentValue())
-        .direction(k.direction() == null ? null : OkrDirection.fromValue(k.direction()))
+        .direction(knownDirection(k.direction()))
         .verifier(k.verifierPersonId() == null ? null : new Ref(k.verifierPersonId(), ""))
         .dataSource(k.dataSource())
         .formulaText(k.formulaText())
@@ -647,6 +663,24 @@ public class OkrReadController {
         .aiAssisted(k.aiAssisted())
         .aiSuggestionId(k.aiSuggestionId())
         .lastCheckin(lastCheckin(k));
+  }
+
+  /**
+   * CORE-01-14: kiểu đo {@code MOC} và chiều {@code TOI_DA} (BS-03 DC-04) chưa có trong {@code
+   * okr.yaml} (chờ NEN-044) nên chưa trả ra API; giá trị lạ để trống thay vì lỗi 500.
+   */
+  private static OkrMetricType knownMetricType(String value) {
+    return Arrays.stream(OkrMetricType.values())
+        .filter(t -> t.getValue().equals(value))
+        .findFirst()
+        .orElse(null);
+  }
+
+  private static OkrDirection knownDirection(String value) {
+    return Arrays.stream(OkrDirection.values())
+        .filter(d -> d.getValue().equals(value))
+        .findFirst()
+        .orElse(null);
   }
 
   private static OkrKeyResultListItem listItem(KeyResultView v) {

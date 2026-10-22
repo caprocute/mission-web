@@ -10,13 +10,19 @@ import java.util.Set;
  * Chú thích phân loại của một cột (TL-03 "Phân loại dữ liệu C0 đến C3 trên từng cột"), ví dụ {@code
  * {"cls":"C2","pii":true,"desc":"Số định danh cá nhân, mã hoá trường"}}. Khoá tuỳ chọn {@code
  * type_exception} ghi lý do dùng kiểu ngoài danh sách chuẩn (suy luận: TL-03 yêu cầu "ghi lý do"
- * nhưng không quy định nơi ghi).
+ * nhưng không quy định nơi ghi). Cột C2 để dạng rõ có kiểm soát (TL-03 {@code
+ * appraisal.prospect_group.group_code}) ghi {@code "enc":false} kèm {@code justification}.
  *
  * @param cls mức phân loại C0..C3
  * @param pii có phải dữ liệu cá nhân hay không
  * @param typeException lý do dùng kiểu ngoài danh sách chuẩn, rỗng nếu không có
+ * @param plaintextJustification lý do để cột C2 ở dạng rõ ({@code "enc":false}), rỗng nếu không có
  */
-public record ColumnClassification(String cls, boolean pii, Optional<String> typeException) {
+public record ColumnClassification(
+    String cls,
+    boolean pii,
+    Optional<String> typeException,
+    Optional<String> plaintextJustification) {
 
   /** Các mức hợp lệ theo ADR-06. */
   public static final Set<String> LEVELS = Set.of("C0", "C1", "C2", "C3");
@@ -37,17 +43,23 @@ public record ColumnClassification(String cls, boolean pii, Optional<String> typ
       if (!LEVELS.contains(cls)) {
         return Optional.empty();
       }
-      JsonNode exception = node.path("type_exception");
+      JsonNode justification = node.path("justification");
+      boolean plaintext = node.path("enc").isBoolean() && !node.path("enc").asBoolean();
       return Optional.of(
           new ColumnClassification(
               cls,
               node.path("pii").asBoolean(false),
-              exception.isTextual() && !exception.asText().isBlank()
-                  ? Optional.of(exception.asText())
-                  : Optional.empty()));
+              text(node.path("type_exception")),
+              plaintext ? text(justification) : Optional.empty()));
     } catch (IOException e) {
       return Optional.empty();
     }
+  }
+
+  private static Optional<String> text(JsonNode node) {
+    return node.isTextual() && !node.asText().isBlank()
+        ? Optional.of(node.asText())
+        : Optional.empty();
   }
 
   /** Cột không được đi sang kho phân tích qua CDC (C2 giả danh hoá riêng, C3 không bao giờ). */

@@ -81,6 +81,11 @@ public class KeycloakAdminClient {
   }
 
   public List<UUID> tenantAdmins(TenantId tenant) {
+    return roleHolders(tenant, props.adminRole());
+  }
+
+  /** Người giữ vai trò realm {@code role} có thuộc tính {@code tenant_id} trùng tenant. */
+  public List<UUID> roleHolders(TenantId tenant, String role) {
     String wanted = tenant.value().toString();
     return call(
         () -> {
@@ -96,7 +101,7 @@ public class KeycloakAdminClient {
                                 .queryParam("briefRepresentation", false)
                                 .queryParam("first", from)
                                 .queryParam("max", PAGE)
-                                .build(props.adminRole()))
+                                .build(role))
                     .retrieve()
                     .body(LIST);
             if (page == null || page.isEmpty()) {

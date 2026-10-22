@@ -32,6 +32,15 @@ class ProgressCalculatorTest {
     assertThat(kr("SO_LUONG", "GIAM", "10", "2", "0")).isEqualByComparingTo("1");
   }
 
+  /** CORE-01-14, BS-03 DC-04: chiều không vượt quá và kiểu mốc. */
+  @Test
+  void chieuToiDaVaKieuMoc() {
+    assertThat(kr("SO_LUONG", "TOI_DA", "0", "5", "5")).isEqualByComparingTo("1");
+    assertThat(kr("SO_LUONG", "TOI_DA", "0", "5", "3")).isEqualByComparingTo("1");
+    assertThat(kr("SO_LUONG", "TOI_DA", "0", "5", "6")).isEqualByComparingTo("0");
+    assertThat(kr("MOC", "TANG", "0", "4", "1")).isEqualByComparingTo("0.25");
+  }
+
   @Test
   void chieuGiamTinhNguoc() {
     assertThat(kr("SO_LUONG", "GIAM", "10", "2", "6")).isEqualByComparingTo("0.5");

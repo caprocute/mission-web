@@ -21,7 +21,7 @@ TL-01 quy định CSP nghiêm (SEC-19) cho mọi trang của shell. Bảng dư�
 | `base-uri` | `'self'` |
 | `form-action` | `'self'` |
 | `require-trusted-types-for` | `'script'` |
-| `trusted-types` | `angular angular#bundler vt-federation` |
+| `trusted-types` | `angular angular#bundler vt-federation` (mã hiện thực thêm `native-federation es-module-shims`, xem dưới) |
 
 Ba hệ quả trực tiếp cho người viết mã. Thứ nhất, không có `'unsafe-eval'` nên mọi thư viện sinh mã lúc chạy bị chặn; đây là lý do `@vt/sdui-renderer` không dùng Ajv ở chế độ mặc định mà tự viết bộ lọc thuộc tính trong `props-validator.ts`, và `cel-js` được chọn vì thông dịch chứ không biên dịch thành hàm. Thứ hai, không có `'unsafe-inline'` cho style nên CSS động phải mang nonce; `ThemeService` tạo thẻ `style#vt-tenant-tokens` có thuộc tính nonce lấy từ token `CSP_NONCE` và gán nội dung bằng `textContent`, không bằng `innerHTML`. Thứ ba, Trusted Types chỉ cho phép ba chính sách có tên `angular`, `angular#bundler` và `vt-federation`; mã nạp remote của Native Federation phải đi qua chính sách `vt-federation` (suy luận về vai trò của tên chính sách này, TL-01 chỉ liệt kê tên).
 
@@ -35,7 +35,13 @@ TL-01 mô tả chống XSS (SEC-19) bằng năm lớp chồng nhau. Lớp một 
 
 SEC-24 yêu cầu header bảo mật HTTP. TL-01 liệt kê `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` và `Cross-Origin-Opener-Policy: same-origin`, cùng CSP ở trên. SEC-06 yêu cầu CORS theo danh sách cho phép; TL-01 cho phép nguồn theo từng tenant thay vì ký tự đại diện. Vì token nằm trong bộ nhớ và không dùng cookie cho API, CSRF không áp dụng cho API; SEC-08 vẫn yêu cầu cookie (của Keycloak) đặt thuộc tính an toàn.
 
-Hiện trạng `deploy/web/nginx.conf` mới đặt `X-Content-Type-Options: nosniff`, `Referrer-Policy` và `server_tokens off`, chưa có CSP, HSTS, `Permissions-Policy` và COOP. Tệp tĩnh (js, css, phông, ảnh) đang trả `Access-Control-Allow-Origin: *` để shell ở nguồn khác nạp được remote; tài nguyên tĩnh không chứa dữ liệu nên điều này chấp nhận được, nhưng API tuyệt đối không được dùng ký tự đại diện. Có thể header bảo mật sẽ đặt ở APISIX hoặc CDN thay vì nginx (suy luận, nguồn chưa chỉ định nơi đặt); dù đặt ở đâu, nonce theo từng request đòi hỏi `index.html` được sinh hoặc thay nonce mỗi lần trả về, việc mà cấu hình nginx tĩnh hiện tại chưa làm.
+Hiện thực của WEB-014 (22/10/2026) đặt toàn bộ header ở nginx của SVC-17. Tệp `deploy/web/security-headers.conf` chứa `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` (camera, vị trí, thanh toán, USB bị tắt; micro chỉ cùng nguồn) và `Strict-Transport-Security`; tệp này được `include` ở mức server và lại ở từng `location` có `add_header` riêng, vì nginx bỏ header kế thừa khi `location` tự đặt header. HSTS chỉ gửi khi yêu cầu đến bằng HTTPS (trực tiếp hoặc qua `X-Forwarded-Proto: https`) để môi trường dev chạy HTTP không bị khoá. CSP và `Cross-Origin-Opener-Policy: same-origin` đặt ở `location = /index.html`; mọi tuyến của ứng dụng đều rơi về tệp này qua `try_files`, và `index.html` trả `no-store` để nonce không bị lưu đệm.
+
+Nonce theo từng yêu cầu dùng `$request_id` của nginx. `index.html` mang `<vt-root ngCspNonce="__CSP_NONCE__">`; Angular CLI thấy thuộc tính này nên gắn `nonce="__CSP_NONCE__"` vào mọi thẻ script và style do nó sinh ra, và `sub_filter` của nginx thay chuỗi giữ chỗ bằng nonce thật. Angular đọc thuộc tính `ngCspNonce` để cấp token `CSP_NONCE` (dùng bởi `ThemeService`), còn `provideDesignSystem` đọc cùng thuộc tính để truyền `csp.nonce` cho PrimeNG, vì PrimeNG tự chèn thẻ `<style>` cho từng component. `'strict-dynamic'` cho phép các module mà script có nonce nạp tiếp (shell, remote, chunk lười) mà không phải liệt kê từng tệp.
+
+Nguồn ngoài của CSP sinh lúc container khởi động. `40-runtime-config.sh` lấy origin của `API_BASE_URL`, `AUTH_ISSUER`, `UI_PACK_BASE_URL` và URL từng remote, cộng thêm `CSP_CONNECT_SRC` và `CSP_FRAME_ANCESTORS` (danh sách cách nhau bằng dấu cách), rồi ghi bốn biến nginx vào `$CSP_DIR/csp-nguon.conf` (mặc định `/tmp/runtime`). Chỉ origin dạng `http(s)://` hoặc `ws(s)://` gồm chữ, số, dấu chấm, gạch và cổng được chấp nhận, nên giá trị biến môi trường không thể chèn chỉ thị CSP khác. Khi không có tệp, chính sách chỉ cho phép cùng nguồn. Nguồn IdP được thêm vào `frame-src` và `form-action` cho luồng làm mới phiên ẩn và đăng xuất.
+
+Ba bẫy đã gặp khi bật Trusted Types. Native Federation 21 tạo chính sách tên `native-federation`, không phải `vt-federation` như TL-01 ghi, nên danh sách `trusted-types` giữ tên của TL-01 và thêm tên thật (ghi ở trang 14). es-module-shims 1.10 không hỗ trợ Trusted Types (gán `src` blob trực tiếp và dựng iframe `srcdoc`), khiến trang trắng; bản 2.8 tạo chính sách `es-module-shims`, nên phụ thuộc này được nâng lên `^2.8.4`. PrimeNG vi phạm `style-src` nếu không được cấp nonce như trên. Đã kiểm bằng nginx thật và Playwright trên 12 tuyến của shell: không vi phạm CSP, không lỗi console. Tệp tĩnh (js, css, phông, ảnh) vẫn trả `Access-Control-Allow-Origin: *` để shell ở nguồn khác nạp được remote; tài nguyên tĩnh không chứa dữ liệu nên điều này chấp nhận được, nhưng API tuyệt đối không được dùng ký tự đại diện.
 
 ## Phân lớp dữ liệu và lưu trữ cục bộ
 
@@ -62,6 +68,12 @@ Plugin của tenant (lớp bốn của ADR-05) là remote Native Federation do b
 ## Bảng kiểm khi viết mã giao diện
 
 Trước khi mở PR, người viết tự hỏi: mã có gắn HTML thô hay gọi `bypassSecurityTrust*` không; có thư viện nào cần `eval` không; có ghi token, PII hay nội dung biểu mẫu ra log, URL hay bộ nhớ trình duyệt không; mọi request API có đi qua `@vt/api-client` và các interceptor không; thuộc tính đến từ UI Pack có được lọc qua `propsSchema` không; quyết định quyền có được để máy chủ thực hiện không. Mỗi câu trả lời "có" cho các câu đầu là lý do chặn merge.
+
+## Bảo vệ của renderer SDUI (WEB-009)
+
+Renderer SDUI là lớp hai của ADR-05 và có bốn chốt chặn ở trình duyệt. Chốt một là chữ ký và phiên bản của UI Pack, mô tả ở [trang 03](03-giao-dien-theo-tenant.md). Chốt hai là registry: nút có `component` không đăng ký không bao giờ được dựng. Chốt ba là `PropsValidator`: thuộc tính không có trong `propsSchema`, sai kiểu, ngoài giới hạn hoặc chứa URL `javascript:`, `data:`, `vbscript:` (kể cả khi chèn khoảng trắng, ký tự điều khiển, hoặc lồng trong mảng và đối tượng) bị loại trước khi gán vào component. Chốt bốn là giới hạn chi phí CEL: biểu thức `visibleWhen` dài quá 512 ký tự, lồng ngoặc quá 12 mức hoặc có quá 2 macro lặp (`all`, `exists`, `exists_one`, `map`, `filter`) bị coi là ẩn mà không phân tích, để một gói lỗi không làm treo trang.
+
+Mỗi lần chốt chặn hoạt động, `SduiTelemetry` ghi một sự kiện (`sdui.component.unknown`, `sdui.prop.dropped`, `sdui.cel.invalid`, `sdui.cel.error`, `sdui.cel.limit`, `ui-pack.signature.missing`, `ui-pack.signature.invalid`, `ui-pack.registry.incompatible`) chỉ kèm tên component, tên thuộc tính, lý do và phiên bản, không kèm giá trị. Sự kiện trùng chỉ ghi một lần và tối đa 200 sự kiện khác nhau mỗi phiên. Sự kiện ra console và tới token `SDUI_TELEMETRY_SINK` nếu shell cung cấp; khi WEB-011 đưa Grafana Faro vào, shell chỉ cần cung cấp token này.
 
 ## Liên quan
 

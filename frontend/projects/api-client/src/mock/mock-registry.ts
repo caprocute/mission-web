@@ -41,6 +41,8 @@ export const MOCK_LOADERS = {
     import('./feature-flags/feature-flags.mock').then((m) => m.FEATURE_FLAGS_MOCK),
   policies: () => import('./policies/policies.mock').then((m) => m.POLICIES_MOCK),
   analytics: () => import('./analytics/analytics.mock').then((m) => m.ANALYTICS_MOCK),
+  mePreferences: () =>
+    import('./me-preferences/me-preferences.mock').then((m) => m.ME_PREFERENCES_MOCK),
 } satisfies Record<string, () => Promise<MockModule>>;
 
 export type MockLoaderKey = keyof typeof MOCK_LOADERS;
@@ -54,7 +56,7 @@ export const MOCK_PREFIXES: Record<string, MockLoaderKey[]> = {
   analytics: ['analytics'],
   appraisals: ['evidence', 'appraisals', 'complaints'],
   catalog: ['catalog'],
-  config: ['tenants', 'roleAdmin', 'alerts', 'featureFlags'],
+  config: ['tenants', 'roleAdmin', 'alerts', 'featureFlags', 'mePreferences'],
   dossiers: ['dossiers'],
   esign: ['plans', 'dossiers'],
   evidences: ['evidence'],
@@ -70,7 +72,7 @@ export const MOCK_PREFIXES: Record<string, MockLoaderKey[]> = {
   products: ['evidence'],
   registry: ['tenants'],
   tasks: ['sourceDocs', 'tasks', 'analytics'],
-  ui: ['uiForms', 'uiPacks'],
+  ui: ['uiForms', 'uiPacks', 'mePreferences'],
   workflow: ['workflowTemplates', 'workflowInstances'],
 };
 

@@ -26,5 +26,7 @@
     <module>esign-service</module>
     <module>document-service</module>
     <module>evidence-service</module>
+    <module>scoring-service</module>
+    <module>search</module>
   </modules>
 </project>
