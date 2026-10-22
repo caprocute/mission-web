@@ -52,6 +52,7 @@ import vn.viettel.okrkpi.contract.products.model.FileScanStatus;
 import vn.viettel.okrkpi.contract.products.model.ProductTaskRef;
 import vn.viettel.okrkpi.contract.products.model.Ref;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceActor;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceReviewService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService.DraftInput;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService.EvidenceDetail;
@@ -82,9 +83,9 @@ import vn.viettel.okrkpi.task.api.TaskSummary;
 
 /**
  * Mười thao tác khai báo sản phẩm và nộp minh chứng của {@code products.yaml} (QT-07, SCR-0701,
- * CORE-03-03). Tên tệp gốc là C2 ở SVC-08 và sự kiện lưu không mang tên tệp, nên {@code
- * files[].fileName} trả rỗng (suy luận, wiki 14); tên người trong {@code Ref} cũng rỗng như các API
- * khác của mission-core.
+ * CORE-03-03) và mở nghiệm thu, hàng chờ người nghiệm thu (SCR-0703, CORE-03-06). Tên tệp gốc là C2
+ * ở SVC-08 và sự kiện lưu không mang tên tệp, nên {@code files[].fileName} trả rỗng (suy luận, wiki
+ * 14); tên người trong {@code Ref} cũng rỗng như các API khác của mission-core.
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -93,16 +94,19 @@ public class EvidenceController {
   private static final String MODULE = "products";
 
   private final EvidenceSubmissionService service;
+  private final EvidenceReviewService reviews;
   private final CursorCodec cursors;
   private final ObjectProvider<EvidenceCaller> callers;
   private final ObjectProvider<AuthzSubjectResolver> subjects;
 
   public EvidenceController(
       EvidenceSubmissionService service,
+      EvidenceReviewService reviews,
       CursorCodec cursors,
       ObjectProvider<EvidenceCaller> callers,
       ObjectProvider<AuthzSubjectResolver> subjects) {
     this.service = Objects.requireNonNull(service, "service");
+    this.reviews = Objects.requireNonNull(reviews, "reviews");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
     this.callers = Objects.requireNonNull(callers, "callers");
     this.subjects = Objects.requireNonNull(subjects, "subjects");
@@ -176,12 +180,12 @@ public class EvidenceController {
       @RequestParam(value = "limit", required = false) Integer limit,
       @RequestParam(value = "cursor", required = false) String cursor) {
     TenantId tenant = TenantContext.require();
+    UUID reviewerId = null;
     if (reviewer != null) {
-      // Hàng chờ nghiệm thu theo người nghiệm thu thuộc CORE-03-06.
-      throw new BusinessException(
-          "COMMON-422-VALIDATION",
-          "Bộ lọc người nghiệm thu chưa được hỗ trợ",
-          List.of(new ProblemFieldError("reviewer", "Bộ lọc chưa được hỗ trợ", null)));
+      if (!"me".equals(reviewer)) {
+        throw invalid("reviewer");
+      }
+      reviewerId = actor().personId();
     }
     UUID submitterId = null;
     if (submitter != null) {
@@ -210,12 +214,14 @@ public class EvidenceController {
             + ":"
             + submitterId
             + ":"
+            + reviewerId
+            + ":"
             + periodId;
     PageRequest page = cursors.pageRequest(limit, cursor, scope);
     List<EvidenceView> rows =
         service.listEvidences(
             tenant,
-            new EvidenceFilter(task, deliverable, statuses, submitterId, periodId),
+            new EvidenceFilter(task, deliverable, statuses, submitterId, reviewerId, periodId),
             page.afterKey().map(k -> k.getUuid(0)).orElse(null),
             page.fetchSize());
     CursorPage<EvidenceView> result = cursors.page(rows, page, e -> CursorKey.of(e.id()));
@@ -357,6 +363,26 @@ public class EvidenceController {
             .reviewer(done.reviewerId() == null ? null : new Ref().id(done.reviewerId()).name(""))
             .taskStatusChanged(done.taskStatusChanged());
     return ETags.ok(result, done.version().version().rowVersion());
+  }
+
+  // ---------------------------------------------------------------- nghiệm thu
+
+  @PostMapping("/evidences/{id}/versions/{v}/open-review")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "openEvidenceReview",
+      module = MODULE,
+      resourceType = "evidence")
+  public ResponseEntity<EvidenceVersion> openEvidenceReview(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") int versionNo,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch) {
+    long expected = ETags.expectedVersion(ifMatch, "PRODUCT");
+    EvidenceActor actor = actor();
+    TenantId tenant = TenantContext.require();
+    found(() -> reviews.openReview(tenant, id, versionNo, expected, actor));
+    VersionDetail v = found(() -> service.getVersion(tenant, id, versionNo));
+    return ETags.ok(version(v), v.version().rowVersion());
   }
 
   // ---------------------------------------------------------------- ánh xạ

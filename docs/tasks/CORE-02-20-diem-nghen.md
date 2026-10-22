@@ -33,6 +33,14 @@ Cho người thực hiện báo điểm nghẽn của nhiệm vụ (nội dung, 
 - Chỉ người giao việc hoặc người được giao xử lý được thao tác xử lý; người báo được sửa nội dung khi còn `MO` (suy luận).
 - Đưa danh sách điểm nghẽn vào phản hồi chi tiết nhiệm vụ `getTask` theo lược đồ hợp đồng.
 
+### Bổ sung theo BS-03 (ADR-33, 22/10/2026)
+
+Nguồn: `/mnt/project-files/kien-truc-okr-kpi/bo-sung/BS-03-ho-so-tap-khach-hang-va-diem-cam-loi.md`. Phần dưới mở rộng phạm vi của thẻ; mọi giá trị riêng của khách hàng đi qua cấu hình, không viết cứng trong mã (YC-TK-11). Nếu thẻ phụ thuộc chưa gộp, làm phần gốc của thẻ trước và để phần bổ sung sau cờ hoặc ghi rõ trong báo cáo.
+
+Phụ thuộc thêm NEN-044, CORE-05-12.
+
+- Điểm nghẽn tự sinh: thêm cột `origin` (`NGUOI_DUNG` mặc định, `TU_DONG`) và `rule_code` cho `task.task_blocker`; job đánh giá bộ quy tắc CEL do hồ sơ trỏ tới (ví dụ chín quy tắc của hồ sơ TWĐ), ghi điểm nghẽn idempotent theo `(task_id, rule_code, ngày chạy)`, bỏ qua khi hồ sơ không có bộ quy tắc.
+
 ## 4. Ngoài phạm vi
 
 - Đề nghị gia hạn liên kết điểm nghẽn (`blocker_id`, CORE-02-21); thống kê điểm nghẽn trên bảng điều hành (SVC-15).
@@ -42,6 +50,7 @@ Cho người thực hiện báo điểm nghẽn của nhiệm vụ (nội dung, 
 - `backend/mission-core/src/main/java/vn/viettel/okrkpi/task/**`
 - `backend/mission-core/src/test/java/vn/viettel/okrkpi/task/**`
 - `wiki/14-quyet-dinh-va-cau-hoi-mo.md`
+- `backend/mission-core/src/main/resources/db/migration/task/**` (BS-03)
 
 ## 6. Tiêu chí hoàn thành
 

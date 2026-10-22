@@ -171,6 +171,10 @@ public class JdbcEvidenceSubmissionRepository implements EvidenceSubmissionRepos
       params.add(filter.submitter());
       params.add(filter.submitter());
     }
+    if (filter.reviewer() != null) {
+      sql.append(" AND e.reviewer_id = ?");
+      params.add(filter.reviewer());
+    }
     if (afterId != null) {
       sql.append(" AND e.id > ?");
       params.add(afterId);
@@ -397,6 +401,15 @@ public class JdbcEvidenceSubmissionRepository implements EvidenceSubmissionRepos
             "UPDATE product.evidence_version SET attested_at = ? WHERE period_bucket = ? AND"
                 + " tenant_id = ? AND id = ? AND status = 'NHAP'")
         .params(ts(at), periodBucket, tenant.value(), versionId)
+        .update();
+  }
+
+  @Override
+  public void markReviewer(TenantId tenant, int periodBucket, UUID evidenceId, UUID reviewerId) {
+    jdbc.sql(
+            "UPDATE product.evidence SET reviewer_id = ? WHERE period_bucket = ? AND tenant_id = ?"
+                + " AND id = ?")
+        .params(reviewerId, periodBucket, tenant.value(), evidenceId)
         .update();
   }
 

@@ -27,6 +27,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -457,7 +458,9 @@ class OkrCheckinApiIT extends ContractConformanceTest {
     assertThat(after.at("/counts/needCheckin").asInt()).isEqualTo(count - 1);
   }
 
+  /** Bài đo hiệu năng, tắt mặc định theo YC-PT-19; bật bằng {@code -Dmission.perf=true}. */
   @Test
+  @EnabledIfSystemProperty(named = "mission.perf", matches = "true")
   void thoiGianGuiP95DuoiHaiTramMiliGiay() throws Exception {
     Okr okr = objective("DA_DUYET", period, 20271);
     long[] samples = new long[40];

@@ -18,6 +18,7 @@ from xml.etree import ElementTree
 from vtplatform.db import in_tenant_tx
 from vtplatform.kafka import InboxGuard, InboxOutcome, IncomingEvent
 
+from app.assist.extract import Extraction, Extractor
 from app.core.auth import Principal
 from app.core.core_client import C3ForbiddenError, CoreClient
 from app.core.service_token import ServiceToken
@@ -79,13 +80,14 @@ def extract_text(filename: str, data: bytes) -> str:
 
 class Indexer:
     def __init__(self, pool: Any, store: ChunkStore, embedder: Embedder, core: CoreClient | None = None,
-                 service_token: ServiceToken | None = None) -> None:
+                 service_token: ServiceToken | None = None, extractor: Extractor | None = None) -> None:
         self._pool = pool
         self._store = store
         self._emb = embedder
         self._core = core
         self._token = service_token
         self._inbox = InboxGuard("ai", CONSUMER)
+        self.extractor = extractor
 
     async def _prepare(self, title: str, text: str) -> tuple[list[Any], list[list[float]]]:
         chunks = chunk_text(text)
@@ -145,10 +147,17 @@ class Indexer:
         chunks: list[Any] = []
         vectors: list[list[float]] = []
         acl: list[str] = []
+        version = int(payload.get("aggregateVersion") or 0)
+        ex: Extraction | None = None
         if skip is None:
             title = f"Văn bản {payload.get('docNumber') or ''} của {payload.get('issuer') or ''}".strip()
             chunks, vectors = await self._prepare(title, document_text(doc))
             acl = await self._acl(tok, doc)
+            if self.extractor is not None:
+                async with in_tenant_tx(self._pool, ev.tenant_id) as tx:
+                    await self.extractor.mark(tx, ev.tenant_id, doc_id, version, "DANG_TRICH",
+                                              self.extractor.queue.llm.model)
+                ex = await self.extractor.extract(tok, ev.tenant_id, doc_id, version, doc, payload)
 
         async def apply(tx: Any, _: IncomingEvent) -> None:
             if skip is not None:
@@ -159,14 +168,19 @@ class Indexer:
                            created_at) VALUES ($1, $2, $3, 'C2_REQUEST', 'CHAN', $4::jsonb, $5)""",
                     now.date(), uuid.uuid4(), uuid.UUID(ev.tenant_id),
                     json.dumps({"reason": "INDEX_SKIPPED", "classification": skip, "sourceId": doc_id}), now)
+                if self.extractor is not None:
+                    await self.extractor.mark(tx, ev.tenant_id, doc_id, version, "KHONG_TRICH_DUOC",
+                                              self.extractor.queue.llm.model)
                 return
             await self._store.replace_source(tx, tenant_id=ev.tenant_id, source_type="VAN_BAN_CHI_DAO",
                                              source_id=doc_id, chunks=chunks, vectors=vectors,
                                              model=self._emb.model, acl=acl, classification="C1")
+            if self.extractor is not None and ex is not None:
+                await self.extractor.write(tx, ev.tenant_id, doc_id, version, ex)
 
         ev.aggregate_type = ev.aggregate_type or "document"
         ev.aggregate_id = ev.aggregate_id or doc_id
-        ev.aggregate_version = int(payload.get("aggregateVersion") or 0)
+        ev.aggregate_version = version
         return await self._inbox.process(self._pool, ev, apply)
 
     async def load_corpus(self, manifest: dict[str, Any], read: Any) -> int:

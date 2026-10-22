@@ -36,6 +36,14 @@ Hiện thực check-in KR theo đúng ADR-04 tầng 1 (trực tiếp trong MOD-0
 - Hiện thực `listOkrCheckins` (con trỏ, mới nhất trước, chỉ người tạo thấy bản nháp của mình) và bộ lọc `owner=me`, `needCheckin` của `listOkrKeyResults` cho danh sách KR cần check-in của SCR-0301, SCR-0302 và khối trang chủ SCR-0002.
 - Để chỗ cho CORE-01-09 (cờ rủi ro, EVT-02) và CORE-01-10 (số liệu nguồn, ghi đè) bằng điểm mở rộng rõ ràng trong use case gửi, không hiện thực trước.
 
+### Bổ sung theo BS-03 (ADR-33, 22/10/2026)
+
+Nguồn: `/mnt/project-files/kien-truc-okr-kpi/bo-sung/BS-03-ho-so-tap-khach-hang-va-diem-cam-loi.md`. Phần dưới mở rộng phạm vi của thẻ; mọi giá trị riêng của khách hàng đi qua cấu hình, không viết cứng trong mã (YC-TK-11). Nếu thẻ phụ thuộc chưa gộp, làm phần gốc của thẻ trước và để phần bổ sung sau cờ hoặc ghi rõ trong báo cáo.
+
+Phụ thuộc thêm CORE-01-14.
+
+- Check-in KR kiểu `MOC` là ghi nhận đạt mốc (Idempotency-Key, minh chứng); KR tỷ lệ có nhãn nhập tử số và mẫu số. Lõi chỉ ghi ngày đạt và số ngày làm việc chậm, không quy đổi tỷ lệ (DC-04).
+
 ## 4. Ngoài phạm vi
 
 - Cờ rủi ro và phát EVT-02 (CORE-01-09); số liệu nguồn và BR-03-04 (CORE-01-10); nhắc check-in (CORE-01-11); uỷ quyền check-in thay (CORE-01-12).

@@ -29,10 +29,6 @@ def _docker() -> bool:
         return False
 
 
-if not _docker():
-    pytest.skip("kiểm thử tích hợp cần Docker", allow_module_level=True)
-
-
 @pytest.fixture(scope="session")
 def db() -> Iterator[dict[str, str]]:
     if not _docker():

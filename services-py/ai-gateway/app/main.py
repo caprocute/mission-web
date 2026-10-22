@@ -16,7 +16,9 @@ from vtplatform import problem as vp
 from vtplatform.logging import configure_logger
 from vtplatform.otel import extract_headers, reset_current_span_context, set_current_span_context
 
-from app.api import routes
+from app.api import assist, routes
+from app.assist.extract import Extractor
+from app.assist.service import AssistService
 from app.core import problems
 from app.core.auth import JwtVerifier
 from app.core.config import Settings
@@ -27,12 +29,13 @@ from app.core.pipeline import Gateway, Overloaded
 from app.core.service_token import ServiceToken
 from app.core.state import State
 from app.guard.guards import input_guard, output_guard
-from app.llm.client import InferenceQueue, Llm, MockLlm, OpenAiCompatLlm
+from app.llm.client import InferenceQueue, Llm, LlmError, MockLlm, OpenAiCompatLlm
 from app.rag import consumer
 from app.rag.embed import Embedder, HashEmbedder, OpenAiEmbedder
 from app.rag.ingest import Indexer
 from app.rag.retriever import Retriever
 from app.rag.store import ChunkStore
+from app.store.idempotency import IdempotencyStore
 from app.store.suggestions import SuggestionStore
 
 log = logging.getLogger("ai-gateway")
@@ -80,16 +83,19 @@ def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncB
         svc_token = ServiceToken(idp_http, verifier, token_url=s.oidc_token_url, client_id=s.exchange_client_id,
                                  client_secret=s.exchange_client_secret, audience=s.exchange_audience,
                                  required_role=s.exchange_role)
-        indexer = Indexer(pool, chunks, emb, core, svc_token)
+        queue = InferenceQueue(model, s.llm_max_concurrency, s.llm_max_waiting)
+        indexer = Indexer(pool, chunks, emb, core, svc_token, Extractor(queue, core))
         stop = asyncio.Event()
         consumer_task = (asyncio.create_task(consumer.run(indexer, s.kafka_brokers, stop))
                          if s.kafka_brokers else None)
         store = SuggestionStore(pool)
-        gw = Gateway(InferenceQueue(model, s.llm_max_concurrency, s.llm_max_waiting), store,
+        gw = Gateway(queue, store,
                      timeout_s=s.llm_timeout_s, sync_wait_s=s.llm_sync_wait_s, deferred_max=s.deferred_max,
                      input_guards=[input_guard], output_guards=[output_guard])
+        retriever = Retriever(chunks, emb)
         app.state.svc = State(verifier=verifier, opa=OpaClient(opa_http), core=core, gateway=gw, store=store,
-                              pool=pool, retriever=Retriever(chunks, emb), indexer=indexer)
+                              pool=pool, retriever=retriever, indexer=indexer, idempotency=IdempotencyStore(pool),
+                              assist=AssistService(gw, store, core, retriever, indexer))
         try:
             yield
         finally:
@@ -104,11 +110,17 @@ def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncB
     app = FastAPI(title="ai-gateway", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.include_router(routes.probes)
     app.include_router(routes.api)
+    app.include_router(assist.router)
     app.add_exception_handler(problems.ApiError, problems.handle_api_error)
 
     @app.exception_handler(Overloaded)
     async def overloaded(request: Request, _: Exception) -> Response:
         e = problems.too_many(request.url.path)
+        return problems.render(e.problem, e.headers)
+
+    @app.exception_handler(LlmError)
+    async def llm_down(request: Request, _: Exception) -> Response:
+        e = problems.unavailable(request.url.path)
         return problems.render(e.problem, e.headers)
 
     @app.exception_handler(RequestValidationError)
