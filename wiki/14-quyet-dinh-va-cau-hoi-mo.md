@@ -680,6 +680,12 @@ Tiến độ KR và mục tiêu được tính lại lúc đọc bằng `Progres
 
 Việc nền móng còn nợ: bộ so khớp hợp đồng `vt-contract-test` (`OpenApiConformanceEngine.isNullableSchema`) chưa nhận nhánh `{type: 'null'}` trong `oneOf` của OpenAPI 3.1, nên trường bắt buộc có thể rỗng như `OkrTree.parent` bị báo thiếu khi giá trị là `null`. `OkrReadApiIT` vì thế so khớp hợp đồng của `getOkrTree` trên cây của đơn vị cấp dưới, nơi `parent` có giá trị. Cần sửa thư viện trong một task nền móng sau.
 
+### Ghi chú và quyết định từ máy trạng thái nhiệm vụ (CORE-02-13, 22/10/2026)
+
+Bảng chuyển trạng thái của nhiệm vụ được đọc từ khoá `task_lifecycle` của Policy Pack mà kỳ đã ghim (ADR-04), nên khi một phiên bản gói mới được phát hành, các nhiệm vụ của kỳ đã ghim phiên bản cũ vẫn chạy theo bảng cũ; khi tenant hoặc kỳ chưa có gói, máy chủ dùng bảng mặc định mười dòng của QT-05 (`mac-dinh@2.1.0`), khớp với tệp `data/policy-pack/khoi-dang/quy-dinh-moi/task_lifecycle.yaml`. Nhiệm vụ không mang luồng Nhà nước hay Đảng, nên bộ phân giải dò lần lượt luồng `NHA_NUOC` rồi `DANG` (suy luận, vì hai gói mẫu dùng chung một bảng).
+
+Danh mục lỗi sinh từ hợp đồng chưa có mã riêng cho trường hợp sai vai trò và guard không đạt, nên máy chủ dùng mã chung `COMMON-403-OUT-OF-SCOPE` (403) và `COMMON-422-VALIDATION` (422); lệnh không có trong bảng hoặc trạng thái đã kết thúc trả `TASK-409-INVALID-TRANSITION`, kỳ đã khoá trả `TASK-409-PERIOD-LOCKED`. Thông báo guard không lộ biểu thức CEL. Khi MOD-03 chưa cung cấp sản phẩm, biến `task.so_san_pham_da_nop` của guard lấy từ khối lượng đã làm (suy luận). Câu hỏi mở: hợp đồng có nên bổ sung mã `TASK-403-…` và `TASK-422-…` riêng cho hai trường hợp này hay không.
+
 ## Liên quan
 
 - [README của wiki](README.md)
