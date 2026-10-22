@@ -10,7 +10,7 @@ import (
 
 func main() {
 	checkOnly := flag.Bool("check", false, "verify that problem/error-codes.json matches vt-kernel error-codes.json")
-	srcFlag := flag.String("src", "../../backend/libs/vt-kernel/src/main/resources/error-codes.json", "path to canonical error-codes.json")
+	srcFlag := flag.String("src", "../../backend/libs/vt-platform-starter/src/main/resources/vn/viettel/okrkpi/shared/error/error-codes.json", "path to canonical error-codes.json")
 	dstFlag := flag.String("dst", "problem/error-codes.json", "destination path inside services-go/vtplatform")
 	flag.Parse()
 

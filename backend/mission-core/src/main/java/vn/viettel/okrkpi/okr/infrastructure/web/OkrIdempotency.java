@@ -31,12 +31,14 @@ public class OkrIdempotency {
   static final long RETRY_AFTER_SECONDS = 1;
 
   private final IdempotencyStore store;
+  private final PlatformTransactionManager tm;
   private final TransactionTemplate tx;
   private final ObjectMapper json;
 
   public OkrIdempotency(
       DataSource okrDataSource, PlatformTransactionManager okrTm, ObjectMapper json) {
     this.store = new JdbcIdempotencyStore(new JdbcTemplate(okrDataSource));
+    this.tm = okrTm;
     this.tx = new TransactionTemplate(okrTm);
     this.json = Objects.requireNonNull(json, "json");
   }
@@ -46,6 +48,41 @@ public class OkrIdempotency {
    * (kèm {@code Location} và {@code ETag}), khác nội dung trả 422, đang xử lý trả 409.
    */
   public <T> ResponseEntity<T> run(
+      TenantId tenant,
+      UUID actor,
+      String key,
+      String method,
+      String path,
+      Object requestBody,
+      Class<T> responseType,
+      java.util.function.ToLongFunction<T> rowVersion,
+      Supplier<ResponseEntity<T>> work) {
+    return run(tx, tenant, actor, key, method, path, requestBody, responseType, rowVersion, work);
+  }
+
+  /**
+   * Như {@link #run}, giao dịch có giới hạn thời gian {@code timeoutSeconds} (check-in QT-03, TL-01
+   * "Quản lý giao dịch"); {@code rowVersion} rỗng thì phản hồi phát lại không có {@code ETag}.
+   */
+  public <T> ResponseEntity<T> runWithTimeout(
+      int timeoutSeconds,
+      TenantId tenant,
+      UUID actor,
+      String key,
+      String method,
+      String path,
+      Object requestBody,
+      Class<T> responseType,
+      java.util.function.ToLongFunction<T> rowVersion,
+      Supplier<ResponseEntity<T>> work) {
+    TransactionTemplate limited = new TransactionTemplate(tm);
+    limited.setTimeout(timeoutSeconds);
+    return run(
+        limited, tenant, actor, key, method, path, requestBody, responseType, rowVersion, work);
+  }
+
+  private <T> ResponseEntity<T> run(
+      TransactionTemplate tx,
       TenantId tenant,
       UUID actor,
       String key,
@@ -101,7 +138,7 @@ public class OkrIdempotency {
     if (record.resourceRef() != null) {
       b.header(HttpHeaders.LOCATION, record.resourceRef());
     }
-    if (body != null) {
+    if (body != null && rowVersion != null) {
       b.eTag(ETags.of(rowVersion.applyAsLong(body)));
     }
     return b.body(body);

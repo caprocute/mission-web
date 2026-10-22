@@ -259,6 +259,28 @@ public class JdbcPolicyPackRepository implements PolicyPackRepository {
   }
 
   @Override
+  public boolean storeTestOutcome(TenantId tenant, PolicyPackVersion v, long expected) {
+    return jdbc.sql(
+                """
+                UPDATE policy.policy_pack_version
+                   SET status = ?, golden_pass_rate = ?, last_test_run_id = ?, updated_at = ?,
+                       updated_by = ?, row_version = ?
+                 WHERE tenant_id = ? AND id = ? AND row_version = ?
+                """)
+            .param(v.status().name())
+            .param(v.goldenPassRate())
+            .param(v.lastTestRunId())
+            .param(Timestamp.from(v.updatedAt()))
+            .param(v.updatedBy())
+            .param(v.rowVersion())
+            .param(tenant.value())
+            .param(v.id())
+            .param(expected)
+            .update()
+        == 1;
+  }
+
+  @Override
   public List<PolicyRule> rules(TenantId tenant, UUID versionId) {
     return jdbc.sql(
             "SELECT "

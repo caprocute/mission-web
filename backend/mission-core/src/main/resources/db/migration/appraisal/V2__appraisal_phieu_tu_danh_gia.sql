@@ -1,6 +1,6 @@
 -- CORE-04-04 · Phiếu tự đánh giá (QT-09, SCR-0901, BR-09-05, BR-09-12, BR-09-15).
 --
--- Cột bổ sung (wiki trang 14 mục 54):
+-- Cột bổ sung (wiki trang 14 mục 55):
 --   * self_assessment.reason_enc giữ giải trình mức tự đề xuất của bản nháp; khi nhận EVT-18 nội dung được
 --     mã hoá lại vào rating_proposal.reason_enc của mức TU_DE_XUAT (AAD theo dòng đích).
 --   * appraisal_profile.is_self_assessment_missing: quá hạn không tự đánh giá, chuyển thẩm định với mức tự

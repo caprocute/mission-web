@@ -1,0 +1,30 @@
+# Ca thử: worker co giãn theo độ trễ consumer Kafka (TL-04 mục 6.3), có cửa sổ tăng trước theo kỳ của cell
+# (global.cuaSoTangTruoc, INF-16).
+global:
+  cuaSoTangTruoc:
+    - ten: ky-q2-2027-tinh-a
+      tu: "2027-06-28"
+      den: "2027-07-12"
+      lich: [{ngay: "28-30", thang: 6}, {ngay: "1-12", thang: 7}]
+      soPod: { scoring-service: 10, khac: 4 }
+name: scoring-service
+namespace: workers
+autoscaling:
+  hpa: { enabled: false }
+  keda:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 24
+    cooldownPeriod: 600
+    cpuUtilization: 80
+    behavior:
+      scaleUp: { stabilizationWindowSeconds: 0, policies: [{ type: Pods, value: 6, periodSeconds: 30 }] }
+      scaleDown: { stabilizationWindowSeconds: 900, policies: [{ type: Percent, value: 25, periodSeconds: 120 }] }
+    kafka:
+      topics:
+        - { topic: product.evidence.accepted.v1, lagThreshold: 500, activationLagThreshold: 10 }
+        - { topic: scoring.recompute.requested.v1, lagThreshold: 200, activationLagThreshold: 1, name: lag-recompute }
+    preScale: { cuoiQuy: 8 }
+pdb:
+  maxUnavailable: 1
+  minAvailable: ""

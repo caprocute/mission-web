@@ -3,7 +3,7 @@
 -- outbox_event, inbox_processed, inbox_aggregate_version, idempotency_key đến từ db/common-business (NEN-032);
 -- hàm RLS và phân vùng từ db/common (NEN-033).
 --
--- Điểm lệch và lựa chọn (wiki trang 14 mục 52):
+-- Điểm lệch và lựa chọn (wiki trang 14 mục 53):
 --   * Khoá chính, khoá duy nhất, khoá ngoại chứa period_bucket và tenant_id như schema task, product, appraisal
 --     (TL-03 ghi PK (period_bucket, id)); UQ mã gói là (period_bucket, tenant_id, code) vì bảng phân vùng con
 --     băm theo tenant_id ở mô hình pool, mã chứa năm nên vẫn duy nhất trong tenant.

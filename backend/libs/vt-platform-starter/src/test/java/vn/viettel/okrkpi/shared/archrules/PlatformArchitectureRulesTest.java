@@ -52,6 +52,21 @@ class PlatformArchitectureRulesTest {
   }
 
   @Test
+  void camDungClientValkeyTrucTiepNgoaiThuVienNen() {
+    assertThatThrownBy(
+            () ->
+                PlatformArchitectureRules.NO_DIRECT_VALKEY_CLIENT.check(
+                    classes("vn.viettel.okrkpi.archfixture.bad")))
+        .isInstanceOf(AssertionError.class)
+        .hasMessageContaining("RawValkeyCache");
+    PlatformArchitectureRules.NO_DIRECT_VALKEY_CLIENT.check(
+        classes("vn.viettel.okrkpi.archfixture.good"));
+    // Thư viện nền là nơi duy nhất được dùng Lettuce.
+    PlatformArchitectureRules.NO_DIRECT_VALKEY_CLIENT.check(
+        classes("vn.viettel.okrkpi.shared.cache"));
+  }
+
+  @Test
   void chanThuocTinhC2ThieuConverterVaToStringLoDuLieu() {
     assertThatThrownBy(
             () ->

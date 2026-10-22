@@ -1,7 +1,7 @@
 // Package problem implements RFC 9457 Problem Details (application/problem+json)
 // backed by the shared error catalog from NEN-009 (error-codes.json).
 //
-//go:generate go run ../cmd/sync-error-codes -src ../../../backend/libs/vt-kernel/src/main/resources/error-codes.json -dst error-codes.json
+//go:generate go run ../cmd/sync-error-codes -src ../../../backend/libs/vt-platform-starter/src/main/resources/vn/viettel/okrkpi/shared/error/error-codes.json -dst error-codes.json
 package problem
 
 import (
@@ -23,8 +23,9 @@ const (
 	// ContentType is the standard RFC 9457 media type.
 	ContentType = "application/problem+json"
 
-	// ProblemTypeBaseURI matches ErrorCode.PROBLEM_TYPE_BASE_URI in vt-kernel.
-	ProblemTypeBaseURI = "https://errors.okrkpi.viettel.vn/"
+	// ProblemTypeBaseURI is the problem type base of contracts/openapi/common/common.yaml
+	// (`https://okrkpi.vn/problems/<slug>`), shared with vt-platform-starter and services-py.
+	ProblemTypeBaseURI = "https://okrkpi.vn/problems/"
 
 	// SafeInternalErrorDetail is the fallback Vietnamese message when an internal error or technical leak occurs.
 	SafeInternalErrorDetail = "Hệ thống đang bận hoặc gặp sự cố nội bộ. Vui lòng thử lại sau."
@@ -46,10 +47,81 @@ type ErrorCode struct {
 	DefaultTitleVi string  `json:"defaultTitleVi"`
 	Msg            *string `json:"msg"`
 	Rule           *string `json:"rule"`
+	// Type is the problem type URI carried by the catalog (current NEN-009 format), if any.
+	Type string `json:"type,omitempty"`
+}
+
+// UnmarshalJSON accepts both the original catalog format (httpStatus, slug, defaultTitleVi) and the current
+// format extracted from contracts/openapi by tools/extract-error-codes.mjs (status, type, title).
+func (e *ErrorCode) UnmarshalJSON(b []byte) error {
+	var raw struct {
+		Code           string  `json:"code"`
+		HTTPStatus     int     `json:"httpStatus"`
+		Status         int     `json:"status"`
+		Slug           string  `json:"slug"`
+		Type           string  `json:"type"`
+		DefaultTitleVi string  `json:"defaultTitleVi"`
+		Title          string  `json:"title"`
+		Msg            *string `json:"msg"`
+		Rule           *string `json:"rule"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	*e = ErrorCode{Code: raw.Code, HTTPStatus: raw.HTTPStatus, Slug: raw.Slug, DefaultTitleVi: raw.DefaultTitleVi,
+		Msg: raw.Msg, Rule: raw.Rule, Type: raw.Type}
+	if e.HTTPStatus == 0 {
+		e.HTTPStatus = raw.Status
+	}
+	if e.Slug == "" && raw.Type != "" {
+		e.Slug = raw.Type[strings.LastIndex(raw.Type, "/")+1:]
+	}
+	if e.DefaultTitleVi == "" {
+		e.DefaultTitleVi = raw.Title
+	}
+	if e.DefaultTitleVi == "" {
+		e.DefaultTitleVi = defaultTitleForStatus(e.HTTPStatus)
+	}
+	return nil
+}
+
+// builtinCodes are generic COMMON-* codes used by the helpers below; the catalog only lists codes that appear
+// in contracts/openapi, so these act as defaults when absent from it.
+var builtinCodes = map[string]ErrorCode{
+	"COMMON-400-BAD-REQUEST":             {Code: "COMMON-400-BAD-REQUEST", HTTPStatus: http.StatusBadRequest, Slug: "bad-request", DefaultTitleVi: "Yêu cầu không hợp lệ"},
+	"COMMON-401-UNAUTHORIZED":            {Code: "COMMON-401-UNAUTHORIZED", HTTPStatus: http.StatusUnauthorized, Slug: "unauthorized", DefaultTitleVi: "Phiên đăng nhập không hợp lệ hoặc đã hết hạn"},
+	"COMMON-403-FORBIDDEN":               {Code: "COMMON-403-FORBIDDEN", HTTPStatus: http.StatusForbidden, Slug: "forbidden", DefaultTitleVi: "Không có quyền thực hiện thao tác này"},
+	"COMMON-404-NOT-FOUND":               {Code: "COMMON-404-NOT-FOUND", HTTPStatus: http.StatusNotFound, Slug: "not-found", DefaultTitleVi: "Không tìm thấy dữ liệu yêu cầu"},
+	"COMMON-405-METHOD-NOT-ALLOWED":      {Code: "COMMON-405-METHOD-NOT-ALLOWED", HTTPStatus: http.StatusMethodNotAllowed, Slug: "method-not-allowed", DefaultTitleVi: "Thao tác không được hỗ trợ"},
+	"COMMON-409-CONCURRENT-MODIFICATION": {Code: "COMMON-409-CONCURRENT-MODIFICATION", HTTPStatus: http.StatusConflict, Slug: "concurrent-modification", DefaultTitleVi: "Dữ liệu đã được người khác cập nhật"},
+	"COMMON-415-UNSUPPORTED-MEDIA-TYPE":  {Code: "COMMON-415-UNSUPPORTED-MEDIA-TYPE", HTTPStatus: http.StatusUnsupportedMediaType, Slug: "unsupported-media-type", DefaultTitleVi: "Định dạng dữ liệu không được hỗ trợ"},
+	"COMMON-422-VALIDATION":              {Code: "COMMON-422-VALIDATION", HTTPStatus: http.StatusUnprocessableEntity, Slug: "validation", DefaultTitleVi: "Dữ liệu chưa hợp lệ"},
+	"COMMON-428-PRECONDITION-REQUIRED":   {Code: "COMMON-428-PRECONDITION-REQUIRED", HTTPStatus: http.StatusPreconditionRequired, Slug: "precondition-required", DefaultTitleVi: "Thiếu điều kiện cập nhật"},
+	"COMMON-500-INTERNAL-ERROR":          {Code: "COMMON-500-INTERNAL-ERROR", HTTPStatus: http.StatusInternalServerError, Slug: "internal-error", DefaultTitleVi: "Hệ thống chưa xử lý được yêu cầu, vui lòng thử lại sau"},
+}
+
+func defaultTitleForStatus(status int) string {
+	switch {
+	case status == http.StatusUnprocessableEntity:
+		return "Dữ liệu chưa hợp lệ"
+	case status >= 500:
+		return "Hệ thống chưa xử lý được yêu cầu, vui lòng thử lại sau"
+	case status == http.StatusForbidden:
+		return "Không có quyền thực hiện thao tác này"
+	case status == http.StatusNotFound:
+		return "Không tìm thấy dữ liệu yêu cầu"
+	case status == http.StatusConflict:
+		return "Dữ liệu đang xung đột, vui lòng tải lại"
+	default:
+		return "Yêu cầu chưa được xử lý"
+	}
 }
 
 // ProblemTypeURI returns the canonical RFC 9457 problem type URI for this error code.
 func (e ErrorCode) ProblemTypeURI() string {
+	if e.Type != "" {
+		return e.Type
+	}
 	return ProblemTypeBaseURI + e.Slug
 }
 
@@ -133,6 +205,9 @@ func Lookup(code string) (ErrorCode, bool) {
 		return ErrorCode{}, false
 	}
 	ec, ok := catalogMap[strings.TrimSpace(code)]
+	if !ok {
+		ec, ok = builtinCodes[strings.TrimSpace(code)]
+	}
 	return ec, ok
 }
 

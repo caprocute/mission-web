@@ -1,8 +1,15 @@
-{{- if .Values.api.hpa.enabled }}
+{{- /*
+workflow-api co giãn theo CPU (TL-04 mục 6.6). Khi có cửa sổ tăng trước (api.tangTruoc, bảng deadline-default
+TL-04 mục 6.4) thì dùng ScaledObject gồm trigger CPU và trigger cron thay cho HPA, vì mỗi Deployment chỉ có một
+bộ co giãn (TL-04 mục 6.1). Số pod min/max vẫn lấy từ api.hpa để hồ sơ định cỡ (INF-03) không đổi khoá.
+*/ -}}
+{{- $a := .Values.api }}
+{{- $tt := $a.tangTruoc | default dict }}
+{{- if and $a.hpa.enabled (not $tt) }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ .Values.api.name }}-hpa
+  name: {{ $a.name }}-hpa
   namespace: {{ include "workflow-service.namespace" . }}
   labels:
     {{- include "workflow-service.labels" . | nindent 4 }}
@@ -10,14 +17,40 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ .Values.api.name }}
-  minReplicas: {{ .Values.api.hpa.minReplicas }}
-  maxReplicas: {{ .Values.api.hpa.maxReplicas }}
+    name: {{ $a.name }}
+  minReplicas: {{ $a.hpa.minReplicas }}
+  maxReplicas: {{ $a.hpa.maxReplicas }}
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: {{ .Values.api.hpa.targetCpuUtilizationPercentage }}
+          averageUtilization: {{ $a.hpa.targetCpuUtilizationPercentage }}
+{{- else if $a.hpa.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ $a.name }}
+  namespace: {{ include "workflow-service.namespace" . }}
+  labels:
+    {{- include "workflow-service.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $a.name }}
+  minReplicaCount: {{ $a.hpa.minReplicas }}
+  maxReplicaCount: {{ $a.hpa.maxReplicas }}
+  pollingInterval: 15
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        {{- toYaml .Values.behavior | nindent 8 }}
+  triggers:
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: {{ $a.hpa.targetCpuUtilizationPercentage | quote }}
+    {{- include "workflow-service.cron" (dict "tt" $tt "ten" $a.name "global" .Values.global) | nindent 4 }}
 {{- end }}

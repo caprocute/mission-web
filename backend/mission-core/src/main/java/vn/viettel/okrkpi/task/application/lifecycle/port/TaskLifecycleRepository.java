@@ -71,6 +71,25 @@ public interface TaskLifecycleRepository {
   /** Người chủ trì đang hiệu lực ({@code task_assignee.role = 'CHU_TRI'}). */
   Optional<UUID> leadAssignee(TenantId tenant, int periodBucket, UUID taskId);
 
+  /** Mọi cán bộ đang được giao (chủ trì và phối hợp), theo thứ tự chủ trì trước. */
+  List<UUID> activeAssignees(TenantId tenant, int periodBucket, UUID taskId);
+
+  /** Đối tượng lọc khi liệt kê nhiệm vụ theo người được giao. */
+  enum AssigneeKind {
+    PERSON,
+    UNIT
+  }
+
+  /** Một dòng liệt kê: nhiệm vụ kèm người chủ trì đang hiệu lực. */
+  record TaskListRow(TaskRow task, UUID leadAssigneeId) {}
+
+  /**
+   * Nhiệm vụ của kỳ đang giao cho một cán bộ hoặc đơn vị, sắp theo id tăng dần, sau {@code afterId}
+   * (con trỏ), tối đa {@code limit} dòng.
+   */
+  List<TaskListRow> listByAssignee(
+      TenantId tenant, UUID periodId, AssigneeKind kind, UUID assigneeId, UUID afterId, int limit);
+
   /** Đề nghị tạm dừng hoặc huỷ gần nhất của nhiệm vụ, nếu có. */
   Optional<ChangeRequestRow> latestChangeRequest(TenantId tenant, int periodBucket, UUID taskId);
 

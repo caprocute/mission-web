@@ -3,7 +3,7 @@
 -- outbox_event, inbox_processed, inbox_aggregate_version, idempotency_key đến từ db/common-business (NEN-032);
 -- hàm RLS và phân vùng từ db/common (NEN-033).
 --
--- Điểm lệch và lựa chọn (wiki trang 14 mục 53):
+-- Điểm lệch và lựa chọn (wiki trang 14 mục 54):
 --   * Khoá chính, khoá duy nhất, khoá ngoại chứa period_bucket và tenant_id như các schema nghiệp vụ khác
 --     (TL-03 ghi PK (period_bucket, id)); UQ mã yêu cầu mở lại là (period_bucket, tenant_id, code).
 --   * alert_action.action theo hợp đồng oversight.yaml (thêm KET_LUAN theo TL-02b SCR-1401 và TU_DONG); TL-03

@@ -19,7 +19,7 @@ import vn.vtokr.oversight.v1.KyDaMoLaiHauKiem;
  * <p>Được gọi qua {@code InboxMessageProcessor} của chính schema nên khử trùng lặp và ghi nằm cùng
  * giao dịch, {@code app.tenant_id} đã đặt. Sự kiện đến muộn (thời điểm cũ hơn dòng đang có) bị bỏ
  * qua. Sự kiện "bắt đầu khoá" của saga chưa có trong danh mục (chỉ có dấu {@code
- * period.drain.marker}), nên {@code DANG_KHOA} chưa được chiếu (wiki trang 14 mục 50).
+ * period.drain.marker}), nên {@code DANG_KHOA} chưa được chiếu (wiki trang 14 mục 51).
  */
 public class PeriodStateProjection {
 

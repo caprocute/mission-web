@@ -139,6 +139,9 @@ public interface OkrReadRepository {
 
   Optional<KeyResultRow> keyResult(TenantId tenant, UUID id);
 
+  /** Số KR khớp bộ lọc, cho {@code counts.needCheckin} (CORE-01-08). */
+  long countKeyResults(TenantId tenant, KeyResultFilter filter);
+
   List<KeyResultRow> keyResultsByIds(TenantId tenant, Collection<UUID> ids);
 
   /** Căn cứ của các mục tiêu: cặp (mục tiêu, căn cứ). */

@@ -79,6 +79,28 @@ final class LifecycleFakes {
     }
 
     @Override
+    public List<UUID> activeAssignees(TenantId tenant, int periodBucket, UUID taskId) {
+      return lead == null ? List.of() : List.of(lead);
+    }
+
+    @Override
+    public List<TaskListRow> listByAssignee(
+        TenantId tenant,
+        UUID periodId,
+        AssigneeKind kind,
+        UUID assigneeId,
+        UUID afterId,
+        int limit) {
+      return rows.values().stream()
+          .filter(r -> r.periodId().equals(periodId))
+          .filter(r -> afterId == null || r.id().compareTo(afterId) > 0)
+          .sorted(java.util.Comparator.comparing(TaskRow::id))
+          .limit(limit)
+          .map(r -> new TaskListRow(r, lead))
+          .toList();
+    }
+
+    @Override
     public Optional<ChangeRequestRow> latestChangeRequest(
         TenantId tenant, int periodBucket, UUID taskId) {
       return Optional.ofNullable(change);

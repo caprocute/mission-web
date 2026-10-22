@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.evidence.application.ObjectStorage.Part;
+import vn.viettel.okrkpi.evidence.application.PreviewQueryService;
 import vn.viettel.okrkpi.evidence.application.ScanQueue;
 import vn.viettel.okrkpi.evidence.application.ScanResultService;
 import vn.viettel.okrkpi.evidence.application.UploadService;
@@ -26,6 +27,8 @@ import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileDedup;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileDownloadUrl;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileObject;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FilePreview;
+import vn.viettel.okrkpi.evidence.infrastructure.web.model.FilePreviewPage;
+import vn.viettel.okrkpi.evidence.infrastructure.web.model.FilePreviewStatus;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileScanResult;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileScanStatus;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileScanVerdict;
@@ -52,10 +55,13 @@ public class FilesController implements FilesApi {
 
   private final UploadService uploads;
   private final ScanResultService scans;
+  private final PreviewQueryService previews;
 
-  public FilesController(UploadService uploads, ScanResultService scans) {
+  public FilesController(
+      UploadService uploads, ScanResultService scans, PreviewQueryService previews) {
     this.uploads = uploads;
     this.scans = scans;
+    this.previews = previews;
   }
 
   @Override
@@ -130,7 +136,32 @@ public class FilesController implements FilesApi {
   @Override
   public ResponseEntity<FilePreview> getFilePreview(
       UUID objectId, Integer version, Integer fromPage, Integer count) {
-    throw notImplemented();
+    PreviewQueryService.Preview p =
+        previews.preview(
+            objectId, version, fromPage == null ? 1 : fromPage, count == null ? 5 : count);
+    FilePreview body =
+        new FilePreview()
+            .status(FilePreviewStatus.fromValue(p.status()))
+            .pageCount(p.pageCount())
+            .sha256(HexFormat.of().formatHex(p.sha256()))
+            .pages(
+                p.pages().stream()
+                    .map(
+                        l ->
+                            new FilePreviewPage()
+                                .page(l.page())
+                                .url(l.url())
+                                .width(l.width())
+                                .height(l.height()))
+                    .toList());
+    if (p.expiresAt() != null) {
+      body.expiresAt(offset(p.expiresAt()));
+    }
+    var response = ResponseEntity.ok().cacheControl(CacheControl.noStore());
+    if (p.pending()) {
+      response.header("Retry-After", String.valueOf(PreviewQueryService.RETRY_AFTER_SECONDS));
+    }
+    return response.body(body);
   }
 
   @Override

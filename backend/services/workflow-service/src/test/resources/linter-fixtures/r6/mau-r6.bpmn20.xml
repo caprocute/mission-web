@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="urn:vt-okrkpi:wf:kiem-thu">
+  <process id="mau-r6" name="Mẫu kiểm thử linter" isExecutable="true">
+    <startEvent id="start"/>
+    <sequenceFlow id="f1" sourceRef="start" targetRef="duyet"/>
+    <userTask id="duyet" name="Duyệt" flowable:candidateGroups="${tenantId}:leader:${donViId}"/>
+    <sequenceFlow id="f2" sourceRef="duyet" targetRef="buoc"/>
+    <userTask id="buoc" name="Lấy ý kiến song song" flowable:assignee="${nguoi}">
+      <multiInstanceLoopCharacteristics isSequential="false" flowable:collection="${danhSach}" flowable:elementVariable="nguoi"/>
+    </userTask>
+    <sequenceFlow id="f3" sourceRef="buoc" targetRef="end"/>
+    <endEvent id="end"/>
+  </process>
+</definitions>

@@ -4,7 +4,7 @@
 -- baseline 9.1). outbox_event, inbox_processed, inbox_aggregate_version, idempotency_key đến từ
 -- db/common-business (NEN-032); hàm RLS và phân vùng từ db/common (NEN-033).
 --
--- Điểm lệch và lựa chọn (wiki trang 14 mục 50):
+-- Điểm lệch và lựa chọn (wiki trang 14 mục 51):
 --   * Khoá chính, khoá duy nhất, khoá ngoại chứa period_bucket và tenant_id như schema task, product
 --     (TL-03 ghi PK (period_bucket, id)).
 --   * Hai chỉ mục duy nhất một phần của TL-03 (uq_score_snapshot__current_p, uq_rating_proposal__current_p)

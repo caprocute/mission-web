@@ -69,6 +69,8 @@ nonOutboxTopics:
     reason: Keycloak đẩy trực tiếp qua Event Listener SPI
   - topic: org.bootstrap.v1
     reason: Lệnh org-republish của SVC-04 phát trực tiếp trạng thái tổ chức hiện hành
+  - topic: agg.province.metric.v1
+    reason: SVC-15 đẩy số liệu tổng hợp vô danh C0 từ ClickHouse cấp tỉnh về Trung ương, không có outbox PostgreSQL
 
 sources:
   # ============================================================================
@@ -288,6 +290,7 @@ sources:
     events: []
     topics:
       - sys.evidence.object.stored.v1
+      - evidence.object.scanned.v1
 
   - schema: esign
     outboxTable: esign.outbox_event

@@ -2,7 +2,7 @@
 -- kỳ đã khoá ở tầng CSDL"). task.period_state là bản sao rất nhỏ của config.period.status, do consumer
 -- EVT-09, EVT-22, EVT-26 của module cập nhật (PeriodStateProjection); trigger tra bảng trước mỗi lần ghi.
 --
--- Điểm lệch và lựa chọn (wiki trang 14 mục 50):
+-- Điểm lệch và lựa chọn (wiki trang 14 mục 51):
 --   * Trigger gắn vào mọi bảng có period_id của schema và chặn cả DELETE (TL-03 mẫu chỉ có task.task và
 --     INSERT task.task_progress). Danh sách bảng: plan, plan_version, plan_item, task, task_assignee, task_progress, task_blocker, task_change_request, task_source_doc, task_state_log.
 --   * Kiểm app.reopen_request_id bằng nullif(..., '') vì biến tuỳ chỉnh đã đặt trong phiên trả chuỗi rỗng
