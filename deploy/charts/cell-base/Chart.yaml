@@ -1,0 +1,7 @@
+apiVersion: v2
+name: cell-base
+description: >-
+  Khung namespace của một cell (TL-04 mục 3.5, 3.6): 13 namespace gắn nhãn vùng bảo mật, chế độ Istio,
+  Pod Security restricted; NetworkPolicy mặc định từ chối, cho DNS và các luồng được phép giữa namespace.
+type: application
+version: 0.1.0

@@ -4,6 +4,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: {{ include "iam.fullname" . }}-realm-import
+  namespace: {{ include "iam.namespace" . }}
   labels:
     {{- include "iam.labels" . | nindent 4 }}
     app.kubernetes.io/component: realm-import

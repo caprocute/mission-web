@@ -123,6 +123,52 @@ networkPolicy:
     app.kubernetes.io/name: keycloak
   keycloakPort: 8080
 
+# INF-02 · Máy chủ Keycloak (SVC-02) theo bảng TL-04 mục 5.2: 3/8 replica, CPU 2/3, 3 GiB, G1, probe
+# /health/started và /health/ready trên cổng quản trị 9000, minAvailable 2. Mặc định tắt để chart chạy
+# riêng phần nạp realm như DV-02-01; chart vt-platform bật nó. Khoá con là khoá của thư viện vt-service.
+mayChu:
+  enabled: false
+  global: { cell: "", sizing: L }
+  name: keycloak
+  namespace: identity
+  image:
+    repository: harbor.vt.local/platform/keycloak
+    # Digest giả lập; CI thay bằng digest thật của ảnh Keycloak đã build tối ưu (kc.sh build).
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+  runtime: custom
+  args: ["start", "--optimized"]
+  ports: { http: 8080, mgmt: 9000 }
+  resources:
+    requests: { cpu: "2", memory: 3Gi }
+    limits: { cpu: "3", memory: 3Gi }
+  env:
+    - { name: JAVA_OPTS_APPEND, value: "-XX:MaxRAMPercentage=70 -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError" }
+    - { name: KC_HEALTH_ENABLED, value: "true" }
+    - { name: KC_METRICS_ENABLED, value: "true" }
+    - { name: KC_CACHE, value: ispn }
+    - { name: KC_CACHE_STACK, value: kubernetes }
+    - { name: KC_PROXY_HEADERS, value: xforwarded }
+  probes:
+    startup: { path: /health/started, port: mgmt, periodSeconds: 5, failureThreshold: 36 }
+    liveness: { path: /health/live, port: mgmt }
+    readiness: { path: /health/ready, port: mgmt }
+  pdb: { minAvailable: 2, maxUnavailable: "" }
+  autoscaling:
+    hpa: { enabled: true, minReplicas: 3, maxReplicas: 8, cpuUtilization: 75 }
+  serviceMonitor: { path: /metrics }
+  extraVolumes:
+    - { name: kc-data, emptyDir: { sizeLimit: 1Gi } }
+  extraVolumeMounts:
+    - { name: kc-data, mountPath: /opt/keycloak/data }
+  networkPolicy:
+    ingressFrom:
+      - { namespace: edge, podLabels: { app.kubernetes.io/name: apisix }, ports: [{ port: 8080 }] }
+      - { namespace: identity, podLabels: { app.kubernetes.io/name: keycloak }, ports: [{ port: 7800 }] }
+      - { namespace: observability, ports: [{ port: 9000 }] }
+    egressTo:
+      - { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-iam-pooler-rw }, ports: [{ port: 5432 }] }
+      - { namespace: identity, podLabels: { app.kubernetes.io/name: keycloak }, ports: [{ port: 7800 }] }
+
 # DV-02-06: consumer EVT-16 đồng bộ người dùng sang Keycloak (backend/services/iam/user-sync).
 userSync:
   enabled: false

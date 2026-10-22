@@ -1,0 +1,219 @@
+cell: g4
+# Dải địa chỉ của Loki, Tempo, Ceph S3 ở cụm quản trị (giá trị của môi trường).
+egressCIDRs: []
+
+kube-prometheus-stack:
+  fullnameOverride: kps
+  crds: { enabled: true }
+  # Alertmanager và Grafana đặt ở cụm quản trị (observability-mgmt).
+  alertmanager: { enabled: false }
+  grafana: { enabled: false }
+  defaultRules: { create: true }
+  prometheusOperator:
+    image: { registry: ghcr.io, repository: prometheus-operator/prometheus-operator, sha: 8f132dc8c2e8a5c852e864231fc85bcb8edecea184dfff34c77593f8f454cb06 }
+    prometheusConfigReloader:
+      image: { registry: ghcr.io, repository: prometheus-operator/prometheus-config-reloader, sha: bb94799c84286eea0aad22d83ba4889264ae9af26a7fb3023b7fae75e541e87e }
+    nodeSelector: { vt.io/pool: system }
+    tolerations:
+      - { key: CriticalAddonsOnly, operator: Exists, effect: NoSchedule }
+    # Ghim digest cho mọi ảnh để qua chính sách ảnh theo digest (SEC-55) khi render cùng vt-platform (INF-02).
+    admissionWebhooks:
+      patch:
+        image: { registry: ghcr.io, repository: jkroepke/kube-webhook-certgen, tag: 1.11.0, sha: 778d97dc3986355625e14392419b3364c487a7c807d4d86ddad1df369129b082 }
+  kube-state-metrics:
+    image: { registry: registry.k8s.io, repository: kube-state-metrics/kube-state-metrics, tag: v2.20.0, sha: "sha256:42cfe3723a5f058171c627537fb57a3ea0f26e4380fa18555a95cb1a1b4cfc5b" }
+  prometheus-node-exporter:
+    image: { registry: quay.io, repository: prometheus/node-exporter, tag: v1.12.1, digest: "sha256:8c9bac11973b94b59be88d6e11fee4429aa743c8846cdc75d65b18db33f6a106" }
+  prometheus:
+    prometheusSpec:
+      image: { registry: quay.io, repository: prometheus/prometheus, tag: v3.15.0-distroless, sha: b2a413d5a03ea6a76782a508d1c7947440bba3b973931a25676e278431891b01 }
+      # Một cặp Prometheus mỗi cell, khử trùng ở Thanos Query (TL-04 mục 10.4).
+      replicas: 2
+      scrapeInterval: 15s
+      evaluationInterval: 30s
+      scrapeNativeHistograms: true
+      externalLabels: { cell: g4 }
+      replicaExternalLabelName: prometheus_replica
+      # Nhận mọi ServiceMonitor, PodMonitor, PrometheusRule do vt-service sinh, không lọc theo nhãn release.
+      serviceMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelectorNilUsesHelmValues: false
+      ruleSelectorNilUsesHelmValues: false
+      probeSelectorNilUsesHelmValues: false
+      retention: 1d
+      resources:
+        requests: { cpu: "2", memory: 24Gi }
+        limits: { cpu: "4", memory: 24Gi }
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources: { requests: { storage: 100Gi } }
+      nodeSelector: { vt.io/pool: system }
+      tolerations:
+        - { key: CriticalAddonsOnly, operator: Exists, effect: NoSchedule }
+      # Thanos sidecar đẩy khối 2 giờ lên Ceph S3 của cụm quản trị; Secret do ExternalSecret tạo.
+      thanos:
+        objectStorageConfig:
+          existingSecret: { name: thanos-objstore, key: objstore.yml }
+
+fluent-bit:
+  # Pod thử kết nối của chart dùng busybox:latest, không qua chính sách ảnh theo digest.
+  testFramework: { enabled: false }
+  image:
+    digest: sha256:2a5cb41f99b7c5f3386bb34d42ce3b19eb47fbef6d93b64c0bd4afe9e6ec389c
+  # Fluent Bit chạy trên mọi node.
+  tolerations:
+    - { operator: Exists }
+  priorityClassName: system-node-critical
+  serviceMonitor: { enabled: true, interval: 15s }
+  env:
+    - { name: CELL, value: g4 }
+  luaScripts:
+    redact.lua: |
+      -- Lớp che thứ hai (SEC-53, TL-04 mục 10.3): thay JWT, số CCCD 12 chữ số, số điện thoại, email bằng *** trong mọi
+      -- chuỗi của bản ghi. Bỏ qua nhánh kubernetes (siêu dữ liệu) và trace/span (mã hex có thể chứa dãy số dài).
+      local BO_QUA = { kubernetes = true, trace = true, span = true }
+
+      local function che(s)
+          s = s:gsub("eyJ[%w_%-]+%.[%w_%-]+%.[%w_%-]+", "***")
+          s = s:gsub("[%w%._%%%+%-]+@[%w%.%-]+%.%a%a+", "***")
+          s = s:gsub("%f[%d]%d%d%d%d%d%d%d%d%d%d%d%d%f[%D]", "***")
+          s = s:gsub("%+84[35789]%d%d%d%d%d%d%d%d%f[%D]", "***")
+          s = s:gsub("%f[%d]0[35789]%d%d%d%d%d%d%d%d%f[%D]", "***")
+          return s
+      end
+
+      local function duyet(t)
+          local doi = false
+          for k, v in pairs(t) do
+              if type(v) == "string" then
+                  local m = che(v)
+                  if m ~= v then t[k] = m; doi = true end
+              elseif type(v) == "table" and not BO_QUA[k] then
+                  if duyet(v) then doi = true end
+              end
+          end
+          return doi
+      end
+
+      function redact_pii(tag, timestamp, record)
+          if duyet(record) then
+              return 2, timestamp, record
+          end
+          return 0, timestamp, record
+      end
+  # Thư mục đệm nằm trên volume riêng 20 GB mỗi node, gắn ở /var/fluent-bit (deploy/clusters/cell-cluster).
+  daemonSetVolumes:
+    - { name: varlog, hostPath: { path: /var/log } }
+    - { name: buffer, hostPath: { path: /var/fluent-bit, type: DirectoryOrCreate } }
+    - { name: kafka-tls, secret: { secretName: fluent-bit-kafka, optional: true } }
+  daemonSetVolumeMounts:
+    - { name: varlog, mountPath: /var/log, readOnly: true }
+    - { name: buffer, mountPath: /var/fluent-bit }
+    - { name: kafka-tls, mountPath: /etc/fluent-bit/kafka, readOnly: true }
+  config:
+    # Cấu hình theo TL-04 mục 10.3.
+    service: |
+      [SERVICE]
+          Flush                     1
+          Log_Level                 warn
+          Daemon                    Off
+          Parsers_File              /fluent-bit/etc/parsers.conf
+          Parsers_File              /fluent-bit/etc/conf/custom_parsers.conf
+          HTTP_Server               On
+          HTTP_Listen               0.0.0.0
+          HTTP_Port                 2020
+          Health_Check              On
+          storage.path              /var/fluent-bit/buffer
+          storage.sync              normal
+          storage.checksum          Off
+          storage.max_chunks_up     256
+          storage.backlog.mem_limit 256M
+          storage.metrics           On
+          # Thử lại theo lũy thừa nhưng trần 30 s (mặc định 2000 s): sau khi Loki hay Kafka trở lại,
+          # phần log dồn trong bộ đệm được gửi bù trong vòng nửa phút thay vì hàng chục phút.
+          scheduler.base            2
+          scheduler.cap             30
+    inputs: |
+      [INPUT]
+          Name                tail
+          Tag                 kube.*
+          Path                /var/log/containers/*.log
+          Exclude_Path        /var/log/containers/*_kube-system_*.log
+          multiline.parser    cri
+          DB                  /var/fluent-bit/tail.db
+          DB.locking          true
+          Mem_Buf_Limit       64M
+          storage.type        filesystem
+          storage.pause_on_chunks_overlimit off
+          Skip_Long_Lines     Off
+          Buffer_Max_Size     1M
+          Refresh_Interval    5
+
+      [INPUT]
+          Name                tail
+          Tag                 k8saudit
+          Path                /var/log/kubernetes/audit/audit.log
+          Parser              json
+          DB                  /var/fluent-bit/audit.db
+          storage.type        filesystem
+    filters: |
+      [FILTER]
+          Name                kubernetes
+          Match               kube.*
+          Merge_Log           On
+          Keep_Log            Off
+          Labels              On
+          Annotations         Off
+
+      [FILTER]
+          Name                lua
+          Match               kube.*
+          script              /fluent-bit/scripts/redact.lua
+          call                redact_pii
+
+      [FILTER]
+          Name                rewrite_tag
+          Match               kube.*
+          Rule                $event['dataset'] ^(audit|security)$ audit.$TAG false
+          Emitter_Storage.type filesystem
+    outputs: |
+      [OUTPUT]
+          Name                loki
+          Match               kube.*
+          Host                loki-gateway.observability.svc
+          Port                443
+          tls                 On
+          tls.verify          On
+          labels              cell=${CELL}, namespace=$kubernetes['namespace_name'], service=$kubernetes['labels']['app.kubernetes.io/name'], level=$level
+          structured_metadata trace_id=$trace['id'], tenant_id=$tenant['id']
+          line_format         json
+          Retry_Limit         no_limits
+          storage.total_limit_size 10G
+
+      [OUTPUT]
+          Name                kafka
+          Match               audit.*
+          Brokers             kafka-kafka-bootstrap.data-kafka.svc:9093
+          Topics              sys.audit.v1
+          rdkafka.security.protocol   ssl
+          rdkafka.ssl.ca.location     /etc/fluent-bit/kafka/ca.crt
+          rdkafka.ssl.certificate.location /etc/fluent-bit/kafka/user.crt
+          rdkafka.ssl.key.location    /etc/fluent-bit/kafka/user.key
+          rdkafka.acks                all
+          rdkafka.enable.idempotence  true
+          Retry_Limit         no_limits
+          storage.total_limit_size 5G
+
+      [OUTPUT]
+          Name                kafka
+          Match               k8saudit
+          Brokers             kafka-kafka-bootstrap.data-kafka.svc:9093
+          Topics              sys.audit.v1
+          rdkafka.security.protocol   ssl
+          rdkafka.ssl.ca.location     /etc/fluent-bit/kafka/ca.crt
+          rdkafka.ssl.certificate.location /etc/fluent-bit/kafka/user.crt
+          rdkafka.ssl.key.location    /etc/fluent-bit/kafka/user.key
+          rdkafka.acks                all
+          Retry_Limit         no_limits
+          storage.total_limit_size 5G

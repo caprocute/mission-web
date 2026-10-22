@@ -1,0 +1,8 @@
+apiVersion: v2
+name: data-pg
+description: >-
+  PostgreSQL 17 của cell do CloudNativePG quản lý (INF-11, TL-04 mục 4.5, 4.7; TL-03; TL-05): sáu cụm pg-core,
+  pg-flowable, pg-platform, pg-iam, pg-ledger, pg-secure (hồ sơ compact gộp thành pg-core và pg-ledger), Pooler
+  PgBouncer rw và ro, vai trò svc_/ro_/mig_/cdc_ theo schema, CSDL và schema, Job cấp quyền, NetworkPolicy.
+type: application
+version: 0.1.0

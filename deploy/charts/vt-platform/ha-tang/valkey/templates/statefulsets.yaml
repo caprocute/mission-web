@@ -1,0 +1,138 @@
+{{- $root := . }}
+{{- $v := .Values }}
+{{- $k := fromYaml (include "valkey.size" .) }}
+{{- $nhom := fromYaml (include "valkey.nhom" .) }}
+{{- $motVung := eq (len (uniq $v.global.topology.zones)) 1 }}
+{{- range $n := list "a" "b" "c" }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: valkey-{{ $n }}
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "valkey.labels" $root | nindent 4 }}
+    vt.io/valkey-nhom: {{ $n }}
+spec:
+  serviceName: valkey-headless
+  replicas: 2
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels: { app.kubernetes.io/name: valkey, vt.io/valkey-nhom: {{ $n }} }
+  template:
+    metadata:
+      labels:
+        {{- include "valkey.labels" $root | nindent 8 }}
+        vt.io/valkey-nhom: {{ $n }}
+      annotations:
+        checksum/config: {{ include (print $root.Template.BasePath "/config.yaml") $root | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - { key: topology.kubernetes.io/zone, operator: In, values: [{{ index $nhom $n | quote }}] }
+                  {{- range $kk, $gt := $v.placement.nodeSelector }}
+                  - { key: {{ $kk }}, operator: In, values: [{{ $gt | quote }}] }
+                  {{- end }}
+        podAntiAffinity:
+          {{- if $motVung }}
+          # Một vùng (compact): sáu pod trên các node khác nhau trong khả năng, hai pod cùng nhóm bắt buộc khác node.
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector: { matchLabels: { app.kubernetes.io/name: valkey, vt.io/valkey-nhom: {{ $n }} } }
+          {{- else if eq $v.placement.antiAffinity "required" }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector: { matchLabels: { app.kubernetes.io/name: valkey } }
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector: { matchLabels: { app.kubernetes.io/name: valkey } }
+          {{- end }}
+      {{- with $v.placement.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: valkey
+          image: {{ include "valkey.anh" $v.image | quote }}
+          command: ["sh", "-c"]
+          args:
+            - exec valkey-server /etc/valkey/valkey.conf --cluster-announce-hostname "${POD_NAME}.valkey-headless.${POD_NAMESPACE}.svc"
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: POD_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+          ports:
+            - { name: valkey, containerPort: 6379, protocol: TCP }
+            - { name: bus, containerPort: 16379, protocol: TCP }
+          readinessProbe:
+            tcpSocket: { port: valkey }
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: { port: valkey }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests: { cpu: {{ $k.cpu | quote }}, memory: {{ $k.memory }} }
+            limits: { cpu: {{ $k.cpu | quote }}, memory: {{ $k.memory }} }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: config, mountPath: /etc/valkey/valkey.conf, subPath: valkey.conf, readOnly: true }
+            - { name: acl, mountPath: /etc/valkey/acl, readOnly: true }
+            - { name: tls, mountPath: /tls, readOnly: true }
+            - { name: data, mountPath: /data }
+        {{- if $v.metrics.enabled }}
+        - name: exporter
+          image: {{ include "valkey.anh" $v.metrics.image | quote }}
+          env:
+            - { name: REDIS_ADDR, value: "rediss://localhost:6379" }
+            - { name: REDIS_USER, value: vt-exporter }
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: valkey-acl, key: vt-exporter } }
+            - { name: REDIS_EXPORTER_TLS_CA_CERT_FILE, value: /tls/ca.crt }
+          ports:
+            - { name: metrics, containerPort: 9121, protocol: TCP }
+          readinessProbe:
+            httpGet: { path: /health, port: metrics }
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+            runAsUser: 59000
+          volumeMounts:
+            - { name: tls, mountPath: /tls, readOnly: true }
+        {{- end }}
+      volumes:
+        - name: config
+          configMap: { name: valkey }
+        - name: acl
+          secret: { secretName: valkey-acl, items: [{ key: users.acl, path: users.acl }, { key: sao-chep.conf, path: sao-chep.conf }] }
+        - name: tls
+          secret: { secretName: valkey-tls }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: {{ $v.storage.storageClass }}
+        resources: { requests: { storage: {{ $v.storage.size }} } }
+{{- end }}

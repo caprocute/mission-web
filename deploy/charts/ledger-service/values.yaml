@@ -1,0 +1,72 @@
+# SVC-09 ledger-service: sổ cái chống chối bỏ, phát hành mỗi lần một pod (TL-04 mục 5.2).
+# Mặc định là cell hạng L theo bảng TL-04 mục 5.2. Digest ảnh toàn số 0 là giả lập; CI thay bằng digest thật (INF-05).
+global:
+  cell: ''
+  sizing: L
+name: ledger-service
+namespace: secure
+image:
+  repository: harbor.vt.local/platform/ledger-service
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+runtime: go
+resources:
+  requests:
+    cpu: '1'
+    memory: 1Gi
+  limits:
+    cpu: '2'
+    memory: 1Gi
+probes:
+  startup:
+    periodSeconds: 5
+    failureThreshold: 6
+pdb:
+  maxUnavailable: 1
+autoscaling:
+  keda:
+    enabled: true
+    minReplicas: 6
+    maxReplicas: 12
+    cooldownPeriod: 900
+    triggers:
+      - type: kafka
+        name: ledger-append
+        metadata:
+          bootstrapServers: kafka-cell-kafka-bootstrap.data-kafka.svc:9093
+          consumerGroup: ledger-service
+          topic: sys.ledger.append.v1
+          lagThreshold: '2000'
+          activationLagThreshold: '500'
+go:
+  memLimitPercent: 78
+nodePool: secure
+workload:
+  strategy:
+    maxSurge: 1
+    maxUnavailable: 0
+networkPolicy:
+  ingressFrom:
+    - namespace: observability
+      ports:
+        - port: 8081
+  egressTo:
+    - namespace: secure-data
+      podLabels:
+        cnpg.io/cluster: pg-ledger
+      ports:
+        - port: 5432
+    - namespace: data-kafka
+      podLabels:
+        strimzi.io/cluster: kafka-cell
+      ports:
+        - port: 9093
+    - namespace: secure-data
+      podLabels:
+        app.kubernetes.io/name: openbao
+      ports:
+        - port: 8200
+    - namespace: observability
+      podLabels:
+        app.kubernetes.io/name: otel-agent
+      ports:
+        - port: 4317

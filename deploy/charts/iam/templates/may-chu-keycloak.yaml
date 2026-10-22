@@ -1,0 +1,6 @@
+{{- /* INF-02: workload máy chủ Keycloak dựng bằng vt-service; tắt mặc định (mayChu.enabled). */ -}}
+{{- if .Values.mayChu.enabled }}
+{{- $v := deepCopy (omit .Values.mayChu "enabled") }}
+{{- $_ := set $v "global" (merge (deepCopy (.Values.global | default dict)) $v.global) }}
+{{ include "vt-service.all" (dict "Values" $v "Release" .Release "Chart" .Chart) }}
+{{- end }}

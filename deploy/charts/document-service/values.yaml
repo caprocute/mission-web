@@ -1,103 +1,128 @@
-# NEN-019 · TL-04 WI-20, WI-23 "Helm values mẫu cho service Java".
-# Tệp này là bộ giá trị mặc định (cấu hình cell nhỏ) cho chart thư viện vt-service (INF-01).
-# Không chứa mật khẩu, token hay khoá rõ; mọi bí mật tham chiếu đường dẫn OpenBao.
-
-workload:
-  kind: Deployment
-  serviceCode: SVC-11
-  name: document-service
-  terminationGracePeriodSeconds: 40
-  preStopSleepSeconds: 5
-  securityContext:
-    runAsNonRoot: true
-    runAsUser: 10001
-    runAsGroup: 10001
-    readOnlyRootFilesystem: true
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        - ALL
-
-image:
-  repository: harbor.local/mission/document-service
-  tag: "0.1.0-SNAPSHOT"
-  pullPolicy: IfNotPresent
-
-replicas:
-  default: 2
-
-resources:
-  # Memory request == limit để giữ QoS Guaranteed về bộ nhớ, tránh OOMKill bất ngờ (TL-04 WI-20).
-  requests:
-    cpu: "500m"
-    memory: "1Gi"
-  limits:
-    cpu: "2"
-    memory: "1Gi"
-
-jvm:
-  flags:
-    - "-XX:MaxRAMPercentage=70.0"
-    - "-XX:+UseZGC"
-    - "-XX:+ZGenerational"
-    - "-XX:+ExitOnOutOfMemoryError"
-    - "-Djava.io.tmpdir=/tmp"
-
-env:
-  SPRING_PROFILES_ACTIVE: "prod"
-  SERVER_PORT: "8080"
-  MANAGEMENT_PORT: "8081"
-  OTEL_SERVICE_NAME: "document-service"
-  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4317"
-  OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
-  OTEL_TRACES_SAMPLER_ARG: "0.1"
-
-datasources:
-  primary:
-    host: "pgbouncer-cell.data.svc.cluster.local"
-    port: 6432
-    database: "mission"
-    schema: "docgen"
-    username: "svc_docgen"
-    pool:
-      maximumPoolSize: 10
-      minimumIdle: 2
-      connectionTimeoutMs: 3000
-      validationTimeoutMs: 1000
-      maxLifetimeMs: 1800000
-
-probes:
-  port: 8081
-  startup:
-    path: /actuator/health/liveness
-    initialDelaySeconds: 5
-    periodSeconds: 2
-    timeoutSeconds: 2
-    failureThreshold: 30
-  liveness:
-    path: /actuator/health/liveness
-    periodSeconds: 10
-    timeoutSeconds: 2
-    failureThreshold: 3
-  readiness:
-    path: /actuator/health/readiness
-    periodSeconds: 5
-    timeoutSeconds: 2
-    failureThreshold: 3
-
-pdb:
-  enabled: true
-  minAvailable: 1
-
-scaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 6
-  targetCpuUtilizationPercentage: 70
-  kafkaLagThreshold: 1000
-
-secrets:
-  openbao:
-    role: "document-service"
-    databasePasswordPath: "secret/data/mission/cell/db/svc_docgen"
-    kafkaCredentialsPath: "secret/data/mission/cell/kafka/document-service"
+# SVC-11 document-service: sinh văn bản, kèm Gotenberg chuyển đổi PDF (TL-04 mục 5.2).
+# Mặc định là cell hạng L theo bảng TL-04 mục 5.2. Digest ảnh toàn số 0 là giả lập; CI thay bằng digest thật (INF-05).
+global:
+  cell: ''
+  sizing: L
+thanhPhan:
+  document-service:
+    name: document-service
+    namespace: workers
+    image:
+      repository: harbor.vt.local/platform/document-service
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    runtime: java
+    resources:
+      requests:
+        cpu: '1'
+        memory: 3Gi
+      limits:
+        cpu: '2'
+        memory: 3Gi
+    probes:
+      startup:
+        periodSeconds: 5
+        failureThreshold: 24
+    pdb:
+      maxUnavailable: 25%
+    autoscaling:
+      hpa:
+        enabled: true
+        minReplicas: 2
+        maxReplicas: 20
+        cpuUtilization: 75
+    java:
+      gc: g1
+    nodePool: worker
+    opa:
+      enabled: true
+      image:
+        repository: harbor.vt.local/k8s/opa
+        digest: sha256:3c995dc8a59f6ddfd92eb7404d2f7ff9fe71cd025d9251199957a8a6afbfd76e
+    networkPolicy:
+      ingressFrom:
+        - namespace: edge
+          podLabels:
+            app.kubernetes.io/name: apisix
+          ports:
+            - port: 8080
+        - namespace: observability
+          ports:
+            - port: 8081
+        - namespace: core
+          podLabels:
+            app.kubernetes.io/name: mission-core
+          ports:
+            - port: 8080
+      egressTo:
+        - namespace: data-pg
+          podLabels:
+            cnpg.io/poolerName: pg-platform-pooler-rw
+          ports:
+            - port: 5432
+        - namespace: data-kafka
+          podLabels:
+            strimzi.io/cluster: kafka-cell
+          ports:
+            - port: 9093
+        - namespace: workers
+          podLabels:
+            app.kubernetes.io/name: gotenberg
+          ports:
+            - port: 3000
+        - namespace: egress
+          podLabels:
+            app.kubernetes.io/name: egress-gateway
+          ports:
+            - port: 443
+          objectStore: true
+        - namespace: observability
+          podLabels:
+            app.kubernetes.io/name: otel-agent
+          ports:
+            - port: 4317
+  gotenberg:
+    name: gotenberg
+    namespace: workers
+    image:
+      repository: harbor.vt.local/platform/gotenberg
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    runtime: custom
+    resources:
+      requests:
+        cpu: '2'
+        memory: 3Gi
+      limits:
+        cpu: '2'
+        memory: 3Gi
+    probes:
+      startup:
+        path: /health
+        periodSeconds: 5
+        failureThreshold: 12
+      liveness:
+        path: /health
+      readiness:
+        path: /health
+    pdb:
+      maxUnavailable: 25%
+    autoscaling:
+      hpa:
+        enabled: true
+        minReplicas: 2
+        maxReplicas: 24
+        cpuUtilization: 75
+    nodePool: worker
+    ports:
+      http: 3000
+      mgmt: 3000
+    serviceMonitor:
+      port: http
+      path: /prometheus/metrics
+    networkPolicy:
+      ingressFrom:
+        - namespace: workers
+          podLabels:
+            app.kubernetes.io/name: document-service
+          ports:
+            - port: 8080
+      egressTo: []

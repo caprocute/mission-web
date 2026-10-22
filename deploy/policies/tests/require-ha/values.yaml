@@ -1,0 +1,28 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Value
+metadata:
+  name: values
+namespaceSelector:
+- name: ung-dung
+  labels:
+    vt.io/security-zone: app
+globalValues:
+  request.operation: CREATE
+policies:
+- name: vt-require-ha
+  resources:
+  - name: dat-ba-replica
+    values:
+      soPdb: 1
+  - name: dat-co-gian
+    values:
+      soPdb: 0
+  - name: hong-mot-replica
+    values:
+      soPdb: 1
+  - name: hong-khong-spread
+    values:
+      soPdb: 1
+  - name: dat-hai-rang-buoc
+    values:
+      soPdb: 1

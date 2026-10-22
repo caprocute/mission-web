@@ -1,0 +1,48 @@
+cell: g4
+image:
+  repository: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib
+  digest: sha256:886722fe0f37af9d1fe24d29529253ec59fbf263b3b1df4facaf221373e19d23
+
+agent:
+  resources:
+    requests: { cpu: 200m, memory: 512Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  # Agent chạy trên mọi node kể cả pool có taint.
+  tolerations:
+    - { operator: Exists }
+
+gateway:
+  # 3–6 pod mỗi cell (TL-04 mục 10.2); cố định số pod vì loadbalancing định tuyến theo danh sách pod.
+  replicas: 3
+  resources:
+    requests: { cpu: "1", memory: 4Gi }
+    limits: { cpu: "2", memory: 4Gi }
+  queueStorage: 20Gi
+  storageClassName: ""
+  nodePool: app-general
+  tailSampling:
+    decisionWait: 15s
+    numTraces: 400000
+    expectedNewTracesPerSec: 4000
+    readLatencyMs: 300
+    anyLatencyMs: 800
+    baselinePercent: 10
+
+# Đích của trace. AGPL (Tempo) chỉ dùng nội bộ SaaS; bản cài tại chỗ đặt agplThayThe: true để chuyển sang
+# điểm nhận Apache-2.0 (ví dụ Jaeger) ở altEndpoint (TL-04 mục 9.9, INF-23).
+tempo:
+  endpoint: tempo-distributor.observability.svc:4317
+  caFile: /etc/otel/ca/ca.crt
+  # Secret chứa ca.crt của PKI nội bộ; rỗng thì gửi không TLS (chỉ dùng cho kind).
+  caSecret: otel-ca
+agplThayThe: false
+altEndpoint: jaeger-collector.observability.svc:4317
+
+# Điểm nhận Faro cho web (SVC-17); APISIX chuyển /faro/collect tới cổng này.
+faro:
+  enabled: true
+  port: 8027
+  # Log Faro đẩy tới Loki qua OTLP HTTP.
+  lokiOtlpEndpoint: http://loki-gateway.observability.svc/otlp
+
+podMonitor: true

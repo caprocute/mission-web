@@ -1,0 +1,122 @@
+# Ngưỡng nâng bậc NG-01..NG-14 của TL-05, mức "capacity": không gọi trực ca, gửi kênh đội nền tảng.
+# "Hai kỳ đỉnh liên tiếp" được hiện thực là đỉnh của 30 ngày gần nhất và đỉnh của 30 ngày liền trước đều vượt
+# ngưỡng, coi mỗi kỳ đánh giá tháng là một kỳ đỉnh (suy luận về cách hiện thực). Tín hiệu đầu vào dạng ng:* do
+# Prometheus cell ghi (observability-cell/rules/nang-luc-ghi.yaml); metric vt_* là metric ứng dụng chưa có trong mã.
+groups:
+  - name: ng-nang-luc.alerts
+    interval: 1h
+    rules:
+      - alert: NG01CellQuaTai
+        expr: max by (cell) (vt_registry_tenant_accounts) > 1.5e6 or max by (cell) (max_over_time(vt_rum_concurrent_users[1d])) > 75000
+        labels: { severity: capacity, doi: nen-tang, ng: NG-01 }
+        annotations:
+          summary: "Cell {{ $labels.cell }} vượt 1,5 triệu tài khoản hoặc 75.000 CCU: tách cell (OPS-23)"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG02FlowableHaiKy
+        expr: |
+          max by (cell) (max_over_time(ng:flowable_task_completed:rate5m[30d])) > 150
+          and max by (cell) (max_over_time(ng:flowable_task_completed:rate5m[30d] offset 30d)) > 150
+        labels: { severity: capacity, doi: nen-tang, ng: NG-02 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: đỉnh user task hoàn thành vượt 150/giây ở hai kỳ liên tiếp"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG02FlowableDinh
+        expr: max by (cell) (max_over_time(ng:flowable_task_completed:rate5m[1h])) > 300
+        labels: { severity: capacity, doi: nen-tang, ng: NG-02 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: user task hoàn thành vượt 300/giây, cân nhắc tách engine"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG03CpuPgCore
+        expr: |
+          max by (cell) (quantile_over_time(0.95, ng:pg_core_primary_cpu:ratio[30d])) > 0.6
+          and max by (cell) (quantile_over_time(0.95, ng:pg_core_primary_cpu:ratio[30d] offset 30d)) > 0.6
+        labels: { severity: capacity, doi: nen-tang, ng: NG-03 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: CPU primary pg-core p95 vượt 60% ở hai kỳ"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG04TranHoSo
+        expr: |
+          max by (cell) (vt_registry_tenant_accounts) / max by (cell) (vt_cell_account_ceiling) > 0.9
+          or max by (cell) (predict_linear(vt_registry_tenant_accounts[90d], 182 * 86400)) > max by (cell) (vt_cell_account_ceiling)
+        labels: { severity: capacity, doi: nen-tang, ng: NG-04 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: số tài khoản quá 90% trần hồ sơ hoặc dự báo vượt trần trong 2 quý"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG05MissionCoreMaxReplicas
+        expr: |
+          max by (cell) (sum_over_time(ng:mission_core_at_max_replicas:bool[1d])) > 10
+          and max by (cell) (sum_over_time(ng:mission_core_at_max_replicas:bool[1d] offset 1d)) > 10
+        labels: { severity: capacity, doi: nen-tang, ng: NG-05 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: mission-core chạy ở maxReplicas quá 10 phút trong hai ngày liên tiếp"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG06PoolChamTran
+        expr: |
+          max by (cell, node_group) (max_over_time(cluster_autoscaler_node_group_target_count[1d]))
+          >= on (cell, node_group) max by (cell, node_group) (cluster_autoscaler_node_group_max_count)
+        labels: { severity: capacity, doi: nen-tang, ng: NG-06 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: node pool {{ $labels.node_group }} chạm giới hạn trên của Cluster Autoscaler"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG07CephDay
+        expr: max by (cell) (ceph_cluster_total_used_bytes / ceph_cluster_total_bytes) > 0.6
+        labels: { severity: capacity, doi: nen-tang, ng: NG-07 }
+        annotations:
+          summary: "Ceph của {{ $labels.cell }} đầy {{ $value | humanizePercentage }}: đặt hàng ổ"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG07CephNguongCung
+        expr: max by (cell) (ceph_cluster_total_used_bytes / ceph_cluster_total_bytes) > 0.75
+        labels: { severity: capacity, doi: nen-tang, ng: NG-07 }
+        annotations:
+          summary: "Ceph của {{ $labels.cell }} đầy {{ $value | humanizePercentage }}: ngưỡng cứng, ngừng nhận dữ liệu không thiết yếu"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG08KafkaDia
+        expr: max by (cell) (min_over_time(ng:kafka_broker_disk:ratio[7d])) > 0.5 or max by (cell) (kafka_server_replicamanager_partitioncount) > 4000
+        labels: { severity: capacity, doi: nen-tang, ng: NG-08 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: đĩa broker Kafka trên 50% suốt 7 ngày hoặc quá 4.000 phân vùng mỗi broker"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG09OpenSearch
+        expr: |
+          max by (cell) (opensearch_index_store_size_bytes{context="primaries"} / opensearch_index_shards_number{type="primaries"}) > 50e9
+          or max by (cell) (min_over_time(ng:opensearch_heap:ratio[1d])) > 0.75
+        labels: { severity: capacity, doi: nen-tang, ng: NG-09 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: shard OpenSearch quá 50 GB hoặc heap trên 75% kéo dài"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG10ClickHouse
+        expr: |
+          max by (cell) (1 - ClickHouseAsyncMetrics_DiskAvailable_default / ClickHouseAsyncMetrics_DiskTotal_default) > 0.7
+          or max by (cell) (histogram_quantile(0.95, sum by (cell, le) (rate(vt_cube_query_duration_seconds_bucket[1d])))) > 1
+        labels: { severity: capacity, doi: nen-tang, ng: NG-10 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: đĩa ClickHouse trên 70% hoặc p95 truy vấn dashboard quá 1 giây"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG11Valkey
+        expr: max by (cell) (redis_memory_used_bytes / redis_memory_max_bytes) > 0.7 or sum by (cell) (increase(redis_evicted_keys_total[1h])) > 0
+        labels: { severity: capacity, doi: nen-tang, ng: NG-11 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: bộ nhớ Valkey trên 70% maxmemory hoặc có khoá bị trục xuất"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG12ChuoiMetric
+        expr: max by (cell) (max_over_time(ng:prometheus_head_series:max[1d])) > 3e6
+        labels: { severity: capacity, doi: nen-tang, ng: NG-12 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: {{ $value }} chuỗi metric hoạt động (trên 3 triệu)"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG13Gpu
+        expr: |
+          max by (cell) (min_over_time(ng:vllm_requests_waiting:sum[15m])) > 200
+          or (max by (cell) (ng:ai_gateway_unavailable:ratio_rate1h) > 0.01 and on () (hour() >= 1 < 10))
+        labels: { severity: capacity, doi: nen-tang, ng: NG-13 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: hàng đợi vLLM quá 200 trong 15 phút hoặc ai-gateway trả 503 quá 1% giờ làm việc"
+          runbook_url: https://runbook.vt.local/okr/nang-bac
+      - alert: NG14MoHinhDinhCo
+        expr: |
+          max by (cell) (max_over_time(vt_rum_concurrent_users[1d])) / max by (cell) (vt_registry_tenant_accounts) > 0.06
+          or min by (cell) (vt_rum_think_time_seconds) < 15
+        labels: { severity: capacity, doi: nen-tang, ng: NG-14 }
+        annotations:
+          summary: "Cell {{ $labels.cell }}: tỷ lệ CCU trên tài khoản hoặc thời gian suy nghĩ lệch giả định định cỡ, chạy lại mô hình"
+          runbook_url: https://runbook.vt.local/okr/nang-bac

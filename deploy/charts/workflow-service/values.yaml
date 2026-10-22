@@ -35,7 +35,7 @@ executor:
     authenticationRefName: keda-flowable-pg
 
 database:
-  url: jdbc:postgresql://pg-flowable-rw:5432/flowable?currentSchema=flowable
+  url: jdbc:postgresql://pg-flowable-pooler-rw.data-pg.svc:5432/flowable?currentSchema=flowable
   appSecret: flowable-db-svc-flowable
   migrationSecret: flowable-db-mig-flowable
 

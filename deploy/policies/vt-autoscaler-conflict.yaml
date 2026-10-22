@@ -1,0 +1,45 @@
+# TL-04 mục 6.1: mỗi workload chỉ có một bộ co giãn. Phát hiện HPA và ScaledObject cùng trỏ một workload
+# (suy luận về cách hiện thực; KEDA tự tạo HPA keda-hpa-<tên> có ownerReference ScaledObject nên được bỏ qua).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: vt-autoscaler-conflict
+  annotations:
+    policies.kyverno.io/title: Không bật đồng thời HPA và ScaledObject
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: hpa-trung-scaledobject
+      match: { any: [{ resources: { kinds: ["HorizontalPodAutoscaler"] } }] }
+      preconditions:
+        all:
+          - key: "{{ request.object.metadata.ownerReferences[?kind=='ScaledObject'] || `[]` | length(@) }}"
+            operator: Equals
+            value: 0
+      context:
+        - name: soTrung
+          apiCall:
+            urlPath: "/apis/keda.sh/v1alpha1/namespaces/{{ request.namespace }}/scaledobjects"
+            jmesPath: "items[?spec.scaleTargetRef.name == '{{ request.object.spec.scaleTargetRef.name }}'] | length(@)"
+            default: 0
+      validate:
+        message: "Workload {{ request.object.spec.scaleTargetRef.name }} đã có ScaledObject của KEDA; không tạo thêm HPA (TL-04 mục 6.1)."
+        deny:
+          conditions:
+            any:
+              - { key: "{{ soTrung }}", operator: GreaterThan, value: 0 }
+    - name: scaledobject-trung-hpa
+      match: { any: [{ resources: { kinds: ["ScaledObject"] } }] }
+      context:
+        - name: soTrung
+          apiCall:
+            urlPath: "/apis/autoscaling/v2/namespaces/{{ request.namespace }}/horizontalpodautoscalers"
+            jmesPath: "items[?spec.scaleTargetRef.name == '{{ request.object.spec.scaleTargetRef.name }}' && !(metadata.ownerReferences[?kind=='ScaledObject'])] | length(@)"
+            default: 0
+      validate:
+        message: "Workload {{ request.object.spec.scaleTargetRef.name }} đã có HPA; ScaledObject sẽ tranh quyền co giãn (TL-04 mục 6.1)."
+        deny:
+          conditions:
+            any:
+              - { key: "{{ soTrung }}", operator: GreaterThan, value: 0 }

@@ -1,0 +1,42 @@
+{{- $c := .Values.lokiColdCopy }}
+{{- if and $c.enabled .Values.loki.enabled }}
+# Chép khối Loki sắp hết 90 ngày nóng sang bucket lạnh trên kho sao lưu (giữ thêm 1 năm, TL-04 mục 10.3).
+# Bucket lạnh tự xoá sau 1 năm bằng lifecycle của kho; truy vấn bằng cách gắn vào một Loki tạm.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: loki-cold-copy
+  namespace: observability
+spec:
+  schedule: {{ $c.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          securityContext:
+            {{- include "obs.podSec" . | nindent 12 }}
+          containers:
+            - name: rclone
+              image: {{ include "obs.image" (list $c.image "lokiColdCopy") }}
+              args: ["copy", "--min-age", {{ $c.minAge | quote }}, "--immutable", "hot:{{ $c.hotBucket }}", "cold:{{ $c.coldBucket }}"]
+              env:
+                - { name: RCLONE_CONFIG_HOT_TYPE, value: s3 }
+                - { name: RCLONE_CONFIG_HOT_PROVIDER, value: Ceph }
+                - { name: RCLONE_CONFIG_HOT_ENDPOINT, value: {{ printf "https://%s" .Values.s3.endpoint | quote }} }
+                - { name: RCLONE_CONFIG_HOT_ENV_AUTH, value: "true" }
+                - { name: RCLONE_CONFIG_COLD_TYPE, value: s3 }
+                - { name: RCLONE_CONFIG_COLD_PROVIDER, value: Ceph }
+                - { name: RCLONE_CONFIG_COLD_ENDPOINT, value: {{ printf "https://%s" $c.coldEndpoint | quote }} }
+                - { name: RCLONE_CONFIG_COLD_ENV_AUTH, value: "true" }
+              envFrom:
+                - secretRef: { name: {{ .Values.s3.credentialsSecret }} }
+              securityContext:
+                {{- include "obs.secCtx" . | nindent 16 }}
+              resources:
+                requests: { cpu: 100m, memory: 256Mi }
+                limits: { cpu: "1", memory: 256Mi }
+{{- end }}

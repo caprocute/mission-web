@@ -1,0 +1,9 @@
+# Ghim Istio ambient cho cụm cell (TL-04 bảng phiên bản mục 3.1: Istio 1.27). Argo CD cài bốn chart theo thứ tự
+# base → istiod → cni → ztunnel, mỗi chart dùng tệp values cùng tên trong thư mục này; cell-mesh cài sau cùng.
+repo: https://istio-release.storage.googleapis.com/charts
+version: 1.27.9
+charts:
+  - { chart: base,    namespace: istio-system, values: values-base.yaml }
+  - { chart: istiod,  namespace: istio-system, values: values-istiod.yaml }
+  - { chart: cni,     namespace: istio-system, values: values-cni.yaml }
+  - { chart: ztunnel, namespace: istio-system, values: values-ztunnel.yaml }

@@ -1,0 +1,34 @@
+# Mô hình 3: cài cách ly cho lực lượng vũ trang, Công an (TL-04 mục 2.1, 2.4). Chỉ chứa các khoá của bảng mục 2.1.
+global:
+  deploymentModel: airgap
+  # Một cell theo đơn vị.
+  capCaiDat: mot-cell
+  objectStore:
+    kind: rook-ceph
+    inCluster: true
+  crypto:
+    # Thuật toán Ban Cơ yếu qua lớp CryptoProvider (ADR-06).
+    provider: bcy
+  egress:
+    # Tắt hoàn toàn: vt-service bỏ mọi luật egressTo đánh dấu internet: true.
+    allowInternet: false
+  identity:
+    providers: [ha-tang-dinh-danh-chuyen-dung]
+  # LTS chậm một chu kỳ (OPS-12).
+  updateChannel: lts
+  # Cho phép 3 node, một vùng sự cố (TL-05 Phụ lục A).
+  sizing: compact
+  featureFlags:
+    # Tắt ứng dụng di động công khai bằng cờ tính năng (TL-04 mục 2.4).
+    publicMobileApp: false
+integration-gateway:
+  config:
+    # Tắt các bộ kết nối không dùng ở mạng cách ly.
+    VT_KET_NOI_VNEID: "false"
+    VT_KET_NOI_MYSIGN: "false"
+    VT_KET_NOI_LGSP: "false"
+ai-gateway:
+  thanhPhan:
+    vllm:
+      # Mô hình chạy tại chỗ trên GPU riêng, không gọi ra ngoài.
+      enabled: true

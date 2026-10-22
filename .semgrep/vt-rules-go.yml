@@ -1,0 +1,72 @@
+# Bộ quy tắc Semgrep riêng của Mission cho mã Go (INF-06), chạy cùng p/golang trong vtGoPipeline.
+# Nguồn: TL-04 mục 9.1 (SEC-05 SQL nối chuỗi, SEC-07 không ghi token vào log), mục 9.4 (SEC-20 mật mã được phép).
+# Kiểm thử: semgrep --test --metrics=off --config .semgrep/vt-rules-go.yml .semgrep/vt-rules-go.go
+rules:
+  - id: vt-go-sql-string-concat
+    languages: [go]
+    severity: ERROR
+    message: "Không nối chuỗi hay fmt.Sprintf vào câu SQL; dùng tham số $1, $2 (SEC-05)."
+    metadata: { cwe: "CWE-89", sec: "SEC-05" }
+    # Mã dựng CSDL kiểm thử (DDL với mật khẩu sinh tạm, không tham số hoá được) không thuộc phạm vi quy tắc
+    paths: { exclude: ["*_test.go", "**/testdb/**"] }
+    patterns:
+      - pattern-either:
+          - pattern: $DB.$F($CTX, fmt.Sprintf(...), ...)
+          - pattern: $DB.$F(fmt.Sprintf(...), ...)
+          - pattern: $DB.$F($CTX, "..." + $X, ...)
+          - pattern: $DB.$F("..." + $X, ...)
+      # Nối với hằng chuỗi (danh sách cột khai báo const) là an toàn: Semgrep lan truyền hằng nên "..." khớp cả hằng
+      - pattern-not: $DB.$F($CTX, "..." + "..." + "...", ...)
+      - pattern-not: $DB.$F($CTX, "..." + "...", ...)
+      - metavariable-regex:
+          metavariable: $F
+          regex: ^(Query|QueryRow|QueryContext|QueryRowContext|Exec|ExecContext|Prepare|PrepareContext|SendBatch)$
+  - id: vt-go-tls-insecure
+    languages: [go]
+    severity: ERROR
+    message: "Không tắt kiểm chứng chỉ TLS; mTLS do Istio và CA nội bộ cấp (SEC-20)."
+    metadata: { cwe: "CWE-295", sec: "SEC-20" }
+    pattern: "tls.Config{..., InsecureSkipVerify: true, ...}"
+  - id: vt-go-weak-crypto
+    languages: [go]
+    severity: ERROR
+    message: "Thuật toán băm, mã hoá không nằm trong danh mục được phép (SEC-20)."
+    metadata: { cwe: "CWE-327", sec: "SEC-20" }
+    pattern-either:
+      - pattern: md5.New()
+      - pattern: md5.Sum(...)
+      - pattern: sha1.New()
+      - pattern: sha1.Sum(...)
+      - pattern: des.NewCipher(...)
+      - pattern: rc4.NewCipher(...)
+  - id: vt-go-math-rand-for-secret
+    languages: [go]
+    severity: ERROR
+    message: "Sinh token, khoá, mã bí mật phải dùng crypto/rand, không dùng math/rand (SEC-20)."
+    metadata: { cwe: "CWE-338", sec: "SEC-20" }
+    patterns:
+      - pattern-either:
+          - pattern: $TOKEN := rand.$F(...)
+          - pattern: $TOKEN = rand.$F(...)
+      # Chỉ các hàm riêng của math/rand (crypto/rand không có), nên không cần đọc lệnh import
+      - metavariable-regex:
+          metavariable: $F
+          regex: ^(Int63|Int31|Intn|Int63n|Int31n|Uint32|Uint64|Float64|Float32|Perm|Int)$
+      - metavariable-regex:
+          metavariable: $TOKEN
+          regex: (?i).*(token|secret|key|otp|nonce|salt|password).*
+  - id: vt-go-log-secret
+    languages: [go]
+    severity: ERROR
+    message: "Không ghi token, mật khẩu, header Authorization vào log (SEC-07)."
+    metadata: { cwe: "CWE-532", sec: "SEC-07" }
+    patterns:
+      - pattern-either:
+          - pattern: $L.$M(..., $R.Header.Get("Authorization"), ...)
+          - pattern: $L.$M(..., $V, ...)
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(Print|Printf|Println|Info|Infof|Debug|Debugf|Warn|Warnf|Error|Errorf|InfoContext|DebugContext|ErrorContext)$
+      - metavariable-regex:
+          metavariable: $V
+          regex: (?i)^(.*\.)?(token|accessToken|password|secret|authorization)$

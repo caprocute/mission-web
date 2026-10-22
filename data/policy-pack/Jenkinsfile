@@ -1,0 +1,3 @@
+// Pipeline nội dung Policy Pack (INF-06, OPS-10). Khi phát hành, đặt packIds, effectivePeriodId, scopes theo đợt.
+@Library('vt-pipeline@vt-pipeline-v1.1.0') _
+vtPolicyPackPipeline()

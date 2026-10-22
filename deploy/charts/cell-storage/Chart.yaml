@@ -1,0 +1,7 @@
+apiVersion: v2
+name: cell-storage
+description: >-
+  StorageClass của một cell (TL-04 mục 3.8): nvme-local qua TopoLVM cho PostgreSQL, Kafka, OpenSearch, ClickHouse
+  và ceph-rbd qua Ceph CSI (mã hoá phía client, khoá ở OpenBao) cho volume cần di chuyển được giữa các node.
+type: application
+version: 0.1.0

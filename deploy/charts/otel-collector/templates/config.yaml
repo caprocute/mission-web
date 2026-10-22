@@ -1,0 +1,156 @@
+{{- $v := .Values }}
+{{- $ts := $v.gateway.tailSampling }}
+{{- $traceDest := ternary $v.altEndpoint $v.tempo.endpoint $v.agplThayThe }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-agent
+  namespace: observability
+  labels:
+    {{- include "otel.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    extensions:
+      health_check: { endpoint: 0.0.0.0:13133 }
+    receivers:
+      otlp:
+        protocols:
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
+    processors:
+      memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 20 }
+      resource/cell:
+        attributes:
+          - { key: vt.cell, value: {{ $v.cell | quote }}, action: upsert }
+          - { key: k8s.node.name, value: "${env:K8S_NODE_NAME}", action: upsert }
+      batch: { send_batch_size: 2048, timeout: 1s }
+    exporters:
+      # Mọi span của một trace tới cùng một pod gateway để lấy mẫu theo đuôi (TL-04 mục 10.2).
+      loadbalancing:
+        routing_key: traceID
+        protocol:
+          otlp:
+            tls: { insecure: true }
+            sending_queue: { enabled: true, queue_size: 10000 }
+            retry_on_failure: { enabled: true, max_elapsed_time: 5m }
+        resolver:
+          dns:
+            hostname: otel-gateway-headless.observability.svc.cluster.local
+            port: "4317"
+    service:
+      extensions: [health_check]
+      telemetry:
+        metrics:
+          readers:
+            - pull: { exporter: { prometheus: { host: 0.0.0.0, port: 8888 } } }
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, resource/cell, batch]
+          exporters: [loadbalancing]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-gateway
+  namespace: observability
+  labels:
+    {{- include "otel.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    extensions:
+      health_check: { endpoint: 0.0.0.0:13133 }
+      file_storage: { directory: /var/lib/otelcol/queue, timeout: 10s, create_directory: true }
+    receivers:
+      otlp:
+        protocols:
+          grpc: { endpoint: 0.0.0.0:4317 }
+      {{- if $v.faro.enabled }}
+      faro: { endpoint: "0.0.0.0:{{ $v.faro.port }}" }
+      {{- end }}
+    processors:
+      memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 20 }
+      attributes/redact:
+        actions:
+          - { key: http.request.header.authorization, action: delete }
+          - { key: enduser.id, action: hash }
+          - { pattern: "^(db\\.statement)$", action: delete }
+      transform/redact_url:
+        trace_statements:
+          - context: span
+            statements:
+              - replace_pattern(attributes["url.query"], "(token|code|password)=[^&]*", "$$1=***")
+              # Header X-Debug-Trace do APISIX ghi thành thuộc tính http_x_debug_trace (TL-04 mục 10.2).
+              - set(attributes["vt.debug"], "1") where attributes["http_x_debug_trace"] == "1"
+      tail_sampling:
+        decision_wait: {{ $ts.decisionWait }}
+        num_traces: {{ $ts.numTraces | int }}
+        expected_new_traces_per_sec: {{ $ts.expectedNewTracesPerSec | int }}
+        policies:
+          - name: errors
+            type: status_code
+            status_code: { status_codes: [ERROR] }
+          - name: slow-read
+            type: and
+            and:
+              and_sub_policy:
+                - { name: is-get, type: string_attribute, string_attribute: { key: http.request.method, values: [GET] } }
+                - { name: over-{{ $ts.readLatencyMs }}ms, type: latency, latency: { threshold_ms: {{ $ts.readLatencyMs | int }} } }
+          - name: slow-any
+            type: latency
+            latency: { threshold_ms: {{ $ts.anyLatencyMs | int }} }
+          - name: forced
+            type: string_attribute
+            string_attribute: { key: vt.debug, values: ["1"] }
+          - name: baseline
+            type: probabilistic
+            probabilistic: { sampling_percentage: {{ $ts.baselinePercent }} }
+      batch: { send_batch_size: 8192, timeout: 2s }
+    connectors:
+      # Tách hai pipeline: servicegraph thấy mọi span trước lấy mẫu để đo độ đầy đủ ngữ cảnh (NFR-10 vế 1).
+      forward/sample: {}
+      servicegraph:
+        latency_histogram_buckets: [10ms, 50ms, 100ms, 300ms, 800ms, 2s, 10s]
+        store: { ttl: 30s, max_items: 200000 }
+    exporters:
+      otlp/tempo:
+        endpoint: {{ $traceDest }}
+        {{- if $v.tempo.caSecret }}
+        tls: { ca_file: {{ $v.tempo.caFile }} }
+        {{- else }}
+        tls: { insecure: true }
+        {{- end }}
+        sending_queue: { enabled: true, num_consumers: 8, queue_size: 20000, storage: file_storage }
+        retry_on_failure: { enabled: true, max_elapsed_time: 10m }
+      prometheus/servicegraph:
+        endpoint: 0.0.0.0:8889
+        resource_to_telemetry_conversion: { enabled: false }
+      {{- if and $v.faro.enabled (not $v.agplThayThe) }}
+      otlphttp/loki:
+        endpoint: {{ $v.faro.lokiOtlpEndpoint }}
+        sending_queue: { enabled: true, storage: file_storage }
+      {{- end }}
+    service:
+      extensions: [health_check, file_storage]
+      telemetry:
+        metrics:
+          readers:
+            - pull: { exporter: { prometheus: { host: 0.0.0.0, port: 8888 } } }
+      pipelines:
+        traces/in:
+          receivers: [otlp{{ if $v.faro.enabled }}, faro{{ end }}]
+          processors: [memory_limiter, attributes/redact, transform/redact_url]
+          exporters: [forward/sample, servicegraph]
+        traces/sampled:
+          receivers: [forward/sample]
+          processors: [tail_sampling, batch]
+          exporters: [otlp/tempo]
+        metrics/servicegraph:
+          receivers: [servicegraph]
+          exporters: [prometheus/servicegraph]
+        {{- if and $v.faro.enabled (not $v.agplThayThe) }}
+        logs/faro:
+          receivers: [faro]
+          processors: [memory_limiter, batch]
+          exporters: [otlphttp/loki]
+        {{- end }}

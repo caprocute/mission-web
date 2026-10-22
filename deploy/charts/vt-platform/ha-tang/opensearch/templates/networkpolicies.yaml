@@ -1,0 +1,31 @@
+{{- /* Bổ sung default-deny của cell-base: transport 9300 giữa các nút, HTTP 9200 từ operator, client và giám sát. */}}
+{{- $v := .Values }}
+{{- $khach := list }}
+{{- range $ten, $u := $v.users }}{{ if $u.namespace }}{{ $khach = append $khach $u.namespace }}{{ end }}{{ end }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: opensearch
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "opensearch.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { opster.io/opensearch-cluster: opensearch }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { opster.io/opensearch-cluster: opensearch } }
+      ports: [{ port: 9300, protocol: TCP }, { port: 9200, protocol: TCP }]
+    - from:
+        - podSelector: {}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.operatorNamespace }} } }
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.observabilityNamespace }} } }
+        {{- range ($khach | uniq | sortAlpha) }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ . }} } }
+        {{- end }}
+      ports: [{ port: 9200, protocol: TCP }]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { opster.io/opensearch-cluster: opensearch } }
+      ports: [{ port: 9300, protocol: TCP }, { port: 9200, protocol: TCP }]

@@ -32,6 +32,9 @@ spec:
           - templateName: {{ . }}
           {{- end }}
       {{- end }}
+  {{- else if eq $v.workload.strategy.type "Recreate" }}
+  strategy:
+    type: Recreate
   {{- else }}
   strategy:
     type: RollingUpdate
@@ -108,6 +111,12 @@ spec:
         - { name: mgmt, containerPort: {{ $v.ports.mgmt | int }} }
         {{- end }}
       {{- $env := include "vt-service.runtimeEnv" . | fromYamlArray }}
+      {{- with $v.global.deploymentModel }}
+      {{- $env = concat $env (list (dict "name" "VT_DEPLOYMENT_MODEL" "value" .) (dict "name" "VT_CRYPTO_PROVIDER" "value" $v.global.crypto.provider) (dict "name" "VT_CELL_ID" "value" $v.global.cell)) }}
+      {{- range $k, $b := $v.global.featureFlags }}
+      {{- $env = append $env (dict "name" (printf "VT_FF_%s" (regexReplaceAll "([a-z])([A-Z])" $k "${1}_${2}" | upper)) "value" (toString $b)) }}
+      {{- end }}
+      {{- end }}
       {{- $env = concat $env $v.env }}
       {{- with $env }}
       env:
@@ -122,8 +131,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       resources:
-        requests: { cpu: {{ $v.resources.requests.cpu | quote }}, memory: {{ $v.resources.requests.memory }} }
-        limits:   { cpu: {{ $v.resources.limits.cpu | quote }}, memory: {{ $v.resources.limits.memory }} }
+        {{- $gpu := "" }}{{ if gt (int $v.resources.gpu) 0 }}{{ $gpu = printf ", nvidia.com/gpu: %d" (int $v.resources.gpu) }}{{ end }}
+        requests: { cpu: {{ $v.resources.requests.cpu | quote }}, memory: {{ $v.resources.requests.memory }}{{ $gpu }} }
+        limits:   { cpu: {{ $v.resources.limits.cpu | quote }}, memory: {{ $v.resources.limits.memory }}{{ $gpu }} }
       securityContext:
         allowPrivilegeEscalation: false
         readOnlyRootFilesystem: true
@@ -133,8 +143,15 @@ spec:
       {{- range $kind := list "startup" "liveness" "readiness" }}
       {{- $p := index $v.probes $kind }}
       {{- $pp := index $preset $kind }}
+      {{- /* Khi cổng mgmt trùng http, container chỉ mở cổng tên http nên probe "mgmt" phải đổi sang "http". */}}
+      {{- $cong := default $pp.port $p.port }}
+      {{- if and (eq (toString $cong) "mgmt") (eq (int $v.ports.mgmt) (int $v.ports.http)) }}{{ $cong = "http" }}{{ end }}
       {{ $kind }}Probe:
-        httpGet: { path: {{ default $pp.path $p.path | quote }}, port: {{ default $pp.port $p.port }} }
+        {{- if $p.tcp }}
+        tcpSocket: { port: {{ $cong }} }
+        {{- else }}
+        httpGet: { path: {{ default $pp.path $p.path | quote }}, port: {{ $cong }} }
+        {{- end }}
         periodSeconds: {{ $p.periodSeconds | int }}
         {{- if ne $kind "startup" }}
         timeoutSeconds: {{ $p.timeoutSeconds | int }}
@@ -156,6 +173,8 @@ spec:
       imagePullPolicy: IfNotPresent
       args:
         {{- toYaml $v.opa.args | nindent 8 }}
+      ports:
+        - { name: opa, containerPort: 8181 }
       resources:
         {{- toYaml $v.opa.resources | nindent 8 }}
       securityContext:

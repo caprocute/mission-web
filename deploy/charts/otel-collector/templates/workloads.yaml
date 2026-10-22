@@ -1,0 +1,194 @@
+{{- $v := .Values }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: otel-agent
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: otel-agent
+    {{- include "otel.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels: { app.kubernetes.io/name: otel-agent }
+  updateStrategy:
+    rollingUpdate: { maxUnavailable: 1 }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: otel-agent
+        {{- include "otel.labels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      priorityClassName: system-node-critical
+      securityContext:
+        {{- include "otel.podSecurity" . | nindent 8 }}
+      {{- with $v.agent.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: otelcol
+          {{- include "otel.container" (dict "root" . "res" $v.agent.resources) | nindent 10 }}
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+            - { name: metrics, containerPort: 8888 }
+          volumeMounts:
+            - { name: config, mountPath: /conf }
+      volumes:
+        - name: config
+          configMap: { name: otel-agent }
+---
+# Service nội node: pod gửi OTLP tới otel-agent.observability.svc và luôn vào agent cùng node.
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-agent
+  namespace: observability
+spec:
+  internalTrafficPolicy: Local
+  selector: { app.kubernetes.io/name: otel-agent }
+  ports:
+    - { name: otlp-grpc, port: 4317 }
+    - { name: otlp-http, port: 4318 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-gateway-headless
+  namespace: observability
+spec:
+  clusterIP: None
+  selector: { app.kubernetes.io/name: otel-gateway }
+  ports:
+    - { name: otlp-grpc, port: 4317 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-gateway
+  namespace: observability
+spec:
+  selector: { app.kubernetes.io/name: otel-gateway }
+  ports:
+    - { name: otlp-grpc, port: 4317 }
+    {{- if $v.faro.enabled }}
+    - { name: faro, port: {{ $v.faro.port | int }} }
+    {{- end }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: otel-gateway
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: otel-gateway
+    {{- include "otel.labels" . | nindent 4 }}
+spec:
+  serviceName: otel-gateway-headless
+  replicas: {{ $v.gateway.replicas | int }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels: { app.kubernetes.io/name: otel-gateway }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: otel-gateway
+        {{- include "otel.labels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        {{- include "otel.podSecurity" . | nindent 8 }}
+      {{- if ne $v.gateway.nodePool "none" }}
+      nodeSelector: { vt.io/pool: {{ $v.gateway.nodePool }} }
+      {{- end }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels: { app.kubernetes.io/name: otel-gateway }
+      containers:
+        - name: otelcol
+          {{- include "otel.container" (dict "root" . "res" $v.gateway.resources) | nindent 10 }}
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: metrics, containerPort: 8888 }
+            - { name: servicegraph, containerPort: 8889 }
+            {{- if $v.faro.enabled }}
+            - { name: faro, containerPort: {{ $v.faro.port | int }} }
+            {{- end }}
+          volumeMounts:
+            - { name: config, mountPath: /conf }
+            - { name: queue, mountPath: /var/lib/otelcol/queue }
+            {{- if $v.tempo.caSecret }}
+            - { name: ca, mountPath: /etc/otel/ca, readOnly: true }
+            {{- end }}
+      volumes:
+        - name: config
+          configMap: { name: otel-gateway }
+        {{- if $v.tempo.caSecret }}
+        - name: ca
+          secret: { secretName: {{ $v.tempo.caSecret }} }
+        {{- end }}
+  # Hàng đợi lưu tệp giữ span khi Tempo gián đoạn (TL-04 mục 10.2).
+  volumeClaimTemplates:
+    - metadata: { name: queue }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with $v.gateway.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests: { storage: {{ $v.gateway.queueStorage }} }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: otel-gateway
+  namespace: observability
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: otel-gateway }
+{{- if $v.podMonitor }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  selector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: [otel-agent, otel-gateway] }
+  podMetricsEndpoints:
+    - { port: metrics, interval: 15s }
+    - { port: servicegraph, interval: 15s }
+---
+# NFR-10 vế 1 (cách hiểu của TL-04 mục 10.2, chờ chủ đầu tư xác nhận): tỷ lệ cặp gọi client/server ghép được
+# trong cùng trace. Cạnh hết hạn mà không ghép được là span thiếu cha hoặc thiếu con do mất traceparent (suy luận).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: trace-completeness
+  namespace: observability
+spec:
+  groups:
+    - name: trace-completeness.rules
+      interval: 30s
+      rules:
+        - record: trace_completeness_ratio
+          expr: |
+            sum(rate(traces_service_graph_request_total[5m]))
+            /
+            clamp_min(
+              sum(rate(traces_service_graph_request_total[5m]))
+              + sum(rate(otelcol_connector_servicegraph_expired_edges_total[5m]) or vector(0)),
+              1e-9)
+{{- end }}

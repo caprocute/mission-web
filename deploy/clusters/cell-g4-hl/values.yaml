@@ -1,0 +1,65 @@
+# Cụm cell G4 tại TTDL Hòa Lạc. Cấu trúc pool theo TL-04 mục 3.3; số node lấy theo bảng hạng L của TL-04 và chia
+# đều ba vùng (làm tròn lên), cần đối chiếu lại với định cỡ của G4 trong TL-05 khi có hạ tầng.
+# Thông số provider của Viettel Cloud (cloud, mạng, flavor, ảnh) là giá trị chờ hạ tầng: khi được cấp, chỉ thay
+# ở deploy/environments/viettel-cloud/cell-g4-hl.yaml và render với -f tệp đó; không sửa khuôn cell-cluster.
+clusterName: cell-g4-hl
+cell: g4
+kubernetesVersion: v1.36.0
+zones: [hl-a, hl-b, hl-c]
+
+controlPlane:
+  replicas: 3
+
+pools:
+  system:
+    enabled: true
+    perZone: [1, 1, 1]
+    labels: { vt.io/pool: system }
+    taint: { key: CriticalAddonsOnly, value: "true", effect: NoSchedule }
+  ingress:
+    enabled: true
+    autoscale: { min: 1, max: 2 }
+    labels: { vt.io/pool: ingress }
+    taint: { key: vt.io/pool, value: ingress, effect: NoSchedule }
+  app-general:
+    enabled: true
+    # Bảng pool ghi 8/16; chọn 3 vùng × min 3, max 6 = 9/18 để cân bằng vùng (wiki 14).
+    autoscale: { min: 3, max: 6 }
+    labels: { vt.io/pool: app-general }
+  app-worker:
+    enabled: true
+    # Bảng pool ghi 4/16; chia đều ba vùng làm tròn lên thành 6/18.
+    autoscale: { min: 2, max: 6 }
+    labels: { vt.io/pool: worker }
+    taint: { key: vt.io/pool, value: worker, effect: NoSchedule }
+  data-postgres-large:
+    enabled: true
+    perZone: [1, 1, 1]
+    labels: { vt.io/pool: postgres, vt.io/pg-size: large }
+    taint: { key: vt.io/pool, value: postgres, effect: NoSchedule }
+  data-postgres-small:
+    enabled: true
+    perZone: [1, 1, 1]
+    labels: { vt.io/pool: postgres, vt.io/pg-size: small }
+    taint: { key: vt.io/pool, value: postgres, effect: NoSchedule }
+  data-kafka:
+    enabled: true
+    perZone: [2, 2, 2]
+    labels: { vt.io/pool: kafka }
+    taint: { key: vt.io/pool, value: kafka, effect: NoSchedule }
+  data-search:
+    enabled: true
+    perZone: [3, 2, 2]
+    labels: { vt.io/pool: search }
+    taint: { key: vt.io/pool, value: search, effect: NoSchedule }
+  security-zone:
+    enabled: true
+    perZone: [1, 1, 1]
+    labels: { vt.io/pool: secure, vt.io/zone: secure }
+    taint: { key: vt.io/zone, value: secure, effect: NoSchedule }
+  gpu:
+    # Pool GPU chỉ có ở cell HCM và HN (TL-04 mục 3.3).
+    enabled: false
+    perZone: [1, 0, 0]
+    labels: { vt.io/pool: gpu }
+    taint: { key: nvidia.com/gpu, value: present, effect: NoSchedule }

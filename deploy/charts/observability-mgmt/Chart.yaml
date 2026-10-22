@@ -1,0 +1,25 @@
+apiVersion: v2
+name: observability-mgmt
+description: >-
+  Quan sát ở cụm quản trị (TL-04 mục 3.2, 10.2 đến 10.4): Tempo giữ trace 14 ngày, Loki giữ log nóng 90 ngày và
+  chép khối cũ sang bucket lạnh thêm 1 năm, Thanos Query, Store, Compactor (raw 30 ngày, 5 phút 180 ngày, 1 giờ
+  2 năm), Grafana. Grafana, Loki, Tempo là AGPL, chỉ dùng nội bộ SaaS; cờ agplThayThe cho bản cài tại chỗ.
+type: application
+version: 0.1.0
+dependencies:
+  - name: tempo-distributed
+    version: 1.61.3
+    repository: oci://ghcr.io/grafana/helm-charts
+    condition: tempo-distributed.enabled
+  - name: tempo
+    version: 1.24.4
+    repository: oci://ghcr.io/grafana/helm-charts
+    condition: tempo.enabled
+  - name: loki
+    version: 7.3.0
+    repository: oci://ghcr.io/grafana/helm-charts
+    condition: loki.enabled
+  - name: grafana
+    version: 10.5.15
+    repository: oci://ghcr.io/grafana/helm-charts
+    condition: grafana.enabled

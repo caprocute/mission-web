@@ -50,6 +50,11 @@ app.kubernetes.io/component: realm-import
 {{- join "##" $out -}}
 {{- end -}}
 
+{{/* Namespace đích (INF-02): khoá namespace trong values, mặc định là namespace của release. */}}
+{{- define "iam.namespace" -}}
+{{- default .Release.Namespace .Values.namespace -}}
+{{- end -}}
+
 {{- define "iam.userSync.selectorLabels" -}}
 app.kubernetes.io/name: {{ .Chart.Name }}
 app.kubernetes.io/instance: {{ .Release.Name }}

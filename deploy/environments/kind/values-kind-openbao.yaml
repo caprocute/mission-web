@@ -1,0 +1,59 @@
+# OpenBao thu nhỏ cho kind (INF-13, kiem-thu-bi-mat.sh): 5 node Raft trên 3 worker, HSM mềm SoftHSM2 thay HSM thật.
+# Chỉ khác production ở values: thư viện PKCS#11, nhãn khoá, cơ chế, nơi để token; chart giữ nguyên.
+# image.digest, seal.plugin.sha256 và tls.caBundle do kịch bản kiểm thử truyền vào lúc chạy.
+global:
+  cell: kind
+  topology: { zones: [kind] }
+image:
+  repository: vt-kind/openbao-softhsm
+  tag: "2.7.1"
+seal:
+  pkcs11:
+    lib: /usr/lib64/pkcs11/libsofthsm2.so
+    tokenLabel: openbao-kind
+    keyLabel: openbao-unseal
+    # SoftHSM 2.6 lỗi khẳng định (assert) với AES-GCM khi AAD rỗng và chỉ hỗ trợ OAEP với SHA-1, nên trên kind dùng
+    # khoá RSA 3072 với RSA-OAEP SHA-1. HSM thật dùng khoá AES (mechanism để trống).
+    mechanism: rsa-pkcs-oaep
+    rsaOaepHash: sha1
+  env:
+    - { name: SOFTHSM2_CONF, value: /softhsm/softhsm2.conf }
+storage:
+  data: { size: 1Gi, storageClass: standard }
+  audit: { size: 1Gi, storageClass: standard }
+resources:
+  requests: { cpu: 50m, memory: 96Mi }
+  limits: { cpu: "1", memory: 256Mi }
+placement:
+  nodeSelector: null
+  tolerations: []
+  antiAffinity: preferred
+# Token SoftHSM là tệp; mọi node phải dùng chung một token (cùng khoá mở), nên token sinh một lần, đóng gói vào
+# Secret openbao-softhsm-token (mỗi tệp một khoá "<thư mục>__<tệp>") rồi chép vào emptyDir ghi được của từng pod.
+extraInitContainers:
+  - name: nap-token-hsm
+    image: vt-kind/openbao-softhsm:2.7.1
+    command:
+      - sh
+      - -c
+      - |
+        for f in /token-goc/*__*; do n=${f##*/}; mkdir -p /softhsm/tokens/${n%%__*}; cp "$f" /softhsm/tokens/${n%%__*}/${n#*__}; done
+        printf 'directories.tokendir = /softhsm/tokens\nobjectstore.backend = file\n' > /softhsm/softhsm2.conf
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities: { drop: [ALL] }
+    volumeMounts:
+      - { name: token-goc, mountPath: /token-goc, readOnly: true }
+      - { name: softhsm, mountPath: /softhsm }
+extraVolumes:
+  - name: token-goc
+    secret: { secretName: openbao-softhsm-token }
+  - name: softhsm
+    emptyDir: { sizeLimit: 16Mi }
+extraVolumeMounts:
+  - { name: softhsm, mountPath: /softhsm }
+rotation:
+  schedule: "0 0 1 1 *"
+monitoring:
+  prometheusRule: false

@@ -1,0 +1,130 @@
+{{- $v := .Values -}}
+{{- if not (has $v.mode (list "controller" "standalone")) }}{{ fail "api-gateway: mode chỉ nhận controller hoặc standalone" }}{{ end }}
+{{- range $v.routes }}{{ if eq .name "kpi-legacy" }}{{ fail "api-gateway: không có tuyến Strangler /kpi-legacy (Mission là hệ mới độc lập)" }}{{ end }}{{ end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apisix
+  namespace: edge
+  labels:
+    app.kubernetes.io/name: apisix
+    {{- include "api-gateway.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    apisix:
+      node_listen: [{{ $v.apisix.ports.http | int }}]
+      enable_ipv6: false
+      enable_admin: {{ eq $v.mode "controller" }}
+      extra_lua_path: "/opt/vt/lua/?.lua"
+      ssl:
+        enable: true
+        listen:
+          - port: {{ $v.apisix.ports.https | int }}
+        ssl_protocols: {{ $v.apisix.tls.protocols | quote }}
+      {{- with $v.apisix.trustedAddresses }}
+      trusted_addresses: {{ toJson . }}
+      {{- end }}
+    plugin_attr:
+      prometheus:
+        export_addr: { ip: 0.0.0.0, port: {{ $v.metrics.port | int }} }
+        # Có sẵn bucket 200, 300, 800 ms cho SLO-ASYNC, SLO-READ, SLO-WRITE (TL-04 mục 7.1).
+        default_buckets: {{ toJson $v.metrics.buckets }}
+        metrics:
+          http_status: { extra_labels: [{ kind: $vt_kind }] }
+          http_latency: { extra_labels: [{ kind: $vt_kind }] }
+    nginx_config:
+      worker_processes: {{ $v.apisix.workerProcesses | int }}
+      envs: [APISIX_OIDC_CLIENT_SECRET]
+      error_log_level: warn
+    deployment:
+      {{- if eq $v.mode "standalone" }}
+      role: data_plane
+      role_data_plane:
+        config_provider: yaml
+      {{- else }}
+      role: traditional
+      role_traditional:
+        config_provider: etcd
+      admin:
+        admin_key:
+          - name: admin
+            key: ${{"{{"}}APISIX_ADMIN_KEY{{"}}"}}
+            role: admin
+        allow_admin: ["0.0.0.0/0"]
+        admin_listen: { ip: 0.0.0.0, port: 9180 }
+      etcd:
+        prefix: /apisix
+        host:
+          {{- range $i, $_ := until (int $v.etcd.replicas) }}
+          - http://apisix-etcd-{{ $i }}.apisix-etcd.edge.svc:2379
+          {{- end }}
+      {{- end }}
+    plugins:
+      - real-ip
+      - cors
+      - ip-restriction
+      - openid-connect
+      - vt-claims
+      - limit-conn
+      - limit-count
+      - limit-req
+      - proxy-rewrite
+      - response-rewrite
+      - redirect
+      - opentelemetry
+      - prometheus
+    {{- if $v.coraza.enabled }}
+    wasm:
+      plugins:
+        - name: coraza-filter
+          priority: 7999
+          file: /opt/vt/wasm/coraza-proxy-wasm.wasm
+    {{- end }}
+  {{- if eq $v.mode "standalone" }}
+  apisix.yaml: |
+    routes:
+      {{- range $v.routes }}
+      - id: {{ .name }}
+        uris: {{ toJson .paths }}
+        hosts: {{ toJson .hosts }}
+        {{- with .pluginConfig }}
+        plugin_config_id: {{ . }}
+        {{- end }}
+        {{- with .rewrite }}
+        plugins:
+          proxy-rewrite:
+            regex_uri: [{{ index . 0 | quote }}, {{ index . 1 | replace "{realm}" $v.oidc.realm | quote }}]
+        {{- end }}
+        upstream:
+          type: roundrobin
+          scheme: http
+          nodes:
+            "{{ .service }}.{{ .namespace }}.svc.cluster.local:{{ .port }}": 1
+          timeout: {{ toJson .timeout }}
+      {{- end }}
+    plugin_configs:
+      - id: protected-api
+        plugins:
+          {{- include "api-gateway.protectedApi" . | nindent 10 }}
+    {{- if $v.opentelemetry.enabled }}
+    plugin_metadata:
+      - id: opentelemetry
+        {{- include "api-gateway.otelMetadata" . | nindent 8 }}
+    {{- end }}
+    global_rules:
+      - id: vt-global
+        plugins:
+          {{- include "api-gateway.globalPlugins" . | nindent 10 }}
+    #END
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apisix-vt-plugins
+  namespace: edge
+  labels:
+    {{- include "api-gateway.labels" . | nindent 4 }}
+data:
+  vt-claims.lua: |
+    {{- .Files.Get "files/vt-claims.lua" | nindent 4 }}

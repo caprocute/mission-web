@@ -1,0 +1,9 @@
+apiVersion: v2
+name: otel-collector
+description: >-
+  OpenTelemetry Collector hai tầng của cell (TL-04 mục 10.2): DaemonSet agent nhận OTLP trên mỗi node và chia span
+  theo traceID tới StatefulSet gateway; gateway che dữ liệu nhạy cảm, lấy mẫu theo đuôi, đẩy Tempo qua hàng đợi
+  lưu tệp, nhận Faro của giao diện web (SVC-17) và tính độ đầy đủ ngữ cảnh trace (NFR-10).
+type: application
+version: 0.1.0
+appVersion: "0.137.0"

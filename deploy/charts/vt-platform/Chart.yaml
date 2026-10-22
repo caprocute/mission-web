@@ -1,0 +1,36 @@
+apiVersion: v2
+name: vt-platform
+description: >-
+  Chart cha của một cell Mission (TL-04 chương 2, mục 2.1): gom chart dịch vụ SVC-01..SVC-17 (trừ SVC-03
+  tenant-registry là chart toàn cục) và chart hạ tầng trong cell. Ba mô hình phân phối chỉ khác nhau ở
+  values-saas.yaml, values-private.yaml, values-airgap.yaml.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  # Dịch vụ trong cell.
+  - { name: api-gateway, version: 0.1.0, repository: file://../api-gateway, condition: api-gateway.enabled }
+  - { name: iam, version: 0.1.0, repository: file://../iam, condition: iam.enabled }
+  - { name: org-service, version: 0.1.0, repository: file://../org-service, condition: org-service.enabled }
+  - { name: mission-core, version: 0.1.0, repository: file://../mission-core, condition: mission-core.enabled }
+  - { name: workflow-service, version: 0.1.0, repository: file://../workflow-service, condition: workflow-service.enabled }
+  - { name: scoring-service, version: 0.1.0, repository: file://../scoring-service, condition: scoring-service.enabled }
+  - { name: evidence-service, version: 0.1.0, repository: file://../evidence-service, condition: evidence-service.enabled }
+  - { name: ledger-service, version: 0.1.0, repository: file://../ledger-service, condition: ledger-service.enabled }
+  - { name: esign-service, version: 0.1.0, repository: file://../esign-service, condition: esign-service.enabled }
+  - { name: document-service, version: 0.1.0, repository: file://../document-service, condition: document-service.enabled }
+  - { name: notification-service, version: 0.1.0, repository: file://../notification-service, condition: notification-service.enabled }
+  - { name: integration-gateway, version: 0.1.0, repository: file://../integration-gateway, condition: integration-gateway.enabled }
+  - { name: ai-gateway, version: 0.1.0, repository: file://../ai-gateway, condition: ai-gateway.enabled }
+  - { name: analytics, version: 0.1.0, repository: file://../analytics, condition: analytics.enabled }
+  - { name: search, version: 0.1.0, repository: file://../search, condition: search.enabled }
+  - { name: web-frontend, version: 0.1.0, repository: file://../web-frontend, condition: web-frontend.enabled }
+  # Hạ tầng dùng chung trong cell; khung ở ha-tang/ do INF-10, INF-11, INF-13 điền nội dung.
+  - { name: cell-base, version: 0.1.0, repository: file://../cell-base, condition: cell-base.enabled }
+  - { name: observability-cell, version: 0.1.0, repository: file://../observability-cell, condition: observability-cell.enabled }
+  - { name: data-pg, version: 0.1.0, repository: file://ha-tang/data-pg, condition: data-pg.enabled }
+  - { name: kafka, version: 0.1.0, repository: file://ha-tang/kafka, condition: kafka.enabled }
+  - { name: valkey, version: 0.1.0, repository: file://ha-tang/valkey, condition: valkey.enabled }
+  - { name: opensearch, version: 0.1.0, repository: file://ha-tang/opensearch, condition: opensearch.enabled }
+  - { name: clickhouse, version: 0.1.0, repository: file://ha-tang/clickhouse, condition: clickhouse.enabled }
+  - { name: openbao, version: 0.1.0, repository: file://ha-tang/openbao, condition: openbao.enabled }

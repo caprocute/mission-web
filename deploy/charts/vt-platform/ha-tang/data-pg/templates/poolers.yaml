@@ -1,0 +1,90 @@
+{{- /*
+PgBouncer qua CNPG Pooler, chế độ transaction (TL-04 mục 4.7). Tên <cụm>-pooler-rw và <cụm>-pooler-ro vì CNPG đã
+dùng <cụm>-rw, -ro, -r cho dịch vụ của chính Cluster. Pool tính theo hồ sơ (xem pgbouncer trong values.yaml).
+*/}}
+{{- $root := . }}
+{{- $v := .Values }}
+{{- $hs := index $v.hoSo (include "data-pg.sizing" .) }}
+{{- $cums := fromYaml (include "data-pg.clusters" .) }}
+{{- range $ten, $c := $cums }}
+{{- $ns := include "data-pg.ns" (dict "root" $root "zone" $c.zone) }}
+{{- $pl := ternary $v.placement.secure $v.placement.app (eq $c.zone "secure") }}
+{{- /* Pool lớn nhất của một vai trò và tổng pool lớn nhất của một CSDL trên mỗi instance PgBouncer. */}}
+{{- $maxPool := 1 }}{{- $maxDb := 0 }}
+{{- range $db, $sc := $c.dbs }}
+{{- $tong := 0 }}
+{{- range $s := $sc }}
+{{- $p := int (include "data-pg.pool" (dict "root" $root "schema" $s "nguon" (include "data-pg.nguonCuaSchema" (dict "root" $root "schema" $s)))) }}
+{{- $maxPool = max $maxPool $p }}{{- $tong = add $tong $p }}
+{{- end }}
+{{- $maxDb = max $maxDb $tong }}
+{{- end }}
+{{- if gt (int $v.pgbouncer.maxDbConnectionsPerTenantDb) 0 }}{{ $maxDb = int $v.pgbouncer.maxDbConnectionsPerTenantDb }}{{ end }}
+{{- /* Ngân sách kết nối của primary: mọi instance Pooler rw mở tối đa min(max_db, tổng pool) + reserve cho mỗi CSDL,
+cộng một slot CDC mỗi CSDL và 10 kết nối dự phòng quản trị, không vượt max_connections (TL-05). */}}
+{{- $chu := 0 }}
+{{- range $db, $sc := $c.dbs }}
+{{- $tong := 0 }}
+{{- range $s := $sc }}{{ $tong = add $tong (int (include "data-pg.pool" (dict "root" $root "schema" $s "nguon" (include "data-pg.nguonCuaSchema" (dict "root" $root "schema" $s))))) }}{{ end }}
+{{- $chu = add $chu (mul (add (min $maxDb $tong) (int $v.pgbouncer.reservePoolSize)) (int $hs.pooler)) 1 }}
+{{- end }}
+{{- $k := fromYaml (include "data-pg.size" (dict "root" $root "ten" $ten)) }}
+{{- if gt (add $chu 10) (int $k.maxConn) }}
+{{- fail (printf "data-pg: %s cần %d kết nối máy chủ qua Pooler, vượt max_connections %v (hồ sơ %s)" $ten (add $chu 10) $k.maxConn (include "data-pg.sizing" $root)) }}
+{{- end }}
+{{- range $loai := list "rw" "ro" }}
+{{- $pool := ternary $maxPool (max 1 (div (int $v.roleLimits.ro) (int $hs.pooler))) (eq $loai "rw") }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: {{ $ten }}-pooler-{{ $loai }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+spec:
+  cluster:
+    name: {{ $ten }}
+  instances: {{ $hs.pooler }}
+  type: {{ $loai }}
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      max_client_conn: {{ $v.pgbouncer.maxClientConn | quote }}
+      default_pool_size: {{ $pool | quote }}
+      reserve_pool_size: {{ $v.pgbouncer.reservePoolSize | quote }}
+      max_db_connections: {{ max $maxDb $pool | quote }}
+      query_wait_timeout: {{ $v.pgbouncer.queryWaitTimeout | quote }}
+      max_prepared_statements: {{ $v.pgbouncer.maxPreparedStatements | quote }}
+      server_reset_query_always: "0"
+      # Client phải dùng TLS cả khi nối Pooler (SEC-57); chiều Pooler → PostgreSQL CNPG luôn dùng TLS.
+      client_tls_sslmode: require
+  monitoring:
+    enablePodMonitor: {{ $v.monitoring.enablePodMonitor }}
+  template:
+    metadata:
+      labels:
+        {{- include "data-pg.labels" $root | nindent 8 }}
+    spec:
+      containers:
+        - name: pgbouncer
+          image: "{{ $v.pgbouncer.image.repository }}:{{ $v.pgbouncer.image.tag }}@{{ $v.pgbouncer.image.digest }}"
+          resources:
+            {{- toYaml $v.pgbouncer.resources | nindent 12 }}
+      {{- with $pl.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $pl.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: {{ ternary "kubernetes.io/hostname" "topology.kubernetes.io/zone" (eq (include "data-pg.sizing" $root) "compact") }}
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              cnpg.io/poolerName: {{ $ten }}-pooler-{{ $loai }}
+{{- end }}
+{{- end }}

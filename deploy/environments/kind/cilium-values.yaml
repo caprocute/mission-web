@@ -1,0 +1,25 @@
+# Giá trị Cilium cho cụm kind thử nghiệm (TL-04 mục 3.1: Cilium làm CNI và thực thi NetworkPolicy).
+image: { repository: docker.io/cilium/cilium, useDigest: false }
+operator:
+  image: { repository: docker.io/cilium/operator, useDigest: false }
+  replicas: 1
+ipam: { mode: kubernetes }
+envoy: { enabled: false }
+# Môi trường container lồng nhau của agent không có CAP_SYS_RESOURCE; bỏ quyền này khỏi danh sách
+# capability của Cilium (kernel ≥ 5.11 tính bộ nhớ BPF theo memcg nên không cần nâng memlock).
+securityContext:
+  capabilities:
+    ciliumAgent: [CHOWN, KILL, NET_ADMIN, NET_RAW, IPC_LOCK, SYS_MODULE, SYS_ADMIN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    mountCgroup: [SYS_ADMIN, SYS_CHROOT, SYS_PTRACE]
+    applySysctlOverwrites: [SYS_ADMIN, SYS_CHROOT, SYS_PTRACE]
+    cleanCiliumState: [NET_ADMIN, SYS_MODULE, SYS_ADMIN]
+# Istio ambient chạy cùng Cilium (INF-09, tài liệu Istio "Platform prerequisites – Cilium"): không xoá cấu hình CNI
+# của istio-cni và chỉ bật socket LB trong namespace mạng của host, nếu không ztunnel không thấy địa chỉ service.
+# Không bật bpf.masquerade (làm hỏng kiểm tra sức khoẻ của pod ambient), nên không dùng Cilium Egress Gateway.
+cni: { exclusive: false }
+socketLB: { hostNamespaceOnly: true }
+# Hubble ghi luồng bị chặn (SEC-32, SEC-36) và xuất số liệu luồng bị chặn cho cảnh báo.
+hubble:
+  enabled: true
+  metrics:
+    enabled: ["dns", "drop:sourceContext=namespace;destinationContext=dns|ip", "flow", "policy:sourceContext=namespace;destinationContext=dns|ip"]

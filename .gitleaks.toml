@@ -1,0 +1,61 @@
+# Cấu hình gitleaks của repo Mission (INF-05, SEC-09).
+# Nguồn: TL-04 SEC-01 (không để thông tin xác thực trong mã), SEC-09 (gitleaks ở pre-commit, pipeline,
+# quét định kỳ), mục 9.6 (stage "Bí mật và SAST" của vt-pipeline).
+# Pipeline: gitleaks git --redact --exit-code 1 --config .gitleaks.toml --log-opts="<dải commit của MR>" .
+#
+# Nguyên tắc: dùng toàn bộ quy tắc mặc định của gitleaks rồi thêm quy tắc riêng; allowlist chỉ chứa mục có
+# lý do ghi ngay bên cạnh. Không thêm allowlist để "cho qua" một bí mật thật: bí mật lộ phải được xoay vòng
+# và xoá khỏi lịch sử theo SEC-01.
+
+title = "Mission gitleaks"
+
+[extend]
+useDefault = true
+
+# ─────────────── Quy tắc riêng ───────────────
+
+[[rules]]
+id = "vt-cosign-private-key"
+description = "Khoá riêng cosign (khoá ký ảnh chỉ được nằm trong OpenBao Transit, SEC-38)"
+regex = '''-----BEGIN (ENCRYPTED )?(SIGSTORE|COSIGN) PRIVATE KEY-----'''
+keywords = ["sigstore private key", "cosign private key"]
+
+[[rules]]
+id = "vt-jdbc-url-password"
+description = "Chuỗi kết nối JDBC có mật khẩu viết thẳng (mật khẩu CSDL lấy từ OpenBao, SEC-01)"
+regex = '''(?i)jdbc:[a-z0-9]+://[^\s'"]*[?&;](password|pwd)=[^&;\s'"$\{][^&;\s'"]{3,}'''
+keywords = ["jdbc:"]
+
+[[rules]]
+id = "vt-basic-auth-url"
+description = "URL có tên người dùng và mật khẩu viết thẳng (Harbor, Nexus, kho Git, SEC-01)"
+regex = '''(?i)\b(https?|git|ssh|postgres(ql)?|amqp|redis|valkey)://[a-z0-9._%-]{1,64}:[^@\s:/'"$\{<][^@\s'"/]{5,}@[a-z0-9.-]+'''
+keywords = ["://"]
+[rules.allowlist]
+# Ví dụ minh hoạ dùng giá trị giả rõ ràng
+regexes = ['''://[a-z0-9._%-]+:(changeit|changeme|password|example|placeholder|xxxx+)@''']
+
+# ─────────────── Allowlist chung ───────────────
+
+[allowlist]
+description = "Tệp không chứa bí mật thật"
+paths = [
+  # Tệp mẫu chỉ có giá trị giả (AGENTS.md quy tắc 4)
+  '''(^|/)\.env\.example$''',
+  # Khoá toàn vẹn của gói npm (sha512-...) bị nhận nhầm là khoá chung
+  '''(^|/)package-lock\.json$''',
+  # Ảnh và phông chữ nhị phân
+  '''\.(png|jpe?g|gif|svg|ico|woff2?|ttf|eot|pdf|docx|xlsx)$''',
+]
+# Quy tắc generic-api-key nhận nhầm mã định danh thiết kế đứng sau từ "key" (ví dụ "key": "SCR-0201.them"
+# trong ma trận phân quyền, targetRef 'okr.key_result:<uuid>' trong hợp đồng, khoá tiêu chí 'NV-THEN-CHOT-1.B'
+# trong dữ liệu giả lập). Chỉ bỏ qua đúng các dạng mã này; so trên phần bí mật mà quy tắc bắt được.
+regexTarget = "secret"
+regexes = [
+  # Khoá chức năng của ma trận phân quyền: SCR-xxxx.<chức-năng>
+  '''^SCR-\d{4}(\.[a-z0-9_-]+)+$''',
+  # Tham chiếu bản ghi <schema>.<bảng>:<uuid>
+  '''^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$''',
+  # Khoá tiêu chí đánh giá trong dữ liệu giả lập: NV-..., TIEU-CHI-...
+  '''^(NV|TIEU-CHI)(-[A-Z0-9]+)+(\.[A-Z])?$''',
+]

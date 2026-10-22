@@ -1,0 +1,110 @@
+# SEC-49, SEC-55, C01, C03 (TL-04 mục 9.3): registry nội bộ theo digest, không root, hệ thống tệp gốc chỉ đọc,
+# tài nguyên và probe, không gắn token ServiceAccount khi không cần.
+# Khác mẫu TL-04 (wiki 14): UID ≥ 10000 chấp nhận khai ở mức pod (vt-service đặt runAsUser 10001 ở pod); quy tắc
+# probe bắt buộc có readiness và liveness ở mọi container ứng dụng, còn yêu cầu cổng 8081 tách thành quy tắc Audit
+# riêng vì nginx (SVC-17), Gotenberg, Cube, Superset, vLLM không có cổng quản trị 8081.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: vt-pod-hardening
+  annotations:
+    policies.kyverno.io/title: Cứng hoá pod
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: only-internal-registry-by-digest
+      match: { any: [{ resources: { kinds: ["Pod"] } }] }
+      exclude: { any: [{ resources: { namespaces: ["kube-system", "platform-privileged"] } }] }
+      validate:
+        message: "Ảnh phải lấy từ harbor.vt.local và ghi theo digest sha256 (SEC-55)."
+        foreach:
+          - list: "request.object.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.image }}"
+                    operator: NotEquals
+                    value: "harbor.vt.local/*@sha256:*"
+    - name: readonly-rootfs-nonroot
+      match: { any: [{ resources: { kinds: ["Pod"] } }] }
+      exclude: { any: [{ resources: { namespaces: ["kube-system", "platform-privileged"] } }] }
+      validate:
+        message: "Container phải chạy không root, UID ≥ 10000, hệ thống tệp gốc chỉ đọc, không leo quyền, bỏ mọi capability (SEC-49)."
+        anyPattern:
+          # UID khai ở mức pod, container không ghi đè xuống dưới 10000.
+          - spec:
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: ">=10000"
+              containers:
+                - securityContext:
+                    readOnlyRootFilesystem: true
+                    allowPrivilegeEscalation: false
+                    =(runAsUser): ">=10000"
+                    capabilities:
+                      drop: ["ALL"]
+          # UID khai ở từng container (mẫu TL-04).
+          - spec:
+              securityContext:
+                runAsNonRoot: true
+              containers:
+                - securityContext:
+                    readOnlyRootFilesystem: true
+                    allowPrivilegeEscalation: false
+                    runAsUser: ">=10000"
+                    capabilities:
+                      drop: ["ALL"]
+    - name: require-resources-and-probes
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+              namespaceSelector: { matchLabels: { vt.io/security-zone: app } }
+      validate:
+        message: "Container ứng dụng phải có requests CPU và bộ nhớ, limits bộ nhớ, readinessProbe và livenessProbe (C01, C03)."
+        foreach:
+          - list: "request.object.spec.containers"
+            deny:
+              conditions:
+                any:
+                  - { key: "{{ element.resources.requests.cpu || '' }}", operator: Equals, value: "" }
+                  - { key: "{{ element.resources.requests.memory || '' }}", operator: Equals, value: "" }
+                  - { key: "{{ element.resources.limits.memory || '' }}", operator: Equals, value: "" }
+                  - { key: "{{ element.readinessProbe || `{}` | length(@) }}", operator: Equals, value: 0 }
+                  - { key: "{{ element.livenessProbe || `{}` | length(@) }}", operator: Equals, value: 0 }
+    - name: no-automount-sa-token-unless-needed
+      match: { any: [{ resources: { kinds: ["Pod"], selector: { matchLabels: { vt.io/needs-k8s-api: "false" } } } }] }
+      validate:
+        message: "Pod không gọi Kubernetes API phải tắt automountServiceAccountToken."
+        pattern:
+          spec:
+            automountServiceAccountToken: false
+---
+# Quy tắc Audit: container có cổng quản trị (tên mgmt, 8081; service JVM và Go của vt-service) phải đặt probe trên
+# cổng đó, như mẫu require-resources-and-probes của TL-04.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: vt-probe-on-mgmt-port
+  annotations:
+    policies.kyverno.io/title: Probe trên cổng quản trị 8081
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: probe-port-8081
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+              namespaceSelector: { matchLabels: { vt.io/security-zone: app } }
+      validate:
+        message: "Container có cổng quản trị mgmt phải đặt readinessProbe và livenessProbe trên cổng đó (8081)."
+        foreach:
+          - list: "request.object.spec.containers[?ports[?name == 'mgmt']]"
+            deny:
+              conditions:
+                any:
+                  - { key: "{{ to_string(element.readinessProbe.httpGet.port || element.readinessProbe.tcpSocket.port || '') }}", operator: AnyNotIn, value: ["8081", "mgmt"] }
+                  - { key: "{{ to_string(element.livenessProbe.httpGet.port || element.livenessProbe.tcpSocket.port || '') }}", operator: AnyNotIn, value: ["8081", "mgmt"] }

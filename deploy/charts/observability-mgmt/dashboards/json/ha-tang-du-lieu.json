@@ -1,0 +1,400 @@
+{
+   "panels": [
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 0
+         },
+         "id": 1,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum by (cluster) (cnpg_backends_total{cell=~\"$cell\"})",
+               "legendFormat": "{{cluster}}"
+            }
+         ],
+         "title": "PostgreSQL: kết nối theo cụm",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "s"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 0
+         },
+         "id": 2,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "max by (cluster) (cnpg_pg_replication_lag{cell=~\"$cell\"})",
+               "legendFormat": "{{cluster}}"
+            }
+         ],
+         "title": "PostgreSQL: trễ sao chép",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+         },
+         "id": 3,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "ng:pg_core_primary_cpu:ratio{cell=~\"$cell\"}",
+               "legendFormat": "CPU / giới hạn"
+            }
+         ],
+         "title": "PostgreSQL: CPU primary pg-core",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+         },
+         "id": 4,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum by (database) (pgbouncer_pools_client_waiting_connections{cell=~\"$cell\"})",
+               "legendFormat": "{{database}}"
+            }
+         ],
+         "title": "PgBouncer: client chờ",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 16
+         },
+         "id": 5,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum by (topic) (rate(kafka_server_brokertopicmetrics_messagesin_total{cell=~\"$cell\", topic!=\"\"}[$__rate_interval]))",
+               "legendFormat": "{{topic}}"
+            }
+         ],
+         "title": "Kafka: thông điệp vào mỗi giây",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 16
+         },
+         "id": 6,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "max by (consumergroup) (kafka_consumergroup_lag{cell=~\"$cell\"})",
+               "legendFormat": "{{consumergroup}}"
+            }
+         ],
+         "title": "Kafka: lag lớn nhất",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 24
+         },
+         "id": 7,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "max by (pod) (redis_memory_used_bytes{cell=~\"$cell\"} / redis_memory_max_bytes{cell=~\"$cell\"})",
+               "legendFormat": "{{pod}}"
+            }
+         ],
+         "title": "Valkey: bộ nhớ so với maxmemory",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 24
+         },
+         "id": 8,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "ng:opensearch_heap:ratio{cell=~\"$cell\"}",
+               "legendFormat": "heap lớn nhất"
+            }
+         ],
+         "title": "OpenSearch: heap",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 32
+         },
+         "id": 9,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "1 - ClickHouseAsyncMetrics_DiskAvailable_default{cell=~\"$cell\"} / ClickHouseAsyncMetrics_DiskTotal_default{cell=~\"$cell\"}",
+               "legendFormat": "{{pod}}"
+            }
+         ],
+         "title": "ClickHouse: dung lượng đĩa đã dùng",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 32
+         },
+         "id": 10,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "ceph_cluster_total_used_bytes{cell=~\"$cell\"} / ceph_cluster_total_bytes{cell=~\"$cell\"}",
+               "legendFormat": "đã dùng"
+            },
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "0.6",
+               "legendFormat": "ngưỡng đặt hàng ổ (NG-07)"
+            }
+         ],
+         "title": "Ceph: mức đầy cụm",
+         "type": "timeseries"
+      }
+   ],
+   "refresh": "1m",
+   "schemaVersion": 39,
+   "tags": [
+      "vt",
+      "inf-15"
+   ],
+   "templating": {
+      "list": [
+         {
+            "allValue": ".*",
+            "current": {
+               "text": "All",
+               "value": "$__all"
+            },
+            "datasource": {
+               "type": "prometheus",
+               "uid": "thanos"
+            },
+            "includeAll": true,
+            "label": "Cell",
+            "name": "cell",
+            "query": "label_values(up, cell)",
+            "refresh": "time",
+            "type": "query"
+         }
+      ]
+   },
+   "time": {
+      "from": "now-6h",
+      "to": "now"
+   },
+   "timezone": "Asia/Ho_Chi_Minh",
+   "title": "Hạ tầng dữ liệu",
+   "uid": "vt-ha-tang-du-lieu"
+}

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: openbao
+description: "Khung chart hạ tầng trong cell: OpenBao, PKI nội bộ, cert-manager, External Secrets Operator. Nội dung CR do INF-13 điền (INF-02 chỉ giữ chỗ)."
+type: application
+version: 0.1.0

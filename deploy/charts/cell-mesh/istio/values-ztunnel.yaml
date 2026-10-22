@@ -1,0 +1,5 @@
+# Chart istio/ztunnel: DaemonSet mTLS tầng 4 trên mọi node (PERF-25 đo chi phí ở QA-10).
+hub: harbor.vt.local/proxy-docker/istio
+logLevel: info
+resources:
+  requests: { cpu: 200m, memory: 512Mi }
