@@ -68,6 +68,7 @@ public class PolicyPackService {
   private final PolicyAudit audit;
   private final ObjectMapper json;
   private final Clock clock;
+  private java.util.function.Consumer<TenantId> effectiveChanged = t -> {};
 
   public PolicyPackService(
       PolicyPackRepository repo, PolicyAudit audit, ObjectMapper json, Clock clock) {
@@ -75,6 +76,14 @@ public class PolicyPackService {
     this.audit = Objects.requireNonNull(audit, "audit");
     this.json = Objects.requireNonNull(json, "json");
     this.clock = Objects.requireNonNull(clock, "clock");
+  }
+
+  /**
+   * Báo khi tập phiên bản hiệu lực của tenant đổi (phát hành, ngừng), để bộ phân giải bỏ đệm
+   * (CORE-05-03).
+   */
+  public void onEffectiveChange(java.util.function.Consumer<TenantId> listener) {
+    this.effectiveChanged = Objects.requireNonNull(listener, "listener");
   }
 
   @Transactional(transactionManager = TX, readOnly = true)
@@ -229,6 +238,9 @@ public class PolicyPackService {
         key(pack, moved),
         moved.id(),
         moved.rowVersion());
+    if (target == PolicyVersionStatus.DA_PHAT_HANH || target == PolicyVersionStatus.NGUNG) {
+      effectiveChanged.accept(tenant);
+    }
     return moved;
   }
 

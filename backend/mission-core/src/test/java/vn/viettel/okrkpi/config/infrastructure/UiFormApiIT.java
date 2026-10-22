@@ -64,7 +64,9 @@ class UiFormApiIT extends ContractConformanceTest {
 
   @TestConfiguration
   static class PolicyConfig {
+    /** Ưu tiên hơn hiện thực thật của MOD-05 (CORE-05-03) để giữ trường tính điểm cố định. */
     @Bean
+    @org.springframework.context.annotation.Primary
     PolicySchemaPort testPolicySchemas() {
       return new PolicySchemaPort() {
         @Override
