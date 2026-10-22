@@ -396,10 +396,17 @@ public class UiPackService {
     if (c.elderMode()) {
       ObjectNode elderly = doc.putObject("modes").putObject("elderly");
       JsonNode overrides = tokens.path("$extensions").path("modes").path("elderly");
+      ObjectNode flags = json.createObjectNode().put("reducedSteps", c.fewSteps());
       if (overrides.isObject()) {
-        elderly.set("tokens", overrides);
+        // Cờ của chế độ cao tuổi (ví dụ minTouchTarget) không phải token (TL-01 ví dụ UI Pack).
+        ObjectNode copy = ((ObjectNode) overrides).deepCopy();
+        JsonNode declared = copy.remove("flags");
+        if (declared != null && declared.has("minTouchTarget")) {
+          flags.set("minTouchTarget", declared.get("minTouchTarget"));
+        }
+        elderly.set("tokens", copy);
       }
-      elderly.putObject("flags").put("reducedSteps", c.fewSteps());
+      elderly.set("flags", flags);
     }
     doc.set("layouts", read(c.layoutsJson()));
     doc.set("assets", read(c.assetsJson()));
@@ -545,7 +552,10 @@ public class UiPackService {
     }
   }
 
-  private static JsonNode merge(JsonNode base, JsonNode overrides) {
+  /**
+   * Gộp ghi đè token (chế độ cao tuổi) vào bản token; dùng chung với {@link UiPackStaticChecks}.
+   */
+  static JsonNode merge(JsonNode base, JsonNode overrides) {
     if (!(base instanceof ObjectNode target) || !overrides.isObject()) {
       return base;
     }

@@ -12,10 +12,10 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **155 / 401 task (38.7%)** — Khối lượng quy đổi đã gộp: **183 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **155 / 401 task (38.7%)** (gồm **155** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ đã gộp `main`**: **156 / 401 task (38.9%)** — Khối lượng quy đổi đã gộp: **184 / 482.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **156 / 401 task (38.9%)** (gồm **156** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **240 task**.
+- **Chưa bắt đầu**: **239 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **10 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-05-02`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **20** | 0 | 0 | 92 | **17.9%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **21** | 0 | 0 | 91 | **18.8%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **27** | 0 | 3 | 74 | **26.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **13** | 0 | 0 | 15 | **46.4%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **155** | **0** | **6** | **240** | **38.7%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **156** | **0** | **6** | **239** | **38.9%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -40,7 +40,7 @@
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 0 | 1 | 9 | **83.1%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
-| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **21** | 0 | 1 | 24 | **45.7%** |
+| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **22** | 0 | 1 | 23 | **47.8%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **24** | 0 | 3 | 90 | **20.5%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 0 | 0 | 54 | **23.9%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **11** | 0 | 1 | 30 | **26.2%** |
@@ -192,7 +192,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-00-04](docs/tasks/CORE-00-04-api-trang-chu-hom-nay.md) | API tổng hợp trang chủ "Việc của tôi hôm nay" (SCR-0002) | M | B3 | 18 | CORE-02-18, CORE-01-08, CORE-08-09, CORE-08-02, NEN-041 | **Đã gộp main** | Đã gộp main (03e9c83): ranh giới 8 mô-đun Spring Modulith, hợp đồng API nội bộ, JobsController và kiểm thử kiến trúc |
 | [CORE-00-05](docs/tasks/CORE-00-05-nhat-ky-truy-cap-c2.md) | Nhật ký truy cập dữ liệu C2 và ghi sổ cái lần giải mã | S | B4 | 11 | NEN-015, DV-09-02, NEN-011, NEN-016, CORE-00-02 | **Đã gộp main** | Đã gộp main (e9620db) |
 
-### CORE-08 · MOD-08 config: kỳ, lịch, cờ, UI Pack, biểu mẫu (G1 phía máy chủ) (9/17 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### CORE-08 · MOD-08 config: kỳ, lịch, cờ, UI Pack, biểu mẫu (G1 phía máy chủ) (10/17 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -205,7 +205,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-08-07](docs/tasks/CORE-08-07-cau-hinh-tenant-co-tinh-nang.md) | Cấu hình tenant và cờ tính năng (`tenant_setting`, `feature_flag`) kèm API | S | B2 | 12 | CORE-08-01 | **Đã gộp main** | Cờ tính năng, TenantSettingApi, ngưỡng bất thường |
 | [CORE-08-08](docs/tasks/CORE-08-08-ui-pack-phien-ban.md) | UI Pack: mô hình có phiên bản, máy trạng thái, người duyệt khác người soạn | M | B2 | 12 | CORE-08-01 | **Đã gộp main** | UI Pack có phiên bản, lược đồ 1.0, gửi duyệt/từ chối |
 | [CORE-08-09](docs/tasks/CORE-08-09-component-registry-sdui.md) | Component registry có phiên bản và kiểm schema bố cục SDUI | M | B2 | 13 | CORE-08-08, NEN-041 | **Đã gộp main** | Component registry SDUI có phiên bản, LayoutValidator, migration config V6 |
-| [CORE-08-10](docs/tasks/CORE-08-10-kiem-tra-ui-pack.md) | Kiểm tra tự động UI Pack: tương phản AA và 7:1, kích thước ≤ 30 KB, làm sạch SVG | M | B2 | 13 | CORE-08-08, WEB-004 | **Chưa bắt đầu** |  |
+| [CORE-08-10](docs/tasks/CORE-08-10-kiem-tra-ui-pack.md) | Kiểm tra tự động UI Pack: tương phản AA và 7:1, kích thước ≤ 30 KB, làm sạch SVG | M | B2 | 13 | CORE-08-08, WEB-004 | **Đã gộp main** | Kiểm tra tĩnh UI Pack: tương phản, dung lượng, SVG an toàn |
 | [CORE-08-11](docs/tasks/CORE-08-11-phat-hanh-ui-pack.md) | Biên dịch token sang CSS và preset PrimeNG, ký UI Pack, đẩy CDN với ETag, `GET /ui/packs/current`, EVT-23 | L | B2 | 14 | CORE-08-09, CORE-08-10, DV-10-01, WEB-004 | **Chưa bắt đầu** |  |
 | [CORE-08-12](docs/tasks/CORE-08-12-quay-lui-ui-pack.md) | Quay lui UI Pack có kiểm tương thích phiên bản Policy Pack | S | B2 | 15 | CORE-08-11, CORE-05-03 | **Chưa bắt đầu** |  |
 | [CORE-08-13](docs/tasks/CORE-08-13-form-schema-api.md) | API `form_schema`: lưu, phục vụ theo phiên bản, kiểm trường tính điểm theo Policy Pack | M | B2 | 14 | CORE-08-08, CORE-05-03 | **Chưa bắt đầu** |  |
@@ -803,4 +803,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 08:17 | B2 (luồng B6) | `CORE-08-09` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: registry SDUI có phiên bản, lệnh nạp manifest, listUiComponents, LayoutValidator; mission-core verify xanh |
 | 22/10/2026 08:24 | Điều phối | `CORE-08-09` | Chuyển trạng thái sang **Đã gộp main** — Component registry SDUI có phiên bản, LayoutValidator, migration config V6 |
 | 22/10/2026 08:42 | Điều phối | `CORE-02-04` | Chuyển trạng thái sang **Đã gộp main** — Nhập danh mục từ Excel bằng FastExcel (người dùng đã duyệt) |
+| 22/10/2026 08:51 | Điều phối | `CORE-08-10` | Chuyển trạng thái sang **Đã gộp main** — Kiểm tra tĩnh UI Pack: tương phản, dung lượng, SVG an toàn |
 <!-- PROGRESS_LOG_END -->

@@ -13,12 +13,16 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import vn.viettel.okrkpi.config.api.PolicySchemaPort;
 import vn.viettel.okrkpi.config.application.UiPackService;
+import vn.viettel.okrkpi.config.application.UiPackStaticChecks;
 import vn.viettel.okrkpi.config.application.port.ConfigAudit;
+import vn.viettel.okrkpi.config.application.port.UiPackAssetStore;
 import vn.viettel.okrkpi.config.application.port.UiPackChecker;
 import vn.viettel.okrkpi.config.application.port.UiPackNotices;
 import vn.viettel.okrkpi.config.infrastructure.job.InMemoryUiPackJobs;
@@ -57,6 +61,19 @@ public class UiPackConfiguration {
             new ApicurioPayloadSerializer(registry, Map.of()),
             json.getIfAvailable(ObjectMapper::new),
             Clock.systemUtc()));
+  }
+
+  /** Kiểm tra tĩnh (CORE-08-10): tương phản, chế độ cao tuổi, kích thước, tài nguyên, biểu mẫu. */
+  @Bean
+  @Order(1)
+  UiPackStaticChecks uiPackStaticChecks(
+      ObjectProvider<ObjectMapper> json,
+      ObjectProvider<UiPackAssetStore> assets,
+      ObjectProvider<PolicySchemaPort> schemas) {
+    return new UiPackStaticChecks(
+        json.getIfAvailable(ObjectMapper::new),
+        assets.getIfAvailable(() -> UiPackAssetStore.NONE),
+        schemas.getIfAvailable());
   }
 
   @Bean

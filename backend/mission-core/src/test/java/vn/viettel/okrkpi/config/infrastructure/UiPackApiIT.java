@@ -174,6 +174,14 @@ class UiPackApiIT extends ContractConformanceTest {
     ((ObjectNode) cel.at("/layouts/home/children/0")).put("visibleWhen", "user.unitId");
     MvcResult celResult = perform(withBody(put(v), "\"1\"", cel.toString()));
     assertThat(body(celResult).get("code").asText()).isEqualTo("UI-422-CEL-INVALID");
+    // Kiểm tra tĩnh (CORE-08-10): chữ trên nền chính dưới AA trả UI-422-CONTRAST.
+    ObjectNode dim = update.deepCopy();
+    ((ObjectNode) dim.at("/tokens/color/on-primary")).put("$value", "#7FA7D0");
+    MvcResult dimResult = perform(withBody(put(v), "\"1\"", dim.toString()));
+    assertThat(dimResult.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(dimResult).get("code").asText()).isEqualTo("UI-422-CONTRAST");
+    assertThat(body(dimResult).get("errors").findValuesAsText("field"))
+        .contains("tokens.color.on-primary");
     ObjectNode http = update.deepCopy();
     ((ObjectNode) http.at("/layouts/home/children/0/props")).put("limit", 30);
     MvcResult propsResult = perform(withBody(put(v), "\"1\"", http.toString()));
