@@ -31,8 +31,24 @@ class PolicyCompilerTest {
           }
 
           @Override
+          public java.util.List<String> inputs(String key) {
+            return java.util.List.of("diem");
+          }
+
+          @Override
           public Map<String, Object> evaluate(String key, Map<String, Object> vars) {
             return Map.of("xep_loai", ((Number) vars.get("diem")).doubleValue() >= 90 ? "A" : "B");
+          }
+
+          @Override
+          public java.util.Optional<vn.viettel.okrkpi.scoring.domain.DecisionTable> structure(
+              String key) {
+            return java.util.Optional.empty();
+          }
+
+          @Override
+          public DecisionTables.Hit decide(String key, Map<String, Object> vars) {
+            return new DecisionTables.Hit(0, evaluate(key, vars));
           }
         };
       };

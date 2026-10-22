@@ -117,7 +117,7 @@ class ScoreRecorderIT {
 
   @Test
   void ghiLoQuaCopyPhatEvt10VaDungLaiDauVaoTrungBam() throws SQLException {
-    UUID job = openJob(TENANT_A, 3, null);
+    UUID job = openJob(TENANT_A, 4, null);
     UUID profile = UUID.randomUUID();
     UUID person = UUID.randomUUID();
     ComputedScore first = score(person, profile, "{\"nhiệm_vụ\":[1,2]}", "96.750", 3);
@@ -138,9 +138,20 @@ class ScoreRecorderIT {
     int inputs =
         inTenant(TENANT_A, () -> recorder.record(batch(TENANT_A, job, List.of(first, failed))));
     int again = inTenant(TENANT_A, () -> recorder.record(batch(TENANT_A, job, List.of(same))));
+    ComputedScore repacked = score(person, profile, "{\"nhiệm_vụ\":[1,2]}", "96.750", 3);
+    byte[] otherPack = new byte[32];
+    otherPack[0] = 1;
+    int third =
+        inTenant(
+            TENANT_A, () -> recorder.record(batch(TENANT_A, job, List.of(repacked), otherPack)));
 
     assertThat(inputs).isEqualTo(2);
-    assertThat(again).as("cùng băm đầu vào thì dùng lại").isZero();
+    assertThat(again).as("cùng băm đầu vào và cùng gói thì không ghi lại").isZero();
+    assertThat(third).as("gói khác thì dùng lại tập đầu vào trùng băm").isZero();
+    assertThat(
+            adminLong(
+                "SELECT count(*) FROM scoring.score_result WHERE id = '" + same.resultId() + "'"))
+        .isZero();
     assertThat(
             adminLong(
                 "SELECT count(*) FROM scoring.score_input_v WHERE tenant_id = '" + TENANT_A + "'"))
@@ -201,7 +212,7 @@ class ScoreRecorderIT {
                     + " || ':' || (finished_at IS NOT NULL) FROM scoring.score_job WHERE id = '"
                     + job
                     + "'"))
-        .isEqualTo("XONG:2:1:true");
+        .isEqualTo("XONG:3:1:true");
   }
 
   @Test
@@ -372,6 +383,11 @@ class ScoreRecorderIT {
   }
 
   private static ScoreBatch batch(UUID tenant, UUID job, List<ComputedScore> items) {
+    return batch(tenant, job, items, new byte[32]);
+  }
+
+  private static ScoreBatch batch(
+      UUID tenant, UUID job, List<ComputedScore> items, byte[] policyContentHash) {
     return new ScoreBatch(
         tenant,
         job,
@@ -379,7 +395,7 @@ class ScoreRecorderIT {
         PERIOD,
         BUCKET,
         PPV,
-        new byte[32],
+        policyContentHash,
         "scoring-service:0.1.0",
         ACTOR,
         Instant.now(),

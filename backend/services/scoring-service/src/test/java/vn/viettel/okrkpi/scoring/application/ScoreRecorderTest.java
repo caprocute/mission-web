@@ -42,10 +42,19 @@ class ScoreRecorderTest {
           log.add("progress " + done + "/" + failed);
         }
       };
+  private java.util.Set<UUID> unchanged = java.util.Set.of();
   private final ScoreResultStore results =
-      batch -> {
-        log.add("append " + batch.items().size());
-        return new ScoreResultStore.Appended(1, versions);
+      new ScoreResultStore() {
+        @Override
+        public ScoreResultStore.Appended append(ScoreBatch batch) {
+          log.add("append " + batch.items().size());
+          return new ScoreResultStore.Appended(1, versions);
+        }
+
+        @Override
+        public java.util.Set<UUID> unchanged(ScoreBatch batch) {
+          return unchanged;
+        }
       };
   private final ScoreEvents events =
       (batch, score, version) -> log.add("evt " + score.resultId() + "@" + version);
@@ -65,6 +74,22 @@ class ScoreRecorderTest {
     assertThat(recorder.record(batch(List.of(ok, failed)))).isEqualTo(1);
     assertThat(log)
         .containsExactly("open", "append 2", "evt " + ok.resultId() + "@3", "progress 1/1");
+  }
+
+  @Test
+  void ketQuaKhongDoiThiKhongGhiKhongPhatSuKien() {
+    ComputedScore same = score(UUID.randomUUID(), ScoreStatus.OK);
+    ComputedScore changed = score(UUID.randomUUID(), ScoreStatus.OK);
+    unchanged = java.util.Set.of(same.resultId());
+    versions = Map.of(changed.resultId(), 2L);
+
+    assertThat(recorder.record(batch(List.of(same, changed)))).isEqualTo(1);
+    assertThat(log).containsExactly("append 1", "evt " + changed.resultId() + "@2", "progress 2/0");
+
+    log.clear();
+    unchanged = java.util.Set.of(same.resultId(), changed.resultId());
+    assertThat(recorder.record(batch(List.of(same, changed)))).isZero();
+    assertThat(log).containsExactly("progress 2/0");
   }
 
   @Test
