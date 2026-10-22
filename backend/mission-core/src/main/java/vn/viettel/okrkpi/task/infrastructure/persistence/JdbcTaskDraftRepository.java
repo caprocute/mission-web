@@ -187,6 +187,7 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
       TaskDraftSpec s,
       Integer difficulty,
       BigDecimal standardScore,
+      byte[] fingerprint,
       UUID actorId,
       Instant at) {
     int n =
@@ -196,7 +197,7 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
                     + " acceptor_id = ?, due_date = ?, milestones = ?::jsonb, product_name = ?,"
                     + " planned_quantity = ?, unit = ?, evidence_required = ?,"
                     + " quality_criteria = ?, basis = ?, source_doc = ?::jsonb, difficulty = ?,"
-                    + " standard_score = ?, updated_by = ?, updated_at = ?,"
+                    + " standard_score = ?, dup_fingerprint = ?, updated_by = ?, updated_at = ?,"
                     + " row_version = row_version + 1 WHERE period_bucket = ? AND tenant_id = ?"
                     + " AND id = ? AND row_version = ? AND status = 'NHAP'")
             .params(
@@ -220,6 +221,7 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
                 sourceDoc(s),
                 difficulty,
                 standardScore,
+                fingerprint,
                 actorId,
                 Timestamp.from(at),
                 current.periodBucket(),
