@@ -302,8 +302,8 @@
                 <useSpringBoot3>true</useSpringBoot3>
                 <useTags>false</useTags>
                 <openApiNullable>false</openApiNullable>
-                <annotationLibrary>none</annotationLibrary>
-                <documentationProvider>none</documentationProvider>
+                <annotationLibrary>swagger2</annotationLibrary>
+                <documentationProvider>springdoc</documentationProvider>
                 <useBeanValidation>true</useBeanValidation>
                 <skipDefaultInterface>true</skipDefaultInterface>
               </configOptions>
