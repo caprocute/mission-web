@@ -152,6 +152,28 @@ class TaskApiServiceTest {
   }
 
   @Test
+  void yeuCauLamLaiVoiSanPhamThieuMaVaTrangThaiKhongQuaGuard() {
+    UUID id = put(TaskStatus.CHO_NGHIEM_THU);
+    // Sản phẩm thiếu mã và trạng thái vẫn được đưa vào ngữ cảnh guard dưới dạng chuỗi rỗng.
+    assertThatThrownBy(
+            () ->
+                api.requestTransition(
+                    TENANT,
+                    new TransitionRequest(
+                        id,
+                        TaskApi.Command.REWORK,
+                        UUID.randomUUID(),
+                        Set.of("manager"),
+                        "Bổ sung số liệu",
+                        List.of(new DeliverableState(null, null)),
+                        null)))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errorCode().code()).isEqualTo(TaskTransitionService.GUARD_FAILED));
+    assertThat(repo.rows.get(id).status()).isEqualTo(TaskStatus.CHO_NGHIEM_THU);
+  }
+
+  @Test
   void lietKeTheoNguoiGioiHan200() {
     for (int i = 0; i < 3; i++) {
       put(TaskStatus.DA_GIAO);
