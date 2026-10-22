@@ -19,10 +19,12 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.config.api.PeriodApi;
+import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
 import vn.viettel.okrkpi.okr.application.OkrCheckService;
 import vn.viettel.okrkpi.okr.application.OkrCheckinDelegateService;
 import vn.viettel.okrkpi.okr.application.OkrCheckinService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService;
+import vn.viettel.okrkpi.okr.application.OkrMilestoneService;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.OkrReviewService;
 import vn.viettel.okrkpi.okr.application.OkrRevisionCarryOver;
@@ -188,6 +190,29 @@ public class OkrReadConfiguration {
   OkrRevisionCarryOver okrRevisionCarryOver(
       JdbcOkrCheckinRepository okrCheckinRepository, JdbcOkrCheckinDelegates okrCheckinDelegates) {
     return new OkrRevisionCarryOver(okrCheckinRepository, okrCheckinDelegates);
+  }
+
+  /** CORE-01-14: kiểu đo mốc (BS-03 DC-04), số ngày làm việc chậm theo lịch MOD-08. */
+  @Bean
+  JdbcOkrMilestoneRepository okrMilestoneRepository(
+      @Qualifier("okrDataSource") DataSource dataSource) {
+    return new JdbcOkrMilestoneRepository(new NamedParameterJdbcTemplate(dataSource));
+  }
+
+  @Bean
+  OkrMilestoneService okrMilestoneService(
+      JdbcOkrCheckinRepository okrCheckinRepository,
+      JdbcOkrMilestoneRepository okrMilestoneRepository,
+      PeriodApi periods,
+      ObjectProvider<WorkingCalendarApi> calendar,
+      ObjectProvider<OkrCheckinDelegatePort> delegates) {
+    return new OkrMilestoneService(
+        okrCheckinRepository,
+        okrMilestoneRepository,
+        periods,
+        calendar::getIfAvailable,
+        delegates::getIfAvailable,
+        java.time.Clock.system(VIET_NAM));
   }
 
   /** CORE-01-06: duyệt, trả lại, rút lại mục tiêu; EVT-01, EVT-21 ghi outbox cùng giao dịch. */

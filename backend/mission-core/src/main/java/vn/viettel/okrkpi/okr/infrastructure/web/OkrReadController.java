@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -645,10 +646,10 @@ public class OkrReadController {
             OkrRiskFlag.fromValue(k.riskFlag()),
             (int) k.rowVersion())
         .periodId(k.periodId())
-        .metricType(k.metricType() == null ? null : OkrMetricType.fromValue(k.metricType()))
+        .metricType(knownMetricType(k.metricType()))
         .baselineValue(k.baselineValue())
         .currentValue(k.currentValue())
-        .direction(k.direction() == null ? null : OkrDirection.fromValue(k.direction()))
+        .direction(knownDirection(k.direction()))
         .verifier(k.verifierPersonId() == null ? null : new Ref(k.verifierPersonId(), ""))
         .dataSource(k.dataSource())
         .formulaText(k.formulaText())
@@ -662,6 +663,24 @@ public class OkrReadController {
         .aiAssisted(k.aiAssisted())
         .aiSuggestionId(k.aiSuggestionId())
         .lastCheckin(lastCheckin(k));
+  }
+
+  /**
+   * CORE-01-14: kiểu đo {@code MOC} và chiều {@code TOI_DA} (BS-03 DC-04) chưa có trong {@code
+   * okr.yaml} (chờ NEN-044) nên chưa trả ra API; giá trị lạ để trống thay vì lỗi 500.
+   */
+  private static OkrMetricType knownMetricType(String value) {
+    return Arrays.stream(OkrMetricType.values())
+        .filter(t -> t.getValue().equals(value))
+        .findFirst()
+        .orElse(null);
+  }
+
+  private static OkrDirection knownDirection(String value) {
+    return Arrays.stream(OkrDirection.values())
+        .filter(d -> d.getValue().equals(value))
+        .findFirst()
+        .orElse(null);
   }
 
   private static OkrKeyResultListItem listItem(KeyResultView v) {

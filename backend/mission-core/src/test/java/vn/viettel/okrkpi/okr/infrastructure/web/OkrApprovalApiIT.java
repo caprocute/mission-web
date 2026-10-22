@@ -124,6 +124,8 @@ class OkrApprovalApiIT extends ContractConformanceTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper json;
   @Autowired private OkrApproveBatchJobs batches;
+  @Autowired private vn.viettel.okrkpi.okr.application.OkrMilestoneService milestones;
+  @Autowired private vn.viettel.okrkpi.okr.api.OkrApi okrApi;
 
   @Autowired
   @Qualifier("okrDataSource") private DataSource okrDataSource;
@@ -616,6 +618,66 @@ class OkrApprovalApiIT extends ContractConformanceTest {
             .header("Idempotency-Key", UUID.randomUUID().toString())
             .contentType(MediaType.APPLICATION_JSON)
             .content(b.toString()));
+  }
+
+  /** CORE-01-14: KR kiểu mốc trên CSDL thật, số ngày làm việc chậm theo lịch MOD-08. */
+  @Test
+  void krKieuMocGhiNgayDatVaSoNgayLamViecCham() throws Exception {
+    UUID id = pending(UUID.randomUUID(), AUTHOR);
+    UUID kr = krOf(id, "KR 1.2");
+    inTenant(
+        jdbc -> {
+          jdbc.sql("UPDATE okr.objective SET status = 'NHAP' WHERE id = ?").param(id).update();
+          return jdbc.sql(
+                  "UPDATE okr.key_result SET metric_type = 'MOC', status = 'NHAP', target_value = 2"
+                      + " WHERE id = ?")
+              .param(kr)
+              .update();
+        });
+    TenantContext.run(
+        tenant,
+        () ->
+            milestones.replaceMilestones(
+                tenant,
+                AUTHOR,
+                kr,
+                List.of(
+                    new vn.viettel.okrkpi.okr.application.port.OkrMilestoneRepository
+                        .MilestoneDraft(1, java.time.LocalDate.of(2027, 3, 5), "Có dự thảo"),
+                    new vn.viettel.okrkpi.okr.application.port.OkrMilestoneRepository
+                        .MilestoneDraft(2, java.time.LocalDate.of(2027, 3, 26), "Có quyết định"))));
+    inTenant(
+        jdbc -> {
+          jdbc.sql("UPDATE okr.objective SET status = 'DA_DUYET' WHERE id = ?").param(id).update();
+          return jdbc.sql("UPDATE okr.key_result SET status = 'DA_DUYET' WHERE objective_id = ?")
+              .param(id)
+              .update();
+        });
+    // Hạn thứ Sáu 5/3/2027, đạt thứ Ba 9/3: chậm thứ Hai và thứ Ba (cuối tuần không tính).
+    java.time.Instant achieved =
+        java.time.ZonedDateTime.of(2027, 3, 9, 15, 0, 0, 0, java.time.ZoneId.of("Asia/Ho_Chi_Minh"))
+            .toInstant();
+    var view =
+        TenantContext.call(
+            tenant,
+            () -> milestones.recordAchievement(tenant, AUTHOR, kr, 1, achieved, "VB-01/2027"));
+    assertThat(view.lateWorkingDays()).isEqualTo(2);
+    var again =
+        TenantContext.call(
+            tenant,
+            () ->
+                milestones.recordAchievement(
+                    tenant, AUTHOR, kr, 1, achieved.plusSeconds(86_400), null));
+    assertThat(again.row().achievedAt()).isEqualTo(achieved);
+
+    var published = TenantContext.call(tenant, () -> okrApi.listMilestones(tenant, kr));
+    assertThat(published).hasSize(2);
+    assertThat(published.get(0).achievedAt()).isEqualTo(achieved);
+    assertThat(published.get(0).lateWorkingDays()).isEqualTo(2);
+    assertThat(published.get(1).achievedAt()).isNull();
+    // KR kiểu mốc vẫn đọc được qua API dù hợp đồng chưa có giá trị MOC.
+    assertThat(perform(get("/api/v1/okr/key-results/" + kr)).getResponse().getStatus())
+        .isEqualTo(200);
   }
 
   private List<String> listCodes(UUID unit) throws Exception {
