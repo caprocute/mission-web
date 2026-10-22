@@ -49,6 +49,8 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -58,7 +60,12 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.application.OpenApiConformanceEngine;
 import vn.viettel.okrkpi.evidence.application.FileNameCipher;
+import vn.viettel.okrkpi.evidence.application.ObjectStorage;
+import vn.viettel.okrkpi.evidence.application.ScanQueue;
+import vn.viettel.okrkpi.evidence.application.ScanService;
 import vn.viettel.okrkpi.evidence.application.UploadService;
+import vn.viettel.okrkpi.evidence.infrastructure.events.OutboxScanEvents;
+import vn.viettel.okrkpi.evidence.infrastructure.scanning.ClamdScanner;
 import vn.viettel.okrkpi.platform.db.migration.MigrationCredentials;
 import vn.viettel.okrkpi.platform.db.migration.MigrationOptions;
 import vn.viettel.okrkpi.platform.db.migration.SchemaMigrator;
@@ -68,6 +75,7 @@ import vn.viettel.okrkpi.platform.db.migration.bootstrap.DatabaseLayout;
 import vn.viettel.okrkpi.platform.db.migration.bootstrap.RoleBootstrapPlan;
 import vn.viettel.okrkpi.platform.db.migration.bootstrap.RoleLimits;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer;
+import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 
 /**
  * Tải lên nhiều phần qua HTTP thật (DV-08-02): PostgreSQL 17 có RLS với vai trò {@code
@@ -86,7 +94,10 @@ import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer;
       "okrkpi.evidence.upload.part-size=5242880",
       "okrkpi.evidence.storage.access-key=test",
       "okrkpi.evidence.storage.secret-key=test",
-      "okrkpi.evidence.storage.lock-days=1"
+      "okrkpi.evidence.storage.lock-days=1",
+      // Worker bật nhưng lịch không chạy trong lúc thử: kiểm thử gọi ScanService trực tiếp.
+      "okrkpi.evidence.scan.enabled=true",
+      "okrkpi.evidence.scan.poll-interval=PT1H"
     })
 class FileUploadFlowIT {
 
@@ -105,9 +116,18 @@ class FileUploadFlowIT {
           .withExposedPorts(4566)
           .waitingFor(Wait.forHttp("/_localstack/health").forPort(4566));
 
+  static final GenericContainer<?> CLAMAV =
+      new GenericContainer<>("clamav/clamav:1.4")
+          .withEnv("CLAMAV_NO_FRESHCLAMD", "true")
+          .withExposedPorts(3310)
+          .waitingFor(
+              Wait.forLogMessage(".*socket found, clamd started.*", 1)
+                  .withStartupTimeout(java.time.Duration.ofMinutes(3)));
+
   static {
     POSTGRES.start();
     S3.start();
+    CLAMAV.start();
     migrate();
   }
 
@@ -119,6 +139,8 @@ class FileUploadFlowIT {
     r.add(
         "okrkpi.evidence.storage.endpoint",
         () -> "http://" + S3.getHost() + ":" + S3.getMappedPort(4566));
+    r.add("okrkpi.evidence.scan.clamd-host", CLAMAV::getHost);
+    r.add("okrkpi.evidence.scan.clamd-port", () -> CLAMAV.getMappedPort(3310));
   }
 
   static void migrate() {
@@ -178,6 +200,11 @@ class FileUploadFlowIT {
   @LocalServerPort int port;
   @Autowired S3Client s3;
   @Autowired UploadService uploads;
+  @Autowired ScanService scans;
+  @Autowired ScanQueue scanQueue;
+  @Autowired OutboxWriter outbox;
+  @Autowired ObjectStorage storage;
+  @Autowired PlatformTransactionManager transactions;
 
   final ObjectMapper json = new ObjectMapper();
   final HttpClient http = HttpClient.newHttpClient();
@@ -352,6 +379,141 @@ class FileUploadFlowIT {
       assertThat(rs.getInt(1)).isEqualTo(1);
       assertThat(rs.getInt(2)).isEqualTo(20);
       assertThat(rs.getInt(3)).isEqualTo(1);
+    }
+  }
+
+  static final String DOCX =
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  static final String EICAR =
+      "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
+
+  @Test
+  void quetNenChoSachNhiemCachLyVaC3KhongApDung() throws Exception {
+    JsonNode clean = upload(USER, pdf(6100));
+    String cleanId = clean.get("objectId").asText();
+    JsonNode waiting = getJson(USER, "/files/" + cleanId + "/scan", 200);
+    conforms("/files/{objectId}/scan", PathItem.HttpMethod.GET, 200, waiting);
+    assertThat(waiting.get("scanStatus").asText()).isEqualTo("CHO_QUET");
+    assertThat(waiting.hasNonNull("verdict")).isFalse();
+
+    byte[] infected = docx(Map.of("word/media/eicar.com", EICAR));
+    String infectedId = uploadAs(USER, infected, DOCX).get("objectId").asText();
+    HttpResponse<String> c3 =
+        post(
+            USER,
+            "/files/uploads",
+            createBody(
+                "ban-ma.bin", "application/octet-stream", 700, sha(new byte[700]), "C3", true));
+    String c3Id = json.readTree(c3.body()).get("uploadId").asText();
+    complete(USER, c3Id, List.of(putPart(USER, c3Id, 1, new byte[700]).get("etag").asText()), 200);
+
+    long started = System.nanoTime();
+    scans.scanDue(500);
+    long tookMs = (System.nanoTime() - started) / 1_000_000;
+    System.out.println("DV-08-04 quét một lô gồm tệp sạch, tệp nhiễm, tệp C3: " + tookMs + " ms");
+
+    JsonNode ok = getJson(USER, "/files/" + cleanId + "/scan", 200);
+    conforms("/files/{objectId}/scan", PathItem.HttpMethod.GET, 200, ok);
+    assertThat(ok.get("scanStatus").asText()).isEqualTo("SACH");
+    assertThat(ok.get("verdict").asText()).isEqualTo("SACH");
+    assertThat(ok.get("engine").asText()).isEqualTo("ClamAV");
+    assertThat(ok.get("engineVersion").asText()).matches("\\d+\\.\\d+\\.\\d+/\\d+");
+    assertThat(getJson(USER, "/files/" + cleanId + "/download-url", 200).get("url")).isNotNull();
+
+    JsonNode bad = getJson(USER, "/files/" + infectedId + "/scan", 200);
+    assertThat(bad.get("scanStatus").asText()).isEqualTo("NHIEM");
+    assertThat(bad.get("verdict").asText()).isEqualTo("NHIEM");
+    assertThat(getJson(USER, "/files/" + infectedId + "/download-url", 409).get("code").asText())
+        .isEqualTo("FILE-409-NOT-CLEAN");
+
+    JsonNode device = getJson(USER, "/files/" + c3Id + "/scan", 200);
+    assertThat(device.get("scanStatus").asText()).isEqualTo("SACH");
+    assertThat(device.get("engine").asText()).isEqualTo(ScanService.DEVICE_ENGINE);
+
+    try (Connection conn = admin();
+        var st = conn.createStatement()) {
+      var rs =
+          st.executeQuery(
+              "SELECT aggregate_id::text, topic FROM evidence.outbox_event WHERE aggregate_id IN ('"
+                  + cleanId
+                  + "', '"
+                  + infectedId
+                  + "', '"
+                  + c3Id
+                  + "') AND topic <> 'sys.evidence.object.stored.v1' ORDER BY topic, aggregate_id");
+      List<String> rows = new ArrayList<>();
+      while (rs.next()) {
+        rows.add(rs.getString(1) + " " + rs.getString(2));
+      }
+      assertThat(rows)
+          .containsExactlyInAnyOrder(
+              cleanId + " evidence.object.scanned.v1",
+              infectedId + " evidence.object.scanned.v1",
+              c3Id + " evidence.object.scanned.v1",
+              infectedId + " notify.message.requested.v1");
+      rs =
+          st.executeQuery(
+              "SELECT detail->>'mau' FROM evidence.scan_result r JOIN evidence.object_version v"
+                  + " ON v.id = r.object_version_id WHERE v.object_meta_id = '"
+                  + infectedId
+                  + "'");
+      rs.next();
+      assertThat(rs.getString(1)).contains("Eicar");
+    }
+
+    // Quét lại không đổi kết luận đã có.
+    scans.scanDue(500);
+    assertThat(getJson(USER, "/files/" + infectedId + "/scan", 200).get("scanStatus").asText())
+        .isEqualTo("NHIEM");
+  }
+
+  @Test
+  void docxCoMacroBiChanKhiNhan() throws Exception {
+    byte[] macro = docx(Map.of("word/vbaProject.bin", "Attribute VB_Name"));
+    String id = create(USER, macro, DOCX, "C1", null).get("uploadId").asText();
+    String etag = putPart(USER, id, 1, macro).get("etag").asText();
+    assertThat(complete(USER, id, List.of(etag), 422).get("code").asText())
+        .isEqualTo("FILE-422-CONTENT-TYPE-MISMATCH");
+  }
+
+  @Test
+  void boQuetTatThiLoiSauSoLanThu() throws Exception {
+    String id = upload(USER, pdf(6200)).get("objectId").asText();
+    var meters = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+    int closedPort;
+    try (var probe = new java.net.ServerSocket(0)) {
+      closedPort = probe.getLocalPort();
+    }
+    ScanService broken =
+        new ScanService(
+            scanQueue,
+            new OutboxScanEvents(outbox),
+            storage,
+            new ClamdScanner("127.0.0.1", closedPort, java.time.Duration.ofSeconds(1)),
+            new TransactionTemplate(transactions),
+            new ScanService.Settings(java.time.Duration.ofMinutes(10), java.time.Duration.ZERO, 3),
+            java.time.Clock.systemUTC(),
+            meters);
+    for (int i = 0; i < 3; i++) {
+      assertThat(getJson(USER, "/files/" + id + "/scan", 200).get("scanStatus").asText())
+          .isEqualTo("CHO_QUET");
+      broken.scanDue(500);
+    }
+    JsonNode failed = getJson(USER, "/files/" + id + "/scan", 200);
+    assertThat(failed.get("scanStatus").asText()).isEqualTo("LOI");
+    assertThat(failed.get("verdict").asText()).isEqualTo("LOI");
+    assertThat(getJson(USER, "/files/" + id + "/download-url", 409).get("code").asText())
+        .isEqualTo("FILE-409-NOT-CLEAN");
+    assertThat(meters.counter("evidence.scan.failures").count()).isGreaterThanOrEqualTo(1);
+    try (Connection conn = admin();
+        var st = conn.createStatement()) {
+      var rs =
+          st.executeQuery(
+              "SELECT scan_attempts FROM evidence.object_version WHERE object_meta_id = '"
+                  + id
+                  + "'");
+      rs.next();
+      assertThat(rs.getInt(1)).isEqualTo(3);
     }
   }
 
@@ -578,7 +740,11 @@ class FileUploadFlowIT {
 
   /** Tải trọn một tệp nhỏ hơn một phần và trả kết quả hoàn tất. */
   JsonNode upload(UUID user, byte[] file) throws Exception {
-    String id = create(user, file, PDF, "C1", null).get("uploadId").asText();
+    return uploadAs(user, file, PDF);
+  }
+
+  JsonNode uploadAs(UUID user, byte[] file, String type) throws Exception {
+    String id = create(user, file, type, "C1", null).get("uploadId").asText();
     return complete(user, id, List.of(putPart(user, id, 1, file).get("etag").asText()), 200);
   }
 
@@ -721,6 +887,23 @@ class FileUploadFlowIT {
             OpenApiConformanceEngine.validateResponseJson(
                 contract, "/api/v1" + path, method, status, body.toString()))
         .isEmpty();
+  }
+
+  /** Gói DOCX tối thiểu kèm các mục thêm. */
+  static byte[] docx(Map<String, String> extra) throws IOException {
+    var bytes = new java.io.ByteArrayOutputStream();
+    try (var zip = new java.util.zip.ZipOutputStream(bytes)) {
+      Map<String, String> entries = new java.util.LinkedHashMap<>();
+      entries.put("[Content_Types].xml", "<Types/>");
+      entries.put("word/document.xml", "<w:document/>");
+      entries.putAll(extra);
+      for (var e : entries.entrySet()) {
+        zip.putNextEntry(new java.util.zip.ZipEntry(e.getKey()));
+        zip.write(e.getValue().getBytes(StandardCharsets.US_ASCII));
+        zip.closeEntry();
+      }
+    }
+    return bytes.toByteArray();
   }
 
   static byte[] pdf(int size) {

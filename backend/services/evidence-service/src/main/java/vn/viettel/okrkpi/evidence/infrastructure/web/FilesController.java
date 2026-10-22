@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.evidence.application.ObjectStorage.Part;
+import vn.viettel.okrkpi.evidence.application.ScanQueue;
+import vn.viettel.okrkpi.evidence.application.ScanResultService;
 import vn.viettel.okrkpi.evidence.application.UploadService;
 import vn.viettel.okrkpi.evidence.application.UploadService.CreateUpload;
 import vn.viettel.okrkpi.evidence.application.UploadService.DownloadLink;
@@ -26,6 +28,7 @@ import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileObject;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FilePreview;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileScanResult;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileScanStatus;
+import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileScanVerdict;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileUploadComplete;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileUploadCreate;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileUploadPart;
@@ -48,9 +51,11 @@ import vn.viettel.okrkpi.shared.idempotency.Idempotent;
 public class FilesController implements FilesApi {
 
   private final UploadService uploads;
+  private final ScanResultService scans;
 
-  public FilesController(UploadService uploads) {
+  public FilesController(UploadService uploads, ScanResultService scans) {
     this.uploads = uploads;
+    this.scans = scans;
   }
 
   @Override
@@ -130,7 +135,20 @@ public class FilesController implements FilesApi {
 
   @Override
   public ResponseEntity<FileScanResult> getFileScanResult(UUID objectId, Integer version) {
-    throw notImplemented();
+    ScanQueue.Status s = scans.status(objectId, version);
+    FileScanResult body =
+        new FileScanResult()
+            .objectId(s.file().objectId())
+            .objectVersionId(s.file().versionId())
+            .scanStatus(FileScanStatus.fromValue(s.file().scanStatus()));
+    s.latest()
+        .ifPresent(
+            r ->
+                body.verdict(FileScanVerdict.fromValue(r.verdict().name()))
+                    .engine(r.engine())
+                    .engineVersion(r.engineVersion())
+                    .scannedAt(offset(r.scannedAt())));
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
   }
 
   @Override

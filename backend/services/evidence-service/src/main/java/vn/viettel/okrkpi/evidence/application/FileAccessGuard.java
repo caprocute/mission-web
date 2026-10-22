@@ -37,4 +37,9 @@ public class FileAccessGuard {
   public void checkDownload(FileAccess access) {
     // Chỉ để chặn trước bởi PermissionInterceptor.
   }
+
+  @RequiresPermission(operationId = "getFileScanResult", resourceType = "file")
+  public void checkScanResult(FileAccess access) {
+    // Chỉ để chặn trước bởi PermissionInterceptor.
+  }
 }
