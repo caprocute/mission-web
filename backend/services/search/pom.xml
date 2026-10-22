@@ -23,6 +23,7 @@
   <properties>
     <pitest.targetClasses>vn.viettel.okrkpi.search.*</pitest.targetClasses>
     <jib.jvm.gc>-XX:+UseZGC</jib.jvm.gc>
+    <contract.dir>${project.basedir}/../../../contracts/openapi</contract.dir>
   </properties>
 
   <dependencies>
@@ -55,6 +56,30 @@
           <artifactId>spring-boot-starter-logging</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.kafka</groupId>
@@ -91,6 +116,13 @@
       <artifactId>kafka</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- So khớp phản hồi với contracts/openapi (Apache-2.0), như org-service. -->
+    <dependency>
+      <groupId>com.atlassian.oai</groupId>
+      <artifactId>swagger-request-validator-core</artifactId>
+      <version>2.46.1</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
@@ -100,6 +132,42 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.openapitools</groupId>
+        <artifactId>openapi-generator-maven-plugin</artifactId>
+        <version>${openapi-generator.version}</version>
+        <executions>
+          <!-- DV-16-02: thao tác searchFullText của platform.yaml (API-first). -->
+          <execution>
+            <id>search-api</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${contract.dir}/modules/platform.yaml</inputSpec>
+              <generatorName>spring</generatorName>
+              <openapiNormalizer>FILTER=operationId:searchFullText</openapiNormalizer>
+              <apiPackage>vn.viettel.okrkpi.search.infrastructure.web.api</apiPackage>
+              <modelPackage>vn.viettel.okrkpi.search.infrastructure.web.model</modelPackage>
+              <generateSupportingFiles>false</generateSupportingFiles>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
+              <generateApiDocumentation>false</generateApiDocumentation>
+              <generateModelDocumentation>false</generateModelDocumentation>
+              <configOptions>
+                <interfaceOnly>true</interfaceOnly>
+                <useSpringBoot3>true</useSpringBoot3>
+                <useTags>false</useTags>
+                <openApiNullable>false</openApiNullable>
+                <annotationLibrary>swagger2</annotationLibrary>
+                <documentationProvider>none</documentationProvider>
+                <useBeanValidation>true</useBeanValidation>
+                <skipDefaultInterface>true</skipDefaultInterface>
+              </configOptions>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
@@ -119,6 +187,9 @@
           <excludes>
             <!-- Lớp khởi động chỉ gọi SpringApplication.run. -->
             <exclude>vn/viettel/okrkpi/search/SearchServiceApplication.class</exclude>
+            <!-- Mã sinh từ contracts/openapi (giao diện và mô hình của searchFullText). -->
+            <exclude>vn/viettel/okrkpi/search/infrastructure/web/api/**</exclude>
+            <exclude>vn/viettel/okrkpi/search/infrastructure/web/model/**</exclude>
           </excludes>
         </configuration>
       </plugin>

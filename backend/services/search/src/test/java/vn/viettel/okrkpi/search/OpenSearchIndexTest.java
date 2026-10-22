@@ -76,6 +76,7 @@ class OpenSearchIndexTest {
             0,
             0,
             null,
+            null,
             null);
     index =
         new OpenSearchIndex(

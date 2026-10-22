@@ -4,9 +4,10 @@ import java.text.Normalizer;
 
 /**
  * Chuẩn hoá văn bản tiếng Việt trước khi lập chỉ mục: đưa về dạng dựng sẵn NFC (văn bản từ hệ ngoài
- * hay ở dạng tổ hợp NFD, làm cùng một từ thành hai chuỗi byte khác nhau), bỏ ký tự điều khiển, gộp
- * khoảng trắng và cắt độ dài. Bỏ dấu để tìm "giao duc" khớp "giáo dục" do bộ phân tích {@code
- * icu_folding} của chỉ mục đảm nhiệm, không làm ở đây, để kết quả vẫn hiển thị đúng dấu.
+ * hay ở dạng tổ hợp NFD, làm cùng một từ thành hai chuỗi byte khác nhau), bỏ ký tự điều khiển và ký
+ * tự vùng dùng riêng (dành cho dấu đánh dấu của highlighter, xem {@link Snippet}), gộp khoảng trắng
+ * và cắt độ dài. Bỏ dấu để tìm "giao duc" khớp "giáo dục" do bộ phân tích {@code icu_folding} của
+ * chỉ mục đảm nhiệm, không làm ở đây, để kết quả vẫn hiển thị đúng dấu.
  */
 public final class VietnameseText {
 
@@ -20,7 +21,7 @@ public final class VietnameseText {
     }
     String s =
         Normalizer.normalize(text, Normalizer.Form.NFC)
-            .replaceAll("[\\p{Cc}\\p{Cf}&&[^\\n\\t]]", "")
+            .replaceAll("[\\p{Cc}\\p{Cf}\\p{Co}&&[^\\n\\t]]", "")
             .replaceAll("\\s+", " ")
             .strip();
     if (s.isEmpty()) {

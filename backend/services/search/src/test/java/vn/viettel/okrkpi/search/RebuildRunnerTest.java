@@ -81,7 +81,7 @@ class RebuildRunnerTest {
           }
         };
     SearchProperties props =
-        new SearchProperties(null, null, null, null, null, null, null, 0, 0, 0, null, "pool");
+        new SearchProperties(null, null, null, null, null, null, null, 0, 0, 0, null, null, "pool");
     AtomicInteger code = new AtomicInteger(-1);
     try (GenericApplicationContext ctx = new GenericApplicationContext()) {
       ctx.refresh();

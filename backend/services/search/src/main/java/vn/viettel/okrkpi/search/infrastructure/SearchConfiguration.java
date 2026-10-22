@@ -146,6 +146,38 @@ public class SearchConfiguration {
   }
 
   @Bean
+  OpenSearchReader openSearchReader(SearchProperties p, ObjectMapper json) {
+    return new OpenSearchReader(
+        new OpenSearchHttp(
+            p.opensearchUrl(), p.opensearchUsername(), p.opensearchPassword(), p.timeout(), json),
+        json);
+  }
+
+  @Bean(destroyMethod = "close")
+  java.util.concurrent.ExecutorService searchAuthzExecutor() {
+    return java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
+  }
+
+  @Bean
+  OpaAccess opaAccess(
+      vn.viettel.okrkpi.shared.authz.OpaClient opa,
+      vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver subjects,
+      java.util.concurrent.ExecutorService searchAuthzExecutor) {
+    return new OpaAccess(opa, subjects, searchAuthzExecutor, Clock.systemUTC());
+  }
+
+  @Bean
+  AesCursor aesCursor(SearchProperties p, ObjectMapper json) {
+    return new AesCursor(p.cursorKey(), json);
+  }
+
+  @Bean
+  vn.viettel.okrkpi.search.application.SearchService searchService(
+      OpenSearchReader reader, OpaAccess access, AesCursor cursors) {
+    return new vn.viettel.okrkpi.search.application.SearchService(reader, access, cursors);
+  }
+
+  @Bean
   RebuildService rebuildService(OpenSearchIndex index, KafkaReplaySource source) {
     return new RebuildService(index, source);
   }
