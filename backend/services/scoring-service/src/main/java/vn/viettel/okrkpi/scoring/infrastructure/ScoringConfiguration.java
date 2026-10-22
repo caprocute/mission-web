@@ -6,6 +6,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import vn.viettel.okrkpi.scoring.application.ScoreRecorder;
 import vn.viettel.okrkpi.scoring.application.ScoreTraceService;
+import vn.viettel.okrkpi.scoring.application.policy.ProfileScorer;
+import vn.viettel.okrkpi.scoring.application.policy.RatingClassifier;
 import vn.viettel.okrkpi.scoring.application.policy.ScoreCalculator;
 import vn.viettel.okrkpi.scoring.application.port.ScoreEvents;
 import vn.viettel.okrkpi.scoring.application.port.ScoreJobStore;
@@ -59,5 +61,15 @@ public class ScoringConfiguration {
   @Bean
   ScoreCalculator scoreCalculator() {
     return new ScoreCalculator();
+  }
+
+  @Bean
+  RatingClassifier ratingClassifier() {
+    return new RatingClassifier();
+  }
+
+  @Bean
+  ProfileScorer profileScorer(ScoreCalculator calculator, RatingClassifier classifier) {
+    return new ProfileScorer(calculator, classifier);
   }
 }

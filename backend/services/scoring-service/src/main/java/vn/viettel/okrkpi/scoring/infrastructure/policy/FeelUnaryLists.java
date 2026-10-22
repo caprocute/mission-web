@@ -95,8 +95,7 @@ final class FeelUnaryLists {
     }
   }
 
-  private static Document parse(String xml)
-      throws ParserConfigurationException, SAXException, IOException {
+  static Document parse(String xml) throws ParserConfigurationException, SAXException, IOException {
     DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();
     f.setNamespaceAware(true);
     f.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
@@ -175,7 +174,7 @@ final class FeelUnaryLists {
     return parts;
   }
 
-  private static List<Element> children(Element parent, String local) {
+  static List<Element> children(Element parent, String local) {
     List<Element> out = new ArrayList<>();
     for (Node n = parent.getFirstChild(); n != null; n = n.getNextSibling()) {
       if (n instanceof Element e && local.equals(e.getLocalName())) {
@@ -185,7 +184,7 @@ final class FeelUnaryLists {
     return out;
   }
 
-  private static Element first(Element parent, String local) {
+  static Element first(Element parent, String local) {
     List<Element> found = children(parent, local);
     return found.isEmpty() ? null : found.getFirst();
   }

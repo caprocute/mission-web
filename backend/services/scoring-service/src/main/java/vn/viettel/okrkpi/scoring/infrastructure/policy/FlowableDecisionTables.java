@@ -1,17 +1,24 @@
 package vn.viettel.okrkpi.scoring.infrastructure.policy;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import javax.xml.parsers.ParserConfigurationException;
+import org.flowable.dmn.api.DecisionExecutionAuditContainer;
 import org.flowable.dmn.api.DmnDecision;
 import org.flowable.dmn.api.DmnDeploymentBuilder;
+import org.flowable.dmn.api.RuleExecutionAuditContainer;
 import org.flowable.dmn.engine.DmnEngine;
 import org.flowable.dmn.engine.DmnEngineConfiguration;
 import org.springframework.beans.factory.DisposableBean;
+import org.xml.sax.SAXException;
 import vn.viettel.okrkpi.scoring.application.port.DecisionTables;
+import vn.viettel.okrkpi.scoring.domain.DecisionTable;
 import vn.viettel.okrkpi.scoring.domain.DecisionTableSource;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 
@@ -45,6 +52,7 @@ public class FlowableDecisionTables implements DecisionTables, DisposableBean {
   public Compiled compile(String contentHash, List<DecisionTableSource> tables) {
     Map<String, String> keys = new HashMap<>();
     Map<String, List<String>> inputs = new HashMap<>();
+    Map<String, DecisionTable> structures = new HashMap<>();
     if (!tables.isEmpty()) {
       try {
         DmnDeploymentBuilder deployment =
@@ -56,6 +64,10 @@ public class FlowableDecisionTables implements DecisionTables, DisposableBean {
         for (DecisionTableSource t : tables) {
           deployment.addString(t.tableKey() + ".dmn", prepare(t.dmnXml()));
           inputs.put(t.tableKey(), FeelUnaryLists.inputs(t.dmnXml()));
+          DecisionTable structure = structure(t);
+          if (structure != null) {
+            structures.put(t.tableKey(), structure);
+          }
         }
         String id = deployment.deploy().getId();
         for (DmnDecision d :
@@ -68,7 +80,16 @@ public class FlowableDecisionTables implements DecisionTables, DisposableBean {
             FEEL, "Bảng quyết định của phiên bản quy tắc không nạp được: " + e.getMessage());
       }
     }
-    return new FlowableCompiled(contentHash, Map.copyOf(keys), Map.copyOf(inputs));
+    return new FlowableCompiled(
+        contentHash, Map.copyOf(keys), Map.copyOf(inputs), Map.copyOf(structures));
+  }
+
+  private static DecisionTable structure(DecisionTableSource t) {
+    try {
+      return DmnStructure.parse(t.tableKey(), t.dmnXml());
+    } catch (ParserConfigurationException | SAXException | IOException e) {
+      throw new BusinessException(FEEL, "Bảng quyết định " + t.tableKey() + " không đọc được");
+    }
   }
 
   /**
@@ -92,12 +113,53 @@ public class FlowableDecisionTables implements DecisionTables, DisposableBean {
     private final String tenant;
     private final Map<String, String> decisionKeys;
     private final Map<String, List<String>> inputs;
+    private final Map<String, DecisionTable> structures;
 
     FlowableCompiled(
-        String tenant, Map<String, String> decisionKeys, Map<String, List<String>> inputs) {
+        String tenant,
+        Map<String, String> decisionKeys,
+        Map<String, List<String>> inputs,
+        Map<String, DecisionTable> structures) {
       this.tenant = tenant;
       this.decisionKeys = decisionKeys;
       this.inputs = inputs;
+      this.structures = structures;
+    }
+
+    @Override
+    public Optional<DecisionTable> structure(String tableKey) {
+      return Optional.ofNullable(structures.get(tableKey));
+    }
+
+    @Override
+    public Hit decide(String tableKey, Map<String, Object> variables) {
+      DecisionExecutionAuditContainer audit =
+          engine
+              .getDmnDecisionService()
+              .createExecuteDecisionBuilder()
+              .decisionKey(key(tableKey))
+              .tenantId(tenant)
+              .variables(variables)
+              .executeWithAuditTrail();
+      if (Boolean.TRUE.equals(audit.isFailed())) {
+        throw new IllegalStateException("Bảng quyết định " + tableKey + " chạy lỗi");
+      }
+      int rule = -1;
+      for (RuleExecutionAuditContainer r : audit.getRuleExecutions().values()) {
+        if (Boolean.TRUE.equals(r.isValid()) && (rule < 0 || r.getRuleNumber() - 1 < rule)) {
+          rule = r.getRuleNumber() - 1;
+        }
+      }
+      List<Map<String, Object>> rows = audit.getDecisionResult();
+      return new Hit(rule, rows == null || rows.isEmpty() ? Map.of() : rows.get(0));
+    }
+
+    private String key(String tableKey) {
+      String key = decisionKeys.get(tableKey);
+      if (key == null) {
+        throw new IllegalArgumentException("Phiên bản không có bảng quyết định " + tableKey);
+      }
+      return key;
     }
 
     @Override
@@ -112,10 +174,7 @@ public class FlowableDecisionTables implements DecisionTables, DisposableBean {
 
     @Override
     public Map<String, Object> evaluate(String tableKey, Map<String, Object> variables) {
-      String key = decisionKeys.get(tableKey);
-      if (key == null) {
-        throw new IllegalArgumentException("Phiên bản không có bảng quyết định " + tableKey);
-      }
+      String key = key(tableKey);
       List<Map<String, Object>> rows =
           engine
               .getDmnDecisionService()

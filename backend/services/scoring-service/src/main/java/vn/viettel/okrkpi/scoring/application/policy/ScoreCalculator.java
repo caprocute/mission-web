@@ -199,6 +199,23 @@ public final class ScoreCalculator {
     return nested;
   }
 
+  /** Đúng các khoá {@code tham_so} mà biểu thức đọc, theo đường dẫn chấm, theo thứ tự xuất hiện. */
+  static Map<String, Object> usedParams(String expression, Object ts) {
+    Map<String, Object> out = new LinkedHashMap<>();
+    Matcher m = PARAM_PATH.matcher(expression);
+    while (m.find()) {
+      String path = m.group(1).substring(1);
+      Object v = ts;
+      for (String p : path.split("\\.")) {
+        v = v instanceof Map<?, ?> map ? map.get(p) : null;
+      }
+      if (v != null) {
+        out.putIfAbsent("tham_so." + path, v);
+      }
+    }
+    return out;
+  }
+
   /** Danh sách bản ghi thu về khoá định danh và khoá kết quả. */
   static List<Map<String, Object>> project(List<?> list, Set<String> resultKeys) {
     List<Map<String, Object>> out = new ArrayList<>();
@@ -377,7 +394,7 @@ public final class ScoreCalculator {
       }
       for (String r : rule.program().referencedVariables()) {
         if ("tham_so".equals(r)) {
-          inputs.putAll(params(rule.program().expression(), vars.get(r)));
+          inputs.putAll(usedParams(rule.program().expression(), vars.get(r)));
         } else {
           inputs.put(r, compact(vars.get(r)));
         }
@@ -445,23 +462,6 @@ public final class ScoreCalculator {
         return project(l, plan.resultKeys);
       }
       return value;
-    }
-
-    /** Đúng các khoá {@code tham_so} mà biểu thức đọc, theo đường dẫn chấm. */
-    private static Map<String, Object> params(String expression, Object ts) {
-      Map<String, Object> out = new TreeMap<>();
-      Matcher m = PARAM_PATH.matcher(expression);
-      while (m.find()) {
-        String path = m.group(1).substring(1);
-        Object v = ts;
-        for (String p : path.split("\\.")) {
-          v = v instanceof Map<?, ?> map ? map.get(p) : null;
-        }
-        if (v != null) {
-          out.put("tham_so." + path, v);
-        }
-      }
-      return out;
     }
   }
 }
