@@ -1,0 +1,39 @@
+# Chart kafka (INF-10) thu nhỏ cho kind: một broker vai trò kép trên một node (cụm kind chỉ có 4 vCPU, đĩa hạn chế),
+# hệ số nhân bản 1, ổ local-path, ảnh kéo thẳng từ quay và ảnh Connect dựng tại chỗ (digest do kiem-thu-su-kien.sh
+# truyền vào). Cụm thật dùng tệp hồ sơ sizing/values-sizing-<hồ sơ>.yaml của vt-platform.
+global: { cell: kind, sizing: compact, topology: { zones: [hl-a] } }
+image: { repository: quay.io/strimzi/kafka }
+cheDo: ket-hop
+brokers: { replicas: 1, resources: { cpu: "1", memory: 2Gi } }
+luuTru: { storageClass: standard, broker: { compact: 5Gi }, controller: 1Gi }
+config:
+  min.insync.replicas: 1
+  default.replication.factor: 1
+  offsets.topic.replication.factor: 1
+  transaction.state.log.replication.factor: 1
+  transaction.state.log.min.isr: 1
+nhomTopic:
+  nghiepVuCao:    { partitions: 2, retention: 7d }
+  dauVaoTinhDiem: { partitions: 2, retention: 7d }
+  nghiepVuThap:   { partitions: 1, retention: 30d }
+  soCai:          { partitions: 2, retention: 14d }
+  heThong:        { partitions: 2, retention: 7d }
+  hangDoiLoi:     { partitions: 1, retention: 30d }
+topics: { scoringInputPartitions: 2, ledgerAppendPartitions: 2 }
+connect:
+  image: { repository: vt-kind/kafka-connect-debezium, tag: "1" }
+  replicas: { min: 1, max: 1 }
+  resources: { requests: { cpu: 250m, memory: 1Gi }, limits: { cpu: "1", memory: 1Gi } }
+  csdlTenant: [td_kind]
+  # Chỉ dựng CSDL tenant trên pg-core giả lập; các nguồn còn lại kiểm bằng render tĩnh.
+  boQuaSchema: [registry, ledger, esign, notify, integ]
+  # PostgreSQL thử chạy không TLS; TLS tới CNPG đã kiểm ở kiem-thu-du-lieu.sh (INF-11).
+  sslmode: disable
+  heartbeatMs: 5000
+  externalSecrets: { enabled: false }
+apicurio:
+  image: { repository: quay.io/apicurio/apicurio-registry }
+  replicas: 1
+  resources: { requests: { cpu: 250m, memory: 768Mi }, limits: { cpu: "1", memory: 768Mi } }
+  externalSecret: { enabled: false }
+  dangKy: { image: { repository: mirror.gcr.io/library/python } }

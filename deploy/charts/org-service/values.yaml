@@ -59,8 +59,8 @@ republish:
   asOf: ""            # ISO-8601 có múi giờ; rỗng là hiện tại
   dryRun: true        # mặc định chạy thử, chạy thật phải đặt false
   operator: ""
-  kafkaBootstrapServers: kafka-bootstrap.kafka:9093
-  registryUrl: http://apicurio-registry.kafka:8080/apis/registry/v3
+  kafkaBootstrapServers: kafka-cell-kafka-bootstrap.data-kafka.svc:9093
+  registryUrl: http://apicurio-registry.data-kafka.svc:8080/apis/registry/v3
   kafkaClientSecret: ""
   activeDeadlineSeconds: 3600
   ttlSecondsAfterFinished: 86400

@@ -22,11 +22,11 @@ spec:
   authorization:
     type: simple
     acls:
-      {{- range $u.doc }}
-      - resource: { type: topic, name: {{ . }}, patternType: literal }
+      {{- range $t := $u.doc }}
+      - resource: { type: topic, name: {{ $t }}, patternType: literal }
         operations: [Read, Describe]
       {{- range $loai := list "retry" "dlq" }}
-      - resource: { type: topic, name: {{ printf "%s.%s.%s" . $loai $ten }}, patternType: literal }
+      - resource: { type: topic, name: {{ printf "%s.%s.%s" $t $loai $ten }}, patternType: literal }
         operations: [Read, Write, Describe]
       {{- end }}
       {{- end }}
@@ -41,11 +41,9 @@ spec:
       {{- end }}
       {{- end }}
       {{- if eq $ten "kafka-connect" }}
-      {{- /* Topic nội bộ của Connect và nhịp tim Debezium (tạo sẵn ở connect.yaml), nhóm của cụm Connect. */}}
+      {{- /* Topic nội bộ của Connect (tạo sẵn ở connect.yaml), nhóm của cụm Connect. */}}
       - resource: { type: topic, name: {{ $v.connect.groupId }}-, patternType: prefix }
         operations: [Read, Write, Describe, DescribeConfigs]
-      - resource: { type: topic, name: __debezium-heartbeat., patternType: prefix }
-        operations: [Write, Describe]
       - resource: { type: group, name: {{ $v.connect.groupId }}, patternType: literal }
         operations: [Read, Describe]
       {{- end }}

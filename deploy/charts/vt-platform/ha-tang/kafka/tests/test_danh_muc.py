@@ -84,6 +84,9 @@ def test_render_topic_va_acl():
     audit = [u for u, d in users.items() for a in d["spec"]["authorization"]["acls"]
              if a["resource"]["name"] == "sys.audit.v1" and "Write" in a["operations"]]
     assert sorted(audit) == ["audit-writer", "fluent-bit"]
+    # Mỗi bên tiêu thụ đọc, ghi đúng hàng đợi thử lại và thư chết mang tên mình.
+    acl_search = {a["resource"]["name"] for a in users["search"]["spec"]["authorization"]["acls"]}
+    assert {"task.task.assigned.v1.retry.search", "task.task.assigned.v1.dlq.search"} <= acl_search
 
 
 def test_render_compact_gop_cum_va_ket_hop():

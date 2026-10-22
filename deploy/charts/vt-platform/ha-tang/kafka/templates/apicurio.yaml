@@ -65,7 +65,8 @@ spec:
       containers:
         - name: registry
           image: {{ include "kafka.anh" $a.image }}
-          ports: [{ name: http, containerPort: 8080 }]
+          # 9000: giao diện quản trị của Quarkus (kiểm tra sức khoẻ, chỉ số), không mở qua Service.
+          ports: [{ name: http, containerPort: 8080 }, { name: quan-tri, containerPort: 9000 }]
           env:
             - { name: APICURIO_STORAGE_KIND, value: sql }
             - { name: APICURIO_STORAGE_SQL_KIND, value: postgresql }
@@ -80,10 +81,10 @@ spec:
             - { name: APICURIO_REST_DELETION_ARTIFACT_VERSION_ENABLED, value: "false" }
             - { name: APICURIO_REST_DELETION_GROUP_ENABLED, value: "false" }
           readinessProbe:
-            httpGet: { path: /health/ready, port: http }
+            httpGet: { path: /health/ready, port: quan-tri }
             initialDelaySeconds: 10
           livenessProbe:
-            httpGet: { path: /health/live, port: http }
+            httpGet: { path: /health/live, port: quan-tri }
             initialDelaySeconds: 30
           resources:
             {{- toYaml $a.resources | nindent 12 }}

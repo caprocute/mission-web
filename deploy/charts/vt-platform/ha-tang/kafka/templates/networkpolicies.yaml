@@ -1,7 +1,8 @@
 {{- /* NetworkPolicy của namespace Kafka (TL-04 mục 3.6), bổ sung cho default-deny của cell-base. Strimzi tự sinh chính
 sách ingress cho broker, controller, Connect; chart thêm phía egress: nội bộ cụm, Connect tới broker và tới
 PostgreSQL có outbox, Apicurio tới CSDL của nó, Job đăng ký tới Apicurio; ingress của Apicurio từ namespace khách.
-Entity Operator và Connect gọi kube-apiserver qua CiliumNetworkPolicy. */}}
+Pod của cụm (broker đọc Secret cấu hình của mình qua
+KubernetesSecretConfigProvider, Entity Operator) và Connect gọi kube-apiserver qua CiliumNetworkPolicy. */}}
 {{- $v := .Values }}
 ---
 apiVersion: networking.k8s.io/v1
@@ -91,7 +92,7 @@ spec:
       ports: [{ port: 8080, protocol: TCP }]
 {{- end }}
 {{- if $v.cilium }}
-{{- range $p := list (list "entity-operator" "Entity Operator quản lý topic và người dùng." (dict "k8s:strimzi.io/cluster" $v.cluster "k8s:strimzi.io/name" (printf "%s-entity-operator" $v.cluster))) (list "connect" "Kafka Connect đọc Secret mật khẩu CDC (KubernetesSecretConfigProvider)." (dict "k8s:strimzi.io/cluster" "outbox" "k8s:strimzi.io/kind" "KafkaConnect")) }}
+{{- range $p := list (list "cum" "Broker, controller đọc Secret cấu hình của chính mình; Entity Operator quản lý topic và người dùng." (dict "k8s:strimzi.io/cluster" $v.cluster)) (list "connect" "Kafka Connect đọc Secret mật khẩu CDC (KubernetesSecretConfigProvider)." (dict "k8s:strimzi.io/cluster" "outbox" "k8s:strimzi.io/kind" "KafkaConnect")) }}
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy

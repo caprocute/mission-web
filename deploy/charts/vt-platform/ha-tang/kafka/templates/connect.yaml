@@ -169,14 +169,23 @@ spec:
     {{- with $c.heartbeatActionQuery }}
     heartbeat.action.query: {{ . | quote }}
     {{- end }}
-    transforms: outbox
+    # Bản ghi nhịp tim là STRUCT, ByteArrayConverter không ghi được: bỏ qua bằng Filter (offset vẫn được lưu nên khe
+    # sao chép vẫn tiến), EventRouter chỉ áp cho bản ghi của bảng outbox.
+    transforms: boNhipTim,outbox
+    transforms.boNhipTim.type: org.apache.kafka.connect.transforms.Filter
+    transforms.boNhipTim.predicate: laNhipTim
+    predicates: laNhipTim,laOutbox
+    predicates.laNhipTim.type: org.apache.kafka.connect.transforms.predicates.TopicNameMatches
+    predicates.laNhipTim.pattern: "__debezium-heartbeat\\..*"
+    predicates.laOutbox.type: org.apache.kafka.connect.transforms.predicates.TopicNameMatches
+    predicates.laOutbox.pattern: "{{ $ten }}\\..*\\.outbox_event"
     transforms.outbox.type: io.debezium.transforms.outbox.EventRouter
+    transforms.outbox.predicate: laOutbox
     transforms.outbox.route.by.field: topic
     transforms.outbox.route.topic.replacement: ${routedByValue}
     transforms.outbox.table.field.event.id: id
     transforms.outbox.table.field.event.key: event_key
     transforms.outbox.table.field.event.payload: payload
-    transforms.outbox.table.field.event.timestamp: created_at
     # Cột của outbox_event thành header CloudEvents (TL-03, contracts/events/outbox-sources.yaml). traceparent và
     # classification nằm trong cột jsonb headers nên đi kèm nguyên khối ở header ce_headers (điểm lệch, wiki 14).
     transforms.outbox.table.fields.additional.placement: id:header:ce_id,event_type:header:ce_type,tenant_id:header:ce_tenantid,aggregate_type:header:ce_source,aggregate_version:header:aggregate_version,schema_version:header:apicurio.value.globalId,headers:header:ce_headers
@@ -208,21 +217,5 @@ spec:
       remoteRef:
         key: {{ $c.externalSecrets.path }}/{{ $cum }}/cdc_{{ $db }}
 {{- end }}
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
-  name: {{ printf "debezium-heartbeat-%s" $ten }}
-  namespace: {{ $v.namespace }}
-  labels:
-    strimzi.io/cluster: {{ $v.cluster }}
-    {{- include "kafka.labels" $ | nindent 4 }}
-spec:
-  topicName: __debezium-heartbeat.{{ $ten }}
-  partitions: 1
-  replicas: {{ $rf }}
-  config:
-    retention.ms: 86400000
-    min.insync.replicas: {{ index $v.config "min.insync.replicas" }}
 {{- end }}
 {{- end }}

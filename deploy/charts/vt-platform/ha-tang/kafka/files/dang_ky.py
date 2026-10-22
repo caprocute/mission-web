@@ -2,8 +2,8 @@
 
 Chạy trong Job sau mỗi lần cài hoặc nâng cấp chart kafka. Đặt quy tắc toàn cục (COMPATIBILITY, VALIDITY), rồi đăng ký
 từng artifact theo thứ tự trong thu-tu.json (lược đồ được tham chiếu trước). Phiên bản trùng nội dung được dùng lại
-(ifExists=FIND_OR_CREATE_VERSION); phiên bản không tương thích bị Apicurio từ chối 409 và Job thất bại, chặn bản phát
-hành mang lược đồ phá vỡ người tiêu thụ. Chỉ dùng thư viện chuẩn của Python.
+(ifExists=FIND_OR_CREATE_VERSION); phiên bản không tương thích bị Apicurio từ chối và Job thất bại, chặn bản phát
+hành mang lược đồ phá vỡ người tiêu thụ (Apicurio 3 trả 400 RuleViolationException). Chỉ dùng thư viện chuẩn của Python.
 """
 import json
 import os
