@@ -1394,6 +1394,20 @@ Mã băm của một mắt xích là SHA-256 của dạng chuẩn hoá: loại, 
 
 Báo cáo chỉ nhận mẫu `BANG_DIEU_HANH` (mã mẫu là suy luận của hợp đồng). Không có `dashboardId` thì báo cáo dùng bộ chỉ số mặc định của bảng điều hành, chỉ giữ những chỉ số có trong phiên bản lớp ngữ nghĩa hiện hành. Có `dashboardId` thì mỗi widget thành một phần của báo cáo. PDF được dựng bằng Gotenberg (route Chromium chuyển HTML, khổ A4), vì document-service không có API sinh tệp tổng quát (suy luận). XLSX được ghi theo luồng bằng FastExcel 0.19.0. Tệp xuất chỉ in nhãn nghiệp vụ tiếng Việt, không in mã trạng thái thô hay mã MSG. Khi tác vụ thất bại, `problem` của Job mang mã 503 chuẩn, vì error-codes.json chưa có mã riêng cho lỗi xuất và mã lỗi không được tự đặt.
 
+### Ghi chú và quyết định từ tiếp nhận cảnh báo bất thường (CORE-07-10, 22/10/2026)
+
+Mã ở `backend/mission-core/.../oversight/{domain,application}/alert`, consumer `infrastructure/listener/AnomalyDetectedListener` (inbox `oversight.inbox_processed`, consumer `oversight.anomaly-detected`), cấu hình `infrastructure/persistence/AnomalyAlertConfiguration`.
+
+1. **Chống trùng.** Khoá chống trùng là (tenant, kỳ, `signalCode`, `subjectType`, `subjectId`), giữ bằng khoá tư vấn giao dịch; đã có cảnh báo ở bất kỳ trạng thái nào thì sự kiện sau bị bỏ qua, nên cảnh báo đã đóng không mở lại (khớp mục 4 của DV-15-09). Trùng mã sự kiện do inbox chặn trước.
+2. **Kỳ của cảnh báo (suy luận).** Avro EVT-20 không có `periodId`; kỳ lấy từ mục `ky:<uuid>` đầu tiên trong chuỗi bằng chứng, thiếu thì lấy kỳ hiện hành; kỳ không tồn tại hoặc không có kỳ hiện hành thì vào thư chết.
+3. **Chuỗi bằng chứng chỉ giữ mã.** Chỉ giữ mục dạng `tiền_tố:giá_trị` (tiền tố chữ thường, giá trị không dấu cách, tối đa 500 mục, bỏ trùng); văn bản tự do, tên người bị loại để không lưu C2.
+4. **Cờ chặn minh chứng (suy luận).** Cảnh báo `MINH_CHUNG_TRUNG` có mục `evidence:<uuid>` tạo hành động `TU_DONG` đang hiệu lực; `AnomalyAlertQueryApi.blockedEvidence` trả các minh chứng đang bị chặn để module nghiệm thu, đánh giá kiểm tra. Cờ gỡ khi cảnh báo đóng.
+5. **Phá chuỗi sổ cái luôn mức Cao.** Có mục `ledger_chain:` thì mức nâng lên Cao bất kể mức gửi tới (BR-14-07).
+6. **`HET_DAU_HIEU` (duyệt đề xuất ở mục 5 DV-15-09).** Nhận `severity = HET_DAU_HIEU` thì cảnh báo đang `MOI` chuyển `TU_DONG_DONG`, ghi chú tự động, gỡ cờ chặn rồi đóng `DONG`; cảnh báo đã có người xử lý thì giữ nguyên. Thư viện `services-py/vtplatform` (`AnomalyAlertPayload`) đã sửa theo hợp đồng: mã dấu hiệu, mức `CAO/VUA/THAP/HET_DAU_HIEU`, đối tượng `CA_NHAN/DON_VI/NGUOI_DUYET`, `subjectId` UUID, `evidenceChain` là chuỗi JSON, và mã sự kiện của tín hiệu hết dấu hiệu khác mã sự kiện phát hiện (ngoài danh sách tệp của task).
+7. **Gộp cấp đơn vị (suy luận).** Chỉ gộp cảnh báo `DON_VI`: khi số đơn vị con của cùng đơn vị cha có cảnh báo mở cùng dấu hiệu, cùng kỳ đạt ngưỡng (`oversight.anomaly.group-threshold`, mặc định 5, dưới 2 là tắt), tạo hoặc cập nhật một cảnh báo của đơn vị cha với các mục `anomaly_alert:<id>`, mức lấy mức cao nhất. Cảnh báo con vẫn giữ.
+8. **Thông báo tổng hợp (suy luận).** Job lúc 03:30 giờ Việt Nam gom cảnh báo mức Cao còn `MOI` chưa thông báo, gửi một EVT-21 mỗi người xử lý (mẫu `CANH_BAO_MUC_CAO_MOI`, tham số số lượng, không nêu tên đối tượng); người xử lý là người đánh giá của hồ sơ (`CA_NHAN`) hoặc của đơn vị (`DON_VI`); cảnh báo `NGUOI_DUYET` chưa có người nhận. Điểm lệch: notification-service hiện gửi thông báo cho từng EVT-20 (mẫu `CANH_BAO_BAT_THUONG`), trái nguyên tắc không phát từng cảnh báo; cần bỏ ở phía notification.
+9. **Câu hỏi mở.** Cổng đọc chỉ có trong tiến trình mission-core, chưa có hợp đồng HTTP cho SVC-07 hay saga; ledger-service còn phát `ledger.anomaly.detected.v1` riêng, chưa phát EVT-20 đúng hợp đồng. Kiểm thử tải 100 nghìn sự kiện chưa chạy (YC-PT-19), chỉ ghi mục tiêu.
+
 ## Liên quan
 
 - [README của wiki](README.md)
