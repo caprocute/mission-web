@@ -1,0 +1,7 @@
+flag_key,description,enabled,percent
+ai.weeklySummary,"Khối ""Tóm tắt tuần"" do AI tạo trên trang chủ",false,100
+okr.alignmentGraph,Đồ thị liên kết OKR giữa các cấp,true,100
+okr.aiSuggest,Gợi ý mục tiêu và kết quả then chốt bằng AI,false,100
+task.offlineSync,Cập nhật tiến độ khi mất mạng trên ứng dụng di động,false,100
+appraisal.peerFeedback,Nhận xét đồng cấp trong đánh giá,false,100
+ui.elderlyModeDefault,Bật sẵn chế độ Đảng viên cao tuổi cho tài khoản mới,false,100

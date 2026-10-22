@@ -27,11 +27,14 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.config.api.PeriodCalendarPort;
+import vn.viettel.okrkpi.config.application.FeatureFlagService;
 import vn.viettel.okrkpi.config.application.HolidayCalendarService;
 import vn.viettel.okrkpi.config.application.PeriodConfigService;
 import vn.viettel.okrkpi.config.application.PeriodLockService;
 import vn.viettel.okrkpi.config.application.PeriodReopenService;
 import vn.viettel.okrkpi.config.application.PeriodStateCache;
+import vn.viettel.okrkpi.config.application.TenantSettingService;
+import vn.viettel.okrkpi.config.application.port.ConfigAudit;
 import vn.viettel.okrkpi.config.application.port.LockOrderNotices;
 import vn.viettel.okrkpi.config.application.port.PeriodLockSaga;
 import vn.viettel.okrkpi.config.infrastructure.client.WorkflowPeriodLockSaga;
@@ -325,6 +328,61 @@ public class PeriodConfiguration {
         lockOrderNotices,
         new JdbcRoleHolders(JdbcClient.create(dataSource)),
         holidayCalendarService,
+        Clock.systemUtc());
+  }
+
+  /** CORE-08-07: sổ cái thay đổi cờ tính năng và ngưỡng bất thường ({@code sys.audit.v1}). */
+  @Bean
+  OutboxConfigAudit configAudit(
+      @Qualifier("configDataSource") DataSource dataSource,
+      @Value("${mission.config.outbox.registry-url:${okrkpi.inbox.registry.url}}") String registry,
+      ObjectProvider<ObjectMapper> json) {
+    return new OutboxConfigAudit(
+        new OutboxWriter(
+            new JdbcTemplate(dataSource),
+            "config",
+            new ApicurioPayloadSerializer(registry, Map.of()),
+            json.getIfAvailable(ObjectMapper::new),
+            Clock.systemUtc()));
+  }
+
+  @Bean
+  JdbcFeatureFlagRepository featureFlagRepository(
+      @Qualifier("configDataSource") DataSource dataSource, ObjectProvider<ObjectMapper> json) {
+    return new JdbcFeatureFlagRepository(
+        JdbcClient.create(dataSource), json.getIfAvailable(ObjectMapper::new));
+  }
+
+  @Bean
+  JdbcTenantSettingRepository tenantSettingRepository(
+      @Qualifier("configDataSource") DataSource dataSource, ObjectProvider<ObjectMapper> json) {
+    return new JdbcTenantSettingRepository(
+        JdbcClient.create(dataSource), json.getIfAvailable(ObjectMapper::new));
+  }
+
+  /** CORE-08-07: cờ tính năng ({@code FeatureFlagApi}), đệm theo tenant. */
+  @Bean
+  FeatureFlagService featureFlagService(
+      JdbcFeatureFlagRepository featureFlagRepository,
+      ConfigAudit configAudit,
+      @Qualifier("configTransactionManager") PlatformTransactionManager tm,
+      @Value("${mission.config.feature-flag-cache.ttl:30s}") Duration ttl) {
+    TransactionTemplate reads = new TransactionTemplate(tm);
+    reads.setReadOnly(true);
+    return new FeatureFlagService(
+        featureFlagRepository, configAudit, reads, Clock.systemUtc(), ttl);
+  }
+
+  /** CORE-08-07: cấu hình tenant ({@code TenantSettingApi}) và ngưỡng bất thường. */
+  @Bean
+  TenantSettingService tenantSettingService(
+      JdbcTenantSettingRepository tenantSettingRepository,
+      ConfigAudit configAudit,
+      ObjectProvider<ObjectMapper> json) {
+    return new TenantSettingService(
+        tenantSettingRepository,
+        configAudit,
+        json.getIfAvailable(ObjectMapper::new),
         Clock.systemUtc());
   }
 
