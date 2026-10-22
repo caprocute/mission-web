@@ -24,6 +24,7 @@ from app.core.exchange import TokenExchanger
 from app.core.opa import OpaClient
 from app.core.pipeline import Gateway, Overloaded
 from app.core.state import State
+from app.guard.guards import input_guard, output_guard
 from app.llm.client import InferenceQueue, Llm, MockLlm, OpenAiCompatLlm
 from app.store.suggestions import SuggestionStore
 
@@ -59,7 +60,8 @@ def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncB
                                    scope=s.exchange_scope, required_role=s.exchange_role)
         store = SuggestionStore(pool)
         gw = Gateway(InferenceQueue(model, s.llm_max_concurrency, s.llm_max_waiting), store,
-                     timeout_s=s.llm_timeout_s, sync_wait_s=s.llm_sync_wait_s, deferred_max=s.deferred_max)
+                     timeout_s=s.llm_timeout_s, sync_wait_s=s.llm_sync_wait_s, deferred_max=s.deferred_max,
+                     input_guards=[input_guard], output_guards=[output_guard])
         app.state.svc = State(verifier=verifier, opa=OpaClient(opa_http), core=CoreClient(core_http, exchanger),
                               gateway=gw, store=store, pool=pool)
         try:

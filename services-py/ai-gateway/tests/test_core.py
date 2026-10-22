@@ -187,9 +187,9 @@ async def test_gateway_sync_deferred_and_overloaded() -> None:
 async def test_guard_block_is_logged() -> None:
     store = MemStore()
 
-    async def no_scoring(_: Any, r: SuggestionRequest) -> Block | None:
-        return Block("OUT_OF_SCOPE", "CHAN", "Trợ lý không chấm điểm hay đề xuất xếp loại.") if "xếp loại" in \
-            r.messages[-1].content else None
+    async def no_scoring(_: Any, r: SuggestionRequest) -> list[Block]:
+        return [Block("OUT_OF_SCOPE", "CHAN", "Trợ lý không chấm điểm hay đề xuất xếp loại.")] if "xếp loại" in \
+            r.messages[-1].content else []
 
     gw = Gateway(InferenceQueue(MockLlm(), 1, 1), store, timeout_s=5, sync_wait_s=1, deferred_max=1,  # type: ignore[arg-type]
                  input_guards=[no_scoring])

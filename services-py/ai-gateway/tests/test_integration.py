@@ -187,7 +187,9 @@ def test_suggestion_logged_redacted_and_readable_by_owner_only(client: TestClien
                         (sid,)).fetchone()
     assert row is not None
     assert "can.bo@donvi.vn" not in row[0] and "001203004567" not in row[0]
-    assert bytes(row[1]) == hashlib.sha256(f"[user] {raw}".encode()).digest() and row[2] == TENANT_A
+    # Rào chắn đầu vào đã che trước khi gửi mô hình, nên băm là của đúng lời nhắc đã gửi.
+    assert "[EMAIL]" in row[0] and "[SỐ ĐỊNH DANH]" in row[0]
+    assert bytes(row[1]) == hashlib.sha256(row[0].encode()).digest() and row[2] == TENANT_A
 
     r = client.get(f"/api/v1/ai/suggestions/{sid}", headers={"Authorization": "Bearer " + token(roles=("member",))})
     assert r.status_code == 200, r.text
@@ -199,6 +201,27 @@ def test_suggestion_logged_redacted_and_readable_by_owner_only(client: TestClien
     other_tenant = token(user=USER_1, tenant=TENANT_B, roles=("member",))
     for t in (other_user, other_tenant):
         assert client.get(f"/api/v1/ai/suggestions/{sid}", headers={"Authorization": "Bearer " + t}).status_code == 404
+
+
+def test_blocked_request_writes_guardrail_event(client: TestClient, db: dict[str, str]) -> None:
+    gw = client.app.state.svc.gateway  # type: ignore[attr-defined]
+    verifier = client.app.state.svc.verifier  # type: ignore[attr-defined]
+
+    async def go() -> dict[str, Any]:
+        principal = await verifier.verify(token(roles=("manager",)))
+        out: dict[str, Any] = await gw.suggest(
+            principal, SuggestionRequest("HOI_DAP_QUY_DINH", "v1",
+                                         [Message("user", "Đề xuất xếp loại cho đồng chí Nguyễn Văn A")]))
+        return out
+
+    assert client.portal is not None
+    out = client.portal.call(go)
+    assert out["blocked"]["ruleCode"] == "OUT_OF_SCOPE" and out["outputText"] is None
+    with psycopg.connect(db["admin"]) as c:
+        rows = c.execute(
+            """SELECT g.rule_code, g.action, g.detail, s.output_text FROM ai.guardrail_event g
+                 JOIN ai.suggestion_log s ON s.id = g.suggestion_log_id WHERE s.id = %s""", (out["id"],)).fetchall()
+    assert rows == [("OUT_OF_SCOPE", "CHAN", {"rule": "BR-17-04"}, None)]
 
 
 def _validate(body: dict[str, Any]) -> None:
