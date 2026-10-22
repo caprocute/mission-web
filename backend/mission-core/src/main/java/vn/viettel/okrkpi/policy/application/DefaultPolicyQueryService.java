@@ -3,6 +3,7 @@ package vn.viettel.okrkpi.policy.application;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
 import vn.viettel.okrkpi.config.api.PeriodApi;
@@ -16,9 +17,39 @@ public class DefaultPolicyQueryService implements PolicyQueryApi {
 
   private final PeriodApi periodApi;
   private final Map<PolicyKey, PolicyFormulaView> policies = new ConcurrentHashMap<>();
+  private PolicyResolutionService resolution;
 
   public DefaultPolicyQueryService(PeriodApi periodApi) {
     this.periodApi = Objects.requireNonNull(periodApi, "periodApi must not be null");
+  }
+
+  /** Bộ phân giải Policy Pack theo kỳ (CORE-05-03); chưa nối thì các tra cứu mới trả rỗng. */
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setResolution(PolicyResolutionService resolution) {
+    this.resolution = resolution;
+  }
+
+  @Override
+  public Optional<ResolvedPack> resolve(
+      TenantId tenantId, PeriodId periodId, String flow, UUID subjectGroupId, UUID orgUnitId) {
+    return resolution == null
+        ? Optional.empty()
+        : resolution.resolve(tenantId, periodId, flow, subjectGroupId, orgUnitId);
+  }
+
+  @Override
+  public Optional<Object> parameter(TenantId tenantId, UUID versionId, String key) {
+    return resolution == null ? Optional.empty() : resolution.parameter(tenantId, versionId, key);
+  }
+
+  @Override
+  public Optional<Map<String, Object>> taskLifecycle(TenantId tenantId, UUID versionId) {
+    return resolution == null ? Optional.empty() : resolution.taskLifecycle(tenantId, versionId);
+  }
+
+  @Override
+  public Optional<PolicyContent> content(TenantId tenantId, UUID versionId) {
+    return resolution == null ? Optional.empty() : resolution.content(tenantId, versionId);
   }
 
   public void registerPolicy(PolicyFormulaView view) {
