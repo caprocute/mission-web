@@ -1,0 +1,212 @@
+{{- $v := .Values }}
+{{- $ns := $v.namespace }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: openbao
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+automountServiceAccountToken: true
+---
+# Auth kubernetes dùng token của chính OpenBao để gọi TokenReview (không cần token_reviewer_jwt tĩnh).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: openbao-tokenreview-{{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: system:auth-delegator }
+subjects:
+  - { kind: ServiceAccount, name: openbao, namespace: {{ $ns }} }
+---
+# service_registration "kubernetes" gắn nhãn openbao-active, openbao-sealed lên pod của chính nó.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: openbao-gan-nhan
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: openbao-gan-nhan
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: openbao-gan-nhan }
+subjects:
+  - { kind: ServiceAccount, name: openbao, namespace: {{ $ns }} }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: openbao
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+spec:
+  serviceName: openbao-internal
+  replicas: {{ $v.replicas }}
+  podManagementPolicy: Parallel
+  # Nâng cấp từng pod theo runbook (standby trước, leader sau cùng bằng step-down), không để Kubernetes tự xoay.
+  updateStrategy: { type: OnDelete }
+  selector:
+    matchLabels:
+      {{- include "openbao.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "openbao.labels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: openbao
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      {{- with $v.placement.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $v.placement.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "openbao.selector" . | nindent 14 }}
+      affinity:
+        podAntiAffinity:
+          {{- if eq $v.placement.antiAffinity "required" }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  {{- include "openbao.selector" . | nindent 18 }}
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "openbao.selector" . | nindent 20 }}
+          {{- end }}
+      {{- with $v.extraInitContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: openbao
+          image: {{ include "openbao.anh" . }}
+          imagePullPolicy: {{ $v.image.pullPolicy }}
+          command: [bao, server, -config=/openbao/config/openbao.hcl]
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: BAO_API_ADDR
+              value: "https://$(POD_NAME).openbao-internal.{{ $ns }}.svc:8200"
+            - name: BAO_CLUSTER_ADDR
+              value: "https://$(POD_NAME).openbao-internal.{{ $ns }}.svc:8201"
+            - name: BAO_RAFT_NODE_ID
+              value: "$(POD_NAME)"
+            - name: BAO_ADDR
+              value: "https://127.0.0.1:8200"
+            - name: BAO_CACERT
+              value: /openbao/tls/ca.crt
+            - name: BAO_TLS_SERVER_NAME
+              value: "$(POD_NAME).openbao-internal.{{ $ns }}.svc"
+            - name: BAO_K8S_POD_NAME
+              value: "$(POD_NAME)"
+            - name: BAO_K8S_NAMESPACE
+              value: {{ $ns }}
+            {{- with $v.seal.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - { name: https, containerPort: 8200 }
+            - { name: cluster, containerPort: 8201 }
+          readinessProbe:
+            # Sẵn sàng khi đã mở khoá (standby cũng nhận yêu cầu và chuyển tiếp về leader).
+            httpGet: { path: "/v1/sys/health?standbyok=true&perfstandbyok=true", port: 8200, scheme: HTTPS }
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            # Bị niêm phong hay chưa khởi tạo vẫn coi là sống (mã 503/501 cho phép), tránh vòng khởi động lại.
+            httpGet: { path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204", port: 8200, scheme: HTTPS }
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          resources:
+            {{- toYaml $v.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: config, mountPath: /openbao/config, readOnly: true }
+            - { name: tls, mountPath: /openbao/tls, readOnly: true }
+            - { name: hsm-pin, mountPath: /openbao/hsm, readOnly: true }
+            - { name: data, mountPath: /openbao/data }
+            - { name: audit, mountPath: /openbao/audit }
+            - { name: tmp, mountPath: /tmp }
+            - { name: pg-ca, mountPath: /openbao/pg-ca, readOnly: true }
+            {{- with $v.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: config
+          configMap: { name: openbao-config }
+        - name: tls
+          secret: { secretName: openbao-tls, defaultMode: 0440 }
+        - name: hsm-pin
+          secret:
+            secretName: {{ $v.seal.pkcs11.pinSecret.name }}
+            defaultMode: 0440
+            items: [{ key: {{ $v.seal.pkcs11.pinSecret.key }}, path: pin }]
+        - name: tmp
+          emptyDir: { medium: Memory, sizeLimit: 64Mi }
+        # CA công khai của các cụm PostgreSQL (<cụm>.crt) để secret engine database kết nối verify-full.
+        - name: pg-ca
+          configMap: { name: {{ $v.postgresCaConfigMap }}, optional: true }
+        {{- with $v.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+  volumeClaimTemplates:
+    {{- range $ten := list "data" "audit" }}
+    {{- $s := index $v.storage $ten }}
+    - metadata: { name: {{ $ten }} }
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with $s.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources: { requests: { storage: {{ $s.size }} } }
+    {{- end }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: openbao
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      {{- include "openbao.selector" . | nindent 6 }}

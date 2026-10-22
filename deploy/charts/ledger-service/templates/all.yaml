@@ -1,0 +1,2 @@
+{{- /* Chart dịch vụ dựng trên thư viện vt-service (INF-02); khoá values xem vt-service/templates/_defaults.tpl. */ -}}
+{{ include "vt-service.all" . }}

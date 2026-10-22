@@ -1,0 +1,83 @@
+{{- $v := .Values }}
+{{- $hs := index $v.hoSo ($v.global.sizing | default "L") }}
+{{- if not $hs }}{{ fail (printf "opensearch: không có hồ sơ định cỡ %s" $v.global.sizing) }}{{ end }}
+{{- if not (regexMatch "^sha256:[a-f0-9]{64}$" (toString $v.image.digest)) }}{{ fail "opensearch: ảnh phải ghim digest sha256 (SEC-55)" }}{{ end }}
+{{- $nhom := list }}
+{{- if $hs.kep }}
+{{- $nhom = list (dict "ten" "kep" "roles" (list "cluster_manager" "data" "ingest") "k" $hs.kep) }}
+{{- else }}
+{{- $nhom = list (dict "ten" "quan-ly" "roles" (list "cluster_manager") "k" $hs.quanLy) (dict "ten" "du-lieu" "roles" (list "data" "ingest") "k" $hs.duLieu) }}
+{{- end }}
+apiVersion: opensearch.org/v1
+kind: OpenSearchCluster
+metadata:
+  name: opensearch
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "opensearch.labels" . | nindent 4 }}
+spec:
+  general:
+    serviceName: opensearch
+    version: {{ $v.version | quote }}
+    image: "{{ $v.image.repository }}:{{ $v.image.tag }}@{{ $v.image.digest }}"
+    httpPort: 9200
+    setVMMaxMapCount: {{ $v.placement.setVMMaxMapCount }}
+    drainDataNodes: true
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      seccompProfile: { type: RuntimeDefault }
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities: { drop: [ALL] }
+    monitoring:
+      enable: false
+  security:
+    tls:
+      transport:
+        generate: false
+        perNode: false
+        secret: { name: opensearch-node-tls }
+        caSecret: { name: opensearch-node-tls }
+        nodesDn: [{{ $v.tls.nodesDn | quote }}]
+        adminDn: [{{ $v.tls.adminDn | quote }}]
+      http:
+        generate: false
+        secret: { name: opensearch-node-tls }
+        caSecret: { name: opensearch-node-tls }
+    config:
+      adminCredentialsSecret: { name: opensearch-admin-credentials }
+      securityConfigSecret: { name: opensearch-security-config }
+      adminSecret: { name: opensearch-admin-tls }
+  dashboards:
+    enable: false
+  nodePools:
+    {{- range $nhom }}
+    - component: {{ .ten }}
+      replicas: 3
+      roles: {{ toJson .roles }}
+      diskSize: {{ .k.disk }}
+      jvm: "-Xms{{ .k.heap }} -Xmx{{ .k.heap }}"
+      resources:
+        requests: { cpu: {{ .k.cpu | quote }}, memory: {{ .k.memory }} }
+        limits: { cpu: {{ .k.cpu | quote }}, memory: {{ .k.memory }} }
+      persistence:
+        pvc:
+          storageClass: {{ $v.storageClass }}
+          accessModes: [ReadWriteOnce]
+      nodeSelector:
+        {{- toYaml $v.placement.nodeSelector | nindent 8 }}
+      tolerations:
+        {{- toYaml $v.placement.tolerations | nindent 8 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: {{ ternary "ScheduleAnyway" "DoNotSchedule" (eq ($v.global.sizing | default "L") "compact") }}
+          labelSelector:
+            matchLabels: { opster.io/opensearch-nodepool: {{ .ten }} }
+      pdb:
+        enable: true
+        maxUnavailable: 1
+    {{- end }}

@@ -1,0 +1,7 @@
+# Chart istio/cni chạy cùng Cilium: Cilium phải đặt cni.exclusive=false và socketLB.hostNamespaceOnly=true
+# (deploy/environments/kind/cilium-values.yaml). istio-cni chỉ lắp chuyển hướng lưu lượng trong pod ambient.
+profile: ambient
+global:
+  hub: harbor.vt.local/proxy-docker/istio
+# Bỏ qua namespace hệ thống; namespace dữ liệu và observability không gắn nhãn ambient (cell-base) nên ở ngoài mesh.
+excludeNamespaces: [kube-system, istio-system]

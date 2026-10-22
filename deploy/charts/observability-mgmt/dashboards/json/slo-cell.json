@@ -1,0 +1,543 @@
+{
+   "panels": [
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "red",
+                        "value": null
+                     },
+                     {
+                        "color": "orange",
+                        "value": 0.25
+                     },
+                     {
+                        "color": "green",
+                        "value": 0.5
+                     }
+                  ]
+               },
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "id": 1,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "1 - (avg_over_time(slo:api_availability_errors:ratio_rate1h{cell=~\"$cell\"}[30d]) / 0.001)",
+               "legendFormat": ""
+            }
+         ],
+         "title": "Ngân sách lỗi khả dụng còn lại (30 ngày)",
+         "type": "stat"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     },
+                     {
+                        "color": "orange",
+                        "value": 6
+                     },
+                     {
+                        "color": "red",
+                        "value": 14.4
+                     }
+                  ]
+               },
+               "unit": "none"
+            }
+         },
+         "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 6,
+            "y": 0
+         },
+         "id": 2,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "slo:api_availability_errors:ratio_rate1h{cell=~\"$cell\"} / 0.001",
+               "legendFormat": ""
+            }
+         ],
+         "title": "Tốc độ tiêu 1 giờ",
+         "type": "stat"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     },
+                     {
+                        "color": "orange",
+                        "value": 6
+                     },
+                     {
+                        "color": "red",
+                        "value": 14.4
+                     }
+                  ]
+               },
+               "unit": "none"
+            }
+         },
+         "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 12,
+            "y": 0
+         },
+         "id": 3,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "slo:api_availability_errors:ratio_rate6h{cell=~\"$cell\"} / 0.001",
+               "legendFormat": ""
+            }
+         ],
+         "title": "Tốc độ tiêu 6 giờ",
+         "type": "stat"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "red",
+                        "value": null
+                     },
+                     {
+                        "color": "green",
+                        "value": 0.94999999999999996
+                     }
+                  ]
+               },
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 18,
+            "y": 0
+         },
+         "id": 4,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "slo:api_read_fast:ratio_rate5m{cell=~\"$cell\"}",
+               "legendFormat": ""
+            }
+         ],
+         "title": "Request đọc nhanh (≤ 300 ms)",
+         "type": "stat"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+         },
+         "id": 5,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum(rate(apisix_http_status{cell=~\"$cell\", code=~\"5..\"}[$__rate_interval])) / sum(rate(apisix_http_status{cell=~\"$cell\"}[$__rate_interval]))",
+               "legendFormat": "tỷ lệ lỗi"
+            },
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "0.001",
+               "legendFormat": "mục tiêu 0,1%"
+            }
+         ],
+         "title": "Tỷ lệ lỗi khả dụng",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+         },
+         "id": 6,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "slo:api_read_fast:ratio_rate5m{cell=~\"$cell\"}",
+               "legendFormat": "đọc ≤ 300 ms"
+            },
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "slo:api_write_fast:ratio_rate5m{cell=~\"$cell\"}",
+               "legendFormat": "ghi ≤ 800 ms"
+            },
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "slo:api_async_fast:ratio_rate5m{cell=~\"$cell\"}",
+               "legendFormat": "tác vụ dài ≤ 200 ms"
+            }
+         ],
+         "title": "Tỷ lệ request trong ngưỡng độ trễ",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "ms"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 16
+         },
+         "id": 7,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "histogram_quantile(0.95, sum by (le) (rate(apisix_http_latency_bucket{cell=~\"$cell\", type=\"request\"}[$__rate_interval])))",
+               "legendFormat": "p95"
+            },
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "histogram_quantile(0.99, sum by (le) (rate(apisix_http_latency_bucket{cell=~\"$cell\", type=\"request\"}[$__rate_interval])))",
+               "legendFormat": "p99"
+            }
+         ],
+         "title": "Phân vị độ trễ tại cổng",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "s"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 16
+         },
+         "id": 8,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": true,
+               "expr": "histogram_quantile(0.99, sum by (le, service) (rate(http_server_requests_seconds_bucket{cell=~\"$cell\"}[$__rate_interval])))",
+               "legendFormat": "{{service}} p99"
+            }
+         ],
+         "title": "Độ trễ dịch vụ (kèm exemplar sang Tempo)",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "reqps"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 24
+         },
+         "id": 9,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum by (kind) (slo:api_requests:rate5m{cell=~\"$cell\"})",
+               "legendFormat": "{{kind}}"
+            }
+         ],
+         "title": "Lưu lượng theo loại request",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "s"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 24
+         },
+         "id": 10,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "histogram_quantile(0.99, sum by (le) (rate(vt_scoring_lag_seconds_bucket{cell=~\"$cell\"}[$__rate_interval])))",
+               "legendFormat": "tính điểm p99 (mục tiêu 60 s)"
+            },
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "histogram_quantile(0.999, sum by (le) (rate(vt_ledger_lag_seconds_bucket{cell=~\"$cell\"}[$__rate_interval])))",
+               "legendFormat": "sổ cái p99,9 (mục tiêu 30 s)"
+            }
+         ],
+         "title": "Độ trễ tính điểm và ghi sổ cái",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "loki",
+            "uid": "loki"
+         },
+         "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 34
+         },
+         "id": 11,
+         "options": {
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showTime": true,
+            "wrapLogMessage": false
+         },
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "loki",
+                  "uid": "loki"
+               },
+               "expr": "{cell=~\"$cell\", namespace=~\".+\"} | json | level=~\"(?i)error|warn\""
+            }
+         ],
+         "title": "Log lỗi của cell (mở trace qua trace_id)",
+         "type": "logs"
+      }
+   ],
+   "refresh": "1m",
+   "schemaVersion": 39,
+   "tags": [
+      "vt",
+      "inf-15"
+   ],
+   "templating": {
+      "list": [
+         {
+            "allValue": ".*",
+            "current": {
+               "text": "All",
+               "value": "$__all"
+            },
+            "datasource": {
+               "type": "prometheus",
+               "uid": "thanos"
+            },
+            "includeAll": true,
+            "label": "Cell",
+            "name": "cell",
+            "query": "label_values(up, cell)",
+            "refresh": "time",
+            "type": "query"
+         }
+      ]
+   },
+   "time": {
+      "from": "now-6h",
+      "to": "now"
+   },
+   "timezone": "Asia/Ho_Chi_Minh",
+   "title": "SLO theo cell",
+   "uid": "vt-slo-cell"
+}

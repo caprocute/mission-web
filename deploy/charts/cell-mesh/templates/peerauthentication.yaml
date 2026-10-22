@@ -1,0 +1,29 @@
+{{- if not (has .Values.mtlsMode (list "STRICT")) }}{{ fail "cell-mesh: mtlsMode chỉ nhận STRICT (ADR-11, SEC-21)" }}{{ end }}
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: istio-system
+spec:
+  mtls:
+    mode: {{ .Values.mtlsMode }}
+{{- range .Values.scrapePorts }}
+---
+# Prometheus ngoài mesh thu số liệu qua cổng {{ join ", " .ports }}: chỉ cổng này nhận lưu lượng không mTLS.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: {{ .name }}
+  namespace: {{ .namespace }}
+spec:
+  selector:
+    matchLabels:
+      {{- toYaml .selector | nindent 6 }}
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    {{- range .ports }}
+    {{ . }}:
+      mode: PERMISSIVE
+    {{- end }}
+{{- end }}

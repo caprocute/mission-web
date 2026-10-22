@@ -1,0 +1,10 @@
+apiVersion: v2
+name: search
+description: 'SVC-16 search: indexer đưa sự kiện vào OpenSearch (TL-04 mục 5.2).'
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+dependencies:
+  - name: vt-service
+    version: 0.1.0
+    repository: file://../vt-service

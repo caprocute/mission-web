@@ -1,0 +1,30 @@
+# Cấu hình kube-linter cho kiem-ba-mo-hinh.sh (INF-02): chép từ vt-service/tests/kube-linter.yaml, thêm các mục cuối.
+checks:
+  addAllBuiltIn: true
+  exclude:
+    # Ảnh tham chiếu theo digest, không có tag: kiểm tra latest-tag không áp dụng.
+    - latest-tag
+    # Chính sách NetworkPolicy default-deny của namespace do cell-base (INF-08) tạo, không nằm trong chart này.
+    - no-node-affinity
+    # Service account tên theo service, không dùng default; kube-linter không đọc được SA tạo cùng chart khi lint từng tệp.
+    - non-existent-service-account
+    # Bỏ qua kiểm tra yêu cầu nhãn chủ sở hữu tuỳ biến của kube-linter (không thuộc quy ước TL-04).
+    - required-annotation-email
+    - required-label-owner
+    # DNS theo mặc định của cụm (ndots do CoreDNS cell quản lý); TL-04 không yêu cầu dnsConfig riêng từng pod.
+    - dnsconfig-options
+    # restartPolicy của Pod trong Deployment luôn là Always theo mặc định API; kube-linter báo nhầm khi trường để trống.
+    - restart-policy
+    # Workload có HPA/ScaledObject không khai spec.replicas (bộ co giãn quản lý, minReplicas ≥ 3); kube-linter coi là 1.
+    - minimum-three-replicas
+    # Phân bố pod dùng topologySpreadConstraints theo vùng và node (TL-04 mục 3.4) thay cho podAntiAffinity.
+    - no-anti-affinity
+    # kube-linter không hiểu CRD Rollout của Argo, nên Service/NetworkPolicy của mission-core bị coi là "treo".
+    - dangling-service
+    - dangling-networkpolicy
+    # vLLM phát hành Recreate từng instance vì mỗi pod chiếm trọn GPU (TL-04 mục 5.2).
+    - no-rolling-update-strategy
+    # Service apisix-gateway kiểu LoadBalancer là cổng vào của cell (TL-04 mục 3.7).
+    - exposed-services
+    # TL-04 mục 5.2 cho phép minReplicas 2 với một số service (esign, document, Gotenberg, ai-gateway, analytics...).
+    - hpa-minimum-three-replicas

@@ -1,0 +1,13 @@
+# Ảnh OpenBao của cell (INF-13). Từ OpenBao 2.7 seal PKCS#11 là plugin KMS ngoài, và plugin dùng cgo nên cần
+# bản glibc (openbao-ubi), không dùng được ảnh Alpine mặc định. Thư viện PKCS#11 của nhà sản xuất HSM được chép vào
+# qua HSM_CLIENT (thư mục bộ cài client HSM do nhà sản xuất cấp, không có trong Git). Jenkins dựng, quét, ký cosign
+# rồi đẩy lên Harbor; chart ghim digest ảnh và sha256 của tệp plugin (seal.plugin.sha256).
+ARG OPENBAO_IMAGE=quay.io/openbao/openbao-ubi:2.7.1@sha256:33c4c3a7aeb8b812d570939bd7275f829901031e0a6b3e655207d8f0945bd248
+ARG PLUGIN_IMAGE=ghcr.io/openbao/openbao-plugin-kms-pkcs11:v0.2.1@sha256:babba58243c7db7ffb9b906e25f35643704e8814792f5b678b3c215acba284f5
+FROM ${PLUGIN_IMAGE} AS plugin
+FROM ${OPENBAO_IMAGE}
+USER 0
+COPY --from=plugin --chmod=0755 /openbao-plugin-kms-pkcs11 /usr/local/libexec/openbao/openbao-plugin-kms-pkcs11
+COPY hsm-client/ /opt/hsm-client/
+RUN ln -s /opt/hsm-client/lib/libhsm-vendor.so /usr/lib64/pkcs11/libhsm-vendor.so
+USER 100

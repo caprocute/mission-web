@@ -3,6 +3,7 @@ apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
   name: workflow-async-executor
+  namespace: {{ include "workflow-service.namespace" . }}
   labels:
     {{- include "workflow-service.labels" . | nindent 4 }}
 spec:

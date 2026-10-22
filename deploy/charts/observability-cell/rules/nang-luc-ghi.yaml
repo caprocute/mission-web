@@ -1,0 +1,41 @@
+# Tín hiệu đầu vào của các ngưỡng nâng bậc NG-01..NG-14 (TL-05 mục "Danh mục ngưỡng NG"), ghi mỗi phút ở
+# Prometheus của cell. Luật cảnh báo NG so sánh các chuỗi này qua cửa sổ dài (7, 30, 60 ngày) nên chạy ở
+# Thanos Ruler của cụm quản trị (observability-mgmt/rules/nang-luc.yaml), nơi đọc được dữ liệu lâu dài.
+groups:
+  - name: ng-nang-luc.rules
+    interval: 1m
+    rules:
+      # NG-02: số user task Flowable hoàn thành mỗi giây.
+      - record: ng:flowable_task_completed:rate5m
+        expr: sum(rate(flowable_task_completed_total[5m]))
+      # NG-03: tỷ lệ CPU của primary pg-core so với giới hạn.
+      - record: ng:pg_core_primary_cpu:ratio
+        expr: |
+          max(
+            sum by (pod) (rate(container_cpu_usage_seconds_total{namespace="data-pg", pod=~"pg-core-.*", container="postgres"}[5m]))
+            / sum by (pod) (kube_pod_container_resource_limits{namespace="data-pg", pod=~"pg-core-.*", container="postgres", resource="cpu"})
+            and on (pod) (cnpg_pg_replication_in_recovery == 0)
+          )
+      # NG-05: 1 khi mission-core đang chạy ở maxReplicas, 0 khi chưa; cộng theo phút ra số phút trong ngày.
+      - record: ng:mission_core_at_max_replicas:bool
+        expr: |
+          max(
+            kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler="mission-core"}
+            >= bool kube_horizontalpodautoscaler_spec_max_replicas{horizontalpodautoscaler="mission-core"}
+          )
+      # NG-08: mức đầy đĩa lớn nhất trong các broker Kafka.
+      - record: ng:kafka_broker_disk:ratio
+        expr: |
+          max(kubelet_volume_stats_used_bytes{namespace="data-kafka"} / kubelet_volume_stats_capacity_bytes{namespace="data-kafka"})
+      # NG-09: heap OpenSearch lớn nhất theo node.
+      - record: ng:opensearch_heap:ratio
+        expr: max(opensearch_jvm_mem_heap_used_bytes / opensearch_jvm_mem_heap_max_bytes)
+      # NG-12: số chuỗi hoạt động của Prometheus cell.
+      - record: ng:prometheus_head_series:max
+        expr: max(prometheus_tsdb_head_series)
+      # NG-13: hàng đợi vLLM và tỷ lệ 503 của ai-gateway.
+      - record: ng:vllm_requests_waiting:sum
+        expr: sum(vllm:num_requests_waiting)
+      - record: ng:ai_gateway_unavailable:ratio_rate1h
+        expr: |
+          sum(rate(apisix_http_status{route=~"ai-gateway.*", code="503"}[1h])) / sum(rate(apisix_http_status{route=~"ai-gateway.*"}[1h]))

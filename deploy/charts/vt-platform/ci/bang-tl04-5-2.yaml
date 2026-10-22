@@ -1,0 +1,26 @@
+# Bảng cấu hình theo service cho cell hạng L, chép từ TL-04 mục 5.2 (dòng 855–877) để đối chiếu tự động.
+# startup: số giây ngân sách khởi động (periodSeconds × failureThreshold) hoặc đường dẫn probe khi TL ghi đường dẫn.
+# readiness: đường dẫn, "actuator" (/actuator/health/readiness) hoặc "TCP <cổng>".
+# pdb: "minAvailable N" hoặc "maxUnavailable N"; phatHanh: Rollout | RollingUpdate | Recreate.
+- { svc: SVC-01, ten: apisix, min: 3, max: 8, cpu: ["2", "4"], mem: 2Gi, startup: "TCP 9080", readiness: /apisix/status, pdb: minAvailable 2, phatHanh: RollingUpdate }
+- { svc: SVC-02, ten: keycloak, min: 3, max: 8, cpu: ["2", "3"], mem: 3Gi, startup: /health/started, readiness: /health/ready, pdb: minAvailable 2, phatHanh: RollingUpdate }
+- { svc: SVC-04, ten: org-service, min: 3, max: 6, cpu: ["1", "2"], mem: 3Gi, startup: 150, readiness: actuator, pdb: minAvailable 2, phatHanh: RollingUpdate }
+- { svc: SVC-05, ten: mission-core, min: 6, max: 24, cpu: ["3", "4"], mem: 8Gi, startup: 150, readiness: actuator, pdb: maxUnavailable 1, phatHanh: Rollout }
+- { svc: SVC-06, ten: workflow-api, min: 3, max: 8, cpu: ["2", "3"], mem: 6Gi, startup: 180, readiness: actuator, pdb: minAvailable 2, phatHanh: Rollout }
+- { svc: SVC-06, ten: workflow-executor, min: 2, max: 10, cpu: ["2", "3"], mem: 4Gi, startup: 180, readiness: actuator, pdb: maxUnavailable 1, phatHanh: RollingUpdate }
+- { svc: SVC-07, ten: scoring-service, min: 2, max: 24, cpu: ["2", "3"], mem: 4Gi, startup: 120, readiness: actuator, pdb: maxUnavailable 25%, phatHanh: RollingUpdate }
+- { svc: SVC-08, ten: evidence-service, min: 3, max: 8, cpu: ["2", "3"], mem: 3Gi, startup: 120, readiness: actuator, pdb: minAvailable 2, phatHanh: RollingUpdate }
+- { svc: SVC-08, ten: clamav-scanner, min: 2, max: 12, cpu: ["1", "2"], mem: 3Gi, startup: 300, readiness: TCP 3310, pdb: maxUnavailable 25%, phatHanh: RollingUpdate }
+- { svc: SVC-09, ten: ledger-service, min: 6, max: 12, cpu: ["1", "2"], mem: 1Gi, startup: null, readiness: /readyz, pdb: maxUnavailable 1, phatHanh: RollingUpdate }
+- { svc: SVC-10, ten: esign-service, min: 2, max: 6, cpu: ["1", "2"], mem: 2Gi, startup: 120, readiness: actuator, pdb: minAvailable 1, phatHanh: RollingUpdate }
+- { svc: SVC-11, ten: document-service, min: 2, max: 20, cpu: ["1", "2"], mem: 3Gi, startup: 120, readiness: actuator, pdb: maxUnavailable 25%, phatHanh: RollingUpdate }
+- { svc: SVC-11, ten: gotenberg, min: 2, max: 24, cpu: ["2", "2"], mem: 3Gi, startup: /health, readiness: /health, pdb: maxUnavailable 25%, phatHanh: RollingUpdate }
+- { svc: SVC-12, ten: notification-service, min: 4, max: 10, cpu: ["2", "2"], mem: 2Gi, startup: null, readiness: /readyz, pdb: maxUnavailable 1, phatHanh: RollingUpdate }
+- { svc: SVC-13, ten: integration-gateway, min: 3, max: 6, cpu: ["1", "2"], mem: 3Gi, startup: 150, readiness: actuator, pdb: minAvailable 2, phatHanh: RollingUpdate }
+- { svc: SVC-14, ten: ai-gateway, min: 2, max: 6, cpu: ["1", "2"], mem: 2Gi, startup: null, readiness: /readyz, pdb: minAvailable 1, phatHanh: RollingUpdate }
+- { svc: SVC-14, ten: vllm, min: 2, max: 4, cpu: ["8", "16"], mem: 64Gi, gpu: 1, startup: 600, readiness: /health, pdb: maxUnavailable 1, phatHanh: Recreate }
+- { svc: SVC-15, ten: analytics-api, min: 2, max: 6, cpu: ["1", "2"], mem: 2Gi, startup: 90, readiness: actuator, pdb: minAvailable 1, phatHanh: RollingUpdate }
+- { svc: SVC-15, ten: cube, min: 3, max: 8, cpu: ["2", "4"], mem: 4Gi, startup: /readyz, readiness: /readyz, pdb: minAvailable 2, phatHanh: RollingUpdate }
+- { svc: SVC-15, ten: superset, min: 2, max: 4, cpu: ["1", "2"], mem: 3Gi, startup: /health, readiness: /health, pdb: minAvailable 1, phatHanh: RollingUpdate }
+- { svc: SVC-16, ten: search-indexer, min: 2, max: 6, cpu: ["1", "2"], mem: 2Gi, startup: 90, readiness: actuator, pdb: maxUnavailable 1, phatHanh: RollingUpdate }
+- { svc: SVC-17, ten: web-frontend, min: 2, max: 4, cpu: ["250m", "500m"], mem: 256Mi, startup: /healthz, readiness: /healthz, pdb: minAvailable 1, phatHanh: RollingUpdate }

@@ -1,0 +1,10 @@
+apiVersion: v2
+name: notification-service
+description: 'SVC-12 notification-service: thông báo và SSE, đóng SSE dần trong 30 s (TL-04 mục 5.2).'
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+dependencies:
+  - name: vt-service
+    version: 0.1.0
+    repository: file://../vt-service

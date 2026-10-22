@@ -1,0 +1,73 @@
+# Namespace observability mặc định từ chối (cell-base); các thành phần quan sát nói chuyện tự do với nhau.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-intra-observability
+  namespace: observability
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from: [{ podSelector: {} }]
+  egress:
+    - to: [{ podSelector: {} }]
+---
+# Prometheus thu metric của mọi namespace (phía đích mở bằng NetworkPolicy của vt-service hoặc cell-base).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus-scrape
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: prometheus }
+  policyTypes: ["Egress"]
+  egress:
+    - to: [{ namespaceSelector: {} }]
+---
+# Kube API server, kubelet và node không chọn được bằng NetworkPolicy chuẩn; Cilium dùng thực thể (entity).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: observability-to-cluster
+  namespace: observability
+spec:
+  endpointSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [prometheus, kube-prometheus-stack-prometheus-operator, fluent-bit, kube-state-metrics, prometheus-node-exporter]
+  egress:
+    - toEntities: [kube-apiserver, host, remote-node]
+---
+# Webhook của Prometheus Operator được API server gọi vào.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: operator-webhook
+  namespace: observability
+spec:
+  endpointSelector:
+    matchLabels: { app.kubernetes.io/name: kube-prometheus-stack-prometheus-operator }
+  ingress:
+    - fromEntities: [kube-apiserver, host, remote-node]
+{{- with .Values.egressCIDRs }}
+---
+# Đích ngoài cụm: Loki và kho S3 của cụm quản trị (giá trị của môi trường).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: observability-to-mgmt
+  namespace: observability
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: [fluent-bit, prometheus, otel-gateway] }
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        {{- range . }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+      ports: [{ protocol: TCP, port: 443 }, { protocol: TCP, port: 4317 }]
+{{- end }}

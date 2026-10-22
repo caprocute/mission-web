@@ -1,0 +1,147 @@
+# SVC-08 evidence-service: API minh chứng và bộ quét ClamAV (TL-04 mục 5.2).
+# Mặc định là cell hạng L theo bảng TL-04 mục 5.2. Digest ảnh toàn số 0 là giả lập; CI thay bằng digest thật (INF-05).
+global:
+  cell: ''
+  sizing: L
+thanhPhan:
+  evidence-service:
+    name: evidence-service
+    namespace: platform
+    image:
+      repository: harbor.vt.local/platform/evidence-service
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    runtime: java
+    resources:
+      requests:
+        cpu: '2'
+        memory: 3Gi
+      limits:
+        cpu: '3'
+        memory: 3Gi
+    probes:
+      startup:
+        periodSeconds: 5
+        failureThreshold: 24
+    pdb:
+      minAvailable: 2
+      maxUnavailable: ''
+    autoscaling:
+      hpa:
+        enabled: true
+        minReplicas: 3
+        maxReplicas: 8
+        cpuUtilization: 75
+    java:
+      gc: zgc
+      maxRamPercentage: 65
+    opa:
+      enabled: true
+      image:
+        repository: harbor.vt.local/k8s/opa
+        digest: sha256:3c995dc8a59f6ddfd92eb7404d2f7ff9fe71cd025d9251199957a8a6afbfd76e
+    networkPolicy:
+      ingressFrom:
+        - namespace: edge
+          podLabels:
+            app.kubernetes.io/name: apisix
+          ports:
+            - port: 8080
+        - namespace: observability
+          ports:
+            - port: 8081
+        - namespace: core
+          podLabels:
+            app.kubernetes.io/name: mission-core
+          ports:
+            - port: 8080
+      egressTo:
+        - namespace: data-pg
+          podLabels:
+            cnpg.io/poolerName: pg-platform-pooler-rw
+          ports:
+            - port: 5432
+        - namespace: data-kafka
+          podLabels:
+            strimzi.io/cluster: kafka-cell
+          ports:
+            - port: 9093
+        - namespace: egress
+          podLabels:
+            app.kubernetes.io/name: egress-gateway
+          ports:
+            - port: 443
+          objectStore: true
+        - namespace: observability
+          podLabels:
+            app.kubernetes.io/name: otel-agent
+          ports:
+            - port: 4317
+  clamav:
+    name: clamav-scanner
+    namespace: workers
+    image:
+      repository: harbor.vt.local/platform/clamav-scanner
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    runtime: custom
+    resources:
+      requests:
+        cpu: '1'
+        memory: 3Gi
+      limits:
+        cpu: '2'
+        memory: 3Gi
+    probes:
+      startup:
+        tcp: true
+        port: mgmt
+        periodSeconds: 5
+        failureThreshold: 60
+      liveness:
+        tcp: true
+        port: mgmt
+      readiness:
+        tcp: true
+        port: mgmt
+    pdb:
+      maxUnavailable: 25%
+    autoscaling:
+      hpa:
+        enabled: true
+        minReplicas: 2
+        maxReplicas: 12
+        cpuUtilization: 75
+    nodePool: worker
+    serviceMonitor:
+      enabled: false
+    ports:
+      http: 8080
+      mgmt: 3310
+    service:
+      exposeMgmt: false
+    extraVolumes:
+      - name: chu-ky
+        emptyDir:
+          sizeLimit: 2Gi
+    extraVolumeMounts:
+      - name: chu-ky
+        mountPath: /var/lib/clamav
+    networkPolicy:
+      ingressFrom: []
+      egressTo:
+        - namespace: data-kafka
+          podLabels:
+            strimzi.io/cluster: kafka-cell
+          ports:
+            - port: 9093
+        - namespace: egress
+          podLabels:
+            app.kubernetes.io/name: egress-gateway
+          ports:
+            - port: 443
+          objectStore: true
+        - namespace: egress
+          podLabels:
+            app.kubernetes.io/name: egress-gateway
+          ports:
+            - port: 443
+          internet: true

@@ -6,6 +6,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ include "iam.fullname" . }}-realm-import
+  namespace: {{ include "iam.namespace" . }}
   labels:
     {{- include "iam.labels" . | nindent 4 }}
     app.kubernetes.io/component: realm-import

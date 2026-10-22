@@ -1,0 +1,94 @@
+# Cấu hình Alertmanager của cụm quản trị (TL-04 mục 10.5, OPS-13; INF-15).
+# Gom theo cell và alertname; critical gọi trực ca, warning nhắn tin kênh đội, capacity (ngưỡng NG của TL-05)
+# chỉ gửi kênh đội nền tảng. Địa chỉ webhook là bí mật của môi trường, đọc từ tệp gắn qua Secret
+# alertmanager-webhooks (url_file), không nằm trong repo.
+global:
+  resolve_timeout: 5m
+
+templates: []
+
+route:
+  receiver: nhan-tin-sre
+  group_by: [cell, alertname]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    # Ngưỡng năng lực: không gọi trực, nhắc lại mỗi ngày tới khi xử lý.
+    - matchers: ['severity="capacity"']
+      receiver: nen-tang
+      group_by: [cell, ng]
+      repeat_interval: 24h
+    # Ngân sách lỗi quá nửa trước ngày 15 (OPS-19): báo chủ sản phẩm và SRE.
+    - matchers: ['severity="info"']
+      receiver: chu-san-pham
+      repeat_interval: 24h
+    # Mọi cảnh báo critical gọi trực ca, rồi đi tiếp xuống tuyến của đội phụ trách.
+    - matchers: ['severity="critical"']
+      receiver: goi-truc
+      repeat_interval: 1h
+      continue: true
+    - matchers: ['doi="soc"']
+      receiver: soc
+    - matchers: ['doi=~"dba|sre-dba"']
+      receiver: dba
+      continue: true
+    - matchers: ['doi="quan-tri-khoa"']
+      receiver: quan-tri-khoa
+    - matchers: ['doi="ic"']
+      receiver: chi-huy-su-co
+    - matchers: ['doi="chu-service"']
+      receiver: chu-service
+    - matchers: ['doi=~"sre|sre-dba|sre-luu-tru"']
+      receiver: nhan-tin-sre
+
+inhibit_rules:
+  # Cụm CNPG lỗi thì outbox tất yếu tồn đọng: chỉ báo nguyên nhân (TL-04 mục 10.5).
+  - source_matchers: ['alertname="CNPGClusterNotHealthy"']
+    target_matchers: ['alertname="OutboxBacklog"']
+    equal: [cell]
+  # Tiêu nhanh đã gọi trực thì không nhắn thêm cảnh báo tiêu chậm của cùng cell.
+  - source_matchers: ['alertname="SLOAvailabilityFastBurn"']
+    target_matchers: ['alertname="SLOAvailabilitySlowBurn"']
+    equal: [cell]
+  # Cùng một cảnh báo có hai mức (ví dụ CNPGReplicaClusterLag): mức critical che mức warning.
+  - source_matchers: ['severity="critical"']
+    target_matchers: ['severity="warning"']
+    equal: [cell, alertname, cluster]
+  # Cell đã vào mức suy giảm 2 thì cảnh báo độ trễ là hệ quả của cắt tải có chủ đích.
+  - source_matchers: ['alertname="SaturationLevel2"']
+    target_matchers: ['alertname=~"SLOReadLatencyBurn|SLOWriteLatencyBurn"']
+    equal: [cell]
+
+receivers:
+  - name: goi-truc
+    webhook_configs:
+      - url_file: /etc/alertmanager/webhooks/goi-truc
+        send_resolved: true
+  - name: nhan-tin-sre
+    webhook_configs:
+      - url_file: /etc/alertmanager/webhooks/nhan-tin-sre
+        send_resolved: true
+  - name: dba
+    webhook_configs:
+      - url_file: /etc/alertmanager/webhooks/dba
+        send_resolved: true
+  - name: soc
+    webhook_configs:
+      - url_file: /etc/alertmanager/webhooks/soc
+        send_resolved: true
+  - name: quan-tri-khoa
+    webhook_configs:
+      - url_file: /etc/alertmanager/webhooks/quan-tri-khoa
+  - name: chi-huy-su-co
+    webhook_configs:
+      - url_file: /etc/alertmanager/webhooks/chi-huy-su-co
+  - name: chu-service
+    webhook_configs:
+      - url_file: /etc/alertmanager/webhooks/chu-service
+  - name: nen-tang
+    webhook_configs:
+      - url_file: /etc/alertmanager/webhooks/nen-tang
+  - name: chu-san-pham
+    webhook_configs:
+      - url_file: /etc/alertmanager/webhooks/chu-san-pham

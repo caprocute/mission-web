@@ -1,0 +1,149 @@
+# Mã cell; vt-claims từ chối JWT có claim cell khác giá trị này.
+cell: g4
+
+# controller: APISIX đọc cấu hình từ etcd, APISIX Ingress Controller đồng bộ CRD ApisixRoute,
+# ApisixPluginConfig, ApisixGlobalRule từ kho GitOps (TL-04 mục 3.7, dùng cho cụm thật).
+# standalone: APISIX đọc conf/apisix.yaml sinh từ cùng values, không cần etcd và controller (dùng cho kind).
+mode: controller
+
+apisix:
+  image:
+    repository: docker.io/apache/apisix
+    digest: sha256:c5c7a55ebb5c07abc210dbb963a37f41030e12c91d23bacedbaa168fec633bd7
+  replicas: 3
+  # Co giãn và PDB theo bảng TL-04 mục 5.2 (SVC-01: 3/8 replica, minAvailable 2), thêm ở INF-02.
+  autoscaling: { enabled: true, minReplicas: 3, maxReplicas: 8, cpuUtilization: 70 }
+  pdb: { minAvailable: 2 }
+  # Pool ingress theo TL-04 mục 3.3 (taint vt.io/pool=ingress:NoSchedule); none để bỏ ràng buộc.
+  nodePool: ingress
+  workerProcesses: 4
+  resources:
+    requests: { cpu: "2", memory: 2Gi }
+    limits: { cpu: "4", memory: 2Gi }
+  ports: { http: 9080, https: 9443 }
+  service:
+    type: LoadBalancer
+    annotations: {}
+  # TLS 1.3; TLS 1.2 với bộ mã AEAD chỉ bật cho danh sách thiết bị cũ (TL-04 mục 3.7) qua ApisixTls riêng.
+  tls:
+    protocols: TLSv1.3
+    # Secret chứa tls.crt, tls.key (do cert-manager cấp); rỗng thì không sinh ApisixTls.
+    secretName: ""
+    hosts: []
+  # Dải địa chỉ được tin header X-Forwarded-For (bộ cân bằng tải phía trước).
+  trustedAddresses: []
+
+etcd:
+  image:
+    repository: gcr.io/etcd-development/etcd
+    digest: sha256:fd158fbe55240e252947bbd2e8dddc217997ff43978071fac2bd202b6ad15c03
+  replicas: 3
+  storage: 8Gi
+  storageClassName: ""
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { cpu: "1", memory: 1Gi }
+
+ingressController:
+  image:
+    repository: docker.io/apache/apisix-ingress-controller
+    digest: sha256:5d279f14d0cc6b7f4413e8f7f4c86f91cc2698e6d15dbfc5d022eab3cc8a0246
+  replicas: 2
+  # Dải địa chỉ kube-apiserver để mở egress của controller (giá trị riêng của môi trường).
+  apiServerCIDRs: []
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+# Keycloak của cell (ADR-08). TL-04 viết realm platform; hợp đồng contracts/openapi/common và realm dev dùng
+# mission, nên mặc định theo hợp đồng (API-first, xem wiki 14).
+oidc:
+  baseUrl: https://sso.cell-g4.danhgia.vn
+  realm: mission
+  clientId: apisix-gateway
+  # Secret (do ExternalSecret từ OpenBao tạo) chứa client secret; APISIX 3.x bắt buộc trường này kể cả bearer_only.
+  clientSecretRef: { name: apisix-oidc, key: client-secret }
+
+# TL-04 mục 6.8.
+rateLimit:
+  user: { count: 600, timeWindow: 60 }
+  tenant: { rate: 400, burst: 200 }
+  retryAfter: 30
+  problemType: https://danhgia.vn/problems/rate-limited
+  problemTitle: Vượt giới hạn tần suất
+  # redis-cluster cho cụm thật (Valkey 3 node, TLS); redis cho một Valkey đơn (kind).
+  policy: redis-cluster
+  redisClusterName: apisix-ratelimit
+  redisClusterNodes:
+    - valkey-a-0.valkey-headless.data-kafka.svc:6379
+    - valkey-b-0.valkey-headless.data-kafka.svc:6379
+    - valkey-c-0.valkey-headless.data-kafka.svc:6379
+  redisSsl: true
+  redisHost: valkey.data-kafka.svc
+  redisPort: 6379
+
+# SEC-34: Coraza (proxy-wasm) với OWASP CRS 4, paranoia 2, ngưỡng điểm bất thường 5.
+coraza:
+  enabled: true
+  # Ảnh chỉ chứa tệp coraza-proxy-wasm.wasm ở wasmDir; init container chép sang emptyDir.
+  image:
+    repository: harbor.vt.local/platform/coraza-proxy-wasm
+    # Bắt buộc khi bật Coraza; điền digest ảnh trên Harbor ở values của môi trường.
+    digest: ""
+  wasmDir: /wasm
+  paranoiaLevel: 2
+  anomalyThreshold: 5
+  # On: chặn; DetectionOnly: chỉ ghi nhật ký (2 tuần đầu với tuyến mới, TL-04 SEC-34).
+  ruleEngine: "On"
+  # Quy tắc loại trừ theo tuyến, quản lý trong Git (TL-04 SEC-34); nạp trước CRS, dạng ctl lúc chạy
+  # (coraza-proxy-wasm 0.5.0 lỗi khi gặp SecRuleUpdateTargetById). 932236 (PL2) coi tên tham số "id" là lệnh Unix.
+  exclusions:
+    - SecRule ARGS_NAMES "@streq id" "id:10001,phase:1,pass,nolog,ctl:ruleRemoveTargetById=932236;ARGS_NAMES:id"
+    - SecRule ARGS_GET_NAMES "@streq id" "id:10002,phase:1,pass,nolog,ctl:ruleRemoveTargetById=932236;ARGS_GET_NAMES:id"
+
+# SEC-24: header bảo mật gắn toàn cục. CSP của giao diện do SVC-17 (nginx của web-frontend) đặt theo TL-01.
+securityHeaders:
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Cross-Origin-Opener-Policy: same-origin
+
+# Sinh và truyền traceparent W3C (B2). APISIX ghi mọi span (always_on); quyết định lưu trace do lấy mẫu theo đuôi
+# ở OTel gateway (TL-04 mục 10.2). Header X-Debug-Trace thành thuộc tính để gateway giữ 100% trace đó.
+opentelemetry:
+  enabled: true
+  collector: otel-agent.observability.svc:4318
+
+# Tuyến; ApisixRoute đặt ở namespace của backend (CRD chỉ trỏ được Service cùng namespace).
+# Không có tuyến Strangler /kpi-legacy/* (Mission là hệ mới độc lập).
+routes:
+  - name: mission-core
+    namespace: core
+    service: mission-core
+    port: 8080
+    hosts: ["*.danhgia.vn"]
+    paths: ["/api/v1/tasks*", "/api/v1/plans*", "/api/v1/okr*", "/api/v1/evidences*", "/api/v1/appraisals*"]
+    pluginConfig: protected-api
+    timeout: { connect: 2, send: 10, read: 10 }
+  # SPI REST mission-iam trong Keycloak (DV-02-08: cấp, thu hồi mã khôi phục MFA). Gateway kiểm JWT như mọi API,
+  # rồi đổi đường dẫn sang /realms/<realm>/mission-iam/ ({realm} lấy từ oidc.realm).
+  - name: iam-mission-iam
+    namespace: identity
+    service: keycloak
+    port: 8080
+    hosts: ["*.danhgia.vn"]
+    paths: ["/api/v1/iam/*"]
+    pluginConfig: protected-api
+    rewrite: ["^/api/v1/iam/(.*)$", "/realms/{realm}/mission-iam/$1"]
+    timeout: { connect: 2, send: 10, read: 10 }
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile: { type: RuntimeDefault }
+
+# Metric Prometheus của APISIX (INF-15): cổng xuất riêng, bucket độ trễ (ms) và PodMonitor cho Prometheus cell.
+metrics:
+  port: 9091
+  buckets: [5, 10, 25, 50, 100, 200, 300, 500, 800, 1000, 2000, 5000, 10000, 30000]
+  podMonitor: true

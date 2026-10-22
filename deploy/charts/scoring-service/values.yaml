@@ -1,0 +1,102 @@
+# SVC-07 scoring-service: worker tính điểm, co giãn KEDA theo độ trễ consumer (TL-04 mục 5.4).
+# Mặc định là cell hạng L theo bảng TL-04 mục 5.2. Digest ảnh toàn số 0 là giả lập; CI thay bằng digest thật (INF-05).
+global:
+  cell: ''
+  sizing: L
+name: scoring-service
+namespace: workers
+image:
+  repository: harbor.vt.local/platform/scoring-service
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+runtime: java
+resources:
+  requests:
+    cpu: '2'
+    memory: 4Gi
+  limits:
+    cpu: '3'
+    memory: 4Gi
+probes:
+  startup:
+    periodSeconds: 5
+    failureThreshold: 24
+  readiness:
+    periodSeconds: 10
+    failureThreshold: 3
+pdb:
+  maxUnavailable: 25%
+autoscaling:
+  keda:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 24
+    preScale:
+      cuoiQuy: 8
+    triggers:
+      - type: kafka
+        name: product-evidence-accepted-v1
+        metadata:
+          bootstrapServers: kafka-cell-kafka-bootstrap.data-kafka.svc:9093
+          consumerGroup: scoring-service
+          topic: product.evidence.accepted.v1
+          lagThreshold: '500'
+          activationLagThreshold: '10'
+      - type: kafka
+        name: config-period-locked-v1
+        metadata:
+          bootstrapServers: kafka-cell-kafka-bootstrap.data-kafka.svc:9093
+          consumerGroup: scoring-service
+          topic: config.period.locked.v1
+          lagThreshold: '500'
+          activationLagThreshold: '10'
+      - type: kafka
+        name: scoring-recompute-requested-v1
+        metadata:
+          bootstrapServers: kafka-cell-kafka-bootstrap.data-kafka.svc:9093
+          consumerGroup: scoring-service
+          topic: scoring.recompute.requested.v1
+          lagThreshold: '500'
+          activationLagThreshold: '10'
+java:
+  gc: g1
+nodePool: worker
+workload:
+  terminationGracePeriodSeconds: 120
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: saas,cell,worker
+  - name: SPRING_KAFKA_CONSUMER_GROUP_ID
+    value: scoring-service
+  - name: SPRING_KAFKA_CONSUMER_MAX_POLL_RECORDS
+    value: '200'
+  - name: SPRING_KAFKA_CONSUMER_PROPERTIES_MAX_POLL_INTERVAL_MS
+    value: '300000'
+  - name: SPRING_KAFKA_CONSUMER_PROPERTIES_PARTITION_ASSIGNMENT_STRATEGY
+    value: org.apache.kafka.clients.consumer.CooperativeStickyAssignor
+  - name: SPRING_KAFKA_LISTENER_CONCURRENCY
+    value: '2'
+  - name: VT_SCORING_RECOMPUTE_PARALLELISM
+    value: '16'
+service:
+  exposeMgmt: true
+networkPolicy:
+  ingressFrom:
+    - namespace: observability
+      ports:
+        - port: 8081
+  egressTo:
+    - namespace: data-pg
+      podLabels:
+        cnpg.io/poolerName: pg-platform-pooler-rw
+      ports:
+        - port: 5432
+    - namespace: data-kafka
+      podLabels:
+        strimzi.io/cluster: kafka-cell
+      ports:
+        - port: 9093
+    - namespace: observability
+      podLabels:
+        app.kubernetes.io/name: otel-agent
+      ports:
+        - port: 4317

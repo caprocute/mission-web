@@ -1,0 +1,120 @@
+# Harbor của cụm quản trị (INF-07, TL-04 mục 3.2 và 9.3; SEC-28, SEC-38). Chart chính thức harbor/harbor 1.19.4
+# (Harbor 2.15.4), ghim trong chart.yaml cạnh tệp này. Cụm mgmt-hl dùng tệp này; mgmt-sn (harbor-sn) dùng thêm
+# values-sn.yaml. Mọi bí mật lấy từ Secret do External Secrets đồng bộ từ OpenBao (kv/mgmt/harbor/*), không có
+# giá trị thật trong repo. Project, robot account, quy tắc nhân bản không phải values của chart: chúng nằm ở
+# cau-hinh.yaml và được áp bằng ap-dung-cau-hinh.sh qua API Harbor sau khi cài.
+expose:
+  type: ingress
+  tls:
+    enabled: true
+    certSource: secret
+    secret:
+      secretName: harbor-tls          # cert-manager cấp từ CA nội bộ (INF-04)
+  ingress:
+    className: nginx
+    hosts:
+      core: harbor.vt.local
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+externalURL: https://harbor.vt.local
+
+# Bí mật quản trị và khoá mã hoá: chỉ tham chiếu Secret có sẵn.
+existingSecretAdminPassword: harbor-admin
+existingSecretAdminPasswordKey: HARBOR_ADMIN_PASSWORD
+existingSecretSecretKey: harbor-secret-key
+core:
+  replicas: 2
+  existingSecret: harbor-core
+  existingXsrfSecret: harbor-core-xsrf
+  existingXsrfSecretKey: CSRF_KEY
+  resources: {requests: {cpu: 500m, memory: 512Mi}, limits: {cpu: "2", memory: 2Gi}}
+jobservice:
+  replicas: 2
+  existingSecret: harbor-jobservice
+  existingSecretKey: JOBSERVICE_SECRET
+  jobLoggers: [stdout]               # log đi theo Fluent Bit (INF-15), không ghi PVC
+  resources: {requests: {cpu: 250m, memory: 256Mi}, limits: {cpu: "1", memory: 1Gi}}
+registry:
+  replicas: 2
+  existingSecret: harbor-registry
+  existingSecretKey: REGISTRY_HTTP_SECRET
+  credentials:
+    existingSecret: harbor-registry-htpasswd
+  registry:
+    resources: {requests: {cpu: 250m, memory: 512Mi}, limits: {cpu: "2", memory: 2Gi}}
+  controller:
+    resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 256Mi}}
+portal:
+  replicas: 2
+  resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {cpu: 250m, memory: 256Mi}}
+
+# Ảnh lưu trên Ceph RGW của cụm quản trị (S3), khoá truy cập ở Secret harbor-s3 (REGISTRY_STORAGE_S3_ACCESSKEY,
+# REGISTRY_STORAGE_S3_SECRETKEY). Sao lưu theo bảng lịch TL-04 (dòng Harbor): metadata qua CSDL, blob qua nhân
+# bản bucket RGW sang SN.
+persistence:
+  enabled: true
+  resourcePolicy: keep
+  imageChartStorage:
+    disableredirect: true
+    type: s3
+    s3:
+      region: us-east-1
+      bucket: harbor-mgmt
+      regionendpoint: https://rgw.mgmt.vt.local
+      existingSecret: harbor-s3
+      secure: true
+      v4auth: true
+  persistentVolumeClaim:
+    jobservice:
+      jobLog: {size: 1Gi}
+    trivy:
+      storageClass: ceph-block
+      size: 10Gi
+
+# Trivy quét mọi ảnh khi đẩy (bật ở mức project trong cau-hinh.yaml). Cụm quản trị không ra Internet trực tiếp:
+# CSDL lỗ hổng lấy qua proxy-cache ghcr (trivy-db, trivy-java-db) của chính Harbor, bản cách ly dùng offlineScan
+# với gói CSDL nạp tay (INF-23).
+trivy:
+  enabled: true
+  replicas: 2
+  ignoreUnfixed: false
+  severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+  skipUpdate: false
+  offlineScan: false
+  dbRepository: harbor.vt.local/ghcr/aquasecurity/trivy-db
+  javaDBRepository: harbor.vt.local/ghcr/aquasecurity/trivy-java-db
+  timeout: 10m0s
+  resources: {requests: {cpu: 200m, memory: 512Mi}, limits: {cpu: "1", memory: 2Gi}}
+
+# CSDL và Redis ngoài: PostgreSQL và Valkey của cụm quản trị (TL-04 mục 3.2), không dùng bản nội bộ của chart.
+database:
+  type: external
+  external:
+    host: pg-mgmt-rw.data.svc
+    port: "5432"
+    username: harbor
+    coreDatabase: registry
+    existingSecret: harbor-db          # khoá "password"
+    sslmode: verify-full
+redis:
+  type: external
+  external:
+    addr: valkey-mgmt.data.svc:6379
+    existingSecret: harbor-redis       # khoá REDIS_PASSWORD
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+internalTLS:
+  enabled: true
+  certSource: auto
+containerSecurityContext:
+  privileged: false
+  allowPrivilegeEscalation: false
+  seccompProfile: {type: RuntimeDefault}
+  capabilities: {drop: [ALL]}
+updateStrategy:
+  type: RollingUpdate
+logLevel: info

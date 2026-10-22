@@ -1,0 +1,186 @@
+# PostgreSQL của cell (INF-11). global.sizing (S, M, L, compact) chọn kích thước từ bảng `hoSo` dưới đây theo TL-05;
+# hồ sơ compact tự gộp sáu cụm thành hai (TL-05 "PostgreSQL"). Toàn bộ mật khẩu nạp từ OpenBao qua External Secrets.
+global:
+  cell: ""
+  sizing: L
+
+# Namespace theo vùng (TL-04 mục 3.5): cụm vùng ứng dụng ở data-pg, pg-ledger và pg-secure ở secure-data.
+namespaces: { app: data-pg, secure: secure-data }
+# Namespace của operator CNPG (cổng trạng thái 8000 của instance manager).
+operatorNamespace: cnpg-system
+
+image:
+  # Ảnh PostgreSQL 17 bản standard (có pgvector cho CSDL ai) qua Harbor, ghim digest (SEC-55).
+  repository: harbor.vt.local/platform/postgresql
+  tag: 17.6-standard-bookworm
+  digest: sha256:a62c149a342b2b1955dda3a9d75e2c6851622e43302a577f393271c19a3c8622
+
+# true: gộp theo TL-05 (pg-core chứa core, flowable, platform, iam; pg-ledger chứa ledger, esign, ai). Rỗng: tự
+# bật khi global.sizing là compact.
+consolidated: ""
+
+instances: 3
+# Dừng instance (CNPG): PgBouncer giữ kết nối máy chủ nên smart shutdown không bao giờ tự xong; chờ mặc định 180 s
+# làm primary bị xoá nằm ở Terminating và chuyển đổi dự phòng chậm hơn mục tiêu 30 s (đo trên kind). Hạ còn 5 s
+# rồi chuyển fast shutdown; stopDelay đủ cho fast shutdown ghi checkpoint.
+shutdown: { smartShutdownTimeout: 5, stopDelay: 60, switchoverDelay: 60 }
+storageClass: nvme-local
+
+# CSDL dữ liệu tenant theo TL-03 (silo một CSDL, bridge mỗi tỉnh một CSDL, pool td_pool). Đặt theo cell.
+tenantDatabases: [td_mau]
+
+# Tham số chung cho mọi cụm (CR mẫu pg-core TL-04 mục 4.5). Tham số theo bộ nhớ tính ở _helpers.tpl:
+# shared_buffers 25% RAM, effective_cache_size 75% RAM, maintenance_work_mem 1/64 RAM (suy luận từ tỷ lệ mẫu L).
+parameters:
+  work_mem: "32MB"
+  wal_compression: "lz4"
+  checkpoint_timeout: "15min"
+  checkpoint_completion_target: "0.9"
+  random_page_cost: "1.1"
+  effective_io_concurrency: "256"
+  max_parallel_workers_per_gather: "4"
+  archive_timeout: "60s"
+  idle_in_transaction_session_timeout: "60s"
+  statement_timeout: "30s"
+  lock_timeout: "5s"
+  log_min_duration_statement: "1000"
+  auto_explain.log_min_duration: "2000"
+  track_io_timing: "on"
+  ssl_min_protocol_version: "TLSv1.3"
+
+# Kích thước mỗi instance theo hồ sơ (TL-05 bảng "PostgreSQL", TL-04 mục 4.5). maxConn: max_connections (TL-05
+# "Ngân sách kết nối theo hồ sơ" cho pg-core; cụm khác 200, suy luận). pool: số instance PgBouncer mỗi Pooler.
+hoSo:
+  L:
+    pooler: 3
+    pg-core:     { cpu: 32, memGi: 256, data: 6Ti,   wal: 1Ti,   maxConn: 400, pool: "large" }
+    pg-flowable: { cpu: 16, memGi: 64,  data: 2Ti,   wal: 500Gi, maxConn: 300 }
+    pg-platform: { cpu: 16, memGi: 64,  data: 3Ti,   wal: 500Gi, maxConn: 300 }
+    pg-iam:      { cpu: 4,  memGi: 16,  data: 200Gi, wal: "",    maxConn: 200 }
+    pg-ledger:   { cpu: 8,  memGi: 32,  data: 2Ti,   wal: 300Gi, maxConn: 200 }
+    pg-secure:   { cpu: 8,  memGi: 64,  data: 1Ti,   wal: "",    maxConn: 200 }
+  M:
+    pooler: 3
+    pg-core:     { cpu: 16, memGi: 128, data: 4Ti,   wal: 512Gi, maxConn: 300 }
+    pg-flowable: { cpu: 8,  memGi: 32,  data: 1Ti,   wal: 256Gi, maxConn: 200 }
+    pg-platform: { cpu: 8,  memGi: 32,  data: 2560Gi, wal: 256Gi, maxConn: 200 }
+    pg-iam:      { cpu: 2,  memGi: 8,   data: 100Gi, wal: "",    maxConn: 100 }
+    pg-ledger:   { cpu: 4,  memGi: 16,  data: 1536Gi, wal: 256Gi, maxConn: 100 }
+    pg-secure:   { cpu: 4,  memGi: 24,  data: 1Ti,   wal: "",    maxConn: 100 }
+  S:
+    pooler: 2
+    pg-core:     { cpu: 8, memGi: 64, data: 2Ti,   wal: 256Gi, maxConn: 200 }
+    pg-flowable: { cpu: 4, memGi: 16, data: 512Gi, wal: 128Gi, maxConn: 100 }
+    pg-platform: { cpu: 4, memGi: 16, data: 1Ti,   wal: 128Gi, maxConn: 100 }
+    pg-iam:      { cpu: 2, memGi: 8,  data: 50Gi,  wal: "",    maxConn: 100 }
+    pg-ledger:   { cpu: 2, memGi: 8,  data: 512Gi, wal: 128Gi, maxConn: 100 }
+    pg-secure:   { cpu: 2, memGi: 16, data: 300Gi, wal: "",    maxConn: 100 }
+  compact:
+    pooler: 2
+    pg-core:     { cpu: 8, memGi: 48, data: 1Ti,   wal: 200Gi, maxConn: 200 }
+    pg-ledger:   { cpu: 2, memGi: 12, data: 100Gi, wal: "",    maxConn: 100 }
+
+# Pool PgBouncer theo (CSDL, người dùng) mỗi instance (TL-04 mục 4.7, TL-05). CNPG Pooler chỉ có default_pool_size
+# chung, nên: default_pool_size = pool lớn nhất, max_db_connections = tổng ngân sách của CSDL (khớp bất đẳng thức
+# phía máy chủ), và CONNECTION LIMIT của vai trò svc_ = số instance × pool của module (wiki 14).
+pgbouncer:
+  # Ảnh PgBouncer của CNPG qua Harbor, ghim digest (SEC-55), thay ảnh mặc định của operator.
+  image:
+    repository: harbor.vt.local/platform/pgbouncer
+    tag: 1.24.1
+    digest: sha256:9bce905b0be1ce9c0de8c694ef0cfb8d3707f7dbfb4b51213fc867b5d66b87c3
+  maxClientConn: 1000
+  reservePoolSize: 3
+  queryWaitTimeout: 5
+  maxPreparedStatements: 200
+  # Bridge: mỗi CSDL tỉnh tối đa 12 kết nối máy chủ mỗi instance (TL-05); 0 = dùng tổng ngân sách.
+  maxDbConnectionsPerTenantDb: 0
+  # Ngân sách theo hồ sơ cho mission-core trên pg-core (TL-05: compact 8, S 13, M 20, L 40).
+  poolCore:
+    L:       { task: 14, okr: 6, appraisal: 6, product: 5, config: 3, policy: 2, dossier: 2, oversight: 2, org_replica: 1 }
+    M:       { task: 7,  okr: 3, appraisal: 3, product: 2, config: 2, policy: 1, dossier: 1, oversight: 1, org_replica: 1 }
+    S:       { task: 4,  okr: 2, appraisal: 2, product: 1, config: 1, policy: 1, dossier: 1, oversight: 1, org_replica: 1 }
+    compact: { task: 1,  okr: 1, appraisal: 1, product: 1, config: 1, policy: 1, dossier: 1, oversight: 1, org_replica: 1 }
+  resources: { requests: { cpu: 500m, memory: 256Mi }, limits: { cpu: "2", memory: 512Mi } }
+  # Pool mỗi người dùng của các cụm còn lại theo hồ sơ (suy luận: L lấy workflow 60 kết nối máy chủ trên 3 instance,
+  # M bằng nửa L, S khoảng một phần ba, compact vừa ngân sách 200 kết nối của pg-core gộp). org_replica do
+  # mission-core ghi theo sự kiện tổ chức, tính vào poolCore với 1 kết nối (suy luận).
+  poolKhac:
+    L:       { pg-flowable: 20, pg-platform: 8, pg-iam: 10, pg-ledger: 10, pg-secure: 8 }
+    M:       { pg-flowable: 10, pg-platform: 4, pg-iam: 5,  pg-ledger: 5,  pg-secure: 4 }
+    S:       { pg-flowable: 6,  pg-platform: 3, pg-iam: 3,  pg-ledger: 3,  pg-secure: 3 }
+    compact: { pg-flowable: 6,  pg-platform: 2, pg-iam: 3,  pg-ledger: 3,  pg-secure: 2 }
+
+# Bố trí CSDL và schema theo TL-03 trong sáu cụm của TL-04/TL-05 (bảng ánh xạ ở wiki 14). tenantSchemas: schema
+# trong mỗi CSDL tenant; databases: CSDL cố định và schema của nó. Mỗi schema có bốn vai trò svc_, ro_, mig_, cdc_.
+layout:
+  pg-core:     { zone: app, tenantSchemas: [config, policy, okr, task, product, appraisal, dossier, oversight, org_replica] }
+  pg-flowable: { zone: app, databases: { flowable: [flowable] } }
+  pg-platform: { zone: app, tenantSchemas: [org, scoring, evidence, docgen], databases: { cell_shared: [notify, integ] } }
+  pg-iam:      { zone: app, databases: { iam: [iam] } }
+  pg-ledger:   { zone: secure, databases: { ledger: [ledger] } }
+  pg-secure:   { zone: secure, databases: { esign: [esign], ai: [ai] }, extensions: { ai: [vector] } }
+# Gộp ở hồ sơ compact (TL-05): cụm đích ← các cụm nguồn.
+consolidation:
+  pg-core: [pg-core, pg-flowable, pg-platform, pg-iam]
+  pg-ledger: [pg-ledger, pg-secure]
+# Giới hạn kết nối của vai trò không phải svc_ (TL-03 mẫu: ro 20, cdc 5; mig suy luận).
+roleLimits: { ro: 20, cdc: 5, mig: 10 }
+
+# Ai được nối tới cụm (NetworkPolicy, TL-04 mục 3.6). rw/ro: namespace được nối Pooler tương ứng; migration: pod
+# có nhãn vt.io/db-migration=true trong các namespace rw được nối thẳng dịch vụ <cụm>-rw (Flyway bằng vai trò mig_);
+# cdc: namespace của Debezium (bản sao logic không đi qua PgBouncer). Cụm gộp nhận hợp của các cụm nguồn.
+clients:
+  pg-core:     { rw: [core], ro: [core, analytics] }
+  pg-flowable: { rw: [core, workers] }
+  pg-platform: { rw: [platform, workers, analytics], ro: [analytics] }
+  pg-iam:      { rw: [identity] }
+  pg-ledger:   { rw: [secure] }
+  pg-secure:   { rw: [secure] }
+cdcNamespaces: [data-kafka]
+observabilityNamespace: observability
+# Cilium: thêm CiliumNetworkPolicy cho phép instance manager và Pooler gọi kube-apiserver.
+cilium: true
+
+# Bố trí node (TL-04 mục 3.3): cụm ứng dụng trên pool CSDL, pg-ledger và pg-secure trên security-zone.
+placement:
+  app:
+    nodeSelector: { vt.io/pool: postgres }
+    tolerations: [{ key: vt.io/pool, operator: Equal, value: postgres, effect: NoSchedule }]
+  secure:
+    nodeSelector: { vt.io/pool: security-zone }
+    tolerations: [{ key: vt.io/pool, operator: Equal, value: security-zone, effect: NoSchedule }]
+  # required ở cụm thật (ba vùng sự cố); compact chỉ một vùng nên hạ về preferred và khoá theo hostname.
+  antiAffinity: required
+
+# Mật khẩu vai trò: ExternalSecret từ OpenBao (ADR-17), khoá <path>/<cụm>/<vai trò>; INF-13 thay bằng secret động.
+externalSecrets:
+  enabled: true
+  secretStore: { kind: ClusterSecretStore, name: openbao-cell }
+  path: kv/data-pg
+  refreshInterval: 1h
+
+# Tài khoản quản trị của secret engine database trong OpenBao (INF-13, TL-04 mục 9.4): OpenBao tạo người dùng
+# động "IN ROLE svc_<schema>" nên bao_admin cần ADMIN OPTION trên các vai trò svc_ của cụm. Từ PostgreSQL 16 quyền
+# này chỉ siêu người dùng cấp được, nên khối SQL chạy một lần lúc initdb (postInitSQLRefs, CNPG chạy bằng postgres):
+# tạo trước svc_<schema> rồi cấp cho bao_admin; managed.roles sau đó nhận quản lý các vai trò đó như thường.
+# bao_admin không nằm trong managed.roles: CNPG đồng bộ toàn bộ thành viên vai trò theo inRoles và sẽ thu hồi các
+# GRANT ... WITH ADMIN ở trên. Mật khẩu khởi tạo lấy từ OpenBao (<path>/<cụm>/bao_admin) và bị OpenBao đổi ngay bằng
+# rotate-root. Schema thêm sau initdb: chạy khối cấp quyền theo runbook
+# ops/runbooks/openbao-van-hanh.md.
+baoAdmin:
+  enabled: true
+  name: bao_admin
+  clusters: [pg-core]
+  namespace: secure-data
+  connectionLimit: 10
+
+# Job cấp quyền theo TL-03 (chạy bằng vai trò mig_<schema>, không cần superuser).
+grantsJob:
+  enabled: true
+  image:
+    repository: harbor.vt.local/platform/postgresql
+    digest: sha256:a62c149a342b2b1955dda3a9d75e2c6851622e43302a577f393271c19a3c8622
+
+monitoring:
+  enablePodMonitor: true

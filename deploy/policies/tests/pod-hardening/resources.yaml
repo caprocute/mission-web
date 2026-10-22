@@ -1,0 +1,358 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dat-chuan
+  namespace: ung-dung
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+    readinessProbe: &id001
+      httpGet:
+        path: /healthz
+        port: 8081
+    livenessProbe: *id001
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hong-registry
+  namespace: ung-dung
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: docker.io/library/nginx:latest
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+    readinessProbe: &id001
+      httpGet:
+        path: /healthz
+        port: 8081
+    livenessProbe: *id001
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hong-tag
+  namespace: ung-dung
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: harbor.vt.local/platform/mau:1.0
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+    readinessProbe: &id001
+      httpGet:
+        path: /healthz
+        port: 8081
+    livenessProbe: *id001
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dat-uid-container
+  namespace: ung-dung
+spec:
+  securityContext:
+    runAsNonRoot: true
+  containers:
+  - name: app
+    image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      runAsUser: 10002
+      capabilities:
+        drop:
+        - ALL
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+    readinessProbe: &id001
+      httpGet:
+        path: /healthz
+        port: 8081
+    livenessProbe: *id001
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hong-root
+  namespace: ung-dung
+spec:
+  securityContext:
+    runAsUser: 0
+  containers:
+  - name: app
+    image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    securityContext:
+      allowPrivilegeEscalation: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+    readinessProbe: &id001
+      httpGet:
+        path: /healthz
+        port: 8081
+    livenessProbe: *id001
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hong-uid-thap
+  namespace: ung-dung
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+  containers:
+  - name: app
+    image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+    readinessProbe: &id001
+      httpGet:
+        path: /healthz
+        port: 8081
+    livenessProbe: *id001
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hong-thieu-probe
+  namespace: ung-dung
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hong-thieu-tai-nguyen
+  namespace: ung-dung
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    readinessProbe: &id001
+      httpGet:
+        path: /healthz
+        port: 8081
+    livenessProbe: *id001
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dat-khong-token
+  namespace: ung-dung
+  labels:
+    vt.io/needs-k8s-api: 'false'
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+    readinessProbe: &id001
+      httpGet:
+        path: /healthz
+        port: 8081
+    livenessProbe: *id001
+  automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hong-con-token
+  namespace: ung-dung
+  labels:
+    vt.io/needs-k8s-api: 'false'
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+    readinessProbe: &id001
+      httpGet:
+        path: /healthz
+        port: 8081
+    livenessProbe: *id001
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dat-probe-mgmt
+  namespace: ung-dung
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    ports:
+    - name: http
+      containerPort: 8080
+    - name: mgmt
+      containerPort: 8081
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+    readinessProbe: &id001
+      httpGet:
+        path: /actuator/health/readiness
+        port: mgmt
+    livenessProbe: *id001
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hong-probe-http
+  namespace: ung-dung
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: harbor.vt.local/platform/mau@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    ports:
+    - name: http
+      containerPort: 8080
+    - name: mgmt
+      containerPort: 8081
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+    readinessProbe: &id001
+      httpGet:
+        path: /healthz
+        port: http
+    livenessProbe: *id001

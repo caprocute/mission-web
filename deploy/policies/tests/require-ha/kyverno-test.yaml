@@ -1,0 +1,38 @@
+# kyverno test cho vt-require-ha (INF-07). soPdb giả lập số PDB cùng tên mà apiCall trả về.
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: vt-require-ha
+policies:
+- ../../vt-require-ha.yaml
+resources:
+- resources.yaml
+variables: values.yaml
+results:
+- policy: vt-require-ha
+  rule: deployment-min-replicas-and-spread
+  kind: Deployment
+  resources:
+  - dat-ba-replica
+  - dat-co-gian
+  - dat-hai-rang-buoc
+  result: pass
+- policy: vt-require-ha
+  rule: deployment-min-replicas-and-spread
+  kind: Deployment
+  resources:
+  - hong-mot-replica
+  - hong-khong-spread
+  result: fail
+- policy: vt-require-ha
+  rule: require-pdb
+  kind: Deployment
+  resources:
+  - dat-ba-replica
+  result: pass
+- policy: vt-require-ha
+  rule: require-pdb
+  kind: Deployment
+  resources:
+  - dat-co-gian
+  result: fail

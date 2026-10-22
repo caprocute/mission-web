@@ -1,0 +1,24 @@
+{{- if .Values.esign.enabled }}
+{{- if not (hasKey .Values.waypoints .Values.esign.namespace) }}{{ fail "cell-mesh: esign-allow-callers cần waypoint ở namespace của esign-service" }}{{ end }}
+# TL-04 mục 3.7: thực thi tại waypoint của namespace {{ .Values.esign.namespace }}; mọi đường dẫn khác, kể cả quản trị, bị từ chối.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: esign-allow-callers
+  namespace: {{ .Values.esign.namespace }}
+spec:
+  targetRefs:
+    - kind: Service
+      group: ""
+      name: {{ .Values.esign.service }}
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              {{- toYaml .Values.esign.callers | nindent 14 }}
+      to:
+        - operation:
+            methods: {{ toJson .Values.esign.methods }}
+            paths: {{ toJson .Values.esign.paths }}
+{{- end }}

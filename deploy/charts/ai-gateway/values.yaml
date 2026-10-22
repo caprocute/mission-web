@@ -1,0 +1,122 @@
+# SVC-14 ai-gateway: cổng AI, kèm vLLM tuỳ chọn trên GPU của cell (TL-04 mục 5.2).
+# Mặc định là cell hạng L theo bảng TL-04 mục 5.2. Digest ảnh toàn số 0 là giả lập; CI thay bằng digest thật (INF-05).
+global:
+  cell: ''
+  sizing: L
+thanhPhan:
+  ai-gateway:
+    name: ai-gateway
+    namespace: secure
+    image:
+      repository: harbor.vt.local/platform/ai-gateway
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    runtime: python
+    resources:
+      requests:
+        cpu: '1'
+        memory: 2Gi
+      limits:
+        cpu: '2'
+        memory: 2Gi
+    probes:
+      startup:
+        periodSeconds: 5
+        failureThreshold: 12
+    pdb:
+      minAvailable: 1
+      maxUnavailable: ''
+    autoscaling:
+      hpa:
+        enabled: true
+        minReplicas: 2
+        maxReplicas: 6
+        cpuUtilization: 75
+    python:
+      workers: 2
+    nodePool: secure
+    networkPolicy:
+      ingressFrom:
+        - namespace: core
+          podLabels:
+            app.kubernetes.io/name: mission-core
+          ports:
+            - port: 8080
+        - namespace: observability
+          ports:
+            - port: 8081
+      egressTo:
+        - namespace: secure
+          podLabels:
+            app.kubernetes.io/name: vllm
+          ports:
+            - port: 8000
+        - namespace: data-kafka
+          podLabels:
+            strimzi.io/cluster: kafka-cell
+          ports:
+            - port: 9093
+        - namespace: observability
+          podLabels:
+            app.kubernetes.io/name: otel-agent
+          ports:
+            - port: 4317
+  vllm:
+    name: vllm
+    namespace: secure
+    image:
+      repository: harbor.vt.local/platform/vllm
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    runtime: custom
+    resources:
+      requests:
+        cpu: '8'
+        memory: 64Gi
+      limits:
+        cpu: '16'
+        memory: 64Gi
+      gpu: 1
+    probes:
+      startup:
+        path: /health
+        periodSeconds: 10
+        failureThreshold: 60
+      liveness:
+        path: /health
+      readiness:
+        path: /health
+    pdb:
+      maxUnavailable: 1
+    autoscaling:
+      keda:
+        enabled: true
+        minReplicas: 2
+        maxReplicas: 4
+        triggers:
+          - type: prometheus
+            name: hang-doi
+            metadata:
+              serverAddress: http://prometheus-operated.observability.svc:9090
+              query: sum(vllm:num_requests_waiting{namespace="secure"})
+              threshold: '8'
+    nodePool: gpu
+    ports:
+      http: 8000
+      mgmt: 8000
+    workload:
+      strategy:
+        type: Recreate
+    serviceMonitor:
+      port: http
+      path: /metrics
+    tmpSizeLimit: 8Gi
+    networkPolicy:
+      ingressFrom:
+        - namespace: secure
+          podLabels:
+            app.kubernetes.io/name: ai-gateway
+          ports:
+            - port: 8080
+        - namespace: observability
+          ports:
+            - port: 8000
+      egressTo: []

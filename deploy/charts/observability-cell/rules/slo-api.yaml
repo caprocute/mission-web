@@ -1,0 +1,84 @@
+# SLI và cảnh báo tốc độ tiêu ngân sách lỗi của cell (TL-04 mục 7.1 và 10.4, 10.5; INF-15).
+# Đo tại APISIX của cell. Nhãn kind (read, write, async) do APISIX gắn qua biến vt_kind; nhãn cell do
+# Prometheus gắn ở externalLabels khi gửi cảnh báo và đẩy khối lên Thanos. Không có nhãn tenant.
+# Các cửa sổ ở đây không quá 6 giờ vì Prometheus của cell chỉ giữ dữ liệu cục bộ ngắn; luật cần cửa sổ
+# dài (ngân sách tháng, ngưỡng năng lực) chạy ở Thanos Ruler của cụm quản trị (observability-mgmt/rules).
+# Khác mẫu TL-04 ở hai điểm: le so khớp cả "300" và "300.0" vì Prometheus 3 chuẩn hoá nhãn le của histogram
+# cổ điển thành số thực; tỷ lệ lỗi thêm "or 0 * ..." để bằng 0 thay vì rỗng khi cửa sổ không có request 5xx.
+groups:
+  - name: slo-api.rules
+    interval: 30s
+    rules:
+      - record: slo:api_requests:rate5m
+        expr: sum by (cell, route, kind) (rate(apisix_http_latency_count{type="request"}[5m]))
+      - record: slo:api_errors:rate5m
+        expr: sum by (cell, route, kind) (rate(apisix_http_status{code=~"5.."}[5m]))
+      - record: slo:api_read_fast:ratio_rate5m
+        expr: |
+          sum by (cell) (rate(apisix_http_latency_bucket{type="request", kind="read", le=~"300(\\.0)?"}[5m]))
+          / sum by (cell) (rate(apisix_http_latency_count{type="request", kind="read"}[5m]))
+      # SLO-WRITE (≤ 800 ms) và SLO-ASYNC (202 trong ≤ 200 ms) viết cùng dạng với SLO-READ (suy luận: TL-04
+      # chỉ ghi mẫu cho SLO-READ). Bucket 800 và 200 có trong cấu hình histogram của APISIX (chart api-gateway).
+      - record: slo:api_write_fast:ratio_rate5m
+        expr: |
+          sum by (cell) (rate(apisix_http_latency_bucket{type="request", kind="write", le=~"800(\\.0)?"}[5m]))
+          / sum by (cell) (rate(apisix_http_latency_count{type="request", kind="write"}[5m]))
+      - record: slo:api_async_fast:ratio_rate5m
+        expr: |
+          sum by (cell) (rate(apisix_http_latency_bucket{type="request", kind="async", le=~"200(\\.0)?"}[5m]))
+          / sum by (cell) (rate(apisix_http_latency_count{type="request", kind="async"}[5m]))
+      - record: slo:api_availability_errors:ratio_rate5m
+        expr: |
+          (sum by (cell) (rate(apisix_http_status{code=~"5.."}[5m])) or 0 * sum by (cell) (rate(apisix_http_status[5m])))
+          / sum by (cell) (rate(apisix_http_status[5m]))
+      - record: slo:api_availability_errors:ratio_rate30m
+        expr: |
+          (sum by (cell) (rate(apisix_http_status{code=~"5.."}[30m])) or 0 * sum by (cell) (rate(apisix_http_status[30m])))
+          / sum by (cell) (rate(apisix_http_status[30m]))
+      - record: slo:api_availability_errors:ratio_rate1h
+        expr: |
+          (sum by (cell) (rate(apisix_http_status{code=~"5.."}[1h])) or 0 * sum by (cell) (rate(apisix_http_status[1h])))
+          / sum by (cell) (rate(apisix_http_status[1h]))
+      - record: slo:api_availability_errors:ratio_rate6h
+        expr: |
+          (sum by (cell) (rate(apisix_http_status{code=~"5.."}[6h])) or 0 * sum by (cell) (rate(apisix_http_status[6h])))
+          / sum by (cell) (rate(apisix_http_status[6h]))
+
+  - name: slo-api.alerts
+    rules:
+      - alert: SLOAvailabilityFastBurn
+        expr: |
+          slo:api_availability_errors:ratio_rate1h > (14.4 * 0.001)
+          and slo:api_availability_errors:ratio_rate5m > (14.4 * 0.001)
+        for: 2m
+        labels: { severity: critical, slo: availability }
+        annotations:
+          summary: "Cell {{ $externalLabels.cell }} tiêu ngân sách lỗi khả dụng nhanh (14,4 lần)"
+          runbook_url: https://runbook.vt.local/okr/slo-availability
+          dashboard_url: https://grafana.vt.local/d/vt-slo-cell
+      - alert: SLOAvailabilitySlowBurn
+        expr: |
+          slo:api_availability_errors:ratio_rate6h > (6 * 0.001)
+          and slo:api_availability_errors:ratio_rate30m > (6 * 0.001)
+        for: 15m
+        labels: { severity: warning, slo: availability }
+        annotations:
+          summary: "Cell {{ $externalLabels.cell }} tiêu ngân sách lỗi khả dụng (6 lần)"
+          runbook_url: https://runbook.vt.local/okr/slo-availability
+          dashboard_url: https://grafana.vt.local/d/vt-slo-cell
+      - alert: SLOReadLatencyBurn
+        expr: (1 - slo:api_read_fast:ratio_rate5m) > (14.4 * 0.05)
+        for: 5m
+        labels: { severity: critical, slo: read-latency }
+        annotations:
+          summary: "Cell {{ $externalLabels.cell }}: hơn 72% request đọc chậm hơn 300 ms trong 5 phút"
+          runbook_url: https://runbook.vt.local/okr/slo-latency
+          dashboard_url: https://grafana.vt.local/d/vt-slo-cell
+      - alert: SLOWriteLatencyBurn
+        expr: (1 - slo:api_write_fast:ratio_rate5m) > (14.4 * 0.05)
+        for: 5m
+        labels: { severity: critical, slo: write-latency }
+        annotations:
+          summary: "Cell {{ $externalLabels.cell }}: hơn 72% request ghi chậm hơn 800 ms trong 5 phút"
+          runbook_url: https://runbook.vt.local/okr/slo-latency
+          dashboard_url: https://grafana.vt.local/d/vt-slo-cell

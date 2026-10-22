@@ -1,0 +1,45 @@
+# ClickHouse (INF-11) qua Altinity ClickHouse Operator 0.27 (CHI và CHK); lý do chọn ở wiki 14.
+global:
+  cell: ""
+  sizing: L
+
+namespace: data-search
+image:
+  repository: harbor.vt.local/dockerhub/altinity/clickhouse-server
+  tag: 25.3.6.10034.altinitystable
+  digest: sha256:3396b15c51a2c13c0aead9532bd022e478a8f575fe325deacb7d0efeae594174
+keeperImage:
+  repository: harbor.vt.local/dockerhub/clickhouse/clickhouse-keeper
+  tag: 25.3.6.56
+  digest: sha256:62e6ba41626bc57199fa3866a63b7bee84e4478e23e40eb19ef651908dcf5001
+
+# TL-05 bảng "OpenSearch và ClickHouse". disk mỗi bản sao: M theo TL-05 phụ lục A, hồ sơ khác suy luận từ GD-19.
+hoSo:
+  compact: { shards: 1, replicas: 2, cpu: "4",  memory: 16Gi, disk: 100Gi, keeper: { cpu: 500m, memory: 2Gi } }
+  S:       { shards: 1, replicas: 2, cpu: "6",  memory: 24Gi, disk: 1Ti,   keeper: { cpu: "1", memory: 2Gi } }
+  M:       { shards: 1, replicas: 2, cpu: "12", memory: 48Gi, disk: 3Ti,   keeper: { cpu: "1", memory: 2Gi } }
+  L:       { shards: 2, replicas: 2, cpu: "16", memory: 64Gi, disk: 2Ti,   keeper: { cpu: "2", memory: 4Gi } }
+keeperDisk: 20Gi
+
+storageClass: nvme-local
+placement:
+  nodeSelector: { vt.io/pool: data-search }
+  tolerations: [{ key: vt.io/pool, operator: Equal, value: data-search, effect: NoSchedule }]
+
+tls:
+  issuerRef: { kind: ClusterIssuer, name: openbao-pki-cell }
+  duration: 2160h
+  renewBefore: 720h
+
+# Người dùng (mật khẩu ở OpenBao <path>/<tên>, ESO nạp vào secret clickhouse-users). Người dùng default chỉ
+# nghe localhost. analytics chỉ đọc qua Cube; ingest ghi bảng nhận từ Kafka (TL-03 chương 11).
+externalSecrets:
+  secretStore: { kind: ClusterSecretStore, name: openbao-cell }
+  path: kv/clickhouse
+  refreshInterval: 1h
+users:
+  analytics: { profile: readonly, namespace: analytics }
+  ingest:    { profile: default,  namespace: analytics }
+
+observabilityNamespace: observability
+operatorNamespace: clickhouse-operator

@@ -1,0 +1,330 @@
+{
+   "panels": [
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "id": 1,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum(vt_rum_concurrent_users{cell=~\"$cell\"})",
+               "legendFormat": ""
+            }
+         ],
+         "title": "Người dùng đang hoạt động",
+         "type": "stat"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 6,
+            "y": 0
+         },
+         "id": 2,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum(vt_evidence_scan_pending{cell=~\"$cell\"})",
+               "legendFormat": ""
+            }
+         ],
+         "title": "Minh chứng chờ quét",
+         "type": "stat"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 12,
+            "y": 0
+         },
+         "id": 3,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "min(vt_score_recompute_progress_ratio{cell=~\"$cell\"})",
+               "legendFormat": ""
+            }
+         ],
+         "title": "Tiến độ tính lại điểm",
+         "type": "stat"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 18,
+            "y": 0
+         },
+         "id": 4,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "min(vt_esign_batch_progress_ratio{cell=~\"$cell\"})",
+               "legendFormat": ""
+            }
+         ],
+         "title": "Tiến độ ký lô",
+         "type": "stat"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+         },
+         "id": 5,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum by (cell) (vt_rum_concurrent_users{cell=~\"$cell\"})",
+               "legendFormat": "{{cell}}"
+            }
+         ],
+         "title": "Người dùng đang hoạt động theo cell",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+         },
+         "id": 6,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum by (cell) (increase(vt_dossier_submitted_total{cell=~\"$cell\"}[1h]))",
+               "legendFormat": "{{cell}} mỗi giờ"
+            }
+         ],
+         "title": "Hồ sơ đã nộp",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 16
+         },
+         "id": 7,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "sum by (cell) (vt_evidence_scan_pending{cell=~\"$cell\"})",
+               "legendFormat": "{{cell}}"
+            }
+         ],
+         "title": "Minh chứng chờ quét",
+         "type": "timeseries"
+      },
+      {
+         "datasource": {
+            "type": "prometheus",
+            "uid": "thanos"
+         },
+         "fieldConfig": {
+            "defaults": {
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 16
+         },
+         "id": 8,
+         "pluginVersion": "v11.4.0",
+         "targets": [
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "min by (cell) (vt_score_recompute_progress_ratio{cell=~\"$cell\"})",
+               "legendFormat": "{{cell}} tính lại điểm"
+            },
+            {
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": {
+                     "type": "prometheus",
+                     "uid": "thanos"
+                  }
+               },
+               "exemplar": false,
+               "expr": "min by (cell) (vt_esign_batch_progress_ratio{cell=~\"$cell\"})",
+               "legendFormat": "{{cell}} ký lô"
+            }
+         ],
+         "title": "Tiến độ tính lại điểm và ký lô",
+         "type": "timeseries"
+      }
+   ],
+   "refresh": "1m",
+   "schemaVersion": 39,
+   "tags": [
+      "vt",
+      "inf-15"
+   ],
+   "templating": {
+      "list": [
+         {
+            "allValue": ".*",
+            "current": {
+               "text": "All",
+               "value": "$__all"
+            },
+            "datasource": {
+               "type": "prometheus",
+               "uid": "thanos"
+            },
+            "includeAll": true,
+            "label": "Cell",
+            "name": "cell",
+            "query": "label_values(up, cell)",
+            "refresh": "time",
+            "type": "query"
+         }
+      ]
+   },
+   "time": {
+      "from": "now-6h",
+      "to": "now"
+   },
+   "timezone": "Asia/Ho_Chi_Minh",
+   "title": "Vận hành kỳ đánh giá",
+   "uid": "vt-nghiep-vu"
+}

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: observability-cell
+description: >-
+  Quan sát trong cụm cell (TL-04 mục 10.3, 10.4): một cặp Prometheus do Prometheus Operator quản lý kèm Thanos
+  sidecar, Fluent Bit có bộ đệm đĩa và lớp che dữ liệu nhạy cảm thứ hai, luồng kiểm toán sang Kafka sys.audit.v1.
+type: application
+version: 0.1.0
+dependencies:
+  - name: kube-prometheus-stack
+    version: 92.11.0
+    repository: oci://ghcr.io/prometheus-community/charts
+  - name: fluent-bit
+    version: 0.58.3
+    repository: oci://ghcr.io/fluent/helm-charts

@@ -1,0 +1,16 @@
+{{- /*
+Istio ambient SNAT probe của kubelet sang 169.254.7.127 để ztunnel cho qua; Cilium coi địa chỉ này là "world" nên
+mặc định từ chối (tài liệu Istio "Platform prerequisites – Cilium"). Chỉ mở cho pod của namespace trong mesh.
+*/}}
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: cho-probe-kubelet-ambient
+spec:
+  description: Cho probe kubelet đã SNAT của Istio ambient vào pod trong mesh (INF-09)
+  enableDefaultDeny: { ingress: false, egress: false }
+  endpointSelector:
+    matchExpressions:
+      - { key: k8s:io.kubernetes.pod.namespace, operator: In, values: {{ toJson .Values.meshNamespaces }} }
+  ingress:
+    - fromCIDR: ["169.254.7.127/32"]

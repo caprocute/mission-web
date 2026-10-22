@@ -1,0 +1,53 @@
+# SVC-16 search: indexer đưa sự kiện vào OpenSearch (TL-04 mục 5.2).
+# Mặc định là cell hạng L theo bảng TL-04 mục 5.2. Digest ảnh toàn số 0 là giả lập; CI thay bằng digest thật (INF-05).
+global:
+  cell: ''
+  sizing: L
+name: search-indexer
+namespace: platform
+image:
+  repository: harbor.vt.local/platform/search-indexer
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+runtime: java
+resources:
+  requests:
+    cpu: '1'
+    memory: 2Gi
+  limits:
+    cpu: '2'
+    memory: 2Gi
+probes:
+  startup:
+    periodSeconds: 5
+    failureThreshold: 18
+pdb:
+  maxUnavailable: 1
+autoscaling:
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    cpuUtilization: 75
+java:
+  gc: g1
+networkPolicy:
+  ingressFrom:
+    - namespace: observability
+      ports:
+        - port: 8081
+  egressTo:
+    - namespace: data-kafka
+      podLabels:
+        strimzi.io/cluster: kafka-cell
+      ports:
+        - port: 9093
+    - namespace: data-search
+      podLabels:
+        app.kubernetes.io/name: opensearch
+      ports:
+        - port: 9200
+    - namespace: observability
+      podLabels:
+        app.kubernetes.io/name: otel-agent
+      ports:
+        - port: 4317

@@ -1,0 +1,70 @@
+{{- $v := .Values }}
+{{- $ns := $v.namespace }}
+# Dịch vụ cho máy khách: mọi pod đã mở khoá (standby chuyển tiếp yêu cầu về leader).
+apiVersion: v1
+kind: Service
+metadata:
+  name: openbao
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "openbao.selector" . | nindent 4 }}
+  ports:
+    - { name: https, port: 8200, targetPort: 8200 }
+---
+# Dịch vụ headless cho Raft (retry_join) và chuyển tiếp yêu cầu giữa các node.
+apiVersion: v1
+kind: Service
+metadata:
+  name: openbao-internal
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    {{- include "openbao.selector" . | nindent 4 }}
+  ports:
+    - { name: https, port: 8200, targetPort: 8200 }
+    - { name: cluster, port: 8201, targetPort: 8201 }
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: openbao-tls
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+spec:
+  secretName: openbao-tls
+  duration: {{ $v.tls.duration }}
+  renewBefore: {{ $v.tls.renewBefore }}
+  privateKey: { algorithm: ECDSA, size: 256, rotationPolicy: Always }
+  usages: [server auth, client auth]
+  commonName: openbao.{{ $ns }}.svc
+  dnsNames:
+    - openbao
+    - openbao.{{ $ns }}.svc
+    - openbao.{{ $ns }}.svc.cluster.local
+    - "*.openbao-internal.{{ $ns }}.svc"
+    - "*.openbao-internal.{{ $ns }}.svc.cluster.local"
+  ipAddresses: [127.0.0.1]
+  issuerRef:
+    {{- toYaml $v.tls.issuerRef | nindent 4 }}
+{{- if $v.bootstrapIssuer.enabled }}
+---
+# CA nội bộ khởi đầu: CA trung gian ký từ CA gốc ngoại tuyến (runbook openbao-pki), khoá nằm trong Secret ngoài
+# Git ở namespace của cert-manager. Chỉ cấp chứng thư cho chính OpenBao; mọi dịch vụ khác dùng openbao-pki-cell.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ $v.bootstrapIssuer.name }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+spec:
+  ca:
+    secretName: {{ $v.bootstrapIssuer.secretName }}
+{{- end }}

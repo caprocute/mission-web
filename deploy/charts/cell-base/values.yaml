@@ -1,0 +1,88 @@
+# Mã cell, gắn vào nhãn vt.io/cell của mọi namespace (ví dụ hcm, g4).
+cell: g4
+
+# 13 namespace theo TL-04 mục 3.5. zone: nhãn vt.io/security-zone; ambient: gắn istio.io/dataplane-mode=ambient;
+# psaExempt: không gắn Pod Security restricted (chỉ observability được miễn, SEC-26).
+# waypoint: gắn istio.io/use-waypoint=<tên> để lưu lượng tới service đi qua waypoint L7 (secure, egress; INF-09, cell-mesh).
+namespaces:
+  edge:          { zone: edge,       ambient: true }
+  core:          { zone: app,        ambient: true }
+  identity:      { zone: app,        ambient: true }
+  platform:      { zone: app,        ambient: true }
+  workers:       { zone: app,        ambient: true }
+  analytics:     { zone: app,        ambient: true }
+  secure:        { zone: secure,     ambient: true, waypoint: waypoint }
+  secure-data:   { zone: secure,     ambient: false }
+  data-pg:       { zone: data,       ambient: false }
+  data-kafka:    { zone: data,       ambient: false }
+  data-search:   { zone: data,       ambient: false }
+  observability: { zone: infra,      ambient: false, psaExempt: true }
+  egress:        { zone: egress,     ambient: true, waypoint: waypoint }
+
+# Bật NetworkPolicy default-deny-all và allow-dns cho mọi namespace trên.
+defaultDeny: true
+
+# Luồng được phép giữa namespace (TL-04 mục 3.6). Mỗi luồng sinh hai chính sách: egress ở phía nguồn,
+# ingress ở phía đích. from/to: { namespace, podLabels }; podLabels rỗng = mọi pod của namespace.
+# Không có luồng core → secure (ADR-09: trao đổi với sổ cái chỉ qua Kafka).
+flows:
+  - name: apisix-to-mission-core
+    from: { namespace: edge, podLabels: { app.kubernetes.io/name: apisix } }
+    to: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
+    ports: [8080]
+  - name: apisix-to-web-frontend
+    from: { namespace: edge, podLabels: { app.kubernetes.io/name: apisix } }
+    to: { namespace: platform, podLabels: { app.kubernetes.io/name: web-frontend } }
+    ports: [8080]
+  - name: observability-to-mission-core-mgmt
+    from: { namespace: observability }
+    to: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
+    ports: [8081]
+  - name: observability-to-apisix-metrics
+    from: { namespace: observability }
+    to: { namespace: edge, podLabels: { app.kubernetes.io/name: apisix } }
+    ports: [9091]
+  - name: mission-core-to-pg-core-pooler-rw
+    from: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
+    to: { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-core-pooler-rw } }
+    ports: [5432]
+  - name: mission-core-to-pg-core-pooler-ro
+    from: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
+    to: { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-core-pooler-ro } }
+    ports: [5432]
+  # vt-crypto gọi thẳng OpenBao cho Transit (mã hoá phong bì) và secret động PostgreSQL (TL-04 mục 9.4, INF-13).
+  - name: mission-core-to-openbao
+    from: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
+    to: { namespace: secure-data, podLabels: { app.kubernetes.io/name: openbao } }
+    ports: [8200]
+  - name: mission-core-to-kafka
+    from: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
+    to: { namespace: data-kafka, podLabels: { strimzi.io/cluster: kafka-cell } }
+    ports: [9093]
+  - name: mission-core-to-valkey
+    from: { namespace: core, podLabels: { app.kubernetes.io/name: mission-core } }
+    to: { namespace: data-kafka, podLabels: { app.kubernetes.io/name: valkey } }
+    ports: [6379]
+  # APISIX lấy JWKS và discovery của Keycloak trong cell để kiểm chữ ký JWT (TL-04 mục 3.7).
+  - name: apisix-to-keycloak
+    from: { namespace: edge, podLabels: { app.kubernetes.io/name: apisix } }
+    to: { namespace: identity, podLabels: { app.kubernetes.io/name: keycloak } }
+    ports: [8080]
+  # Span OTLP tới OTel agent (INF-14); service dựng bằng vt-service tự sinh luồng này phía nguồn.
+  - name: apisix-to-otel-agent
+    from: { namespace: edge, podLabels: { app.kubernetes.io/name: apisix } }
+    to: { namespace: observability, podLabels: { app.kubernetes.io/name: otel-agent } }
+    ports: [4317, 4318]
+  - name: core-to-otel-agent
+    from: { namespace: core }
+    to: { namespace: observability, podLabels: { app.kubernetes.io/name: otel-agent } }
+    ports: [4317, 4318]
+  # Nhật ký kiểm toán và an ninh sang Kafka sys.audit.v1 (TL-04 mục 10.3, G6).
+  - name: fluent-bit-to-kafka
+    from: { namespace: observability, podLabels: { app.kubernetes.io/name: fluent-bit } }
+    to: { namespace: data-kafka, podLabels: { strimzi.io/cluster: kafka-cell } }
+    ports: [9093]
+  - name: apisix-to-valkey-ratelimit
+    from: { namespace: edge, podLabels: { app.kubernetes.io/name: apisix } }
+    to: { namespace: data-kafka, podLabels: { app.kubernetes.io/name: valkey } }
+    ports: [6379]

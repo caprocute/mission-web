@@ -1,0 +1,3 @@
+// Pipeline của deploy/ (INF-06): Helm chart, chính sách Kyverno, ba mô hình phân phối (vtHelmPipeline).
+@Library('vt-pipeline@vt-pipeline-v1.1.0') _
+vtHelmPipeline()

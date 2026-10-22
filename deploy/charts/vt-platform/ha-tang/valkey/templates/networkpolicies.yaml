@@ -1,0 +1,50 @@
+{{- /* Bổ sung default-deny của cell-base (TL-04 mục 3.6): bus cụm giữa các pod Valkey, client theo người dùng ACL. */}}
+{{- $v := .Values }}
+{{- $khach := list }}
+{{- range $ten, $u := $v.users }}{{ if $u.namespace }}{{ $khach = append $khach $u.namespace }}{{ end }}{{ end }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: valkey
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "valkey.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: valkey }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: valkey } }
+      ports: [{ port: 6379, protocol: TCP }, { port: 16379, protocol: TCP }]
+    - from:
+        - podSelector: { matchLabels: { vt.io/valkey-client: "true" } }
+        {{- range ($khach | uniq | sortAlpha) }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ . }} } }
+        {{- end }}
+      ports: [{ port: 6379, protocol: TCP }]
+    {{- if $v.metrics.enabled }}
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.observabilityNamespace }} } }
+      ports: [{ port: 9121, protocol: TCP }]
+    {{- end }}
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: valkey } }
+      ports: [{ port: 6379, protocol: TCP }, { port: 16379, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: valkey-tao-cum
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "valkey.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { vt.io/valkey-client: "true" }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: valkey } }
+      ports: [{ port: 6379, protocol: TCP }]

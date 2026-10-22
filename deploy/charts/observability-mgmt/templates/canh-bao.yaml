@@ -1,0 +1,186 @@
+{{- /* INF-15: Thanos Ruler chạy luật cửa sổ dài (rules/*.yaml), Alertmanager nhận cảnh báo từ Prometheus các cell
+và từ Thanos Ruler, cấu hình ở alertmanager/alertmanager.yaml; dashboard Grafonnet đã biên dịch ở dashboards/json. */ -}}
+{{- $v := .Values }}
+{{- $am := $v.alertmanager }}
+{{- if and $v.thanos.enabled $v.thanos.ruler.enabled }}
+{{- $t := $v.thanos }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: thanos-rule-files
+  namespace: observability
+data:
+  {{- range $p, $_ := .Files.Glob "rules/*.yaml" }}
+  {{ base $p }}: |
+    {{- $.Files.Get $p | nindent 4 }}
+  {{- end }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: thanos-rule
+  namespace: observability
+  labels: { app.kubernetes.io/name: thanos-rule, app.kubernetes.io/part-of: vt-observability }
+spec:
+  serviceName: thanos-rule
+  replicas: {{ $t.ruler.replicas | int }}
+  selector: { matchLabels: { app.kubernetes.io/name: thanos-rule } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: thanos-rule, app.kubernetes.io/part-of: vt-observability }
+      annotations: { checksum/rules: {{ .Files.Glob "rules/*.yaml" | toString | sha256sum }} }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "obs.podSec" . | nindent 8 }}
+      containers:
+        - name: thanos
+          image: {{ include "obs.image" (list $t.image "thanos") }}
+          args:
+            - rule
+            - --http-address=0.0.0.0:10902
+            - --grpc-address=0.0.0.0:10901
+            - --data-dir=/data
+            - --rule-file=/etc/thanos/rules/*.yaml
+            - --query=dnssrv+_http._tcp.thanos-query.observability.svc
+            - --alertmanagers.url=dnssrv+http://_web._tcp.alertmanager-headless.observability.svc
+            - --label=ruler_cluster="mgmt"
+            - --label=replica="$(POD_NAME)"
+            - --alert.label-drop=replica
+            - --objstore.config-file=/etc/thanos/objstore/objstore.yml
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+          ports:
+            - { name: http, containerPort: 10902 }
+            - { name: grpc, containerPort: 10901 }
+          readinessProbe: { httpGet: { path: /-/ready, port: http } }
+          resources:
+            requests: { cpu: 200m, memory: 1Gi }
+            limits: { cpu: "1", memory: 1Gi }
+          securityContext:
+            {{- include "obs.secCtx" . | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: rules, mountPath: /etc/thanos/rules, readOnly: true }
+            - { name: objstore, mountPath: /etc/thanos/objstore, readOnly: true }
+      volumes:
+        - name: rules
+          configMap: { name: thanos-rule-files }
+        - name: objstore
+          secret: { secretName: {{ $t.objstoreSecret }} }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: {{ $t.ruler.storage }} } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: thanos-rule
+  namespace: observability
+spec:
+  clusterIP: None
+  selector: { app.kubernetes.io/name: thanos-rule }
+  ports: [{ name: http, port: 10902 }, { name: grpc, port: 10901 }]
+{{- end }}
+{{- if $am.enabled }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-config
+  namespace: observability
+stringData:
+  alertmanager.yaml: |
+    {{- .Files.Get "alertmanager/alertmanager.yaml" | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: alertmanager
+  namespace: observability
+  labels: { app.kubernetes.io/name: alertmanager, app.kubernetes.io/part-of: vt-observability }
+spec:
+  serviceName: alertmanager-headless
+  replicas: {{ $am.replicas | int }}
+  podManagementPolicy: Parallel
+  selector: { matchLabels: { app.kubernetes.io/name: alertmanager } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: alertmanager, app.kubernetes.io/part-of: vt-observability }
+      annotations: { checksum/config: {{ .Files.Get "alertmanager/alertmanager.yaml" | sha256sum }} }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "obs.podSec" . | nindent 8 }}
+      containers:
+        - name: alertmanager
+          image: {{ include "obs.image" (list $am.image "alertmanager") }}
+          args:
+            - --config.file=/etc/alertmanager/config/alertmanager.yaml
+            - --storage.path=/data
+            - --web.listen-address=:9093
+            - --cluster.listen-address=:9094
+            {{- range $i, $_ := until ($am.replicas | int) }}
+            - --cluster.peer=alertmanager-{{ $i }}.alertmanager-headless.observability.svc:9094
+            {{- end }}
+          ports:
+            - { name: web, containerPort: 9093 }
+            - { name: mesh, containerPort: 9094 }
+          readinessProbe: { httpGet: { path: /-/ready, port: web } }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          securityContext:
+            {{- include "obs.secCtx" . | nindent 12 }}
+          volumeMounts:
+            - { name: config, mountPath: /etc/alertmanager/config, readOnly: true }
+            - { name: webhooks, mountPath: /etc/alertmanager/webhooks, readOnly: true }
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: config
+          secret: { secretName: alertmanager-config }
+        # Địa chỉ webhook của hệ thống gọi trực và kênh nhắn tin là bí mật của môi trường (ESO, INF-13).
+        - name: webhooks
+          secret: { secretName: {{ $am.webhookSecret }} }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 2Gi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-headless
+  namespace: observability
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: { app.kubernetes.io/name: alertmanager }
+  ports: [{ name: web, port: 9093 }, { name: mesh, port: 9094 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: observability
+spec:
+  selector: { app.kubernetes.io/name: alertmanager }
+  ports: [{ name: web, port: 9093 }]
+{{- end }}
+{{- if $v.grafana.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vt-grafana-dashboards
+  namespace: observability
+data:
+  {{- range $p, $_ := .Files.Glob "dashboards/json/*.json" }}
+  {{ base $p }}: |
+    {{- $.Files.Get $p | nindent 4 }}
+  {{- end }}
+{{- end }}

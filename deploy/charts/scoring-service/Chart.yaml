@@ -1,0 +1,10 @@
+apiVersion: v2
+name: scoring-service
+description: 'SVC-07 scoring-service: worker tính điểm, co giãn KEDA theo độ trễ consumer (TL-04 mục 5.4).'
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+dependencies:
+  - name: vt-service
+    version: 0.1.0
+    repository: file://../vt-service
