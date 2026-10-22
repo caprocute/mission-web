@@ -31,4 +31,13 @@ public class EvidenceQueryService implements EvidenceQueryApi {
     }
     return ids.isEmpty() ? Set.of() : repository.confirmedOf(tenant, personId, ids);
   }
+
+  @Override
+  @Transactional(value = EvidenceLifecycleService.TX, readOnly = true)
+  public Set<UUID> acceptors(TenantId tenant, UUID periodId, UUID personId) {
+    Objects.requireNonNull(tenant, "tenant");
+    Objects.requireNonNull(periodId, "periodId");
+    Objects.requireNonNull(personId, "personId");
+    return repository.acceptorsOf(tenant, periodId, personId);
+  }
 }

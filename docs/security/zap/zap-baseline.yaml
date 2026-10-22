@@ -1,0 +1,36 @@
+# Kế hoạch ZAP baseline cho bản phục vụ web (WEB-053, TL-04 "Kiểm thử bảo mật: ASVS mức 2 và OWASP ZAP").
+# Chạy:  ZAP_TARGET=http://localhost:8080 ZAP_OUT=/tmp/zap zap.sh -cmd -silent -autorun zap-baseline.yaml
+# Bản đầy đủ thêm job requestor liệt kê mọi tệp tĩnh đã dựng (shell là SPA nên spider chỉ thấy ít URL);
+# xem docs/security/WEB-053-danh-gia-attt-frontend.md mục "Cách chạy lại".
+env:
+  contexts:
+    - name: mission-web
+      urls: ["${ZAP_TARGET}/"]
+      includePaths: ["${ZAP_TARGET}/.*"]
+  parameters:
+    failOnError: true
+    progressToStdout: true
+jobs:
+  - type: passiveScan-config
+    parameters: { maxAlertsPerRule: 10, scanOnlyInScope: true }
+  - type: spider
+    parameters: { context: mission-web, maxDuration: 3 }
+  - type: requestor
+    requests:
+      - { url: "${ZAP_TARGET}/config.json" }
+      - { url: "${ZAP_TARGET}/federation.manifest.json" }
+      - { url: "${ZAP_TARGET}/ui-packs/default/current.json" }
+      - { url: "${ZAP_TARGET}/remotes/fe-task/remoteEntry.json" }
+      - { url: "${ZAP_TARGET}/tasks" }
+      - { url: "${ZAP_TARGET}/silent-refresh.html" }
+      - { url: "${ZAP_TARGET}/embed/vt-okr-app.js" }
+      - { url: "${ZAP_TARGET}/embed/index.html" }
+      - { url: "${ZAP_TARGET}/remotes/fe-task/khong-ton-tai.html" }
+      - { url: "${ZAP_TARGET}/.env" }
+      - { url: "${ZAP_TARGET}/.git/config" }
+  - type: passiveScan-wait
+    parameters: { maxDuration: 5 }
+  - type: report
+    parameters: { template: traditional-json, reportDir: "${ZAP_OUT}", reportFile: zap-baseline.json }
+  - type: report
+    parameters: { template: traditional-md, reportDir: "${ZAP_OUT}", reportFile: zap-baseline.md }

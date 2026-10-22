@@ -418,6 +418,19 @@ public class JdbcEvidenceSubmissionRepository implements EvidenceSubmissionRepos
   }
 
   @Override
+  public Set<UUID> acceptorsOf(TenantId tenant, UUID periodId, UUID personId) {
+    return new HashSet<>(
+        jdbc.sql(
+                "SELECT DISTINCT a.reviewer_id FROM product.acceptance a JOIN"
+                    + " product.evidence_version v ON v.period_bucket = a.period_bucket AND"
+                    + " v.tenant_id = a.tenant_id AND v.id = a.evidence_version_id WHERE"
+                    + " a.tenant_id = ? AND a.period_id = ? AND v.submitted_by = ?")
+            .params(tenant.value(), periodId, personId)
+            .query(UUID.class)
+            .list());
+  }
+
+  @Override
   public void markReviewer(TenantId tenant, int periodBucket, UUID evidenceId, UUID reviewerId) {
     jdbc.sql(
             "UPDATE product.evidence SET reviewer_id = ? WHERE period_bucket = ? AND tenant_id = ?"
