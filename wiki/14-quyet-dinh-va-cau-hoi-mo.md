@@ -630,6 +630,16 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 - Biểu mẫu chuyển `DA_PHAT_HANH` khi UI Pack chứa nó được phát hành (CORE-08-11 gọi `publishAttached`), nên `getCurrentUiForm` trả 404 cho tới lúc đó. ETag của bản hiện hành là `"phiên bản-rowVersion"`, của từng phiên bản là `rowVersion`; cả hai hỗ trợ `If-None-Match` 304.
 - Chưa làm: đưa biểu mẫu vào trường `forms` của gói runtime đã ký; chạy bộ test hai engine (`runUiFormTests`, CORE-08-14).
 
+### Ghi chú và quyết định từ kiểm phiếu tại máy chủ và bộ test biểu mẫu (CORE-08-14, 22/10/2026)
+
+- Không thêm thư viện JSON Schema: `CompiledForm` trong MOD-08 tự kiểm bộ từ khoá mà trình dựng SCR-1802 sinh ra (`type`, `enum`, `const`, giới hạn số, độ dài, `pattern`, `format` date, date-time, email, `properties`, `required`, `additionalProperties: false`, `items`, số mục), biên dịch một lần thành cây nút giữ sẵn mẫu và chương trình CEL, không sinh mã lúc chạy. Từ khoá ngoài danh sách bị bỏ qua (suy luận); khi cần đủ chuẩn 2020-12 thì đề xuất thư viện để người phụ trách duyệt.
+- Cổng `config.api.FormValidationApi.validate(tenant, formKey, schemaVersion, payload)` trả lỗi theo trường (đường dẫn chấm, phần tử mảng mang chỉ số như `sang_kien.1.ten`) và các khoá lớp C2. Đệm lược đồ theo `(tenant, form_key, version, row_version)`; bộ máy CEL theo tenant mang lịch làm việc của tenant (`WorkingCalendarApi.celCalendar`) đệm 10 phút. Biểu mẫu 50 trường với 30 quy tắc kiểm dưới 5 ms p95 trong kiểm thử.
+- Ngữ nghĩa chung cho cel-java và cel-js, ghi ở `data/golden/form-tests/README.md`: biến `form` là bảng phẳng khoá dữ liệu; trường `number` luôn là số thực, `integer` là số nguyên; `x-cel` và `celRules` chỉ chạy khi trường có giá trị; biểu thức lỗi khi chạy coi như không đạt; chuỗi rỗng ở trường bắt buộc coi như thiếu. Thông điệp của `x-cel` lấy từ `x-cel-message` (suy luận, mặc định "Giá trị không hợp lệ").
+- Quy tắc theo hợp đồng `celRules` (`field`, `expr`, `message`, `serverOnly`), không theo dạng `rules[]` (`id`, `when`, `assert`) mà thẻ task nêu (API-first).
+- BR-18-04 chuyển tiếp: nhận phiếu theo phiên bản hiện hành hoặc phiên bản đã phát hành ngay trước nó khi cùng Policy Pack; bản nháp, phiên bản cũ hơn hay khác Policy Pack trả lỗi trường `schemaVersion`.
+- `runUiFormTests` chỉ chạy trên phiên bản nháp; ca đạt khi cel-java và cel-js cùng kết luận hợp lệ hay không, và cùng tập trường lỗi khi trình duyệt gửi `browserErrors` khác rỗng (MSG-18-08). `passed` là số ca khớp, `parity` là mọi ca khớp. Kết quả lưu vào `last_test_run`; điều kiện gắn vào UI Pack có thêm thời gian dựng 50 trường ≤ 50 ms khi trình duyệt gửi số đo (BR-18-08).
+- Bộ ca dùng chung `data/golden/form-tests/*.yaml` chạy trên cel-java bằng `FormGoldenSuiteTest`; CI của `@vt/form-engine` chạy cùng tệp bằng cel-js (việc của phía web).
+
 ## Liên quan
 
 - [README của wiki](README.md)

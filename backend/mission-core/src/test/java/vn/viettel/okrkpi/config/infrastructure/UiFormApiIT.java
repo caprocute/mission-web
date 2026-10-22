@@ -39,6 +39,7 @@ import vn.viettel.okrkpi.MissionCoreApplication;
 import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.config.api.PolicySchemaPort;
 import vn.viettel.okrkpi.config.application.FormSchemaService;
+import vn.viettel.okrkpi.config.domain.FormSchema;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
@@ -268,5 +269,40 @@ class UiFormApiIT extends ContractConformanceTest {
         .isEqualTo(304);
     MvcResult notDraft = perform(write(put(v), "\"1\"", update(SCHEMA, ui)));
     assertThat(body(notDraft).get("code").asText()).isEqualTo("UI-409-NOT-DRAFT");
+  }
+
+  @Test
+  void testRunsComparesEnginesAndFollowContract() throws Exception {
+    String base = "/api/v1/ui/forms/phieu-thu-nghiem/versions";
+    perform(write(post(base), null, "{\"version\":\"1\"}"));
+    String v = base + "/1";
+    assertThat(perform(write(put(v), "\"0\"", update(SCHEMA, "{}"))).getResponse().getStatus())
+        .isEqualTo(200);
+    String cases =
+        "{\"cases\":[{\"caseId\":\"TC-01\",\"input\":{\"ty_le_hsba_dat\":104},"
+            + "\"browserValid\":%s,\"browserErrors\":[]},"
+            + "{\"caseId\":\"TC-02\",\"input\":{\"ty_le_hsba_dat\":95.5},\"browserValid\":true}],"
+            + "\"renderMs50Fields\":31}";
+    MvcResult mismatch = perform(write(post(v + "/test-runs"), null, cases.formatted("true")));
+    assertThat(mismatch.getResponse().getStatus())
+        .as(mismatch.getResponse().getContentAsString())
+        .isEqualTo(200);
+    assertResponseConforms(
+        mismatch, "/ui/forms/{key}/versions/{v}/test-runs", PathItem.HttpMethod.POST);
+    JsonNode m = body(mismatch);
+    assertThat(m.get("parity").asBoolean()).isFalse();
+    assertThat(m.get("passed").asInt()).isEqualTo(1);
+    assertThat(m.get("cases").get(0).get("serverErrors").get(0).get("field").asText())
+        .isEqualTo("ty_le_hsba_dat");
+    assertThat(m.has(FormSchemaService.SCORING_HASH)).isFalse();
+
+    MvcResult ok = perform(write(post(v + "/test-runs"), null, cases.formatted("false")));
+    assertThat(body(ok).get("parity").asBoolean()).isTrue();
+    // Đổi thuần trình bày không làm mất hiệu lực bộ test (BR-18-07).
+    perform(write(put(v), "\"3\"", update(SCHEMA, "{\"mo_ta_su_co\":{\"label\":\"Mô tả\"}}")));
+    FormSchema saved = TenantContext.call(tenant, () -> forms.get(tenant, "phieu-thu-nghiem", "1"));
+    assertThat(saved.rowVersion()).isEqualTo(4);
+    assertThat(forms.testsPassed(saved)).isTrue();
+    assertThat(perform(get(v)).getResponse().getContentAsString()).doesNotContain("scoringHash");
   }
 }

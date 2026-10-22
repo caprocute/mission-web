@@ -63,6 +63,18 @@ public class JdbcFormSchemaRepository implements FormSchemaRepository {
   }
 
   @Override
+  public List<FormSchema> listVersions(TenantId tenantId, String formKey) {
+    return jdbc.sql(
+            "SELECT "
+                + COLUMNS
+                + " FROM config.form_schema WHERE tenant_id = ? AND form_key = ? ORDER BY id")
+        .param(tenantId.value())
+        .param(formKey)
+        .query(mapper())
+        .list();
+  }
+
+  @Override
   public Optional<FormSchema> findCurrent(TenantId tenantId, String formKey) {
     return jdbc.sql(
             "SELECT "
