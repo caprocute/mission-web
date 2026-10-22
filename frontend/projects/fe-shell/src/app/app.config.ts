@@ -1,6 +1,8 @@
+import { MessageService } from 'primeng/api';
 import { firstValueFrom } from 'rxjs';
 import {
   ApplicationConfig,
+  ErrorHandler,
   effect,
   inject,
   provideAppInitializer,
@@ -8,7 +10,14 @@ import {
   provideEnvironmentInitializer,
 } from '@angular/core';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
-import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
+import {
+  RedirectCommand,
+  Router,
+  provideRouter,
+  withComponentInputBinding,
+  withInMemoryScrolling,
+  withNavigationErrorHandler,
+} from '@angular/router';
 import {
   RUNTIME_CONFIG,
   RuntimeConfig,
@@ -39,6 +48,7 @@ import {
   traceparentInterceptor,
 } from '@vt/telemetry';
 import { routes } from './app.routes';
+import { GlobalErrorHandler } from './layout/app-status';
 import { SHELL_WIDGETS } from './widgets/shell-widgets';
 
 /** `uiPackPrefetch`: UI Pack main.ts đã tải sớm (WEB-052), `UiPackLoader` dùng lại nếu khớp cấu hình. */
@@ -49,6 +59,10 @@ export function buildAppConfig(
   return {
     providers: [
       provideBrowserGlobalErrorListeners(),
+      // WEB-012: lỗi chưa xử lý vào telemetry và dải thông báo; lỗi điều hướng sang trang lỗi thân thiện
+      { provide: ErrorHandler, useClass: GlobalErrorHandler },
+      // WEB-012: MessageService dùng chung để ProblemPresenter hiện toast qua <p-toast> của shell
+      MessageService,
       { provide: RUNTIME_CONFIG, useValue: cfg },
       {
         // WEB-074: lấy mẫu theo cấu hình, Baggage tenant, X-Debug-Trace theo ?debug-trace=1
@@ -77,6 +91,14 @@ export function buildAppConfig(
         routes,
         withComponentInputBinding(),
         withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
+        withNavigationErrorHandler((e) => {
+          inject(ErrorHandler).handleError(e.error);
+          const router = inject(Router);
+          return new RedirectCommand(router.parseUrl('/loi'), {
+            skipLocationChange: true,
+            state: { from: e.url },
+          });
+        }),
       ),
       provideHttpClient(
         withFetch(),
