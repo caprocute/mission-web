@@ -575,4 +575,11 @@ class PolicyTestRunServiceTest {
     assertThat(v.cases()).isEmpty();
     assertThat(service(true).findRun(tenant, pack.id(), "2.1.0", UUID.randomUUID())).isEmpty();
   }
+
+  @Test
+  void missingRunnerIsUnavailable() {
+    assertThat(CelJsRunner.NONE.available()).isFalse();
+    assertThatThrownBy(() -> CelJsRunner.NONE.evaluate(List.of()))
+        .isInstanceOf(IllegalStateException.class);
+  }
 }
