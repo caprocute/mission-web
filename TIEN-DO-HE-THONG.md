@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **126 / 401 task (31.4%)** — Khối lượng quy đổi đã gộp: **144 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **127 / 401 task (31.7%)** (gồm **126** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **8 task** (5 đang làm, 3 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **129 / 401 task (32.2%)** (gồm **126** đã gộp `main` + **3** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
 - **Chưa bắt đầu**: **266 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **9 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-05-01`** (đang xử lý trên nhánh: không).
 
@@ -25,21 +25,21 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **5** | 0 | 0 | 107 | **4.5%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **25** | 0 | 5 | 74 | **24.0%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **25** | 2 | 3 | 74 | **24.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **1** | 1 | 0 | 26 | **3.6%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **126** | **1** | **8** | **266** | **31.4%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **126** | **3** | **6** | **266** | **31.4%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 59 | **48** | 1 | 1 | 9 | **81.4%** |
-| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **31** | 0 | 2 | 7 | **77.5%** |
+| **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **31** | 2 | 0 | 7 | **77.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **11** | 0 | 1 | 34 | **23.9%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **19** | 0 | 3 | 95 | **16.2%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 0 | 0 | 54 | **23.9%** |
@@ -361,7 +361,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-02-07](docs/tasks/DV-02-07-consumer-evt14-keycloak.md) | Consumer EVT-14 cập nhật Organizations Keycloak khi tổ chức thay đổi | S | B5 | 12 | DV-02-01, DV-04-03 | **Đã gộp main** | Đã gộp main (nhánh B1 6389317) |
 | [DV-02-08](docs/tasks/DV-02-08-ma-khoi-phuc-mfa.md) | Mã khôi phục MFA: cấp, dùng một lần, thu hồi | S | B5 | 4 | DV-02-03, NEN-043 | **Đã gộp main** | Mã khôi phục MFA: cấp, dùng một lần, thu hồi (SPI mission-iam) |
 
-### DV-03 · SVC-03 tenant-registry (Go, toàn cục) (5/7 đã gộp `main`, 0 chờ gộp, 2 đang làm)
+### DV-03 · SVC-03 tenant-registry (Go, toàn cục) (5/7 đã gộp `main`, 2 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -369,9 +369,9 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-03-02](docs/tasks/DV-03-02-phan-giai-tenant.md) | API phân giải tenant theo tên miền, danh sách cell, đệm | M | B5 | 8 | DV-03-01 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
 | [DV-03-03](docs/tasks/DV-03-03-vong-doi-tenant.md) | Tenant: máy trạng thái bảy trạng thái, API nháp, gợi ý mô hình thuê bao và chọn cell theo tải | L | B5 | 8 | DV-03-01 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
 | [DV-03-04](docs/tasks/DV-03-04-saga-cap-phat-1.md) | Saga cấp phát tenant phần 1: CSDL hoặc schema, đăng ký pool, KEK trong HSM | L | B5 | 11 | DV-03-03, DV-06-05 | **Đã gộp main** | Đã gộp feat/B5-dinh-danh-to-chuc vào main |
-| [DV-03-05](docs/tasks/DV-03-05-saga-cap-phat-2.md) | Saga cấp phát tenant phần 2: Organization Keycloak, tên miền và TLS, sao chép Policy Pack và UI Pack, lịch mặc định, kích hoạt | L | B5 | 12 | DV-03-04, DV-02-01 | **Đang làm** | Nhánh feat/DV-03-05-06-07-tenant-registry: tạm dừng chờ phiên tiếp theo (sau DV-03-06) |
+| [DV-03-05](docs/tasks/DV-03-05-saga-cap-phat-2.md) | Saga cấp phát tenant phần 2: Organization Keycloak, tên miền và TLS, sao chép Policy Pack và UI Pack, lịch mặc định, kích hoạt | L | B5 | 12 | DV-03-04, DV-02-01 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: chuyển mã từ nhánh chưa gộp cool-davinci lên main mới, go test/vet/govulncheck xanh; DV-03-04 (bước CSDL, KEK) chưa có mã, cần mở lại |
 | [DV-03-06](docs/tasks/DV-03-06-idp-cua-tenant.md) | Khai báo IdP của tenant và kiểm kết nối OIDC, SAML, LDAP | S | B5 | 9 | DV-03-03 | **Đã gộp main** | Đã gộp main (2975c79): khai báo IdP OIDC/SAML/LDAP, kiểm kết nối chống SSRF, NetworkPolicy |
-| [DV-03-07](docs/tasks/DV-03-07-chuyen-tenant-cell.md) | Chuyển tenant giữa các cell bằng sao chép logic, hai người duyệt | L | B5 | 13 | DV-03-05, NEN-043 | **Đang làm** | Nhánh feat/DV-03-05-06-07-tenant-registry: tạm dừng chờ phiên tiếp theo (sau DV-03-05) |
+| [DV-03-07](docs/tasks/DV-03-07-chuyen-tenant-cell.md) | Chuyển tenant giữa các cell bằng sao chép logic, hai người duyệt | L | B5 | 13 | DV-03-05, NEN-043 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: chuyển mã từ nhánh chưa gộp cool-davinci lên main mới, go test 68 ca xanh; chờ duyệt bảng registry.tenant_move (wiki 14 mục 34) |
 
 ### DV-04 · SVC-04 org-service (8/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -755,4 +755,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 03:16 | Điều phối | `DV-11-01` | Chuyển trạng thái sang **Đã gộp main** — Dịch vụ sinh tài liệu: docx4j, Gotenberg PDF/A-2b, veraPDF, S3 |
 | 22/10/2026 03:30 | B1 (Claude) | `DV-02-08` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: SPI mission-iam cấp/thu hồi mã, authenticator mission-recovery-code; verify iam xanh, helm lint xanh |
 | 22/10/2026 03:36 | Điều phối | `DV-02-08` | Chuyển trạng thái sang **Đã gộp main** — Mã khôi phục MFA: cấp, dùng một lần, thu hồi (SPI mission-iam) |
+| 22/10/2026 03:44 | B1 (Claude) | `DV-03-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: chuyển mã từ nhánh chưa gộp cool-davinci lên main mới, go test/vet/govulncheck xanh; DV-03-04 (bước CSDL, KEK) chưa có mã, cần mở lại |
+| 22/10/2026 03:44 | B1 (Claude) | `DV-03-07` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: chuyển mã từ nhánh chưa gộp cool-davinci lên main mới, go test 68 ca xanh; chờ duyệt bảng registry.tenant_move (wiki 14 mục 34) |
 <!-- PROGRESS_LOG_END -->
