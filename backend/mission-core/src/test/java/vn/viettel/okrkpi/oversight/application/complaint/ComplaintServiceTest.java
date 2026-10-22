@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -68,7 +69,7 @@ class ComplaintServiceTest {
   @BeforeEach
   void setUp() {
     repo = new FakeComplaints();
-    profiles = new FakeProfiles();
+    profiles = new FakeProfiles(unit);
     sealer = new FakeSealer();
     service = service(null, sealer, true);
   }
@@ -97,6 +98,12 @@ class ComplaintServiceTest {
           @Override
           public void notFiled(TenantId tenant, Complaint c) {
             events.add("KHONG_GUI:" + c.code());
+          }
+
+          @Override
+          public void stateChanged(
+              TenantId tenant, Complaint c, String template, Collection<UUID> recipients) {
+            events.add(template + ":" + c.code());
           }
         },
         (tenant, actor, action, type, id, purpose, role) -> audits.add(action),
@@ -516,7 +523,7 @@ class ComplaintServiceTest {
   }
 
   private static Complaint filed(Complaint c) {
-    return c.filed(NOW, LocalDate.of(2026, 11, 11), UUID.randomUUID());
+    return c.filed(NOW, LocalDate.of(2026, 11, 11), UUID.randomUUID(), LocalDate.of(2026, 10, 23));
   }
 
   private static ComplaintService.Eligible byId(List<ComplaintService.Eligible> list, UUID id) {
@@ -527,10 +534,17 @@ class ComplaintServiceTest {
     return ((BusinessException) e).errorCode().code();
   }
 
-  private final class FakeProfiles implements ComplaintProfilesApi {
+  static final class FakeProfiles implements ComplaintProfilesApi {
     final Map<UUID, Profile> rows = new HashMap<>();
     final List<UUID> filed = new ArrayList<>();
+    final List<UUID> returned = new ArrayList<>();
+    final Map<UUID, Participants> participants = new HashMap<>();
+    final UUID unit;
     boolean reject;
+
+    FakeProfiles(UUID unit) {
+      this.unit = unit;
+    }
 
     UUID add(UUID person, String status, Instant published) {
       UUID id = UUID.randomUUID();
@@ -604,10 +618,25 @@ class ComplaintServiceTest {
       status(profileId, "KHIEU_NAI");
       return true;
     }
+
+    @Override
+    public Participants participants(TenantId tenant, UUID profileId) {
+      return participants.getOrDefault(profileId, new Participants(Set.of(), Set.of(), Set.of()));
+    }
+
+    @Override
+    public boolean returnToSigned(TenantId tenant, UUID profileId, UUID actorId, String reason) {
+      if (!"KHIEU_NAI".equals(rows.get(profileId).status())) {
+        return false;
+      }
+      returned.add(profileId);
+      status(profileId, "DA_KY_SO");
+      return true;
+    }
   }
 
   /** Mã hoá giả: đảo byte, tiền tố 16 byte là mã DEK; có thể xoay DEK sau n lần. */
-  private static final class FakeSealer implements ComplaintSealer {
+  static final class FakeSealer implements ComplaintSealer {
     UUID dek = UUID.randomUUID();
     int sealed;
     int rotateAfter = -1;
@@ -643,7 +672,7 @@ class ComplaintServiceTest {
     }
   }
 
-  private static final class FakeComplaints implements ComplaintRepository {
+  static final class FakeComplaints implements ComplaintRepository {
     final Map<UUID, Complaint> rows = new HashMap<>();
     final List<String> codes = new ArrayList<>();
     final List<Integer> lockedYears = new ArrayList<>();
@@ -706,6 +735,44 @@ class ComplaintServiceTest {
     }
 
     @Override
+    public List<Complaint> forHandler(
+        TenantId tenant,
+        Collection<UUID> unitIds,
+        UUID handlerId,
+        boolean assignedOnly,
+        UUID periodId,
+        Set<ComplaintStatus> statuses,
+        ComplaintKind kind,
+        HandlerAfter after,
+        int limit) {
+      return rows.values().stream()
+          .filter(c -> !c.draft())
+          .filter(
+              c ->
+                  handlerId.equals(c.handling().handlerId())
+                      || (!assignedOnly && unitIds.contains(c.handlerUnitId())))
+          .filter(c -> statuses.isEmpty() || statuses.contains(c.status()))
+          .filter(c -> kind == null || c.kind() == kind)
+          .sorted(Comparator.comparing(Complaint::responseDeadline))
+          .limit(limit)
+          .toList();
+    }
+
+    @Override
+    public boolean otherOpenReopening(TenantId tenant, UUID profileId, UUID exceptId) {
+      return rows.values().stream()
+          .anyMatch(
+              c ->
+                  c.profileId().equals(profileId)
+                      && !c.id().equals(exceptId)
+                      && c.kind().reopensProfile()
+                      && c.status() != null
+                      && c.status() != ComplaintStatus.DONG
+                      && c.status() != ComplaintStatus.RUT
+                      && c.status() != ComplaintStatus.KHONG_THU_LY);
+    }
+
+    @Override
     public Optional<Complaint> bySignRequest(TenantId tenant, UUID signRequestId) {
       return rows.values().stream()
           .filter(c -> signRequestId.equals(c.signRequestId()))
@@ -713,7 +780,7 @@ class ComplaintServiceTest {
     }
   }
 
-  private static final class FakePeriods implements PeriodApi {
+  static final class FakePeriods implements PeriodApi {
     @Override
     public Optional<PeriodSnapshot> findCurrent(TenantId tenantId) {
       return Optional.empty();

@@ -220,7 +220,8 @@ public class ComplaintService {
             null,
             null,
             now,
-            0);
+            0,
+            null);
     complaints.insert(tenant, c, actor.userId());
     audit.record(
         tenant, actor.userId(), ACTION_CREATE, OBJECT_TYPE, id.toString(), null, ROLE_MEMBER);
@@ -267,7 +268,8 @@ public class ComplaintService {
             null,
             null,
             c.createdAt(),
-            c.rowVersion() + 1);
+            c.rowVersion() + 1,
+            c.handling());
     save(tenant, changed, c.rowVersion(), actor.userId());
     audit.record(
         tenant, actor.userId(), ACTION_UPDATE, OBJECT_TYPE, id.toString(), null, ROLE_MEMBER);
@@ -349,9 +351,10 @@ public class ComplaintService {
       }
     }
     Instant at = signedAt == null ? clock.instant() : signedAt;
-    LocalDate deadline =
-        addWorkingDays(tenant, at.atZone(ZONE).toLocalDate(), ComplaintRules.RESPONSE_WORKING_DAYS);
-    Complaint filed = c.filed(at, deadline, p == null ? null : p.orgUnitId());
+    LocalDate day = at.atZone(ZONE).toLocalDate();
+    LocalDate deadline = addWorkingDays(tenant, day, ComplaintRules.RESPONSE_WORKING_DAYS);
+    LocalDate acceptBy = addWorkingDays(tenant, day, ComplaintRules.ACCEPT_WORKING_DAYS);
+    Complaint filed = c.filed(at, deadline, p == null ? null : p.orgUnitId(), acceptBy);
     save(tenant, filed, c.rowVersion(), c.complainantId());
     events.filed(tenant, filed);
     return true;
@@ -534,7 +537,7 @@ public class ComplaintService {
     return sealer.open(tenant, column, id, cipher);
   }
 
-  private View view(TenantId tenant, Complaint c, boolean withContent) {
+  View view(TenantId tenant, Complaint c, boolean withContent) {
     PeriodSnapshot period =
         periods == null ? null : periods.findById(tenant, PeriodId.of(c.periodId())).orElse(null);
     return new View(

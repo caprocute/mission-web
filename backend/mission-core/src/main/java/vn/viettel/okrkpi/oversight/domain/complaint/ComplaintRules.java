@@ -19,6 +19,16 @@ public final class ComplaintRules {
   /** Hạn trả lời bằng văn bản: 15 ngày làm việc kể từ khi gửi (BR-12-05). */
   public static final int RESPONSE_WORKING_DAYS = 15;
 
+  /** Hạn tiếp nhận, phân loại (QT-12 bước 4). */
+  public static final int ACCEPT_WORKING_DAYS = 2;
+
+  /** Lý do không thụ lý ({@code rejectComplaint}) và lý do rút ({@code OversightReasonInput}). */
+  public static final int REJECT_REASON_MIN = 20;
+
+  public static final int WITHDRAW_REASON_MIN = 10;
+  public static final int REASON_MAX = 2000;
+  public static final int NOTE_MAX = 2000;
+
   private static final Pattern CODE = Pattern.compile("^KN-(\\d{4})-(\\d{4,})$");
 
   private ComplaintRules() {}

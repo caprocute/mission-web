@@ -24,6 +24,8 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import vn.viettel.okrkpi.oversight.application.port.ComplaintRepository;
 import vn.viettel.okrkpi.oversight.domain.complaint.Complaint;
+import vn.viettel.okrkpi.oversight.domain.complaint.ComplaintCloseReason;
+import vn.viettel.okrkpi.oversight.domain.complaint.ComplaintHandling;
 import vn.viettel.okrkpi.oversight.domain.complaint.ComplaintKind;
 import vn.viettel.okrkpi.oversight.domain.complaint.ComplaintStage;
 import vn.viettel.okrkpi.oversight.domain.complaint.ComplaintStatus;
@@ -37,7 +39,9 @@ public class JdbcComplaintRepository implements ComplaintRepository {
       "id, code, period_id, period_bucket, complainant_person_id, profile_id, kind, target_stage,"
           + " subject_line, targets_json::text AS targets_json, content_enc, request_text_enc,"
           + " dek_id, attachment_object_ids, reserve_opinion, status, filed_at,"
-          + " response_deadline, handler_unit_id, sign_request_id, created_at, row_version";
+          + " response_deadline, handler_unit_id, sign_request_id, created_at, row_version,"
+          + " handler_person_id, accept_deadline, accepted_at, close_reason_code, close_reason,"
+          + " closed_at";
 
   private final JdbcClient jdbc;
   private final ObjectMapper json;
@@ -131,7 +135,9 @@ public class JdbcComplaintRepository implements ComplaintRepository {
                        content_enc = ?, request_text_enc = ?, dek_id = ?,
                        attachment_object_ids = ?::uuid[], reserve_opinion = ?, status = ?,
                        filed_at = ?, response_deadline = ?, handler_unit_id = ?,
-                       sign_request_id = ?, row_version = ?, updated_at = now(), updated_by = ?
+                       sign_request_id = ?, handler_person_id = ?, accept_deadline = ?,
+                       accepted_at = ?, close_reason_code = ?, close_reason = ?, closed_at = ?,
+                       row_version = ?, updated_at = now(), updated_by = ?
                  WHERE period_bucket = ? AND tenant_id = ? AND id = ? AND row_version = ?
                 """)
             .param(c.kind().name())
@@ -144,10 +150,19 @@ public class JdbcComplaintRepository implements ComplaintRepository {
             .param(uuidArray(c.attachmentIds()))
             .param(c.reserveOpinion())
             .param(c.status() == null ? null : c.status().name())
-            .param(c.filedAt() == null ? null : Timestamp.from(c.filedAt()))
-            .param(c.responseDeadline() == null ? null : Date.valueOf(c.responseDeadline()))
+            .param(timestamp(c.filedAt()))
+            .param(date(c.responseDeadline()))
             .param(c.handlerUnitId())
             .param(c.signRequestId())
+            .param(c.handling().handlerId())
+            .param(date(c.handling().acceptDeadline()))
+            .param(timestamp(c.handling().acceptedAt()))
+            .param(
+                c.handling().closeReasonCode() == null
+                    ? null
+                    : c.handling().closeReasonCode().name())
+            .param(c.handling().closeReason())
+            .param(timestamp(c.handling().closedAt()))
             .param(c.rowVersion())
             .param(actorId)
             .param(c.periodBucket())
@@ -198,6 +213,68 @@ public class JdbcComplaintRepository implements ComplaintRepository {
   }
 
   @Override
+  public List<Complaint> forHandler(
+      TenantId tenant,
+      Collection<UUID> unitIds,
+      UUID handlerId,
+      boolean assignedOnly,
+      UUID periodId,
+      Set<ComplaintStatus> statuses,
+      ComplaintKind kind,
+      HandlerAfter after,
+      int limit) {
+    StringBuilder sql =
+        new StringBuilder("SELECT ")
+            .append(COLUMNS)
+            .append(" FROM oversight.complaint WHERE tenant_id = ? AND status IS NOT NULL");
+    List<Object> params = new ArrayList<>(List.of(tenant.value()));
+    if (assignedOnly || unitIds.isEmpty()) {
+      sql.append(" AND handler_person_id = ?");
+      params.add(handlerId);
+    } else {
+      sql.append(" AND (handler_unit_id = ANY (?::uuid[]) OR handler_person_id = ?)");
+      params.add(uuidArray(unitIds));
+      params.add(handlerId);
+    }
+    if (periodId != null) {
+      sql.append(" AND period_id = ?");
+      params.add(periodId);
+    }
+    if (statuses != null && !statuses.isEmpty()) {
+      sql.append(" AND status = ANY (?::text[])");
+      params.add(statuses.stream().map(Enum::name).collect(Collectors.joining(",", "{", "}")));
+    }
+    if (kind != null) {
+      sql.append(" AND kind = ?");
+      params.add(kind.name());
+    }
+    if (after != null) {
+      sql.append(" AND (response_deadline, id) > (?, ?)");
+      params.add(Date.valueOf(after.deadline()));
+      params.add(after.id());
+    }
+    sql.append(" ORDER BY response_deadline, id LIMIT ?");
+    params.add(limit);
+    return jdbc.sql(sql.toString()).params(params).query(mapper()).list();
+  }
+
+  @Override
+  public boolean otherOpenReopening(TenantId tenant, UUID profileId, UUID exceptId) {
+    return jdbc.sql(
+            """
+            SELECT EXISTS (SELECT 1 FROM oversight.complaint
+             WHERE tenant_id = ? AND profile_id = ? AND id <> ? AND kind <> 'BAO_LUU'
+               AND status IN ('MOI', 'DA_TIEP_NHAN', 'DANG_GIAI_TRINH', 'CHO_KET_LUAN',
+                              'DA_TRA_LOI', 'DANG_THI_HANH'))
+            """)
+        .param(tenant.value())
+        .param(profileId)
+        .param(exceptId)
+        .query(Boolean.class)
+        .single();
+  }
+
+  @Override
   public Optional<Complaint> bySignRequest(TenantId tenant, UUID signRequestId) {
     return jdbc.sql(
             "SELECT "
@@ -235,8 +312,29 @@ public class JdbcComplaintRepository implements ComplaintRepository {
           rs.getObject("handler_unit_id", UUID.class),
           rs.getObject("sign_request_id", UUID.class),
           instant(rs, "created_at"),
-          rs.getInt("row_version"));
+          rs.getInt("row_version"),
+          handling(rs));
     };
+  }
+
+  private static ComplaintHandling handling(ResultSet rs) throws SQLException {
+    Date acceptDeadline = rs.getDate("accept_deadline");
+    String code = rs.getString("close_reason_code");
+    return new ComplaintHandling(
+        rs.getObject("handler_person_id", UUID.class),
+        acceptDeadline == null ? null : acceptDeadline.toLocalDate(),
+        instant(rs, "accepted_at"),
+        code == null ? null : ComplaintCloseReason.valueOf(code),
+        rs.getString("close_reason"),
+        instant(rs, "closed_at"));
+  }
+
+  private static Timestamp timestamp(Instant i) {
+    return i == null ? null : Timestamp.from(i);
+  }
+
+  private static Date date(java.time.LocalDate d) {
+    return d == null ? null : Date.valueOf(d);
   }
 
   private String targetsJson(List<ComplaintTarget> targets) {
