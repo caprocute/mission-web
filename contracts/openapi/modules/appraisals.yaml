@@ -25,6 +25,11 @@
 #     theo cùng lý do HD-04; `GET /appraisals/profiles` dành cho hàng đợi theo đơn vị.
 #   - AP-04: `GET /appraisals/{id}/score` (PL C) thành `GET /appraisals/profiles/{id}/scores?flow=`.
 #   - AP-05: mọi thao tác ghi lên hồ sơ dùng ETag của `appraisal_profile.row_version`.
+#   - AP-06 (WEB-063 bổ sung cho SCR-0904): danh sách hồ sơ lọc theo khối đối tượng (`subjectGroup`) và
+#     trả kèm khối, ngưỡng tỷ lệ HTXSNV (`maxExcellentShare`) của từng hồ sơ; thân 202 của ký lô có
+#     `batchId`; thêm `GET /appraisals/batch-decisions` liệt kê lô của người quyết định.
+#   - AP-07 (WEB-063 bổ sung cho SCR-1001, SCR-1002): bảng phân nhóm có `policyPackId`; lưu nháp
+#     không bắt buộc lý do (chỉ bắt buộc khi trình); `linkageNote`, `policyNote` là lời nghiệp vụ.
 openapi: 3.1.0
 info:
   title: Mission – Đánh giá, xếp loại (MOD-04)
@@ -129,6 +134,12 @@ paths:
           in: query
           description: Gồm cả cây đơn vị cấp dưới của `unit` (suy luận, phục vụ bộ lọc khối trên SCR-0904).
           schema: { type: boolean, default: true }
+        - name: subjectGroup
+          in: query
+          description: >-
+            Khối đối tượng (`appraisal_profile.subject_group_id`, danh mục `GET /org/subject-groups`);
+            bộ lọc "khối" của SCR-0904 trường 1. Bỏ trống là mọi khối trong phạm vi.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         - $ref: '../common/common.yaml#/components/parameters/Q'
         - $ref: '../common/common.yaml#/components/parameters/Limit'
         - $ref: '../common/common.yaml#/components/parameters/Cursor'
@@ -151,7 +162,7 @@ paths:
         roles: [appraiser, decider]
         scope: Cd
         rules: [BR-09-14]
-        source: TL-02b SCR-0902 trường 1–2; SCR-0904 trường 1–3; TL-02b part-06 bảng liên kết
+        source: TL-02b SCR-0902 trường 1–2; SCR-0904 trường 1–3, 5; TL-02b part-06 bảng liên kết; TL-03 appraisal_profile.subject_group_id, policy_pack_version_id
 
   /appraisals/profiles/{id}:
     parameters:
@@ -746,6 +757,59 @@ paths:
         source: TL-01 PL C GET /appraisals/inputs?period=&cursor=
 
   /appraisals/batch-decisions:
+    get:
+      tags: [Quyết định hàng loạt]
+      operationId: listAppraisalBatchDecisions
+      summary: Danh sách lô quyết định của người quyết định
+      description: >-
+        Các lô do chính người gọi ký (`appraisal.batch_decision.decider_id` là người gọi), mới nhất
+        trước. SCR-0904 gọi với `status=CHO_KY` khi mở màn hình để hiện lại tiến độ của lô đang ký,
+        vì người quyết định được phép đóng màn hình trong lúc ký (MSG-09-15).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '#/components/parameters/FlowQuery'
+        - name: status
+          in: query
+          description: Lọc theo trạng thái lô; lặp tham số để chọn nhiều giá trị.
+          style: form
+          explode: true
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/AppraisalBatchDecisionStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang lô quyết định.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalBatchDecisionPage' }
+              examples:
+                dang-ky:
+                  value:
+                    items:
+                      - id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0b51
+                        period: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0001, label: Quý IV/2026, startDate: '2026-10-01', endDate: '2026-12-31' }
+                        flow: DANG
+                        decisionNo: 215-QĐ/ĐUK
+                        decisionDate: '2027-01-12'
+                        decider: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0209, name: Ngô Thanh Tâm }
+                        profileCount: 48
+                        status: CHO_KY
+                        signedCount: 36
+                        failedCount: 0
+                        rowVersion: 4
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09, QT-10]
+        scr: [SCR-0904]
+        owner: MOD-04
+        roles: [decider]
+        scope: Cd
+        source: TL-02b SCR-0904 "Theo dõi tiến độ" (khi có lô đang chạy), MSG-09-15; TL-03 appraisal.batch_decision (decider_id, status CHO_KY)
     post:
       tags: [Quyết định hàng loạt]
       operationId: createAppraisalBatchDecision
@@ -754,7 +818,8 @@ paths:
         Tạo `appraisal.batch_decision` cho 1 đến 1.000 hồ sơ `CHO_QUYET_DINH`, ghi bản ghi mức
         `QUYET_DINH` cho từng hồ sơ (đổi mức so với mức đề xuất thì bắt buộc lý do ≥ 20 ký tự), yêu
         cầu xác thực bước lên một lần và tạo yêu cầu ký lô ở SVC-10 (mỗi hồ sơ một chữ ký PAdES).
-        Trả 202 với `Location: /api/v1/jobs/{id}`; tiến độ theo SSE. Mỗi chữ ký thành công phát
+        Trả 202 với `Location: /api/v1/jobs/{id}`; thân 202 có `batchId` (mã lô) và `resultLocation`
+        (đường dẫn lô) ngay từ lúc nhận, để thao tác "Huỷ lô" dùng được khi lô đang ký; tiến độ theo SSE. Mỗi chữ ký thành công phát
         EVT-18 và hồ sơ chuyển `DA_KY_SO`, kèm EVT-12. Hồ sơ lỗi ký giữ `CHO_QUYET_DINH`.
         Quyết định một hồ sơ cũng đi qua đây (lô 1 hồ sơ, điểm chốt AP-02).
 
@@ -790,7 +855,25 @@ paths:
                       reason: Tập thể Ban Thường vụ thống nhất hạ một mức do chưa hoàn thành nhiệm vụ then chốt về chuyển đổi số.
                       rowVersion: 6
       responses:
-        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '202':
+          description: >-
+            Đã nhận lô (trả trong 200 ms, NFR-03). Theo dõi bằng `Location` hoặc luồng SSE
+            `/api/v1/notifications/stream`.
+          headers:
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+            Retry-After: { $ref: '../common/common.yaml#/components/headers/RetryAfter' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalBatchDecisionJob' }
+              examples:
+                moi-nhan:
+                  value:
+                    id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a78
+                    type: ESIGN_BATCH
+                    status: CHO
+                    progress: 0
+                    batchId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0b51
+                    resultLocation: /api/v1/appraisals/batch-decisions/01928f3e-7b1a-7c3e-9a51-3f2d9c1b0b51
         '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
         '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
         '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
@@ -1059,8 +1142,10 @@ paths:
       description: >-
         Lưu toàn bộ danh sách (nhóm, thứ tự trong nhóm, lý do khi khác gợi ý, kế hoạch bồi dưỡng).
         Kiểm tra: thứ tự không trùng trong nhóm; người KHTNV năm hoặc có cờ bố trí lại không vào
-        `NHOM_1`, `NHOM_2` (422 `APPRAISAL-422-PROSPECT-NOT-ELIGIBLE`, MSG-10-06, BR-10-09); khác gợi
-        ý thì lý do 20 đến 1.000 ký tự (lỗi theo trường, MSG-10-07). Chỉ khi danh sách ở `NHAP`.
+        `NHOM_1`, `NHOM_2` (422 `APPRAISAL-422-PROSPECT-NOT-ELIGIBLE`, MSG-10-06, BR-10-09). Lưu nháp
+        không bắt buộc lý do: mục khác gợi ý mà chưa có lý do vẫn lưu được, giao diện chỉ nhắc
+        MSG-10-07; lý do (khi có) dài 20 đến 1.000 ký tự. Thiếu lý do chỉ chặn ở bước trình
+        (`.../submit`, 422 `APPRAISAL-422-REASON-REQUIRED`). Chỉ khi danh sách ở `NHAP`.
       parameters:
         - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
         - $ref: '../common/common.yaml#/components/parameters/IfMatch'
@@ -1107,7 +1192,7 @@ paths:
         scope: Đv
         rules: [BR-10-07, BR-10-08, BR-10-09, BR-10-10]
         errors: [APPRAISAL-409-PROSPECT-QUARTER, APPRAISAL-422-PROSPECT-NOT-ELIGIBLE, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-VERSION-CONFLICT]
-        source: TL-02b SCR-1002 "Lưu nháp"
+        source: TL-02b SCR-1002 "Lưu nháp" (điều kiện chỉ là trạng thái nháp), "Trình tập thể lãnh đạo" (đủ lý do), trường 4, 6
 
   /appraisals/prospect-groups/{periodId}/{orgUnitId}/submit:
     parameters:
@@ -1274,6 +1359,18 @@ components:
         flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
         status: { $ref: '#/components/schemas/AppraisalProfileStatus' }
         isHead: { type: boolean, description: 'Người đứng đầu (BR-09-13)' }
+        subjectGroup:
+          description: Khối đối tượng của hồ sơ (`appraisal_profile.subject_group_id`); vắng khi hồ sơ không gắn khối.
+          $ref: '../common/common.yaml#/components/schemas/Ref'
+        maxExcellentShare:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: >-
+            Ngưỡng tỷ lệ HTXSNV tối đa của khối (tham số `phan_bo.toi_da_htxsnv` trong manifest của phiên
+            bản Policy Pack gắn với hồ sơ, `appraisal_profile.policy_pack_version_id`), dạng tỉ lệ 0..1.
+            SCR-0904 so phân bố mức với ngưỡng này (trường 5, BR-09-17, MSG-09-13); vắng thì dùng
+            mặc định 0,2 của TL-02b. Máy chủ vẫn kiểm lại khi ký lô.
         totalScore: { type: [number, 'null'], minimum: 0, maximum: 100, description: 'Điểm của ảnh chụp hiện hành' }
         autoRatingCode:
           description: Mức hệ thống tính (tham khảo).
@@ -1907,6 +2004,26 @@ components:
           type: array
           items: { $ref: '../common/common.yaml#/components/schemas/BatchItemResult' }
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    AppraisalBatchDecisionPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalBatchDecision' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    AppraisalBatchDecisionJob:
+      description: >-
+        Job ký lô trả trong thân 202 của `POST /appraisals/batch-decisions`: lược đồ `Job` dùng chung
+        cộng mã lô. Khác job thông thường, `resultLocation` trỏ tới lô
+        (`/api/v1/appraisals/batch-decisions/{id}`) ngay từ khi nhận, không chờ `HOAN_TAT`.
+      allOf:
+        - $ref: '../common/common.yaml#/components/schemas/Job'
+        - type: object
+          properties:
+            batchId:
+              $ref: '../common/common.yaml#/components/schemas/Uuid'
+              description: Mã lô `appraisal.batch_decision.id`, dùng cho "Huỷ lô" và `GET /appraisals/batch-decisions/{id}`.
 
     AnnualRatingRow:
       description: Một dòng xếp loại năm (`appraisal.annual_rating`).
@@ -1946,7 +2063,12 @@ components:
         blockReason: { type: [string, 'null'], maxLength: 32, examples: [CO_QUY_KHTNV] }
         reassignFlag: { type: boolean }
         relocationProposed: { type: boolean }
-        linkageNote: { type: string, maxLength: 200, description: 'Câu ngắn cột "Quy tắc liên thông"' }
+        linkageNote:
+          type: string
+          maxLength: 200
+          description: >-
+            Câu ngắn cột "Quy tắc liên thông", viết bằng lời nghiệp vụ để hiển thị nguyên văn; máy chủ
+            không đưa mã quy tắc, mã thông báo, tên tham số hay giá trị mã (như `CO_QUY_KHTNV`) vào câu này.
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
     AnnualRatingCounts:
       description: Số đếm cho bốn thẻ số liệu SCR-1001.
@@ -1967,7 +2089,11 @@ components:
           items: { $ref: '#/components/schemas/AnnualRatingRow' }
         nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
         counts: { $ref: '#/components/schemas/AnnualRatingCounts' }
-        policyNote: { type: string, description: 'Dòng phụ ghi phiên bản Policy Pack các quý' }
+        policyNote:
+          type: string
+          description: >-
+            Dòng phụ ghi bộ quy định đánh giá và phiên bản áp cho các quý, viết bằng lời nghiệp vụ để hiển
+            thị nguyên văn; máy chủ không đưa mã quy tắc, tên tham số hay cụm "Policy Pack" vào câu này.
     AnnualRatingExplanation:
       type: object
       required: [annualRatingId, quarters, conditions, systemLevel]
@@ -2037,6 +2163,11 @@ components:
         periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         orgUnit: { $ref: '../common/common.yaml#/components/schemas/Ref' }
         status: { $ref: '#/components/schemas/ProspectBoardStatus' }
+        policyPackId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: >-
+            Gói quy định áp cho danh sách (`policy.policy_pack.id` của phiên bản gắn với hồ sơ năm), để
+            mở tiêu chí bốn nhóm qua `GET /policies/packs/{id}/prospect-criteria` (SCR-1002 "Xem tiêu chí PL 5").
         policyVersion: { type: string }
         rejectionReason:
           type: string
@@ -2068,8 +2199,13 @@ components:
                 minLength: 20
                 maxLength: 1000
                 x-classification: C2
-                description: Bắt buộc khi nhóm khác gợi ý (BR-10-08).
-              trainingPlanRef: { type: string, maxLength: 200 }
+                description: >-
+                  Lý do khi nhóm khác gợi ý (BR-10-08). Không bắt buộc khi lưu nháp; bắt buộc trước khi
+                  trình tập thể (`.../submit` trả 422 nếu còn thiếu).
+              trainingPlanRef:
+                type: string
+                maxLength: 200
+                description: Tham chiếu kế hoạch bồi dưỡng, tuỳ chọn (SCR-1002 trường 4, `prospect_group.training_plan_ref`).
 
   examples:
     AppraisalProfilePageMine:
@@ -2120,6 +2256,8 @@ components:
             flow: DANG
             status: CHO_QUYET_DINH
             isHead: false
+            subjectGroup: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0301, name: 'Cơ quan tham mưu, giúp việc' }
+            maxExcellentShare: 0.2
             totalScore: 91.2
             autoRatingCode: HTTNV
             levels: { selfProposed: HTXSNV, appraised: HTTNV, proposed: HTTNV, decided: null }
@@ -2283,11 +2421,11 @@ components:
             blockReason: CO_QUY_KHTNV
             reassignFlag: false
             relocationProposed: false
-            linkageNote: Có quý KHTNV ⇒ chặn HTXSNV (QĐ 15.5)
+            linkageNote: Có quý không hoàn thành nhiệm vụ nên năm không được xếp mức hoàn thành xuất sắc nhiệm vụ
             rowVersion: 2
         nextCursor: null
         counts: { profilesCreated: 48, profilesTotal: 48, blockedExcellent: 3, reassignProposed: 1, awaitingProspectGrouping: 48 }
-        policyNote: Policy Pack Đảng v2.0 (Q1–Q3 dùng v1.4, giữ nguyên theo kỳ đã khoá)
+        policyNote: Bộ quy định đánh giá khối Đảng, phiên bản 2.0; quý I đến quý III giữ phiên bản 1.4 của kỳ đã khoá
     AnnualRatingExplanationSample:
       summary: Giải thích năm của hồ sơ mẫu
       value:
@@ -2314,6 +2452,7 @@ components:
         periodId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0010
         orgUnit: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0101, name: Ban Tổ chức Đảng uỷ khối }
         status: NHAP
+        policyPackId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f4a01
         policyVersion: KHOI_DANG v2.0
         entries:
           - person: { id: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0201, name: Trần Minh Hoàng }
