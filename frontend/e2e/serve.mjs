@@ -2,7 +2,9 @@
 // - Phục vụ bản ghép `dist/e2e` (shell ở gốc, remote ở `remotes/<project>`) như nginx, trả index.html cho tuyến SPA.
 // - Tự động nạp tệp `.env` ở gốc repo theo thời gian thực (mỗi lần trình duyệt tải `/config.json`).
 // - Mặc định bật đăng nhập Keycloak SSO (`AUTH_ENABLED=true`) và truy vấn trực tiếp Backend (`USE_MOCK_API=false`).
-// - Tương thích ngược với bộ kiểm thử Playwright khi truyền `E2E_MODE=gia-lap` hoặc `E2E_MODE=keycloak`.
+// - Tương thích ngược với bộ kiểm thử Playwright khi truyền `E2E_MODE=gia-lap` hoặc `E2E_MODE=keycloak`;
+//   `E2E_MODE=that` (WEB-070, luồng chính với máy chủ thật QA-03) dựng cấu hình động như mặc định nhưng
+//   luôn bật đăng nhập và tắt giả lập toàn bộ (chỉ còn giả lập các module trong `MOCK_API_MODULES`).
 // - Chuyển tiếp (reverse-proxy) các yêu cầu `/api/v1/*` tới các dịch vụ backend tương ứng
 //   (`TENANT_REGISTRY_URL`, `ORG_SERVICE_URL`, `UI_PACK_SERVICE_URL`, `API_PROXY_TARGET`).
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
@@ -27,10 +29,7 @@ function readDotEnvMap() {
     if (eqIdx <= 0) continue;
     const key = line.slice(0, eqIdx).trim();
     let val = line.slice(eqIdx + 1).trim();
-    if (
-      (val.startsWith('"') && val.endsWith('"')) ||
-      (val.startsWith("'") && val.endsWith("'"))
-    ) {
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
     }
     map[key] = val;
@@ -83,8 +82,13 @@ function runtimeConfig() {
     return { ...base, auth: { ...base.auth, enabled: false }, useMockApi: true };
   }
 
-  // Mặc định: nạp động từ .env / biến môi trường, bật Login SSO và gọi thẳng Backend (useMockApi=false)
-  const kcUrl = getEnv('E2E_KC_URL', getEnv('KEYCLOAK_URL', 'http://localhost:35080')).replace(/\/$/, '');
+  // Mặc định và `E2E_MODE=that`: nạp động từ .env / biến môi trường, bật Login SSO và gọi thẳng Backend
+  // (useMockApi=false); chế độ `that` không cho biến môi trường tắt đăng nhập hay bật giả lập toàn bộ
+  const that = process.env.E2E_MODE === 'that';
+  const kcUrl = getEnv('E2E_KC_URL', getEnv('KEYCLOAK_URL', 'http://localhost:35080')).replace(
+    /\/$/,
+    '',
+  );
   const realm = getEnv('KEYCLOAK_REALM', 'mission');
   const issuer = getEnv('AUTH_ISSUER', `${kcUrl}/realms/${realm}`);
 
@@ -96,19 +100,21 @@ function runtimeConfig() {
     uiPackBaseUrl: getEnv('UI_PACK_BASE_URL', '/ui-packs'),
     auth: {
       ...base.auth,
-      enabled: parseBool(getEnv('AUTH_ENABLED', 'true'), true),
+      enabled: that || parseBool(getEnv('AUTH_ENABLED', 'true'), true),
       issuer,
       clientId: getEnv('AUTH_CLIENT_ID', base.auth?.clientId ?? 'mission-web'),
     },
-    useMockApi: parseBool(getEnv('USE_MOCK_API', 'false'), false),
+    useMockApi: !that && parseBool(getEnv('USE_MOCK_API', 'false'), false),
+    // WEB-070: module còn giả lập khi gọi máy chủ thật, ví dụ MOCK_API_MODULES="dossiers oversight"
+    mockApiModules: getEnv('MOCK_API_MODULES', '')
+      .split(/[\s,]+/)
+      .filter((m) => /^[a-z0-9*][a-z0-9*/-]{0,63}$/.test(m)),
   };
 }
 
 function runtimeManifest() {
   const manifestPath = join(ROOT, 'federation.manifest.json');
-  const base = existsSync(manifestPath)
-    ? JSON.parse(readFileSync(manifestPath, 'utf8'))
-    : {};
+  const base = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {};
   const mapEnv = {
     'fe-task': getEnv('FE_TASK_URL', undefined),
     'fe-okr': getEnv('FE_OKR_URL', undefined),
