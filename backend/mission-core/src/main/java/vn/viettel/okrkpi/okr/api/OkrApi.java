@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.okr.api;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -41,6 +42,33 @@ public interface OkrApi {
       TenantId tenantId, PeriodId periodId, UUID unitId) {
     return List.of();
   }
+
+  /**
+   * Mốc của KR kiểu đo {@code MOC} (CORE-01-14, BS-03 DC-04), sắp theo thứ tự, để {@code inputs}
+   * của MOD-04 đọc ngày đạt và số ngày làm việc chậm; KR không đo theo mốc trả rỗng.
+   */
+  default List<MilestoneSnapshot> listMilestones(TenantId tenantId, UUID keyResultId) {
+    return List.of();
+  }
+
+  /**
+   * Một mốc của KR.
+   *
+   * @param seq thứ tự mốc, từ 1
+   * @param dueDate hạn của mốc
+   * @param recognitionCondition điều kiện công nhận, có thể {@code null}
+   * @param achievedAt thời điểm ghi nhận đạt, {@code null} khi chưa đạt
+   * @param evidenceRef tham chiếu minh chứng, có thể {@code null}
+   * @param lateWorkingDays số ngày làm việc chậm so với hạn (tới ngày đạt, chưa đạt thì tới hôm
+   *     nay)
+   */
+  record MilestoneSnapshot(
+      int seq,
+      LocalDate dueDate,
+      String recognitionCondition,
+      Instant achievedAt,
+      String evidenceRef,
+      long lateWorkingDays) {}
 
   /**
    * Ảnh chụp KR kèm ngữ cảnh mục tiêu cha công bố qua {@link OkrApi}.

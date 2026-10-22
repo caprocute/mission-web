@@ -29,16 +29,45 @@ public class OkrQueryService implements OkrApi {
 
   private final PeriodApi periodApi;
   private final ObjectProvider<OkrReadService> reads;
+  private final ObjectProvider<OkrMilestoneService> milestoneService;
   private final Map<UUID, KeyResultSummary> summaries = new ConcurrentHashMap<>();
 
   public OkrQueryService(PeriodApi periodApi) {
     this(periodApi, null);
   }
 
-  @Autowired
   public OkrQueryService(PeriodApi periodApi, ObjectProvider<OkrReadService> reads) {
+    this(periodApi, reads, null);
+  }
+
+  @Autowired
+  public OkrQueryService(
+      PeriodApi periodApi,
+      ObjectProvider<OkrReadService> reads,
+      ObjectProvider<OkrMilestoneService> milestoneService) {
     this.periodApi = Objects.requireNonNull(periodApi, "periodApi must not be null");
     this.reads = reads;
+    this.milestoneService = milestoneService;
+  }
+
+  @Override
+  public List<MilestoneSnapshot> listMilestones(TenantId tenantId, UUID keyResultId) {
+    OkrMilestoneService service =
+        milestoneService == null ? null : milestoneService.getIfAvailable();
+    if (service == null) {
+      return List.of();
+    }
+    return service.milestones(tenantId, keyResultId).stream()
+        .map(
+            v ->
+                new MilestoneSnapshot(
+                    v.row().seq(),
+                    v.row().dueDate(),
+                    v.row().recognitionCondition(),
+                    v.row().achievedAt(),
+                    v.row().evidenceRef(),
+                    v.lateWorkingDays()))
+        .toList();
   }
 
   public void registerKeyResult(KeyResultSummary summary) {
