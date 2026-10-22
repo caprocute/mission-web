@@ -674,6 +674,12 @@ Tổng điểm nhóm (BR-15-05) được tính từ tham số `diem_toi_da` củ
 - Manifest `{name, remoteEntry, integrity}` được chốt vào cột mới `ui_pack_version.plugins_json` (migration `V8__config_ui_pack_plugins.sql`, ngoài danh sách tệp được phép của task) cùng lần ký gói, để `getCurrentUiPack` dựng lại từ CSDL vẫn khớp băm dù cấu hình tenant đổi sau đó; quay lui dùng manifest đã chốt của phiên bản đích. Không có đường phát hành riêng cho plugin.
 - Widget của plugin đạt kiểm tra được gộp vào `listUiComponents` của tenant qua cổng `PluginWidgets`, nên trình biên tập bố cục chọn được và bộ kiểm bố cục nhận chúng như component của registry.
 
+### Ghi chú và quyết định từ API đọc OKR (CORE-01-02, 22/10/2026)
+
+Tiến độ KR và mục tiêu được tính lại lúc đọc bằng `ProgressCalculator` của `okr.domain`, không đọc cột `progress` đã lưu, để mọi kênh thấy cùng một con số. KR chiều `GIAM` tính (đầu − hiện tại)/(đầu − chỉ tiêu); khi thiếu đường cơ sở hoặc đường cơ sở không lớn hơn chỉ tiêu thì chỉ có hai mức đạt hoặc chưa đạt. KR loại `CO_KHONG` có tiến độ 1 khi giá trị khác 0, ngược lại là 0. KR chiều `DAT` đạt 1 khi chạm chỉ tiêu. KR chưa có giá trị hiện tại thì lấy check-in `DA_GUI` gần nhất, nếu không có thì tiến độ là 0 (suy luận cho cả bốn trường hợp). Truy vấn theo kỳ truyền cả hai giá trị `period_bucket` có thể có (năm × 10 + quý và năm × 10), để chỉ chạm tối đa hai phân vùng mà không cần biết loại kỳ. Lọc "cần check-in" dùng tần suất của KR (tuần 7 ngày, hai tuần 14 ngày, tháng 1 tháng) (suy luận). Tầng dữ liệu dùng JDBC theo quy ước repo, không dùng JPA như task ghi. Phạm vi đơn vị được đưa vào OPA qua tham số `OkrUnitScope` cài `AuthzResourceProvider`. Xuất mẫu trả 202, nhưng tác vụ kết thúc `THAT_BAI` với mã `OKR-503-EXPORT-UNAVAILABLE` cho tới khi SVC-11 được nối (mã lỗi là suy luận).
+
+Việc nền móng còn nợ: bộ so khớp hợp đồng `vt-contract-test` (`OpenApiConformanceEngine.isNullableSchema`) chưa nhận nhánh `{type: 'null'}` trong `oneOf` của OpenAPI 3.1, nên trường bắt buộc có thể rỗng như `OkrTree.parent` bị báo thiếu khi giá trị là `null`. `OkrReadApiIT` vì thế so khớp hợp đồng của `getOkrTree` trên cây của đơn vị cấp dưới, nơi `parent` có giá trị. Cần sửa thư viện trong một task nền móng sau.
+
 ## Liên quan
 
 - [README của wiki](README.md)
