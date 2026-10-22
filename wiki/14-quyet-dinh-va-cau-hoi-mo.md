@@ -757,6 +757,13 @@ Nhóm điểm của BR-04-06 lấy từ tham số `nhom` của Policy Pack hiệ
 8. **Linter và triển khai mẫu:** linter tám quy tắc chạy trong `mvn verify` (`TemplateLinterTest`, fixture vi phạm từng quy tắc ở `src/test/resources/linter-fixtures/`) và lúc khởi động (`TemplateDeployer`: lint rồi triển khai BPMN + DMN trong một lần triển khai không gắn tenant, lọc trùng; tắt tự triển khai của Flowable Spring Boot). Mỗi mẫu có tệp khai báo `processes/<mã>.mau.json` (mô tả, người sở hữu, lớp kiểm thử, bảng quyết định, ngân sách biến). Quy tắc 8 tính theo phiên bản định nghĩa Flowable còn tiến trình chạy cộng phiên bản sắp sinh; quy tắc 5 kiểm tĩnh trên ngân sách khai báo và kiểm lúc chạy (biến khởi tạo ≤ 1,5 KB, `approvalLevels` ≤ 1,6 KB). Việc ghi `flowable.wf_template` khi triển khai chưa làm (cần tenant nền tảng, thuộc DV-06-09).
 9. **Đưa vào main (22/10/2026):** bản vá phiên 21/10 áp lên nhánh đã có DV-06-02 và DV-06-05, nên migration bản sao tổ chức và lịch nghỉ đổi tên thành `V5__ban_sao_to_chuc_lich_nghi.sql` (V3 là saga, V4 là hộp việc). Verify workflow-service xanh 147/147 trong môi trường không có `opa`.
 
+### Ghi chú và quyết định từ so sánh phiên bản và tính thử Policy Pack (CORE-05-08, 22/10/2026)
+
+1. **Tính thử chạy trong MOD-05 (suy luận):** `evaluatePolicyVersion` dùng cùng bộ đánh giá cel-java của lần chạy kiểm thử thay vì gọi SVC-07, vì đây là thao tác soạn thảo trên một phiên bản chưa hiệu lực; kết quả trả `engine = CEL_JAVA`. Chỉ tính được ca thuộc bộ ca mẫu của gói hoặc gói cha (bỏ ca `NGUNG`); ca khác trả 422 `POLICY-422-CASE-NOT-GOLDEN`, lỗi khi chạy biểu thức trả 422 `POLICY-422-CEL-TYPE`.
+2. **Đệm biên dịch dùng chung:** `PolicyEvaluators` giữ tối đa 64 bộ đánh giá đã biên dịch, khoá theo mã phiên bản cộng SHA-256 của manifest, quy tắc và bảng quyết định, nên chạy kiểm thử và tính thử dùng chung và tự biên dịch lại khi nội dung đổi. Đo trên máy kiểm thử: p95 của 50 lần tính thử một ca khi đệm đã nóng dưới 200 ms.
+3. **Cách so phiên bản:** `params` của manifest so thành `PARAM`, `workflow_bindings` thành `WORKFLOW_BINDING`, các khối manifest còn lại (trừ `metadata`) thành `MANIFEST`; quy tắc so theo `ruleKey` (thêm, xoá, sửa từng trường; tham số của quy tắc thành `PARAM` với path `params.<tên>`); bảng quyết định so `hitPolicy` và từng dòng theo vị trí. Số được chuẩn hoá trước khi so (`1` và `1.0` là bằng nhau).
+4. **Lời giải thích:** lấy từ annotation `giai_thich` của dòng DMN cuối cùng khớp mức xếp loại kết quả, thay biến `{bien}` bằng giá trị đã tính; `{dieu_khoan}` lấy từ annotation `dieu_khoan` của chính dòng đó, `{phien_ban}` là số phiên bản đang tính; số in tối đa hai chữ số thập phân với dấu phẩy. Biến không có giá trị được giữ nguyên để người soạn phát hiện.
+
 ## Liên quan
 
 - [README của wiki](README.md)
