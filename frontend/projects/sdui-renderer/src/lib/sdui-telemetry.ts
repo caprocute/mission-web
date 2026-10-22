@@ -9,7 +9,11 @@ export type SduiTelemetryEvent =
   | 'sdui.cel.limit'
   | 'ui-pack.signature.missing'
   | 'ui-pack.signature.invalid'
-  | 'ui-pack.registry.incompatible';
+  | 'ui-pack.registry.incompatible'
+  // WEB-051: plugin chuyên ngành bị từ chối (sai băm, sai tên, tệp ngoài thư mục, mô tả lỗi)
+  | 'plugin.rejected'
+  | 'plugin.widget.rejected'
+  | 'plugin.url.blocked';
 
 export interface SduiTelemetryRecord {
   event: SduiTelemetryEvent;
