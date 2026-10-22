@@ -277,7 +277,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-02-23](docs/tasks/CORE-02-23-co-qua-han.md) | Tác vụ 00:05 đặt cờ `qua_han`, nhắc, tính lại khi lịch nghỉ đổi | S | B3 | 17 | CORE-02-19, CORE-08-04 | **Chưa bắt đầu** |  |
 | [CORE-02-24](docs/tasks/CORE-02-24-noi-dung-mat-c3-nhiem-vu.md) | Nội dung mật C3 của nhiệm vụ: `task.task_secret_content`, `task.e2ee_key_wrap`, chia sẻ và thu hồi khoá | M | B3 | 22 | CORE-02-02, CORE-07-06, NEN-042 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 | [CORE-02-25](docs/tasks/CORE-02-25-nhac-viec-giao-lai.md) | Nhắc việc, giao lại (`remindTask`, `reassignTask`) và đổi người chủ trì khi điều động | M | B3 | 17 | CORE-02-14, CORE-00-03 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
-| [CORE-02-26](docs/tasks/CORE-02-26-cong-ghi-delay-risk.md) | Cột `delay_risk` và cổng ghi nội bộ cho dự báo nguy cơ trễ | S | B3 | 13 | CORE-02-02 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
+| [CORE-02-26](docs/tasks/CORE-02-26-cong-ghi-delay-risk.md) | Cột `delay_risk` và cổng ghi nội bộ cho dự báo nguy cơ trễ | S | B3 | 13 | CORE-02-02 | **Chưa bắt đầu** | B1 xem: chờ CORE-02-13 (getTask) và duyệt thêm setTaskDelayRisk vào hợp đồng |
 
 ### CORE-03 · MOD-03 product: sản phẩm, minh chứng, nghiệm thu (1/8 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -824,4 +824,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 12:04 | Điều phối | `DV-08-04` | Chuyển trạng thái sang **Đã gộp main** — Gộp main; quét mã độc nền, KEDA worker, V3 migration |
 | 22/10/2026 12:11 | B1 (Claude) | `DV-08-06` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: đang thực hiện |
 | 22/10/2026 12:24 | B1 (Claude) | `DV-08-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: getFilePreview, worker dựng ảnh trang (Gotenberg + PDFBox chờ duyệt), DOCX 6 trang 2,7 s; verify xanh (61 test) |
+| 22/10/2026 12:25 | B1 (Claude) | `CORE-02-26` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: đang thực hiện |
+| 22/10/2026 12:26 | B1 (Claude) | `CORE-02-26` | Chuyển trạng thái sang **Chưa bắt đầu** — B1 xem: chờ CORE-02-13 (getTask) và duyệt thêm setTaskDelayRisk vào hợp đồng |
 <!-- PROGRESS_LOG_END -->
