@@ -1,106 +1,38 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  SVC-02 iam: mô-đun kiểm thử mẫu realm Keycloak production (DV-02-01).
-  Pom độc lập dùng spring-boot-starter-parent vì Maven cha backend/pom.xml (NEN-005) chưa có;
-  khi NEN-005 xong, đổi <parent> sang pom cha của backend và bỏ phần quản lý phiên bản trùng.
-  Mô-đun hiện chỉ có kiểm thử (src/test/**): Keycloak là phần mềm có sẵn, mẫu realm nằm ở deploy/charts/iam.
+  SVC-02 iam: Keycloak là phần mềm có sẵn; mô-đun này gom phần nền tảng tự viết quanh Keycloak.
+  - realm-template: kiểm thử mẫu realm production (DV-02-01), mẫu realm nằm ở deploy/charts/iam.
+  - keycloak-events: event listener SPI đẩy sự kiện xác thực lên iam.auth.event.v1 và EVT-21 (DV-02-05).
+  - revocation-consumer: consumer ghi danh sách phiên bị thu hồi vào Valkey cho APISIX (DV-02-05).
+  Pom độc lập dùng spring-boot-starter-parent như bản DV-02-01 (chưa nằm trong reactor backend/pom.xml);
+  phụ thuộc vt-events lấy từ kho Maven cục bộ sau khi build backend.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
     <version>3.5.16</version>
     <relativePath/>
   </parent>
-
   <groupId>vn.viettel.okrkpi</groupId>
   <artifactId>iam</artifactId>
   <version>0.1.0-SNAPSHOT</version>
-  <packaging>jar</packaging>
-  <name>iam (SVC-02) - kiểm thử mẫu realm</name>
-
+  <packaging>pom</packaging>
+  <name>iam (SVC-02)</name>
+  <modules>
+    <module>realm-template</module>
+    <module>keycloak-events</module>
+    <module>revocation-consumer</module>
+  </modules>
   <properties>
     <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <!-- Gốc repo, để kiểm thử đọc deploy/charts/iam và docs/phan-quyen/ma-tran.json -->
-    <mission.repo.root>${project.basedir}/../../..</mission.repo.root>
-    <!-- Ảnh dùng trong kiểm thử tích hợp; Keycloak trùng phiên bản TL-01 (Keycloak 26) -->
-    <keycloak.image>keycloak/keycloak:26.4.0</keycloak.image>
+    <keycloak.version>26.4.0</keycloak.version>
+    <vt-events.version>0.1.0-SNAPSHOT</vt-events.version>
+    <keycloak.image>mirror.gcr.io/keycloak/keycloak:26.4.0</keycloak.image>
     <keycloak-config-cli.image>adorsys/keycloak-config-cli:6.5.1-26</keycloak-config-cli.image>
   </properties>
-
-  <dependencies>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.dataformat</groupId>
-      <artifactId>jackson-dataformat-yaml</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>testcontainers</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-simple</artifactId>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <systemPropertyVariables>
-            <mission.repo.root>${mission.repo.root}</mission.repo.root>
-          </systemPropertyVariables>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-failsafe-plugin</artifactId>
-        <configuration>
-          <systemPropertyVariables>
-            <mission.repo.root>${mission.repo.root}</mission.repo.root>
-            <keycloak.image>${keycloak.image}</keycloak.image>
-            <keycloak-config-cli.image>${keycloak-config-cli.image}</keycloak-config-cli.image>
-          </systemPropertyVariables>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
 </project>
