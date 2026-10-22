@@ -25,7 +25,7 @@ public class JdbcOkrWriteRepository implements OkrWriteRepository {
   private static final String KR_COLUMNS =
       "id, title, metric_type, unit, baseline_value, target_value, direction, weight, due_date,"
           + " verifier_person_id, data_source, formula_text, checkin_frequency, content_source,"
-          + " ai_suggestion_id";
+          + " ai_suggestion_id, numerator_label, denominator_label";
 
   private final NamedParameterJdbcTemplate jdbc;
 
@@ -303,10 +303,11 @@ public class JdbcOkrWriteRepository implements OkrWriteRepository {
         "INSERT INTO okr.key_result (id, tenant_id, period_id, period_bucket, objective_id, code,"
             + " title, metric_type, unit, baseline_value, target_value, direction, weight,"
             + " due_date, verifier_person_id, data_source, formula_text, checkin_frequency,"
-            + " content_source, ai_suggestion_id, ai_assisted, status, created_by, updated_by)"
+            + " content_source, ai_suggestion_id, ai_assisted, numerator_label, denominator_label,"
+            + " status, created_by, updated_by)"
             + " VALUES (:id, :t, :p, :b, :o, :code, :title, :metric, :unit, :base, :target, :dir,"
             + " :weight, :due, :verifier, :src, :formula, :freq, :content, :ai, :aiAssisted,"
-            + " 'NHAP', :actor, :actor)",
+            + " :num, :den, 'NHAP', :actor, :actor)",
         keyResultParams(tenant, d, actor)
             .addValue("id", id)
             .addValue("p", periodId)
@@ -323,6 +324,7 @@ public class JdbcOkrWriteRepository implements OkrWriteRepository {
             + " weight = :weight, due_date = :due, verifier_person_id = :verifier,"
             + " data_source = :src, formula_text = :formula, checkin_frequency = :freq,"
             + " content_source = :content, ai_suggestion_id = :ai, ai_assisted = :aiAssisted,"
+            + " numerator_label = :num, denominator_label = :den,"
             + " updated_at = now(), updated_by = :actor, row_version = row_version + 1"
             + " WHERE period_bucket = :b AND tenant_id = :t AND id = :id",
         keyResultParams(tenant, d, actor).addValue("b", bucket).addValue("id", d.id()));
@@ -346,6 +348,8 @@ public class JdbcOkrWriteRepository implements OkrWriteRepository {
         .addValue("content", d.contentSource())
         .addValue("ai", d.aiSuggestionId())
         .addValue("aiAssisted", !"HUMAN".equals(d.contentSource()))
+        .addValue("num", d.numeratorLabel())
+        .addValue("den", d.denominatorLabel())
         .addValue("actor", actor);
   }
 
@@ -383,7 +387,9 @@ public class JdbcOkrWriteRepository implements OkrWriteRepository {
                 rs.getString("formula_text"),
                 rs.getString("checkin_frequency"),
                 rs.getString("content_source"),
-                rs.getObject("ai_suggestion_id", UUID.class)));
+                rs.getObject("ai_suggestion_id", UUID.class),
+                rs.getString("numerator_label"),
+                rs.getString("denominator_label")));
   }
 
   @Override

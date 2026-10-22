@@ -124,7 +124,6 @@ class OkrApprovalApiIT extends ContractConformanceTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper json;
   @Autowired private OkrApproveBatchJobs batches;
-  @Autowired private vn.viettel.okrkpi.okr.application.OkrMilestoneService milestones;
   @Autowired private vn.viettel.okrkpi.okr.api.OkrApi okrApi;
 
   @Autowired
@@ -786,18 +785,45 @@ class OkrApprovalApiIT extends ContractConformanceTest {
               .param(kr)
               .update();
         });
-    TenantContext.run(
-        tenant,
-        () ->
-            milestones.replaceMilestones(
-                tenant,
-                AUTHOR,
-                kr,
-                List.of(
-                    new vn.viettel.okrkpi.okr.application.port.OkrMilestoneRepository
-                        .MilestoneDraft(1, java.time.LocalDate.of(2027, 3, 5), "Có dự thảo"),
-                    new vn.viettel.okrkpi.okr.application.port.OkrMilestoneRepository
-                        .MilestoneDraft(2, java.time.LocalDate.of(2027, 3, 26), "Có quyết định"))));
+    CALLER.set(AUTHOR);
+    ObjectNode replace = json.createObjectNode();
+    var items = replace.putArray("items");
+    items
+        .addObject()
+        .put("seq", 2)
+        .put("dueDate", "2026-10-16")
+        .put("recognitionCondition", "Có quyết định");
+    items
+        .addObject()
+        .put("seq", 1)
+        .put("dueDate", "2026-10-02")
+        .put("recognitionCondition", "Có dự thảo");
+    MvcResult replaced =
+        perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                    "/api/v1/okr/key-results/" + kr + "/milestones")
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .header("If-Match", "\"" + krVersion(kr) + "\"")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(replace.toString()));
+    assertThat(replaced.getResponse().getStatus()).isEqualTo(200);
+    JsonNode declared = body(replaced).get("items");
+    assertThat(declared).hasSize(2);
+    assertThat(declared.get(0).get("seq").asInt()).isEqualTo(1);
+    assertThat(declared.get(0).get("lateWorkdays").isNull()).isTrue();
+    String first = declared.get(0).get("id").asText();
+    // If-Match cũ sau khi đã khai báo: 409.
+    assertThat(
+            perform(
+                    org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                            "/api/v1/okr/key-results/" + kr + "/milestones")
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(replace.toString()))
+                .getResponse()
+                .getStatus())
+        .isEqualTo(409);
     inTenant(
         jdbc -> {
           jdbc.sql("UPDATE okr.objective SET status = 'DA_DUYET' WHERE id = ?").param(id).update();
@@ -805,31 +831,46 @@ class OkrApprovalApiIT extends ContractConformanceTest {
               .param(id)
               .update();
         });
-    // Hạn thứ Sáu 5/3/2027, đạt thứ Ba 9/3: chậm thứ Hai và thứ Ba (cuối tuần không tính).
-    java.time.Instant achieved =
-        java.time.ZonedDateTime.of(2027, 3, 9, 15, 0, 0, 0, java.time.ZoneId.of("Asia/Ho_Chi_Minh"))
-            .toInstant();
-    var view =
-        TenantContext.call(
-            tenant,
-            () -> milestones.recordAchievement(tenant, AUTHOR, kr, 1, achieved, "VB-01/2027"));
-    assertThat(view.lateWorkingDays()).isEqualTo(2);
-    var again =
-        TenantContext.call(
-            tenant,
-            () ->
-                milestones.recordAchievement(
-                    tenant, AUTHOR, kr, 1, achieved.plusSeconds(86_400), null));
-    assertThat(again.row().achievedAt()).isEqualTo(achieved);
+    // Hạn thứ Sáu 2/10/2026, đạt thứ Ba 6/10: chậm thứ Hai và thứ Ba (cuối tuần không tính).
+    MvcResult achieved = achieve(kr, first, "2026-10-06", "VB-01/2026");
+    assertThat(achieved.getResponse().getStatus()).isEqualTo(200);
+    assertThat(body(achieved).get("achievedAt").asText()).isEqualTo("2026-10-06");
+    assertThat(body(achieved).get("lateWorkdays").asInt()).isEqualTo(2);
+    java.math.BigDecimal current =
+        inTenant(
+            jdbc ->
+                jdbc.sql("SELECT current_value FROM okr.key_result WHERE id = ?")
+                    .param(kr)
+                    .query(java.math.BigDecimal.class)
+                    .single());
+    assertThat(current).isEqualByComparingTo("1");
+    // Đính chính: lần ghi sau thay lần trước; ngày ở tương lai bị từ chối.
+    MvcResult corrected = achieve(kr, first, "2026-10-05", null);
+    assertThat(body(corrected).get("lateWorkdays").asInt()).isEqualTo(1);
+    assertThat(achieve(kr, first, "2999-01-01", null).getResponse().getStatus()).isEqualTo(422);
 
+    MvcResult listed = perform(get("/api/v1/okr/key-results/" + kr + "/milestones"));
+    assertThat(listed.getResponse().getHeader("ETag")).isEqualTo("\"" + krVersion(kr) + "\"");
+    assertThat(body(listed).get("items").get(1).get("achievedAt").isNull()).isTrue();
     var published = TenantContext.call(tenant, () -> okrApi.listMilestones(tenant, kr));
     assertThat(published).hasSize(2);
-    assertThat(published.get(0).achievedAt()).isEqualTo(achieved);
-    assertThat(published.get(0).lateWorkingDays()).isEqualTo(2);
-    assertThat(published.get(1).achievedAt()).isNull();
-    // KR kiểu mốc vẫn đọc được qua API dù hợp đồng chưa có giá trị MOC.
+    assertThat(published.get(0).lateWorkingDays()).isEqualTo(1);
     assertThat(perform(get("/api/v1/okr/key-results/" + kr)).getResponse().getStatus())
         .isEqualTo(200);
+  }
+
+  private MvcResult achieve(UUID kr, String milestone, String on, String evidence)
+      throws Exception {
+    ObjectNode b = json.createObjectNode().put("achievedAt", on);
+    if (evidence != null) {
+      b.put("evidenceRef", evidence);
+    }
+    return perform(
+        post("/api/v1/okr/key-results/" + kr + "/milestones/" + milestone + "/achieve")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .header("If-Match", "\"" + krVersion(kr) + "\"")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(b.toString()));
   }
 
   private List<String> listCodes(UUID unit) throws Exception {

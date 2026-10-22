@@ -63,6 +63,7 @@ class OkrMilestoneServiceTest {
         mock(PeriodApi.class),
         () -> calendar,
         () -> null,
+        mock(OkrCheckinService.class),
         clock);
   }
 

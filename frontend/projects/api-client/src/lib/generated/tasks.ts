@@ -210,6 +210,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/tasks/exports/{jobId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        jobId: components['parameters']['JobId'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Tải tệp xuất danh sách nhiệm vụ
+     * @description Tệp Excel do `exportTasks` tạo; `resultLocation` của job trỏ tới đây. Chỉ người tạo tác vụ tải được, tệp giữ trong một giờ. (suy luận: TL-02 không ghi đường tải tệp xuất.)
+     */
+    get: operations['downloadTaskExport'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/tasks/{id}': {
     parameters: {
       query?: never;
@@ -363,6 +385,28 @@ export interface paths {
      * @description Chuyển trạng thái chung cho những bước không có thao tác riêng (ví dụ tiếp tục sau `TAM_DUNG`). Giao, nhận việc, tạm dừng và huỷ có duyệt đi qua thao tác riêng (`assign`, `accept`, `change-requests`). Máy chủ kiểm bảng chuyển của baseline mục 9.1; chuyển không hợp lệ trả 409 mã `TASK-409-INVALID-TRANSITION`.
      */
     post: operations['transitionTask'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tasks/{id}/delay-risk': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Ghi dự báo nguy cơ trễ hạn của nhiệm vụ (bộ dự báo SVC-15)
+     * @description Cổng ghi nội bộ cho tài khoản dịch vụ của bộ dự báo nguy cơ trễ (DV-15-10), vì SVC-15 không được ghi schema `task` (TL-03 chương 2). Chỉ nhận token client credentials; token người dùng trả 403. Kết quả có `computedAt` cũ hơn dự báo đang lưu trả 409 `TASK-409-STALE-DELAY-RISK`; nhiệm vụ ở `HOAN_THANH`, `HUY` hoặc `TAM_DUNG` trả 409 `TASK-409-INVALID-STATE`. Ghi dự báo không đổi `rowVersion` (ETag) của nhiệm vụ và không phát sự kiện nghiệp vụ. `getTask` trả kết quả trong `delayRisk`.
+     */
+    put: operations['setTaskDelayRisk'];
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -1640,6 +1684,15 @@ export interface components {
       neededWorkingDays: number;
       explanation: string;
     };
+    /** @description Kết quả dự báo nguy cơ trễ hạn do SVC-15 gửi về (CORE-02-26, DV-15-10). */
+    TaskDelayRiskInput: {
+      /** @enum {string} */
+      level: 'THAP' | 'VUA' | 'CAO';
+      neededWorkingDays: number;
+      explanation: string;
+      computedAt: components['schemas']['DateTime'];
+      basedOnProgressId?: components['schemas']['Uuid'];
+    };
     /** @description Chi tiết nhiệm vụ (SCR-0601). */
     TaskDetail: components['schemas']['TaskSummary'] & {
       description: string;
@@ -2868,7 +2921,32 @@ export interface operations {
     };
     responses: {
       202: components['responses']['Accepted'];
+      /** @description Người dùng đang có một tác vụ xuất chưa xong (`TASK-429-EXPORT-RUNNING`). */
       429: components['responses']['TooManyRequests'];
+      default: components['responses']['Problem'];
+    };
+  };
+  downloadTaskExport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        jobId: components['parameters']['JobId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Tệp Excel danh sách nhiệm vụ theo các cột đang hiển thị. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': string;
+        };
+      };
+      404: components['responses']['NotFound'];
       default: components['responses']['Problem'];
     };
   };
@@ -3149,6 +3227,40 @@ export interface operations {
       409: components['responses']['Conflict'];
       422: components['responses']['UnprocessableEntity'];
       428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  setTaskDelayRisk: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TaskDelayRiskInput'];
+      };
+    };
+    responses: {
+      /** @description Đã lưu dự báo. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      /** @description Đã có dự báo mới hơn (`TASK-409-STALE-DELAY-RISK`) hoặc nhiệm vụ đã kết thúc, tạm dừng (`TASK-409-INVALID-STATE`). */
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
       default: components['responses']['Problem'];
     };
   };

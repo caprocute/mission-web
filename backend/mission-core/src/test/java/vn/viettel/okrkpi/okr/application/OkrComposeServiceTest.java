@@ -80,6 +80,8 @@ class OkrComposeServiceTest {
         null,
         null,
         null,
+        null,
+        null,
         null);
   }
 
@@ -204,11 +206,13 @@ class OkrComposeServiceTest {
             "f".repeat(1001),
             "THANG",
             "AI_ACCEPTED",
+            null,
+            "n".repeat(201),
             null);
     KeyResultData empty =
         new KeyResultData(
-            null, " ", null, null, null, null, null, null, null, null, null, null, null, null,
-            null);
+            null, " ", null, null, null, null, null, null, null, null, null, null, null, null, null,
+            null, null);
     List<KeyResultData> six = new ArrayList<>(List.of(bad, empty));
     for (int i = 0; i < 4; i++) {
       six.add(kr(null, "KR " + i, "0.3"));

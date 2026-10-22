@@ -15,11 +15,15 @@ import {
 import { ThemeService } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { AvatarModule } from 'primeng/avatar';
+import { Toast } from 'primeng/toast';
 // Giữ TooltipModule trong shell để thư viện dùng chung của remote được chia sẻ (AGENTS.md quy tắc 8)
 import { TooltipModule } from 'primeng/tooltip';
 import { FeatureFlagService } from '@vt/api-client';
 import { DisplayPreferenceSync } from './display-preference.sync';
 import { visibleNav } from './nav';
+import { AppStatusBanner } from './app-status-banner';
+import { GlobalSearch } from './global-search';
+import { NotificationBell } from './notification-bell';
 
 /** Khung ứng dụng: thanh trên, menu bên, vùng nội dung (dùng cho mọi màn hình sau đăng nhập). */
 @Component({
@@ -34,6 +38,10 @@ import { visibleNav } from './nav';
     SessionNoticeComponent,
     ContextPickerComponent,
     StepUpDialogComponent,
+    NotificationBell,
+    GlobalSearch,
+    AppStatusBanner,
+    Toast,
   ],
   templateUrl: './shell.layout.html',
   styleUrl: './shell.layout.scss',
@@ -63,6 +71,10 @@ export class ShellLayout {
       (...keys) => this.permissions.canAny(...keys),
       (key) => this.flags.isEnabled(key),
     ),
+  );
+  /** Chuông thông báo theo ma trận phân quyền (SCR-0002.doc-thong-bao, wiki/15a). */
+  protected readonly canNotify = computed(
+    () => !!this.session.user() && this.permissions.can('SCR-0002.doc-thong-bao'),
   );
   protected readonly platformNav = computed(() =>
     this.nav().filter((i) => i.section === 'platform'),

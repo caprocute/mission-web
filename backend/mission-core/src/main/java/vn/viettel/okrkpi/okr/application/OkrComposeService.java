@@ -41,6 +41,7 @@ public class OkrComposeService {
   static final String MODULE = "OKR";
   static final String NHAP = "NHAP";
   static final int MAX_KEY_RESULTS = 5;
+  static final int LABEL_MAX = 200;
 
   private static final Pattern OBJECTIVE_NO = Pattern.compile("^O([0-9]{1,9})$");
 
@@ -326,7 +327,9 @@ public class OkrComposeService {
                 k.formulaText(),
                 k.checkinFrequency(),
                 "HUMAN",
-                null),
+                null,
+                k.numeratorLabel(),
+                k.denominatorLabel()),
             actor);
       }
       created.add(id);
@@ -601,10 +604,26 @@ public class OkrComposeService {
     if (k.formulaText() != null && k.formulaText().length() > 1000) {
       errors.add(prefix + "formulaText", "Cách tính tối đa 1.000 ký tự");
     }
+    String metric = k.metricType() == null ? "SO_LUONG" : k.metricType();
+    String numerator = trim(k.numeratorLabel());
+    String denominator = trim(k.denominatorLabel());
+    // BS-03 DC-04: nhãn tử số, mẫu số chỉ dành cho KR tỷ lệ và đi theo cặp (suy luận).
+    if (numerator != null || denominator != null) {
+      if (!"TY_LE".equals(metric)) {
+        errors.add(
+            prefix + "numeratorLabel", "Nhãn tử số, mẫu số chỉ dùng cho kết quả đo bằng tỷ lệ");
+      } else if (numerator == null || denominator == null) {
+        errors.add(prefix + "numeratorLabel", "Nhập đủ nhãn tử số và nhãn mẫu số");
+      }
+      if ((numerator != null && numerator.length() > LABEL_MAX)
+          || (denominator != null && denominator.length() > LABEL_MAX)) {
+        errors.add(prefix + "numeratorLabel", "Nhãn tử số, mẫu số tối đa 200 ký tự");
+      }
+    }
     return new KeyResultData(
         k.id(),
         title,
-        k.metricType() == null ? "SO_LUONG" : k.metricType(),
+        metric,
         unit,
         baseline,
         k.targetValue(),
@@ -616,7 +635,9 @@ public class OkrComposeService {
         trim(k.formulaText()),
         k.checkinFrequency() == null ? "TUAN" : k.checkinFrequency(),
         content,
-        "HUMAN".equals(content) ? null : k.aiSuggestionId());
+        "HUMAN".equals(content) ? null : k.aiSuggestionId(),
+        numerator,
+        denominator);
   }
 
   // ---------------------------------------------------------------- tiện ích

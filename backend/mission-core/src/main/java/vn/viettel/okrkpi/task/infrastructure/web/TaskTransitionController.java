@@ -32,6 +32,7 @@ import vn.viettel.okrkpi.shared.etag.ETags;
 import vn.viettel.okrkpi.shared.idempotency.Idempotent;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
+import vn.viettel.okrkpi.task.application.lifecycle.TaskDelayRiskService;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.StateLogRow;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.TaskRow;
@@ -51,10 +52,13 @@ public class TaskTransitionController {
 
   private final TaskTransitionService transitions;
   private final TaskCallers callers;
+  private final TaskDelayRiskService delayRisks;
 
-  public TaskTransitionController(TaskTransitionService transitions, TaskCallers callers) {
+  public TaskTransitionController(
+      TaskTransitionService transitions, TaskCallers callers, TaskDelayRiskService delayRisks) {
     this.transitions = Objects.requireNonNull(transitions, "transitions");
     this.callers = Objects.requireNonNull(callers, "callers");
+    this.delayRisks = Objects.requireNonNull(delayRisks, "delayRisks");
   }
 
   @PostMapping("/{id}/transitions")
@@ -83,7 +87,9 @@ public class TaskTransitionController {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     }
     TaskRow task = done.task();
-    return ETags.ok(detail(task, transitions.stateLog(tenant, task)), task.rowVersion());
+    TaskDetail dto = detail(task, transitions.stateLog(tenant, task));
+    TaskDelayRiskController.view(delayRisks.find(tenant, task)).ifPresent(dto::delayRisk);
+    return ETags.ok(dto, task.rowVersion());
   }
 
   static TaskDetail detail(TaskRow t, List<StateLogRow> log) {
