@@ -1,0 +1,76 @@
+# DV-15-04 · SVC-15 analytics-api. Theo NEN-019: luồng ảo, cổng ứng dụng 8080, cổng quản trị 8081, tắt êm 25s; mọi
+# địa chỉ đặt bằng biến môi trường, mặc định trỏ dải cổng 35xxx của infra/dev. Bí mật (khoá ký Cube, mật khẩu kho,
+# client secret) chỉ đặt bằng biến môi trường, không có giá trị mặc định.
+spring:
+  application:
+    name: ${SERVICE_NAME:analytics-api}
+  threads:
+    virtual:
+      enabled: ${VIRTUAL_THREADS_ENABLED:true}
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:25s}
+  autoconfigure:
+    # Service không có CSDL quan hệ: số liệu đọc qua Cube, định nghĩa dashboard lưu ở MOD-08 (config.dashboard_def).
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://127.0.0.1:35080/realms/mission}
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8081}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+mission:
+  analytics:
+    cube-url: ${CUBE_URL:http://127.0.0.1:35400}
+    cube-api-secret: ${CUBEJS_API_SECRET:}
+    cube-timeout: ${CUBE_TIMEOUT:20s}
+    clickhouse-url: ${ANALYTICS_CLICKHOUSE_URL:http://127.0.0.1:35123}
+    clickhouse-database: ${ANALYTICS_DB:analytics_dev}
+    clickhouse-username: ${ANALYTICS_CLICKHOUSE_USER:analytics_dev_cube}
+    clickhouse-password: ${ANALYTICS_CUBE_PASSWORD:}
+    valkey-url: ${VALKEY_URL:redis://127.0.0.1:35379}
+    valkey-password: ${VALKEY_PASSWORD:}
+    cache-ttl: ${ANALYTICS_CACHE_TTL:60s}
+    stale-after: ${ANALYTICS_STALE_AFTER:5m}
+    model-refresh: ${ANALYTICS_MODEL_REFRESH:5m}
+    core-url: ${MISSION_CORE_URL:http://127.0.0.1:35100}
+    token-url: ${ANALYTICS_TOKEN_URL:http://127.0.0.1:35080/realms/mission/protocol/openid-connect/token}
+    client-id: ${ANALYTICS_CLIENT_ID:analytics-api}
+    client-secret: ${ANALYTICS_CLIENT_SECRET:}
+
+okrkpi:
+  opa:
+    base-url: ${OPA_URL:http://127.0.0.1:8181}
+
+# Cube trả "Continue wait" sau vài giây khi truy vấn còn chạy; mỗi lượt gọi có thể chậm hơn mặc định 3s.
+resilience4j:
+  circuitbreaker:
+    instances:
+      cube: {baseConfig: default, slowCallDurationThreshold: 5s}
+      mission-core-config: {baseConfig: default}
+  timelimiter:
+    instances:
+      cube: {timeoutDuration: 10s}
+  bulkhead:
+    instances:
+      cube: {maxConcurrentCalls: 50}
