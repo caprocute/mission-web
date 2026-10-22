@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="urn:vt-okrkpi:wf:kiem-thu">
+  <process id="mau-r4" name="Mẫu kiểm thử linter" isExecutable="true">
+    <startEvent id="start"/>
+    <sequenceFlow id="f1" sourceRef="start" targetRef="duyet"/>
+    <userTask id="duyet" name="Duyệt" flowable:candidateGroups="${tenantId}:leader:${donViId}"/>
+    <sequenceFlow id="f2" sourceRef="duyet" targetRef="buoc"/>
+    <serviceTask id="buoc" name="Gọi lõi đồng bộ" flowable:type="http">
+      <extensionElements>
+        <flowable:field name="requestMethod"><flowable:string>POST</flowable:string></flowable:field>
+        <flowable:field name="requestUrl"><flowable:string>http://mission-core/api/v1/okr</flowable:string></flowable:field>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="f3" sourceRef="buoc" targetRef="end"/>
+    <endEvent id="end"/>
+  </process>
+</definitions>

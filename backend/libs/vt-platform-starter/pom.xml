@@ -206,6 +206,15 @@
       <artifactId>archunit</artifactId>
       <optional>true</optional>
     </dependency>
+    <!--
+      NEN-035, TL-03 "Bộ nhớ đệm Valkey": client Lettuce (BSD/Apache, tương thích Valkey 8) cho
+      TenantCache; tuỳ chọn, service dùng bộ đệm tự khai lettuce-core.
+    -->
+    <dependency>
+      <groupId>io.lettuce</groupId>
+      <artifactId>lettuce-core</artifactId>
+      <optional>true</optional>
+    </dependency>
 
     <dependency>
       <groupId>org.postgresql</groupId>

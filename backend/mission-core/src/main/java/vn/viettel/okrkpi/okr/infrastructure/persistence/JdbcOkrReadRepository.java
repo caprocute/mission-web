@@ -142,18 +142,42 @@ public class JdbcOkrReadRepository implements OkrReadRepository {
       TenantId tenant, KeyResultFilter f, String afterCode, UUID afterId, int limit) {
     MapSqlParameterSource p =
         new MapSqlParameterSource("t", tenant.value()).addValue("limit", limit);
-    StringBuilder sql =
-        new StringBuilder(
-            KEY_RESULT_SELECT
-                + " JOIN okr.objective o ON o.period_bucket = k.period_bucket"
-                + " AND o.tenant_id = k.tenant_id AND o.id = k.objective_id WHERE k.tenant_id = :t");
+    StringBuilder sql = new StringBuilder(KEY_RESULT_SELECT);
+    keyResultWhere(sql, p, f);
+    if (afterCode != null) {
+      sql.append(" AND (k.code, k.id) > (:afterCode, :afterId)");
+      p.addValue("afterCode", afterCode).addValue("afterId", afterId);
+    }
+    sql.append(" ORDER BY k.code, k.id LIMIT :limit");
+    return jdbc.query(sql.toString(), p, JdbcOkrReadRepository::keyResult);
+  }
+
+  @Override
+  public long countKeyResults(TenantId tenant, KeyResultFilter f) {
+    MapSqlParameterSource p = new MapSqlParameterSource("t", tenant.value());
+    StringBuilder sql = new StringBuilder("SELECT count(*) FROM (" + KEY_RESULT_SELECT);
+    keyResultWhere(sql, p, f);
+    sql.append(") x");
+    Long n = jdbc.queryForObject(sql.toString(), p, Long.class);
+    return n == null ? 0 : n;
+  }
+
+  private static void keyResultWhere(
+      StringBuilder sql, MapSqlParameterSource p, KeyResultFilter f) {
+    sql.append(
+        " JOIN okr.objective o ON o.period_bucket = k.period_bucket"
+            + " AND o.tenant_id = k.tenant_id AND o.id = k.objective_id WHERE k.tenant_id = :t");
     period(sql, p, "k", f.periodId(), f.buckets());
     if (f.unitIds() != null) {
       sql.append(" AND o.owner_unit_id IN (:units)");
       p.addValue("units", f.unitIds());
     }
     if (f.ownerPersonId() != null) {
-      sql.append(" AND o.owner_person_id = :person");
+      // Chủ sở hữu KR: người sở hữu mục tiêu cá nhân, mục tiêu tập thể thì người soạn (suy luận,
+      // cùng quy ước với OkrCheckinRepository.CheckinTarget#owner).
+      sql.append(
+          " AND (o.owner_person_id = :person"
+              + " OR (o.owner_person_id IS NULL AND o.created_by = :person))");
       p.addValue("person", f.ownerPersonId());
     }
     if (f.objectiveId() != null) {
@@ -176,12 +200,6 @@ public class JdbcOkrReadRepository implements OkrReadRepository {
               + " ELSE interval '1 month' END)");
     }
     like(sql, p, f.query(), "k.code", "k.title");
-    if (afterCode != null) {
-      sql.append(" AND (k.code, k.id) > (:afterCode, :afterId)");
-      p.addValue("afterCode", afterCode).addValue("afterId", afterId);
-    }
-    sql.append(" ORDER BY k.code, k.id LIMIT :limit");
-    return jdbc.query(sql.toString(), p, JdbcOkrReadRepository::keyResult);
   }
 
   @Override

@@ -1,0 +1,17 @@
+{
+  "templateCode": "mau-r7",
+  "phienBanChinh": 1,
+  "moTa": "Mẫu kiểm thử của linter",
+  "chuSoHuu": "",
+  "truyVet": "Kiểm thử",
+  "bangQuyetDinh": [],
+  "kiemThu": [
+    "vn.viettel.okrkpi.workflow.template.KhongTonTaiTest"
+  ],
+  "kiemThuDmn": [],
+  "bien": {
+    "tenantId": 50,
+    "donViId": 48
+  },
+  "songSongToiDa": {}
+}

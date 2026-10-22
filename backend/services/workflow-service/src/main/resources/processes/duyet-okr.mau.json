@@ -1,0 +1,39 @@
+{
+  "templateCode": "duyet-okr",
+  "phienBanChinh": 1,
+  "moTa": "Duyệt mục tiêu và kết quả then chốt: sau khi người soạn trình bộ OKR của kỳ, luồng chọn cấp duyệt theo khối và loại hồ sơ, giao lần lượt cho từng cấp; người duyệt phê duyệt hoặc trả lại kèm ý kiến; kết quả được gửi về lõi để chuyển trạng thái mục tiêu.",
+  "chuSoHuu": "Luồng B6 - nhóm workflow-service (SVC-06)",
+  "truyVet": "QT-02 bước 6 → SCR-0203 → approveOkrObjective, returnOkrObjective (okr.yaml) → MOD-01, SVC-06",
+  "bangQuyetDinh": [
+    "chon-cap-duyet"
+  ],
+  "kiemThu": [
+    "vn.viettel.okrkpi.workflow.template.DuyetOkrFlowTest",
+    "vn.viettel.okrkpi.workflow.template.ApprovalTemplatesIT"
+  ],
+  "kiemThuDmn": [
+    "vn.viettel.okrkpi.workflow.template.ChonCapDuyetDmnTest"
+  ],
+  "bien": {
+    "tenantId": 50,
+    "khoi": 16,
+    "loaiHoSo": 24,
+    "laNguoiDungDau": 20,
+    "donViId": 48,
+    "tieuDe": 780,
+    "periodId": 48,
+    "remindAfter": 24,
+    "phienBanDoiTuong": 40,
+    "phienBanPolicyPack": 84,
+    "choPhepUyQuyen": 20,
+    "capTuyChinh": 200,
+    "decision": 16,
+    "approvalLevels": 1600,
+    "level": 260,
+    "loopCounter": 16,
+    "nrOfInstances": 20,
+    "nrOfActiveInstances": 24,
+    "nrOfCompletedInstances": 28
+  },
+  "songSongToiDa": {}
+}

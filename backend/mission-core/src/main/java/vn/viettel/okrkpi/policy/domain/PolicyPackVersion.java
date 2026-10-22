@@ -97,6 +97,48 @@ public record PolicyPackVersion(
   }
 
   /**
+   * Ghi kết quả lần chạy kiểm thử {@code runId} của phiên bản đang {@code DANG_KIEM_THU}
+   * (CORE-05-07, BR-15-07): đạt thì lên {@code DAT_KIEM_THU} với {@code golden_pass_rate = 1},
+   * không đạt thì về {@code NHAP} giữ tỷ lệ ca đạt.
+   */
+  public PolicyPackVersion testOutcome(
+      boolean passed, BigDecimal passRate, UUID runId, UUID actor, Instant at) {
+    Objects.requireNonNull(passRate, "passRate");
+    Objects.requireNonNull(runId, "runId");
+    if (status != PolicyVersionStatus.DANG_KIEM_THU) {
+      throw new PolicyTransitionException(
+          "POLICY-409-VERSION-CONFLICT",
+          "Phiên bản " + version + " không ở trạng thái đang kiểm thử");
+    }
+    BigDecimal rate = passed ? BigDecimal.ONE : passRate;
+    PolicyPackVersion tested =
+        new PolicyPackVersion(
+            id,
+            packId,
+            version,
+            status,
+            effectiveFrom,
+            manifestJson,
+            contentHash,
+            rate,
+            runId,
+            signed,
+            approvedBy,
+            approvedAt,
+            signedAt,
+            publishedAt,
+            sourceVersionId,
+            changeNote,
+            createdAt,
+            createdBy,
+            updatedAt,
+            updatedBy,
+            rowVersion);
+    return tested.moveTo(
+        passed ? PolicyVersionStatus.DAT_KIEM_THU : PolicyVersionStatus.NHAP, actor, at);
+  }
+
+  /**
    * Chuyển sang {@code target} nếu sơ đồ trạng thái và điều kiện kiểm soát cho phép (TL-02b QT-15):
    * đạt kiểm thử cần 100% ca vàng đạt, phát hành cần chữ ký và người duyệt khác người soạn.
    */

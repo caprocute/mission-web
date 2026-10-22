@@ -34,6 +34,14 @@ SVC-07 đọc được đầu vào tính điểm của cả kỳ theo lô qua AP
 - Không trả trường C2 hay C3 trong đầu vào; kiểm bằng kiểm thử so khớp lược đồ.
 - Điểm lệch cần lưu ý: TL-01 ghi trang 500 hồ sơ (dòng 1080), hợp đồng dùng tham số `Limit` chung với tối đa 200; chọn hợp đồng và ghi vào `wiki/14`. Đường dẫn TL-01 phụ lục C `/appraisals/inputs?period=&cursor=` khớp hợp đồng.
 
+### Bổ sung theo BS-03 (ADR-33, 22/10/2026)
+
+Nguồn: `/mnt/project-files/kien-truc-okr-kpi/bo-sung/BS-03-ho-so-tap-khach-hang-va-diem-cam-loi.md`. Phần dưới mở rộng phạm vi của thẻ; mọi giá trị riêng của khách hàng đi qua cấu hình, không viết cứng trong mã (YC-TK-11). Nếu thẻ phụ thuộc chưa gộp, làm phần gốc của thẻ trước và để phần bổ sung sau cờ hoặc ghi rõ trong báo cáo.
+
+Phần mở rộng `workItems`, `responsibilityScope` do CORE-04-13 làm.
+
+- Thiết kế truy vấn và con trỏ sao cho CORE-04-13 thêm được `workItems` (giới hạn 200 việc lá mỗi hồ sơ, con trỏ con) và `responsibilityScope` dưới dạng trường tùy chọn, chỉ đọc khi gói của kỳ khai báo biến tương ứng (DC-01, DC-03); không làm chậm trường hợp gói không khai báo.
+
 ## 4. Ngoài phạm vi
 
 - Phía SVC-07 đọc lô và tính điểm (DV-07-04, DV-07-06); `TaskApi` (CORE-02-12).
