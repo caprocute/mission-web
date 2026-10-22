@@ -404,6 +404,24 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 8. **Số đo:** phiếu hai trang sinh hết 517 ms trên Gotenberg 8 cục bộ (gồm trộn mẫu, chuyển PDF/A-2b, kiểm veraPDF, ghi kho), trong khoảng 300–600 ms của TL-01. Mẫu sinh bằng `annotationLibrary=swagger2` để springdoc công bố đủ mã phản hồi cho kiểm thử so khớp hợp đồng.
 9. **Định tuyến gateway:** `/api/v1/dossiers/render-jobs` thuộc SVC-11 còn các đường dẫn `/api/v1/dossiers/**` khác thuộc MOD-06; `GET /api/v1/jobs/{id}` có ở nhiều dịch vụ. APISIX cần luật riêng cho hai chỗ này. `createDossierDraftForms`, `previewDossierForm` (cũng của SVC-11) thuộc DV-11-02, DV-11-03.
 
+### Ghi chú và quyết định từ schema cấu hình (CORE-08-01, 22/10/2026)
+
+1. Hai bảng có cặp cột trùng nghĩa trong TL-03 được giữ một bộ theo tên trường của `contracts/openapi/modules/config.yaml` (API-first, YC-PT-09). Bảng `config.ui_pack_version` giữ `tokens`, `layouts` và `policy_pack_version_id`, bỏ `tokens_json`, `layout_json` và `policy_pack_ref`. Bảng `config.form_schema` giữ `form_key`, `schema_json` và `ui_json`, bỏ `form_code`, `json_schema` và `ui_schema`. Cột `assets_json` không có cột trùng nên giữ tên của TL-03, dù hợp đồng gọi trường này là `assets`; lớp ánh xạ của CORE-08 sẽ đổi tên khi trả API.
+2. Ràng buộc `ex_period__no_overlap` cần extension `btree_gist` vì trộn cột `uuid`, `varchar` với `daterange`. Cài extension cần quyền quản trị nên `DatabaseBootstrap` (NEN-031) cài `btree_gist` vào schema `public` cho mọi schema nghiệp vụ, giống cách đã làm với `pg_partman`. Đây là thay đổi ngoài danh sách tệp của task, bắt buộc để migration chạy.
+3. Quy ước lint `fk_<bảng>__<bảng đích>` khiến tên `fk_period__parent` trong DDL mẫu của TL-03 đổi thành `fk_period__period_parent`. Chỉ mục duy nhất một phần của `period_lock_order` mang tên `ix_period_lock_order__period_active`, vì lint yêu cầu mọi chỉ mục không gắn ràng buộc bắt đầu bằng `ix_`.
+4. Bảng `config.period_status_log` chỉ ghi thêm theo hai lớp. Lớp thứ nhất thu quyền `UPDATE`, `DELETE`, `TRUNCATE` của `svc_config`. Lớp thứ hai là trigger `tg_period_status_log__append_only` chặn sửa và xoá ở mọi vai trò, vì bootstrap khi chạy lại sẽ cấp bù quyền DML trên bảng đã có (suy luận).
+5. Khoá ngoại vòng `ui_pack.current_version_id` được tạo sau bảng phiên bản và đặt `DEFERRABLE INITIALLY DEFERRED` (suy luận), để phát hành phiên bản đầu tiên và gắn vào gói trong cùng một giao dịch. Bảng `config.component_registry` có một phiên bản mẫu `2026.3` gồm năm component web hiện có (suy luận); bảng này không có `tenant_id` và nằm trong danh sách ngoại lệ của kiểm thử RLS.
+6. Hai kiểu ngoài danh sách chuẩn được ghi lý do ở khoá `type_exception`: `period.reopen_count smallint` và `dashboard_def.shared_unit_ids uuid[]`, đều theo đúng TL-03. Cột `role_binding.valid_to` không cho phép null nên mặc định là `infinity` khi vai trò không có hạn (suy luận).
+
+### Ghi chú và quyết định từ schema Policy Pack (CORE-05-01, 22/10/2026)
+
+1. TL-02b cho sửa phiên bản ở trạng thái `DAT_KIEM_THU` (sửa xong phiên bản về `NHAP`, MSG-15-03), trong khi trigger `tg_policy_pack_version__freeze` của TL-03 đóng băng nội dung từ `DAT_KIEM_THU`. DDL của TL-03 được giữ nguyên. Hai nguồn khớp nhau nếu ứng dụng (CORE-05-04) làm hai lệnh trong cùng một giao dịch: lệnh thứ nhất chỉ đổi cột `status` về `NHAP`, trigger cho qua vì nội dung chưa đổi; lệnh thứ hai mới sửa `manifest` và quy tắc. Kiểm thử `PolicySchemaConstraintsIT` đã chứng minh cách làm này chạy được.
+2. Trigger đóng băng trên `policy_rule` và `decision_table` chặn `UPDATE`, `DELETE` như TL-03, và chặn thêm `INSERT` vào phiên bản đã đóng băng (suy luận), vì `content_hash` đã ký bao trùm toàn bộ quy tắc của phiên bản.
+3. Trigger `tg_policy_binding__frozen` chặn đổi phiên bản, đổi phạm vi (kỳ, luồng, khối, đơn vị) và xoá dòng khi `is_frozen` là true; riêng việc đặt lại `is_frozen = false` (mở lại hậu kiểm) vẫn được phép (suy luận).
+4. TL-01 "Hiệu lực theo kỳ" đòi một ràng buộc CSDL chống hai gói cùng định danh, cùng luồng có khoảng hiệu lực chồng nhau, nhưng TL-03 chỉ có cột `effective_from` mà không có `den_ky`, nên không dựng được ràng buộc EXCLUDE. Việc kiểm tra chuyển cho tầng ứng dụng (CORE-05-03) cho tới khi TL-03 bổ sung cột.
+5. TL-03 không quy định chính sách RLS riêng cho gói `origin = GOC_TOAN_CUC`. Migration áp RLS chuẩn theo tenant cho mọi bảng; gói gốc toàn cục được hiểu là bản sao đồng bộ vào từng tenant (suy luận), CORE-05 sẽ chốt cách đồng bộ.
+6. Khoá ngoại vòng `policy_pack_version.last_test_run_id` tới `test_run` được tạo sau cùng và đặt `DEFERRABLE INITIALLY DEFERRED` (suy luận). Tên khoá ngoại theo quy ước lint: `fk_policy_pack_version__pack` của TL-03 đổi thành `fk_policy_pack_version__policy_pack`. Cột `policy_rule.eval_order` giữ kiểu `smallint` của TL-03 và ghi lý do ở khoá `type_exception`.
+
 ## Liên quan
 
 - [README của wiki](README.md)

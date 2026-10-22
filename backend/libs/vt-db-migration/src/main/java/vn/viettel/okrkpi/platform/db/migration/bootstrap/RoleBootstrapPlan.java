@@ -158,6 +158,9 @@ public final class RoleBootstrapPlan {
     sql.add("GRANT USAGE ON SCHEMA " + schema + " TO " + svc + ", " + ro + ", " + cdc);
     if (DatabaseLayout.isBusinessSchema(schema)) {
       sql.addAll(partmanGrants(mig));
+      // btree_gist cho ràng buộc EXCLUDE trộn cột uuid/varchar với khoảng ngày (TL-03
+      // ex_period__no_overlap, CORE-08-01); cài extension cần quyền quản trị nên thuộc bootstrap.
+      sql.add("CREATE EXTENSION IF NOT EXISTS btree_gist SCHEMA public");
     }
     // Quyền mặc định cho đối tượng mig_<schema> tạo về sau.
     sql.add(defaults + "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO " + svc);
