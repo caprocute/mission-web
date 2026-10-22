@@ -23,8 +23,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -61,6 +61,7 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
     properties = "mission.outbox.relay.enabled=false")
 @AutoConfigureMockMvc(addFilters = false)
 @DirtiesContext
+@Import(DossierMeetingApiIT.NoticeConfig.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DossierMeetingApiIT extends ContractConformanceTest {
 
@@ -88,7 +89,7 @@ class DossierMeetingApiIT extends ContractConformanceTest {
   /**
    * Môi trường kiểm thử không có Apicurio Registry: thay bộ tuần tự Avro của EVT-21 bằng bản giả.
    */
-  @TestConfiguration
+  /** Lớp thường nhập bằng {@code @Import}: {@code @TestConfiguration} lồng bị quét sang IT khác. */
   static class NoticeConfig {
 
     @Bean
