@@ -107,7 +107,7 @@ public final class CatalogRules {
   }
 
   /** Từ mơ hồ đầu tiên có trong tên (so khớp cả từ, không phân biệt dấu), hoặc {@code null}. */
-  static String vagueWord(String name, Collection<String> vagueWords) {
+  public static String vagueWord(String name, Collection<String> vagueWords) {
     if (name == null) {
       return null;
     }

@@ -1,5 +1,6 @@
 package vn.viettel.okrkpi.task.infrastructure.web;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -23,13 +24,16 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.contract.tasks.model.AssigneeRef;
+import vn.viettel.okrkpi.contract.tasks.model.CheckPlanVersion200Response;
 import vn.viettel.okrkpi.contract.tasks.model.CopyPlanFromPreviousPeriodRequest;
 import vn.viettel.okrkpi.contract.tasks.model.CreatePlanRequest;
+import vn.viettel.okrkpi.contract.tasks.model.Flow;
 import vn.viettel.okrkpi.contract.tasks.model.ListApprovedPlanItems200Response;
 import vn.viettel.okrkpi.contract.tasks.model.ListPlanVersions200Response;
 import vn.viettel.okrkpi.contract.tasks.model.ListPlans200Response;
 import vn.viettel.okrkpi.contract.tasks.model.PeriodRef;
 import vn.viettel.okrkpi.contract.tasks.model.Plan;
+import vn.viettel.okrkpi.contract.tasks.model.PlanCheck;
 import vn.viettel.okrkpi.contract.tasks.model.PlanItem;
 import vn.viettel.okrkpi.contract.tasks.model.PlanItemInput;
 import vn.viettel.okrkpi.contract.tasks.model.PlanItemRef;
@@ -51,6 +55,7 @@ import vn.viettel.okrkpi.shared.paging.CursorKey;
 import vn.viettel.okrkpi.shared.paging.CursorPage;
 import vn.viettel.okrkpi.shared.paging.PageRequest;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
+import vn.viettel.okrkpi.task.application.plan.PlanChecker;
 import vn.viettel.okrkpi.task.application.plan.PlanService;
 import vn.viettel.okrkpi.task.application.plan.PlanService.ApprovedItem;
 import vn.viettel.okrkpi.task.application.plan.PlanService.PlanView;
@@ -61,16 +66,13 @@ import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.VersionRow;
 
 /**
  * Tám thao tác kế hoạch quý của {@code tasks.yaml} (QT-04, SCR-0402, CORE-02-05). Tên người, tên
- * đơn vị để trống cho tới khi có danh bạ tên ở {@code replica :: api}; trọng số nhóm lấy mặc định
- * 30/70 của gói mẫu cho tới khi CORE-02-06 đọc từ Policy Pack (suy luận).
+ * đơn vị để trống cho tới khi có danh bạ tên ở {@code replica :: api}. Kết quả kiểm tra
+ * BR-04-02..07 và trọng số nhóm theo Policy Pack do {@link
+ * vn.viettel.okrkpi.task.application.plan.PlanChecker} tính (CORE-02-06).
  */
 @RestController
 @RequestMapping("/api/v1/plans")
 public class PlanController {
-
-  private static final PlanVersionGroupWeights DEFAULT_WEIGHTS =
-      new PlanVersionGroupWeights(
-          java.math.BigDecimal.valueOf(30), java.math.BigDecimal.valueOf(70));
 
   private final PlanService plans;
   private final CursorCodec cursors;
@@ -202,6 +204,21 @@ public class PlanController {
     return ETags.ok(version(view), view.version().rowVersion());
   }
 
+  @PostMapping("/{id}/versions/{v}/check")
+  @Idempotent
+  @RequiresPermission(operationId = "checkPlanVersion", module = "plans", resourceType = "plan")
+  public CheckPlanVersion200Response checkPlanVersion(
+      @PathVariable("id") UUID id, @PathVariable("v") int v, @RequestBody PlanVersionInput body) {
+    if (body == null || body.getItems() == null) {
+      throw invalid("items");
+    }
+    List<ItemRow> drafts = body.getItems().stream().map(PlanController::draft).toList();
+    return new CheckPlanVersion200Response(
+        found(() -> plans.check(TenantContext.require(), id, v, drafts)).stream()
+            .map(PlanController::check)
+            .toList());
+  }
+
   @GetMapping("/{id}/suggestions")
   @RequiresPermission(
       operationId = "suggestPlanItemsFromOkr",
@@ -267,13 +284,45 @@ public class PlanController {
             period(v.period()),
             "",
             v.items().stream().map(PlanController::item).toList(),
-            DEFAULT_WEIGHTS,
-            List.of(),
+            weights(v.groups()),
+            v.checks().stream().map(PlanController::check).toList(),
             (int) r.rowVersion());
     dto.setContentHash(r.contentHash() == null ? null : HexFormat.of().formatHex(r.contentHash()));
     dto.setReviewComment(r.reviewComment());
     dto.setChangeReason(r.changeReason());
     return dto;
+  }
+
+  static PlanCheck check(PlanChecker.Check c) {
+    PlanCheck dto =
+        new PlanCheck(c.rule(), PlanCheck.LevelEnum.fromValue(c.level().name()), c.message());
+    if (c.lineNo() != null) {
+      dto.setLineNo(c.lineNo());
+    }
+    if (c.msg() != null) {
+      dto.setMsg(c.msg());
+    }
+    return dto;
+  }
+
+  /** Điểm tối đa của nhóm chứa từng nhóm nhiệm vụ, kèm gói Policy Pack đã cho ra nhóm. */
+  static PlanVersionGroupWeights weights(PlanService.Groups g) {
+    PlanVersionGroupWeights dto =
+        new PlanVersionGroupWeights(max(g, "THUONG_XUYEN"), max(g, "THEN_CHOT"));
+    if (g.pack() != null) {
+      dto.setPolicyPackCode(g.pack().code());
+      dto.setPolicyPackVersion(g.pack().version());
+      dto.setFlow(Flow.fromValue(g.flow()));
+    }
+    return dto;
+  }
+
+  private static BigDecimal max(PlanService.Groups g, String taskGroup) {
+    return g.weights().stream()
+        .filter(w -> w.taskGroups().contains(taskGroup))
+        .map(PlanChecker.GroupWeight::maxPoints)
+        .findFirst()
+        .orElse(BigDecimal.ZERO);
   }
 
   static PlanItem item(ItemRow i) {
