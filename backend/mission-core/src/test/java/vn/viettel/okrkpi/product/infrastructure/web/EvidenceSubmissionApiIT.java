@@ -91,12 +91,15 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
   static final UUID ACTOR = UUID.fromString("01927a03-0000-7000-8000-00000000d303");
   static final UUID ASSIGNER = UUID.fromString("01927a03-0000-7000-8000-00000000d304");
 
+  /** Người gọi hiện tại của ngữ cảnh. */
+  static volatile UUID caller = ACTOR;
+
   /** Người gọi và outbox giả (không cần registry) chỉ của ngữ cảnh này. */
   static class Beans {
 
     @Bean
     EvidenceCaller evidenceCaller() {
-      return () -> Optional.of(new EvidenceActor(ACTOR, Set.of("member")));
+      return () -> Optional.of(new EvidenceActor(caller, Set.of("member")));
     }
 
     @Bean
@@ -137,7 +140,7 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
   @Autowired
   @Qualifier("productTransactionManager") private PlatformTransactionManager productTm;
 
-  private final TenantId tenant = TenantId.of(UUID.randomUUID());
+  private TenantId tenant = TenantId.of(UUID.randomUUID());
   private final UUID period = UUID.randomUUID();
 
   @Override
@@ -176,6 +179,8 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
 
   @Test
   void khaiBaoLuuNhapVaNop() throws Exception {
+    tenant = TenantId.of(UUID.randomUUID());
+    caller = ACTOR;
     UUID task = task(ACTOR);
     UUID otherTask = task(ACTOR);
     UUID foreignTask = task(UUID.randomUUID());
@@ -347,6 +352,78 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
         perform(get("/api/v1/evidences").param("submitter", "me").param("status", "DA_NOP"));
     assertResponseConforms(mine, "/evidences", PathItem.HttpMethod.GET);
     assertThat(body(mine).get("items")).hasSize(2);
+  }
+
+  /**
+   * CORE-03-06: người nộp tự mở bị 403; người giao mở lần đầu chuyển sang đang nghiệm thu, mở lại
+   * không đổi trạng thái; tệp đổi ở SVC-08 sau khi nộp thì chặn, có EVT-21 cảnh báo trong outbox.
+   */
+  @Test
+  void moNghiemThuVaKiemToanVen() throws Exception {
+    tenant = TenantId.of(UUID.randomUUID());
+    caller = ACTOR;
+    UUID task = task(ACTOR);
+    UUID obj = UUID.randomUUID();
+    assertThat(stored(UUID.randomUUID(), obj, 1, sha(11))).isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(scanned(obj, 1, "CLEAN")).isEqualTo(InboxOutcome.PROCESSED);
+    String evidence = evidence(deliverable(task));
+    String etag = draft(evidence, List.of(obj), null);
+    MvcResult submitted = submit(evidence, 1, etag, UUID.randomUUID().toString());
+    assertThat(submitted.getResponse().getStatus()).isEqualTo(200);
+    String afterSubmit = submitted.getResponse().getHeader("ETag");
+
+    // Người nộp (chủ trì) không tự nghiệm thu.
+    MvcResult self = openReview(evidence, afterSubmit);
+    assertThat(self.getResponse().getStatus()).isEqualTo(403);
+    assertThat(body(self).get("code").asText()).isEqualTo("PRODUCT-403-SELF-REVIEW");
+
+    caller = ASSIGNER;
+    MvcResult queue =
+        perform(
+            get("/api/v1/evidences")
+                .param("reviewer", "me")
+                .param("status", "DA_NOP,DANG_NGHIEM_THU"));
+    assertResponseConforms(queue, "/evidences", PathItem.HttpMethod.GET);
+    assertThat(body(queue).get("items")).hasSize(1);
+    assertThat(body(queue).get("items").get(0).get("id").asText()).isEqualTo(evidence);
+    assertThat(
+            perform(
+                    post("/api/v1/evidences/" + evidence + "/versions/1/open-review")
+                        .header("Idempotency-Key", UUID.randomUUID().toString()))
+                .getResponse()
+                .getStatus())
+        .isEqualTo(428);
+
+    MvcResult opened = openReview(evidence, afterSubmit);
+    assertThat(opened.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(
+        opened, "/evidences/{id}/versions/{v}/open-review", PathItem.HttpMethod.POST);
+    assertThat(body(opened).get("status").asText()).isEqualTo("DANG_NGHIEM_THU");
+    String inReview = opened.getResponse().getHeader("ETag");
+    MvcResult again = openReview(evidence, inReview);
+    assertThat(again.getResponse().getStatus()).isEqualTo(200);
+    assertThat(again.getResponse().getHeader("ETag")).isEqualTo(inReview);
+    assertThat(body(again).get("status").asText()).isEqualTo("DANG_NGHIEM_THU");
+
+    // Đối tượng bị ghi phiên bản mới ở SVC-08 sau khi nộp: chặn, giữ trạng thái, có cảnh báo.
+    long alertsBefore = outbox(EventTopics.EVT_21_YEU_CAU_THONG_BAO);
+    assertThat(stored(UUID.randomUUID(), obj, 2, sha(12))).isEqualTo(InboxOutcome.PROCESSED);
+    MvcResult tampered = openReview(evidence, inReview);
+    assertThat(tampered.getResponse().getStatus()).isEqualTo(409);
+    assertThat(body(tampered).get("code").asText()).isEqualTo("PRODUCT-409-INTEGRITY-FAILED");
+    assertThat(outbox(EventTopics.EVT_21_YEU_CAU_THONG_BAO)).isEqualTo(alertsBefore + 1);
+    assertThat(
+            body(perform(get("/api/v1/evidences/" + evidence + "/versions/1")))
+                .get("status")
+                .asText())
+        .isEqualTo("DANG_NGHIEM_THU");
+  }
+
+  private MvcResult openReview(String evidence, String ifMatch) throws Exception {
+    return perform(
+        post("/api/v1/evidences/" + evidence + "/versions/1/open-review")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .header("If-Match", ifMatch));
   }
 
   // ---------------------------------------------------------------- dữ liệu
@@ -539,7 +616,8 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
   }
 
   private MvcResult perform(MockHttpServletRequestBuilder request) throws Exception {
-    return as(() -> mvc.perform(request.principal(ACTOR::toString)).andReturn());
+    UUID who = caller;
+    return as(() -> mvc.perform(request.principal(who::toString)).andReturn());
   }
 
   private MvcResult perform(MockHttpServletRequestBuilder request, String body) throws Exception {

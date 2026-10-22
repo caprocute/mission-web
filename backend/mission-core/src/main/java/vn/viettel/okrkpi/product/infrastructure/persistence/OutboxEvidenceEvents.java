@@ -23,6 +23,7 @@ public class OutboxEvidenceEvents implements EvidenceEvents {
   static final String AGGREGATE = "evidence_version";
   static final String NOTICE_AGGREGATE = "evidence";
   static final String TEMPLATE_REVIEW = "MINH_CHUNG_CHO_NGHIEM_THU";
+  static final String TEMPLATE_INTEGRITY = "MINH_CHUNG_MAT_TOAN_VEN";
 
   private final OutboxWriter outbox;
 
@@ -71,6 +72,39 @@ public class OutboxEvidenceEvents implements EvidenceEvents {
             .setParams("{\"maNhiemVu\":" + quote(taskCode) + ",\"phienBan\":" + versionNo + "}")
             .setDeepLink("/evidence/" + evidenceId + "/review")
             .setPriority("BINH_THUONG")
+            .setAggregateVersion((int) aggregateVersion)
+            .build();
+    outbox.append(
+        EventEnvelope.of(
+                EventTopics.EVT_21_YEU_CAU_THONG_BAO,
+                tenantId,
+                NOTICE_AGGREGATE,
+                evidenceId,
+                aggregateVersion,
+                payload,
+                Classification.C1)
+            .withActor(ActorId.of(actorId)));
+  }
+
+  @Override
+  public void integrityFailed(
+      TenantId tenantId,
+      List<UUID> recipientIds,
+      String taskCode,
+      UUID evidenceId,
+      int versionNo,
+      UUID actorId,
+      long aggregateVersion) {
+    if (recipientIds.isEmpty()) {
+      return;
+    }
+    YeuCauThongBao payload =
+        YeuCauThongBao.newBuilder()
+            .setRecipientIds(List.copyOf(recipientIds))
+            .setTemplateCode(TEMPLATE_INTEGRITY)
+            .setParams("{\"maNhiemVu\":" + quote(taskCode) + ",\"phienBan\":" + versionNo + "}")
+            .setDeepLink("/evidence/" + evidenceId + "/review")
+            .setPriority("CAO")
             .setAggregateVersion((int) aggregateVersion)
             .build();
     outbox.append(
