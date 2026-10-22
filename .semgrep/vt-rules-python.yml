@@ -1,0 +1,57 @@
+# Bộ quy tắc Semgrep riêng của Mission cho mã Python (INF-06), chạy cùng p/python trong vtPythonPipeline.
+# Nguồn: TL-04 mục 9.1 (SEC-05, SEC-07), mục 9.4 (SEC-20), AGENTS.md quy tắc 5 (không thực thi mã sinh lúc chạy).
+# Kiểm thử: semgrep --test --metrics=off --config .semgrep/vt-rules-python.yml .semgrep/vt-rules-python.py
+rules:
+  - id: vt-py-sql-string-format
+    languages: [python]
+    severity: ERROR
+    message: "Không dựng câu SQL bằng f-string, % hay nối chuỗi; dùng tham số ràng buộc (SEC-05)."
+    metadata: { cwe: "CWE-89", sec: "SEC-05" }
+    patterns:
+      - pattern-either:
+          - pattern: $C.$F(f"...", ...)
+          - pattern: $C.$F("..." % $X, ...)
+          - pattern: $C.$F("..." + $X, ...)
+          - pattern: $C.$F("...".format(...), ...)
+      - metavariable-regex:
+          metavariable: $F
+          regex: ^(execute|executemany|exec_driver_sql|fetch|fetchrow|fetchval|query)$
+  - id: vt-py-dynamic-code
+    languages: [python]
+    severity: ERROR
+    message: "Không thực thi mã dựng lúc chạy (eval, exec, compile) (AGENTS.md quy tắc 5)."
+    metadata: { cwe: "CWE-95" }
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+      - pattern: compile(...)
+  - id: vt-py-unsafe-deserialize
+    languages: [python]
+    severity: ERROR
+    message: "Không giải tuần tự dữ liệu không tin cậy bằng pickle, yaml.load không SafeLoader (CWE-502)."
+    metadata: { cwe: "CWE-502" }
+    pattern-either:
+      - pattern: pickle.loads(...)
+      - pattern: pickle.load(...)
+      - patterns:
+          - pattern: yaml.load(...)
+          - pattern-not: yaml.load(..., Loader=yaml.SafeLoader, ...)
+          - pattern-not: yaml.load(..., Loader=yaml.CSafeLoader, ...)
+  - id: vt-py-tls-verify-off
+    languages: [python]
+    severity: ERROR
+    message: "Không tắt kiểm chứng chỉ TLS (SEC-20)."
+    metadata: { cwe: "CWE-295", sec: "SEC-20" }
+    pattern-either:
+      - pattern: $M.$F(..., verify=False, ...)
+      - pattern: ssl._create_unverified_context(...)
+  - id: vt-py-weak-hash
+    languages: [python]
+    severity: ERROR
+    message: "MD5, SHA-1 không nằm trong danh mục mật mã được phép (SEC-20)."
+    metadata: { cwe: "CWE-327", sec: "SEC-20" }
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: hashlib.sha1(...)
+      - pattern-not: hashlib.$H(..., usedforsecurity=False, ...)

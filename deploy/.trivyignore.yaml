@@ -1,0 +1,55 @@
+# Ngoại lệ của trivy config cho thư mục deploy (INF-06, stage "Trivy config" của vtHelmPipeline). Cùng quy trình
+# với ngoại lệ Kyverno (deploy/policies/README.md): mỗi mục có lý do, phạm vi tệp hẹp nhất và hạn tối đa 180 ngày;
+# hết hạn thì trivy báo lại và người phụ trách hạ tầng xem xét gia hạn hoặc sửa. Đường dẫn tính từ thư mục deploy.
+misconfigurations:
+  # node-exporter đọc số liệu của chính node: cần hostNetwork, hostPID và mount /, /proc, /sys (chart
+  # kube-prometheus-stack). Namespace observability được miễn Pod Security restricted (SEC-26, cell-base).
+  - id: KSV-0009
+    paths: ["**/prometheus-node-exporter/templates/daemonset.yaml"]
+    statement: node-exporter cần mạng của node để xuất số liệu node; miễn trong namespace observability (SEC-26)
+    expired_at: 2027-04-15
+  - id: KSV-0010
+    paths: ["**/prometheus-node-exporter/templates/daemonset.yaml"]
+    statement: node-exporter cần hostPID để đọc tiến trình của node; miễn trong namespace observability (SEC-26)
+    expired_at: 2027-04-15
+  - id: KSV-0121
+    paths: ["**/prometheus-node-exporter/templates/daemonset.yaml"]
+    statement: node-exporter mount chỉ đọc /, /proc, /sys của node để đo tài nguyên; miễn trong namespace observability (SEC-26)
+    expired_at: 2027-04-15
+  # Fluent Bit đọc log container ở /var/log của node (TL-04 mục 10.3) nên chạy root và ghi vị trí đọc vào hostPath.
+  - id: KSV-0014
+    paths: ["**/fluent-bit/templates/daemonset.yaml"]
+    statement: Fluent Bit ghi tệp vị trí đọc log (DB) trên hostPath; miễn trong namespace observability (SEC-26)
+    expired_at: 2027-04-15
+  - id: KSV-0118
+    paths: ["**/fluent-bit/templates/daemonset.yaml"]
+    statement: Fluent Bit cần quyền root để đọc log container của node (TL-04 mục 10.3); miễn trong namespace observability (SEC-26)
+    expired_at: 2027-04-15
+  # Operator và controller của bên thứ ba quản lý Secret theo thiết kế của chúng (Prometheus Operator dựng Secret
+  # cấu hình, kube-state-metrics đọc metadata Secret, APISIX Ingress Controller đọc chứng chỉ TLS).
+  - id: KSV-0041
+    paths:
+      - "**/kube-prometheus-stack/templates/prometheus-operator/clusterrole.yaml"
+      - "**/kube-state-metrics/templates/role.yaml"
+      - "**/api-gateway/templates/controller-mode.yaml"
+    statement: ClusterRole của operator bên thứ ba cần quyền với Secret theo thiết kế của thành phần đó
+    expired_at: 2027-04-15
+  - id: KSV-0056
+    paths: ["**/kube-prometheus-stack/templates/prometheus-operator/clusterrole.yaml"]
+    statement: Prometheus Operator dựng Service, Endpoints cho Prometheus và Alertmanager theo thiết kế
+    expired_at: 2027-04-15
+  - id: KSV-0046
+    paths: ["**/api-gateway/templates/controller-mode.yaml"]
+    statement: APISIX Ingress Controller ở chế độ controller đọc mọi CRD apisix.apache.org; thu hẹp khi chuyển sang chế độ standalone
+    expired_at: 2027-04-15
+  # APISIX ghi tệp tạm của nginx (proxy_temp, client_body_temp) vào thư mục làm việc.
+  - id: KSV-0014
+    paths: ["**/api-gateway/templates/apisix.yaml"]
+    statement: APISIX ghi tệp tạm của nginx vào thư mục làm việc; đã giới hạn bằng Pod Security restricted và không chạy root
+    expired_at: 2027-04-15
+  # Báo nhầm: tệp realm Keycloak chỉ có tên khoá cấu hình (client secret, refresh token), không chứa giá trị bí mật;
+  # giá trị thật nạp từ OpenBao qua External Secrets.
+  - id: KSV-0109
+    paths: ["**/iam/templates/configmap-realm.yaml"]
+    statement: báo nhầm, ConfigMap realm chỉ chứa tên khoá cấu hình, bí mật nạp từ OpenBao
+    expired_at: 2027-04-15

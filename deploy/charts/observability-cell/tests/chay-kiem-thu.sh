@@ -32,8 +32,10 @@ done
 grep -q 'storage.type        filesystem' "$OUT/mac-dinh.yaml" && grep -q 'Mem_Buf_Limit       64M' "$OUT/mac-dinh.yaml" \
   && grep -q 'Retry_Limit         no_limits' "$OUT/mac-dinh.yaml" && grep -q 'Topics              sys.audit.v1' "$OUT/mac-dinh.yaml" \
   && ok "bộ đệm đĩa, Mem_Buf_Limit 64M, không giới hạn thử lại, luồng kiểm toán sys.audit.v1" || hong "cấu hình Fluent Bit lệch TL-04"
-cat > "$OUT/mau.jsonl" <<'J'
-{"message":"login token=eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1In0.c2lnbmF0dXJl ok","trace":{"id":"0123456789012345678901234567abcd"}}
+# JWT giả ghép từ từng phần lúc chạy để gitleaks (SEC-09) không coi tệp kiểm thử là chứa token thật
+JWT_GIA="$(printf '%s.%s.%s' 'eyJhbGciOiJSUzI1NiJ9' 'eyJzdWIiOiJ1In0' 'c2lnbmF0dXJl')"
+printf '{"message":"login token=%s ok","trace":{"id":"0123456789012345678901234567abcd"}}\n' "$JWT_GIA" > "$OUT/mau.jsonl"
+cat >> "$OUT/mau.jsonl" <<'J'
 {"message":"CCCD 001203004567 của cán bộ","kubernetes":{"pod_id":"001203004567"}}
 {"message":"gọi 0912345678 hoặc +84912345678, email nguyen.van.a@cqt.gov.vn"}
 {"message":"mã nhiệm vụ 123456 lúc 2026-10-21T20:52:40.123456789Z giữ nguyên","nested":{"x":"cccd 079123456789"}}

@@ -13,14 +13,27 @@ Helm, Policy Pack, UI Pack thuộc INF-06; pipeline frontend thuộc WEB-002.
 ci/vt-pipeline/
 ├── vars/
 │   ├── vtJavaPipeline.groovy   pipeline declarative đầy đủ cho service Java (Maven)
+│   ├── vtGoPipeline.groovy     service Go (INF-06)
+│   ├── vtPythonPipeline.groovy service Python (INF-06)
+│   ├── vtFlutterPipeline.groovy ứng dụng di động Flutter (INF-06)
+│   ├── vtHelmPipeline.groovy   chart Helm và chính sách Kyverno (INF-06)
+│   ├── vtPolicyPackPipeline.groovy gói chính sách chấm điểm (INF-06, QT-17)
+│   ├── vtUiPackPipeline.groovy gói giao diện tenant (INF-06, ADR-05)
+│   ├── vtBuoc.groovy           các bước dùng chung của sáu pipeline INF-06
 │   ├── vtGitopsBump.groovy     commit có chữ ký GPG cập nhật digest vào deploy/environments/<env>/digests.yaml
 │   └── vtNotify.groovy         báo kết quả cho kênh của đội (webhook)
 ├── src/vn/vt/pipeline/
 │   ├── CauHinh.groovy          tham số, giá trị mặc định, biến môi trường VT_* cấp controller
+│   ├── CauHinhLoai.groovy      mặc định và kiểm tham số theo loại cho các pipeline INF-06
 │   └── DigestsFile.groovy      sửa digests.yaml theo dòng, giữ chú thích
 ├── resources/vn/vt/pipeline/
 │   ├── openapi-diff.sh         so hợp đồng contracts/openapi từng module với nhánh đích (ADR-32)
-│   └── vt-provenance.py        bản tham chiếu công cụ sinh predicate SLSA Provenance v1
+│   ├── vt-provenance.py        bản tham chiếu công cụ sinh predicate SLSA Provenance v1
+│   ├── vt-api.py               gọi API theo quy ước baseline mục 13 (Idempotency-Key, If-Match, RFC 9457, 202)
+│   ├── vt-policy-pack.py       liệt kê, kiểm chữ ký nghiệp vụ, đóng gói tất định Policy Pack
+│   ├── vt-ui-pack.py           kiểm lược đồ, registry, an toàn, chế độ cao tuổi, ngân sách CSS của UI Pack
+│   ├── vt-ui-pack-axe.mjs      axe-core trên trang mẫu, chế độ thường và cao tuổi
+│   └── vt-ui-pack-anh.mjs      ảnh chụp trước, sau và khác biệt trên staging
 └── tests/                      kiểm thử thư viện (xem mục "Kiểm thử")
 ```
 
@@ -100,6 +113,35 @@ giữa các lần dựng); `SEMGREP_ENABLE_VERSION_CHECK=0`; `MAVEN_ARGS` nếu 
   syft, cosign, openapi-diff, curl, gpg; container `provenance` có `vt-provenance` (dựng từ
   `resources/vn/vt/pipeline/vt-provenance.py`) và cosign. Pod chạy không root, không có cache Maven ghi chung.
 
+## Pipeline theo loại (INF-06, thư viện `vt-pipeline-v1.1.0`)
+
+Sáu pipeline mới dùng chung bộ bước trong `vars/vtBuoc.groovy` nên cổng bảo mật giống hệt pipeline Java:
+gitleaks, Semgrep (bộ chuẩn của ngôn ngữ cộng quy tắc riêng `.semgrep/vt-rules-<ngôn ngữ>.yml`), Trivy fs, kiểm
+Dockerfile (mọi `FROM` ghim `@sha256`, `USER` cuối là UID số ≥ `minUid`), dựng ảnh bằng BuildKit, SBOM bằng
+Syft, quét ảnh bằng Trivy, đẩy SBOM lên Dependency-Track, ký và chứng thực bằng cosign, rồi cập nhật digest
+GitOps. Tham số chung (registry, ngưỡng độ phủ, nhánh phát hành…) lấy từ `CauHinh.MAC_DINH`; tham số riêng
+từng loại nằm trong `CauHinhLoai.MAC_DINH`, tham số lạ hoặc ngưỡng độ phủ dưới 80% làm hỏng build ngay.
+
+| Bước | Cổng riêng ngoài bộ chung | Mẫu Jenkinsfile |
+|---|---|---|
+| `vtGoPipeline` | govulncheck (chạy song song với gitleaks, Semgrep, Trivy fs, Dockerfile), `go vet`, độ phủ | `examples/go.Jenkinsfile` |
+| `vtPythonPipeline` | pip-audit với `--require-hashes`, pytest trong venv với `--cov-fail-under` | `examples/python.Jenkinsfile` |
+| `vtFlutterPipeline` | `flutter analyze`, kiểm thử và độ phủ lcov; bản phát hành Android và iOS chỉ trên `main`, SBOM và `cosign sign-blob` | `examples/flutter.Jenkinsfile` |
+| `vtHelmPipeline` | `kyverno test` và `kiem-ngoai-le.py`, `kiem-ba-mo-hinh.sh` (ba mô hình phân phối), ngân sách kết nối (INF-03); trên `main` đóng gói, `helm push`, ký chart | `examples/helm.Jenkinsfile`, `deploy/Jenkinsfile` |
+| `vtPolicyPackPipeline` | cú pháp quy tắc, kiểm thử đơn vị song song với ca mẫu vàng 100%; trên `main` kiểm chữ ký nghiệp vụ, đóng gói tất định, ký, chạy bóng, duyệt, gửi phát hành | `examples/policy-pack.Jenkinsfile`, `data/policy-pack/Jenkinsfile` |
+| `vtUiPackPipeline` | lược đồ, registry, an toàn, chế độ cao tuổi, CSS ≤ 30 KB gzip; axe-core; ảnh so sánh trên staging; ký; tải lên, gửi kiểm tra, duyệt, phát hành | `examples/ui-pack.Jenkinsfile` |
+
+Biến môi trường cấp controller thêm cho INF-06 (chỉ tên): `VT_IMAGE_BUILDER` (`buildkit` trên cụm, `docker` trên
+máy kiểm thử), `VT_API_BASE`, `VT_API_CA`, `VT_STAGING_URL`, `VT_CHART_REPO`, `VT_CHART_PUSH_FLAGS`. Credential
+thêm (chỉ tên): `mission-ci-policy-pack`, `mission-ci-ui-pack` (token API dịch vụ), `mobile-android-upload-keystore`,
+`mobile-android-key-properties`, `mobile-ios-export-options`. Bước duyệt phát hành dùng `input` với nhóm
+`policy-pack-approvers` hoặc `ui-pack-approvers`.
+
+Lưu ý khi dùng: cosign 3 phải ký với `--new-bundle-format=false` vì Kyverno 1.15 chưa đọc định dạng bundle mới;
+Go phải dựng bằng bản vá mới nhất (thư viện chuẩn Go 1.24 có lỗ hổng mà govulncheck chặn); Dockerfile của các
+service Go hiện có chưa ghim digest nên sẽ hỏng cổng Dockerfile cho tới khi được sửa; `capacityCheckCmd` rỗng
+(INF-03 chưa gộp) làm stage ngân sách kết nối ở trạng thái UNSTABLE chứ không bỏ qua im lặng.
+
 ## Kiểm thử
 
 ```bash
@@ -113,3 +155,10 @@ hợp đồng `jobs.yaml`), tạo năm merge request (sạch, kiểm thử lỗi
 `backend/Jenkinsfile` cùng thư viện trên Jenkins thật (Jenkinsfile Runner) với registry cục bộ, khoá cosign
 và khoá GPG sinh tạm. Giới hạn của môi trường kiểm thử (không có plugin kubernetes, coverage, máy chủ
 SonarQube, Dependency-Track) ghi ở đầu script và ở wiki 11.
+
+Pipeline INF-06 kiểm bằng `tests/chay-kiem-thu-inf06.sh`: dựng repo mẫu từ `tests/fixture-inf06`, chạy từng
+Jenkinsfile trên Jenkinsfile Runner với registry cục bộ, API giả (`tests/jenkins/api-gia.py` kiểm xác thực,
+Idempotency-Key, If-Match và tác vụ 202), staging giả và khoá cosign tạm; mỗi loại có ca sạch, ca phải bị chặn
+(bí mật giả, govulncheck, kiểm thử hỏng, ca vàng sai, CSS 31 KB…) và ca nhánh `main`. Bước `input` được thay bằng
+bản tự duyệt trong `tests/jenkins/stub-lib`, Flutter dùng CLI giả `tests/jenkins/flutter-gia` vì máy kiểm thử
+không có SDK Flutter.

@@ -5,7 +5,7 @@ agplThayThe: false
 # Ceph S3 của cụm quản trị; khoá truy cập nằm trong Secret do ExternalSecret tạo (không ghi ở đây).
 s3:
   endpoint: rgw.mgmt-hl.svc:443
-  credentialsSecret: observability-s3
+  credentialsSecret: observability-s3   # gitleaks:allow tên Secret Kubernetes, không phải giá trị bí mật
 
 tempo-distributed:
   enabled: true
