@@ -743,6 +743,15 @@ Nhóm điểm của BR-04-06 lấy từ tham số `nhom` của Policy Pack hiệ
 - Bảng điều hành `/dashboard` chỉ mở thẳng dashboard mặc định ở lần vào đầu tiên trong phiên làm việc và chỉ khi máy chủ còn trả dashboard đó (không 403, 404); các lần sau vẫn hiện bảng điều hành chung để không mất lối vào SCR-1601 (suy luận).
 - Giả lập `me-preferences` phục vụ `/config/me/preferences` và `/ui/layouts/home` theo cùng thuật toán ghép lớp phủ của máy chủ, đánh dấu "Việc của tôi hôm nay" là khối bắt buộc để thử.
 
+### Ghi chú và quyết định từ đồng bộ chế độ người cao tuổi (CNH-05, 22/10/2026)
+
+- Chế độ hiển thị theo người dùng lưu ở khoá `ui.display` (`mode`, `reducedSteps`, CNH-02). Sau đăng nhập, `DisplayPreferenceSync` của shell đọc khoá này và áp vào `ThemeService`; nút "Chữ lớn" trên thanh trên ghi ngay lên máy chủ kèm `If-Match`, giữ các trường khác của khoá (`density`, `fontScale`). Mất mạng hoặc máy chủ lỗi thì giữ chế độ trong phiên và thử lại sau 2, 4, 8, 16 giây; xung đột phiên bản thì đọc bản mới rồi ghi lại lựa chọn vừa bấm.
+- Thứ tự ưu tiên: tuỳ chọn máy chủ của người dùng, rồi lựa chọn bằng nút chuyển nhanh trong phiên, rồi mặc định UI Pack. `ThemeService.reducedSteps` nay là giá trị suy ra (tuỳ chọn người dùng nếu có, không thì cờ `modes.elderly.flags.reducedSteps` của UI Pack); ghi `reducedSteps.set()` vẫn là ghi mặc định UI Pack nên `UiPackLoader` và kiểm thử cũ không phải sửa.
+- Bản đệm cục bộ `vt.displayMode` (giá trị C1) vẫn được giữ và áp ngay trong hàm dựng của `ThemeService` để tải lại ở chế độ cao tuổi không nháy; khi máy chủ trả lời là người dùng chưa lưu tuỳ chọn và trong phiên chưa bấm nút, chế độ về mặc định UI Pack (suy luận theo yêu cầu "tắt tuỳ chọn máy chủ thì về mặc định").
+- Giả lập tuỳ chọn cá nhân nay giữ dữ liệu trong `sessionStorage` để tải lại trang vẫn còn như máy chủ thật; tab hay trình duyệt khác bắt đầu trống như một thiết bị mới.
+- Di động: repo chưa có ứng dụng Flutter (`mobile/` chưa tồn tại), nên phần di động chỉ ghi yêu cầu cho task MOB tương ứng: đọc cùng khoá `ui.display` qua `getMyPreferences`, đổi `textScaler` và bảng màu theo `modes.elderly`, ghi bằng `putMyPreference` kèm `If-Match`.
+- Chỉ tiêu BR-18-09 (chữ ≥ 17 px, vùng chạm ≥ 48 px, tương phản ≥ 7 : 1) thuộc bộ token cao tuổi của UI Pack (CORE-08-10); CNH-05 không đổi token, chỉ kiểm axe-core mức WCAG 2.1 AA ở chế độ cao tuổi trên "Việc của tôi" (không có lỗi serious).
+
 ## Liên quan
 
 - [README của wiki](README.md)

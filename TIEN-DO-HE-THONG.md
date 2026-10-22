@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **179 / 401 task (44.6%)** — Khối lượng quy đổi đã gộp: **212.5 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **182 / 401 task (45.4%)** (gồm **179** đã gộp `main` + **3** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **183 / 401 task (45.6%)** (gồm **179** đã gộp `main` + **4** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **213 task**.
+- **Chưa bắt đầu**: **212 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **14 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-04`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -31,8 +31,8 @@
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
-| **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 3 | 0 | 1 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **179** | **3** | **6** | **213** | **44.6%** |
+| **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 4 | 0 | 0 | **20.0%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **179** | **4** | **6** | **212** | **44.6%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -40,7 +40,7 @@
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 0 | 1 | 9 | **83.1%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
-| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **32** | 3 | 1 | 10 | **69.6%** |
+| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **32** | 4 | 1 | 9 | **69.6%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **34** | 0 | 3 | 80 | **29.1%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 0 | 0 | 54 | **23.9%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **14** | 0 | 1 | 27 | **33.3%** |
@@ -630,7 +630,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-075](docs/tasks/WEB-075-kham-pha-cell.md) | Khám phá cell khi đăng nhập (chuyển hướng 307, mã 421) | S | W | 10 | WEB-006, DV-01-04 | **Đã gộp main** | Đã gộp main (f4fca53); máy chủ thật chờ CORE tương ứng |
 | [WEB-076](docs/tasks/WEB-076-doc-co-tinh-nang.md) | Đọc cờ tính năng phía web | S | W | 13 | CORE-08-07, NEN-043 | **Đã gộp main** | Đã gộp main (f4fca53); máy chủ thật chờ CORE tương ứng |
 
-### CNH · Cá nhân hoá theo người dùng (chờ người dùng chốt) (1/5 đã gộp `main`, 3 chờ gộp, 0 đang làm)
+### CNH · Cá nhân hoá theo người dùng (chờ người dùng chốt) (1/5 đã gộp `main`, 4 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -638,7 +638,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CNH-02](docs/tasks/CNH-02-luu-tuy-chon-ca-nhan.md) | Backend lưu tuỳ chọn cá nhân: bố cục trang chủ, cột, bộ lọc đã lưu, chế độ người cao tuổi | M | B2 | 15 | CNH-01, CORE-08-01, CORE-08-11 | **Xong, chờ gộp** | Nhánh claude/b8-ha-tang-g7g48k: hợp đồng /config/me, migration V9, OPA tự phục vụ, lớp phủ trang chủ; IT PostgreSQL và opa test xanh |
 | [CNH-03](docs/tasks/CNH-03-bo-cuc-trang-chu-ca-nhan.md) | Web: lưu và khôi phục bố cục trang chủ và dashboard cá nhân | M | W | 16 | CNH-02, WEB-048 | **Xong, chờ gộp** | Nhánh claude/b8-ha-tang-g7g48k: tuỳ chỉnh trang chủ, dashboard mặc định; unit test, build fe-task/fe-shell/fe-dashboard, Playwright giả lập xanh |
 | [CNH-04](docs/tasks/CNH-04-cot-bo-loc-da-luu.md) | Web: cột và bộ lọc đã lưu trên các danh sách | M | W | 16 | CNH-02 | **Xong, chờ gộp** | Nhánh claude/b8-ha-tang-g7g48k: Chọn cột, Bộ lọc đã lưu dùng chung; gắn SCR-0503, SCR-0701, SCR-0101; unit test, build, Playwright và axe giả lập xanh |
-| [CNH-05](docs/tasks/CNH-05-dong-bo-che-do-cao-tuoi.md) | Web và di động: đồng bộ chế độ người cao tuổi qua máy chủ thay cho lưu cục bộ | S | W | 16 | CNH-02 | **Chưa bắt đầu** | Người dùng đã đồng ý làm (20/10); CNH-01 bổ sung thiết kế trước |
+| [CNH-05](docs/tasks/CNH-05-dong-bo-che-do-cao-tuoi.md) | Web và di động: đồng bộ chế độ người cao tuổi qua máy chủ thay cho lưu cục bộ | S | W | 16 | CNH-02 | **Xong, chờ gộp** | Nhánh claude/b8-ha-tang-g7g48k: chế độ cao tuổi theo ui.display trên máy chủ, nút chuyển nhanh ghi If-Match, không nháy; unit test, build:all, Playwright, axe xanh; di động chưa có app nên ghi yêu cầu MOB |
 
 ---
 
@@ -841,4 +841,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 16:44 | Luồng B8 hạ tầng | `CNH-03` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b8-ha-tang-g7g48k: tuỳ chỉnh trang chủ, dashboard mặc định; unit test, build fe-task/fe-shell/fe-dashboard, Playwright giả lập xanh |
 | 22/10/2026 16:45 | Luồng B8 hạ tầng | `CNH-04` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: đang thực hiện |
 | 22/10/2026 16:59 | Luồng B8 hạ tầng | `CNH-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b8-ha-tang-g7g48k: Chọn cột, Bộ lọc đã lưu dùng chung; gắn SCR-0503, SCR-0701, SCR-0101; unit test, build, Playwright và axe giả lập xanh |
+| 22/10/2026 16:59 | Luồng B8 hạ tầng | `CNH-05` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: đang thực hiện |
+| 22/10/2026 17:09 | Luồng B8 hạ tầng | `CNH-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b8-ha-tang-g7g48k: chế độ cao tuổi theo ui.display trên máy chủ, nút chuyển nhanh ghi If-Match, không nháy; unit test, build:all, Playwright, axe xanh; di động chưa có app nên ghi yêu cầu MOB |
 <!-- PROGRESS_LOG_END -->

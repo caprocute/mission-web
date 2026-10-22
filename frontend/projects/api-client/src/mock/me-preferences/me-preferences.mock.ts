@@ -30,9 +30,34 @@ const BASE_HOME: HomeLayoutNode = {
 
 const KEY = /^(ui\.display|ui\.home\.layout|ui\.dashboard\.default|ui\.table\.SCR-[0-9]{4}|notify\.channel_pref)$/;
 
-let store = new Map<string, UserPreferenceItem>();
-let filters: SavedFilter[] = [];
-let seq = 0;
+/**
+ * Dữ liệu giả lập giữ trong `sessionStorage` (giá trị C1) để tải lại trang vẫn còn, giống máy chủ
+ * thật lưu theo người dùng; tab hoặc trình duyệt khác bắt đầu trống như một thiết bị mới.
+ */
+const PERSIST_KEY = 'vt.mock.mePreferences';
+
+function restore(): { store: [string, UserPreferenceItem][]; filters: SavedFilter[]; seq: number } {
+  try {
+    const raw = globalThis.sessionStorage?.getItem(PERSIST_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    /* không đọc được: bắt đầu trống */
+  }
+  return { store: [], filters: [], seq: 0 };
+}
+
+const initial = restore();
+let store = new Map<string, UserPreferenceItem>(initial.store);
+let filters: SavedFilter[] = initial.filters;
+let seq = initial.seq;
+
+function persist(): void {
+  try {
+    globalThis.sessionStorage?.setItem(PERSIST_KEY, JSON.stringify({ store: [...store], filters, seq }));
+  } catch {
+    /* trình duyệt chặn bộ nhớ: chỉ giữ trong trang */
+  }
+}
 
 const FILTER_LIMIT = 20;
 const SCREEN = /^SCR-[0-9]{4}$/;
@@ -89,6 +114,7 @@ function saveFilter(f: SavedFilter): SavedFilter {
     );
   }
   filters = [...filters.filter((x) => x.id !== f.id), f];
+  persist();
   return f;
 }
 
@@ -166,6 +192,7 @@ export const ME_PREFERENCES_MOCK: MockModule = {
           rowVersion: (current?.rowVersion ?? 0) + 1,
         };
         store.set(key, next);
+        persist();
         return { status: current ? 200 : 201, body: next, headers: etag(next.rowVersion) };
       },
     },
@@ -179,6 +206,7 @@ export const ME_PREFERENCES_MOCK: MockModule = {
         const blocked = versionCheck(r, current);
         if (blocked) return blocked;
         store.delete(key);
+        persist();
         return { status: 204 };
       },
     },
@@ -247,6 +275,7 @@ export const ME_PREFERENCES_MOCK: MockModule = {
         const blocked = filterVersion(r, current);
         if (blocked) return blocked;
         filters = filters.filter((f) => f.id !== current.id);
+        persist();
         return { status: 204 };
       },
     },
@@ -280,5 +309,10 @@ export const ME_PREFERENCES_MOCK: MockModule = {
     store = new Map();
     filters = [];
     seq = 0;
+    try {
+      globalThis.sessionStorage?.removeItem(PERSIST_KEY);
+    } catch {
+      /* bỏ qua */
+    }
   },
 };
