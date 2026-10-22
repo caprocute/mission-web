@@ -28,4 +28,14 @@ public interface PolicySchemaPort {
   default boolean retired(TenantId tenantId, String policyPackRef) {
     return false;
   }
+
+  /**
+   * Trường mà phiên bản Policy Pack dùng để tính điểm, theo khoá dữ liệu và kiểu JSON Schema
+   * ({@code number}, {@code integer}, {@code string}, {@code boolean}…), để biểu mẫu không đổi kiểu
+   * hay xoá chúng (CORE-08-13, BR-18-06, MSG-18-07). Mặc định rỗng cho tới khi MOD-05 hiện thực.
+   */
+  default java.util.Map<String, String> scoredFields(
+      TenantId tenantId, java.util.UUID policyPackVersionId) {
+    return java.util.Map.of();
+  }
 }
