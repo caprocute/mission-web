@@ -760,3 +760,5 @@ Nhóm điểm của BR-04-06 lấy từ tham số `nhom` của Policy Pack hiệ
 - [Hạ tầng production và triển khai](19-ha-tang-production-va-trien-khai.md)
 - [Bảo mật phía máy chủ](20-bao-mat-phia-may-chu.md)
 - [Kiến trúc mission-core và microservice](21-kien-truc-mission-core-va-microservice.md)
+6. **Ghép với khung saga (22/10/2026):** mã DV-06-02 viết trước DV-06-05 nên khi đưa vào main, migration đổi thành `V4__wf_mau_rang_buoc_hop_viec.sql` và bỏ phần tạo `outbox_event`, `idempotency_key` (đã có ở V3 của DV-06-05, cùng cột); V4 chỉ thêm `inbox_processed`, `inbox_aggregate_version`, RLS cho phân vùng mặc định và hàm `fn_maintain_partitions`. Câu hỏi mở về `GET /jobs/{id}` ở mục 2 đã có lời đáp: thao tác này thuộc `jobs.yaml` (`getJob`), DV-06-05 đã hiện thực trong workflow-service. Số đo trên 1 triệu dòng chiếu: CSDL p95 0,415 ms, qua API p95 22,8 ms.
+
