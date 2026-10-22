@@ -260,6 +260,17 @@ public class S3ObjectStorage implements ObjectStorage {
   }
 
   @Override
+  public void extendLock(ObjectLocation location, String versionId, Instant lockUntil) {
+    s3.putObjectRetention(
+        b ->
+            b.bucket(location.bucket())
+                .key(location.key())
+                .versionId(versionId)
+                .retention(
+                    r -> r.mode(ObjectLockRetentionMode.COMPLIANCE).retainUntilDate(lockUntil)));
+  }
+
+  @Override
   public void deleteStaging(ObjectLocation location) {
     s3.deleteObject(b -> b.bucket(location.bucket()).key(location.key()));
   }

@@ -109,6 +109,14 @@ public class UploadService {
   private final Settings settings;
   private final Clock clock;
 
+  /**
+   * Kết quả hoàn tất: {@code duplicate} cho biết trong tenant đã có minh chứng khác cùng băm
+   * (BR-07-03, MSG-07-01); {@code null} với tệp C3 vì không khử trùng bản mã.
+   */
+  public record Completed(StoredFile file, Boolean duplicate) {}
+
+  static final Duration LOCK_SLACK = Duration.ofDays(1);
+
   public UploadService(
       UploadSessions sessions,
       StoredFiles files,
@@ -243,7 +251,7 @@ public class UploadService {
    * tượng (mã đối tượng trùng mã phiên).
    */
   @RequiresPermission(operationId = "completeFileUpload")
-  public StoredFile complete(UUID uploadId, List<Part> declaredParts, UUID actor) {
+  public Completed complete(UUID uploadId, List<Part> declaredParts, UUID actor) {
     UploadSession s = owned(uploadId, actor);
     if (s.status() == Status.HOAN_TAT) {
       return existing(uploadId);
@@ -266,8 +274,20 @@ public class UploadService {
     buckets.provision(s.tenantId());
     Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
     Instant lockUntil = now.plus(settings.lockDays(), ChronoUnit.DAYS);
-    ObjectLocation target = ObjectLocation.of(settings.cell(), s.tenantId(), found.sha256());
-    StoredObject stored = storage.copyLocked(staging, target, s.kind().mediaType(), lockUntil);
+    // Bản mã C3 không khử trùng: cùng nội dung rõ vẫn ra bản mã khác nhau.
+    boolean dedupe = !s.e2ee();
+    StoredObject stored =
+        (dedupe
+                ? tx.execute(t -> files.physicalCopy(found.sha256()))
+                : Optional.<StoredObject>empty())
+            .map(copy -> reuse(copy, lockUntil))
+            .orElseGet(
+                () ->
+                    storage.copyLocked(
+                        staging,
+                        ObjectLocation.of(settings.cell(), s.tenantId(), found.sha256()),
+                        s.kind().mediaType(),
+                        lockUntil));
     storage.deleteStaging(staging);
     StoredFile file =
         new StoredFile(
@@ -282,23 +302,39 @@ public class UploadService {
             s.classification(),
             found.size(),
             found.sha256(),
-            target.bucket(),
-            target.key(),
+            stored.location().bucket(),
+            stored.location().key(),
             stored.versionId(),
-            lockUntil,
+            stored.lockedUntil(),
             "CHO_QUET",
             now);
-    Boolean won =
+    Integer refs =
         tx.execute(
             t -> {
               if (!sessions.close(uploadId, Status.HOAN_TAT, actor)) {
-                return false;
+                return null;
               }
               files.insert(file, s.fileNameEnc(), s.dekId());
               events.stored(file);
-              return true;
+              return dedupe ? files.registerReference(file.sha256(), file.objectKey(), actor) : 0;
             });
-    return Boolean.TRUE.equals(won) ? file : replayOrClosed(uploadId);
+    if (refs == null) {
+      return replayOrClosed(uploadId);
+    }
+    return new Completed(file, dedupe ? refs > 1 : null);
+  }
+
+  /**
+   * Trỏ phiên bản mới vào bản vật lý cùng băm đã có; hạn khoá được kéo dài nếu ngắn hơn hạn của
+   * minh chứng mới quá {@link #LOCK_SLACK}, để mỗi minh chứng giữ đủ thời hạn lưu giữ của mình.
+   */
+  private StoredObject reuse(StoredObject copy, Instant lockUntil) {
+    // Chỉ kéo dài khi thiếu quá một ngày: tránh một lệnh S3 cho mỗi lần dùng lại.
+    if (!copy.lockedUntil().isBefore(lockUntil.minus(LOCK_SLACK))) {
+      return copy;
+    }
+    storage.extendLock(copy.location(), copy.versionId(), lockUntil);
+    return new StoredObject(copy.location(), copy.versionId(), lockUntil);
   }
 
   /**
@@ -434,13 +470,21 @@ public class UploadService {
     return null;
   }
 
-  private StoredFile existing(UUID objectId) {
-    return tx.execute(t -> files.find(objectId, null))
+  private Completed existing(UUID objectId) {
+    return tx.execute(
+            t ->
+                files
+                    .find(objectId, null)
+                    .map(
+                        f ->
+                            new Completed(
+                                f,
+                                f.e2ee() ? null : files.hasOtherCopy(f.sha256(), f.versionId()))))
         .orElseThrow(() -> new BusinessException(UPLOAD_CLOSED));
   }
 
   /** Lệnh song song đã hoàn tất phiên thì trả kết quả của nó; phiên đã huỷ thì 409. */
-  private StoredFile replayOrClosed(UUID uploadId) {
+  private Completed replayOrClosed(UUID uploadId) {
     return existing(uploadId);
   }
 

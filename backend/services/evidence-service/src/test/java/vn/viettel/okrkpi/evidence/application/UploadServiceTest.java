@@ -102,7 +102,34 @@ class UploadServiceTest {
         public Optional<StoredFile> find(UUID objectId, Integer versionNo) {
           return Optional.ofNullable(fileRows.get(objectId));
         }
+
+        @Override
+        public Optional<ObjectStorage.StoredObject> physicalCopy(byte[] sha256) {
+          return fileRows.values().stream()
+              .filter(f -> java.util.Arrays.equals(f.sha256(), sha256))
+              .findFirst()
+              .map(
+                  f ->
+                      new ObjectStorage.StoredObject(
+                          f.location(), f.cephVersionId(), f.lockUntil()));
+        }
+
+        @Override
+        public int registerReference(byte[] sha256, String objectKey, UUID owner) {
+          return refCounts.merge(HexFormat.of().formatHex(sha256), 1, Integer::sum);
+        }
+
+        @Override
+        public boolean hasOtherCopy(byte[] sha256, UUID versionId) {
+          return fileRows.values().stream()
+              .anyMatch(
+                  f ->
+                      java.util.Arrays.equals(f.sha256(), sha256)
+                          && !f.versionId().equals(versionId));
+        }
       };
+
+  final Map<String, Integer> refCounts = new java.util.HashMap<>();
 
   final UploadService service =
       new UploadService(
@@ -116,6 +143,27 @@ class UploadServiceTest {
           TransactionOperations.withoutTransaction(),
           new UploadService.Settings("dev", 50L * 1024 * 1024, PART, Duration.ofHours(24), 1),
           Clock.fixed(NOW, ZoneOffset.UTC));
+
+  static StoredFile withLock(StoredFile f, Instant lockUntil) {
+    return new StoredFile(
+        f.objectId(),
+        f.versionId(),
+        f.versionNo(),
+        f.tenantId(),
+        f.createdBy(),
+        f.ownerModule(),
+        f.ownerRefId(),
+        f.mediaType(),
+        f.classification(),
+        f.sizeBytes(),
+        f.sha256(),
+        f.bucket(),
+        f.objectKey(),
+        f.cephVersionId(),
+        lockUntil,
+        f.scanStatus(),
+        f.createdAt());
+  }
 
   static UploadSession with(UploadSession s, Status status, int partsDone) {
     return new UploadSession(
@@ -245,7 +293,9 @@ class UploadServiceTest {
     UploadSession s = open(content, "application/pdf", "C2", false);
     stubAssembled(content);
 
-    StoredFile f = service.complete(s.id(), List.of(new Part(1, 0, "e1")), USER);
+    UploadService.Completed done = service.complete(s.id(), List.of(new Part(1, 0, "e1")), USER);
+    StoredFile f = done.file();
+    assertThat(done.duplicate()).isFalse();
     assertThat(f.objectId()).isEqualTo(s.id());
     assertThat(f.bucket()).isEqualTo("ev-dev-" + TENANT);
     assertThat(f.lockUntil()).isEqualTo(NOW.plus(Duration.ofDays(1)));
@@ -255,8 +305,28 @@ class UploadServiceTest {
     verify(storage).ensureLockedBucket("ev-dev-" + TENANT, 1);
 
     // Gọi lại: cùng đối tượng, không phát thêm sự kiện.
-    assertThat(service.complete(s.id(), List.of(new Part(1, 0, "e1")), USER)).isEqualTo(f);
+    assertThat(service.complete(s.id(), List.of(new Part(1, 0, "e1")), USER)).isEqualTo(done);
     assertThat(events).hasSize(1);
+  }
+
+  @Test
+  void cungBamTroVeBanVatLyCuVaKeoDaiKhoa() throws Exception {
+    byte[] content = pdf(1000);
+    stubAssembled(content);
+    UploadSession first = open(content, "application/pdf", "C1", false);
+    StoredFile a = service.complete(first.id(), List.of(new Part(1, 0, "e1")), USER).file();
+    // Bản cũ có hạn khoá ngắn hơn hạn của minh chứng mới.
+    fileRows.put(a.objectId(), withLock(a, NOW.minus(Duration.ofDays(1))));
+    UploadSession second = open(content, "application/pdf", "C1", false);
+    UploadService.Completed b = service.complete(second.id(), List.of(new Part(1, 0, "e1")), USER);
+
+    assertThat(b.duplicate()).isTrue();
+    assertThat(b.file().objectKey()).isEqualTo(a.objectKey());
+    assertThat(b.file().cephVersionId()).isEqualTo(a.cephVersionId());
+    assertThat(b.file().lockUntil()).isEqualTo(NOW.plus(Duration.ofDays(1)));
+    verify(storage).copyLocked(any(), any(), any(), any());
+    verify(storage).extendLock(a.location(), a.cephVersionId(), NOW.plus(Duration.ofDays(1)));
+    assertThat(refCounts).containsValue(2);
   }
 
   @Test
@@ -291,8 +361,10 @@ class UploadServiceTest {
     byte[] cipher = new byte[700];
     UploadSession s = open(cipher, "application/octet-stream", "C3", true);
     stubAssembled(cipher);
-    StoredFile f = service.complete(s.id(), List.of(new Part(1, 0, "e1")), USER);
-    assertThat(f.e2ee()).isTrue();
+    UploadService.Completed done = service.complete(s.id(), List.of(new Part(1, 0, "e1")), USER);
+    assertThat(done.file().e2ee()).isTrue();
+    assertThat(done.duplicate()).isNull();
+    assertThat(refCounts).isEmpty();
   }
 
   @Test
@@ -312,7 +384,7 @@ class UploadServiceTest {
     byte[] content = pdf(1000);
     UploadSession s = open(content, "application/pdf", "C1", false);
     stubAssembled(content);
-    StoredFile f = service.complete(s.id(), List.of(new Part(1, 0, "e1")), USER);
+    StoredFile f = service.complete(s.id(), List.of(new Part(1, 0, "e1")), USER).file();
     assertThat(code(() -> service.downloadUrl(f.objectId(), null, false)))
         .isEqualTo("FILE-409-NOT-CLEAN");
     StoredFile clean =
