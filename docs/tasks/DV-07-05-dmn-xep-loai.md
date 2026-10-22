@@ -37,6 +37,13 @@ Từ điểm và kết quả tiêu chí chung, scoring-service chạy bảng quy
 - Kiểm thử: ca vàng cho từng dòng DMN của gói mẫu (gồm ví dụ "Đủ điểm mức HTXSNV nhưng chưa đạt điều kiện 30%..." của TL-02b); hồ sơ hai luồng ra hai kết quả; tính lại cùng đầu vào không phát sự kiện mới.
 - Gợi ý tách: (a) DMN, `min_muc`, hạ mức và câu giải thích; (b) luồng Nhà nước song song và đóng gói EVT-10 luỹ đẳng.
 
+### Bổ sung theo BS-03 (ADR-33, 22/10/2026)
+
+Nguồn: `/mnt/project-files/kien-truc-okr-kpi/bo-sung/BS-03-ho-so-tap-khach-hang-va-diem-cam-loi.md`. Phần dưới mở rộng phạm vi của thẻ; mọi giá trị riêng của khách hàng đi qua cấu hình, không viết cứng trong mã (YC-TK-11). Nếu thẻ phụ thuộc chưa gộp, làm phần gốc của thẻ trước và để phần bổ sung sau cờ hoặc ghi rõ trong báo cáo.
+
+- Ngoài bảng DMN một tầng `FIRST`, hỗ trợ `classification.chain`: danh sách bước có thứ tự (DMN hoặc CEL), mỗi bước ghi `score_trace` (`stepNo`, `ruleCode`, `inputs`, `output`, lý do) và điền `downgrade_reasons` (DC-05).
+- `quotas` là tùy chọn: gói không khai báo thì không áp trần, chỉ báo cáo tỷ lệ; điều kiện loại trừ đọc `appraisal.incident` qua `inputs`.
+
 ## 4. Ngoài phạm vi
 
 - Lưu `score_snapshot`, `rating_explanation` ở MOD-04 (CORE-04-02); quy tắc người đứng đầu và phân bố HTXSNV khi tạo lô (CORE-04-07).

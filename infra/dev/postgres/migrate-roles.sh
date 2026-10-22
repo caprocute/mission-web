@@ -124,6 +124,14 @@ BEGIN
   END IF;
 END
 \$\$;
+-- DV-14-01: pgvector cho ai.doc_chunk; extension cần superuser nên cài ở đây, migration của mig_ai chỉ kiểm.
+DO \$\$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'vector') THEN
+    CREATE EXTENSION IF NOT EXISTS vector SCHEMA public;
+  END IF;
+END
+\$\$;
 
 REVOKE ALL ON DATABASE ${db_name} FROM PUBLIC;
 REVOKE ALL ON SCHEMA public FROM PUBLIC;

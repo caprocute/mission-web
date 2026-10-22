@@ -24,8 +24,8 @@ func TestOutboxSourcesMatchesCatalog(t *testing.T) {
 	if len(cat.Events) != 26 {
 		t.Fatalf("expected 26 business events in catalog.yaml, got %d", len(cat.Events))
 	}
-	if len(cat.TechnicalTopics) != 8 {
-		t.Fatalf("expected 8 technical topics in catalog.yaml, got %d", len(cat.TechnicalTopics))
+	if len(cat.TechnicalTopics) != 10 {
+		t.Fatalf("expected 10 technical topics in catalog.yaml, got %d", len(cat.TechnicalTopics))
 	}
 	if len(reg.Sources) != 18 {
 		t.Fatalf("expected 18 outbox schemas in outbox-sources.yaml, got %d", len(reg.Sources))

@@ -46,7 +46,7 @@
     "WidgetId": {
       "type": "string",
       "description": "Mã định danh widget trong registry của UI Pack (TL-01 Mục 7.2).",
-      "pattern": "^[a-z][a-z0-9._-]{1,63}$",
+      "pattern": "^[a-z][a-zA-Z0-9._-]{1,63}$",
       "maxLength": 64
     },
     "ColumnKey": {

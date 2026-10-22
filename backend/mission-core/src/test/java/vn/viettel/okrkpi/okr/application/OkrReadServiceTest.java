@@ -316,6 +316,12 @@ class OkrReadServiceTest {
 
   /** Kho trong bộ nhớ, lọc đủ cho các đường đi của dịch vụ. */
   private static final class FakeRepository implements OkrReadRepository {
+
+    @Override
+    public long countKeyResults(TenantId tenant, OkrReadRepository.KeyResultFilter filter) {
+      return 0;
+    }
+
     final List<ObjectiveRow> objectives = new ArrayList<>();
     final List<KeyResultRow> keyResults = new ArrayList<>();
     final List<BasisRow> bases = new ArrayList<>();

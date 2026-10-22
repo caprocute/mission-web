@@ -7,6 +7,9 @@
       đọc cấu hình tham chiếu NEN-033 (pgbouncer/pgbouncer.ini.template) + kiểm thử 5.000 giao dịch
       xen kẽ qua TenantJpaTransactionManager và JdbcClient;
     - Lớp 4 (Semgrep): kiểm chứng luật backend/semgrep/tenant-context.yml trên mẫu sai/đúng và mã nguồn.
+  NEN-035 · ADR-14, ADR-15, ADR-18: lớp cơ sở dùng lại cho tầng ngoài CSDL, gọi qua HTTP không kéo
+  client riêng: OpenSearch (alias lọc tenant_id, cho DV-16) và ClickHouse/Cube (lọc an ninh theo
+  tenant, không có cột C2 dạng rõ, cho DV-15).
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
@@ -23,6 +26,10 @@
   <name>Mission · kiểm thử cô lập tenant CSDL (RLS &amp; PgBouncer)</name>
 
   <dependencies>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
     <dependency>
       <groupId>com.zaxxer</groupId>
       <artifactId>HikariCP</artifactId>
@@ -54,10 +61,32 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>junit-jupiter</artifactId>
+      <!-- Hội tụ phụ thuộc: commons-compress lấy bản mới qua avro, annotations qua kotlin-stdlib. -->
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-compress</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.jetbrains</groupId>
+          <artifactId>annotations</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>postgresql</artifactId>
+      <!-- Hội tụ phụ thuộc: commons-compress lấy bản mới qua avro, annotations qua kotlin-stdlib. -->
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-compress</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.jetbrains</groupId>
+          <artifactId>annotations</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.yaml</groupId>

@@ -25,6 +25,11 @@
     <!-- Microservice API dùng Generational ZGC theo TL-04 WI-20. -->
     <jib.jvm.gc>-XX:+UseZGC</jib.jvm.gc>
     <contract.dir>${project.basedir}/../../../contracts/openapi</contract.dir>
+    <!-- DV-10-02: PAdES tự dựng (PDFBox Apache 2.0, Bouncy Castle MIT; không iText vì AGPL) và kho S3
+         cùng phiên bản AWS SDK v2 với document-service, evidence-service. -->
+    <pdfbox.version>3.0.8</pdfbox.version>
+    <bouncycastle.version>1.84</bouncycastle.version>
+    <awssdk.version>2.31.6</awssdk.version>
   </properties>
 
   <dependencies>
@@ -103,6 +108,36 @@
     <dependency>
       <groupId>org.springdoc</groupId>
       <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>pdfbox</artifactId>
+      <version>${pdfbox.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk18on</artifactId>
+      <version>${bouncycastle.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <version>${awssdk.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>apache-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>netty-nio-client</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>url-connection-client</artifactId>
+      <version>${awssdk.version}</version>
     </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
