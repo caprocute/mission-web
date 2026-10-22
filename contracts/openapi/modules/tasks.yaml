@@ -433,7 +433,9 @@ paths:
             schema: { $ref: '#/components/schemas/TaskExportRequest' }
       responses:
         '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
-        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        '429':
+          description: Người dùng đang có một tác vụ xuất chưa xong (`TASK-429-EXPORT-RUNNING`).
+          $ref: '../common/common.yaml#/components/responses/TooManyRequests'
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
       x-mission:
         qt: [QT-05]
@@ -442,6 +444,32 @@ paths:
         roles: [member, manager, leader]
         scope: B
         source: 'TL-02a SCR-0503 "Xuất Excel"'
+
+  /tasks/exports/{jobId}:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      tags: [Nhiệm vụ]
+      operationId: downloadTaskExport
+      summary: Tải tệp xuất danh sách nhiệm vụ
+      description: >-
+        Tệp Excel do `exportTasks` tạo; `resultLocation` của job trỏ tới đây. Chỉ người tạo tác vụ tải
+        được, tệp giữ trong một giờ. (suy luận: TL-02 không ghi đường tải tệp xuất.)
+      responses:
+        '200':
+          description: Tệp Excel danh sách nhiệm vụ theo các cột đang hiển thị.
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, contentMediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0503]
+        owner: MOD-02
+        roles: [member, manager, leader]
+        scope: B
+        source: 'TL-02a SCR-0503 "Xuất Excel" (suy luận đường tải)'
 
   /tasks/{id}:
     parameters:

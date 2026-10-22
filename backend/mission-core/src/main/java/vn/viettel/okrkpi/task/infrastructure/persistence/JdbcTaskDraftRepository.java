@@ -254,7 +254,8 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
   }
 
   @Override
-  public boolean discardDraft(TenantId tenant, int periodBucket, UUID taskId, long expectedVersion) {
+  public boolean discardDraft(
+      TenantId tenant, int periodBucket, UUID taskId, long expectedVersion) {
     jdbc.sql(
             "DELETE FROM task.task_assignee WHERE period_bucket = ? AND tenant_id = ?"
                 + " AND task_id = ?")

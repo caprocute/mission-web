@@ -65,7 +65,8 @@ class TaskAssignServiceTest {
         publisher,
         tx,
         queued::add,
-        CLOCK);
+        CLOCK,
+        null);
   }
 
   TaskAssignServiceTest() {
@@ -195,7 +196,8 @@ class TaskAssignServiceTest {
             publisher,
             tx,
             queued::add,
-            CLOCK);
+            CLOCK,
+            null);
     when(okr.findKeyResult(TENANT, kr)).thenReturn(Optional.of(keyResult(kr, "NHAP")));
     assertThatThrownBy(() -> svc.assignTask(TENANT, k.id(), 1, MANAGER))
         .isInstanceOfSatisfying(
@@ -255,6 +257,41 @@ class TaskAssignServiceTest {
     String jobId = svc.bulkAssign(TENANT, spec("DOT_XUAT", null), List.of(UNIT), MANAGER);
     queued.forEach(Runnable::run);
     verify(jobs).finished(eq(TENANT), eq(jobId), eq(0), any());
+  }
+
+  @Test
+  void kiemTraCanhBaoKhoiLuongChuTri() {
+    vn.viettel.okrkpi.task.application.mine.port.MyTaskQueries queries =
+        mock(vn.viettel.okrkpi.task.application.mine.port.MyTaskQueries.class);
+    when(queries.openAssignments(eq(TENANT), anyInt(), eq(LEAD), eq(PERIOD)))
+        .thenReturn(
+            List.of(
+                new vn.viettel.okrkpi.task.application.mine.port.MyTaskQueries.OpenAssignment(
+                    "CHU_TRI", java.time.LocalDate.of(2026, 11, 30))));
+    TaskAssignService svc =
+        new TaskAssignService(
+            f.drafts,
+            f.repo,
+            transitions,
+            events,
+            jobs,
+            f.periods,
+            okr,
+            f.org,
+            calendar,
+            t -> List.of(),
+            publisher,
+            tx,
+            queued::add,
+            CLOCK,
+            new vn.viettel.okrkpi.task.application.mine.LeadWorkloads(queries, 1));
+    TaskAssignService.CheckResult r = svc.check(TENANT, spec("DOT_XUAT", LEAD), MANAGER);
+    assertThat(r.workload().inDueWeek()).isEqualTo(2);
+    assertThat(r.items())
+        .filteredOn(i -> "BR-05-11".equals(i.rule()))
+        .singleElement()
+        .satisfies(i -> assertThat(i.passed()).isFalse());
+    assertThat(svc.check(TENANT, spec("DOT_XUAT", null), MANAGER).workload()).isNull();
   }
 
   static OkrApi.KeyResultSnapshot keyResult(UUID id, String objectiveStatus) {

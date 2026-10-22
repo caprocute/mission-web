@@ -1,7 +1,7 @@
 {
   "description": "Bảng chính sách thao tác trích từ mở rộng x-mission trong contracts/openapi/modules/*.yaml (NEN-014). Không sửa tay: chạy tools/extract-x-mission.mjs.",
   "source": "contracts/openapi/modules/*.yaml",
-  "count": 440,
+  "count": 441,
   "aal2Count": 73,
   "fourEyesCount": 18,
   "operations": [
@@ -2585,6 +2585,30 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02b SCR-1101, SCR-1102, SCR-0903 (`/dossiers/forms/{formId}/file`); ma trận SCR-1101.gop-y, SCR-1102.chuan-bi, SCR-0903.tai-mau-1b"
+    },
+    {
+      "operationId": "downloadTaskExport",
+      "file": "tasks.yaml",
+      "module": "tasks",
+      "errorModule": "TASK",
+      "method": "GET",
+      "path": "/tasks/exports/{jobId}",
+      "owner": "MOD-02",
+      "qt": [
+        "QT-05"
+      ],
+      "scr": [
+        "SCR-0503"
+      ],
+      "roles": [
+        "member",
+        "manager",
+        "leader"
+      ],
+      "scope": "B",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-02a SCR-0503 \"Xuất Excel\" (suy luận đường tải)"
     },
     {
       "operationId": "endOrgAssignment",

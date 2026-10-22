@@ -210,6 +210,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/tasks/exports/{jobId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        jobId: components['parameters']['JobId'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Tải tệp xuất danh sách nhiệm vụ
+     * @description Tệp Excel do `exportTasks` tạo; `resultLocation` của job trỏ tới đây. Chỉ người tạo tác vụ tải được, tệp giữ trong một giờ. (suy luận: TL-02 không ghi đường tải tệp xuất.)
+     */
+    get: operations['downloadTaskExport'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/tasks/{id}': {
     parameters: {
       query?: never;
@@ -2834,7 +2856,32 @@ export interface operations {
     };
     responses: {
       202: components['responses']['Accepted'];
+      /** @description Người dùng đang có một tác vụ xuất chưa xong (`TASK-429-EXPORT-RUNNING`). */
       429: components['responses']['TooManyRequests'];
+      default: components['responses']['Problem'];
+    };
+  };
+  downloadTaskExport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        jobId: components['parameters']['JobId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Tệp Excel danh sách nhiệm vụ theo các cột đang hiển thị. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': string;
+        };
+      };
+      404: components['responses']['NotFound'];
       default: components['responses']['Problem'];
     };
   };

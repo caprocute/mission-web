@@ -34,6 +34,7 @@ import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.Assign
 import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.DraftRow;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.TaskRow;
+import vn.viettel.okrkpi.task.application.mine.LeadWorkloads;
 import vn.viettel.okrkpi.task.domain.assign.AssignmentRules;
 import vn.viettel.okrkpi.task.domain.assign.AssignmentRules.CheckItem;
 import vn.viettel.okrkpi.task.domain.assign.TaskDraftSpec;
@@ -76,6 +77,7 @@ public class TaskAssignService {
   private final TransactionTemplate perUnit;
   private final Executor executor;
   private final Clock clock;
+  private final LeadWorkloads workloads;
 
   public TaskAssignService(
       TaskDraftService drafts,
@@ -91,7 +93,8 @@ public class TaskAssignService {
       ApplicationEventPublisher publisher,
       PlatformTransactionManager transactionManager,
       Executor executor,
-      Clock clock) {
+      Clock clock,
+      LeadWorkloads workloads) {
     this.drafts = Objects.requireNonNull(drafts, "drafts");
     this.repository = Objects.requireNonNull(repository, "repository");
     this.transitions = Objects.requireNonNull(transitions, "transitions");
@@ -107,10 +110,12 @@ public class TaskAssignService {
     this.perUnit.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     this.executor = Objects.requireNonNull(executor, "executor");
     this.clock = Objects.requireNonNull(clock, "clock");
+    this.workloads = workloads;
   }
 
   /** Kết quả kiểm tra: danh sách quy tắc và số ngày làm việc tới hạn (nếu tính được). */
-  public record CheckResult(List<CheckItem> items, Integer workingDays) {}
+  public record CheckResult(
+      List<CheckItem> items, Integer workingDays, LeadWorkloads.Result workload) {}
 
   /** Kết quả giao: nhiệm vụ sau khi giao và chủ trì. */
   public record Assigned(TaskRow task, UUID leadId) {}
@@ -121,8 +126,15 @@ public class TaskAssignService {
     TaskDraftService.validate(spec);
     PeriodSnapshot period = drafts.period(tenant, spec.periodId());
     int bucket = PlanSchedule.bucketOf(period.startDate());
-    return new CheckResult(
-        rules(tenant, spec, period, bucket, actor.personId()), workingDays(tenant, spec.dueDate()));
+    List<CheckItem> items = new ArrayList<>(rules(tenant, spec, period, bucket, actor.personId()));
+    LeadWorkloads.Result workload = null;
+    if (workloads != null && spec.leadPersonId() != null && spec.dueDate() != null) {
+      // BR-05-11 (CORE-02-18): cảnh báo, không chặn.
+      workload =
+          workloads.of(tenant, bucket, period.id().value(), spec.leadPersonId(), spec.dueDate());
+      items.add(workload.check());
+    }
+    return new CheckResult(List.copyOf(items), workingDays(tenant, spec.dueDate()), workload);
   }
 
   /**

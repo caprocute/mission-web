@@ -1,7 +1,7 @@
 {
   "description": "Danh mục mã lỗi <MODULE>-<HTTP>-<TÊN> trích từ contracts/openapi (NEN-009). Không sửa tay: chạy tools/extract-error-codes.mjs.",
   "source": "contracts/openapi/**/*.yaml",
-  "count": 191,
+  "count": 192,
   "codes": [
     {
       "code": "AI-403-C3-FORBIDDEN",
@@ -1796,6 +1796,16 @@
       "msg": "MSG-09-07",
       "sources": [
         "common/common.yaml",
+        "modules/tasks.yaml"
+      ]
+    },
+    {
+      "code": "TASK-429-EXPORT-RUNNING",
+      "module": "TASK",
+      "status": 429,
+      "name": "EXPORT-RUNNING",
+      "type": "https://okrkpi.vn/problems/export-running",
+      "sources": [
         "modules/tasks.yaml"
       ]
     },

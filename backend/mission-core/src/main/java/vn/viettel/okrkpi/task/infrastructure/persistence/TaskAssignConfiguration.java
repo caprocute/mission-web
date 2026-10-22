@@ -28,6 +28,7 @@ import vn.viettel.okrkpi.task.application.assign.port.TaskAssignedEvents;
 import vn.viettel.okrkpi.task.application.catalog.CatalogPolicy;
 import vn.viettel.okrkpi.task.application.lifecycle.PolicyBackedTransitionTableProvider;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
+import vn.viettel.okrkpi.task.application.mine.LeadWorkloads;
 import vn.viettel.okrkpi.task.infrastructure.job.InMemoryBulkAssignJobs;
 
 /**
@@ -92,7 +93,8 @@ public class TaskAssignConfiguration {
       ObjectProvider<WorkingCalendarApi> calendar,
       ObjectProvider<CatalogPolicy> catalogPolicy,
       ApplicationEventPublisher publisher,
-      @Qualifier("taskTransactionManager") PlatformTransactionManager taskTransactionManager) {
+      @Qualifier("taskTransactionManager") PlatformTransactionManager taskTransactionManager,
+      LeadWorkloads leadWorkloads) {
     CatalogPolicy policy = catalogPolicy.getIfAvailable(CatalogPolicy::defaults);
     Executor executor = Executors.newVirtualThreadPerTaskExecutor();
     return new TaskAssignService(
@@ -109,7 +111,8 @@ public class TaskAssignConfiguration {
         publisher,
         taskTransactionManager,
         executor,
-        java.time.Clock.systemUTC());
+        java.time.Clock.systemUTC(),
+        leadWorkloads);
   }
 
   @Bean

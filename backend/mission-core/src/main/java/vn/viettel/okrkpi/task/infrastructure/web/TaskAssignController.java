@@ -33,6 +33,8 @@ import vn.viettel.okrkpi.contract.tasks.model.AssigneeRole;
 import vn.viettel.okrkpi.contract.tasks.model.BulkAssignRequest;
 import vn.viettel.okrkpi.contract.tasks.model.ListTaskAssignees200Response;
 import vn.viettel.okrkpi.contract.tasks.model.PeriodRef;
+import vn.viettel.okrkpi.contract.tasks.model.PersonWorkload;
+import vn.viettel.okrkpi.contract.tasks.model.PersonWorkloadWeeksInner;
 import vn.viettel.okrkpi.contract.tasks.model.TaskAssignee;
 import vn.viettel.okrkpi.contract.tasks.model.TaskDetail;
 import vn.viettel.okrkpi.contract.tasks.model.TaskDetailAllOfSourceDoc;
@@ -63,9 +65,11 @@ import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.UnitTa
 import vn.viettel.okrkpi.task.application.lifecycle.TaskDelayRiskService;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.TaskRow;
+import vn.viettel.okrkpi.task.application.mine.LeadWorkloads;
 import vn.viettel.okrkpi.task.domain.assign.AssignmentRules.CheckItem;
 import vn.viettel.okrkpi.task.domain.assign.TaskDraftSpec;
 import vn.viettel.okrkpi.task.domain.lifecycle.TaskActor;
+import vn.viettel.okrkpi.task.domain.mine.Workload;
 
 /**
  * Soạn và giao nhiệm vụ của QT-05 (SCR-0501, CORE-02-14), chi tiết nhiệm vụ (SCR-0601) và việc của
@@ -163,9 +167,24 @@ public class TaskAssignController {
   public AssignCheckResult checkTaskAssignment(@RequestBody TaskDraft body) {
     TaskAssignService.CheckResult r =
         assign.check(TenantContext.require(), spec(body), callers.current());
-    return new AssignCheckResult(
-            r.items().stream().map(TaskAssignController::checkItem).toList(), List.of())
-        .workingDays(r.workingDays());
+    AssignCheckResult dto =
+        new AssignCheckResult(
+                r.items().stream().map(TaskAssignController::checkItem).toList(), List.of())
+            .workingDays(r.workingDays());
+    LeadWorkloads.Result w = r.workload();
+    if (w != null) {
+      dto.setWorkload(
+          new PersonWorkload(
+              w.personId(),
+              "",
+              w.leadCount(),
+              w.coCount(),
+              w.threshold(),
+              w.weeks().entrySet().stream()
+                  .map(e -> new PersonWorkloadWeeksInner(Workload.label(e.getKey()), e.getValue()))
+                  .toList()));
+    }
+    return dto;
   }
 
   @PostMapping("/{id}/assign")

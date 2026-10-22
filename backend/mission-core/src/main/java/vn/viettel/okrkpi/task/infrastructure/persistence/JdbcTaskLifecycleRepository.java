@@ -145,6 +145,16 @@ public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
     if (n != 1) {
       throw new NoSuchElementException("Nhiệm vụ đã bị thay đổi hoặc không còn");
     }
+    if (u.to() == TaskStatus.DANG_THUC_HIEN) {
+      // CORE-02-18: lần đầu vào DANG_THUC_HIEN (nhận việc hoặc cập nhật tiến độ đầu) ghi
+      // accepted_at.
+      jdbc.sql(
+              "UPDATE task.task_assignee SET accepted_at = ? WHERE period_bucket = ? AND tenant_id = ?"
+                  + " AND task_id = ? AND role = 'CHU_TRI' AND accepted_at IS NULL"
+                  + " AND removed_at IS NULL AND recorded_to = 'infinity' AND valid_to = 'infinity'")
+          .params(Timestamp.from(u.at()), periodBucket, tenant.value(), taskId)
+          .update();
+    }
     return expectedVersion + 1;
   }
 
