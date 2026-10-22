@@ -200,7 +200,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-08-02](docs/tasks/CORE-08-02-ky-danh-gia-period-api.md) | Kỳ đánh giá: domain, máy trạng thái kỳ, tạo kỳ có lịch và ghim Policy Pack, `PeriodApi` | M | B2 | 14 | CORE-08-01, CORE-05-03 | **Đã gộp main** | Kỳ đánh giá: API tạo/xem/liệt kê, PeriodApi đọc CSDL, EVT-09/26 |
 | [CORE-08-03](docs/tasks/CORE-08-03-chan-ghi-ky-khoa.md) | Chặn ghi khi kỳ `DANG_KHOA`/`DA_KHOA` ở mọi module, đệm trạng thái kỳ, lỗi 409 `period-locked` | M | B2 | 15 | CORE-08-02 | **Đã gộp main** | Chặn ghi khi kỳ khoá, đệm trạng thái kỳ, mã 409 theo mô-đun |
 | [CORE-08-04](docs/tasks/CORE-08-04-lich-ngay-lam-viec.md) | Lịch ngày làm việc, ngày nghỉ, làm bù và thư viện tính ngày làm việc dùng chung | M | B2 | 12 | CORE-08-01 | **Đã gộp main** | Lịch ngày nghỉ, làm bù, WorkingCalendarApi |
-| [CORE-08-05](docs/tasks/CORE-08-05-lenh-khoa-ky.md) | Lệnh khoá kỳ: lập, duyệt có MFA và tách vai trò, khởi chạy saga | M | B2 | 15 | CORE-08-02, DV-06-05 | **Đã gộp main** | Lệnh khoá kỳ, migration config V4, client SVC-06 |
+| [CORE-08-05](docs/tasks/CORE-08-05-lenh-khoa-ky.md) | Lệnh khoá kỳ: lập, duyệt có MFA và tách vai trò, khởi chạy saga | M | B2 | 15 | CORE-08-02, DV-06-05 | **Đã gộp main** | Lệnh khoá kỳ, saga chốt kỳ gửi X-Tenant-Id |
 | [CORE-08-06](docs/tasks/CORE-08-06-mo-lai-hau-kiem.md) | Mở lại hậu kiểm: trạng thái `MO_LAI_HAU_KIEM`, phạm vi mở, consumer EVT-22, timer hết hạn khoá lại | L | B2 | 16 | CORE-08-03 | **Chưa bắt đầu** |  |
 | [CORE-08-07](docs/tasks/CORE-08-07-cau-hinh-tenant-co-tinh-nang.md) | Cấu hình tenant và cờ tính năng (`tenant_setting`, `feature_flag`) kèm API | S | B2 | 12 | CORE-08-01 | **Chưa bắt đầu** |  |
 | [CORE-08-08](docs/tasks/CORE-08-08-ui-pack-phien-ban.md) | UI Pack: mô hình có phiên bản, máy trạng thái, người duyệt khác người soạn | M | B2 | 12 | CORE-08-01 | **Chưa bắt đầu** |  |
@@ -789,4 +789,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 05:22 | Điều phối | `CORE-08-04` | Chuyển trạng thái sang **Đã gộp main** — Lịch ngày nghỉ, làm bù, WorkingCalendarApi |
 | 22/10/2026 05:40 | Điều phối | `CORE-02-02` | Chuyển trạng thái sang **Đã gộp main** — Migration schema task phần nhiệm vụ, 7 bảng, EXPLAIN 1 triệu dòng |
 | 22/10/2026 05:52 | Điều phối | `CORE-08-05` | Chuyển trạng thái sang **Đã gộp main** — Lệnh khoá kỳ, migration config V4, client SVC-06 |
+| 22/10/2026 06:17 | Điều phối | `CORE-08-05` | Chuyển trạng thái sang **Đã gộp main** — Lệnh khoá kỳ, saga chốt kỳ gửi X-Tenant-Id |
 <!-- PROGRESS_LOG_END -->
