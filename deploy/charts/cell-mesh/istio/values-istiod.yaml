@@ -1,0 +1,24 @@
+# Chart istio/istiod ở hồ sơ ambient (ADR-11). Ba replica trải ba vùng sự cố trên pool system.
+profile: ambient
+pilot:
+  autoscaleMin: 3
+  autoscaleMax: 5
+  replicaCount: 3
+  resources:
+    requests: { cpu: 500m, memory: 2Gi }
+  nodeSelector: { vt.io/pool: system }
+  env:
+    # Tắt mặc định cho phép lưu lượng tới đích ngoài registry khi bật chính sách egress ở waypoint.
+    PILOT_ENABLE_AMBIENT: "true"
+meshConfig:
+  # Truy vết đi qua OTel Collector của cell (INF-14), không bật Zipkin mặc định.
+  enableTracing: false
+  accessLogFile: ""
+  outboundTrafficPolicy:
+    mode: REGISTRY_ONLY
+  defaultConfig:
+    holdApplicationUntilProxyStarts: true
+global:
+  # Ảnh lấy qua proxy-cache Harbor (INF-07); kind ghi đè về docker.io.
+  hub: harbor.vt.local/proxy-docker/istio
+  logAsJson: true

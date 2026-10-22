@@ -13,3 +13,13 @@ securityContext:
     mountCgroup: [SYS_ADMIN, SYS_CHROOT, SYS_PTRACE]
     applySysctlOverwrites: [SYS_ADMIN, SYS_CHROOT, SYS_PTRACE]
     cleanCiliumState: [NET_ADMIN, SYS_MODULE, SYS_ADMIN]
+# Istio ambient chạy cùng Cilium (INF-09, tài liệu Istio "Platform prerequisites – Cilium"): không xoá cấu hình CNI
+# của istio-cni và chỉ bật socket LB trong namespace mạng của host, nếu không ztunnel không thấy địa chỉ service.
+# Không bật bpf.masquerade (làm hỏng kiểm tra sức khoẻ của pod ambient), nên không dùng Cilium Egress Gateway.
+cni: { exclusive: false }
+socketLB: { hostNamespaceOnly: true }
+# Hubble ghi luồng bị chặn (SEC-32, SEC-36) và xuất số liệu luồng bị chặn cho cảnh báo.
+hubble:
+  enabled: true
+  metrics:
+    enabled: ["dns", "drop:sourceContext=namespace;destinationContext=dns|ip", "flow", "policy:sourceContext=namespace;destinationContext=dns|ip"]

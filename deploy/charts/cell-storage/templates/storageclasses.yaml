@@ -1,0 +1,52 @@
+{{- $n := .Values.nvmeLocal }}
+{{- $c := .Values.cephRbd }}
+{{- if and $n.enabled $c.enabled $n.default $c.default }}{{ fail "cell-storage: chỉ một StorageClass được là mặc định" }}{{ end }}
+{{- if $n.enabled }}
+{{- if ne $n.fsType "xfs" }}{{ fail "cell-storage: nvme-local dùng xfs (TL-04 mục 3.8)" }}{{ end }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ $n.name }}
+  {{- if $n.default }}
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  {{- end }}
+provisioner: topolvm.io
+parameters:
+  topolvm.io/device-class: {{ $n.deviceClass }}
+  csi.storage.k8s.io/fstype: {{ $n.fsType }}
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+{{- end }}
+{{- if $c.enabled }}
+{{- if not $c.encrypted }}{{ fail "cell-storage: ceph-rbd phải bật mã hoá phía client (TL-04 mục 3.8)" }}{{ end }}
+{{- if not (regexMatch "^ceph-[a-z0-9-]+$" $c.clusterID) }}{{ fail "cell-storage: cephRbd.clusterID không hợp lệ (ví dụ ceph-hl-1)" }}{{ end }}
+{{- if not (regexMatch "^k8s-rbd-[a-z0-9-]+$" $c.pool) }}{{ fail "cell-storage: cephRbd.pool phải theo cell, dạng k8s-rbd-<cell>" }}{{ end }}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ $c.name }}
+  {{- if $c.default }}
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  {{- end }}
+provisioner: rbd.csi.ceph.com
+parameters:
+  clusterID: {{ $c.clusterID }}
+  pool: {{ $c.pool }}
+  imageFeatures: {{ $c.imageFeatures }}
+  csi.storage.k8s.io/fstype: {{ $c.fsType }}
+  csi.storage.k8s.io/provisioner-secret-name: {{ $c.provisionerSecret.name }}
+  csi.storage.k8s.io/provisioner-secret-namespace: {{ $c.provisionerSecret.namespace }}
+  csi.storage.k8s.io/node-stage-secret-name: {{ $c.nodeStageSecret.name }}
+  csi.storage.k8s.io/node-stage-secret-namespace: {{ $c.nodeStageSecret.namespace }}
+  csi.storage.k8s.io/controller-expand-secret-name: {{ $c.controllerExpandSecret.name }}
+  csi.storage.k8s.io/controller-expand-secret-namespace: {{ $c.controllerExpandSecret.namespace }}
+  encrypted: "true"
+  encryptionKMSID: {{ $c.encryptionKMSID }}
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+{{- end }}

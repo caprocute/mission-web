@@ -3,6 +3,7 @@ cell: g4
 
 # 13 namespace theo TL-04 mục 3.5. zone: nhãn vt.io/security-zone; ambient: gắn istio.io/dataplane-mode=ambient;
 # psaExempt: không gắn Pod Security restricted (chỉ observability được miễn, SEC-26).
+# waypoint: gắn istio.io/use-waypoint=<tên> để lưu lượng tới service đi qua waypoint L7 (secure, egress; INF-09, cell-mesh).
 namespaces:
   edge:          { zone: edge,       ambient: true }
   core:          { zone: app,        ambient: true }
@@ -10,13 +11,13 @@ namespaces:
   platform:      { zone: app,        ambient: true }
   workers:       { zone: app,        ambient: true }
   analytics:     { zone: app,        ambient: true }
-  secure:        { zone: secure,     ambient: true }
+  secure:        { zone: secure,     ambient: true, waypoint: waypoint }
   secure-data:   { zone: secure,     ambient: false }
   data-pg:       { zone: data,       ambient: false }
   data-kafka:    { zone: data,       ambient: false }
   data-search:   { zone: data,       ambient: false }
   observability: { zone: infra,      ambient: false, psaExempt: true }
-  egress:        { zone: egress,     ambient: true }
+  egress:        { zone: egress,     ambient: true, waypoint: waypoint }
 
 # Bật NetworkPolicy default-deny-all và allow-dns cho mọi namespace trên.
 defaultDeny: true

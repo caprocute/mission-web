@@ -10,6 +10,9 @@ metadata:
     {{- if $ns.ambient }}
     istio.io/dataplane-mode: ambient
     {{- end }}
+    {{- with $ns.waypoint }}
+    istio.io/use-waypoint: {{ . }}
+    {{- end }}
     {{- if not $ns.psaExempt }}
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/enforce-version: latest

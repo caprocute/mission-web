@@ -1,0 +1,26 @@
+# StorageClass theo cell (TL-04 mục 3.8). Ceph chạy ngoài cụm, gom theo nhóm cell: ceph-hl-1 cho CELL-HCM và CELL-HN,
+# ceph-hl-2 cho CELL-G1..G4 và CELL-SH, CELL-DTW có cụm riêng (INF-12). Khoá mã hoá RBD do OpenBao quản lý (INF-13).
+
+# Lớp 1: NVMe cục bộ qua TopoLVM. Retain có chủ ý: PVC CSDL bị xoá nhầm vẫn còn volume trên đĩa để khôi phục.
+nvmeLocal:
+  enabled: true
+  name: nvme-local
+  deviceClass: nvme
+  fsType: xfs
+  default: false
+
+# Lớp 2: Ceph RBD qua Ceph CSI, pool nhân bản 3 bản sao trên ba vùng sự cố.
+cephRbd:
+  enabled: true
+  name: ceph-rbd
+  clusterID: ceph-hl-2
+  pool: k8s-rbd-g4
+  imageFeatures: layering,exclusive-lock,object-map,fast-diff
+  fsType: ext4
+  # Secret do Ceph CSI và External Secrets tạo trong namespace ceph-csi (chỉ tên, không giá trị).
+  provisionerSecret: { name: csi-rbd-provisioner, namespace: ceph-csi }
+  nodeStageSecret: { name: csi-rbd-node, namespace: ceph-csi }
+  controllerExpandSecret: { name: csi-rbd-provisioner, namespace: ceph-csi }
+  encrypted: true
+  encryptionKMSID: openbao-kms
+  default: true

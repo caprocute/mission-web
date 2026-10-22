@@ -27,6 +27,15 @@ global:
     allowInternet: true
   topology:
     zones: [hl-a, hl-b, hl-c]
+  # Mesh Istio ambient của cell (INF-09, khớp nhãn namespace của cell-base và waypoint của cell-mesh). Rỗng khi cụm
+  # không chạy mesh: khi đó không sinh AuthorizationPolicy, PeerAuthentication và cổng HBONE.
+  mesh:
+    ambientNamespaces: [edge, core, identity, platform, workers, analytics, secure, egress]
+    waypointNamespaces: [secure, egress]
+    waypointName: waypoint
+    # Service có AuthorizationPolicy L7 riêng ở cell-mesh (namespace/tên). Không sinh chính sách theo cổng tại waypoint
+    # cho các service này, vì các ALLOW cộng dồn sẽ mở rộng quyền ngoài đường dẫn đã duyệt (esign-allow-callers).
+    l7Services: ["secure/esign-service"]
 # Tên service, mặc định lấy tên release.
 name: ""
 namespace: ""
@@ -175,6 +184,13 @@ networkPolicy:
   # Mỗi phần tử: { namespace, podLabels, ipBlock, ports: [{port, protocol}] }.
   # Phần tử có internet: true (đi qua egress gateway) bị bỏ khi global.egress.allowInternet là false.
   egressTo: []
+
+# AuthorizationPolicy sinh từ networkPolicy.ingressFrom (INF-09): cùng một danh sách nguồn cho NetworkPolicy và mesh.
+# Nguồn trong mesh khớp theo danh tính SPIFFE (tài khoản dịch vụ trùng nhãn app.kubernetes.io/name, hoặc cả
+# namespace khi không có podLabels); nguồn ngoài mesh (observability, dữ liệu) chỉ mở theo cổng, kèm
+# PeerAuthentication PERMISSIVE riêng cổng đó vì lưu lượng không có mTLS.
+authorizationPolicy:
+  enabled: true
 
 serviceMonitor:
   enabled: true

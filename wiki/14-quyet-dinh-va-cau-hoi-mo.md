@@ -99,6 +99,11 @@ Bảng dưới liệt kê các điểm mà hai hay nhiều nguồn ghi khác nha
 | Probe trên cổng 8081 (INF-07) | TL-04: probe trên cổng quản trị 8081 là quy tắc Enforce | Bắt buộc có probe giữ ở Enforce; điều kiện "đúng cổng quản trị" tách thành chính sách Audit `vt-probe-on-mgmt-port` vì dịch vụ bên thứ ba (ClamAV, Gotenberg, vLLM) không có cổng 8081 |
 | `vt-require-ha` và min replica 2 (INF-07) | TL-04 mục 9.3: replica ≥ 3; bảng TL-04 mục 5.2 cho một số workload min 2 | Chính sách thắng: các workload đó đặt `replicaCount` 3 (ví dụ workflow-executor), lệch với bảng 5.2 ghi ở `vt-platform/ci/lech-da-ghi.yaml` |
 | Ảnh bên thứ ba qua proxy-cache (INF-07) | TL-04: chỉ ảnh từ Harbor nội bộ | Ảnh upstream (Prometheus, Fluent Bit…) được kéo qua project proxy-cache của Harbor; CI đổi tên ảnh sang `harbor.vt.local/<proxy>/…` trước khi chạy Kyverno. Kiểm chữ ký các ảnh này cần ngoại lệ có hạn hoặc ký lại vào project `k8s` (suy luận, chưa chốt) |
+| IP cố định của cổng ra (INF-09) | TL-04 mục 9.5: egress gateway có IP cố định | Không dùng Cilium Egress Gateway vì cần `bpf.masquerade`, không tương thích Istio ambient; egress gateway (Envoy CONNECT) xếp lên pool có IP node cố định, mặc định `ingress`, gói ra SNAT về IP node (suy luận). Cần chốt pool và dải IP với đội mạng |
+| Nhãn egress gateway (INF-09) | TL-04 mẫu `CiliumNetworkPolicy` chọn `app.kubernetes.io/name: egress-proxy` | Dùng `egress-gateway` cho khớp `egressTo` sẵn có của các chart dịch vụ (cổng 443) |
+| Bên gọi esign-service (INF-09) | TL-04 mục 3.7: chỉ `core/mission-core` và `core/workflow-executor`; ADR-09 và cell-base cấm luồng core → secure | Chart esign-service cho `document-service` (workers) và mission-core vào cổng 8080 ở NetworkPolicy, thiếu workflow-executor; waypoint chỉ cho hai bên theo TL. Cần chốt có mở luồng core → secure cho ký số hay không và sửa values esign-service |
+| Prometheus ngoài mesh (INF-09) | TL-04 mục 3.5: observability ngoài mesh; mục 9.5: STRICT toàn cụm | Cổng thu số liệu mở PERMISSIVE theo từng workload (vt-service tự sinh cho cổng mgmt, cell-mesh liệt kê APISIX, Keycloak); các cổng khác vẫn STRICT |
+| Secret mở rộng volume RBD (INF-09) | TL-04 mẫu `ceph-rbd` không có `controller-expand-secret` | Thêm cặp tham số này vì `allowVolumeExpansion: true` cần nó với Ceph CSI |
 
 ### Điểm chốt khi viết hợp đồng OpenAPI (WEB-063, đã chốt 19/10/2026)
 
