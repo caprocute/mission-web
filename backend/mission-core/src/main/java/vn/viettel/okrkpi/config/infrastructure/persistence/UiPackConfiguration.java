@@ -34,8 +34,10 @@ import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import vn.viettel.okrkpi.config.api.PolicySchemaPort;
+import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
 import vn.viettel.okrkpi.config.application.FormSchemaService;
 import vn.viettel.okrkpi.config.application.FormSchemaValidator;
+import vn.viettel.okrkpi.config.application.FormValidationService;
 import vn.viettel.okrkpi.config.application.UiPackCompiler;
 import vn.viettel.okrkpi.config.application.UiPackPublishService;
 import vn.viettel.okrkpi.config.application.UiPackService;
@@ -210,6 +212,25 @@ public class UiPackConfiguration {
             json.getIfAvailable(ObjectMapper::new),
             Clock.systemUtc());
     service.setPolicySchemas(schemas.getIfAvailable());
+    return service;
+  }
+
+  /** Kiểm phiếu tại máy chủ và bộ test hai engine (CORE-08-14). */
+  @Bean
+  FormValidationService formValidationService(
+      JdbcFormSchemaRepository formSchemaRepository,
+      FormSchemaService formSchemaService,
+      ConfigAudit configAudit,
+      ObjectProvider<WorkingCalendarApi> calendars,
+      ObjectProvider<ObjectMapper> json) {
+    FormValidationService service =
+        new FormValidationService(
+            formSchemaRepository,
+            formSchemaService,
+            configAudit,
+            json.getIfAvailable(ObjectMapper::new),
+            Clock.systemUtc());
+    service.setCalendars(calendars.getIfAvailable());
     return service;
   }
 

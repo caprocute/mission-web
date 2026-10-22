@@ -62,10 +62,18 @@ class FormSchemaServiceTest {
     }
 
     @Override
+    public List<FormSchema> listVersions(TenantId t, String key) {
+      return rows.values().stream()
+          .filter(f -> f.formKey().equals(key))
+          .sorted(Comparator.comparing(FormSchema::id))
+          .toList();
+    }
+
+    @Override
     public Optional<FormSchema> findCurrent(TenantId t, String key) {
       return rows.values().stream()
           .filter(f -> f.formKey().equals(key) && f.status() == FormSchemaStatus.DA_PHAT_HANH)
-          .findFirst();
+          .max(Comparator.comparing(FormSchema::updatedAt).thenComparing(FormSchema::id));
     }
 
     @Override

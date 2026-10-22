@@ -1,0 +1,108 @@
+# Biểu mẫu tự đánh giá viên chức y tế giả lập (dữ liệu giả, không dữ liệu thật).
+form: phieu-vc-yte
+schema:
+  type: object
+  required: [ty_le_hsba_dat, su_co_y_khoa]
+  additionalProperties: false
+  properties:
+    ty_le_hsba_dat:
+      type: number
+      minimum: 0
+      maximum: 100
+      x-cel: "self >= 0.0 && self <= 100.0"
+      x-classification: C1
+    so_ca_kham:
+      type: integer
+      minimum: 0
+      x-classification: C1
+    su_co_y_khoa:
+      type: string
+      enum: [CO, KHONG]
+      x-classification: C1
+    mo_ta_su_co:
+      type: string
+      maxLength: 200
+      x-classification: C2
+    ngay_bao_cao:
+      type: string
+      format: date
+      x-classification: C1
+    ma_khoa:
+      type: string
+      pattern: "^K[0-9]{2}$"
+      x-classification: C1
+    sang_kien:
+      type: array
+      maxItems: 3
+      items:
+        type: object
+        required: [ten]
+        properties:
+          ten: { type: string, minLength: 3, x-classification: C1 }
+          nam: { type: integer, x-classification: C1 }
+celRules:
+  - field: mo_ta_su_co
+    expr: "form.su_co_y_khoa == 'CO' ? size(form.mo_ta_su_co) >= 10 : true"
+    message: Mô tả sự cố cần ít nhất 10 ký tự
+  - field: so_ca_kham
+    expr: "form.so_ca_kham <= 10000"
+    message: Số ca khám vượt mức cho phép
+c2: [mo_ta_su_co]
+cases:
+  - id: TC-01
+    input: { ty_le_hsba_dat: 95.5, su_co_y_khoa: KHONG }
+    valid: true
+  - id: TC-02
+    input: { ty_le_hsba_dat: 104, su_co_y_khoa: KHONG }
+    valid: false
+    errors: [ty_le_hsba_dat]
+  - id: TC-03
+    input: { ty_le_hsba_dat: "95", su_co_y_khoa: KHONG }
+    valid: false
+    errors: [ty_le_hsba_dat]
+  - id: TC-04
+    input: { su_co_y_khoa: KHONG }
+    valid: false
+    errors: [ty_le_hsba_dat]
+  - id: TC-05
+    input: { ty_le_hsba_dat: 90, su_co_y_khoa: CO, mo_ta_su_co: "Ngắn" }
+    valid: false
+    errors: [mo_ta_su_co]
+  - id: TC-06
+    input: { ty_le_hsba_dat: 90, su_co_y_khoa: CO, mo_ta_su_co: "Bệnh nhân té ngã tại khoa" }
+    valid: true
+  - id: TC-07
+    input: { ty_le_hsba_dat: 90, su_co_y_khoa: KHAC }
+    valid: false
+    errors: [su_co_y_khoa]
+  - id: TC-08
+    input: { ty_le_hsba_dat: 90, su_co_y_khoa: KHONG, so_ca_kham: 12.5 }
+    valid: false
+    errors: [so_ca_kham]
+  - id: TC-09
+    input: { ty_le_hsba_dat: 90, su_co_y_khoa: KHONG, so_ca_kham: 20000 }
+    valid: false
+    errors: [so_ca_kham]
+  - id: TC-10
+    input: { ty_le_hsba_dat: 90, su_co_y_khoa: KHONG, ngay_bao_cao: "2027-02-30" }
+    valid: false
+    errors: [ngay_bao_cao]
+  - id: TC-11
+    input: { ty_le_hsba_dat: 90, su_co_y_khoa: KHONG, ma_khoa: K7 }
+    valid: false
+    errors: [ma_khoa]
+  - id: TC-12
+    input: { ty_le_hsba_dat: 90, su_co_y_khoa: KHONG, truong_la: 1 }
+    valid: false
+    errors: [truong_la]
+  - id: TC-13
+    input:
+      ty_le_hsba_dat: 90
+      su_co_y_khoa: KHONG
+      sang_kien: [{ ten: "Sổ tay điện tử", nam: 2026 }, { ten: "AB" }, { nam: 2027 }]
+    valid: false
+    errors: [sang_kien.1.ten, sang_kien.2.ten]
+  - id: TC-14
+    input: { ty_le_hsba_dat: 90, su_co_y_khoa: "" }
+    valid: false
+    errors: [su_co_y_khoa]

@@ -26,11 +26,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.config.application.FormSchemaService;
+import vn.viettel.okrkpi.config.application.FormValidationService;
 import vn.viettel.okrkpi.config.domain.FormSchema;
 import vn.viettel.okrkpi.contract.config.model.PolicyPackVersionRef;
 import vn.viettel.okrkpi.contract.config.model.UiFormPage;
 import vn.viettel.okrkpi.contract.config.model.UiFormStatus;
 import vn.viettel.okrkpi.contract.config.model.UiFormSummary;
+import vn.viettel.okrkpi.contract.config.model.UiFormTestRunRequest;
 import vn.viettel.okrkpi.contract.config.model.UiFormTestRunResult;
 import vn.viettel.okrkpi.contract.config.model.UiFormVersion;
 import vn.viettel.okrkpi.contract.config.model.UiFormVersionCelRulesInner;
@@ -49,7 +51,7 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
 /**
  * Biểu mẫu động của {@code config.yaml} (CORE-08-13, QT-18, SCR-1802, SCR-0901): {@code
  * listUiForms}, {@code createUiFormVersion}, {@code getCurrentUiForm}, {@code getUiFormVersion},
- * {@code updateUiFormVersion}.
+ * {@code updateUiFormVersion}; {@code runUiFormTests} (CORE-08-14).
  */
 @RestController
 @RequestMapping("/api/v1/ui/forms")
@@ -58,6 +60,7 @@ public class UiFormController {
   private static final String BASE = "/api/v1/ui/forms";
 
   private final FormSchemaService forms;
+  private final FormValidationService validation;
   private final CursorCodec cursors;
   private final Callers callers;
   private final ConfigIdempotency idempotency;
@@ -65,12 +68,14 @@ public class UiFormController {
 
   public UiFormController(
       FormSchemaService forms,
+      FormValidationService validation,
       CursorCodec cursors,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<PeriodCaller> periodCallers,
       ConfigIdempotency idempotency,
       ObjectProvider<ObjectMapper> json) {
     this.forms = Objects.requireNonNull(forms, "forms");
+    this.validation = Objects.requireNonNull(validation, "validation");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
     this.callers = new Callers(subjects, periodCallers);
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
@@ -196,6 +201,42 @@ public class UiFormController {
         });
   }
 
+  @PostMapping("/{key}/versions/{v}/test-runs")
+  @RequiresPermission(action = "SCR-1802.dung", operationId = "runUiFormTests", module = "config")
+  public ResponseEntity<UiFormTestRunResult> runUiFormTests(
+      @PathVariable("key") String key,
+      @PathVariable("v") String version,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestBody UiFormTestRunRequest body) {
+    TenantId tenant = TenantContext.require();
+    java.util.UUID actor = callers.current();
+    return idempotency.run(
+        tenant,
+        actor,
+        idempotencyKey,
+        "POST",
+        BASE + "/" + key + "/versions/" + version + "/test-runs",
+        body,
+        UiFormTestRunResult.class,
+        r -> 0,
+        () -> {
+          ObjectNode run =
+              notFound(
+                  () -> validation.runTests(tenant, actor, key, version, json.valueToTree(body)));
+          return ResponseEntity.ok(result(run));
+        });
+  }
+
+  private UiFormTestRunResult result(ObjectNode run) {
+    ObjectNode copy = run.deepCopy();
+    copy.remove(FormSchemaService.SCORING_HASH);
+    try {
+      return json.treeToValue(copy, UiFormTestRunResult.class);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   private JsonNode rules(List<UiFormVersionCelRulesInner> rules) {
     var out = json.createArrayNode();
     if (rules != null) {
@@ -236,9 +277,7 @@ public class UiFormController {
           json.readValue(
               f.celRulesJson(), new TypeReference<List<UiFormVersionCelRulesInner>>() {}));
       if (f.lastTestRunJson() != null) {
-        ObjectNode run = (ObjectNode) json.readTree(f.lastTestRunJson());
-        run.remove(FormSchemaService.SCORING_HASH);
-        dto.setLastTestRun(json.treeToValue(run, UiFormTestRunResult.class));
+        dto.setLastTestRun(result((ObjectNode) json.readTree(f.lastTestRunJson())));
       }
     } catch (JsonProcessingException e) {
       throw new IllegalStateException(e);
