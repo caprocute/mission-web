@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  forwardRef,
   Injector,
   afterNextRender,
   ElementRef,
@@ -8,10 +9,13 @@ import {
   effect,
   inject,
   input,
+  linkedSignal,
   output,
+  PendingTasks,
   signal,
   untracked,
   ViewEncapsulation,
+  DestroyRef,
 } from '@angular/core';
 import { AbstractControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { FormlyFieldConfig, FormlyForm, FormlyFormOptions } from '@ngx-formly/core';
@@ -20,8 +24,15 @@ import { JSONSchema7 } from './json-schema';
 import { CelFunctions, evaluateRules } from './cel-rule-evaluator';
 import { FormRule, FormUi, RuleViolation, ServerFieldError } from './form-rule';
 import { WIDGET_TYPES, formEngineProviders } from './provide-form-engine';
+import { SectionReveal, VT_SECTION_REVEAL } from './fields/field-section';
 
 type SchemaExt = JSONSchema7 & { 'x-catalog'?: string };
+
+/**
+ * Biểu mẫu từ chừng này trường trở lên thì dựng dần theo nhóm (TL-01 ngân sách dựng 50 trường
+ * ≤ 50 ms, wiki/09): lượt vẽ đầu chỉ có nhóm đầu tiên, mỗi nhóm sau một tác vụ riêng.
+ */
+export const PROGRESSIVE_MIN_FIELDS = 20;
 
 /** Đường dẫn khoá của trường tính từ gốc biểu mẫu, ví dụ `tieuChiChung.tc1`. */
 export function fieldPath(field: FormlyFieldConfig): string {
@@ -82,7 +93,10 @@ function defaultType(field: FormlyFieldConfig, schema: SchemaExt): string | unde
   selector: 'vt-form',
   imports: [ReactiveFormsModule, FormlyForm],
   // Formly chỉ được đăng ký khi có <vt-form>, shell không phải tải sẵn (WEB-052)
-  providers: [formEngineProviders()],
+  providers: [
+    formEngineProviders(),
+    { provide: VT_SECTION_REVEAL, useExisting: forwardRef(() => VtFormComponent) },
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form [formGroup]="form" (ngSubmit)="submit()" class="vt-form" novalidate>
@@ -118,7 +132,7 @@ function defaultType(field: FormlyFieldConfig, schema: SchemaExt): string | unde
   // một bảng kiểu chung cho mọi widget và khung trường bên trong vt-form (lớp đều có tiền tố vt-)
   encapsulation: ViewEncapsulation.None,
 })
-export class VtFormComponent {
+export class VtFormComponent implements SectionReveal {
   readonly schema = input.required<JSONSchema7>();
   readonly ui = input<FormUi>({});
   readonly rules = input<readonly FormRule[]>([]);
@@ -199,9 +213,9 @@ export class VtFormComponent {
     const children = root.fieldGroup ?? [];
     const byKey = new Map(children.map((f) => [String(f.key), f]));
     const used = new Set(sections.flatMap((s) => s.fields));
-    const groups: FormlyFieldConfig[] = sections.map((s) => ({
-      wrappers: ['vt-section'],
-      props: { label: s.title },
+    const groups: FormlyFieldConfig[] = sections.map((s, sectionIndex) => ({
+      type: 'vt-section-group',
+      props: { label: s.title, sectionIndex },
       fieldGroup: s.fields.map((k) => byKey.get(k)).filter((f): f is FormlyFieldConfig => !!f),
     }));
     // Trường có trong schema mà UI Pack không xếp vào nhóm nào vẫn phải hiện (không giấu trường bắt buộc)
@@ -209,6 +223,28 @@ export class VtFormComponent {
     if (rest.length) groups.push({ fieldGroup: rest });
     return groups;
   });
+
+  /**
+   * Số nhóm trường đã dựng. Biểu mẫu nhỏ hoặc không chia nhóm dựng hết ngay; biểu mẫu lớn bắt đầu
+   * với nhóm đầu, `revealNext` thêm từng nhóm sau mỗi lượt vẽ. Đổi schema, ui thì bắt đầu lại.
+   */
+  private readonly shownSections = linkedSignal(() => {
+    const groups = this.fields();
+    const sectioned = groups.filter((g) => g.type === 'vt-section-group').length;
+    return sectioned > 1 && countLeaves(groups) >= PROGRESSIVE_MIN_FIELDS ? 1 : Infinity;
+  });
+  private readonly pendingTasks = inject(PendingTasks);
+  private revealPending: (() => void) | null = null;
+  private revealTimer: ReturnType<typeof setTimeout> | undefined;
+
+  sectionVisible(index: number): boolean {
+    return index < this.shownSections();
+  }
+
+  /** Dựng ngay mọi nhóm còn lại (trước khi gửi, khi cần đưa focus tới một trường). */
+  private revealAll(): void {
+    this.shownSections.set(Infinity);
+  }
 
   /** Trường sai theo schema (bắt buộc, độ dài, khoảng giá trị) ở lần bấm gửi gần nhất. */
   private readonly invalidFields = signal<{ path: string; message: string }[]>([]);
@@ -253,6 +289,31 @@ export class VtFormComponent {
       const errors = this.serverErrors();
       untracked(() => this.applyServerErrors(errors));
     });
+    // Dựng dần: sau mỗi lượt vẽ, thêm một nhóm ở tác vụ kế tiếp; giữ PendingTasks để `whenStable`
+    // (kiểm thử, chụp ảnh) chờ tới khi đủ mọi nhóm
+    effect(() => {
+      const shown = this.shownSections();
+      const total = this.fields().length;
+      clearTimeout(this.revealTimer);
+      if (shown >= total) {
+        this.revealPending?.();
+        this.revealPending = null;
+        return;
+      }
+      this.revealPending ??= this.pendingTasks.add();
+      afterNextRender(
+        () => {
+          this.revealTimer = setTimeout(() =>
+            this.shownSections.update((n) => (n === shown ? n + 1 : n)),
+          );
+        },
+        { injector: this.injector },
+      );
+    });
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.revealTimer);
+      this.revealPending?.();
+    });
   }
 
   protected onChange(model: Record<string, unknown>): void {
@@ -262,6 +323,7 @@ export class VtFormComponent {
   }
 
   protected submit(): void {
+    this.revealAll();
     this.attempted.set(true);
     this.recheck();
     this.form.markAllAsTouched();
@@ -282,8 +344,18 @@ export class VtFormComponent {
 
   protected focusField(ev: Event, path: string): void {
     ev.preventDefault();
-    const el = this.host.nativeElement.querySelector(`#${CSS.escape(this.anchorOf(path))}`);
-    (el as HTMLElement | null)?.focus();
+    const focus = () =>
+      (
+        this.host.nativeElement.querySelector(
+          `#${CSS.escape(this.anchorOf(path))}`,
+        ) as HTMLElement | null
+      )?.focus();
+    if (this.shownSections() >= this.fields().length) {
+      focus();
+      return;
+    }
+    this.revealAll();
+    afterNextRender(focus, { injector: this.injector });
   }
 
   /** Trường lá có lỗi schema (không tính lỗi quy tắc, lỗi máy chủ đã có trong danh sách). */
@@ -374,4 +446,11 @@ export class VtFormComponent {
     const rule = this.ruleErrors.get(path);
     return rule ? { rule: { message: rule } } : null;
   }
+}
+
+/** Số trường lá (có điều khiển nhập) trong cây trường. */
+function countLeaves(fields: FormlyFieldConfig[] | undefined): number {
+  let n = 0;
+  for (const f of fields ?? []) n += f.fieldGroup?.length ? countLeaves(f.fieldGroup) : 1;
+  return n;
 }
