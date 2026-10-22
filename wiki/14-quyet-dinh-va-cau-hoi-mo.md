@@ -682,6 +682,18 @@ Tổng điểm nhóm (BR-15-05) được tính từ tham số `diem_toi_da` củ
 - Manifest `{name, remoteEntry, integrity}` được chốt vào cột mới `ui_pack_version.plugins_json` (migration `V8__config_ui_pack_plugins.sql`, ngoài danh sách tệp được phép của task) cùng lần ký gói, để `getCurrentUiPack` dựng lại từ CSDL vẫn khớp băm dù cấu hình tenant đổi sau đó; quay lui dùng manifest đã chốt của phiên bản đích. Không có đường phát hành riêng cho plugin.
 - Widget của plugin đạt kiểm tra được gộp vào `listUiComponents` của tenant qua cổng `PluginWidgets`, nên trình biên tập bố cục chọn được và bộ kiểm bố cục nhận chúng như component của registry.
 
+### Ghi chú và quyết định từ API đọc OKR (CORE-01-02, 22/10/2026)
+
+Tiến độ KR và mục tiêu được tính lại lúc đọc bằng `ProgressCalculator` của `okr.domain`, không đọc cột `progress` đã lưu, để mọi kênh thấy cùng một con số. KR chiều `GIAM` tính (đầu − hiện tại)/(đầu − chỉ tiêu); khi thiếu đường cơ sở hoặc đường cơ sở không lớn hơn chỉ tiêu thì chỉ có hai mức đạt hoặc chưa đạt. KR loại `CO_KHONG` có tiến độ 1 khi giá trị khác 0, ngược lại là 0. KR chiều `DAT` đạt 1 khi chạm chỉ tiêu. KR chưa có giá trị hiện tại thì lấy check-in `DA_GUI` gần nhất, nếu không có thì tiến độ là 0 (suy luận cho cả bốn trường hợp). Truy vấn theo kỳ truyền cả hai giá trị `period_bucket` có thể có (năm × 10 + quý và năm × 10), để chỉ chạm tối đa hai phân vùng mà không cần biết loại kỳ. Lọc "cần check-in" dùng tần suất của KR (tuần 7 ngày, hai tuần 14 ngày, tháng 1 tháng) (suy luận). Tầng dữ liệu dùng JDBC theo quy ước repo, không dùng JPA như task ghi. Phạm vi đơn vị được đưa vào OPA qua tham số `OkrUnitScope` cài `AuthzResourceProvider`. Xuất mẫu trả 202, nhưng tác vụ kết thúc `THAT_BAI` với mã `OKR-503-EXPORT-UNAVAILABLE` cho tới khi SVC-11 được nối (mã lỗi là suy luận).
+
+Việc nền móng còn nợ: bộ so khớp hợp đồng `vt-contract-test` (`OpenApiConformanceEngine.isNullableSchema`) chưa nhận nhánh `{type: 'null'}` trong `oneOf` của OpenAPI 3.1, nên trường bắt buộc có thể rỗng như `OkrTree.parent` bị báo thiếu khi giá trị là `null`. `OkrReadApiIT` vì thế so khớp hợp đồng của `getOkrTree` trên cây của đơn vị cấp dưới, nơi `parent` có giá trị. Cần sửa thư viện trong một task nền móng sau.
+
+### Ghi chú và quyết định từ máy trạng thái nhiệm vụ (CORE-02-13, 22/10/2026)
+
+Bảng chuyển trạng thái của nhiệm vụ được đọc từ khoá `task_lifecycle` của Policy Pack mà kỳ đã ghim (ADR-04), nên khi một phiên bản gói mới được phát hành, các nhiệm vụ của kỳ đã ghim phiên bản cũ vẫn chạy theo bảng cũ; khi tenant hoặc kỳ chưa có gói, máy chủ dùng bảng mặc định mười dòng của QT-05 (`mac-dinh@2.1.0`), khớp với tệp `data/policy-pack/khoi-dang/quy-dinh-moi/task_lifecycle.yaml`. Nhiệm vụ không mang luồng Nhà nước hay Đảng, nên bộ phân giải dò lần lượt luồng `NHA_NUOC` rồi `DANG` (suy luận, vì hai gói mẫu dùng chung một bảng).
+
+Danh mục lỗi sinh từ hợp đồng chưa có mã riêng cho trường hợp sai vai trò và guard không đạt, nên máy chủ dùng mã chung `COMMON-403-OUT-OF-SCOPE` (403) và `COMMON-422-VALIDATION` (422); lệnh không có trong bảng hoặc trạng thái đã kết thúc trả `TASK-409-INVALID-TRANSITION`, kỳ đã khoá trả `TASK-409-PERIOD-LOCKED`. Thông báo guard không lộ biểu thức CEL. Khi MOD-03 chưa cung cấp sản phẩm, biến `task.so_san_pham_da_nop` của guard lấy từ khối lượng đã làm (suy luận). Câu hỏi mở: hợp đồng có nên bổ sung mã `TASK-403-…` và `TASK-422-…` riêng cho hai trường hợp này hay không.
+
 ## Liên quan
 
 - [README của wiki](README.md)
