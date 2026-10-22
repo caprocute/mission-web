@@ -141,4 +141,17 @@ public interface PlanRepository {
       UUID afterPlanId,
       int afterItemNo,
       int limit);
+
+  /** Kế hoạch có phiên bản 1 chưa duyệt (CORE-02-07): người lập là người tạo phiên bản 1. */
+  record PendingPlan(
+      UUID planId, UUID ownerUnitId, UUID versionId, UUID createdBy, long rowVersion) {}
+
+  /** Kế hoạch của kỳ mà phiên bản 1 chưa {@code DA_DUYET}. */
+  List<PendingPlan> pendingApproval(TenantId tenant, int periodBucket, UUID periodId);
+
+  /**
+   * Giữ chỗ một lần gửi thông báo theo khoá trong ngày (nhiều bản sao cùng chạy tác vụ chỉ một bản
+   * gửi); {@code false} khi khoá đã có.
+   */
+  boolean claimNotice(TenantId tenant, String key);
 }

@@ -2,6 +2,7 @@ package vn.viettel.okrkpi.task.infrastructure.web;
 
 import java.math.BigDecimal;
 import java.net.URI;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
@@ -56,6 +57,7 @@ import vn.viettel.okrkpi.shared.paging.CursorPage;
 import vn.viettel.okrkpi.shared.paging.PageRequest;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker;
+import vn.viettel.okrkpi.task.application.plan.PlanDeadlines;
 import vn.viettel.okrkpi.task.application.plan.PlanService;
 import vn.viettel.okrkpi.task.application.plan.PlanService.ApprovedItem;
 import vn.viettel.okrkpi.task.application.plan.PlanService.PlanView;
@@ -77,9 +79,12 @@ public class PlanController {
   private final PlanService plans;
   private final CursorCodec cursors;
   private final TaskCallers callers;
+  private final PlanDeadlines deadlines;
 
-  public PlanController(PlanService plans, CursorCodec cursors, TaskCallers callers) {
+  public PlanController(
+      PlanService plans, CursorCodec cursors, TaskCallers callers, PlanDeadlines deadlines) {
     this.plans = Objects.requireNonNull(plans, "plans");
+    this.deadlines = Objects.requireNonNull(deadlines, "deadlines");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
     this.callers = Objects.requireNonNull(callers, "callers");
   }
@@ -104,7 +109,7 @@ public class PlanController {
             page,
             v -> CursorKey.of(v.plan().id()));
     return new ListPlans200Response(
-        result.items().stream().map(PlanController::plan).toList(), result.nextCursor());
+        result.items().stream().map(this::planDto).toList(), result.nextCursor());
   }
 
   @PostMapping
@@ -118,7 +123,8 @@ public class PlanController {
     UUID actor = callers.current().personId();
     PlanView view =
         found(() -> plans.createPlan(tenant, body.getPeriodId(), body.getUnitId(), actor));
-    return ResponseEntity.created(URI.create("/api/v1/plans/" + view.plan().id())).body(plan(view));
+    return ResponseEntity.created(URI.create("/api/v1/plans/" + view.plan().id()))
+        .body(planDto(view));
   }
 
   @GetMapping("/items")
@@ -160,7 +166,7 @@ public class PlanController {
   public ResponseEntity<PlanVersion> getPlanVersion(
       @PathVariable("id") UUID id, @PathVariable("v") int v) {
     VersionView view = found(() -> plans.version(TenantContext.require(), id, v));
-    return ETags.ok(version(view), view.version().rowVersion());
+    return ETags.ok(versionDto(view), view.version().rowVersion());
   }
 
   @PutMapping("/{id}/versions/{v}")
@@ -179,7 +185,7 @@ public class PlanController {
     UUID actor = callers.current().personId();
     VersionView view =
         found(() -> plans.saveVersion(TenantContext.require(), id, v, expected, drafts, actor));
-    return ETags.ok(version(view), view.version().rowVersion());
+    return ETags.ok(versionDto(view), view.version().rowVersion());
   }
 
   @PostMapping("/{id}/versions/{v}/copy-from")
@@ -201,7 +207,7 @@ public class PlanController {
             () ->
                 plans.copyFromPreviousPeriod(
                     TenantContext.require(), id, v, expected, source, actor));
-    return ETags.ok(version(view), view.version().rowVersion());
+    return ETags.ok(versionDto(view), view.version().rowVersion());
   }
 
   @PostMapping("/{id}/versions/{v}/check")
@@ -238,6 +244,23 @@ public class PlanController {
     } catch (NoSuchElementException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     }
+  }
+
+  /** Hạn duyệt BR-04-01 tính khi đọc (CORE-02-07). */
+  private Plan planDto(PlanView v) {
+    Plan dto = plan(v);
+    dto.setApprovalDeadline(deadlines.deadlineOf(TenantContext.require(), v.period()));
+    return dto;
+  }
+
+  private PlanVersion versionDto(VersionView v) {
+    PlanVersion dto = version(v);
+    LocalDate deadline = deadlines.deadlineOf(TenantContext.require(), v.period());
+    dto.setApprovalDeadline(deadline);
+    if (v.version().versionNo() == 1 && !"DA_DUYET".equals(v.version().status().name())) {
+      dto.setWorkingDaysToDeadline(deadlines.workingDaysTo(TenantContext.require(), deadline));
+    }
+    return dto;
   }
 
   static Plan plan(PlanView v) {

@@ -42,6 +42,7 @@ import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
+import vn.viettel.okrkpi.task.application.plan.port.PlanRepository;
 
 /**
  * Kiểm thử tích hợp CORE-02-05 trên PostgreSQL thật: tám thao tác kế hoạch quý khớp {@code
@@ -68,6 +69,7 @@ class PlanApiIT extends ContractConformanceTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper json;
+  @Autowired private PlanRepository planRepository;
 
   @Autowired
   @Qualifier("taskDataSource") private DataSource taskDataSource;
@@ -222,6 +224,22 @@ class PlanApiIT extends ContractConformanceTest {
     assertResponseConforms(created, "/plans", PathItem.HttpMethod.POST);
     String id = body(created).get("id").asText();
     assertThat(created.getResponse().getHeader("Location")).endsWith("/plans/" + id);
+    // BR-04-01: Quý I/2027 hạn thứ Sáu 08/01/2027 (CORE-02-07).
+    assertThat(body(created).get("approvalDeadline").asText()).isEqualTo("2027-01-08");
+    List<PlanRepository.PendingPlan> pending =
+        inTask(j -> planRepository.pendingApproval(tenant, 20271, q1));
+    assertThat(pending)
+        .singleElement()
+        .satisfies(
+            p -> {
+              assertThat(p.planId().toString()).isEqualTo(id);
+              assertThat(p.ownerUnitId()).isEqualTo(unit);
+            });
+    String key = "han-duyet-ke-hoach:" + pending.get(0).versionId() + ":nhac";
+    Boolean first = inTask(j -> planRepository.claimNotice(tenant, key));
+    Boolean again = inTask(j -> planRepository.claimNotice(tenant, key));
+    assertThat(first).isTrue();
+    assertThat(again).isFalse();
 
     MvcResult duplicate =
         perform(
@@ -306,6 +324,8 @@ class PlanApiIT extends ContractConformanceTest {
     MvcResult one = perform(get("/api/v1/plans/" + id + "/versions/1"));
     assertResponseConforms(one, "/plans/{id}/versions/{v}", PathItem.HttpMethod.GET);
     assertThat(one.getResponse().getHeader("ETag")).isEqualTo("\"21\"");
+    assertThat(body(one).get("approvalDeadline").asText()).isEqualTo("2027-01-08");
+    assertThat(body(one).has("workingDaysToDeadline")).isTrue();
     assertThat(perform(get("/api/v1/plans/" + id + "/versions/7")).getResponse().getStatus())
         .isEqualTo(404);
 

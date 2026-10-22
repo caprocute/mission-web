@@ -58,6 +58,9 @@ public class JdbcPlanRepository implements PlanRepository {
   private static final String CATALOG_JOIN =
       " LEFT JOIN task.catalog_item c ON c.tenant_id = i.tenant_id AND c.id = i.catalog_item_id";
 
+  /** Người gọi hệ thống của tác vụ định kỳ. */
+  static final UUID SYSTEM_ACTOR = new UUID(0L, 0L);
+
   private final JdbcClient jdbc;
   private final JdbcTemplate batch;
   private final ObjectMapper json;
@@ -432,6 +435,41 @@ public class JdbcPlanRepository implements PlanRepository {
     } catch (JsonProcessingException e) {
       throw new IllegalStateException("Không ghi được co_assignees", e);
     }
+  }
+
+  @Override
+  public List<PendingPlan> pendingApproval(TenantId tenant, int periodBucket, UUID periodId) {
+    return jdbc.sql(
+            "SELECT p.id, p.owner_unit_id, v.id AS version_id, v.created_by, v.row_version"
+                + " FROM task.plan p JOIN task.plan_version v ON v.period_bucket = p.period_bucket"
+                + " AND v.tenant_id = p.tenant_id AND v.plan_id = p.id AND v.version_no = 1"
+                + " WHERE p.period_bucket = ? AND p.tenant_id = ? AND p.period_id = ?"
+                + " AND v.status <> 'DA_DUYET' ORDER BY p.id")
+        .params(periodBucket, tenant.value(), periodId)
+        .query(
+            (rs, n) ->
+                new PendingPlan(
+                    rs.getObject("id", UUID.class),
+                    rs.getObject("owner_unit_id", UUID.class),
+                    rs.getObject("version_id", UUID.class),
+                    rs.getObject("created_by", UUID.class),
+                    rs.getLong("row_version")))
+        .list();
+  }
+
+  /**
+   * Giữ chỗ bằng {@code task.idempotency_key} của người gọi hệ thống: khoá chính có ngày tạo nên
+   * chặn trùng trong ngày, đúng phạm vi của tác vụ nhắc hạn (suy luận, không thêm bảng mới).
+   */
+  @Override
+  public boolean claimNotice(TenantId tenant, String key) {
+    return jdbc.sql(
+                "INSERT INTO task.idempotency_key (tenant_id, actor_id, idem_key, request_hash,"
+                    + " status, response_code) VALUES (?, ?, ?, sha256(convert_to(?, 'UTF8')),"
+                    + " 'XONG', 200) ON CONFLICT DO NOTHING")
+            .params(tenant.value(), SYSTEM_ACTOR, key, key)
+            .update()
+        == 1;
   }
 
   private static String uuidArray(Collection<UUID> ids) {
