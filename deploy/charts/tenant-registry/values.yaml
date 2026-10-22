@@ -136,3 +136,100 @@ networkPolicy:
     ports:
       - 443
       - 636
+
+# DV-03-05: saga cấp phát phần 2 và kích hoạt tenant. Tắt thì provision/activate trả 503.
+# Mẫu địa chỉ có chỗ {cell} là mã cell chữ thường. Không đặt bí mật ở đây: client secret của tài khoản dịch vụ
+# cấp phát và khoá API PowerDNS nằm trong Secret dưới (OpenBao → External Secrets).
+provisioning:
+  enabled: false
+  keycloakUrl: https://sso.{cell}.example.invalid       # Admin API qua mạng quản trị của cell
+  keycloakRealm: mission
+  tokenUrl: ""                                         # rỗng: <keycloakUrl>/realms/<realm>/protocol/openid-connect/token
+  coreUrl: http://mission-core.{cell}.svc:8080          # API nội bộ MOD-05, MOD-08 (suy luận đường dẫn, wiki trang 14)
+  orgUrl: http://org-service.{cell}.svc:8080
+  clientId: tenant-registry-provisioner
+  secretName: tenant-registry-provisioning             # khoá PROVISION_CLIENT_SECRET, PDNS_API_KEY
+  maxAttempts: 3                                       # TL-02a: thử lại tối đa 3 lần, chờ tăng dần
+  backoff: 10s
+  stepTimeout: 10m
+  activationRpo: 15m                                   # QT-01: chặn kích hoạt khi bản sao trễ quá RPO
+  readinessInterval: 5m                                # chu kỳ tự chuyển DANG_CAU_HINH → SAN_SANG
+  dns:
+    apiUrl: http://pdns-api.dns.svc:8081
+    zone: okr.viettel.vn
+    serverId: localhost
+  certManager:
+    namespace: apisix                                  # nơi APISIX đọc Secret TLS
+    issuer: letsencrypt
+    issuerKind: ClusterIssuer
+    wait: 3m
+    apiServer: https://kubernetes.default.svc
+    tokenAudience: https://kubernetes.default.svc
+  prometheusUrl: ""                                    # rỗng: không đo độ trễ bản sao (chỉ cảnh báo)
+  replicaLagQuery: max(cnpg_pg_replication_lag{cell="{cell}"})
+  # Đích mạng ra cho saga (NetworkPolicy).
+  egress:
+    cells:                                             # Keycloak, mission-core, org-service của các cell
+      - namespaceSelector:
+          matchLabels:
+            mission.vn/plane: cell
+    cellPorts: [8080, 8443]
+    dns:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: dns
+    dnsPort: 8081
+    kubeApiCidr: 10.96.0.1/32
+    kubeApiPort: 443
+    prometheus:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: monitoring
+    prometheusPort: 9090
+  # DV-03-04: bước CSDL và khoá của saga. Secret secretName chứa hai tệp (OpenBao → External Secrets):
+  #   cell-db.json: {"<mã cell>": {"adminUrl": "postgres://..."}} — tài khoản quản trị hẹp CREATEDB (không SUPERUSER);
+  #   openbao-token: token OpenBao chỉ có quyền transit/keys/t-*, transit/keys/cell-* (tạo, đọc, cấu hình, xoá).
+  # Job di trú chạy ảnh vt-db-migration trong migration.namespace, đọc Secret <secretPrefix><mã cell chữ thường>.
+  data:
+    enabled: false
+    secretName: tenant-registry-provision-data
+    openbaoUrl: https://openbao.security.svc:8200
+    transitMount: transit
+    migration:
+      image: ""                                        # ảnh vt-db-migration (DatabaseBootstrap + MigrationRunner)
+      namespace: mission-migrate
+      secretPrefix: td-migrate-
+      jdbcBase: jdbc:postgresql://pg-biz-rw.{cell}.svc:5432
+      wait: 8m                                         # nhỏ hơn stepTimeout
+    egress:
+      postgres:
+        - namespaceSelector:
+            matchLabels:
+              mission.vn/plane: cell
+      postgresPort: 5432
+      openbao:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: security
+      openbaoPort: 8200
+
+# DV-03-07: chuyển tenant giữa các cell (ADR-29). Secret secretName chứa hai tệp JSON (OpenBao → External Secrets):
+#   cell-db.json: {"<mã cell>": {"adminUrl": "...", "peerConnInfo": "host=... user=... password=..."}} — vai trò
+#     quản trị sao chép của cụm PostgreSQL mỗi cell (REPLICATION, tạo publication/subscription/trigger);
+#   objects.json: {"<mã cell>": {"url": "...", "region": "...", "accessKey": "...", "secretKey": "..."}} — Ceph RGW.
+move:
+  enabled: false
+  secretName: tenant-registry-move
+  ledgerUrl: http://ledger-service.{cell}.svc:8080   # API chuyển giao sổ cái (suy luận, wiki trang 14)
+  pollEvery: 1s
+  catchUpTimeout: 6h
+  freezeTimeout: 15m                                 # ADR-29: chỉ đọc 5–15 phút
+  retention: 720h                                    # giữ dữ liệu nguồn 30 ngày rồi dọn
+  purgeInterval: 24h
+  egress:
+    postgres:
+      - namespaceSelector:
+          matchLabels:
+            mission.vn/plane: cell
+    postgresPort: 5432
+    rgwPort: 8443

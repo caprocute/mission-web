@@ -12,9 +12,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"mission/services-go/tenant-registry/internal/move"
 	"mission/services-go/tenant-registry/internal/platform/auth"
 	"mission/services-go/tenant-registry/internal/platform/logx"
 	"mission/services-go/tenant-registry/internal/platform/problem"
+	"mission/services-go/tenant-registry/internal/provision"
 	"mission/services-go/tenant-registry/internal/resolve"
 	"mission/services-go/tenant-registry/internal/tenant"
 	"mission/services-go/tenant-registry/pkg/routecookie"
@@ -33,6 +35,11 @@ type Deps struct {
 	CookieDomain string
 	// DV-03-03: nghiệp vụ vòng đời tenant.
 	Tenants *tenant.Service
+	// DV-03-05: saga cấp phát phần 2 và kích hoạt tenant (nil: provision/activate trả 503).
+	Provision *provision.Saga
+	// DV-03-07: chuyển tenant giữa các cell (nil: các thao tác /move trả 503).
+	Moves      *move.Service
+	MoveRunner *move.Runner
 }
 
 // Server giữ phụ thuộc và bộ định tuyến.

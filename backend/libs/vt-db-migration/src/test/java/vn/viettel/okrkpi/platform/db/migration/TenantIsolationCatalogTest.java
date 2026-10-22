@@ -777,12 +777,12 @@ public abstract class TenantIsolationCatalogTest {
           FROM pg_constraint con
           JOIN pg_class fc ON fc.oid = con.confrelid
           JOIN pg_namespace fn ON fn.oid = fc.relnamespace
-          JOIN pg_attribute src ON src.attrelid = con.conrelid AND src.attnum = con.conkey[1]
-          JOIN pg_attribute dst ON dst.attrelid = con.confrelid AND dst.attnum = con.confkey[1]
+          CROSS JOIN LATERAL unnest(con.conkey, con.confkey) AS k(src_num, dst_num)
+          JOIN pg_attribute src ON src.attrelid = con.conrelid AND src.attnum = k.src_num
+          JOIN pg_attribute dst ON dst.attrelid = con.confrelid AND dst.attnum = k.dst_num
          WHERE con.conrelid = ?
            AND con.contype = 'f'
            AND fn.nspname = ?
-           AND array_length(con.conkey, 1) = 1
         """;
     List<ForeignKeyMeta> fks = new ArrayList<>();
     try (PreparedStatement ps = admin.prepareStatement(sql)) {

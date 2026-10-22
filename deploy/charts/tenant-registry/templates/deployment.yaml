@@ -47,6 +47,36 @@ spec:
             matchLabels:
               {{- include "tenant-registry.selector" . | nindent 14 }}
       terminationGracePeriodSeconds: 30
+      {{- if or .Values.provisioning.enabled .Values.move.enabled }}
+      volumes:
+      {{- end }}
+      {{- if .Values.move.enabled }}
+        - name: move-secrets
+          secret:
+            secretName: {{ .Values.move.secretName }}
+            defaultMode: 0400
+      {{- end }}
+      {{- if .Values.provisioning.enabled }}
+      # Token chiếu hạn 1 giờ, chỉ để gọi API Kubernetes tạo Certificate (cert-manager); không gắn token mặc định.
+        - name: kube-api
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: k8s-token
+                  expirationSeconds: 3600
+                  audience: {{ .Values.provisioning.certManager.tokenAudience | quote }}
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+      {{- end }}
+      {{- if and .Values.provisioning.enabled .Values.provisioning.data.enabled }}
+        - name: provision-data
+          secret:
+            secretName: {{ .Values.provisioning.data.secretName }}
+            defaultMode: 0400
+      {{- end }}
       containers:
         - name: tenant-registry
           image: {{ include "tenant-registry.image" . }}
@@ -115,6 +145,122 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.database.secretName }}
                   key: {{ .Values.database.secretKey }}
+            {{- with .Values.provisioning }}
+            {{- if .enabled }}
+            - name: PROVISION_KEYCLOAK_URL
+              value: {{ .keycloakUrl | quote }}
+            - name: PROVISION_KEYCLOAK_REALM
+              value: {{ .keycloakRealm | quote }}
+            - name: PROVISION_TOKEN_URL
+              value: {{ .tokenUrl | quote }}
+            - name: PROVISION_CORE_URL
+              value: {{ .coreUrl | quote }}
+            - name: PROVISION_ORG_URL
+              value: {{ .orgUrl | quote }}
+            - name: PROVISION_CLIENT_ID
+              value: {{ .clientId | quote }}
+            - name: PROVISION_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: PROVISION_CLIENT_SECRET
+            - name: PDNS_API_URL
+              value: {{ .dns.apiUrl | quote }}
+            - name: PDNS_ZONE
+              value: {{ .dns.zone | quote }}
+            - name: PDNS_SERVER_ID
+              value: {{ .dns.serverId | quote }}
+            - name: PDNS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: PDNS_API_KEY
+            - name: CERT_K8S_API
+              value: {{ .certManager.apiServer | quote }}
+            - name: CERT_NAMESPACE
+              value: {{ .certManager.namespace | quote }}
+            - name: CERT_ISSUER
+              value: {{ .certManager.issuer | quote }}
+            - name: CERT_ISSUER_KIND
+              value: {{ .certManager.issuerKind | quote }}
+            - name: CERT_WAIT
+              value: {{ .certManager.wait | quote }}
+            - name: CERT_TOKEN_FILE
+              value: /var/run/secrets/tenant-registry/k8s-token
+            - name: CERT_CA_FILE
+              value: /var/run/secrets/tenant-registry/ca.crt
+            - name: PROMETHEUS_URL
+              value: {{ .prometheusUrl | quote }}
+            - name: REPLICA_LAG_QUERY
+              value: {{ .replicaLagQuery | quote }}
+            - name: PROVISION_MAX_ATTEMPTS
+              value: {{ .maxAttempts | quote }}
+            - name: PROVISION_BACKOFF
+              value: {{ .backoff | quote }}
+            - name: PROVISION_STEP_TIMEOUT
+              value: {{ .stepTimeout | quote }}
+            - name: ACTIVATION_RPO
+              value: {{ .activationRpo | quote }}
+            - name: READINESS_INTERVAL
+              value: {{ .readinessInterval | quote }}
+            {{- if .data.enabled }}
+            - name: PROVISION_CELL_DB_FILE
+              value: /var/run/secrets/tenant-registry-provision/cell-db.json
+            - name: PROVISION_OPENBAO_URL
+              value: {{ .data.openbaoUrl | quote }}
+            - name: PROVISION_OPENBAO_TOKEN_FILE
+              value: /var/run/secrets/tenant-registry-provision/openbao-token
+            - name: PROVISION_TRANSIT_MOUNT
+              value: {{ .data.transitMount | quote }}
+            - name: PROVISION_MIGRATION_IMAGE
+              value: {{ required "provisioning.data.migration.image" .data.migration.image | quote }}
+            - name: PROVISION_MIGRATION_NAMESPACE
+              value: {{ .data.migration.namespace | quote }}
+            - name: PROVISION_MIGRATION_SECRET_PREFIX
+              value: {{ .data.migration.secretPrefix | quote }}
+            - name: PROVISION_MIGRATION_JDBC_BASE
+              value: {{ .data.migration.jdbcBase | quote }}
+            - name: PROVISION_MIGRATION_WAIT
+              value: {{ .data.migration.wait | quote }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.move.enabled }}
+            - name: MOVE_CELL_DB_FILE
+              value: /var/run/secrets/tenant-registry-move/cell-db.json
+            - name: MOVE_OBJECTS_FILE
+              value: /var/run/secrets/tenant-registry-move/objects.json
+            - name: MOVE_LEDGER_URL
+              value: {{ .Values.move.ledgerUrl | quote }}
+            - name: MOVE_POLL_EVERY
+              value: {{ .Values.move.pollEvery | quote }}
+            - name: MOVE_CATCHUP_TIMEOUT
+              value: {{ .Values.move.catchUpTimeout | quote }}
+            - name: MOVE_FREEZE_TIMEOUT
+              value: {{ .Values.move.freezeTimeout | quote }}
+            - name: MOVE_RETENTION
+              value: {{ .Values.move.retention | quote }}
+            - name: MOVE_PURGE_INTERVAL
+              value: {{ .Values.move.purgeInterval | quote }}
+            {{- end }}
+          {{- if or .Values.provisioning.enabled .Values.move.enabled }}
+          volumeMounts:
+            {{- if .Values.provisioning.enabled }}
+            - name: kube-api
+              mountPath: /var/run/secrets/tenant-registry
+              readOnly: true
+            {{- end }}
+            {{- if and .Values.provisioning.enabled .Values.provisioning.data.enabled }}
+            - name: provision-data
+              mountPath: /var/run/secrets/tenant-registry-provision
+              readOnly: true
+            {{- end }}
+            {{- if .Values.move.enabled }}
+            - name: move-secrets
+              mountPath: /var/run/secrets/tenant-registry-move
+              readOnly: true
+            {{- end }}
+          {{- end }}
           readinessProbe:
             httpGet:
               path: /readyz
