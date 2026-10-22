@@ -62,6 +62,7 @@ import vn.viettel.okrkpi.task.application.assign.TaskQueryService;
 import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.AssigneeRow;
 import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.DraftRow;
 import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.UnitTaskRow;
+import vn.viettel.okrkpi.task.application.blocker.TaskBlockerService;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskDelayRiskService;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.TaskRow;
@@ -90,6 +91,7 @@ public class TaskAssignController {
   private final TaskDelayRiskService delayRisks;
   private final TaskCallers callers;
   private final CursorCodec cursors;
+  private final TaskBlockerService blockers;
 
   public TaskAssignController(
       TaskDraftService drafts,
@@ -98,7 +100,8 @@ public class TaskAssignController {
       TaskTransitionService transitions,
       TaskDelayRiskService delayRisks,
       TaskCallers callers,
-      CursorCodec cursors) {
+      CursorCodec cursors,
+      TaskBlockerService blockers) {
     this.drafts = Objects.requireNonNull(drafts, "drafts");
     this.assign = Objects.requireNonNull(assign, "assign");
     this.queries = Objects.requireNonNull(queries, "queries");
@@ -106,6 +109,7 @@ public class TaskAssignController {
     this.delayRisks = Objects.requireNonNull(delayRisks, "delayRisks");
     this.callers = Objects.requireNonNull(callers, "callers");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
+    this.blockers = Objects.requireNonNull(blockers, "blockers");
   }
 
   @PostMapping
@@ -232,6 +236,8 @@ public class TaskAssignController {
     if (view.masked()) {
       dto.setTitle(MASKED);
       dto.setDescription("");
+    } else {
+      dto.setBlockers(blockers.listOf(tenant, t).stream().map(TaskBlockerController::dto).toList());
     }
     TaskDelayRiskController.view(delayRisks.find(tenant, t)).ifPresent(dto::delayRisk);
     return ETags.ok(dto, t.rowVersion());
