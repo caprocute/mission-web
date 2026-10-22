@@ -55,12 +55,12 @@ class EvidenceLifecycleServiceTest {
     UUID v1 = repo.version(d1, EvidenceStatus.NHAP);
     UUID v2 = repo.version(d2, EvidenceStatus.NHAP);
 
-    var r1 = service.submitVersion(TENANT, v1, 0, MEMBER);
+    var r1 = service.submitVersion(TENANT, v1, 0, MEMBER, false);
     assertThat(r1.version().status()).isEqualTo(EvidenceStatus.DA_NOP);
     assertThat(r1.taskRequest()).isEmpty();
     assertThat(tasks.calls).isEmpty();
 
-    var r2 = service.submitVersion(TENANT, v2, 0, MEMBER);
+    var r2 = service.submitVersion(TENANT, v2, 0, MEMBER, false);
     assertThat(r2.taskRequest()).contains(TaskInterlock.TaskRequest.SUBMIT);
     assertThat(tasks.calls)
         .singleElement()
@@ -111,7 +111,7 @@ class EvidenceLifecycleServiceTest {
   void lechPhienBanTra409VaKhongGhi() {
     UUID d = repo.deliverable(BigDecimal.ONE);
     UUID v = repo.version(d, EvidenceStatus.NHAP);
-    assertThatThrownBy(() -> service.submitVersion(TENANT, v, 5, MEMBER))
+    assertThatThrownBy(() -> service.submitVersion(TENANT, v, 5, MEMBER, false))
         .isInstanceOf(VersionConflictException.class);
     assertThat(repo.versions.get(v).status()).isEqualTo(EvidenceStatus.NHAP);
   }
@@ -133,7 +133,7 @@ class EvidenceLifecycleServiceTest {
     UUID d = repo.deliverable(BigDecimal.ONE);
     UUID v = repo.version(d, EvidenceStatus.NHAP);
     periods.locked = true;
-    assertThatThrownBy(() -> service.submitVersion(TENANT, v, 0, MEMBER))
+    assertThatThrownBy(() -> service.submitVersion(TENANT, v, 0, MEMBER, false))
         .isInstanceOfSatisfying(
             BusinessException.class,
             e -> assertThat(e.errorCode().code()).isEqualTo("PRODUCT-409-PERIOD-LOCKED"));
@@ -144,7 +144,7 @@ class EvidenceLifecycleServiceTest {
     UUID d = repo.deliverable(BigDecimal.ONE);
     UUID v = repo.version(d, EvidenceStatus.NHAP);
     tasks.failWith = new BusinessException("COMMON-422-VALIDATION", "chưa đạt");
-    var r = service.submitVersion(TENANT, v, 0, MEMBER);
+    var r = service.submitVersion(TENANT, v, 0, MEMBER, false);
     assertThat(r.version().status()).isEqualTo(EvidenceStatus.DA_NOP);
     assertThat(r.taskOutcome()).isEmpty();
 

@@ -108,11 +108,11 @@ class EvidenceTaskInterlockIT {
     UUID v1 = evidenceVersion(task, deliverable(task));
     UUID v2 = evidenceVersion(task, deliverable(task));
 
-    var r1 = call(() -> service.submitVersion(tenant, v1, 0, member));
+    var r1 = call(() -> service.submitVersion(tenant, v1, 0, member, false));
     assertThat(r1.taskRequest()).isEmpty();
     assertThat(taskStatus(task)).isEqualTo("DANG_THUC_HIEN");
 
-    var r2 = call(() -> service.submitVersion(tenant, v2, 0, member));
+    var r2 = call(() -> service.submitVersion(tenant, v2, 0, member, false));
     assertThat(r2.taskRequest()).contains(TaskInterlock.TaskRequest.SUBMIT);
     assertThat(taskStatus(task)).isEqualTo("CHO_NGHIEM_THU");
 
@@ -144,7 +144,7 @@ class EvidenceTaskInterlockIT {
 
     // Phiên bản 2 của minh chứng bị từ chối: nộp, mở, xác nhận → nhiệm vụ hoàn thành.
     UUID v2b = nextVersion(v2);
-    call(() -> service.submitVersion(tenant, v2b, 0, member));
+    call(() -> service.submitVersion(tenant, v2b, 0, member, false));
     assertThat(taskStatus(task)).isEqualTo("CHO_NGHIEM_THU");
     call(() -> service.openReview(tenant, v2b, 1, reviewer));
     var done = call(() -> service.acceptVersion(tenant, v2b, 2, reviewer));

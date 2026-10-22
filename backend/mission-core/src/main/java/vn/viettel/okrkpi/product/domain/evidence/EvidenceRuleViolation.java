@@ -29,6 +29,19 @@ public final class EvidenceRuleViolation extends IllegalStateException {
   /** Yêu cầu bổ sung hoặc từ chối thiếu nhận xét (BR-07-08, MSG-07-10). */
   public static final String COMMENT_REQUIRED = "PRODUCT-422-COMMENT-REQUIRED";
 
+  /** Mã băm tệp lúc nộp khác mã băm đã ghi nhận khi gắn tệp (BR-07-02, MSG-07-03). */
+  public static final String HASH_MISMATCH = "PRODUCT-422-HASH-MISMATCH";
+
+  /** Tệp trùng mã băm với minh chứng của nhiệm vụ khác mà thiếu giải trình (BR-07-03). */
+  public static final String REUSE_JUSTIFICATION_REQUIRED =
+      "PRODUCT-422-REUSE-JUSTIFICATION-REQUIRED";
+
+  /** Người nộp chưa cam kết tính xác thực. */
+  public static final String ATTESTATION_REQUIRED = "PRODUCT-422-ATTESTATION-REQUIRED";
+
+  /** Phiên bản mới nhất chưa kết thúc nên chưa tạo được phiên bản kế tiếp. */
+  public static final String OPEN_VERSION_EXISTS = "PRODUCT-409-OPEN-VERSION-EXISTS";
+
   private final String code;
 
   public EvidenceRuleViolation(String code, String message) {
