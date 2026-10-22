@@ -1,0 +1,33 @@
+# DV-15-03 · QT-16 (BR-16-08, MSG-16-01) → SCR-1601 (dòng "số liệu cập nhật lúc") → data_freshness (DV-15-01, V008).
+# analytics-api (DV-15-04) gửi truy vấn này cùng mỗi lượt tải bảng và trả thời điểm dữ liệu mới nhất.
+cubes:
+  - name: data_freshness
+    title: Độ mới dữ liệu
+    description: Thời điểm thay đổi nguồn mới nhất đã vào kho phân tích
+    sql_table: data_freshness
+    meta:
+      phien_ban: "2026.4"
+    dimensions:
+      - name: tenant_id
+        sql: "{CUBE}.tenant_id"
+        type: string
+        public: false
+      - name: nguon
+        title: Nguồn dữ liệu
+        sql: "{CUBE}.source"
+        type: string
+        primary_key: true
+    measures:
+      - name: cap_nhat_luc
+        title: Số liệu cập nhật lúc
+        description: Thời điểm thay đổi nguồn mới nhất đã vào kho
+        type: max
+        sql: "toUnixTimestamp64Milli({CUBE}.last_source_ts)"
+      - name: moc_moi_nhat
+        type: max
+        sql: toUnixTimestamp64Milli({CUBE}.last_source_ts)
+        public: false
+      - name: do_tre_giay
+        title: Độ trễ dữ liệu (giây)
+        type: number
+        sql: "round(dateDiff('millisecond', toDateTime64({moc_moi_nhat} / 1000, 3, 'Asia/Ho_Chi_Minh'), now64(3)) / 1000, 0)"

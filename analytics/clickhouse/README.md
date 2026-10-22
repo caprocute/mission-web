@@ -8,12 +8,14 @@ Thư mục này chứa lược đồ kho phân tích `analytics_<cell>` của SV
 |---|---|
 | `migrations/V001__ham_chuyen_doi_cdc.sql` | Hàm `mission_cdc_*` đổi giá trị Debezium (ngày, mốc thời gian, mã giả danh, dấu xoá) sang kiểu ClickHouse |
 | `migrations/V002__bang_chieu.sql` | `dim_org_unit` (SCD2), `dim_person` (chỉ khoá giả danh), `dim_period`, `dim_subject_group`, `dim_policy_version` |
-| `migrations/V003__bang_su_kien.sql` | `fact_task`, `fact_task_assignee` (bảng cầu), `fact_task_progress`, `fact_evidence`, `fact_score`, `fact_rating`, `fact_okr_checkin`; bảng tra cứu nội bộ `lk_*`; `cdc_error` |
-| `migrations/V004__tu_dien_tra_cuu.sql` | Tài khoản nạp từ điển và ba từ điển gắn đơn vị, người cho bảng sự kiện |
-| `migrations/V005__nguon_cdc_kafka.sql` | 16 bảng Kafka engine, một bảng cho mỗi topic nguồn |
+| `migrations/V003__bang_su_kien.sql` | `fact_task`, `fact_task_assignee` (bảng cầu), `fact_task_progress`, `fact_evidence`, `fact_score`, `fact_rating`, `fact_okr_checkin`, `fact_okr_objective`, `fact_appraisal_profile`, `dim_org_closure` (bao đóng cây đơn vị); bảng tra cứu nội bộ `lk_*`; `cdc_error` |
+| `migrations/V004__tu_dien_tra_cuu.sql` | Tài khoản nạp từ điển và các từ điển gắn đơn vị, người cho bảng sự kiện (kể cả đơn vị của cá nhân chủ trì) |
+| `migrations/V005__nguon_cdc_kafka.sql` | 17 bảng Kafka engine, một bảng cho mỗi topic nguồn |
 | `migrations/V006__nap_bang_dich.sql` | Materialized view nạp bảng đích và view chuyển bản ghi lỗi sang `cdc_error` |
 | `migrations/V007__bang_tong_hop_tinh.sql` | `agg_task_tinh`, `agg_score_tinh`, `agg_rating_tinh` cho DV-15-11 (chỉ tạo bảng) |
-| `migrations/V008__phan_quyen_doc.sql` | Vai trò, tài khoản Cube và job bất thường, quyền theo cột, row policy |
+| `migrations/V008__bang_dan_xuat.sql` | Refreshable materialized view: `dim_org_scope` (đơn vị kèm `org_path` trên hai cây, cho Cube lọc theo nhánh) và `data_freshness` (độ mới dữ liệu theo nguồn) |
+| `migrations/V009__phan_quyen_doc.sql` | Vai trò, tài khoản Cube và job bất thường, quyền theo cột, row policy, quyền ghi pre-aggregation của Cube trong `<db>_pa_*` |
+| `migrations/V010__view_cube.sql` | View nguồn của Cube (`cube_*`, SQL SECURITY INVOKER): định nghĩa dòng cho chỉ số, đọc qua view để Cube dựng được pre-aggregation với quyền theo cột |
 | `migrate.py` | Bộ áp migration (chỉ thư viện chuẩn) |
 | `phan-loai-ngoai-repo.json` | Phân loại cột của schema chưa có migration trong repo (`appraisal`), chép từ TL-03 |
 | `tests/` | Kiểm tra tĩnh phân loại cột, kiểm thử bộ áp, kiểm thử tích hợp ClickHouse + Kafka |
@@ -46,7 +48,7 @@ uv venv .venv && uv pip install --python .venv/bin/python pytest 'testcontainers
 .venv/bin/python -m pytest -q          # cần Docker cho phần tích hợp; không có Docker thì phần đó bị bỏ qua
 ```
 
-Kiểm thử tích hợp dựng Kafka 3.9 và ClickHouse 25.8 với cấu hình `infra/dev/clickhouse`, áp toàn bộ migration, rồi kiểm tra tạo, sửa, xoá cho cả 16 nguồn, việc gắn đơn vị qua từ điển, bản ghi lỗi, độ trễ p99 và phân quyền đọc. Ảnh có thể đổi bằng `CLICKHOUSE_IMAGE`, `KAFKA_IMAGE`.
+Kiểm thử tích hợp dựng Kafka 3.9 và ClickHouse 25.8 với cấu hình `infra/dev/clickhouse`, áp toàn bộ migration, rồi kiểm tra tạo, sửa, xoá cho cả 17 nguồn, việc gắn đơn vị qua từ điển, bản ghi lỗi, độ trễ p99 và phân quyền đọc. Ảnh có thể đổi bằng `CLICKHOUSE_IMAGE`, `KAFKA_IMAGE`.
 
 ## Việc chờ hạ tầng (INF-11)
 

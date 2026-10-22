@@ -1,0 +1,181 @@
+# DV-15-03 · QT-16 (BR-16-01) → SCR-1601 (appraisal.cho_tham_dinh), SCR-1602 (điểm KPI trung bình, phân bố mức xếp
+# loại) → fact_appraisal_profile, fact_score, fact_rating (DV-15-01). Không có cột C2 (nhận xét, lý do) trong kho
+# (BR-16-04).
+cubes:
+  - name: appraisal
+    title: Hồ sơ đánh giá
+    description: Hồ sơ đánh giá của cán bộ theo kỳ và luồng
+    sql_table: cube_appraisal
+    meta:
+      phien_ban: "2026.4"
+    joins:
+      - name: org_unit
+        relationship: many_to_one
+        sql: "{CUBE}.tenant_id = {org_unit}.tenant_id AND {CUBE}.org_unit_id = {org_unit}.id"
+      - name: period
+        relationship: many_to_one
+        sql: "{CUBE}.tenant_id = {period}.tenant_id AND {CUBE}.period_id = {period}.id"
+    dimensions:
+      - name: tenant_id
+        sql: "{CUBE}.tenant_id"
+        type: string
+        public: false
+      - name: id
+        sql: "toString({CUBE}.id)"
+        type: string
+        primary_key: true
+        public: false
+      - name: luong
+        title: Luồng đánh giá
+        sql: "{CUBE}.flow"
+        type: string
+      - name: trang_thai
+        title: Trạng thái hồ sơ
+        sql: "{CUBE}.status"
+        type: string
+      - name: muc_xep_loai
+        title: Mức xếp loại
+        description: Mức xếp loại đã quyết định
+        sql: "{CUBE}.final_rating_code"
+        type: string
+      - name: lanh_dao
+        title: Cán bộ lãnh đạo, quản lý
+        sql: "{CUBE}.is_leadership = 1"
+        type: boolean
+    measures:
+      - name: so_ho_so
+        title: Số hồ sơ đánh giá
+        type: count
+      - name: cho_tham_dinh
+        title: Hồ sơ chờ thẩm định
+        type: count
+        filters:
+          - sql: "{CUBE}.status = 'CHO_THAM_DINH'"
+      - name: so_da_xep_loai
+        title: Số hồ sơ đã có mức xếp loại
+        description: Dùng cùng chiều Mức xếp loại để có phân bố mức xếp loại
+        type: count
+        filters:
+          - sql: "{CUBE}.final_rating_code IS NOT NULL"
+    pre_aggregations:
+      - name: theo_don_vi_ky
+        type: rollup
+        external: false
+        measures: [so_ho_so, cho_tham_dinh, so_da_xep_loai]
+        dimensions: [tenant_id, luong, muc_xep_loai, org_unit.id, org_unit.ma, org_unit.ten, org_unit.org_path_dang,
+                     org_unit.org_path_chuyen_mon, period.id, period.ma, period.ten]
+        refresh_key:
+          every: 5 minute
+        indexes:
+          - name: theo_tenant_nhanh
+            columns: [tenant_id]
+
+  - name: score
+    title: Điểm đánh giá
+    description: Ảnh chụp điểm hiện hành của hồ sơ đánh giá
+    sql_table: cube_score
+    meta:
+      phien_ban: "2026.4"
+    joins:
+      - name: org_unit
+        relationship: many_to_one
+        sql: "{CUBE}.tenant_id = {org_unit}.tenant_id AND {CUBE}.org_unit_id = {org_unit}.id"
+      - name: period
+        relationship: many_to_one
+        sql: "{CUBE}.tenant_id = {period}.tenant_id AND {CUBE}.period_id = {period}.id"
+    dimensions:
+      - name: tenant_id
+        sql: "{CUBE}.tenant_id"
+        type: string
+        public: false
+      - name: id
+        sql: "toString({CUBE}.id)"
+        type: string
+        primary_key: true
+        public: false
+      - name: luong
+        title: Luồng đánh giá
+        sql: "{CUBE}.flow"
+        type: string
+      - name: loai_anh_chup
+        title: Loại điểm
+        description: Điểm tạm tính hoặc điểm chốt kỳ
+        sql: "{CUBE}.snapshot_kind"
+        type: string
+      - name: muc_tu_dong
+        title: Mức xếp loại theo điểm
+        sql: "{CUBE}.auto_rating_code"
+        type: string
+    measures:
+      - name: so_nguoi
+        title: Số hồ sơ có điểm
+        type: count
+      - name: mau_nguoi
+        type: count
+        public: false
+      - name: tong_diem
+        type: sum
+        sql: "toFloat64({CUBE}.total_score)"
+        public: false
+      - name: diem_kpi_trung_binh
+        title: Điểm KPI trung bình
+        description: Điểm tổng bình quân theo ảnh chụp điểm hiện hành
+        type: number
+        sql: "round({tong_diem} / nullIf({mau_nguoi}, 0), 2)"
+    pre_aggregations:
+      - name: theo_don_vi_ky
+        type: rollup
+        external: false
+        measures: [so_nguoi, mau_nguoi, tong_diem]
+        dimensions: [tenant_id, luong, loai_anh_chup, org_unit.id, org_unit.ma, org_unit.ten, org_unit.org_path_dang,
+                     org_unit.org_path_chuyen_mon, period.id, period.ma, period.ten]
+        refresh_key:
+          every: 5 minute
+        indexes:
+          - name: theo_tenant_nhanh
+            columns: [tenant_id]
+
+  - name: rating
+    title: Đề xuất xếp loại
+    description: Mức xếp loại hiện hành ở từng cấp (tự đề xuất, đề xuất, thẩm định, quyết định)
+    sql_table: cube_rating
+    meta:
+      phien_ban: "2026.4"
+    joins:
+      - name: org_unit
+        relationship: many_to_one
+        sql: "{CUBE}.tenant_id = {org_unit}.tenant_id AND {CUBE}.org_unit_id = {org_unit}.id"
+      - name: period
+        relationship: many_to_one
+        sql: "{CUBE}.tenant_id = {period}.tenant_id AND {CUBE}.period_id = {period}.id"
+    dimensions:
+      - name: tenant_id
+        sql: "{CUBE}.tenant_id"
+        type: string
+        public: false
+      - name: id
+        sql: "toString({CUBE}.id)"
+        type: string
+        primary_key: true
+        public: false
+      - name: luong
+        title: Luồng đánh giá
+        sql: "{CUBE}.flow"
+        type: string
+      - name: cap
+        title: Cấp xếp loại
+        sql: "{CUBE}.level_kind"
+        type: string
+      - name: muc
+        title: Mức xếp loại
+        sql: "{CUBE}.rating_code"
+        type: string
+    measures:
+      - name: so_de_xuat
+        title: Số đề xuất xếp loại
+        type: count
+      - name: so_khac_cap_truoc
+        title: Số đề xuất khác cấp trước
+        type: count
+        filters:
+          - sql: "{CUBE}.differs_from_prev = 1"
