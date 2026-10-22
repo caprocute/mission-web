@@ -25,6 +25,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
+          # Bộ giải mã JWT dựng lười từ issuer Keycloak (ADR-08); realm theo môi trường.
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://127.0.0.1:35080/realms/mission}
   datasource:
     url: ${DB_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=${DB_SCHEMA:flowable}}
@@ -71,6 +72,11 @@ flowable:
     enabled: false
   eventregistry:
     enabled: false
+
+springdoc:
+  api-docs:
+    # Tài liệu /v3/api-docs chỉ bật ở kiểm thử hợp đồng; hợp đồng gốc nằm ở contracts/openapi.
+    enabled: ${API_DOCS_ENABLED:false}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -119,10 +125,21 @@ mission:
       openbao-url: ${OPENBAO_URL:http://127.0.0.1:35820}
     observability:
       otlp-endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://127.0.0.1:35317}
+  workflow:
+    batch:
+      # Executor của duyệt hàng loạt: luồng và hàng đợi giới hạn (TL-01 "Cô lập tài nguyên").
+      threads: ${WF_BATCH_THREADS:2}
+      queue-capacity: ${WF_BATCH_QUEUE:50}
 
 # Khung saga (DV-06-05): outbox và khoá idempotency nằm trong schema flowable; worker chạy cùng bộ
 # thực thi nền của Flowable.
 okrkpi:
+  opa:
+    # OPA chạy cùng pod (ADR-21).
+    base-url: ${OPA_BASE_URL:http://127.0.0.1:8181}
+  paging:
+    # Tệp khoá ký con trỏ do ESO/CSI gắn từ OpenBao; thiếu tệp thì sinh khoá tạm (chỉ đúng khi 1 bản sao).
+    cursor-key-file: ${CURSOR_KEY_FILE:}
   outbox:
     schema: flowable
     registry:
