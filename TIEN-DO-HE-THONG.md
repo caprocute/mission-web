@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **124 / 401 task (30.9%)** — Khối lượng quy đổi đã gộp: **142.5 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **128 / 401 task (31.9%)** (gồm **124** đã gộp `main` + **4** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **129 / 401 task (32.2%)** (gồm **124** đã gộp `main` + **5** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **8 task** (5 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **265 task**.
+- **Chưa bắt đầu**: **264 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **9 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-05-01`** (đang xử lý trên nhánh: `CORE-05-01`).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **5** | 3 | 0 | 104 | **4.5%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **5** | 4 | 0 | 103 | **4.5%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **23** | 0 | 5 | 76 | **22.1%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **1** | 1 | 0 | 26 | **3.6%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **124** | **4** | **8** | **265** | **30.9%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **124** | **5** | **8** | **264** | **30.9%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -40,7 +40,7 @@
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 59 | **48** | 1 | 1 | 9 | **81.4%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **30** | 0 | 2 | 8 | **75.0%** |
-| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **11** | 2 | 1 | 32 | **23.9%** |
+| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **11** | 3 | 1 | 31 | **23.9%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **18** | 1 | 3 | 95 | **15.4%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 0 | 0 | 54 | **23.9%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **0** | 0 | 1 | 41 | **0.0%** |
@@ -192,12 +192,12 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-00-04](docs/tasks/CORE-00-04-api-trang-chu-hom-nay.md) | API tổng hợp trang chủ "Việc của tôi hôm nay" (SCR-0002) | M | B3 | 18 | CORE-02-18, CORE-01-08, CORE-08-09, CORE-08-02, NEN-041 | **Đã gộp main** | Đã gộp main (03e9c83): ranh giới 8 mô-đun Spring Modulith, hợp đồng API nội bộ, JobsController và kiểm thử kiến trúc |
 | [CORE-00-05](docs/tasks/CORE-00-05-nhat-ky-truy-cap-c2.md) | Nhật ký truy cập dữ liệu C2 và ghi sổ cái lần giải mã | S | B4 | 11 | NEN-015, DV-09-02, NEN-011, NEN-016, CORE-00-02 | **Đã gộp main** | Đã gộp main (e9620db) |
 
-### CORE-08 · MOD-08 config: kỳ, lịch, cờ, UI Pack, biểu mẫu (G1 phía máy chủ) (0/17 đã gộp `main`, 1 chờ gộp, 0 đang làm)
+### CORE-08 · MOD-08 config: kỳ, lịch, cờ, UI Pack, biểu mẫu (G1 phía máy chủ) (0/17 đã gộp `main`, 2 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [CORE-08-01](docs/tasks/CORE-08-01-migration-schema-config.md) | Migration schema `config` (period, holiday_calendar, tenant_setting, feature_flag, ui_pack, ui_pack_version, form_schema, component_registry, role_binding, period_lock_order) | M | B2 | 11 | CORE-00-02, NEN-033 | **Xong, chờ gộp** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: mission-core verify xanh (migration + IT Testcontainers) |
-| [CORE-08-02](docs/tasks/CORE-08-02-ky-danh-gia-period-api.md) | Kỳ đánh giá: domain, máy trạng thái kỳ, tạo kỳ có lịch và ghim Policy Pack, `PeriodApi` | M | B2 | 14 | CORE-08-01, CORE-05-03 | **Chưa bắt đầu** |  |
+| [CORE-08-02](docs/tasks/CORE-08-02-ky-danh-gia-period-api.md) | Kỳ đánh giá: domain, máy trạng thái kỳ, tạo kỳ có lịch và ghim Policy Pack, `PeriodApi` | M | B2 | 14 | CORE-08-01, CORE-05-03 | **Xong, chờ gộp** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: kỳ đánh giá, API tạo/xem/liệt kê kỳ, PeriodApi đọc CSDL, tác vụ mở kỳ; mission-core verify xanh |
 | [CORE-08-03](docs/tasks/CORE-08-03-chan-ghi-ky-khoa.md) | Chặn ghi khi kỳ `DANG_KHOA`/`DA_KHOA` ở mọi module, đệm trạng thái kỳ, lỗi 409 `period-locked` | M | B2 | 15 | CORE-08-02 | **Chưa bắt đầu** |  |
 | [CORE-08-04](docs/tasks/CORE-08-04-lich-ngay-lam-viec.md) | Lịch ngày làm việc, ngày nghỉ, làm bù và thư viện tính ngày làm việc dùng chung | M | B2 | 12 | CORE-08-01 | **Chưa bắt đầu** |  |
 | [CORE-08-05](docs/tasks/CORE-08-05-lenh-khoa-ky.md) | Lệnh khoá kỳ: lập, duyệt có MFA và tách vai trò, khởi chạy saga | M | B2 | 15 | CORE-08-02, DV-06-05 | **Chưa bắt đầu** |  |
@@ -758,4 +758,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 03:42 | B2 (luồng B6) | `CORE-05-01` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: mission-core verify xanh (migration + IT Testcontainers) |
 | 22/10/2026 03:42 | B2 (luồng B6) | `CORE-01-01` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: đang thực hiện |
 | 22/10/2026 03:52 | B2 (luồng B6) | `CORE-01-01` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: mission-core verify xanh (migration + 9 IT) |
+| 22/10/2026 03:58 | B2 (luồng B6) | `CORE-08-02` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: kỳ đánh giá, Period API |
+| 22/10/2026 04:28 | B2 (luồng B6) | `CORE-08-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: kỳ đánh giá, API tạo/xem/liệt kê kỳ, PeriodApi đọc CSDL, tác vụ mở kỳ; mission-core verify xanh |
 <!-- PROGRESS_LOG_END -->
