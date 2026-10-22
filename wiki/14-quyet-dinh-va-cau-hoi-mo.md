@@ -379,6 +379,17 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 5. **Outbox và khoá idempotency của SVC-06 dùng phân vùng DEFAULT** như `org-service`, vì ảnh PostgreSQL kiểm thử không có pg_partman; phân vùng ngày tạo khi triển khai. `outbox-sources.yaml` của Debezium chưa có dòng cho schema `flowable`, cần bổ sung ở task hạ tầng.
 6. **Khởi động saga.** Gọi trùng `correlation_id` (với chốt kỳ là lệnh khoá kỳ) trả lại saga cũ; saga khác cùng khoá độc quyền (kỳ) đang chạy hoặc đã hoàn tất trả 409 `WORKFLOW-409-SAGA-EXISTS`, khoá bằng `pg_advisory_xact_lock`. Loại saga chưa đăng ký bản thiết kế trả 422 `COMMON-422-VALIDATION`; `CHOT_KY` sẽ trả 422 cho tới khi DV-06-06 đăng ký các bước. Người khởi động (được xem `/api/v1/jobs/{id}`) là `sub` của token client gọi; `requestedBy` lưu trong tham số. Đo trong kiểm thử: khởi động p95 khoảng 32 ms (yêu cầu ≤ 200 ms).
 
+### Ghi chú và quyết định từ dịch vụ ký số (DV-10-01, 22/10/2026)
+
+1. **Thư mục dịch vụ là `backend/services/esign-service/`**, theo quy ước của `scripts/new-service.sh` (mọi dịch vụ Java mang hậu tố `-service`), còn task ghi `backend/services/esign/`. Schema CSDL vẫn là `esign` như TL-03.
+2. **Ánh xạ định dạng chữ ký.** TL-03 ghi `sign_item.signature_format` là `PADES_LTA`, `CADES_T`, `JWS`; TL-01 dùng tên ETSI `PAdES-B-LTA`, `CAdES-B-T`. Cột CSDL giữ giá trị TL-03, cổng `SignatureProvider` dùng tên ETSI và hai bên ánh xạ một-một trong `ProviderRegistry` (XAdES chỉ có ở cổng, chưa có cột tương ứng).
+3. **Cổng lấy tài liệu nguồn là suy luận.** TL không ghi cách SVC-10 biết tài liệu cần ký và người được ký; dịch vụ gọi `GET /internal/v1/esign-sources/{module}/{id}?purpose=` của module nguồn (cấu hình `okrkpi.esign.sources`). Module nguồn phải hiện thực cổng này khi tích hợp.
+4. **`provider.begin` chạy trong giao dịch của khoá idempotency.** `begin` chỉ đăng ký phiên ký với nhà cung cấp, nên lỗi sau đó làm giao dịch quay lui và phiên mồ côi tự hết hạn phía nhà cung cấp (suy luận).
+5. **Worker quét qua hàm `SECURITY DEFINER` và policy `TO CURRENT_USER`.** FORCE RLS áp cả lên chủ bảng, nên hàm `esign.fn_yeu_cau_cho_xac_nhan` cần policy riêng chỉ cho đọc yêu cầu `CHO_XAC_NHAN`; mỗi yêu cầu sau đó được xử lý trong ngữ cảnh tenant của nó.
+6. **`sign_request` không có cột chứng thư**, nên chứng thư của yêu cầu suy ra từ `sign_item.certificate_ref_id`.
+7. **Hợp đồng khai `sourceModule` vừa `enum` vừa `maxLength`**, làm mã sinh có `@Size` trên enum; dịch vụ đăng ký `EnumSizeValidator` qua `META-INF/services` thay vì sửa hợp đồng (YC-PT-09). Phản hồi lặp lại của idempotency không giữ header `Retry-After`.
+8. **Chưa kiểm thử đường Kafka.** IT chứng minh đúng một EVT-18 trong `esign.outbox_event`; việc Debezium đọc outbox của `esign` cần thêm nguồn này vào cấu hình CDC khi triển khai.
+
 ## Liên quan
 
 - [README của wiki](README.md)
