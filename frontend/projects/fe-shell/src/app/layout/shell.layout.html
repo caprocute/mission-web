@@ -18,6 +18,10 @@
   </a>
   <span class="page-title">{{ pageTitle() }}</span>
   <span class="spacer"></span>
+  @if (session.user()) {
+    <!-- WEB-012: tìm kiếm toàn cục (SVC-16); máy chủ kiểm quyền, ô tự ẩn khi bị từ chối -->
+    <vt-global-search class="search" />
+  }
   @if (session.assignment(); as a) {
     <span class="unit-name">
       <i class="pi pi-building" aria-hidden="true"></i>
@@ -34,6 +38,10 @@
       label="Đổi phân công"
       (click)="session.switchContext()"
     ></button>
+  }
+  @if (canNotify()) {
+    <!-- WEB-012: chuông thông báo (SCR-0002 "Đánh dấu đã đọc", SVC-12) -->
+    <vt-notification-bell />
   }
   <button
     pButton
@@ -57,6 +65,9 @@
     ></button>
   }
 </header>
+<vt-app-status-banner />
+<!-- WEB-012: nơi hiện thông báo lỗi chung của ProblemPresenter (WEB-007) cho shell và remote -->
+<p-toast position="top-right" />
 <div class="body">
   @if (navOpen()) {
     <div class="sidenav-backdrop" (click)="navOpen.set(false)" aria-hidden="true"></div>

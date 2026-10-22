@@ -72,5 +72,8 @@ export function initFaro(opts: BrowserTelemetryOptions): TelemetryApi {
       }),
     ],
   });
-  return { pushEvent: (name, attributes) => faro.api.pushEvent(name, attributes) };
+  return {
+    pushEvent: (name, attributes) => faro.api.pushEvent(name, attributes),
+    pushError: (error, context) => faro.api.pushError(error, { context }),
+  };
 }

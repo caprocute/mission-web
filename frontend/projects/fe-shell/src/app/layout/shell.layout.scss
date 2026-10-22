@@ -194,6 +194,21 @@
   display: none;
 }
 @media (max-width: 960px) {
+  .search {
+    flex-basis: 12rem;
+  }
+  /* WEB-012: nút trên thanh trên không bị ép nhỏ; tiêu đề trang tự cắt bớt */
+  .topbar > button,
+  .topbar > p-avatar,
+  .topbar > vt-notification-bell {
+    flex-shrink: 0;
+  }
+  .page-title {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
   .menu-btn {
     display: inline-flex;
   }
@@ -228,5 +243,18 @@
   }
   .content {
     padding: 16px;
+  }
+}
+
+@media (max-width: 720px) {
+  .search {
+    flex: 0 0 auto;
+  }
+  .topbar {
+    gap: 4px;
+    padding: 0 8px;
+  }
+  .brand > span {
+    display: none;
   }
 }

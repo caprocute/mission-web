@@ -24,6 +24,8 @@ export interface BrowserTelemetryOptions extends BrowserTelemetryConfig {
 /** Phần API của Faro mà shell dùng, tách ra để kiểm thử không cần SDK thật. */
 export interface TelemetryApi {
   pushEvent(name: string, attributes?: Record<string, string>): void;
+  /** Ghi lỗi; tuỳ chọn vì bản giả trong kiểm thử có thể bỏ qua. */
+  pushError?(error: Error, context?: Record<string, string>): void;
 }
 
 const MAX_PENDING = 50;
@@ -47,6 +49,18 @@ export function pushTelemetryEvent(
   } else if (pending.length < MAX_PENDING) {
     pending.push([name, attrs]);
   }
+}
+
+/**
+ * Ghi lỗi mà Angular đã bắt (ErrorHandler) nên không tới được instrumentation lỗi của Faro. Chưa có
+ * Faro thì bỏ qua: lỗi vẫn ra console qua ErrorHandler.
+ */
+export function pushTelemetryError(error: unknown, context: Record<string, string> = {}): void {
+  const err =
+    error instanceof Error
+      ? error
+      : new Error(typeof error === 'string' ? error : 'Lỗi không xác định');
+  api?.pushError?.(err, context);
 }
 
 /** Gắn API đã khởi tạo, xả hàng đợi. Dùng nội bộ và trong kiểm thử. */
