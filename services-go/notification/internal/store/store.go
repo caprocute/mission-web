@@ -110,7 +110,8 @@ func (w *Writer) ensureDay(ctx context.Context, tx vdb.Tx, day time.Time) error 
 	return nil
 }
 
-// Insert ghi notification và delivery kênh INAPP; trả false khi thông báo đã có (giao lại).
+// Insert ghi notification và delivery kênh INAPP; trả false khi thông báo đã có (giao lại). Mã thông báo
+// tính được trước bằng NotificationID.
 func (w *Writer) Insert(ctx context.Context, tx vdb.Tx, n NewNotification) (bool, error) {
 	if err := render.CheckParams(n.Params); err != nil {
 		return false, err
@@ -434,4 +435,40 @@ func Maintain(ctx context.Context, pool *pgxpool.Pool, today time.Time) (created
 		return created, 0, err
 	}
 	return created, dropped, nil
+}
+
+// ByIDs trả các thông báo đã dựng nội dung theo mã cùng số chưa đọc của người dùng (dùng cho luồng SSE).
+func (r Reader) ByIDs(ctx context.Context, tenantID, userID string, ids []string) ([]Notification, int, error) {
+	var items []Notification
+	var unread int
+	err := r.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT id::text, template_code, params, deep_link, priority, created_at, read_at
+			FROM notify.notification
+			WHERE tenant_id = $1 AND recipient_user_id = $2 AND id = ANY($3::uuid[]) AND `+retentionFilter+`
+			ORDER BY created_at, id`, tenantID, userID, ids)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var n Notification
+			var params []byte
+			if err := rows.Scan(&n.ID, &n.TemplateCode, &params, &n.DeepLink, &n.Priority, &n.CreatedAt, &n.ReadAt); err != nil {
+				return err
+			}
+			if err := json.Unmarshal(params, &n.Params); err != nil {
+				return err
+			}
+			items = append(items, n)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		if err := renderItems(ctx, tx, items); err != nil {
+			return err
+		}
+		unread, err = unreadCount(ctx, tx, tenantID, userID)
+		return err
+	})
+	return items, unread, err
 }

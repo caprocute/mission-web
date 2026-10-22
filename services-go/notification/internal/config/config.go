@@ -16,6 +16,7 @@ type Config struct {
 	DatabaseURL         string
 	ReadOnlyDatabaseURL string
 	KafkaBrokers        []string
+	ValkeyAddrs         []string // rỗng thì tắt luồng SSE
 	MaintainInterval    time.Duration
 	// CryptoLocalKey là khoá gốc base64 (≥ 32 byte) của LocalKeyring, chỉ cho dev; rỗng thì tắt API thiết bị.
 	CryptoLocalKey  string
@@ -38,11 +39,17 @@ func Load() (*Config, error) {
 			brokers = append(brokers, b)
 		}
 	}
+	var valkey []string
+	for _, p := range strings.Split(os.Getenv("VALKEY_ADDRS"), ",") {
+		if a := strings.TrimSpace(p); a != "" {
+			valkey = append(valkey, a)
+		}
+	}
 	maintain, err := time.ParseDuration(envOr("PARTITION_MAINTAIN_INTERVAL", "6h"))
 	if err != nil || maintain <= 0 {
 		return nil, fmt.Errorf("PARTITION_MAINTAIN_INTERVAL không hợp lệ")
 	}
-	shutdown, err := time.ParseDuration(envOr("SHUTDOWN_TIMEOUT", "15s"))
+	shutdown, err := time.ParseDuration(envOr("SHUTDOWN_TIMEOUT", "35s"))
 	if err != nil || shutdown <= 0 {
 		return nil, fmt.Errorf("SHUTDOWN_TIMEOUT không hợp lệ")
 	}
@@ -53,6 +60,7 @@ func Load() (*Config, error) {
 		DatabaseURL:         dbURL,
 		ReadOnlyDatabaseURL: roURL,
 		KafkaBrokers:        brokers,
+		ValkeyAddrs:         valkey,
 		MaintainInterval:    maintain,
 		CryptoLocalKey:      strings.TrimSpace(os.Getenv("CRYPTO_LOCAL_KEY")),
 		ShutdownTimeout:     shutdown,

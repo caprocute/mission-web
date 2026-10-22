@@ -16,12 +16,14 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 
 	"mission/services-go/notification/internal/api"
 	"mission/services-go/notification/internal/config"
 	"mission/services-go/notification/internal/consume"
 	"mission/services-go/notification/internal/crypt"
 	"mission/services-go/notification/internal/prefs"
+	"mission/services-go/notification/internal/rt"
 	"mission/services-go/notification/internal/store"
 	"vn.viettel.okrkpi/services-go/vtplatform/otel"
 )
@@ -67,6 +69,22 @@ func main() {
 
 	go maintain(ctx, pool, cfg.MaintainInterval, log)
 
+	// Luồng SSE qua Valkey Streams (DV-12-02); một địa chỉ là nút đơn, nhiều địa chỉ là cluster.
+	var hub *rt.Hub
+	var notifier *rt.Notifier
+	if len(cfg.ValkeyAddrs) > 0 {
+		rdb := redis.NewUniversalClient(&redis.UniversalOptions{Addrs: cfg.ValkeyAddrs,
+			Password: os.Getenv("VALKEY_PASSWORD"), PoolSize: 4 * rt.BusShards})
+		defer rdb.Close()
+		hub = rt.NewHub(rdb, log)
+		hubCtx, hubStop := context.WithCancel(context.Background())
+		defer hubStop()
+		go hub.Run(hubCtx)
+		notifier = &rt.Notifier{Pub: rt.Publisher{R: rdb}, Reader: store.Reader{Pool: pool}, Log: log}
+	} else {
+		log.Warn("chưa cấu hình VALKEY_ADDRS, tắt luồng thông báo thời gian thực")
+	}
+
 	if len(cfg.KafkaBrokers) > 0 {
 		proc, err := consume.NewProcessor(store.Beginner{Pool: pool}, log)
 		if err != nil {
@@ -79,6 +97,15 @@ func main() {
 			os.Exit(1)
 		}
 		c.OTel = prov
+		if notifier != nil {
+			proc.Created = func(ctx context.Context, tenantID string, items []consume.Created) {
+				byUser := map[string][]string{}
+				for _, it := range items {
+					byUser[it.RecipientID] = append(byUser[it.RecipientID], it.NotificationID)
+				}
+				notifier.Notify(ctx, tenantID, byUser)
+			}
+		}
 		defer c.Close()
 		go func() { _ = c.Run(ctx) }()
 	} else {
@@ -102,17 +129,23 @@ func main() {
 		log.Warn("chưa cấu hình khoá mã hoá trường C2, tắt API thiết bị và tuỳ chọn kênh")
 	}
 
+	deps := api.Deps{
+		Inbox:     store.Reader{Pool: pool},
+		Prefs:     prefStore,
+		Ready:     func(ctx context.Context) error { return pool.Ping(ctx) },
+		Log:       log,
+		OTel:      prov,
+		MetricSet: consume.MetricNames,
+	}
+	if hub != nil {
+		deps.Stream = hub
+		deps.Unread = notifier.Unread
+		deps.Gauges = map[string]func() int64{"notify_sse_connections": hub.Connections}
+	}
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
 		// Đọc hộp thông báo dùng pool chính vì đánh dấu đã đọc cần ghi; pool đọc dành cho bản sao (suy luận).
-		Handler: api.Handler(api.Deps{
-			Inbox:     store.Reader{Pool: pool},
-			Prefs:     prefStore,
-			Ready:     func(ctx context.Context) error { return pool.Ping(ctx) },
-			Log:       log,
-			OTel:      prov,
-			MetricSet: consume.MetricNames,
-		}),
+		Handler:           api.Handler(deps),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -129,6 +162,10 @@ func main() {
 	<-ctx.Done()
 	sctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
+	if hub != nil {
+		// Ngừng nhận kết nối SSE mới, đóng dần kết nối hiện có trong 30 giây để client nối sang pod khác.
+		go hub.Drain(30 * time.Second)
+	}
 	_ = srv.Shutdown(sctx)
 	_ = prov.Shutdown(sctx)
 	log.Info("notification-service đã dừng")

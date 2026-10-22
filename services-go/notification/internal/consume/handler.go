@@ -45,6 +45,14 @@ type Processor struct {
 	Writer *store.Writer
 	Guard  *inbox.Guard
 	Log    *slog.Logger
+	// Created được gọi sau khi giao dịch cam kết với các thông báo mới (DV-12-02 đẩy SSE); tuỳ chọn.
+	Created func(ctx context.Context, tenantID string, items []Created)
+}
+
+// Created là một thông báo vừa ghi.
+type Created struct {
+	RecipientID    string
+	NotificationID string
 }
 
 // NewProcessor tạo Processor với inbox notify.inbox_processed.
@@ -99,8 +107,9 @@ func (p *Processor) Process(ctx context.Context, m Message) (Result, error) {
 	}
 	// Mỗi sự kiện là một việc cần báo độc lập nên không dùng chặn phiên bản aggregate: sự kiện đến muộn
 	// vẫn sinh thông báo; chống trùng dựa vào inbox và UQ (created_day, tenant, source_event_id, người nhận).
-	created := 0
+	var made []Created
 	outcome, err := p.Guard.Process(ctx, p.Pool, ev, func(ctx context.Context, tx vdb.Tx, e inbox.IncomingEvent) error {
+		made = made[:0]
 		recipients := plan.recipients
 		if plan.category != "" {
 			subs, err := store.SubscribersOf(ctx, tx, plan.category)
@@ -140,7 +149,7 @@ func (p *Processor) Process(ctx context.Context, m Message) (Result, error) {
 				return err
 			}
 			if ins {
-				created++
+				made = append(made, Created{RecipientID: r, NotificationID: store.NotificationID(e.EventID, r).String()})
 			}
 		}
 		return nil
@@ -151,7 +160,10 @@ func (p *Processor) Process(ctx context.Context, m Message) (Result, error) {
 		}
 		return Result{}, err
 	}
-	return Result{Outcome: outcome, Created: created}, nil
+	if len(made) > 0 && p.Created != nil {
+		p.Created(ctx, tenantID, made)
+	}
+	return Result{Outcome: outcome, Created: len(made)}, nil
 }
 
 type plan struct {

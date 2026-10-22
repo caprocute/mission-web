@@ -40,13 +40,18 @@ type Inbox interface {
 
 // Deps là phụ thuộc của máy chủ.
 type Deps struct {
-	Inbox     Inbox
-	Prefs     Prefs // nil khi chưa cấu hình khoá mã hoá trường C2
+	Inbox  Inbox
+	Prefs  Prefs // nil khi chưa cấu hình khoá mã hoá trường C2
+	Stream Stream
+	// Unread nhận số chưa đọc mới sau khi đánh dấu đã đọc để đẩy sự kiện `unread` (tuỳ chọn).
+	Unread    func(ctx context.Context, tenantID, userID string, unread int)
 	Ready     func(ctx context.Context) error
 	Log       *slog.Logger
 	OTel      *otel.Provider
 	Verifier  func(ctx context.Context, rawToken string) (map[string]any, error)
 	MetricSet []string
+	// Gauges là số đo tức thời hiển thị ở /metrics, ví dụ số kết nối SSE cho HPA.
+	Gauges map[string]func() int64
 }
 
 // Handler dựng bộ định tuyến HTTP.
@@ -76,6 +81,9 @@ func Handler(d Deps) http.Handler {
 				out[n] = d.OTel.CounterValue(n)
 			}
 		}
+		for n, f := range d.Gauges {
+			out[n] = f()
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(out)
 	})
@@ -84,6 +92,7 @@ func Handler(d Deps) http.Handler {
 	authed.HandleFunc("GET "+Base+"/notifications", d.list)
 	authed.HandleFunc("POST "+Base+"/notifications/read", d.markRead)
 	d.routePrefs(authed)
+	authed.HandleFunc("GET "+Base+"/notifications/stream", d.stream)
 	mw := tenant.Middleware(tenant.MiddlewareConfig{TokenVerifier: d.Verifier})
 	mux.Handle(Base+"/", mw(authed))
 	if d.OTel != nil {
@@ -209,6 +218,9 @@ func (d Deps) markRead(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		d.internal(w, r, err)
 		return
+	}
+	if d.Unread != nil && updated > 0 {
+		d.Unread(r.Context(), tenantID, userID, unread)
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"updated": updated, "unreadCount": unread})
 }
