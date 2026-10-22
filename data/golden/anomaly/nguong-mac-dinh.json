@@ -40,6 +40,18 @@
    "params": {
     "taskIncreasePercent": 50
    }
+  },
+  {
+   "signalCode": "SUA_SAU_KHOA",
+   "enabled": true,
+   "params": {}
+  },
+  {
+   "signalCode": "MIEN_TRU_LAP",
+   "enabled": true,
+   "params": {
+    "exemptionsIn2Quarters": 3
+   }
   }
  ]
 }

@@ -17,6 +17,14 @@ MAU: dict[str, str] = {
     "SO_NHIEM_VU_TANG_KHOI_LUONG_KHONG_DOI":
         "Số nhiệm vụ tăng từ {SO_NHIEM_VU_KY_TRUOC} lên {SO_NHIEM_VU} trong khi tổng khối lượng gần như không đổi",
     "NHIEU_NHIEM_VU_CUNG_KE_HOACH_CUNG_HAN": "{SO_NHIEM_VU_CUNG_HAN} nhiệm vụ cùng mục kế hoạch và cùng hạn",
+    "NGHIEM_THU_SAU_TAM_TINH": "Nhiệm vụ được nghiệm thu sau khi đã tính điểm tạm, điểm thay đổi {CHENH_DIEM} điểm",
+    "MUC_TIEU_DUYET_SAU_TAM_TINH": "Mục tiêu được duyệt sau khi đã tính điểm tạm, điểm thay đổi {CHENH_DIEM} điểm",
+    "SUA_SAU_KHOA_KY": "Dữ liệu được sửa sau khi đã khoá kỳ, điểm thay đổi {CHENH_DIEM} điểm",
+    "MIEN_TRU_KHACH_QUAN_LAP_LAI":
+        "Người duyệt chấp nhận nguyên nhân khách quan {SO_LAN_MIEN_TRU} lần trong thời gian xét",
+    "TY_LE_CHAP_NHAN_KHACH_QUAN_CAO":
+        "Người duyệt chấp nhận {TY_LE_CHAP_NHAN_PHAN_TRAM}% trong {SO_DE_NGHI_KHACH_QUAN} đề nghị khai nguyên nhân"
+        " khách quan, cao hơn mức chung {TY_LE_CHUNG_PHAN_TRAM}%",
 }
 
 

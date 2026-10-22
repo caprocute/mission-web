@@ -1,5 +1,5 @@
 {
- "_ghi_chu": "Dữ liệu vàng QT-14 (DV-15-07, DV-15-08): mã '#X' đổi thành UUIDv5 cố định theo tenant khi nạp; tenant A có bộ ngưỡng mặc định, tenant B lỗi khi lấy ngưỡng, tenant D có dữ liệu như A với ngưỡng nguong-thay-doi.json. Hồ sơ dấu hiệu 1 có 'tu','td' (mức tự đề xuất, thẩm định) và 'diem_tu','diem_td'; hồ sơ dấu hiệu 2 có 'qd' (mức quyết định) và 'diem'. 'okr' cho dấu hiệu 3, 'cap_nhat' (ngày cập nhật tiến độ của một nhiệm vụ mỗi đơn vị, kỳ Q3) cho dấu hiệu 5, 'nhom_nhiem_vu' (nhiệm vụ cá nhân chủ trì) cho dấu hiệu 7; 'lich' là lịch ngày nghỉ, làm bù trả qua getWorkingCalendar.",
+ "_ghi_chu": "Dữ liệu vàng QT-14 (DV-15-07, DV-15-08): mã '#X' đổi thành UUIDv5 cố định theo tenant khi nạp; tenant A có bộ ngưỡng mặc định, tenant B lỗi khi lấy ngưỡng, tenant D có dữ liệu như A với ngưỡng nguong-thay-doi.json. Hồ sơ dấu hiệu 1 có 'tu','td' (mức tự đề xuất, thẩm định) và 'diem_tu','diem_td'; hồ sơ dấu hiệu 2 có 'qd' (mức quyết định) và 'diem'. 'okr' cho dấu hiệu 3, 'cap_nhat' (ngày cập nhật tiến độ của một nhiệm vụ mỗi đơn vị, kỳ Q3) cho dấu hiệu 5, 'nhom_nhiem_vu' (nhiệm vụ cá nhân chủ trì) cho dấu hiệu 7; 'lich' là lịch ngày nghỉ, làm bù trả qua getWorkingCalendar. 'sua_sau_khoa' cho dấu hiệu 6 (DV-15-09): hồ sơ có ảnh chụp điểm tạm tính, ảnh chụp sau và mốc khoá; nhiệm vụ cá nhân chủ trì có thời điểm nghiệm thu, sửa; mục tiêu cá nhân có thời điểm duyệt. 'de_nghi' cho dấu hiệu 8: mỗi nhóm là 'so' đề nghị cùng người duyệt, kỳ, loại, trạng thái, nguyên nhân khai ('khai') và kết luận ('ket_luan'); mã đề nghị là DN-<người duyệt>-<kỳ>-<số thứ tự>, thời điểm quyết định tăng dần theo thứ tự.",
  "luong": "NHA_NUOC",
  "ky": [
   {
@@ -645,5 +645,152 @@
     "han": "2026-09-20"
    }
   ]
- }
+ },
+ "sua_sau_khoa": {
+  "don_vi": "US",
+  "ho_so": [
+   {
+    "ma": "S1Q3",
+    "nguoi": "S1",
+    "ky": "Q3",
+    "tam_tinh": {
+     "luc": "2026-09-20 08:00:00",
+     "diem": 80
+    },
+    "anh_sau": {
+     "luc": "2026-10-05 08:00:00",
+     "diem": 86,
+     "loai": "CHOT_KY"
+    },
+    "khoa": "2026-10-05 09:00:00"
+   },
+   {
+    "ma": "S2Q3",
+    "nguoi": "S2",
+    "ky": "Q3",
+    "tam_tinh": {
+     "luc": "2026-09-20 08:00:00",
+     "diem": 75
+    },
+    "khoa": "2026-10-05 09:00:00"
+   }
+  ],
+  "nhiem_vu": [
+   {
+    "ma": "NV-S1-1",
+    "nguoi": "S1",
+    "ky": "Q3",
+    "nghiem_thu": "2026-09-25 10:00:00",
+    "sua": "2026-09-25 10:00:00"
+   },
+   {
+    "ma": "NV-S1-2",
+    "nguoi": "S1",
+    "ky": "Q3",
+    "nghiem_thu": "2026-09-10 10:00:00",
+    "sua": "2026-09-10 10:00:00"
+   },
+   {
+    "ma": "NV-S1-3",
+    "nguoi": "S1",
+    "ky": "Q3",
+    "sua": "2026-10-10 10:00:00"
+   },
+   {
+    "ma": "NV-S2-1",
+    "nguoi": "S2",
+    "ky": "Q3",
+    "nghiem_thu": "2026-09-15 10:00:00",
+    "sua": "2026-09-15 10:00:00"
+   }
+  ],
+  "muc_tieu": [
+   {
+    "ma": "MT-S1",
+    "nguoi": "S1",
+    "ky": "Q3",
+    "duyet": "2026-09-22 10:00:00"
+   },
+   {
+    "ma": "MT-S2",
+    "nguoi": "S2",
+    "ky": "Q3",
+    "duyet": "2026-07-05 10:00:00"
+   }
+  ]
+ },
+ "de_nghi": [
+  {
+   "nguoi_duyet": "R1",
+   "ky": "Q3",
+   "so": 1,
+   "loai": "GIA_HAN",
+   "trang_thai": "DA_DUYET",
+   "khai": "KHACH_QUAN",
+   "ket_luan": "KHACH_QUAN"
+  },
+  {
+   "nguoi_duyet": "R1",
+   "ky": "Q4",
+   "so": 2,
+   "loai": "GIA_HAN",
+   "trang_thai": "DA_DUYET",
+   "khai": "KHACH_QUAN",
+   "ket_luan": "KHACH_QUAN"
+  },
+  {
+   "nguoi_duyet": "R2",
+   "ky": "Q4",
+   "so": 5,
+   "loai": "GIA_HAN",
+   "trang_thai": "DA_DUYET",
+   "khai": "KHACH_QUAN",
+   "ket_luan": "KHACH_QUAN"
+  },
+  {
+   "nguoi_duyet": "R2",
+   "ky": "Q4",
+   "so": 1,
+   "loai": "GIA_HAN",
+   "trang_thai": "TU_CHOI",
+   "khai": "KHACH_QUAN",
+   "ket_luan": null
+  },
+  {
+   "nguoi_duyet": "R4",
+   "ky": "Q4",
+   "so": 1,
+   "loai": "GIA_HAN",
+   "trang_thai": "DA_DUYET",
+   "khai": "KHACH_QUAN",
+   "ket_luan": "KHACH_QUAN"
+  },
+  {
+   "nguoi_duyet": "R4",
+   "ky": "Q4",
+   "so": 5,
+   "loai": "GIA_HAN",
+   "trang_thai": "DA_DUYET",
+   "khai": "KHACH_QUAN",
+   "ket_luan": "CHU_QUAN"
+  },
+  {
+   "nguoi_duyet": "R4",
+   "ky": "Q4",
+   "so": 3,
+   "loai": "DOI_SO_LUONG",
+   "trang_thai": "DA_DUYET",
+   "khai": "KHACH_QUAN",
+   "ket_luan": "KHACH_QUAN"
+  },
+  {
+   "nguoi_duyet": "R5",
+   "ky": "Q4",
+   "so": 6,
+   "loai": "GIA_HAN",
+   "trang_thai": "TU_CHOI",
+   "khai": "KHACH_QUAN",
+   "ket_luan": null
+  }
+ ]
 }

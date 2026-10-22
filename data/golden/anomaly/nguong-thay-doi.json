@@ -34,6 +34,13 @@
     "taskIncreasePercent": 80,
     "sameDueTasks": 6
    }
+  },
+  {
+   "signalCode": "MIEN_TRU_LAP",
+   "enabled": true,
+   "params": {
+    "exemptionsIn2Quarters": 10
+   }
   }
  ]
 }

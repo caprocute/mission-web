@@ -228,7 +228,7 @@ def load_golden(ch: migrate.ClickHouse, db: str) -> None:
     rows: dict[str, list[dict[str, Any]]] = {
         "dim_period": [], "fact_appraisal_profile": [], "fact_rating": [], "fact_score": [], "fact_okr_objective": [],
         "fact_okr_key_result": [], "fact_okr_checkin": [], "fact_task": [], "fact_task_progress": [],
-        "fact_task_assignee": []}
+        "fact_task_assignee": [], "fact_task_change_request": []}
     for t in ("A", "B", "D"):
         tenant = sym(t)
 
@@ -259,6 +259,7 @@ def load_golden(ch: migrate.ClickHouse, db: str) -> None:
                 rows["fact_score"].append({**common, "id": snap, "total_score": h["diem"], "is_current": 1,
                                            "auto_rating_code": h["qd"]})
         load_signals_3_5_7(data, base, tenant, tid, rows)
+        load_signals_6_8(data, base, tenant, tid, rows)
     for table, items in rows.items():
         ch.run(f"INSERT INTO {db}.{table} FORMAT JSONEachRow\n" + "\n".join(json.dumps(r) for r in items))
 
@@ -313,6 +314,48 @@ def load_signals_3_5_7(data: dict[str, Any], base: dict[str, Any], tenant: str, 
         rows["fact_appraisal_profile"].append({**t0, "id": tid(h["ma"]), "period_id": tid(h["ky"]),
                                                "person_key": person_key(h["nguoi"]), "org_unit_id": tid(g["don_vi"]),
                                                "flow": flow, "status": "DANG_TU_DANH_GIA"})
+
+
+def load_signals_6_8(data: dict[str, Any], base: dict[str, Any], tenant: str, tid: Any,
+                     rows: dict[str, list[dict[str, Any]]]) -> None:
+    """Dữ liệu dấu hiệu 6 (sửa sau mốc tạm tính, khoá kỳ) và 8 (đề nghị gia hạn, miễn trừ khách quan) của DV-15-09."""
+    t0 = {**base, "tenant_id": tenant, "period_bucket": 20263}
+    g = data["sua_sau_khoa"]
+    for h in g["ho_so"]:
+        common = {**t0, "period_id": tid(h["ky"]), "person_key": person_key(h["nguoi"]),
+                  "org_unit_id": tid(g["don_vi"]), "flow": data["luong"]}
+        rows["fact_appraisal_profile"].append({**common, "id": tid(h["ma"]), "status": "DA_QUYET_DINH",
+                                               "locked_at": h.get("khoa")})
+        snaps = [("TAM_TINH", h["tam_tinh"])] + ([(h["anh_sau"]["loai"], h["anh_sau"])] if "anh_sau" in h else [])
+        for kind, sn in snaps:
+            rows["fact_score"].append({**common, "id": tid(f"{h['ma']}:{kind}"), "profile_id": tid(h["ma"]),
+                                       "snapshot_kind": kind, "total_score": sn["diem"], "computed_at": sn["luc"],
+                                       "is_current": int(kind != "TAM_TINH" or "anh_sau" not in h)})
+    for n in g["nhiem_vu"]:
+        rows["fact_task"].append({**t0, "id": tid(n["ma"]), "period_id": tid(n["ky"]), "code": n["ma"],
+                                  "due_date": "2026-09-30", "status": "HOAN_THANH" if "nghiem_thu" in n else
+                                  "DANG_THUC_HIEN", "completed_at": n.get("nghiem_thu"),
+                                  "created_at": "2026-07-01 00:00:00", "updated_at": n["sua"]})
+        rows["fact_task_assignee"].append({
+            **t0, "id": tid(f"{n['ma']}:pc"), "task_id": tid(n["ma"]), "assignee_type": "CA_NHAN",
+            "person_key": person_key(n["nguoi"]), "resolved_unit_id": tid(g["don_vi"]), "role": "CHU_TRI",
+            "valid_from": "2026-01-01", "valid_to": "2299-12-31"})
+    for o in g["muc_tieu"]:
+        rows["fact_okr_objective"].append({**t0, "id": tid(o["ma"]), "period_id": tid(o["ky"]), "owner_type": "CA_NHAN",
+                                           "owner_key": person_key(o["nguoi"]), "tier": 3, "status": "DA_DUYET",
+                                           "approved_at": o["duyet"]})
+    seq: dict[tuple[str, str], int] = {}
+    for grp in data["de_nghi"]:
+        for _ in range(grp["so"]):
+            i = seq[(grp["nguoi_duyet"], grp["ky"])] = seq.get((grp["nguoi_duyet"], grp["ky"]), 0) + 1
+            code = f"DN-{grp['nguoi_duyet']}-{grp['ky']}-{i}"
+            minute = len(rows["fact_task_change_request"])
+            rows["fact_task_change_request"].append({
+                **t0, "id": tid(code), "period_id": tid(grp["ky"]), "task_id": tid(f"{code}:nv"),
+                "request_type": grp["loai"], "status": grp["trang_thai"], "is_objective_reason": 1,
+                "cause_claimed": grp["khai"], "cause_decided": grp["ket_luan"],
+                "requester_key": person_key("nguoi-de-nghi"), "decider_key": person_key(grp["nguoi_duyet"]),
+                "decided_at": f"2026-12-01 {8 + minute // 60:02d}:{minute % 60:02d}:00"})
 
 
 def _register_schema(registry: str) -> None:

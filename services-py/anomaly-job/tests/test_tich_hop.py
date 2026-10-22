@@ -1,6 +1,6 @@
-"""Kiểm thử tích hợp DV-15-07, DV-15-08: luật dấu hiệu 1, 2, 3, 5, 7 trên dữ liệu vàng, ngưỡng tenant khác cho kết quả
-khác, chạy lại không sinh cảnh báo mới, phát EVT-20 đúng hợp đồng (Avro theo sổ đăng ký, khoá, tiêu đề, event_id
-tất định), và không có tên người hay nội dung C2."""
+"""Kiểm thử tích hợp DV-15-07, DV-15-08, DV-15-09: luật dấu hiệu 1, 2, 3, 5, 6, 7, 8 trên dữ liệu vàng, ngưỡng tenant
+khác cho kết quả khác, chạy lại không sinh cảnh báo mới, phát EVT-20 đúng hợp đồng (Avro theo sổ đăng ký, khoá, tiêu
+đề, event_id tất định), và không có tên người hay nội dung C2."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ from app.thresholds import ServiceToken, ThresholdClient
 from tests.conftest import GOLDEN, TOPIC, Env, Stub, sym
 
 EVIDENCE = re.compile(r"^(dieu_kien:[A-Z_]+|so_lieu:[A-Z_]+=[0-9.]+|[a-z_]+:[0-9a-f-]{36})$")
-TOTAL_A = 14
+TOTAL_A = 17
 
 
 def job_ch(env: Env) -> ClickHouse:
@@ -77,13 +77,16 @@ def first_run(env: Env) -> Any:
 
 def test_rules_match_golden_cases_and_fail_closed(env: Env, first_run: Any) -> None:
     assert first_run.failed_tenants == [sym("B")]
-    assert first_run.new_alerts == {"TU_CHAM_CAO": 2, "CAO_BANG": 2, "MUC_TIEU_DE": 4, "CAP_NHAT_DON": 3, "CHE_NHO": 3}
+    assert first_run.new_alerts == {"TU_CHAM_CAO": 2, "CAO_BANG": 2, "MUC_TIEU_DE": 4, "CAP_NHAT_DON": 3, "CHE_NHO": 3,
+                                    "SUA_SAU_KHOA": 1, "MIEN_TRU_LAP": 2}
+    assert first_run.resolved == 0
     rows = stored(env)
     assert {r["tenant_id"] for r in rows} == {sym("A")}
     assert got(rows) == expected()
-    assert {r["model_version"] for r in rows} == {"luat-2026.10.2;nguong-v1"}
+    assert {r["model_version"] for r in rows} == {"luat-2026.10.3;nguong-v1"}
     calls = [c for c in Stub.calls if c[1] == sym("A")]
     assert calls and all(c[2] and c[2].startswith("Bearer tok-") for c in calls)
+    assert {r["severity"] for r in rows if r["signal_code"] == "SUA_SAU_KHOA"} == {"CAO"}
     for r in rows:  # mỗi điều kiện có mẫu giải thích và đủ số liệu
         assert giai_thich(json.loads(r["evidence_chain"])).endswith(".")
 
@@ -91,7 +94,7 @@ def test_rules_match_golden_cases_and_fail_closed(env: Env, first_run: Any) -> N
 def test_second_run_adds_nothing(env: Env, first_run: Any) -> None:
     keys = {r["alert_key"] for r in stored(env)}
     again = run_detect(env)
-    assert again.new_alerts == {}
+    assert again.new_alerts == {} and again.resolved == 0
     assert {r["alert_key"] for r in stored(env)} == keys
     assert {r["run_id"] for r in stored(env)} == {first_run.run_id}
 
@@ -153,7 +156,7 @@ def test_tenant_thresholds_change_results(env: Env) -> None:
     assert run.failed_tenants == []
     rows = [r for r in stored(env) if r["tenant_id"] == sym("D")]
     assert got(rows) == expected("canh_bao_nguong_thay_doi", "D")
-    assert {r["model_version"] for r in rows} == {"luat-2026.10.2;nguong-v2"}
+    assert {r["model_version"] for r in rows} == {"luat-2026.10.3;nguong-v2"}
 
 
 def test_job_account_cannot_write_elsewhere(env: Env) -> None:

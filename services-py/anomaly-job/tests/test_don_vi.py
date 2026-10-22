@@ -25,6 +25,9 @@ def test_event_id_matches_vtplatform_and_is_stable() -> None:
     assert event_id("0B5C1A9E-1111-4222-8333-944455556666", " abc123 ") == "66ef2863-bc54-5602-bed5-b218f88db08c"
     assert event_id(ROW["tenant_id"], "abc123") == event_id(ROW["tenant_id"], "abc123")
     assert event_id(ROW["tenant_id"], "abc124") != event_id(ROW["tenant_id"], "abc123")
+    # Tín hiệu hết dấu hiệu có id riêng, cũng tất định, để MOD-07 không coi là bản phát lại của cảnh báo.
+    assert event_id(ROW["tenant_id"], "abc123", resolved=True) != event_id(ROW["tenant_id"], "abc123")
+    assert event_id(ROW["tenant_id"], "abc123", True) == event_id(ROW["tenant_id"], "abc123", True)
 
 
 def test_threshold_defaults_and_errors() -> None:
@@ -49,6 +52,8 @@ def test_codec_round_trip_and_rejects_off_contract_rows() -> None:
     rec = fastavro.schemaless_reader(io.BytesIO(raw), codec.schema, None)
     assert rec["alertKey"] == "abc123" and str(rec["subjectId"]) == ROW["subject_id"]
     assert json.loads(rec["evidenceChain"])[0] == "dieu_kien:CUNG_MOT_MUC"
+    rec = fastavro.schemaless_reader(io.BytesIO(codec.encode(ROW, resolved=True)), codec.schema, None)
+    assert (rec["alertKey"], rec["severity"]) == ("abc123", "HET_DAU_HIEU")
     with pytest.raises(PublishError):
         codec.encode({**ROW, "severity": "MEDIUM"})
     with pytest.raises(PublishError):
@@ -63,6 +68,7 @@ def test_settings_require_secrets_from_env() -> None:
     s = Settings.from_env(env)
     assert s.clickhouse_user == "analytics_dev_anomaly" and s.db == "analytics_dev"
     assert s.registry_url == "http://r/apis/registry/v3" and s.kafka_extra == {"security.protocol": "SSL"}
+    assert not s.publish_resolved and Settings.from_env({**env, "ANOMALY_PUBLISH_RESOLVED": "true"}).publish_resolved
     with pytest.raises(ConfigError, match="OIDC_CLIENT_SECRET"):
         Settings.from_env({k: v for k, v in env.items() if k != "OIDC_CLIENT_SECRET"})
 

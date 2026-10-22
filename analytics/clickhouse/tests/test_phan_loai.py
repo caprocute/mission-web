@@ -23,7 +23,8 @@ SOURCES = {
 }
 # Cột chứa mã một con người cụ thể (TL-03: person_id, actor_id, created_by và các cột cùng nghĩa).
 PERSON_COLUMNS = {"person_id", "actor_id", "created_by", "updated_by", "assigner_id", "acceptor_id", "verified_by",
-                  "approved_by", "owner_person_id", "verifier_person_id", "appraiser_id", "decider_id", "locked_by"}
+                  "approved_by", "owner_person_id", "verifier_person_id", "appraiser_id", "decider_id", "locked_by",
+                  "decided_by", "approver_id"}
 # Thuộc tính định danh trực tiếp: không vào kho phân tích dù phân loại C1 (dim_person chỉ có thuộc tính làm thô).
 IDENTIFYING = {("org_replica", "person_v", "full_name"), ("org_replica", "person_v", "cbccvc_code")}
 COMMENT_RE = re.compile(
@@ -69,7 +70,7 @@ def kafka_tables() -> list[tuple[str, str, str, str, list[tuple[str, bool]]]]:
 
 def test_every_source_table_is_parsed() -> None:
     tables = kafka_tables()
-    assert len(tables) == 17
+    assert len(tables) == 18
     assert {(s, t) for _, _, s, t, _ in tables} >= {("task", "task_progress"), ("org", "subject_group"),
                                                    ("appraisal", "rating_proposal"), ("org_replica", "person_v")}
 

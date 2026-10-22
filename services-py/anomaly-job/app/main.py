@@ -37,8 +37,8 @@ def main(argv: list[str] | None = None) -> int:
         producer = Producer({"bootstrap.servers": s.kafka_bootstrap, "enable.idempotence": True, "acks": "all",
                              "client.id": f"anomaly-job-{s.cell}", **s.kafka_extra})
         try:
-            n = Publisher(ch, producer, codec, registry_global_id(http, s.registry_url, codec.schema_text)) \
-                .publish_pending()
+            n = Publisher(ch, producer, codec, registry_global_id(http, s.registry_url, codec.schema_text),
+                          publish_resolved=s.publish_resolved).publish_pending()
             logging.getLogger("anomaly-job").info("đã phát %d EVT-20", n)
         except PublishError as e:
             logging.getLogger("anomaly-job").error("%s", e)

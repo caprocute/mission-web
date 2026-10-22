@@ -4,7 +4,7 @@
 -- loại đối tượng KR nên đối tượng là đơn vị sở hữu mục tiêu, mã KR và mục tiêu nằm trong chuỗi bằng chứng (suy luận).
 -- Mức theo độ vượt ngưỡng e (đạt sớm: số ngày cửa sổ / ngày đạt; chỉ tiêu thấp: độ lệch / ngưỡng): thoả cả hai điều
 -- kiện hoặc e ≥ 2 là CAO, e ≥ 1,5 là VUA, còn lại THAP (suy luận).
-INSERT INTO anomaly_out (tenant_id, alert_key, signal_code, severity, subject_type, subject_id, period_id,
+INSERT INTO anomaly_run (tenant_id, alert_key, signal_code, severity, subject_type, subject_id, period_id,
                          evidence_chain, model_version, detected_at, run_id, published_at, _version)
 WITH
 kr AS
@@ -68,4 +68,3 @@ SELECT {tenant:UUID} AS tenant_id,
        NULL AS published_at,
        1 AS _version
 FROM phat_hien
-WHERE alert_key NOT IN (SELECT alert_key FROM anomaly_out WHERE tenant_id = {tenant:UUID})
