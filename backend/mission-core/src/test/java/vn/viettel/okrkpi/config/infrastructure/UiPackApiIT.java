@@ -146,7 +146,7 @@ class UiPackApiIT extends ContractConformanceTest {
     update.set("tokens", draft.get("tokens"));
     update.set("layouts", draft.get("layouts"));
     update.set("assets", draft.get("assets"));
-    update.put("componentRegistryVersion", "1.0.0");
+    update.put("componentRegistryVersion", "2026.3");
     update.put("elderMode", true);
     update.put("fewSteps", true);
 
@@ -164,6 +164,20 @@ class UiPackApiIT extends ContractConformanceTest {
     assertThat(invalid.getResponse().getStatus()).isEqualTo(422);
     assertThat(body(invalid).get("errors").findValuesAsText("field"))
         .contains("layouts.home.props.title");
+    // Bố cục kiểm theo registry 2026.3 (CORE-08-09).
+    ObjectNode unknown = update.deepCopy();
+    ((ObjectNode) unknown.at("/layouts/home/children/0")).put("component", "vt.widget.kpiTile");
+    MvcResult unknownResult = perform(withBody(put(v), "\"1\"", unknown.toString()));
+    assertThat(unknownResult.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(unknownResult).get("code").asText()).isEqualTo("UI-422-UNKNOWN-COMPONENT");
+    ObjectNode cel = update.deepCopy();
+    ((ObjectNode) cel.at("/layouts/home/children/0")).put("visibleWhen", "user.unitId");
+    MvcResult celResult = perform(withBody(put(v), "\"1\"", cel.toString()));
+    assertThat(body(celResult).get("code").asText()).isEqualTo("UI-422-CEL-INVALID");
+    ObjectNode http = update.deepCopy();
+    ((ObjectNode) http.at("/layouts/home/children/0/props")).put("limit", 30);
+    MvcResult propsResult = perform(withBody(put(v), "\"1\"", http.toString()));
+    assertThat(body(propsResult).get("code").asText()).isEqualTo("COMMON-422-VALIDATION");
 
     MvcResult preview = perform(get(v + "/preview").param("mode", "elderly"));
     assertThat(preview.getResponse().getStatus()).isEqualTo(200);

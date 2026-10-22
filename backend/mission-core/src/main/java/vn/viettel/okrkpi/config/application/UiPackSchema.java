@@ -77,8 +77,8 @@ public final class UiPackSchema {
     }
   }
 
-  /** Lược đồ dựng sẵn, cho kiểm thử. */
-  static UiPackSchema of(JsonNode schema) {
+  /** Lược đồ dựng sẵn: kiểm thử, {@code propsSchema} của component registry (CORE-08-09). */
+  public static UiPackSchema of(JsonNode schema) {
     return new UiPackSchema(schema);
   }
 

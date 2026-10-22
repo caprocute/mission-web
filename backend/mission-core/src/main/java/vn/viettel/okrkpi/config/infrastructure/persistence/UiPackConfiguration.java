@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.config.infrastructure.persistence;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -27,7 +28,8 @@ import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 
 /**
  * CORE-08-08: UI Pack và vòng duyệt phiên bản của MOD-08 trên {@code configDataSource}. Bộ kiểm tra
- * tự động ({@link UiPackChecker}) do CORE-08-09, CORE-08-10 đăng ký; chưa có thì chỉ kiểm lược đồ.
+ * tự động ({@link UiPackChecker}) do CORE-08-09 (bố cục), CORE-08-10 đăng ký, chạy theo
+ * {@code @Order}.
  */
 @Configuration(proxyBeanMethods = false)
 public class UiPackConfiguration {
@@ -102,7 +104,7 @@ public class UiPackConfiguration {
     return new UiPackService(
         uiPackRepository,
         uiPackNotices,
-        checker.getIfAvailable(() -> UiPackChecker.NONE),
+        composite(checker.orderedStream().toList()),
         uiPackJobs,
         new JdbcRoleHolders(JdbcClient.create(dataSource)),
         configAudit,
@@ -110,5 +112,14 @@ public class UiPackConfiguration {
         Clock.systemUtc(),
         uiPackCheckThreads.pool(),
         new TransactionTemplate(tm));
+  }
+
+  /** Gộp các bộ kiểm theo thứ tự {@code @Order}; kết quả nối tiếp nhau. */
+  static UiPackChecker composite(List<UiPackChecker> checkers) {
+    if (checkers.isEmpty()) {
+      return UiPackChecker.NONE;
+    }
+    return (tenant, document) ->
+        checkers.stream().flatMap(c -> c.check(tenant, document).stream()).toList();
   }
 }
