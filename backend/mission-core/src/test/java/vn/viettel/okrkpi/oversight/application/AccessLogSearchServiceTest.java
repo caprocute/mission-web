@@ -12,6 +12,7 @@ import vn.viettel.okrkpi.oversight.application.AccessLogSearchService.Searcher;
 import vn.viettel.okrkpi.oversight.application.AuditIndexingService.AuditRecord;
 import vn.viettel.okrkpi.oversight.application.AuditIndexingService.Target;
 import vn.viettel.okrkpi.oversight.application.port.AuditIndexReader;
+import vn.viettel.okrkpi.oversight.application.port.AuditIndexUnavailableException;
 import vn.viettel.okrkpi.oversight.domain.AccessLogQuery;
 import vn.viettel.okrkpi.oversight.domain.AuditDocument;
 import vn.viettel.okrkpi.shared.authz.StepUpRequiredException;
@@ -153,6 +154,17 @@ class AccessLogSearchServiceTest {
     assertThat(one).hasSize(1);
     assertThat(one.get(0).column()).isNull();
     assertThat(one.get(0).system()).isTrue();
+  }
+
+  @Test
+  void portTypesCarryPositionAndHideCause() {
+    AuditIndexReader.After after = new AuditIndexReader.After(AT, "e:0");
+    assertThat(after.occurredAt()).isEqualTo(AT);
+    assertThat(after.docId()).isEqualTo("e:0");
+    IllegalStateException cause = new IllegalStateException("x");
+    AuditIndexUnavailableException e =
+        new AuditIndexUnavailableException("không truy cập được", cause);
+    assertThat(e).hasMessage("không truy cập được").hasCause(cause);
   }
 
   private AuditDocument doc() {
