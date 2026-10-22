@@ -111,11 +111,11 @@ class OkrPortRecordsTest {
             new ApprovalStarted("pi", A, null),
             new KeyResultData(
                 null, "t", null, "u", null, null, null, null, null, null, null, null, null, null,
-                null),
+                null, null, null),
             new ObjectiveData("t", null, 1, null, null, null),
             new ObjectiveText("t", null, 1),
             new ObjectiveHead(A, A, 1, "TAP_THE", A, null, "O1", null, "NHAP", 0),
-            new MilestoneDraft(1, LocalDate.EPOCH, null),
+            new MilestoneDraft(null, 1, LocalDate.EPOCH, null),
             new KeyResultCode(A, "KR"),
             new ReviewRow(A, 1, A, "DUYET", null, Instant.EPOCH),
             new ReviewTarget(A, A, 1, A, null, "O1", "t", 1, "CHO_DUYET", 1, A, null, 0),

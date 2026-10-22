@@ -32,7 +32,8 @@ public class JdbcOkrReadRepository implements OkrReadRepository {
           + " k.unit, k.baseline_value, k.target_value, k.current_value, k.direction, k.weight,"
           + " k.due_date, k.verifier_person_id, k.data_source, k.confidence, k.status, k.risk_flag,"
           + " k.checkin_frequency, k.content_source, k.ai_assisted, k.ai_suggestion_id,"
-          + " k.formula_text, k.row_version, c.value AS c_value, c.confidence AS c_confidence,"
+          + " k.formula_text, k.row_version, k.numerator_label, k.denominator_label,"
+          + " c.value AS c_value, c.confidence AS c_confidence,"
           + " c.checkin_at AS c_at, c.blocker_note AS c_blocker"
           + " FROM okr.key_result k"
           + " LEFT JOIN LATERAL (SELECT value, confidence, checkin_at, blocker_note"
@@ -463,7 +464,9 @@ public class JdbcOkrReadRepository implements OkrReadRepository {
                 rs.getBigDecimal("c_value"),
                 rs.getString("c_confidence"),
                 at,
-                rs.getString("c_blocker")));
+                rs.getString("c_blocker")),
+        rs.getString("numerator_label"),
+        rs.getString("denominator_label"));
   }
 
   private static BasisRow basis(ResultSet rs, int i) throws SQLException {

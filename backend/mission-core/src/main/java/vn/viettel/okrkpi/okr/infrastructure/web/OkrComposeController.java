@@ -557,7 +557,9 @@ public class OkrComposeController {
             body.getFormulaText(),
             body.getCheckinFrequency() == null ? null : body.getCheckinFrequency().getValue(),
             body.getContentSource() == null ? null : body.getContentSource().getValue(),
-            body.getAiSuggestionId());
+            body.getAiSuggestionId(),
+            body.getNumeratorLabel(),
+            body.getDenominatorLabel());
     return idempotency.run(
         tenant,
         actor,
@@ -791,7 +793,9 @@ public class OkrComposeController {
                     k.getFormulaText(),
                     k.getCheckinFrequency() == null ? null : k.getCheckinFrequency().getValue(),
                     k.getContentSource() == null ? null : k.getContentSource().getValue(),
-                    k.getAiSuggestionId()))
+                    k.getAiSuggestionId(),
+                    k.getNumeratorLabel(),
+                    k.getDenominatorLabel()))
         .toList();
   }
 

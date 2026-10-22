@@ -210,13 +210,15 @@ public class OkrReadConfiguration {
       JdbcOkrMilestoneRepository okrMilestoneRepository,
       PeriodApi periods,
       ObjectProvider<WorkingCalendarApi> calendar,
-      ObjectProvider<OkrCheckinDelegatePort> delegates) {
+      ObjectProvider<OkrCheckinDelegatePort> delegates,
+      OkrCheckinService okrCheckinService) {
     return new OkrMilestoneService(
         okrCheckinRepository,
         okrMilestoneRepository,
         periods,
         calendar::getIfAvailable,
         delegates::getIfAvailable,
+        okrCheckinService,
         java.time.Clock.system(VIET_NAM));
   }
 

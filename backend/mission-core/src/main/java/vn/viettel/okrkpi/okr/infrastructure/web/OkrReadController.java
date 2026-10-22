@@ -662,13 +662,12 @@ public class OkrReadController {
             k.contentSource() == null ? null : OkrContentSource.fromValue(k.contentSource()))
         .aiAssisted(k.aiAssisted())
         .aiSuggestionId(k.aiSuggestionId())
+        .numeratorLabel(k.numeratorLabel())
+        .denominatorLabel(k.denominatorLabel())
         .lastCheckin(lastCheckin(k));
   }
 
-  /**
-   * CORE-01-14: kiểu đo {@code MOC} và chiều {@code TOI_DA} (BS-03 DC-04) chưa có trong {@code
-   * okr.yaml} (chờ NEN-044) nên chưa trả ra API; giá trị lạ để trống thay vì lỗi 500.
-   */
+  /** Giá trị ngoài danh mục của hợp đồng để trống thay vì lỗi 500. */
   private static OkrMetricType knownMetricType(String value) {
     return Arrays.stream(OkrMetricType.values())
         .filter(t -> t.getValue().equals(value))
