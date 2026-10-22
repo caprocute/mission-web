@@ -64,7 +64,9 @@ final class DmnSpecs {
           }
         }
         Element output = (Element) rule.getElementsByTagNameNS("*", "outputEntry").item(0);
-        rows.add(new Row(cells, text(output).strip().replace("\"", ""), "", ""));
+        NodeList notes = rule.getElementsByTagNameNS("*", "annotationEntry");
+        rows.add(
+            new Row(cells, text(output).strip().replace("\"", ""), note(notes, 1), note(notes, 2)));
       }
       return new DecisionTableSpec(hitPolicy, columns, rows);
     } catch (IOException
@@ -72,6 +74,17 @@ final class DmnSpecs {
         | org.xml.sax.SAXException e) {
       throw new IllegalStateException("Không đọc được " + file, e);
     }
+  }
+
+  /**
+   * Annotation thứ {@code i} (legal_ref, dieu_khoan, giai_thich, mau_ha_muc); {@code -} là rỗng.
+   */
+  private static String note(NodeList notes, int i) {
+    if (notes.getLength() <= i) {
+      return "";
+    }
+    String t = text((Element) notes.item(i)).strip();
+    return t.equals("-") ? "" : t;
   }
 
   /** {@code rules_json} như {@code PolicyDecisionTableService} lưu. */
