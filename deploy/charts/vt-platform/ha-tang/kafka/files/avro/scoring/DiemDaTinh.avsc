@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "DiemDaTinh",
+  "namespace": "vn.vtokr.scoring.v1",
+  "doc": "EVT-10 · scoring.score.computed.v1 · SVC-07 phát khi tính xong điểm một hồ sơ.",
+  "fields": [
+    {"name": "scoreResultId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "scoring.score_result.id"},
+    {"name": "profileId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "appraisal.appraisal_profile.id"},
+    {"name": "jobKind", "type": "string", "doc": "Loại tác vụ: TAM_TINH, CHOT_KY, TINH_LAI_HAU_KIEM, KIEM_TRA_TAI_LAP"},
+    {"name": "totalScore", "type": {"type": "bytes", "logicalType": "decimal", "precision": 6, "scale": 3}, "doc": "Tổng điểm (numeric(6,3), 0 đến 100)"},
+    {"name": "autoRatingCode", "type": "string", "doc": "Mức xếp loại tính tự động (tham khảo)"},
+    {"name": "inputHash", "type": "bytes", "doc": "Băm tập đầu vào (32 byte)"},
+    {"name": "policyContentHash", "type": "bytes", "doc": "Băm nội dung Policy Pack đã dùng"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

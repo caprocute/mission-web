@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "OrgBootstrap",
+  "namespace": "vn.vtokr.org.v1",
+  "doc": "org.bootstrap.v1 · Topic khởi tạo bản sao: lệnh org-republish của SVC-04 phát trạng thái hiện hành của mọi thực thể tổ chức của một tenant; consumer đọc hết rồi chuyển sang topic thường. Bọc lại đúng lược đồ EVT-14, EVT-15, EVT-16 (suy luận).",
+  "fields": [
+    {"name": "batchId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "(suy luận) Mã lần phát lại"},
+    {"name": "seq", "type": "long", "doc": "(suy luận) Số thứ tự trong lần phát lại"},
+    {"name": "isLast", "type": "boolean", "default": false, "doc": "(suy luận) Bản ghi cuối của lần phát lại"},
+    {"name": "entity", "type": ["vn.vtokr.org.v1.DonViDaThayDoi", "vn.vtokr.org.v1.PhanCongDaThayDoi", "vn.vtokr.org.v1.NhanSuDaThayDoi", "null"], "doc": "(suy luận) Trạng thái thực thể, cùng lược đồ với topic thường; null ở thông điệp đánh dấu (bổ sung DV-04-08)"},
+    {"name": "marker", "type": ["null", "string"], "default": null, "doc": "(bổ sung DV-04-08) BAT_DAU hoặc KET_THUC ở thông điệp đánh dấu đầu, cuối loạt; null ở thông điệp thực thể"},
+    {"name": "entityCounts", "type": ["null", {"type": "map", "values": "long"}], "default": null, "doc": "(bổ sung DV-04-08) Số thực thể theo loại ORG_UNIT, PERSON, ASSIGNMENT; chỉ có ở thông điệp KET_THUC"},
+    {"name": "bucketHashes", "type": ["null", {"type": "map", "values": "string"}], "default": null, "doc": "(bổ sung DV-04-08) Băm tổng hợp theo bucket (khoá 0..255, giá trị hex 16 ký tự), cách tính ở wiki trang 18; chỉ có ở thông điệp KET_THUC"}
+  ]
+}

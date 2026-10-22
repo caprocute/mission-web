@@ -1,0 +1,20 @@
+{
+  "type": "record",
+  "name": "PhanCongDaThayDoi",
+  "namespace": "vn.vtokr.org.v1",
+  "doc": "EVT-15 · org.assignment.changed.v1 · SVC-04 phát toàn bộ trạng thái mới của một phân công.",
+  "fields": [
+    {"name": "assignmentId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "org.assignment.id"},
+    {"name": "personId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người được phân công"},
+    {"name": "unitId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Đơn vị công tác (org.assignment.org_unit_id)"},
+    {"name": "positionId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "Vị trí việc làm"},
+    {"name": "jobTitleId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Chức danh"},
+    {"name": "kind", "type": "string", "doc": "Loại phân công: CHINH, KIEM_NHIEM, DIEU_DONG, BIET_PHAI, TAM_GIU"},
+    {"name": "isPrimary", "type": "boolean", "doc": "Phân công chính"},
+    {"name": "validFrom", "type": {"type": "int", "logicalType": "date"}, "doc": "Ngày bắt đầu hiệu lực"},
+    {"name": "validTo", "type": ["null", {"type": "int", "logicalType": "date"}], "default": null, "doc": "(suy luận) Ngày hết hiệu lực; null nghĩa là vô thời hạn"},
+    {"name": "sourceVersion", "type": "long", "doc": "Phiên bản ở nguồn"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."},
+    {"name": "isHead", "type": "boolean", "default": false, "doc": "(bổ sung CORE-00-03) Người đứng đầu đơn vị; cần cho org_replica.assignment_v.is_head."}
+  ]
+}

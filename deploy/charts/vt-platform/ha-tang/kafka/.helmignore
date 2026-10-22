@@ -1,0 +1,6 @@
+# Không đóng gói công cụ sinh, kiểm thử và ảnh Connect vào chart.
+__pycache__/
+tests/
+image/
+sinh_danh_muc.py
+.gitignore

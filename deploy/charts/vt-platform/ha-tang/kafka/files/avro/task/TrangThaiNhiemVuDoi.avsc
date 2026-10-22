@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "TrangThaiNhiemVuDoi",
+  "namespace": "vn.vtokr.task.v1",
+  "doc": "EVT-06 · task.task.statuschanged.v1 · MOD-02 phát khi trạng thái nhiệm vụ đổi.",
+  "fields": [
+    {"name": "taskId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "task.task.id"},
+    {"name": "fromStatus", "type": ["null", "string"], "default": null, "doc": "Trạng thái trước theo baseline 9.1; null khi tạo mới"},
+    {"name": "toStatus", "type": "string", "doc": "Trạng thái sau theo baseline 9.1, ví dụ DA_GIAO, CHO_NGHIEM_THU"},
+    {"name": "isOverdue", "type": "boolean", "doc": "Cờ quá hạn"},
+    {"name": "reasonCode", "type": ["null", "string"], "default": null, "doc": "Mã lý do chuyển trạng thái"},
+    {"name": "changedBy", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người thực hiện chuyển"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}
