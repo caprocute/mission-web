@@ -122,7 +122,7 @@ def analytics() -> Iterator[Analytics]:
             "ANALYTICS_DICT_PASSWORD": secrets.token_hex(16),
         })
         migrate.migrate(migrate.ClickHouse(http, "default", admin_pw, distributed_ddl_task_timeout="300"), params)
-        assert len(topics) == 16
+        assert len(topics) == 17
         yield Analytics(http, admin_pw, params, bootstrap)
     finally:
         ch.stop()
