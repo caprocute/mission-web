@@ -171,6 +171,12 @@ async def test_output_schema_and_objective_limit() -> None:
     assert bad[0].action == "CHAN"
 
 
+class NoCiteLlm(MockLlm):
+    async def complete(self, messages: list[Message], *, max_tokens: int = 512, temperature: float = 0.2,
+                       json_mode: bool = False) -> Completion:
+        return Completion("Trả lời không trích nguồn.", self.model)
+
+
 class MemStore:
     def __init__(self) -> None:
         self.logged: list[tuple[Entry, list[Block]]] = []
@@ -187,7 +193,8 @@ async def test_every_block_is_logged_by_gateway() -> None:
     assert isinstance(r, dict) and r["blocked"]["ruleCode"] == "OUT_OF_SCOPE" and r["blocked"]["msg"] == "MSG-17-02"
     e, blocks = store.logged[-1]
     assert e.output_text is None and [b.rule_code for b in blocks] == ["OUT_OF_SCOPE"]
-    # Mô hình giả lập không trích nguồn, nên gợi ý có ngữ cảnh bị loại và vẫn ghi nhật ký.
+    # Mô hình không trích nguồn thì gợi ý có ngữ cảnh bị loại và vẫn ghi nhật ký.
+    gw.queue.llm = NoCiteLlm()
     r = await gw.suggest(P, ask("Hệ số tiến độ bị trừ thế nào?", [chunk(1)]))
     assert isinstance(r, dict) and r["blocked"]["ruleCode"] == "OUT_OF_SCOPE"
     assert store.logged[-1][1][-1].detail == {"reason": "NO_SOURCE"}

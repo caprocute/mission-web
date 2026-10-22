@@ -13,6 +13,8 @@ from typing import Protocol
 import httpx
 from prometheus_client import Gauge, Histogram
 
+from app.llm.fake_json import fake_reply
+
 QUEUE_LENGTH = Gauge("ai_inference_queue_length", "Số yêu cầu suy luận đang chờ (chỉ số HPA)")
 IN_FLIGHT = Gauge("ai_inference_in_flight", "Số yêu cầu suy luận đang chạy")
 LATENCY = Histogram("ai_inference_seconds", "Thời gian một lần suy luận", buckets=(0.25, 0.5, 1, 2, 4, 8, 16, 32))
@@ -96,8 +98,10 @@ class MockLlm:
                        json_mode: bool = False) -> Completion:
         if self.delay_s:
             await asyncio.sleep(self.delay_s)
-        digest = hashlib.sha256("\n".join(m.content for m in messages).encode()).hexdigest()[:8]
-        text = '{"answer":"Nội dung gợi ý mẫu ' + digest + '"}' if json_mode else f"Nội dung gợi ý mẫu {digest}."
+        prompt = "\n".join(m.content for m in messages)
+        digest = hashlib.sha256(prompt.encode()).hexdigest()[:8]
+        cite = " [#1]." if "[#1]" in prompt else "."
+        text = fake_reply(prompt, digest) if json_mode else f"Nội dung gợi ý mẫu {digest}{cite}"
         return Completion(text, self._model)
 
 

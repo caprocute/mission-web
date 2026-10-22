@@ -61,20 +61,21 @@ def _chunk(c: psycopg.Connection[Any], tenant: str, cls: str = "C1") -> None:
 
 
 def test_rls_between_tenants(db: dict[str, str]) -> None:
+    ta, tb = str(uuid.uuid4()), str(uuid.uuid4())  # tenant riêng: các kiểm thử khác cùng CSDL ghi vào TENANT_A
     with psycopg.connect(db["svc"]) as c:
         with c.transaction():
-            c.execute("SELECT set_config('app.tenant_id', %s, true)", (TENANT_A,))
-            _chunk(c, TENANT_A)
+            c.execute("SELECT set_config('app.tenant_id', %s, true)", (ta,))
+            _chunk(c, ta)
         with c.transaction():
-            c.execute("SELECT set_config('app.tenant_id', %s, true)", (TENANT_B,))
+            c.execute("SELECT set_config('app.tenant_id', %s, true)", (tb,))
             assert c.execute("SELECT count(*) FROM ai.doc_chunk").fetchone() == (0,)
             with pytest.raises(psycopg.errors.InsufficientPrivilege):
-                _chunk(c, TENANT_A)
+                _chunk(c, ta)
         with c.transaction():
-            c.execute("SELECT set_config('app.tenant_id', %s, true)", (TENANT_A,))
+            c.execute("SELECT set_config('app.tenant_id', %s, true)", (ta,))
             assert c.execute("SELECT count(*) FROM ai.doc_chunk").fetchone() == (1,)
             with pytest.raises(psycopg.errors.CheckViolation):
-                _chunk(c, TENANT_A, "C2")
+                _chunk(c, ta, "C2")
         with c.transaction():
             # Không đặt tenant thì không thấy gì (fail closed).
             assert c.execute("SELECT count(*) FROM ai.doc_chunk").fetchone() == (0,)

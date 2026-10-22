@@ -51,8 +51,33 @@ class Entry:
     kind: str | None = None
     target_ref: str | None = None
     confidence: float | None = None
+    # Đầu ra JSON có cấu trúc đã qua rào chắn PII của ca dùng thì không che thêm, để mã UUID, ngày không bị hỏng.
+    redact_output: bool = True
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+
+async def insert(tx: Any, e: Entry, blocks: list[Block] | None = None) -> None:
+    """Thêm một dòng ai.suggestion_log (và ai.guardrail_event) trong giao dịch tx đã đặt tenant."""
+    day = e.created_at.date()
+    await tx.execute("SELECT ai.fn_ensure_day_partitions($1::date, 1)", day)
+    await tx.execute(
+        """INSERT INTO ai.suggestion_log (created_day, id, tenant_id, user_id, use_case, model,
+               prompt_template_version, prompt_sha256, chunk_ids, output_text, kind, target_ref,
+               prompt_redacted, sources_json, confidence, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid[], $10, $11, $12, $13, $14::jsonb, $15, $16)""",
+        day, uuid.UUID(e.id), uuid.UUID(e.tenant_id), uuid.UUID(e.user_id), e.use_case, e.model,
+        e.prompt_template_version, prompt_digest(e.prompt), [uuid.UUID(c) for c in e.chunk_ids],
+        redact(e.output_text) if e.output_text is not None and e.redact_output else e.output_text, e.kind,
+        e.target_ref, redact(e.prompt), json.dumps(e.sources, ensure_ascii=False), e.confidence, e.created_at,
+    )
+    for b in blocks or []:
+        await tx.execute(
+            """INSERT INTO ai.guardrail_event (created_day, id, tenant_id, suggestion_log_id, rule_code,
+                   action, detail, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)""",
+            day, uuid.uuid4(), uuid.UUID(e.tenant_id), uuid.UUID(e.id), b.rule_code, b.action,
+            json.dumps(b.detail, ensure_ascii=False) if b.detail is not None else None, e.created_at,
+        )
 
 
 def to_api(row: Any) -> dict[str, Any]:
@@ -72,6 +97,10 @@ def to_api(row: Any) -> dict[str, Any]:
         "confidence": float(row["confidence"]) if row["confidence"] is not None else None,
         "decision": row["decision"] or row["user_action"],
     }
+    if row["kind"] == "TOM_TAT_TUAN" and row["output_text"]:
+        # Tóm tắt tuần lưu câu chung và các ý dạng JSON (DV-14-06).
+        doc = json.loads(row["output_text"])
+        out["outputText"], out["items"] = doc.get("text"), doc.get("items") or []
     return out
 
 
@@ -84,26 +113,15 @@ class SuggestionStore:
             await tx.execute("SELECT ai.fn_ensure_day_partitions($1::date, $2)", day, days)
 
     async def log(self, e: Entry, blocks: list[Block] | None = None) -> None:
-        day = e.created_at.date()
-        async with in_tenant_tx(self._pool, e.tenant_id) as tx:
-            await tx.execute("SELECT ai.fn_ensure_day_partitions($1::date, 1)", day)
-            await tx.execute(
-                """INSERT INTO ai.suggestion_log (created_day, id, tenant_id, user_id, use_case, model,
-                       prompt_template_version, prompt_sha256, chunk_ids, output_text, kind, target_ref,
-                       prompt_redacted, sources_json, confidence, created_at)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid[], $10, $11, $12, $13, $14::jsonb, $15, $16)""",
-                day, uuid.UUID(e.id), uuid.UUID(e.tenant_id), uuid.UUID(e.user_id), e.use_case, e.model,
-                e.prompt_template_version, prompt_digest(e.prompt), [uuid.UUID(c) for c in e.chunk_ids],
-                redact(e.output_text) if e.output_text is not None else None, e.kind, e.target_ref,
-                redact(e.prompt), json.dumps(e.sources, ensure_ascii=False), e.confidence, e.created_at,
-            )
-            for b in blocks or []:
-                await tx.execute(
-                    """INSERT INTO ai.guardrail_event (created_day, id, tenant_id, suggestion_log_id, rule_code,
-                           action, detail, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)""",
-                    day, uuid.uuid4(), uuid.UUID(e.tenant_id), uuid.UUID(e.id), b.rule_code, b.action,
-                    json.dumps(b.detail, ensure_ascii=False) if b.detail is not None else None, e.created_at,
-                )
+        await self.log_many([e], blocks)
+
+    async def log_many(self, entries: list[Entry], blocks: list[Block] | None = None) -> None:
+        """Ghi nhiều gợi ý của cùng một tenant trong một giao dịch; Block gắn với gợi ý đầu."""
+        if not entries:
+            return
+        async with in_tenant_tx(self._pool, entries[0].tenant_id) as tx:
+            for i, e in enumerate(entries):
+                await insert(tx, e, blocks if i == 0 else None)
 
     async def get_own(self, tenant_id: str, user_id: str, suggestion_id: str) -> dict[str, Any] | None:
         async with in_tenant_tx(self._pool, tenant_id) as tx:
