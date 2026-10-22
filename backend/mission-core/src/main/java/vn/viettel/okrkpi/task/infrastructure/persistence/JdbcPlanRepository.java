@@ -227,6 +227,14 @@ public class JdbcPlanRepository implements PlanRepository {
                       i.recurrence()
                     })
             .toList());
+    // BS-03 DC-01 (CORE-02-27): mức hệ số và trục sao chép từ mục danh mục của dòng.
+    jdbc.sql(
+            "UPDATE task.plan_item p SET coefficient_levels = c.coefficient_levels, axis_code ="
+                + " c.axis_code FROM task.catalog_item c WHERE p.period_bucket = ? AND"
+                + " p.tenant_id = ? AND p.plan_version_id = ? AND c.tenant_id = p.tenant_id AND"
+                + " c.id = p.catalog_item_id")
+        .params(plan.periodBucket(), tenant.value(), version.id())
+        .update();
     return jdbc.sql(
             "UPDATE task.plan_version SET row_version = row_version + 1, updated_by = ?,"
                 + " updated_at = now() WHERE period_bucket = ? AND tenant_id = ? AND id = ?"

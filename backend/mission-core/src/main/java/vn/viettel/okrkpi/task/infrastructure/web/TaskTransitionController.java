@@ -141,6 +141,8 @@ public class TaskTransitionController {
             .nodeKind(TaskNodeKind.fromValue(t.nodeKind()))
             .parentTaskId(t.parentTaskId())
             .componentScore(t.componentScore())
+            .coefficientLevels(new java.util.LinkedHashMap<>(t.coefficientLevels()))
+            .axisCode(t.axisCode())
             .assignedAt(time(t.assignedAt()));
     return dto;
   }

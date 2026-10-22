@@ -47,6 +47,7 @@ import vn.viettel.okrkpi.task.application.catalog.CatalogService;
 import vn.viettel.okrkpi.task.application.catalog.CatalogService.CatalogSummary;
 import vn.viettel.okrkpi.task.application.catalog.CatalogService.ItemView;
 import vn.viettel.okrkpi.task.domain.catalog.CatalogItemDraft;
+import vn.viettel.okrkpi.task.domain.catalog.ItemScoring;
 
 /**
  * Danh mục công việc (CORE-02-03; QT-04 → SCR-0401, SCR-0501, SCR-0503 → {@code tasks.yaml} nhóm
@@ -319,6 +320,10 @@ public class CatalogController {
     dto.setUsagePeriods(v.usage().periods());
     dto.setUsedInLockedPeriod(v.usage().usedInLockedPeriod());
     dto.setRowVersion(i.rowVersion());
+    dto.setCoefficientLevels(new java.util.LinkedHashMap<>(i.scoring().coefficientLevels()));
+    dto.setAxisCode(i.scoring().axisCode());
+    dto.setScoreAdjustMin(i.scoring().scoreAdjustMin());
+    dto.setScoreAdjustMax(i.scoring().scoreAdjustMax());
     return dto;
   }
 
@@ -341,7 +346,12 @@ public class CatalogController {
         in.getEvidenceRequired(),
         in.getDefaultGroup() == null ? null : in.getDefaultGroup().getValue(),
         in.getStandardDays(),
-        in.getStatus() == null ? null : in.getStatus().getValue());
+        in.getStatus() == null ? null : in.getStatus().getValue(),
+        new ItemScoring(
+            in.getCoefficientLevels(),
+            in.getAxisCode(),
+            in.getScoreAdjustMin(),
+            in.getScoreAdjustMax()));
   }
 
   static UUID caller(Principal principal) {

@@ -260,6 +260,67 @@ class CatalogApiIT extends ContractConformanceTest {
             e -> assertThat(e.errorCode().code()).isEqualTo("COMMON-422-VALIDATION"));
   }
 
+  // ------------------------------------------------- bốn cấp, khung chỉnh điểm, mức hệ số
+  // (CORE-02-27)
+
+  @Test
+  void danhMucBonCapKhungChinhDiemVaMucHeSo() throws Exception {
+    UUID block = UUID.randomUUID();
+    UUID province = UUID.randomUUID();
+    PostgreSQLContainer<?> pg = MissionCoreTestDatabase.container();
+    try (Connection admin =
+        DriverManager.getConnection(pg.getJdbcUrl(), pg.getUsername(), pg.getPassword())) {
+      catalogRow(admin, block, "KHOI-DANG-TW", "Danh mục khối Đảng", null, null);
+      catalogRow(admin, province, "TINH-HA-NOI", "Danh mục tỉnh Hà Nội", null, block);
+      try (PreparedStatement ps =
+          admin.prepareStatement(
+              "UPDATE task.work_catalog SET scope = CASE id WHEN ? THEN 'KHOI' ELSE 'TINH' END"
+                  + " WHERE id IN (?, ?)")) {
+        ps.setObject(1, block);
+        ps.setObject(2, block);
+        ps.setObject(3, province);
+        ps.executeUpdate();
+      }
+      UUID parentItem = UUID.randomUUID();
+      itemRow(admin, parentItem, block, "TC-KH-01", "Thẩm định đề án nhân sự", 3, 50);
+      try (PreparedStatement ps =
+          admin.prepareStatement(
+              "UPDATE task.catalog_item SET score_adjust_min = -0.2, score_adjust_max = 0.2,"
+                  + " coefficient_levels = '{\"he_so_nhom\":\"NHOM_2\"}', axis_code = 'TR1'"
+                  + " WHERE id = ?")) {
+        ps.setObject(1, parentItem);
+        ps.executeUpdate();
+      }
+    }
+
+    MvcResult items = perform(get(BASE + "/" + province + "/items"));
+    assertResponseConforms(items, "/catalog/{catalogId}/items", PathItem.HttpMethod.GET);
+    JsonNode inherited = body(items).get("items").get(0);
+    assertThat(inherited.get("coefficientLevels").get("he_so_nhom").asText()).isEqualTo("NHOM_2");
+    assertThat(inherited.get("axisCode").asText()).isEqualTo("TR1");
+    assertThat(inherited.get("scoreAdjustMax").decimalValue()).isEqualByComparingTo("0.2");
+
+    // Dòng tỉnh chỉnh +25% khi khung ±20%: 422; trong khung thì lưu được.
+    MvcResult over =
+        perform(add(province, input("TC-KH-01", "Thẩm định đề án nhân sự", 3, "62.5")));
+    assertThat(over.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(over).get("errors").get(0).get("field").asText()).isEqualTo("baseScore");
+    MvcResult inside =
+        perform(add(province, input("TC-KH-01", "Thẩm định đề án nhân sự", 3, "60")));
+    assertThat(inside.getResponse().getStatus()).isEqualTo(201);
+
+    // Mức hệ số lạ với gói của kỳ: 422.
+    String strange =
+        input(null, "Rà soát đề án nhân sự", 3, "30")
+            .replace(
+                "\"standardDays\":10",
+                "\"standardDays\":10,\"coefficientLevels\":{\"he_so_la\":\"X\"}");
+    MvcResult unknown = perform(add(block, strange));
+    assertThat(unknown.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(unknown).get("errors").get(0).get("field").asText())
+        .isEqualTo("coefficientLevels");
+  }
+
   // ---------------------------------------------------------------- nhập Excel (CORE-02-04)
 
   @Test
@@ -318,7 +379,7 @@ class CatalogApiIT extends ContractConformanceTest {
       assertThat(all).hasSize(38);
       assertThat(all.get(0).getCellText(0)).isEqualTo("Dòng");
       assertThat(all.get(1).getCellText(0)).isEqualTo("28");
-      assertThat(all.get(1).getCellText(11)).contains("Sản phẩm là bắt buộc");
+      assertThat(all.get(1).getCellText(13)).contains("Sản phẩm là bắt buộc");
     }
     assertThat(perform(get(BASE + "/imports/" + UUID.randomUUID())).getResponse().getStatus())
         .isEqualTo(404);
