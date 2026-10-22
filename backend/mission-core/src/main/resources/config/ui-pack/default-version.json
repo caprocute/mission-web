@@ -1,6 +1,6 @@
 {
   "description": "Nội dung khởi đầu khi tạo phiên bản không nhân bản (cloneFromVersion = null), tạm thay cho UI Pack mặc định của DL-06.",
-  "componentRegistryVersion": "1.0.0",
+  "componentRegistryVersion": "2026.3",
   "tokens": {
     "color": {
       "$type": "color",
@@ -32,7 +32,7 @@
       "component": "vt.layout.grid",
       "children": [
         { "component": "vt.widget.myTasksToday", "props": { "limit": 7 } },
-        { "component": "vt.widget.kpiTile" }
+        { "component": "vt.widget.okrProgress", "props": { "scope": "me" } }
       ]
     }
   },

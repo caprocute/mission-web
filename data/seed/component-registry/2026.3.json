@@ -1,0 +1,43 @@
+{
+  "registryVersion": "2026.3",
+  "webRegistryVersion": "2.4.0",
+  "description": "Danh mục component SDUI phát hành cùng shell; phiên bản đầu tiên, khớp registry web 2.4.0 (frontend/projects/sdui-renderer builtin-components.ts, fe-shell widgets/shell-widgets.ts). Đã có sẵn trong migration config V2 và V6.",
+  "components": [
+    {
+      "name": "vt.layout.grid",
+      "container": true,
+      "since": "2.0.0",
+      "mobile": false,
+      "allowedClassification": "C1",
+      "propsSchema": { "type": "object", "additionalProperties": false, "properties": { "columns": { "type": "object" } } }
+    },
+    {
+      "name": "vt.widget.myTasksToday",
+      "since": "2.0.0",
+      "mobile": true,
+      "allowedClassification": "C1",
+      "propsSchema": { "type": "object", "additionalProperties": false, "properties": { "limit": { "type": "integer", "minimum": 1, "maximum": 20 } } }
+    },
+    {
+      "name": "vt.widget.okrProgress",
+      "since": "2.0.0",
+      "mobile": true,
+      "allowedClassification": "C1",
+      "propsSchema": { "type": "object", "additionalProperties": false, "properties": { "scope": { "type": "string", "enum": ["me", "unit"] } } }
+    },
+    {
+      "name": "vt.widget.pendingApprovals",
+      "since": "2.0.0",
+      "mobile": true,
+      "allowedClassification": "C1",
+      "propsSchema": { "type": "object", "additionalProperties": false, "properties": {} }
+    },
+    {
+      "name": "vt.widget.announcement",
+      "since": "2.1.0",
+      "mobile": false,
+      "allowedClassification": "C1",
+      "propsSchema": { "type": "object", "additionalProperties": false, "properties": { "i18nKey": { "type": "string", "pattern": "^[a-z0-9.]+$" } } }
+    }
+  ]
+}
