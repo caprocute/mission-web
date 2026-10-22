@@ -12,10 +12,10 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **198 / 408 task (48.5%)** — Khối lượng quy đổi đã gộp: **233.5 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **198 / 408 task (48.5%)** (gồm **198** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **6 task** (2 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **204 task**.
+- **Tổng tiến độ đã gộp `main`**: **200 / 408 task (49.0%)** — Khối lượng quy đổi đã gộp: **237.5 / 492.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **200 / 408 task (49.0%)** (gồm **200** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
+- **Chưa bắt đầu**: **203 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **14 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-04`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,14 +25,14 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **33** | 0 | 0 | 1 | **97.1%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **45** | 0 | 1 | 71 | **38.5%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **39** | 0 | 2 | 63 | **37.5%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **41** | 0 | 1 | 62 | **39.4%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **6** | 0 | 1 | 6 | **46.2%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **2** | 0 | 0 | 3 | **40.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **198** | **0** | **6** | **204** | **48.5%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **200** | **0** | **5** | **203** | **49.0%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,7 +41,7 @@
 | **M0 – Nền móng phát triển & CSDL** | 60 | **50** | 0 | 1 | 9 | **83.3%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **34** | 0 | 1 | 12 | **72.3%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **46** | 0 | 3 | 71 | **38.3%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **48** | 0 | 2 | 70 | **40.0%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **20** | 0 | 0 | 52 | **27.8%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **15** | 0 | 1 | 26 | **35.7%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **0** | 0 | 0 | 23 | **0.0%** |
@@ -392,13 +392,13 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-04-07](docs/tasks/DV-04-07-doi-soat-nhan-su.md) | Đối soát nhân sự: khớp người bằng HMAC và ngày sinh, bảng lệch, phân loại, API giải quyết | L | B5 | 12 | DV-04-04, DV-13-06 | **Đã gộp main** | Đã gộp main (8b84e3a) |
 | [DV-04-08](docs/tasks/DV-04-08-org-republish.md) | Lệnh phát lại sự kiện tổ chức (`org-republish`) cho bên nhận bị lệch | S | B5 | 12 | DV-04-03, NEN-022 | **Đã gộp main** | Đã gộp main (nhánh B1 7dca3d2) |
 
-### DV-06 · SVC-06 workflow-service (Flowable) (3/12 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### DV-06 · SVC-06 workflow-service (Flowable) (4/12 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-06-01](docs/tasks/DV-06-01-khung-flowable.md) | Khung Flowable 7 nhúng Spring Boot, CSDL `flowable`, lịch sử mức audit, tách API và async executor | L | B6 | 9 | NEN-019 | **Đã gộp main** | Đã gộp main (9e7c761): khung workflow-service Flowable 7.2, tinh chỉnh PostgreSQL, Helm API/Executor + KEDA |
 | [DV-06-02](docs/tasks/DV-06-02-hop-viec.md) | `wf_template`, `wf_binding`, `wf_task_projection`; API hộp việc, hoàn thành, hoàn thành hàng loạt | M | B6 | 10 | DV-06-01 | **Đã gộp main** | Gộp main 22/10 |
-| [DV-06-03](docs/tasks/DV-06-03-bpmn-duyet-phan-1.md) | Mẫu BPMN luồng duyệt phần 1: OKR, kế hoạch, đề nghị gia hạn, kèm DMN chọn cấp duyệt, kiểm thử và linter | L | B6 | 11 | DV-06-02 | **Đang làm** | Nhánh feat/DV-06-workflow-service: tạm dừng chờ phiên tiếp theo (sau DV-06-02) |
+| [DV-06-03](docs/tasks/DV-06-03-bpmn-duyet-phan-1.md) | Mẫu BPMN luồng duyệt phần 1: OKR, kế hoạch, đề nghị gia hạn, kèm DMN chọn cấp duyệt, kiểm thử và linter | L | B6 | 11 | DV-06-02 | **Đã gộp main** | Gộp main 22/10 |
 | [DV-06-04](docs/tasks/DV-06-04-bpmn-duyet-phan-2.md) | Mẫu BPMN luồng duyệt phần 2: hồ sơ đánh giá, khiếu nại, mở lại kỳ, phát hành Policy Pack | L | B6 | 12 | DV-06-03 | **Chưa bắt đầu** |  |
 | [DV-06-05](docs/tasks/DV-06-05-khung-saga.md) | Khung saga tầng 3: bước, bù trừ, trạng thái bền, 202 và theo dõi | L | B6 | 10 | DV-06-01 | **Đã gộp main** | Đã gộp main (nhánh B6 fad5653) |
 | [DV-06-06](docs/tasks/DV-06-06-saga-chot-ky.md) | Saga chốt kỳ: tiền điều kiện, khoá, tính điểm, sinh biểu mẫu, ký lô, niêm phong, lập hồ sơ | L | B6 | 19 | DV-06-05, CORE-08-05, DV-07-06, DV-11-04, DV-10-06, DV-09-03 | **Chưa bắt đầu** |  |
@@ -443,12 +443,12 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-09-04](docs/tasks/DV-09-04-kiem-tra-toan-ven.md) | Kiểm tra toàn vẹn định kỳ, chỉ ra bản ghi bị phá, phát EVT-20 | M | B6 | 12 | DV-09-03 | **Chưa bắt đầu** |  |
 | [DV-09-05](docs/tasks/DV-09-05-tra-cuu-xuat-bang-chung.md) | API tra cứu, xuất bằng chứng có ký và công cụ kiểm chứng độc lập `ledger-verify` | L | B6 | 12 | DV-09-03 | **Chưa bắt đầu** |  |
 
-### DV-10 · SVC-10 esign-service (1/6 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-10 · SVC-10 esign-service (2/6 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-10-01](docs/tasks/DV-10-01-khung-esign-provider.md) | Khung service, migration schema `esign`, giao diện nhà cung cấp `SignatureProvider` | M | B6 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Đã gộp main (nhánh B6 bd3538e) |
-| [DV-10-02](docs/tasks/DV-10-02-nha-cung-cap-mysign.md) | Nhà cung cấp MySign (CSC API) ký từ xa bất đồng bộ, EVT-18 | L | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tài khoản thử MySign |
+| [DV-10-02](docs/tasks/DV-10-02-nha-cung-cap-mysign.md) | Nhà cung cấp MySign (CSC API) ký từ xa bất đồng bộ, EVT-18 | L | B6 | 10 | DV-10-01 | **Đã gộp main** | Gộp main 22/10 |
 | [DV-10-03](docs/tasks/DV-10-03-hsm-pkcs11-tsa.md) | Nhà cung cấp HSM qua PKCS#11 và dấu thời gian TSA | L | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Dev dùng SoftHSM |
 | [DV-10-04](docs/tasks/DV-10-04-viettel-ca-ca-chinh-phu.md) | Nhà cung cấp Viettel-CA và CA chuyên dùng Chính phủ | M | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần môi trường thử CA |
 | [DV-10-05](docs/tasks/DV-10-05-ban-co-yeu-cach-ly.md) | Nhà cung cấp Ban Cơ yếu cho bản cách ly qua `CryptoProvider` | M | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần thư viện Ban Cơ yếu |
@@ -865,4 +865,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 16:39 | Điều phối | `DV-06-02` | Chuyển trạng thái sang **Đã gộp main** — Gộp main 22/10 |
 | 22/10/2026 16:39 | Điều phối | `DV-14-02` | Chuyển trạng thái sang **Đã gộp main** — Gộp main 22/10 |
 | 22/10/2026 16:39 | Điều phối | `DV-14-03` | Chuyển trạng thái sang **Đã gộp main** — Gộp main 22/10 |
+| 22/10/2026 16:46 | Điều phối | `DV-06-03` | Chuyển trạng thái sang **Đã gộp main** — Gộp main 22/10 |
+| 22/10/2026 16:46 | Điều phối | `DV-10-02` | Chuyển trạng thái sang **Đã gộp main** — Gộp main 22/10 |
 <!-- PROGRESS_LOG_END -->
