@@ -370,6 +370,15 @@ public class CatalogService {
     return saved(tenant, target, stored, moved);
   }
 
+  /**
+   * Phiên bản nhận mục mới của {@code catalogId} (nhập Excel, CORE-02-04): chính nó khi nháp, nháp
+   * kế tiếp khi đang áp dụng; phiên bản ngừng áp dụng thì 409.
+   */
+  @Transactional(TX)
+  public WorkCatalog writableVersion(TenantId tenant, UUID actor, UUID catalogId) {
+    return writable(tenant, actor, catalog(tenant, catalogId));
+  }
+
   /** Phiên bản nhận mục mới: chính nó khi nháp, nháp kế tiếp khi đang áp dụng. */
   private WorkCatalog writable(TenantId tenant, UUID actor, WorkCatalog viewed) {
     return switch (viewed.status()) {

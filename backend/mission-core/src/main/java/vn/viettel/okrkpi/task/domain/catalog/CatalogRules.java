@@ -69,22 +69,30 @@ public final class CatalogRules {
     String vague = vagueWord(d.name(), vagueWords);
     if (vague != null) {
       errors.add(
-          v("name", "Tên công việc chứa từ mơ hồ \"" + vague + "\". Hãy nêu cụ thể việc cần làm."));
+          new CatalogViolationException.Violation(
+              "name",
+              "Tên công việc chứa từ mơ hồ \"" + vague + "\". Hãy nêu cụ thể việc cần làm.",
+              CatalogViolationException.Kind.MO_HO));
     }
     required(errors, "productName", d.productName(), 500, "Sản phẩm");
     required(errors, "unit", d.unit(), 50, "Đơn vị tính");
-    if (d.difficulty() == null || d.difficulty() < 1 || d.difficulty() > 5) {
+    if (d.difficulty() == null) {
+      errors.add(missing("difficulty", "Mức khó"));
+    } else if (d.difficulty() < 1 || d.difficulty() > 5) {
       errors.add(v("difficulty", "Mức khó từ 1 đến 5."));
     }
-    if (d.baseScore() == null
-        || d.baseScore().signum() < 0
+    if (d.baseScore() == null) {
+      errors.add(missing("baseScore", "Điểm chuẩn"));
+    } else if (d.baseScore().signum() < 0
         || d.baseScore().compareTo(MAX_SCORE) > 0
         || d.baseScore().stripTrailingZeros().scale() > 3) {
       errors.add(v("baseScore", "Điểm chuẩn từ 0 đến 100, tối đa ba chữ số thập phân."));
     }
     required(errors, "qualityCriteria", d.qualityCriteria(), 2000, "Tiêu chuẩn chất lượng");
     required(errors, "evidenceRequired", d.evidenceRequired(), 1000, "Minh chứng yêu cầu");
-    if (d.group() == null || !GROUPS.contains(d.group())) {
+    if (d.group() == null) {
+      errors.add(missing("defaultGroup", "Nhóm mặc định"));
+    } else if (!GROUPS.contains(d.group())) {
       errors.add(v("defaultGroup", "Chọn nhóm thường xuyên hoặc then chốt."));
     }
     if (d.standardDays() != null && d.standardDays() < 1) {
@@ -192,10 +200,15 @@ public final class CatalogRules {
       int max,
       String label) {
     if (value == null) {
-      errors.add(v(field, label + " là bắt buộc."));
+      errors.add(missing(field, label));
     } else if (value.length() > max) {
       errors.add(v(field, label + " tối đa " + max + " ký tự."));
     }
+  }
+
+  private static CatalogViolationException.Violation missing(String field, String label) {
+    return new CatalogViolationException.Violation(
+        field, label + " là bắt buộc.", CatalogViolationException.Kind.THIEU);
   }
 
   private static CatalogViolationException.Violation v(String field, String message) {

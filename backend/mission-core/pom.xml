@@ -23,9 +23,28 @@
   <properties>
     <main.class>vn.viettel.okrkpi.MissionCoreApplication</main.class>
     <jib.skip>false</jib.skip>
+    <!-- CORE-02-04: đọc, ghi .xlsx theo luồng (Apache 2.0); chờ người phụ trách duyệt. -->
+    <fastexcel.version>0.18.4</fastexcel.version>
   </properties>
 
   <dependencies>
+    <dependency>
+      <groupId>org.dhatim</groupId>
+      <artifactId>fastexcel-reader</artifactId>
+      <version>${fastexcel.version}</version>
+      <!-- commons-compress lấy bản mới hơn qua avro (hội tụ phụ thuộc). -->
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-compress</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.dhatim</groupId>
+      <artifactId>fastexcel</artifactId>
+      <version>${fastexcel.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.github.ben-manes.caffeine</groupId>
       <artifactId>caffeine</artifactId>
