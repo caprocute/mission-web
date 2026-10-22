@@ -54,6 +54,18 @@ realm:
     clientSessionIdleTimeout: 1800
     clientSessionMaxLifespan: 28800
 
+  # DV-02-03: bậc 2 (MFA). aal2MaxAge: thời gian bậc 2 còn hiệu lực (BR-00-02, trạng thái phiên TL-02a).
+  mfa:
+    aal2MaxAge: 900
+    # Vai trò bắt buộc bậc 2 ngay khi đăng nhập (BR-00-01 và TL-01 SVC-02).
+    roles: [platform_admin, tenant_admin, appraiser, decider, second_approver, inspector]
+    # Điểm rủi ro = tổng trọng số dấu hiệu; bắt buộc MFA khi điểm ≥ ngưỡng (công thức suy luận, wiki/14).
+    risk:
+      weightNewDevice: 50
+      weightNewNetwork: 50
+      weightFailures: 25
+      threshold: 50
+
   # BR-00-05 và TL-04 SEC-14.
   bruteForce:
     failureFactor: 5
