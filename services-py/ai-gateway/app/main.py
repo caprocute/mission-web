@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -23,9 +24,15 @@ from app.core.core_client import CoreClient, new_http
 from app.core.exchange import TokenExchanger
 from app.core.opa import OpaClient
 from app.core.pipeline import Gateway, Overloaded
+from app.core.service_token import ServiceToken
 from app.core.state import State
 from app.guard.guards import input_guard, output_guard
 from app.llm.client import InferenceQueue, Llm, MockLlm, OpenAiCompatLlm
+from app.rag import consumer
+from app.rag.embed import Embedder, HashEmbedder, OpenAiEmbedder
+from app.rag.ingest import Indexer
+from app.rag.retriever import Retriever
+from app.rag.store import ChunkStore
 from app.store.suggestions import SuggestionStore
 
 log = logging.getLogger("ai-gateway")
@@ -41,8 +48,17 @@ def build_llm(s: Settings) -> tuple[Llm, httpx.AsyncClient | None]:
     return OpenAiCompatLlm(http, s.llm_model), http
 
 
+def build_embedder(s: Settings) -> tuple[Embedder, httpx.AsyncClient | None]:
+    if s.embed_mode == "mock":
+        return HashEmbedder(), None
+    if s.embed_mode != "openai" or not s.embed_base_url:
+        raise RuntimeError("EMBED_MODE phải là mock hoặc openai (kèm EMBED_BASE_URL)")
+    http = httpx.AsyncClient(base_url=s.embed_base_url, timeout=s.llm_timeout_s)
+    return OpenAiEmbedder(http, s.embed_model), http
+
+
 def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncBaseTransport | None = None,
-               llm: Llm | None = None) -> FastAPI:
+               llm: Llm | None = None, embedder: Embedder | None = None) -> FastAPI:
     s = settings or Settings.from_env()
 
     @asynccontextmanager
@@ -58,16 +74,29 @@ def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncB
         exchanger = TokenExchanger(idp_http, verifier, token_url=s.oidc_token_url, client_id=s.exchange_client_id,
                                    client_secret=s.exchange_client_secret, audience=s.exchange_audience,
                                    scope=s.exchange_scope, required_role=s.exchange_role)
+        emb, emb_http = (embedder, None) if embedder is not None else build_embedder(s)
+        chunks = ChunkStore(pool)
+        core = CoreClient(core_http, exchanger)
+        svc_token = ServiceToken(idp_http, verifier, token_url=s.oidc_token_url, client_id=s.exchange_client_id,
+                                 client_secret=s.exchange_client_secret, audience=s.exchange_audience,
+                                 required_role=s.exchange_role)
+        indexer = Indexer(pool, chunks, emb, core, svc_token)
+        stop = asyncio.Event()
+        consumer_task = (asyncio.create_task(consumer.run(indexer, s.kafka_brokers, stop))
+                         if s.kafka_brokers else None)
         store = SuggestionStore(pool)
         gw = Gateway(InferenceQueue(model, s.llm_max_concurrency, s.llm_max_waiting), store,
                      timeout_s=s.llm_timeout_s, sync_wait_s=s.llm_sync_wait_s, deferred_max=s.deferred_max,
                      input_guards=[input_guard], output_guards=[output_guard])
-        app.state.svc = State(verifier=verifier, opa=OpaClient(opa_http), core=CoreClient(core_http, exchanger),
-                              gateway=gw, store=store, pool=pool)
+        app.state.svc = State(verifier=verifier, opa=OpaClient(opa_http), core=core, gateway=gw, store=store,
+                              pool=pool, retriever=Retriever(chunks, emb), indexer=indexer)
         try:
             yield
         finally:
-            for c in (opa_http, idp_http, core_http, llm_http):
+            stop.set()
+            if consumer_task is not None:
+                await asyncio.wait_for(consumer_task, 15)
+            for c in (opa_http, idp_http, core_http, llm_http, emb_http):
                 if c is not None:
                     await c.aclose()
             await pool.close()

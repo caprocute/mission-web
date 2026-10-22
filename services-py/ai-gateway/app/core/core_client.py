@@ -12,7 +12,7 @@ from typing import Any
 import httpx
 
 from app.core.auth import Principal
-from app.core.exchange import TokenExchanger
+from app.core.exchange import ReadOnlyToken, TokenExchanger
 
 READ_METHODS = frozenset({"GET", "HEAD"})
 
@@ -64,10 +64,19 @@ class CoreClient:
         self._ex = exchanger
 
     async def get(self, principal: Principal, path: str, params: dict[str, Any] | None = None) -> httpx.Response:
+        tok = await self._ex.exchange(principal)
+        return await self.get_with(tok, path, params)
+
+    async def get_with(self, tok: ReadOnlyToken, path: str, params: dict[str, Any] | None = None) -> httpx.Response:
+        """Đọc bằng một token chỉ đọc đã có (token đổi của người dùng hoặc token dịch vụ ai_readonly)."""
         if not path.startswith("/api/v1/"):
             raise ValueError("đường dẫn API lõi phải bắt đầu bằng /api/v1/")
-        tok = await self._ex.exchange(principal)
         return await self._http.get(path, params=params, headers={"Authorization": f"Bearer {tok.value}"})
+
+    async def get_json_with(self, tok: ReadOnlyToken, path: str, params: dict[str, Any] | None = None) -> Any:
+        r = await self.get_with(tok, path, params)
+        r.raise_for_status()
+        return sanitize(r.json())
 
     async def get_json(self, principal: Principal, path: str, params: dict[str, Any] | None = None, *,
                        allow_c2: bool = False) -> Any:

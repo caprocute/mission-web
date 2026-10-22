@@ -50,6 +50,11 @@ class Settings:
     # Thời gian chờ đồng bộ trước khi chuyển sang 202 (NFR-03 cho phần nhận yêu cầu).
     llm_sync_wait_s: float = 20.0
     deferred_max: int = 256
+    # Mô hình nhúng 1.024 chiều: "mock" là HashEmbedder, "openai" là /v1/embeddings tại embed_base_url.
+    embed_mode: str = "mock"
+    embed_base_url: str = ""
+    embed_model: str = "viettel-embed-vi"
+    kafka_brokers: str = ""
     cell_code: str = ""
 
     @staticmethod
@@ -79,5 +84,9 @@ class Settings:
             llm_max_waiting=_int("LLM_MAX_WAITING", 32),
             llm_sync_wait_s=_float("LLM_SYNC_WAIT_SECONDS", 20.0),
             deferred_max=_int("AI_DEFERRED_MAX", 256),
+            embed_mode=_env("EMBED_MODE", "mock"),
+            embed_base_url=_env("EMBED_BASE_URL"),
+            embed_model=_env("EMBED_MODEL", "viettel-embed-vi"),
+            kafka_brokers=_env("KAFKA_BROKERS"),
             cell_code=_env("CELL_CODE"),
         )
