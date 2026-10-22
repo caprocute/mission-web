@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **202 / 408 task (49.5%)** — Khối lượng quy đổi đã gộp: **239 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **212 / 408 task (52.0%)** (gồm **202** đã gộp `main` + **10** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **213 / 408 task (52.2%)** (gồm **202** đã gộp `main` + **11** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **6 task** (1 đang làm, 5 làm một phần).
-- **Chưa bắt đầu**: **190 task**.
+- **Chưa bắt đầu**: **189 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **14 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-04`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,14 +25,14 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **33** | 0 | 0 | 1 | **97.1%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **46** | 0 | 2 | 69 | **39.3%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **42** | 10 | 1 | 51 | **40.4%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **42** | 11 | 1 | 50 | **40.4%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **6** | 0 | 1 | 6 | **46.2%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **2** | 0 | 0 | 3 | **40.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **202** | **10** | **6** | **190** | **49.5%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **202** | **11** | **6** | **189** | **49.5%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -42,7 +42,7 @@
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **34** | 0 | 1 | 12 | **72.3%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **49** | 0 | 3 | 68 | **40.8%** |
-| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **21** | 10 | 0 | 41 | **29.2%** |
+| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **21** | 11 | 0 | 40 | **29.2%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **15** | 0 | 1 | 26 | **35.7%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **0** | 0 | 0 | 23 | **0.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **0** | 0 | 0 | 4 | **0.0%** |
@@ -501,7 +501,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-14-06](docs/tasks/DV-14-06-nhat-ky-goi-y-tom-tat.md) | Nhật ký gợi ý (chấp nhận, bỏ qua, nguồn) và tóm tắt tuần cho lãnh đạo | M | B7 | 8 | DV-14-04 | **Chưa bắt đầu** |  |
 | [DV-14-07](docs/tasks/DV-14-07-chuyen-giong-noi-van-ban.md) | Chuyển giọng nói thành văn bản (`transcribeSpeech`) | M | B7 | 6 | DV-14-01 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 
-### DV-15 · SVC-15 analytics (0/11 đã gộp `main`, 8 chờ gộp, 0 đang làm)
+### DV-15 · SVC-15 analytics (0/11 đã gộp `main`, 9 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -509,7 +509,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-15-02](docs/tasks/DV-15-02-debezium-phan-tich.md) | Connector Debezium phân tích và giả danh hoá cột C2 | M | B7 | 5 | DV-15-01, INF-10 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: cdc-config-gen, KafkaConnector + publication sinh tự động, plugin giả danh theo tenant; 9 pytest + 5 JUnit xanh (PG17+Kafka+Debezium thật); tích hợp chart chờ INF-10 |
 | [DV-15-03](docs/tasks/DV-15-03-cube-chi-so-chuan.md) | Cube: chỉ số chuẩn của bảng điều hành, chiều đơn vị, kỳ, khối, luồng, bộ lọc an ninh | L | B7 | 5 | DV-15-01 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: Cube 8 cube chỉ số + chiều, queryRewrite tenant/org_path, pre-aggregation 5 phút; 14 ca vàng; kiểm thử Cube+ClickHouse 18 xanh, p95 35 ms (không đệm) |
 | [DV-15-04](docs/tasks/DV-15-04-analytics-api.md) | analytics-api: proxy Cube theo token, đệm 60 giây, API định nghĩa dashboard | M | B7 | 13 | DV-15-03, CORE-08-17 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: analytics-api (query, semantic-model, 5 thao tác dashboard qua cổng MOD-08 CORE-08-17), đệm Valkey 60s; unit 23/23, IT 6/6 (ClickHouse, Valkey thật), p95 trúng đệm 35 ms; EVT-21 khi chia sẻ chưa làm (wiki/14) |
-| [DV-15-05](docs/tasks/DV-15-05-superset-nhung.md) | Superset nhúng với guest token theo phạm vi | M | B7 | 14 | DV-15-03, DV-15-04 | **Chưa bắt đầu** |  |
+| [DV-15-05](docs/tasks/DV-15-05-superset-nhung.md) | Superset nhúng với guest token theo phạm vi | M | B7 | 14 | DV-15-03, DV-15-04 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: Superset nhúng qua Cube SQL API, guest token createAnalyticsEmbedToken; IT Superset 5/5, Cube 18/18, analytics-api verify xanh |
 | [DV-15-06](docs/tasks/DV-15-06-chuoi-truy-vet.md) | Đi xuống tới minh chứng: chuỗi truy vết, xuất bằng chứng và báo cáo 202, nhắc và giao lại | M | B7 | 14 | DV-15-04 | **Chưa bắt đầu** |  |
 | [DV-15-07](docs/tasks/DV-15-07-khung-job-bat-thuong.md) | Khung job phát hiện bất thường hằng đêm và dấu hiệu 1, 2, phát EVT-20 | M | B7 | 5 | DV-15-01 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: khung job + dấu hiệu 1, 2 + phát EVT-20; 9 kiểm thử xanh (ClickHouse, Kafka, Apicurio) |
 | [DV-15-08](docs/tasks/DV-15-08-dau-hieu-3-5-7.md) | Dấu hiệu bất thường 3, 5, 7 | M | B7 | 6 | DV-15-07 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: dấu hiệu 3, 5, 7 + V012 (fact_okr_key_result); 21 kiểm thử anomaly-job xanh; chưa đo dữ liệu cỡ tỉnh (YC-PT-19) |
@@ -911,4 +911,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 20:51 | B7 | `DV-15-04` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: analytics-api, dùng cổng /config/dashboard-defs của CORE-08-17 |
 | 22/10/2026 21:25 | B7 | `DV-15-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: analytics-api (query, semantic-model, 5 thao tác dashboard qua cổng MOD-08 CORE-08-17), đệm Valkey 60s; unit 25/25, IT 6/6 (ClickHouse, Valkey thật), p95 trúng đệm 35 ms; EVT-21 khi chia sẻ chưa làm (wiki/14) |
 | 22/10/2026 21:25 | B7 | `DV-15-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: analytics-api (query, semantic-model, 5 thao tác dashboard qua cổng MOD-08 CORE-08-17), đệm Valkey 60s; unit 23/23, IT 6/6 (ClickHouse, Valkey thật), p95 trúng đệm 35 ms; EVT-21 khi chia sẻ chưa làm (wiki/14) |
+| 22/10/2026 21:47 | B7 | `DV-15-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: Superset nhúng qua Cube SQL API, guest token createAnalyticsEmbedToken; IT Superset 5/5, Cube 18/18, analytics-api verify xanh |
 <!-- PROGRESS_LOG_END -->

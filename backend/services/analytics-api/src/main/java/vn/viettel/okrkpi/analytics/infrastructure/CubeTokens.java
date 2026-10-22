@@ -37,6 +37,10 @@ final class CubeTokens {
   }
 
   String issue(Scope scope) {
+    return issue(scope, LIFETIME);
+  }
+
+  String issue(Scope scope, Duration lifetime) {
     Instant now = clock.instant();
     JWTClaimsSet claims =
         new JWTClaimsSet.Builder()
@@ -44,7 +48,7 @@ final class CubeTokens {
             .claim("tenant", scope.tenant().toString())
             .claim("org_path", scope.orgPath())
             .issueTime(Date.from(now))
-            .expirationTime(Date.from(now.plus(LIFETIME)))
+            .expirationTime(Date.from(now.plus(lifetime)))
             .build();
     SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
     try {

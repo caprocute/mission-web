@@ -100,6 +100,9 @@ final class WebDtos {
     }
   }
 
+  record EmbedTokenRequestBody(
+      @NotBlank @Size(min = 1, max = 80) String dashboardCode, UUID unitId, UUID periodId) {}
+
   record ShareBody(
       @NotNull @Pattern(regexp = "RIENG|DON_VI|TENANT") String shareScope,
       @Size(max = 200) List<UUID> sharedUnitIds) {}

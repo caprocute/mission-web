@@ -113,6 +113,10 @@ class AnalyticsApiIT {
         "mission.analytics.token-url",
         () -> upstream.url() + "/realms/mission/protocol/openid-connect/token");
     r.add("mission.analytics.client-secret", () -> "bi-mat-kiem-thu");
+    r.add("mission.analytics.superset-url", upstream::url);
+    r.add("mission.analytics.superset-public-url", () -> "https://bi.mission.example");
+    r.add("mission.analytics.superset-username", () -> FakeUpstream.SUPERSET_USER);
+    r.add("mission.analytics.superset-password", () -> FakeUpstream.SUPERSET_PASSWORD);
     r.add("mission.analytics.clickhouse-url", AnalyticsApiIT::chUrl);
     r.add("mission.analytics.clickhouse-database", () -> DB);
     r.add("mission.analytics.clickhouse-username", () -> "default");
@@ -476,6 +480,78 @@ class AnalyticsApiIT {
         .isEmpty();
     Reply notOwner = put("/analytics/dashboards/" + id, th, input, Map.of("If-Match", "\"2\""));
     assertThat(notOwner.status()).isEqualTo(403);
+  }
+
+  @Test
+  void embedTokenLocksViewerBranchIntoSupersetRls() throws Exception {
+    String code = "BANG_DIEU_HANH_DON_VI";
+    String embedded = "cda0f042-a44d-5667-a5ca-6ea85a36d3d1";
+    Reply ok =
+        post(
+            "/analytics/embed-tokens",
+            token(TRUONG_HUYEN, "manager", UNIT_TINH),
+            Map.of("dashboardCode", code, "unitId", UNIT_HUYEN),
+            Map.of());
+    assertThat(ok.status()).isEqualTo(201);
+    assertThat(ok.headers().get("cache-control")).isEqualTo("no-store");
+    assertThat(ok.json().path("embedUrl").asText())
+        .isEqualTo("https://bi.mission.example/embedded/" + embedded);
+    assertThat(ok.json().path("lockedOrgPathPrefix").asText()).isEqualTo("/t01/h01");
+    Instant expires = Instant.parse(ok.json().path("expiresAt").asText());
+    assertThat(expires).isBetween(Instant.now().plusSeconds(240), Instant.now().plusSeconds(301));
+    JsonNode grant = upstream.guestRequests.get(upstream.guestRequests.size() - 1);
+    assertThat(ok.json().path("token").asText())
+        .isEqualTo("token-khach-" + upstream.guestRequests.size());
+    assertThat(grant.path("resources").get(0).path("type").asText()).isEqualTo("dashboard");
+    assertThat(grant.path("resources").get(0).path("id").asText()).isEqualTo(embedded);
+    String clause = grant.path("rls").get(0).path("clause").asText();
+    java.util.regex.Matcher m =
+        java.util.regex.Pattern.compile("__user = '([A-Za-z0-9_.-]+)'").matcher(clause);
+    assertThat(m.matches()).as(clause).isTrue();
+    com.nimbusds.jwt.SignedJWT cubeJwt = com.nimbusds.jwt.SignedJWT.parse(m.group(1));
+    assertThat(
+            cubeJwt.verify(
+                new com.nimbusds.jose.crypto.MACVerifier(
+                    FakeUpstream.CUBE_SECRET.getBytes(java.nio.charset.StandardCharsets.UTF_8))))
+        .isTrue();
+    assertThat(cubeJwt.getJWTClaimsSet().getStringClaim("tenant")).isEqualTo(TENANT);
+    assertThat(cubeJwt.getJWTClaimsSet().getStringClaim("org_path")).isEqualTo("/t01/h01");
+    assertThat(cubeJwt.getJWTClaimsSet().getExpirationTime().toInstant())
+        .isBefore(Instant.now().plusSeconds(301));
+
+    // Token truy cập của tài khoản dịch vụ được dùng lại giữa các lượt cấp.
+    int logins = upstream.supersetLogins.get();
+    assertThat(
+            post(
+                    "/analytics/embed-tokens",
+                    token(BI_THU, "leader", UNIT_TINH),
+                    Map.of("dashboardCode", code),
+                    Map.of())
+                .status())
+        .isEqualTo(201);
+    assertThat(upstream.supersetLogins.get()).isEqualTo(logins);
+
+    Reply unknown =
+        post(
+            "/analytics/embed-tokens",
+            token(BI_THU, "leader", UNIT_TINH),
+            Map.of("dashboardCode", "KHONG_CO"),
+            Map.of());
+    assertThat(unknown.status()).isEqualTo(404);
+    Reply outside =
+        post(
+            "/analytics/embed-tokens",
+            token(BI_THU, "leader", UNIT_HUYEN),
+            Map.of("dashboardCode", code, "unitId", UNIT_KHAC),
+            Map.of());
+    assertThat(outside.status()).isEqualTo(403);
+    Reply member =
+        post(
+            "/analytics/embed-tokens",
+            token(BI_THU, "member", UNIT_TINH),
+            Map.of("dashboardCode", code),
+            Map.of());
+    assertThat(member.status()).isEqualTo(403);
   }
 
   private static FakeUpstream.CubeCall last() {

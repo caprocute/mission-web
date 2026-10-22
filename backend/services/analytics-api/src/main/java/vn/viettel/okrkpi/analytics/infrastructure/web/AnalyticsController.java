@@ -17,14 +17,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import vn.viettel.okrkpi.analytics.application.DashboardService;
+import vn.viettel.okrkpi.analytics.application.EmbedService;
 import vn.viettel.okrkpi.analytics.application.QueryService;
 import vn.viettel.okrkpi.analytics.application.ScopeService;
 import vn.viettel.okrkpi.analytics.application.SemanticModelService;
 import vn.viettel.okrkpi.analytics.domain.Dashboard;
+import vn.viettel.okrkpi.analytics.domain.EmbedToken;
 import vn.viettel.okrkpi.analytics.domain.QueryResult;
 import vn.viettel.okrkpi.analytics.domain.Viewer;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.DashboardBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.DashboardInputBody;
+import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.EmbedTokenRequestBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.ModelBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.PageBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.QueryBody;
@@ -45,16 +48,19 @@ public class AnalyticsController {
   private final SemanticModelService models;
   private final ScopeService scopes;
   private final DashboardService dashboards;
+  private final EmbedService embeds;
 
   public AnalyticsController(
       QueryService queries,
       SemanticModelService models,
       ScopeService scopes,
-      DashboardService dashboards) {
+      DashboardService dashboards,
+      EmbedService embeds) {
     this.queries = queries;
     this.models = models;
     this.scopes = scopes;
     this.dashboards = dashboards;
+    this.embeds = embeds;
   }
 
   /**
@@ -146,5 +152,25 @@ public class AnalyticsController {
             idempotencyKey,
             ifMatch);
     return ResponseEntity.ok().eTag(ETags.of(d.rowVersion())).body(DashboardBody.of(d, null));
+  }
+
+  /**
+   * DV-15-05 {@code createAnalyticsEmbedToken}: guest token Superset sống tối đa 5 phút, phạm vi
+   * khoá theo nhánh tổ chức của người xem; mã dashboard chưa đăng ký nhúng trả 404. Mỗi lần gọi cấp
+   * token mới nên khoá {@code Idempotency-Key} không dùng để trả lại token cũ.
+   */
+  @PostMapping("/embed-tokens")
+  public ResponseEntity<EmbedToken> createEmbedToken(
+      @Valid @RequestBody EmbedTokenRequestBody body,
+      @RequestHeader("Idempotency-Key") String idempotencyKey) {
+    RoleGate.require("createAnalyticsEmbedToken");
+    EmbedToken token =
+        embeds
+            .issue(Viewers.current(), body.dashboardCode(), body.unitId())
+            .orElseThrow(
+                () -> new org.springframework.web.ErrorResponseException(HttpStatus.NOT_FOUND));
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .body(token);
   }
 }

@@ -57,6 +57,15 @@ mission:
     token-url: ${ANALYTICS_TOKEN_URL:http://127.0.0.1:35080/realms/mission/protocol/openid-connect/token}
     client-id: ${ANALYTICS_CLIENT_ID:analytics-api}
     client-secret: ${ANALYTICS_CLIENT_SECRET:}
+    # DV-15-05 · Superset nhúng: tài khoản dịch vụ chỉ cấp guest token; bảng mã dashboard -> uuid nhúng khớp
+    # analytics/superset/dashboards/nhung.json.
+    superset-url: ${SUPERSET_URL:http://127.0.0.1:35088}
+    superset-public-url: ${SUPERSET_PUBLIC_URL:${SUPERSET_URL:http://127.0.0.1:35088}}
+    superset-username: ${SUPERSET_SERVICE_USER:analytics_api}
+    superset-password: ${SUPERSET_SERVICE_PASSWORD:}
+    embed-ttl: ${ANALYTICS_EMBED_TTL:5m}
+    superset-dashboards:
+      BANG_DIEU_HANH_DON_VI: cda0f042-a44d-5667-a5ca-6ea85a36d3d1
 
 okrkpi:
   opa:
@@ -68,6 +77,7 @@ resilience4j:
     instances:
       cube: {baseConfig: default, slowCallDurationThreshold: 5s}
       mission-core-config: {baseConfig: default}
+      superset: {baseConfig: default}
   timelimiter:
     instances:
       cube: {timeoutDuration: 10s}
