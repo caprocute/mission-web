@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import vn.viettel.okrkpi.events.EventTopics;
+import vn.viettel.okrkpi.okr.application.port.OkrAiTraceRepository.AiTrace;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalEvents;
 import vn.viettel.okrkpi.okr.application.port.OkrReviewRepository.ReviewTarget;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
@@ -19,6 +20,7 @@ import vn.viettel.okrkpi.shared.outbox.EventEnvelope;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 import vn.vtokr.notify.v1.YeuCauThongBao;
 import vn.vtokr.okr.v1.MucTieuDaDuyet;
+import vn.vtokr.okr.v1.NoiDungAi;
 
 /**
  * Ghi EVT-01 (mục tiêu đã duyệt) và EVT-21 (thông báo trả lại tới người soạn) vào {@code
@@ -51,6 +53,18 @@ public class OutboxOkrApprovalEvents implements OkrApprovalEvents {
   @Override
   public void approved(
       TenantId tenant, ReviewTarget target, UUID approver, List<UUID> basisIds, long rowVersion) {
+    approved(tenant, target, approver, basisIds, rowVersion, List.of());
+  }
+
+  /** CORE-01-13: {@code aiContent} chỉ mang mã và tên trường (C1), không mang nội dung. */
+  @Override
+  public void approved(
+      TenantId tenant,
+      ReviewTarget target,
+      UUID approver,
+      List<UUID> basisIds,
+      long rowVersion,
+      List<AiTrace> aiContent) {
     MucTieuDaDuyet payload =
         MucTieuDaDuyet.newBuilder()
             .setObjectiveId(target.id())
@@ -61,6 +75,18 @@ public class OutboxOkrApprovalEvents implements OkrApprovalEvents {
             .setBasisIds(List.copyOf(basisIds))
             .setApprovedBy(approver)
             .setAggregateVersion((int) rowVersion)
+            .setAiContent(
+                aiContent.stream()
+                    .map(
+                        t ->
+                            NoiDungAi.newBuilder()
+                                .setSuggestionId(t.suggestionId())
+                                .setKeyResultId(t.keyResultId())
+                                .setContentSource(t.contentSource())
+                                .setKeptFields(List.copyOf(t.keptFields()))
+                                .setEditedFields(List.copyOf(t.editedFields()))
+                                .build())
+                    .toList())
             .build();
     outbox.append(
         EventEnvelope.of(

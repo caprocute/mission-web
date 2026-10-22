@@ -22,6 +22,7 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
+import vn.viettel.okrkpi.okr.application.OkrAiProvenance;
 import vn.viettel.okrkpi.okr.application.OkrCheckService;
 import vn.viettel.okrkpi.okr.application.OkrCheckinDelegateService;
 import vn.viettel.okrkpi.okr.application.OkrCheckinReminders;
@@ -33,6 +34,7 @@ import vn.viettel.okrkpi.okr.application.OkrReviewService;
 import vn.viettel.okrkpi.okr.application.OkrRevisionCarryOver;
 import vn.viettel.okrkpi.okr.application.OkrRuleChecker;
 import vn.viettel.okrkpi.okr.application.OkrSubmitService;
+import vn.viettel.okrkpi.okr.application.port.OkrAiSuggestions;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalEvents;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalSignal;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalStarter;
@@ -40,12 +42,14 @@ import vn.viettel.okrkpi.okr.application.port.OkrCheckinDelegatePort;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinEvents;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinExtension;
 import vn.viettel.okrkpi.okr.application.port.OkrSimilarityPort;
+import vn.viettel.okrkpi.okr.infrastructure.client.HttpOkrAiSuggestions;
 import vn.viettel.okrkpi.okr.infrastructure.scheduling.OkrCheckinReminderJob;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrApproveBatchJobs;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrExportJobs;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrIdempotency;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
+import vn.viettel.okrkpi.shared.infrastructure.ai.AiSuggestionClient;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
@@ -79,8 +83,36 @@ public class OkrReadConfiguration {
   /** CORE-01-03: phía soạn của SCR-0202 cùng {@code okrDataSource}. */
   @Bean
   OkrComposeService okrComposeService(
-      JdbcOkrWriteRepository okrWriteRepository, PeriodApi periods) {
-    return new OkrComposeService(okrWriteRepository, periods);
+      JdbcOkrWriteRepository okrWriteRepository,
+      PeriodApi periods,
+      JdbcOkrAiTraceRepository okrAiTraceRepository) {
+    return new OkrComposeService(okrWriteRepository, periods, okrAiTraceRepository);
+  }
+
+  /** CORE-01-13: dấu vết nội dung chèn từ gợi ý AI (BR-17-08). */
+  @Bean
+  JdbcOkrAiTraceRepository okrAiTraceRepository(@Qualifier("okrDataSource") DataSource dataSource) {
+    return new JdbcOkrAiTraceRepository(new NamedParameterJdbcTemplate(dataSource));
+  }
+
+  /**
+   * CORE-01-13: đọc gợi ý của SVC-14 thay mặt người soạn. Chưa đặt {@code mission.okr.ai.base-url}
+   * thì nội dung có nguồn AI trả {@code OKR-502-SOURCE-UNAVAILABLE}, nội dung tự soạn vẫn lưu được.
+   */
+  @Bean
+  OkrAiProvenance okrAiProvenance(
+      @Value("${mission.okr.ai.base-url:}") String baseUrl,
+      @Value("${mission.okr.ai.timeout:PT2S}") java.time.Duration timeout,
+      ObjectProvider<ObjectMapper> json,
+      ObjectProvider<OkrAiSuggestions> override) {
+    OkrAiSuggestions port = override.getIfAvailable();
+    if (port == null && !baseUrl.isBlank()) {
+      port =
+          new HttpOkrAiSuggestions(
+              new AiSuggestionClient(baseUrl, timeout), json.getIfAvailable(ObjectMapper::new));
+    }
+    OkrAiSuggestions resolved = port;
+    return new OkrAiProvenance(() -> resolved);
   }
 
   /** CORE-01-04: bộ kiểm tra BR-02-01..07 dùng chung bộ quy tắc CEL với trình duyệt. */
@@ -252,7 +284,8 @@ public class OkrReadConfiguration {
       PeriodApi periods,
       OkrApprovalEvents okrApprovalEvents,
       ObjectProvider<OkrApprovalSignal> signal,
-      ApplicationEventPublisher publisher) {
+      ApplicationEventPublisher publisher,
+      JdbcOkrAiTraceRepository okrAiTraceRepository) {
     return new OkrReviewService(
         okrReviewRepository,
         okrReadService,
@@ -260,7 +293,8 @@ public class OkrReadConfiguration {
         periods,
         okrApprovalEvents,
         signal::getIfAvailable,
-        publisher::publishEvent);
+        publisher::publishEvent,
+        okrAiTraceRepository);
   }
 
   /** Lô duyệt chạy nền trên luồng ảo, mỗi lô một luồng, mỗi bộ một giao dịch. */
