@@ -34,6 +34,9 @@ public interface OrgUnitStore {
   /** Khoá tư vấn trong giao dịch theo (tenant, mã) để kiểm mã duy nhất không bị chạy đua. */
   void lockCode(String code);
 
+  /** DV-04-05: đơn vị hiện hành mang mã {@code code} có hiệu lực tại ngày {@code day}. */
+  Optional<UUID> findIdByCode(String code, LocalDate day);
+
   /** Đóng và chèn theo kế hoạch; phiên bản chèn mang {@code rowVersion} và {@code changeOrderId} cho trước. */
   void apply(VersionPlan<OrgUnitVersion> plan, int rowVersion, UUID changeOrderId, Actor actor);
 
