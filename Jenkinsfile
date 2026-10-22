@@ -144,6 +144,10 @@ spec:
         stage('ESLint') {
           steps { dir('frontend') { sh 'npm run lint' } }
         }
+        stage('Định dạng mã web') {
+          // WEB-060: toàn bộ mã frontend đã theo Prettier; tệp sai định dạng làm đỏ pipeline
+          steps { dir('frontend') { sh 'npm run format:check' } }
+        }
         stage('Nội dung giao diện') {
           // AGENTS.md quy tắc 9, YC-PT-10: chặn mã SCR/QT, mã trạng thái thô, tên kỹ thuật,
           // ghi chú giải pháp lộ ra màn hình (wiki/16)
