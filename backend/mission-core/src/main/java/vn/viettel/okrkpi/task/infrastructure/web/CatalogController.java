@@ -344,7 +344,7 @@ public class CatalogController {
         in.getStatus() == null ? null : in.getStatus().getValue());
   }
 
-  private static UUID caller(Principal principal) {
+  static UUID caller(Principal principal) {
     if (principal == null || principal.getName() == null) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cần đăng nhập");
     }

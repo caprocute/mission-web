@@ -1,0 +1,42 @@
+{
+  "description": "Nội dung khởi đầu khi tạo phiên bản không nhân bản (cloneFromVersion = null), tạm thay cho UI Pack mặc định của DL-06.",
+  "componentRegistryVersion": "2026.3",
+  "tokens": {
+    "color": {
+      "$type": "color",
+      "primary": { "$value": "#0A5FA8" },
+      "on-primary": { "$value": "#FFFFFF" },
+      "surface": { "$value": "#FFFFFF" },
+      "on-surface": { "$value": "#1F2937" }
+    },
+    "radius": {
+      "$type": "dimension",
+      "card": { "$value": "12px" }
+    },
+    "font": {
+      "size": {
+        "$type": "dimension",
+        "body": { "$value": "15px" }
+      }
+    },
+    "$extensions": {
+      "modes": {
+        "elderly": {
+          "color": { "primary": { "$value": "#084F8C" } },
+          "font": { "size": { "body": { "$value": "18px" } } },
+          "flags": { "minTouchTarget": "48px" }
+        }
+      }
+    }
+  },
+  "layouts": {
+    "home": {
+      "component": "vt.layout.grid",
+      "children": [
+        { "component": "vt.widget.myTasksToday", "props": { "limit": 7 } },
+        { "component": "vt.widget.okrProgress", "props": { "scope": "me" } }
+      ]
+    }
+  },
+  "assets": []
+}

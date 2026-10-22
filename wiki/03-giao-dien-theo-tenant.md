@@ -139,6 +139,20 @@ TL-01 chương 7 lập luận rằng SDUI chỉ an toàn khi có nhiều lớp c
 
 Baseline mục 14 và TL-01 đặt ngân sách: shell cùng design system ≤ 250 KB gzip, mỗi remote ≤ 180 KB, UI Pack ≤ 30 KB, dựng biểu mẫu 50 trường ≤ 50 ms, CEL cho toàn biểu mẫu ≤ 5 ms. Kiểm thử UI Pack theo TL-01 có bốn tầng: Storybook với bộ token mặc định, tương phản cao, cao tuổi và màu thương hiệu tối kết hợp ảnh chụp Playwright và axe-core; kiểm tra tĩnh UI Pack (tương phản ≥ 4,5 : 1); smoke khoảng 2 phút cho mỗi gói; hồi quy trên 20 UI Pack đại diện. Chi tiết xem [Hiệu năng và trải nghiệm](09-hieu-nang-va-trai-nghiem.md) và [Kiểm thử và chất lượng](11-kiem-thu-va-chat-luong.md).
 
+## Kiểm tra tĩnh UI Pack phía máy chủ (CORE-08-10)
+
+mission-core chạy bộ kiểm tra tĩnh mỗi lần lưu nháp, xem trước và gửi duyệt UI Pack (`UiPackStaticChecks` cùng `LayoutValidator` của CORE-08-09, gộp thành `UiPackChecker`). Kết quả từng mục mang mã `CONTRAST`, `ELDER_MODE`, `SIZE`, `SCHEMA` (cùng `REGISTRY`, `CEL_PARITY` của bố cục) và hiện trong `previewUiPackVersion`; khi gửi duyệt mà có mục không đạt, phiên bản trở về nháp và job `TEST_RUN` liệt kê lỗi theo trường.
+
+**Quy ước cặp token chữ và nền.** Bộ kiểm suy ra cặp cần kiểm từ tên token trong cùng một nhóm của `tokens.color`, không cần khai báo riêng. Token tên `on-X` hoặc `onX` (kiểu lạc đà) là màu chữ trên nền `X` cùng nhóm, ví dụ `on-primary` trên `primary`, `onPrimary` trên `primary`. Token tên `text`, `text-…` hoặc `textX` là màu chữ trên mọi nền có tên bắt đầu bằng `surface` hoặc `background` cùng nhóm, ví dụ `text-muted` trên `surface` và `surface-alt`. Nhóm con được kiểm riêng (`brand.on-base` trên `brand.base`). Token không theo quy ước này thì không được kiểm tương phản, nên người soạn bộ token nên đặt tên theo quy ước. Bí danh `{color.white}` được giải trước khi tính. Màu phải viết dạng `#RGB`, `#RRGGBB`, `#RRGGBBFF` hoặc `rgb(r, g, b)`; màu trong suốt một phần hay tên màu không kiểm được nên bị báo lỗi.
+
+**Ngưỡng.** Tương phản ≥ 4,5 : 1 ở chế độ thường (BR-18-01, MSG-18-01) và ≥ 7 : 1 sau khi gộp ghi đè `tokens.$extensions.modes.elderly` (BR-18-09); tỷ lệ không làm tròn lên trước khi so (4,478 : 1 không đạt), thông điệp in tỷ lệ làm tròn xuống hai chữ số. Chế độ cao tuổi còn cần `font.size.body` ≥ 17 px, và nếu khai báo `flags.minTouchTarget` (trong ghi đè cao tuổi) hoặc `size.minTouchTarget` thì phải ≥ 48 px. Chế độ thường: `font.size.body` 12–16 px, mọi token `radius.*` 0–16 px (`rem` tính 16 px). Gói nội dung phiên bản nén gzip ≤ 30 KB (BR-18-08, MSG-18-05); đây là kích thước tài liệu UI Pack 1.0 dạng JSON, chưa phải gói đã biên dịch của CORE-08-11 (suy luận).
+
+**Tài nguyên.** Mỗi mục `assets` phải là `image/svg+xml`, `image/png` hoặc `font/woff2`, ≤ 50 KB, băm `sha256` và `sizeBytes` khớp tệp. SVG qua danh sách cho phép: chỉ phần tử vẽ tĩnh, không phần tử `script`, `foreignObject`, `style`; thuộc tính `style` được dùng nhưng không chứa `expression(` hay `@import`; không thuộc tính `on*`, `href` chỉ trỏ `#id`, `url()` chỉ trỏ `#id`, không `javascript:`, không DOCTYPE hay thực thể; tệp cần bỏ bất cứ thứ gì đều bị trả lại (từ chối thay vì sửa). Nội dung tệp đọc qua cổng `UiPackAssetStore`; hiện chưa có kho tệp và chưa có API tải tài nguyên trong hợp đồng, nên UI Pack có tài nguyên chưa qua được bước này (câu hỏi mở, chờ chốt nơi lưu tệp).
+
+**Biểu mẫu.** Mọi `forms.<khoá>.schemaRef` phải giải được trong dải `requires.policyPack` và mọi trường ở `ui.sections[].fields` phải có trong schema (ADR-25). MOD-08 là mô-đun gốc nên chỉ khai báo cổng `config.api.PolicySchemaPort`; MOD-05 hiện thực ở CORE-05-03 hoặc task kế tiếp, trước đó UI Pack có biểu mẫu không qua được bước này.
+
+**Bộ ca dùng chung.** `data/golden/ui-pack-checks/tuong-phan.json` là bộ ca tương phản mà `WcagContrastGoldenTest` của mission-core chạy; công cụ kiểm tương phản của WEB-004 (`contrastRatio` trong `@vt/design-system`, cùng công thức) cần chạy cùng tệp khi WEB-004 làm.
+
 ## Liên quan
 
 - [Kiến trúc frontend](02-kien-truc-frontend.md)
