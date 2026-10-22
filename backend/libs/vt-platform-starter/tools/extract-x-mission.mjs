@@ -44,6 +44,7 @@ const FILE_ERROR_MODULE = {
   'policies.yaml': 'POLICY',
   'products.yaml': 'PRODUCT',
   'tasks.yaml': 'TASK',
+  'scim.yaml': 'SCIM',
 };
 
 function parseInlineList(raw) {

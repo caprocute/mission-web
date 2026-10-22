@@ -39,6 +39,12 @@ public final class TestJwt {
   }
 
   public static String token(UUID tenant, UUID subject, List<String> roles, String acr, UUID unitId) {
+    return token(tenant, subject, roles, acr, unitId, Map.of());
+  }
+
+  /** Như trên, thêm claim tuỳ ý (ví dụ {@code azp} của client SCIM). */
+  public static String token(UUID tenant, UUID subject, List<String> roles, String acr, UUID unitId,
+      Map<String, Object> extra) {
     try {
       JWTClaimsSet.Builder claims = new JWTClaimsSet.Builder()
           .subject(subject.toString())
@@ -52,6 +58,7 @@ public final class TestJwt {
       if (unitId != null) {
         claims.claim("unit_id", unitId.toString());
       }
+      extra.forEach(claims::claim);
       SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims.build());
       jwt.sign(new RSASSASigner(KEYS.getPrivate()));
       return jwt.serialize();
