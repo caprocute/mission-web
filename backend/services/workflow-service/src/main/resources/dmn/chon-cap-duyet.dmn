@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="chon-cap-duyet-defs" name="Chọn cấp duyệt" namespace="urn:vt-okrkpi:dmn">
+  <!--
+    DV-06-03 · ADR-04 tầng 2 · TL-01 G2 "Ví dụ DMN chọn cấp duyệt".
+    Bảng quyết định chọn cấp duyệt, chính sách trúng COLLECT: mỗi dòng trúng là một cấp duyệt.
+    Đầu vào: khoi (DANG | NHA_NUOC), loaiHoSo, laNguoiDungDau. Đầu ra: thuTu, role, scope, hanNgayLamViec.
+    Bốn dòng r1..r4 giữ nguyên khuôn TL-01 (hồ sơ đánh giá quý, năm); ô "QUY","NAM" của r4 viết thành
+    biểu thức JUEL đầy đủ vì Flowable 7 không đọc danh sách giá trị kiểu FEEL.
+    Dòng r5..r9 cho ba mẫu phần 1 (suy luận từ TL-02a):
+      - OKR (QT-02, mẫu duyet-okr): `leader` của đơn vị cấp trên trực tiếp.
+      - KE_HOACH_QUY (QT-04, mẫu duyet-ke-hoach-quy): `leader` của đơn vị; người đứng đầu đơn vị trình thì cấp trên.
+      - DE_NGHI (QT-06, mẫu duyet-de-nghi, đề nghị vượt ngưỡng): AC-04 `leader`, xử lý ≤ 2 ngày làm việc.
+    Bảng không gắn tenant; khác biệt theo tenant nằm ở flowable.wf_binding (tham số cap).
+  -->
+  <decision id="chon-cap-duyet" name="Chọn cấp duyệt">
+    <decisionTable id="dt-cap-duyet" hitPolicy="COLLECT">
+      <input id="in-khoi" label="Khối">
+        <inputExpression id="in-khoi-expr" typeRef="string"><text>khoi</text></inputExpression>
+      </input>
+      <input id="in-loai" label="Loại hồ sơ">
+        <inputExpression id="in-loai-expr" typeRef="string"><text>loaiHoSo</text></inputExpression>
+      </input>
+      <input id="in-ndd" label="Người đứng đầu">
+        <inputExpression id="in-ndd-expr" typeRef="boolean"><text>laNguoiDungDau</text></inputExpression>
+      </input>
+      <output id="out-thu-tu" name="thuTu" typeRef="number"/>
+      <output id="out-vai-tro" name="role" typeRef="string"/>
+      <output id="out-pham-vi" name="scope" typeRef="string"/>
+      <output id="out-han" name="hanNgayLamViec" typeRef="number"/>
+      <rule id="r1">
+        <inputEntry id="r1-i1"><text>"DANG"</text></inputEntry>
+        <inputEntry id="r1-i2"><text>"QUY"</text></inputEntry>
+        <inputEntry id="r1-i3"><text>false</text></inputEntry>
+        <outputEntry id="r1-o1"><text>1</text></outputEntry>
+        <outputEntry id="r1-o2"><text>"appraiser"</text></outputEntry>
+        <outputEntry id="r1-o3"><text>"DON_VI_TRUC_TIEP"</text></outputEntry>
+        <outputEntry id="r1-o4"><text>3</text></outputEntry>
+      </rule>
+      <rule id="r2">
+        <inputEntry id="r2-i1"><text>"DANG"</text></inputEntry>
+        <inputEntry id="r2-i2"><text>"QUY"</text></inputEntry>
+        <inputEntry id="r2-i3"><text>false</text></inputEntry>
+        <outputEntry id="r2-o1"><text>2</text></outputEntry>
+        <outputEntry id="r2-o2"><text>"decider"</text></outputEntry>
+        <outputEntry id="r2-o3"><text>"CAP_UY_CO_THAM_QUYEN"</text></outputEntry>
+        <outputEntry id="r2-o4"><text>5</text></outputEntry>
+      </rule>
+      <rule id="r3">
+        <inputEntry id="r3-i1"><text>"DANG"</text></inputEntry>
+        <inputEntry id="r3-i2"><text>"QUY"</text></inputEntry>
+        <inputEntry id="r3-i3"><text>true</text></inputEntry>
+        <outputEntry id="r3-o1"><text>1</text></outputEntry>
+        <outputEntry id="r3-o2"><text>"decider"</text></outputEntry>
+        <outputEntry id="r3-o3"><text>"CAP_TREN_TRUC_TIEP"</text></outputEntry>
+        <outputEntry id="r3-o4"><text>5</text></outputEntry>
+      </rule>
+      <rule id="r4">
+        <inputEntry id="r4-i1"><text>"NHA_NUOC"</text></inputEntry>
+        <inputEntry id="r4-i2"><text>${loaiHoSo == "QUY" || loaiHoSo == "NAM"}</text></inputEntry>
+        <inputEntry id="r4-i3"><text>-</text></inputEntry>
+        <outputEntry id="r4-o1"><text>1</text></outputEntry>
+        <outputEntry id="r4-o2"><text>"manager"</text></outputEntry>
+        <outputEntry id="r4-o3"><text>"QUAN_LY_TRUC_TIEP"</text></outputEntry>
+        <outputEntry id="r4-o4"><text>3</text></outputEntry>
+      </rule>
+      <rule id="r5">
+        <inputEntry id="r5-i1"><text>-</text></inputEntry>
+        <inputEntry id="r5-i2"><text>"OKR"</text></inputEntry>
+        <inputEntry id="r5-i3"><text>-</text></inputEntry>
+        <outputEntry id="r5-o1"><text>1</text></outputEntry>
+        <outputEntry id="r5-o2"><text>"leader"</text></outputEntry>
+        <outputEntry id="r5-o3"><text>"CAP_TREN_TRUC_TIEP"</text></outputEntry>
+        <outputEntry id="r5-o4"><text>3</text></outputEntry>
+      </rule>
+      <rule id="r6">
+        <inputEntry id="r6-i1"><text>-</text></inputEntry>
+        <inputEntry id="r6-i2"><text>"KE_HOACH_QUY"</text></inputEntry>
+        <inputEntry id="r6-i3"><text>false</text></inputEntry>
+        <outputEntry id="r6-o1"><text>1</text></outputEntry>
+        <outputEntry id="r6-o2"><text>"leader"</text></outputEntry>
+        <outputEntry id="r6-o3"><text>"DON_VI_TRUC_TIEP"</text></outputEntry>
+        <outputEntry id="r6-o4"><text>3</text></outputEntry>
+      </rule>
+      <rule id="r7">
+        <inputEntry id="r7-i1"><text>-</text></inputEntry>
+        <inputEntry id="r7-i2"><text>"KE_HOACH_QUY"</text></inputEntry>
+        <inputEntry id="r7-i3"><text>true</text></inputEntry>
+        <outputEntry id="r7-o1"><text>1</text></outputEntry>
+        <outputEntry id="r7-o2"><text>"leader"</text></outputEntry>
+        <outputEntry id="r7-o3"><text>"CAP_TREN_TRUC_TIEP"</text></outputEntry>
+        <outputEntry id="r7-o4"><text>3</text></outputEntry>
+      </rule>
+      <rule id="r8">
+        <inputEntry id="r8-i1"><text>-</text></inputEntry>
+        <inputEntry id="r8-i2"><text>"DE_NGHI"</text></inputEntry>
+        <inputEntry id="r8-i3"><text>false</text></inputEntry>
+        <outputEntry id="r8-o1"><text>1</text></outputEntry>
+        <outputEntry id="r8-o2"><text>"leader"</text></outputEntry>
+        <outputEntry id="r8-o3"><text>"DON_VI_TRUC_TIEP"</text></outputEntry>
+        <outputEntry id="r8-o4"><text>2</text></outputEntry>
+      </rule>
+      <rule id="r9">
+        <inputEntry id="r9-i1"><text>-</text></inputEntry>
+        <inputEntry id="r9-i2"><text>"DE_NGHI"</text></inputEntry>
+        <inputEntry id="r9-i3"><text>true</text></inputEntry>
+        <outputEntry id="r9-o1"><text>1</text></outputEntry>
+        <outputEntry id="r9-o2"><text>"leader"</text></outputEntry>
+        <outputEntry id="r9-o3"><text>"CAP_TREN_TRUC_TIEP"</text></outputEntry>
+        <outputEntry id="r9-o4"><text>2</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>
