@@ -4,5 +4,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
     displayName = "MOD-01 · OKR Engine",
-    allowedDependencies = {"shared", "config :: api", "policy :: api"})
+    allowedDependencies = {"shared", "config :: api", "policy :: api", "replica :: api"})
 package vn.viettel.okrkpi.okr;
