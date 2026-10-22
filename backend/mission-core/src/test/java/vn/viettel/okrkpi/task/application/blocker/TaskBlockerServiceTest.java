@@ -6,8 +6,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -242,6 +244,142 @@ class TaskBlockerServiceTest {
                 service.escalateBlocker(
                     TENANT, TASK, BLOCKER, 2, null, null, "ngắn", actor(ASSIGNER)))
         .isInstanceOf(BusinessException.class);
+  }
+
+  @Test
+  void resolveCloseAndEdgeCases() {
+    UUID handler = UUID.randomUUID();
+    when(tasks.find(TENANT, TASK)).thenReturn(Optional.of(task(TaskStatus.DANG_THUC_HIEN)));
+    when(blockers.find(TENANT, 20264, TASK, BLOCKER))
+        .thenReturn(Optional.of(blocker("DANG_XU_LY", handler)));
+    when(blockers.change(eq(TENANT), eq(20264), eq(BLOCKER), eq(2L), any(), any()))
+        .thenReturn(true);
+    // Người xử lý ghi kết quả: DA_GIAI_QUYET, có resolved_at, báo người báo.
+    service.handleBlocker(
+        TENANT,
+        TASK,
+        BLOCKER,
+        2,
+        new TaskBlockerService.Patch(
+            false, null, true, LocalDate.of(2026, 11, 5), "DA_GIAI_QUYET", "Đã có số liệu"),
+        actor(handler));
+    ArgumentCaptor<TaskBlockers.Change> c = ArgumentCaptor.forClass(TaskBlockers.Change.class);
+    verify(blockers).change(eq(TENANT), eq(20264), eq(BLOCKER), eq(2L), c.capture(), any());
+    assertThat(c.getValue().resolvedAt()).isNotNull();
+    assertThat(c.getValue().resolveBy()).isEqualTo(LocalDate.of(2026, 11, 5));
+    assertThat(c.getValue().resolution()).isEqualTo("Đã có số liệu");
+    ArgumentCaptor<BlockerNotices.Notice> n = ArgumentCaptor.forClass(BlockerNotices.Notice.class);
+    verify(notices).notice(n.capture());
+    assertThat(n.getValue().template()).isEqualTo("DIEM_NGHEN_DA_XU_LY");
+
+    var badStatus = new TaskBlockerService.Patch(false, null, false, null, "SAI", null);
+    assertThatThrownBy(
+            () -> service.handleBlocker(TENANT, TASK, BLOCKER, 2, badStatus, actor(handler)))
+        .isInstanceOf(BusinessException.class);
+    var longNote = new TaskBlockerService.Patch(false, null, false, null, null, "x".repeat(2001));
+    assertThatThrownBy(
+            () -> service.handleBlocker(TENANT, TASK, BLOCKER, 2, longNote, actor(handler)))
+        .isInstanceOf(BusinessException.class);
+    var toProgress = new TaskBlockerService.Patch(true, null, false, null, "DANG_XU_LY", null);
+    when(blockers.find(TENANT, 20264, TASK, BLOCKER)).thenReturn(Optional.of(blocker("MO", null)));
+    assertThatThrownBy(
+            () -> service.handleBlocker(TENANT, TASK, BLOCKER, 2, toProgress, actor(ASSIGNER)))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e ->
+                assertThat(e.errors())
+                    .extracting(f -> f.field())
+                    .containsExactly("handlerPersonId"));
+    // Ghi lệch phiên bản giữa chừng.
+    when(blockers.change(eq(TENANT), eq(20264), eq(BLOCKER), eq(2L), any(), any()))
+        .thenReturn(false);
+    var close = new TaskBlockerService.Patch(false, null, false, null, "DONG", "Không còn cần");
+    assertThatThrownBy(
+            () -> service.handleBlocker(TENANT, TASK, BLOCKER, 2, close, actor(ASSIGNER)))
+        .isInstanceOf(VersionConflictException.class);
+  }
+
+  @Test
+  void escalateAndReportGuards() {
+    when(tasks.find(TENANT, TASK)).thenReturn(Optional.of(task(TaskStatus.DANG_THUC_HIEN)));
+    when(blockers.find(TENANT, 20264, TASK, BLOCKER))
+        .thenReturn(Optional.of(blocker("DONG", null)));
+    assertThatThrownBy(
+            () ->
+                service.escalateBlocker(
+                    TENANT, TASK, BLOCKER, 2, HEAD, null, "Cần hỗ trợ", actor(ASSIGNER)))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errorCode().code()).isEqualTo("TASK-409-INVALID-STATE"));
+    assertThatThrownBy(
+            () ->
+                service.escalateBlocker(
+                    TENANT, TASK, BLOCKER, 9, HEAD, null, "Cần hỗ trợ", actor(ASSIGNER)))
+        .isInstanceOf(VersionConflictException.class);
+    assertThatThrownBy(
+            () ->
+                service.escalateBlocker(
+                    TENANT, TASK, BLOCKER, 2, HEAD, null, "Cần hỗ trợ", actor(OUTSIDER)))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errorCode().code()).isEqualTo("COMMON-403-OUT-OF-SCOPE"));
+    when(blockers.find(TENANT, 20264, TASK, BLOCKER)).thenReturn(Optional.of(blocker("MO", null)));
+    assertThatThrownBy(
+            () ->
+                service.escalateBlocker(
+                    TENANT, TASK, BLOCKER, 2, null, null, "Cần hỗ trợ", actor(ASSIGNER)))
+        .isInstanceOf(BusinessException.class);
+    assertThatThrownBy(
+            () ->
+                service.escalateBlocker(
+                    TENANT, TASK, BLOCKER, 2, null, null, null, actor(ASSIGNER)))
+        .isInstanceOf(BusinessException.class);
+
+    doThrow(
+            new vn.viettel.okrkpi.config.api.PeriodLockedException(
+                vn.viettel.okrkpi.shared.kernel.PeriodId.of(UUID.randomUUID())))
+        .when(periods)
+        .assertWritable(any(), any());
+    assertThatThrownBy(
+            () ->
+                service.escalateBlocker(
+                    TENANT, TASK, BLOCKER, 2, HEAD, null, "Cần hỗ trợ", actor(ASSIGNER)))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errorCode().code()).isEqualTo("TASK-409-PERIOD-LOCKED"));
+    assertThatThrownBy(() -> service.reportBlocker(TENANT, TASK, null, actor(LEAD)))
+        .isInstanceOf(BusinessException.class);
+    reset(periods);
+    assertThatThrownBy(() -> service.reportBlocker(TENANT, TASK, null, actor(LEAD)))
+        .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.errors()).hasSize(4));
+    var late =
+        new TaskBlockerService.Report(
+            "Thiếu", "KHAC", "CHU_QUAN", "THAP", LocalDate.of(2030, 1, 1));
+    assertThatThrownBy(() -> service.reportBlocker(TENANT, TASK, late, actor(LEAD)))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errors()).extracting(f -> f.field()).containsExactly("resolveBy"));
+    when(tasks.find(TENANT, TASK)).thenReturn(Optional.empty());
+    assertThatThrownBy(() -> service.reportBlocker(TENANT, TASK, late, actor(LEAD)))
+        .isInstanceOf(java.util.NoSuchElementException.class);
+  }
+
+  @Test
+  void selfAssignedHandlerGetsNoNotice() {
+    when(tasks.find(TENANT, TASK)).thenReturn(Optional.of(task(TaskStatus.DA_GIAO)));
+    when(blockers.find(TENANT, 20264, TASK, BLOCKER))
+        .thenReturn(Optional.of(blocker("MO", null)), Optional.of(blocker("DANG_XU_LY", ASSIGNER)));
+    when(blockers.change(eq(TENANT), eq(20264), eq(BLOCKER), eq(2L), any(), any()))
+        .thenReturn(true);
+    service.handleBlocker(
+        TENANT,
+        TASK,
+        BLOCKER,
+        2,
+        new TaskBlockerService.Patch(true, ASSIGNER, false, null, null, null),
+        actor(ASSIGNER));
+    verify(notices, never()).notice(any());
+    assertThat(service.listOf(TENANT, task(TaskStatus.DA_GIAO))).isEmpty();
   }
 
   @Test
