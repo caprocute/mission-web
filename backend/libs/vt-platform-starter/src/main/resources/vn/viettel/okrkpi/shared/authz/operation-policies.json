@@ -1,7 +1,7 @@
 {
   "description": "Bảng chính sách thao tác trích từ mở rộng x-mission trong contracts/openapi/modules/*.yaml (NEN-014). Không sửa tay: chạy tools/extract-x-mission.mjs.",
   "source": "contracts/openapi/modules/*.yaml",
-  "count": 414,
+  "count": 431,
   "aal2Count": 73,
   "fourEyesCount": 18,
   "operations": [
@@ -2003,6 +2003,46 @@
       "source": "TL-02b SCR-1301 \"Tạo yêu cầu\", SCR-1202 \"Tạo yêu cầu mở lại kỳ\"; TL-01 PL C (AAL2)"
     },
     {
+      "operationId": "createScimGroup",
+      "file": "scim.yaml",
+      "module": "Groups",
+      "errorModule": "SCIM",
+      "method": "POST",
+      "path": "/Groups",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
+    },
+    {
+      "operationId": "createScimUser",
+      "file": "scim.yaml",
+      "module": "Users",
+      "errorModule": "SCIM",
+      "method": "POST",
+      "path": "/Users",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
+    },
+    {
       "operationId": "createTaskDraft",
       "file": "tasks.yaml",
       "module": "tasks",
@@ -2259,6 +2299,46 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-03 `okr.okr_link` (suy luận đường dẫn)"
+    },
+    {
+      "operationId": "deleteScimGroup",
+      "file": "scim.yaml",
+      "module": "Groups",
+      "errorModule": "SCIM",
+      "method": "DELETE",
+      "path": "/Groups/{id}",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
+    },
+    {
+      "operationId": "deleteScimUser",
+      "file": "scim.yaml",
+      "module": "Users",
+      "errorModule": "SCIM",
+      "method": "DELETE",
+      "path": "/Users/{id}",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
     },
     {
       "operationId": "deleteTaskDraft",
@@ -4392,6 +4472,106 @@
       "aal": 1,
       "fourEyes": false,
       "source": "WEB-058 đề xuất F1, F2"
+    },
+    {
+      "operationId": "getScimGroup",
+      "file": "scim.yaml",
+      "module": "Groups",
+      "errorModule": "SCIM",
+      "method": "GET",
+      "path": "/Groups/{id}",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
+    },
+    {
+      "operationId": "getScimResourceType",
+      "file": "scim.yaml",
+      "module": "ResourceTypes",
+      "errorModule": "SCIM",
+      "method": "GET",
+      "path": "/ResourceTypes/{name}",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
+    },
+    {
+      "operationId": "getScimSchema",
+      "file": "scim.yaml",
+      "module": "Schemas",
+      "errorModule": "SCIM",
+      "method": "GET",
+      "path": "/Schemas/{id}",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
+    },
+    {
+      "operationId": "getScimServiceProviderConfig",
+      "file": "scim.yaml",
+      "module": "ServiceProviderConfig",
+      "errorModule": "SCIM",
+      "method": "GET",
+      "path": "/ServiceProviderConfig",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
+    },
+    {
+      "operationId": "getScimUser",
+      "file": "scim.yaml",
+      "module": "Users",
+      "errorModule": "SCIM",
+      "method": "GET",
+      "path": "/Users/{id}",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
     },
     {
       "operationId": "getSemanticModel",
@@ -6587,6 +6767,86 @@
       "source": "WEB-058 đề xuất mục 3 F1, F2, F4 (đã duyệt 19/10/2026); TL-03 `config.role_binding`; ma trận SCR-0105.xem, SCR-0106.xem"
     },
     {
+      "operationId": "listScimGroups",
+      "file": "scim.yaml",
+      "module": "Groups",
+      "errorModule": "SCIM",
+      "method": "GET",
+      "path": "/Groups",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
+    },
+    {
+      "operationId": "listScimResourceTypes",
+      "file": "scim.yaml",
+      "module": "ResourceTypes",
+      "errorModule": "SCIM",
+      "method": "GET",
+      "path": "/ResourceTypes",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
+    },
+    {
+      "operationId": "listScimSchemas",
+      "file": "scim.yaml",
+      "module": "Schemas",
+      "errorModule": "SCIM",
+      "method": "GET",
+      "path": "/Schemas",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
+    },
+    {
+      "operationId": "listScimUsers",
+      "file": "scim.yaml",
+      "module": "Users",
+      "errorModule": "SCIM",
+      "method": "GET",
+      "path": "/Users",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
+    },
+    {
       "operationId": "listSimilarTasks",
       "file": "tasks.yaml",
       "module": "tasks",
@@ -7095,6 +7355,46 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02a SCR-0703 \"Mở minh chứng\"; ma trận SCR-0703.mo"
+    },
+    {
+      "operationId": "patchScimGroup",
+      "file": "scim.yaml",
+      "module": "Groups",
+      "errorModule": "SCIM",
+      "method": "PATCH",
+      "path": "/Groups/{id}",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
+    },
+    {
+      "operationId": "patchScimUser",
+      "file": "scim.yaml",
+      "module": "Users",
+      "errorModule": "SCIM",
+      "method": "PATCH",
+      "path": "/Users/{id}",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
     },
     {
       "operationId": "pausePeriodLock",
@@ -7627,6 +7927,46 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02b SCR-1601 \"Nhắc\""
+    },
+    {
+      "operationId": "replaceScimGroup",
+      "file": "scim.yaml",
+      "module": "Groups",
+      "errorModule": "SCIM",
+      "method": "PUT",
+      "path": "/Groups/{id}",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
+    },
+    {
+      "operationId": "replaceScimUser",
+      "file": "scim.yaml",
+      "module": "Users",
+      "errorModule": "SCIM",
+      "method": "PUT",
+      "path": "/Users/{id}",
+      "owner": "SVC-04",
+      "qt": [
+        "QT-01"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "T",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06"
     },
     {
       "operationId": "reportSuspiciousAccess",

@@ -1,0 +1,772 @@
+# Hợp đồng SCIM 2.0 của SVC-04 org-service cho HRM và IdP của tenant (DV-04-06).
+# Nguồn: TL-01 mục SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền, BR-01-11, BR-01-12;
+# TL-03 `org.scim_sync_log`, `org.person` (chỉ mục mù), bảng bổ sung `org.scim_resource`; RFC 7643, RFC 7644.
+# Tệp mô tả đúng RFC 7644: thân `application/scim+json`, lỗi theo lược đồ
+# `urn:ietf:params:scim:api:messages:2.0:Error` (không phải RFC 9457), ETag theo RFC 7644 mục 3.14 (lệch trả 412).
+# Điểm lệch BR-01-11 với TL-01 về vị trí tuyến SCIM ghi ở wiki trang 14.
+openapi: 3.1.0
+info:
+  title: Mission – SCIM 2.0 của org-service (SVC-04)
+  version: 1.0.0-draft.1
+  description: >-
+    Đồng bộ nhân sự gần thời gian thực từ HRM và IdP của tỉnh, bộ ngành. Chỉ client đã đăng ký (AC-11,
+    client credentials, vai trò `service_client`) gọi được; tenant lấy từ token, nguồn là client (`azp`).
+    Client chỉ thấy và ghi tài nguyên của chính nguồn mình trong tenant của token. Mọi lệnh ghi một dòng
+    `org.scim_sync_log`.
+servers:
+  - url: /scim/v2
+security:
+  - serviceClient: []
+tags:
+  - name: Discovery
+    description: Cấu hình dịch vụ, loại tài nguyên và lược đồ (RFC 7644 mục 4).
+  - name: Users
+    description: Người dùng SCIM ánh xạ sang cán bộ (`org.person`).
+  - name: Groups
+    description: Nhóm SCIM ánh xạ sang đơn vị đã có (`org.org_unit`), thành viên là phân công chính.
+paths:
+  /ServiceProviderConfig:
+    get:
+      tags: [Discovery]
+      operationId: getScimServiceProviderConfig
+      summary: Cấu hình dịch vụ SCIM
+      description: >-
+        Tính năng được hỗ trợ (PATCH, lọc, ETag; không có bulk, sort, đổi mật khẩu) theo RFC 7643 mục 5.
+      responses:
+        '200':
+          description: Cấu hình dịch vụ.
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/ServiceProviderConfig' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: []
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+  /ResourceTypes:
+    get:
+      tags: [Discovery]
+      operationId: listScimResourceTypes
+      summary: Danh sách loại tài nguyên SCIM
+      description: >-
+        Hai loại tài nguyên User và Group (RFC 7643 mục 6).
+      responses:
+        '200':
+          description: Danh sách loại tài nguyên.
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/ListResponse' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: []
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+  /ResourceTypes/{name}:
+    get:
+      tags: [Discovery]
+      operationId: getScimResourceType
+      summary: Một loại tài nguyên SCIM
+      description: >-
+        Loại tài nguyên theo tên (User hoặc Group).
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string, enum: [User, Group] }
+      responses:
+        '200':
+          description: Loại tài nguyên.
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/ResourceType' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: []
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+  /Schemas:
+    get:
+      tags: [Discovery]
+      operationId: listScimSchemas
+      summary: Danh sách lược đồ SCIM
+      description: >-
+        Lược đồ User, Group và phần mở rộng nền tảng `urn:okrkpi:params:scim:schemas:extension:mission:2.0:User` (RFC 7643 mục 7).
+      responses:
+        '200':
+          description: Danh sách lược đồ.
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/ListResponse' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: []
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+  /Schemas/{id}:
+    get:
+      tags: [Discovery]
+      operationId: getScimSchema
+      summary: Một lược đồ SCIM
+      description: >-
+        Lược đồ theo URN.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, maxLength: 128 }
+      responses:
+        '200':
+          description: Lược đồ.
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/Schema' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: []
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+  /Users:
+    get:
+      tags: [Users]
+      operationId: listScimUsers
+      summary: Tìm người dùng SCIM
+      description: >-
+        Người dùng của nguồn (client) đang gọi trong tenant của token; lọc một phép `eq` trên `userName` hoặc `externalId` (RFC 7644 mục 3.4.2). Tối đa 200 bản ghi mỗi trang.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Filter'
+        - $ref: '#/components/parameters/StartIndex'
+        - $ref: '#/components/parameters/Count'
+      responses:
+        '200':
+          description: Trang người dùng.
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/UserListResponse' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: []
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+    post:
+      tags: [Users]
+      operationId: createScimUser
+      summary: Tạo người dùng SCIM
+      description: >-
+        Khớp cán bộ đã có bằng chỉ mục mù số định danh cùng ngày sinh (BR-01-12); không khớp thì tạo cán bộ mới (phát EVT-16) hoặc, khi nguồn được cấu hình đối soát trước, đẩy vào bảng lệch và trả 409. Trùng một phần (cùng số định danh khác ngày sinh, cùng họ tên) luôn vào bảng lệch. Số định danh, ngày sinh chỉ lưu dạng mã hoá và không bao giờ trả lại. Lệnh lặp đúng nội dung được ghi `BO_QUA` trong `org.scim_sync_log`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/scim+json:
+            schema: { $ref: '#/components/schemas/User' }
+      responses:
+        '201':
+          description: Đã tạo hoặc đã khớp.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Location: { $ref: '#/components/headers/Location' }
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: [EVT-16]
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+  /Users/{id}:
+    get:
+      tags: [Users]
+      operationId: getScimUser
+      summary: Đọc người dùng SCIM
+      description: >-
+        Người dùng theo mã SCIM; tài nguyên đã nhận DELETE trả 404.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Người dùng.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: []
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+    put:
+      tags: [Users]
+      operationId: replaceScimUser
+      summary: Thay người dùng SCIM
+      description: >-
+        Thay toàn bộ thuộc tính nhận được. `active: false` là tạm nghỉ từ hôm nay (phát EVT-16). Thay đổi họ tên, số định danh, ngày sinh không ghi đè hồ sơ cán bộ. `If-Match` (tuỳ chọn) lệch phiên bản trả 412.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/scim+json:
+            schema: { $ref: '#/components/schemas/User' }
+      responses:
+        '200':
+          description: Người dùng sau khi thay.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '412': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: [EVT-16]
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+    patch:
+      tags: [Users]
+      operationId: patchScimUser
+      summary: Sửa một phần người dùng SCIM
+      description: >-
+        Lệnh PatchOp (RFC 7644 mục 3.5.2) với `add`, `replace`, `remove` trên `active`, `userName`, `displayName`, `name.formatted`, `title` và thuộc tính `partyMember` của phần mở rộng.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/scim+json:
+            schema: { $ref: '#/components/schemas/PatchOp' }
+      responses:
+        '200':
+          description: Người dùng sau khi sửa.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '412': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: [EVT-16]
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+    delete:
+      tags: [Users]
+      operationId: deleteScimUser
+      summary: Vô hiệu hoá người dùng SCIM
+      description: >-
+        Không xoá vật lý: cán bộ chuyển trạng thái tạm nghỉ từ hôm nay (phát EVT-16), tài nguyên SCIM không còn đọc được.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Đã vô hiệu hoá, không xoá vật lý.
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: [EVT-16]
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+  /Groups:
+    get:
+      tags: [Groups]
+      operationId: listScimGroups
+      summary: Tìm nhóm SCIM
+      description: >-
+        Nhóm của nguồn đang gọi; lọc một phép `eq` trên `displayName` hoặc `externalId`.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Filter'
+        - $ref: '#/components/parameters/StartIndex'
+        - $ref: '#/components/parameters/Count'
+      responses:
+        '200':
+          description: Trang nhóm.
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/GroupListResponse' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: []
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+    post:
+      tags: [Groups]
+      operationId: createScimGroup
+      summary: Tạo nhóm SCIM
+      description: >-
+        Nhóm ánh xạ sang đơn vị đã có trên cây tổ chức có mã đơn vị bằng `externalId` (thiếu thì `displayName`); SCIM không tạo đơn vị. Thành viên là phân công chính nhánh chính quyền tại đơn vị từ hôm nay, chức danh theo `title` của người dùng (phát EVT-15).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/scim+json:
+            schema: { $ref: '#/components/schemas/Group' }
+      responses:
+        '201':
+          description: Đã tạo.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Location: { $ref: '#/components/headers/Location' }
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/Group' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: [EVT-15]
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+  /Groups/{id}:
+    get:
+      tags: [Groups]
+      operationId: getScimGroup
+      summary: Đọc nhóm SCIM
+      description: >-
+        Nhóm và thành viên hiện hành.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Nhóm.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/Group' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: []
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+    put:
+      tags: [Groups]
+      operationId: replaceScimGroup
+      summary: Thay nhóm SCIM
+      description: >-
+        Thay danh sách thành viên: thành viên mới được điều động về đơn vị, thành viên bị bỏ kết thúc phân công từ hôm nay (phát EVT-15).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/scim+json:
+            schema: { $ref: '#/components/schemas/Group' }
+      responses:
+        '200':
+          description: Nhóm sau khi thay.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/Group' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '412': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: [EVT-15]
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+    patch:
+      tags: [Groups]
+      operationId: patchScimGroup
+      summary: Sửa một phần nhóm SCIM
+      description: >-
+        PatchOp trên `members` (`add`, `replace`, `remove`, kể cả `members[value eq "..."]`) và `displayName`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/scim+json:
+            schema: { $ref: '#/components/schemas/PatchOp' }
+      responses:
+        '200':
+          description: Nhóm sau khi sửa.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/scim+json:
+              schema: { $ref: '#/components/schemas/Group' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '412': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: [EVT-15]
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+    delete:
+      tags: [Groups]
+      operationId: deleteScimGroup
+      summary: Xoá nhóm SCIM
+      description: >-
+        Kết thúc phân công của thành viên tại đơn vị và bỏ ánh xạ; đơn vị giữ nguyên.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Đã vô hiệu hoá, không xoá vật lý.
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+      x-mission:
+        qt: [QT-01]
+        scr: []
+        owner: SVC-04
+        evt: [EVT-15]
+        roles: [service_client]
+        scope: T
+        rules: [BR-01-11, BR-01-12]
+        source: TL-01 SVC-04 (SCIM 2.0 `/scim/v2/Users`, `/scim/v2/Groups`); TL-02a QT-01 tác vụ nền; TL-03 `org.scim_sync_log`; RFC 7643, RFC 7644; DV-04-06
+components:
+  securitySchemes:
+    serviceClient: { $ref: '../common/common.yaml#/components/securitySchemes/serviceClient' }
+  headers:
+    ETag:
+      description: Phiên bản yếu của tài nguyên (`meta.version`), ví dụ `W/"3"`.
+      schema: { type: string, examples: ['W/"3"'] }
+    Location:
+      description: Đường dẫn đầy đủ của tài nguyên vừa tạo (`meta.location`).
+      schema: { type: string, format: uri }
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: >-
+        Tuỳ chọn, vì client SCIM chuẩn không gửi. Chống ghi trùng của SCIM dựa trên băm nội dung lệnh
+        (`org.scim_sync_log.request_hash`): lệnh lặp đúng nội dung lệnh thành công gần nhất trên cùng tài
+        nguyên được bỏ qua và trả trạng thái hiện hành.
+      schema: { type: string, maxLength: 64 }
+    TenantId:
+      name: X-Tenant-Id
+      in: header
+      required: false
+      description: Tuỳ chọn; khác tenant trong token thì bị từ chối 403.
+      schema: { type: string, format: uuid }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: ETag đọc được trước đó; lệch phiên bản trả 412 (RFC 7644 mục 3.14).
+      schema: { type: string, examples: ['W/"3"'] }
+    Id:
+      name: id
+      in: path
+      required: true
+      description: Mã tài nguyên SCIM do nền tảng cấp (`org.scim_resource.id`).
+      schema: { type: string, format: uuid }
+    Filter:
+      name: filter
+      in: query
+      description: Một phép so khớp chính xác, ví dụ `userName eq "an.nv"`.
+      schema: { type: string, maxLength: 300 }
+    StartIndex:
+      name: startIndex
+      in: query
+      description: Vị trí bắt đầu, đếm từ 1.
+      schema: { type: integer, minimum: 1, default: 1 }
+    Count:
+      name: count
+      in: query
+      description: Số bản ghi tối đa mỗi trang.
+      schema: { type: integer, minimum: 0, maximum: 200, default: 100 }
+  responses:
+    Error:
+      description: Lỗi theo RFC 7644 mục 3.12.
+      content:
+        application/scim+json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Meta:
+      type: object
+      readOnly: true
+      properties:
+        resourceType: { type: string }
+        created: { type: string, format: date-time }
+        lastModified: { type: string, format: date-time }
+        location: { type: string, format: uri }
+        version: { type: string }
+    MissionUserExtension:
+      type: object
+      description: Phần mở rộng `urn:okrkpi:params:scim:schemas:extension:mission:2.0:User`.
+      properties:
+        nationalId:
+          type: string
+          maxLength: 20
+          writeOnly: true
+          description: Số định danh cá nhân (C2); chỉ dùng để khớp, lưu mã hoá, không bao giờ trả lại.
+        birthDate:
+          type: string
+          format: date
+          writeOnly: true
+          description: Ngày sinh (C2); chỉ dùng để khớp, lưu mã hoá, không bao giờ trả lại.
+        partyMember: { type: boolean, description: Là đảng viên. }
+        employmentStatus:
+          type: string
+          readOnly: true
+          enum: [DANG_CONG_TAC, NGHI_HUU, THOI_VIEC, TAM_NGHI]
+          description: Trạng thái công tác hiện hành của cán bộ.
+    User:
+      type: object
+      required: [schemas, userName]
+      properties:
+        schemas: { type: array, items: { type: string } }
+        id: { type: string, format: uuid, readOnly: true }
+        externalId: { type: string, maxLength: 128, description: Mã ở nguồn; thiếu thì dùng `userName`. }
+        userName: { type: string, maxLength: 255 }
+        displayName: { type: string, maxLength: 255, description: Họ và tên. }
+        name:
+          type: object
+          properties:
+            formatted: { type: string, maxLength: 255 }
+        title: { type: string, maxLength: 32, description: Mã chức danh trong danh mục của tenant. }
+        active: { type: boolean, default: true }
+        urn:okrkpi:params:scim:schemas:extension:mission:2.0:User: { $ref: '#/components/schemas/MissionUserExtension' }
+        meta: { $ref: '#/components/schemas/Meta' }
+      examples:
+        - schemas: [urn:ietf:params:scim:schemas:core:2.0:User, urn:okrkpi:params:scim:schemas:extension:mission:2.0:User]
+          externalId: NV-001
+          userName: an.nv
+          displayName: Nguyễn Văn An
+          title: CV
+          active: true
+    Member:
+      type: object
+      required: [value]
+      properties:
+        value: { type: string, format: uuid, description: Mã người dùng SCIM của cùng nguồn. }
+        $ref: { type: string, format: uri, readOnly: true }
+        type: { type: string, enum: [User], readOnly: true }
+    Group:
+      type: object
+      required: [schemas, displayName]
+      properties:
+        schemas: { type: array, items: { type: string } }
+        id: { type: string, format: uuid, readOnly: true }
+        externalId: { type: string, maxLength: 128, description: Mã đơn vị trên cây tổ chức. }
+        displayName: { type: string, maxLength: 255 }
+        members: { type: array, items: { $ref: '#/components/schemas/Member' } }
+        meta: { $ref: '#/components/schemas/Meta' }
+    PatchOperation:
+      type: object
+      required: [op]
+      properties:
+        op: { type: string, enum: [add, replace, remove, Add, Replace, Remove] }
+        path: { type: string, maxLength: 300 }
+        value: {}
+    PatchOp:
+      type: object
+      required: [schemas, Operations]
+      properties:
+        schemas: { type: array, items: { type: string, const: 'urn:ietf:params:scim:api:messages:2.0:PatchOp' } }
+        Operations: { type: array, minItems: 1, items: { $ref: '#/components/schemas/PatchOperation' } }
+    ListResponse:
+      type: object
+      required: [schemas, totalResults, Resources]
+      properties:
+        schemas: { type: array, items: { type: string } }
+        totalResults: { type: integer }
+        startIndex: { type: integer }
+        itemsPerPage: { type: integer }
+        Resources: { type: array, items: { type: object } }
+    UserListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ListResponse'
+        - type: object
+          properties:
+            Resources: { type: array, items: { $ref: '#/components/schemas/User' } }
+    GroupListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ListResponse'
+        - type: object
+          properties:
+            Resources: { type: array, items: { $ref: '#/components/schemas/Group' } }
+    ServiceProviderConfig:
+      type: object
+      required: [schemas, patch, bulk, filter, changePassword, sort, etag, authenticationSchemes]
+      properties:
+        schemas: { type: array, items: { type: string } }
+        documentationUri: { type: string, format: uri }
+        patch: { $ref: '#/components/schemas/Supported' }
+        bulk: { type: object, properties: { supported: { type: boolean }, maxOperations: { type: integer }, maxPayloadSize: { type: integer } } }
+        filter: { type: object, properties: { supported: { type: boolean }, maxResults: { type: integer } } }
+        changePassword: { $ref: '#/components/schemas/Supported' }
+        sort: { $ref: '#/components/schemas/Supported' }
+        etag: { $ref: '#/components/schemas/Supported' }
+        authenticationSchemes: { type: array, items: { type: object } }
+        meta: { $ref: '#/components/schemas/Meta' }
+    Supported:
+      type: object
+      required: [supported]
+      properties:
+        supported: { type: boolean }
+    ResourceType:
+      type: object
+      required: [schemas, id, name, endpoint, schema]
+      properties:
+        schemas: { type: array, items: { type: string } }
+        id: { type: string }
+        name: { type: string }
+        endpoint: { type: string }
+        description: { type: string }
+        schema: { type: string }
+        schemaExtensions: { type: array, items: { type: object } }
+        meta: { $ref: '#/components/schemas/Meta' }
+    Schema:
+      type: object
+      required: [id, attributes]
+      properties:
+        schemas: { type: array, items: { type: string } }
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        attributes: { type: array, items: { type: object } }
+        meta: { $ref: '#/components/schemas/Meta' }
+    Error:
+      type: object
+      required: [schemas, status]
+      properties:
+        schemas: { type: array, items: { type: string, const: 'urn:ietf:params:scim:api:messages:2.0:Error' } }
+        status: { type: string, description: Mã HTTP dạng chuỗi. }
+        scimType:
+          type: string
+          enum: [invalidFilter, tooMany, uniqueness, mutability, invalidSyntax, invalidPath, noTarget, invalidValue, invalidVers, sensitive]
+        detail: { type: string }

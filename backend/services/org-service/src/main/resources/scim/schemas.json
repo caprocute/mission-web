@@ -1,0 +1,213 @@
+[
+  {
+    "schemas": [
+      "urn:ietf:params:scim:schemas:core:2.0:Schema"
+    ],
+    "id": "urn:ietf:params:scim:schemas:core:2.0:User",
+    "name": "User",
+    "description": "Người dùng (các thuộc tính nền tảng nhận)",
+    "attributes": [
+      {
+        "name": "userName",
+        "type": "string",
+        "multiValued": false,
+        "description": "Tên đăng nhập ở nguồn, duy nhất trong nguồn",
+        "required": true,
+        "caseExact": false,
+        "mutability": "readWrite",
+        "returned": "default",
+        "uniqueness": "server"
+      },
+      {
+        "name": "displayName",
+        "type": "string",
+        "multiValued": false,
+        "description": "Họ và tên",
+        "required": false,
+        "caseExact": false,
+        "mutability": "readWrite",
+        "returned": "default",
+        "uniqueness": "none"
+      },
+      {
+        "name": "name",
+        "type": "complex",
+        "multiValued": false,
+        "description": "Họ và tên",
+        "required": false,
+        "caseExact": false,
+        "mutability": "readWrite",
+        "returned": "default",
+        "uniqueness": "none",
+        "subAttributes": [
+          {
+            "name": "formatted",
+            "type": "string",
+            "multiValued": false,
+            "description": "Họ và tên đầy đủ",
+            "required": false,
+            "caseExact": false,
+            "mutability": "readWrite",
+            "returned": "default",
+            "uniqueness": "none"
+          }
+        ]
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "multiValued": false,
+        "description": "Mã chức danh trong danh mục chức danh của tenant",
+        "required": false,
+        "caseExact": false,
+        "mutability": "readWrite",
+        "returned": "default",
+        "uniqueness": "none"
+      },
+      {
+        "name": "active",
+        "type": "boolean",
+        "multiValued": false,
+        "description": "false là tạm nghỉ (vô hiệu hoá)",
+        "required": false,
+        "caseExact": false,
+        "mutability": "readWrite",
+        "returned": "default",
+        "uniqueness": "none"
+      }
+    ],
+    "meta": {
+      "resourceType": "Schema",
+      "location": "{base}/Schemas/urn:ietf:params:scim:schemas:core:2.0:User"
+    }
+  },
+  {
+    "schemas": [
+      "urn:ietf:params:scim:schemas:core:2.0:Schema"
+    ],
+    "id": "urn:okrkpi:params:scim:schemas:extension:mission:2.0:User",
+    "name": "MissionUser",
+    "description": "Thuộc tính định danh cán bộ của nền tảng",
+    "attributes": [
+      {
+        "name": "nationalId",
+        "type": "string",
+        "multiValued": false,
+        "description": "Số định danh cá nhân; chỉ dùng để khớp, lưu mã hoá",
+        "required": false,
+        "caseExact": true,
+        "mutability": "writeOnly",
+        "returned": "never",
+        "uniqueness": "none"
+      },
+      {
+        "name": "birthDate",
+        "type": "dateTime",
+        "multiValued": false,
+        "description": "Ngày sinh; chỉ dùng để khớp, lưu mã hoá",
+        "required": false,
+        "caseExact": false,
+        "mutability": "writeOnly",
+        "returned": "never",
+        "uniqueness": "none"
+      },
+      {
+        "name": "partyMember",
+        "type": "boolean",
+        "multiValued": false,
+        "description": "Là đảng viên",
+        "required": false,
+        "caseExact": false,
+        "mutability": "readWrite",
+        "returned": "default",
+        "uniqueness": "none"
+      },
+      {
+        "name": "employmentStatus",
+        "type": "string",
+        "multiValued": false,
+        "description": "Trạng thái công tác hiện hành",
+        "required": false,
+        "caseExact": false,
+        "mutability": "readOnly",
+        "returned": "default",
+        "uniqueness": "none"
+      }
+    ],
+    "meta": {
+      "resourceType": "Schema",
+      "location": "{base}/Schemas/urn:okrkpi:params:scim:schemas:extension:mission:2.0:User"
+    }
+  },
+  {
+    "schemas": [
+      "urn:ietf:params:scim:schemas:core:2.0:Schema"
+    ],
+    "id": "urn:ietf:params:scim:schemas:core:2.0:Group",
+    "name": "Group",
+    "description": "Đơn vị trên cây tổ chức",
+    "attributes": [
+      {
+        "name": "displayName",
+        "type": "string",
+        "multiValued": false,
+        "description": "Tên nhóm; dùng làm mã đơn vị khi thiếu externalId",
+        "required": true,
+        "caseExact": false,
+        "mutability": "readWrite",
+        "returned": "default",
+        "uniqueness": "none"
+      },
+      {
+        "name": "members",
+        "type": "complex",
+        "multiValued": true,
+        "description": "Người dùng có phân công chính tại đơn vị",
+        "required": false,
+        "caseExact": false,
+        "mutability": "readWrite",
+        "returned": "default",
+        "uniqueness": "none",
+        "subAttributes": [
+          {
+            "name": "value",
+            "type": "string",
+            "multiValued": false,
+            "description": "Mã người dùng SCIM",
+            "required": false,
+            "caseExact": false,
+            "mutability": "immutable",
+            "returned": "default",
+            "uniqueness": "none"
+          },
+          {
+            "name": "$ref",
+            "type": "reference",
+            "multiValued": false,
+            "description": "Đường dẫn người dùng",
+            "required": false,
+            "caseExact": false,
+            "mutability": "immutable",
+            "returned": "default",
+            "uniqueness": "none"
+          },
+          {
+            "name": "type",
+            "type": "string",
+            "multiValued": false,
+            "description": "User",
+            "required": false,
+            "caseExact": false,
+            "mutability": "immutable",
+            "returned": "default",
+            "uniqueness": "none"
+          }
+        ]
+      }
+    ],
+    "meta": {
+      "resourceType": "Schema",
+      "location": "{base}/Schemas/urn:ietf:params:scim:schemas:core:2.0:Group"
+    }
+  }
+]

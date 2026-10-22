@@ -56,6 +56,11 @@ export type {
   operations as ProductsOperations,
 } from './products';
 export type {
+  paths as ScimPaths,
+  components as ScimComponents,
+  operations as ScimOperations,
+} from './scim';
+export type {
   paths as TasksPaths,
   components as TasksComponents,
   operations as TasksOperations,
@@ -72,4 +77,5 @@ export type ApiPaths = import('./appraisals').paths &
   import('./platform').paths &
   import('./policies').paths &
   import('./products').paths &
+  import('./scim').paths &
   import('./tasks').paths;

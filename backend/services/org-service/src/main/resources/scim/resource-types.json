@@ -1,0 +1,21 @@
+[
+  {
+    "schemas": ["urn:ietf:params:scim:schemas:core:2.0:ResourceType"],
+    "id": "User",
+    "name": "User",
+    "endpoint": "/Users",
+    "description": "Cán bộ, viên chức của tenant",
+    "schema": "urn:ietf:params:scim:schemas:core:2.0:User",
+    "schemaExtensions": [{"schema": "urn:okrkpi:params:scim:schemas:extension:mission:2.0:User", "required": false}],
+    "meta": {"resourceType": "ResourceType", "location": "{base}/ResourceTypes/User"}
+  },
+  {
+    "schemas": ["urn:ietf:params:scim:schemas:core:2.0:ResourceType"],
+    "id": "Group",
+    "name": "Group",
+    "endpoint": "/Groups",
+    "description": "Đơn vị đã có trên cây tổ chức, khớp theo mã đơn vị",
+    "schema": "urn:ietf:params:scim:schemas:core:2.0:Group",
+    "meta": {"resourceType": "ResourceType", "location": "{base}/ResourceTypes/Group"}
+  }
+]

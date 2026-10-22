@@ -30,6 +30,7 @@ import vn.viettel.okrkpi.org.application.sync.SourceRecord.SourcePost;
 import vn.viettel.okrkpi.org.domain.AssignmentVersion;
 import vn.viettel.okrkpi.org.domain.OrgNotFoundException;
 import vn.viettel.okrkpi.org.domain.UuidV7;
+import vn.viettel.okrkpi.org.domain.sync.DiscrepancyField;
 import vn.viettel.okrkpi.org.domain.sync.DiscrepancyRules;
 import vn.viettel.okrkpi.org.domain.sync.DiscrepancyRules.Finding;
 import vn.viettel.okrkpi.org.domain.sync.DiscrepancyRules.PersonState;
@@ -123,6 +124,59 @@ public class SyncIngestService {
     return new BatchResult(records.size(), changes, errors, found);
   }
 
+  // ---------- DV-04-06: dùng lại bộ so khớp cho từng lệnh SCIM ----------
+
+  /** Kết quả khớp một bản ghi đơn lẻ: người đã có, hoặc nghi vấn cần đối soát, hoặc chưa có. */
+  public record PersonMatch(UUID personId, boolean mismatch, String matchedBy) {
+  }
+
+  @Transactional
+  public PersonMatch matchPerson(Actor actor, SourceRecord r) {
+    Match m = match(actor.tenantId(), r, support.today());
+    return new PersonMatch(m.person() == null ? null : m.person().id(), m.mismatch(), m.by());
+  }
+
+  /** Tạo người mới từ bản ghi nguồn (số định danh, ngày sinh mã hoá trường), phát EVT-16 và EVT-15 nếu có phân công. */
+  @Transactional
+  public UUID createPerson(Actor actor, String connector, SourceRecord r) {
+    return create(actor, connector, r, support.today());
+  }
+
+  /**
+   * Đẩy bản ghi không khớp chắc chắn vào bảng lệch (lệch Cao "không khớp người") dưới một lần chạy riêng đã đóng của
+   * nguồn; trả mã dòng lệch.
+   */
+  @Transactional
+  public UUID recordUnmatched(Actor actor, String connector, SourceRecord r, String matchedBy) {
+    UUID runId = UuidV7.next(support.clock());
+    runs.start(runId, connector, actor);
+    record(actor, runId, connector, r, null, DiscrepancyRules.personMismatch(r.effectiveFrom()),
+        matchedBy == null ? "KHONG_KHOP" : matchedBy, new SyncValues.Identity(r.fullName(), r.birthDate()));
+    runs.addBatch(runId, 1, 0, 0, actor);
+    runs.finish(runId, "THANH_CONG_MOT_PHAN", 0, null, actor);
+    return discrepancies.findLatestActive(connector, r.externalId(), DiscrepancyField.PERSON_MATCH.code())
+        .map(Row::id).orElse(null);
+  }
+
+  /**
+   * Ghi trạng thái công tác, đảng viên từ hôm nay khi khác giá trị hiện hành; phát EVT-16. Trả true khi có thay đổi.
+   */
+  @Transactional
+  public boolean applyPersonState(Actor actor, UUID personId, String employmentStatus, Boolean partyMember) {
+    LocalDate today = support.today();
+    PersonRow p = persons.findById(personId, today)
+        .orElseThrow(() -> new OrgNotFoundException("Không tìm thấy cán bộ."));
+    String status = employmentStatus == null || employmentStatus.equals(p.employmentStatus()) ? null
+        : employmentStatus;
+    Boolean party = partyMember == null || partyMember == p.partyMember() ? null : partyMember;
+    if (status == null && party == null) {
+      return false;
+    }
+    persons.changeFrom(personId, today, status, party, actor);
+    support.emitPersonChanged(personId, actor);
+    return true;
+  }
+
   private record Outcome(boolean changed, int discrepancies) {
   }
 
@@ -187,7 +241,7 @@ public class SyncIngestService {
     return new Match(null, false, null);
   }
 
-  private void create(Actor actor, String connector, SourceRecord r, LocalDate today) {
+  private UUID create(Actor actor, String connector, SourceRecord r, LocalDate today) {
     UUID tenant = actor.tenantId();
     UUID id = UuidV7.next(support.clock());
     Encrypted birth = support.encrypt(tenant, SyncSupport.COL_BIRTH, id,
@@ -212,6 +266,7 @@ public class SyncIngestService {
           sp.kind(), branch, sp.head(), sp.validFrom() == null ? from : sp.validFrom(), null, false, null, null, null,
           null, null));
     }
+    return id;
   }
 
   /** Ghi hoặc làm mới một dòng lệch; trả false khi bỏ qua vì đang giữ nội bộ và nguồn chưa đổi. */
