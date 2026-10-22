@@ -292,6 +292,11 @@ authenticationFlows:
         requirement: ALTERNATIVE
         priority: 30
         authenticatorFlow: false
+      # DV-02-08: "Phương thức khác" khi mất SmartOTP, chỉ hiện khi có mã khôi phục còn hạn do quản trị cấp.
+      - authenticator: mission-recovery-code
+        requirement: ALTERNATIVE
+        priority: 40
+        authenticatorFlow: false
   - alias: mission-aal2-enroll
     providerId: basic-flow
     topLevel: false
