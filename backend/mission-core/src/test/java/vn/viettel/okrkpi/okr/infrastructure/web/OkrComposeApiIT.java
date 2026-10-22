@@ -104,6 +104,9 @@ class OkrComposeApiIT extends ContractConformanceTest {
   /** Cây tổ chức giả: mặc định không có quan hệ cấp trên, cấp dưới. */
   @MockitoBean private OrgDirectoryApi orgDirectory;
 
+  /** Cổng đọc gợi ý của SVC-14 (CORE-01-13); mặc định không có gợi ý nào. */
+  @MockitoBean private vn.viettel.okrkpi.okr.application.port.OkrAiSuggestions aiSuggestions;
+
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper json;
 
@@ -360,18 +363,37 @@ class OkrComposeApiIT extends ContractConformanceTest {
   void themKrLienKetVaXoaLienKet() throws Exception {
     JsonNode created = body(create(UNIT, period, "Mục tiêu thêm KR riêng", 1, null));
     UUID id = UUID.fromString(created.get("id").asText());
+    UUID suggestion = UUID.randomUUID();
     ObjectNode krReq = kr("Kết quả do trợ lý gợi ý", "0.4");
-    krReq
-        .put("objectiveId", id.toString())
-        .put("contentSource", "AI_ACCEPTED")
-        .put("aiSuggestionId", UUID.randomUUID().toString());
-    MvcResult kr =
-        perform(
-            post("/api/v1/okr/key-results")
-                .header("Idempotency-Key", UUID.randomUUID().toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(krReq.toString()));
+    krReq.put("objectiveId", id.toString()).put("contentSource", "AI_ACCEPTED");
+    // CORE-01-13: thiếu mã gợi ý, gợi ý của người khác (SVC-14 trả 404) đều 422.
+    assertThat(postKr(krReq).getResponse().getStatus()).isEqualTo(422);
+    krReq.put("aiSuggestionId", suggestion.toString());
+    MvcResult foreign = postKr(krReq);
+    assertThat(foreign.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(foreign).get("errors").get(0).get("field").asText())
+        .isEqualTo("aiSuggestionId");
+    when(aiSuggestions.find(eq(tenant), eq(ACTOR), eq(suggestion), any()))
+        .thenReturn(
+            Optional.of(
+                new vn.viettel.okrkpi.okr.application.port.OkrAiSuggestions.Suggestion(
+                    suggestion,
+                    "SOAT_KR",
+                    "CHAP_NHAN",
+                    java.util.Map.of("text", "Kết quả do trợ lý gợi ý"))));
+    MvcResult kr = postKr(krReq);
     assertThat(kr.getResponse().getStatus()).isEqualTo(201);
+    MvcResult objective = perform(get("/api/v1/okr/objectives/" + id));
+    assertThat(body(objective).get("aiAssisted").asBoolean()).isTrue();
+    MvcResult history = perform(get("/api/v1/okr/objectives/" + id + "/history"));
+    assertThat(history.getResponse().getStatus()).isEqualTo(200);
+    JsonNode saved = body(history).get("items").get(0);
+    assertThat(saved.get("action").asText()).isEqualTo("LUU_NHAP");
+    assertThat(saved.get("aiAssisted").asBoolean()).isTrue();
+    assertThat(saved.get("comment").asText())
+        .contains("giữ nguyên tên")
+        .doesNotContain("đã sửa tên");
+    assertResponseConforms(history, "/okr/objectives/{id}/history", PathItem.HttpMethod.GET);
     assertThat(body(kr).get("code").asText())
         .isEqualTo("KR " + created.get("code").asText().substring(1) + ".2");
     assertThat(body(kr).get("aiAssisted").asBoolean()).isTrue();
@@ -554,6 +576,14 @@ class OkrComposeApiIT extends ContractConformanceTest {
   private MvcResult postObjective(ObjectNode req) throws Exception {
     return perform(
         post("/api/v1/okr/objectives")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(req.toString()));
+  }
+
+  private MvcResult postKr(ObjectNode req) throws Exception {
+    return perform(
+        post("/api/v1/okr/key-results")
             .header("Idempotency-Key", UUID.randomUUID().toString())
             .contentType(MediaType.APPLICATION_JSON)
             .content(req.toString()));
