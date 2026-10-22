@@ -13,7 +13,7 @@ import uuid
 
 from .db import SafeAsyncTx, in_tenant_tx, parse_rows_affected
 from .otel import current_traceparent, new_span_context, parse_traceparent, set_current_span_context, reset_current_span_context
-from .tenant import must_get_tenant_id, normalize_uuid
+from .tenant import is_valid_uuid, must_get_tenant_id, normalize_uuid
 
 
 CLOUDEVENTS_SPEC_VERSION = "1.0"
@@ -168,6 +168,15 @@ def deterministic_event_id_from_alert_key(tenant_id: str, alert_key: str) -> str
     return str(uuid.uuid5(EVT_20_ALERT_NAMESPACE, f"{norm_tenant}:{cleaned_key}"))
 
 
+# EVT-20 codes per contracts/events/avro/analytics/DauHieuBatThuong.avsc and oversight.anomaly_alert checks.
+ANOMALY_SIGNAL_CODES = frozenset(
+    {"TU_CHAM_CAO", "CAO_BANG", "MUC_TIEU_DE", "MINH_CHUNG_TRUNG", "CAP_NHAT_DON", "SUA_SAU_KHOA", "CHE_NHO", "MIEN_TRU_LAP"}
+)
+# HET_DAU_HIEU: the signal is gone; MOD-07 auto-closes the open alert (CORE-07-10).
+ANOMALY_RESOLVED = "HET_DAU_HIEU"
+ANOMALY_SEVERITIES = frozenset({"CAO", "VUA", "THAP", ANOMALY_RESOLVED})
+
+
 @dataclass
 class AnomalyAlertPayload:
     """Matches Avro schema `contracts/events/avro/analytics/DauHieuBatThuong.avsc` (`EVT-20`)."""
@@ -183,18 +192,23 @@ class AnomalyAlertPayload:
     def validate(self) -> None:
         if not (self.alert_key or "").strip():
             raise ValueError("kafka: alertKey is required")
-        if self.signal_code not in {"CB_01", "CB_02", "CB_03", "CB_04", "CB_05"}:
+        if self.signal_code not in ANOMALY_SIGNAL_CODES:
             raise ValueError(f"kafka: invalid signalCode {self.signal_code!r}")
-        if self.severity not in {"MEDIUM", "HIGH", "CRITICAL"}:
+        if self.severity not in ANOMALY_SEVERITIES:
             raise ValueError(f"kafka: invalid severity {self.severity!r}")
-        if self.subject_type not in {"TASK", "KEY_RESULT", "ORG_UNIT", "EVALUATION_PERIOD"}:
+        if self.subject_type not in {"CA_NHAN", "DON_VI", "NGUOI_DUYET"}:
             raise ValueError(f"kafka: invalid subjectType {self.subject_type!r}")
-        if not (self.subject_id or "").strip():
-            raise ValueError("kafka: subjectId is required")
+        if not is_valid_uuid((self.subject_id or "").strip()):
+            raise ValueError("kafka: subjectId must be a UUID")
         if not self.evidence_chain or any(not str(x).strip() for x in self.evidence_chain):
             raise ValueError("kafka: evidenceChain must be a non-empty list of IDs")
         if not (self.model_version or "").strip():
             raise ValueError("kafka: modelVersion is required")
+
+    def event_key(self) -> str:
+        """Key for the deterministic `event_id`: a `HET_DAU_HIEU` resolution must not dedupe against the detection."""
+        key = self.alert_key.strip()
+        return f"{key}|{ANOMALY_RESOLVED}" if self.severity == ANOMALY_RESOLVED else key
 
     def to_avro_dict(self) -> Dict[str, Any]:
         self.validate()
@@ -204,7 +218,8 @@ class AnomalyAlertPayload:
             "severity": self.severity,
             "subjectType": self.subject_type,
             "subjectId": self.subject_id.strip(),
-            "evidenceChain": [str(x).strip() for x in self.evidence_chain],
+            # Avro `evidenceChain` is a string holding a JSON array (jsonb → string, TL-03).
+            "evidenceChain": json.dumps([str(x).strip() for x in self.evidence_chain], ensure_ascii=False),
             "modelVersion": self.model_version.strip(),
         }
 
@@ -249,7 +264,7 @@ class DirectProducer:
         effective_tenant = normalize_uuid(tenant_id) if tenant_id else must_get_tenant_id()
         payload.validate()
 
-        event_id = deterministic_event_id_from_alert_key(effective_tenant, payload.alert_key)
+        event_id = deterministic_event_id_from_alert_key(effective_tenant, payload.event_key())
         now_iso = datetime.now(timezone.utc).isoformat()
         headers: Dict[str, str] = {
             "ce_specversion": CLOUDEVENTS_SPEC_VERSION,
