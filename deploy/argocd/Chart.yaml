@@ -1,0 +1,8 @@
+apiVersion: v2
+name: vt-gitops
+description: >-
+  Cấu hình Argo CD của kho GitOps (INF-04; OPS-01, OPS-02, OPS-06; TL-04 chương 11 và mục 9.6): AppProject,
+  ApplicationSet theo cell × TTDL × service, phát hành theo đợt cell bằng RollingSync, cửa sổ đóng băng.
+type: application
+version: 0.1.0
+appVersion: "3.1"

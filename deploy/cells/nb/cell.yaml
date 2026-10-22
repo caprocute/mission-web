@@ -1,0 +1,16 @@
+# Cell thí điểm nội bộ (đề xuất TL-04 chương 11, TL-05 QM-1): đợt phát hành 0, đứng trước CELL-G4.
+cell:
+  name: nb
+  displayName: CELL-NB
+  # Hồ sơ định cỡ TL-05 (compact, S, M, L); tệp values-sizing-<hồ sơ>.yaml do INF-03 viết.
+  sizing: compact
+  # Mô hình thuê bao (TL-04 bảng hạng cell): silo, bridge hoặc pool.
+  tenancy: silo
+  primarySite: hl
+  standbySite: sn
+  # Đợt phát hành OPS-02; ApplicationSet gắn thành nhãn wave của Application.
+  releaseWave: "0"
+  # Argo CD quản lý cell: mgmt (cụm quản trị chung) hay mgmt-dtw (cụm quản trị riêng của khối Đảng).
+  argocd: mgmt
+  # Tenant silo có CSDL riêng trong cell; danh bạ đầy đủ do tenant-registry (SVC-03) giữ.
+  silos: []

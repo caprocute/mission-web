@@ -127,7 +127,18 @@ rollout:
     - 50
     - 100
   pauseMinutes: 15
+  # Bước phân tích SLI ngay sau bước đầu (5%), 15 lần đo cách 2 phút (OPS-03, OPS-05; TL-04 AnalysisTemplate slo-api).
   analysisTemplate: slo-api
+  analysis:
+    interval: 2m
+    count: 15
+  # Argo Rollouts đổi trọng số hai backend mission-core-stable, mission-core-canary trong ApisixRoute mission-core
+  # (chart api-gateway, khoá canary của tuyến). Rỗng thì chia theo số replica.
+  trafficRouting:
+    apisix:
+      route:
+        name: mission-core
+        rules: [mission-core]
 secrets:
   - name: pg-core-task
     remoteKey: kv/cells/{cell}/pg-core/task

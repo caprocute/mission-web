@@ -1,0 +1,22 @@
+# Ứng dụng gốc của cụm quản trị (INF-04, OPS-01): Argo CD tự đồng bộ chart deploy/argocd (AppProject, ApplicationSet,
+# cửa sổ đóng băng) từ kho GitOps. Áp một lần khi dựng cụm quản trị (INF-20); sau đó mọi thay đổi đi qua Git.
+# Cụm quản trị riêng của CELL-DTW dùng cùng tệp với valuesObject instance: mgmt-dtw và cellsExclude là các cell còn lại.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vt-gitops
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://git.vt.local/okr/gitops.git
+    targetRevision: main
+    path: deploy/argocd
+    helm:
+      valueFiles: [values.yaml, values-dong-bang.yaml]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["ServerSideApply=true"]

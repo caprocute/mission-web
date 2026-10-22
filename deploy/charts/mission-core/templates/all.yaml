@@ -6,15 +6,19 @@ vt-service.all, và sinh thêm một ExternalSecret cho mỗi phần tử secret
 {{- $v := deepCopy .Values -}}
 {{- $cell := default "cell" $v.global.cell -}}
 
-{{- /* Rollout canary: [5, 25, 50, 100] thành setWeight + pause; bước 100 là thăng cấp cuối của Argo Rollouts. */ -}}
+{{- /* Rollout canary [5, 25, 50, 100] (OPS-03): setWeight, sau bước đầu là phân tích SLI, các bước sau dừng
+pauseMinutes; bước 100 là thăng cấp cuối (TL-04 mẫu Rollout mission-core, INF-04). */ -}}
 {{- $steps := list -}}
-{{- range $w := $v.rollout.canarySteps -}}
-{{- if lt (int $w) 100 -}}
+{{- range $i, $w := $v.rollout.canarySteps -}}
 {{- $steps = append $steps (dict "setWeight" (int $w)) -}}
+{{- if eq $i 0 -}}
+{{- $steps = append $steps (dict "analysis" "slo") -}}
+{{- else if lt (int $w) 100 -}}
 {{- $steps = append $steps (dict "pause" (dict "duration" (printf "%dm" (int $v.rollout.pauseMinutes)))) -}}
 {{- end -}}
 {{- end -}}
-{{- $_ := set $v.workload "rollout" (dict "canarySteps" $steps "analysisTemplates" (list $v.rollout.analysisTemplate)) -}}
+{{- $slo := dict "enabled" true "name" $v.rollout.analysisTemplate "interval" $v.rollout.analysis.interval "count" $v.rollout.analysis.count -}}
+{{- $_ := set $v.workload "rollout" (dict "canarySteps" $steps "sloAnalysis" $slo "trafficRouting" $v.rollout.trafficRouting) -}}
 
 {{- /* KEDA: CPU, RPS mỗi pod qua Prometheus (TL-04 mục 6.4); cửa sổ deadline-default do vt-service thêm. */ -}}
 {{- $rps := printf "sum(rate(http_server_requests_seconds_count{namespace=%q,service=%q,uri!~\"/actuator.*\"}[1m]))" $v.namespace $v.name -}}

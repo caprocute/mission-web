@@ -1,0 +1,11 @@
+# CELL-SH: cell dùng chung mô hình pool (bảng chung + tenant_id + RLS) cho tenant nhỏ, đợt phát hành 2.
+cell:
+  name: sh
+  displayName: CELL-SH
+  sizing: M
+  tenancy: pool
+  primarySite: hl
+  standbySite: sn
+  releaseWave: "2"
+  argocd: mgmt
+  silos: []

@@ -23,9 +23,34 @@ spec:
     canary:
       maxSurge: {{ $v.workload.strategy.maxSurge | quote }}
       maxUnavailable: {{ $v.workload.strategy.maxUnavailable }}
+      {{- $ro := $v.workload.rollout }}
+      {{- if $ro.roleLabels }}
+      canaryMetadata: { labels: { role: canary } }
+      stableMetadata: { labels: { role: stable } }
+      {{- end }}
+      {{- with $ro.trafficRouting }}
+      canaryService: {{ $v.name }}-canary
+      stableService: {{ $v.name }}-stable
+      trafficRouting:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      abortScaleDownDelaySeconds: {{ $ro.abortScaleDownDelaySeconds | int }}
       steps:
-        {{- toYaml $v.workload.rollout.canarySteps | nindent 8 }}
-      {{- with $v.workload.rollout.analysisTemplates }}
+        {{- range $ro.canarySteps }}
+        {{- if eq (toString (get . "analysis")) "slo" }}
+        {{- if not $ro.sloAnalysis.enabled }}
+        {{- fail (printf "vt-service[%s]: bước analysis: slo cần workload.rollout.sloAnalysis.enabled" $v.name) }}
+        {{- end }}
+        - analysis:
+            templates: [{ templateName: {{ $ro.sloAnalysis.name }} }]
+            args:
+              - { name: service, value: {{ $v.name | quote }} }
+              - { name: cell, value: {{ $v.global.cell | default "khong-ro" | quote }} }
+        {{- else }}
+        - {{ toYaml . | nindent 10 | trim }}
+        {{- end }}
+        {{- end }}
+      {{- with $ro.analysisTemplates }}
       analysis:
         templates:
           {{- range . }}
