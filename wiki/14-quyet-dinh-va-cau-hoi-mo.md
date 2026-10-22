@@ -718,6 +718,15 @@ Danh mục lỗi sinh từ hợp đồng chưa có mã riêng cho trường hợ
 11. **Định dạng sự kiện `job` từ dịch vụ khác chờ chốt.** Hiện các dịch vụ có tác vụ dài ghi trực tiếp vào stream người dùng theo định dạng của `rt.Publisher` (trường `event`, `data`, rồi tín hiệu bus); chưa có luồng nội bộ thống nhất trong TL. Giới hạn 5 kết nối mỗi người dùng trên một pod là suy luận (vài thẻ trình duyệt và một thiết bị), vượt thì trả 429 mã `NOTIFY-429-TOO-MANY-STREAMS` kèm `Retry-After`.
 12. **`vtplatform/otel` giữ span không giới hạn.** Bộ ghi span trong tiến trình giữ mọi span đã kết thúc, gây rò bộ nhớ ở dịch vụ chạy lâu; DV-12-02 giới hạn 4.096 span, đầy thì giữ nửa mới nhất.
 
+## Ghi chú và quyết định từ ai-gateway (DV-14-01, 22/10/2026)
+
+1. **Đổi token cho ai-gateway (suy luận, chờ DV-02-01).** Realm `mission` hiện chưa có client cho ai-gateway. Mã giả định client `ai-gateway` (confidential, bật token exchange) đổi token người dùng sang token `audience = mission-core`, `scope = ai_readonly`, trong đó ánh xạ vai trò chỉ để lại `ai_readonly`. ai-gateway kiểm token đổi về cùng `sub`, `tenant_id` và không mang vai trò nào khác ngoài `ai_readonly` (bỏ qua `default-roles-*`, `offline_access`, `uma_authorization`); khác đi thì không gọi lõi. Tên client, audience, scope đều cấu hình được.
+2. **Ma trận API cho `ai_readonly` chỉ có POST ở module `ai`.** Vì vậy `ai_readonly` không đọc được `GET /ai/suggestions/{id}`; đây là đúng thiết kế (vai trò kỹ thuật chỉ dùng khi ai-gateway gọi thay người dùng), kiểm thử tích hợp khẳng định điều này bằng OPA thật.
+3. **202 khi hàng đợi đầy giữ việc hoãn trong bộ nhớ tiến trình (suy luận).** Job của ai-gateway không nằm trong bảng job của lõi (SVC-05 sở hữu `/jobs`); `Location` và `resultLocation` trỏ `/api/v1/ai/suggestions/{id}`, nên pod khởi động lại giữa chừng thì client nhận 404 và gửi lại. Phát sự kiện `job` qua luồng SSE (định dạng của notification-service DV-12-02) để lại cho DV-14-04.
+4. **Hai mã lỗi chung chưa có trong danh mục.** `COMMON-429-TOO-MANY-REQUESTS` và `COMMON-503-UNAVAILABLE` được dựng trong `app/core/problems.py` khi danh mục `error-codes.json` chưa có (suy luận, cần đưa vào danh mục chung). Danh mục của `services-py/vtplatform` là bản chụp định dạng cũ và công cụ `sync_error_codes` trỏ đường dẫn không còn tồn tại, nên kiểm thử khớp danh mục của thư viện đang lỗi (thuộc NEN-018).
+5. **Nạp `vtplatform` bằng đường dẫn mã nguồn.** `pyproject.toml` của thư viện đặt `readme = "../README.md"` ngoài thư mục gói nên không cài được bằng pip hoặc uv; ai-gateway nạp qua `PYTHONPATH` (pytest `pythonpath`, mypy `mypy_path`, Dockerfile chép thư mục). Khi NEN-018 sửa pyproject thì chuyển sang phụ thuộc đường dẫn.
+6. **Máy chủ mô hình dev.** llama.cpp server `b11804` chạy Qwen2.5-0.5B-Instruct GGUF Q4_K_M (Apache 2.0) trên CPU, API tương thích OpenAI như vLLM; đã thử client `OpenAiCompatLlm` với nó, kể cả `response_format = json_object`. Chất lượng tiếng Việt của mô hình nhỏ chỉ đủ để thử luồng, không dùng để đánh giá gợi ý.
+
 ## Liên quan
 
 - [README của wiki](README.md)
