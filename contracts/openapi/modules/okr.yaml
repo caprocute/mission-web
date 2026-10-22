@@ -10,6 +10,8 @@
 #   - TL-03 schema `okr`: `basis`, `objective`, `key_result`, `objective_basis`, `objective_review`, `okr_link`,
 #     `kr_checkin`; cột chung (`row_version` là ETag); bảng sự kiện outbox EVT-01, EVT-02.
 #   - Ma trận phân quyền `docs/phan-quyen/ma-tran.json` (SCR-0201..SCR-0203, SCR-0301, SCR-0302, SCR-1701; dòng API `okr`).
+#   - BS-03 (ADR-33, 22/10/2026) điểm cắm DC-04: kiểu đo `MOC`, chiều `TOI_DA`, nhãn tử số và mẫu số của KR
+#     tỷ lệ, bảng `okr.kr_milestone` và tài nguyên `/okr/key-results/{id}/milestones` (NEN-044).
 # Trợ lý AI cho OKR (`/ai/...`) thuộc `platform.yaml`, không nằm ở đây.
 openapi: 3.1.0
 info:
@@ -1073,6 +1075,137 @@ paths:
         rules: [BR-03-01, BR-03-02, BR-03-03, BR-03-04, BR-03-05, BR-03-06]
         source: TL-01 PL C; TL-02a SCR-0301 "Lưu nháp", "Gửi check-in"; SCR-0302 "Gửi check-in"; ma trận SCR-0301.check-in
 
+  /okr/key-results/{id}/milestones:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Kết quả then chốt]
+      operationId: listOkrKrMilestones
+      summary: Danh sách mốc của KR kiểu mốc
+      description: >-
+        Các mốc của KR `metricType = MOC` theo thứ tự (`okr.kr_milestone`, BS-03 DC-04), gồm cả mốc trung gian,
+        kèm ngày đạt và số ngày làm việc chậm tính theo lịch nghỉ của tenant. ETag là `row_version` của KR.
+      responses:
+        '200':
+          description: Danh sách mốc.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrKrMilestoneList' }
+              examples:
+                hai-moc:
+                  $ref: '#/components/examples/OkrKrMilestoneListExample'
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02, QT-03]
+        scr: [SCR-0202, SCR-0301]
+        owner: MOD-01
+        roles: [leader, manager, member, inspector, ai_readonly]
+        scope: Đv
+        source: BS-03 DC-04 "Hợp đồng" (tài nguyên `milestones`); TL-03 bổ sung `okr.kr_milestone` (suy luận đường dẫn)
+    put:
+      tags: [Kết quả then chốt]
+      operationId: replaceOkrKrMilestones
+      summary: Khai báo các mốc của KR
+      description: >-
+        Thay toàn bộ danh sách mốc khi mục tiêu còn `NHAP` (suy luận: cùng điều kiện sửa KR của SCR-0202). Mốc
+        sắp theo `seq`, hạn không giảm dần, hạn mốc cuối không sau hạn KR. Lỗi: `OKR-409-VERSION-CONFLICT`,
+        `OKR-409-INVALID-STATE` (mục tiêu không còn `NHAP`), `OKR-422-NOT-MILESTONE-KR` (KR không phải kiểu `MOC`),
+        `OKR-422-VALIDATION` (thứ tự, hạn).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrKrMilestoneReplace' }
+            examples:
+              hai-moc:
+                value:
+                  items:
+                    - { seq: 1, dueDate: '2026-11-15', recognitionCondition: Dự thảo đề án được Ban Thường vụ cho ý kiến. }
+                    - { seq: 2, dueDate: '2026-12-20', recognitionCondition: Đề án được ban hành. }
+      responses:
+        '200':
+          description: Đã lưu danh sách mốc.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrKrMilestoneList' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-02]
+        scr: [SCR-0202]
+        owner: MOD-01
+        roles: [manager, member]
+        scope: B
+        source: BS-03 DC-04; TL-02a SCR-0202 (soạn KR, suy luận đường dẫn và điều kiện sửa)
+
+  /okr/key-results/{id}/milestones/{milestoneId}/achieve:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+      - name: milestoneId
+        in: path
+        required: true
+        description: Mốc (`okr.kr_milestone.id`).
+        schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    post:
+      tags: [Check-in]
+      operationId: achieveOkrKrMilestone
+      summary: Ghi nhận đạt mốc
+      description: >-
+        Chủ sở hữu KR ghi ngày đạt mốc kèm tham chiếu minh chứng; máy chủ tính số ngày làm việc chậm theo lịch
+        nghỉ của tenant (CORE-08-04) và cập nhật tiến độ KR như một check-in (phát EVT-02). Ghi nhận đã gửi là
+        bất biến, đính chính bằng lần ghi nhận mới (suy luận theo BR-03-03). Lỗi: `OKR-409-OBJECTIVE-NOT-APPROVED`,
+        `OKR-409-PERIOD-LOCKED`, `OKR-409-VERSION-CONFLICT`, `OKR-422-VALIDATION` (ngày đạt ở tương lai).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OkrKrMilestoneAchieve' }
+            examples:
+              dat-moc-1:
+                value: { achievedAt: '2026-11-18', evidenceRef: 'evidence:0192a1b0-5555-7a00-8000-000000000301' }
+      responses:
+        '200':
+          description: Đã ghi nhận; trả mốc kèm số ngày chậm.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkrKrMilestone' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-03]
+        scr: [SCR-0301]
+        owner: MOD-01
+        evt: [EVT-02]
+        roles: [manager, member]
+        scope: B
+        rules: [BR-03-01, BR-03-03]
+        source: BS-03 DC-04 "Lõi chỉ ghi lại ngày đạt mốc và số ngày làm việc chậm" (suy luận đường dẫn)
+
   /okr/key-results/{id}/source-value:
     parameters:
       - $ref: '../common/common.yaml#/components/parameters/IdPath'
@@ -1608,6 +1741,12 @@ components:
         lastCheckin: { value: 2.4, confidence: CAO, checkinAt: '2026-10-16T16:05:00+07:00' }
         nextCheckinDue: '2026-10-23'
         rowVersion: 9
+    OkrKrMilestoneListExample:
+      value:
+        keyResultId: 0192a1b0-2222-7a00-8000-000000000012
+        items:
+          - { id: 0192a1b0-6666-7a00-8000-000000000401, seq: 1, dueDate: '2026-11-15', recognitionCondition: Dự thảo đề án được Ban Thường vụ cho ý kiến., achievedAt: '2026-11-18', lateWorkdays: 1, evidenceRef: 'evidence:0192a1b0-5555-7a00-8000-000000000301' }
+          - { id: 0192a1b0-6666-7a00-8000-000000000402, seq: 2, dueDate: '2026-12-20', recognitionCondition: Đề án được ban hành., achievedAt: null, lateWorkdays: null, evidenceRef: null }
     OkrCheckinExample:
       summary: Check-in tuần 4 của KR 1.1
       value:
@@ -1635,13 +1774,16 @@ components:
       type: string
       enum: [TAP_THE, CA_NHAN]
     OkrMetricType:
-      description: Loại đo của KR (`okr.key_result.metric_type`).
+      description: >-
+        Loại đo của KR (`okr.key_result.metric_type`). `MOC` là mốc có thời hạn (BS-03 DC-04): KR gồm các mốc
+        ở `/okr/key-results/{id}/milestones`, lõi ghi ngày đạt và số ngày làm việc chậm, cách quy đổi ra tỷ lệ
+        hoàn thành nằm trong Policy Pack.
       type: string
-      enum: [SO_LUONG, TY_LE, CO_KHONG, CHI_SO]
+      enum: [SO_LUONG, TY_LE, CO_KHONG, CHI_SO, MOC]
     OkrDirection:
-      description: Chiều tốt của KR (`okr.key_result.direction`).
+      description: Chiều tốt của KR (`okr.key_result.direction`); `TOI_DA` là không được vượt quá chỉ tiêu (BS-03 DC-04).
       type: string
-      enum: [TANG, GIAM, DAT]
+      enum: [TANG, GIAM, DAT, TOI_DA]
     OkrConfidence:
       description: Mức tự tin (`okr.kr_checkin.confidence`, `okr.key_result.confidence`).
       type: string
@@ -2003,6 +2145,16 @@ components:
         checkinDelegate:
           $ref: '../common/common.yaml#/components/schemas/Ref'
           description: Người đang được giao check-in thay (suy luận).
+        numeratorLabel:
+          type: [string, 'null']
+          maxLength: 200
+          description: >-
+            Nhãn tử số của KR kiểu `TY_LE` (`numerator_label`, BS-03 DC-04); khi có cả hai nhãn, check-in nhập tử
+            số và mẫu số, máy chủ tính giá trị.
+        denominatorLabel:
+          type: [string, 'null']
+          maxLength: 200
+          description: Nhãn mẫu số của KR kiểu `TY_LE` (`denominator_label`, BS-03 DC-04).
         dataSource: { type: string, maxLength: 200 }
         formulaText: { type: string, maxLength: 1000 }
         confidence: { $ref: '#/components/schemas/OkrConfidence' }
@@ -2068,6 +2220,16 @@ components:
         verifierPersonId:
           $ref: '../common/common.yaml#/components/schemas/Uuid'
           description: Người xác nhận, khác chủ sở hữu KR.
+        numeratorLabel:
+          type: [string, 'null']
+          maxLength: 200
+          description: >-
+            Nhãn tử số của KR kiểu `TY_LE` (`numerator_label`, BS-03 DC-04); khi có cả hai nhãn, check-in nhập tử
+            số và mẫu số, máy chủ tính giá trị.
+        denominatorLabel:
+          type: [string, 'null']
+          maxLength: 200
+          description: Nhãn mẫu số của KR kiểu `TY_LE` (`denominator_label`, BS-03 DC-04).
         dataSource: { type: string, maxLength: 200 }
         formulaText: { type: string, maxLength: 1000 }
         checkinFrequency:
@@ -2125,6 +2287,57 @@ components:
         fetchedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
         dataSource: { type: string, maxLength: 200 }
 
+    OkrKrMilestone:
+      description: Một mốc của KR kiểu `MOC` (`okr.kr_milestone`, BS-03 DC-04).
+      type: object
+      required: [id, seq, dueDate]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        seq: { type: integer, minimum: 1, description: Thứ tự mốc trong KR. }
+        dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        recognitionCondition: { type: string, maxLength: 1000, description: Điều kiện công nhận đạt mốc. }
+        achievedAt:
+          description: Ngày đạt mốc; null khi chưa đạt.
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Date'
+            - type: 'null'
+        lateWorkdays:
+          type: [integer, 'null']
+          minimum: 0
+          description: Số ngày làm việc chậm so với hạn, máy chủ tính theo lịch nghỉ của tenant.
+        evidenceRef: { type: [string, 'null'], maxLength: 200, description: Tham chiếu minh chứng. }
+    OkrKrMilestoneList:
+      type: object
+      required: [keyResultId, items]
+      properties:
+        keyResultId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OkrKrMilestone' }
+    OkrKrMilestoneReplace:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            required: [seq, dueDate]
+            properties:
+              id:
+                $ref: '../common/common.yaml#/components/schemas/Uuid'
+                description: Có khi giữ mốc đã có.
+              seq: { type: integer, minimum: 1 }
+              dueDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
+              recognitionCondition: { type: string, maxLength: 1000 }
+    OkrKrMilestoneAchieve:
+      type: object
+      required: [achievedAt]
+      properties:
+        achievedAt: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        evidenceRef: { type: string, maxLength: 200 }
     OkrCheckin:
       description: Một lần check-in (`okr.kr_checkin`), chỉ ghi thêm.
       type: object
@@ -2142,6 +2355,14 @@ components:
         status: { $ref: '#/components/schemas/OkrCheckinStatus' }
         sourceValue: { type: [number, 'null'] }
         sourceFetchedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        numeratorValue:
+          type: number
+          minimum: 0
+          description: Tử số khi KR khai nhãn tử số và mẫu số (BS-03 DC-04); máy chủ tính `value` từ tử số và mẫu số.
+        denominatorValue:
+          type: number
+          exclusiveMinimum: 0
+          description: Mẫu số đi cùng `numeratorValue` (BS-03 DC-04).
         overrideReason: { type: string, maxLength: 500 }
         verifiedBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
         verifiedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
@@ -2159,6 +2380,14 @@ components:
           description: Giá trị hiện tại, tối đa 4 chữ số lẻ (BR-03-02).
           multipleOf: 0.0001
         confidence: { $ref: '#/components/schemas/OkrConfidence' }
+        numeratorValue:
+          type: number
+          minimum: 0
+          description: Tử số khi KR khai nhãn tử số và mẫu số (BS-03 DC-04); máy chủ tính `value` từ tử số và mẫu số.
+        denominatorValue:
+          type: number
+          exclusiveMinimum: 0
+          description: Mẫu số đi cùng `numeratorValue` (BS-03 DC-04).
         sourceValue: { type: number, description: Giá trị nguồn đã lấy (nếu có) }
         sourceFetchedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
         overrideReason:

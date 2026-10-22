@@ -1,4 +1,4 @@
-> Nguồn: TL-01 mục bảo mật (CSP, Trusted Types, năm lớp chống XSS, header HTTP, CORS, E2EE C3, PDF.js, lỗ hổng S01 đến S13 của hệ cũ); Baseline mục 4 (ADR-27), mục 10 (C0 đến C3); TL-03 (lưu cục bộ ở web); TL-04 mục 9.2 (SEC-06, SEC-07, SEC-08, SEC-19, SEC-24, SEC-34, SEC-39, SEC-40, SEC-47, SEC-48, SEC-53); `AGENTS.md` quy tắc an toàn giao diện; mã `deploy/web/nginx.conf`, `@vt/design-system/theme.service.ts`, `@vt/sdui-renderer/props-validator.ts`.
+> Nguồn: TL-01 mục bảo mật (CSP, Trusted Types, năm lớp chống XSS, header HTTP, CORS, E2EE C3, PDF.js, lỗ hổng S01 đến S13 của hệ cũ); Baseline mục 4 (ADR-27), mục 10 (C0 đến C3); TL-03 (lưu cục bộ ở web); TL-04 mục 9.2 (SEC-06, SEC-07, SEC-08, SEC-19, SEC-24, SEC-34, SEC-39, SEC-40, SEC-47, SEC-48, SEC-52, SEC-53); `AGENTS.md` quy tắc an toàn giao diện; mã `deploy/web/nginx.conf`, `@vt/design-system/theme.service.ts`, `@vt/sdui-renderer/props-validator.ts`.
 
 # Bảo mật frontend
 
@@ -39,7 +39,7 @@ Hiện trạng `deploy/web/nginx.conf` mới đặt `X-Content-Type-Options: nos
 
 ## Phân lớp dữ liệu và lưu trữ cục bộ
 
-Baseline mục 10 chia dữ liệu thành bốn lớp: C0 công khai, C1 nội bộ, C2 nhạy cảm (thông tin cá nhân, kết quả đánh giá chưa công bố), C3 mật. Quy tắc cho giao diện web theo TL-03 là chỉ lưu UI Pack và bản dịch trong IndexedDB theo ETag, không lưu dữ liệu C2 hay C3 ở trình duyệt. Mã hiện tại tuân theo: `PackCache` chỉ lưu UI Pack, `ThemeService` chỉ lưu tuỳ chọn hiển thị vào `localStorage`. Không được thêm bộ nhớ đệm cho danh sách nhiệm vụ, hồ sơ đánh giá hay kết quả xếp loại vào IndexedDB, `localStorage` hay `sessionStorage`.
+Baseline mục 10 chia dữ liệu thành bốn lớp: C0 công khai, C1 nội bộ, C2 nhạy cảm (thông tin cá nhân, kết quả đánh giá chưa công bố), C3 mật. Quy tắc cho giao diện web theo TL-03 là chỉ lưu UI Pack và bản dịch trong IndexedDB theo ETag, không lưu dữ liệu C2 hay C3 ở trình duyệt. Mã hiện tại tuân theo: `PackCache` chỉ lưu UI Pack, `ThemeService` chỉ lưu tuỳ chọn hiển thị vào `localStorage`. Không được thêm bộ nhớ đệm cho danh sách nhiệm vụ, hồ sơ đánh giá hay kết quả xếp loại vào IndexedDB, `localStorage` hay `sessionStorage`. Môi trường phi sản xuất (dev, staging, perf) không bao giờ dùng dữ liệu thật: dữ liệu thử là dữ liệu tổng hợp của DL-08, còn bản sao gần thật để tái hiện lỗi chỉ được chuyển sang staging sau khi tác vụ `anonymize` (DL-15, SEC-52) che xong và biên bản quét đạt, nên giao diện trên staging cũng không hiển thị dữ liệu cá nhân thật.
 
 SEC-07 và SEC-53 yêu cầu không ghi token và che thông tin cá nhân trong log. Ở frontend, điều này có nghĩa là không đưa token, nội dung biểu mẫu hay dữ liệu C2 vào `console`, vào thuộc tính span hay sự kiện Faro; TL-01 cũng quy định Faro không thu nội dung người dùng nhập (xem [Hiệu năng và trải nghiệm](09-hieu-nang-va-trai-nghiem.md)).
 
