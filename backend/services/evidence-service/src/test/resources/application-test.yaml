@@ -1,0 +1,4 @@
+# Kiểm thử của evidence-service chạy với PostgreSQL và kho S3 giả lập trong Testcontainers.
+okrkpi:
+  evidence:
+    auth-enabled: false
