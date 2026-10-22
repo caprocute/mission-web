@@ -69,7 +69,7 @@ class HolidayCalendarApiIT extends ContractConformanceTest {
     assertThat(cal.getResponse().getStatus()).isEqualTo(200);
     assertResponseConforms(cal, "/config/calendar", PathItem.HttpMethod.GET);
     String etag = cal.getResponse().getHeader("ETag");
-    assertThat(body(cal).get("workingDaysByMonth").get(1).asInt()).isEqualTo(16);
+    assertThat(body(cal).get("workingDaysByMonth").get(1).asInt()).isEqualTo(15);
     assertThat(
             perform(
                     get("/api/v1/config/calendar")
@@ -108,7 +108,7 @@ class HolidayCalendarApiIT extends ContractConformanceTest {
     String cursor = body(first).get("nextCursor").asText();
     JsonNode second =
         body(perform(get(DAYS).param("year", "2026").param("limit", "10").param("cursor", cursor)));
-    assertThat(second.get("items")).hasSize(5);
+    assertThat(second.get("items")).hasSize(8);
     assertThat(second.get("nextCursor").isNull()).isTrue();
 
     String change = input("2026-12-26", "LAM_BU", "Làm bù dịp Tết Dương lịch");

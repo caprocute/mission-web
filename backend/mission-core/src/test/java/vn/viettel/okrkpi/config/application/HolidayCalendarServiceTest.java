@@ -43,17 +43,17 @@ class HolidayCalendarServiceTest {
   @Test
   void nationalCalendarIsUsedUntilTenantOverrides() {
     assertThat(service.isWorkingDay(TENANT, TET)).isFalse();
-    assertThat(service.calendarYear(TENANT, 2026).workingDaysByMonth()[1]).isEqualTo(16);
-    assertThat(service.days(TENANT, 2026, HolidayScope.QUOC_GIA)).hasSize(14);
+    assertThat(service.calendarYear(TENANT, 2026).workingDaysByMonth()[1]).isEqualTo(15);
+    assertThat(service.days(TENANT, 2026, HolidayScope.QUOC_GIA)).hasSize(17);
     assertThat(service.days(TENANT, 2026, HolidayScope.TENANT)).isEmpty();
 
-    LocalDate nationalMakeUp = LocalDate.parse("2026-02-14");
+    LocalDate nationalMakeUp = LocalDate.parse("2026-01-10");
     assertThat(service.isWorkingDay(TENANT, nationalMakeUp)).isTrue();
     HolidayDay override =
         service.create(TENANT, ACTOR, nationalMakeUp, HolidayDayKind.NGHI_BU, " Nghỉ ");
     assertThat(override.name()).isEqualTo("Nghỉ");
     assertThat(service.isWorkingDay(TENANT, nationalMakeUp)).isFalse();
-    assertThat(service.days(TENANT, 2026, null)).hasSize(14);
+    assertThat(service.days(TENANT, 2026, null)).hasSize(17);
     assertThat(events).containsExactly(new HolidayCalendarChangedEvent(TENANT, 2026));
   }
 
@@ -108,7 +108,7 @@ class HolidayCalendarServiceTest {
     assertThatThrownBy(() -> service.delete(TENANT, day.id(), 2))
         .isInstanceOf(VersionConflictException.class);
     service.delete(TENANT, day.id(), 2);
-    assertThat(service.days(TENANT, 2027, null)).isEmpty();
+    assertThat(service.days(TENANT, 2027, HolidayScope.TENANT)).isEmpty();
     assertThatThrownBy(() -> service.delete(TENANT, day.id(), 3))
         .isInstanceOf(NoSuchElementException.class);
     assertThat(events).hasSize(5);

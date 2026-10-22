@@ -120,7 +120,8 @@ class WorkingDaysTest {
 
   @Test
   void nationalCalendarHasDeterministicIds() {
-    assertThat(NationalHolidays.of(2026)).hasSize(14);
+    assertThat(NationalHolidays.of(2026)).hasSize(17);
+    assertThat(NationalHolidays.of(2027)).hasSize(14);
     assertThat(NationalHolidays.of(2030)).isEmpty();
     HolidayDay tet = NationalHolidays.of(2026).get(0);
     assertThat(tet.id()).isEqualTo(NationalHolidays.idOf(tet.date()));
@@ -129,19 +130,40 @@ class WorkingDaysTest {
     assertThat(NationalHolidays.all()).allMatch(d -> d.scope() == HolidayScope.QUOC_GIA);
   }
 
+  @Test
+  void nationalCalendarResourcesMatchSeedData() throws IOException {
+    Path seed = repoRoot().resolve("data/seed/config");
+    for (int year : NationalHolidays.YEARS) {
+      String file = "holiday_calendar_" + year + ".csv";
+      try (InputStream in = NationalHolidays.class.getResourceAsStream(file)) {
+        assertThat(in).as(file).isNotNull();
+        assertThat(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8))
+            .as("Bản sao %s phải trùng data/seed/config", file)
+            .isEqualTo(Files.readString(seed.resolve(file)));
+      }
+    }
+    assertThat(NationalHolidays.columns("a,\"b, \"\"c\"\"\",d"))
+        .containsExactly("a", "b, \"c\"", "d");
+  }
+
   @SuppressWarnings("unchecked")
   private static List<Map<String, Object>> list(Object o) {
     return (List<Map<String, Object>>) o;
   }
 
-  private static Map<String, Object> load() throws IOException {
+  private static Path repoRoot() {
     Path dir = Path.of("").toAbsolutePath();
     while (dir != null && !Files.isDirectory(dir.resolve("data/golden/ngay-lam-viec"))) {
       dir = dir.getParent();
     }
     assertThat(dir).as("Không tìm thấy data/golden/ngay-lam-viec").isNotNull();
+    return dir;
+  }
+
+  private static Map<String, Object> load() throws IOException {
     try (InputStream in =
-        Files.newInputStream(dir.resolve("data/golden/ngay-lam-viec/ca-ngay-lam-viec.yaml"))) {
+        Files.newInputStream(
+            repoRoot().resolve("data/golden/ngay-lam-viec/ca-ngay-lam-viec.yaml"))) {
       return new Yaml().load(in);
     }
   }
