@@ -1,0 +1,80 @@
+# Bộ tham số luồng twd-tham-quyen của hồ sơ TWĐ (DL-16; BS-03 "Hồ sơ TWĐ" mục 6). GIẢ LẬP theo YC-PT-14.
+# Nguồn: UEB-BTCTW-QTCV-02 v1.2 Phụ lục B.5 (bảng thẩm quyền duyệt thay đổi, 7.7, 7.8), 15.4 (hạn từng bước của đợt
+# quý), 15.6 (thẩm quyền rà soát, thẩm định, quyết định). Các ô ghi "giả định" chờ Ban Tổ chức xác nhận (33.2).
+#
+# Bộ này là giá trị tham số của mẫu luồng (BS-01): tenant chỉ đổi tham số qua SCR-1504, không vẽ BPMN. Người giữ
+# vai trò được ghi bằng vai trò tương đối (CAP_TREN_MOT_CAP_CUA_NGUOI_GIAO…) hoặc chức danh trong thang chức danh
+# của đơn vị (org.job_title); lõi phân giải theo cây tổ chức và bảng phân công tại thời điểm thao tác.
+apiVersion: policy.okrkpi.vn/v1
+kind: WorkflowParamSet
+metadata:
+  id: twd-tham-quyen
+  version: 0.1.0
+  gia_lap: true
+  ghi_chu_gia_lap: "Thí điểm – dùng để đối chiếu; bảng mặc định của Ban, Trưởng Ban xác nhận hoặc chọn lại trước khi chạy."
+  can_cu: ["UEB-BTCTW-QTCV-02 v1.2 Phụ lục B.5, 15.4, 15.6"]
+
+mau_luong:
+  duyet_de_nghi:
+    # Phụ lục B.5: thẩm quyền duyệt thay đổi theo loại thao tác.
+    tham_quyen:
+      - tt: 1
+        thao_tac: [HUY_VIEC, GIA_HAN, SUA_DIEM, SUA_CHI_TIEU_CHUA_CO_SO_THUC_TE, CHUYEN_GIAO, CHUYEN_KY]
+        nguoi_duyet: CAP_TREN_MOT_CAP_CUA_NGUOI_GIAO
+        chuoi_cap: {PHO_VU_TRUONG: VU_TRUONG, VU_TRUONG: PHO_TRUONG_BAN_PHU_TRACH, PHO_TRUONG_BAN: TRUONG_BAN}
+        cap_cao_nhat_tu_quyet: {chuc_danh: TRUONG_BAN, bat_buoc_ly_do: true}
+      - {tt: 2, thao_tac: [KHOI_PHUC_VIEC_DA_HUY], nguoi_duyet: CAP_TREN_MOT_CAP_CUA_NGUOI_GIAO}
+      - {tt: 3, thao_tac: [SUA_CHI_TIEU_DA_CO_SO_THUC_TE], nguoi_duyet: {chuc_danh: TRUONG_BAN}}
+      - {tt: 4, thao_tac: [GIAO_DAU_QUY_MUC_KHO_3_5, GIAO_DAU_QUY_LOAI_KHAC], nguoi_duyet: NGUOI_DUYET_KE_HOACH_QUY}
+      - {tt: 5, thao_tac: [GIAO_GIUA_KY_MUC_KHO_3, GIAO_GIUA_KY_LOAI_KHAC], nguoi_duyet: CAP_TREN_MOT_CAP_CUA_NGUOI_GIAO}
+      - {tt: 6, thao_tac: [GIAO_GIUA_KY_MUC_KHO_4_5], nguoi_duyet: {chuc_danh: TRUONG_BAN}}
+      - {tt: 7, thao_tac: [VUOT_NGUONG_PHAN_BO_MUC_KHO], nguoi_duyet: {chuc_danh: TRUONG_BAN}, co_dinh: true}
+      - tt: 8
+        doi_tuong: MUC_CO_CO_DUOC_CAP_CO_THAM_QUYEN_GIAO
+        theo_thao_tac:
+          GIA_HAN_TRONG_QUY: {nguoi_duyet: {chuc_danh: TRUONG_BAN}, tu_dua_vao_bao_cao_cap_tren: true}
+          TANG_CHI_TIEU_DOI_NGUOI_PHU_TRACH_DOI_CHA_CUNG_CO_SUA_KHAC: {nguoi_duyet: KET_LUAN_TAP_THE_LANH_DAO, nhap_theo_van_ban: true}
+          HUY_KHOI_PHUC_GIAM_CHI_TIEU_DOI_CHIEU_TAT_CO_GO_LIEN_KET_DOI_CHA_MAT_CO: {nguoi_duyet: VAN_BAN_CAP_TREN, nhap_theo_van_ban: true}
+    # B.5 dòng 9, B.6 dòng 6: nhắc từ ngày làm việc thứ 3; quá 5 ngày báo cấp trên trực tiếp của người duyệt; không tự duyệt.
+    cho_duyet: {nhac_tu_ngay: 3, bao_cap_tren_sau_so_ngay: 5, tu_duyet: false}
+    # B.5 dòng 10: Ban chưa chọn, mặc định không giới hạn (mọi lần gia hạn vẫn phải được duyệt).
+    so_lan_gia_han_toi_da: null
+
+  danh_gia_quy:
+    # 15.4: lịch thí điểm 6 ngày làm việc, ngày khoá sổ là ngày thứ nhất; hạn từng bước 2/2/1/1.
+    han_buoc_ngay_lam_viec: {TU_DANH_GIA: 2, RA_SOAT: 2, THAM_DINH: 1, QUYET_DINH: 1}
+    moc_hoan_thanh: {truoc_ngay: 10, thang: DAU_QUY_SAU, pham_vi: TOAN_HE_THONG, don_vi_chi_dat_som_hon: true}
+    so_ngay_toi_thieu_moi_buoc_khi_rut_han: 1          # TK-20 điểm a
+    nhac_truoc_han_ngay: 1
+    nhac_nhap_theo_van_ban_moi_ngay: 5                  # phiếu do cấp trên quyết định, TK-21
+    # 15.6: bảng thẩm quyền mẫu của Ban. Không ai rà soát, thẩm định, quyết định cho chính mình (DR12): người giữ
+    # vai trò cũng là đối tượng thì lõi chuyển lên cấp kế tiếp trong bảng.
+    tham_quyen:
+      - doi_tuong: CHUYEN_VIEN
+        ra_soat: [{vai_tro: PHO_VU_TRUONG_PHU_TRACH, buoc: RA_SOAT_TRUOC, khi_chua_khai: VU_TRUONG}, {vai_tro: VU_TRUONG, buoc: HOAN_THANH_RA_SOAT, ghi_muc_de_xuat: true}]
+        tham_dinh: {vai_tro: DAU_MOI_THAM_DINH, gia_dinh: VAN_PHONG_BAN}
+        quyet_dinh: {chuc_danh: TRUONG_BAN, gia_dinh: true}
+      - doi_tuong: PHO_VU_TRUONG
+        ra_soat: [{vai_tro: VU_TRUONG}]
+        tham_dinh: {vai_tro: DAU_MOI_THAM_DINH, gia_dinh: VAN_PHONG_BAN}
+        quyet_dinh: {chuc_danh: TRUONG_BAN, gia_dinh: true}
+      - doi_tuong: VU_TRUONG
+        ra_soat: [{vai_tro: PHO_TRUONG_BAN_PHU_TRACH_VU}]
+        tham_dinh: {vai_tro: DAU_MOI_THAM_DINH, gia_dinh: VAN_PHONG_BAN}
+        quyet_dinh: {chuc_danh: TRUONG_BAN, gia_dinh: true}
+      - doi_tuong: PHO_TRUONG_BAN
+        ra_soat: [{chuc_danh: TRUONG_BAN, muc_de_xuat: THEO_BIEN_BAN_TAP_THE_LANH_DAO, nhap_theo_van_ban: true}]
+        tham_dinh: {vai_tro: DAU_MOI_THAM_DINH, chi_dinh_boi: TRUONG_BAN, gia_dinh: VAN_PHONG_BAN}
+        quyet_dinh: {vai_tro: CAP_QUAN_LY_CAN_BO_THEO_PHAN_CAP, nhap_theo_van_ban: true, khong_co_han_trong_lich_dot: true}
+      - doi_tuong: TAP_THE_VU
+        ra_soat: null                 # tự đánh giá (Vụ trưởng thao tác thay mặt), không có bước rà soát (15.3)
+        tham_dinh: {vai_tro: DAU_MOI_THAM_DINH, gia_dinh: VAN_PHONG_BAN}
+        quyet_dinh: {chuc_danh: TRUONG_BAN, gia_dinh: true}
+      - doi_tuong: TAP_THE_LANH_DAO_VU
+        ra_soat: null
+        tham_dinh: {vai_tro: DAU_MOI_THAM_DINH, gia_dinh: VAN_PHONG_BAN}
+        quyet_dinh: {chuc_danh: TRUONG_BAN, gia_dinh: true}
+      - doi_tuong: CAN_BO_GIUP_VIEC_DANG_UY_CO_QUAN
+        theo_phan_cap_cua: DANG_UY_CO_QUAN_BAN   # giả định, Ban xác nhận (Phụ lục B.7 dòng 16)
+    # Trưởng Ban, Ban Tổ chức Trung ương, tập thể lãnh đạo Ban: trường hợp đặc biệt, UEB chưa đặc tả (33.1).
+    ngoai_pham_vi: [TRUONG_BAN, BAN_TO_CHUC_TRUNG_UONG, TAP_THE_LANH_DAO_BAN]

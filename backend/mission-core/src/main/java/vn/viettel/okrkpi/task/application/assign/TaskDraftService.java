@@ -1,9 +1,6 @@
 package vn.viettel.okrkpi.task.application.assign;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -29,10 +26,13 @@ import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.Catalo
 import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.DraftRow;
 import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.NewDraft;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TransitionTableProvider;
+import vn.viettel.okrkpi.task.application.tree.TaskTreeService;
 import vn.viettel.okrkpi.task.domain.assign.TaskCodes;
 import vn.viettel.okrkpi.task.domain.assign.TaskDraftSpec;
 import vn.viettel.okrkpi.task.domain.lifecycle.TaskActor;
 import vn.viettel.okrkpi.task.domain.plan.PlanSchedule;
+import vn.viettel.okrkpi.task.domain.similar.TaskSimilarity;
+import vn.viettel.okrkpi.task.domain.tree.TaskTree;
 
 /**
  * Soạn nhiệm vụ {@code NHAP} của SCR-0501 (CORE-02-14): khung soạn mới, lưu nháp lần đầu (sinh mã
@@ -49,6 +49,7 @@ public class TaskDraftService {
 
   static final Set<String> SOURCES = Set.of("KE_HOACH", "VAN_BAN", "DANG_KY", "DOT_XUAT");
   static final Set<String> GROUPS = Set.of("THUONG_XUYEN", "THEN_CHOT");
+  static final BigDecimal MAX_COMPONENT = new BigDecimal("999.999");
   static final Set<String> PRIORITIES = Set.of("CAO", "TRUNG_BINH", "THAP");
 
   private final TaskDraftRepository drafts;
@@ -56,6 +57,7 @@ public class TaskDraftService {
   private final OrgDirectoryApi org;
   private final TransitionTableProvider tables;
   private final Clock clock;
+  private final TaskTreeService tree;
 
   public TaskDraftService(
       TaskDraftRepository drafts,
@@ -63,11 +65,28 @@ public class TaskDraftService {
       OrgDirectoryApi org,
       TransitionTableProvider tables,
       Clock clock) {
+    this(drafts, periods, org, tables, clock, null);
+  }
+
+  /** Như trên, kèm kiểm cây phân rã và chế độ phân công (CORE-02-28); {@code tree} có thể rỗng. */
+  public TaskDraftService(
+      TaskDraftRepository drafts,
+      PeriodApi periods,
+      OrgDirectoryApi org,
+      TransitionTableProvider tables,
+      Clock clock,
+      TaskTreeService tree) {
     this.drafts = Objects.requireNonNull(drafts, "drafts");
     this.periods = Objects.requireNonNull(periods, "periods");
     this.org = Objects.requireNonNull(org, "org");
     this.tables = Objects.requireNonNull(tables, "tables");
     this.clock = Objects.requireNonNull(clock, "clock");
+    this.tree = tree;
+  }
+
+  /** Dịch vụ cây nhiệm vụ; rỗng khi chưa cấu hình. */
+  TaskTreeService tree() {
+    return tree;
   }
 
   /** Khung soạn: kỳ và bản nháp (chưa lưu thì {@code id} rỗng). */
@@ -144,6 +163,9 @@ public class TaskDraftService {
     }
     int bucket = PlanSchedule.bucketOf(period.startDate());
     TaskDraftSpec stored = normalize(spec, period);
+    if (tree != null) {
+      tree.requirePlacement(tenant, null, period.id().value(), stored.node());
+    }
     CatalogDefaults catalog = catalog(tenant, stored.catalogItemId());
     UUID id = UUID.randomUUID();
     String code = TaskCodes.code(bucket, drafts.nextCodeNumber(tenant, bucket));
@@ -183,6 +205,9 @@ public class TaskDraftService {
       throw invalid("periodId", "Không đổi được kỳ của nhiệm vụ đã lưu");
     }
     TaskDraftSpec stored = normalize(spec, period(tenant, spec.periodId()));
+    if (tree != null) {
+      tree.requirePlacement(tenant, taskId, stored.periodId(), stored.node());
+    }
     CatalogDefaults catalog = catalog(tenant, stored.catalogItemId());
     long version =
         drafts.storeDraft(
@@ -192,6 +217,7 @@ public class TaskDraftService {
             stored,
             catalog.difficulty(),
             catalog.standardScore(),
+            fingerprint(stored, null),
             actor.personId(),
             clock.instant());
     if (version < 0) {
@@ -283,7 +309,8 @@ public class TaskDraftService {
         s.qualityCriteria(),
         s.sourceDocNumber(),
         s.sourceDocTitle(),
-        s.basis());
+        s.basis(),
+        s.node());
   }
 
   static void validate(TaskDraftSpec s) {
@@ -340,25 +367,32 @@ public class TaskDraftService {
                 a -> a.id() != null && ("PERSON".equals(a.kind()) || "UNIT".equals(a.kind()))),
         "coAssignees",
         "Người phối hợp không hợp lệ");
+    check(
+        errors,
+        TaskTree.KINDS.contains(s.node().kind()),
+        "nodeKind",
+        "Loại công việc không hợp lệ");
+    BigDecimal component = s.node().componentScore();
+    check(
+        errors,
+        component == null
+            || (component.signum() >= 0
+                && component.compareTo(MAX_COMPONENT) <= 0
+                && component.stripTrailingZeros().scale() <= 3),
+        "componentScore",
+        "Điểm thành phần từ 0 đến 999,999, tối đa ba chữ số thập phân");
     if (!errors.isEmpty()) {
       throw new BusinessException(VALIDATION, "Thông tin nhiệm vụ chưa hợp lệ", errors);
     }
   }
 
-  static byte[] fingerprint(TaskDraftSpec s, UUID leadUnitId) {
-    String text =
-        s.periodId()
-            + "|"
-            + s.title().toLowerCase(java.util.Locale.ROOT)
-            + "|"
-            + (leadUnitId != null ? leadUnitId : s.leadPersonId())
-            + "|"
-            + s.dueDate();
-    try {
-      return MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8));
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException(e);
-    }
+  /** Dấu vân tay chống trùng (BR-05-06, CORE-02-15): kỳ, tên, sản phẩm, chủ trì đã chuẩn hoá. */
+  public static byte[] fingerprint(TaskDraftSpec s, UUID leadUnitId) {
+    return TaskSimilarity.fingerprint(
+        s.periodId(),
+        s.title(),
+        s.productName(),
+        leadUnitId != null ? leadUnitId : s.leadPersonId());
   }
 
   private static boolean length(String v, int max) {

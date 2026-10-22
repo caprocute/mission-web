@@ -406,7 +406,7 @@ public class ReviewService {
   }
 
   /** Mức thấp hơn mức liền trước là hạ mức, còn lại là khác mức trước. */
-  static String explanationType(RatingLevel level, RatingLevel previous) {
+  public static String explanationType(RatingLevel level, RatingLevel previous) {
     return previous != null && level.ordinal() > previous.ordinal() ? "HA_MUC" : "KHAC_MUC_TRUOC";
   }
 

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -34,6 +35,8 @@ import vn.viettel.okrkpi.task.application.assign.port.TaskAssignedEvents;
 import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.AssigneeRow;
 import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.DraftRow;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
+import vn.viettel.okrkpi.task.application.similar.SimilarTaskService;
+import vn.viettel.okrkpi.task.application.similar.port.SimilarTaskRows;
 import vn.viettel.okrkpi.task.domain.assign.AssignmentRules;
 import vn.viettel.okrkpi.task.domain.assign.TaskDraftSpec;
 import vn.viettel.okrkpi.task.domain.lifecycle.TaskStatus;
@@ -67,6 +70,69 @@ class TaskAssignServiceTest {
         queued::add,
         CLOCK,
         null);
+  }
+
+  TaskAssignService service(SimilarTaskService similar) {
+    return new TaskAssignService(
+        f.drafts,
+        f.repo,
+        transitions,
+        events,
+        jobs,
+        f.periods,
+        okr,
+        f.org,
+        calendar,
+        t -> List.of(),
+        publisher,
+        tx,
+        queued::add,
+        CLOCK,
+        null,
+        similar);
+  }
+
+  static SimilarTaskService.Match match(String code) {
+    return new SimilarTaskService.Match(
+        new SimilarTaskRows.Row(
+            UUID.randomUUID(), null, null, code, "x", "DA_GIAO", false, null, null, null),
+        new java.math.BigDecimal("0.90"));
+  }
+
+  @Test
+  void ganGiongCanhBaoKhiKiemTraVaBatBuocLyDoKhiGiao() {
+    SimilarTaskService similar = mock(SimilarTaskService.class);
+    when(similar.find(eq(TENANT), any(), any()))
+        .thenReturn(new SimilarTaskService.Result(List.of(match("NV-1")), true))
+        .thenReturn(new SimilarTaskService.Result(List.of(), false));
+    TaskAssignService svc = service(similar);
+    TaskAssignService.CheckResult r =
+        svc.check(TENANT, spec("DOT_XUAT", LEAD), MANAGER, "Bearer t");
+    assertThat(r.similar()).hasSize(1);
+    assertThat(r.items())
+        .filteredOn(i -> "BR-05-06".equals(i.rule()))
+        .singleElement()
+        .satisfies(i -> assertThat(i.passed()).isFalse());
+    assertThat(svc.check(TENANT, spec("DOT_XUAT", LEAD), MANAGER).items())
+        .filteredOn(i -> "BR-05-06".equals(i.rule()))
+        .singleElement()
+        .satisfies(i -> assertThat(i.message()).contains("Chưa kiểm được"));
+
+    DraftRow d = f.put("NHAP", spec("DOT_XUAT", LEAD), false, 1);
+    when(f.repo.assignees(TENANT, 20264, d.id()))
+        .thenReturn(List.of(new AssigneeRow("PERSON", LEAD, "CHU_TRI")));
+    when(similar.similarTo(TENANT, d.id(), null))
+        .thenReturn(new SimilarTaskService.Result(List.of(match("NV-1")), true));
+    assertThatThrownBy(() -> svc.assignTask(TENANT, d.id(), 1, " ", null, MANAGER))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errors()).extracting(ProblemFieldError::rule).contains("BR-05-06"));
+    assertThatThrownBy(() -> svc.assignTask(TENANT, d.id(), 1, "x".repeat(1001), null, MANAGER))
+        .isInstanceOf(BusinessException.class);
+    svc.assignTask(TENANT, d.id(), 1, "Khác sản phẩm", null, MANAGER);
+    verify(transitions)
+        .appendNote(
+            eq(TENANT), any(), eq("GAN_GIONG"), any(), eq("Khác sản phẩm"), contains("NV-1"));
   }
 
   TaskAssignServiceTest() {
@@ -106,7 +172,8 @@ class TaskAssignServiceTest {
             List.of(
                 new AssigneeRow("PERSON", LEAD, "CHU_TRI"),
                 new AssigneeRow("PERSON", co, "PHOI_HOP")));
-    TaskAssignService.Assigned done = service(okr, calendar).assignTask(TENANT, d.id(), 1, MANAGER);
+    TaskAssignService.Assigned done =
+        service(okr, calendar).assignTask(TENANT, d.id(), 1, null, null, MANAGER);
     assertThat(done.leadId()).isEqualTo(LEAD);
     ArgumentCaptor<TaskAssignedEvents.Assigned> evt =
         ArgumentCaptor.forClass(TaskAssignedEvents.Assigned.class);
@@ -124,7 +191,8 @@ class TaskAssignServiceTest {
     when(f.repo.assignees(TENANT, 20264, d.id()))
         .thenReturn(List.of(new AssigneeRow("UNIT", UNIT, "CHU_TRI")));
     when(f.org.headsOf(eq(TENANT), eq(UNIT), any())).thenReturn(List.of(head));
-    TaskAssignService.Assigned done = service(okr, calendar).assignTask(TENANT, d.id(), 1, MANAGER);
+    TaskAssignService.Assigned done =
+        service(okr, calendar).assignTask(TENANT, d.id(), 1, null, null, MANAGER);
     assertThat(done.leadId()).isEqualTo(UNIT);
     ArgumentCaptor<TaskAssignedEvents.Assigned> evt =
         ArgumentCaptor.forClass(TaskAssignedEvents.Assigned.class);
@@ -135,7 +203,8 @@ class TaskAssignServiceTest {
   @Test
   void viPhamQuyTacChanTraLoiKemMaQuyTac() {
     DraftRow d = f.put("NHAP", spec("KE_HOACH", null), false, 1);
-    assertThatThrownBy(() -> service(okr, calendar).assignTask(TENANT, d.id(), 1, MANAGER))
+    assertThatThrownBy(
+            () -> service(okr, calendar).assignTask(TENANT, d.id(), 1, null, null, MANAGER))
         .isInstanceOfSatisfying(
             BusinessException.class,
             e ->
@@ -151,7 +220,8 @@ class TaskAssignServiceTest {
     doThrow(new PeriodLockedException(PeriodId.of(PERIOD)))
         .when(f.periods)
         .assertWritable(TENANT, PeriodId.of(PERIOD));
-    assertThatThrownBy(() -> service(okr, calendar).assignTask(TENANT, d.id(), 1, MANAGER))
+    assertThatThrownBy(
+            () -> service(okr, calendar).assignTask(TENANT, d.id(), 1, null, null, MANAGER))
         .satisfies(e -> assertThat(code(e)).isEqualTo("TASK-409-PERIOD-LOCKED"));
 
     AssignFixture g = new AssignFixture();
@@ -199,7 +269,7 @@ class TaskAssignServiceTest {
             CLOCK,
             null);
     when(okr.findKeyResult(TENANT, kr)).thenReturn(Optional.of(keyResult(kr, "NHAP")));
-    assertThatThrownBy(() -> svc.assignTask(TENANT, k.id(), 1, MANAGER))
+    assertThatThrownBy(() -> svc.assignTask(TENANT, k.id(), 1, null, null, MANAGER))
         .isInstanceOfSatisfying(
             BusinessException.class,
             e ->
@@ -208,7 +278,7 @@ class TaskAssignServiceTest {
                     .containsExactly("keyResultId"));
     when(okr.findKeyResult(TENANT, kr)).thenReturn(Optional.of(keyResult(kr, "DA_DUYET")));
     when(g.org.assignmentsOf(eq(TENANT), eq(LEAD), any())).thenReturn(List.of());
-    assertThatThrownBy(() -> svc.assignTask(TENANT, k.id(), 1, MANAGER))
+    assertThatThrownBy(() -> svc.assignTask(TENANT, k.id(), 1, null, null, MANAGER))
         .isInstanceOfSatisfying(
             BusinessException.class,
             e ->
