@@ -327,6 +327,36 @@ class PlanServiceTest {
 
   /** Kho kế hoạch trong bộ nhớ. */
   static final class FakeRepo implements PlanRepository {
+
+    @Override
+    public List<PlanRepository.PendingPlan> pendingApproval(
+        TenantId tenant, int periodBucket, UUID periodId) {
+      return List.of();
+    }
+
+    @Override
+    public boolean claimNotice(TenantId tenant, String key) {
+      return true;
+    }
+
+    @Override
+    public long markSubmitted(
+        TenantId tenant, PlanRow plan, VersionRow version, byte[] hash, UUID actor) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public UUID markReturned(
+        TenantId tenant, PlanRow plan, VersionRow version, String comment, UUID actor) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<PlanRepository.ReviewRow> awaitingReview(
+        TenantId tenant, Collection<UUID> units, UUID after, int limit) {
+      throw new UnsupportedOperationException();
+    }
+
     final Map<UUID, PlanRow> plans = new LinkedHashMap<>();
     final Map<UUID, List<VersionRow>> versions = new HashMap<>();
     final Map<UUID, List<ItemRow>> items = new HashMap<>();

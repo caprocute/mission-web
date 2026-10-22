@@ -58,6 +58,9 @@ public class JdbcPlanRepository implements PlanRepository {
   private static final String CATALOG_JOIN =
       " LEFT JOIN task.catalog_item c ON c.tenant_id = i.tenant_id AND c.id = i.catalog_item_id";
 
+  /** Người gọi hệ thống của tác vụ định kỳ. */
+  static final UUID SYSTEM_ACTOR = new UUID(0L, 0L);
+
   private final JdbcClient jdbc;
   private final JdbcTemplate batch;
   private final ObjectMapper json;
@@ -432,6 +435,88 @@ public class JdbcPlanRepository implements PlanRepository {
     } catch (JsonProcessingException e) {
       throw new IllegalStateException("Không ghi được co_assignees", e);
     }
+  }
+
+  @Override
+  public List<PendingPlan> pendingApproval(TenantId tenant, int periodBucket, UUID periodId) {
+    return jdbc.sql(
+            "SELECT p.id, p.owner_unit_id, v.id AS version_id, v.created_by, v.row_version"
+                + " FROM task.plan p JOIN task.plan_version v ON v.period_bucket = p.period_bucket"
+                + " AND v.tenant_id = p.tenant_id AND v.plan_id = p.id AND v.version_no = 1"
+                + " WHERE p.period_bucket = ? AND p.tenant_id = ? AND p.period_id = ?"
+                + " AND v.status <> 'DA_DUYET' ORDER BY p.id")
+        .params(periodBucket, tenant.value(), periodId)
+        .query(
+            (rs, n) ->
+                new PendingPlan(
+                    rs.getObject("id", UUID.class),
+                    rs.getObject("owner_unit_id", UUID.class),
+                    rs.getObject("version_id", UUID.class),
+                    rs.getObject("created_by", UUID.class),
+                    rs.getLong("row_version")))
+        .list();
+  }
+
+  @Override
+  public long markSubmitted(
+      TenantId tenant, PlanRow plan, VersionRow version, byte[] contentHash, UUID actor) {
+    return jdbc.sql(
+            "UPDATE task.plan_version SET status = 'CHO_DUYET', submitted_at = now(),"
+                + " content_hash = ?, return_reason = NULL, updated_by = ?, updated_at = now(),"
+                + " row_version = row_version + 1 WHERE period_bucket = ? AND tenant_id = ? AND id = ?"
+                + " RETURNING row_version")
+        .params(contentHash, actor, plan.periodBucket(), tenant.value(), version.id())
+        .query(Long.class)
+        .single();
+  }
+
+  @Override
+  public UUID markReturned(
+      TenantId tenant, PlanRow plan, VersionRow version, String comment, UUID actor) {
+    return jdbc.sql(
+            "UPDATE task.plan_version SET status = 'TRA_LAI', return_reason = ?,"
+                + " review_comment = ?, updated_by = ?, updated_at = now(),"
+                + " row_version = row_version + 1 WHERE period_bucket = ? AND tenant_id = ? AND id = ?"
+                + " RETURNING created_by")
+        .params(comment, comment, actor, plan.periodBucket(), tenant.value(), version.id())
+        .query(UUID.class)
+        .single();
+  }
+
+  @Override
+  public List<ReviewRow> awaitingReview(
+      TenantId tenant, Collection<UUID> unitIds, UUID afterPlanId, int limit) {
+    return jdbc.sql(
+            "SELECT "
+                + PLAN_COLS
+                + ", "
+                + VERSION_COLS
+                + " FROM task.plan p JOIN task.plan_version v ON v.period_bucket = p.period_bucket"
+                + " AND v.tenant_id = p.tenant_id AND v.plan_id = p.id"
+                + " WHERE p.tenant_id = ? AND p.owner_unit_id = ANY (?::uuid[])"
+                + " AND v.status = 'CHO_DUYET' AND p.id > ? ORDER BY p.id, v.version_no LIMIT ?")
+        .params(
+            tenant.value(),
+            uuidArray(unitIds),
+            afterPlanId == null ? new UUID(0L, 0L) : afterPlanId,
+            limit)
+        .query((rs, n) -> new ReviewRow(plan(rs, n), version(rs, n)))
+        .list();
+  }
+
+  /**
+   * Giữ chỗ bằng {@code task.idempotency_key} của người gọi hệ thống: khoá chính có ngày tạo nên
+   * chặn trùng trong ngày, đúng phạm vi của tác vụ nhắc hạn (suy luận, không thêm bảng mới).
+   */
+  @Override
+  public boolean claimNotice(TenantId tenant, String key) {
+    return jdbc.sql(
+                "INSERT INTO task.idempotency_key (tenant_id, actor_id, idem_key, request_hash,"
+                    + " status, response_code) VALUES (?, ?, ?, sha256(convert_to(?, 'UTF8')),"
+                    + " 'XONG', 200) ON CONFLICT DO NOTHING")
+            .params(tenant.value(), SYSTEM_ACTOR, key, key)
+            .update()
+        == 1;
   }
 
   private static String uuidArray(Collection<UUID> ids) {

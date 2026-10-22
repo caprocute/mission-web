@@ -2,6 +2,7 @@ package vn.viettel.okrkpi.task.infrastructure.web;
 
 import java.math.BigDecimal;
 import java.net.URI;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
@@ -29,6 +30,7 @@ import vn.viettel.okrkpi.contract.tasks.model.CopyPlanFromPreviousPeriodRequest;
 import vn.viettel.okrkpi.contract.tasks.model.CreatePlanRequest;
 import vn.viettel.okrkpi.contract.tasks.model.Flow;
 import vn.viettel.okrkpi.contract.tasks.model.ListApprovedPlanItems200Response;
+import vn.viettel.okrkpi.contract.tasks.model.ListPlanApprovals200Response;
 import vn.viettel.okrkpi.contract.tasks.model.ListPlanVersions200Response;
 import vn.viettel.okrkpi.contract.tasks.model.ListPlans200Response;
 import vn.viettel.okrkpi.contract.tasks.model.PeriodRef;
@@ -42,6 +44,7 @@ import vn.viettel.okrkpi.contract.tasks.model.PlanVersionGroupWeights;
 import vn.viettel.okrkpi.contract.tasks.model.PlanVersionInput;
 import vn.viettel.okrkpi.contract.tasks.model.PlanVersionStatus;
 import vn.viettel.okrkpi.contract.tasks.model.PlanVersionSummary;
+import vn.viettel.okrkpi.contract.tasks.model.ReturnPlanVersionRequest;
 import vn.viettel.okrkpi.contract.tasks.model.SuggestPlanItemsFromOkr200Response;
 import vn.viettel.okrkpi.contract.tasks.model.TaskGroup;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
@@ -56,6 +59,8 @@ import vn.viettel.okrkpi.shared.paging.CursorPage;
 import vn.viettel.okrkpi.shared.paging.PageRequest;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker;
+import vn.viettel.okrkpi.task.application.plan.PlanDeadlines;
+import vn.viettel.okrkpi.task.application.plan.PlanReviewService;
 import vn.viettel.okrkpi.task.application.plan.PlanService;
 import vn.viettel.okrkpi.task.application.plan.PlanService.ApprovedItem;
 import vn.viettel.okrkpi.task.application.plan.PlanService.PlanView;
@@ -77,9 +82,18 @@ public class PlanController {
   private final PlanService plans;
   private final CursorCodec cursors;
   private final TaskCallers callers;
+  private final PlanDeadlines deadlines;
+  private final PlanReviewService reviews;
 
-  public PlanController(PlanService plans, CursorCodec cursors, TaskCallers callers) {
+  public PlanController(
+      PlanService plans,
+      CursorCodec cursors,
+      TaskCallers callers,
+      PlanDeadlines deadlines,
+      PlanReviewService reviews) {
     this.plans = Objects.requireNonNull(plans, "plans");
+    this.reviews = Objects.requireNonNull(reviews, "reviews");
+    this.deadlines = Objects.requireNonNull(deadlines, "deadlines");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
     this.callers = Objects.requireNonNull(callers, "callers");
   }
@@ -104,7 +118,7 @@ public class PlanController {
             page,
             v -> CursorKey.of(v.plan().id()));
     return new ListPlans200Response(
-        result.items().stream().map(PlanController::plan).toList(), result.nextCursor());
+        result.items().stream().map(this::planDto).toList(), result.nextCursor());
   }
 
   @PostMapping
@@ -118,7 +132,28 @@ public class PlanController {
     UUID actor = callers.current().personId();
     PlanView view =
         found(() -> plans.createPlan(tenant, body.getPeriodId(), body.getUnitId(), actor));
-    return ResponseEntity.created(URI.create("/api/v1/plans/" + view.plan().id())).body(plan(view));
+    return ResponseEntity.created(URI.create("/api/v1/plans/" + view.plan().id()))
+        .body(planDto(view));
+  }
+
+  /** SCR-0403 "Chờ tôi duyệt" (CORE-02-08). */
+  @GetMapping("/approvals")
+  @RequiresPermission(operationId = "listPlanApprovals", module = "plans", resourceType = "plan")
+  public ListPlanApprovals200Response listPlanApprovals(
+      @RequestParam(value = "limit", required = false) Integer limit,
+      @RequestParam(value = "cursor", required = false) String cursor) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = callers.current().personId();
+    PageRequest page = cursors.pageRequest(limit, cursor, "plan-approvals:" + actor);
+    UUID after = page.afterKey().map(k -> k.getUuid(0)).orElse(null);
+    CursorPage<PlanReviewService.Review> result =
+        cursors.page(
+            reviews.approvals(tenant, actor, after, page.fetchSize()),
+            page,
+            r -> CursorKey.of(r.row().plan().id()));
+    return new ListPlanApprovals200Response(
+        result.items().stream().map(r -> summary(r.row().version(), r.period())).toList(),
+        result.nextCursor());
   }
 
   @GetMapping("/items")
@@ -160,7 +195,7 @@ public class PlanController {
   public ResponseEntity<PlanVersion> getPlanVersion(
       @PathVariable("id") UUID id, @PathVariable("v") int v) {
     VersionView view = found(() -> plans.version(TenantContext.require(), id, v));
-    return ETags.ok(version(view), view.version().rowVersion());
+    return ETags.ok(versionDto(view), view.version().rowVersion());
   }
 
   @PutMapping("/{id}/versions/{v}")
@@ -179,7 +214,7 @@ public class PlanController {
     UUID actor = callers.current().personId();
     VersionView view =
         found(() -> plans.saveVersion(TenantContext.require(), id, v, expected, drafts, actor));
-    return ETags.ok(version(view), view.version().rowVersion());
+    return ETags.ok(versionDto(view), view.version().rowVersion());
   }
 
   @PostMapping("/{id}/versions/{v}/copy-from")
@@ -201,7 +236,38 @@ public class PlanController {
             () ->
                 plans.copyFromPreviousPeriod(
                     TenantContext.require(), id, v, expected, source, actor));
-    return ETags.ok(version(view), view.version().rowVersion());
+    return ETags.ok(versionDto(view), view.version().rowVersion());
+  }
+
+  @PostMapping("/{id}/versions/{v}/submit")
+  @Idempotent
+  @RequiresPermission(operationId = "submitPlanVersion", module = "plans", resourceType = "plan")
+  public ResponseEntity<PlanVersion> submitPlanVersion(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") int v,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch) {
+    long expected = ETags.expectedVersion(ifMatch, "PLAN_VERSION");
+    UUID actor = callers.current().personId();
+    VersionView view =
+        found(() -> reviews.submitVersion(TenantContext.require(), id, v, expected, actor));
+    return ETags.ok(versionDto(view), view.version().rowVersion());
+  }
+
+  @PostMapping("/{id}/versions/{v}/return")
+  @Idempotent
+  @RequiresPermission(operationId = "returnPlanVersion", module = "plans", resourceType = "plan")
+  public ResponseEntity<PlanVersion> returnPlanVersion(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") int v,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody ReturnPlanVersionRequest body) {
+    long expected = ETags.expectedVersion(ifMatch, "PLAN_VERSION");
+    String comment = body == null ? null : body.getComment();
+    UUID actor = callers.current().personId();
+    VersionView view =
+        found(
+            () -> reviews.returnVersion(TenantContext.require(), id, v, expected, comment, actor));
+    return ETags.ok(versionDto(view), view.version().rowVersion());
   }
 
   @PostMapping("/{id}/versions/{v}/check")
@@ -238,6 +304,23 @@ public class PlanController {
     } catch (NoSuchElementException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     }
+  }
+
+  /** Hạn duyệt BR-04-01 tính khi đọc (CORE-02-07). */
+  private Plan planDto(PlanView v) {
+    Plan dto = plan(v);
+    dto.setApprovalDeadline(deadlines.deadlineOf(TenantContext.require(), v.period()));
+    return dto;
+  }
+
+  private PlanVersion versionDto(VersionView v) {
+    PlanVersion dto = version(v);
+    LocalDate deadline = deadlines.deadlineOf(TenantContext.require(), v.period());
+    dto.setApprovalDeadline(deadline);
+    if (v.version().versionNo() == 1 && !"DA_DUYET".equals(v.version().status().name())) {
+      dto.setWorkingDaysToDeadline(deadlines.workingDaysTo(TenantContext.require(), deadline));
+    }
+    return dto;
   }
 
   static Plan plan(PlanView v) {
