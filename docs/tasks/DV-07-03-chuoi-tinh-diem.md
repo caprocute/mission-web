@@ -39,6 +39,15 @@ Hiện thực chuỗi tính điểm theo Policy Pack: từ đầu vào của m�
 - Kiểm thử: ca vàng từ `data/golden/` (bộ ca của Policy Pack mẫu); kiểm thử thuộc tính 10.000 bộ (điểm ∈ [0; 100], C ≥ 0, A ≤ 1); hai lần tính cùng đầu vào cho cùng `result_hash`.
 - Gợi ý tách: (a) đầu vào chuẩn, A, B, C, KPI nhiệm vụ; (b) KPI nhóm, điểm, tiêu chí chung, vết, API.
 
+### Bổ sung theo BS-03 (ADR-33, 22/10/2026)
+
+Nguồn: `/mnt/project-files/kien-truc-okr-kpi/bo-sung/BS-03-ho-so-tap-khach-hang-va-diem-cam-loi.md`. Phần dưới mở rộng phạm vi của thẻ; mọi giá trị riêng của khách hàng đi qua cấu hình, không viết cứng trong mã (YC-TK-11). Nếu thẻ phụ thuộc chưa gộp, làm phần gốc của thẻ trước và để phần bổ sung sau cờ hoặc ghi rõ trong báo cáo.
+
+Phụ thuộc thêm CORE-04-13 cho phần bổ sung.
+
+- Bộ đánh giá CEL nhận kiểu `list<WorkItem>` và `list<ResponsibilityItem>` trong `inputs` (DC-01, DC-03); tra giá trị hệ số từ bảng của gói theo mức; hỗ trợ hai chế độ đưa về thang 100 do gói chọn.
+- CI chạy ca vàng của ít nhất hai hồ sơ (hồ sơ "quy định mới" và hồ sơ TWĐ khi DL-16 có dữ liệu) trên cùng bản build; không có nhánh mã theo hồ sơ.
+
 ## 4. Ngoài phạm vi
 
 - Xếp loại bằng DMN và câu giải thích (DV-07-05); consumer sự kiện (DV-07-04).
