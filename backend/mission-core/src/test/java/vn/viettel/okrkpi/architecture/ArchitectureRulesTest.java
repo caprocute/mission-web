@@ -238,6 +238,51 @@ public class ArchitectureRulesTest {
   static final ArchRule platformC2TypesMustMaskToString =
       PlatformArchitectureRules.C2_TYPES_MUST_MASK_TO_STRING;
 
+  /**
+   * CORE-08-03 (TL-01 "chặn ghi khi kỳ khoá"): mọi phương thức ghi công khai của lớp ứng dụng ở
+   * MOD-01, MOD-02, MOD-04 và lớp gắn chính sách (MOD-03) phải gọi {@code PeriodApi.assertWritable}
+   * trước khi ghi.
+   */
+  @ArchTest
+  static final ArchRule writesCheckPeriodLock =
+      com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods()
+          .that()
+          .areDeclaredInClassesThat()
+          .resideInAnyPackage(
+              "vn.viettel.okrkpi.okr.application..",
+              "vn.viettel.okrkpi.task.application..",
+              "vn.viettel.okrkpi.product.application..",
+              "vn.viettel.okrkpi.policy.application..")
+          .and()
+          .arePublic()
+          .and()
+          .haveNameMatching(
+              "(create|update|register|save|delete|submit|assign|record|bind|remove)[A-Z].*")
+          .should(
+              new ArchCondition<com.tngtech.archunit.core.domain.JavaMethod>(
+                  "gọi PeriodApi.assertWritable") {
+                @Override
+                public void check(
+                    com.tngtech.archunit.core.domain.JavaMethod method, ConditionEvents events) {
+                  boolean calls =
+                      method.getMethodCallsFromSelf().stream()
+                          .anyMatch(
+                              c ->
+                                  c.getTargetOwner()
+                                          .isEquivalentTo(
+                                              vn.viettel.okrkpi.config.api.PeriodApi.class)
+                                      && c.getName().equals("assertWritable"));
+                  if (!calls) {
+                    events.add(
+                        SimpleConditionEvent.violated(
+                            method,
+                            method.getFullName()
+                                + " ghi dữ liệu nhưng không gọi PeriodApi.assertWritable"));
+                  }
+                }
+              })
+          .allowEmptyShould(true);
+
   @Test
   void verifyModulithStructureAndGeneratePlantUmlDocs() {
     ApplicationModules modules = ApplicationModules.of(MissionCoreApplication.class).verify();

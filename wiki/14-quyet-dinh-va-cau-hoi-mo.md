@@ -468,6 +468,15 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 - **Bẫy: `@Idempotent` của thư viện nền không dùng được cho mô-đun của mission-core.** Interceptor dùng `JdbcTemplate` và giao dịch mặc định của tiến trình, nên không có quyền vào schema `config` (lỗi "permission denied for schema config"). Vì vậy `createPeriod` gọi thẳng `JdbcIdempotencyStore` trên `configDataSource`, trong cùng giao dịch với lệnh (`ConfigIdempotency`). Các mô-đun khác của mission-core gặp cùng vấn đề cho tới khi thư viện nền hỗ trợ chọn DataSource theo schema. `SuspiciousAccessController` (DV-02-05) đang dùng `@Idempotent` nên có thể cũng lỗi (suy luận, chưa kiểm).
 - **mission-core chưa nối xác thực.** Spring Security không có trong classpath của mission-core, nên `AuthzSubjectResolver` không có bean. API kỳ lấy người gọi qua cổng `PeriodCaller` nếu có, nếu không thì qua `AuthzSubjectResolver`; không có cả hai thì trả 401. Kiểm thử thay người gọi bằng bean `PeriodCaller`.
 
+### Ghi chú và quyết định từ chặn ghi khi kỳ khoá (CORE-08-03, 22/10/2026)
+
+- `PeriodApi.assertWritable` đọc trạng thái kỳ qua đệm Caffeine trong tiến trình (TTL 30 giây, tối đa 200 000 mục, cấu hình `mission.config.period-cache.ttl`); chỉ khi trượt đệm mới mở giao dịch đọc trên `configTransactionManager`. Kỳ không tồn tại cũng được đệm (không chặn). Kiểm khi trúng đệm đo được dưới 0,1 ms.
+- Xoá đệm giữa các pod (suy luận): mỗi pod có consumer group riêng `mission-core-period-cache-<host>-<uuid>`, đọc EVT-09 và EVT-26 từ offset mới nhất, không qua inbox, vì inbox dùng chung một group sẽ chỉ để một pod nhận sự kiện. Khoá bản ghi sai dạng thì xoá toàn bộ đệm. Pod tự chuyển trạng thái thì xoá đệm ngay và sau khi giao dịch kết thúc. Bộ lắng nghe tắt được bằng `mission.config.period-cache.listener.enabled=false` (kiểm thử đang tắt vì pom mission-core chưa có Kafka Testcontainers).
+- `MO_LAI_HAU_KIEM` vẫn bị coi là khoá (`PeriodState.writable()` chỉ đúng với `MO`) cho tới CORE-08-06.
+- Mã lỗi 409 chọn theo mô-đun của controller nhận lệnh (`TASK-409-PERIOD-LOCKED`, `OKR-…`, `POLICY-…`, `PRODUCT-…`); mô-đun không có mã trong danh mục, hoặc lệnh không đến từ HTTP, dùng `APPRAISAL-409-PERIOD-LOCKED`. Không dùng bộ xử lý lỗi riêng vì mission-core không thấy servlet API lúc biên dịch; mô-đun được lấy từ `HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE` khi ném ngoại lệ. `detail` theo MSG-08-06.
+- ArchUnit `writesCheckPeriodLock`: phương thức công khai tên `create|update|register|save|delete|submit|assign|record|bind|remove…` trong `okr`, `task`, `product`, `policy` `.application` phải gọi `PeriodApi.assertWritable`. Đã gắn: `OkrQueryService.registerKeyResult`, `DefaultPolicyQueryService.registerPolicy`. Chưa gắn: `task` và `product` chưa có lệnh ghi; quy tắc sẽ bắt khi thêm.
+- Bẫy kỹ thuật: lớp lồng `@TestConfiguration` của một IT bị quét vào ngữ cảnh của IT khác cùng `MissionCoreApplication`, nên hai IT khai báo cùng tên bean sẽ lỗi "overriding is disabled".
+
 ## Liên quan
 
 - [README của wiki](README.md)

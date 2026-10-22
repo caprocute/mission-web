@@ -35,9 +35,10 @@ public enum PeriodState {
   }
 
   /**
-   * Kỳ cho ghi dữ liệu nghiệp vụ: chặn khi đang khoá hoặc đã khoá (TL-01 {@code assertWritable}).
+   * Kỳ cho ghi dữ liệu nghiệp vụ (TL-01 {@code assertWritable}): chỉ {@code MO}. {@code
+   * MO_LAI_HAU_KIEM} vẫn bị coi là khoá cho tới khi CORE-08-06 làm phạm vi được mở lại.
    */
   public boolean writable() {
-    return this == MO || this == MO_LAI_HAU_KIEM;
+    return this == MO;
   }
 }

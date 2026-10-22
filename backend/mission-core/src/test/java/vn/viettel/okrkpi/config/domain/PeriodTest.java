@@ -91,7 +91,7 @@ class PeriodTest {
     UUID reopen = UUID.randomUUID();
     p.moveTo(PeriodState.MO_LAI_HAU_KIEM, UUID.randomUUID(), reopen, ACTOR, AT);
     assertThat(p.reopenCount()).isEqualTo(1);
-    assertThat(p.state().writable()).isTrue();
+    assertThat(p.state().writable()).isFalse();
     assertThat(p.lockSagaId()).isEqualTo(saga);
     PeriodTransition t4 = p.moveTo(PeriodState.DA_KHOA, UUID.randomUUID(), reopen, ACTOR, AT);
     assertThat(t4.cause()).isEqualTo(PeriodChangeCause.KHOA_LAI);
@@ -164,6 +164,6 @@ class PeriodTest {
   @ParameterizedTest
   @EnumSource(PeriodState.class)
   void writableOnlyWhenOpen(PeriodState s) {
-    assertThat(s.writable()).isEqualTo(s == PeriodState.MO || s == PeriodState.MO_LAI_HAU_KIEM);
+    assertThat(s.writable()).isEqualTo(s == PeriodState.MO);
   }
 }

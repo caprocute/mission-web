@@ -7,8 +7,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodCalendarPort;
 import vn.viettel.okrkpi.config.api.PeriodCreatedEvent;
@@ -53,6 +57,9 @@ public class PeriodConfigService implements PeriodApi {
   private final ApplicationEventPublisher publisher;
   private final PeriodCalendarPort calendar;
   private final Clock clock;
+  private final PeriodStateCache states;
+  private final TransactionOperations reads;
+  private Supplier<String> callerModule = () -> null;
 
   /**
    * @param calendar tham số lịch của Policy Pack; {@code null} dùng lịch mặc định của TL-02a
@@ -63,6 +70,30 @@ public class PeriodConfigService implements PeriodApi {
       ApplicationEventPublisher publisher,
       PeriodCalendarPort calendar,
       Clock clock) {
+    this(
+        periods,
+        events,
+        publisher,
+        calendar,
+        clock,
+        new PeriodStateCache(PeriodStateCache.DEFAULT_TTL),
+        TransactionOperations.withoutTransaction());
+  }
+
+  /**
+   * @param states bộ đệm trạng thái kỳ của pod
+   * @param reads giao dịch chỉ đọc của {@code configTransactionManager}, chỉ mở khi trượt đệm
+   */
+  public PeriodConfigService(
+      PeriodRepository periods,
+      PeriodEvents events,
+      ApplicationEventPublisher publisher,
+      PeriodCalendarPort calendar,
+      Clock clock,
+      PeriodStateCache states,
+      TransactionOperations reads) {
+    this.states = Objects.requireNonNull(states, "states");
+    this.reads = Objects.requireNonNull(reads, "reads");
     this.periods = Objects.requireNonNull(periods, "periods");
     this.events = Objects.requireNonNull(events, "events");
     this.publisher = Objects.requireNonNull(publisher, "publisher");
@@ -188,6 +219,7 @@ public class PeriodConfigService implements PeriodApi {
     }
     periods.appendStatusLog(tenantId, t);
     events.statusChanged(period, t, lockOrderId, reason);
+    evictNowAndAfterCommit(tenantId, periodId);
     return period;
   }
 
@@ -261,26 +293,70 @@ public class PeriodConfigService implements PeriodApi {
     return periods.findById(tenantId, periodId).map(PeriodConfigService::snapshot);
   }
 
-  /** Chặn khi kỳ đã khoá ({@code DA_KHOA}); kỳ không tồn tại không chặn. */
+  /** Chặn khi kỳ đã khoá ({@code DA_KHOA}); kỳ không tồn tại không chặn. Đọc qua bộ đệm. */
   @Override
-  @Transactional(transactionManager = TX, readOnly = true)
   public void assertOpen(TenantId tenantId, PeriodId periodId) throws PeriodLockedException {
-    Optional<Period> p = periods.findById(tenantId, periodId);
-    if (p.isPresent() && p.get().state() == PeriodState.DA_KHOA) {
-      throw new PeriodLockedException(periodId);
+    Optional<PeriodStateCache.Entry> e = state(tenantId, periodId);
+    if (e.isPresent() && e.get().state() == PeriodState.DA_KHOA) {
+      throw new PeriodLockedException(periodId, e.get().name(), callerModule.get());
     }
   }
 
   /**
-   * TL-01: chặn khi kỳ ở {@code DANG_KHOA} hoặc {@code DA_KHOA}. Đọc thẳng CSDL; bộ đệm trạng thái
-   * kỳ làm ở CORE-08-03.
+   * TL-01: chặn khi kỳ ở {@code DANG_KHOA} hoặc {@code DA_KHOA} (CORE-08-03). Ở task này {@code
+   * MO_LAI_HAU_KIEM} cũng bị chặn; phạm vi được mở làm ở CORE-08-06. Kỳ không tồn tại không chặn.
+   * Đọc qua bộ đệm trạng thái kỳ, chỉ mở giao dịch đọc khi trượt đệm.
    */
   @Override
-  @Transactional(transactionManager = TX, readOnly = true)
   public void assertWritable(TenantId tenantId, PeriodId periodId) throws PeriodLockedException {
-    Optional<Period> p = periods.findById(tenantId, periodId);
-    if (p.isPresent() && !p.get().state().writable()) {
-      throw new PeriodLockedException(periodId);
+    Optional<PeriodStateCache.Entry> e = state(tenantId, periodId);
+    if (e.isPresent() && !e.get().state().writable()) {
+      throw new PeriodLockedException(periodId, e.get().name(), callerModule.get());
+    }
+  }
+
+  /**
+   * Nguồn mô-đun nhận lệnh để chọn mã lỗi {@code <MODULE>-409-PERIOD-LOCKED}; mặc định không xác
+   * định (mã của MOD-04).
+   */
+  public void setCallerModule(Supplier<String> callerModule) {
+    this.callerModule = Objects.requireNonNull(callerModule, "callerModule");
+  }
+
+  /** Xoá đệm trạng thái của kỳ (khi pod khác báo kỳ đổi trạng thái qua EVT-09, EVT-26). */
+  public void evictState(TenantId tenantId, PeriodId periodId) {
+    states.evict(tenantId, periodId);
+  }
+
+  /** Xoá toàn bộ đệm trạng thái kỳ của pod. */
+  public void evictAllStates() {
+    states.evictAll();
+  }
+
+  private Optional<PeriodStateCache.Entry> state(TenantId tenantId, PeriodId periodId) {
+    Objects.requireNonNull(tenantId, "tenantId");
+    Objects.requireNonNull(periodId, "periodId");
+    return states.get(
+        tenantId,
+        periodId,
+        () ->
+            reads.execute(
+                s ->
+                    periods
+                        .findById(tenantId, periodId)
+                        .map(p -> new PeriodStateCache.Entry(p.state(), p.name()))));
+  }
+
+  private void evictNowAndAfterCommit(TenantId tenantId, PeriodId periodId) {
+    states.evict(tenantId, periodId);
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+              states.evict(tenantId, periodId);
+            }
+          });
     }
   }
 

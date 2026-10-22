@@ -26,7 +26,7 @@ public class OkrQueryService implements OkrApi {
 
   public void registerKeyResult(KeyResultSummary summary) {
     Objects.requireNonNull(summary, "summary must not be null");
-    periodApi.assertOpen(summary.tenantId(), summary.periodId());
+    periodApi.assertWritable(summary.tenantId(), summary.periodId());
     summaries.put(summary.id(), summary);
   }
 
