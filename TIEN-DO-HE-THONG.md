@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **179 / 408 task (43.9%)** — Khối lượng quy đổi đã gộp: **212.5 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **184 / 408 task (45.1%)** (gồm **179** đã gộp `main` + **5** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **185 / 408 task (45.3%)** (gồm **179** đã gộp `main` + **6** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **218 task**.
+- **Chưa bắt đầu**: **217 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **14 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-04`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -26,13 +26,13 @@
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **32** | 2 | 0 | 0 | **94.1%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **36** | 0 | 0 | 81 | **30.8%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **32** | 0 | 3 | 69 | **30.8%** |
-| **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **5** | 3 | 1 | 4 | **38.5%** |
+| **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **5** | 4 | 1 | 3 | **38.5%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **179** | **5** | **6** | **218** | **43.9%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **179** | **6** | **6** | **217** | **43.9%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -44,7 +44,7 @@
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **34** | 0 | 3 | 83 | **28.3%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **17** | 0 | 0 | 55 | **23.6%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **14** | 1 | 1 | 26 | **33.3%** |
-| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **0** | 2 | 0 | 21 | **0.0%** |
+| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **0** | 3 | 0 | 20 | **0.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **0** | 0 | 0 | 4 | **0.0%** |
 
 ### 1.3. Trạng thái 23 task trên Đường găng
@@ -524,7 +524,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-16-01](docs/tasks/DV-16-01-chi-muc-opensearch.md) | Chỉ mục OpenSearch, alias lọc theo tenant, indexer consumer EVT-04, EVT-24 | M | B7 | 8 | INF-11, NEN-012 | **Chưa bắt đầu** |  |
 | [DV-16-02](docs/tasks/DV-16-02-api-tim-kiem.md) | API tìm kiếm toàn cục, kiểm quyền lại ở lõi trước khi trả chi tiết | M | B7 | 11 | DV-16-01, CORE-00-02, NEN-013, NEN-014 | **Chưa bắt đầu** |  |
 
-### DL · Dữ liệu, nội dung nghiệp vụ và chuyển đổi (5/13 đã gộp `main`, 3 chờ gộp, 1 đang làm)
+### DL · Dữ liệu, nội dung nghiệp vụ và chuyển đổi (5/13 đã gộp `main`, 4 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -537,7 +537,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DL-07](docs/tasks/DL-07-du-lieu-khoi-tao.md) | Dữ liệu khởi tạo: 9 khối đối tượng, lịch nghỉ lễ quốc gia, danh mục chức danh | S | B11 | 13 | DV-04-01, CORE-08-04 | **Làm một phần** | Phần org (9 khối, 23 chức danh) đã gộp main |
 | [DL-08](docs/tasks/DL-08-sinh-du-lieu-thu-tai.md) | Bộ sinh dữ liệu thử quy mô (1,2 triệu hồ sơ một cell) cho kiểm thử hiệu năng | M | B9 | 13 | CORE-04-01, CORE-02-02, DV-04-01, CORE-03-01 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: bộ sinh/nạp/kiểm infra/perf/datagen, 14 pytest xanh, pip-audit sạch; chưa sinh hồ sơ đánh giá (chờ CORE-04-01) và Flowable (DL-08b) |
 | [DL-12](docs/tasks/DL-12-job-doi-soat.md) | Job đối soát R1–R8 và bốn job kiểm tra sổ cái | L | B11 | 14 | CORE-04-02, DV-09-04, DV-15-02 | **Chưa bắt đầu** |  |
-| [DL-13](docs/tasks/DL-13-luu-giu-xoa-mat-ma.md) | Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ | M | B11 | 13 | NEN-015, INF-18, CORE-08-07 | **Chưa bắt đầu** |  |
+| [DL-13](docs/tasks/DL-13-luu-giu-xoa-mat-ma.md) | Lưu giữ, lưu trữ lạnh, giữ pháp lý, xoá bằng mật mã theo bảy lớp lưu giữ | M | B11 | 13 | NEN-015, INF-18, CORE-08-07 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: vt-retention (lưu trữ Parquet Object Lock, xoá bằng mật mã, xoá phân vùng, khôi phục có duyệt) 8 kiểm thử xanh, cấu hình retention.<LỚP> ở mission-core, CronJob Helm, runbook; phần sao lưu INF-18 chưa làm |
 | [DL-14](docs/tasks/DL-14-xoay-vong-dek-kek.md) | Xoay vòng DEK định kỳ và bọc lại khoá theo KEK mới | M | B11 | 7 | NEN-015, INF-13 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: thư viện vt-key-rotation (tháng, bọc lại, mã hoá lại) 8 kiểm thử xanh PG17+OpenBao, CronJob Helm, runbook |
 | [DL-15](docs/tasks/DL-15-an-danh-hoa-phi-san-xuat.md) | Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`) | M | B11 | 14 | NEN-015, DL-08, NEN-005, NEN-006 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: tác vụ anonymize + rules.yaml, 16 kiểm thử xanh (3 trên PostgreSQL 17 với DL-08), pip-audit sạch |
 | [DL-16](docs/tasks/DL-16-ho-so-twd.md) | Hồ sơ TWĐ (giả lập theo UEB): Policy Pack điểm công việc, bảng hệ số, chuỗi xếp loại, ca vàng UEB, danh mục dự thảo số 25, chín quy tắc điểm nghẽn, tham số thẩm quyền và hạn | L | B11 | 19 | CORE-05-12, CORE-02-27, CORE-02-28, CORE-01-14, CORE-04-13, DV-07-03, DV-07-05 | **Chưa bắt đầu** | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
@@ -851,4 +851,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 17:25 | B9 | `DL-15` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: tác vụ anonymize + rules.yaml, 16 kiểm thử xanh (3 trên PostgreSQL 17 với DL-08), pip-audit sạch |
 | 22/10/2026 17:27 | B9 | `DL-14` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-z7s8x3: đang thực hiện |
 | 22/10/2026 17:44 | B9 | `DL-14` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: thư viện vt-key-rotation (tháng, bọc lại, mã hoá lại) 8 kiểm thử xanh PG17+OpenBao, CronJob Helm, runbook |
+| 22/10/2026 17:45 | B9 | `DL-13` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-z7s8x3: đang thực hiện (phần không cần INF-18) |
+| 22/10/2026 18:09 | B9 | `DL-13` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: vt-retention (lưu trữ Parquet Object Lock, xoá bằng mật mã, xoá phân vùng, khôi phục có duyệt) 8 kiểm thử xanh, cấu hình retention.<LỚP> ở mission-core, CronJob Helm, runbook; phần sao lưu INF-18 chưa làm |
 <!-- PROGRESS_LOG_END -->
