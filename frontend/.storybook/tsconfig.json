@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true
+  },
+  "include": ["./*.ts", "../projects/**/*.stories.ts"],
+  "exclude": ["../projects/**/*.spec.ts"]
+}

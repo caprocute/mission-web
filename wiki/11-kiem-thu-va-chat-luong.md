@@ -13,7 +13,7 @@ Bảng dưới liệt kê các loại kiểm thử theo TL-01 và TL-04, kèm hi
 | Đơn vị | Vitest qua `@angular/build:unit-test`, jsdom | Hàm thuần, service, component | Đã có (WEB-001): spec cho `@vt/design-system`, `@vt/form-engine`, `@vt/api-client` (giả lập), `app.spec.ts` của hai ứng dụng |
 | Hợp đồng | Pact (frontend là bên tiêu dùng) | Hợp đồng frontend với API mission-core | Chưa có |
 | Đầu cuối | Playwright, khoảng 40 hành trình chính | Luồng nghiệp vụ trên trình duyệt thật | Mới có bộ đối chiếu ma trận phân quyền (WEB-057); hành trình nghiệp vụ chưa có |
-| Giao diện theo token | Storybook, Playwright chụp ảnh, axe-core | Component registry × 4 bộ token | Chưa có (WEB-005) |
+| Giao diện theo token | Storybook, Playwright chụp ảnh, axe-core | Component registry × 4 bộ token | Đã có (WEB-005): 6 story × 4 bộ token và chế độ cao tuổi, `npm run test:visual` |
 | Hiệu năng trang | Lighthouse CI, WebPageTest 4G | PERF-21 mỗi bản build | Đã cấu hình (WEB-003), số đo chưa đạt |
 | Tải | k6 | PERF-22 đến PERF-24 | Chưa có |
 | Bảo mật động | OWASP ZAP | SEC-40, ASVS mức 2 | Chưa có (WEB-053) |
@@ -41,6 +41,12 @@ Bẫy gặp khi làm WEB-010: thư viện có sáu component cùng khai báo `st
 Vì giao diện tenant được thay bằng dữ liệu mà không phát hành lại mã, TL-01 đặt chiến lược kiểm thử riêng gồm bốn tầng. Tầng một là Storybook: mỗi component trong registry có story, được chụp ảnh với bốn bộ token và quét axe-core. Tầng hai là kiểm tĩnh khi UI Pack được gửi lên: kiểm lược đồ, tương phản màu tối thiểu 4,5:1 tính trực tiếp trên token, kích thước CSS biên dịch không quá 30 KB. Tầng ba là smoke test khoảng 2 phút trên staging với chính UI Pack đó. Tầng bốn là kiểm thử hồi quy trên tập 20 UI Pack đại diện mỗi khi registry hoặc design system thay đổi.
 
 Quy trình phát hành UI Pack theo OPS-11 trong không quá một ngày gồm: kiểm lược đồ, axe-core theo WCAG 2.1 AA, ngưỡng 30 KB, ảnh so sánh trên staging, phát hành, rồi phát sự kiện EVT-23 để vô hiệu cache CDN theo khoá phiên bản. Policy Pack theo OPS-10 trong năm ngày, trong đó ngày thứ hai chạy pipeline với test vàng phải đạt 100% và ngày thứ ba chạy shadow (xem [Giao diện theo tenant](03-giao-dien-theo-tenant.md) và SCR-1503 ở [trang 05b](05b-quy-trinh-va-man-hinh-qt09-18.md)).
+
+## Hồi quy giao diện tầng một (WEB-005)
+
+Tầng một chạy bằng Storybook 10 cho Angular, khai là dự án `vt-storybook` trong `angular.json` với cấu hình ở `frontend/.storybook/`. Story nằm cạnh component dưới dạng `*.stories.ts` và mang nhãn `hoi-quy` để bộ kiểm thử nhận ra. Hiện có sáu story: `vt.layout.grid`, bốn widget của registry (`vt.widget.myTasksToday`, `vt.widget.okrProgress`, `vt.widget.pendingApprovals`, `vt.widget.announcement`) và `vt-form` với mẫu 1B. Mỗi story được dựng thành một ứng dụng Angular riêng có cấu hình như shell ở chế độ giả lập: đăng nhập tắt, API giả lập không trễ, và UI Pack của bộ token đang chọn được `UiPackLoader` nạp trước khi vẽ, nên token được áp đúng như ứng dụng thật. Thanh công cụ của Storybook có hai lựa chọn: bộ token (bốn UI Pack thử `default`, `cao-tuoi`, `thuong-hieu-toi`, `tuong-phan-cao` của shell) và chế độ hiển thị (thường hoặc "Đảng viên cao tuổi").
+
+Lệnh `npm run test:visual` dựng Storybook tĩnh vào `dist/storybook`, rồi Playwright (cấu hình `e2e/playwright.visual.config.ts`) mở từng story có nhãn `hoi-quy` với năm biến thể: bốn bộ token và chế độ cao tuổi trên bộ mặc định. Mỗi biến thể được chụp ảnh và so với ảnh chuẩn trong `e2e/anh-chuan/`, quét axe-core theo WCAG 2.1 A và AA, và phải không có lỗi console. Đồng hồ trang được cố định để ngày tương đối của dữ liệu giả lập không làm ảnh đổi theo ngày chạy. Story lấy dữ liệu từ API giả lập phải khai bộ chọn chờ dữ liệu trong `CHO_DU_LIEU` của spec, nếu không ảnh có thể chụp trạng thái đang tải. Khi thay đổi giao diện là có chủ đích, chạy `npm run test:visual -- --update-snapshots` rồi xem lại ảnh trước khi commit. Ảnh chuẩn phụ thuộc hệ điều hành và phông của máy chạy (tên tệp có hậu tố `-chromium`, chụp trên Linux), nên chạy so sánh trong cùng ảnh container với pipeline. Widget mới thêm vào registry cần thêm story và tên vào danh sách kiểm ở đầu spec.
 
 ## Bộ ca mẫu vàng của Policy Pack
 
