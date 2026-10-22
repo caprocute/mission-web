@@ -124,6 +124,7 @@ public class TaskApiService implements TaskApi {
     return new TaskSummary(
         t.id(),
         t.periodId(),
+        t.periodBucket(),
         t.code(),
         t.title(),
         t.status().name(),

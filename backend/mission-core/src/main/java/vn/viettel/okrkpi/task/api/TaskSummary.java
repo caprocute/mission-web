@@ -10,6 +10,7 @@ import java.util.UUID;
  *
  * @param id nhiệm vụ
  * @param periodId kỳ
+ * @param periodBucket khoá phân vùng của kỳ, để mô-đun khác ghi bảng phân vùng cùng kỳ
  * @param code mã nhiệm vụ hiển thị
  * @param title tên nhiệm vụ
  * @param status trạng thái chuẩn ({@code DANG_THUC_HIEN}, {@code HOAN_THANH}…)
@@ -26,6 +27,7 @@ import java.util.UUID;
 public record TaskSummary(
     UUID id,
     UUID periodId,
+    int periodBucket,
     String code,
     String title,
     String status,
