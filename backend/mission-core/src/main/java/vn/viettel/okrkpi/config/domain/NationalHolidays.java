@@ -1,35 +1,29 @@
 package vn.viettel.okrkpi.config.domain;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Lịch quốc gia dựng sẵn (scope {@code QUOC_GIA}), dùng khi tenant chưa có dòng {@code QUOC_GIA}
- * trong {@code config.holiday_calendar}. Dữ liệu năm 2026 khớp lịch của bộ ca CEL dùng chung
- * ({@code data/golden/cel/golden-cases.yaml}); các năm khác chưa có dữ liệu, chỉ nghỉ thứ Bảy, Chủ
- * nhật cho tới khi tenant hệ thống nạp lịch (suy luận, cần nghiệp vụ đối chiếu với thông báo nghỉ
- * lễ chính thức hằng năm).
+ * Lịch quốc gia dựng sẵn (scope {@code QUOC_GIA}) từ dữ liệu khởi tạo DL-07 ({@code
+ * data/seed/config/holiday_calendar_<năm>.csv}, bản sao trên classpath cạnh lớp này, kiểm thử bảo
+ * đảm hai bản trùng nhau). Dùng cho mọi tenant vì RLS của {@code config.holiday_calendar} không cho
+ * tenant đọc dòng của tenant hệ thống; dòng {@code QUOC_GIA} trong bảng của chính tenant (nếu có)
+ * ghi đè ngày dựng sẵn. Năm chưa có tệp chỉ nghỉ thứ Bảy, Chủ nhật.
  */
 public final class NationalHolidays {
 
-  private static final List<HolidayDay> DAYS =
-      List.of(
-          day("2026-01-01", HolidayDayKind.NGHI_LE, "Tết Dương lịch"),
-          day("2026-02-14", HolidayDayKind.LAM_BU, "Làm bù dịp Tết Nguyên đán"),
-          day("2026-02-16", HolidayDayKind.NGHI_LE, "Tết Nguyên đán"),
-          day("2026-02-17", HolidayDayKind.NGHI_LE, "Tết Nguyên đán"),
-          day("2026-02-18", HolidayDayKind.NGHI_LE, "Tết Nguyên đán"),
-          day("2026-02-19", HolidayDayKind.NGHI_LE, "Tết Nguyên đán"),
-          day("2026-02-20", HolidayDayKind.NGHI_LE, "Tết Nguyên đán"),
-          day("2026-04-25", HolidayDayKind.LAM_BU, "Làm bù dịp Giỗ Tổ Hùng Vương"),
-          day("2026-04-27", HolidayDayKind.NGHI_BU, "Nghỉ bù Giỗ Tổ Hùng Vương"),
-          day("2026-04-30", HolidayDayKind.NGHI_LE, "Ngày Chiến thắng"),
-          day("2026-05-01", HolidayDayKind.NGHI_LE, "Ngày Quốc tế Lao động"),
-          day("2026-08-29", HolidayDayKind.LAM_BU, "Làm bù dịp Quốc khánh"),
-          day("2026-09-02", HolidayDayKind.NGHI_LE, "Quốc khánh"),
-          day("2026-09-03", HolidayDayKind.NGHI_LE, "Quốc khánh"));
+  /** Các năm có tệp lịch; thêm năm mới thì thêm tệp và năm vào đây. */
+  static final int[] YEARS = {2026, 2027};
+
+  private static final List<HolidayDay> DAYS = load();
 
   private NationalHolidays() {}
 
@@ -53,8 +47,67 @@ public final class NationalHolidays {
     return DAYS.stream().anyMatch(d -> d.id().equals(id));
   }
 
-  private static HolidayDay day(String date, HolidayDayKind kind, String name) {
-    LocalDate d = LocalDate.parse(date);
-    return new HolidayDay(idOf(d), d, kind, name, HolidayScope.QUOC_GIA, 0);
+  private static List<HolidayDay> load() {
+    List<HolidayDay> days = new ArrayList<>();
+    for (int year : YEARS) {
+      String file = "holiday_calendar_" + year + ".csv";
+      try (InputStream in = NationalHolidays.class.getResourceAsStream(file)) {
+        if (in == null) {
+          throw new IllegalStateException("Thiếu tệp lịch quốc gia " + file);
+        }
+        BufferedReader reader =
+            new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+        reader.readLine();
+        for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+          if (!line.isBlank()) {
+            days.add(parse(line));
+          }
+        }
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
+    return List.copyOf(days);
+  }
+
+  /** Đọc bốn cột đầu {@code calendar_date,day_kind,name,scope}; cột tên có thể có ngoặc kép. */
+  static HolidayDay parse(String line) {
+    List<String> cols = columns(line);
+    LocalDate date = LocalDate.parse(cols.get(0));
+    return new HolidayDay(
+        idOf(date),
+        date,
+        HolidayDayKind.valueOf(cols.get(1)),
+        cols.get(2),
+        HolidayScope.valueOf(cols.get(3)),
+        0);
+  }
+
+  static List<String> columns(String line) {
+    List<String> cols = new ArrayList<>();
+    StringBuilder cur = new StringBuilder();
+    boolean quoted = false;
+    for (int i = 0; i < line.length(); i++) {
+      char c = line.charAt(i);
+      if (quoted) {
+        if (c == '"' && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+          cur.append('"');
+          i++;
+        } else if (c == '"') {
+          quoted = false;
+        } else {
+          cur.append(c);
+        }
+      } else if (c == '"') {
+        quoted = true;
+      } else if (c == ',') {
+        cols.add(cur.toString());
+        cur.setLength(0);
+      } else {
+        cur.append(c);
+      }
+    }
+    cols.add(cur.toString());
+    return cols;
   }
 }
