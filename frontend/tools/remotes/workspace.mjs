@@ -37,10 +37,12 @@ const commands = {
   build() {
     for (const r of registry().remotes) ng('build', r.project);
     ng('build', 'fe-shell');
+    // WEB-013: gói nhúng <vt-okr-app> cho cổng văn phòng số (host thứ hai, phục vụ ở /embed/)
+    ng('build', 'fe-embed');
   },
 
   test() {
-    const projects = [...LIBS, ...registry().remotes.map((r) => r.project), 'fe-shell'];
+    const projects = [...LIBS, ...registry().remotes.map((r) => r.project), 'fe-shell', 'fe-embed'];
     for (const p of projects) {
       if (!hasSpec(join(ROOT, 'projects', p))) {
         console.log(`[test:all] ${p}: chưa có tệp *.spec.ts, bỏ qua`);
