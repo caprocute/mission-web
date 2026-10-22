@@ -102,6 +102,27 @@ public final class AppraisalProfile {
     return transition(ProfileCommand.SUBMIT, actorId, null);
   }
 
+  /**
+   * Quá hạn tự đánh giá (QT-09 ngoại lệ 3, timer của luồng duyệt): chuyển thẩm định với mức tự đề
+   * xuất trống, không tự điền mức, không đòi giải trình.
+   */
+  public StepCompleted skipSelfAssessment(UUID actorId) {
+    checkCommand(ProfileCommand.SUBMIT);
+    ratings.remove(LevelKind.TU_DE_XUAT);
+    return transition(ProfileCommand.SUBMIT, actorId, null);
+  }
+
+  /** Chỉ chủ hồ sơ sửa phiếu tự đánh giá, khi hồ sơ ở {@code TU_DANH_GIA} (CORE-04-04). */
+  public void ensureSelfAssessmentEditable(UUID actorId) {
+    ensureNotLocked();
+    if (status != AppraisalStatus.TU_DANH_GIA) {
+      throw new AppraisalRuleViolation(
+          Code.TRANSITION_NOT_ALLOWED,
+          "Phiếu tự đánh giá chỉ sửa được khi hồ sơ ở bước tự đánh giá, hiện ở " + status);
+    }
+    requireActor(actorId, personId, "Chỉ người được đánh giá lập phiếu tự đánh giá");
+  }
+
   /** Trả lại bổ sung: có lý do, số lần trả lại chưa vượt {@code maxReturns}. */
   public StepCompleted returnForRevision(UUID actorId, String reason, int maxReturns) {
     checkCommand(ProfileCommand.RETURN_FOR_REVISION);

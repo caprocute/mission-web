@@ -118,12 +118,41 @@ public class AppraisalProfileService {
       String actorRole,
       SealedText reason,
       SealedText comment) {
+    return recordRating(
+        tenant,
+        profileId,
+        expectedVersion,
+        kind,
+        rating,
+        actorId,
+        actorRole,
+        reason,
+        comment,
+        UUID.randomUUID());
+  }
+
+  /**
+   * Như {@link #recordRating(TenantId, UUID, Long, LevelKind, RatingLevel, UUID, String,
+   * SealedText, SealedText)} với mã dòng mức do bên gọi cấp, để bên gọi mã hoá lý do với AAD của
+   * đúng dòng {@code rating_proposal} (CORE-04-04).
+   */
+  @Transactional(TX)
+  public CurrentRating recordRating(
+      TenantId tenant,
+      UUID profileId,
+      Long expectedVersion,
+      LevelKind kind,
+      RatingLevel rating,
+      UUID actorId,
+      String actorRole,
+      SealedText reason,
+      SealedText comment,
+      UUID proposalId) {
     ProfileRow row = load(tenant, profileId, expectedVersion);
     if (row.currentSnapshotId() == null) {
       throw new BusinessException("APPRAISAL-409-NOT-COMPUTED", "Hồ sơ chưa có kết quả tính điểm");
     }
     AppraisalProfile profile = row.toAggregate();
-    UUID proposalId = UUID.randomUUID();
     RatingRecorded recorded =
         run(
             () ->
@@ -203,7 +232,7 @@ public class AppraisalProfileService {
         .orElse(DEFAULT_MAX_RETURNS);
   }
 
-  private static <T> T run(Supplier<T> action) {
+  public static <T> T run(Supplier<T> action) {
     try {
       return action.get();
     } catch (AppraisalRuleViolation v) {
@@ -212,7 +241,7 @@ public class AppraisalProfileService {
   }
 
   /** Ánh xạ mã từ chối của aggregate sang danh mục lỗi của hợp đồng {@code appraisals.yaml}. */
-  static BusinessException toProblem(AppraisalRuleViolation v) {
+  public static BusinessException toProblem(AppraisalRuleViolation v) {
     String code =
         switch (v.code()) {
           case TRANSITION_NOT_ALLOWED, PROFILE_LOCKED -> "APPRAISAL-409-INVALID-STATUS";
