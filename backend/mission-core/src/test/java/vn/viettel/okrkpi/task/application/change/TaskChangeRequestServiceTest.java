@@ -37,6 +37,7 @@ import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository;
 import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.AssigneeRow;
 import vn.viettel.okrkpi.task.application.blocker.port.TaskBlockers;
 import vn.viettel.okrkpi.task.application.change.TaskChangeRequestService.Draft;
+import vn.viettel.okrkpi.task.application.change.port.ChangeApprovalStarter;
 import vn.viettel.okrkpi.task.application.change.port.ChangeRequestNotices;
 import vn.viettel.okrkpi.task.application.change.port.TaskChangeRequests;
 import vn.viettel.okrkpi.task.application.change.port.TaskChangeRequests.ChangeRow;
@@ -67,6 +68,7 @@ class TaskChangeRequestServiceTest {
   PeriodApi periods = mock(PeriodApi.class);
   TaskDeliverables deliverables = mock(TaskDeliverables.class);
   ChangeRequestNotices notices = mock(ChangeRequestNotices.class);
+  ChangeApprovalStarter starter = mock(ChangeApprovalStarter.class);
   TaskChangeRequestService service = service(null);
 
   TaskChangeRequestService service(WorkingCalendarApi calendar) {
@@ -80,7 +82,8 @@ class TaskChangeRequestServiceTest {
         deliverables,
         notices,
         TaskChangeRequestService.Settings.defaults(),
-        CLOCK);
+        CLOCK,
+        starter);
   }
 
   @BeforeEach
@@ -154,6 +157,7 @@ class TaskChangeRequestServiceTest {
         ASSIGNER,
         creator,
         Instant.parse("2026-10-22T03:00:00Z"),
+        null,
         null,
         null,
         null,
@@ -328,6 +332,22 @@ class TaskChangeRequestServiceTest {
     TaskRow t = task(TaskStatus.DANG_THUC_HIEN, 10, 30);
     assertThat(service.extensions(TENANT, t)).containsExactly(1, 2);
     assertThat(service.listOf(TENANT, t)).isEmpty();
+  }
+
+  @Test
+  void overThresholdSubmitStartsOneApprovalProcess() {
+    when(changes.approvedExtensions(TENANT, 20264, TASK)).thenReturn(2);
+    when(changes.insert(eq(TENANT), any(), any())).thenReturn(true);
+    when(changes.find(eq(TENANT), eq(20264), eq(TASK), any()))
+        .thenReturn(Optional.of(row("CHO_DUYET", LEAD)));
+    service.submitChangeRequest(
+        TENANT, TASK, extension(LocalDate.of(2026, 11, 4), "KHACH_QUAN"), actor(LEAD));
+    verify(starter).start(TENANT, TASK, REQ, ASSIGNER, 0L, LEAD);
+    org.mockito.Mockito.doThrow(new IllegalStateException("mạng"))
+        .when(starter)
+        .start(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyLong(), any());
+    service.submitChangeRequest(
+        TENANT, TASK, extension(LocalDate.of(2026, 11, 4), "KHACH_QUAN"), actor(LEAD));
   }
 
   @Test
