@@ -1,0 +1,53 @@
+{{- /*
+DL-12 · TL-03 "Đối soát và kiểm tra nhất quán", TL-04 "Quan sát hệ thống": cảnh báo chung của các job đối soát
+trong mission-core (R1 bản sao tổ chức, R7 outbox ↔ Kafka; R2–R6 dùng cùng chỉ số khi DL-12b, DL-12c nối vào).
+Chỉ số do thư viện vt-reconcile xuất: mission_reconcile_runs_total{reconcile,status},
+mission_reconcile_mismatches_total{reconcile}, mission_reconcile_repaired_total{reconcile},
+mission_reconcile_last_finished_seconds{reconcile}. Bật mặc định; values.yaml chưa khai khoá reconcile nên mọi
+giá trị có mặc định ở đây: reconcile.alerts.enabled, reconcile.alerts.runbookBase.
+*/ -}}
+{{- $rc := .Values.reconcile | default dict -}}
+{{- $al := $rc.alerts | default dict -}}
+{{- if ne (toString (dig "enabled" true $al)) "false" }}
+{{- $rb := $al.runbookBase | default "https://runbook.vt.local/okr" }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}-doi-soat
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: mission-core
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: reconcile
+spec:
+  groups:
+    - name: mission-doi-soat
+      rules:
+        - alert: MissionDoiSoatLechChuaXuLy
+          expr: sum by (reconcile) (increase(mission_reconcile_runs_total{status="LOI"}[2h])) > 0
+          labels: { severity: warning, doi: van-hanh-du-lieu }
+          annotations:
+            summary: "Đối soát {{ "{{ $labels.reconcile }}" }} phát hiện lệch chưa tự xử lý được trong 2 giờ qua"
+            description: "Tra reconcile_run có status LOI của job này; cột detail ghi phạm vi lệch và lệnh phát lại."
+            runbook_url: {{ $rb }}/doi-soat
+        - alert: MissionDoiSoatDaTuSua
+          expr: sum by (reconcile) (increase(mission_reconcile_repaired_total[2h])) > 0
+          labels: { severity: info, doi: van-hanh-du-lieu }
+          annotations:
+            summary: "Đối soát {{ "{{ $labels.reconcile }}" }} đã tự phát lại {{ "{{ $value | humanize }}" }} dòng trong 2 giờ qua"
+            runbook_url: {{ $rb }}/doi-soat
+        - alert: MissionDoiSoatR7NgungChay
+          expr: (time() - max(mission_reconcile_last_finished_seconds{reconcile="R7_OUTBOX_KAFKA"})) > 3 * 3600
+          for: 15m
+          labels: { severity: warning, doi: van-hanh-du-lieu }
+          annotations:
+            summary: "Đối soát outbox ↔ Kafka chưa chạy xong trong 3 giờ"
+            runbook_url: {{ $rb }}/doi-soat-outbox-kafka
+        - alert: MissionDoiSoatR1NgungChay
+          expr: (time() - max(mission_reconcile_last_finished_seconds{reconcile="R1_BAN_SAO_TO_CHUC"})) > 30 * 3600
+          for: 30m
+          labels: { severity: warning, doi: van-hanh-du-lieu }
+          annotations:
+            summary: "Đối soát bản sao tổ chức chưa có lần nào kết thúc trong 30 giờ (CronJob doi-soat-r1 của org-service hoặc consumer org.bootstrap.v1)"
+            runbook_url: {{ $rb }}/doi-soat-ban-sao-to-chuc
+{{- end }}
