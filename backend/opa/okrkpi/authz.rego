@@ -266,6 +266,7 @@ deny contains "role_not_allowed" if {
 
 deny contains "role_not_allowed" if {
 	has_request
+	not self_service
 	count(api_grant_roles) == 0
 }
 
@@ -278,6 +279,7 @@ deny contains "step_up_required" if {
 
 deny contains "step_up_required" if {
 	has_request
+	not self_service
 	count(api_grant_roles) > 0
 	count(api_effective) == 0
 }
@@ -382,7 +384,37 @@ flags contains c.flag if {
 
 flags contains "ai_on_behalf_of_user" if "ai_readonly" in granting_roles
 
+# ------------------------------------------------------------------ Tài nguyên tự phục vụ (CNH-02)
+
+# Tuỳ chọn cá nhân và bộ lọc đã lưu (đề xuất CNH-01, phạm vi B) thuộc riêng người dùng: mọi vai trò con
+# người có hiệu lực được đọc ghi của chính mình qua /api/v1/config/me/..., kể cả vai trò mà dòng API
+# config của ma trận chỉ cho GET. Đường dẫn /me gắn chủ bản ghi với người gọi và service luôn lọc theo
+# user_id của token; service gửi owner_ids thì người gọi phải nằm trong đó. Hệ thống ngoài không dùng.
+self_service_types := {"user_preference", "saved_filter"}
+
+self_service if {
+	has_request
+	not has_action
+	subject_kind == "user"
+	input.request.module == "config"
+	resource.type in self_service_types
+	count(effective_roles) > 0
+	same_tenant
+	self_owner_ok
+}
+
+self_owner_ok if not resource.owner_ids
+
+self_owner_ok if subject.user_id in resource.owner_ids
+
+granting_roles contains r if {
+	self_service
+	some r in effective_roles
+}
+
 # ------------------------------------------------------------------ Quyết định
+
+granted if self_service
 
 granted if {
 	has_action

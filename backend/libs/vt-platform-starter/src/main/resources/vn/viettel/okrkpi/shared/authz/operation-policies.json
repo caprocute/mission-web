@@ -1,7 +1,7 @@
 {
   "description": "Bảng chính sách thao tác trích từ mở rộng x-mission trong contracts/openapi/modules/*.yaml (NEN-014). Không sửa tay: chạy tools/extract-x-mission.mjs.",
   "source": "contracts/openapi/modules/*.yaml",
-  "count": 432,
+  "count": 439,
   "aal2Count": 73,
   "fourEyesCount": 18,
   "operations": [
@@ -1654,6 +1654,40 @@
       "source": "TL-02b SCR-1302 \"Chạy kiểm tra toàn vẹn\" (202)"
     },
     {
+      "operationId": "createMySavedFilter",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "POST",
+      "path": "/config/me/saved-filters",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-00"
+      ],
+      "scr": [
+        "SCR-0201",
+        "SCR-0301",
+        "SCR-0901",
+        "SCR-1001"
+      ],
+      "roles": [
+        "platform_admin",
+        "tenant_admin",
+        "policy_author",
+        "leader",
+        "manager",
+        "member",
+        "appraiser",
+        "decider",
+        "second_approver",
+        "inspector"
+      ],
+      "scope": "B",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "Đề xuất CNH-01 mục 4.1"
+    },
+    {
       "operationId": "createObjectiveRevision",
       "file": "okr.yaml",
       "module": "okr",
@@ -2276,6 +2310,72 @@
       "aal": 2,
       "fourEyes": false,
       "source": "TL-01 SVC-10; TL-03 esign.certificate_ref (suy luận đường dẫn)"
+    },
+    {
+      "operationId": "deleteMyPreference",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "DELETE",
+      "path": "/config/me/preferences/{prefKey}",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-00"
+      ],
+      "scr": [
+        "SCR-0002",
+        "SCR-1803"
+      ],
+      "roles": [
+        "platform_admin",
+        "tenant_admin",
+        "policy_author",
+        "leader",
+        "manager",
+        "member",
+        "appraiser",
+        "decider",
+        "second_approver",
+        "inspector"
+      ],
+      "scope": "B",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "Đề xuất CNH-01 mục 4.1"
+    },
+    {
+      "operationId": "deleteMySavedFilter",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "DELETE",
+      "path": "/config/me/saved-filters/{id}",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-00"
+      ],
+      "scr": [
+        "SCR-0201",
+        "SCR-0301",
+        "SCR-0901",
+        "SCR-1001"
+      ],
+      "roles": [
+        "platform_admin",
+        "tenant_admin",
+        "policy_author",
+        "leader",
+        "manager",
+        "member",
+        "appraiser",
+        "decider",
+        "second_approver",
+        "inspector"
+      ],
+      "scope": "B",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "Đề xuất CNH-01 mục 4.1"
     },
     {
       "operationId": "deleteOkrLink",
@@ -3812,6 +3912,38 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02a SCR-0001 bước 7; TL-02b ma trận truy vết QT-00"
+    },
+    {
+      "operationId": "getMyPreferences",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "GET",
+      "path": "/config/me/preferences",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-00"
+      ],
+      "scr": [
+        "SCR-0002",
+        "SCR-1803"
+      ],
+      "roles": [
+        "platform_admin",
+        "tenant_admin",
+        "policy_author",
+        "leader",
+        "manager",
+        "member",
+        "appraiser",
+        "decider",
+        "second_approver",
+        "inspector"
+      ],
+      "scope": "B",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "Đề xuất CNH-01 mục 4.1 (docs/de-xuat/de-xuat-ca-nhan-hoa.md), NFR-11"
     },
     {
       "operationId": "getNewTaskDraft",
@@ -5984,6 +6116,40 @@
       "source": "TL-01 SVC-12 FCM/APNs/Web Push (suy luận đường dẫn)"
     },
     {
+      "operationId": "listMySavedFilters",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "GET",
+      "path": "/config/me/saved-filters",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-00"
+      ],
+      "scr": [
+        "SCR-0201",
+        "SCR-0301",
+        "SCR-0901",
+        "SCR-1001"
+      ],
+      "roles": [
+        "platform_admin",
+        "tenant_admin",
+        "policy_author",
+        "leader",
+        "manager",
+        "member",
+        "appraiser",
+        "decider",
+        "second_approver",
+        "inspector"
+      ],
+      "scope": "B",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "Đề xuất CNH-01 mục 4.1"
+    },
+    {
       "operationId": "listMyTasks",
       "file": "tasks.yaml",
       "module": "tasks",
@@ -7599,6 +7765,38 @@
       "aal": 2,
       "fourEyes": true,
       "source": "TL-01 PL C; TL-02b SCR-1801 \"Duyệt\"; ma trận SCR-1801.duyet"
+    },
+    {
+      "operationId": "putMyPreference",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "PUT",
+      "path": "/config/me/preferences/{prefKey}",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-00"
+      ],
+      "scr": [
+        "SCR-0002",
+        "SCR-1803"
+      ],
+      "roles": [
+        "platform_admin",
+        "tenant_admin",
+        "policy_author",
+        "leader",
+        "manager",
+        "member",
+        "appraiser",
+        "decider",
+        "second_approver",
+        "inspector"
+      ],
+      "scope": "B",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "Đề xuất CNH-01 mục 4.1; NFR-11"
     },
     {
       "operationId": "queryAnalytics",
@@ -10006,6 +10204,40 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02a SCR-0801 \"Lịch ngày nghỉ\""
+    },
+    {
+      "operationId": "updateMySavedFilter",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "PUT",
+      "path": "/config/me/saved-filters/{id}",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-00"
+      ],
+      "scr": [
+        "SCR-0201",
+        "SCR-0301",
+        "SCR-0901",
+        "SCR-1001"
+      ],
+      "roles": [
+        "platform_admin",
+        "tenant_admin",
+        "policy_author",
+        "leader",
+        "manager",
+        "member",
+        "appraiser",
+        "decider",
+        "second_approver",
+        "inspector"
+      ],
+      "scope": "B",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "Đề xuất CNH-01 mục 4.1"
     },
     {
       "operationId": "updateNotificationPreferences",
