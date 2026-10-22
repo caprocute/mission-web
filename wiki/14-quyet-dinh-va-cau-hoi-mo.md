@@ -27,6 +27,7 @@ Bảng dưới liệt kê các ADR của baseline có tác động trực tiếp
 | ADR-27 | E2EE cho C3: ECDH P-256, khoá không trích xuất, Shamir 3/5 | Thư viện `@vt/e2ee` dự kiến |
 | ADR-31 | Ký lô và niêm phong sổ cái | Màn hình ký lô, tra cứu sổ cái |
 | ADR-32 | Hợp đồng API trước (bổ sung BS-02, đã chấp nhận 19/10/2026) | Mọi lời gọi API: kiểu sinh từ `contracts/openapi/`, đổi API bắt đầu bằng PR sửa hợp đồng |
+| ADR-33 | Hồ sơ tập khách hàng trên một lõi chung (bổ sung BS-03, đã chấp nhận 22/10/2026) | Màn hình đánh giá, giao việc, OKR đọc cờ điểm cắm DC-01..DC-06 của hồ sơ qua API, không giả định một cách chấm cố định |
 
 ## Quyết định riêng của dự án web đã chốt
 
@@ -501,6 +502,10 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 4. Bảng `config.period_status_log` chỉ ghi thêm theo hai lớp. Lớp thứ nhất thu quyền `UPDATE`, `DELETE`, `TRUNCATE` của `svc_config`. Lớp thứ hai là trigger `tg_period_status_log__append_only` chặn sửa và xoá ở mọi vai trò, vì bootstrap khi chạy lại sẽ cấp bù quyền DML trên bảng đã có (suy luận).
 5. Khoá ngoại vòng `ui_pack.current_version_id` được tạo sau bảng phiên bản và đặt `DEFERRABLE INITIALLY DEFERRED` (suy luận), để phát hành phiên bản đầu tiên và gắn vào gói trong cùng một giao dịch. Bảng `config.component_registry` có một phiên bản mẫu `2026.3` gồm năm component web hiện có (suy luận); bảng này không có `tenant_id` và nằm trong danh sách ngoại lệ của kiểm thử RLS.
 6. Hai kiểu ngoài danh sách chuẩn được ghi lý do ở khoá `type_exception`: `period.reopen_count smallint` và `dashboard_def.shared_unit_ids uuid[]`, đều theo đúng TL-03. Cột `role_binding.valid_to` không cho phép null nên mặc định là `infinity` khi vai trò không có hạn (suy luận).
+
+### Hồ sơ tập khách hàng và giải pháp UEB (BS-03, ADR-33, đã chốt 22/10/2026)
+
+Anh Hiếu chấp thuận bốn khuyến nghị của báo cáo phân tích giải pháp KPI của UEB (`/mnt/project-files/phan-tich-ueb/`) với điều kiện: nghiệp vụ UEB là **một bộ hồ sơ riêng cho TWĐ, cấu hình được, không hợp nhất cứng vào lõi**. Lõi chỉ thêm sáu điểm cắm chung DC-01..DC-06 (điểm công việc, khung tham số kế thừa, phạm vi phụ trách, kiểu đo mốc, chuỗi xếp loại, chế độ phân công), mỗi điểm có mặc định giữ hành vi cũ. Các quyết định kèm theo: dùng dự thảo Quy định 12/10/2026 làm căn cứ cho gói giả lập khối Đảng; hồ sơ TWĐ làm cả hai chế độ đưa về thang 100, mặc định "tỷ lệ có hệ số"; `quotas` (ví dụ `HTXSNV 20%` ở TL-01) chuyển thành tùy chọn của gói. Bốn mức xếp loại mà UEB yêu cầu đã có ở TL-03 (`score_snapshot.auto_rating_code` cộng bốn `stage` của `rating_proposal`), nên không thêm cột. Lớp cấp trên giữa các tenant (B7) để sau. Task: NEN-044, CORE-05-12, CORE-02-27, CORE-02-28, CORE-01-14, CORE-04-13, DL-16 và phần bổ sung trong tám thẻ chưa làm. Tiêu chí nghiệm thu: cùng một bản build đạt 100% ca vàng của ít nhất hai hồ sơ.
 
 ### Ghi chú và quyết định từ schema Policy Pack (CORE-05-01, 22/10/2026)
 
