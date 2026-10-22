@@ -30,7 +30,7 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
           + " plan_item_id, catalog_item_id, title, task_group, key_result_id, priority, due_date,"
           + " acceptor_id, milestones::text AS milestones, product_name, planned_quantity, unit,"
           + " evidence_required, quality_criteria, source_doc::text AS source_doc, basis,"
-          + " row_version";
+          + " node_kind, parent_task_id, component_score, row_version";
 
   private static final java.time.ZoneId ZONE = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
 
@@ -77,9 +77,10 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
                 + " key_result_id, assigner_id, acceptor_id, due_date, milestones,"
                 + " planned_quantity, unit, difficulty, standard_score, dup_fingerprint,"
                 + " state_machine_version, status, org_unit_id, priority, product_name,"
-                + " evidence_required, quality_criteria, basis, source_doc, created_at,"
-                + " updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,"
-                + " ?::jsonb, ?, ?, ?, ?, ?, ?, 'NHAP', ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)")
+                + " evidence_required, quality_criteria, basis, source_doc, node_kind,"
+                + " parent_task_id, component_score, created_at, updated_at) VALUES (?, ?, ?, ?,"
+                + " ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, 'NHAP', ?, ?,"
+                + " ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)")
         .params(
             d.id(),
             d.assignerId(),
@@ -111,6 +112,9 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
             s.qualityCriteria(),
             s.basis(),
             sourceDoc(s),
+            s.node().kind(),
+            s.node().parentTaskId(),
+            s.node().componentScore(),
             Timestamp.from(at),
             Timestamp.from(at))
         .update();
@@ -174,7 +178,8 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
                   s.qualityCriteria(),
                   s.sourceDocNumber(),
                   s.sourceDocTitle(),
-                  s.basis()),
+                  s.basis(),
+                  s.node()),
               d.rowVersion());
         });
   }
@@ -196,7 +201,8 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
                     + " task_group = ?, is_key_task = ?, key_result_id = ?, priority = ?,"
                     + " acceptor_id = ?, due_date = ?, milestones = ?::jsonb, product_name = ?,"
                     + " planned_quantity = ?, unit = ?, evidence_required = ?,"
-                    + " quality_criteria = ?, basis = ?, source_doc = ?::jsonb, difficulty = ?,"
+                    + " quality_criteria = ?, basis = ?, source_doc = ?::jsonb, node_kind = ?,"
+                    + " parent_task_id = ?, component_score = ?, difficulty = ?,"
                     + " standard_score = ?, dup_fingerprint = ?, updated_by = ?, updated_at = ?,"
                     + " row_version = row_version + 1 WHERE period_bucket = ? AND tenant_id = ?"
                     + " AND id = ? AND row_version = ? AND status = 'NHAP'")
@@ -219,6 +225,9 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
                 s.qualityCriteria(),
                 s.basis(),
                 sourceDoc(s),
+                s.node().kind(),
+                s.node().parentTaskId(),
+                s.node().componentScore(),
                 difficulty,
                 standardScore,
                 fingerprint,
@@ -489,7 +498,11 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
             rs.getString("quality_criteria"),
             doc.hasNonNull("number") ? doc.get("number").asText() : null,
             doc.hasNonNull("title") ? doc.get("title").asText() : null,
-            rs.getString("basis")),
+            rs.getString("basis"),
+            new TaskDraftSpec.Node(
+                rs.getString("node_kind"),
+                rs.getObject("parent_task_id", UUID.class),
+                rs.getBigDecimal("component_score"))),
         rs.getLong("row_version"));
   }
 
