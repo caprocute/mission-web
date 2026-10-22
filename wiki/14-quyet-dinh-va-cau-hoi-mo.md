@@ -800,6 +800,19 @@ Danh mục lỗi sinh từ hợp đồng chưa có mã riêng cho trường hợ
 7. **Đo (YC-PT-19: chỉ ghi lại).** Một nút ClickHouse và một tiến trình Cube cục bộ, dữ liệu vàng: 200 truy vấn bảng điều hành trúng đệm có p95 khoảng 8 ms; 100 truy vấn không trúng đệm, đọc pre-aggregation có p95 khoảng 35 ms. PERF-24 (300 truy vấn mỗi giây) đo ở QA-11.
 8. **Phần chờ INF.** Cube Store (bộ đệm, hàng đợi dùng chung nhiều bản sao Cube), triển khai Cube trên cụm, nguồn danh sách tenant cho `scheduledRefreshContexts` (dev đặt bằng `CUBE_REFRESH_TENANTS`), cấp `CUBEJS_API_SECRET` và mật khẩu tài khoản Cube từ OpenBao.
 
+## Ghi chú và quyết định từ khung job phát hiện bất thường (DV-15-07, 22/10/2026)
+
+Mã nguồn ở `services-py/anomaly-job`, bảng kết quả ở migration `analytics/clickhouse/migrations/V011__anomaly_out.sql`, dữ liệu vàng ở `data/golden/anomaly`.
+
+1. **Đối tượng của cảnh báo cá nhân là mã hồ sơ đánh giá (suy luận).** Kho phân tích chỉ giữ mã người giả danh (`person_key`), còn hợp đồng EVT-20 cần `subjectId` dạng UUID. Với dấu hiệu 1, `subjectId` là mã hồ sơ của quý cuối chuỗi; mission-core tra ra cán bộ từ hồ sơ. `alertKey` băm theo (tenant, dấu hiệu, `person_key`, luồng, kỳ cuối), nên mỗi chuỗi chỉ sinh một cảnh báo.
+2. **Tham số ngưỡng còn thiếu số (suy luận).** TL-02b cho số của "3 quý liên tiếp", "lệch từ 5 điểm", "90 % cùng mức" và "2 quý" cho điều kiện điểm. Tỷ lệ HTXSNV vượt ngưỡng khối (mặc định 20 %), độ lệch chuẩn điểm dưới 2, tối thiểu 5 hồ sơ mỗi nhóm, và cách tính mức cảnh báo theo số điều kiện thoả (1 THẤP, 2 VỪA, 3 CAO) là giả định; bộ ngưỡng của tenant (`getAnomalyThresholds`) ghi đè được. TL-01 nêu ví dụ ngưỡng khác TL-02b; job theo TL-02b.
+3. **Mức xếp loại dùng cho dấu hiệu 2** là mức hiện hành ở cấp cao nhất đã có (quyết định, đề xuất, thẩm định); mức tự đề xuất không tính.
+4. **Không dùng `vtplatform.kafka.AnomalyAlertPayload`.** Bộ kiểm tra của thư viện đó dùng mã khác hợp đồng (ví dụ `CB_01`, `MEDIUM`, `TASK`) và gửi thân JSON, trong khi hợp đồng `DauHieuBatThuong.avsc` dùng mã TL-02b và Avro theo sổ đăng ký. Job chỉ dùng chung công thức `event_id` (UUIDv5 của `tenant:alertKey`, kiểm thử so khớp giá trị). Cần sửa thư viện theo hợp đồng khi có task tương ứng.
+5. **Định dạng trên Kafka giống outbox của mission-core:** thân Avro không tiền tố, global id ở tiêu đề `apicurio.value.globalId`, phong bì ở tiêu đề `id`, `tenantid`, `ce_type`, `classification=C1`, `occurredat`. Không có `aggregateversion` vì sự kiện không đi qua outbox PostgreSQL. Job không tự đăng ký lược đồ; lược đồ chưa đăng ký là lỗi phát hành.
+6. **Tài khoản `<db>_anomaly` không còn chỉ đọc.** `V011` đổi hồ sơ thiết lập sang `<db>_anomaly_job` (`readonly = 0`, giới hạn tài nguyên bằng ràng buộc) và chỉ cấp thêm `SELECT, INSERT` trên `anomaly_out`; mục 7 của DV-15-01 ở trên mô tả trạng thái trước `V011`. `INSERT ... SELECT` có truy vấn con chạy được với quyền theo cột (đã kiểm thử), khác `CREATE TABLE ... AS SELECT` ở DV-15-03.
+7. **Lấy ngưỡng theo tenant** dựa vào client dịch vụ `anomaly-job` được khai báo trong danh sách client ủy quyền tenant (`X-Tenant-Id`) của mission-core; khai báo client ở Keycloak và danh sách đó thuộc phần cấu hình môi trường. Không lấy được ngưỡng thì bỏ qua tenant (fail closed) và job thoát mã khác 0.
+8. **Chờ INF:** chart, ExternalSecret, NetworkPolicy và lịch chạy thật của CronJob (`deploy/cronjob.yaml` chỉ là mẫu).
+
 ## Liên quan
 
 - [README của wiki](README.md)

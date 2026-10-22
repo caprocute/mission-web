@@ -1,0 +1,8 @@
+{
+ "version": 1,
+ "rowVersion": 1,
+ "signals": [
+  {"signalCode": "TU_CHAM_CAO", "enabled": true, "params": {"consecutiveQuarters": 3, "scoreGap": 5, "scoreQuarters": 2}},
+  {"signalCode": "CAO_BANG", "enabled": true, "params": {"sameLevelPercent": 90}}
+ ]
+}

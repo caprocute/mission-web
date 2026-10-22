@@ -1,0 +1,298 @@
+{
+ "_ghi_chu": "Dữ liệu vàng DV-15-07: mã '#X' đổi thành UUIDv5 cố định khi nạp; tenant A có bộ ngưỡng mặc định, tenant B lỗi khi lấy ngưỡng. Hồ sơ dấu hiệu 1 có 'tu','td' (mức tự đề xuất, thẩm định) và 'diem_tu','diem_td' (điểm của ảnh chụp tương ứng); hồ sơ dấu hiệu 2 có 'qd' (mức quyết định) và 'diem' (điểm hiện hành).",
+ "luong": "NHA_NUOC",
+ "ky": [
+  {
+   "ma": "Q1",
+   "bat_dau": "2026-01-01",
+   "ket_thuc": "2026-03-31"
+  },
+  {
+   "ma": "Q2",
+   "bat_dau": "2026-04-01",
+   "ket_thuc": "2026-06-30"
+  },
+  {
+   "ma": "Q3",
+   "bat_dau": "2026-07-01",
+   "ket_thuc": "2026-09-30"
+  },
+  {
+   "ma": "Q4",
+   "bat_dau": "2026-10-01",
+   "ket_thuc": "2026-12-31"
+  }
+ ],
+ "ho_so": [
+  {
+   "ma": "P1Q1",
+   "nguoi": "P1",
+   "don_vi": "U0",
+   "ky": "Q1",
+   "tu": "HTXSNV",
+   "td": "HTTNV",
+   "diem_tu": 90,
+   "diem_td": 88
+  },
+  {
+   "ma": "P1Q2",
+   "nguoi": "P1",
+   "don_vi": "U0",
+   "ky": "Q2",
+   "tu": "HTXSNV",
+   "td": "HTTNV",
+   "diem_tu": 95,
+   "diem_td": 85
+  },
+  {
+   "ma": "P1Q3",
+   "nguoi": "P1",
+   "don_vi": "U0",
+   "ky": "Q3",
+   "tu": "HTXSNV",
+   "td": "HTTNV",
+   "diem_tu": 96,
+   "diem_td": 86
+  },
+  {
+   "ma": "P1Q4",
+   "nguoi": "P1",
+   "don_vi": "U0",
+   "ky": "Q4",
+   "tu": "HTTNV",
+   "td": "HTTNV",
+   "diem_tu": 86,
+   "diem_td": 86
+  },
+  {
+   "ma": "P2Q1",
+   "nguoi": "P2",
+   "don_vi": "U0",
+   "ky": "Q1",
+   "tu": "HTTNV",
+   "td": "HTNV",
+   "diem_tu": 80,
+   "diem_td": 78
+  },
+  {
+   "ma": "P2Q2",
+   "nguoi": "P2",
+   "don_vi": "U0",
+   "ky": "Q2",
+   "tu": "HTTNV",
+   "td": "HTNV",
+   "diem_tu": 80,
+   "diem_td": 79
+  },
+  {
+   "ma": "P2Q3",
+   "nguoi": "P2",
+   "don_vi": "U0",
+   "ky": "Q3",
+   "tu": "HTNV",
+   "td": "HTNV",
+   "diem_tu": 75,
+   "diem_td": 75
+  },
+  {
+   "ma": "P2Q4",
+   "nguoi": "P2",
+   "don_vi": "U0",
+   "ky": "Q4",
+   "tu": "HTTNV",
+   "td": "HTNV",
+   "diem_tu": 80,
+   "diem_td": 78
+  },
+  {
+   "ma": "P3Q2",
+   "nguoi": "P3",
+   "don_vi": "U0",
+   "ky": "Q2",
+   "tu": "HTTNV",
+   "td": "HTTNV",
+   "diem_tu": 82,
+   "diem_td": 81
+  },
+  {
+   "ma": "P3Q3",
+   "nguoi": "P3",
+   "don_vi": "U0",
+   "ky": "Q3",
+   "tu": "HTTNV",
+   "td": "HTTNV",
+   "diem_tu": 88,
+   "diem_td": 82
+  },
+  {
+   "ma": "P3Q4",
+   "nguoi": "P3",
+   "don_vi": "U0",
+   "ky": "Q4",
+   "tu": "HTTNV",
+   "td": "HTTNV",
+   "diem_tu": 89,
+   "diem_td": 83
+  },
+  {
+   "ma": "U1-1",
+   "nguoi": "U1-N1",
+   "don_vi": "U1",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 80
+  },
+  {
+   "ma": "U1-2",
+   "nguoi": "U1-N2",
+   "don_vi": "U1",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 81
+  },
+  {
+   "ma": "U1-3",
+   "nguoi": "U1-N3",
+   "don_vi": "U1",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 82
+  },
+  {
+   "ma": "U1-4",
+   "nguoi": "U1-N4",
+   "don_vi": "U1",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 83
+  },
+  {
+   "ma": "U1-5",
+   "nguoi": "U1-N5",
+   "don_vi": "U1",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 84
+  },
+  {
+   "ma": "U1-6",
+   "nguoi": "U1-N6",
+   "don_vi": "U1",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 85
+  },
+  {
+   "ma": "U2-1",
+   "nguoi": "U2-N1",
+   "don_vi": "U2",
+   "ky": "Q4",
+   "qd": "HTXSNV",
+   "diem": 95
+  },
+  {
+   "ma": "U2-2",
+   "nguoi": "U2-N2",
+   "don_vi": "U2",
+   "ky": "Q4",
+   "qd": "HTXSNV",
+   "diem": 90
+  },
+  {
+   "ma": "U2-3",
+   "nguoi": "U2-N3",
+   "don_vi": "U2",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 80
+  },
+  {
+   "ma": "U2-4",
+   "nguoi": "U2-N4",
+   "don_vi": "U2",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 70
+  },
+  {
+   "ma": "U2-5",
+   "nguoi": "U2-N5",
+   "don_vi": "U2",
+   "ky": "Q4",
+   "qd": "HTNV",
+   "diem": 60
+  },
+  {
+   "ma": "U3-1",
+   "nguoi": "U3-N1",
+   "don_vi": "U3",
+   "ky": "Q4",
+   "qd": "HTXSNV",
+   "diem": 95
+  },
+  {
+   "ma": "U3-2",
+   "nguoi": "U3-N2",
+   "don_vi": "U3",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 85
+  },
+  {
+   "ma": "U3-3",
+   "nguoi": "U3-N3",
+   "don_vi": "U3",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 75
+  },
+  {
+   "ma": "U3-4",
+   "nguoi": "U3-N4",
+   "don_vi": "U3",
+   "ky": "Q4",
+   "qd": "HTNV",
+   "diem": 65
+  },
+  {
+   "ma": "U3-5",
+   "nguoi": "U3-N5",
+   "don_vi": "U3",
+   "ky": "Q4",
+   "qd": "HTNV",
+   "diem": 55
+  },
+  {
+   "ma": "U4-1",
+   "nguoi": "U4-N1",
+   "don_vi": "U4",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 80
+  },
+  {
+   "ma": "U4-2",
+   "nguoi": "U4-N2",
+   "don_vi": "U4",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 80
+  },
+  {
+   "ma": "U4-3",
+   "nguoi": "U4-N3",
+   "don_vi": "U4",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 80
+  },
+  {
+   "ma": "U4-4",
+   "nguoi": "U4-N4",
+   "don_vi": "U4",
+   "ky": "Q4",
+   "qd": "HTTNV",
+   "diem": 80
+  }
+ ]
+}

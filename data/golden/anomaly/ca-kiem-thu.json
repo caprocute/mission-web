@@ -1,0 +1,71 @@
+{
+ "_ghi_chu": "Kết quả mong đợi cho tenant A với ngưỡng mặc định TL-02b; tenant B không có cảnh báo.",
+ "canh_bao": [
+  {
+   "dau_hieu": "TU_CHAM_CAO",
+   "loai": "CA_NHAN",
+   "doi_tuong": "ho_so:P1Q3",
+   "ky": "Q3",
+   "muc": "CAO",
+   "dieu_kien": [
+    "MUC_TU_DE_XUAT_CAO_HON",
+    "DIEM_TU_TINH_CAO_HON"
+   ],
+   "ho_so": [
+    "P1Q1",
+    "P1Q2",
+    "P1Q3"
+   ]
+  },
+  {
+   "dau_hieu": "TU_CHAM_CAO",
+   "loai": "CA_NHAN",
+   "doi_tuong": "ho_so:P3Q4",
+   "ky": "Q4",
+   "muc": "VUA",
+   "dieu_kien": [
+    "DIEM_TU_TINH_CAO_HON"
+   ],
+   "ho_so": [
+    "P3Q3",
+    "P3Q4"
+   ]
+  },
+  {
+   "dau_hieu": "CAO_BANG",
+   "loai": "DON_VI",
+   "doi_tuong": "don_vi:U1",
+   "ky": "Q4",
+   "muc": "VUA",
+   "dieu_kien": [
+    "CUNG_MOT_MUC",
+    "DO_LECH_DIEM_THAP"
+   ],
+   "ho_so": [
+    "U1-1",
+    "U1-2",
+    "U1-3",
+    "U1-4",
+    "U1-5",
+    "U1-6"
+   ]
+  },
+  {
+   "dau_hieu": "CAO_BANG",
+   "loai": "DON_VI",
+   "doi_tuong": "don_vi:U2",
+   "ky": "Q4",
+   "muc": "THAP",
+   "dieu_kien": [
+    "TY_LE_XUAT_SAC_VUOT_NGUONG"
+   ],
+   "ho_so": [
+    "U2-1",
+    "U2-2",
+    "U2-3",
+    "U2-4",
+    "U2-5"
+   ]
+  }
+ ]
+}
