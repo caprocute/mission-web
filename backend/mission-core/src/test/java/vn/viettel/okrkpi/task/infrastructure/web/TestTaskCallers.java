@@ -18,12 +18,34 @@ public class TestTaskCallers {
 
   static volatile TaskActor current = new TaskActor(DEFAULT_PERSON, Set.of("manager"));
 
+  /** Mức và thời điểm xác thực của phiên, cho kiểm thử xác thực bước lên (CORE-02-09). */
+  static volatile String acr;
+
+  static volatile Long authTime;
+
   static void reset() {
     current = new TaskActor(DEFAULT_PERSON, Set.of("manager"));
+    acr = null;
+    authTime = null;
   }
 
   @Bean
   TaskCaller testTaskCaller() {
-    return () -> Optional.of(current);
+    return new TaskCaller() {
+      @Override
+      public Optional<TaskActor> current() {
+        return Optional.of(current);
+      }
+
+      @Override
+      public Optional<String> acr() {
+        return Optional.ofNullable(acr);
+      }
+
+      @Override
+      public Optional<Long> authTime() {
+        return Optional.ofNullable(authTime);
+      }
+    };
   }
 }

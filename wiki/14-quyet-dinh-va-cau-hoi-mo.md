@@ -766,6 +766,19 @@ Các điểm còn lệch hoặc là suy luận:
 - EVT-18 chưa mang băm của PDF đã ký vì lược đồ `KySoDaHoanTat` không có trường này. Sổ cái tính băm từ `signedObjectKey`. Nếu cần đưa băm vào sự kiện thì phải thêm trường vào hợp đồng.
 - Bucket cần quy tắc vòng đời xoá tiền tố `tam/` sau một ngày (suy luận).
 
+### Ghi chú và quyết định từ duyệt kế hoạch có ký số (CORE-02-09, 22/10/2026)
+
+API `POST /plans/{id}/versions/{v}/approve` kiểm theo thứ tự: phương thức ký hợp lệ, kỳ còn ghi được, khoá lạc quan `If-Match`, trạng thái `CHO_DUYET`, bốn mắt (người duyệt khác người lập phiên bản, lỗi `TASK-403-SAME-AUTHOR`), người duyệt là người đứng đầu đơn vị sở hữu, xác thực bước lên AAL2 trong 15 phút (401 kèm thách thức step-up), BR-04-05 (dòng ngoài danh mục phải có độ khó và điểm chuẩn, lỗi 422 trỏ `items[i]`), rồi tính lại băm nội dung và so với `content_hash` đã khoá khi gửi duyệt. Qua đủ các bước thì MOD-02 tạo yêu cầu ký trên SVC-10 và trả 202 kèm `Location: /api/v1/jobs/{signRequestId}`; phiên bản vẫn `CHO_DUYET` tới khi nhận EVT-18.
+
+- **Job không lưu bảng riêng.** Mã job chính là `sign_request_id` ghi trên `plan_version`; job ở trạng thái `HOAN_TAT` ngay khi yêu cầu ký đã tạo và `resultLocation` trỏ `/api/v1/esign/requests/{id}` đúng như mô tả hợp đồng. Mô tả task nói job hoàn tất khi có EVT-18; hợp đồng thắng (YC-PT-09), và giao diện theo dõi tiếp yêu cầu ký trên SVC-10.
+- **Mục đích ký.** Danh mục `EsignPurpose` của hợp đồng chưa có mục đích riêng cho kế hoạch, nên mục đích đọc từ cấu hình `mission.task.plan-approval.esign-purpose` (mặc định `QUYET_DINH`). Đề xuất bổ sung một giá trị cho kế hoạch vào hợp đồng SVC-10.
+- **Phương thức ký.** Hiện chỉ `MYSIGN` được ánh xạ sang nhà cung cấp của SVC-10 (DV-10-02); `USB_TOKEN` và `CHUNG_THU_TO_CHUC` trả 422 trên trường `signMethod` cho tới khi có nhà cung cấp tương ứng.
+- **Token người duyệt.** MOD-02 chuyển tiếp token Bearer của người duyệt sang SVC-10 để SVC-10 ghi đúng người ký và kiểm quyền của chính người đó (suy luận: TL chưa nói rõ cách xác thực lời gọi dịch vụ với dịch vụ ở bước này).
+- **Cổng nguồn ký `GET /internal/v1/esign-sources/task/{versionId}`** trả băm đã khoá dạng hex, danh sách người được ký (người đứng đầu đơn vị trừ người lập) và cờ sẵn sàng. Cổng đọc không khoá dòng để tránh tự khoá chết khi SVC-10 gọi ngược trong lúc giao dịch duyệt còn giữ khoá. Cổng này cần xác thực dịch vụ; `HttpSourceDocumentClient` của SVC-10 hiện chưa gửi token, cần bổ sung khi bật OPA cho đường `/internal`.
+- **Áp EVT-18.** Consumer `task.plan-approval-signature` có inbox riêng trên schema `task` (inbox chung của mission-core ghi `org_replica`). Chỉ duyệt khi yêu cầu ký khớp `sign_request_id` của phiên bản và băm duy nhất trong sự kiện khớp `content_hash`; sự kiện trùng bị inbox chặn, sự kiện lặp sau khi đã duyệt hoặc băm lệch chỉ ghi cảnh báo. Khi duyệt, phiên bản hiện hành cũ bỏ cờ `is_current` trong cùng giao dịch, EVT-03 mang thêm trường tuỳ chọn `supersededVersionId` (tương thích ngược) và EVT-21 báo người lập.
+- **BR-04-09 ở CSDL.** Migration `task/V4` thêm trigger `tg_plan_version__freeze` (phiên bản `DA_DUYET` chỉ được đổi `is_current`, `updated_at`, `updated_by`, `row_version`; không được xoá) và `tg_plan_item__freeze` (chặn chèn, sửa, xoá dòng của phiên bản đã duyệt). Dữ liệu mẫu hoặc kiểm thử phải chèn dòng trước rồi mới đặt phiên bản sang `DA_DUYET`.
+- **Còn mở.** Cầu nối hoàn tất tiến trình duyệt của workflow chờ DV-06-03 và CORE-01-05; sự kiện nội bộ `PlanVersionApprovedEvent` đã phát sẵn cho cầu nối đó. Ký lại sau khi chữ ký lỗi là duyệt lại (tạo yêu cầu ký mới); hàng đợi thử lại của SVC-10 ngoài phạm vi. Đề xuất cho hợp đồng: cho phép người duyệt định điểm dòng ngoài danh mục ngay khi duyệt. Kiểm thử tích hợp dùng bản ghi inbox tổng hợp như `OrgReplicaConsumerIT` thay cho Kafka thật (lệch mô tả task).
+
 ## Liên quan
 
 - [README của wiki](README.md)

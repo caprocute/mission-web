@@ -189,12 +189,18 @@ public class ArchitectureRulesTest {
   static final ArchRule noJavaUtilLogging =
       GeneralCodingRules.NO_CLASSES_SHOULD_USE_JAVA_UTIL_LOGGING;
 
-  /** Cấm mô-đun nghiệp vụ gọi HTTP trực tiếp sang nhau. */
+  /**
+   * Cấm mô-đun nghiệp vụ gọi HTTP trực tiếp sang nhau. Bộ chuyển đổi gọi dịch vụ ngoài mission-core
+   * (ví dụ SVC-10 ký số, CORE-02-09) đặt ở {@code infrastructure.client} và đi qua {@code
+   * ResilientClient}, nên được miễn.
+   */
   @ArchTest
   static final ArchRule noDirectHttpCallsBetweenCoreModules =
       noClasses()
           .that()
           .resideInAnyPackage(BUSINESS_MODULE_PACKAGES)
+          .and()
+          .resideOutsideOfPackage("..infrastructure.client..")
           .should()
           .dependOnClassesThat()
           .resideInAnyPackage("org.springframework.web.client..", "java.net.http..")
