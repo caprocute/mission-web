@@ -547,6 +547,16 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 - Thông báo EVT-21 dùng hai mẫu `LENH_KHOA_KY_CHO_DUYET` (gửi người giữ vai trò `leader`) và `LENH_KHOA_KY_DA_DUYET` (gửi người lập và `tenant_admin`, trừ người duyệt), nội dung theo MSG-08-01; SVC-12 chưa có hai mẫu này.
 - Kiểm thử tích hợp chạy trên PostgreSQL Testcontainers với saga và thông báo kiểm thử; pom chưa có Testcontainers Kafka và Keycloak nên phần đó chưa có.
 
+### Ghi chú và quyết định từ mở lại hậu kiểm theo phạm vi (CORE-08-06, 22/10/2026)
+
+- Nguồn sự thật của phạm vi và hạn mở lại là `oversight.reopen_request` của MOD-07, nhưng MOD-08 không được đọc bảng của mô-đun khác và schema `oversight` chưa có. MOD-08 giữ bản chiếu riêng `config.period_reopen` (bảng bổ sung, suy luận; migration `V5__config_period_reopen.sql`), nhận từ EVT-22, gồm phạm vi `TOAN_KY`/`DON_VI`/`HO_SO`, danh sách đối tượng, hạn mở và tiến trình khoá lại.
+- EVT-22 (`KyDaMoLaiHauKiem.avsc`) chưa có trường hạn mở (`open_until`) và phạm vi chi tiết (`scope_json`: bảng, trường). Theo YC-PT-09 không sửa hợp đồng; hạn mở tạm tính là hết ngày làm việc thứ 10 kể từ ngày mở (`mission.config.period-reopen.open-working-days`, suy luận), phạm vi chỉ ở mức đơn vị hoặc hồ sơ. Câu hỏi mở: bổ sung `openUntil` và `scopeJson` vào EVT-22 để MOD-08 dùng đúng thời hạn và phạm vi đã duyệt.
+- Consumer EVT-22 dùng `InboxMessageProcessor` của thư viện nền với schema `config` (consumer `config.period-reopen`), dựng riêng trong `PeriodConfiguration` vì bộ inbox tự cấu hình của mission-core đang trỏ `org_replica`; nhờ vậy ghi `config.inbox_processed` và chuyển trạng thái kỳ nằm trong cùng giao dịch. Bản chiếu theo mã yêu cầu là lớp khử trùng thứ hai.
+- `PeriodApi.assertWritable(tenant, kỳ, PeriodWriteTarget)` nhận đơn vị và hồ sơ của lệnh ghi. Khi kỳ ở `MO_LAI_HAU_KIEM`, đối tượng trong phạm vi được ghi, ngoài phạm vi (hoặc lời gọi cũ không truyền đối tượng, khi phạm vi không phải toàn kỳ) trả 409 `period-locked` với thân MSG-13-04. Phạm vi nằm trong đệm trạng thái kỳ của CORE-08-03, kiểm khi trúng đệm đo dưới 0,1 ms. Các mô-đun okr, task, product, policy vẫn gọi bản hai tham số; truyền đối tượng là việc của từng mô-đun khi có màn hình sửa trong hậu kiểm.
+- Hợp đồng SVC-06 chưa có saga khoá lại phạm vi hẹp (chỉ có `startPeriodCloseSaga`). Cổng `PeriodRelockSaga` đã có, nhưng hiện chưa gắn hiện thực nên timer khoá lại ngay trong MOD-08: kỳ về `DA_KHOA` với nguyên nhân `KHOA_LAI`, `cause_ref` là mã yêu cầu mở lại, EVT-09 có `sagaId` là mã yêu cầu mở lại (suy luận). Timer chạy mười phút một lần (`mission.config.period-reopen.expiry-cron`), báo MOD-07 bằng sự kiện ứng dụng `PeriodReopenExpiredEvent` để đánh dấu hồ sơ "chưa hoàn tất hậu kiểm"; `PeriodReopenService.finish` dành cho trường hợp hậu kiểm xong trước hạn.
+- Trigger `task.fn_guard_period_write` của TL-03 đòi `app.reopen_request_id` khi kỳ đang mở lại hậu kiểm; việc đặt biến này khi ghi thuộc mô-đun task, chưa làm ở CORE-08-06.
+- Kiểm thử tích hợp chạy trên PostgreSQL Testcontainers, EVT-22 được đưa thẳng vào bộ xử lý inbox; pom chưa có Testcontainers Kafka nên chưa chạy qua broker thật.
+
 ## Liên quan
 
 - [README của wiki](README.md)

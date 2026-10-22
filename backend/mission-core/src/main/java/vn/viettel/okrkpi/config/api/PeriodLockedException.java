@@ -28,7 +28,12 @@ public final class PeriodLockedException extends BusinessException {
    * @param module mô-đun nhận lệnh ({@code TASK}, {@code OKR}…); trống dùng mã mặc định
    */
   public PeriodLockedException(PeriodId periodId, String periodName, String module) {
-    super(codeFor(module), detailOf(periodName));
+    this(periodId, periodName, module, detailOf(periodName));
+  }
+
+  private PeriodLockedException(
+      PeriodId periodId, String periodName, String module, String detail) {
+    super(codeFor(module), detail);
     this.periodId = Objects.requireNonNull(periodId, "periodId must not be null");
     this.periodName = periodName;
   }
@@ -40,6 +45,23 @@ public final class PeriodLockedException extends BusinessException {
     }
     String code = module + "-409-PERIOD-LOCKED";
     return ErrorCatalog.standard().contains(code) ? code : DEFAULT_CODE;
+  }
+
+  /**
+   * Ghi ngoài phạm vi khi kỳ đang mở lại hậu kiểm (CORE-08-06): cùng mã và loại lỗi {@code
+   * period-locked}, thân theo MSG-13-04.
+   */
+  public static PeriodLockedException outOfReopenScope(
+      PeriodId periodId, String periodName, String module) {
+    return new PeriodLockedException(periodId, periodName, module, outOfScopeDetailOf(periodName));
+  }
+
+  /** MSG-13-04: "Kỳ {ky} đã khoá. Dữ liệu này nằm ngoài phạm vi được mở lại nên không thể sửa." */
+  public static String outOfScopeDetailOf(String periodName) {
+    String period = periodName == null || periodName.isBlank() ? "đánh giá" : periodName;
+    return "Kỳ "
+        + period
+        + " đã khoá. Dữ liệu này nằm ngoài phạm vi được mở lại nên không thể sửa.";
   }
 
   /** MSG-08-06: "Kỳ {kỳ} đang khoá. Dữ liệu của kỳ không thể thay đổi." */
