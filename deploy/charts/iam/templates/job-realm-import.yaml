@@ -118,6 +118,18 @@ spec:
               value: {{ $r.bruteForce.maxDeltaTimeSeconds | quote }}
             - name: MISSION_BF_MAX_TEMP_LOCKOUTS
               value: {{ $r.bruteForce.maxTemporaryLockouts | quote }}
+            - name: MISSION_AAL2_MAX_AGE
+              value: {{ $r.mfa.aal2MaxAge | quote }}
+            - name: MISSION_MFA_ROLES
+              value: {{ join "," $r.mfa.roles | quote }}
+            - name: MISSION_MFA_WEIGHT_NEW_DEVICE
+              value: {{ $r.mfa.risk.weightNewDevice | quote }}
+            - name: MISSION_MFA_WEIGHT_NEW_NETWORK
+              value: {{ $r.mfa.risk.weightNewNetwork | quote }}
+            - name: MISSION_MFA_WEIGHT_FAILURES
+              value: {{ $r.mfa.risk.weightFailures | quote }}
+            - name: MISSION_MFA_RISK_THRESHOLD
+              value: {{ $r.mfa.risk.threshold | quote }}
             - name: MISSION_SIGNING_KEY_PRIORITY
               value: {{ $r.signingKeyPriority | quote }}
             - name: MISSION_APISIX_CLIENT_SECRET

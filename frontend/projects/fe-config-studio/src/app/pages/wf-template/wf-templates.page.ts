@@ -24,6 +24,7 @@ import { STUDIO_ACCESS } from '../../studio-permissions';
 import { STUDIO_STEP_UP } from '../../studio-step-up';
 import { errorText, fmtDate, problemCode } from '../../studio-ui';
 import { WfDiagram } from './wf-diagram';
+import { WfFlowEditor } from './wf-flow-editor';
 import {
   PARAM_TYPES,
   ParamDef,
@@ -58,7 +59,7 @@ const titleOf = (code: string) => WF_TITLE[code] ?? 'Mẫu quy trình';
 
 @Component({
   selector: 'vt-wf-templates-page',
-  imports: [RouterLink, ButtonModule, WfDiagram],
+  imports: [RouterLink, ButtonModule, WfDiagram, WfFlowEditor],
   template: `
     <h1>Mẫu quy trình dùng chung</h1>
     <p class="sub">
@@ -126,7 +127,20 @@ const titleOf = (code: string) => WF_TITLE[code] ?? 'Mẫu quy trình';
               }
             </p>
           }
-          <vt-wf-diagram [xml]="xml()" [issues]="issueIds()" [name]="title(t.templateCode)" />
+          @if (editable()) {
+            @defer (on immediate) {
+              <vt-wf-flow-editor
+                [xml]="xml()"
+                [issues]="issueIds()"
+                [name]="title(t.templateCode)"
+                (xmlChange)="xml.set($event)"
+              />
+            } @placeholder {
+              <vt-wf-diagram [xml]="xml()" [issues]="issueIds()" [name]="title(t.templateCode)" />
+            }
+          } @else {
+            <vt-wf-diagram [xml]="xml()" [issues]="issueIds()" [name]="title(t.templateCode)" />
+          }
 
           <div class="checks" data-testid="lint" aria-live="polite">
             @if (issues().length) {
@@ -154,14 +168,17 @@ const titleOf = (code: string) => WF_TITLE[code] ?? 'Mẫu quy trình';
                 />
               }
             </div>
-            <label class="src" for="wf-src">Mã nguồn sơ đồ</label>
-            <textarea
-              id="wf-src"
-              rows="10"
-              spellcheck="false"
-              [value]="xml()"
-              (input)="xml.set(value($event))"
-            ></textarea>
+            <details class="src">
+              <summary>Mã nguồn sơ đồ (dành cho người soạn nâng cao)</summary>
+              <label class="sr-only" for="wf-src">Mã nguồn sơ đồ</label>
+              <textarea
+                id="wf-src"
+                rows="10"
+                spellcheck="false"
+                [value]="xml()"
+                (input)="xml.set(value($event))"
+              ></textarea>
+            </details>
           }
 
           <div class="actions">
@@ -460,8 +477,20 @@ const titleOf = (code: string) => WF_TITLE[code] ?? 'Mẫu quy trình';
     }
     .src {
       display: block;
-      font-weight: 500;
       margin-top: 8px;
+    }
+    .src summary {
+      font-weight: 500;
+      cursor: pointer;
+      min-height: 2rem;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
     }
     textarea,
     input,

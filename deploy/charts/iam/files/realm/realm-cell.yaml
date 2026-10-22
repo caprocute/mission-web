@@ -13,6 +13,8 @@ enabled: true
 displayName: $(env:MISSION_REALM_DISPLAY_NAME)
 attributes:
   mission.cell: $(env:MISSION_CELL)
+  # DV-02-03: bậc xác thực (LoA) ↔ claim acr. Bậc 1 mật khẩu hoặc IdP, bậc 2 SmartOTP (TOTP) hoặc WebAuthn.
+  acr.loa.map: '{"aal1":1,"aal2":2}'
 
 # ADR-08: tenant là Organization; tenant-registry tạo Organization khi khởi tạo tenant (không khai trong mẫu).
 organizationsEnabled: true
@@ -125,6 +127,185 @@ enabledEventTypes:
 adminEventsEnabled: true
 adminEventsDetailsEnabled: false
 
+# ---------------------------------------------------------------------------
+# DV-02-03 · QT-00 bước 3–5 · Luồng đăng nhập trình duyệt theo bậc xác thực (LoA), BR-00-01, BR-00-06, TL-04 S06.
+#   mission-forms (thay "forms" dựng sẵn, không có nhánh "chỉ hỏi OTP khi người dùng đã cài"):
+#     1. mission-aal1 (điều kiện bậc 1): tên đăng nhập và mật khẩu;
+#     2. mission-mfa-policy: nâng yêu cầu lên bậc 2 khi vai trò yêu cầu AAL2, tenant bật MFA cho mọi người
+#        (thuộc tính Organization mission.mfa_all_users), hoặc thiết bị, vị trí mới, điểm rủi ro vượt ngưỡng;
+#     3. mission-aal2 (điều kiện bậc 2, hiệu lực MISSION_AAL2_MAX_AGE giây = 15 phút của BR-00-02 và trạng thái
+#        phiên TL-02a): SmartOTP hoặc WebAuthn; người chưa cài phải cài ngay (không bỏ qua được);
+#     4. mission-device-remember: ghi thiết bị, vị trí đã biết sau khi mọi bước đạt.
+#   Client xin bước lên bằng acr_values=aal2 (hoặc claims acr essential) và max_age; token mang acr, auth_time.
+#   Đăng nhập VNeID mức 2 đi luồng first broker login của DV-02-04 và được coi là đạt bậc 2 (TL-04).
+# ---------------------------------------------------------------------------
+browserFlow: mission-browser
+otpPolicyType: totp
+otpPolicyAlgorithm: HmacSHA1
+otpPolicyDigits: 6
+otpPolicyPeriod: 30
+# Chấp nhận thêm một chu kỳ liền kề: mã hết hạn sau khoảng 60 giây (QT-00 bước 5).
+otpPolicyLookAheadWindow: 1
+otpPolicyCodeReusable: false
+authenticatorConfig:
+  - alias: mission-aal1-loa
+    config:
+      loa-condition-level: "1"
+      loa-max-age: "$(env:MISSION_SSO_MAX)"
+  - alias: mission-aal2-loa
+    config:
+      loa-condition-level: "2"
+      loa-max-age: "$(env:MISSION_AAL2_MAX_AGE)"
+  - alias: mission-mfa-policy
+    config:
+      roles: "$(env:MISSION_MFA_ROLES)"
+      weightNewDevice: "$(env:MISSION_MFA_WEIGHT_NEW_DEVICE)"
+      weightNewNetwork: "$(env:MISSION_MFA_WEIGHT_NEW_NETWORK)"
+      weightFailures: "$(env:MISSION_MFA_WEIGHT_FAILURES)"
+      threshold: "$(env:MISSION_MFA_RISK_THRESHOLD)"
+authenticationFlows:
+  - alias: mission-browser
+    description: Đăng nhập trình duyệt theo bậc xác thực (DV-02-03)
+    providerId: basic-flow
+    topLevel: true
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: auth-cookie
+        requirement: ALTERNATIVE
+        priority: 10
+        authenticatorFlow: false
+      - authenticator: identity-provider-redirector
+        requirement: ALTERNATIVE
+        priority: 20
+        authenticatorFlow: false
+      - flowAlias: mission-organization
+        requirement: ALTERNATIVE
+        priority: 30
+        authenticatorFlow: true
+      - flowAlias: mission-forms
+        requirement: ALTERNATIVE
+        priority: 40
+        authenticatorFlow: true
+  - alias: mission-organization
+    description: Đăng nhập hai bước theo Organization (tenant) như luồng dựng sẵn của Keycloak 26
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - flowAlias: mission-organization-conditional
+        requirement: CONDITIONAL
+        priority: 10
+        authenticatorFlow: true
+  - alias: mission-organization-conditional
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: conditional-user-configured
+        requirement: REQUIRED
+        priority: 10
+        authenticatorFlow: false
+      - authenticator: organization
+        requirement: ALTERNATIVE
+        priority: 20
+        authenticatorFlow: false
+  - alias: mission-forms
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - flowAlias: mission-aal1
+        requirement: CONDITIONAL
+        priority: 10
+        authenticatorFlow: true
+      - authenticator: mission-mfa-policy
+        authenticatorConfig: mission-mfa-policy
+        requirement: REQUIRED
+        priority: 20
+        authenticatorFlow: false
+      - flowAlias: mission-aal2
+        requirement: CONDITIONAL
+        priority: 30
+        authenticatorFlow: true
+      - authenticator: mission-device-remember
+        requirement: REQUIRED
+        priority: 40
+        authenticatorFlow: false
+  - alias: mission-aal1
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: conditional-level-of-authentication
+        authenticatorConfig: mission-aal1-loa
+        requirement: REQUIRED
+        priority: 10
+        authenticatorFlow: false
+      - authenticator: auth-username-password-form
+        requirement: REQUIRED
+        priority: 20
+        authenticatorFlow: false
+  - alias: mission-aal2
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: conditional-level-of-authentication
+        authenticatorConfig: mission-aal2-loa
+        requirement: REQUIRED
+        priority: 10
+        authenticatorFlow: false
+      - flowAlias: mission-aal2-methods
+        requirement: REQUIRED
+        priority: 20
+        authenticatorFlow: true
+  # Người đã cài yếu tố thứ hai chọn SmartOTP hoặc WebAuthn; người chưa cài phải cài SmartOTP ngay
+  # (required action CONFIGURE_TOTP, xác minh bằng một mã đúng trước khi phát token).
+  - alias: mission-aal2-methods
+    description: SmartOTP hoặc khoá FIDO2/WebAuthn (QT-00 bước 5)
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - flowAlias: mission-aal2-existing
+        requirement: CONDITIONAL
+        priority: 10
+        authenticatorFlow: true
+      - flowAlias: mission-aal2-enroll
+        requirement: CONDITIONAL
+        priority: 20
+        authenticatorFlow: true
+  - alias: mission-aal2-existing
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: conditional-user-configured
+        requirement: REQUIRED
+        priority: 10
+        authenticatorFlow: false
+      - authenticator: auth-otp-form
+        requirement: ALTERNATIVE
+        priority: 20
+        authenticatorFlow: false
+      - authenticator: webauthn-authenticator
+        requirement: ALTERNATIVE
+        priority: 30
+        authenticatorFlow: false
+  - alias: mission-aal2-enroll
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: mission-condition-no-second-factor
+        requirement: REQUIRED
+        priority: 10
+        authenticatorFlow: false
+      - authenticator: auth-otp-form
+        requirement: REQUIRED
+        priority: 20
+        authenticatorFlow: false
+
 # Khoá ký ES256 (P-256). Khoá sinh trong Keycloak của cell, xoay vòng bằng cách thêm khoá ưu tiên cao hơn.
 components:
   org.keycloak.keys.KeyProvider:
@@ -173,6 +354,29 @@ roles:
       description: AC-12 Trợ lý AI (chỉ đọc)
 
 # ---------------------------------------------------------------------------
+# DV-02-02 · QT-00 bước 7: client scope mang claim ngữ cảnh (tenant_id, tenant, cell, unit_id,
+# active_assignment_id, flows, roles, org) do SPI mission-context-mapper (provider mission-keycloak-events)
+# đọc từ thuộc tính người dùng mission_context_* mà org-service ghi qua PUT /org/me/context.
+# Mapper chỉ đọc thuộc tính người dùng và realm, không đọc tham số hay header của client.
+# ---------------------------------------------------------------------------
+clientScopes:
+  - name: mission-context
+    description: Ngữ cảnh làm việc (tenant, đơn vị, phân công, luồng đánh giá)
+    protocol: openid-connect
+    attributes:
+      include.in.token.scope: "false"
+      display.on.consent.screen: "false"
+    protocolMappers:
+      - name: mission-context
+        protocol: openid-connect
+        protocolMapper: mission-context-mapper
+        consentRequired: false
+        config:
+          access.token.claim: "true"
+          id.token.claim: "true"
+          userinfo.token.claim: "true"
+
+# ---------------------------------------------------------------------------
 # Client OIDC (SEC-17): Authorization Code + PKCE S256 bắt buộc; không implicit, không direct grant.
 # state và nonce do thư viện OIDC của ứng dụng sinh và kiểm (angular-oauth2-oidc, AppAuth trên di động).
 # ---------------------------------------------------------------------------
@@ -206,6 +410,7 @@ clients:
       - roles
       - web-origins
       - acr
+      - mission-context
     optionalClientScopes:
       - organization
 
@@ -236,6 +441,7 @@ clients:
       - roles
       - web-origins
       - acr
+      - mission-context
     optionalClientScopes:
       - organization
 

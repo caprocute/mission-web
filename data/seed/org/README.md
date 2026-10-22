@@ -2,14 +2,14 @@
 
 Nguồn dữ liệu cho bảng `org.subject_group` và `org.job_title` (TL-03 mục "Schema org (SVC-04 org-service)") của tenant hệ thống. Tenant thường đọc qua `listSubjectGroups`; BR-01-05 chặn đơn vị không thuộc khối nào; cờ `is_central_managed` dùng ở BR-11-11.
 
-## Trạng thái: khung, chờ PL 2A và PL 2B
+## Trạng thái: dữ liệu giả lập, đã có migration
 
-TL-02a chỉ ghi căn cứ "PL 2A dự thảo Quy định mới (9 khối đối tượng)" và TL-02b ghi "40 chức danh PL 2B", không ghi tên khối, luồng áp dụng hay danh sách chức danh. Thư mục `_inputs` của bộ tài liệu cũng không có PL 2A, PL 2B. Vì vậy:
+TL-02a chỉ ghi căn cứ "PL 2A dự thảo Quy định mới (9 khối đối tượng)" và TL-02b ghi "40 chức danh PL 2B", không ghi tên khối, luồng áp dụng hay danh sách chức danh. Ngày 22/10/2026 người dùng chấp nhận dùng dữ liệu giả lập (YC-PT-14), nên:
 
-- `subject_group.csv` có đủ 9 mã `K1`..`K9`, còn trống `name`, `flow`, `description`, `valid_from`; cột `ghi_chu` ghi "chờ PL 2A".
-- `job_title.csv` chỉ có dòng tên cột, chưa có dòng dữ liệu.
+- `subject_group.csv` có đủ 9 khối `K1`..`K9` với tên, luồng áp dụng, mô tả và ngày hiệu lực giả lập.
+- `job_title.csv` có 23 chức danh giả lập, trong đó 10 chức danh mang cờ `is_central_managed = true` thay cho 40 chức danh của PL 2B.
 
-Không tự đặt tên khối hay chức danh. Bộ nạp phải từ chối tệp còn dòng trống `name` hoặc `flow` (cột NOT NULL), nên khung này chưa nạp được cho tới khi có PL 2A, PL 2B.
+Mọi dòng ghi `giả lập` ở cột `ghi_chu`. Khi có PL 2A, PL 2B, chỉ cần sửa hai tệp CSV rồi sinh lại migration.
 
 ## Cột
 
@@ -21,7 +21,7 @@ Không tự đặt tên khối hay chức danh. Bộ nạp phải từ chối t�
 
 ## Cách nạp đề xuất
 
-Migration lặp Flyway `R__org_danh_muc_quoc_gia.sql` trong `backend/services/org-service/src/main/resources/db/migration/org/`, sinh từ CSV lúc build, chạy bằng vai trò `mig_org` trong Job (tiêu chí K1, TL-03), `INSERT … ON CONFLICT (tenant_id, code) DO UPDATE`. Lý do chọn như lịch nghỉ, xem `data/seed/config/README.md`. Bảng `job_title` một trục thời gian nên sửa danh mục bằng cập nhật `valid_to`, không xoá dòng đã có tham chiếu. Chưa viết migration vì `org-service` (DV-04-01) chưa có.
+Migration lặp Flyway `R__org_danh_muc_quoc_gia.sql` trong `backend/services/org-service/src/main/resources/db/migration/org/`, sinh từ CSV bằng `python3 -I data/seed/org/sinh_migration.py` (thêm `--kiem-tra` để chỉ so tệp đã sinh với CSV), chạy bằng vai trò `mig_org` trong Job (tiêu chí K1, TL-03), `INSERT … ON CONFLICT (tenant_id, code) DO UPDATE`. Lý do chọn như lịch nghỉ, xem `data/seed/config/README.md`. Bảng `job_title` một trục thời gian nên sửa danh mục bằng cập nhật `valid_to`, không xoá dòng đã có tham chiếu. Mã bản ghi là UUID tên (uuid5) theo mã danh mục nên chạy lại không đổi id; mục bị bỏ khỏi CSV được khép `valid_to` chứ không xoá. Tenant hệ thống tạm dùng UUID rỗng; tenant thường chưa đọc được danh mục này theo RLS hiện hành (xem wiki trang 14).
 
 ## Mẫu nhập cây tổ chức từ Excel (DV-04-05)
 

@@ -54,3 +54,9 @@ app.kubernetes.io/component: realm-import
 {{- define "iam.namespace" -}}
 {{- default .Release.Namespace .Values.namespace -}}
 {{- end -}}
+
+{{- define "iam.userSync.selectorLabels" -}}
+app.kubernetes.io/name: {{ .Chart.Name }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: user-sync
+{{- end -}}

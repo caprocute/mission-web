@@ -1,5 +1,10 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { TestBed } from '@angular/core/testing';
+import {
+  ComponentFixture,
+  DeferBlockBehavior,
+  DeferBlockState,
+  TestBed,
+} from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import {
@@ -36,10 +41,14 @@ const AUTHOR: PermissionKey[] = [
 const APPROVER: PermissionKey[] = ['SCR-1505.thu-vien', 'SCR-1505.phe-duyet'];
 const id = (n: number) => `0192f5f7-8091-72a3-b4c5-${String(n).padStart(12, '0')}`;
 
+let fx: ComponentFixture<WfTemplatesPage>;
+
 async function render(keys: PermissionKey[], templateId: string, ready: string) {
   resetMockData();
-  TestBed.configureTestingModule({
+  await TestBed.configureTestingModule({
     imports: [WfTemplatesPage],
+    // Trình soạn kéo thả nạp lười; các ca ở đây dùng phần giữ chỗ là sơ đồ chỉ xem.
+    deferBlockBehavior: DeferBlockBehavior.Manual,
     providers: [
       provideRouter([]),
       provideNoopAnimations(),
@@ -64,8 +73,9 @@ async function render(keys: PermissionKey[], templateId: string, ready: string) 
         },
       },
     ],
-  });
+  }).compileComponents();
   const fixture = TestBed.createComponent(WfTemplatesPage);
+  fx = fixture;
   fixture.componentRef.setInput('templateId', templateId);
   fixture.autoDetectChanges();
   await until(fixture.nativeElement, ready);
@@ -145,6 +155,41 @@ describe('SCR-1505 Thư viện và trình soạn mẫu quy trình', () => {
     expect(text(el.querySelector('[data-testid=tpl-bar]'))).toContain('Chờ phê duyệt');
     expect(el.querySelector('[data-testid=approve]')).toBeNull();
   }, 30000);
+
+  it('người soạn: trình soạn kéo thả thêm bước, nối, đổi tên và xoá trên tệp sơ đồ', async () => {
+    // jsdom không có ResizeObserver mà thư viện vẽ đồ thị cần.
+    const noop = () => undefined;
+    globalThis.ResizeObserver ??= class {
+      observe = noop;
+      unobserve = noop;
+      disconnect = noop;
+    } as unknown as typeof ResizeObserver;
+    const el = await render(AUTHOR, id(2), '[data-testid=save]');
+    const [editor] = await fx.getDeferBlocks();
+    await editor.render(DeferBlockState.Complete);
+    const src = () => (el.querySelector('#wf-src') as HTMLTextAreaElement).value;
+    const nodes = () => el.querySelectorAll('[data-testid^=node-]').length;
+    await until(el, '[data-testid=node-batDau]');
+    const start = nodes();
+    (el.querySelector('[data-testid=pal-userTask]') as HTMLButtonElement).click();
+    await until(el, '[data-testid=p-name]');
+    expect(nodes()).toBe(start + 1);
+    expect(src()).toContain('id="buoc1"');
+    const name = el.querySelector('[data-testid=p-name]') as HTMLInputElement;
+    name.value = 'Bước mới';
+    name.dispatchEvent(new Event('change'));
+    await until(el, '[data-testid=node-buoc1]', (e) =>
+      e.getAttribute('aria-label')!.includes('Bước mới'),
+    );
+    // Bước mới chưa có đường vào, đường ra: vẫn đạt luật; xoá bằng phím Delete.
+    (el.querySelector('[data-testid=node-buoc1]') as HTMLElement).dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }),
+    );
+    await until(el, '[data-testid=palette]', () => nodes() === start);
+    expect(src()).not.toContain('buoc1');
+    // Tệp đã ghi lại nên khác bản lưu; sơ đồ vẫn đạt luật nên lưu được.
+    expect(button(el, 'save').disabled).toBe(false);
+  });
 
   it('người phê duyệt: chỉ đọc, phê duyệt có xác thực nhiều lớp, thấy tiến độ triển khai', async () => {
     const el = await render(APPROVER, id(4), '[data-testid=approve]');

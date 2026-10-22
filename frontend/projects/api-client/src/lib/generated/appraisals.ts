@@ -331,11 +331,15 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * Danh sách lô quyết định của người quyết định
+     * @description Các lô do chính người gọi ký (`appraisal.batch_decision.decider_id` là người gọi), mới nhất trước. SCR-0904 gọi với `status=CHO_KY` khi mở màn hình để hiện lại tiến độ của lô đang ký, vì người quyết định được phép đóng màn hình trong lúc ký (MSG-09-15).
+     */
+    get: operations['listAppraisalBatchDecisions'];
     put?: never;
     /**
      * Quyết định xếp loại và ký lô
-     * @description Tạo `appraisal.batch_decision` cho 1 đến 1.000 hồ sơ `CHO_QUYET_DINH`, ghi bản ghi mức `QUYET_DINH` cho từng hồ sơ (đổi mức so với mức đề xuất thì bắt buộc lý do ≥ 20 ký tự), yêu cầu xác thực bước lên một lần và tạo yêu cầu ký lô ở SVC-10 (mỗi hồ sơ một chữ ký PAdES). Trả 202 với `Location: /api/v1/jobs/{id}`; tiến độ theo SSE. Mỗi chữ ký thành công phát EVT-18 và hồ sơ chuyển `DA_KY_SO`, kèm EVT-12. Hồ sơ lỗi ký giữ `CHO_QUYET_DINH`. Quyết định một hồ sơ cũng đi qua đây (lô 1 hồ sơ, điểm chốt AP-02).
+     * @description Tạo `appraisal.batch_decision` cho 1 đến 1.000 hồ sơ `CHO_QUYET_DINH`, ghi bản ghi mức `QUYET_DINH` cho từng hồ sơ (đổi mức so với mức đề xuất thì bắt buộc lý do ≥ 20 ký tự), yêu cầu xác thực bước lên một lần và tạo yêu cầu ký lô ở SVC-10 (mỗi hồ sơ một chữ ký PAdES). Trả 202 với `Location: /api/v1/jobs/{id}`; thân 202 có `batchId` (mã lô) và `resultLocation` (đường dẫn lô) ngay từ lúc nhận, để thao tác "Huỷ lô" dùng được khi lô đang ký; tiến độ theo SSE. Mỗi chữ ký thành công phát EVT-18 và hồ sơ chuyển `DA_KY_SO`, kèm EVT-12. Hồ sơ lỗi ký giữ `CHO_QUYET_DINH`. Quyết định một hồ sơ cũng đi qua đây (lô 1 hồ sơ, điểm chốt AP-02).
      *
      *     Lỗi: 409 `APPRAISAL-409-DECISION-NO-DUPLICATE` khi trùng số quyết định trong năm của đơn vị; 422 `APPRAISAL-422-HEAD-TOO-EARLY` (MSG-09-14, BR-09-13); 422 `APPRAISAL-422-REASON-REQUIRED`; 409 `APPRAISAL-409-COMPLAINT-OPEN` (MSG-10-03) khi xếp loại năm còn khiếu nại quý chưa kết luận; 422 `APPRAISAL-422-CALIBRATION-REQUIRED` (MSG-09-13, BR-09-17) khi tỷ lệ HTXSNV vượt ngưỡng khối mà chưa xác nhận đã có phiên hiệu chỉnh. Mục có `rowVersion` lệch phiên bản hiện tại bị từ chối cả lô với 409 `APPRAISAL-409-VERSION-CONFLICT`, `errors[]` chỉ rõ mục.
      */
@@ -473,7 +477,7 @@ export interface paths {
     get: operations['getProspectGroupBoard'];
     /**
      * Lưu nháp danh sách phân nhóm triển vọng
-     * @description Lưu toàn bộ danh sách (nhóm, thứ tự trong nhóm, lý do khi khác gợi ý, kế hoạch bồi dưỡng). Kiểm tra: thứ tự không trùng trong nhóm; người KHTNV năm hoặc có cờ bố trí lại không vào `NHOM_1`, `NHOM_2` (422 `APPRAISAL-422-PROSPECT-NOT-ELIGIBLE`, MSG-10-06, BR-10-09); khác gợi ý thì lý do 20 đến 1.000 ký tự (lỗi theo trường, MSG-10-07). Chỉ khi danh sách ở `NHAP`.
+     * @description Lưu toàn bộ danh sách (nhóm, thứ tự trong nhóm, lý do khi khác gợi ý, kế hoạch bồi dưỡng). Kiểm tra: thứ tự không trùng trong nhóm; người KHTNV năm hoặc có cờ bố trí lại không vào `NHOM_1`, `NHOM_2` (422 `APPRAISAL-422-PROSPECT-NOT-ELIGIBLE`, MSG-10-06, BR-10-09). Lưu nháp không bắt buộc lý do: mục khác gợi ý mà chưa có lý do vẫn lưu được, giao diện chỉ nhắc MSG-10-07; lý do (khi có) dài 20 đến 1.000 ký tự. Thiếu lý do chỉ chặn ở bước trình (`.../submit`, 422 `APPRAISAL-422-REASON-REQUIRED`). Chỉ khi danh sách ở `NHAP`.
      */
     put: operations['saveProspectGroupBoard'];
     post?: never;
@@ -612,6 +616,10 @@ export interface components {
       status: components['schemas']['AppraisalProfileStatus'];
       /** @description Người đứng đầu (BR-09-13) */
       isHead?: boolean;
+      /** @description Khối đối tượng của hồ sơ (`appraisal_profile.subject_group_id`); vắng khi hồ sơ không gắn khối. */
+      subjectGroup?: components['schemas']['Ref'];
+      /** @description Ngưỡng tỷ lệ HTXSNV tối đa của khối (tham số `phan_bo.toi_da_htxsnv` trong manifest của phiên bản Policy Pack gắn với hồ sơ, `appraisal_profile.policy_pack_version_id`), dạng tỉ lệ 0..1. SCR-0904 so phân bố mức với ngưỡng này (trường 5, BR-09-17, MSG-09-13); vắng thì dùng mặc định 0,2 của TL-02b. Máy chủ vẫn kiểm lại khi ký lô. */
+      maxExcellentShare?: number;
       /** @description Điểm của ảnh chụp hiện hành */
       totalScore?: number | null;
       /** @description Mức hệ thống tính (tham khảo). */
@@ -1069,6 +1077,15 @@ export interface components {
       failedItems?: components['schemas']['BatchItemResult'][];
       rowVersion: components['schemas']['RowVersion'];
     };
+    AppraisalBatchDecisionPage: {
+      items: components['schemas']['AppraisalBatchDecision'][];
+      nextCursor: components['schemas']['NextCursor'];
+    };
+    /** @description Job ký lô trả trong thân 202 của `POST /appraisals/batch-decisions`: lược đồ `Job` dùng chung cộng mã lô. Khác job thông thường, `resultLocation` trỏ tới lô (`/api/v1/appraisals/batch-decisions/{id}`) ngay từ khi nhận, không chờ `HOAN_TAT`. */
+    AppraisalBatchDecisionJob: components['schemas']['Job'] & {
+      /** @description Mã lô `appraisal.batch_decision.id`, dùng cho "Huỷ lô" và `GET /appraisals/batch-decisions/{id}`. */
+      batchId?: components['schemas']['Uuid'];
+    };
     /** @description Một dòng xếp loại năm (`appraisal.annual_rating`). */
     AnnualRatingRow: {
       id: components['schemas']['Uuid'];
@@ -1090,7 +1107,7 @@ export interface components {
       blockReason?: string | null;
       reassignFlag: boolean;
       relocationProposed: boolean;
-      /** @description Câu ngắn cột "Quy tắc liên thông" */
+      /** @description Câu ngắn cột "Quy tắc liên thông", viết bằng lời nghiệp vụ để hiển thị nguyên văn; máy chủ không đưa mã quy tắc, mã thông báo, tên tham số hay giá trị mã (như `CO_QUY_KHTNV`) vào câu này. */
       linkageNote?: string;
       rowVersion: components['schemas']['RowVersion'];
     };
@@ -1107,7 +1124,7 @@ export interface components {
       items: components['schemas']['AnnualRatingRow'][];
       nextCursor: components['schemas']['NextCursor'];
       counts?: components['schemas']['AnnualRatingCounts'];
-      /** @description Dòng phụ ghi phiên bản Policy Pack các quý */
+      /** @description Dòng phụ ghi bộ quy định đánh giá và phiên bản áp cho các quý, viết bằng lời nghiệp vụ để hiển thị nguyên văn; máy chủ không đưa mã quy tắc, tên tham số hay cụm "Policy Pack" vào câu này. */
       policyNote?: string;
     };
     AnnualRatingExplanation: {
@@ -1157,6 +1174,8 @@ export interface components {
       periodId: components['schemas']['Uuid'];
       orgUnit: components['schemas']['Ref'];
       status: components['schemas']['ProspectBoardStatus'];
+      /** @description Gói quy định áp cho danh sách (`policy.policy_pack.id` của phiên bản gắn với hồ sơ năm), để mở tiêu chí bốn nhóm qua `GET /policies/packs/{id}/prospect-criteria` (SCR-1002 "Xem tiêu chí PL 5"). */
+      policyPackId?: components['schemas']['Uuid'];
       policyVersion?: string;
       /** @description Lý do tập thể không thông qua lần trước (QT-10 ngoại lệ 4). */
       rejectionReason?: string;
@@ -1169,8 +1188,9 @@ export interface components {
         personId: components['schemas']['Uuid'];
         groupCode: components['schemas']['ProspectGroupCode'];
         rankInGroup: number;
-        /** @description Bắt buộc khi nhóm khác gợi ý (BR-10-08). */
+        /** @description Lý do khi nhóm khác gợi ý (BR-10-08). Không bắt buộc khi lưu nháp; bắt buộc trước khi trình tập thể (`.../submit` trả 422 nếu còn thiếu). */
         reason?: string;
+        /** @description Tham chiếu kế hoạch bồi dưỡng, tuỳ chọn (SCR-1002 trường 4, `prospect_group.training_plan_ref`). */
         trainingPlanRef?: string;
       }[];
     };
@@ -1446,6 +1466,8 @@ export interface operations {
         status?: components['schemas']['AppraisalProfileStatus'][];
         /** @description Gồm cả cây đơn vị cấp dưới của `unit` (suy luận, phục vụ bộ lọc khối trên SCR-0904). */
         includeSubunits?: boolean;
+        /** @description Khối đối tượng (`appraisal_profile.subject_group_id`, danh mục `GET /org/subject-groups`); bộ lọc "khối" của SCR-0904 trường 1. Bỏ trống là mọi khối trong phạm vi. */
+        subjectGroup?: components['schemas']['Uuid'];
         /** @description Từ khoá tìm kiếm, không phân biệt dấu. */
         q?: components['parameters']['Q'];
         /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
@@ -1879,6 +1901,40 @@ export interface operations {
       default: components['responses']['Problem'];
     };
   };
+  listAppraisalBatchDecisions: {
+    parameters: {
+      query?: {
+        /** @description Mã kỳ đánh giá (`config.period.id`). */
+        period?: components['parameters']['PeriodId'];
+        /** @description Luồng đánh giá; bỏ trống thì lấy luồng của hồ sơ hoặc mọi luồng tenant bật. */
+        flow?: components['parameters']['FlowQuery'];
+        /** @description Lọc theo trạng thái lô; lặp tham số để chọn nhiều giá trị. */
+        status?: components['schemas']['AppraisalBatchDecisionStatus'][];
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Một trang lô quyết định. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AppraisalBatchDecisionPage'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
   createAppraisalBatchDecision: {
     parameters: {
       query?: never;
@@ -1895,7 +1951,17 @@ export interface operations {
       };
     };
     responses: {
-      202: components['responses']['Accepted'];
+      /** @description Đã nhận lô (trả trong 200 ms, NFR-03). Theo dõi bằng `Location` hoặc luồng SSE `/api/v1/notifications/stream`. */
+      202: {
+        headers: {
+          Location: components['headers']['Location'];
+          'Retry-After': components['headers']['RetryAfter'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AppraisalBatchDecisionJob'];
+        };
+      };
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       409: components['responses']['Conflict'];

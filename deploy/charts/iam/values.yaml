@@ -54,6 +54,18 @@ realm:
     clientSessionIdleTimeout: 1800
     clientSessionMaxLifespan: 28800
 
+  # DV-02-03: bậc 2 (MFA). aal2MaxAge: thời gian bậc 2 còn hiệu lực (BR-00-02, trạng thái phiên TL-02a).
+  mfa:
+    aal2MaxAge: 900
+    # Vai trò bắt buộc bậc 2 ngay khi đăng nhập (BR-00-01 và TL-01 SVC-02).
+    roles: [platform_admin, tenant_admin, appraiser, decider, second_approver, inspector]
+    # Điểm rủi ro = tổng trọng số dấu hiệu; bắt buộc MFA khi điểm ≥ ngưỡng (công thức suy luận, wiki/14).
+    risk:
+      weightNewDevice: 50
+      weightNewNetwork: 50
+      weightFailures: 25
+      threshold: 50
+
   # BR-00-05 và TL-04 SEC-14.
   bruteForce:
     failureFactor: 5
@@ -156,3 +168,37 @@ mayChu:
     egressTo:
       - { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-iam-pooler-rw }, ports: [{ port: 5432 }] }
       - { namespace: identity, podLabels: { app.kubernetes.io/name: keycloak }, ports: [{ port: 7800 }] }
+
+# DV-02-06: consumer EVT-16 đồng bộ người dùng sang Keycloak (backend/services/iam/user-sync).
+userSync:
+  enabled: false
+  image:
+    repository: harbor.example.invalid/mission/iam-user-sync
+    tag: 0.1.0
+    digest: ""
+  # Số pod không vượt số phân vùng của org.person.changed.v1; thứ tự theo khoá tenantId:personId do Kafka giữ.
+  replicas: 2
+  kafka:
+    bootstrapServers: kafka-bootstrap.kafka.svc.cluster.local:9092
+    # Nhãn, cổng pod Kafka để mở NetworkPolicy.
+    podLabels:
+      app.kubernetes.io/name: kafka
+    port: 9092
+  keycloak:
+    realm: okrkpi
+    clientId: iam-user-sync
+  secret:
+    name: iam-user-sync
+    key: client-secret
+    remoteRef:
+      key: iam/user-sync
+      property: client-secret
+  resources:
+    requests:
+      cpu: 100m
+      memory: 384Mi
+    limits:
+      cpu: "1"
+      memory: 768Mi
+  # Không gian tên của Prometheus được phép đọc /actuator/prometheus.
+  monitoringNamespace: monitoring

@@ -1,0 +1,33 @@
+# DV-02-06 · Consumer EVT-16 đồng bộ người dùng sang Keycloak. Địa chỉ Kafka, Keycloak theo cell đặt ở chart.
+spring:
+  application:
+    name: iam-user-sync
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      acks: all
+server:
+  port: 8080
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+mission:
+  user-sync:
+    keycloak:
+      base-url: ${KEYCLOAK_ADMIN_URL:http://localhost:8080}
+      realm: ${KEYCLOAK_REALM:mission}
+      client-id: ${KEYCLOAK_CLIENT_ID:iam-user-sync}
+      client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+      timeout: 3s
+    retry:
+      initial: 500ms
+      max-elapsed: 20s

@@ -21,6 +21,11 @@ spring:
       ddl-auto: validate
   lifecycle:
     timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:25s}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://127.0.0.1:35080/realms/mission}
   datasource:
     url: ${DB_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:35432}/${DB_NAME:mission}?currentSchema=${DB_SCHEMA:flowable}}
     username: ${DB_USER:svc_flowable}
@@ -55,6 +60,9 @@ flowable:
         default-timer-job-acquire-wait-time: 5s
         async-job-lock-time: 5m
         timer-lock-time: 5m
+        # Lượt saga thất bại được khoá tới hết thời gian lùi; luồng gỡ khoá hết hạn trả lượt về
+        # hàng đợi, nên chu kỳ này quyết định độ trễ thêm của lần thử lại (DV-06-05).
+        reset-expired-jobs-interval: ${WF_RESET_EXPIRED_INTERVAL:5s}
   dmn:
     enabled: true
     history-enabled: false
@@ -111,3 +119,21 @@ mission:
       openbao-url: ${OPENBAO_URL:http://127.0.0.1:35820}
     observability:
       otlp-endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://127.0.0.1:35317}
+
+# Khung saga (DV-06-05): outbox và khoá idempotency nằm trong schema flowable; worker chạy cùng bộ
+# thực thi nền của Flowable.
+okrkpi:
+  outbox:
+    schema: flowable
+    registry:
+      url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
+  idempotency:
+    schema: flowable
+  saga:
+    enabled: ${SAGA_ENABLED:true}
+    worker:
+      enabled: ${WF_ASYNC_ENABLED:false}
+      batch-size: ${SAGA_WORKER_BATCH:16}
+      lock-duration: ${SAGA_WORKER_LOCK:5m}
+      poll-interval: ${SAGA_WORKER_POLL:500ms}
+      reconcile-interval: ${SAGA_WORKER_RECONCILE:5s}

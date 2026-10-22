@@ -1,0 +1,149 @@
+{{- if .Values.userSync.enabled }}
+# DV-02-06: consumer EVT-16 gọi Admin API Keycloak trong mạng quản trị bằng client credentials riêng.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "iam.fullname" . }}-user-sync
+  namespace: {{ include "iam.namespace" . }}
+  labels:
+    {{- include "iam.labels" . | nindent 4 }}
+    app.kubernetes.io/component: user-sync
+spec:
+  replicas: {{ .Values.userSync.replicas }}
+  selector:
+    matchLabels:
+      {{- include "iam.userSync.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "iam.userSync.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "iam.fullname" . }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: user-sync
+          image: {{ if .Values.userSync.image.digest }}{{ .Values.userSync.image.repository }}@{{ .Values.userSync.image.digest }}{{ else }}{{ .Values.userSync.image.repository }}:{{ .Values.userSync.image.tag }}{{ end }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.userSync.kafka.bootstrapServers | quote }}
+            - name: KEYCLOAK_ADMIN_URL
+              value: {{ .Values.keycloak.url | quote }}
+            - name: KEYCLOAK_REALM
+              value: {{ .Values.userSync.keycloak.realm | quote }}
+            - name: KEYCLOAK_CLIENT_ID
+              value: {{ .Values.userSync.keycloak.clientId | quote }}
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.userSync.secret.name }}
+                  key: {{ .Values.userSync.secret.key }}
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=75"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.userSync.resources | nindent 12 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+{{- if .Values.externalSecret.enabled }}
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ .Values.userSync.secret.name }}
+  namespace: {{ include "iam.namespace" . }}
+  labels:
+    {{- include "iam.labels" . | nindent 4 }}
+    app.kubernetes.io/component: user-sync
+spec:
+  refreshInterval: {{ .Values.externalSecret.refreshInterval }}
+  secretStoreRef:
+    kind: {{ .Values.externalSecret.secretStoreRef.kind }}
+    name: {{ .Values.externalSecret.secretStoreRef.name }}
+  target:
+    name: {{ .Values.userSync.secret.name }}
+    creationPolicy: Owner
+  data:
+    - secretKey: {{ .Values.userSync.secret.key }}
+      remoteRef:
+        key: {{ .Values.userSync.secret.remoteRef.key }}
+        property: {{ .Values.userSync.secret.remoteRef.property }}
+---
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "iam.fullname" . }}-user-sync
+  namespace: {{ include "iam.namespace" . }}
+  labels:
+    {{- include "iam.labels" . | nindent 4 }}
+    app.kubernetes.io/component: user-sync
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "iam.userSync.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.userSync.monitoringNamespace }}
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.keycloakPodLabels | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.keycloakPort }}
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              {{- toYaml .Values.userSync.kafka.podLabels | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.userSync.kafka.port }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+{{- end }}
+{{- end }}
