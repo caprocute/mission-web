@@ -622,6 +622,15 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 - Quay lui không biên dịch, không ký lại: phiên bản đích giữ `bundle_sha256`, chữ ký và `published_at` cũ, nên ETag của `getCurrentUiPack` trở về giá trị cũ; EVT-23 phát một lần qua outbox và consumer trỏ `current.json` về gói bất biến đã có.
 - Tương thích: Policy Pack mà phiên bản đích ghim (`requires.policyPack`) chưa ngừng, và mọi biểu mẫu `forms.*.schemaRef` giải được qua `PolicySchemaPort`. Cổng có thêm phương thức mặc định `retired(...)` (trả `false`) chờ MOD-05 hiện thực; khi chưa có MOD-05, chỉ UI Pack không có biểu mẫu là tương thích. `config.api.UiPackCompatibilityApi.isCompatible(tenant, policyPackRef)` dùng cùng quy tắc cho UI Pack hiện hành; lời gọi từ MOD-05 thuộc CORE-05-10.
 
+### Ghi chú và quyết định từ API biểu mẫu động (CORE-08-13, 22/10/2026)
+
+- Điểm lệch nguồn: TL-01 nói Policy Pack sở hữu JSON Schema phiếu, còn TL-02b và TL-03 lưu `schema_json` trong `config.form_schema`. Chọn theo hợp đồng `config.yaml`: lưu trong `form_schema` kèm `policy_pack_ref`, và mỗi lần lưu đều đối chiếu các trường tính điểm qua `PolicySchemaPort.scoredFields` (phương thức mặc định trả rỗng, chờ MOD-05 hiện thực ở CORE-05-03); trường bị xoá hoặc đổi kiểu trả 409 `UI-409-SCORED-FIELD` (MSG-18-07).
+- Migration `V7__config_form_schema_attach.sql` thêm `ui_pack_version.forms_json` (danh sách biểu mẫu gắn vào UI Pack) và `form_schema.last_test_run` (kết quả bộ test gần nhất). TL-03 chưa có hai cột này (suy luận); migration nằm ngoài danh sách tệp được phép của task nhưng bắt buộc để lưu dữ liệu.
+- BR-18-07: `last_test_run` lưu kèm băm SHA-256 của phần ảnh hưởng điểm (schema chuẩn tắc cùng `celRules`). Đổi thuần trình bày (`uiJson`, nhãn, thứ tự) không đổi băm nên kết quả test cũ vẫn dùng được; đổi schema hoặc quy tắc CEL làm băm lệch và `attachUiPackForm` trả 422 `UI-422-FORM-TEST-FAILED` cho tới khi chạy lại test (CORE-08-14). Băm không lộ ra API.
+- Kiểm khi lưu: gốc `type: object`; khoá dữ liệu snake_case ≤ 64 ký tự, duy nhất trên toàn biểu mẫu kể cả nhóm lồng; mọi trường lá có `x-classification` C1 hoặc C2 (BR-18-11); `x-cel` biên dịch bằng `vt-cel` với biến `self` và `form`, kết quả kiểu bool; `hideExpression` trong `uiJson` không được tham chiếu vòng qua `form.<khoá>`. Lỗi CEL trả 422 `UI-422-CEL-INVALID` (MSG-18-06), lỗi cấu trúc trả 422 `COMMON-422-VALIDATION`.
+- Biểu mẫu chuyển `DA_PHAT_HANH` khi UI Pack chứa nó được phát hành (CORE-08-11 gọi `publishAttached`), nên `getCurrentUiForm` trả 404 cho tới lúc đó. ETag của bản hiện hành là `"phiên bản-rowVersion"`, của từng phiên bản là `rowVersion`; cả hai hỗ trợ `If-None-Match` 304.
+- Chưa làm: đưa biểu mẫu vào trường `forms` của gói runtime đã ký; chạy bộ test hai engine (`runUiFormTests`, CORE-08-14).
+
 ## Liên quan
 
 - [README của wiki](README.md)
