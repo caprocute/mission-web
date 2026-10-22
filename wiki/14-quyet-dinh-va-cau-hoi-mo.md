@@ -1118,6 +1118,19 @@ Mã lõi: khoá `retention.<LỚP>` với lược đồ `retention-class.v1` đ�
 - **Tách quyền và vòng đời.** Hai tài khoản OpenSearch tách biệt: `audit_writer` chỉ ghi (consumer) và `audit_reader` chỉ đọc (API); mẫu vai trò ở `backend/mission-core/src/main/resources/opensearch/audit/security-roles.json`, mật khẩu do ESO cấp qua `mission.oversight.audit-index.{reader,writer}.{username,password}`. Chính sách ISM `audit-luu-giu`: nóng 365 ngày, sau đó chỉ đọc, chụp snapshot sang kho `audit-lanh`, chuyển nút warm; xoá sau 1825 ngày (chi tiết kho lạnh là suy luận từ TL-01 G6 và TL-03). Chỉ mục có giữ pháp lý được gỡ khỏi chính sách bằng `_plugins/_ism/remove`. Mẫu chỉ mục và ISM cài bằng tài khoản quản trị lúc triển khai (`OpenSearchAuditIndex.installTemplates`). Độ trễ và thư chết lấy từ metric chung của inbox.
 - **Thư viện (YC-PT-18).** `org.opensearch.client:opensearch-java` 2.22.0 (Apache 2.0) với transport Apache HttpClient 5 và `JacksonJsonpMapper`; loại `opensearch-rest-client` và `yasson` khỏi cây phụ thuộc để giữ hội tụ phiên bản `commons-logging`, `parsson`.
 
+## Ghi chú và quyết định từ khung job phát hiện bất thường (DV-15-07, 22/10/2026)
+
+Mã nguồn ở `services-py/anomaly-job`, bảng kết quả ở migration `analytics/clickhouse/migrations/V011__anomaly_out.sql`, dữ liệu vàng ở `data/golden/anomaly`.
+
+1. **Đối tượng của cảnh báo cá nhân là mã hồ sơ đánh giá (suy luận).** Kho phân tích chỉ giữ mã người giả danh (`person_key`), còn hợp đồng EVT-20 cần `subjectId` dạng UUID. Với dấu hiệu 1, `subjectId` là mã hồ sơ của quý cuối chuỗi; mission-core tra ra cán bộ từ hồ sơ. `alertKey` băm theo (tenant, dấu hiệu, `person_key`, luồng, kỳ cuối), nên mỗi chuỗi chỉ sinh một cảnh báo.
+2. **Tham số ngưỡng còn thiếu số (suy luận).** TL-02b cho số của "3 quý liên tiếp", "lệch từ 5 điểm", "90 % cùng mức" và "2 quý" cho điều kiện điểm. Tỷ lệ HTXSNV vượt ngưỡng khối (mặc định 20 %), độ lệch chuẩn điểm dưới 2, tối thiểu 5 hồ sơ mỗi nhóm, và cách tính mức cảnh báo theo số điều kiện thoả (1 THẤP, 2 VỪA, 3 CAO) là giả định; bộ ngưỡng của tenant (`getAnomalyThresholds`) ghi đè được. TL-01 nêu ví dụ ngưỡng khác TL-02b; job theo TL-02b.
+3. **Mức xếp loại dùng cho dấu hiệu 2** là mức hiện hành ở cấp cao nhất đã có (quyết định, đề xuất, thẩm định); mức tự đề xuất không tính.
+4. **Không dùng `vtplatform.kafka.AnomalyAlertPayload`.** Bộ kiểm tra của thư viện đó dùng mã khác hợp đồng (ví dụ `CB_01`, `MEDIUM`, `TASK`) và gửi thân JSON, trong khi hợp đồng `DauHieuBatThuong.avsc` dùng mã TL-02b và Avro theo sổ đăng ký. Job chỉ dùng chung công thức `event_id` (UUIDv5 của `tenant:alertKey`, kiểm thử so khớp giá trị). Cần sửa thư viện theo hợp đồng khi có task tương ứng.
+5. **Định dạng trên Kafka giống outbox của mission-core:** thân Avro không tiền tố, global id ở tiêu đề `apicurio.value.globalId`, phong bì ở tiêu đề `id`, `tenantid`, `ce_type`, `classification=C1`, `occurredat`. Không có `aggregateversion` vì sự kiện không đi qua outbox PostgreSQL. Job không tự đăng ký lược đồ; lược đồ chưa đăng ký là lỗi phát hành.
+6. **Tài khoản `<db>_anomaly` không còn chỉ đọc.** `V011` đổi hồ sơ thiết lập sang `<db>_anomaly_job` (`readonly = 0`, giới hạn tài nguyên bằng ràng buộc) và chỉ cấp thêm `SELECT, INSERT` trên `anomaly_out`; mục 7 của DV-15-01 ở trên mô tả trạng thái trước `V011`. `INSERT ... SELECT` có truy vấn con chạy được với quyền theo cột (đã kiểm thử), khác `CREATE TABLE ... AS SELECT` ở DV-15-03.
+7. **Lấy ngưỡng theo tenant** dựa vào client dịch vụ `anomaly-job` được khai báo trong danh sách client ủy quyền tenant (`X-Tenant-Id`) của mission-core; khai báo client ở Keycloak và danh sách đó thuộc phần cấu hình môi trường. Không lấy được ngưỡng thì bỏ qua tenant (fail closed) và job thoát mã khác 0.
+8. **Chờ INF:** chart, ExternalSecret, NetworkPolicy và lịch chạy thật của CronJob (`deploy/cronjob.yaml` chỉ là mẫu).
+
 ## Liên quan
 
 - [README của wiki](README.md)
