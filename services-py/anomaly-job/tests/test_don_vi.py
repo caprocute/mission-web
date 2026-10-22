@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 
 import fastavro
 import pytest
@@ -33,7 +34,7 @@ def test_threshold_defaults_and_errors() -> None:
     s = ts.signals["TU_CHAM_CAO"]
     assert (s.param("scoreGap"), s.param("consecutiveQuarters"), s.param("scoreQuarters")) == (8.0, 3.0, 2.0)
     assert ts.version == 3 and not ts.signals["CAO_BANG"].enabled
-    params = {r.signal_code: r.params(ts.signals[r.signal_code]) for r in RULES}
+    params = {r.signal_code: r.params(ts.signals[r.signal_code]) for r in RULES if r.signal_code in ts.signals}
     assert params["TU_CHAM_CAO"] == {"consecutive": 3, "gap": 8.0, "score_quarters": 2}
     assert params["CAO_BANG"]["min_people"] == 5
     with pytest.raises(ThresholdError):
@@ -64,3 +65,18 @@ def test_settings_require_secrets_from_env() -> None:
     assert s.registry_url == "http://r/apis/registry/v3" and s.kafka_extra == {"security.protocol": "SSL"}
     with pytest.raises(ConfigError, match="OIDC_CLIENT_SECRET"):
         Settings.from_env({k: v for k, v in env.items() if k != "OIDC_CLIENT_SECRET"})
+
+
+def test_every_rule_has_defaults_and_explanations() -> None:
+    from app.rules.giai_thich import MAU, giai_thich
+    from app.thresholds import DEFAULT_PARAMS, Signal
+
+    for r in RULES:
+        r.params(Signal(r.signal_code, True))  # đủ tham số mặc định
+        for code in set(re.findall(r"'dieu_kien:(\w+)'", r.sql())):
+            assert code in MAU, (r.signal_code, code)
+    assert set(DEFAULT_PARAMS) == {r.signal_code for r in RULES}
+    assert giai_thich(["dieu_kien:DAT_CHI_TIEU_SOM", "so_lieu:NGAY_DAT_TRONG_KY=5", "ky:x"]) == (
+        "Kết quả then chốt đạt chỉ tiêu ngay ngày thứ 5 của kỳ.")
+    assert giai_thich(["dieu_kien:CHI_TIEU_THAP_HON_KY_TRUOC", "so_lieu:CHI_TIEU_THAP_HON_PHAN_TRAM=27.5"]) == (
+        "Chỉ tiêu thấp hơn kết quả kỳ trước 27,5%.")

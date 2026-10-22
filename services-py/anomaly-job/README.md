@@ -2,6 +2,18 @@
 
 Job của SVC-15 (ADR-14) chạy 02:00 hằng đêm theo cell, thực hiện QT-14 bước 1: chạy các luật phát hiện trên kho ClickHouse của cell, ghi kết quả vào `anomaly_out` (migration `V011`), rồi phát EVT-20 `analytics.anomaly.detected.v1` cho mọi dòng chưa phát. Mission-core (MOD-07) tiêu thụ sự kiện qua inbox và dựng cảnh báo cho người có thẩm quyền.
 
+## Luật đã có
+
+| Dấu hiệu | Tệp | Đối tượng | Ghi chú |
+|---|---|---|---|
+| 1 `TU_CHAM_CAO` | `app/rules/tu_cham_cao.sql` | cá nhân (mã hồ sơ) | DV-15-07 |
+| 2 `CAO_BANG` | `app/rules/cao_bang.sql` | đơn vị | DV-15-07 |
+| 3 `MUC_TIEU_DE` | `app/rules/muc_tieu_de.sql` | đơn vị sở hữu mục tiêu, mã KR trong bằng chứng | DV-15-08, đọc `fact_okr_key_result` (V012) |
+| 5 `CAP_NHAT_DON` | `app/rules/cap_nhat_don.sql` | đơn vị | DV-15-08, cần lịch ngày làm việc của tenant |
+| 7 `CHE_NHO` | `app/rules/che_nho.sql` | cá nhân (mã hồ sơ), chưa có hồ sơ thì đơn vị | DV-15-08 |
+
+Chuỗi bằng chứng chỉ chứa mã (`dieu_kien:`, `ky:`, `key_result:`, `task:`, …) và số liệu (`so_lieu:<KHOÁ>=<số>`); `app/rules/giai_thich.py` dựng câu giải thích tiếng Việt từ chuỗi đó.
+
 ## Cách chạy
 
 Với mỗi tenant có hồ sơ đánh giá trong kho, job lấy bộ ngưỡng qua `GET /api/v1/config/anomaly-thresholds` (token client-credentials cộng tiêu đề `X-Tenant-Id`). Không lấy được ngưỡng thì tenant đó bị bỏ qua và mã thoát khác 0. Mỗi luật là một tệp `INSERT ... SELECT` trong `app/rules/`, bỏ qua `alert_key` đã có, nên chạy lại không sinh cảnh báo mới. Bộ phát mã hoá Avro theo lược đồ đã đăng ký trong Apicurio (không tự đăng ký), đặt global id ở tiêu đề `apicurio.value.globalId`, khoá `tenant:subjectId`, `id` là UUIDv5 tất định của `(tenant, alertKey)`, và chỉ ghi đã phát sau khi Kafka xác nhận.

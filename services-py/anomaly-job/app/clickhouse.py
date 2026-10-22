@@ -28,7 +28,8 @@ class ClickHouse:
             q[f"param_{k}"] = _param(v)
         r = self._http.post("/", params=q, content=sql.encode())
         if r.status_code != 200:
-            raise ClickHouseError(r.text[:2000])
+            # Lỗi ClickHouse lặp lại cả truy vấn; giữ phần đầu (mã lỗi) và phần cuối (vị trí lỗi).
+            raise ClickHouseError(r.text if len(r.text) <= 4000 else r.text[:2000] + " … " + r.text[-2000:])
         return r.text
 
     def rows(self, sql: str, params: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:

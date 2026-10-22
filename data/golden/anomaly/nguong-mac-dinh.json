@@ -2,7 +2,44 @@
  "version": 1,
  "rowVersion": 1,
  "signals": [
-  {"signalCode": "TU_CHAM_CAO", "enabled": true, "params": {"consecutiveQuarters": 3, "scoreGap": 5, "scoreQuarters": 2}},
-  {"signalCode": "CAO_BANG", "enabled": true, "params": {"sameLevelPercent": 90}}
+  {
+   "signalCode": "TU_CHAM_CAO",
+   "enabled": true,
+   "params": {
+    "consecutiveQuarters": 3,
+    "scoreGap": 5,
+    "scoreQuarters": 2
+   }
+  },
+  {
+   "signalCode": "CAO_BANG",
+   "enabled": true,
+   "params": {
+    "sameLevelPercent": 90
+   }
+  },
+  {
+   "signalCode": "MUC_TIEU_DE",
+   "enabled": true,
+   "params": {
+    "earlyWeeks": 2,
+    "belowPreviousPercent": 20
+   }
+  },
+  {
+   "signalCode": "CAP_NHAT_DON",
+   "enabled": true,
+   "params": {
+    "lastDaysPercent": 60,
+    "lastDays": 3
+   }
+  },
+  {
+   "signalCode": "CHE_NHO",
+   "enabled": true,
+   "params": {
+    "taskIncreasePercent": 50
+   }
+  }
  ]
 }

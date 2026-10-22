@@ -208,7 +208,9 @@ def env() -> Iterator[Env]:
         _register_schema(reg + "/apis/registry/v3")
         _create_topic(f"127.0.0.1:{kport}", TOPIC)
         _create_topic(f"127.0.0.1:{kport}", "task.task.progressed.v1")
-        Stub.thresholds = {sym("A"): json.loads((GOLDEN / "nguong-mac-dinh.json").read_text(encoding="utf-8"))}
+        Stub.thresholds = {sym("A"): json.loads((GOLDEN / "nguong-mac-dinh.json").read_text(encoding="utf-8")),
+                           sym("D"): json.loads((GOLDEN / "nguong-thay-doi.json").read_text(encoding="utf-8"))}
+        Stub.calendar = json.loads((GOLDEN / "du-lieu.json").read_text(encoding="utf-8"))["lich"]
         yield Env(ch_http, admin_pw, db, anomaly_pw, f"127.0.0.1:{kport}", reg + "/apis/registry/v3",
                   f"http://127.0.0.1:{server.server_port}")
     finally:
@@ -223,9 +225,11 @@ def load_golden(ch: migrate.ClickHouse, db: str) -> None:
     data = json.loads((GOLDEN / "du-lieu.json").read_text(encoding="utf-8"))
     flow = data["luong"]
     base = {"_version": 1, "_is_deleted": 0, "_source_ts": "2026-10-01 00:00:00"}
-    rows: dict[str, list[dict[str, Any]]] = {"dim_period": [], "fact_appraisal_profile": [], "fact_rating": [],
-                                             "fact_score": []}
-    for t in ("A", "B"):
+    rows: dict[str, list[dict[str, Any]]] = {
+        "dim_period": [], "fact_appraisal_profile": [], "fact_rating": [], "fact_score": [], "fact_okr_objective": [],
+        "fact_okr_key_result": [], "fact_okr_checkin": [], "fact_task": [], "fact_task_progress": [],
+        "fact_task_assignee": []}
+    for t in ("A", "B", "D"):
         tenant = sym(t)
 
         def tid(name: str, t: str = t) -> str:
@@ -254,8 +258,61 @@ def load_golden(ch: migrate.ClickHouse, db: str) -> None:
                                             "rating_code": h["qd"], "score_snapshot_id": snap, "is_current": 1})
                 rows["fact_score"].append({**common, "id": snap, "total_score": h["diem"], "is_current": 1,
                                            "auto_rating_code": h["qd"]})
+        load_signals_3_5_7(data, base, tenant, tid, rows)
     for table, items in rows.items():
         ch.run(f"INSERT INTO {db}.{table} FORMAT JSONEachRow\n" + "\n".join(json.dumps(r) for r in items))
+
+
+def load_signals_3_5_7(data: dict[str, Any], base: dict[str, Any], tenant: str, tid: Any,
+                       rows: dict[str, list[dict[str, Any]]]) -> None:
+    """Dữ liệu dấu hiệu 3 (OKR), 5 (lượt cập nhật tiến độ), 7 (nhiệm vụ cá nhân chủ trì) của DV-15-08."""
+    flow = data["luong"]
+    t0 = {**base, "tenant_id": tenant, "period_bucket": 20264}
+    for o in data["okr"]["muc_tieu"]:
+        rows["fact_okr_objective"].append({**t0, "id": tid(o["ma"]), "period_id": tid(o["ky"]), "owner_type": "DON_VI",
+                                           "org_unit_id": tid(o["don_vi"]), "tier": 1, "status": "DA_DUYET"})
+    ky_of = {o["ma"]: o["ky"] for o in data["okr"]["muc_tieu"]}
+    for k in data["okr"]["kr"]:
+        rows["fact_okr_key_result"].append({
+            **t0, "id": tid(k["ma"]), "period_id": tid(ky_of[k["muc_tieu"]]), "objective_id": tid(k["muc_tieu"]),
+            "metric_type": "SO_LUONG", "direction": k["chieu"], "baseline_value": k["xuat_phat"],
+            "target_value": k["chi_tieu"], "weight": 0.25, "due_date": "2026-12-31", "status": k["trang_thai"]})
+        for i, c in enumerate(k["check_in"]):
+            rows["fact_okr_checkin"].append({
+                **t0, "id": tid(f"{k['ma']}:ci{i}"), "period_id": tid(ky_of[k["muc_tieu"]]),
+                "key_result_id": tid(k["ma"]), "objective_id": tid(k["muc_tieu"]),
+                "person_key": person_key("nguoi-okr"), "checkin_at": c["luc"],
+                "value": c["gia_tri"], "status": c["trang_thai"]})
+
+    def task(code: str, ky: str, **kw: Any) -> None:
+        rows["fact_task"].append({**t0, "id": tid(code), "period_id": tid(ky), "code": code, "due_date": "2026-09-30",
+                                  "status": "DANG_THUC_HIEN", "created_at": "2026-04-01 00:00:00",
+                                  "updated_at": "2026-04-01 00:00:00", **kw})
+
+    for c in data["cap_nhat"]:
+        code = f"CV-{c['don_vi']}"
+        task(code, c["ky"])
+        for i, day in enumerate(c["ngay"]):
+            rows["fact_task_progress"].append({
+                **t0, "id": tid(f"{code}:p{i}"), "task_id": tid(code), "person_key": person_key("nguoi-cap-nhat"),
+                "org_unit_id": tid(c["don_vi"]), "progress_pct": 0.1, "channel": "WEB",
+                "reported_at": f"{day} 10:00:00"})
+    g = data["nhom_nhiem_vu"]
+    seq: dict[tuple[str, str], int] = {}
+    for n in g["nhom"]:
+        for _ in range(n["so"]):
+            i = seq[(n["nguoi"], n["ky"])] = seq.get((n["nguoi"], n["ky"]), 0) + 1
+            code = f"NV-{n['nguoi']}-{n['ky']}-{i}"
+            task(code, n["ky"], standard_score=n["diem"], plan_item_id=tid(n["ke_hoach"]) if "ke_hoach" in n else None,
+                 due_date=n.get("han", "2026-09-30"))
+            rows["fact_task_assignee"].append({
+                **t0, "id": tid(f"{code}:pc"), "task_id": tid(code), "assignee_type": "CA_NHAN",
+                "person_key": person_key(n["nguoi"]), "resolved_unit_id": tid(g["don_vi"]), "role": "CHU_TRI",
+                "valid_from": "2026-01-01", "valid_to": "2299-12-31"})
+    for h in g["ho_so"]:
+        rows["fact_appraisal_profile"].append({**t0, "id": tid(h["ma"]), "period_id": tid(h["ky"]),
+                                               "person_key": person_key(h["nguoi"]), "org_unit_id": tid(g["don_vi"]),
+                                               "flow": flow, "status": "DANG_TU_DANH_GIA"})
 
 
 def _register_schema(registry: str) -> None:
