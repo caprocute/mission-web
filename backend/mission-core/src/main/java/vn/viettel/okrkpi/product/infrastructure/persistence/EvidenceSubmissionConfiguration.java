@@ -20,6 +20,7 @@ import org.springframework.kafka.listener.AcknowledgingMessageListener;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.transaction.PlatformTransactionManager;
+import vn.viettel.okrkpi.config.api.DelegationApi;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceAcceptanceService;
@@ -29,6 +30,7 @@ import vn.viettel.okrkpi.product.application.evidence.EvidenceObjectProjector;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceQueryService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceReviewService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService;
+import vn.viettel.okrkpi.product.application.evidence.ReviewerAuthority;
 import vn.viettel.okrkpi.product.application.evidence.port.CommentSealer;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceEvents;
 import vn.viettel.okrkpi.product.infrastructure.listener.EvidenceObjectListener;
@@ -98,13 +100,18 @@ public class EvidenceSubmissionConfiguration {
       EvidenceLifecycleService evidenceLifecycleService,
       TaskApi tasks,
       EvidenceIntegrityAlarm evidenceIntegrityAlarm,
-      AuditLogger audit) {
-    return new EvidenceReviewService(
-        evidenceSubmissionRepository,
-        evidenceLifecycleService,
-        tasks,
-        evidenceIntegrityAlarm,
-        audit);
+      AuditLogger audit,
+      ObjectProvider<DelegationApi> delegations) {
+    EvidenceReviewService service =
+        new EvidenceReviewService(
+            evidenceSubmissionRepository,
+            evidenceLifecycleService,
+            tasks,
+            evidenceIntegrityAlarm,
+            audit);
+    service.setAuthority(
+        new ReviewerAuthority(tasks, delegations.getIfAvailable(), java.time.Clock.systemUTC()));
+    return service;
   }
 
   @Bean
@@ -128,17 +135,22 @@ public class EvidenceSubmissionConfiguration {
       TaskApi tasks,
       EvidenceEvents evidenceEvents,
       CommentSealer acceptanceCommentSealer,
-      AuditLogger audit) {
-    return new EvidenceAcceptanceService(
-        evidenceSubmissionRepository,
-        acceptanceRepository,
-        evidenceLifecycleService,
-        evidenceReviewService,
-        tasks,
-        evidenceEvents,
-        acceptanceCommentSealer,
-        audit,
-        java.time.Clock.systemUTC());
+      AuditLogger audit,
+      ObjectProvider<DelegationApi> delegations) {
+    EvidenceAcceptanceService service =
+        new EvidenceAcceptanceService(
+            evidenceSubmissionRepository,
+            acceptanceRepository,
+            evidenceLifecycleService,
+            evidenceReviewService,
+            tasks,
+            evidenceEvents,
+            acceptanceCommentSealer,
+            audit,
+            java.time.Clock.systemUTC());
+    service.setAuthority(
+        new ReviewerAuthority(tasks, delegations.getIfAvailable(), java.time.Clock.systemUTC()));
+    return service;
   }
 
   @Bean

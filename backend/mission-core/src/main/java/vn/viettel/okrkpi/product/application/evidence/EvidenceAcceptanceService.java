@@ -22,7 +22,6 @@ import vn.viettel.okrkpi.product.domain.evidence.AcceptanceRules;
 import vn.viettel.okrkpi.product.domain.evidence.CriterionResult;
 import vn.viettel.okrkpi.product.domain.evidence.EvidenceRuleViolation;
 import vn.viettel.okrkpi.product.domain.evidence.EvidenceStatus;
-import vn.viettel.okrkpi.product.domain.evidence.ReviewRules;
 import vn.viettel.okrkpi.shared.audit.AuditEvent;
 import vn.viettel.okrkpi.shared.audit.AuditEventType;
 import vn.viettel.okrkpi.shared.audit.AuditLogger;
@@ -70,6 +69,7 @@ public class EvidenceAcceptanceService {
   private final CommentSealer sealer;
   private final AuditLogger audit;
   private final Clock clock;
+  private ReviewerAuthority authority;
 
   public EvidenceAcceptanceService(
       EvidenceSubmissionRepository evidences,
@@ -90,6 +90,12 @@ public class EvidenceAcceptanceService {
     this.sealer = Objects.requireNonNull(sealer, "sealer");
     this.audit = Objects.requireNonNull(audit, "audit");
     this.clock = Objects.requireNonNull(clock, "clock");
+    this.authority = ReviewerAuthority.withoutDelegations(tasks);
+  }
+
+  /** Cho phép người nhận uỷ quyền nghiệm thu thay quyết định (CORE-03-08). */
+  public void setAuthority(ReviewerAuthority authority) {
+    this.authority = Objects.requireNonNull(authority, "authority");
   }
 
   /** Nội dung xác nhận nghiệm thu. */
@@ -118,7 +124,11 @@ public class EvidenceAcceptanceService {
   public record Decision(
       AcceptanceView acceptance, String versionStatus, String taskStatusChanged, long rowVersion) {}
 
-  private record Context(EvidenceView evidence, VersionView version, TaskSummary task) {}
+  private record Context(
+      EvidenceView evidence,
+      VersionView version,
+      TaskSummary task,
+      ReviewerAuthority.Acting acting) {}
 
   @Transactional(TX)
   public Decision acceptVersion(
@@ -266,15 +276,9 @@ public class EvidenceAcceptanceService {
             .findVersion(tenant, e.periodBucket(), evidenceId, versionNo)
             .orElseThrow(NoSuchElementException::new);
     TaskSummary task = tasks.find(tenant, e.taskId()).orElseThrow(NoSuchElementException::new);
-    UUID me = actor.personId();
-    UUID designated = EvidenceSubmissionService.designatedReviewer(task);
+    ReviewerAuthority.Acting acting;
     try {
-      ReviewRules.requireIndependentReviewer(
-          me,
-          designated,
-          v.submittedBy(),
-          task.leadAssigneeId(),
-          me.equals(designated) && EvidenceReviewService.coordinates(tasks, tenant, task, me));
+      acting = authority.resolve(tenant, task, actor.personId(), v.submittedBy());
       if (EvidenceStatus.valueOf(v.status()) != EvidenceStatus.DANG_NGHIEM_THU) {
         throw new EvidenceRuleViolation(
             EvidenceRuleViolation.INVALID_STATE,
@@ -286,7 +290,7 @@ public class EvidenceAcceptanceService {
     if (v.rowVersion() != expectedRowVersion) {
       throw new VersionConflictException("PRODUCT", expectedRowVersion, v.rowVersion());
     }
-    return new Context(e, v, task);
+    return new Context(e, v, task, acting);
   }
 
   /** AAL2 trong 15 phút gần nhất (BR-07-11). */
@@ -346,6 +350,11 @@ public class EvidenceAcceptanceService {
             .object("product_acceptance", id.toString())
             .attribute("evidenceVersionId", v.id().toString())
             .attribute("qualityLevel", quality == null ? "" : quality.toPlainString())
+            .attribute("nghiemThuThay", Boolean.toString(c.acting().substitute()))
+            .attribute(
+                "onBehalfOf", c.acting().substitute() ? c.acting().onBehalfOf().toString() : "")
+            .attribute(
+                "delegationId", c.acting().substitute() ? c.acting().delegationId().toString() : "")
             .build());
     return new AcceptanceView(
         id,
