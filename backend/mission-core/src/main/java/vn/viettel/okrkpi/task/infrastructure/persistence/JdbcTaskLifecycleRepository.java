@@ -19,7 +19,7 @@ import vn.viettel.okrkpi.task.domain.lifecycle.TaskStatus;
 /** {@link TaskLifecycleRepository} trên {@code taskDataSource} (vai trò {@code svc_task}, RLS). */
 public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
 
-  private static final String COLUMNS =
+  static final String COLUMNS =
       "id, period_id, period_bucket, code, title, description, task_group, source, key_result_id,"
           + " assigner_id, assigned_at, acceptor_id, due_date, extended_due_date, score_due_date,"
           + " planned_quantity, done_quantity, unit, difficulty, standard_score, progress_pct,"
@@ -196,7 +196,7 @@ public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
         .list();
   }
 
-  private static TaskRow task(ResultSet rs, int i) throws SQLException {
+  static TaskRow task(ResultSet rs, int i) throws SQLException {
     int difficulty = rs.getInt("difficulty");
     boolean noDifficulty = rs.wasNull();
     return new TaskRow(
