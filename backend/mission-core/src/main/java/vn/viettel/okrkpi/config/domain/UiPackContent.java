@@ -14,6 +14,8 @@ import java.util.UUID;
  * @param policyPackVersionId phiên bản Policy Pack đi kèm, có thể {@code null}
  * @param elderMode bật chế độ Đảng viên cao tuổi (BR-18-09)
  * @param fewSteps cờ "ít bước" ({@code flags.reducedSteps})
+ * @param formsJson mảng JSON {@code forms_json}: biểu mẫu đã gắn {@code {formKey, version}}
+ *     (CORE-08-13)
  */
 public record UiPackContent(
     String tokensJson,
@@ -22,7 +24,8 @@ public record UiPackContent(
     String componentRegistryVersion,
     UUID policyPackVersionId,
     boolean elderMode,
-    boolean fewSteps) {
+    boolean fewSteps,
+    String formsJson) {
 
   public static final int REGISTRY_VERSION_MAX = 32;
 
@@ -30,10 +33,43 @@ public record UiPackContent(
     Objects.requireNonNull(tokensJson, "tokensJson");
     Objects.requireNonNull(layoutsJson, "layoutsJson");
     assetsJson = assetsJson == null ? "[]" : assetsJson;
+    formsJson = formsJson == null ? "[]" : formsJson;
     Objects.requireNonNull(componentRegistryVersion, "componentRegistryVersion");
     if (componentRegistryVersion.isBlank()
         || componentRegistryVersion.length() > REGISTRY_VERSION_MAX) {
       throw new IllegalArgumentException("Phiên bản danh mục thành phần không hợp lệ");
     }
+  }
+
+  public UiPackContent(
+      String tokensJson,
+      String layoutsJson,
+      String assetsJson,
+      String componentRegistryVersion,
+      UUID policyPackVersionId,
+      boolean elderMode,
+      boolean fewSteps) {
+    this(
+        tokensJson,
+        layoutsJson,
+        assetsJson,
+        componentRegistryVersion,
+        policyPackVersionId,
+        elderMode,
+        fewSteps,
+        "[]");
+  }
+
+  /** Cùng nội dung, thay danh sách biểu mẫu đã gắn. */
+  public UiPackContent withForms(String forms) {
+    return new UiPackContent(
+        tokensJson,
+        layoutsJson,
+        assetsJson,
+        componentRegistryVersion,
+        policyPackVersionId,
+        elderMode,
+        fewSteps,
+        forms);
   }
 }

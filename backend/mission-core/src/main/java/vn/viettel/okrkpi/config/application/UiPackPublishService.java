@@ -79,6 +79,7 @@ public class UiPackPublishService implements UiPackCompatibilityApi {
   private final Executor renders;
   private final TransactionOperations writes;
   private PolicySchemaPort schemas;
+  private FormSchemaService forms;
   private final CelEngine cel =
       new CelEngine(StaticWorkingCalendar.weekendsOnly(), LayoutValidator.VISIBLE_WHEN_LIMITS);
 
@@ -281,6 +282,9 @@ public class UiPackPublishService implements UiPackCompatibilityApi {
     if (!repo.setCurrentVersion(tenantId, pack, next.id(), reviewer, at)) {
       throw VersionConflictException.of("CONFIG", pack.rowVersion(), -1);
     }
+    if (forms != null) {
+      forms.publishAttached(tenantId, next, reviewer, at);
+    }
     events.published(tenantId, next, List.of("/" + pointerKey(tenantId)));
     audit.changed(
         tenantId,
@@ -323,6 +327,11 @@ public class UiPackPublishService implements UiPackCompatibilityApi {
       throw new IllegalStateException(e);
     }
     cdn.invalidate(List.copyOf(cdnPaths));
+  }
+
+  /** Biểu mẫu gắn trong UI Pack chuyển {@code DA_PHAT_HANH} cùng gói (CORE-08-13). */
+  public void setForms(FormSchemaService forms) {
+    this.forms = forms;
   }
 
   /** Cổng tra Policy Pack của MOD-05; chưa có thì chỉ UI Pack không có biểu mẫu là tương thích. */

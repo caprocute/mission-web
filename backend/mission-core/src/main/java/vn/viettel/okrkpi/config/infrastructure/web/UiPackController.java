@@ -68,6 +68,7 @@ public class UiPackController {
 
   private final UiPackService packs;
   private final vn.viettel.okrkpi.config.application.UiPackPublishService publish;
+  private final vn.viettel.okrkpi.config.application.FormSchemaService forms;
   private final CursorCodec cursors;
   private final Callers callers;
   private final ConfigIdempotency idempotency;
@@ -76,6 +77,7 @@ public class UiPackController {
   public UiPackController(
       UiPackService packs,
       vn.viettel.okrkpi.config.application.UiPackPublishService publish,
+      vn.viettel.okrkpi.config.application.FormSchemaService forms,
       CursorCodec cursors,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<PeriodCaller> periodCallers,
@@ -83,6 +85,7 @@ public class UiPackController {
       ObjectProvider<ObjectMapper> json) {
     this.packs = Objects.requireNonNull(packs, "packs");
     this.publish = Objects.requireNonNull(publish, "publish");
+    this.forms = Objects.requireNonNull(forms, "forms");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
     this.callers = new Callers(subjects, periodCallers);
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
@@ -294,6 +297,46 @@ public class UiPackController {
         });
   }
 
+  /** Gắn biểu mẫu đã đạt bộ test vào UI Pack nháp (CORE-08-13, BR-18-05, BR-18-06). */
+  @PostMapping("/{id}/versions/{v}/forms")
+  @RequiresPermission(
+      action = "SCR-1802.dua-vao-pack",
+      operationId = "attachUiPackForm",
+      module = "config")
+  public ResponseEntity<vn.viettel.okrkpi.contract.config.model.UiPackVersion> attachUiPackForm(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") String version,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody vn.viettel.okrkpi.contract.config.model.UiPackFormAttach body) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = callers.current();
+    long expected = ETags.expectedVersion(ifMatch, "CONFIG");
+    return idempotency.run(
+        tenant,
+        actor,
+        idempotencyKey,
+        "POST",
+        BASE + "/" + id + "/versions/" + version + "/forms",
+        body,
+        vn.viettel.okrkpi.contract.config.model.UiPackVersion.class,
+        vn.viettel.okrkpi.contract.config.model.UiPackVersion::getRowVersion,
+        () -> {
+          UiPackVersion v =
+              notFound(
+                  () ->
+                      forms.attach(
+                          tenant,
+                          actor,
+                          id,
+                          version,
+                          expected,
+                          body.getFormKey(),
+                          body.getFormVersion()));
+          return ETags.ok(toDto(v, null), v.rowVersion());
+        });
+  }
+
   /** Quay lui về phiên bản {@code THAY_THE} (CORE-08-12, BR-18-10, MSG-18-04). */
   @PostMapping("/{id}/versions/{v}/activate")
   @RequiresPermission(
@@ -388,7 +431,13 @@ public class UiPackController {
             c.fewSteps(),
             v.rowVersion());
     dto.setAssets(assets(packs.read(c.assetsJson())));
-    dto.setForms(List.of());
+    dto.setForms(
+        forms.refs(v).stream()
+            .map(
+                r ->
+                    new vn.viettel.okrkpi.contract.config.model.UiPackFormRef(
+                        r.formKey(), r.version()))
+            .toList());
     if (c.policyPackVersionId() != null) {
       dto.setPolicyPack(new PolicyPackVersionRef(c.policyPackVersionId()));
     }
