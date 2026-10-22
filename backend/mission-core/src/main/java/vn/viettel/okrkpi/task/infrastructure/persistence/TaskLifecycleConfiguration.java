@@ -18,6 +18,7 @@ import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
+import vn.viettel.okrkpi.task.application.TaskApiService;
 import vn.viettel.okrkpi.task.application.lifecycle.CelGuardEvaluator;
 import vn.viettel.okrkpi.task.application.lifecycle.PolicyBackedTransitionTableProvider;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
@@ -82,5 +83,12 @@ public class TaskLifecycleConfiguration {
         deliverables.getIfAvailable(),
         publisher,
         java.time.Clock.systemUTC());
+  }
+
+  @Bean
+  TaskApiService taskApiService(
+      JdbcTaskLifecycleRepository taskLifecycleRepository,
+      TaskTransitionService taskTransitionService) {
+    return new TaskApiService(taskLifecycleRepository, taskTransitionService);
   }
 }
