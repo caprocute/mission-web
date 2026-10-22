@@ -187,4 +187,138 @@ public record PolicyPackVersion(
         actor,
         rowVersion + 1);
   }
+
+  /** Ghi băm nội dung khi phiên bản đạt kiểm thử (CORE-05-09); không đổi số phiên bản dòng. */
+  public PolicyPackVersion withContentHash(String hash) {
+    return copy(
+        status,
+        effectiveFrom,
+        hash,
+        signed,
+        approvedBy,
+        approvedAt,
+        signedAt,
+        updatedBy,
+        updatedAt,
+        rowVersion);
+  }
+
+  /**
+   * Gửi phê duyệt phát hành (QT-15, BR-15-07): chỉ từ {@code DAT_KIEM_THU} đã có băm nội dung, ghi
+   * ngày bắt đầu kỳ hiệu lực và chuyển {@code CHO_PHE_DUYET}.
+   */
+  public PolicyPackVersion submit(LocalDate effectiveFrom, UUID actor, Instant at) {
+    Objects.requireNonNull(effectiveFrom, "effectiveFrom");
+    if (status != PolicyVersionStatus.DAT_KIEM_THU
+        || goldenPassRate == null
+        || goldenPassRate.compareTo(BigDecimal.ONE) != 0
+        || contentHash == null) {
+      throw new PolicyTransitionException(
+          "POLICY-409-NOT-TESTED", "Phiên bản " + version + " chưa đạt kiểm thử nên chưa gửi được");
+    }
+    return copy(
+            status,
+            effectiveFrom,
+            contentHash,
+            signed,
+            approvedBy,
+            approvedAt,
+            signedAt,
+            actor,
+            at,
+            rowVersion)
+        .moveTo(PolicyVersionStatus.CHO_PHE_DUYET, actor, at);
+  }
+
+  /**
+   * Ghi chữ ký phê duyệt (BR-15-09): phiên bản phải {@code CHO_PHE_DUYET} ({@code
+   * POLICY-409-NOT-PENDING}), người phê duyệt khác người soạn ({@code POLICY-403-SAME-AUTHOR}).
+   * Trạng thái giữ {@code CHO_PHE_DUYET} tới khi saga phát hành xong (CORE-05-10).
+   */
+  public PolicyPackVersion approve(UUID approver, Instant signedAt, Instant at) {
+    Objects.requireNonNull(approver, "approver");
+    Objects.requireNonNull(signedAt, "signedAt");
+    requirePending();
+    requireOtherThanAuthor(approver);
+    if (signed) {
+      throw new PolicyTransitionException(
+          "POLICY-409-NOT-PENDING", "Phiên bản " + version + " đã được ký phê duyệt");
+    }
+    return copy(
+        status,
+        effectiveFrom,
+        contentHash,
+        true,
+        approver,
+        at,
+        signedAt,
+        approver,
+        at,
+        rowVersion + 1);
+  }
+
+  /** Từ chối phát hành có ý kiến: {@code CHO_PHE_DUYET} → {@code NHAP}. */
+  public PolicyPackVersion reject(UUID actor, Instant at) {
+    requirePending();
+    if (signed) {
+      throw new PolicyTransitionException(
+          "POLICY-409-NOT-PENDING", "Phiên bản " + version + " đã được ký phê duyệt");
+    }
+    return moveTo(PolicyVersionStatus.NHAP, actor, at);
+  }
+
+  /** Kiểm trước khi ký: đúng trạng thái và khác người soạn. */
+  public void requireApprovableBy(UUID approver) {
+    requirePending();
+    requireOtherThanAuthor(approver);
+  }
+
+  private void requirePending() {
+    if (status != PolicyVersionStatus.CHO_PHE_DUYET) {
+      throw new PolicyTransitionException(
+          "POLICY-409-NOT-PENDING", "Phiên bản " + version + " không ở trạng thái chờ phê duyệt");
+    }
+  }
+
+  private void requireOtherThanAuthor(UUID approver) {
+    if (approver.equals(createdBy)) {
+      throw new PolicyTransitionException(
+          "POLICY-403-SAME-AUTHOR", "Người phê duyệt phải khác người soạn phiên bản");
+    }
+  }
+
+  private PolicyPackVersion copy(
+      PolicyVersionStatus newStatus,
+      LocalDate newEffectiveFrom,
+      String newContentHash,
+      boolean newSigned,
+      UUID newApprovedBy,
+      Instant newApprovedAt,
+      Instant newSignedAt,
+      UUID newUpdatedBy,
+      Instant newUpdatedAt,
+      long newRowVersion) {
+    return new PolicyPackVersion(
+        id,
+        packId,
+        version,
+        newStatus,
+        newEffectiveFrom,
+        manifestJson,
+        newContentHash,
+        goldenPassRate,
+        lastTestRunId,
+        newSigned,
+        newApprovedBy,
+        newApprovedAt,
+        newSignedAt,
+        publishedAt,
+        sourceVersionId,
+        changeNote,
+        createdAt,
+        createdBy,
+        newUpdatedAt,
+        newUpdatedBy,
+        newRowVersion);
+  }
 }

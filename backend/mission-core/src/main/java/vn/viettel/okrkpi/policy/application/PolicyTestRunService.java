@@ -627,6 +627,15 @@ public class PolicyTestRunService {
     }
     boolean ok = finished.result() == TestRunResult.DAT;
     PolicyPackVersion moved = v.testOutcome(ok, finished.passRate(), finished.id(), actor, now);
+    if (ok) {
+      moved =
+          moved.withContentHash(
+              PolicyContentHash.of(
+                  json,
+                  v.manifestJson(),
+                  packs.rules(tenant, v.id()),
+                  packs.decisionTables(tenant, v.id())));
+    }
     if (!packs.storeTestOutcome(tenant, moved, v.rowVersion())) {
       throw new VersionConflictException("POLICY", v.rowVersion(), null);
     }
