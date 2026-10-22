@@ -50,15 +50,40 @@ public class UserSyncConfiguration {
   }
 
   @Bean
+  UnitSyncService unitSyncService(Directory directory) {
+    return new UnitSyncService(directory);
+  }
+
+  @Bean
+  UnitListener unitListener(UnitSyncService service, MeterRegistry meters, Clock clock) {
+    return new UnitListener(service, meters, clock);
+  }
+
+  @Bean
   ConcurrentKafkaListenerContainerFactory<String, byte[]> userSyncListenerFactory(
       ConsumerFactory<String, byte[]> consumers, KafkaTemplate<String, byte[]> template, MeterRegistry meters,
       @Value("${mission.user-sync.retry.initial:500ms}") Duration initial,
       @Value("${mission.user-sync.retry.max-elapsed:20s}") Duration maxElapsed) {
-    Counter dlq = Counter.builder("iam_user_sync_dlq_total").description("Thông điệp EVT-16 vào thư chết")
-        .register(meters);
+    return factory(consumers, template, meters, PersonListener.CONSUMER, "iam_user_sync_dlq_total", initial,
+        maxElapsed);
+  }
+
+  @Bean
+  ConcurrentKafkaListenerContainerFactory<String, byte[]> unitSyncListenerFactory(
+      ConsumerFactory<String, byte[]> consumers, KafkaTemplate<String, byte[]> template, MeterRegistry meters,
+      @Value("${mission.user-sync.retry.initial:500ms}") Duration initial,
+      @Value("${mission.user-sync.retry.max-elapsed:20s}") Duration maxElapsed) {
+    return factory(consumers, template, meters, UnitListener.CONSUMER, "iam_unit_sync_dlq_total", initial,
+        maxElapsed);
+  }
+
+  private static ConcurrentKafkaListenerContainerFactory<String, byte[]> factory(
+      ConsumerFactory<String, byte[]> consumers, KafkaTemplate<String, byte[]> template, MeterRegistry meters,
+      String consumer, String dlqMetric, Duration initial, Duration maxElapsed) {
+    Counter dlq = Counter.builder(dlqMetric).description("Thông điệp vào thư chết").register(meters);
     DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(template, (record, ex) -> {
       dlq.increment();
-      return new TopicPartition(record.topic() + ".dlq." + PersonListener.CONSUMER, -1);
+      return new TopicPartition(record.topic() + ".dlq." + consumer, -1);
     });
     ExponentialBackOff backOff = new ExponentialBackOff(initial.toMillis(), 2.0);
     backOff.setMaxInterval(Duration.ofSeconds(10).toMillis());

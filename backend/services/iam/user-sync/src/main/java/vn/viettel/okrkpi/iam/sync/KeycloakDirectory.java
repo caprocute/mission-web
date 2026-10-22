@@ -33,6 +33,8 @@ public class KeycloakDirectory implements Directory {
   private static final ParameterizedTypeReference<Map<String, Object>> MAP = new ParameterizedTypeReference<>() {
   };
 
+  private static final int PAGE = 100;
+
   private final RestClient http;
   private final KeycloakProperties props;
   private final CircuitBreaker breaker;
@@ -72,6 +74,26 @@ public class KeycloakDirectory implements Directory {
   public void updateUser(UUID id, Map<String, Object> user) {
     call(() -> admin().put().uri("/users/{id}", id).contentType(MediaType.APPLICATION_JSON).body(user).retrieve()
         .toBodilessEntity());
+  }
+
+  @Override
+  public List<Map<String, Object>> findUsersByAttribute(String name, String value) {
+    return call(() -> {
+      List<Map<String, Object>> out = new java.util.ArrayList<>();
+      for (int first = 0; ; first += PAGE) {
+        int from = first;
+        List<Map<String, Object>> page = admin().get().uri(u -> u.path("/users").queryParam("q", name + ":" + value)
+            .queryParam("exact", true).queryParam("briefRepresentation", false).queryParam("first", from)
+            .queryParam("max", PAGE).build()).retrieve().body(LIST);
+        if (page == null || page.isEmpty()) {
+          return out;
+        }
+        out.addAll(page);
+        if (page.size() < PAGE) {
+          return out;
+        }
+      }
+    });
   }
 
   @Override

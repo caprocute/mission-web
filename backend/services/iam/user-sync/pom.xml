@@ -107,6 +107,7 @@
                   <element>CLASS</element>
                   <includes>
                     <include>vn.viettel.okrkpi.iam.sync.PersonSyncService</include>
+                    <include>vn.viettel.okrkpi.iam.sync.UnitSyncService</include>
                   </includes>
                   <limits>
                     <limit>

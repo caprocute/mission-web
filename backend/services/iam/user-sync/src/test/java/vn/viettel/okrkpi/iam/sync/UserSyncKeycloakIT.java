@@ -153,6 +153,31 @@ class UserSyncKeycloakIT {
 
   @Test
   @Order(3)
+  void donViHetHieuLucThiGoNguCanhVaDangXuat() throws Exception {
+    UUID p = UUID.randomUUID();
+    UUID unit = UUID.randomUUID();
+    send(p, "Vũ Giang", "DANG_CONG_TAC", 1);
+    awaitUser(p, n -> true);
+    ObjectNode rep = (ObjectNode) JSON.readTree(adminApi("GET", "/users/" + p, null).body());
+    rep.put("email", p + "@kiem-thu.invalid").put("emailVerified", true);
+    ((ObjectNode) rep.get("attributes")).putArray("mission_context_unit").add(unit.toString());
+    assertThat(adminApi("PUT", "/users/" + p, rep).statusCode()).isEqualTo(204);
+    ObjectNode cred = JSON.createObjectNode().put("type", "password").put("value", USER_PASSWORD).put("temporary", false);
+    assertThat(adminApi("PUT", "/users/" + p + "/reset-password", cred).statusCode()).isEqualTo(204);
+    HttpResponse<String> login = token("grant_type=password&client_id=kiem-thu-cli&username=" + p + "&password="
+        + URLEncoder.encode(USER_PASSWORD, StandardCharsets.UTF_8), REALM);
+    assertThat(login.statusCode()).as(login.body()).isEqualTo(200);
+    String refresh = JSON.readTree(login.body()).get("refresh_token").asText();
+
+    sendUnit(unit, java.time.LocalDate.now().plusDays(30));
+    sendUnit(unit, java.time.LocalDate.now().minusDays(1));
+    awaitUser(p, n -> n.path("attributes").path("mission_context_unit").isMissingNode());
+    HttpResponse<String> r = token("grant_type=refresh_token&client_id=kiem-thu-cli&refresh_token=" + refresh, REALM);
+    assertThat(r.statusCode()).isEqualTo(400);
+  }
+
+  @Test
+  @Order(4)
   void doTreDongBoToiDaKhongQuaNamGiay() throws Exception {
     List<UUID> people = new ArrayList<>();
     for (int i = 0; i < 50; i++) {
@@ -169,7 +194,7 @@ class UserSyncKeycloakIT {
   }
 
   @Test
-  @Order(4)
+  @Order(5)
   void keycloakNgungThiThuLaiRoiVaoThuChet() throws Exception {
     UUID p = UUID.randomUUID();
     var docker = KEYCLOAK.getDockerClient();
@@ -222,6 +247,22 @@ class UserSyncKeycloakIT {
     rec.headers().add("tenantid", TENANT.toString().getBytes(StandardCharsets.UTF_8));
     rec.headers().add("id", UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8));
     rec.headers().add("occurredat", Instant.now().toString().getBytes(StandardCharsets.UTF_8));
+    producer.send(rec).get();
+  }
+
+  private static void sendUnit(UUID unit, java.time.LocalDate validTo) throws Exception {
+    vn.vtokr.org.v1.DonViDaThayDoi e = vn.vtokr.org.v1.DonViDaThayDoi.newBuilder().setUnitId(unit)
+        .setVersionId(UUID.randomUUID()).setSourceVersion(1).setCode("DV-KT").setName("Đơn vị kiểm thử")
+        .setShortName(null).setUnitType("CO_QUAN").setSubjectGroupId(null).setIsCollectiveSubject(true)
+        .setFlows(List.of("NHA_NUOC")).setLevel("TINH").setValidFrom(java.time.LocalDate.of(2026, 1, 1))
+        .setValidTo(validTo).setChangeOrderId(null).setAggregateVersion(1).setPartyParentId(null)
+        .setAdminParentId(null).build();
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    BinaryEncoder enc = EncoderFactory.get().binaryEncoder(out, null);
+    new SpecificDatumWriter<>(vn.vtokr.org.v1.DonViDaThayDoi.class).write(e, enc);
+    enc.flush();
+    var rec = new ProducerRecord<>(EventTopics.EVT_14_DON_VI_DA_THAY_DOI, TENANT + ":" + unit, out.toByteArray());
+    rec.headers().add("tenantid", TENANT.toString().getBytes(StandardCharsets.UTF_8));
     producer.send(rec).get();
   }
 

@@ -106,6 +106,12 @@ class PersonSyncServiceTest {
     }
 
     @Override
+    public List<Map<String, Object>> findUsersByAttribute(String name, String value) {
+      return users.values().stream().filter(u -> u.get("attributes") instanceof Map<?, ?> a
+          && List.of(value).equals(a.get(name))).map(u -> (Map<String, Object>) new LinkedHashMap<>(u)).toList();
+    }
+
+    @Override
     public void logout(UUID id) {
       logouts.add(id);
     }

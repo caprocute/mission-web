@@ -1,5 +1,6 @@
 package vn.viettel.okrkpi.iam.sync;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -13,6 +14,9 @@ public interface Directory {
   void createUser(Map<String, Object> user);
 
   void updateUser(UUID id, Map<String, Object> user);
+
+  /** Người dùng có thuộc tính {@code name} bằng {@code value} (đủ biểu diễn, mọi trang). */
+  List<Map<String, Object>> findUsersByAttribute(String name, String value);
 
   /** Đăng xuất mọi phiên và refresh token. */
   void logout(UUID id);
