@@ -17,6 +17,7 @@ import org.springframework.core.ResolvableType;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -49,6 +50,7 @@ public class IdempotencyInterceptor implements MethodInterceptor {
   private final Supplier<ObjectMapper> mapper;
   private final Supplier<IdempotencyCallerResolver> callers;
   private final String defaultSchema;
+  private final Supplier<IdempotencyTargets> targets;
 
   public IdempotencyInterceptor(
       Supplier<IdempotencyStore> store,
@@ -56,6 +58,21 @@ public class IdempotencyInterceptor implements MethodInterceptor {
       Supplier<ObjectMapper> mapper,
       Supplier<IdempotencyCallerResolver> callers,
       String defaultSchema) {
+    this(store, transactions, mapper, callers, defaultSchema, () -> null);
+  }
+
+  /**
+   * @param targets đích theo schema ({@link IdempotencyTargets}); trả {@code null} khi service chỉ
+   *     có một DataSource
+   */
+  public IdempotencyInterceptor(
+      Supplier<IdempotencyStore> store,
+      Supplier<TransactionTemplate> transactions,
+      Supplier<ObjectMapper> mapper,
+      Supplier<IdempotencyCallerResolver> callers,
+      String defaultSchema,
+      Supplier<IdempotencyTargets> targets) {
+    this.targets = Objects.requireNonNull(targets, "targets");
     this.store = Objects.requireNonNull(store, "store");
     this.transactions = Objects.requireNonNull(transactions, "transactions");
     this.mapper = Objects.requireNonNull(mapper, "mapper");
@@ -101,29 +118,43 @@ public class IdempotencyInterceptor implements MethodInterceptor {
         new RequestHasher(mapper.get())
             .hash(request.getMethod(), pathAndQuery(request), body(specific, invocation));
 
+    IdempotencyTargets.Target route = route(scope.schema());
+    IdempotencyStore keys = route == null ? store.get() : route.store();
+    TransactionTemplate transaction =
+        route == null ? transactions.get() : template(route.transactionManager());
     Holder holder = new Holder();
     try {
-      return transactions
-          .get()
-          .execute(
-              tx -> {
-                BeginResult begin = store.get().begin(scope, key, hash);
-                return switch (begin) {
-                  case BeginResult.Replay replay -> replay(replay.record(), specific, target);
-                  case BeginResult.Mismatch m -> throw new IdempotencyExceptions.Mismatch();
-                  case BeginResult.InProgress p ->
-                      throw new IdempotencyExceptions.InProgress(RETRY_AFTER_SECONDS);
-                  case BeginResult.Started started ->
-                      proceed(invocation, started, annotation, specific, holder);
-                };
-              });
+      return transaction.execute(
+          tx -> {
+            BeginResult begin = keys.begin(scope, key, hash);
+            return switch (begin) {
+              case BeginResult.Replay replay -> replay(replay.record(), specific, target);
+              case BeginResult.Mismatch m -> throw new IdempotencyExceptions.Mismatch();
+              case BeginResult.InProgress p ->
+                  throw new IdempotencyExceptions.InProgress(RETRY_AFTER_SECONDS);
+              case BeginResult.Started started ->
+                  proceed(invocation, keys, started, annotation, specific, holder);
+            };
+          });
     } catch (CheckedFailure e) {
       throw holder.failure;
     }
   }
 
+  private IdempotencyTargets.Target route(String schema) {
+    IdempotencyTargets resolver = targets.get();
+    return resolver == null ? null : resolver.forSchema(schema).orElse(null);
+  }
+
+  private static TransactionTemplate template(PlatformTransactionManager manager) {
+    TransactionTemplate tx = new TransactionTemplate(manager);
+    tx.setTimeout(IdempotencyAutoConfiguration.TX_TIMEOUT_SECONDS);
+    return tx;
+  }
+
   private Object proceed(
       MethodInvocation invocation,
+      IdempotencyStore keys,
       BeginResult.Started started,
       Idempotent annotation,
       Method method,
@@ -140,10 +171,10 @@ public class IdempotencyInterceptor implements MethodInterceptor {
     }
     int status = status(result, method);
     if (status < 200 || status > 299) {
-      store.get().abandon(started);
+      keys.abandon(started);
       return result;
     }
-    store.get().complete(started, status, body(result, annotation), location(result));
+    keys.complete(started, status, body(result, annotation), location(result));
     return result;
   }
 
