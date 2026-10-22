@@ -434,6 +434,15 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 5. TL-03 không quy định chính sách RLS riêng cho gói `origin = GOC_TOAN_CUC`. Migration áp RLS chuẩn theo tenant cho mọi bảng; gói gốc toàn cục được hiểu là bản sao đồng bộ vào từng tenant (suy luận), CORE-05 sẽ chốt cách đồng bộ.
 6. Khoá ngoại vòng `policy_pack_version.last_test_run_id` tới `test_run` được tạo sau cùng và đặt `DEFERRABLE INITIALLY DEFERRED` (suy luận). Tên khoá ngoại theo quy ước lint: `fk_policy_pack_version__pack` của TL-03 đổi thành `fk_policy_pack_version__policy_pack`. Cột `policy_rule.eval_order` giữ kiểu `smallint` của TL-03 và ghi lý do ở khoá `type_exception`.
 
+### Ghi chú và quyết định từ schema OKR (CORE-01-01, 22/10/2026)
+
+1. Ở mô hình pool, bảng theo kỳ còn chia tiếp HASH theo `tenant_id`, mà PostgreSQL bắt khoá duy nhất của bảng phân vùng phải chứa mọi cột khoá phân vùng. Vì vậy khoá chính của `objective`, `key_result`, `kr_checkin` và `objective_review` là (`period_bucket`, `tenant_id`, `id`) thay cho (`period_bucket`, `id`) của TL-03. Khoá ngoại tới các bảng này cũng có ba cột, và UQ của `objective_review` có thêm `tenant_id`. Các schema theo kỳ khác của mission-core nên theo cùng cách này.
+2. Migration không tạo sẵn phân vùng. Phân vùng của một kỳ được tạo bằng `okr.fn_create_period_partitions(bảng, period_bucket)` khi mở kỳ (suy luận: việc gọi hàm là của luồng tạo kỳ ở MOD-08). Kiểm thử đã chứng minh rằng truy vấn mục tiêu có điều kiện `period_bucket` chỉ chạm một phân vùng.
+3. `okr.okr_link` có `period_id` nhưng TL-03 không ghi `period_bucket`, nên bảng này không phân vùng, trái với câu "mọi bảng có `period_id` đều phân vùng" của TL-03. Lựa chọn này theo từ điển bảng.
+4. `kr_checkin` chỉ ghi thêm. Vai trò `svc_okr` mất quyền `UPDATE`, `DELETE`, `TRUNCATE` mặc định và chỉ được `UPDATE` theo cột `status`, `verified_by`, `verified_at` cùng ba cột kiểm toán `updated_at`, `updated_by`, `row_version`. Cột `status` được cấp thêm vì check-in phải chuyển từ `NHAP` sang `DA_GUI`. Trigger `tg_kr_checkin__immutable` chặn mọi thay đổi khác của check-in `DA_GUI`, kể cả việc quay về nháp.
+5. Tổng trọng số KR của một mục tiêu không vượt 1. Ràng buộc này dùng constraint trigger `tg_key_result__weight_sum` đặt `DEFERRABLE INITIALLY DEFERRED`, nên trong một giao dịch tổng được vượt tạm thời khi phân bổ lại, miễn đến lúc commit tổng không vượt 1 (cách hiện thực là suy luận).
+6. Cả `objective.progress` và `objective.progress_pct` đều được tạo như TL-03, trong đó `progress_pct` là cột trả qua API. Bảng `okr.period_state` có trong danh mục sở hữu MOD-01 nhưng không có từ điển dữ liệu, nên chưa được tạo. `objective_review` chỉ ghi thêm theo cùng hai lớp như `config.period_status_log`. Giá trị `checkin_frequency` lấy theo hợp đồng (`TUAN`, `HAI_TUAN`, `THANG`), vì TL-03 không liệt kê.
+
 ## Liên quan
 
 - [README của wiki](README.md)
