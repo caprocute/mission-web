@@ -34,8 +34,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -74,6 +74,7 @@ import vn.viettel.okrkpi.task.infrastructure.web.TaskCaller;
     classes = MissionCoreApplication.class,
     properties = "mission.outbox.relay.enabled=false")
 @AutoConfigureMockMvc(addFilters = false)
+@Import(ApiTenantLeakIT.Callers.class)
 @DirtiesContext
 class ApiTenantLeakIT {
 
@@ -122,7 +123,10 @@ class ApiTenantLeakIT {
     return USERS.get(TenantContext.require());
   }
 
-  @TestConfiguration
+  /**
+   * Không gắn {@code @TestConfiguration}: quét thành phần của {@code MissionCoreApplication} nhặt
+   * cả lớp cấu hình lồng của kiểm thử khác, và bean {@code @Primary} ở đây sẽ đè caller của chúng.
+   */
   static class Callers {
 
     @Bean

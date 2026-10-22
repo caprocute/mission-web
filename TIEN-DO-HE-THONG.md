@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **175 / 401 task (43.6%)** — Khối lượng quy đổi đã gộp: **207 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **176 / 401 task (43.9%)** (gồm **175** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **7 task** (4 đang làm, 3 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **177 / 401 task (44.1%)** (gồm **175** đã gộp `main` + **2** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
 - **Chưa bắt đầu**: **218 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **14 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-04`** (đang xử lý trên nhánh: không).
 
@@ -23,7 +23,7 @@
 | Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
-| **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 1 | 0 | **97.0%** |
+| **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 1 | 0 | 0 | **97.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **34** | 0 | 0 | 78 | **30.4%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **31** | 0 | 3 | 70 | **29.8%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 1 | 1 | 5 | **41.7%** |
@@ -32,13 +32,13 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **175** | **1** | **7** | **218** | **43.6%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **175** | **2** | **6** | **218** | **43.6%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
-| **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 0 | 2 | 8 | **83.1%** |
+| **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 1 | 1 | 8 | **83.1%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **32** | 0 | 1 | 13 | **69.6%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **31** | 0 | 3 | 83 | **26.5%** |
@@ -144,7 +144,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-064](docs/tasks/WEB-064-sinh-kieu-tu-hop-dong.md) | Sinh kiểu frontend từ bộ hợp đồng `contracts/openapi/`, kiểm model viết tay với hợp đồng (luồng Nền tảng) | M | W-Nền tảng | – | WEB-007, WEB-063 | **Đã gộp main** | Đã gộp `main` (sinh kiểu frontend từ `contracts/openapi/`, `npm run api:check`) |
 | [WEB-065](docs/tasks/WEB-065-doi-chieu-ke-hoach-hop-dong.md) | Đối chiếu client kế hoạch (SCR-0402, SCR-0403) với hợp đồng OpenAPI (luồng màn hình nghiệp vụ) | M | W-Nghiệp vụ | – | WEB-026, WEB-027, WEB-064 | **Đã gộp main** | Đã gộp `main` (đối chiếu client kế hoạch SCR-0402, SCR-0403 với hợp đồng OpenAPI) |
 
-### NEN · Nền móng hệ thống: repo, quy định, wiki, khung mã, thư viện nền, nền CSDL (32/33 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### NEN · Nền móng hệ thống: repo, quy định, wiki, khung mã, thư viện nền, nền CSDL (32/33 đã gộp `main`, 1 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -173,7 +173,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [NEN-032](docs/tasks/NEN-032-bang-dung-chung-mau.md) | Bảng dùng chung mẫu: `outbox_event` phân vùng, `inbox_processed`, `inbox_aggregate_version`, `idempotency_key`, schema `modulith`, `keyring.dek` | M | B1 | 5 | NEN-030, NEN-031 | **Đã gộp main** | Đã gộp `main` (bảng dùng chung mẫu: `outbox_event`, `inbox_processed`, `idempotency_key`, `keyring.dek`) |
 | [NEN-033](docs/tasks/NEN-033-rls-phan-vung-pgbouncer.md) | Mẫu RLS chuẩn, hàm `fn_create_period_partitions`, cấu hình PgBouncer chế độ giao dịch | L | B1 | 5 | NEN-031 | **Đã gộp main** | Đã gộp `main` (mẫu RLS chuẩn, hàm `fn_create_period_partitions`, cấu hình PgBouncer transaction pooling) |
 | [NEN-034](docs/tasks/NEN-034-ro-ri-tenant-csdl.md) | Kiểm thử rò rỉ tenant lớp CSDL: RLS giữa hai tenant, PgBouncer dùng lại kết nối, phân vùng | M | B1 | 7 | NEN-033, NEN-010 | **Đã gộp main** | Đã gộp `main` (commit `9e4b6fc`, gộp tại `275bb0f` – kiểm thử chống rò rỉ tenant lớp CSDL, RLS, PgBouncer, Semgrep) |
-| [NEN-035](docs/tasks/NEN-035-ro-ri-tenant-api-cache.md) | Kiểm thử rò rỉ tenant lớp API, bộ đệm Valkey, chỉ mục tìm kiếm và kho phân tích | M | B9 | 11 | NEN-034, CORE-00-02 | **Đang làm** | Nhánh claude/project-thread-z7s8x3: đang thực hiện |
+| [NEN-035](docs/tasks/NEN-035-ro-ri-tenant-api-cache.md) | Kiểm thử rò rỉ tenant lớp API, bộ đệm Valkey, chỉ mục tìm kiếm và kho phân tích | M | B9 | 11 | NEN-034, CORE-00-02 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: TenantCacheKey/TenantCache Valkey, ArchUnit cấm client Valkey trực tiếp, kiểm rò rỉ OpenSearch/ClickHouse/API; IT mission-core 489 xanh |
 | [NEN-036](docs/tasks/NEN-036-dinh-tuyen-csdl-tenant.md) | Định tuyến tới đúng CSDL theo mô hình silo, bridge, pool (`registry.tenant_cell`, mã 421) | M | B1 | 9 | NEN-033, DV-03-02, NEN-012 | **Đã gộp main** | Đã gộp main: định tuyến CSDL theo khách thuê (POOL/BRIDGE/SILO) và bộ lọc cell (ADR-07) |
 | [NEN-040](docs/tasks/NEN-040-goi-chinh-sach-opa.md) | Gói chính sách OPA (Rego) sinh từ `docs/phan-quyen/ma-tran.json`: RBAC, ABAC theo cây tổ chức, luồng, mức dữ liệu, tách vai trò, bốn mắt; kiểm thử `opa test` | L | B1 | 2 | NEN-001 | **Đã gộp main** | Đã gộp `main` (commit `653ce97` – gói chính sách OPA Rego sinh từ `ma-tran.json` và bộ kiểm thử `opa test`) |
 | [NEN-041](docs/tasks/NEN-041-thu-vien-cel-dung-chung.md) | Thư viện CEL dùng chung `vt-cel` (cel-java): môi trường, hàm mở rộng `sum`, `ngay_lam_viec`, `min_muc`, bộ ca kiểm thử chung với cel-js | L | B2 | 3 | NEN-005 | **Đã gộp main** | Đã gộp `main` (commit `e22cb71` – thư viện CEL dùng chung `vt-cel` và bộ ca kiểm thử đối chiếu `cel-js`) |
@@ -834,4 +834,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 14:28 | Điều phối | `CORE-02-13` | Chuyển trạng thái sang **Đã gộp main** — Gộp main (cherry-pick 0c363cd); máy trạng thái nhiệm vụ, task_state_log, EVT-06 |
 | 22/10/2026 14:37 | B9 | `NEN-035` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-z7s8x3: đang thực hiện |
 | 22/10/2026 15:44 | B9 | `DL-08` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: bộ sinh/nạp/kiểm infra/perf/datagen, 14 pytest xanh, pip-audit sạch; chưa sinh hồ sơ đánh giá (chờ CORE-04-01) và Flowable (DL-08b) |
+| 22/10/2026 16:01 | B9 | `NEN-035` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: TenantCacheKey/TenantCache Valkey, ArchUnit cấm client Valkey trực tiếp, kiểm rò rỉ OpenSearch/ClickHouse/API; IT mission-core 489 xanh |
 <!-- PROGRESS_LOG_END -->
