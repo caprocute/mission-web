@@ -1,0 +1,17 @@
+# Chart rgw-cell (INF-12) trên kind: RGW là hai container quay.io/ceph/demo (zone hl, sn) trong mạng docker "kind",
+# HTTP không TLS, khoá S3 do kiem-thu-kho-doi-tuong.sh nạp thẳng thành Secret (không có OpenBao/ESO), không có
+# Prometheus Operator. Thêm một tài khoản theo tenant để kiểm chính sách tiền tố t/<tenant>/.
+cell: kind
+endpoint: http://172.18.0.50:8080
+job:
+  image: { repository: mirror.gcr.io/amazon/aws-cli }
+  caBundle: null
+  mang: false
+externalSecrets: { enabled: false }
+canhBao: { enabled: false }
+nguoiDung:
+  evidence-tenant-a:
+    namespace: ""
+    tenant: tenant-a
+    quyen:
+      evidence: [doc, ghi, liet-ke]

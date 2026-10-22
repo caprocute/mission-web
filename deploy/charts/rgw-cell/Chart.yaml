@@ -1,0 +1,8 @@
+apiVersion: v2
+name: rgw-cell
+description: >-
+  Kho đối tượng Ceph RGW của một cell dạng mã (INF-12, ADR-13, TL-03 "Kho đối tượng Ceph", TL-04 mục 8.4): bucket
+  theo vòng đời, Object Lock COMPLIANCE, chính sách bucket theo tiền tố tenant, vòng đời và chuyển lớp lưu trữ,
+  người dùng S3 tách quyền, cảnh báo đồng bộ multisite. Realm, zone và người dùng tạo bằng scripts/khoi-tao-multisite.sh.
+type: application
+version: 0.1.0
