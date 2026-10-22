@@ -192,10 +192,12 @@ sources:
       - EVT-09
       - EVT-23
       - EVT-26
+      - EVT-27
     topics:
       - config.period.locked.v1
       - config.uipack.published.v1
       - config.period.unlocked.v1
+      - config.access.changed.v1
 
   - schema: scoring
     outboxTable: scoring.outbox_event
