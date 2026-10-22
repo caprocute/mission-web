@@ -1,5 +1,6 @@
 package vn.viettel.okrkpi.product.application.evidence.port;
 
+import java.util.List;
 import java.util.UUID;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
@@ -25,6 +26,19 @@ public interface EvidenceEvents {
   void reviewRequested(
       TenantId tenantId,
       UUID reviewerId,
+      String taskCode,
+      UUID evidenceId,
+      int versionNo,
+      UUID actorId,
+      long aggregateVersion);
+
+  /**
+   * EVT-21 mức ưu tiên cao: tệp của phiên bản không còn khớp bản ghi của SVC-08 khi mở nghiệm thu
+   * (MSG-07-13). Ghi trong giao dịch riêng của lần mở bị chặn, không quay lui theo lỗi trả về.
+   */
+  void integrityFailed(
+      TenantId tenantId,
+      List<UUID> recipientIds,
       String taskCode,
       UUID evidenceId,
       int versionNo,
