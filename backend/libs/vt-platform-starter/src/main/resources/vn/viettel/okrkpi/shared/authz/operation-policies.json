@@ -1,7 +1,7 @@
 {
   "description": "Bảng chính sách thao tác trích từ mở rộng x-mission trong contracts/openapi/modules/*.yaml (NEN-014). Không sửa tay: chạy tools/extract-x-mission.mjs.",
   "source": "contracts/openapi/modules/*.yaml",
-  "count": 459,
+  "count": 463,
   "aal2Count": 74,
   "fourEyesCount": 19,
   "operations": [
@@ -1352,6 +1352,28 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02b SCR-1602 (tạo mới là suy luận; TL-02 chỉ ghi PUT)"
+    },
+    {
+      "operationId": "createDashboardDef",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "POST",
+      "path": "/config/dashboard-defs",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-16"
+      ],
+      "scr": [
+        "SCR-1602"
+      ],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "N",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-02b SCR-1602 bảng trường; TL-03 `config.dashboard_def`; cổng dịch vụ đề xuất CORE-08-17"
     },
     {
       "operationId": "createDelegation",
@@ -3438,6 +3460,28 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-01 PL C Dịch vụ nền (`GET /analytics/dashboards/{id}?period=&unit=`); TL-02b SCR-1602"
+    },
+    {
+      "operationId": "getDashboardDef",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "GET",
+      "path": "/config/dashboard-defs/{id}",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-16"
+      ],
+      "scr": [
+        "SCR-1602"
+      ],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "N",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-03 `config.dashboard_def`; cổng dịch vụ đề xuất CORE-08-17"
     },
     {
       "operationId": "getDecisionTable",
@@ -5872,6 +5916,28 @@
       "aal": 1,
       "fourEyes": false,
       "source": "BS-03 ADR-33; TL-03 bổ sung `policy.customer_profile_version` (suy luận đường dẫn)"
+    },
+    {
+      "operationId": "listDashboardDefs",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "GET",
+      "path": "/config/dashboard-defs",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-16"
+      ],
+      "scr": [
+        "SCR-1602"
+      ],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "N",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-03 \"Bảng config.dashboard_def (bổ sung)\"; TL-02b QT-16 bước 6, 7; cổng dịch vụ đề xuất CORE-08-17"
     },
     {
       "operationId": "listDashboards",
@@ -8473,6 +8539,28 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02b SCR-1601 \"Nhắc\""
+    },
+    {
+      "operationId": "replaceDashboardDef",
+      "file": "config.yaml",
+      "module": "config",
+      "errorModule": "CONFIG",
+      "method": "PUT",
+      "path": "/config/dashboard-defs/{id}",
+      "owner": "MOD-08",
+      "qt": [
+        "QT-16"
+      ],
+      "scr": [
+        "SCR-1602"
+      ],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "N",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-02b SCR-1602 \"Lưu dashboard\", \"Chia sẻ\"; cổng dịch vụ đề xuất CORE-08-17"
     },
     {
       "operationId": "replaceOkrKrMilestones",
