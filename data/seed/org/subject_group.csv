@@ -1,10 +1,10 @@
 code,name,flow,description,valid_from,valid_to,nguon,ghi_chu
-K1,,,,,,"TL-03 bảng org.subject_group (mã K1..K9 theo PL 2A); baseline mục 9 schema org",chờ PL 2A dự thảo Quy định mới: chưa có tên khối và luồng áp dụng
-K2,,,,,,"TL-03 bảng org.subject_group (mã K1..K9 theo PL 2A); baseline mục 9 schema org",chờ PL 2A dự thảo Quy định mới: chưa có tên khối và luồng áp dụng
-K3,,,,,,"TL-03 bảng org.subject_group (mã K1..K9 theo PL 2A); baseline mục 9 schema org",chờ PL 2A dự thảo Quy định mới: chưa có tên khối và luồng áp dụng
-K4,,,,,,"TL-03 bảng org.subject_group (mã K1..K9 theo PL 2A); baseline mục 9 schema org",chờ PL 2A dự thảo Quy định mới: chưa có tên khối và luồng áp dụng
-K5,,,,,,"TL-03 bảng org.subject_group (mã K1..K9 theo PL 2A); baseline mục 9 schema org",chờ PL 2A dự thảo Quy định mới: chưa có tên khối và luồng áp dụng
-K6,,,,,,"TL-03 bảng org.subject_group (mã K1..K9 theo PL 2A); baseline mục 9 schema org",chờ PL 2A dự thảo Quy định mới: chưa có tên khối và luồng áp dụng
-K7,,,,,,"TL-03 bảng org.subject_group (mã K1..K9 theo PL 2A); baseline mục 9 schema org",chờ PL 2A dự thảo Quy định mới: chưa có tên khối và luồng áp dụng
-K8,,,,,,"TL-03 bảng org.subject_group (mã K1..K9 theo PL 2A); baseline mục 9 schema org",chờ PL 2A dự thảo Quy định mới: chưa có tên khối và luồng áp dụng
-K9,,,,,,"TL-03 bảng org.subject_group (mã K1..K9 theo PL 2A); baseline mục 9 schema org",chờ PL 2A dự thảo Quy định mới: chưa có tên khối và luồng áp dụng
+K1,Cơ quan Đảng ở Trung ương,DANG,"Ban, cơ quan của Đảng ở Trung ương và đơn vị sự nghiệp trực thuộc",2026-01-01,,"Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2A",giả lập
+K2,"Cấp ủy, cơ quan Đảng cấp tỉnh",DANG,"Tỉnh ủy, thành ủy, đảng ủy trực thuộc Trung ương và các ban, cơ quan tham mưu",2026-01-01,,"Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2A",giả lập
+K3,"Cấp ủy, tổ chức đảng cấp cơ sở",DANG,"Đảng ủy cấp xã, đảng bộ, chi bộ cơ sở",2026-01-01,,"Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2A",giả lập
+K4,Mặt trận Tổ quốc và các tổ chức chính trị - xã hội,CA_HAI,"Mặt trận Tổ quốc, đoàn thể chính trị - xã hội các cấp",2026-01-01,,"Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2A",giả lập
+K5,"Bộ, cơ quan ngang bộ, cơ quan thuộc Chính phủ",NHA_NUOC,"Cơ quan hành chính nhà nước ở Trung ương",2026-01-01,,"Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2A",giả lập
+K6,Chính quyền địa phương cấp tỉnh,NHA_NUOC,"Hội đồng nhân dân, Ủy ban nhân dân cấp tỉnh và các sở, ngành",2026-01-01,,"Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2A",giả lập
+K7,Chính quyền địa phương cấp xã,NHA_NUOC,"Hội đồng nhân dân, Ủy ban nhân dân cấp xã",2026-01-01,,"Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2A",giả lập
+K8,Đơn vị sự nghiệp công lập,NHA_NUOC,"Đơn vị sự nghiệp công lập trực thuộc cơ quan nhà nước",2026-01-01,,"Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2A",giả lập
+K9,Doanh nghiệp nhà nước,CA_HAI,"Tập đoàn, tổng công ty và doanh nghiệp do Nhà nước nắm giữ vốn",2026-01-01,,"Giả lập theo quyết định của người dùng ngày 22/10/2026 (YC-PT-14); thay khi có PL 2A",giả lập
