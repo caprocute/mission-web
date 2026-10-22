@@ -2,9 +2,6 @@ package vn.viettel.okrkpi.appraisal.infrastructure.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HexFormat;
@@ -13,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
@@ -28,35 +25,25 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import vn.viettel.okrkpi.appraisal.application.review.ReviewParticipants;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.SelfAssessmentService;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.SelfAssessmentService.View;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.SelfAssessmentSubmission;
-import vn.viettel.okrkpi.appraisal.application.selfassessment.port.SelfAssessmentRepository.CriteriaRow;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.port.SelfAssessmentRepository.ProfileSummary;
-import vn.viettel.okrkpi.appraisal.application.selfassessment.port.SelfAssessmentRepository.StoredSelfAssessment;
-import vn.viettel.okrkpi.appraisal.application.selfassessment.port.SelfAssessmentRepository.TrailRow;
 import vn.viettel.okrkpi.appraisal.domain.profile.RatingLevel;
 import vn.viettel.okrkpi.appraisal.domain.selfassessment.SelfAssessmentForm;
 import vn.viettel.okrkpi.config.api.PeriodApi;
-import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.contract.appraisals.model.AppraisalPeriodKind;
 import vn.viettel.okrkpi.contract.appraisals.model.AppraisalProfile;
 import vn.viettel.okrkpi.contract.appraisals.model.AppraisalProfilePage;
 import vn.viettel.okrkpi.contract.appraisals.model.AppraisalProfileRow;
 import vn.viettel.okrkpi.contract.appraisals.model.AppraisalProfileStatus;
 import vn.viettel.okrkpi.contract.appraisals.model.AppraisalRatingLevels;
-import vn.viettel.okrkpi.contract.appraisals.model.AppraisalRatingProposal;
-import vn.viettel.okrkpi.contract.appraisals.model.AppraisalSelfAssessment;
 import vn.viettel.okrkpi.contract.appraisals.model.AppraisalSelfAssessmentInput;
 import vn.viettel.okrkpi.contract.appraisals.model.AppraisalSignRequestInput;
 import vn.viettel.okrkpi.contract.appraisals.model.AppraisalTaskClaim;
 import vn.viettel.okrkpi.contract.appraisals.model.Flow;
-import vn.viettel.okrkpi.contract.appraisals.model.GeneralCriteriaItem;
-import vn.viettel.okrkpi.contract.appraisals.model.GeneralCriteriaLevel;
-import vn.viettel.okrkpi.contract.appraisals.model.GeneralCriteriaResult;
-import vn.viettel.okrkpi.contract.appraisals.model.GeneralCriteriaStage;
 import vn.viettel.okrkpi.contract.appraisals.model.PeriodRef;
-import vn.viettel.okrkpi.contract.appraisals.model.RatingLevelKind;
 import vn.viettel.okrkpi.contract.appraisals.model.Ref;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
 import vn.viettel.okrkpi.shared.authz.OpaInput;
@@ -67,7 +54,6 @@ import vn.viettel.okrkpi.shared.etag.ETags;
 import vn.viettel.okrkpi.shared.idempotency.Idempotent;
 import vn.viettel.okrkpi.shared.job.Job;
 import vn.viettel.okrkpi.shared.job.Jobs;
-import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
@@ -88,19 +74,24 @@ public class SelfAssessmentController {
   private final SelfAssessmentSubmission submission;
   private final ObjectProvider<AuthzSubjectResolver> subjects;
   private final ObjectProvider<PeriodApi> periods;
+  private final ObjectProvider<AppraisalReviewGuard> guards;
   private final ObjectMapper json;
+  private final AppraisalProfileMapper mapper;
 
   public SelfAssessmentController(
       SelfAssessmentService service,
       SelfAssessmentSubmission submission,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<PeriodApi> periods,
-      ObjectProvider<ObjectMapper> json) {
+      ObjectProvider<ObjectMapper> json,
+      ObjectProvider<AppraisalReviewGuard> guards) {
     this.service = Objects.requireNonNull(service, "service");
     this.submission = Objects.requireNonNull(submission, "submission");
     this.subjects = Objects.requireNonNull(subjects, "subjects");
     this.periods = Objects.requireNonNull(periods, "periods");
+    this.guards = Objects.requireNonNull(guards, "guards");
     this.json = json.getIfAvailable(ObjectMapper::new);
+    this.mapper = new AppraisalProfileMapper(this.json, periods);
   }
 
   @GetMapping("/mine")
@@ -128,7 +119,7 @@ public class SelfAssessmentController {
     Map<UUID, PeriodRef> refs = new LinkedHashMap<>();
     List<AppraisalProfileRow> items = new ArrayList<>();
     for (ProfileSummary p : page) {
-      PeriodRef ref = refs.computeIfAbsent(p.periodId(), id -> periodRef(tenant, id));
+      PeriodRef ref = refs.computeIfAbsent(p.periodId(), id -> mapper.periodRef(tenant, id));
       AppraisalRatingLevels levels = new AppraisalRatingLevels();
       AppraisalProfileRow row =
           new AppraisalProfileRow(
@@ -144,7 +135,7 @@ public class SelfAssessmentController {
       row.setIsHead(p.head());
       row.setNoSelfAssessment(p.noSelfAssessment());
       if (p.autoRating() != null) {
-        row.setAutoRatingCode(rating(p.autoRating()));
+        row.setAutoRatingCode(AppraisalProfileMapper.rating(p.autoRating()));
       }
       items.add(row);
     }
@@ -160,8 +151,15 @@ public class SelfAssessmentController {
       classification = "C2")
   public ResponseEntity<AppraisalProfile> getAppraisalProfile(@PathVariable("id") UUID id) {
     TenantId tenant = TenantContext.require();
-    View view = service.view(tenant, id, actor()).orElseThrow(SelfAssessmentController::notFound);
-    return ETags.ok(profile(tenant, view), view.profile().rowVersion());
+    View view =
+        service
+            .view(
+                tenant,
+                id,
+                actor(),
+                p -> AppraisalReviewGuard.canView(guards.getIfAvailable(), participants(tenant, p)))
+            .orElseThrow(SelfAssessmentController::notFound);
+    return ETags.ok(mapper.profile(tenant, view), view.profile().rowVersion());
   }
 
   @PutMapping("/{id}/self-assessment")
@@ -183,7 +181,7 @@ public class SelfAssessmentController {
     } catch (NoSuchElementException e) {
       throw notFound();
     }
-    return ETags.ok(profile(tenant, view), view.profile().rowVersion());
+    return ETags.ok(mapper.profile(tenant, view), view.profile().rowVersion());
   }
 
   @PostMapping("/{id}/submit")
@@ -224,97 +222,6 @@ public class SelfAssessmentController {
 
   // ---------------------------------------------------------------- ánh xạ
 
-  private AppraisalProfile profile(TenantId tenant, View view) {
-    ProfileSummary p = view.profile();
-    List<AppraisalRatingProposal> trail = new ArrayList<>();
-    for (TrailRow t : view.trail()) {
-      trail.add(
-          new AppraisalRatingProposal(
-              t.id(),
-              RatingLevelKind.fromValue(t.levelKind().name()),
-              rating(t.rating()),
-              new Ref(t.actorId(), ""),
-              AppraisalRatingProposal.ActorRoleEnum.fromValue(t.actorRole()),
-              t.current(),
-              time(t.proposedAt())));
-    }
-    AppraisalProfile dto =
-        new AppraisalProfile(
-            p.id(),
-            new Ref(p.personId(), ""),
-            new Ref(p.orgUnitId(), ""),
-            periodRef(tenant, p.periodId()),
-            AppraisalPeriodKind.QUY,
-            Flow.fromValue(p.flow()),
-            List.of(Flow.fromValue(p.flow())),
-            AppraisalProfileStatus.fromValue(p.status().name()),
-            trail,
-            (int) p.rowVersion());
-    dto.setIsHead(p.head());
-    dto.setIsLeadership(p.leadership());
-    dto.setCurrentSnapshotId(p.currentSnapshotId());
-    dto.setFinalRatingCode(p.finalRating() == null ? null : rating(p.finalRating()));
-    dto.setReturnCount(p.returnCount());
-    dto.setNoSelfAssessment(p.noSelfAssessment());
-    dto.setSubmittedAt(time(p.submittedAt()));
-    dto.setDecidedAt(time(p.decidedAt()));
-    dto.setLockedAt(time(p.lockedAt()));
-    if (p.appraiserId() != null) {
-      dto.setAppraiser(new Ref(p.appraiserId(), ""));
-    }
-    if (p.deciderId() != null) {
-      dto.setDecider(new Ref(p.deciderId(), ""));
-    }
-    dto.setGeneralCriteria(criteria(view.criteria()));
-    if (view.stored() != null) {
-      dto.setSelfAssessment(selfAssessment(view.stored(), view.form()));
-    }
-    return dto;
-  }
-
-  private static List<GeneralCriteriaResult> criteria(List<CriteriaRow> rows) {
-    Map<String, GeneralCriteriaResult> byStage = new LinkedHashMap<>();
-    for (CriteriaRow r : rows) {
-      GeneralCriteriaResult stage =
-          byStage.computeIfAbsent(
-              r.stage(),
-              s ->
-                  new GeneralCriteriaResult(
-                      GeneralCriteriaStage.fromValue(s),
-                      new ArrayList<>(),
-                      r.ratio(),
-                      GeneralCriteriaLevel.fromValue(r.level().name())));
-      stage.getItems().add(new GeneralCriteriaItem(r.code(), r.met()));
-    }
-    return new ArrayList<>(byStage.values());
-  }
-
-  private AppraisalSelfAssessment selfAssessment(StoredSelfAssessment s, SelfAssessmentForm f) {
-    AppraisalSelfAssessment dto = new AppraisalSelfAssessment(s.versionNo());
-    dto.setFormCode(s.formCode());
-    dto.setFormVersion(s.formVersion());
-    dto.setSelfRatingCode(f.selfRating() == null ? null : rating(f.selfRating()));
-    dto.setBreakthrough(f.breakthrough());
-    dto.setBreakthroughEvidenceIds(new ArrayList<>(f.breakthroughEvidenceIds()));
-    dto.setReason(f.reason());
-    dto.setContent(f.content());
-    dto.setStrengths(f.strengths());
-    dto.setWeaknesses(f.weaknesses());
-    dto.setRemedialPlan(f.remedialPlan());
-    List<AppraisalTaskClaim> claims = new ArrayList<>();
-    for (Map<String, Object> c : f.claims()) {
-      claims.add(json.convertValue(c, AppraisalTaskClaim.class));
-    }
-    dto.setClaims(claims);
-    if (s.contentHash() != null) {
-      dto.setContentHash(HexFormat.of().formatHex(s.contentHash()));
-    }
-    dto.setSavedAt(time(s.updatedAt()));
-    dto.setSubmittedAt(time(s.submittedAt()));
-    dto.setSignedAt(time(s.signedAt()));
-    return dto;
-  }
-
   private SelfAssessmentForm form(AppraisalSelfAssessmentInput in) {
     if (in == null) {
       return SelfAssessmentForm.empty();
@@ -351,21 +258,17 @@ public class SelfAssessmentController {
         claims);
   }
 
-  private PeriodRef periodRef(TenantId tenant, UUID periodId) {
-    PeriodApi api = periods.getIfAvailable();
-    Optional<PeriodSnapshot> snapshot =
-        api == null ? Optional.empty() : api.findById(tenant, PeriodId.of(periodId));
-    return snapshot
-        .map(s -> new PeriodRef(periodId, s.name(), s.startDate(), s.endDate()))
-        .orElseGet(() -> new PeriodRef(periodId, "", null, null));
-  }
-
-  private static vn.viettel.okrkpi.contract.appraisals.model.RatingLevel rating(RatingLevel r) {
-    return vn.viettel.okrkpi.contract.appraisals.model.RatingLevel.fromValue(r.name());
-  }
-
-  private static OffsetDateTime time(Instant at) {
-    return at == null ? null : at.atOffset(ZoneOffset.UTC);
+  /** Tài nguyên OPA của hồ sơ để kiểm quyền đọc theo phạm vi (không cần nhóm người nghiệm thu). */
+  private static ReviewParticipants participants(TenantId tenant, ProfileSummary p) {
+    return new ReviewParticipants(
+        tenant.value(),
+        p.id(),
+        p.orgUnitId(),
+        p.flow(),
+        p.personId(),
+        Set.of(),
+        p.appraiserId(),
+        p.deciderId());
   }
 
   private UUID actor() {

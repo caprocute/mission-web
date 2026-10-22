@@ -1,14 +1,23 @@
 package vn.viettel.okrkpi.appraisal.infrastructure.listener;
 
+import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.Objects;
+import java.util.Set;
+import vn.viettel.okrkpi.appraisal.application.decision.DecisionSigningService;
+import vn.viettel.okrkpi.appraisal.application.review.ReviewService;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.SelfAssessmentService;
 import vn.viettel.okrkpi.shared.inbox.InboxEnvelope;
 import vn.vtokr.esign.v1.KySoDaHoanTat;
+import vn.vtokr.esign.v1.SignedItem;
 
 /**
  * Consumer EVT-18 {@code esign.signature.completed.v1} cho phiếu tự đánh giá (CORE-04-04,
- * BR-09-15): chỉ nhận mục đích {@code TU_DANH_GIA} của nguồn {@code appraisal}. Được gọi qua {@code
- * InboxMessageProcessor} của schema appraisal nên khử trùng lặp và chuyển bước cùng một giao dịch.
+ * BR-09-15), kết luận thẩm định (CORE-04-05) và lô quyết định (CORE-04-08): nhận mục đích {@code
+ * TU_DANH_GIA}, {@code THAM_DINH}, {@code QUYET_DINH} (nguồn là mã lô) của nguồn {@code appraisal}.
+ * Được gọi qua {@code InboxMessageProcessor} của schema appraisal nên khử trùng lặp và chuyển bước
+ * cùng một giao dịch.
  */
 public class SelfAssessmentSignedListener {
 
@@ -18,16 +27,57 @@ public class SelfAssessmentSignedListener {
   static final String PURPOSE = "TU_DANH_GIA";
   static final String SOURCE_MODULE = "appraisal";
 
+  static final String APPRAISAL_PURPOSE = "THAM_DINH";
+  static final String DECISION_PURPOSE = "QUYET_DINH";
+
   private final SelfAssessmentService service;
+  private final ReviewService reviews;
+  private final DecisionSigningService decisions;
 
   public SelfAssessmentSignedListener(SelfAssessmentService service) {
+    this(service, null);
+  }
+
+  public SelfAssessmentSignedListener(SelfAssessmentService service, ReviewService reviews) {
+    this(service, reviews, null);
+  }
+
+  public SelfAssessmentSignedListener(
+      SelfAssessmentService service, ReviewService reviews, DecisionSigningService decisions) {
     this.service = Objects.requireNonNull(service, "service");
+    this.reviews = reviews;
+    this.decisions = decisions;
   }
 
   public void on(KySoDaHoanTat event, InboxEnvelope<?> envelope) {
-    if (!PURPOSE.equals(event.getPurpose()) || !SOURCE_MODULE.equals(event.getSourceModule())) {
+    if (!SOURCE_MODULE.equals(event.getSourceModule())) {
       return;
     }
-    service.onSigned(envelope.tenantId(), event.getSignRequestId(), event.getSignedAt());
+    if (PURPOSE.equals(event.getPurpose())) {
+      service.onSigned(envelope.tenantId(), event.getSignRequestId(), event.getSignedAt());
+    } else if (APPRAISAL_PURPOSE.equals(event.getPurpose()) && reviews != null) {
+      reviews.onAppraisalSigned(envelope.tenantId(), event.getSignRequestId(), event.getSignedAt());
+    } else if (DECISION_PURPOSE.equals(event.getPurpose()) && decisions != null) {
+      decisions.onSigned(
+          envelope.tenantId(),
+          event.getSourceRefId(),
+          event.getSignRequestId(),
+          hashes(event),
+          event.getSignedAt());
+    }
+  }
+
+  /** Băm tài liệu đã ký (hex chữ thường) của các mục trong EVT-18. */
+  static Set<String> hashes(KySoDaHoanTat event) {
+    Set<String> out = new HashSet<>();
+    if (event.getItems() != null) {
+      for (SignedItem item : event.getItems()) {
+        ByteBuffer b = item.getDocumentSha256().duplicate();
+        byte[] bytes = new byte[b.remaining()];
+        b.get(bytes);
+        out.add(HexFormat.of().formatHex(bytes));
+      }
+    }
+    return out;
   }
 }

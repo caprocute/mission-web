@@ -17,6 +17,7 @@ COPY --from=build /out/html /usr/share/nginx/html
 COPY --from=build /out/remotes.tsv /etc/mission-web/remotes.tsv
 COPY deploy/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY deploy/web/security-headers.conf /etc/nginx/mission/security-headers.conf
+COPY deploy/web/csp-mac-dinh.conf /etc/nginx/mission/csp-mac-dinh.conf
 COPY --chmod=755 deploy/web/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
 USER root
 RUN chown -R 101:101 /usr/share/nginx/html

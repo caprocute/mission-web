@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DV-15-04 · SVC-15 analytics, ADR-14 · QT-16 (BR-16-01, BR-16-02, BR-16-08) · TL-01 "SVC-15 analytics".
+  analytics-api là điểm vào duy nhất của bảng điều hành và trình dựng dashboard: chuyển truy vấn tới Cube REST với
+  ngữ cảnh an ninh dựng từ token người xem, đệm kết quả trong Valkey 60 giây, lưu định nghĩa dashboard qua cổng dịch
+  vụ của MOD-08 (CORE-08-17). Service không có CSDL quan hệ; Cube, ClickHouse và mission-core được gọi bằng HttpClient
+  của JDK, RestClient và Jackson, không thêm thư viện client.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>vn.viettel.okrkpi</groupId>
+    <artifactId>services</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>analytics-api</artifactId>
+
+  <name>Mission · analytics-api (SVC-15)</name>
+  <description>API phân tích của SVC-15: truy vấn lớp ngữ nghĩa Cube theo phạm vi người xem, đệm Valkey, dashboard tự dựng (DV-15-04).</description>
+
+  <properties>
+    <pitest.targetClasses>vn.viettel.okrkpi.analytics.*</pitest.targetClasses>
+    <jib.jvm.gc>-XX:+UseZGC</jib.jvm.gc>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-platform-starter</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+    </dependency>
+    <!-- Bộ đệm Valkey qua TenantCache của vt-platform-starter (NEN-035); starter khai lettuce-core là tuỳ chọn. -->
+    <dependency>
+      <groupId>io.lettuce</groupId>
+      <artifactId>lettuce-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- So khớp yêu cầu, phản hồi với contracts/openapi (Apache-2.0), như org-service, search-service. -->
+    <dependency>
+      <groupId>com.atlassian.oai</groupId>
+      <artifactId>swagger-request-validator-core</artifactId>
+      <version>2.46.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <configuration>
+          <excludes>
+            <!-- Lớp khởi động chỉ gọi SpringApplication.run. -->
+            <exclude>vn/viettel/okrkpi/analytics/AnalyticsApiApplication.class</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>com.google.cloud.tools</groupId>
+        <artifactId>jib-maven-plugin</artifactId>
+        <configuration>
+          <container>
+            <mainClass>vn.viettel.okrkpi.analytics.AnalyticsApiApplication</mainClass>
+            <ports>
+              <port>8080</port>
+              <port>8081</port>
+            </ports>
+            <labels>
+              <org.opencontainers.image.title>${project.artifactId}</org.opencontainers.image.title>
+              <org.opencontainers.image.version>${project.version}</org.opencontainers.image.version>
+              <io.mission.service.name>${project.artifactId}</io.mission.service.name>
+              <io.mission.service.version>${project.version}</io.mission.service.version>
+            </labels>
+          </container>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

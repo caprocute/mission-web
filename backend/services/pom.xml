@@ -28,5 +28,6 @@
     <module>evidence-service</module>
     <module>scoring-service</module>
     <module>search</module>
+    <module>analytics-api</module>
   </modules>
 </project>

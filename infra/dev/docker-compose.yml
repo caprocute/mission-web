@@ -21,7 +21,8 @@
 #   obs                : otel-collector, prometheus, loki, tempo, grafana
 #   backend            : gotenberg (chuyển DOCX sang PDF/A-2b cho document-service, DV-11-01),
 #                        llm-mock (máy chủ mô hình nhỏ chạy CPU, API tương thích vLLM cho ai-gateway, DV-14-01)
-#   analytics          : clickhouse (kho phân tích một nút của SVC-15, DV-15-01; migration ở analytics/clickhouse)
+#   analytics          : clickhouse (kho phân tích một nút của SVC-15, DV-15-01; migration ở analytics/clickhouse),
+#                        cube (lớp ngữ nghĩa, DV-15-03), superset (dashboard nhúng qua Cube SQL API, DV-15-05)
 #   all                : tất cả dịch vụ trên
 # =============================================================================
 
@@ -587,6 +588,10 @@ services:
       CUBEJS_REFRESH_WORKER: "true"
       CUBE_REFRESH_TENANTS: ${CUBE_REFRESH_TENANTS:-}
       CUBEJS_TELEMETRY: "false"
+      # SQL API (Postgres wire) chỉ cho Superset nhúng (DV-15-05); không mở cổng ra máy chủ.
+      CUBEJS_PG_SQL_PORT: "15432"
+      CUBEJS_SQL_USER: ${CUBE_SQL_USER:-superset_ky_thuat}
+      CUBEJS_SQL_PASSWORD: ${CUBE_SQL_PASSWORD:?Đặt CUBE_SQL_PASSWORD trong .env}
     ports:
       - "${CUBE_PORT:-35400}:4000"
     volumes:
@@ -597,6 +602,43 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
+    networks:
+      - mission-net
+
+  # Superset 4.x nhúng (DV-15-05, ADR-14): nguồn dữ liệu duy nhất là Cube SQL API; người xem không đăng nhập mà dùng
+  # guest token do analytics-api cấp. CSDL siêu dữ liệu SQLite trong volume (production dùng PostgreSQL riêng, INF).
+  superset:
+    build:
+      context: ../../analytics/superset
+    image: mission-dev-superset:4.1.2
+    container_name: mission-dev-superset
+    restart: unless-stopped
+    profiles: ["analytics", "all"]
+    depends_on:
+      cube:
+        condition: service_healthy
+    environment:
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:?Đặt SUPERSET_SECRET_KEY trong .env}
+      SUPERSET_METADATA_URI: sqlite:////app/superset_home/superset.db
+      SUPERSET_WEB_ORIGINS: ${SUPERSET_WEB_ORIGINS:-http://localhost:4200}
+      SUPERSET_GUEST_TOKEN_SECRET: ${SUPERSET_GUEST_TOKEN_SECRET:?Đặt SUPERSET_GUEST_TOKEN_SECRET trong .env}
+      SUPERSET_COOKIE_SECURE: "false"
+      SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-quan_tri}
+      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:?Đặt SUPERSET_ADMIN_PASSWORD trong .env}
+      SUPERSET_SERVICE_USER: ${SUPERSET_SERVICE_USER:-analytics_api}
+      SUPERSET_SERVICE_PASSWORD: ${SUPERSET_SERVICE_PASSWORD:?Đặt SUPERSET_SERVICE_PASSWORD trong .env}
+      CUBE_SQL_USER: ${CUBE_SQL_USER:-superset_ky_thuat}
+      CUBE_SQL_PASSWORD: ${CUBE_SQL_PASSWORD:?Đặt CUBE_SQL_PASSWORD trong .env}
+      CUBE_SQL_HOST: cube:15432
+    ports:
+      - "${SUPERSET_PORT:-35088}:8088"
+    volumes:
+      - superset_home:/app/superset_home
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8088/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
     networks:
       - mission-net
 
@@ -612,6 +654,7 @@ volumes:
   prometheus_data:
   grafana_data:
   llm_cache:
+  superset_home:
 
 networks:
   mission-net:
