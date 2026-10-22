@@ -109,6 +109,22 @@ okrkpi:
       BAN_CO_YEU: ${ESIGN_PROVIDER_BAN_CO_YEU:bcy}
     fake-provider:
       enabled: ${ESIGN_FAKE_PROVIDER:false}
+    # DV-10-02: MySign theo CSC API v2. Bí mật client và khoá kho đối tượng nạp từ OpenBao qua biến
+    # môi trường; đổi máy chủ CSC giả lập sang MySign thật chỉ đổi các giá trị này.
+    mysign:
+      enabled: ${ESIGN_MYSIGN_ENABLED:false}
+      base-url: ${ESIGN_MYSIGN_BASE_URL:}
+      token-url: ${ESIGN_MYSIGN_TOKEN_URL:}
+      client-id: ${ESIGN_MYSIGN_CLIENT_ID:}
+      client-secret: ${ESIGN_MYSIGN_CLIENT_SECRET:}
+      scope: ${ESIGN_MYSIGN_SCOPE:}
+      tsa-url: ${ESIGN_TSA_URL:}
+      storage:
+        endpoint: ${ESIGN_S3_ENDPOINT:}
+        region: ${ESIGN_S3_REGION:us-east-1}
+        bucket: ${ESIGN_S3_BUCKET:dossier}
+        access-key: ${ESIGN_S3_ACCESS_KEY:}
+        secret-key: ${ESIGN_S3_SECRET_KEY:}
     worker:
       enabled: ${ESIGN_WORKER_ENABLED:true}
       poll-interval: ${ESIGN_WORKER_POLL:2s}

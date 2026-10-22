@@ -850,6 +850,21 @@ Trả lại bắt buộc có ý kiến, nếu thiếu thì trả 422. Ý kiến 
 8. **Linter và triển khai mẫu:** linter tám quy tắc chạy trong `mvn verify` (`TemplateLinterTest`, fixture vi phạm từng quy tắc ở `src/test/resources/linter-fixtures/`) và lúc khởi động (`TemplateDeployer`: lint rồi triển khai BPMN + DMN trong một lần triển khai không gắn tenant, lọc trùng; tắt tự triển khai của Flowable Spring Boot). Mỗi mẫu có tệp khai báo `processes/<mã>.mau.json` (mô tả, người sở hữu, lớp kiểm thử, bảng quyết định, ngân sách biến). Quy tắc 8 tính theo phiên bản định nghĩa Flowable còn tiến trình chạy cộng phiên bản sắp sinh; quy tắc 5 kiểm tĩnh trên ngân sách khai báo và kiểm lúc chạy (biến khởi tạo ≤ 1,5 KB, `approvalLevels` ≤ 1,6 KB). Việc ghi `flowable.wf_template` khi triển khai chưa làm (cần tenant nền tảng, thuộc DV-06-09).
 9. **Đưa vào main (22/10/2026):** bản vá phiên 21/10 áp lên nhánh đã có DV-06-02 và DV-06-05, nên migration bản sao tổ chức và lịch nghỉ đổi tên thành `V5__ban_sao_to_chuc_lich_nghi.sql` (V3 là saga, V4 là hộp việc). Verify workflow-service xanh 147/147 trong môi trường không có `opa`.
 
+### Ghi chú và quyết định từ nhà cung cấp MySign (DV-10-02, 22/10/2026)
+
+Từ DV-10-02, `createEsignRequest` không còn gọi nhà cung cấp trong luồng xử lý API. Yêu cầu được ghi ở `CHO_XAC_NHAN` với `provider_txn_id` rỗng và API trả 202 ngay. Worker thăm dò mở phiên ở nhà cung cấp trong vòng quét đầu tiên, rồi thăm dò tới khi có kết quả. Nhờ vậy API vẫn trả 202 dưới 200 ms khi MySign chậm 3 giây, và hợp đồng giữ nguyên trạng thái `CHO_XAC_NHAN` trong phản hồi 202. Khi mạch tới MySign đang ngắt, API trả 422 `ESIGN-422-PROVIDER-UNAVAILABLE` mà không gọi ra ngoài. Lỗi vĩnh viễn của nhà cung cấp chuyển yêu cầu sang `LOI`; lỗi tạm thời được thử lại ở vòng sau tới khi hết hạn thì chuyển `HET_HAN`.
+
+PAdES được dựng ngay tại esign bằng PDFBox (Apache 2.0) và Bouncy Castle (MIT). Không dùng iText vì giấy phép AGPL. Khi mở phiên, esign chừa vùng ký theo kiểu cập nhật tăng dần, tính băm của `/ByteRange` và dựng thuộc tính ký CMS gồm content-type, message-digest và signing-certificate-v2, không có signing-time. Sau đó esign chỉ gửi SHA-256 của thuộc tính ký tới MySign. Khi nhận chữ ký thô, esign dựng CMS, thêm dấu thời gian RFC 3161 trên giá trị chữ ký (mức B-T) và ghi CMS vào vùng đã chừa. Vì vậy mọi byte ngoài vùng ký không đổi. Trạng thái phiên và PDF đã chừa vùng ký nằm trên kho đối tượng dưới tiền tố `tam/`. Tệp đã ký được ghi vào `ky-so/<mã yêu cầu>/<thứ tự>.pdf`. Kiểm thử dùng `pdfsig` của Poppler để xác nhận chữ ký hợp lệ.
+
+Các điểm còn lệch hoặc là suy luận:
+
+- Mức B-LTA (DSS với OCSP/CRL và dấu thời gian lưu trữ) chờ DV-10-03. Hiện tại, tệp đạt B-T khi có `tsa-url` và chỉ đạt B-B khi chưa cấu hình TSA.
+- Thăm dò phiên bất đồng bộ dùng `signatures/signPolling` theo `responseID`. Các mã lỗi kiểu OAuth2 (`authorization_pending`, `access_denied`, `expired_token`) là suy luận. Đường dẫn từng thao tác nằm trong cấu hình để khớp MySign thật mà không phải sửa mã.
+- `userID` gửi MySign hiện là mã người ký của Mission. Cách ánh xạ sang định danh tài khoản MySign (ví dụ số định danh cá nhân) cần chốt khi có tài khoản thử. Bước cấp SAD (`credentials/authorize`) cũng chưa dùng, vì người ký xác nhận trên ứng dụng MySign.
+- Thời hạn lời gọi theo instance `esign-mysign` của TL-01 là 10 giây, khác con số 3 giây ghi trong task. Theo quy định, TL thắng.
+- EVT-18 chưa mang băm của PDF đã ký vì lược đồ `KySoDaHoanTat` không có trường này. Sổ cái tính băm từ `signedObjectKey`. Nếu cần đưa băm vào sự kiện thì phải thêm trường vào hợp đồng.
+- Bucket cần quy tắc vòng đời xoá tiền tố `tam/` sau một ngày (suy luận).
+
 ## Liên quan
 
 - [README của wiki](README.md)
