@@ -116,15 +116,34 @@ class UiPackServiceTest {
       versions.put(v.id(), v);
       return true;
     }
+
+    @Override
+    public Optional<UiPack> findCurrentPack(TenantId t) {
+      return packs.values().stream().filter(p -> p.currentVersionId() != null).findFirst();
+    }
+
+    @Override
+    public boolean setCurrentVersion(
+        TenantId t, UiPack pack, UUID versionId, UUID actorId, Instant at) {
+      UiPack cur = packs.get(pack.id());
+      if (cur == null || cur.rowVersion() != pack.rowVersion()) {
+        return false;
+      }
+      packs.put(
+          pack.id(),
+          new UiPack(pack.id(), pack.code(), pack.name(), versionId, pack.rowVersion() + 1));
+      return true;
+    }
   }
 
   /** Ghi nhận tác vụ. */
   static final class Jobs implements UiPackJobs {
     final Map<String, String> state = new HashMap<>();
     final Map<String, List<ProblemFieldError>> errors = new HashMap<>();
+    final Map<String, String> messages = new HashMap<>();
 
     @Override
-    public void accepted(TenantId t, String jobId, UUID initiator) {
+    public void accepted(TenantId t, String jobId, UUID initiator, String type) {
       state.put(jobId, "CHO");
     }
 
@@ -134,8 +153,9 @@ class UiPackServiceTest {
     }
 
     @Override
-    public void passed(TenantId t, String jobId, String location) {
+    public void passed(TenantId t, String jobId, String location, String message) {
       state.put(jobId, "HOAN_TAT " + location);
+      messages.put(jobId, message);
     }
 
     @Override
