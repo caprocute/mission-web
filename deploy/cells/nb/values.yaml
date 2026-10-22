@@ -1,0 +1,25 @@
+# Values riêng của CELL-NB (cell thí điểm nội bộ, hồ sơ compact, tạm chốt ở wiki 14). Chồng sau values-saas.yaml và
+# sizing/values-sizing-compact.yaml (TL-05 Phụ lục A: mô hình → hồ sơ → cell). Chỉ ghi khoá thật sự riêng của cell;
+# số replica và kích thước nằm ở tệp hồ sơ.
+global:
+  cell: nb
+  # Hồ sơ compact một vùng sự cố ở Hoà Lạc (TL-05 "Bốn hồ sơ năng lực cell").
+  topology:
+    zones: [hl-a]
+  # Trợ lý AI tắt mặc định ở compact bằng cờ tính năng (TL-05 "GPU cho trợ lý AI").
+  featureFlags:
+    aiAssistant: false
+api-gateway:
+  cell: nb
+cell-base:
+  cell: nb
+observability-cell:
+  cell: nb
+ai-gateway:
+  thanhPhan:
+    vllm:
+      enabled: false
+data-pg:
+  # Tenant silo: mỗi tenant một CSDL td_<mã> (TL-03); danh sách thật do quy trình đưa tenant vào cell (OPS-07)
+  # thêm từ danh bạ tenant-registry. Tên dưới đây là CSDL của tenant thí điểm nội bộ (suy luận).
+  tenantDatabases: [td_nb]

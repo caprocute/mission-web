@@ -1,0 +1,175 @@
+# Hồ sơ năng lực cell S (TL-05 chương 3–5, Phụ lục A; INF-03). Chồng sau values-<mô hình>.yaml, trước
+# deploy/cells/<cell>/values.yaml. Số replica theo hai bảng "Số replica ..." của TL-05 chương 4; kích thước
+# PostgreSQL, Valkey, OpenSearch, ClickHouse do chart hạ tầng chọn theo global.sizing (bảng hoSo của từng chart).
+# Sửa số ở đây thì chạy deploy/capacity/kiem_ngan_sach_ket_noi.py và tinh_dinh_co.py (wiki 12 "Định cỡ và hiệu chuẩn").
+global:
+  sizing: S
+  topology:
+    zones: [hl-a, hl-b, hl-c]
+
+# Ứng dụng. org-service (chart DV-04-01) chưa có HPA nên chỉ đặt replicaCount bằng minReplicas của TL-05; mission-core
+# giữ pool 24 kết nối mỗi pod (tám DataSource theo module, TL-04 mục 4.7).
+# kafka.connect và search.api là chỗ giữ số replica cho Kafka Connect (INF-10) và search API (chưa có workload riêng).
+api-gateway:
+  apisix:
+    autoscaling:
+      minReplicas: 3
+      maxReplicas: 4
+mission-core:
+  autoscaling:
+    keda:
+      minReplicas: 3
+      maxReplicas: 6
+  datasources:
+    modules:
+      task:
+        pool: 8
+      okr:
+        pool: 4
+      appraisal:
+        pool: 4
+      product:
+        pool: 3
+      config:
+        pool: 2
+      policy:
+        pool: 1
+      dossier:
+        pool: 1
+      oversight:
+        pool: 1
+iam:
+  mayChu:
+    autoscaling:
+      hpa:
+        minReplicas: 2
+        maxReplicas: 4
+workflow-service:
+  api:
+    hpa:
+      minReplicas: 2
+      maxReplicas: 3
+  executor:
+    keda:
+      minReplicaCount: 2
+      maxReplicaCount: 4
+evidence-service:
+  thanhPhan:
+    evidence-service:
+      autoscaling:
+        hpa:
+          minReplicas: 2
+          maxReplicas: 3
+    clamav:
+      autoscaling:
+        hpa:
+          minReplicas: 2
+          maxReplicas: 4
+scoring-service:
+  autoscaling:
+    keda:
+      minReplicas: 2
+      maxReplicas: 6
+document-service:
+  thanhPhan:
+    document-service:
+      autoscaling:
+        hpa:
+          minReplicas: 1
+          maxReplicas: 6
+    gotenberg:
+      autoscaling:
+        hpa:
+          minReplicas: 2
+          maxReplicas: 6
+notification-service:
+  autoscaling:
+    hpa:
+      minReplicas: 2
+      maxReplicas: 3
+integration-gateway:
+  autoscaling:
+    hpa:
+      minReplicas: 2
+      maxReplicas: 3
+ledger-service:
+  autoscaling:
+    keda:
+      minReplicas: 3
+      maxReplicas: 6
+esign-service:
+  autoscaling:
+    hpa:
+      minReplicas: 2
+      maxReplicas: 3
+ai-gateway:
+  thanhPhan:
+    ai-gateway:
+      autoscaling:
+        hpa:
+          minReplicas: 1
+          maxReplicas: 2
+    vllm:
+      autoscaling:
+        keda:
+          minReplicas: 1
+          maxReplicas: 2
+analytics:
+  thanhPhan:
+    analytics-api:
+      autoscaling:
+        hpa:
+          minReplicas: 2
+          maxReplicas: 3
+    cube:
+      autoscaling:
+        hpa:
+          minReplicas: 2
+          maxReplicas: 3
+    superset:
+      autoscaling:
+        hpa:
+          minReplicas: 1
+          maxReplicas: 2
+search:
+  autoscaling:
+    hpa:
+      minReplicas: 1
+      maxReplicas: 2
+  api:
+    replicas:
+      min: 2
+      max: 2
+web-frontend:
+  autoscaling:
+    hpa:
+      minReplicas: 2
+      maxReplicas: 2
+org-service:
+  replicaCount: 2
+kafka:
+  cheDo: tach
+  brokers:
+    replicas: 3
+    resources:
+      cpu: '4'
+      memory: 16Gi
+  controllers:
+    replicas: 3
+    resources:
+      cpu: '1'
+      memory: 4Gi
+  topics:
+    scoringInputPartitions: 12
+    ledgerAppendPartitions: 6
+  connect:
+    replicas:
+      min: 2
+      max: 2
+
+# Node pool máy ảo cho Cluster API và Cluster Autoscaler (INF-16 đọc). Pool máy vật lý không co giãn nên không ghi ở đây.
+nodePools:
+  system: { size: VM-8-32, min: 3, max: 3 }
+  ingress: { size: VM-8-16, min: 3, max: 3 }
+  app-general: { size: VM-16-64, min: 4, max: 6 }
+  app-worker: { size: VM-16-64, min: 2, max: 5 }

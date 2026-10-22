@@ -1,0 +1,256 @@
+# Giả định định cỡ GD-01..GD-26 (TL-05 "Danh mục giả định định cỡ"; INF-03). Tệp tham số của vòng hiệu chuẩn TL-05:
+# sau mỗi chiến dịch thử tải hoặc kỳ đánh giá quý, đổi giá trị bằng merge request, ghi giá trị cũ vào lichSu, đặt
+# loai: so-do, ngayDo và kichBan, rồi chạy tinh_dinh_co.py để tính lại bảng và so với values đang chạy.
+# Trường: giaTri (số hoặc bảng số máy đọc), donVi, nguon (mục tài liệu), loai (gia-dinh | so-do), ngayDo (YYYY-MM-DD,
+# rỗng khi chưa đo), kichBan (PERF hoặc chỉ số vận hành dùng để kiểm chứng), lichSu (các giá trị trước).
+phienBan: TL-05 v1.0
+gd:
+  GD-01:
+    ten: Số tài khoản thiết kế của cell
+    giaTri: { compact: 50000, S: 300000, M: 800000, L: 1200000, tranL: 1500000 }
+    donVi: tài khoản
+    nguon: TL-05 (compact), TL-04 mục 4.2 (S, M, L)
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: số tài khoản thật trong registry.tenant_cell
+  GD-02:
+    ten: Tỷ lệ người dùng đồng thời trên tài khoản
+    giaTri: 0.05
+    donVi: tỷ lệ
+    nguon: Baseline mục 3.1 (300.000 / 6.000.000)
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: Faro RUM, số phiên hoạt động giờ cao điểm
+  GD-03:
+    ten: Thời gian suy nghĩ bình quân giữa hai request của một phiên (Z)
+    giaTri: 20
+    donVi: giây
+    nguon: Baseline mục 3.1
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: Faro và log APISIX, request mỗi phiên mỗi phút
+  GD-04:
+    ten: Hệ số đột biến ngày hạn nộp
+    giaTri: 2
+    donVi: lần
+    nguon: Baseline mục 3.1
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: RPS giờ đỉnh ngày hạn / RPS giờ đỉnh ngày thường
+  GD-05:
+    ten: Tỷ lệ đọc/ghi
+    giaTri: { doc: 0.8, ghi: 0.2 }
+    donVi: tỷ lệ
+    nguon: Baseline NFR-02
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: nhãn phương thức HTTP trong metric APISIX
+  GD-06:
+    ten: Số sự kiện nghiệp vụ trên một request ghi
+    giaTri: 1.5
+    donVi: sự kiện / request ghi
+    nguon: Baseline mục 3.1
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: số dòng outbox_event / số request ghi
+  GD-07:
+    ten: Cơ cấu lưu lượng theo service
+    giaTri:
+      mission-core: 0.65
+      org-service: 0.05
+      iam: 0.03
+      workflow-api: 0.05
+      evidence-api: 0.04
+      analytics-api: 0.05
+      search-api: 0.03
+      notification: 0.02
+      integration-gateway: 0.02
+      ai-gateway: 0.005
+      cache: 0.055
+    donVi: tỷ lệ RPS tại cổng
+    nguon: TL-04 mục 4.3
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: metric APISIX theo tuyến
+  GD-08:
+    ten: Thông lượng một pod
+    giaTri:
+      mission-core: 250
+      org-service: 400
+      workflow-api: 150
+      evidence-api: 120
+      analytics-api: 100
+      search-api: 300
+      integration-gateway: 200
+      api-gateway: 1500
+    donVi: RPS / pod
+    nguon: TL-04 mục 4.3
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: PERF-02
+  GD-09:
+    ten: CPU bình quân một request mission-core
+    giaTri: { doc: 8, ghi: 20, binhQuan: 10.4 }
+    donVi: ms CPU
+    nguon: TL-04 mục 4.3
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: PERF-02, hồ sơ CPU bằng async-profiler
+  GD-10:
+    ten: Số lần hoàn thành user task đỉnh
+    giaTri: { lanMoiGiay: 670, taiKhoan: 6000000 }
+    donVi: lần / giây, quy tỷ lệ theo tài khoản
+    nguon: Baseline mục 3.1
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: flowable_task_completed_total
+  GD-11:
+    ten: Số đăng nhập đỉnh
+    giaTri: 12000
+    donVi: tài khoản trên mỗi lần đăng nhập mỗi giây
+    nguon: TL-04 mục 4.3
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: sự kiện iam.auth.event.v1
+  GD-12:
+    ten: Hệ số xếp lịch node
+    giaTri: { vcpuKhaDung: 15, appGeneral: 0.8, appWorker: 0.7 }
+    donVi: vCPU khả dụng của node 16 vCPU; tỷ lệ dùng được
+    nguon: TL-05 (hiệu chuẩn cho khớp TL-04 mục 4.4)
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: requests / allocatable từ kube-state-metrics
+  GD-13:
+    ten: Chi phí container OPA chạy cùng pod
+    giaTri: 0.05
+    donVi: tỷ lệ tài nguyên pool ứng dụng
+    nguon: TL-04 mục 5.2
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: metric container opa
+  GD-14:
+    ten: Số dòng thay đổi trên một giao dịch ghi (bản ghi CDC)
+    giaTri: 6
+    donVi: bản ghi
+    nguon: TL-04 mục 4.6
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: Debezium TotalNumberOfEventsSeen
+  GD-15:
+    ten: Dữ liệu nghiệp vụ mỗi người mỗi quý trong pg-core
+    giaTri: 400
+    donVi: KB (200 dòng × 1 KB, nhân 2 cho chỉ mục)
+    nguon: TL-04 mục 4.5
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: pg_total_relation_size theo kỳ
+  GD-16:
+    ten: Bản ghi sổ cái mỗi người
+    giaTri: 500
+    donVi: KB mỗi người mỗi năm (200 bản ghi × 400 byte mỗi quý, cộng chỉ mục)
+    nguon: TL-04 mục 4.5
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: kích thước ledger.ledger_entry theo phân vùng
+  GD-17:
+    ten: Minh chứng mỗi người mỗi quý
+    giaTri: { tep: 8, mbMoiTep: 1 }
+    donVi: tệp, MB trước khử trùng
+    nguon: Baseline mục 3.1
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: metric SVC-08, dung lượng đối tượng mới mỗi ngày
+  GD-18:
+    ten: Chỉ mục OpenSearch mỗi người mỗi năm
+    giaTri: 250
+    donVi: KB dữ liệu chính
+    nguon: TL-04 mục 4.6
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: _cat/indices
+  GD-19:
+    ten: Dữ liệu ClickHouse sau nén mỗi người mỗi năm
+    giaTri: 0.25
+    donVi: MB
+    nguon: TL-04 mục 4.6
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: system.parts
+  GD-20:
+    ten: Log và trace trên một request
+    giaTri: { logKb: 1.2, nenLog: 10, traceKb: 6, tyLeTrace: 0.12, nenTrace: 3 }
+    donVi: KB thô, hệ số nén, tỷ lệ lưu
+    nguon: TL-05
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: metric ingest của Loki và Tempo
+  GD-21:
+    ten: Tỷ lệ CCU dùng trợ lý AI
+    giaTri: { tyLe: 0.01, yeuCauMoiPhut: 1, tokenVao: 1500, tokenRa: 300 }
+    donVi: tỷ lệ, yêu cầu mỗi phiên mỗi phút, token
+    nguon: TL-04 mục 4.9
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: PERF-26, metric vLLM
+  GD-22:
+    ten: Lưu lượng bình quân ngày so với đỉnh đột biến
+    giaTri: 0.25
+    donVi: tỷ lệ
+    nguon: TL-04 mục 4.6
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: metric APISIX theo giờ
+  GD-23:
+    ten: Số phiếu cần sinh và ký trong một đợt cuối kỳ
+    giaTri: 12
+    donVi: tài khoản trên một phiếu
+    nguon: TL-04 mục 4.3, suy ngược từ NFR-06
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: số docgen.render_job mỗi đợt
+  GD-24:
+    ten: Số chuỗi metric hoạt động mỗi cell
+    giaTri: { compact: 200000, S: 600000, M: 1000000, L: 1500000 }
+    donVi: chuỗi
+    nguon: TL-05
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: prometheus_tsdb_head_series
+  GD-25:
+    ten: Tỷ lệ tăng trưởng tài khoản sau khi cell vào vận hành
+    giaTri: { thangDat100: 12, tangNam2Nam3: 0 }
+    donVi: tháng, tỷ lệ
+    nguon: TL-05
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: số tài khoản hoạt động hằng tháng
+  GD-26:
+    ten: Hệ số lắp đặt kho đối tượng
+    giaTri: { nam1: 1.5, sau3Nam: 4 }
+    donVi: lần dung lượng minh chứng năm 1 (đã gồm erasure coding)
+    nguon: TL-05 (hiệu chuẩn cho khớp TL-04 mục 4.8)
+    loai: gia-dinh
+    ngayDo: ""
+    kichBan: mức đầy cụm Ceph
+
+# Hằng số của công thức tầng ứng dụng và tác vụ lô (TL-05 "Công thức"), không phải giả định GD.
+congThuc:
+  heSoDuPhongVung: 1.5          # maxReplicas >= ceil(1,5 × n_s): mất một trong ba vùng lúc đỉnh
+  scoring: { gioTinhLai: 2, hoSoMoiGiayMoiPod: 50, heSoMucTieu1Gio: 2 }
+  gotenberg: { giayCpuMoiPhieu: 1.5, gioSinhPhieu: 4, hieuSuat: 0.5, vcpuMoiPod: 2 }
+
+# Ngân sách kết nối CSDL (TL-04 mục 4.7, TL-05 "Ngân sách kết nối theo hồ sơ" và kiểm CPU primary pg-core).
+ketNoi:
+  cJob: 20                      # Flyway, đối soát hằng đêm
+  cAdmin: 10                    # truy cập quản trị qua PAM
+  # C_direct + R (Debezium, bản sao, sao lưu, giám sát và dự trữ) theo hồ sơ.
+  trucTiepVaDuTru: { compact: 35, S: 35, M: 50, L: 50 }
+  # Kiểm ngược CPU primary pg-core: mỗi pod mission-core đặt ~600 câu lệnh/giây lên primary, 0,6 ms CPU mỗi câu,
+  # primary dùng tối đa 70% CPU (TL-04 mục 4.7).
+  cauLenhMoiPodTrenPrimary: 600
+  msCpuMoiCauLenh: 0.6
+  tyLeCpuPrimaryToiDa: 0.7
+  # Số kết nối hoạt động tới primary nên trong khoảng 2–4 lần vCPU (khuyến nghị, chỉ cảnh báo).
+  ketNoiTrenVcpu: { min: 2, max: 4 }
+  # Pool mỗi pod của các service khác (TL-04 mục 4.7): workflow API và executor tới pg-flowable.
+  poolMoiPod: { workflow-service: 10 }
