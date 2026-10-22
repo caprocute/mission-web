@@ -99,7 +99,8 @@ export class AppraisalApi {
 
   /**
    * Hàng đợi thẩm định (SCR-0902, mặc định `status=CHO_THAM_DINH`, sắp theo hạn) trong phạm vi ABAC
-   * của người gọi; phân trang con trỏ, tối đa 200 dòng một trang.
+   * của người gọi; phân trang con trỏ, tối đa 200 dòng một trang. Tham số query theo hợp đồng là
+   * `period`, `unit` (tham số chung `PeriodId`, `UnitId` của common.yaml), không phải `periodId`, `unitId`.
    */
   profiles(
     filter: {
@@ -116,9 +117,9 @@ export class AppraisalApi {
     const params: Record<string, string | string[]> = {
       limit: String(Math.min(filter.limit ?? 50, 200)),
     };
-    if (filter.periodId) params['periodId'] = filter.periodId;
+    if (filter.periodId) params['period'] = filter.periodId;
     if (filter.subjectGroup) params['subjectGroup'] = filter.subjectGroup;
-    if (filter.unitId) params['unitId'] = filter.unitId;
+    if (filter.unitId) params['unit'] = filter.unitId;
     if (filter.flow) params['flow'] = filter.flow;
     if (filter.status?.length) params['status'] = filter.status;
     if (filter.q) params['q'] = filter.q;
