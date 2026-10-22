@@ -31,6 +31,11 @@ class PolicyCompilerTest {
           }
 
           @Override
+          public java.util.List<String> inputs(String key) {
+            return java.util.List.of("diem");
+          }
+
+          @Override
           public Map<String, Object> evaluate(String key, Map<String, Object> vars) {
             return Map.of("xep_loai", ((Number) vars.get("diem")).doubleValue() >= 90 ? "A" : "B");
           }

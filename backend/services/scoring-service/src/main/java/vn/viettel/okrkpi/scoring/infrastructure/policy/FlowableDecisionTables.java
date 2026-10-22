@@ -44,6 +44,7 @@ public class FlowableDecisionTables implements DecisionTables, DisposableBean {
   @Override
   public Compiled compile(String contentHash, List<DecisionTableSource> tables) {
     Map<String, String> keys = new HashMap<>();
+    Map<String, List<String>> inputs = new HashMap<>();
     if (!tables.isEmpty()) {
       try {
         DmnDeploymentBuilder deployment =
@@ -54,6 +55,7 @@ public class FlowableDecisionTables implements DecisionTables, DisposableBean {
                 .tenantId(contentHash);
         for (DecisionTableSource t : tables) {
           deployment.addString(t.tableKey() + ".dmn", prepare(t.dmnXml()));
+          inputs.put(t.tableKey(), FeelUnaryLists.inputs(t.dmnXml()));
         }
         String id = deployment.deploy().getId();
         for (DmnDecision d :
@@ -66,7 +68,7 @@ public class FlowableDecisionTables implements DecisionTables, DisposableBean {
             FEEL, "Bảng quyết định của phiên bản quy tắc không nạp được: " + e.getMessage());
       }
     }
-    return new FlowableCompiled(contentHash, Map.copyOf(keys));
+    return new FlowableCompiled(contentHash, Map.copyOf(keys), Map.copyOf(inputs));
   }
 
   /**
@@ -89,10 +91,18 @@ public class FlowableDecisionTables implements DecisionTables, DisposableBean {
 
     private final String tenant;
     private final Map<String, String> decisionKeys;
+    private final Map<String, List<String>> inputs;
 
-    FlowableCompiled(String tenant, Map<String, String> decisionKeys) {
+    FlowableCompiled(
+        String tenant, Map<String, String> decisionKeys, Map<String, List<String>> inputs) {
       this.tenant = tenant;
       this.decisionKeys = decisionKeys;
+      this.inputs = inputs;
+    }
+
+    @Override
+    public List<String> inputs(String tableKey) {
+      return inputs.getOrDefault(tableKey, List.of());
     }
 
     @Override

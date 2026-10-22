@@ -86,6 +86,17 @@
       <groupId>org.springdoc</groupId>
       <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
     </dependency>
+    <!-- DV-07-03: kiểm token Keycloak cho /api/** và bật PermissionInterceptor (OPA) của vt-platform-starter. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-jdbc</artifactId>
@@ -129,6 +140,18 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- DV-07-03: kiểm thử hợp đồng getAppraisalScoreTrace (cùng thư viện với org-service). -->
+    <dependency>
+      <groupId>com.atlassian.oai</groupId>
+      <artifactId>swagger-request-validator-core</artifactId>
+      <version>2.46.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>com.tngtech.archunit</groupId>
       <artifactId>archunit-junit5</artifactId>
       <scope>test</scope>
@@ -154,6 +177,19 @@
   </dependencies>
 
   <build>
+    <testResources>
+      <testResource>
+        <directory>src/test/resources</directory>
+      </testResource>
+      <testResource>
+        <targetPath>contract</targetPath>
+        <directory>${contract.dir}</directory>
+        <includes>
+          <include>modules/appraisals.yaml</include>
+          <include>common/common.yaml</include>
+        </includes>
+      </testResource>
+    </testResources>
     <plugins>
       <plugin>
         <groupId>org.openapitools</groupId>

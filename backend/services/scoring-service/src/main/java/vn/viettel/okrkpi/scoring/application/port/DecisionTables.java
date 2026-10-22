@@ -19,6 +19,9 @@ public interface DecisionTables {
 
     Set<String> tableKeys();
 
+    /** Biến đầu vào của bảng (biểu thức đầu vào của từng cột, theo thứ tự cột). */
+    List<String> inputs(String tableKey);
+
     /** Kết quả dòng khớp (tên đầu ra → giá trị); rỗng khi không dòng nào khớp. */
     Map<String, Object> evaluate(String tableKey, Map<String, Object> variables);
   }
