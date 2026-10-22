@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
+import vn.viettel.okrkpi.policy.application.GoldenTestCaseService;
 import vn.viettel.okrkpi.policy.application.PolicyDecisionTableService;
 import vn.viettel.okrkpi.policy.application.PolicyPackService;
 import vn.viettel.okrkpi.policy.application.PolicyPeriodCalendar;
@@ -21,6 +22,7 @@ import vn.viettel.okrkpi.policy.application.PolicyResolutionService;
 import vn.viettel.okrkpi.policy.application.PolicyRuleService;
 import vn.viettel.okrkpi.policy.application.PolicySchemaAdapter;
 import vn.viettel.okrkpi.policy.application.port.PolicyAudit;
+import vn.viettel.okrkpi.policy.infrastructure.signing.KeyPairPolicyCaseSigner;
 import vn.viettel.okrkpi.policy.infrastructure.web.PolicyIdempotency;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
@@ -83,6 +85,37 @@ public class PolicyPackConfiguration {
         policyDecisionTableRepository,
         policyAudit,
         json.getIfAvailable(ObjectMapper::new));
+  }
+
+  @Bean
+  JdbcGoldenTestCaseRepository goldenTestCaseRepository(
+      @Qualifier("policyDataSource") DataSource dataSource) {
+    return new JdbcGoldenTestCaseRepository(JdbcClient.create(dataSource));
+  }
+
+  /** Khoá ký ca kiểm thử vàng (CORE-05-06); bí mật nạp qua biến môi trường, không ghi trong mã. */
+  @Bean
+  KeyPairPolicyCaseSigner policyCaseSigner(
+      @Value("${mission.policy.case-signing.key-id:policy-golden}") String keyId,
+      @Value("${mission.policy.case-signing.private-key:}") String privateKey,
+      @Value("${mission.policy.case-signing.public-key:}") String publicKey) {
+    return KeyPairPolicyCaseSigner.of(keyId, privateKey, publicKey);
+  }
+
+  @Bean
+  GoldenTestCaseService goldenTestCaseService(
+      JdbcPolicyPackRepository policyPackRepository,
+      JdbcGoldenTestCaseRepository goldenTestCaseRepository,
+      KeyPairPolicyCaseSigner policyCaseSigner,
+      PolicyAudit policyAudit,
+      ObjectProvider<ObjectMapper> json) {
+    return new GoldenTestCaseService(
+        policyPackRepository,
+        goldenTestCaseRepository,
+        policyCaseSigner,
+        policyAudit,
+        json.getIfAvailable(ObjectMapper::new),
+        Clock.systemUtc());
   }
 
   @Bean
