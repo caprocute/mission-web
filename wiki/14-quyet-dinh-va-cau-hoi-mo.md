@@ -729,6 +729,16 @@ Bộ kiểm tra `PlanChecker` chạy BR-04-02 đến BR-04-07 trên cả bảng 
 
 Nhóm điểm của BR-04-06 lấy từ tham số `nhom` của Policy Pack hiệu lực cho kỳ, thử luồng Nhà nước trước rồi tới luồng Đảng. Khi tenant chưa gắn gói, hệ thống dùng nhóm mặc định 30/70. Gói NĐ 335 chỉ có một nhóm "kết quả nhiệm vụ" 70 điểm gồm cả hai nhóm nhiệm vụ, nên với gói này hai trường điểm tối đa theo nhóm trong phản hồi đều bằng 70. Cách hiểu "tỷ trọng" là (suy luận): điểm của nhóm bằng tổng điểm chuẩn các dòng thuộc nhóm chia cho tổng điểm mọi dòng, nhân với tổng điểm tối đa các nhóm, làm tròn một chữ số thập phân. Nếu vượt điểm tối đa của nhóm thì chặn kèm MSG-04-06, nếu thiếu thì chỉ cảnh báo. BR-04-05 (việc ngoài danh mục chưa có điểm) và BR-04-07 (KR đã duyệt chưa có việc nào) là cảnh báo. Từ khi có bộ kiểm tra, lưu nháp dễ dãi hơn trước: dòng ngoài danh mục được lưu cả khi chưa có điểm chuẩn, còn các kết quả mức chặn sẽ cản ở bước gửi duyệt (CORE-02-08). Khi lưu, hệ thống chỉ từ chối các dòng thiếu chủ trì, nội dung, số lượng, đơn vị tính hoặc hạn, vì bảng `task.plan_item` bắt buộc các cột đó.
 
+### Ghi chú và quyết định từ tác vụ ẩn danh hoá (DL-15, 22/10/2026)
+
+Phụ thuộc mới theo YC-PT-18: gói Python `cryptography` 50.0.2 (giấy phép Apache-2.0 hoặc BSD-3-Clause, do PyCA duy trì, bản mới nhất còn hỗ trợ), dùng AES-256-GCM và HMAC cho tác vụ `infra/anonymize`. Lý do chọn là gói mật mã chuẩn của Python, chạy trên OpenSSL, và đã cho kết quả khớp từng byte với `FieldEncryptor` và `BlindIndexer` của NEN-015 theo tệp vector chung. Lời gọi OpenBao Transit dùng `urllib` của thư viện chuẩn nên không thêm gói HTTP.
+
+Hai câu hỏi TL chưa trả lời được chốt tạm (suy luận, chờ người phụ trách): nhật ký kiểm toán và sổ cái băm chuỗi bị loại bỏ khỏi bản sao chuyển sang staging thay vì che, vì che sẽ phá chuỗi băm và chúng không cần để tái hiện lỗi nghiệp vụ; còn "cụm cách ly" của TL-04 được hiểu là một CSDL bản sao riêng với vai trò nạp có BYPASSRLS và hai OpenBao (nguồn chỉ decrypt, staging chỉ encrypt), chưa có thẻ dựng hạ tầng này.
+
+Điểm lệch phát hiện khi làm: bộ sinh DL-08 (`infra/perf/datagen/datagen/sinh.py`) ghi chỉ mục mù 32 byte bằng một khoá cố định và khoá `BLIND_INDEX` theo tháng đầu năm, trong khi NEN-015 cắt chỉ mục mù còn 16 byte và neo khoá gốc ở tháng 1970-01-01. Dữ liệu thử tải vẫn nạp được vì cột là `bytea`, nhưng tra cứu theo chỉ mục mù trên dữ liệu DL-08 sẽ không khớp với mã Java; DL-15 không sửa vì phạm vi chỉ cho tách mô-đun dùng chung mà không đổi hành vi. Tác vụ ẩn danh chọn khoá gốc `BLIND_INDEX` ở tháng neo 1970-01-01, nếu không có thì lấy tháng sớm nhất.
+
+Quyết định về kiểm tương thích hợp đồng (NEN-044, luồng chính duyệt 22/10/2026): thêm giá trị enum vào lược đồ phản hồi là thay đổi tương thích theo quy ước API-first của dự án, vì client phải chịu được giá trị lạ, nên `ci/vt-pipeline/resources/vn/vt/pipeline/openapi-diff.sh` chạy openapi-diff với `--config-prop incompatible.response.enum.increased:false`; xoá giá trị enum hay thêm giá trị enum ở yêu cầu vẫn bị chặn.
+
 ## Liên quan
 
 - [README của wiki](README.md)

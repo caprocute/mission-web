@@ -1,0 +1,7 @@
+# DL-15 · phụ thuộc của tác vụ ẩn danh hoá (Python 3.12+).
+# cryptography (Apache-2.0 hoặc BSD-3-Clause): AES-256-GCM tương thích FieldEncryptor của NEN-015.
+cryptography==50.0.2
+PyYAML==6.0.3
+psycopg[binary]==3.3.6
+pytest==9.1.1
+pip-audit==2.10.1
