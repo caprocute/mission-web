@@ -8,6 +8,9 @@ import {
   AnnualReassignmentResult,
   AppraisalBatchDecision,
   AppraisalBatchDecisionInput,
+  AppraisalBatchDecisionJob,
+  AppraisalBatchDecisionPage,
+  AppraisalBatchDecisionStatus,
   AppraisalExportInput,
   AppraisalFlow,
   AppraisalProfile,
@@ -104,6 +107,7 @@ export class AppraisalApi {
       unitId?: string;
       flow?: AppraisalFlow;
       status?: AppraisalProfileStatus[];
+      subjectGroup?: string;
       q?: string;
       limit?: number;
       cursor?: string | null;
@@ -113,6 +117,7 @@ export class AppraisalApi {
       limit: String(Math.min(filter.limit ?? 50, 200)),
     };
     if (filter.periodId) params['periodId'] = filter.periodId;
+    if (filter.subjectGroup) params['subjectGroup'] = filter.subjectGroup;
     if (filter.unitId) params['unitId'] = filter.unitId;
     if (filter.flow) params['flow'] = filter.flow;
     if (filter.status?.length) params['status'] = filter.status;
@@ -163,10 +168,21 @@ export class AppraisalApi {
    */
   batchDecide(
     body: AppraisalBatchDecisionInput,
-  ): Observable<{ location: string; job: Job | null }> {
+  ): Observable<{ location: string; job: AppraisalBatchDecisionJob | null }> {
     return this.http
-      .post<Job | null>('/api/v1/appraisals/batch-decisions', body, { observe: 'response' })
+      .post<AppraisalBatchDecisionJob | null>('/api/v1/appraisals/batch-decisions', body, {
+        observe: 'response',
+      })
       .pipe(map((res) => ({ location: accepted(res), job: res.body })));
+  }
+
+  /** Các lô quyết định của người dùng hiện tại (SCR-0904 "Theo dõi tiến độ"), mới nhất trước. */
+  batchDecisions(
+    status: AppraisalBatchDecisionStatus[] = [],
+  ): Observable<AppraisalBatchDecisionPage> {
+    return this.http.get<AppraisalBatchDecisionPage>('/api/v1/appraisals/batch-decisions', {
+      params: status.length ? { status } : {},
+    });
   }
 
   /** Lô quyết định theo mã, hoặc theo đường dẫn `resultLocation` của job ký lô. */

@@ -87,6 +87,8 @@ export type AppraisalBatchDecisionStatus = Schemas['AppraisalBatchDecisionStatus
 export type AppraisalBatchDecisionItem = Schemas['AppraisalBatchDecisionItem'];
 export type AppraisalBatchDecisionInput = Schemas['AppraisalBatchDecisionInput'];
 export type AppraisalBatchDecision = Schemas['AppraisalBatchDecision'];
+export type AppraisalBatchDecisionPage = Schemas['AppraisalBatchDecisionPage'];
+export type AppraisalBatchDecisionJob = Schemas['AppraisalBatchDecisionJob'];
 
 /** Xếp loại năm và liên thông quý–năm (SCR-1001, `appraisal.annual_rating`, QT-10). */
 export type AnnualRatingRow = Schemas['AnnualRatingRow'];

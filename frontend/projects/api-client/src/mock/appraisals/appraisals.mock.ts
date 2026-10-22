@@ -326,6 +326,7 @@ function list(req: MockRequest): MockResponse {
   const period = req.params.get('periodId');
   const flow = req.params.get('flow');
   const q = req.params.get('q')?.toLocaleLowerCase('vi');
+  const group = req.params.get('subjectGroup');
   const rows = store()
     .filter((p) => !ME.includes(p.id))
     .filter((p) => wanted.includes(p.status))
@@ -333,6 +334,7 @@ function list(req: MockRequest): MockResponse {
     .filter((p) => !flow || p.flow === flow)
     .filter((p) => !q || p.person.name.toLocaleLowerCase('vi').includes(q))
     .map(row)
+    .filter((r) => !group || r.subjectGroup?.id === group)
     .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''));
   const limit = Math.min(Number(req.params.get('limit') ?? 50), 200);
   const start = Number(req.params.get('cursor') ?? 0);
@@ -359,6 +361,11 @@ function exportProfiles(req: MockRequest): MockResponse {
   return { status: 202, body: null, headers: { Location: `/api/v1/appraisals/export-jobs/${id}` } };
 }
 
+const SUBJECT_GROUP_DANG = {
+  id: '01928f3e-7b1a-7c3e-9a51-3f2d9c1b0a01',
+  name: 'Khối các cơ quan Đảng',
+};
+
 function row(p: AppraisalProfile): AppraisalProfileRow {
   const v = views()[p.id]?.snapshot;
   const d = DECISION_SCORES.get(p.id);
@@ -374,6 +381,8 @@ function row(p: AppraisalProfile): AppraisalProfileRow {
     flow: p.flow,
     status: p.status,
     isHead: p.isHead,
+    // Khối và ngưỡng HTXSNV theo phiên bản Policy Pack của hồ sơ (WEB-063); giả lập: luồng Đảng
+    ...(p.flow === 'DANG' ? { subjectGroup: SUBJECT_GROUP_DANG, maxExcellentShare: 0.2 } : {}),
     totalScore: v?.totalScore ?? d?.total ?? null,
     autoRatingCode: v?.autoRatingCode ?? d?.auto ?? null,
     levels: {

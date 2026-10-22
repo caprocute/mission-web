@@ -113,7 +113,10 @@ describe('ProspectPage (WEB-039, SCR-1002)', { timeout: 15000 }, () => {
     await tick();
     expect(groupOf(el, 'Lê Thu Hà')).toBe('NHOM_1');
     expect(document.activeElement).toBe(cardOf(el, 'Lê Thu Hà').querySelector('.dots'));
+    // Lưu nháp không bắt buộc lý do; lý do chỉ bắt buộc khi trình (WEB-063)
     button(el, 'Lưu nháp').click();
+    expect(text(await until(el, '.msg.ok'))).toBe('Đã lưu nháp danh sách phân nhóm.');
+    button(el, 'Trình tập thể lãnh đạo').click();
     const err = await until(el, '[role="alert"]');
     expect(text(err)).toBe(
       'Đồng chí đã xếp Lê Thu Hà khác nhóm gợi ý. Vui lòng ghi lý do điều chỉnh.',
@@ -123,8 +126,6 @@ describe('ProspectPage (WEB-039, SCR-1002)', { timeout: 15000 }, () => {
     expect(document.activeElement).toBe(box);
     box.value = 'Đồng chí được quy hoạch chức danh Trưởng phòng giai đoạn 2026 – 2031.';
     box.dispatchEvent(new Event('input'));
-    button(el, 'Lưu nháp').click();
-    expect(text(await until(el, '.msg.ok'))).toBe('Đã lưu nháp danh sách phân nhóm.');
 
     button(el, 'Trình tập thể lãnh đạo').click();
     const dlg = await until(el, '[role="dialog"]');

@@ -406,7 +406,12 @@ function boardFor(req: MockRequest): ProspectGroupBoard | MockResponse {
 }
 
 /** Kiểm danh sách gửi lên (BR-10-08, BR-10-09, thứ tự không trùng); `null` khi hợp lệ. */
-function validate(b: ProspectGroupBoard, input: ProspectGroupBoardInput): MockResponse | null {
+/** `draft`: lưu nháp không bắt buộc lý do (hợp đồng WEB-063), chỉ kiểm khi trình. */
+function validate(
+  b: ProspectGroupBoard,
+  input: ProspectGroupBoardInput,
+  draft = false,
+): MockResponse | null {
   const byPerson = new Map(b.entries.map((e) => [e.person.id, e]));
   const errors: { field: string; message: string; code?: string }[] = [];
   const ranks = new Set<string>();
@@ -438,7 +443,7 @@ function validate(b: ProspectGroupBoard, input: ProspectGroupBoardInput): MockRe
       });
     }
     const len = x.reason?.trim().length ?? 0;
-    if (x.groupCode !== e.suggestedGroup && (len < 20 || len > 1000))
+    if (x.groupCode !== e.suggestedGroup && (draft ? len > 1000 : len < 20 || len > 1000))
       errors.push({
         field: `entries[${i}].reason`,
         code: 'MSG-10-07',
@@ -462,7 +467,7 @@ function save(req: MockRequest): MockResponse {
   const blocked = versionGuard(req, b.rowVersion);
   if (blocked) return blocked;
   const input = (req.body ?? { entries: [] }) as ProspectGroupBoardInput;
-  const invalid = validate(b, input);
+  const invalid = validate(b, input, true);
   if (invalid) return invalid;
   const now = new Date().toISOString();
   for (const x of input.entries) {
