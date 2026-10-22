@@ -10,7 +10,8 @@ import java.util.regex.Pattern;
  * khi {@code NHAP}; mọi chuyển theo {@link UiPackVersionStatus}; mỗi lần đổi tăng {@code
  * rowVersion}. Người soạn là {@code createdBy}; người gửi duyệt là {@code updatedBy} khi vào {@code
  * DANG_KIEM_TRA} và được giữ qua bước kiểm tra tự động để kiểm tách vai trò khi duyệt. {@code
- * bundleSha256} là băm gói dạng hex chữ thường, có sau khi biên dịch (CORE-08-11).
+ * bundleSha256} là băm gói dạng hex chữ thường, {@code bundleObjectKey} khoá đối tượng của gói,
+ * {@code signature} chữ ký base64; ba trường có khi phát hành (CORE-08-11).
  */
 public record UiPackVersion(
     UUID id,
@@ -19,6 +20,8 @@ public record UiPackVersion(
     UiPackVersionStatus status,
     UiPackContent content,
     String bundleSha256,
+    String bundleObjectKey,
+    String signature,
     Instant publishedAt,
     UUID createdBy,
     Instant createdAt,
@@ -52,6 +55,8 @@ public record UiPackVersion(
         version,
         UiPackVersionStatus.NHAP,
         content,
+        null,
+        null,
         null,
         null,
         author,
@@ -103,6 +108,41 @@ public record UiPackVersion(
     return move(UiPackVersionStatus.NHAP, reviewer, at);
   }
 
+  /**
+   * Phát hành: {@code CHO_DUYET → DA_PHAT_HANH}, ghi gói đã ký.
+   *
+   * @throws SameReviewerException khi người phát hành là người soạn hoặc người gửi
+   */
+  public UiPackVersion publish(
+      UUID reviewer, Instant at, String sha256, String objectKey, String signatureBase64) {
+    if (status != UiPackVersionStatus.CHO_DUYET) {
+      throw new IllegalUiPackTransitionException(status, UiPackVersionStatus.DA_PHAT_HANH);
+    }
+    if (authoredBy(reviewer)) {
+      throw new SameReviewerException();
+    }
+    return new UiPackVersion(
+        id,
+        uiPackId,
+        version,
+        UiPackVersionStatus.DA_PHAT_HANH,
+        content,
+        Objects.requireNonNull(sha256, "sha256"),
+        Objects.requireNonNull(objectKey, "objectKey"),
+        Objects.requireNonNull(signatureBase64, "signature"),
+        at,
+        createdBy,
+        createdAt,
+        reviewer,
+        at,
+        rowVersion + 1);
+  }
+
+  /** Bị phiên bản mới thay: {@code DA_PHAT_HANH → THAY_THE}. */
+  public UiPackVersion supersede(UUID by, Instant at) {
+    return move(UiPackVersionStatus.THAY_THE, by, at);
+  }
+
   private UiPackVersion move(UiPackVersionStatus to, UUID by, Instant at) {
     if (!status.canMoveTo(to)) {
       throw new IllegalUiPackTransitionException(status, to);
@@ -118,6 +158,8 @@ public record UiPackVersion(
         s,
         c,
         bundleSha256,
+        bundleObjectKey,
+        signature,
         publishedAt,
         createdBy,
         createdAt,

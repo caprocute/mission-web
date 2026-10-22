@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import vn.viettel.okrkpi.config.application.port.UiPackJobs;
@@ -22,9 +23,10 @@ import vn.viettel.okrkpi.shared.kernel.ActorId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
 /**
- * Tác vụ {@code TEST_RUN} của gửi duyệt UI Pack, giữ trong bộ nhớ của pod 24 giờ và trả qua {@code
- * GET /api/v1/jobs/{id}}. Kết quả bền vững là trạng thái phiên bản ({@code CHO_DUYET} hoặc {@code
- * NHAP}); mất tác vụ khi pod khởi động lại chỉ mất danh sách lỗi, gửi duyệt lại là có (suy luận).
+ * Tác vụ {@code TEST_RUN} (gửi duyệt) và {@code RENDER} (phát hành, CORE-08-11) của UI Pack, giữ
+ * trong bộ nhớ của pod 24 giờ và trả qua {@code GET /api/v1/jobs/{id}}. Kết quả bền vững là trạng
+ * thái phiên bản ({@code CHO_DUYET} hoặc {@code NHAP}); mất tác vụ khi pod khởi động lại chỉ mất
+ * danh sách lỗi, gửi duyệt lại là có (suy luận).
  */
 public class InMemoryUiPackJobs implements UiPackJobs, JobSource {
 
@@ -44,10 +46,10 @@ public class InMemoryUiPackJobs implements UiPackJobs, JobSource {
   }
 
   @Override
-  public void accepted(TenantId tenantId, String jobId, UUID initiator) {
+  public void accepted(TenantId tenantId, String jobId, UUID initiator, String type) {
     jobs.put(
         new Key(tenantId.value(), jobId),
-        new TrackedJob(Job.accepted(jobId, TEST_RUN, now()), ActorId.of(initiator), false));
+        new TrackedJob(Job.accepted(jobId, type, now()), ActorId.of(initiator), false));
   }
 
   @Override
@@ -55,24 +57,24 @@ public class InMemoryUiPackJobs implements UiPackJobs, JobSource {
     replace(
         tenantId,
         jobId,
-        new Job(
-            jobId, TEST_RUN, JobStatus.DANG_CHAY, 10, "Đang kiểm tra tự động", null, null, now()));
+        type ->
+            new Job(
+                jobId,
+                type,
+                JobStatus.DANG_CHAY,
+                10,
+                RENDER.equals(type) ? "Đang biên dịch và phát hành" : "Đang kiểm tra tự động",
+                null,
+                null,
+                now()));
   }
 
   @Override
-  public void passed(TenantId tenantId, String jobId, String location) {
+  public void passed(TenantId tenantId, String jobId, String location, String message) {
     replace(
         tenantId,
         jobId,
-        new Job(
-            jobId,
-            TEST_RUN,
-            JobStatus.HOAN_TAT,
-            100,
-            "Đạt kiểm tra tự động, đã gửi người duyệt",
-            location,
-            null,
-            now()));
+        type -> new Job(jobId, type, JobStatus.HOAN_TAT, 100, message, location, null, now()));
   }
 
   @Override
@@ -95,14 +97,19 @@ public class InMemoryUiPackJobs implements UiPackJobs, JobSource {
     replace(
         tenantId,
         jobId,
-        new Job(jobId, TEST_RUN, JobStatus.THAT_BAI, 100, message, null, problem, now()));
+        type -> {
+          if (RENDER.equals(type)) {
+            problem.setTitle("Phát hành chưa thành công");
+          }
+          return new Job(jobId, type, JobStatus.THAT_BAI, 100, message, null, problem, now());
+        });
   }
 
-  private void replace(TenantId tenantId, String jobId, Job job) {
+  private void replace(TenantId tenantId, String jobId, Function<String, Job> job) {
     jobs.asMap()
         .computeIfPresent(
             new Key(tenantId.value(), jobId),
-            (k, old) -> new TrackedJob(job, old.initiator(), false));
+            (k, old) -> new TrackedJob(job.apply(old.job().type()), old.initiator(), false));
   }
 
   private static OffsetDateTime now() {
