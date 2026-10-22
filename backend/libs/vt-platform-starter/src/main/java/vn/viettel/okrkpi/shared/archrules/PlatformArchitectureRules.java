@@ -103,6 +103,28 @@ public final class PlatformArchitectureRules {
               "NEN-015 / TL-01: lớp chứa thuộc tính @Classified(C2/C3) phải ghi đè toString() và che trường nhạy cảm")
           .allowEmptyShould(true);
 
+  /**
+   * NEN-035, TL-03 "Bộ nhớ đệm Valkey": mã nghiệp vụ chỉ dùng bộ đệm qua {@code TenantCache} và
+   * {@code TenantCacheKey} của thư viện nền (khoá luôn mang tenant); cấm phụ thuộc trực tiếp {@code
+   * RedisTemplate}, client Lettuce hay client Valkey/Redis khác ngoài gói {@code shared}.
+   */
+  public static final ArchRule NO_DIRECT_VALKEY_CLIENT =
+      noClasses()
+          .that()
+          .resideOutsideOfPackage("vn.viettel.okrkpi.shared..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage(
+              "org.springframework.data.redis..",
+              "io.lettuce..",
+              "io.valkey..",
+              "glide..",
+              "redis.clients..",
+              "org.redisson..")
+          .because(
+              "NEN-035 / TL-03: khoá đệm phải mang tenant; chỉ dùng TenantCache và TenantCacheKey")
+          .allowEmptyShould(true);
+
   private PlatformArchitectureRules() {}
 
   private static DescribedPredicate<JavaMethodCall> unboundedExecutorFactory() {

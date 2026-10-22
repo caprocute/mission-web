@@ -19,6 +19,7 @@ import vn.viettel.okrkpi.shared.error.VersionConflictException;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.task.api.TaskStatusChangedEvent;
+import vn.viettel.okrkpi.task.api.events.TrangThaiNhiemVuDoi;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskDeliverables;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.ChangeRequestRow;
@@ -96,6 +97,24 @@ public class TaskTransitionService {
   @Transactional(TX)
   public Transitioned transition(
       TenantId tenant, UUID taskId, TaskCommand command, TaskActor actor, Long expectedVersion) {
+    return transition(tenant, taskId, command, actor, expectedVersion, null, null);
+  }
+
+  /**
+   * Như {@link #transition(TenantId, UUID, TaskCommand, TaskActor, Long)} nhưng biến {@code
+   * deliverables} của guard lấy từ {@code deliverablesSnapshot} do MOD-03 đẩy vào qua {@code
+   * TaskApi} (CORE-02-12) thay cho cổng {@link TaskDeliverables}; {@code null} dùng cổng. {@code
+   * completedAt} khác {@code null} thay thời điểm hoàn thành khi nhiệm vụ sang {@code HOAN_THANH}.
+   */
+  @Transactional(TX)
+  public Transitioned transition(
+      TenantId tenant,
+      UUID taskId,
+      TaskCommand command,
+      TaskActor actor,
+      Long expectedVersion,
+      List<Map<String, Object>> deliverablesSnapshot,
+      Instant completedAt) {
     TaskRow task = tasks.lock(tenant, taskId).orElseThrow(NoSuchElementException::new);
     if (expectedVersion != null && expectedVersion != task.rowVersion()) {
       throw new VersionConflictException("TASK", expectedVersion, task.rowVersion());
@@ -108,7 +127,12 @@ public class TaskTransitionService {
     boolean writable = writable(tenant, task.periodId());
     TransitionResult result =
         new TaskStateMachine(table, guards)
-            .apply(task.status(), command, actor, writable, () -> activation(tenant, task, actor));
+            .apply(
+                task.status(),
+                command,
+                actor,
+                writable,
+                () -> activation(tenant, task, actor, deliverablesSnapshot));
     TransitionResult.Accepted accepted =
         switch (result) {
           case TransitionResult.Accepted a -> a;
@@ -127,7 +151,9 @@ public class TaskTransitionService {
                 accepted.policyVersion(),
                 actor.personId(),
                 now,
-                accepted.to() == TaskStatus.HOAN_THANH ? now : null,
+                accepted.to() == TaskStatus.HOAN_THANH
+                    ? (completedAt != null ? completedAt : now)
+                    : null,
                 accepted.to() == TaskStatus.HUY ? accepted.reason() : null));
     tasks.appendStateLog(
         tenant,
@@ -159,6 +185,16 @@ public class TaskTransitionService {
             now);
     events.statusChanged(event);
     publisher.publishEvent(event);
+    publisher.publishEvent(
+        new TrangThaiNhiemVuDoi(
+            tenant,
+            task.periodId(),
+            taskId,
+            accepted.from().name(),
+            accepted.to().name(),
+            tasks.activeAssignees(tenant, task.periodBucket(), taskId),
+            accepted.to().isTerminal(),
+            now));
     TaskRow after = tasks.find(tenant, taskId).orElseThrow(NoSuchElementException::new);
     return new Transitioned(after, event);
   }
@@ -188,11 +224,20 @@ public class TaskTransitionService {
    * làm khi MOD-03 chưa cung cấp sản phẩm (suy luận).
    */
   Map<String, Object> activation(TenantId tenant, TaskRow task, TaskActor actor) {
+    return activation(tenant, task, actor, null);
+  }
+
+  Map<String, Object> activation(
+      TenantId tenant,
+      TaskRow task,
+      TaskActor actor,
+      List<Map<String, Object>> deliverablesSnapshot) {
     Map<String, Object> a = new HashMap<>();
     a.put("person_id", actor.personId().toString());
     a.put("roles", List.copyOf(actor.roles()));
 
-    List<Map<String, Object>> items = deliverables.of(tenant, task.id());
+    List<Map<String, Object>> items =
+        deliverablesSnapshot != null ? deliverablesSnapshot : deliverables.of(tenant, task.id());
     Map<String, Object> t = new HashMap<>();
     t.put(
         "chu_tri_id",

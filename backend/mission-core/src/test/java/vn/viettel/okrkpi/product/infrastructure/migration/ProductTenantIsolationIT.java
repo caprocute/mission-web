@@ -80,6 +80,28 @@ class ProductTenantIsolationIT extends TenantIsolationCatalogTest {
           return r;
         });
     f.put(
+        "product.evidence_version_file",
+        (tenant, seed) -> {
+          Map<String, Object> r = periodRow(tenant, "evidence_version_file");
+          r.put("evidence_version_id", id(tenant, "evidence_version"));
+          r.put("task_id", id(tenant, "task"));
+          r.put("ordinal", 1);
+          r.put("object_id", id(tenant, "evidence_object"));
+          r.put("object_version", 1);
+          r.put("content_sha256", new byte[32]);
+          return r;
+        });
+    f.put(
+        "product.evidence_object",
+        (tenant, seed) -> {
+          Map<String, Object> r = new LinkedHashMap<>();
+          r.put("id", id(tenant, "evidence_object"));
+          r.put("created_by", id(tenant, "user"));
+          r.put("updated_by", id(tenant, "user"));
+          r.put("object_version", 1);
+          return r;
+        });
+    f.put(
         "product.e2ee_key_wrap",
         (tenant, seed) -> {
           Map<String, Object> r = new LinkedHashMap<>();

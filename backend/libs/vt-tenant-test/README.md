@@ -56,3 +56,20 @@ class OkrTenantIsolationIT extends TenantIsolationCatalogTest {
 ```
 
 Khi mô-đun thêm bảng mới trong migration Flyway tiếp theo, `OkrTenantIsolationIT` tự động phát hiện và kiểm thử cả lớp 1, lớp 2 và bảo vệ phân vùng cho bảng mới mà không cần sửa mã kiểm thử.
+
+## 3. Lưới chống rò rỉ ngoài tầng CSDL (NEN-035)
+
+NEN-035 mở rộng lưới an toàn lên bốn tầng nằm ngoài PostgreSQL, theo ADR-07, ADR-14, ADR-15, ADR-18 và các mục "Bộ nhớ đệm Valkey", "Đánh chỉ mục tìm kiếm OpenSearch", "CDC phân tích sang ClickHouse" của TL-03.
+
+| Tầng | Thành phần | Kiểm thử |
+|---|---|---|
+| API | Sinh từ hợp đồng mọi thao tác `get` trả danh sách (`items` + `nextCursor`) có `x-mission.owner` là `MOD-*`; mồi dòng hai tenant bằng bộ sinh của lớp 2; dưới ngữ cảnh A không phản hồi nào chứa mã của B, lấy theo mã của B trả 404 hoặc 403; thao tác chưa hiện thực được ghi nhận, không tính lỗi. | `mission-core` `ApiTenantLeakIT` |
+| Bộ đệm Valkey | `TenantCacheKey` (khoá `t:<tenant>:<module>:<loại>:<mã>[:<phụ>]`, không tạo được khoá thiếu tenant) và `TenantCache`/`ValkeyTenantCache` trong `vt-platform-starter` gói `shared.cache`; luật ArchUnit `PlatformArchitectureRules.NO_DIRECT_VALKEY_CLIENT` cấm `RedisTemplate`, Lettuce và client Valkey khác ngoài gói `shared`. | `TenantCacheKeyTest`, `ValkeyTenantCacheIT` (Valkey 8 thật) |
+| Tìm kiếm OpenSearch | `AbstractOpenSearchTenantLeakTest` và `OpenSearchTenantLeakProbe` (gói `search`): qua alias của A, `match_all`, `term` theo tenant B, `ids` của tài liệu B và gộp nhóm theo `tenant_id` không bao giờ lộ B. | `SampleOpenSearchTenantLeakIT` (chỉ mục mẫu `pool_task_v1`, ca âm alias thiếu bộ lọc) |
+| Phân tích ClickHouse/Cube | `AbstractAnalyticsTenantLeakTest`, `AnalyticsTenantLeakProbe`, `TenantScopedQuery`, `ClickHouseHttpQuery` (gói `analytics`): dưới ngữ cảnh bảo mật của A mọi bảng chỉ trả dòng A kể cả khi lọc thẳng theo B; bảng phân tích không có cột C2 dạng rõ (danh mục suy từ cột `*_enc` của migration). | `SampleClickHouseTenantLeakIT` (row policy theo người dùng tenant, ca âm bảng thiếu row policy và bảng có `national_id`) |
+
+DV-16 (SVC-16) và DV-15 (SVC-15) bắt buộc kế thừa hai lớp cơ sở `AbstractOpenSearchTenantLeakTest` và `AbstractAnalyticsTenantLeakTest` khi dựng chỉ mục và kho phân tích thật. Lưu ý cho SVC-16: bộ lọc của alias chỉ áp cho các API tìm kiếm (`_search`, `_count`); `GET <alias>/_doc/<id>` và `_mget` bỏ qua bộ lọc, nên không được dùng hai API này qua alias của tenant.
+
+### Lớp 5 – tenant canh gác trên môi trường thật (để nhóm vận hành làm)
+
+Mỗi cell pool có hai tenant "canh gác" với dữ liệu tổng hợp (sinh bằng bộ sinh dữ liệu thử của DL-08 ở hệ số nhỏ). Một job chạy mỗi giờ đăng nhập bằng tài khoản của tenant canh gác thứ nhất qua Keycloak thật, gọi các API danh sách chính (cùng danh sách thao tác mà `ApiTenantLeakIT` sinh từ hợp đồng) và tìm trong phản hồi mọi mã định danh của tenant canh gác thứ hai; chỉ cần một lần trùng là gửi cảnh báo mức nghiêm trọng tới SOC kèm thao tác, cell và mã vết. Job này không đọc CSDL, không dùng quyền đặc biệt và không được hiện thực trong NEN-035; nhóm VH/QA làm khi dựng môi trường.

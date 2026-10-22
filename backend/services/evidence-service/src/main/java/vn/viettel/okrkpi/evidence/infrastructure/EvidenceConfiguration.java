@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.evidence.infrastructure;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import org.springframework.beans.factory.ObjectProvider;
@@ -12,11 +13,15 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.client.RestClient;
 import vn.viettel.okrkpi.evidence.application.FileAccessGuard;
 import vn.viettel.okrkpi.evidence.application.FileEvents;
 import vn.viettel.okrkpi.evidence.application.FileNameCipher;
 import vn.viettel.okrkpi.evidence.application.MalwareScanner;
 import vn.viettel.okrkpi.evidence.application.ObjectStorage;
+import vn.viettel.okrkpi.evidence.application.PreviewQueryService;
+import vn.viettel.okrkpi.evidence.application.PreviewQueue;
+import vn.viettel.okrkpi.evidence.application.PreviewService;
 import vn.viettel.okrkpi.evidence.application.ScanQueue;
 import vn.viettel.okrkpi.evidence.application.ScanResultService;
 import vn.viettel.okrkpi.evidence.application.ScanService;
@@ -27,16 +32,18 @@ import vn.viettel.okrkpi.evidence.application.UploadSessions;
 import vn.viettel.okrkpi.evidence.infrastructure.crypto.FieldEncryptorFileNameCipher;
 import vn.viettel.okrkpi.evidence.infrastructure.events.OutboxFileEvents;
 import vn.viettel.okrkpi.evidence.infrastructure.events.OutboxScanEvents;
+import vn.viettel.okrkpi.evidence.infrastructure.persistence.JdbcPreviewQueue;
 import vn.viettel.okrkpi.evidence.infrastructure.persistence.JdbcScanQueue;
 import vn.viettel.okrkpi.evidence.infrastructure.persistence.JdbcStoredFiles;
 import vn.viettel.okrkpi.evidence.infrastructure.persistence.JdbcUploadSessions;
+import vn.viettel.okrkpi.evidence.infrastructure.preview.PdfboxGotenbergRendering;
 import vn.viettel.okrkpi.evidence.infrastructure.scanning.ClamdScanner;
 import vn.viettel.okrkpi.evidence.infrastructure.scheduling.ExpiredUploadSweeper;
 import vn.viettel.okrkpi.evidence.infrastructure.scheduling.MalwareScanWorker;
 import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 
-/** Lắp ráp tải lên nhiều phần (DV-08-02) và quét mã độc ở nền (DV-08-04). */
+/** Lắp ráp tải lên nhiều phần (DV-08-02), quét mã độc (DV-08-04) và xem trước (DV-08-06). */
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling
 public class EvidenceConfiguration {
@@ -102,6 +109,26 @@ public class EvidenceConfiguration {
   }
 
   @Bean
+  PreviewQueue previewQueue(JdbcClient jdbc, StoredFiles files) {
+    return new JdbcPreviewQueue(jdbc, files);
+  }
+
+  @Bean
+  PreviewQueryService previewQueryService(
+      PreviewQueue queue,
+      ObjectStorage storage,
+      FileAccessGuard guard,
+      PlatformTransactionManager transactions,
+      ObjectProvider<Clock> clock) {
+    return new PreviewQueryService(
+        queue,
+        storage,
+        guard,
+        new TransactionTemplate(transactions),
+        clock.getIfAvailable(Clock::systemUTC));
+  }
+
+  @Bean
   ScanResultService scanResultService(
       ScanQueue queue, FileAccessGuard guard, PlatformTransactionManager transactions) {
     return new ScanResultService(queue, guard, new TransactionTemplate(transactions));
@@ -144,8 +171,38 @@ public class EvidenceConfiguration {
     }
 
     @Bean
-    MalwareScanWorker malwareScanWorker(ScanService scans) {
-      return new MalwareScanWorker(scans);
+    PreviewService previewService(
+        PreviewQueue queue,
+        ObjectStorage storage,
+        PlatformTransactionManager transactions,
+        ObjectProvider<Clock> clock,
+        @Value("${okrkpi.evidence.preview.gotenberg-url}") String gotenbergUrl,
+        @Value("${okrkpi.evidence.preview.gotenberg-timeout:PT60S}") Duration timeout,
+        @Value("${okrkpi.evidence.preview.dpi:150}") float dpi,
+        @Value("${okrkpi.evidence.preview.max-pages:300}") int maxPages,
+        @Value("${okrkpi.evidence.preview.max-width:1240}") int maxWidth,
+        @Value("${okrkpi.evidence.preview.work-dir:${java.io.tmpdir}/xem-truoc}") String workDir,
+        @Value("${okrkpi.evidence.scan.lease:PT10M}") Duration lease,
+        @Value("${okrkpi.evidence.scan.retry-base:PT30S}") Duration retryBase,
+        @Value("${okrkpi.evidence.scan.max-attempts:5}") int maxAttempts) {
+      var factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+      factory.setConnectTimeout(Math.toIntExact(Duration.ofSeconds(5).toMillis()));
+      factory.setReadTimeout(Math.toIntExact(timeout.toMillis()));
+      RestClient gotenberg =
+          RestClient.builder().baseUrl(gotenbergUrl).requestFactory(factory).build();
+      return new PreviewService(
+          queue,
+          storage,
+          new PdfboxGotenbergRendering(gotenberg),
+          new TransactionTemplate(transactions),
+          new PreviewService.Settings(
+              lease, retryBase, maxAttempts, dpi, maxPages, maxWidth, Path.of(workDir)),
+          clock.getIfAvailable(Clock::systemUTC));
+    }
+
+    @Bean
+    MalwareScanWorker malwareScanWorker(ScanService scans, PreviewService previews) {
+      return new MalwareScanWorker(scans, previews);
     }
   }
 

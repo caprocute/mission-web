@@ -36,6 +36,9 @@ public interface ScanQueue {
 
   Optional<Status> status(UUID objectId, Integer versionNo);
 
+  /** Xếp việc dựng ảnh xem trước cho phiên bản vừa quét sạch (DV-08-06). */
+  void schedulePreview(UUID versionId);
+
   /** Số phiên bản đang chờ quét của mọi tenant. */
   long pending();
 }

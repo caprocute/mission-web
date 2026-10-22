@@ -36,6 +36,14 @@ Cho người giao việc (AC-04, AC-05) soạn nhiệm vụ nháp, kiểm tra t�
 - Viết schema Avro `NhiemVuDaGiao` cho `task.task.assigned.v1` nếu chưa có.
 - Gợi ý tách: (a) CRUD nháp, đọc và danh sách đơn vị; (b) bộ kiểm tra, giao đơn lẻ, giao đồng loạt.
 
+### Bổ sung theo BS-03 (ADR-33, 22/10/2026)
+
+Nguồn: `/mnt/project-files/kien-truc-okr-kpi/bo-sung/BS-03-ho-so-tap-khach-hang-va-diem-cam-loi.md`. Phần dưới mở rộng phạm vi của thẻ; mọi giá trị riêng của khách hàng đi qua cấu hình, không viết cứng trong mã (YC-TK-11). Nếu thẻ phụ thuộc chưa gộp, làm phần gốc của thẻ trước và để phần bổ sung sau cờ hoặc ghi rõ trong báo cáo.
+
+Phụ thuộc thêm CORE-02-28.
+
+- Bước giao việc gọi dịch vụ miền kiểm chế độ phân công của CORE-02-28 (DC-06): với hồ sơ `MOT_NGUOI_MOT_VIEC`, giao đồng loạt từ chối việc lá nhiều người bằng `TASK-422-ASSIGNMENT-MODE`; giao từ mục danh mục sao chép `coefficient_levels`, `axis_code` (DC-01).
+
 ## 4. Ngoài phạm vi
 
 - Tìm nhiệm vụ gần giống, BR-05-06 (CORE-02-15); nhiệm vụ từ văn bản và giao theo lô `assign-batch` (CORE-02-16); cảnh báo khối lượng BR-05-11 (CORE-02-18); nhắc và giao lại thuộc QT-16 (`remindTask`, `reassignTask`, không có trong hàng khung này).

@@ -70,6 +70,11 @@ metadata:
   annotations:
     cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size: {{ $p.autoscale.min | quote }}
     cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size: {{ $p.autoscale.max | quote }}
+    {{- /* Dung lượng một node để Cluster Autoscaler mô phỏng khi pool đang ở 0 node (TL-04 mục 6.5). */}}
+    {{- with $p.capacity }}
+    capacity.cluster-autoscaler.kubernetes.io/cpu: {{ .cpu | quote }}
+    capacity.cluster-autoscaler.kubernetes.io/memory: {{ .memory | quote }}
+    {{- end }}
   {{- end }}
 spec:
   clusterName: {{ $name }}

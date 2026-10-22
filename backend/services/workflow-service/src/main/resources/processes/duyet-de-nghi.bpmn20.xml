@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DV-06-03 · Mẫu luồng `duyet-de-nghi` (QT-06 bước 6, SCR-0601, đề nghị vượt ngưỡng) · ADR-04 tầng 2 · TL-01 G2 "Ví dụ BPMN rút gọn".
+  Một định nghĩa dùng chung cho mọi tenant (không gắn tenantId): khác biệt theo tenant nằm ở DMN `chon-cap-duyet`
+  và `flowable.wf_binding`. Biến tiến trình chỉ mang id, tenant, khối, luồng và tham số nhỏ (< 4 KB).
+  Khoá nghiệp vụ: TASK_CHANGE_REQUEST:<requestId>; nhiệm vụ ở biến nhiemVuId. Bước máy là external worker, không gọi đồng bộ hệ ngoài.
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="urn:vt-okrkpi:wf">
+  <process id="duyet-de-nghi" name="Duyệt đề nghị gia hạn, điều chỉnh nhiệm vụ" isExecutable="true">
+    <documentation>Duyệt đề nghị gia hạn hoặc điều chỉnh nhiệm vụ vượt ngưỡng: người duyệt chấp nhận hoặc từ chối có lý do; kết quả được gửi về lõi nghiệp vụ.</documentation>
+    <startEvent id="start"/>
+    <sequenceFlow id="f-start" sourceRef="start" targetRef="chooseLevels"/>
+
+    <serviceTask id="chooseLevels" name="Chọn cấp duyệt" flowable:type="dmn">
+      <extensionElements>
+        <flowable:field name="decisionTableReferenceKey"><flowable:string>chon-cap-duyet</flowable:string></flowable:field>
+        <flowable:field name="fallbackToDefaultTenant"><flowable:string>true</flowable:string></flowable:field>
+        <flowable:executionListener event="end" delegateExpression="${phanGiaiCapDuyet}"/>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="f-levels" sourceRef="chooseLevels" targetRef="review"/>
+
+    <userTask id="review" name="${tieuDe}"
+              flowable:candidateGroups="${tenantId}:${level.role}:${level.orgUnitId}"
+              flowable:dueDate="${level.dueDate}">
+      <multiInstanceLoopCharacteristics isSequential="true"
+          flowable:collection="${approvalLevels}" flowable:elementVariable="level">
+        <completionCondition>${decision == 'TRA_LAI'}</completionCondition>
+      </multiInstanceLoopCharacteristics>
+    </userTask>
+    <boundaryEvent id="remind" attachedToRef="review" cancelActivity="false">
+      <timerEventDefinition><timeDuration>${remindAfter}</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f-remind" sourceRef="remind" targetRef="notifyRemind"/>
+    <serviceTask id="notifyRemind" name="Nhắc người duyệt" flowable:type="external-worker" flowable:topic="notify-remind"/>
+    <sequenceFlow id="f-remind-end" sourceRef="notifyRemind" targetRef="remindEnd"/>
+    <endEvent id="remindEnd"/>
+
+    <sequenceFlow id="f-outcome" sourceRef="review" targetRef="outcome"/>
+    <exclusiveGateway id="outcome" default="toApprove"/>
+    <sequenceFlow id="toReturn" sourceRef="outcome" targetRef="applyReturn">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${decision == 'TRA_LAI'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="toApprove" sourceRef="outcome" targetRef="applyApprove"/>
+
+    <serviceTask id="applyReturn" name="Lõi: từ chối đề nghị" flowable:type="external-worker" flowable:topic="core-change-request-reject"/>
+    <serviceTask id="applyApprove" name="Lõi: chấp nhận đề nghị" flowable:type="external-worker" flowable:topic="core-change-request-approve"/>
+    <sequenceFlow id="f-returned" sourceRef="applyReturn" targetRef="endReturned"/>
+    <sequenceFlow id="f-approved" sourceRef="applyApprove" targetRef="endApproved"/>
+    <endEvent id="endReturned" name="Đã từ chối"/>
+    <endEvent id="endApproved" name="Đã chấp nhận"/>
+  </process>
+</definitions>

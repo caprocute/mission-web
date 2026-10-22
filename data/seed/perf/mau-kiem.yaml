@@ -1,0 +1,12 @@
+# DL-08 · Mẫu kiểm dữ liệu cá nhân thật (SEC-52): tệp sinh ra không được chứa chuỗi khớp mẫu nào
+# ở trường văn bản (trường bytea và UUID được bỏ qua). Số định danh giả của bộ sinh dùng mã tỉnh 999
+# (không cấp cho tỉnh nào) và chỉ nằm trong bản mã, nên không bao giờ khớp.
+mau:
+  - ten: CCCD 12 số có mã tỉnh thật (001-096)
+    regex: '(?<!\d)0(?:0[1-9]|[1-8]\d|9[0-6])[0-3]\d{8}(?!\d)'
+  - ten: CMND 9 số
+    regex: '(?<!\d)\d{9}(?!\d)'
+  - ten: Số di động Việt Nam
+    regex: '(?<!\d)(?:\+84|0)(?:3[2-9]|5[2689]|7[06-9]|8[1-9]|9\d)\d{7}(?!\d)'
+  - ten: Thư điện tử
+    regex: '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'

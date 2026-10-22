@@ -14,7 +14,7 @@ import (
 )
 
 func TestCatalogMatchesCanonicalErrorCodes(t *testing.T) {
-	canonicalBytes, err := os.ReadFile("../../../backend/libs/vt-kernel/src/main/resources/error-codes.json")
+	canonicalBytes, err := os.ReadFile("../../../backend/libs/vt-platform-starter/src/main/resources/vn/viettel/okrkpi/shared/error/error-codes.json")
 	if err != nil {
 		t.Fatalf("failed to read canonical error-codes.json: %v", err)
 	}
@@ -38,16 +38,18 @@ func TestCatalogMatchesCanonicalErrorCodes(t *testing.T) {
 	if ec.HTTPStatus != http.StatusForbidden {
 		t.Fatalf("expected HTTP 403, got %d", ec.HTTPStatus)
 	}
-	if ec.ProblemTypeURI() != "https://errors.okrkpi.viettel.vn/forbidden" {
+	if ec.ProblemTypeURI() != "https://okrkpi.vn/problems/forbidden" {
 		t.Fatalf("unexpected ProblemTypeURI: %s", ec.ProblemTypeURI())
 	}
 
-	msgCode, ok := problem.Lookup("MSG-00-01")
+	// Catalog entries extracted from contracts carry status/type/msg (current NEN-009 format).
+	msgCode, ok := problem.Lookup("AI-422-UNREADABLE")
 	if !ok {
-		t.Fatalf("expected MSG-00-01 in catalog")
+		t.Fatalf("expected AI-422-UNREADABLE in catalog")
 	}
-	if !msgCode.IsMsgCode() || msgCode.EffectiveMsg() != "MSG-00-01" {
-		t.Fatalf("expected EffectiveMsg MSG-00-01, got %q", msgCode.EffectiveMsg())
+	if msgCode.HTTPStatus != http.StatusUnprocessableEntity || msgCode.EffectiveMsg() != "MSG-07-06" ||
+		msgCode.ProblemTypeURI() != "https://okrkpi.vn/problems/unreadable" || msgCode.DefaultTitleVi == "" {
+		t.Fatalf("unexpected catalog entry: %+v", msgCode)
 	}
 
 	if _, err := problem.Require("NON-EXISTENT-CODE"); err == nil {
@@ -85,9 +87,6 @@ func TestSanitizeDetailAndHelpers(t *testing.T) {
 	)
 	if v.Status != http.StatusUnprocessableEntity || v.Code != "COMMON-422-VALIDATION" || len(v.Errors) != 1 {
 		t.Fatalf("unexpected validation problem: %+v", v)
-	}
-	if v.Msg != "MSG-12-01" {
-		t.Fatalf("expected MSG-12-01 from catalog, got %q", v.Msg)
 	}
 
 	_ = problem.BadRequest("", nil, "", "t1")

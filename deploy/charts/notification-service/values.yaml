@@ -22,12 +22,18 @@ probes:
     failureThreshold: 6
 pdb:
   maxUnavailable: 1
+# KEDA theo độ trễ hàng đợi thông báo (TL-04 mục 6.3); ngưỡng là giá trị khởi điểm (suy luận), hiệu chuẩn ở
+# QA-11, QA-12.
 autoscaling:
-  hpa:
+  keda:
     enabled: true
     minReplicas: 4
     maxReplicas: 10
+    cooldownPeriod: 600
     cpuUtilization: 75
+    kafka:
+      topics:
+        - { topic: notify.message.requested.v1, lagThreshold: 1000, activationLagThreshold: 50 }
 workload:
   terminationGracePeriodSeconds: 40
   preStopSleepSeconds: 30
