@@ -1,6 +1,14 @@
 package vn.viettel.okrkpi.org.infrastructure.web;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Part;
+import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -9,6 +17,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.util.WebUtils;
 import vn.viettel.okrkpi.org.application.Actor;
 import vn.viettel.okrkpi.org.application.ChangeResult;
 import vn.viettel.okrkpi.org.application.OrgUnitCommandService;
@@ -52,11 +65,13 @@ import vn.viettel.okrkpi.org.application.sync.DiscrepancyService;
 import vn.viettel.okrkpi.org.application.sync.SyncRunService;
 import vn.viettel.okrkpi.org.application.port.SyncRunStore.Run;
 import vn.viettel.okrkpi.org.application.port.SyncScheduleStore.ScheduleSet;
+import java.io.UncheckedIOException;
 import java.net.URI;
+import vn.viettel.okrkpi.org.application.orgimport.OrgImportService;
 
 /**
  * Hiện thực giao diện {@link OrgApi} sinh từ {@code contracts/openapi/modules/org.yaml} (ADR-32, interfaceOnly) cho
- * các thao tác cây tổ chức của QT-01, SCR-0103. Thao tác chưa thuộc phạm vi (phân công, nhập Excel, đồng bộ) giữ
+ * các thao tác cây tổ chức của QT-01, SCR-0103. Thao tác chưa thuộc phạm vi giữ
  * hiện thực mặc định 501 của giao diện sinh. Đồng bộ nguồn nhân sự và đối soát (DV-04-07) ánh xạ qua
  * {@link SyncWebMapper}.
  */
@@ -71,9 +86,12 @@ public class OrgController implements OrgApi {
   private final HttpServletRequest request;
   private final DiscrepancyService discrepancies;
   private final SyncRunService syncRuns;
+  private final OrgImportService imports;
 
   public OrgController(OrgUnitQueryService queries, OrgUnitCommandService commands, RequestHasher hasher,
-      HttpServletRequest request, DiscrepancyService discrepancies, SyncRunService syncRuns) {
+      HttpServletRequest request, DiscrepancyService discrepancies, SyncRunService syncRuns,
+      OrgImportService imports) {
+    this.imports = imports;
     this.queries = queries;
     this.commands = commands;
     this.discrepancies = discrepancies;
@@ -181,6 +199,42 @@ public class OrgController implements OrgApi {
     body.setItems(page.items().stream().map(OrgWebMapper::toDto).toList());
     body.setNextCursor(page.nextCursor());
     return ResponseEntity.ok(body);
+  }
+
+  // DV-04-05 · QT-01, SCR-0103: nhập cây tổ chức từ Excel, xử lý nền, theo dõi ở /api/v1/jobs/{id}.
+
+  @Override
+  public ResponseEntity<ImportOrgExcel202Response> importOrgExcel(String idempotencyKey, String file,
+      LocalDate effectiveFrom) {
+    byte[] content;
+    try {
+      // Bean request là proxy: lấy đối tượng yêu cầu thật để nhận cả bản multipart Spring đã phân tích lẫn Part.
+      HttpServletRequest current = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes())
+          .getRequest();
+      MultipartHttpServletRequest multipart = WebUtils.getNativeRequest(current, MultipartHttpServletRequest.class);
+      MultipartFile mf = multipart == null ? null : multipart.getFile("file");
+      Part part = mf == null ? current.getPart("file") : null;
+      content = mf != null ? mf.getBytes() : part == null ? new byte[0] : part.getInputStream().readAllBytes();
+    } catch (IOException | ServletException e) {
+      throw new UncheckedIOException(new IOException("Không đọc được tệp tải lên", e));
+    }
+    // Băm khoá idempotency theo tên, ngày hiệu lực và băm nội dung tệp: cùng khoá khác tệp bị từ chối.
+    Map<String, Object> fingerprint = new LinkedHashMap<>();
+    fingerprint.put("file", file);
+    fingerprint.put("effectiveFrom", effectiveFrom == null ? null : effectiveFrom.toString());
+    fingerprint.put("sha256", HexFormat.of().formatHex(sha256(content)));
+    OrgImportService.ImportJobView job = imports.accept(actor(),
+        hasher.of(idempotencyKey, "POST", request.getRequestURI(), fingerprint), file, content, effectiveFrom);
+    return ResponseEntity.accepted().location(URI.create("/api/v1/jobs/" + job.id())).header("Retry-After", "2")
+        .body(JobWebMapper.toDto(job));
+  }
+
+  private static byte[] sha256(byte[] content) {
+    try {
+      return MessageDigest.getInstance("SHA-256").digest(content);
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   // DV-04-07 · QT-01, SCR-0104: đồng bộ nguồn nhân sự và đối soát chênh lệch.

@@ -95,6 +95,13 @@ public class JdbcOrgUnitStore implements OrgUnitStore {
   }
 
   @Override
+  public Optional<UUID> findIdByCode(String code, LocalDate day) {
+    return jdbc.sql("SELECT u.id FROM org.org_unit u WHERE u.tenant_id = :tenant AND u.code = :code "
+            + "AND u.recorded_to = 'infinity' AND u.valid_period @> CAST(:d AS date) LIMIT 1")
+        .param("tenant", Sql.tenant()).param("code", code).param("d", day).query(UUID.class).optional();
+  }
+
+  @Override
   public void lockCode(String code) {
     jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))")
         .param("k", Sql.tenant() + ":org.org_unit.code:" + code)
