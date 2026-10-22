@@ -1,6 +1,8 @@
 package vn.viettel.okrkpi.dossier.infrastructure.web;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -39,9 +41,15 @@ import vn.viettel.okrkpi.contract.dossiers.model.DossierMeetingRole;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierMeetingStatus;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierMeetingSummary;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierMeetingType;
+import vn.viettel.okrkpi.contract.dossiers.model.DossierMinutesRequest;
 import vn.viettel.okrkpi.contract.dossiers.model.DossierParticipantStatus;
+import vn.viettel.okrkpi.contract.dossiers.model.DossierVote;
 import vn.viettel.okrkpi.contract.dossiers.model.PeriodRef;
 import vn.viettel.okrkpi.contract.dossiers.model.Ref;
+import vn.viettel.okrkpi.dossier.application.meeting.MeetingProceedingsService;
+import vn.viettel.okrkpi.dossier.application.meeting.MeetingProceedingsService.Attendance;
+import vn.viettel.okrkpi.dossier.application.meeting.MeetingProceedingsService.Minutes;
+import vn.viettel.okrkpi.dossier.application.meeting.MeetingProceedingsService.Started;
 import vn.viettel.okrkpi.dossier.application.meeting.ReviewMeetingService;
 import vn.viettel.okrkpi.dossier.application.meeting.ReviewMeetingService.MeetingView;
 import vn.viettel.okrkpi.dossier.application.meeting.ReviewMeetingService.NewMeeting;
@@ -56,6 +64,8 @@ import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.error.ProblemFieldError;
 import vn.viettel.okrkpi.shared.etag.ETags;
 import vn.viettel.okrkpi.shared.idempotency.Idempotent;
+import vn.viettel.okrkpi.shared.job.Job;
+import vn.viettel.okrkpi.shared.job.Jobs;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
@@ -63,9 +73,9 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
 /**
  * Hội nghị kiểm điểm của {@code dossiers.yaml} (CORE-06-02, QT-11, SCR-1101): {@code
  * listDossierMeetings}, {@code createDossierMeeting}, {@code getDossierMeeting}, {@code
- * updateDossierMeeting}, {@code sendDossierMeetingDraft}. Tên người, đơn vị chưa có bản sao trong
- * MOD-06 nên trả rỗng; dự thảo biểu mẫu (DV-11-02), mức đề xuất và biểu quyết (CORE-06-04) chưa có
- * dữ liệu.
+ * updateDossierMeeting}, {@code sendDossierMeetingDraft} và từ CORE-06-04 {@code
+ * createDossierMeetingMinutes} (202), {@code closeDossierMeeting}. Tên người, đơn vị chưa có bản
+ * sao trong MOD-06 nên trả rỗng; dự thảo biểu mẫu (DV-11-02) và mức đề xuất chưa có dữ liệu.
  */
 @RestController
 @RequestMapping("/api/v1/dossiers/meetings")
@@ -81,15 +91,21 @@ public class DossierMeetingController {
           "CHUYEN_DE", "Hội nghị kiểm điểm chuyên đề");
 
   private final ReviewMeetingService service;
+  private final MeetingProceedingsService proceedings;
   private final DossierCallers callers;
   private final ObjectProvider<PeriodApi> periods;
+  private final ObjectMapper json;
 
   public DossierMeetingController(
       ReviewMeetingService service,
+      MeetingProceedingsService proceedings,
       ObjectProvider<DossierCaller> callers,
       ObjectProvider<AuthzSubjectResolver> subjects,
-      ObjectProvider<PeriodApi> periods) {
+      ObjectProvider<PeriodApi> periods,
+      ObjectProvider<ObjectMapper> json) {
     this.service = Objects.requireNonNull(service, "service");
+    this.proceedings = Objects.requireNonNull(proceedings, "proceedings");
+    this.json = json.getIfAvailable(ObjectMapper::new);
     this.callers = new DossierCallers(callers, subjects);
     this.periods = Objects.requireNonNull(periods, "periods");
   }
@@ -241,6 +257,77 @@ public class DossierMeetingController {
     return ETags.ok(meeting(tenant, view, actor), view.row().rowVersion());
   }
 
+  @PostMapping("/{id}/minutes")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "createDossierMeetingMinutes",
+      module = "dossiers",
+      resourceType = "review_meeting")
+  public ResponseEntity<Job> createDossierMeetingMinutes(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody DossierMinutesRequest body) {
+    TenantId tenant = TenantContext.require();
+    long expected = ETags.expectedVersion(ifMatch, "DOSSIER");
+    UUID actor = callers.actor();
+    Started started;
+    try {
+      started = proceedings.minutes(tenant, actor, id, expected, minutes(body));
+    } catch (NoSuchElementException e) {
+      throw notFound();
+    }
+    return Jobs.accepted(MinutesJobs.pending(started.jobId()));
+  }
+
+  @PostMapping("/{id}/close")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "closeDossierMeeting",
+      module = "dossiers",
+      resourceType = "review_meeting")
+  public ResponseEntity<DossierMeeting> closeDossierMeeting(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch) {
+    TenantId tenant = TenantContext.require();
+    long expected = ETags.expectedVersion(ifMatch, "DOSSIER");
+    UUID actor = callers.actor();
+    MeetingRow row;
+    try {
+      row = proceedings.close(tenant, actor, id, expected);
+    } catch (NoSuchElementException e) {
+      throw notFound();
+    }
+    MeetingView view = service.view(tenant, row);
+    return ETags.ok(meeting(tenant, view, actor), row.rowVersion());
+  }
+
+  /** {@code DossierMinutesRequest} sang lệnh; trường thiếu để dịch vụ báo 422. */
+  static Minutes minutes(DossierMinutesRequest body) {
+    List<Attendance> attendance = new ArrayList<>();
+    if (body.getAttendance() != null) {
+      body.getAttendance()
+          .forEach(
+              a ->
+                  attendance.add(
+                      a == null
+                          ? null
+                          : new Attendance(
+                              a.getPersonId(),
+                              a.getAttendance() == null ? null : a.getAttendance().getValue())));
+    }
+    Map<String, Integer> vote = null;
+    DossierVote v = body.getVote();
+    if (v != null) {
+      vote = new LinkedHashMap<>();
+      vote.put("HTXSNV", v.getHTXSNV());
+      vote.put("HTTNV", v.getHTTNV());
+      vote.put("HTNV", v.getHTNV());
+      vote.put("KHTNV", v.getKHTNV());
+    }
+    return new Minutes(
+        body.getMeetingAt() == null ? null : body.getMeetingAt().toInstant(), attendance, vote);
+  }
+
   /** JSON Merge Patch của {@code DossierMeetingUpdate}: trường không gửi giữ nguyên. */
   static Patch patch(JsonNode body) {
     if (body == null || !body.isObject() || body.isEmpty()) {
@@ -340,12 +427,23 @@ public class DossierMeetingController {
     }
     m.setParticipants(participants);
     m.setDraftForms(new ArrayList<>());
-    m.setVote(null);
+    m.setVote(vote(r.voteJson()));
     m.setSignRequestId(r.signRequestId());
     m.setMinutesSha256(
         r.minutesSha256() == null ? null : java.util.HexFormat.of().formatHex(r.minutesSha256()));
-    m.setCommentsLocked(r.status().commentsLocked());
+    m.setCommentsLocked(r.status().commentsLocked() || r.proceedings().closed());
     return m;
+  }
+
+  private DossierVote vote(String voteJson) {
+    if (voteJson == null) {
+      return null;
+    }
+    try {
+      return json.readValue(voteJson, DossierVote.class);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("vote_json không đọc được", e);
+    }
   }
 
   /** Vai trò của người gọi; người chỉ xem theo quyền đơn vị thì rỗng. */

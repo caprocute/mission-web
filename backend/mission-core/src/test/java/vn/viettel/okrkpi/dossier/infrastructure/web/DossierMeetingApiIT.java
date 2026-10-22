@@ -11,12 +11,20 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.swagger.v3.oas.models.PathItem;
+import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.specific.SpecificRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,9 +53,12 @@ import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.dossier.application.comment.port.CommentSealer;
+import vn.viettel.okrkpi.dossier.application.meeting.MeetingProceedingsService;
 import vn.viettel.okrkpi.dossier.application.meeting.port.MeetingNotices;
+import vn.viettel.okrkpi.dossier.infrastructure.listener.MeetingMinutesConsumer;
 import vn.viettel.okrkpi.dossier.infrastructure.persistence.FieldEncryptorCommentSealer;
 import vn.viettel.okrkpi.dossier.infrastructure.persistence.OutboxMeetingNotices;
+import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 import vn.viettel.okrkpi.shared.crypto.DekCache.CachedDek;
 import vn.viettel.okrkpi.shared.crypto.DekPurpose;
@@ -55,11 +66,22 @@ import vn.viettel.okrkpi.shared.crypto.DekService;
 import vn.viettel.okrkpi.shared.crypto.DekStatus;
 import vn.viettel.okrkpi.shared.crypto.FieldEncryptor;
 import vn.viettel.okrkpi.shared.crypto.JcaAesGcmCryptoProvider;
+import vn.viettel.okrkpi.shared.inbox.InboxEndpoint;
+import vn.viettel.okrkpi.shared.inbox.InboxMessageProcessor;
+import vn.viettel.okrkpi.shared.inbox.InboxMetrics;
+import vn.viettel.okrkpi.shared.inbox.InboxOutcome;
+import vn.viettel.okrkpi.shared.inbox.InboxProperties;
+import vn.viettel.okrkpi.shared.inbox.InboxRetryDlqPublisher;
+import vn.viettel.okrkpi.shared.kernel.Classification;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
+import vn.viettel.okrkpi.shared.outbox.OutboxHeaders;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer.SerializedPayload;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
+import vn.vtokr.dossier.v1.HoSoSoDaSinh;
+import vn.vtokr.esign.v1.KySoDaHoanTat;
+import vn.vtokr.esign.v1.SignedItem;
 
 /**
  * Kiểm thử tích hợp CORE-06-02 trên PostgreSQL thật: năm thao tác hội nghị kiểm điểm khớp {@code
@@ -142,6 +164,11 @@ class DossierMeetingApiIT extends ContractConformanceTest {
   }
 
   @Autowired private MockMvc mvc;
+  @Autowired private CommentSealer sealer;
+  @Autowired private MeetingProceedingsService proceedings;
+  private MeetingMinutesConsumer minutesConsumer;
+  @Autowired private MinutesJobs minutesJobs;
+  private long offset;
   @Autowired private ObjectMapper json;
 
   @Autowired
@@ -173,6 +200,53 @@ class DossierMeetingApiIT extends ContractConformanceTest {
     when(caller.currentUnitId()).thenAnswer(inv -> Optional.ofNullable(USER_UNIT.get()));
   }
 
+  /**
+   * Consumer EVT-17, EVT-18 với bộ giải mã Avro thô (môi trường kiểm thử không có Apicurio) và
+   * topic thử lại giả, như {@code PlanApprovalIT}.
+   */
+  @BeforeAll
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  void consumer() {
+    org.springframework.kafka.core.KafkaOperations<String, byte[]> kafka =
+        org.mockito.Mockito.mock(org.springframework.kafka.core.KafkaOperations.class);
+    when(kafka.send(any(org.apache.kafka.clients.producer.ProducerRecord.class)))
+        .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+    InboxMessageProcessor processor =
+        new InboxMessageProcessor(
+            new JdbcTemplate(dossierDataSource),
+            dossierTm,
+            "dossier",
+            (topic, headers, data) ->
+                decode(
+                    EventTopics.EVT_17_HO_SO_SO_DA_SINH.equals(topic)
+                        ? HoSoSoDaSinh.class
+                        : KySoDaHoanTat.class,
+                    data),
+            new InboxRetryDlqPublisher(kafka),
+            new InboxMetrics(new io.micrometer.core.instrument.simple.SimpleMeterRegistry()),
+            new InboxProperties.Retry(null, null, null, null),
+            Clock.systemUtc());
+    org.springframework.beans.factory.ObjectProvider none =
+        new org.springframework.beans.factory.support.StaticListableBeanFactory()
+            .getBeanProvider(
+                org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory.class);
+    minutesConsumer = new MeetingMinutesConsumer(proceedings, processor, none, false);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static SpecificRecord decode(Class<? extends SpecificRecord> type, byte[] data) {
+    try {
+      return new org.apache.avro.specific.SpecificDatumReader<SpecificRecord>(
+              (Class<SpecificRecord>) type)
+          .read(
+              null,
+              org.apache.avro.io.DecoderFactory.get()
+                  .binaryDecoder(new java.io.ByteArrayInputStream(data), null));
+    } catch (java.io.IOException e) {
+      throw new java.io.UncheckedIOException(e);
+    }
+  }
+
   @BeforeAll
   void seed() throws Exception {
     insertPeriod(year, "Năm 2026", "2026-01-01", "2026-12-31", 20260, "MO");
@@ -186,6 +260,10 @@ class DossierMeetingApiIT extends ContractConformanceTest {
                 .listOfRows();
             jdbc.sql("SELECT dossier.fn_create_period_partitions(?::regclass, ?)")
                 .params("dossier.review_comment", bucket)
+                .query()
+                .listOfRows();
+            jdbc.sql("SELECT dossier.fn_create_period_partitions(?::regclass, ?)")
+                .params("dossier.remediation_item", bucket)
                 .query()
                 .listOfRows();
           }
@@ -427,6 +505,305 @@ class DossierMeetingApiIT extends ContractConformanceTest {
     assertThat(
             perform(get("/api/v1/dossiers/meetings/" + id + "/comments")).getResponse().getStatus())
         .isEqualTo(403);
+  }
+
+  @Test
+  void bienBanKetThucKyVaHanCheKyTruoc() throws Exception {
+    UUID subject = UUID.randomUUID();
+    UUID previousItem = previousRemediationItem(subject, "Nâng cao chất lượng thẩm định hồ sơ.");
+    UUID m2 = UUID.randomUUID();
+    UUID m3 = UUID.randomUUID();
+    ObjectNode req = createBody(year, subject);
+    req.withArray("participantPersonIds").add(m2.toString()).add(m3.toString());
+    MvcResult created = create(req, UUID.randomUUID().toString());
+    UUID id = UUID.fromString(body(created).get("id").asText());
+    USER.set(subject);
+    assertThat(send(id, "\"0\"").getResponse().getStatus()).isEqualTo(200);
+    USER.set(MEMBER);
+    assertThat(
+            comment(id, subject, "HAN_CHE", "TRUOC_HOI_NGHI", "Chậm tham mưu quy hoạch.")
+                .getResponse()
+                .getStatus())
+        .isEqualTo(201);
+    USER.set(SECRETARY);
+    assertThat(
+            comment(id, subject, "HAN_CHE", "HOI_NGHI", "Chưa sát cơ sở.")
+                .getResponse()
+                .getStatus())
+        .isEqualTo(201);
+    assertThat(comment(id, subject, "UU_DIEM", "HOI_NGHI", "Tận tuỵ.").getResponse().getStatus())
+        .isEqualTo(201);
+
+    List<UUID> everyone = List.of(CHAIR, SECRETARY, subject, MEMBER, m2, m3);
+    MvcResult tooMany = minutes(id, "\"1\"", everyone, 7);
+    assertThat(tooMany.getResponse().getStatus()).isEqualTo(422);
+    assertThat(body(tooMany).get("code").asText()).isEqualTo("DOSSIER-422-VOTE-EXCEEDS-ATTENDEES");
+    USER.set(MEMBER);
+    MvcResult notSecretary = minutes(id, "\"1\"", everyone, 6);
+    assertThat(notSecretary.getResponse().getStatus()).isEqualTo(403);
+    assertThat(body(notSecretary).get("code").asText()).isEqualTo("DOSSIER-403-NOT-SECRETARY");
+    USER.set(SECRETARY);
+    MvcResult accepted = minutes(id, "\"1\"", everyone, 6);
+    assertThat(accepted.getResponse().getStatus()).isEqualTo(202);
+    assertResponseConforms(accepted, "/dossiers/meetings/{id}/minutes", PathItem.HttpMethod.POST);
+    String jobId = body(accepted).get("id").asText();
+    assertThat(accepted.getResponse().getHeader("Location")).isEqualTo("/api/v1/jobs/" + jobId);
+    assertThat(TenantContext.call(tenant, () -> minutesJobs.find(tenant, jobId)))
+        .hasValueSatisfying(j -> assertThat(j.job().status().name()).isEqualTo("DANG_CHAY"));
+    MvcResult locked = comment(id, subject, "HAN_CHE", "HOI_NGHI", "Muộn.");
+    assertThat(body(locked).get("code").asText()).isEqualTo("DOSSIER-409-COMMENTS-LOCKED");
+
+    MvcResult notChair = close(id, "\"2\"");
+    assertThat(notChair.getResponse().getStatus()).isEqualTo(403);
+    assertThat(body(notChair).get("code").asText()).isEqualTo("DOSSIER-403-NOT-CHAIR");
+    USER.set(CHAIR);
+    MvcResult closed = close(id, "\"2\"");
+    assertThat(closed.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(closed, "/dossiers/meetings/{id}/close", PathItem.HttpMethod.POST);
+    JsonNode meeting = body(closed);
+    assertThat(meeting.get("status").asText()).isEqualTo("DA_HOP");
+    assertThat(meeting.get("commentsLocked").asBoolean()).isTrue();
+    assertThat(meeting.at("/vote/HTTNV").asInt()).isEqualTo(5);
+    assertThat(close(id, "\"3\"").getResponse().getStatus()).isEqualTo(409);
+
+    MvcResult own =
+        perform(get("/api/v1/dossiers/meetings/" + id + "/remediation-items?origin=HOI_NGHI_NAY"));
+    assertThat(own.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(
+        own, "/dossiers/meetings/{id}/remediation-items", PathItem.HttpMethod.GET);
+    assertThat(body(own).get("items"))
+        .extracting(i -> i.get("content").asText())
+        .containsExactlyInAnyOrder("Chậm tham mưu quy hoạch.", "Chưa sát cơ sở.");
+    byte[] stored =
+        inTenant(
+            jdbc ->
+                jdbc.sql("SELECT content_enc FROM dossier.remediation_item WHERE meeting_id = ?")
+                    .param(id)
+                    .query(byte[].class)
+                    .list()
+                    .get(0));
+    assertThat(new String(stored, StandardCharsets.UTF_8)).doesNotContain("tham mưu");
+    JsonNode previous =
+        body(
+            perform(get("/api/v1/dossiers/meetings/" + id + "/remediation-items?origin=KY_TRUOC")));
+    assertThat(previous.get("items")).hasSize(1);
+    assertThat(previous.at("/items/0/id").asText()).isEqualTo(previousItem.toString());
+    assertThat(previous.at("/items/0/content").asText())
+        .isEqualTo("Nâng cao chất lượng thẩm định hồ sơ.");
+
+    USER.set(MEMBER);
+    MvcResult forbidden = remediation(previousItem, "\"0\"", "DANG_KHAC_PHUC");
+    assertThat(body(forbidden).get("code").asText()).isEqualTo("DOSSIER-403-NOT-SECRETARY");
+    USER.set(SECRETARY);
+    MvcResult progressed = remediation(previousItem, "\"0\"", "DA_KHAC_PHUC");
+    assertThat(progressed.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(
+        progressed, "/dossiers/remediation-items/{id}", PathItem.HttpMethod.PATCH);
+    assertThat(body(progressed).at("/verifiedBy/id").asText()).isEqualTo(SECRETARY.toString());
+    assertThat(progressed.getResponse().getHeader("ETag")).isEqualTo("\"1\"");
+
+    byte[] sha = new byte[32];
+    sha[0] = 42;
+    HoSoSoDaSinh generated =
+        HoSoSoDaSinh.newBuilder()
+            .setRenderJobId(UUID.fromString(jobId))
+            .setFormInstanceId(id)
+            .setFormCode("BIEN_BAN")
+            .setObjectKey("dossier/bien-ban/" + id + ".pdf")
+            .setPdfSha256(ByteBuffer.wrap(sha))
+            .setAggregateVersion(1)
+            .build();
+    assertThat(
+            deliver(
+                minutesConsumer.generatedEndpoint(),
+                EventTopics.EVT_17_HO_SO_SO_DA_SINH,
+                "HoSoSoDaSinh",
+                UUID.randomUUID(),
+                generated,
+                SECRETARY))
+        .isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(status(id)).isEqualTo("DA_LAP_BIEN_BAN");
+    assertThat(TenantContext.call(tenant, () -> minutesJobs.find(tenant, jobId)))
+        .hasValueSatisfying(j -> assertThat(j.job().status().name()).isEqualTo("HOAN_TAT"));
+    long invites =
+        inTenant(
+            jdbc ->
+                jdbc.sql(
+                        "SELECT count(*) FROM dossier.outbox_event WHERE aggregate_id = ?"
+                            + " AND topic = ?")
+                    .params(id, EventTopics.EVT_21_YEU_CAU_THONG_BAO)
+                    .query(Long.class)
+                    .single());
+    assertThat(invites).as("mời góp ý và mời ký biên bản").isEqualTo(2);
+    MvcResult source =
+        perform(get("/internal/v1/esign-sources/dossier/" + id + "?purpose=BIEN_BAN"));
+    JsonNode src = body(source);
+    assertThat(src.get("ready").asBoolean()).isTrue();
+    assertThat(src.at("/documents/0/sha256").asText()).startsWith("2a00");
+    assertThat(src.get("signers")).hasSize(2);
+
+    UUID chairEvent = UUID.randomUUID();
+    assertThat(
+            deliver(
+                minutesConsumer.signedEndpoint(),
+                EventTopics.EVT_18_KY_SO_DA_HOAN_TAT,
+                "KySoDaHoanTat",
+                chairEvent,
+                signed(id, sha),
+                CHAIR))
+        .isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(
+            deliver(
+                minutesConsumer.signedEndpoint(),
+                EventTopics.EVT_18_KY_SO_DA_HOAN_TAT,
+                "KySoDaHoanTat",
+                chairEvent,
+                signed(id, sha),
+                CHAIR))
+        .isEqualTo(InboxOutcome.DUPLICATE_SKIPPED);
+    deliver(
+        minutesConsumer.signedEndpoint(),
+        EventTopics.EVT_18_KY_SO_DA_HOAN_TAT,
+        "KySoDaHoanTat",
+        UUID.randomUUID(),
+        signed(id, sha),
+        CHAIR);
+    assertThat(status(id)).as("EVT-18 trùng của chủ trì").isEqualTo("DA_LAP_BIEN_BAN");
+    deliver(
+        minutesConsumer.signedEndpoint(),
+        EventTopics.EVT_18_KY_SO_DA_HOAN_TAT,
+        "KySoDaHoanTat",
+        UUID.randomUUID(),
+        signed(id, sha),
+        SECRETARY);
+    assertThat(status(id)).isEqualTo("DA_KY");
+  }
+
+  private KySoDaHoanTat signed(UUID meeting, byte[] sha) {
+    return KySoDaHoanTat.newBuilder()
+        .setSignRequestId(UUID.randomUUID())
+        .setPurpose("BIEN_BAN")
+        .setSourceModule("dossier")
+        .setSourceRefId(meeting)
+        .setItems(List.of(new SignedItem(ByteBuffer.wrap(sha), null)))
+        .setCertSha256(ByteBuffer.wrap(new byte[32]))
+        .setSignedAt(Instant.now().truncatedTo(ChronoUnit.MICROS))
+        .setAggregateVersion(1)
+        .build();
+  }
+
+  private InboxOutcome deliver(
+      InboxEndpoint endpoint,
+      String topic,
+      String type,
+      UUID eventId,
+      SpecificRecord payload,
+      UUID actor) {
+    ConsumerRecord<String, byte[]> record =
+        new ConsumerRecord<>(topic, 0, offset++, tenant.value() + ":" + eventId, encode(payload));
+    header(record, OutboxHeaders.EVENT_ID, eventId.toString());
+    header(record, OutboxHeaders.TENANT_ID, tenant.value().toString());
+    header(record, OutboxHeaders.AGGREGATE_VERSION, "1");
+    header(record, OutboxHeaders.CE_TYPE, type);
+    header(record, OutboxHeaders.CLASSIFICATION, Classification.C1.name());
+    header(record, OutboxHeaders.OCCURRED_AT, Instant.now().toString());
+    header(record, OutboxHeaders.ACTOR_ID, actor.toString());
+    return minutesConsumer.processor().process(endpoint, record, () -> {});
+  }
+
+  private static void header(ConsumerRecord<String, byte[]> record, String key, String value) {
+    record.headers().add(key, value.getBytes(StandardCharsets.UTF_8));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static byte[] encode(SpecificRecord payload) {
+    try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+      var encoder = EncoderFactory.get().binaryEncoder(out, null);
+      new SpecificDatumWriter<SpecificRecord>((Class<SpecificRecord>) payload.getClass())
+          .write(payload, encoder);
+      encoder.flush();
+      return out.toByteArray();
+    } catch (java.io.IOException e) {
+      throw new java.io.UncheckedIOException(e);
+    }
+  }
+
+  private String status(UUID id) throws Exception {
+    return inTenant(
+        jdbc ->
+            jdbc.sql("SELECT status FROM dossier.review_meeting WHERE id = ?")
+                .param(id)
+                .query(String.class)
+                .single());
+  }
+
+  /** Hội nghị năm 2025 (đã ký) với một hạn chế đang mở của {@code subject}. */
+  private UUID previousRemediationItem(UUID subject, String text) throws Exception {
+    UUID meeting = UUID.randomUUID();
+    UUID item = UUID.randomUUID();
+    CommentSealer.Sealed sealed =
+        TenantContext.call(
+            tenant, () -> sealer.seal(tenant, CommentSealer.REMEDIATION_COLUMN, item, text));
+    inTenant(
+        jdbc -> {
+          jdbc.sql(
+                  "INSERT INTO dossier.review_meeting (id, created_by, updated_by, period_id,"
+                      + " period_bucket, org_unit_id, meeting_type, scheduled_at, draft_sent_at,"
+                      + " chair_person_id, secretary_person_id, status, minutes_sha256,"
+                      + " sign_request_id, subject_person_id) VALUES (?, ?, ?, ?, 20250, ?,"
+                      + " 'KIEM_DIEM_NAM', now() - interval '1 year', now() - interval '1 year',"
+                      + " ?, ?, 'DA_KY', ?, ?, ?)")
+              .params(
+                  meeting,
+                  OFFICER,
+                  OFFICER,
+                  locked,
+                  UNIT,
+                  CHAIR,
+                  OUTSIDER,
+                  new byte[32],
+                  UUID.randomUUID(),
+                  subject)
+              .update();
+          return jdbc.sql(
+                  "INSERT INTO dossier.remediation_item (id, created_by, updated_by, period_id,"
+                      + " period_bucket, person_id, meeting_id, content_enc, dek_id, status)"
+                      + " VALUES (?, ?, ?, ?, 20250, ?, ?, ?, ?, 'MO')")
+              .params(
+                  item, OFFICER, OFFICER, locked, subject, meeting, sealed.cipher(), sealed.dekId())
+              .update();
+        });
+    return item;
+  }
+
+  private MvcResult minutes(UUID id, String ifMatch, List<UUID> present, int htt) throws Exception {
+    ObjectNode req = json.createObjectNode().put("meetingAt", "2027-01-14T08:05:00+07:00");
+    var attendance = req.putArray("attendance");
+    present.forEach(
+        p -> attendance.addObject().put("personId", p.toString()).put("attendance", "CO_MAT"));
+    req.putObject("vote").put("HTXSNV", 1).put("HTTNV", htt - 1).put("HTNV", 0).put("KHTNV", 0);
+    return perform(
+        post("/api/v1/dossiers/meetings/" + id + "/minutes")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .header("If-Match", ifMatch)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(req.toString()));
+  }
+
+  private MvcResult close(UUID id, String ifMatch) throws Exception {
+    return perform(
+        post("/api/v1/dossiers/meetings/" + id + "/close")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .header("If-Match", ifMatch));
+  }
+
+  private MvcResult remediation(UUID id, String ifMatch, String status) throws Exception {
+    return perform(
+        patch("/api/v1/dossiers/remediation-items/" + id)
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .header("If-Match", ifMatch)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(json.createObjectNode().put("status", status).toString()));
   }
 
   private void enableAnonymousComments() {

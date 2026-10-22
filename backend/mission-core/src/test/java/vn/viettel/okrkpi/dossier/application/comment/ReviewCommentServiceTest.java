@@ -59,7 +59,7 @@ class ReviewCommentServiceTest {
   static final CommentSealer SEALER =
       new CommentSealer() {
         @Override
-        public Sealed seal(TenantId tenant, UUID commentId, String plain) {
+        public Sealed seal(TenantId tenant, String column, UUID commentId, String plain) {
           byte[] b = plain.getBytes(StandardCharsets.UTF_8);
           for (int i = 0; i < b.length; i++) {
             b[i] = (byte) ~b[i];
@@ -68,7 +68,7 @@ class ReviewCommentServiceTest {
         }
 
         @Override
-        public String open(TenantId tenant, UUID commentId, byte[] cipher) {
+        public String open(TenantId tenant, String column, UUID commentId, byte[] cipher) {
           byte[] b = cipher.clone();
           for (int i = 0; i < b.length; i++) {
             b[i] = (byte) ~b[i];
