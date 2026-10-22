@@ -391,6 +391,18 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 7. **Hợp đồng khai `sourceModule` vừa `enum` vừa `maxLength`**, làm mã sinh có `@Size` trên enum; dịch vụ đăng ký `EnumSizeValidator` qua `META-INF/services` thay vì sửa hợp đồng (YC-PT-09). Phản hồi lặp lại của idempotency không giữ header `Retry-After`.
 8. **Chưa kiểm thử đường Kafka.** IT chứng minh đúng một EVT-18 trong `esign.outbox_event`; việc Debezium đọc outbox của `esign` cần thêm nguồn này vào cấu hình CDC khi triển khai.
 
+### Ghi chú và quyết định từ dịch vụ sinh tài liệu (DV-11-01, 22/10/2026)
+
+1. **Thư mục dịch vụ là `backend/services/document-service/`** theo `scripts/new-service.sh` (task ghi `backend/services/document/`); gói `vn.viettel.okrkpi.docgen`, schema `docgen` đúng TL-03.
+2. **Saga gọi REST, chưa có consumer Kafka.** TL-03 ghi `render_job` "nhận qua Kafka từ MOD-06", còn hợp đồng ghi saga chốt kỳ "cũng gọi thao tác này" (`createDossierRenderJob`, nhận `serviceClient`). Chưa có lược đồ Avro cho lệnh sinh trong `contracts/events`, nên dịch vụ chỉ hiện thực REST; khi cần consumer, thêm lược đồ (đề xuất topic `sys.docgen.render.requested.v1`, suy luận) rồi gọi cùng `RenderService.request`.
+3. **`render_job` không phân vùng và có thêm hai cột.** TL-03 ghi PK (`period_bucket`, `id`) cùng UQ `request_event_id`, nhưng PostgreSQL buộc ràng buộc duy nhất của bảng phân vùng chứa khoá phân vùng; bảng giữ PK `id`. Cột `form_instance_id` cần cho EVT-17 (`formInstanceId`), cột `request_id` gom các tác vụ của một lệnh sinh và là mã tác vụ dài trả trong `Location` (suy luận). `request_event_id` của lệnh REST là UUID tên của cặp (lệnh, biểu mẫu).
+4. **Cổng MOD-06 là suy luận.** `GET /internal/v1/dossier-render-inputs/{packageId}?actor=&formCodes=` trả biểu mẫu kèm `data_snapshot_hash` (MOD-06 kiểm trạng thái gói và phạm vi đơn vị của người gọi); `GET /internal/v1/dossier-form-instances/{id}/render-data` trả tài liệu JSON chuẩn tắc mà SHA-256 của nó phải bằng `input_sha256`, lệch thì tác vụ `LOI` kèm lý do. mission-core cần hiện thực hai cổng này khi tích hợp.
+5. **Không giữ giao dịch CSDL khi gọi Gotenberg.** Một lượt sinh gồm nhận việc (giao dịch ngắn), sinh và ghi kho ngoài giao dịch, rồi ghi `render_output` cùng EVT-17 trong một giao dịch theo khoá lạc quan; tác vụ `DANG_SINH` quá thời hạn thuê (`okrkpi.docgen.lease`, mặc định 5 phút) được worker khác nhận lại. Hạn giao dịch mặc định 5 s của nền tảng là lý do chính (bẫy kỹ thuật). Tệp đã ghi vào kho nhưng lượt mất quyền thuê thành tệp mồ côi có khoá băm, vô hại.
+6. **Khoá tệp có băm:** `<tenant>/forms/<mã mẫu>/<form_instance_id>/<sha256>.pdf` trên bucket logic `dossier` (dev: `mission-dossier`); mẫu ở bucket `templates` (dev: `mission-templates`, đã thêm vào `minio-init`). veraPDF chạy trong tiến trình (`validation-model-jakarta`, MPL 2.0); S3 qua AWS SDK v2 với `url-connection-client`. Hai phụ thuộc này cần người phụ trách duyệt theo AGENTS.md quy tắc 1.
+7. **OpenPDF tạm ở phạm vi test** (đọc số trang); DV-11-04 ghép gói hồ sơ sẽ chuyển sang compile. Luật cấm `com.itextpdf` đã có ở `backend/pom.xml` và áp cho dịch vụ này.
+8. **Số đo:** phiếu hai trang sinh hết 517 ms trên Gotenberg 8 cục bộ (gồm trộn mẫu, chuyển PDF/A-2b, kiểm veraPDF, ghi kho), trong khoảng 300–600 ms của TL-01. Mẫu sinh bằng `annotationLibrary=swagger2` để springdoc công bố đủ mã phản hồi cho kiểm thử so khớp hợp đồng.
+9. **Định tuyến gateway:** `/api/v1/dossiers/render-jobs` thuộc SVC-11 còn các đường dẫn `/api/v1/dossiers/**` khác thuộc MOD-06; `GET /api/v1/jobs/{id}` có ở nhiều dịch vụ. APISIX cần luật riêng cho hai chỗ này. `createDossierDraftForms`, `previewDossierForm` (cũng của SVC-11) thuộc DV-11-02, DV-11-03.
+
 ## Liên quan
 
 - [README của wiki](README.md)

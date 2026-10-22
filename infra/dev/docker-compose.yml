@@ -19,6 +19,7 @@
 #   events             : kafka, apicurio, debezium
 #   search             : minio, minio-init, opensearch
 #   obs                : otel-collector, prometheus, loki, tempo, grafana
+#   backend            : gotenberg (chuyển DOCX sang PDF/A-2b cho document-service, DV-11-01)
 #   all                : tất cả dịch vụ trên
 # =============================================================================
 
@@ -360,6 +361,7 @@ services:
       mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
       mc mb --ignore-existing local/mission-evidence &&
       mc mb --ignore-existing local/mission-dossier &&
+      mc mb --ignore-existing local/mission-templates &&
       mc mb --ignore-existing local/mission-ui-pack &&
       mc mb --ignore-existing local/mission-backup &&
       exit 0
@@ -468,6 +470,28 @@ services:
       - grafana_data:/var/lib/grafana
     ports:
       - "${GRAFANA_PORT:-35300}:3000"
+    networks:
+      - mission-net
+
+  # ---------------------------------------------------------------------------
+  # PROFILE: backend — dịch vụ phụ trợ cho microservice (DV-11-01)
+  # ---------------------------------------------------------------------------
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: mission-dev-gotenberg
+    restart: unless-stopped
+    profiles: ["backend", "all"]
+    command:
+      - "gotenberg"
+      - "--api-timeout=60s"
+      - "--libreoffice-auto-start=true"
+    ports:
+      - "${GOTENBERG_PORT:-35330}:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     networks:
       - mission-net
 
