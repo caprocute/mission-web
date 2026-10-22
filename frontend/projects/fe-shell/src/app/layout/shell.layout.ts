@@ -18,6 +18,7 @@ import { AvatarModule } from 'primeng/avatar';
 // Giữ TooltipModule trong shell để thư viện dùng chung của remote được chia sẻ (AGENTS.md quy tắc 8)
 import { TooltipModule } from 'primeng/tooltip';
 import { FeatureFlagService } from '@vt/api-client';
+import { DisplayPreferenceSync } from './display-preference.sync';
 import { visibleNav } from './nav';
 
 /** Khung ứng dụng: thanh trên, menu bên, vùng nội dung (dùng cho mọi màn hình sau đăng nhập). */
@@ -40,6 +41,8 @@ import { visibleNav } from './nav';
 export class ShellLayout {
   protected readonly session = inject(SessionService);
   protected readonly theme = inject(ThemeService);
+  /** CNH-05: chế độ cao tuổi theo người dùng trên mọi thiết bị. */
+  protected readonly display = inject(DisplayPreferenceSync);
   protected readonly navOpen = signal(false);
   protected readonly noAssignmentText = MSG_00_06;
   private readonly title = inject(Title);

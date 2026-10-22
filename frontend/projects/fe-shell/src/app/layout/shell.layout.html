@@ -42,7 +42,7 @@
     [icon]="theme.mode() === 'elderly' ? 'pi pi-eye-slash' : 'pi pi-eye'"
     [label]="theme.mode() === 'elderly' ? 'Chữ thường' : 'Chữ lớn'"
     [attr.aria-pressed]="theme.mode() === 'elderly'"
-    (click)="theme.toggleElderly()"
+    (click)="display.toggle()"
   ></button>
   @if (session.user(); as u) {
     <p-avatar [label]="initials()" shape="circle" [attr.aria-label]="u.name" />
