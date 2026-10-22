@@ -11,6 +11,7 @@
   <link rel="preload" href="remoteEntry.json" as="fetch" crossorigin="anonymous" />
 </head>
 <body>
-  <vt-root></vt-root>
+  <!-- WEB-014: nginx thay giá trị ngCspNonce bằng nonce của từng yêu cầu (CSP_NONCE của Angular) -->
+  <vt-root ngCspNonce="__CSP_NONCE__"></vt-root>
 </body>
 </html>

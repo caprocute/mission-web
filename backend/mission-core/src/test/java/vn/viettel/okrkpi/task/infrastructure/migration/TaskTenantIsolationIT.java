@@ -175,6 +175,38 @@ class TaskTenantIsolationIT extends TenantIsolationCatalogTest {
   }
 
   @Test
+  void phienBanDaDuyetVaDongCuaNoBatBien() throws SQLException {
+    try (Connection c = admin();
+        Statement st = c.createStatement()) {
+      UUID t = UUID.randomUUID();
+      UUID plan = insertPlan(st, t);
+      UUID v = UUID.randomUUID();
+      st.execute(version(v, t, plan, 1, "'CHO_DUYET'", "false", "NULL"));
+      st.execute(item(t, v, "'" + UUID.randomUUID() + "'", "NULL"));
+      String where = " WHERE id = '" + v + "'";
+      st.execute("UPDATE task.plan_version SET status = 'DA_DUYET', is_current = true" + where);
+      // BR-04-09: chỉ được bỏ cờ hiện hành; nội dung, xoá và mọi thay đổi dòng bị chặn.
+      for (String sql :
+          List.of(
+              "UPDATE task.plan_version SET review_comment = 'sửa'" + where,
+              "UPDATE task.plan_version SET status = 'TRA_LAI', is_current = false" + where,
+              "DELETE FROM task.plan_version" + where,
+              item(t, v, "'" + UUID.randomUUID() + "'", "NULL"),
+              "UPDATE task.plan_item SET title = 'Khác' WHERE plan_version_id = '" + v + "'",
+              "DELETE FROM task.plan_item WHERE plan_version_id = '" + v + "'")) {
+        assertThatThrownBy(() -> st.execute(sql))
+            .as(sql)
+            .isInstanceOfSatisfying(
+                SQLException.class, e -> assertThat(e.getSQLState()).isEqualTo("23000"));
+      }
+      st.execute(
+          "UPDATE task.plan_version SET is_current = false, row_version = row_version + 1,"
+              + " updated_at = now()"
+              + where);
+    }
+  }
+
+  @Test
   void phienBanThuHaiThieuLyDoBiChan() throws SQLException {
     try (Connection c = admin();
         Statement st = c.createStatement()) {

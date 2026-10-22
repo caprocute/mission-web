@@ -324,6 +324,72 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/appraisals/inputs/{profileId}/work-items': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Hồ sơ đánh giá (`appraisal_profile.id`). */
+        profileId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Đọc tiếp việc lá của một hồ sơ cho scoring-service
+     * @description Phân trang con trỏ con cho hồ sơ có hơn 200 việc lá (BS-03 DC-01); con trỏ đầu lấy từ `workItemsNextCursor` của `GET /appraisals/inputs`. Chỉ dành cho client nội bộ SVC-07.
+     */
+    get: operations['listAppraisalWorkItems'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/appraisals/incidents': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Danh sách sự việc có kết luận
+     * @description Sự việc đã ghi của người hoặc của kỳ, mới nhất trước (BS-03 DC-05).
+     */
+    get: operations['listAppraisalIncidents'];
+    put?: never;
+    /**
+     * Ghi một sự việc có kết luận
+     * @description Cơ quan tổ chức cán bộ ghi sự việc đã có kết luận của cấp có thẩm quyền; điều kiện loại trừ của gói đọc bảng này qua đầu vào tính điểm. Ghi vào kỳ đã khoá trả `APPRAISAL-409-PERIOD-LOCKED`; loại sự việc không có trong danh mục của hồ sơ trả `APPRAISAL-422-INCIDENT-TYPE` (suy luận).
+     */
+    post: operations['createAppraisalIncident'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/appraisals/incidents/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    /** Xem một sự việc */
+    get: operations['getAppraisalIncident'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/appraisals/batch-decisions': {
     parameters: {
       query?: never;
@@ -717,6 +783,8 @@ export interface components {
       actorRole: 'staff' | 'appraiser' | 'manager' | 'decider';
       isCurrent: boolean;
       differsFromPrev?: boolean;
+      /** @description Mức khác `autoRatingCode` của ảnh chụp `scoreSnapshotId` (BS-03 DC-05); khi true thì có lý do. */
+      differsFromSuggested?: boolean;
       explanationRequired?: boolean;
       isBulkDecision?: boolean;
       batchDecisionId?: components['schemas']['Uuid'];
@@ -820,6 +888,8 @@ export interface components {
       formCode?: string;
       /** @description Băm phiếu client đã xem trước; lệch với máy chủ trả 409 (suy luận, chống ký nội dung khác). */
       contentHash?: components['schemas']['AppraisalHash'];
+      /** @description Ảnh chụp điểm người gọi đã xem (BS-03 DC-05); khi mức khác `autoRatingCode` của ảnh chụp này thì bắt buộc `reason` (422 `APPRAISAL-422-SUGGESTED-REASON-REQUIRED`). Bỏ trống thì máy chủ dùng ảnh chụp mới nhất. */
+      seenScoreSnapshotId?: components['schemas']['Uuid'];
     };
     AppraisalReturnInput: {
       /** @description Lý do trả lại (độ dài suy luận theo quy ước lý do của TL-02b). */
@@ -829,8 +899,10 @@ export interface components {
     AppraisalReviewInput: {
       ratingCode: components['schemas']['RatingLevel'];
       comment: string;
-      /** @description Bắt buộc khi mức thẩm định khác mức tự đề xuất (BR-09-12). */
+      /** @description Bắt buộc khi mức thẩm định khác mức tự đề xuất (BR-09-12) hoặc khác mức hệ thống gợi ý (BS-03 DC-05). */
       reason?: string;
+      /** @description Ảnh chụp điểm người gọi đã xem (BS-03 DC-05); khi mức khác `autoRatingCode` của ảnh chụp này thì bắt buộc `reason` (422 `APPRAISAL-422-SUGGESTED-REASON-REQUIRED`). Bỏ trống thì máy chủ dùng ảnh chụp mới nhất. */
+      seenScoreSnapshotId?: components['schemas']['Uuid'];
       /** @description Kết quả tiêu chí chung ở bước thẩm định nếu khác tự đánh giá (suy luận từ `stage = THAM_DINH`). */
       generalCriteria?: {
         criteriaCode: string;
@@ -840,9 +912,11 @@ export interface components {
     };
     AppraisalProposalInput: {
       ratingCode: components['schemas']['RatingLevel'];
-      /** @description Bắt buộc khi khác mức thẩm định (MSG-09-12). */
+      /** @description Bắt buộc khi khác mức thẩm định (MSG-09-12) hoặc khác mức hệ thống gợi ý (BS-03 DC-05). */
       reason?: string;
       comment?: string;
+      /** @description Ảnh chụp điểm người gọi đã xem (BS-03 DC-05); khi mức khác `autoRatingCode` của ảnh chụp này thì bắt buộc `reason` (422 `APPRAISAL-422-SUGGESTED-REASON-REQUIRED`). Bỏ trống thì máy chủ dùng ảnh chụp mới nhất. */
+      seenScoreSnapshotId?: components['schemas']['Uuid'];
     };
     /** @description Một điều kiện của mức xếp loại, đạt hay chưa (`rule_checks`, `conditions_json`). */
     AppraisalRuleCheck: {
@@ -1029,6 +1103,142 @@ export interface components {
         criteriaCode: string;
         met: boolean;
       }[];
+      /** @description Việc lá của người trong kỳ (BS-03 DC-01), chỉ có khi Policy Pack khai báo đầu vào `work_items` (nguồn `task.aggregate.work_items`); tối đa 200 phần tử, phần còn lại đọc tiếp bằng `workItemsNextCursor`. */
+      workItems?: components['schemas']['WorkItem'][];
+      /** @description Con trỏ đọc tiếp việc lá ở `GET /appraisals/inputs/{profileId}/work-items`; null khi đã đủ. */
+      workItemsNextCursor?: string | null;
+      /** @description Phạm vi phụ trách của người giữ chức vụ lãnh đạo, quản lý (BS-03 DC-03), chỉ có khi gói khai báo; tính theo tổ chức tại thời điểm khoá kỳ. */
+      responsibilityScope?: components['schemas']['ResponsibilityItem'][];
+      /** @description Sự việc có kết luận trong kỳ của người (BS-03 DC-05), chỉ có khi gói khai báo điều kiện loại trừ. */
+      incidents?: components['schemas']['AppraisalIncidentInput'][];
+    };
+    /** @description Một việc lá đưa vào tính điểm (BS-03 DC-01). Lõi chỉ cung cấp đại lượng thô và mức hệ số; công thức, giá trị hệ số và cách đưa về thang 100 nằm trong Policy Pack. */
+    WorkItem: {
+      taskId: components['schemas']['Uuid'];
+      /** @description Việc cha trong cây phân rã (suy luận, cần cho chế độ `MOT_NGUOI_MOT_VIEC`). */
+      parentTaskId?: components['schemas']['Uuid'] | null;
+      /** @description Điểm chuẩn của việc. */
+      standardScore: number;
+      /** @description Mức khó năm mức. */
+      difficulty?: number;
+      /** @description Mức của từng loại hệ số mở (`coefficient_levels`), khoá là mã loại hệ số của gói. */
+      coefficientLevels: {
+        [key: string]: string;
+      };
+      /**
+       * @description Nhóm tính điểm (`task_group`).
+       * @enum {string}
+       */
+      taskGroup?: 'THUONG_XUYEN' | 'THEN_CHOT';
+      /** @description Mã trục (`axis_code`). */
+      axisCode?: string | null;
+      /** @description Điểm thành phần khi hồ sơ dùng `MOT_NGUOI_MOT_VIEC`. */
+      componentScore?: number | null;
+      /**
+       * @description Trạng thái nhiệm vụ tại thời điểm khoá kỳ.
+       * @enum {string}
+       */
+      statusAtLock:
+        | 'NHAP'
+        | 'DA_GIAO'
+        | 'DANG_THUC_HIEN'
+        | 'CHO_NGHIEM_THU'
+        | 'HOAN_THANH'
+        | 'TAM_DUNG'
+        | 'HUY';
+      /** @description Mức chất lượng nghiệm thu; null khi chưa nghiệm thu. */
+      qualityLevel?: components['schemas']['QualityLevel'] | null;
+      /**
+       * @description Số ngày làm việc chậm do nguyên nhân chủ quan.
+       * @default 0
+       */
+      subjectiveLateWorkdays: number;
+      /**
+       * @description Số ngày làm việc chậm do nguyên nhân khách quan.
+       * @default 0
+       */
+      objectiveLateWorkdays: number;
+      /**
+       * @description Vượt mục tiêu.
+       * @default false
+       */
+      exceeded: boolean;
+      /**
+       * @description Việc ngoài phạm vi được giao.
+       * @default false
+       */
+      outOfScope: boolean;
+      /**
+       * @description Lùi hạn hoặc dừng theo quyết định của cấp có thẩm quyền.
+       * @default false
+       */
+      deferredByDecision: boolean;
+    };
+    AppraisalWorkItemPage: {
+      items: components['schemas']['WorkItem'][];
+      nextCursor: components['schemas']['NextCursor'];
+    };
+    /** @description Một mục người lãnh đạo, quản lý phụ trách (BS-03 DC-03). Các số tính trên chính mục đó, không cộng dồn hai lần phần giảm của cấp dưới. */
+    ResponsibilityItem: {
+      /**
+       * @description Loại mục phụ trách.
+       * @enum {string}
+       */
+      itemType: 'KPI' | 'NHIEM_VU' | 'KR' | 'DON_VI';
+      itemId: components['schemas']['Uuid'];
+      /** @description Tổng S đã tổng hợp của mục (đặt tên theo BS-03; suy luận). */
+      sumS?: number;
+      /** @description Tổng Q đã tổng hợp của mục (suy luận). */
+      sumQ?: number;
+      /** @description Tổng D đã tổng hợp của mục (suy luận). */
+      sumD?: number;
+      /** @description Tỷ lệ đạt chỉ tiêu (r). */
+      targetAchievedRatio?: number | null;
+      /** @description Mức chất lượng được xác nhận (m). */
+      confirmedLevel?: components['schemas']['QualityLevel'] | null;
+      /** @description Số ngày làm việc chậm của chính mục (n). */
+      ownLateWorkdays?: number;
+    };
+    /** @description Sự việc có kết luận đưa vào tính điểm (rút gọn của `AppraisalIncident`). */
+    AppraisalIncidentInput: {
+      incidentId: components['schemas']['Uuid'];
+      incidentType: string;
+      concludedOn: components['schemas']['Date'];
+      impact?: string;
+    };
+    /** @description Sự việc đã có kết luận của cấp có thẩm quyền (`appraisal.incident`, BS-03 DC-05). Loại sự việc và tác động lấy từ danh mục của hồ sơ tập khách hàng. */
+    AppraisalIncident: {
+      id: components['schemas']['Uuid'];
+      personId: components['schemas']['Uuid'];
+      periodId?: components['schemas']['Uuid'];
+      /** @description Mã loại sự việc theo danh mục của hồ sơ. */
+      incidentType: string;
+      concludedOn: components['schemas']['Date'];
+      /** @description Số văn bản kết luận. */
+      documentNo: string;
+      /** @description Tham chiếu văn bản đã lưu. */
+      documentRef?: string;
+      /** @description Mã tác động theo danh mục của hồ sơ, ví dụ `LOAI_TRU` (suy luận). */
+      impact?: string;
+      /** @description Tóm tắt kết luận. */
+      summary?: string;
+      createdBy?: components['schemas']['Ref'];
+      createdAt?: components['schemas']['DateTime'];
+      rowVersion: components['schemas']['RowVersion'];
+    };
+    AppraisalIncidentCreate: {
+      personId: components['schemas']['Uuid'];
+      periodId?: components['schemas']['Uuid'];
+      incidentType: string;
+      concludedOn: components['schemas']['Date'];
+      documentNo: string;
+      documentRef?: string;
+      impact?: string;
+      summary?: string;
+    };
+    AppraisalIncidentPage: {
+      items: components['schemas']['AppraisalIncident'][];
+      nextCursor: components['schemas']['NextCursor'];
     };
     AppraisalScoringInputPage: {
       items: components['schemas']['AppraisalScoringInput'][];
@@ -1037,8 +1247,10 @@ export interface components {
     AppraisalBatchDecisionItem: {
       profileId: components['schemas']['Uuid'];
       ratingCode: components['schemas']['RatingLevel'];
-      /** @description Bắt buộc khi khác mức đề xuất. */
+      /** @description Bắt buộc khi khác mức đề xuất hoặc khác mức hệ thống gợi ý (BS-03 DC-05). */
       reason?: string;
+      /** @description Ảnh chụp điểm người gọi đã xem (BS-03 DC-05); khi mức khác `autoRatingCode` của ảnh chụp này thì bắt buộc `reason` (422 `APPRAISAL-422-SUGGESTED-REASON-REQUIRED`). Bỏ trống thì máy chủ dùng ảnh chụp mới nhất. */
+      seenScoreSnapshotId?: components['schemas']['Uuid'];
       /** @description Phiên bản hồ sơ người quyết định đã xem (thay cho `If-Match` từng hồ sơ trong lô). */
       rowVersion: components['schemas']['RowVersion'];
     };
@@ -1898,6 +2110,131 @@ export interface operations {
       };
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listAppraisalWorkItems: {
+    parameters: {
+      query?: {
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path: {
+        /** @description Hồ sơ đánh giá (`appraisal_profile.id`). */
+        profileId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Một trang việc lá. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AppraisalWorkItemPage'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listAppraisalIncidents: {
+    parameters: {
+      query?: {
+        /** @description Lọc theo người. */
+        person?: components['schemas']['Uuid'];
+        /** @description Mã kỳ đánh giá (`config.period.id`). */
+        period?: components['parameters']['PeriodId'];
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Một trang sự việc. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AppraisalIncidentPage'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      default: components['responses']['Problem'];
+    };
+  };
+  createAppraisalIncident: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AppraisalIncidentCreate'];
+      };
+    };
+    responses: {
+      /** @description Đã ghi sự việc. */
+      201: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          Location: components['headers']['Location'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AppraisalIncident'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getAppraisalIncident: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sự việc. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AppraisalIncident'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       default: components['responses']['Problem'];
     };
   };

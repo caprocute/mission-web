@@ -41,10 +41,12 @@ const (
 
 // Processor xử lý một bản ghi trong giao dịch tenant cùng inbox.
 type Processor struct {
-	Pool   vdb.TxBeginner
-	Writer *store.Writer
-	Guard  *inbox.Guard
-	Log    *slog.Logger
+	// BulkThreshold là số người nhận từ đó EVT-21 được coi là đợt hàng loạt (DV-12-04); 0 là tắt.
+	BulkThreshold int
+	Pool          vdb.TxBeginner
+	Writer        *store.Writer
+	Guard         *inbox.Guard
+	Log           *slog.Logger
 	// Created được gọi sau khi giao dịch cam kết với các thông báo mới (DV-12-02 đẩy SSE); tuỳ chọn.
 	Created func(ctx context.Context, tenantID string, items []Created)
 }
@@ -108,8 +110,18 @@ func (p *Processor) Process(ctx context.Context, m Message) (Result, error) {
 	// Mỗi sự kiện là một việc cần báo độc lập nên không dùng chặn phiên bản aggregate: sự kiện đến muộn
 	// vẫn sinh thông báo; chống trùng dựa vào inbox và UQ (created_day, tenant, source_event_id, người nhận).
 	var made []Created
+	bulk := p.BulkThreshold > 0 && plan.category == "" && plan.priority != "CAO" && plan.paramsFor == nil &&
+		plan.templateFor == nil &&
+		len(uniq(plan.recipients)) >= p.BulkThreshold
 	outcome, err := p.Guard.Process(ctx, p.Pool, ev, func(ctx context.Context, tx vdb.Tx, e inbox.IncomingEvent) error {
 		made = made[:0]
+		if bulk {
+			// Đợt hàng loạt: chỉ ghi đợt, bộ mở đợt tách lô sau (DV-12-04), consumer không bị chặn.
+			_, err := store.InsertBulkJob(ctx, tx, store.BulkJob{TenantID: e.TenantID, ID: e.EventID,
+				TemplateCode: plan.templateCode, Params: plan.params, DeepLink: plan.deepLink, Priority: plan.priority,
+				Recipients: uniq(plan.recipients), CreatedAt: occurred})
+			return err
+		}
 		recipients := plan.recipients
 		if plan.category != "" {
 			subs, err := store.SubscribersOf(ctx, tx, plan.category)

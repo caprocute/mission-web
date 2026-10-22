@@ -54,6 +54,7 @@ import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalStarter;
+import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
@@ -99,6 +100,9 @@ class OkrComposeApiIT extends ContractConformanceTest {
 
   /** Cổng khởi tạo tiến trình duyet-okr (CORE-01-05), giả lập workflow-service. */
   @MockitoBean private OkrApprovalStarter starter;
+
+  /** Cây tổ chức giả: mặc định không có quan hệ cấp trên, cấp dưới. */
+  @MockitoBean private OrgDirectoryApi orgDirectory;
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper json;
@@ -490,6 +494,35 @@ class OkrComposeApiIT extends ContractConformanceTest {
                     .single());
     assertThat(status).isEqualTo("NHAP");
     verify(starter, never()).start(any(), eq(id), any(), anyLong(), any());
+  }
+
+  @Test
+  void hangChoDuyetCuaDonViCapTren() throws Exception {
+    UUID parent = UUID.fromString("01927a03-0000-7000-8000-0000000000f0");
+    UUID id = id(create(UNIT, period, "Mục tiêu chờ cấp trên duyệt", 3, null));
+    assertThat(submit(id, UUID.randomUUID().toString(), "\"0\"").getResponse().getStatus())
+        .isEqualTo(200);
+    when(orgDirectory.descendantsOf(any(), any(), eq(parent), eq(1))).thenReturn(List.of(UNIT));
+    CALLER_UNIT.set(parent);
+    try {
+      MvcResult r = perform(get("/api/v1/okr/reviews").param("period", period.toString()));
+      assertThat(r.getResponse().getStatus()).isEqualTo(200);
+      JsonNode set = null;
+      for (JsonNode item : body(r).get("items")) {
+        if (item.at("/unit/id").asText().equals(UNIT.toString())) {
+          set = item;
+        }
+      }
+      assertThat(set).isNotNull();
+      List<String> ids = new ArrayList<>();
+      set.get("objectives").forEach(o -> ids.add(o.get("id").asText()));
+      assertThat(ids).contains(id.toString());
+      assertThat(set.get("viewerIsAuthor").asBoolean()).isTrue();
+      assertThat(set.at("/objectives/0/keyResults/0/targetText").asText()).isEqualTo("100 %");
+      assertResponseConforms(r, "/okr/reviews", PathItem.HttpMethod.GET);
+    } finally {
+      CALLER_UNIT.set(UNIT);
+    }
   }
 
   private MvcResult submit(UUID id, String key, String ifMatch) throws Exception {

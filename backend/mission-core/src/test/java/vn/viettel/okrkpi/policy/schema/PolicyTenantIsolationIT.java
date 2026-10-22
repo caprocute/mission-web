@@ -56,6 +56,20 @@ class PolicyTenantIsolationIT extends TenantIsolationCatalogTest {
           row.put("created_by", ACTOR);
           row.put("updated_by", ACTOR);
           return row;
+        },
+        "policy.publish_request",
+        (tenantId, seed) -> {
+          Map<String, Object> row = new LinkedHashMap<>();
+          row.put("id", seeded("req-" + seed, tenantId));
+          row.put("policy_pack_version_id", seeded("ver", tenantId));
+          row.put("period_id", seeded("period", tenantId));
+          row.put("scopes", json("[{\"flow\":\"DANG\"}]"));
+          row.put("status", "TU_CHOI");
+          row.put("decided_by", ACTOR);
+          row.put("decided_at", java.sql.Timestamp.from(java.time.Instant.now()));
+          row.put("created_by", ACTOR);
+          row.put("updated_by", ACTOR);
+          return row;
         });
   }
 

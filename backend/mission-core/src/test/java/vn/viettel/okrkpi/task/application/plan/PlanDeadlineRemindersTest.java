@@ -161,6 +161,11 @@ class PlanDeadlineRemindersTest {
         public void returned(TenantId t, PendingPlan p, String name, UUID author) {
           throw new UnsupportedOperationException();
         }
+
+        @Override
+        public void approved(TenantId t, PendingPlan p, String name, UUID approver) {
+          throw new UnsupportedOperationException();
+        }
       };
 
   private final PlanDeadlineReminders reminders =

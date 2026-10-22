@@ -10,10 +10,13 @@ from vtplatform.otel import current_trace_id
 # Hai mã chung chưa có trong danh mục error-codes.json của thư viện Python (suy luận, ghi ở wiki/14).
 CODE_TOO_MANY = "COMMON-429-TOO-MANY-REQUESTS"
 CODE_UNAVAILABLE = "COMMON-503-UNAVAILABLE"
+# Mã của hợp đồng ocrEvidenceObject chưa có trong error-codes.json (suy luận, ghi ở wiki/14).
+CODE_C3 = "AI-403-C3-FORBIDDEN"
 
 _FALLBACK = {
     CODE_TOO_MANY: (429, "Có quá nhiều yêu cầu, đề nghị thử lại sau ít phút."),
     CODE_UNAVAILABLE: (503, "Dịch vụ tạm thời gián đoạn, đề nghị thử lại sau."),
+    CODE_C3: (403, "Trợ lý không xử lý tài liệu mật."),
 }
 
 

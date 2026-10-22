@@ -173,4 +173,34 @@ public interface PlanRepository {
    */
   List<ReviewRow> awaitingReview(
       TenantId tenant, java.util.Collection<UUID> unitIds, UUID afterPlanId, int limit);
+
+  /** Người lập và yêu cầu ký đang gắn của một phiên bản (CORE-02-09). */
+  record ApprovalRow(UUID createdBy, UUID signRequestId, UUID approvedBy) {}
+
+  Optional<ApprovalRow> approvalRow(TenantId tenant, int periodBucket, UUID versionId);
+
+  /** Gắn yêu cầu ký vừa tạo trên SVC-10 vào phiên bản {@code CHO_DUYET}; trả row_version mới. */
+  long attachSignRequest(
+      TenantId tenant, PlanRow plan, VersionRow version, UUID signRequestId, UUID actor);
+
+  /** Phiên bản theo mã (không biết kỳ); {@code forUpdate} khoá dòng để chuyển {@code DA_DUYET}. */
+  record SignedTarget(PlanRow plan, VersionRow version, ApprovalRow approval) {}
+
+  Optional<SignedTarget> versionById(TenantId tenant, UUID versionId, boolean forUpdate);
+
+  /**
+   * Chuyển {@code DA_DUYET} và đặt {@code is_current}, bỏ {@code is_current} của phiên bản hiệu lực
+   * cũ trước để chỉ mục duy nhất một phần không bị vi phạm. Trả mã phiên bản hiệu lực cũ (nếu có)
+   * và row_version mới.
+   */
+  record Approved(UUID supersededVersionId, long rowVersion) {}
+
+  Approved markApproved(
+      TenantId tenant, PlanRow plan, VersionRow version, UUID approver, java.time.Instant at);
+
+  /**
+   * Người duyệt đã mở yêu cầu ký này (tác vụ {@code approvePlanVersion}): {@code approved_by} khi
+   * đã duyệt, ngược lại người cập nhật cuối (người gắn yêu cầu ký).
+   */
+  Optional<UUID> signRequestInitiator(TenantId tenant, UUID signRequestId);
 }

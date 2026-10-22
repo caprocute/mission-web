@@ -340,6 +340,33 @@ class PlanServiceTest {
     }
 
     @Override
+    public Optional<ApprovalRow> approvalRow(TenantId tenant, int bucket, UUID versionId) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public long attachSignRequest(
+        TenantId tenant, PlanRow plan, VersionRow version, UUID signRequestId, UUID actor) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Optional<SignedTarget> versionById(TenantId tenant, UUID versionId, boolean forUpdate) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Approved markApproved(
+        TenantId tenant, PlanRow plan, VersionRow version, UUID approver, java.time.Instant at) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Optional<UUID> signRequestInitiator(TenantId tenant, UUID signRequestId) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
     public long markSubmitted(
         TenantId tenant, PlanRow plan, VersionRow version, byte[] hash, UUID actor) {
       throw new UnsupportedOperationException();

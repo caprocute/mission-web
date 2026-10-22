@@ -104,11 +104,15 @@ class CoreClient:
         if int(meta.get("sizeBytes") or 0) > max_bytes:
             raise ValueError("tệp vượt giới hạn")
         ext = {"application/pdf": ".pdf"}.get(str(meta.get("mediaType")), ".docx")
-        r = await self._http.get(str(meta["url"]), headers={"Authorization": ""})
+        return f"{object_id}{ext}", await self.fetch_signed(str(meta["url"]), max_bytes)
+
+    async def fetch_signed(self, url: str, max_bytes: int) -> bytes:
+        """Tải từ URL ký trước của lõi, không kèm token người dùng."""
+        r = await self._http.get(url, headers={"Authorization": ""})
         r.raise_for_status()
         if len(r.content) > max_bytes:
             raise ValueError("tệp vượt giới hạn")
-        return f"{object_id}{ext}", r.content
+        return r.content
 
     def __getattr__(self, name: str) -> Any:
         if name in ("post", "put", "patch", "delete", "request", "send", "stream"):

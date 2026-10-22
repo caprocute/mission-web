@@ -1,7 +1,7 @@
 {
   "description": "Danh mục mã lỗi <MODULE>-<HTTP>-<TÊN> trích từ contracts/openapi (NEN-009). Không sửa tay: chạy tools/extract-error-codes.mjs.",
   "source": "contracts/openapi/**/*.yaml",
-  "count": 192,
+  "count": 201,
   "codes": [
     {
       "code": "AI-403-C3-FORBIDDEN",
@@ -234,6 +234,16 @@
       ]
     },
     {
+      "code": "APPRAISAL-422-INCIDENT-TYPE",
+      "module": "APPRAISAL",
+      "status": 422,
+      "name": "INCIDENT-TYPE",
+      "type": "https://okrkpi.vn/problems/incident-type",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
       "code": "APPRAISAL-422-PROSPECT-NOT-ELIGIBLE",
       "module": "APPRAISAL",
       "status": 422,
@@ -251,6 +261,16 @@
       "name": "REASON-REQUIRED",
       "type": "https://okrkpi.vn/problems/reason-required",
       "msg": "MSG-09-02",
+      "sources": [
+        "modules/appraisals.yaml"
+      ]
+    },
+    {
+      "code": "APPRAISAL-422-SUGGESTED-REASON-REQUIRED",
+      "module": "APPRAISAL",
+      "status": 422,
+      "name": "SUGGESTED-REASON-REQUIRED",
+      "type": "https://okrkpi.vn/problems/suggested-reason-required",
       "sources": [
         "modules/appraisals.yaml"
       ]
@@ -290,6 +310,16 @@
         "modules/oversight.yaml",
         "modules/policies.yaml",
         "modules/products.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-403-NOT-OWNER",
+      "module": "CONFIG",
+      "status": 403,
+      "name": "NOT-OWNER",
+      "type": "https://okrkpi.vn/problems/not-owner",
+      "sources": [
+        "modules/config.yaml"
       ]
     },
     {
@@ -340,6 +370,16 @@
       "status": 409,
       "name": "DUPLICATE-BINDING",
       "type": "https://okrkpi.vn/problems/duplicate-binding",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-409-DUPLICATE-TITLE",
+      "module": "CONFIG",
+      "status": 409,
+      "name": "DUPLICATE-TITLE",
+      "type": "https://okrkpi.vn/problems/duplicate-title",
       "sources": [
         "modules/config.yaml"
       ]
@@ -963,6 +1003,16 @@
       ]
     },
     {
+      "code": "OKR-422-NOT-MILESTONE-KR",
+      "module": "OKR",
+      "status": 422,
+      "name": "NOT-MILESTONE-KR",
+      "type": "https://okrkpi.vn/problems/not-milestone-kr",
+      "sources": [
+        "modules/okr.yaml"
+      ]
+    },
+    {
       "code": "OKR-422-OVER-LIMIT-REASON-REQUIRED",
       "module": "OKR",
       "status": 422,
@@ -1383,6 +1433,36 @@
       ]
     },
     {
+      "code": "POLICY-422-PARAM-CONSTRAINT",
+      "module": "POLICY",
+      "status": 422,
+      "name": "PARAM-CONSTRAINT",
+      "type": "https://okrkpi.vn/problems/param-constraint",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-422-PROFILE-CODE-EXISTS",
+      "module": "POLICY",
+      "status": 422,
+      "name": "PROFILE-CODE-EXISTS",
+      "type": "https://okrkpi.vn/problems/profile-code-exists",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
+      "code": "POLICY-422-PROFILE-REF",
+      "module": "POLICY",
+      "status": 422,
+      "name": "PROFILE-REF",
+      "type": "https://okrkpi.vn/problems/profile-ref",
+      "sources": [
+        "modules/policies.yaml"
+      ]
+    },
+    {
       "code": "POLICY-422-TEMPLATE-NOT-ACTIVE",
       "module": "POLICY",
       "status": 422,
@@ -1796,6 +1876,16 @@
       "msg": "MSG-09-07",
       "sources": [
         "common/common.yaml",
+        "modules/tasks.yaml"
+      ]
+    },
+    {
+      "code": "TASK-422-ASSIGNMENT-MODE",
+      "module": "TASK",
+      "status": 422,
+      "name": "ASSIGNMENT-MODE",
+      "type": "https://okrkpi.vn/problems/assignment-mode",
+      "sources": [
         "modules/tasks.yaml"
       ]
     },

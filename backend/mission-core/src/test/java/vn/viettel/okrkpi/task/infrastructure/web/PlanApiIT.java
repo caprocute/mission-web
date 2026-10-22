@@ -177,9 +177,9 @@ class PlanApiIT extends ContractConformanceTest {
               .update();
           jdbc.sql(
                   "INSERT INTO task.plan_version (id, created_by, updated_by, period_id,"
-                      + " period_bucket, plan_id, version_no, status, is_current, approved_by,"
-                      + " approved_at) VALUES (?, ?, ?, ?, ?, ?, 1, 'DA_DUYET', true, ?, now())")
-              .params(version, MANAGER, MANAGER, q4, Q4, plan, MANAGER)
+                      + " period_bucket, plan_id, version_no, status) VALUES (?, ?, ?, ?, ?, ?, 1,"
+                      + " 'CHO_DUYET')")
+              .params(version, MANAGER, MANAGER, q4, Q4, plan)
               .update();
           UUID done = null;
           String[][] lines = {
@@ -210,6 +210,12 @@ class PlanApiIT extends ContractConformanceTest {
                 .update();
             done = item;
           }
+          // BR-04-09: dòng của phiên bản đã duyệt bất biến, nên duyệt sau khi chèn dòng.
+          jdbc.sql(
+                  "UPDATE task.plan_version SET status = 'DA_DUYET', is_current = true,"
+                      + " approved_by = ?, approved_at = now() WHERE id = ?")
+              .params(MANAGER, version)
+              .update();
           jdbc.sql(
                   "INSERT INTO task.task (id, created_by, updated_by, period_id, period_bucket,"
                       + " code, title, task_group, source, assigner_id, due_date, unit,"

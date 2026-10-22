@@ -17,14 +17,15 @@ from fastapi.responses import JSONResponse
 from vtplatform import problem as vp
 from vtplatform.db import in_tenant_tx
 
-from app.api.deps import authorize, state
-from app.assist import decisions, extract
+from app.api.deps import authenticate, authorize, state
+from app.assist import decisions, evidence, extract
 from app.assist.service import Done, UnsupportedUseCase
 from app.core import problems
 from app.core.auth import Principal
 from app.core.core_client import C3ForbiddenError
 from app.core.pipeline import Accepted
 from app.guard.guards import MSG_C3
+from app.ocr.client import OcrUnavailable, Unreadable
 from app.store.idempotency import IdempotencyInProgress, IdempotencyMismatch, request_hash
 
 SCHEMAS: dict[str, Any] = json.loads((pathlib.Path(__file__).resolve().parents[1] / "assist" / "schemas.json")
@@ -189,3 +190,47 @@ async def decide_suggestion(suggestion_id: str, request: Request,
             raise _problem("AI-422-REASON-REQUIRED", "Đề nghị nêu lý do bỏ nhiệm vụ này.", path) from e
 
     return await _idempotent(request, p, "AiSuggestionDecisionRequest", run)
+
+
+def _ocr_errors(path: str, e: Exception) -> problems.ApiError:
+    if isinstance(e, evidence.C3Refused | C3ForbiddenError):
+        return _problem(problems.CODE_C3, MSG_C3, path)
+    if isinstance(e, Unreadable):
+        return _problem("AI-422-UNREADABLE", "Ảnh chưa đủ nét để đọc. Đề nghị đồng chí chụp lại rõ hơn.", path)
+    if isinstance(e, evidence.TooLarge):
+        return _problem(CODE_VALIDATION, "Tệp vượt quá 20 MB.", path)
+    return problems.unavailable(path)
+
+
+@router.post("/evidence/extract")
+async def extract_evidence(request: Request, p: Annotated[Principal, Depends(authorize())]) -> JSONResponse:
+    async def run(pr: Principal, body: dict[str, Any]) -> Done | Accepted:
+        try:
+            return await state(request).evidence.extract(pr, body)
+        except (evidence.C3Refused, C3ForbiddenError, Unreadable, evidence.TooLarge, OcrUnavailable) as e:
+            raise _ocr_errors(request.url.path, e) from e
+
+    return await _idempotent(request, p, "EvidenceExtractRequest", run)
+
+
+async def service_client(request: Request) -> Principal:
+    """ocrEvidenceObject chỉ cho tài khoản dịch vụ evidence-service, search-indexer (vai trò service_client của
+    hợp đồng); lớp mTLS của lưới dịch vụ chặn trước ở tầng mạng."""
+    p = await authenticate(request)
+    if p.client_id not in state(request).ocr_clients:
+        raise problems.forbidden(request.url.path)
+    return p
+
+
+@router.post("/ocr")
+async def ocr_object(request: Request, p: Annotated[Principal, Depends(service_client)]) -> JSONResponse:
+    async def run(_: Principal, body: dict[str, Any]) -> Done | Accepted:
+        try:
+            return Done(await state(request).evidence.ocr_object(body))
+        except (evidence.C3Refused, Unreadable, evidence.TooLarge, OcrUnavailable) as e:
+            raise _ocr_errors(request.url.path, e) from e
+
+    raw = json.loads(await request.body() or b"null")
+    if isinstance(raw, dict) and raw.get("classification") == "C3":  # BR-17-07: 403 trước khi kiểm lược đồ
+        raise _problem(problems.CODE_C3, MSG_C3, request.url.path)
+    return await _idempotent(request, p, "AiOcrRequest", run)

@@ -30,6 +30,11 @@
 #     `batchId`; thêm `GET /appraisals/batch-decisions` liệt kê lô của người quyết định.
 #   - AP-07 (WEB-063 bổ sung cho SCR-1001, SCR-1002): bảng phân nhóm có `policyPackId`; lưu nháp
 #     không bắt buộc lý do (chỉ bắt buộc khi trình); `linkageNote`, `policyNote` là lời nghiệp vụ.
+#   - AP-08 (NEN-044, BS-03 ADR-33): đầu vào lô cho SVC-07 có thêm `workItems` (DC-01, tối đa 200 việc lá mỗi hồ
+#     sơ, phần còn lại đọc tiếp ở `/appraisals/inputs/{profileId}/work-items`) và `responsibilityScope` (DC-03),
+#     đều tuỳ chọn và chỉ trả khi Policy Pack khai báo; sự việc có kết luận ở `/appraisals/incidents` (DC-05);
+#     mức con người khác mức hệ thống gợi ý trong ảnh chụp đã xem phải có lý do, lỗi
+#     `APPRAISAL-422-SUGGESTED-REASON-REQUIRED` (DC-05).
 openapi: 3.1.0
 info:
   title: Mission – Đánh giá, xếp loại (MOD-04)
@@ -73,6 +78,8 @@ tags:
     description: Bảng phân nhóm bốn nhóm theo PL 5, lưu nháp và trình tập thể (SCR-1002).
   - name: Nội bộ
     description: Thao tác cho client nội bộ (scoring-service) và giám sát (tính lại, xuất danh sách).
+  - name: Sự việc
+    description: Sự việc đã có kết luận của cấp có thẩm quyền, dùng cho điều kiện loại trừ của Policy Pack (BS-03 DC-05).
 
 paths:
   /appraisals/profiles/mine:
@@ -308,7 +315,7 @@ paths:
         scope: B
         aal: 2
         rules: [BR-09-05, BR-09-12, BR-09-15]
-        errors: [APPRAISAL-422-REASON-REQUIRED, APPRAISAL-422-BREAKTHROUGH-REQUIRED, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-VERSION-CONFLICT]
+        errors: [APPRAISAL-422-REASON-REQUIRED, APPRAISAL-422-SUGGESTED-REASON-REQUIRED, APPRAISAL-422-BREAKTHROUGH-REQUIRED, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-VERSION-CONFLICT]
         source: TL-02b SCR-0901 "Ký số và nộp"; TL-01 PL C POST /appraisals/{id}/self-assessment
 
   /appraisals/profiles/{id}/return:
@@ -410,7 +417,7 @@ paths:
         aal: 2
         fourEyes: true
         rules: [BR-09-12, BR-09-14, BR-09-15]
-        errors: [APPRAISAL-422-REASON-REQUIRED, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-VERSION-CONFLICT, APPRAISAL-403-SEPARATION-OF-DUTIES]
+        errors: [APPRAISAL-422-REASON-REQUIRED, APPRAISAL-422-SUGGESTED-REASON-REQUIRED, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-VERSION-CONFLICT, APPRAISAL-403-SEPARATION-OF-DUTIES]
         source: TL-02b SCR-0902 "Ký số và chuyển đề xuất"; TL-01 PL C POST /appraisals/{id}/review
 
   /appraisals/profiles/{id}/proposal:
@@ -461,7 +468,7 @@ paths:
         roles: [manager]
         scope: Đv
         rules: [BR-09-12, BR-09-14]
-        errors: [APPRAISAL-422-REASON-REQUIRED, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-VERSION-CONFLICT]
+        errors: [APPRAISAL-422-REASON-REQUIRED, APPRAISAL-422-SUGGESTED-REASON-REQUIRED, APPRAISAL-409-INVALID-STATUS, APPRAISAL-409-VERSION-CONFLICT]
         source: TL-02b SCR-0903 "Ghi mức đề xuất"
 
   /appraisals/profiles/{id}/scores:
@@ -756,6 +763,166 @@ paths:
         scope: Tn
         source: TL-01 PL C GET /appraisals/inputs?period=&cursor=
 
+  /appraisals/inputs/{profileId}/work-items:
+    parameters:
+      - name: profileId
+        in: path
+        required: true
+        description: Hồ sơ đánh giá (`appraisal_profile.id`).
+        schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+    get:
+      tags: [Nội bộ]
+      operationId: listAppraisalWorkItems
+      summary: Đọc tiếp việc lá của một hồ sơ cho scoring-service
+      description: >-
+        Phân trang con trỏ con cho hồ sơ có hơn 200 việc lá (BS-03 DC-01); con trỏ đầu lấy từ `workItemsNextCursor`
+        của `GET /appraisals/inputs`. Chỉ dành cho client nội bộ SVC-07.
+      security:
+        - serviceClient: []
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang việc lá.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalWorkItemPage' }
+              examples:
+                trang-tiep:
+                  value:
+                    items:
+                      - taskId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0c01
+                        standardScore: 10
+                        difficulty: 3
+                        coefficientLevels: { he_so_nhom: NHOM_2 }
+                        taskGroup: THEN_CHOT
+                        axisCode: TR1
+                        statusAtLock: HOAN_THANH
+                        qualityLevel: 0.75
+                        subjectiveLateWorkdays: 2
+                        objectiveLateWorkdays: 0
+                        exceeded: false
+                        outOfScope: false
+                        deferredByDecision: false
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09]
+        scr: []
+        owner: MOD-04
+        roles: [service_client]
+        scope: Tn
+        source: BS-03 DC-01 "Hiệu năng" (con trỏ con khi vượt 200 việc lá; suy luận đường dẫn)
+
+  /appraisals/incidents:
+    get:
+      tags: [Sự việc]
+      operationId: listAppraisalIncidents
+      summary: Danh sách sự việc có kết luận
+      description: Sự việc đã ghi của người hoặc của kỳ, mới nhất trước (BS-03 DC-05).
+      parameters:
+        - name: person
+          in: query
+          description: Lọc theo người.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - $ref: '../common/common.yaml#/components/parameters/PeriodId'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang sự việc.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalIncidentPage' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09]
+        scr: []
+        owner: MOD-04
+        roles: [appraiser, decider, inspector]
+        scope: Cd
+        source: BS-03 DC-05 bảng `appraisal.incident` (suy luận đường dẫn, vai trò và chưa có màn hình)
+    post:
+      tags: [Sự việc]
+      operationId: createAppraisalIncident
+      summary: Ghi một sự việc có kết luận
+      description: >-
+        Cơ quan tổ chức cán bộ ghi sự việc đã có kết luận của cấp có thẩm quyền; điều kiện loại trừ của gói đọc bảng
+        này qua đầu vào tính điểm. Ghi vào kỳ đã khoá trả `APPRAISAL-409-PERIOD-LOCKED`; loại sự việc không có trong
+        danh mục của hồ sơ trả `APPRAISAL-422-INCIDENT-TYPE` (suy luận).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppraisalIncidentCreate' }
+            examples:
+              ky-luat:
+                value:
+                  personId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0201
+                  periodId: 01928f3e-7b1a-7c3e-9a51-3f2d9c1b0501
+                  incidentType: KY_LUAT
+                  concludedOn: '2026-11-20'
+                  documentNo: 12-QĐ/UBKT
+                  impact: LOAI_TRU
+                  summary: Kết luận vi phạm quy định về chế độ báo cáo, hình thức khiển trách.
+      responses:
+        '201':
+          description: Đã ghi sự việc.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalIncident' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09]
+        scr: []
+        owner: MOD-04
+        roles: [appraiser]
+        scope: Cd
+        errors: [APPRAISAL-409-PERIOD-LOCKED, APPRAISAL-422-INCIDENT-TYPE]
+        source: BS-03 DC-05 (suy luận đường dẫn và vai trò)
+
+  /appraisals/incidents/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Sự việc]
+      operationId: getAppraisalIncident
+      summary: Xem một sự việc
+      responses:
+        '200':
+          description: Sự việc.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppraisalIncident' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-09]
+        scr: []
+        owner: MOD-04
+        roles: [appraiser, decider, inspector]
+        scope: Cd
+        source: BS-03 DC-05 (suy luận đường dẫn)
+
   /appraisals/batch-decisions:
     get:
       tags: [Quyết định hàng loạt]
@@ -888,7 +1055,7 @@ paths:
         scope: Cd
         aal: 2
         rules: [BR-09-12, BR-09-13, BR-09-14, BR-09-15, BR-09-17, BR-10-03]
-        errors: [APPRAISAL-409-DECISION-NO-DUPLICATE, APPRAISAL-422-HEAD-TOO-EARLY, APPRAISAL-422-REASON-REQUIRED, APPRAISAL-409-COMPLAINT-OPEN, APPRAISAL-422-CALIBRATION-REQUIRED, APPRAISAL-409-VERSION-CONFLICT]
+        errors: [APPRAISAL-409-DECISION-NO-DUPLICATE, APPRAISAL-422-HEAD-TOO-EARLY, APPRAISAL-422-REASON-REQUIRED, APPRAISAL-422-SUGGESTED-REASON-REQUIRED, APPRAISAL-409-COMPLAINT-OPEN, APPRAISAL-422-CALIBRATION-REQUIRED, APPRAISAL-409-VERSION-CONFLICT]
         source: TL-02b SCR-0904 "Quyết định và ký lô"; TL-01 PL C POST /appraisals/decisions/batch và POST /appraisals/{id}/decision
 
   /appraisals/batch-decisions/{id}:
@@ -1509,6 +1676,9 @@ components:
           enum: [staff, appraiser, manager, decider]
         isCurrent: { type: boolean }
         differsFromPrev: { type: boolean }
+        differsFromSuggested:
+          type: boolean
+          description: Mức khác `autoRatingCode` của ảnh chụp `scoreSnapshotId` (BS-03 DC-05); khi true thì có lý do.
         explanationRequired: { type: boolean }
         isBulkDecision: { type: boolean }
         batchDecisionId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
@@ -1660,6 +1830,11 @@ components:
         contentHash:
           $ref: '#/components/schemas/AppraisalHash'
           description: Băm phiếu client đã xem trước; lệch với máy chủ trả 409 (suy luận, chống ký nội dung khác).
+        seenScoreSnapshotId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: >-
+            Ảnh chụp điểm người gọi đã xem (BS-03 DC-05); khi mức khác `autoRatingCode` của ảnh chụp này thì bắt buộc
+            `reason` (422 `APPRAISAL-422-SUGGESTED-REASON-REQUIRED`). Bỏ trống thì máy chủ dùng ảnh chụp mới nhất.
     AppraisalReturnInput:
       type: object
       required: [reason]
@@ -1686,7 +1861,12 @@ components:
           minLength: 20
           maxLength: 2000
           x-classification: C2
-          description: Bắt buộc khi mức thẩm định khác mức tự đề xuất (BR-09-12).
+          description: Bắt buộc khi mức thẩm định khác mức tự đề xuất (BR-09-12) hoặc khác mức hệ thống gợi ý (BS-03 DC-05).
+        seenScoreSnapshotId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: >-
+            Ảnh chụp điểm người gọi đã xem (BS-03 DC-05); khi mức khác `autoRatingCode` của ảnh chụp này thì bắt buộc
+            `reason` (422 `APPRAISAL-422-SUGGESTED-REASON-REQUIRED`). Bỏ trống thì máy chủ dùng ảnh chụp mới nhất.
         generalCriteria:
           description: Kết quả tiêu chí chung ở bước thẩm định nếu khác tự đánh giá (suy luận từ `stage = THAM_DINH`).
           type: array
@@ -1707,8 +1887,13 @@ components:
           minLength: 20
           maxLength: 2000
           x-classification: C2
-          description: Bắt buộc khi khác mức thẩm định (MSG-09-12).
+          description: Bắt buộc khi khác mức thẩm định (MSG-09-12) hoặc khác mức hệ thống gợi ý (BS-03 DC-05).
         comment: { type: string, maxLength: 4000, x-classification: C2 }
+        seenScoreSnapshotId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: >-
+            Ảnh chụp điểm người gọi đã xem (BS-03 DC-05); khi mức khác `autoRatingCode` của ảnh chụp này thì bắt buộc
+            `reason` (422 `APPRAISAL-422-SUGGESTED-REASON-REQUIRED`). Bỏ trống thì máy chủ dùng ảnh chụp mới nhất.
 
     AppraisalRuleCheck:
       description: Một điều kiện của mức xếp loại, đạt hay chưa (`rule_checks`, `conditions_json`).
@@ -1939,6 +2124,144 @@ components:
             properties:
               criteriaCode: { type: string }
               met: { type: boolean }
+        workItems:
+          description: >-
+            Việc lá của người trong kỳ (BS-03 DC-01), chỉ có khi Policy Pack khai báo đầu vào `work_items` (nguồn
+            `task.aggregate.work_items`); tối đa 200 phần tử, phần còn lại đọc tiếp bằng `workItemsNextCursor`.
+          type: array
+          maxItems: 200
+          items: { $ref: '#/components/schemas/WorkItem' }
+        workItemsNextCursor:
+          description: Con trỏ đọc tiếp việc lá ở `GET /appraisals/inputs/{profileId}/work-items`; null khi đã đủ.
+          type: [string, 'null']
+        responsibilityScope:
+          description: >-
+            Phạm vi phụ trách của người giữ chức vụ lãnh đạo, quản lý (BS-03 DC-03), chỉ có khi gói khai báo; tính
+            theo tổ chức tại thời điểm khoá kỳ.
+          type: array
+          items: { $ref: '#/components/schemas/ResponsibilityItem' }
+        incidents:
+          description: Sự việc có kết luận trong kỳ của người (BS-03 DC-05), chỉ có khi gói khai báo điều kiện loại trừ.
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalIncidentInput' }
+    WorkItem:
+      description: >-
+        Một việc lá đưa vào tính điểm (BS-03 DC-01). Lõi chỉ cung cấp đại lượng thô và mức hệ số; công thức, giá trị
+        hệ số và cách đưa về thang 100 nằm trong Policy Pack.
+      type: object
+      required: [taskId, standardScore, coefficientLevels, statusAtLock]
+      properties:
+        taskId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        parentTaskId:
+          description: Việc cha trong cây phân rã (suy luận, cần cho chế độ `MOT_NGUOI_MOT_VIEC`).
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        standardScore: { type: number, minimum: 0, description: Điểm chuẩn của việc. }
+        difficulty: { type: integer, minimum: 1, maximum: 5, description: Mức khó năm mức. }
+        coefficientLevels:
+          description: Mức của từng loại hệ số mở (`coefficient_levels`), khoá là mã loại hệ số của gói.
+          type: object
+          additionalProperties: { type: string, maxLength: 32 }
+        taskGroup: { type: string, enum: [THUONG_XUYEN, THEN_CHOT], description: Nhóm tính điểm (`task_group`). }
+        axisCode: { type: [string, 'null'], maxLength: 16, description: Mã trục (`axis_code`). }
+        componentScore: { type: [number, 'null'], description: Điểm thành phần khi hồ sơ dùng `MOT_NGUOI_MOT_VIEC`. }
+        statusAtLock:
+          type: string
+          enum: [NHAP, DA_GIAO, DANG_THUC_HIEN, CHO_NGHIEM_THU, HOAN_THANH, TAM_DUNG, HUY]
+          description: Trạng thái nhiệm vụ tại thời điểm khoá kỳ.
+        qualityLevel:
+          description: Mức chất lượng nghiệm thu; null khi chưa nghiệm thu.
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/QualityLevel'
+            - type: 'null'
+        subjectiveLateWorkdays: { type: integer, minimum: 0, default: 0, description: Số ngày làm việc chậm do nguyên nhân chủ quan. }
+        objectiveLateWorkdays: { type: integer, minimum: 0, default: 0, description: Số ngày làm việc chậm do nguyên nhân khách quan. }
+        exceeded: { type: boolean, default: false, description: Vượt mục tiêu. }
+        outOfScope: { type: boolean, default: false, description: Việc ngoài phạm vi được giao. }
+        deferredByDecision: { type: boolean, default: false, description: Lùi hạn hoặc dừng theo quyết định của cấp có thẩm quyền. }
+    AppraisalWorkItemPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WorkItem' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    ResponsibilityItem:
+      description: >-
+        Một mục người lãnh đạo, quản lý phụ trách (BS-03 DC-03). Các số tính trên chính mục đó, không cộng dồn hai lần
+        phần giảm của cấp dưới.
+      type: object
+      required: [itemType, itemId]
+      properties:
+        itemType:
+          type: string
+          enum: [KPI, NHIEM_VU, KR, DON_VI]
+          description: Loại mục phụ trách.
+        itemId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        sumS: { type: number, description: 'Tổng S đã tổng hợp của mục (đặt tên theo BS-03; suy luận).' }
+        sumQ: { type: number, description: Tổng Q đã tổng hợp của mục (suy luận). }
+        sumD: { type: number, description: Tổng D đã tổng hợp của mục (suy luận). }
+        targetAchievedRatio: { type: [number, 'null'], minimum: 0, description: Tỷ lệ đạt chỉ tiêu (r). }
+        confirmedLevel:
+          description: Mức chất lượng được xác nhận (m).
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/QualityLevel'
+            - type: 'null'
+        ownLateWorkdays: { type: integer, minimum: 0, description: Số ngày làm việc chậm của chính mục (n). }
+    AppraisalIncidentInput:
+      description: Sự việc có kết luận đưa vào tính điểm (rút gọn của `AppraisalIncident`).
+      type: object
+      required: [incidentId, incidentType, concludedOn]
+      properties:
+        incidentId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        incidentType: { type: string, maxLength: 32 }
+        concludedOn: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        impact: { type: string, maxLength: 32 }
+    AppraisalIncident:
+      description: >-
+        Sự việc đã có kết luận của cấp có thẩm quyền (`appraisal.incident`, BS-03 DC-05). Loại sự việc và tác động
+        lấy từ danh mục của hồ sơ tập khách hàng.
+      type: object
+      required: [id, personId, incidentType, concludedOn, documentNo, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        incidentType: { type: string, maxLength: 32, description: 'Mã loại sự việc theo danh mục của hồ sơ.' }
+        concludedOn: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        documentNo: { type: string, maxLength: 64, description: Số văn bản kết luận. }
+        documentRef: { type: string, maxLength: 200, description: Tham chiếu văn bản đã lưu. }
+        impact: { type: string, maxLength: 32, description: 'Mã tác động theo danh mục của hồ sơ, ví dụ `LOAI_TRU` (suy luận).' }
+        summary:
+          type: string
+          maxLength: 2000
+          x-classification: C2
+          description: Tóm tắt kết luận.
+        createdBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    AppraisalIncidentCreate:
+      type: object
+      required: [personId, incidentType, concludedOn, documentNo]
+      properties:
+        personId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        periodId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        incidentType: { type: string, minLength: 1, maxLength: 32 }
+        concludedOn: { $ref: '../common/common.yaml#/components/schemas/Date' }
+        documentNo: { type: string, minLength: 1, maxLength: 64 }
+        documentRef: { type: string, maxLength: 200 }
+        impact: { type: string, maxLength: 32 }
+        summary: { type: string, maxLength: 2000, x-classification: C2 }
+    AppraisalIncidentPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AppraisalIncident' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
     AppraisalScoringInputPage:
       type: object
       required: [items, nextCursor]
@@ -1959,7 +2282,12 @@ components:
           minLength: 20
           maxLength: 2000
           x-classification: C2
-          description: Bắt buộc khi khác mức đề xuất.
+          description: Bắt buộc khi khác mức đề xuất hoặc khác mức hệ thống gợi ý (BS-03 DC-05).
+        seenScoreSnapshotId:
+          $ref: '../common/common.yaml#/components/schemas/Uuid'
+          description: >-
+            Ảnh chụp điểm người gọi đã xem (BS-03 DC-05); khi mức khác `autoRatingCode` của ảnh chụp này thì bắt buộc
+            `reason` (422 `APPRAISAL-422-SUGGESTED-REASON-REQUIRED`). Bỏ trống thì máy chủ dùng ảnh chụp mới nhất.
         rowVersion:
           $ref: '../common/common.yaml#/components/schemas/RowVersion'
           description: Phiên bản hồ sơ người quyết định đã xem (thay cho `If-Match` từng hồ sơ trong lô).

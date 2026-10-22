@@ -57,7 +57,17 @@ final class PolicyEvaluator {
   record Trace(String label, Evaluation evaluation, Object javaResult) {}
 
   /** Kết quả tính: biến đã tính theo tên và vết CEL (rỗng khi không ghi vết). */
-  record Outcome(Map<String, Object> outputs, List<Trace> traces) {}
+  record Outcome(
+      Map<String, Object> outputs,
+      List<Trace> traces,
+      List<Step> steps,
+      List<Map<String, Object>> tasks,
+      List<Map<String, Object>> groups,
+      Map<String, DecisionTableSpec.Row> rows,
+      Map<String, Object> context) {}
+
+  /** Một bước theo thứ tự tính: quy tắc CEL (giá trị đã làm tròn) hoặc bảng quyết định (mức). */
+  record Step(String key, Object value) {}
 
   private record Def(
       String name,
@@ -195,7 +205,7 @@ final class PolicyEvaluator {
         throw new IllegalArgumentException("Gói không có trường hợp đặc thù " + code);
       }
       run.outputs.putAll(found);
-      return new Outcome(run.outputs, run.traces);
+      return run.outcome(values);
     }
     Map<String, Object> ts = params(overrides);
     if (values.get(TASKS) instanceof List<?> tasks && quarterly()) {
@@ -214,8 +224,9 @@ final class PolicyEvaluator {
       run.decide(vars);
       run.scope(extraRules, vars, "", true);
       run.decide(vars);
+      run.context.putAll(vars);
     }
-    return new Outcome(run.outputs, run.traces);
+    return run.outcome(values);
   }
 
   private void quarter(
@@ -236,6 +247,7 @@ final class PolicyEvaluator {
       Map<String, Object> result = new LinkedHashMap<>(nv);
       result.putAll(r);
       taskResults.add(result);
+      run.tasks.add(result);
       r.forEach((k, x) -> run.list(k).add(x));
     }
     vars.put(TASKS, withCode);
@@ -265,6 +277,7 @@ final class PolicyEvaluator {
         result.put("diem_toi_da", group.get("diem_toi_da"));
         result.putAll(r);
         groupResults.add(result);
+        run.groups.add(result);
         r.forEach((k, x) -> run.list(k).add(x));
         i++;
       }
@@ -281,6 +294,7 @@ final class PolicyEvaluator {
     run.decide(vars);
     run.scope(extraRules, vars, "", true);
     run.decide(vars);
+    run.context.putAll(vars);
   }
 
   private void year(
@@ -305,6 +319,7 @@ final class PolicyEvaluator {
     run.decide(vars);
     run.scope(extraRules, vars, "", true);
     run.decide(vars);
+    run.context.putAll(vars);
   }
 
   /**
@@ -458,9 +473,21 @@ final class PolicyEvaluator {
     final Map<String, Object> outputs = new LinkedHashMap<>();
     final List<Trace> traces = new ArrayList<>();
     final Set<String> decided = new LinkedHashSet<>();
+    final List<Step> steps = new ArrayList<>();
+    final List<Map<String, Object>> tasks = new ArrayList<>();
+    final List<Map<String, Object>> groups = new ArrayList<>();
+    final Map<String, DecisionTableSpec.Row> rows = new LinkedHashMap<>();
+    final Map<String, Object> context = new HashMap<>();
 
     Run(boolean trace) {
       this.trace = trace;
+    }
+
+    Outcome outcome(Map<String, Object> values) {
+      Map<String, Object> ctx = new HashMap<>(values);
+      ctx.putAll(context);
+      ctx.putAll(outputs);
+      return new Outcome(outputs, traces, steps, tasks, groups, rows, ctx);
     }
 
     @SuppressWarnings("unchecked")
@@ -503,6 +530,9 @@ final class PolicyEvaluator {
         }
         vars.put(d.name(), value);
         results.put(d.name(), value);
+        if (trace) {
+          steps.add(new Step(label + d.name(), value));
+        }
         if (label.isEmpty()) {
           outputs.put(d.name(), value);
         }
@@ -534,9 +564,14 @@ final class PolicyEvaluator {
           }
           decided.add(e.getKey());
           progress = true;
-          Optional<String> level = e.getValue().evaluate(in);
-          if (level.isEmpty()) {
+          Optional<DecisionTableSpec.Row> row = e.getValue().matchedRow(in);
+          if (row.isEmpty()) {
             continue;
+          }
+          Optional<String> level = row.map(DecisionTableSpec.Row::ratingLevel);
+          rows.put(e.getKey(), row.get());
+          if (trace) {
+            steps.add(new Step(e.getKey(), level.get()));
           }
           vars.put(e.getKey(), level.get());
           outputs.put(e.getKey(), level.get());
