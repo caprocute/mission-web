@@ -7,3 +7,5 @@ export * from './lib/theme.service';
 export * from './lib/provide-design-system';
 export * from './lib/vt-progress-bar.component';
 export * from './lib/contrast';
+export * from './lib/vt-column-picker.component';
+export * from './lib/vt-saved-filters.component';

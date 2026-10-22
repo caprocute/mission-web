@@ -35,6 +35,7 @@ export * from './lib/models/ui-pack';
 export * from './lib/ui-pack-api';
 export * from './lib/models/preference';
 export * from './lib/preference-api';
+export * from './lib/list-personalization';
 export * from './lib/models/workflow-template';
 export * from './lib/workflow-template-api';
 export * from './lib/workflow/wf-lint';

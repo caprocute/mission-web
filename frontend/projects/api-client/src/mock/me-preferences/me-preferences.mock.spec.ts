@@ -64,3 +64,35 @@ describe('ME_PREFERENCES_MOCK (CNH-03)', () => {
     expect(layout.children?.map((c) => c.component)).toEqual(['b', 'a']);
   });
 });
+
+describe('ME_PREFERENCES_MOCK bộ lọc đã lưu (CNH-04)', () => {
+  beforeEach(() => ME_PREFERENCES_MOCK.reset());
+  const URL = '/api/v1/config/me/saved-filters';
+  const body = (name: string, isDefault = false) => ({
+    screenCode: 'SCR-0503',
+    name,
+    criteria: { flags: { quick_CHAM: true } },
+    isDefault,
+    displayOrder: 0,
+  });
+
+  it('tạo, trùng tên 422, một mặc định trên màn hình, sửa và xoá cần If-Match', () => {
+    const a = call('POST', URL, body('Việc chậm', true)).body as { id: string };
+    expect(call('POST', URL, body('việc chậm')).status).toBe(422);
+    const b = call('POST', URL, body('Sắp hạn', true)).body as { id: string; rowVersion: number };
+    const list = (s: string) =>
+      ME_PREFERENCES_MOCK.routes.find((r) => r.method === 'GET' && r.pattern === URL)!.handle({
+        method: 'GET',
+        path: URL,
+        params: new HttpParams().set('screenCode', s),
+        headers: new HttpHeaders(),
+        body: null,
+        pathParams: {},
+      }).body as { items: { id: string; isDefault: boolean }[] };
+    expect(list('SCR-0503').items.filter((f) => f.isDefault).map((f) => f.id)).toEqual([b.id]);
+    expect(list('SCR-0101').items).toHaveLength(0);
+    expect(call('PUT', `${URL}/${a.id}`, body('Đổi tên')).status).toBe(428);
+    expect(call('PUT', `${URL}/${a.id}`, body('Đổi tên'), { 'If-Match': '"9"' }).status).toBe(409);
+    expect(call('DELETE', `${URL}/${b.id}`, null, { 'If-Match': `"${b.rowVersion}"` }).status).toBe(204);
+  });
+});

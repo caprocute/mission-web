@@ -1,8 +1,15 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { apiUrl } from './api-path';
-import { HomeLayout, PrefKey, UserPreferenceItem, UserPreferenceMap } from './models/preference';
+import {
+  HomeLayout,
+  PrefKey,
+  SavedFilter,
+  SavedFilterInput,
+  UserPreferenceItem,
+  UserPreferenceMap,
+} from './models/preference';
 
 /**
  * Client tuỳ chọn cá nhân của người dùng đang đăng nhập (CNH-02, `config.yaml`):
@@ -41,5 +48,28 @@ export class PreferenceApi {
   /** Bố cục trang chủ máy chủ đã lọc theo vai trò và áp lớp phủ cá nhân. */
   homeLayout(): Observable<HomeLayout> {
     return this.http.get<HomeLayout>(apiUrl('/ui/layouts/home'));
+  }
+
+  /** Bộ lọc đã lưu của người dùng trên một màn hình (`SCR-xxxx`). */
+  filters(screenCode: string): Observable<SavedFilter[]> {
+    return this.http
+      .get<{ items: SavedFilter[] }>(apiUrl('/config/me/saved-filters'), { params: { screenCode } })
+      .pipe(map((r) => r.items));
+  }
+
+  createFilter(input: SavedFilterInput): Observable<SavedFilter> {
+    return this.http.post<SavedFilter>(apiUrl('/config/me/saved-filters'), input);
+  }
+
+  updateFilter(id: string, input: SavedFilterInput, rowVersion: number): Observable<SavedFilter> {
+    return this.http.put<SavedFilter>(apiUrl('/config/me/saved-filters/{id}', { id }), input, {
+      headers: { 'If-Match': `"${rowVersion}"` },
+    });
+  }
+
+  removeFilter(id: string, rowVersion: number): Observable<void> {
+    return this.http.delete<void>(apiUrl('/config/me/saved-filters/{id}', { id }), {
+      headers: { 'If-Match': `"${rowVersion}"` },
+    });
   }
 }

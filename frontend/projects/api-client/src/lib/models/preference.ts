@@ -44,3 +44,42 @@ export interface DashboardDefaultPreference {
   pinnedKpiCodes?: string[];
   defaultPeriodType?: 'THANG' | 'QUY' | 'NAM';
 }
+
+/** Bộ lọc đã lưu của một màn hình danh sách (`config.saved_filter`, CNH-02). */
+export type SavedFilter = S['SavedFilter'];
+
+/** Nội dung tạo hoặc sửa bộ lọc đã lưu. */
+export type SavedFilterInput = S['SavedFilterInput'];
+
+/** Khoảng ngày của một điều kiện lọc. */
+export interface CriteriaDateRange {
+  from?: string;
+  to?: string;
+  relativePreset?: 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'THIS_QUARTER' | 'THIS_YEAR' | 'OVERDUE';
+}
+
+/**
+ * Tiêu chí bộ lọc đã lưu (`SavedFilterCriteria` của user-preference.schema.json): chỉ mã, mã định
+ * danh, khoảng ngày, khoảng số và cờ; không có văn bản tìm kiếm tự do (tránh dữ liệu C2).
+ */
+export interface SavedFilterCriteria {
+  statusCodes?: string[];
+  ratingCodes?: string[];
+  orgUnitIds?: string[];
+  periodIds?: string[];
+  assigneeScope?: 'ME' | 'MY_UNIT' | 'SUBORDINATE_UNITS' | 'ALL_ALLOWED';
+  dateRanges?: Record<string, CriteriaDateRange>;
+  numberRanges?: Record<string, { min?: number; max?: number }>;
+  flags?: Record<string, boolean>;
+  sort?: { field: string; direction: 'ASC' | 'DESC' };
+}
+
+/** Tuỳ chọn trình bày bảng của một màn hình (`UiTableScreenPreference`), khoá `ui.table.SCR-xxxx`. */
+export interface TableScreenPreference {
+  visibleColumns?: string[];
+  columnOrder?: string[];
+  columnWidths?: Record<string, number>;
+  pageSize?: 10 | 20 | 50 | 100 | 200;
+  defaultSort?: { field: string; direction: 'ASC' | 'DESC' };
+  defaultSavedFilterId?: string;
+}

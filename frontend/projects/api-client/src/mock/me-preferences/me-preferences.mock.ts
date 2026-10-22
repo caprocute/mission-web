@@ -1,8 +1,14 @@
-import { HomeLayout, HomeLayoutNode, HomeLayoutOverlay, UserPreferenceItem } from '../../lib/models/preference';
+import {
+  HomeLayout,
+  HomeLayoutNode,
+  HomeLayoutOverlay,
+  SavedFilter,
+  UserPreferenceItem,
+} from '../../lib/models/preference';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 
 /**
- * Giả lập tuỳ chọn cá nhân và bố cục trang chủ (CNH-02, CNH-03) theo `config.yaml`. Tuỳ chọn lưu
+ * Giả lập tuỳ chọn cá nhân, bộ lọc đã lưu và bố cục trang chủ (CNH-02, CNH-03, CNH-04) theo `config.yaml`. Tuỳ chọn lưu
  * trong bộ nhớ của phiên; `GET /ui/layouts/home` ghép lớp phủ `ui.home.layout` lên bố cục gốc theo
  * đúng thuật toán của máy chủ (`HomeLayoutOverlay`): ghim, rồi `widgetOrder`, rồi phần còn lại;
  * widget bắt buộc không ẩn được; mã lạ bị bỏ qua. Bố cục gốc chép từ UI Pack mặc định 1.0.0.
@@ -25,6 +31,66 @@ const BASE_HOME: HomeLayoutNode = {
 const KEY = /^(ui\.display|ui\.home\.layout|ui\.dashboard\.default|ui\.table\.SCR-[0-9]{4}|notify\.channel_pref)$/;
 
 let store = new Map<string, UserPreferenceItem>();
+let filters: SavedFilter[] = [];
+let seq = 0;
+
+const FILTER_LIMIT = 20;
+const SCREEN = /^SCR-[0-9]{4}$/;
+
+function filterId(): string {
+  seq += 1;
+  return `00000000-0000-4000-8000-${String(seq).padStart(12, '0')}`;
+}
+
+function fieldError(field: string, message: string): MockResponse {
+  return problem(422, 'Dữ liệu không hợp lệ', {
+    code: 'COMMON-422-VALIDATION',
+    errors: [{ field, message }],
+  } as never);
+}
+
+/** Kiểm nội dung bộ lọc như máy chủ (tên 1–100 ký tự, không trùng, tối đa 20, một mặc định). */
+function checkFilter(
+  screen: string,
+  body: { name?: unknown; criteria?: unknown },
+  selfId: string | null,
+): MockResponse | null {
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  if (!name || name.length > 100) return fieldError('name', 'Tên bộ lọc phải có từ 1 đến 100 ký tự.');
+  if (!body.criteria || typeof body.criteria !== 'object' || Array.isArray(body.criteria)) {
+    return fieldError('criteria', 'Điều kiện lọc không đúng định dạng.');
+  }
+  const same = filters.filter((f) => f.screenCode === screen && f.id !== selfId);
+  if (same.some((f) => f.name.toLowerCase() === name.toLowerCase())) {
+    return fieldError('name', 'Đã có bộ lọc cùng tên trên danh sách này.');
+  }
+  if (!selfId && same.length >= FILTER_LIMIT) {
+    return fieldError('name', `Mỗi danh sách lưu được tối đa ${FILTER_LIMIT} bộ lọc.`);
+  }
+  return null;
+}
+
+function filterVersion(r: MockRequest, current: SavedFilter): MockResponse | null {
+  const h = r.headers.get('If-Match');
+  if (!h) return problem(428, 'Thiếu điều kiện phiên bản khi ghi');
+  return h.replace(/"/g, '') === String(current.rowVersion)
+    ? null
+    : problem(409, 'Bộ lọc đã được thay đổi trên thiết bị khác. Vui lòng tải lại.', {
+        code: 'CONFIG-409-VERSION-CONFLICT',
+      } as never);
+}
+
+function saveFilter(f: SavedFilter): SavedFilter {
+  if (f.isDefault) {
+    filters = filters.map((x) =>
+      x.screenCode === f.screenCode && x.id !== f.id && x.isDefault
+        ? { ...x, isDefault: false, rowVersion: x.rowVersion + 1 }
+        : x,
+    );
+  }
+  filters = [...filters.filter((x) => x.id !== f.id), f];
+  return f;
+}
 
 const widgetId = (n: HomeLayoutNode): string => n.id ?? n.component;
 
@@ -118,6 +184,74 @@ export const ME_PREFERENCES_MOCK: MockModule = {
     },
     {
       method: 'GET',
+      pattern: '/api/v1/config/me/saved-filters',
+      handle: (r) => {
+        const screen = r.params.get('screenCode');
+        const items = filters
+          .filter((f) => !screen || f.screenCode === screen)
+          .sort((a, b) => a.displayOrder - b.displayOrder);
+        return ok({ items });
+      },
+    },
+    {
+      method: 'POST',
+      pattern: '/api/v1/config/me/saved-filters',
+      handle: (r) => {
+        const body = (r.body ?? {}) as Partial<SavedFilter>;
+        const screen = body.screenCode ?? '';
+        if (!SCREEN.test(screen)) return fieldError('screenCode', 'Mã màn hình không hợp lệ.');
+        const invalid = checkFilter(screen, body, null);
+        if (invalid) return invalid;
+        const f = saveFilter({
+          id: filterId(),
+          screenCode: screen,
+          name: String(body.name).trim(),
+          criteria: body.criteria as Record<string, unknown>,
+          isDefault: body.isDefault === true,
+          displayOrder: typeof body.displayOrder === 'number' ? body.displayOrder : 0,
+          updatedAt: new Date().toISOString(),
+          rowVersion: 1,
+        });
+        return { status: 201, body: f, headers: { ...etag(1), Location: `/api/v1/config/me/saved-filters/${f.id}` } };
+      },
+    },
+    {
+      method: 'PUT',
+      pattern: '/api/v1/config/me/saved-filters/:id',
+      handle: (r) => {
+        const current = filters.find((f) => f.id === r.pathParams['id']);
+        if (!current) return problem(404, 'Không tìm thấy dữ liệu');
+        const blocked = filterVersion(r, current);
+        if (blocked) return blocked;
+        const body = (r.body ?? {}) as Partial<SavedFilter>;
+        const invalid = checkFilter(current.screenCode, body, current.id);
+        if (invalid) return invalid;
+        const f = saveFilter({
+          ...current,
+          name: String(body.name).trim(),
+          criteria: body.criteria as Record<string, unknown>,
+          isDefault: body.isDefault === true,
+          displayOrder: typeof body.displayOrder === 'number' ? body.displayOrder : current.displayOrder,
+          updatedAt: new Date().toISOString(),
+          rowVersion: current.rowVersion + 1,
+        });
+        return ok(f, etag(f.rowVersion));
+      },
+    },
+    {
+      method: 'DELETE',
+      pattern: '/api/v1/config/me/saved-filters/:id',
+      handle: (r) => {
+        const current = filters.find((f) => f.id === r.pathParams['id']);
+        if (!current) return problem(404, 'Không tìm thấy dữ liệu');
+        const blocked = filterVersion(r, current);
+        if (blocked) return blocked;
+        filters = filters.filter((f) => f.id !== current.id);
+        return { status: 204 };
+      },
+    },
+    {
+      method: 'GET',
       pattern: '/api/v1/ui/layouts/home',
       handle: () => {
         const pref = store.get('ui.home.layout');
@@ -144,5 +278,7 @@ export const ME_PREFERENCES_MOCK: MockModule = {
   ],
   reset: () => {
     store = new Map();
+    filters = [];
+    seq = 0;
   },
 };

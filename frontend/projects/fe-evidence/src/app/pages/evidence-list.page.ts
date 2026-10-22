@@ -12,16 +12,28 @@ import {
   Deliverable,
   EVIDENCE_STATUS_LABEL,
   EvidenceApi,
+  EvidenceVersionStatus,
+  FILTER_QUERY_PARAM,
   TaskApi,
+  createListPersonalization,
+  decodeCriteria,
+  encodeCriteria,
   toProblem,
 } from '@vt/api-client';
+import { VtColumnPickerComponent, VtSavedFiltersComponent } from '@vt/design-system';
 import { ButtonModule } from 'primeng/button';
 import { firstValueFrom, forkJoin, map } from 'rxjs';
 import { EVIDENCE_CAN } from '../evidence-permissions';
+import {
+  EVIDENCE_LIST_CODEC,
+  EVIDENCE_LIST_COLUMNS,
+  EVIDENCE_LIST_SCREEN,
+  EvidenceListFilterState,
+} from './evidence-list.list';
 
 @Component({
   selector: 'vt-evidence-list-page',
-  imports: [RouterLink, ButtonModule],
+  imports: [RouterLink, ButtonModule, VtColumnPickerComponent, VtSavedFiltersComponent],
   template: `
     @if (!can('SCR-0701.xem')) {
       <p class="msg warn">Đồng chí không có quyền xem minh chứng.</p>
@@ -111,11 +123,49 @@ import { EVIDENCE_CAN } from '../evidence-permissions';
       }
     } @else {
       <h1>Minh chứng của tôi</h1>
-      @if (mine.value(); as list) {
-        @if (!list.length) {
+      <section class="tools" aria-label="Bộ lọc">
+        <div class="chips" role="group" aria-label="Lọc theo tình trạng">
+          @for (st of statusOrder; track st) {
+            <button
+              type="button"
+              class="chip"
+              [class.on]="statuses().includes(st)"
+              [attr.aria-pressed]="statuses().includes(st)"
+              (click)="toggleStatus(st)"
+            >
+              {{ statusLabel[st] }}
+            </button>
+          }
+        </div>
+        <div class="tool-row">
+          <vt-saved-filters
+            [filters]="prefs.filters()"
+            [activeId]="prefs.activeId()"
+            [busy]="prefs.busy()"
+            (apply)="applySaved($event)"
+            (save)="prefs.saveFilter($event.name, { statuses: statuses() }, $event.isDefault)"
+            (rename)="prefs.rename($event.id, $event.name)"
+            (toggleDefault)="prefs.toggleDefault($event)"
+            (remove)="prefs.remove($event)"
+          />
+          <vt-column-picker
+            [columns]="prefs.columns"
+            [visible]="prefs.visible()"
+            (visibleChange)="prefs.setVisible($event)"
+          />
+        </div>
+        @if (prefs.message(); as m) {
+          <p class="tool-msg" [class.bad]="!m.ok" role="status">{{ m.text }}</p>
+        }
+      </section>
+      @if (mine.value(); as all) {
+        @let list = filtered(all);
+        @if (!all.length) {
           <p class="muted">
             Đồng chí chưa có minh chứng nào. Mở nhiệm vụ đang chủ trì và bấm "Nộp sản phẩm".
           </p>
+        } @else if (!list.length) {
+          <p class="muted">Không có minh chứng nào phù hợp bộ lọc.</p>
         }
         <ul class="list">
           @for (e of list; track e.id) {
@@ -123,8 +173,15 @@ import { EVIDENCE_CAN } from '../evidence-permissions';
               <div>
                 <strong>{{ e.title }}</strong>
                 <div class="muted small">
-                  {{ e.task.code }} · phiên bản {{ e.currentVersionNo ?? 0 }}
-                  {{ e.currentStatus ? '· ' + statusLabel[e.currentStatus] : '' }}
+                  @if (prefs.shows('taskCode')) {
+                    <span>{{ e.task.code }}</span>
+                  }
+                  @if (prefs.shows('versionNo')) {
+                    <span>· phiên bản {{ e.currentVersionNo ?? 0 }}</span>
+                  }
+                  @if (prefs.shows('status') && e.currentStatus) {
+                    <span>· {{ statusLabel[e.currentStatus] }}</span>
+                  }
                 </div>
               </div>
               <a class="p-button p-component lnk" [routerLink]="[e.id]">Mở</a>
@@ -188,6 +245,47 @@ import { EVIDENCE_CAN } from '../evidence-permissions';
     .muted {
       color: #4b5563;
     }
+    .tools {
+      margin: 8px 0 14px;
+      display: grid;
+      gap: 8px;
+    }
+    .chips,
+    .tool-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .tool-row {
+      justify-content: space-between;
+    }
+    .chip {
+      min-height: 2.25rem;
+      padding: 0 12px;
+      border: 1px solid #94a3b8;
+      border-radius: 999px;
+      background: #fff;
+      color: #1f2937;
+      font: inherit;
+      cursor: pointer;
+    }
+    .chip.on {
+      background: #1e3a8a;
+      border-color: #1e3a8a;
+      color: #fff;
+    }
+    .chip:focus-visible {
+      outline: 3px solid #1d4ed8;
+      outline-offset: 2px;
+    }
+    .tool-msg {
+      margin: 0;
+      color: #047857;
+    }
+    .tool-msg.bad {
+      color: #b91c1c;
+    }
     .small {
       font-size: 0.9em;
     }
@@ -235,6 +333,48 @@ export class EvidenceListPage {
   protected readonly canStart = computed(
     () => this.can('SCR-0701.soan') && this.taskRes.value()?.role === 'CHU_TRI',
   );
+
+  /** CNH-04: lọc theo tình trạng, cột tuỳ chọn và bộ lọc đã lưu của "Minh chứng của tôi". */
+  protected readonly prefs = createListPersonalization(
+    EVIDENCE_LIST_SCREEN,
+    EVIDENCE_LIST_COLUMNS,
+    EVIDENCE_LIST_CODEC,
+  );
+  protected readonly statusOrder = Object.keys(EVIDENCE_STATUS_LABEL) as EvidenceVersionStatus[];
+  protected readonly statuses = signal<EvidenceVersionStatus[]>([]);
+
+  constructor() {
+    const shared = decodeCriteria(this.route.snapshot.queryParamMap.get(FILTER_QUERY_PARAM));
+    if (shared) this.statuses.set(EVIDENCE_LIST_CODEC.fromCriteria(shared).state.statuses);
+    // đường dẫn chia sẻ thắng bộ lọc mặc định đã lưu
+    this.prefs.load(shared ? undefined : (s) => this.setState(s, true));
+  }
+
+  protected filtered<T extends { currentStatus?: EvidenceVersionStatus | null }>(all: T[]): T[] {
+    const on = this.statuses();
+    return on.length ? all.filter((e) => !!e.currentStatus && on.includes(e.currentStatus)) : all;
+  }
+
+  protected toggleStatus(st: EvidenceVersionStatus) {
+    const cur = this.statuses();
+    this.setState({ statuses: cur.includes(st) ? cur.filter((x) => x !== st) : [...cur, st] });
+  }
+
+  protected applySaved(id: string | null) {
+    this.setState(this.prefs.apply(id) ?? { statuses: [] }, true);
+  }
+
+  private setState(s: EvidenceListFilterState, keepActive = false) {
+    if (!keepActive) this.prefs.activeId.set(null);
+    this.statuses.set(s.statuses);
+    // trạng thái lọc lên URL để chia sẻ trong nội bộ; quyền xem dữ liệu do máy chủ quyết định
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { [FILTER_QUERY_PARAM]: encodeCriteria(this.prefs.criteriaOf(s)) },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
 
   protected readonly busy = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);
