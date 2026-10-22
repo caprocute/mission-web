@@ -1,5 +1,7 @@
 apiVersion: v2
 name: valkey
-description: "Khung chart hạ tầng trong cell: Valkey cho cache, phiên và giới hạn tốc độ. Nội dung CR do INF-11 điền (INF-02 chỉ giữ chỗ)."
+description: >-
+  Valkey Cluster của cell (INF-11, TL-04 mục 4.6, TL-05 "Kafka và Valkey"): 3 shard, mỗi shard một primary và một
+  replica ở vùng sự cố khác, TLS gốc và ACL theo người dùng (SEC-57), maxmemory theo hồ sơ, allkeys-lfu.
 type: application
 version: 0.1.0

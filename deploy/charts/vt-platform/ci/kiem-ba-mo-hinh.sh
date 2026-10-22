@@ -12,6 +12,9 @@ CHARTS=..
 OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT
 CRD_SCHEMA='https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+# Schema sinh từ CRD của operator đã ghim (CNPG 1.30, OpenSearch Operator 3.0, Altinity 0.27; ci/tao-schema-crd.py),
+# xét trước kho datree vì kho đó thiếu nhóm opensearch.org, clickhouse-keeper và có bản CNPG cũ hơn.
+CRD_LOCAL="$PWD/ci/crd-schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
 # Bộ chính sách thật của cụm (INF-07, deploy/policies), trừ vt-require-signed-images vì kiểm chữ ký cần registry
 # thật (kiểm trên kind ở deploy/environments/kind/kiem-thu-chinh-sach.sh). Ngoại lệ lấy ở exceptions/, bỏ tệp mẫu "_".
 CS_DIR=$CHARTS/../policies
@@ -40,7 +43,7 @@ for m in saas private airgap; do
     hong "helm template $m"; cat "$OUT/err.log"; continue
   fi
   ok "helm template $m ($(grep -c '^kind:' "$f") đối tượng)"
-  if kubeconform -strict -summary -kubernetes-version 1.33.0 -schema-location default -schema-location "$CRD_SCHEMA" \
+  if kubeconform -strict -summary -kubernetes-version 1.33.0 -schema-location default -schema-location "$CRD_LOCAL" -schema-location "$CRD_SCHEMA" \
        "$f" > "$OUT/kc.log" 2>&1; then
     ok "kubeconform -strict ($(tail -1 "$OUT/kc.log"))"
   else

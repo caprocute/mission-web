@@ -57,7 +57,7 @@ thanhPhan:
       egressTo:
         - namespace: data-pg
           podLabels:
-            cnpg.io/poolerName: pg-platform-rw
+            cnpg.io/poolerName: pg-platform-pooler-rw
           ports:
             - port: 5432
         - namespace: data-kafka

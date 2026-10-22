@@ -1,0 +1,147 @@
+{{- /*
+NetworkPolicy của namespace CSDL (TL-04 mục 3.6), bổ sung cho default-deny của cell-base. Instance (và Job initdb,
+join của CNPG, cùng nhãn cnpg.io/cluster) chỉ nhận 5432 từ instance, Pooler và Job cấp quyền cùng namespace, từ pod
+migration (vt.io/db-migration=true) của namespace được nối cụm, từ Debezium (cdcNamespaces); 8000 từ operator;
+9187 từ observability. Pooler nhận 5432 từ namespace khách của nó. Gọi kube-apiserver qua CiliumNetworkPolicy.
+*/}}
+{{- $root := . }}
+{{- $v := .Values }}
+{{- $cums := fromYaml (include "data-pg.clusters" .) }}
+{{- $nsDung := dict }}
+{{- range $ten, $c := $cums }}{{ $_ := set $nsDung (include "data-pg.ns" (dict "root" $root "zone" $c.zone)) true }}{{ end }}
+{{- range $ns, $_ := $nsDung }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pg-instance
+  namespace: {{ $ns }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions: [{ key: cnpg.io/cluster, operator: Exists }]
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: { matchExpressions: [{ key: cnpg.io/cluster, operator: Exists }] }
+        - podSelector: { matchExpressions: [{ key: cnpg.io/poolerName, operator: Exists }] }
+        - podSelector: { matchLabels: { vt.io/db-grants: "true" } }
+      ports: [{ port: 5432, protocol: TCP }, { port: 8000, protocol: TCP }]
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.operatorNamespace }} } }
+      ports: [{ port: 8000, protocol: TCP }]
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.observabilityNamespace }} } }
+      ports: [{ port: 9187, protocol: TCP }]
+  egress:
+    - to:
+        - podSelector: { matchExpressions: [{ key: cnpg.io/cluster, operator: Exists }] }
+      ports: [{ port: 5432, protocol: TCP }, { port: 8000, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pg-pooler
+  namespace: {{ $ns }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions: [{ key: cnpg.io/poolerName, operator: Exists }]
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.operatorNamespace }} } }
+      ports: [{ port: 8000, protocol: TCP }]
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.observabilityNamespace }} } }
+      ports: [{ port: 9127, protocol: TCP }]
+  egress:
+    - to:
+        - podSelector: { matchExpressions: [{ key: cnpg.io/cluster, operator: Exists }] }
+      ports: [{ port: 5432, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pg-cap-quyen
+  namespace: {{ $ns }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { vt.io/db-grants: "true" }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchExpressions: [{ key: cnpg.io/cluster, operator: Exists }] }
+      ports: [{ port: 5432, protocol: TCP }]
+{{- if $v.cilium }}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: pg-kube-apiserver
+  namespace: {{ $ns }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+spec:
+  description: Instance manager, Job initdb/join và Pooler của CNPG (đều mang nhãn cnpg.io/cluster) gọi kube-apiserver.
+  endpointSelector:
+    matchExpressions:
+      - { key: k8s:cnpg.io/cluster, operator: Exists }
+  egress:
+    - toEntities: [kube-apiserver]
+{{- end }}
+{{- end }}
+{{- range $ten, $c := $cums }}
+{{- $ns := include "data-pg.ns" (dict "root" $root "zone" $c.zone) }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $ten }}-khach
+  namespace: {{ $ns }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { cnpg.io/cluster: {{ $ten }}, cnpg.io/podRole: instance }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        {{- range $c.rw }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ . }} } }
+          podSelector: { matchLabels: { vt.io/db-migration: "true" } }
+        {{- end }}
+        {{- range $v.cdcNamespaces }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ . }} } }
+        {{- end }}
+      ports: [{ port: 5432, protocol: TCP }]
+{{- range $loai := list "rw" "ro" }}
+{{- $khach := index $c $loai | default list }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $ten }}-pooler-{{ $loai }}-khach
+  namespace: {{ $ns }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { cnpg.io/poolerName: {{ $ten }}-pooler-{{ $loai }} }
+  policyTypes: [Ingress]
+  {{- if $khach }}
+  ingress:
+    - from:
+        {{- range $khach }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ . }} } }
+        {{- end }}
+      ports: [{ port: 5432, protocol: TCP }]
+  {{- else }}
+  ingress: []
+  {{- end }}
+{{- end }}
+{{- end }}

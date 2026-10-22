@@ -1,5 +1,8 @@
 apiVersion: v2
 name: clickhouse
-description: "Khung chart hạ tầng trong cell: ClickHouse cho phân tích (SVC-15). Nội dung CR do INF-11 điền (INF-02 chỉ giữ chỗ)."
+description: >-
+  ClickHouse của cell cho analytics SVC-15 (INF-11, TL-04 mục 4.6, TL-05 "OpenSearch và ClickHouse"), dựng bằng
+  Altinity ClickHouse Operator: ClickHouseInstallation theo hồ sơ (L 2 shard × 2 bản sao) và ClickHouse Keeper 3 nút,
+  chỉ mở cổng TLS (SEC-57).
 type: application
 version: 0.1.0

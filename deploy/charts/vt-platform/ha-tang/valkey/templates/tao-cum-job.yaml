@@ -1,0 +1,86 @@
+{{- /*
+Tạo cụm một lần khi cụm còn trắng: MEET sáu pod, chia 16384 slot cho ba primary -0, rồi gán replica khác vùng
+(a-0 ← b-1, b-0 ← c-1, c-0 ← a-1). Lệnh đi qua tên DNS để kiểm chứng thư; MEET dùng IP vì giao thức bus cần IP.
+Cụm đã có thì bỏ qua; cụm dở dang thì dừng và báo để vận hành xử lý tay, không tự sửa.
+*/}}
+{{- $v := .Values }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: valkey-tao-cum
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "valkey.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 1200
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: valkey-tao-cum
+        app.kubernetes.io/part-of: vt-platform
+        vt.io/valkey-client: "true"
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      {{- with $v.placement.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: tao-cum
+          image: {{ include "valkey.anh" $v.image | quote }}
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -eu
+              H="valkey-headless.$NS.svc"
+              cli() { h="$1"; shift; valkey-cli --no-auth-warning --tls --cacert /tls/ca.crt --user vt-admin -h "valkey-$h.$H" "$@"; }
+              for p in a-0 b-0 c-0 a-1 b-1 c-1; do
+                n=0; until cli "$p" ping 2>/dev/null | grep -q PONG; do n=$((n+1)); [ "$n" -lt 120 ] || exit 1; sleep 5; done
+              done
+              if cli a-0 cluster info | grep -q 'cluster_state:ok'; then echo "Cụm Valkey đã có, bỏ qua."; exit 0; fi
+              if ! cli a-0 cluster info | grep -q 'cluster_known_nodes:1'; then echo "Cụm Valkey dở dang, cần xử lý tay." >&2; exit 1; fi
+              for p in b-0 c-0 a-1 b-1 c-1; do
+                ip=$(getent hosts "valkey-$p.$H" | awk '{print $1}')
+                cli a-0 cluster meet "$ip" 6379
+              done
+              cli a-0 cluster addslotsrange 0 5460
+              cli b-0 cluster addslotsrange 5461 10922
+              cli c-0 cluster addslotsrange 10923 16383
+              for p in a-1 b-1 c-1; do
+                n=0; until [ "$(cli "$p" cluster info | tr -d '\r' | awk -F: '/cluster_known_nodes/{print $2}')" = 6 ]; do n=$((n+1)); [ "$n" -lt 60 ] || exit 1; sleep 2; done
+              done
+              cli b-1 cluster replicate "$(cli a-0 cluster myid | tr -d '\r')"
+              cli c-1 cluster replicate "$(cli b-0 cluster myid | tr -d '\r')"
+              cli a-1 cluster replicate "$(cli c-0 cluster myid | tr -d '\r')"
+              n=0; until cli a-0 cluster info | grep -q 'cluster_state:ok'; do n=$((n+1)); [ "$n" -lt 60 ] || exit 1; sleep 2; done
+              echo "Đã tạo cụm Valkey 3 shard."
+          env:
+            - name: NS
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - name: REDISCLI_AUTH
+              valueFrom: { secretKeyRef: { name: valkey-acl, key: vt-admin } }
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: tls, mountPath: /tls, readOnly: true }
+      volumes:
+        - name: tls
+          secret: { secretName: valkey-tls, items: [{ key: ca.crt, path: ca.crt }] }

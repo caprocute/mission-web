@@ -154,5 +154,5 @@ mayChu:
       - { namespace: identity, podLabels: { app.kubernetes.io/name: keycloak }, ports: [{ port: 7800 }] }
       - { namespace: observability, ports: [{ port: 9000 }] }
     egressTo:
-      - { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-iam-rw }, ports: [{ port: 5432 }] }
+      - { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-iam-pooler-rw }, ports: [{ port: 5432 }] }
       - { namespace: identity, podLabels: { app.kubernetes.io/name: keycloak }, ports: [{ port: 7800 }] }

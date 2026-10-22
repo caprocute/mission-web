@@ -1,0 +1,36 @@
+# data-pg thu nhỏ cho kind (INF-11, kiem-thu-du-lieu.sh): chỉ cụm pg-core, một CSDL tenant, hai schema, ảnh minimal.
+global: { sizing: compact }
+consolidated: "false"
+tenantDatabases: [td_a]
+layout:
+  pg-core: { zone: app, tenantSchemas: [task, okr] }
+  pg-flowable: null
+  pg-platform: null
+  pg-iam: null
+  pg-ledger: null
+  pg-secure: null
+clients:
+  pg-core: { rw: [core], ro: [core] }
+image:
+  repository: ghcr.io/cloudnative-pg/postgresql
+  tag: 17.6-minimal-bookworm
+  digest: sha256:d45d7a78ec14e80476974c6b123bf929ddb5908f4f4581c275bbe85e61fb93bc
+storageClass: standard
+hoSo:
+  compact:
+    pooler: 2
+    pg-core: { cpu: 1, memGi: 1, data: 2Gi, wal: "", maxConn: 100 }
+pgbouncer:
+  image:
+    repository: ghcr.io/cloudnative-pg/pgbouncer
+    tag: 1.24.1
+    digest: sha256:9bce905b0be1ce9c0de8c694ef0cfb8d3707f7dbfb4b51213fc867b5d66b87c3
+  resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { cpu: 500m, memory: 128Mi } }
+placement:
+  app: { nodeSelector: null, tolerations: [] }
+externalSecrets: { enabled: false }
+grantsJob:
+  image:
+    repository: ghcr.io/cloudnative-pg/postgresql
+    digest: sha256:d45d7a78ec14e80476974c6b123bf929ddb5908f4f4581c275bbe85e61fb93bc
+monitoring: { enablePodMonitor: false }

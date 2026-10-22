@@ -1,0 +1,133 @@
+{{- /*
+Mật khẩu từ OpenBao qua ESO. Cấu hình bảo mật nền chỉ có người dùng admin (băm bcrypt khi ESO dựng secret) cho
+operator; người dùng và vai trò của service khai bằng CR OpenSearchUser, OpenSearchRole để operator đồng bộ.
+*/}}
+{{- $root := . }}
+{{- $v := .Values }}
+{{- $ns := $v.namespace }}
+{{- define "opensearch.es" -}}
+spec:
+  refreshInterval: {{ .v.externalSecrets.refreshInterval }}
+  secretStoreRef:
+    kind: {{ .v.externalSecrets.secretStore.kind }}
+    name: {{ .v.externalSecrets.secretStore.name }}
+{{- end }}
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: opensearch-admin-credentials
+  namespace: {{ $ns }}
+  labels:
+    {{- include "opensearch.labels" . | nindent 4 }}
+{{ include "opensearch.es" (dict "v" $v) }}
+  target:
+    name: opensearch-admin-credentials
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: admin
+        password: "{{ "{{ .password }}" }}"
+  data:
+    - { secretKey: password, remoteRef: { key: {{ $v.externalSecrets.path }}/admin, property: password } }
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: opensearch-security-config
+  namespace: {{ $ns }}
+  labels:
+    {{- include "opensearch.labels" . | nindent 4 }}
+{{ include "opensearch.es" (dict "v" $v) }}
+  target:
+    name: opensearch-security-config
+    template:
+      engineVersion: v2
+      data:
+        config.yml: |
+          _meta: { type: config, config_version: 2 }
+          config:
+            dynamic:
+              http: { anonymous_auth_enabled: false }
+              authc:
+                basic_internal_auth_domain:
+                  http_enabled: true
+                  transport_enabled: true
+                  order: 0
+                  http_authenticator: { type: basic, challenge: false }
+                  authentication_backend: { type: intern }
+        internal_users.yml: |
+          _meta: { type: internalusers, config_version: 2 }
+          admin:
+            hash: "{{ "{{ .password | bcrypt }}" }}"
+            reserved: true
+            backend_roles: [admin]
+        roles.yml: |
+          _meta: { type: roles, config_version: 2 }
+        roles_mapping.yml: |
+          _meta: { type: rolesmapping, config_version: 2 }
+          all_access: { reserved: false, backend_roles: [admin] }
+        action_groups.yml: |
+          _meta: { type: actiongroups, config_version: 2 }
+        tenants.yml: |
+          _meta: { type: tenants, config_version: 2 }
+        nodes_dn.yml: |
+          _meta: { type: nodesdn, config_version: 2 }
+        allowlist.yml: |
+          _meta: { type: allowlist, config_version: 2 }
+          config: { enabled: false }
+  data:
+    - { secretKey: password, remoteRef: { key: {{ $v.externalSecrets.path }}/admin, property: password } }
+{{- range $ten, $u := $v.users }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: opensearch-user-{{ $ten }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "opensearch.labels" $root | nindent 4 }}
+{{ include "opensearch.es" (dict "v" $v) }}
+  target:
+    name: opensearch-user-{{ $ten }}
+  data:
+    - { secretKey: password, remoteRef: { key: {{ $v.externalSecrets.path }}/{{ $ten }}, property: password } }
+---
+apiVersion: opensearch.org/v1
+kind: OpenSearchUser
+metadata:
+  name: {{ $ten }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "opensearch.labels" $root | nindent 4 }}
+spec:
+  opensearchCluster: { name: opensearch }
+  passwordFrom: { name: opensearch-user-{{ $ten }}, key: password }
+---
+apiVersion: opensearch.org/v1
+kind: OpenSearchUserRoleBinding
+metadata:
+  name: {{ $ten }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "opensearch.labels" $root | nindent 4 }}
+spec:
+  opensearchCluster: { name: opensearch }
+  users: [{{ $ten }}]
+  roles: {{ toJson $u.roles }}
+{{- end }}
+{{- range $ten, $r := $v.roles }}
+---
+apiVersion: opensearch.org/v1
+kind: OpenSearchRole
+metadata:
+  name: {{ $ten }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "opensearch.labels" $root | nindent 4 }}
+spec:
+  opensearchCluster: { name: opensearch }
+  clusterPermissions: {{ toJson $r.clusterPermissions }}
+  indexPermissions:
+    - indexPatterns: {{ toJson $r.indexPatterns }}
+      allowedActions: {{ toJson $r.allowedActions }}
+{{- end }}

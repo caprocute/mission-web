@@ -72,8 +72,8 @@ networkPolicy:
       ports:
         - port: 4317
 datasources:
-  pooler: pg-core-rw.data-pg.svc
-  readPooler: pg-core-ro.data-pg.svc
+  pooler: pg-core-pooler-rw.data-pg.svc
+  readPooler: pg-core-pooler-ro.data-pg.svc
   database: core
   modules:
     task:
@@ -159,8 +159,8 @@ egressServices:
 # OPA (ADR-21); vị trí namespace platform là suy luận, chờ task OPA chốt.
 egressMap:
   pg-core:
-    - { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-core-rw }, ports: [{ port: 5432 }] }
-    - { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-core-ro }, ports: [{ port: 5432 }] }
+    - { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-core-pooler-rw }, ports: [{ port: 5432 }] }
+    - { namespace: data-pg, podLabels: { cnpg.io/poolerName: pg-core-pooler-ro }, ports: [{ port: 5432 }] }
   kafka:
     - { namespace: data-kafka, podLabels: { strimzi.io/cluster: kafka-cell }, ports: [{ port: 9093 }] }
   valkey:

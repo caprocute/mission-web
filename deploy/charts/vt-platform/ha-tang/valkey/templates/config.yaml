@@ -1,0 +1,34 @@
+{{- $k := fromYaml (include "valkey.size" .) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: valkey
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "valkey.labels" . | nindent 4 }}
+data:
+  valkey.conf: |
+    bind * -::*
+    port 0
+    tls-port 6379
+    tls-cert-file /tls/tls.crt
+    tls-key-file /tls/tls.key
+    tls-ca-cert-file /tls/ca.crt
+    tls-auth-clients optional
+    tls-replication yes
+    tls-cluster yes
+    tls-protocols "TLSv1.3"
+    cluster-enabled yes
+    cluster-config-file /data/nodes.conf
+    cluster-node-timeout 5000
+    cluster-preferred-endpoint-type hostname
+    cluster-require-full-coverage no
+    cluster-allow-reads-when-down yes
+    save ""
+    appendonly no
+    maxmemory {{ $k.maxmemory }}
+    maxmemory-policy allkeys-lfu
+    aclfile /etc/valkey/acl/users.acl
+    masteruser vt-replica
+    include /etc/valkey/acl/sao-chep.conf
+    dir /data

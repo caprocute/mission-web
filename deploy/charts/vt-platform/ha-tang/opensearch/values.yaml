@@ -1,2 +1,58 @@
-# Khung giữ chỗ của INF-02; INF-11 khai báo values và templates thật.
-{}
+# OpenSearch (INF-11) qua OpenSearch Kubernetes Operator 3.0 (API opensearch.org/v1); lý do chọn ở wiki 14.
+global:
+  cell: ""
+  sizing: L
+
+namespace: data-search
+version: 2.19.3
+image:
+  repository: harbor.vt.local/dockerhub/opensearchproject/opensearch
+  tag: 2.19.3
+  digest: sha256:e96cc6ae1500a073d973c0906f30f7cf4d9c461f32f855f9242a2da933660cdd
+
+# TL-05 bảng "OpenSearch và ClickHouse": compact, S ba nút vai trò kép; M, L ba nút quản lý và ba nút dữ liệu.
+# disk: dung lượng mỗi nút dữ liệu (M theo TL-05 phụ lục A; hồ sơ khác suy luận từ GD-18 × 3 năm × 2 bản).
+hoSo:
+  compact: { kep: { cpu: "2", memory: 8Gi, heap: 4g, disk: 100Gi } }
+  S:       { kep: { cpu: "4", memory: 16Gi, heap: 8g, disk: 500Gi } }
+  M:
+    quanLy: { cpu: "1", memory: 2Gi, heap: 1g, disk: 10Gi }
+    duLieu: { cpu: "6", memory: 24Gi, heap: 12g, disk: 1536Gi }
+  L:
+    quanLy: { cpu: "2", memory: 4Gi, heap: 2g, disk: 10Gi }
+    duLieu: { cpu: "8", memory: 32Gi, heap: 16g, disk: 2Ti }
+
+storageClass: nvme-local
+placement:
+  nodeSelector: { vt.io/pool: data-search }
+  tolerations: [{ key: vt.io/pool, operator: Equal, value: data-search, effect: NoSchedule }]
+  # vm.max_map_count=262144 đặt sẵn trên node pool data-search (kubeadm của Cluster API); Pod Security restricted
+  # không cho init container đặc quyền nên không bật setVMMaxMapCount.
+  setVMMaxMapCount: false
+
+tls:
+  issuerRef: { kind: ClusterIssuer, name: openbao-noi-bo }
+  duration: 2160h
+  renewBefore: 720h
+  # DN của chứng thư nút và chứng thư quản trị (dùng cho securityadmin của operator).
+  nodesDn: "CN=opensearch-node,O=vt-platform"
+  adminDn: "CN=opensearch-admin,O=vt-platform"
+
+# Mật khẩu ở OpenBao <path>/<tên>, thuộc tính password. admin chỉ cho operator; service dùng người dùng riêng.
+externalSecrets:
+  secretStore: { kind: ClusterSecretStore, name: openbao }
+  path: kv/opensearch
+  refreshInterval: 1h
+
+# Vai trò theo service (chỉ mục do search-service sở hữu, TL-03; snapshot theo TL-04 mục 6.8).
+roles:
+  search-service:
+    indexPatterns: ["okr-*", "mission-*", "evidence-*", "org-*"]
+    allowedActions: [crud, create_index, manage_aliases, indices_monitor]
+    clusterPermissions: [cluster_monitor, cluster_composite_ops]
+users:
+  search-service: { roles: [search-service], namespace: platform }
+  vt-giam-sat: { roles: [readall_and_monitor] }
+
+observabilityNamespace: observability
+operatorNamespace: opensearch-operator-system

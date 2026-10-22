@@ -1,5 +1,8 @@
 apiVersion: v2
 name: opensearch
-description: "Khung chart hạ tầng trong cell: OpenSearch cho tìm kiếm (SVC-16). Nội dung CR do INF-11 điền (INF-02 chỉ giữ chỗ)."
+description: >-
+  OpenSearch của cell cho search-service SVC-16 (INF-11, TL-04 mục 4.6, TL-05 "OpenSearch và ClickHouse"), dựng bằng
+  OpenSearch Kubernetes Operator 3.x: nút quản lý và nút dữ liệu theo hồ sơ, TLS do cert-manager cấp, vai trò và
+  người dùng theo service (SEC-57).
 type: application
 version: 0.1.0

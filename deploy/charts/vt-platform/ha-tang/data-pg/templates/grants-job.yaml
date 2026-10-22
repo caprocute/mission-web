@@ -1,0 +1,118 @@
+{{- /*
+Cấp quyền theo TL-03 "Không truy cập chéo và quyền tối thiểu": chạy bằng chính vai trò mig_<schema> (chủ schema)
+qua TLS verify-full tới <cụm>-rw, nên không cần superuser. Quyền riêng từng bảng (bảng nhật ký chỉ ghi thêm,
+SELECT outbox_event cho cdc_) thuộc migration Flyway của service. Chạy lại an toàn (GRANT/REVOKE lũy đẳng).
+*/}}
+{{- if .Values.grantsJob.enabled }}
+{{- $root := . }}
+{{- $v := .Values }}
+{{- $cums := fromYaml (include "data-pg.clusters" .) }}
+{{- range $ten, $c := $cums }}
+{{- $ns := include "data-pg.ns" (dict "root" $root "zone" $c.zone) }}
+{{- $schemas := fromYamlArray (include "data-pg.schemas" $c) }}
+{{- $cap := list }}
+{{- range $db, $sc := $c.dbs }}{{ range $s := ($sc | uniq) }}{{ $cap = append $cap (printf "%s:%s" $db $s) }}{{ end }}{{ end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $ten }}-cap-quyen
+  namespace: {{ $ns }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+data:
+  cap-quyen.sql: |
+    REVOKE ALL ON SCHEMA :"s" FROM PUBLIC;
+    GRANT USAGE ON SCHEMA :"s" TO :"svc", :"ro", :"cdc";
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA :"s" TO :"svc";
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA :"s" TO :"svc";
+    GRANT SELECT ON ALL TABLES IN SCHEMA :"s" TO :"ro";
+    ALTER DEFAULT PRIVILEGES FOR ROLE :"mig" IN SCHEMA :"s" GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"svc";
+    ALTER DEFAULT PRIVILEGES FOR ROLE :"mig" IN SCHEMA :"s" GRANT USAGE, SELECT ON SEQUENCES TO :"svc";
+    ALTER DEFAULT PRIVILEGES FOR ROLE :"mig" IN SCHEMA :"s" GRANT SELECT ON TABLES TO :"ro";
+  chay.sh: |
+    set -eu
+    for muc in {{ join " " $cap }}; do
+      db=${muc%%:*}; s=${muc#*:}
+      PGPASSWORD=$(cat "/bi-mat/$s/password"); export PGPASSWORD
+      n=0
+      until psql "host={{ $ten }}-rw.{{ $ns }}.svc port=5432 dbname=$db user=mig_$s sslmode=verify-full sslrootcert=/ca/ca.crt" \
+          -v ON_ERROR_STOP=1 -q -v s="$s" -v mig="mig_$s" -v svc="svc_$s" -v ro="ro_$s" -v cdc="cdc_$s" -f /kich-ban/cap-quyen.sql; do
+        n=$((n+1)); [ "$n" -lt 60 ] || exit 1
+        echo "chờ $db.$s sẵn sàng ($n)"; sleep 10
+      done
+      echo "đã cấp quyền $db.$s"
+    done
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $ten }}-cap-quyen
+  namespace: {{ $ns }}
+  labels:
+    {{- include "data-pg.labels" $root | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        {{- include "data-pg.labels" $root | nindent 8 }}
+        app.kubernetes.io/name: {{ $ten }}-cap-quyen
+        vt.io/db-grants: "true"
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 26
+        runAsGroup: 26
+        seccompProfile: { type: RuntimeDefault }
+      {{- $pl := ternary $v.placement.secure $v.placement.app (eq $c.zone "secure") }}
+      {{- with $pl.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $pl.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: cap-quyen
+          image: "{{ $v.grantsJob.image.repository }}@{{ $v.grantsJob.image.digest }}"
+          command: ["sh", "/kich-ban/chay.sh"]
+          env:
+            - { name: HOME, value: /tmp }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 128Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: kich-ban, mountPath: /kich-ban, readOnly: true }
+            - { name: ca, mountPath: /ca, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+            {{- range $s := $schemas }}
+            - { name: mig-{{ $s | replace "_" "-" }}, mountPath: /bi-mat/{{ $s }}, readOnly: true }
+            {{- end }}
+      volumes:
+        - name: kich-ban
+          configMap: { name: {{ $ten }}-cap-quyen }
+        - name: ca
+          secret: { secretName: {{ $ten }}-ca, items: [{ key: ca.crt, path: ca.crt }] }
+        - name: tmp
+          emptyDir: { sizeLimit: 16Mi }
+        {{- range $s := $schemas }}
+        - name: mig-{{ $s | replace "_" "-" }}
+          secret: { secretName: {{ $ten }}-mig-{{ $s | replace "_" "-" }}, items: [{ key: password, path: password }] }
+        {{- end }}
+{{- end }}
+{{- end }}
