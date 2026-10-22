@@ -60,6 +60,46 @@ spec:
           port: {{ . }}
         {{- end }}
     {{- end }}
+    {{- if .Values.provisioning.enabled }}
+    {{- with .Values.provisioning.egress }}
+    # DV-03-05: Keycloak, mission-core, org-service của cell; PowerDNS; API Kubernetes; Prometheus.
+    - to:
+        {{- toYaml .cells | nindent 8 }}
+      ports:
+        {{- range .cellPorts }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+    - to:
+        {{- toYaml .dns | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: {{ .dnsPort }}
+    - to:
+        - ipBlock:
+            cidr: {{ .kubeApiCidr }}
+      ports:
+        - protocol: TCP
+          port: {{ .kubeApiPort }}
+    - to:
+        {{- toYaml .prometheus | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: {{ .prometheusPort }}
+    {{- end }}
+    {{- end }}
+    {{- if .Values.move.enabled }}
+    # DV-03-07: cụm PostgreSQL, Ceph RGW và ledger-service của các cell.
+    - to:
+        {{- toYaml .Values.move.egress.postgres | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.move.egress.postgresPort }}
+        - protocol: TCP
+          port: {{ .Values.move.egress.rgwPort }}
+        - protocol: TCP
+          port: 8080
+    {{- end }}
     - to:
         - namespaceSelector:
             matchLabels:

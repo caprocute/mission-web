@@ -1,4 +1,4 @@
-> Nguồn: `infra/dev/README.md`, `infra/dev/docker-compose.yml`, `infra/dev/apisix/apisix.yaml`; `deploy/web/Dockerfile`, `deploy/web/40-runtime-config.sh`, `deploy/web/nginx.conf`; `AGENTS.md` mục 7; TL-01 mục CI/CD và triển khai (Argo CD, Kyverno, canary, giấy phép); TL-04 mục OPS-01 (GitOps), mục lộ trình (đợt 0a đến 3), mục cell; Baseline mục 4 (ADR-13, ADR-16).
+> Nguồn: `infra/dev/README.md`, `infra/dev/docker-compose.yml`, `infra/dev/apisix/apisix.yaml`; `deploy/web/Dockerfile`, `deploy/web/40-runtime-config.sh`, `deploy/web/nginx.conf`; `AGENTS.md` mục 7; TL-01 mục CI/CD và triển khai (Argo CD, Kyverno, canary, giấy phép); TL-04 mục OPS-01 (GitOps), mục lộ trình (đợt 0a đến 3), mục cell; Baseline mục 4 (ADR-13, ADR-16); TL-01 "Chuyển tenant giữa các cell", ADR-29; TL-03 "Kho đối tượng Ceph"; `services-go/tenant-registry/internal/move` (DV-03-07).
 
 # Hạ tầng dev và triển khai
 
@@ -60,6 +60,16 @@ MinIO có giấy phép AGPL và bị TL-01 loại khỏi production; dự án v�
 ADR-16 chọn Jenkins cho CI và Argo CD cho CD theo mô hình GitOps. OPS-01 mô tả kho GitOps gồm `clusters/`, `cells/<cell>/cell.yaml`, `apps/<service>/` và `envs/`; Argo CD dùng ApplicationSet dạng ma trận cell nhân service, đồng bộ cuốn chiếu (RollingSync) theo nhãn `wave`. Kyverno chỉ cho chạy ảnh có chữ ký cosign và tuân chính sách (không root, tham chiếu theo digest). Phát hành dùng canary bằng Argo Rollouts: 5% trong 15 phút, rồi 25%, 50% và 100%, có thể dừng và quay lui tự động theo chỉ số.
 
 Thứ tự phát hành giữa các cell theo OPS-02 gồm bốn đợt: đợt 1 là CELL-G4 (cell bridge nhỏ nhất trong nhóm SaaS, đóng vai trò "chim hoàng yến"); đợt 2 là CELL-G1 đến G3 và CELL-SH; đợt 3 là CELL-HN và CELL-DTW; đợt 4 là CELL-HCM. Giữa các đợt có thời gian ổn định tối thiểu 24 giờ ngày làm việc, để lỗi chỉ lộ ra ở tải lớn có cơ hội được phát hiện ở cell nhỏ trước. TL-04 đề xuất thêm cell thí điểm nội bộ CELL-NB đứng trước CELL-G4 như đợt 0. Một bản web mới vì vậy có thể chạy ở các cell khác nhau với phiên bản khác nhau trong vài ngày, nên UI Pack và API phải tương thích ngược trong khoảng đó (suy luận). Không phát hành trong cửa sổ đóng băng trước các mốc hạn của kỳ đánh giá (OPS-06); lịch đóng băng của từng cell được một tác vụ trong kho GitOps sinh từ bảng `config.period` của MOD-08, cùng nguồn với các khung tăng năng lực trước của KEDA. Ngân sách lỗi quá 50% trước ngày 15 của tháng thì dừng phát hành tính năng (OPS-19). Bản LTS ra mỗi 6 tháng và được vá trong 18 tháng (OPS-12).
+
+## Chuyển tenant giữa các cell (DV-03-07)
+
+`tenant-registry` chuyển tenant giữa hai cụm PostgreSQL bằng sao chép logic có bộ lọc dòng (ADR-29, TL-01 "Chuyển tenant giữa các cell"); thủ tục vận hành ở `ops/runbooks/chuyen-tenant-giua-cell.md`. Những điểm hạ tầng cần có trước khi bật `move.enabled` trong chart:
+
+- Cụm PostgreSQL của mọi cell chạy `wal_level = logical`, đủ `max_wal_senders` và `max_replication_slots` cho số lần chuyển song song (mỗi lần một slot); cụm đích kết nối được cổng 5432 của cụm nguồn (conninfo `peerConnInfo`). CloudNativePG đặt các tham số này trong `spec.postgresql.parameters` (suy luận, việc của INF-11).
+- Vai trò quản trị sao chép ở mỗi cụm có quyền REPLICATION, tạo publication, subscription (PostgreSQL 16+: `pg_create_subscription`) và trigger trên bảng của tenant; thông tin kết nối nằm trong Secret `tenant-registry-move` (tệp `cell-db.json`), không nằm trong chart.
+- Bảng phân vùng LIST theo `tenant_id` được chép qua bảng cha (`publish_via_partition_root`); phân vùng của tenant được tạo ở đích theo đúng biên của nguồn. Bảng có khoá chính không chứa `tenant_id` được đặt tạm `REPLICA IDENTITY FULL` trong lúc chuyển (bắt buộc với bộ lọc dòng), khôi phục khi cắt chuyển.
+- Kiểm thử tích hợp chạy ba cụm PostgreSQL 17 thật bằng Testcontainers trên một mạng Docker (registry, cell nguồn, cell đích bật `wal_level=logical`); thời gian chỉ đọc đo được trong kiểm thử (3.000 mục tiêu, 800 dòng tiến độ, ghi liên tục) dưới 1 giây, chưa đại diện cho tenant 100.000 tài khoản.
+- Tệp minh chứng: bucket `evidence` mã hoá SSE-C nên chỉ đồng bộ được bằng multisite của Ceph RGW (INF-12); `tenant-registry` chỉ so khớp danh sách đối tượng. Các bucket `dossier`, `templates`, `ledger-archive` được chép qua API S3 (ký SigV4) nếu multisite chưa chép.
 
 ## Lộ trình theo TL-04
 
