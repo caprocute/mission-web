@@ -20,6 +20,7 @@ import vn.viettel.okrkpi.evidence.application.UploadService.SessionView;
 import vn.viettel.okrkpi.evidence.domain.StoredFile;
 import vn.viettel.okrkpi.evidence.domain.UploadSession;
 import vn.viettel.okrkpi.evidence.infrastructure.web.api.FilesApi;
+import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileDedup;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileDownloadUrl;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FileObject;
 import vn.viettel.okrkpi.evidence.infrastructure.web.model.FilePreview;
@@ -87,7 +88,7 @@ public class FilesController implements FilesApi {
   @Override
   public ResponseEntity<FileObject> completeFileUpload(
       UUID uploadId, String idempotencyKey, FileUploadComplete body) {
-    StoredFile f =
+    UploadService.Completed done =
         uploads.complete(
             uploadId,
             body.getParts().stream()
@@ -96,7 +97,12 @@ public class FilesController implements FilesApi {
                         new Part(p.getPartNo(), p.getSize() == null ? 0 : p.getSize(), p.getEtag()))
                 .toList(),
             CurrentCaller.actor());
-    return ResponseEntity.ok(fileObject(f));
+    FileObject result = fileObject(done.file());
+    if (done.duplicate() != null) {
+      // Chi tiết nhiệm vụ, người nộp, ngày (MSG-07-01) do MOD-03 tra theo băm; SVC-08 chỉ báo cờ.
+      result.dedup(new FileDedup().duplicate(done.duplicate()));
+    }
+    return ResponseEntity.ok(result);
   }
 
   @Override

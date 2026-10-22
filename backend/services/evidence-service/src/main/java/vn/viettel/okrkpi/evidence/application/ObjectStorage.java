@@ -77,6 +77,11 @@ public interface ObjectStorage {
   StoredObject copyLocked(
       ObjectLocation from, ObjectLocation to, String mediaType, Instant lockUntil);
 
+  /**
+   * Kéo dài hạn khoá compliance của một phiên bản (Object Lock chỉ cho kéo dài, không rút ngắn).
+   */
+  void extendLock(ObjectLocation location, String versionId, Instant lockUntil);
+
   /** Xoá đối tượng tạm (không dùng cho bucket có khoá). */
   void deleteStaging(ObjectLocation location);
 

@@ -183,6 +183,9 @@ class FileUploadFlowIT {
   final HttpClient http = HttpClient.newHttpClient();
   static OpenAPI contract;
 
+  /** Tenant của người gọi trong các yêu cầu tiếp theo. */
+  UUID tenant = TENANT;
+
   @BeforeAll
   static void loadContract() {
     contract = OpenApiConformanceEngine.loadExpectedSpec(ContractModule.PRODUCTS);
@@ -242,6 +245,113 @@ class FileUploadFlowIT {
       assertThat(
               s3.getObjectAsBytes(b -> b.bucket(bucket).key(key).versionId(version)).asByteArray())
           .isEqualTo(file);
+    }
+  }
+
+  @Test
+  void cungTepHaiNguoiMotDoiTuongVatLyKhacTenantKhongTrung() throws Exception {
+    byte[] file = pdf(4321);
+    JsonNode a = upload(USER, file);
+    assertThat(a.get("dedup").get("duplicate").asBoolean()).isFalse();
+    JsonNode b = upload(OTHER, file);
+    conforms("/files/uploads/{uploadId}/complete", PathItem.HttpMethod.POST, 200, b);
+    assertThat(b.get("dedup").get("duplicate").asBoolean()).isTrue();
+
+    UUID foreign = UUID.randomUUID();
+    tenant = foreign;
+    JsonNode c;
+    try {
+      c = upload(USER, file);
+    } finally {
+      tenant = TENANT;
+    }
+    assertThat(c.get("dedup").get("duplicate").asBoolean()).isFalse();
+
+    try (Connection conn = admin();
+        var st = conn.createStatement()) {
+      var rs =
+          st.executeQuery(
+              "SELECT count(DISTINCT (bucket, object_key, ceph_version_id)) FROM"
+                  + " evidence.object_version WHERE object_meta_id IN ('"
+                  + a.get("objectId").asText()
+                  + "', '"
+                  + b.get("objectId").asText()
+                  + "')");
+      rs.next();
+      assertThat(rs.getInt(1)).isEqualTo(1);
+      rs =
+          st.executeQuery(
+              "SELECT tenant_id, ref_count, owners_sample::text FROM evidence.dedup_index"
+                  + " WHERE sha256 = decode('"
+                  + sha(file)
+                  + "', 'hex') ORDER BY ref_count DESC");
+      rs.next();
+      assertThat(rs.getObject(1, UUID.class)).isEqualTo(TENANT);
+      assertThat(rs.getInt(2)).isEqualTo(2);
+      assertThat(rs.getString(3)).isEqualTo("{" + USER + "," + OTHER + "}");
+      rs.next();
+      assertThat(rs.getObject(1, UUID.class)).isEqualTo(foreign);
+      assertThat(rs.getInt(2)).isEqualTo(1);
+      assertThat(rs.next()).isFalse();
+      // Tín hiệu minh chứng trùng đi trong sự kiện lưu đối tượng (băm, người tải); SVC-15 phát
+      // EVT-20.
+      rs =
+          st.executeQuery(
+              "SELECT count(*) FILTER (WHERE topic = 'sys.evidence.object.stored.v1'),"
+                  + " count(*) FILTER (WHERE topic <> 'sys.evidence.object.stored.v1')"
+                  + " FROM evidence.outbox_event WHERE aggregate_id IN ('"
+                  + a.get("objectId").asText()
+                  + "', '"
+                  + b.get("objectId").asText()
+                  + "')");
+      rs.next();
+      assertThat(rs.getInt(1)).isEqualTo(2);
+      assertThat(rs.getInt(2)).isZero();
+    }
+    String key = "t/" + TENANT + "/sha256/" + sha(file).substring(0, 2) + "/" + sha(file);
+    assertThat(s3.listObjectVersions(b2 -> b2.bucket("ev-dev-" + TENANT).prefix(key)).versions())
+        .hasSize(1);
+  }
+
+  @Test
+  void haiMuoiYeuCauDongThoiCungBamChoMotDongChiMuc() throws Exception {
+    byte[] file = pdf(5432);
+    List<String[]> ready = new ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      String id = create(USER, file, PDF, "C1", null).get("uploadId").asText();
+      ready.add(new String[] {id, putPart(USER, id, 1, file).get("etag").asText()});
+    }
+    var pool = java.util.concurrent.Executors.newFixedThreadPool(20);
+    try {
+      var start = new java.util.concurrent.CountDownLatch(1);
+      List<java.util.concurrent.Future<JsonNode>> all = new ArrayList<>();
+      for (String[] r : ready) {
+        all.add(
+            pool.submit(
+                () -> {
+                  start.await();
+                  return complete(USER, r[0], List.of(r[1]), 200);
+                }));
+      }
+      start.countDown();
+      for (var f : all) {
+        assertThat(f.get().get("sha256").asText()).isEqualTo(sha(file));
+      }
+    } finally {
+      pool.shutdownNow();
+    }
+    try (Connection conn = admin();
+        var st = conn.createStatement()) {
+      var rs =
+          st.executeQuery(
+              "SELECT count(*), sum(ref_count), max(cardinality(owners_sample))"
+                  + " FROM evidence.dedup_index WHERE sha256 = decode('"
+                  + sha(file)
+                  + "', 'hex')");
+      rs.next();
+      assertThat(rs.getInt(1)).isEqualTo(1);
+      assertThat(rs.getInt(2)).isEqualTo(20);
+      assertThat(rs.getInt(3)).isEqualTo(1);
     }
   }
 
@@ -466,6 +576,12 @@ class FileUploadFlowIT {
     };
   }
 
+  /** Tải trọn một tệp nhỏ hơn một phần và trả kết quả hoàn tất. */
+  JsonNode upload(UUID user, byte[] file) throws Exception {
+    String id = create(user, file, PDF, "C1", null).get("uploadId").asText();
+    return complete(user, id, List.of(putPart(user, id, 1, file).get("etag").asText()), 200);
+  }
+
   JsonNode create(UUID user, byte[] file, String type, String cls, String shaOverride)
       throws Exception {
     HttpResponse<String> r =
@@ -596,8 +712,8 @@ class FileUploadFlowIT {
     return URI.create("http://localhost:" + port + "/api/v1" + path);
   }
 
-  static String bearer(UUID user) {
-    return "Bearer " + user + "." + TENANT;
+  String bearer(UUID user) {
+    return "Bearer " + user + "." + tenant;
   }
 
   void conforms(String path, PathItem.HttpMethod method, int status, JsonNode body) {

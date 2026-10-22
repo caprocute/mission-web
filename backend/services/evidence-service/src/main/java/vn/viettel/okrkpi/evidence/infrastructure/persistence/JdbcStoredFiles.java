@@ -6,10 +6,14 @@ import java.sql.Timestamp;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import vn.viettel.okrkpi.evidence.application.ObjectStorage;
 import vn.viettel.okrkpi.evidence.application.StoredFiles;
+import vn.viettel.okrkpi.evidence.domain.ObjectLocation;
 import vn.viettel.okrkpi.evidence.domain.StoredFile;
 
-/** {@code evidence.object_meta} và {@code evidence.object_version} qua JdbcClient (RLS). */
+/**
+ * {@code evidence.object_meta}, {@code object_version}, {@code dedup_index} qua JdbcClient (RLS).
+ */
 public class JdbcStoredFiles implements StoredFiles {
 
   private final JdbcClient jdbc;
@@ -80,6 +84,45 @@ public class JdbcStoredFiles implements StoredFiles {
         .param(objectId)
         .query(JdbcStoredFiles::map)
         .optional();
+  }
+
+  @Override
+  public Optional<ObjectStorage.StoredObject> physicalCopy(byte[] sha256) {
+    return jdbc.sql(
+            "SELECT bucket, object_key, ceph_version_id, lock_until FROM evidence.object_version"
+                + " WHERE sha256 = ? ORDER BY created_at, id LIMIT 1")
+        .param(sha256)
+        .query(
+            (rs, i) ->
+                new ObjectStorage.StoredObject(
+                    new ObjectLocation(rs.getString("bucket"), rs.getString("object_key")),
+                    rs.getString("ceph_version_id"),
+                    rs.getTimestamp("lock_until").toInstant()))
+        .optional();
+  }
+
+  @Override
+  public int registerReference(byte[] sha256, String objectKey, UUID owner) {
+    return jdbc.sql(
+            "INSERT INTO evidence.dedup_index AS d (sha256, object_key, ref_count, owners_sample)"
+                + " VALUES (?, ?, 1, ARRAY[?::uuid]) ON CONFLICT (tenant_id, sha256) DO UPDATE SET"
+                + " ref_count = d.ref_count + 1, owners_sample = CASE"
+                + " WHEN EXCLUDED.owners_sample[1] = ANY (d.owners_sample)"
+                + " OR cardinality(d.owners_sample) >= 16 THEN d.owners_sample"
+                + " ELSE d.owners_sample || EXCLUDED.owners_sample END"
+                + " RETURNING ref_count")
+        .params(sha256, objectKey, owner)
+        .query(Integer.class)
+        .single();
+  }
+
+  @Override
+  public boolean hasOtherCopy(byte[] sha256, UUID versionId) {
+    return jdbc.sql(
+            "SELECT EXISTS (SELECT 1 FROM evidence.object_version WHERE sha256 = ? AND id <> ?)")
+        .params(sha256, versionId)
+        .query(Boolean.class)
+        .single();
   }
 
   private static StoredFile map(ResultSet rs, int i) throws SQLException {
