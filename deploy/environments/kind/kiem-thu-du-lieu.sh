@@ -194,7 +194,10 @@ EOF
 printf 'masterauth %s\n' "${PW[vt-replica]}" > "$W/sao-chep.conf"
 kubectl -n $VK create secret generic valkey-acl --from-file=users.acl="$W/users.acl" --from-file=sao-chep.conf="$W/sao-chep.conf" \
   --from-literal=vt-admin="${PW[vt-admin]}" --from-literal=vt-exporter="${PW[vt-exporter]}" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+# Chạy sạch: CA và mật khẩu sinh mới mỗi lần, Valkey chỉ đọc chứng thư, ACL lúc khởi động.
 kubectl -n $VK delete job valkey-tao-cum --ignore-not-found >/dev/null
+kubectl -n $VK delete statefulset -l app.kubernetes.io/name=valkey --ignore-not-found --wait >/dev/null
+{ kubectl -n $VK get pvc -o name | grep '/data-valkey-' || true; } | xargs -r kubectl -n $VK delete --wait >/dev/null
 helm template valkey "$CHARTS/valkey" -f values-kind-valkey.yaml > "$W/vk.yaml"
 python3 -c 'import sys,yaml; d=[x for x in yaml.safe_load_all(open(sys.argv[1])) if x and x["kind"] not in ("Certificate","ExternalSecret")]; yaml.safe_dump_all(d,open(sys.argv[1],"w"))' "$W/vk.yaml"
 kubectl apply -f "$W/vk.yaml" >/dev/null
