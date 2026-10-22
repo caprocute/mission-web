@@ -153,6 +153,16 @@ mission-core chạy bộ kiểm tra tĩnh mỗi lần lưu nháp, xem trước v
 
 **Bộ ca dùng chung.** `data/golden/ui-pack-checks/tuong-phan.json` là bộ ca tương phản mà `WcagContrastGoldenTest` của mission-core chạy; công cụ kiểm tương phản của WEB-004 (`contrastRatio` trong `@vt/design-system`, cùng công thức) cần chạy cùng tệp khi WEB-004 làm.
 
+## UI Pack mặc định của tenant mới (DL-06)
+
+Tenant mới nhận UI Pack mặc định ở `data/seed/ui-pack/mac-dinh-<phiên bản>.json`. Tệp có đúng thân `UiPackVersionUpdate` (token, bố cục, `componentRegistryVersion`, `elderMode`, `fewSteps`) cộng trường `version`, nên được nạp bằng chính API của QT-18 qua `nap_ui_pack.py` (tạo nháp, ghi kèm `If-Match`, gửi duyệt; phát hành cần quản trị thứ hai), không ghi thẳng CSDL. Bộ kiểm `kiem_ui_pack.py` dựng tài liệu UI Pack 1.0 giống `UiPackService.document` rồi chạy cùng các kiểm tra của máy chủ: lược đồ, component trong registry 2026.3 và `propsSchema`, tối đa 12 widget, tương phản 4,5 : 1 và 7 : 1, chữ thân, cỡ chạm, bo góc, gzip ≤ 30 KB. `UiPackSeedTest` của mission-core chạy tệp seed qua đúng lược đồ và `UiPackStaticChecks`, nên khi bộ kiểm Python và máy chủ lệch nhau, kiểm thử Java là chuẩn. Phiên bản 1.0.0 nén gzip 820 byte; lịch sử và số đo ghi ở `data/seed/ui-pack/CHANGELOG.md`.
+
+**Quy ước tên token.** Token màu trong UI Pack đặt tên kiểu gạch nối theo nhóm `color` (`primary`, `primary-strong`, `on-primary-strong`, `surface`, `surface-elevated`, `background`, `border`, `text`, `text-muted`), các nhóm khác là `font.family`, `font.size.body`, `radius.card`, `space.lg`, `border.width` và `min-touch`. `tokensToCss()` làm phẳng thành biến `--vt-color-primary-strong`, `--vt-font-size-body`, `--vt-min-touch`…; bộ kiểm tương phản tự ghép `text*` với `surface*`/`background*` và `on-X` với `X`, nên token màu mới phải theo các tiền tố này để được kiểm. Ghi đè cao tuổi nằm ở `tokens.$extensions.modes.elderly` với cùng đường dẫn token, cộng `flags.minTouchTarget`; máy chủ chuyển nó thành `modes.elderly.tokens` và `modes.elderly.flags` (cờ `reducedSteps` lấy từ `fewSteps`).
+
+**Bố cục trang chủ mặc định.** Lưới `vt.layout.grid` gồm "Việc của tôi hôm nay" (`id: myTasksToday`, `mandatory: true`, người dùng không ẩn được ở CNH-03), tiến độ OKR cá nhân, tiến độ OKR đơn vị (`id: okrProgressUnit`, chỉ lãnh đạo, quản lý) và việc chờ duyệt (quản lý). Hai khoá nút `id` và `mandatory` được lược đồ UI Pack 1.0 của máy chủ nhận từ DL-06; trước đó lược đồ từ chối chúng dù lớp phủ trang chủ của CNH-02 cần. Widget thông báo chưa đưa vào vì UI Pack phía máy chủ chưa có khối `i18n` để chứa khoá văn bản (suy luận về thứ tự làm).
+
+**Di động đọc cùng token.** Ứng dụng di động (MOB-01 chuyển token thiết kế sang ThemeData của Flutter, MOB-08 chế độ cao tuổi) lấy cùng UI Pack đã phát hành qua `getCurrentUiPack` và ánh xạ cùng tên token sang ThemeData, không giữ bộ màu riêng; chế độ cao tuổi trên di động dùng cùng ghi đè `modes.elderly` và cờ `reducedSteps`, nên một thay đổi token chỉ cần phát hành một lần cho cả web và di động (suy luận từ ADR-05 và kế hoạch MOB).
+
 ## Liên quan
 
 - [Kiến trúc frontend](02-kien-truc-frontend.md)
