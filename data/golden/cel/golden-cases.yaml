@@ -806,3 +806,120 @@ cases:
     inputs:
       ket_qua: 80.0
     expectedError: "POLICY-422-CEL-TYPE"
+
+  # ============================================================================
+  # NHÓM 6: HÀM SỐ HỌC CỦA GÓI MẪU NĐ 335 (math, double(), chia số thực, chia số nguyên)
+  # Phát hiện ở DV-07-03: công thức kpi_A, kpi_B, kpi_C, kpi_nhom phải chạy như nhau ở hai engine.
+  # ============================================================================
+  - id: G-CEL-061
+    category: scoring_formula
+    description: kpi_A tỷ lệ việc được duyệt so với kế hoạch, chặn trên bằng math.least
+    expression: "nv.ke_hoach == 0 ? 1.0 : math.least(double(nv.so_luong_duyet) / double(nv.ke_hoach), 1.0)"
+    returnType: DOUBLE
+    variableTypes:
+      nv: MAP_STRING_DYN
+    inputs:
+      nv:
+        so_luong_duyet: 3
+        ke_hoach: 4
+    expected: 0.75
+
+  - id: G-CEL-062
+    category: scoring_formula
+    description: kpi_A vượt kế hoạch thì lấy 1.0 (math.least)
+    expression: "nv.ke_hoach == 0 ? 1.0 : math.least(double(nv.so_luong_duyet) / double(nv.ke_hoach), 1.0)"
+    returnType: DOUBLE
+    variableTypes:
+      nv: MAP_STRING_DYN
+    inputs:
+      nv:
+        so_luong_duyet: 6
+        ke_hoach: 4
+    expected: 1.0
+
+  - id: G-CEL-063
+    category: scoring_formula
+    description: kpi_B trừ 25% mỗi lần chỉnh sửa, chặn dưới bằng math.greatest
+    expression: "tham_so.cach_tinh_chat_luong == 'TRU_25_MOI_LAN' ? math.greatest(0.0, 1.0 - tham_so.tru_moi_lan_chinh_sua * double(so_lan_chinh_sua)) : 1.0"
+    returnType: DOUBLE
+    variableTypes:
+      tham_so: MAP_STRING_DYN
+      so_lan_chinh_sua: INT
+    inputs:
+      tham_so:
+        cach_tinh_chat_luong: "TRU_25_MOI_LAN"
+        tru_moi_lan_chinh_sua: 0.25
+      so_lan_chinh_sua: 2
+    expected: 0.5
+
+  - id: G-CEL-064
+    category: scoring_formula
+    description: kpi_C trừ tiến độ theo ngày chậm, không âm (math.greatest)
+    expression: "math.greatest(0.0, 1.0 - tru_tien_do * double(ngay_cham))"
+    returnType: DOUBLE
+    variableTypes:
+      tru_tien_do: DOUBLE
+      ngay_cham: INT
+    inputs:
+      tru_tien_do: 0.1
+      ngay_cham: 12
+    expected: 0.0
+
+  - id: G-CEL-065
+    category: scoring_formula
+    description: kpi_nhom trung bình danh sách bằng sum chia double(size())
+    expression: "ds_kpi.size() == 0 ? 0.0 : sum(ds_kpi) / double(ds_kpi.size())"
+    returnType: DOUBLE
+    variableTypes:
+      ds_kpi: LIST_DOUBLE
+    inputs:
+      ds_kpi: [0.9, 0.6]
+    expected: 0.75
+
+  - id: G-CEL-066
+    category: scoring_formula
+    description: Chia hai số thực không nguyên (7.5 / 2.5)
+    expression: "a / b"
+    returnType: DOUBLE
+    variableTypes:
+      a: DOUBLE
+      b: DOUBLE
+    inputs:
+      a: 7.5
+      b: 2.5
+    expected: 3.0
+
+  - id: G-CEL-067
+    category: scoring_formula
+    description: Chia hai số nguyên là phép chia nguyên của CEL (7 / 2 = 3)
+    expression: "a / b"
+    returnType: INT
+    variableTypes:
+      a: INT
+      b: INT
+    inputs:
+      a: 7
+      b: 2
+    expected: 3
+
+  - id: G-CEL-068
+    category: scoring_formula
+    description: math.least trên danh sách số thực
+    expression: "math.least(ds)"
+    returnType: DOUBLE
+    variableTypes:
+      ds: LIST_DOUBLE
+    inputs:
+      ds: [0.9, 0.4, 0.7]
+    expected: 0.4
+
+  - id: G-CEL-069
+    category: error_handling
+    description: Từ chối cộng số thực với số nguyên khi không ép kiểu (diem + 1)
+    expression: "diem + 1"
+    returnType: DOUBLE
+    variableTypes:
+      diem: DOUBLE
+    inputs:
+      diem: 80.5
+    expectedError: "POLICY-422-CEL-TYPE"
