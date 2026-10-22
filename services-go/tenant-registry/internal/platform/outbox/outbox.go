@@ -18,6 +18,12 @@ import (
 // Topic sự kiện hạ tầng của SVC-03 (TL-03 mục SVC-03: registry.tenant.changed.v1).
 const TopicTenantChanged = "registry.tenant.changed.v1"
 
+// Topic kỹ thuật báo tenant đã cấp phát xong (TL-01 "Tiếp nhận tenant"; không phải EVT nghiệp vụ).
+const TopicTenantProvisioned = "sys.tenant.provisioned.v1"
+
+// TopicNotifyRequested là topic của EVT-21 YeuCauThongBao (contracts/events/catalog.yaml).
+const TopicNotifyRequested = "notify.message.requested.v1"
+
 // Envelope là một sự kiện cần phát.
 type Envelope struct {
 	TenantID         uuid.UUID
@@ -30,6 +36,8 @@ type Envelope struct {
 	TraceParent      string
 	ActorID          uuid.UUID
 	Classification   string // C0 hoặc C1; C2/C3 bị chặn
+	// EventKey ghi đè khoá sự kiện (mặc định tenant:aggregateId), ví dụ EVT-21 dùng tenant:recipientId.
+	EventKey string
 }
 
 // ErrClassified chặn đưa dữ liệu C2/C3 vào outbox.
@@ -42,6 +50,10 @@ func Append(ctx context.Context, tx pgx.Tx, e Envelope) (uuid.UUID, error) {
 	}
 	if e.Classification == "" {
 		e.Classification = "C1"
+	}
+	key := e.EventKey
+	if key == "" {
+		key = e.TenantID.String() + ":" + e.AggregateID.String()
 	}
 	payload, err := json.Marshal(e.Payload)
 	if err != nil {
@@ -63,6 +75,6 @@ func Append(ctx context.Context, tx pgx.Tx, e Envelope) (uuid.UUID, error) {
 		(id, tenant_id, aggregate_type, aggregate_id, aggregate_version, event_type, topic, event_key, payload, schema_version, headers, created_at)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,0,$10,$11)`,
 		id, e.TenantID, e.AggregateType, e.AggregateID, e.AggregateVersion, e.EventType, e.Topic,
-		e.TenantID.String()+":"+e.AggregateID.String(), payload, headers, now)
+		key, payload, headers, now)
 	return id, err
 }

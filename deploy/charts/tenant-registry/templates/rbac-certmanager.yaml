@@ -1,0 +1,65 @@
+{{- if .Values.provisioning.enabled }}
+# DV-03-05: quyền hẹp cho saga cấp phát tạo, đọc, xoá Certificate (cert-manager.io) và xoá Secret TLS của tenant
+# trong namespace cổng vào; không có quyền đọc nội dung Secret.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "tenant-registry.fullname" . }}-tls
+  namespace: {{ .Values.provisioning.certManager.namespace }}
+  labels:
+    {{- include "tenant-registry.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates"]
+    verbs: ["create", "get", "delete"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "tenant-registry.fullname" . }}-tls
+  namespace: {{ .Values.provisioning.certManager.namespace }}
+  labels:
+    {{- include "tenant-registry.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "tenant-registry.fullname" . }}-tls
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "tenant-registry.serviceAccount" . }}
+    namespace: {{ .Release.Namespace }}
+{{- if .Values.provisioning.data.enabled }}
+---
+# DV-03-04: quyền hẹp tạo, đọc, xoá Job di trú CSDL dữ liệu tenant trong namespace di trú; không đọc Secret.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "tenant-registry.fullname" . }}-migrate
+  namespace: {{ .Values.provisioning.data.migration.namespace }}
+  labels:
+    {{- include "tenant-registry.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "tenant-registry.fullname" . }}-migrate
+  namespace: {{ .Values.provisioning.data.migration.namespace }}
+  labels:
+    {{- include "tenant-registry.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "tenant-registry.fullname" . }}-migrate
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "tenant-registry.serviceAccount" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}

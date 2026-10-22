@@ -56,6 +56,17 @@ public class MissionEventListenerProviderFactory implements EventListenerProvide
     LOG.infof("mission-events sẵn sàng, hàng đợi tại %s", dir);
   }
 
+  /** Hàng đợi bền dùng chung cho sự kiện do SPI khác của Mission phát (mã khôi phục DV-02-08). */
+  DurableQueue queue() {
+    return queue;
+  }
+
+  /** Hàng đợi của listener trong tiến trình Keycloak hiện tại; {@code null} khi listener chưa được nạp. */
+  static DurableQueue queue(org.keycloak.models.KeycloakSession session) {
+    var f = session.getKeycloakSessionFactory().getProviderFactory(EventListenerProvider.class, ID);
+    return f instanceof MissionEventListenerProviderFactory m ? m.queue() : null;
+  }
+
   @Override
   public void close() {
     if (queue != null) {

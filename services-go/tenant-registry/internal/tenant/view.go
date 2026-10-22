@@ -111,6 +111,7 @@ type ConfigTenant struct {
 	AdminContact          *AdminContact    `json:"adminContact,omitempty"`
 	Status                string           `json:"status"`
 	OnboardingStep        *int             `json:"onboardingStep"`
+	ReadinessChecks       []ReadinessCheck `json:"readinessChecks,omitempty"`
 	ProvisionJobID        *string          `json:"provisionJobId"`
 	RowVersion            int              `json:"rowVersion"`
 	CreatedAt             time.Time        `json:"createdAt"`
@@ -345,6 +346,12 @@ func (s *Service) loadConfig(ctx context.Context, q store.Querier, id uuid.UUID,
 		return nil, nil, err
 	}
 	v.OnboardingStep = stepPtr(t.Status, p)
+	if j, err := store.LatestJobForTenant(ctx, q, store.JobTypeProvision, id); err == nil {
+		jid := j.ID.String()
+		v.ProvisionJobID = &jid
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return nil, nil, err
+	}
 	return v, t, nil
 }
 

@@ -23,7 +23,7 @@ public class DefaultPolicyQueryService implements PolicyQueryApi {
 
   public void registerPolicy(PolicyFormulaView view) {
     Objects.requireNonNull(view, "view must not be null");
-    periodApi.assertOpen(view.tenantId(), view.periodId());
+    periodApi.assertWritable(view.tenantId(), view.periodId());
     policies.put(new PolicyKey(view.tenantId(), view.periodId(), view.code()), view);
   }
 

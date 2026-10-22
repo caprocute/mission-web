@@ -489,3 +489,18 @@ func ListIdps(ctx context.Context, q Querier, tenantID uuid.UUID, onlyActive boo
 		return i, err
 	})
 }
+
+// SetTenantCellDatabase ghi CSDL dữ liệu và thời điểm bắt đầu hiệu lực của lần gắn cell khi bước CSDL của saga
+// cấp phát xong (DV-03-04).
+func SetTenantCellDatabase(ctx context.Context, q Querier, id uuid.UUID, db string, validFrom time.Time, actor uuid.UUID) error {
+	_, err := q.Exec(ctx, `UPDATE registry.tenant_cell SET database_name = $2, valid_from = $3, updated_by = $4, updated_at = now(),
+		row_version = row_version + 1 WHERE id = $1`, id, db, validFrom, actor)
+	return mapErr(err)
+}
+
+// SetTenantKekRef ghi tên KEK đã tạo trong OpenBao Transit (DV-03-04).
+func SetTenantKekRef(ctx context.Context, q Querier, id uuid.UUID, ref string, actor uuid.UUID) error {
+	_, err := q.Exec(ctx, `UPDATE registry.tenant SET kek_ref = $2, updated_by = $3, updated_at = now(),
+		row_version = row_version + 1 WHERE id = $1`, id, ref, actor)
+	return mapErr(err)
+}
