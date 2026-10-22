@@ -30,3 +30,34 @@ JSON
   done < "$REMOTES"
   printf '\n}\n'
 } > $OUT/federation.manifest.json
+
+# WEB-014: nguồn ngoài được phép trong CSP của index.html. Lấy origin của API, IdP, UI Pack và từng
+# remote khác nguồn; CSP_CONNECT_SRC, CSP_FRAME_ANCESTORS thêm nguồn tuỳ ý (cách nhau bằng dấu cách).
+# nginx include tệp này (glob, thiếu tệp vẫn chạy với chính sách chỉ cùng nguồn).
+CSP_DIR=${CSP_DIR:-/tmp/runtime}
+mkdir -p "$CSP_DIR"
+origin() {
+  printf '%s' "$1" | sed -nE 's#^((https?|wss?)://[^/?#]*).*#\1#p'
+}
+csp_list() {
+  # in danh sách origin không trùng, mỗi mục có dấu cách đứng trước; bỏ mục không phải URL tuyệt đối
+  for u in "$@"; do
+    case "$u" in
+      http://*|https://*|ws://*|wss://*) origin "$u"; printf '\n' ;;
+    esac
+  done | sort -u | sed -nE 's#^((https?|wss?)://[A-Za-z0-9.:-]+)$# \1#p' | tr -d '\n'
+}
+REMOTE_URLS=$(while IFS="$(printf '\t')" read -r key var project; do [ -n "$key" ] && printenv "$var"; done < "$REMOTES" || true)
+# shellcheck disable=SC2086
+ASSETS=$(csp_list $REMOTE_URLS ${UI_PACK_BASE_URL:-})
+IDP=$(csp_list ${AUTH_ISSUER:-})
+# shellcheck disable=SC2086
+CONNECT=$(csp_list ${API_BASE_URL:-} ${AUTH_ISSUER:-} ${UI_PACK_BASE_URL:-} $REMOTE_URLS ${CSP_CONNECT_SRC:-})
+# shellcheck disable=SC2086
+ANCESTORS=$(csp_list ${CSP_FRAME_ANCESTORS:-})
+cat > "$CSP_DIR/csp-nguon.conf" <<NGINX
+set \$csp_connect "$CONNECT";
+set \$csp_assets "$ASSETS";
+set \$csp_frame "$IDP";
+set \$csp_ancestors "$ANCESTORS";
+NGINX
