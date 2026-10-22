@@ -4,5 +4,11 @@
  */
 @org.springframework.modulith.ApplicationModule(
     displayName = "MOD-02 · Task Management",
-    allowedDependencies = {"shared", "config :: api", "policy :: api", "okr :: api"})
+    allowedDependencies = {
+      "shared",
+      "config :: api",
+      "policy :: api",
+      "okr :: api",
+      "replica :: api"
+    })
 package vn.viettel.okrkpi.task;

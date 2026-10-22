@@ -12,10 +12,10 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **148 / 401 task (36.9%)** — Khối lượng quy đổi đã gộp: **176 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **148 / 401 task (36.9%)** (gồm **148** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ đã gộp `main`**: **149 / 401 task (37.2%)** — Khối lượng quy đổi đã gộp: **177 / 482.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **149 / 401 task (37.2%)** (gồm **149** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **247 task**.
+- **Chưa bắt đầu**: **246 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **10 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-05-02`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **15** | 0 | 0 | 97 | **13.4%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **16** | 0 | 0 | 96 | **14.3%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **27** | 0 | 3 | 74 | **26.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **11** | 0 | 0 | 17 | **39.3%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **148** | **0** | **6** | **247** | **36.9%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **149** | **0** | **6** | **246** | **37.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,7 +41,7 @@
 | **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 0 | 1 | 9 | **83.1%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **18** | 0 | 1 | 27 | **39.1%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **22** | 0 | 3 | 92 | **18.8%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **23** | 0 | 3 | 91 | **19.7%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 0 | 0 | 54 | **23.9%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **9** | 0 | 1 | 32 | **21.4%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **0** | 0 | 0 | 23 | **0.0%** |
@@ -248,13 +248,13 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-01-12](docs/tasks/CORE-01-12-uy-quyen-check-in.md) | Uỷ quyền check-in thay và chuyển giá trị khi phiên bản mục tiêu mới được duyệt | S | B2 | 21 | CORE-01-08, CORE-01-07, NEN-042 | **Chưa bắt đầu** |  |
 | [CORE-01-13](docs/tasks/CORE-01-13-tro-ly-ai-okr.md) | Trợ lý AI cho OKR qua ai-gateway: soát KR, ghi `ai.suggestion_log`, cờ `content_source` | M | B2 | 18 | CORE-01-04, DV-14-04 | **Chưa bắt đầu** |  |
 
-### CORE-02 · MOD-02 task: danh mục, kế hoạch, nhiệm vụ (2/26 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### CORE-02 · MOD-02 task: danh mục, kế hoạch, nhiệm vụ (3/26 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [CORE-02-01](docs/tasks/CORE-02-01-migration-danh-muc-ke-hoach.md) | Migration schema `task` phần danh mục và kế hoạch (work_catalog, catalog_item, plan, plan_version, plan_item) | M | B3 | 11 | CORE-00-02, NEN-033 | **Đã gộp main** | Migration schema task phần danh mục, chương trình, kế hoạch |
 | [CORE-02-02](docs/tasks/CORE-02-02-migration-nhiem-vu.md) | Migration schema `task` phần nhiệm vụ (task, task_assignee, task_progress, task_blocker, task_change_request, task_source_doc, task_state_log) có phân vùng | M | B3 | 12 | CORE-02-01 | **Đã gộp main** | Migration schema task phần nhiệm vụ, 7 bảng, EXPLAIN 1 triệu dòng |
-| [CORE-02-03](docs/tasks/CORE-02-03-danh-muc-cong-viec.md) | Danh mục công việc có phiên bản, kế thừa cấp trên, API mục danh mục | M | B3 | 16 | CORE-02-01, CORE-08-03 | **Chưa bắt đầu** |  |
+| [CORE-02-03](docs/tasks/CORE-02-03-danh-muc-cong-viec.md) | Danh mục công việc có phiên bản, kế thừa cấp trên, API mục danh mục | M | B3 | 16 | CORE-02-01, CORE-08-03 | **Đã gộp main** | Danh mục công việc: 8 thao tác /catalog |
 | [CORE-02-04](docs/tasks/CORE-02-04-nhap-danh-muc-excel.md) | Nhập danh mục từ Excel (202, tệp lỗi) | S | B3 | 17 | CORE-02-03 | **Chưa bắt đầu** |  |
 | [CORE-02-05](docs/tasks/CORE-02-05-ke-hoach-quy.md) | Kế hoạch quý: máy trạng thái `plan_version`, API soạn, sao chép quý trước, gợi ý từ OKR | L | B3 | 17 | CORE-02-03, CORE-01-02 | **Chưa bắt đầu** |  |
 | [CORE-02-06](docs/tasks/CORE-02-06-kiem-tra-ke-hoach.md) | Kiểm tra kế hoạch BR-04-02..07 và tỷ trọng nhóm theo Policy Pack | M | B3 | 18 | CORE-02-05, CORE-05-03 | **Chưa bắt đầu** |  |
@@ -791,4 +791,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 05:52 | Điều phối | `CORE-08-05` | Chuyển trạng thái sang **Đã gộp main** — Lệnh khoá kỳ, migration config V4, client SVC-06 |
 | 22/10/2026 06:17 | Điều phối | `CORE-08-05` | Chuyển trạng thái sang **Đã gộp main** — Lệnh khoá kỳ, saga chốt kỳ gửi X-Tenant-Id |
 | 22/10/2026 06:24 | Điều phối | `CORE-08-06` | Chuyển trạng thái sang **Đã gộp main** — Mở lại kỳ để hậu kiểm theo phạm vi, migration config V5 |
+| 22/10/2026 06:33 | Điều phối | `CORE-02-03` | Chuyển trạng thái sang **Đã gộp main** — Danh mục công việc: 8 thao tác /catalog |
 <!-- PROGRESS_LOG_END -->
