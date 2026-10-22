@@ -11,10 +11,15 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.config.api.PeriodApi;
+import vn.viettel.okrkpi.okr.application.OkrCheckService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
+import vn.viettel.okrkpi.okr.application.OkrRuleChecker;
+import vn.viettel.okrkpi.okr.application.port.OkrSimilarityPort;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrExportJobs;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrIdempotency;
+import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
+import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 
 /**
  * CORE-01-02: nối phía đọc của MOD-01 với {@code okrDataSource}; giao dịch chỉ đọc chạy trên {@code
@@ -46,6 +51,23 @@ public class OkrReadConfiguration {
   OkrComposeService okrComposeService(
       JdbcOkrWriteRepository okrWriteRepository, PeriodApi periods) {
     return new OkrComposeService(okrWriteRepository, periods);
+  }
+
+  /** CORE-01-04: bộ kiểm tra BR-02-01..07 dùng chung bộ quy tắc CEL với trình duyệt. */
+  @Bean
+  OkrCheckService okrCheckService(
+      JdbcOkrReadRepository okrReadRepository,
+      JdbcOkrWriteRepository okrWriteRepository,
+      ObjectProvider<PolicyQueryApi> policies,
+      ObjectProvider<OrgDirectoryApi> org,
+      ObjectProvider<OkrSimilarityPort> similarity) {
+    return new OkrCheckService(
+        new OkrRuleChecker(),
+        okrReadRepository,
+        okrWriteRepository,
+        policies::getIfAvailable,
+        org::getIfAvailable,
+        similarity::getIfAvailable);
   }
 
   @Bean

@@ -177,6 +177,16 @@ class OkrComposeApiIT extends ContractConformanceTest {
     assertThat(body.at("/keyResults/1/code").asText()).isEqualTo("KR " + no + ".2");
     assertThat(body.at("/bases/0/id").asText()).isEqualTo(basis.toString());
     assertThat(r.getResponse().getHeader("ETag")).isEqualTo("\"0\"");
+    // Hai KR tổng trọng số 70%: BR-02-07 chặn; đơn vị cao nhất nên không đòi mục tiêu cấp trên.
+    List<String> blocking = new ArrayList<>();
+    body.get("checks")
+        .forEach(
+            c -> {
+              if ("LOI_CHAN".equals(c.get("level").asText())) {
+                blocking.add(c.get("rule").asText());
+              }
+            });
+    assertThat(blocking).containsExactly("BR-02-07");
     assertThat(r.getResponse().getHeader("Location")).endsWith(body.get("id").asText());
     assertResponseConforms(r, "/okr/objectives", PathItem.HttpMethod.POST);
   }
@@ -415,6 +425,7 @@ class OkrComposeApiIT extends ContractConformanceTest {
     assertThat(body.at("/me/id").asText()).isEqualTo(ACTOR.toString());
     assertThat(body.get("existingCount").asInt()).isPositive();
     assertThat(body.at("/policy/recommendedMax").asInt()).isEqualTo(3);
+    assertThat(body.at("/policy/rules")).hasSize(14);
     assertResponseConforms(r, "/okr/compose-context", PathItem.HttpMethod.GET);
   }
 

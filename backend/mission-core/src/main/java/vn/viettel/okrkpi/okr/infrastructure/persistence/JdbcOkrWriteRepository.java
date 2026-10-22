@@ -94,7 +94,8 @@ public class JdbcOkrWriteRepository implements OkrWriteRepository {
     }
     Long n =
         jdbc.queryForObject(
-            "SELECT count(*) FROM okr.objective WHERE tenant_id = :t AND period_id = :p AND "
+            "SELECT count(*) FROM okr.objective WHERE tenant_id = :t AND period_id = :p"
+                + " AND status <> 'DONG' AND "
                 + owner
                 + " AND (CAST(:x AS uuid) IS NULL OR id <> :x)",
             p,

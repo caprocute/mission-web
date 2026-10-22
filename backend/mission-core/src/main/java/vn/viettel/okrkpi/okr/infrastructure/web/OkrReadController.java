@@ -35,6 +35,8 @@ import vn.viettel.okrkpi.contract.okr.model.OkrBasis;
 import vn.viettel.okrkpi.contract.okr.model.OkrBasisKind;
 import vn.viettel.okrkpi.contract.okr.model.OkrBasisPage;
 import vn.viettel.okrkpi.contract.okr.model.OkrBasisRef;
+import vn.viettel.okrkpi.contract.okr.model.OkrCheckLevel;
+import vn.viettel.okrkpi.contract.okr.model.OkrCheckResult;
 import vn.viettel.okrkpi.contract.okr.model.OkrCheckinFrequency;
 import vn.viettel.okrkpi.contract.okr.model.OkrConfidence;
 import vn.viettel.okrkpi.contract.okr.model.OkrContentSource;
@@ -63,6 +65,7 @@ import vn.viettel.okrkpi.contract.okr.model.OkrTree;
 import vn.viettel.okrkpi.contract.okr.model.PeriodRef;
 import vn.viettel.okrkpi.contract.okr.model.PeriodStatus;
 import vn.viettel.okrkpi.contract.okr.model.Ref;
+import vn.viettel.okrkpi.okr.application.OkrCheckService;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.OkrReadService.AlignmentNode;
 import vn.viettel.okrkpi.okr.application.OkrReadService.AlignmentView;
@@ -71,6 +74,7 @@ import vn.viettel.okrkpi.okr.application.OkrReadService.ObjectiveView;
 import vn.viettel.okrkpi.okr.application.OkrReadService.PeerLinkView;
 import vn.viettel.okrkpi.okr.application.OkrReadService.PeriodView;
 import vn.viettel.okrkpi.okr.application.OkrReadService.TreeView;
+import vn.viettel.okrkpi.okr.application.OkrRuleChecker.Finding;
 import vn.viettel.okrkpi.okr.application.port.OkrReadRepository.BasisRow;
 import vn.viettel.okrkpi.okr.application.port.OkrReadRepository.KeyResultFilter;
 import vn.viettel.okrkpi.okr.application.port.OkrReadRepository.KeyResultRow;
@@ -115,6 +119,7 @@ public class OkrReadController {
   private final ObjectProvider<OrgDirectoryApi> org;
   private final ObjectProvider<AuthzSubjectResolver> subjects;
   private final ObjectProvider<OkrCaller> callers;
+  private final OkrCheckService checks;
 
   public OkrReadController(
       OkrReadService reads,
@@ -123,7 +128,9 @@ public class OkrReadController {
       OkrExportJobs exports,
       ObjectProvider<OrgDirectoryApi> org,
       ObjectProvider<AuthzSubjectResolver> subjects,
-      ObjectProvider<OkrCaller> callers) {
+      ObjectProvider<OkrCaller> callers,
+      OkrCheckService checks) {
+    this.checks = Objects.requireNonNull(checks, "checks");
     this.reads = Objects.requireNonNull(reads, "reads");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
@@ -152,7 +159,9 @@ public class OkrReadController {
         tree.bases().stream().map(OkrReadController::basisRef).toList(),
         tree.parent() == null ? null : objectiveRef(tree.parent()),
         tree.recommendedMax(),
-        tree.objectives().stream().map(o -> objective(o, List.of())).toList(),
+        tree.objectives().stream()
+            .map(o -> objective(o, List.of()).checks(checks(checks.check(tenant, o))))
+            .toList(),
         tree.peerLinks().stream().map(OkrReadController::peerLink).toList());
   }
 
@@ -241,7 +250,8 @@ public class OkrReadController {
         reads
             .objective(tenant, id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-    OkrObjective dto = objective(view, reads.linksOf(tenant, view));
+    OkrObjective dto =
+        objective(view, reads.linksOf(tenant, view)).checks(checks(checks.check(tenant, view)));
     if (view.row().parentObjectiveId() != null) {
       reads
           .objectiveRow(tenant, view.row().parentObjectiveId())
@@ -581,6 +591,17 @@ public class OkrReadController {
       dto.parentObjective(new OkrObjectiveRef(o.parentObjectiveId(), "", ""));
     }
     return dto;
+  }
+
+  /** Kết quả kiểm tra BR-02-01..07 theo {@code OkrCheckResult} (CORE-01-04). */
+  static List<OkrCheckResult> checks(List<Finding> findings) {
+    return findings.stream()
+        .map(
+            f ->
+                new OkrCheckResult(OkrCheckLevel.fromValue(f.level()), f.br(), f.message())
+                    .keyResultId(f.keyResultId())
+                    .similarTaskCode(f.similarTaskCode()))
+        .toList();
   }
 
   static OkrObjectiveRef objectiveRef(ObjectiveRow o) {

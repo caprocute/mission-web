@@ -43,24 +43,25 @@ import vn.viettel.okrkpi.contract.okr.model.OkrParentOption;
 import vn.viettel.okrkpi.contract.okr.model.OkrPeriodInfo;
 import vn.viettel.okrkpi.contract.okr.model.OkrPersonOption;
 import vn.viettel.okrkpi.contract.okr.model.OkrPolicy;
+import vn.viettel.okrkpi.contract.okr.model.OkrRule;
 import vn.viettel.okrkpi.contract.okr.model.PeriodRef;
 import vn.viettel.okrkpi.contract.okr.model.Ref;
+import vn.viettel.okrkpi.okr.application.OkrCheckService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService.LinkDraft;
 import vn.viettel.okrkpi.okr.application.OkrComposeService.ObjectiveDraft;
 import vn.viettel.okrkpi.okr.application.OkrComposeService.Owner;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.OkrReadService.ObjectiveView;
+import vn.viettel.okrkpi.okr.application.OkrRuleChecker.Policy;
 import vn.viettel.okrkpi.okr.application.port.OkrReadRepository.ObjectiveFilter;
 import vn.viettel.okrkpi.okr.application.port.OkrWriteRepository.KeyResultData;
-import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 import vn.viettel.okrkpi.replica.api.OrgTree;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
 import vn.viettel.okrkpi.shared.authz.OpaInput;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
 import vn.viettel.okrkpi.shared.etag.ETags;
-import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
@@ -80,25 +81,11 @@ public class OkrComposeController {
   /** Cờ tính năng trợ lý AI soát OKR của tenant (suy luận tên cờ, AC-12). */
   static final String AI_FLAG = "okr.ai-assistant";
 
-  /** Khoá tham số Policy Pack cho số mục tiêu khuyến nghị (suy luận, BR-02-01). */
-  static final String RECOMMENDED_MAX_PARAM = "okr_recommended_max";
-
-  /** Từ mơ hồ mặc định (BR-02-05) khi Policy Pack chưa đặt. */
-  static final List<String> VAGUE_WORDS =
-      List.of("tăng cường", "đẩy mạnh", "nâng cao", "góp phần", "tích cực", "chú trọng");
-
-  /** Động từ mở đầu giống nhiệm vụ mặc định (BR-02-06). */
-  static final List<String> TASK_VERBS =
-      List.of("tổ chức", "ban hành", "triển khai", "xây dựng", "thực hiện");
-
-  /** Đơn vị đo gợi ý (SCR-0202 trường 9). */
-  static final List<String> UNITS = List.of("%", "người", "hồ sơ", "ngày", "lần", "mốc");
-
   private final OkrComposeService compose;
   private final OkrReadService reads;
   private final OkrIdempotency idempotency;
   private final ObjectProvider<OrgDirectoryApi> org;
-  private final ObjectProvider<PolicyQueryApi> policies;
+  private final OkrCheckService checks;
   private final ObjectProvider<FeatureFlagApi> flags;
   private final ObjectProvider<AuthzSubjectResolver> subjects;
   private final ObjectProvider<OkrCaller> callers;
@@ -108,7 +95,7 @@ public class OkrComposeController {
       OkrReadService reads,
       OkrIdempotency idempotency,
       ObjectProvider<OrgDirectoryApi> org,
-      ObjectProvider<PolicyQueryApi> policies,
+      OkrCheckService checks,
       ObjectProvider<FeatureFlagApi> flags,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<OkrCaller> callers) {
@@ -116,7 +103,7 @@ public class OkrComposeController {
     this.reads = Objects.requireNonNull(reads, "reads");
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
     this.org = Objects.requireNonNull(org, "org");
-    this.policies = Objects.requireNonNull(policies, "policies");
+    this.checks = Objects.requireNonNull(checks, "checks");
     this.flags = Objects.requireNonNull(flags, "flags");
     this.subjects = Objects.requireNonNull(subjects, "subjects");
     this.callers = Objects.requireNonNull(callers, "callers");
@@ -435,7 +422,9 @@ public class OkrComposeController {
 
   private OkrObjective detail(TenantId tenant, UUID id) {
     ObjectiveView view = reads.objective(tenant, id).orElseThrow();
-    OkrObjective dto = OkrReadController.objective(view, reads.linksOf(tenant, view));
+    OkrObjective dto =
+        OkrReadController.objective(view, reads.linksOf(tenant, view))
+            .checks(OkrReadController.checks(checks.check(tenant, view)));
     if (view.row().parentObjectiveId() != null) {
       reads
           .objectiveRow(tenant, view.row().parentObjectiveId())
@@ -449,41 +438,31 @@ public class OkrComposeController {
   }
 
   private OkrPolicy policy(TenantId tenant, PeriodSnapshot p, UUID unit) {
-    Optional<PolicyQueryApi.ResolvedPack> pack = resolve(tenant, p.id().value(), unit);
+    Policy policy = checks.policy(tenant, p.id().value(), unit);
     return new OkrPolicy(
-        pack.map(PolicyQueryApi.ResolvedPack::version).orElse("mac-dinh"),
-        recommendedMax(tenant, pack),
-        VAGUE_WORDS,
-        TASK_VERBS,
-        UNITS,
-        List.of());
+        policy.version(),
+        policy.recommendedMax(),
+        policy.vagueWords(),
+        policy.taskVerbs(),
+        policy.units(),
+        policy.rules().stream()
+            .map(
+                r ->
+                    new OkrRule(
+                            r.id(),
+                            r.br(),
+                            OkrRule.ScopeEnum.fromValue(r.scope()),
+                            OkrRule.SeverityEnum.fromValue(r.severity()),
+                            r.when(),
+                            r.assertion(),
+                            r.message())
+                        .passLabel(r.passLabel())
+                        .serverOnly(r.serverOnly()))
+            .toList());
   }
 
   private int recommendedMax(TenantId tenant, UUID periodId, UUID unit) {
-    if (periodId == null) {
-      return OkrReadService.RECOMMENDED_MAX;
-    }
-    return recommendedMax(tenant, resolve(tenant, periodId, unit));
-  }
-
-  private int recommendedMax(TenantId tenant, Optional<PolicyQueryApi.ResolvedPack> pack) {
-    PolicyQueryApi api = policies.getIfAvailable();
-    if (api == null || pack.isEmpty()) {
-      return OkrReadService.RECOMMENDED_MAX;
-    }
-    return api.parameter(tenant, pack.get().versionId(), RECOMMENDED_MAX_PARAM)
-        .filter(Number.class::isInstance)
-        .map(v -> ((Number) v).intValue())
-        .filter(v -> v >= 1)
-        .orElse(OkrReadService.RECOMMENDED_MAX);
-  }
-
-  private Optional<PolicyQueryApi.ResolvedPack> resolve(TenantId tenant, UUID periodId, UUID unit) {
-    PolicyQueryApi api = policies.getIfAvailable();
-    if (api == null) {
-      return Optional.empty();
-    }
-    return api.resolve(tenant, PeriodId.of(periodId), "DANG", null, unit);
+    return checks.policy(tenant, periodId, unit).recommendedMax();
   }
 
   private static List<KeyResultData> keyResults(List<OkrKeyResultInput> input) {
