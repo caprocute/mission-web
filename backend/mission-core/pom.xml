@@ -24,6 +24,8 @@
     <main.class>vn.viettel.okrkpi.MissionCoreApplication</main.class>
     <jib.skip>false</jib.skip>
     <awssdk.version>2.31.6</awssdk.version>
+    <!-- CORE-02-04: đọc, ghi .xlsx theo luồng (Apache 2.0); người phụ trách đã duyệt 22/10/2026. -->
+    <fastexcel.version>0.18.4</fastexcel.version>
   </properties>
 
   <dependencies>
@@ -47,6 +49,23 @@
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>url-connection-client</artifactId>
       <version>${awssdk.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.dhatim</groupId>
+      <artifactId>fastexcel-reader</artifactId>
+      <version>${fastexcel.version}</version>
+      <!-- commons-compress lấy bản mới hơn qua avro (hội tụ phụ thuộc). -->
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-compress</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.dhatim</groupId>
+      <artifactId>fastexcel</artifactId>
+      <version>${fastexcel.version}</version>
     </dependency>
     <dependency>
       <groupId>com.github.ben-manes.caffeine</groupId>

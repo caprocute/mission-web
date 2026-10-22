@@ -1,0 +1,7 @@
+# Ảnh Kafka Connect có plugin Debezium PostgreSQL (INF-10). Dựng sẵn thay cho build của Strimzi để bản cài cách ly
+# (airgap) chỉ cần kéo ảnh từ Harbor. Gói plugin tải và kiểm SHA-512 ở bước dung-anh.sh, không tải trong lúc dựng.
+ARG KAFKA_IMAGE=harbor.vt.local/quay/strimzi/kafka:1.2.0-kafka-4.3.1@sha256:fef34b5438e8556cc08c01f3e254e47346f061b53a4e38d4289853777e0ea7f1
+FROM ${KAFKA_IMAGE}
+USER root:root
+COPY --chown=1001:0 debezium-connector-postgres/ /opt/kafka/plugins/debezium-connector-postgres/
+USER 1001

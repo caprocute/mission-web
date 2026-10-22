@@ -1,0 +1,12 @@
+{
+  "type": "record",
+  "name": "DrainMarker",
+  "namespace": "vn.vtokr.period.v1",
+  "doc": "period.drain.marker · (suy luận) Lược đồ tối thiểu cho dòng outbox đánh dấu ở bước 2 saga chốt kỳ (TL-03 \"Saga điều phối chốt kỳ\"); TL không mô tả trường. Mỗi module ghi một marker; khi mọi consumer báo đã xử lý marker thì mọi sự kiện trước đó đã được xử lý.",
+  "fields": [
+    {"name": "markerId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "(suy luận) Mã marker, consumer báo đã xử lý theo mã này"},
+    {"name": "sagaId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "(suy luận) flowable.saga_instance.id của saga chốt kỳ"},
+    {"name": "periodId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "(suy luận) Kỳ đang chốt"},
+    {"name": "module", "type": "string", "doc": "(suy luận) Module ghi marker, ví dụ okr, task, product"}
+  ]
+}

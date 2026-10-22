@@ -1,0 +1,59 @@
+{{- /* KafkaTopic sinh từ files/danh-muc.yaml (contracts/events): nhóm TL-04 mục 4.6 quyết định phân vùng và thời gian
+giữ; topic kỹ thuật ngoài các nhóm đó lấy theo catalog; mỗi cặp (topic, bên tiêu thụ) có .retry và .dlq. */}}
+{{- $v := .Values }}
+{{- $dm := include "kafka.danhMuc" . | fromYaml }}
+{{- $nhom := deepCopy $v.nhomTopic }}
+{{- $_ := set $nhom.dauVaoTinhDiem "partitions" $v.topics.scoringInputPartitions }}
+{{- $_ := set $nhom.soCai "partitions" $v.topics.ledgerAppendPartitions }}
+{{- $ds := list }}
+{{- range $dm.topics }}
+{{- $cfg := dict }}
+{{- $pv := 0 }}
+{{- if eq .nhom "theoDanhMuc" }}
+{{- $pv = .phanVung }}
+{{- if eq .luuGiu "compact" }}
+{{- $_ := set $cfg "cleanup.policy" "compact" }}
+{{- else }}
+{{- $_ := set $cfg "retention.ms" (include "kafka.ms" .luuGiu) }}
+{{- end }}
+{{- else }}
+{{- $n := index $nhom .nhom }}
+{{- $pv = $n.partitions }}
+{{- $_ := set $cfg "retention.ms" (include "kafka.ms" $n.retention) }}
+{{- end }}
+{{- if .nenTheoKhoa }}
+{{- $_ := set $cfg "cleanup.policy" "compact,delete" }}
+{{- $_ := set $cfg "retention.ms" (include "kafka.ms" $nhom.nenTheoKhoa.retention) }}
+{{- end }}
+{{- $ds = append $ds (dict "ten" .ten "phanVung" $pv "cfg" $cfg "nhom" .nhom "ma" (.ma | default "")) }}
+{{- end }}
+{{- range $c := $dm.capLoi }}
+{{- range $loai := list "retry" "dlq" }}
+{{- $ds = append $ds (dict "ten" (printf "%s.%s.%s" $c.topic $loai $c.consumer) "phanVung" $nhom.hangDoiLoi.partitions "cfg" (dict "retention.ms" (include "kafka.ms" $nhom.hangDoiLoi.retention)) "nhom" "hangDoiLoi" "ma" "") }}
+{{- end }}
+{{- end }}
+{{- range $ds }}
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: {{ include "kafka.tenK8s" .ten }}
+  namespace: {{ $v.namespace }}
+  labels:
+    strimzi.io/cluster: {{ $v.cluster }}
+    vt.io/nhom-topic: {{ .nhom | kebabcase }}
+    {{- with .ma }}
+    vt.io/ma-su-kien: {{ . }}
+    {{- end }}
+    {{- include "kafka.labels" $ | nindent 4 }}
+spec:
+  topicName: {{ .ten }}
+  partitions: {{ .phanVung }}
+  replicas: {{ index $v.config "default.replication.factor" }}
+  config:
+    min.insync.replicas: {{ index $v.config "min.insync.replicas" }}
+    compression.type: zstd
+    {{- range $k, $x := .cfg }}
+    {{ $k }}: {{ $x | quote }}
+    {{- end }}
+{{- end }}

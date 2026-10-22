@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "YeuCauThongBao",
+  "namespace": "vn.vtokr.notify.v1",
+  "doc": "EVT-21 · notify.message.requested.v1 · Mọi module phát qua outbox của mình để yêu cầu SVC-12 gửi thông báo; params không chứa C2.",
+  "fields": [
+    {"name": "recipientIds", "type": {"type": "array", "items": {"type": "string", "logicalType": "uuid"}}, "doc": "Người nhận"},
+    {"name": "templateCode", "type": "string", "doc": "Mã mẫu thông báo"},
+    {"name": "params", "type": "string", "doc": "Tham số mẫu dạng JSON, không chứa dữ liệu C2"},
+    {"name": "deepLink", "type": ["null", "string"], "default": null, "doc": "Đường dẫn mở màn hình liên quan"},
+    {"name": "priority", "type": "string", "doc": "Mức ưu tiên"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc của module yêu cầu tại lúc ghi outbox."}
+  ]
+}

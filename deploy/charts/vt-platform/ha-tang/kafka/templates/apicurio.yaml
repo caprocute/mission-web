@@ -1,0 +1,184 @@
+{{- /* Apicurio Registry 3 (TL-03 "Đăng ký lược đồ", ADR-03): lưu trên PostgreSQL, quy tắc tương thích toàn cục, Job
+đăng ký lược đồ Avro của danh mục sự kiện sau mỗi lần cài hoặc nâng cấp. Ứng dụng tuần tự hoá Avro gọi
+http://apicurio-registry.<namespace>:8080/apis/registry/v3 (TopicIdStrategy, nhóm default). */}}
+{{- $v := .Values }}
+{{- if $v.apicurio.enabled }}
+{{- $a := $v.apicurio }}
+{{- $dm := include "kafka.danhMuc" . | fromYaml }}
+{{- $cum := include "kafka.cumThuc" (dict "root" $ "cum" $a.datasource.cum) }}
+{{- $nsCum := index $v.connect.namespaceCum $cum }}
+{{- $bam := printf "%s%s" (toJson $dm.avro) (.Files.Glob "files/avro/**").AsConfig | sha256sum }}
+{{- if $a.externalSecret.enabled }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $a.datasource.secret }}
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  refreshInterval: {{ $v.connect.externalSecrets.refreshInterval }}
+  secretStoreRef:
+    kind: {{ $v.connect.externalSecrets.secretStore.kind }}
+    name: {{ $v.connect.externalSecrets.secretStore.name }}
+  target:
+    name: {{ $a.datasource.secret }}
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: {{ $a.datasource.csdl }}
+        password: "{{ "{{ .password }}" }}"
+  data:
+    - secretKey: password
+      remoteRef:
+        key: {{ $v.connect.externalSecrets.path }}/{{ $cum }}/{{ $a.datasource.csdl }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apicurio-registry
+  namespace: {{ $v.namespace }}
+  labels:
+    app.kubernetes.io/name: apicurio-registry
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $a.replicas }}
+  selector:
+    matchLabels: { app.kubernetes.io/name: apicurio-registry }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apicurio-registry
+        {{- include "kafka.labels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml $v.podSecurityContext | nindent 8 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: {{ ternary "topology.kubernetes.io/zone" "kubernetes.io/hostname" (gt (len (uniq $v.global.topology.zones)) 1) }}
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { app.kubernetes.io/name: apicurio-registry } }
+      containers:
+        - name: registry
+          image: {{ include "kafka.anh" $a.image }}
+          # 9000: giao diện quản trị của Quarkus (kiểm tra sức khoẻ, chỉ số), không mở qua Service.
+          ports: [{ name: http, containerPort: 8080 }, { name: quan-tri, containerPort: 9000 }]
+          env:
+            - { name: APICURIO_STORAGE_KIND, value: sql }
+            - { name: APICURIO_STORAGE_SQL_KIND, value: postgresql }
+            - name: APICURIO_DATASOURCE_URL
+              value: jdbc:postgresql://{{ $cum }}-rw.{{ $nsCum }}.svc:5432/{{ $a.datasource.csdl }}?sslmode={{ $v.connect.sslmode }}
+            - name: APICURIO_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: {{ $a.datasource.secret }}, key: username } }
+            - name: APICURIO_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $a.datasource.secret }}, key: password } }
+            # Xoá artifact và phiên bản chỉ qua Job đăng ký có kiểm soát; API không cho xoá.
+            - { name: APICURIO_REST_DELETION_ARTIFACT_ENABLED, value: "false" }
+            - { name: APICURIO_REST_DELETION_ARTIFACT_VERSION_ENABLED, value: "false" }
+            - { name: APICURIO_REST_DELETION_GROUP_ENABLED, value: "false" }
+          readinessProbe:
+            httpGet: { path: /health/ready, port: quan-tri }
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet: { path: /health/live, port: quan-tri }
+            initialDelaySeconds: 30
+          resources:
+            {{- toYaml $a.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml $v.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: tmp, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apicurio-registry
+  namespace: {{ $v.namespace }}
+  labels:
+    app.kubernetes.io/name: apicurio-registry
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  selector: { app.kubernetes.io/name: apicurio-registry }
+  ports: [{ name: http, port: 8080, targetPort: http }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: apicurio-registry
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: apicurio-registry }
+{{- if $a.dangKy.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apicurio-luoc-do
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+data:
+  dang_ky.py: |
+    {{- .Files.Get "files/dang_ky.py" | nindent 4 }}
+  thu-tu.json: {{ toJson $dm.avro | quote }}
+  {{- range $dm.avro }}
+  {{ .artifactId }}.avsc: |
+    {{- $.Files.Get (printf "files/%s" .tep) | nindent 4 }}
+  {{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Tên theo bản sửa lược đồ: Job chạy lại khi lược đồ đổi, giữ lại khi không đổi (Argo CD đồng bộ được).
+  name: apicurio-dang-ky-{{ trunc 10 $bam }}
+  namespace: {{ $v.namespace }}
+  labels:
+    app.kubernetes.io/name: apicurio-dang-ky
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: {{ $a.hanJob }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apicurio-dang-ky
+        {{- include "kafka.labels" . | nindent 8 }}
+      annotations:
+        vt.io/luoc-do: {{ $bam }}
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml $v.podSecurityContext | nindent 8 }}
+        runAsUser: 65534
+      containers:
+        - name: dang-ky
+          image: {{ include "kafka.anh" $a.dangKy.image }}
+          command: [python3, -I, /cfg/dang_ky.py]
+          env:
+            - { name: REGISTRY_URL, value: "http://apicurio-registry.{{ $v.namespace }}.svc:8080" }
+            {{- range $k, $gt := $a.quyTac }}
+            - { name: QUY_TAC_{{ $k }}, value: {{ $gt | quote }} }
+            {{- end }}
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 200m, memory: 128Mi }
+          securityContext:
+            {{- toYaml $v.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+            - { name: cfg, mountPath: /cfg }
+      volumes:
+        - name: cfg
+          configMap: { name: apicurio-luoc-do }
+{{- end }}
+{{- end }}

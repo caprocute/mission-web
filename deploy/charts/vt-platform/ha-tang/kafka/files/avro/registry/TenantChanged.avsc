@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "TenantChanged",
+  "namespace": "vn.vtokr.registry.v1",
+  "doc": "registry.tenant.changed.v1 · Sự kiện hạ tầng của SVC-03 trên Kafka toàn cục, MirrorMaker 2 sao xuống mọi cell, làm mới bảng định tuyến cục bộ (TL-03 SVC-03, \"Định tuyến tới đúng CSDL\"). Lược đồ tối thiểu (suy luận).",
+  "fields": [
+    {"name": "tenantCode", "type": "string", "doc": "(suy luận) registry.tenant.code"},
+    {"name": "status", "type": "string", "doc": "(suy luận) Trạng thái vòng đời tenant theo registry.tenant.status"},
+    {"name": "tenancyModel", "type": "string", "doc": "(suy luận) Mô hình thuê bao"},
+    {"name": "cellCode", "type": ["null", "string"], "default": null, "doc": "(suy luận) Cell hiện hành"},
+    {"name": "databaseName", "type": ["null", "string"], "default": null, "doc": "(suy luận) CSDL dữ liệu tenant hiện hành"},
+    {"name": "domains", "type": {"type": "array", "items": "string"}, "default": [], "doc": "(suy luận) Tên miền của tenant (registry.tenant_domain)"},
+    {"name": "flows", "type": {"type": "array", "items": "string"}, "default": [], "doc": "(suy luận) Luồng đánh giá: DANG, NHA_NUOC"},
+    {"name": "sourceVersion", "type": "long", "doc": "(suy luận) Phiên bản bản ghi ở nguồn (row_version)"}
+  ]
+}
