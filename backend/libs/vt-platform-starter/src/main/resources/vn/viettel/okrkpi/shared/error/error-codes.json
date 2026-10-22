@@ -1,7 +1,7 @@
 {
   "description": "Danh mục mã lỗi <MODULE>-<HTTP>-<TÊN> trích từ contracts/openapi (NEN-009). Không sửa tay: chạy tools/extract-error-codes.mjs.",
   "source": "contracts/openapi/**/*.yaml",
-  "count": 198,
+  "count": 202,
   "codes": [
     {
       "code": "AI-403-C3-FORBIDDEN",
@@ -1186,6 +1186,16 @@
       ]
     },
     {
+      "code": "OVERSIGHT-503-AUDIT-INDEX-UNAVAILABLE",
+      "module": "OVERSIGHT",
+      "status": 503,
+      "name": "AUDIT-INDEX-UNAVAILABLE",
+      "type": "https://okrkpi.vn/problems/audit-index-unavailable",
+      "sources": [
+        "modules/oversight.yaml"
+      ]
+    },
+    {
       "code": "PERIOD-403-SAME-PERSON",
       "module": "PERIOD",
       "status": 403,
@@ -1805,6 +1815,16 @@
       ]
     },
     {
+      "code": "TASK-409-INVALID-STATE",
+      "module": "TASK",
+      "status": 409,
+      "name": "INVALID-STATE",
+      "type": "https://okrkpi.vn/problems/invalid-state",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
+    },
+    {
       "code": "TASK-409-INVALID-TRANSITION",
       "module": "TASK",
       "status": 409,
@@ -1847,6 +1867,16 @@
       ]
     },
     {
+      "code": "TASK-409-STALE-DELAY-RISK",
+      "module": "TASK",
+      "status": 409,
+      "name": "STALE-DELAY-RISK",
+      "type": "https://okrkpi.vn/problems/stale-delay-risk",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
+    },
+    {
       "code": "TASK-409-VERSION-CONFLICT",
       "module": "TASK",
       "status": 409,
@@ -1865,6 +1895,16 @@
       "status": 422,
       "name": "ASSIGNMENT-MODE",
       "type": "https://okrkpi.vn/problems/assignment-mode",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
+    },
+    {
+      "code": "TASK-429-EXPORT-RUNNING",
+      "module": "TASK",
+      "status": 429,
+      "name": "EXPORT-RUNNING",
+      "type": "https://okrkpi.vn/problems/export-running",
       "sources": [
         "modules/tasks.yaml"
       ]

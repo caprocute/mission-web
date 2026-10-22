@@ -76,6 +76,9 @@ export * from './lib/models/policy';
 export * from './lib/policy-api';
 export * from './lib/models/analytics';
 export * from './lib/analytics-api';
+export * from './lib/models/notification';
+export * from './lib/sse';
+export * from './lib/notification-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
 export {
   failMockIntegrityOnce,

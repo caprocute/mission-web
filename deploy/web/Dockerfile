@@ -9,6 +9,8 @@ RUN npm ci --no-audit --no-fund
 COPY frontend/ .
 # Ghép shell ở gốc, mỗi remote ở remotes/<project>; remotes.tsv liệt kê khoá, biến URL, project
 RUN npm run build:all && node tools/remotes/workspace.mjs assemble /out/html /out/remotes.tsv
+# WEB-013: gói nhúng <vt-okr-app> cho cổng văn phòng số, phục vụ dưới /embed/ cùng nguồn với shell
+RUN npx ng build fe-embed && cp -r dist/fe-embed/browser /out/html/embed
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine
 COPY --from=build /out/html /usr/share/nginx/html

@@ -33,17 +33,20 @@ class OperationPolicyCatalogTest {
     // 372 thao tác trước NEN-042/043 + 42 thao tác bổ sung trong NEN-042/043 + 17 thao tác SCIM của
     // DV-04-06 (scim.yaml) + 1 thao tác listAppraisalBatchDecisions của WEB-063 + 20 thao tác của
     // NEN-044 (BS-03: 13 hồ sơ tập khách hàng, 4 đánh giá, 3 mốc KR) + 7 thao tác tuỳ chọn cá nhân
-    // của CNH-02 + 4 thao tác dịch vụ định nghĩa dashboard của CORE-08-17 = 463 thao tác.
-    assertThat(catalog.size()).isEqualTo(463);
-    assertThat(catalog.all()).hasSize(463);
+    // của CNH-02 + 4 thao tác dịch vụ định nghĩa dashboard của CORE-08-17
+    // + searchAccessLogs của CORE-07-12 = 464 thao tác.
+    assertThat(catalog.size()).isEqualTo(464);
+    assertThat(catalog.all()).hasSize(464);
 
     List<OperationPolicy> aal2 = catalog.aal2Operations();
     // 54 thao tác AAL2 gốc + 7 thao tác của WEB-058 + 12 thao tác của NEN-042/043 + 1 thao tác
-    // approveCustomerProfileVersion của NEN-044 = 74 thao tác.
-    assertThat(aal2).hasSize(74);
+    // approveCustomerProfileVersion của NEN-044 + 1 thao tác searchAccessLogs của CORE-07-12 = 75
+    // thao
+    // tác.
+    assertThat(aal2).hasSize(75);
     long nonWeb058Aal2 =
         aal2.stream().filter(p -> !WEB_058_AAL2_OPS.contains(p.operationId())).count();
-    assertThat(nonWeb058Aal2).isEqualTo(67);
+    assertThat(nonWeb058Aal2).isEqualTo(68);
 
     List<OperationPolicy> fourEyes = catalog.fourEyesOperations();
     // 15 thao tác bốn mắt gốc + 2 thao tác của WEB-058 + 1 thao tác của NEN-043 + 1 thao tác

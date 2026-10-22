@@ -1,8 +1,8 @@
 {
   "description": "Bảng chính sách thao tác trích từ mở rộng x-mission trong contracts/openapi/modules/*.yaml (NEN-014). Không sửa tay: chạy tools/extract-x-mission.mjs.",
   "source": "contracts/openapi/modules/*.yaml",
-  "count": 463,
-  "aal2Count": 74,
+  "count": 466,
+  "aal2Count": 75,
   "fourEyesCount": 19,
   "operations": [
     {
@@ -2710,6 +2710,30 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02b SCR-1101, SCR-1102, SCR-0903 (`/dossiers/forms/{formId}/file`); ma trận SCR-1101.gop-y, SCR-1102.chuan-bi, SCR-0903.tai-mau-1b"
+    },
+    {
+      "operationId": "downloadTaskExport",
+      "file": "tasks.yaml",
+      "module": "tasks",
+      "errorModule": "TASK",
+      "method": "GET",
+      "path": "/tasks/exports/{jobId}",
+      "owner": "MOD-02",
+      "qt": [
+        "QT-05"
+      ],
+      "scr": [
+        "SCR-0503"
+      ],
+      "roles": [
+        "member",
+        "manager",
+        "leader"
+      ],
+      "scope": "B",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "TL-02a SCR-0503 \"Xuất Excel\" (suy luận đường tải)"
     },
     {
       "operationId": "endOrgAssignment",
@@ -9624,6 +9648,27 @@
       "source": "TL-02a BR-04-05; SCR-0402, SCR-0403 (suy luận đường dẫn)"
     },
     {
+      "operationId": "searchAccessLogs",
+      "file": "oversight.yaml",
+      "module": "oversight",
+      "errorModule": "OVERSIGHT",
+      "method": "GET",
+      "path": "/oversight/access-logs",
+      "owner": "MOD-07",
+      "qt": [
+        "QT-12",
+        "QT-16"
+      ],
+      "scr": [],
+      "roles": [
+        "inspector"
+      ],
+      "scope": "Tn",
+      "aal": 2,
+      "fourEyes": false,
+      "source": "TL-01 \"Tách nhật ký kiểm toán\" (G6); thao tác đề xuất CORE-07-12 (màn hình chưa có mã SCR)"
+    },
+    {
       "operationId": "searchEvidenceExternalDocs",
       "file": "products.yaml",
       "module": "evidences",
@@ -9798,6 +9843,28 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02a SCR-0001 \"Chọn phân công\", SCR-0002 \"Đổi phân công\""
+    },
+    {
+      "operationId": "setTaskDelayRisk",
+      "file": "tasks.yaml",
+      "module": "tasks",
+      "errorModule": "TASK",
+      "method": "PUT",
+      "path": "/tasks/{id}/delay-risk",
+      "owner": "MOD-02",
+      "qt": [
+        "QT-06"
+      ],
+      "scr": [
+        "SCR-0601"
+      ],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "Bổ sung CORE-02-26 (TL-02a SCR-0601 \"Dự báo trễ hạn\", ghi bởi SVC-15)"
     },
     {
       "operationId": "setTenantSetting",

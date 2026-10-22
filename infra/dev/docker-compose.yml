@@ -563,6 +563,43 @@ services:
     networks:
       - mission-net
 
+  # Lớp ngữ nghĩa Cube (DV-15-03): mô hình và cấu hình ở analytics/cube. Chạy sau khi đã áp migration kho
+  # (analytics/clickhouse/migrate.py). Bộ đệm và hàng đợi trong bộ nhớ, một tiến trình; Cube Store và nhiều bản sao
+  # là phần triển khai cụm (INF).
+  cube:
+    image: cubejs/cube:v1.3.60
+    container_name: mission-dev-cube
+    restart: unless-stopped
+    profiles: ["analytics", "all"]
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    environment:
+      CUBEJS_DB_TYPE: clickhouse
+      CUBEJS_DB_HOST: clickhouse
+      CUBEJS_DB_PORT: "8123"
+      CUBEJS_DB_NAME: ${ANALYTICS_DB:-analytics_dev}
+      CUBEJS_DB_USER: ${ANALYTICS_DB:-analytics_dev}_cube
+      CUBEJS_DB_PASS: ${ANALYTICS_CUBE_PASSWORD:?Đặt ANALYTICS_CUBE_PASSWORD trong .env}
+      CUBEJS_API_SECRET: ${CUBEJS_API_SECRET:?Đặt CUBEJS_API_SECRET trong .env}
+      CUBEJS_DEV_MODE: "false"
+      CUBEJS_CACHE_AND_QUEUE_DRIVER: memory
+      CUBEJS_REFRESH_WORKER: "true"
+      CUBE_REFRESH_TENANTS: ${CUBE_REFRESH_TENANTS:-}
+      CUBEJS_TELEMETRY: "false"
+    ports:
+      - "${CUBE_PORT:-35400}:4000"
+    volumes:
+      - ../../analytics/cube/cube.js:/cube/conf/cube.js:ro
+      - ../../analytics/cube/model:/cube/conf/model:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:4000/readyz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks:
+      - mission-net
+
 volumes:
   clickhouse_data:
   pg_data:

@@ -43,6 +43,9 @@ export const MOCK_LOADERS = {
   analytics: () => import('./analytics/analytics.mock').then((m) => m.ANALYTICS_MOCK),
   mePreferences: () =>
     import('./me-preferences/me-preferences.mock').then((m) => m.ME_PREFERENCES_MOCK),
+  notifications: () =>
+    import('./notifications/notifications.mock').then((m) => m.NOTIFICATIONS_MOCK),
+  search: () => import('./search/search.mock').then((m) => m.SEARCH_MOCK),
 } satisfies Record<string, () => Promise<MockModule>>;
 
 export type MockLoaderKey = keyof typeof MOCK_LOADERS;
@@ -63,6 +66,7 @@ export const MOCK_PREFIXES: Record<string, MockLoaderKey[]> = {
   files: ['evidence'],
   jobs: ['orgSync'],
   ledger: ['ledger'],
+  notifications: ['notifications'],
   okr: ['okr'],
   org: ['org', 'orgTree', 'orgSync'],
   oversight: ['reopen', 'complaints', 'alerts'],
@@ -71,6 +75,7 @@ export const MOCK_PREFIXES: Record<string, MockLoaderKey[]> = {
   plans: ['plans'],
   products: ['evidence'],
   registry: ['tenants'],
+  search: ['search'],
   tasks: ['sourceDocs', 'tasks', 'analytics'],
   ui: ['uiForms', 'uiPacks', 'mePreferences'],
   workflow: ['workflowTemplates', 'workflowInstances'],

@@ -24,7 +24,7 @@ spec:
     publication.name: "pub_analytics"
     publication.autocreate.mode: "disabled"
     snapshot.mode: "initial"
-    table.include.list: "task\\.task,task\\.task_assignee,task\\.task_progress,product\\.evidence,okr\\.objective,okr\\.key_result,okr\\.kr_checkin,appraisal\\.appraisal_profile,appraisal\\.score_snapshot,appraisal\\.rating_proposal,org_replica\\.org_unit_v,org_replica\\.person_v,org_replica\\.assignment_v,config\\.period,policy\\.policy_pack_version"
+    table.include.list: "task\\.task,task\\.task_assignee,task\\.task_progress,product\\.evidence,okr\\.objective,okr\\.key_result,okr\\.kr_checkin,appraisal\\.appraisal_profile,appraisal\\.score_snapshot,appraisal\\.rating_proposal,org_replica\\.org_unit_v,org_replica\\.person_v,org_replica\\.assignment_v,org_replica\\.unit_closure_v,config\\.period,policy\\.policy_pack_version"
     column.exclude.list: "appraisal\\.rating_proposal\\.reason_enc,appraisal\\.rating_proposal\\.comment_enc,org_replica\\.person_v\\.full_name,org_replica\\.person_v\\.cbccvc_code"
     decimal.handling.mode: "string"
     tombstones.on.delete: "false"

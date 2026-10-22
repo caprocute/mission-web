@@ -1,13 +1,23 @@
+import { MessageService } from 'primeng/api';
 import { firstValueFrom } from 'rxjs';
 import {
   ApplicationConfig,
+  ErrorHandler,
   effect,
   inject,
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
+  provideEnvironmentInitializer,
 } from '@angular/core';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
-import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
+import {
+  RedirectCommand,
+  Router,
+  provideRouter,
+  withComponentInputBinding,
+  withInMemoryScrolling,
+  withNavigationErrorHandler,
+} from '@angular/router';
 import {
   RUNTIME_CONFIG,
   RuntimeConfig,
@@ -22,13 +32,23 @@ import { SessionService, authInterceptor, provideVtAuth } from '@vt/auth';
 import { provideDesignSystem } from '@vt/design-system';
 import {
   BUILTIN_SDUI_COMPONENTS,
+  SDUI_TELEMETRY_SINK,
   UI_PACK_PREFETCH,
   UiPackLoader,
   UiPackPrefetch,
   provideSduiComponents,
 } from '@vt/sdui-renderer';
-import { TRACE_OPTIONS, debugTraceRequested, traceparentInterceptor } from '@vt/telemetry';
+import {
+  BrowserTelemetryConfig,
+  TRACE_OPTIONS,
+  browserTracingActive,
+  debugTraceRequested,
+  pushTelemetryEvent,
+  startBrowserTelemetry,
+  traceparentInterceptor,
+} from '@vt/telemetry';
 import { routes } from './app.routes';
+import { GlobalErrorHandler } from './layout/app-status';
 import { SHELL_WIDGETS } from './widgets/shell-widgets';
 
 /** `uiPackPrefetch`: UI Pack main.ts đã tải sớm (WEB-052), `UiPackLoader` dùng lại nếu khớp cấu hình. */
@@ -39,6 +59,10 @@ export function buildAppConfig(
   return {
     providers: [
       provideBrowserGlobalErrorListeners(),
+      // WEB-012: lỗi chưa xử lý vào telemetry và dải thông báo; lỗi điều hướng sang trang lỗi thân thiện
+      { provide: ErrorHandler, useClass: GlobalErrorHandler },
+      // WEB-012: MessageService dùng chung để ProblemPresenter hiện toast qua <p-toast> của shell
+      MessageService,
       { provide: RUNTIME_CONFIG, useValue: cfg },
       {
         // WEB-074: lấy mẫu theo cấu hình, Baggage tenant, X-Debug-Trace theo ?debug-trace=1
@@ -47,13 +71,34 @@ export function buildAppConfig(
           sampleRatio: cfg.telemetry?.sampleRatio ?? 1,
           tenant: cfg.tenant,
           debugTrace: debugTraceRequested(),
+          // WEB-011: khi Faro đã bật, instrumentation fetch của OpenTelemetry gắn traceparent
+          delegated: browserTracingActive,
           random: Math.random,
         },
       },
+      // WEB-011: sự kiện an toàn của SDUI (WEB-009) đi vào Faro; chưa bật Faro thì chỉ ghi console
+      {
+        provide: SDUI_TELEMETRY_SINK,
+        useValue: (r: { event: string; attributes: Record<string, string | number> }) =>
+          pushTelemetryEvent(r.event, r.attributes),
+      },
+      // Faro nạp lười khi trình duyệt rảnh, không chặn khởi động; chỉ khi config.json có faroUrl
+      provideEnvironmentInitializer(() => {
+        const t = cfg.telemetry as BrowserTelemetryConfig | undefined;
+        void startBrowserTelemetry({ ...t, environment: cfg.cell, tenant: cfg.tenant });
+      }),
       provideRouter(
         routes,
         withComponentInputBinding(),
         withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
+        withNavigationErrorHandler((e) => {
+          inject(ErrorHandler).handleError(e.error);
+          const router = inject(Router);
+          return new RedirectCommand(router.parseUrl('/loi'), {
+            skipLocationChange: true,
+            state: { from: e.url },
+          });
+        }),
       ),
       provideHttpClient(
         withFetch(),

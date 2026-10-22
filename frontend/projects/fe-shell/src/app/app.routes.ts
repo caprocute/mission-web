@@ -89,6 +89,11 @@ export const routes: Routes = [
         title: 'Quản trị',
       },
       {
+        path: 'loi',
+        loadComponent: () => import('./pages/error.page').then((m) => m.ErrorPage),
+        title: 'Chưa mở được trang',
+      },
+      {
         path: 'khong-co-quyen',
         loadComponent: () => import('./pages/forbidden.page').then((m) => m.ForbiddenPage),
         title: 'Không có quyền truy cập',

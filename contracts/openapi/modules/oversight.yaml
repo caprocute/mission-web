@@ -34,6 +34,8 @@ tags:
     description: Đợt hậu kiểm theo kế hoạch, đột xuất hoặc theo phản ánh và báo cáo kết luận (QT-13).
   - name: alerts
     description: Trung tâm cảnh báo bất thường tám dấu hiệu và các hành động xử lý (QT-14).
+  - name: access-logs
+    description: Tra cứu nhật ký truy cập dữ liệu C2 trên chỉ mục kiểm toán chỉ đọc (TL-01 G6, BR-12-10, BR-16-04; CORE-07-12).
   - name: ledger
     description: Sổ cái chỉ ghi thêm của SVC-09, kiểm tra toàn vẹn, bằng chứng bao hàm Merkle và xuất bằng chứng (QT-13).
 
@@ -1863,6 +1865,85 @@ paths:
               schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
 
+  # ───────────────────────────── Nhật ký truy cập C2 (CORE-07-12) ─────────────────────────────
+  /oversight/access-logs:
+    get:
+      tags: [access-logs]
+      operationId: searchAccessLogs
+      summary: Tra cứu nhật ký truy cập dữ liệu C2
+      description: >-
+        Trả lời câu hỏi ai đã xem dữ liệu C2 (nội dung khiếu nại, nhận xét đánh giá…), lúc nào, trong
+        vai trò gì, từ chỉ mục kiểm toán `audit-*` chỉ đọc (TL-01 "Tách nhật ký kiểm toán"). Mỗi dòng
+        là một đối tượng C2 đã giải mã trong một lần truy cập; không có bản rõ hay bản mã. Mỗi lần tra
+        cứu tự ghi một sự kiện kiểm toán `XEM_NHAT_KY_KIEM_TOAN` lên `sys.audit.v1`. Sắp mới nhất trước.
+      x-mission:
+        qt: [QT-12, QT-16]
+        owner: MOD-07
+        roles: [inspector]
+        scope: Tn
+        aal: 2
+        rules: [BR-12-10, BR-16-04]
+        source: TL-01 "Tách nhật ký kiểm toán" (G6); thao tác đề xuất CORE-07-12 (màn hình chưa có mã SCR)
+      parameters:
+        - name: actor
+          in: query
+          description: Người xem (mã người dùng).
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        - name: objectType
+          in: query
+          description: Loại đối tượng C2, ví dụ `oversight.complaint`.
+          schema: { type: string, maxLength: 64, pattern: '^[a-z_]+\.[a-z_]+$' }
+        - name: objectId
+          in: query
+          description: Mã đối tượng (mã dòng) bị xem.
+          schema: { type: string, maxLength: 64 }
+        - name: othersOnly
+          in: query
+          description: Chỉ lần xem dữ liệu của người khác (bỏ lần xem dữ liệu của chính mình).
+          schema: { type: boolean, default: false }
+        - name: from
+          in: query
+          description: Từ thời điểm (bao gồm).
+          schema: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        - name: to
+          in: query
+          description: Đến thời điểm (không bao gồm).
+          schema: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Một trang nhật ký truy cập.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccessLogPage' }
+              examples:
+                xem-khieu-nai:
+                  value:
+                    items:
+                      - eventId: 0192fb10-1a2b-7c3d-8e4f-5a6b7c8d9e01
+                        occurredAt: '2027-01-20T10:15:00+07:00'
+                        actorId: 01929a00-aaaa-7bbb-8ccc-000000000201
+                        actorRole: appraiser
+                        actorAssignmentId: 01929a00-bbbb-7ccc-8ddd-000000000301
+                        objectType: oversight.complaint
+                        objectId: 01929a20-3b4c-7d5e-8f60-718293a4b501
+                        column: oversight.complaint.content_enc
+                        purpose: XU_LY_KHIEU_NAI
+                        self: false
+                        system: false
+                        traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '503':
+          description: 'Chỉ mục kiểm toán tạm thời không truy cập được. Mã lỗi: `OVERSIGHT-503-AUDIT-INDEX-UNAVAILABLE`.'
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
 components:
   securitySchemes:
     keycloak: { $ref: '../common/common.yaml#/components/securitySchemes/keycloak' }
@@ -1886,6 +1967,35 @@ components:
                 traceId: 4bf92f3577b34da6a3ce929d0e0e4736
 
   schemas:
+    # ─────────── Nhật ký truy cập C2 (CORE-07-12) ───────────
+    AccessLogEntry:
+      description: >-
+        Một đối tượng C2 đã giải mã trong một lần truy cập, đọc từ chỉ mục kiểm toán. Chỉ có siêu dữ
+        liệu; trường không có giá trị thì bị bỏ, `actorId` không có khi là tác vụ hệ thống (`system`).
+        Tên người xem do màn hình tra qua danh bạ tổ chức (`org.yaml`).
+      type: object
+      required: [eventId, occurredAt, objectType, objectId, column, system]
+      properties:
+        eventId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        occurredAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        actorId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        actorRole: { type: string }
+        actorAssignmentId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        objectType: { type: string }
+        objectId: { type: string }
+        column: { type: string, description: 'Toạ độ `schema.bảng.cột`, hoặc `FILE` khi đọc tệp.' }
+        purpose: { type: string, description: Mã mục đích truy cập hoặc mục đích DEK. }
+        self: { type: boolean, description: '`true` khi là dữ liệu của chính người xem; không có khi không xác định.' }
+        system: { type: boolean }
+        traceparent: { type: string }
+    AccessLogPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AccessLogEntry' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
     # ─────────── Khiếu nại ───────────
     ComplaintKind:
       description: Hình thức (`oversight.complaint.kind`, BR-12-03).

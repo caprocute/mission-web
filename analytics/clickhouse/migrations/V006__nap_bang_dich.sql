@@ -65,8 +65,12 @@ FROM {{db}}.src_task__task WHERE length(_error) = 0;
 CREATE MATERIALIZED VIEW {{db}}.mv__task__task_assignee ON CLUSTER '{{cluster}}' TO {{db}}.fact_task_assignee AS
 SELECT toUUID(tenant_id) AS tenant_id, toInt32(period_bucket) AS period_bucket, toUUID(id) AS id,
        toUUID(task_id) AS task_id, assignee_type, mission_cdc_key(person_id) AS person_key,
-       toUUIDOrNull(org_unit_id) AS org_unit_id, role,
-       mission_cdc_ts(accepted_at) AS accepted_at, mission_cdc_ts(removed_at) AS removed_at,
+       toUUIDOrNull(org_unit_id) AS org_unit_id,
+       multiIf(org_unit_id IS NOT NULL, org_unit_id, mission_cdc_key(person_id) IS NULL, NULL,
+               dictGetOrNull('{{db}}.dict_person_unit', 'org_unit_id',
+                             tuple(toUUID(tenant_id), toString(assumeNotNull(mission_cdc_key(person_id))))))
+         AS resolved_unit_id,
+       role, mission_cdc_ts(accepted_at) AS accepted_at, mission_cdc_ts(removed_at) AS removed_at,
        assumeNotNull(mission_cdc_date(valid_from)) AS valid_from, assumeNotNull(mission_cdc_date(valid_to)) AS valid_to,
        toUInt64(__lsn) AS _version, mission_cdc_deleted(__op, __deleted) AS _is_deleted,
        fromUnixTimestamp64Milli(toInt64(__source_ts_ms), 'Asia/Ho_Chi_Minh') AS _source_ts
@@ -156,9 +160,14 @@ SELECT toUUID(tenant_id) AS tenant_id, toUUID(id) AS id,
        toUInt64(__lsn) AS _version, mission_cdc_deleted(__op, __deleted) AS _is_deleted
 FROM {{db}}.src_org_replica__assignment_v WHERE length(_error) = 0;
 
-CREATE MATERIALIZED VIEW {{db}}.mv__okr__objective ON CLUSTER '{{cluster}}' TO {{db}}.lk_objective AS
-SELECT toUUID(tenant_id) AS tenant_id, toUUID(id) AS id, toUUID(owner_unit_id) AS owner_unit_id,
-       toUInt64(__lsn) AS _version, mission_cdc_deleted(__op, __deleted) AS _is_deleted
+CREATE MATERIALIZED VIEW {{db}}.mv__okr__objective ON CLUSTER '{{cluster}}' TO {{db}}.fact_okr_objective AS
+SELECT toUUID(tenant_id) AS tenant_id, toInt32(period_bucket) AS period_bucket, toUUID(id) AS id,
+       toUUID(period_id) AS period_id, owner_type, toUUID(owner_unit_id) AS org_unit_id,
+       mission_cdc_key(owner_person_id) AS owner_key, toUUIDOrNull(parent_objective_id) AS parent_objective_id,
+       toInt16OrZero(tier) AS tier, status, toDecimal64OrZero(progress, 4) AS progress,
+       mission_cdc_ts(approved_at) AS approved_at,
+       toUInt64(__lsn) AS _version, mission_cdc_deleted(__op, __deleted) AS _is_deleted,
+       fromUnixTimestamp64Milli(toInt64(__source_ts_ms), 'Asia/Ho_Chi_Minh') AS _source_ts
 FROM {{db}}.src_okr__objective WHERE length(_error) = 0;
 
 CREATE MATERIALIZED VIEW {{db}}.mv__okr__key_result ON CLUSTER '{{cluster}}' TO {{db}}.lk_key_result AS
@@ -166,12 +175,24 @@ SELECT toUUID(tenant_id) AS tenant_id, toUUID(id) AS id, toUUID(objective_id) AS
        toUInt64(__lsn) AS _version, mission_cdc_deleted(__op, __deleted) AS _is_deleted
 FROM {{db}}.src_okr__key_result WHERE length(_error) = 0;
 
-CREATE MATERIALIZED VIEW {{db}}.mv__appraisal__appraisal_profile ON CLUSTER '{{cluster}}' TO {{db}}.lk_appraisal_profile AS
-SELECT toUUID(tenant_id) AS tenant_id, toUUID(id) AS id, toInt32(period_bucket) AS period_bucket,
-       assumeNotNull(mission_cdc_key(person_id)) AS person_key, toUUID(org_unit_id) AS org_unit_id,
+CREATE MATERIALIZED VIEW {{db}}.mv__appraisal__appraisal_profile ON CLUSTER '{{cluster}}' TO {{db}}.fact_appraisal_profile AS
+SELECT toUUID(tenant_id) AS tenant_id, toInt32(period_bucket) AS period_bucket, toUUID(id) AS id,
+       toUUID(period_id) AS period_id, assumeNotNull(mission_cdc_key(person_id)) AS person_key,
+       toUUID(org_unit_id) AS org_unit_id, toUUIDOrNull(job_title_id) AS job_title_id,
        toUUIDOrNull(subject_group_id) AS subject_group_id, flow,
-       toUInt64(__lsn) AS _version, mission_cdc_deleted(__op, __deleted) AS _is_deleted
+       mission_cdc_bool(is_head) AS is_head, mission_cdc_bool(is_leadership) AS is_leadership, status,
+       nullIf(final_rating_code, '') AS final_rating_code, mission_cdc_ts(submitted_at) AS submitted_at,
+       mission_cdc_ts(decided_at) AS decided_at, mission_cdc_ts(locked_at) AS locked_at,
+       toUInt64(__lsn) AS _version, mission_cdc_deleted(__op, __deleted) AS _is_deleted,
+       fromUnixTimestamp64Milli(toInt64(__source_ts_ms), 'Asia/Ho_Chi_Minh') AS _source_ts
 FROM {{db}}.src_appraisal__appraisal_profile WHERE length(_error) = 0;
+
+CREATE MATERIALIZED VIEW {{db}}.mv__org_replica__unit_closure_v ON CLUSTER '{{cluster}}' TO {{db}}.dim_org_closure AS
+SELECT toUUID(tenant_id) AS tenant_id, tree, toUUID(ancestor_id) AS ancestor_id,
+       toUUID(descendant_id) AS descendant_id, toInt32(depth) AS depth,
+       toUInt64(__lsn) AS _version, mission_cdc_deleted(__op, __deleted) AS _is_deleted,
+       fromUnixTimestamp64Milli(toInt64(__source_ts_ms), 'Asia/Ho_Chi_Minh') AS _source_ts
+FROM {{db}}.src_org_replica__unit_closure_v WHERE length(_error) = 0;
 
 -- Bản ghi giải mã lỗi của từng nguồn (tạo sau view nạp dữ liệu để không dòng hợp lệ nào bị đọc mà không nạp).
 CREATE MATERIALIZED VIEW {{db}}.mv_err__task__task ON CLUSTER '{{cluster}}'
@@ -263,6 +284,13 @@ TO {{db}}.cdc_error AS
 SELECT _topic AS topic, _partition AS partition, _offset AS offset, _error AS error,
        toUInt32(length(_raw_message)) AS raw_size
 FROM {{db}}.src_org_replica__assignment_v
+WHERE length(_error) > 0;
+
+CREATE MATERIALIZED VIEW {{db}}.mv_err__org_replica__unit_closure_v ON CLUSTER '{{cluster}}'
+TO {{db}}.cdc_error AS
+SELECT _topic AS topic, _partition AS partition, _offset AS offset, _error AS error,
+       toUInt32(length(_raw_message)) AS raw_size
+FROM {{db}}.src_org_replica__unit_closure_v
 WHERE length(_error) > 0;
 
 CREATE MATERIALIZED VIEW {{db}}.mv_err__config__period ON CLUSTER '{{cluster}}'

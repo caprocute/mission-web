@@ -1,0 +1,74 @@
+# DV-15-03 · QT-16 (BR-16-01) → SCR-1601, SCR-1602 → dim_org_scope (DV-15-01, V008).
+# Chiều đơn vị theo cây tổ chức hiện hành. org_path_dang, org_path_chuyen_mon là đường dẫn mã đơn vị trên hai cây;
+# queryRewrite trong cube.js lọc theo hai cột này với org_path của người xem.
+cubes:
+  - name: org_unit
+    title: Đơn vị
+    description: Đơn vị theo cây tổ chức của người xem
+    sql_table: dim_org_scope
+    meta:
+      phien_ban: "2026.4"
+    joins:
+      - name: subject_group
+        relationship: many_to_one
+        sql: "{CUBE}.tenant_id = {subject_group}.tenant_id AND {CUBE}.subject_group_id = {subject_group}.id"
+    dimensions:
+      - name: tenant_id
+        sql: "{CUBE}.tenant_id"
+        type: string
+        public: false
+      - name: id
+        title: Mã định danh đơn vị
+        sql: "toString({CUBE}.id)"
+        type: string
+        primary_key: true
+        public: true
+      - name: ma
+        title: Mã đơn vị
+        sql: "{CUBE}.code"
+        type: string
+      - name: ten
+        title: Tên đơn vị
+        sql: "{CUBE}.name"
+        type: string
+      - name: loai
+        title: Loại đơn vị
+        sql: "{CUBE}.unit_type"
+        type: string
+      - name: subject_group_id
+        sql: "{CUBE}.subject_group_id"
+        type: string
+        public: false
+      - name: org_path_dang
+        title: Đường dẫn trên cây Đảng
+        sql: "{CUBE}.org_path_dang"
+        type: string
+      - name: org_path_chuyen_mon
+        title: Đường dẫn trên cây chuyên môn
+        sql: "{CUBE}.org_path_chuyen_mon"
+        type: string
+
+  - name: subject_group
+    title: Khối đối tượng
+    description: Khối đối tượng theo Phụ lục 2A
+    sql_table: cube_subject_group
+    meta:
+      phien_ban: "2026.4"
+    dimensions:
+      - name: tenant_id
+        sql: "{CUBE}.tenant_id"
+        type: string
+        public: false
+      - name: id
+        sql: "toString({CUBE}.id)"
+        type: string
+        primary_key: true
+        public: false
+      - name: ma
+        title: Mã khối
+        sql: "{CUBE}.code"
+        type: string
+      - name: ten
+        title: Khối đối tượng
+        sql: "{CUBE}.name"
+        type: string

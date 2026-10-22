@@ -46,7 +46,7 @@ PARTITION BY period_bucket
 ORDER BY (tenant_id, id);
 
 -- Bảng cầu nhiệm vụ ↔ đơn vị, người được giao (task.task_assignee, hai trục thời gian). Cube nối qua bảng này để
--- lọc nhiệm vụ theo đơn vị; từ điển dict_task_unit lấy đơn vị chủ trì hiện hành từ đây.
+-- lọc nhiệm vụ theo đơn vị chủ trì; từ điển dict_task_unit lấy đơn vị chủ trì hiện hành từ đây.
 CREATE TABLE {{db}}.fact_task_assignee ON CLUSTER '{{cluster}}'
 (
   tenant_id     UUID,
@@ -56,6 +56,7 @@ CREATE TABLE {{db}}.fact_task_assignee ON CLUSTER '{{cluster}}'
   assignee_type LowCardinality(String),
   person_key    Nullable(FixedString(32)),
   org_unit_id   Nullable(UUID),
+  resolved_unit_id Nullable(UUID), -- đơn vị được giao, hoặc đơn vị phân công chính của cá nhân được giao lúc nạp
   role          LowCardinality(String),
   accepted_at   Nullable(DateTime64(3, 'Asia/Ho_Chi_Minh')),
   removed_at    Nullable(DateTime64(3, 'Asia/Ho_Chi_Minh')),
@@ -227,15 +228,29 @@ CREATE TABLE {{db}}.lk_assignment ON CLUSTER '{{cluster}}'
 ENGINE = ReplicatedReplacingMergeTree(_version, _is_deleted)
 ORDER BY (tenant_id, id, valid_from);
 
-CREATE TABLE {{db}}.lk_objective ON CLUSTER '{{cluster}}'
+-- Mục tiêu O (okr.objective), nguồn của chỉ số tiến độ mục tiêu O (suy luận: TL-03 không liệt kê bảng sự kiện cho
+-- mục tiêu, nhưng SCR-1601 cần tiến độ O theo đơn vị). Tiêu đề, mô tả không đưa vào.
+CREATE TABLE {{db}}.fact_okr_objective ON CLUSTER '{{cluster}}'
 (
-  tenant_id     UUID,
-  id            UUID,
-  owner_unit_id UUID,
-  _version      UInt64,
-  _is_deleted   UInt8
+  tenant_id           UUID,
+  period_bucket       Int32,
+  id                  UUID,
+  period_id           UUID,
+  owner_type          LowCardinality(String),
+  org_unit_id         UUID,               -- owner_unit_id
+  owner_key           Nullable(FixedString(32)),
+  parent_objective_id Nullable(UUID),
+  tier                Int16,
+  status              LowCardinality(String),
+  progress            Decimal(6, 4),
+  approved_at         Nullable(DateTime64(3, 'Asia/Ho_Chi_Minh')),
+  _version            UInt64,
+  _is_deleted         UInt8,
+  _source_ts          DateTime64(3, 'Asia/Ho_Chi_Minh'),
+  _ingested_at        DateTime64(3, 'Asia/Ho_Chi_Minh') DEFAULT now64(3)
 )
 ENGINE = ReplicatedReplacingMergeTree(_version, _is_deleted)
+PARTITION BY period_bucket
 ORDER BY (tenant_id, id);
 
 CREATE TABLE {{db}}.lk_key_result ON CLUSTER '{{cluster}}'
@@ -249,20 +264,50 @@ CREATE TABLE {{db}}.lk_key_result ON CLUSTER '{{cluster}}'
 ENGINE = ReplicatedReplacingMergeTree(_version, _is_deleted)
 ORDER BY (tenant_id, id);
 
-CREATE TABLE {{db}}.lk_appraisal_profile ON CLUSTER '{{cluster}}'
+-- Hồ sơ đánh giá (appraisal.appraisal_profile), nguồn của chỉ số hồ sơ chờ thẩm định và của dict_profile.
+CREATE TABLE {{db}}.fact_appraisal_profile ON CLUSTER '{{cluster}}'
 (
-  tenant_id        UUID,
-  id               UUID,
-  period_bucket    Int32,
-  person_key       FixedString(32),
-  org_unit_id      UUID,
-  subject_group_id Nullable(UUID),
-  flow             LowCardinality(String),
-  _version         UInt64,
-  _is_deleted      UInt8
+  tenant_id              UUID,
+  period_bucket          Int32,
+  id                     UUID,
+  period_id              UUID,
+  person_key             FixedString(32),
+  org_unit_id            UUID,
+  job_title_id           Nullable(UUID),
+  subject_group_id       Nullable(UUID),
+  flow                   LowCardinality(String),
+  is_head                UInt8,
+  is_leadership          UInt8,
+  status                 LowCardinality(String),
+  final_rating_code      LowCardinality(Nullable(String)),
+  submitted_at           Nullable(DateTime64(3, 'Asia/Ho_Chi_Minh')),
+  decided_at             Nullable(DateTime64(3, 'Asia/Ho_Chi_Minh')),
+  locked_at              Nullable(DateTime64(3, 'Asia/Ho_Chi_Minh')),
+  _version               UInt64,
+  _is_deleted            UInt8,
+  _source_ts             DateTime64(3, 'Asia/Ho_Chi_Minh'),
+  _ingested_at           DateTime64(3, 'Asia/Ho_Chi_Minh') DEFAULT now64(3)
 )
 ENGINE = ReplicatedReplacingMergeTree(_version, _is_deleted)
+PARTITION BY period_bucket
 ORDER BY (tenant_id, id);
+
+-- Bao đóng cây đơn vị (org_replica.unit_closure_v, hai cây DANG và CHUYEN_MON, tổ tiên gồm cả chính nó); dùng dựng
+-- đường dẫn org_path cho bộ lọc phạm vi của Cube.
+CREATE TABLE {{db}}.dim_org_closure ON CLUSTER '{{cluster}}'
+(
+  tenant_id     UUID,
+  tree          LowCardinality(String),
+  ancestor_id   UUID,
+  descendant_id UUID,
+  depth         Int32,
+  _version      UInt64,
+  _is_deleted   UInt8,
+  _source_ts    DateTime64(3, 'Asia/Ho_Chi_Minh'),
+  _ingested_at  DateTime64(3, 'Asia/Ho_Chi_Minh') DEFAULT now64(3)
+)
+ENGINE = ReplicatedReplacingMergeTree(_version, _is_deleted)
+ORDER BY (tenant_id, tree, descendant_id, ancestor_id);
 
 -- Bản ghi CDC không giải mã được (kafka_handle_error_mode = 'stream'), để tra cứu thay vì chặn cả partition.
 CREATE TABLE {{db}}.cdc_error ON CLUSTER '{{cluster}}'

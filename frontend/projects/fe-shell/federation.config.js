@@ -20,6 +20,9 @@ module.exports = withNativeFederation({
     // bỏ qua để mỗi component PrimeNG đóng gói kèm đúng icon nó dùng (icon không giữ trạng thái).
     (p) =>
       p === 'primeng/icons' || p.startsWith('primeng/icons/') || p.startsWith('primeng/types/'),
+    // WEB-011: Faro và OpenTelemetry chỉ shell dùng, nạp lười một lần; đóng gói kèm chunk lười thay vì
+    // chia sẻ thành hàng chục tệp riêng
+    (p) => p.startsWith('@grafana/faro') || p.startsWith('@opentelemetry/'),
     // Add further packages you don't need at runtime
   ],
 
