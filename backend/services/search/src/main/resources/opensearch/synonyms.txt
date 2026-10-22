@@ -1,0 +1,7 @@
+# DV-16-01 · Từ điển đồng nghĩa nghiệp vụ (TL-03 "Đánh chỉ mục tìm kiếm OpenSearch"). Mỗi dòng một nhóm, cú pháp
+# Solr của bộ lọc synonym_graph; chỉ áp khi tìm (search_analyzer), nên sửa tệp này chỉ cần nạp lại mẫu chỉ mục
+# và đóng mở chỉ mục, không phải dựng lại. Viết có dấu: bộ phân tích tự bỏ dấu trước khi so khớp.
+KPI, chỉ tiêu
+nhiệm vụ, công việc
+OKR, mục tiêu và kết quả then chốt
+văn bản chỉ đạo, văn bản nguồn
