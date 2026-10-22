@@ -20,16 +20,20 @@ import vn.viettel.okrkpi.config.api.PeriodLockedException;
 import vn.viettel.okrkpi.config.api.PeriodOpenedEvent;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.PeriodStatus;
+import vn.viettel.okrkpi.config.api.PeriodWriteTarget;
 import vn.viettel.okrkpi.config.application.port.PeriodConflictException;
 import vn.viettel.okrkpi.config.application.port.PeriodEvents;
+import vn.viettel.okrkpi.config.application.port.PeriodReopenRepository;
 import vn.viettel.okrkpi.config.application.port.PeriodRepository;
 import vn.viettel.okrkpi.config.domain.DefaultPeriodCalendar;
 import vn.viettel.okrkpi.config.domain.Period;
 import vn.viettel.okrkpi.config.domain.PeriodKind;
 import vn.viettel.okrkpi.config.domain.PeriodMilestones;
+import vn.viettel.okrkpi.config.domain.PeriodReopen;
 import vn.viettel.okrkpi.config.domain.PeriodSchedule;
 import vn.viettel.okrkpi.config.domain.PeriodState;
 import vn.viettel.okrkpi.config.domain.PeriodTransition;
+import vn.viettel.okrkpi.config.domain.ReopenScope;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.error.ProblemFieldError;
 import vn.viettel.okrkpi.shared.kernel.Clock;
@@ -60,6 +64,7 @@ public class PeriodConfigService implements PeriodApi {
   private final PeriodStateCache states;
   private final TransactionOperations reads;
   private Supplier<String> callerModule = () -> null;
+  private PeriodReopenRepository reopens;
 
   /**
    * @param calendar tham số lịch của Policy Pack; {@code null} dùng lịch mặc định của TL-02a
@@ -303,16 +308,40 @@ public class PeriodConfigService implements PeriodApi {
   }
 
   /**
-   * TL-01: chặn khi kỳ ở {@code DANG_KHOA} hoặc {@code DA_KHOA} (CORE-08-03). Ở task này {@code
-   * MO_LAI_HAU_KIEM} cũng bị chặn; phạm vi được mở làm ở CORE-08-06. Kỳ không tồn tại không chặn.
-   * Đọc qua bộ đệm trạng thái kỳ, chỉ mở giao dịch đọc khi trượt đệm.
+   * TL-01: chặn khi kỳ ở {@code DANG_KHOA} hoặc {@code DA_KHOA} (CORE-08-03); {@code
+   * MO_LAI_HAU_KIEM} chỉ nhận lệnh ghi trong phạm vi toàn kỳ, vì không rõ đối tượng (CORE-08-06).
+   * Kỳ không tồn tại không chặn. Đọc qua bộ đệm trạng thái kỳ, chỉ mở giao dịch đọc khi trượt đệm.
    */
   @Override
   public void assertWritable(TenantId tenantId, PeriodId periodId) throws PeriodLockedException {
+    assertWritable(tenantId, periodId, PeriodWriteTarget.NONE);
+  }
+
+  /**
+   * CORE-08-06: kỳ {@code MO_LAI_HAU_KIEM} nhận lệnh ghi khi đối tượng nằm trong phạm vi mở lại đã
+   * đệm, ngoài phạm vi (hoặc chưa có phạm vi) trả 409 theo MSG-13-04. Trúng đệm chỉ tra tập băm.
+   */
+  @Override
+  public void assertWritable(TenantId tenantId, PeriodId periodId, PeriodWriteTarget target)
+      throws PeriodLockedException {
     Optional<PeriodStateCache.Entry> e = state(tenantId, periodId);
-    if (e.isPresent() && !e.get().state().writable()) {
-      throw new PeriodLockedException(periodId, e.get().name(), callerModule.get());
+    if (e.isEmpty() || e.get().state().writable()) {
+      return;
     }
+    PeriodStateCache.Entry entry = e.get();
+    if (entry.state() == PeriodState.MO_LAI_HAU_KIEM) {
+      PeriodWriteTarget t = target == null ? PeriodWriteTarget.NONE : target;
+      if (entry.reopen() != null && entry.reopen().covers(t.unitId(), t.dossierId())) {
+        return;
+      }
+      throw PeriodLockedException.outOfReopenScope(periodId, entry.name(), callerModule.get());
+    }
+    throw new PeriodLockedException(periodId, entry.name(), callerModule.get());
+  }
+
+  /** Nguồn phạm vi mở lại hậu kiểm để nạp vào đệm trạng thái kỳ (CORE-08-06). */
+  public void setReopens(PeriodReopenRepository reopens) {
+    this.reopens = Objects.requireNonNull(reopens, "reopens");
   }
 
   /**
@@ -344,7 +373,14 @@ public class PeriodConfigService implements PeriodApi {
                 s ->
                     periods
                         .findById(tenantId, periodId)
-                        .map(p -> new PeriodStateCache.Entry(p.state(), p.name()))));
+                        .map(p -> new PeriodStateCache.Entry(p.state(), p.name(), reopenOf(p)))));
+  }
+
+  private ReopenScope reopenOf(Period p) {
+    if (p.state() != PeriodState.MO_LAI_HAU_KIEM || reopens == null) {
+      return null;
+    }
+    return reopens.findOpen(p.tenantId(), p.id()).map(PeriodReopen::scope).orElse(null);
   }
 
   private void evictNowAndAfterCommit(TenantId tenantId, PeriodId periodId) {

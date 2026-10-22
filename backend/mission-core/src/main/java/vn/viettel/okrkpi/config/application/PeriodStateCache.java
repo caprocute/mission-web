@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 import vn.viettel.okrkpi.config.domain.PeriodState;
+import vn.viettel.okrkpi.config.domain.ReopenScope;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
@@ -27,8 +28,15 @@ public final class PeriodStateCache {
 
   static final long MAX_ENTRIES = 200_000;
 
-  /** Trạng thái kỳ đã đệm: tên kỳ để dựng thông báo MSG-08-06. */
-  public record Entry(PeriodState state, String name) {}
+  /**
+   * Trạng thái kỳ đã đệm: tên kỳ để dựng thông báo MSG-08-06, MSG-13-04; phạm vi mở lại khi kỳ ở
+   * {@code MO_LAI_HAU_KIEM} (CORE-08-06), trống khi không mở lại hoặc chưa nhận phạm vi.
+   */
+  public record Entry(PeriodState state, String name, ReopenScope reopen) {
+    public Entry(PeriodState state, String name) {
+      this(state, name, null);
+    }
+  }
 
   private record Key(UUID tenant, UUID period) {}
 

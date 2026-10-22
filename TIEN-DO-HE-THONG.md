@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **145 / 401 task (36.2%)** — Khối lượng quy đổi đã gộp: **172 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **146 / 401 task (36.4%)** (gồm **145** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **7 task** (4 đang làm, 3 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **147 / 401 task (36.7%)** (gồm **145** đã gộp `main` + **2** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
 - **Chưa bắt đầu**: **248 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **10 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-05-02`** (đang xử lý trên nhánh: không).
 
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **12** | 1 | 1 | 98 | **10.7%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **12** | 2 | 0 | 98 | **10.7%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **27** | 0 | 3 | 74 | **26.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **11** | 0 | 0 | 17 | **39.3%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **145** | **1** | **7** | **248** | **36.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **145** | **2** | **6** | **248** | **36.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -40,7 +40,7 @@
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 0 | 1 | 9 | **83.1%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
-| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **16** | 1 | 2 | 27 | **34.8%** |
+| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **16** | 2 | 1 | 27 | **34.8%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **21** | 0 | 3 | 93 | **17.9%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 0 | 0 | 54 | **23.9%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **9** | 0 | 1 | 32 | **21.4%** |
@@ -192,7 +192,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-00-04](docs/tasks/CORE-00-04-api-trang-chu-hom-nay.md) | API tổng hợp trang chủ "Việc của tôi hôm nay" (SCR-0002) | M | B3 | 18 | CORE-02-18, CORE-01-08, CORE-08-09, CORE-08-02, NEN-041 | **Đã gộp main** | Đã gộp main (03e9c83): ranh giới 8 mô-đun Spring Modulith, hợp đồng API nội bộ, JobsController và kiểm thử kiến trúc |
 | [CORE-00-05](docs/tasks/CORE-00-05-nhat-ky-truy-cap-c2.md) | Nhật ký truy cập dữ liệu C2 và ghi sổ cái lần giải mã | S | B4 | 11 | NEN-015, DV-09-02, NEN-011, NEN-016, CORE-00-02 | **Đã gộp main** | Đã gộp main (e9620db) |
 
-### CORE-08 · MOD-08 config: kỳ, lịch, cờ, UI Pack, biểu mẫu (G1 phía máy chủ) (4/17 đã gộp `main`, 1 chờ gộp, 1 đang làm)
+### CORE-08 · MOD-08 config: kỳ, lịch, cờ, UI Pack, biểu mẫu (G1 phía máy chủ) (4/17 đã gộp `main`, 2 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -201,7 +201,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-08-03](docs/tasks/CORE-08-03-chan-ghi-ky-khoa.md) | Chặn ghi khi kỳ `DANG_KHOA`/`DA_KHOA` ở mọi module, đệm trạng thái kỳ, lỗi 409 `period-locked` | M | B2 | 15 | CORE-08-02 | **Đã gộp main** | Chặn ghi khi kỳ khoá, đệm trạng thái kỳ, mã 409 theo mô-đun |
 | [CORE-08-04](docs/tasks/CORE-08-04-lich-ngay-lam-viec.md) | Lịch ngày làm việc, ngày nghỉ, làm bù và thư viện tính ngày làm việc dùng chung | M | B2 | 12 | CORE-08-01 | **Đã gộp main** | Lịch ngày nghỉ, làm bù, WorkingCalendarApi |
 | [CORE-08-05](docs/tasks/CORE-08-05-lenh-khoa-ky.md) | Lệnh khoá kỳ: lập, duyệt có MFA và tách vai trò, khởi chạy saga | M | B2 | 15 | CORE-08-02, DV-06-05 | **Xong, chờ gộp** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: lập, duyệt, khởi chạy, tiến độ lệnh khoá kỳ; đã qua verify mission-core |
-| [CORE-08-06](docs/tasks/CORE-08-06-mo-lai-hau-kiem.md) | Mở lại hậu kiểm: trạng thái `MO_LAI_HAU_KIEM`, phạm vi mở, consumer EVT-22, timer hết hạn khoá lại | L | B2 | 16 | CORE-08-03 | **Đang làm** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: mở lại hậu kiểm theo phạm vi |
+| [CORE-08-06](docs/tasks/CORE-08-06-mo-lai-hau-kiem.md) | Mở lại hậu kiểm: trạng thái `MO_LAI_HAU_KIEM`, phạm vi mở, consumer EVT-22, timer hết hạn khoá lại | L | B2 | 16 | CORE-08-03 | **Xong, chờ gộp** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: nhận EVT-22 qua inbox config, kiểm phạm vi khi ghi, timer khoá lại phát EVT-09; đã qua verify mission-core |
 | [CORE-08-07](docs/tasks/CORE-08-07-cau-hinh-tenant-co-tinh-nang.md) | Cấu hình tenant và cờ tính năng (`tenant_setting`, `feature_flag`) kèm API | S | B2 | 12 | CORE-08-01 | **Chưa bắt đầu** |  |
 | [CORE-08-08](docs/tasks/CORE-08-08-ui-pack-phien-ban.md) | UI Pack: mô hình có phiên bản, máy trạng thái, người duyệt khác người soạn | M | B2 | 12 | CORE-08-01 | **Chưa bắt đầu** |  |
 | [CORE-08-09](docs/tasks/CORE-08-09-component-registry-sdui.md) | Component registry có phiên bản và kiểm schema bố cục SDUI | M | B2 | 13 | CORE-08-08, NEN-041 | **Chưa bắt đầu** |  |
@@ -789,4 +789,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 05:22 | Điều phối | `CORE-08-04` | Chuyển trạng thái sang **Đã gộp main** — Lịch ngày nghỉ, làm bù, WorkingCalendarApi |
 | 22/10/2026 05:44 | B2 (luồng B6) | `CORE-08-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: lập, duyệt, khởi chạy, tiến độ lệnh khoá kỳ; đã qua verify mission-core |
 | 22/10/2026 05:44 | B2 (luồng B6) | `CORE-08-06` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: mở lại hậu kiểm theo phạm vi |
+| 22/10/2026 06:19 | B2 (luồng B6) | `CORE-08-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: nhận EVT-22 qua inbox config, kiểm phạm vi khi ghi, timer khoá lại phát EVT-09; đã qua verify mission-core |
 <!-- PROGRESS_LOG_END -->
