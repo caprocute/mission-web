@@ -446,6 +446,38 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 5. Tổng trọng số KR của một mục tiêu không vượt 1. Ràng buộc này dùng constraint trigger `tg_key_result__weight_sum` đặt `DEFERRABLE INITIALLY DEFERRED`, nên trong một giao dịch tổng được vượt tạm thời khi phân bổ lại, miễn đến lúc commit tổng không vượt 1 (cách hiện thực là suy luận).
 6. Cả `objective.progress` và `objective.progress_pct` đều được tạo như TL-03, trong đó `progress_pct` là cột trả qua API. Bảng `okr.period_state` có trong danh mục sở hữu MOD-01 nhưng không có từ điển dữ liệu, nên chưa được tạo. `objective_review` chỉ ghi thêm theo cùng hai lớp như `config.period_status_log`. Giá trị `checkin_frequency` lấy theo hợp đồng (`TUAN`, `HAI_TUAN`, `THANG`), vì TL-03 không liệt kê.
 
+### Ghi chú và quyết định từ kỳ đánh giá và `PeriodApi` (CORE-08-02, 22/10/2026)
+
+- **Ghim Policy Pack qua sự kiện nội bộ.** TL-02a ghi "tạo kỳ và ghim gói vào `policy.policy_binding`", nhưng TL-01 không cho `config` gọi `policy`. MOD-08 khai báo cổng `config.api.PeriodCalendarPort` (MOD-05 hiện thực ở CORE-05-03 để cấp tham số lịch) và phát sự kiện ứng dụng nội bộ `config.api.PeriodCreatedEvent` để MOD-05 ghi `policy_binding` trong listener. Sự kiện này không mang mã EVT vì không đi ra ngoài tiến trình. Trước khi MOD-05 làm xong, trường `pinnedPolicyPacks` của phản hồi luôn rỗng, và EVT-09 gửi `policyPackVersionIds` rỗng (suy luận).
+- **"Đã tạo" không phải trạng thái.** `config.period.status` chỉ có bốn giá trị và mặc định là `MO`, nên kỳ mới luôn ở `MO`. Màn hình hiện "Đã tạo" dựa vào cờ `notStarted`, đúng khi ngày nghiệp vụ còn trước ngày bắt đầu. Tác vụ định kỳ `PeriodOpeningJob` chạy lúc 00:05, 06:05, 12:05 và 18:05 giờ Việt Nam. Tác vụ không đổi trạng thái kỳ mà chỉ phát `PeriodOpenedEvent` cho kỳ bắt đầu hôm nay hoặc hôm qua; ngày hôm qua được tính để bù lượt chạy bị lỡ. Kỳ tạo khi đã tới ngày bắt đầu thì sự kiện được phát ngay trong giao dịch tạo (suy luận từ TL-02a dòng 2156).
+- **Tác vụ chạy theo từng tenant.** RLS ép buộc (FORCE) nên không quét liên tenant được, kể cả bằng hàm SECURITY DEFINER. Vì vậy tác vụ duyệt danh sách tenant của cell trong `TenantDirectory` và chạy riêng từng tenant trong `TenantContext`. Dấu "đã phát" nằm trong `config.idempotency_key`, với khoá `ky-mo:<id kỳ>` và người gọi là UUID toàn số 0. Dấu được giữ 48 đến 72 giờ, đủ phủ cửa sổ hai ngày, nên nhiều pod chạy cùng lúc hay chạy lại thì sự kiện vẫn chỉ phát một lần. Repo không có ShedLock, nên chống chạy trùng dùng `pg_advisory_xact_lock` theo từng kỳ (suy luận).
+- **Lịch mặc định khi chưa có tham số Policy Pack.**
+  - Hạn duyệt kế hoạch là ngày làm việc cuối của tuần lịch thứ hai trong tháng đầu kỳ.
+  - Hạn nộp minh chứng là ngày cuối kỳ.
+  - Hạn nghiệm thu tồn đọng là hai ngày làm việc sau ngày cuối kỳ, và ngày khoá dự kiến là ngày làm việc kế tiếp.
+  - Hạn báo cáo kết quả là ngày làm việc cuối trước ngày 10 của tháng sau kỳ.
+  - Bộ quy tắc này cho đúng các mốc Quý I/2027 của TL-02a (08/01, 31/03, 02/04, 05/04) và các hạn của Quý IV/2026 trong ví dụ hợp đồng (09/10/2026, 08/01/2027).
+  - Ví dụ hợp đồng ghi hạn nghiệm thu Quý IV/2026 là 03/01/2027, không khớp với quy tắc nào khi chưa tính lịch nghỉ Tết dương lịch. Ngày làm việc tạm chỉ loại thứ Bảy và Chủ nhật; lịch nghỉ và làm bù thuộc CORE-08-04 (suy luận).
+- **Cảnh báo BR-08-12.** Khi ngày khoá dự kiến không sớm hơn hạn báo cáo, phản hồi trả một câu cảnh báo tiếng Việt trong `warnings` và không chặn tạo kỳ.
+- **Outbox theo chuyển trạng thái.** Mỗi chuyển ghi một dòng `period_status_log` trong cùng giao dịch, và ghi outbox khi danh mục có sự kiện của MOD-08:
+  - vào `DA_KHOA` (chốt kỳ hoặc khoá lại) phát EVT-09;
+  - `DANG_KHOA → MO` phát EVT-26.
+  - `MO → DANG_KHOA` không có sự kiện riêng, vì bước 2 của saga đã có `period.drain.marker`.
+  - `DA_KHOA → MO_LAI_HAU_KIEM` cũng không có sự kiện của MOD-08, vì EVT-22 thuộc MOD-07.
+  - Nhiệm vụ ghi "mỗi chuyển một bản ghi outbox", nhưng danh mục EVT không có topic cho hai chuyển sau. Đây là điểm lệch, chờ chốt.
+- **`assertWritable` theo TL-01.** Hàm chặn khi kỳ ở `DANG_KHOA` hoặc `DA_KHOA`. `assertOpen` giữ nghĩa cũ là chỉ chặn `DA_KHOA`. Kỳ không tồn tại thì không chặn; quyết định chặn cuối cùng thuộc CORE-08-03. Các phương thức mặc định của `PeriodApi` được ghi đè trong dịch vụ để luôn chạy trong giao dịch của `configTransactionManager`. Nếu không ghi đè, lời gọi chạy ngoài giao dịch, RLS không có tenant và kết quả luôn rỗng.
+- **Bẫy: `@Idempotent` của thư viện nền không dùng được cho mô-đun của mission-core.** Interceptor dùng `JdbcTemplate` và giao dịch mặc định của tiến trình, nên không có quyền vào schema `config` (lỗi "permission denied for schema config"). Vì vậy `createPeriod` gọi thẳng `JdbcIdempotencyStore` trên `configDataSource`, trong cùng giao dịch với lệnh (`ConfigIdempotency`). Các mô-đun khác của mission-core gặp cùng vấn đề cho tới khi thư viện nền hỗ trợ chọn DataSource theo schema. `SuspiciousAccessController` (DV-02-05) đang dùng `@Idempotent` nên có thể cũng lỗi (suy luận, chưa kiểm).
+- **mission-core chưa nối xác thực.** Spring Security không có trong classpath của mission-core, nên `AuthzSubjectResolver` không có bean. API kỳ lấy người gọi qua cổng `PeriodCaller` nếu có, nếu không thì qua `AuthzSubjectResolver`; không có cả hai thì trả 401. Kiểm thử thay người gọi bằng bean `PeriodCaller`.
+
+### Ghi chú và quyết định từ chặn ghi khi kỳ khoá (CORE-08-03, 22/10/2026)
+
+- `PeriodApi.assertWritable` đọc trạng thái kỳ qua đệm Caffeine trong tiến trình (TTL 30 giây, tối đa 200 000 mục, cấu hình `mission.config.period-cache.ttl`); chỉ khi trượt đệm mới mở giao dịch đọc trên `configTransactionManager`. Kỳ không tồn tại cũng được đệm (không chặn). Kiểm khi trúng đệm đo được dưới 0,1 ms.
+- Xoá đệm giữa các pod (suy luận): mỗi pod có consumer group riêng `mission-core-period-cache-<host>-<uuid>`, đọc EVT-09 và EVT-26 từ offset mới nhất, không qua inbox, vì inbox dùng chung một group sẽ chỉ để một pod nhận sự kiện. Khoá bản ghi sai dạng thì xoá toàn bộ đệm. Pod tự chuyển trạng thái thì xoá đệm ngay và sau khi giao dịch kết thúc. Bộ lắng nghe tắt được bằng `mission.config.period-cache.listener.enabled=false` (kiểm thử đang tắt vì pom mission-core chưa có Kafka Testcontainers).
+- `MO_LAI_HAU_KIEM` vẫn bị coi là khoá (`PeriodState.writable()` chỉ đúng với `MO`) cho tới CORE-08-06.
+- Mã lỗi 409 chọn theo mô-đun của controller nhận lệnh (`TASK-409-PERIOD-LOCKED`, `OKR-…`, `POLICY-…`, `PRODUCT-…`); mô-đun không có mã trong danh mục, hoặc lệnh không đến từ HTTP, dùng `APPRAISAL-409-PERIOD-LOCKED`. Không dùng bộ xử lý lỗi riêng vì mission-core không thấy servlet API lúc biên dịch; mô-đun được lấy từ `HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE` khi ném ngoại lệ. `detail` theo MSG-08-06.
+- ArchUnit `writesCheckPeriodLock`: phương thức công khai tên `create|update|register|save|delete|submit|assign|record|bind|remove…` trong `okr`, `task`, `product`, `policy` `.application` phải gọi `PeriodApi.assertWritable`. Đã gắn: `OkrQueryService.registerKeyResult`, `DefaultPolicyQueryService.registerPolicy`. Chưa gắn: `task` và `product` chưa có lệnh ghi; quy tắc sẽ bắt khi thêm.
+- Bẫy kỹ thuật: lớp lồng `@TestConfiguration` của một IT bị quét vào ngữ cảnh của IT khác cùng `MissionCoreApplication`, nên hai IT khai báo cùng tên bean sẽ lỗi "overriding is disabled".
+
 ## Liên quan
 
 - [README của wiki](README.md)

@@ -30,6 +30,27 @@ public interface PeriodApi {
   }
 
   /**
+   * Kỳ đánh giá hiện hành theo nhịp kỳ: kỳ chứa ngày nghiệp vụ hôm nay có loại bằng {@code cadence}
+   * ({@code THANG}, {@code QUY}, {@code NAM}, {@code NAM_HOC}); {@code null} lấy ưu tiên kỳ quý.
+   *
+   * @param tenantId định danh tenant
+   * @param cadence loại kỳ, có thể {@code null}
+   * @return ảnh chụp kỳ hiện hành nếu có
+   */
+  default Optional<PeriodSnapshot> findCurrent(TenantId tenantId, String cadence) {
+    return findCurrent(tenantId);
+  }
+
+  /**
+   * Chữ ký {@code PeriodApi.current(tenant, cadence)} của TL-01 mục "Giao tiếp giữa module".
+   *
+   * @throws java.util.NoSuchElementException khi tenant chưa có kỳ hiện hành của nhịp này
+   */
+  default PeriodSnapshot current(TenantId tenantId, String cadence) {
+    return findCurrent(tenantId, cadence).orElseThrow();
+  }
+
+  /**
    * Tìm kỳ đánh giá theo định danh.
    *
    * @param tenantId định danh tenant
