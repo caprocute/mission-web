@@ -16,7 +16,13 @@ export function provideDesignSystem(): EnvironmentProviders {
   return makeEnvironmentProviders([
     providePrimeNG({
       csp: { nonce: pageNonce() },
-      theme: { preset: VtPreset, options: { cssLayer: { name: 'primeng', order: 'base, primeng, app' }, darkModeSelector: false } },
+      theme: {
+        preset: VtPreset,
+        options: {
+          cssLayer: { name: 'primeng', order: 'base, primeng, app' },
+          darkModeSelector: false,
+        },
+      },
       ripple: false,
     }),
   ]);

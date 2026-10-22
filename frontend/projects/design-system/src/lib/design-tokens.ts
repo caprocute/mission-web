@@ -50,7 +50,9 @@ export function flattenTokens(group: TokenGroup, prefix = '--vt'): Record<string
  */
 export function tokensToCss(tokens: TokenGroup, modes: Record<string, TokenGroup> = {}): string {
   const block = (selector: string, vars: Record<string, string>) =>
-    `${selector}{${Object.entries(vars).map(([k, v]) => `${k}:${v}`).join(';')}}`;
+    `${selector}{${Object.entries(vars)
+      .map(([k, v]) => `${k}:${v}`)
+      .join(';')}}`;
   const parts = [block(':root[data-tenant]', flattenTokens(tokens))];
   for (const [mode, group] of Object.entries(modes)) {
     parts.push(block(`:root[data-tenant][data-mode="${mode}"]`, flattenTokens(group)));

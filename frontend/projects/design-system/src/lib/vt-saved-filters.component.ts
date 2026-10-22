@@ -65,10 +65,16 @@ let seq = 0;
           (input)="draftName.set($any($event.target).value)"
         />
         <label class="vt-sf__check">
-          <input type="checkbox" [checked]="draftDefault()" (change)="draftDefault.set($any($event.target).checked)" />
+          <input
+            type="checkbox"
+            [checked]="draftDefault()"
+            (change)="draftDefault.set($any($event.target).checked)"
+          />
           Áp dụng khi mở danh sách
         </label>
-        <button type="submit" class="vt-sf__primary" [disabled]="busy() || !draftName().trim()">Lưu</button>
+        <button type="submit" class="vt-sf__primary" [disabled]="busy() || !draftName().trim()">
+          Lưu
+        </button>
         <button type="button" class="vt-sf__link" (click)="formOpen.set(false)">Huỷ</button>
       </form>
     }
@@ -79,7 +85,9 @@ let seq = 0;
           <li>
             @if (renaming() === f.id) {
               <form class="vt-sf__inline" (submit)="submitRename($event, f.id)">
-                <label class="vt-sf__sr" [for]="nameId + '-' + f.id">Tên mới của bộ lọc {{ f.name }}</label>
+                <label class="vt-sf__sr" [for]="nameId + '-' + f.id"
+                  >Tên mới của bộ lọc {{ f.name }}</label
+                >
                 <input
                   [id]="nameId + '-' + f.id"
                   type="text"
@@ -87,23 +95,60 @@ let seq = 0;
                   [value]="draftName()"
                   (input)="draftName.set($any($event.target).value)"
                 />
-                <button type="submit" class="vt-sf__primary" [disabled]="busy() || !draftName().trim()">Lưu tên</button>
+                <button
+                  type="submit"
+                  class="vt-sf__primary"
+                  [disabled]="busy() || !draftName().trim()"
+                >
+                  Lưu tên
+                </button>
                 <button type="button" class="vt-sf__link" (click)="renaming.set(null)">Huỷ</button>
               </form>
             } @else {
-              <span class="vt-sf__name">{{ f.name }}@if (f.isDefault) { <small>(mặc định)</small> }</span>
+              <span class="vt-sf__name"
+                >{{ f.name }}
+                @if (f.isDefault) {
+                  <small>(mặc định)</small>
+                }
+              </span>
               <span class="vt-sf__acts">
-                <button type="button" class="vt-sf__link" [disabled]="busy()" (click)="startRename(f)">Đổi tên</button>
-                <button type="button" class="vt-sf__link" [disabled]="busy()" (click)="toggleDefault.emit(f.id)">
+                <button
+                  type="button"
+                  class="vt-sf__link"
+                  [disabled]="busy()"
+                  (click)="startRename(f)"
+                >
+                  Đổi tên
+                </button>
+                <button
+                  type="button"
+                  class="vt-sf__link"
+                  [disabled]="busy()"
+                  (click)="toggleDefault.emit(f.id)"
+                >
                   {{ f.isDefault ? 'Bỏ mặc định' : 'Đặt mặc định' }}
                 </button>
                 @if (confirming() === f.id) {
-                  <button type="button" class="vt-sf__danger" [disabled]="busy()" (click)="remove.emit(f.id); confirming.set(null)">
+                  <button
+                    type="button"
+                    class="vt-sf__danger"
+                    [disabled]="busy()"
+                    (click)="remove.emit(f.id); confirming.set(null)"
+                  >
                     Xác nhận xoá
                   </button>
-                  <button type="button" class="vt-sf__link" (click)="confirming.set(null)">Không xoá</button>
+                  <button type="button" class="vt-sf__link" (click)="confirming.set(null)">
+                    Không xoá
+                  </button>
                 } @else {
-                  <button type="button" class="vt-sf__link" [disabled]="busy()" (click)="confirming.set(f.id)">Xoá</button>
+                  <button
+                    type="button"
+                    class="vt-sf__link"
+                    [disabled]="busy()"
+                    (click)="confirming.set(f.id)"
+                  >
+                    Xoá
+                  </button>
                 }
               </span>
             }

@@ -35,7 +35,8 @@ export const SAVED_FILTER_LIMIT = 20;
 
 const COLUMN_KEY = /^[a-zA-Z][a-zA-Z0-9_]{0,63}$/;
 const STATUS_CODE = /^[A-Z][A-Z0-9_]{1,63}$/;
-const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+const UUID =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const RATINGS = new Set([
   'KHTNV',
@@ -48,18 +49,32 @@ const RATINGS = new Set([
   'HOAN_THANH_XUAT_SAC',
 ]);
 const SCOPES = new Set(['ME', 'MY_UNIT', 'SUBORDINATE_UNITS', 'ALL_ALLOWED']);
-const PRESETS = new Set(['TODAY', 'THIS_WEEK', 'THIS_MONTH', 'THIS_QUARTER', 'THIS_YEAR', 'OVERDUE']);
+const PRESETS = new Set([
+  'TODAY',
+  'THIS_WEEK',
+  'THIS_MONTH',
+  'THIS_QUARTER',
+  'THIS_YEAR',
+  'OVERDUE',
+]);
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
   !!v && typeof v === 'object' && !Array.isArray(v);
 
 function codes(v: unknown, ok: (s: string) => boolean, max: number): string[] | undefined {
   if (!Array.isArray(v)) return undefined;
-  const out = [...new Set(v.filter((x): x is string => typeof x === 'string' && ok(x)))].slice(0, max);
+  const out = [...new Set(v.filter((x): x is string => typeof x === 'string' && ok(x)))].slice(
+    0,
+    max,
+  );
   return out.length ? out : undefined;
 }
 
-function keyed<T>(v: unknown, max: number, pick: (x: unknown) => T | undefined): Record<string, T> | undefined {
+function keyed<T>(
+  v: unknown,
+  max: number,
+  pick: (x: unknown) => T | undefined,
+): Record<string, T> | undefined {
   if (!isObj(v)) return undefined;
   const out: Record<string, T> = {};
   for (const [k, x] of Object.entries(v).slice(0, max)) {
@@ -213,7 +228,10 @@ export class ListPersonalization<S> {
     const { state, dropped } = this.codec.fromCriteria(sanitizeCriteria(f.criteria));
     this.message.set(
       dropped
-        ? { ok: true, text: `Đã áp dụng bộ lọc "${f.name}"; ${dropped} điều kiện không còn phù hợp nên được bỏ qua.` }
+        ? {
+            ok: true,
+            text: `Đã áp dụng bộ lọc "${f.name}"; ${dropped} điều kiện không còn phù hợp nên được bỏ qua.`,
+          }
         : null,
     );
     return state;
@@ -240,7 +258,10 @@ export class ListPersonalization<S> {
     const trimmed = name.trim();
     if (!trimmed) return;
     if (this.saved().length >= SAVED_FILTER_LIMIT) {
-      this.message.set({ ok: false, text: `Mỗi danh sách lưu được tối đa ${SAVED_FILTER_LIMIT} bộ lọc.` });
+      this.message.set({
+        ok: false,
+        text: `Mỗi danh sách lưu được tối đa ${SAVED_FILTER_LIMIT} bộ lọc.`,
+      });
       return;
     }
     this.run(
@@ -275,7 +296,9 @@ export class ListPersonalization<S> {
     this.run(
       this.api.updateFilter(f.id, { ...inputOf(f), isDefault: !f.isDefault }, f.rowVersion),
       () => this.reload(),
-      f.isDefault ? 'Đã bỏ bộ lọc mặc định.' : `Bộ lọc "${f.name}" sẽ được áp dụng khi mở danh sách.`,
+      f.isDefault
+        ? 'Đã bỏ bộ lọc mặc định.'
+        : `Bộ lọc "${f.name}" sẽ được áp dụng khi mở danh sách.`,
     );
   }
 
@@ -323,11 +346,18 @@ export class ListPersonalization<S> {
 }
 
 function sortFilters(items: SavedFilter[]): SavedFilter[] {
-  return [...items].sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, 'vi'));
+  return [...items].sort(
+    (a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, 'vi'),
+  );
 }
 
 function inputOf(f: SavedFilter) {
-  return { name: f.name, criteria: f.criteria, isDefault: f.isDefault, displayOrder: f.displayOrder };
+  return {
+    name: f.name,
+    criteria: f.criteria,
+    isDefault: f.isDefault,
+    displayOrder: f.displayOrder,
+  };
 }
 
 /** Tạo trạng thái cột và bộ lọc đã lưu cho màn hình `screenCode` (gọi trong ngữ cảnh tiêm). */

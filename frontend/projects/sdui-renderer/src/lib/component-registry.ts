@@ -4,7 +4,16 @@ import { Injectable, InjectionToken, Type, inject, makeEnvironmentProviders } fr
 export interface PropsSchema {
   type: 'object';
   additionalProperties?: false;
-  properties: Record<string, { type: 'string' | 'integer' | 'number' | 'boolean' | 'object' | 'array'; minimum?: number; maximum?: number; enum?: unknown[]; pattern?: string }>;
+  properties: Record<
+    string,
+    {
+      type: 'string' | 'integer' | 'number' | 'boolean' | 'object' | 'array';
+      minimum?: number;
+      maximum?: number;
+      enum?: unknown[];
+      pattern?: string;
+    }
+  >;
 }
 
 export interface RegistryEntry {

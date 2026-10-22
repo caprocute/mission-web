@@ -100,9 +100,7 @@ export class AnnualPage {
   protected readonly data = rxResource({
     params: () => {
       const y = this.year();
-      return y
-        ? { period: y.id, unit: this.unit(), flag: this.warningsOnly() }
-        : undefined;
+      return y ? { period: y.id, unit: this.unit(), flag: this.warningsOnly() } : undefined;
     },
     stream: ({ params }) => this.loadAll(params.period, params.unit, params.flag),
   });

@@ -288,7 +288,9 @@ export const MSG_01_02 = (tenant: string, step: number) =>
                   }
                   @if (list.shows('status')) {
                     <td>
-                      <span class="status" [class]="'status st-' + tone(t)">{{ statusText(t) }}</span>
+                      <span class="status" [class]="'status st-' + tone(t)">{{
+                        statusText(t)
+                      }}</span>
                     </td>
                   }
                   <td>
@@ -670,7 +672,11 @@ export class TenantsPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   /** CNH-04: cột tuỳ chọn và bộ lọc đã lưu, lưu theo người dùng trên máy chủ. */
-  protected readonly list = createListPersonalization(TENANTS_SCREEN, TENANTS_COLUMNS, TENANTS_CODEC);
+  protected readonly list = createListPersonalization(
+    TENANTS_SCREEN,
+    TENANTS_COLUMNS,
+    TENANTS_CODEC,
+  );
   protected readonly state = computed<TenantsFilterState>(() => {
     const { cell, model, status } = this.filters();
     return { cell, model, status };
@@ -678,7 +684,8 @@ export class TenantsPage {
   protected readonly colspan = computed(
     () =>
       2 +
-      ['cellCode', 'tenancyModel', 'accountCount', 'status'].filter((k) => this.list.shows(k)).length +
+      ['cellCode', 'tenancyModel', 'accountCount', 'status'].filter((k) => this.list.shows(k))
+        .length +
       (this.simple() ? 0 : ['policyPacks', 'uiPack'].filter((k) => this.list.shows(k)).length),
   );
 
