@@ -68,6 +68,12 @@ type ProvisionConfig struct {
 	PrometheusURL, LagQuery                       string
 	MaxAttempts                                   int
 	Backoff, StepTimeout, RPO, ReadinessInterval  time.Duration
+	// DV-03-04: bước CSDL và khoá. CellDBFile là tệp JSON bí mật {"<mã cell>": {"adminUrl": "..."}} của tài khoản
+	// quản trị hẹp (CREATEDB); để trống thì saga không chạy bước CSDL, khoá (chỉ hợp với dev).
+	CellDBFile, BaoURL, BaoTokenFile, TransitMount         string
+	MigrationImage, MigrationNamespace, MigrationSecretPfx string
+	MigrationJDBCBase                                      string
+	MigrationWait                                          time.Duration
 }
 
 // Load đọc cấu hình; thiếu biến bắt buộc trả lỗi.
@@ -137,16 +143,25 @@ func Load() (Config, error) {
 		DNSURL:   os.Getenv("PDNS_API_URL"), DNSZone: os.Getenv("PDNS_ZONE"), DNSServerID: env("PDNS_SERVER_ID", "localhost"),
 		CertAPIServer: env("CERT_K8S_API", "https://kubernetes.default.svc"), CertNamespace: os.Getenv("CERT_NAMESPACE"),
 		CertIssuer: os.Getenv("CERT_ISSUER"), CertIssuerKind: env("CERT_ISSUER_KIND", "ClusterIssuer"),
-		CertTokenFile:     env("CERT_TOKEN_FILE", "/var/run/secrets/tenant-registry/k8s-token"),
-		CertCAFile:        env("CERT_CA_FILE", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"),
-		CertWait:          dur("CERT_WAIT", 3*time.Minute),
-		PrometheusURL:     os.Getenv("PROMETHEUS_URL"),
-		LagQuery:          env("REPLICA_LAG_QUERY", `max(cnpg_pg_replication_lag{cell="{cell}"})`),
-		MaxAttempts:       intv("PROVISION_MAX_ATTEMPTS", 3),
-		Backoff:           dur("PROVISION_BACKOFF", 10*time.Second),
-		StepTimeout:       dur("PROVISION_STEP_TIMEOUT", 10*time.Minute),
-		RPO:               dur("ACTIVATION_RPO", 15*time.Minute),
-		ReadinessInterval: dur("READINESS_INTERVAL", 5*time.Minute),
+		CertTokenFile:      env("CERT_TOKEN_FILE", "/var/run/secrets/tenant-registry/k8s-token"),
+		CertCAFile:         env("CERT_CA_FILE", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"),
+		CertWait:           dur("CERT_WAIT", 3*time.Minute),
+		PrometheusURL:      os.Getenv("PROMETHEUS_URL"),
+		LagQuery:           env("REPLICA_LAG_QUERY", `max(cnpg_pg_replication_lag{cell="{cell}"})`),
+		MaxAttempts:        intv("PROVISION_MAX_ATTEMPTS", 3),
+		Backoff:            dur("PROVISION_BACKOFF", 10*time.Second),
+		StepTimeout:        dur("PROVISION_STEP_TIMEOUT", 10*time.Minute),
+		RPO:                dur("ACTIVATION_RPO", 15*time.Minute),
+		ReadinessInterval:  dur("READINESS_INTERVAL", 5*time.Minute),
+		CellDBFile:         os.Getenv("PROVISION_CELL_DB_FILE"),
+		BaoURL:             os.Getenv("PROVISION_OPENBAO_URL"),
+		BaoTokenFile:       env("PROVISION_OPENBAO_TOKEN_FILE", "/var/run/secrets/tenant-registry/openbao-token"),
+		TransitMount:       env("PROVISION_TRANSIT_MOUNT", "transit"),
+		MigrationImage:     os.Getenv("PROVISION_MIGRATION_IMAGE"),
+		MigrationNamespace: os.Getenv("PROVISION_MIGRATION_NAMESPACE"),
+		MigrationSecretPfx: env("PROVISION_MIGRATION_SECRET_PREFIX", "td-migrate-"),
+		MigrationJDBCBase:  env("PROVISION_MIGRATION_JDBC_BASE", "jdbc:postgresql://pg-biz-rw.{cell}.svc:5432"),
+		MigrationWait:      dur("PROVISION_MIGRATION_WAIT", 8*time.Minute),
 	}
 	c.Move = MoveConfig{CellDBFile: os.Getenv("MOVE_CELL_DB_FILE"), ObjectsFile: os.Getenv("MOVE_OBJECTS_FILE"),
 		LedgerURL: os.Getenv("MOVE_LEDGER_URL"), PollEvery: dur("MOVE_POLL_EVERY", time.Second),

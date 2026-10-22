@@ -54,6 +54,12 @@ func uniq(p string) string { return p + "_" + strings.ReplaceAll(uuid.NewString(
 // seed tạo tenant bridge đi hết bước 1–3, khai một IdP OIDC đã kiểm kết nối, rồi khởi chạy cấp phát.
 func (e *env) seed(t *testing.T, code string) (uuid.UUID, uuid.UUID) {
 	t.Helper()
+	return e.seedModel(t, code, "bridge")
+}
+
+// seedModel như seed nhưng chọn mô hình thuê bao (bridge, pool, silo).
+func (e *env) seedModel(t *testing.T, code, model string) (uuid.UUID, uuid.UUID) {
+	t.Helper()
 	ctx := context.Background()
 	var tid, jid uuid.UUID
 	err := dbx.InTx(ctx, e.pool, func(tx pgx.Tx) error {
@@ -66,7 +72,7 @@ func (e *env) seed(t *testing.T, code string) (uuid.UUID, uuid.UUID) {
 		}
 		tid = v.ID
 		patch := map[string]json.RawMessage{
-			"tenancyModel":    json.RawMessage(`"bridge"`),
+			"tenancyModel":    json.RawMessage(`"` + model + `"`),
 			"policyBindings":  json.RawMessage(`[{"flow":"DANG","packVersionId":"0192e1c4-5d6e-7f80-9a1b-2c3d4e5f6a70"},{"flow":"NHA_NUOC","packVersionId":"0192e1c4-5d6e-7f80-9a1b-2c3d4e5f6a71"}]`),
 			"uiPackVersionId": json.RawMessage(`"0192e2d5-6e7f-7a81-8b2c-3d4e5f6a7b80"`),
 		}
