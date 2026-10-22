@@ -558,6 +558,15 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 - Trigger `task.fn_guard_period_write` của TL-03 đòi `app.reopen_request_id` khi kỳ đang mở lại hậu kiểm; việc đặt biến này khi ghi thuộc mô-đun task, chưa làm ở CORE-08-06.
 - Kiểm thử tích hợp chạy trên PostgreSQL Testcontainers, EVT-22 được đưa thẳng vào bộ xử lý inbox; pom chưa có Testcontainers Kafka nên chưa chạy qua broker thật.
 
+### Ghi chú và quyết định từ cờ tính năng và ngưỡng bất thường (CORE-08-07, 22/10/2026)
+
+- Danh mục cờ mặc định của nền tảng nằm ở `data/seed/feature-flags/feature-flags.csv` (sáu cờ), bản sao trên classpath cạnh `config.domain.FeatureFlagCatalog`, kiểm thử bảo đảm hai bản trùng nhau. Không nạp bằng Flyway vì RLS FORCE chặn ghi thay tenant; tenant chưa có dòng thì dùng giá trị mặc định với `rowVersion = 0`, lần đổi đầu tiên mới thêm dòng vào `config.feature_flag` (suy luận). Cờ không có trong danh mục trả 404.
+- Mã cờ dùng kiểu camelCase như ví dụ `ai.weeklySummary` của hợp đồng, trong khi `FlagKeyPath` của `config.yaml` có pattern chỉ chữ thường; hợp đồng tự mâu thuẫn. Theo YC-PT-09 không sửa hợp đồng; câu hỏi mở: nới pattern thành `^[a-zA-Z0-9][a-zA-Z0-9._-]*$`.
+- Cột `rollout jsonb` lưu `{"unitIds":[…],"percent":n}` theo `FeatureFlagRollout` của hợp đồng (suy luận). Bật theo đơn vị xét đơn vị của người dùng và các đơn vị cấp trên; bật theo tỷ lệ chia nhóm ổn định bằng CRC32 của `<mã cờ>:<mã người dùng>` mod 100. `FeatureFlagApi.isEnabled` đọc qua đệm Caffeine theo tenant, TTL 30 giây (`mission.config.feature-flag-cache.ttl`); pod tự đổi cờ thì xoá đệm ngay, pod khác chậm tối đa một TTL vì chưa có sự kiện Kafka cho cờ.
+- Ngưỡng bất thường lưu ở `config.tenant_setting` khoá `anomaly.thresholds`, schema `anomaly-thresholds.v1`; tenant chưa lưu dùng ngưỡng mặc định phiên bản 1 với ETag `"0"`. Mỗi lần đổi có lý do 20..2000 ký tự (BR-14-09), phiên bản ngưỡng tăng một, bản cũ được chép sang khoá `anomaly.thresholds.v<n>` để giữ lịch sử (suy luận). DTO `AnomalyThresholdSet` chưa trả `updatedBy` vì `Ref` cần tên người, mà MOD-08 không đọc được hồ sơ người dùng.
+- Đổi cờ và đổi ngưỡng ghi sổ cái `sys.audit.v1` qua outbox `config` với hành động `DOI_CO_TINH_NANG`, `DOI_NGUONG_BAT_THUONG`. `TenantSettingApi.get(tenant, khoá, đơn vị)` ưu tiên giá trị của đơn vị rồi đến tenant; chưa có API HTTP tổng quát cho `config.tenant_setting` vì hợp đồng chưa có.
+- Đề xuất cho WEB-076: hợp đồng chỉ cho `tenant_admin` đọc `listFeatureFlags`, nên giao diện của người dùng thường chưa có đường đọc cờ hiệu lực. Đề xuất trả cờ hiệu lực của người gọi kèm `GET /ui/packs/current` hoặc thêm đường đọc riêng; cần chốt trước khi giao diện dùng cờ.
+
 ## Liên quan
 
 - [README của wiki](README.md)
