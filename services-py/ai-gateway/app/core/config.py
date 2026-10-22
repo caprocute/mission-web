@@ -56,6 +56,15 @@ class Settings:
     embed_model: str = "viettel-embed-vi"
     kafka_brokers: str = ""
     cell_code: str = ""
+    # OCR (DV-14-05): "mock" là bản giả lập, "viettel" là dịch vụ OCR của Viettel AI tại ocr_base_url.
+    ocr_mode: str = "mock"
+    ocr_base_url: str = ""
+    ocr_model: str = "viettel-ocr"
+    ocr_api_key: str = field(default="", repr=False)
+    ocr_timeout_s: float = 30.0
+    # Kho đối tượng nội bộ cho /ai/ocr (evidence-service gửi objectKey; đọc qua cổng nội bộ trong lưới mTLS).
+    object_base_url: str = ""
+    ocr_clients: tuple[str, ...] = ("evidence-service", "search-indexer")
 
     @staticmethod
     def from_env() -> Settings:
@@ -89,4 +98,12 @@ class Settings:
             embed_model=_env("EMBED_MODEL", "viettel-embed-vi"),
             kafka_brokers=_env("KAFKA_BROKERS"),
             cell_code=_env("CELL_CODE"),
+            ocr_mode=_env("OCR_MODE", "mock"),
+            ocr_base_url=_env("OCR_BASE_URL"),
+            ocr_model=_env("OCR_MODEL", "viettel-ocr"),
+            ocr_api_key=_env("OCR_API_KEY"),
+            ocr_timeout_s=_float("OCR_TIMEOUT_SECONDS", 30.0),
+            object_base_url=_env("OBJECT_BASE_URL"),
+            ocr_clients=tuple(x.strip() for x in _env("OCR_CLIENTS", "evidence-service,search-indexer").split(",")
+                              if x.strip()),
         )

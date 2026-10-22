@@ -15,6 +15,7 @@ from app.store.idempotency import IdempotencyStore
 from app.store.suggestions import SuggestionStore
 
 if TYPE_CHECKING:
+    from app.assist.evidence import EvidenceOcr
     from app.assist.service import AssistService
 
 
@@ -30,3 +31,5 @@ class State:
     indexer: Indexer
     idempotency: IdempotencyStore
     assist: AssistService
+    evidence: EvidenceOcr
+    ocr_clients: tuple[str, ...] = ()

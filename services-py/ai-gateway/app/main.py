@@ -17,6 +17,7 @@ from vtplatform.logging import configure_logger
 from vtplatform.otel import extract_headers, reset_current_span_context, set_current_span_context
 
 from app.api import assist, routes
+from app.assist.evidence import EvidenceOcr
 from app.assist.extract import Extractor
 from app.assist.service import AssistService
 from app.core import problems
@@ -30,6 +31,7 @@ from app.core.service_token import ServiceToken
 from app.core.state import State
 from app.guard.guards import input_guard, output_guard
 from app.llm.client import InferenceQueue, Llm, LlmError, MockLlm, OpenAiCompatLlm
+from app.ocr.client import MockOcr, Ocr, ViettelOcr
 from app.rag import consumer
 from app.rag.embed import Embedder, HashEmbedder, OpenAiEmbedder
 from app.rag.ingest import Indexer
@@ -60,8 +62,18 @@ def build_embedder(s: Settings) -> tuple[Embedder, httpx.AsyncClient | None]:
     return OpenAiEmbedder(http, s.embed_model), http
 
 
+def build_ocr(s: Settings, transport: httpx.AsyncBaseTransport | None) -> tuple[Ocr, httpx.AsyncClient | None]:
+    if s.ocr_mode == "mock":
+        return MockOcr(), None
+    if s.ocr_mode != "viettel" or not s.ocr_base_url:
+        raise RuntimeError("OCR_MODE phải là mock hoặc viettel (kèm OCR_BASE_URL)")
+    headers = {"Authorization": f"Bearer {s.ocr_api_key}"} if s.ocr_api_key else {}
+    http = httpx.AsyncClient(base_url=s.ocr_base_url, timeout=s.ocr_timeout_s, headers=headers, transport=transport)
+    return ViettelOcr(http, s.ocr_model, timeout_s=s.ocr_timeout_s), http
+
+
 def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncBaseTransport | None = None,
-               llm: Llm | None = None, embedder: Embedder | None = None) -> FastAPI:
+               llm: Llm | None = None, embedder: Embedder | None = None, ocr: Ocr | None = None) -> FastAPI:
     s = settings or Settings.from_env()
 
     @asynccontextmanager
@@ -92,17 +104,21 @@ def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncB
         gw = Gateway(queue, store,
                      timeout_s=s.llm_timeout_s, sync_wait_s=s.llm_sync_wait_s, deferred_max=s.deferred_max,
                      input_guards=[input_guard], output_guards=[output_guard])
+        ocr_engine, ocr_http = (ocr, None) if ocr is not None else build_ocr(s, http_transport)
+        objects = (httpx.AsyncClient(base_url=s.object_base_url, timeout=s.ocr_timeout_s, transport=http_transport)
+                   if s.object_base_url else None)
         retriever = Retriever(chunks, emb)
         app.state.svc = State(verifier=verifier, opa=OpaClient(opa_http), core=core, gateway=gw, store=store,
                               pool=pool, retriever=retriever, indexer=indexer, idempotency=IdempotencyStore(pool),
-                              assist=AssistService(gw, store, core, retriever, indexer))
+                              assist=AssistService(gw, store, core, retriever, indexer),
+                              evidence=EvidenceOcr(ocr_engine, core, store, objects), ocr_clients=s.ocr_clients)
         try:
             yield
         finally:
             stop.set()
             if consumer_task is not None:
                 await asyncio.wait_for(consumer_task, 15)
-            for c in (opa_http, idp_http, core_http, llm_http, emb_http):
+            for c in (opa_http, idp_http, core_http, llm_http, emb_http, ocr_http, objects):
                 if c is not None:
                     await c.aclose()
             await pool.close()

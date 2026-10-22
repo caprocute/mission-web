@@ -61,6 +61,8 @@ class FakeCore:
         self.docs: dict[str, Any] = {}
         self.calls: list[str] = []
         self.analytics: list[str] = []
+        self.blobs: dict[str, bytes] = {}
+        self.files: dict[str, dict[str, Any]] = {}
 
     def __call__(self, r: httpx.Request) -> httpx.Response:
         path = r.url.path
@@ -79,6 +81,8 @@ class FakeCore:
         if path == "/api/v1/config/role-bindings":
             return httpx.Response(200, json={"items": [{"person": {"id": LEADER_1, "name": "A"}},
                                                        {"person": {"id": LEADER_2, "name": "B"}}], "nextCursor": None})
+        if r.url.host in ("s3.test", "obj.test") and r.url.path in self.blobs:
+            return httpx.Response(200, content=self.blobs[r.url.path])
         if r.url.host == "s3.test":
             assert "authorization" not in {k.lower() for k, v in r.headers.items() if v}
             return httpx.Response(200, content=_docx(["Điều 1. Kế hoạch 2027", "1. Tỷ lệ hồ sơ giải quyết đúng hạn."]))
@@ -95,6 +99,15 @@ class FakeCore:
             return httpx.Response(200, json={"items": [
                 {"id": str(uuid.uuid4()), "code": "KR 2.1", "objectiveId": str(uuid.uuid4()),
                  "title": "Tỷ lệ hồ sơ giải quyết đúng hạn đạt 95%"}], "nextCursor": None})
+        if path.startswith("/api/v1/files/") and path.split("/")[4] in self.files:
+            return httpx.Response(200, json=self.files[path.split("/")[4]])
+        if path == "/api/v1/tasks/mine":
+            assert r.url.params.get("status") == "DA_GIAO,DANG_THUC_HIEN"
+            return httpx.Response(200, json={"items": [
+                {"id": "0192f2c4-5d6e-7f80-91a2-b3c4d5e6f742", "code": "NV-2026-Q4-0142",
+                 "title": "Báo cáo sơ kết công tác tổ chức cơ sở đảng", "status": "DANG_THUC_HIEN"},
+                {"id": "0192f2c4-5d6e-7f80-91a2-b3c4d5e6f743", "code": "NV-2026-Q4-0143",
+                 "title": "Mua sắm thiết bị văn phòng", "status": "DA_GIAO"}]})
         if path == f"/api/v1/files/{FILE}/download-url":
             return httpx.Response(200, json={"url": "https://s3.test/obj?X-Amz-Signature=x", "sizeBytes": 2000,
                                              "mediaType": "application/vnd.openxmlformats"})
@@ -117,9 +130,10 @@ def env(db: dict[str, str], opa: str) -> Iterator[tuple[TestClient, ScriptedLlm,
     s = Settings(database_url=db["svc"], oidc_issuer=ISSUER, oidc_jwks_url=ISSUER + "/protocol/openid-connect/certs",
                  oidc_token_url=ISSUER + "/protocol/openid-connect/token", opa_url=opa,
                  core_base_url="http://core.test", llm_mode="mock", llm_max_concurrency=1, llm_max_waiting=0,
-                 llm_sync_wait_s=5)
+                 llm_sync_wait_s=5, object_base_url="http://obj.test")
     llm, core = ScriptedLlm(), FakeCore()
-    with TestClient(create_app(s, http_transport=Router({"idp.test": FakeIdp(), "core.test": core, "s3.test": core}),
+    with TestClient(create_app(s, http_transport=Router({"idp.test": FakeIdp(), "core.test": core, "s3.test": core,
+                                                         "obj.test": core}),
                                llm=llm)) as tc:
         yield tc, llm, core
 
@@ -503,3 +517,74 @@ def test_weekly_summary_one_per_leader_per_week(env: tuple[TestClient, ScriptedL
     assert 3 <= len(items["items"][0]["items"]) <= 5
     nxt = client.get(f"/api/v1/ai/suggestions?kind=TOM_TAT_TUAN&limit=1&cursor={items['nextCursor']}", headers=h2)
     assert nxt.status_code == 200 and nxt.json()["items"][0]["id"] != items["items"][0]["id"]
+
+
+def _file(core: FakeCore, data: bytes, **meta: Any) -> str:
+    import hashlib
+
+    oid = str(uuid.uuid4())
+    core.blobs[f"/{oid}"] = data
+    core.files[oid] = {"url": f"https://s3.test/{oid}", "expiresAt": "2026-10-19T09:16:00+07:00", "mediaType":
+                       "image/png", "sizeBytes": len(data), "sha256": hashlib.sha256(data).hexdigest(), "e2ee": False,
+                       **meta}
+    return oid
+
+
+def test_evidence_extract(env: tuple[TestClient, ScriptedLlm, FakeCore], db: dict[str, str]) -> None:
+    from tests.ocr_samples import page
+
+    client, _, core = env
+    oid = _file(core, page())
+    r = client.post("/api/v1/ai/evidence/extract", json={"objectId": oid}, headers=auth("member"))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    check("EvidenceExtraction", body)
+    assert (body["docNumber"], body["docDate"]) == ("47-BC/BTCĐUK", "2026-10-16")
+    assert body["docSummary"] == "Báo cáo sơ kết công tác tổ chức cơ sở đảng 9 tháng năm 2026"
+    assert body["matchedTask"]["code"] == "NV-2026-Q4-0142" and body["matchedTask"]["confidence"] >= 0.5
+    with psycopg.connect(db["admin"]) as c:
+        row = c.execute("SELECT use_case, output_text, prompt_redacted FROM ai.suggestion_log WHERE id = %s",
+                        (body["suggestionId"],)).fetchone()
+    assert row is not None and row[0] == "OCR" and "Kính gửi" not in row[1] + row[2]  # không lưu văn bản OCR
+    # Độ khớp dưới 0,5: matchedTask rỗng.
+    from tests.ocr_samples import TEXT
+
+    other = _file(core, page(text=TEXT.replace("Sơ kết công tác tổ chức cơ sở đảng 9 tháng năm 2026",
+                                               "Kết quả hội thao truyền thống năm 2026")))
+    r = client.post("/api/v1/ai/evidence/extract", json={"objectId": other}, headers=auth("member"))
+    assert r.status_code == 200 and r.json()["matchedTask"] is None
+    check("EvidenceExtraction", r.json())
+    blurred = _file(core, page(blur=4))
+    r = client.post("/api/v1/ai/evidence/extract", json={"objectId": blurred}, headers=auth("member"))
+    assert r.status_code == 422 and r.json()["code"] == "AI-422-UNREADABLE"
+    secret = _file(core, page(), e2ee=True)
+    n = len(core.calls)
+    r = client.post("/api/v1/ai/evidence/extract", json={"objectId": secret}, headers=auth("member"))
+    assert r.status_code == 403 and r.json()["code"] == "AI-403-C3-FORBIDDEN"
+    assert f"GET /{secret}" not in core.calls[n:]  # tệp C3 không được tải
+
+
+def test_internal_ocr_for_evidence_service(env: tuple[TestClient, ScriptedLlm, FakeCore]) -> None:
+    import hashlib
+
+    from tests.ocr_samples import page
+
+    client, _, core = env
+    data = page()
+    core.blobs["/ev-cell01-t001/t/0192/sha256/9f/9f86d0"] = data
+    req = {"objectKey": "ev-cell01-t001/t/0192/sha256/9f/9f86d0", "sha256": hashlib.sha256(data).hexdigest(),
+           "mimeType": "image/png", "classification": "C2"}
+    svc = {"Authorization": "Bearer " + token(user=str(uuid.uuid4()), roles=("service_client",),
+                                              azp="evidence-service"), "Idempotency-Key": str(uuid.uuid4())}
+    r = client.post("/api/v1/ai/ocr", json=req, headers=svc)
+    assert r.status_code == 200, r.text
+    check("AiOcrResult", r.json())
+    assert "47-BC/BTCĐUK" in r.json()["fullText"]
+    user = {**auth("member"), "Idempotency-Key": str(uuid.uuid4())}
+    assert client.post("/api/v1/ai/ocr", json=req, headers=user).status_code == 403
+    c3 = client.post("/api/v1/ai/ocr", json={**req, "classification": "C3"},
+                     headers={**svc, "Idempotency-Key": str(uuid.uuid4())})
+    assert c3.status_code == 403 and c3.json()["code"] == "AI-403-C3-FORBIDDEN"
+    bad = client.post("/api/v1/ai/ocr", json={**req, "sha256": "0" * 64},
+                      headers={**svc, "Idempotency-Key": str(uuid.uuid4())})
+    assert bad.status_code == 422

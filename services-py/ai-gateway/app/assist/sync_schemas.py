@@ -13,7 +13,8 @@ import yaml
 HERE = pathlib.Path(__file__).resolve().parent
 OUT = HERE / "schemas.json"
 NAMES = ("AiSuggestionRequest", "AiSuggestion", "DocExtraction", "OkrReviewRequest", "OkrReviewResult",
-         "OkrAssistRequest", "OkrAssistResult", "AiSuggestionDecisionRequest", "AiSourceList", "AiSuggestionPage")
+         "OkrAssistRequest", "OkrAssistResult", "AiSuggestionDecisionRequest", "AiSourceList", "AiSuggestionPage",
+         "EvidenceExtractRequest", "EvidenceExtraction", "AiOcrRequest", "AiOcrResult")
 COMMON = ("Job",)
 
 
