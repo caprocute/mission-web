@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "AggregateMetric",
+  "namespace": "vn.vtokr.agg.v1",
+  "doc": "Topic kỹ thuật agg.province.metric.v1 (lược đồ khung cho họ topic agg.* theo TL-01 / TL-04) · SVC-15 phát số liệu tổng hợp vô danh C0 đã qua ngưỡng k-anonymity từ cấp tỉnh về Trung ương; không gắn định danh cá nhân.",
+  "fields": [
+    {"name": "cellId", "type": "string", "doc": "Định danh ô thống kê tổng hợp (tổ hợp chiều phân tích đã qua kiểm tra k >= 5)"},
+    {"name": "provinceUnitRef", "type": "string", "doc": "Mã tham chiếu đơn vị cấp tỉnh/thành hoặc Đảng bộ trực thuộc"},
+    {"name": "periodId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Định danh kỳ đánh giá"},
+    {"name": "metricKey", "type": "string", "doc": "Khoá chỉ số thống kê chuẩn hoá"},
+    {"name": "value", "type": "double", "doc": "Giá trị thống kê tổng hợp của ô"},
+    {"name": "count", "type": "long", "doc": "Số lượng phần tử đóng góp vào ô tổng hợp (bắt buộc >= 5 theo ngưỡng k-anonymity)"},
+    {"name": "computedAt", "type": {"type": "long", "logicalType": "timestamp-micros"}, "doc": "Thời điểm kết xuất số liệu tổng hợp tại cụm địa phương"}
+  ]
+}

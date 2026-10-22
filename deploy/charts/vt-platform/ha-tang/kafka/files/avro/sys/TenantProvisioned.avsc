@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "TenantProvisioned",
+  "namespace": "vn.vtokr.sys.v1",
+  "doc": "sys.tenant.provisioned.v1 · SVC-03 báo tenant đã khởi tạo xong CSDL, realm, bucket (bước cuối tiến trình tiếp nhận tenant, TL-01). Lược đồ tối thiểu (suy luận).",
+  "fields": [
+    {"name": "tenantCode", "type": "string", "doc": "(suy luận) registry.tenant.code"},
+    {"name": "cellCode", "type": "string", "doc": "(suy luận) Cell đích, ví dụ CELL-HCM"},
+    {"name": "tenancyModel", "type": "string", "doc": "(suy luận) Mô hình thuê bao: SILO, BRIDGE, POOL, AIRGAP"},
+    {"name": "databaseName", "type": "string", "doc": "(suy luận) CSDL dữ liệu tenant (registry.tenant_cell.database_name)"},
+    {"name": "provisionedAt", "type": {"type": "long", "logicalType": "timestamp-micros"}, "doc": "(suy luận) Thời điểm hoàn tất"}
+  ]
+}

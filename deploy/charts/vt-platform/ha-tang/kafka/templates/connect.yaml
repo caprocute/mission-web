@@ -1,0 +1,228 @@
+{{- /* Kafka Connect với Debezium PostgreSQL đọc bảng outbox (ADR-03, TL-03 "Transactional Outbox và Debezium"):
+mỗi CSDL có bảng outbox một connector (gom các schema cùng CSDL), EventRouter định tuyến theo cột topic, payload Avro
+giữ nguyên byte (ByteArrayConverter), khoá là event_key. Mật khẩu vai trò cdc_<csdl> đọc từ Secret qua
+KubernetesSecretConfigProvider, không nằm trong cấu hình connector. */}}
+{{- $v := .Values }}
+{{- if $v.connect.enabled }}
+{{- $c := $v.connect }}
+{{- $dm := include "kafka.danhMuc" . | fromYaml }}
+{{- $rf := index $v.config "default.replication.factor" }}
+{{- /* Gom schema theo (cụm, CSDL). */}}
+{{- $nhom := dict }}
+{{- range $s := $dm.schemaOutbox }}
+{{- if not (has $s.schema $c.boQuaSchema) }}
+{{- $vt := index $c.viTriSchema $s.schema }}
+{{- if not $vt }}{{ fail (printf "kafka: schema %q có outbox nhưng chưa khai báo connect.viTriSchema" $s.schema) }}{{ end }}
+{{- $cum := include "kafka.cumThuc" (dict "root" $ "cum" $vt.cum) }}
+{{- $dsCsdl := ternary $c.csdlTenant (list $vt.csdl) (eq $vt.csdl "tenant") }}
+{{- range $db := $dsCsdl }}
+{{- $k := printf "%s|%s" $cum $db }}
+{{- $_ := set $nhom $k (append (index $nhom $k | default list) (ternary $s.bang (printf "%s.%s" $s.schema $s.bang) (contains "." $s.bang))) }}
+{{- end }}
+{{- end }}
+{{- end }}
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnect
+metadata:
+  name: outbox
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+  annotations:
+    strimzi.io/use-connector-resources: "true"
+spec:
+  version: {{ $v.kafkaVersion }}
+  replicas: {{ $c.replicas.min }}
+  image: {{ include "kafka.anh" $c.image }}
+  bootstrapServers: {{ $v.cluster }}-kafka-bootstrap.{{ $v.namespace }}.svc:9093
+  groupId: {{ $c.groupId }}
+  configStorageTopic: {{ $c.groupId }}-configs
+  offsetStorageTopic: {{ $c.groupId }}-offsets
+  statusStorageTopic: {{ $c.groupId }}-status
+  tls:
+    trustedCertificates:
+      - secretName: {{ $v.cluster }}-cluster-ca-cert
+        pattern: "*.crt"
+  authentication:
+    type: tls
+    certificateAndKey:
+      secretName: kafka-connect
+      certificate: user.crt
+      key: user.key
+  resources:
+    {{- toYaml $c.resources | nindent 4 }}
+  config:
+    config.storage.replication.factor: {{ $rf }}
+    offset.storage.replication.factor: {{ $rf }}
+    status.storage.replication.factor: {{ $rf }}
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    value.converter: org.apache.kafka.connect.converters.ByteArrayConverter
+    config.providers: secrets
+    config.providers.secrets.class: io.strimzi.kafka.KubernetesSecretConfigProvider
+    # Producer của connector: idempotent, acks=all để sự kiện đã commit trong outbox không mất khi broker lỗi.
+    producer.enable.idempotence: true
+    producer.acks: all
+    producer.compression.type: zstd
+  template:
+    pod:
+      {{- if gt (len (uniq $v.global.topology.zones)) 1 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { strimzi.io/name: outbox-connect } }
+      {{- end }}
+      securityContext:
+        {{- toYaml $v.podSecurityContext | nindent 8 }}
+    connectContainer:
+      securityContext:
+        {{- toYaml $v.containerSecurityContext | nindent 8 }}
+{{- /* Topic nội bộ của Connect (Topic Operator tạo, Connect không có quyền Create). */}}
+{{- range $t := list (list "configs" 1) (list "offsets" 25) (list "status" 5) }}
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: {{ $c.groupId }}-{{ index $t 0 }}
+  namespace: {{ $v.namespace }}
+  labels:
+    strimzi.io/cluster: {{ $v.cluster }}
+    {{- include "kafka.labels" $ | nindent 4 }}
+spec:
+  partitions: {{ index $t 1 }}
+  replicas: {{ $rf }}
+  config:
+    cleanup.policy: compact
+    min.insync.replicas: {{ index $v.config "min.insync.replicas" }}
+{{- end }}
+{{- /* Quyền đọc Secret mật khẩu CDC cho tài khoản dịch vụ của Connect (KubernetesSecretConfigProvider). */}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: outbox-connect-doc-bi-mat
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get]
+    resourceNames:
+      {{- range $k := keys $nhom | sortAlpha }}
+      {{- $p := splitList "|" $k }}
+      - cdc-{{ include "kafka.tenK8s" (index $p 0) }}-{{ include "kafka.tenK8s" (index $p 1) }}
+      {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: outbox-connect-doc-bi-mat
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: outbox-connect-doc-bi-mat
+subjects:
+  - kind: ServiceAccount
+    name: outbox-connect
+    namespace: {{ $v.namespace }}
+{{- range $k := keys $nhom | sortAlpha }}
+{{- $p := splitList "|" $k }}
+{{- $cum := index $p 0 }}
+{{- $db := index $p 1 }}
+{{- $ten := printf "outbox-%s-%s" (trimPrefix "pg-" $cum) (include "kafka.tenK8s" $db) }}
+{{- $bm := printf "cdc-%s-%s" (include "kafka.tenK8s" $cum) (include "kafka.tenK8s" $db) }}
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnector
+metadata:
+  name: {{ $ten }}
+  namespace: {{ $v.namespace }}
+  labels:
+    strimzi.io/cluster: outbox
+    {{- include "kafka.labels" $ | nindent 4 }}
+spec:
+  class: io.debezium.connector.postgresql.PostgresConnector
+  # pgoutput đọc một khe sao chép nên một tác vụ là tối đa.
+  tasksMax: 1
+  config:
+    database.hostname: {{ $cum }}-rw.{{ index $c.namespaceCum $cum }}.svc
+    database.port: 5432
+    database.dbname: {{ $db }}
+    database.user: cdc_{{ $db }}
+    database.password: ${secrets:{{ $v.namespace }}/{{ $bm }}:password}
+    database.sslmode: {{ $c.sslmode }}
+    topic.prefix: {{ $ten }}
+    plugin.name: pgoutput
+    slot.name: dbz_outbox_{{ $db }}
+    publication.name: pub_outbox
+    # Khe và publication do data-pg tạo (vai trò cdc không có quyền tạo); chỉ đọc thay đổi mới, không chụp lại.
+    publication.autocreate.mode: disabled
+    snapshot.mode: no_data
+    table.include.list: {{ index $nhom $k | uniq | sortAlpha | join "," }}
+    tombstones.on.delete: false
+    binary.handling.mode: bytes
+    heartbeat.interval.ms: {{ $c.heartbeatMs }}
+    {{- with $c.heartbeatActionQuery }}
+    heartbeat.action.query: {{ . | quote }}
+    {{- end }}
+    transforms: outbox
+    transforms.outbox.type: io.debezium.transforms.outbox.EventRouter
+    transforms.outbox.route.by.field: topic
+    transforms.outbox.route.topic.replacement: ${routedByValue}
+    transforms.outbox.table.field.event.id: id
+    transforms.outbox.table.field.event.key: event_key
+    transforms.outbox.table.field.event.payload: payload
+    transforms.outbox.table.field.event.timestamp: created_at
+    # Cột của outbox_event thành header CloudEvents (TL-03, contracts/events/outbox-sources.yaml). traceparent và
+    # classification nằm trong cột jsonb headers nên đi kèm nguyên khối ở header ce_headers (điểm lệch, wiki 14).
+    transforms.outbox.table.fields.additional.placement: id:header:ce_id,event_type:header:ce_type,tenant_id:header:ce_tenantid,aggregate_type:header:ce_source,aggregate_version:header:aggregate_version,schema_version:header:apicurio.value.globalId,headers:header:ce_headers
+    transforms.outbox.table.op.invalid.behavior: warn
+{{- if $c.externalSecrets.enabled }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $bm }}
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" $ | nindent 4 }}
+spec:
+  refreshInterval: {{ $c.externalSecrets.refreshInterval }}
+  secretStoreRef:
+    kind: {{ $c.externalSecrets.secretStore.kind }}
+    name: {{ $c.externalSecrets.secretStore.name }}
+  target:
+    name: {{ $bm }}
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: cdc_{{ $db }}
+        password: "{{ "{{ .password }}" }}"
+  data:
+    - secretKey: password
+      remoteRef:
+        key: {{ $c.externalSecrets.path }}/{{ $cum }}/cdc_{{ $db }}
+{{- end }}
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: {{ printf "debezium-heartbeat-%s" $ten }}
+  namespace: {{ $v.namespace }}
+  labels:
+    strimzi.io/cluster: {{ $v.cluster }}
+    {{- include "kafka.labels" $ | nindent 4 }}
+spec:
+  topicName: __debezium-heartbeat.{{ $ten }}
+  partitions: 1
+  replicas: {{ $rf }}
+  config:
+    retention.ms: 86400000
+    min.insync.replicas: {{ index $v.config "min.insync.replicas" }}
+{{- end }}
+{{- end }}

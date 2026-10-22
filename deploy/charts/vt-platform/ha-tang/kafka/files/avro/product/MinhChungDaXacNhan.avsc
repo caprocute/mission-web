@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "MinhChungDaXacNhan",
+  "namespace": "vn.vtokr.product.v1",
+  "doc": "EVT-08 · product.evidence.accepted.v1 · MOD-03 phát khi minh chứng được nghiệm thu xác nhận.",
+  "fields": [
+    {"name": "evidenceId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "product.evidence.id"},
+    {"name": "versionId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "product.evidence_version.id"},
+    {"name": "taskId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "task.task.id"},
+    {"name": "qualityLevel", "type": {"type": "bytes", "logicalType": "decimal", "precision": 3, "scale": 2}, "doc": "Mức chất lượng năm mức: 1, 0.75, 0.5, 0.25, 0 (product.acceptance.quality_level)"},
+    {"name": "acceptedBy", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người nghiệm thu"},
+    {"name": "acceptedAt", "type": {"type": "long", "logicalType": "timestamp-micros"}, "doc": "Thời điểm xác nhận"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

@@ -1,2 +1,163 @@
-# Khung giữ chỗ của INF-02; INF-10 khai báo values và templates thật.
-{}
+# Tầng sự kiện của cell (INF-10, ADR-03, TL-04 mục 4.6, TL-03 "Transactional Outbox và Debezium"): cụm Kafka KRaft
+# do Strimzi quản lý, topic, người dùng và ACL dạng CR, Kafka Connect với Debezium đọc bảng outbox, Apicurio Registry.
+# Danh mục topic, ACL và schema có outbox sinh từ contracts/events bằng sinh_danh_muc.py (files/danh-muc.yaml).
+# Mặc định là cell hạng L; tệp hồ sơ sizing/values-sizing-<hồ sơ>.yaml (INF-03) ghi đè brokers, controllers,
+# topics, connect theo TL-05 "Kafka và Valkey". Operator Strimzi 1.2.0 cài riêng (API kafka.strimzi.io/v1).
+global:
+  cell: ""
+  sizing: L
+  topology:
+    zones: [hl-a, hl-b, hl-c]
+
+namespace: data-kafka
+# Tên cụm Strimzi; cell-base đã mở luồng tới nhãn strimzi.io/cluster: kafka-cell cổng 9093.
+cluster: kafka-cell
+
+# Ảnh Kafka của Strimzi 1.2.0 qua Harbor (proxy quay), ghim digest (SEC-55).
+image:
+  repository: harbor.vt.local/quay/strimzi/kafka
+  tag: 1.2.0-kafka-4.3.1
+  digest: sha256:fef34b5438e8556cc08c01f3e254e47346f061b53a4e38d4289853777e0ea7f1
+kafkaVersion: 4.3.1
+metadataVersion: "4.3"
+
+# tach: broker và controller KRaft là hai node pool (S, M, L); ket-hop: ba node vai trò kép (compact, TL-05).
+cheDo: tach
+brokers:
+  replicas: 6
+  resources: { cpu: "8", memory: 32Gi }
+controllers:
+  replicas: 3
+  resources: { cpu: "1", memory: 4Gi }
+# Ổ dữ liệu broker theo hồ sơ (TL-05: lưu giữ 0,1 / 0,6 / 1,5 / 2,2 TB sau nhân bản, NVMe dư 7–10 lần; M lấy
+# 3500Gi của Phụ lục A, các hồ sơ khác suy luận cùng tỷ lệ). Controller giữ siêu dữ liệu KRaft, 20Gi.
+luuTru:
+  storageClass: nvme-local
+  broker: { compact: 500Gi, S: 1Ti, M: 3500Gi, L: 3500Gi }
+  controller: 20Gi
+
+# Tham số cụm (TL-04 mục 4.6): mất một vùng sự cố không mất sự kiện đã xác nhận.
+config:
+  min.insync.replicas: 2
+  default.replication.factor: 3
+  offsets.topic.replication.factor: 3
+  transaction.state.log.replication.factor: 3
+  transaction.state.log.min.isr: 2
+  unclean.leader.election.enable: false
+  auto.create.topics.enable: false
+  compression.type: zstd
+  # Topic chỉ tạo qua KafkaTopic trong Git; Topic Operator là bên duy nhất được tạo, xoá.
+  delete.topic.enable: true
+
+# Nhóm topic TL-04 mục 4.6: phân vùng và thời gian giữ. scoringInputPartitions, ledgerAppendPartitions của tệp hồ sơ
+# (INF-03) ghi đè nhóm đầu vào tính điểm và sổ cái. nghiepVuCao: 24 ở cell bridge, pool; TL-03 ghi 12 ở cell silo
+# (điểm lệch chờ chốt ở wiki 14), cell silo đặt lại trong values của cell nếu chọn theo TL-03.
+nhomTopic:
+  nghiepVuCao:    { partitions: 24, retention: 7d }
+  dauVaoTinhDiem: { partitions: 48, retention: 7d }
+  nghiepVuThap:   { partitions: 6,  retention: 30d }
+  soCai:          { partitions: 12, retention: 14d }
+  heThong:        { partitions: 12, retention: 7d }
+  # Hàng đợi lỗi và thử lại <topic>.retry.<consumer>, <topic>.dlq.<consumer> (TL-04 mục 4.6, OPS-24).
+  hangDoiLoi:     { partitions: 3,  retention: 30d }
+  # Topic trạng thái tổ chức org.* (ECST): nén theo khoá, giữ 30 ngày (TL-01, TL-03 "Cấu hình topic").
+  nenTheoKhoa:    { retention: 30d }
+topics:
+  scoringInputPartitions: 48
+  ledgerAppendPartitions: 12
+
+# Người dùng Kafka (mTLS) và ACL sinh từ danh mục; thêm người dùng ngoài danh mục ở đây (ví dụ công cụ vận hành).
+# Mỗi tài khoản đọc theo nhóm tiêu thụ cùng tên (tiền tố), ghi và đọc topic <topic>.retry/.dlq.<tài khoản> của mình.
+nguoiDungThem: {}
+
+connect:
+  enabled: true
+  # Ảnh Kafka Connect dựng sẵn có plugin Debezium PostgreSQL (image/Containerfile), không dùng build của Strimzi để
+  # chạy được ở bản cài cách ly. CI thay digest thật (INF-05).
+  image:
+    repository: harbor.vt.local/platform/kafka-connect-debezium
+    tag: 1.2.0-kafka-4.3.1-dbz-3.7.0
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+  replicas: { min: 3, max: 3 }
+  resources: { requests: { cpu: "2", memory: 4Gi }, limits: { cpu: "2", memory: 4Gi } }
+  groupId: connect-outbox
+  # Vị trí bảng outbox theo bố trí CSDL của data-pg (INF-11, wiki 14): cụm và loại CSDL (tenant: mỗi CSDL tenant
+  # một connector; còn lại: tên CSDL cố định). Hồ sơ compact gộp pg-flowable, pg-platform, pg-iam vào pg-core và
+  # pg-secure vào pg-ledger. registry (SVC-03) ở vùng điều phối toàn cục, không thuộc cell.
+  viTriSchema:
+    config: { cum: pg-core, csdl: tenant }
+    policy: { cum: pg-core, csdl: tenant }
+    okr: { cum: pg-core, csdl: tenant }
+    task: { cum: pg-core, csdl: tenant }
+    product: { cum: pg-core, csdl: tenant }
+    appraisal: { cum: pg-core, csdl: tenant }
+    dossier: { cum: pg-core, csdl: tenant }
+    oversight: { cum: pg-core, csdl: tenant }
+    org_replica: { cum: pg-core, csdl: tenant }
+    org: { cum: pg-platform, csdl: tenant }
+    scoring: { cum: pg-platform, csdl: tenant }
+    evidence: { cum: pg-platform, csdl: tenant }
+    docgen: { cum: pg-platform, csdl: tenant }
+    notify: { cum: pg-platform, csdl: cell_shared }
+    integ: { cum: pg-platform, csdl: cell_shared }
+    ledger: { cum: pg-ledger, csdl: ledger }
+    esign: { cum: pg-secure, csdl: esign }
+  # Namespace của cụm (data-pg: cụm ứng dụng ở data-pg, pg-ledger và pg-secure ở secure-data).
+  namespaceCum: { pg-core: data-pg, pg-flowable: data-pg, pg-platform: data-pg, pg-iam: data-pg, pg-ledger: secure-data, pg-secure: secure-data }
+  # CSDL tenant của cell (silo: td_<mã tenant>; bridge: td_<mã tỉnh>); khớp data-pg.tenantDatabases của cell.
+  csdlTenant: [td_mau]
+  # Gộp cụm như data-pg (rỗng: theo hồ sơ, compact gộp). registry thuộc vùng điều phối toàn cục, không có connector.
+  consolidated: ""
+  boQuaSchema: [registry]
+  # TLS tới PostgreSQL (SEC-57, hostssl). verify-full cần CA của CNPG ở namespace data-kafka (chưa có trust bundle).
+  sslmode: require
+  heartbeatMs: 10000
+  # Câu lệnh nhịp tim để khe sao chép tiến lên khi CSDL ít ghi (rỗng: không dùng; bảng do data-pg tạo).
+  heartbeatActionQuery: ""
+  # Mật khẩu vai trò cdc_<csdl> từ OpenBao qua ESO, khoá <path>/<cụm>/cdc_<csdl> (cùng quy ước data-pg).
+  externalSecrets:
+    enabled: true
+    secretStore: { kind: ClusterSecretStore, name: openbao-cell }
+    path: kv/data-pg
+    refreshInterval: 1h
+
+apicurio:
+  enabled: true
+  image:
+    repository: harbor.vt.local/quay/apicurio/apicurio-registry
+    tag: 3.3.3
+    digest: sha256:c9cae4c90ce46538abf673c68eb591345f23bcc6c2aa6bfd47189adcf609d8f1
+  replicas: 2
+  resources: { requests: { cpu: 500m, memory: 1Gi }, limits: { cpu: "1", memory: 1Gi } }
+  # Lưu trên PostgreSQL: CSDL apicurio trên pg-platform (suy luận; hồ sơ compact gộp vào pg-core như connect.consolidated;
+  # data-pg cần thêm CSDL và vai trò này). Secret basic-auth (username, password) do ESO tạo từ <path>/<cụm>/apicurio.
+  datasource:
+    cum: pg-platform
+    csdl: apicurio
+    secret: apicurio-db
+  externalSecret: { enabled: true }
+  # Quy tắc tương thích toàn cục (TL-03: BACKWARD_TRANSITIVE; catalog.yaml) và kiểm cú pháp.
+  quyTac: { COMPATIBILITY: BACKWARD_TRANSITIVE, VALIDITY: FULL }
+  # Job đăng ký lược đồ từ files/avro (bản sao contracts/events/avro) sau mỗi lần cài hoặc nâng cấp.
+  dangKy:
+    enabled: true
+    image:
+      repository: harbor.vt.local/dockerhub/library/python
+      tag: 3.13-alpine
+      digest: sha256:c50ccfb66e5cc97a610dcd0b9597de6ef5b52c96280b51997b353a0fc87a8361
+  # Thời gian Job đăng ký lược đồ chờ tối đa (giây).
+  hanJob: 900
+  # Namespace được gọi Apicurio (ứng dụng tuần tự hoá Avro; Job đăng ký chạy trong data-kafka).
+  clientNamespaces: [core, identity, platform, workers, analytics, secure, data-kafka]
+
+# Gọi kube-apiserver (Entity Operator, Connect đọc Secret) qua CiliumNetworkPolicy như data-pg.
+cilium: true
+observabilityNamespace: observability
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile: { type: RuntimeDefault }
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: { drop: [ALL] }

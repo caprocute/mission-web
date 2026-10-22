@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "MucTieuDaDuyet",
+  "namespace": "vn.vtokr.okr.v1",
+  "doc": "EVT-01 · okr.objective.approved.v1 · MOD-01 phát khi mục tiêu được phê duyệt (TL-03 danh mục lược đồ).",
+  "fields": [
+    {"name": "objectiveId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "okr.objective.id"},
+    {"name": "periodId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Kỳ đánh giá, config.period.id"},
+    {"name": "level", "type": "int", "doc": "(suy luận) Tầng của mục tiêu, okr.objective.tier (1 đến 3)"},
+    {"name": "ownerUnitId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Đơn vị sở hữu mục tiêu, okr.objective.owner_unit_id"},
+    {"name": "parentObjectiveId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "Mục tiêu cấp trên khi phân rã"},
+    {"name": "basisIds", "type": {"type": "array", "items": {"type": "string", "logicalType": "uuid"}}, "default": [], "doc": "Các căn cứ của mục tiêu (okr.objective_basis.basis_id)"},
+    {"name": "approvedBy", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người phê duyệt"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

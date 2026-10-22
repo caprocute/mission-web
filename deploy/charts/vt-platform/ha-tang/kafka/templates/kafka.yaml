@@ -1,0 +1,102 @@
+{{- /* Cụm Kafka KRaft (TL-04 mục 4.6, TL-05 "Kafka và Valkey"): broker rải đều theo vùng nhờ rack, listener mTLS duy
+nhất cổng 9093, phân quyền simple theo KafkaUser (SEC-57). Hồ sơ compact: ba node vai trò kép trong một vùng. */}}
+{{- $v := .Values }}
+{{- $hs := include "kafka.sizing" . }}
+{{- $ketHop := or (eq $v.cheDo "ket-hop") (eq $hs "compact") }}
+{{- $kichThuoc := index $v.luuTru.broker $hs | default (index $v.luuTru.broker "L") }}
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: {{ $v.cluster }}
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  kafka:
+    version: {{ $v.kafkaVersion }}
+    metadataVersion: {{ $v.metadataVersion | quote }}
+    image: {{ include "kafka.anh" $v.image }}
+    listeners:
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+        authentication: { type: tls }
+    authorization:
+      type: simple
+    {{- if gt (len (uniq $v.global.topology.zones)) 1 }}
+    rack:
+      topologyKey: topology.kubernetes.io/zone
+    {{- end }}
+    config:
+      {{- range $k, $x := $v.config }}
+      {{ $k }}: {{ $x }}
+      {{- end }}
+    template:
+      pod:
+        securityContext:
+          {{- toYaml $v.podSecurityContext | nindent 10 }}
+      kafkaContainer:
+        securityContext:
+          {{- toYaml $v.containerSecurityContext | nindent 10 }}
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
+    template:
+      pod:
+        securityContext:
+          {{- toYaml $v.podSecurityContext | nindent 10 }}
+      topicOperatorContainer:
+        securityContext:
+          {{- toYaml $v.containerSecurityContext | nindent 10 }}
+      userOperatorContainer:
+        securityContext:
+          {{- toYaml $v.containerSecurityContext | nindent 10 }}
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: broker
+  namespace: {{ $v.namespace }}
+  labels:
+    strimzi.io/cluster: {{ $v.cluster }}
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $v.brokers.replicas }}
+  roles: {{ ternary (list "controller" "broker") (list "broker") $ketHop | toJson }}
+  resources:
+    requests: { cpu: {{ $v.brokers.resources.cpu | quote }}, memory: {{ $v.brokers.resources.memory }} }
+    limits: { cpu: {{ $v.brokers.resources.cpu | quote }}, memory: {{ $v.brokers.resources.memory }} }
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: {{ $kichThuoc }}
+        class: {{ $v.luuTru.storageClass }}
+        deleteClaim: false
+        kraftMetadata: shared
+  {{- include "kafka.raiNode" (dict "v" $v "pool" "broker") | nindent 2 }}
+{{- if not $ketHop }}
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: controller
+  namespace: {{ $v.namespace }}
+  labels:
+    strimzi.io/cluster: {{ $v.cluster }}
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $v.controllers.replicas }}
+  roles: [controller]
+  resources:
+    requests: { cpu: {{ $v.controllers.resources.cpu | quote }}, memory: {{ $v.controllers.resources.memory }} }
+    limits: { cpu: {{ $v.controllers.resources.cpu | quote }}, memory: {{ $v.controllers.resources.memory }} }
+  storage:
+    type: persistent-claim
+    size: {{ $v.luuTru.controller }}
+    class: {{ $v.luuTru.storageClass }}
+    deleteClaim: false
+  {{- include "kafka.raiNode" (dict "v" $v "pool" "controller") | nindent 2 }}
+{{- end }}

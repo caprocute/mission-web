@@ -1,0 +1,25 @@
+{
+  "type": "record",
+  "name": "DonViDaThayDoi",
+  "namespace": "vn.vtokr.org.v1",
+  "doc": "EVT-14 · org.unit.changed.v1 · SVC-04 phát toàn bộ trạng thái mới của đơn vị (Event-carried State Transfer).",
+  "fields": [
+    {"name": "unitId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "org.org_unit.id (mã đơn vị ổn định)"},
+    {"name": "versionId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "org.org_unit.version_id"},
+    {"name": "sourceVersion", "type": "long", "doc": "Phiên bản ở nguồn; bản sao chỉ ghi đè khi lớn hơn source_version đang có"},
+    {"name": "code", "type": "string", "doc": "Mã đơn vị nội bộ"},
+    {"name": "name", "type": "string", "doc": "Tên đơn vị"},
+    {"name": "shortName", "type": ["null", "string"], "default": null, "doc": "Tên viết tắt"},
+    {"name": "unitType", "type": "string", "doc": "Loại đơn vị: TO_CHUC_DANG, CHI_BO, CO_QUAN, DON_VI_SU_NGHIEP, PHONG_BAN, XA_PHUONG, DOANH_NGHIEP"},
+    {"name": "subjectGroupId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "Khối đối tượng theo PL 2A"},
+    {"name": "isCollectiveSubject", "type": "boolean", "default": true, "doc": "Đơn vị được đánh giá như tập thể"},
+    {"name": "flows", "type": {"type": "array", "items": "string"}, "default": [], "doc": "Luồng áp dụng: DANG, NHA_NUOC"},
+    {"name": "level", "type": "string", "doc": "Cấp đơn vị (TW, tỉnh, xã)"},
+    {"name": "validFrom", "type": {"type": "int", "logicalType": "date"}, "doc": "Ngày bắt đầu hiệu lực"},
+    {"name": "validTo", "type": ["null", {"type": "int", "logicalType": "date"}], "default": null, "doc": "(suy luận) Ngày hết hiệu lực; null nghĩa là vô thời hạn ('infinity' ở nguồn)"},
+    {"name": "changeOrderId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "Quyết định sinh ra phiên bản (org.org_change_order)"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."},
+    {"name": "partyParentId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "(bổ sung CORE-00-03) Cấp trên trực thuộc trên cây Đảng tại validFrom; null là gốc. Cần cho org_replica.org_unit_v.party_parent_id và bao đóng unit_closure_v."},
+    {"name": "adminParentId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "(bổ sung CORE-00-03) Cấp trên trực thuộc trên cây chuyên môn tại validFrom; null là gốc."}
+  ]
+}

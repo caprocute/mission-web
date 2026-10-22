@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "AuthEvent",
+  "namespace": "vn.vtokr.iam.v1",
+  "doc": "iam.auth.event.v1 · Sự kiện xác thực Keycloak (đăng nhập thành công, thất bại, đổi MFA, thu hồi phiên) cho analytics và SOC. Lược đồ tối thiểu (suy luận); không mang mật khẩu, mã OTP hay token.",
+  "fields": [
+    {"name": "eventType", "type": "string", "doc": "(suy luận) Loại sự kiện Keycloak, ví dụ LOGIN, LOGIN_ERROR, LOGOUT, UPDATE_TOTP"},
+    {"name": "userId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "(suy luận) sub của người dùng; null khi đăng nhập thất bại không xác định được người dùng"},
+    {"name": "clientId", "type": ["null", "string"], "default": null, "doc": "(suy luận) Client OIDC"},
+    {"name": "sessionId", "type": ["null", "string"], "default": null, "doc": "(suy luận) Mã phiên, phục vụ thu hồi phiên ≤ 5 s (TL-04 D5)"},
+    {"name": "error", "type": ["null", "string"], "default": null, "doc": "(suy luận) Mã lỗi Keycloak khi thất bại"}
+  ]
+}

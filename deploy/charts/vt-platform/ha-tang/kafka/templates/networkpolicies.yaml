@@ -1,0 +1,111 @@
+{{- /* NetworkPolicy của namespace Kafka (TL-04 mục 3.6), bổ sung cho default-deny của cell-base. Strimzi tự sinh chính
+sách ingress cho broker, controller, Connect; chart thêm phía egress: nội bộ cụm, Connect tới broker và tới
+PostgreSQL có outbox, Apicurio tới CSDL của nó, Job đăng ký tới Apicurio; ingress của Apicurio từ namespace khách.
+Entity Operator và Connect gọi kube-apiserver qua CiliumNetworkPolicy. */}}
+{{- $v := .Values }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka-noi-bo
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { strimzi.io/cluster: {{ $v.cluster }} }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { strimzi.io/cluster: {{ $v.cluster }} } }
+{{- if $v.connect.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: connect-ra
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { strimzi.io/cluster: outbox, strimzi.io/kind: KafkaConnect }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { strimzi.io/cluster: {{ $v.cluster }}, strimzi.io/broker-role: "true" } }
+      ports: [{ port: 9093, protocol: TCP }]
+    {{- $nsPg := dict }}
+    {{- range $s, $vt := $v.connect.viTriSchema }}
+    {{- $cum := include "kafka.cumThuc" (dict "root" $ "cum" $vt.cum) }}
+    {{- $_ := set $nsPg (index $v.connect.namespaceCum $cum) true }}
+    {{- end }}
+    - to:
+        {{- range $ns := keys $nsPg | sortAlpha }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $ns }} } }
+          podSelector: { matchExpressions: [{ key: cnpg.io/cluster, operator: Exists }] }
+        {{- end }}
+      ports: [{ port: 5432, protocol: TCP }]
+{{- end }}
+{{- if $v.apicurio.enabled }}
+{{- $cum := include "kafka.cumThuc" (dict "root" $ "cum" $v.apicurio.datasource.cum) }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apicurio-registry
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: apicurio-registry }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        {{- range $v.apicurio.clientNamespaces }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ . }} } }
+        {{- end }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $v.observabilityNamespace }} } }
+      ports: [{ port: 8080, protocol: TCP }]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ index $v.connect.namespaceCum $cum }} } }
+          podSelector: { matchLabels: { cnpg.io/cluster: {{ $cum }} } }
+      ports: [{ port: 5432, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apicurio-dang-ky
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: apicurio-dang-ky }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: apicurio-registry } }
+      ports: [{ port: 8080, protocol: TCP }]
+{{- end }}
+{{- if $v.cilium }}
+{{- range $p := list (list "entity-operator" "Entity Operator quản lý topic và người dùng." (dict "k8s:strimzi.io/cluster" $v.cluster "k8s:strimzi.io/name" (printf "%s-entity-operator" $v.cluster))) (list "connect" "Kafka Connect đọc Secret mật khẩu CDC (KubernetesSecretConfigProvider)." (dict "k8s:strimzi.io/cluster" "outbox" "k8s:strimzi.io/kind" "KafkaConnect")) }}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: kafka-{{ index $p 0 }}-kube-apiserver
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "kafka.labels" $ | nindent 4 }}
+spec:
+  description: {{ index $p 1 }}
+  endpointSelector:
+    matchLabels:
+      {{- toYaml (index $p 2) | nindent 6 }}
+  egress:
+    - toEntities: [kube-apiserver]
+{{- end }}
+{{- end }}
