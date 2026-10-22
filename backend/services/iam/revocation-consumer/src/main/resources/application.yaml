@@ -1,0 +1,25 @@
+# DV-02-05 · Consumer danh sách phiên bị thu hồi. Địa chỉ Kafka, Valkey theo cell đặt ở chart (biến môi trường).
+spring:
+  application:
+    name: iam-revocation-consumer
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+  data:
+    redis:
+      host: ${VALKEY_HOST:localhost}
+      port: ${VALKEY_PORT:6379}
+      password: ${VALKEY_PASSWORD:}
+server:
+  port: 8080
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+mission:
+  revocation:
+    ttl: 10h
