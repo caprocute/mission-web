@@ -52,6 +52,8 @@ platformChart:
     - "values-{{ .model }}.yaml"
     - "sizing/values-sizing-{{ lower .cell.sizing }}.yaml"
     - "../../cells/{{ .cell.name }}/values.yaml"
+    # Cửa sổ tăng trước KEDA theo kỳ của cell, do deploy/tools/prescale/sinh_cua_so.py sinh (INF-16).
+    - "../../cells/{{ .cell.name }}/prescale-windows.yaml"
     - "../../cells/{{ .cell.name }}/values-{{ .site }}.yaml"
 
 # Hai AppProject: okr-apps cho dịch vụ ứng dụng (TL-04 mục 9.6, không tài nguyên cấp cụm, không RBAC, không

@@ -205,10 +205,17 @@ spec:
 {{- end }}
 {{- end -}}
 
-{{/* ScaledObject KEDA; dùng chung behavior HPA chuẩn qua advanced.horizontalPodAutoscalerConfig. */}}
+{{/*
+ScaledObject KEDA (TL-04 mục 6.3, 6.4). Thứ tự trigger: độ trễ Kafka, trigger khai báo tay, CPU, rồi các cửa sổ tăng
+trước: deadline-default (luôn là sàn, OPS-06) và cửa sổ bổ sung theo kỳ của cell (global.cuaSoTangTruoc).
+HPA lấy giá trị lớn nhất giữa các trigger nên ngoài cửa sổ, trigger cron trả 0 và không ảnh hưởng.
+*/}}
 {{- define "vt-service.scaledObject" -}}
 {{- $k := .v.autoscaling.keda -}}
 {{- if $k.enabled }}
+{{- $kf := $k.kafka | default dict }}
+{{- $ps := $k.preScale | default dict }}
+{{- $tenXacThuc := printf "%s-kafka-tls" .v.name }}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -225,18 +232,37 @@ spec:
   advanced:
     horizontalPodAutoscalerConfig:
       behavior:
-        {{- toYaml .v.autoscaling.hpa.behavior | nindent 8 }}
+        {{- toYaml (default .v.autoscaling.hpa.behavior $k.behavior) | nindent 8 }}
   triggers:
-    {{- if $k.triggers }}
-    {{- toYaml $k.triggers | nindent 4 }}
-    {{- else }}
+    {{- range $t := $kf.topics }}
+    - type: kafka
+      name: {{ default (printf "lag-%s" (regexReplaceAll "[^a-z0-9]+" $t.topic "-")) $t.name | trunc 63 | trimSuffix "-" }}
+      metadata:
+        bootstrapServers: {{ $kf.bootstrapServers }}
+        consumerGroup: {{ default $.v.name $kf.consumerGroup }}
+        topic: {{ $t.topic }}
+        lagThreshold: {{ $t.lagThreshold | int | quote }}
+        activationLagThreshold: {{ default 1 $t.activationLagThreshold | int | quote }}
+        offsetResetPolicy: {{ $kf.offsetResetPolicy }}
+        allowIdleConsumers: "false"
+        limitToPartitionsWithLag: "true"
+        {{- if $kf.tls }}
+        tls: enable
+        {{- end }}
+      {{- if $kf.tls }}
+      authenticationRef:
+        name: {{ $tenXacThuc }}
+      {{- end }}
+    {{- end }}
+    {{- with $k.triggers }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if or (gt (int $k.cpuUtilization) 0) (and (not $k.triggers) (not $kf.topics)) }}
     - type: cpu
       metricType: Utilization
       metadata:
-        value: {{ .v.autoscaling.hpa.cpuUtilization | int | quote }}
+        value: {{ default .v.autoscaling.hpa.cpuUtilization $k.cpuUtilization | int | quote }}
     {{- end }}
-    {{- /* Cửa sổ tăng trước deadline-default (TL-04 mục 6.4): mỗi cửa sổ một trigger cron 06:00–23:00. */}}
-    {{- $ps := $k.preScale | default dict }}
     {{- range $w := list (list "cuoi-quy" "24-31" "3,6,9,12" $ps.cuoiQuy) (list "truoc-ngay-10-dau-quy" "1-10" "1,4,7,10" $ps.dauQuy) (list "ho-so-nam-thang-1" "20-31" "1" $ps.hoSoNam) (list "ho-so-nam-ngay-1-2" "1" "2" $ps.hoSoNam) }}
     {{- if gt (int (index $w 3)) 0 }}
     - type: cron
@@ -248,6 +274,35 @@ spec:
         desiredReplicas: {{ index $w 3 | int | quote }}
     {{- end }}
     {{- end }}
+    {{- range $cs := (.v.global.cuaSoTangTruoc | default list) }}
+    {{- $so := int (index ($cs.soPod | default dict) $.v.name | default 0) }}
+    {{- if gt $so 0 }}
+    {{- range $i, $l := $cs.lich }}
+    - type: cron
+      name: {{ printf "%s-%d" $cs.ten $i }}
+      metadata:
+        timezone: Asia/Ho_Chi_Minh
+        start: {{ printf "0 %d %s %s *" (int (default 6 $cs.gioBatDau)) $l.ngay (toString $l.thang) | quote }}
+        end: {{ printf "0 %d %s %s *" (int (default 23 $cs.gioKetThuc)) $l.ngay (toString $l.thang) | quote }}
+        desiredReplicas: {{ $so | quote }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
+{{- if and $kf.topics $kf.tls }}
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ $tenXacThuc }}
+  namespace: {{ .v.namespace }}
+  labels:
+    {{- include "vt-service.labels" . | nindent 4 }}
+spec:
+  secretTargetRef:
+    - { parameter: ca, name: {{ default (printf "kafka-%s-tls" .v.name) $kf.tlsSecret }}, key: ca.crt }
+    - { parameter: cert, name: {{ default (printf "kafka-%s-tls" .v.name) $kf.tlsSecret }}, key: user.crt }
+    - { parameter: key, name: {{ default (printf "kafka-%s-tls" .v.name) $kf.tlsSecret }}, key: user.key }
+{{- end }}
 {{- end }}
 {{- end -}}
 

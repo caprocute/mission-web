@@ -1,23 +1,56 @@
-{{- if .Values.executor.keda.enabled }}
+{{- /*
+workflow-executor co giãn bằng KEDA theo số job Flowable đến hạn chưa được thu nhận (TL-04 mục 6.6): chỉ số
+flowable_async_jobs_due_unlocked do workflow-service xuất qua Micrometer từ truy vấn đếm có giới hạn trên bản sao
+đọc của pg-flowable, kèm trigger CPU. Đặt executor.keda.prometheus.query rỗng để quay về trigger postgresql
+đếm trực tiếp act_ru_job (cần TriggerAuthentication authenticationRefName).
+*/ -}}
+{{- $e := .Values.executor }}
+{{- if $e.keda.enabled }}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: workflow-async-executor
+  name: {{ $e.name }}
   namespace: {{ include "workflow-service.namespace" . }}
   labels:
     {{- include "workflow-service.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
-    name: {{ .Values.executor.name }}
-  minReplicaCount: {{ .Values.executor.keda.minReplicaCount }}
-  maxReplicaCount: {{ .Values.executor.keda.maxReplicaCount }}
-  pollingInterval: {{ .Values.executor.keda.pollingInterval }}
-  cooldownPeriod: {{ .Values.executor.keda.cooldownPeriod }}
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $e.name }}
+  minReplicaCount: {{ $e.keda.minReplicaCount }}
+  maxReplicaCount: {{ $e.keda.maxReplicaCount }}
+  pollingInterval: {{ $e.keda.pollingInterval }}
+  cooldownPeriod: {{ $e.keda.cooldownPeriod }}
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        {{- toYaml .Values.behavior | nindent 8 }}
   triggers:
+    {{- with $e.keda.prometheus }}
+    {{- if .query }}
+    - type: prometheus
+      name: flowable-due-jobs
+      metadata:
+        serverAddress: {{ .serverAddress }}
+        query: {{ .query | quote }}
+        threshold: {{ .threshold | quote }}
+        activationThreshold: {{ .activationThreshold | quote }}
+    {{- end }}
+    {{- end }}
+    {{- if not $e.keda.prometheus.query }}
     - type: postgresql
       metadata:
-        targetQueryValue: {{ .Values.executor.keda.targetQueryValue | quote }}
-        query: {{ .Values.executor.keda.query | quote }}
+        targetQueryValue: {{ $e.keda.targetQueryValue | quote }}
+        query: {{ $e.keda.query | quote }}
       authenticationRef:
-        name: {{ .Values.executor.keda.authenticationRefName }}
+        name: {{ $e.keda.authenticationRefName }}
+    {{- end }}
+    {{- if $e.keda.cpuUtilization }}
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: {{ $e.keda.cpuUtilization | quote }}
+    {{- end }}
+    {{- include "workflow-service.cron" (dict "tt" ($e.tangTruoc | default dict) "ten" $e.name "global" .Values.global) | nindent 4 }}
 {{- end }}

@@ -208,8 +208,26 @@ autoscaling:
     maxReplicas: 6
     pollingInterval: 15
     cooldownPeriod: 300
+    # behavior của HPA mà KEDA sinh ra; rỗng thì dùng autoscaling.hpa.behavior (TL-04 mục 6.3 đặt riêng cho worker).
+    behavior: {}
+    # Trigger CPU đi kèm các trigger khác (TL-04 mục 6.3, 6.4); 0 thì chỉ thêm CPU (ngưỡng hpa.cpuUtilization)
+    # khi không có trigger nào khác.
+    cpuUtilization: 0
     triggers: []
+    # Độ trễ consumer Kafka (TL-04 mục 6.3). Mỗi phần tử: { topic, lagThreshold, activationLagThreshold, name? }.
+    # Xác thực mTLS bằng chứng chỉ KafkaUser của chính service (đã có quyền Describe nhóm và topic nhờ ACL Read).
+    kafka:
+      topics: []
+      bootstrapServers: kafka-cell-kafka-bootstrap.data-kafka.svc:9093
+      # Rỗng: tên service (nhóm tiêu thụ là tiền tố tên tài khoản Kafka, INF-10).
+      consumerGroup: ""
+      offsetResetPolicy: earliest
+      tls: true
+      # Secret có ca.crt, user.crt, user.key; rỗng: kafka-<tên service>-tls.
+      tlsSecret: ""
     # Số pod tối thiểu trong từng cửa sổ deadline-default: cuoiQuy, dauQuy, hoSoNam; 0 hoặc thiếu là bỏ qua.
+    # Cửa sổ bổ sung theo kỳ của cell nằm ở global.cuaSoTangTruoc (tệp cells/<cell>/prescale-windows.yaml do
+    # deploy/tools/prescale sinh); mỗi cửa sổ có soPod theo tên service.
     preScale: {}
 
 networkPolicy:
