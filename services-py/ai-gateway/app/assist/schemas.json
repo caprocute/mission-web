@@ -1654,6 +1654,31 @@
   ],
   "type": "object"
  },
+ "SpeechToTextResult": {
+  "properties": {
+   "confidence": {
+    "maximum": 1,
+    "minimum": 0,
+    "type": "number"
+   },
+   "durationMs": {
+    "minimum": 0,
+    "type": "integer"
+   },
+   "model": {
+    "type": "string"
+   },
+   "text": {
+    "maxLength": 1000,
+    "type": "string"
+   }
+  },
+  "required": [
+   "text",
+   "model"
+  ],
+  "type": "object"
+ },
  "TaskSuggestion": {
   "description": "Một nhiệm vụ do AI trích từ văn bản (`ai.suggestion_log`, use_case `GOI_Y_NHIEM_VU`), dùng chung giữa MOD-02 và SVC-14.",
   "properties": {

@@ -17,6 +17,7 @@ from app.store.suggestions import SuggestionStore
 if TYPE_CHECKING:
     from app.assist.evidence import EvidenceOcr
     from app.assist.service import AssistService
+    from app.speech.service import SpeechService
 
 
 @dataclass
@@ -32,4 +33,5 @@ class State:
     idempotency: IdempotencyStore
     assist: AssistService
     evidence: EvidenceOcr
+    speech: SpeechService
     ocr_clients: tuple[str, ...] = ()

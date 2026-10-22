@@ -36,6 +36,10 @@ Job tóm tắt tuần `python -m app.assist.weekly <tenant>...` chạy lúc 23:0
 
 `POST /api/v1/ai/evidence/extract` đọc tệp minh chứng người dùng vừa tải lên, trả số ký hiệu, ngày, trích yếu và nhiệm vụ khớp nhất. `POST /api/v1/ai/ocr` là API nội bộ cho evidence-service và search-indexer (kiểm `azp` theo `OCR_CLIENTS`). Tệp E2EE hoặc C3 bị từ chối 403; ảnh mờ trả 422 `AI-422-UNREADABLE`. Cấu hình: `OCR_MODE` (`mock` hoặc `viettel`), `OCR_BASE_URL`, `OCR_API_KEY`, `OBJECT_BASE_URL`.
 
+## Giọng nói thành văn bản (DV-14-07)
+
+`POST /api/v1/ai/speech-to-text` nhận đoạn ghi âm multipart (WebM, Ogg, WAV, MP4; tối đa 60 giây và 2 MB), kiểm kiểu theo nội dung thật, giải mã trong bộ nhớ bằng PyAV rồi gửi bộ nhận dạng. Không lưu âm thanh hay văn bản. Cấu hình: `ASR_MODE` (`mock` hoặc `openai`), `ASR_BASE_URL`, `ASR_MODEL`, `ASR_API_KEY`, `ASR_PER_USER_PER_MINUTE` (mặc định 10), `ASR_MAX_CONCURRENCY`, `ASR_MAX_WAITING`, `AI_DISABLED`.
+
 ## Hàng đợi suy luận và 202
 
 `InferenceQueue` giới hạn số suy luận đồng thời (`LLM_MAX_CONCURRENCY`) và số yêu cầu chờ (`LLM_MAX_WAITING`), xuất metric `ai_inference_queue_length` cho HPA cùng `ai_inference_in_flight` và `ai_inference_seconds`. Khi hàng đợi đầy, hoặc suy luận chưa xong sau `LLM_SYNC_WAIT_SECONDS`, `Gateway` trả `Accepted`: API trả 202 kèm job theo mẫu chung (`status = CHO`, `resultLocation` và `Location` là `/api/v1/ai/suggestions/{id}`, MSG-17-03) và tiếp tục xử lý nền; kết quả được ghi với đúng mã đó nên `GET /api/v1/ai/suggestions/{id}` (getAiSuggestion) trả gợi ý khi xong. Số việc hoãn mỗi tiến trình tối đa `AI_DEFERRED_MAX`; vượt thì 429.

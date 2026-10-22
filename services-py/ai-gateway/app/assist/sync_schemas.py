@@ -14,7 +14,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 OUT = HERE / "schemas.json"
 NAMES = ("AiSuggestionRequest", "AiSuggestion", "DocExtraction", "OkrReviewRequest", "OkrReviewResult",
          "OkrAssistRequest", "OkrAssistResult", "AiSuggestionDecisionRequest", "AiSourceList", "AiSuggestionPage",
-         "EvidenceExtractRequest", "EvidenceExtraction", "AiOcrRequest", "AiOcrResult")
+         "EvidenceExtractRequest", "EvidenceExtraction", "AiOcrRequest", "AiOcrResult",
+         "SpeechToTextResult")
 COMMON = ("Job",)
 
 

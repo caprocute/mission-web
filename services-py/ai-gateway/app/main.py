@@ -17,6 +17,7 @@ from vtplatform.logging import configure_logger
 from vtplatform.otel import extract_headers, reset_current_span_context, set_current_span_context
 
 from app.api import assist, routes
+from app.api import speech as speech_api
 from app.assist.evidence import EvidenceOcr
 from app.assist.extract import Extractor
 from app.assist.service import AssistService
@@ -37,6 +38,8 @@ from app.rag.embed import Embedder, HashEmbedder, OpenAiEmbedder
 from app.rag.ingest import Indexer
 from app.rag.retriever import Retriever
 from app.rag.store import ChunkStore
+from app.speech.recognizer import MockRecognizer, OpenAiAsr, SpeechRecognizer
+from app.speech.service import SpeechService
 from app.store.idempotency import IdempotencyStore
 from app.store.suggestions import SuggestionStore
 
@@ -72,8 +75,20 @@ def build_ocr(s: Settings, transport: httpx.AsyncBaseTransport | None) -> tuple[
     return ViettelOcr(http, s.ocr_model, timeout_s=s.ocr_timeout_s), http
 
 
+def build_asr(s: Settings, transport: httpx.AsyncBaseTransport | None
+              ) -> tuple[SpeechRecognizer, httpx.AsyncClient | None]:
+    if s.asr_mode == "mock":
+        return MockRecognizer(), None
+    if s.asr_mode != "openai" or not s.asr_base_url:
+        raise RuntimeError("ASR_MODE phải là mock hoặc openai (kèm ASR_BASE_URL)")
+    headers = {"Authorization": f"Bearer {s.asr_api_key}"} if s.asr_api_key else {}
+    http = httpx.AsyncClient(base_url=s.asr_base_url, timeout=s.asr_timeout_s, headers=headers, transport=transport)
+    return OpenAiAsr(http, s.asr_model, concurrency=s.asr_max_concurrency, timeout_s=s.asr_timeout_s), http
+
+
 def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncBaseTransport | None = None,
-               llm: Llm | None = None, embedder: Embedder | None = None, ocr: Ocr | None = None) -> FastAPI:
+               llm: Llm | None = None, embedder: Embedder | None = None, ocr: Ocr | None = None,
+               asr: SpeechRecognizer | None = None) -> FastAPI:
     s = settings or Settings.from_env()
 
     @asynccontextmanager
@@ -108,17 +123,22 @@ def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncB
         objects = (httpx.AsyncClient(base_url=s.object_base_url, timeout=s.ocr_timeout_s, transport=http_transport)
                    if s.object_base_url else None)
         retriever = Retriever(chunks, emb)
+        asr_engine, asr_http = (asr, None) if asr is not None else build_asr(s, http_transport)
+        speech = SpeechService(asr_engine, store, max_concurrency=s.asr_max_concurrency,
+                               max_waiting=s.asr_max_waiting, per_minute=s.asr_per_user_per_minute,
+                               disabled=s.ai_disabled)
         app.state.svc = State(verifier=verifier, opa=OpaClient(opa_http), core=core, gateway=gw, store=store,
                               pool=pool, retriever=retriever, indexer=indexer, idempotency=IdempotencyStore(pool),
                               assist=AssistService(gw, store, core, retriever, indexer),
-                              evidence=EvidenceOcr(ocr_engine, core, store, objects), ocr_clients=s.ocr_clients)
+                              evidence=EvidenceOcr(ocr_engine, core, store, objects), ocr_clients=s.ocr_clients,
+                              speech=speech)
         try:
             yield
         finally:
             stop.set()
             if consumer_task is not None:
                 await asyncio.wait_for(consumer_task, 15)
-            for c in (opa_http, idp_http, core_http, llm_http, emb_http, ocr_http, objects):
+            for c in (opa_http, idp_http, core_http, llm_http, emb_http, ocr_http, objects, asr_http):
                 if c is not None:
                     await c.aclose()
             await pool.close()
@@ -127,6 +147,7 @@ def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncB
     app.include_router(routes.probes)
     app.include_router(routes.api)
     app.include_router(assist.router)
+    app.include_router(speech_api.router)
     app.add_exception_handler(problems.ApiError, problems.handle_api_error)
 
     @app.exception_handler(Overloaded)

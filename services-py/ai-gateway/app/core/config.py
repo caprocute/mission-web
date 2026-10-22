@@ -65,6 +65,17 @@ class Settings:
     # Kho đối tượng nội bộ cho /ai/ocr (evidence-service gửi objectKey; đọc qua cổng nội bộ trong lưới mTLS).
     object_base_url: str = ""
     ocr_clients: tuple[str, ...] = ("evidence-service", "search-indexer")
+    # Nhận dạng tiếng nói (DV-14-07): "mock" là bản giả lập, "openai" là /v1/audio/transcriptions tại asr_base_url.
+    asr_mode: str = "mock"
+    asr_base_url: str = ""
+    asr_model: str = "viettel-asr-vi"
+    asr_api_key: str = field(default="", repr=False)
+    asr_timeout_s: float = 20.0
+    asr_max_concurrency: int = 4
+    asr_max_waiting: int = 16
+    asr_per_user_per_minute: int = 10
+    # Mức suy giảm 1 (TL-04): tắt trợ lý AI, các API trợ lý trả 503.
+    ai_disabled: bool = False
 
     @staticmethod
     def from_env() -> Settings:
@@ -106,4 +117,13 @@ class Settings:
             object_base_url=_env("OBJECT_BASE_URL"),
             ocr_clients=tuple(x.strip() for x in _env("OCR_CLIENTS", "evidence-service,search-indexer").split(",")
                               if x.strip()),
+            asr_mode=_env("ASR_MODE", "mock"),
+            asr_base_url=_env("ASR_BASE_URL"),
+            asr_model=_env("ASR_MODEL", "viettel-asr-vi"),
+            asr_api_key=_env("ASR_API_KEY"),
+            asr_timeout_s=_float("ASR_TIMEOUT_SECONDS", 20.0),
+            asr_max_concurrency=_int("ASR_MAX_CONCURRENCY", 4),
+            asr_max_waiting=_int("ASR_MAX_WAITING", 16),
+            asr_per_user_per_minute=_int("ASR_PER_USER_PER_MINUTE", 10),
+            ai_disabled=_env("AI_DISABLED").lower() in ("1", "true", "yes"),
         )

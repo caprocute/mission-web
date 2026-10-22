@@ -20,6 +20,7 @@ dependencies = [
     "aiokafka>=0.14.0,<1",
     "fastavro>=1.13.1,<2",
     "pillow>=11,<13",
+    "av>=14,<18",
 ]
 
 [project.optional-dependencies]

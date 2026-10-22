@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **175 / 401 task (43.6%)** — Khối lượng quy đổi đã gộp: **207 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **184 / 401 task (45.9%)** (gồm **175** đã gộp `main` + **9** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **185 / 401 task (46.1%)** (gồm **175** đã gộp `main` + **10** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **211 task**.
+- **Chưa bắt đầu**: **210 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **14 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-04`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,14 +25,14 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **34** | 0 | 0 | 78 | **30.4%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **31** | 9 | 3 | 61 | **29.8%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **31** | 10 | 3 | 60 | **29.8%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **15** | 0 | 0 | 13 | **53.6%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **175** | **9** | **6** | **211** | **43.6%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **175** | **10** | **6** | **210** | **43.6%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -42,7 +42,7 @@
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **32** | 0 | 1 | 13 | **69.6%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **31** | 3 | 3 | 80 | **26.5%** |
-| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 6 | 0 | 48 | **23.9%** |
+| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 7 | 0 | 47 | **23.9%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **13** | 0 | 1 | 28 | **31.0%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **0** | 0 | 0 | 23 | **0.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 3 | **0** | 0 | 0 | 3 | **0.0%** |
@@ -483,7 +483,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-13-10](docs/tasks/DV-13-10-goi-chuyen-ho-so-lien-cell.md) | Gói chuyển hồ sơ cán bộ liên cell có ký số | M | B5 | 11 | DV-13-02, DV-10-01 | **Chưa bắt đầu** |  |
 | [DV-13-11](docs/tasks/DV-13-11-pact-he-ngoai.md) | Kiểm thử hợp đồng Pact với từng hệ ngoài bằng đối tác giả lập | M | B5 | 11 | DV-13-03, QA-02 | **Chưa bắt đầu** |  |
 
-### DV-14 · SVC-14 ai-gateway (Python) (0/7 đã gộp `main`, 6 chờ gộp, 0 đang làm)
+### DV-14 · SVC-14 ai-gateway (Python) (0/7 đã gộp `main`, 7 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -493,7 +493,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-14-04](docs/tasks/DV-14-04-api-tro-ly-ai.md) | API trợ lý: soạn OKR, soát KR, trích nhiệm vụ, giải thích điểm, 202 khi hàng đợi đầy | M | B7 | 7 | DV-14-03 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: 4 API trợ lý + trích nhiệm vụ EVT-24, idempotency, kiểm thử hợp đồng; TTFT dev p50 58 ms |
 | [DV-14-05](docs/tasks/DV-14-05-ocr-minh-chung.md) | OCR minh chứng | M | B7 | 6 | DV-14-01 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: OCR minh chứng /ai/evidence/extract và /ai/ocr, 72 kiểm thử xanh |
 | [DV-14-06](docs/tasks/DV-14-06-nhat-ky-goi-y-tom-tat.md) | Nhật ký gợi ý (chấp nhận, bỏ qua, nguồn) và tóm tắt tuần cho lãnh đạo | M | B7 | 8 | DV-14-04 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: decision/sources/list, tóm tắt tuần, view tỷ lệ chấp nhận |
-| [DV-14-07](docs/tasks/DV-14-07-chuyen-giong-noi-van-ban.md) | Chuyển giọng nói thành văn bản (`transcribeSpeech`) | M | B7 | 6 | DV-14-01 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
+| [DV-14-07](docs/tasks/DV-14-07-chuyen-giong-noi-van-ban.md) | Chuyển giọng nói thành văn bản (`transcribeSpeech`) | M | B7 | 6 | DV-14-01 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: transcribeSpeech, bộ nhận dạng giả lập và client ASR tương thích OpenAI; chưa thử ASR thật |
 
 ### DV-15 · SVC-15 analytics (0/11 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -850,4 +850,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 16:53 | B7 | `DV-14-06` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: decision/sources/list, tóm tắt tuần, view tỷ lệ chấp nhận |
 | 22/10/2026 16:54 | B7 | `DV-14-05` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: OCR minh chứng |
 | 22/10/2026 17:00 | B7 | `DV-14-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: OCR minh chứng /ai/evidence/extract và /ai/ocr, 72 kiểm thử xanh |
+| 22/10/2026 17:01 | B7 | `DV-14-07` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: đang thực hiện |
+| 22/10/2026 17:09 | B7 | `DV-14-07` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: transcribeSpeech, bộ nhận dạng giả lập và client ASR tương thích OpenAI; chưa thử ASR thật |
 <!-- PROGRESS_LOG_END -->
