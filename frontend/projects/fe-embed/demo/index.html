@@ -6,37 +6,77 @@
   mà cổng cần khai báo: wiki/02-kien-truc-frontend.md, mục "Nhúng vào cổng khác".
 -->
 <html lang="vi">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cổng văn phòng số (trang thử nhúng)</title>
-  <style nonce="__CSP_NONCE__">
-    body { margin: 0; font-family: Arial, sans-serif; background: #eef2f6; color: #1f2933; }
-    /* Kiểu của cổng đặt theo lớp, không theo tên thẻ chung (header, nav, h1...), vì phần nhúng chạy
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cổng văn phòng số (trang thử nhúng)</title>
+    <style nonce="__CSP_NONCE__">
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #eef2f6;
+        color: #1f2933;
+      }
+      /* Kiểu của cổng đặt theo lớp, không theo tên thẻ chung (header, nav, h1...), vì phần nhúng chạy
        trong cùng trang và chịu ảnh hưởng của mọi bộ chọn thẻ toàn cục của cổng */
-    .cong-dau { background: #0b4f8a; color: #fff; padding: 12px 20px; font-size: 18px; }
-    .cong-khung { display: flex; gap: 16px; padding: 16px; }
-    .cong-menu { width: 200px; flex: none; background: #fff; border-radius: 8px; padding: 12px; }
-    .cong-menu a { display: block; padding: 8px 4px; color: #0b4f8a; }
-    .cong-noi-dung { flex: 1; min-width: 0; }
-    .cong-tieu-de { font-size: 20px; margin: 0 0 12px; }
-    .cong-noi-dung vt-okr-app { border-radius: 8px; overflow: hidden; }
-    @media (max-width: 720px) { .cong-khung { flex-direction: column; } .cong-menu { width: auto; } }
-  </style>
-  <script src="__APP_ORIGIN__/embed/vt-okr-app.js" nonce="__CSP_NONCE__"></script>
-</head>
-<body>
-  <header class="cong-dau">Cổng văn phòng số</header>
-  <div class="cong-khung">
-    <nav class="cong-menu" aria-label="Menu của cổng">
-      <a href="#">Văn bản đến</a>
-      <a href="#">Văn bản đi</a>
-      <a href="#" aria-current="page">Công việc theo OKR</a>
-    </nav>
-    <main class="cong-noi-dung">
-      <h1 class="cong-tieu-de">Công việc theo OKR</h1>
-      <vt-okr-app tenant="default" route="tasks" ngCspNonce="__CSP_NONCE__"></vt-okr-app>
-    </main>
-  </div>
-</body>
+      .cong-dau {
+        background: #0b4f8a;
+        color: #fff;
+        padding: 12px 20px;
+        font-size: 18px;
+      }
+      .cong-khung {
+        display: flex;
+        gap: 16px;
+        padding: 16px;
+      }
+      .cong-menu {
+        width: 200px;
+        flex: none;
+        background: #fff;
+        border-radius: 8px;
+        padding: 12px;
+      }
+      .cong-menu a {
+        display: block;
+        padding: 8px 4px;
+        color: #0b4f8a;
+      }
+      .cong-noi-dung {
+        flex: 1;
+        min-width: 0;
+      }
+      .cong-tieu-de {
+        font-size: 20px;
+        margin: 0 0 12px;
+      }
+      .cong-noi-dung vt-okr-app {
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      @media (max-width: 720px) {
+        .cong-khung {
+          flex-direction: column;
+        }
+        .cong-menu {
+          width: auto;
+        }
+      }
+    </style>
+    <script src="__APP_ORIGIN__/embed/vt-okr-app.js" nonce="__CSP_NONCE__"></script>
+  </head>
+  <body>
+    <header class="cong-dau">Cổng văn phòng số</header>
+    <div class="cong-khung">
+      <nav class="cong-menu" aria-label="Menu của cổng">
+        <a href="#">Văn bản đến</a>
+        <a href="#">Văn bản đi</a>
+        <a href="#" aria-current="page">Công việc theo OKR</a>
+      </nav>
+      <main class="cong-noi-dung">
+        <h1 class="cong-tieu-de">Công việc theo OKR</h1>
+        <vt-okr-app tenant="default" route="tasks" ngCspNonce="__CSP_NONCE__"></vt-okr-app>
+      </main>
+    </div>
+  </body>
 </html>

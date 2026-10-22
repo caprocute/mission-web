@@ -11,7 +11,9 @@ import { ADMIN_CAN } from '../admin-permissions';
       <div>
         <span class="vt-hero-kicker">Khung nền tảng lõi · Quản trị hệ thống</span>
         <h1>Quản trị</h1>
-        <p>Quản lý cơ cấu tổ chức, đồng bộ nhân sự, phân quyền theo đơn vị, ủy quyền và kỳ đánh giá.</p>
+        <p>
+          Quản lý cơ cấu tổ chức, đồng bộ nhân sự, phân quyền theo đơn vị, ủy quyền và kỳ đánh giá.
+        </p>
       </div>
     </header>
 
@@ -79,7 +81,10 @@ import { ADMIN_CAN } from '../admin-permissions';
       display: flex;
       flex-direction: column;
       gap: 6px;
-      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        border-color 0.15s ease;
     }
     .admin-card:hover {
       transform: translateY(-2px);

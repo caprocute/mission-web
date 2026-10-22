@@ -73,7 +73,10 @@ export function toggleHidden(items: EditorItem[], index: number): EditorItem[] {
 }
 
 /** Lớp phủ lưu vào `ui.home.layout`; giữ các trường mà màn hình này không sửa. */
-export function toOverlay(items: EditorItem[], previous: HomeLayoutOverlay | null): HomeLayoutOverlay {
+export function toOverlay(
+  items: EditorItem[],
+  previous: HomeLayoutOverlay | null,
+): HomeLayoutOverlay {
   const overlay: HomeLayoutOverlay = {
     ...(previous ?? {}),
     widgetOrder: items.map((it, order) => {

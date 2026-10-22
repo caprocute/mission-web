@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { MockRequest, matchPath } from '../mock-router';
 import { ME_PREFERENCES_MOCK, applyHomeOverlay } from './me-preferences.mock';
 
-function call(method: string, path: string, body: unknown = null, headers: Record<string, string> = {}) {
+function call(
+  method: string,
+  path: string,
+  body: unknown = null,
+  headers: Record<string, string> = {},
+) {
   for (const r of ME_PREFERENCES_MOCK.routes) {
     const pathParams = r.method === method ? matchPath(r.pattern, path) : null;
     if (pathParams) {
@@ -52,9 +57,14 @@ describe('ME_PREFERENCES_MOCK (CNH-03)', () => {
       'vt.widget.myTasksToday',
       'vt.widget.okrProgress',
     ]);
-    expect(home.personalizationMeta).toMatchObject({ hasOverlay: true, mandatoryWidgetIds: ['vt.widget.myTasksToday'] });
+    expect(home.personalizationMeta).toMatchObject({
+      hasOverlay: true,
+      mandatoryWidgetIds: ['vt.widget.myTasksToday'],
+    });
     expect(call('DELETE', PREF, null, { 'If-Match': '"1"' }).status).toBe(204);
-    const reset = call('GET', '/api/v1/ui/layouts/home').body as { layout: { children: unknown[] } };
+    const reset = call('GET', '/api/v1/ui/layouts/home').body as {
+      layout: { children: unknown[] };
+    };
     expect(reset.layout.children).toHaveLength(4);
   });
 
@@ -81,18 +91,26 @@ describe('ME_PREFERENCES_MOCK bộ lọc đã lưu (CNH-04)', () => {
     expect(call('POST', URL, body('việc chậm')).status).toBe(422);
     const b = call('POST', URL, body('Sắp hạn', true)).body as { id: string; rowVersion: number };
     const list = (s: string) =>
-      ME_PREFERENCES_MOCK.routes.find((r) => r.method === 'GET' && r.pattern === URL)!.handle({
-        method: 'GET',
-        path: URL,
-        params: new HttpParams().set('screenCode', s),
-        headers: new HttpHeaders(),
-        body: null,
-        pathParams: {},
-      }).body as { items: { id: string; isDefault: boolean }[] };
-    expect(list('SCR-0503').items.filter((f) => f.isDefault).map((f) => f.id)).toEqual([b.id]);
+      ME_PREFERENCES_MOCK.routes
+        .find((r) => r.method === 'GET' && r.pattern === URL)!
+        .handle({
+          method: 'GET',
+          path: URL,
+          params: new HttpParams().set('screenCode', s),
+          headers: new HttpHeaders(),
+          body: null,
+          pathParams: {},
+        }).body as { items: { id: string; isDefault: boolean }[] };
+    expect(
+      list('SCR-0503')
+        .items.filter((f) => f.isDefault)
+        .map((f) => f.id),
+    ).toEqual([b.id]);
     expect(list('SCR-0101').items).toHaveLength(0);
     expect(call('PUT', `${URL}/${a.id}`, body('Đổi tên')).status).toBe(428);
     expect(call('PUT', `${URL}/${a.id}`, body('Đổi tên'), { 'If-Match': '"9"' }).status).toBe(409);
-    expect(call('DELETE', `${URL}/${b.id}`, null, { 'If-Match': `"${b.rowVersion}"` }).status).toBe(204);
+    expect(call('DELETE', `${URL}/${b.id}`, null, { 'If-Match': `"${b.rowVersion}"` }).status).toBe(
+      204,
+    );
   });
 });

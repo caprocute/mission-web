@@ -39,11 +39,7 @@
     "font": {
       "family": {
         "$type": "fontFamily",
-        "$value": [
-          "Be Vietnam Pro",
-          "Roboto",
-          "sans-serif"
-        ]
+        "$value": ["Be Vietnam Pro", "Roboto", "sans-serif"]
       },
       "size": {
         "body": {

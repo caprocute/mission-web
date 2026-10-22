@@ -64,9 +64,15 @@ describe('DisplayPreferenceSync (CNH-05)', () => {
     user.set({ id: 'u1' });
     TestBed.tick();
     api.put.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 409 })));
-    api.all.mockReturnValueOnce(of({ schemaVersion: 1, items: { 'ui.display': item('default', 5) } }));
+    api.all.mockReturnValueOnce(
+      of({ schemaVersion: 1, items: { 'ui.display': item('default', 5) } }),
+    );
     sync.toggle();
-    expect(api.put).toHaveBeenLastCalledWith('ui.display', expect.objectContaining({ mode: 'elderly' }), 5);
+    expect(api.put).toHaveBeenLastCalledWith(
+      'ui.display',
+      expect.objectContaining({ mode: 'elderly' }),
+      5,
+    );
   });
 
   it('mất mạng thì giữ chế độ trong phiên và thử lại', () => {
