@@ -13,6 +13,11 @@ spring:
     exclude:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
       - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://127.0.0.1:35080/realms/mission}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:35092}
     consumer:
@@ -52,3 +57,8 @@ mission:
     concurrency: ${SEARCH_CONSUMER_CONCURRENCY:3}
     consumer-group: ${SEARCH_CONSUMER_GROUP:search-indexer}
     listen: ${MISSION_SEARCH_LISTEN:true}
+    cursor-key: ${SEARCH_CURSOR_KEY:}
+
+okrkpi:
+  opa:
+    base-url: ${OPA_URL:http://127.0.0.1:8181}

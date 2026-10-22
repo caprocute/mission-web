@@ -15,6 +15,7 @@ import vn.viettel.okrkpi.search.domain.TenancyModel;
  *     {@code avro-binary} (thân Avro nhị phân cùng phiên bản lược đồ, cho môi trường không có
  *     registry)
  * @param shards số shard chính của chỉ mục mới (TL-04 định cỡ OpenSearch)
+ * @param cursorKey khoá AES-256 (Base64) mã hoá con trỏ trang, cấp từ OpenBao
  * @param rebuild {@code pool} hoặc mã tenant: chạy lệnh dựng lại chỉ mục rồi thoát (Job vận hành)
  */
 @ConfigurationProperties("mission.search")
@@ -30,6 +31,7 @@ public record SearchProperties(
     int replicas,
     int concurrency,
     String consumerGroup,
+    String cursorKey,
     String rebuild) {
 
   public SearchProperties {
