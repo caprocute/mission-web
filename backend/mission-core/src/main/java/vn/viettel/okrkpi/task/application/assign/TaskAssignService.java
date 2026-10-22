@@ -37,6 +37,7 @@ import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository
 import vn.viettel.okrkpi.task.application.mine.LeadWorkloads;
 import vn.viettel.okrkpi.task.application.similar.SimilarTaskService;
 import vn.viettel.okrkpi.task.application.similar.port.SimilarTaskRows.Probe;
+import vn.viettel.okrkpi.task.application.tree.TaskTreeService;
 import vn.viettel.okrkpi.task.domain.assign.AssignmentRules;
 import vn.viettel.okrkpi.task.domain.assign.AssignmentRules.CheckItem;
 import vn.viettel.okrkpi.task.domain.assign.TaskDraftSpec;
@@ -52,6 +53,7 @@ import vn.viettel.okrkpi.task.domain.plan.PlanSchedule;
 public class TaskAssignService {
 
   static final String TX = "taskTransactionManager";
+  static final String MODE_RULE = "DC-06";
   static final String VALIDATION = "COMMON-422-VALIDATION";
   static final String RESTRICTED_TITLE = "Nhiệm vụ hạn chế";
   static final String SIMILAR_NOTE = "GAN_GIONG";
@@ -190,6 +192,14 @@ public class TaskAssignService {
           workloads.of(tenant, bucket, period.id().value(), spec.leadPersonId(), spec.dueDate());
       items.add(workload.check());
     }
+    TaskTreeService tree = drafts.tree();
+    if (tree != null) {
+      // BS-03 DC-06 (CORE-02-28): chế độ phân công của hồ sơ; mặc định không thêm dòng nào.
+      boolean unit = spec.coAssignees().stream().anyMatch(a -> !a.person());
+      int people = (spec.leadPersonId() == null ? 0 : 1) + spec.coAssignees().size();
+      tree.violations(tenant, null, spec.periodId(), spec.node(), people, unit)
+          .forEach(m -> items.add(new CheckItem(MODE_RULE, AssignmentRules.Level.CHAN, false, m)));
+    }
     List<SimilarTaskService.Match> matches = List.of();
     if (similar != null) {
       // BR-05-06 (CORE-02-15): cảnh báo khi soạn; khi giao thì bắt buộc lý do.
@@ -250,6 +260,7 @@ public class TaskAssignService {
               draft.assignerId());
     }
     requirePassed(items);
+    requireMode(tenant, draft, assignees);
     requireKeyResult(tenant, draft.spec());
     if (leadUnit == null) {
       requireActive(tenant, draft.spec().leadPersonId());
@@ -279,6 +290,19 @@ public class TaskAssignService {
               + "]}");
     }
     return done;
+  }
+
+  private void requireMode(TenantId tenant, DraftRow draft, List<AssigneeRow> assignees) {
+    TaskTreeService tree = drafts.tree();
+    if (tree != null) {
+      tree.requireMode(
+          tenant,
+          draft.id(),
+          draft.periodId(),
+          draft.spec().node(),
+          assignees.size(),
+          assignees.stream().anyMatch(a -> "UNIT".equals(a.kind())));
+    }
   }
 
   private List<SimilarTaskService.Match> similarOf(
@@ -394,14 +418,10 @@ public class TaskAssignService {
     requirePassed(
         rules(
             tenant, draft.spec().withLead(unit), period, draft.periodBucket(), draft.assignerId()));
+    List<AssigneeRow> assignees = repository.assignees(tenant, draft.periodBucket(), draft.id());
+    requireMode(tenant, draft, assignees);
     requireKeyResult(tenant, draft.spec());
-    doAssign(
-        tenant,
-        draft,
-        repository.assignees(tenant, draft.periodBucket(), draft.id()),
-        unit,
-        draft.rowVersion(),
-        actor);
+    doAssign(tenant, draft, assignees, unit, draft.rowVersion(), actor);
   }
 
   private List<CheckItem> rules(

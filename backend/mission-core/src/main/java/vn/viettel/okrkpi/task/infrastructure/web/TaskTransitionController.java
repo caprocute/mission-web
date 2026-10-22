@@ -22,6 +22,7 @@ import vn.viettel.okrkpi.contract.tasks.model.StateLogEntry;
 import vn.viettel.okrkpi.contract.tasks.model.TaskDetail;
 import vn.viettel.okrkpi.contract.tasks.model.TaskDetailAllOfProducts;
 import vn.viettel.okrkpi.contract.tasks.model.TaskGroup;
+import vn.viettel.okrkpi.contract.tasks.model.TaskNodeKind;
 import vn.viettel.okrkpi.contract.tasks.model.TaskSource;
 import vn.viettel.okrkpi.contract.tasks.model.TaskStatus;
 import vn.viettel.okrkpi.contract.tasks.model.TaskTransitionRequest;
@@ -137,6 +138,9 @@ public class TaskTransitionController {
             .keyResultId(t.keyResultId())
             .difficulty(t.difficulty())
             .standardScore(t.standardScore())
+            .nodeKind(TaskNodeKind.fromValue(t.nodeKind()))
+            .parentTaskId(t.parentTaskId())
+            .componentScore(t.componentScore())
             .assignedAt(time(t.assignedAt()));
     return dto;
   }
