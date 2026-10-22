@@ -15,8 +15,14 @@ import java.util.Set;
  * @param cls mức phân loại C0..C3
  * @param pii có phải dữ liệu cá nhân hay không
  * @param typeException lý do dùng kiểu ngoài danh sách chuẩn, rỗng nếu không có
+ * @param plaintextJustification lý do để cột C2 ở dạng rõ có kiểm soát ({@code "enc":false} kèm
+ *     {@code "justification"}, TL-03 appraisal.prospect_group.group_code), rỗng nếu không có
  */
-public record ColumnClassification(String cls, boolean pii, Optional<String> typeException) {
+public record ColumnClassification(
+    String cls,
+    boolean pii,
+    Optional<String> typeException,
+    Optional<String> plaintextJustification) {
 
   /** Các mức hợp lệ theo ADR-06. */
   public static final Set<String> LEVELS = Set.of("C0", "C1", "C2", "C3");
@@ -38,13 +44,20 @@ public record ColumnClassification(String cls, boolean pii, Optional<String> typ
         return Optional.empty();
       }
       JsonNode exception = node.path("type_exception");
+      JsonNode justification = node.path("justification");
+      boolean plaintext =
+          node.path("enc").isBoolean()
+              && !node.path("enc").asBoolean()
+              && justification.isTextual()
+              && !justification.asText().isBlank();
       return Optional.of(
           new ColumnClassification(
               cls,
               node.path("pii").asBoolean(false),
               exception.isTextual() && !exception.asText().isBlank()
                   ? Optional.of(exception.asText())
-                  : Optional.empty()));
+                  : Optional.empty(),
+              plaintext ? Optional.of(justification.asText()) : Optional.empty()));
     } catch (IOException e) {
       return Optional.empty();
     }

@@ -211,7 +211,7 @@ public final class ConventionLinter {
                 "thiếu chú thích phân loại hợp lệ: COMMENT ON COLUMN "
                     + object
                     + " IS '{\"cls\":\"C1\",\"desc\":\"...\"}' (cls thuộc C0..C3)"));
-      } else if ("C2".equals(cls.get().cls())) {
+      } else if ("C2".equals(cls.get().cls()) && cls.get().plaintextJustification().isEmpty()) {
         List<String> problems = new ArrayList<>();
         if (!"bytea".equals(c.type())) {
           problems.add("kiểu phải là bytea");
