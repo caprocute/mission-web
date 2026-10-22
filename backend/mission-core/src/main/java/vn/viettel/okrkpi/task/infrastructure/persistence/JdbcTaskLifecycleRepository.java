@@ -13,6 +13,7 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository;
+import vn.viettel.okrkpi.task.domain.lifecycle.DelayForecast;
 import vn.viettel.okrkpi.task.domain.lifecycle.TaskStatus;
 
 /** {@link TaskLifecycleRepository} trên {@code taskDataSource} (vai trò {@code svc_task}, RLS). */
@@ -114,12 +115,17 @@ public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
   @Override
   public long changeStatus(
       TenantId tenant, int periodBucket, UUID taskId, long expectedVersion, StatusUpdate u) {
+    // CORE-02-26: nhiệm vụ kết thúc hoặc tạm dừng thì xoá dự báo trễ hạn.
+    boolean closesForecast = !DelayForecast.accepts(u.to());
     int n =
         jdbc.sql(
                 "UPDATE task.task SET status = ?, state_machine_version = ?, updated_by = ?,"
                     + " updated_at = ?, row_version = row_version + 1,"
                     + " completed_at = coalesce(?, completed_at),"
-                    + " cancelled_reason = coalesce(?, cancelled_reason)"
+                    + " cancelled_reason = coalesce(?, cancelled_reason),"
+                    + " delay_risk = CASE WHEN ? THEN NULL ELSE delay_risk END,"
+                    + " delay_risk_detail = CASE WHEN ? THEN NULL ELSE delay_risk_detail END,"
+                    + " delay_risk_at = CASE WHEN ? THEN NULL ELSE delay_risk_at END"
                     + " WHERE period_bucket = ? AND tenant_id = ? AND id = ? AND row_version = ?")
             .params(
                 u.to().name(),
@@ -128,6 +134,9 @@ public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
                 Timestamp.from(u.at()),
                 u.completedAt() == null ? null : Timestamp.from(u.completedAt()),
                 u.cancelledReason(),
+                closesForecast,
+                closesForecast,
+                closesForecast,
                 periodBucket,
                 tenant.value(),
                 taskId,

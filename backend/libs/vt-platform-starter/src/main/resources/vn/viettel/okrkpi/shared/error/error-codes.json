@@ -1,7 +1,7 @@
 {
   "description": "Danh mục mã lỗi <MODULE>-<HTTP>-<TÊN> trích từ contracts/openapi (NEN-009). Không sửa tay: chạy tools/extract-error-codes.mjs.",
   "source": "contracts/openapi/**/*.yaml",
-  "count": 189,
+  "count": 191,
   "codes": [
     {
       "code": "AI-403-C3-FORBIDDEN",
@@ -1725,6 +1725,16 @@
       ]
     },
     {
+      "code": "TASK-409-INVALID-STATE",
+      "module": "TASK",
+      "status": 409,
+      "name": "INVALID-STATE",
+      "type": "https://okrkpi.vn/problems/invalid-state",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
+    },
+    {
       "code": "TASK-409-INVALID-TRANSITION",
       "module": "TASK",
       "status": 409,
@@ -1762,6 +1772,16 @@
       "status": 409,
       "name": "PLAN-EXISTS",
       "type": "https://okrkpi.vn/problems/plan-exists",
+      "sources": [
+        "modules/tasks.yaml"
+      ]
+    },
+    {
+      "code": "TASK-409-STALE-DELAY-RISK",
+      "module": "TASK",
+      "status": 409,
+      "name": "STALE-DELAY-RISK",
+      "type": "https://okrkpi.vn/problems/stale-delay-risk",
       "sources": [
         "modules/tasks.yaml"
       ]

@@ -21,6 +21,7 @@ import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 import vn.viettel.okrkpi.task.application.TaskApiService;
 import vn.viettel.okrkpi.task.application.lifecycle.CelGuardEvaluator;
 import vn.viettel.okrkpi.task.application.lifecycle.PolicyBackedTransitionTableProvider;
+import vn.viettel.okrkpi.task.application.lifecycle.TaskDelayRiskService;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskDeliverables;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskStatusEvents;
@@ -90,5 +91,16 @@ public class TaskLifecycleConfiguration {
       JdbcTaskLifecycleRepository taskLifecycleRepository,
       TaskTransitionService taskTransitionService) {
     return new TaskApiService(taskLifecycleRepository, taskTransitionService);
+  }
+
+  @Bean
+  TaskDelayRiskService taskDelayRiskService(
+      @Qualifier("taskDataSource") DataSource dataSource,
+      JdbcTaskLifecycleRepository taskLifecycleRepository,
+      ObjectProvider<ObjectMapper> json) {
+    return new TaskDelayRiskService(
+        taskLifecycleRepository,
+        new JdbcTaskDelayRisks(
+            JdbcClient.create(dataSource), json.getIfAvailable(ObjectMapper::new)));
   }
 }
