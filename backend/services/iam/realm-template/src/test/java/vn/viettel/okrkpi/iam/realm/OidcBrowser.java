@@ -49,6 +49,9 @@ final class OidcBrowser {
   /** Trang HTML gần nhất (trang đăng nhập hoặc trang báo lỗi). */
   String lastPage;
 
+  /** User-Agent gửi kèm mọi yêu cầu (giả lập thiết bị, DV-02-03); null là mặc định của JDK. */
+  String userAgent;
+
   OidcBrowser(String baseUrl, String realm, String clientId, String redirectUri) {
     this.baseUrl = baseUrl;
     this.realm = realm;
@@ -146,6 +149,10 @@ final class OidcBrowser {
     if (r.statusCode() == 302) {
       String loc = r.headers().firstValue("Location").orElseThrow();
       Map<String, String> q = query(URI.create(loc));
+      if (loc.startsWith(baseUrl + "/realms/" + realm + "/login-actions/")) {
+        // Bước tiếp theo của Keycloak (ví dụ bắt buộc cài SmartOTP): mở trang đó.
+        return codeOrPage(send(HttpRequest.newBuilder(URI.create(loc)).header("Accept-Language", "vi").GET().build()));
+      }
       if (!loc.startsWith(redirectUri)) {
         throw new IllegalStateException("Chuyển hướng ngoài redirect URI: " + loc);
       }
@@ -208,7 +215,81 @@ final class OidcBrowser {
     return send(b.build());
   }
 
+  /** Trang hiện tại có biểu mẫu với id này không (ví dụ {@code kc-otp-login-form}, {@code kc-totp-settings-form}). */
+  boolean hasForm(String formId) {
+    return lastPage != null && lastPage.contains("id=\"" + formId + "\"");
+  }
+
+  /** Giá trị của ô ẩn trong trang hiện tại. */
+  String hiddenValue(String name) {
+    Matcher m = Pattern.compile("name=\"" + Pattern.quote(name) + "\"[^>]*value=\"([^\"]*)\"|value=\"([^\"]*)\"[^>]*name=\""
+        + Pattern.quote(name) + "\"").matcher(lastPage);
+    if (!m.find()) {
+      throw new IllegalStateException("Không thấy ô " + name);
+    }
+    return m.group(1) != null ? m.group(1) : m.group(2);
+  }
+
+  /** Gửi một biểu mẫu bất kỳ của Keycloak trên trang hiện tại; trả về {@code code} khi được chuyển về ứng dụng. */
+  Optional<String> submitForm(String formId, Map<String, String> fields) {
+    Matcher f = Pattern.compile("<form[^>]*id=\"" + Pattern.quote(formId) + "\"[^>]*>", Pattern.DOTALL)
+        .matcher(lastPage);
+    if (!f.find()) {
+      throw new IllegalStateException("Không thấy biểu mẫu " + formId);
+    }
+    Matcher a = ACTION.matcher(f.group());
+    if (!a.find()) {
+      throw new IllegalStateException("Biểu mẫu không có action");
+    }
+    HttpResponse<String> r = send(HttpRequest.newBuilder(URI.create(a.group(1).replace("&amp;", "&")))
+        .header("Content-Type", "application/x-www-form-urlencoded").header("Accept-Language", "vi")
+        .POST(HttpRequest.BodyPublishers.ofString(form(fields))).build());
+    return codeOrPage(r);
+  }
+
+  /** Mở yêu cầu xác thực với tham số thêm (ví dụ {@code acr_values}); trả {@code code} nếu không cần nhập gì. */
+  Optional<String> authorizeWith(Map<String, String> extra) {
+    Map<String, String> p = defaultAuthParams();
+    p.putAll(extra);
+    return codeOrPage(authorize(p));
+  }
+
+  private Optional<String> codeOrPage(HttpResponse<String> r) {
+    if (r.statusCode() == 302) {
+      String loc = r.headers().firstValue("Location").orElseThrow();
+      if (loc.startsWith(redirectUri)) {
+        return Optional.ofNullable(query(URI.create(loc)).get("code"));
+      }
+      return codeOrPage(send(HttpRequest.newBuilder(URI.create(loc.startsWith("/") ? baseUrl + loc : loc))
+          .header("Accept-Language", "vi").GET().build()));
+    }
+    lastPage = r.body();
+    lastStatus = r.statusCode();
+    return Optional.empty();
+  }
+
+  /** Mã TOTP RFC 6238 (HmacSHA1, 6 chữ số, chu kỳ 30 giây) từ bí mật dạng rõ của trang cài đặt OTP. */
+  static String totp(String secret) {
+    try {
+      long counter = System.currentTimeMillis() / 1000 / 30;
+      javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA1");
+      mac.init(new javax.crypto.spec.SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA1"));
+      byte[] h = mac.doFinal(java.nio.ByteBuffer.allocate(8).putLong(counter).array());
+      int o = h[h.length - 1] & 0xf;
+      int bin = ((h[o] & 0x7f) << 24) | ((h[o + 1] & 0xff) << 16) | ((h[o + 2] & 0xff) << 8) | (h[o + 3] & 0xff);
+      return String.format("%06d", bin % 1_000_000);
+    } catch (java.security.GeneralSecurityException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   HttpResponse<String> send(HttpRequest req) {
+    if (userAgent != null) {
+      HttpRequest.Builder b = HttpRequest.newBuilder(req.uri()).method(req.method(),
+          req.bodyPublisher().orElse(HttpRequest.BodyPublishers.noBody())).header("User-Agent", userAgent);
+      req.headers().map().forEach((k, vs) -> vs.forEach(v -> b.header(k, v)));
+      req = b.build();
+    }
     try {
       return http.send(req, HttpResponse.BodyHandlers.ofString());
     } catch (IOException e) {

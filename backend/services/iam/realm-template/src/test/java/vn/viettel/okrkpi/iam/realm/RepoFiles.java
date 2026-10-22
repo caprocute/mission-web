@@ -126,6 +126,13 @@ final class RepoFiles {
     env.put("MISSION_BF_WAIT", bf.path("waitSeconds").asText());
     env.put("MISSION_BF_MAX_DELTA", bf.path("maxDeltaTimeSeconds").asText());
     env.put("MISSION_BF_MAX_TEMP_LOCKOUTS", bf.path("maxTemporaryLockouts").asText());
+    JsonNode mfa = r.path("mfa");
+    env.put("MISSION_AAL2_MAX_AGE", mfa.path("aal2MaxAge").asText());
+    env.put("MISSION_MFA_ROLES", String.join(",", JSON.convertValue(mfa.path("roles"), String[].class)));
+    env.put("MISSION_MFA_WEIGHT_NEW_DEVICE", mfa.path("risk").path("weightNewDevice").asText());
+    env.put("MISSION_MFA_WEIGHT_NEW_NETWORK", mfa.path("risk").path("weightNewNetwork").asText());
+    env.put("MISSION_MFA_WEIGHT_FAILURES", mfa.path("risk").path("weightFailures").asText());
+    env.put("MISSION_MFA_RISK_THRESHOLD", mfa.path("risk").path("threshold").asText());
     env.put("MISSION_SIGNING_KEY_PRIORITY", r.path("signingKeyPriority").asText());
     env.put("MISSION_APISIX_CLIENT_SECRET", apisixSecret);
     env.putAll(overrides);
