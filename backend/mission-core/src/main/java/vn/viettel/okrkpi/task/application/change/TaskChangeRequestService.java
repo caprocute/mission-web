@@ -13,7 +13,11 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodLockedException;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
@@ -24,6 +28,7 @@ import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository;
 import vn.viettel.okrkpi.task.application.blocker.port.TaskBlockers;
+import vn.viettel.okrkpi.task.application.change.port.ChangeApprovalStarter;
 import vn.viettel.okrkpi.task.application.change.port.ChangeRequestNotices;
 import vn.viettel.okrkpi.task.application.change.port.TaskChangeRequests;
 import vn.viettel.okrkpi.task.application.change.port.TaskChangeRequests.ChangeRow;
@@ -50,6 +55,7 @@ public class TaskChangeRequestService {
   static final String T_SUBMITTED = "DE_NGHI_CHO_DUYET";
   static final String T_WITHDRAWN = "DE_NGHI_DA_RUT";
   private static final ZoneId VN = ZoneId.of("Asia/Ho_Chi_Minh");
+  private static final Logger log = LoggerFactory.getLogger(TaskChangeRequestService.class);
 
   private final TaskChangeRequests changes;
   private final TaskLifecycleRepository tasks;
@@ -61,6 +67,7 @@ public class TaskChangeRequestService {
   private final ChangeRequestNotices notices;
   private final Settings settings;
   private final Clock clock;
+  private final ChangeApprovalStarter starter;
 
   /**
    * Tham số Policy Pack (BR-06-01, BR-06-06) khi CORE-05-03 chưa công bố: bước giảm hệ số C, số lần
@@ -114,7 +121,8 @@ public class TaskChangeRequestService {
       TaskDeliverables deliverables,
       ChangeRequestNotices notices,
       Settings settings,
-      Clock clock) {
+      Clock clock,
+      ChangeApprovalStarter starter) {
     this.changes = Objects.requireNonNull(changes, "changes");
     this.tasks = Objects.requireNonNull(tasks, "tasks");
     this.assignees = Objects.requireNonNull(assignees, "assignees");
@@ -125,6 +133,7 @@ public class TaskChangeRequestService {
     this.notices = Objects.requireNonNull(notices, "notices");
     this.settings = Objects.requireNonNull(settings, "settings");
     this.clock = Objects.requireNonNull(clock, "clock");
+    this.starter = starter;
   }
 
   /** Xem trước hệ quả, không ghi dữ liệu. */
@@ -211,6 +220,18 @@ public class TaskChangeRequestService {
     Map<String, String> params = params(task, row);
     params.put("vuotNguong", String.valueOf(p.overThreshold()));
     notify(tenant, task, row, T_SUBMITTED, row.approverId(), actor, params);
+    if (p.overThreshold() && starter != null) {
+      afterCommit(
+          () -> {
+            try {
+              starter.start(
+                  tenant, taskId, row.id(), task.assignerId(), row.rowVersion(), actor.personId());
+            } catch (RuntimeException e) {
+              log.warn(
+                  "Chưa khởi tạo được tiến trình duyệt đề nghị {}: {}", row.id(), e.toString());
+            }
+          });
+    }
     return new Result(task, row);
   }
 
@@ -319,7 +340,7 @@ public class TaskChangeRequestService {
       }
     }
     if ("DOI_SO_LUONG".equals(d.type())
-        && (d.newQuantity() == null || d.newQuantity().signum() < 0)) {
+        && (d.newQuantity() == null || d.newQuantity().signum() <= 0)) {
       errors.add(field("newQuantity", "Số lượng mới không hợp lệ"));
     }
     if ("DOI_SAN_PHAM".equals(d.type())
@@ -349,7 +370,7 @@ public class TaskChangeRequestService {
   }
 
   /** Ngày làm việc trong nửa khoảng {@code (from, to]}; không có lịch thì Thứ Hai–Thứ Sáu. */
-  long workingDays(TenantId tenant, LocalDate from, LocalDate to) {
+  public long workingDays(TenantId tenant, LocalDate from, LocalDate to) {
     if (from == null || to == null || !to.isAfter(from)) {
       return 0;
     }
@@ -397,6 +418,20 @@ public class TaskChangeRequestService {
       p.put("hanMoi", row.proposedDueDate().toString());
     }
     return p;
+  }
+
+  private static void afterCommit(Runnable work) {
+    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+      work.run();
+      return;
+    }
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            work.run();
+          }
+        });
   }
 
   private static BusinessException pending() {

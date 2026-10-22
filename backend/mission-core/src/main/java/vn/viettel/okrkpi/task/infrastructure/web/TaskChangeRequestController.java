@@ -13,11 +13,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.contract.tasks.model.CauseKind;
 import vn.viettel.okrkpi.contract.tasks.model.ChangeRequest;
+import vn.viettel.okrkpi.contract.tasks.model.ChangeRequestDecision;
 import vn.viettel.okrkpi.contract.tasks.model.ChangeRequestDraft;
 import vn.viettel.okrkpi.contract.tasks.model.ChangeRequestPreview;
 import vn.viettel.okrkpi.contract.tasks.model.ChangeRequestPreviewObjective;
@@ -31,6 +33,7 @@ import vn.viettel.okrkpi.shared.idempotency.Idempotent;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 import vn.viettel.okrkpi.task.application.blocker.TaskBlockerService;
+import vn.viettel.okrkpi.task.application.change.TaskChangeDecisionService;
 import vn.viettel.okrkpi.task.application.change.TaskChangeRequestService;
 import vn.viettel.okrkpi.task.application.change.TaskChangeRequestService.Draft;
 import vn.viettel.okrkpi.task.application.change.TaskChangeRequestService.Preview;
@@ -52,9 +55,11 @@ public class TaskChangeRequestController {
   private final TaskBlockerService blockers;
   private final TaskTransitionService transitions;
   private final TaskCallers callers;
+  private final TaskChangeDecisionService decisions;
 
   public TaskChangeRequestController(
       TaskChangeRequestService changes,
+      TaskChangeDecisionService decisions,
       TaskBlockerService blockers,
       TaskTransitionService transitions,
       TaskCallers callers) {
@@ -62,6 +67,33 @@ public class TaskChangeRequestController {
     this.blockers = Objects.requireNonNull(blockers, "blockers");
     this.transitions = Objects.requireNonNull(transitions, "transitions");
     this.callers = Objects.requireNonNull(callers, "callers");
+    this.decisions = Objects.requireNonNull(decisions, "decisions");
+  }
+
+  @PostMapping("/{id}/change-requests/{requestId}/decision")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "decideTaskChangeRequest",
+      module = "tasks",
+      resourceType = "task")
+  public ResponseEntity<TaskDetail> decideTaskChangeRequest(
+      @PathVariable("id") UUID id,
+      @PathVariable("requestId") UUID requestId,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody ChangeRequestDecision body) {
+    TenantId tenant = TenantContext.require();
+    Long expected =
+        ifMatch == null || ifMatch.isBlank() ? null : ETags.expectedVersion(ifMatch, "TASK");
+    TaskChangeDecisionService.Decision decision =
+        body == null
+            ? null
+            : new TaskChangeDecisionService.Decision(
+                body.getApprove(),
+                body.getCauseDecided() == null ? null : body.getCauseDecided().getValue(),
+                body.getNote());
+    TaskChangeDecisionService.Result r =
+        found(() -> decisions.decide(tenant, id, requestId, expected, decision, callers.current()));
+    return ETags.ok(detail(tenant, r.task()), r.task().rowVersion());
   }
 
   @PostMapping("/{id}/change-requests")

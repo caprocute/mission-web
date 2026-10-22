@@ -16,9 +16,13 @@ import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
+import vn.viettel.okrkpi.task.application.change.TaskChangeDecisionService;
 import vn.viettel.okrkpi.task.application.change.TaskChangeRequestService;
+import vn.viettel.okrkpi.task.application.change.port.ChangeApprovalStarter;
 import vn.viettel.okrkpi.task.application.change.port.ChangeRequestNotices;
+import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskDeliverables;
+import vn.viettel.okrkpi.task.application.lifecycle.port.TaskStatusEvents;
 
 /**
  * CORE-02-21: đề nghị gia hạn, điều chỉnh trên {@code taskDataSource}. Tham số BR-06-01, BR-06-06
@@ -60,6 +64,7 @@ public class TaskChangeRequestConfiguration {
       ObjectProvider<WorkingCalendarApi> calendar,
       ObjectProvider<TaskDeliverables> deliverables,
       ChangeRequestNotices changeRequestNotices,
+      ObjectProvider<ChangeApprovalStarter> starter,
       @Value("${mission.task.change.coefficient-step:0.05}") BigDecimal step,
       @Value("${mission.task.change.max-extensions-per-quarter:2}") int maxExtensions,
       @Value("${mission.task.change.max-extra-days:10}") int maxExtraDays) {
@@ -73,6 +78,29 @@ public class TaskChangeRequestConfiguration {
         deliverables.getIfAvailable(),
         changeRequestNotices,
         new TaskChangeRequestService.Settings(step, maxExtensions, maxExtraDays),
+        java.time.Clock.systemUTC(),
+        starter.getIfAvailable());
+  }
+
+  @Bean
+  TaskChangeDecisionService taskChangeDecisionService(
+      JdbcTaskChangeRequests taskChangeRequests,
+      JdbcTaskLifecycleRepository taskLifecycleRepository,
+      TaskTransitionService taskTransitionService,
+      TaskStatusEvents taskStatusEvents,
+      PeriodApi periods,
+      ObjectProvider<WorkingCalendarApi> calendar,
+      ObjectProvider<TaskDeliverables> deliverables,
+      ChangeRequestNotices changeRequestNotices) {
+    return new TaskChangeDecisionService(
+        taskChangeRequests,
+        taskLifecycleRepository,
+        taskTransitionService,
+        taskStatusEvents,
+        periods,
+        calendar.getIfAvailable(),
+        deliverables.getIfAvailable(),
+        changeRequestNotices,
         java.time.Clock.systemUTC());
   }
 }

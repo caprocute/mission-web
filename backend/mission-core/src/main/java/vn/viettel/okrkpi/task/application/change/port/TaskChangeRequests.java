@@ -28,6 +28,7 @@ public interface TaskChangeRequests {
       UUID createdBy,
       Instant createdAt,
       Instant decidedAt,
+      UUID decidedBy,
       String causeDecided,
       String decisionNote,
       boolean escalated,
@@ -66,4 +67,31 @@ public interface TaskChangeRequests {
   boolean withdraw(TenantId tenant, int periodBucket, UUID requestId, UUID actorId, Instant at);
 
   List<ChangeRow> listOf(TenantId tenant, int periodBucket, UUID taskId);
+
+  /** Quyết định {@code CHO_DUYET} → {@code status}; {@code false} khi đề nghị không còn chờ. */
+  boolean decide(
+      TenantId tenant,
+      int periodBucket,
+      UUID requestId,
+      String status,
+      String causeDecided,
+      String note,
+      UUID actorId,
+      Instant at);
+
+  /** Giá trị mới của nhiệm vụ khi áp dụng đề nghị; {@code null} là giữ nguyên. */
+  record TaskChange(
+      java.time.LocalDate extendedDueDate,
+      java.time.LocalDate scoreDueDate,
+      BigDecimal plannedQuantity,
+      String productName,
+      UUID actorId,
+      Instant at) {}
+
+  /**
+   * Ghi giá trị mới lên {@code task.task} khi {@code row_version} khớp; trả phiên bản mới hoặc
+   * {@code -1} khi lệch.
+   */
+  long applyToTask(
+      TenantId tenant, int periodBucket, UUID taskId, long expectedVersion, TaskChange change);
 }
