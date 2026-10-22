@@ -11,4 +11,14 @@ import java.util.UUID;
 public interface PeriodCaller {
 
   Optional<UUID> currentUserId();
+
+  /** Mức xác thực ({@code acr}) của phiên, để kiểm MFA bước lên (BR-08-02). */
+  default Optional<String> acr() {
+    return Optional.empty();
+  }
+
+  /** Thời điểm xác thực ({@code auth_time}, giây epoch). */
+  default Optional<Long> authTime() {
+    return Optional.empty();
+  }
 }

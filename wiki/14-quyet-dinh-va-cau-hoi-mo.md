@@ -535,6 +535,19 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 - Bộ ca dùng chung `data/golden/ngay-lam-viec/ca-ngay-lam-viec.yaml` (15 ca) đang được mission-core chạy và đối chiếu với `StaticWorkingCalendar` của `vt-cel`; đưa bộ ca vào bộ chạy của `vt-cel` và cel-js (`@vt/form-engine`) cần sửa tệp ngoài phạm vi task, chưa làm.
 - `DefaultPeriodCalendar` của CORE-08-02 vẫn tính hạn theo lịch chỉ nghỉ cuối tuần; chuyển sang `WorkingCalendarApi` là việc còn lại.
 
+### Ghi chú và quyết định từ lệnh khoá kỳ (CORE-08-05, 22/10/2026)
+
+- Máy trạng thái `config.period_lock_order` dùng đủ sáu giá trị của TL-03: `NHAP → CHO_DUYET → DA_DUYET → DANG_CHAY → HOAN_TAT`, và `DA_HUY` từ mọi trạng thái chưa kết thúc. API `createPeriodLockOrder` tạo thẳng ở `CHO_DUYET` vì hợp đồng không có bước gửi duyệt riêng; `NHAP` để dành cho bản nháp của giao diện (suy luận).
+- Hợp đồng có `plannedLockAt` nhưng TL-03 chưa có cột; migration `V4__config_lock_order_planned.sql` thêm cột `planned_lock_at timestamptz` mức C1 (suy luận). Thời điểm dự kiến phải từ ngày làm việc kế tiếp trở đi, tính bằng `WorkingCalendarApi`.
+- Khoá idempotency của lệnh là `CK-{năm}{kỳ}` lấy từ mã kỳ bỏ dấu gạch (`2026-Q4` → `CK-2026Q4`). Ràng buộc duy nhất `(tenant_id, idempotency_key)` vẫn giữ cả dòng đã huỷ, nên lệnh lập lại sau khi huỷ mang hậu tố `-2`, `-3` (suy luận). `startPeriodLock` đòi đúng khoá của lệnh; gửi lại cùng khoá khi lệnh đã `DANG_CHAY` hoặc `HOAN_TAT` trả lại cùng job, khoá khác trả 409 `PERIOD-409-SAGA-RUNNING`.
+- Tách vai trò và MFA được kiểm hai lớp: `PermissionInterceptor` kiểm quyền và AAL theo hợp đồng, còn `PeriodLockService` kiểm lại người duyệt khác người lập, người khởi chạy khác người duyệt (`PERIOD-403-SAME-PERSON`), và `acr = aal2` với `auth_time` trong 15 phút (BR-08-02), để luật vẫn đúng khi gọi qua đường không có bộ chặn.
+- Bộ chuyển lỗi bước lên `AuthzProblemHandler` của thư viện nền chỉ tự cấu hình khi có lớp JWT của Spring Security, mà mission-core chưa có; `PeriodConfiguration` đăng ký lại bộ này (`@ConditionalOnMissingBean`) để thiếu MFA trả 401 `COMMON-401-STEP-UP-REQUIRED` thay cho 500.
+- Bảng `config.period_lock_step` dùng `step_no` 1..6 trong khi saga đánh số bước 0..5; quy ước `step_no = bước saga + 1`. Tiến độ luôn trả đủ sáu bước, bước chưa có bản chiếu là `CHO`; `cancellable` đúng khi bước Ký số lô (bước 4) chưa xong. Tốc độ và dự kiến hoàn tất chưa có số liệu lô nên chưa trả.
+- Client gọi `startPeriodCloseSaga` của SVC-06 đặt ở `shared.infrastructure.workflow` (ngoài phạm vi tệp của task), vì ArchUnit cấm mô-đun nghiệp vụ phụ thuộc `org.springframework.web.client`; client chỉ bật khi có `mission.config.workflow.base-url`, không có thì khởi chạy trả 503.
+- Câu hỏi mở: workflow-service lấy tenant từ claim JWT, nhưng token client-credentials của mission-core không mang claim tenant. Cần chốt token exchange (RFC 8693) hay mapper claim tenant trên client dịch vụ trong Keycloak trước khi chạy đầu cuối với saga thật.
+- Thông báo EVT-21 dùng hai mẫu `LENH_KHOA_KY_CHO_DUYET` (gửi người giữ vai trò `leader`) và `LENH_KHOA_KY_DA_DUYET` (gửi người lập và `tenant_admin`, trừ người duyệt), nội dung theo MSG-08-01; SVC-12 chưa có hai mẫu này.
+- Kiểm thử tích hợp chạy trên PostgreSQL Testcontainers với saga và thông báo kiểm thử; pom chưa có Testcontainers Kafka và Keycloak nên phần đó chưa có.
+
 ## Liên quan
 
 - [README của wiki](README.md)
