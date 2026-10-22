@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
@@ -26,7 +27,7 @@ public class JdbcUiPackRepository implements UiPackRepository {
   private static final String VERSION_COLUMNS =
       "id, ui_pack_id, version, status, tokens::text AS tokens, layouts::text AS layouts,"
           + " assets_json::text AS assets, component_registry_version, policy_pack_version_id,"
-          + " elder_mode, few_steps, bundle_sha256, published_at, created_by, created_at,"
+          + " elder_mode, few_steps, bundle_sha256, bundle_object_key, signature, published_at, created_by, created_at,"
           + " updated_by, updated_at, row_version";
 
   private final JdbcClient jdbc;
@@ -187,7 +188,8 @@ public class JdbcUiPackRepository implements UiPackRepository {
                 UPDATE config.ui_pack_version
                    SET status = ?, tokens = ?::jsonb, layouts = ?::jsonb, assets_json = ?::jsonb,
                        component_registry_version = ?, policy_pack_version_id = ?, elder_mode = ?,
-                       few_steps = ?, updated_at = ?, updated_by = ?, row_version = ?
+                       few_steps = ?, bundle_sha256 = ?, bundle_object_key = ?,
+                       signature = ?, published_at = ?, updated_at = ?, updated_by = ?, row_version = ?
                  WHERE tenant_id = ? AND id = ? AND row_version = ?
                 """)
             .param(v.status().name())
@@ -198,12 +200,48 @@ public class JdbcUiPackRepository implements UiPackRepository {
             .param(c.policyPackVersionId())
             .param(c.elderMode())
             .param(c.fewSteps())
+            .param(v.bundleSha256() == null ? null : HexFormat.of().parseHex(v.bundleSha256()))
+            .param(v.bundleObjectKey())
+            .param(v.signature() == null ? null : Base64.getDecoder().decode(v.signature()))
+            .param(v.publishedAt() == null ? null : Timestamp.from(v.publishedAt()))
             .param(Timestamp.from(v.updatedAt()))
             .param(v.updatedBy())
             .param(v.rowVersion())
             .param(tenantId.value())
             .param(v.id())
             .param(expectedVersion)
+            .update()
+        == 1;
+  }
+
+  @Override
+  public Optional<UiPack> findCurrentPack(TenantId tenantId) {
+    return jdbc.sql(
+            "SELECT p.id, p.code, p.name, p.current_version_id, p.row_version"
+                + " FROM config.ui_pack p JOIN config.ui_pack_version v"
+                + " ON v.tenant_id = p.tenant_id AND v.id = p.current_version_id"
+                + " WHERE p.tenant_id = ? ORDER BY v.published_at DESC NULLS LAST, p.id LIMIT 1")
+        .param(tenantId.value())
+        .query(packMapper())
+        .optional();
+  }
+
+  @Override
+  public boolean setCurrentVersion(
+      TenantId tenantId, UiPack pack, UUID versionId, UUID actorId, Instant at) {
+    return jdbc.sql(
+                """
+                UPDATE config.ui_pack
+                   SET current_version_id = ?, updated_at = ?, updated_by = ?,
+                       row_version = row_version + 1
+                 WHERE tenant_id = ? AND id = ? AND row_version = ?
+                """)
+            .param(versionId)
+            .param(Timestamp.from(at))
+            .param(actorId)
+            .param(tenantId.value())
+            .param(pack.id())
+            .param(pack.rowVersion())
             .update()
         == 1;
   }
@@ -221,6 +259,7 @@ public class JdbcUiPackRepository implements UiPackRepository {
   private static RowMapper<UiPackVersion> versionMapper() {
     return (ResultSet rs, int row) -> {
       byte[] sha = rs.getBytes("bundle_sha256");
+      byte[] signature = rs.getBytes("signature");
       return new UiPackVersion(
           rs.getObject("id", UUID.class),
           rs.getObject("ui_pack_id", UUID.class),
@@ -235,6 +274,8 @@ public class JdbcUiPackRepository implements UiPackRepository {
               rs.getBoolean("elder_mode"),
               rs.getBoolean("few_steps")),
           sha == null ? null : HexFormat.of().formatHex(sha),
+          rs.getString("bundle_object_key"),
+          signature == null ? null : Base64.getEncoder().encodeToString(signature),
           instant(rs, "published_at"),
           rs.getObject("created_by", UUID.class),
           instant(rs, "created_at"),

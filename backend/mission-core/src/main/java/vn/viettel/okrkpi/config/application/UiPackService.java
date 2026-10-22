@@ -461,7 +461,7 @@ public class UiPackService {
     return repo.findVersion(tenantId, packId, version).orElseThrow();
   }
 
-  private static void expect(UiPackVersion v, long expectedVersion) {
+  static void expect(UiPackVersion v, long expectedVersion) {
     if (expectedVersion != v.rowVersion()) {
       throw VersionConflictException.of("CONFIG", expectedVersion, v.rowVersion());
     }
@@ -487,7 +487,7 @@ public class UiPackService {
     return "/api/v1/ui/packs/" + packId + "/versions/" + version;
   }
 
-  private void requireStepUp(Actor actor, String operationId) {
+  void requireStepUp(Actor actor, String operationId) {
     long maxAge = STEP_UP_WINDOW.toSeconds();
     if (!StepUpRequiredException.REQUIRED_ACR.equals(
         AuthzSubjectResolver.normalizeAcr(actor.acr()))) {
@@ -501,7 +501,7 @@ public class UiPackService {
     }
   }
 
-  private static void afterCommit(Runnable work) {
+  static void afterCommit(Runnable work) {
     if (TransactionSynchronizationManager.isSynchronizationActive()) {
       TransactionSynchronizationManager.registerSynchronization(
           new TransactionSynchronization() {

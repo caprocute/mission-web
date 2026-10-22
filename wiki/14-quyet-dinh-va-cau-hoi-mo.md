@@ -590,6 +590,15 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 - `visibleWhen` biên dịch bằng `vt-cel` với một biến `user` (map, khớp `cel-context.ts` của web), tối đa 500 ký tự, độ sâu AST 12, 64 nút (giới hạn suy luận, TL-01 chỉ ghi "giới hạn độ dài và chi phí"). Vì trường của `user` có kiểu dyn nên kiểm kiểu tĩnh không bắt được `user.unitId` (chuỗi); bộ kiểm chạy thử biểu thức trên ngữ cảnh mẫu và từ chối khi kết quả không phải bool hoặc đọc trường không có.
 - `listUiComponents` trả component của nền tảng cộng widget plugin của tenant qua cổng `PluginWidgets` (CORE-08-15 cung cấp; hiện rỗng). Phiên bản `registry` chưa nạp trả 422 trường `registry`.
 
+### Ghi chú và quyết định từ phát hành UI Pack (CORE-08-11, 22/10/2026)
+
+- Biên dịch token sang CSS và preset PrimeNG viết bằng Java trong MOD-08 (`UiPackCompiler`) thay cho job Node chạy Style Dictionary mà TL-01 mô tả, vì WEB-004 chưa có và quy định backend không có Node. Tên biến khớp `previewUiPackVersion` (`--vt-a-b`, bí danh `{a.b}` thành `var(--vt-a-b)`); giá trị có `;`, `{`, `}`, `<`, `>`, `url(`, `expression(` hay `@import` bị chặn. Preset chỉ ánh xạ các token ngữ nghĩa chính (suy luận); WEB-004 chốt ánh xạ đầy đủ.
+- Băm và ký: SHA-256 trên JSON chuẩn tắc của `UiPackRuntime` (khoá sắp xếp ở mọi mức, dạng gọn, UTF-8) sau khi bỏ `contentHash`, `signature`, `publishedAt`; ký ES256 (ECDSA P-256), chữ ký dạng `r||s` (P1363) để shell kiểm được bằng WebCrypto. Khoá nền tảng nạp từ bí mật (PKCS#8 và X.509, base64); thiếu khoá thì pod sinh khoá tạm và cảnh báo. Ký qua SVC-10 hay HSM để sau (suy luận).
+- Kho gốc CDN dùng giao diện S3 (Ceph RGW) qua `software.amazon.awssdk:s3` 2.31.6 cùng bản với document-service; đây là phụ thuộc mới của mission-core, cần người phụ trách duyệt. Đường dẫn `ui-packs/{tenant}/{phiên bản}/pack.json`, `theme.css`, `preset.json` đặt `immutable` một năm; con trỏ `ui-packs/{tenant}/current.json` đặt `max-age=60` và kèm `signatureAlgorithm`, `keyId` (hợp đồng `UiPackRuntime` không có hai trường này nên chúng không nằm trong `pack.json`).
+- Con trỏ `current.json` do consumer EVT-23 (`config.ui-pack-published`, qua inbox của schema config) ghi rồi gọi vô hiệu CDN; sự kiện của phiên bản không còn hiện hành bị bỏ qua. Giao diện vô hiệu CDN thật thuộc nhóm hạ tầng; bản mặc định chỉ ghi nhật ký.
+- `getCurrentUiPack` dựng lại thân gói một cách tất định từ CSDL, ETag là băm gói; `getHomeLayout` lọc nút có `visibleWhen` sai theo vai trò và đơn vị trong ngữ cảnh đang chọn, chế độ mặc định `default` cho tới khi có cá nhân hoá (CNH).
+- Câu hỏi mở: `UiPackRuntime` không có trường tài nguyên (logo, phông), nên tài nguyên chưa có đường phục vụ; cần bổ sung hợp đồng hoặc API tài nguyên. Trạng thái job `RENDER` giữ trong bộ nhớ pod như `TEST_RUN`.
+
 ## Liên quan
 
 - [README của wiki](README.md)

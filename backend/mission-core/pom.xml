@@ -23,9 +23,31 @@
   <properties>
     <main.class>vn.viettel.okrkpi.MissionCoreApplication</main.class>
     <jib.skip>false</jib.skip>
+    <awssdk.version>2.31.6</awssdk.version>
   </properties>
 
   <dependencies>
+    <!-- CORE-08-11: kho gốc CDN của UI Pack qua giao diện S3 (Ceph RGW), cùng bản với document-service. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <version>${awssdk.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>apache-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>netty-nio-client</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>url-connection-client</artifactId>
+      <version>${awssdk.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.github.ben-manes.caffeine</groupId>
       <artifactId>caffeine</artifactId>
