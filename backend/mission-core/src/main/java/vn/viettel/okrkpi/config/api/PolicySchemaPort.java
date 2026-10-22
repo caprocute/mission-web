@@ -19,4 +19,13 @@ public interface PolicySchemaPort {
    * @return rỗng khi không giải được
    */
   Optional<Set<String>> fields(TenantId tenantId, String schemaRef, String policyPackRange);
+
+  /**
+   * Policy Pack {@code policyPackRef} đã ngừng ({@code NGUNG}) hay chưa, để chặn quay lui UI Pack
+   * về phiên bản tham chiếu gói đã ngừng (CORE-08-12, MSG-18-04). Mặc định {@code false} cho tới
+   * khi MOD-05 hiện thực.
+   */
+  default boolean retired(TenantId tenantId, String policyPackRef) {
+    return false;
+  }
 }

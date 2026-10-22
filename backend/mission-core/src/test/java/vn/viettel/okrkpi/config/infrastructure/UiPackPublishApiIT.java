@@ -355,6 +355,108 @@ class UiPackPublishApiIT extends ContractConformanceTest {
                 .getResponse()
                 .getStatus())
         .isEqualTo(304);
+
+    // Quay lui (CORE-08-12): phát hành 1.1.0 rồi kích hoạt lại 1.0.0 về gói bất biến đã có.
+    perform(
+        post(base)
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"version\":\"1.1.0\",\"cloneFromVersion\":\"1.0.0\"}"));
+    String v2 = base + "/1.1.0";
+    JsonNode checked2 =
+        await(
+            body(perform(write(post(v2 + "/submit"), UUID.randomUUID().toString(), "\"0\"")))
+                .get("id")
+                .asText(),
+            author);
+    assertThat(checked2.get("status").asText()).isEqualTo("HOAN_TAT");
+    as(reviewer);
+    String published2 =
+        body(perform(write(post(v2 + "/publish"), UUID.randomUUID().toString(), etag(v2))))
+            .get("id")
+            .asText();
+    assertThat(await(published2, reviewer).get("status").asText()).isEqualTo("HOAN_TAT");
+    assertThat(body(perform(get(v))).get("status").asText()).isEqualTo("THAY_THE");
+    String newerTag = perform(get("/api/v1/ui/packs/current")).getResponse().getHeader("ETag");
+    assertThat(newerTag).isNotEqualTo(currentTag);
+
+    as(author);
+    assertThat(
+            perform(
+                    post(v + "/activate")
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .getResponse()
+                .getStatus())
+        .isEqualTo(428);
+    long started = System.nanoTime();
+    String activateKey = UUID.randomUUID().toString();
+    MvcResult activated = perform(write(post(v + "/activate"), activateKey, etag(v)));
+    assertThat(activated.getResponse().getStatus()).isEqualTo(200);
+    assertResponseConforms(
+        activated, "/ui/packs/{id}/versions/{v}/activate", PathItem.HttpMethod.POST);
+    assertThat(body(activated).get("status").asText()).isEqualTo("DA_PHAT_HANH");
+    assertThat(body(activated).get("bundleSha256").asText()).isEqualTo(sha);
+    assertThat(body(perform(get(v2))).get("status").asText()).isEqualTo("THAY_THE");
+    assertThat(perform(get("/api/v1/ui/packs/current")).getResponse().getHeader("ETag"))
+        .isEqualTo(currentTag);
+    List<Integer> evt23 =
+        inTenant(
+            jdbc ->
+                jdbc.sql(
+                        "SELECT aggregate_version FROM config.outbox_event WHERE aggregate_id = ?"
+                            + " AND topic = ? ORDER BY aggregate_version")
+                    .param(versionId)
+                    .param(EventTopics.EVT_23_UI_PACK_DA_PHAT_HANH)
+                    .query(Integer.class)
+                    .list());
+    assertThat(evt23).hasSize(2);
+    // Cùng Idempotency-Key trả lại kết quả cũ, không phát EVT-23 lần nữa.
+    assertThat(
+            perform(write(post(v + "/activate"), activateKey, etag(v))).getResponse().getStatus())
+        .isEqualTo(200);
+    Integer total =
+        inTenant(
+            jdbc ->
+                jdbc.sql(
+                        "SELECT count(*) FROM config.outbox_event WHERE aggregate_id = ?"
+                            + " AND topic = ?")
+                    .param(versionId)
+                    .param(EventTopics.EVT_23_UI_PACK_DA_PHAT_HANH)
+                    .query(Integer.class)
+                    .single());
+    assertThat(total).isEqualTo(2);
+    UiPackDaPhatHanh rollback =
+        UiPackDaPhatHanh.newBuilder(event).setAggregateVersion(evt23.get(1)).build();
+    InboxMessageProcessor rollbackProcessor =
+        PeriodConfiguration.configInboxProcessor(
+            dataSource, tm, inboxProperties, (topic, headers, data) -> rollback, dlq, metrics);
+    assertThat(
+            rollbackProcessor.process(
+                endpoint, record(UUID.randomUUID(), versionId, evt23.get(1)), () -> {}))
+        .isEqualTo(InboxOutcome.PROCESSED);
+    try (S3Client s3 = s3()) {
+      JsonNode pointer =
+          json.readTree(
+              s3.getObjectAsBytes(
+                      b ->
+                          b.bucket("ui-packs-it")
+                              .key("ui-packs/" + tenant.value() + "/current.json"))
+                  .asByteArray());
+      assertThat(pointer.get("version").asText()).isEqualTo("1.0.0");
+    }
+    assertThat(System.nanoTime() - started).isLessThan(60_000_000_000L);
+
+    // Phiên bản nháp không quay lui được.
+    perform(
+        post(base)
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"version\":\"2.0.0\"}"));
+    MvcResult draft =
+        perform(write(post(base + "/2.0.0/activate"), UUID.randomUUID().toString(), "\"0\""));
+    assertThat(draft.getResponse().getStatus()).isEqualTo(409);
+    assertThat(body(draft).get("code").asText()).isEqualTo("UI-409-NOT-DRAFT");
   }
 
   private JsonNode withoutIntegrity(JsonNode runtime) {
@@ -364,6 +466,10 @@ class UiPackPublishApiIT extends ContractConformanceTest {
   }
 
   private ConsumerRecord<String, byte[]> record(UUID eventId, UUID versionId) {
+    return record(eventId, versionId, 3);
+  }
+
+  private ConsumerRecord<String, byte[]> record(UUID eventId, UUID versionId, int aggregate) {
     ConsumerRecord<String, byte[]> r =
         new ConsumerRecord<>(
             EventTopics.EVT_23_UI_PACK_DA_PHAT_HANH,
@@ -373,7 +479,8 @@ class UiPackPublishApiIT extends ContractConformanceTest {
             new byte[] {0});
     r.headers().add(new RecordHeader(OutboxHeaders.EVENT_ID, bytes(eventId.toString())));
     r.headers().add(new RecordHeader(OutboxHeaders.TENANT_ID, bytes(tenant.value().toString())));
-    r.headers().add(new RecordHeader(OutboxHeaders.AGGREGATE_VERSION, bytes("3")));
+    r.headers()
+        .add(new RecordHeader(OutboxHeaders.AGGREGATE_VERSION, bytes(String.valueOf(aggregate))));
     return r;
   }
 

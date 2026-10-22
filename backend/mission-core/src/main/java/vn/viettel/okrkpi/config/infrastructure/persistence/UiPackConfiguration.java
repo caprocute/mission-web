@@ -157,26 +157,30 @@ public class UiPackConfiguration {
       UiPackBundleStore uiPackBundleStore,
       UiPackEvents uiPackEvents,
       ObjectProvider<CdnInvalidator> cdn,
+      ObjectProvider<PolicySchemaPort> schemas,
       InMemoryUiPackJobs uiPackJobs,
       ConfigAudit configAudit,
       CheckThreads uiPackCheckThreads,
       @Qualifier("configTransactionManager") PlatformTransactionManager tm,
       ObjectProvider<ObjectMapper> json) {
     ObjectMapper mapper = json.getIfAvailable(ObjectMapper::new);
-    return new UiPackPublishService(
-        uiPackService,
-        uiPackRepository,
-        new UiPackCompiler(mapper),
-        uiPackSigner,
-        uiPackBundleStore,
-        uiPackEvents,
-        cdn.getIfAvailable(LoggingCdnInvalidator::new),
-        uiPackJobs,
-        configAudit,
-        mapper,
-        Clock.systemUtc(),
-        uiPackCheckThreads.pool(),
-        new TransactionTemplate(tm));
+    UiPackPublishService service =
+        new UiPackPublishService(
+            uiPackService,
+            uiPackRepository,
+            new UiPackCompiler(mapper),
+            uiPackSigner,
+            uiPackBundleStore,
+            uiPackEvents,
+            cdn.getIfAvailable(LoggingCdnInvalidator::new),
+            uiPackJobs,
+            configAudit,
+            mapper,
+            Clock.systemUtc(),
+            uiPackCheckThreads.pool(),
+            new TransactionTemplate(tm));
+    service.setPolicySchemas(schemas.getIfAvailable());
+    return service;
   }
 
   /**

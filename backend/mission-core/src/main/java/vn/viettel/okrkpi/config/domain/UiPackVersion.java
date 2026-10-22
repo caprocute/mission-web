@@ -143,6 +143,17 @@ public record UiPackVersion(
     return move(UiPackVersionStatus.THAY_THE, by, at);
   }
 
+  /**
+   * Quay lui: {@code THAY_THE → DA_PHAT_HANH}, giữ nguyên gói đã ký và thời điểm phát hành (không
+   * biên dịch, không ký lại; ADR-25).
+   */
+  public UiPackVersion reactivate(UUID by, Instant at) {
+    if (bundleSha256 == null) {
+      throw new IllegalUiPackTransitionException(status, UiPackVersionStatus.DA_PHAT_HANH);
+    }
+    return move(UiPackVersionStatus.DA_PHAT_HANH, by, at);
+  }
+
   private UiPackVersion move(UiPackVersionStatus to, UUID by, Instant at) {
     if (!status.canMoveTo(to)) {
       throw new IllegalUiPackTransitionException(status, to);
