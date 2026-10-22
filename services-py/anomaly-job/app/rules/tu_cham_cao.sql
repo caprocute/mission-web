@@ -83,6 +83,7 @@ SELECT {tenant:UUID} AS tenant_id,
        toJSONString(arrayConcat(
          arrayFilter(x -> x != '', [if(dk_muc, 'dieu_kien:MUC_TU_DE_XUAT_CAO_HON', ''),
                                     if(dk_diem, 'dieu_kien:DIEM_TU_TINH_CAO_HON', '')]),
+         [concat('ky:', toString(period_id))],
          arrayMap(x -> concat('appraisal_profile:', toString(x)), arraySort(ho_so_lien_quan)))) AS evidence_chain,
        {model:String} AS model_version,
        now64(3) AS detected_at,

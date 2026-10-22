@@ -111,9 +111,10 @@ def samples() -> dict[str, tuple[str, dict[str, Any], str, Any, str, Any]]:
         "cdc.tenant_data.okr.objective": ("fact_okr_objective", {
             **c, "id": u(), "owner_type": "DON_VI", "owner_unit_id": unit, "tier": 1, "status": "NHAP",
             "progress": "0.0000", "title_enc": "AAEC"}, "progress", "0.4500", "progress", "0.45"),
-        "cdc.tenant_data.okr.key_result": ("lk_key_result", {"tenant_id": TENANT_A, "id": u(), "objective_id": u()},
-                                           "objective_id", "0192f000-0000-7000-8000-0000000000c1",
-                                           "objective_id", "0192f000-0000-7000-8000-0000000000c1"),
+        "cdc.tenant_data.okr.key_result": ("fact_okr_key_result", {
+            **c, "id": u(), "objective_id": u(), "metric_type": "SO_LUONG", "direction": "TANG",
+            "baseline_value": "10.0000", "target_value": "20.0000", "weight": "0.5000", "due_date": EPOCH_DAYS + 60,
+            "status": "DA_DUYET", "title": "không được nạp"}, "target_value", "25.0000", "target_value", "25"),
         "cdc.tenant_data.okr.kr_checkin": ("fact_okr_checkin", {
             **c, "id": u(), "key_result_id": u(), "created_by": key(person), "checkin_at": ts(), "value": "12.5000",
             "confidence": "CAO", "channel": "WEB", "status": "NHAP"}, "status", "DA_GUI", "status", "DA_GUI"),

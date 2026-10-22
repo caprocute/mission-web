@@ -17,6 +17,7 @@ Thư mục này chứa lược đồ kho phân tích `analytics_<cell>` của SV
 | `migrations/V009__phan_quyen_doc.sql` | Vai trò, tài khoản Cube và job bất thường, quyền theo cột, row policy, quyền ghi pre-aggregation của Cube trong `<db>_pa_*` |
 | `migrations/V010__view_cube.sql` | View nguồn của Cube (`cube_*`, SQL SECURITY INVOKER): định nghĩa dòng cho chỉ số, đọc qua view để Cube dựng được pre-aggregation với quyền theo cột |
 | `migrations/V011__anomaly_out.sql` | Bảng kết quả `anomaly_out` của job phát hiện bất thường (DV-15-07) và quyền ghi riêng bảng đó cho tài khoản job |
+| `migrations/V012__ket_qua_then_chot.sql` | Dựng lại nguồn `okr.key_result` với chỉ tiêu, giá trị xuất phát, chiều tốt và thêm `fact_okr_key_result` cho dấu hiệu 3 (DV-15-08) |
 | `migrate.py` | Bộ áp migration (chỉ thư viện chuẩn) |
 | `phan-loai-ngoai-repo.json` | Phân loại cột của schema chưa có migration trong repo (`appraisal`), chép từ TL-03 |
 | `tests/` | Kiểm tra tĩnh phân loại cột, kiểm thử bộ áp, kiểm thử tích hợp ClickHouse + Kafka |

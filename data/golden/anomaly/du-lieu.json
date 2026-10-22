@@ -1,5 +1,5 @@
 {
- "_ghi_chu": "Dữ liệu vàng DV-15-07: mã '#X' đổi thành UUIDv5 cố định khi nạp; tenant A có bộ ngưỡng mặc định, tenant B lỗi khi lấy ngưỡng. Hồ sơ dấu hiệu 1 có 'tu','td' (mức tự đề xuất, thẩm định) và 'diem_tu','diem_td' (điểm của ảnh chụp tương ứng); hồ sơ dấu hiệu 2 có 'qd' (mức quyết định) và 'diem' (điểm hiện hành).",
+ "_ghi_chu": "Dữ liệu vàng QT-14 (DV-15-07, DV-15-08): mã '#X' đổi thành UUIDv5 cố định theo tenant khi nạp; tenant A có bộ ngưỡng mặc định, tenant B lỗi khi lấy ngưỡng, tenant D có dữ liệu như A với ngưỡng nguong-thay-doi.json. Hồ sơ dấu hiệu 1 có 'tu','td' (mức tự đề xuất, thẩm định) và 'diem_tu','diem_td'; hồ sơ dấu hiệu 2 có 'qd' (mức quyết định) và 'diem'. 'okr' cho dấu hiệu 3, 'cap_nhat' (ngày cập nhật tiến độ của một nhiệm vụ mỗi đơn vị, kỳ Q3) cho dấu hiệu 5, 'nhom_nhiem_vu' (nhiệm vụ cá nhân chủ trì) cho dấu hiệu 7; 'lich' là lịch ngày nghỉ, làm bù trả qua getWorkingCalendar.",
  "luong": "NHA_NUOC",
  "ky": [
   {
@@ -294,5 +294,356 @@
    "qd": "HTTNV",
    "diem": 80
   }
- ]
+ ],
+ "lich": [
+  {
+   "date": "2026-01-01",
+   "dayKind": "NGHI_LE"
+  },
+  {
+   "date": "2026-08-29",
+   "dayKind": "LAM_BU"
+  },
+  {
+   "date": "2026-09-02",
+   "dayKind": "NGHI_LE"
+  },
+  {
+   "date": "2026-09-03",
+   "dayKind": "NGHI_LE"
+  }
+ ],
+ "okr": {
+  "muc_tieu": [
+   {
+    "ma": "O1",
+    "don_vi": "U1",
+    "ky": "Q4"
+   },
+   {
+    "ma": "O2",
+    "don_vi": "U2",
+    "ky": "Q4"
+   }
+  ],
+  "kr": [
+   {
+    "ma": "K1",
+    "muc_tieu": "O1",
+    "trang_thai": "DA_DUYET",
+    "chieu": "TANG",
+    "xuat_phat": 50,
+    "chi_tieu": 100,
+    "check_in": [
+     {
+      "luc": "2026-10-05 09:00:00",
+      "gia_tri": 100,
+      "trang_thai": "DA_GUI"
+     }
+    ]
+   },
+   {
+    "ma": "K2",
+    "muc_tieu": "O1",
+    "trang_thai": "DA_DUYET",
+    "chieu": "TANG",
+    "xuat_phat": 100,
+    "chi_tieu": 70,
+    "check_in": [
+     {
+      "luc": "2026-10-10 09:00:00",
+      "gia_tri": 40,
+      "trang_thai": "DA_GUI"
+     }
+    ]
+   },
+   {
+    "ma": "K3",
+    "muc_tieu": "O2",
+    "trang_thai": "DA_DUYET",
+    "chieu": "GIAM",
+    "xuat_phat": 10,
+    "chi_tieu": 12,
+    "check_in": []
+   },
+   {
+    "ma": "K4",
+    "muc_tieu": "O2",
+    "trang_thai": "DA_DUYET",
+    "chieu": "TANG",
+    "xuat_phat": 100,
+    "chi_tieu": 75,
+    "check_in": [
+     {
+      "luc": "2026-10-03 09:00:00",
+      "gia_tri": 80,
+      "trang_thai": "DA_GUI"
+     }
+    ]
+   },
+   {
+    "ma": "K5",
+    "muc_tieu": "O1",
+    "trang_thai": "DA_DUYET",
+    "chieu": "TANG",
+    "xuat_phat": 50,
+    "chi_tieu": 100,
+    "check_in": [
+     {
+      "luc": "2026-10-10 09:00:00",
+      "gia_tri": 90,
+      "trang_thai": "DA_GUI"
+     },
+     {
+      "luc": "2026-10-20 09:00:00",
+      "gia_tri": 100,
+      "trang_thai": "DA_GUI"
+     }
+    ]
+   },
+   {
+    "ma": "K6",
+    "muc_tieu": "O2",
+    "trang_thai": "DA_DUYET",
+    "chieu": "TANG",
+    "xuat_phat": 100,
+    "chi_tieu": 85,
+    "check_in": [
+     {
+      "luc": "2026-10-12 09:00:00",
+      "gia_tri": 60,
+      "trang_thai": "DA_GUI"
+     }
+    ]
+   },
+   {
+    "ma": "K7",
+    "muc_tieu": "O1",
+    "trang_thai": "DA_DUYET",
+    "chieu": "TANG",
+    "xuat_phat": 50,
+    "chi_tieu": 60,
+    "check_in": [
+     {
+      "luc": "2026-10-04 09:00:00",
+      "gia_tri": 70,
+      "trang_thai": "NHAP"
+     }
+    ]
+   },
+   {
+    "ma": "K8",
+    "muc_tieu": "O2",
+    "trang_thai": "NHAP",
+    "chieu": "TANG",
+    "xuat_phat": 50,
+    "chi_tieu": 60,
+    "check_in": [
+     {
+      "luc": "2026-10-04 09:00:00",
+      "gia_tri": 70,
+      "trang_thai": "DA_GUI"
+     }
+    ]
+   }
+  ]
+ },
+ "cap_nhat": [
+  {
+   "don_vi": "V1",
+   "ky": "Q3",
+   "ngay": [
+    "2026-09-28",
+    "2026-09-28",
+    "2026-09-29",
+    "2026-09-29",
+    "2026-09-30",
+    "2026-09-30",
+    "2026-09-30",
+    "2026-07-07",
+    "2026-07-14",
+    "2026-07-21"
+   ]
+  },
+  {
+   "don_vi": "V2",
+   "ky": "Q3",
+   "ngay": [
+    "2026-07-03",
+    "2026-07-10",
+    "2026-07-17",
+    "2026-07-24",
+    "2026-07-31",
+    "2026-08-07",
+    "2026-08-14",
+    "2026-08-21",
+    "2026-09-11",
+    "2026-08-28"
+   ]
+  },
+  {
+   "don_vi": "V3",
+   "ky": "Q3",
+   "ngay": [
+    "2026-09-28",
+    "2026-09-28",
+    "2026-09-28",
+    "2026-09-29",
+    "2026-09-29",
+    "2026-09-29",
+    "2026-09-30",
+    "2026-09-30",
+    "2026-09-30",
+    "2026-07-08",
+    "2026-07-15",
+    "2026-07-22"
+   ]
+  },
+  {
+   "don_vi": "V4",
+   "ky": "Q3",
+   "ngay": [
+    "2026-07-07",
+    "2026-07-08",
+    "2026-07-14",
+    "2026-07-15",
+    "2026-07-21",
+    "2026-07-22",
+    "2026-08-04",
+    "2026-08-05",
+    "2026-08-11",
+    "2026-08-12"
+   ]
+  },
+  {
+   "don_vi": "V5",
+   "ky": "Q3",
+   "ngay": [
+    "2026-09-30",
+    "2026-09-30",
+    "2026-09-30",
+    "2026-09-30",
+    "2026-09-30",
+    "2026-09-30",
+    "2026-09-30",
+    "2026-09-30"
+   ]
+  },
+  {
+   "don_vi": "V6",
+   "ky": "Q3",
+   "ngay": [
+    "2026-08-28",
+    "2026-08-28",
+    "2026-08-28",
+    "2026-08-28",
+    "2026-08-28",
+    "2026-08-28",
+    "2026-07-07",
+    "2026-07-14",
+    "2026-07-21",
+    "2026-08-04"
+   ]
+  }
+ ],
+ "nhom_nhiem_vu": {
+  "don_vi": "W1",
+  "ho_so": [
+   {
+    "ma": "HS-N1Q3",
+    "nguoi": "N1",
+    "ky": "Q3"
+   }
+  ],
+  "nhom": [
+   {
+    "nguoi": "N1",
+    "ky": "Q2",
+    "so": 4,
+    "diem": 10
+   },
+   {
+    "nguoi": "N1",
+    "ky": "Q3",
+    "so": 8,
+    "diem": 5
+   },
+   {
+    "nguoi": "N2",
+    "ky": "Q2",
+    "so": 4,
+    "diem": 10
+   },
+   {
+    "nguoi": "N2",
+    "ky": "Q3",
+    "so": 6,
+    "diem": 7
+   },
+   {
+    "nguoi": "N3",
+    "ky": "Q3",
+    "so": 5,
+    "diem": 8,
+    "ke_hoach": "KH1",
+    "han": "2026-09-15"
+   },
+   {
+    "nguoi": "N4",
+    "ky": "Q2",
+    "so": 4,
+    "diem": 10
+   },
+   {
+    "nguoi": "N4",
+    "ky": "Q3",
+    "so": 8,
+    "diem": 10
+   },
+   {
+    "nguoi": "N5",
+    "ky": "Q2",
+    "so": 2,
+    "diem": 10
+   },
+   {
+    "nguoi": "N5",
+    "ky": "Q3",
+    "so": 4,
+    "diem": 5
+   },
+   {
+    "nguoi": "N6",
+    "ky": "Q3",
+    "so": 1,
+    "diem": 8,
+    "ke_hoach": "KH2",
+    "han": "2026-08-01"
+   },
+   {
+    "nguoi": "N6",
+    "ky": "Q3",
+    "so": 1,
+    "diem": 8,
+    "ke_hoach": "KH2",
+    "han": "2026-08-15"
+   },
+   {
+    "nguoi": "N6",
+    "ky": "Q3",
+    "so": 1,
+    "diem": 8,
+    "ke_hoach": "KH2",
+    "han": "2026-09-01"
+   },
+   {
+    "nguoi": "N6",
+    "ky": "Q3",
+    "so": 2,
+    "diem": 8,
+    "ke_hoach": "KH3",
+    "han": "2026-09-20"
+   }
+  ]
+ }
 }

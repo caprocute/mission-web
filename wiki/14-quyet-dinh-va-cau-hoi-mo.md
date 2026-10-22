@@ -1176,6 +1176,18 @@ Mã nguồn ở `services-py/anomaly-job/app/delay_risk`, bộ ca vàng ở `dat
 - **Lịch sử quyền (`listAccessHistory`, `exportAccessHistory`).** Dòng thời gian suy ra từ cột của hai bảng (cấp, duyệt, từ chối, thu hồi, hết hạn) thay vì đọc `sys.audit.v1`, để không phụ thuộc chỉ mục kiểm toán; mỗi lượt đọc tối đa 2.000 bản ghi nguồn. Tệp CSV có BOM UTF-8 và chặn chèn công thức bảng tính.
 - **Kiểm vai trò và bước lên ở tầng ứng dụng.** Vì `@RequiresPermission` chưa có hiệu lực trong mission-core, dịch vụ kiểm lại vai trò theo ma trận SCR-0105 đến SCR-0107 và phiên `aal2` trong 15 phút (BR-01-15); người duyệt thứ hai là `tenant_admin` khác, hoặc `leader` có vai trò tại đơn vị phạm vi hay đơn vị cấp trên.
 
+## Ghi chú và quyết định từ dấu hiệu bất thường 3, 5, 7 (DV-15-08, 22/10/2026)
+
+Luật ở `services-py/anomaly-job/app/rules/{muc_tieu_de,cap_nhat_don,che_nho}.sql`, dữ liệu vàng ở `data/golden/anomaly` (tenant A ngưỡng mặc định, tenant D ngưỡng khác).
+
+1. **Bổ sung kho cho dấu hiệu 3 (ngoài danh sách tệp của task).** Kho chưa có chỉ tiêu, giá trị xuất phát và chiều tốt của KR. Migration `V012__ket_qua_then_chot.sql` dựng lại bảng Kafka `src_okr__key_result` với thêm cột C1 và thêm `fact_okr_key_result`; các kiểm tra tĩnh phân loại cột của DV-15-01, DV-15-02 được sửa để đọc mọi migration từ V005 (định nghĩa sau thắng). Cụm đã chạy trước V012 cần chụp lại `okr.key_result` bằng incremental snapshot của connector để có KR cũ.
+2. **Dấu hiệu 3 (suy luận).** "Kết quả kỳ trước" là giá trị xuất phát `baseline_value` của KR; "đạt ≥ 100%" là có check-in đã gửi đạt chỉ tiêu theo chiều tốt (chiều `DAT` coi như `TANG`); chỉ xét KR đã duyệt hoặc đã đóng. EVT-20 không có loại đối tượng KR hay mục tiêu, nên đối tượng là đơn vị sở hữu mục tiêu và mã KR, mục tiêu nằm trong chuỗi bằng chứng; đề xuất bổ sung loại đối tượng khi sửa hợp đồng.
+3. **Dấu hiệu 5 (suy luận).** "Cuối tuần" hiểu là ngày làm việc cuối cùng của tuần chứa lượt cập nhật (tham số `weekLastDays`, mặc định 1, vì 3 ngày cuối của tuần 5 ngày đã là 60%); cần tối thiểu 10 lượt mỗi đơn vị, kỳ (`minUpdates`). Kỳ của lượt cập nhật là kỳ của nhiệm vụ. Lịch ngày làm việc không có trong kho mà lấy qua `getWorkingCalendar` rồi truyền vào truy vấn (khác giả định của task là lịch nằm trong `dim_period`).
+4. **Dấu hiệu 7 (suy luận).** Khối lượng là tổng điểm chuẩn `standard_score`, "không đổi" là lệch không quá 10 % (`volumeTolerancePercent`); kỳ trước phải có ít nhất 4 nhiệm vụ (`minTasks`); "cùng sản phẩm" hiểu là cùng mục kế hoạch `plan_item_id`, ngưỡng 3 nhiệm vụ cùng hạn (`sameDueTasks`). Chỉ tính nhiệm vụ cá nhân chủ trì, bỏ nháp và đã huỷ. Đối tượng là mã hồ sơ đánh giá của người đó trong kỳ (như dấu hiệu 1); chưa có hồ sơ thì là đơn vị của người đó.
+5. **Mức cảnh báo (suy luận).** Với e là độ vượt ngưỡng của điều kiện mạnh nhất: thoả cả hai điều kiện, hoặc e ≥ 2 (dấu hiệu 3, 7), e ≥ 1,5 (dấu hiệu 5) là Cao; e ≥ 1,5 (3, 7), e ≥ 1,25 (5) là Vừa; còn lại Thấp.
+6. **Giải thích tiếng Việt.** EVT-20 không có trường văn bản; chuỗi bằng chứng mang thêm số liệu dạng `so_lieu:<KHOÁ>=<số>` và mã kỳ `ky:<uuid>` (thêm cho cả dấu hiệu 1, 2, phiên bản luật `2026.10.2`). `app/rules/giai_thich.py` là mẫu câu để MOD-07 dùng cùng.
+7. **Chưa đo thời gian trên dữ liệu cỡ một tỉnh.** Theo YC-PT-19, đo tải để giai đoạn sau; kiểm thử hiện chạy trên dữ liệu vàng.
+
 ## Liên quan
 
 - [README của wiki](README.md)

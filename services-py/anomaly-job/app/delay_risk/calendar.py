@@ -24,6 +24,9 @@ class WorkingCalendar:
         self._days = dict(days)
         self._weekend = frozenset(weekend)
 
+    def days_of(self, *kinds: str) -> list[dt.date]:
+        return sorted(d for d, k in self._days.items() if k in kinds)
+
     def is_working(self, d: dt.date) -> bool:
         kind = self._days.get(d)
         if kind == "LAM_BU":

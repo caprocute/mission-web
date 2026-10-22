@@ -17,6 +17,11 @@ DEFAULT_PARAMS: dict[str, dict[str, float]] = {
     "TU_CHAM_CAO": {"consecutiveQuarters": 3, "scoreGap": 5, "scoreQuarters": 2},
     # excellentPercent, minStdDev, minPeople (suy luận).
     "CAO_BANG": {"sameLevelPercent": 90, "excellentPercent": 20, "minStdDev": 2, "minPeople": 5},
+    "MUC_TIEU_DE": {"earlyWeeks": 2, "belowPreviousPercent": 20},
+    # minUpdates, weekLastDays (suy luận).
+    "CAP_NHAT_DON": {"lastDaysPercent": 60, "lastDays": 3, "minUpdates": 10, "weekLastDays": 1},
+    # volumeTolerancePercent, minTasks, sameDueTasks (suy luận).
+    "CHE_NHO": {"taskIncreasePercent": 50, "volumeTolerancePercent": 10, "minTasks": 4, "sameDueTasks": 3},
 }
 
 

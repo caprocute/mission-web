@@ -1,0 +1,39 @@
+{
+ "version": 2,
+ "rowVersion": 2,
+ "signals": [
+  {
+   "signalCode": "TU_CHAM_CAO",
+   "enabled": false,
+   "params": {}
+  },
+  {
+   "signalCode": "CAO_BANG",
+   "enabled": false,
+   "params": {}
+  },
+  {
+   "signalCode": "MUC_TIEU_DE",
+   "enabled": true,
+   "params": {
+    "earlyWeeks": 1,
+    "belowPreviousPercent": 25
+   }
+  },
+  {
+   "signalCode": "CAP_NHAT_DON",
+   "enabled": true,
+   "params": {
+    "lastDaysPercent": 80
+   }
+  },
+  {
+   "signalCode": "CHE_NHO",
+   "enabled": true,
+   "params": {
+    "taskIncreasePercent": 80,
+    "sameDueTasks": 6
+   }
+  }
+ ]
+}
