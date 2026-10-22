@@ -14,9 +14,9 @@
 
 - **Tổng tiến độ đã gộp `main`**: **164 / 401 task (40.9%)** — Khối lượng quy đổi đã gộp: **193.5 / 482.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **165 / 401 task (41.1%)** (gồm **164** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **230 task**.
-- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **12 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-05-02`** (đang xử lý trên nhánh: không).
+- **Đang thực hiện / Làm một phần**: **7 task** (4 đang làm, 3 làm một phần).
+- **Chưa bắt đầu**: **229 task**.
+- **Tiến độ Đường găng (23 task)**: Đã gộp `main` **12 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-05-02`** (đang xử lý trên nhánh: `CORE-05-02`).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
 
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **26** | 1 | 0 | 85 | **23.2%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **26** | 1 | 1 | 84 | **23.2%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **28** | 0 | 3 | 73 | **26.9%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **15** | 0 | 0 | 13 | **53.6%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **164** | **1** | **6** | **230** | **40.9%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **164** | **1** | **7** | **229** | **40.9%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -40,7 +40,7 @@
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 0 | 1 | 9 | **83.1%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
-| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **26** | 1 | 1 | 18 | **56.5%** |
+| **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **26** | 1 | 2 | 17 | **56.5%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **26** | 0 | 3 | 88 | **22.2%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 0 | 0 | 54 | **23.9%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **13** | 0 | 1 | 28 | **31.0%** |
@@ -51,7 +51,7 @@
 
 Chuỗi đường găng quyết định thời gian hoàn thành toàn dự án:
 
-✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → ⏳ `CORE-05-02` → ⏳ `CORE-05-03` → ✅ `CORE-08-13` → ✅ `CORE-08-14` → ⏳ `CORE-04-04` → ⏳ `CORE-04-05` → ⏳ `CORE-04-07` → ⏳ `CORE-04-08` → ⏳ `CORE-04-10` → ⏳ `QA-06` → ⏳ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
+✅ `NEN-001` → ✅ `NEN-005` → ✅ `NEN-030` → ✅ `NEN-031` → ✅ `NEN-033` → ✅ `NEN-010` → ✅ `NEN-019` → ✅ `CORE-00-01` → ✅ `CORE-00-02` → ✅ `CORE-05-01` → 🔄 **`CORE-05-02`** (Đang làm) → ⏳ `CORE-05-03` → ✅ `CORE-08-13` → ✅ `CORE-08-14` → ⏳ `CORE-04-04` → ⏳ `CORE-04-05` → ⏳ `CORE-04-07` → ⏳ `CORE-04-08` → ⏳ `CORE-04-10` → ⏳ `QA-06` → ⏳ `QA-07` → ⏳ `QA-16` → ⏳ `VH-08`
 
 ---
 
@@ -214,12 +214,12 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-08-16](docs/tasks/CORE-08-16-phan-cong-vai-tro-uy-quyen.md) | Lưu phân công vai trò và uỷ quyền (`config.role_binding`) theo đề xuất WEB-058 | M | B2 | 12 | CORE-08-01, NEN-040, NEN-043 | **Chưa bắt đầu** | Chờ người dùng duyệt đề xuất WEB-058 |
 | [CORE-08-17](docs/tasks/CORE-08-17-luu-dinh-nghia-dashboard.md) | Lưu định nghĩa dashboard `config.dashboard_def` và cổng `api` cho analytics-api | S | B2 | 12 | CORE-08-01 | **Chưa bắt đầu** | Bổ sung sau khi viết thẻ |
 
-### CORE-05 · MOD-05 policy: Policy Pack (1/11 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### CORE-05 · MOD-05 policy: Policy Pack (1/11 đã gộp `main`, 0 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [CORE-05-01](docs/tasks/CORE-05-01-migration-schema-policy.md) | Migration schema `policy` và trigger đóng băng phiên bản đã phát hành | M | B2 | 11 | CORE-00-02, NEN-033 | **Đã gộp main** | Migration schema kèm IT RLS và ràng buộc |
-| [CORE-05-02](docs/tasks/CORE-05-02-phien-ban-goi-chinh-sach.md) | Mô hình phiên bản gói, nhân bản, máy trạng thái, kế thừa theo cờ `overridable` | M | B2 | 12 | CORE-05-01 | **Chưa bắt đầu** |  |
+| [CORE-05-02](docs/tasks/CORE-05-02-phien-ban-goi-chinh-sach.md) | Mô hình phiên bản gói, nhân bản, máy trạng thái, kế thừa theo cờ `overridable` | M | B2 | 12 | CORE-05-01 | **Đang làm** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: CRUD Policy Pack và nhân bản phiên bản |
 | [CORE-05-03](docs/tasks/CORE-05-03-policy-query-api.md) | `PolicyQueryApi` và API phân giải nội bộ có bộ đệm, cung cấp `task_lifecycle` và tham số theo tenant/khối/kỳ | M | B2 | 13 | CORE-05-02 | **Chưa bắt đầu** |  |
 | [CORE-05-04](docs/tasks/CORE-05-04-quy-tac-cel-tham-so.md) | API quy tắc CEL và tham số, kiểm kiểu theo khai báo ngữ cảnh | M | B2 | 13 | CORE-05-02, NEN-041 | **Chưa bắt đầu** |  |
 | [CORE-05-05](docs/tasks/CORE-05-05-bang-quyet-dinh-dmn.md) | Bảng quyết định DMN 1.4: lưu, kiểm FEEL, mẫu câu giải thích, xuất XML | L | B2 | 13 | CORE-05-02 | **Chưa bắt đầu** |  |
@@ -817,4 +817,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 10:43 | B2 (luồng B6) | `CORE-08-14` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: FormValidationApi, runUiFormTests, bộ ca data/golden/form-tests; đã qua verify mission-core |
 | 22/10/2026 10:50 | Điều phối | `CORE-08-14` | Chuyển trạng thái sang **Đã gộp main** — FormValidationApi kiểm phiếu tại máy chủ, runUiFormTests hai engine |
 | 22/10/2026 11:07 | B2 (luồng B6) | `CORE-08-15` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: danh mục plugin đã duyệt, kiểm chữ ký cosign và SRI, manifest chốt khi phát hành; migration V8 (ngoại lệ phạm vi); đã qua verify mission-core |
+| 22/10/2026 11:12 | B2 (luồng B6) | `CORE-05-02` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: CRUD Policy Pack và nhân bản phiên bản |
 <!-- PROGRESS_LOG_END -->
