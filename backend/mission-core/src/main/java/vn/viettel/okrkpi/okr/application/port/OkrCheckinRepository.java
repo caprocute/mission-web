@@ -100,7 +100,7 @@ public interface OkrCheckinRepository {
 
   void insert(TenantId tenant, NewCheckin checkin, UUID actor);
 
-  /** Ghi giá trị hiện tại, mức tự tin, tiến độ KR khi {@code row_version} còn đúng. */
+  /** Ghi giá trị hiện tại, mức tự tin, tiến độ, cờ rủi ro KR khi {@code row_version} còn đúng. */
   boolean updateKeyResultProgress(
       TenantId tenant,
       int bucket,
@@ -109,6 +109,7 @@ public interface OkrCheckinRepository {
       BigDecimal currentValue,
       String confidence,
       BigDecimal progress,
+      String riskFlag,
       UUID actor);
 
   List<Weighted> objectiveWeights(TenantId tenant, int bucket, UUID objectiveId);

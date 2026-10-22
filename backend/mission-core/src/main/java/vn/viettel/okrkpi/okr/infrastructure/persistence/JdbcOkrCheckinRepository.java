@@ -158,10 +158,11 @@ public class JdbcOkrCheckinRepository implements OkrCheckinRepository {
       BigDecimal currentValue,
       String confidence,
       BigDecimal progress,
+      String riskFlag,
       UUID actor) {
     return jdbc.update(
             "UPDATE okr.key_result SET current_value = :current, confidence = :confidence,"
-                + " progress = :progress, row_version = row_version + 1, updated_at = now(),"
+                + " progress = :progress, risk_flag = :risk, row_version = row_version + 1, updated_at = now(),"
                 + " updated_by = :actor WHERE period_bucket = :b AND tenant_id = :t AND id = :id"
                 + " AND row_version = :v",
             p(tenant, bucket)
@@ -170,6 +171,7 @@ public class JdbcOkrCheckinRepository implements OkrCheckinRepository {
                 .addValue("current", currentValue)
                 .addValue("confidence", confidence)
                 .addValue("progress", progress)
+                .addValue("risk", riskFlag)
                 .addValue("actor", actor))
         == 1;
   }

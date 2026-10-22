@@ -14,12 +14,14 @@ import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.PeriodStatus;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinDelegatePort;
+import vn.viettel.okrkpi.okr.application.port.OkrCheckinEvents;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinExtension;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinRepository;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinRepository.CheckinRow;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinRepository.CheckinTarget;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinRepository.NewCheckin;
 import vn.viettel.okrkpi.okr.domain.ProgressCalculator;
+import vn.viettel.okrkpi.okr.domain.RiskFlagPolicy;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.error.ProblemFieldError;
 import vn.viettel.okrkpi.shared.idempotency.IdempotencyExceptions;
@@ -59,18 +61,21 @@ public class OkrCheckinService {
   private final OkrCheckService checks;
   private final Supplier<OkrCheckinDelegatePort> delegates;
   private final Supplier<List<OkrCheckinExtension>> extensions;
+  private final OkrCheckinEvents events;
 
   public OkrCheckinService(
       OkrCheckinRepository repository,
       PeriodApi periods,
       OkrCheckService checks,
       Supplier<OkrCheckinDelegatePort> delegates,
-      Supplier<List<OkrCheckinExtension>> extensions) {
+      Supplier<List<OkrCheckinExtension>> extensions,
+      OkrCheckinEvents events) {
     this.repository = Objects.requireNonNull(repository, "repository");
     this.periods = Objects.requireNonNull(periods, "periods");
     this.checks = Objects.requireNonNull(checks, "checks");
     this.delegates = Objects.requireNonNull(delegates, "delegates");
     this.extensions = Objects.requireNonNull(extensions, "extensions");
+    this.events = Objects.requireNonNull(events, "events");
   }
 
   /** Nội dung lưu nháp hoặc gửi (SCR-0301 trường 5-11, SCR-0302). */
@@ -154,10 +159,9 @@ public class OkrCheckinService {
             .lockTarget(tenant, bucket, unlocked.objectiveId(), unlocked.keyResultId())
             .orElseThrow(NotFound::new);
     requireApproved(target);
+    Optional<CheckinRow> last = repository.lastSubmitted(tenant, bucket, target.keyResultId());
     if (!cmd.confirmLargeChange()) {
-      repository
-          .lastSubmitted(tenant, bucket, target.keyResultId())
-          .ifPresent(last -> largeChange(target, last.value(), cmd.value()));
+      last.ifPresent(l -> largeChange(target, l.value(), cmd.value()));
     }
     UUID id = UUID.randomUUID();
     repository.insert(tenant, newCheckin(id, target, cmd, DA_GUI, key), actor);
@@ -168,6 +172,10 @@ public class OkrCheckinService {
             target.baselineValue(),
             target.targetValue(),
             cmd.value());
+    // CORE-01-09, BR-03-06: cờ rủi ro theo lần gửi ngay trước của KR.
+    String riskFlag =
+        RiskFlagPolicy.next(
+            target.riskFlag(), last.map(CheckinRow::confidence).orElse(null), cmd.confidence());
     if (!repository.updateKeyResultProgress(
         tenant,
         bucket,
@@ -176,6 +184,7 @@ public class OkrCheckinService {
         cmd.value(),
         cmd.confidence(),
         krProgress,
+        riskFlag,
         actor)) {
       throw new BusinessException(
           MODULE + "-409-VERSION-CONFLICT",
@@ -187,6 +196,11 @@ public class OkrCheckinService {
     repository.updateObjectiveProgress(
         tenant, bucket, target.objectiveId(), objectiveProgress, actor);
     CheckinRow row = repository.byId(tenant, bucket, id).orElseThrow();
+    long version = target.rowVersion() + 1;
+    events.checkedIn(tenant, target, row, version);
+    if (RiskFlagPolicy.becameAtRisk(target.riskFlag(), riskFlag)) {
+      events.atRisk(tenant, target, row, version);
+    }
     List<OkrCheckinExtension> hooks = extensions.get();
     if (hooks != null) {
       for (OkrCheckinExtension hook : hooks) {

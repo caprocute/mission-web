@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.okr.infrastructure.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -26,11 +27,16 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -45,8 +51,15 @@ import vn.viettel.okrkpi.MissionCoreApplication;
 import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
+import vn.viettel.okrkpi.okr.application.port.OkrCheckinEvents;
+import vn.viettel.okrkpi.okr.application.port.OkrCheckinExtension;
 import vn.viettel.okrkpi.okr.domain.ProgressCalculator;
+import vn.viettel.okrkpi.okr.infrastructure.persistence.OutboxOkrCheckinEvents;
+import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
+import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
+import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer.SerializedPayload;
+import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
 /**
@@ -65,7 +78,44 @@ class OkrCheckinApiIT extends ContractConformanceTest {
   static final UUID OWNER = UUID.fromString("01927a08-0000-7000-8000-0000000000ac");
   static final UUID OTHER = UUID.fromString("01927a08-0000-7000-8000-0000000000ae");
   static final UUID VERIFIER = UUID.fromString("01927a08-0000-7000-8000-0000000000ad");
+  static final UUID LEADER = UUID.fromString("01927a08-0000-7000-8000-0000000000af");
   static final String PATH = "/okr/key-results/{id}/checkins";
+
+  /** Giá trị làm điểm mở rộng ném lỗi sau khi đã ghi outbox, để kiểm giao dịch huỷ hết. */
+  static final BigDecimal FAIL_VALUE = new BigDecimal("7.5");
+
+  /**
+   * Outbox thật trên {@code okr.outbox_event} với bộ tuần tự giả (không có Apicurio), lãnh đạo đơn
+   * vị cố định; điểm mở rộng ném lỗi khi gửi {@link #FAIL_VALUE}.
+   */
+  @TestConfiguration
+  static class CheckinEventsConfig {
+
+    @Bean
+    @Primary
+    OkrCheckinEvents testOkrCheckinEvents(
+        @Qualifier("okrDataSource") DataSource dataSource, ObjectMapper json) {
+      OrgDirectoryApi org = Mockito.mock(OrgDirectoryApi.class);
+      Mockito.when(org.headsOf(any(), any(), any())).thenReturn(List.of(LEADER));
+      return new OutboxOkrCheckinEvents(
+          new OutboxWriter(
+              new JdbcTemplate(dataSource),
+              "okr",
+              (topic, payload) -> new SerializedPayload(new byte[] {1}, 1L, 1),
+              json,
+              Clock.systemUtc()),
+          () -> org);
+    }
+
+    @Bean
+    OkrCheckinExtension testFailingCheckinExtension() {
+      return s -> {
+        if (s.checkin().value().compareTo(FAIL_VALUE) == 0) {
+          throw new IllegalStateException("Lỗi giả lập sau khi ghi outbox");
+        }
+      };
+    }
+  }
 
   /** Người gọi theo luồng kiểm thử (mặc định {@link #OWNER}). */
   static final InheritableThreadLocal<UUID> CALLER =
@@ -288,6 +338,49 @@ class OkrCheckinApiIT extends ContractConformanceTest {
   }
 
   @Test
+  void moiLanGuiMotEvt02VaChuyenRuiRoThemMotEvt21() throws Exception {
+    Okr okr = objective("DA_DUYET", period, 20271);
+    MvcResult first = checkin(okr.kr1(), UUID.randomUUID().toString(), submit("2", "THAP"));
+    assertThat(body(first).at("/keyResult/riskFlag").asText()).isEqualTo("THEO_DOI");
+    assertThat(topics(okr.kr1())).containsExactly("okr.keyresult.checkedin.v1");
+    MvcResult second = checkin(okr.kr1(), UUID.randomUUID().toString(), submit("3", "THAP"));
+    assertThat(body(second).at("/keyResult/riskFlag").asText()).isEqualTo("RUI_RO");
+    assertThat(topics(okr.kr1()))
+        .containsExactlyInAnyOrder(
+            "okr.keyresult.checkedin.v1",
+            "okr.keyresult.checkedin.v1",
+            "notify.message.requested.v1");
+    // Lần Thấp thứ ba: vẫn RUI_RO, không thông báo lại; bản nháp không phát sự kiện.
+    checkin(okr.kr1(), UUID.randomUUID().toString(), submit("3", "THAP"));
+    checkin(okr.kr1(), UUID.randomUUID().toString(), submit("3", "CAO").put("status", "NHAP"));
+    List<String> all = topics(okr.kr1());
+    assertThat(all).filteredOn("okr.keyresult.checkedin.v1"::equals).hasSize(3);
+    assertThat(all).filteredOn("notify.message.requested.v1"::equals).hasSize(1);
+    String key =
+        inTenant(
+            jdbc ->
+                jdbc.sql("SELECT DISTINCT event_key FROM okr.outbox_event WHERE aggregate_id = ?")
+                    .param(okr.kr1())
+                    .query(String.class)
+                    .single());
+    assertThat(key).isEqualTo(tenant.value() + ":" + okr.kr1());
+  }
+
+  @Test
+  void giaoDichLoiKhongConSuKien() throws Exception {
+    Okr okr = objective("DA_DUYET", period, 20271);
+    ObjectNode b = submit(FAIL_VALUE.toPlainString(), "THAP");
+    try {
+      MvcResult r = checkin(okr.kr1(), UUID.randomUUID().toString(), b);
+      assertThat(r.getResponse().getStatus()).isEqualTo(500);
+    } catch (Exception expected) {
+      // MockMvc có thể ném thẳng lỗi không được xử lý; điều cần kiểm là dữ liệu.
+    }
+    assertThat(topics(okr.kr1())).isEmpty();
+    assertThat(countSubmitted(okr.kr1())).isZero();
+  }
+
+  @Test
   void chenhLonPhaiXacNhan() throws Exception {
     Okr okr = objective("DA_DUYET", period, 20271);
     checkin(okr.kr1(), UUID.randomUUID().toString(), submit("1", "CAO"));
@@ -454,6 +547,16 @@ class OkrCheckinApiIT extends ContractConformanceTest {
                 .param(kr)
                 .query(Long.class)
                 .single());
+  }
+
+  private List<String> topics(UUID kr) throws Exception {
+    return inTenant(
+        jdbc ->
+            jdbc.sql(
+                    "SELECT topic FROM okr.outbox_event WHERE aggregate_id = ? ORDER BY created_at")
+                .param(kr)
+                .query(String.class)
+                .list());
   }
 
   private static List<String> ids(JsonNode page) {
