@@ -28,7 +28,7 @@ public interface EvidenceLifecycleRepository {
    * Ghi trạng thái và trường thay đổi của phiên bản khi {@code row_version} còn bằng {@code
    * expectedRowVersion}; trả {@code row_version} mới, hoặc rỗng khi lệch phiên bản.
    */
-  Optional<Long> updateVersion(
+  Optional<Long> writeVersion(
       TenantId tenant,
       int periodBucket,
       EvidenceVersion version,
@@ -37,7 +37,7 @@ public interface EvidenceLifecycleRepository {
       Instant at);
 
   /** Đặt {@code evidence.current_status} theo phiên bản mới nhất. */
-  void updateEvidenceCurrent(
+  void markEvidenceCurrent(
       TenantId tenant,
       int periodBucket,
       UUID evidenceId,
@@ -53,7 +53,7 @@ public interface EvidenceLifecycleRepository {
   List<EvidenceVersion> currentVersionsOfTask(TenantId tenant, UUID taskId);
 
   /** Ghi tổng hợp của sản phẩm khi khác giá trị đang lưu. */
-  void updateDeliverable(
+  void writeDeliverableRollup(
       TenantId tenant,
       int periodBucket,
       UUID deliverableId,

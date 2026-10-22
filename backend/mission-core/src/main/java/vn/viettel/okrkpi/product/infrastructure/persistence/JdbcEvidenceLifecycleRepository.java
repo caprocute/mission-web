@@ -54,7 +54,7 @@ public class JdbcEvidenceLifecycleRepository implements EvidenceLifecycleReposit
   }
 
   @Override
-  public Optional<Long> updateVersion(
+  public Optional<Long> writeVersion(
       TenantId tenant,
       int periodBucket,
       EvidenceVersion v,
@@ -89,7 +89,7 @@ public class JdbcEvidenceLifecycleRepository implements EvidenceLifecycleReposit
   }
 
   @Override
-  public void updateEvidenceCurrent(
+  public void markEvidenceCurrent(
       TenantId tenant,
       int periodBucket,
       UUID evidenceId,
@@ -135,7 +135,7 @@ public class JdbcEvidenceLifecycleRepository implements EvidenceLifecycleReposit
   }
 
   @Override
-  public void updateDeliverable(
+  public void writeDeliverableRollup(
       TenantId tenant,
       int periodBucket,
       UUID deliverableId,

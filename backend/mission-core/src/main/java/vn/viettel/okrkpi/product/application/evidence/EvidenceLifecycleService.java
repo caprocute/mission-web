@@ -181,11 +181,11 @@ public class EvidenceLifecycleService {
     Instant now = clock.instant();
     long rowVersion =
         repository
-            .updateVersion(
+            .writeVersion(
                 tenant, locked.periodBucket(), after, before.rowVersion(), actor.personId(), now)
             .orElseThrow(() -> new VersionConflictException("PRODUCT", before.rowVersion(), null));
     if (after.status() != before.status()) {
-      repository.updateEvidenceCurrent(
+      repository.markEvidenceCurrent(
           tenant,
           locked.periodBucket(),
           after.evidenceId(),
@@ -207,7 +207,7 @@ public class EvidenceLifecycleService {
       DeliverableRollup r =
           DeliverableRollup.of(d.quantityPlanned(), byDeliverable.getOrDefault(d.id(), List.of()));
       rollups.add(r);
-      repository.updateDeliverable(tenant, d.periodBucket(), d.id(), r, actor.personId(), now);
+      repository.writeDeliverableRollup(tenant, d.periodBucket(), d.id(), r, actor.personId(), now);
     }
 
     Optional<TaskInterlock.TaskRequest> request = TaskInterlock.after(after.status(), rollups);

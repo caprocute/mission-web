@@ -180,7 +180,7 @@ class EvidenceLifecycleServiceTest {
     }
 
     @Override
-    public Optional<Long> updateVersion(
+    public Optional<Long> writeVersion(
         TenantId tenant, int bucket, EvidenceVersion v, long expected, UUID actor, Instant at) {
       EvidenceVersion cur = versions.get(v.id());
       if (cur.rowVersion() != expected) {
@@ -211,7 +211,7 @@ class EvidenceLifecycleServiceTest {
     }
 
     @Override
-    public void updateEvidenceCurrent(
+    public void markEvidenceCurrent(
         TenantId t, int b, UUID evidenceId, UUID versionId, String status, UUID a, Instant at) {}
 
     @Override
@@ -228,7 +228,7 @@ class EvidenceLifecycleServiceTest {
     }
 
     @Override
-    public void updateDeliverable(
+    public void writeDeliverableRollup(
         TenantId t, int b, UUID id, DeliverableRollup rollup, UUID a, Instant at) {
       deliverableStatus.put(id, rollup.status().name());
     }
