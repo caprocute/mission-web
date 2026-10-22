@@ -1,9 +1,9 @@
 {
   "description": "Bảng chính sách thao tác trích từ mở rộng x-mission trong contracts/openapi/modules/*.yaml (NEN-014). Không sửa tay: chạy tools/extract-x-mission.mjs.",
   "source": "contracts/openapi/modules/*.yaml",
-  "count": 432,
-  "aal2Count": 73,
-  "fourEyesCount": 18,
+  "count": 452,
+  "aal2Count": 74,
+  "fourEyesCount": 19,
   "operations": [
     {
       "operationId": "acceptComplaint",
@@ -72,6 +72,29 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02a SCR-0503 \"Nhận việc\""
+    },
+    {
+      "operationId": "achieveOkrKrMilestone",
+      "file": "okr.yaml",
+      "module": "okr",
+      "errorModule": "OKR",
+      "method": "POST",
+      "path": "/okr/key-results/{id}/milestones/{milestoneId}/achieve",
+      "owner": "MOD-01",
+      "qt": [
+        "QT-03"
+      ],
+      "scr": [
+        "SCR-0301"
+      ],
+      "roles": [
+        "manager",
+        "member"
+      ],
+      "scope": "B",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 DC-04 \"Lõi chỉ ghi lại ngày đạt mốc và số ngày làm việc chậm\" (suy luận đường dẫn)"
     },
     {
       "operationId": "activateCatalogVersion",
@@ -213,6 +236,26 @@
       "aal": 2,
       "fourEyes": true,
       "source": "TL-02b SCR-0902 \"Ký số và chuyển đề xuất\"; TL-01 PL C POST /appraisals/{id}/review"
+    },
+    {
+      "operationId": "approveCustomerProfileVersion",
+      "file": "policies.yaml",
+      "module": "policies",
+      "errorModule": "POLICY",
+      "method": "POST",
+      "path": "/policies/customer-profiles/{profileId}/versions/{v}/approve",
+      "owner": "MOD-05",
+      "qt": [
+        "QT-15"
+      ],
+      "scr": [],
+      "roles": [
+        "decider"
+      ],
+      "scope": "Tn",
+      "aal": 2,
+      "fourEyes": true,
+      "source": "BS-03 ADR-33 “có ký và hai người” (PC-07)"
     },
     {
       "operationId": "approveGoldenTestCase",
@@ -1184,6 +1227,26 @@
       "source": "TL-02b SCR-0904 \"Quyết định và ký lô\"; TL-01 PL C POST /appraisals/decisions/batch và POST /appraisals/{id}/decision"
     },
     {
+      "operationId": "createAppraisalIncident",
+      "file": "appraisals.yaml",
+      "module": "appraisals",
+      "errorModule": "APPRAISAL",
+      "method": "POST",
+      "path": "/appraisals/incidents",
+      "owner": "MOD-04",
+      "qt": [
+        "QT-09"
+      ],
+      "scr": [],
+      "roles": [
+        "appraiser"
+      ],
+      "scope": "Cd",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 DC-05 (suy luận đường dẫn và vai trò)"
+    },
+    {
       "operationId": "createComplaint",
       "file": "oversight.yaml",
       "module": "oversight",
@@ -1226,6 +1289,46 @@
       "aal": 2,
       "fourEyes": false,
       "source": "TL-02a QT-01 bước 1, SCR-0102; ma trận dòng API config (suy luận)"
+    },
+    {
+      "operationId": "createCustomerProfile",
+      "file": "policies.yaml",
+      "module": "policies",
+      "errorModule": "POLICY",
+      "method": "POST",
+      "path": "/policies/customer-profiles",
+      "owner": "MOD-05",
+      "qt": [
+        "QT-15"
+      ],
+      "scr": [],
+      "roles": [
+        "policy_author"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 ADR-33 (suy luận đường dẫn)"
+    },
+    {
+      "operationId": "createCustomerProfileVersion",
+      "file": "policies.yaml",
+      "module": "policies",
+      "errorModule": "POLICY",
+      "method": "POST",
+      "path": "/policies/customer-profiles/{profileId}/versions",
+      "owner": "MOD-05",
+      "qt": [
+        "QT-15"
+      ],
+      "scr": [],
+      "roles": [
+        "policy_author"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 ADR-33 (suy luận đường dẫn)"
     },
     {
       "operationId": "createDashboard",
@@ -2926,6 +3029,28 @@
       "source": "suy luận từ TL-02b SCR-0904 \"Theo dõi tiến độ\", \"Huỷ lô\"; TL-03 appraisal.batch_decision"
     },
     {
+      "operationId": "getAppraisalIncident",
+      "file": "appraisals.yaml",
+      "module": "appraisals",
+      "errorModule": "APPRAISAL",
+      "method": "GET",
+      "path": "/appraisals/incidents/{id}",
+      "owner": "MOD-04",
+      "qt": [
+        "QT-09"
+      ],
+      "scr": [],
+      "roles": [
+        "appraiser",
+        "decider",
+        "inspector"
+      ],
+      "scope": "Cd",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 DC-05 (suy luận đường dẫn)"
+    },
+    {
       "operationId": "getAppraisalProfile",
       "file": "appraisals.yaml",
       "module": "appraisals",
@@ -3144,6 +3269,50 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-01 PL C; TL-01 chương 7 \"Cấu trúc UI Pack\", \"Cơ chế bộ đệm\"; ma trận dòng API ui"
+    },
+    {
+      "operationId": "getCustomerProfile",
+      "file": "policies.yaml",
+      "module": "policies",
+      "errorModule": "POLICY",
+      "method": "GET",
+      "path": "/policies/customer-profiles/{profileId}",
+      "owner": "MOD-05",
+      "qt": [
+        "QT-15"
+      ],
+      "scr": [],
+      "roles": [
+        "policy_author",
+        "tenant_admin",
+        "decider"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 ADR-33 (suy luận đường dẫn)"
+    },
+    {
+      "operationId": "getCustomerProfileVersion",
+      "file": "policies.yaml",
+      "module": "policies",
+      "errorModule": "POLICY",
+      "method": "GET",
+      "path": "/policies/customer-profiles/{profileId}/versions/{v}",
+      "owner": "MOD-05",
+      "qt": [
+        "QT-15"
+      ],
+      "scr": [],
+      "roles": [
+        "policy_author",
+        "tenant_admin",
+        "decider"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 ADR-33 (suy luận đường dẫn)"
     },
     {
       "operationId": "getDashboard",
@@ -5229,6 +5398,28 @@
       "source": "TL-02b SCR-0904 \"Theo dõi tiến độ\" (khi có lô đang chạy), MSG-09-15; TL-03 appraisal.batch_decision (decider_id, status CHO_KY)"
     },
     {
+      "operationId": "listAppraisalIncidents",
+      "file": "appraisals.yaml",
+      "module": "appraisals",
+      "errorModule": "APPRAISAL",
+      "method": "GET",
+      "path": "/appraisals/incidents",
+      "owner": "MOD-04",
+      "qt": [
+        "QT-09"
+      ],
+      "scr": [],
+      "roles": [
+        "appraiser",
+        "decider",
+        "inspector"
+      ],
+      "scope": "Cd",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 DC-05 bảng `appraisal.incident` (suy luận đường dẫn, vai trò và chưa có màn hình)"
+    },
+    {
       "operationId": "listAppraisalProfiles",
       "file": "appraisals.yaml",
       "module": "appraisals",
@@ -5271,6 +5462,26 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-01 PL C GET /appraisals/inputs?period=&cursor="
+    },
+    {
+      "operationId": "listAppraisalWorkItems",
+      "file": "appraisals.yaml",
+      "module": "appraisals",
+      "errorModule": "APPRAISAL",
+      "method": "GET",
+      "path": "/appraisals/inputs/{profileId}/work-items",
+      "owner": "MOD-04",
+      "qt": [
+        "QT-09"
+      ],
+      "scr": [],
+      "roles": [
+        "service_client"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 DC-01 \"Hiệu năng\" (con trỏ con khi vượt 200 việc lá; suy luận đường dẫn)"
     },
     {
       "operationId": "listApprovedPlanItems",
@@ -5485,6 +5696,50 @@
       "aal": 2,
       "fourEyes": false,
       "source": "TL-02a SCR-0101; ma trận SCR-0101.xem"
+    },
+    {
+      "operationId": "listCustomerProfiles",
+      "file": "policies.yaml",
+      "module": "policies",
+      "errorModule": "POLICY",
+      "method": "GET",
+      "path": "/policies/customer-profiles",
+      "owner": "MOD-05",
+      "qt": [
+        "QT-15"
+      ],
+      "scr": [],
+      "roles": [
+        "policy_author",
+        "tenant_admin",
+        "decider"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 ADR-33 “Mô hình hồ sơ tập khách hàng” (suy luận đường dẫn; chưa có SCR)"
+    },
+    {
+      "operationId": "listCustomerProfileVersions",
+      "file": "policies.yaml",
+      "module": "policies",
+      "errorModule": "POLICY",
+      "method": "GET",
+      "path": "/policies/customer-profiles/{profileId}/versions",
+      "owner": "MOD-05",
+      "qt": [
+        "QT-15"
+      ],
+      "scr": [],
+      "roles": [
+        "policy_author",
+        "tenant_admin",
+        "decider"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 ADR-33; TL-03 bổ sung `policy.customer_profile_version` (suy luận đường dẫn)"
     },
     {
       "operationId": "listDashboards",
@@ -6125,6 +6380,34 @@
       "source": "TL-02a SCR-0002 \"Tải trang\" (`/okr/key-results?owner=me&needCheckin=true`); SCR-0301, SCR-0302 trường 1; mã frontend WEB-028"
     },
     {
+      "operationId": "listOkrKrMilestones",
+      "file": "okr.yaml",
+      "module": "okr",
+      "errorModule": "OKR",
+      "method": "GET",
+      "path": "/okr/key-results/{id}/milestones",
+      "owner": "MOD-01",
+      "qt": [
+        "QT-02",
+        "QT-03"
+      ],
+      "scr": [
+        "SCR-0202",
+        "SCR-0301"
+      ],
+      "roles": [
+        "leader",
+        "manager",
+        "member",
+        "inspector",
+        "ai_readonly"
+      ],
+      "scope": "Đv",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 DC-04 \"Hợp đồng\" (tài nguyên `milestones`); TL-03 bổ sung `okr.kr_milestone` (suy luận đường dẫn)"
+    },
+    {
       "operationId": "listOkrLinks",
       "file": "okr.yaml",
       "module": "okr",
@@ -6393,6 +6676,28 @@
       "aal": 1,
       "fourEyes": false,
       "source": "Mã frontend WEB-028; TL-02b ma trận truy vết QT-01"
+    },
+    {
+      "operationId": "listParamConstraints",
+      "file": "policies.yaml",
+      "module": "policies",
+      "errorModule": "POLICY",
+      "method": "GET",
+      "path": "/policies/customer-profiles/{profileId}/versions/{v}/param-constraints",
+      "owner": "MOD-05",
+      "qt": [
+        "QT-15"
+      ],
+      "scr": [],
+      "roles": [
+        "policy_author",
+        "tenant_admin",
+        "decider"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 DC-02 “Hợp đồng” (`param-constraints` thuộc phiên bản hồ sơ)"
     },
     {
       "operationId": "listPeriodLockBatches",
@@ -7817,6 +8122,26 @@
       "source": "TL-02b SCR-1202 \"Tiếp nhận hoặc không thụ lý\""
     },
     {
+      "operationId": "rejectCustomerProfileVersion",
+      "file": "policies.yaml",
+      "module": "policies",
+      "errorModule": "POLICY",
+      "method": "POST",
+      "path": "/policies/customer-profiles/{profileId}/versions/{v}/reject",
+      "owner": "MOD-05",
+      "qt": [
+        "QT-15"
+      ],
+      "scr": [],
+      "roles": [
+        "decider"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 ADR-33 (PC-07)"
+    },
+    {
       "operationId": "rejectEvidenceVersion",
       "file": "products.yaml",
       "module": "evidences",
@@ -7950,6 +8275,49 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-02b SCR-1601 \"Nhắc\""
+    },
+    {
+      "operationId": "replaceOkrKrMilestones",
+      "file": "okr.yaml",
+      "module": "okr",
+      "errorModule": "OKR",
+      "method": "PUT",
+      "path": "/okr/key-results/{id}/milestones",
+      "owner": "MOD-01",
+      "qt": [
+        "QT-02"
+      ],
+      "scr": [
+        "SCR-0202"
+      ],
+      "roles": [
+        "manager",
+        "member"
+      ],
+      "scope": "B",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 DC-04; TL-02a SCR-0202 (soạn KR, suy luận đường dẫn và điều kiện sửa)"
+    },
+    {
+      "operationId": "replaceParamConstraints",
+      "file": "policies.yaml",
+      "module": "policies",
+      "errorModule": "POLICY",
+      "method": "PUT",
+      "path": "/policies/customer-profiles/{profileId}/versions/{v}/param-constraints",
+      "owner": "MOD-05",
+      "qt": [
+        "QT-15"
+      ],
+      "scr": [],
+      "roles": [
+        "policy_author"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 DC-02"
     },
     {
       "operationId": "replaceScimGroup",
@@ -9498,6 +9866,26 @@
       "source": "TL-02b QT-12 bước 6 (suy luận đường dẫn); ma trận SCR-1202.giai-trinh"
     },
     {
+      "operationId": "submitCustomerProfileVersion",
+      "file": "policies.yaml",
+      "module": "policies",
+      "errorModule": "POLICY",
+      "method": "POST",
+      "path": "/policies/customer-profiles/{profileId}/versions/{v}/submit",
+      "owner": "MOD-05",
+      "qt": [
+        "QT-15"
+      ],
+      "scr": [],
+      "roles": [
+        "policy_author"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 ADR-33 (PC-07)"
+    },
+    {
       "operationId": "submitEvidenceVersion",
       "file": "products.yaml",
       "module": "evidences",
@@ -9894,6 +10282,26 @@
       "source": "TL-02a SCR-0102 \"Lưu nháp\"; ma trận SCR-0102.buoc-1-3, SCR-0102.buoc-4-5"
     },
     {
+      "operationId": "updateCustomerProfileVersion",
+      "file": "policies.yaml",
+      "module": "policies",
+      "errorModule": "POLICY",
+      "method": "PUT",
+      "path": "/policies/customer-profiles/{profileId}/versions/{v}",
+      "owner": "MOD-05",
+      "qt": [
+        "QT-15"
+      ],
+      "scr": [],
+      "roles": [
+        "policy_author"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 ADR-33; baseline mục 9.1 (vòng đời phiên bản)"
+    },
+    {
       "operationId": "updateDashboard",
       "file": "platform.yaml",
       "module": "analytics",
@@ -10245,6 +10653,26 @@
       "aal": 1,
       "fourEyes": false,
       "source": "TL-01 PL C PUT /files/uploads/{uploadId}/parts/{n}; TL-01 SVC-08"
+    },
+    {
+      "operationId": "validateCustomerProfileVersion",
+      "file": "policies.yaml",
+      "module": "policies",
+      "errorModule": "POLICY",
+      "method": "POST",
+      "path": "/policies/customer-profiles/{profileId}/versions/{v}/validate",
+      "owner": "MOD-05",
+      "qt": [
+        "QT-15"
+      ],
+      "scr": [],
+      "roles": [
+        "policy_author"
+      ],
+      "scope": "Tn",
+      "aal": 1,
+      "fourEyes": false,
+      "source": "BS-03 ADR-33 “vòng đời giống Policy Pack”; TL-02b QT-15 bước kiểm thử (PC-07)"
     },
     {
       "operationId": "verifyDossierSpecialCase",

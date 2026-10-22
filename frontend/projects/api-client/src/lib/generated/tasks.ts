@@ -1389,6 +1389,33 @@ export interface components {
      */
     TaskGroup: 'THUONG_XUYEN' | 'THEN_CHOT';
     /**
+     * @description Mức của từng loại hệ số mở (`coefficient_levels`, BS-03 DC-01), khoá là mã loại hệ số do Policy Pack khai báo, giá trị là mã mức; mặc định `{}`. Lõi chỉ lưu mức, bảng quy đổi mức ra giá trị nằm trong gói theo kỳ. Mức khó năm mức vẫn ở `difficulty`.
+     * @example {
+     *       "he_so_nhom": "NHOM_2"
+     *     }
+     */
+    CoefficientLevels: {
+      [key: string]: string;
+    };
+    /** @description Mã trục công việc theo danh mục dùng chung của hồ sơ (`axis_code`, BS-03 DC-01), ví dụ `TR1`; null là không gắn trục. */
+    AxisCode: string | null;
+    /**
+     * @description Loại nút trong cây phân rã (`task.task.node_kind`, BS-03 DC-04); mặc định `NHIEM_VU`. Hồ sơ có khuôn phân rã nhiều bậc dùng `KPI` làm nút đo được giữa nhiệm vụ và công việc.
+     * @default NHIEM_VU
+     * @enum {string}
+     */
+    TaskNodeKind: 'NHIEM_VU' | 'KPI' | 'CONG_VIEC' | 'CONG_VIEC_CON';
+    /**
+     * @description Phạm vi của phiên bản danh mục (`task.work_catalog.scope`). Kế thừa bốn cấp hệ thống → khối → tỉnh → đơn vị (BS-03 DC-02); `KHOI`, `TINH` là giá trị bổ sung.
+     * @enum {string}
+     */
+    CatalogScope: 'QUOC_GIA' | 'KHOI' | 'TINH' | 'DON_VI' | 'VI_TRI';
+    /**
+     * @description Nguồn điểm nghẽn (`task_blocker.origin`, BS-03): `NGUOI_DUNG` do người báo (mặc định), `TU_DONG` do job của lõi sinh khi một quy tắc cảnh báo của hồ sơ khớp.
+     * @enum {string}
+     */
+    BlockerOrigin: 'NGUOI_DUNG' | 'TU_DONG';
+    /**
      * @description Nguồn nhiệm vụ (`task.task.source`, ràng buộc `ck_task__source` của TL-03). TL-02 gọi nguồn ngoài kế hoạch là "phát sinh"; giá trị giữ `DOT_XUAT` theo TL-03.
      * @enum {string}
      */
@@ -1522,6 +1549,9 @@ export interface components {
       handlerName?: string;
       resolveBy?: components['schemas']['Date'];
       status: components['schemas']['BlockerStatus'];
+      origin?: components['schemas']['BlockerOrigin'];
+      /** @description Mã quy tắc cảnh báo đã sinh điểm nghẽn khi `origin = TU_DONG`; dòng tự sinh idempotent theo (`task_id`, `rule_code`, ngày chạy). */
+      ruleCode?: string | null;
       createdAt: components['schemas']['DateTime'];
       rowVersion?: components['schemas']['RowVersion'];
     };
@@ -1622,6 +1652,13 @@ export interface components {
       catalogItemCode?: string;
       difficulty?: number;
       standardScore?: number;
+      coefficientLevels?: components['schemas']['CoefficientLevels'];
+      axisCode?: components['schemas']['AxisCode'];
+      nodeKind?: components['schemas']['TaskNodeKind'];
+      /** @description Việc cha trong cây phân rã (`parent_task_id`); null là nút gốc. */
+      parentTaskId?: components['schemas']['Uuid'] | null;
+      /** @description Điểm thành phần của việc con (`component_score numeric(6,3)`, BS-03 DC-06) khi hồ sơ dùng chế độ `MOT_NGUOI_MOT_VIEC`; tổng điểm thành phần của các việc con bằng điểm của việc cha. */
+      componentScore?: number | null;
       assignedAt?: components['schemas']['DateTime'];
       acceptorName: string;
       /** @description Hạn tính hệ số tiến độ C, khác `dueDate` là hạn thực hiện (BR-06-04, BR-06-05). */
@@ -1744,6 +1781,13 @@ export interface components {
       };
       /** @description Căn cứ của nhiệm vụ phát sinh ngoài kế hoạch (BR-05-09) */
       basis?: string;
+      coefficientLevels?: components['schemas']['CoefficientLevels'];
+      axisCode?: components['schemas']['AxisCode'];
+      nodeKind?: components['schemas']['TaskNodeKind'];
+      /** @description Việc cha trong cây phân rã (`parent_task_id`); null là nút gốc. */
+      parentTaskId?: components['schemas']['Uuid'] | null;
+      /** @description Điểm thành phần của việc con (`component_score numeric(6,3)`, BS-03 DC-06) khi hồ sơ dùng chế độ `MOT_NGUOI_MOT_VIEC`; tổng điểm thành phần của các việc con bằng điểm của việc cha. */
+      componentScore?: number | null;
     };
     TaskDraftTemplate: {
       period: components['schemas']['PeriodRef'];
@@ -1976,6 +2020,11 @@ export interface components {
       flows?: components['schemas']['Flow'][];
       /** @description Bắt buộc với mỗi thay đổi ở phiên bản điều chỉnh (BR-04-10) */
       changeReason?: string;
+      coefficientLevels?: components['schemas']['CoefficientLevels'];
+      axisCode?: components['schemas']['AxisCode'];
+      nodeKind?: components['schemas']['TaskNodeKind'];
+      /** @description Điểm thành phần của dòng con khi hồ sơ dùng chế độ `MOT_NGUOI_MOT_VIEC` (BS-03 DC-06). */
+      componentScore?: number | null;
     };
     PlanItem: components['schemas']['PlanItemInput'] & {
       lineNo: number;
@@ -2090,6 +2139,8 @@ export interface components {
       effectiveFromLabel?: string;
       effectiveFromDate?: components['schemas']['Date'];
       parentCatalogName?: string;
+      /** @description Phạm vi kế thừa của phiên bản danh mục (BS-03 DC-02). */
+      scope?: components['schemas']['CatalogScope'];
       itemCount: number;
       positionCount: number;
       rowVersion: components['schemas']['RowVersion'];
@@ -2132,6 +2183,13 @@ export interface components {
       usagePeriods?: number;
       /** @description Đã dùng ở kỳ đã khoá (BR-04-13) */
       usedInLockedPeriod?: boolean;
+      coefficientLevels?: components['schemas']['CoefficientLevels'];
+      axisCode?: components['schemas']['AxisCode'];
+      nodeKind?: components['schemas']['TaskNodeKind'];
+      /** @description Tỷ lệ chỉnh điểm chuẩn tối thiểu cho phép so với dòng cha ở danh mục cấp trên (`score_adjust_min`, BS-03 DC-02), ví dụ -0.2 là giảm tối đa 20%; null là không được chỉnh. */
+      scoreAdjustMin?: number | null;
+      /** @description Tỷ lệ chỉnh điểm chuẩn tối đa so với dòng cha (`score_adjust_max`, BS-03 DC-02); null là không được chỉnh. */
+      scoreAdjustMax?: number | null;
       rowVersion?: components['schemas']['RowVersion'];
     };
     CatalogItemInput: {
@@ -2148,6 +2206,13 @@ export interface components {
       defaultGroup: components['schemas']['TaskGroup'];
       standardDays?: number;
       status?: components['schemas']['CatalogItemStatus'];
+      coefficientLevels?: components['schemas']['CoefficientLevels'];
+      axisCode?: components['schemas']['AxisCode'];
+      nodeKind?: components['schemas']['TaskNodeKind'];
+      /** @description Tỷ lệ chỉnh điểm chuẩn tối thiểu cho phép so với dòng cha ở danh mục cấp trên (`score_adjust_min`, BS-03 DC-02), ví dụ -0.2 là giảm tối đa 20%; null là không được chỉnh. */
+      scoreAdjustMin?: number | null;
+      /** @description Tỷ lệ chỉnh điểm chuẩn tối đa so với dòng cha (`score_adjust_max`, BS-03 DC-02); null là không được chỉnh. */
+      scoreAdjustMax?: number | null;
     };
     CatalogItemSaveResult: {
       item: components['schemas']['CatalogItem'];
@@ -2960,7 +3025,7 @@ export interface operations {
       403: components['responses']['Forbidden'];
       /** @description Lệch phiên bản, kỳ đã khoá, hoặc nhiệm vụ không còn `NHAP`. */
       409: components['responses']['Conflict'];
-      /** @description Vi phạm quy tắc chặn của QT-05 bước 5 (mỗi lỗi trong `errors[]` có `rule`). */
+      /** @description Vi phạm quy tắc chặn của QT-05 bước 5 (mỗi lỗi trong `errors[]` có `rule`). Mã lỗi `TASK-422-ASSIGNMENT-MODE` khi hồ sơ tập khách hàng đặt chế độ phân công `MOT_NGUOI_MOT_VIEC` mà việc lá có nhiều hơn một người, hoặc điểm thành phần của việc con không cộng bằng điểm việc cha (BS-03 DC-06; tham số đọc qua Policy Pack, không viết cứng). */
       422: components['responses']['UnprocessableEntity'];
       428: components['responses']['PreconditionRequired'];
       default: components['responses']['Problem'];
