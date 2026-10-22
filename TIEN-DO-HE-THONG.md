@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **162 / 401 task (40.4%)** — Khối lượng quy đổi đã gộp: **190.5 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **162 / 401 task (40.4%)** (gồm **162** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **163 / 401 task (40.6%)** (gồm **162** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **233 task**.
+- **Chưa bắt đầu**: **232 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **10 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-05-02`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,14 +25,14 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **24** | 0 | 0 | 88 | **21.4%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **28** | 0 | 3 | 73 | **26.9%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **28** | 1 | 3 | 72 | **26.9%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **15** | 0 | 0 | 13 | **53.6%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **162** | **0** | **6** | **233** | **40.4%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **162** | **1** | **6** | **232** | **40.4%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,7 +41,7 @@
 | **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 0 | 1 | 9 | **83.1%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **24** | 0 | 1 | 21 | **52.2%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **26** | 0 | 3 | 88 | **22.2%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **26** | 1 | 3 | 87 | **22.2%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 0 | 0 | 54 | **23.9%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **13** | 0 | 1 | 28 | **31.0%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **0** | 0 | 0 | 23 | **0.0%** |
@@ -416,12 +416,12 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-07-07](docs/tasks/DV-07-07-snapshot-nam.md) | Snapshot năm (băm của các băm quý) và DMN năm | M | B4 | 17 | DV-07-05 | **Chưa bắt đầu** |  |
 | [DV-07-08](docs/tasks/DV-07-08-mo-phong-xem-truoc.md) | API mô phỏng và xem trước với phiên bản Policy Pack gốc | M | B4 | 17 | DV-07-05 | **Chưa bắt đầu** |  |
 
-### DV-08 · SVC-08 evidence-service (1/6 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-08 · SVC-08 evidence-service (1/6 đã gộp `main`, 1 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-08-01](docs/tasks/DV-08-01-khung-evidence-service.md) | Khung WebFlux, migration schema `evidence`, client S3 cho Ceph RGW | M | B3 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Khung evidence-service SVC-08, RLS, Object Lock |
-| [DV-08-02](docs/tasks/DV-08-02-tai-len-nhieu-phan.md) | Tải lên nhiều phần có tiếp tục, SHA-256 khi nhận, Object Lock, URL tải ký 5 phút | L | B3 | 10 | DV-08-01 | **Chưa bắt đầu** |  |
+| [DV-08-02](docs/tasks/DV-08-02-tai-len-nhieu-phan.md) | Tải lên nhiều phần có tiếp tục, SHA-256 khi nhận, Object Lock, URL tải ký 5 phút | L | B3 | 10 | DV-08-01 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: tải nhiều phần, kiểm SHA-256/kiểu, Object Lock, URL 5 phút, dọn phiên; verify xanh (43 test) |
 | [DV-08-03](docs/tasks/DV-08-03-khu-trung-theo-bam.md) | Khử trùng theo băm và phát hiện trùng tức thời phát EVT-20 | M | B3 | 11 | DV-08-02 | **Chưa bắt đầu** |  |
 | [DV-08-04](docs/tasks/DV-08-04-quet-ma-doc.md) | Quét mã độc ClamAV bất đồng bộ, cách ly, thông báo | M | B3 | 11 | DV-08-02 | **Chưa bắt đầu** |  |
 | [DV-08-05](docs/tasks/DV-08-05-ocr-qua-ai.md) | Gọi OCR qua ai-gateway cho minh chứng | S | B3 | 12 | DV-08-02, DV-14-05, DV-08-04 | **Chưa bắt đầu** |  |
@@ -812,4 +812,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 09:50 | Điều phối | `DV-08-01` | Chuyển trạng thái sang **Đã gộp main** — Khung evidence-service SVC-08, RLS, Object Lock |
 | 22/10/2026 10:06 | Điều phối | `INF-12` | Chuyển trạng thái sang **Đã gộp main** — Ceph RGW của cell, multisite, kiểm trên kind |
 | 22/10/2026 10:12 | Điều phối | `CORE-08-12` | Chuyển trạng thái sang **Đã gộp main** — Quay lui UI Pack, UiPackCompatibilityApi |
+| 22/10/2026 10:24 | B1 (Claude) | `DV-08-02` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: đang thực hiện |
+| 22/10/2026 10:47 | B1 (Claude) | `DV-08-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: tải nhiều phần, kiểm SHA-256/kiểu, Object Lock, URL 5 phút, dọn phiên; verify xanh (43 test) |
 <!-- PROGRESS_LOG_END -->
