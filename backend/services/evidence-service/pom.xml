@@ -24,11 +24,18 @@
     <pitest.targetClasses>vn.viettel.okrkpi.evidence.*</pitest.targetClasses>
     <contract.dir>${project.basedir}/../../../contracts/openapi</contract.dir>
     <awssdk.version>2.31.6</awssdk.version>
+    <!-- DV-08-06: dựng ảnh trang PDF cho xem trước (Apache 2.0, thuần Java); phụ thuộc mới chờ duyệt. -->
+    <pdfbox.version>3.0.8</pdfbox.version>
     <!-- Microservice API dùng Generational ZGC theo TL-04 WI-20. -->
     <jib.jvm.gc>-XX:+UseZGC</jib.jvm.gc>
   </properties>
 
   <dependencies>
+    <dependency>
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>pdfbox</artifactId>
+      <version>${pdfbox.version}</version>
+    </dependency>
     <dependency>
       <groupId>vn.viettel.okrkpi</groupId>
       <artifactId>vt-kernel</artifactId>

@@ -50,6 +50,17 @@ mn = sum(int(d["metadata"]["annotations"]["cluster.x-k8s.io/cluster-api-autoscal
 mx = sum(int(d["metadata"]["annotations"]["cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"]) for d in md if d["metadata"]["labels"]["vt.io/pool"] == "app-general")
 assert (mn, mx) == (9, 18)
 print("chỉ ingress, app-general, app-worker co giãn; app-general 9/18 node")
+cap = {d["metadata"]["labels"]["vt.io/pool"]: (d["metadata"]["annotations"].get("capacity.cluster-autoscaler.kubernetes.io/cpu"),
+       d["metadata"]["annotations"].get("capacity.cluster-autoscaler.kubernetes.io/memory")) for d in md if d["metadata"].get("annotations")}
+assert cap == {"ingress": ("16", "32Gi"), "app-general": ("16", "64Gi"), "app-worker": ("16", "64Gi")}, cap
+print("MachineDeployment co giãn có chú thích dung lượng node cho Cluster Autoscaler (INF-16)")
+ca = [d for d in docs if d["kind"] == "Deployment" and d["metadata"]["name"] == "cluster-autoscaler-cell-g4-hl"][0]
+c = ca["spec"]["template"]["spec"]["containers"][0]
+assert "--cloud-provider=clusterapi" in c["command"] and "--balance-similar-node-groups=true" in c["command"], c["command"]
+assert "--node-group-auto-discovery=clusterapi:namespace=capi-cells,clusterName=cell-g4-hl" in c["command"]
+assert "@sha256:" in c["image"]
+assert ca["spec"]["template"]["spec"]["volumes"][0]["secret"]["secretName"] == "cell-g4-hl-kubeconfig"
+print("Cluster Autoscaler provider Cluster API: tự phát hiện theo cụm, cân bằng ba vùng, kubeconfig cụm cell, ảnh theo digest")
 PY
 phai_hong() { local mota=$1 mau=$2; shift 2
   if helm template x cell-cluster "$@" >/dev/null 2>"$OUT/e"; then hong "$mota: lẽ ra phải thất bại"

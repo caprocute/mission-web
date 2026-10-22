@@ -1,0 +1,579 @@
+{
+  "suite": "okr-rules",
+  "version": "1.0.0",
+  "description": "Bộ ca dùng chung cho bộ kiểm tra quy tắc OKR BR-02-01..07 của máy chủ (cel-java, CORE-01-04) và trình duyệt (cel-js, fe-okr/okr-rules.ts). Ca phạm vi mục tiêu cho sẵn biến o.*; ca phạm vi KR cho dữ liệu KR thô, hai bên tự tính biến kr.* rồi phải ra cùng expectedVars và cùng danh sách quy tắc vi phạm. Ca serverOnly bên trình duyệt bỏ qua.",
+  "policy": {
+    "recommendedMax": 3,
+    "vagueWords": [
+      "tăng cường",
+      "đẩy mạnh",
+      "kịp thời",
+      "nâng cao",
+      "chú trọng",
+      "quan tâm"
+    ],
+    "taskVerbs": [
+      "tổ chức",
+      "ban hành",
+      "xây dựng",
+      "triển khai",
+      "họp",
+      "tập huấn"
+    ],
+    "units": [
+      "%",
+      "người",
+      "hồ sơ",
+      "ngày",
+      "lần",
+      "mốc",
+      "chi bộ",
+      "tổ chức"
+    ]
+  },
+  "rules": [
+    {
+      "id": "O-TEN",
+      "br": "SCR-0202",
+      "scope": "objective",
+      "severity": "CHAN",
+      "when": "true",
+      "assert": "o.titleLength > 0 && o.titleLength <= 200",
+      "message": "Tên mục tiêu không được trống và tối đa 200 ký tự.",
+      "passLabel": null,
+      "serverOnly": false
+    },
+    {
+      "id": "BR-02-02-CC",
+      "br": "BR-02-02",
+      "scope": "objective",
+      "severity": "CHAN",
+      "when": "true",
+      "assert": "o.basisCount >= 1",
+      "message": "Mục tiêu phải có ít nhất một căn cứ.",
+      "passLabel": "Có căn cứ",
+      "serverOnly": false
+    },
+    {
+      "id": "BR-02-02-CT",
+      "br": "BR-02-02",
+      "scope": "objective",
+      "severity": "CHAN",
+      "when": "!o.isTopLevel",
+      "assert": "o.hasParent",
+      "message": "Mục tiêu phải liên kết mục tiêu cấp trên.",
+      "passLabel": "Có mục tiêu cấp trên",
+      "serverOnly": false
+    },
+    {
+      "id": "MSG-02-03",
+      "br": "BR-02-02",
+      "scope": "objective",
+      "severity": "CHAN",
+      "when": "o.hasParent",
+      "assert": "o.parentApproved",
+      "message": "Mục tiêu cấp trên {parentCode} chưa được duyệt. Đồng chí có thể soạn nhưng chưa trình được.",
+      "passLabel": null,
+      "serverOnly": false
+    },
+    {
+      "id": "BR-02-01",
+      "br": "BR-02-01",
+      "scope": "objective",
+      "severity": "CANH_BAO",
+      "when": "true",
+      "assert": "o.totalObjectives <= o.recommendedMax",
+      "message": "{totalObjectives} mục tiêu trong kỳ, vượt khuyến nghị {recommendedMax}.",
+      "passLabel": null,
+      "serverOnly": false
+    },
+    {
+      "id": "BR-02-01-LD",
+      "br": "BR-02-01",
+      "scope": "objective",
+      "severity": "CHAN",
+      "when": "o.totalObjectives > o.recommendedMax",
+      "assert": "o.overLimitReasonLength > 0",
+      "message": "Vui lòng ghi lý do vượt {recommendedMax} mục tiêu.",
+      "passLabel": null,
+      "serverOnly": false
+    },
+    {
+      "id": "BR-02-03",
+      "br": "BR-02-03",
+      "scope": "objective",
+      "severity": "CANH_BAO",
+      "when": "true",
+      "assert": "o.krCount >= 2 && o.krCount <= 5",
+      "message": "Mục tiêu nên có từ 2 đến 5 KR (hiện có {krCount}).",
+      "passLabel": null,
+      "serverOnly": false
+    },
+    {
+      "id": "BR-02-07",
+      "br": "BR-02-07",
+      "scope": "objective",
+      "severity": "CHAN",
+      "when": "true",
+      "assert": "o.totalWeight == 100",
+      "message": "Tổng trọng số KR là {totalWeight}%, cần bằng 100%.",
+      "passLabel": "Tổng trọng số KR = 100%",
+      "serverOnly": false
+    },
+    {
+      "id": "KR-ND",
+      "br": "SCR-0202",
+      "scope": "kr",
+      "severity": "CHAN",
+      "when": "true",
+      "assert": "kr.titleLength > 0 && kr.titleLength <= 300",
+      "message": "{code} cần nội dung, tối đa 300 ký tự.",
+      "passLabel": null,
+      "serverOnly": false
+    },
+    {
+      "id": "BR-02-05",
+      "br": "BR-02-05",
+      "scope": "kr",
+      "severity": "CHAN",
+      "when": "kr.vagueWord != \"\"",
+      "assert": "kr.hasTarget && kr.unit != \"\"",
+      "message": "KPI mơ hồ: \"{vagueWord}\" không đo được. Vui lòng bổ sung chỉ tiêu và đơn vị đo.",
+      "passLabel": null,
+      "serverOnly": false
+    },
+    {
+      "id": "BR-02-04",
+      "br": "BR-02-04",
+      "scope": "kr",
+      "severity": "CHAN",
+      "when": "true",
+      "assert": "kr.missing == \"\"",
+      "message": "{code} thiếu {missing}.",
+      "passLabel": "Mọi KR có đơn vị đo, giá trị đầu, chỉ tiêu, hạn, người xác nhận",
+      "serverOnly": false
+    },
+    {
+      "id": "KR-CT",
+      "br": "SCR-0202",
+      "scope": "kr",
+      "severity": "CHAN",
+      "when": "kr.hasTarget && kr.hasBaseline",
+      "assert": "kr.targetDiffers",
+      "message": "{code}: chỉ tiêu phải khác giá trị đầu.",
+      "passLabel": null,
+      "serverOnly": false
+    },
+    {
+      "id": "BR-02-06",
+      "br": "BR-02-06",
+      "scope": "kr",
+      "severity": "CANH_BAO",
+      "when": "true",
+      "assert": "kr.taskVerb == \"\"",
+      "message": "{code} giống một nhiệm vụ, không phải kết quả đo được. Cân nhắc chuyển sang Kế hoạch quý.",
+      "passLabel": null,
+      "serverOnly": false
+    },
+    {
+      "id": "KR-XN",
+      "br": "SCR-0202",
+      "scope": "kr",
+      "severity": "CHAN",
+      "when": "kr.hasVerifier",
+      "assert": "kr.verifierDiffers",
+      "message": "Người xác nhận phải khác chủ sở hữu KR.",
+      "passLabel": null,
+      "serverOnly": true
+    }
+  ],
+  "cases": [
+    {
+      "id": "OKR-O-01",
+      "description": "Mục tiêu đủ điều kiện trình",
+      "scope": "objective",
+      "vars": {
+        "titleLength": 38,
+        "basisCount": 1,
+        "hasParent": true,
+        "isTopLevel": false,
+        "parentApproved": true,
+        "parentCode": "O2",
+        "krCount": 3,
+        "totalWeight": 100,
+        "totalObjectives": 2,
+        "recommendedMax": 3,
+        "overLimitReasonLength": 0
+      },
+      "violations": []
+    },
+    {
+      "id": "OKR-O-02",
+      "description": "Tổng trọng số 99,9% bị chặn (BR-02-07)",
+      "scope": "objective",
+      "vars": {
+        "titleLength": 38,
+        "basisCount": 1,
+        "hasParent": true,
+        "isTopLevel": false,
+        "parentApproved": true,
+        "parentCode": "O2",
+        "krCount": 3,
+        "totalWeight": 99.9,
+        "totalObjectives": 2,
+        "recommendedMax": 3,
+        "overLimitReasonLength": 0
+      },
+      "violations": [
+        "BR-02-07"
+      ]
+    },
+    {
+      "id": "OKR-O-03",
+      "description": "Thiếu căn cứ (BR-02-02)",
+      "scope": "objective",
+      "vars": {
+        "titleLength": 38,
+        "basisCount": 0,
+        "hasParent": true,
+        "isTopLevel": false,
+        "parentApproved": true,
+        "parentCode": "O2",
+        "krCount": 3,
+        "totalWeight": 100,
+        "totalObjectives": 2,
+        "recommendedMax": 3,
+        "overLimitReasonLength": 0
+      },
+      "violations": [
+        "BR-02-02-CC"
+      ]
+    },
+    {
+      "id": "OKR-O-04",
+      "description": "Thiếu mục tiêu cấp trên khi không phải đơn vị cao nhất (BR-02-02)",
+      "scope": "objective",
+      "vars": {
+        "titleLength": 38,
+        "basisCount": 1,
+        "hasParent": false,
+        "isTopLevel": false,
+        "parentApproved": false,
+        "parentCode": "",
+        "krCount": 3,
+        "totalWeight": 100,
+        "totalObjectives": 2,
+        "recommendedMax": 3,
+        "overLimitReasonLength": 0
+      },
+      "violations": [
+        "BR-02-02-CT"
+      ]
+    },
+    {
+      "id": "OKR-O-05",
+      "description": "Đơn vị cao nhất không cần mục tiêu cấp trên",
+      "scope": "objective",
+      "vars": {
+        "titleLength": 38,
+        "basisCount": 1,
+        "hasParent": false,
+        "isTopLevel": true,
+        "parentApproved": false,
+        "parentCode": "",
+        "krCount": 3,
+        "totalWeight": 100,
+        "totalObjectives": 2,
+        "recommendedMax": 3,
+        "overLimitReasonLength": 0
+      },
+      "violations": []
+    },
+    {
+      "id": "OKR-O-06",
+      "description": "Mục tiêu cấp trên chưa duyệt chặn trình (MSG-02-03)",
+      "scope": "objective",
+      "vars": {
+        "titleLength": 38,
+        "basisCount": 1,
+        "hasParent": true,
+        "isTopLevel": false,
+        "parentApproved": false,
+        "parentCode": "O2",
+        "krCount": 3,
+        "totalWeight": 100,
+        "totalObjectives": 2,
+        "recommendedMax": 3,
+        "overLimitReasonLength": 0
+      },
+      "violations": [
+        "MSG-02-03"
+      ]
+    },
+    {
+      "id": "OKR-O-07",
+      "description": "Vượt 3 mục tiêu không ghi lý do (BR-02-01)",
+      "scope": "objective",
+      "vars": {
+        "titleLength": 38,
+        "basisCount": 1,
+        "hasParent": true,
+        "isTopLevel": false,
+        "parentApproved": true,
+        "parentCode": "O2",
+        "krCount": 3,
+        "totalWeight": 100,
+        "totalObjectives": 4,
+        "recommendedMax": 3,
+        "overLimitReasonLength": 0
+      },
+      "violations": [
+        "BR-02-01",
+        "BR-02-01-LD"
+      ]
+    },
+    {
+      "id": "OKR-O-08",
+      "description": "Vượt 3 mục tiêu có lý do chỉ còn cảnh báo (BR-02-01)",
+      "scope": "objective",
+      "vars": {
+        "titleLength": 38,
+        "basisCount": 1,
+        "hasParent": true,
+        "isTopLevel": false,
+        "parentApproved": true,
+        "parentCode": "O2",
+        "krCount": 3,
+        "totalWeight": 100,
+        "totalObjectives": 4,
+        "recommendedMax": 3,
+        "overLimitReasonLength": 25
+      },
+      "violations": [
+        "BR-02-01"
+      ]
+    },
+    {
+      "id": "OKR-O-09",
+      "description": "Một KR là cảnh báo (BR-02-03)",
+      "scope": "objective",
+      "vars": {
+        "titleLength": 38,
+        "basisCount": 1,
+        "hasParent": true,
+        "isTopLevel": false,
+        "parentApproved": true,
+        "parentCode": "O2",
+        "krCount": 1,
+        "totalWeight": 100,
+        "totalObjectives": 2,
+        "recommendedMax": 3,
+        "overLimitReasonLength": 0
+      },
+      "violations": [
+        "BR-02-03"
+      ]
+    },
+    {
+      "id": "OKR-O-10",
+      "description": "Sáu KR là cảnh báo (BR-02-03)",
+      "scope": "objective",
+      "vars": {
+        "titleLength": 38,
+        "basisCount": 1,
+        "hasParent": true,
+        "isTopLevel": false,
+        "parentApproved": true,
+        "parentCode": "O2",
+        "krCount": 6,
+        "totalWeight": 100,
+        "totalObjectives": 2,
+        "recommendedMax": 3,
+        "overLimitReasonLength": 0
+      },
+      "violations": [
+        "BR-02-03"
+      ]
+    },
+    {
+      "id": "OKR-O-11",
+      "description": "Tên mục tiêu trống",
+      "scope": "objective",
+      "vars": {
+        "titleLength": 0,
+        "basisCount": 1,
+        "hasParent": true,
+        "isTopLevel": false,
+        "parentApproved": true,
+        "parentCode": "O2",
+        "krCount": 3,
+        "totalWeight": 100,
+        "totalObjectives": 2,
+        "recommendedMax": 3,
+        "overLimitReasonLength": 0
+      },
+      "violations": [
+        "O-TEN"
+      ]
+    },
+    {
+      "id": "OKR-K-01",
+      "description": "KR đủ trường, đo được",
+      "scope": "kr",
+      "input": {
+        "code": "KR 1.1",
+        "title": "Kiểm tra 100% chi bộ trực thuộc trước 31/3/2027",
+        "unit": "%",
+        "baselineValue": 0,
+        "targetValue": 100,
+        "dueDate": "2027-03-31",
+        "verifierPersonId": "0192a000-0000-7000-8000-0000000c0001",
+        "ownerPersonId": "0192a000-0000-7000-8000-0000000c0002"
+      },
+      "expectedVars": {
+        "vagueWord": "",
+        "taskVerb": "",
+        "missing": ""
+      },
+      "violations": []
+    },
+    {
+      "id": "OKR-K-02",
+      "description": "\"Đẩy mạnh tuyên truyền\" không kèm số bị chặn (BR-02-05)",
+      "scope": "kr",
+      "input": {
+        "code": "KR 1.1",
+        "title": "Đẩy mạnh tuyên truyền",
+        "unit": "%",
+        "baselineValue": 0,
+        "targetValue": null,
+        "dueDate": "2027-03-31",
+        "verifierPersonId": "0192a000-0000-7000-8000-0000000c0001",
+        "ownerPersonId": "0192a000-0000-7000-8000-0000000c0002"
+      },
+      "expectedVars": {
+        "vagueWord": "đẩy mạnh",
+        "taskVerb": "",
+        "missing": "chỉ tiêu"
+      },
+      "violations": [
+        "BR-02-05",
+        "BR-02-04"
+      ]
+    },
+    {
+      "id": "OKR-K-03",
+      "description": "\"Đẩy mạnh tuyên truyền tới 100% chi bộ\" có chỉ tiêu không bị chặn",
+      "scope": "kr",
+      "input": {
+        "code": "KR 1.1",
+        "title": "Đẩy mạnh tuyên truyền tới 100% chi bộ",
+        "unit": "%",
+        "baselineValue": 0,
+        "targetValue": 100,
+        "dueDate": "2027-03-31",
+        "verifierPersonId": "0192a000-0000-7000-8000-0000000c0001",
+        "ownerPersonId": "0192a000-0000-7000-8000-0000000c0002"
+      },
+      "expectedVars": {
+        "vagueWord": "đẩy mạnh",
+        "taskVerb": "",
+        "missing": ""
+      },
+      "violations": []
+    },
+    {
+      "id": "OKR-K-04",
+      "description": "KR giống nhiệm vụ là cảnh báo (BR-02-06)",
+      "scope": "kr",
+      "input": {
+        "code": "KR 1.1",
+        "title": "Tổ chức 4 hội nghị chuyên đề",
+        "unit": "lần",
+        "baselineValue": 0,
+        "targetValue": 4,
+        "dueDate": "2027-03-31",
+        "verifierPersonId": "0192a000-0000-7000-8000-0000000c0001",
+        "ownerPersonId": "0192a000-0000-7000-8000-0000000c0002"
+      },
+      "expectedVars": {
+        "vagueWord": "",
+        "taskVerb": "tổ chức",
+        "missing": ""
+      },
+      "violations": [
+        "BR-02-06"
+      ]
+    },
+    {
+      "id": "OKR-K-05",
+      "description": "Thiếu đơn vị đo và hạn (BR-02-04)",
+      "scope": "kr",
+      "input": {
+        "code": "KR 1.1",
+        "title": "Kiểm tra 100% chi bộ trực thuộc trước 31/3/2027",
+        "unit": "",
+        "baselineValue": 0,
+        "targetValue": 100,
+        "dueDate": null,
+        "verifierPersonId": "0192a000-0000-7000-8000-0000000c0001",
+        "ownerPersonId": "0192a000-0000-7000-8000-0000000c0002"
+      },
+      "expectedVars": {
+        "vagueWord": "",
+        "taskVerb": "",
+        "missing": "đơn vị đo, hạn"
+      },
+      "violations": [
+        "BR-02-04"
+      ]
+    },
+    {
+      "id": "OKR-K-06",
+      "description": "Chỉ tiêu bằng giá trị đầu",
+      "scope": "kr",
+      "input": {
+        "code": "KR 1.1",
+        "title": "Kiểm tra 100% chi bộ trực thuộc trước 31/3/2027",
+        "unit": "%",
+        "baselineValue": 0,
+        "targetValue": 0,
+        "dueDate": "2027-03-31",
+        "verifierPersonId": "0192a000-0000-7000-8000-0000000c0001",
+        "ownerPersonId": "0192a000-0000-7000-8000-0000000c0002"
+      },
+      "expectedVars": {
+        "vagueWord": "",
+        "taskVerb": "",
+        "missing": ""
+      },
+      "violations": [
+        "KR-CT"
+      ]
+    },
+    {
+      "id": "OKR-K-07",
+      "description": "Người xác nhận trùng chủ sở hữu KR (chỉ máy chủ kiểm)",
+      "scope": "kr",
+      "serverOnly": true,
+      "input": {
+        "code": "KR 1.1",
+        "title": "Kiểm tra 100% chi bộ trực thuộc trước 31/3/2027",
+        "unit": "%",
+        "baselineValue": 0,
+        "targetValue": 100,
+        "dueDate": "2027-03-31",
+        "verifierPersonId": "0192a000-0000-7000-8000-0000000c0002",
+        "ownerPersonId": "0192a000-0000-7000-8000-0000000c0002"
+      },
+      "expectedVars": {
+        "vagueWord": "",
+        "taskVerb": "",
+        "missing": ""
+      },
+      "violations": [
+        "KR-XN"
+      ]
+    }
+  ]
+}

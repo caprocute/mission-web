@@ -37,6 +37,14 @@ Cho người soạn (AC-05, AC-06) tạo, lưu nháp và sao chép mục tiêu c
 - Gọi `PeriodApi.assertWritable` trong mọi lệnh ghi; kỳ `DANG_KHOA`/`DA_KHOA` trả 409 `OKR-409-PERIOD-LOCKED`. Mọi lệnh ghi nhận `Idempotency-Key`, lưu 48 giờ; trùng khoá khác băm yêu cầu trả 422.
 - Chỉ nhận `contentSource` khác `HUMAN` khi yêu cầu kèm mã gợi ý AI hợp lệ (chuẩn bị cho CORE-01-13, BR-02-11).
 
+### Bổ sung theo BS-03 (ADR-33, 22/10/2026)
+
+Nguồn: `/mnt/project-files/kien-truc-okr-kpi/bo-sung/BS-03-ho-so-tap-khach-hang-va-diem-cam-loi.md`. Phần dưới mở rộng phạm vi của thẻ; mọi giá trị riêng của khách hàng đi qua cấu hình, không viết cứng trong mã (YC-TK-11). Nếu thẻ phụ thuộc chưa gộp, làm phần gốc của thẻ trước và để phần bổ sung sau cờ hoặc ghi rõ trong báo cáo.
+
+Phụ thuộc thêm CORE-01-14.
+
+- Soạn KR nhận kiểu đo `MOC` kèm danh sách mốc, chiều `TOI_DA`, nhãn tử số và mẫu số (DC-04); sao chép kỳ trước sao chép cả mốc với hạn dời theo kỳ.
+
 ## 4. Ngoài phạm vi
 
 - Bộ kiểm tra BR-02-01..07 đầy đủ (CORE-01-04); task này chỉ kiểm ràng buộc trường.

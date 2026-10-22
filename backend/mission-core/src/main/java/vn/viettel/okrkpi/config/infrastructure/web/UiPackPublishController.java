@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.beans.factory.ObjectProvider;
@@ -24,7 +25,10 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import vn.viettel.okrkpi.config.application.HomeLayoutOverlay;
 import vn.viettel.okrkpi.config.application.UiPackPublishService;
+import vn.viettel.okrkpi.config.application.UserPreferenceService;
+import vn.viettel.okrkpi.config.domain.UserPreference;
 import vn.viettel.okrkpi.contract.config.model.UiPackReviewInput;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
@@ -46,14 +50,17 @@ public class UiPackPublishController {
   private final Callers callers;
   private final ConfigIdempotency idempotency;
   private final ObjectMapper json;
+  private final ObjectProvider<UserPreferenceService> preferences;
 
   public UiPackPublishController(
       UiPackPublishService publish,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<PeriodCaller> periodCallers,
       ConfigIdempotency idempotency,
-      ObjectProvider<ObjectMapper> json) {
+      ObjectProvider<ObjectMapper> json,
+      ObjectProvider<UserPreferenceService> preferences) {
     this.publish = Objects.requireNonNull(publish, "publish");
+    this.preferences = preferences;
     this.callers = new Callers(subjects, periodCallers);
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
     this.json = json.getIfAvailable(ObjectMapper::new);
@@ -103,16 +110,46 @@ public class UiPackPublishController {
   @RequiresPermission(operationId = "getHomeLayout", module = "config")
   public ResponseEntity<JsonNode> getHomeLayout(
       @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
+    TenantId tenant = TenantContext.require();
+    UiPackPublishService.Viewer viewer = callers.viewer();
+    // CNH-02: chế độ cao tuổi và lớp phủ trang chủ lấy từ tuỳ chọn cá nhân của người xem.
+    UserPreferenceService prefs = preferences.getIfAvailable();
+    Optional<UserPreference> display =
+        prefs == null
+            ? Optional.empty()
+            : prefs.preference(tenant, viewer.userId(), UserPreference.DISPLAY);
+    boolean elderly =
+        display
+            .map(d -> "elderly".equals(prefs.read(d.valueJson()).path("mode").asText()))
+            .orElse(false);
     UiPackPublishService.Home home =
         publish
-            .home(TenantContext.require(), callers.viewer())
+            .home(
+                tenant,
+                new UiPackPublishService.Viewer(
+                    viewer.userId(), viewer.roles(), viewer.unitId(), elderly))
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    Optional<UserPreference> overlay =
+        prefs == null
+            ? Optional.empty()
+            : prefs.preference(tenant, viewer.userId(), UserPreference.HOME_LAYOUT);
+    HomeLayoutOverlay.Applied applied =
+        HomeLayoutOverlay.apply(
+            home.layout(),
+            overlay.map(o -> prefs.read(o.valueJson())).orElse(null),
+            overlay.map(UserPreference::rowVersion).orElse(null));
     var body = json.createObjectNode();
     body.put("uiPackVersion", home.uiPackVersion());
     body.put("registryVersion", home.registryVersion());
     body.put("mode", home.mode());
     body.put("reducedSteps", home.reducedSteps());
-    body.set("layout", home.layout());
+    body.set("layout", applied.layout());
+    var meta = body.putObject("personalizationMeta");
+    meta.put("hasOverlay", applied.hasOverlay());
+    if (applied.overlayVersion() != null) {
+      meta.put("overlayVersionNo", applied.overlayVersion());
+    }
+    applied.mandatoryWidgetIds().forEach(meta.putArray("mandatoryWidgetIds")::add);
     return conditional(home.packEtag() + "-" + digest(body.toString()), ifNoneMatch, body);
   }
 

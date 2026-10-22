@@ -97,7 +97,9 @@ class ArchitectureRulesTest {
             .that()
             .areAnnotatedWith(Transactional.class)
             .should()
-            .resideInAPackage("..application..");
+            .resideInAPackage("..application..")
+            // Use case khai giao dịch ở mức phương thức; chưa có lớp nào khai ở mức lớp.
+            .allowEmptyShould(true);
     ArchRule methodRule =
         methods()
             .that()

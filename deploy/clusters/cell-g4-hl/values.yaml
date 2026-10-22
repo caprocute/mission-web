@@ -19,17 +19,21 @@ pools:
   ingress:
     enabled: true
     autoscale: { min: 1, max: 2 }
+    # Dung lượng node theo cỡ VM-16-32 của TL-05 (INF-16, chú thích cho Cluster Autoscaler).
+    capacity: { cpu: "16", memory: 32Gi }
     labels: { vt.io/pool: ingress }
     taint: { key: vt.io/pool, value: ingress, effect: NoSchedule }
   app-general:
     enabled: true
     # Bảng pool ghi 8/16; chọn 3 vùng × min 3, max 6 = 9/18 để cân bằng vùng (wiki 14).
     autoscale: { min: 3, max: 6 }
+    capacity: { cpu: "16", memory: 64Gi }
     labels: { vt.io/pool: app-general }
   app-worker:
     enabled: true
     # Bảng pool ghi 4/16; chia đều ba vùng làm tròn lên thành 6/18.
     autoscale: { min: 2, max: 6 }
+    capacity: { cpu: "16", memory: 64Gi }
     labels: { vt.io/pool: worker }
     taint: { key: vt.io/pool, value: worker, effect: NoSchedule }
   data-postgres-large:

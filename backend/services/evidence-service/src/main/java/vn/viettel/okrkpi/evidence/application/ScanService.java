@@ -179,6 +179,9 @@ public class ScanService {
                     return false;
                   }
                   events.scanned(f, r);
+                  if (verdict == ScanVerdict.SACH && !f.e2ee()) {
+                    queue.schedulePreview(f.versionId());
+                  }
                   if (verdict.quarantined()) {
                     events.quarantined(f, r);
                   }

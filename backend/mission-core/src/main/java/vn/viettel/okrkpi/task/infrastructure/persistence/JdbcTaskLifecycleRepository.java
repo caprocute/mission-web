@@ -60,6 +60,46 @@ public class JdbcTaskLifecycleRepository implements TaskLifecycleRepository {
   }
 
   @Override
+  public List<UUID> activeAssignees(TenantId tenant, int periodBucket, UUID taskId) {
+    return jdbc.sql(
+            "SELECT person_id FROM task.task_assignee WHERE period_bucket = ? AND tenant_id = ?"
+                + " AND task_id = ? AND removed_at IS NULL AND recorded_to = 'infinity'"
+                + " AND valid_to = 'infinity' AND person_id IS NOT NULL"
+                + " GROUP BY person_id ORDER BY min(CASE role WHEN 'CHU_TRI' THEN 0 ELSE 1 END),"
+                + " person_id")
+        .params(periodBucket, tenant.value(), taskId)
+        .query(UUID.class)
+        .list();
+  }
+
+  @Override
+  public List<TaskListRow> listByAssignee(
+      TenantId tenant, UUID periodId, AssigneeKind kind, UUID assigneeId, UUID afterId, int limit) {
+    String column = kind == AssigneeKind.UNIT ? "a.org_unit_id" : "a.person_id";
+    String columns =
+        java.util.Arrays.stream(COLUMNS.split(","))
+            .map(c -> "t." + c.strip())
+            .collect(java.util.stream.Collectors.joining(", "));
+    return jdbc.sql(
+            "SELECT "
+                + columns
+                + ", (SELECT l.person_id FROM task.task_assignee l WHERE l.period_bucket ="
+                + " t.period_bucket AND l.tenant_id = t.tenant_id AND l.task_id = t.id AND l.role ="
+                + " 'CHU_TRI' AND l.removed_at IS NULL AND l.recorded_to = 'infinity' AND l.valid_to"
+                + " = 'infinity' AND l.person_id IS NOT NULL ORDER BY l.valid_from DESC LIMIT 1)"
+                + " AS lead_id FROM task.task t WHERE t.tenant_id = ? AND t.period_id = ? AND"
+                + " (CAST(? AS uuid) IS NULL OR t.id > ?) AND EXISTS (SELECT 1 FROM"
+                + " task.task_assignee a WHERE a.period_bucket = t.period_bucket AND a.tenant_id ="
+                + " t.tenant_id AND a.task_id = t.id AND "
+                + column
+                + " = ? AND a.removed_at IS NULL AND a.recorded_to = 'infinity' AND a.valid_to ="
+                + " 'infinity') ORDER BY t.id LIMIT ?")
+        .params(tenant.value(), periodId, afterId, afterId, assigneeId, limit)
+        .query((rs, i) -> new TaskListRow(task(rs, i), rs.getObject("lead_id", UUID.class)))
+        .list();
+  }
+
+  @Override
   public Optional<ChangeRequestRow> latestChangeRequest(
       TenantId tenant, int periodBucket, UUID taskId) {
     return jdbc.sql(

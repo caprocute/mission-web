@@ -35,3 +35,24 @@ controlPlane:
 # Chín node pool (TL-04 mục 3.3). perZone: số node mỗi vùng; autoscale: min/max mỗi vùng cho Cluster Autoscaler
 # (chỉ ingress, app-general, app-worker). Pool dữ liệu và vùng bảo mật không co giãn.
 pools: {}
+
+# Cluster Autoscaler của cụm (TL-04 mục 6.5, INF-16). Chạy ở cụm quản trị, cùng namespace với các
+# MachineDeployment: đọc và co giãn MachineDeployment bằng quyền trong cụm (incluster), nhìn node và pod Pending
+# của cụm cell qua kubeconfig do Cluster API sinh (Secret <clusterName>-kubeconfig, khoá value). Bản Kubernetes
+# của cụm là 1.36 nhưng Cluster Autoscaler mới nhất có chart là 1.35.0; đổi sang 1.36 khi phát hành (wiki 14).
+clusterAutoscaler:
+  enabled: true
+  image:
+    repository: harbor.vt.local/k8s-registry/autoscaling/cluster-autoscaler
+    digest: sha256:2fc9433dd3b47baef0e68d6b1110b770a3c93db10c7bead4c5bc6cb21c72b875
+  # Ba MachineDeployment một pool (một mỗi vùng) phải tăng đều nhau.
+  balanceSimilarNodeGroups: true
+  expander: least-waste
+  scaleDownUnneededTime: 10m
+  scaleDownDelayAfterAdd: 10m
+  # Pod giữ chỗ chạy ở PriorityClass -10; Cluster Autoscaler vẫn thêm node cho chúng (mặc định chỉ bỏ qua pod
+  # dưới -10), nên luôn có khoảng đệm 2 node.
+  expendablePodsPriorityCutoff: -10
+  resources:
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { cpu: "1", memory: 512Mi }

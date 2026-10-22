@@ -36,6 +36,7 @@ class ScanServiceTest {
   final Map<UUID, Instant> nextAt = new HashMap<>();
   final List<ScanRecord> results = new ArrayList<>();
   final List<String> events = new ArrayList<>();
+  final List<UUID> previewsScheduled = new ArrayList<>();
   final Map<UUID, byte[]> content = new HashMap<>();
   MalwareScanner.Finding finding = new MalwareScanner.Finding(false, null);
   boolean scannerDown;
@@ -75,6 +76,11 @@ class ScanServiceTest {
         @Override
         public Optional<Status> status(UUID objectId, Integer versionNo) {
           return Optional.empty();
+        }
+
+        @Override
+        public void schedulePreview(UUID versionId) {
+          previewsScheduled.add(versionId);
         }
 
         @Override
@@ -296,6 +302,7 @@ class ScanServiceTest {
     assertThat(results.get(2).engine()).isEqualTo(ScanService.DEVICE_ENGINE);
     assertThat(files.get(c3.versionId()).scanStatus()).isEqualTo("SACH");
     assertThat(meters.timer("evidence.scan.latency").count()).isEqualTo(3);
+    assertThat(previewsScheduled).containsExactly(clean.versionId());
     assertThat(meters.get("evidence.scan.pending").gauge().value()).isZero();
   }
 

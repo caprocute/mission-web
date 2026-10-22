@@ -1,0 +1,25 @@
+# Mức tăng trước theo loại kỳ (TL-04 mục 6.4, bảng deadline-default; INF-16). Mỗi mục: số ngày trước mốc mà cửa
+# sổ bắt đầu và số pod tối thiểu theo tên workload. Cửa sổ của kỳ nào nằm trọn trong cửa sổ deadline-default cùng
+# mức thì bỏ, vì deadline-default luôn là sàn (OPS-06). Gán "workflow 8" của hồ sơ năm cho cả workflow-api và
+# workflow-executor là suy luận.
+QUY:
+  # Tuần cuối quý: cập nhật tiến độ, nộp minh chứng (mốc evidenceDeadline, thiếu thì endDate).
+  cuoiKy:
+    moc: hanMinhChung
+    ngayTruoc: 6
+    soPod: { mission-core: 16, scoring-service: 8, evidence-service: 6 }
+  # Trước hạn báo cáo quý: tự đánh giá, thẩm định, quyết định xếp loại (mốc submissionDeadline).
+  hanNop:
+    moc: hanNop
+    ngayTruoc: 9
+    soPod: { mission-core: 16, workflow-api: 6, workflow-executor: 6, document-service: 8 }
+NAM:
+  hanNop:
+    moc: hanNop
+    ngayTruoc: 12
+    soPod: { mission-core: 18, workflow-api: 8, workflow-executor: 8, document-service: 12, gotenberg: 12 }
+NAM_HOC:
+  hanNop:
+    moc: hanNop
+    ngayTruoc: 12
+    soPod: { mission-core: 18, workflow-api: 8, workflow-executor: 8, document-service: 12, gotenberg: 12 }

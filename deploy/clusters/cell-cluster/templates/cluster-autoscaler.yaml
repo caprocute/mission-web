@@ -1,0 +1,101 @@
+{{- /*
+Cluster Autoscaler provider Cluster API (TL-04 mục 6.5, INF-16): một bản cho mỗi cụm cell, chạy ở cụm quản trị.
+Tự phát hiện node group là các MachineDeployment của cụm có chú thích min/max (chỉ ingress, app-general,
+app-worker; mỗi pool ba MachineDeployment theo vùng).
+*/ -}}
+{{- $v := .Values }}
+{{- $ca := $v.clusterAutoscaler }}
+{{- if $ca.enabled }}
+{{- if not (regexMatch "^sha256:[a-f0-9]{64}$" (toString $ca.image.digest)) }}{{ fail "cell-cluster: ảnh Cluster Autoscaler phải ghim digest sha256 (SEC-55)" }}{{ end }}
+{{- $ten := printf "cluster-autoscaler-%s" $v.clusterName }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $ten }}
+  namespace: {{ $v.namespace }}
+  labels: { app.kubernetes.io/name: cluster-autoscaler, vt.io/cluster: {{ $v.clusterName }} }
+automountServiceAccountToken: true
+---
+# Quyền trên tài nguyên Cluster API chỉ trong namespace của các cụm cell.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $ten }}
+  namespace: {{ $v.namespace }}
+  labels: { app.kubernetes.io/name: cluster-autoscaler, vt.io/cluster: {{ $v.clusterName }} }
+rules:
+  - apiGroups: [cluster.x-k8s.io]
+    resources: [machinedeployments, machinedeployments/scale, machines, machinesets, machinepools, machinepools/scale]
+    verbs: [get, list, watch, update, patch]
+  - apiGroups: [infrastructure.cluster.x-k8s.io]
+    resources: ["*"]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $ten }}
+  namespace: {{ $v.namespace }}
+  labels: { app.kubernetes.io/name: cluster-autoscaler, vt.io/cluster: {{ $v.clusterName }} }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: {{ $ten }} }
+subjects:
+  - { kind: ServiceAccount, name: {{ $ten }}, namespace: {{ $v.namespace }} }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $ten }}
+  namespace: {{ $v.namespace }}
+  labels: { app.kubernetes.io/name: cluster-autoscaler, vt.io/cluster: {{ $v.clusterName }} }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: cluster-autoscaler, vt.io/cluster: {{ $v.clusterName }} }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: cluster-autoscaler, vt.io/cluster: {{ $v.clusterName }} }
+    spec:
+      serviceAccountName: {{ $ten }}
+      priorityClassName: system-cluster-critical
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: cluster-autoscaler
+          image: {{ printf "%s@%s" $ca.image.repository $ca.image.digest }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /cluster-autoscaler
+            - --cloud-provider=clusterapi
+            # Cụm quản trị dùng cấu hình trong cụm; cụm cell qua kubeconfig (chế độ incluster-kubeconfig).
+            - --kubeconfig=/etc/kubernetes/cum-cell/value
+            - --clusterapi-cloud-config-authoritative
+            - --node-group-auto-discovery=clusterapi:namespace={{ $v.namespace }},clusterName={{ $v.clusterName }}
+            - --namespace=kube-system
+            - --balance-similar-node-groups={{ $ca.balanceSimilarNodeGroups }}
+            - --expander={{ $ca.expander }}
+            - --scale-down-unneeded-time={{ $ca.scaleDownUnneededTime }}
+            - --scale-down-delay-after-add={{ $ca.scaleDownDelayAfterAdd }}
+            - --expendable-pods-priority-cutoff={{ $ca.expendablePodsPriorityCutoff | int }}
+            - --skip-nodes-with-local-storage=false
+            - --v=2
+          ports:
+            - { name: metrics, containerPort: 8085 }
+          livenessProbe:
+            httpGet: { path: /health-check, port: metrics }
+            periodSeconds: 30
+          resources:
+            {{- toYaml $ca.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: kubeconfig-cum-cell, mountPath: /etc/kubernetes/cum-cell, readOnly: true }
+      volumes:
+        - name: kubeconfig-cum-cell
+          secret:
+            secretName: {{ $v.clusterName }}-kubeconfig
+{{- end }}

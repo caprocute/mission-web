@@ -22,12 +22,18 @@ probes:
     failureThreshold: 18
 pdb:
   maxUnavailable: 1
+# Bộ đánh chỉ mục co giãn theo độ trễ consumer (TL-04 mục 6.3); ngưỡng khởi điểm (suy luận), hiệu chuẩn ở
+# QA-11, QA-12.
 autoscaling:
-  hpa:
+  keda:
     enabled: true
     minReplicas: 2
     maxReplicas: 6
+    cooldownPeriod: 600
     cpuUtilization: 75
+    kafka:
+      topics:
+        - { topic: task.task.assigned.v1, lagThreshold: 1000, activationLagThreshold: 50 }
 java:
   gc: g1
 networkPolicy:

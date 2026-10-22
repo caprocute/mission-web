@@ -96,9 +96,26 @@ public final class SignRequest {
         1);
   }
 
+  /**
+   * Yêu cầu đã ghi nhận, chờ worker mở phiên ở nhà cung cấp (DV-10-02): API trả {@code
+   * CHO_XAC_NHAN} ngay mà không gọi đồng bộ nhà cung cấp.
+   */
+  public void awaitProvider() {
+    require(SignRequestStatus.TAO);
+    this.status = SignRequestStatus.CHO_XAC_NHAN;
+  }
+
+  /** Đang chờ xác nhận nhưng chưa có phiên ở nhà cung cấp. */
+  public boolean awaitingProvider() {
+    return status == SignRequestStatus.CHO_XAC_NHAN && providerTxnId == null;
+  }
+
   /** Nhà cung cấp đã nhận phiên ký; chờ người ký xác nhận trên thiết bị tới {@code expiresAt}. */
   public void submitted(String txnId, Instant sessionExpiresAt) {
-    require(SignRequestStatus.TAO);
+    if (status != SignRequestStatus.TAO && !awaitingProvider()) {
+      throw new IllegalStateException(
+          "Yêu cầu " + id + " ở trạng thái " + status + " đã có phiên ở nhà cung cấp");
+    }
     this.providerTxnId = Objects.requireNonNull(txnId, "txnId");
     if (sessionExpiresAt != null) {
       this.expiresAt = sessionExpiresAt;

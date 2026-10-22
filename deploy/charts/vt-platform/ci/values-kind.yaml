@@ -47,4 +47,6 @@ notification-service:
     limits: { cpu: 500m, memory: 128Mi }
   autoscaling:
     hpa: { enabled: true, minReplicas: 2, maxReplicas: 4 }
+    # Cụm kind của bước này không cài KEDA nên giữ HPA thường để thử co giãn.
+    keda: { enabled: false }
   serviceMonitor: { enabled: false }
