@@ -574,6 +574,158 @@ class OkrApprovalApiIT extends ContractConformanceTest {
     assertThat(history).isEqualTo(2);
   }
 
+  /**
+   * CORE-01-11: nhắc check-in chạy nền với đồng hồ giả lập. KR tuần chưa check-in nhận đúng một
+   * nhắc và người đứng đầu nhận báo quá hạn hai chu kỳ; KR đã check-in không nhận; KR tháng chỉ
+   * nhận ở tuần có thứ Năm cuối tháng; hai bản sao chạy cùng lúc và chạy lại sau lỗi không gửi
+   * trùng.
+   */
+  @Test
+  void nhacCheckinNenKhongTrungKhiNhieuBanSaoVaChayLai() throws Exception {
+    UUID head = UUID.randomUUID();
+    UUID unit = UUID.randomUUID();
+    when(orgDirectory.headsOf(any(), eq(unit), any())).thenReturn(List.of(head));
+    UUID a = pending(unit, AUTHOR);
+    assertThat(approve(a, "\"0\"", null).getResponse().getStatus()).isEqualTo(200);
+    UUID b = pending(UUID.randomUUID(), AUTHOR);
+    assertThat(approve(b, "\"0\"", null).getResponse().getStatus()).isEqualTo(200);
+    UUID weekly = krOf(a, "KR 1.1");
+    UUID checkedIn = krOf(a, "KR 1.2");
+    UUID monthly = krOf(b, "KR 1.1");
+    inTenant(
+        jdbc -> {
+          jdbc.sql("UPDATE okr.key_result SET checkin_frequency = 'THANG' WHERE objective_id = ?")
+              .param(b)
+              .update();
+          jdbc.sql(
+                  "INSERT INTO okr.kr_checkin (id, period_id, period_bucket, key_result_id,"
+                      + " checkin_at, value, confidence, channel, idempotency_key, status,"
+                      + " created_by, updated_by) VALUES (?, ?, 20271, ?,"
+                      + " TIMESTAMPTZ '2027-02-09 09:00:00+07', 3, 'CAO', 'WEB', ?, 'DA_GUI', ?, ?)")
+              .params(
+                  UUID.randomUUID(),
+                  period,
+                  checkedIn,
+                  UUID.randomUUID().toString(),
+                  AUTHOR,
+                  AUTHOR)
+              .update();
+          return null;
+        });
+    String due = "notify.message.requested.v1";
+
+    // Thứ Năm 11/02/2027: hai bản sao chạy song song.
+    var reminders = reminders("2027-02-11", 1, null);
+    var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+    List<java.util.concurrent.Future<Integer>> runs = new ArrayList<>();
+    for (int i = 0; i < 2; i++) {
+      runs.add(pool.submit(() -> TenantContext.call(tenant, () -> reminders.run(tenant))));
+    }
+    for (var f : runs) {
+      f.get();
+    }
+    pool.shutdown();
+    assertThat(count(weekly, due)).isEqualTo(2);
+    verify(orgDirectory, org.mockito.Mockito.atLeastOnce()).headsOf(any(), eq(unit), any());
+    assertThat(count(checkedIn, due)).isZero();
+    assertThat(count(monthly, due)).isZero();
+
+    // Thứ Sáu chạy lại (pod khởi động lại): không gửi thêm.
+    TenantContext.run(tenant, () -> reminders("2027-02-12", 500, null).run(tenant));
+    assertThat(count(weekly, due)).isEqualTo(2);
+
+    // Tuần sau: lỗi ở trang thứ hai, trang đầu đã ghi; chạy lại chỉ gửi phần còn thiếu.
+    java.util.concurrent.atomic.AtomicInteger calls =
+        new java.util.concurrent.atomic.AtomicInteger();
+    try {
+      TenantContext.run(tenant, () -> reminders("2027-02-18", 1, calls).run(tenant));
+    } catch (IllegalStateException expected) {
+      // lỗi giả lập giữa chừng
+    }
+    TenantContext.run(tenant, () -> reminders("2027-02-18", 1, null).run(tenant));
+    TenantContext.run(tenant, () -> reminders("2027-02-18", 1, null).run(tenant));
+    assertThat(count(weekly, due)).isEqualTo(4);
+    assertThat(count(checkedIn, due)).isEqualTo(1);
+    assertThat(count(monthly, due)).isZero();
+
+    // Thứ Năm cuối tháng 25/02/2027: KR tháng mới được nhắc.
+    TenantContext.run(tenant, () -> reminders("2027-02-25", 500, null).run(tenant));
+    assertThat(count(monthly, due)).isEqualTo(1);
+  }
+
+  /**
+   * Bộ nhắc dùng CSDL thật với đồng hồ cố định 07:00 giờ Việt Nam; {@code failAfter} khác null thì
+   * lần ghi sự kiện thứ hai trở đi ném lỗi.
+   */
+  private vn.viettel.okrkpi.okr.application.OkrCheckinReminders reminders(
+      String day, int pageSize, java.util.concurrent.atomic.AtomicInteger failAfter) {
+    java.time.ZoneId zone = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
+    var outbox =
+        new vn.viettel.okrkpi.okr.infrastructure.persistence.OutboxOkrReminderEvents(
+            new OutboxWriter(
+                new JdbcTemplate(okrDataSource),
+                "okr",
+                (topic, payload) -> new SerializedPayload(new byte[] {1}, 1L, 1),
+                json,
+                Clock.systemUtc()));
+    vn.viettel.okrkpi.okr.application.port.OkrReminderEvents events =
+        failAfter == null
+            ? outbox
+            : new vn.viettel.okrkpi.okr.application.port.OkrReminderEvents() {
+              @Override
+              public void checkinDue(
+                  TenantId t,
+                  vn.viettel.okrkpi.okr.application.port.OkrCheckinReminderRepository.DueKeyResult
+                      kr,
+                  List<UUID> to,
+                  java.time.LocalDate end) {
+                guard();
+                outbox.checkinDue(t, kr, to, end);
+              }
+
+              @Override
+              public void checkinOverdue(
+                  TenantId t,
+                  vn.viettel.okrkpi.okr.application.port.OkrCheckinReminderRepository.DueKeyResult
+                      kr,
+                  List<UUID> to,
+                  int cycles) {
+                guard();
+                outbox.checkinOverdue(t, kr, to, cycles);
+              }
+
+              private void guard() {
+                if (failAfter.incrementAndGet() > 1) {
+                  throw new IllegalStateException("lỗi giả lập");
+                }
+              }
+            };
+    vn.viettel.okrkpi.config.api.PeriodApi periods =
+        org.mockito.Mockito.mock(vn.viettel.okrkpi.config.api.PeriodApi.class);
+    when(periods.findCurrent(any()))
+        .thenReturn(
+            Optional.of(
+                new vn.viettel.okrkpi.config.api.PeriodSnapshot(
+                    vn.viettel.okrkpi.shared.kernel.PeriodId.of(period),
+                    tenant,
+                    "Q1-2027",
+                    "Quý I năm 2027",
+                    java.time.LocalDate.of(2027, 1, 1),
+                    java.time.LocalDate.of(2027, 3, 31),
+                    vn.viettel.okrkpi.config.api.PeriodStatus.MO)));
+    return new vn.viettel.okrkpi.okr.application.OkrCheckinReminders(
+        new vn.viettel.okrkpi.okr.infrastructure.persistence.JdbcOkrCheckinReminderRepository(
+            new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(okrDataSource)),
+        periods,
+        () -> null,
+        () -> orgDirectory,
+        events,
+        new TransactionTemplate(okrTm),
+        java.time.Clock.fixed(
+            java.time.LocalDate.parse(day).atTime(7, 0).atZone(zone).toInstant(), zone),
+        pageSize);
+  }
+
   private UUID krOf(UUID objective, String code) throws Exception {
     return inTenant(
         jdbc ->

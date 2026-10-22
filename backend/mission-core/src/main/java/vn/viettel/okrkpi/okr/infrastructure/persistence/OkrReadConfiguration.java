@@ -10,11 +10,13 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -22,6 +24,7 @@ import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
 import vn.viettel.okrkpi.okr.application.OkrCheckService;
 import vn.viettel.okrkpi.okr.application.OkrCheckinDelegateService;
+import vn.viettel.okrkpi.okr.application.OkrCheckinReminders;
 import vn.viettel.okrkpi.okr.application.OkrCheckinService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService;
 import vn.viettel.okrkpi.okr.application.OkrMilestoneService;
@@ -37,6 +40,7 @@ import vn.viettel.okrkpi.okr.application.port.OkrCheckinDelegatePort;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinEvents;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinExtension;
 import vn.viettel.okrkpi.okr.application.port.OkrSimilarityPort;
+import vn.viettel.okrkpi.okr.infrastructure.scheduling.OkrCheckinReminderJob;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrApproveBatchJobs;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrExportJobs;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrIdempotency;
@@ -45,6 +49,7 @@ import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
+import vn.viettel.okrkpi.shared.routing.TenantDirectory;
 
 /**
  * CORE-01-02: nối phía đọc của MOD-01 với {@code okrDataSource}; giao dịch chỉ đọc chạy trên {@code
@@ -268,5 +273,52 @@ public class OkrReadConfiguration {
       OkrReviewService okrReviewService,
       @Qualifier("okrApproveBatchExecutor") ExecutorService okrApproveBatchExecutor) {
     return new OkrApproveBatchJobs(okrReviewService, okrApproveBatchExecutor);
+  }
+
+  /** CORE-01-11: nhắc check-in OKR chạy nền, EVT-21 ghi outbox cùng giao dịch với khoá giữ chỗ. */
+  @Bean
+  OkrCheckinReminders okrCheckinReminders(
+      @Qualifier("okrDataSource") DataSource dataSource,
+      @Value("${mission.okr.outbox.registry-url:${okrkpi.inbox.registry.url}}") String registry,
+      @Value("${mission.okr.checkin-reminder.page-size:500}") int pageSize,
+      ObjectProvider<ObjectMapper> json,
+      PeriodApi periods,
+      ObjectProvider<WorkingCalendarApi> calendar,
+      ObjectProvider<OrgDirectoryApi> org,
+      @Qualifier("okrTransactionManager") PlatformTransactionManager tm) {
+    return new OkrCheckinReminders(
+        new JdbcOkrCheckinReminderRepository(new NamedParameterJdbcTemplate(dataSource)),
+        periods,
+        calendar::getIfAvailable,
+        org::getIfAvailable,
+        new OutboxOkrReminderEvents(
+            new OutboxWriter(
+                new JdbcTemplate(dataSource),
+                "okr",
+                new ApicurioPayloadSerializer(registry, Map.of()),
+                json.getIfAvailable(ObjectMapper::new),
+                Clock.systemUtc())),
+        new TransactionTemplate(tm),
+        java.time.Clock.system(VIET_NAM),
+        pageSize);
+  }
+
+  /** Tác vụ nhắc check-in; tắt bằng {@code mission.okr.checkin-reminder.enabled=false}. */
+  @Configuration(proxyBeanMethods = false)
+  @EnableScheduling
+  @ConditionalOnProperty(
+      prefix = "mission.okr.checkin-reminder",
+      name = "enabled",
+      havingValue = "true",
+      matchIfMissing = true)
+  static class CheckinReminderJob {
+
+    @Bean
+    OkrCheckinReminderJob okrCheckinReminderJob(
+        OkrCheckinReminders okrCheckinReminders,
+        ObjectProvider<TenantDirectory> directory,
+        @Value("${mission.config.period-opening.cell:${CELL_ID:}}") String cell) {
+      return new OkrCheckinReminderJob(okrCheckinReminders, directory, cell);
+    }
   }
 }
