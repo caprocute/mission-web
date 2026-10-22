@@ -10,11 +10,13 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.postgresql.util.PGobject;
 import vn.viettel.okrkpi.platform.db.migration.TenantIsolationCatalogTest;
 
 /**
@@ -32,7 +34,8 @@ class TaskTenantIsolationIT extends TenantIsolationCatalogTest {
 
   @Override
   protected Map<String, RowFixture> rowFixtures() {
-    return Map.of(
+    Map<String, RowFixture> f = new LinkedHashMap<>();
+    f.put(
         "task.plan",
         (tenant, seed) -> {
           Map<String, Object> r = common(tenant, "plan");
@@ -40,7 +43,8 @@ class TaskTenantIsolationIT extends TenantIsolationCatalogTest {
           r.put("plan_type", "TAP_THE");
           r.put("owner_unit_id", id(tenant, "unit"));
           return r;
-        },
+        });
+    f.put(
         "task.plan_version",
         (tenant, seed) -> {
           Map<String, Object> r = common(tenant, "plan_version");
@@ -49,7 +53,8 @@ class TaskTenantIsolationIT extends TenantIsolationCatalogTest {
           r.put("version_no", 1);
           r.put("status", "NHAP");
           return r;
-        },
+        });
+    f.put(
         "task.plan_item",
         (tenant, seed) -> {
           Map<String, Object> r = common(tenant, "plan_item");
@@ -64,6 +69,92 @@ class TaskTenantIsolationIT extends TenantIsolationCatalogTest {
           r.put("due_date", LocalDate.of(2027, 3, 31));
           return r;
         });
+    f.put(
+        "task.task",
+        (tenant, seed) -> {
+          Map<String, Object> r = common(tenant, "task");
+          r.put("period_id", id(tenant, "period"));
+          r.put("code", "NV-0001");
+          r.put("title", "Rà soát hồ sơ");
+          r.put("task_group", "THUONG_XUYEN");
+          r.put("source", "KE_HOACH");
+          r.put("assigner_id", id(tenant, "user"));
+          r.put("due_date", LocalDate.of(2027, 3, 31));
+          r.put("unit", "Hồ sơ");
+          r.put("dup_fingerprint", new byte[] {1, 2, 3});
+          r.put("state_machine_version", "task-v1");
+          return r;
+        });
+    f.put(
+        "task.task_assignee",
+        (tenant, seed) -> {
+          Map<String, Object> r = satellite(tenant, "task_assignee");
+          r.put("assignee_type", "CA_NHAN");
+          r.put("person_id", id(tenant, "user"));
+          r.put("role", "CHU_TRI");
+          r.put("valid_from", LocalDate.of(2027, 1, 1));
+          return r;
+        });
+    f.put(
+        "task.task_progress",
+        (tenant, seed) -> {
+          Map<String, Object> r = satellite(tenant, "task_progress");
+          r.put("reported_at", OffsetDateTime.parse("2027-02-01T08:00:00Z"));
+          r.put("progress_pct", new BigDecimal("0.5000"));
+          r.put("channel", "WEB");
+          r.put("idempotency_key", "k-" + tenant);
+          return r;
+        });
+    f.put(
+        "task.task_blocker",
+        (tenant, seed) -> {
+          Map<String, Object> r = satellite(tenant, "task_blocker");
+          r.put("cause_category", "PHOI_HOP");
+          r.put("cause_detail", "Chờ đơn vị phối hợp cung cấp số liệu");
+          r.put("impact_level", "TRUNG_BINH");
+          return r;
+        });
+    f.put(
+        "task.task_change_request",
+        (tenant, seed) -> {
+          Map<String, Object> r = satellite(tenant, "task_change_request");
+          r.put("request_type", "GIA_HAN");
+          r.put("proposed_due_date", LocalDate.of(2027, 4, 30));
+          r.put("reason", "Chờ số liệu");
+          return r;
+        });
+    f.put(
+        "task.task_source_doc",
+        (tenant, seed) -> {
+          Map<String, Object> r = satellite(tenant, "task_source_doc");
+          r.put("source_system", "VOFFICE");
+          r.put("external_doc_id", "VB-" + tenant);
+          r.put("paragraph_no", 1);
+          return r;
+        });
+    f.put(
+        "task.task_state_log",
+        (tenant, seed) -> {
+          Map<String, Object> r = new LinkedHashMap<>();
+          r.put("id", id(tenant, "task_state_log"));
+          r.put("period_bucket", SAMPLE_PERIOD_BUCKET);
+          r.put("period_id", id(tenant, "period"));
+          r.put("task_id", id(tenant, "task"));
+          r.put("to_status", "DA_GIAO");
+          r.put("transition", "GIAO");
+          r.put("actor_id", id(tenant, "user"));
+          r.put("before_after", jsonb("{}"));
+          r.put("state_machine_version", "task-v1");
+          return r;
+        });
+    return f;
+  }
+
+  private static Map<String, Object> satellite(UUID tenant, String table) {
+    Map<String, Object> r = common(tenant, table);
+    r.put("period_id", id(tenant, "period"));
+    r.put("task_id", id(tenant, "task"));
+    return r;
   }
 
   @Test
@@ -266,6 +357,17 @@ class TaskTenantIsolationIT extends TenantIsolationCatalogTest {
     r.put("updated_by", id(tenant, "user"));
     r.put("period_bucket", SAMPLE_PERIOD_BUCKET);
     return r;
+  }
+
+  private static PGobject jsonb(String value) {
+    try {
+      PGobject o = new PGobject();
+      o.setType("jsonb");
+      o.setValue(value);
+      return o;
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   private static UUID id(UUID tenant, String name) {

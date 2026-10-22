@@ -129,6 +129,10 @@ okrkpi:
       url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
   idempotency:
     schema: flowable
+  # Token client credentials của mission-core không mang claim tenant: tenant đích của saga (chốt
+  # kỳ, CORE-08-05) đọc từ header X-Tenant-Id, chỉ với tài khoản dịch vụ của các client này.
+  tenant:
+    delegating-clients: ${TENANT_DELEGATING_CLIENTS:mission-core}
   saga:
     enabled: ${SAGA_ENABLED:true}
     worker:
