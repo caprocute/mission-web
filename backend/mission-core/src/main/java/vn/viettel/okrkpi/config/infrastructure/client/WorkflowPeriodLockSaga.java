@@ -31,7 +31,7 @@ public class WorkflowPeriodLockSaga implements PeriodLockSaga {
           null);
     }
     try {
-      return c.startPeriodClose(periodId.value(), lockOrderId, requestedBy, key);
+      return c.startPeriodClose(tenantId, periodId.value(), lockOrderId, requestedBy, key);
     } catch (WorkflowSagaClient.SagaExists e) {
       throw new SagaExistsException(e);
     }

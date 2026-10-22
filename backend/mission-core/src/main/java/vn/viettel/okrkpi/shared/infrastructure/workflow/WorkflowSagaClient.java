@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
 
 /**
@@ -40,14 +41,22 @@ public class WorkflowSagaClient {
     this.token = Objects.requireNonNull(token, "token");
   }
 
-  /** Khởi động saga {@code CHOT_KY}; trả mã saga. */
+  /** Header tenant đích của lời gọi dịch vụ tới dịch vụ (wiki trang 14 mục 42). */
+  public static final String TENANT_HEADER = "X-Tenant-Id";
+
+  /**
+   * Khởi động saga {@code CHOT_KY}; trả mã saga. Token dịch vụ không mang claim tenant nên tenant
+   * đích gửi trong {@link #TENANT_HEADER}.
+   */
   public UUID startPeriodClose(
-      UUID periodId, UUID lockOrderId, UUID requestedBy, String idempotencyKey) {
+      TenantId tenantId, UUID periodId, UUID lockOrderId, UUID requestedBy, String idempotencyKey) {
+    Objects.requireNonNull(tenantId, "tenantId");
     try {
       Map<String, Object> job =
           http.post()
               .uri("/api/v1/workflow/sagas/period-close")
               .header(HttpHeaders.AUTHORIZATION, "Bearer " + token.get())
+              .header(TENANT_HEADER, tenantId.value().toString())
               .header("Idempotency-Key", idempotencyKey)
               .body(
                   Map.of(
