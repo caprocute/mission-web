@@ -3,12 +3,15 @@ package vn.viettel.okrkpi.scoring.application.policy;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.UUID;
+import vn.viettel.okrkpi.scoring.domain.AnnualInput;
 import vn.viettel.okrkpi.scoring.domain.CanonicalDoc;
 import vn.viettel.okrkpi.scoring.domain.ComputedScore;
 import vn.viettel.okrkpi.scoring.domain.ScoreStatus;
@@ -40,16 +43,80 @@ public final class ProfileScorer {
    * @throws IllegalArgumentException gói thuộc luồng khác luồng của hồ sơ
    */
   public ComputedScore score(UUID resultId, CompiledPolicy policy, ScoringInput input) {
-    Object flow = RatingClassifier.map(policy.manifest().get("metadata")).get("luong");
-    if (flow != null && !flow.equals(input.flow())) {
-      throw new IllegalArgumentException(
-          "Bộ quy định thuộc luồng " + flow + ", hồ sơ thuộc luồng " + input.flow());
-    }
+    checkFlow(policy, input.flow());
     ScoreCalculator.Calculation calc = calculator.calculate(policy, input);
+    return result(resultId, policy, calc, input.flow(), input.personId(), input.profileId(), null);
+  }
+
+  /** Kết quả năm lần trước của hồ sơ, để MOD-04 báo thay đổi (MSG-10-04). */
+  public record Previous(BigDecimal score, String rating) {}
+
+  /**
+   * Tính và xếp loại năm (DV-07-07, QT-10) trên kết quả các quý đã quyết định. Có {@code previous}
+   * khác kết quả mới (quý được điều chỉnh sau hậu kiểm) thì kết quả mang {@code ket_qua_truoc}.
+   *
+   * @throws IllegalArgumentException gói thuộc luồng khác luồng của hồ sơ
+   */
+  public ComputedScore scoreAnnual(
+      UUID resultId, CompiledPolicy policy, AnnualInput input, Previous previous) {
+    checkFlow(policy, input.flow());
+    CanonicalDoc doc = input.document(annualParams(policy));
+    // Kỳ năm nằm trong input_doc ("ky": "NAM") nên không trùng băm với kết quả quý.
+    ScoreCalculator.Calculation calc =
+        calculator.calculateAnnual(policy, doc, input.variables(), Map.of());
+    return result(
+        resultId, policy, calc, input.flow(), input.personId(), input.profileId(), previous);
+  }
+
+  /**
+   * Tham số năm mà phạm vi {@code nam} đọc (khoá phẳng → giá trị mặc định), đưa vào {@code
+   * input_doc} năm.
+   */
+  static Map<String, Object> annualParams(CompiledPolicy policy) {
+    Map<String, Object> ts = ScoreCalculator.params(policy.params(), Map.of());
+    Map<String, Object> out = new TreeMap<>();
+    Object defs = RatingClassifier.map(policy.manifest().get("definitions_nam")).get("nam");
+    for (String key : RatingClassifier.map(defs).keySet()) {
+      CompiledPolicy.Rule rule = policy.rules().get(key);
+      if (rule != null) {
+        ScoreCalculator.usedParams(rule.program().expression(), ts)
+            .forEach((k, v) -> out.put(k.substring("tham_so.".length()), v));
+      }
+    }
+    return out;
+  }
+
+  private static void checkFlow(CompiledPolicy policy, String inputFlow) {
+    Object flow = RatingClassifier.map(policy.manifest().get("metadata")).get("luong");
+    if (flow != null && !flow.equals(inputFlow)) {
+      throw new IllegalArgumentException(
+          "Bộ quy định thuộc luồng " + flow + ", hồ sơ thuộc luồng " + inputFlow);
+    }
+  }
+
+  private ComputedScore result(
+      UUID resultId,
+      CompiledPolicy policy,
+      ScoreCalculator.Calculation calc,
+      String flowCode,
+      UUID personId,
+      UUID profileId,
+      Previous previous) {
     RatingClassifier.Rating rating = classifier.classify(policy, calc);
     Map<String, Object> doc = read(calc.result());
     doc.putAll(rating.outputs());
-    doc.put("luong", input.flow());
+    if (calc.outputs().containsKey(ScoreCalculator.ANNUAL_SCORE_KEY)) {
+      doc.put("ky", "NAM");
+    }
+    if (previous != null
+        && (previous.score().compareTo(calc.totalScore()) != 0
+            || !previous.rating().equals(rating.level()))) {
+      Map<String, Object> before = new LinkedHashMap<>();
+      before.put("diem", previous.score());
+      before.put("muc", previous.rating());
+      doc.put("ket_qua_truoc", before);
+    }
+    doc.put("luong", flowCode);
     doc.put("muc_he_thong", rating.level());
     doc.put("muc_theo_bang", rating.tableLevel());
     if (rating.ruleId() != null) {
@@ -64,9 +131,9 @@ public final class ProfileScorer {
     trace.addAll(rating.steps());
     return new ComputedScore(
         resultId,
-        input.personId(),
-        input.flow(),
-        input.profileId(),
+        personId,
+        flowCode,
+        profileId,
         calc.input(),
         CanonicalDoc.of(doc),
         calc.totalScore(),

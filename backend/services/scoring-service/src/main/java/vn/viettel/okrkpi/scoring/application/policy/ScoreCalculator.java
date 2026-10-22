@@ -14,6 +14,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import vn.viettel.okrkpi.scoring.domain.AnnualInput;
 import vn.viettel.okrkpi.scoring.domain.CanonicalDoc;
 import vn.viettel.okrkpi.scoring.domain.ScoringInput;
 import vn.viettel.okrkpi.scoring.domain.TraceStep;
@@ -45,6 +46,12 @@ public final class ScoreCalculator {
   static final String GROUP_RESULTS = "ket_qua_nhom";
   static final String KPI_KEY = "kpi_nhiem_vu";
   static final String TASK_ID = "task_id";
+  static final String ANNUAL = "nam";
+  static final String QUARTERS = AnnualInput.QUARTERS;
+
+  /** Biến điểm năm (BR-10-02). */
+  public static final String ANNUAL_SCORE_KEY = "diem_nam";
+
   private static final Set<String> IDENTITY = Set.of("ma", "nhom", TASK_ID);
   private static final Pattern PARAM_PATH = Pattern.compile("tham_so((?:\\.[A-Za-z_][\\w]*)+)");
 
@@ -176,6 +183,48 @@ public final class ScoreCalculator {
   }
 
   /**
+   * Tính điểm năm trên kết quả bốn quý (DV-07-07, QT-10): quy đổi tiêu chí chung năm bằng bảng chỉ
+   * đọc {@code inputs_nam}, rồi phạm vi {@code nam} theo {@code eval_order} (điểm năm theo {@code
+   * nam.cach_tinh}, số quý không hoàn thành, tỷ lệ vượt năm, cờ bố trí lại). Không tính lại quý
+   * (BR-10-06): {@code ket_qua_quy} là kết quả quý đã quyết định.
+   *
+   * @throws IllegalStateException gói không có phạm vi năm hoặc không tính ra {@code diem_nam}
+   */
+  public Calculation calculateAnnual(
+      CompiledPolicy policy,
+      CanonicalDoc inputDoc,
+      Map<String, Object> variables,
+      Map<String, Object> overrides) {
+    Plan plan = Plan.annual(policy);
+    Run run = new Run(policy, plan);
+    Map<String, Object> vars = new HashMap<>(variables);
+    vars.put("tham_so", params(policy.params(), overrides));
+    run.decide(vars);
+    run.optional(plan.profile.get(0), vars);
+    run.decide(vars);
+    if (!(run.outputs.get(ANNUAL_SCORE_KEY) instanceof Number score)) {
+      throw new IllegalStateException("Gói quy tắc không tính ra điểm " + ANNUAL_SCORE_KEY);
+    }
+    Map<String, Object> doc = new LinkedHashMap<>();
+    doc.put("policy_version", policy.pinned().version());
+    doc.put("policy_content_hash", policy.contentHash());
+    doc.putAll(new TreeMap<>(run.outputs));
+    if (vars.get(QUARTERS) != null) {
+      doc.put(QUARTERS, vars.get(QUARTERS));
+    }
+    vars.putAll(run.outputs);
+    return new Calculation(
+        inputDoc,
+        CanonicalDoc.of(doc),
+        BigDecimal.valueOf(score.doubleValue()).stripTrailingZeros(),
+        Map.copyOf(run.outputs),
+        List.of(),
+        List.of(),
+        List.copyOf(run.trace),
+        vars);
+  }
+
+  /**
    * Tham số mặc định ({@code params.*.mac_dinh}) ghép giá trị ghi đè theo khoá phẳng, rồi lồng theo
    * dấu chấm như MOD-05.
    */
@@ -286,10 +335,48 @@ public final class ScoreCalculator {
       Set<String> resultKeys = new HashSet<>(scopes.get(TASKS));
       resultKeys.addAll(scopes.getOrDefault(GROUPS, List.of()));
 
-      Set<String> inputNames =
-          manifest.get("inputs") instanceof Map<?, ?> in
-              ? new HashSet<>((Set<String>) in.keySet())
-              : Set.of();
+      Map<String, String> tableRefs = tableRefs(manifest);
+      List<String> tables = inputTables(policy, "inputs", tableRefs);
+      Map<String, List<String>> aliases = aliases(manifest);
+      return new Plan(
+          scopes.get(TASKS),
+          scopes.getOrDefault(GROUPS, List.of()),
+          profile,
+          extra,
+          resultKeys,
+          tables,
+          aliases,
+          tableRefs);
+    }
+
+    /**
+     * Kế hoạch xếp loại năm (DV-07-07): phạm vi {@code nam} của {@code definitions_nam}, bảng chỉ
+     * đọc biến của {@code inputs_nam} (quy đổi tiêu chí chung năm).
+     */
+    static Plan annual(CompiledPolicy policy) {
+      Map<String, Object> manifest = policy.manifest();
+      List<String> keys = new ArrayList<>();
+      if (manifest.get("definitions_nam") instanceof Map<?, ?> m
+          && m.get(ANNUAL) instanceof Map<?, ?> d) {
+        d.keySet().forEach(k -> keys.add(String.valueOf(k)));
+      }
+      List<String> scope = ordered(keys, policy.rules());
+      if (scope.isEmpty()) {
+        throw new IllegalStateException("Gói quy tắc không có phạm vi " + ANNUAL);
+      }
+      Map<String, String> tableRefs = tableRefs(manifest);
+      return new Plan(
+          List.of(),
+          List.of(),
+          List.of(scope),
+          List.of(),
+          Set.of(),
+          inputTables(policy, "inputs_nam", tableRefs),
+          aliases(manifest),
+          tableRefs);
+    }
+
+    private static Map<String, String> tableRefs(Map<String, Object> manifest) {
       Map<String, String> tableRefs = new LinkedHashMap<>();
       if (manifest.get("classification") instanceof Map<?, ?> cls
           && cls.get("bang_quyet_dinh") instanceof List<?> declared) {
@@ -301,16 +388,30 @@ public final class ScoreCalculator {
           }
         }
       }
+      return tableRefs;
+    }
+
+    /** Bảng chỉ đọc biến đầu vào của khối {@code block}; bảng đọc kết quả tính là bảng xếp loại. */
+    @SuppressWarnings("unchecked")
+    private static List<String> inputTables(
+        CompiledPolicy policy, String block, Map<String, String> tableRefs) {
+      Set<String> inputNames =
+          policy.manifest().get(block) instanceof Map<?, ?> in
+              ? new HashSet<>((Set<String>) in.keySet())
+              : Set.of();
       Set<String> available = policy.decisions().tableKeys();
       List<String> tables = new ArrayList<>();
       tableRefs.keySet().stream().filter(available::contains).forEach(tables::add);
       new TreeSet<>(available).stream().filter(k -> !tables.contains(k)).forEach(tables::add);
-      // Bảng chỉ đọc biến đầu vào của hồ sơ; bảng đọc kết quả tính là bảng xếp loại (DV-07-05).
       tables.removeIf(
           k -> {
             List<String> cols = policy.decisions().inputs(k);
             return cols.isEmpty() || !inputNames.containsAll(cols);
           });
+      return tables;
+    }
+
+    private static Map<String, List<String>> aliases(Map<String, Object> manifest) {
       Map<String, List<String>> aliases = new HashMap<>();
       if (manifest.get("ngu_canh") instanceof Map<?, ?> ctx) {
         ctx.forEach(
@@ -324,15 +425,7 @@ public final class ScoreCalculator {
               }
             });
       }
-      return new Plan(
-          scopes.get(TASKS),
-          scopes.getOrDefault(GROUPS, List.of()),
-          profile,
-          extra,
-          resultKeys,
-          tables,
-          aliases,
-          tableRefs);
+      return aliases;
     }
 
     private static List<String> ordered(List<String> keys, Map<String, CompiledPolicy.Rule> rules) {

@@ -35,8 +35,8 @@ import vn.viettel.okrkpi.scoring.domain.UnaryTest;
  */
 public final class RatingClassifier {
 
-  static final String DIEM = ScoreCalculator.SCORE_KEY;
   private static final String HA_MUC = "ha_muc";
+  private static final String[] ROMAN = {"I", "II", "III", "IV"};
   private static final Pattern PLACEHOLDER = Pattern.compile("\\{([a-z_]+)}");
 
   /**
@@ -140,7 +140,7 @@ public final class RatingClassifier {
     String level =
         finalKey != null && vars.get(finalKey) instanceof String s ? s : String.valueOf(tableLevel);
 
-    Text text = new Text(policy, cls, vars);
+    Text text = new Text(policy, cls, vars, calc.totalScore());
     DecisionTable.Rule row = structure == null ? null : structure.rules().get(hit.rule());
     List<String> missing = List.of();
     DecisionTable.Rule upper = null;
@@ -252,7 +252,11 @@ public final class RatingClassifier {
     return levels;
   }
 
-  /** Dòng đầu tiên của mức liền trên mức của dòng được chọn. */
+  /**
+   * Dòng chung của mức liền trên: dòng đầu tiên của mức đó có {@code mau_ha_muc}, nếu không có thì
+   * dòng cuối của mức đó. Dòng chặn riêng (như chặn mức xuất sắc năm khi có quý không hoàn thành)
+   * không mang {@code mau_ha_muc} và đứng trước dòng chung nên không bị chọn.
+   */
   private static DecisionTable.Rule upperRow(
       DecisionTable table, DecisionTable.Rule row, List<String> levels) {
     int idx = levels.indexOf(row.outputValue());
@@ -260,10 +264,12 @@ public final class RatingClassifier {
       return null;
     }
     String above = levels.get(idx - 1);
-    return table.rules().stream()
-        .filter(r -> above.equals(r.outputValue()))
+    List<DecisionTable.Rule> candidates =
+        table.rules().stream().filter(r -> above.equals(r.outputValue())).toList();
+    return candidates.stream()
+        .filter(r -> r.annotation("mau_ha_muc") != null)
         .findFirst()
-        .orElse(null);
+        .orElse(candidates.isEmpty() ? null : candidates.get(candidates.size() - 1));
   }
 
   private static boolean cell(
@@ -300,11 +306,17 @@ public final class RatingClassifier {
     final CompiledPolicy policy;
     final Map<String, Object> cls;
     final Map<String, Object> vars;
+    final BigDecimal score;
 
-    Text(CompiledPolicy policy, Map<String, Object> cls, Map<String, Object> vars) {
+    Text(
+        CompiledPolicy policy,
+        Map<String, Object> cls,
+        Map<String, Object> vars,
+        BigDecimal score) {
       this.policy = policy;
       this.cls = cls;
       this.vars = vars;
+      this.score = score;
     }
 
     String plain(DecisionTable.Rule row, String level) {
@@ -383,12 +395,37 @@ public final class RatingClassifier {
     private Map<String, String> common(String level) {
       Map<String, String> values = new HashMap<>();
       values.put("muc", label(level));
-      values.put("diem", vars.get(DIEM) instanceof Number n ? number(n) : "");
+      values.put("diem", score == null ? "" : number(score));
       values.put("phien_ban", policy.pinned().version());
+      values.put("cac_quy", quarters());
       return values;
     }
 
-    /** Điều kiện theo tên cột: khoá trùng tên, hoặc khoá dài nhất là tiền tố của tên cột. */
+    /**
+     * Các quý xếp mức thấp nhất của {@code classification.thu_tu} (xếp loại năm, BR-10-03): "quý
+     * II, quý IV".
+     */
+    private String quarters() {
+      List<String> levels = levels(cls);
+      if (levels.isEmpty() || !(vars.get(ScoreCalculator.QUARTERS) instanceof List<?> list)) {
+        return "";
+      }
+      String lowest = levels.get(levels.size() - 1);
+      List<String> out = new ArrayList<>();
+      for (Object o : list) {
+        Map<String, Object> q = map(o);
+        if (lowest.equals(q.get("xep_loai")) && q.get("quy") instanceof Number n) {
+          int i = n.intValue();
+          out.add("quý " + (i >= 1 && i <= 4 ? ROMAN[i - 1] : String.valueOf(i)));
+        }
+      }
+      return String.join(", ", out);
+    }
+
+    /**
+     * Điều kiện theo tên cột: khoá trùng tên, khoá dài nhất là tiền tố của tên cột, rồi khoá dài
+     * nhất nằm trong tên cột ({@code quy_khtnv} cho {@code so_quy_khtnv}).
+     */
     private Map<String, Object> condition(String column) {
       Map<String, Object> conditions = map(cls.get("dieu_kien"));
       if (conditions.containsKey(column)) {
@@ -397,6 +434,11 @@ public final class RatingClassifier {
       return conditions.keySet().stream()
           .filter(column::startsWith)
           .max(Comparator.comparingInt(String::length))
+          .or(
+              () ->
+                  conditions.keySet().stream()
+                      .filter(column::contains)
+                      .max(Comparator.comparingInt(String::length)))
           .map(k -> map(conditions.get(k)))
           .orElse(Map.of());
     }
