@@ -385,9 +385,16 @@ func (p *Provider) Shutdown(_ context.Context) error {
 	return nil
 }
 
+// maxRecordedSpans giới hạn số span giữ trong bộ nhớ để tiến trình chạy lâu không tăng bộ nhớ theo số yêu cầu.
+const maxRecordedSpans = 4096
+
 func (p *Provider) recordSpan(rec RecordedSpan) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if len(p.spans) >= maxRecordedSpans {
+		n := copy(p.spans, p.spans[len(p.spans)-maxRecordedSpans/2:])
+		p.spans = p.spans[:n]
+	}
 	p.spans = append(p.spans, rec)
 }
 
