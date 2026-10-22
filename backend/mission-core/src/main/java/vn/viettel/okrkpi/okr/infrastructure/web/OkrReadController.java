@@ -45,6 +45,7 @@ import vn.viettel.okrkpi.contract.okr.model.OkrExportRequest;
 import vn.viettel.okrkpi.contract.okr.model.OkrKeyResult;
 import vn.viettel.okrkpi.contract.okr.model.OkrKeyResultListItem;
 import vn.viettel.okrkpi.contract.okr.model.OkrKeyResultPage;
+import vn.viettel.okrkpi.contract.okr.model.OkrKeyResultPageCounts;
 import vn.viettel.okrkpi.contract.okr.model.OkrLastCheckin;
 import vn.viettel.okrkpi.contract.okr.model.OkrLink;
 import vn.viettel.okrkpi.contract.okr.model.OkrLinkFromType;
@@ -335,6 +336,10 @@ public class OkrReadController {
         new OkrKeyResultPage(
             result.items().stream().map(OkrReadController::listItem).toList(), result.nextCursor());
     p.ifPresent(x -> dto.period(periodInfo(reads.periodView(x))));
+    if (check) {
+      dto.counts(
+          new OkrKeyResultPageCounts().needCheckin((int) reads.countKeyResults(tenant, filter)));
+    }
     return dto;
   }
 

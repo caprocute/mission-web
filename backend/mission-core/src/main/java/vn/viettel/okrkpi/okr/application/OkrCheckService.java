@@ -92,6 +92,20 @@ public class OkrCheckService {
         rules != null && OkrRuleChecker.valid(rules) ? rules : d.rules());
   }
 
+  /**
+   * Cờ bật, tắt của Policy Pack áp cho đơn vị trong kỳ; thiếu gói hoặc tham số thì {@code false}.
+   */
+  public boolean flag(TenantId tenant, UUID periodId, UUID unitId, String key) {
+    PolicyQueryApi api = policies.get();
+    if (api == null || periodId == null) {
+      return false;
+    }
+    return api.resolve(tenant, PeriodId.of(periodId), "DANG", null, unitId)
+        .flatMap(pack -> api.parameter(tenant, pack.versionId(), key))
+        .map(Boolean.TRUE::equals)
+        .orElse(false);
+  }
+
   /** Kết quả kiểm tra của mục tiêu, tính lại mỗi lần gọi. */
   @Transactional(transactionManager = OkrReadService.TX, readOnly = true)
   public List<Finding> check(TenantId tenant, ObjectiveView view) {

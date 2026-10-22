@@ -12,9 +12,12 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.okr.application.OkrCheckService;
+import vn.viettel.okrkpi.okr.application.OkrCheckinService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.OkrRuleChecker;
+import vn.viettel.okrkpi.okr.application.port.OkrCheckinDelegatePort;
+import vn.viettel.okrkpi.okr.application.port.OkrCheckinExtension;
 import vn.viettel.okrkpi.okr.application.port.OkrSimilarityPort;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrExportJobs;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrIdempotency;
@@ -68,6 +71,27 @@ public class OkrReadConfiguration {
         policies::getIfAvailable,
         org::getIfAvailable,
         similarity::getIfAvailable);
+  }
+
+  /** CORE-01-08: check-in KR của QT-03 trên {@code okrDataSource}. */
+  @Bean
+  JdbcOkrCheckinRepository okrCheckinRepository(@Qualifier("okrDataSource") DataSource dataSource) {
+    return new JdbcOkrCheckinRepository(new NamedParameterJdbcTemplate(dataSource));
+  }
+
+  @Bean
+  OkrCheckinService okrCheckinService(
+      JdbcOkrCheckinRepository okrCheckinRepository,
+      PeriodApi periods,
+      OkrCheckService okrCheckService,
+      ObjectProvider<OkrCheckinDelegatePort> delegates,
+      ObjectProvider<OkrCheckinExtension> extensions) {
+    return new OkrCheckinService(
+        okrCheckinRepository,
+        periods,
+        okrCheckService,
+        delegates::getIfAvailable,
+        () -> extensions.orderedStream().toList());
   }
 
   @Bean
