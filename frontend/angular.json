@@ -266,6 +266,109 @@
         }
       }
     },
+    "fe-embed": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss"
+        }
+      },
+      "root": "projects/fe-embed",
+      "sourceRoot": "projects/fe-embed/src",
+      "prefix": "vt",
+      "architect": {
+        "build": {
+          "builder": "@angular-architects/native-federation:build",
+          "options": {},
+          "configurations": {
+            "production": {
+              "target": "fe-embed:esbuild:production"
+            },
+            "development": {
+              "target": "fe-embed:esbuild:development",
+              "dev": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular-architects/native-federation:build",
+          "options": {
+            "target": "fe-embed:serve-original:development",
+            "rebuildDelay": 500,
+            "dev": true,
+            "cacheExternalArtifacts": false,
+            "port": 0
+          }
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "buildTarget": "fe-embed:esbuild:development",
+            "tsConfig": "projects/fe-embed/tsconfig.spec.json"
+          }
+        },
+        "esbuild": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/fe-embed/src/main.ts",
+            "tsConfig": "projects/fe-embed/tsconfig.app.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/fe-embed/public"
+              }
+            ],
+            "styles": ["projects/fe-embed/src/styles.scss"],
+            "polyfills": ["es-module-shims"]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "200kB",
+                  "maximumError": "250kB"
+                },
+                {
+                  "type": "anyScript",
+                  "maximumWarning": "150kB",
+                  "maximumError": "250kB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "media"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve-original": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "fe-embed:esbuild:production"
+            },
+            "development": {
+              "buildTarget": "fe-embed:esbuild:development"
+            }
+          },
+          "defaultConfiguration": "development",
+          "options": {
+            "port": 4210
+          }
+        }
+      }
+    },
     "fe-task": {
       "projectType": "application",
       "schematics": {

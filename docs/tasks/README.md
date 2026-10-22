@@ -44,7 +44,7 @@ Mẫu để viết task mới: [`_MAU-TASK.md`](_MAU-TASK.md).
 | [WEB-010](WEB-010-form-engine.md) | Form engine: widget, test CEL dùng chung, benchmark | M | WEB-001 | Hoàn thành một phần (nhánh `feat/WEB-010-form-engine`): ngân sách dựng 50 trường ≤ 50 ms chưa đạt (khoảng 95 ms trên Chromium), xem wiki/09 |
 | [WEB-011](WEB-011-telemetry-faro.md) | Telemetry: Grafana Faro + OpenTelemetry web | S | WEB-001 | Xong, chờ gộp (nhánh `claude/b8-ha-tang-g7g48k`) |
 | [WEB-012](WEB-012-shell-hoan-thien.md) | Shell: thông báo thời gian thực, tìm kiếm, xử lý lỗi toàn cục | M | WEB-006, WEB-007 | Xong, chờ gộp |
-| [WEB-013](WEB-013-web-component-nhung.md) | Chế độ nhúng `<vt-okr-app>` cho cổng văn phòng số | M | WEB-006 | Chưa bắt đầu |
+| [WEB-013](WEB-013-web-component-nhung.md) | Chế độ nhúng `<vt-okr-app>` cho cổng văn phòng số | M | WEB-006 | Xong, chờ gộp |
 | [WEB-014](WEB-014-csp-trusted-types.md) | CSP chặt và Trusted Types cho bản phục vụ nginx | S | WEB-002 | Xong, chờ gộp (nhánh `claude/b8-ha-tang-g7g48k`) |
 | [WEB-015](WEB-015-khung-remote.md) | Công cụ tạo remote mới và dựng khung 8 remote | M | WEB-001 | Hoàn thành (chặn tuyến theo ma trận để WEB-055) |
 

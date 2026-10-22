@@ -45,7 +45,12 @@ function fakeOAuth() {
 }
 
 function setup(
-  opts: { assignments?: Assignment[]; authEnabled?: boolean; meError?: unknown } = {},
+  opts: {
+    assignments?: Assignment[];
+    authEnabled?: boolean;
+    meError?: unknown;
+    redirectUri?: string;
+  } = {},
 ) {
   sessionStorage.clear();
   const oauth = fakeOAuth();
@@ -67,7 +72,11 @@ function setup(
         useValue: {
           ...DEFAULT_RUNTIME_CONFIG,
           tenant: 'so-tu-phap',
-          auth: { ...DEFAULT_RUNTIME_CONFIG.auth, enabled: !!opts.authEnabled },
+          auth: {
+            ...DEFAULT_RUNTIME_CONFIG.auth,
+            enabled: !!opts.authEnabled,
+            redirectUri: opts.redirectUri,
+          },
         },
       },
     ],
@@ -217,6 +226,33 @@ describe('SessionService: OIDC (auth.enabled = true, Keycloak giả lập)', () 
       }),
     );
     expect(oauth.initCodeFlow).toHaveBeenCalledWith(location.pathname + location.search);
+  });
+
+  it('mặc định Keycloak trả về gốc trang; chế độ nhúng (WEB-013) trả về trang của cổng', async () => {
+    const plain = setup({ authEnabled: true });
+    plain.oauth.hasValidAccessToken.mockReturnValue(false);
+    void plain.session.init();
+    await flush();
+    expect(plain.oauth.configure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        redirectUri: location.origin + '/',
+        postLogoutRedirectUri: location.origin + '/',
+      }),
+    );
+    TestBed.resetTestingModule();
+    const embed = setup({
+      authEnabled: true,
+      redirectUri: 'https://cong.example.vn/van-phong/okr',
+    });
+    embed.oauth.hasValidAccessToken.mockReturnValue(false);
+    void embed.session.init();
+    await flush();
+    expect(embed.oauth.configure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        redirectUri: 'https://cong.example.vn/van-phong/okr',
+        postLogoutRedirectUri: 'https://cong.example.vn/van-phong/okr',
+      }),
+    );
   });
 
   it('sau callback quay lại đường dẫn trong state, bỏ tham số iss; không nhận đường dẫn ngoài nguồn', async () => {
