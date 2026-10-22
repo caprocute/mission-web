@@ -119,3 +119,14 @@ okrkpi:
       session-ttl: ${EVIDENCE_UPLOAD_TTL:PT24H}
       sweep-enabled: ${EVIDENCE_UPLOAD_SWEEP:true}
       sweep-interval: ${EVIDENCE_UPLOAD_SWEEP_INTERVAL:PT10M}
+    # DV-08-04 · SEC-47: worker quét ở Deployment riêng (pod API đặt EVIDENCE_SCAN_ENABLED=false);
+    # clamd là Deployment clamav-scanner, đặt StreamMaxLength không nhỏ hơn max-file-bytes.
+    scan:
+      enabled: ${EVIDENCE_SCAN_ENABLED:false}
+      clamd-host: ${CLAMD_HOST:clamav-scanner.workers.svc}
+      clamd-port: ${CLAMD_PORT:3310}
+      clamd-timeout: ${CLAMD_TIMEOUT:PT60S}
+      poll-interval: ${EVIDENCE_SCAN_POLL:PT2S}
+      lease: ${EVIDENCE_SCAN_LEASE:PT10M}
+      retry-base: ${EVIDENCE_SCAN_RETRY_BASE:PT30S}
+      max-attempts: ${EVIDENCE_SCAN_MAX_ATTEMPTS:5}
