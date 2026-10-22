@@ -26,6 +26,9 @@ import vn.viettel.okrkpi.shared.observability.TenantIdProvider;
  * {@code <schema>.idempotency_key}, advisor cho {@link Idempotent} và bộ xử lý lỗi. Chỉ nạp khi
  * service có {@link JdbcTemplate} và {@link PlatformTransactionManager}.
  *
+ * <p>Tiến trình có DataSource riêng theo schema (mission-core) khai báo bean {@link
+ * IdempotencyTargets} để khoá được ghi bằng vai trò và trong giao dịch của schema đó.
+ *
  * <p>Thuộc tính {@code okrkpi.idempotency.schema}: schema mặc định khi controller không nằm trong
  * gói module ({@code vn.viettel.okrkpi.<module>..}), ví dụ microservice một schema.
  */
@@ -69,6 +72,7 @@ public class IdempotencyAutoConfiguration {
       ObjectProvider<PlatformTransactionManager> transactionManager,
       ObjectProvider<ObjectMapper> mapper,
       ObjectProvider<IdempotencyCallerResolver> callers,
+      ObjectProvider<IdempotencyTargets> targets,
       Environment environment) {
     IdempotencyInterceptor interceptor =
         new IdempotencyInterceptor(
@@ -80,7 +84,8 @@ public class IdempotencyAutoConfiguration {
             },
             () -> mapper.getIfAvailable(ObjectMapper::new),
             callers::getObject,
-            environment.getProperty("okrkpi.idempotency.schema"));
+            environment.getProperty("okrkpi.idempotency.schema"),
+            targets::getIfAvailable);
     DefaultPointcutAdvisor advisor =
         new DefaultPointcutAdvisor(
             new AnnotationMatchingPointcut(null, Idempotent.class, true), interceptor);

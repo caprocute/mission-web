@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **134 / 401 task (33.4%)** — Khối lượng quy đổi đã gộp: **154 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **135 / 401 task (33.7%)** (gồm **134** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **136 / 401 task (33.9%)** (gồm **134** đã gộp `main` + **2** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **260 task**.
+- **Chưa bắt đầu**: **259 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **10 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-05-02`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **11** | 0 | 0 | 101 | **9.8%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **11** | 1 | 0 | 100 | **9.8%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **27** | 0 | 3 | 74 | **26.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **1** | 1 | 0 | 26 | **3.6%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **134** | **1** | **6** | **260** | **33.4%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **134** | **2** | **6** | **259** | **33.4%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,7 +41,7 @@
 | **M0 – Nền móng phát triển & CSDL** | 59 | **48** | 1 | 1 | 9 | **81.4%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **15** | 0 | 1 | 30 | **32.6%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **21** | 0 | 3 | 93 | **17.9%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **21** | 1 | 3 | 92 | **17.9%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 0 | 0 | 54 | **23.9%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **0** | 0 | 1 | 41 | **0.0%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **0** | 0 | 0 | 23 | **0.0%** |
@@ -248,12 +248,12 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-01-12](docs/tasks/CORE-01-12-uy-quyen-check-in.md) | Uỷ quyền check-in thay và chuyển giá trị khi phiên bản mục tiêu mới được duyệt | S | B2 | 21 | CORE-01-08, CORE-01-07, NEN-042 | **Chưa bắt đầu** |  |
 | [CORE-01-13](docs/tasks/CORE-01-13-tro-ly-ai-okr.md) | Trợ lý AI cho OKR qua ai-gateway: soát KR, ghi `ai.suggestion_log`, cờ `content_source` | M | B2 | 18 | CORE-01-04, DV-14-04 | **Chưa bắt đầu** |  |
 
-### CORE-02 · MOD-02 task: danh mục, kế hoạch, nhiệm vụ (1/26 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### CORE-02 · MOD-02 task: danh mục, kế hoạch, nhiệm vụ (1/26 đã gộp `main`, 1 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [CORE-02-01](docs/tasks/CORE-02-01-migration-danh-muc-ke-hoach.md) | Migration schema `task` phần danh mục và kế hoạch (work_catalog, catalog_item, plan, plan_version, plan_item) | M | B3 | 11 | CORE-00-02, NEN-033 | **Đã gộp main** | Migration schema task phần danh mục, chương trình, kế hoạch |
-| [CORE-02-02](docs/tasks/CORE-02-02-migration-nhiem-vu.md) | Migration schema `task` phần nhiệm vụ (task, task_assignee, task_progress, task_blocker, task_change_request, task_source_doc, task_state_log) có phân vùng | M | B3 | 12 | CORE-02-01 | **Chưa bắt đầu** |  |
+| [CORE-02-02](docs/tasks/CORE-02-02-migration-nhiem-vu.md) | Migration schema `task` phần nhiệm vụ (task, task_assignee, task_progress, task_blocker, task_change_request, task_source_doc, task_state_log) có phân vùng | M | B3 | 12 | CORE-02-01 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: 7 bảng nhiệm vụ, kiểm ràng buộc, EXPLAIN, 1 triệu dòng p95 2 ms; verify mission-core xanh |
 | [CORE-02-03](docs/tasks/CORE-02-03-danh-muc-cong-viec.md) | Danh mục công việc có phiên bản, kế thừa cấp trên, API mục danh mục | M | B3 | 16 | CORE-02-01, CORE-08-03 | **Chưa bắt đầu** |  |
 | [CORE-02-04](docs/tasks/CORE-02-04-nhap-danh-muc-excel.md) | Nhập danh mục từ Excel (202, tệp lỗi) | S | B3 | 17 | CORE-02-03 | **Chưa bắt đầu** |  |
 | [CORE-02-05](docs/tasks/CORE-02-05-ke-hoach-quy.md) | Kế hoạch quý: máy trạng thái `plan_version`, API soạn, sao chép quý trước, gợi ý từ OKR | L | B3 | 17 | CORE-02-03, CORE-01-02 | **Chưa bắt đầu** |  |
@@ -767,4 +767,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 04:29 | B2 (luồng B6) | `CORE-08-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: kỳ đánh giá, API tạo/xem/liệt kê kỳ, PeriodApi đọc CSDL, tác vụ mở kỳ; mission-core verify xanh |
 | 22/10/2026 04:38 | Điều phối | `CORE-08-02` | Chuyển trạng thái sang **Đã gộp main** — Kỳ đánh giá: API tạo/xem/liệt kê, PeriodApi đọc CSDL, EVT-09/26 |
 | 22/10/2026 04:59 | Điều phối | `CORE-08-03` | Chuyển trạng thái sang **Đã gộp main** — Chặn ghi khi kỳ khoá, đệm trạng thái kỳ, mã 409 theo mô-đun |
+| 22/10/2026 05:31 | B1 (Claude) | `CORE-02-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: 7 bảng nhiệm vụ, kiểm ràng buộc, EXPLAIN, 1 triệu dòng p95 2 ms; verify mission-core xanh |
 <!-- PROGRESS_LOG_END -->
