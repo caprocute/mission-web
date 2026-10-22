@@ -285,6 +285,49 @@ public class JdbcBatchDecisionRepository implements BatchDecisionRepository {
   }
 
   @Override
+  public void markSigned(
+      TenantId tenant,
+      int bucket,
+      UUID proposalId,
+      UUID signRequestId,
+      Instant signedAt,
+      Instant at) {
+    jdbc.sql(
+            "UPDATE appraisal.rating_proposal SET sign_request_id = ?, signed_at = ?,"
+                + " updated_at = ?, row_version = row_version + 1"
+                + " WHERE period_bucket = ? AND tenant_id = ? AND id = ? AND signed_at IS NULL")
+        .params(
+            signRequestId,
+            Timestamp.from(signedAt),
+            Timestamp.from(at),
+            bucket,
+            tenant.value(),
+            proposalId)
+        .update();
+  }
+
+  @Override
+  public List<LockCandidate> signedProfiles(
+      TenantId tenant, Instant decidedBefore, UUID after, int limit) {
+    return jdbc.sql(
+            "SELECT id, decided_at, policy_pack_version_id FROM appraisal.appraisal_profile"
+                + " WHERE tenant_id = ? AND status = 'DA_KY_SO' AND decided_at < ? AND id > ?"
+                + " ORDER BY id LIMIT ?")
+        .params(
+            tenant.value(),
+            Timestamp.from(decidedBefore),
+            after == null ? new UUID(0L, 0L) : after,
+            limit)
+        .query(
+            (rs, i) ->
+                new LockCandidate(
+                    rs.getObject(1, UUID.class),
+                    rs.getTimestamp(2).toInstant(),
+                    rs.getObject(3, UUID.class)))
+        .list();
+  }
+
+  @Override
   public int signedCount(TenantId tenant, int bucket, UUID id) {
     Integer n =
         jdbc.sql(

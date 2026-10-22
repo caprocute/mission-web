@@ -10,8 +10,13 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -30,6 +35,8 @@ import vn.viettel.okrkpi.appraisal.application.decision.BatchDecisionService;
 import vn.viettel.okrkpi.appraisal.application.decision.BatchDecisionService.Command;
 import vn.viettel.okrkpi.appraisal.application.decision.BatchDecisionService.Item;
 import vn.viettel.okrkpi.appraisal.application.decision.BatchDecisionService.Prepared;
+import vn.viettel.okrkpi.appraisal.application.decision.DecisionSigningService;
+import vn.viettel.okrkpi.appraisal.application.decision.port.BatchDecisionRepository.LockCandidate;
 import vn.viettel.okrkpi.appraisal.application.profile.AppraisalProfileService;
 import vn.viettel.okrkpi.appraisal.application.profile.port.AppraisalProfileRepository.SealedText;
 import vn.viettel.okrkpi.appraisal.application.review.port.ReviewRepository.Scope;
@@ -45,7 +52,9 @@ import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
  * batch_decision} và 1.000 dòng mức {@code QUYET_DINH} gắn lô, hồ sơ giữ {@code CHO_QUYET_DINH};
  * gửi lại cùng số quyết định, cùng danh sách tiếp tục lô cũ; trùng số với danh sách khác bị 409; hồ
  * sơ người đứng đầu chọn sớm bị 422; hồ sơ ngoài phạm vi bị 403; huỷ lô chưa ký thì lô {@code HUY}
- * và hồ sơ trở về danh sách chờ quyết định. Không đo thời gian phản hồi (YC-PT-19).
+ * và hồ sơ trở về danh sách chờ quyết định. CORE-04-08: EVT-18 của lô chuyển 1.000 hồ sơ sang
+ * {@code DA_KY_SO} và phát EVT-12 đúng một lần; hết hạn khiếu nại thì khoá, trừ hồ sơ đang khiếu
+ * nại. Không đo thời gian phản hồi (YC-PT-19).
  */
 class BatchDecisionIT {
 
@@ -61,6 +70,8 @@ class BatchDecisionIT {
   private SingleConnectionDataSource ds;
   private JdbcClient jdbc;
   private BatchDecisionService service;
+  private DecisionSigningService signing;
+  private AppraisalProfileService steps;
   private TransactionTemplate tx;
 
   @BeforeAll
@@ -101,7 +112,7 @@ class BatchDecisionIT {
             new ObjectMapper(),
             vn.viettel.okrkpi.shared.kernel.Clock.systemUtc());
     JdbcAppraisalProfileRepository profileRepo = new JdbcAppraisalProfileRepository(jdbc);
-    AppraisalProfileService steps =
+    steps =
         new AppraisalProfileService(
             profileRepo, new OutboxAppraisalStepEvents(outbox), null, Clock.systemUTC());
     service =
@@ -111,6 +122,15 @@ class BatchDecisionIT {
             steps,
             new PlainSealer(),
             (t, p, who) -> Set.of(),
+            null,
+            Clock.systemUTC());
+    signing =
+        new DecisionSigningService(
+            profileRepo,
+            new JdbcBatchDecisionRepository(jdbc),
+            steps,
+            new OutboxDecisionNotices(outbox),
+            null,
             null,
             Clock.systemUTC());
     try (Connection a = admin();
@@ -178,6 +198,33 @@ class BatchDecisionIT {
         .isEqualTo("CHO_KY");
     assertThat(service.page(t, decider, period, "DANG", Set.of("CHO_KY"), null, 10)).hasSize(1);
 
+    // EVT-18 của cả lô: 1.000 hồ sơ chuyển DA_KY_SO, mỗi hồ sơ một EVT-12; sự kiện lặp bị bỏ qua.
+    Set<String> hashes = new HashSet<>();
+    source.documents().forEach(d -> hashes.add(HexFormat.of().formatHex(d.contentHash())));
+    Instant signedAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
+    assertThat(
+            (Integer)
+                tx.execute(
+                    x -> signing.onSigned(t, prepared.batchId(), signRequest, hashes, signedAt)))
+        .isEqualTo(1000);
+    assertThat(
+            (Integer)
+                tx.execute(
+                    x -> signing.onSigned(t, prepared.batchId(), signRequest, hashes, signedAt)))
+        .isZero();
+    assertThat(count("appraisal.appraisal_profile WHERE status = 'DA_KY_SO'")).isEqualTo(1000);
+    assertThat(count("appraisal.outbox_event WHERE topic = 'appraisal.rating.decided.v1'"))
+        .isEqualTo(1000);
+    assertThat(service.view(t, prepared.batchId(), decider).orElseThrow().signedCount())
+        .isEqualTo(1000);
+    assertThat(service.view(t, prepared.batchId(), decider).orElseThrow().batch().status())
+        .isEqualTo("DA_KY");
+    assertThat(
+            count(
+                "appraisal.outbox_event WHERE topic = 'notify.message.requested.v1'"
+                    + " AND aggregate_type = 'batch_decision'"))
+        .isEqualTo(1);
+
     List<Item> other = new ArrayList<>(items.subList(0, 999));
     Command dup = command("215-QĐ/ĐUK", other);
     assertThatThrownBy(() -> service.prepare(t, decider, dup, scope))
@@ -224,6 +271,46 @@ class BatchDecisionIT {
     List<Item> headAgain = items(headUnit, RatingLevel.HTTNV);
     assertThatThrownBy(() -> service.prepare(t, decider, command("3-QĐ", headAgain), scope))
         .hasMessage("APPRAISAL-422-HEAD-TOO-EARLY");
+  }
+
+  @Test
+  void hetHanKhieuNaiThiKhoaTruHoSoDangKhieuNai() {
+    TenantId t = TenantId.of(tenant);
+    seed(subUnit, false, 2);
+    List<Item> items = items(subUnit, RatingLevel.HTTNV);
+    Scope scope = new Scope("p.org_unit_id = ?", List.of(subUnit));
+    Prepared prepared = tx.execute(x -> service.prepare(t, decider, command("9-QĐ", items), scope));
+    UUID signRequest = UUID.randomUUID();
+    tx.executeWithoutResult(x -> service.attachSignRequest(t, prepared, signRequest, decider));
+    Set<String> hashes = new HashSet<>();
+    service
+        .signSource(t, prepared.batchId())
+        .orElseThrow()
+        .documents()
+        .forEach(d -> hashes.add(HexFormat.of().formatHex(d.contentHash())));
+    tx.execute(x -> signing.onSigned(t, prepared.batchId(), signRequest, hashes, Instant.now()));
+    UUID complained = items.get(0).profileId();
+    UUID person =
+        jdbc.sql("SELECT person_id FROM appraisal.appraisal_profile WHERE id = ?")
+            .param(complained)
+            .query(UUID.class)
+            .single();
+    tx.execute(
+        x -> steps.transition(t, complained, null, person, (p, r) -> p.fileComplaint(person)));
+    Instant later = Instant.now().plus(1, ChronoUnit.DAYS);
+    List<LockCandidate> due =
+        new JdbcBatchDecisionRepository(jdbc).signedProfiles(t, later, null, 10);
+    assertThat(due).hasSize(1);
+    LocalDate early = LocalDate.now().plusDays(3);
+    assertThat((Boolean) tx.execute(x -> signing.lockIfDue(t, due.get(0), early, new HashMap<>())))
+        .isFalse();
+    LocalDate today = LocalDate.now().plusDays(30);
+    assertThat((Boolean) tx.execute(x -> signing.lockIfDue(t, due.get(0), today, new HashMap<>())))
+        .isTrue();
+    assertThat((Boolean) tx.execute(x -> signing.lockIfDue(t, due.get(0), today, new HashMap<>())))
+        .isFalse();
+    assertThat(count("appraisal.appraisal_profile WHERE status = 'DA_KHOA'")).isEqualTo(1);
+    assertThat(count("appraisal.appraisal_profile WHERE status = 'KHIEU_NAI'")).isEqualTo(1);
   }
 
   // ---------------------------------------------------------------- hỗ trợ

@@ -71,6 +71,21 @@ public interface BatchDecisionRepository {
   /** Các dòng mức hiện hành của lô (tài liệu ký). */
   List<BatchRating> ratings(TenantId tenant, int bucket, UUID id);
 
+  /** Ghi chữ ký của một dòng mức (EVT-18). */
+  void markSigned(
+      TenantId tenant,
+      int bucket,
+      UUID proposalId,
+      UUID signRequestId,
+      Instant signedAt,
+      Instant at);
+
+  /**
+   * Hồ sơ {@code DA_KY_SO} quyết định trước {@code decidedBefore}, sắp theo mã sau con trỏ {@code
+   * after}: ứng viên khoá khi hết hạn khiếu nại.
+   */
+  List<LockCandidate> signedProfiles(TenantId tenant, Instant decidedBefore, UUID after, int limit);
+
   /** Số dòng mức của lô đã ký. */
   int signedCount(TenantId tenant, int bucket, UUID id);
 
@@ -109,6 +124,9 @@ public interface BatchDecisionRepository {
    * sơ (lô {@code NHAP} hoặc {@code CHO_KY}).
    */
   record ProfileFacts(UUID profileId, UUID orgUnitId, boolean head, UUID pendingBatchId) {}
+
+  /** Hồ sơ đã ký số chờ hết hạn khiếu nại. */
+  record LockCandidate(UUID profileId, Instant decidedAt, UUID policyPackVersionId) {}
 
   /** Một dòng mức của lô. */
   record BatchRating(UUID proposalId, UUID profileId, String ratingCode, Instant signedAt) {}
