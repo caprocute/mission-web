@@ -301,3 +301,28 @@ tr.off {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.pending {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+}
+.pending h2 {
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+.pending ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.pending li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}

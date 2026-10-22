@@ -27,6 +27,21 @@
         </select>
       </label>
     }
+    @if (subjectGroups().length) {
+      <label class="filter">
+        <span>Khối</span>
+        <select
+          [value]="subjectGroup()"
+          [disabled]="locked()"
+          (change)="subjectGroup.set($any($event.target).value)"
+        >
+          <option value="">Tất cả</option>
+          @for (g of subjectGroups(); track g.id) {
+            <option [value]="g.id">{{ g.name }}</option>
+          }
+        </select>
+      </label>
+    }
     <label class="filter">
       <span>Đơn vị</span>
       <select [value]="unit()" [disabled]="locked()" (change)="unit.set($any($event.target).value)">
@@ -49,6 +64,29 @@
     }
   </div>
 </div>
+
+@if (pendingBatches().length) {
+  <section class="pending" aria-label="Lô đang ký">
+    <h2>Lô đang ký</h2>
+    <ul>
+      @for (b of pendingBatches(); track b.id) {
+        <li>
+          <span>
+            Quyết định {{ b.decisionNo }} · {{ b.period.label }} · đã ký {{ b.signedCount ?? 0 }}/{{
+              b.profileCount
+            }}
+            hồ sơ
+          </span>
+          @if (can('SCR-0904.theo-doi-huy')) {
+            <button type="button" class="btn" [disabled]="locked()" (click)="resume(b)">
+              Theo dõi tiến độ
+            </button>
+          }
+        </li>
+      }
+    </ul>
+  </section>
+}
 
 @if (formUrl(); as url) {
   <p class="msg ok" role="status">

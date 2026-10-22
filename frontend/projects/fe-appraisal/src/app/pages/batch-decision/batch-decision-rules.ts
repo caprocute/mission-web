@@ -13,6 +13,12 @@ import {
 
 /** Ngưỡng tỷ lệ xuất sắc của khối (`phan_bo.toi_da_htxsnv`, mặc định 20%, BR-09-17). */
 export const DEFAULT_MAX_EXCELLENT = 0.2;
+
+/** Ngưỡng áp cho danh sách đang chọn: ngưỡng chặt nhất trong các `maxExcellentShare`, vắng thì mặc định. */
+export function thresholdOf(rows: { maxExcellentShare?: number }[]): number {
+  const own = rows.map((r) => r.maxExcellentShare).filter((v): v is number => v !== undefined);
+  return own.length ? Math.min(...own) : DEFAULT_MAX_EXCELLENT;
+}
 /** Một lô ký tối đa 1.000 hồ sơ; Mẫu 3 nháp sinh tối đa 200 hồ sơ mỗi lần. */
 export const MAX_BATCH = 1000;
 export const MAX_FORM = 200;

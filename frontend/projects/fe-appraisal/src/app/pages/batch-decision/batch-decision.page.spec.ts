@@ -224,6 +224,31 @@ describe('SCR-0904 Quyết định xếp loại hàng loạt (WEB-038)', () => {
     harness.fixture.destroy();
   });
 
+  it('lọc theo khối; ngưỡng lấy theo gói của hồ sơ; mở lại lô đang ký sau khi rời màn hình (WEB-063)', async () => {
+    const { el, harness } = await render({ pollMs: 400 });
+    const khoi = [...el.querySelectorAll<HTMLSelectElement>('.filter select')].find((s) =>
+      [...s.options].some((o) => o.text === 'Khối các cơ quan Đảng'),
+    )!;
+    choose(khoi, khoi.options[1].value);
+    await until(el, '#bd-list-h', (e) => text(e) === 'Đã chọn 48/48 hồ sơ');
+    type(el, '#bd-decisionNo', '218-QĐ/ĐUK');
+    (el.querySelector('.btn.primary') as HTMLButtonElement).click();
+    await until(el, '[role=progressbar]');
+    await harness.navigateByUrl('/khac');
+    await harness.navigateByUrl('/quyet-dinh', BatchDecisionPage);
+    const page = harness.routeNativeElement as HTMLElement;
+    const item = await until(page, '.pending li', (e) => /218-QĐ\/ĐUK/.test(text(e)));
+    (item.querySelector('button') as HTMLButtonElement).click();
+    const cancel = (await until(
+      page,
+      '.row-acts .btn:not(.primary)',
+      (e) => text(e) === 'Huỷ lô',
+    )) as HTMLButtonElement;
+    cancel.click();
+    await until(page, '.msg.ok', (e) => /Đã huỷ lô quyết định 218-QĐ\/ĐUK/.test(text(e)));
+    harness.fixture.destroy();
+  });
+
   it('ẩn chức năng theo ma trận quyền; chế độ cao tuổi bỏ hai cột mức đầu và nút xuất', async () => {
     const view = await render({ keys: ['SCR-0904.xem'] });
     expect(view.el.querySelector('tbody select')).toBeNull();

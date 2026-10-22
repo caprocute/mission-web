@@ -270,6 +270,8 @@ interface BatchRun {
   input: AppraisalBatchDecisionInput;
   pending: string[];
   fail: Set<string>;
+  /** Lần cuối job ký được hỏi; lô không còn ai theo dõi job thì GET lô tự ký tiếp. */
+  polledAt?: number;
 }
 
 const runs = new Map<string, BatchRun>();
@@ -405,7 +407,7 @@ export function batchDecisionRoutes(deps: {
     });
     return {
       status: 202,
-      body: job,
+      body: { ...job, batchId },
       headers: { Location: `/api/v1/appraisals/batch-jobs/${jobId}` },
     };
   }
@@ -486,11 +488,25 @@ export function batchDecisionRoutes(deps: {
     { method: 'POST', pattern: '/api/v1/appraisals/batch-decisions', handle: create },
     {
       method: 'GET',
+      pattern: '/api/v1/appraisals/batch-decisions',
+      handle: (req) => {
+        const status = req.params.getAll('status') ?? [];
+        const items = [...runs.values()]
+          .reverse()
+          .map((r) => r.batch)
+          .filter((b) => !status.length || status.includes(b.status))
+          .map((b) => structuredClone(b));
+        return ok({ items, nextCursor: null });
+      },
+    },
+    {
+      method: 'GET',
       pattern: '/api/v1/appraisals/batch-jobs/:id',
       handle: (req) => {
         const run = runs.get(req.pathParams['id']);
         if (!run) return problem(404, 'Không tìm thấy tác vụ ký lô');
         advance(run);
+        run.polledAt = Date.now();
         run.job = jobOf(run);
         return ok(run.job);
       },
@@ -500,6 +516,8 @@ export function batchDecisionRoutes(deps: {
       pattern: '/api/v1/appraisals/batch-decisions/:id',
       handle: (req) => {
         const run = byBatch(req.pathParams['id']);
+        // Theo dõi lại lô từ danh sách (không qua job) vẫn thấy lô ký tiếp
+        if (run && Date.now() - (run.polledAt ?? 0) > 2000) advance(run);
         return run
           ? ok(structuredClone(run.batch), etag(run.batch))
           : problem(404, 'Không tìm thấy lô quyết định');

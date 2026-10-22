@@ -47,13 +47,21 @@ import {
   toProblem,
 } from '@vt/api-client';
 import { ThemeService } from '@vt/design-system';
-import { EMPTY, Observable, expand, firstValueFrom, reduce } from 'rxjs';
+import {
+  EMPTY,
+  Observable,
+  expand,
+  firstValueFrom,
+  reduce,
+  switchMap,
+  takeWhile,
+  timer,
+} from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';
 import { todayVn } from '../rating-sheet/rating-sheet-rules';
 import { dmy, vn } from '../self-assessment/self-assessment-rules';
 import { APPRAISAL_STEP_UP } from '../self-assessment/step-up';
 import {
-  DEFAULT_MAX_EXCELLENT,
   LEVEL_SHORT,
   MAX_FORM,
   batchProblemMessage,
@@ -66,6 +74,7 @@ import {
   msg0915,
   msg0916,
   noteOf,
+  thresholdOf,
   percent,
   proposedOf,
   reasonError,
@@ -78,6 +87,8 @@ const STEP_UP_REASON =
 const PAGE_SIZE = 10;
 /** Số trang tối đa đọc khi nạp danh sách (200 dòng một trang, một lô tối đa 1.000 hồ sơ). */
 const MAX_PAGES = 5;
+/** Chu kỳ hỏi tiến độ khi mở lại lô đang ký (ms). */
+const RESUME_POLL_MS = 3000;
 
 /** Hộp thoại "Đổi mức" đang mở cho một dòng. */
 interface ChangeDialog {
@@ -112,7 +123,6 @@ export class BatchDecisionPage {
   protected readonly vn = vn;
   protected readonly dmy = dmy;
   protected readonly percent = percent;
-  protected readonly threshold = DEFAULT_MAX_EXCELLENT;
 
   // Trường 1, 2: danh sách hồ sơ chờ quyết định trong phạm vi
   private readonly reloadKey = signal(0);
@@ -148,8 +158,20 @@ export class BatchDecisionPage {
       .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
   });
   protected readonly unit = linkedSignal({ source: this.group, computation: () => '' });
+  // Trường 1: bộ lọc khối (`subjectGroup` của hồ sơ, WEB-063)
+  protected readonly subjectGroups = computed(() => {
+    const m = new Map<string, string>();
+    for (const r of this.inGroup())
+      if (r.subjectGroup) m.set(r.subjectGroup.id, r.subjectGroup.name);
+    return [...m].map(([id, name]) => ({ id, name }));
+  });
+  protected readonly subjectGroup = linkedSignal({ source: this.group, computation: () => '' });
   protected readonly visible = computed(() =>
-    this.inGroup().filter((r) => !this.unit() || r.orgUnit.id === this.unit()),
+    this.inGroup().filter(
+      (r) =>
+        (!this.unit() || r.orgUnit.id === this.unit()) &&
+        (!this.subjectGroup() || r.subjectGroup?.id === this.subjectGroup()),
+    ),
   );
   protected readonly selected = linkedSignal<string, ReadonlySet<string>>({
     source: () =>
@@ -196,7 +218,9 @@ export class BatchDecisionPage {
     distribution(this.items().map((r) => this.decisionOf(r))),
   );
   protected readonly excellentShare = computed(() => this.dist()[0].share);
-  protected readonly overLimit = computed(() => this.excellentShare() > this.threshold);
+  /** Ngưỡng HTXSNV theo Policy Pack của hồ sơ (`maxExcellentShare`); nhiều khối thì lấy ngưỡng chặt nhất. */
+  protected readonly threshold = computed(() => thresholdOf(this.items()));
+  protected readonly overLimit = computed(() => this.excellentShare() > this.threshold());
   protected readonly calibrationAck = linkedSignal({
     source: this.overLimit,
     computation: () => false,
@@ -230,6 +254,15 @@ export class BatchDecisionPage {
   protected readonly formUrl = signal<string | null>(null);
   protected readonly showAll = signal(false);
   private batchLocation: string | null = null;
+
+  // "Theo dõi tiến độ": lô đang ký của người quyết định, mở lại được sau khi tải lại trang
+  protected readonly pending = rxResource({
+    params: () => this.reloadKey(),
+    stream: () => this.api.batchDecisions(['CHO_KY']),
+  });
+  protected readonly pendingBatches = computed(() =>
+    this.pending.hasValue() && !this.signing() ? this.pending.value().items : [],
+  );
 
   protected readonly signedCount = computed(() => this.batch()?.signedCount ?? 0);
   protected readonly failedCount = computed(() => this.batch()?.failedCount ?? 0);
@@ -462,6 +495,40 @@ export class BatchDecisionPage {
     this.reload();
   }
 
+  /** Mở lại một lô đang ký: hỏi lô theo chu kỳ tới khi ký xong hoặc bị huỷ. */
+  protected resume(b: AppraisalBatchDecision) {
+    if (this.locked()) return;
+    this.clearMessages();
+    this.batch.set(b);
+    this.job.set(null);
+    this.signing.set(true);
+    this.busy.set('sign');
+    this.batchLocation = `/api/v1/appraisals/batch-decisions/${b.id}`;
+    timer(0, RESUME_POLL_MS)
+      .pipe(
+        switchMap(() => this.api.batchDecision(b.id)),
+        takeWhile((x) => x.status === 'CHO_KY', true),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (x) => {
+          this.batch.set(x);
+          if (x.status !== 'CHO_KY')
+            this.finish({
+              id: x.jobId ?? x.id,
+              type: 'ESIGN_BATCH',
+              status: x.status === 'HUY' ? 'DA_HUY' : 'HOAN_TAT',
+              progress: 100,
+            } as Job);
+        },
+        error: (e) => {
+          this.signing.set(false);
+          this.busy.set(null);
+          this.error.set(`Không tải được tiến độ lô: ${toProblem(e).title ?? ''}.`);
+        },
+      });
+  }
+
   /** "Huỷ lô": dừng các chữ ký chưa thực hiện, hồ sơ đã ký giữ nguyên. */
   protected async cancelBatch() {
     const b = this.batch();
@@ -536,11 +603,11 @@ export class BatchDecisionPage {
   }
 
   protected msg0913() {
-    return msg0913(this.excellentShare(), this.threshold);
+    return msg0913(this.excellentShare(), this.threshold());
   }
 
   protected withinLimit() {
-    return withinLimit(this.excellentShare(), this.threshold);
+    return withinLimit(this.excellentShare(), this.threshold());
   }
 
   protected fieldError(name: string): string | null {

@@ -131,8 +131,15 @@ export class ProspectPage {
 
   /** Tiêu chí PL 5 của gói đang ghim cho kỳ năm; không đọc được thì dùng tên nhóm mặc định. */
   protected readonly criteria = rxResource({
-    params: () => (this.year.hasValue() ? (this.year.value() ?? undefined) : undefined),
-    stream: ({ params }) => {
+    params: () => {
+      const year = this.year.hasValue() ? (this.year.value() ?? undefined) : undefined;
+      const packId = this.current()?.policyPackId;
+      return year || packId ? { year, packId } : undefined;
+    },
+    stream: ({ params: { year: params, packId } }) => {
+      // Bảng mang gói áp dụng (`policyPackId`, WEB-063) thì đọc thẳng tiêu chí của gói đó
+      if (packId) return this.policies.prospectCriteria(packId).pipe(catchError(() => of(null)));
+      if (!params) return of(null);
       const pin =
         params.pinnedPolicyPacks?.find((p) => p.flow === 'DANG') ?? params.pinnedPolicyPacks?.[0];
       if (!pin) return of(null);
@@ -320,7 +327,8 @@ export class ProspectPage {
 
   protected async save(): Promise<boolean> {
     const b = this.current();
-    if (!b || this.busy() || !this.checkReasons()) return false;
+    // Lưu nháp không bắt buộc lý do (hợp đồng WEB-063); lý do chỉ kiểm khi trình
+    if (!b || this.busy()) return false;
     this.busy.set('save');
     this.errors.set([]);
     try {
