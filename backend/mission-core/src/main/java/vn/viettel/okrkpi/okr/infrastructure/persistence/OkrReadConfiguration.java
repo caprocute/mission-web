@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,13 +22,17 @@ import vn.viettel.okrkpi.okr.application.OkrCheckService;
 import vn.viettel.okrkpi.okr.application.OkrCheckinService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
+import vn.viettel.okrkpi.okr.application.OkrReviewService;
 import vn.viettel.okrkpi.okr.application.OkrRuleChecker;
 import vn.viettel.okrkpi.okr.application.OkrSubmitService;
+import vn.viettel.okrkpi.okr.application.port.OkrApprovalEvents;
+import vn.viettel.okrkpi.okr.application.port.OkrApprovalSignal;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalStarter;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinDelegatePort;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinEvents;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinExtension;
 import vn.viettel.okrkpi.okr.application.port.OkrSimilarityPort;
+import vn.viettel.okrkpi.okr.infrastructure.web.OkrApproveBatchJobs;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrExportJobs;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrIdempotency;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
@@ -156,5 +162,56 @@ public class OkrReadConfiguration {
   @Bean
   OkrExportJobs okrExportJobs() {
     return new OkrExportJobs();
+  }
+
+  /** CORE-01-06: duyệt, trả lại, rút lại mục tiêu; EVT-01, EVT-21 ghi outbox cùng giao dịch. */
+  @Bean
+  JdbcOkrReviewRepository okrReviewRepository(@Qualifier("okrDataSource") DataSource dataSource) {
+    return new JdbcOkrReviewRepository(new NamedParameterJdbcTemplate(dataSource));
+  }
+
+  @Bean
+  OkrApprovalEvents okrApprovalEvents(
+      @Qualifier("okrDataSource") DataSource dataSource,
+      @Value("${mission.okr.outbox.registry-url:${okrkpi.inbox.registry.url}}") String registry,
+      ObjectProvider<ObjectMapper> json) {
+    return new OutboxOkrApprovalEvents(
+        new OutboxWriter(
+            new JdbcTemplate(dataSource),
+            "okr",
+            new ApicurioPayloadSerializer(registry, Map.of()),
+            json.getIfAvailable(ObjectMapper::new),
+            Clock.systemUtc()));
+  }
+
+  @Bean
+  OkrReviewService okrReviewService(
+      JdbcOkrReviewRepository okrReviewRepository,
+      OkrReadService okrReadService,
+      OkrCheckService okrCheckService,
+      PeriodApi periods,
+      OkrApprovalEvents okrApprovalEvents,
+      ObjectProvider<OkrApprovalSignal> signal) {
+    return new OkrReviewService(
+        okrReviewRepository,
+        okrReadService,
+        okrCheckService,
+        periods,
+        okrApprovalEvents,
+        signal::getIfAvailable);
+  }
+
+  /** Lô duyệt chạy nền trên luồng ảo, mỗi lô một luồng, mỗi bộ một giao dịch. */
+  @Bean(destroyMethod = "close")
+  ExecutorService okrApproveBatchExecutor() {
+    return Executors.newThreadPerTaskExecutor(
+        Thread.ofVirtual().name("okr-duyet-lo-", 0).factory());
+  }
+
+  @Bean
+  OkrApproveBatchJobs okrApproveBatchJobs(
+      OkrReviewService okrReviewService,
+      @Qualifier("okrApproveBatchExecutor") ExecutorService okrApproveBatchExecutor) {
+    return new OkrApproveBatchJobs(okrReviewService, okrApproveBatchExecutor);
   }
 }
