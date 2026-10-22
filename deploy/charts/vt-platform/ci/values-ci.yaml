@@ -7,3 +7,12 @@ cell-base:
   cell: ci
 observability-cell:
   cell: ci
+# OpenBao (INF-13): ảnh tự dựng chưa có digest thật, tổng kiểm plugin và CA giả chỉ để render.
+openbao:
+  image: { digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000" }
+  seal: { plugin: { sha256: "0000000000000000000000000000000000000000000000000000000000000000" } }
+  tls:
+    caBundle: |
+      -----BEGIN CERTIFICATE-----
+      MIIBCI
+      -----END CERTIFICATE-----

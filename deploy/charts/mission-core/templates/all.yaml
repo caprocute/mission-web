@@ -73,7 +73,7 @@ metadata:
     app.kubernetes.io/part-of: {{ $v.global.partOf | default "vt-platform" }}
 spec:
   refreshInterval: 1h
-  secretStoreRef: { kind: ClusterSecretStore, name: openbao }
+  secretStoreRef: { kind: ClusterSecretStore, name: openbao-cell }
   target:
     name: {{ $s.name }}
     creationPolicy: Owner

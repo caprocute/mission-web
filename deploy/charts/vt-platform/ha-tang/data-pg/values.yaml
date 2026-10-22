@@ -156,9 +156,24 @@ placement:
 # Mật khẩu vai trò: ExternalSecret từ OpenBao (ADR-17), khoá <path>/<cụm>/<vai trò>; INF-13 thay bằng secret động.
 externalSecrets:
   enabled: true
-  secretStore: { kind: ClusterSecretStore, name: openbao }
+  secretStore: { kind: ClusterSecretStore, name: openbao-cell }
   path: kv/data-pg
   refreshInterval: 1h
+
+# Tài khoản quản trị của secret engine database trong OpenBao (INF-13, TL-04 mục 9.4): OpenBao tạo người dùng
+# động "IN ROLE svc_<schema>" nên bao_admin cần ADMIN OPTION trên các vai trò svc_ của cụm. Từ PostgreSQL 16 quyền
+# này chỉ siêu người dùng cấp được, nên khối SQL chạy một lần lúc initdb (postInitSQLRefs, CNPG chạy bằng postgres):
+# tạo trước svc_<schema> rồi cấp cho bao_admin; managed.roles sau đó nhận quản lý các vai trò đó như thường.
+# bao_admin không nằm trong managed.roles: CNPG đồng bộ toàn bộ thành viên vai trò theo inRoles và sẽ thu hồi các
+# GRANT ... WITH ADMIN ở trên. Mật khẩu khởi tạo lấy từ OpenBao (<path>/<cụm>/bao_admin) và bị OpenBao đổi ngay bằng
+# rotate-root. Schema thêm sau initdb: chạy khối cấp quyền theo runbook
+# ops/runbooks/openbao-van-hanh.md.
+baoAdmin:
+  enabled: true
+  name: bao_admin
+  clusters: [pg-core]
+  namespace: secure-data
+  connectionLimit: 10
 
 # Job cấp quyền theo TL-03 (chạy bằng vai trò mig_<schema>, không cần superuser).
 grantsJob:

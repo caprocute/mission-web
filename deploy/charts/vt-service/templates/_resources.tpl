@@ -28,7 +28,11 @@ data:
 {{- end }}
 {{- end -}}
 
-{{/* ExternalSecret nạp bí mật từ OpenBao (ADR-17); không bao giờ chứa giá trị bí mật. */}}
+{{/*
+ExternalSecret nạp bí mật từ OpenBao (ADR-17) qua ClusterSecretStore openbao-cell (INF-13); không bao giờ chứa giá
+trị bí mật. Làm mới 15 phút; Secret thuộc sở hữu ExternalSecret (Owner) nhưng giữ lại khi xoá ExternalSecret hay
+khi OpenBao tạm mất (deletionPolicy Retain), để pod đang chạy không mất cấu hình (TL-04 mục 9.4, DR-15).
+*/}}
 {{- define "vt-service.externalSecret" -}}
 {{- $es := .v.externalSecret -}}
 {{- if $es.enabled }}
@@ -44,6 +48,7 @@ spec:
   target:
     name: {{ default (printf "%s-secrets" .v.name) $es.targetName }}
     creationPolicy: Owner
+    deletionPolicy: Retain
   {{- with $es.data }}
   data:
     {{- toYaml . | nindent 4 }}

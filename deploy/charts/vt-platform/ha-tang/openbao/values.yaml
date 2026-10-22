@@ -1,2 +1,127 @@
-# Khung giữ chỗ của INF-02; INF-13 khai báo values và templates thật.
-{}
+# Kho bí mật và PKI của cell (INF-13; TL-04 mục 9.4, mục 8.7; SEC-10, SEC-11, SEC-12, SEC-59).
+# OpenBao 5 node Raft trong namespace secure-data (bảng namespace TL-04 mục 3.5; đoạn mẫu ở mục 9.4 ghi "secure",
+# lệch ghi ở wiki 14), tự mở khoá bằng HSM qua PKCS#11. Chart còn sinh ClusterIssuer openbao-pki-cell cho
+# cert-manager, ClusterSecretStore openbao-cell cho ESO, CronJob xoay vòng khoá và cảnh báo. Cấu hình bên trong
+# OpenBao (auth, chính sách, CSDL động, Transit, PKI) là mã trong deploy/openbao/, chạy sau khi cụm đã khởi tạo.
+global:
+  cell: ""
+  sizing: L
+  topology:
+    zones: [hl-a, hl-b, hl-c]
+
+namespace: secure-data
+replicas: 5
+
+# Ảnh dựng từ deploy/openbao/image/Containerfile: OpenBao UBI (glibc, plugin PKCS#11 cần cgo) + plugin KMS
+# PKCS#11 + thư viện PKCS#11 của nhà sản xuất HSM. Từ OpenBao 2.7 seal pkcs11 không còn dựng sẵn mà là plugin ngoài.
+image:
+  repository: harbor.vt.local/platform/openbao-pkcs11
+  tag: 2.7.1-p11-0.2.1
+  digest: ""          # bắt buộc ghim khi triển khai (SEC-55); Jenkins điền sau khi dựng và ký ảnh
+  pullPolicy: IfNotPresent
+
+# Seal: cấu hình HSM theo môi trường nằm hết ở đây, đổi HSM chỉ đổi values, không đổi chart.
+seal:
+  type: pkcs11
+  pkcs11:
+    lib: /usr/lib64/pkcs11/libhsm-vendor.so   # đường dẫn thư viện PKCS#11 của HSM trong ảnh
+    slot: ""                                  # một trong slot hoặc tokenLabel
+    tokenLabel: openbao-cell
+    keyLabel: openbao-unseal
+    mechanism: ""                             # rỗng: plugin tự chọn theo kiểu khoá (AES-GCM với khoá AES)
+    rsaOaepHash: ""                           # chỉ dùng với mechanism rsa-pkcs-oaep
+    # PIN nằm trong Secret tạo ngoài Git (quy trình nghi thức khoá, ops/runbooks/openbao-hsm.md); mount thành tệp.
+    pinSecret: { name: openbao-hsm-pin, key: pin }
+  plugin:
+    command: openbao-plugin-kms-pkcs11
+    sha256: ""        # sha256 của tệp plugin trong ảnh; OpenBao từ chối chạy plugin sai tổng kiểm
+    directory: /usr/local/libexec/openbao
+  # Biến môi trường thêm cho HSM (ví dụ tệp cấu hình của thư viện nhà sản xuất).
+  env: []
+
+# TLS của chính OpenBao không thể lấy từ PKI của nó (con gà quả trứng): chứng thư do cert-manager cấp từ CA nội bộ
+# khởi đầu (vt-noi-bo-goc, CA trung gian ký từ CA gốc ngoại tuyến, khoá nạp vào Secret ngoài Git).
+tls:
+  issuerRef: { kind: ClusterIssuer, name: vt-noi-bo-goc }
+  duration: 2160h      # 90 ngày, gia hạn ở ngày thứ 60 (SEC-12)
+  renewBefore: 720h
+  # CA công khai (PEM) để cert-manager và ESO kiểm chứng thư OpenBao. Không phải bí mật.
+  caBundle: ""
+# ClusterIssuer kiểu CA cho chứng thư khởi đầu; secretName nằm trong namespace của cert-manager.
+bootstrapIssuer:
+  enabled: true
+  name: vt-noi-bo-goc
+  secretName: vt-noi-bo-goc-ca
+
+storage:
+  data: { size: 20Gi, storageClass: ceph-rbd }
+  audit: { size: 50Gi, storageClass: ceph-rbd }
+
+resources:
+  requests: { cpu: "1", memory: 2Gi }
+  limits: { cpu: "4", memory: 4Gi }
+
+placement:
+  nodeSelector: { vt.io/pool: security-zone }
+  tolerations: [{ key: vt.io/pool, operator: Equal, value: security-zone, effect: NoSchedule }]
+  # required: mỗi node một pod; preferred cho môi trường thử ít node.
+  antiAffinity: required
+
+# Thiết bị kiểm toán khai trong cấu hình máy chủ: tệp trên PVC riêng (Fluent Bit đọc và đẩy sang sys.audit.v1)
+# và stdout. OpenBao từ chối phục vụ yêu cầu khi mọi thiết bị kiểm toán đều ghi lỗi.
+audit:
+  file: /openbao/audit/audit.log
+  stdout: true
+
+# Đường mount và cấu hình chung mà deploy/openbao/cau-hinh.sh dùng; giữ đồng bộ với tên ở các chart khác.
+cell:
+  authMount: ""        # rỗng: k8s-cell-<global.cell>
+  pkiMount: ""         # rỗng: pki_int_cell_<global.cell>
+  kvMount: kv
+
+# ClusterIssuer của cert-manager trên PKI trung gian của cell (SEC-59).
+certManager:
+  enabled: true
+  issuerName: openbao-pki-cell
+  role: internal-services
+  namespace: cert-manager
+  serviceAccount: cert-manager
+
+# ClusterSecretStore của ESO (ADR-17).
+eso:
+  enabled: true
+  storeName: openbao-cell
+  role: external-secrets
+  namespace: external-secrets
+  serviceAccount: external-secrets
+
+# Namespace được gọi 8200: ứng dụng dùng Transit, secret động qua vt-crypto; ESO, cert-manager; quan sát.
+clientNamespaces: [core, identity, platform, workers, analytics, secure, edge]
+
+# Xoay vòng khoá (SEC-12, OPS-20): CronJob đăng nhập bằng auth kubernetes vai trò xoay-khoa, xoay khoá Transit
+# quá hạn và đẩy chỉ số vt_key_age_days lên Pushgateway (nếu có); cảnh báo dựa trên chỉ số đó.
+rotation:
+  enabled: true
+  schedule: "17 2 * * *"
+  kekMaxAgeDays: 365
+  cosignMaxAgeDays: 365
+  pushgateway: ""      # ví dụ http://pushgateway.observability.svc:9091; rỗng thì chỉ ghi nhật ký
+  image: {}            # rỗng: dùng image của OpenBao (có bao CLI)
+
+monitoring:
+  prometheusRule: true
+
+observabilityNamespace: observability
+cilium: true
+# Secret engine database gọi thẳng instance PostgreSQL (CREATE ROLE phải chạy trên primary).
+postgresNamespaces: [data-pg, secure-data]
+# ConfigMap chứa CA công khai của từng cụm PostgreSQL (khoá <cụm>.crt), chép từ Secret <cụm>-ca của CNPG theo runbook.
+postgresCaConfigMap: openbao-pg-ca
+# Dải mạng HSM (NIC riêng của pool security-zone, TL-04 mục 3.3); rỗng thì không mở luồng ra HSM.
+hsmCidrs: []
+hsmPorts: [1792]
+
+# Mở rộng cho môi trường thử (kind: nạp token SoftHSM2 vào emptyDir); production để trống.
+extraInitContainers: []
+extraVolumes: []
+extraVolumeMounts: []

@@ -31,7 +31,7 @@ placement:
   setVMMaxMapCount: false
 
 tls:
-  issuerRef: { kind: ClusterIssuer, name: openbao-noi-bo }
+  issuerRef: { kind: ClusterIssuer, name: openbao-pki-cell }
   duration: 2160h
   renewBefore: 720h
   # DN của chứng thư nút và chứng thư quản trị (dùng cho securityadmin của operator).
@@ -40,7 +40,7 @@ tls:
 
 # Mật khẩu ở OpenBao <path>/<tên>, thuộc tính password. admin chỉ cho operator; service dùng người dùng riêng.
 externalSecrets:
-  secretStore: { kind: ClusterSecretStore, name: openbao }
+  secretStore: { kind: ClusterSecretStore, name: openbao-cell }
   path: kv/opensearch
   refreshInterval: 1h
 

@@ -126,6 +126,17 @@ routes:
     paths: ["/api/v1/tasks*", "/api/v1/plans*", "/api/v1/okr*", "/api/v1/evidences*", "/api/v1/appraisals*"]
     pluginConfig: protected-api
     timeout: { connect: 2, send: 10, read: 10 }
+  # SPI REST mission-iam trong Keycloak (DV-02-08: cấp, thu hồi mã khôi phục MFA). Gateway kiểm JWT như mọi API,
+  # rồi đổi đường dẫn sang /realms/<realm>/mission-iam/ ({realm} lấy từ oidc.realm).
+  - name: iam-mission-iam
+    namespace: identity
+    service: keycloak
+    port: 8080
+    hosts: ["*.danhgia.vn"]
+    paths: ["/api/v1/iam/*"]
+    pluginConfig: protected-api
+    rewrite: ["^/api/v1/iam/(.*)$", "/realms/{realm}/mission-iam/$1"]
+    timeout: { connect: 2, send: 10, read: 10 }
 
 podSecurityContext:
   runAsNonRoot: true

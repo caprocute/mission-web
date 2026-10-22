@@ -77,3 +77,13 @@ vt.io/cell: {{ . | quote }}
 {{- $l := list -}}{{- range $db, $sc := .dbs -}}{{- $l = concat $l $sc -}}{{- end -}}
 {{- toYaml ($l | uniq | sortAlpha) -}}
 {{- end -}}
+
+{{/* Khối SQL initdb cho bao_admin (INF-13). Đối số: a (tên vai trò), schemas, matKhau (chuỗi đã sẵn để chèn). */}}
+{{- define "data-pg.baoAdminSql" -}}
+CREATE ROLE {{ .a }} WITH LOGIN CREATEROLE INHERIT NOBYPASSRLS CONNECTION LIMIT {{ .gioiHan }} PASSWORD '{{ .matKhau }}';
+ALTER ROLE {{ .a }} SET createrole_self_grant = 'set, inherit';
+{{- range .schemas }}
+CREATE ROLE svc_{{ . }} WITH NOLOGIN NOINHERIT NOBYPASSRLS;
+GRANT svc_{{ . }} TO {{ $.a }} WITH ADMIN TRUE, INHERIT TRUE, SET TRUE;
+{{- end }}
+{{- end -}}

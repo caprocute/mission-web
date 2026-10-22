@@ -92,6 +92,11 @@ spec:
     initdb:
       database: khoi_tao
       owner: khoi_tao
+      {{- if and $v.baoAdmin.enabled (has $ten $v.baoAdmin.clusters) }}
+      postInitSQLRefs:
+        secretRefs:
+          - { name: {{ $ten }}-bao-admin-khoi-tao, key: khoi-tao.sql }
+      {{- end }}
   resources:
     requests:
       cpu: {{ sub (int $k.cpu) (ternary 2 0 (gt (int $k.cpu) 8)) | quote }}

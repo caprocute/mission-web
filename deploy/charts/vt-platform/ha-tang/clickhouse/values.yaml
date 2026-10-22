@@ -27,14 +27,14 @@ placement:
   tolerations: [{ key: vt.io/pool, operator: Equal, value: data-search, effect: NoSchedule }]
 
 tls:
-  issuerRef: { kind: ClusterIssuer, name: openbao-noi-bo }
+  issuerRef: { kind: ClusterIssuer, name: openbao-pki-cell }
   duration: 2160h
   renewBefore: 720h
 
 # Người dùng (mật khẩu ở OpenBao <path>/<tên>, ESO nạp vào secret clickhouse-users). Người dùng default chỉ
 # nghe localhost. analytics chỉ đọc qua Cube; ingest ghi bảng nhận từ Kafka (TL-03 chương 11).
 externalSecrets:
-  secretStore: { kind: ClusterSecretStore, name: openbao }
+  secretStore: { kind: ClusterSecretStore, name: openbao-cell }
   path: kv/clickhouse
   refreshInterval: 1h
 users:

@@ -1,0 +1,93 @@
+{{- /*
+Cấu hình máy chủ OpenBao (HCL). Raft tích hợp, 5 node tự nối nhau qua retry_join với TLS kiểm tên; seal PKCS#11
+qua plugin KMS khai báo (OpenBao ≥ 2.6); thiết bị kiểm toán khai ngay trong cấu hình nên không thể tắt bằng API.
+*/}}
+{{- $v := .Values }}
+{{- $ns := $v.namespace }}
+{{- $p := $v.seal.pkcs11 }}
+{{- if not $v.seal.plugin.sha256 }}{{ fail "openbao: cần seal.plugin.sha256 (tổng kiểm plugin PKCS#11 trong ảnh)" }}{{ end }}
+{{- if and (not $p.slot) (not $p.tokenLabel) }}{{ fail "openbao: cần seal.pkcs11.slot hoặc seal.pkcs11.tokenLabel" }}{{ end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openbao-config
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+data:
+  openbao.hcl: |
+    ui            = false
+    disable_mlock = true
+    log_format    = "json"
+    # api_addr, cluster_addr và node_id của Raft lấy từ biến môi trường BAO_API_ADDR, BAO_CLUSTER_ADDR,
+    # BAO_RAFT_NODE_ID mà StatefulSet đặt theo tên pod.
+    cluster_name  = "openbao-{{ include "openbao.cell" . }}"
+
+    listener "tcp" {
+      address                   = "0.0.0.0:8200"
+      cluster_address           = "0.0.0.0:8201"
+      tls_cert_file             = "/openbao/tls/tls.crt"
+      tls_key_file              = "/openbao/tls/tls.key"
+      tls_client_ca_file        = "/openbao/tls/ca.crt"
+      tls_min_version           = "tls12"
+      telemetry {
+        unauthenticated_metrics_access = true
+      }
+    }
+
+    storage "raft" {
+      path    = "/openbao/data"
+      {{- range $i := until (int $v.replicas) }}
+      retry_join {
+        leader_api_addr         = "https://openbao-{{ $i }}.openbao-internal.{{ $ns }}.svc:8200"
+        leader_ca_cert_file     = "/openbao/tls/ca.crt"
+        leader_tls_servername   = "openbao-{{ $i }}.openbao-internal.{{ $ns }}.svc"
+      }
+      {{- end }}
+    }
+
+    plugin_directory = "{{ $v.seal.plugin.directory }}"
+    plugin "kms" "pkcs11" {
+      command   = "{{ $v.seal.plugin.command }}"
+      sha256sum = "{{ $v.seal.plugin.sha256 }}"
+    }
+
+    seal "pkcs11" {
+      lib         = "{{ $p.lib }}"
+      {{- with $p.slot }}
+      slot        = "{{ . }}"
+      {{- end }}
+      {{- with $p.tokenLabel }}
+      token_label = "{{ . }}"
+      {{- end }}
+      key_label   = "{{ $p.keyLabel }}"
+      pin         = "file:///openbao/hsm/pin"
+      {{- with $p.mechanism }}
+      mechanism   = "{{ . }}"
+      {{- end }}
+      {{- with $p.rsaOaepHash }}
+      rsa_oaep_hash = "{{ . }}"
+      {{- end }}
+    }
+
+    audit "file" "tep" {
+      options {
+        file_path = "{{ $v.audit.file }}"
+        mode      = "0600"
+      }
+    }
+    {{- if $v.audit.stdout }}
+    audit "file" "stdout" {
+      path = "stdout/"
+      options {
+        file_path = "stdout"
+      }
+    }
+    {{- end }}
+
+    telemetry {
+      prometheus_retention_time = "24h"
+      disable_hostname          = true
+    }
+
+    service_registration "kubernetes" {}

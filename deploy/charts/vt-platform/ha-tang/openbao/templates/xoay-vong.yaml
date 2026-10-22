@@ -1,0 +1,122 @@
+{{- if .Values.rotation.enabled }}
+{{- $v := .Values }}
+{{- $ns := $v.namespace }}
+{{- $r := $v.rotation }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: xoay-khoa
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openbao-xoay-khoa
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+data:
+  xoay-khoa.sh: |
+    #!/bin/sh
+    # Xoay khoá Transit quá hạn (SEC-12, OPS-20) và đo tuổi khoá. KEK theo tenant (kek-tenant-*) và khoá ký
+    # cosign-release xoay khi phiên bản mới nhất quá số ngày cho phép; phiên bản cũ vẫn giải mã, kiểm chữ ký được.
+    # Chỉ số vt_key_age_days đẩy lên Pushgateway nếu có; cảnh báo VtKhoaQuaHan dựa trên chỉ số đó.
+    set -eu
+    # Đăng nhập bằng token ServiceAccount (audience openbao); BAO_TOKEN có sẵn thì dùng luôn (chạy tay, kiểm thử).
+    if [ -z "${BAO_TOKEN:-}" ]; then
+      BAO_TOKEN=$(bao write -field=token auth/{{ include "openbao.authMount" . }}/login role=xoay-khoa \
+        jwt=@/var/run/secrets/openbao/token)
+    fi
+    export BAO_TOKEN
+    bay_gio=$(date +%s)
+    chi_so=""
+    for k in $(bao list -format=table transit/keys | tail -n +3); do
+      case "$k" in
+        kek-tenant-*) han={{ $r.kekMaxAgeDays }}; loai=kek ;;
+        cosign-release) han={{ $r.cosignMaxAgeDays }}; loai=cosign ;;
+        *) continue ;;
+      esac
+      moi=$(bao read -field=latest_version "transit/keys/$k")
+      # keys: {"1": <unix>, ...} với khoá đối xứng; khoá bất đối xứng trả creation_time dạng RFC 3339.
+      tao=$(bao read -format=json "transit/keys/$k" | tr -d ' \n' | sed -n "s/.*\"keys\":{[^}]*\"$moi\":\([0-9]*\).*/\1/p")
+      if [ -z "$tao" ]; then
+        t=$(bao read -format=json "transit/keys/$k" | tr -d ' \n' | sed -n "s/.*\"keys\":{.*\"$moi\":{[^}]*\"creation_time\":\"\([^\"]*\)\".*/\1/p")
+        tao=$(date -d "$t" +%s)
+      fi
+      tuoi=$(( (bay_gio - tao) / 86400 ))
+      if [ "$tuoi" -ge "$han" ]; then
+        bao write -f "transit/keys/$k/rotate" >/dev/null
+        echo "đã xoay $k (phiên bản $moi, $tuoi ngày)"
+        tuoi=0
+      fi
+      chi_so="${chi_so}vt_key_age_days{khoa=\"$k\",loai=\"$loai\"} $tuoi
+    "
+    done
+    printf '# TYPE vt_key_age_days gauge\n%s' "$chi_so"
+    {{- with $r.pushgateway }}
+    printf '# TYPE vt_key_age_days gauge\n%s' "$chi_so" | curl -sf --data-binary @- {{ . }}/metrics/job/openbao-xoay-khoa/cell/{{ $v.global.cell }}
+    {{- end }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: openbao-xoay-khoa
+  namespace: {{ $ns }}
+  labels:
+    {{- include "openbao.labels" . | nindent 4 }}
+spec:
+  schedule: {{ $r.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: openbao-xoay-khoa
+            app.kubernetes.io/part-of: vt-platform
+        spec:
+          serviceAccountName: xoay-khoa
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+            seccompProfile: { type: RuntimeDefault }
+          {{- with $v.placement.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: xoay-khoa
+              image: {{ if $r.image.repository }}{{ $r.image.repository }}:{{ $r.image.tag }}@{{ $r.image.digest }}{{ else }}{{ include "openbao.anh" . }}{{ end }}
+              command: [sh, /kich-ban/xoay-khoa.sh]
+              env:
+                - { name: BAO_ADDR, value: {{ include "openbao.addr" . }} }
+                - { name: BAO_CACERT, value: /openbao/tls/ca.crt }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { cpu: 500m, memory: 128Mi } }
+              volumeMounts:
+                - { name: kich-ban, mountPath: /kich-ban, readOnly: true }
+                - { name: ca, mountPath: /openbao/tls, readOnly: true }
+                - { name: token, mountPath: /var/run/secrets/openbao, readOnly: true }
+                - { name: tmp, mountPath: /tmp }
+          volumes:
+            - name: kich-ban
+              configMap: { name: openbao-xoay-khoa }
+            - name: ca
+              secret: { secretName: openbao-tls, items: [{ key: ca.crt, path: ca.crt }] }
+            - name: token
+              projected:
+                sources:
+                  - serviceAccountToken: { path: token, audience: openbao, expirationSeconds: 600 }
+            - name: tmp
+              emptyDir: {}
+{{- end }}

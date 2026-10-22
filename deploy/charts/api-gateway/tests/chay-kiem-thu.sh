@@ -21,6 +21,7 @@ for k in ApisixRoute ApisixPluginConfig ApisixGlobalRule ApisixTls StatefulSet; 
 done
 grep -q '/kpi-legacy' "$OUT/ci.yaml" && hong "còn tuyến Strangler /kpi-legacy" || ok "không có tuyến Strangler /kpi-legacy"
 grep -q 'ssl_protocols: "TLSv1.3"' "$OUT/ci.yaml" && ok "TLS 1.3" || hong "TLS"
+grep -qF 'regex_uri: ["^/api/v1/iam/(.*)$", "/realms/mission/mission-iam/$1"]' "$OUT/ci.yaml" && ok "tuyến /api/v1/iam/* đổi sang SPI mission-iam của Keycloak (DV-02-08)" || hong "tuyến mission-iam"
 grep -q 'read: 10s' "$OUT/ci.yaml" && ok "tuyến mission-core timeout đọc 10 s" || hong "timeout"
 if command -v luac >/dev/null || command -v luac5.1 >/dev/null; then
   $(command -v luac || command -v luac5.1) -p files/vt-claims.lua && ok "cú pháp Lua vt-claims" || hong "cú pháp Lua"

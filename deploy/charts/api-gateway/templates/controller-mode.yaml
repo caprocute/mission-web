@@ -339,6 +339,13 @@ spec:
       {{- with .pluginConfig }}
       plugin_config_name: {{ . }}
       {{- end }}
+      {{- with .rewrite }}
+      plugins:
+        - name: proxy-rewrite
+          enable: true
+          config:
+            regex_uri: [{{ index . 0 | quote }}, {{ index . 1 | replace "{realm}" $v.oidc.realm | quote }}]
+      {{- end }}
       timeout:
         connect: {{ .timeout.connect }}s
         send: {{ .timeout.send }}s

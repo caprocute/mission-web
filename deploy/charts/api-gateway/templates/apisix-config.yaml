@@ -90,6 +90,11 @@ data:
         {{- with .pluginConfig }}
         plugin_config_id: {{ . }}
         {{- end }}
+        {{- with .rewrite }}
+        plugins:
+          proxy-rewrite:
+            regex_uri: [{{ index . 0 | quote }}, {{ index . 1 | replace "{realm}" $v.oidc.realm | quote }}]
+        {{- end }}
         upstream:
           type: roundrobin
           scheme: http

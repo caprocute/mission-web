@@ -130,8 +130,8 @@ config: {}
 
 externalSecret:
   enabled: false
-  refreshInterval: 1h
-  secretStoreRef: { kind: ClusterSecretStore, name: openbao }
+  refreshInterval: 15m
+  secretStoreRef: { kind: ClusterSecretStore, name: openbao-cell }
   targetName: ""
   data: []
   dataFrom: []

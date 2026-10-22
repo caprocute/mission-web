@@ -34,7 +34,7 @@ placement:
 
 # Chứng thư máy chủ do cert-manager cấp từ OpenBao PKI (SEC-59, INF-13 dựng ClusterIssuer).
 tls:
-  issuerRef: { kind: ClusterIssuer, name: openbao-noi-bo }
+  issuerRef: { kind: ClusterIssuer, name: openbao-pki-cell }
   duration: 2160h
   renewBefore: 720h
 
@@ -51,7 +51,7 @@ users:
   iam-session:          { rules: "~vt:revoked:* +@read +@write +@connection -@dangerous", namespace: identity }
 
 externalSecrets:
-  secretStore: { kind: ClusterSecretStore, name: openbao }
+  secretStore: { kind: ClusterSecretStore, name: openbao-cell }
   path: kv/valkey
   refreshInterval: 1h
 
