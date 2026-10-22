@@ -110,3 +110,37 @@ networkPolicy:
   keycloakPodLabels:
     app.kubernetes.io/name: keycloak
   keycloakPort: 8080
+
+# DV-02-06: consumer EVT-16 đồng bộ người dùng sang Keycloak (backend/services/iam/user-sync).
+userSync:
+  enabled: false
+  image:
+    repository: harbor.example.invalid/mission/iam-user-sync
+    tag: 0.1.0
+    digest: ""
+  # Số pod không vượt số phân vùng của org.person.changed.v1; thứ tự theo khoá tenantId:personId do Kafka giữ.
+  replicas: 2
+  kafka:
+    bootstrapServers: kafka-bootstrap.kafka.svc.cluster.local:9092
+    # Nhãn, cổng pod Kafka để mở NetworkPolicy.
+    podLabels:
+      app.kubernetes.io/name: kafka
+    port: 9092
+  keycloak:
+    realm: okrkpi
+    clientId: iam-user-sync
+  secret:
+    name: iam-user-sync
+    key: client-secret
+    remoteRef:
+      key: iam/user-sync
+      property: client-secret
+  resources:
+    requests:
+      cpu: 100m
+      memory: 384Mi
+    limits:
+      cpu: "1"
+      memory: 768Mi
+  # Không gian tên của Prometheus được phép đọc /actuator/prometheus.
+  monitoringNamespace: monitoring
