@@ -72,4 +72,13 @@ describe('traceparent (WEB-074)', () => {
     expect(debugTraceRequested('')).toBe(false);
     ctrl.verify();
   });
+
+  it('không tự gắn traceparent khi instrumentation của Faro đảm nhận (WEB-011), vẫn gắn Baggage', () => {
+    const { http, ctrl } = setup({ tenant: 'default', delegated: () => true });
+    http.get('/api/v1/tasks').subscribe();
+    const req = ctrl.expectOne('/api/v1/tasks');
+    expect(req.request.headers.has('traceparent')).toBe(false);
+    expect(req.request.headers.get('baggage')).toBe('tenant=default');
+    req.flush({});
+  });
 });

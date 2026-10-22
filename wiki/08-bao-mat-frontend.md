@@ -69,6 +69,12 @@ Plugin của tenant (lớp bốn của ADR-05) là remote Native Federation do b
 
 Trước khi mở PR, người viết tự hỏi: mã có gắn HTML thô hay gọi `bypassSecurityTrust*` không; có thư viện nào cần `eval` không; có ghi token, PII hay nội dung biểu mẫu ra log, URL hay bộ nhớ trình duyệt không; mọi request API có đi qua `@vt/api-client` và các interceptor không; thuộc tính đến từ UI Pack có được lọc qua `propsSchema` không; quyết định quyền có được để máy chủ thực hiện không. Mỗi câu trả lời "có" cho các câu đầu là lý do chặn merge.
 
+## Bảo vệ của renderer SDUI (WEB-009)
+
+Renderer SDUI là lớp hai của ADR-05 và có bốn chốt chặn ở trình duyệt. Chốt một là chữ ký và phiên bản của UI Pack, mô tả ở [trang 03](03-giao-dien-theo-tenant.md). Chốt hai là registry: nút có `component` không đăng ký không bao giờ được dựng. Chốt ba là `PropsValidator`: thuộc tính không có trong `propsSchema`, sai kiểu, ngoài giới hạn hoặc chứa URL `javascript:`, `data:`, `vbscript:` (kể cả khi chèn khoảng trắng, ký tự điều khiển, hoặc lồng trong mảng và đối tượng) bị loại trước khi gán vào component. Chốt bốn là giới hạn chi phí CEL: biểu thức `visibleWhen` dài quá 512 ký tự, lồng ngoặc quá 12 mức hoặc có quá 2 macro lặp (`all`, `exists`, `exists_one`, `map`, `filter`) bị coi là ẩn mà không phân tích, để một gói lỗi không làm treo trang.
+
+Mỗi lần chốt chặn hoạt động, `SduiTelemetry` ghi một sự kiện (`sdui.component.unknown`, `sdui.prop.dropped`, `sdui.cel.invalid`, `sdui.cel.error`, `sdui.cel.limit`, `ui-pack.signature.missing`, `ui-pack.signature.invalid`, `ui-pack.registry.incompatible`) chỉ kèm tên component, tên thuộc tính, lý do và phiên bản, không kèm giá trị. Sự kiện trùng chỉ ghi một lần và tối đa 200 sự kiện khác nhau mỗi phiên. Sự kiện ra console và tới token `SDUI_TELEMETRY_SINK` nếu shell cung cấp; khi WEB-011 đưa Grafana Faro vào, shell chỉ cần cung cấp token này.
+
 ## Liên quan
 
 - [Xác thực và phân quyền](07-xac-thuc-phan-quyen.md)
