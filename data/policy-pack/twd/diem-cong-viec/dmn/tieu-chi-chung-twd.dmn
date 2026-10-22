@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- BẢN GIẢ LẬP chờ nghiệp vụ duyệt (DL-16). Đầu vào bước 2; table_key tieu_chi_chung; gói twd/diem-cong-viec -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20211108/MODEL/" id="tieu-chi-chung-twd-dinh-nghia" name="Quy đổi tỷ lệ đáp ứng tiêu chí chung"
+             namespace="https://policy.okrkpi.vn/twd/diem-cong-viec" expressionLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/" typeLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/">
+  <decision id="tieu-chi-chung-twd" name="Quy đổi tỷ lệ đáp ứng tiêu chí chung">
+    <variable id="tieu-chi-chung-twd-var" name="muc_tieu_chi_chung" typeRef="string"/>
+    <decisionTable id="tieu-chi-chung-twd-bang" hitPolicy="FIRST" outputLabel="Mức tiêu chí chung">
+      <input id="tieu-chi-chung-twd-in1" label="Tỷ lệ tiêu chí chung được đánh giá đảm bảo">
+        <inputExpression id="tieu-chi-chung-twd-in1-expr" typeRef="number"><text>ty_le_dap_ung_tieu_chi_chung</text></inputExpression>
+      </input>
+      <output id="tieu-chi-chung-twd-out" name="muc_tieu_chi_chung" typeRef="string">
+        <outputValues id="tieu-chi-chung-twd-out-values"><text>"THUC_HIEN_TOT","DAM_BAO","CO_BAN_DAM_BAO","KHONG_DAM_BAO"</text></outputValues>
+      </output>
+      <annotation name="legal_ref"/>
+      <annotation name="dieu_khoan"/>
+      <annotation name="giai_thich"/>
+      <rule id="tieu-chi-chung-twd-dong-1">
+        <description>Đảm bảo toàn bộ tiêu chí</description>
+        <inputEntry id="tieu-chi-chung-twd-dong-1-in1"><text>&gt;= 1</text></inputEntry>
+        <outputEntry id="tieu-chi-chung-twd-dong-1-out"><text>"THUC_HIEN_TOT"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.1; Phụ lục B.8; Điều 10 khoản 1.1</text></annotationEntry>
+        <annotationEntry><text>Điều 10 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Đảm bảo toàn bộ tiêu chí chung nên tiêu chí chung được đánh giá Thực hiện tốt.</text></annotationEntry>
+      </rule>
+      <rule id="tieu-chi-chung-twd-dong-2">
+        <description>Đảm bảo từ 90% đến dưới 100%</description>
+        <inputEntry id="tieu-chi-chung-twd-dong-2-in1"><text>[0.9..1)</text></inputEntry>
+        <outputEntry id="tieu-chi-chung-twd-dong-2-out"><text>"DAM_BAO"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.1; Phụ lục B.8; Điều 10 khoản 1.1</text></annotationEntry>
+        <annotationEntry><text>Điều 10 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Đảm bảo {gia_tri} số tiêu chí chung, từ 90% đến dưới 100%, nên tiêu chí chung được đánh giá Đảm bảo.</text></annotationEntry>
+      </rule>
+      <rule id="tieu-chi-chung-twd-dong-3">
+        <description>Đảm bảo từ 60% đến dưới 90%</description>
+        <inputEntry id="tieu-chi-chung-twd-dong-3-in1"><text>[0.6..0.9)</text></inputEntry>
+        <outputEntry id="tieu-chi-chung-twd-dong-3-out"><text>"CO_BAN_DAM_BAO"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.1; Phụ lục B.8; Điều 10 khoản 1.1</text></annotationEntry>
+        <annotationEntry><text>Điều 10 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Đảm bảo {gia_tri} số tiêu chí chung, từ 60% đến dưới 90%, nên tiêu chí chung được đánh giá Cơ bản đảm bảo.</text></annotationEntry>
+      </rule>
+      <rule id="tieu-chi-chung-twd-dong-4">
+        <description>Đảm bảo dưới 60%</description>
+        <inputEntry id="tieu-chi-chung-twd-dong-4-in1"><text>-</text></inputEntry>
+        <outputEntry id="tieu-chi-chung-twd-dong-4-out"><text>"KHONG_DAM_BAO"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.1; Phụ lục B.8; Điều 10 khoản 1.1</text></annotationEntry>
+        <annotationEntry><text>Điều 10 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Đảm bảo {gia_tri} số tiêu chí chung, dưới 60%, nên tiêu chí chung được đánh giá Không đảm bảo.</text></annotationEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

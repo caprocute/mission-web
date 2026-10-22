@@ -1,0 +1,18 @@
+slice_name: Số nhiệm vụ
+description: null
+certified_by: null
+certification_details: null
+viz_type: big_number_total
+params:
+  viz_type: big_number_total
+  metric: so_viec
+  adhoc_filters: []
+  header_font_size: 0.4
+  subheader_font_size: 0.15
+  y_axis_format: SMART_NUMBER
+  time_format: smart_date
+query_context: null
+cache_timeout: null
+uuid: 9cdc751f-c5f4-5c58-8fa1-67a57e509831
+version: 1.0.0
+dataset_uuid: 35130eef-a7dc-5a54-9f61-adb57c483391

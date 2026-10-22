@@ -1,0 +1,80 @@
+# Bảng điều hành cấp đơn vị mẫu (SCR-1602 dashboard tự dựng nâng cao): người dùng sao chép rồi chỉnh. Số liệu luôn trong
+# phạm vi người xem do Cube áp theo guest token.
+dashboard_title: Bảng điều hành đơn vị
+description: null
+css: ''
+slug: bang-dieu-hanh-don-vi
+certified_by: null
+certification_details: null
+published: true
+uuid: 50cb2a35-aa33-5872-85e2-bbecbcca6189
+position:
+  DASHBOARD_VERSION_KEY: v2
+  ROOT_ID:
+    children:
+    - GRID_ID
+    id: ROOT_ID
+    type: ROOT
+  HEADER_ID:
+    id: HEADER_ID
+    meta:
+      text: Bảng điều hành đơn vị
+    type: HEADER
+  GRID_ID:
+    children:
+    - ROW-mot
+    id: GRID_ID
+    parents:
+    - ROOT_ID
+    type: GRID
+  ROW-mot:
+    children:
+    - CHART-so-viec
+    - CHART-theo-nhom
+    id: ROW-mot
+    meta:
+      background: BACKGROUND_TRANSPARENT
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    type: ROW
+  CHART-so-viec:
+    children: []
+    id: CHART-so-viec
+    meta:
+      chartId: 1
+      height: 50
+      sliceName: Số nhiệm vụ
+      uuid: 9cdc751f-c5f4-5c58-8fa1-67a57e509831
+      width: 4
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-mot
+    type: CHART
+  CHART-theo-nhom:
+    children: []
+    id: CHART-theo-nhom
+    meta:
+      chartId: 2
+      height: 50
+      sliceName: Nhiệm vụ theo nhóm
+      uuid: 1ddd14d0-ef9a-5ed2-a7a4-c4e220657a32
+      width: 8
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-mot
+    type: CHART
+metadata:
+  color_scheme: ''
+  refresh_frequency: 0
+  expanded_slices: {}
+  label_colors: {}
+  shared_label_colors: {}
+  timed_refresh_immune_slices: []
+  cross_filters_enabled: false
+  default_filters: '{}'
+  chart_configuration: {}
+  native_filter_configuration: []
+version: 1.0.0

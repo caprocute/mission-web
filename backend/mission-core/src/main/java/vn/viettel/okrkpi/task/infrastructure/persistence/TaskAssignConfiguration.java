@@ -17,7 +17,9 @@ import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
 import vn.viettel.okrkpi.okr.api.OkrApi;
+import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
+import vn.viettel.okrkpi.shared.infrastructure.search.SearchClient;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
@@ -29,6 +31,10 @@ import vn.viettel.okrkpi.task.application.catalog.CatalogPolicy;
 import vn.viettel.okrkpi.task.application.lifecycle.PolicyBackedTransitionTableProvider;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.mine.LeadWorkloads;
+import vn.viettel.okrkpi.task.application.similar.SimilarTaskService;
+import vn.viettel.okrkpi.task.application.similar.port.SimilarTaskCandidates;
+import vn.viettel.okrkpi.task.application.tree.TaskTreeService;
+import vn.viettel.okrkpi.task.infrastructure.client.HttpSimilarTaskCandidates;
 import vn.viettel.okrkpi.task.infrastructure.job.InMemoryBulkAssignJobs;
 
 /**
@@ -66,18 +72,28 @@ public class TaskAssignConfiguration {
     return new InMemoryBulkAssignJobs();
   }
 
+  /** Cây nhiệm vụ và chế độ phân công đọc tham số Policy Pack (CORE-02-28). */
+  @Bean
+  TaskTreeService taskTreeService(
+      @Qualifier("taskDataSource") DataSource dataSource, ObjectProvider<PolicyQueryApi> policies) {
+    return new TaskTreeService(
+        new JdbcTaskTreeRows(JdbcClient.create(dataSource)), policies.getIfAvailable());
+  }
+
   @Bean
   TaskDraftService taskDraftService(
       JdbcTaskDraftRepository taskDraftRepository,
       PeriodApi periods,
       OrgDirectoryApi org,
-      PolicyBackedTransitionTableProvider taskTransitionTableProvider) {
+      PolicyBackedTransitionTableProvider taskTransitionTableProvider,
+      TaskTreeService taskTreeService) {
     return new TaskDraftService(
         taskDraftRepository,
         periods,
         org,
         taskTransitionTableProvider,
-        java.time.Clock.systemUTC());
+        java.time.Clock.systemUTC(),
+        taskTreeService);
   }
 
   @Bean
@@ -94,7 +110,8 @@ public class TaskAssignConfiguration {
       ObjectProvider<CatalogPolicy> catalogPolicy,
       ApplicationEventPublisher publisher,
       @Qualifier("taskTransactionManager") PlatformTransactionManager taskTransactionManager,
-      LeadWorkloads leadWorkloads) {
+      LeadWorkloads leadWorkloads,
+      SimilarTaskService similarTaskService) {
     CatalogPolicy policy = catalogPolicy.getIfAvailable(CatalogPolicy::defaults);
     Executor executor = Executors.newVirtualThreadPerTaskExecutor();
     return new TaskAssignService(
@@ -112,7 +129,25 @@ public class TaskAssignConfiguration {
         taskTransactionManager,
         executor,
         java.time.Clock.systemUTC(),
-        leadWorkloads);
+        leadWorkloads,
+        similarTaskService);
+  }
+
+  /**
+   * CORE-02-15: ứng viên gần giống từ SVC-16 khi có {@code mission.task.similar.search-url}, nếu
+   * không thì từ nhiệm vụ cùng đơn vị, kỳ trong CSDL.
+   */
+  @Bean
+  SimilarTaskService similarTaskService(
+      @Qualifier("taskDataSource") DataSource dataSource,
+      @Value("${mission.task.similar.search-url:}") String searchUrl,
+      @Value("${mission.task.similar.timeout:PT1S}") java.time.Duration timeout,
+      ObjectProvider<SimilarTaskCandidates> override) {
+    SimilarTaskCandidates remote = override.getIfAvailable();
+    if (remote == null && !searchUrl.isBlank()) {
+      remote = new HttpSimilarTaskCandidates(new SearchClient(searchUrl, timeout));
+    }
+    return new SimilarTaskService(new JdbcSimilarTaskRows(JdbcClient.create(dataSource)), remote);
   }
 
   @Bean

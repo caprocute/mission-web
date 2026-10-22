@@ -1,0 +1,42 @@
+# Khung tham số DC-02 của hồ sơ TWĐ (DL-16; BS-03 DC-02, bảng policy.param_constraint). GIẢ LẬP theo YC-PT-14.
+# Nguồn: UEB-BTCTW-QTCV-02 v1.2 mục 3.7, 3.8 (±20% điểm chuẩn), 13.34 (ngưỡng phân bố mức khó), R43; BS-03 DC-02.
+# Mỗi dòng là một ParamConstraint: cấp dưới (khối → tỉnh → đơn vị) chỉ chỉnh được tham số trong khung này;
+# tighten_direction TANG nghĩa là chỉ được đặt giá trị lớn hơn hoặc bằng giá trị cấp trên ("chỉ được siết").
+# Khoá tham số trỏ vào params của gói twd/diem-cong-viec (tham_so.*), của bộ twd/diem-nghen (diem_nghen.*) hoặc
+# thuộc tính dòng danh mục (danh_muc.*).
+metadata:
+  id: twd/ban-to-chuc-ueb/khung-twd
+  version: 0.1.0
+  gia_lap: true
+  ghi_chu_gia_lap: "Thí điểm – dùng để đối chiếu; khung là giá trị thí điểm của bộ cấu hình mẫu."
+items:
+  - {paramKey: danh_muc.diem_chuan, canToggle: false, canChangeLevels: false, minValue: -0.20, maxValue: 0.20,
+     tightenDirection: KHONG, allowedScopes: [KHOI, TINH, DON_VI], ghi_chu: "tỷ lệ so với dòng cha; khớp score_adjust_min/max của TWD-DM-25"}
+  - {paramKey: tham_so.he_so.nhom_nhiem_vu.THEN_CHOT, canToggle: false, canChangeLevels: false, minValue: 1.0, maxValue: 1.5,
+     tightenDirection: KHONG, allowedScopes: [KHOI, TINH, DON_VI]}
+  - {paramKey: tham_so.he_so.nhom_nhiem_vu.THUONG_XUYEN, canToggle: false, canChangeLevels: false, minValue: 1.0, maxValue: 1.0,
+     tightenDirection: KHONG, allowedScopes: []}
+  - {paramKey: tham_so.he_so.muc_do_kho, canToggle: false, canChangeLevels: false, minValue: null, maxValue: null,
+     tightenDirection: KHONG, allowedScopes: [], ghi_chu: "bảng năm mức khoá ở cấp hệ thống"}
+  - {paramKey: tham_so.tru_tien_do, canToggle: false, canChangeLevels: false, minValue: 0.05, maxValue: 1.0,
+     tightenDirection: TANG, allowedScopes: [KHOI, TINH, DON_VI], ghi_chu: "mức trừ mỗi ngày chậm chỉ được tăng"}
+  - {paramKey: tham_so.thang_100.che_do, canToggle: true, canChangeLevels: false, minValue: null, maxValue: null,
+     tightenDirection: KHONG, allowedScopes: [DON_VI], ghi_chu: "đơn vị chọn tỷ lệ có hệ số hoặc gói điểm theo kỳ (11.4)"}
+  - {paramKey: tham_so.ty_trong_truc, canToggle: true, canChangeLevels: false, minValue: 0, maxValue: 100,
+     tightenDirection: KHONG, allowedScopes: [DON_VI]}
+  - {paramKey: tham_so.htxs.nguong_ty_le_vuot, canToggle: false, canChangeLevels: false, minValue: 0.30, maxValue: 1.0,
+     tightenDirection: TANG, allowedScopes: [KHOI, TINH, DON_VI]}
+  - {paramKey: canh_bao.phan_bo_muc_kho.muc_1_2_toi_thieu, canToggle: true, canChangeLevels: false, minValue: 0.0, maxValue: 1.0,
+     tightenDirection: KHONG, allowedScopes: [KHOI, TINH, DON_VI], gia_tri_thi_diem: 0.60}
+  - {paramKey: canh_bao.phan_bo_muc_kho.muc_4_5_toi_da, canToggle: true, canChangeLevels: false, minValue: 0.0, maxValue: 1.0,
+     tightenDirection: KHONG, allowedScopes: [KHOI, TINH, DON_VI], gia_tri_thi_diem: 0.20}
+  - {paramKey: canh_bao.phan_bo_muc_kho.muc_5_toi_da, canToggle: true, canChangeLevels: false, minValue: 0.0, maxValue: 1.0,
+     tightenDirection: KHONG, allowedScopes: [KHOI, TINH, DON_VI], gia_tri_thi_diem: 0.10}
+  - {paramKey: diem_nghen.q2.moc_1, canToggle: true, canChangeLevels: false, minValue: 0.0, maxValue: 1.0,
+     tightenDirection: KHONG, allowedScopes: [KHOI, TINH, DON_VI], ghi_chu: "ví dụ đơn vị đổi 50% thành 60% (11.6)"}
+  - {paramKey: diem_nghen.so_ngay_xu_ly_mac_dinh, canToggle: false, canChangeLevels: false, minValue: 1, maxValue: 30,
+     tightenDirection: KHONG, allowedScopes: [KHOI, TINH, DON_VI]}
+  - {paramKey: diem_nghen.bat, canToggle: true, canChangeLevels: false, minValue: null, maxValue: null,
+     tightenDirection: KHONG, allowedScopes: [KHOI, TINH, DON_VI]}
+  - {paramKey: diem_nghen.gio_chay, canToggle: false, canChangeLevels: false, minValue: null, maxValue: null,
+     tightenDirection: KHONG, allowedScopes: [], ghi_chu: "giờ chạy là tham số toàn hệ thống"}
