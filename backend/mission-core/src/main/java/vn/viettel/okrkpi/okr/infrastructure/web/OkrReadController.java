@@ -67,6 +67,7 @@ import vn.viettel.okrkpi.contract.okr.model.PeriodRef;
 import vn.viettel.okrkpi.contract.okr.model.PeriodStatus;
 import vn.viettel.okrkpi.contract.okr.model.Ref;
 import vn.viettel.okrkpi.okr.application.OkrCheckService;
+import vn.viettel.okrkpi.okr.application.OkrCheckinDelegateService;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.OkrReadService.AlignmentNode;
 import vn.viettel.okrkpi.okr.application.OkrReadService.AlignmentView;
@@ -121,6 +122,7 @@ public class OkrReadController {
   private final ObjectProvider<AuthzSubjectResolver> subjects;
   private final ObjectProvider<OkrCaller> callers;
   private final OkrCheckService checks;
+  private final ObjectProvider<OkrCheckinDelegateService> delegates;
 
   public OkrReadController(
       OkrReadService reads,
@@ -130,7 +132,9 @@ public class OkrReadController {
       ObjectProvider<OrgDirectoryApi> org,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<OkrCaller> callers,
-      OkrCheckService checks) {
+      OkrCheckService checks,
+      ObjectProvider<OkrCheckinDelegateService> delegates) {
+    this.delegates = Objects.requireNonNull(delegates, "delegates");
     this.checks = Objects.requireNonNull(checks, "checks");
     this.reads = Objects.requireNonNull(reads, "reads");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
@@ -362,6 +366,17 @@ public class OkrReadController {
               }
               currentUser().ifPresent(me -> dto.viewerIsOwner(me.equals(o.ownerPersonId())));
             });
+    // CORE-01-12: người được giao check-in thay còn hiệu lực cũng là "chủ" khi xem KR.
+    OkrCheckinDelegateService delegation = delegates.getIfAvailable();
+    if (delegation != null) {
+      delegation
+          .delegateOf(tenant, id)
+          .ifPresent(
+              d -> {
+                dto.checkinDelegate(new Ref(d.personId(), ""));
+                currentUser().filter(d.personId()::equals).ifPresent(me -> dto.viewerIsOwner(true));
+              });
+    }
     if (view.row().lastCheckin() != null) {
       dto.latestBlocker(view.row().lastCheckin().blockerNote());
     }

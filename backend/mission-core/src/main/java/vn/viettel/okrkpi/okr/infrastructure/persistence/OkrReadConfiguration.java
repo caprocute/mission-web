@@ -20,10 +20,12 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.okr.application.OkrCheckService;
+import vn.viettel.okrkpi.okr.application.OkrCheckinDelegateService;
 import vn.viettel.okrkpi.okr.application.OkrCheckinService;
 import vn.viettel.okrkpi.okr.application.OkrComposeService;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.OkrReviewService;
+import vn.viettel.okrkpi.okr.application.OkrRevisionCarryOver;
 import vn.viettel.okrkpi.okr.application.OkrRuleChecker;
 import vn.viettel.okrkpi.okr.application.OkrSubmitService;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalEvents;
@@ -163,6 +165,29 @@ public class OkrReadConfiguration {
   @Bean
   OkrExportJobs okrExportJobs() {
     return new OkrExportJobs();
+  }
+
+  /** CORE-01-12: uỷ quyền check-in thay, đồng thời là cổng người được check-in của CORE-01-08. */
+  @Bean
+  JdbcOkrCheckinDelegates okrCheckinDelegates(@Qualifier("okrDataSource") DataSource dataSource) {
+    return new JdbcOkrCheckinDelegates(
+        new NamedParameterJdbcTemplate(dataSource), java.time.Clock.system(VIET_NAM));
+  }
+
+  @Bean
+  OkrCheckinDelegateService okrCheckinDelegateService(
+      JdbcOkrCheckinRepository okrCheckinRepository,
+      JdbcOkrCheckinDelegates okrCheckinDelegates,
+      PeriodApi periods) {
+    return new OkrCheckinDelegateService(
+        okrCheckinRepository, okrCheckinDelegates, periods, java.time.Clock.system(VIET_NAM));
+  }
+
+  /** CORE-01-12: chuyển giá trị KR sang phiên bản điều chỉnh vừa được duyệt. */
+  @Bean
+  OkrRevisionCarryOver okrRevisionCarryOver(
+      JdbcOkrCheckinRepository okrCheckinRepository, JdbcOkrCheckinDelegates okrCheckinDelegates) {
+    return new OkrRevisionCarryOver(okrCheckinRepository, okrCheckinDelegates);
   }
 
   /** CORE-01-06: duyệt, trả lại, rút lại mục tiêu; EVT-01, EVT-21 ghi outbox cùng giao dịch. */

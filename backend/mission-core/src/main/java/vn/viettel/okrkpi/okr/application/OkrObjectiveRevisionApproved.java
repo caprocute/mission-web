@@ -9,4 +9,4 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
  * để chuyển giá trị check-in sang KR của phiên bản mới.
  */
 public record OkrObjectiveRevisionApproved(
-    TenantId tenant, UUID previousId, UUID revisionId, int periodBucket) {}
+    TenantId tenant, UUID previousId, UUID revisionId, int periodBucket, UUID actor) {}

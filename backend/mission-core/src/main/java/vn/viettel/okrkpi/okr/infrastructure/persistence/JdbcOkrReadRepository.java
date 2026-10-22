@@ -188,10 +188,16 @@ public class JdbcOkrReadRepository implements OkrReadRepository {
     }
     if (f.ownerPersonId() != null) {
       // Chủ sở hữu KR: người sở hữu mục tiêu cá nhân, mục tiêu tập thể thì người soạn (suy luận,
-      // cùng quy ước với OkrCheckinRepository.CheckinTarget#owner).
+      // cùng quy ước với OkrCheckinRepository.CheckinTarget#owner), cộng KR được giao check-in
+      // thay còn hiệu lực theo ngày Việt Nam (CORE-01-12).
       sql.append(
           " AND (o.owner_person_id = :person"
-              + " OR (o.owner_person_id IS NULL AND o.created_by = :person))");
+              + " OR (o.owner_person_id IS NULL AND o.created_by = :person)"
+              + " OR EXISTS (SELECT 1 FROM okr.kr_checkin_delegate d"
+              + " WHERE d.tenant_id = k.tenant_id AND d.key_result_id = k.id"
+              + " AND d.delegate_person_id = :person AND d.revoked_at IS NULL"
+              + " AND (d.valid_until IS NULL"
+              + " OR d.valid_until >= (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)))");
       p.addValue("person", f.ownerPersonId());
     }
     if (f.objectiveId() != null) {

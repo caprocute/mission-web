@@ -11,15 +11,18 @@ import java.util.function.Supplier;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import vn.viettel.okrkpi.contract.okr.model.KrCheckinDelegateInput;
 import vn.viettel.okrkpi.contract.okr.model.OkrCheckin;
 import vn.viettel.okrkpi.contract.okr.model.OkrCheckinChannel;
 import vn.viettel.okrkpi.contract.okr.model.OkrCheckinCreate;
@@ -29,17 +32,21 @@ import vn.viettel.okrkpi.contract.okr.model.OkrCheckinResultKeyResult;
 import vn.viettel.okrkpi.contract.okr.model.OkrCheckinResultObjective;
 import vn.viettel.okrkpi.contract.okr.model.OkrCheckinStatus;
 import vn.viettel.okrkpi.contract.okr.model.OkrConfidence;
+import vn.viettel.okrkpi.contract.okr.model.OkrKeyResult;
 import vn.viettel.okrkpi.contract.okr.model.OkrRiskFlag;
 import vn.viettel.okrkpi.contract.okr.model.Ref;
+import vn.viettel.okrkpi.okr.application.OkrCheckinDelegateService;
 import vn.viettel.okrkpi.okr.application.OkrCheckinService;
 import vn.viettel.okrkpi.okr.application.OkrCheckinService.CheckinCommand;
 import vn.viettel.okrkpi.okr.application.OkrCheckinService.CheckinOutcome;
 import vn.viettel.okrkpi.okr.application.OkrCheckinService.History;
+import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinRepository.CheckinRow;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinRepository.CheckinTarget;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
 import vn.viettel.okrkpi.shared.authz.OpaInput;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
+import vn.viettel.okrkpi.shared.etag.ETags;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.paging.CursorCodec;
 import vn.viettel.okrkpi.shared.paging.CursorKey;
@@ -67,13 +74,19 @@ public class OkrCheckinController {
   private final CursorCodec cursors;
   private final ObjectProvider<AuthzSubjectResolver> subjects;
   private final ObjectProvider<OkrCaller> callers;
+  private final OkrCheckinDelegateService delegates;
+  private final OkrReadService reads;
 
   public OkrCheckinController(
       OkrCheckinService checkins,
       OkrIdempotency idempotency,
       CursorCodec cursors,
       ObjectProvider<AuthzSubjectResolver> subjects,
-      ObjectProvider<OkrCaller> callers) {
+      ObjectProvider<OkrCaller> callers,
+      OkrCheckinDelegateService delegates,
+      OkrReadService reads) {
+    this.delegates = Objects.requireNonNull(delegates, "delegates");
+    this.reads = Objects.requireNonNull(reads, "reads");
     this.checkins = Objects.requireNonNull(checkins, "checkins");
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
@@ -191,6 +204,89 @@ public class OkrCheckinController {
 
   private static BigDecimal plain(BigDecimal v) {
     return v == null ? null : v.stripTrailingZeros();
+  }
+
+  /** CORE-01-12: chủ sở hữu KR giao quyền check-in thay có thời hạn (QT-03 bước 2). */
+  @PutMapping("/key-results/{id}/checkin-delegate")
+  @RequiresPermission(operationId = "setKrCheckinDelegate", module = "okr")
+  public ResponseEntity<OkrKeyResult> setKrCheckinDelegate(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody KrCheckinDelegateInput body) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = actor();
+    long expected = ETags.expectedVersion(ifMatch, "OKR");
+    return mapped(
+        () ->
+            idempotency.run(
+                tenant,
+                actor,
+                idempotencyKey,
+                "PUT",
+                BASE + "/key-results/" + id + "/checkin-delegate#" + ifMatch,
+                body,
+                OkrKeyResult.class,
+                OkrKeyResult::getRowVersion,
+                () -> {
+                  delegates.setDelegate(
+                      tenant,
+                      actor,
+                      id,
+                      expected,
+                      body.getDelegatePersonId(),
+                      body.getValidUntil(),
+                      body.getReason());
+                  OkrKeyResult dto = keyResultDto(tenant, id, actor);
+                  return ETags.ok(dto, dto.getRowVersion());
+                }));
+  }
+
+  /** CORE-01-12: chủ sở hữu KR thu hồi quyền check-in thay. */
+  @DeleteMapping("/key-results/{id}/checkin-delegate")
+  @RequiresPermission(operationId = "revokeKrCheckinDelegate", module = "okr")
+  public ResponseEntity<OkrKeyResult> revokeKrCheckinDelegate(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = actor();
+    long expected = ETags.expectedVersion(ifMatch, "OKR");
+    return mapped(
+        () ->
+            idempotency.run(
+                tenant,
+                actor,
+                idempotencyKey,
+                "DELETE",
+                BASE + "/key-results/" + id + "/checkin-delegate#" + ifMatch,
+                null,
+                OkrKeyResult.class,
+                OkrKeyResult::getRowVersion,
+                () -> {
+                  delegates.revokeDelegate(tenant, actor, id, expected);
+                  OkrKeyResult dto = keyResultDto(tenant, id, actor);
+                  return ETags.ok(dto, dto.getRowVersion());
+                }));
+  }
+
+  private OkrKeyResult keyResultDto(TenantId tenant, UUID id, UUID viewer) {
+    var view =
+        reads
+            .keyResult(tenant, id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    OkrKeyResult dto = OkrReadController.keyResult(view);
+    reads
+        .objectiveRow(tenant, view.row().objectiveId())
+        .ifPresent(
+            o -> {
+              dto.objective(OkrReadController.objectiveRef(o));
+              UUID owner = o.ownerPersonId() != null ? o.ownerPersonId() : o.createdBy();
+              dto.owner(new Ref(owner, ""));
+              dto.viewerIsOwner(viewer.equals(owner));
+            });
+    delegates.delegateOf(tenant, id).ifPresent(d -> dto.checkinDelegate(new Ref(d.personId(), "")));
+    return dto;
   }
 
   private static OffsetDateTime time(Instant at) {

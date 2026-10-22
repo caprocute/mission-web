@@ -135,7 +135,7 @@ public class OkrReviewService {
     events.parentRevised(tenant, revision, children, actor, version);
     publisher.accept(
         new OkrObjectiveRevisionApproved(
-            tenant, previous.id(), revision.id(), revision.periodBucket()));
+            tenant, previous.id(), revision.id(), revision.periodBucket(), actor));
   }
 
   /**

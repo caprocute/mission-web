@@ -450,14 +450,172 @@ class OkrApprovalApiIT extends ContractConformanceTest {
     assertThat(c.getResponse().getStatus()).isEqualTo(201);
     assertThat(listCodes(unit)).containsExactly(v1.toString());
 
+    // CORE-01-12: KR mới thêm ở phiên bản 2 giữ giá trị đầu.
+    UUID kr3 = UUID.randomUUID();
+    inTenant(
+        jdbc ->
+            jdbc.sql(
+                    "UPDATE okr.key_result SET weight = 0.3 WHERE objective_id = ? AND code = 'KR 1.2'")
+                .param(v2Id)
+                .update());
+    inTenant(
+        jdbc ->
+            jdbc.sql(
+                    "INSERT INTO okr.key_result (id, period_id, period_bucket, objective_id, code,"
+                        + " title, metric_type, unit, baseline_value, target_value, direction,"
+                        + " weight, due_date, verifier_person_id, checkin_frequency, status,"
+                        + " created_by, updated_by) VALUES (?, ?, 20271, ?, 'KR 1.3', 'Kết quả"
+                        + " bổ sung', 'SO_LUONG', 'chi bộ', 0, 5, 'TANG', 0.2, DATE '2027-03-31', ?,"
+                        + " 'TUAN', 'CHO_DUYET', ?, ?)")
+                .params(kr3, period, v2Id, VERIFIER, AUTHOR, AUTHOR)
+                .update());
+
     CALLER.set(REVIEWER);
     assertThat(approve(v2Id, "\"1\"", null).getResponse().getStatus()).isEqualTo(200);
     assertThat(status(v1)).isEqualTo("DONG");
+    Map<String, Object> carried =
+        inTenant(
+            jdbc ->
+                jdbc.sql(
+                        "SELECT (SELECT current_value FROM okr.key_result WHERE objective_id = ?"
+                            + " AND code = 'KR 1.1') AS kr1, (SELECT current_value FROM"
+                            + " okr.key_result WHERE id = ?) AS kr3, (SELECT progress FROM"
+                            + " okr.key_result WHERE objective_id = ? AND code = 'KR 1.1') AS p1")
+                    .params(v2Id, kr3, v2Id)
+                    .query()
+                    .singleRow());
+    assertThat(((java.math.BigDecimal) carried.get("kr1")).intValue()).isEqualTo(3);
+    assertThat(carried.get("kr3")).isNull();
+    assertThat(((java.math.BigDecimal) carried.get("p1")).doubleValue()).isEqualTo(0.3);
+    long copied =
+        inTenant(
+            jdbc ->
+                jdbc.sql(
+                        "SELECT count(*) FROM okr.kr_checkin c JOIN okr.key_result k"
+                            + " ON k.id = c.key_result_id WHERE k.objective_id = ?")
+                    .param(v2Id)
+                    .query(Long.class)
+                    .single());
+    assertThat(copied).isZero();
     assertThat(listCodes(unit)).containsExactly(v2Id.toString());
     assertThat(perform(get("/api/v1/okr/objectives/" + v1 + "/history")).getResponse().getStatus())
         .isEqualTo(200);
     assertThat(count(v2Id, "notify.message.requested.v1")).isEqualTo(1);
     assertThat(status(child)).isEqualTo("DA_DUYET");
+  }
+
+  /** CORE-01-12: giao quyền check-in thay có hạn, thu hồi, hết hạn. */
+  @Test
+  void uyQuyenCheckinThayCoThoiHan() throws Exception {
+    UUID id = pending(UUID.randomUUID(), AUTHOR);
+    assertThat(approve(id, "\"0\"", null).getResponse().getStatus()).isEqualTo(200);
+    UUID kr = krOf(id, "KR 1.2");
+    UUID delegate = UUID.randomUUID();
+    String until =
+        java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).plusDays(5).toString();
+
+    MvcResult notOwner = delegate(kr, "\"" + krVersion(kr) + "\"", delegate, until);
+    assertThat(notOwner.getResponse().getStatus()).isEqualTo(403);
+
+    CALLER.set(AUTHOR);
+    MvcResult set = delegate(kr, "\"" + krVersion(kr) + "\"", delegate, until);
+    assertThat(set.getResponse().getStatus()).isEqualTo(200);
+    assertThat(body(set).at("/checkinDelegate/id").asText()).isEqualTo(delegate.toString());
+    assertResponseConforms(set, "/okr/key-results/{id}/checkin-delegate", PathItem.HttpMethod.PUT);
+
+    CALLER.set(delegate);
+    MvcResult onBehalf = checkin(kr, "4");
+    assertThat(onBehalf.getResponse().getStatus()).isEqualTo(201);
+    assertThat(body(onBehalf).at("/checkin/onBehalf").asBoolean()).isTrue();
+    MvcResult mine = perform(get("/api/v1/okr/key-results?owner=me&period=" + period));
+    assertThat(mine.getResponse().getContentAsString(StandardCharsets.UTF_8))
+        .contains(kr.toString());
+
+    CALLER.set(UUID.randomUUID());
+    assertThat(checkin(kr, "5").getResponse().getStatus()).isEqualTo(403);
+
+    CALLER.set(AUTHOR);
+    MvcResult revoked =
+        perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(
+                    "/api/v1/okr/key-results/" + kr + "/checkin-delegate")
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .header("If-Match", "\"" + krVersion(kr) + "\""));
+    assertThat(revoked.getResponse().getStatus()).isEqualTo(200);
+    assertThat(
+            body(revoked).path("checkinDelegate").isMissingNode()
+                || body(revoked).path("checkinDelegate").isNull())
+        .isTrue();
+    CALLER.set(delegate);
+    assertThat(checkin(kr, "6").getResponse().getStatus()).isEqualTo(403);
+
+    // Giao lại rồi để quá hạn: người được giao bị chặn.
+    CALLER.set(AUTHOR);
+    assertThat(delegate(kr, "\"" + krVersion(kr) + "\"", delegate, until).getResponse().getStatus())
+        .isEqualTo(200);
+    inTenant(
+        jdbc ->
+            jdbc.sql(
+                    "UPDATE okr.kr_checkin_delegate SET valid_until = current_date - 2"
+                        + " WHERE key_result_id = ? AND revoked_at IS NULL")
+                .param(kr)
+                .update());
+    CALLER.set(delegate);
+    assertThat(checkin(kr, "7").getResponse().getStatus()).isEqualTo(403);
+    long history =
+        inTenant(
+            jdbc ->
+                jdbc.sql("SELECT count(*) FROM okr.kr_checkin_delegate WHERE key_result_id = ?")
+                    .param(kr)
+                    .query(Long.class)
+                    .single());
+    assertThat(history).isEqualTo(2);
+  }
+
+  private UUID krOf(UUID objective, String code) throws Exception {
+    return inTenant(
+        jdbc ->
+            jdbc.sql("SELECT id FROM okr.key_result WHERE objective_id = ? AND code = ?")
+                .params(objective, code)
+                .query(UUID.class)
+                .single());
+  }
+
+  private long krVersion(UUID kr) throws Exception {
+    return inTenant(
+        jdbc ->
+            jdbc.sql("SELECT row_version FROM okr.key_result WHERE id = ?")
+                .param(kr)
+                .query(Long.class)
+                .single());
+  }
+
+  private MvcResult delegate(UUID kr, String ifMatch, UUID person, String until) throws Exception {
+    return perform(
+        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                "/api/v1/okr/key-results/" + kr + "/checkin-delegate")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .header("If-Match", ifMatch)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(
+                json.createObjectNode()
+                    .put("delegatePersonId", person.toString())
+                    .put("validUntil", until)
+                    .put("reason", "Chủ sở hữu đi công tác dài ngày.")
+                    .toString()));
+  }
+
+  private MvcResult checkin(UUID kr, String value) throws Exception {
+    ObjectNode b = json.createObjectNode();
+    b.put("status", "DA_GUI")
+        .put("value", new java.math.BigDecimal(value))
+        .put("confidence", "CAO")
+        .put("channel", "WEB");
+    return perform(
+        post("/api/v1/okr/key-results/" + kr + "/checkins")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(b.toString()));
   }
 
   private List<String> listCodes(UUID unit) throws Exception {
