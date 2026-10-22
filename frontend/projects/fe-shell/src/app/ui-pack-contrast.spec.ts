@@ -17,7 +17,9 @@ describe('UI Pack mặc định: tương phản token', () => {
   const pinkActive = mixHex(v(c, 'primary'), 0.1, v(c, 'surface'));
 
   it('chế độ thường đạt 4,5:1', () => {
-    expect(contrastRatio(v(c, 'onPrimaryStrong'), v(c, 'primaryStrong'))).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(v(c, 'onPrimaryStrong'), v(c, 'primaryStrong'))).toBeGreaterThanOrEqual(
+      4.5,
+    );
     expect(contrastRatio(v(c, 'primaryStrong'), v(c, 'surface'))).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(v(c, 'primaryStrong'), pinkActive)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(v(c, 'textMuted'), v(c, 'background'))).toBeGreaterThanOrEqual(4.5);

@@ -24,6 +24,7 @@ import { visibleNav } from './nav';
 import { AppStatusBanner } from './app-status-banner';
 import { GlobalSearch } from './global-search';
 import { NotificationBell } from './notification-bell';
+import { PluginHost } from '../plugins/plugin-host';
 
 /** Khung ứng dụng: thanh trên, menu bên, vùng nội dung (dùng cho mọi màn hình sau đăng nhập). */
 @Component({
@@ -79,9 +80,12 @@ export class ShellLayout {
   protected readonly platformNav = computed(() =>
     this.nav().filter((i) => i.section === 'platform'),
   );
-  protected readonly workspaceNav = computed(() =>
-    this.nav().filter((i) => i.section !== 'platform'),
-  );
+  private readonly plugins = inject(PluginHost);
+  /** Mục của plugin chuyên ngành (WEB-051) đứng cuối nhóm "Không gian làm việc". */
+  protected readonly workspaceNav = computed(() => [
+    ...this.nav().filter((i) => i.section !== 'platform'),
+    ...this.plugins.navItems(),
+  ]);
   protected readonly initials = computed(() =>
     (this.session.user()?.name ?? '?')
       .split(' ')

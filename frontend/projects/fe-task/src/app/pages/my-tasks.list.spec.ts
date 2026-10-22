@@ -14,7 +14,10 @@ describe('MY_TASKS_CODEC (CNH-04)', () => {
   });
 
   it('điều kiện không còn hợp lệ bị bỏ qua và được đếm', () => {
-    const r = MY_TASKS_CODEC.fromCriteria({ flags: { quick_KHONG_CO: true, role_CHU_TRI: true }, periodIds: [] });
+    const r = MY_TASKS_CODEC.fromCriteria({
+      flags: { quick_KHONG_CO: true, role_CHU_TRI: true },
+      periodIds: [],
+    });
     expect(r.state.role).toBe('CHU_TRI');
     expect(r.state.filter).toBe('TAT_CA');
     expect(r.dropped).toBe(2);

@@ -39,7 +39,11 @@ describe('DefaultDashboardStore (CNH-03)', () => {
     const { api, store } = setup({});
     store.load().subscribe();
     store.set('d1').subscribe();
-    expect(api.put).toHaveBeenCalledWith('ui.dashboard.default', { defaultDashboardId: 'd1' }, null);
+    expect(api.put).toHaveBeenCalledWith(
+      'ui.dashboard.default',
+      { defaultDashboardId: 'd1' },
+      null,
+    );
     store.set(null).subscribe();
     expect(api.remove).toHaveBeenCalledWith('ui.dashboard.default', 4);
     expect(store.defaultId()).toBeNull();

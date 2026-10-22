@@ -19,7 +19,7 @@ import {
 import { ORG_ME, ORG_PERSONS, ORG_UNITS, WEEK_LABELS, WEEKLY_THRESHOLD } from '../org/org.mock';
 import { approvedPlanItems } from '../plans/plans.mock';
 import fixture from './tasks.json';
-import { workingDaysBetween } from './tasks.mock';
+import { workingDaysBetween } from './working-days';
 
 /**
  * Giả lập phần giao việc của `/api/v1/tasks` (QT-05, SCR-0501, WEB-028): soạn, lưu nháp, kiểm tra

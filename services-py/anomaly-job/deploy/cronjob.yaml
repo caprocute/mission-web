@@ -1,0 +1,42 @@
+# DV-15-07 · SVC-15 · QT-14 bước 1: job phát hiện bất thường chạy 02:00 hằng đêm, một CronJob cho mỗi cell.
+# Chart vt-service và Secret từ OpenBao (ExternalSecret) do INF chốt; tệp này là mẫu, chưa áp ở cụm nào.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: anomaly-job
+  labels: {app.kubernetes.io/name: anomaly-job, app.kubernetes.io/part-of: svc-15}
+spec:
+  schedule: "0 2 * * *"
+  timeZone: Asia/Ho_Chi_Minh
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels: {app.kubernetes.io/name: anomaly-job}
+        spec:
+          restartPolicy: Never
+          securityContext: {runAsNonRoot: true, runAsUser: 65532, seccompProfile: {type: RuntimeDefault}}
+          containers:
+            - name: anomaly-job
+              image: anomaly-job:0.1.0
+              securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+              resources:
+                requests: {cpu: 100m, memory: 128Mi}
+                limits: {cpu: "1", memory: 512Mi}
+              env:
+                - {name: ANALYTICS_CELL, value: "<cell>"}
+                - {name: CLICKHOUSE_URL, value: "https://clickhouse.analytics.svc:8443"}
+                - {name: KAFKA_BOOTSTRAP_SERVERS, value: "<cell>-kafka-bootstrap.kafka.svc:9093"}
+                - {name: KAFKA_SECURITY_PROTOCOL, value: SSL}
+                - {name: REGISTRY_URL, value: "http://apicurio-registry.registry.svc:8080/apis/registry/v3"}
+                - {name: CONFIG_API_URL, value: "http://mission-core.core.svc:8080"}
+                - {name: OIDC_TOKEN_URL, value: "https://keycloak.iam.svc/realms/mission/protocol/openid-connect/token"}
+                - {name: OIDC_CLIENT_ID, value: anomaly-job}
+              envFrom:
+                - secretRef: {name: anomaly-job}   # CLICKHOUSE_PASSWORD, OIDC_CLIENT_SECRET

@@ -7,7 +7,11 @@ import { VtSavedFiltersComponent } from './vt-saved-filters.component';
 @Component({
   imports: [VtColumnPickerComponent, VtSavedFiltersComponent],
   template: `
-    <vt-column-picker [columns]="cols" [visible]="visible()" (visibleChange)="visible.set($event)" />
+    <vt-column-picker
+      [columns]="cols"
+      [visible]="visible()"
+      (visibleChange)="visible.set($event)"
+    />
     <vt-saved-filters
       [filters]="filters"
       [activeId]="active()"
@@ -35,7 +39,9 @@ function render() {
   return { f, el: f.nativeElement as HTMLElement };
 }
 const btn = (el: HTMLElement, text: string) =>
-  [...el.querySelectorAll('button')].find((b) => b.textContent?.includes(text)) as HTMLButtonElement;
+  [...el.querySelectorAll('button')].find((b) =>
+    b.textContent?.includes(text),
+  ) as HTMLButtonElement;
 
 describe('vt-column-picker và vt-saved-filters (CNH-04)', () => {
   it('chọn cột: cột bắt buộc không bỏ được, Esc đóng và trả tiêu điểm', async () => {
@@ -48,7 +54,9 @@ describe('vt-column-picker và vt-saved-filters (CNH-04)', () => {
     expect(boxes[0].disabled).toBe(true);
     boxes[1].click();
     expect(f.componentInstance.visible()).toEqual(['name']);
-    el.querySelector('vt-column-picker')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    el.querySelector('vt-column-picker')!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape' }),
+    );
     await f.whenStable();
     expect(el.querySelector('vt-column-picker fieldset')).toBeNull();
     expect(document.activeElement).toBe(trigger);

@@ -1,4 +1,9 @@
-import { EVIDENCE_STATUS_LABEL, EvidenceVersionStatus, FilterCodec, ListColumnDef } from '@vt/api-client';
+import {
+  EVIDENCE_STATUS_LABEL,
+  EvidenceVersionStatus,
+  FilterCodec,
+  ListColumnDef,
+} from '@vt/api-client';
 
 /** Mã màn hình dùng cho tuỳ chọn cột và bộ lọc đã lưu của "Minh chứng của tôi" (CNH-04). */
 export const EVIDENCE_LIST_SCREEN = 'SCR-0701';

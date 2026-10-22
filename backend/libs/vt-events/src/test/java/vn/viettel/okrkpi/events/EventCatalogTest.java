@@ -144,7 +144,8 @@ class EventCatalogTest {
 
   @Test
   void du26MaEvtTheoThuTuVaKhongTrung() {
-    assertEquals(26, events.size(), "Danh mục phải có đúng 26 sự kiện nghiệp vụ");
+    assertEquals(
+        27, events.size(), "Danh mục phải có đúng 27 sự kiện nghiệp vụ (EVT-27 cấp theo WEB-058)");
     for (int i = 0; i < events.size(); i++) {
       assertEquals(String.format(Locale.ROOT, "EVT-%02d", i + 1), str(events.get(i), "code"));
     }
@@ -297,7 +298,8 @@ class EventCatalogTest {
     assertEquals(business.size() + tech.size(), constants.size());
     assertEquals("task.task.progressed.v1", EventTopics.EVT_05_TIEN_DO_DA_CAP_NHAT);
     assertEquals("period.drain.marker", EventTopics.PERIOD_DRAIN_MARKER);
-    assertTrue(EventTopics.topicOf("EVT-27").isEmpty());
+    assertEquals("config.access.changed.v1", EventTopics.EVT_27_VAI_TRO_DA_THAY_DOI);
+    assertTrue(EventTopics.topicOf("EVT-28").isEmpty());
   }
 
   @Test

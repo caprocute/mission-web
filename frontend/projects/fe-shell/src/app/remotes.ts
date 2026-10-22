@@ -12,6 +12,8 @@ export function remoteRoutes(remoteName: string, exposed = './routes'): () => Pr
       .then((m) => (m.default ?? m.TASK_ROUTES ?? m.ROUTES) as Routes)
       .catch((err) => {
         console.error(`[federation] Không nạp được ${remoteName}`, err);
-        return import('./pages/remote-unavailable.page').then((p) => [{ path: '**', component: p.RemoteUnavailablePage, data: { remoteName } }]);
+        return import('./pages/remote-unavailable.page').then((p) => [
+          { path: '**', component: p.RemoteUnavailablePage, data: { remoteName } },
+        ]);
       });
 }

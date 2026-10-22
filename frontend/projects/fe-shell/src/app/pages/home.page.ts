@@ -32,14 +32,21 @@ const HOME_KEY = 'ui.home.layout';
  */
 @Component({
   selector: 'vt-home-page',
-  imports: [SduiOutletComponent, SduiNodeComponent, RouterLink, ButtonModule, ConflictNoticeComponent],
+  imports: [
+    SduiOutletComponent,
+    SduiNodeComponent,
+    RouterLink,
+    ButtonModule,
+    ConflictNoticeComponent,
+  ],
   template: `
     <header class="vt-hero-banner">
       <div>
         <span class="vt-hero-kicker">Bàn làm việc điều hành · Kỳ đánh giá 2026</span>
         <h1>Xin chào, {{ fullName() }}</h1>
         <p class="muted">
-          Dưới đây là những việc đồng chí cần quan tâm hôm nay và lối tắt tới khung cấu hình nền tảng.
+          Dưới đây là những việc đồng chí cần quan tâm hôm nay và lối tắt tới khung cấu hình nền
+          tảng.
         </p>
       </div>
       <div class="hero-actions">
@@ -64,7 +71,9 @@ const HOME_KEY = 'ui.home.layout';
           <span class="p-icon p-icon--rose" aria-hidden="true"><i class="pi pi-sitemap"></i></span>
           <span class="p-copy">
             <strong>Chính sách &amp; Luồng quy trình động</strong>
-            <small>Thiết kế quy trình phê duyệt, công thức điểm và bảng xếp loại QĐ 366-QĐ/TW</small>
+            <small
+              >Thiết kế quy trình phê duyệt, công thức điểm và bảng xếp loại QĐ 366-QĐ/TW</small
+            >
           </span>
         </a>
         <a routerLink="/admin/org" class="p-card">
@@ -82,7 +91,9 @@ const HOME_KEY = 'ui.home.layout';
           </span>
         </a>
         <a routerLink="/tasks" class="p-card">
-          <span class="p-icon p-icon--emerald" aria-hidden="true"><i class="pi pi-check-square"></i></span>
+          <span class="p-icon p-icon--emerald" aria-hidden="true"
+            ><i class="pi pi-check-square"></i
+          ></span>
           <span class="p-copy">
             <strong>Không gian công việc &amp; Mục tiêu OKR</strong>
             <small>Xử lý nhiệm vụ hằng ngày trong ≤ 3 chạm và cập nhật tiến độ kết quả</small>
@@ -113,8 +124,8 @@ const HOME_KEY = 'ui.home.layout';
         <section class="home-editor" aria-labelledby="home-editor-title" data-testid="home-editor">
           <h3 id="home-editor-title">Sắp xếp các khối trên trang chủ</h3>
           <p class="muted">
-            Dùng nút mũi tên để đổi thứ tự, nút con mắt để ẩn hoặc hiện. Phần xem trước bên dưới thay đổi
-            ngay; bấm "Lưu" để áp dụng trên mọi thiết bị.
+            Dùng nút mũi tên để đổi thứ tự, nút con mắt để ẩn hoặc hiện. Phần xem trước bên dưới
+            thay đổi ngay; bấm "Lưu" để áp dụng trên mọi thiết bị.
           </p>
           @if (conflict()) {
             <vt-conflict-notice
@@ -164,7 +175,13 @@ const HOME_KEY = 'ui.home.layout';
             }
           </ol>
           <div class="editor-footer">
-            <p-button label="Lưu" icon="pi pi-check" [loading]="saving()" (onClick)="save(false)" data-testid="home-save" />
+            <p-button
+              label="Lưu"
+              icon="pi pi-check"
+              [loading]="saving()"
+              (onClick)="save(false)"
+              data-testid="home-save"
+            />
             <p-button label="Huỷ" severity="secondary" [text]="true" (onClick)="cancel()" />
             @if (pref()) {
               <p-button
@@ -259,7 +276,10 @@ const HOME_KEY = 'ui.home.layout';
       text-decoration: none;
       color: inherit;
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        border-color 0.15s ease;
     }
     .p-card:hover {
       transform: translateY(-2px);
@@ -276,10 +296,22 @@ const HOME_KEY = 'ui.home.layout';
       font-size: 1.1rem;
       flex-shrink: 0;
     }
-    .p-icon--rose { background: #ffe4e6; color: #e11d48; }
-    .p-icon--blue { background: #dbeafe; color: #2563eb; }
-    .p-icon--amber { background: #fef3c7; color: #d97706; }
-    .p-icon--emerald { background: #d1fae5; color: #059669; }
+    .p-icon--rose {
+      background: #ffe4e6;
+      color: #e11d48;
+    }
+    .p-icon--blue {
+      background: #dbeafe;
+      color: #2563eb;
+    }
+    .p-icon--amber {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    .p-icon--emerald {
+      background: #d1fae5;
+      color: #059669;
+    }
     .p-copy {
       display: flex;
       flex-direction: column;
@@ -387,7 +419,9 @@ export class HomePage {
     return map;
   });
 
-  protected readonly draftOverlay = computed(() => toOverlay(this.items(), this.overlayOf(this.pref())));
+  protected readonly draftOverlay = computed(() =>
+    toOverlay(this.items(), this.overlayOf(this.pref())),
+  );
 
   protected readonly shown = computed(() => {
     const root = this.layout.value()?.layout;

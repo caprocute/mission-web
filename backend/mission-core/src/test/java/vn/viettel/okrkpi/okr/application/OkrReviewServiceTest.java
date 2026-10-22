@@ -237,6 +237,37 @@ class OkrReviewServiceTest {
   }
 
   @Test
+  void pheDuyetVaLichSuMangDauVetNoiDungAi() {
+    var traces =
+        org.mockito.Mockito.mock(vn.viettel.okrkpi.okr.application.port.OkrAiTraceRepository.class);
+    var trace =
+        new vn.viettel.okrkpi.okr.application.port.OkrAiTraceRepository.AiTrace(
+            ID,
+            null,
+            UUID.randomUUID(),
+            "AI_ACCEPTED",
+            List.of("title"),
+            List.of(),
+            Instant.parse("2027-01-05T03:00:00Z"),
+            AUTHOR,
+            2);
+    when(traces.traces(TENANT, ID)).thenReturn(List.of(trace));
+    OkrReviewService withAi =
+        new OkrReviewService(
+            reviews, reads, checks, periods, events, () -> signal, published::add, traces);
+    withAi.approve(TENANT, REVIEWER, ID, 2, null, false);
+    verify(events).approved(eq(TENANT), any(), eq(REVIEWER), any(), eq(3L), eq(List.of(trace)));
+
+    ObjectiveRow row = mock(ObjectiveRow.class);
+    when(row.createdAt()).thenReturn(Instant.parse("2027-01-05T02:00:00Z"));
+    when(row.createdBy()).thenReturn(AUTHOR);
+    when(reads.objectiveRow(TENANT, ID)).thenReturn(Optional.of(row));
+    assertThat(withAi.history(TENANT, ID, null, null, 10))
+        .extracting(OkrReviewService.HistoryEntry::action)
+        .containsExactly("LUU_NHAP", "TAO");
+  }
+
+  @Test
   void lichSuMoiNhatTruocVaPhanTrang() {
     Instant created = Instant.parse("2027-01-05T02:00:00Z");
     ObjectiveRow row = mock(ObjectiveRow.class);

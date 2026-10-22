@@ -122,7 +122,7 @@ def analytics() -> Iterator[Analytics]:
             "ANALYTICS_DICT_PASSWORD": secrets.token_hex(16),
         })
         migrate.migrate(migrate.ClickHouse(http, "default", admin_pw, distributed_ddl_task_timeout="300"), params)
-        assert len(topics) == 17
+        assert len(topics) == 18
         yield Analytics(http, admin_pw, params, bootstrap)
     finally:
         ch.stop()
@@ -149,11 +149,11 @@ def _wait_clickhouse(http: str, password: str) -> None:
 def _create_topics(bootstrap: str) -> list[str]:
     from confluent_kafka.admin import AdminClient, NewTopic
 
-    sql = (ROOT / "migrations" / "V005__nguon_cdc_kafka.sql").read_text(encoding="utf-8")
+    sql = "\n".join(f.read_text(encoding="utf-8") for f in sorted((ROOT / "migrations").glob("V*.sql")))
     import re
 
-    names = [t.replace("{{topic_core}}", "cdc.tenant_data").replace("{{topic_org}}", "cdc.org")
-             for t in re.findall(r"kafka_topic_list = '([^']+)'", sql)]
+    names = list(dict.fromkeys(t.replace("{{topic_core}}", "cdc.tenant_data").replace("{{topic_org}}", "cdc.org")
+                               for t in re.findall(r"kafka_topic_list = '([^']+)'", sql)))
     admin = AdminClient({"bootstrap.servers": bootstrap})
     deadline = time.monotonic() + 60
     while True:

@@ -29,7 +29,7 @@ import catalogFixture from '../catalog/catalog.json';
 import okrFixture from '../okr/okr.json';
 import orgFixture from '../org/org.json';
 import { MOCK_ME, mockSession } from '../mock-session';
-import { workingDaysBetween } from '../tasks/tasks.mock';
+import { workingDaysBetween } from '../tasks/working-days';
 import fixture from './plans.json';
 
 /**

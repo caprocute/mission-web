@@ -2,8 +2,8 @@
 
 Sinh cấu hình connector Debezium phân tích cho từng CSDL từ chú thích phân loại `COMMENT ON COLUMN ... '{"cls":..}'`:
 
-- `table.include.list`: các bảng mà kho ClickHouse đọc (lấy từ `kafka_topic_list` của
-  analytics/clickhouse/migrations/V005__nguon_cdc_kafka.sql, nên hai phía không lệch nhau);
+- `table.include.list`: các bảng mà kho ClickHouse đọc (lấy từ `kafka_topic_list` của V005 và các migration sau trong
+  analytics/clickhouse/migrations, nên hai phía không lệch nhau);
 - `column.exclude.list`: mọi cột C3, cột C2, cột `_enc`, `_bidx`, cột đánh dấu `pii` và thuộc tính định danh trực tiếp
   không có cách giả danh;
 - danh sách cột mã người cho bộ biến đổi `TenantPseudonymize` (băm HMAC có muối theo tenant). TL-03 ghi
@@ -47,6 +47,7 @@ TOPIC_DB = {"core": "tenant_data", "org": "org"}
 PERSON_COLUMNS = frozenset({
     "person_id", "actor_id", "created_by", "updated_by", "assigner_id", "acceptor_id", "verified_by", "approved_by",
     "owner_person_id", "verifier_person_id", "appraiser_id", "decider_id", "locked_by", "submitted_by", "reviewer_id",
+    "decided_by", "approver_id",
 })
 # Bảng mà khoá chính là mã người.
 PERSON_TABLES = frozenset({("org_replica", "person_v")})
@@ -70,11 +71,14 @@ class Table:
 
 
 def wanted_tables(v005: pathlib.Path = V005) -> dict[str, list[tuple[str, str]]]:
-    """CSDL -> danh sách (schema, bảng) theo thứ tự xuất hiện trong V005 của kho ClickHouse."""
+    """CSDL -> danh sách (schema, bảng) theo thứ tự xuất hiện trong V005 và các migration sau của kho ClickHouse."""
     out: dict[str, list[tuple[str, str]]] = {}
-    for prefix, schema, table in re.findall(r"kafka_topic_list = '\{\{topic_(\w+)\}\}\.(\w+)\.(\w+)'",
-                                            v005.read_text(encoding="utf-8")):
-        out.setdefault(TOPIC_DB[prefix], []).append((schema, table))
+    files = [f for f in sorted(v005.parent.glob("V*.sql")) if f.name >= v005.name]
+    for f in files:
+        for prefix, schema, table in re.findall(r"kafka_topic_list = '\{\{topic_(\w+)\}\}\.(\w+)\.(\w+)'",
+                                                f.read_text(encoding="utf-8")):
+            if (schema, table) not in out.setdefault(TOPIC_DB[prefix], []):
+                out[TOPIC_DB[prefix]].append((schema, table))
     return out
 
 

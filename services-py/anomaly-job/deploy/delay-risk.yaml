@@ -1,0 +1,35 @@
+# DV-15-10 · SVC-15 · QT-06 bước 2: dịch vụ dự báo trễ hạn, tiêu thụ EVT-05 task.task.progressed.v1, một Deployment cho
+# mỗi cell (nhóm tiêu thụ svc15-delay-risk-<cell>). Chart, ExternalSecret, NetworkPolicy do INF chốt; tệp này là mẫu.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: delay-risk
+  labels: {app.kubernetes.io/name: delay-risk, app.kubernetes.io/part-of: svc-15}
+spec:
+  replicas: 1   # tăng tới số phân vùng của topic; mỗi bản sao nhận một phần phân vùng
+  selector:
+    matchLabels: {app.kubernetes.io/name: delay-risk}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: delay-risk}
+    spec:
+      securityContext: {runAsNonRoot: true, runAsUser: 65532, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: delay-risk
+          image: anomaly-job:0.1.0
+          command: ["python", "-m", "app.delay_risk.main"]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 256Mi}
+          env:
+            - {name: ANALYTICS_CELL, value: "<cell>"}
+            - {name: CLICKHOUSE_URL, value: "https://clickhouse.analytics.svc:8443"}
+            - {name: KAFKA_BOOTSTRAP_SERVERS, value: "<cell>-kafka-bootstrap.kafka.svc:9093"}
+            - {name: KAFKA_SECURITY_PROTOCOL, value: SSL}
+            - {name: CORE_API_URL, value: "http://mission-core.core.svc:8080"}
+            - {name: OIDC_TOKEN_URL, value: "https://keycloak.iam.svc/realms/mission/protocol/openid-connect/token"}
+            - {name: OIDC_CLIENT_ID, value: delay-risk}
+            - {name: DELAY_RISK_MAX_WAIT_S, value: "240"}
+          envFrom:
+            - secretRef: {name: delay-risk}   # CLICKHOUSE_PASSWORD, OIDC_CLIENT_SECRET

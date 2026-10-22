@@ -35,7 +35,12 @@ describe('prospect-rules (WEB-039)', () => {
     expect(up.filter((c) => c.group === 'NHOM_2').map((c) => c.personId)).toEqual(['c', 'b']);
     const across = moveCard(cards, 'd', 'NHOM_1', 0);
     expect(across.filter((c) => c.group === 'NHOM_1').map((c) => c.personId)).toEqual(['d', 'a']);
-    expect(rankOf(across, across.find((c) => c.personId === 'a')!)).toBe(2);
+    expect(
+      rankOf(
+        across,
+        across.find((c) => c.personId === 'a')!,
+      ),
+    ).toBe(2);
     expect(toInput(across).entries.map((e) => [e.personId, e.groupCode, e.rankInGroup])).toEqual([
       ['d', 'NHOM_1', 1],
       ['a', 'NHOM_1', 2],

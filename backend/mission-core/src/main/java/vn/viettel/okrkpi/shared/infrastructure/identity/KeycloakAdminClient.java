@@ -121,6 +121,54 @@ public class KeycloakAdminClient {
         });
   }
 
+  /** Tên vai trò realm đang gán trực tiếp cho người dùng (CORE-08-16). */
+  public List<String> realmRolesOf(UUID userId) {
+    return call(
+        () -> {
+          List<Map<String, Object>> roles =
+              admin().get().uri("/users/{id}/role-mappings/realm", userId).retrieve().body(LIST);
+          List<String> out = new ArrayList<>();
+          if (roles != null) {
+            for (Map<String, Object> r : roles) {
+              out.add(String.valueOf(r.get("name")));
+            }
+          }
+          return out;
+        });
+  }
+
+  /** Gán vai trò realm {@code role} cho người dùng; đã có thì Keycloak bỏ qua. */
+  public void addRealmRole(UUID userId, String role) {
+    call(
+        () -> {
+          Map<String, Object> rep = admin().get().uri("/roles/{role}", role).retrieve().body(MAP);
+          admin()
+              .post()
+              .uri("/users/{id}/role-mappings/realm", userId)
+              .contentType(MediaType.APPLICATION_JSON)
+              .body(List.of(rep == null ? Map.of("name", role) : rep))
+              .retrieve()
+              .toBodilessEntity();
+          return null;
+        });
+  }
+
+  /** Gỡ vai trò realm {@code role} khỏi người dùng; chưa có thì Keycloak bỏ qua. */
+  public void removeRealmRole(UUID userId, String role) {
+    call(
+        () -> {
+          Map<String, Object> rep = admin().get().uri("/roles/{role}", role).retrieve().body(MAP);
+          admin()
+              .method(org.springframework.http.HttpMethod.DELETE)
+              .uri("/users/{id}/role-mappings/realm", userId)
+              .contentType(MediaType.APPLICATION_JSON)
+              .body(List.of(rep == null ? Map.of("name", role) : rep))
+              .retrieve()
+              .toBodilessEntity();
+          return null;
+        });
+  }
+
   public String passwordChangeUrl() {
     return "/realms/" + props.realm() + "/login-actions/required-action?execution=UPDATE_PASSWORD";
   }

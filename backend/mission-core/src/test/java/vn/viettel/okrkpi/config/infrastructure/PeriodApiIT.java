@@ -72,10 +72,14 @@ class PeriodApiIT extends ContractConformanceTest {
     static volatile String acr;
     static volatile Long authTime;
 
+    /** Vai trò của ngữ cảnh đang chọn (IT quản trị vai trò CORE-08-16). */
+    static volatile java.util.List<String> roles = java.util.List.of();
+
     static void reset() {
       current = ACTOR;
       acr = null;
       authTime = null;
+      roles = java.util.List.of();
     }
 
     @Bean
@@ -94,6 +98,11 @@ class PeriodApiIT extends ContractConformanceTest {
         @Override
         public Optional<Long> authTime() {
           return Optional.ofNullable(authTime);
+        }
+
+        @Override
+        public java.util.List<String> roles() {
+          return roles;
         }
       };
     }

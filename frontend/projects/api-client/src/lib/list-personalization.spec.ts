@@ -58,24 +58,39 @@ interface S {
 }
 const CODEC: FilterCodec<S> = {
   toCriteria: (s) => (s.status ? { statusCodes: [s.status] } : {}),
-  fromCriteria: (c) => ({ state: { status: c.statusCodes?.[0] ?? null }, dropped: c.flags ? 1 : 0 }),
+  fromCriteria: (c) => ({
+    state: { status: c.statusCodes?.[0] ?? null },
+    dropped: c.flags ? 1 : 0,
+  }),
 };
 
 function setup(filters: unknown[], table: unknown = null) {
   const api = {
     all: vi.fn(() => of({ schemaVersion: 1, items: table ? { 'ui.table.SCR-0101': table } : {} })),
     filters: vi.fn(() => of(filters)),
-    put: vi.fn((_k: string, value: object) => of({ prefKey: 'ui.table.SCR-0101', value, schemaVersion: 1, rowVersion: 2 })),
+    put: vi.fn((_k: string, value: object) =>
+      of({ prefKey: 'ui.table.SCR-0101', value, schemaVersion: 1, rowVersion: 2 }),
+    ),
     createFilter: vi.fn((input: { name: string }) => of({ ...input, id: 'f9', rowVersion: 1 })),
     updateFilter: vi.fn(() => of({})),
     removeFilter: vi.fn(() => of(undefined)),
   };
   TestBed.configureTestingModule({ providers: [{ provide: PreferenceApi, useValue: api }] });
-  const list = TestBed.runInInjectionContext(() => createListPersonalization('SCR-0101', COLS, CODEC));
+  const list = TestBed.runInInjectionContext(() =>
+    createListPersonalization('SCR-0101', COLS, CODEC),
+  );
   return { api, list };
 }
 
-const F1 = { id: 'f1', screenCode: 'SCR-0101', name: 'Đang vận hành', criteria: { statusCodes: ['DANG_VAN_HANH'], flags: { x: true } }, isDefault: true, displayOrder: 0, rowVersion: 3 };
+const F1 = {
+  id: 'f1',
+  screenCode: 'SCR-0101',
+  name: 'Đang vận hành',
+  criteria: { statusCodes: ['DANG_VAN_HANH'], flags: { x: true } },
+  isDefault: true,
+  displayOrder: 0,
+  rowVersion: 3,
+};
 
 describe('ListPersonalization (CNH-04)', () => {
   it('áp bộ lọc mặc định khi tải, báo điều kiện bị bỏ qua', () => {
@@ -88,10 +103,19 @@ describe('ListPersonalization (CNH-04)', () => {
   });
 
   it('lưu cột với If-Match theo phiên bản đã đọc và giữ cột bắt buộc', () => {
-    const { api, list } = setup([], { prefKey: 'ui.table.SCR-0101', value: { pageSize: 50 }, schemaVersion: 1, rowVersion: 7 });
+    const { api, list } = setup([], {
+      prefKey: 'ui.table.SCR-0101',
+      value: { pageSize: 50 },
+      schemaVersion: 1,
+      rowVersion: 7,
+    });
     list.load();
     list.setVisible(['b']);
-    expect(api.put).toHaveBeenCalledWith('ui.table.SCR-0101', { pageSize: 50, visibleColumns: ['name', 'b'] }, 7);
+    expect(api.put).toHaveBeenCalledWith(
+      'ui.table.SCR-0101',
+      { pageSize: 50, visibleColumns: ['name', 'b'] },
+      7,
+    );
     expect(list.visible()).toEqual(['name', 'b']);
   });
 
@@ -107,9 +131,17 @@ describe('ListPersonalization (CNH-04)', () => {
       displayOrder: 1,
     });
     list.rename('f1', 'Tên khác');
-    expect(api.updateFilter).toHaveBeenCalledWith('f1', expect.objectContaining({ name: 'Tên khác' }), 3);
+    expect(api.updateFilter).toHaveBeenCalledWith(
+      'f1',
+      expect.objectContaining({ name: 'Tên khác' }),
+      3,
+    );
     list.toggleDefault('f1');
-    expect(api.updateFilter).toHaveBeenLastCalledWith('f1', expect.objectContaining({ isDefault: false }), 3);
+    expect(api.updateFilter).toHaveBeenLastCalledWith(
+      'f1',
+      expect.objectContaining({ isDefault: false }),
+      3,
+    );
     list.remove('f1');
     expect(api.removeFilter).toHaveBeenCalledWith('f1', 3);
   });
