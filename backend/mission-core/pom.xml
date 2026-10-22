@@ -23,7 +23,7 @@
   <properties>
     <main.class>vn.viettel.okrkpi.MissionCoreApplication</main.class>
     <jib.skip>false</jib.skip>
-    <!-- CORE-02-04: đọc, ghi .xlsx theo luồng (Apache 2.0); chờ người phụ trách duyệt. -->
+    <!-- CORE-02-04: đọc, ghi .xlsx theo luồng (Apache 2.0); người phụ trách đã duyệt 22/10/2026. -->
     <fastexcel.version>0.18.4</fastexcel.version>
   </properties>
 
