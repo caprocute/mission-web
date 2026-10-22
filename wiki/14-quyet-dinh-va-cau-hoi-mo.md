@@ -739,6 +739,14 @@ Hai câu hỏi TL chưa trả lời được chốt tạm (suy luận, chờ ng�
 
 Quyết định về kiểm tương thích hợp đồng (NEN-044, luồng chính duyệt 22/10/2026): thêm giá trị enum vào lược đồ phản hồi là thay đổi tương thích theo quy ước API-first của dự án, vì client phải chịu được giá trị lạ, nên `ci/vt-pipeline/resources/vn/vt/pipeline/openapi-diff.sh` chạy openapi-diff với `--config-prop incompatible.response.enum.increased:false`; xoá giá trị enum hay thêm giá trị enum ở yêu cầu vẫn bị chặn.
 
+### Ghi chú và quyết định từ xoay vòng khoá dữ liệu (DL-14, 22/10/2026)
+
+Thư viện `backend/libs/key-rotation` (artifact `vt-key-rotation`) được khai trong `backend/libs/pom.xml` như mọi thư viện khác, không khai trực tiếp trong `backend/pom.xml` như thẻ task ghi; cách này giữ đúng cây mô-đun hiện có. Không thêm phụ thuộc ngoài: thư viện dùng lại `DekService`, `FieldEncryptor`, client Transit của NEN-015, Spring JDBC và Micrometer đã có.
+
+Bốn điểm thiết kế được chốt tạm (suy luận, chờ người phụ trách). Thứ nhất, ràng buộc duy nhất `(tenant_id, purpose, valid_month)` của `keyring.dek` (TL-03) không cho có DEK thay thế trong cùng tháng, nên mã hoá lại từ chối khi DEK nghi lộ là DEK `ACTIVE` của tháng hiện tại; muốn hỗ trợ trường hợp này phải đổi ràng buộc trong TL-03 (ví dụ thêm cột thế hệ). Thứ hai, DEK `BLIND_INDEX` (tháng neo 1970-01-01) không mã hoá lại bằng job này, vì chỉ mục mù cần tính lại toàn bộ cột `_bidx` từ bản rõ. Thứ ba, danh sách tenant của một CSDL lấy từ tệp (ConfigMap) vì RLS FORCE của `keyring.dek` không cho liệt kê chéo tenant; nguồn chuẩn nên là tenant-registry. Thứ tư, tên KEK chỉ đọc từ `kek_ref` đã ghi trong dòng, không tự dựng, vì ba nguồn đặt tên khác nhau (TL-01 `kek-<tenant>`, ví dụ TL-03 `transit/keys/t-hcm-c2@v3`, INF-13 `kek-tenant-<tenant>`); `kek_ref` sau khi bọc lại có thêm hậu tố `@v<n>` như ví dụ TL-03.
+
+Sự kiện kiểm toán dùng `sys.audit.v1` loại `ADMIN_ACTION`, đối tượng `keyring.dek`; thẻ task nhắc sổ cái DV-09-02 nhưng sổ cái chưa có thư viện ghi, nên sổ cái nhận bản ghi qua luồng tiêu thụ `sys.audit.v1` của DV-09-02 (suy luận). Mã hoá lại cần một vai trò dữ liệu có `UPDATE` trên cột `_enc`, `dek_id`, `row_version`; quyền của `org.person` hiện cấp hẹp nên khi chạy thật phải cấp thêm bằng migration của từng module (việc tiếp theo). CronJob chạy lớp `KeyRotationMain` trong ảnh mission-core, nên ảnh phải đóng gói `vt-key-rotation` (việc tiếp theo của CORE). Chart tắt mặc định và không sửa `values.yaml` (ngoài phạm vi tệp), mọi giá trị có mặc định trong mẫu.
+
 ## Liên quan
 
 - [README của wiki](README.md)
