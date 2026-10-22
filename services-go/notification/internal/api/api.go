@@ -41,6 +41,7 @@ type Inbox interface {
 // Deps là phụ thuộc của máy chủ.
 type Deps struct {
 	Inbox     Inbox
+	Prefs     Prefs // nil khi chưa cấu hình khoá mã hoá trường C2
 	Ready     func(ctx context.Context) error
 	Log       *slog.Logger
 	OTel      *otel.Provider
@@ -82,6 +83,7 @@ func Handler(d Deps) http.Handler {
 	authed := http.NewServeMux()
 	authed.HandleFunc("GET "+Base+"/notifications", d.list)
 	authed.HandleFunc("POST "+Base+"/notifications/read", d.markRead)
+	d.routePrefs(authed)
 	mw := tenant.Middleware(tenant.MiddlewareConfig{TokenVerifier: d.Verifier})
 	mux.Handle(Base+"/", mw(authed))
 	if d.OTel != nil {

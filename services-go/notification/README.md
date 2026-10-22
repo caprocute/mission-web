@@ -12,7 +12,7 @@ Nội dung không chứa dữ liệu C2. Mẫu đánh dấu biến `{{ten|C2}}` 
 
 ## API
 
-`GET /api/v1/notifications` (listNotifications) và `POST /api/v1/notifications/read` (markNotificationsRead) đúng `contracts/openapi/modules/platform.yaml`. Người gọi chỉ thấy thông báo của chính mình, xác định bằng claim `tenant_id` và `sub` của token đã được cổng API kiểm chữ ký. Tiêu đề và nội dung được dựng lúc đọc từ mẫu `INAPP` tiếng Việt, mẫu riêng của tenant thắng mẫu chung. Ngoài ra có `/healthz`, `/readyz` và `/metrics` (bộ đếm thông báo đã tạo, sự kiện trùng, thư chết).
+`GET /api/v1/notifications` (listNotifications) và `POST /api/v1/notifications/read` (markNotificationsRead) đúng `contracts/openapi/modules/platform.yaml`. Người gọi chỉ thấy thông báo của chính mình, xác định bằng claim `tenant_id` và `sub` của token đã được cổng API kiểm chữ ký. Tiêu đề và nội dung được dựng lúc đọc từ mẫu `INAPP` tiếng Việt, mẫu riêng của tenant thắng mẫu chung. DV-12-05 thêm `GET/POST /api/v1/notifications/devices`, `DELETE /api/v1/notifications/devices/{deviceId}` và `GET/PUT /api/v1/notifications/preferences` (ETag, If-Match). Mã thiết bị chỉ lưu dạng mã hoá phong bì kèm chỉ mục mù, không bao giờ trả ra API hay in vào nhật ký; một mã thiết bị chỉ thuộc một người dùng, người khác đăng ký cùng mã thì bản cũ bị thu hồi. Gói `internal/prefs` có bộ định tuyến `Plan` cho worker kênh ngoài của DV-12-03: kênh được bật theo nhóm thông báo, giờ yên lặng hoãn kênh ngoài trừ ưu tiên `CAO`, thiết bị chưa thu hồi đã giải mã trong bộ nhớ. Khi chưa đặt `CRYPTO_LOCAL_KEY` (khoá gốc base64 ≥ 32 byte, chỉ cho dev) thì năm thao tác này trả 503. Ngoài ra có `/healthz`, `/readyz` và `/metrics` (bộ đếm thông báo đã tạo, sự kiện trùng, thư chết).
 
 ## Dữ liệu và phân vùng
 
@@ -22,7 +22,7 @@ Bộ mẫu chung nằm ở `data/seed/notify/mau-thong-bao-chung.json`; nạp b�
 
 ## Cấu hình
 
-`DATABASE_URL` (bắt buộc, `svc_notify`), `READONLY_DATABASE_URL`, `KAFKA_BROKERS`, `HTTP_ADDR` (mặc định `:8080`), `CELL_CODE`, `PARTITION_MAINTAIN_INTERVAL`, `SHUTDOWN_TIMEOUT`.
+`DATABASE_URL` (bắt buộc, `svc_notify`), `READONLY_DATABASE_URL`, `CRYPTO_LOCAL_KEY`, `KAFKA_BROKERS`, `HTTP_ADDR` (mặc định `:8080`), `CELL_CODE`, `PARTITION_MAINTAIN_INTERVAL`, `SHUTDOWN_TIMEOUT`.
 
 ## Kiểm thử
 

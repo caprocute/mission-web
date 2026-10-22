@@ -17,7 +17,9 @@ type Config struct {
 	ReadOnlyDatabaseURL string
 	KafkaBrokers        []string
 	MaintainInterval    time.Duration
-	ShutdownTimeout     time.Duration
+	// CryptoLocalKey là khoá gốc base64 (≥ 32 byte) của LocalKeyring, chỉ cho dev; rỗng thì tắt API thiết bị.
+	CryptoLocalKey  string
+	ShutdownTimeout time.Duration
 }
 
 // Load đọc cấu hình từ biến môi trường.
@@ -52,6 +54,7 @@ func Load() (*Config, error) {
 		ReadOnlyDatabaseURL: roURL,
 		KafkaBrokers:        brokers,
 		MaintainInterval:    maintain,
+		CryptoLocalKey:      strings.TrimSpace(os.Getenv("CRYPTO_LOCAL_KEY")),
 		ShutdownTimeout:     shutdown,
 	}, nil
 }

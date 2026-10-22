@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -19,6 +20,8 @@ import (
 	"mission/services-go/notification/internal/api"
 	"mission/services-go/notification/internal/config"
 	"mission/services-go/notification/internal/consume"
+	"mission/services-go/notification/internal/crypt"
+	"mission/services-go/notification/internal/prefs"
 	"mission/services-go/notification/internal/store"
 	"vn.viettel.okrkpi/services-go/vtplatform/otel"
 )
@@ -82,11 +85,29 @@ func main() {
 		log.Warn("chưa cấu hình KAFKA_BROKERS, không chạy consumer")
 	}
 
+	var prefStore api.Prefs
+	if cfg.CryptoLocalKey != "" {
+		key, err := base64.StdEncoding.DecodeString(cfg.CryptoLocalKey)
+		if err == nil {
+			var kr *crypt.LocalKeyring
+			if kr, err = crypt.NewLocalKeyring(key); err == nil {
+				prefStore = prefs.Store{Pool: pool, Field: crypt.Field{Keys: kr}}
+			}
+		}
+		if err != nil {
+			log.Error("CRYPTO_LOCAL_KEY không hợp lệ", "err", err.Error())
+			os.Exit(2)
+		}
+	} else {
+		log.Warn("chưa cấu hình khoá mã hoá trường C2, tắt API thiết bị và tuỳ chọn kênh")
+	}
+
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
 		// Đọc hộp thông báo dùng pool chính vì đánh dấu đã đọc cần ghi; pool đọc dành cho bản sao (suy luận).
 		Handler: api.Handler(api.Deps{
 			Inbox:     store.Reader{Pool: pool},
+			Prefs:     prefStore,
 			Ready:     func(ctx context.Context) error { return pool.Ping(ctx) },
 			Log:       log,
 			OTel:      prov,
@@ -123,6 +144,11 @@ func maintain(ctx context.Context, pool *pgxpool.Pool, every time.Duration, log 
 		}
 		if _, err := pool.Exec(ctx, `SELECT notify.fn_purge_inbox_processed()`); err != nil && ctx.Err() == nil {
 			log.Error("dọn inbox thất bại", "err", err.Error())
+		}
+		if n, err := prefs.RevokeStale(ctx, pool); err != nil && ctx.Err() == nil {
+			log.Error("thu hồi thiết bị lâu không dùng thất bại", "err", err.Error())
+		} else if n > 0 {
+			log.Info("đã thu hồi thiết bị lâu không dùng", "count", n)
 		}
 		select {
 		case <-ctx.Done():
