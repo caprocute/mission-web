@@ -1,0 +1,115 @@
+# Kho đối tượng Ceph RGW của cell (INF-12). Realm, zonegroup, zone multisite và người dùng S3 do
+# scripts/khoi-tao-multisite.sh tạo trên máy quản trị Ceph (radosgw-admin, khoá lấy từ OpenBao lúc chạy); chart này
+# khai báo bucket, Object Lock, vòng đời, chính sách bucket bằng Job gọi API S3 với tài khoản quản trị kho, và tạo
+# ExternalSecret khoá S3 cho từng service.
+global:
+  cell: ""
+  objectStore:
+    inCluster: false
+    rgw: { namespace: rook-ceph, podLabels: { app: rook-ceph-rgw }, ports: [{ port: 8080 }] }
+
+# Mã cell (g4, hcm…): realm cell-<mã>, zonegroup cell-<mã>-zg, zone cell-<mã>-hl và cell-<mã>-sn (TL-04 mục 8.4).
+cell: mau
+# Điểm cuối S3 của zone master; Job ghi cấu hình bucket vào zone master, multisite đồng bộ sang zone kia.
+endpoint: ""          # rỗng: https://s3.cell-<mã>.hl.vt.local
+region: ""            # rỗng: tên zonegroup cell-<mã>-zg
+# Lớp lưu trữ HDD EC 4+2 (placement storage class do khoi-tao-multisite.sh thêm vào zonegroup).
+lopLuuTruHdd: HDD_EC
+
+# Bucket theo TL-03 "Tổ chức bucket". ten: tên đầy đủ là <ma>-cell-<mã cell> (TL-04: ev-cell-hcm).
+# khoa: chế độ và hạn giữ mặc định (TL-03 cho từng bucket; evidence theo lớp lưu giữ THUC_HIEN 10 năm, SVC-08 có
+# thể đặt hạn riêng từng đối tượng dài hơn theo lớp; điểm lệch với TL-04 "10 năm cho mọi bucket" ở wiki 14).
+# theoTenant: khoá đối tượng bắt đầu bằng t/<tenant>/ nên chính sách giới hạn được theo tiền tố tenant (templates và
+# ledger-archive dùng chung cho cell, suy luận).
+# vongDoi: chuyenHddSauNgay (chuyển lớp HDD), hetHanSauNgay (xoá phiên bản hiện tại), huyMultipartSauNgay.
+# Bucket backup (sao lưu PostgreSQL) thuộc INF-17, không khai ở đây.
+buckets:
+  evidence:
+    theoTenant: true
+    ma: ev
+    versioning: true
+    khoa: { mode: COMPLIANCE, years: 10 }
+    vongDoi: { chuyenHddSauNgay: 30, huyMultipartSauNgay: 1 }
+  dossier:
+    theoTenant: true
+    ma: ds
+    versioning: true
+    khoa: { mode: COMPLIANCE, years: 20 }
+    vongDoi: { huyMultipartSauNgay: 1 }
+  templates:
+    theoTenant: false
+    ma: tpl
+    versioning: true
+    vongDoi: { huyMultipartSauNgay: 1 }
+  ledger-archive:
+    theoTenant: false
+    ma: la
+    versioning: true
+    khoa: { mode: COMPLIANCE, years: 20 }
+    vongDoi: { huyMultipartSauNgay: 1 }
+  uploads-tmp:
+    theoTenant: true
+    ma: tmp
+    versioning: false
+    vongDoi: { hetHanSauNgay: 1, huyMultipartSauNgay: 1 }
+  transfer:
+    theoTenant: true
+    ma: tr
+    versioning: true
+    khoa: { mode: GOVERNANCE, years: 1 }
+    vongDoi: { huyMultipartSauNgay: 1 }
+
+# Người dùng S3 (uid RGW do khoi-tao-multisite.sh tạo, khoá ở OpenBao <duongDan>/<uid>). quyen: bucket → thao tác
+# (doc: GetObject, GetObjectVersion; ghi: PutObject và đặt hạn giữ theo đối tượng; liet-ke: ListBucket). Khoá theo
+# nội dung t/<tenant>/sha256/<ab>/<băm>: tienTo giới hạn tiền tố được phép (mặc định t/ cho mọi tenant của cell;
+# tenant: <mã> thu về t/<mã>/ cho tài khoản riêng từng tenant). Không ai ngoài quanTri có DeleteObject, đổi
+# Object Lock hay đổi chính sách. namespace: nơi tạo Secret khoá S3 (ExternalSecret) cho service.
+nguoiDung:
+  evidence-service:
+    namespace: platform
+    quyen:
+      evidence: [doc, ghi, liet-ke]
+      uploads-tmp: [doc, ghi, liet-ke, xoa-tam]
+  document-service:
+    namespace: workers
+    quyen:
+      dossier: [doc, ghi, liet-ke]
+      templates: [doc, liet-ke]
+  ledger-service:
+    namespace: secure
+    quyen:
+      ledger-archive: [doc, ghi, liet-ke]
+  # tenant-registry (SVC-03) ở vùng điều phối toàn cục, chép gói chuyển liên cell qua API S3 (DV-03-07); namespace
+  # rỗng: không tạo Secret trong cell, khoá giao cho vùng điều phối.
+  tenant-registry:
+    namespace: ""
+    quyen:
+      transfer: [doc, ghi, liet-ke]
+# Tài khoản quản trị kho (chủ mọi bucket); khoá chỉ Job của chart này đọc.
+quanTri:
+  uid: ""             # rỗng: kho-quan-tri-cell-<mã>
+
+job:
+  namespace: secure-data
+  image:
+    repository: harbor.vt.local/dockerhub/amazon/aws-cli
+    tag: 2.31.18
+    digest: sha256:1a491b258590cc66866cd550f592edff80082f44daf1d903820daeca2f4954de
+  # Chứng chỉ CA nội bộ để aws-cli kiểm TLS của RGW (ConfigMap trust bundle của cert-manager, INF-13).
+  caBundle: { configMap: vt-noi-bo-ca, key: ca.crt }
+  # NetworkPolicy chỉ cho Job ra RGW (tắt ở kind, nơi RGW chạy bằng container ngoài cụm).
+  mang: true
+  backoffLimit: 3
+  activeDeadlineSeconds: 900
+
+externalSecrets:
+  enabled: true
+  secretStore: { kind: ClusterSecretStore, name: openbao-cell }
+  duongDan: kv/ceph
+  refreshInterval: 1h
+
+# Cảnh báo đồng bộ multisite (TL-04 mục 8.4; INF-15 dùng lại): shard tụt lại và tuổi đối tượng chưa đồng bộ.
+canhBao:
+  enabled: true
+  namespace: observability
+  tuoiChuaDongBoToiDaGiay: 600

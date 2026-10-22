@@ -25,12 +25,20 @@ thanhPhan:
     pdb:
       minAvailable: 2
       maxUnavailable: ''
+    # DV-08-01: API co giãn theo số yêu cầu đang mở mỗi pod (TL-01 SVC-08 "HPA theo số kết nối đang mở"),
+    # đo bằng Micrometer http_server_requests_active; KEDA sinh HPA từ trigger Prometheus.
     autoscaling:
-      hpa:
+      keda:
         enabled: true
         minReplicas: 3
         maxReplicas: 8
-        cpuUtilization: 75
+        triggers:
+          - type: prometheus
+            name: ket-noi-dang-mo
+            metadata:
+              serverAddress: http://prometheus-operated.observability.svc:9090
+              query: sum(http_server_requests_active_seconds_active_count{namespace="platform",application="evidence-service"})
+              threshold: '200'
     java:
       gc: zgc
       maxRamPercentage: 65

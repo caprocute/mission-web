@@ -25,5 +25,6 @@
     <module>org-service</module>
     <module>esign-service</module>
     <module>document-service</module>
+    <module>evidence-service</module>
   </modules>
 </project>

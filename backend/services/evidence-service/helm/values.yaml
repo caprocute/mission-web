@@ -1,0 +1,103 @@
+# NEN-019 · TL-04 WI-20, WI-23 "Helm values mẫu cho service Java".
+# Tệp này là bộ giá trị mặc định (cấu hình cell nhỏ) cho chart thư viện vt-service (INF-01).
+# Không chứa mật khẩu, token hay khoá rõ; mọi bí mật tham chiếu đường dẫn OpenBao.
+
+workload:
+  kind: Deployment
+  serviceCode: SVC-08
+  name: evidence-service
+  terminationGracePeriodSeconds: 40
+  preStopSleepSeconds: 5
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+image:
+  repository: harbor.local/mission/evidence-service
+  tag: "0.1.0-SNAPSHOT"
+  pullPolicy: IfNotPresent
+
+replicas:
+  default: 2
+
+resources:
+  # Memory request == limit để giữ QoS Guaranteed về bộ nhớ, tránh OOMKill bất ngờ (TL-04 WI-20).
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "2"
+    memory: "1Gi"
+
+jvm:
+  flags:
+    - "-XX:MaxRAMPercentage=70.0"
+    - "-XX:+UseZGC"
+    - "-XX:+ZGenerational"
+    - "-XX:+ExitOnOutOfMemoryError"
+    - "-Djava.io.tmpdir=/tmp"
+
+env:
+  SPRING_PROFILES_ACTIVE: "prod"
+  SERVER_PORT: "8080"
+  MANAGEMENT_PORT: "8081"
+  OTEL_SERVICE_NAME: "evidence-service"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4317"
+  OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
+  OTEL_TRACES_SAMPLER_ARG: "0.1"
+
+datasources:
+  primary:
+    host: "pgbouncer-cell.data.svc.cluster.local"
+    port: 6432
+    database: "mission"
+    schema: "evidence"
+    username: "svc_evidence"
+    pool:
+      maximumPoolSize: 10
+      minimumIdle: 2
+      connectionTimeoutMs: 3000
+      validationTimeoutMs: 1000
+      maxLifetimeMs: 1800000
+
+probes:
+  port: 8081
+  startup:
+    path: /actuator/health/liveness
+    initialDelaySeconds: 5
+    periodSeconds: 2
+    timeoutSeconds: 2
+    failureThreshold: 30
+  liveness:
+    path: /actuator/health/liveness
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+  readiness:
+    path: /actuator/health/readiness
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+scaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCpuUtilizationPercentage: 70
+  kafkaLagThreshold: 1000
+
+secrets:
+  openbao:
+    role: "evidence-service"
+    databasePasswordPath: "secret/data/mission/cell/db/svc_evidence"
+    kafkaCredentialsPath: "secret/data/mission/cell/kafka/evidence-service"

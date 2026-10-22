@@ -281,6 +281,24 @@ Bẫy đã gặp:
 
 Kiểm thử: `deploy/charts/vt-platform/ha-tang/kafka/tests/chay-kiem-thu.sh` (danh mục khớp hợp đồng, pytest 10 ca cho bộ sinh và bản render, helm lint, `kubeconform -strict` với lược đồ CRD Strimzi 1.2.0 trong `vt-platform/ci/crd-schemas` ở bốn hồ sơ) đạt 7/7; `deploy/environments/kind/kiem-thu-su-kien.sh` trên kind (một broker thu nhỏ, PostgreSQL 17 giả lập pg-core với DDL outbox thật của NEN-032) đạt 18/18: cụm KRaft, 201 KafkaTopic và 20 KafkaUser sẵn sàng, 36 lược đồ đăng ký, lược đồ phá vỡ tương thích bị từ chối, dòng outbox tới đúng topic với khoá và header, client không chứng chỉ bị từ chối, ba trường hợp thiếu ACL bị chặn, hai trường hợp có ACL ghi được.
 
+## Kho đối tượng của cell: Ceph RGW (INF-12)
+
+Chart `deploy/charts/rgw-cell` khai báo kho đối tượng của một cell trên Ceph RGW (ADR-13, TL-04 mục 8.4). Mỗi cell có realm riêng `cell-<mã>`, zonegroup `cell-<mã>-zg`, zone master `cell-<mã>-hl` ở Hoà Lạc và zone `cell-<mã>-sn` ở phía Nam, đồng bộ bất đồng bộ cả siêu dữ liệu lẫn đối tượng. Phần realm, zone, người dùng hệ thống đồng bộ, lớp lưu trữ `HDD_EC` và người dùng S3 của service do `scripts/khoi-tao-multisite.sh` dựng một lần mỗi cell trên máy quản trị Ceph (cần `radosgw-admin`, không chạy được từ trong cụm Kubernetes); khoá truy cập đọc từ OpenBao `kv/ceph/cell-<mã>/<uid>`, chưa có thì sinh và ghi vào, không in ra. Người dùng service có `max_buckets -1`, nên chỉ tài khoản quản trị kho tạo được bucket.
+
+Phần còn lại là khai báo trong Git: Job `rgw-bucket-<băm cấu hình>` ở `secure-data` dùng aws-cli (ảnh theo digest, chạy không root, gốc chỉ đọc) tạo sáu bucket `<tiền tố>-cell-<mã>` (`ev`, `ds`, `tpl`, `la`, `tmp`, `tr`), bật versioning, Object Lock, vòng đời và chính sách bucket; Job chạy lại cho cùng kết quả và chạy mới khi cấu hình đổi. Chính sách bucket cấp theo quyền nghiệp vụ (`doc`, `ghi`, `liet-ke`, `xoa-tam`) cho từng uid, giới hạn tiền tố `t/` hoặc `t/<tenant>/` với bucket theo tenant; `xoa-tam` và hết hạn vòng đời bị chart từ chối trên bucket có khoá. ESO tạo Secret `rgw-<uid>` trong namespace của service; PrometheusRule `CephSyncBehind` và `CephSyncDung` theo dõi độ trễ đồng bộ. Sổ tay vận hành: `ops/runbooks/ceph-multisite.md`.
+
+Bẫy đã gặp:
+
+- Sau khi tạo realm và zone, RGW phải khởi động lại với zone mới; RGW đang chạy vẫn phục vụ zone `default` và đồng bộ không chạy.
+- Phía Nam phải truyền `--rgw-realm` (và `--default` khi kéo realm) cho mọi lệnh zone và placement, nếu không `radosgw-admin` tìm realm mặc định cục bộ và báo không thấy zonegroup.
+- Object Lock chỉ bật được lúc tạo bucket và đòi versioning; bucket đã có mà không khoá thì không sửa tại chỗ được, Job báo lỗi thay vì bỏ qua.
+- Đổi hạn giữ mặc định của bucket chỉ áp cho đối tượng ghi sau đó; chế độ COMPLIANCE không cho cả tài khoản quản trị xoá phiên bản hay rút ngắn hạn.
+- Đối tượng thuộc người dùng đã ghi nó (ACL của RGW): tài khoản quản trị kho dù là chủ bucket cũng không đọc được minh chứng do evidence-service ghi, chỉ xoá được và bị Object Lock chặn. Đây là hành vi mong muốn; truy vấn hạn giữ dùng khoá của service.
+- RGW trả lỗi với `<Message>` rỗng, aws-cli 2.31 hỏng ở bước làm đẹp thông báo (`TypeError … NoneType`) mà không in mã lỗi; script kiểm thử lấy mã lỗi từ nhật ký `--debug`.
+- Ảnh `ceph/demo` từ chối khởi động mon khi đĩa máy chủ đầy trên 95%; kiểm thử đặt `/var/lib/ceph` trên tmpfs.
+
+Kiểm thử: `deploy/charts/rgw-cell/tests/chay-kiem-thu.sh` (lint, shellcheck, kubeconform ở hai chế độ RGW trong cụm và ngoài cụm, kiểm cấu hình sinh ra, sáu trường hợp chart phải từ chối) đạt 11/11; `deploy/environments/kind/kiem-thu-kho-doi-tuong.sh` dựng hai cụm Ceph bằng container làm hai zone, chạy script multisite, cài chart trên kind rồi kiểm Object Lock, chính sách bucket theo tenant và đồng bộ đối tượng sang phía Nam, đạt 22/22: realm và hai zone đồng bộ bắt kịp, script chạy lại giữ nguyên khoá, người dùng service không tạo được bucket, Job tạo sáu bucket và chạy lại khi cấu hình đổi, COMPLIANCE chặn cả tài khoản quản trị xoá phiên bản và rút hạn, tài khoản theo tenant không đọc hay liệt kê được tiền tố tenant khác, minh chứng sang zone phía Nam còn nguyên khoá.
+
 ## Lộ trình theo TL-04
 
 TL-04 chia lộ trình thành các đợt. Đợt 0a kéo dài 2 tuần, xử lý ngay các lỗ hổng S01 đến S05, S07, S08 và S11 của hệ cũ: gitleaks, xoay vòng bí mật, OpenBao tối thiểu, sửa CORS và cookie, bỏ token khỏi URL và log, rồi kiểm tra lại. Đợt 0b kéo dài 6 tuần: chart `vt-service`, đặt APISIX trước hệ cũ để sinh `traceparent`, dựng OTel, Tempo, Prometheus, Fluent Bit và cụm quản trị Argo CD, Harbor, Grafana, với mục tiêu có trace xuyên bốn tầng. Đợt 0c kéo dài 6 tuần: Resilience4j, cổng chất lượng Jenkins, Kyverno chế độ Enforce, Flyway và thử tải 500 người dùng đồng thời với p95 dưới 3 giây.

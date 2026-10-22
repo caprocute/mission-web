@@ -1,0 +1,92 @@
+{{- /* Job khai báo bucket (files/khoi-tao-bucket.sh) và cấu hình dựng từ values. Tên Job mang băm cấu hình: đổi cấu
+hình thì Job chạy lại, không đổi thì giữ nguyên (đồng bộ được bằng Argo CD). */}}
+{{- $v := .Values }}
+{{- $data := dict }}
+{{- $ds := list }}
+{{- range $k := keys $v.buckets | sortAlpha }}
+{{- $b := index $v.buckets $k }}
+{{- $ten := include "rgw.tenBucket" (dict "root" $ "b" $k) }}
+{{- if and $b.khoa (not $b.versioning) }}{{ fail (printf "rgw-cell: bucket %s có Object Lock phải bật versioning" $k) }}{{ end }}
+{{- $ds = append $ds (printf "%s %s %t %t" $k $ten (default false $b.versioning) (not (empty $b.khoa))) }}
+{{- with $b.khoa }}
+{{- if not (has .mode (list "COMPLIANCE" "GOVERNANCE")) }}{{ fail (printf "rgw-cell: chế độ khoá %q không hợp lệ" .mode) }}{{ end }}
+{{- $giu := dict "Mode" .mode }}
+{{- if .years }}{{ $_ := set $giu "Years" (int .years) }}{{ else }}{{ $_ := set $giu "Days" (int (required "rgw-cell: khoa cần years hoặc days" .days)) }}{{ end }}
+{{- $_ := set $data (printf "%s.khoa.json" $k) (dict "ObjectLockEnabled" "Enabled" "Rule" (dict "DefaultRetention" $giu) | toJson) }}
+{{- end }}
+{{- with include "rgw.vongDoi" (dict "root" $ "b" $k) }}{{ $_ := set $data (printf "%s.vong-doi.json" $k) . }}{{ end }}
+{{- with include "rgw.chinhSach" (dict "root" $ "b" $k) }}{{ $_ := set $data (printf "%s.chinh-sach.json" $k) . }}{{ end }}
+{{- end }}
+{{- range $uid, $u := $v.nguoiDung }}
+{{- range $b, $_ := $u.quyen }}{{ $_ := include "rgw.tenBucket" (dict "root" $ "b" $b) }}{{ end }}
+{{- end }}
+{{- $_ := set $data "danh-sach" (join "\n" $ds | printf "%s\n") }}
+{{- $_ := set $data "khoi-tao-bucket.sh" (.Files.Get "files/khoi-tao-bucket.sh") }}
+{{- $bam := toJson $data | sha256sum | trunc 10 }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rgw-bucket-{{ $bam }}
+  namespace: {{ $v.job.namespace }}
+  labels:
+    {{- include "rgw.labels" . | nindent 4 }}
+data:
+  {{- range $k := keys $data | sortAlpha }}
+  {{ $k }}: {{ index $data $k | quote }}
+  {{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rgw-bucket-{{ $bam }}
+  namespace: {{ $v.job.namespace }}
+  labels:
+    {{- include "rgw.labels" . | nindent 4 }}
+spec:
+  backoffLimit: {{ $v.job.backoffLimit }}
+  activeDeadlineSeconds: {{ $v.job.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        vt.io/thanh-phan: rgw-bucket
+        {{- include "rgw.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: khoi-tao
+          image: {{ include "rgw.anh" $v.job.image }}
+          command: [bash, /cfg/khoi-tao-bucket.sh]
+          env:
+            - { name: HOME, value: /tmp }
+            - { name: S3_ENDPOINT, value: {{ include "rgw.endpoint" . | quote }} }
+            - { name: S3_REGION, value: {{ include "rgw.region" . | quote }} }
+            - { name: AWS_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: rgw-quan-tri, key: access-key } } }
+            - { name: AWS_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: rgw-quan-tri, key: secret-key } } }
+            {{- with $v.job.caBundle }}
+            - { name: AWS_CA_BUNDLE, value: /ca/{{ .key }} }
+            {{- end }}
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: cfg, mountPath: /cfg }
+            - { name: tmp, mountPath: /tmp }
+            {{- with $v.job.caBundle }}
+            - { name: ca, mountPath: /ca }
+            {{- end }}
+      volumes:
+        - { name: cfg, configMap: { name: rgw-bucket-{{ $bam }} } }
+        - { name: tmp, emptyDir: {} }
+        {{- with $v.job.caBundle }}
+        - { name: ca, configMap: { name: {{ .configMap }} } }
+        {{- end }}
