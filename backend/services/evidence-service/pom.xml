@@ -194,7 +194,8 @@
         <artifactId>openapi-generator-maven-plugin</artifactId>
         <version>${openapi-generator.version}</version>
         <executions>
-          <!-- DV-08-01: chín thao tác /files/** của products.yaml (x-mission.owner SVC-08, API-first). -->
+          <!-- DV-08-01: thao tác /files/** của products.yaml (x-mission.owner SVC-08, API-first). uploadFilePart viết tay
+               (FilePartController) vì bộ sinh đặt thân octet-stream thành String, đọc cả phần vào bộ nhớ. -->
           <execution>
             <id>files-api</id>
             <goals>
@@ -203,7 +204,7 @@
             <configuration>
               <inputSpec>${contract.dir}/modules/products.yaml</inputSpec>
               <generatorName>spring</generatorName>
-              <openapiNormalizer>FILTER=operationId:createFileUpload|getFileUpload|cancelFileUpload|uploadFilePart|completeFileUpload|getFileDownloadUrl|getFilePreview|getFileScanResult|rescanFileObject</openapiNormalizer>
+              <openapiNormalizer>FILTER=operationId:createFileUpload|getFileUpload|cancelFileUpload|completeFileUpload|getFileDownloadUrl|getFilePreview|getFileScanResult|rescanFileObject</openapiNormalizer>
               <apiPackage>vn.viettel.okrkpi.evidence.infrastructure.web.api</apiPackage>
               <modelPackage>vn.viettel.okrkpi.evidence.infrastructure.web.model</modelPackage>
               <!-- EvidenceSubmit (enum boolean một giá trị) làm bộ sinh ra mã lỗi và không thuộc /files/**: ánh xạ, không sinh. -->

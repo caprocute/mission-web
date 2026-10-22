@@ -50,6 +50,26 @@ public record ObjectLocation(String bucket, String key) {
     return keyOf(tenant, HexFormat.of().formatHex(sha256));
   }
 
+  /**
+   * Bucket tạm của cell cho phần đang tải (không Object Lock, có vòng đời tự xoá): tệp chỉ vào
+   * bucket khoá sau khi kiểm băm và kiểu, vì đối tượng đã khoá compliance không xoá được (suy
+   * luận).
+   */
+  public static String stagingBucketOf(String cell) {
+    String c = Objects.requireNonNull(cell, "cell").toLowerCase(Locale.ROOT);
+    if (!CELL.matcher(c).matches()) {
+      throw new IllegalArgumentException("Mã cell không hợp lệ cho tên bucket: " + cell);
+    }
+    return "ev-" + c + "-tam";
+  }
+
+  /** Đối tượng tạm của một phiên tải lên: {@code t/<tenant>/tai-len/<uploadId>}. */
+  public static ObjectLocation staging(String cell, UUID tenant, UUID uploadId) {
+    Objects.requireNonNull(tenant, "tenant");
+    Objects.requireNonNull(uploadId, "uploadId");
+    return new ObjectLocation(stagingBucketOf(cell), "t/" + tenant + "/tai-len/" + uploadId);
+  }
+
   public static ObjectLocation of(String cell, UUID tenant, byte[] sha256) {
     return new ObjectLocation(bucketOf(cell, tenant), keyOf(tenant, sha256));
   }
