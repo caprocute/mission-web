@@ -24,6 +24,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.util.WebUtils;
 import vn.viettel.okrkpi.org.application.Actor;
 import vn.viettel.okrkpi.org.application.ChangeResult;
+import vn.viettel.okrkpi.org.application.MyContextService;
 import vn.viettel.okrkpi.org.application.OrgUnitCommandService;
 import vn.viettel.okrkpi.org.application.OrgUnitHistoryItem;
 import vn.viettel.okrkpi.org.application.OrgUnitQueryService;
@@ -41,7 +42,10 @@ import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgUnitHistory200Respo
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListOrgUnits200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListPersonAssignments200Response;
 import vn.viettel.okrkpi.org.infrastructure.web.model.ListSubjectGroups200Response;
+import vn.viettel.okrkpi.org.infrastructure.web.model.MyOrgProfile;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgChangeOrder;
+import vn.viettel.okrkpi.org.infrastructure.web.model.SetMyContextRequest;
+import vn.viettel.okrkpi.org.infrastructure.web.model.WorkContext;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgChangeRequest;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgTree;
 import vn.viettel.okrkpi.org.infrastructure.web.model.OrgTreeKind;
@@ -87,11 +91,13 @@ public class OrgController implements OrgApi {
   private final DiscrepancyService discrepancies;
   private final SyncRunService syncRuns;
   private final OrgImportService imports;
+  private final MyContextService contexts;
 
   public OrgController(OrgUnitQueryService queries, OrgUnitCommandService commands, RequestHasher hasher,
       HttpServletRequest request, DiscrepancyService discrepancies, SyncRunService syncRuns,
-      OrgImportService imports) {
+      OrgImportService imports, MyContextService contexts) {
     this.imports = imports;
+    this.contexts = contexts;
     this.queries = queries;
     this.commands = commands;
     this.discrepancies = discrepancies;
@@ -178,6 +184,34 @@ public class OrgController implements OrgApi {
     ListOrgPersons200Response body = new ListOrgPersons200Response();
     body.setItems(page.items().stream().map(OrgWebMapper::toDto).toList());
     body.setNextCursor(page.nextCursor());
+    return ResponseEntity.ok(body);
+  }
+
+  // DV-02-02 · QT-00 bước 7, SCR-0001, SCR-0002: hồ sơ, phân công của người dùng hiện tại và chọn ngữ cảnh.
+
+  @Override
+  public ResponseEntity<MyOrgProfile> getMyOrgProfile() {
+    MyContextService.Profile p = contexts.profile(actor());
+    MyOrgProfile body = new MyOrgProfile();
+    body.setPersonId(p.personId().toString());
+    body.setFullName(p.fullName());
+    body.setAssignments(p.assignments().stream().map(a -> {
+      var dto = OrgWebMapper.toDto(a.row());
+      dto.setRoles(new java.util.ArrayList<>(a.roles()));
+      return dto;
+    }).toList());
+    body.setLastAssignmentId(p.lastAssignmentId() == null ? null : p.lastAssignmentId().toString());
+    return ResponseEntity.ok(body);
+  }
+
+  @Override
+  public ResponseEntity<WorkContext> setMyContext(String idempotencyKey, SetMyContextRequest input) {
+    MyContextService.WorkContextView v = contexts.setContext(actor(),
+        hasher.of(idempotencyKey, "PUT", request.getRequestURI(), input), input.getAssignmentId());
+    WorkContext body = new WorkContext();
+    body.setAssignmentId(v.assignmentId().toString());
+    body.setOrgUnitId(v.orgUnitId().toString());
+    body.setRoles(new java.util.ArrayList<>(v.roles()));
     return ResponseEntity.ok(body);
   }
 
