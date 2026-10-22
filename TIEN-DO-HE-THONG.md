@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **179 / 408 task (43.9%)** — Khối lượng quy đổi đã gộp: **212.5 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **181 / 408 task (44.4%)** (gồm **179** đã gộp `main` + **2** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **7 task** (4 đang làm, 3 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **182 / 408 task (44.6%)** (gồm **179** đã gộp `main` + **3** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
 - **Chưa bắt đầu**: **220 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **14 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-04`** (đang xử lý trên nhánh: không).
 
@@ -23,7 +23,7 @@
 | Mã nhóm | Phân hệ / Phạm vi | Tổng task | Khối lượng | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tỷ lệ gộp `main` |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
-| **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **32** | 1 | 1 | 0 | **94.1%** |
+| **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **32** | 2 | 0 | 0 | **94.1%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **36** | 0 | 0 | 81 | **30.8%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **32** | 0 | 3 | 69 | **30.8%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **5** | 1 | 1 | 6 | **38.5%** |
@@ -32,13 +32,13 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **179** | **2** | **7** | **220** | **43.9%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **179** | **3** | **6** | **220** | **43.9%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
 | Mốc triển khai | Tổng task | Đã gộp `main` | Xong, chờ gộp | Đang làm / 1 phần | Chưa bắt đầu | Tiến độ gộp `main` |
 |---|---:|---:|---:|---:|---:|---:|
-| **M0 – Nền móng phát triển & CSDL** | 60 | **49** | 1 | 2 | 8 | **81.7%** |
+| **M0 – Nền móng phát triển & CSDL** | 60 | **49** | 2 | 1 | 8 | **81.7%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **32** | 0 | 1 | 14 | **68.1%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **34** | 0 | 3 | 83 | **28.3%** |
@@ -144,7 +144,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [WEB-064](docs/tasks/WEB-064-sinh-kieu-tu-hop-dong.md) | Sinh kiểu frontend từ bộ hợp đồng `contracts/openapi/`, kiểm model viết tay với hợp đồng (luồng Nền tảng) | M | W-Nền tảng | – | WEB-007, WEB-063 | **Đã gộp main** | Đã gộp `main` (sinh kiểu frontend từ `contracts/openapi/`, `npm run api:check`) |
 | [WEB-065](docs/tasks/WEB-065-doi-chieu-ke-hoach-hop-dong.md) | Đối chiếu client kế hoạch (SCR-0402, SCR-0403) với hợp đồng OpenAPI (luồng màn hình nghiệp vụ) | M | W-Nghiệp vụ | – | WEB-026, WEB-027, WEB-064 | **Đã gộp main** | Đã gộp `main` (đối chiếu client kế hoạch SCR-0402, SCR-0403 với hợp đồng OpenAPI) |
 
-### NEN · Nền móng hệ thống: repo, quy định, wiki, khung mã, thư viện nền, nền CSDL (32/34 đã gộp `main`, 1 chờ gộp, 1 đang làm)
+### NEN · Nền móng hệ thống: repo, quy định, wiki, khung mã, thư viện nền, nền CSDL (32/34 đã gộp `main`, 2 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -181,7 +181,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [NEN-022](docs/tasks/NEN-022-phat-lai-outbox-connector.md) | Công cụ phát lại outbox và cấu hình connector Debezium outbox theo schema | M | B1 | 7 | NEN-011 | **Đã gộp main** | Đã gộp `main` (commit `3b0f87e` – công cụ phát lại outbox và cấu hình connector Debezium theo schema) |
 | [NEN-042](docs/tasks/NEN-042-sua-hop-dong-nghiep-vu.md) | Sửa hợp đồng OpenAPI phần nghiệp vụ: thêm thao tác còn thiếu (huỷ OKR, phiên bản điều chỉnh mục tiêu, uỷ quyền check-in, kích hoạt danh mục, chấm việc ngoài danh mục, ngoại lệ điều chỉnh, xác nhận dòng kế hoạch, duyệt nhiệm vụ đăng ký, chuyển điểm nghẽn, danh bạ khoá E2EE và chia sẻ CEK, ghi trường hợp đặc thù, gợi ý khiếu nại trùng) và sửa mô tả `acceptComplaint` | M | B1 | 2 | NEN-001 | **Đã gộp main** | Đã gộp main: hợp đồng OpenAPI 3.1 các phân hệ nghiệp vụ |
 | [NEN-043](docs/tasks/NEN-043-sua-hop-dong-nen-tang.md) | Sửa hợp đồng OpenAPI phần nền tảng: cờ tính năng cho mọi người dùng, cấu hình tenant, thiết bị nhận thông báo đẩy, tuỳ chọn kênh, mã khôi phục MFA, `POST /org/assignments`, guest token Superset, kiểm quyền theo lô cho tìm kiếm, ký nội bộ cho sổ cái, OCR cho tài khoản dịch vụ, đề nghị chuyển cell | M | B1 | 3 | NEN-001, NEN-042 | **Đã gộp main** | Đã gộp main: bổ sung các thao tác OpenAPI 3.1 cho cấu hình và dịch vụ nền |
-| [NEN-044](docs/tasks/NEN-044-hop-dong-ho-so-tap-khach-hang.md) | Sửa hợp đồng OpenAPI theo BS-03: hồ sơ tập khách hàng, khung tham số, điểm công việc và phạm vi phụ trách trong `inputs`, kiểu đo mốc, cây KPI, chế độ phân công, sự việc | M | B1 | 4 | NEN-043; người phụ trách hợp đồng duyệt | **Đang làm** | Nhánh claude/project-thread-z7s8x3: đang sửa hợp đồng theo BS-03 |
+| [NEN-044](docs/tasks/NEN-044-hop-dong-ho-so-tap-khach-hang.md) | Sửa hợp đồng OpenAPI theo BS-03: hồ sơ tập khách hàng, khung tham số, điểm công việc và phạm vi phụ trách trong `inputs`, kiểu đo mốc, cây KPI, chế độ phân công, sự việc | M | B1 | 4 | NEN-043; người phụ trách hợp đồng duyệt | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: hợp đồng BS-03 DC-01..DC-06 (policies, appraisals, tasks, okr), 20 thao tác mới; lint đạt; openapi-diff chỉ báo thêm giá trị enum phản hồi ở okr |
 
 ### CORE-00 · mission-core: phần dùng chung (5/5 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -846,4 +846,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 16:30 | B9 | `NEN-044` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-z7s8x3: đang sửa hợp đồng theo BS-03 |
 | 22/10/2026 16:48 | B9 | `NEN-035` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: TenantCacheKey/TenantCache Valkey, ArchUnit cấm client Valkey trực tiếp, kiểm rò rỉ OpenSearch/ClickHouse/API; IT mission-core 489 xanh |
 | 22/10/2026 16:48 | B9 | `DL-08` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: bộ sinh/nạp/kiểm infra/perf/datagen, 14 pytest xanh, pip-audit sạch; chưa sinh hồ sơ đánh giá (chờ CORE-04-01) và Flowable (DL-08b) |
+| 22/10/2026 16:52 | B9 | `NEN-044` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: hợp đồng BS-03 DC-01..DC-06 (policies, appraisals, tasks, okr), 20 thao tác mới; lint đạt; openapi-diff chỉ báo thêm giá trị enum phản hồi ở okr |
 <!-- PROGRESS_LOG_END -->
