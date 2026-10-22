@@ -259,6 +259,173 @@ class RealmTemplateKeycloakIT {
   }
 
   // ------------------------------------------------------------------------------------------
+  // Mã khôi phục MFA (DV-02-08, QT-00 ngoại lệ mất SmartOTP)
+  // ------------------------------------------------------------------------------------------
+
+  private String userInTenant(String username, String password, String tenant, String role) {
+    String id = admin.createUser(REALM, username, password);
+    JsonNode u = admin.get("/admin/realms/" + REALM + "/users/" + id);
+    ((ObjectNode) u).putObject("attributes").putArray("tenant_id").add(tenant);
+    assertThat(admin.put("/admin/realms/" + REALM + "/users/" + id, u).statusCode()).isEqualTo(204);
+    if (role != null) {
+      admin.post("/admin/realms/" + REALM + "/users/" + id + "/role-mappings/realm",
+          RepoFiles.JSON.createArrayNode().add(admin.get("/admin/realms/" + REALM + "/roles/" + role)));
+    }
+    return id;
+  }
+
+  /** Đăng nhập bậc 2 lần đầu (bắt cài SmartOTP); trả token truy cập. */
+  private String aal2Token(String username, String password) {
+    OidcBrowser b = browser(REALM);
+    assertThat(b.authorizeWith(Map.of("acr_values", "aal2"))).isEmpty();
+    assertThat(b.submitLogin(username, password)).isEmpty();
+    HttpResponse<String> tr = b.exchange(configureTotp(b), b.codeVerifier);
+    return RepoFiles.readYaml(tr.body()).path("access_token").asText();
+  }
+
+  private static final com.atlassian.oai.validator.OpenApiInteractionValidator PLATFORM =
+      com.atlassian.oai.validator.OpenApiInteractionValidator.createForSpecificationUrl(RepoFiles.root()
+          .resolve("contracts/openapi/modules/platform.yaml").toUri().toString())
+          .withLevelResolver(com.atlassian.oai.validator.report.LevelResolver.create()
+              .withLevel("validation.request.security.missing",
+                  com.atlassian.oai.validator.report.ValidationReport.Level.IGNORE)
+              .build())
+          .build();
+
+  /** Gọi API mã khôi phục và đối chiếu cặp yêu cầu, phản hồi với hợp đồng ({@code /api/v1/iam/...}). */
+  private HttpResponse<String> iam(String token, String path, String key, String body) {
+    HttpResponse<String> res = iamRaw(token, path, key, body);
+    var req = com.atlassian.oai.validator.model.SimpleRequest.Builder.post("/api/v1/iam/" + path)
+        .withContentType("application/json").withBody(body);
+    if (key != null) {
+      req.withHeader("Idempotency-Key", key);
+    }
+    var sb = com.atlassian.oai.validator.model.SimpleResponse.Builder.status(res.statusCode()).withBody(res.body());
+    res.headers().firstValue("Content-Type").ifPresent(sb::withContentType);
+    var report = PLATFORM.validate(req.build(), sb.build());
+    assertThat(report.getMessages()).as(path + " " + res.statusCode() + " " + res.body()).isEmpty();
+    return res;
+  }
+
+  private HttpResponse<String> iamRaw(String token, String path, String key, String body) {
+    HttpRequest.Builder r = HttpRequest.newBuilder(URI.create(baseUrl + "/realms/" + REALM + "/mission-iam/" + path))
+        .header("Authorization", "Bearer " + token).header("Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(body));
+    if (key != null) {
+      r.header("Idempotency-Key", key);
+    }
+    return browser(REALM).send(r.build());
+  }
+
+  private String execInContainer(String... cmd) throws Exception {
+    return keycloak.execInContainer(cmd).getStdout();
+  }
+
+  @Test
+  void maKhoiPhucCapMotLanDungMotLanThuHoiVaKiemSoatQuyen() throws Exception {
+    JsonNode profile = admin.get("/admin/realms/" + REALM + "/users/profile");
+    ((ObjectNode) profile).put("unmanagedAttributePolicy", "ADMIN_EDIT");
+    admin.put("/admin/realms/" + REALM + "/users/profile", profile);
+    String tenant = UUID.randomUUID().toString();
+    String pw = newPassword();
+    userInTenant("qt.don.vi", pw, tenant, "tenant_admin");
+    userInTenant("qt.don.vi.khac", pw, UUID.randomUUID().toString(), "tenant_admin");
+    String target = userInTenant("mat.thiet.bi", pw, tenant, null);
+    String issue = "users/" + target + "/mfa-recovery-codes";
+    String body = "{\"verificationMethod\":\"VAN_BAN_DON_VI\",\"reason\":\"Cán bộ báo mất điện thoại cài SmartOTP\"}";
+
+    // Token AAL1 của quản trị (chỉ mật khẩu, client kiểm thử cho phép direct grant), lấy trước khi cài SmartOTP.
+    ObjectNode cli = RepoFiles.JSON.createObjectNode().put("clientId", "kiem-thu-aal1").put("publicClient", true)
+        .put("directAccessGrantsEnabled", true).put("standardFlowEnabled", false);
+    admin.post("/admin/realms/" + REALM + "/clients", cli);
+    HttpResponse<String> direct = browser(REALM).postForm(browser(REALM).endpoint("token"), Map.of("grant_type",
+        "password", "client_id", "kiem-thu-aal1", "username", "qt.don.vi", "password", pw), null);
+    assertThat(direct.statusCode()).as(direct.body()).isEqualTo(200);
+    String aal1 = RepoFiles.readYaml(direct.body()).path("access_token").asText();
+
+    // Người được cấp đã cài SmartOTP trên thiết bị nay bị mất.
+    aal2Token("mat.thiet.bi", pw);
+    String adminToken = aal2Token("qt.don.vi", pw);
+    String otherTenantToken = aal2Token("qt.don.vi.khac", pw);
+
+    // Quản trị ở AAL1 bị yêu cầu bước lên; tenant khác và tự cấp bị 403.
+    HttpResponse<String> r = iam(aal1, issue, UUID.randomUUID().toString(), body);
+    assertThat(r.statusCode()).as(r.body()).isEqualTo(401);
+    assertThat(r.headers().firstValue("WWW-Authenticate").orElse("")).contains("insufficient_user_authentication");
+    assertThat(iam(otherTenantToken, issue, UUID.randomUUID().toString(), body).statusCode()).isEqualTo(403);
+    String selfId = admin.get("/admin/realms/" + REALM + "/users?exact=true&username=qt.don.vi").get(0).path("id")
+        .asText();
+    assertThat(iam(adminToken, "users/" + selfId + "/mfa-recovery-codes", UUID.randomUUID().toString(), body)
+        .statusCode()).isEqualTo(403);
+    assertThat(iamRaw(adminToken, issue, UUID.randomUUID().toString(), "{\"verificationMethod\":\"TRUC_TIEP\",\"reason\":\"ngan\"}")
+        .statusCode()).isEqualTo(422);
+
+    // Cấp: mã chỉ ở đúng phản hồi này; gửi lại cùng khoá không trả mã lần nữa.
+    String key = UUID.randomUUID().toString();
+    r = iam(adminToken, issue, key, body);
+    assertThat(r.statusCode()).as(r.body()).isEqualTo(201);
+    assertThat(r.headers().firstValue("Cache-Control").orElse("")).isEqualTo("no-store");
+    JsonNode issued = RepoFiles.readYaml(r.body());
+    String code = issued.path("recoveryCode").asText();
+    assertThat(issued.path("personId").asText()).isEqualTo(target);
+    assertThat(java.time.Duration.between(java.time.Instant.parse(issued.path("issuedAt").asText()),
+        java.time.Instant.parse(issued.path("expiresAt").asText()))).isEqualTo(java.time.Duration.ofMinutes(15));
+    HttpResponse<String> replay = iam(adminToken, issue, key, body);
+    assertThat(replay.statusCode()).isEqualTo(409);
+    assertThat(replay.body()).doesNotContain(code);
+
+    // Dùng: "Phương thức khác" → mã khôi phục; sai một lần rồi đúng; bắt cài lại SmartOTP.
+    String execution = null;
+    for (JsonNode e : admin.get("/admin/realms/" + REALM + "/authentication/flows/mission-browser/executions")) {
+      if ("mission-recovery-code".equals(e.path("providerId").asText())) {
+        execution = e.path("id").asText();
+      }
+    }
+    OidcBrowser b = browser(REALM);
+    assertThat(b.authorizeWith(Map.of("acr_values", "aal2"))).isEmpty();
+    assertThat(b.submitLogin("mat.thiet.bi", pw)).isEmpty();
+    assertThat(b.hasForm("kc-otp-login-form")).as(b.pageSummary()).isTrue();
+    assertThat(b.submitForm("kc-select-try-another-way-form", Map.of("tryAnotherWay", "on"))).isEmpty();
+    assertThat(b.submitForm("kc-select-credential-form", Map.of("authenticationExecution", execution))).isEmpty();
+    assertThat(b.hasForm("kc-recovery-code-form")).as(b.pageSummary()).isTrue();
+    assertThat(b.submitForm("kc-recovery-code-form", Map.of("recoveryCode", "2222-2222-2222-2222"))).isEmpty();
+    assertThat(b.hasForm("kc-recovery-code-form")).as("sai mã vẫn ở trang nhập mã").isTrue();
+    assertThat(b.submitForm("kc-recovery-code-form", Map.of("recoveryCode", code.toLowerCase()))).isEmpty();
+    JsonNode claims = accessClaims(b, configureTotp(b));
+    assertThat(claims.path("acr").asText()).isEqualTo("aal2");
+    List<String> types = new java.util.ArrayList<>();
+    admin.get("/admin/realms/" + REALM + "/users/" + target + "/credentials").forEach(c -> types.add(c.path("type")
+        .asText()));
+    assertThat(types).as("mã đã dùng bị xoá, SmartOTP cũ được thay").doesNotContain("mission-recovery-code")
+        .containsOnlyOnce("otp");
+
+    // Dùng lại mã đã dùng bị từ chối.
+    OidcBrowser again = browser(REALM);
+    assertThat(again.authorizeWith(Map.of("acr_values", "aal2"))).isEmpty();
+    assertThat(again.submitLogin("mat.thiet.bi", pw)).isEmpty();
+    assertThat(again.submitForm("kc-select-try-another-way-form", Map.of("tryAnotherWay", "on"))).isEmpty();
+    // Không còn mã còn hạn: Keycloak không mở bước nhập mã nữa, không phát code.
+    assertThat(again.submitForm("kc-select-credential-form", Map.of("authenticationExecution", execution))).isEmpty();
+    assertThat(again.hasForm("kc-recovery-code-form")).as(again.pageSummary()).isFalse();
+
+    // Thu hồi.
+    assertThat(iam(adminToken, issue, UUID.randomUUID().toString(), body).statusCode()).isEqualTo(201);
+    r = iam(adminToken, issue + "/revoke", UUID.randomUUID().toString(), "{\"reason\":\"Cán bộ đã tìm lại thiết bị\"}");
+    assertThat(RepoFiles.readYaml(r.body()).path("revokedCount").asInt()).as(r.body()).isEqualTo(1);
+    r = iam(adminToken, issue + "/revoke", UUID.randomUUID().toString(), "{\"reason\":\"Thu hồi lần hai\"}");
+    assertThat(RepoFiles.readYaml(r.body()).path("revokedCount").asInt()).isZero();
+
+    // Mã không có trong CSDL, nhật ký hay hàng đợi sự kiện; sự kiện cấp, dùng, dùng sai, thu hồi đã được phát.
+    String plain = code.replace("-", "");
+    assertThat(keycloak.getLogs()).doesNotContain(code).doesNotContain(plain);
+    assertThat(execInContainer("sh", "-c", "grep -rlaF -e '" + code + "' -e '" + plain
+        + "' /opt/keycloak/data /tmp/mission-events || true")).isBlank();
+    String queue = execInContainer("sh", "-c", "cat /tmp/mission-events/queue.log | tr -c '[:print:]' ' '");
+    assertThat(queue).contains("MFA_RECOVERY_CODE_ISSUED", "MFA_RECOVERY_CODE_USED", "MFA_RECOVERY_CODE_USE_ERROR",
+        "MFA_RECOVERY_CODE_REVOKED", "CAP_MA_KHOI_PHUC_MFA", "BAO_CAP_MA_KHOI_PHUC");
+  }
+
+  // ------------------------------------------------------------------------------------------
   // Authorization Code + PKCE (SEC-17)
   // ------------------------------------------------------------------------------------------
 

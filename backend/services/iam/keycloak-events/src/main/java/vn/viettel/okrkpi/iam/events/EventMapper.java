@@ -36,6 +36,9 @@ final class EventMapper {
       "CODE_TO_TOKEN_ERROR", "REFRESH_TOKEN_ERROR", "UPDATE_TOTP", "REMOVE_TOTP", "UPDATE_CREDENTIAL",
       "REMOVE_CREDENTIAL", "UPDATE_PASSWORD", "USER_DISABLED_BY_TEMPORARY_LOCKOUT",
       "USER_DISABLED_BY_PERMANENT_LOCKOUT");
+  /** DV-02-08: sự kiện mã khôi phục MFA do SPI của Mission phát (không phải loại sự kiện của Keycloak). */
+  static final Set<String> RECOVERY_EVENTS = Set.of("MFA_RECOVERY_CODE_ISSUED", "MFA_RECOVERY_CODE_USED",
+      "MFA_RECOVERY_CODE_USE_ERROR", "MFA_RECOVERY_CODE_REVOKED");
   static final Set<String> LOCKOUT = Set.of("USER_DISABLED_BY_TEMPORARY_LOCKOUT", "USER_DISABLED_BY_PERMANENT_LOCKOUT");
 
   /** Loại sự kiện tự đặt cho lệnh quản trị thu hồi mọi phiên của một người ({@code POST users/{id}/logout}). */
@@ -43,6 +46,8 @@ final class EventMapper {
 
   static final String MSG_LOCKED = "MSG-00-02";
   static final String MSG_NEW_DEVICE = "MSG-00-08";
+  /** Mẫu thông báo cấp mã khôi phục: TL-02a chưa có mã MSG nên dùng mã mẫu riêng (suy luận, wiki trang 14). */
+  static final String MSG_RECOVERY_ISSUED = "BAO_CAP_MA_KHOI_PHUC";
 
   private static final DateTimeFormatter CLOCK = DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")
       .withZone(ZoneId.of("Asia/Ho_Chi_Minh"));
@@ -57,7 +62,7 @@ final class EventMapper {
 
   static Optional<Outgoing> authEvent(Context c, String type, UUID userId, String clientId, String sessionId,
       String error) {
-    if (!USER_EVENTS.contains(type) && !ADMIN_LOGOUT_USER.equals(type)) {
+    if (!USER_EVENTS.contains(type) && !ADMIN_LOGOUT_USER.equals(type) && !RECOVERY_EVENTS.contains(type)) {
       return Optional.empty();
     }
     AuthEvent payload = AuthEvent.newBuilder().setEventType(type).setUserId(userId).setClientId(clientId)
@@ -79,6 +84,27 @@ final class EventMapper {
     params.put("gio", CLOCK.format(c.occurredAt()));
     params.put("noi", clientId == null ? "" : clientId);
     return notice(c, userId, MSG_NEW_DEVICE, params, "/tai-khoan/bao-mat");
+  }
+
+  /** DV-02-08: báo cán bộ qua kênh đã đăng ký khác rằng tài khoản vừa được cấp mã khôi phục (EVT-21, suy luận). */
+  static Outgoing recoveryIssuedNotice(Context c, UUID userId) {
+    Map<String, String> params = new LinkedHashMap<>();
+    params.put("gio", CLOCK.format(c.occurredAt()));
+    return notice(c, userId, MSG_RECOVERY_ISSUED, params, "/tai-khoan/bao-mat");
+  }
+
+  /**
+   * DV-02-08: bản ghi kiểm toán {@code sys.audit.v1} để SVC-09 ghi sổ cái: tác nhân là {@code actorid} của phong bì,
+   * đối tượng là người được cấp, {@code purpose} là hình thức xác minh. Lược đồ AuditEvent chưa có trường lý do nên
+   * lý do không đi theo sự kiện (wiki trang 14).
+   */
+  static Outgoing recoveryAudit(Context c, String action, UUID personId, String outcome, String verificationMethod,
+      String actorRole) {
+    vn.vtokr.sys.v1.AuditEvent payload = vn.vtokr.sys.v1.AuditEvent.newBuilder().setAction(action)
+        .setObjectType("MFA_RECOVERY_CODE").setObjectId(personId.toString()).setOutcome(outcome)
+        .setPurpose(verificationMethod).setActorRole(actorRole).setSystem(false).build();
+    return new Outgoing(EventTopics.SYS_AUDIT_V1, c.tenantId() + ":" + personId, headers(c, "AuditEvent"),
+        avro(payload));
   }
 
   private static Outgoing notice(Context c, UUID userId, String template, Map<String, String> params,

@@ -32,6 +32,13 @@
   </properties>
 
   <dependencies>
+    <!-- DV-02-08: kiểm thử hợp đồng hai thao tác /iam/* với contracts/openapi/modules/platform.yaml. -->
+    <dependency>
+      <groupId>com.atlassian.oai</groupId>
+      <artifactId>swagger-request-validator-core</artifactId>
+      <version>2.46.1</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
