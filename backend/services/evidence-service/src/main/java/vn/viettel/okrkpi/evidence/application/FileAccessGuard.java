@@ -38,6 +38,11 @@ public class FileAccessGuard {
     // Chỉ để chặn trước bởi PermissionInterceptor.
   }
 
+  @RequiresPermission(operationId = "getFilePreview", resourceType = "file")
+  public void checkPreview(FileAccess access) {
+    // Chỉ để chặn trước bởi PermissionInterceptor.
+  }
+
   @RequiresPermission(operationId = "getFileScanResult", resourceType = "file")
   public void checkScanResult(FileAccess access) {
     // Chỉ để chặn trước bởi PermissionInterceptor.

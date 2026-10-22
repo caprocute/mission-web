@@ -61,6 +61,7 @@ import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.application.OpenApiConformanceEngine;
 import vn.viettel.okrkpi.evidence.application.FileNameCipher;
 import vn.viettel.okrkpi.evidence.application.ObjectStorage;
+import vn.viettel.okrkpi.evidence.application.PreviewService;
 import vn.viettel.okrkpi.evidence.application.ScanQueue;
 import vn.viettel.okrkpi.evidence.application.ScanService;
 import vn.viettel.okrkpi.evidence.application.UploadService;
@@ -124,10 +125,16 @@ class FileUploadFlowIT {
               Wait.forLogMessage(".*socket found, clamd started.*", 1)
                   .withStartupTimeout(java.time.Duration.ofMinutes(3)));
 
+  static final GenericContainer<?> GOTENBERG =
+      new GenericContainer<>("gotenberg/gotenberg:8")
+          .withExposedPorts(3000)
+          .waitingFor(Wait.forHttp("/health").forPort(3000));
+
   static {
     POSTGRES.start();
     S3.start();
     CLAMAV.start();
+    GOTENBERG.start();
     migrate();
   }
 
@@ -141,6 +148,9 @@ class FileUploadFlowIT {
         () -> "http://" + S3.getHost() + ":" + S3.getMappedPort(4566));
     r.add("okrkpi.evidence.scan.clamd-host", CLAMAV::getHost);
     r.add("okrkpi.evidence.scan.clamd-port", () -> CLAMAV.getMappedPort(3310));
+    r.add(
+        "okrkpi.evidence.preview.gotenberg-url",
+        () -> "http://" + GOTENBERG.getHost() + ":" + GOTENBERG.getMappedPort(3000));
   }
 
   static void migrate() {
@@ -202,6 +212,7 @@ class FileUploadFlowIT {
   @Autowired UploadService uploads;
   @Autowired ScanService scans;
   @Autowired ScanQueue scanQueue;
+  @Autowired PreviewService previews;
   @Autowired OutboxWriter outbox;
   @Autowired ObjectStorage storage;
   @Autowired PlatformTransactionManager transactions;
@@ -465,6 +476,77 @@ class FileUploadFlowIT {
     scans.scanDue(500);
     assertThat(getJson(USER, "/files/" + infectedId + "/scan", 200).get("scanStatus").asText())
         .isEqualTo("NHIEM");
+  }
+
+  @Test
+  void xemTruocDocxSauTrangTheoCuaSoTrang() throws Exception {
+    byte[] docx = docxPages(6);
+    String id = uploadAs(USER, docx, DOCX).get("objectId").asText();
+    assertThat(getJson(USER, "/files/" + id + "/preview", 409).get("code").asText())
+        .isEqualTo("FILE-409-NOT-CLEAN");
+
+    scans.scanDue(500);
+    HttpResponse<String> pending =
+        send(
+            HttpRequest.newBuilder(api("/files/" + id + "/preview"))
+                .header("Authorization", bearer(USER))
+                .GET());
+    assertThat(pending.statusCode()).isEqualTo(200);
+    assertThat(pending.headers().firstValue("Retry-After")).isPresent();
+    JsonNode waiting = json.readTree(pending.body());
+    conforms("/files/{objectId}/preview", PathItem.HttpMethod.GET, 200, waiting);
+    assertThat(waiting.get("status").asText()).isEqualTo("DANG_TAO");
+
+    long started = System.nanoTime();
+    while (previews.renderDue(10) > 0) {
+      // Dựng hết các việc đã xếp (gồm tệp sạch của các ca khác).
+    }
+    long tookMs = (System.nanoTime() - started) / 1_000_000;
+    System.out.println("DV-08-06 dựng xem trước (gồm DOCX 6 trang): " + tookMs + " ms");
+
+    HttpResponse<String> r =
+        send(
+            HttpRequest.newBuilder(api("/files/" + id + "/preview?fromPage=1&count=20"))
+                .header("Authorization", bearer(USER))
+                .GET());
+    assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
+    assertThat(r.headers().firstValue("Cache-Control"))
+        .hasValueSatisfying(v -> assertThat(v).contains("no-store"));
+    JsonNode ready = json.readTree(r.body());
+    conforms("/files/{objectId}/preview", PathItem.HttpMethod.GET, 200, ready);
+    assertThat(ready.get("status").asText()).isEqualTo("SAN_SANG");
+    assertThat(ready.get("pageCount").asInt()).isEqualTo(6);
+    assertThat(ready.get("pages")).hasSize(6);
+    assertThat(ready.get("sha256").asText()).isEqualTo(sha(docx));
+    assertThat(ready.get("pages").get(0).get("width").asInt()).isBetween(1200, 1300);
+    Instant expires = Instant.parse(ready.get("expiresAt").asText());
+    assertThat(expires).isBetween(Instant.now().plusSeconds(240), Instant.now().plusSeconds(301));
+    long t0 = System.nanoTime();
+    JsonNode first =
+        getJson(USER, "/files/" + id + "/preview?fromPage=1&count=1", 200).get("pages").get(0);
+    byte[] png =
+        http.send(
+                HttpRequest.newBuilder(URI.create(first.get("url").asText())).GET().build(),
+                BodyHandlers.ofByteArray())
+            .body();
+    System.out.println(
+        "DV-08-06 mở trang đầu (API + tải ảnh): " + (System.nanoTime() - t0) / 1_000_000 + " ms");
+    assertThat(png).startsWith((byte) 0x89, (byte) 'P', (byte) 'N', (byte) 'G');
+
+    JsonNode window = getJson(USER, "/files/" + id + "/preview?fromPage=5&count=5", 200);
+    assertThat(window.get("pages")).extracting(p -> p.get("page").asInt()).containsExactly(5, 6);
+
+    HttpResponse<String> c3 =
+        post(
+            USER,
+            "/files/uploads",
+            createBody(
+                "ban-ma.bin", "application/octet-stream", 900, sha(new byte[900]), "C3", true));
+    String c3Id = json.readTree(c3.body()).get("uploadId").asText();
+    complete(USER, c3Id, List.of(putPart(USER, c3Id, 1, new byte[900]).get("etag").asText()), 200);
+    JsonNode none = getJson(USER, "/files/" + c3Id + "/preview", 200);
+    conforms("/files/{objectId}/preview", PathItem.HttpMethod.GET, 200, none);
+    assertThat(none.get("status").asText()).isEqualTo("KHONG_HO_TRO");
   }
 
   @Test
@@ -887,6 +969,49 @@ class FileUploadFlowIT {
             OpenApiConformanceEngine.validateResponseJson(
                 contract, "/api/v1" + path, method, status, body.toString()))
         .isEmpty();
+  }
+
+  /** DOCX hợp lệ với {@code n} trang (ngắt trang giữa các đoạn) để Gotenberg chuyển được. */
+  static byte[] docxPages(int n) throws IOException {
+    StringBuilder body = new StringBuilder();
+    for (int i = 1; i <= n; i++) {
+      body.append("<w:p><w:r><w:t>Trang minh chứng số ").append(i).append("</w:t></w:r></w:p>");
+      if (i < n) {
+        body.append("<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>");
+      }
+    }
+    Map<String, String> entries = new java.util.LinkedHashMap<>();
+    entries.put(
+        "[Content_Types].xml",
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Types"
+            + " xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default"
+            + " Extension=\"rels\""
+            + " ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default"
+            + " Extension=\"xml\" ContentType=\"application/xml\"/><Override"
+            + " PartName=\"/word/document.xml\""
+            + " ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/></Types>");
+    entries.put(
+        "_rels/.rels",
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships"
+            + " xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship"
+            + " Id=\"rId1\""
+            + " Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\""
+            + " Target=\"word/document.xml\"/></Relationships>");
+    entries.put(
+        "word/document.xml",
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><w:document"
+            + " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body>"
+            + body
+            + "</w:body></w:document>");
+    var bytes = new java.io.ByteArrayOutputStream();
+    try (var zip = new java.util.zip.ZipOutputStream(bytes)) {
+      for (var e : entries.entrySet()) {
+        zip.putNextEntry(new java.util.zip.ZipEntry(e.getKey()));
+        zip.write(e.getValue().getBytes(StandardCharsets.UTF_8));
+        zip.closeEntry();
+      }
+    }
+    return bytes.toByteArray();
   }
 
   /** Gói DOCX tối thiểu kèm các mục thêm. */
