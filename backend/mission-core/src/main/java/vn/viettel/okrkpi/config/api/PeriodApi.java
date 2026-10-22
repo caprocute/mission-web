@@ -80,4 +80,17 @@ public interface PeriodApi {
   default void assertWritable(TenantId tenantId, PeriodId periodId) throws PeriodLockedException {
     assertOpen(tenantId, periodId);
   }
+
+  /**
+   * Như {@link #assertWritable(TenantId, PeriodId)} nhưng biết đối tượng được ghi: khi kỳ đang mở
+   * lại hậu kiểm ({@code MO_LAI_HAU_KIEM}), lệnh ghi chỉ được nhận khi đối tượng nằm trong phạm vi
+   * đã duyệt, ngoài phạm vi trả 409 {@code period-locked} theo MSG-13-04 (CORE-08-06, BR-13-05).
+   *
+   * @param target đơn vị, hồ sơ mà lệnh ghi chạm tới; {@link PeriodWriteTarget#NONE} khi không rõ
+   * @throws PeriodLockedException khi kỳ khoá hoặc đối tượng ngoài phạm vi mở lại
+   */
+  default void assertWritable(TenantId tenantId, PeriodId periodId, PeriodWriteTarget target)
+      throws PeriodLockedException {
+    assertWritable(tenantId, periodId);
+  }
 }

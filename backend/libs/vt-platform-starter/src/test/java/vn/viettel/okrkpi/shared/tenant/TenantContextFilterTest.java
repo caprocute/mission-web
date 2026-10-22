@@ -122,4 +122,98 @@ class TenantContextFilterTest {
     filter.doFilter(request, new MockHttpServletResponse(), chain);
     assertThat(hadTenant.get()).isFalse();
   }
+
+  private final TenantContextFilter delegating =
+      new TenantContextFilter(
+          new TenantProperties(null, null, java.util.List.of("mission-core"), null),
+          new ProblemFactory(new W3cTraceIdResolver(), ErrorCatalog.standard()),
+          mapper);
+
+  private static void authenticateService(String client, String username) {
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            new JwtAuthenticationToken(
+                Jwt.withTokenValue("t")
+                    .header("alg", "RS256")
+                    .subject(UUID.randomUUID().toString())
+                    .claim("azp", client)
+                    .claim("preferred_username", username)
+                    .issuedAt(Instant.now())
+                    .expiresAt(Instant.now().plusSeconds(60))
+                    .build()));
+  }
+
+  private TenantId seenThrough(TenantContextFilter f, String header, MockHttpServletResponse res)
+      throws Exception {
+    AtomicReference<TenantId> seen = new AtomicReference<>();
+    MockFilterChain chain =
+        new MockFilterChain(
+            new jakarta.servlet.http.HttpServlet() {
+              @Override
+              protected void service(
+                  jakarta.servlet.http.HttpServletRequest req,
+                  jakarta.servlet.http.HttpServletResponse r) {
+                seen.set(TenantContext.require());
+              }
+            });
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/workflow/sagas");
+    if (header != null) {
+      request.addHeader("X-Tenant-Id", header);
+    }
+    f.doFilter(request, res, chain);
+    return seen.get();
+  }
+
+  @Test
+  void clientDichVuDuocKhaiLayTenantTuHeader() throws Exception {
+    UUID id = UUID.randomUUID();
+    authenticateService("mission-core", "service-account-mission-core");
+    assertThat(seenThrough(delegating, id.toString(), new MockHttpServletResponse()))
+        .isEqualTo(TenantId.of(id));
+    assertThat(TenantContext.current()).isEmpty();
+  }
+
+  @Test
+  void headerBiBoQuaKhiClientChuaKhaiHoacLaTokenNguoiDung() throws Exception {
+    String header = UUID.randomUUID().toString();
+    // Mặc định không client nào được phép.
+    authenticateService("mission-core", "service-account-mission-core");
+    MockHttpServletResponse res = new MockHttpServletResponse();
+    assertThat(seenThrough(filter, header, res)).isNull();
+    assertThat(res.getStatus()).isEqualTo(403);
+    // Client khác danh sách.
+    authenticateService("integration-gateway", "service-account-integration-gateway");
+    res = new MockHttpServletResponse();
+    assertThat(seenThrough(delegating, header, res)).isNull();
+    assertThat(res.getStatus()).isEqualTo(403);
+    // Người dùng đăng nhập qua client mission-core không phải tài khoản dịch vụ.
+    authenticateService("mission-core", "nguyen.van.a");
+    res = new MockHttpServletResponse();
+    assertThat(seenThrough(delegating, header, res)).isNull();
+    assertThat(res.getStatus()).isEqualTo(403);
+    // Thiếu header.
+    authenticateService("mission-core", "service-account-mission-core");
+    res = new MockHttpServletResponse();
+    assertThat(seenThrough(delegating, null, res)).isNull();
+    assertThat(res.getStatus()).isEqualTo(403);
+  }
+
+  @Test
+  void claimTenantThangHeaderCuaClientDichVu() throws Exception {
+    UUID claimed = UUID.randomUUID();
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            new JwtAuthenticationToken(
+                Jwt.withTokenValue("t")
+                    .header("alg", "RS256")
+                    .subject("s")
+                    .claim("azp", "mission-core")
+                    .claim("preferred_username", "service-account-mission-core")
+                    .claim("tenant_id", claimed.toString())
+                    .issuedAt(Instant.now())
+                    .expiresAt(Instant.now().plusSeconds(60))
+                    .build()));
+    assertThat(seenThrough(delegating, UUID.randomUUID().toString(), new MockHttpServletResponse()))
+        .isEqualTo(TenantId.of(claimed));
+  }
 }
