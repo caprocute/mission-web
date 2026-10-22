@@ -297,7 +297,7 @@ public class PolicyTestRunService {
       RunOptions options) {
     jobs.running(tenant, jobId, 5);
     try {
-      Inputs in = writes.execute(s -> inputs(tenant, packId, version, options));
+      Inputs in = inTx(() -> inputs(tenant, packId, version, options));
       List<Evaluated> evaluated = new ArrayList<>();
       for (GoldenTestCase c : in.cases()) {
         evaluated.add(evaluate(in.evaluator(), c, false));
@@ -318,10 +318,9 @@ public class PolicyTestRunService {
       jobs.running(tenant, jobId, 90);
       Map<String, Object> impact = in.baseline() == null ? null : impact(in, evaluated);
       PolicyTestRun finished =
-          writes.execute(
-              s -> store(tenant, actor, runId, in, evaluated, engines, property, impact));
+          inTx(() -> store(tenant, actor, runId, in, evaluated, engines, property, impact));
       NumberedRun numbered =
-          writes.execute(s -> runs.findRun(tenant, in.version().id(), runId).orElseThrow());
+          inTx(() -> runs.findRun(tenant, in.version().id(), runId).orElseThrow());
       String message =
           finished.result() == TestRunResult.DAT
               ? "Lần chạy #"
@@ -716,6 +715,11 @@ public class PolicyTestRunService {
   private PolicyPackVersion version(TenantId tenant, UUID packId, String version) {
     packs.findPack(tenant, packId).orElseThrow(NoSuchElementException::new);
     return packs.findVersion(tenant, packId, version).orElseThrow(NoSuchElementException::new);
+  }
+
+  /** Giao dịch ghi riêng của tác vụ nền; kết quả không bao giờ null. */
+  private <T> T inTx(java.util.function.Supplier<T> work) {
+    return Objects.requireNonNull(writes.execute(s -> work.get()), "kết quả giao dịch");
   }
 
   static String location(UUID packId, String version, UUID runId) {
