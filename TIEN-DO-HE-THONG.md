@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **264 / 408 task (64.7%)** — Khối lượng quy đổi đã gộp: **303.5 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **267 / 408 task (65.4%)** (gồm **264** đã gộp `main` + **3** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **5 task** (2 đang làm, 3 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **268 / 408 task (65.7%)** (gồm **264** đã gộp `main` + **4** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **4 task** (1 đang làm, 3 làm một phần).
 - **Chưa bắt đầu**: **136 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **15 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-05`** (đang xử lý trên nhánh: không).
 
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **66** | 0 | 2 | 4 | **91.7%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **75** | 3 | 2 | 37 | **64.1%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **75** | 4 | 1 | 37 | **64.1%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **57** | 0 | 1 | 46 | **54.8%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **11** | 0 | 0 | 2 | **84.6%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **264** | **3** | **5** | **136** | **64.7%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **264** | **4** | **4** | **136** | **64.7%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -42,7 +42,7 @@
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **44** | 0 | 0 | 3 | **93.6%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **71** | 0 | 2 | 47 | **59.2%** |
-| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **39** | 3 | 1 | 29 | **54.2%** |
+| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **39** | 4 | 0 | 29 | **54.2%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **15** | 0 | 1 | 26 | **35.7%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **0** | 0 | 0 | 4 | **0.0%** |
@@ -315,7 +315,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-04-12](docs/tasks/CORE-04-12-phan-nhom-trien-vong.md) | Phân nhóm triển vọng: lưu nháp, BR-10-07..09, trình tập thể, ký danh sách | M | B4 | 21 | CORE-04-10 | **Chưa bắt đầu** |  |
 | [CORE-04-13](docs/tasks/CORE-04-13-dau-vao-diem-cong-viec-su-viec.md) | Đầu vào `workItems` và `responsibilityScope` trong `inputs`, bảng `appraisal.incident`, bắt buộc lý do khi mức của `rating_proposal` khác mức gợi ý | L | B4 | 18 | NEN-044, CORE-04-06, CORE-02-27, CORE-02-28, CORE-01-14 | **Chưa bắt đầu** | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
 
-### CORE-06 · MOD-06 dossier: kiểm điểm, hồ sơ số (1/8 đã gộp `main`, 3 chờ gộp, 1 đang làm)
+### CORE-06 · MOD-06 dossier: kiểm điểm, hồ sơ số (1/8 đã gộp `main`, 4 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -323,7 +323,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-06-02](docs/tasks/CORE-06-02-hoi-nghi-kiem-diem.md) | Hội nghị kiểm điểm: tạo, thành phần, quyền thư ký và chủ trì, gửi dự thảo | M | B4 | 13 | CORE-06-01, CORE-08-04 | **Xong, chờ gộp** | Nhánh claude/project-thread-n43ag0: hội nghị kiểm điểm, gửi dự thảo, hạn 3 ngày làm việc; đã qua build & test |
 | [CORE-06-03](docs/tasks/CORE-06-03-gop-y-an-danh.md) | Góp ý mã hoá C2 và chế độ ẩn danh qua OPA | S | B4 | 14 | CORE-06-02, NEN-015 | **Xong, chờ gộp** | Nhánh claude/project-thread-n43ag0: góp ý mã hoá C2, thư ký ghi tại hội nghị, ẩn danh; đã qua build & test |
 | [CORE-06-04](docs/tasks/CORE-06-04-ket-thuc-hoi-nghi.md) | Kết thúc hội nghị: biểu quyết, sinh biên bản 202, mục khắc phục | M | B4 | 15 | CORE-06-03, DV-11-01 | **Xong, chờ gộp** | Nhánh claude/project-thread-n43ag0: biểu quyết, biên bản 202, kết thúc hội nghị, hạn chế cần khắc phục, consumer EVT-17/EVT-18; đã qua build & test |
-| [CORE-06-05](docs/tasks/CORE-06-05-truong-hop-dac-thu.md) | Phát hiện 13 trường hợp đặc thù theo bảng trong Policy Pack | L | B4 | 14 | CORE-06-01, CORE-05-03, CORE-00-03 | **Đang làm** | Nhánh claude/project-thread-n43ag0: đang thực hiện |
+| [CORE-06-05](docs/tasks/CORE-06-05-truong-hop-dac-thu.md) | Phát hiện 13 trường hợp đặc thù theo bảng trong Policy Pack | L | B4 | 14 | CORE-06-01, CORE-05-03, CORE-00-03 | **Xong, chờ gộp** | Nhánh claude/project-thread-n43ag0: 13 trường hợp đặc thù, SpecialCaseQuery, EVT-15, 3 API; verify mission-core xanh (1083 + 257 IT) |
 | [CORE-06-06](docs/tasks/CORE-06-06-tao-goi-ho-so.md) | Tạo gói hồ sơ khi có EVT-12, theo dõi job sinh biểu mẫu, sinh lại tệp lỗi | M | B4 | 20 | CORE-06-01, CORE-04-08, DV-11-04 | **Chưa bắt đầu** |  |
 | [CORE-06-07](docs/tasks/CORE-06-07-ky-khoa-goi.md) | Manifest SHA-256, danh sách kiểm tra, ký gói, khoá `DA_NOP`, phiên bản gói mới khi EVT-22 | M | B4 | 21 | CORE-06-06, DV-10-02 | **Chưa bắt đầu** |  |
 | [CORE-06-08](docs/tasks/CORE-06-08-xuat-goi-edxml.md) | Xuất gói ZIP có manifest ký và gửi gói con diện Trung ương qua EdXML | M | B4 | 22 | CORE-06-07, DV-13-05 | **Chưa bắt đầu** |  |
@@ -956,4 +956,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 21:47 | B2 backend | `CORE-06-03` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0: góp ý mã hoá C2, thư ký ghi tại hội nghị, ẩn danh; đã qua build & test |
 | 22/10/2026 21:47 | B2 backend | `CORE-06-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0: biểu quyết, biên bản 202, kết thúc hội nghị, hạn chế cần khắc phục, consumer EVT-17/EVT-18; đã qua build & test |
 | 22/10/2026 21:47 | B2 backend | `CORE-06-05` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-n43ag0: đang thực hiện |
+| 22/10/2026 22:25 | B2 backend | `CORE-06-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0: 13 trường hợp đặc thù, SpecialCaseQuery, EVT-15, 3 API; verify mission-core xanh (1083 + 257 IT) |
 <!-- PROGRESS_LOG_END -->
