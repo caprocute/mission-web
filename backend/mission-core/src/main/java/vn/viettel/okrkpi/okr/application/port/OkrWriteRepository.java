@@ -87,7 +87,7 @@ public interface OkrWriteRepository {
       UUID actor);
 
   /** Ghi đè phần sửa được và tăng {@code row_version}; trả phiên bản mới. */
-  long updateObjective(TenantId tenant, ObjectiveHead head, ObjectiveData data, UUID actor);
+  long rewriteObjective(TenantId tenant, ObjectiveHead head, ObjectiveData data, UUID actor);
 
   /** Tăng {@code row_version} của mục tiêu khi KR của nó đổi qua lệnh riêng. */
   long touchObjective(TenantId tenant, ObjectiveHead head, UUID actor);
@@ -114,9 +114,9 @@ public interface OkrWriteRepository {
       KeyResultData data,
       UUID actor);
 
-  void updateKeyResult(TenantId tenant, int bucket, KeyResultData data, UUID actor);
+  void rewriteKeyResult(TenantId tenant, int bucket, KeyResultData data, UUID actor);
 
-  void deleteKeyResults(TenantId tenant, int bucket, Collection<UUID> ids);
+  void dropKeyResults(TenantId tenant, int bucket, Collection<UUID> ids);
 
   List<KeyResultData> keyResultsOf(TenantId tenant, int bucket, UUID objectiveId);
 
@@ -154,8 +154,8 @@ public interface OkrWriteRepository {
 
   Optional<LinkRow> findLink(TenantId tenant, UUID id);
 
-  void deleteLink(TenantId tenant, UUID id);
+  void dropLink(TenantId tenant, UUID id);
 
   /** Xoá mọi liên kết chạm các đối tượng (khi xoá KR). */
-  void deleteLinksTouching(TenantId tenant, Collection<UUID> ids);
+  void dropLinksTouching(TenantId tenant, Collection<UUID> ids);
 }

@@ -163,7 +163,7 @@ public class OkrComposeService {
     overLimit(count, max, data.overLimitReason(), errors);
     errors.throwIfAny();
 
-    long version = repository.updateObjective(tenant, head, data, actor);
+    long version = repository.rewriteObjective(tenant, head, data, actor);
     repository.replaceBases(
         tenant, head.periodBucket(), head.periodId(), id, distinct(draft.basisIds()), actor);
     if (!Objects.equals(head.parentObjectiveId(), data.parentObjectiveId())) {
@@ -174,7 +174,7 @@ public class OkrComposeService {
     for (KeyResultData k : krs) {
       if (k.id() != null) {
         kept.add(k.id());
-        repository.updateKeyResult(tenant, head.periodBucket(), k, actor);
+        repository.rewriteKeyResult(tenant, head.periodBucket(), k, actor);
       } else {
         repository.insertKeyResult(
             tenant,
@@ -188,8 +188,8 @@ public class OkrComposeService {
       }
     }
     List<UUID> removed = existingKrs.stream().filter(k -> !kept.contains(k)).toList();
-    repository.deleteLinksTouching(tenant, removed);
-    repository.deleteKeyResults(tenant, head.periodBucket(), removed);
+    repository.dropLinksTouching(tenant, removed);
+    repository.dropKeyResults(tenant, head.periodBucket(), removed);
     return version;
   }
 
@@ -367,7 +367,13 @@ public class OkrComposeService {
       periodId = source.periodId();
       unitId = source.ownerUnitId();
     }
-    writablePeriod(tenant, periodId, unitId, false);
+    // Gọi trực tiếp assertWritable để quy tắc ArchUnit writesCheckPeriodLock nhận ra (CORE-08-03).
+    PeriodSnapshot period = periodOf(tenant, periodId);
+    try {
+      periods.assertWritable(tenant, period.id(), writeTarget(unitId));
+    } catch (PeriodLockedException e) {
+      throw new PeriodLockedException(period.id(), period.name(), MODULE);
+    }
     if (repository.linkExists(tenant, l.fromType(), l.fromId(), l.toType(), l.toId())) {
       throw new BusinessException(MODULE + "-409-LINK-EXISTS", "Liên kết này đã có");
     }
@@ -397,8 +403,14 @@ public class OkrComposeService {
       requireDraft(source);
       unitId = source.ownerUnitId();
     }
-    writablePeriod(tenant, link.periodId(), unitId, false);
-    repository.deleteLink(tenant, id);
+    // Gọi trực tiếp assertWritable để quy tắc ArchUnit writesCheckPeriodLock nhận ra (CORE-08-03).
+    PeriodSnapshot period = periodOf(tenant, link.periodId());
+    try {
+      periods.assertWritable(tenant, period.id(), writeTarget(unitId));
+    } catch (PeriodLockedException e) {
+      throw new PeriodLockedException(period.id(), period.name(), MODULE);
+    }
+    repository.dropLink(tenant, id);
   }
 
   /** Mục tiêu đọc lại để biết đơn vị sở hữu (kiểm phạm vi ở lớp gọi). */
@@ -443,14 +455,21 @@ public class OkrComposeService {
                         ? invalid("periodId", "Kỳ đánh giá không tồn tại")
                         : new IllegalStateException("Mục tiêu trỏ tới kỳ không tồn tại"));
     try {
-      periods.assertWritable(
-          tenant,
-          period.id(),
-          unitId == null ? PeriodWriteTarget.NONE : PeriodWriteTarget.unit(unitId));
+      periods.assertWritable(tenant, period.id(), writeTarget(unitId));
     } catch (PeriodLockedException e) {
       throw new PeriodLockedException(period.id(), period.name(), MODULE);
     }
     return period;
+  }
+
+  private PeriodSnapshot periodOf(TenantId tenant, UUID periodId) {
+    return periods
+        .findById(tenant, PeriodId.of(periodId))
+        .orElseThrow(() -> new IllegalStateException("Mục tiêu trỏ tới kỳ không tồn tại"));
+  }
+
+  private static PeriodWriteTarget writeTarget(UUID unitId) {
+    return unitId == null ? PeriodWriteTarget.NONE : PeriodWriteTarget.unit(unitId);
   }
 
   private ObjectiveData objectiveData(

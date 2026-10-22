@@ -132,7 +132,7 @@ public class JdbcOkrWriteRepository implements OkrWriteRepository {
   }
 
   @Override
-  public long updateObjective(TenantId tenant, ObjectiveHead head, ObjectiveData d, UUID actor) {
+  public long rewriteObjective(TenantId tenant, ObjectiveHead head, ObjectiveData d, UUID actor) {
     jdbc.update(
         "UPDATE okr.objective SET title = :title, description = :descr,"
             + " parent_objective_id = :parent, tier = :tier, over_limit_reason = :reason,"
@@ -273,7 +273,7 @@ public class JdbcOkrWriteRepository implements OkrWriteRepository {
   }
 
   @Override
-  public void updateKeyResult(TenantId tenant, int bucket, KeyResultData d, UUID actor) {
+  public void rewriteKeyResult(TenantId tenant, int bucket, KeyResultData d, UUID actor) {
     jdbc.update(
         "UPDATE okr.key_result SET title = :title, metric_type = :metric, unit = :unit,"
             + " baseline_value = :base, target_value = :target, direction = :dir,"
@@ -307,7 +307,7 @@ public class JdbcOkrWriteRepository implements OkrWriteRepository {
   }
 
   @Override
-  public void deleteKeyResults(TenantId tenant, int bucket, Collection<UUID> ids) {
+  public void dropKeyResults(TenantId tenant, int bucket, Collection<UUID> ids) {
     if (ids.isEmpty()) {
       return;
     }
@@ -493,13 +493,13 @@ public class JdbcOkrWriteRepository implements OkrWriteRepository {
   }
 
   @Override
-  public void deleteLink(TenantId tenant, UUID id) {
+  public void dropLink(TenantId tenant, UUID id) {
     jdbc.update(
         "DELETE FROM okr.okr_link WHERE tenant_id = :t AND id = :id", t(tenant).addValue("id", id));
   }
 
   @Override
-  public void deleteLinksTouching(TenantId tenant, Collection<UUID> ids) {
+  public void dropLinksTouching(TenantId tenant, Collection<UUID> ids) {
     if (ids.isEmpty()) {
       return;
     }

@@ -150,7 +150,7 @@ public class JdbcOkrCheckinRepository implements OkrCheckinRepository {
   }
 
   @Override
-  public boolean updateKeyResultProgress(
+  public boolean writeKeyResultProgress(
       TenantId tenant,
       int bucket,
       UUID keyResultId,
@@ -190,7 +190,7 @@ public class JdbcOkrCheckinRepository implements OkrCheckinRepository {
    * {@code If-Match} của luồng duyệt, điều chỉnh mục tiêu mỗi lần có check-in (suy luận).
    */
   @Override
-  public void updateObjectiveProgress(
+  public void writeObjectiveProgress(
       TenantId tenant, int bucket, UUID objectiveId, BigDecimal progress, UUID actor) {
     jdbc.update(
         "UPDATE okr.objective SET progress = :progress, progress_pct = :pct, updated_at = now(),"

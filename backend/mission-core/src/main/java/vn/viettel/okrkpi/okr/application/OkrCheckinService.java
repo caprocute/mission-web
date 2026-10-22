@@ -11,8 +11,10 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.config.api.PeriodApi;
+import vn.viettel.okrkpi.config.api.PeriodLockedException;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.PeriodStatus;
+import vn.viettel.okrkpi.config.api.PeriodWriteTarget;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinDelegatePort;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinEvents;
 import vn.viettel.okrkpi.okr.application.port.OkrCheckinExtension;
@@ -176,7 +178,7 @@ public class OkrCheckinService {
     String riskFlag =
         RiskFlagPolicy.next(
             target.riskFlag(), last.map(CheckinRow::confidence).orElse(null), cmd.confidence());
-    if (!repository.updateKeyResultProgress(
+    if (!repository.writeKeyResultProgress(
         tenant,
         bucket,
         target.keyResultId(),
@@ -193,7 +195,7 @@ public class OkrCheckinService {
     BigDecimal objectiveProgress =
         ProgressCalculator.objective(
             repository.objectiveWeights(tenant, bucket, target.objectiveId()));
-    repository.updateObjectiveProgress(
+    repository.writeObjectiveProgress(
         tenant, bucket, target.objectiveId(), objectiveProgress, actor);
     CheckinRow row = repository.byId(tenant, bucket, id).orElseThrow();
     long version = target.rowVersion() + 1;
@@ -248,7 +250,15 @@ public class OkrCheckinService {
         periods
             .findById(tenant, PeriodId.of(target.periodId()))
             .orElseThrow(() -> new IllegalStateException("KR trỏ tới kỳ không tồn tại"));
-    if (period.status() != PeriodStatus.MO) {
+    boolean writable = period.status() == PeriodStatus.MO;
+    if (writable) {
+      try {
+        periods.assertWritable(tenant, period.id(), PeriodWriteTarget.unit(target.ownerUnitId()));
+      } catch (PeriodLockedException e) {
+        writable = false;
+      }
+    }
+    if (!writable) {
       throw new BusinessException(
           MODULE + "-409-PERIOD-LOCKED",
           "Kỳ " + period.name() + " đã khoá. Check-in lưu trên máy chưa được gửi.");
