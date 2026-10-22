@@ -20,12 +20,14 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"mission/services-go/notification/internal/api"
+	"mission/services-go/notification/internal/bulk"
 	"mission/services-go/notification/internal/channel"
 	"mission/services-go/notification/internal/config"
 	"mission/services-go/notification/internal/consume"
 	"mission/services-go/notification/internal/crypt"
 	"mission/services-go/notification/internal/deliver"
 	"mission/services-go/notification/internal/prefs"
+	"mission/services-go/notification/internal/ratelimit"
 	"mission/services-go/notification/internal/rt"
 	"mission/services-go/notification/internal/store"
 	"vn.viettel.okrkpi/services-go/vtplatform/otel"
@@ -75,8 +77,9 @@ func main() {
 	// Luồng SSE qua Valkey Streams (DV-12-02); một địa chỉ là nút đơn, nhiều địa chỉ là cluster.
 	var hub *rt.Hub
 	var notifier *rt.Notifier
+	var rdb redis.UniversalClient
 	if len(cfg.ValkeyAddrs) > 0 {
-		rdb := redis.NewUniversalClient(&redis.UniversalOptions{Addrs: cfg.ValkeyAddrs,
+		rdb = redis.NewUniversalClient(&redis.UniversalOptions{Addrs: cfg.ValkeyAddrs,
 			Password: os.Getenv("VALKEY_PASSWORD"), PoolSize: 4 * rt.BusShards})
 		defer rdb.Close()
 		hub = rt.NewHub(rdb, log)
@@ -133,6 +136,14 @@ func main() {
 			worker.Lanes = append(worker.Lanes, deliver.Lane{Channel: ch, Sender: snd, Concurrency: concurrency(ch),
 				Breaker: channel.NewBreaker(5, 30*time.Second)})
 		}
+		// Giới hạn tốc độ đợt hàng loạt theo kênh (DV-12-04): dùng chung qua Valkey, chưa có Valkey thì trong pod.
+		limits := bulkLimits()
+		worker.Limits = limits
+		if rdb != nil {
+			worker.Limiter = ratelimit.Valkey{R: rdb, Limits: limits}
+		} else {
+			worker.Limiter = &ratelimit.Memory{Limits: limits}
+		}
 		go worker.Run(ctx)
 		log.Info("bật kênh ngoài", "channels", strings.Join(external, ","))
 	}
@@ -144,6 +155,7 @@ func main() {
 			os.Exit(1)
 		}
 		proc.Writer.External = external
+		proc.BulkThreshold = envInt("BULK_THRESHOLD", 500)
 		c, err := consume.NewConsumer(cfg.KafkaBrokers, proc, log)
 		if err != nil {
 			log.Error("không tạo được consumer Kafka", "err", err.Error())
@@ -161,6 +173,9 @@ func main() {
 		}
 		defer c.Close()
 		go func() { _ = c.Run(ctx) }()
+		x := &bulk.Expander{Pool: pool, Writer: proc.Writer, Chunk: envInt("BULK_CHUNK", 1000), Log: log,
+			Created: proc.Created}
+		go x.Run(ctx)
 	} else {
 		log.Warn("chưa cấu hình KAFKA_BROKERS, không chạy consumer")
 	}

@@ -11,6 +11,7 @@ import (
 
 	"mission/services-go/notification/internal/channel"
 	"mission/services-go/notification/internal/directory"
+	"mission/services-go/notification/internal/ratelimit"
 )
 
 // Kênh ngoài (DV-12-03) dựng từ biến môi trường. Địa chỉ cổng, tài khoản và khoá của từng kênh chỉ nằm trong cấu
@@ -108,11 +109,25 @@ func envDefault(k, def string) string {
 // concurrency là bulkhead mặc định của từng kênh (suy luận), đổi bằng NOTIFY_CONCURRENCY_<KÊNH>.
 func concurrency(ch string) int {
 	def := map[string]int{channel.Email: 8, channel.SMS: 4, channel.Push: 16}[ch]
+	return envInt("NOTIFY_CONCURRENCY_"+ch, def)
+}
+
+func envInt(k string, def int) int {
 	var n int
-	if _, err := fmt.Sscanf(env("NOTIFY_CONCURRENCY_"+ch), "%d", &n); err == nil && n > 0 {
+	if _, err := fmt.Sscanf(env(k), "%d", &n); err == nil && n > 0 {
 		return n
 	}
 	return def
+}
+
+// bulkLimits là giới hạn mỗi 60 giây của đợt hàng loạt theo kênh, đổi bằng BULK_RATE_<KÊNH>. Mặc định là suy luận
+// (TL-01 không ghi con số): SMS 6.000, EMAIL 30.000, PUSH 120.000 lần mỗi phút.
+func bulkLimits() ratelimit.Limits {
+	return ratelimit.Limits{Window: time.Minute, Per: map[string]int{
+		channel.SMS:   envInt("BULK_RATE_SMS", 6000),
+		channel.Email: envInt("BULK_RATE_EMAIL", 30000),
+		channel.Push:  envInt("BULK_RATE_PUSH", 120000),
+	}}
 }
 
 func httpClient() *http.Client { return &http.Client{Timeout: 10 * time.Second} }

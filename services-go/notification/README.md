@@ -1,6 +1,6 @@
 # SVC-12 notification-service
 
-Dịch vụ thông báo của Mission viết bằng Go trên thư viện `vtplatform` (NEN-017). Bản này hiện thực DV-12-01: schema `notify`, consumer sự kiện cần báo và hộp thông báo trong ứng dụng của SCR-0002. Thông báo thời gian thực qua SSE (DV-12-02) và kênh email, SMS, đẩy di động (DV-12-03) đã có; thông báo hàng loạt (DV-12-04) làm ở task sau.
+Dịch vụ thông báo của Mission viết bằng Go trên thư viện `vtplatform` (NEN-017). Bản này hiện thực DV-12-01: schema `notify`, consumer sự kiện cần báo và hộp thông báo trong ứng dụng của SCR-0002. Thông báo thời gian thực qua SSE (DV-12-02) và kênh email, SMS, đẩy di động (DV-12-03) đã có; thông báo hàng loạt cuối kỳ (DV-12-04) cũng đã có.
 
 ## Luồng xử lý
 
@@ -23,6 +23,10 @@ Nội dung không chứa dữ liệu C2. Mẫu đánh dấu biến `{{ten|C2}}` 
 `NOTIFY_CHANNELS` (ví dụ `EMAIL,SMS,PUSH`) bật kênh ngoài. Khi nhận sự kiện, ngoài dòng `INAPP` đã gửi, dịch vụ xếp một dòng `notify.delivery` trạng thái `CHO` cho mỗi kênh ngoài được bật trong tuỳ chọn của nhóm thông báo. Mỗi kênh có vòng worker riêng nhận việc qua `notify.fn_claim_deliveries` (`FOR UPDATE SKIP LOCKED`), bulkhead riêng (`NOTIFY_CONCURRENCY_<KÊNH>`, mặc định EMAIL 8, SMS 4, PUSH 16) và ngắt mạch riêng, nên cổng SMS lỗi chỉ làm SMS chờ. Lúc gửi, worker xét lại kênh còn bật và giờ yên lặng (hoãn trừ ưu tiên `CAO`), lấy email, số điện thoại từ Keycloak trong bộ nhớ, dựng nội dung theo mẫu của kênh (chưa có thì dùng mẫu `INAPP`), rồi ghi `DA_GUI`, hẹn thử lại hoặc `THAT_BAI`, `BO_QUA`. CSDL chỉ giữ chỉ mục mù của địa chỉ. Thiết bị hết đăng ký (FCM `UNREGISTERED`, APNs 410) bị thu hồi.
 
 Cấu hình kênh: email `SMTP_ADDR`, `SMTP_FROM`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_TLS` (`starttls` mặc định, `tls`, `none` chỉ cho dev); SMS `SMS_BASE_URL`, `SMS_API_KEY`, `SMS_BRANDNAME`, `SMS_ASCII`; đẩy `FCM_SERVICE_ACCOUNT_FILE`, `FCM_BASE_URL`, `APNS_KEY_FILE`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC`, `APNS_BASE_URL`, hoặc `PUSH_MODE=internal` với `PUSH_INTERNAL_URL`, `PUSH_INTERNAL_API_KEY` cho bản cách ly; danh bạ `KEYCLOAK_ADMIN_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`, `KEYCLOAK_PHONE_ATTR`. Bí mật gắn từ OpenBao; đổi sang cổng thật chỉ đổi cấu hình. Metric: `notify_delivery_pending_<kênh>` (KEDA), `notify_delivery_{sent,failed,retried,skipped}_total[_<kênh>]`.
+
+## Thông báo hàng loạt (DV-12-04)
+
+EVT-21 có từ `BULK_THRESHOLD` người nhận (mặc định 500) và ưu tiên khác `CAO` được ghi thành đợt `notify.bulk_job`. Bộ mở đợt tách lô `BULK_CHUNK` (mặc định 1.000) người nhận, mỗi vòng một lô cho đợt cũ nhất của mỗi tenant, nên tenant nhỏ không chờ tenant lớn. Worker gửi việc thường trước, việc của đợt sau và giữ lượt theo cửa sổ trượt 60 giây trong Valkey (`BULK_RATE_SMS` 6.000, `BULK_RATE_EMAIL` 30.000, `BULK_RATE_PUSH` 120.000 mỗi phút). Metric `notify_bulk_pending_<kênh>`, `notify_bulk_eta_seconds_<kênh>`; công thức thời gian đợt ở wiki/14.
 
 ## Dữ liệu và phân vùng
 

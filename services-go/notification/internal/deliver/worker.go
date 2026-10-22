@@ -23,6 +23,7 @@ import (
 	"mission/services-go/notification/internal/crypt"
 	"mission/services-go/notification/internal/directory"
 	"mission/services-go/notification/internal/prefs"
+	"mission/services-go/notification/internal/ratelimit"
 	"mission/services-go/notification/internal/render"
 	vdb "vn.viettel.okrkpi/services-go/vtplatform/db"
 )
@@ -61,6 +62,10 @@ type Worker struct {
 	Now         func() time.Time
 	// Counter nhận bộ đếm vận hành (tuỳ chọn), ví dụ otel.Provider.AddCounter.
 	Counter func(name string, delta int64)
+	// Limiter giới hạn tốc độ việc của đợt hàng loạt theo kênh (DV-12-04); nil là không giới hạn.
+	Limiter ratelimit.Limiter
+	// Limits dùng để ước tính thời gian còn lại của đợt.
+	Limits ratelimit.Limits
 
 	pending sync.Map // kênh → *atomic.Int64
 }
@@ -154,16 +159,40 @@ func (w *Worker) lane(ctx context.Context, l Lane) {
 type key struct {
 	tenant, id string
 	day        time.Time
+	bulk       bool
 }
 
-// RunOnce nhận một lô việc của kênh và gửi hết (song song tối đa theo bulkhead); trả số việc đã nhận.
+// RunOnce nhận một lô việc thường rồi một lô việc hàng loạt (trong giới hạn tốc độ còn lại) của kênh và gửi hết,
+// song song tối đa theo bulkhead; trả số việc đã nhận.
 func (w *Worker) RunOnce(ctx context.Context, l Lane, sem chan struct{}) (int, error) {
 	w.defaults()
 	if sem == nil {
 		sem = make(chan struct{}, max(1, l.Concurrency))
 	}
-	rows, err := w.Pool.Query(ctx, `SELECT tenant_id::text, created_day, id::text FROM notify.fn_claim_deliveries($1, $2, $3)`,
-		l.Channel, w.Batch, w.Lease)
+	n, err := w.claimAndSend(ctx, l, sem, false, w.Batch)
+	if err != nil {
+		return n, err
+	}
+	// Xem trước số lượt còn trong cửa sổ để chỉ nhận chừng đó việc hàng loạt; lượt thật được giữ ngay trước mỗi lần
+	// gửi, nên thời điểm tính giới hạn sát thời điểm cổng nhận tin.
+	granted := w.Batch
+	if w.Limiter != nil {
+		var release func(int)
+		if granted, release, err = w.Limiter.Reserve(ctx, l.Channel, w.Batch); err != nil {
+			return n, err
+		}
+		release(granted)
+	}
+	if granted == 0 {
+		return n, nil
+	}
+	m, err := w.claimAndSend(ctx, l, sem, true, granted)
+	return n + m, err
+}
+
+func (w *Worker) claimAndSend(ctx context.Context, l Lane, sem chan struct{}, bulk bool, limit int) (int, error) {
+	rows, err := w.Pool.Query(ctx, `SELECT tenant_id::text, created_day, id::text FROM notify.fn_claim_deliveries($1, $2, $3, $4)`,
+		l.Channel, limit, w.Lease, bulk)
 	if err != nil {
 		return 0, err
 	}
@@ -176,6 +205,7 @@ func (w *Worker) RunOnce(ctx context.Context, l Lane, sem chan struct{}) (int, e
 	}
 	var wg sync.WaitGroup
 	for _, k := range keys {
+		k.bulk = bulk
 		sem <- struct{}{}
 		wg.Add(1)
 		go func() {
@@ -307,6 +337,17 @@ func (w *Worker) one(ctx context.Context, l Lane, k key) error {
 		// Mạch mở: trả việc về hàng đợi, không tính lần thử; gửi lại khi cổng phục hồi.
 		return w.finish(ctx, k, outcome{status: "CHO", next: now.Add(w.Poll)}, l.Channel, "")
 	}
+	if k.bulk && w.Limiter != nil {
+		got, release, err := w.Limiter.Reserve(ctx, l.Channel, len(targets))
+		if err != nil || got < len(targets) {
+			release(got)
+			// Hết lượt trong cửa sổ (hoặc lượt chỉ đủ một phần): trả việc về hàng đợi, không tính lần thử.
+			if l.Breaker != nil {
+				l.Breaker.Release()
+			}
+			return w.finish(ctx, k, outcome{status: "CHO", next: now.Add(w.Poll)}, l.Channel, "")
+		}
+	}
 	var sentID string
 	var lastErr error
 	sent := 0
@@ -334,6 +375,9 @@ func (w *Worker) one(ctx context.Context, l Lane, k key) error {
 		} else {
 			l.Breaker.Failure()
 		}
+	}
+	if sent > 0 && !k.bulk && w.Limiter != nil {
+		w.Limiter.Note(ctx, l.Channel)
 	}
 	if sent > 0 {
 		o := outcome{status: "DA_GUI", attempt: true, provider: trim(sentID, 128)}
@@ -447,23 +491,24 @@ func (w *Worker) gauge(ctx context.Context) {
 }
 
 func (w *Worker) refreshPending(ctx context.Context) error {
-	rows, err := w.Pool.Query(ctx, `SELECT channel, due FROM notify.fn_pending_counts()`)
+	rows, err := w.Pool.Query(ctx, `SELECT channel, due, bulk_pending FROM notify.fn_pending_counts()`)
 	if err != nil {
 		return err
 	}
-	seen := map[string]int64{}
+	seen, bulk := map[string]int64{}, map[string]int64{}
 	for rows.Next() {
 		var ch string
-		var n int64
-		if err := rows.Scan(&ch, &n); err != nil {
+		var n, b int64
+		if err := rows.Scan(&ch, &n, &b); err != nil {
 			rows.Close()
 			return err
 		}
-		seen[ch] = n
+		seen[ch], bulk[ch] = n, b
 	}
 	rows.Close()
 	for _, l := range w.Lanes {
 		w.counter(l.Channel).Store(seen[l.Channel])
+		w.counter("bulk:" + l.Channel).Store(bulk[l.Channel])
 	}
 	return rows.Err()
 }
@@ -479,6 +524,12 @@ func (w *Worker) Gauges() map[string]func() int64 {
 	for _, l := range w.Lanes {
 		c := w.counter(l.Channel)
 		out["notify_delivery_pending_"+strings.ToLower(l.Channel)] = c.Load
+		b := w.counter("bulk:" + l.Channel)
+		out["notify_bulk_pending_"+strings.ToLower(l.Channel)] = b.Load
+		rate := w.Limits.Rate(l.Channel)
+		out["notify_bulk_eta_seconds_"+strings.ToLower(l.Channel)] = func() int64 {
+			return ETA(b.Load(), rate)
+		}
 	}
 	return out
 }
@@ -488,4 +539,13 @@ func trim(s string, n int) string {
 		return s[:n]
 	}
 	return s
+}
+
+// ETA ước tính số giây để gửi hết remaining việc hàng loạt ở tốc độ rate lần mỗi giây (giới hạn kênh); không giới
+// hạn thì trả 0. Công thức: thời gian ≈ ⌈còn lại / (giới hạn trong cửa sổ / độ dài cửa sổ)⌉.
+func ETA(remaining int64, rate float64) int64 {
+	if rate <= 0 || remaining <= 0 {
+		return 0
+	}
+	return int64(float64(remaining)/rate + 0.999)
 }

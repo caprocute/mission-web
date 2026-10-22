@@ -52,6 +52,9 @@ func (b Beginner) Begin(ctx context.Context) (vdb.Tx, error) {
 
 type pgxTx struct{ tx pgx.Tx }
 
+// WrapTx đổi giao dịch pgx sang giao diện vdb.Tx mà Writer dùng.
+func WrapTx(tx pgx.Tx) vdb.Tx { return pgxTx{tx} }
+
 func (t pgxTx) Exec(ctx context.Context, sql string, args ...any) (vdb.CommandTag, error) {
 	tag, err := t.tx.Exec(ctx, sql, args...)
 	if err != nil {
@@ -77,6 +80,8 @@ type NewNotification struct {
 	Priority      string
 	SourceEventID string
 	CreatedAt     time.Time
+	// BatchID là đợt hàng loạt (DV-12-04); việc gửi kênh ngoài của đợt chịu giới hạn tốc độ.
+	BatchID *string
 }
 
 // NotificationID sinh mã tất định theo (sự kiện nguồn, người nhận) để giao lại không tạo dòng mới.
@@ -159,23 +164,61 @@ func (w *Writer) Insert(ctx context.Context, tx vdb.Tx, n NewNotification) (bool
 		return true, nil
 	}
 	// Kênh ngoài theo tuỳ chọn của nhóm thông báo (mặc định khi chưa chọn), xếp hàng trạng thái CHO cho worker
-	// từng kênh; giờ yên lặng và việc kênh còn bật được xét lại lúc gửi. Mã delivery tất định theo kênh.
+	// từng kênh; giờ yên lặng và việc kênh còn bật được xét lại lúc gửi. Mã delivery tất định theo kênh. Việc của
+	// đợt hàng loạt đến hạn theo thời điểm tách lô, nên thứ tự gửi đi theo vòng tách lô giữa các tenant.
 	defaults := make([]string, 0, len(prefs.DefaultChannels))
 	for _, c := range prefs.DefaultChannels {
 		defaults = append(defaults, prefs.APIToDB(c))
 	}
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO notify.delivery (created_day, id, tenant_id, notification_id, channel, status, attempts,
-		                             next_attempt_at)
-		SELECT $1::date, md5($4::text || ':' || ch)::uuid, $2::uuid, $4::uuid, ch, 'CHO', 0, $5
+		                             next_attempt_at, batch_id)
+		SELECT $1::date, md5($4::text || ':' || ch)::uuid, $2::uuid, $4::uuid, ch, 'CHO', 0,
+		       CASE WHEN $9::uuid IS NULL THEN $5 ELSE clock_timestamp() END, $9::uuid
 		  FROM unnest(coalesce((SELECT channels FROM notify.channel_pref
 		                         WHERE tenant_id = $2 AND user_id = $3 AND category = $6), $7::varchar[])) AS ch
 		 WHERE ch = ANY($8::varchar[]) AND ch <> 'INAPP'`,
 		day.Format(time.DateOnly), n.TenantID, n.RecipientID, id.String(), created, prefs.CategoryOf(n.TemplateCode),
-		defaults, w.External); err != nil {
+		defaults, w.External, n.BatchID); err != nil {
 		return false, fmt.Errorf("store: xếp hàng kênh ngoài: %w", err)
 	}
 	return true, nil
+}
+
+// BulkJob là một đợt thông báo hàng loạt chờ tách lô (DV-12-04).
+type BulkJob struct {
+	TenantID     string
+	ID           string // mã sự kiện nguồn
+	TemplateCode string
+	Params       map[string]any
+	DeepLink     *string
+	Priority     string
+	Recipients   []string
+	CreatedAt    time.Time
+}
+
+// InsertBulkJob ghi đợt trong giao dịch consumer; trả false khi đợt đã có (giao lại).
+func InsertBulkJob(ctx context.Context, tx vdb.Tx, j BulkJob) (bool, error) {
+	if err := render.CheckParams(j.Params); err != nil {
+		return false, err
+	}
+	if j.Params == nil {
+		j.Params = map[string]any{}
+	}
+	params, err := json.Marshal(j.Params)
+	if err != nil {
+		return false, err
+	}
+	tag, err := tx.Exec(ctx, `
+		INSERT INTO notify.bulk_job (tenant_id, id, template_code, params, deep_link, priority, recipients, total,
+		                             created_at)
+		VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7::uuid[], $8, $9) ON CONFLICT DO NOTHING`,
+		j.TenantID, j.ID, j.TemplateCode, string(params), j.DeepLink, j.Priority, j.Recipients, len(j.Recipients),
+		j.CreatedAt.UTC())
+	if err != nil {
+		return false, fmt.Errorf("store: ghi đợt hàng loạt: %w", err)
+	}
+	return tag.RowsAffected() > 0, nil
 }
 
 // TemplateExists kiểm có mẫu kênh INAPP cho mã mẫu (mẫu riêng của tenant hoặc mẫu chung).
