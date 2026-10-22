@@ -10,4 +10,14 @@ import java.util.UUID;
 public interface PolicyCaller {
 
   Optional<UUID> currentUserId();
+
+  /** Mức xác thực của phiên ({@code acr}) để kiểm bước lên khi ký phê duyệt (CORE-05-09). */
+  default Optional<String> acr() {
+    return Optional.empty();
+  }
+
+  /** Thời điểm xác thực ({@code auth_time}, giây epoch). */
+  default Optional<Long> authTime() {
+    return Optional.empty();
+  }
 }

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -359,6 +360,103 @@ public class JdbcPlanRepository implements PlanRepository {
                     rs.getString("quality_standard"),
                     rs.getString("evidence_requirement")))
         .list();
+  }
+
+  @Override
+  public Optional<ApprovalRow> approvalRow(TenantId tenant, int periodBucket, UUID versionId) {
+    return jdbc.sql(
+            "SELECT created_by, sign_request_id, approved_by FROM task.plan_version"
+                + " WHERE period_bucket = ? AND tenant_id = ? AND id = ?")
+        .params(periodBucket, tenant.value(), versionId)
+        .query(JdbcPlanRepository::approval)
+        .optional();
+  }
+
+  @Override
+  public long attachSignRequest(
+      TenantId tenant, PlanRow plan, VersionRow version, UUID signRequestId, UUID actor) {
+    return jdbc.sql(
+            "UPDATE task.plan_version SET sign_request_id = ?, updated_by = ?, updated_at = now(),"
+                + " row_version = row_version + 1 WHERE period_bucket = ? AND tenant_id = ? AND id = ?"
+                + " AND status = 'CHO_DUYET' RETURNING row_version")
+        .params(signRequestId, actor, plan.periodBucket(), tenant.value(), version.id())
+        .query(Long.class)
+        .single();
+  }
+
+  @Override
+  public Optional<SignedTarget> versionById(TenantId tenant, UUID versionId, boolean forUpdate) {
+    Optional<int[]> bucket =
+        jdbc.sql("SELECT period_bucket FROM task.plan_version WHERE tenant_id = ? AND id = ?")
+            .params(tenant.value(), versionId)
+            .query((rs, n) -> new int[] {rs.getInt(1)})
+            .optional();
+    if (bucket.isEmpty()) {
+      return Optional.empty();
+    }
+    int b = bucket.get()[0];
+    return jdbc.sql(
+            "SELECT "
+                + VERSION_COLS
+                + ", v.created_by, v.sign_request_id, v.approved_by FROM task.plan_version v"
+                + " WHERE v.period_bucket = ? AND v.tenant_id = ? AND v.id = ?"
+                + (forUpdate ? " FOR UPDATE OF v" : ""))
+        .params(b, tenant.value(), versionId)
+        .query((rs, n) -> new Object[] {version(rs, n), approval(rs, n)})
+        .optional()
+        .flatMap(
+            row -> {
+              VersionRow v = (VersionRow) row[0];
+              return findPlan(tenant, v.planId())
+                  .map(p -> new SignedTarget(p, v, (ApprovalRow) row[1]));
+            });
+  }
+
+  @Override
+  public Approved markApproved(
+      TenantId tenant, PlanRow plan, VersionRow version, UUID approver, Instant at) {
+    UUID superseded =
+        jdbc.sql(
+                "UPDATE task.plan_version SET is_current = false, updated_by = ?, updated_at = now()"
+                    + " WHERE period_bucket = ? AND tenant_id = ? AND plan_id = ? AND is_current"
+                    + " AND id <> ? RETURNING id")
+            .params(approver, plan.periodBucket(), tenant.value(), plan.id(), version.id())
+            .query(UUID.class)
+            .optional()
+            .orElse(null);
+    long rowVersion =
+        jdbc.sql(
+                "UPDATE task.plan_version SET status = 'DA_DUYET', is_current = true,"
+                    + " approved_by = ?, approved_at = ?, updated_by = ?, updated_at = now(),"
+                    + " row_version = row_version + 1 WHERE period_bucket = ? AND tenant_id = ?"
+                    + " AND id = ? AND status = 'CHO_DUYET' RETURNING row_version")
+            .params(
+                approver,
+                Timestamp.from(at),
+                approver,
+                plan.periodBucket(),
+                tenant.value(),
+                version.id())
+            .query(Long.class)
+            .single();
+    return new Approved(superseded, rowVersion);
+  }
+
+  @Override
+  public Optional<UUID> signRequestInitiator(TenantId tenant, UUID signRequestId) {
+    return jdbc.sql(
+            "SELECT coalesce(approved_by, updated_by) FROM task.plan_version WHERE tenant_id = ?"
+                + " AND sign_request_id = ? LIMIT 1")
+        .params(tenant.value(), signRequestId)
+        .query(UUID.class)
+        .optional();
+  }
+
+  private static ApprovalRow approval(ResultSet rs, int n) throws SQLException {
+    return new ApprovalRow(
+        rs.getObject("created_by", UUID.class),
+        rs.getObject("sign_request_id", UUID.class),
+        rs.getObject("approved_by", UUID.class));
   }
 
   private static PlanRow plan(ResultSet rs, int n) throws SQLException {

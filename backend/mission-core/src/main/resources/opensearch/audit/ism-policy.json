@@ -1,0 +1,29 @@
+{
+  "policy": {
+    "description": "CORE-07-12 · Vòng đời chỉ mục kiểm toán (TL-01 G6, TL-03 lưu giữ): nóng 1 năm, sau đó chỉ đọc, chụp snapshot sang kho lạnh Ceph (repository audit-lanh) và chuyển sang nút warm; xoá sau 5 năm. Chỉ mục có giữ pháp lý được gỡ khỏi chính sách bằng _plugins/_ism/remove (sổ tay vận hành, đối chiếu DL-13).",
+    "default_state": "nong",
+    "states": [
+      {
+        "name": "nong",
+        "actions": [],
+        "transitions": [{ "state_name": "lanh", "conditions": { "min_index_age": "365d" } }]
+      },
+      {
+        "name": "lanh",
+        "actions": [
+          { "read_only": {} },
+          { "snapshot": { "repository": "audit-lanh", "snapshot": "audit-lanh" } },
+          { "replica_count": { "number_of_replicas": 0 } },
+          { "allocation": { "require": { "temp": "warm" }, "wait_for": false } }
+        ],
+        "transitions": [{ "state_name": "xoa", "conditions": { "min_index_age": "1825d" } }]
+      },
+      {
+        "name": "xoa",
+        "actions": [{ "delete": {} }],
+        "transitions": []
+      }
+    ],
+    "ism_template": [{ "index_patterns": ["audit-*"], "priority": 100 }]
+  }
+}

@@ -54,4 +54,12 @@ class RoleBootstrapPlanTest {
                     "td; DROP", DatabaseLayout.TENANT_DATA, RoleLimits.load()))
         .isInstanceOf(IllegalArgumentException.class);
   }
+
+  @Test
+  void chiSchemaGhiLoMoiCoQuyenBangTam() {
+    assertThat(RoleBootstrapPlan.schemaStatements("scoring", RoleLimits.load()))
+        .anyMatch(sql -> sql.contains("GRANT TEMPORARY") && sql.contains("svc_scoring"));
+    assertThat(RoleBootstrapPlan.schemaStatements("task", RoleLimits.load()))
+        .noneMatch(sql -> sql.contains("TO svc_task") && sql.contains("TEMPORARY"));
+  }
 }

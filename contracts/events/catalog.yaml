@@ -320,6 +320,18 @@ events:
     schema: avro/config/KyDaHuyKhoa.avsc
     artifactId: config.period.unlocked.v1-value
 
+  - code: EVT-27
+    name: VaiTroDaThayDoi
+    topic: config.access.changed.v1
+    key: tenant:refId
+    outbox: config.outbox_event
+    classification: C1
+    producer: MOD-08
+    consumers: [MOD-08, SVC-02, OPA]
+    note: Cấp, duyệt, từ chối, thu hồi, hết hạn vai trò và uỷ quyền (WEB-058); MOD-08 đồng bộ realm role sang Keycloak
+    schema: avro/config/VaiTroDaThayDoi.avsc
+    artifactId: config.access.changed.v1-value
+
 # Topic kỹ thuật (TL-03 "Danh mục lược đồ", TL-01 "Quy ước topic", TL-04 L760–768): không thuộc
 # danh mục EVT, không được ứng dụng nghiệp vụ tiêu thụ trực tiếp.
 # NEN-021 chốt tên chuẩn (bảng giải quyết lệch tên ở wiki/18 và wiki/14), số phân vùng, thời gian

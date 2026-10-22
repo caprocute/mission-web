@@ -1,0 +1,214 @@
+{{- /*
+DL-14 · ADR-17, ADR-30, SEC-12, OPS-20: job xoay vòng khoá dữ liệu cho CSDL có schema keyring.
+  - xoay-dek-thang: 00:05 ngày 1 hằng tháng (giờ Việt Nam), sinh trước DEK tháng mới, DEK tháng trước sang DECRYPT_ONLY;
+  - boc-lai-dek: hằng ngày, bọc lại DEK có bản bọc cũ hơn phiên bản KEK mới nhất (CronJob INF-13 xoay KEK theo hạn);
+  - ma-hoa-lai-dek: Job một lần khi nghi lộ DEK, chỉ sinh khi keyRotation.reencrypt được đặt qua PR GitOps có hai
+    người duyệt (người đề nghị và người duyệt ghi trong tham số, khớp phê duyệt của Approval).
+Tắt mặc định (keyRotation.enabled); values.yaml chưa khai khoá keyRotation nên mọi giá trị đều có mặc định ở đây.
+Mật khẩu CSDL và token OpenBao gắn dạng tệp từ Secret do ESO đồng bộ; danh sách tenant của CSDL lấy từ ConfigMap
+(đồng bộ từ tenant-registry, suy luận). Lệnh chạy lớp KeyRotationMain của thư viện vt-key-rotation trong ảnh mission-core.
+*/ -}}
+{{- define "mission-core.keyRotation.pod" -}}
+{{- $kr := .kr -}}
+{{- $sec := $kr.secrets | default dict -}}
+restartPolicy: OnFailure
+serviceAccountName: {{ .name }}-key-rotation
+automountServiceAccountToken: false
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+containers:
+  - name: key-rotation
+    image: {{ .img | quote }}
+    imagePullPolicy: IfNotPresent
+    command:
+      {{- toYaml .cmd | nindent 6 }}
+    args:
+      {{- toYaml .args | nindent 6 }}
+    env:
+      - name: VT_KR_DB_URL
+        value: {{ $kr.dbUrl | default "jdbc:postgresql://pgbouncer.data.svc:6432/td" | quote }}
+      - name: VT_KR_KEYRING_USER
+        value: svc_keyring
+      - name: VT_KR_KEYRING_PASSWORD_FILE
+        value: /etc/vt/db/keyring/password
+      {{- if .data }}
+      - name: VT_KR_DATA_USER
+        value: {{ $kr.dataUser | default "svc_key_rotation_data" | quote }}
+      - name: VT_KR_DATA_PASSWORD_FILE
+        value: /etc/vt/db/data/password
+      {{- end }}
+      - name: VT_KR_OPENBAO_ADDR
+        value: {{ $kr.openBaoAddr | default "https://openbao.security.svc:8200" | quote }}
+      - name: VT_KR_OPENBAO_TOKEN_FILE
+        value: /etc/vt/openbao/token
+      - name: VT_KR_TRANSIT_MOUNT
+        value: {{ $kr.transitMount | default "transit" | quote }}
+      - name: VT_KR_KEK_PREFIX
+        value: {{ $kr.kekPrefix | default "kek-tenant-" | quote }}
+      - name: VT_KR_TENANTS_FILE
+        value: /etc/vt/tenants/tenants.txt
+      - name: VT_KR_JOB_ACTOR
+        value: {{ required "keyRotation.jobActor (mã tài khoản dịch vụ của job) là bắt buộc" $kr.jobActor | quote }}
+      - name: VT_KR_BATCH
+        value: {{ $kr.batchSize | default 200 | quote }}
+      {{- with $kr.pushgateway }}
+      - name: VT_KR_PUSHGATEWAY
+        value: {{ . | quote }}
+      {{- end }}
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 768Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: ["ALL"]
+    volumeMounts:
+      - name: db-keyring
+        mountPath: /etc/vt/db/keyring
+        readOnly: true
+      {{- if .data }}
+      - name: db-data
+        mountPath: /etc/vt/db/data
+        readOnly: true
+      {{- end }}
+      - name: openbao-token
+        mountPath: /etc/vt/openbao
+        readOnly: true
+      - name: tenants
+        mountPath: /etc/vt/tenants
+        readOnly: true
+      - name: tmp
+        mountPath: /tmp
+volumes:
+  - name: db-keyring
+    secret:
+      secretName: {{ $sec.keyring | default "mission-core-db-keyring" }}
+  {{- if .data }}
+  - name: db-data
+    secret:
+      secretName: {{ $sec.data | default "mission-core-db-key-rotation-data" }}
+  {{- end }}
+  - name: openbao-token
+    secret:
+      secretName: {{ $sec.openBaoToken | default "key-rotation-openbao-token" }}
+  - name: tenants
+    configMap:
+      name: {{ $kr.tenantsConfigMap | default "tenant-list" }}
+  - name: tmp
+    emptyDir: {}
+{{- end }}
+{{- $kr := .Values.keyRotation | default dict -}}
+{{- if $kr.enabled }}
+{{- $ns := .Values.namespace -}}
+{{- $name := .Values.name -}}
+{{- $sec := $kr.secrets | default dict -}}
+{{- $img := printf "%s@%s" (dig "image" "repository" .Values.image.repository $kr) (dig "image" "digest" .Values.image.digest $kr) -}}
+{{- $cmd := $kr.command | default (list "java" "-cp" "/app/libs/*" "vn.viettel.okrkpi.platform.keyrotation.KeyRotationMain") -}}
+{{- $jobs := list
+  (dict "ten" "xoay-dek-thang" "lich" (dig "schedules" "thang" "5 0 1 * *" $kr) "job" "thang")
+  (dict "ten" "boc-lai-dek" "lich" (dig "schedules" "bocLai" "30 2 * * *" $kr) "job" "boc-lai") -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}-key-rotation
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}-key-rotation
+    app.kubernetes.io/part-of: mission
+automountServiceAccountToken: false
+{{- range $jobs }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .ten }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}-key-rotation
+    app.kubernetes.io/component: {{ .ten }}
+    app.kubernetes.io/part-of: mission
+spec:
+  schedule: {{ .lich | quote }}
+  timeZone: Asia/Ho_Chi_Minh
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ $name }}-key-rotation
+            app.kubernetes.io/component: {{ .ten }}
+        spec:
+          {{- include "mission-core.keyRotation.pod" (dict "kr" $kr "name" $name "img" $img "cmd" $cmd "args" (list .job) "data" false) | nindent 10 }}
+{{- end }}
+{{- with $kr.reencrypt }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ma-hoa-lai-dek-{{ required "keyRotation.reencrypt.phieu là bắt buộc" .phieu | lower | trunc 40 | trimSuffix "-" }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}-key-rotation
+    app.kubernetes.io/component: ma-hoa-lai-dek
+    app.kubernetes.io/part-of: mission
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}-key-rotation
+        app.kubernetes.io/component: ma-hoa-lai-dek
+    spec:
+      {{- $args := list "ma-hoa-lai" (required "keyRotation.reencrypt.tenant" .tenant) (required "keyRotation.reencrypt.dek" .dek) .phieu (required "keyRotation.reencrypt.nguoiDeNghi" .nguoiDeNghi) (required "keyRotation.reencrypt.nguoiDuyet" .nguoiDuyet) }}
+      {{- include "mission-core.keyRotation.pod" (dict "kr" $kr "name" $name "img" $img "cmd" $cmd "args" $args "data" true) | nindent 6 }}
+{{- end }}
+{{- if or (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1") $kr.alerts }}
+---
+# OPS-20: cảnh báo khi DEK ACTIVE quá hạn 7 ngày (một tháng + 7 ngày), tức job tháng không chạy.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ $name }}-key-rotation
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}-key-rotation
+    app.kubernetes.io/part-of: mission
+spec:
+  groups:
+    - name: xoay-vong-khoa-du-lieu
+      rules:
+        - alert: VtDekQuaHan
+          expr: max by (muc_dich) (vt_key_age_days{loai="dek"}) > {{ dig "dekMaxAgeDays" 31 $kr | add 7 }}
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: DEK đang hoạt động quá hạn xoay vòng tháng
+            runbook: ops/runbooks/xoay-vong-khoa-du-lieu.md
+        - alert: VtMaHoaLaiDekDungGiuaChung
+          expr: max by (job) (vt_key_rotation_remaining{job="dek_ma_hoa_lai"}) > 0
+          for: 1d
+          labels:
+            severity: warning
+          annotations:
+            summary: Mã hoá lại DEK nghi lộ dừng giữa chừng, còn dòng tham chiếu DEK cũ
+            runbook: ops/runbooks/xoay-vong-khoa-du-lieu.md
+{{- end }}
+{{- end }}

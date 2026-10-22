@@ -6,7 +6,10 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.Period;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +24,7 @@ import vn.viettel.okrkpi.config.application.port.ConfigAudit;
 import vn.viettel.okrkpi.config.application.port.TenantSettingRepository;
 import vn.viettel.okrkpi.config.application.port.TenantSettingRepository.Setting;
 import vn.viettel.okrkpi.config.domain.AnomalyThresholds;
+import vn.viettel.okrkpi.config.domain.RetentionClass;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.error.VersionConflictException;
 import vn.viettel.okrkpi.shared.kernel.Clock;
@@ -40,6 +44,11 @@ public class TenantSettingService implements TenantSettingApi {
   public static final String ANOMALY_SCHEMA = "anomaly-thresholds.v1";
   static final String AUDIT_ACTION = "DOI_NGUONG_BAT_THUONG";
   static final String OBJECT_TYPE = "config.tenant_setting";
+
+  /**
+   * DL-13: lược đồ giá trị của khoá {@code retention.<LỚP>}: {@code {"hot":"P5Y","total":"P20Y"}}.
+   */
+  public static final String RETENTION_SCHEMA = "retention-class.v1";
 
   private static final Logger log = LoggerFactory.getLogger(TenantSettingService.class);
 
@@ -142,6 +151,43 @@ public class TenantSettingService implements TenantSettingApi {
     return new Versioned(next, version);
   }
 
+  /**
+   * Thời hạn lưu giữ hiệu lực của bảy lớp (DL-13, TL-03 chương 16). Lớp chưa cấu hình, hoặc cấu
+   * hình sai lược đồ hay thấp hơn mức sàn, dùng giá trị đề xuất của TL-03 và đánh dấu {@code
+   * proposed}.
+   */
+  @Transactional(transactionManager = TX, readOnly = true)
+  public Map<RetentionClass, RetentionClass.Rule> retention(TenantId tenantId) {
+    Map<RetentionClass, RetentionClass.Rule> out = new EnumMap<>(RetentionClass.class);
+    for (RetentionClass c : RetentionClass.values()) {
+      out.put(
+          c,
+          settings
+              .find(tenantId, c.settingKey(), null)
+              .filter(this::valid)
+              .map(s -> readRetention(c, s.value()))
+              .orElseGet(c::defaults));
+    }
+    return out;
+  }
+
+  private static RetentionClass.Rule readRetention(RetentionClass c, JsonNode v) {
+    return new RetentionClass.Rule(
+        c, Period.parse(v.path("hot").asText()), Period.parse(v.path("total").asText()), false);
+  }
+
+  private static boolean validRetention(String key, JsonNode v) {
+    if (!key.startsWith("retention.") || !v.isObject()) {
+      return false;
+    }
+    try {
+      readRetention(RetentionClass.valueOf(key.substring("retention.".length())), v);
+      return true;
+    } catch (IllegalArgumentException | DateTimeParseException e) {
+      return false;
+    }
+  }
+
   /** Ngưỡng và phiên bản dòng ({@code ETag}). */
   public record Versioned(AnomalyThresholds thresholds, int rowVersion) {}
 
@@ -153,6 +199,7 @@ public class TenantSettingService implements TenantSettingApi {
           case "json.number" -> s.value().isNumber();
           case "json.object" -> s.value().isObject();
           case "json.string-array" -> isStringArray(s.value());
+          case RETENTION_SCHEMA -> validRetention(s.key(), s.value());
           case ANOMALY_SCHEMA -> {
             try {
               read(s.value());

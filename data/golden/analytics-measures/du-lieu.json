@@ -1,0 +1,96 @@
+{
+  "_mo_ta": "DV-15-03: dữ liệu mẫu nạp thẳng vào bảng ClickHouse của kho phân tích. Chuỗi bắt đầu bằng '#' là mã định danh tượng trưng, bộ nạp đổi thành UUID cố định (uuid5). Chuỗi '@today+N' hoặc '@today-N' là ngày tương đối so với hôm nay theo giờ Việt Nam; '@now-N' là mốc thời gian lùi N ngày. Cột không ghi lấy giá trị mặc định; cột kỹ thuật _version, _is_deleted, _source_ts do bộ nạp điền.",
+  "dim_org_unit": [
+    {"tenant_id": "#A", "id": "#TW", "code": "TW", "name": "Trung ương", "unit_type": "CAP_TREN", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "id": "#VPTW", "code": "VPTW", "name": "Văn phòng", "unit_type": "VAN_PHONG", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "id": "#VU", "code": "VU-TONG-HOP", "name": "Vụ Tổng hợp", "unit_type": "VU", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "id": "#BTC", "code": "BTC", "name": "Ban Tổ chức", "unit_type": "BAN", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "id": "#KE", "code": "VPTW-KE", "name": "Văn phòng kề", "unit_type": "VAN_PHONG", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#B", "id": "#B_TW", "code": "TW", "name": "Trung ương (tenant khác)", "unit_type": "CAP_TREN", "valid_from": "2026-01-01", "valid_to": "2299-12-31"}
+  ],
+  "dim_org_closure": [
+    {"tenant_id": "#A", "tree": "DANG", "ancestor_id": "#TW", "descendant_id": "#TW", "depth": 0},
+    {"tenant_id": "#A", "tree": "DANG", "ancestor_id": "#VPTW", "descendant_id": "#VPTW", "depth": 0},
+    {"tenant_id": "#A", "tree": "DANG", "ancestor_id": "#TW", "descendant_id": "#VPTW", "depth": 1},
+    {"tenant_id": "#A", "tree": "DANG", "ancestor_id": "#VU", "descendant_id": "#VU", "depth": 0},
+    {"tenant_id": "#A", "tree": "DANG", "ancestor_id": "#VPTW", "descendant_id": "#VU", "depth": 1},
+    {"tenant_id": "#A", "tree": "DANG", "ancestor_id": "#TW", "descendant_id": "#VU", "depth": 2},
+    {"tenant_id": "#A", "tree": "DANG", "ancestor_id": "#BTC", "descendant_id": "#BTC", "depth": 0},
+    {"tenant_id": "#A", "tree": "DANG", "ancestor_id": "#TW", "descendant_id": "#BTC", "depth": 1},
+    {"tenant_id": "#A", "tree": "DANG", "ancestor_id": "#KE", "descendant_id": "#KE", "depth": 0},
+    {"tenant_id": "#A", "tree": "DANG", "ancestor_id": "#TW", "descendant_id": "#KE", "depth": 1},
+    {"tenant_id": "#B", "tree": "DANG", "ancestor_id": "#B_TW", "descendant_id": "#B_TW", "depth": 0}
+  ],
+  "dim_period": [
+    {"tenant_id": "#A", "id": "#Q4", "code": "2026-Q4", "name": "Quý IV năm 2026", "kind": "QUY", "flow": "DANG", "start_date": "2026-10-01", "end_date": "2026-12-31", "period_bucket": 202604, "status": "MO"},
+    {"tenant_id": "#B", "id": "#B_Q4", "code": "2026-Q4", "name": "Quý IV năm 2026", "kind": "QUY", "flow": "DANG", "start_date": "2026-10-01", "end_date": "2026-12-31", "period_bucket": 202604, "status": "MO"}
+  ],
+  "fact_task": [
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#t1", "period_id": "#Q4", "task_group": "THUONG_XUYEN", "status": "HOAN_THANH", "due_date": "2026-03-10", "completed_at": "2026-03-08 10:00:00"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#t2", "period_id": "#Q4", "task_group": "THUONG_XUYEN", "status": "HOAN_THANH", "due_date": "2026-03-10", "completed_at": "2026-03-15 10:00:00"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#t3", "period_id": "#Q4", "task_group": "DOT_XUAT", "status": "DANG_THUC_HIEN", "due_date": "@today-30"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#t4", "period_id": "#Q4", "task_group": "THUONG_XUYEN", "status": "DA_GIAO", "due_date": "2099-12-31"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#t5", "period_id": "#Q4", "task_group": "THUONG_XUYEN", "status": "HOAN_THANH", "due_date": "@today-10", "extended_due_date": "@today+5", "completed_at": "@now-2"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#t6", "period_id": "#Q4", "task_group": "THUONG_XUYEN", "status": "CHO_NGHIEM_THU", "due_date": "@today-4"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#t7", "period_id": "#Q4", "task_group": "THUONG_XUYEN", "status": "HOAN_THANH", "due_date": "2026-05-01", "completed_at": "2026-05-03 09:00:00"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#t8", "period_id": "#Q4", "task_group": "THUONG_XUYEN", "status": "DANG_THUC_HIEN", "due_date": "@today-1"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#t9", "period_id": "#Q4", "task_group": "THUONG_XUYEN", "status": "HUY", "due_date": "2026-02-01"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#t10", "period_id": "#Q4", "task_group": "THUONG_XUYEN", "status": "NHAP", "due_date": "2026-02-01"},
+    {"tenant_id": "#B", "period_bucket": 202604, "id": "#t11", "period_id": "#B_Q4", "task_group": "THUONG_XUYEN", "status": "HOAN_THANH", "due_date": "2026-06-01", "completed_at": "2026-05-20 08:00:00"}
+  ],
+  "fact_task_assignee": [
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#a1", "task_id": "#t1", "assignee_type": "DON_VI", "org_unit_id": "#VU", "resolved_unit_id": "#VU", "role": "CHU_TRI", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#a1p", "task_id": "#t1", "assignee_type": "DON_VI", "org_unit_id": "#BTC", "resolved_unit_id": "#BTC", "role": "PHOI_HOP", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#a2", "task_id": "#t2", "assignee_type": "DON_VI", "org_unit_id": "#VU", "resolved_unit_id": "#VU", "role": "CHU_TRI", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#a3", "task_id": "#t3", "assignee_type": "DON_VI", "org_unit_id": "#VU", "resolved_unit_id": "#VU", "role": "CHU_TRI", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#a4", "task_id": "#t4", "assignee_type": "DON_VI", "org_unit_id": "#VU", "resolved_unit_id": "#VU", "role": "CHU_TRI", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#a5", "task_id": "#t5", "assignee_type": "CA_NHAN", "resolved_unit_id": "#VPTW", "role": "CHU_TRI", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#a6", "task_id": "#t6", "assignee_type": "DON_VI", "org_unit_id": "#VPTW", "resolved_unit_id": "#VPTW", "role": "CHU_TRI", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#a6c", "task_id": "#t6", "assignee_type": "DON_VI", "org_unit_id": "#BTC", "resolved_unit_id": "#BTC", "role": "CHU_TRI", "removed_at": "2026-02-01 08:00:00", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#a7", "task_id": "#t7", "assignee_type": "DON_VI", "org_unit_id": "#BTC", "resolved_unit_id": "#BTC", "role": "CHU_TRI", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#a8", "task_id": "#t8", "assignee_type": "DON_VI", "org_unit_id": "#KE", "resolved_unit_id": "#KE", "role": "CHU_TRI", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#a9", "task_id": "#t9", "assignee_type": "DON_VI", "org_unit_id": "#VU", "resolved_unit_id": "#VU", "role": "CHU_TRI", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#a10", "task_id": "#t10", "assignee_type": "DON_VI", "org_unit_id": "#VU", "resolved_unit_id": "#VU", "role": "CHU_TRI", "valid_from": "2026-01-01", "valid_to": "2299-12-31"},
+    {"tenant_id": "#B", "period_bucket": 202604, "id": "#a11", "task_id": "#t11", "assignee_type": "DON_VI", "org_unit_id": "#B_TW", "resolved_unit_id": "#B_TW", "role": "CHU_TRI", "valid_from": "2026-01-01", "valid_to": "2299-12-31"}
+  ],
+  "fact_okr_objective": [
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#o1", "period_id": "#Q4", "owner_type": "DON_VI", "org_unit_id": "#VU", "tier": 1, "status": "DA_DUYET", "progress": "0.8000"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#o2", "period_id": "#Q4", "owner_type": "DON_VI", "org_unit_id": "#VU", "tier": 1, "status": "DONG", "progress": "0.6000"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#o3", "period_id": "#Q4", "owner_type": "DON_VI", "org_unit_id": "#VPTW", "tier": 1, "status": "DA_DUYET", "progress": "0.7000"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#o4", "period_id": "#Q4", "owner_type": "DON_VI", "org_unit_id": "#BTC", "tier": 1, "status": "DA_DUYET", "progress": "0.5000"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#o5", "period_id": "#Q4", "owner_type": "DON_VI", "org_unit_id": "#VU", "tier": 1, "status": "NHAP", "progress": "0.1000"}
+  ],
+  "fact_okr_checkin": [
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#c1", "period_id": "#Q4", "key_result_id": "#kr1", "org_unit_id": "#VU", "checkin_at": "@now-5", "confidence": "CAO", "status": "DA_GUI"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#c2", "period_id": "#Q4", "key_result_id": "#kr1", "org_unit_id": "#VU", "checkin_at": "@now-1", "confidence": "THAP", "status": "DA_GUI"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#c3", "period_id": "#Q4", "key_result_id": "#kr2", "org_unit_id": "#VPTW", "checkin_at": "@now-3", "confidence": "TRUNG_BINH", "status": "DA_GUI"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#c4", "period_id": "#Q4", "key_result_id": "#kr3", "org_unit_id": "#VU", "checkin_at": "@now-1", "confidence": "CAO", "status": "NHAP"}
+  ],
+  "fact_appraisal_profile": [
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#p1", "period_id": "#Q4", "org_unit_id": "#VU", "flow": "DANG", "status": "CHO_THAM_DINH"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#p2", "period_id": "#Q4", "org_unit_id": "#VU", "flow": "DANG", "status": "TU_DANH_GIA"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#p3", "period_id": "#Q4", "org_unit_id": "#VPTW", "flow": "NHA_NUOC", "status": "CHO_THAM_DINH"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#p4", "period_id": "#Q4", "org_unit_id": "#BTC", "flow": "DANG", "status": "CHO_THAM_DINH"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#p5", "period_id": "#Q4", "org_unit_id": "#VPTW", "flow": "DANG", "status": "DA_QUYET_DINH", "final_rating_code": "HTXSNV"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#p6", "period_id": "#Q4", "org_unit_id": "#VU", "flow": "DANG", "status": "DA_KHOA", "final_rating_code": "HTTNV"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#p7", "period_id": "#Q4", "org_unit_id": "#VPTW", "flow": "DANG", "status": "DA_KY_SO", "final_rating_code": "HTTNV"}
+  ],
+  "fact_score": [
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#s1", "period_id": "#Q4", "profile_id": "#p1", "org_unit_id": "#VU", "flow": "DANG", "snapshot_kind": "TAM_TINH", "total_score": "80.500", "auto_rating_code": "HTTNV", "is_current": 1},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#s2", "period_id": "#Q4", "profile_id": "#p2", "org_unit_id": "#VU", "flow": "DANG", "snapshot_kind": "TAM_TINH", "total_score": "90.000", "auto_rating_code": "HTXSNV", "is_current": 1},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#s3", "period_id": "#Q4", "profile_id": "#p3", "org_unit_id": "#VPTW", "flow": "NHA_NUOC", "snapshot_kind": "TAM_TINH", "total_score": "75.250", "auto_rating_code": "HTNV", "is_current": 1},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#s4", "period_id": "#Q4", "profile_id": "#p4", "org_unit_id": "#BTC", "flow": "DANG", "snapshot_kind": "TAM_TINH", "total_score": "60.000", "auto_rating_code": "HTNV", "is_current": 1},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#s5", "period_id": "#Q4", "profile_id": "#p1", "org_unit_id": "#VU", "flow": "DANG", "snapshot_kind": "TAM_TINH", "total_score": "100.000", "auto_rating_code": "HTXSNV", "is_current": 0}
+  ],
+  "fact_rating": [
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#r1", "period_id": "#Q4", "profile_id": "#p6", "org_unit_id": "#VU", "flow": "DANG", "level_kind": "TU_DE_XUAT", "rating_code": "HTTNV", "is_current": 1},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#r2", "period_id": "#Q4", "profile_id": "#p6", "org_unit_id": "#VU", "flow": "DANG", "level_kind": "QUYET_DINH", "rating_code": "HTXSNV", "is_current": 1, "differs_from_prev": 1},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#r3", "period_id": "#Q4", "profile_id": "#p6", "org_unit_id": "#VU", "flow": "DANG", "level_kind": "TU_DE_XUAT", "rating_code": "HTNV", "is_current": 0}
+  ],
+  "fact_evidence": [
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#e1", "period_id": "#Q4", "task_id": "#t1", "org_unit_id": "#VU", "current_status": "DA_NOP", "source_type": "TAI_LEN"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#e2", "period_id": "#Q4", "task_id": "#t2", "org_unit_id": "#VU", "current_status": "DANG_NGHIEM_THU", "source_type": "TAI_LEN"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#e3", "period_id": "#Q4", "task_id": "#t5", "org_unit_id": "#VPTW", "current_status": "DA_XAC_NHAN", "source_type": "TAI_LEN"},
+    {"tenant_id": "#A", "period_bucket": 202604, "id": "#e4", "period_id": "#Q4", "task_id": "#t7", "org_unit_id": "#BTC", "current_status": "DA_NOP", "source_type": "TAI_LEN"}
+  ]
+}

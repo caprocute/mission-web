@@ -5,8 +5,10 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -17,11 +19,15 @@ import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodLockedException;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.PeriodWriteTarget;
+import vn.viettel.okrkpi.okr.application.port.OkrAiSuggestions.Suggestion;
+import vn.viettel.okrkpi.okr.application.port.OkrAiTraceRepository;
+import vn.viettel.okrkpi.okr.application.port.OkrAiTraceRepository.AiTrace;
 import vn.viettel.okrkpi.okr.application.port.OkrReadRepository.LinkRow;
 import vn.viettel.okrkpi.okr.application.port.OkrWriteRepository;
 import vn.viettel.okrkpi.okr.application.port.OkrWriteRepository.KeyResultData;
 import vn.viettel.okrkpi.okr.application.port.OkrWriteRepository.ObjectiveData;
 import vn.viettel.okrkpi.okr.application.port.OkrWriteRepository.ObjectiveHead;
+import vn.viettel.okrkpi.okr.domain.AiContentDiff;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.error.ProblemFieldError;
 import vn.viettel.okrkpi.shared.error.VersionConflictException;
@@ -41,15 +47,24 @@ public class OkrComposeService {
   static final String MODULE = "OKR";
   static final String NHAP = "NHAP";
   static final int MAX_KEY_RESULTS = 5;
+  static final int LABEL_MAX = 200;
 
   private static final Pattern OBJECTIVE_NO = Pattern.compile("^O([0-9]{1,9})$");
 
   private final OkrWriteRepository repository;
   private final PeriodApi periods;
+  private final OkrAiTraceRepository traces;
 
   public OkrComposeService(OkrWriteRepository repository, PeriodApi periods) {
+    this(repository, periods, null);
+  }
+
+  /** {@code traces} rỗng thì không ghi dấu vết nội dung AI (CORE-01-13). */
+  public OkrComposeService(
+      OkrWriteRepository repository, PeriodApi periods, OkrAiTraceRepository traces) {
     this.repository = Objects.requireNonNull(repository, "repository");
     this.periods = Objects.requireNonNull(periods, "periods");
+    this.traces = traces;
   }
 
   /** Nội dung sửa được của mục tiêu (SCR-0202 trường 1-6), KR rỗng là "không có KR". */
@@ -79,6 +94,21 @@ public class OkrComposeService {
 
   @Transactional(transactionManager = TX)
   public UUID create(TenantId tenant, UUID actor, Owner owner, ObjectiveDraft draft, int max) {
+    return create(tenant, actor, owner, draft, max, Map.of());
+  }
+
+  /**
+   * Tạo mục tiêu; {@code ai} là các gợi ý đã kiểm bằng {@link OkrAiProvenance} ngoài giao dịch,
+   * dùng để ghi dấu vết trường giữ nguyên, đã sửa (CORE-01-13).
+   */
+  @Transactional(transactionManager = TX)
+  public UUID create(
+      TenantId tenant,
+      UUID actor,
+      Owner owner,
+      ObjectiveDraft draft,
+      int max,
+      Map<UUID, Suggestion> ai) {
     Errors errors = new Errors();
     if (owner.periodId() == null) {
       errors.add("periodId", "Chọn kỳ đánh giá");
@@ -122,17 +152,14 @@ public class OkrComposeService {
     repository.replaceBases(tenant, bucket, period.id().value(), id, bases, actor);
     repository.replaceParentLink(tenant, period.id().value(), id, data.parentObjectiveId(), actor);
     int n = 0;
+    Map<UUID, KeyResultData> saved = new LinkedHashMap<>();
     for (KeyResultData k : krs) {
+      UUID krId = UUID.randomUUID();
       repository.insertKeyResult(
-          tenant,
-          UUID.randomUUID(),
-          period.id().value(),
-          bucket,
-          id,
-          keyResultCode(code, ++n),
-          k,
-          actor);
+          tenant, krId, period.id().value(), bucket, id, keyResultCode(code, ++n), k, actor);
+      saved.put(krId, k);
     }
+    traceAi(tenant, bucket, id, actor, data, saved, ai);
     return id;
   }
 
@@ -140,6 +167,21 @@ public class OkrComposeService {
   @Transactional(transactionManager = TX)
   public long update(
       TenantId tenant, UUID actor, UUID id, String ifMatch, ObjectiveDraft draft, int max) {
+    return update(tenant, actor, id, ifMatch, draft, max, Map.of());
+  }
+
+  /**
+   * Như {@link #update(TenantId, UUID, UUID, String, ObjectiveDraft, int)}, kèm gợi ý AI đã kiểm.
+   */
+  @Transactional(transactionManager = TX)
+  public long update(
+      TenantId tenant,
+      UUID actor,
+      UUID id,
+      String ifMatch,
+      ObjectiveDraft draft,
+      int max,
+      Map<UUID, Suggestion> ai) {
     long expected = ETags.expectedVersion(ifMatch, MODULE);
     ObjectiveHead head = repository.lockObjective(tenant, id).orElseThrow(NotFound::new);
     if (head.rowVersion() != expected) {
@@ -170,32 +212,48 @@ public class OkrComposeService {
       repository.replaceParentLink(tenant, head.periodId(), id, data.parentObjectiveId(), actor);
     }
     Set<UUID> kept = new HashSet<>();
+    Map<UUID, KeyResultData> saved = new LinkedHashMap<>();
     int n = repository.maxKeyResultNo(tenant, head.periodBucket(), id);
     for (KeyResultData k : krs) {
       if (k.id() != null) {
         kept.add(k.id());
         repository.rewriteKeyResult(tenant, head.periodBucket(), k, actor);
+        saved.put(k.id(), k);
       } else {
+        UUID krId = UUID.randomUUID();
         repository.insertKeyResult(
             tenant,
-            UUID.randomUUID(),
+            krId,
             head.periodId(),
             head.periodBucket(),
             id,
             keyResultCode(head.code(), ++n),
             k,
             actor);
+        saved.put(krId, k);
       }
     }
     List<UUID> removed = existingKrs.stream().filter(k -> !kept.contains(k)).toList();
     repository.dropLinksTouching(tenant, removed);
     repository.dropKeyResults(tenant, head.periodBucket(), removed);
+    traceAi(tenant, head.periodBucket(), id, actor, data, saved, ai);
     return version;
   }
 
   /** Thêm một KR vào mục tiêu nháp; trả id KR. */
   @Transactional(transactionManager = TX)
   public UUID addKeyResult(TenantId tenant, UUID actor, UUID objectiveId, KeyResultData input) {
+    return addKeyResult(tenant, actor, objectiveId, input, Map.of());
+  }
+
+  /** Thêm một KR kèm gợi ý AI đã kiểm (CORE-01-13). */
+  @Transactional(transactionManager = TX)
+  public UUID addKeyResult(
+      TenantId tenant,
+      UUID actor,
+      UUID objectiveId,
+      KeyResultData input,
+      Map<UUID, Suggestion> ai) {
     Errors errors = new Errors();
     if (objectiveId == null) {
       errors.add("objectiveId", "Chọn mục tiêu");
@@ -239,7 +297,70 @@ public class OkrComposeService {
         k,
         actor);
     repository.touchObjective(tenant, head, actor);
+    traceAi(tenant, head.periodBucket(), objectiveId, actor, null, Map.of(id, k), ai);
     return id;
+  }
+
+  /**
+   * Ghi dấu vết nội dung AI và đặt lại {@code ai_assisted} của mục tiêu (BR-17-08): mục tiêu mang
+   * cờ khi chính nó hoặc bất kỳ KR nào có nguồn AI. Gợi ý không có trong {@code ai} (chưa kiểm) thì
+   * không ghi dấu vết.
+   */
+  private void traceAi(
+      TenantId tenant,
+      int bucket,
+      UUID objectiveId,
+      UUID actor,
+      ObjectiveData objective,
+      Map<UUID, KeyResultData> saved,
+      Map<UUID, Suggestion> ai) {
+    if (traces == null) {
+      return;
+    }
+    List<AiTrace> rows = new ArrayList<>();
+    if (objective != null && objective.aiSuggestionId() != null) {
+      Suggestion s = ai.get(objective.aiSuggestionId());
+      if (s != null) {
+        rows.add(
+            trace(
+                objectiveId,
+                null,
+                s,
+                AiContentDiff.objective(s.output(), objective.title()),
+                actor));
+      }
+    }
+    saved.forEach(
+        (krId, k) -> {
+          Suggestion s = k.aiSuggestionId() == null ? null : ai.get(k.aiSuggestionId());
+          if (s != null && !"HUMAN".equals(k.contentSource())) {
+            Map<String, Object> fields = new LinkedHashMap<>();
+            fields.put("title", k.title());
+            fields.put("unit", k.unit());
+            fields.put("baselineValue", k.baselineValue());
+            fields.put("targetValue", k.targetValue());
+            rows.add(
+                trace(objectiveId, krId, s, AiContentDiff.keyResult(s.output(), fields), actor));
+          }
+        });
+    if (!rows.isEmpty()) {
+      traces.record(tenant, bucket, rows);
+    }
+    traces.refreshObjectiveAiAssisted(tenant, bucket, objectiveId);
+  }
+
+  private static AiTrace trace(
+      UUID objectiveId, UUID keyResultId, Suggestion s, AiContentDiff.Result diff, UUID actor) {
+    return new AiTrace(
+        objectiveId,
+        keyResultId,
+        s.id(),
+        diff.contentSource(),
+        diff.kept(),
+        diff.edited(),
+        null,
+        actor,
+        0);
   }
 
   /**
@@ -326,7 +447,9 @@ public class OkrComposeService {
                 k.formulaText(),
                 k.checkinFrequency(),
                 "HUMAN",
-                null),
+                null,
+                k.numeratorLabel(),
+                k.denominatorLabel()),
             actor);
       }
       created.add(id);
@@ -601,10 +724,26 @@ public class OkrComposeService {
     if (k.formulaText() != null && k.formulaText().length() > 1000) {
       errors.add(prefix + "formulaText", "Cách tính tối đa 1.000 ký tự");
     }
+    String metric = k.metricType() == null ? "SO_LUONG" : k.metricType();
+    String numerator = trim(k.numeratorLabel());
+    String denominator = trim(k.denominatorLabel());
+    // BS-03 DC-04: nhãn tử số, mẫu số chỉ dành cho KR tỷ lệ và đi theo cặp (suy luận).
+    if (numerator != null || denominator != null) {
+      if (!"TY_LE".equals(metric)) {
+        errors.add(
+            prefix + "numeratorLabel", "Nhãn tử số, mẫu số chỉ dùng cho kết quả đo bằng tỷ lệ");
+      } else if (numerator == null || denominator == null) {
+        errors.add(prefix + "numeratorLabel", "Nhập đủ nhãn tử số và nhãn mẫu số");
+      }
+      if ((numerator != null && numerator.length() > LABEL_MAX)
+          || (denominator != null && denominator.length() > LABEL_MAX)) {
+        errors.add(prefix + "numeratorLabel", "Nhãn tử số, mẫu số tối đa 200 ký tự");
+      }
+    }
     return new KeyResultData(
         k.id(),
         title,
-        k.metricType() == null ? "SO_LUONG" : k.metricType(),
+        metric,
         unit,
         baseline,
         k.targetValue(),
@@ -616,7 +755,9 @@ public class OkrComposeService {
         trim(k.formulaText()),
         k.checkinFrequency() == null ? "TUAN" : k.checkinFrequency(),
         content,
-        "HUMAN".equals(content) ? null : k.aiSuggestionId());
+        "HUMAN".equals(content) ? null : k.aiSuggestionId(),
+        numerator,
+        denominator);
   }
 
   // ---------------------------------------------------------------- tiện ích

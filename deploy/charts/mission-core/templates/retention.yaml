@@ -1,0 +1,277 @@
+{{- /*
+DL-13 · NFR-09 · TL-03 "Lưu giữ, lưu trữ và xoá dữ liệu": job lưu giữ cho CSDL dữ liệu tenant.
+  - luu-tru-<schema>: 01:30 ngày 2 hằng tháng, lưu trữ phân vùng kỳ quá hạn nóng sang Parquet có Object Lock;
+  - xoa-phan-vung-<schema>: hằng ngày, thời hạn pg_partman cho lớp VAN_HANH, KY_THUAT;
+  - xoa-mat-ma: 03:00 ngày 3 hằng tháng, huỷ DEK lớp THUC_HIEN, VET_TINH hết tổng thời hạn, bỏ qua giữ pháp lý;
+  - don-khoi-phuc: hằng ngày, xoá CSDL khôi phục tạm quá hạn;
+  - khoi-phuc-<phiếu>: Job một lần, chỉ sinh khi retention.restore được đặt qua PR GitOps có hai người duyệt.
+Tắt mặc định (retention.enabled); values.yaml chưa khai khoá retention nên mọi giá trị có mặc định ở đây.
+Mật khẩu, khoá S3 gắn dạng tệp từ Secret do ESO đồng bộ; danh sách tenant từ ConfigMap như DL-14.
+Lệnh chạy lớp RetentionMain của thư viện vt-retention trong ảnh mission-core.
+*/ -}}
+{{- define "mission-core.retention.pod" -}}
+{{- $rt := .rt -}}
+{{- $sec := $rt.secrets | default dict -}}
+restartPolicy: OnFailure
+serviceAccountName: {{ .name }}-retention
+automountServiceAccountToken: false
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+containers:
+  - name: retention
+    image: {{ .img | quote }}
+    imagePullPolicy: IfNotPresent
+    command:
+      {{- toYaml .cmd | nindent 6 }}
+    args:
+      {{- toYaml .args | nindent 6 }}
+    env:
+      - name: VT_RT_DB_URL
+        value: {{ $rt.dbUrl | default "jdbc:postgresql://pgbouncer.data.svc:6432/td" | quote }}
+      - name: VT_RT_CONFIG_USER
+        value: ro_config
+      - name: VT_RT_CONFIG_PASSWORD_FILE
+        value: /etc/vt/db/config/password
+      {{- if .owner }}
+      - name: VT_RT_OWNER_USER
+        value: mig_{{ .owner }}
+      - name: VT_RT_OWNER_PASSWORD_FILE
+        value: /etc/vt/db/owner/password
+      {{- end }}
+      {{- if .keyring }}
+      - name: VT_RT_KEYRING_USER
+        value: svc_keyring
+      - name: VT_RT_KEYRING_PASSWORD_FILE
+        value: /etc/vt/db/keyring/password
+      {{- with $rt.evidenceDbUrl }}
+      - name: VT_RT_EVIDENCE_DB_URL
+        value: {{ . | quote }}
+      - name: VT_RT_EVIDENCE_USER
+        value: ro_evidence
+      - name: VT_RT_EVIDENCE_PASSWORD_FILE
+        value: /etc/vt/db/evidence/password
+      {{- end }}
+      {{- with $rt.holdTables }}
+      - name: VT_RT_HOLD_TABLES
+        value: {{ join "," . | quote }}
+      {{- end }}
+      - name: VT_RT_HOLD_EXTENSION
+        value: {{ $rt.holdExtension | default "P1Y" | quote }}
+      {{- end }}
+      {{- if .restore }}
+      - name: VT_RT_RESTORE_URL
+        value: {{ required "retention.restoreDbUrl (cụm khôi phục cô lập) là bắt buộc" $rt.restoreDbUrl | quote }}
+      - name: VT_RT_RESTORE_USER
+        value: {{ $rt.restoreUser | default "khoi_phuc_admin" | quote }}
+      - name: VT_RT_RESTORE_PASSWORD_FILE
+        value: /etc/vt/db/restore/password
+      {{- end }}
+      - name: VT_RT_S3_ENDPOINT
+        value: {{ $rt.s3Endpoint | default "http://rgw.ceph.svc:8080" | quote }}
+      - name: VT_RT_S3_BUCKET
+        value: {{ $rt.s3Bucket | default "data-archive" | quote }}
+      - name: VT_RT_S3_PREFIX
+        value: {{ $rt.s3Prefix | default "luu-tru" | quote }}
+      - name: VT_RT_S3_ACCESS_KEY_FILE
+        value: /etc/vt/s3/access-key
+      - name: VT_RT_S3_SECRET_KEY_FILE
+        value: /etc/vt/s3/secret-key
+      - name: VT_RT_TENANTS_FILE
+        value: /etc/vt/tenants/tenants.txt
+      {{- if $rt.classes }}
+      - name: VT_RT_CLASSES_FILE
+        value: /etc/vt/retention/classes.properties
+      {{- end }}
+      - name: VT_RT_JOB_ACTOR
+        value: {{ required "retention.jobActor (mã tài khoản dịch vụ của job) là bắt buộc" $rt.jobActor | quote }}
+      - name: VT_RT_WORK_DIR
+        value: /work
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: "2"
+        memory: 2Gi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: ["ALL"]
+    volumeMounts:
+      - name: db-config
+        mountPath: /etc/vt/db/config
+        readOnly: true
+      {{- if .owner }}
+      - name: db-owner
+        mountPath: /etc/vt/db/owner
+        readOnly: true
+      {{- end }}
+      {{- if .keyring }}
+      - name: db-keyring
+        mountPath: /etc/vt/db/keyring
+        readOnly: true
+      {{- if $rt.evidenceDbUrl }}
+      - name: db-evidence
+        mountPath: /etc/vt/db/evidence
+        readOnly: true
+      {{- end }}
+      {{- end }}
+      {{- if .restore }}
+      - name: db-restore
+        mountPath: /etc/vt/db/restore
+        readOnly: true
+      {{- end }}
+      - name: s3
+        mountPath: /etc/vt/s3
+        readOnly: true
+      - name: tenants
+        mountPath: /etc/vt/tenants
+        readOnly: true
+      {{- if $rt.classes }}
+      - name: classes
+        mountPath: /etc/vt/retention
+        readOnly: true
+      {{- end }}
+      - name: work
+        mountPath: /work
+      - name: tmp
+        mountPath: /tmp
+volumes:
+  - name: db-config
+    secret:
+      secretName: {{ $sec.config | default "mission-core-db-ro-config" }}
+  {{- if .owner }}
+  - name: db-owner
+    secret:
+      secretName: {{ printf "mission-core-db-mig-%s" .owner }}
+  {{- end }}
+  {{- if .keyring }}
+  - name: db-keyring
+    secret:
+      secretName: {{ $sec.keyring | default "mission-core-db-keyring" }}
+  {{- if $rt.evidenceDbUrl }}
+  - name: db-evidence
+    secret:
+      secretName: {{ $sec.evidence | default "evidence-db-ro-evidence" }}
+  {{- end }}
+  {{- end }}
+  {{- if .restore }}
+  - name: db-restore
+    secret:
+      secretName: {{ $sec.restore | default "retention-restore-db" }}
+  {{- end }}
+  - name: s3
+    secret:
+      secretName: {{ $sec.s3 | default "retention-s3" }}
+  - name: tenants
+    configMap:
+      name: {{ $rt.tenantsConfigMap | default "tenant-list" }}
+  {{- if $rt.classes }}
+  - name: classes
+    configMap:
+      name: {{ .name }}-retention-classes
+  {{- end }}
+  - name: work
+    emptyDir:
+      sizeLimit: {{ $rt.workSize | default "20Gi" }}
+  - name: tmp
+    emptyDir: {}
+{{- end }}
+{{- $rt := .Values.retention | default dict -}}
+{{- if $rt.enabled }}
+{{- $ns := .Values.namespace -}}
+{{- $name := .Values.name -}}
+{{- $img := printf "%s@%s" (dig "image" "repository" .Values.image.repository $rt) (dig "image" "digest" .Values.image.digest $rt) -}}
+{{- $cmd := $rt.command | default (list "java" "-cp" "/app/libs/*" "vn.viettel.okrkpi.platform.retention.RetentionMain") -}}
+{{- $schemas := $rt.schemas | default (list "okr" "task" "product" "appraisal" "dossier" "oversight") -}}
+{{- $jobs := list -}}
+{{- range $schemas -}}
+{{- $jobs = append $jobs (dict "ten" (printf "luu-tru-%s" .) "lich" (dig "schedules" "luuTru" "30 1 2 * *" $rt) "args" (list "luu-tru" .) "owner" .) -}}
+{{- $jobs = append $jobs (dict "ten" (printf "xoa-phan-vung-%s" .) "lich" (dig "schedules" "xoaPhanVung" "15 4 * * *" $rt) "args" (list "xoa-phan-vung" .) "owner" .) -}}
+{{- end -}}
+{{- $jobs = append $jobs (dict "ten" "xoa-mat-ma" "lich" (dig "schedules" "xoaMatMa" "0 3 3 * *" $rt) "args" (list "xoa-mat-ma") "keyring" true) -}}
+{{- if $rt.restoreDbUrl -}}
+{{- $jobs = append $jobs (dict "ten" "don-khoi-phuc" "lich" (dig "schedules" "donKhoiPhuc" "0 5 * * *" $rt) "args" (list "don-khoi-phuc") "restore" true) -}}
+{{- end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}-retention
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}-retention
+    app.kubernetes.io/part-of: mission
+automountServiceAccountToken: false
+{{- with $rt.classes }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-retention-classes
+  namespace: {{ $ns }}
+data:
+  classes.properties: |
+    {{- range $k, $v := . }}
+    {{ $k }}={{ $v }}
+    {{- end }}
+{{- end }}
+{{- range $jobs }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .ten }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}-retention
+    app.kubernetes.io/component: {{ .ten }}
+    app.kubernetes.io/part-of: mission
+spec:
+  schedule: {{ .lich | quote }}
+  timeZone: Asia/Ho_Chi_Minh
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 21600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ $name }}-retention
+            app.kubernetes.io/component: {{ .ten }}
+        spec:
+          {{- include "mission-core.retention.pod" (dict "rt" $rt "name" $name "img" $img "cmd" $cmd "args" .args "owner" (.owner | default "") "keyring" (.keyring | default false) "restore" (.restore | default false)) | nindent 10 }}
+{{- end }}
+{{- with $rt.restore }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: khoi-phuc-{{ required "retention.restore.phieu là bắt buộc" .phieu | lower | trunc 40 | trimSuffix "-" }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}-retention
+    app.kubernetes.io/component: khoi-phuc
+    app.kubernetes.io/part-of: mission
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}-retention
+        app.kubernetes.io/component: khoi-phuc
+    spec:
+      {{- $args := list "khoi-phuc" (required "retention.restore.keKhai" .keKhai) (required "retention.restore.tenant" .tenant) .phieu (required "retention.restore.nguoiDeNghi" .nguoiDeNghi) (required "retention.restore.nguoiDuyet" .nguoiDuyet) (toString (.soNgay | default 7)) }}
+      {{- include "mission-core.retention.pod" (dict "rt" $rt "name" $name "img" $img "cmd" $cmd "args" $args "owner" "" "keyring" false "restore" true) | nindent 6 }}
+{{- end }}
+{{- end }}

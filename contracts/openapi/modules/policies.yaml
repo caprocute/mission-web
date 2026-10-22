@@ -12,6 +12,10 @@
 #     test_run, test_case_result, policy_binding); TL-03 part-07 schema `flowable` (wf_template, wf_binding,
 #     wf_task_projection); TL-03 part-06 `appraisal.prospect_group.group_code`.
 #   - Ma trận phân quyền `docs/phan-quyen/ma-tran.json` (SCR-1501..SCR-1506, SCR-1002, module `policies`).
+#   - BS-03 (ADR-33, 22/10/2026), NEN-044: hồ sơ tập khách hàng `policy.customer_profile`,
+#     `customer_profile_version`, khung tham số `policy.param_constraint` (DC-02), cột
+#     `policy_binding.customer_profile_version_id`; `classification.chain` và `quotas` tuỳ chọn trong manifest (DC-05);
+#     khai báo `inputs` danh sách (`list<WorkItem>`, DC-01, DC-03). Điểm chốt PC-07.
 # Điểm chốt riêng của tệp này (PC-xx) được ghi trong `info.description`.
 openapi: 3.1.0
 info:
@@ -38,6 +42,7 @@ info:
     | PC-04 | Vòng đời mẫu luồng | TL-03: `NHAP`, `HIEU_LUC`, `NGUNG`; BS-01: thêm `DAT_KIEM_THU`, `CHO_PHE_DUYET` | Theo BS-01 |
     | PC-05 | Mẫu luồng: chọn mẫu (SCR-1504) và soạn mẫu (SCR-1505, SCR-1506) | TL-02b SCR-1504 và part-06: `/policies/workflow-templates/{key}/versions/{v}`; ma trận và BS-01 (suy luận): `/workflow/templates`, `/workflow/instances` | Tệp này chỉ giữ hai thao tác đọc của SCR-1504 dưới `/policies/workflow-templates` (danh mục `HIEU_LUC` và khai báo tham số, phạm vi tenant); SCR-1505, SCR-1506 nằm ở platform.yaml dưới `/workflow/...` (SVC-06 sở hữu `wf_template`) |
     | PC-06 | So sánh tác động | TL-01 PL C gộp vào `test-runs`; TL-02b không có nút riêng | Trường `compareWithVersion` khi tạo lần chạy và khối `impact` trong kết quả (suy luận) |
+    | PC-07 | Hồ sơ tập khách hàng (BS-03) | BS-03 chỉ ghi "vòng đời giống `policy-packs`, có ký và hai người"; chưa có SCR | `/policies/customer-profiles/{id}/versions/{v}/...` cùng tập trạng thái và cùng bốn bước kiểm tra, gửi duyệt, ký duyệt, từ chối như gói; bước kiểm tra (`validate`) đối chiếu tham chiếu và chạy ca vàng của các gói được trỏ tới (suy luận đường dẫn và bước) |
 servers:
   - url: /api/v1
 security:
@@ -57,6 +62,10 @@ tags:
     description: Tham số luồng duyệt theo mẫu (`flowable.wf_binding`) và mô phỏng luồng (SCR-1504).
   - name: Mẫu luồng
     description: Danh mục mẫu luồng đã phát hành và khai báo tham số để chọn ở SCR-1504 (chỉ đọc; trình soạn mẫu ở workflow-service).
+  - name: Hồ sơ tập khách hàng
+    description: >-
+      Bản kê có phiên bản trỏ tới phiên bản từng thành phần cấu hình của một tập khách hàng, cờ điểm cắm DC-01..DC-06
+      và khung tham số cho cấp dưới (BS-03, ADR-33).
 
 paths:
   # ───────────────────────────── Gói và phiên bản ─────────────────────────────
@@ -983,7 +992,13 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
-        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '422':
+          description: >-
+            Dữ liệu không hợp lệ. Mã lỗi `POLICY-422-PARAM-CONSTRAINT` khi phiên bản của cấp dưới vi phạm khung tham số
+            của hồ sơ tập khách hàng (BS-03 DC-02); `errors[]` nêu tham số, giá trị và khung.
+          content:
+            application/problem+json:
+              schema: { $ref: '../common/common.yaml#/components/schemas/ProblemDetails' }
         '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
       x-mission:
@@ -1176,6 +1191,480 @@ paths:
         source: TL-02b QT-15 "Ngoại lệ và xử lý" ("BA bấm phát hành lại mà không cần ký lại") (suy luận đường dẫn)
 
   # ───────────────────────────── Phân giải và tra cứu ─────────────────────────────
+  /policies/customer-profiles:
+    get:
+      tags: [Hồ sơ tập khách hàng]
+      operationId: listCustomerProfiles
+      summary: Danh sách hồ sơ tập khách hàng
+      description: Hồ sơ người gọi được xem (hồ sơ gốc toàn cục đã đồng bộ), mỗi hồ sơ kèm tóm tắt phiên bản gần nhất.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/Q'
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang danh sách hồ sơ.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerProfileList' }
+              examples:
+                twd:
+                  value:
+                    items:
+                      - id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f5a01
+                        code: twd/ban-to-chuc-ueb
+                        name: Khối Đảng ở Trung ương – mẫu Ban Tổ chức (giả lập)
+                        isSimulated: true
+                        legalBasis: [Dự thảo Quy định kiểm điểm, đánh giá, xếp loại (12/10/2026)]
+                        tenantTags: [khoi-dang-tw]
+                        versions:
+                          - id: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f5b01
+                            customerProfileId: 0192a1b0-3c4d-7e5f-8a9b-0c1d2e3f5a01
+                            version: 0.1.0
+                            status: NHAP
+                            changeNote: Phiên bản đầu theo dự thảo
+                            createdAt: '2026-10-22T09:00:00+07:00'
+                            rowVersion: 1
+                    nextCursor: null
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: []
+        owner: MOD-05
+        roles: [policy_author, tenant_admin, decider]
+        scope: Tn
+        source: BS-03 ADR-33 “Mô hình hồ sơ tập khách hàng” (suy luận đường dẫn; chưa có SCR)
+    post:
+      tags: [Hồ sơ tập khách hàng]
+      operationId: createCustomerProfile
+      summary: Tạo hồ sơ tập khách hàng
+      description: >-
+        Tạo hồ sơ ở tenant gốc toàn cục; hồ sơ được phát tán xuống các cell qua saga phát hành đa cell (EVT-13) như
+        Policy Pack. Mã trùng trả `POLICY-422-PROFILE-CODE-EXISTS`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerProfileCreate' }
+            examples:
+              twd:
+                value:
+                  code: twd/ban-to-chuc-ueb
+                  name: Khối Đảng ở Trung ương – mẫu Ban Tổ chức (giả lập)
+                  isSimulated: true
+                  legalBasis: [Dự thảo Quy định kiểm điểm, đánh giá, xếp loại (12/10/2026)]
+                  tenantTags: [khoi-dang-tw]
+      responses:
+        '201':
+          description: Đã tạo hồ sơ.
+          headers:
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerProfile' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: []
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        source: BS-03 ADR-33 (suy luận đường dẫn)
+
+  /policies/customer-profiles/{profileId}:
+    parameters:
+      - $ref: '#/components/parameters/ProfileId'
+    get:
+      tags: [Hồ sơ tập khách hàng]
+      operationId: getCustomerProfile
+      summary: Xem một hồ sơ tập khách hàng
+      responses:
+        '200':
+          description: Hồ sơ và tóm tắt phiên bản.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerProfile' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: []
+        owner: MOD-05
+        roles: [policy_author, tenant_admin, decider]
+        scope: Tn
+        source: BS-03 ADR-33 (suy luận đường dẫn)
+
+  /policies/customer-profiles/{profileId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/ProfileId'
+    get:
+      tags: [Hồ sơ tập khách hàng]
+      operationId: listCustomerProfileVersions
+      summary: Danh sách phiên bản của hồ sơ
+      parameters:
+        - name: status
+          in: query
+          description: Lọc theo trạng thái phiên bản.
+          schema: { $ref: '#/components/schemas/PolicyPackVersionStatus' }
+        - $ref: '../common/common.yaml#/components/parameters/Limit'
+        - $ref: '../common/common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Trang phiên bản, mới nhất trước.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerProfileVersionList' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: []
+        owner: MOD-05
+        roles: [policy_author, tenant_admin, decider]
+        scope: Tn
+        source: BS-03 ADR-33; TL-03 bổ sung `policy.customer_profile_version` (suy luận đường dẫn)
+    post:
+      tags: [Hồ sơ tập khách hàng]
+      operationId: createCustomerProfileVersion
+      summary: Tạo phiên bản nháp của hồ sơ
+      description: >-
+        Tạo phiên bản `NHAP`, nhân bản bản kê và khung tham số từ `baseVersion` nếu có. Lỗi `POLICY-422-VERSION-EXISTS`
+        (số phiên bản đã có), `POLICY-422-PROFILE-REF` (bản kê trỏ tới thành phần hoặc phiên bản không tồn tại).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerProfileVersionCreate' }
+            examples:
+              twd-0-1-0:
+                $ref: '#/components/examples/CustomerProfileVersionCreateTwd'
+      responses:
+        '201':
+          description: Đã tạo phiên bản nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+            Location: { $ref: '../common/common.yaml#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerProfileVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: []
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        source: BS-03 ADR-33 (suy luận đường dẫn)
+
+  /policies/customer-profiles/{profileId}/versions/{v}:
+    parameters:
+      - $ref: '#/components/parameters/ProfileId'
+      - $ref: '#/components/parameters/PackVersion'
+    get:
+      tags: [Hồ sơ tập khách hàng]
+      operationId: getCustomerProfileVersion
+      summary: Xem chi tiết một phiên bản hồ sơ
+      responses:
+        '200':
+          description: Chi tiết phiên bản.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerProfileVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: []
+        owner: MOD-05
+        roles: [policy_author, tenant_admin, decider]
+        scope: Tn
+        source: BS-03 ADR-33 (suy luận đường dẫn)
+    put:
+      tags: [Hồ sơ tập khách hàng]
+      operationId: updateCustomerProfileVersion
+      summary: Sửa bản kê của phiên bản nháp
+      description: >-
+        Chỉ sửa khi `NHAP` hoặc `DAT_KIEM_THU`; sửa khi `DAT_KIEM_THU` đưa phiên bản về `NHAP` (như MSG-15-03 của gói).
+        Từ `CHO_PHE_DUYET` trở đi nội dung bị đóng băng (`POLICY-409-VERSION-FROZEN`); tham chiếu sai trả
+        `POLICY-422-PROFILE-REF`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerProfileVersionUpdate' }
+      responses:
+        '200':
+          description: Đã lưu.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerProfileVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: []
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        source: BS-03 ADR-33; baseline mục 9.1 (vòng đời phiên bản)
+
+  /policies/customer-profiles/{profileId}/versions/{v}/param-constraints:
+    parameters:
+      - $ref: '#/components/parameters/ProfileId'
+      - $ref: '#/components/parameters/PackVersion'
+    get:
+      tags: [Hồ sơ tập khách hàng]
+      operationId: listParamConstraints
+      summary: Khung tham số của phiên bản hồ sơ
+      description: Các ràng buộc cho cấp dưới (`policy.param_constraint`, BS-03 DC-02). ETag là của phiên bản hồ sơ.
+      responses:
+        '200':
+          description: Danh sách khung tham số.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParamConstraintList' }
+              examples:
+                twd:
+                  value:
+                    items:
+                      - { paramKey: catalog.standard_score, canToggle: false, canChangeLevels: false, minValue: -0.2, maxValue: 0.2, tightenDirection: KHONG, allowedScopes: [KHOI, DON_VI] }
+                      - { paramKey: tham_so.he_so_nhom, canToggle: false, canChangeLevels: false, minValue: 1.0, maxValue: 1.5, tightenDirection: KHONG, allowedScopes: [KHOI] }
+                      - { paramKey: tham_so.tru_moi_ngay_cham, canToggle: false, canChangeLevels: false, minValue: 0.05, maxValue: null, tightenDirection: TANG, allowedScopes: [KHOI, TINH, DON_VI] }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: []
+        owner: MOD-05
+        roles: [policy_author, tenant_admin, decider]
+        scope: Tn
+        source: BS-03 DC-02 “Hợp đồng” (`param-constraints` thuộc phiên bản hồ sơ)
+    put:
+      tags: [Hồ sơ tập khách hàng]
+      operationId: replaceParamConstraints
+      summary: Khai báo khung tham số cho cấp dưới
+      description: >-
+        Thay toàn bộ khung tham số của phiên bản `NHAP` (BS-03 DC-02). Không có ràng buộc nào thì hành vi giữ đúng cờ
+        `overridable` hiện tại. `minValue` lớn hơn `maxValue` trả `COMMON-422-VALIDATION`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ParamConstraintReplace' }
+      responses:
+        '200':
+          description: Đã lưu khung tham số.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParamConstraintList' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: []
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        rules: [BR-15-13]
+        source: BS-03 DC-02
+
+  /policies/customer-profiles/{profileId}/versions/{v}/validate:
+    parameters:
+      - $ref: '#/components/parameters/ProfileId'
+      - $ref: '#/components/parameters/PackVersion'
+    post:
+      tags: [Hồ sơ tập khách hàng]
+      operationId: validateCustomerProfileVersion
+      summary: Kiểm tra phiên bản hồ sơ
+      description: >-
+        Đối chiếu mọi tham chiếu của bản kê (thành phần phải `DA_PHAT_HANH` hoặc `DAT_KIEM_THU`), kiểm khung tham số và
+        chạy bộ ca vàng của gói được trỏ tới; đạt 100% thì phiên bản `NHAP` → `DAT_KIEM_THU`, không đạt thì giữ `NHAP`
+        (PC-07, suy luận). Theo dõi bằng `Location` (`Job.type = POLICY_TEST`, suy luận).
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: []
+        owner: MOD-05
+        roles: [policy_author]
+        scope: Tn
+        source: BS-03 ADR-33 “vòng đời giống Policy Pack”; TL-02b QT-15 bước kiểm thử (PC-07)
+
+  /policies/customer-profiles/{profileId}/versions/{v}/submit:
+    parameters:
+      - $ref: '#/components/parameters/ProfileId'
+      - $ref: '#/components/parameters/PackVersion'
+    post:
+      tags: [Hồ sơ tập khách hàng]
+      operationId: submitCustomerProfileVersion
+      summary: Gửi phê duyệt phiên bản hồ sơ
+      description: '`DAT_KIEM_THU` → `CHO_PHE_DUYET`, báo người phê duyệt (EVT-21). Chưa kiểm tra đạt trả `POLICY-409-NOT-TESTED`.'
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyDecisionComment' }
+      responses:
+        '200':
+          description: Đã gửi phê duyệt.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerProfileVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: []
+        owner: MOD-05
+        evt: [EVT-21]
+        roles: [policy_author]
+        scope: Tn
+        source: BS-03 ADR-33 (PC-07)
+
+  /policies/customer-profiles/{profileId}/versions/{v}/approve:
+    parameters:
+      - $ref: '#/components/parameters/ProfileId'
+      - $ref: '#/components/parameters/PackVersion'
+    post:
+      tags: [Hồ sơ tập khách hàng]
+      operationId: approveCustomerProfileVersion
+      summary: Ký số phê duyệt và phát hành phiên bản hồ sơ
+      description: >-
+        Người phê duyệt khác người soạn ký số trên `content_hash` rồi khởi động saga phát hành đa cell (EVT-13) như
+        Policy Pack; xong saga thì `DA_PHAT_HANH`. Người duyệt trùng người soạn trả `POLICY-403-SAME-AUTHOR`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyPackApprove' }
+      responses:
+        '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: []
+        owner: MOD-05
+        evt: [EVT-18, EVT-13]
+        roles: [decider]
+        scope: Tn
+        aal: 2
+        fourEyes: true
+        rules: [BR-15-09]
+        source: BS-03 ADR-33 “có ký và hai người” (PC-07)
+
+  /policies/customer-profiles/{profileId}/versions/{v}/reject:
+    parameters:
+      - $ref: '#/components/parameters/ProfileId'
+      - $ref: '#/components/parameters/PackVersion'
+    post:
+      tags: [Hồ sơ tập khách hàng]
+      operationId: rejectCustomerProfileVersion
+      summary: Từ chối phát hành phiên bản hồ sơ
+      description: '`CHO_PHE_DUYET` → `NHAP`, bắt buộc ý kiến.'
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyDecisionReason' }
+      responses:
+        '200':
+          description: Đã từ chối, phiên bản về nháp.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerProfileVersion' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-15]
+        scr: []
+        owner: MOD-05
+        evt: [EVT-21]
+        roles: [decider]
+        scope: Tn
+        source: BS-03 ADR-33 (PC-07)
+
   /policies/resolve:
     get:
       tags: [Phân giải và tra cứu]
@@ -1599,6 +2088,12 @@ components:
       required: true
       description: Mã mẫu luồng (`wf_template.template_code`), ví dụ `duyet-ho-so-danh-gia`.
       schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,64}$' }
+    ProfileId:
+      name: profileId
+      in: path
+      required: true
+      description: Hồ sơ tập khách hàng (`policy.customer_profile.id`, BS-03).
+      schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
     TemplateVersion:
       name: v
       in: path
@@ -1781,6 +2276,13 @@ components:
             - $ref: '../common/common.yaml#/components/schemas/Uuid'
             - type: 'null'
         isFrozen: { type: boolean, description: 'true khi kỳ đã `DA_KHOA`; không đổi phiên bản được nữa.' }
+        customerProfileVersionId:
+          description: >-
+            Phiên bản hồ sơ tập khách hàng áp cho kỳ (`customer_profile_version_id`, BS-03); null với dữ liệu trước
+            BS-03. Khi kỳ khoá, mọi thành phần mà hồ sơ trỏ tới bị đóng băng cùng kỳ.
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
     PolicyVersionDiff:
       type: object
       required: [base, target, changes]
@@ -1836,6 +2338,58 @@ components:
               label: { type: string, maxLength: 200 }
         lam_tron: { $ref: '#/components/schemas/PolicyRoundingParam' }
         ke_thua: { type: string, description: 'Dòng kế thừa, ví dụ "QĐ 366 v1.4 → dự thảo Quy định mới v2.x".' }
+        inputs:
+          type: array
+          description: >-
+            Khai báo đầu vào của gói (BS-03 DC-01, DC-03). Ngoài biến đếm cũ, gói khai `list<WorkItem>` với nguồn
+            `task.aggregate.work_items` hoặc `list<ResponsibilityItem>`; gói không khai thì scoring-service không nhận
+            danh sách đó.
+          items: { $ref: '#/components/schemas/PolicyInputDeclaration' }
+        classification: { $ref: '#/components/schemas/PolicyClassification' }
+        quotas:
+          type: [object, 'null']
+          description: >-
+            Trần tỷ lệ theo mức, tuỳ chọn (BS-03 DC-05); ví dụ `{HTXSNV: 0.2}` của TL-01 chỉ là ví dụ cấu hình, không
+            phải mặc định.
+          additionalProperties: { type: number, minimum: 0, maximum: 1 }
+    PolicyInputDeclaration:
+      description: Một đầu vào khai báo của gói (BS-03 DC-01, DC-03).
+      type: object
+      required: [name, type]
+      properties:
+        name: { type: string, maxLength: 64, examples: [work_items] }
+        type:
+          type: string
+          maxLength: 64
+          description: 'Kiểu CEL của đầu vào, ví dụ `int`, `double`, `list<WorkItem>`, `list<ResponsibilityItem>`.'
+          examples: ['list<WorkItem>']
+        source:
+          type: string
+          maxLength: 128
+          description: Nguồn dữ liệu của lõi, ví dụ `task.aggregate.work_items`.
+    PolicyClassification:
+      description: >-
+        Cách xếp loại của gói (BS-03 DC-05). Dạng `dmn` (một bảng `FIRST`, như cũ) hoặc dạng `chain` (danh sách bước có
+        thứ tự, mỗi bước là một bảng DMN hoặc một biểu thức CEL). Mỗi bước ghi vào `score_trace` số bước, mã quy tắc,
+        đầu vào, đầu ra và câu lý do; `downgrade_reasons` được điền từ các bước. Chỉ một trong hai trường có mặt.
+      type: object
+      properties:
+        dmn: { type: string, maxLength: 64, description: 'Khoá bảng quyết định xếp loại, ví dụ `xep_loai`.' }
+        chain:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { $ref: '#/components/schemas/PolicyClassificationStep' }
+    PolicyClassificationStep:
+      type: object
+      required: [stepNo, ruleCode, kind]
+      properties:
+        stepNo: { type: integer, minimum: 1 }
+        ruleCode: { type: string, maxLength: 64, description: 'Mã bước, ghi vào `score_trace`.' }
+        kind: { type: string, enum: [DMN, CEL] }
+        tableKey: { type: string, maxLength: 64, description: 'Bảng DMN của bước khi `kind = DMN`.' }
+        expression: { type: string, maxLength: 20000, description: 'Biểu thức CEL của bước khi `kind = CEL`.' }
+        label: { type: string, maxLength: 200, description: 'Câu mô tả bước, dùng cho câu "vì sao bị hạ mức".' }
     PolicyRoundingMode:
       description: >-
         Kiểu làm tròn (SCR-1501 trường 8). TL-02b chỉ nêu "nửa lên" (BR-09-03); `CAT_BO` (bỏ phần thừa) là suy luận
@@ -2271,6 +2825,210 @@ components:
       properties:
         comment: { type: string, maxLength: 2000 }
 
+    # ───── Hồ sơ tập khách hàng (BS-03) ─────
+    CustomerProfile:
+      description: Hồ sơ tập khách hàng (`policy.customer_profile`, BS-03 ADR-33) kèm tóm tắt phiên bản.
+      type: object
+      required: [id, code, name, isSimulated]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        code: { type: string, maxLength: 100, description: 'Mã hồ sơ, duy nhất trong tenant gốc toàn cục, ví dụ `twd/ban-to-chuc-ueb`.' }
+        name: { type: string, maxLength: 255 }
+        isSimulated: { type: boolean, description: 'Hồ sơ giả lập theo dự thảo chưa ban hành (`is_simulated`, YC-PT-14).' }
+        legalBasis:
+          type: array
+          description: Văn bản căn cứ (`legal_basis`).
+          items: { type: string, maxLength: 500 }
+        tenantTags:
+          type: array
+          description: Thẻ tenant mà hồ sơ áp dụng (`ap_dung_cho.tenant_tags`), cùng cách gắn của Policy Pack.
+          items: { type: string, maxLength: 64 }
+        versions:
+          type: array
+          description: Tóm tắt các phiên bản gần nhất, mới nhất trước.
+          items: { $ref: '#/components/schemas/CustomerProfileVersionSummary' }
+    CustomerProfileList:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CustomerProfile' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    CustomerProfileCreate:
+      type: object
+      required: [code, name, isSimulated]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 100, pattern: '^[a-z0-9][a-z0-9/_-]*$' }
+        name: { type: string, minLength: 1, maxLength: 255 }
+        isSimulated: { type: boolean }
+        legalBasis:
+          type: array
+          items: { type: string, maxLength: 500 }
+        tenantTags:
+          type: array
+          items: { type: string, maxLength: 64 }
+    CustomerProfileVersionSummary:
+      description: Tóm tắt một phiên bản hồ sơ (`policy.customer_profile_version`).
+      type: object
+      required: [id, customerProfileId, version, status, rowVersion]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        customerProfileId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        version: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
+        status: { $ref: '#/components/schemas/PolicyPackVersionStatus' }
+        changeNote: { type: string }
+        publishedAt:
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        createdBy: { $ref: '../common/common.yaml#/components/schemas/Ref' }
+        rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
+    CustomerProfileVersion:
+      description: >-
+        Chi tiết phiên bản hồ sơ. Cùng ràng buộc của `policy_pack_version`: đã phát hành phải có chữ ký và người duyệt
+        khác người soạn.
+      allOf:
+        - $ref: '#/components/schemas/CustomerProfileVersionSummary'
+        - type: object
+          properties:
+            manifest: { $ref: '#/components/schemas/CustomerProfileManifest' }
+            contentHash:
+              description: SHA-256 dạng chuẩn hoá của bản kê và khung tham số, mã hex; có từ `DAT_KIEM_THU`.
+              type: [string, 'null']
+            approvedBy:
+              oneOf:
+                - $ref: '../common/common.yaml#/components/schemas/Ref'
+                - type: 'null'
+            approvedAt:
+              oneOf:
+                - $ref: '../common/common.yaml#/components/schemas/DateTime'
+                - type: 'null'
+            signedAt:
+              oneOf:
+                - $ref: '../common/common.yaml#/components/schemas/DateTime'
+                - type: 'null'
+            paramConstraintCount: { type: integer, minimum: 0 }
+    CustomerProfileVersionList:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CustomerProfileVersionSummary' }
+        nextCursor: { $ref: '../common/common.yaml#/components/schemas/NextCursor' }
+    CustomerProfileVersionCreate:
+      type: object
+      required: [changeNote]
+      properties:
+        baseVersion:
+          description: Phiên bản nguồn để nhân bản; bỏ trống khi tạo phiên bản đầu.
+          type: string
+          pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+        version:
+          description: Số phiên bản mới; bỏ trống thì máy chủ tăng số phụ (suy luận).
+          type: string
+          pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+        changeNote: { type: string, minLength: 1, maxLength: 2000 }
+        manifest: { $ref: '#/components/schemas/CustomerProfileManifest' }
+    CustomerProfileVersionUpdate:
+      type: object
+      required: [manifest]
+      properties:
+        manifest: { $ref: '#/components/schemas/CustomerProfileManifest' }
+        changeNote: { type: string, maxLength: 2000 }
+    CustomerProfileManifest:
+      description: >-
+        Bản kê của hồ sơ (`manifest jsonb`, BS-03 "Bản kê hồ sơ"): chỉ chứa tham chiếu và cờ, không chứa công thức.
+        Mọi giá trị riêng của khách hàng nằm trong các thành phần được trỏ tới; mặc định của mỗi điểm cắm giữ đúng hành
+        vi hiện tại.
+      type: object
+      required: [components, pluginPoints]
+      properties:
+        components:
+          type: object
+          description: Phiên bản từng thành phần cấu hình mà tập khách hàng dùng.
+          properties:
+            policyPack:
+              type: object
+              required: [code, version]
+              properties:
+                code: { type: string, maxLength: 100 }
+                version: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
+                flow: { $ref: '../common/common.yaml#/components/schemas/Flow' }
+            catalog:
+              type: [object, 'null']
+              required: [code, version]
+              properties:
+                code: { type: string, maxLength: 100 }
+                version: { type: integer, minimum: 1 }
+            alertRuleSet:
+              type: [object, 'null']
+              description: Bộ quy tắc cảnh báo điểm nghẽn (suy luận tên trường).
+              required: [code, version]
+              properties:
+                code: { type: string, maxLength: 100 }
+                version: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
+            workflowParams:
+              type: [object, 'null']
+              description: Mẫu luồng và bộ tham số luồng (BS-01).
+              properties:
+                templateCode: { type: string, maxLength: 64 }
+                paramSet: { type: string, maxLength: 64 }
+            uiPack:
+              type: [string, 'null']
+              description: UI Pack riêng; null là dùng UI Pack của tenant.
+        pluginPoints: { $ref: '#/components/schemas/CustomerProfilePluginPoints' }
+    CustomerProfilePluginPoints:
+      description: Cờ bật tắt sáu điểm cắm DC-01..DC-06 của lõi (BS-03); vắng là tắt, DC-06 vắng là `CHU_TRI_PHOI_HOP`.
+      type: object
+      properties:
+        workItemScore: { type: boolean, default: false, description: DC-01 đầu vào theo điểm công việc. }
+        boundedInheritance: { type: boolean, default: false, description: DC-02 khung tham số kế thừa có giới hạn. }
+        responsibilityScope: { type: boolean, default: false, description: DC-03 phạm vi phụ trách cho điểm quản lý. }
+        milestoneMetric: { type: boolean, default: false, description: DC-04 kiểu đo mốc và cây KPI. }
+        classificationChain: { type: boolean, default: false, description: DC-05 chuỗi xếp loại nhiều bước. }
+        assignmentMode:
+          type: string
+          enum: [CHU_TRI_PHOI_HOP, MOT_NGUOI_MOT_VIEC]
+          default: CHU_TRI_PHOI_HOP
+          description: DC-06 chế độ phân công (`che_do_phan_cong`).
+    ParamConstraint:
+      description: Khung một tham số mà cấp dưới được phép chỉnh (`policy.param_constraint`, BS-03 DC-02).
+      type: object
+      required: [paramKey, canToggle, canChangeLevels, tightenDirection]
+      properties:
+        id: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        paramKey: { type: string, maxLength: 128, description: 'Khoá tham số, ví dụ `tham_so.tru_moi_ngay_cham`.' }
+        canToggle: { type: boolean, description: Được bật tắt tham số. }
+        canChangeLevels: { type: boolean, description: Được đổi số mức. }
+        minValue: { type: [number, 'null'] }
+        maxValue: { type: [number, 'null'] }
+        tightenDirection:
+          type: string
+          enum: [TANG, GIAM, KHONG]
+          description: Chiều được phép siết (`tighten_direction`).
+        allowedScopes:
+          type: array
+          description: Các cấp được phép chỉnh (`allowed_scopes`).
+          items: { type: string, enum: [KHOI, TINH, DON_VI] }
+    ParamConstraintList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ParamConstraint' }
+    ParamConstraintReplace:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 500
+          items: { $ref: '#/components/schemas/ParamConstraint' }
+
     # ───── Phân giải và tra cứu ─────
     ResolvedPolicyPack:
       type: object
@@ -2284,6 +3042,11 @@ components:
         bundleObjectKey: { type: string, description: Khoá gói đã ký trên Ceph của cell. }
         bindingId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
         frozen: { type: boolean, description: 'Kỳ đã khoá, phiên bản không đổi được nữa.' }
+        customerProfileVersionId:
+          description: Phiên bản hồ sơ tập khách hàng ghim trong `policy_binding` (BS-03); null khi không có.
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
     ProspectCriteria:
       type: object
       required: [policyPackId, version, openInQuarter, groups]
@@ -2457,6 +3220,25 @@ components:
               type: array
               items: { $ref: '#/components/schemas/WorkflowStepPreview' }
   examples:
+    CustomerProfileVersionCreateTwd:
+      summary: Phiên bản đầu của hồ sơ TWĐ (giả lập)
+      value:
+        version: 0.1.0
+        changeNote: Phiên bản đầu theo dự thảo Quy định 12/10/2026
+        manifest:
+          components:
+            policyPack: { code: twd/diem-cong-viec, version: 0.1.0, flow: DANG }
+            catalog: { code: TWD-DM-25, version: 25 }
+            alertRuleSet: { code: twd/diem-nghen, version: 0.1.0 }
+            workflowParams: { templateCode: duyet-de-nghi, paramSet: twd-tham-quyen }
+            uiPack: null
+          pluginPoints:
+            workItemScore: true
+            boundedInheritance: true
+            responsibilityScope: true
+            milestoneMetric: true
+            classificationChain: true
+            assignmentMode: MOT_NGUOI_MOT_VIEC
     PolicyPackVersionDraft:
       summary: Phiên bản 2.1.0 đang soạn
       value:

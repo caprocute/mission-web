@@ -20,6 +20,8 @@ import vn.viettel.okrkpi.task.domain.lifecycle.TaskActor;
 @Component
 public class TaskCallers {
 
+  static final String SERVICE_CLIENT = "service_client";
+
   private final ObjectProvider<TaskCaller> callers;
   private final ObjectProvider<AuthzSubjectResolver> subjects;
 
@@ -46,6 +48,38 @@ public class TaskCallers {
     } catch (IllegalArgumentException e) {
       throw unauthorized();
     }
+  }
+
+  /**
+   * Người gọi là tài khoản dịch vụ (token client credentials hoặc vai trò {@code service_client}),
+   * dùng cho cổng nội bộ như {@code setTaskDelayRisk} (CORE-02-26).
+   */
+  public boolean serviceClient() {
+    TaskCaller caller = callers.getIfAvailable();
+    if (caller != null) {
+      return caller.current().map(a -> a.roles().contains(SERVICE_CLIENT)).orElse(false);
+    }
+    AuthzSubjectResolver resolver = subjects.getIfAvailable();
+    OpaInput.Subject subject = resolver == null ? null : resolver.currentSubject();
+    if (subject == null) {
+      throw unauthorized();
+    }
+    return "client".equals(subject.kind())
+        || (subject.roles() != null && subject.roles().contains(SERVICE_CLIENT));
+  }
+
+  /** Người duyệt kèm {@code acr} và {@code auth_time} để tầng ứng dụng kiểm bước lên. */
+  public vn.viettel.okrkpi.task.application.plan.PlanApprovalService.Approver approver() {
+    UUID id = current().personId();
+    TaskCaller caller = callers.getIfAvailable();
+    if (caller != null) {
+      return new vn.viettel.okrkpi.task.application.plan.PlanApprovalService.Approver(
+          id, caller.acr().orElse(null), caller.authTime().orElse(null));
+    }
+    AuthzSubjectResolver resolver = subjects.getIfAvailable();
+    OpaInput.Subject subject = resolver == null ? null : resolver.currentSubject();
+    return new vn.viettel.okrkpi.task.application.plan.PlanApprovalService.Approver(
+        id, subject == null ? null : subject.acr(), subject == null ? null : subject.authTime());
   }
 
   private static ResponseStatusException unauthorized() {

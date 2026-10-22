@@ -46,6 +46,7 @@ public class EvidenceReviewService {
   private final TaskApi tasks;
   private final EvidenceIntegrityAlarm alarm;
   private final AuditLogger audit;
+  private ReviewerAuthority authority;
 
   public EvidenceReviewService(
       EvidenceSubmissionRepository repository,
@@ -58,6 +59,12 @@ public class EvidenceReviewService {
     this.tasks = Objects.requireNonNull(tasks, "tasks");
     this.alarm = Objects.requireNonNull(alarm, "alarm");
     this.audit = Objects.requireNonNull(audit, "audit");
+    this.authority = ReviewerAuthority.withoutDelegations(tasks);
+  }
+
+  /** Cho phép người nhận uỷ quyền nghiệm thu thay mở nghiệm thu (CORE-03-08). */
+  public void setAuthority(ReviewerAuthority authority) {
+    this.authority = Objects.requireNonNull(authority, "authority");
   }
 
   /** Toàn vẹn không bảo đảm (MSG-07-13); cảnh báo đã ghi trong giao dịch riêng. */
@@ -91,20 +98,11 @@ public class EvidenceReviewService {
             .findVersion(tenant, e.periodBucket(), evidenceId, versionNo)
             .orElseThrow(NoSuchElementException::new);
     TaskSummary task = tasks.find(tenant, e.taskId()).orElseThrow(NoSuchElementException::new);
-    UUID designated = EvidenceSubmissionService.designatedReviewer(task);
     UUID me = actor.personId();
     EvidenceStatus status = EvidenceStatus.valueOf(v.status());
-    List<EvidenceFile> files =
-        repository.filesOf(tenant, v.periodBucket(), v.id()).stream()
-            .map(EvidenceSubmissionService::file)
-            .toList();
+    ReviewerAuthority.Acting acting;
     try {
-      ReviewRules.requireIndependentReviewer(
-          me,
-          designated,
-          v.submittedBy(),
-          task.leadAssigneeId(),
-          me.equals(designated) && coordinates(tenant, task, me));
+      acting = authority.resolve(tenant, task, me, v.submittedBy());
       ReviewRules.requireReviewable(status);
     } catch (EvidenceRuleViolation ex) {
       throw new BusinessException(ex.code(), ex.getMessage());
@@ -112,11 +110,7 @@ public class EvidenceReviewService {
     if (v.rowVersion() != expectedRowVersion) {
       throw new VersionConflictException("PRODUCT", expectedRowVersion, v.rowVersion());
     }
-    List<EvidenceFile> tampered = ReviewRules.tampered(files);
-    if (!tampered.isEmpty()) {
-      raiseIntegrityAlert(tenant, e, v, task, me, tampered);
-      throw new IntegrityFailedException();
-    }
+    List<EvidenceFile> files = requireIntact(tenant, e, v, task, me);
     try {
       ReviewRules.requireClean(files);
     } catch (EvidenceRuleViolation ex) {
@@ -130,12 +124,32 @@ public class EvidenceReviewService {
             .classification(v.hasE2ee() ? Classification.C3 : Classification.C2)
             .attribute("evidenceId", e.id().toString())
             .attribute("versionNo", Integer.toString(versionNo))
+            .attribute("onBehalfOf", acting.substitute() ? acting.onBehalfOf().toString() : "")
+            .attribute("delegationId", acting.substitute() ? acting.delegationId().toString() : "")
             .build());
     if (status == EvidenceStatus.DANG_NGHIEM_THU) {
       return false;
     }
     lifecycle.openReview(tenant, v.id(), expectedRowVersion, actor);
     return true;
+  }
+
+  /**
+   * Tệp của phiên bản còn khớp bản ghi của SVC-08; lệch thì phát cảnh báo (giao dịch riêng) và ném
+   * {@link IntegrityFailedException}. Dùng chung cho mở nghiệm thu và xác nhận nghiệm thu.
+   */
+  List<EvidenceFile> requireIntact(
+      TenantId tenant, EvidenceView e, VersionView v, TaskSummary task, UUID me) {
+    List<EvidenceFile> files =
+        repository.filesOf(tenant, v.periodBucket(), v.id()).stream()
+            .map(EvidenceSubmissionService::file)
+            .toList();
+    List<EvidenceFile> tampered = ReviewRules.tampered(files);
+    if (!tampered.isEmpty()) {
+      raiseIntegrityAlert(tenant, e, v, task, me, tampered);
+      throw new IntegrityFailedException();
+    }
+    return files;
   }
 
   private void raiseIntegrityAlert(
@@ -165,7 +179,7 @@ public class EvidenceReviewService {
   }
 
   /** Người gọi có trong danh sách người thực hiện (chủ trì hoặc phối hợp) của nhiệm vụ. */
-  private boolean coordinates(TenantId tenant, TaskSummary task, UUID person) {
+  static boolean coordinates(TaskApi tasks, TenantId tenant, TaskSummary task, UUID person) {
     if (task.periodId() == null) {
       return false;
     }

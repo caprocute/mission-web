@@ -27,6 +27,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.config.api.PeriodCalendarPort;
+import vn.viettel.okrkpi.config.application.DashboardDefinitionService;
 import vn.viettel.okrkpi.config.application.FeatureFlagService;
 import vn.viettel.okrkpi.config.application.HolidayCalendarService;
 import vn.viettel.okrkpi.config.application.PeriodConfigService;
@@ -382,6 +383,19 @@ public class PeriodConfiguration {
       ObjectProvider<ObjectMapper> json) {
     return new TenantSettingService(
         tenantSettingRepository,
+        configAudit,
+        json.getIfAvailable(ObjectMapper::new),
+        Clock.systemUtc());
+  }
+
+  /** CORE-08-17: kho định nghĩa dashboard tự dựng cho analytics-api. */
+  @Bean
+  DashboardDefinitionService dashboardDefinitionService(
+      @Qualifier("configDataSource") DataSource dataSource,
+      ConfigAudit configAudit,
+      ObjectProvider<ObjectMapper> json) {
+    return new DashboardDefinitionService(
+        new JdbcDashboardDefinitionRepository(JdbcClient.create(dataSource)),
         configAudit,
         json.getIfAvailable(ObjectMapper::new),
         Clock.systemUtc());

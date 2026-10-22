@@ -1,0 +1,8 @@
+// DV-16-01 · Ghép một nhóm trường vào tài liệu nhiệm vụ, kiểm phiên bản theo nhóm (xem IndexCommand.Mode.MERGE).
+if (ctx._source.versions == null) { ctx._source.versions = new HashMap(); }
+def cur = ctx._source.versions[params.group];
+if (cur != null && ((Number) cur).longValue() >= params.version) { ctx.op = 'none'; return; }
+ctx._source.versions[params.group] = params.version;
+for (def e : params.base.entrySet()) { ctx._source[e.getKey()] = e.getValue(); }
+for (def e : params.set.entrySet()) { ctx._source[e.getKey()] = e.getValue(); }
+for (def k : params.unset) { ctx._source.remove(k); }

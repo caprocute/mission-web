@@ -1,0 +1,87 @@
+# DL-15 · SEC-52, TL-04 mục 9.7 "Dữ liệu cá nhân (SEC-52)": luật che theo từng cột cho tác vụ
+# anonymize (infra/anonymize). Chỉ chứa quy tắc, không chứa dữ liệu hay khoá.
+#
+# Mọi cột trong danh mục suy từ migration (chú thích cls C2/C3, "pii": true, hậu tố _enc, _bidx;
+# xem infra/anonymize/anonymize/danh_muc.py) PHẢI có đúng một luật ở đây; thiếu luật thì
+# tests/test_danh_muc.py đỏ trong CI. Có thể khai thêm cột ngoài danh mục (văn bản tự do C1).
+#
+# Luật (luat):
+#   giu                   giữ nguyên (cột _enc vẫn được giải mã, mã hoá lại bằng khoá staging)
+#   xoa                   đặt NULL (cột phải cho phép NULL)
+#   ho_ten                họ tên giả theo giới ở cột `gioi` (nếu có)
+#   ngay_sinh_nhom_tuoi   ngày sinh khác trong cùng nhóm tuổi `nhom_tuoi_nam` năm tại `ngay_moc`
+#   so_dinh_danh          số định danh giả (mã tỉnh 999), khớp giới ở `gioi` và năm sinh giả ở `ngay_sinh`
+#   so_the_dang           số thẻ đảng viên giả (mã tỉnh 999)
+#   dien_thoai, thu_dien_tu, ten_dang_nhap, ten_tep
+#   van_ban_cung_do_dai   văn bản tổng hợp cùng số ký tự
+#   chi_muc_mu            tính lại chỉ mục mù HMAC (NEN-015) từ giá trị mới của cột `tu`
+# Cột hậu tố _enc là phong bì C2: luật áp lên bản rõ, rồi mã hoá lại với AAD
+# "<tenant>|<aad_cot hoặc schema.bảng.cột>|<giá trị cột aad_dong>" và DEK ở cột `cot_dek`.
+phien_ban: 1
+ngay_moc: "2026-01-01"
+nhom_tuoi_nam: 5
+
+bang:
+  org.person:
+    aad_dong: id          # SyncSupport mã hoá theo mã thực thể ổn định, không theo version_id
+    cot_dek: dek_id
+    cot:
+      full_name: {luat: ho_ten, gioi: gender}
+      gender: {luat: giu, ly_do: "Giữ để bảo toàn phân phối giới; một mình không định danh được người"}
+      birth_date_enc: {luat: ngay_sinh_nhom_tuoi}
+      national_id_enc: {luat: so_dinh_danh, gioi: gender, ngay_sinh: birth_date_enc}
+      national_id_bidx: {luat: chi_muc_mu, tu: national_id_enc}
+      party_member_no_enc: {luat: so_the_dang}
+      party_member_no_bidx: {luat: chi_muc_mu, tu: party_member_no_enc}
+  org.person_contact:
+    aad_dong: id          # suy luận: chưa có mã Java ghi bảng này
+    cot_dek: dek_id
+    cot:
+      phone_enc: {luat: dien_thoai}
+      phone_bidx: {luat: chi_muc_mu, tu: phone_enc}
+      email_enc: {luat: thu_dien_tu}
+      email_bidx: {luat: chi_muc_mu, tu: email_enc}
+  org.sync_discrepancy:
+    aad_dong: id
+    cot_dek: dek_id
+    cot:
+      source_value_enc: {luat: van_ban_cung_do_dai}
+      current_value_enc: {luat: van_ban_cung_do_dai}
+  org.scim_resource:
+    cot:
+      user_name: {luat: ten_dang_nhap}
+      display_name: {luat: ho_ten}
+  evidence.object_meta:
+    aad_dong: id
+    cot_dek: dek_id
+    cot:
+      file_name_enc: {luat: ten_tep}
+  evidence.upload_session:
+    aad_dong: id
+    aad_cot: evidence.object_meta.file_name_enc   # UploadService niêm phong bằng toạ độ cột của object_meta
+    cot_dek: dek_id
+    cot:
+      file_name_enc: {luat: ten_tep}
+  product.acceptance:
+    aad_dong: id          # suy luận: chưa có mã Java ghi comment_enc
+    cot_dek: dek_id
+    cot:
+      comment_enc: {luat: van_ban_cung_do_dai}
+      comment: {luat: van_ban_cung_do_dai}   # nhận xét nghiệm thu C1, văn bản tự do
+
+# Bảng loại bỏ toàn bộ dòng khỏi bản xuất (TRUNCATE), so theo mẫu fnmatch trên schema.bảng:
+#  - outbox, inbox, idempotency, nhật ký đồng bộ SCIM, sự kiện modulith: chứa tải trọng sự kiện có
+#    thể mang dữ liệu cá nhân dạng rõ và không cần để tái hiện lỗi nghiệp vụ;
+#  - bản bọc khoá E2EE (C3): máy chủ không giải được nội dung C3 nên xoá bản bọc, tệp C3 trong kho
+#    đối tượng thành bản mã không ai mở được (suy luận theo ADR-06);
+#  - nhật ký kiểm toán, sổ cái băm chuỗi: TL chưa quy định, đề xuất loại bỏ (suy luận, wiki 14).
+xoa_bang:
+  - "*.outbox_event"
+  - "*.inbox_processed"
+  - "*.inbox_aggregate_version"
+  - "*.idempotency_key"
+  - "*.e2ee_key_wrap"
+  - "org.scim_sync_log"
+  - "*.event_publication*"
+  - "*audit*"
+  - "*ledger*"

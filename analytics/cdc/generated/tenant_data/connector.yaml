@@ -1,0 +1,48 @@
+# Sinh bởi analytics/cdc/cdc_config_gen.py (DV-15-02). Không sửa tay; chạy lại công cụ.
+# Connector Debezium phân tích của CSDL tenant_data: slot riêng, publication pub_analytics, topic
+# cdc.tenant_data.<schema>.<table>. Mật khẩu vai trò CDC và khoá chủ giả danh lấy từ biến môi trường
+# do Secret (đồng bộ từ OpenBao) cấp cho Kafka Connect, không nằm trong tệp này.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnector
+metadata:
+  name: cdc-tenant-data
+  labels:
+    strimzi.io/cluster: outbox
+    app.kubernetes.io/part-of: mission-analytics
+spec:
+  class: io.debezium.connector.postgresql.PostgresConnector
+  tasksMax: 1
+  config:
+    plugin.name: "pgoutput"
+    database.hostname: "${env:PG_HOST}"
+    database.port: "${env:PG_PORT}"
+    database.user: "${env:PG_CDC_ANALYTICS_USER}"
+    database.password: "${env:PG_CDC_ANALYTICS_PASSWORD}"
+    database.dbname: "tenant_data"
+    topic.prefix: "cdc.tenant_data"
+    slot.name: "dbz_cdc_tenant_data"
+    publication.name: "pub_analytics"
+    publication.autocreate.mode: "disabled"
+    snapshot.mode: "initial"
+    table.include.list: "task\\.task,task\\.task_assignee,task\\.task_progress,product\\.evidence,okr\\.objective,okr\\.key_result,okr\\.kr_checkin,appraisal\\.appraisal_profile,appraisal\\.score_snapshot,appraisal\\.rating_proposal,org_replica\\.org_unit_v,org_replica\\.person_v,org_replica\\.assignment_v,org_replica\\.unit_closure_v,config\\.period,policy\\.policy_pack_version,task\\.task_change_request"
+    column.exclude.list: "appraisal\\.rating_proposal\\.reason_enc,appraisal\\.rating_proposal\\.comment_enc,org_replica\\.person_v\\.full_name,org_replica\\.person_v\\.cbccvc_code"
+    decimal.handling.mode: "string"
+    tombstones.on.delete: "false"
+    heartbeat.interval.ms: "10000"
+    heartbeat.action.query: "INSERT INTO public.debezium_heartbeat (slot_name, beat_at) VALUES ('dbz_cdc_tenant_data', now()) ON CONFLICT (slot_name) DO UPDATE SET beat_at = EXCLUDED.beat_at"
+    key.converter: "org.apache.kafka.connect.json.JsonConverter"
+    key.converter.schemas.enable: "false"
+    value.converter: "org.apache.kafka.connect.json.JsonConverter"
+    value.converter.schemas.enable: "false"
+    transforms: "unwrap,pseudo"
+    transforms.unwrap.type: "io.debezium.transforms.ExtractNewRecordState"
+    transforms.unwrap.add.fields: "op,lsn,source.ts_ms"
+    transforms.unwrap.delete.tombstone.handling.mode: "rewrite"
+    transforms.pseudo.type: "vn.viettel.okrkpi.analytics.cdc.TenantPseudonymize"
+    transforms.pseudo.topic.prefix: "cdc.tenant_data"
+    transforms.pseudo.fields: "task.task:created_by|updated_by|assigner_id|acceptor_id,task.task_assignee:created_by|updated_by|person_id,task.task_progress:created_by|updated_by,product.evidence:created_by|updated_by,okr.objective:created_by|updated_by|owner_person_id|approved_by,okr.key_result:created_by|updated_by|verifier_person_id,okr.kr_checkin:created_by|updated_by|verified_by,appraisal.appraisal_profile:created_by|updated_by|person_id|appraiser_id|decider_id,appraisal.score_snapshot:created_by|updated_by,appraisal.rating_proposal:created_by|updated_by|actor_id,org_replica.person_v:id,org_replica.assignment_v:person_id,config.period:created_by|updated_by|locked_by,policy.policy_pack_version:created_by|updated_by|approved_by,task.task_change_request:created_by|updated_by|decided_by|approver_id"
+    transforms.pseudo.tenant.field: "tenant_id"
+    transforms.pseudo.key: "${env:ANALYTICS_PSEUDONYM_KEY}"
+    producer.override.acks: "all"
+    producer.override.enable.idempotence: "true"
+    producer.override.compression.type: "zstd"

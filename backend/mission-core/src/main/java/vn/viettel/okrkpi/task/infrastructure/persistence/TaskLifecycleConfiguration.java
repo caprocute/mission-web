@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.cel.application.CelEngine;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
@@ -21,8 +22,11 @@ import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 import vn.viettel.okrkpi.task.application.TaskApiService;
 import vn.viettel.okrkpi.task.application.lifecycle.CelGuardEvaluator;
 import vn.viettel.okrkpi.task.application.lifecycle.PolicyBackedTransitionTableProvider;
+import vn.viettel.okrkpi.task.application.lifecycle.TaskDelayRiskService;
+import vn.viettel.okrkpi.task.application.lifecycle.TaskProgressService;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskDeliverables;
+import vn.viettel.okrkpi.task.application.lifecycle.port.TaskProgressEvents;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskStatusEvents;
 
 /**
@@ -90,5 +94,48 @@ public class TaskLifecycleConfiguration {
       JdbcTaskLifecycleRepository taskLifecycleRepository,
       TaskTransitionService taskTransitionService) {
     return new TaskApiService(taskLifecycleRepository, taskTransitionService);
+  }
+
+  @Bean
+  TaskDelayRiskService taskDelayRiskService(
+      @Qualifier("taskDataSource") DataSource dataSource,
+      JdbcTaskLifecycleRepository taskLifecycleRepository,
+      ObjectProvider<ObjectMapper> json) {
+    return new TaskDelayRiskService(
+        taskLifecycleRepository,
+        new JdbcTaskDelayRisks(
+            JdbcClient.create(dataSource), json.getIfAvailable(ObjectMapper::new)));
+  }
+
+  @Bean
+  TaskProgressEvents taskProgressEvents(
+      @Qualifier("taskDataSource") DataSource dataSource,
+      @Value("${mission.task.outbox.registry-url:${okrkpi.inbox.registry.url}}") String registry,
+      ObjectProvider<ObjectMapper> json) {
+    return new OutboxTaskProgressEvents(
+        new OutboxWriter(
+            new JdbcTemplate(dataSource),
+            "task",
+            new ApicurioPayloadSerializer(registry, Map.of()),
+            json.getIfAvailable(ObjectMapper::new),
+            Clock.systemUtc()));
+  }
+
+  @Bean
+  TaskProgressService taskProgressService(
+      @Qualifier("taskDataSource") DataSource dataSource,
+      TaskProgressEvents taskProgressEvents,
+      JdbcTaskLifecycleRepository taskLifecycleRepository,
+      TaskTransitionService taskTransitionService,
+      PeriodApi periods,
+      @Qualifier("taskTransactionManager") PlatformTransactionManager taskTransactionManager) {
+    return new TaskProgressService(
+        taskLifecycleRepository,
+        new JdbcTaskProgressRepository(JdbcClient.create(dataSource)),
+        taskProgressEvents,
+        taskTransitionService,
+        periods,
+        taskTransactionManager,
+        java.time.Clock.systemUTC());
   }
 }

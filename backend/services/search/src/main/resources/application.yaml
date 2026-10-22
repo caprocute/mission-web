@@ -1,0 +1,64 @@
+# DV-16-01 · SVC-16 search: indexer OpenSearch. Theo NEN-019: luồng ảo, cổng ứng dụng 8080, cổng quản trị 8081,
+# tắt êm 25s; mọi địa chỉ đặt bằng biến môi trường, mặc định trỏ dải cổng 35xxx của infra/dev.
+spring:
+  application:
+    name: ${SERVICE_NAME:search-service}
+  threads:
+    virtual:
+      enabled: ${VIRTUAL_THREADS_ENABLED:true}
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:25s}
+  autoconfigure:
+    # Service không có CSDL quan hệ: OpenSearch là kho riêng của SVC-16 (TL-03 bảng sở hữu dữ liệu).
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://127.0.0.1:35080/realms/mission}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:35092}
+    consumer:
+      auto-offset-reset: earliest
+      max-poll-records: ${SEARCH_MAX_POLL_RECORDS:500}
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8081}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+mission:
+  search:
+    opensearch-url: ${OPENSEARCH_URL:http://127.0.0.1:35200}
+    opensearch-username: ${OPENSEARCH_USERNAME:}
+    opensearch-password: ${OPENSEARCH_PASSWORD:}
+    timeout: ${OPENSEARCH_TIMEOUT:10s}
+    default-model: ${SEARCH_DEFAULT_TENANCY_MODEL:POOL}
+    payload-format: ${SEARCH_PAYLOAD_FORMAT:apicurio}
+    registry-url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
+    shards: ${SEARCH_INDEX_SHARDS:1}
+    replicas: ${SEARCH_INDEX_REPLICAS:1}
+    concurrency: ${SEARCH_CONSUMER_CONCURRENCY:3}
+    consumer-group: ${SEARCH_CONSUMER_GROUP:search-indexer}
+    listen: ${MISSION_SEARCH_LISTEN:true}
+    cursor-key: ${SEARCH_CURSOR_KEY:}
+
+okrkpi:
+  opa:
+    base-url: ${OPA_URL:http://127.0.0.1:8181}

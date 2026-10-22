@@ -4,6 +4,10 @@
 # TL-02b SCR-1601 (nhắc, giao lại; part-05); TL-03 schema `task`; ma trận docs/phan-quyen/ma-tran.json.
 # Tương thích: giữ đường dẫn và tên trường mà frontend đã dùng (frontend/projects/api-client/src/lib/models)
 # khi không trái TL; các điểm chốt HD-03, HD-04 xem contracts/openapi/README.md.
+# BS-03 (ADR-33, 22/10/2026), NEN-044: mức hệ số `coefficientLevels`, trục `axisCode` (DC-01); phạm vi danh mục
+# `KHOI`, `TINH` và khung chỉnh điểm `scoreAdjustMin/Max` (DC-02); loại nút `nodeKind`, việc cha `parentTaskId`
+# (DC-04); điểm thành phần `componentScore`, lỗi `TASK-422-ASSIGNMENT-MODE` (DC-06); nguồn điểm nghẽn `origin`,
+# `ruleCode` (bộ quy tắc cảnh báo của hồ sơ). Lõi chỉ lưu mức, không lưu giá trị hệ số.
 openapi: 3.1.0
 info:
   title: Mission – Giao việc và KPI (MOD-02)
@@ -433,7 +437,9 @@ paths:
             schema: { $ref: '#/components/schemas/TaskExportRequest' }
       responses:
         '202': { $ref: '../common/common.yaml#/components/responses/Accepted' }
-        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        '429':
+          description: Người dùng đang có một tác vụ xuất chưa xong (`TASK-429-EXPORT-RUNNING`).
+          $ref: '../common/common.yaml#/components/responses/TooManyRequests'
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
       x-mission:
         qt: [QT-05]
@@ -442,6 +448,32 @@ paths:
         roles: [member, manager, leader]
         scope: B
         source: 'TL-02a SCR-0503 "Xuất Excel"'
+
+  /tasks/exports/{jobId}:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      tags: [Nhiệm vụ]
+      operationId: downloadTaskExport
+      summary: Tải tệp xuất danh sách nhiệm vụ
+      description: >-
+        Tệp Excel do `exportTasks` tạo; `resultLocation` của job trỏ tới đây. Chỉ người tạo tác vụ tải
+        được, tệp giữ trong một giờ. (suy luận: TL-02 không ghi đường tải tệp xuất.)
+      responses:
+        '200':
+          description: Tệp Excel danh sách nhiệm vụ theo các cột đang hiển thị.
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, contentMediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05]
+        scr: [SCR-0503]
+        owner: MOD-02
+        roles: [member, manager, leader]
+        scope: B
+        source: 'TL-02a SCR-0503 "Xuất Excel" (suy luận đường tải)'
 
   /tasks/{id}:
     parameters:
@@ -587,7 +619,11 @@ paths:
           description: Lệch phiên bản, kỳ đã khoá, hoặc nhiệm vụ không còn `NHAP`.
           $ref: '../common/common.yaml#/components/responses/Conflict'
         '422':
-          description: Vi phạm quy tắc chặn của QT-05 bước 5 (mỗi lỗi trong `errors[]` có `rule`).
+          description: >-
+            Vi phạm quy tắc chặn của QT-05 bước 5 (mỗi lỗi trong `errors[]` có `rule`). Mã lỗi
+            `TASK-422-ASSIGNMENT-MODE` khi hồ sơ tập khách hàng đặt chế độ phân công `MOT_NGUOI_MOT_VIEC` mà việc lá có
+            nhiều hơn một người, hoặc điểm thành phần của việc con không cộng bằng điểm việc cha (BS-03 DC-06; tham số
+            đọc qua Policy Pack, không viết cứng).
           $ref: '../common/common.yaml#/components/responses/UnprocessableEntity'
         '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
@@ -735,6 +771,48 @@ paths:
         scope: Đv
         source: 'TL-01 PL C "/tasks/{id}/transitions"'
 
+  /tasks/{id}/delay-risk:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    put:
+      tags: [Nhiệm vụ]
+      operationId: setTaskDelayRisk
+      summary: Ghi dự báo nguy cơ trễ hạn của nhiệm vụ (bộ dự báo SVC-15)
+      description: >-
+        Cổng ghi nội bộ cho tài khoản dịch vụ của bộ dự báo nguy cơ trễ (DV-15-10), vì SVC-15 không
+        được ghi schema `task` (TL-03 chương 2). Chỉ nhận token client credentials; token người dùng
+        trả 403. Kết quả có `computedAt` cũ hơn dự báo đang lưu trả 409 `TASK-409-STALE-DELAY-RISK`;
+        nhiệm vụ ở `HOAN_THANH`, `HUY` hoặc `TAM_DUNG` trả 409 `TASK-409-INVALID-STATE`. Ghi dự báo
+        không đổi `rowVersion` (ETag) của nhiệm vụ và không phát sự kiện nghiệp vụ. `getTask` trả
+        kết quả trong `delayRisk`.
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskDelayRiskInput' }
+      responses:
+        '204':
+          description: Đã lưu dự báo.
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Đã có dự báo mới hơn (`TASK-409-STALE-DELAY-RISK`) hoặc nhiệm vụ đã kết thúc, tạm dừng
+            (`TASK-409-INVALID-STATE`).
+          $ref: '../common/common.yaml#/components/responses/Conflict'
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-06]
+        scr: [SCR-0601]
+        owner: MOD-02
+        roles: [service_client]
+        scope: Tn
+        source: 'Bổ sung CORE-02-26 (TL-02a SCR-0601 "Dự báo trễ hạn", ghi bởi SVC-15)'
+
   /tasks/{id}/reminders:
     parameters:
       - $ref: '../common/common.yaml#/components/parameters/IdPath'
@@ -756,7 +834,9 @@ paths:
         '202':
           description: Đã xếp hàng gửi nhắc (EVT-21).
         '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
-        '429': { $ref: '../common/common.yaml#/components/responses/TooManyRequests' }
+        '429':
+          $ref: '../common/common.yaml#/components/responses/TooManyRequests'
+          description: Đã nhắc nhiệm vụ này trong 24 giờ qua (`TASK-429-REMINDED`).
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
       x-mission:
         qt: [QT-16]
@@ -2589,6 +2669,41 @@ components:
       description: Nhóm tính điểm (`task.task.task_group`); một nhiệm vụ chỉ tính ở một nhóm.
       type: string
       enum: [THUONG_XUYEN, THEN_CHOT]
+    CoefficientLevels:
+      description: >-
+        Mức của từng loại hệ số mở (`coefficient_levels`, BS-03 DC-01), khoá là mã loại hệ số do Policy Pack khai
+        báo, giá trị là mã mức; mặc định `{}`. Lõi chỉ lưu mức, bảng quy đổi mức ra giá trị nằm trong gói theo kỳ.
+        Mức khó năm mức vẫn ở `difficulty`.
+      type: object
+      maxProperties: 16
+      propertyNames: { pattern: '^[a-z][a-z0-9_]{0,31}$' }
+      additionalProperties: { type: string, maxLength: 32 }
+      examples:
+        - { he_so_nhom: NHOM_2 }
+    AxisCode:
+      description: Mã trục công việc theo danh mục dùng chung của hồ sơ (`axis_code`, BS-03 DC-01), ví dụ `TR1`; null là không gắn trục.
+      type: [string, 'null']
+      maxLength: 16
+      pattern: '^[A-Z0-9_.-]{1,16}$'
+    TaskNodeKind:
+      description: >-
+        Loại nút trong cây phân rã (`task.task.node_kind`, BS-03 DC-04); mặc định `NHIEM_VU`. Hồ sơ có khuôn phân rã
+        nhiều bậc dùng `KPI` làm nút đo được giữa nhiệm vụ và công việc.
+      type: string
+      enum: [NHIEM_VU, KPI, CONG_VIEC, CONG_VIEC_CON]
+      default: NHIEM_VU
+    CatalogScope:
+      description: >-
+        Phạm vi của phiên bản danh mục (`task.work_catalog.scope`). Kế thừa bốn cấp hệ thống → khối → tỉnh → đơn vị
+        (BS-03 DC-02); `KHOI`, `TINH` là giá trị bổ sung.
+      type: string
+      enum: [QUOC_GIA, KHOI, TINH, DON_VI, VI_TRI]
+    BlockerOrigin:
+      description: >-
+        Nguồn điểm nghẽn (`task_blocker.origin`, BS-03): `NGUOI_DUNG` do người báo (mặc định), `TU_DONG` do job của
+        lõi sinh khi một quy tắc cảnh báo của hồ sơ khớp.
+      type: string
+      enum: [NGUOI_DUNG, TU_DONG]
     TaskSource:
       description: >-
         Nguồn nhiệm vụ (`task.task.source`, ràng buộc `ck_task__source` của TL-03). TL-02 gọi nguồn
@@ -2751,6 +2866,13 @@ components:
         handlerName: { type: string }
         resolveBy: { $ref: '../common/common.yaml#/components/schemas/Date' }
         status: { $ref: '#/components/schemas/BlockerStatus' }
+        origin: { $ref: '#/components/schemas/BlockerOrigin' }
+        ruleCode:
+          type: [string, 'null']
+          maxLength: 64
+          description: >-
+            Mã quy tắc cảnh báo đã sinh điểm nghẽn khi `origin = TU_DONG`; dòng tự sinh idempotent theo
+            (`task_id`, `rule_code`, ngày chạy).
         createdAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
     BlockerReport:
@@ -2852,6 +2974,16 @@ components:
         level: { type: string, enum: [THAP, VUA, CAO] }
         neededWorkingDays: { type: integer }
         explanation: { type: string }
+    TaskDelayRiskInput:
+      description: Kết quả dự báo nguy cơ trễ hạn do SVC-15 gửi về (CORE-02-26, DV-15-10).
+      type: object
+      required: [level, neededWorkingDays, explanation, computedAt]
+      properties:
+        level: { type: string, enum: [THAP, VUA, CAO] }
+        neededWorkingDays: { type: integer, minimum: 0 }
+        explanation: { type: string, maxLength: 1000 }
+        computedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
+        basedOnProgressId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
     TaskDetail:
       description: Chi tiết nhiệm vụ (SCR-0601).
       allOf:
@@ -2872,6 +3004,21 @@ components:
             catalogItemCode: { type: string }
             difficulty: { type: integer, minimum: 1, maximum: 5 }
             standardScore: { type: number }
+            coefficientLevels: { $ref: '#/components/schemas/CoefficientLevels' }
+            axisCode: { $ref: '#/components/schemas/AxisCode' }
+            nodeKind: { $ref: '#/components/schemas/TaskNodeKind' }
+            parentTaskId:
+              description: Việc cha trong cây phân rã (`parent_task_id`); null là nút gốc.
+              oneOf:
+                - $ref: '../common/common.yaml#/components/schemas/Uuid'
+                - type: 'null'
+            componentScore:
+              type: [number, 'null']
+              minimum: 0
+              maximum: 999.999
+              description: >-
+                Điểm thành phần của việc con (`component_score numeric(6,3)`, BS-03 DC-06) khi hồ sơ dùng chế độ
+                `MOT_NGUOI_MOT_VIEC`; tổng điểm thành phần của các việc con bằng điểm của việc cha.
             assignedAt: { $ref: '../common/common.yaml#/components/schemas/DateTime' }
             acceptorName: { type: string }
             scoreDueDate:
@@ -3033,6 +3180,21 @@ components:
             number: { type: string }
             title: { type: string }
         basis: { type: string, maxLength: 1000, description: 'Căn cứ của nhiệm vụ phát sinh ngoài kế hoạch (BR-05-09)' }
+        coefficientLevels: { $ref: '#/components/schemas/CoefficientLevels' }
+        axisCode: { $ref: '#/components/schemas/AxisCode' }
+        nodeKind: { $ref: '#/components/schemas/TaskNodeKind' }
+        parentTaskId:
+          description: Việc cha trong cây phân rã (`parent_task_id`); null là nút gốc.
+          oneOf:
+            - $ref: '../common/common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+        componentScore:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 999.999
+          description: >-
+            Điểm thành phần của việc con (`component_score numeric(6,3)`, BS-03 DC-06) khi hồ sơ dùng chế độ
+            `MOT_NGUOI_MOT_VIEC`; tổng điểm thành phần của các việc con bằng điểm của việc cha.
     TaskDraftTemplate:
       type: object
       required: [period, draft]
@@ -3326,6 +3488,14 @@ components:
           type: array
           items: { $ref: '../common/common.yaml#/components/schemas/Flow' }
         changeReason: { type: string, maxLength: 500, description: 'Bắt buộc với mỗi thay đổi ở phiên bản điều chỉnh (BR-04-10)' }
+        coefficientLevels: { $ref: '#/components/schemas/CoefficientLevels' }
+        axisCode: { $ref: '#/components/schemas/AxisCode' }
+        nodeKind: { $ref: '#/components/schemas/TaskNodeKind' }
+        componentScore:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 999.999
+          description: Điểm thành phần của dòng con khi hồ sơ dùng chế độ `MOT_NGUOI_MOT_VIEC` (BS-03 DC-06).
     PlanItem:
       allOf:
         - $ref: '#/components/schemas/PlanItemInput'
@@ -3470,6 +3640,9 @@ components:
         effectiveFromLabel: { type: string, examples: ['Quý IV/2026'] }
         effectiveFromDate: { $ref: '../common/common.yaml#/components/schemas/Date' }
         parentCatalogName: { type: string }
+        scope:
+          $ref: '#/components/schemas/CatalogScope'
+          description: Phạm vi kế thừa của phiên bản danh mục (BS-03 DC-02).
         itemCount: { type: integer }
         positionCount: { type: integer }
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
@@ -3511,6 +3684,21 @@ components:
         usageCount: { type: integer }
         usagePeriods: { type: integer }
         usedInLockedPeriod: { type: boolean, description: 'Đã dùng ở kỳ đã khoá (BR-04-13)' }
+        coefficientLevels: { $ref: '#/components/schemas/CoefficientLevels' }
+        axisCode: { $ref: '#/components/schemas/AxisCode' }
+        nodeKind: { $ref: '#/components/schemas/TaskNodeKind' }
+        scoreAdjustMin:
+          type: [number, 'null']
+          minimum: -1
+          maximum: 0
+          description: >-
+            Tỷ lệ chỉnh điểm chuẩn tối thiểu cho phép so với dòng cha ở danh mục cấp trên (`score_adjust_min`, BS-03
+            DC-02), ví dụ -0.2 là giảm tối đa 20%; null là không được chỉnh.
+        scoreAdjustMax:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 10
+          description: Tỷ lệ chỉnh điểm chuẩn tối đa so với dòng cha (`score_adjust_max`, BS-03 DC-02); null là không được chỉnh.
         rowVersion: { $ref: '../common/common.yaml#/components/schemas/RowVersion' }
     CatalogItemInput:
       type: object
@@ -3528,6 +3716,21 @@ components:
         defaultGroup: { $ref: '#/components/schemas/TaskGroup' }
         standardDays: { type: integer, minimum: 1 }
         status: { $ref: '#/components/schemas/CatalogItemStatus' }
+        coefficientLevels: { $ref: '#/components/schemas/CoefficientLevels' }
+        axisCode: { $ref: '#/components/schemas/AxisCode' }
+        nodeKind: { $ref: '#/components/schemas/TaskNodeKind' }
+        scoreAdjustMin:
+          type: [number, 'null']
+          minimum: -1
+          maximum: 0
+          description: >-
+            Tỷ lệ chỉnh điểm chuẩn tối thiểu cho phép so với dòng cha ở danh mục cấp trên (`score_adjust_min`, BS-03
+            DC-02), ví dụ -0.2 là giảm tối đa 20%; null là không được chỉnh.
+        scoreAdjustMax:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 10
+          description: Tỷ lệ chỉnh điểm chuẩn tối đa so với dòng cha (`score_adjust_max`, BS-03 DC-02); null là không được chỉnh.
     CatalogItemSaveResult:
       type: object
       required: [item, catalog, movedToNewVersion]

@@ -1,4 +1,100 @@
 {
+ "AiOcrRequest": {
+  "properties": {
+   "classification": {
+    "description": "Chỉ cho phép C1/C2; tài liệu C3 bị từ chối theo BR-17-07.",
+    "enum": [
+     "C1",
+     "C2"
+    ],
+    "type": "string"
+   },
+   "languageHint": {
+    "default": "vi",
+    "type": "string"
+   },
+   "mimeType": {
+    "enum": [
+     "application/pdf",
+     "image/jpeg",
+     "image/png"
+    ],
+    "type": "string"
+   },
+   "objectKey": {
+    "maxLength": 512,
+    "minLength": 1,
+    "type": "string"
+   },
+   "sha256": {
+    "pattern": "^[0-9a-f]{64}$",
+    "type": "string"
+   }
+  },
+  "required": [
+   "objectKey",
+   "sha256",
+   "mimeType",
+   "classification"
+  ],
+  "type": "object"
+ },
+ "AiOcrResult": {
+  "properties": {
+   "fullText": {
+    "type": "string"
+   },
+   "modelId": {
+    "type": "string"
+   },
+   "objectKey": {
+    "type": "string"
+   },
+   "pages": {
+    "items": {
+     "properties": {
+      "confidence": {
+       "maximum": 1,
+       "minimum": 0,
+       "type": "number"
+      },
+      "pageNumber": {
+       "minimum": 1,
+       "type": "integer"
+      },
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "pageNumber",
+      "text",
+      "confidence"
+     ],
+     "type": "object"
+    },
+    "type": "array"
+   },
+   "processedAt": {
+    "description": "Thời điểm ISO 8601 có múi giờ.",
+    "format": "date-time",
+    "type": "string"
+   },
+   "sha256": {
+    "pattern": "^[0-9a-f]{64}$",
+    "type": "string"
+   }
+  },
+  "required": [
+   "objectKey",
+   "sha256",
+   "pages",
+   "fullText",
+   "modelId",
+   "processedAt"
+  ],
+  "type": "object"
+ },
  "AiSourceList": {
   "properties": {
    "items": {
@@ -853,6 +949,143 @@
   ],
   "type": "object"
  },
+ "EvidenceExtractRequest": {
+  "properties": {
+   "objectId": {
+    "description": "Đối tượng đã tải lên (`evidence.object_meta`).",
+    "format": "uuid",
+    "type": "string"
+   }
+  },
+  "required": [
+   "objectId"
+  ],
+  "type": "object"
+ },
+ "EvidenceExtraction": {
+  "description": "Kết quả OCR minh chứng (SCR-0702 trường 2–5); các ô do AI điền chờ người nộp xác nhận.",
+  "properties": {
+   "aiGenerated": {
+    "const": true
+   },
+   "alternatives": {
+    "items": {
+     "properties": {
+      "code": {
+       "type": "string"
+      },
+      "confidence": {
+       "maximum": 1,
+       "minimum": 0,
+       "type": "number"
+      },
+      "id": {
+       "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+       "format": "uuid",
+       "type": "string"
+      },
+      "title": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "id",
+      "code",
+      "title",
+      "confidence"
+     ],
+     "type": "object"
+    },
+    "maxItems": 5,
+    "type": "array"
+   },
+   "docDate": {
+    "oneOf": [
+     {
+      "description": "Ngày theo lịch (ISO 8601), không có giờ.",
+      "format": "date",
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "docNumber": {
+    "maxLength": 64,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "docSummary": {
+    "maxLength": 500,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "label": {
+    "const": "Nội dung do AI tạo",
+    "type": "string"
+   },
+   "matchedTask": {
+    "oneOf": [
+     {
+      "properties": {
+       "code": {
+        "type": "string"
+       },
+       "confidence": {
+        "maximum": 1,
+        "minimum": 0,
+        "type": "number"
+       },
+       "id": {
+        "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+        "format": "uuid",
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "code",
+       "title",
+       "confidence"
+      ],
+      "type": "object"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "model": {
+    "type": "string"
+   },
+   "objectId": {
+    "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+    "format": "uuid",
+    "type": "string"
+   },
+   "suggestionId": {
+    "description": "Mã định danh UUIDv7 (cột `id` của mọi bảng, baseline mục 9).",
+    "format": "uuid",
+    "type": "string"
+   }
+  },
+  "required": [
+   "suggestionId",
+   "objectId",
+   "model",
+   "aiGenerated",
+   "label"
+  ],
+  "type": "object"
+ },
  "Job": {
   "description": "Tác vụ dài trả qua `GET /api/v1/jobs/{id}`.",
   "properties": {
@@ -1418,6 +1651,31 @@
    "aiGenerated",
    "label",
    "findings"
+  ],
+  "type": "object"
+ },
+ "SpeechToTextResult": {
+  "properties": {
+   "confidence": {
+    "maximum": 1,
+    "minimum": 0,
+    "type": "number"
+   },
+   "durationMs": {
+    "minimum": 0,
+    "type": "integer"
+   },
+   "model": {
+    "type": "string"
+   },
+   "text": {
+    "maxLength": 1000,
+    "type": "string"
+   }
+  },
+  "required": [
+   "text",
+   "model"
   ],
   "type": "object"
  },

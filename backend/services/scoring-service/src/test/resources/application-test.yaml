@@ -1,0 +1,11 @@
+# Cấu hình kiểm thử tự động: dùng H2 chế độ tương thích PostgreSQL và gắn Actuator cùng MockServletContext để kiểm thử qua MockMvc.
+spring:
+  datasource:
+    url: jdbc:h2:mem:service_template_test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+management:
+  server:
+    port: 8080
