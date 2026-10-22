@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.appraisal.application.profile.AppraisalProfileService;
 import vn.viettel.okrkpi.appraisal.application.profile.port.AppraisalProfileRepository;
@@ -111,12 +112,22 @@ public class SelfAssessmentService {
 
   /**
    * Đọc hồ sơ và phiếu hiện hành cho {@code actor}: chủ hồ sơ, người thẩm định hoặc người quyết
-   * định; người khác nhận 403 (phạm vi đơn vị của {@code manager} thuộc CORE-04-05).
+   * định; người khác nhận 403.
    */
   @Transactional(transactionManager = TX, readOnly = true)
   public Optional<View> view(TenantId tenant, UUID profileId, UUID actor) {
+    return view(tenant, profileId, actor, p -> false);
+  }
+
+  /**
+   * Như {@link #view(TenantId, UUID, UUID)}; {@code inScope} cho phép thêm người trong phạm vi thẩm
+   * định, đề xuất của SCR-0902, SCR-0903 (CORE-04-05, kiểm qua OPA).
+   */
+  @Transactional(transactionManager = TX, readOnly = true)
+  public Optional<View> view(
+      TenantId tenant, UUID profileId, UUID actor, Predicate<ProfileSummary> inScope) {
     Optional<ProfileSummary> found = forms.summary(tenant, profileId);
-    if (found.isPresent() && !found.get().readableBy(actor)) {
+    if (found.isPresent() && !found.get().readableBy(actor) && !inScope.test(found.get())) {
       throw new BusinessException(
           "COMMON-403-OUT-OF-SCOPE", "Đồng chí không có quyền xem hồ sơ đánh giá này.");
     }

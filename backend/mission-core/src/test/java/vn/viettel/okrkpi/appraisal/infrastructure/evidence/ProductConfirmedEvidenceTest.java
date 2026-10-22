@@ -18,11 +18,20 @@ class ProductConfirmedEvidenceTest {
   void chiaLanHoiVaGopKetQua() {
     List<Integer> sizes = new ArrayList<>();
     EvidenceQueryApi api =
-        (tenant, person, ids) -> {
-          sizes.add(ids.size());
-          assertThat(ids.size()).isLessThanOrEqualTo(EvidenceQueryApi.MAX_IDS);
-          return new HashSet<>(
-              ids.stream().filter(id -> id.getLeastSignificantBits() % 2 == 0).toList());
+        new EvidenceQueryApi() {
+          @Override
+          public Set<UUID> confirmedEvidence(
+              TenantId tenant, UUID person, java.util.Collection<UUID> ids) {
+            sizes.add(ids.size());
+            assertThat(ids.size()).isLessThanOrEqualTo(EvidenceQueryApi.MAX_IDS);
+            return new HashSet<>(
+                ids.stream().filter(id -> id.getLeastSignificantBits() % 2 == 0).toList());
+          }
+
+          @Override
+          public Set<UUID> acceptors(TenantId tenant, UUID periodId, UUID personId) {
+            return Set.of(personId);
+          }
         };
     List<UUID> ids = new ArrayList<>();
     for (int i = 0; i < 450; i++) {
@@ -38,5 +47,16 @@ class ProductConfirmedEvidenceTest {
             new ProductConfirmedEvidence(api)
                 .confirmed(TenantId.of(UUID.randomUUID()), UUID.randomUUID(), List.of()))
         .isEmpty();
+  }
+
+  @Test
+  void nguoiNghiemThuQuaCongProduct() {
+    UUID person = UUID.randomUUID();
+    EvidenceQueryApi api = org.mockito.Mockito.mock(EvidenceQueryApi.class);
+    TenantId tenant = TenantId.of(UUID.randomUUID());
+    UUID period = UUID.randomUUID();
+    org.mockito.Mockito.when(api.acceptors(tenant, period, person)).thenReturn(Set.of(person));
+    assertThat(new ProductEvidenceAcceptors(api).of(tenant, period, person))
+        .containsExactly(person);
   }
 }
