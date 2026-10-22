@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.config.api.PeriodApi;
+import vn.viettel.okrkpi.okr.application.OkrComposeService;
 import vn.viettel.okrkpi.okr.application.OkrReadService;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrExportJobs;
 import vn.viettel.okrkpi.okr.infrastructure.web.OkrIdempotency;
@@ -33,6 +34,18 @@ public class OkrReadConfiguration {
   @Bean
   OkrReadService okrReadService(JdbcOkrReadRepository okrReadRepository, PeriodApi periods) {
     return new OkrReadService(okrReadRepository, periods, () -> LocalDate.now(VIET_NAM));
+  }
+
+  @Bean
+  JdbcOkrWriteRepository okrWriteRepository(@Qualifier("okrDataSource") DataSource dataSource) {
+    return new JdbcOkrWriteRepository(new NamedParameterJdbcTemplate(dataSource));
+  }
+
+  /** CORE-01-03: phía soạn của SCR-0202 cùng {@code okrDataSource}. */
+  @Bean
+  OkrComposeService okrComposeService(
+      JdbcOkrWriteRepository okrWriteRepository, PeriodApi periods) {
+    return new OkrComposeService(okrWriteRepository, periods);
   }
 
   @Bean

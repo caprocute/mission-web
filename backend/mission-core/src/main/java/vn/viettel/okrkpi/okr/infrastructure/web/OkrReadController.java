@@ -536,7 +536,7 @@ public class OkrReadController {
 
   // ---------------------------------------------------------------- ánh xạ hợp đồng
 
-  private static OkrPeriodInfo periodInfo(PeriodView v) {
+  static OkrPeriodInfo periodInfo(PeriodView v) {
     PeriodSnapshot p = v.period();
     return new OkrPeriodInfo(
             p.id().value(),
@@ -548,7 +548,7 @@ public class OkrReadController {
         .weekCount(v.weekCount());
   }
 
-  private static OkrObjective objective(ObjectiveView v, List<LinkRow> links) {
+  static OkrObjective objective(ObjectiveView v, List<LinkRow> links) {
     ObjectiveRow o = v.row();
     OkrObjective dto =
         new OkrObjective(
@@ -583,12 +583,12 @@ public class OkrReadController {
     return dto;
   }
 
-  private static OkrObjectiveRef objectiveRef(ObjectiveRow o) {
+  static OkrObjectiveRef objectiveRef(ObjectiveRow o) {
     return new OkrObjectiveRef(o.id(), o.code(), o.title())
         .status(OkrObjectiveStatus.fromValue(o.status()));
   }
 
-  private static OkrKeyResult keyResult(KeyResultView v) {
+  static OkrKeyResult keyResult(KeyResultView v) {
     KeyResultRow k = v.row();
     return new OkrKeyResult(
             k.id(),
@@ -658,7 +658,7 @@ public class OkrReadController {
         .fromKeyResultId(v.localKeyResult() == null ? null : v.localKeyResult().id());
   }
 
-  private static OkrLink link(LinkRow l) {
+  static OkrLink link(LinkRow l) {
     return new OkrLink(
             l.id(),
             OkrLinkFromType.fromValue(l.fromType()),
@@ -702,7 +702,7 @@ public class OkrReadController {
         .contributionWeight(l.contributionWeight());
   }
 
-  private static OkrBasisRef basisRef(BasisRow b) {
+  static OkrBasisRef basisRef(BasisRow b) {
     return new OkrBasisRef(b.id(), b.title())
         .basisKind(OkrBasisKind.fromValue(b.basisKind()))
         .docNumber(b.docNumber());
@@ -750,7 +750,7 @@ public class OkrReadController {
         "COMMON-422-VALIDATION", message, List.of(new ProblemFieldError(field, message, null)));
   }
 
-  private static BusinessException missing(String field) {
+  static BusinessException missing(String field) {
     String message = "Thiếu thông tin bắt buộc";
     return new BusinessException(
         "COMMON-422-VALIDATION", message, List.of(new ProblemFieldError(field, message, null)));
