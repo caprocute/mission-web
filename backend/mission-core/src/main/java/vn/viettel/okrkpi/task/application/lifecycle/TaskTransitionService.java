@@ -199,6 +199,34 @@ public class TaskTransitionService {
     return new Transitioned(after, event);
   }
 
+  /**
+   * Ghi một dòng nhật ký giữ nguyên trạng thái (ví dụ lý do vẫn giao khi có nhiệm vụ gần giống,
+   * BR-05-06), trong giao dịch của người gọi.
+   */
+  @Transactional(TX)
+  public void appendNote(
+      TenantId tenant,
+      TaskRow task,
+      String transition,
+      UUID actor,
+      String reason,
+      String beforeAfterJson) {
+    tasks.appendStateLog(
+        tenant,
+        task.periodId(),
+        task.periodBucket(),
+        task.id(),
+        new StateLogRow(
+            clock.instant(),
+            task.status(),
+            task.status(),
+            transition,
+            actor,
+            reason,
+            task.stateMachineVersion()),
+        beforeAfterJson);
+  }
+
   @Transactional(transactionManager = TX, readOnly = true)
   public java.util.Optional<TaskRow> find(TenantId tenant, UUID taskId) {
     return tasks.find(tenant, taskId);

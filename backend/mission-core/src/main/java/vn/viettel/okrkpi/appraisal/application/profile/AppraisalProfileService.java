@@ -148,6 +148,34 @@ public class AppraisalProfileService {
       SealedText reason,
       SealedText comment,
       UUID proposalId) {
+    return recordRating(
+        tenant,
+        profileId,
+        expectedVersion,
+        kind,
+        rating,
+        actorId,
+        actorRole,
+        reason,
+        comment,
+        proposalId,
+        null);
+  }
+
+  /** Như trên, gắn dòng mức {@code QUYET_DINH} vào lô quyết định (CORE-04-07). */
+  @Transactional(TX)
+  public CurrentRating recordRating(
+      TenantId tenant,
+      UUID profileId,
+      Long expectedVersion,
+      LevelKind kind,
+      RatingLevel rating,
+      UUID actorId,
+      String actorRole,
+      SealedText reason,
+      SealedText comment,
+      UUID proposalId,
+      UUID batchDecisionId) {
     ProfileRow row = load(tenant, profileId, expectedVersion);
     if (row.currentSnapshotId() == null) {
       throw new BusinessException("APPRAISAL-409-NOT-COMPUTED", "Hồ sơ chưa có kết quả tính điểm");
@@ -161,7 +189,8 @@ public class AppraisalProfileService {
     if (recorded.supersededId() != null) {
       profiles.supersedeRating(tenant, row.periodBucket(), recorded.supersededId(), actorId, now);
     }
-    profiles.insertRating(tenant, row, row.currentSnapshotId(), recorded, reason, comment, now);
+    profiles.insertRating(
+        tenant, row, row.currentSnapshotId(), recorded, reason, comment, now, batchDecisionId);
     return recorded.rating();
   }
 

@@ -38,6 +38,26 @@ public interface AppraisalProfileRepository {
       SealedText comment,
       Instant at);
 
+  /**
+   * Như {@link #insertRating(TenantId, ProfileRow, UUID, RatingRecorded, SealedText, SealedText,
+   * Instant)} cho mức {@code QUYET_DINH} thuộc lô quyết định ({@code is_bulk_decision},
+   * CORE-04-07).
+   */
+  default void insertRating(
+      TenantId tenant,
+      ProfileRow row,
+      UUID snapshotId,
+      RatingRecorded recorded,
+      SealedText reason,
+      SealedText comment,
+      Instant at,
+      UUID batchDecisionId) {
+    if (batchDecisionId != null) {
+      throw new UnsupportedOperationException("batchDecisionId");
+    }
+    insertRating(tenant, row, snapshotId, recorded, reason, comment, at);
+  }
+
   /** Chèn dòng giải trình cho mức. */
   void insertExplanation(
       TenantId tenant,
