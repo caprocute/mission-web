@@ -3,6 +3,7 @@ package vn.viettel.okrkpi.config.application;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -40,9 +41,14 @@ public class LayoutValidator implements UiPackChecker {
 
   public static final int WIDGETS_MAX = 12;
 
-  /** Giới hạn {@code visibleWhen}: độ dài theo hợp đồng {@code SduiNode}, AST nhỏ (suy luận). */
+  /**
+   * Giới hạn {@code visibleWhen}: độ dài theo hợp đồng {@code SduiNode}, AST nhỏ, tối đa 100 vòng
+   * lặp (suy luận). Chi phí bị chặn bởi các giới hạn đó; thời gian chạy thử để rộng 2 giây vì đây
+   * là bước kiểm khi lưu, không nằm trên đường phục vụ, và lần chạy đầu trên máy tải nặng có thể
+   * vượt 50 ms mặc định (ca chập chờn ghi nhận khi gộp CORE-08-09).
+   */
   public static final CelSandboxOptions VISIBLE_WHEN_LIMITS =
-      new CelSandboxOptions(500, 12, 64, 100, CelSandboxOptions.DEFAULT_EVALUATION_TIMEOUT, 512);
+      new CelSandboxOptions(500, 12, 64, 100, Duration.ofSeconds(2), 512);
 
   /** Ngữ cảnh người dùng mà renderer web cung cấp cho {@code visibleWhen} (cel-context.ts). */
   public static final Map<String, CelValueType> CONTEXT =

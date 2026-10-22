@@ -22,7 +22,9 @@
     "$extensions": {
       "modes": {
         "elderly": {
-          "font": { "size": { "body": { "$value": "18px" } } }
+          "color": { "primary": { "$value": "#084F8C" } },
+          "font": { "size": { "body": { "$value": "18px" } } },
+          "flags": { "minTouchTarget": "48px" }
         }
       }
     }

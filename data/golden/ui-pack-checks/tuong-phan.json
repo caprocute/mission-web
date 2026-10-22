@@ -1,0 +1,15 @@
+{
+  "description": "Ca kiểm tương phản WCAG 2.1 dùng chung giữa bộ kiểm UI Pack của mission-core (CORE-08-10, WcagContrast) và công cụ kiểm tương phản phía web (WEB-004, contrastRatio của @vt/design-system). ratio là tỷ lệ tính theo công thức WCAG, làm tròn 3 chữ số; aa đúng khi ratio ≥ 4,5; elderly đúng khi ratio ≥ 7.",
+  "cases": [
+    { "id": "TP-01", "text": "#787878", "background": "#FFFFFF", "ratio": 4.415, "aa": false, "elderly": false, "note": "4,4 : 1 bị chặn" },
+    { "id": "TP-02", "text": "#777777", "background": "#FFFFFF", "ratio": 4.478, "aa": false, "elderly": false, "note": "4,48 : 1 vẫn bị chặn, không làm tròn lên" },
+    { "id": "TP-03", "text": "#767676", "background": "#FFFFFF", "ratio": 4.542, "aa": true, "elderly": false, "note": "4,5 : 1 qua" },
+    { "id": "TP-04", "text": "#5A5A5A", "background": "#FFFFFF", "ratio": 6.897, "aa": true, "elderly": false, "note": "6,9 : 1 bị chặn ở chế độ cao tuổi" },
+    { "id": "TP-05", "text": "#595959", "background": "#FFFFFF", "ratio": 7.005, "aa": true, "elderly": true, "note": "7 : 1 qua ở chế độ cao tuổi" },
+    { "id": "TP-06", "text": "#FFFFFF", "background": "#0A5FA8", "ratio": 6.531, "aa": true, "elderly": false, "note": "màu chính mặc định" },
+    { "id": "TP-07", "text": "#FFFFFF", "background": "#084F8C", "ratio": 8.375, "aa": true, "elderly": true, "note": "màu chính của chế độ cao tuổi mặc định" },
+    { "id": "TP-08", "text": "#000", "background": "#FFF", "ratio": 21.0, "aa": true, "elderly": true, "note": "dạng #RGB" },
+    { "id": "TP-09", "text": "rgb(31, 41, 55)", "background": "#FFFFFF", "ratio": 14.679, "aa": true, "elderly": true, "note": "dạng rgb()" },
+    { "id": "TP-10", "text": "#C8102E", "background": "#FFFFFF", "ratio": 5.883, "aa": true, "elderly": false, "note": "màu thương hiệu trong ví dụ TL-01" }
+  ]
+}
