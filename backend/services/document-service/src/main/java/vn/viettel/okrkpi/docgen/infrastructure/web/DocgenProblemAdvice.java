@@ -1,0 +1,31 @@
+package vn.viettel.okrkpi.docgen.infrastructure.web;
+
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import vn.viettel.okrkpi.docgen.application.render.DocgenNotFoundException;
+import vn.viettel.okrkpi.shared.error.ProblemFactory;
+
+/** {@link DocgenNotFoundException} → 404 chuẩn ({@code common.yaml} response NotFound). */
+@RestControllerAdvice
+@Order(Ordered.LOWEST_PRECEDENCE - 20)
+public class DocgenProblemAdvice {
+
+  private final ProblemFactory problems;
+
+  public DocgenProblemAdvice(ProblemFactory problems) {
+    this.problems = problems;
+  }
+
+  @ExceptionHandler(DocgenNotFoundException.class)
+  ResponseEntity<ProblemDetail> notFound(DocgenNotFoundException e, HttpServletRequest request) {
+    ProblemDetail body = problems.standard(404, e.getMessage(), List.of(), request);
+    return ResponseEntity.status(404).contentType(MediaType.APPLICATION_PROBLEM_JSON).body(body);
+  }
+}
