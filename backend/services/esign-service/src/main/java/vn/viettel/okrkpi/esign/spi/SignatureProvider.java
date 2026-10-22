@@ -16,7 +16,20 @@ public interface SignatureProvider {
 
   Set<SignatureFormat> supportedFormats();
 
-  /** Tạo phiên ký; người ký có thể phải xác nhận trên điện thoại. Phải trả nhanh (không chờ ký). */
+  /**
+   * Nhà cung cấp có đang nhận yêu cầu không (ví dụ mạch chưa ngắt). Chỉ đọc trạng thái cục bộ,
+   * không gọi ra ngoài, để API tạo yêu cầu trả lỗi ngay thay vì để yêu cầu chờ tới hết hạn.
+   */
+  default boolean available() {
+    return true;
+  }
+
+  /**
+   * Tạo phiên ký; người ký có thể phải xác nhận trên điện thoại. Không chờ ký. Từ DV-10-02, worker
+   * thăm dò gọi thao tác này, không phải luồng xử lý API.
+   *
+   * @throws SignatureProviderException khi nhà cung cấp từ chối ({@code permanent}) hoặc lỗi tạm
+   */
   SignSession begin(SignRequest request);
 
   /** Trạng thái phiên: đang chờ, đã ký, bị từ chối, hết hạn. */

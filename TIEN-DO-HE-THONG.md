@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **179 / 401 task (44.6%)** — Khối lượng quy đổi đã gộp: **212.5 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **180 / 401 task (44.9%)** (gồm **179** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **181 / 401 task (45.1%)** (gồm **179** đã gộp `main` + **2** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **7 task** (3 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **214 task**.
+- **Chưa bắt đầu**: **213 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **14 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-04`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,14 +25,14 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **36** | 1 | 1 | 74 | **32.1%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **32** | 0 | 3 | 69 | **30.8%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **32** | 1 | 3 | 68 | **30.8%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **179** | **1** | **7** | **214** | **44.6%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **179** | **2** | **7** | **213** | **44.6%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,7 +41,7 @@
 | **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 0 | 1 | 9 | **83.1%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **32** | 0 | 1 | 13 | **69.6%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **34** | 1 | 4 | 78 | **29.1%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **34** | 2 | 4 | 77 | **29.1%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 0 | 0 | 54 | **23.9%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **14** | 0 | 1 | 27 | **33.3%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **0** | 0 | 0 | 23 | **0.0%** |
@@ -437,12 +437,12 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-09-04](docs/tasks/DV-09-04-kiem-tra-toan-ven.md) | Kiểm tra toàn vẹn định kỳ, chỉ ra bản ghi bị phá, phát EVT-20 | M | B6 | 12 | DV-09-03 | **Chưa bắt đầu** |  |
 | [DV-09-05](docs/tasks/DV-09-05-tra-cuu-xuat-bang-chung.md) | API tra cứu, xuất bằng chứng có ký và công cụ kiểm chứng độc lập `ledger-verify` | L | B6 | 12 | DV-09-03 | **Chưa bắt đầu** |  |
 
-### DV-10 · SVC-10 esign-service (1/6 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### DV-10 · SVC-10 esign-service (1/6 đã gộp `main`, 1 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-10-01](docs/tasks/DV-10-01-khung-esign-provider.md) | Khung service, migration schema `esign`, giao diện nhà cung cấp `SignatureProvider` | M | B6 | 9 | NEN-019, NEN-033 | **Đã gộp main** | Đã gộp main (nhánh B6 bd3538e) |
-| [DV-10-02](docs/tasks/DV-10-02-nha-cung-cap-mysign.md) | Nhà cung cấp MySign (CSC API) ký từ xa bất đồng bộ, EVT-18 | L | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tài khoản thử MySign |
+| [DV-10-02](docs/tasks/DV-10-02-nha-cung-cap-mysign.md) | Nhà cung cấp MySign (CSC API) ký từ xa bất đồng bộ, EVT-18 | L | B6 | 10 | DV-10-01 | **Xong, chờ gộp** | Nhánh claude/b1-nen-mong-backend-8pacfm: MySignProvider CSC v2 + PAdES-B-T (PDFBox, Bouncy Castle) với máy chủ CSC giả lập; verify esign-service xanh, pdfsig xác nhận chữ ký; B-LTA chờ DV-10-03 |
 | [DV-10-03](docs/tasks/DV-10-03-hsm-pkcs11-tsa.md) | Nhà cung cấp HSM qua PKCS#11 và dấu thời gian TSA | L | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Dev dùng SoftHSM |
 | [DV-10-04](docs/tasks/DV-10-04-viettel-ca-ca-chinh-phu.md) | Nhà cung cấp Viettel-CA và CA chuyên dùng Chính phủ | M | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần môi trường thử CA |
 | [DV-10-05](docs/tasks/DV-10-05-ban-co-yeu-cach-ly.md) | Nhà cung cấp Ban Cơ yếu cho bản cách ly qua `CryptoProvider` | M | B6 | 10 | DV-10-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần thư viện Ban Cơ yếu |
@@ -839,4 +839,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 15:43 | B1 (Claude) | `CORE-02-07` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: hạn duyệt theo Policy Pack và lịch ngày làm việc, nhắc trước 3 ngày và quá hạn qua EVT-21; verify xanh |
 | 22/10/2026 15:43 | B1 (Claude) | `CORE-02-08` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: phần MOD-02 (cầu nối workflow chờ DV-06-03, CORE-01-05) |
 | 22/10/2026 15:52 | B1 (Claude) | `CORE-02-08` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b1-nen-mong-backend-8pacfm: gửi duyệt (băm SHA-256, 422), trả lại, chờ tôi duyệt xong và verify xanh; còn cầu nối workflow duyet-ke-hoach và wf_task_projection chờ DV-06-03, CORE-01-05 |
+| 22/10/2026 15:57 | B1 (Claude) | `DV-10-02` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: đang thực hiện (bản giả lập MySign) |
+| 22/10/2026 16:16 | B1 (Claude) | `DV-10-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/b1-nen-mong-backend-8pacfm: MySignProvider CSC v2 + PAdES-B-T (PDFBox, Bouncy Castle) với máy chủ CSC giả lập; verify esign-service xanh, pdfsig xác nhận chữ ký; B-LTA chờ DV-10-03 |
 <!-- PROGRESS_LOG_END -->

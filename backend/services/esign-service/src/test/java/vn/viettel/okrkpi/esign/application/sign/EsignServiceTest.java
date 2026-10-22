@@ -31,6 +31,7 @@ import vn.viettel.okrkpi.esign.domain.sign.SignatureFormat;
 import vn.viettel.okrkpi.esign.infrastructure.sign.FakeSignatureProvider;
 import vn.viettel.okrkpi.esign.spi.SignStatus;
 import vn.viettel.okrkpi.esign.spi.SignatureProvider;
+import vn.viettel.okrkpi.esign.spi.SignatureProviderException;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 
 /** Ca sử dụng ký số DV-10-01 với kho trong bộ nhớ và nhà cung cấp giả lập. */
@@ -125,6 +126,7 @@ class EsignServiceTest {
   void rejectionOnDeviceEndsRequest() {
     fake.nextOutcome(FakeSignatureProvider.Outcome.REJECT);
     SignRequest created = service.create(cmd(source(true, Set.of(SIGNER), 1)));
+    assertThat(service.pollOnce(created.id())).isEqualTo(SignRequestStatus.CHO_XAC_NHAN);
     clock.advance(Duration.ofSeconds(6));
     assertThat(service.pollOnce(created.id())).isEqualTo(SignRequestStatus.TU_CHOI);
   }
@@ -248,10 +250,138 @@ class EsignServiceTest {
     assertThat(flaky.pollOnce(UUID.randomUUID())).isNull();
   }
 
+  /** Nhà cung cấp thử nghiệm: đếm lời gọi, ném lỗi theo từng thao tác. */
+  private final class Scripted implements SignatureProvider {
+    int begins;
+    boolean up = true;
+    RuntimeException onBegin;
+    RuntimeException onPoll;
+    RuntimeException onCollect;
+
+    @Override
+    public String id() {
+      return FakeSignatureProvider.ID;
+    }
+
+    @Override
+    public Set<vn.viettel.okrkpi.esign.spi.SignatureFormat> supportedFormats() {
+      return fake.supportedFormats();
+    }
+
+    @Override
+    public boolean available() {
+      return up;
+    }
+
+    @Override
+    public vn.viettel.okrkpi.esign.spi.SignSession begin(
+        vn.viettel.okrkpi.esign.spi.SignRequest request) {
+      begins++;
+      if (onBegin != null) {
+        throw onBegin;
+      }
+      return fake.begin(request);
+    }
+
+    @Override
+    public SignStatus poll(String sessionId) {
+      if (onPoll != null) {
+        throw onPoll;
+      }
+      return SignStatus.SIGNED;
+    }
+
+    @Override
+    public List<vn.viettel.okrkpi.esign.spi.SignedItem> collect(String sessionId) {
+      if (onCollect != null) {
+        throw onCollect;
+      }
+      return fake.collect(sessionId);
+    }
+  }
+
+  private EsignService with(SignatureProvider provider) {
+    return new EsignService(
+        requests,
+        certificates,
+        (tenant, module, ref, purpose) -> Optional.ofNullable(sources.get(ref)),
+        new ProviderRegistry(
+            List.of(provider),
+            Map.of(ProviderCode.MYSIGN, FakeSignatureProvider.ID),
+            ProviderCode.MYSIGN),
+        (request, cert) -> events.add(request.id()),
+        clock,
+        Duration.ofSeconds(120));
+  }
+
+  @Test
+  void createDoesNotCallProviderAndRefusesWhenCircuitIsOpen() {
+    Scripted provider = new Scripted();
+    EsignService s = with(provider);
+    SignRequest created = s.create(cmd(source(true, Set.of(SIGNER), 1)));
+    assertThat(created.status()).isEqualTo(SignRequestStatus.CHO_XAC_NHAN);
+    assertThat(created.providerTxnId()).isNull();
+    assertThat(provider.begins).isZero();
+    assertThat(s.pollOnce(created.id())).isEqualTo(SignRequestStatus.CHO_XAC_NHAN);
+    assertThat(provider.begins).isEqualTo(1);
+    assertThat(s.get(SIGNER, created.id()).providerTxnId()).isNotNull();
+    assertThat(s.pollOnce(created.id())).isEqualTo(SignRequestStatus.DA_KY);
+    assertThat(events).containsExactly(created.id());
+
+    provider.up = false;
+    assertThatThrownBy(() -> s.create(cmd(source(true, Set.of(SIGNER), 1))))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errorCode().code()).isEqualTo(EsignService.PROVIDER_UNAVAILABLE));
+  }
+
+  @Test
+  void transientBeginFailureRetriesUntilExpiryPermanentOneFails() {
+    Scripted provider = new Scripted();
+    provider.onBegin = new SignatureProviderException("5xx", false);
+    EsignService s = with(provider);
+    SignRequest a = s.create(cmd(source(true, Set.of(SIGNER), 1)));
+    assertThat(s.pollOnce(a.id())).isEqualTo(SignRequestStatus.CHO_XAC_NHAN);
+    provider.onBegin = new IllegalStateException("mạng");
+    assertThat(s.pollOnce(a.id())).isEqualTo(SignRequestStatus.CHO_XAC_NHAN);
+    assertThat(provider.begins).isEqualTo(2);
+    clock.advance(Duration.ofSeconds(121));
+    assertThat(s.pollOnce(a.id())).isEqualTo(SignRequestStatus.HET_HAN);
+    assertThat(provider.begins).isEqualTo(2);
+
+    provider.onBegin = new SignatureProviderException("chứng thư thu hồi", true);
+    SignRequest b = s.create(cmd(source(true, Set.of(SIGNER), 1)));
+    assertThat(s.pollOnce(b.id())).isEqualTo(SignRequestStatus.LOI);
+    assertThat(events).isEmpty();
+  }
+
+  @Test
+  void permanentPollOrCollectFailureEndsInErrorTransientPollWaits() {
+    Scripted provider = new Scripted();
+    EsignService s = with(provider);
+    SignRequest a = s.create(cmd(source(true, Set.of(SIGNER), 1)));
+    s.pollOnce(a.id());
+    provider.onPoll = new SignatureProviderException("tạm", false);
+    assertThat(s.pollOnce(a.id())).isEqualTo(SignRequestStatus.CHO_XAC_NHAN);
+    provider.onPoll = new SignatureProviderException("tham số sai", true);
+    assertThat(s.pollOnce(a.id())).isEqualTo(SignRequestStatus.LOI);
+
+    provider.onPoll = null;
+    provider.onCollect = new SignatureProviderException("thiếu chữ ký", true);
+    SignRequest b = s.create(cmd(source(true, Set.of(SIGNER), 1)));
+    s.pollOnce(b.id());
+    assertThat(s.pollOnce(b.id())).isEqualTo(SignRequestStatus.LOI);
+    assertThat(events).isEmpty();
+  }
+
   @Test
   void domainGuardsInvalidTransitions() {
     SignRequest created = service.create(cmd(source(true, Set.of(SIGNER), 1)));
+    assertThat(created.awaitingProvider()).isTrue();
+    assertThatThrownBy(created::awaitProvider).isInstanceOf(IllegalStateException.class);
+    service.pollOnce(created.id());
     SignRequest r = service.get(SIGNER, created.id());
+    assertThat(r.awaitingProvider()).isFalse();
     assertThatThrownBy(() -> r.submitted("x", null)).isInstanceOf(IllegalStateException.class);
     assertThatThrownBy(() -> r.completeSigned(null, T0)).isInstanceOf(IllegalStateException.class);
     assertThat(r.attachSignature(sha(99), new byte[] {1}, null, null, T0)).isFalse();
