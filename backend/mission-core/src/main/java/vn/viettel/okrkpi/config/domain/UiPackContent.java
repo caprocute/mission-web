@@ -16,6 +16,8 @@ import java.util.UUID;
  * @param fewSteps cờ "ít bước" ({@code flags.reducedSteps})
  * @param formsJson mảng JSON {@code forms_json}: biểu mẫu đã gắn {@code {formKey, version}}
  *     (CORE-08-13)
+ * @param pluginsJson mảng JSON {@code plugins_json}: manifest plugin {@code {name, remoteEntry,
+ *     integrity}} chốt lúc phát hành (CORE-08-15), rỗng với bản nháp
  */
 public record UiPackContent(
     String tokensJson,
@@ -25,7 +27,8 @@ public record UiPackContent(
     UUID policyPackVersionId,
     boolean elderMode,
     boolean fewSteps,
-    String formsJson) {
+    String formsJson,
+    String pluginsJson) {
 
   public static final int REGISTRY_VERSION_MAX = 32;
 
@@ -34,6 +37,7 @@ public record UiPackContent(
     Objects.requireNonNull(layoutsJson, "layoutsJson");
     assetsJson = assetsJson == null ? "[]" : assetsJson;
     formsJson = formsJson == null ? "[]" : formsJson;
+    pluginsJson = pluginsJson == null ? "[]" : pluginsJson;
     Objects.requireNonNull(componentRegistryVersion, "componentRegistryVersion");
     if (componentRegistryVersion.isBlank()
         || componentRegistryVersion.length() > REGISTRY_VERSION_MAX) {
@@ -57,6 +61,7 @@ public record UiPackContent(
         policyPackVersionId,
         elderMode,
         fewSteps,
+        "[]",
         "[]");
   }
 
@@ -70,6 +75,21 @@ public record UiPackContent(
         policyPackVersionId,
         elderMode,
         fewSteps,
-        forms);
+        forms,
+        pluginsJson);
+  }
+
+  /** Cùng nội dung, thay manifest plugin đã chốt. */
+  public UiPackContent withPlugins(String plugins) {
+    return new UiPackContent(
+        tokensJson,
+        layoutsJson,
+        assetsJson,
+        componentRegistryVersion,
+        policyPackVersionId,
+        elderMode,
+        fewSteps,
+        formsJson,
+        plugins);
   }
 }

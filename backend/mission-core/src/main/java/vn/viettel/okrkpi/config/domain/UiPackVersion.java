@@ -138,6 +138,25 @@ public record UiPackVersion(
         rowVersion + 1);
   }
 
+  /** Chốt manifest plugin vào nội dung cùng lần phát hành (CORE-08-15), không đổi trạng thái. */
+  public UiPackVersion withPlugins(String pluginsJson) {
+    return new UiPackVersion(
+        id,
+        uiPackId,
+        version,
+        status,
+        content.withPlugins(pluginsJson),
+        bundleSha256,
+        bundleObjectKey,
+        signature,
+        publishedAt,
+        createdBy,
+        createdAt,
+        updatedBy,
+        updatedAt,
+        rowVersion);
+  }
+
   /** Bị phiên bản mới thay: {@code DA_PHAT_HANH → THAY_THE}. */
   public UiPackVersion supersede(UUID by, Instant at) {
     return move(UiPackVersionStatus.THAY_THE, by, at);
