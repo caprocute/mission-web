@@ -331,4 +331,65 @@ class EvidenceAcceptanceServiceTest {
     assertThat(r.acceptance().revisionCount()).isZero();
     verify(events).returned(TENANT, LEAD, true, "NV-1", evidenceId, 2, ASSIGNER, 6L);
   }
+
+  @Test
+  void nghiemThuThayTheoUyQuyenDangHieuLuc() {
+    UUID substitute = UUID.randomUUID();
+    UUID grantId = UUID.randomUUID();
+    EvidenceActor sub =
+        new EvidenceActor(substitute, Set.of("manager"), "aal2", NOW.getEpochSecond());
+    // Không có uỷ quyền: người khác người nghiệm thu được chỉ định bị chặn.
+    assertThat(code(() -> service.acceptVersion(TENANT, evidenceId, 2, 5, input("1", null), sub)))
+        .isEqualTo("PRODUCT-403-SELF-REVIEW");
+
+    vn.viettel.okrkpi.config.api.DelegationApi delegations =
+        mock(vn.viettel.okrkpi.config.api.DelegationApi.class);
+    when(delegations.activeFor(
+            eq(TENANT),
+            eq(vn.viettel.okrkpi.config.api.DelegationApi.Kind.NGHIEM_THU_THAY),
+            eq(ASSIGNER),
+            eq(substitute),
+            eq(null),
+            eq(null),
+            eq(NOW)))
+        .thenReturn(
+            Optional.of(
+                new vn.viettel.okrkpi.config.api.DelegationApi.DelegationGrant(
+                    grantId,
+                    vn.viettel.okrkpi.config.api.DelegationApi.Kind.NGHIEM_THU_THAY,
+                    ASSIGNER,
+                    substitute,
+                    UUID.randomUUID(),
+                    null,
+                    NOW.minusSeconds(3600),
+                    NOW.plusSeconds(3600))));
+    service.setAuthority(
+        new ReviewerAuthority(tasks, delegations, Clock.fixed(NOW, ZoneOffset.UTC)));
+    EvidenceLifecycleService.Result res = result(EvidenceStatus.DA_XAC_NHAN, "HOAN_THANH");
+    when(lifecycle.acceptVersion(TENANT, versionId, 5, sub)).thenReturn(res);
+    Decision d = service.acceptVersion(TENANT, evidenceId, 2, 5, input("1", null), sub);
+    assertThat(d.acceptance().reviewerId()).isEqualTo(substitute);
+    AuditEvent ledger = audits.get(audits.size() - 1);
+    assertThat(ledger.attributes())
+        .containsEntry("nghiemThuThay", "true")
+        .containsEntry("onBehalfOf", ASSIGNER.toString())
+        .containsEntry("delegationId", grantId.toString());
+
+    // Người làm thay vẫn phải độc lập: người chủ trì có uỷ quyền cũng không tự nghiệm thu.
+    when(delegations.activeFor(any(), any(), eq(ASSIGNER), eq(LEAD), any(), any(), any()))
+        .thenReturn(
+            Optional.of(
+                new vn.viettel.okrkpi.config.api.DelegationApi.DelegationGrant(
+                    grantId,
+                    vn.viettel.okrkpi.config.api.DelegationApi.Kind.NGHIEM_THU_THAY,
+                    ASSIGNER,
+                    LEAD,
+                    UUID.randomUUID(),
+                    null,
+                    NOW,
+                    NOW)));
+    EvidenceActor lead = new EvidenceActor(LEAD, Set.of(), "aal2", NOW.getEpochSecond());
+    assertThat(code(() -> service.acceptVersion(TENANT, evidenceId, 2, 5, input("1", null), lead)))
+        .isEqualTo("PRODUCT-403-SELF-REVIEW");
+  }
 }
