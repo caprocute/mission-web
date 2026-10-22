@@ -21,6 +21,7 @@ import org.springframework.kafka.listener.AcknowledgingMessageListener;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.transaction.PlatformTransactionManager;
+import vn.viettel.okrkpi.appraisal.application.decision.DecisionSigningService;
 import vn.viettel.okrkpi.appraisal.application.profile.AppraisalProfileService;
 import vn.viettel.okrkpi.appraisal.application.profile.port.AppraisalProfileRepository.SealedText;
 import vn.viettel.okrkpi.appraisal.application.review.ReviewService;
@@ -167,8 +168,11 @@ public class SelfAssessmentConfiguration {
 
     @Bean
     SelfAssessmentSignedListener selfAssessmentSignedListener(
-        SelfAssessmentService selfAssessmentService, ObjectProvider<ReviewService> reviews) {
-      return new SelfAssessmentSignedListener(selfAssessmentService, reviews.getIfAvailable());
+        SelfAssessmentService selfAssessmentService,
+        ObjectProvider<ReviewService> reviews,
+        ObjectProvider<DecisionSigningService> decisions) {
+      return new SelfAssessmentSignedListener(
+          selfAssessmentService, reviews.getIfAvailable(), decisions.getIfAvailable());
     }
 
     @Bean

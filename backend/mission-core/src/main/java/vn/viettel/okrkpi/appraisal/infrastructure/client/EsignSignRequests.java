@@ -16,6 +16,7 @@ public class EsignSignRequests implements SignRequests {
 
   static final String PURPOSE = "TU_DANH_GIA";
   static final String APPRAISAL_PURPOSE = "THAM_DINH";
+  static final String DECISION_PURPOSE = "QUYET_DINH";
   static final String SOURCE_MODULE = "appraisal";
 
   private final EsignRequestClient client;
@@ -42,6 +43,12 @@ public class EsignSignRequests implements SignRequests {
       String idempotencyKey,
       String authorization) {
     return create(tenant, APPRAISAL_PURPOSE, profileId, provider, idempotencyKey, authorization);
+  }
+
+  @Override
+  public UUID requestDecision(
+      TenantId tenant, UUID batchId, String provider, String idempotencyKey, String authorization) {
+    return create(tenant, DECISION_PURPOSE, batchId, provider, idempotencyKey, authorization);
   }
 
   private UUID create(
