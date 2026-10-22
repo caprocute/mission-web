@@ -17,7 +17,8 @@ import vn.viettel.okrkpi.platform.db.migration.TenantIsolationCatalogTest;
  *
  * <p>{@code ui_pack} và {@code ui_pack_version} tham chiếu vòng nhau nên bộ sinh dòng tự động không
  * xếp được thứ tự; lớp này chèn trước một {@code ui_pack} cho mỗi tenant và cho {@code
- * ui_pack_version} một fixture trỏ về gói đó.
+ * ui_pack_version} một fixture trỏ về gói đó. Hai bảng cá nhân hoá (CNH-02) có CHECK theo mẫu khoá
+ * và mã màn hình nên cũng dùng fixture.
  */
 class ConfigTenantIsolationIT extends TenantIsolationCatalogTest {
 
@@ -47,6 +48,29 @@ class ConfigTenantIsolationIT extends TenantIsolationCatalogTest {
           row.put("tokens", json("{}"));
           row.put("layouts", json("{}"));
           row.put("component_registry_version", "2026.3");
+          row.put("created_by", ACTOR);
+          row.put("updated_by", ACTOR);
+          return row;
+        },
+        "config.user_preference",
+        (tenantId, seed) -> {
+          Map<String, Object> row = new LinkedHashMap<>();
+          row.put("id", UUID.nameUUIDFromBytes(("pref-" + tenantId + seed).getBytes()));
+          row.put("user_id", ACTOR);
+          row.put("pref_key", "ui.table.SCR-02" + String.format("%02d", seed % 100));
+          row.put("value", json("{}"));
+          row.put("created_by", ACTOR);
+          row.put("updated_by", ACTOR);
+          return row;
+        },
+        "config.saved_filter",
+        (tenantId, seed) -> {
+          Map<String, Object> row = new LinkedHashMap<>();
+          row.put("id", UUID.nameUUIDFromBytes(("filter-" + tenantId + seed).getBytes()));
+          row.put("user_id", ACTOR);
+          row.put("screen_code", "SCR-0201");
+          row.put("filter_name", "Bộ lọc " + seed);
+          row.put("criteria", json("{}"));
           row.put("created_by", ACTOR);
           row.put("updated_by", ACTOR);
           return row;
