@@ -45,4 +45,12 @@ class EvidenceQueryServiceTest {
     assertThatThrownBy(() -> service.confirmedEvidence(TENANT, PERSON, many))
         .isInstanceOf(IllegalArgumentException.class);
   }
+
+  @Test
+  void nguoiDaNghiemThuTrongKy() {
+    UUID period = UUID.randomUUID();
+    UUID reviewer = UUID.randomUUID();
+    when(repo.acceptorsOf(TENANT, period, PERSON)).thenReturn(Set.of(reviewer));
+    assertThat(service.acceptors(TENANT, period, PERSON)).containsExactly(reviewer);
+  }
 }
