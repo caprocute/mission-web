@@ -1,0 +1,8 @@
+catalog_code,code,name,product_name,unit,difficulty,base_score,quality_standard,evidence_requirement,default_group,standard_days,ghi_chu
+DM-CV-TCCB,TC-01,Thẩm định hồ sơ bổ nhiệm cán bộ,Tờ trình thẩm định,Hồ sơ,4,8.000,"Đúng quy trình, đủ thành phần hồ sơ, đúng hạn",Tờ trình đã ký,THEN_CHOT,10,giả lập
+DM-CV-TCCB,TC-02,Tổng hợp báo cáo chất lượng đội ngũ hằng quý,Báo cáo tổng hợp,Báo cáo,3,6.000,"Số liệu khớp phần mềm quản lý cán bộ, đúng hạn",Báo cáo đã ban hành,THUONG_XUYEN,5,giả lập
+DM-CV-TCCB,TC-03,Cập nhật hồ sơ cán bộ vào phần mềm,Hồ sơ được cập nhật,Hồ sơ,2,1.500,"Thông tin chính xác, không sai sót",Nhật ký cập nhật,THUONG_XUYEN,2,giả lập
+DM-CV-TCCB,TC-04,Xây dựng đề án vị trí việc làm,Đề án,Đề án,5,15.000,"Đúng hướng dẫn của cấp trên, được thông qua",Quyết định phê duyệt,THEN_CHOT,30,giả lập
+DM-CV-VP,VP-01,Soạn thảo văn bản hành chính theo phân công,Văn bản,Văn bản,2,2.000,"Đúng thể thức, đúng hạn",Văn bản đã phát hành,THUONG_XUYEN,2,giả lập
+DM-CV-VP,VP-02,Tổ chức hội nghị của cơ quan,Hội nghị,Hội nghị,3,5.000,"Chuẩn bị đầy đủ tài liệu, đúng chương trình",Thông báo kết luận,THUONG_XUYEN,7,giả lập
+DM-CV-VP,VP-03,Theo dõi tình hình thực hiện nhiệm vụ được giao,Báo cáo theo dõi,Báo cáo,3,4.000,"Phản ánh đủ, đúng tiến độ các nhiệm vụ",Báo cáo định kỳ,THEN_CHOT,5,giả lập
