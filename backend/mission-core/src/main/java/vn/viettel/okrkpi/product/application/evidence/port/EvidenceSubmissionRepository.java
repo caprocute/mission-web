@@ -213,6 +213,11 @@ public interface EvidenceSubmissionRepository {
   /** Ghi thời điểm cam kết của người nộp. */
   void markAttested(TenantId tenant, int periodBucket, UUID versionId, Instant at);
 
+  /**
+   * Minh chứng trong {@code ids} có phiên bản {@code DA_XAC_NHAN} chưa bị loại, do người này nộp.
+   */
+  Set<UUID> confirmedOf(TenantId tenant, UUID personId, Set<UUID> ids);
+
   /** Ghi người nghiệm thu được chỉ định lúc nộp, để lập hàng chờ nghiệm thu (CORE-03-06). */
   void markReviewer(TenantId tenant, int periodBucket, UUID evidenceId, UUID reviewerId);
 

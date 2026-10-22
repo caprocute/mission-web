@@ -48,7 +48,9 @@ import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.events.EventTopics;
+import vn.viettel.okrkpi.product.api.EvidenceQueryApi;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceActor;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceLifecycleService;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceEvents;
 import vn.viettel.okrkpi.product.infrastructure.listener.EvidenceObjectListener;
 import vn.viettel.okrkpi.product.infrastructure.persistence.EvidenceSubmissionConfiguration;
@@ -124,6 +126,8 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper json;
   @Autowired private EvidenceObjectListener listener;
+  @Autowired private EvidenceQueryApi evidenceQuery;
+  @Autowired private EvidenceLifecycleService lifecycle;
   @Autowired private InboxProperties inboxProperties;
   @Autowired private InboxRetryDlqPublisher dlq;
   @Autowired private InboxMetrics metrics;
@@ -417,6 +421,25 @@ class EvidenceSubmissionApiIT extends ContractConformanceTest {
                 .get("status")
                 .asText())
         .isEqualTo("DANG_NGHIEM_THU");
+
+    // Cổng đọc cho MOD-04: chỉ minh chứng đã xác nhận của chính người nộp.
+    UUID evidenceId = UUID.fromString(evidence);
+    UUID versionId = UUID.fromString(body(again).get("id").asText());
+    assertThat(as(() -> evidenceQuery.confirmedEvidence(tenant, ACTOR, List.of(evidenceId))))
+        .isEmpty();
+    long rowVersion = Long.parseLong(inReview.replace("\"", ""));
+    as(
+        () ->
+            lifecycle.acceptVersion(
+                tenant, versionId, rowVersion, new EvidenceActor(ASSIGNER, Set.of("manager"))));
+    assertThat(
+            as(
+                () ->
+                    evidenceQuery.confirmedEvidence(
+                        tenant, ACTOR, List.of(evidenceId, UUID.randomUUID()))))
+        .containsExactly(evidenceId);
+    assertThat(as(() -> evidenceQuery.confirmedEvidence(tenant, ASSIGNER, List.of(evidenceId))))
+        .isEmpty();
   }
 
   private MvcResult openReview(String evidence, String ifMatch) throws Exception {

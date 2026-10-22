@@ -25,6 +25,7 @@ import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceIntegrityAlarm;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceLifecycleService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceObjectProjector;
+import vn.viettel.okrkpi.product.application.evidence.EvidenceQueryService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceReviewService;
 import vn.viettel.okrkpi.product.application.evidence.EvidenceSubmissionService;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceEvents;
@@ -100,6 +101,12 @@ public class EvidenceSubmissionConfiguration {
         tasks,
         evidenceIntegrityAlarm,
         audit);
+  }
+
+  @Bean
+  EvidenceQueryService evidenceQueryService(
+      JdbcEvidenceSubmissionRepository evidenceSubmissionRepository) {
+    return new EvidenceQueryService(evidenceSubmissionRepository);
   }
 
   @Bean

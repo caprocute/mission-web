@@ -753,6 +753,8 @@ Toàn vẹn được kiểm bằng cách so mã băm và phiên bản đối tư
 
 Khi tệp lệch, phiên bản giữ nguyên trạng thái và hệ thống trả `PRODUCT-409-INTEGRITY-FAILED` (MSG-07-13). Cảnh báo an ninh mức cao được ghi trong một giao dịch riêng (`REQUIRES_NEW`), vì giao dịch của yêu cầu, kể cả giao dịch của `Idempotency-Key`, sẽ quay lui theo lỗi. Cảnh báo gồm hai phần. Phần thứ nhất là EVT-21 mẫu `MINH_CHUNG_MAT_TOAN_VEN`, ưu tiên `CAO`, gửi người mở và người giao. Phần thứ hai là một bản ghi sổ cái kiểm toán `EVIDENCE_INTEGRITY_FAILED` (kết quả `DENIED`, `severity=CAO`) trên `sys.audit.v1`, là kênh SOC. EVT-20 không được dùng vì danh mục sự kiện chỉ cho SVC-15 phát EVT-20, và nguồn của nó là ClickHouse chứ không phải outbox. Mỗi lần mở thành công đều ghi sổ cái truy cập dữ liệu nhạy cảm `OPEN_EVIDENCE_REVIEW`, ở mức C3 nếu phiên bản có E2EE và C2 nếu không (suy luận, vì tên tệp gốc ở SVC-08 là C2). Chỉ tiêu thời gian phản hồi của thao tác mở chưa được đo; theo YC-PT-19, việc đo để dành cho giai đoạn hiệu năng.
 
+Theo yêu cầu của CORE-04-04 (đề xuất Hoàn thành xuất sắc cần minh chứng đã xác nhận), MOD-03 mở cổng đọc `product :: api` `EvidenceQueryApi.confirmedEvidence(tenant, personId, evidenceIds)`. Cổng này trả tập con các minh chứng có ít nhất một phiên bản `DA_XAC_NHAN`, chưa bị loại khỏi kỳ, và do chính người đó nộp; mỗi lần hỏi tối đa 200 mã. Minh chứng được xem là đã xác nhận ngay cả khi sau đó có phiên bản mới đang soạn, vì phiên bản đã xác nhận vẫn được tính điểm (BR-07-05, suy luận).
+
 ## Liên quan
 
 - [README của wiki](README.md)
