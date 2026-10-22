@@ -59,6 +59,10 @@ public final class MissionCoreTestDatabase {
                   + schema);
       registry.add(prefix + ".username", () -> "svc_" + schema);
       registry.add(prefix + ".password", () -> TEST_DB_PASSWORD);
+      // Nhiều ngữ cảnh Spring cùng sống trong bộ đệm kiểm thử dùng chung một container: không giữ
+      // kết nối rảnh, để không hết chỗ kết nối của PostgreSQL ("remaining connection slots").
+      registry.add(prefix + ".min-idle", () -> "0");
+      registry.add(prefix + ".idle-timeout", () -> "10000");
     }
     registry.add(
         "okrkpi.datasources.org_replica.url",

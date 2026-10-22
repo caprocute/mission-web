@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://okrkpi.vn/schemas/ui-pack/1.0",
+  "title": "UI Pack 1.0",
+  "description": "Lược đồ UI Pack của tenant theo TL-01 chương 7 \"Cấu trúc UI Pack\" (CORE-08-08): siêu dữ liệu, token W3C, chế độ cao tuổi, bố cục SDUI, biểu mẫu, plugin, i18n. Không trường nào nhận HTML hay JavaScript (X-G1-01): mọi chuỗi tự do không được chứa ký tự < hoặc >.",
+  "type": "object",
+  "required": ["pack", "version", "requires", "tokens", "layouts"],
+  "additionalProperties": false,
+  "properties": {
+    "pack": { "type": "string", "maxLength": 128, "pattern": "^[a-z0-9][a-z0-9._/-]*$" },
+    "version": { "type": "string", "maxLength": 32, "pattern": "^(0|[1-9][0-9]{0,5})([.](0|[1-9][0-9]{0,5})){2}$" },
+    "requires": {
+      "type": "object",
+      "required": ["registry"],
+      "additionalProperties": false,
+      "properties": {
+        "registry": { "$ref": "#/$defs/rangeText" },
+        "policyPack": { "$ref": "#/$defs/rangeText" }
+      }
+    },
+    "tokens": { "$ref": "#/$defs/tokenGroup" },
+    "modes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "elderly": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tokens": { "$ref": "#/$defs/tokenGroup" },
+            "flags": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "reducedSteps": { "type": "boolean" },
+                "minTouchTarget": { "type": "string", "pattern": "^[0-9]{1,3}px$" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "layouts": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": { "pattern": "^[a-z][a-zA-Z0-9-]{0,63}$" },
+      "additionalProperties": { "$ref": "#/$defs/sduiNode" }
+    },
+    "forms": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+      "additionalProperties": { "$ref": "#/$defs/safeJson" }
+    },
+    "plugins": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "required": ["name", "remoteEntry"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "maxLength": 64, "pattern": "^[a-z][a-z0-9-]*$" },
+          "remoteEntry": { "type": "string", "maxLength": 512, "pattern": "^(https://|/)[^<>\"'\\s]*$" },
+          "integrity": { "type": "string", "maxLength": 128, "pattern": "^sha(256|384|512)-[A-Za-z0-9+/=]+$" }
+        }
+      }
+    },
+    "i18n": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": { "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+        "additionalProperties": { "$ref": "#/$defs/safeText" }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": ["key", "path", "sha256"],
+        "additionalProperties": false,
+        "properties": {
+          "key": { "type": "string", "maxLength": 64, "pattern": "^[a-z][a-zA-Z0-9-]*$" },
+          "path": { "type": "string", "maxLength": 512, "pattern": "^[A-Za-z0-9._/-]+$" },
+          "mediaType": { "enum": ["image/svg+xml", "image/png", "font/woff2"] },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "sizeBytes": { "type": "integer", "minimum": 0, "maximum": 51200 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "safeText": {
+      "description": "Văn bản tự do: không có thẻ HTML.",
+      "type": "string",
+      "maxLength": 2000,
+      "pattern": "^[^<>]*$"
+    },
+    "rangeText": {
+      "description": "Dải phiên bản (ví dụ ^2.4.0, nd335@>=1.2.0 <2.0.0): chỉ ký tự của dải phiên bản, không có < đứng trước chữ.",
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^(?![\\s\\S]*<[A-Za-z/!])[A-Za-z0-9._/@^~<>=| *-]*$"
+    },
+    "safeJson": {
+      "description": "Giá trị JSON tuỳ ý mà mọi chuỗi đều là văn bản an toàn.",
+      "type": ["object", "array", "string", "number", "boolean", "null"],
+      "pattern": "^[^<>]*$",
+      "maxLength": 2000,
+      "additionalProperties": { "$ref": "#/$defs/safeJson" },
+      "items": { "$ref": "#/$defs/safeJson" }
+    },
+    "tokenGroup": {
+      "description": "Nhóm token W3C Design Tokens; khoá bắt đầu bằng $ là thuộc tính của nhóm.",
+      "type": "object",
+      "propertyNames": { "pattern": "^([A-Za-z0-9_-]{1,64}|[$](type|description|extensions))$" },
+      "properties": {
+        "$type": { "$ref": "#/$defs/tokenType" },
+        "$description": { "$ref": "#/$defs/safeText" },
+        "$extensions": { "$ref": "#/$defs/safeJson" }
+      },
+      "additionalProperties": {
+        "if": { "type": "object", "required": ["$value"] },
+        "then": { "$ref": "#/$defs/token" },
+        "else": { "$ref": "#/$defs/tokenGroup" }
+      }
+    },
+    "token": {
+      "type": "object",
+      "required": ["$value"],
+      "additionalProperties": false,
+      "properties": {
+        "$value": { "$ref": "#/$defs/tokenValue" },
+        "$type": { "$ref": "#/$defs/tokenType" },
+        "$description": { "$ref": "#/$defs/safeText" },
+        "$extensions": { "$ref": "#/$defs/safeJson" }
+      }
+    },
+    "tokenType": {
+      "enum": ["color", "dimension", "fontFamily", "fontWeight", "duration", "cubicBezier", "number", "strokeStyle", "border", "transition", "shadow", "gradient", "typography"]
+    },
+    "tokenValue": {
+      "description": "Giá trị token: chuỗi CSS an toàn (không thẻ, không url(), không expression()), số, hoặc giá trị phức hợp.",
+      "type": ["string", "number", "object", "array"],
+      "maxLength": 256,
+      "pattern": "^(?![\\s\\S]*(url|expression)[(])[^<>;{}]*$",
+      "additionalProperties": { "$ref": "#/$defs/tokenValue" },
+      "items": { "$ref": "#/$defs/tokenValue" }
+    },
+    "sduiNode": {
+      "type": "object",
+      "required": ["component"],
+      "additionalProperties": false,
+      "properties": {
+        "component": { "type": "string", "maxLength": 64, "pattern": "^[a-z][a-zA-Z0-9]*([.][a-zA-Z0-9-]+)+$" },
+        "props": { "type": "object", "additionalProperties": { "$ref": "#/$defs/safeJson" } },
+        "visibleWhen": { "type": "string", "maxLength": 500, "pattern": "^[^<>]*$" },
+        "children": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/sduiNode" } }
+      }
+    }
+  }
+}
