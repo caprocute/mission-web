@@ -81,7 +81,8 @@ class TenantAutoConfigurationTest {
                 JacksonAutoConfiguration.class,
                 ProblemAutoConfiguration.class,
                 TenantAutoConfiguration.class))
-        .withPropertyValues("okrkpi.tenant.claim=tid")
+        .withPropertyValues(
+            "okrkpi.tenant.claim=tid", "okrkpi.tenant.delegating-clients=mission-core, ")
         .run(
             ctx -> {
               FilterRegistrationBean<?> reg =
@@ -92,7 +93,10 @@ class TenantAutoConfigurationTest {
                       org.springframework.boot.autoconfigure.security.SecurityProperties
                               .DEFAULT_FILTER_ORDER
                           + 1);
-              assertThat(ctx.getBean(TenantProperties.class).claim()).isEqualTo("tid");
+              TenantProperties props = ctx.getBean(TenantProperties.class);
+              assertThat(props.claim()).isEqualTo("tid");
+              assertThat(props.delegatingClients()).containsExactly("mission-core");
+              assertThat(props.delegationHeader()).isEqualTo("X-Tenant-Id");
             });
   }
 }
