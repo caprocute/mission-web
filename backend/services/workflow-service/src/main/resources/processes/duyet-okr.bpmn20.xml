@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DV-06-03 · Mẫu luồng `duyet-okr` (QT-02 bước 6, SCR-0203) · ADR-04 tầng 2 · TL-01 G2 "Ví dụ BPMN rút gọn".
+  Một định nghĩa dùng chung cho mọi tenant (không gắn tenantId): khác biệt theo tenant nằm ở DMN `chon-cap-duyet`
+  và `flowable.wf_binding`. Biến tiến trình chỉ mang id, tenant, khối, luồng và tham số nhỏ (< 4 KB).
+  Khoá nghiệp vụ: OKR_OBJECTIVE:<objectiveId>. Bước máy là external worker, không gọi đồng bộ hệ ngoài.
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="urn:vt-okrkpi:wf">
+  <process id="duyet-okr" name="Duyệt mục tiêu và kết quả then chốt" isExecutable="true">
+    <documentation>Phê duyệt bộ OKR theo cấp: người duyệt phê duyệt hoặc trả lại kèm ý kiến; kết quả được gửi về lõi nghiệp vụ.</documentation>
+    <startEvent id="start"/>
+    <sequenceFlow id="f-start" sourceRef="start" targetRef="chooseLevels"/>
+
+    <serviceTask id="chooseLevels" name="Chọn cấp duyệt" flowable:type="dmn">
+      <extensionElements>
+        <flowable:field name="decisionTableReferenceKey"><flowable:string>chon-cap-duyet</flowable:string></flowable:field>
+        <flowable:field name="fallbackToDefaultTenant"><flowable:string>true</flowable:string></flowable:field>
+        <flowable:executionListener event="end" delegateExpression="${phanGiaiCapDuyet}"/>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="f-levels" sourceRef="chooseLevels" targetRef="review"/>
+
+    <userTask id="review" name="${tieuDe}"
+              flowable:candidateGroups="${tenantId}:${level.role}:${level.orgUnitId}"
+              flowable:dueDate="${level.dueDate}">
+      <multiInstanceLoopCharacteristics isSequential="true"
+          flowable:collection="${approvalLevels}" flowable:elementVariable="level">
+        <completionCondition>${decision == 'TRA_LAI'}</completionCondition>
+      </multiInstanceLoopCharacteristics>
+    </userTask>
+    <boundaryEvent id="remind" attachedToRef="review" cancelActivity="false">
+      <timerEventDefinition><timeDuration>${remindAfter}</timeDuration></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f-remind" sourceRef="remind" targetRef="notifyRemind"/>
+    <serviceTask id="notifyRemind" name="Nhắc người duyệt" flowable:type="external-worker" flowable:topic="notify-remind"/>
+    <sequenceFlow id="f-remind-end" sourceRef="notifyRemind" targetRef="remindEnd"/>
+    <endEvent id="remindEnd"/>
+
+    <sequenceFlow id="f-outcome" sourceRef="review" targetRef="outcome"/>
+    <exclusiveGateway id="outcome" default="toApprove"/>
+    <sequenceFlow id="toReturn" sourceRef="outcome" targetRef="applyReturn">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${decision == 'TRA_LAI'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="toApprove" sourceRef="outcome" targetRef="applyApprove"/>
+
+    <serviceTask id="applyReturn" name="Lõi: trả lại mục tiêu" flowable:type="external-worker" flowable:topic="core-okr-return"/>
+    <serviceTask id="applyApprove" name="Lõi: phê duyệt mục tiêu" flowable:type="external-worker" flowable:topic="core-okr-approve"/>
+    <sequenceFlow id="f-returned" sourceRef="applyReturn" targetRef="endReturned"/>
+    <sequenceFlow id="f-approved" sourceRef="applyApprove" targetRef="endApproved"/>
+    <endEvent id="endReturned" name="Đã trả lại"/>
+    <endEvent id="endApproved" name="Đã phê duyệt"/>
+  </process>
+</definitions>

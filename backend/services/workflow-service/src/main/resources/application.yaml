@@ -44,6 +44,8 @@ flowable:
   database-schema-update: false
   history-level: audit
   async-executor-activate: ${WF_ASYNC_ENABLED:false}
+  # Mẫu luồng triển khai qua TemplateDeployer (linter + một lần triển khai không gắn tenant, DV-06-03).
+  check-process-definitions: false
   task-invoker:
     core-pool-size: 16
     max-pool-size: 32
@@ -67,7 +69,8 @@ flowable:
   dmn:
     enabled: true
     history-enabled: false
-    deploy-resources: true
+    # DMN chon-cap-duyet triển khai cùng BPMN trong TemplateDeployer.
+    deploy-resources: false
   idm:
     enabled: false
   eventregistry:
@@ -130,6 +133,17 @@ mission:
       # Executor của duyệt hàng loạt: luồng và hàng đợi giới hạn (TL-01 "Cô lập tài nguyên").
       threads: ${WF_BATCH_THREADS:2}
       queue-capacity: ${WF_BATCH_QUEUE:50}
+    templates:
+      # Kiểm linter và triển khai ba mẫu luồng duyệt phần 1 khi khởi động (DV-06-03).
+      deploy-on-start: ${WF_TEMPLATES_DEPLOY:true}
+    core-callback:
+      # External worker gọi lại API lõi chạy ở Deployment worker (cùng nơi bật async executor).
+      enabled: ${WF_ASYNC_ENABLED:false}
+      poll-interval: ${WF_CORE_CALLBACK_POLL:PT2S}
+    core:
+      base-url: ${CORE_BASE_URL:http://127.0.0.1:8080/api/v1}
+      # Tệp token dịch vụ do ESO/CSI gắn từ OpenBao; không đặt token trong cấu hình.
+      token-file: ${CORE_TOKEN_FILE:}
 
 # Khung saga (DV-06-05): outbox và khoá idempotency nằm trong schema flowable; worker chạy cùng bộ
 # thực thi nền của Flowable.
