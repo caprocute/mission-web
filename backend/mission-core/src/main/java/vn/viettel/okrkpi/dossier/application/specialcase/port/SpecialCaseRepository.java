@@ -69,6 +69,9 @@ public interface SpecialCaseRepository {
 
   List<SpecialCaseRow> listForPerson(TenantId tenant, int bucket, UUID periodId, UUID personId);
 
+  /** Mọi trường hợp của kỳ. */
+  List<SpecialCaseRow> listForPeriod(TenantId tenant, int bucket, UUID periodId);
+
   void insert(TenantId tenant, SpecialCaseRow row, UUID actor);
 
   /** Ghi đè các cột có thể đổi; trả phiên bản mới, 0 khi phiên bản đã đổi. */

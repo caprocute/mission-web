@@ -2,6 +2,7 @@ package vn.viettel.okrkpi.dossier.application.specialcase;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -24,7 +25,8 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import vn.viettel.okrkpi.appraisal.api.SpecialCaseQuery.SpecialCaseView;
+import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases;
+import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases.Treatment;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodLockedException;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
@@ -252,18 +254,24 @@ class SpecialCaseServiceTest {
   }
 
   @Test
-  void congMod04TraKetQuaSauKhiDoiChieu() {
+  void congMod04TraHeQuaAnhHuongLapHoSo() {
     transferred("2026-11-15");
-    List<SpecialCaseView> views = service.casesOf(TENANT, PeriodId.of(PERIOD), PERSON);
-    assertThat(views)
-        .singleElement()
-        .satisfies(
-            v -> {
-              assertThat(v.caseCode()).isEqualTo("DIEU_DONG_DUOI_2_THANG");
-              assertThat(v.effect()).isEqualTo("XEP_LOAI_TAI_DON_VI_CU");
-              assertThat(v.confirmed()).isFalse();
-            });
-    assertThat(service.casesOf(TENANT, PeriodId.of(UUID.randomUUID()), PERSON)).isEmpty();
+    service.detect(TENANT, QUARTER, PERSON, List.of());
+    UUID sick = UUID.randomUUID();
+    supplement =
+        new PersonPeriodFacts.Supplement(47, null, true, null, null, null, null, null, null, null);
+    assignments.clear();
+    service.detect(TENANT, QUARTER, sick, List.of());
+    List<AppraisalSpecialCases.SpecialCase> found = service.forPeriod(TENANT, PERIOD);
+    assertThat(found)
+        .extracting(
+            AppraisalSpecialCases.SpecialCase::personId,
+            AppraisalSpecialCases.SpecialCase::treatment)
+        .containsExactlyInAnyOrder(
+            tuple(PERSON, Treatment.DON_VI_CU_DANH_GIA), tuple(sick, Treatment.KHONG_XEP_LOAI));
+    assertThat(found).allMatch(c -> c.appliesTo("DANG") && c.appliesTo("NHA_NUOC"));
+    assertThat(service.forPeriod(TENANT, UUID.randomUUID())).isEmpty();
+    assertThat(SpecialCaseService.treatment("CHO_KET_LUAN")).isNull();
   }
 
   @Test
@@ -536,6 +544,11 @@ class SpecialCaseServiceTest {
           .filter(r -> r.personId().equals(personId) && r.periodId().equals(periodId))
           .sorted(Comparator.comparing(SpecialCaseRow::caseCode))
           .toList();
+    }
+
+    @Override
+    public List<SpecialCaseRow> listForPeriod(TenantId tenant, int bucket, UUID periodId) {
+      return rows.values().stream().filter(r -> r.periodId().equals(periodId)).toList();
     }
 
     @Override

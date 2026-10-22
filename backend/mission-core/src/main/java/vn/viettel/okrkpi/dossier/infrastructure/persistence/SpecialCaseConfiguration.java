@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.config.api.PeriodApi;
+import vn.viettel.okrkpi.config.api.SpecialCaseRulesPort;
 import vn.viettel.okrkpi.dossier.application.comment.port.CommentSealer;
 import vn.viettel.okrkpi.dossier.application.specialcase.SpecialCaseService;
 import vn.viettel.okrkpi.dossier.application.specialcase.port.SpecialCaseFactsSource;
@@ -26,9 +27,10 @@ import vn.viettel.okrkpi.shared.inbox.InboxProperties;
 import vn.viettel.okrkpi.shared.inbox.InboxRetryDlqPublisher;
 
 /**
- * CORE-06-05: trường hợp đặc thù trên {@code dossierDataSource}. Bảng quy tắc mặc định là gói khối
- * Đảng v2.0, dữ kiện đọc từ bản sao tổ chức; consumer EVT-15 ghi inbox {@code dossier} (tắt bằng
- * {@code mission.dossier.special-case.consumer.enabled=false}).
+ * CORE-06-05: trường hợp đặc thù trên {@code dossierDataSource}. Bảng quy tắc đọc từ gói áp cho kỳ
+ * qua {@code config :: api}, thiếu thì dùng bảng gói khối Đảng v2.0; dữ kiện đọc từ bản sao tổ
+ * chức; consumer EVT-15 ghi inbox {@code dossier} (tắt bằng {@code
+ * mission.dossier.special-case.consumer.enabled=false}).
  */
 @Configuration(proxyBeanMethods = false)
 public class SpecialCaseConfiguration {
@@ -41,8 +43,8 @@ public class SpecialCaseConfiguration {
 
   @Bean
   @ConditionalOnMissingBean(SpecialCaseRuleSource.class)
-  SpecialCaseRuleSource specialCaseRuleSource() {
-    return new DefaultSpecialCaseRules();
+  SpecialCaseRuleSource specialCaseRuleSource(ObjectProvider<SpecialCaseRulesPort> port) {
+    return new PolicyPackSpecialCaseRules(port::getIfAvailable, new DefaultSpecialCaseRules());
   }
 
   @Bean

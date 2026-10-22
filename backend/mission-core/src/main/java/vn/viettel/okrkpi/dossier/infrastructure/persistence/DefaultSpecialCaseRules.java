@@ -9,11 +9,10 @@ import vn.viettel.okrkpi.dossier.domain.specialcase.SpecialCaseRule;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
 /**
- * Bảng {@code truong_hop_dac_thu} mặc định, chép đúng gói khối Đảng "quy định mới" v2.0 ({@code
- * data/policy-pack/khoi-dang/quy-dinh-moi/policy.yaml}, DL-01). MOD-06 chưa đọc được gói đã ghim
- * cho kỳ vì TL-01 không cho {@code dossier} phụ thuộc {@code policy :: api}; khi có cổng công bố
- * bảng này qua {@code config :: api} (như {@code PolicySchemaPort}) thì bean đọc gói thay bean này.
- * Tham số {@code null} giữ nguyên như gói (chờ nghiệp vụ).
+ * Bảng {@code truong_hop_dac_thu} dự phòng, chép đúng gói khối Đảng "quy định mới" v2.0 ({@code
+ * data/policy-pack/khoi-dang/quy-dinh-moi/policy.yaml}, DL-01), dùng khi không phân giải được gói
+ * cho kỳ hoặc gói không khai bảng ({@link PolicyPackSpecialCaseRules}). Tham số {@code null} giữ
+ * nguyên như gói (chờ nghiệp vụ).
  */
 public class DefaultSpecialCaseRules implements SpecialCaseRuleSource {
 

@@ -17,7 +17,7 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
-import vn.viettel.okrkpi.appraisal.api.SpecialCaseQuery;
+import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodLockedException;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
@@ -48,12 +48,12 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
 /**
  * Trường hợp đặc thù PL 6 (CORE-06-05, QT-11 bước 2, BR-11-05, SCR-1102 vùng 2). MOD-06 tự đối
  * chiếu phân công và dữ kiện nhân sự của từng người với bảng {@code truong_hop_dac_thu} của Policy
- * Pack khi tạo hội nghị, khi MOD-04 lập hồ sơ (cổng {@link SpecialCaseQuery}) và khi nhận EVT-15;
- * mỗi (người, kỳ, mã) chỉ có một dòng. Dòng tự phát hiện chưa xác nhận được cập nhật theo dữ kiện
- * mới; dòng đã xác nhận hoặc nhập tay giữ nguyên. Dòng không còn khớp không bị xoá tự động, cơ quan
- * tổ chức xử lý khi xác minh (suy luận).
+ * Pack khi tạo hội nghị, khi nhận EVT-15; MOD-04 đọc kết quả qua cổng {@link AppraisalSpecialCases}
+ * khi lập hồ sơ; mỗi (người, kỳ, mã) chỉ có một dòng. Dòng tự phát hiện chưa xác nhận được cập nhật
+ * theo dữ kiện mới; dòng đã xác nhận hoặc nhập tay giữ nguyên. Dòng không còn khớp không bị xoá tự
+ * động, cơ quan tổ chức xử lý khi xác minh (suy luận).
  */
-public class SpecialCaseService implements SpecialCaseQuery {
+public class SpecialCaseService implements AppraisalSpecialCases {
 
   private static final Logger LOG = LoggerFactory.getLogger(SpecialCaseService.class);
 
@@ -216,26 +216,37 @@ public class SpecialCaseService implements SpecialCaseQuery {
     }
   }
 
-  /** Cổng của MOD-04 khi lập hồ sơ quý: đối chiếu lại rồi trả kết quả. */
+  /**
+   * Cổng {@link AppraisalSpecialCases} của MOD-04 khi lập hồ sơ quý (consumer EVT-09, kỳ vừa khoá):
+   * trả các trường hợp đã ghi của kỳ, không đối chiếu lại vì kỳ đã khoá thì không ghi. Hệ quả
+   * {@code KHONG_XEP_LOAI} ứng với {@link Treatment#KHONG_XEP_LOAI}, {@code XEP_LOAI_TAI_DON_VI_CU}
+   * với {@link Treatment#DON_VI_CU_DANH_GIA}; các hệ quả khác không đổi việc lập hồ sơ nên không
+   * trả. TL-03 không có hệ quả nào ứng với {@link Treatment#KHONG_LAP_HO_SO}. Bảng không có cột
+   * luồng nên trường hợp áp cả hai luồng.
+   */
   @Override
-  @Transactional(TX)
-  public List<SpecialCaseView> casesOf(TenantId tenantId, PeriodId periodId, UUID personId) {
-    Optional<PeriodSnapshot> period = periods.findById(tenantId, periodId);
+  @Transactional(transactionManager = TX, readOnly = true)
+  public List<SpecialCase> forPeriod(TenantId tenant, UUID periodId) {
+    Optional<PeriodSnapshot> period = periods.findById(tenant, PeriodId.of(periodId));
     if (period.isEmpty()) {
       return List.of();
     }
-    return detect(tenantId, period.get(), personId, List.of()).stream()
-        .map(
-            r ->
-                new SpecialCaseView(
-                    r.id(),
-                    r.caseCode(),
-                    r.effect(),
-                    r.legalRef(),
-                    r.effectiveFrom(),
-                    r.effectiveTo(),
-                    r.confirmedBy() != null))
-        .toList();
+    List<SpecialCase> out = new ArrayList<>();
+    for (SpecialCaseRow r : cases.listForPeriod(tenant, bucket(period.get()), periodId)) {
+      Treatment t = treatment(r.effect());
+      if (t != null) {
+        out.add(new SpecialCase(r.personId(), null, t));
+      }
+    }
+    return out;
+  }
+
+  static Treatment treatment(String effect) {
+    return switch (effect) {
+      case "KHONG_XEP_LOAI" -> Treatment.KHONG_XEP_LOAI;
+      case "XEP_LOAI_TAI_DON_VI_CU" -> Treatment.DON_VI_CU_DANH_GIA;
+      default -> null;
+    };
   }
 
   // ------------------------------------------------------------ đọc

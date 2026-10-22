@@ -7,8 +7,9 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
 
 /**
  * Bảng {@code truong_hop_dac_thu} của Policy Pack áp cho kỳ (BR-11-05). MOD-06 không được phụ thuộc
- * {@code policy :: api} (TL-01 ma trận phụ thuộc module) nên bảng đi qua cổng này; bean mặc định là
- * bảng 13 trường hợp của gói khối Đảng v2.0.
+ * {@code policy :: api} (TL-01 ma trận phụ thuộc module) nên bảng đi qua cổng này; bean mặc định
+ * đọc gói qua {@code config :: api} ({@code SpecialCaseRulesPort}), thiếu thì dùng bảng gói khối
+ * Đảng v2.0.
  */
 public interface SpecialCaseRuleSource {
 

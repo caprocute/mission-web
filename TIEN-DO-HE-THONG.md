@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **274 / 408 task (67.2%)** — Khối lượng quy đổi đã gộp: **313 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **274 / 408 task (67.2%)** (gồm **274** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **6 task** (2 đang làm, 4 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **275 / 408 task (67.4%)** (gồm **274** đã gộp `main` + **1** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
 - **Chưa bắt đầu**: **128 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **16 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-07`** (đang xử lý trên nhánh: không).
 
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **67** | 0 | 2 | 3 | **93.1%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **82** | 0 | 3 | 32 | **70.1%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **82** | 1 | 2 | 32 | **70.1%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **59** | 0 | 1 | 44 | **56.7%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **11** | 0 | 0 | 2 | **84.6%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **274** | **0** | **6** | **128** | **67.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **274** | **1** | **5** | **128** | **67.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -42,7 +42,7 @@
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **44** | 0 | 0 | 3 | **93.6%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **71** | 0 | 2 | 47 | **59.2%** |
-| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **48** | 0 | 2 | 22 | **66.7%** |
+| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **48** | 1 | 1 | 22 | **66.7%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **0** | 0 | 0 | 4 | **0.0%** |
@@ -315,7 +315,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-04-12](docs/tasks/CORE-04-12-phan-nhom-trien-vong.md) | Phân nhóm triển vọng: lưu nháp, BR-10-07..09, trình tập thể, ký danh sách | M | B4 | 21 | CORE-04-10 | **Chưa bắt đầu** |  |
 | [CORE-04-13](docs/tasks/CORE-04-13-dau-vao-diem-cong-viec-su-viec.md) | Đầu vào `workItems` và `responsibilityScope` trong `inputs`, bảng `appraisal.incident`, bắt buộc lý do khi mức của `rating_proposal` khác mức gợi ý | L | B4 | 18 | NEN-044, CORE-04-06, CORE-02-27, CORE-02-28, CORE-01-14 | **Chưa bắt đầu** | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
 
-### CORE-06 · MOD-06 dossier: kiểm điểm, hồ sơ số (4/8 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### CORE-06 · MOD-06 dossier: kiểm điểm, hồ sơ số (4/8 đã gộp `main`, 1 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -323,7 +323,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-06-02](docs/tasks/CORE-06-02-hoi-nghi-kiem-diem.md) | Hội nghị kiểm điểm: tạo, thành phần, quyền thư ký và chủ trì, gửi dự thảo | M | B4 | 13 | CORE-06-01, CORE-08-04 | **Đã gộp main** | Đã gộp main (984a7ba1) |
 | [CORE-06-03](docs/tasks/CORE-06-03-gop-y-an-danh.md) | Góp ý mã hoá C2 và chế độ ẩn danh qua OPA | S | B4 | 14 | CORE-06-02, NEN-015 | **Đã gộp main** | Đã gộp main (984a7ba1) |
 | [CORE-06-04](docs/tasks/CORE-06-04-ket-thuc-hoi-nghi.md) | Kết thúc hội nghị: biểu quyết, sinh biên bản 202, mục khắc phục | M | B4 | 15 | CORE-06-03, DV-11-01 | **Đã gộp main** | Đã gộp main (984a7ba1) |
-| [CORE-06-05](docs/tasks/CORE-06-05-truong-hop-dac-thu.md) | Phát hiện 13 trường hợp đặc thù theo bảng trong Policy Pack | L | B4 | 14 | CORE-06-01, CORE-05-03, CORE-00-03 | **Đang làm** | Nhánh claude/project-thread-n43ag0: chuyển sang cổng AppraisalSpecialCases, cổng bảng ở config :: api |
+| [CORE-06-05](docs/tasks/CORE-06-05-truong-hop-dac-thu.md) | Phát hiện 13 trường hợp đặc thù theo bảng trong Policy Pack | L | B4 | 14 | CORE-06-01, CORE-05-03, CORE-00-03 | **Xong, chờ gộp** | Nhánh claude/project-thread-n43ag0: hiện thực AppraisalSpecialCases, bảng theo gói qua config :: api SpecialCaseRulesPort; verify xanh (1148 + 268 IT) |
 | [CORE-06-06](docs/tasks/CORE-06-06-tao-goi-ho-so.md) | Tạo gói hồ sơ khi có EVT-12, theo dõi job sinh biểu mẫu, sinh lại tệp lỗi | M | B4 | 20 | CORE-06-01, CORE-04-08, DV-11-04 | **Chưa bắt đầu** |  |
 | [CORE-06-07](docs/tasks/CORE-06-07-ky-khoa-goi.md) | Manifest SHA-256, danh sách kiểm tra, ký gói, khoá `DA_NOP`, phiên bản gói mới khi EVT-22 | M | B4 | 21 | CORE-06-06, DV-10-02 | **Chưa bắt đầu** |  |
 | [CORE-06-08](docs/tasks/CORE-06-08-xuat-goi-edxml.md) | Xuất gói ZIP có manifest ký và gửi gói con diện Trung ương qua EdXML | M | B4 | 22 | CORE-06-07, DV-13-05 | **Chưa bắt đầu** |  |
@@ -964,4 +964,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 22:20 | Điều phối | `WEB-053` | Chuyển trạng thái sang **Đã gộp main** — Đã gộp main (984a7ba1) |
 | 22/10/2026 22:20 | Điều phối | `CORE-07-07` | Chuyển trạng thái sang **Làm một phần** — Phần lõi đã gộp main (8d459e44); mô phỏng chờ DV-07-08 |
 | 22/10/2026 22:26 | B2 backend | `CORE-06-05` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-n43ag0: chuyển sang cổng AppraisalSpecialCases, cổng bảng ở config :: api |
+| 22/10/2026 22:46 | B2 backend | `CORE-06-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0: hiện thực AppraisalSpecialCases, bảng theo gói qua config :: api SpecialCaseRulesPort; verify xanh (1148 + 268 IT) |
 <!-- PROGRESS_LOG_END -->

@@ -70,6 +70,21 @@ public class JdbcSpecialCaseRepository implements SpecialCaseRepository {
   }
 
   @Override
+  public List<SpecialCaseRow> listForPeriod(TenantId tenant, int bucket, UUID periodId) {
+    return jdbc.sql(
+            "SELECT "
+                + COLUMNS
+                + """
+                 FROM dossier.special_case
+                WHERE period_bucket = ? AND tenant_id = ? AND period_id = ?
+                ORDER BY person_id, case_code
+                """)
+        .params(bucket, tenant.value(), periodId)
+        .query(JdbcSpecialCaseRepository::row)
+        .list();
+  }
+
+  @Override
   public void insert(TenantId tenant, SpecialCaseRow row, UUID actor) {
     jdbc.sql(
             """
