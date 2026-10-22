@@ -46,6 +46,7 @@ public class EvidenceReviewService {
   private final TaskApi tasks;
   private final EvidenceIntegrityAlarm alarm;
   private final AuditLogger audit;
+  private ReviewerAuthority authority;
 
   public EvidenceReviewService(
       EvidenceSubmissionRepository repository,
@@ -58,6 +59,12 @@ public class EvidenceReviewService {
     this.tasks = Objects.requireNonNull(tasks, "tasks");
     this.alarm = Objects.requireNonNull(alarm, "alarm");
     this.audit = Objects.requireNonNull(audit, "audit");
+    this.authority = ReviewerAuthority.withoutDelegations(tasks);
+  }
+
+  /** Cho phép người nhận uỷ quyền nghiệm thu thay mở nghiệm thu (CORE-03-08). */
+  public void setAuthority(ReviewerAuthority authority) {
+    this.authority = Objects.requireNonNull(authority, "authority");
   }
 
   /** Toàn vẹn không bảo đảm (MSG-07-13); cảnh báo đã ghi trong giao dịch riêng. */
@@ -91,16 +98,11 @@ public class EvidenceReviewService {
             .findVersion(tenant, e.periodBucket(), evidenceId, versionNo)
             .orElseThrow(NoSuchElementException::new);
     TaskSummary task = tasks.find(tenant, e.taskId()).orElseThrow(NoSuchElementException::new);
-    UUID designated = EvidenceSubmissionService.designatedReviewer(task);
     UUID me = actor.personId();
     EvidenceStatus status = EvidenceStatus.valueOf(v.status());
+    ReviewerAuthority.Acting acting;
     try {
-      ReviewRules.requireIndependentReviewer(
-          me,
-          designated,
-          v.submittedBy(),
-          task.leadAssigneeId(),
-          me.equals(designated) && coordinates(tasks, tenant, task, me));
+      acting = authority.resolve(tenant, task, me, v.submittedBy());
       ReviewRules.requireReviewable(status);
     } catch (EvidenceRuleViolation ex) {
       throw new BusinessException(ex.code(), ex.getMessage());
@@ -122,6 +124,8 @@ public class EvidenceReviewService {
             .classification(v.hasE2ee() ? Classification.C3 : Classification.C2)
             .attribute("evidenceId", e.id().toString())
             .attribute("versionNo", Integer.toString(versionNo))
+            .attribute("onBehalfOf", acting.substitute() ? acting.onBehalfOf().toString() : "")
+            .attribute("delegationId", acting.substitute() ? acting.delegationId().toString() : "")
             .build());
     if (status == EvidenceStatus.DANG_NGHIEM_THU) {
       return false;

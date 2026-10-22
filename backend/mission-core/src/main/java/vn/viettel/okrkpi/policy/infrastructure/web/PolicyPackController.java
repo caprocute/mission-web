@@ -1,7 +1,11 @@
 package vn.viettel.okrkpi.policy.infrastructure.web;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.io.IOException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -435,9 +439,61 @@ public class PolicyPackController {
 
   private PolicyManifest manifest(String manifestJson) {
     try {
-      return json.readValue(manifestJson, PolicyManifest.class);
-    } catch (JsonProcessingException e) {
+      JsonNode tree = json.readTree(manifestJson);
+      if (tree instanceof ObjectNode root) {
+        normalizeManifest(root);
+      }
+      return json.readerFor(PolicyManifest.class)
+          .without(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+          .readValue(tree);
+    } catch (IOException e) {
       throw new IllegalStateException("Manifest của phiên bản không đọc được", e);
+    }
+  }
+
+  /**
+   * Đưa ba khoá BS-03 (NEN-044) về dạng hợp đồng khi gói viết theo dạng tệp {@code policy.yaml}
+   * (wiki 14): {@code inputs} dạng ánh xạ tên → khai báo thành mảng {@code {name, type, source}};
+   * {@code quotas} dạng mức → khối cấu hình thành mức → {@code ty_le_toi_da}; {@code
+   * classification} chỉ giữ {@code dmn}, {@code chain}. Dữ liệu trong CSDL không đổi.
+   */
+  private void normalizeManifest(ObjectNode root) {
+    if (root.get("inputs") instanceof ObjectNode inputs) {
+      ArrayNode list = json.createArrayNode();
+      inputs
+          .properties()
+          .forEach(
+              e -> {
+                ObjectNode item = list.addObject().put("name", e.getKey());
+                JsonNode decl = e.getValue();
+                JsonNode type = decl.isTextual() ? decl : decl.path("type");
+                item.put("type", type.isTextual() ? type.asText() : "dyn");
+                if (decl.path("source").isTextual()) {
+                  item.put("source", decl.path("source").asText());
+                }
+              });
+      root.set("inputs", list);
+    } else if (root.has("inputs") && !root.get("inputs").isArray()) {
+      root.remove("inputs");
+    }
+    if (root.get("quotas") instanceof ObjectNode quotas) {
+      ObjectNode caps = json.createObjectNode();
+      quotas
+          .properties()
+          .forEach(
+              e -> {
+                JsonNode v = e.getValue();
+                JsonNode cap = v.isNumber() ? v : v.path("ty_le_toi_da");
+                if (cap.isNumber()) {
+                  caps.set(e.getKey(), cap);
+                }
+              });
+      root.set("quotas", caps);
+    }
+    if (root.get("classification") instanceof ObjectNode cls) {
+      cls.retain("dmn", "chain");
+    } else if (root.has("classification")) {
+      root.remove("classification");
     }
   }
 

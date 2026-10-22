@@ -21,6 +21,7 @@ import slider from '@primeuix/themes/aura/slider';
 import tabs from '@primeuix/themes/aura/tabs';
 import tag from '@primeuix/themes/aura/tag';
 import textarea from '@primeuix/themes/aura/textarea';
+import toast from '@primeuix/themes/aura/toast';
 import togglebutton from '@primeuix/themes/aura/togglebutton';
 import tooltip from '@primeuix/themes/aura/tooltip';
 import type { ExtendedCSS, Preset } from '@primeuix/themes/types';
@@ -56,6 +57,8 @@ export const AURA_COMPONENTS = {
   tabs,
   tag,
   textarea,
+  // WEB-012: <p-toast> của shell và phần nhúng hiện thông báo lỗi chung của ProblemPresenter
+  toast,
   togglebutton,
   tooltip,
 };

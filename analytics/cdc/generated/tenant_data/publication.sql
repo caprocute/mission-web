@@ -10,13 +10,13 @@ BEGIN
   END IF;
 END $$;
 ALTER PUBLICATION pub_analytics SET (publish = 'insert, update, delete', publish_via_partition_root = true);
-ALTER PUBLICATION pub_analytics SET TABLE task.task, task.task_assignee, task.task_progress, product.evidence, okr.objective, okr.key_result, okr.kr_checkin, appraisal.appraisal_profile, appraisal.score_snapshot, appraisal.rating_proposal, org_replica.org_unit_v, org_replica.person_v, org_replica.assignment_v, org_replica.unit_closure_v, config.period, policy.policy_pack_version;
+ALTER PUBLICATION pub_analytics SET TABLE task.task, task.task_assignee, task.task_progress, product.evidence, okr.objective, okr.key_result, okr.kr_checkin, appraisal.appraisal_profile, appraisal.score_snapshot, appraisal.rating_proposal, org_replica.org_unit_v, org_replica.person_v, org_replica.assignment_v, org_replica.unit_closure_v, config.period, policy.policy_pack_version, task.task_change_request;
 DO $$
 DECLARE r record;
 BEGIN
-  FOR r IN SELECT root.oid AS rel FROM unnest(ARRAY['task.task', 'task.task_assignee', 'task.task_progress', 'product.evidence', 'okr.objective', 'okr.key_result', 'okr.kr_checkin', 'appraisal.appraisal_profile', 'appraisal.score_snapshot', 'appraisal.rating_proposal', 'org_replica.org_unit_v', 'org_replica.person_v', 'org_replica.assignment_v', 'org_replica.unit_closure_v', 'config.period', 'policy.policy_pack_version']::regclass[]) AS root(oid)
+  FOR r IN SELECT root.oid AS rel FROM unnest(ARRAY['task.task', 'task.task_assignee', 'task.task_progress', 'product.evidence', 'okr.objective', 'okr.key_result', 'okr.kr_checkin', 'appraisal.appraisal_profile', 'appraisal.score_snapshot', 'appraisal.rating_proposal', 'org_replica.org_unit_v', 'org_replica.person_v', 'org_replica.assignment_v', 'org_replica.unit_closure_v', 'config.period', 'policy.policy_pack_version', 'task.task_change_request']::regclass[]) AS root(oid)
            UNION
-           SELECT t.relid::regclass FROM unnest(ARRAY['task.task', 'task.task_assignee', 'task.task_progress', 'product.evidence', 'okr.objective', 'okr.key_result', 'okr.kr_checkin', 'appraisal.appraisal_profile', 'appraisal.score_snapshot', 'appraisal.rating_proposal', 'org_replica.org_unit_v', 'org_replica.person_v', 'org_replica.assignment_v', 'org_replica.unit_closure_v', 'config.period', 'policy.policy_pack_version']::regclass[]) AS root(oid),
+           SELECT t.relid::regclass FROM unnest(ARRAY['task.task', 'task.task_assignee', 'task.task_progress', 'product.evidence', 'okr.objective', 'okr.key_result', 'okr.kr_checkin', 'appraisal.appraisal_profile', 'appraisal.score_snapshot', 'appraisal.rating_proposal', 'org_replica.org_unit_v', 'org_replica.person_v', 'org_replica.assignment_v', 'org_replica.unit_closure_v', 'config.period', 'policy.policy_pack_version', 'task.task_change_request']::regclass[]) AS root(oid),
                   LATERAL pg_partition_tree(root.oid) AS t
   LOOP
     EXECUTE format('ALTER TABLE %s REPLICA IDENTITY FULL', r.rel);

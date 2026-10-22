@@ -10,7 +10,7 @@ import pytest
 
 import cdc_config_gen as gen
 
-CH_V005 = gen.REPO / "analytics" / "clickhouse" / "migrations" / "V005__nguon_cdc_kafka.sql"
+CH_MIG = gen.REPO / "analytics" / "clickhouse" / "migrations"
 
 
 def test_committed_config_matches_regenerated() -> None:
@@ -104,11 +104,13 @@ def test_check_detects_stale_file(tmp_path: pathlib.Path, monkeypatch: pytest.Mo
 def test_clickhouse_side_agrees_with_connector() -> None:
     """Mỗi cột ClickHouse đọc phải còn trong bản ghi CDC (không bị loại), và cột ClickHouse đánh dấu gia_danh phải
     đúng là cột bộ biến đổi băm; ngược lại cột bị băm mà ClickHouse đọc phải được ClickHouse coi là mã giả danh."""
-    sql = CH_V005.read_text(encoding="utf-8")
+    # Bảng nguồn từ V005 trở đi; tệp sau dựng lại bảng thì định nghĩa sau thắng.
+    sql = "\n".join(f.read_text(encoding="utf-8") for f in sorted(CH_MIG.glob("V*.sql")) if f.name >= "V005")
     plans = {p.db: p for p in gen.build()}
-    for body, prefix, schema, table in re.findall(
-            r"\n\((.*?)\n\)\nENGINE = Kafka\nSETTINGS .*?kafka_topic_list = '\{\{topic_(\w+)\}\}\.(\w+)\.(\w+)'",
-            sql, re.S):
+    latest = {(prefix, schema, table): body for body, prefix, schema, table in re.findall(
+        r"\n\((.*?)\n\)\nENGINE = Kafka\nSETTINGS .*?kafka_topic_list = '\{\{topic_(\w+)\}\}\.(\w+)\.(\w+)'",
+        sql, re.S)}
+    for (prefix, schema, table), body in latest.items():
         p = plans[gen.TOPIC_DB[prefix]]
         cols = dict(re.findall(r"`(\w+)` String( COMMENT 'gia_danh')?", body))
         excluded = {c.rsplit(".", 1)[1] for c in p.excluded if c.startswith(f"{schema}.{table}.")}

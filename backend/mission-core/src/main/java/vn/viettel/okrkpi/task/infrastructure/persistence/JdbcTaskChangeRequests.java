@@ -21,7 +21,7 @@ public class JdbcTaskChangeRequests implements TaskChangeRequests {
   private static final String COLUMNS =
       "id, task_id, request_type, status, proposed_due_date, proposed_quantity,"
           + " new_values ->> 'newProduct' AS new_product, cause_claimed, blocker_id, reason,"
-          + " approver_id, created_by, created_at, decided_at, cause_decided, decision_note,"
+          + " approver_id, created_by, created_at, decided_at, decided_by, cause_decided, decision_note,"
           + " coalesce((new_values ->> 'overThreshold')::boolean, false) AS escalated, row_version";
 
   private final JdbcClient jdbc;
@@ -131,6 +131,63 @@ public class JdbcTaskChangeRequests implements TaskChangeRequests {
         .list();
   }
 
+  @Override
+  public boolean decide(
+      TenantId tenant,
+      int periodBucket,
+      UUID requestId,
+      String status,
+      String causeDecided,
+      String note,
+      UUID actorId,
+      Instant at) {
+    Timestamp ts = Timestamp.from(at);
+    return jdbc.sql(
+                "UPDATE task.task_change_request SET status = ?, cause_decided = ?,"
+                    + " decision_note = ?, decided_by = ?, decided_at = ?, updated_by = ?,"
+                    + " updated_at = ?, row_version = row_version + 1 WHERE period_bucket = ?"
+                    + " AND tenant_id = ? AND id = ? AND status = 'CHO_DUYET'")
+            .params(
+                status,
+                causeDecided,
+                note,
+                actorId,
+                ts,
+                actorId,
+                ts,
+                periodBucket,
+                tenant.value(),
+                requestId)
+            .update()
+        == 1;
+  }
+
+  @Override
+  public long applyToTask(
+      TenantId tenant, int periodBucket, UUID taskId, long expectedVersion, TaskChange c) {
+    int n =
+        jdbc.sql(
+                "UPDATE task.task SET extended_due_date = coalesce(?, extended_due_date),"
+                    + " score_due_date = coalesce(?, score_due_date),"
+                    + " planned_quantity = coalesce(?, planned_quantity),"
+                    + " product_name = coalesce(?, product_name), updated_by = ?, updated_at = ?,"
+                    + " row_version = row_version + 1 WHERE period_bucket = ? AND tenant_id = ?"
+                    + " AND id = ? AND row_version = ?")
+            .params(
+                c.extendedDueDate() == null ? null : Date.valueOf(c.extendedDueDate()),
+                c.scoreDueDate() == null ? null : Date.valueOf(c.scoreDueDate()),
+                c.plannedQuantity(),
+                c.productName(),
+                c.actorId(),
+                Timestamp.from(c.at()),
+                periodBucket,
+                tenant.value(),
+                taskId,
+                expectedVersion)
+            .update();
+    return n == 1 ? expectedVersion + 1 : -1;
+  }
+
   private String write(NewChange c) {
     try {
       return json.writeValueAsString(c.newValues());
@@ -157,6 +214,7 @@ public class JdbcTaskChangeRequests implements TaskChangeRequests {
         rs.getObject("created_by", UUID.class),
         rs.getTimestamp("created_at").toInstant(),
         decided == null ? null : decided.toInstant(),
+        rs.getObject("decided_by", UUID.class),
         rs.getString("cause_decided"),
         rs.getString("decision_note"),
         rs.getBoolean("escalated"),

@@ -50,7 +50,12 @@ import { TagModule } from 'primeng/tag';
 import { TASK_CAN } from '../task-permissions';
 import { formatDate, progressTone, situation } from '../task-ui';
 import { BulkProgressDialog } from './my-tasks/bulk-progress.dialog';
-import { MY_TASKS_CODEC, MY_TASKS_COLUMNS, MY_TASKS_SCREEN, MyTasksFilterState } from './my-tasks.list';
+import {
+  MY_TASKS_CODEC,
+  MY_TASKS_COLUMNS,
+  MY_TASKS_SCREEN,
+  MyTasksFilterState,
+} from './my-tasks.list';
 import { TaskPreviewPanel } from './my-tasks/task-preview.panel';
 import { TaskRegistrationPanel } from './my-tasks/task-registration.panel';
 
@@ -291,29 +296,29 @@ export function readSavedFilters(
                     <td>{{ date(t.dueDate) }}</td>
                   }
                   @if (list.shows('progress')) {
-                  <td class="pct">
-                    <div
-                      class="bar"
-                      role="progressbar"
-                      [attr.aria-valuenow]="t.progress"
-                      aria-valuemin="0"
-                      aria-valuemax="100"
-                      [attr.aria-label]="'Tiến độ ' + t.code"
-                    >
-                      <span [class]="'fill ' + tone(t)" [style.width.%]="t.progress"></span>
-                    </div>
-                    <span class="small">{{ t.progress }}%</span>
-                  </td>
+                    <td class="pct">
+                      <div
+                        class="bar"
+                        role="progressbar"
+                        [attr.aria-valuenow]="t.progress"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        [attr.aria-label]="'Tiến độ ' + t.code"
+                      >
+                        <span [class]="'fill ' + tone(t)" [style.width.%]="t.progress"></span>
+                      </div>
+                      <span class="small">{{ t.progress }}%</span>
+                    </td>
                   }
                   @if (list.shows('situation')) {
-                  <td>
-                    <p-tag
-                      [value]="s.label"
-                      [severity]="s.severity"
-                      [rounded]="true"
-                      styleClass="nowrap"
-                    />
-                  </td>
+                    <td>
+                      <p-tag
+                        [value]="s.label"
+                        [severity]="s.severity"
+                        [rounded]="true"
+                        styleClass="nowrap"
+                      />
+                    </td>
                   }
                   @if (!reduced() && list.shows('status')) {
                     <td class="status">{{ statusLabel[t.status] }}</td>
@@ -656,7 +661,11 @@ export class MyTasksPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   /** CNH-04: cột tuỳ chọn và bộ lọc đã lưu, lưu theo người dùng trên máy chủ. */
-  protected readonly list = createListPersonalization(MY_TASKS_SCREEN, MY_TASKS_COLUMNS, MY_TASKS_CODEC);
+  protected readonly list = createListPersonalization(
+    MY_TASKS_SCREEN,
+    MY_TASKS_COLUMNS,
+    MY_TASKS_CODEC,
+  );
   protected readonly state = computed<MyTasksFilterState>(() => ({
     filter: this.filter(),
     role: this.role(),

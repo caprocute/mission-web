@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildEditorItems, moveItem, previewLayout, toOverlay, toggleHidden } from './home-layout-editor';
+import {
+  buildEditorItems,
+  moveItem,
+  previewLayout,
+  toOverlay,
+  toggleHidden,
+} from './home-layout-editor';
 
 const A = { component: 'vt.widget.announcement' };
 const T = { component: 'vt.widget.myTasksToday', mandatory: true };
@@ -42,13 +48,18 @@ describe('home-layout-editor (CNH-03)', () => {
       ],
       hiddenWidgets: [],
     });
-    expect(toOverlay(toggleHidden(items, 1), null).hiddenWidgets).toEqual(['vt.widget.pendingApprovals']);
+    expect(toOverlay(toggleHidden(items, 1), null).hiddenWidgets).toEqual([
+      'vt.widget.pendingApprovals',
+    ]);
   });
 
   it('xem trước bỏ khối đã ẩn và theo thứ tự đang soạn', () => {
     const items = toggleHidden(buildEditorItems([A, T, P], [], [], []), 0);
     const nodes = new Map([A, T, P].map((n) => [n.component, n]));
     const root = previewLayout({ component: 'vt.layout.grid', children: [] }, items, nodes);
-    expect(root.children?.map((n) => n.component)).toEqual(['vt.widget.myTasksToday', 'vt.widget.pendingApprovals']);
+    expect(root.children?.map((n) => n.component)).toEqual([
+      'vt.widget.myTasksToday',
+      'vt.widget.pendingApprovals',
+    ]);
   });
 });

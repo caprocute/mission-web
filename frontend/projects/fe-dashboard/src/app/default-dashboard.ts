@@ -16,7 +16,8 @@ export class DefaultDashboardStore {
   private readonly loaded = signal(false);
 
   readonly defaultId = computed(
-    () => (this.item()?.value as DashboardDefaultPreference | undefined)?.defaultDashboardId ?? null,
+    () =>
+      (this.item()?.value as DashboardDefaultPreference | undefined)?.defaultDashboardId ?? null,
   );
   readonly ready = this.loaded.asReadonly();
 
@@ -33,7 +34,8 @@ export class DefaultDashboardStore {
   /** Đặt (`id`) hoặc bỏ (`null`) dashboard mặc định. */
   set(id: string | null): Observable<unknown> {
     const current = this.item();
-    const { defaultDashboardId: _old, ...rest } = (current?.value ?? {}) as DashboardDefaultPreference;
+    const { defaultDashboardId: _old, ...rest } = (current?.value ??
+      {}) as DashboardDefaultPreference;
     const value: DashboardDefaultPreference = id ? { ...rest, defaultDashboardId: id } : rest;
     if (!id && current && Object.keys(rest).length === 0) {
       return this.api.remove(KEY, current.rowVersion).pipe(tap(() => this.item.set(null)));

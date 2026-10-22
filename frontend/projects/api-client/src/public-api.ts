@@ -80,6 +80,7 @@ export * from './lib/models/notification';
 export * from './lib/sse';
 export * from './lib/notification-api';
 export { mockApiInterceptor, MOCK_API_OPTIONS } from './mock/mock-api.interceptor';
+export { setMockHomeBase } from './mock/mock-home-base';
 export {
   failMockIntegrityOnce,
   failMockUploadPartOnce,

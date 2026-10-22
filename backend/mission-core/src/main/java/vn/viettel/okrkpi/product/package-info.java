@@ -4,5 +4,11 @@
  */
 @org.springframework.modulith.ApplicationModule(
     displayName = "MOD-03 · Product Catalog & Scoring",
-    allowedDependencies = {"shared", "config :: api", "policy :: api", "task :: api"})
+    allowedDependencies = {
+      "shared",
+      "config :: api",
+      "policy :: api",
+      "task :: api",
+      "replica :: api"
+    })
 package vn.viettel.okrkpi.product;

@@ -1,0 +1,381 @@
+{
+ "_ghi_chu": "Kết quả mong đợi: 'canh_bao' cho tenant A với ngưỡng mặc định TL-02b (B không có cảnh báo); 'canh_bao_nguong_thay_doi' cho tenant D. Trong 'chuoi', '#X' là mã cố định của X trong tenant đang xét; danh sách so sánh không theo thứ tự. Dấu hiệu 6, 8 (DV-15-09): R1 chỉ đủ số lần miễn trừ (VUA), R2 đủ cả số lần và tỷ lệ chấp nhận so với tỷ lệ chung 9/21 (CAO); R4 có đề nghị chủ quan và đề nghị không phải gia hạn (không tính), R5 không miễn trừ, S2 không sửa sau mốc.",
+ "canh_bao": [
+  {
+   "dau_hieu": "TU_CHAM_CAO",
+   "loai": "CA_NHAN",
+   "doi_tuong": "#P1Q3",
+   "ky": "Q3",
+   "muc": "CAO",
+   "chuoi": [
+    "dieu_kien:MUC_TU_DE_XUAT_CAO_HON",
+    "dieu_kien:DIEM_TU_TINH_CAO_HON",
+    "ky:#Q3",
+    "appraisal_profile:#P1Q1",
+    "appraisal_profile:#P1Q2",
+    "appraisal_profile:#P1Q3"
+   ]
+  },
+  {
+   "dau_hieu": "TU_CHAM_CAO",
+   "loai": "CA_NHAN",
+   "doi_tuong": "#P3Q4",
+   "ky": "Q4",
+   "muc": "VUA",
+   "chuoi": [
+    "dieu_kien:DIEM_TU_TINH_CAO_HON",
+    "ky:#Q4",
+    "appraisal_profile:#P3Q3",
+    "appraisal_profile:#P3Q4"
+   ]
+  },
+  {
+   "dau_hieu": "CAO_BANG",
+   "loai": "DON_VI",
+   "doi_tuong": "#U1",
+   "ky": "Q4",
+   "muc": "VUA",
+   "chuoi": [
+    "dieu_kien:CUNG_MOT_MUC",
+    "dieu_kien:DO_LECH_DIEM_THAP",
+    "ky:#Q4",
+    "appraisal_profile:#U1-1",
+    "appraisal_profile:#U1-2",
+    "appraisal_profile:#U1-3",
+    "appraisal_profile:#U1-4",
+    "appraisal_profile:#U1-5",
+    "appraisal_profile:#U1-6"
+   ]
+  },
+  {
+   "dau_hieu": "CAO_BANG",
+   "loai": "DON_VI",
+   "doi_tuong": "#U2",
+   "ky": "Q4",
+   "muc": "THAP",
+   "chuoi": [
+    "dieu_kien:TY_LE_XUAT_SAC_VUOT_NGUONG",
+    "ky:#Q4",
+    "appraisal_profile:#U2-1",
+    "appraisal_profile:#U2-2",
+    "appraisal_profile:#U2-3",
+    "appraisal_profile:#U2-4",
+    "appraisal_profile:#U2-5"
+   ]
+  },
+  {
+   "dau_hieu": "MUC_TIEU_DE",
+   "loai": "DON_VI",
+   "doi_tuong": "#U1",
+   "ky": "Q4",
+   "muc": "CAO",
+   "chuoi": [
+    "dieu_kien:DAT_CHI_TIEU_SOM",
+    "so_lieu:NGAY_DAT_TRONG_KY=5",
+    "ky:#Q4",
+    "key_result:#K1",
+    "objective:#O1"
+   ]
+  },
+  {
+   "dau_hieu": "MUC_TIEU_DE",
+   "loai": "DON_VI",
+   "doi_tuong": "#U1",
+   "ky": "Q4",
+   "muc": "VUA",
+   "chuoi": [
+    "dieu_kien:CHI_TIEU_THAP_HON_KY_TRUOC",
+    "so_lieu:CHI_TIEU_THAP_HON_PHAN_TRAM=30",
+    "ky:#Q4",
+    "key_result:#K2",
+    "objective:#O1"
+   ]
+  },
+  {
+   "dau_hieu": "MUC_TIEU_DE",
+   "loai": "DON_VI",
+   "doi_tuong": "#U2",
+   "ky": "Q4",
+   "muc": "THAP",
+   "chuoi": [
+    "dieu_kien:CHI_TIEU_THAP_HON_KY_TRUOC",
+    "so_lieu:CHI_TIEU_THAP_HON_PHAN_TRAM=20",
+    "ky:#Q4",
+    "key_result:#K3",
+    "objective:#O2"
+   ]
+  },
+  {
+   "dau_hieu": "MUC_TIEU_DE",
+   "loai": "DON_VI",
+   "doi_tuong": "#U2",
+   "ky": "Q4",
+   "muc": "CAO",
+   "chuoi": [
+    "dieu_kien:DAT_CHI_TIEU_SOM",
+    "dieu_kien:CHI_TIEU_THAP_HON_KY_TRUOC",
+    "so_lieu:NGAY_DAT_TRONG_KY=3",
+    "so_lieu:CHI_TIEU_THAP_HON_PHAN_TRAM=25",
+    "ky:#Q4",
+    "key_result:#K4",
+    "objective:#O2"
+   ]
+  },
+  {
+   "dau_hieu": "CAP_NHAT_DON",
+   "loai": "DON_VI",
+   "doi_tuong": "#V1",
+   "ky": "Q3",
+   "muc": "THAP",
+   "chuoi": [
+    "dieu_kien:DON_CUOI_KY",
+    "so_lieu:SO_LUOT_CAP_NHAT=10",
+    "so_lieu:TY_LE_CUOI_KY_PHAN_TRAM=70",
+    "so_lieu:TY_LE_CUOI_TUAN_PHAN_TRAM=0",
+    "ky:#Q3"
+   ]
+  },
+  {
+   "dau_hieu": "CAP_NHAT_DON",
+   "loai": "DON_VI",
+   "doi_tuong": "#V2",
+   "ky": "Q3",
+   "muc": "CAO",
+   "chuoi": [
+    "dieu_kien:DON_CUOI_TUAN",
+    "so_lieu:SO_LUOT_CAP_NHAT=10",
+    "so_lieu:TY_LE_CUOI_KY_PHAN_TRAM=0",
+    "so_lieu:TY_LE_CUOI_TUAN_PHAN_TRAM=90",
+    "ky:#Q3"
+   ]
+  },
+  {
+   "dau_hieu": "CAP_NHAT_DON",
+   "loai": "DON_VI",
+   "doi_tuong": "#V3",
+   "ky": "Q3",
+   "muc": "VUA",
+   "chuoi": [
+    "dieu_kien:DON_CUOI_KY",
+    "so_lieu:SO_LUOT_CAP_NHAT=12",
+    "so_lieu:TY_LE_CUOI_KY_PHAN_TRAM=75",
+    "so_lieu:TY_LE_CUOI_TUAN_PHAN_TRAM=0",
+    "ky:#Q3"
+   ]
+  },
+  {
+   "dau_hieu": "CHE_NHO",
+   "loai": "CA_NHAN",
+   "doi_tuong": "#HS-N1Q3",
+   "ky": "Q3",
+   "muc": "CAO",
+   "chuoi": [
+    "dieu_kien:SO_NHIEM_VU_TANG_KHOI_LUONG_KHONG_DOI",
+    "so_lieu:SO_NHIEM_VU=8",
+    "so_lieu:SO_NHIEM_VU_KY_TRUOC=4",
+    "ky:#Q3",
+    "task:#NV-N1-Q3-1",
+    "task:#NV-N1-Q3-2",
+    "task:#NV-N1-Q3-3",
+    "task:#NV-N1-Q3-4",
+    "task:#NV-N1-Q3-5",
+    "task:#NV-N1-Q3-6",
+    "task:#NV-N1-Q3-7",
+    "task:#NV-N1-Q3-8"
+   ]
+  },
+  {
+   "dau_hieu": "CHE_NHO",
+   "loai": "DON_VI",
+   "doi_tuong": "#W1",
+   "ky": "Q3",
+   "muc": "THAP",
+   "chuoi": [
+    "dieu_kien:SO_NHIEM_VU_TANG_KHOI_LUONG_KHONG_DOI",
+    "so_lieu:SO_NHIEM_VU=6",
+    "so_lieu:SO_NHIEM_VU_KY_TRUOC=4",
+    "ky:#Q3",
+    "task:#NV-N2-Q3-1",
+    "task:#NV-N2-Q3-2",
+    "task:#NV-N2-Q3-3",
+    "task:#NV-N2-Q3-4",
+    "task:#NV-N2-Q3-5",
+    "task:#NV-N2-Q3-6"
+   ]
+  },
+  {
+   "dau_hieu": "CHE_NHO",
+   "loai": "DON_VI",
+   "doi_tuong": "#W1",
+   "ky": "Q3",
+   "muc": "VUA",
+   "chuoi": [
+    "dieu_kien:NHIEU_NHIEM_VU_CUNG_KE_HOACH_CUNG_HAN",
+    "so_lieu:SO_NHIEM_VU_CUNG_HAN=5",
+    "ky:#Q3",
+    "task:#NV-N3-Q3-1",
+    "task:#NV-N3-Q3-2",
+    "task:#NV-N3-Q3-3",
+    "task:#NV-N3-Q3-4",
+    "task:#NV-N3-Q3-5"
+   ]
+  },
+  {
+   "dau_hieu": "SUA_SAU_KHOA",
+   "loai": "CA_NHAN",
+   "doi_tuong": "#S1Q3",
+   "ky": "Q3",
+   "muc": "CAO",
+   "chuoi": [
+    "dieu_kien:NGHIEM_THU_SAU_TAM_TINH",
+    "dieu_kien:MUC_TIEU_DUYET_SAU_TAM_TINH",
+    "dieu_kien:SUA_SAU_KHOA_KY",
+    "so_lieu:CHENH_DIEM=6",
+    "ky:#Q3",
+    "appraisal_profile:#S1Q3",
+    "task:#NV-S1-1",
+    "task:#NV-S1-3",
+    "objective:#MT-S1"
+   ]
+  },
+  {
+   "dau_hieu": "MIEN_TRU_LAP",
+   "loai": "NGUOI_DUYET",
+   "doi_tuong": "#DN-R1-Q4-2",
+   "ky": "Q4",
+   "muc": "VUA",
+   "chuoi": [
+    "dieu_kien:MIEN_TRU_KHACH_QUAN_LAP_LAI",
+    "so_lieu:SO_LAN_MIEN_TRU=3",
+    "ky:#Q4",
+    "task_change_request:#DN-R1-Q3-1",
+    "task_change_request:#DN-R1-Q4-1",
+    "task_change_request:#DN-R1-Q4-2"
+   ]
+  },
+  {
+   "dau_hieu": "MIEN_TRU_LAP",
+   "loai": "NGUOI_DUYET",
+   "doi_tuong": "#DN-R2-Q4-5",
+   "ky": "Q4",
+   "muc": "CAO",
+   "chuoi": [
+    "dieu_kien:MIEN_TRU_KHACH_QUAN_LAP_LAI",
+    "dieu_kien:TY_LE_CHAP_NHAN_KHACH_QUAN_CAO",
+    "so_lieu:SO_DE_NGHI_KHACH_QUAN=6",
+    "so_lieu:TY_LE_CHAP_NHAN_PHAN_TRAM=83.3",
+    "so_lieu:TY_LE_CHUNG_PHAN_TRAM=42.9",
+    "so_lieu:SO_LAN_MIEN_TRU=5",
+    "ky:#Q4",
+    "task_change_request:#DN-R2-Q4-1",
+    "task_change_request:#DN-R2-Q4-2",
+    "task_change_request:#DN-R2-Q4-3",
+    "task_change_request:#DN-R2-Q4-4",
+    "task_change_request:#DN-R2-Q4-5",
+    "task_change_request:#DN-R2-Q4-6"
+   ]
+  }
+ ],
+ "canh_bao_nguong_thay_doi": [
+  {
+   "dau_hieu": "MUC_TIEU_DE",
+   "loai": "DON_VI",
+   "doi_tuong": "#U1",
+   "ky": "Q4",
+   "muc": "THAP",
+   "chuoi": [
+    "dieu_kien:DAT_CHI_TIEU_SOM",
+    "so_lieu:NGAY_DAT_TRONG_KY=5",
+    "ky:#Q4",
+    "key_result:#K1",
+    "objective:#O1"
+   ]
+  },
+  {
+   "dau_hieu": "MUC_TIEU_DE",
+   "loai": "DON_VI",
+   "doi_tuong": "#U1",
+   "ky": "Q4",
+   "muc": "THAP",
+   "chuoi": [
+    "dieu_kien:CHI_TIEU_THAP_HON_KY_TRUOC",
+    "so_lieu:CHI_TIEU_THAP_HON_PHAN_TRAM=30",
+    "ky:#Q4",
+    "key_result:#K2",
+    "objective:#O1"
+   ]
+  },
+  {
+   "dau_hieu": "MUC_TIEU_DE",
+   "loai": "DON_VI",
+   "doi_tuong": "#U2",
+   "ky": "Q4",
+   "muc": "CAO",
+   "chuoi": [
+    "dieu_kien:DAT_CHI_TIEU_SOM",
+    "dieu_kien:CHI_TIEU_THAP_HON_KY_TRUOC",
+    "so_lieu:NGAY_DAT_TRONG_KY=3",
+    "so_lieu:CHI_TIEU_THAP_HON_PHAN_TRAM=25",
+    "ky:#Q4",
+    "key_result:#K4",
+    "objective:#O2"
+   ]
+  },
+  {
+   "dau_hieu": "CAP_NHAT_DON",
+   "loai": "DON_VI",
+   "doi_tuong": "#V2",
+   "ky": "Q3",
+   "muc": "THAP",
+   "chuoi": [
+    "dieu_kien:DON_CUOI_TUAN",
+    "so_lieu:SO_LUOT_CAP_NHAT=10",
+    "so_lieu:TY_LE_CUOI_KY_PHAN_TRAM=0",
+    "so_lieu:TY_LE_CUOI_TUAN_PHAN_TRAM=90",
+    "ky:#Q3"
+   ]
+  },
+  {
+   "dau_hieu": "CHE_NHO",
+   "loai": "CA_NHAN",
+   "doi_tuong": "#HS-N1Q3",
+   "ky": "Q3",
+   "muc": "THAP",
+   "chuoi": [
+    "dieu_kien:SO_NHIEM_VU_TANG_KHOI_LUONG_KHONG_DOI",
+    "so_lieu:SO_NHIEM_VU=8",
+    "so_lieu:SO_NHIEM_VU_KY_TRUOC=4",
+    "ky:#Q3",
+    "task:#NV-N1-Q3-1",
+    "task:#NV-N1-Q3-2",
+    "task:#NV-N1-Q3-3",
+    "task:#NV-N1-Q3-4",
+    "task:#NV-N1-Q3-5",
+    "task:#NV-N1-Q3-6",
+    "task:#NV-N1-Q3-7",
+    "task:#NV-N1-Q3-8"
+   ]
+  },
+  {
+   "dau_hieu": "MIEN_TRU_LAP",
+   "loai": "NGUOI_DUYET",
+   "doi_tuong": "#DN-R2-Q4-5",
+   "ky": "Q4",
+   "muc": "VUA",
+   "chuoi": [
+    "dieu_kien:TY_LE_CHAP_NHAN_KHACH_QUAN_CAO",
+    "so_lieu:SO_DE_NGHI_KHACH_QUAN=6",
+    "so_lieu:TY_LE_CHAP_NHAN_PHAN_TRAM=83.3",
+    "so_lieu:TY_LE_CHUNG_PHAN_TRAM=42.9",
+    "so_lieu:SO_LAN_MIEN_TRU=5",
+    "ky:#Q4",
+    "task_change_request:#DN-R2-Q4-1",
+    "task_change_request:#DN-R2-Q4-2",
+    "task_change_request:#DN-R2-Q4-3",
+    "task_change_request:#DN-R2-Q4-4",
+    "task_change_request:#DN-R2-Q4-5",
+    "task_change_request:#DN-R2-Q4-6"
+   ]
+  }
+ ]
+}

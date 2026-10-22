@@ -1295,6 +1295,138 @@
           }
         }
       }
+    },
+    "fe-plugin-giaoduc": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss"
+        }
+      },
+      "root": "projects/fe-plugin-giaoduc",
+      "sourceRoot": "projects/fe-plugin-giaoduc/src",
+      "prefix": "vt",
+      "architect": {
+        "build": {
+          "builder": "@angular-architects/native-federation:build",
+          "options": {},
+          "configurations": {
+            "production": {
+              "target": "fe-plugin-giaoduc:esbuild:production"
+            },
+            "development": {
+              "target": "fe-plugin-giaoduc:esbuild:development",
+              "dev": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular-architects/native-federation:build",
+          "options": {
+            "target": "fe-plugin-giaoduc:serve-original:development",
+            "rebuildDelay": 500,
+            "dev": true,
+            "cacheExternalArtifacts": false,
+            "port": 0
+          }
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "buildTarget": "fe-plugin-giaoduc:esbuild:development",
+            "tsConfig": "projects/fe-plugin-giaoduc/tsconfig.spec.json"
+          }
+        },
+        "esbuild": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/fe-plugin-giaoduc/src/main.ts",
+            "tsConfig": "projects/fe-plugin-giaoduc/tsconfig.app.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/fe-plugin-giaoduc/public"
+              }
+            ],
+            "styles": ["projects/fe-plugin-giaoduc/src/styles.scss"],
+            "polyfills": ["es-module-shims"]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "150kB",
+                  "maximumError": "180kB"
+                },
+                {
+                  "type": "anyScript",
+                  "maximumWarning": "120kB",
+                  "maximumError": "180kB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve-original": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "fe-plugin-giaoduc:esbuild:production"
+            },
+            "development": {
+              "buildTarget": "fe-plugin-giaoduc:esbuild:development"
+            }
+          },
+          "defaultConfiguration": "development",
+          "options": {
+            "port": 4290
+          }
+        }
+      }
+    },
+    "vt-storybook": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": ".storybook",
+      "architect": {
+        "storybook": {
+          "builder": "@storybook/angular:start-storybook",
+          "options": {
+            "configDir": ".storybook",
+            "tsConfig": ".storybook/tsconfig.json",
+            "styles": ["projects/fe-shell/src/styles.scss"],
+            "compodoc": false,
+            "experimentalZoneless": true,
+            "port": 6006
+          }
+        },
+        "build-storybook": {
+          "builder": "@storybook/angular:build-storybook",
+          "options": {
+            "configDir": ".storybook",
+            "tsConfig": ".storybook/tsconfig.json",
+            "styles": ["projects/fe-shell/src/styles.scss"],
+            "compodoc": false,
+            "experimentalZoneless": true,
+            "outputDir": "dist/storybook"
+          }
+        }
+      }
     }
   }
 }
