@@ -21,9 +21,12 @@ import vn.viettel.okrkpi.analytics.application.EmbedService;
 import vn.viettel.okrkpi.analytics.application.QueryService;
 import vn.viettel.okrkpi.analytics.application.ScopeService;
 import vn.viettel.okrkpi.analytics.application.SemanticModelService;
+import vn.viettel.okrkpi.analytics.application.TraceService;
 import vn.viettel.okrkpi.analytics.domain.Dashboard;
 import vn.viettel.okrkpi.analytics.domain.EmbedToken;
 import vn.viettel.okrkpi.analytics.domain.QueryResult;
+import vn.viettel.okrkpi.analytics.domain.TraceChain;
+import vn.viettel.okrkpi.analytics.domain.TraceObjectType;
 import vn.viettel.okrkpi.analytics.domain.Viewer;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.DashboardBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.DashboardInputBody;
@@ -32,6 +35,7 @@ import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.ModelBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.PageBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.QueryBody;
 import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.ShareBody;
+import vn.viettel.okrkpi.analytics.infrastructure.web.WebDtos.TraceChainBody;
 import vn.viettel.okrkpi.shared.etag.ETags;
 
 /**
@@ -49,13 +53,16 @@ public class AnalyticsController {
   private final ScopeService scopes;
   private final DashboardService dashboards;
   private final EmbedService embeds;
+  private final TraceService traces;
 
   public AnalyticsController(
       QueryService queries,
       SemanticModelService models,
       ScopeService scopes,
       DashboardService dashboards,
-      EmbedService embeds) {
+      EmbedService embeds,
+      TraceService traces) {
+    this.traces = traces;
     this.queries = queries;
     this.models = models;
     this.scopes = scopes;
@@ -172,5 +179,23 @@ public class AnalyticsController {
     return ResponseEntity.status(HttpStatus.CREATED)
         .header(HttpHeaders.CACHE_CONTROL, "no-store")
         .body(token);
+  }
+
+  /**
+   * DV-15-06 {@code getTraceChain} (SCR-1603): mắt xích từ nhiệm vụ trở xuống đọc từ mission-core
+   * bằng token của người xem; mắt xích bị từ chối trả {@code masked}.
+   */
+  @GetMapping("/trace/{objectType}/{id}")
+  public ResponseEntity<TraceChainBody> traceChain(
+      @PathVariable TraceObjectType objectType, @PathVariable UUID id) {
+    RoleGate.require("getTraceChain");
+    TraceChain chain =
+        traces
+            .chain(Viewers.current(), Viewers.bearer(), objectType, id)
+            .orElseThrow(
+                () -> new org.springframework.web.ErrorResponseException(HttpStatus.NOT_FOUND));
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .body(TraceChainBody.of(chain));
   }
 }

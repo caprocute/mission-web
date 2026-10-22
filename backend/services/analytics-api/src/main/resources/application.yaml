@@ -77,6 +77,7 @@ resilience4j:
     instances:
       cube: {baseConfig: default, slowCallDurationThreshold: 5s}
       mission-core-config: {baseConfig: default}
+      mission-core-detail: {baseConfig: default}
       superset: {baseConfig: default}
   timelimiter:
     instances:

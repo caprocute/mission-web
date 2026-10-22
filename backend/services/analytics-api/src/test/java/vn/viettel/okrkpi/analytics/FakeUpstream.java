@@ -67,6 +67,13 @@ final class FakeUpstream implements AutoCloseable {
   final List<Map<String, String>> configHeaders = Collections.synchronizedList(new ArrayList<>());
   final Map<String, ObjectNode> dashboards = Collections.synchronizedMap(new LinkedHashMap<>());
   final List<JsonNode> guestRequests = Collections.synchronizedList(new ArrayList<>());
+
+  /** API chi tiết của mission-core: đường dẫn (không kèm truy vấn) → mã trạng thái và thân. */
+  final Map<String, Object[]> core = Collections.synchronizedMap(new LinkedHashMap<>());
+
+  /** Header Authorization của mỗi lần gọi API chi tiết. */
+  final List<String> coreAuthorizations = Collections.synchronizedList(new ArrayList<>());
+
   final java.util.concurrent.atomic.AtomicInteger supersetLogins =
       new java.util.concurrent.atomic.AtomicInteger();
   private final AtomicBoolean waited = new AtomicBoolean();
@@ -77,6 +84,15 @@ final class FakeUpstream implements AutoCloseable {
     server.createContext("/cubejs-api/v1/", this::cube);
     server.createContext("/api/v1/config/dashboard-defs", this::config);
     server.createContext("/api/v1/security/login", this::supersetLogin);
+    for (String prefix :
+        List.of(
+            "/api/v1/tasks/",
+            "/api/v1/products",
+            "/api/v1/evidences/",
+            "/api/v1/plans",
+            "/api/v1/okr/")) {
+      server.createContext(prefix, this::coreDetail);
+    }
     server.createContext("/api/v1/security/guest_token/", this::supersetGuest);
     server.start();
   }
@@ -106,6 +122,26 @@ final class FakeUpstream implements AutoCloseable {
       return;
     }
     send(ex, 200, "{\"access_token\":\"" + SERVICE_TOKEN + "\",\"expires_in\":300}");
+  }
+
+  /** API chi tiết của mission-core: chỉ nhận token người xem, không nhận token dịch vụ. */
+  private void coreDetail(HttpExchange ex) throws IOException {
+    String auth = ex.getRequestHeaders().getFirst("Authorization");
+    coreAuthorizations.add(auth);
+    if (auth == null || auth.equals("Bearer " + SERVICE_TOKEN)) {
+      send(ex, 401, "{}");
+      return;
+    }
+    Object[] r = core.get(ex.getRequestURI().getPath());
+    if (r == null) {
+      problem(ex, 404, null, "Không có");
+      return;
+    }
+    if ((int) r[0] == 403) {
+      problem(ex, 403, "COMMON-403-OUT-OF-SCOPE", "Ngoài phạm vi");
+      return;
+    }
+    send(ex, (int) r[0], (String) r[1]);
   }
 
   /** Superset 4.x {@code /api/v1/security/login}: chỉ tài khoản dịch vụ, nhà cung cấp db. */

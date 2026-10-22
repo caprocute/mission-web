@@ -20,6 +20,8 @@ import vn.viettel.okrkpi.analytics.domain.DashboardPage;
 import vn.viettel.okrkpi.analytics.domain.DashboardWidget;
 import vn.viettel.okrkpi.analytics.domain.Filter;
 import vn.viettel.okrkpi.analytics.domain.SemanticCatalog;
+import vn.viettel.okrkpi.analytics.domain.TraceChain;
+import vn.viettel.okrkpi.analytics.domain.TraceLink;
 import vn.viettel.okrkpi.analytics.domain.WidgetData;
 
 /**
@@ -97,6 +99,47 @@ final class WebDtos {
 
     List<DashboardWidget> widgets() {
       return layout.stream().map(WidgetBody::toDomain).toList();
+    }
+  }
+
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  record TraceChainBody(Focus focus, List<TraceLinkBody> links, String ledgerRef) {
+
+    record Focus(String objectType, UUID id) {}
+
+    static TraceChainBody of(TraceChain c) {
+      return new TraceChainBody(
+          new Focus(c.focusType().name(), c.focusId()),
+          c.links().stream().map(TraceLinkBody::of).toList(),
+          c.ledgerRef());
+    }
+  }
+
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  record TraceLinkBody(
+      String objectType,
+      UUID id,
+      String label,
+      String value,
+      String status,
+      Integer versionNo,
+      String unitName,
+      boolean masked,
+      String msg,
+      java.util.Map<String, Object> details) {
+
+    static TraceLinkBody of(TraceLink l) {
+      return new TraceLinkBody(
+          l.objectType().name(),
+          l.id(),
+          l.label(),
+          l.value(),
+          l.status(),
+          l.versionNo(),
+          l.unitName(),
+          l.masked(),
+          l.msg(),
+          l.details());
     }
   }
 
