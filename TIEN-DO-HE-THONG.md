@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **230 / 408 task (56.4%)** — Khối lượng quy đổi đã gộp: **269.5 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **238 / 408 task (58.3%)** (gồm **230** đã gộp `main` + **8** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **6 task** (2 đang làm, 4 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **239 / 408 task (58.6%)** (gồm **230** đã gộp `main` + **9** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
 - **Chưa bắt đầu**: **164 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **15 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-05`** (đang xử lý trên nhánh: không).
 
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **59** | 0 | 2 | 11 | **81.9%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **55** | 8 | 3 | 51 | **47.0%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **55** | 9 | 2 | 51 | **47.0%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **50** | 0 | 1 | 53 | **48.1%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **11** | 0 | 0 | 2 | **84.6%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **230** | **8** | **6** | **164** | **56.4%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **230** | **9** | **5** | **164** | **56.4%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -42,7 +42,7 @@
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **41** | 0 | 0 | 6 | **87.2%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **54** | 8 | 3 | 55 | **45.0%** |
-| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **31** | 0 | 1 | 40 | **43.1%** |
+| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **31** | 1 | 0 | 40 | **43.1%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **15** | 0 | 1 | 26 | **35.7%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **0** | 0 | 0 | 4 | **0.0%** |
@@ -315,12 +315,12 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-04-12](docs/tasks/CORE-04-12-phan-nhom-trien-vong.md) | Phân nhóm triển vọng: lưu nháp, BR-10-07..09, trình tập thể, ký danh sách | M | B4 | 21 | CORE-04-10 | **Chưa bắt đầu** |  |
 | [CORE-04-13](docs/tasks/CORE-04-13-dau-vao-diem-cong-viec-su-viec.md) | Đầu vào `workItems` và `responsibilityScope` trong `inputs`, bảng `appraisal.incident`, bắt buộc lý do khi mức của `rating_proposal` khác mức gợi ý | L | B4 | 18 | NEN-044, CORE-04-06, CORE-02-27, CORE-02-28, CORE-01-14 | **Chưa bắt đầu** | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
 
-### CORE-06 · MOD-06 dossier: kiểm điểm, hồ sơ số (1/8 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### CORE-06 · MOD-06 dossier: kiểm điểm, hồ sơ số (1/8 đã gộp `main`, 1 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [CORE-06-01](docs/tasks/CORE-06-01-schema-dossier.md) | Migration schema `dossier` | M | B4 | 11 | CORE-00-02, NEN-033 | **Đã gộp main** | Gộp main 2026-10-22 |
-| [CORE-06-02](docs/tasks/CORE-06-02-hoi-nghi-kiem-diem.md) | Hội nghị kiểm điểm: tạo, thành phần, quyền thư ký và chủ trì, gửi dự thảo | M | B4 | 13 | CORE-06-01, CORE-08-04 | **Đang làm** | Nhánh claude/project-thread-n43ag0: đang làm |
+| [CORE-06-02](docs/tasks/CORE-06-02-hoi-nghi-kiem-diem.md) | Hội nghị kiểm điểm: tạo, thành phần, quyền thư ký và chủ trì, gửi dự thảo | M | B4 | 13 | CORE-06-01, CORE-08-04 | **Xong, chờ gộp** | Nhánh claude/project-thread-n43ag0: 5 API hội nghị kiểm điểm, đếm ngày làm việc, EVT-21; đã qua build & test |
 | [CORE-06-03](docs/tasks/CORE-06-03-gop-y-an-danh.md) | Góp ý mã hoá C2 và chế độ ẩn danh qua OPA | S | B4 | 14 | CORE-06-02, NEN-015 | **Chưa bắt đầu** |  |
 | [CORE-06-04](docs/tasks/CORE-06-04-ket-thuc-hoi-nghi.md) | Kết thúc hội nghị: biểu quyết, sinh biên bản 202, mục khắc phục | M | B4 | 15 | CORE-06-03, DV-11-01 | **Chưa bắt đầu** |  |
 | [CORE-06-05](docs/tasks/CORE-06-05-truong-hop-dac-thu.md) | Phát hiện 13 trường hợp đặc thù theo bảng trong Policy Pack | L | B4 | 14 | CORE-06-01, CORE-05-03, CORE-00-03 | **Chưa bắt đầu** |  |
@@ -914,4 +914,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 20:14 | B2 backend | `CORE-01-14` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0 (51d8aebd): API mốc, nhãn tử/mẫu số, V7; đã qua build & test |
 | 22/10/2026 20:14 | B2 backend | `CORE-01-13` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0 (73d57b25): kiểm gợi ý AI, dấu vết V8, EVT-01 aiContent; đã qua build & test |
 | 22/10/2026 20:14 | B2 backend | `CORE-06-02` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-n43ag0: đang làm |
+| 22/10/2026 20:41 | B2 backend | `CORE-06-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-n43ag0: 5 API hội nghị kiểm điểm, đếm ngày làm việc, EVT-21; đã qua build & test |
 <!-- PROGRESS_LOG_END -->
