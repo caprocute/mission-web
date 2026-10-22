@@ -767,6 +767,14 @@ Chấp nhận áp dụng trong cùng giao dịch. Gia hạn ghi hạn mới vào
 
 Tiếp tục từ `TAM_DUNG` (`transitionTask` với `TIEP_TUC`) đếm số ngày làm việc từ ngày tạm dừng (dòng `task_state_log` gần nhất sang `TAM_DUNG`) tới hôm nay rồi dời cả hạn thực hiện và hạn tính điểm thêm đúng số ngày đó (BR-06-10). Đề nghị vượt ngưỡng gọi cổng `ChangeApprovalStarter` sau khi giao dịch gửi commit để khởi tạo tiến trình `duyet-de-nghi` (khoá `TASK_CHANGE_REQUEST:<id>`), cùng cơ chế với `OkrApprovalStarter`; chưa có bộ chuyển HTTP vì `platform.yaml` chưa có `POST /workflow/instances`, nên khi chưa có bean thì lãnh đạo duyệt trực tiếp qua API. Người duyệt thay khi vắng quá 2 ngày làm việc do timer của mẫu BPMN và `wf_binding` (DV-06-03) xử lý, chưa làm ở MOD-02.
 
+### Ghi chú và quyết định từ cờ quá hạn hằng ngày (CORE-02-23, 22/10/2026)
+
+Tác vụ đặt cờ quá hạn (QT-06 bước 8) chạy lúc 00:05 giờ Việt Nam cho từng tenant của cell, duyệt nhiệm vụ `DA_GIAO`, `DANG_THUC_HIEN`, `TAM_DUNG` theo lô khoá `id` (mặc định 1.000 dòng, `mission.task.overdue.batch-size`), mỗi lô một giao dịch, nên chạy lại sau khi pod khởi động lại vẫn đúng. Hạn dùng để so là hạn tính điểm `coalesce(score_due_date, extended_due_date, due_date)`; nhiệm vụ quá hạn khi đã qua hạn ít nhất một ngày làm việc theo lịch MOD-08 (thiếu lịch thì lấy thứ Hai đến thứ Sáu), còn `TAM_DUNG` không bao giờ bị đặt cờ (BR-06-10). Tắt tác vụ bằng `mission.task.overdue.enabled=false`; đổi giờ chạy bằng `mission.task.overdue.cron`.
+
+Cờ `is_overdue` được đổi bằng câu lệnh có điều kiện và không tăng `row_version`, vì đây là thuộc tính tính theo lịch chứ không phải thay đổi của người dùng; nếu tăng phiên bản, người đang sửa nhiệm vụ sẽ gặp 409 vô cớ lúc nửa đêm. Hai bản sao chạy đồng thời chỉ một bản đổi được cờ, và chỉ bản đó ghi EVT-21 (mẫu `NHIEM_VU_QUA_HAN`, MSG-06-03) tới chủ trì và người giao kèm số ngày chậm và hệ số C dự kiến. Khi lịch nghỉ đổi (`HolidayCalendarChangedEvent`), cùng thủ tục được gọi lại cho tenant đó để đặt hoặc gỡ cờ; không phát EVT-06 vì hạn không đổi.
+
+Phần nhắc nhận việc (nhiệm vụ `DA_GIAO` chưa nhận sau 2 ngày làm việc) chưa làm trong task này (suy luận: thuộc nhóm nhắc việc của CORE-02-25).
+
 ### Ghi chú và quyết định từ check-in và trình duyệt OKR (CORE-01-08, CORE-01-09, CORE-01-05, CORE-01-06, CORE-01-07, CORE-01-12, CORE-01-14, CORE-01-11, 22/10/2026)
 ### Ghi chú và quyết định từ check-in và trình duyệt OKR (CORE-01-08, CORE-01-09, CORE-01-05, CORE-01-06, CORE-01-07, CORE-01-12, CORE-01-14, CORE-01-11, CORE-01-13, 22/10/2026)
 
