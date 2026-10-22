@@ -87,7 +87,8 @@ thanhPhan:
             app.kubernetes.io/name: otel-agent
           ports:
             - port: 4317
-  # DV-08-04: worker quét mã độc (cùng ảnh evidence-service, bật EVIDENCE_SCAN_ENABLED), tách khỏi pod API;
+  # DV-08-04, DV-08-06: worker quét mã độc và dựng ảnh xem trước (cùng ảnh evidence-service, bật
+  # EVIDENCE_SCAN_ENABLED), tách khỏi pod API;
   # nhận việc từ evidence.object_version (CHO_QUET), đọc đối tượng trên RGW, gửi clamav-scanner qua INSTREAM.
   # KEDA co giãn theo độ dài hàng đợi evidence_scan_pending (cùng giá trị ở mọi pod nên lấy max).
   scan-worker:
@@ -120,6 +121,8 @@ thanhPhan:
         value: clamav-scanner.workers.svc
       - name: CLAMD_PORT
         value: '3310'
+      - name: GOTENBERG_URL
+        value: http://gotenberg.workers.svc:3000
     autoscaling:
       keda:
         enabled: true
