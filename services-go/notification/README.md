@@ -1,6 +1,6 @@
 # SVC-12 notification-service
 
-Dịch vụ thông báo của Mission viết bằng Go trên thư viện `vtplatform` (NEN-017). Bản này hiện thực DV-12-01: schema `notify`, consumer sự kiện cần báo và hộp thông báo trong ứng dụng của SCR-0002. Thông báo thời gian thực qua SSE (DV-12-02), kênh email, SMS, đẩy di động (DV-12-03) và thông báo hàng loạt (DV-12-04) làm ở các task sau.
+Dịch vụ thông báo của Mission viết bằng Go trên thư viện `vtplatform` (NEN-017). Bản này hiện thực DV-12-01: schema `notify`, consumer sự kiện cần báo và hộp thông báo trong ứng dụng của SCR-0002. Thông báo thời gian thực qua SSE (DV-12-02) và kênh email, SMS, đẩy di động (DV-12-03) đã có; thông báo hàng loạt (DV-12-04) làm ở task sau.
 
 ## Luồng xử lý
 
@@ -18,6 +18,12 @@ Nội dung không chứa dữ liệu C2. Mẫu đánh dấu biến `{{ten|C2}}` 
 
 `GET /api/v1/notifications/stream` (streamNotifications) mở luồng SSE `text/event-stream` với ba loại sự kiện `notification`, `job` và `unread`; đầu luồng gửi `retry: 5000`, cứ 25 giây gửi một dòng chú thích giữ kết nối. Mỗi người dùng có một stream Valkey `t:<tenant>:notify:stream:<user>`; mã sự kiện SSE là mã phần tử stream. Stream chỉ bị cắt phần vừa ngoài 200 phần tử mới nhất vừa cũ hơn 10 phút, nên client nối lại với `Last-Event-ID` trong 10 phút luôn nhận đủ phần bị lỡ; mã quá cũ hoặc không hợp lệ thì nhận `unread` kèm `"reload": true` để tải lại hộp thông báo. Bên ghi thêm tín hiệu đánh thức vào một trong 16 stream bus `sys:notify:bus:<n>`; mỗi pod đọc chặn 16 bus theo lô và chỉ đọc stream của người dùng đang kết nối tại pod đó, nên thông báo sinh ở pod nào cũng tới đúng kết nối. Một người dùng mở tối đa 5 kết nối trên một pod, kết nối thứ sáu nhận 429; client không đọc kịp bị ngắt để nối lại. Khi tắt, pod ngừng nhận kết nối mới (503) và đóng dần kết nối trong 30 giây. Metric `notify_sse_connections` phục vụ HPA. Dịch vụ khác phát cập nhật tác vụ dài theo cùng định dạng với `rt.Publisher.Publish`.
 
+## Kênh ngoài ứng dụng (DV-12-03)
+
+`NOTIFY_CHANNELS` (ví dụ `EMAIL,SMS,PUSH`) bật kênh ngoài. Khi nhận sự kiện, ngoài dòng `INAPP` đã gửi, dịch vụ xếp một dòng `notify.delivery` trạng thái `CHO` cho mỗi kênh ngoài được bật trong tuỳ chọn của nhóm thông báo. Mỗi kênh có vòng worker riêng nhận việc qua `notify.fn_claim_deliveries` (`FOR UPDATE SKIP LOCKED`), bulkhead riêng (`NOTIFY_CONCURRENCY_<KÊNH>`, mặc định EMAIL 8, SMS 4, PUSH 16) và ngắt mạch riêng, nên cổng SMS lỗi chỉ làm SMS chờ. Lúc gửi, worker xét lại kênh còn bật và giờ yên lặng (hoãn trừ ưu tiên `CAO`), lấy email, số điện thoại từ Keycloak trong bộ nhớ, dựng nội dung theo mẫu của kênh (chưa có thì dùng mẫu `INAPP`), rồi ghi `DA_GUI`, hẹn thử lại hoặc `THAT_BAI`, `BO_QUA`. CSDL chỉ giữ chỉ mục mù của địa chỉ. Thiết bị hết đăng ký (FCM `UNREGISTERED`, APNs 410) bị thu hồi.
+
+Cấu hình kênh: email `SMTP_ADDR`, `SMTP_FROM`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_TLS` (`starttls` mặc định, `tls`, `none` chỉ cho dev); SMS `SMS_BASE_URL`, `SMS_API_KEY`, `SMS_BRANDNAME`, `SMS_ASCII`; đẩy `FCM_SERVICE_ACCOUNT_FILE`, `FCM_BASE_URL`, `APNS_KEY_FILE`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC`, `APNS_BASE_URL`, hoặc `PUSH_MODE=internal` với `PUSH_INTERNAL_URL`, `PUSH_INTERNAL_API_KEY` cho bản cách ly; danh bạ `KEYCLOAK_ADMIN_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`, `KEYCLOAK_PHONE_ATTR`. Bí mật gắn từ OpenBao; đổi sang cổng thật chỉ đổi cấu hình. Metric: `notify_delivery_pending_<kênh>` (KEDA), `notify_delivery_{sent,failed,retried,skipped}_total[_<kênh>]`.
+
 ## Dữ liệu và phân vùng
 
 Migration ở `db/migration/notify/` chạy bằng vai trò `mig_notify`; ứng dụng dùng `svc_notify`, đọc báo cáo dùng `ro_notify`. `notification` và `delivery` phân vùng RANGE theo ngày; hàm `notify.fn_ensure_day_partitions` tạo trước phân vùng và `notify.fn_drop_expired_partitions` xoá phân vùng quá 90 ngày. Hai hàm này làm đúng phần tạo trước và giữ hạn của pg_partman mà TL-03 chọn, viết bằng PL/pgSQL để chạy được trên ảnh PostgreSQL 17 không có pg_partman; khi môi trường production cài pg_partman có thể chuyển sang `partman.create_parent` mà không đổi bảng. Job trong tiến trình chạy hai hàm này và `notify.fn_purge_inbox_processed` theo `PARTITION_MAINTAIN_INTERVAL` (mặc định 6 giờ).
@@ -32,7 +38,7 @@ Bộ mẫu chung nằm ở `data/seed/notify/mau-thong-bao-chung.json`; nạp b�
 
 ```bash
 cd services-go/notification
-go vet ./... && go test ./...      # kiểm thử tích hợp cần Docker (PostgreSQL 17, Kafka confluent-local 7.5.0, Valkey 8)
+go vet ./... && go test ./...      # kiểm thử tích hợp cần Docker (PostgreSQL 17, Kafka confluent-local 7.5.0, Valkey 8, Mailpit v1.31.6)
 ulimit -n 20000; NOTIFY_LOAD_CONNS=5000 go test ./internal/it -run TestStreamLoad -v   # kiểm thử tải SSE
 govulncheck ./...
 docker build -f notification/Dockerfile -t notification-service ..   # chạy từ services-go

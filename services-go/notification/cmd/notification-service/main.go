@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,9 +20,11 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"mission/services-go/notification/internal/api"
+	"mission/services-go/notification/internal/channel"
 	"mission/services-go/notification/internal/config"
 	"mission/services-go/notification/internal/consume"
 	"mission/services-go/notification/internal/crypt"
+	"mission/services-go/notification/internal/deliver"
 	"mission/services-go/notification/internal/prefs"
 	"mission/services-go/notification/internal/rt"
 	"mission/services-go/notification/internal/store"
@@ -85,12 +88,62 @@ func main() {
 		log.Warn("chưa cấu hình VALKEY_ADDRS, tắt luồng thông báo thời gian thực")
 	}
 
+	var prefStore api.Prefs
+	var prefImpl *prefs.Store
+	if cfg.CryptoLocalKey != "" {
+		key, err := base64.StdEncoding.DecodeString(cfg.CryptoLocalKey)
+		if err == nil {
+			var kr *crypt.LocalKeyring
+			if kr, err = crypt.NewLocalKeyring(key); err == nil {
+				prefImpl = &prefs.Store{Pool: pool, Field: crypt.Field{Keys: kr}}
+				prefStore = *prefImpl
+			}
+		}
+		if err != nil {
+			log.Error("CRYPTO_LOCAL_KEY không hợp lệ", "err", err.Error())
+			os.Exit(2)
+		}
+	} else {
+		log.Warn("chưa cấu hình khoá mã hoá trường C2, tắt API thiết bị và tuỳ chọn kênh")
+	}
+
+	// Worker kênh ngoài (DV-12-03); cần khoá trường C2 để giải mã thiết bị và tính chỉ mục mù địa chỉ.
+	external := externalChannels()
+	var worker *deliver.Worker
+	if len(external) > 0 {
+		if prefImpl == nil {
+			log.Error("NOTIFY_CHANNELS cần CRYPTO_LOCAL_KEY")
+			os.Exit(2)
+		}
+		hc := httpClient()
+		worker = &deliver.Worker{Pool: pool, Prefs: *prefImpl, Field: prefImpl.Field, Log: log,
+			Counter: prov.AddCounter}
+		for _, ch := range external {
+			snd, err := buildSender(ch, hc)
+			if err != nil {
+				log.Error("cấu hình kênh không hợp lệ", "channel", ch, "err", err.Error())
+				os.Exit(2)
+			}
+			if ch != channel.Push && worker.Directory == nil {
+				if worker.Directory, err = buildDirectory(hc); err != nil {
+					log.Error("cấu hình danh bạ không hợp lệ", "err", err.Error())
+					os.Exit(2)
+				}
+			}
+			worker.Lanes = append(worker.Lanes, deliver.Lane{Channel: ch, Sender: snd, Concurrency: concurrency(ch),
+				Breaker: channel.NewBreaker(5, 30*time.Second)})
+		}
+		go worker.Run(ctx)
+		log.Info("bật kênh ngoài", "channels", strings.Join(external, ","))
+	}
+
 	if len(cfg.KafkaBrokers) > 0 {
 		proc, err := consume.NewProcessor(store.Beginner{Pool: pool}, log)
 		if err != nil {
 			log.Error("không tạo được bộ xử lý sự kiện", "err", err.Error())
 			os.Exit(1)
 		}
+		proc.Writer.External = external
 		c, err := consume.NewConsumer(cfg.KafkaBrokers, proc, log)
 		if err != nil {
 			log.Error("không tạo được consumer Kafka", "err", err.Error())
@@ -112,35 +165,22 @@ func main() {
 		log.Warn("chưa cấu hình KAFKA_BROKERS, không chạy consumer")
 	}
 
-	var prefStore api.Prefs
-	if cfg.CryptoLocalKey != "" {
-		key, err := base64.StdEncoding.DecodeString(cfg.CryptoLocalKey)
-		if err == nil {
-			var kr *crypt.LocalKeyring
-			if kr, err = crypt.NewLocalKeyring(key); err == nil {
-				prefStore = prefs.Store{Pool: pool, Field: crypt.Field{Keys: kr}}
-			}
-		}
-		if err != nil {
-			log.Error("CRYPTO_LOCAL_KEY không hợp lệ", "err", err.Error())
-			os.Exit(2)
-		}
-	} else {
-		log.Warn("chưa cấu hình khoá mã hoá trường C2, tắt API thiết bị và tuỳ chọn kênh")
-	}
-
 	deps := api.Deps{
 		Inbox:     store.Reader{Pool: pool},
 		Prefs:     prefStore,
 		Ready:     func(ctx context.Context) error { return pool.Ping(ctx) },
 		Log:       log,
 		OTel:      prov,
-		MetricSet: consume.MetricNames,
+		MetricSet: append(append([]string{}, consume.MetricNames...), deliver.MetricNames...),
+		Gauges:    map[string]func() int64{},
+	}
+	if worker != nil {
+		deps.Gauges = worker.Gauges()
 	}
 	if hub != nil {
 		deps.Stream = hub
 		deps.Unread = notifier.Unread
-		deps.Gauges = map[string]func() int64{"notify_sse_connections": hub.Connections}
+		deps.Gauges["notify_sse_connections"] = hub.Connections
 	}
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,

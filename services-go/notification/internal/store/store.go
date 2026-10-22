@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"mission/services-go/notification/internal/prefs"
 	"mission/services-go/notification/internal/render"
 	vdb "vn.viettel.okrkpi/services-go/vtplatform/db"
 )
@@ -87,6 +88,9 @@ func NotificationID(sourceEventID, recipientID string) uuid.UUID {
 type Writer struct {
 	mu   sync.Mutex
 	days map[string]bool
+	// External là các kênh ngoài (PUSH, SMS, EMAIL) có worker gửi ở bản triển khai này (DV-12-03); rỗng thì
+	// chỉ ghi kênh trong ứng dụng.
+	External []string
 }
 
 // NewWriter tạo Writer.
@@ -150,6 +154,26 @@ func (w *Writer) Insert(ctx context.Context, tx vdb.Tx, n NewNotification) (bool
 		VALUES ($1::date, $2, $3, $4, 'INAPP', 'DA_GUI', 1, $5)`,
 		day.Format(time.DateOnly), deliveryID.String(), n.TenantID, id.String(), created); err != nil {
 		return false, fmt.Errorf("store: ghi delivery: %w", err)
+	}
+	if len(w.External) == 0 {
+		return true, nil
+	}
+	// Kênh ngoài theo tuỳ chọn của nhóm thông báo (mặc định khi chưa chọn), xếp hàng trạng thái CHO cho worker
+	// từng kênh; giờ yên lặng và việc kênh còn bật được xét lại lúc gửi. Mã delivery tất định theo kênh.
+	defaults := make([]string, 0, len(prefs.DefaultChannels))
+	for _, c := range prefs.DefaultChannels {
+		defaults = append(defaults, prefs.APIToDB(c))
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO notify.delivery (created_day, id, tenant_id, notification_id, channel, status, attempts,
+		                             next_attempt_at)
+		SELECT $1::date, md5($4::text || ':' || ch)::uuid, $2::uuid, $4::uuid, ch, 'CHO', 0, $5
+		  FROM unnest(coalesce((SELECT channels FROM notify.channel_pref
+		                         WHERE tenant_id = $2 AND user_id = $3 AND category = $6), $7::varchar[])) AS ch
+		 WHERE ch = ANY($8::varchar[]) AND ch <> 'INAPP'`,
+		day.Format(time.DateOnly), n.TenantID, n.RecipientID, id.String(), created, prefs.CategoryOf(n.TemplateCode),
+		defaults, w.External); err != nil {
+		return false, fmt.Errorf("store: xếp hàng kênh ngoài: %w", err)
 	}
 	return true, nil
 }

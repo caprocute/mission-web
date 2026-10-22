@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **175 / 401 task (43.6%)** — Khối lượng quy đổi đã gộp: **207 / 482.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **185 / 401 task (46.1%)** (gồm **175** đã gộp `main` + **10** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **186 / 401 task (46.4%)** (gồm **175** đã gộp `main` + **11** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **6 task** (3 đang làm, 3 làm một phần).
-- **Chưa bắt đầu**: **210 task**.
+- **Chưa bắt đầu**: **209 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **14 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-04`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,14 +25,14 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 33 | 35.5 | **32** | 0 | 0 | 1 | **97.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 112 | 124.5 | **34** | 0 | 0 | 78 | **30.4%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **31** | 10 | 3 | 60 | **29.8%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **31** | 11 | 3 | 59 | **29.8%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 12 | 14 | **5** | 0 | 1 | 6 | **41.7%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **15** | 0 | 0 | 13 | **53.6%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **1** | 0 | 0 | 4 | **20.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **175** | **10** | **6** | **210** | **43.6%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **401** | **482.5** | **175** | **11** | **6** | **209** | **43.6%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,7 +41,7 @@
 | **M0 – Nền móng phát triển & CSDL** | 59 | **49** | 0 | 1 | 9 | **83.1%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 46 | **32** | 0 | 1 | 13 | **69.6%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **31** | 3 | 3 | 80 | **26.5%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 117 | **31** | 4 | 3 | 79 | **26.5%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 71 | **17** | 7 | 0 | 47 | **23.9%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **13** | 0 | 1 | 28 | **31.0%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **0** | 0 | 0 | 23 | **0.0%** |
@@ -457,13 +457,13 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-11-03](docs/tasks/DV-11-03-mau-2-mau-3-bang-diem.md) | Mẫu 2, Mẫu 3, bảng chấm điểm | M | B6 | 10 | DV-11-01, DL-05 | **Chưa bắt đầu** |  |
 | [DV-11-04](docs/tasks/DV-11-04-goi-ho-so-pdfa.md) | Gói hồ sơ PDF/A có tem, phiên bản mẫu theo Policy Pack, EVT-17 | M | B6 | 11 | DV-11-02, DV-11-03 | **Chưa bắt đầu** |  |
 
-### DV-12 · SVC-12 notification-service (Go) (0/5 đã gộp `main`, 3 chờ gộp, 0 đang làm)
+### DV-12 · SVC-12 notification-service (Go) (0/5 đã gộp `main`, 4 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-12-01](docs/tasks/DV-12-01-khung-notification-consumer.md) | Khung service Go, migration schema `notify`, consumer EVT-21 và các sự kiện cần báo | M | B7 | 7 | NEN-017 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: go vet, go test (Testcontainers PG17 + Kafka), govulncheck sạch, docker build xanh; kèm sửa vtplatform/problem đọc danh mục mã lỗi mới |
 | [DV-12-02](docs/tasks/DV-12-02-thong-bao-sse.md) | Thông báo thời gian thực SSE `/notifications/stream`, bus Valkey Streams giữa các pod | M | B7 | 8 | DV-12-01 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: SSE qua Valkey Streams, kiểm thử hai pod, nối lại, 5.000 kết nối p95 2,3 ms |
-| [DV-12-03](docs/tasks/DV-12-03-kenh-email-sms-day.md) | Kênh email, SMS, FCM, APNs có bulkhead, thử lại, tuỳ chọn kênh, mẫu thông báo | L | B7 | 8 | DV-12-01 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần cổng SMS và tài khoản đẩy |
+| [DV-12-03](docs/tasks/DV-12-03-kenh-email-sms-day.md) | Kênh email, SMS, FCM, APNs có bulkhead, thử lại, tuỳ chọn kênh, mẫu thông báo | L | B7 | 8 | DV-12-01 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: worker email, SMS, FCM, APNs, kênh nội bộ; kiểm thử với Mailpit và giả lập; chưa thử cổng thật |
 | [DV-12-04](docs/tasks/DV-12-04-thong-bao-hang-loat.md) | Thông báo hàng loạt cuối kỳ chia theo tenant, giới hạn tốc độ theo kênh | S | B7 | 9 | DV-12-03 | **Chưa bắt đầu** |  |
 | [DV-12-05](docs/tasks/DV-12-05-thiet-bi-day-tuy-chon-kenh.md) | Đăng ký thiết bị nhận thông báo đẩy và tuỳ chọn kênh: bảng `notify`, API | S | B7 | 8 | DV-12-01, NEN-043 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: go vet, go test (Testcontainers PG17), govulncheck sạch; bảng bổ sung notify.push_device, notify.channel_pref_meta chờ duyệt (wiki/14) |
 
@@ -852,4 +852,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 17:00 | B7 | `DV-14-05` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: OCR minh chứng /ai/evidence/extract và /ai/ocr, 72 kiểm thử xanh |
 | 22/10/2026 17:01 | B7 | `DV-14-07` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: đang thực hiện |
 | 22/10/2026 17:09 | B7 | `DV-14-07` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: transcribeSpeech, bộ nhận dạng giả lập và client ASR tương thích OpenAI; chưa thử ASR thật |
+| 22/10/2026 17:10 | B7 | `DV-12-03` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: đang thực hiện |
+| 22/10/2026 17:24 | B7 | `DV-12-03` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: worker email, SMS, FCM, APNs, kênh nội bộ; kiểm thử với Mailpit và giả lập; chưa thử cổng thật |
 <!-- PROGRESS_LOG_END -->
