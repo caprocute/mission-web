@@ -19,6 +19,7 @@ import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.PeriodStatus;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
+import vn.viettel.okrkpi.oversight.application.alert.AlertCaseService;
 import vn.viettel.okrkpi.oversight.application.port.OversightAuditLog;
 import vn.viettel.okrkpi.oversight.application.port.ReopenImpactSimulator;
 import vn.viettel.okrkpi.oversight.application.port.ReopenRequestRepository;
@@ -62,6 +63,7 @@ public class ReopenRequestService {
   private final WorkingCalendarApi calendar;
   private final AccessDirectory directory;
   private final OversightAuditLog audit;
+  private AlertCaseService alertCases;
   private final ReopenImpactSimulator simulator;
   private final Clock clock;
   private final ReopenApprovalService approval;
@@ -94,6 +96,11 @@ public class ReopenRequestService {
     this.simulator = simulator;
     this.clock = Objects.requireNonNull(clock, "clock");
     this.approval = approval;
+  }
+
+  /** Đóng cảnh báo có vi phạm khi yêu cầu lấy cảnh báo làm căn cứ được lập (CORE-07-11). */
+  public void setAlertCases(AlertCaseService alertCases) {
+    this.alertCases = alertCases;
   }
 
   /** Người gọi: mã người, vai trò đang chọn, đơn vị của phân công đang chọn, mức xác thực. */
@@ -368,6 +375,11 @@ public class ReopenRequestService {
       r = approval.assign(tenant, r);
     }
     requests.insert(tenant, r, requester);
+    if (alertCases != null
+        && d.basis().kind() == ReopenBasis.Kind.CANH_BAO
+        && d.basis().id() != null) {
+      alertCases.closeOnReopen(tenant, d.basis().id(), requester);
+    }
     audit.record(
         tenant,
         requester,
