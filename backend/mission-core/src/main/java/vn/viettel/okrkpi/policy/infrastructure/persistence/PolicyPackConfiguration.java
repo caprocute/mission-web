@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
+import vn.viettel.okrkpi.policy.application.PolicyDecisionTableService;
 import vn.viettel.okrkpi.policy.application.PolicyPackService;
 import vn.viettel.okrkpi.policy.application.PolicyPeriodCalendar;
 import vn.viettel.okrkpi.policy.application.PolicyResolutionService;
@@ -63,6 +64,25 @@ public class PolicyPackConfiguration {
         policyAudit,
         json.getIfAvailable(ObjectMapper::new),
         Clock.systemUtc());
+  }
+
+  @Bean
+  JdbcPolicyDecisionTableRepository policyDecisionTableRepository(
+      @Qualifier("policyDataSource") DataSource dataSource) {
+    return new JdbcPolicyDecisionTableRepository(JdbcClient.create(dataSource));
+  }
+
+  @Bean
+  PolicyDecisionTableService policyDecisionTableService(
+      JdbcPolicyPackRepository policyPackRepository,
+      JdbcPolicyDecisionTableRepository policyDecisionTableRepository,
+      PolicyAudit policyAudit,
+      ObjectProvider<ObjectMapper> json) {
+    return new PolicyDecisionTableService(
+        policyPackRepository,
+        policyDecisionTableRepository,
+        policyAudit,
+        json.getIfAvailable(ObjectMapper::new));
   }
 
   @Bean

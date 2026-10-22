@@ -145,6 +145,18 @@
       <artifactId>vt-cel</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <!-- CORE-05-05: chỉ dùng khi kiểm thử, nạp lại DMN XML xuất ra vào Flowable DMN (đã chốt ở workflow-service). -->
+    <dependency>
+      <groupId>org.flowable</groupId>
+      <artifactId>flowable-dmn-engine</artifactId>
+      <version>${flowable.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>vn.viettel.okrkpi</groupId>
       <artifactId>vt-db-migration</artifactId>
