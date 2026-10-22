@@ -46,12 +46,14 @@ import vn.viettel.okrkpi.contract.oversight.model.ReopenScope;
 import vn.viettel.okrkpi.oversight.application.port.ReopenImpactSimulator;
 import vn.viettel.okrkpi.oversight.application.port.ReopenRequestRepository;
 import vn.viettel.okrkpi.oversight.application.port.ReopenRequestRepository.Adjustment;
+import vn.viettel.okrkpi.oversight.application.reopen.ReopenApprovalService;
 import vn.viettel.okrkpi.oversight.application.reopen.ReopenRequestService;
 import vn.viettel.okrkpi.oversight.application.reopen.ReopenRequestService.Actor;
 import vn.viettel.okrkpi.oversight.application.reopen.ReopenRequestService.View;
 import vn.viettel.okrkpi.oversight.domain.reopen.ReopenBasis;
 import vn.viettel.okrkpi.oversight.domain.reopen.ReopenScopeItem;
 import vn.viettel.okrkpi.oversight.domain.reopen.ReopenStatus;
+import vn.viettel.okrkpi.oversight.domain.reopen.ReopenWorkflow;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
 import vn.viettel.okrkpi.shared.authz.OpaInput;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
@@ -68,7 +70,9 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
 /**
  * Yêu cầu mở lại kỳ (CORE-07-07, QT-13, SCR-1301): {@code listReopenRequests}, {@code
  * createReopenRequest}, {@code getReopenRequest}, {@code simulateReopenRequest}, {@code
- * cancelReopenRequest}. Phê duyệt và từ chối thuộc CORE-07-08.
+ * cancelReopenRequest}; {@code approveReopenRequest}, {@code rejectReopenRequest} (CORE-07-08, bốn
+ * mắt, bước lên và ký số). Duyệt, từ chối trả 200 với yêu cầu đang chờ chữ ký; trạng thái chuyển
+ * khi SVC-10 báo ký xong (EVT-18).
  */
 @RestController
 @RequestMapping(ReopenRequestController.BASE)
@@ -78,6 +82,7 @@ public class ReopenRequestController {
   private static final String SCOPE = "reopen-requests";
 
   private final ObjectProvider<ReopenRequestService> service;
+  private final ObjectProvider<ReopenApprovalService> approvals;
   private final ObjectProvider<OversightIdempotency> idempotency;
   private final ObjectProvider<AccessDirectory> directory;
   private final ObjectProvider<AuthzSubjectResolver> subjects;
@@ -86,12 +91,14 @@ public class ReopenRequestController {
 
   public ReopenRequestController(
       ObjectProvider<ReopenRequestService> service,
+      ObjectProvider<ReopenApprovalService> approvals,
       ObjectProvider<OversightIdempotency> idempotency,
       ObjectProvider<AccessDirectory> directory,
       ObjectProvider<AuthzSubjectResolver> subjects,
       ObjectProvider<OversightCaller> custom,
       CursorCodec cursors) {
     this.service = Objects.requireNonNull(service, "service");
+    this.approvals = Objects.requireNonNull(approvals, "approvals");
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
     this.directory = Objects.requireNonNull(directory, "directory");
     this.subjects = Objects.requireNonNull(subjects, "subjects");
@@ -241,6 +248,81 @@ public class ReopenRequestController {
             });
   }
 
+  @PostMapping("/{id}/approvals")
+  @RequiresPermission(
+      operationId = "approveReopenRequest",
+      module = "oversight",
+      resourceType = "reopen_request")
+  public ResponseEntity<ReopenRequest> approveReopenRequest(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestHeader(value = "Authorization", required = false) String authorization,
+      @RequestBody(required = false) JsonNode body) {
+    return decide(id, idempotencyKey, ifMatch, authorization, body, true, "/approvals");
+  }
+
+  @PostMapping("/{id}/reject")
+  @RequiresPermission(
+      operationId = "rejectReopenRequest",
+      module = "oversight",
+      resourceType = "reopen_request")
+  public ResponseEntity<ReopenRequest> rejectReopenRequest(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestHeader(value = "Authorization", required = false) String authorization,
+      @RequestBody(required = false) JsonNode body) {
+    return decide(id, idempotencyKey, ifMatch, authorization, body, false, "/reject");
+  }
+
+  private ResponseEntity<ReopenRequest> decide(
+      UUID id,
+      String idempotencyKey,
+      String ifMatch,
+      String authorization,
+      JsonNode body,
+      boolean approve,
+      String suffix) {
+    TenantId tenant = TenantContext.require();
+    Actor actor = actor();
+    ReopenApprovalService s = approvals.getIfAvailable();
+    if (s == null) {
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
+    }
+    String comment = body == null ? null : text(body, "comment");
+    return idempotency()
+        .run(
+            tenant,
+            actor.userId(),
+            idempotencyKey,
+            "POST",
+            BASE + "/" + id + suffix,
+            body,
+            ReopenRequest.class,
+            ReopenRequest::getRowVersion,
+            () -> {
+              View v;
+              try {
+                v =
+                    notFoundAs404(
+                        () ->
+                            s.decide(
+                                tenant,
+                                actor,
+                                id,
+                                ifMatch,
+                                approve,
+                                comment,
+                                idempotencyKey,
+                                authorization));
+              } catch (ReopenApprovalService.SigningUnavailableException e) {
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+              }
+              return ETags.ok(toDto(tenant, v), v.request().rowVersion());
+            });
+  }
+
   private static ReopenRequestService.Draft draft(ReopenRequestInput in) {
     if (in == null) {
       throw invalid("periodId", "Thiếu nội dung yêu cầu.");
@@ -322,6 +404,10 @@ public class ReopenRequestController {
     Set<UUID> people = new HashSet<>();
     people.add(r.requestedBy());
     v.approvals().forEach(a -> people.add(a.approverId()));
+    r.workflow().slots().stream()
+        .map(ReopenWorkflow.Slot::assignee)
+        .filter(Objects::nonNull)
+        .forEach(people::add);
     AccessDirectory dir = directory.getIfAvailable();
     Map<UUID, String> names = dir == null ? Map.of() : dir.personNames(tenant, people);
     ReopenRequest dto =
@@ -346,12 +432,14 @@ public class ReopenRequestController {
     if (v.period() != null) {
       dto.periodStatus(PeriodStatus.fromValue(v.period().status().name()));
     }
-    dto.setApprovers(slots(v.approvals(), names));
+    dto.setApprovers(slots(r.workflow(), v.approvals(), names));
     return dto;
   }
 
   private static List<ReopenApproverSlot> slots(
-      List<ReopenRequestRepository.Approval> approvals, Map<UUID, String> names) {
+      ReopenWorkflow workflow,
+      List<ReopenRequestRepository.Approval> approvals,
+      Map<UUID, String> names) {
     List<ReopenApproverSlot> out = new ArrayList<>();
     String[] roles = {"decider", "second_approver"};
     for (int i = 0; i < roles.length; i++) {
@@ -360,6 +448,10 @@ public class ReopenRequestController {
           new ReopenApproverSlot()
               .round(ReopenApproverSlot.RoundEnum.fromValue(i + 1))
               .role(ReopenApproverSlot.RoleEnum.fromValue(role));
+      UUID assignee = workflow.assignee(i + 1);
+      if (assignee != null) {
+        slot.assignee(ref(assignee, names));
+      }
       approvals.stream()
           .filter(a -> role.equals(a.approverRole()))
           .findFirst()
@@ -432,7 +524,8 @@ public class ReopenRequestController {
           caller.currentUserId().orElseThrow(ReopenRequestController::unauthorized),
           caller.roles(),
           caller.unitId().orElse(null),
-          caller.acr().orElse(null));
+          caller.acr().orElse(null),
+          caller.authTime().orElse(null));
     }
     AuthzSubjectResolver resolver = subjects.getIfAvailable();
     OpaInput.Subject subject = resolver == null ? null : resolver.currentSubject();
@@ -446,7 +539,8 @@ public class ReopenRequestController {
           subject.unitId() == null || subject.unitId().isBlank()
               ? null
               : UUID.fromString(subject.unitId()),
-          subject.acr());
+          subject.acr(),
+          subject.authTime());
     } catch (IllegalArgumentException e) {
       throw unauthorized();
     }

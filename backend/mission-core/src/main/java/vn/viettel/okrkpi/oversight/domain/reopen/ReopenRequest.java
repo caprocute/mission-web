@@ -29,10 +29,12 @@ public record ReopenRequest(
     Instant executedAt,
     Instant relockedAt,
     String cancelReason,
+    ReopenWorkflow workflow,
     Instant createdAt,
     int rowVersion) {
 
   public ReopenRequest {
+    workflow = workflow == null ? ReopenWorkflow.empty(null) : workflow;
     scopeIds = scopeIds == null ? List.of() : List.copyOf(scopeIds);
     items = items == null ? List.of() : List.copyOf(items);
     units = units == null ? List.of() : List.copyOf(units);
@@ -56,6 +58,16 @@ public record ReopenRequest(
   }
 
   public ReopenRequest cancelled(String why, int newVersion) {
+    return with(ReopenStatus.DA_DONG, executedAt, why, workflow.withPending(null), newVersion);
+  }
+
+  /** Bản sao với trạng thái, thời điểm thực hiện, lý do huỷ, bốn mắt và phiên bản mới. */
+  public ReopenRequest with(
+      ReopenStatus newStatus,
+      Instant newExecutedAt,
+      String why,
+      ReopenWorkflow newWorkflow,
+      int newVersion) {
     return new ReopenRequest(
         id,
         periodId,
@@ -70,12 +82,13 @@ public record ReopenRequest(
         reason,
         requestedBy,
         approvalsRequired,
-        ReopenStatus.DA_DONG,
+        newStatus,
         openWorkingDays,
         openUntil,
-        executedAt,
+        newExecutedAt,
         relockedAt,
         why,
+        newWorkflow,
         createdAt,
         newVersion);
   }

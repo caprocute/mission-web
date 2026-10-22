@@ -24,6 +24,7 @@ import vn.viettel.okrkpi.oversight.domain.reopen.ReopenRequest;
 import vn.viettel.okrkpi.oversight.domain.reopen.ReopenScope;
 import vn.viettel.okrkpi.oversight.domain.reopen.ReopenScopeItem;
 import vn.viettel.okrkpi.oversight.domain.reopen.ReopenStatus;
+import vn.viettel.okrkpi.oversight.domain.reopen.ReopenWorkflow;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
 /**
@@ -120,16 +121,29 @@ public class JdbcReopenRequestRepository implements ReopenRequestRepository {
   }
 
   @Override
-  public boolean cancel(TenantId tenant, ReopenRequest r, int expectedVersion, UUID actorId) {
+  public Optional<ReopenRequest> lock(TenantId tenant, UUID id) {
+    return jdbc.sql(
+            "SELECT "
+                + COLUMNS
+                + " FROM oversight.reopen_request WHERE tenant_id = ? AND id = ? FOR UPDATE")
+        .param(tenant.value())
+        .param(id)
+        .query(mapper())
+        .optional();
+  }
+
+  @Override
+  public boolean update(TenantId tenant, ReopenRequest r, int expectedVersion, UUID actorId) {
     return jdbc.sql(
                 """
                 UPDATE oversight.reopen_request
-                   SET status = ?, scope_json = ?::jsonb, row_version = ?,
+                   SET status = ?, scope_json = ?::jsonb, executed_at = ?, row_version = ?,
                        updated_at = now(), updated_by = ?
                  WHERE period_bucket = ? AND tenant_id = ? AND id = ? AND row_version = ?
                 """)
             .param(r.status().name())
             .param(scopeJson(r))
+            .param(r.executedAt() == null ? null : Timestamp.from(r.executedAt()))
             .param(r.rowVersion())
             .param(actorId)
             .param(r.periodBucket())
@@ -138,6 +152,49 @@ public class JdbcReopenRequestRepository implements ReopenRequestRepository {
             .param(expectedVersion)
             .update()
         == 1;
+  }
+
+  @Override
+  public void insertApproval(TenantId tenant, ReopenRequest r, Approval a) {
+    Timestamp at = Timestamp.from(a.decidedAt());
+    jdbc.sql(
+            """
+            INSERT INTO oversight.reopen_approval
+              (id, tenant_id, created_at, created_by, updated_at, updated_by, row_version,
+               period_id, period_bucket, reopen_request_id, approver_id, approver_role, decision,
+               mfa_acr, decided_at, sign_request_id, comment)
+            VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """)
+        .param(a.id())
+        .param(tenant.value())
+        .param(at)
+        .param(a.approverId())
+        .param(at)
+        .param(a.approverId())
+        .param(r.periodId())
+        .param(r.periodBucket())
+        .param(r.id())
+        .param(a.approverId())
+        .param(a.approverRole())
+        .param(a.decision())
+        .param(a.mfaAcr())
+        .param(at)
+        .param(a.signRequestId())
+        .param(a.comment())
+        .update();
+  }
+
+  @Override
+  public List<ReopenRequest> approvedNotExecuted(TenantId tenant, int limit) {
+    return jdbc.sql(
+            "SELECT "
+                + COLUMNS
+                + " FROM oversight.reopen_request WHERE tenant_id = ? AND status = 'DA_DUYET'"
+                + " ORDER BY updated_at, id LIMIT ?")
+        .param(tenant.value())
+        .param(limit)
+        .query(mapper())
+        .list();
   }
 
   @Override
@@ -234,13 +291,23 @@ public class JdbcReopenRequestRepository implements ReopenRequestRepository {
       sql.append(" AND r.status = ANY (?::text[])");
       params.add(f.statuses().stream().map(Enum::name).collect(Collectors.joining(",", "{", "}")));
     }
+    if (f.awaitingFor() != null) {
+      sql.append(
+          " AND ((r.status = 'CHO_DUYET_1' AND r.scope_json #>> '{approvers,0,assignee}' = ?)"
+              + " OR (r.status = 'CHO_DUYET_2' AND r.scope_json #>> '{approvers,1,assignee}' = ?))");
+      params.add(f.awaitingFor().toString());
+      params.add(f.awaitingFor().toString());
+    }
     if (!f.everything()) {
       sql.append(
           " AND (r.requested_by = ? OR EXISTS (SELECT 1 FROM oversight.reopen_approval a"
               + " WHERE a.period_bucket = r.period_bucket AND a.tenant_id = r.tenant_id"
-              + " AND a.reopen_request_id = r.id AND a.approver_id = ?)");
+              + " AND a.reopen_request_id = r.id AND a.approver_id = ?)"
+              + " OR EXISTS (SELECT 1 FROM jsonb_array_elements(r.scope_json -> 'approvers') e"
+              + " WHERE e ->> 'assignee' = ?)");
       params.add(f.viewer());
       params.add(f.viewer());
+      params.add(f.viewer().toString());
       if (f.units() != null && !f.units().isEmpty()) {
         sql.append(" OR jsonb_exists_any(r.scope_json -> 'units', ?::text[])");
         params.add(uuidArray(f.units()));
@@ -287,6 +354,7 @@ public class JdbcReopenRequestRepository implements ReopenRequestRepository {
           scopeIds.add(o instanceof UUID u ? u : UUID.fromString(o.toString()));
         }
       }
+      ReopenWorkflow workflow = workflow(scope);
       return new ReopenRequest(
           rs.getObject("id", UUID.class),
           rs.getObject("period_id", UUID.class),
@@ -307,9 +375,32 @@ public class JdbcReopenRequestRepository implements ReopenRequestRepository {
           instant(rs, "executed_at"),
           instant(rs, "relocked_at"),
           text(scope.path("cancellation"), "reason"),
+          workflow,
           instant(rs, "created_at"),
           rs.getInt("row_version"));
     };
+  }
+
+  private static ReopenWorkflow workflow(JsonNode scope) {
+    List<ReopenWorkflow.Slot> slots = new ArrayList<>();
+    for (JsonNode a : scope.path("approvers")) {
+      slots.add(
+          new ReopenWorkflow.Slot(a.path("round").asInt(), text(a, "role"), uuid(a, "assignee")));
+    }
+    JsonNode p = scope.path("pending");
+    ReopenWorkflow.Pending pending =
+        p.has("round")
+            ? new ReopenWorkflow.Pending(
+                p.get("round").asInt(),
+                uuid(p, "approverId"),
+                text(p, "role"),
+                text(p, "decision"),
+                text(p, "comment"),
+                text(p, "acr"),
+                uuid(p, "signRequestId"),
+                p.hasNonNull("requestedAt") ? Instant.parse(p.get("requestedAt").asText()) : null)
+            : null;
+    return new ReopenWorkflow(uuid(scope, "requesterUnit"), slots, pending);
   }
 
   /** Dòng tạo ngoài API (dữ liệu cũ) chỉ có {@code basis_ref} dạng {@code KIND:giá trị}. */
@@ -354,6 +445,29 @@ public class JdbcReopenRequestRepository implements ReopenRequestRepository {
     root.put("openWorkingDays", r.openWorkingDays());
     if (r.cancelReason() != null) {
       root.putObject("cancellation").put("reason", r.cancelReason());
+    }
+    ReopenWorkflow w = r.workflow();
+    putUuid(root, "requesterUnit", w.requesterUnit());
+    ArrayNode approvers = root.putArray("approvers");
+    for (ReopenWorkflow.Slot slot : w.slots()) {
+      ObjectNode o = approvers.addObject();
+      o.put("round", slot.round());
+      o.put("role", slot.role());
+      putUuid(o, "assignee", slot.assignee());
+    }
+    if (w.pending() != null) {
+      ReopenWorkflow.Pending p = w.pending();
+      ObjectNode o = root.putObject("pending");
+      o.put("round", p.round());
+      putUuid(o, "approverId", p.approverId());
+      o.put("role", p.role());
+      o.put("decision", p.decision());
+      o.put("comment", p.comment());
+      o.put("acr", p.acr());
+      putUuid(o, "signRequestId", p.signRequestId());
+      if (p.requestedAt() != null) {
+        o.put("requestedAt", p.requestedAt().toString());
+      }
     }
     try {
       return json.writeValueAsString(root);

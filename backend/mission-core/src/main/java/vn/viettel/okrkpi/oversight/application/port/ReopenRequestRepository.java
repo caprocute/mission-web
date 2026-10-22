@@ -26,8 +26,20 @@ public interface ReopenRequestRepository {
 
   Optional<ReopenRequest> find(TenantId tenant, UUID id);
 
-  /** Đổi sang {@code DA_DONG} và ghi lý do huỷ; {@code false} khi {@code row_version} đã khác. */
-  boolean cancel(TenantId tenant, ReopenRequest cancelled, int expectedVersion, UUID actorId);
+  /** Khoá dòng yêu cầu ({@code SELECT … FOR UPDATE}) để tuần tự hoá phê duyệt đồng thời. */
+  Optional<ReopenRequest> lock(TenantId tenant, UUID id);
+
+  /**
+   * Ghi trạng thái, {@code scope_json}, {@code executed_at} và {@code row_version} mới; {@code
+   * false} khi {@code row_version} đã khác {@code expectedVersion}.
+   */
+  boolean update(TenantId tenant, ReopenRequest changed, int expectedVersion, UUID actorId);
+
+  /** Ghi một dòng {@code oversight.reopen_approval} (chỉ thêm). */
+  void insertApproval(TenantId tenant, ReopenRequest request, Approval approval);
+
+  /** Yêu cầu {@code DA_DUYET} chờ MOD-08 mở kỳ, cũ trước. */
+  List<ReopenRequest> approvedNotExecuted(TenantId tenant, int limit);
 
   /** Đối tượng căn cứ thuộc MOD-07 có tồn tại trong kỳ không. */
   boolean basisExists(TenantId tenant, UUID periodId, ReopenBasis basis);
@@ -56,14 +68,26 @@ public interface ReopenRequestRepository {
 
   /**
    * Bộ lọc danh sách. {@code everything} cho cán bộ kiểm tra (toàn tenant); nếu không, chỉ yêu cầu
-   * do {@code viewer} lập, có phê duyệt của {@code viewer}, hoặc có đơn vị trong {@code units}.
+   * do {@code viewer} lập, được chỉ định cho hoặc có phê duyệt của {@code viewer}, hoặc có đơn vị
+   * trong {@code units}. {@code awaitingFor} chỉ giữ yêu cầu đang chờ chính người đó duyệt.
    */
   record Filter(
       UUID periodId,
       Collection<ReopenStatus> statuses,
       boolean everything,
       UUID viewer,
-      Collection<UUID> units) {}
+      Collection<UUID> units,
+      UUID awaitingFor) {
+
+    public Filter(
+        UUID periodId,
+        Collection<ReopenStatus> statuses,
+        boolean everything,
+        UUID viewer,
+        Collection<UUID> units) {
+      this(periodId, statuses, everything, viewer, units, null);
+    }
+  }
 
   record After(Instant createdAt, UUID id) {}
 }

@@ -18,6 +18,11 @@ public interface OversightCaller {
   /** Mức xác thực ({@code acr}) của phiên. */
   Optional<String> acr();
 
+  /** Thời điểm xác thực ({@code auth_time}, giây epoch) của phiên. */
+  default Optional<Long> authTime() {
+    return Optional.empty();
+  }
+
   /** Đơn vị của phân công đang chọn (phạm vi {@code Cd}). */
   default Optional<UUID> unitId() {
     return Optional.empty();
