@@ -1,0 +1,105 @@
+{
+  "_mo_ta": "DV-15-03: ca kiểm thử chỉ số chuẩn. Mỗi ca gồm ngữ cảnh an ninh của người xem (tenant, org_path), truy vấn Cube và kết quả kỳ vọng tính tay từ du-lieu.json. Số so sánh theo giá trị số; dòng so sánh không phân biệt thứ tự trừ khi ca có 'co_thu_tu'.",
+  "cases": [
+    {
+      "ten": "Bốn con số bảng điều hành, nhánh Văn phòng (không gồm Văn phòng kề)",
+      "tenant": "#A", "org_path": "/tw/vptw",
+      "query": {"measures": ["task.ty_le_dung_han", "task.so_viec_cham", "task.so_viec"]},
+      "ket_qua": [{"task.ty_le_dung_han": 40.0, "task.so_viec_cham": 2, "task.so_viec": 6}],
+      "tinh_tay": "Nhánh có VPTW, VU-TONG-HOP: t1..t6 (t9 huỷ, t10 nháp bị loại). Đến hạn t1,t2,t3,t5,t6 = 5; đúng hạn t1, t5 (theo hạn gia hạn) = 2 → 40,0%. Chậm t3, t6."
+    },
+    {
+      "ten": "Tiến độ mục tiêu O, nhánh Văn phòng",
+      "tenant": "#A", "org_path": "/tw/vptw",
+      "query": {"measures": ["okr.tien_do_o", "okr.so_muc_tieu"]},
+      "ket_qua": [{"okr.tien_do_o": 70.0, "okr.so_muc_tieu": 3}],
+      "tinh_tay": "o1 0,8 + o2 0,6 + o3 0,7 = 2,1 / 3 = 70,0% (o5 nháp bị loại)."
+    },
+    {
+      "ten": "Hồ sơ chờ thẩm định, nhánh Văn phòng",
+      "tenant": "#A", "org_path": "/tw/vptw",
+      "query": {"measures": ["appraisal.cho_tham_dinh"]},
+      "ket_qua": [{"appraisal.cho_tham_dinh": 2}],
+      "tinh_tay": "p1 (VU), p3 (VPTW); p4 thuộc Ban Tổ chức ngoài nhánh."
+    },
+    {
+      "ten": "Toàn tenant từ gốc /tw",
+      "tenant": "#A", "org_path": "/tw",
+      "query": {"measures": ["task.ty_le_dung_han", "task.so_viec_cham", "task.so_ngay_cham_binh_quan", "okr.tien_do_o", "appraisal.cho_tham_dinh"]},
+      "ket_qua": [{"task.ty_le_dung_han": 28.6, "task.so_viec_cham": 3, "task.so_ngay_cham_binh_quan": 8.4, "okr.tien_do_o": 65.0, "appraisal.cho_tham_dinh": 3}],
+      "tach_truy_van": true,
+      "tinh_tay": "Đến hạn 7 (thêm t7, t8), đúng hạn 2 → 28,6%. Chậm t3, t6, t8. Trễ: t2 5, t3 30, t6 4, t7 2, t8 1 = 42 / 5 = 8,4 ngày. OKR 2,6 / 4 = 65,0%. Chờ thẩm định p1, p3, p4."
+    },
+    {
+      "ten": "Tỷ lệ đúng hạn theo đơn vị",
+      "tenant": "#A", "org_path": "/tw/vptw",
+      "query": {"measures": ["task.ty_le_dung_han", "task.so_viec"], "dimensions": ["org_unit.ma"]},
+      "ket_qua": [{"org_unit.ma": "VPTW", "task.ty_le_dung_han": 50.0, "task.so_viec": 2}, {"org_unit.ma": "VU-TONG-HOP", "task.ty_le_dung_han": 33.3, "task.so_viec": 4}],
+      "tinh_tay": "VU: đến hạn t1,t2,t3, đúng hạn t1 → 33,3%. VPTW: đến hạn t5,t6, đúng hạn t5 → 50,0%."
+    },
+    {
+      "ten": "Ban Tổ chức: số ngày chậm bình quân",
+      "tenant": "#A", "org_path": "/tw/btc",
+      "query": {"measures": ["task.ty_le_dung_han", "task.so_ngay_cham_binh_quan", "task.so_viec"]},
+      "ket_qua": [{"task.ty_le_dung_han": 0.0, "task.so_ngay_cham_binh_quan": 2.0, "task.so_viec": 1}],
+      "tinh_tay": "Chỉ t7 (hoàn thành chậm 2 ngày); t1 chỉ phối hợp, t6 chủ trì cũ đã rút."
+    },
+    {
+      "ten": "Văn phòng kề không lọt vào nhánh Văn phòng và ngược lại",
+      "tenant": "#A", "org_path": "/tw/vptw-ke",
+      "query": {"measures": ["task.so_viec", "task.so_viec_cham"]},
+      "ket_qua": [{"task.so_viec": 1, "task.so_viec_cham": 1}],
+      "tinh_tay": "Chỉ t8."
+    },
+    {
+      "ten": "Điểm KPI trung bình",
+      "tenant": "#A", "org_path": "/tw/vptw",
+      "query": {"measures": ["score.diem_kpi_trung_binh", "score.so_nguoi"]},
+      "ket_qua": [{"score.diem_kpi_trung_binh": 81.92, "score.so_nguoi": 3}],
+      "tinh_tay": "(80,5 + 90 + 75,25) / 3 = 81,9167 (s5 không phải ảnh chụp hiện hành)."
+    },
+    {
+      "ten": "Điểm KPI trung bình theo luồng, toàn tenant",
+      "tenant": "#A", "org_path": "/tw",
+      "query": {"measures": ["score.diem_kpi_trung_binh"], "dimensions": ["score.luong"]},
+      "ket_qua": [{"score.luong": "DANG", "score.diem_kpi_trung_binh": 76.83}, {"score.luong": "NHA_NUOC", "score.diem_kpi_trung_binh": 75.25}],
+      "tinh_tay": "Đảng: (80,5 + 90 + 60) / 3 = 76,8333. Nhà nước: 75,25."
+    },
+    {
+      "ten": "Phân bố mức xếp loại",
+      "tenant": "#A", "org_path": "/tw/vptw",
+      "query": {"measures": ["appraisal.so_da_xep_loai"], "dimensions": ["appraisal.muc_xep_loai"], "filters": [{"member": "appraisal.muc_xep_loai", "operator": "set"}]},
+      "ket_qua": [{"appraisal.muc_xep_loai": "HTTNV", "appraisal.so_da_xep_loai": 2}, {"appraisal.muc_xep_loai": "HTXSNV", "appraisal.so_da_xep_loai": 1}],
+      "tinh_tay": "p5 HTXSNV, p6 HTTNV, p7 HTTNV."
+    },
+    {
+      "ten": "Đề xuất xếp loại hiện hành theo cấp",
+      "tenant": "#A", "org_path": "/tw/vptw",
+      "query": {"measures": ["rating.so_de_xuat", "rating.so_khac_cap_truoc"], "dimensions": ["rating.cap"]},
+      "ket_qua": [{"rating.cap": "QUYET_DINH", "rating.so_de_xuat": 1, "rating.so_khac_cap_truoc": 1}, {"rating.cap": "TU_DE_XUAT", "rating.so_de_xuat": 1, "rating.so_khac_cap_truoc": 0}],
+      "tinh_tay": "r1, r2 hiện hành; r3 đã bị thay."
+    },
+    {
+      "ten": "Số minh chứng chờ nghiệm thu",
+      "tenant": "#A", "org_path": "/tw/vptw",
+      "query": {"measures": ["evidence.so_cho_nghiem_thu", "evidence.so_minh_chung"]},
+      "ket_qua": [{"evidence.so_cho_nghiem_thu": 2, "evidence.so_minh_chung": 3}],
+      "tinh_tay": "e1 đã nộp, e2 đang nghiệm thu; e3 đã xác nhận; e4 ngoài nhánh."
+    },
+    {
+      "ten": "Mức tự tin KR theo lần check-in gần nhất",
+      "tenant": "#A", "org_path": "/tw/vptw",
+      "query": {"measures": ["okr_checkin.chi_so_tu_tin", "okr_checkin.so_kr"]},
+      "ket_qua": [{"okr_checkin.chi_so_tu_tin": 25.0, "okr_checkin.so_kr": 2}],
+      "tinh_tay": "kr1 lần gần nhất THAP = 0, kr2 TRUNG_BINH = 50 → 25,0; kr3 chỉ có bản nháp."
+    },
+    {
+      "ten": "Tenant khác có mã đơn vị trùng không lẫn số",
+      "tenant": "#B", "org_path": "/tw",
+      "query": {"measures": ["task.ty_le_dung_han", "task.so_viec", "okr.so_muc_tieu"]},
+      "ket_qua": [{"task.ty_le_dung_han": 100.0, "task.so_viec": 1, "okr.so_muc_tieu": 0}],
+      "tach_truy_van": true,
+      "tinh_tay": "Tenant B chỉ có t11 đúng hạn, không có mục tiêu O."
+    }
+  ]
+}
