@@ -1,0 +1,13 @@
+# CELL-DTW: hạ tầng riêng của khối Đảng, HSM riêng và cụm quản trị (Argo CD) riêng (TL-04 mục 2.5), đợt 3.
+# ApplicationSet của cụm quản trị chung bỏ qua cell này; Argo CD của khối Đảng cài cùng chart deploy/argocd với
+# instance mgmt-dtw. Hai địa điểm của khối Đảng vẫn gọi là hl (chính) và sn (dự phòng) trong tên cụm.
+cell:
+  name: dtw
+  displayName: CELL-DTW
+  sizing: S
+  tenancy: silo
+  primarySite: hl
+  standbySite: sn
+  releaseWave: "3"
+  argocd: mgmt-dtw
+  silos: []

@@ -63,6 +63,41 @@ workload:
       - setWeight: 50
       - pause: { duration: 15m }
     analysisTemplates: []
+    # Phát hành canary theo OPS-03, OPS-05 (TL-04 chương 11, INF-04). Bước dạng `analysis: slo` trong canarySteps
+    # được dựng thành bước phân tích AnalysisTemplate sloAnalysis.name với tham số service và cell.
+    # Nhãn role=canary|stable cho pod để truy vấn SLI tách được hai phiên bản.
+    roleLabels: true
+    # Giữ ReplicaSet canary 10 phút sau khi huỷ để điều tra (TL-04 mẫu Rollout mission-core).
+    abortScaleDownDelaySeconds: 600
+    # Định tuyến lưu lượng; rỗng thì Rollouts chia theo số replica. Ví dụ APISIX:
+    #   apisix: { route: { name: mission-core, rules: [mission-core] } }
+    # Khi khai, chart sinh thêm hai Service <tên>-stable và <tên>-canary cho Rollouts điều khiển.
+    trafficRouting: {}
+    sloAnalysis:
+      enabled: false
+      name: slo-api
+      prometheus: http://prometheus-operated.observability.svc:9090
+      # Ngưỡng tuyệt đối của canary (TL-04 AnalysisTemplate slo-api): 15 lần đo cách 2 phút, tức 30 phút ở 5%.
+      interval: 2m
+      count: 15
+      # @service@ được thay bằng args.service của Argo Rollouts khi dựng.
+      metrics:
+        - name: error-rate
+          failureLimit: 1
+          successCondition: result[0] < 0.002
+          query: |
+            (sum(rate(http_server_requests_seconds_count{service="@service@", role="canary", status=~"5.."}[2m])) or vector(0))
+            / sum(rate(http_server_requests_seconds_count{service="@service@", role="canary"}[2m]))
+        - name: p95-read-latency
+          failureLimit: 2
+          successCondition: result[0] < 0.3
+          query: |
+            histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{service="@service@", role="canary", method="GET"}[2m]))) or vector(0)
+        - name: p95-write-latency
+          failureLimit: 2
+          successCondition: result[0] < 0.8
+          query: |
+            histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{service="@service@", role="canary", method=~"POST|PUT|PATCH|DELETE"}[2m]))) or vector(0)
   terminationGracePeriodSeconds: 40
   preStopSleepSeconds: 5
   priorityClassName: ""

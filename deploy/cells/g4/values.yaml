@@ -1,0 +1,18 @@
+# Values riêng của CELL-G4 (cell nhóm tỉnh đầu tiên, hồ sơ M, đợt phát hành 1). Chồng sau values-saas.yaml và
+# sizing/values-sizing-m.yaml (TL-05 Phụ lục A: mô hình → hồ sơ → cell). Chỉ ghi khoá thật sự riêng của cell;
+# số replica và kích thước nằm ở tệp hồ sơ.
+global:
+  cell: g4
+api-gateway:
+  cell: g4
+cell-base:
+  cell: g4
+observability-cell:
+  cell: g4
+data-pg:
+  # Tenant bridge: mỗi tỉnh một CSDL td_<mã tỉnh> (TL-03); quy trình OPS-07 điền tenantDatabases khi đưa tỉnh vào
+  # cell, đến lúc đó giữ CSDL mẫu của chart.
+  pgbouncer:
+    # Cell bridge: mỗi CSDL tỉnh tối đa 12 kết nối máy chủ mỗi instance PgBouncer, để một tỉnh đột biến không chiếm
+    # hết kết nối của các tỉnh khác (TL-05 "Ngân sách kết nối theo hồ sơ").
+    maxDbConnectionsPerTenantDb: 12

@@ -1,0 +1,125 @@
+{{- /*
+ApplicationSet theo mẫu okr-mission-core (TL-04 chương 11, OPS-01, OPS-02): mỗi service một ApplicationSet, ma trận
+cell (tệp cell.yaml của từng cell) × TTDL (sites) × tệp digest của môi trường, phát hành theo đợt bằng RollingSync
+trên nhãn wave. Biểu thức của Argo CD (dạng ngoặc nhọn kép) được ghi qua biến $L để Helm không dịch.
+*/ -}}
+{{- $v := .Values }}
+{{- $L := "{{" }}
+{{- $root := trimSuffix "/" $v.gitops.root }}
+{{- $tatCa := list }}
+{{- range $v.services }}{{ $tatCa = append $tatCa .name }}{{ end }}
+{{- range $s := $v.services }}
+{{- if not (hasKey $v.projects $s.project) }}
+{{- fail (printf "vt-gitops: service %s dùng project %s chưa khai trong projects" $s.name $s.project) }}
+{{- end }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: okr-{{ $s.name }}
+  namespace: {{ $v.argocdNamespace }}
+  labels:
+    app.kubernetes.io/part-of: vt-gitops
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: {{ $v.gitops.repoURL }}
+              revision: {{ $v.gitops.revision }}
+              files:
+                - path: {{ $root }}/cells/*/cell.yaml
+                {{- range $v.cellsExclude }}
+                - { path: {{ printf "%s/cells/%s/cell.yaml" $root . }}, exclude: true }
+                {{- end }}
+          - matrix:
+              generators:
+                - list:
+                    elements:
+                      {{- range $v.sites }}
+                      - { site: {{ . }} }
+                      {{- end }}
+                - git:
+                    repoURL: {{ $v.gitops.repoURL }}
+                    revision: {{ $v.gitops.revision }}
+                    pathParamPrefix: digests
+                    files:
+                      - path: {{ $root }}/environments/{{ $v.environment }}/digests.yaml
+  {{- if $v.rollingSync.enabled }}
+  strategy:
+    type: RollingSync
+    rollingSync:
+      steps:
+        {{- range $v.rollingSync.steps }}
+        - matchExpressions: [{ key: wave, operator: In, values: [{{ .wave | quote }}] }]
+          {{- with .maxUpdate }}
+          maxUpdate: {{ . }}
+          {{- end }}
+        {{- end }}
+  {{- end }}
+  template:
+    metadata:
+      name: '{{ $s.name }}-{{ $L }} .cell.name }}-{{ $L }} .site }}'
+      labels:
+        wave: '{{ $L }} .cell.releaseWave }}'
+        cell: '{{ $L }} .cell.name }}'
+        site: '{{ $L }} .site }}'
+        vt.io/service: {{ $s.name }}
+    spec:
+      project: {{ $s.project }}
+      source:
+        repoURL: {{ $v.gitops.repoURL }}
+        targetRevision: {{ $v.gitops.revision }}
+        {{- if $v.chartRieng }}
+        path: {{ $root }}/{{ default (printf "charts/%s" $s.name) $s.path }}
+        {{- else }}
+        path: {{ $root }}/{{ $v.platformChart.path }}
+        {{- end }}
+        helm:
+          ignoreMissingValueFiles: true
+          {{- if not $v.chartRieng }}
+          valueFiles:
+            {{- range $v.platformChart.valueFiles }}
+            - '{{ replace "{{ .model }}" $v.deploymentModel . }}'
+            {{- end }}
+          {{- end }}
+          valuesObject:
+            global:
+              cell: '{{ $L }} .cell.name }}'
+              site: '{{ $L }} .site }}'
+              siteRole: '{{ $L }} if eq .site .cell.primarySite }}primary{{ $L }} else }}standby{{ $L }} end }}'
+              sizing: '{{ $L }} .cell.sizing }}'
+            {{- if $v.chartRieng }}
+            {{- if $v.namespaceTheoCell }}
+            namespace: '{{ $s.namespace }}-{{ $L }} .cell.name }}'
+            {{- end }}
+            {{- else }}
+            {{- range $tatCa }}
+            {{ . }}: { enabled: {{ eq . $s.name }} }
+            {{- end }}
+            {{- end }}
+          {{- with $s.image }}
+          {{- $tienTo := ternary "" (printf "%s." $s.name) $v.chartRieng }}
+          {{- $anh := printf "(index .images %q)" $s.name }}
+          parameters:
+            - name: {{ $tienTo }}{{ .repository }}
+              value: '{{ $L }} {{ $anh }}.repository }}'
+            - name: {{ $tienTo }}{{ .digest }}
+              value: '{{ printf (default "%s" $s.imageFormat) (printf "%s %s.digest }}" $L $anh) }}'
+          {{- end }}
+      destination:
+        name: '{{ printf $v.destinationNameFormat (printf "%s .cell.name }}" $L) (printf "%s .site }}" $L) }}'
+        {{- if $v.namespaceTheoCell }}
+        namespace: '{{ $s.namespace }}-{{ $L }} .cell.name }}'
+        {{- else }}
+        namespace: {{ $s.namespace }}
+        {{- end }}
+      syncPolicy:
+        {{- if not $v.rollingSync.enabled }}
+        automated: { prune: true, selfHeal: true }
+        {{- end }}
+        syncOptions: {{ toJson $v.syncPolicy.syncOptions }}
+        retry: {{ toJson $v.syncPolicy.retry }}
+{{- end }}

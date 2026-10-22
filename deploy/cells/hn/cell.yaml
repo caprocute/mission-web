@@ -1,0 +1,11 @@
+# CELL-HN: cell hạng L thứ hai (HanoiWork), mô hình silo, đợt phát hành 3.
+cell:
+  name: hn
+  displayName: CELL-HN
+  sizing: L
+  tenancy: silo
+  primarySite: hl
+  standbySite: sn
+  releaseWave: "3"
+  argocd: mgmt
+  silos: []

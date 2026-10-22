@@ -1,0 +1,9 @@
+apiVersion: v2
+name: ung-dung-thu
+description: Service thử của INF-04 trên kind, dựng trên thư viện vt-service như mọi service thật.
+type: application
+version: 0.1.0
+dependencies:
+  - name: vt-service
+    version: 0.1.0
+    repository: file://../../../../charts/vt-service

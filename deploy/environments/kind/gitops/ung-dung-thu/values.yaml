@@ -1,0 +1,43 @@
+# Service thử INF-04 (kiem-thu-gitops.sh): ảnh vt-kind/ung-dung-thu theo digest (ID ảnh nạp vào node kind).
+global:
+  cell: kind
+  sizing: M
+name: ung-dung-thu
+namespace: vt-thu-gitops
+runtime: custom
+image:
+  repository: vt-kind/ung-dung-thu
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+  pullPolicy: Never
+ports:
+  http: 8080
+  mgmt: 8080
+probes:
+  startup: { path: /healthz, port: http }
+  liveness: { path: /healthz, port: http }
+  readiness: { path: /healthz, port: http }
+env: []
+envFrom: []
+resources:
+  requests: { cpu: 20m, memory: 48Mi }
+  limits: { cpu: 200m, memory: 48Mi }
+workload:
+  replicas: 2
+autoscaling:
+  hpa: { enabled: false }
+pdb:
+  minAvailable: 1
+  maxUnavailable: ""
+serviceMonitor:
+  enabled: false
+# Prometheus thử đọc chú thích prometheus.io/* của pod.
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: /metrics
+networkPolicy:
+  ingressFrom:
+    # Pod sinh tải cùng namespace và Prometheus thử.
+    - { podLabels: { vt.io/vai-tro: tai }, ports: [{ port: 8080 }] }
+    - { namespace: giam-sat-thu, ports: [{ port: 8080 }] }
+  egressTo: []

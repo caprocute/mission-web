@@ -1,0 +1,52 @@
+{{- /*
+AppProject an ninh (TL-04 mục 9.6) và cửa sổ đóng băng (OPS-06, TL-04 "Đóng băng thay đổi"). Chỉ đồng bộ commit
+có chữ ký GPG thuộc signatureKeys, nguồn duy nhất là kho GitOps, đích giới hạn theo namespace; chỉ vai trò
+release-manager được sync, kể cả sync tay trong cửa sổ đóng băng khi CAB khẩn duyệt.
+*/ -}}
+{{- $v := .Values }}
+{{- range $ten, $p := $v.projects }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ $ten }}
+  namespace: {{ $v.argocdNamespace }}
+  labels:
+    app.kubernetes.io/part-of: vt-gitops
+spec:
+  description: {{ $p.description | quote }}
+  sourceRepos: [{{ $v.gitops.repoURL | quote }}]
+  {{- with $p.signatureKeys }}
+  signatureKeys:
+    {{- range . }}
+    - keyID: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  destinations:
+    {{- range $p.namespaces }}
+    - { server: "*", namespace: {{ . | quote }} }
+    {{- end }}
+    {{- if $v.namespaceTheoCell }}
+    {{- range $p.namespaces }}
+    - { server: "*", namespace: {{ printf "%s-*" . | quote }} }
+    {{- end }}
+    {{- end }}
+  clusterResourceWhitelist: {{ toYaml $p.clusterResourceWhitelist | nindent 4 }}
+  namespaceResourceBlacklist: {{ toYaml $p.namespaceResourceBlacklist | nindent 4 }}
+  roles:
+    - name: {{ $v.releaseManagers.role }}
+      description: Quản lý phát hành, người duy nhất được đồng bộ (OPS-02, OPS-06)
+      policies:
+        - p, proj:{{ $ten }}:{{ $v.releaseManagers.role }}, applications, sync, {{ $ten }}/*, allow
+        - p, proj:{{ $ten }}:{{ $v.releaseManagers.role }}, applications, get, {{ $ten }}/*, allow
+      groups: {{ toJson $v.releaseManagers.groups }}
+  syncWindows:
+    {{- range concat $v.syncWindows $v.syncWindowsBoSung }}
+    - kind: {{ .kind }}
+      schedule: {{ .schedule | quote }}
+      duration: {{ .duration }}
+      applications: {{ toJson (default (list "*") .applications) }}
+      manualSync: {{ .manualSync }}
+      timeZone: {{ default "Asia/Ho_Chi_Minh" .timeZone }}
+    {{- end }}
+{{- end }}
