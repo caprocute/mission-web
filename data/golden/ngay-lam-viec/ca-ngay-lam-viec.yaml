@@ -1,0 +1,40 @@
+# Bộ ca ngày làm việc dùng chung (CORE-08-04, BR-06-01, BR-15-03).
+# Quy ước: thứ Bảy, Chủ nhật nghỉ trừ LAM_BU; ngày thường làm việc trừ NGHI_LE, NGHI_BU.
+# dem(tu, den): số ngày làm việc trong nửa khoảng (tu, den], bằng 0 khi tu >= den; khớp ngay_lam_viec(tu, den).
+# cong(tu, n): ngày làm việc thứ n sau tu (n âm thì lùi; n = 0 trả nguyên tu).
+# la_ngay_lam_viec(ngay): đúng hay sai.
+# Dữ liệu lịch là lịch giả lập năm 2026 khớp data/golden/cel/golden-cases.yaml, thêm Tết Dương lịch 2027 để thử khoảng qua năm.
+suite: mission-ngay-lam-viec
+version: "1.0.0"
+lich:
+  - { ngay: "2026-01-01", loai: NGHI_LE }
+  - { ngay: "2026-02-14", loai: LAM_BU }
+  - { ngay: "2026-02-16", loai: NGHI_LE }
+  - { ngay: "2026-02-17", loai: NGHI_LE }
+  - { ngay: "2026-02-18", loai: NGHI_LE }
+  - { ngay: "2026-02-19", loai: NGHI_LE }
+  - { ngay: "2026-02-20", loai: NGHI_LE }
+  - { ngay: "2026-04-25", loai: LAM_BU }
+  - { ngay: "2026-04-27", loai: NGHI_BU }
+  - { ngay: "2026-04-30", loai: NGHI_LE }
+  - { ngay: "2026-05-01", loai: NGHI_LE }
+  - { ngay: "2026-08-29", loai: LAM_BU }
+  - { ngay: "2026-09-02", loai: NGHI_LE }
+  - { ngay: "2026-09-03", loai: NGHI_LE }
+  - { ngay: "2027-01-01", loai: NGHI_LE }
+ca:
+  - { ma: NLV-01, mo_ta: "Qua Tết có làm bù thứ Bảy", phep: dem, tu: "2026-02-13", den: "2026-02-23", mong_doi: 2 }
+  - { ma: NLV-02, mo_ta: "Cộng 1 ngày rơi vào thứ Bảy làm bù", phep: cong, tu: "2026-02-13", n: 1, mong_doi: "2026-02-14" }
+  - { ma: NLV-03, mo_ta: "Cộng 2 ngày nhảy qua cả kỳ nghỉ Tết", phep: cong, tu: "2026-02-13", n: 2, mong_doi: "2026-02-23" }
+  - { ma: NLV-04, mo_ta: "n = 0 trả nguyên ngày kể cả ngày nghỉ", phep: cong, tu: "2026-02-16", n: 0, mong_doi: "2026-02-16" }
+  - { ma: NLV-05, mo_ta: "Lùi 1 ngày làm việc qua kỳ nghỉ Tết", phep: cong, tu: "2026-02-23", n: -1, mong_doi: "2026-02-14" }
+  - { ma: NLV-06, mo_ta: "Khoảng qua năm có Tết Dương lịch", phep: dem, tu: "2026-12-30", den: "2027-01-04", mong_doi: 2 }
+  - { ma: NLV-07, mo_ta: "Cộng qua năm", phep: cong, tu: "2026-12-31", n: 1, mong_doi: "2027-01-04" }
+  - { ma: NLV-08, mo_ta: "Cùng ngày bằng 0", phep: dem, tu: "2026-03-10", den: "2026-03-10", mong_doi: 0 }
+  - { ma: NLV-09, mo_ta: "Ngược chiều bằng 0", phep: dem, tu: "2026-03-10", den: "2026-03-01", mong_doi: 0 }
+  - { ma: NLV-10, mo_ta: "Nghỉ bù thứ Hai không phải ngày làm việc", phep: la_ngay_lam_viec, ngay: "2026-04-27", mong_doi: false }
+  - { ma: NLV-11, mo_ta: "Thứ Bảy làm bù là ngày làm việc", phep: la_ngay_lam_viec, ngay: "2026-04-25", mong_doi: true }
+  - { ma: NLV-12, mo_ta: "Chủ nhật thường là ngày nghỉ", phep: la_ngay_lam_viec, ngay: "2026-03-01", mong_doi: false }
+  - { ma: NLV-13, mo_ta: "Hạn nghiệm thu kết thúc quý III cộng 2 ngày làm việc", phep: cong, tu: "2026-09-30", n: 2, mong_doi: "2026-10-02" }
+  - { ma: NLV-14, mo_ta: "Cả tháng Hai năm 2026", phep: dem, tu: "2026-01-31", den: "2026-02-28", mong_doi: 16 }
+  - { ma: NLV-15, mo_ta: "Dịp Quốc khánh có làm bù", phep: dem, tu: "2026-08-28", den: "2026-09-04", mong_doi: 4 }

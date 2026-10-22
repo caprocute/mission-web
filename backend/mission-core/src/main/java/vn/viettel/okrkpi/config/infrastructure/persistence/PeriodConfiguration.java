@@ -25,6 +25,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.viettel.okrkpi.config.api.PeriodCalendarPort;
+import vn.viettel.okrkpi.config.application.HolidayCalendarService;
 import vn.viettel.okrkpi.config.application.PeriodConfigService;
 import vn.viettel.okrkpi.config.application.PeriodStateCache;
 import vn.viettel.okrkpi.config.infrastructure.listener.PeriodCacheEvictionListener;
@@ -122,6 +123,24 @@ public class PeriodConfiguration {
     container.setMessageListener(new PeriodCacheEvictionListener(periodConfigService));
     return new ConcurrentMessageListenerContainer<>(
         new DefaultKafkaConsumerFactory<>(props), container);
+  }
+
+  @Bean
+  JdbcHolidayCalendarRepository holidayCalendarRepository(
+      @Qualifier("configDataSource") DataSource dataSource) {
+    return new JdbcHolidayCalendarRepository(JdbcClient.create(dataSource));
+  }
+
+  /** CORE-08-04: lịch nghỉ, làm bù và thư viện ngày làm việc ({@code WorkingCalendarApi}). */
+  @Bean
+  HolidayCalendarService holidayCalendarService(
+      JdbcHolidayCalendarRepository holidayCalendarRepository,
+      ApplicationEventPublisher publisher,
+      @Qualifier("configTransactionManager") PlatformTransactionManager tm,
+      @Value("${mission.config.working-calendar.ttl:60s}") Duration ttl) {
+    TransactionTemplate reads = new TransactionTemplate(tm);
+    reads.setReadOnly(true);
+    return new HolidayCalendarService(holidayCalendarRepository, publisher, reads, ttl);
   }
 
   @Bean

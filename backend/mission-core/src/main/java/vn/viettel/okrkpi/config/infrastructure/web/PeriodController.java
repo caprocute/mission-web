@@ -31,7 +31,6 @@ import vn.viettel.okrkpi.contract.config.model.PeriodPage;
 import vn.viettel.okrkpi.contract.config.model.PeriodStatus;
 import vn.viettel.okrkpi.contract.config.model.Ref;
 import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
-import vn.viettel.okrkpi.shared.authz.OpaInput;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.etag.ETags;
@@ -54,8 +53,7 @@ public class PeriodController {
 
   private final PeriodConfigService periods;
   private final CursorCodec cursors;
-  private final ObjectProvider<AuthzSubjectResolver> subjects;
-  private final ObjectProvider<PeriodCaller> callers;
+  private final Callers callers;
   private final ConfigIdempotency idempotency;
 
   public PeriodController(
@@ -67,8 +65,7 @@ public class PeriodController {
     this.idempotency = Objects.requireNonNull(idempotency, "idempotency");
     this.periods = Objects.requireNonNull(periods, "periods");
     this.cursors = Objects.requireNonNull(cursors, "cursors");
-    this.subjects = Objects.requireNonNull(subjects, "subjects");
-    this.callers = Objects.requireNonNull(callers, "callers");
+    this.callers = new Callers(subjects, callers);
   }
 
   @PostMapping
@@ -221,21 +218,6 @@ public class PeriodController {
   }
 
   private UUID caller() {
-    PeriodCaller custom = callers.getIfAvailable();
-    if (custom != null) {
-      return custom
-          .currentUserId()
-          .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cần đăng nhập"));
-    }
-    AuthzSubjectResolver resolver = subjects.getIfAvailable();
-    OpaInput.Subject subject = resolver == null ? null : resolver.currentSubject();
-    if (subject == null || subject.userId() == null || subject.userId().isBlank()) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cần đăng nhập");
-    }
-    try {
-      return UUID.fromString(subject.userId());
-    } catch (IllegalArgumentException e) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cần đăng nhập");
-    }
+    return callers.current();
   }
 }
