@@ -20,6 +20,11 @@ export interface TraceOptions {
   /** Bật `X-Debug-Trace` cho hỗ trợ kỹ thuật (tham số trang `?debug-trace=1`, suy luận). */
   debugTrace: boolean;
   activeSpan?: () => ActiveSpanContext | null;
+  /**
+   * Trả true khi instrumentation fetch của OpenTelemetry (Faro, WEB-011) đã tự gắn `traceparent`;
+   * khi đó interceptor không gắn để tránh hai nguồn ghi đè nhau.
+   */
+  delegated?: () => boolean;
   random: () => number;
 }
 
@@ -62,7 +67,9 @@ export const traceparentInterceptor: HttpInterceptorFn = (req, next) => {
   if (!req.url.includes('/api/')) return next(req);
   const opts = inject(TRACE_OPTIONS);
   const headers: Record<string, string> = {};
-  if (!req.headers.has('traceparent')) headers['traceparent'] = buildTraceparent(opts);
+  if (!req.headers.has('traceparent') && !opts.delegated?.()) {
+    headers['traceparent'] = buildTraceparent(opts);
+  }
   if (opts.tenant && !req.headers.has('baggage')) {
     // ui-text-ok: giá trị header W3C Baggage gửi máy chủ, không hiển thị cho người dùng
     headers['baggage'] = `tenant=${encodeURIComponent(opts.tenant)}`;

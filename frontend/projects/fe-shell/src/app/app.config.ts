@@ -5,6 +5,7 @@ import {
   inject,
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
+  provideEnvironmentInitializer,
 } from '@angular/core';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
@@ -22,12 +23,21 @@ import { SessionService, authInterceptor, provideVtAuth } from '@vt/auth';
 import { provideDesignSystem } from '@vt/design-system';
 import {
   BUILTIN_SDUI_COMPONENTS,
+  SDUI_TELEMETRY_SINK,
   UI_PACK_PREFETCH,
   UiPackLoader,
   UiPackPrefetch,
   provideSduiComponents,
 } from '@vt/sdui-renderer';
-import { TRACE_OPTIONS, debugTraceRequested, traceparentInterceptor } from '@vt/telemetry';
+import {
+  BrowserTelemetryConfig,
+  TRACE_OPTIONS,
+  browserTracingActive,
+  debugTraceRequested,
+  pushTelemetryEvent,
+  startBrowserTelemetry,
+  traceparentInterceptor,
+} from '@vt/telemetry';
 import { routes } from './app.routes';
 import { SHELL_WIDGETS } from './widgets/shell-widgets';
 
@@ -47,9 +57,22 @@ export function buildAppConfig(
           sampleRatio: cfg.telemetry?.sampleRatio ?? 1,
           tenant: cfg.tenant,
           debugTrace: debugTraceRequested(),
+          // WEB-011: khi Faro đã bật, instrumentation fetch của OpenTelemetry gắn traceparent
+          delegated: browserTracingActive,
           random: Math.random,
         },
       },
+      // WEB-011: sự kiện an toàn của SDUI (WEB-009) đi vào Faro; chưa bật Faro thì chỉ ghi console
+      {
+        provide: SDUI_TELEMETRY_SINK,
+        useValue: (r: { event: string; attributes: Record<string, string | number> }) =>
+          pushTelemetryEvent(r.event, r.attributes),
+      },
+      // Faro nạp lười khi trình duyệt rảnh, không chặn khởi động; chỉ khi config.json có faroUrl
+      provideEnvironmentInitializer(() => {
+        const t = cfg.telemetry as BrowserTelemetryConfig | undefined;
+        void startBrowserTelemetry({ ...t, environment: cfg.cell, tenant: cfg.tenant });
+      }),
       provideRouter(
         routes,
         withComponentInputBinding(),
