@@ -25,7 +25,7 @@ CREATE TABLE ${flyway:defaultSchema}.publish_request (
     CONSTRAINT ck_publish_request__decided CHECK (status = 'CHO_PHE_DUYET' OR (decided_by IS NOT NULL AND decided_at IS NOT NULL)),
     CONSTRAINT ck_publish_request__four_eyes CHECK (decided_by IS NULL OR status <> 'DA_DUYET' OR decided_by <> created_by)
 );
-CREATE UNIQUE INDEX uq_publish_request__pending ON ${flyway:defaultSchema}.publish_request (tenant_id, policy_pack_version_id) WHERE status = 'CHO_PHE_DUYET';
+CREATE UNIQUE INDEX ix_publish_request__pending ON ${flyway:defaultSchema}.publish_request (tenant_id, policy_pack_version_id) WHERE status = 'CHO_PHE_DUYET';
 CREATE INDEX ix_publish_request__version ON ${flyway:defaultSchema}.publish_request (tenant_id, policy_pack_version_id, created_at);
 COMMENT ON TABLE ${flyway:defaultSchema}.publish_request IS 'Yêu cầu phát hành phiên bản Policy Pack: kỳ hiệu lực, phạm vi và quyết định phê duyệt';
 COMMENT ON COLUMN ${flyway:defaultSchema}.publish_request.id IS '{"cls": "C1", "desc": "Mã dòng (UUIDv7 sinh ở ứng dụng)"}';
