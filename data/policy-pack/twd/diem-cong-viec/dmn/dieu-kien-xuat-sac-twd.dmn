@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- BẢN GIẢ LẬP chờ nghiệp vụ duyệt (DL-16). Bước 4a của chuỗi xếp loại; table_key dieu_kien_xuat_sac; gói twd/diem-cong-viec -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20211108/MODEL/" id="dieu-kien-xuat-sac-twd-dinh-nghia" name="Điều kiện của mức Hoàn thành xuất sắc nhiệm vụ"
+             namespace="https://policy.okrkpi.vn/twd/diem-cong-viec" expressionLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/" typeLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/">
+  <decision id="dieu-kien-xuat-sac-twd" name="Điều kiện của mức Hoàn thành xuất sắc nhiệm vụ">
+    <variable id="dieu-kien-xuat-sac-twd-var" name="muc_sau_dieu_kien_xuat_sac" typeRef="string"/>
+    <decisionTable id="dieu-kien-xuat-sac-twd-bang" hitPolicy="FIRST" outputLabel="Mức sau điều kiện Xuất sắc">
+      <input id="dieu-kien-xuat-sac-twd-in1" label="Mức sau bước 3">
+        <inputExpression id="dieu-kien-xuat-sac-twd-in1-expr" typeRef="string"><text>muc_sau_buoc_3</text></inputExpression>
+        <inputValues id="dieu-kien-xuat-sac-twd-in1-values"><text>"HTXSNV","HTTNV","HTNV","KHTNV"</text></inputValues>
+      </input>
+      <input id="dieu-kien-xuat-sac-twd-in2" label="Có việc trọng tâm, then chốt trong kỳ">
+        <inputExpression id="dieu-kien-xuat-sac-twd-in2-expr" typeRef="boolean"><text>co_viec_trong_tam</text></inputExpression>
+      </input>
+      <input id="dieu-kien-xuat-sac-twd-in3" label="Hoàn thành toàn bộ việc trọng tâm trong phạm vi">
+        <inputExpression id="dieu-kien-xuat-sac-twd-in3-expr" typeRef="boolean"><text>hoan_thanh_100_trong_tam</text></inputExpression>
+      </input>
+      <input id="dieu-kien-xuat-sac-twd-in4" label="Tỷ lệ nhiệm vụ, công việc vượt đạt ngưỡng">
+        <inputExpression id="dieu-kien-xuat-sac-twd-in4-expr" typeRef="boolean"><text>dat_ty_le_vuot</text></inputExpression>
+      </input>
+      <input id="dieu-kien-xuat-sac-twd-in5" label="Có giải pháp đột phá được công nhận">
+        <inputExpression id="dieu-kien-xuat-sac-twd-in5-expr" typeRef="boolean"><text>giai_phap_dot_pha</text></inputExpression>
+      </input>
+      <input id="dieu-kien-xuat-sac-twd-in6" label="Có việc trọng tâm không hoàn thành do nguyên nhân chủ quan">
+        <inputExpression id="dieu-kien-xuat-sac-twd-in6-expr" typeRef="boolean"><text>truot_trong_tam_chu_quan</text></inputExpression>
+      </input>
+      <input id="dieu-kien-xuat-sac-twd-in7" label="Đối tượng không có việc trọng tâm không đủ điều kiện mức Hoàn thành xuất sắc nhiệm vụ">
+        <inputExpression id="dieu-kien-xuat-sac-twd-in7-expr" typeRef="boolean"><text>chan_xuat_sac_khi_khong_co_trong_tam</text></inputExpression>
+      </input>
+      <output id="dieu-kien-xuat-sac-twd-out" name="muc_sau_dieu_kien_xuat_sac" typeRef="string">
+        <outputValues id="dieu-kien-xuat-sac-twd-out-values"><text>"HTXSNV","HTTNV","HTNV","KHTNV"</text></outputValues>
+      </output>
+      <annotation name="legal_ref"/>
+      <annotation name="dieu_khoan"/>
+      <annotation name="giai_thich"/>
+      <rule id="dieu-kien-xuat-sac-twd-dong-1">
+        <description>Đủ mọi điều kiện, có việc trọng tâm</description>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-1-in1"><text>"HTXSNV"</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-1-in2"><text>true</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-1-in3"><text>true</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-1-in4"><text>true</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-1-in5"><text>true</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-1-in6"><text>false</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-1-in7"><text>-</text></inputEntry>
+        <outputEntry id="dieu-kien-xuat-sac-twd-dong-1-out"><text>"HTXSNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 4; 18.2; Điều 11 khoản 2.1</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Hoàn thành toàn bộ việc trọng tâm, tỷ lệ việc vượt đạt ngưỡng, có giải pháp đột phá được công nhận nên giữ mức Hoàn thành xuất sắc nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="dieu-kien-xuat-sac-twd-dong-2">
+        <description>Không có việc trọng tâm, tham số cho phép xét</description>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-2-in1"><text>"HTXSNV"</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-2-in2"><text>false</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-2-in3"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-2-in4"><text>true</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-2-in5"><text>true</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-2-in6"><text>false</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-2-in7"><text>false</text></inputEntry>
+        <outputEntry id="dieu-kien-xuat-sac-twd-dong-2-out"><text>"HTXSNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 4; 18.2; Điều 11 khoản 2.1</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Không có việc trọng tâm, tham số cho phép xét; tỷ lệ việc vượt đạt ngưỡng và có giải pháp đột phá nên giữ mức Hoàn thành xuất sắc nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="dieu-kien-xuat-sac-twd-dong-3">
+        <description>Thiếu điều kiện Xuất sắc</description>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-3-in1"><text>"HTXSNV"</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-3-in2"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-3-in3"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-3-in4"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-3-in5"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-3-in6"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-3-in7"><text>-</text></inputEntry>
+        <outputEntry id="dieu-kien-xuat-sac-twd-dong-3-out"><text>"HTTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 4; 18.2; Điều 11 khoản 2.1</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Đủ trần mức Hoàn thành xuất sắc nhiệm vụ nhưng chưa đạt điều kiện {dieu_kien_thieu}, nên chuyển xuống mức Hoàn thành tốt nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="dieu-kien-xuat-sac-twd-dong-4">
+        <description>Giữ mức Hoàn thành tốt nhiệm vụ</description>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-4-in1"><text>"HTTNV"</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-4-in2"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-4-in3"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-4-in4"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-4-in5"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-4-in6"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-4-in7"><text>-</text></inputEntry>
+        <outputEntry id="dieu-kien-xuat-sac-twd-dong-4-out"><text>"HTTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 4; 18.2; Điều 11 khoản 2.1</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Mức đang xét không phải Hoàn thành xuất sắc nhiệm vụ nên bước này giữ nguyên mức.</text></annotationEntry>
+      </rule>
+      <rule id="dieu-kien-xuat-sac-twd-dong-5">
+        <description>Giữ mức Hoàn thành nhiệm vụ</description>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-5-in1"><text>"HTNV"</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-5-in2"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-5-in3"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-5-in4"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-5-in5"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-5-in6"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-5-in7"><text>-</text></inputEntry>
+        <outputEntry id="dieu-kien-xuat-sac-twd-dong-5-out"><text>"HTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 4; 18.2; Điều 11 khoản 2.1</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Mức đang xét không phải Hoàn thành xuất sắc nhiệm vụ nên bước này giữ nguyên mức.</text></annotationEntry>
+      </rule>
+      <rule id="dieu-kien-xuat-sac-twd-dong-6">
+        <description>Giữ mức Không hoàn thành nhiệm vụ</description>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-6-in1"><text>"KHTNV"</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-6-in2"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-6-in3"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-6-in4"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-6-in5"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-6-in6"><text>-</text></inputEntry>
+        <inputEntry id="dieu-kien-xuat-sac-twd-dong-6-in7"><text>-</text></inputEntry>
+        <outputEntry id="dieu-kien-xuat-sac-twd-dong-6-out"><text>"KHTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 4; 18.2; Điều 11 khoản 2.1</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Mức đang xét không phải Hoàn thành xuất sắc nhiệm vụ nên bước này giữ nguyên mức.</text></annotationEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

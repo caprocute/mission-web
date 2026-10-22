@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- BẢN GIẢ LẬP chờ nghiệp vụ duyệt (DL-16). Bước 1 của chuỗi xếp loại; table_key tran_theo_diem; gói twd/diem-cong-viec -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20211108/MODEL/" id="tran-theo-diem-twd-dinh-nghia" name="Trần mức theo điểm"
+             namespace="https://policy.okrkpi.vn/twd/diem-cong-viec" expressionLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/" typeLanguage="https://www.omg.org/spec/DMN/20211108/FEEL/">
+  <decision id="tran-theo-diem-twd" name="Trần mức theo điểm">
+    <variable id="tran-theo-diem-twd-var" name="tran_theo_diem" typeRef="string"/>
+    <decisionTable id="tran-theo-diem-twd-bang" hitPolicy="FIRST" outputLabel="Trần theo điểm">
+      <input id="tran-theo-diem-twd-in1" label="Điểm dùng để xếp loại (đã làm tròn 1 chữ số)">
+        <inputExpression id="tran-theo-diem-twd-in1-expr" typeRef="number"><text>diem_xep_loai</text></inputExpression>
+      </input>
+      <output id="tran-theo-diem-twd-out" name="tran_theo_diem" typeRef="string">
+        <outputValues id="tran-theo-diem-twd-out-values"><text>"HTXSNV","HTTNV","HTNV","KHTNV"</text></outputValues>
+      </output>
+      <annotation name="legal_ref"/>
+      <annotation name="dieu_khoan"/>
+      <annotation name="giai_thich"/>
+      <rule id="tran-theo-diem-twd-dong-1">
+        <description>Từ 90 điểm</description>
+        <inputEntry id="tran-theo-diem-twd-dong-1-in1"><text>&gt;= 90</text></inputEntry>
+        <outputEntry id="tran-theo-diem-twd-dong-1-out"><text>"HTXSNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 1; Điều 11 khoản 2</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Đạt {diem} điểm, từ 90 điểm trở lên, nên trần theo điểm là mức Hoàn thành xuất sắc nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="tran-theo-diem-twd-dong-2">
+        <description>Từ 80 đến dưới 90 điểm</description>
+        <inputEntry id="tran-theo-diem-twd-dong-2-in1"><text>[80..90)</text></inputEntry>
+        <outputEntry id="tran-theo-diem-twd-dong-2-out"><text>"HTTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 1; Điều 11 khoản 2</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Đạt {diem} điểm, từ 80 đến dưới 90 điểm, nên trần theo điểm là mức Hoàn thành tốt nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="tran-theo-diem-twd-dong-3">
+        <description>Từ 60 đến dưới 80 điểm</description>
+        <inputEntry id="tran-theo-diem-twd-dong-3-in1"><text>[60..80)</text></inputEntry>
+        <outputEntry id="tran-theo-diem-twd-dong-3-out"><text>"HTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 1; Điều 11 khoản 2</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Đạt {diem} điểm, từ 60 đến dưới 80 điểm, nên trần theo điểm là mức Hoàn thành nhiệm vụ.</text></annotationEntry>
+      </rule>
+      <rule id="tran-theo-diem-twd-dong-4">
+        <description>Dưới 60 điểm</description>
+        <inputEntry id="tran-theo-diem-twd-dong-4-in1"><text>-</text></inputEntry>
+        <outputEntry id="tran-theo-diem-twd-dong-4-out"><text>"KHTNV"</text></outputEntry>
+        <annotationEntry><text>Đặc tả UEB 18.5 bước 1; Điều 11 khoản 2</text></annotationEntry>
+        <annotationEntry><text>Điều 11 của dự thảo Quy định</text></annotationEntry>
+        <annotationEntry><text>Đạt {diem} điểm, dưới 60 điểm, nên trần theo điểm là mức Không hoàn thành nhiệm vụ.</text></annotationEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

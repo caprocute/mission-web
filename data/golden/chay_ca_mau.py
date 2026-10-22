@@ -15,6 +15,14 @@ ca này; tập lệnh không thông dịch CEL.
 Ca đạt khi mọi khoá trong `mong_doi` khớp giá trị tính được. Số so sánh chính xác sau khi làm tròn
 nửa lên: điểm theo `rounding.diem`, tỷ lệ vượt theo quy tắc làm tròn của biến đó, chỉ số nhiệm vụ
 ở 4 chữ số. Cần Python 3.12 và PyYAML.
+
+Từ DL-16, tập lệnh chạy thêm các loại ca của cách tính điểm theo điểm công việc (gói kế thừa như
+twd/diem-cong-viec): VIEC (điểm một công việc), QUAN_LY (điểm quản lý của KPI, nhiệm vụ, KR sau phần
+giảm), CA_NHAN (điểm quý của một người trên phạm vi phụ trách, theo tỷ lệ có hệ số hoặc gói điểm),
+NAM_DIEM (điểm năm theo cách dùng kết quả các quý trước), XEP_LOAI_CHUOI (chuỗi bước xếp loại khai ở
+classification.chuoi, mỗi bước là một bảng DMN) và XEP_LOAI_LO (đếm mức của một lô ca, có thể đổi tham
+số hoặc dữ liệu của từng ca để thử tình huống). Công thức đọc tham số của gói, không có hằng số theo
+khách hàng.
 """
 from __future__ import annotations
 
@@ -52,6 +60,8 @@ def hien(x) -> str:
         return s + "0" if s.endswith(".") else s
     if isinstance(x, list):
         return "[" + ", ".join(hien(v) for v in x) + "]"
+    if isinstance(x, dict):
+        return "{" + ", ".join(f"{k}: {hien(v)}" for k, v in x.items()) + "}"
     return str(x).lower() if isinstance(x, bool) else str(x)
 
 
@@ -267,6 +277,201 @@ def chay_dac_thu(goi: Goi, dv: dict) -> dict:
             "truong_hop": th["ma"]}
 
 
+# ----------------------------------------------------------------------------- Điểm công việc (DL-16)
+NHOM_VIEC = ("THEN_CHOT", "THUONG_XUYEN")
+TRANG_THAI_VIEC = ("HOAN_THANH", "CHUA_HOAN_THANH", "KHONG_DUOC_CHAP_NHAN", "CHUYEN_KY")
+
+
+def lam_tron_dau(x: Fraction, chu_so: int) -> Fraction:
+    """Làm tròn nửa lên theo trị tuyệt đối, dùng cho số có thể âm (điểm quản lý sau phần giảm)."""
+    return -lam_tron(-x, chu_so) if x < 0 else lam_tron(x, chu_so)
+
+
+def r4(x: Fraction | None) -> Fraction | None:
+    return None if x is None else lam_tron_dau(x, 4)
+
+
+def tinh_viec(v: dict, ts: dict) -> dict:
+    """Điểm công việc = điểm chuẩn × hệ số mức độ khó × hệ số nhóm × các hệ số bổ sung đang bật; ba mặt
+    số lượng, chất lượng, tiến độ theo trạng thái khi khóa sổ."""
+    if v["trang_thai"] not in TRANG_THAI_VIEC:
+        raise ValueError(f"trạng thái công việc {v['trang_thai']} không hỗ trợ")
+    hs = F(ts["he_so.muc_do_kho"][v.get("muc_do_kho", 2)]) * F(ts["he_so.nhom_nhiem_vu"][v["nhom"]])
+    for b in ts["he_so.bo_sung"]:
+        if b["bat"]:
+            hs *= F((v.get("he_so_bo_sung") or {}).get(b["ma"], 1))
+    d = F(v["diem_chuan"]) * hs
+    zero = Fraction(0)
+    if v.get("ngoai_pham_vi") or v["trang_thai"] == "CHUYEN_KY":
+        giao = sl = cl = td = zero
+    elif v["trang_thai"] != "HOAN_THANH" or not v.get("cha_hoan_thanh", True):
+        giao, sl, cl, td = d, zero, zero, zero
+    else:
+        m = F(v["muc_chat_luong"])
+        if m not in [F(x) for x in ts["chat_luong.thang_cong_viec"]]:
+            raise ValueError(f"mức chất lượng {v['muc_chat_luong']} ngoài thang")
+        giao = sl = d
+        cl = d * m
+        td = max(zero, d * (1 - F(ts["tru_tien_do"]) * v.get("ngay_cham_chu_quan", 0)))
+    return {"diem_cong_viec": d, "giao": giao, "so_luong": sl, "chat_luong": cl, "tien_do": td, "diem_dat": (sl + cl + td) / 3}
+
+
+def chay_viec(dv: dict, ts: dict) -> dict:
+    return {k: r4(v) for k, v in tinh_viec(dv, ts).items()}
+
+
+def chay_quan_ly(dv: dict, ts: dict) -> dict:
+    """Điểm quản lý của một KPI, nhiệm vụ, KR trên tổng ba mặt của các công việc bên dưới, sau phần giảm
+    theo tỷ lệ đạt chỉ tiêu r, mức chất lượng của mục m và số ngày chậm chủ quan của mục n."""
+    S, Q, D, G = (F(dv[k]) for k in ("tong_so_luong", "tong_chat_luong", "tong_tien_do", "tong_giao"))
+    r, m, n = F(dv.get("ty_le_dat_chi_tieu", 1)), F(dv.get("muc_chat_luong", 1)), dv.get("ngay_cham_chu_quan", 0)
+    if dv["loai"] not in ts["quan_ly.loai_ap_giam"]:
+        r, m, n = Fraction(1), Fraction(1), 0
+    if dv.get("can_khac_phuc"):
+        m = min(m, F(ts["chat_luong.tran_khac_phuc"]))
+    sl, cl, td = S * r, Q - (1 - m) * S, D - F(ts["tru_tien_do"]) * n * S
+    return {k: r4(v) for k, v in {"giao": G, "so_luong": sl, "chat_luong": cl, "tien_do": td,
+                                   "muc_chat_luong_ap_dung": m, "diem_dat": (sl + cl + td) / 3}.items()}
+
+
+def goi_diem_cho(doi_tuong: str, ts: dict) -> dict:
+    rieng = (ts.get("goi_diem.theo_doi_tuong") or {}).get(doi_tuong)
+    goi = {g["ma"]: F(g["diem_toi_da"]) for g in ts["nhom"]} if rieng is None else {k: F(v) for k, v in rieng.items()}
+    if sum(goi.values()) != 100:
+        raise ValueError("Gói trọng tâm, then chốt và gói thường xuyên phải cộng lại bằng 100.")
+    return goi
+
+
+def chay_ca_nhan(dv: dict, ts: dict) -> dict:
+    """Điểm quý của một người: cộng điểm được giao và ba mặt của các mục trong phạm vi phụ trách theo
+    từng nhóm, rồi đưa về thang 100 theo tham số thang_100.che_do; tổng điểm lưu 2 chữ số, điểm dùng
+    để xếp loại làm tròn tiếp 1 chữ số."""
+    muc = [m for m in dv["muc"] if not m.get("truc_tiep") or dv.get("cap") in ts["truc_tiep_lam.cap_ap_dung"]]
+    zero = Fraction(0)
+    nhom = {}
+    for g in NHOM_VIEC:
+        L = [m for m in muc if m["nhom"] == g]
+        tong = {k: sum((F(m[k]) for m in L), zero) for k in ("giao", "so_luong", "chat_luong", "tien_do")}
+        tong["dat"] = (tong["so_luong"] + tong["chat_luong"] + tong["tien_do"]) / 3
+        tong["kpi"] = tong["dat"] / tong["giao"] if tong["giao"] else None
+        nhom[g] = tong
+    tong_giao = sum(n["giao"] for n in nhom.values())
+    kq = {f"{p}_{k}": r4(nhom[g][k]) for g, p in (("THEN_CHOT", "tt"), ("THUONG_XUYEN", "tx"))
+          for k in ("giao", "so_luong", "chat_luong", "tien_do", "dat", "kpi")}
+    if tong_giao == 0:
+        return kq | {"co_diem": False, "tong_diem": None, "diem_xep_loai": None}
+    if ts["thang_100.che_do"] == "TY_LE_CO_HE_SO":
+        tho = 100 * sum(n["dat"] for n in nhom.values()) / tong_giao
+        goi = None
+    else:
+        goi = goi_diem_cho(dv["doi_tuong"], ts)
+        co = [g for g in NHOM_VIEC if nhom[g]["giao"]]
+        if len(co) == 1:
+            goi = {g: Fraction(100 if g == co[0] else 0) for g in NHOM_VIEC}
+        truc = ts.get("ty_trong_truc") or {}
+        if truc and nhom["THEN_CHOT"]["giao"]:
+            w_tong, kpi_tong = zero, zero
+            for t in sorted({m["truc"] for m in muc if m["nhom"] == "THEN_CHOT"}):
+                L = [m for m in muc if m["nhom"] == "THEN_CHOT" and m["truc"] == t]
+                giao = sum((F(m["giao"]) for m in L), zero)
+                if not giao:
+                    continue
+                w = F(truc.get(t, 0))
+                if not w:
+                    raise ValueError(f"Còn trục {t} có việc trọng tâm trong kỳ nhưng chưa có tỷ trọng theo trục.")
+                dat = sum((F(m["so_luong"]) + F(m["chat_luong"]) + F(m["tien_do"]) for m in L), zero) / 3
+                w_tong, kpi_tong = w_tong + w, kpi_tong + w * dat / giao
+            nhom["THEN_CHOT"]["kpi"] = kpi_tong / w_tong
+            kq["tt_kpi"] = r4(nhom["THEN_CHOT"]["kpi"])
+        tho = sum((nhom[g]["kpi"] or zero) * goi[g] for g in NHOM_VIEC)
+    tong_diem = lam_tron(tho, 2)
+    return kq | {"co_diem": True, "tong_diem": tong_diem, "diem_xep_loai": lam_tron(tong_diem, 1),
+                 "diem_toi_da_tt": goi and goi["THEN_CHOT"], "diem_toi_da_tx": goi and goi["THUONG_XUYEN"]}
+
+
+def chay_nam_diem(dv: dict, ts: dict) -> dict:
+    """Điểm năm: (a) chỉ các quý có trên phần mềm; (b) cộng thêm điểm được giao và điểm đạt đã quy đổi
+    (giao × tỷ lệ đạt) của các quý trước."""
+    giao = sum((F(q["giao"]) for q in dv["quy_tren_phan_mem"]), Fraction(0))
+    dat = sum((F(q["dat"]) for q in dv["quy_tren_phan_mem"]), Fraction(0))
+    if ts["nam.cach_dung_quy_truoc"] == "CONG_QUY_TRUOC":
+        giao += sum((F(q["giao"]) for q in dv.get("quy_truoc", [])), Fraction(0))
+        dat += sum((F(q["giao"]) * F(q["ty_le_dat"]) for q in dv.get("quy_truoc", [])), Fraction(0))
+    if not giao:
+        return {"co_diem": False, "tong_diem_nam": None, "diem_xep_loai": None}
+    tong = lam_tron(100 * dat / giao, 2)
+    return {"co_diem": True, "tong_diem_nam": tong, "diem_xep_loai": lam_tron(tong, 1)}
+
+
+def ly_do_thieu(bang: Bang, gia_tri: dict, muc_xet: str) -> list[str]:
+    """Các điều kiện chưa đạt so với dòng giữ mức muc_xet khớp gần nhất (ít ô sai nhất, dòng trước khi hoà)."""
+    tot = None
+    for d in bang.dong:
+        if d.ket_qua != muc_xet or not khop(d.o[0], gia_tri[bang.dau_vao[0]]):
+            continue
+        sai = [ten for o, ten in zip(d.o[1:], bang.dau_vao[1:]) if not khop(o, gia_tri[ten])]
+        if tot is None or len(sai) < len(tot):
+            tot = sai
+    return tot or []
+
+
+def chay_chuoi(goi: Goi, dv: dict, ts: dict) -> dict:
+    """Chuỗi bước xếp loại khai ở classification.chuoi: mỗi bước tra một bảng DMN trên ngữ cảnh gồm dữ
+    liệu của ca, kết quả các bước trước và tham số được ánh xạ; dat_ty_le_vuot so ngưỡng trên tỷ lệ chưa làm tròn."""
+    ctx = dict(dv)
+    ctx["dat_ty_le_vuot"] = dat_nguong(F(dv["ty_le_vuot"]), ts)
+    kq, dong = {}, []
+    for buoc in goi.policy["classification"]["chuoi"]:
+        for ten, khoa in (buoc.get("tham_so") or {}).items():
+            ctx[ten] = ts[khoa]
+        bang = goi.bang[buoc["table_key"]]
+        gia_tri = {t: ctx[t] for t in bang.dau_vao}
+        d = bang.tra(gia_tri)
+        ctx[buoc["ket_qua"]] = kq[buoc["ket_qua"]] = d.ket_qua
+        dong.append(d.id)
+        lt = buoc.get("ly_do_thieu")
+        if lt:
+            thieu = ly_do_thieu(bang, gia_tri, lt["muc_xet"]) if gia_tri[bang.dau_vao[0]] == lt["muc_xet"] != d.ket_qua else []
+            kq[lt["ket_qua"]] = thieu
+    return kq | {"cac_dong": dong, "dat_ty_le_vuot": ctx["dat_ty_le_vuot"]}
+
+
+def tinh_ca(goi: Goi, loai: str, dv: dict, ts: dict) -> dict:
+    if loai in ("QUY", "NHA_NUOC"):
+        return chay_quy(goi, dv, ts)
+    if loai == "NAM":
+        return chay_nam(goi, dv, ts)
+    if loai == "DAC_THU":
+        return chay_dac_thu(goi, dv)
+    if loai == "VIEC":
+        return chay_viec(dv, ts)
+    if loai == "QUAN_LY":
+        return chay_quan_ly(dv, ts)
+    if loai == "CA_NHAN":
+        return chay_ca_nhan(dv, ts)
+    if loai == "NAM_DIEM":
+        return chay_nam_diem(dv, ts)
+    if loai == "XEP_LOAI_CHUOI":
+        return chay_chuoi(goi, dv, ts)
+    raise ValueError(f"loại ca không hỗ trợ: {loai}")
+
+
+def chay_lo(goi: Goi, dv: dict, ghi_de: dict, ca_goc: dict, ket_qua_goc: dict, md: dict) -> dict:
+    """Đếm mức của một lô ca (khoá dv['khoa'], mặc định muc_goi_y); tham số của ca lô ghi đè lên tham số
+    từng ca, dv['thay_doi'][ma_ca] ghi đè dữ liệu của ca đó. ca_doi_muc: các ca đổi mức so với lần chạy gốc."""
+    khoa = dv.get("khoa", "muc_goi_y")
+    thu_tu = goi.policy["classification"].get("thu_tu", THU_TU_MAC_DINH)
+    dem, doi = {m: 0 for m in thu_tu}, []
+    for ma in dv["ca"]:
+        ca = ca_goc[ma]
+        dvc = dict(md.get(ca["loai"], {})) | dict(ca.get("dau_vao", {})) | dict((dv.get("thay_doi") or {}).get(ma, {}))
+        thuc = tinh_ca(goi, ca["loai"], dvc, goi.tham_so((ca.get("tham_so") or {}) | (ghi_de or {})))
+        dem[thuc[khoa]] += 1
+        if thuc[khoa] != ket_qua_goc[ma].get(khoa):
+            doi.append(ma)
+    return {"dem_muc": dem, "ca_doi_muc": doi}
+
+
 # ----------------------------------------------------------------------------- Chạy bộ ca
 @dataclass
 class KetQuaCa:
@@ -291,6 +496,8 @@ def so_khop(mong: object, thuc: object) -> bool:
         return not isinstance(mong, bool) and isinstance(mong, (int, float)) and F(mong) == thuc
     if isinstance(thuc, list):
         return isinstance(mong, list) and len(mong) == len(thuc) and all(so_khop(a, b) for a, b in zip(mong, thuc))
+    if isinstance(thuc, dict):
+        return isinstance(mong, dict) and mong.keys() == thuc.keys() and all(so_khop(mong[k], thuc[k]) for k in thuc)
     return mong == thuc
 
 
@@ -311,23 +518,36 @@ def chay_bo(goi: Goi, tep: Path) -> BoCa:
         dv = dict(md.get(ca["loai"], {})) | dict(ca.get("dau_vao", {}))
         if "nhiem_vu" in dv:
             dv["nhiem_vu"] = [dict(md.get("nhiem_vu", {})) | nv for nv in dv["nhiem_vu"]]
+        if ca["loai"] == "XEP_LOAI_LO":
+            ket_qua.append(None)
+            continue
         try:
             ts = goi.tham_so(ca.get("tham_so"))
-            if ca["loai"] in ("QUY", "NHA_NUOC"):
-                thuc = chay_quy(goi, dv, ts)
-            elif ca["loai"] == "NAM":
-                thuc = chay_nam(goi, dv, ts)
-            elif ca["loai"] == "DAC_THU":
-                thuc = chay_dac_thu(goi, dv)
-            else:
-                raise ValueError(f"loại ca không hỗ trợ: {ca['loai']}")
+            thuc = tinh_ca(goi, ca["loai"], dv, ts)
             sai = [f"{k}: mong đợi {hien(v)}, thực tế {hien(thuc.get(k))}" for k, v in ca["mong_doi"].items()
                    if not so_khop(v, thuc.get(k))]
-        except (KeyError, ValueError) as e:
+        except (KeyError, ValueError, TypeError) as e:
             thuc, sai = {}, [f"lỗi khi chạy: {e}"]
         sai += [f"ca liên quan {x} không có trong bộ" for x in ca.get("ca_lien_quan", []) if x not in ids]
         ket_qua.append(KetQuaCa(ca["id"], ca["loai"], ca["mo_ta"], ca.get("legal_ref", ""), ca["mong_doi"], thuc, sai,
                                 ca.get("tham_so") or {}, dv, ca.get("source", "BA")))
+    ca_goc = {c["id"]: c for c in bo["ca"]}
+    ket_qua_goc = {k.id: k.thuc_te for k in ket_qua if k is not None}
+    for i, ca in enumerate(bo["ca"]):
+        if ca["loai"] != "XEP_LOAI_LO":
+            continue
+        dv = dict(ca.get("dau_vao", {}))
+        try:
+            thieu = [x for x in dv["ca"] if x not in ca_goc or ca_goc[x]["loai"] == "XEP_LOAI_LO"]
+            if thieu:
+                raise KeyError(f"ca trong lô không có hoặc là ca lô: {thieu}")
+            thuc = chay_lo(goi, dv, ca.get("tham_so"), ca_goc, ket_qua_goc, md)
+            sai = [f"{k}: mong đợi {hien(v)}, thực tế {hien(thuc.get(k))}" for k, v in ca["mong_doi"].items()
+                   if not so_khop(v, thuc.get(k))]
+        except (KeyError, ValueError, TypeError) as e:
+            thuc, sai = {}, [f"lỗi khi chạy: {e}"]
+        ket_qua[i] = KetQuaCa(ca["id"], ca["loai"], ca["mo_ta"], ca.get("legal_ref", ""), ca["mong_doi"], thuc, sai,
+                              ca.get("tham_so") or {}, dv, ca.get("source", "BA"))
     return BoCa(goi, tep, bo, ket_qua)
 
 
@@ -337,7 +557,8 @@ def ma_tran_phu(bo: BoCa) -> tuple[list[str], list[str]]:
     for key, bang in bo.goi.bang.items():
         in_ra.append(f"  Bảng {bang.tep}:")
         for d in bang.dong:
-            ca = [k.id for k in bo.ket_qua if d.id in (k.thuc_te.get("dong_dmn"), k.thuc_te.get("dong_tieu_chi_chung"))]
+            ca = [k.id for k in bo.ket_qua if d.id in (k.thuc_te.get("dong_dmn"), k.thuc_te.get("dong_tieu_chi_chung"))
+                  or d.id in k.thuc_te.get("cac_dong", [])]
             in_ra.append(f"    {d.id:<28} {d.ket_qua:<15} {', '.join(ca) if ca else 'CHƯA CÓ CA'}")
             if not ca:
                 thieu.append(f"{bo.goi.id}: dòng {d.id} của {bang.tep} chưa có ca nào chạm tới")
