@@ -1,0 +1,397 @@
+package vn.viettel.okrkpi.task.infrastructure.web;
+
+import java.net.URI;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.function.Supplier;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+import vn.viettel.okrkpi.config.api.PeriodSnapshot;
+import vn.viettel.okrkpi.contract.tasks.model.AssigneeRef;
+import vn.viettel.okrkpi.contract.tasks.model.CopyPlanFromPreviousPeriodRequest;
+import vn.viettel.okrkpi.contract.tasks.model.CreatePlanRequest;
+import vn.viettel.okrkpi.contract.tasks.model.ListApprovedPlanItems200Response;
+import vn.viettel.okrkpi.contract.tasks.model.ListPlanVersions200Response;
+import vn.viettel.okrkpi.contract.tasks.model.ListPlans200Response;
+import vn.viettel.okrkpi.contract.tasks.model.PeriodRef;
+import vn.viettel.okrkpi.contract.tasks.model.Plan;
+import vn.viettel.okrkpi.contract.tasks.model.PlanItem;
+import vn.viettel.okrkpi.contract.tasks.model.PlanItemInput;
+import vn.viettel.okrkpi.contract.tasks.model.PlanItemRef;
+import vn.viettel.okrkpi.contract.tasks.model.PlanVersion;
+import vn.viettel.okrkpi.contract.tasks.model.PlanVersionGroupWeights;
+import vn.viettel.okrkpi.contract.tasks.model.PlanVersionInput;
+import vn.viettel.okrkpi.contract.tasks.model.PlanVersionStatus;
+import vn.viettel.okrkpi.contract.tasks.model.PlanVersionSummary;
+import vn.viettel.okrkpi.contract.tasks.model.SuggestPlanItemsFromOkr200Response;
+import vn.viettel.okrkpi.contract.tasks.model.TaskGroup;
+import vn.viettel.okrkpi.shared.authz.RequiresPermission;
+import vn.viettel.okrkpi.shared.error.BusinessException;
+import vn.viettel.okrkpi.shared.error.ProblemFieldError;
+import vn.viettel.okrkpi.shared.etag.ETags;
+import vn.viettel.okrkpi.shared.idempotency.Idempotent;
+import vn.viettel.okrkpi.shared.kernel.TenantId;
+import vn.viettel.okrkpi.shared.paging.CursorCodec;
+import vn.viettel.okrkpi.shared.paging.CursorKey;
+import vn.viettel.okrkpi.shared.paging.CursorPage;
+import vn.viettel.okrkpi.shared.paging.PageRequest;
+import vn.viettel.okrkpi.shared.tenant.TenantContext;
+import vn.viettel.okrkpi.task.application.plan.PlanService;
+import vn.viettel.okrkpi.task.application.plan.PlanService.ApprovedItem;
+import vn.viettel.okrkpi.task.application.plan.PlanService.PlanView;
+import vn.viettel.okrkpi.task.application.plan.PlanService.VersionView;
+import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.Assignee;
+import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.ItemRow;
+import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.VersionRow;
+
+/**
+ * Tám thao tác kế hoạch quý của {@code tasks.yaml} (QT-04, SCR-0402, CORE-02-05). Tên người, tên
+ * đơn vị để trống cho tới khi có danh bạ tên ở {@code replica :: api}; trọng số nhóm lấy mặc định
+ * 30/70 của gói mẫu cho tới khi CORE-02-06 đọc từ Policy Pack (suy luận).
+ */
+@RestController
+@RequestMapping("/api/v1/plans")
+public class PlanController {
+
+  private static final PlanVersionGroupWeights DEFAULT_WEIGHTS =
+      new PlanVersionGroupWeights(
+          java.math.BigDecimal.valueOf(30), java.math.BigDecimal.valueOf(70));
+
+  private final PlanService plans;
+  private final CursorCodec cursors;
+  private final TaskCallers callers;
+
+  public PlanController(PlanService plans, CursorCodec cursors, TaskCallers callers) {
+    this.plans = Objects.requireNonNull(plans, "plans");
+    this.cursors = Objects.requireNonNull(cursors, "cursors");
+    this.callers = Objects.requireNonNull(callers, "callers");
+  }
+
+  @GetMapping
+  @RequiresPermission(operationId = "listPlans", module = "plans", resourceType = "plan")
+  public ListPlans200Response listPlans(
+      @RequestParam(value = "period", required = false) UUID period,
+      @RequestParam(value = "unit", required = false) UUID unit,
+      @RequestParam(value = "status", required = false) String status,
+      @RequestParam(value = "limit", required = false) Integer limit,
+      @RequestParam(value = "cursor", required = false) String cursor) {
+    TenantId tenant = TenantContext.require();
+    PageRequest page =
+        cursors.pageRequest(limit, cursor, "plans:" + period + ":" + unit + ":" + status);
+    UUID after = page.afterKey().map(k -> k.getUuid(0)).orElse(null);
+    CursorPage<PlanView> result =
+        cursors.page(
+            found(
+                () ->
+                    plans.listPlans(tenant, period, unit, status(status), after, page.fetchSize())),
+            page,
+            v -> CursorKey.of(v.plan().id()));
+    return new ListPlans200Response(
+        result.items().stream().map(PlanController::plan).toList(), result.nextCursor());
+  }
+
+  @PostMapping
+  @Idempotent
+  @RequiresPermission(operationId = "createPlan", module = "plans", resourceType = "plan")
+  public ResponseEntity<Plan> createPlan(@RequestBody CreatePlanRequest body) {
+    if (body == null || body.getPeriodId() == null) {
+      throw invalid("periodId");
+    }
+    TenantId tenant = TenantContext.require();
+    UUID actor = callers.current().personId();
+    PlanView view =
+        found(() -> plans.createPlan(tenant, body.getPeriodId(), body.getUnitId(), actor));
+    return ResponseEntity.created(URI.create("/api/v1/plans/" + view.plan().id())).body(plan(view));
+  }
+
+  @GetMapping("/items")
+  @RequiresPermission(
+      operationId = "listApprovedPlanItems",
+      module = "plans",
+      resourceType = "plan_item")
+  public ListApprovedPlanItems200Response listApprovedPlanItems(
+      @RequestParam(value = "period", required = false) UUID period,
+      @RequestParam(value = "status", required = false) String status,
+      @RequestParam(value = "limit", required = false) Integer limit,
+      @RequestParam(value = "cursor", required = false) String cursor) {
+    TenantId tenant = TenantContext.require();
+    PageRequest page = cursors.pageRequest(limit, cursor, "plan-items:" + period + ":" + status);
+    UUID afterPlan = page.afterKey().map(k -> k.getUuid(0)).orElse(null);
+    int afterNo = page.afterKey().map(k -> (int) k.getLong(1)).orElse(0);
+    CursorPage<ApprovedItem> result =
+        cursors.page(
+            found(
+                () ->
+                    plans.approvedItems(
+                        tenant, period, status(status), afterPlan, afterNo, page.fetchSize())),
+            page,
+            a -> CursorKey.of(a.row().planId(), a.row().item().itemNo()));
+    return new ListApprovedPlanItems200Response(
+        result.items().stream().map(PlanController::itemRef).toList(), result.nextCursor());
+  }
+
+  @GetMapping("/{id}/versions")
+  @RequiresPermission(operationId = "listPlanVersions", module = "plans", resourceType = "plan")
+  public ListPlanVersions200Response listPlanVersions(@PathVariable("id") UUID id) {
+    PlanService.Versions versions = found(() -> plans.versions(TenantContext.require(), id));
+    return new ListPlanVersions200Response(
+        versions.rows().stream().map(v -> summary(v, versions.period())).toList());
+  }
+
+  @GetMapping("/{id}/versions/{v}")
+  @RequiresPermission(operationId = "getPlanVersion", module = "plans", resourceType = "plan")
+  public ResponseEntity<PlanVersion> getPlanVersion(
+      @PathVariable("id") UUID id, @PathVariable("v") int v) {
+    VersionView view = found(() -> plans.version(TenantContext.require(), id, v));
+    return ETags.ok(version(view), view.version().rowVersion());
+  }
+
+  @PutMapping("/{id}/versions/{v}")
+  @Idempotent
+  @RequiresPermission(operationId = "savePlanVersion", module = "plans", resourceType = "plan")
+  public ResponseEntity<PlanVersion> savePlanVersion(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") int v,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody PlanVersionInput body) {
+    long expected = ETags.expectedVersion(ifMatch, "PLAN_VERSION");
+    if (body == null || body.getItems() == null) {
+      throw invalid("items");
+    }
+    List<ItemRow> drafts = body.getItems().stream().map(PlanController::draft).toList();
+    UUID actor = callers.current().personId();
+    VersionView view =
+        found(() -> plans.saveVersion(TenantContext.require(), id, v, expected, drafts, actor));
+    return ETags.ok(version(view), view.version().rowVersion());
+  }
+
+  @PostMapping("/{id}/versions/{v}/copy-from")
+  @Idempotent
+  @RequiresPermission(
+      operationId = "copyPlanFromPreviousPeriod",
+      module = "plans",
+      resourceType = "plan")
+  public ResponseEntity<PlanVersion> copyPlanFromPreviousPeriod(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") int v,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody(required = false) CopyPlanFromPreviousPeriodRequest body) {
+    long expected = ETags.expectedVersion(ifMatch, "PLAN_VERSION");
+    UUID source = body == null ? null : body.getSourcePeriodId();
+    UUID actor = callers.current().personId();
+    VersionView view =
+        found(
+            () ->
+                plans.copyFromPreviousPeriod(
+                    TenantContext.require(), id, v, expected, source, actor));
+    return ETags.ok(version(view), view.version().rowVersion());
+  }
+
+  @GetMapping("/{id}/suggestions")
+  @RequiresPermission(
+      operationId = "suggestPlanItemsFromOkr",
+      module = "plans",
+      resourceType = "plan")
+  public SuggestPlanItemsFromOkr200Response suggestPlanItemsFromOkr(@PathVariable("id") UUID id) {
+    return new SuggestPlanItemsFromOkr200Response(
+        found(() -> plans.suggestions(TenantContext.require(), id)).stream()
+            .map(PlanController::input)
+            .toList());
+  }
+
+  /** Kế hoạch, phiên bản hay kỳ không có trong tenant: 404. */
+  private static <T> T found(Supplier<T> work) {
+    try {
+      return work.get();
+    } catch (NoSuchElementException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+    }
+  }
+
+  static Plan plan(PlanView v) {
+    Plan dto =
+        new Plan(
+            v.plan().id(),
+            "KH-" + v.period().code(),
+            period(v.period()),
+            v.plan().ownerUnitId(),
+            "",
+            summary(v.currentVersion(), v.period()),
+            (int) v.plan().rowVersion());
+    dto.setEffectiveVersionNo(v.effectiveVersionNo());
+    dto.setPreviousPeriod(v.previousPeriod() == null ? null : period(v.previousPeriod()));
+    dto.setAdjustmentsUsed(v.adjustmentsUsed());
+    return dto;
+  }
+
+  static PlanVersionSummary summary(VersionRow r, PeriodSnapshot period) {
+    PlanVersionSummary dto =
+        new PlanVersionSummary(
+            r.planId(),
+            r.versionNo(),
+            PlanVersionStatus.fromValue(r.status().name()),
+            "",
+            period.name(),
+            r.itemCount());
+    if (r.submittedAt() != null) {
+      dto.setSubmittedAt(OffsetDateTime.ofInstant(r.submittedAt(), ZoneOffset.UTC));
+    }
+    if (r.approvedAt() != null) {
+      dto.setApprovedAt(OffsetDateTime.ofInstant(r.approvedAt(), ZoneOffset.UTC));
+    }
+    return dto;
+  }
+
+  static PlanVersion version(VersionView v) {
+    VersionRow r = v.version();
+    PlanVersion dto =
+        new PlanVersion(
+            r.planId(),
+            r.versionNo(),
+            PlanVersionStatus.fromValue(r.status().name()),
+            period(v.period()),
+            "",
+            v.items().stream().map(PlanController::item).toList(),
+            DEFAULT_WEIGHTS,
+            List.of(),
+            (int) r.rowVersion());
+    dto.setContentHash(r.contentHash() == null ? null : HexFormat.of().formatHex(r.contentHash()));
+    dto.setReviewComment(r.reviewComment());
+    dto.setChangeReason(r.changeReason());
+    return dto;
+  }
+
+  static PlanItem item(ItemRow i) {
+    PlanItem dto =
+        new PlanItem(
+            i.title(),
+            TaskGroup.fromValue(i.taskGroup()),
+            ref(i.lead()),
+            i.productName(),
+            i.quantity(),
+            i.dueDate(),
+            i.itemNo());
+    dto.setId(i.id());
+    dto.setOriginItemId(i.originItemId());
+    dto.setKeyResultId(i.keyResultId());
+    dto.setCoAssignees(i.coAssignees().stream().map(PlanController::ref).toList());
+    dto.setCatalogItemId(i.catalogItemId());
+    dto.setCatalogItemCode(i.catalogCode());
+    dto.setUnit(i.unit());
+    dto.setStandardScore(i.standardScore());
+    dto.setPendingScore(i.catalogItemId() == null && i.standardScore() == null);
+    if (i.recurrence() != null) {
+      dto.setRecurrence(PlanItem.RecurrenceEnum.fromValue(i.recurrence()));
+    }
+    if (i.changeReason() != null) {
+      dto.setChangeReason(i.changeReason());
+    }
+    return dto;
+  }
+
+  static PlanItemInput input(ItemRow i) {
+    PlanItemInput dto =
+        new PlanItemInput(
+            i.title(),
+            TaskGroup.fromValue(i.taskGroup()),
+            ref(i.lead()),
+            i.productName(),
+            i.quantity(),
+            i.dueDate());
+    dto.setKeyResultId(i.keyResultId());
+    dto.setUnit(i.unit());
+    return dto;
+  }
+
+  static PlanItemRef itemRef(ApprovedItem a) {
+    ItemRow i = a.row().item();
+    PlanItemRef dto =
+        new PlanItemRef(
+            i.id(),
+            "KH-" + a.period().code(),
+            a.row().versionNo(),
+            i.itemNo(),
+            i.title(),
+            TaskGroup.fromValue(i.taskGroup()),
+            i.productName(),
+            i.quantity(),
+            i.unit(),
+            i.dueDate(),
+            a.row().evidenceRequirement() == null ? "" : a.row().evidenceRequirement(),
+            a.row().qualityStandard() == null ? "" : a.row().qualityStandard());
+    dto.setCatalogItemId(i.catalogItemId());
+    dto.setKeyResultId(i.keyResultId());
+    return dto;
+  }
+
+  private static ItemRow draft(PlanItemInput in) {
+    return new ItemRow(
+        in.getId(),
+        0,
+        in.getCatalogItemId(),
+        null,
+        in.getKeyResultId(),
+        in.getTitle(),
+        in.getTaskGroup() == null ? null : in.getTaskGroup().getValue(),
+        assignee(in.getLeadAssignee()),
+        in.getCoAssignees() == null
+            ? List.of()
+            : in.getCoAssignees().stream().map(PlanController::assignee).toList(),
+        in.getProductName(),
+        in.getQuantity(),
+        in.getUnit(),
+        null,
+        in.getStandardScore(),
+        in.getDueDate(),
+        in.getOriginItemId(),
+        in.getChangeReason(),
+        in.getRecurrence() == null ? null : in.getRecurrence().getValue());
+  }
+
+  private static Assignee assignee(AssigneeRef r) {
+    return r == null
+        ? null
+        : new Assignee(r.getKind() == null ? null : r.getKind().getValue(), r.getId(), r.getName());
+  }
+
+  private static AssigneeRef ref(Assignee a) {
+    return new AssigneeRef(
+        AssigneeRef.KindEnum.fromValue(a.kind()), a.id(), a.name() == null ? "" : a.name());
+  }
+
+  private static PeriodRef period(PeriodSnapshot p) {
+    return new PeriodRef(p.id().value(), p.name(), p.startDate(), p.endDate());
+  }
+
+  private static vn.viettel.okrkpi.task.domain.plan.PlanVersionStatus status(String value) {
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    try {
+      return vn.viettel.okrkpi.task.domain.plan.PlanVersionStatus.valueOf(value);
+    } catch (IllegalArgumentException e) {
+      throw invalid("status");
+    }
+  }
+
+  private static BusinessException invalid(String field) {
+    String message = "Giá trị không hợp lệ";
+    return new BusinessException(
+        "COMMON-422-VALIDATION", message, List.of(new ProblemFieldError(field, message, null)));
+  }
+}
