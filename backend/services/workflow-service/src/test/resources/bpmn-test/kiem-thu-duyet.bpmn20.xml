@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Tiến trình kiểm thử hộp việc (DV-06-02): hai cấp duyệt, trả lại ở cấp 1 kết thúc sớm. Không gắn tenant. -->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="https://okrkpi.vn/bpmn/test">
+  <process id="kiem-thu-duyet" name="Kiểm thử duyệt hai cấp" isExecutable="true">
+    <startEvent id="start"/>
+    <sequenceFlow id="f1" sourceRef="start" targetRef="cap1"/>
+    <userTask id="cap1" name="${title}" flowable:assignee="${assigneeId}"
+              flowable:candidateGroups="${candidateGroup}" flowable:dueDate="${dueAt}"/>
+    <sequenceFlow id="f2" sourceRef="cap1" targetRef="ketQua"/>
+    <exclusiveGateway id="ketQua" default="f4"/>
+    <sequenceFlow id="f3" sourceRef="ketQua" targetRef="traLai">
+      <conditionExpression xsi:type="tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><![CDATA[${decision == 'TRA_LAI'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f4" sourceRef="ketQua" targetRef="cap2"/>
+    <userTask id="cap2" name="Duyệt cấp 2" flowable:assignee="${level2Id}"/>
+    <sequenceFlow id="f5" sourceRef="cap2" targetRef="end"/>
+    <endEvent id="traLai"/>
+    <endEvent id="end"/>
+  </process>
+</definitions>

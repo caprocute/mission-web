@@ -150,6 +150,43 @@ public record DecisionTableSpec(String hitPolicy, List<Column> columns, List<Row
     };
   }
 
+  /**
+   * Điều kiện còn thiếu để đạt mức cao nhất (BR-09-10, PL 6 §12): bộ đầu vào thoả ô cột đầu (điểm)
+   * của dòng {@code HTXSNV} nhưng dòng được chọn khác dòng đó và không phải {@code KHTNV} thì trả
+   * tên các cột còn lại mà ô của dòng {@code HTXSNV} không thoả; ngược lại rỗng (không hạ mức).
+   */
+  public Optional<List<String>> missingForTop(Map<String, Object> input) {
+    int top = -1;
+    for (int r = 0; r < rows.size(); r++) {
+      if (LEVELS.get(0).equals(rows.get(r).ratingLevel())) {
+        top = r;
+        break;
+      }
+    }
+    if (top < 0 || columns.size() < 2) {
+      return Optional.empty();
+    }
+    List<List<FeelCondition>> cells = conditions();
+    List<Integer> hits = match(cells, input);
+    if (hits.isEmpty()) {
+      return Optional.empty();
+    }
+    int chosen = hits.get(0);
+    List<FeelCondition> best = cells.get(top);
+    if (chosen == top
+        || LEVELS.get(LEVELS.size() - 1).equals(rows.get(chosen).ratingLevel())
+        || !best.get(0).matches(input.get(columns.get(0).name()))) {
+      return Optional.empty();
+    }
+    List<String> missing = new ArrayList<>();
+    for (int c = 1; c < columns.size(); c++) {
+      if (!best.get(c).matches(input.get(columns.get(c).name()))) {
+        missing.add(columns.get(c).name());
+      }
+    }
+    return Optional.of(missing);
+  }
+
   /** Tên các biến {@code {bien}} trong một mẫu câu. */
   public static Set<String> templateVariables(String template) {
     Set<String> vars = new LinkedHashSet<>();

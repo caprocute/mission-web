@@ -356,6 +356,15 @@ public class PolicyDecisionTableService {
 
   TableView view(StoredTable stored) {
     DecisionTable t = stored.table();
+    Map<String, String> templates = new LinkedHashMap<>();
+    tree(t.explanationTemplatesJson())
+        .fields()
+        .forEachRemaining(e -> templates.put(e.getKey(), e.getValue().asText()));
+    return new TableView(stored, spec(t), templates);
+  }
+
+  /** Nội dung bảng đọc từ {@code rules_json} (dùng cả cho bộ chạy kiểm thử, CORE-05-07). */
+  DecisionTableSpec spec(DecisionTable t) {
     List<Column> columns = new ArrayList<>();
     List<Row> rows = new ArrayList<>();
     JsonNode root = tree(t.rulesJson());
@@ -377,11 +386,7 @@ public class PolicyDecisionTableService {
               r.path("clause").asText(""),
               r.path("explanation").asText("")));
     }
-    Map<String, String> templates = new LinkedHashMap<>();
-    tree(t.explanationTemplatesJson())
-        .fields()
-        .forEachRemaining(e -> templates.put(e.getKey(), e.getValue().asText()));
-    return new TableView(stored, new DecisionTableSpec(t.hitPolicy(), columns, rows), templates);
+    return new DecisionTableSpec(t.hitPolicy(), columns, rows);
   }
 
   private JsonNode tree(String value) {

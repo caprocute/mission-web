@@ -23,6 +23,7 @@
     <!-- Microservice API dùng Generational ZGC theo TL-04 WI-20. -->
     <jib.jvm.gc>-XX:+UseZGC</jib.jvm.gc>
     <contract.dir>${project.basedir}/../../../contracts/openapi</contract.dir>
+    <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
   </properties>
 
   <dependencies>
@@ -192,6 +193,18 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Kiểm thử hợp đồng: openapi-diff và so khớp phản hồi với platform.yaml (ADR-32, NEN-006). -->
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-contract-test</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>com.tngtech.archunit</groupId>
       <artifactId>archunit-junit5</artifactId>
       <scope>test</scope>
@@ -210,6 +223,28 @@
 
   <build>
     <plugins>
+      <!-- Sửa lỗi thoát dấu ngoặc kép trong @ExampleObject của OpenAPI Generator 7.13 (như vt-api-contract). -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>${maven-antrun-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>fix-example-object-quotes</id>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <phase>process-sources</phase>
+            <configuration>
+              <target>
+                <replace dir="${project.build.directory}/generated-sources/openapi" token="\\&quot;" value="'">
+                  <include name="**/*.java"/>
+                </replace>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.openapitools</groupId>
         <artifactId>openapi-generator-maven-plugin</artifactId>
@@ -223,7 +258,8 @@
             <configuration>
               <inputSpec>${contract.dir}/modules/platform.yaml</inputSpec>
               <generatorName>spring</generatorName>
-              <openapiNormalizer>FILTER=tag:Workflow</openapiNormalizer>
+              <!-- Chỉ sinh các thao tác đã hiện thực; task DV-06 sau thêm operationId vào danh sách. -->
+              <openapiNormalizer>FILTER=operationId:listWorkflowInbox|completeWorkflowTask|batchCompleteWorkflowTasks|getWorkflowHistory</openapiNormalizer>
               <apiPackage>vn.viettel.okrkpi.workflow.infrastructure.web.api</apiPackage>
               <modelPackage>vn.viettel.okrkpi.workflow.infrastructure.web.model</modelPackage>
               <generateSupportingFiles>false</generateSupportingFiles>
@@ -236,8 +272,9 @@
                 <useSpringBoot3>true</useSpringBoot3>
                 <useTags>true</useTags>
                 <openApiNullable>false</openApiNullable>
-                <annotationLibrary>none</annotationLibrary>
-                <documentationProvider>none</documentationProvider>
+                <!-- Chú thích swagger2 để springdoc dựng lại đủ mã phản hồi cho kiểm thử openapi-diff. -->
+                <annotationLibrary>swagger2</annotationLibrary>
+                <documentationProvider>springdoc</documentationProvider>
                 <useBeanValidation>true</useBeanValidation>
                 <skipDefaultInterface>true</skipDefaultInterface>
               </configOptions>
