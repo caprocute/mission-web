@@ -1,0 +1,39 @@
+{
+  "catalogVersion": "2026.1",
+  "giaLap": true,
+  "description": "Danh mục plugin chuyên ngành đã duyệt của nền tảng (CORE-08-15, BR-18-12). Bản giả lập: plugin giáo dục mẫu của WEB-051, mã toàn vẹn tính trên chuỗi giữ chỗ, khoá ký dùng một lần đã huỷ.",
+  "plugins": [
+    {
+      "name": "fe-plugin-giaoduc",
+      "displayName": "Giáo dục",
+      "version": "1.0.0",
+      "remoteEntry": "/plugins/giaoduc/1.0.0/remoteEntry.json",
+      "integrity": "sha384-O9oCrNKR6qtmDj1P9nR5JLnEGXt5X+Ybx7IXRw4mz41rl6DK8lwZOOBmJLlYSxCq",
+      "signature": "MEQCIBmNSEJ4DmoHJA0F8A/tu3UH5JrtHe+21xCvnXS9fYzZAiAKWMP2VI9KBlS/dhC1hTckGqA4xFGsoiAJz9bH+9iNkg==",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7FQbRHrb9YPMUx0Yeygsh5foGUjl\n9tPRFOU9R5HUTAYL3ZcyuYO84FkCzdBQu04Ez7EcWzf7JHviKA0obUIeoA==\n-----END PUBLIC KEY-----",
+      "scan": {
+        "status": "DAT",
+        "at": "2026-10-22T00:00:00Z"
+      },
+      "widgets": [
+        {
+          "name": "vt.widget.giaoducLopChuNhiem",
+          "propsSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20
+              }
+            }
+          },
+          "allowedClassification": "C1",
+          "since": "1.0.0",
+          "mobile": false
+        }
+      ]
+    }
+  ]
+}

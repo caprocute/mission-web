@@ -26,7 +26,7 @@ public class JdbcUiPackRepository implements UiPackRepository {
   private static final String PACK_COLUMNS = "id, code, name, current_version_id, row_version";
   private static final String VERSION_COLUMNS =
       "id, ui_pack_id, version, status, tokens::text AS tokens, layouts::text AS layouts,"
-          + " assets_json::text AS assets, forms_json::text AS forms, component_registry_version, policy_pack_version_id,"
+          + " assets_json::text AS assets, forms_json::text AS forms, plugins_json::text AS plugins, component_registry_version, policy_pack_version_id,"
           + " elder_mode, few_steps, bundle_sha256, bundle_object_key, signature, published_at, created_by, created_at,"
           + " updated_by, updated_at, row_version";
 
@@ -190,7 +190,8 @@ public class JdbcUiPackRepository implements UiPackRepository {
                 UPDATE config.ui_pack_version
                    SET status = ?, tokens = ?::jsonb, layouts = ?::jsonb, assets_json = ?::jsonb,
                        component_registry_version = ?, policy_pack_version_id = ?, elder_mode = ?,
-                       few_steps = ?, forms_json = ?::jsonb, bundle_sha256 = ?, bundle_object_key = ?,
+                       few_steps = ?, forms_json = ?::jsonb, plugins_json = ?::jsonb,
+                       bundle_sha256 = ?, bundle_object_key = ?,
                        signature = ?, published_at = ?, updated_at = ?, updated_by = ?, row_version = ?
                  WHERE tenant_id = ? AND id = ? AND row_version = ?
                 """)
@@ -203,6 +204,7 @@ public class JdbcUiPackRepository implements UiPackRepository {
             .param(c.elderMode())
             .param(c.fewSteps())
             .param(c.formsJson())
+            .param(c.pluginsJson())
             .param(v.bundleSha256() == null ? null : HexFormat.of().parseHex(v.bundleSha256()))
             .param(v.bundleObjectKey())
             .param(v.signature() == null ? null : Base64.getDecoder().decode(v.signature()))
@@ -276,7 +278,8 @@ public class JdbcUiPackRepository implements UiPackRepository {
               rs.getObject("policy_pack_version_id", UUID.class),
               rs.getBoolean("elder_mode"),
               rs.getBoolean("few_steps"),
-              rs.getString("forms")),
+              rs.getString("forms"),
+              rs.getString("plugins")),
           sha == null ? null : HexFormat.of().formatHex(sha),
           rs.getString("bundle_object_key"),
           signature == null ? null : Base64.getEncoder().encodeToString(signature),

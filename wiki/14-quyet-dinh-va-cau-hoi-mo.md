@@ -640,6 +640,14 @@ Các điểm lệch và giả định phát sinh khi hiện thực mẫu realm p
 - `runUiFormTests` chỉ chạy trên phiên bản nháp; ca đạt khi cel-java và cel-js cùng kết luận hợp lệ hay không, và cùng tập trường lỗi khi trình duyệt gửi `browserErrors` khác rỗng (MSG-18-08). `passed` là số ca khớp, `parity` là mọi ca khớp. Kết quả lưu vào `last_test_run`; điều kiện gắn vào UI Pack có thêm thời gian dựng 50 trường ≤ 50 ms khi trình duyệt gửi số đo (BR-18-08).
 - Bộ ca dùng chung `data/golden/form-tests/*.yaml` chạy trên cel-java bằng `FormGoldenSuiteTest`; CI của `@vt/form-engine` chạy cùng tệp bằng cel-js (việc của phía web).
 
+### Ghi chú và quyết định từ plugin chuyên ngành theo manifest (CORE-08-15, 22/10/2026)
+
+- Điểm lệch nguồn: TL-03 không có bảng cho plugin. Danh mục plugin nền tảng đã duyệt là tệp seed có phiên bản `data/seed/plugins/catalog.json` (tên, phiên bản, `remoteEntry`, SRI SHA-384, chữ ký cosign, khoá công khai, kết quả quét, widget), nạp khi đặt `mission.config.ui-pack.plugin-catalog`; không đặt thì danh mục rỗng (suy luận). Mục hiện có là bản giả lập cho plugin giáo dục của WEB-051.
+- Hợp đồng không có trường plugin trong thân sửa UI Pack, nên tenant bật plugin bằng cấu hình tenant `ui.plugins` (`json.string-array`, phần tử `tên` hoặc `tên@phiên bản`; không ghi phiên bản thì lấy bản cao nhất trong danh mục) (suy luận).
+- Kiểm tra (BR-18-12) chạy trong job `TEST_RUN` với mã `REGISTRY`, vì `UiPackCheck.code` của hợp đồng chưa có mã riêng cho plugin, và chạy lại khi phát hành: plugin có trong danh mục; quét đạt (`DAT`); `remoteEntry` là đường dẫn tương đối cùng nguồn hoặc `https` thuộc `mission.config.ui-pack.plugin-origins` (khớp CSP); `integrity` đúng dạng SRI SHA-384; chữ ký cosign (ECDSA P-256 SHA-256, `cosign sign-blob` trên chuỗi `integrity`) kiểm được bằng khoá công khai. Máy chủ không tải bản dựng để băm lại; việc so mã toàn vẹn với tệp thật do shell làm khi nạp (WEB-051).
+- Manifest `{name, remoteEntry, integrity}` được chốt vào cột mới `ui_pack_version.plugins_json` (migration `V8__config_ui_pack_plugins.sql`, ngoài danh sách tệp được phép của task) cùng lần ký gói, để `getCurrentUiPack` dựng lại từ CSDL vẫn khớp băm dù cấu hình tenant đổi sau đó; quay lui dùng manifest đã chốt của phiên bản đích. Không có đường phát hành riêng cho plugin.
+- Widget của plugin đạt kiểm tra được gộp vào `listUiComponents` của tenant qua cổng `PluginWidgets`, nên trình biên tập bố cục chọn được và bộ kiểm bố cục nhận chúng như component của registry.
+
 ## Liên quan
 
 - [README của wiki](README.md)

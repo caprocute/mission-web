@@ -34,10 +34,13 @@ import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import vn.viettel.okrkpi.config.api.PolicySchemaPort;
+import vn.viettel.okrkpi.config.api.TenantSettingApi;
 import vn.viettel.okrkpi.config.api.WorkingCalendarApi;
 import vn.viettel.okrkpi.config.application.FormSchemaService;
 import vn.viettel.okrkpi.config.application.FormSchemaValidator;
 import vn.viettel.okrkpi.config.application.FormValidationService;
+import vn.viettel.okrkpi.config.application.PluginCatalog;
+import vn.viettel.okrkpi.config.application.PluginManifestService;
 import vn.viettel.okrkpi.config.application.UiPackCompiler;
 import vn.viettel.okrkpi.config.application.UiPackPublishService;
 import vn.viettel.okrkpi.config.application.UiPackService;
@@ -163,6 +166,7 @@ public class UiPackConfiguration {
       ObjectProvider<CdnInvalidator> cdn,
       ObjectProvider<PolicySchemaPort> schemas,
       FormSchemaService formSchemaService,
+      ObjectProvider<PluginManifestService> pluginManifest,
       InMemoryUiPackJobs uiPackJobs,
       ConfigAudit configAudit,
       CheckThreads uiPackCheckThreads,
@@ -186,6 +190,7 @@ public class UiPackConfiguration {
             new TransactionTemplate(tm));
     service.setPolicySchemas(schemas.getIfAvailable());
     service.setForms(formSchemaService);
+    service.setPlugins(pluginManifest.getIfAvailable());
     return service;
   }
 
@@ -213,6 +218,28 @@ public class UiPackConfiguration {
             Clock.systemUtc());
     service.setPolicySchemas(schemas.getIfAvailable());
     return service;
+  }
+
+  /**
+   * Manifest plugin chuyên ngành (CORE-08-15): danh mục đã duyệt đọc từ {@code
+   * mission.config.ui-pack.plugin-catalog} (tệp {@code data/seed/plugins/catalog.json}); không đặt
+   * thì danh mục rỗng. Vừa là bộ kiểm của job {@code TEST_RUN}, vừa cấp widget plugin cho registry.
+   */
+  @Bean
+  @Order(5)
+  PluginManifestService pluginManifestService(
+      TenantSettingApi tenantSettings,
+      @Value("${mission.config.ui-pack.plugin-catalog:}") String catalogPath,
+      @Value("${mission.config.ui-pack.plugin-origins:}") List<String> origins,
+      ObjectProvider<ObjectMapper> json)
+      throws java.io.IOException {
+    ObjectMapper mapper = json.getIfAvailable(ObjectMapper::new);
+    PluginCatalog catalog =
+        catalogPath.isBlank()
+            ? PluginCatalog.empty()
+            : PluginCatalog.parse(
+                java.nio.file.Files.readString(java.nio.file.Path.of(catalogPath)), mapper);
+    return new PluginManifestService(catalog, tenantSettings, origins, mapper);
   }
 
   /** Kiểm phiếu tại máy chủ và bộ test hai engine (CORE-08-14). */
