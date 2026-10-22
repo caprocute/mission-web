@@ -1,7 +1,7 @@
 {
   "description": "Danh mục mã lỗi <MODULE>-<HTTP>-<TÊN> trích từ contracts/openapi (NEN-009). Không sửa tay: chạy tools/extract-error-codes.mjs.",
   "source": "contracts/openapi/**/*.yaml",
-  "count": 196,
+  "count": 198,
   "codes": [
     {
       "code": "AI-403-C3-FORBIDDEN",
@@ -313,6 +313,16 @@
       ]
     },
     {
+      "code": "CONFIG-403-NOT-OWNER",
+      "module": "CONFIG",
+      "status": 403,
+      "name": "NOT-OWNER",
+      "type": "https://okrkpi.vn/problems/not-owner",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
       "code": "CONFIG-403-SELF-GRANT",
       "module": "CONFIG",
       "status": 403,
@@ -360,6 +370,16 @@
       "status": 409,
       "name": "DUPLICATE-BINDING",
       "type": "https://okrkpi.vn/problems/duplicate-binding",
+      "sources": [
+        "modules/config.yaml"
+      ]
+    },
+    {
+      "code": "CONFIG-409-DUPLICATE-TITLE",
+      "module": "CONFIG",
+      "status": 409,
+      "name": "DUPLICATE-TITLE",
+      "type": "https://okrkpi.vn/problems/duplicate-title",
       "sources": [
         "modules/config.yaml"
       ]

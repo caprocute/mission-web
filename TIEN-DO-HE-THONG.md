@@ -13,8 +13,8 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **202 / 408 task (49.5%)** — Khối lượng quy đổi đã gộp: **239 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **206 / 408 task (50.5%)** (gồm **202** đã gộp `main` + **4** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **7 task** (2 đang làm, 5 làm một phần).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **207 / 408 task (50.7%)** (gồm **202** đã gộp `main` + **5** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **6 task** (1 đang làm, 5 làm một phần).
 - **Chưa bắt đầu**: **195 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **14 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-04`** (đang xử lý trên nhánh: không).
 
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **57** | 0 | 2 | 13 | **79.2%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **33** | 1 | 0 | 0 | **97.1%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **46** | 0 | 3 | 68 | **39.3%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **46** | 1 | 2 | 68 | **39.3%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **42** | 0 | 1 | 61 | **40.4%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **6** | 3 | 1 | 3 | **46.2%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **2** | 0 | 0 | 3 | **40.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **202** | **4** | **7** | **195** | **49.5%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **202** | **5** | **6** | **195** | **49.5%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -40,7 +40,7 @@
 |---|---:|---:|---:|---:|---:|---:|
 | **M0 – Nền móng phát triển & CSDL** | 60 | **50** | 1 | 1 | 8 | **83.3%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
-| **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **34** | 0 | 2 | 11 | **72.3%** |
+| **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **34** | 1 | 1 | 11 | **72.3%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **49** | 0 | 3 | 68 | **40.8%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **21** | 0 | 0 | 51 | **29.2%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **15** | 0 | 1 | 26 | **35.7%** |
@@ -193,7 +193,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-00-04](docs/tasks/CORE-00-04-api-trang-chu-hom-nay.md) | API tổng hợp trang chủ "Việc của tôi hôm nay" (SCR-0002) | M | B3 | 18 | CORE-02-18, CORE-01-08, CORE-08-09, CORE-08-02, NEN-041 | **Đã gộp main** | Đã gộp main (03e9c83): ranh giới 8 mô-đun Spring Modulith, hợp đồng API nội bộ, JobsController và kiểm thử kiến trúc |
 | [CORE-00-05](docs/tasks/CORE-00-05-nhat-ky-truy-cap-c2.md) | Nhật ký truy cập dữ liệu C2 và ghi sổ cái lần giải mã | S | B4 | 11 | NEN-015, DV-09-02, NEN-011, NEN-016, CORE-00-02 | **Đã gộp main** | Đã gộp main (e9620db) |
 
-### CORE-08 · MOD-08 config: kỳ, lịch, cờ, UI Pack, biểu mẫu (G1 phía máy chủ) (15/17 đã gộp `main`, 0 chờ gộp, 1 đang làm)
+### CORE-08 · MOD-08 config: kỳ, lịch, cờ, UI Pack, biểu mẫu (G1 phía máy chủ) (15/17 đã gộp `main`, 1 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -213,7 +213,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-08-14](docs/tasks/CORE-08-14-kiem-tra-json-schema-cel.md) | Bộ kiểm tra JSON Schema có `x-cel`, `x-classification` dùng chung cho API nghiệp vụ, đối chiếu cel-js | L | B2 | 15 | CORE-08-13, NEN-041 | **Đã gộp main** | FormValidationApi kiểm phiếu tại máy chủ, runUiFormTests hai engine |
 | [CORE-08-15](docs/tasks/CORE-08-15-manifest-plugin-tenant.md) | Manifest plugin theo tenant và kiểm chữ ký bản dựng plugin | S | B2 | 15 | CORE-08-11 | **Đã gộp main** | Plugin chuyên ngành theo manifest tenant, cosign + SRI, migration config V8 |
 | [CORE-08-16](docs/tasks/CORE-08-16-phan-cong-vai-tro-uy-quyen.md) | Lưu phân công vai trò và uỷ quyền (`config.role_binding`) theo đề xuất WEB-058 | M | B2 | 12 | CORE-08-01, NEN-040, NEN-043 | **Chưa bắt đầu** | Chờ người dùng duyệt đề xuất WEB-058 |
-| [CORE-08-17](docs/tasks/CORE-08-17-luu-dinh-nghia-dashboard.md) | Lưu định nghĩa dashboard `config.dashboard_def` và cổng `api` cho analytics-api | S | B2 | 12 | CORE-08-01 | **Đang làm** | Nhánh claude/project-thread-z7s8x3: đang thực hiện |
+| [CORE-08-17](docs/tasks/CORE-08-17-luu-dinh-nghia-dashboard.md) | Lưu định nghĩa dashboard `config.dashboard_def` và cổng `api` cho analytics-api | S | B2 | 12 | CORE-08-01 | **Xong, chờ gộp** | Nhánh claude/project-thread-z7s8x3: hợp đồng config.yaml đã duyệt, IT + unit xanh |
 
 ### CORE-05 · MOD-05 policy: Policy Pack (7/12 đã gộp `main`, 0 chờ gộp, 0 đang làm)
 
@@ -875,4 +875,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 22/10/2026 18:11 | B9 | `DL-14` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: thư viện vt-key-rotation 8 kiểm thử xanh, CronJob Helm, runbook |
 | 22/10/2026 18:11 | B9 | `DL-13` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: vt-retention 8 kiểm thử xanh, cấu hình retention ở mission-core, CronJob Helm, runbook; phần INF-18 chưa làm |
 | 22/10/2026 18:11 | B9 | `CORE-08-17` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-z7s8x3: đang thực hiện |
+| 22/10/2026 18:54 | B9 | `CORE-08-17` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-z7s8x3: hợp đồng config.yaml đã duyệt, IT + unit xanh |
 <!-- PROGRESS_LOG_END -->

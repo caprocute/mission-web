@@ -1370,10 +1370,69 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/config/dashboard-defs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Định nghĩa dashboard người xem được dùng
+     * @description Client nội bộ analytics-api (SVC-15) lấy dashboard của người thực hiện và dashboard được chia sẻ cho họ: phạm vi `TENANT`, hoặc `DON_VI` có đơn vị nằm trong danh sách `viewerUnit` (đơn vị công tác của người xem và các đơn vị cấp trên, do analytics-api tra cây tổ chức). Chỉ trả định nghĩa, không có số liệu.
+     */
+    get: operations['listDashboardDefs'];
+    put?: never;
+    /**
+     * Lưu định nghĩa dashboard mới
+     * @description Tạo định nghĩa cho người thực hiện. Tên bắt buộc, tối đa 100 ký tự, không trùng trong các dashboard của người đó; tối đa 20 widget, mỗi widget đúng một chỉ số và tối đa 2 chiều; `sharedUnitIds` bắt buộc khi phạm vi `DON_VI`. Tên chỉ số và chiều chỉ kiểm cú pháp, analytics-api kiểm theo lớp ngữ nghĩa.
+     */
+    post: operations['createDashboardDef'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/config/dashboard-defs/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Một định nghĩa dashboard
+     * @description Trả định nghĩa kèm ETag nếu người thực hiện là người tạo hoặc được chia sẻ (cùng quy tắc với `listDashboardDefs`); ngoài phạm vi thì trả 404.
+     */
+    get: operations['getDashboardDef'];
+    /**
+     * Thay định nghĩa dashboard
+     * @description Thay toàn bộ tên, bố cục và phạm vi chia sẻ; chỉ người tạo được sửa (403 `CONFIG-403-NOT-OWNER`). Dùng cho cả `updateDashboard` và `shareDashboard` của analytics-api; đổi phạm vi chia sẻ ghi sự kiện kiểm toán.
+     */
+    put: operations['replaceDashboardDef'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** @description Định nghĩa dashboard gửi từ analytics-api (`config.dashboard_def`, CORE-08-17). */
+    DashboardDefInput: {
+      title: string;
+      layout: components['schemas']['DashboardWidget'][];
+      shareScope?: components['schemas']['DashboardShareScope'];
+      /** @description Bắt buộc, không rỗng khi `DON_VI`; rỗng ở phạm vi khác. */
+      sharedUnitIds?: components['schemas']['Uuid'][];
+      semanticModelVersion?: string;
+    };
     /**
      * @description Mô hình thuê bao trong lần gắn cell (`registry.tenant_cell.tenancy_model`, CHECK chữ thường như TL-02a). `registry.tenant.tenancy_model` viết hoa và có thêm `AIRGAP`; hợp đồng theo TL-02a.
      * @enum {string}
@@ -3728,6 +3787,94 @@ export interface components {
      * @enum {string}
      */
     Classification: 'C0' | 'C1' | 'C2' | 'C3';
+    /**
+     * @description Phạm vi chia sẻ (`config.dashboard_def.share_scope`).
+     * @enum {string}
+     */
+    DashboardShareScope: 'RIENG' | 'DON_VI' | 'TENANT';
+    AnalyticsDashboardSummary: {
+      id: components['schemas']['Uuid'];
+      title: string;
+      ownerUserId: components['schemas']['Uuid'];
+      shareScope: components['schemas']['DashboardShareScope'];
+      widgetCount?: number;
+      updatedAt: components['schemas']['DateTime'];
+    };
+    AnalyticsDashboardPage: {
+      items: components['schemas']['AnalyticsDashboardSummary'][];
+      nextCursor: components['schemas']['NextCursor'];
+    };
+    /**
+     * @description Kiểu biểu đồ của widget (SCR-1602 trường 6; mã là suy luận).
+     * @enum {string}
+     */
+    DashboardChartType: 'THE_SO' | 'COT' | 'DUONG' | 'THANH' | 'BANG';
+    AnalyticsFilter: {
+      /** @description Tên chiều công bố trong lớp ngữ nghĩa. */
+      member: string;
+      /** @enum {string} */
+      operator: 'equals' | 'notEquals' | 'in' | 'gte' | 'lte';
+      values: (string | number)[];
+    };
+    DashboardWidget: {
+      id: string;
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      measure: string;
+      dimensions?: string[];
+      chartType: components['schemas']['DashboardChartType'];
+      filters?: components['schemas']['AnalyticsFilter'][];
+      /** @default true */
+      drillDown: boolean;
+    };
+    AnalyticsColumn: {
+      name: string;
+      title: string;
+      /** @enum {string} */
+      type: 'string' | 'number' | 'count' | 'time';
+      unit?: string;
+    };
+    /**
+     * @description Định nghĩa dashboard (`config.dashboard_def`) và số liệu khi được yêu cầu.
+     * @example {
+     *       "id": "0192fa0c-d546-77f8-091a-2b3c4d5e6f01",
+     *       "title": "Bảng của Bí thư",
+     *       "ownerUserId": "0192f1a2-2222-7aaa-8bbb-000000000b01",
+     *       "measures": [
+     *         "okr.tien_do_o"
+     *       ],
+     *       "dimensions": [],
+     *       "layout": [],
+     *       "shareScope": "RIENG",
+     *       "sharedUnitIds": [],
+     *       "rowVersion": 0,
+     *       "updatedAt": "2026-11-16T09:00:00+07:00"
+     *     }
+     */
+    AnalyticsDashboard: {
+      id: components['schemas']['Uuid'];
+      title: string;
+      ownerUserId: components['schemas']['Uuid'];
+      measures: string[];
+      dimensions: string[];
+      layout: components['schemas']['DashboardWidget'][];
+      shareScope: components['schemas']['DashboardShareScope'];
+      sharedUnitIds: components['schemas']['Uuid'][];
+      semanticModelVersion?: string;
+      rowVersion: components['schemas']['RowVersion'];
+      updatedAt: components['schemas']['DateTime'];
+      data?: {
+        dataAsOf?: components['schemas']['DateTime'];
+        stale?: boolean;
+        widgets?: {
+          widgetId: string;
+          columns: components['schemas']['AnalyticsColumn'][];
+          rows: (string | number | null)[][];
+        }[];
+      };
+    };
   };
   responses: {
     /** @description Lỗi khác theo RFC 9457. */
@@ -3817,6 +3964,12 @@ export interface components {
     };
   };
   parameters: {
+    /** @description Tenant của người thực hiện; OPA kiểm khớp tenant trong token client dịch vụ. */
+    ServiceTenant: components['schemas']['Uuid'];
+    /** @description Người dùng mà client dịch vụ đang thao tác thay (lấy từ token người dùng đã xác thực ở SVC-15). */
+    ActingUser: components['schemas']['Uuid'];
+    /** @description Đơn vị công tác của người xem và các đơn vị cấp trên, dùng để lọc dashboard chia sẻ `DON_VI`. */
+    ViewerUnit: components['schemas']['Uuid'][];
     /** @description Năm dương lịch. */
     Year: number;
     /** @description Năm dương lịch; bỏ trống thì trả mọi năm. */
@@ -6362,6 +6515,170 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Delegation'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      428: components['responses']['PreconditionRequired'];
+      default: components['responses']['Problem'];
+    };
+  };
+  listDashboardDefs: {
+    parameters: {
+      query: {
+        /** @description Tenant của người thực hiện; OPA kiểm khớp tenant trong token client dịch vụ. */
+        tenant: components['parameters']['ServiceTenant'];
+        /** @description Đơn vị công tác của người xem và các đơn vị cấp trên, dùng để lọc dashboard chia sẻ `DON_VI`. */
+        viewerUnit?: components['parameters']['ViewerUnit'];
+        /** @description `me` chỉ lấy dashboard của người thực hiện. */
+        owner?: 'me';
+        /** @description Số dòng mỗi trang, tối đa 200 (baseline mục 13). Mặc định 20 theo TL-02. */
+        limit?: components['parameters']['Limit'];
+        /** @description Con trỏ mờ lấy từ `nextCursor` của trang trước. Không tự dựng giá trị. */
+        cursor?: components['parameters']['Cursor'];
+      };
+      header: {
+        /** @description Người dùng mà client dịch vụ đang thao tác thay (lấy từ token người dùng đã xác thực ở SVC-15). */
+        'X-Acting-User': components['parameters']['ActingUser'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Trang định nghĩa dashboard. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AnalyticsDashboardPage'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  createDashboardDef: {
+    parameters: {
+      query: {
+        /** @description Tenant của người thực hiện; OPA kiểm khớp tenant trong token client dịch vụ. */
+        tenant: components['parameters']['ServiceTenant'];
+      };
+      header: {
+        /** @description Người dùng mà client dịch vụ đang thao tác thay (lấy từ token người dùng đã xác thực ở SVC-15). */
+        'X-Acting-User': components['parameters']['ActingUser'];
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DashboardDefInput'];
+      };
+    };
+    responses: {
+      /** @description Đã tạo. */
+      201: {
+        headers: {
+          Location: components['headers']['Location'];
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AnalyticsDashboard'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      /** @description Trùng tên dashboard của người thực hiện. Mã lỗi: `CONFIG-409-DUPLICATE-TITLE`. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getDashboardDef: {
+    parameters: {
+      query: {
+        /** @description Tenant của người thực hiện; OPA kiểm khớp tenant trong token client dịch vụ. */
+        tenant: components['parameters']['ServiceTenant'];
+        /** @description Đơn vị công tác của người xem và các đơn vị cấp trên, dùng để lọc dashboard chia sẻ `DON_VI`. */
+        viewerUnit?: components['parameters']['ViewerUnit'];
+      };
+      header: {
+        /** @description Người dùng mà client dịch vụ đang thao tác thay (lấy từ token người dùng đã xác thực ở SVC-15). */
+        'X-Acting-User': components['parameters']['ActingUser'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Định nghĩa dashboard. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AnalyticsDashboard'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      default: components['responses']['Problem'];
+    };
+  };
+  replaceDashboardDef: {
+    parameters: {
+      query: {
+        /** @description Tenant của người thực hiện; OPA kiểm khớp tenant trong token client dịch vụ. */
+        tenant: components['parameters']['ServiceTenant'];
+      };
+      header: {
+        /** @description Người dùng mà client dịch vụ đang thao tác thay (lấy từ token người dùng đã xác thực ở SVC-15). */
+        'X-Acting-User': components['parameters']['ActingUser'];
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+        /** @description ETag nhận được ở lần đọc trước (giá trị `row_version` đặt trong dấu nháy kép, ví dụ `"7"`). Lệch phiên bản trả 409 mã `<MODULE>-409-VERSION-CONFLICT`; thiếu header trả 428. */
+        'If-Match': components['parameters']['IfMatch'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DashboardDefInput'];
+      };
+    };
+    responses: {
+      /** @description Đã lưu. */
+      200: {
+        headers: {
+          ETag: components['headers']['ETag'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AnalyticsDashboard'];
         };
       };
       401: components['responses']['Unauthorized'];
