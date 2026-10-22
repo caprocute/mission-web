@@ -17,4 +17,9 @@ public interface OversightCaller {
 
   /** Mức xác thực ({@code acr}) của phiên. */
   Optional<String> acr();
+
+  /** Đơn vị của phân công đang chọn (phạm vi {@code Cd}). */
+  default Optional<UUID> unitId() {
+    return Optional.empty();
+  }
 }
