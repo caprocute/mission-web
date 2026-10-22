@@ -1,0 +1,11 @@
+# CELL-G4: cell nhóm tỉnh đầu tiên, cell "chim hoàng yến" của đợt 1 (TL-04 chương 11, TL-05 QM-3).
+cell:
+  name: g4
+  displayName: CELL-G4
+  sizing: M
+  tenancy: bridge
+  primarySite: hl
+  standbySite: sn
+  releaseWave: "1"
+  argocd: mgmt
+  silos: []

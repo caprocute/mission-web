@@ -1,0 +1,3 @@
+# TỆP SINH TỰ ĐỘNG bởi deploy/argocd/lich-dong-bang/sinh_lich.py (INF-04, OPS-06); không sửa tay.
+# Chưa có kỳ đánh giá thật nên chưa có cửa sổ bổ sung; hai cửa sổ cố định của TL-04 nằm trong values.yaml.
+syncWindowsBoSung: []

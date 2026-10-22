@@ -1,0 +1,11 @@
+# CELL-G3: cell nhóm tỉnh, mô hình bridge (CSDL riêng mỗi tỉnh), đợt phát hành 2.
+cell:
+  name: g3
+  displayName: CELL-G3
+  sizing: M
+  tenancy: bridge
+  primarySite: hl
+  standbySite: sn
+  releaseWave: "2"
+  argocd: mgmt
+  silos: []

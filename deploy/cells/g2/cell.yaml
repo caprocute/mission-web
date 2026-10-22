@@ -1,0 +1,11 @@
+# CELL-G2: cell nhóm tỉnh, mô hình bridge (CSDL riêng mỗi tỉnh), đợt phát hành 2.
+cell:
+  name: g2
+  displayName: CELL-G2
+  sizing: M
+  tenancy: bridge
+  primarySite: hl
+  standbySite: sn
+  releaseWave: "2"
+  argocd: mgmt
+  silos: []

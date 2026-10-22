@@ -333,9 +333,15 @@ spec:
         hosts: {{ toJson .hosts }}
         paths: {{ toJson .paths }}
       backends:
+        {{- if .canary }}
+        # Argo Rollouts chỉnh trọng số hai backend này khi phát hành canary (OPS-03, INF-04).
+        - { serviceName: {{ .service }}-stable, servicePort: {{ .port }}, resolveGranularity: service, weight: 100 }
+        - { serviceName: {{ .service }}-canary, servicePort: {{ .port }}, resolveGranularity: service, weight: 0 }
+        {{- else }}
         - serviceName: {{ .service }}
           servicePort: {{ .port }}
           resolveGranularity: service
+        {{- end }}
       {{- with .pluginConfig }}
       plugin_config_name: {{ . }}
       {{- end }}

@@ -1,0 +1,145 @@
+# Cấu hình Argo CD của cụm quản trị (INF-04). Chart này được Argo CD của chính cụm quản trị đồng bộ (ứng dụng gốc),
+# nên mọi thay đổi AppProject, ApplicationSet và cửa sổ đóng băng cũng đi qua Git (OPS-01).
+#
+# Ánh xạ kho GitOps của TL-04 chương 11 vào repo này (suy luận từ OPS-01, ghi ở wiki 12):
+#   clusters/<cụm>/        → deploy/clusters/<cụm>/
+#   cells/<cell>/cell.yaml → deploy/cells/<cell>/cell.yaml
+#   apps/<service>/        → deploy/charts/<service>/ (dựng chung qua chart cha deploy/charts/vt-platform)
+#   envs/<môi trường>/     → deploy/environments/<môi trường>/digests.yaml
+
+gitops:
+  # Kho GitOps (TL-04 mục 9.6). Repo này đóng vai trò kho GitOps; cấu hình nằm dưới thư mục root.
+  repoURL: https://git.vt.local/okr/gitops.git
+  revision: main
+  root: deploy
+
+argocdNamespace: argocd
+# Argo CD nào đang dùng chart: mgmt (cụm quản trị chung) hoặc mgmt-dtw (cụm quản trị riêng của CELL-DTW).
+# Chỉ cell có cell.argocd bằng giá trị này mới sinh Application.
+instance: mgmt
+# Cell do Argo CD khác quản lý (cell.argocd khác instance), bỏ khỏi bộ sinh; kiểm khớp trong tests/chay-kiem-thu.sh.
+cellsExclude: [dtw]
+# Môi trường lấy digest ảnh: deploy/environments/<environment>/digests.yaml (INF-05 vtGitopsBump ghi tệp này).
+environment: production
+# Mô hình phân phối: tệp values-<mô hình>.yaml của vt-platform (saas, private, airgap).
+deploymentModel: saas
+# Hai TTDL của mỗi cell (TL-04 mục 2.3); tên cụm đích là cell-<cell>-<site> (khuôn deploy/clusters/cell-cluster).
+sites: [hl, sn]
+destinationNameFormat: "cell-%s-%s"
+
+# Phát hành theo đợt cell (OPS-02): đợt 0 CELL-NB, 1 CELL-G4, 2 CELL-G1..G3 và CELL-SH, 3 CELL-HN và CELL-DTW,
+# 4 CELL-HCM. Mỗi phần tử là một bước RollingSync chọn Application theo nhãn wave; maxUpdate giới hạn số
+# Application đồng bộ cùng lúc trong bước (đợt 2 có bốn cell, mỗi lần một nửa).
+rollingSync:
+  enabled: true
+  steps:
+    - { wave: "0" }
+    - { wave: "1" }
+    - { wave: "2", maxUpdate: 50% }
+    - { wave: "3" }
+    - { wave: "4" }
+
+syncPolicy:
+  syncOptions: ["ServerSideApply=true", "PruneLast=true"]
+  retry: { limit: 3, backoff: { duration: 30s, factor: 2, maxDuration: 5m } }
+
+# Nguồn chart: chart cha vt-platform (INF-02) bật đúng một service mỗi Application, để giữ nguyên thứ tự chồng
+# values mô hình → hồ sơ → cell → digest mà CI của INF-02 đã kiểm. Tệp chưa có (hồ sơ định cỡ của INF-03, values
+# riêng của cell) được bỏ qua.
+platformChart:
+  path: charts/vt-platform
+  valueFiles:
+    - "values-{{ .model }}.yaml"
+    - "sizing/values-sizing-{{ lower .cell.sizing }}.yaml"
+    - "../../cells/{{ .cell.name }}/values.yaml"
+    - "../../cells/{{ .cell.name }}/values-{{ .site }}.yaml"
+
+# Hai AppProject: okr-apps cho dịch vụ ứng dụng (TL-04 mục 9.6, không tài nguyên cấp cụm, không RBAC, không
+# ResourceQuota) và okr-nen-tang cho hạ tầng của cell (namespace, CRD của operator, RBAC của controller).
+projects:
+  okr-apps:
+    description: Dịch vụ ứng dụng trong cell (SVC-01..SVC-17)
+    # Khoá GPG của người phát hành và của bước vtGitopsBump; Argo CD từ chối commit không có chữ ký hợp lệ.
+    signatureKeys: [4AEE18F83AFDEB23]
+    # Namespace theo bảng TL-04 mục 3.5 (cell-base); mẫu mục 9.6 ghi "app-*" (xem wiki 12).
+    namespaces: [core, identity, platform, workers, secure, analytics]
+    clusterResourceWhitelist: []
+    namespaceResourceBlacklist:
+      - { group: "", kind: ResourceQuota }
+      - { group: "rbac.authorization.k8s.io", kind: "*" }
+  okr-nen-tang:
+    description: Hạ tầng của cell (cell-base, quan sát, dữ liệu, OpenBao, cổng API)
+    signatureKeys: [4AEE18F83AFDEB23]
+    namespaces: [edge, egress, core, identity, platform, workers, secure, secure-data, analytics, data-pg, data-kafka, data-search, observability, cert-manager, kube-system, default]
+    clusterResourceWhitelist:
+      - { group: "", kind: Namespace }
+      - { group: rbac.authorization.k8s.io, kind: ClusterRole }
+      - { group: rbac.authorization.k8s.io, kind: ClusterRoleBinding }
+      - { group: admissionregistration.k8s.io, kind: ValidatingWebhookConfiguration }
+      - { group: admissionregistration.k8s.io, kind: MutatingWebhookConfiguration }
+      - { group: cert-manager.io, kind: ClusterIssuer }
+      - { group: external-secrets.io, kind: ClusterSecretStore }
+      - { group: cilium.io, kind: CiliumClusterwideNetworkPolicy }
+    namespaceResourceBlacklist:
+      - { group: "", kind: ResourceQuota }
+
+# Chỉ vai trò release-manager được sync; nhóm lấy từ Keycloak vận hành (đăng nhập có MFA, TL-04 mục 9.6).
+releaseManagers:
+  role: release-manager
+  groups: [ops-release-managers]
+
+# Cửa sổ đóng băng OPS-06 (TL-04 "Đóng băng thay đổi"): chặn đồng bộ tự động, vẫn cho release-manager sync tay
+# khi CAB khẩn duyệt. syncWindowsBoSung do deploy/argocd/lich-dong-bang/sinh_lich.py sinh từ kỳ đánh giá của
+# tenant (config.period, GET /api/v1/periods) qua merge request, người trực duyệt rồi mới gộp.
+syncWindows:
+  - kind: deny
+    schedule: "0 0 24 3,6,9,12 *"
+    duration: 408h
+    applications: ["*"]
+    manualSync: true
+    timeZone: Asia/Ho_Chi_Minh
+  - kind: deny
+    schedule: "0 0 20 1 *"
+    duration: 384h
+    applications: ["*"]
+    manualSync: true
+    timeZone: Asia/Ho_Chi_Minh
+syncWindowsBoSung: []
+
+# Mỗi phần tử sinh một ApplicationSet okr-<name>, mỗi ApplicationSet sinh một Application cho mỗi cặp cell × TTDL.
+# Danh sách phải phủ đủ dependency của vt-platform (kiểm trong tests/chay-kiem-thu.sh), vì service không có trong
+# danh sách sẽ bật mặc định trong mọi Application.
+#   namespace: namespace đích mặc định của Application (chart tự đặt namespace cho từng tài nguyên).
+#   image:     khoá values nhận repository và digest từ digests.yaml; bỏ trống với chart ghim ảnh trong values.
+#   imageFormat: định dạng giá trị digest (org-service nhận tag nên ghép "gitops@<digest>").
+services:
+  - { name: api-gateway, project: okr-nen-tang, namespace: edge }
+  - { name: iam, project: okr-apps, namespace: identity }
+  - { name: org-service, project: okr-apps, namespace: identity, image: { repository: image.repository, digest: image.tag }, imageFormat: "gitops@%s" }
+  - { name: mission-core, project: okr-apps, namespace: core, image: { repository: image.repository, digest: image.digest } }
+  - { name: workflow-service, project: okr-apps, namespace: core, image: { repository: image.repository, digest: image.digest } }
+  - { name: scoring-service, project: okr-apps, namespace: workers, image: { repository: image.repository, digest: image.digest } }
+  - { name: evidence-service, project: okr-apps, namespace: platform, image: { repository: image.repository, digest: image.digest } }
+  - { name: ledger-service, project: okr-apps, namespace: secure, image: { repository: image.repository, digest: image.digest } }
+  - { name: esign-service, project: okr-apps, namespace: secure, image: { repository: image.repository, digest: image.digest } }
+  - { name: document-service, project: okr-apps, namespace: workers, image: { repository: image.repository, digest: image.digest } }
+  - { name: notification-service, project: okr-apps, namespace: platform, image: { repository: image.repository, digest: image.digest } }
+  - { name: integration-gateway, project: okr-apps, namespace: platform, image: { repository: image.repository, digest: image.digest } }
+  - { name: ai-gateway, project: okr-apps, namespace: secure, image: { repository: image.repository, digest: image.digest } }
+  - { name: analytics, project: okr-apps, namespace: analytics, image: { repository: image.repository, digest: image.digest } }
+  - { name: search, project: okr-apps, namespace: platform, image: { repository: image.repository, digest: image.digest } }
+  # SVC-17 web-frontend: ApplicationSet riêng như mọi service; digest do pipeline web (INF-05) ghi.
+  - { name: web-frontend, project: okr-apps, namespace: platform, image: { repository: image.repository, digest: image.digest } }
+  - { name: cell-base, project: okr-nen-tang, namespace: default }
+  - { name: observability-cell, project: okr-nen-tang, namespace: observability }
+  - { name: data-pg, project: okr-nen-tang, namespace: data-pg }
+  - { name: kafka, project: okr-nen-tang, namespace: data-kafka }
+  - { name: valkey, project: okr-nen-tang, namespace: data-kafka }
+  - { name: opensearch, project: okr-nen-tang, namespace: data-search }
+  - { name: clickhouse, project: okr-nen-tang, namespace: data-search }
+  - { name: openbao, project: okr-nen-tang, namespace: secure-data }
+
+# Chỉ dùng trên kind (deploy/environments/kind/values-kind-gitops.yaml): thay chart cha bằng chart riêng của từng
+# service và đặt namespace theo cell để hai cell giả lập cùng chạy trên một cụm.
+chartRieng: false
+namespaceTheoCell: false

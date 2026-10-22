@@ -1,0 +1,12 @@
+# CELL-HCM: cell lớn nhất, chuẩn định cỡ, phát hành sau cùng ở đợt 4 (TL-04 chương 11). Vị trí primary đang chờ
+# chủ đầu tư quyết định (TL-04 mục 2.3); mặc định Hoà Lạc như mọi cell.
+cell:
+  name: hcm
+  displayName: CELL-HCM
+  sizing: L
+  tenancy: silo
+  primarySite: hl
+  standbySite: sn
+  releaseWave: "4"
+  argocd: mgmt
+  silos: []

@@ -78,6 +78,64 @@ spec:
 {{- end }}
 {{- end -}}
 
+{{/* Service stable và canary cho định tuyến lưu lượng của Argo Rollouts (OPS-03, INF-04). */}}
+{{- define "vt-service.rolloutServices" -}}
+{{- if and (eq .v.workload.kind "Rollout") .v.workload.rollout.trafficRouting .v.service.enabled }}
+{{- $ctx := . }}
+{{- range $i, $vai := list "stable" "canary" }}
+{{- if $i }}
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $ctx.v.name }}-{{ $vai }}
+  namespace: {{ $ctx.v.namespace }}
+  labels:
+    {{- include "vt-service.labels" $ctx | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "vt-service.selectorLabels" $ctx | nindent 4 }}
+  ports:
+    - { name: http, port: {{ $ctx.v.ports.http | int }}, targetPort: http, protocol: TCP }
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
+AnalysisTemplate SLI của canary (TL-04 AnalysisTemplate slo-api, OPS-03, OPS-05): ngưỡng tuyệt đối trên Prometheus
+của cell; vi phạm lặp lại thì Rollouts huỷ và trả lưu lượng về bản ổn định.
+*/}}
+{{- define "vt-service.analysisTemplate" -}}
+{{- $a := .v.workload.rollout.sloAnalysis -}}
+{{- if and (eq .v.workload.kind "Rollout") $a.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ $a.name }}
+  namespace: {{ .v.namespace }}
+  labels:
+    {{- include "vt-service.labels" . | nindent 4 }}
+spec:
+  args:
+    - name: service
+    - name: cell
+  metrics:
+    {{- range $a.metrics }}
+    - name: {{ .name }}
+      interval: {{ $a.interval }}
+      count: {{ $a.count | int }}
+      failureLimit: {{ .failureLimit | int }}
+      successCondition: {{ .successCondition }}
+      provider:
+        prometheus:
+          address: {{ $a.prometheus }}
+          query: {{ .query | replace "@service@" "{{args.service}}" | toYaml | indent 10 | trim }}
+    {{- end }}
+{{- end }}
+{{- end -}}
+
 {{/* PDB đứng trước workload trong thứ tự render (TL-04 mục 5.5). */}}
 {{- define "vt-service.pdb" -}}
 {{- if .v.pdb.enabled }}
@@ -464,7 +522,7 @@ NetworkPolicy, ServiceMonitor, PrometheusRule.
 {{- fail (printf "vt-service: lỗi dựng cấu hình: %v" $v.Error) -}}
 {{- end -}}
 {{- $ctx := dict "root" . "v" $v -}}
-{{- range $t := list "serviceAccount" "configMap" "externalSecret" "pdb" "service" "workload" "hpa" "scaledObject" "networkPolicy" "mesh" "serviceMonitor" "prometheusRule" }}
+{{- range $t := list "serviceAccount" "configMap" "externalSecret" "pdb" "service" "rolloutServices" "analysisTemplate" "workload" "hpa" "scaledObject" "networkPolicy" "mesh" "serviceMonitor" "prometheusRule" }}
 {{- $out := include (printf "vt-service.%s" $t) $ctx | trim }}
 {{- if $out }}
 ---

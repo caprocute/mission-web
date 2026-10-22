@@ -1,0 +1,6 @@
+dependencies:
+- name: vt-service
+  repository: file://../../../../charts/vt-service
+  version: 0.1.0
+digest: sha256:1afbf52497f05290259b70498715e2a067377c979c75541cb9eb8cd31814b9f4
+generated: "2026-10-22T05:56:34.378880353Z"

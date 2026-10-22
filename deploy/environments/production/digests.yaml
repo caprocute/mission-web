@@ -1,0 +1,86 @@
+# Digest ảnh đang phát hành lên môi trường production (TL-04 mục 9.6, OPS-01).
+# ApplicationSet (INF-04) truyền mục của từng service thành tham số Helm, ưu tiên cao nhất sau mô hình → hồ sơ → cell.
+# KHÔNG sửa tay: bước vtGitopsBump của thư viện ci/vt-pipeline (INF-05) cập nhật mục của từng service
+# bằng một commit có chữ ký GPG sau khi ảnh đã được ký cosign và có chứng thực SLSA (SEC-37, SEC-38).
+# Ảnh luôn tham chiếu theo digest, không theo thẻ (SEC-55); chart vt-service (INF-01) từ chối digest rỗng
+# khi service được bật.
+#
+# Cấu trúc mỗi mục (khoá là tên service theo baseline):
+#   repository: ảnh trong Harbor, không có thẻ
+#   digest:     sha256:<64 ký tự hex> của ảnh đã ký
+#   commit:     commit nguồn đã dựng ra ảnh
+#   build:      đường dẫn bản dựng Jenkins sinh ra ảnh
+# ApplicationSet của INF-04 (deploy/argocd) đọc tệp này bằng bộ sinh git files và truyền repository, digest thành
+# tham số Helm của từng Application; service nào thiếu mục thì ApplicationSet báo lỗi (missingkey=error), digest rỗng
+# thì chart từ chối dựng, nên không có Application nào triển khai ảnh chưa được pipeline ghi.
+images:
+  org-service:
+    repository: harbor.vt.local/okr/org-service
+    digest: ""
+    commit: ""
+    build: ""
+  mission-core:
+    repository: harbor.vt.local/okr/mission-core
+    digest: ""
+    commit: ""
+    build: ""
+  workflow-service:
+    repository: harbor.vt.local/okr/workflow-service
+    digest: ""
+    commit: ""
+    build: ""
+  scoring-service:
+    repository: harbor.vt.local/okr/scoring-service
+    digest: ""
+    commit: ""
+    build: ""
+  evidence-service:
+    repository: harbor.vt.local/okr/evidence-service
+    digest: ""
+    commit: ""
+    build: ""
+  ledger-service:
+    repository: harbor.vt.local/okr/ledger-service
+    digest: ""
+    commit: ""
+    build: ""
+  esign-service:
+    repository: harbor.vt.local/okr/esign-service
+    digest: ""
+    commit: ""
+    build: ""
+  document-service:
+    repository: harbor.vt.local/okr/document-service
+    digest: ""
+    commit: ""
+    build: ""
+  notification-service:
+    repository: harbor.vt.local/okr/notification-service
+    digest: ""
+    commit: ""
+    build: ""
+  integration-gateway:
+    repository: harbor.vt.local/okr/integration-gateway
+    digest: ""
+    commit: ""
+    build: ""
+  ai-gateway:
+    repository: harbor.vt.local/okr/ai-gateway
+    digest: ""
+    commit: ""
+    build: ""
+  analytics:
+    repository: harbor.vt.local/okr/analytics
+    digest: ""
+    commit: ""
+    build: ""
+  search:
+    repository: harbor.vt.local/okr/search
+    digest: ""
+    commit: ""
+    build: ""
+  web-frontend:
+    repository: harbor.vt.local/okr/web-frontend
+    digest: ""
+    commit: ""
+    build: ""

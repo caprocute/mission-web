@@ -1,0 +1,21 @@
+# Chart deploy/argocd trên kind (INF-04, kiem-thu-gitops.sh): kho Git giả lập trong cụm, hai cell giả lập
+# kind-a (đợt 1) và kind-b (đợt 2) cùng trỏ về chính cụm kind qua hai tên cụm đích, một TTDL, một service thử.
+gitops:
+  repoURL: http://git.gitops-thu.svc.cluster.local/gitops.git
+  revision: main
+  root: deploy
+environment: kind-gitops
+sites: [hl]
+cellsExclude: []
+chartRieng: true
+namespaceTheoCell: true
+projects:
+  okr-apps:
+    # kiem-thu-gitops.sh truyền khoá GPG tạm sinh lúc chạy bằng --set-json.
+    signatureKeys: []
+    namespaces: [vt-thu-gitops]
+  okr-nen-tang:
+    signatureKeys: []
+services:
+  - { name: ung-dung-thu, project: okr-apps, namespace: vt-thu-gitops, path: environments/kind/gitops/ung-dung-thu,
+      image: { repository: image.repository, digest: image.digest } }
