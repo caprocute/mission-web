@@ -257,6 +257,10 @@ public class CatalogImportService {
                 .filter(v -> !parsedFields.contains(v.field()))
                 .forEach(violations::add);
           }
+          if (violations.isEmpty()) {
+            violations.addAll(
+                catalogs.undeclaredLevels(tenant, draft.scoring().coefficientLevels()));
+          }
           String code = draft.code();
           if (violations.isEmpty() && code != null && codes.contains(code)) {
             violations.add(

@@ -32,6 +32,14 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
           + " evidence_required, quality_criteria, source_doc::text AS source_doc, basis,"
           + " node_kind, parent_task_id, component_score, row_version";
 
+  /** Mức hệ số và trục sao chép từ mục danh mục khi soạn (BS-03 DC-01, CORE-02-27). */
+  private static final String CATALOG_LEVELS =
+      "coalesce((SELECT c.coefficient_levels FROM task.catalog_item c WHERE c.tenant_id = ?"
+          + " AND c.id = ?), '{}'::jsonb)";
+
+  private static final String CATALOG_AXIS =
+      "(SELECT c.axis_code FROM task.catalog_item c WHERE c.tenant_id = ? AND c.id = ?)";
+
   private static final java.time.ZoneId ZONE = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
 
   private static final String ACTIVE =
@@ -78,9 +86,13 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
                 + " planned_quantity, unit, difficulty, standard_score, dup_fingerprint,"
                 + " state_machine_version, status, org_unit_id, priority, product_name,"
                 + " evidence_required, quality_criteria, basis, source_doc, node_kind,"
-                + " parent_task_id, component_score, created_at, updated_at) VALUES (?, ?, ?, ?,"
-                + " ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, 'NHAP', ?, ?,"
-                + " ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)")
+                + " parent_task_id, component_score, coefficient_levels, axis_code, created_at,"
+                + " updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb,"
+                + " ?, ?, ?, ?, ?, ?, 'NHAP', ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, "
+                + CATALOG_LEVELS
+                + ", "
+                + CATALOG_AXIS
+                + ", ?, ?)")
         .params(
             d.id(),
             d.assignerId(),
@@ -115,6 +127,10 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
             s.node().kind(),
             s.node().parentTaskId(),
             s.node().componentScore(),
+            tenant.value(),
+            s.catalogItemId(),
+            tenant.value(),
+            s.catalogItemId(),
             Timestamp.from(at),
             Timestamp.from(at))
         .update();
@@ -202,7 +218,11 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
                     + " acceptor_id = ?, due_date = ?, milestones = ?::jsonb, product_name = ?,"
                     + " planned_quantity = ?, unit = ?, evidence_required = ?,"
                     + " quality_criteria = ?, basis = ?, source_doc = ?::jsonb, node_kind = ?,"
-                    + " parent_task_id = ?, component_score = ?, difficulty = ?,"
+                    + " parent_task_id = ?, component_score = ?, coefficient_levels = "
+                    + CATALOG_LEVELS
+                    + ", axis_code = "
+                    + CATALOG_AXIS
+                    + ", difficulty = ?,"
                     + " standard_score = ?, dup_fingerprint = ?, updated_by = ?, updated_at = ?,"
                     + " row_version = row_version + 1 WHERE period_bucket = ? AND tenant_id = ?"
                     + " AND id = ? AND row_version = ? AND status = 'NHAP'")
@@ -228,6 +248,10 @@ public class JdbcTaskDraftRepository implements TaskDraftRepository {
                 s.node().kind(),
                 s.node().parentTaskId(),
                 s.node().componentScore(),
+                tenant.value(),
+                s.catalogItemId(),
+                tenant.value(),
+                s.catalogItemId(),
                 difficulty,
                 standardScore,
                 fingerprint,

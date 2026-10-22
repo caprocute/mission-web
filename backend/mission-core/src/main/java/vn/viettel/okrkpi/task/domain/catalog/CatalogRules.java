@@ -32,6 +32,10 @@ public final class CatalogRules {
   /** Giới hạn độ sâu khi lần theo danh mục cấp trên, đủ cho mọi cấp hành chính. */
   public static final int MAX_DEPTH = 16;
 
+  static final Pattern LEVEL_TYPE = Pattern.compile("[a-z][a-z0-9_]{0,31}");
+  static final Pattern AXIS = Pattern.compile("[A-Z0-9_.-]{1,16}");
+  static final int MAX_LEVELS = 16;
+
   private static final Set<String> GROUPS = Set.of("THUONG_XUYEN", "THEN_CHOT");
   private static final Set<String> ITEM_STATUSES = Set.of("AP_DUNG", "NGUNG");
 
@@ -51,7 +55,12 @@ public final class CatalogRules {
         trim(d.evidenceRequired()),
         d.group(),
         d.standardDays(),
-        d.status() == null ? "AP_DUNG" : d.status());
+        d.status() == null ? "AP_DUNG" : d.status(),
+        new ItemScoring(
+            d.scoring().coefficientLevels(),
+            trim(d.scoring().axisCode()),
+            d.scoring().scoreAdjustMin(),
+            d.scoring().scoreAdjustMax()));
   }
 
   /**
@@ -101,9 +110,91 @@ public final class CatalogRules {
     if (!ITEM_STATUSES.contains(d.status())) {
       errors.add(v("status", "Trạng thái không hợp lệ."));
     }
+    errors.addAll(scoring(d.scoring()));
     if (!errors.isEmpty()) {
       throw new CatalogViolationException(errors);
     }
+  }
+
+  /**
+   * Dạng của dữ liệu chấm điểm mở: mã loại hệ số, mức, mã trục, khung chỉnh (BS-03 DC-01, DC-02).
+   */
+  static List<CatalogViolationException.Violation> scoring(ItemScoring s) {
+    List<CatalogViolationException.Violation> errors = new ArrayList<>();
+    Map<String, String> levels = s.coefficientLevels();
+    if (levels.size() > MAX_LEVELS
+        || levels.entrySet().stream()
+            .anyMatch(
+                e ->
+                    !LEVEL_TYPE.matcher(e.getKey()).matches()
+                        || e.getValue() == null
+                        || e.getValue().isBlank()
+                        || e.getValue().length() > 32)) {
+      errors.add(v("coefficientLevels", "Mức hệ số không hợp lệ."));
+    }
+    if (s.axisCode() != null && !AXIS.matcher(s.axisCode()).matches()) {
+      errors.add(v("axisCode", "Mã trục gồm chữ in hoa, chữ số, tối đa 16 ký tự."));
+    }
+    BigDecimal min = s.scoreAdjustMin();
+    if (min != null && (min.compareTo(BigDecimal.ONE.negate()) < 0 || min.signum() > 0)) {
+      errors.add(v("scoreAdjustMin", "Tỷ lệ giảm điểm chuẩn tối đa từ -1 đến 0."));
+    }
+    BigDecimal max = s.scoreAdjustMax();
+    if (max != null && (max.signum() < 0 || max.compareTo(BigDecimal.TEN) > 0)) {
+      errors.add(v("scoreAdjustMax", "Tỷ lệ tăng điểm chuẩn tối đa từ 0 đến 10."));
+    }
+    return errors;
+  }
+
+  /**
+   * Mức hệ số phải thuộc khai báo của Policy Pack: khoá là mã loại đã khai báo, mức thuộc tập mức
+   * của loại đó (tập rỗng là không giới hạn mức). Lõi không viết cứng mã loại nào.
+   *
+   * @param declared loại hệ số và tập mức của gói áp cho kỳ
+   */
+  public static List<CatalogViolationException.Violation> declaredLevels(
+      Map<String, String> levels, Map<String, Set<String>> declared) {
+    List<CatalogViolationException.Violation> errors = new ArrayList<>();
+    for (Map.Entry<String, String> e : levels.entrySet()) {
+      Set<String> allowed = declared.get(e.getKey());
+      if (allowed == null) {
+        errors.add(
+            v(
+                "coefficientLevels",
+                "Loại hệ số " + e.getKey() + " không có trong chính sách của kỳ."));
+      } else if (!allowed.isEmpty() && !allowed.contains(e.getValue())) {
+        errors.add(
+            v(
+                "coefficientLevels",
+                "Mức " + e.getValue() + " không thuộc loại hệ số " + e.getKey() + "."));
+      }
+    }
+    return errors;
+  }
+
+  /**
+   * Khung chỉnh điểm chuẩn của dòng kế thừa (BS-03 DC-02): dòng cấp dưới cùng mã phải có điểm chuẩn
+   * trong [điểm cha × (1 + min); điểm cha × (1 + max)]. Dòng cha không đặt khung (cả hai đầu rỗng)
+   * thì không giới hạn, giữ hành vi cũ; chỉ đặt một đầu thì đầu kia là 0 (không được chỉnh chiều
+   * đó). Trả lời lỗi hoặc {@code null}.
+   */
+  public static String adjustViolation(
+      BigDecimal parentScore, ItemScoring parent, BigDecimal childScore) {
+    if (parentScore == null || childScore == null || !parent.bounded()) {
+      return null;
+    }
+    BigDecimal min = parent.scoreAdjustMin() == null ? BigDecimal.ZERO : parent.scoreAdjustMin();
+    BigDecimal max = parent.scoreAdjustMax() == null ? BigDecimal.ZERO : parent.scoreAdjustMax();
+    BigDecimal low = parentScore.multiply(BigDecimal.ONE.add(min));
+    BigDecimal high = parentScore.multiply(BigDecimal.ONE.add(max));
+    if (childScore.compareTo(low) >= 0 && childScore.compareTo(high) <= 0) {
+      return null;
+    }
+    return "Điểm chuẩn chỉ được chỉnh trong khoảng "
+        + low.setScale(3, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
+        + " đến "
+        + high.setScale(3, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
+        + " so với danh mục cấp trên.";
   }
 
   /** Từ mơ hồ đầu tiên có trong tên (so khớp cả từ, không phân biệt dấu), hoặc {@code null}. */

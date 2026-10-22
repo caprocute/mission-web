@@ -1,5 +1,8 @@
 package vn.viettel.okrkpi.task.infrastructure.persistence;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
@@ -18,6 +21,7 @@ import vn.viettel.okrkpi.task.domain.catalog.AccentFold;
 import vn.viettel.okrkpi.task.domain.catalog.CatalogItem;
 import vn.viettel.okrkpi.task.domain.catalog.CatalogRules;
 import vn.viettel.okrkpi.task.domain.catalog.CatalogStatus;
+import vn.viettel.okrkpi.task.domain.catalog.ItemScoring;
 import vn.viettel.okrkpi.task.domain.catalog.WorkCatalog;
 
 /**
@@ -36,7 +40,9 @@ public class JdbcCatalogRepository implements CatalogRepository {
       "id, work_catalog_id, code, name, product_name, unit, difficulty,"
           + " coalesce(base_score, standard_score) AS base_score, quality_standard,"
           + " evidence_requirement, coalesce(default_group, task_group) AS default_group,"
-          + " position_id, standard_days, status, row_version";
+          + " position_id, standard_days, status, row_version,"
+          + " coefficient_levels::text AS coefficient_levels, axis_code, score_adjust_min,"
+          + " score_adjust_max";
 
   /**
    * Chuỗi kế thừa từ các phiên bản gốc (điều kiện {@code %s}) lên danh mục cấp trên, chặn vòng bằng
@@ -61,6 +67,8 @@ public class JdbcCatalogRepository implements CatalogRepository {
                coalesce(i.base_score, i.standard_score) AS base_score, i.quality_standard,
                i.evidence_requirement, coalesce(i.default_group, i.task_group) AS default_group,
                i.position_id, i.standard_days, i.status, i.row_version,
+               i.coefficient_levels::text AS coefficient_levels, i.axis_code,
+               i.score_adjust_min, i.score_adjust_max,
                c.root AS root_id, coalesce(i.position_id, rw.position_id) AS effective_position
           FROM chain c
           JOIN task.catalog_item i ON i.tenant_id = :t AND i.work_catalog_id = c.src
@@ -68,6 +76,9 @@ public class JdbcCatalogRepository implements CatalogRepository {
          ORDER BY c.root, i.code, c.depth
       )
       """;
+
+  private static final ObjectMapper JSON = new ObjectMapper();
+  private static final TypeReference<Map<String, String>> LEVELS = new TypeReference<>() {};
 
   private final JdbcClient jdbc;
 
@@ -386,9 +397,10 @@ public class JdbcCatalogRepository implements CatalogRepository {
                 (id, tenant_id, created_by, updated_by, row_version, work_catalog_id, code, name,
                  product_name, unit, difficulty, standard_score, base_score, quality_standard,
                  evidence_requirement, task_group, default_group, position_id, standard_days,
-                 status)
+                 status, coefficient_levels, axis_code, score_adjust_min, score_adjust_max)
               VALUES (:id, :t, :a, :a, :rv, :c, :code, :name, :product, :unit, :difficulty,
-                      :score, :score, :quality, :evidence, :grp, :grp, :pos, :days, :status)
+                      :score, :score, :quality, :evidence, :grp, :grp, :pos, :days, :status,
+                      CAST(:levels AS jsonb), :axis, :adjMin, :adjMax)
               """)
           .param("id", i.id())
           .param("t", tenant.value())
@@ -412,7 +424,9 @@ public class JdbcCatalogRepository implements CatalogRepository {
                          difficulty = :difficulty, standard_score = :score, base_score = :score,
                          quality_standard = :quality, evidence_requirement = :evidence,
                          task_group = :grp, default_group = :grp, position_id = :pos,
-                         standard_days = :days, status = :status, updated_at = now(),
+                         standard_days = :days, status = :status,
+                         coefficient_levels = CAST(:levels AS jsonb), axis_code = :axis,
+                         score_adjust_min = :adjMin, score_adjust_max = :adjMax, updated_at = now(),
                          updated_by = :a, row_version = row_version + 1
                    WHERE tenant_id = :t AND id = :id AND row_version = :rv
                   """)
@@ -436,10 +450,11 @@ public class JdbcCatalogRepository implements CatalogRepository {
               (id, tenant_id, created_by, updated_by, work_catalog_id, code, name, product_name,
                unit, difficulty, standard_score, quality_standard, evidence_requirement,
                task_group, data_source, position_id, default_group, standard_days, base_score,
-               status)
+               status, coefficient_levels, axis_code, score_adjust_min, score_adjust_max)
             SELECT gen_random_uuid(), tenant_id, :a, :a, :to, code, name, product_name, unit,
                    difficulty, standard_score, quality_standard, evidence_requirement, task_group,
-                   data_source, position_id, default_group, standard_days, base_score, status
+                   data_source, position_id, default_group, standard_days, base_score, status,
+                   coefficient_levels, axis_code, score_adjust_min, score_adjust_max
               FROM task.catalog_item
              WHERE tenant_id = :t AND work_catalog_id = :from
             """)
@@ -492,7 +507,32 @@ public class JdbcCatalogRepository implements CatalogRepository {
     p.put("pos", i.positionId());
     p.put("days", i.standardDays());
     p.put("status", i.status());
+    p.put("levels", levelsJson(i.scoring().coefficientLevels()));
+    p.put("axis", i.scoring().axisCode());
+    p.put("adjMin", i.scoring().scoreAdjustMin());
+    p.put("adjMax", i.scoring().scoreAdjustMax());
     return p;
+  }
+
+  /** Mức hệ số dạng JSON cho cột {@code coefficient_levels}. */
+  static String levelsJson(Map<String, String> levels) {
+    try {
+      return JSON.writeValueAsString(levels);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("Không ghi được mức hệ số", e);
+    }
+  }
+
+  /** Đọc cột {@code coefficient_levels}; rỗng hoặc sai dạng là không có mức. */
+  static Map<String, String> levels(String json) {
+    if (json == null || json.isBlank()) {
+      return Map.of();
+    }
+    try {
+      return JSON.readValue(json, LEVELS);
+    } catch (JsonProcessingException e) {
+      return Map.of();
+    }
   }
 
   private static RuntimeException translateItem(DataIntegrityViolationException e) {
@@ -541,7 +581,12 @@ public class JdbcCatalogRepository implements CatalogRepository {
         rs.getObject("position_id", UUID.class),
         standardDays,
         rs.getString("status"),
-        rs.getInt("row_version"));
+        rs.getInt("row_version"),
+        new ItemScoring(
+            levels(rs.getString("coefficient_levels")),
+            rs.getString("axis_code"),
+            rs.getBigDecimal("score_adjust_min"),
+            rs.getBigDecimal("score_adjust_max")));
   }
 
   private static VisibleItem visible(ResultSet rs, int n) throws SQLException {

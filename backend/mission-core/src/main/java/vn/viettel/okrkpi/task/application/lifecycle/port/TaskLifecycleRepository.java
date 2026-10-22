@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
@@ -42,7 +43,13 @@ public interface TaskLifecycleRepository {
       long rowVersion,
       String nodeKind,
       UUID parentTaskId,
-      BigDecimal componentScore) {
+      BigDecimal componentScore,
+      Map<String, String> coefficientLevels,
+      String axisCode) {
+
+    public TaskRow {
+      coefficientLevels = coefficientLevels == null ? Map.of() : Map.copyOf(coefficientLevels);
+    }
 
     /** Nhiệm vụ gốc {@code NHIEM_VU}, không có việc cha (BS-03 DC-04). */
     public TaskRow(
@@ -101,6 +108,8 @@ public interface TaskLifecycleRepository {
           rowVersion,
           "NHIEM_VU",
           null,
+          null,
+          Map.of(),
           null);
     }
   }

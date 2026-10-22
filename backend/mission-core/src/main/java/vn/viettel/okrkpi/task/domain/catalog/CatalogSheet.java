@@ -25,7 +25,9 @@ public final class CatalogSheet {
     QUALITY("Tiêu chuẩn chất lượng", true, "tieu chuan chat luong", "tieu chuan"),
     EVIDENCE("Minh chứng yêu cầu", true, "minh chung yeu cau", "minh chung"),
     GROUP("Nhóm mặc định", false, "nhom mac dinh", "nhom"),
-    DAYS("Thời hạn chuẩn", false, "thoi han chuan", "thoi han", "so ngay");
+    DAYS("Thời hạn chuẩn", false, "thoi han chuan", "thoi han", "so ngay"),
+    LEVELS("Mức hệ số", false, "muc he so", "he so"),
+    AXIS("Trục công việc", false, "truc cong viec", "truc", "ma truc");
 
     private final String label;
     private final boolean required;
@@ -150,8 +152,39 @@ public final class CatalogSheet {
             c.cell(cells, Column.EVIDENCE),
             group == null ? "THUONG_XUYEN" : group,
             days,
-            null);
+            null,
+            new ItemScoring(
+                levels(c.cell(cells, Column.LEVELS), errors),
+                c.cell(cells, Column.AXIS),
+                null,
+                null));
     return new Parsed(draft, errors);
+  }
+
+  /**
+   * Ô mức hệ số dạng {@code loai=muc; loai=muc} (BS-03 DC-01), ví dụ {@code he_so_nhom=NHOM_2}; mã
+   * loại viết thường, mức giữ nguyên.
+   */
+  static Map<String, String> levels(String raw, List<CatalogViolationException.Violation> errors) {
+    Map<String, String> out = new java.util.LinkedHashMap<>();
+    if (raw == null) {
+      return out;
+    }
+    for (String part : raw.split("[;\\n]")) {
+      if (part.isBlank()) {
+        continue;
+      }
+      int eq = part.indexOf('=');
+      if (eq <= 0 || eq == part.length() - 1) {
+        errors.add(
+            v("coefficientLevels", "Mức hệ số ghi dạng loại=mức, cách nhau bằng dấu chấm phẩy."));
+        return Map.of();
+      }
+      out.put(
+          part.substring(0, eq).strip().toLowerCase(java.util.Locale.ROOT),
+          part.substring(eq + 1).strip());
+    }
+    return out;
   }
 
   private static Optional<Integer> integer(String raw) {
