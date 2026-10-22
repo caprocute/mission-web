@@ -20,11 +20,18 @@ pauseMinutes; bước 100 là thăng cấp cuối (TL-04 mẫu Rollout mission-c
 {{- $slo := dict "enabled" true "name" $v.rollout.analysisTemplate "interval" $v.rollout.analysis.interval "count" $v.rollout.analysis.count -}}
 {{- $_ := set $v.workload "rollout" (dict "canarySteps" $steps "sloAnalysis" $slo "trafficRouting" $v.rollout.trafficRouting) -}}
 
-{{- /* KEDA: CPU, RPS mỗi pod qua Prometheus (TL-04 mục 6.4); cửa sổ deadline-default do vt-service thêm. */ -}}
+{{- /* KEDA: CPU, RPS mỗi pod qua Prometheus (TL-04 mục 6.4); cửa sổ deadline-default do vt-service thêm.
+p95 khi bận (TL-04 mục 6.2, chỉ số mission_core_p95_when_busy_ms): độ trễ p95 chỉ có giá trị khi CPU trung bình
+trên 60% yêu cầu; dùng kiểu Value nên số pod tăng theo tỉ lệ p95 / ngưỡng. KEDA giữ API external metrics nên
+biểu thức đi thẳng vào trigger thay vì qua Prometheus Adapter (wiki 14). */ -}}
 {{- $rps := printf "sum(rate(http_server_requests_seconds_count{namespace=%q,service=%q,uri!~\"/actuator.*\"}[1m]))" $v.namespace $v.name -}}
+{{- $p95 := printf "(histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=%q,service=%q,uri!~\"/actuator.*\"}[2m])) by (le)) * 1000) and on() (avg(rate(container_cpu_usage_seconds_total{namespace=%q,container=\"app\",pod=~\"%s-.*\"}[2m])) / avg(kube_pod_container_resource_requests{namespace=%q,container=\"app\",pod=~\"%s-.*\",resource=\"cpu\"}) > 0.6)" $v.namespace $v.name $v.namespace $v.name $v.namespace $v.name -}}
 {{- $trig := list
   (dict "type" "cpu" "metricType" "Utilization" "metadata" (dict "value" (toString (int $v.scaling.cpuUtilization))))
   (dict "type" "prometheus" "name" "rps-per-pod" "metadata" (dict "serverAddress" "http://prometheus-operated.observability.svc:9090" "query" $rps "threshold" (toString (int $v.scaling.rpsPerPod)) "activationThreshold" "50")) -}}
+{{- if $v.scaling.p95KhiBanMs -}}
+{{- $trig = append $trig (dict "type" "prometheus" "name" "p95-khi-ban" "metricType" "Value" "metadata" (dict "serverAddress" "http://prometheus-operated.observability.svc:9090" "query" $p95 "threshold" (toString (int $v.scaling.p95KhiBanMs)) "ignoreNullValues" "true")) -}}
+{{- end -}}
 {{- $_ := set $v.autoscaling.keda "triggers" $trig -}}
 
 {{- /* Cấu hình nguồn dữ liệu và độ bền vững thành biến môi trường qua ConfigMap. */ -}}

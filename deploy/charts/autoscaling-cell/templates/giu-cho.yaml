@@ -1,0 +1,66 @@
+{{- /* PriorityClass và Deployment pod giữ chỗ cho từng pool co giãn (TL-04 mục 6.5, INF-16). */ -}}
+{{- $g := .Values.giuCho }}
+{{- if $g.enabled }}
+{{- if not (regexMatch "^sha256:[a-f0-9]{64}$" (toString $g.image.digest)) }}
+{{- fail "autoscaling-cell: ảnh pause của pod giữ chỗ phải ghim digest sha256 (SEC-55)" }}
+{{- end }}
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: capacity-reservation
+  labels:
+    app.kubernetes.io/part-of: vt-platform
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+value: -10
+globalDefault: false
+preemptionPolicy: Never
+description: "Pod giữ chỗ, bị trục xuất đầu tiên khi pod thật cần tài nguyên"
+{{- range $ten, $p := $g.pools }}
+{{- if gt (int $p.replicas) 0 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: capacity-reservation-{{ $ten }}
+  namespace: {{ $g.namespace }}
+  labels:
+    app.kubernetes.io/name: capacity-reservation
+    app.kubernetes.io/part-of: vt-platform
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+    vt.io/pool: {{ $p.nhanPool }}
+spec:
+  replicas: {{ $p.replicas | int }}
+  selector:
+    matchLabels: { app: capacity-reservation, pool: {{ $ten }} }
+  template:
+    metadata:
+      labels: { app: capacity-reservation, pool: {{ $ten }}, app.kubernetes.io/name: capacity-reservation }
+    spec:
+      priorityClassName: capacity-reservation
+      terminationGracePeriodSeconds: 0
+      automountServiceAccountToken: false
+      nodeSelector:
+        vt.io/pool: {{ $p.nhanPool }}
+      {{- with $p.taint }}
+      tolerations:
+        - { key: {{ .key }}, operator: Equal, value: {{ .value }}, effect: NoSchedule }
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65535
+        runAsGroup: 65535
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: pause
+          image: {{ printf "%s@%s" $g.image.repository $g.image.digest }}
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests: { cpu: {{ $p.cpu | quote }}, memory: {{ $p.memory }} }
+            limits: { cpu: {{ $p.cpu | quote }}, memory: {{ $p.memory }} }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+{{- end }}
+{{- end }}
+{{- end }}

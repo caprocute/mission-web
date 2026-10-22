@@ -21,7 +21,7 @@ helm lint "$VD" >/dev/null && ok "helm lint (org-service)" || hong "helm lint"
 helm lint "$VD" -f "$VD/values-rollout-keda.yaml" >/dev/null && ok "helm lint (Rollout + KEDA)" || hong "helm lint rollout"
 
 echo "== helm template và kiểm tra schema"
-for bien in values.yaml values-rollout-keda.yaml values-compact.yaml values-kind.yaml; do
+for bien in values.yaml values-rollout-keda.yaml values-compact.yaml values-kind.yaml values-keda-kafka.yaml; do
   f="$OUT/${bien%.yaml}.out.yaml"
   args=(); [ "$bien" != values.yaml ] && args=(-f "$VD/$bien")
   if helm template t "$VD" "${args[@]}" > "$f"; then ok "render $bien"; else hong "render $bien"; continue; fi
@@ -52,6 +52,34 @@ grep -q 'topology.kubernetes.io/zone' "$OUT/values.out.yaml" && grep -q 'kuberne
   && ok "hồ sơ thường: spread theo vùng (DoNotSchedule) và theo node (ScheduleAnyway)" || hong "spread hồ sơ thường"
 ! grep -q 'topology.kubernetes.io/zone' "$OUT/values-compact.out.yaml" \
   && ok "hồ sơ compact: chỉ còn ràng buộc theo node" || hong "spread compact"
+
+echo "== KEDA theo độ trễ Kafka và cửa sổ tăng trước (TL-04 mục 6.3, 6.4; INF-16)"
+python3 - "$OUT/values-keda-kafka.out.yaml" > "$OUT/keda.log" <<'PY' && { sed 's/^/  [ĐẠT] /' "$OUT/keda.log"; dat=$((dat+$(wc -l < "$OUT/keda.log"))); } || { cat "$OUT/keda.log"; hong "ScaledObject worker"; }
+import sys, yaml
+docs = [d for d in yaml.safe_load_all(open(sys.argv[1])) if d]
+so = [d for d in docs if d["kind"] == "ScaledObject"][0]["spec"]
+tr = {t.get("name", t["type"]): t for t in so["triggers"]}
+k = tr["lag-product-evidence-accepted-v1"]["metadata"]
+assert (k["topic"], k["lagThreshold"], k["activationLagThreshold"], k["consumerGroup"]) == ("product.evidence.accepted.v1", "500", "10", "scoring-service")
+assert k["allowIdleConsumers"] == "false" and k["limitToPartitionsWithLag"] == "true" and k["tls"] == "enable"
+assert tr["lag-recompute"]["metadata"]["lagThreshold"] == "200" and tr["lag-recompute"]["authenticationRef"]["name"] == "scoring-service-kafka-tls"
+print("hai trigger Kafka đúng mẫu TL-04 mục 6.3 (ngưỡng 500/10 và 200/1, mTLS)")
+assert tr["cpu"]["metadata"]["value"] == "80" and (so["minReplicaCount"], so["maxReplicaCount"], so["cooldownPeriod"]) == (2, 24, 600)
+b = so["advanced"]["horizontalPodAutoscalerConfig"]["behavior"]
+assert b["scaleUp"]["policies"] == [{"type": "Pods", "value": 6, "periodSeconds": 30}] and b["scaleDown"]["stabilizationWindowSeconds"] == 900
+print("CPU 80%, 2/24 pod, cooldown 600 s, behavior riêng của worker (+6 pod/30 s, giảm sau 900 s)")
+cr = {n: t["metadata"] for n, t in tr.items() if t["type"] == "cron"}
+assert cr["cuoi-quy"]["desiredReplicas"] == "8" and cr["cuoi-quy"]["timezone"] == "Asia/Ho_Chi_Minh"
+assert cr["ky-q2-2027-tinh-a-0"] == {"timezone": "Asia/Ho_Chi_Minh", "start": "0 6 28-30 6 *", "end": "0 23 28-30 6 *", "desiredReplicas": "10"}
+assert cr["ky-q2-2027-tinh-a-1"]["start"] == "0 6 1-12 7 *"
+print("cửa sổ deadline-default giữ làm sàn, cửa sổ theo kỳ của cell thành hai trigger cron theo tháng")
+ta = [d for d in docs if d["kind"] == "TriggerAuthentication"][0]
+assert {r["parameter"]: (r["name"], r["key"]) for r in ta["spec"]["secretTargetRef"]} == {
+    "ca": ("kafka-scoring-service-tls", "ca.crt"), "cert": ("kafka-scoring-service-tls", "user.crt"), "key": ("kafka-scoring-service-tls", "user.key")}
+print("TriggerAuthentication đọc chứng chỉ KafkaUser của chính service")
+assert not [d for d in docs if d["kind"] == "HorizontalPodAutoscaler"]
+print("không sinh HPA riêng bên cạnh ScaledObject (mỗi workload một bộ co giãn)")
+PY
 
 echo "== Các ca phải thất bại"
 phai_hong() { # $1 mô tả, $2 mẫu thông báo, còn lại là tham số helm

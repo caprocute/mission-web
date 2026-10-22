@@ -1,0 +1,115 @@
+# Co giãn tự động của cell (TL-04 chương 6, INF-16). Ảnh kéo qua proxy-cache của Harbor (INF-07) và ghim digest
+# (SEC-55); digest lấy từ registry gốc ngày 22/10/2026, proxy-cache giữ nguyên digest.
+global:
+  cell: ""
+
+# KEDA 2.21 (operator, metrics apiserver, admission webhook) cài ở namespace keda. KEDA giữ API
+# external.metrics.k8s.io; webhook của KEDA từ chối ScaledObject nhắm vào workload đã có HPA khác (TL-04 mục 6.1).
+keda:
+  enabled: true
+  image:
+    keda:
+      registry: harbor.vt.local
+      repository: ghcr/kedacore/keda
+      tag: 2.21.0@sha256:81fe6547ce8d1cc29273f887b76507e9b853e5bc1f875ec23fe60061a38ed809
+    metricsApiServer:
+      registry: harbor.vt.local
+      repository: ghcr/kedacore/keda-metrics-apiserver
+      tag: 2.21.0@sha256:255375037fe592732eeb554743aae360c2da88cf0b9b1258d0a987ef885f0881
+    webhooks:
+      registry: harbor.vt.local
+      repository: ghcr/kedacore/keda-admission-webhooks
+      tag: 2.21.0@sha256:e1969628cca6123e32eea13c47c75817091af2657fa68d9d0d58a8620d1b75b1
+    pullPolicy: IfNotPresent
+  operator:
+    replicaCount: 2
+  metricsServer:
+    replicaCount: 2
+  webhooks:
+    replicaCount: 2
+  podDisruptionBudget:
+    operator: { minAvailable: 1 }
+    metricServer: { minAvailable: 1 }
+    webhooks: { minAvailable: 1 }
+  nodeSelector:
+    vt.io/pool: system
+  tolerations:
+    - { key: CriticalAddonsOnly, operator: Exists, effect: NoSchedule }
+  priorityClassName: system-cluster-critical
+  # Operator đọc độ trễ consumer ở broker Kafka (9093, mTLS) và hỏi Prometheus của cell (9090).
+  networkPolicy:
+    enabled: true
+    flavor: cilium
+    cilium:
+      operator:
+        extraEgressRules:
+          - toEndpoints:
+              - matchLabels:
+                  k8s:io.kubernetes.pod.namespace: data-kafka
+                  strimzi.io/cluster: kafka-cell
+            toPorts:
+              - ports: [{ port: "9093", protocol: TCP }]
+          - toEndpoints:
+              - matchLabels:
+                  k8s:io.kubernetes.pod.namespace: observability
+                  app.kubernetes.io/name: prometheus
+            toPorts:
+              - ports: [{ port: "9090", protocol: TCP }]
+
+# Prometheus Adapter: chỉ số tuỳ chỉnh custom.metrics.k8s.io cho HPA (TL-04 mục 6.2). Quy tắc external
+# mission_core_p95_when_busy_ms của TL-04 không đăng ký ở đây vì KEDA đã giữ API external.metrics.k8s.io; cùng
+# biểu thức được dùng làm trigger Prometheus của ScaledObject mission-core (wiki 14).
+prometheus-adapter:
+  enabled: true
+  namespaceOverride: observability
+  image:
+    repository: harbor.vt.local/k8s-registry/prometheus-adapter/prometheus-adapter
+    tag: v0.12.0@sha256:932eae60e2bcf9c4660d6442da066ef1a79b4ea7cc232c61c7303069216ca006
+  replicas: 2
+  prometheus:
+    url: http://prometheus-operated.observability.svc
+    port: 9090
+  metricsRelistInterval: 1m
+  priorityClassName: system-cluster-critical
+  nodeSelector:
+    vt.io/pool: system
+  tolerations:
+    - { key: CriticalAddonsOnly, operator: Exists, effect: NoSchedule }
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 256Mi }
+  rules:
+    default: false
+    custom:
+      - seriesQuery: 'http_server_requests_seconds_count{namespace!="",pod!=""}'
+        resources:
+          overrides:
+            namespace: { resource: namespace }
+            pod: { resource: pod }
+        name:
+          matches: "^http_server_requests_seconds_count$"
+          as: "http_server_requests_per_second"
+        metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>,uri!~"/actuator.*"}[1m])) by (<<.GroupBy>>)'
+    external: []
+
+# Pod giữ chỗ (TL-04 mục 6.5): pod pause ở PriorityClass âm, tổng yêu cầu tương đương 2 node mỗi pool, bị trục
+# xuất ngay khi pod thật cần chỗ và chuyển Pending để Cluster Autoscaler thêm node.
+giuCho:
+  enabled: true
+  namespace: kube-system
+  image:
+    repository: harbor.vt.local/k8s-registry/pause
+    digest: sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a
+  pools:
+    app-general:
+      nhanPool: app-general
+      replicas: 6
+      cpu: "5"
+      memory: 20Gi
+    app-worker:
+      # Nhãn và taint của pool worker theo deploy/clusters (vt.io/pool=worker).
+      nhanPool: worker
+      taint: { key: vt.io/pool, value: worker }
+      replicas: 6
+      cpu: "5"
+      memory: 20Gi

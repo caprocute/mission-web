@@ -70,6 +70,17 @@ public record ObjectLocation(String bucket, String key) {
     return new ObjectLocation(stagingBucketOf(cell), "t/" + tenant + "/tai-len/" + uploadId);
   }
 
+  /**
+   * Ảnh xem trước trang {@code page} của một phiên bản, cùng bucket có khoá với tệp gốc để giữ cùng
+   * hạn lưu giữ: {@code t/<tenant>/xem-truoc/<versionId>/p<page>.png}.
+   */
+  public static ObjectLocation preview(String bucket, UUID tenant, UUID versionId, int page) {
+    Objects.requireNonNull(tenant, "tenant");
+    Objects.requireNonNull(versionId, "versionId");
+    return new ObjectLocation(
+        bucket, "t/" + tenant + "/xem-truoc/" + versionId + "/p" + page + ".png");
+  }
+
   public static ObjectLocation of(String cell, UUID tenant, byte[] sha256) {
     return new ObjectLocation(bucketOf(cell, tenant), keyOf(tenant, sha256));
   }

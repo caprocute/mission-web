@@ -25,38 +25,32 @@ probes:
     failureThreshold: 3
 pdb:
   maxUnavailable: 25%
+# Mẫu TL-04 mục 6.3: 2/24 pod, độ trễ hai topic đầu vào, CPU 80%, behavior riêng của worker.
+# config.period.locked.v1 (đợt tính điểm khi khoá kỳ) giữ ngưỡng như topic minh chứng.
 autoscaling:
   keda:
     enabled: true
     minReplicas: 2
     maxReplicas: 24
+    pollingInterval: 15
+    cooldownPeriod: 600
+    cpuUtilization: 80
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 0
+        policies:
+          - { type: Pods, value: 6, periodSeconds: 30 }
+      scaleDown:
+        stabilizationWindowSeconds: 900
+        policies:
+          - { type: Percent, value: 25, periodSeconds: 120 }
+    kafka:
+      topics:
+        - { topic: product.evidence.accepted.v1, lagThreshold: 500, activationLagThreshold: 10, name: lag-evidence-accepted }
+        - { topic: scoring.recompute.requested.v1, lagThreshold: 200, activationLagThreshold: 1, name: lag-recompute }
+        - { topic: config.period.locked.v1, lagThreshold: 500, activationLagThreshold: 10, name: lag-period-locked }
     preScale:
       cuoiQuy: 8
-    triggers:
-      - type: kafka
-        name: product-evidence-accepted-v1
-        metadata:
-          bootstrapServers: kafka-cell-kafka-bootstrap.data-kafka.svc:9093
-          consumerGroup: scoring-service
-          topic: product.evidence.accepted.v1
-          lagThreshold: '500'
-          activationLagThreshold: '10'
-      - type: kafka
-        name: config-period-locked-v1
-        metadata:
-          bootstrapServers: kafka-cell-kafka-bootstrap.data-kafka.svc:9093
-          consumerGroup: scoring-service
-          topic: config.period.locked.v1
-          lagThreshold: '500'
-          activationLagThreshold: '10'
-      - type: kafka
-        name: scoring-recompute-requested-v1
-        metadata:
-          bootstrapServers: kafka-cell-kafka-bootstrap.data-kafka.svc:9093
-          consumerGroup: scoring-service
-          topic: scoring.recompute.requested.v1
-          lagThreshold: '500'
-          activationLagThreshold: '10'
 java:
   gc: g1
 nodePool: worker

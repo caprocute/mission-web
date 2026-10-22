@@ -4,13 +4,10 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,8 +25,6 @@ import vn.viettel.okrkpi.contract.tasks.model.TaskGroup;
 import vn.viettel.okrkpi.contract.tasks.model.TaskSource;
 import vn.viettel.okrkpi.contract.tasks.model.TaskStatus;
 import vn.viettel.okrkpi.contract.tasks.model.TaskTransitionRequest;
-import vn.viettel.okrkpi.shared.authz.AuthzSubjectResolver;
-import vn.viettel.okrkpi.shared.authz.OpaInput;
 import vn.viettel.okrkpi.shared.authz.RequiresPermission;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.error.ProblemFieldError;
@@ -55,16 +50,11 @@ import vn.viettel.okrkpi.task.domain.lifecycle.TaskCommand;
 public class TaskTransitionController {
 
   private final TaskTransitionService transitions;
-  private final ObjectProvider<TaskCaller> callers;
-  private final ObjectProvider<AuthzSubjectResolver> subjects;
+  private final TaskCallers callers;
 
-  public TaskTransitionController(
-      TaskTransitionService transitions,
-      ObjectProvider<TaskCaller> callers,
-      ObjectProvider<AuthzSubjectResolver> subjects) {
+  public TaskTransitionController(TaskTransitionService transitions, TaskCallers callers) {
     this.transitions = Objects.requireNonNull(transitions, "transitions");
     this.callers = Objects.requireNonNull(callers, "callers");
-    this.subjects = Objects.requireNonNull(subjects, "subjects");
   }
 
   @PostMapping("/{id}/transitions")
@@ -85,7 +75,7 @@ public class TaskTransitionController {
           case TRINH_NGHIEM_THU -> new TaskCommand.Submit(null);
           case HOAN_THANH -> new TaskCommand.ApproveAcceptance(null);
         };
-    TaskActor actor = actor();
+    TaskActor actor = callers.current();
     TaskTransitionService.Transitioned done;
     try {
       done = transitions.transition(tenant, id, command, actor, expected);
@@ -94,25 +84,6 @@ public class TaskTransitionController {
     }
     TaskRow task = done.task();
     return ETags.ok(detail(task, transitions.stateLog(tenant, task)), task.rowVersion());
-  }
-
-  private TaskActor actor() {
-    TaskCaller caller = callers.getIfAvailable();
-    if (caller != null) {
-      return caller.current().orElseThrow(TaskTransitionController::unauthorized);
-    }
-    AuthzSubjectResolver resolver = subjects.getIfAvailable();
-    OpaInput.Subject subject = resolver == null ? null : resolver.currentSubject();
-    if (subject == null || subject.userId() == null) {
-      throw unauthorized();
-    }
-    try {
-      Set<String> roles =
-          new LinkedHashSet<>(subject.roles() == null ? List.of() : subject.roles());
-      return new TaskActor(UUID.fromString(subject.userId()), roles);
-    } catch (IllegalArgumentException e) {
-      throw unauthorized();
-    }
   }
 
   static TaskDetail detail(TaskRow t, List<StateLogRow> log) {
@@ -177,9 +148,5 @@ public class TaskTransitionController {
     String message = "Thiếu thông tin bắt buộc";
     return new BusinessException(
         "COMMON-422-VALIDATION", message, List.of(new ProblemFieldError(field, message, null)));
-  }
-
-  private static ResponseStatusException unauthorized() {
-    return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cần đăng nhập");
   }
 }

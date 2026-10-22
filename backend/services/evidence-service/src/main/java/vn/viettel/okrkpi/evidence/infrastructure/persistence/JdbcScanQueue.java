@@ -109,6 +109,15 @@ public class JdbcScanQueue implements ScanQueue {
   }
 
   @Override
+  public void schedulePreview(UUID versionId) {
+    jdbc.sql(
+            "UPDATE evidence.object_version SET preview_status = 'DANG_TAO', preview_next_at = now()"
+                + " WHERE id = ? AND preview_status IS NULL")
+        .param(versionId)
+        .update();
+  }
+
+  @Override
   public long pending() {
     return jdbc.sql("SELECT evidence.fn_dem_cho_quet()").query(Long.class).single();
   }

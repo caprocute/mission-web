@@ -9,7 +9,6 @@ import io.swagger.v3.oas.models.PathItem;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -62,17 +61,11 @@ import vn.viettel.okrkpi.task.infrastructure.persistence.OutboxTaskStatusEvents;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class TaskTransitionApiIT extends ContractConformanceTest {
 
-  static final UUID ASSIGNER = UUID.fromString("01927a02-0000-7000-8000-00000000a213");
+  static final UUID ASSIGNER = TestTaskCallers.DEFAULT_PERSON;
   static final int BUCKET = 20272;
-  static volatile TaskActor caller = new TaskActor(ASSIGNER, Set.of("manager"));
 
   @TestConfiguration
   static class TaskTransitionTestConfig {
-
-    @Bean
-    TaskCaller testTaskCaller() {
-      return () -> Optional.of(caller);
-    }
 
     @Bean
     @Primary
@@ -190,18 +183,18 @@ class TaskTransitionApiIT extends ContractConformanceTest {
   @Test
   void vaiTroVaDieuKienBiTuChoi() throws Exception {
     UUID id = task("TAM_DUNG");
-    caller = new TaskActor(UUID.randomUUID(), Set.of("member"));
+    TestTaskCallers.current = new TaskActor(UUID.randomUUID(), Set.of("member"));
     try {
       assertThat(perform(transition(id, "\"0\"", "TIEP_TUC", null)).getResponse().getStatus())
           .isEqualTo(403);
       // Lãnh đạo khác người giao: guard actor.person_id == task.nguoi_giao_id sai.
-      caller = new TaskActor(UUID.randomUUID(), Set.of("manager"));
+      TestTaskCallers.current = new TaskActor(UUID.randomUUID(), Set.of("manager"));
       MvcResult guard = perform(transition(id, "\"0\"", "TIEP_TUC", null));
       assertThat(guard.getResponse().getStatus()).isEqualTo(422);
       assertThat(guard.getResponse().getContentAsString(StandardCharsets.UTF_8))
           .doesNotContain("nguoi_giao_id");
     } finally {
-      caller = new TaskActor(ASSIGNER, Set.of("manager"));
+      TestTaskCallers.reset();
     }
     assertThat(outbox(id)).isEmpty();
 
@@ -274,7 +267,10 @@ class TaskTransitionApiIT extends ContractConformanceTest {
 
   private MvcResult perform(MockHttpServletRequestBuilder request) throws Exception {
     return TenantContext.call(
-        tenant, () -> mvc.perform(request.principal(caller.personId()::toString)).andReturn());
+        tenant,
+        () ->
+            mvc.perform(request.principal(TestTaskCallers.current.personId()::toString))
+                .andReturn());
   }
 
   private JsonNode body(MvcResult r) throws Exception {
