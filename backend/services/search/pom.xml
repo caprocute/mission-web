@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DV-16-01 · SVC-16 search, ADR-15 · TL-03 "Đánh chỉ mục tìm kiếm OpenSearch".
+  Indexer tiêu thụ EVT-04, EVT-06, EVT-24 và sys.tenant.provisioned.v1, dựng tài liệu tìm kiếm từ payload sự kiện
+  (chỉ trường C0, C1) và ghi _bulk vào OpenSearch. Service không có CSDL quan hệ: OpenSearch là kho riêng của SVC-16.
+  OpenSearch được gọi bằng HttpClient của JDK và Jackson, không thêm thư viện client.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>vn.viettel.okrkpi</groupId>
+    <artifactId>services</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>search-service</artifactId>
+
+  <name>Mission · search-service (SVC-16)</name>
+  <description>Indexer OpenSearch của SVC-16: chỉ mục theo tenant, bí danh lọc tenant ở cell pool, dựng lại bằng hoán bí danh (DV-16-01).</description>
+
+  <properties>
+    <pitest.targetClasses>vn.viettel.okrkpi.search.*</pitest.targetClasses>
+    <jib.jvm.gc>-XX:+UseZGC</jib.jvm.gc>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-platform-starter</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>vn.viettel.okrkpi</groupId>
+      <artifactId>vt-events</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.kafka</groupId>
+      <artifactId>spring-kafka</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>kafka</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <configuration>
+          <excludes>
+            <!-- Lớp khởi động chỉ gọi SpringApplication.run. -->
+            <exclude>vn/viettel/okrkpi/search/SearchServiceApplication.class</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>com.google.cloud.tools</groupId>
+        <artifactId>jib-maven-plugin</artifactId>
+        <configuration>
+          <container>
+            <mainClass>vn.viettel.okrkpi.search.SearchServiceApplication</mainClass>
+            <ports>
+              <port>8080</port>
+              <port>8081</port>
+            </ports>
+            <labels>
+              <org.opencontainers.image.title>${project.artifactId}</org.opencontainers.image.title>
+              <org.opencontainers.image.version>${project.version}</org.opencontainers.image.version>
+              <io.mission.service.name>${project.artifactId}</io.mission.service.name>
+              <io.mission.service.version>${project.version}</io.mission.service.version>
+            </labels>
+          </container>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
