@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodLockedException;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
+import vn.viettel.okrkpi.config.api.PeriodStatus;
 import vn.viettel.okrkpi.config.api.PeriodWriteTarget;
 import vn.viettel.okrkpi.okr.application.OkrReadService.ObjectiveView;
 import vn.viettel.okrkpi.okr.application.port.OkrApprovalEvents;
@@ -52,6 +54,7 @@ public class OkrReviewService {
   private final PeriodApi periods;
   private final OkrApprovalEvents events;
   private final Supplier<OkrApprovalSignal> signal;
+  private final Consumer<Object> publisher;
 
   public OkrReviewService(
       OkrReviewRepository reviews,
@@ -59,7 +62,9 @@ public class OkrReviewService {
       OkrCheckService checks,
       PeriodApi periods,
       OkrApprovalEvents events,
-      Supplier<OkrApprovalSignal> signal) {
+      Supplier<OkrApprovalSignal> signal,
+      Consumer<Object> publisher) {
+    this.publisher = Objects.requireNonNull(publisher, "publisher");
     this.reviews = Objects.requireNonNull(reviews, "reviews");
     this.reads = Objects.requireNonNull(reads, "reads");
     this.checks = Objects.requireNonNull(checks, "checks");
@@ -101,6 +106,9 @@ public class OkrReviewService {
     reviews.appendReview(tenant, target, actor, DUYET, blankToNull(comment));
     events.approved(
         tenant, target, actor, reviews.basisIds(tenant, target.periodBucket(), id), version);
+    reviews
+        .previousApproved(tenant, target)
+        .ifPresent(previous -> supersede(tenant, previous, target, actor, version));
     afterCommit(
         () ->
             signal(
@@ -113,6 +121,64 @@ public class OkrReviewService {
                         actor,
                         target.rowVersion())));
     return version;
+  }
+
+  /**
+   * BR-02-10: phiên bản điều chỉnh vừa được duyệt thì phiên bản cũ hết hiệu lực từ nay ({@code
+   * DONG}, không sửa nội dung); báo người soạn mục tiêu cấp dưới đã duyệt và phát sự kiện nội bộ
+   * {@link OkrObjectiveRevisionApproved} để chuyển giá trị check-in (CORE-01-12).
+   */
+  private void supersede(
+      TenantId tenant, ReviewTarget previous, ReviewTarget revision, UUID actor, long version) {
+    reviews.markClosed(tenant, previous, actor);
+    List<UUID> children = reviews.childAuthors(tenant, previous.id());
+    events.parentRevised(tenant, revision, children, actor, version);
+    publisher.accept(
+        new OkrObjectiveRevisionApproved(
+            tenant, previous.id(), revision.id(), revision.periodBucket()));
+  }
+
+  /**
+   * Tạo phiên bản điều chỉnh của mục tiêu đã duyệt khi kỳ còn {@code MO} (BR-02-10): sao chép mục
+   * tiêu, căn cứ, KR và liên kết sang dòng mới ở {@code NHAP}; phiên bản đã duyệt vẫn hiệu lực cho
+   * check-in tới khi phiên bản mới được duyệt. Mỗi lúc chỉ một phiên bản điều chỉnh đang mở.
+   */
+  @Transactional(transactionManager = TX)
+  public UUID createRevision(
+      TenantId tenant, UUID actor, UUID id, long expectedVersion, String reason) {
+    if (reason == null || reason.strip().length() < CANCEL_REASON_MIN) {
+      throw new BusinessException(
+          MODULE + "-422-VALIDATION", "Lý do điều chỉnh cần ít nhất 10 ký tự.");
+    }
+    requireCommentLength(reason);
+    ReviewTarget target =
+        reviews.lockTarget(tenant, id).orElseThrow(OkrComposeService.NotFound::new);
+    if (target.rowVersion() != expectedVersion) {
+      throw VersionConflictException.of(MODULE, expectedVersion, target.rowVersion());
+    }
+    if (!ObjectiveLifecycle.DA_DUYET.equals(target.status())) {
+      throw new BusinessException(
+          MODULE + "-409-INVALID-STATE", "Chỉ điều chỉnh được mục tiêu đã phê duyệt");
+    }
+    if (reviews.pendingRevision(tenant, target).isPresent()) {
+      throw new BusinessException(
+          MODULE + "-409-REVISION-PENDING", "Mục tiêu đang có một phiên bản điều chỉnh chưa duyệt");
+    }
+    PeriodSnapshot period =
+        periods
+            .findById(tenant, PeriodId.of(target.periodId()))
+            .orElseThrow(() -> new IllegalStateException("Mục tiêu trỏ tới kỳ không tồn tại"));
+    try {
+      if (period.status() != PeriodStatus.MO) {
+        throw new PeriodLockedException(period.id(), period.name(), MODULE);
+      }
+      periods.assertWritable(tenant, period.id(), PeriodWriteTarget.unit(target.ownerUnitId()));
+    } catch (PeriodLockedException e) {
+      throw new PeriodLockedException(period.id(), period.name(), MODULE);
+    }
+    UUID revision = reviews.cloneAsRevision(tenant, target, actor);
+    log.info("Tạo phiên bản điều chỉnh {} của mục tiêu {}: {}", revision, id, reason.strip());
+    return revision;
   }
 
   /** Trả lại để sửa: ý kiến bắt buộc (BR-02-09, MSG-02-10), mục tiêu về {@code NHAP}. */
@@ -161,8 +227,9 @@ public class OkrReviewService {
   }
 
   /**
-   * Người duyệt huỷ mục tiêu có lý do ({@code CHO_DUYET|DA_DUYET → DONG}, TL-02a QT-02). Hợp đồng
-   * {@code okr.yaml} chưa có thao tác huỷ nên chưa mở endpoint (đề nghị bổ sung hợp đồng).
+   * Người duyệt huỷ mục tiêu có lý do ({@code CHO_DUYET|DA_DUYET → DONG}, TL-02a QT-02, {@code
+   * cancelObjective}); báo đơn vị sở hữu qua EVT-21. {@code objective_review} chỉ nhận {@code
+   * DUYET}, {@code TRA_LAI} nên lý do huỷ chưa có chỗ lưu (cần cột hoặc giá trị mới ở TL-03).
    */
   @Transactional(transactionManager = TX)
   public long cancel(TenantId tenant, UUID actor, UUID id, long expectedVersion, String reason) {
@@ -177,7 +244,9 @@ public class OkrReviewService {
           MODULE + "-403-SELF-APPROVAL",
           "Đồng chí là người soạn bộ OKR này nên không thể huỷ thay người duyệt.");
     }
+    requireOpen(tenant, target);
     long version = reviews.markClosed(tenant, target, actor);
+    events.cancelled(tenant, target, actor, version);
     if (ObjectiveLifecycle.CHO_DUYET.equals(target.status())) {
       afterCommit(
           () ->

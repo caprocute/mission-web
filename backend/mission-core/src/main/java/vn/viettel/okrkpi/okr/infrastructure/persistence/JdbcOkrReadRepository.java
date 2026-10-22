@@ -47,6 +47,18 @@ public class JdbcOkrReadRepository implements OkrReadRepository {
   private static final String LINK_COLUMNS =
       "id, period_id, from_type, from_id, to_type, to_id, link_kind, contribution_weight, row_version";
 
+  /**
+   * BR-02-10 (CORE-01-07): chỉ phiên bản hiệu lực của mục tiêu. Bỏ phiên bản đã có phiên bản mới
+   * hơn được duyệt, và bỏ phiên bản điều chỉnh còn nháp hoặc chờ duyệt khi phiên bản cũ đang hiệu
+   * lực (đọc được theo mã mục tiêu).
+   */
+  static final String EFFECTIVE_VERSION =
+      " AND NOT EXISTS (SELECT 1 FROM okr.objective v WHERE v.period_bucket = o.period_bucket"
+          + " AND v.tenant_id = o.tenant_id AND v.period_id = o.period_id"
+          + " AND v.owner_unit_id = o.owner_unit_id AND v.code = o.code AND v.id <> o.id"
+          + " AND v.status = 'DA_DUYET' AND (v.version_no > o.version_no"
+          + " OR o.status IN ('NHAP', 'CHO_DUYET')))";
+
   private final NamedParameterJdbcTemplate jdbc;
 
   public JdbcOkrReadRepository(NamedParameterJdbcTemplate jdbc) {
@@ -79,6 +91,7 @@ public class JdbcOkrReadRepository implements OkrReadRepository {
       p.addValue("statuses", f.statuses());
     }
     like(sql, p, f.query(), "o.code", "o.title");
+    sql.append(EFFECTIVE_VERSION);
     if (afterCode != null) {
       sql.append(" AND (o.code, o.id) > (:afterCode, :afterId)");
       p.addValue("afterCode", afterCode).addValue("afterId", afterId);
@@ -94,7 +107,8 @@ public class JdbcOkrReadRepository implements OkrReadRepository {
     StringBuilder sql =
         new StringBuilder(
             "SELECT count(*) FROM okr.objective o WHERE o.tenant_id = :t"
-                + " AND o.owner_unit_id = :unit AND o.owner_type = 'TAP_THE' AND o.status <> 'DONG'");
+                + " AND o.owner_unit_id = :unit AND o.owner_type = 'TAP_THE' AND o.status <> 'DONG'"
+                + EFFECTIVE_VERSION);
     period(sql, p, "o", periodId, buckets);
     Long n = jdbc.queryForObject(sql.toString(), p, Long.class);
     return n == null ? 0 : n;

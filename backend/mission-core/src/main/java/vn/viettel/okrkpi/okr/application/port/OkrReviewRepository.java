@@ -50,6 +50,24 @@ public interface OkrReviewRepository {
   void appendReview(
       TenantId tenant, ReviewTarget target, UUID reviewer, String decision, String comment);
 
+  /**
+   * Phiên bản điều chỉnh đang mở (NHAP hoặc CHO_DUYET) của cùng mục tiêu: cùng kỳ, đơn vị, mã và
+   * {@code version_no} lớn hơn.
+   */
+  Optional<UUID> pendingRevision(TenantId tenant, ReviewTarget target);
+
+  /**
+   * Sao chép mục tiêu thành phiên bản mới ở {@code NHAP} ({@code version_no} lớn nhất của mã cộng
+   * 1), kèm căn cứ, KR (giữ mã KR) và liên kết; trả mã dòng mới.
+   */
+  UUID cloneAsRevision(TenantId tenant, ReviewTarget target, UUID actor);
+
+  /** Phiên bản đã duyệt trước {@code target} của cùng mục tiêu, đọc dưới khoá dòng. */
+  Optional<ReviewTarget> previousApproved(TenantId tenant, ReviewTarget target);
+
+  /** Người soạn các mục tiêu đã duyệt nhận {@code parentId} làm mục tiêu cấp trên. */
+  List<UUID> childAuthors(TenantId tenant, UUID parentId);
+
   /** Căn cứ của mục tiêu ({@code okr.objective_basis.basis_id}). */
   List<UUID> basisIds(TenantId tenant, int bucket, UUID objectiveId);
 

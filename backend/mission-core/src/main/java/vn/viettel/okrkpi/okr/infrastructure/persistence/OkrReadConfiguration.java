@@ -10,6 +10,7 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -174,14 +175,16 @@ public class OkrReadConfiguration {
   OkrApprovalEvents okrApprovalEvents(
       @Qualifier("okrDataSource") DataSource dataSource,
       @Value("${mission.okr.outbox.registry-url:${okrkpi.inbox.registry.url}}") String registry,
-      ObjectProvider<ObjectMapper> json) {
+      ObjectProvider<ObjectMapper> json,
+      ObjectProvider<OrgDirectoryApi> org) {
     return new OutboxOkrApprovalEvents(
         new OutboxWriter(
             new JdbcTemplate(dataSource),
             "okr",
             new ApicurioPayloadSerializer(registry, Map.of()),
             json.getIfAvailable(ObjectMapper::new),
-            Clock.systemUtc()));
+            Clock.systemUtc()),
+        org::getIfAvailable);
   }
 
   @Bean
@@ -191,14 +194,16 @@ public class OkrReadConfiguration {
       OkrCheckService okrCheckService,
       PeriodApi periods,
       OkrApprovalEvents okrApprovalEvents,
-      ObjectProvider<OkrApprovalSignal> signal) {
+      ObjectProvider<OkrApprovalSignal> signal,
+      ApplicationEventPublisher publisher) {
     return new OkrReviewService(
         okrReviewRepository,
         okrReadService,
         okrCheckService,
         periods,
         okrApprovalEvents,
-        signal::getIfAvailable);
+        signal::getIfAvailable,
+        publisher::publishEvent);
   }
 
   /** Lô duyệt chạy nền trên luồng ảo, mỗi lô một luồng, mỗi bộ một giao dịch. */

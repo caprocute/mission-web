@@ -31,6 +31,7 @@ import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.contract.okr.model.CopyOkrObjectivesFromPeriod201Response;
 import vn.viettel.okrkpi.contract.okr.model.OkrApproveBatchRequest;
 import vn.viettel.okrkpi.contract.okr.model.OkrApproveRequest;
+import vn.viettel.okrkpi.contract.okr.model.OkrCancelRequest;
 import vn.viettel.okrkpi.contract.okr.model.OkrComposeContext;
 import vn.viettel.okrkpi.contract.okr.model.OkrCopyFromPeriodRequest;
 import vn.viettel.okrkpi.contract.okr.model.OkrKeyResult;
@@ -51,6 +52,7 @@ import vn.viettel.okrkpi.contract.okr.model.OkrPolicy;
 import vn.viettel.okrkpi.contract.okr.model.OkrReturnRequest;
 import vn.viettel.okrkpi.contract.okr.model.OkrReviewComment;
 import vn.viettel.okrkpi.contract.okr.model.OkrReviewDecision;
+import vn.viettel.okrkpi.contract.okr.model.OkrRevisionCreateRequest;
 import vn.viettel.okrkpi.contract.okr.model.OkrRule;
 import vn.viettel.okrkpi.contract.okr.model.PeriodRef;
 import vn.viettel.okrkpi.contract.okr.model.Ref;
@@ -277,6 +279,65 @@ public class OkrComposeController {
         body,
         false,
         () -> reviews.withdraw(tenant, actor, id, expected));
+  }
+
+  /** CORE-01-06: người duyệt huỷ mục tiêu có lý do, báo đơn vị sở hữu qua EVT-21. */
+  @PostMapping("/objectives/{id}/cancel")
+  @RequiresPermission(operationId = "cancelObjective", module = "okr")
+  public ResponseEntity<OkrObjective> cancelObjective(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody(required = false) OkrCancelRequest body) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = actor();
+    long expected = ETags.expectedVersion(ifMatch, "OKR");
+    String reason = body == null ? null : body.getReason();
+    return decide(
+        tenant,
+        actor,
+        id,
+        idempotencyKey,
+        "/cancel#" + ifMatch,
+        body,
+        true,
+        () -> reviews.cancel(tenant, actor, id, expected, reason));
+  }
+
+  /** CORE-01-07: tạo phiên bản điều chỉnh của mục tiêu đã duyệt (BR-02-10). */
+  @PostMapping("/objectives/{id}/revisions")
+  @RequiresPermission(operationId = "createObjectiveRevision", module = "okr")
+  public ResponseEntity<OkrObjective> createObjectiveRevision(
+      @PathVariable("id") UUID id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody(required = false) OkrRevisionCreateRequest body) {
+    TenantId tenant = TenantContext.require();
+    UUID actor = actor();
+    long expected = ETags.expectedVersion(ifMatch, "OKR");
+    String reason = body == null ? null : body.getReason();
+    boolean submit = body != null && Boolean.TRUE.equals(body.getSubmitImmediately());
+    return idempotency.run(
+        tenant,
+        actor,
+        idempotencyKey,
+        "POST",
+        BASE + "/objectives/" + id + "/revisions#" + ifMatch,
+        body,
+        OkrObjective.class,
+        OkrObjective::getRowVersion,
+        () -> {
+          var head = found(() -> compose.head(tenant, id).orElseThrow());
+          requireUnitScope(tenant, head.ownerUnitId());
+          UUID revision = found(() -> reviews.createRevision(tenant, actor, id, expected, reason));
+          if (submit) {
+            found(() -> submits.submit(tenant, actor, revision, 0));
+          }
+          OkrObjective dto = detail(tenant, revision);
+          return ResponseEntity.created(URI.create(BASE + "/objectives/" + revision))
+              .eTag(ETags.of(dto.getRowVersion()))
+              .body(dto);
+        });
   }
 
   /** CORE-01-06: duyệt hàng loạt các bộ "Đạt", trả 202 và chạy nền, mỗi bộ một giao dịch. */

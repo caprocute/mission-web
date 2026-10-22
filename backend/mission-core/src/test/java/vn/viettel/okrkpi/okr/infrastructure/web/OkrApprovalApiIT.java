@@ -102,7 +102,8 @@ class OkrApprovalApiIT extends ContractConformanceTest {
               "okr",
               (topic, payload) -> new SerializedPayload(new byte[] {1}, 1L, 1),
               json,
-              Clock.systemUtc()));
+              Clock.systemUtc()),
+          () -> null);
     }
   }
 
@@ -174,7 +175,8 @@ class OkrApprovalApiIT extends ContractConformanceTest {
     inTenant(
         jdbc -> {
           for (String table :
-              List.of("objective", "objective_basis", "objective_review", "key_result")) {
+              List.of(
+                  "objective", "objective_basis", "objective_review", "key_result", "kr_checkin")) {
             jdbc.sql("SELECT okr.fn_create_period_partitions(?::regclass, 20271)")
                 .param("okr." + table)
                 .query()
@@ -383,6 +385,110 @@ class OkrApprovalApiIT extends ContractConformanceTest {
                     .query(Long.class)
                     .single());
     assertThat(events).isEqualTo(197);
+  }
+
+  @Test
+  void huyMucTieuBatBuocLyDoVaBaoDonViSoHuu() throws Exception {
+    UUID id = pending(UUID.randomUUID(), AUTHOR);
+    MvcResult shortReason = cancel(id, "\"0\"", "Ngắn");
+    assertThat(shortReason.getResponse().getStatus()).isEqualTo(422);
+    MvcResult r = cancel(id, "\"0\"", "Chủ trương công tác điều chỉnh theo nghị quyết mới.");
+    assertThat(r.getResponse().getStatus()).isEqualTo(200);
+    assertThat(body(r).get("status").asText()).isEqualTo("DONG");
+    assertResponseConforms(r, "/okr/objectives/{id}/cancel", PathItem.HttpMethod.POST);
+    assertThat(count(id, "notify.message.requested.v1")).isEqualTo(1);
+    assertThat(cancel(id, "\"1\"", "Huỷ lần thứ hai không hợp lệ.").getResponse().getStatus())
+        .isEqualTo(409);
+  }
+
+  /** CORE-01-07: điều chỉnh giữa kỳ bằng phiên bản mới, phiên bản cũ hiệu lực tới khi duyệt. */
+  @Test
+  void dieuChinhGiuaKyTaoPhienBanMoi() throws Exception {
+    UUID unit = UUID.randomUUID();
+    UUID v1 = pending(unit, AUTHOR);
+    assertThat(approve(v1, "\"0\"", null).getResponse().getStatus()).isEqualTo(200);
+    UUID child = UUID.randomUUID();
+    UUID childAuthor = UUID.randomUUID();
+    inTenant(
+        jdbc ->
+            jdbc.sql(
+                    "INSERT INTO okr.objective (id, period_id, period_bucket, owner_type,"
+                        + " owner_unit_id, code, title, tier, status, parent_objective_id,"
+                        + " created_by, updated_by) VALUES (?, ?, 20271, 'TAP_THE', ?, 'O1',"
+                        + " 'Mục tiêu cấp dưới', 2, 'DA_DUYET', ?, ?, ?)")
+                .params(child, period, UUID.randomUUID(), v1, childAuthor, childAuthor)
+                .update());
+
+    CALLER.set(AUTHOR);
+    MvcResult created = revise(v1, "\"1\"", true);
+    assertThat(created.getResponse().getStatus()).isEqualTo(201);
+    assertResponseConforms(created, "/okr/objectives/{id}/revisions", PathItem.HttpMethod.POST);
+    JsonNode v2 = body(created);
+    UUID v2Id = UUID.fromString(v2.get("id").asText());
+    assertThat(v2.get("versionNo").asInt()).isEqualTo(2);
+    assertThat(v2.get("status").asText()).isEqualTo("CHO_DUYET");
+    assertThat(v2.at("/keyResults/0/code").asText()).isEqualTo("KR 1.1");
+    assertThat(v2.at("/bases/0/id").asText()).isEqualTo(basis.toString());
+    assertThat(revise(v1, "\"1\"", false).getResponse().getStatus()).isEqualTo(409);
+
+    // Phiên bản 1 vẫn hiệu lực: check-in vào KR của nó thành công; không sửa tại chỗ.
+    UUID kr1 =
+        inTenant(
+            jdbc ->
+                jdbc.sql("SELECT id FROM okr.key_result WHERE objective_id = ? AND code = 'KR 1.1'")
+                    .param(v1)
+                    .query(UUID.class)
+                    .single());
+    ObjectNode checkin = json.createObjectNode();
+    checkin.put("status", "DA_GUI").put("value", 3).put("confidence", "CAO").put("channel", "WEB");
+    MvcResult c =
+        perform(
+            post("/api/v1/okr/key-results/" + kr1 + "/checkins")
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(checkin.toString()));
+    assertThat(c.getResponse().getStatus()).isEqualTo(201);
+    assertThat(listCodes(unit)).containsExactly(v1.toString());
+
+    CALLER.set(REVIEWER);
+    assertThat(approve(v2Id, "\"1\"", null).getResponse().getStatus()).isEqualTo(200);
+    assertThat(status(v1)).isEqualTo("DONG");
+    assertThat(listCodes(unit)).containsExactly(v2Id.toString());
+    assertThat(perform(get("/api/v1/okr/objectives/" + v1 + "/history")).getResponse().getStatus())
+        .isEqualTo(200);
+    assertThat(count(v2Id, "notify.message.requested.v1")).isEqualTo(1);
+    assertThat(status(child)).isEqualTo("DA_DUYET");
+  }
+
+  private List<String> listCodes(UUID unit) throws Exception {
+    MvcResult r =
+        perform(get("/api/v1/okr/objectives?period=" + period + "&unit=" + unit + "&limit=50"));
+    assertThat(r.getResponse().getStatus()).isEqualTo(200);
+    List<String> ids = new ArrayList<>();
+    body(r).get("items").forEach(i -> ids.add(i.get("id").asText()));
+    return ids;
+  }
+
+  private MvcResult revise(UUID id, String ifMatch, boolean submit) throws Exception {
+    return perform(
+        post("/api/v1/okr/objectives/" + id + "/revisions")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .header("If-Match", ifMatch)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(
+                json.createObjectNode()
+                    .put("reason", "Bổ sung nhiệm vụ đột xuất theo thông báo kết luận.")
+                    .put("submitImmediately", submit)
+                    .toString()));
+  }
+
+  private MvcResult cancel(UUID id, String ifMatch, String reason) throws Exception {
+    return perform(
+        post("/api/v1/okr/objectives/" + id + "/cancel")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .header("If-Match", ifMatch)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(json.createObjectNode().put("reason", reason).toString()));
   }
 
   // ---------------------------------------------------------------- tiện ích
