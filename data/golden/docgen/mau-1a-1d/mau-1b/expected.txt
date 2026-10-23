@@ -1,0 +1,33 @@
+# Văn bản kỳ vọng trích từ PDF/A do Gotenberg sinh từ input.json (FormTemplatesIT).
+# Mỗi dòng phải xuất hiện theo đúng thứ tự; khoảng trắng và xuống dòng trong ô bảng được gộp trước khi so.
+# Dòng trống và dòng bắt đầu bằng # bị bỏ qua.
+MẪU GIẢ LẬP – CHỈ DÙNG ĐỂ PHÁT TRIỂN VÀ KIỂM THỬ, KHÔNG CÓ GIÁ TRỊ PHÁP LÝ
+Phiên bản bộ quy tắc: KHOI_DANG phiên bản 2.0.0 Phiên bản mẫu biểu: 1 (0.9.0-gia-lap)
+Mẫu 1B, phiên bản mẫu 1 · Bộ quy tắc đánh giá KHOI_DANG phiên bản 2.0.0
+MẪU 1B
+Bản kiểm điểm cá nhân; đối tượng áp dụng chờ đối chiếu bản mẫu chính thức.
+Đơn vị: Chi bộ Văn phòng Sở Tư pháp (giả lập)
+Kỳ đánh giá: Năm 2026
+Họ và tên: Nguyễn Văn An
+Chức vụ, chức danh: Chuyên viên
+Tiêu chí chung
+Nhóm tiêu chí Kết quả
+Chính trị, tư tưởng Đảm bảo
+Đạo đức, lối sống Đảm bảo
+Ý thức tổ chức kỷ luật Không đảm bảo
+Kết quả thực hiện nhiệm vụ theo nhóm
+Nhóm nhiệm vụ Chỉ số nhóm Điểm tối đa Điểm đạt
+Nhiệm vụ thường xuyên 0,913 50 45,6
+Nhiệm vụ then chốt 0,837 50 41,7
+Tổng điểm kết quả thực hiện nhiệm vụ: 87,3
+Tỷ lệ nhiệm vụ vượt mục tiêu: 12,5%
+Tỷ lệ hoàn thành mục tiêu: 90%
+Ưu điểm: Chủ động tham mưu, hoàn thành đúng hạn các nhiệm vụ được giao.
+Phối hợp tốt với các phòng chuyên môn.
+Hạn chế, khuyết điểm: Có lúc chậm cập nhật số liệu báo cáo tháng.
+Hướng khắc phục: Lập lịch cập nhật số liệu hằng tuần.
+Kết quả khắc phục hạn chế kỳ trước
+Nội dung hạn chế Tình trạng khắc phục
+Chưa đầy đủ hồ sơ lưu trữ Đã khắc phục
+Báo cáo quý II nộp muộn Đang khắc phục
+Tự xếp loại: Hoàn thành tốt nhiệm vụ

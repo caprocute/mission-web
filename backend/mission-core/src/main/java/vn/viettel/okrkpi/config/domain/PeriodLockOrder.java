@@ -51,6 +51,10 @@ public final class PeriodLockOrder {
   private Instant startedAt;
   private UUID sagaId;
   private int rowVersion;
+  private boolean pauseRequested;
+  private UUID pauseRequestedBy;
+  private Instant pauseRequestedAt;
+  private LockCancelRequest cancelRequest;
 
   @SuppressWarnings("checkstyle:ParameterNumber")
   public PeriodLockOrder(
@@ -140,6 +144,106 @@ public final class PeriodLockOrder {
     rowVersion++;
   }
 
+  /**
+   * Nạp lại trạng thái điều khiển đã lưu (cờ tạm dừng, đề nghị huỷ) khi đọc từ kho; không đổi
+   * {@code rowVersion}.
+   */
+  public PeriodLockOrder withControl(
+      boolean pause, UUID pauseBy, Instant pauseAt, LockCancelRequest cancel) {
+    this.pauseRequested = pause;
+    this.pauseRequestedBy = pauseBy;
+    this.pauseRequestedAt = pauseAt;
+    this.cancelRequest = cancel;
+    return this;
+  }
+
+  /** Saga đang chạy và chưa bước vào bù trừ (đề nghị huỷ chưa được duyệt). */
+  public boolean controllable() {
+    return status == LockOrderStatus.DANG_CHAY
+        && sagaId != null
+        && (cancelRequest == null || !cancelRequest.approved());
+  }
+
+  /**
+   * Đặt cờ tạm dừng sau bước hiện tại (QT-08 bước 9).
+   *
+   * @return {@code false} khi cờ đã đặt từ trước (không đổi gì)
+   */
+  public boolean requestPause(UUID actor, Instant at) {
+    requireControllable();
+    if (pauseRequested) {
+      return false;
+    }
+    pauseRequested = true;
+    pauseRequestedBy = Objects.requireNonNull(actor, "actor");
+    pauseRequestedAt = at;
+    rowVersion++;
+    return true;
+  }
+
+  /**
+   * Gỡ cờ tạm dừng để saga chạy tiếp.
+   *
+   * @return {@code false} khi saga không bị tạm dừng (không đổi gì)
+   */
+  public boolean resume() {
+    requireControllable();
+    if (!pauseRequested) {
+      return false;
+    }
+    pauseRequested = false;
+    pauseRequestedBy = null;
+    pauseRequestedAt = null;
+    rowVersion++;
+    return true;
+  }
+
+  /**
+   * Đề nghị huỷ và bù trừ toàn bộ (BR-08-09); điểm không quay lại do bên gọi kiểm theo bước saga.
+   *
+   * @return {@code false} khi đã có đề nghị huỷ đang chờ duyệt (không đổi gì)
+   */
+  public boolean requestCancel(UUID actor, String reason, Instant at) {
+    requireControllable();
+    if (cancelRequest != null) {
+      return false;
+    }
+    cancelRequest =
+        new LockCancelRequest(Objects.requireNonNull(actor, "actor"), at, reason, null, null);
+    rowVersion++;
+    return true;
+  }
+
+  /** Người duyệt thứ hai duyệt huỷ; phải khác người đề nghị (bốn mắt, BR-08-09). */
+  public void approveCancel(UUID approver, Instant at) {
+    Objects.requireNonNull(approver, "approver");
+    if (cancelRequest == null || cancelRequest.approved() || status != LockOrderStatus.DANG_CHAY) {
+      throw new IllegalStatusException(status, LockOrderStatus.DA_HUY);
+    }
+    if (approver.equals(cancelRequest.requestedBy())) {
+      throw new SamePersonException("Người duyệt huỷ phải khác người đề nghị huỷ.");
+    }
+    cancelRequest = cancelRequest.approve(approver, at);
+    rowVersion++;
+  }
+
+  /** Saga đã bù trừ xong theo đề nghị huỷ đã duyệt: lệnh chuyển {@code DA_HUY}. */
+  public void cancelled() {
+    if (cancelRequest == null || !cancelRequest.approved()) {
+      throw new IllegalStatusException(status, LockOrderStatus.DA_HUY);
+    }
+    move(LockOrderStatus.DA_HUY);
+    status = LockOrderStatus.DA_HUY;
+    pauseRequested = false;
+    rowVersion++;
+  }
+
+  private void requireControllable() {
+    if (!controllable()) {
+      throw new IllegalStatusException(status, status);
+    }
+  }
+
   /** Kiểm trước khi gọi saga: lệnh đã duyệt và người khởi chạy khác người duyệt. */
   public void checkStartable(UUID starter) {
     move(LockOrderStatus.DANG_CHAY);
@@ -216,5 +320,22 @@ public final class PeriodLockOrder {
 
   public int rowVersion() {
     return rowVersion;
+  }
+
+  public boolean pauseRequested() {
+    return pauseRequested;
+  }
+
+  public UUID pauseRequestedBy() {
+    return pauseRequestedBy;
+  }
+
+  public Instant pauseRequestedAt() {
+    return pauseRequestedAt;
+  }
+
+  /** Đề nghị huỷ và bù trừ, {@code null} khi chưa có. */
+  public LockCancelRequest cancelRequest() {
+    return cancelRequest;
   }
 }

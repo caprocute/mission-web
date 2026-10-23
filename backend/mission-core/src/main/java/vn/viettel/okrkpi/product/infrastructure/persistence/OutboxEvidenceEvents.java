@@ -15,6 +15,7 @@ import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 import vn.vtokr.notify.v1.YeuCauThongBao;
 import vn.vtokr.product.v1.MinhChungDaNop;
 import vn.vtokr.product.v1.MinhChungDaXacNhan;
+import vn.vtokr.sys.v1.AuditEvent;
 
 /**
  * EVT-07 {@code product.evidence.submitted.v1}, EVT-08 {@code product.evidence.accepted.v1} và
@@ -29,11 +30,81 @@ public class OutboxEvidenceEvents implements EvidenceEvents {
   static final String TEMPLATE_INTEGRITY = "MINH_CHUNG_MAT_TOAN_VEN";
   static final String TEMPLATE_REVISION = "MINH_CHUNG_CAN_BO_SUNG";
   static final String TEMPLATE_REJECTED = "MINH_CHUNG_BI_TU_CHOI";
+  static final String AUDIT_AI_CONFIRMED = "XAC_NHAN_O_AI";
+  static final String AUDIT_SIGNATURE_VERIFIED = "KIEM_CHU_KY_VAN_BAN";
 
   private final OutboxWriter outbox;
 
   public OutboxEvidenceEvents(OutboxWriter outbox) {
     this.outbox = Objects.requireNonNull(outbox, "outbox");
+  }
+
+  /**
+   * Ghi sổ cái việc xác nhận ô AI qua {@code sys.audit.v1} (SVC-09 tiêu thụ): {@code purpose} mang
+   * mã có cấu trúc {@code GIU=<ô,...>;SUA=<ô,...>;GOI_Y=<mã gợi ý>}, không mang giá trị của ô (suy
+   * luận: lược đồ AuditEvent chưa có trường riêng cho danh sách ô).
+   */
+  @Override
+  public void aiFieldsConfirmed(AiFieldsConfirmed e) {
+    AuditEvent payload =
+        AuditEvent.newBuilder()
+            .setAction(AUDIT_AI_CONFIRMED)
+            .setObjectType("product." + AGGREGATE)
+            .setObjectId(e.versionId().toString())
+            .setOutcome("THANH_CONG")
+            .setPurpose(
+                "GIU="
+                    + String.join(",", e.kept())
+                    + ";SUA="
+                    + String.join(",", e.edited())
+                    + ";GOI_Y="
+                    + e.aiSuggestionId())
+            .setActorAssignmentId(null)
+            .setActorRole(null)
+            .setSystem(false)
+            .setTargets(null)
+            .build();
+    outbox.append(
+        EventEnvelope.of(
+                EventTopics.SYS_AUDIT_V1,
+                e.tenantId(),
+                AGGREGATE,
+                e.versionId(),
+                e.aggregateVersion(),
+                payload,
+                Classification.C1)
+            .withActor(ActorId.of(e.actorId())));
+  }
+
+  /**
+   * Ghi sổ cái kết quả kiểm chữ ký số gốc qua {@code sys.audit.v1}: {@code purpose} mang mã có cấu
+   * trúc {@code VAN_BAN=<tham chiếu>;DOI_TUONG=<mã đối tượng>}, không mang nội dung văn bản; tên
+   * người ký không ghi (suy luận: đủ để hậu kiểm đối chiếu với vOffice).
+   */
+  @Override
+  public void externalDocVerified(ExternalDocVerified e) {
+    AuditEvent payload =
+        AuditEvent.newBuilder()
+            .setAction(AUDIT_SIGNATURE_VERIFIED)
+            .setObjectType("product." + AGGREGATE)
+            .setObjectId(e.versionId().toString())
+            .setOutcome("THANH_CONG")
+            .setPurpose("VAN_BAN=" + e.ref() + ";DOI_TUONG=" + e.objectId())
+            .setActorAssignmentId(null)
+            .setActorRole(null)
+            .setSystem(false)
+            .setTargets(null)
+            .build();
+    outbox.append(
+        EventEnvelope.of(
+                EventTopics.SYS_AUDIT_V1,
+                e.tenantId(),
+                AGGREGATE,
+                e.versionId(),
+                e.aggregateVersion(),
+                payload,
+                Classification.C1)
+            .withActor(ActorId.of(e.actorId())));
   }
 
   @Override

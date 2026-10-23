@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DV-06-12 · Mẫu luồng `duyet-kep-chi-huy-cap-uy` v1 (QT-15, SCR-1504 vùng 1: lực lượng vũ trang, chỉ huy song song chính uỷ)
+  · ADR-04 tầng 2. Tiến trình con được luồng cha gọi bằng call activity ở bước duyệt (một tầng, BR-15-12); cha truyền
+  tenantId, khoi, donViId, tieuDe và nhận lại decision (DUYET khi cả hai nhánh duyệt, TRA_LAI khi một nhánh trả lại).
+  Hai nhánh là việc trong hộp việc chung (SCR-0203): người duyệt nhánh này khác người duyệt nhánh kia và khác người trình
+  (kiểm ở CompleteTaskService). Tham số mỗi nhánh (vai trò, phạm vi, hạn 1-15 ngày làm việc, ký số, uỷ quyền) đọc từ
+  flowable.wf_binding loại DUYET_KEP_CHI_HUY_CAP_UY bởi listener ${lapLichKep} (tính toán thuần, đọc bản sao cục bộ).
+  Ngữ nghĩa là mặc định suy luận, chờ người phụ trách nghiệp vụ xác nhận (wiki trang 14).
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="urn:vt-okrkpi:wf">
+  <message id="kySoHoanTat" name="ky-so-hoan-tat"/>
+  <error id="kepTraLai" errorCode="KEP_TRA_LAI"/>
+  <process id="duyet-kep-chi-huy-cap-uy" name="Duyệt kép chỉ huy và cấp uỷ" isExecutable="true">
+    <documentation>Chỉ huy và cấp uỷ cùng duyệt song song; hồ sơ chỉ đi tiếp khi cả hai đã duyệt, một bên trả lại thì cả lượt duyệt quay về người trình.</documentation>
+    <startEvent id="start">
+      <extensionElements>
+        <flowable:executionListener event="end" delegateExpression="${lapLichKep}"/>
+      </extensionElements>
+    </startEvent>
+    <sequenceFlow id="f-start" sourceRef="start" targetRef="duyetSongSong"/>
+
+    <subProcess id="duyetSongSong" name="Hai nhánh duyệt song song">
+      <startEvent id="batDauKep"/>
+      <sequenceFlow id="f-batDau" sourceRef="batDauKep" targetRef="tach"/>
+      <parallelGateway id="tach"/>
+      <sequenceFlow id="f-tach-chiHuy" sourceRef="tach" targetRef="chiHuy"/>
+      <sequenceFlow id="f-tach-capUy" sourceRef="tach" targetRef="capUy"/>
+
+      <userTask id="chiHuy" name="Chỉ huy duyệt: ${tieuDe}"
+                flowable:candidateGroups="${nhom_chiHuy}"
+                flowable:assignee="${nguoi_chiHuy}"
+                flowable:dueDate="${han_chiHuy}">
+        <extensionElements>
+          <flowable:executionListener event="start" delegateExpression="${lapLichKep}"/>
+        </extensionElements>
+      </userTask>
+      <boundaryEvent id="nhac_chiHuy" attachedToRef="chiHuy" cancelActivity="false">
+        <timerEventDefinition><timeDate>${nhac_chiHuy}</timeDate></timerEventDefinition>
+      </boundaryEvent>
+      <sequenceFlow id="f-nhac-chiHuy" sourceRef="nhac_chiHuy" targetRef="nhacViec_chiHuy"/>
+      <serviceTask id="nhacViec_chiHuy" name="Nhắc người duyệt" flowable:type="external-worker" flowable:topic="notify-remind"/>
+      <sequenceFlow id="f-nhacXong-chiHuy" sourceRef="nhacViec_chiHuy" targetRef="nhacKetThuc_chiHuy"/>
+      <endEvent id="nhacKetThuc_chiHuy"/>
+      <boundaryEvent id="quaHan_chiHuy" attachedToRef="chiHuy" cancelActivity="true">
+        <timerEventDefinition><timeDate>${han_chiHuy}</timeDate></timerEventDefinition>
+      </boundaryEvent>
+      <sequenceFlow id="f-quaHan-chiHuy" sourceRef="quaHan_chiHuy" targetRef="chiHuy">
+        <extensionElements>
+          <flowable:executionListener event="take" delegateExpression="${lapLichKep}"/>
+        </extensionElements>
+      </sequenceFlow>
+      <sequenceFlow id="f-ketQua-chiHuy" sourceRef="chiHuy" targetRef="ketQua_chiHuy"/>
+      <exclusiveGateway id="ketQua_chiHuy" default="f-duyet-chiHuy"/>
+      <sequenceFlow id="f-traLai-chiHuy" sourceRef="ketQua_chiHuy" targetRef="traLai_chiHuy">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[${decision == 'TRA_LAI'}]]></conditionExpression>
+      </sequenceFlow>
+      <endEvent id="traLai_chiHuy" name="Trả lại">
+        <errorEventDefinition errorRef="kepTraLai"/>
+      </endEvent>
+      <sequenceFlow id="f-duyet-chiHuy" sourceRef="ketQua_chiHuy" targetRef="kiemKy_chiHuy"/>
+      <exclusiveGateway id="kiemKy_chiHuy" default="f-daKy-chiHuy"/>
+      <sequenceFlow id="f-canKy-chiHuy" sourceRef="kiemKy_chiHuy" targetRef="choKy_chiHuy">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[${canKy_chiHuy && !daKy_chiHuy}]]></conditionExpression>
+      </sequenceFlow>
+      <intermediateCatchEvent id="choKy_chiHuy" name="Chờ ký số">
+        <messageEventDefinition messageRef="kySoHoanTat"/>
+      </intermediateCatchEvent>
+      <sequenceFlow id="f-kyXong-chiHuy" sourceRef="choKy_chiHuy" targetRef="xong_chiHuy"/>
+      <sequenceFlow id="f-daKy-chiHuy" sourceRef="kiemKy_chiHuy" targetRef="xong_chiHuy"/>
+      <exclusiveGateway id="xong_chiHuy"/>
+      <sequenceFlow id="f-xong-chiHuy" sourceRef="xong_chiHuy" targetRef="gop"/>
+
+      <userTask id="capUy" name="Cấp uỷ duyệt: ${tieuDe}"
+                flowable:candidateGroups="${nhom_capUy}"
+                flowable:assignee="${nguoi_capUy}"
+                flowable:dueDate="${han_capUy}">
+        <extensionElements>
+          <flowable:executionListener event="start" delegateExpression="${lapLichKep}"/>
+        </extensionElements>
+      </userTask>
+      <boundaryEvent id="nhac_capUy" attachedToRef="capUy" cancelActivity="false">
+        <timerEventDefinition><timeDate>${nhac_capUy}</timeDate></timerEventDefinition>
+      </boundaryEvent>
+      <sequenceFlow id="f-nhac-capUy" sourceRef="nhac_capUy" targetRef="nhacViec_capUy"/>
+      <serviceTask id="nhacViec_capUy" name="Nhắc người duyệt" flowable:type="external-worker" flowable:topic="notify-remind"/>
+      <sequenceFlow id="f-nhacXong-capUy" sourceRef="nhacViec_capUy" targetRef="nhacKetThuc_capUy"/>
+      <endEvent id="nhacKetThuc_capUy"/>
+      <boundaryEvent id="quaHan_capUy" attachedToRef="capUy" cancelActivity="true">
+        <timerEventDefinition><timeDate>${han_capUy}</timeDate></timerEventDefinition>
+      </boundaryEvent>
+      <sequenceFlow id="f-quaHan-capUy" sourceRef="quaHan_capUy" targetRef="capUy">
+        <extensionElements>
+          <flowable:executionListener event="take" delegateExpression="${lapLichKep}"/>
+        </extensionElements>
+      </sequenceFlow>
+      <sequenceFlow id="f-ketQua-capUy" sourceRef="capUy" targetRef="ketQua_capUy"/>
+      <exclusiveGateway id="ketQua_capUy" default="f-duyet-capUy"/>
+      <sequenceFlow id="f-traLai-capUy" sourceRef="ketQua_capUy" targetRef="traLai_capUy">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[${decision == 'TRA_LAI'}]]></conditionExpression>
+      </sequenceFlow>
+      <endEvent id="traLai_capUy" name="Trả lại">
+        <errorEventDefinition errorRef="kepTraLai"/>
+      </endEvent>
+      <sequenceFlow id="f-duyet-capUy" sourceRef="ketQua_capUy" targetRef="kiemKy_capUy"/>
+      <exclusiveGateway id="kiemKy_capUy" default="f-daKy-capUy"/>
+      <sequenceFlow id="f-canKy-capUy" sourceRef="kiemKy_capUy" targetRef="choKy_capUy">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[${canKy_capUy && !daKy_capUy}]]></conditionExpression>
+      </sequenceFlow>
+      <intermediateCatchEvent id="choKy_capUy" name="Chờ ký số">
+        <messageEventDefinition messageRef="kySoHoanTat"/>
+      </intermediateCatchEvent>
+      <sequenceFlow id="f-kyXong-capUy" sourceRef="choKy_capUy" targetRef="xong_capUy"/>
+      <sequenceFlow id="f-daKy-capUy" sourceRef="kiemKy_capUy" targetRef="xong_capUy"/>
+      <exclusiveGateway id="xong_capUy"/>
+      <sequenceFlow id="f-xong-capUy" sourceRef="xong_capUy" targetRef="gop"/>
+
+      <parallelGateway id="gop"/>
+      <sequenceFlow id="f-gop" sourceRef="gop" targetRef="caHaiDaDuyet"/>
+      <endEvent id="caHaiDaDuyet"/>
+    </subProcess>
+    <boundaryEvent id="biTraLai" attachedToRef="duyetSongSong" cancelActivity="true">
+      <errorEventDefinition errorRef="kepTraLai"/>
+    </boundaryEvent>
+    <sequenceFlow id="f-biTraLai" sourceRef="biTraLai" targetRef="daTraLai"/>
+    <endEvent id="daTraLai" name="Đã trả lại"/>
+    <sequenceFlow id="f-daDuyet" sourceRef="duyetSongSong" targetRef="daDuyet"/>
+    <endEvent id="daDuyet" name="Đã duyệt"/>
+  </process>
+</definitions>

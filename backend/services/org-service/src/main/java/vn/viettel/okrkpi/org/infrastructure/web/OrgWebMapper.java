@@ -45,7 +45,7 @@ final class OrgWebMapper {
     List<String> flows = in.getFlows().stream().map(OrgUnitInput.FlowsEnum::getValue).toList();
     OrgUnitContent content = new OrgUnitContent(in.getCode(), in.getName(), in.getShortName(),
         in.getUnitType().getValue(), in.getSubjectGroupId(), true, flows, in.getLevel());
-    return new UnitCommand(content, in.getParentId(), in.getValidFrom(), in.getValidTo());
+    return new UnitCommand(content, in.getParentId(), in.getValidFrom(), in.getValidTo(), in.getNationalCode());
   }
 
   static ChangeCommand toCommand(OrgChangeRequest in) {
@@ -166,8 +166,8 @@ final class OrgWebMapper {
     return dto;
   }
 
-  static OrgChangeOrderResponse toDto(ChangeResult r) {
-    OrgChangeOrderResponse dto = new OrgChangeOrderResponse();
+  static OrgChangeOrder toDto(ChangeResult r) {
+    OrgChangeOrder dto = new OrgChangeOrder();
     dto.setId(r.orderId());
     dto.setChangeType(vn.viettel.okrkpi.org.infrastructure.web.model.OrgChangeType.fromValue(r.changeType().name()));
     dto.setOrderNo(r.orderNo());
@@ -177,11 +177,7 @@ final class OrgWebMapper {
     dto.setAffectedUnitIds(new ArrayList<>(r.affectedUnitIds()));
     dto.setCreatedUnitIds(new ArrayList<>(r.createdUnitIds()));
     dto.setMovedAssignmentCount(r.movedAssignments());
-    if (r.lockedPeriodLabel() != null) {
-      dto.setWarnings(List.of(new OrgChangeOrderResponse.Warning("MSG-01-10", r.lockedPeriodLabel(),
-          "Thay đổi có hiệu lực trước ngày khoá của kỳ " + r.lockedPeriodLabel()
-              + ". Kết quả kỳ đã khoá sẽ không tự tính lại; nếu cần, đề nghị mở lại kỳ.")));
-    }
+    dto.setLockedPeriodName(r.lockedPeriodLabel());
     return dto;
   }
 

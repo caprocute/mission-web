@@ -17,6 +17,7 @@ import org.springframework.core.NestedExceptionUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import vn.viettel.okrkpi.config.application.port.LockOrderRepository;
+import vn.viettel.okrkpi.config.domain.LockCancelRequest;
 import vn.viettel.okrkpi.config.domain.LockOrderStatus;
 import vn.viettel.okrkpi.config.domain.LockStep;
 import vn.viettel.okrkpi.config.domain.PeriodLockOrder;
@@ -32,7 +33,9 @@ public class JdbcLockOrderRepository implements LockOrderRepository {
   private static final String COLUMNS =
       "id, tenant_id, period_id, status, basis_doc, planned_lock_at, requested_by, created_at,"
           + " approved_by, approved_at, started_by, started_at, saga_id, idempotency_key,"
-          + " row_version";
+          + " row_version, pause_requested, pause_requested_by, pause_requested_at,"
+          + " cancel_requested_by, cancel_requested_at, cancel_reason, cancel_approved_by,"
+          + " cancel_approved_at";
   private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {};
 
   private final JdbcClient jdbc;
@@ -78,12 +81,15 @@ public class JdbcLockOrderRepository implements LockOrderRepository {
 
   @Override
   public boolean update(PeriodLockOrder o, int expectedVersion, UUID actorId) {
+    LockCancelRequest cancel = o.cancelRequest();
     return jdbc.sql(
                 """
                 UPDATE config.period_lock_order
                    SET status = ?, approved_by = ?, approved_at = ?, started_by = ?,
                        started_at = ?, saga_id = ?, row_version = ?, updated_at = now(),
-                       updated_by = ?
+                       updated_by = ?, pause_requested = ?, pause_requested_by = ?,
+                       pause_requested_at = ?, cancel_requested_by = ?, cancel_requested_at = ?,
+                       cancel_reason = ?, cancel_approved_by = ?, cancel_approved_at = ?
                  WHERE tenant_id = ? AND id = ? AND row_version = ?
                 """)
             .param(o.status().name())
@@ -94,6 +100,14 @@ public class JdbcLockOrderRepository implements LockOrderRepository {
             .param(o.sagaId())
             .param(o.rowVersion())
             .param(actorId)
+            .param(o.pauseRequested())
+            .param(o.pauseRequestedBy())
+            .param(ts(o.pauseRequestedAt()))
+            .param(cancel == null ? null : cancel.requestedBy())
+            .param(cancel == null ? null : ts(cancel.requestedAt()))
+            .param(cancel == null ? null : cancel.reason())
+            .param(cancel == null ? null : cancel.approvedBy())
+            .param(cancel == null ? null : ts(cancel.approvedAt()))
             .param(o.tenantId().value())
             .param(o.id())
             .param(expectedVersion)
@@ -176,21 +190,39 @@ public class JdbcLockOrderRepository implements LockOrderRepository {
 
   private static PeriodLockOrder map(ResultSet rs, int row) throws SQLException {
     return new PeriodLockOrder(
-        rs.getObject("id", UUID.class),
-        TenantId.of(rs.getObject("tenant_id", UUID.class)),
-        PeriodId.of(rs.getObject("period_id", UUID.class)),
-        LockOrderStatus.valueOf(rs.getString("status")),
-        rs.getString("basis_doc"),
-        instant(rs, "planned_lock_at"),
-        rs.getObject("requested_by", UUID.class),
-        instant(rs, "created_at"),
-        rs.getObject("approved_by", UUID.class),
-        instant(rs, "approved_at"),
-        rs.getObject("started_by", UUID.class),
-        instant(rs, "started_at"),
-        rs.getObject("saga_id", UUID.class),
-        rs.getString("idempotency_key"),
-        rs.getInt("row_version"));
+            rs.getObject("id", UUID.class),
+            TenantId.of(rs.getObject("tenant_id", UUID.class)),
+            PeriodId.of(rs.getObject("period_id", UUID.class)),
+            LockOrderStatus.valueOf(rs.getString("status")),
+            rs.getString("basis_doc"),
+            instant(rs, "planned_lock_at"),
+            rs.getObject("requested_by", UUID.class),
+            instant(rs, "created_at"),
+            rs.getObject("approved_by", UUID.class),
+            instant(rs, "approved_at"),
+            rs.getObject("started_by", UUID.class),
+            instant(rs, "started_at"),
+            rs.getObject("saga_id", UUID.class),
+            rs.getString("idempotency_key"),
+            rs.getInt("row_version"))
+        .withControl(
+            rs.getBoolean("pause_requested"),
+            rs.getObject("pause_requested_by", UUID.class),
+            instant(rs, "pause_requested_at"),
+            cancelOf(rs));
+  }
+
+  private static LockCancelRequest cancelOf(ResultSet rs) throws SQLException {
+    UUID by = rs.getObject("cancel_requested_by", UUID.class);
+    if (by == null) {
+      return null;
+    }
+    return new LockCancelRequest(
+        by,
+        instant(rs, "cancel_requested_at"),
+        rs.getString("cancel_reason"),
+        rs.getObject("cancel_approved_by", UUID.class),
+        instant(rs, "cancel_approved_at"));
   }
 
   private Map<String, Object> summary(String raw) {

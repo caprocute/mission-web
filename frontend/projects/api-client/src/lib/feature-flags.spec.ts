@@ -46,19 +46,22 @@ describe('Cờ tính năng (WEB-076)', () => {
     expect(flagActive(flag('a', true, { validTo: '2026-10-01T00:00:00Z' }), now)).toBe(false);
   });
 
-  it('nạp cờ, lỗi (403) thì mọi cờ tắt', async () => {
+  it('nạp bản đồ cờ hiệu lực GET /ui/feature-flags (WEB-072), lỗi thì mọi cờ tắt', async () => {
     const { svc, ctrl } = setup();
     let p = svc.load();
-    ctrl
-      .expectOne('/api/v1/config/feature-flags')
-      .flush({ items: [flag('ai.weeklySummary', true), flag('x', false)], nextCursor: null });
+    const req = ctrl.expectOne('/api/v1/ui/feature-flags');
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      flags: { 'ai.weeklySummary': true, x: false },
+      evaluatedAt: '2026-10-21T00:00:00Z',
+    });
     await p;
     expect(svc.isEnabled('ai.weeklySummary')).toBe(true);
     expect(svc.isEnabled('x')).toBe(false);
     p = svc.load();
     ctrl
-      .expectOne('/api/v1/config/feature-flags')
-      .flush(null, { status: 403, statusText: 'Forbidden' });
+      .expectOne('/api/v1/ui/feature-flags')
+      .flush(null, { status: 503, statusText: 'Service Unavailable' });
     await p;
     expect(svc.isEnabled('ai.weeklySummary')).toBe(false);
     ctrl.verify();
@@ -73,8 +76,8 @@ describe('Cờ tính năng (WEB-076)', () => {
     expect(TestBed.runInInjectionContext(() => guard({}, []))).toBe(false);
     const p = svc.load();
     ctrl
-      .expectOne('/api/v1/config/feature-flags')
-      .flush({ items: [flag('ai.weeklySummary', true)], nextCursor: null });
+      .expectOne('/api/v1/ui/feature-flags')
+      .flush({ flags: { 'ai.weeklySummary': true }, evaluatedAt: '2026-10-21T00:00:00Z' });
     await p;
     await fixture.whenStable();
     expect(fixture.nativeElement.querySelector('#ai')).not.toBeNull();

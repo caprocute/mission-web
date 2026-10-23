@@ -1,0 +1,53 @@
+{
+  "templateCode": "xu-ly-khieu-nai",
+  "phienBanChinh": 1,
+  "moTa": "Xử lý khiếu nại kết quả đánh giá: khởi tạo khi cán bộ gửi khiếu nại; chọn người xử lý có vai trò thẩm định ở cấp có thẩm quyền, không là người đã nghiệm thu, thẩm định, đề xuất hoặc quyết định hồ sơ, ít việc nhất; tiếp nhận trong 2 ngày, giải trình trong 3 ngày, trả lời bằng văn bản có ký số trong tổng 15 ngày làm việc, nhắc trước 2 ngày và chuyển cấp trên khi quá hạn.",
+  "chuSoHuu": "Luồng B6 - nhóm workflow-service (SVC-06)",
+  "truyVet": "QT-12 bước 3 đến 10 → SCR-1202 → EVT-25, EVT-18 → MOD-07, SVC-06",
+  "bangQuyetDinh": [],
+  "kiemThu": [
+    "vn.viettel.okrkpi.workflow.template.StageTemplatesFlowTest",
+    "vn.viettel.okrkpi.workflow.template.XuLyKhieuNaiFlowTest"
+  ],
+  "kiemThuDmn": [],
+  "bien": {
+    "tenantId": 50,
+    "khoi": 16,
+    "loaiHoSo": 32,
+    "laNguoiDungDau": 20,
+    "donViId": 48,
+    "tieuDe": 780,
+    "phienBanDoiTuong": 40,
+    "keHoachBuoc": 420,
+    "soLanQuaHan": 120,
+    "ketQua": 24,
+    "nguoiTao": 48,
+    "nhomBuoc": 120,
+    "nguoiBuoc": 48,
+    "hanBuoc": 40,
+    "nhacBuoc": 40,
+    "donViChon": 48,
+    "hoSoId": 48,
+    "thamGiaHoSo": 420,
+    "hanTongThe": 40,
+    "nguoiXuLy": 48
+  },
+  "songSongToiDa": {},
+  "thamSo": {
+    "ten": "Xử lý khiếu nại",
+    "buoc": [
+      "TIEP_NHAN",
+      "GIAI_TRINH",
+      "KET_LUAN",
+      "KY_TRA_LOI"
+    ],
+    "hanNgayLamViec": [
+      2,
+      3,
+      15,
+      15
+    ],
+    "nhacTruoc": "P2D_LV",
+    "khiQuaHan": "CHUYEN_CAP_TREN"
+  }
+}

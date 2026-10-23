@@ -22,7 +22,6 @@ import vn.viettel.okrkpi.scoring.application.policy.ProfileScorer;
 import vn.viettel.okrkpi.scoring.application.port.Designations;
 import vn.viettel.okrkpi.scoring.application.port.StoredScores;
 import vn.viettel.okrkpi.scoring.domain.ComputedScore;
-import vn.viettel.okrkpi.scoring.domain.PinnedPolicy;
 import vn.viettel.okrkpi.scoring.domain.PolicyBindingKey;
 import vn.viettel.okrkpi.scoring.domain.ScoringInput;
 import vn.viettel.okrkpi.shared.authz.AuthzResource;
@@ -325,20 +324,10 @@ public class ScoreSimulationService {
    * hoặc tải đúng phiên bản đã dùng (kiểm băm). Không bao giờ dùng phiên bản mới hơn (BR-13-06).
    */
   private CompiledPolicy policyOf(StoredScores.Stored stored) {
-    String hash = PinnedPolicy.normalize(stored.policyContentHash());
-    return policies
-        .cached(hash)
-        .orElseGet(
-            () -> {
-              PinnedPolicy pin =
-                  policies.pin(
-                      PolicyBindingKey.of(stored.tenantId(), stored.periodId(), stored.flow()));
-              if (pin.contentHash().equals(hash)) {
-                return policies.get(stored.tenantId(), pin);
-              }
-              return policies.preload(
-                  stored.tenantId(), pin.packId(), stored.policyPackVersionId(), hash);
-            });
+    return policies.original(
+        PolicyBindingKey.of(stored.tenantId(), stored.periodId(), stored.flow()),
+        stored.policyPackVersionId(),
+        stored.policyContentHash());
   }
 
   private static String versionOf(CompiledPolicy policy, StoredScores.Stored stored) {

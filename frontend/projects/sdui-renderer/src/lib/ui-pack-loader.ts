@@ -1,4 +1,6 @@
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, InjectionToken, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { RUNTIME_CONFIG, RuntimeConfig } from '@vt/api-client';
 import { ThemeService, tokensToCss } from '@vt/design-system';
 import { REGISTRY_VERSION } from './component-registry';
@@ -44,6 +46,7 @@ export class UiPackLoader {
   private readonly cfg = inject(RUNTIME_CONFIG);
   private readonly theme = inject(ThemeService);
   private readonly telemetry = inject(SduiTelemetry);
+  private readonly http = inject(HttpClient, { optional: true });
   private readonly keys = (this.cfg as RuntimeConfig & UiPackTrustConfig).uiPackPublicKeys ?? {};
 
   private prefetch = inject(UI_PACK_PREFETCH, { optional: true });
@@ -67,26 +70,53 @@ export class UiPackLoader {
     const early = prefetch ? await prefetch.catch(() => null) : null;
     const usable = early?.base === base ? early : null;
 
+    let fresh: UiPack | null;
+    let ptr: UiPackPointer | undefined;
     try {
-      const ptr =
-        usable?.pointer ??
-        ((await (
-          await fetch(`${base}/current.json`, { cache: 'no-cache' })
-        ).json()) as UiPackPointer);
+      ptr = usable?.pointer ?? (await this.cdnJson<UiPackPointer>(`${base}/current.json`, true));
       if (cached?.version === ptr.version) return;
-      let fresh = usable?.pack?.version === ptr.version ? usable.pack : null;
-      if (!fresh) {
-        const res = await fetch(`${base}/${ptr.version}/pack.json`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        fresh = (await res.json()) as UiPack;
+      fresh = usable?.pack?.version === ptr.version ? usable.pack : null;
+      fresh ??= await this.cdnJson<UiPack>(`${base}/${ptr.version}/pack.json`);
+    } catch (cdnErr) {
+      // CDN không phục vụ được (chưa cấu hình, lỗi mạng): đọc bản hiện hành qua API, nguồn dự phòng
+      // theo hợp đồng `GET /ui/packs/current`; ETag là băm gói nên bản lưu cùng băm nhận 304.
+      try {
+        fresh = await this.fromApi(cached);
+        ptr = undefined;
+      } catch (err) {
+        if (!cached)
+          console.error('[ui-pack] Không nạp được UI Pack, dùng token mặc định', cdnErr, err);
+        return;
       }
-      // gói không tương thích hoặc sai chữ ký: giữ bản đang dùng (hoặc token mặc định), không lưu
-      if (!(await this.accept(fresh, ptr))) return;
-      await PackCache.put(tenant, fresh);
-      // Lần đầu (chưa có bản lưu) áp ngay; nếu đã có bản lưu, để lần điều hướng sau mới đổi
-      if (!cached) this.apply(tenant, fresh);
-    } catch (err) {
-      if (!cached) console.error('[ui-pack] Không nạp được UI Pack, dùng token mặc định', err);
+      if (!fresh || fresh.version === cached?.version) return;
+    }
+    // gói không tương thích hoặc sai chữ ký: giữ bản đang dùng (hoặc token mặc định), không lưu
+    if (!(await this.accept(fresh, ptr))) return;
+    await PackCache.put(tenant, fresh);
+    // Lần đầu (chưa có bản lưu) áp ngay; nếu đã có bản lưu, để lần điều hướng sau mới đổi
+    if (!cached) this.apply(tenant, fresh);
+  }
+
+  /** Đọc JSON từ CDN; `current.json` gửi kèm `no-cache` để trình duyệt tự hỏi lại bằng ETag. */
+  private async cdnJson<T>(url: string, revalidate = false): Promise<T> {
+    const res = await fetch(url, revalidate ? { cache: 'no-cache' } : undefined);
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`);
+    return (await res.json()) as T;
+  }
+
+  /** `GET /api/v1/ui/packs/current` với `If-None-Match` theo băm bản lưu; 304 trả `null`. */
+  private async fromApi(cached: UiPack | undefined): Promise<UiPack | null> {
+    if (!this.http) throw new Error('Chưa cấu hình HttpClient');
+    const hash = cached?.contentHash;
+    try {
+      return await firstValueFrom(
+        this.http.get<UiPack>('/api/v1/ui/packs/current', {
+          headers: hash ? { 'If-None-Match': `"${hash}"` } : {},
+        }),
+      );
+    } catch (e) {
+      if (e instanceof HttpErrorResponse && e.status === 304) return null;
+      throw e;
     }
   }
 

@@ -84,6 +84,15 @@ class OversightTenantIsolationIT extends TenantIsolationCatalogTest {
           return r;
         });
     f.put(
+        "oversight.reopen_progress",
+        (tenant, seed) -> {
+          Map<String, Object> r = periodRow(tenant, "reopen_progress");
+          r.put("reopen_request_id", id(tenant, "reopen_request"));
+          r.put("profile_id", id(tenant, "profile-" + seed));
+          r.put("forms_json", jsonb("{}"));
+          return r;
+        });
+    f.put(
         "oversight.post_audit",
         (tenant, seed) -> {
           Map<String, Object> r = periodRow(tenant, "post_audit");

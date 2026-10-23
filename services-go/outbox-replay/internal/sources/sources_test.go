@@ -21,8 +21,8 @@ func TestOutboxSourcesMatchesCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadAndValidate failed: %v", err)
 	}
-	if len(cat.Events) != 26 {
-		t.Fatalf("expected 26 business events in catalog.yaml, got %d", len(cat.Events))
+	if len(cat.Events) != 27 {
+		t.Fatalf("expected 27 business events in catalog.yaml, got %d", len(cat.Events))
 	}
 	if len(cat.TechnicalTopics) != 10 {
 		t.Fatalf("expected 10 technical topics in catalog.yaml, got %d", len(cat.TechnicalTopics))

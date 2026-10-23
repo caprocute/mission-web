@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DV-06-04 · Mẫu luồng `xu-ly-khieu-nai` v2 (QT-12 bước 3 đến 10; SCR-1202) · ADR-04 tầng 2. Khởi tạo khi nhận EVT-25;
+  worker chọn người hỏi OPA (gói okrkpi.complaint) ứng viên appraiser hợp lệ, loại người đã nghiệm thu, thẩm định,
+  đề xuất, quyết định hồ sơ (BR-12-04), chọn người ít việc nhất, không còn ai thì lên cấp trên theo cây. Tiếp nhận 2,
+  giải trình 3 ngày làm việc, tổng 15 ngày làm việc từ lúc gửi, nhắc trước 2 ngày, chuyển cấp khi quá hạn (BR-12-05);
+  hết hạn giải trình thì về bước kết luận. Bước ký trả lời xong khi nhận EVT-18 TRA_LOI_KHIEU_NAI.
+  Một định nghĩa dùng chung cho mọi tenant (không gắn tenantId); tham số theo tenant nằm ở flowable.wf_binding và
+  được chụp vào biến keHoachBuoc lúc khởi tạo. Thao tác nghiệp vụ (có step-up, ký số) diễn ra ở API của lõi; tiến
+  trình giữ hộp việc, hạn theo ngày làm việc, nhắc trước hạn, chuyển cấp khi quá hạn, giao việc có tách vai trò và
+  chờ ký số (EVT-18), rồi đi tiếp khi lõi báo bước đã xong. Listener ${lapLichBuoc} chỉ tính toán trên bản sao cục bộ.
+  Khoá nghiệp vụ: COMPLAINT:<complaintId>.
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="urn:vt-okrkpi:wf">
+  <process id="xu-ly-khieu-nai" name="Xử lý khiếu nại kết quả đánh giá" isExecutable="true">
+    <documentation>Tiếp nhận, yêu cầu giải trình, kết luận và ký văn bản trả lời khiếu nại trong thời hạn 15 ngày làm việc, người xử lý được chọn theo quy tắc tách vai trò.</documentation>
+    <startEvent id="start"/>
+    <sequenceFlow id="f1-start-chon_tiepNhan" sourceRef="start" targetRef="chon_tiepNhan"/>
+    <serviceTask id="chon_tiepNhan" name="Chọn người xử lý khiếu nại" flowable:type="external-worker" flowable:topic="wf-chon-nguoi"/>
+    <sequenceFlow id="f2-chon_tiepNhan-tiepNhan" sourceRef="chon_tiepNhan" targetRef="tiepNhan"/>
+    <userTask id="tiepNhan" name="${tieuDe}"
+              flowable:candidateGroups="${nhomBuoc}"
+              flowable:assignee="${nguoiBuoc}"
+              flowable:dueDate="${hanBuoc}">
+      <documentation>Tiếp nhận, phân loại khiếu nại</documentation>
+      <extensionElements>
+        <flowable:executionListener event="start" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </userTask>
+    <boundaryEvent id="nhac_tiepNhan" attachedToRef="tiepNhan" cancelActivity="false">
+      <timerEventDefinition><timeDate>${nhacBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="quaHan_tiepNhan" attachedToRef="tiepNhan" cancelActivity="true">
+      <timerEventDefinition><timeDate>${hanBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f3-nhac_tiepNhan-nhacViec" sourceRef="nhac_tiepNhan" targetRef="nhacViec"/>
+    <sequenceFlow id="f4-quaHan_tiepNhan-chon_tiepNhan" sourceRef="quaHan_tiepNhan" targetRef="chon_tiepNhan">
+      <extensionElements>
+        <flowable:executionListener event="take" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="f5-tiepNhan-kq_tiepNhan" sourceRef="tiepNhan" targetRef="kq_tiepNhan"/>
+    <exclusiveGateway id="kq_tiepNhan" default="f-tiepNhan-thuLy"/>
+    <sequenceFlow id="f6-kq_tiepNhan-khongThuLy" sourceRef="kq_tiepNhan" targetRef="khongThuLy">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ketQua == 'KHONG_THU_LY'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f7-kq_tiepNhan-daRut" sourceRef="kq_tiepNhan" targetRef="daRut">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ketQua == 'RUT'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-tiepNhan-thuLy" sourceRef="kq_tiepNhan" targetRef="ketLuan"/>
+    <userTask id="ketLuan" name="${tieuDe}"
+              flowable:candidateGroups="${nhomBuoc}"
+              flowable:assignee="${nguoiBuoc}"
+              flowable:dueDate="${hanBuoc}">
+      <documentation>Xem xét và kết luận khiếu nại</documentation>
+      <extensionElements>
+        <flowable:executionListener event="start" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </userTask>
+    <boundaryEvent id="nhac_ketLuan" attachedToRef="ketLuan" cancelActivity="false">
+      <timerEventDefinition><timeDate>${nhacBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="quaHan_ketLuan" attachedToRef="ketLuan" cancelActivity="true">
+      <timerEventDefinition><timeDate>${hanBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f9-nhac_ketLuan-nhacViec" sourceRef="nhac_ketLuan" targetRef="nhacViec"/>
+    <sequenceFlow id="f10-quaHan_ketLuan-chon_ketLuan" sourceRef="quaHan_ketLuan" targetRef="chon_ketLuan">
+      <extensionElements>
+        <flowable:executionListener event="take" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </sequenceFlow>
+    <serviceTask id="chon_ketLuan" name="Chọn lại người xử lý ở cấp trên" flowable:type="external-worker" flowable:topic="wf-chon-nguoi"/>
+    <sequenceFlow id="f11-chon_ketLuan-ketLuan" sourceRef="chon_ketLuan" targetRef="ketLuan"/>
+    <sequenceFlow id="f12-ketLuan-kq_ketLuan" sourceRef="ketLuan" targetRef="kq_ketLuan"/>
+    <exclusiveGateway id="kq_ketLuan" default="f-ketLuan-ky"/>
+    <sequenceFlow id="f13-kq_ketLuan-giaiTrinh" sourceRef="kq_ketLuan" targetRef="giaiTrinh">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ketQua == 'GIAI_TRINH'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f14-kq_ketLuan-daRut" sourceRef="kq_ketLuan" targetRef="daRut">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ketQua == 'RUT'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-ketLuan-ky" sourceRef="kq_ketLuan" targetRef="kyTraLoi"/>
+    <userTask id="giaiTrinh" name="${tieuDe}"
+              flowable:candidateGroups="${nhomBuoc}"
+              flowable:assignee="${nguoiBuoc}"
+              flowable:dueDate="${hanBuoc}">
+      <documentation>Chờ các bên giải trình</documentation>
+      <extensionElements>
+        <flowable:executionListener event="start" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </userTask>
+    <boundaryEvent id="nhac_giaiTrinh" attachedToRef="giaiTrinh" cancelActivity="false">
+      <timerEventDefinition><timeDate>${nhacBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="quaHan_giaiTrinh" attachedToRef="giaiTrinh" cancelActivity="true">
+      <timerEventDefinition><timeDate>${hanBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f16-nhac_giaiTrinh-nhacViec" sourceRef="nhac_giaiTrinh" targetRef="nhacViec"/>
+    <sequenceFlow id="f17-quaHan_giaiTrinh-ketLuan" sourceRef="quaHan_giaiTrinh" targetRef="ketLuan"/>
+    <sequenceFlow id="f18-giaiTrinh-kq_giaiTrinh" sourceRef="giaiTrinh" targetRef="kq_giaiTrinh"/>
+    <exclusiveGateway id="kq_giaiTrinh" default="f-giaiTrinh-ketLuan"/>
+    <sequenceFlow id="f19-kq_giaiTrinh-daRut" sourceRef="kq_giaiTrinh" targetRef="daRut">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ketQua == 'RUT'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-giaiTrinh-ketLuan" sourceRef="kq_giaiTrinh" targetRef="ketLuan"/>
+    <userTask id="kyTraLoi" name="${tieuDe}"
+              flowable:candidateGroups="${nhomBuoc}"
+              flowable:assignee="${nguoiBuoc}"
+              flowable:dueDate="${hanBuoc}">
+      <documentation>Ký văn bản trả lời khiếu nại</documentation>
+      <extensionElements>
+        <flowable:executionListener event="start" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </userTask>
+    <boundaryEvent id="nhac_kyTraLoi" attachedToRef="kyTraLoi" cancelActivity="false">
+      <timerEventDefinition><timeDate>${nhacBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="quaHan_kyTraLoi" attachedToRef="kyTraLoi" cancelActivity="true">
+      <timerEventDefinition><timeDate>${hanBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f21-nhac_kyTraLoi-nhacViec" sourceRef="nhac_kyTraLoi" targetRef="nhacViec"/>
+    <sequenceFlow id="f22-quaHan_kyTraLoi-kyTraLoi" sourceRef="quaHan_kyTraLoi" targetRef="kyTraLoi">
+      <extensionElements>
+        <flowable:executionListener event="take" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="f23-kyTraLoi-daTraLoi" sourceRef="kyTraLoi" targetRef="daTraLoi"/>
+    <endEvent id="khongThuLy" name="Không thụ lý"/>
+    <endEvent id="daRut" name="Người khiếu nại rút"/>
+    <endEvent id="daTraLoi" name="Đã trả lời bằng văn bản có ký số"/>
+    <serviceTask id="nhacViec" name="Nhắc người làm trước hạn" flowable:type="external-worker" flowable:topic="notify-remind"/>
+    <sequenceFlow id="f24-nhacViec-nhacKetThuc" sourceRef="nhacViec" targetRef="nhacKetThuc"/>
+    <endEvent id="nhacKetThuc" name="Đã nhắc"/>
+  </process>
+</definitions>

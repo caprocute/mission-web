@@ -17,6 +17,7 @@ import {
   WorkflowSimulateRequest,
   shadowedDecisionRows,
 } from '../../lib/models/policy';
+import { startMockJob } from '../mock-jobs';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import { mockSession } from '../mock-session';
 import {
@@ -903,11 +904,11 @@ function startRun(r: MockRequest): MockResponse {
   });
   run.id = uuid(6900 + ++seq);
   s.runs.unshift(run);
-  return {
-    status: 202,
-    body: { id: run.id, type: 'TEST_RUN', status: 'CHO', progress: 0 },
-    headers: { Location: `${r.path}/${run.id}` },
-  };
+  // 202 + `Location` của job dùng chung (jobs.yaml); job xong thì lần chạy cũng có kết quả
+  return startMockJob('TEST_RUN', () => {
+    run.polls = Math.max(run.polls, 1);
+    settle(s);
+  });
 }
 
 /** Lần chạy đang chờ: sau hai lần đọc thì có kết quả (BR-15-07). */
@@ -1036,18 +1037,23 @@ function approve(r: MockRequest): MockResponse {
     return res;
   }
   s.publishing = 2;
-  const id = uuid(6800 + ++seq);
-  return {
-    status: 202,
-    body: { id, type: 'POLICY_PUBLISH', status: 'DANG_CHAY', progress: 10 },
-    headers: { Location: `/api/v1/jobs/${id}` },
-  };
+  // saga phát hành: job xong thì phiên bản đã phát hành (EVT-13)
+  return startMockJob('POLICY_PUBLISH', () => {
+    s.publishing = 1;
+    publishIfDue(s);
+  });
 }
 
-/** Saga phát hành giả lập: xong sau hai lần đọc phiên bản (EVT-13, MSG-15-08). */
+/** Đọc phiên bản; saga phát hành giả lập tiến thêm một bước mỗi lần đọc (EVT-13, MSG-15-08). */
 function readVersion(r: MockRequest): MockResponse {
   const s = state(r);
   if (!s) return notFound();
+  publishIfDue(s);
+  return out(s.version, etag(s.version.rowVersion));
+}
+
+/** Saga phát hành giả lập xong sau hai lần đọc phiên bản, hoặc khi job phát hành kết thúc. */
+function publishIfDue(s: VersionState) {
   if (s.publishing !== null && --s.publishing <= 0) {
     s.publishing = null;
     s.version.status = 'DA_PHAT_HANH';
@@ -1057,7 +1063,6 @@ function readVersion(r: MockRequest): MockResponse {
     s.version.approvedAt = s.version.publishedAt;
     s.version.rowVersion++;
   }
-  return out(s.version, etag(s.version.rowVersion));
 }
 
 function reject(r: MockRequest): MockResponse {
@@ -1179,7 +1184,15 @@ export const POLICIES_MOCK: MockModule = {
     {
       method: 'GET',
       pattern: '/api/v1/policies/packs',
-      handle: () => out({ items: packs, nextCursor: null }),
+      // lọc `flow`, `origin` theo `listPolicyPacks` (trình khởi tạo tenant SCR-0102 dùng, WEB-072)
+      handle: (r) => {
+        const flow = r.params.get('flow');
+        const origin = r.params.get('origin');
+        const items = packs.filter(
+          (p) => (!flow || p.flow === flow) && (!origin || p.origin === origin),
+        );
+        return out({ items, nextCursor: null });
+      },
     },
     { method: 'GET', pattern: '/api/v1/policies/test-cases', handle: listTestCases },
     { method: 'POST', pattern: '/api/v1/policies/test-cases', handle: createTestCase },

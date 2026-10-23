@@ -123,6 +123,24 @@ public class PolicyPackCache {
     }
   }
 
+  /**
+   * Đúng phiên bản đã dùng cho một kết quả gốc theo băm (BR-08-07, BR-13-06): trong bộ đệm, hoặc
+   * phiên bản ghim của khoá nếu cùng băm, hoặc tải phiên bản {@code versionId} và kiểm băm. Không
+   * bao giờ thay bằng phiên bản mới hơn.
+   */
+  public CompiledPolicy original(PolicyBindingKey key, UUID versionId, String contentHash) {
+    String hash = PinnedPolicy.normalize(contentHash);
+    return cached(hash)
+        .orElseGet(
+            () -> {
+              PinnedPolicy pin = pin(key);
+              if (pin.contentHash().equals(hash)) {
+                return get(key.tenantId(), pin);
+              }
+              return preload(key.tenantId(), pin.packId(), versionId, hash);
+            });
+  }
+
   /** Quên ánh xạ khoá → phiên bản của các kỳ chưa đóng băng của tenant. */
   public int forgetPins(UUID tenantId) {
     int before = pins.size();

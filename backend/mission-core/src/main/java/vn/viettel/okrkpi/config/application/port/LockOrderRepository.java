@@ -22,7 +22,10 @@ public interface LockOrderRepository {
 
   void insert(PeriodLockOrder order, UUID actorId);
 
-  /** Ghi trạng thái, người duyệt, người khởi chạy, saga khi {@code row_version} khớp. */
+  /**
+   * Ghi trạng thái, người duyệt, người khởi chạy, saga, cờ tạm dừng và đề nghị huỷ khi {@code
+   * row_version} khớp.
+   */
   boolean update(PeriodLockOrder order, int expectedVersion, UUID actorId);
 
   Optional<PeriodLockOrder> findById(TenantId tenantId, UUID id);

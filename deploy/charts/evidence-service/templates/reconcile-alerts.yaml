@@ -1,0 +1,38 @@
+{{- /*
+DL-12 · TL-03 "Đối soát và kiểm tra nhất quán" dòng "Minh chứng và tệp" (R6): cảnh báo của job kiểm tra phiên bản
+tệp evidence.object_version ↔ Ceph RGW (mẫu 0,1% mỗi ngày, toàn bộ mỗi quý). Job chạy trong pod evidence-service
+(lịch Spring, bật bằng biến MISSION_RECONCILE_EVIDENCE_ENABLED và danh sách MISSION_RECONCILE_EVIDENCE_TENANTS khai
+qua khoá env của values), chỉ số do vt-reconcile xuất. Bật mặc định; tắt bằng reconcile.alerts.enabled=false.
+*/ -}}
+{{- $rc := .Values.reconcile | default dict -}}
+{{- $al := $rc.alerts | default dict -}}
+{{- if ne (toString (dig "enabled" true $al)) "false" }}
+{{- $rb := $al.runbookBase | default "https://runbook.vt.local/okr" }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}-doi-soat
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: evidence-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: reconcile
+spec:
+  groups:
+    - name: evidence-doi-soat
+      rules:
+        - alert: EvidenceTepMinhChungLech
+          expr: sum(increase(mission_reconcile_mismatches_total{reconcile="R6_MINH_CHUNG_CEPH"}[1d])) > 0
+          labels: { severity: critical, doi: van-hanh-du-lieu }
+          annotations:
+            summary: "Có phiên bản tệp minh chứng mất hoặc khác băm trên Ceph ({{ "{{ $value | humanize }}" }} trong ngày)"
+            description: "Tra evidence.reconcile_run job R6_MINH_CHUNG_CEPH có status LOI; detail.versions ghi bucket, khoá, mã phiên bản cần khôi phục."
+            runbook_url: {{ $rb }}/doi-soat-minh-chung-ceph
+        - alert: EvidenceDoiSoatTepNgungChay
+          expr: (time() - max(mission_reconcile_last_finished_seconds{reconcile="R6_MINH_CHUNG_CEPH"})) > 30 * 3600
+          for: 1h
+          labels: { severity: warning, doi: van-hanh-du-lieu }
+          annotations:
+            summary: "Kiểm tra tệp minh chứng với Ceph chưa có lần nào kết thúc trong 30 giờ"
+            runbook_url: {{ $rb }}/doi-soat-minh-chung-ceph
+{{- end }}

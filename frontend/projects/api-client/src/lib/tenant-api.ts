@@ -1,18 +1,24 @@
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, map, of, switchMap } from 'rxjs';
 import { CursorQuery, MAX_PAGE_LIMIT } from './paging';
 import { jobLocation } from './job-tracker';
+import { Job } from './models/job';
 import {
   CellOption,
-  OnboardingCheck,
   PolicyPackOption,
+  PolicyPackWithVersions,
+  RegistryCell,
   TenantFlow,
-  TenantIdp,
+  TenantIdpTestRequest,
+  TenantIdpTestResult,
   TenantOnboarding,
   TenantOnboardingInput,
   TenantOnboardingPatch,
   UiPackOption,
+  cellOptions,
+  policyPackOptions,
+  registryModel,
 } from './models/tenant-onboarding';
 import {
   ConfigTenant,
@@ -22,6 +28,7 @@ import {
   TenantPage,
   TenantStatus,
 } from './models/tenant';
+import { UiPackSummary } from './models/ui-pack';
 import { apiUrl } from './api-path';
 
 /** Lọc danh sách tenant (SCR-0101 vùng 1). */
@@ -81,100 +88,143 @@ export class TenantApi {
     });
   }
 
-  // ---- SCR-0102 Khởi tạo tenant (WEB-017) ----
+  // ---- SCR-0102 Khởi tạo tenant (WEB-017, đối chiếu hợp đồng WEB-072) ----
 
-  /** Bước 1: khai báo tenant, máy chủ tạo `registry.tenant` ở `KHOI_TAO` và sinh mã `ONB-yyyy-nnnn`. */
+  /**
+   * Bước 1: khai báo tenant (`createConfigTenant`), máy chủ tạo `registry.tenant` ở `KHOI_TAO` và sinh
+   * mã `ONB-yyyy-nnnn`; tên miền trùng trả 409 `CONFIG-409-DOMAIN-TAKEN` (MSG-01-04).
+   */
   create(body: TenantOnboardingInput): Observable<TenantOnboarding> {
-    return this.http.post<TenantOnboarding>('/api/v1/config/tenants', body);
+    return this.http.post<TenantOnboarding>(apiUrl('/config/tenants'), body);
   }
 
-  /** Hồ sơ khởi tạo để mở lại bản nháp theo mã tenant. */
-  onboarding(id: string): Observable<TenantOnboarding> {
-    return this.http.get<TenantOnboarding>(
-      `/api/v1/config/tenants/${encodeURIComponent(id)}/onboarding`,
-    );
-  }
-
-  /** Lưu nháp (PATCH, `If-Match`; 409 khi người khác đã sửa). */
+  /**
+   * Lưu nháp (PATCH, `If-Match`; 409 khi người khác đã sửa). Hợp đồng `config.yaml` và SVC-03
+   * chỉ nhận `application/merge-patch+json` (415 với kiểu khác) và từ chối trường lạ (422).
+   */
   saveDraft(current: TenantOnboarding, patch: TenantOnboardingPatch): Observable<TenantOnboarding> {
     return this.http.patch<TenantOnboarding>(
-      `/api/v1/config/tenants/${encodeURIComponent(current.id)}`,
+      apiUrl('/config/tenants/{id}', { id: current.id }),
       patch,
-      { headers: { 'If-Match': `"${current.rowVersion}"` } },
+      {
+        headers: {
+          'If-Match': `"${current.rowVersion}"`,
+          'Content-Type': 'application/merge-patch+json',
+        },
+      },
     );
   }
 
   /** Huỷ yêu cầu khi còn `KHOI_TAO` (DELETE, `If-Match`). */
   cancel(current: TenantOnboarding): Observable<void> {
-    return this.http.delete<void>(`/api/v1/config/tenants/${encodeURIComponent(current.id)}`, {
+    return this.http.delete<void>(apiUrl('/config/tenants/{id}', { id: current.id }), {
       headers: { 'If-Match': `"${current.rowVersion}"` },
     });
   }
 
-  /** Cell ứng viên cho mô hình và quy mô dự kiến (bước 2, vùng 3). */
+  /**
+   * Cell ứng viên cho mô hình và quy mô dự kiến (bước 2, vùng 3): `GET /registry/cells?tenancyModel=`
+   * của `platform.yaml`; khi cell chưa kèm số tài khoản thì lấy `summary.cellLoads` của danh sách
+   * tenant. Tải sau khi thêm tính ở trình duyệt, máy chủ kiểm lại khi lưu (BR-01-02).
+   */
   cellOptions(model: TenancyModel, accounts: number): Observable<CellOption[]> {
+    const params = new HttpParams()
+      .set('tenancyModel', registryModel(model))
+      .set('limit', MAX_PAGE_LIMIT);
     return this.http
-      .get<{ items: CellOption[] }>('/api/v1/config/tenants/cell-options', {
-        params: { model, accounts },
-      })
-      .pipe(map((r) => r.items));
+      .get<{ items: RegistryCell[] }>(apiUrl('/registry/cells'), { params })
+      .pipe(
+        switchMap(({ items }) =>
+          items.every((c) => c.accountCount !== undefined)
+            ? of(cellOptions(items, model, accounts))
+            : this.list({ limit: 1 }).pipe(
+                map((page) =>
+                  cellOptions(
+                    items,
+                    model,
+                    accounts,
+                    Object.fromEntries(
+                      (page.summary?.cellLoads ?? []).map((l) => [l.cellCode, l.accountCount]),
+                    ),
+                  ),
+                ),
+              ),
+        ),
+      );
   }
 
-  /** Tên miền còn dùng được không (MSG-01-04); `exceptTenant` bỏ qua tên miền của chính tenant. */
-  domainAvailable(domain: string, exceptTenant?: string): Observable<boolean> {
-    let params = new HttpParams().set('domain', domain);
-    if (exceptTenant) params = params.set('tenant', exceptTenant);
-    return this.http
-      .get<{ available: boolean }>('/api/v1/config/tenants/domain-check', { params })
-      .pipe(map((r) => r.available));
-  }
-
-  /** Policy Pack đã phát hành theo luồng (bước 3). */
+  /**
+   * Phiên bản Policy Pack gốc toàn cục đã phát hành theo luồng (bước 3):
+   * `GET /policies/packs?flow=&origin=GOC_TOAN_CUC` của `policies.yaml`.
+   */
   policyPacks(flow: TenantFlow): Observable<PolicyPackOption[]> {
+    const params = new HttpParams()
+      .set('flow', flow)
+      .set('origin', 'GOC_TOAN_CUC')
+      .set('limit', MAX_PAGE_LIMIT);
     return this.http
-      .get<{ items: PolicyPackOption[] }>('/api/v1/config/policy-packs', {
-        params: { flow, status: 'DA_PHAT_HANH' },
-      })
-      .pipe(map((r) => r.items));
+      .get<{ items: PolicyPackWithVersions[] }>(apiUrl('/policies/packs'), { params })
+      .pipe(map((r) => policyPackOptions(r.items).filter((o) => o.flow === flow)));
   }
 
+  /** UI Pack có phiên bản đang phát hành (bước 3): `GET /ui/packs` của `config.yaml`. */
   uiPacks(): Observable<UiPackOption[]> {
     return this.http
-      .get<{ items: UiPackOption[] }>('/api/v1/config/ui-packs', {
-        params: { status: 'DA_PHAT_HANH' },
+      .get<{ items: UiPackSummary[] }>(apiUrl('/ui/packs'), {
+        params: { limit: MAX_PAGE_LIMIT },
       })
-      .pipe(map((r) => r.items));
+      .pipe(
+        map((r) =>
+          r.items
+            .filter((u) => !!u.currentVersionId)
+            .map((u) => ({
+              id: u.currentVersionId!,
+              name: u.name,
+              version: u.currentVersion ?? '',
+            })),
+        ),
+      );
   }
 
-  /** Cuối bước 3: khởi chạy saga cấp phát, 202 + `Location` (theo dõi bằng `JobTracker`). */
-  provision(id: string): Observable<string> {
+  /**
+   * Cuối bước 3: khởi chạy saga cấp phát, 202 + `Location: /api/v1/jobs/{id}` (theo dõi bằng
+   * `JobTracker`). Hợp đồng bắt buộc `If-Match` (428 khi thiếu).
+   */
+  provision(current: TenantOnboarding): Observable<string> {
     return this.http
-      .post(`/api/v1/config/tenants/${encodeURIComponent(id)}/provision`, null, {
+      .post(apiUrl('/config/tenants/{id}/provision', { id: current.id }), null, {
         observe: 'response',
+        headers: { 'If-Match': `"${current.rowVersion}"` },
       })
       .pipe(map((res: HttpResponse<unknown>) => jobLocation(res) ?? ''));
   }
 
-  /** Bước 4: thử luồng OIDC, metadata SAML hoặc bind LDAP; trả kết quả từng IdP. */
-  testIdp(id: string, idps: TenantIdp[]): Observable<TenantIdp[]> {
-    return this.http
-      .post<{ items: TenantIdp[] }>(`/api/v1/config/tenants/${encodeURIComponent(id)}/idp/test`, {
-        idps,
-      })
-      .pipe(map((r) => r.items));
+  /** Địa chỉ theo dõi job saga cấp phát gần nhất (`ConfigTenant.provisionJobId`). */
+  provisionLocation(jobId: string): string {
+    return apiUrl('/jobs/{id}', { id: jobId });
   }
 
-  /** Bước 6: kiểm tra tổng thể trước khi kích hoạt (QT-01 bước 9). */
-  checks(id: string): Observable<OnboardingCheck[]> {
-    return this.http
-      .get<{ items: OnboardingCheck[] }>(`/api/v1/config/tenants/${encodeURIComponent(id)}/checks`)
-      .pipe(map((r) => r.items));
+  /** Trạng thái job saga cấp phát gần nhất, để hiện MSG-01-07 khi mở lại hồ sơ đã bù trừ. */
+  provisionJob(jobId: string): Observable<Job> {
+    return this.http.get<Job>(this.provisionLocation(jobId));
   }
 
-  /** Kích hoạt: `SAN_SANG` → `DANG_VAN_HANH` (MFA bước lên, EVT-21). */
+  /**
+   * Bước 4: thử luồng OIDC hoặc liên kết SAML của một IdP đã lưu theo `idpAlias`; máy chủ ghi kết quả
+   * vào `TenantIdp.lastTestOk` để bước 6 kiểm "IdP hoạt động".
+   */
+  testIdp(id: string, idpAlias: string): Observable<TenantIdpTestResult> {
+    const body: TenantIdpTestRequest = { idpAlias };
+    return this.http.post<TenantIdpTestResult>(
+      apiUrl('/config/tenants/{id}/idp/test', { id }),
+      body,
+    );
+  }
+
+  /** Kích hoạt: `SAN_SANG` → `DANG_VAN_HANH` (MFA bước lên, EVT-21); thân tuỳ chọn. */
   activate(current: TenantOnboarding): Observable<TenantOnboarding> {
     return this.http.post<TenantOnboarding>(
-      `/api/v1/config/tenants/${encodeURIComponent(current.id)}/activate`,
+      apiUrl('/config/tenants/{id}/activate', { id: current.id }),
       null,
       { headers: { 'If-Match': `"${current.rowVersion}"` } },
     );

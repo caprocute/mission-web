@@ -6,6 +6,7 @@ import java.util.HexFormat;
 import java.util.Objects;
 import java.util.Set;
 import vn.viettel.okrkpi.appraisal.application.decision.DecisionSigningService;
+import vn.viettel.okrkpi.appraisal.application.prospect.ProspectBoardService;
 import vn.viettel.okrkpi.appraisal.application.review.ReviewService;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.SelfAssessmentService;
 import vn.viettel.okrkpi.shared.inbox.InboxEnvelope;
@@ -33,6 +34,7 @@ public class SelfAssessmentSignedListener {
   private final SelfAssessmentService service;
   private final ReviewService reviews;
   private final DecisionSigningService decisions;
+  private final ProspectBoardService prospects;
 
   public SelfAssessmentSignedListener(SelfAssessmentService service) {
     this(service, null);
@@ -44,13 +46,30 @@ public class SelfAssessmentSignedListener {
 
   public SelfAssessmentSignedListener(
       SelfAssessmentService service, ReviewService reviews, DecisionSigningService decisions) {
+    this(service, reviews, decisions, null);
+  }
+
+  /**
+   * Như trên, kèm danh sách phân nhóm triển vọng (CORE-04-12): yêu cầu ký nào đã ghi trên một danh
+   * sách thì thuộc danh sách đó, không phụ thuộc mục đích ký.
+   */
+  public SelfAssessmentSignedListener(
+      SelfAssessmentService service,
+      ReviewService reviews,
+      DecisionSigningService decisions,
+      ProspectBoardService prospects) {
     this.service = Objects.requireNonNull(service, "service");
     this.reviews = reviews;
     this.decisions = decisions;
+    this.prospects = prospects;
   }
 
   public void on(KySoDaHoanTat event, InboxEnvelope<?> envelope) {
     if (!SOURCE_MODULE.equals(event.getSourceModule())) {
+      return;
+    }
+    if (prospects != null
+        && prospects.onSigned(envelope.tenantId(), event.getSignRequestId(), event.getSignedAt())) {
       return;
     }
     if (PURPOSE.equals(event.getPurpose())) {

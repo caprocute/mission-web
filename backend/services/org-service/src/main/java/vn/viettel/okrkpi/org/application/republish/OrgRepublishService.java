@@ -30,6 +30,8 @@ import vn.vtokr.sys.v1.AuditEvent;
  *   <li>Thứ tự: {@code BAT_DAU}, đơn vị, nhân sự, phân công, {@code KET_THUC} (số thực thể theo loại, băm tổng theo
  *       bucket). Thứ tự chỉ được giữ trong một partition; bên nhận biết đã đủ khi đếm khớp {@code KET_THUC}.
  *   <li>Mỗi lần chạy, kể cả chạy thử và chạy lỗi, ghi một sự kiện {@code sys.audit.v1}.
+ *   <li>{@code --hashes-only} (DL-12): chỉ phát {@code BAT_DAU} và {@code KET_THUC}, không phát thực thể; bên nhận
+ *       so băm bucket của bản sao với {@code KET_THUC} rồi yêu cầu phát lại riêng bucket lệch.
  * </ul>
  * Chỉ dựng ở hồ sơ {@code republish} (xem {@code RepublishConfig}).
  */
@@ -124,7 +126,7 @@ public class OrgRepublishService {
   }
 
   private void emit(RepublishRequest req, UUID batchId, long[] seq, UUID id, long sourceVersion, Object entity) {
-    if (req.dryRun()) {
+    if (req.dryRun() || req.hashesOnly()) {
       return;
     }
     OrgBootstrap m = OrgBootstrap.newBuilder().setBatchId(batchId).setSeq(seq[0]++).setIsLast(false)

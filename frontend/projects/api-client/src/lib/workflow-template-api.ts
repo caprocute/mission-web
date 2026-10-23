@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { apiUrl } from './api-path';
+import { JobAccepted, acceptedJob } from './job-tracker';
 import { Job } from './models/job';
 import {
   WorkflowTemplate,
@@ -46,9 +47,14 @@ export class WorkflowTemplateApi {
     );
   }
 
-  /** Chạy bộ test kịch bản và thử tải rút gọn trên engine kiểm thử riêng: 202, đạt thì `DAT_KIEM_THU`. */
-  runTests(id: string): Observable<Job> {
-    return this.http.post<Job>(apiUrl('/workflow/templates/{id}/test', { id }), {});
+  /**
+   * Chạy bộ test kịch bản và thử tải rút gọn trên engine kiểm thử riêng: 202 + `Location` của job
+   * (theo dõi bằng `JobTracker`), đạt thì `DAT_KIEM_THU`.
+   */
+  runTests(id: string): Observable<JobAccepted> {
+    return this.http
+      .post<Job>(apiUrl('/workflow/templates/{id}/test', { id }), null, { observe: 'response' })
+      .pipe(map(acceptedJob));
   }
 
   /** Đề nghị phát hành: tạo merge request vào repo mẫu luồng, mẫu sang `CHO_PHE_DUYET`. */
@@ -60,13 +66,14 @@ export class WorkflowTemplateApi {
     );
   }
 
-  /** Phê duyệt bốn mắt (AAL2): 202, saga triển khai cuốn chiếu theo cell. */
-  approve(id: string, rowVersion: number, comment?: string): Observable<Job> {
-    return this.http.post<Job>(
-      apiUrl('/workflow/templates/{id}/approve', { id }),
-      comment ? { comment } : {},
-      ifMatch(rowVersion),
-    );
+  /** Phê duyệt bốn mắt (AAL2): 202 + `Location` của job, saga triển khai cuốn chiếu theo cell. */
+  approve(id: string, rowVersion: number, comment?: string): Observable<JobAccepted> {
+    return this.http
+      .post<Job>(apiUrl('/workflow/templates/{id}/approve', { id }), comment ? { comment } : {}, {
+        ...ifMatch(rowVersion),
+        observe: 'response',
+      })
+      .pipe(map(acceptedJob));
   }
 
   rollouts(id: string): Observable<WorkflowTemplateRolloutList> {

@@ -63,6 +63,18 @@ public class JdbcProfileParticipants implements ProfileParticipantsApi {
   }
 
   @Override
+  public Set<UUID> profilesOfUnits(TenantId tenant, PeriodId periodId, Collection<UUID> unitIds) {
+    String unitFilter = unitIds.isEmpty() ? "" : " AND org_unit_id IN (:ids)";
+    return query(
+        tenant,
+        "SELECT id FROM appraisal.appraisal_profile WHERE tenant_id = :tenant"
+            + " AND period_id = :period"
+            + unitFilter,
+        periodId,
+        unitIds);
+  }
+
+  @Override
   public Map<UUID, ProfileSubject> subjectsOf(TenantId tenant, Collection<UUID> profileIds) {
     if (profileIds.isEmpty()) {
       return Map.of();

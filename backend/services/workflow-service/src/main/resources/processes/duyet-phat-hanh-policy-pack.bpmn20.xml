@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DV-06-04 · Luồng duyệt phát hành Policy Pack (QT-15; SCR-1504) · ADR-04 tầng 2. TL-02b chưa đặt tên mẫu cho luồng này,
+  tên `duyet-phat-hanh-policy-pack` là suy luận theo quy ước duyet-... (wiki trang 14). Người phê duyệt khác người soạn
+  (BR-15-09), bước xong khi nhận EVT-18 PHAT_HANH_POLICY hoặc lõi báo từ chối; sau đó gọi lõi khởi chạy saga phát hành
+  (CORE-05-10, khung DV-06-05) và chờ EVT-13 PolicyPackDaPhatHanh.
+  Một định nghĩa dùng chung cho mọi tenant (không gắn tenantId); tham số theo tenant nằm ở flowable.wf_binding và
+  được chụp vào biến keHoachBuoc lúc khởi tạo. Thao tác nghiệp vụ (có step-up, ký số) diễn ra ở API của lõi; tiến
+  trình giữ hộp việc, hạn theo ngày làm việc, nhắc trước hạn, chuyển cấp khi quá hạn, giao việc có tách vai trò và
+  chờ ký số (EVT-18), rồi đi tiếp khi lõi báo bước đã xong. Listener ${lapLichBuoc} chỉ tính toán trên bản sao cục bộ.
+  Khoá nghiệp vụ: POLICY_PACK_VERSION:<versionId>.
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="urn:vt-okrkpi:wf">
+  <message id="policyPackDaPhatHanh" name="policy-pack-da-phat-hanh"/>
+  <process id="duyet-phat-hanh-policy-pack" name="Duyệt phát hành bộ quy tắc chấm điểm (suy luận)" isExecutable="true">
+    <documentation>Người phê duyệt khác người soạn phê duyệt phát hành phiên bản bộ quy tắc chấm điểm, sau đó hệ thống chạy phát hành và chờ phát hành xong.</documentation>
+    <startEvent id="start"/>
+    <sequenceFlow id="f1-start-chon_pheDuyet" sourceRef="start" targetRef="chon_pheDuyet"/>
+    <serviceTask id="chon_pheDuyet" name="Chọn người phê duyệt khác người soạn" flowable:type="external-worker" flowable:topic="wf-chon-nguoi"/>
+    <sequenceFlow id="f2-chon_pheDuyet-pheDuyet" sourceRef="chon_pheDuyet" targetRef="pheDuyet"/>
+    <userTask id="pheDuyet" name="${tieuDe}"
+              flowable:candidateGroups="${nhomBuoc}"
+              flowable:assignee="${nguoiBuoc}"
+              flowable:dueDate="${hanBuoc}">
+      <documentation>Phê duyệt phát hành bộ quy tắc chấm điểm</documentation>
+      <extensionElements>
+        <flowable:executionListener event="start" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </userTask>
+    <boundaryEvent id="nhac_pheDuyet" attachedToRef="pheDuyet" cancelActivity="false">
+      <timerEventDefinition><timeDate>${nhacBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="quaHan_pheDuyet" attachedToRef="pheDuyet" cancelActivity="true">
+      <timerEventDefinition><timeDate>${hanBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f3-nhac_pheDuyet-nhacViec" sourceRef="nhac_pheDuyet" targetRef="nhacViec"/>
+    <sequenceFlow id="f4-quaHan_pheDuyet-pheDuyet" sourceRef="quaHan_pheDuyet" targetRef="pheDuyet">
+      <extensionElements>
+        <flowable:executionListener event="take" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="f5-pheDuyet-kq_pheDuyet" sourceRef="pheDuyet" targetRef="kq_pheDuyet"/>
+    <exclusiveGateway id="kq_pheDuyet" default="f-pheDuyet-phatHanh"/>
+    <sequenceFlow id="f6-kq_pheDuyet-tuChoi" sourceRef="kq_pheDuyet" targetRef="tuChoi">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ketQua == 'TU_CHOI'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-pheDuyet-phatHanh" sourceRef="kq_pheDuyet" targetRef="khoiChayPhatHanh"/>
+    <serviceTask id="khoiChayPhatHanh" name="Lõi: khởi chạy saga phát hành" flowable:type="external-worker" flowable:topic="core-policy-pack-publish"/>
+    <sequenceFlow id="f8-khoiChayPhatHanh-kiemPhatHanh" sourceRef="khoiChayPhatHanh" targetRef="kiemPhatHanh"/>
+    <exclusiveGateway id="kiemPhatHanh" default="f-kiemPhatHanh-cho"/>
+    <sequenceFlow id="f9-kiemPhatHanh-daPhatHanh" sourceRef="kiemPhatHanh" targetRef="daPhatHanh">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${daPhatHanh}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-kiemPhatHanh-cho" sourceRef="kiemPhatHanh" targetRef="choPhatHanh"/>
+    <intermediateCatchEvent id="choPhatHanh" name="Chờ phát hành xong">
+      <messageEventDefinition messageRef="policyPackDaPhatHanh"/>
+    </intermediateCatchEvent>
+    <sequenceFlow id="f11-choPhatHanh-daPhatHanh" sourceRef="choPhatHanh" targetRef="daPhatHanh"/>
+    <endEvent id="tuChoi" name="Không phê duyệt"/>
+    <endEvent id="daPhatHanh" name="Đã phát hành"/>
+    <serviceTask id="nhacViec" name="Nhắc người làm trước hạn" flowable:type="external-worker" flowable:topic="notify-remind"/>
+    <sequenceFlow id="f12-nhacViec-nhacKetThuc" sourceRef="nhacViec" targetRef="nhacKetThuc"/>
+    <endEvent id="nhacKetThuc" name="Đã nhắc"/>
+  </process>
+</definitions>

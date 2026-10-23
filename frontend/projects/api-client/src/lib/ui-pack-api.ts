@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { apiUrl } from './api-path';
+import { JobAccepted, acceptedJob } from './job-tracker';
 import { Job } from './models/job';
 import { UiFormVersion } from './models/ui-form';
 import {
@@ -78,22 +79,30 @@ export class UiPackApi {
     });
   }
 
-  /** Gửi duyệt: máy chủ chạy kiểm tra tự động rồi chuyển chờ duyệt hoặc trả về nháp (202). */
-  submit(r: UiPackRef, rowVersion: number): Observable<Job> {
-    return this.http.post<Job>(
-      apiUrl('/ui/packs/{id}/versions/{v}/submit', r),
-      {},
-      ifMatch(rowVersion),
-    );
+  /**
+   * Gửi duyệt: máy chủ chạy kiểm tra tự động rồi chuyển chờ duyệt hoặc trả về nháp; 202 + `Location`
+   * của job, theo dõi bằng `JobTracker`.
+   */
+  submit(r: UiPackRef, rowVersion: number): Observable<JobAccepted> {
+    return this.http
+      .post<Job>(apiUrl('/ui/packs/{id}/versions/{v}/submit', r), null, {
+        ...ifMatch(rowVersion),
+        observe: 'response',
+      })
+      .pipe(map(acceptedJob));
   }
 
-  /** Duyệt và phát hành (AAL2, người duyệt khác người soạn); 202 rồi phát EVT-23. */
-  publish(r: UiPackRef, rowVersion: number, comment?: string): Observable<Job> {
-    return this.http.post<Job>(
-      apiUrl('/ui/packs/{id}/versions/{v}/publish', r),
-      comment ? { comment } : {},
-      ifMatch(rowVersion),
-    );
+  /**
+   * Duyệt và phát hành (AAL2, người duyệt khác người soạn): 202 + `Location` của job `RENDER`, theo
+   * dõi bằng `JobTracker`; xong thì phát EVT-23.
+   */
+  publish(r: UiPackRef, rowVersion: number, comment?: string): Observable<JobAccepted> {
+    return this.http
+      .post<Job>(apiUrl('/ui/packs/{id}/versions/{v}/publish', r), comment ? { comment } : {}, {
+        ...ifMatch(rowVersion),
+        observe: 'response',
+      })
+      .pipe(map(acceptedJob));
   }
 
   reject(r: UiPackRef, rowVersion: number, comment: string): Observable<UiPackVersion> {
@@ -108,7 +117,7 @@ export class UiPackApi {
   activate(r: UiPackRef, rowVersion: number): Observable<UiPackVersion> {
     return this.http.post<UiPackVersion>(
       apiUrl('/ui/packs/{id}/versions/{v}/activate', r),
-      {},
+      null,
       ifMatch(rowVersion),
     );
   }

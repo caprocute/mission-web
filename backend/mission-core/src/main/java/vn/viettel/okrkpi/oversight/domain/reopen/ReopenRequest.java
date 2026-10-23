@@ -61,6 +61,33 @@ public record ReopenRequest(
     return with(ReopenStatus.DA_DONG, executedAt, why, workflow.withPending(null), newVersion);
   }
 
+  /** Kỳ đã khoá lại (EVT-09): {@code DA_DONG} với {@code relocked_at}. */
+  public ReopenRequest relocked(Instant at, int newVersion) {
+    return new ReopenRequest(
+        id,
+        periodId,
+        periodBucket,
+        code,
+        scope,
+        scopeIds,
+        items,
+        units,
+        basis,
+        auditKind,
+        reason,
+        requestedBy,
+        approvalsRequired,
+        ReopenStatus.DA_DONG,
+        openWorkingDays,
+        openUntil,
+        executedAt,
+        at,
+        cancelReason,
+        workflow,
+        createdAt,
+        newVersion);
+  }
+
   /** Bản sao với trạng thái, thời điểm thực hiện, lý do huỷ, bốn mắt và phiên bản mới. */
   public ReopenRequest with(
       ReopenStatus newStatus,

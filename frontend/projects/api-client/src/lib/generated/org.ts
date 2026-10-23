@@ -622,7 +622,7 @@ export interface paths {
     };
     /**
      * Khoá phục hồi của tổ chức đang hiệu lực
-     * @description Mỗi khoá nội dung C3 luôn được bọc thêm cho khoá phục hồi của tenant (ADR-27). Người gửi lấy khoá công khai phục hồi ở đây; `id` là mã người nhận đại diện dùng trong bản bọc. Chưa khai báo trả 404.
+     * @description Mỗi khoá nội dung C3 luôn được bọc thêm cho khoá phục hồi của tenant (ADR-27). Người gửi lấy khoá công khai phục hồi ở đây; `id` là mã người nhận đại diện dùng trong bản bọc. Chưa khai báo trả 404. Tài khoản dịch vụ (`service_client`, tenant trong `X-Tenant-Id`) của mission-core đọc để đồng bộ cấu hình tenant `e2ee.recovery-key`.
      */
     get: operations['getRecoveryKey'];
     put?: never;
@@ -668,6 +668,28 @@ export interface paths {
      * @description Ghi lần phục hồi đã làm ở máy trạm cách ly: ít nhất ba người giữ mảnh của khoá phục hồi cùng có mặt, khoá nội dung của đối tượng được bọc lại cho khoá thiết bị mới của người nhận. Máy chủ chỉ lưu nhật ký (không nhận mảnh khoá hay khoá riêng), ký bản ghi và ghi sổ cái.
      */
     post: operations['recordE2eeRecovery'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/org/e2ee/recoveries/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Một biên bản khôi phục khoá (đối chiếu nội bộ)
+     * @description mission-core đọc biên bản khôi phục để đối chiếu trước khi nhận khoá bọc khôi phục (`restoreTaskSecretKeyWrap`, `restoreEvidenceKeyWrap`). Chỉ tài khoản dịch vụ (`service_client`, tenant trong `X-Tenant-Id`); người dùng xem nhật ký qua `listE2eeRecoveries`.
+     */
+    get: operations['getE2eeRecovery'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -2585,6 +2607,32 @@ export interface operations {
       404: components['responses']['NotFound'];
       422: components['responses']['UnprocessableEntity'];
       503: components['responses']['ServiceUnavailable'];
+      default: components['responses']['Problem'];
+    };
+  };
+  getE2eeRecovery: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Biên bản khôi phục. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecoveryRecord'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       default: components['responses']['Problem'];
     };
   };
