@@ -35,6 +35,20 @@ QA-04 đến QA-07 chỉ đổi `trangThai` khi hành trình đã viết và ch�
 
 Mỗi tệp hành trình ghi mã `HT-xx` trong tên `test(...)` để reporter đối chiếu được với danh mục. Dữ liệu đầu vào được nạp bằng API từ `data/seed/e2e/`, không chèn thẳng vào CSDL, và không dùng dữ liệu cá nhân thật (SEC-52). Mật khẩu và khoá OTP của tài khoản thử chỉ đọc từ biến môi trường.
 
+## Chạy với server dev qua hầm SSH
+
+Máy chạy kiểm thử mở hầm bằng `scripts/dev-tunnel.sh start` (danh sách cổng mặc định đã gồm APISIX `35000` và Keycloak `35080`), export biến môi trường rồi chạy `npm run e2e:prepare && npm run e2e:he-thong` trong `frontend/`. Kịch bản không tự đọc tệp `.env`, nên nạp bằng `set -a; . ../.env; set +a` hoặc export từng biến.
+
+| Biến | Giá trị qua hầm | Ghi chú |
+|---|---|---|
+| `E2E_APISIX_URL` | `http://127.0.0.1:35000` | Bắt buộc |
+| `E2E_KC_URL` | `http://127.0.0.1:35080` | Bắt buộc, phải đúng `127.0.0.1` để khớp `iss` của token (`KEYCLOAK_PUBLIC_URL`); dùng `localhost` thì máy chủ trả 401 |
+| `E2E_PORT` | `4200` | Client `mission-web` của realm chỉ cho redirect URI cổng này |
+| `KC_TEST_USER_PASSWORD`, `KC_TEST_OTP_SECRET` | lấy từ người phụ trách | Bắt buộc, không ghi vào repo |
+| `E2E_KAFKA_UI_URL`, `E2E_KAFKA_CLUSTER` | để trống | Compose dev chưa có kafka-ui, ca kiểm sự kiện ghi "Chờ" |
+
+Tenant mới trên dev chưa có kỳ đánh giá thì cây mục tiêu báo chưa có kỳ đang mở; chạy `data/seed/config/nap_ky_hien_hanh.py` (xem `data/seed/README.md`) trước lần chạy đầu.
+
 ## Kiểm danh mục khớp hợp đồng
 
 Chạy lệnh sau từ gốc repo. Lệnh kiểm mỗi `operationId` có trong hợp đồng, mỗi QT-00 đến QT-18 có hành trình web, và mỗi QT có ít nhất một hành trình chế độ cao tuổi. Lệnh cũng in các EVT chưa có hành trình nào phủ.

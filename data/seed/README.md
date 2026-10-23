@@ -38,7 +38,7 @@ python3 nap_ky_hien_hanh.py --kiem               # in kỳ đang bao trùm hôm 
 python3 nap_ky_hien_hanh.py                      # tạo quý hiện hành nếu tenant chưa có kỳ đang mở
 ```
 
-Tenant mới chưa có kỳ nào, nên màn hình cây mục tiêu báo chưa có kỳ đánh giá đang mở (máy chủ trả 404 cho `GET /okr/tree` không kèm kỳ, đúng hợp đồng). Bộ nạp gọi `listPeriods` rồi `createPeriod` cho quý chứa ngày hôm nay; kỳ mới ở trạng thái đang mở và chạy lại không tạo trùng. Trang chủ không cần bước nạp: khi tenant chưa phát hành UI Pack, `GET /ui/layouts/home` trả bố cục của nội dung khởi đầu mặc định.
+Tenant mới chưa có kỳ nào, nên màn hình cây mục tiêu báo chưa có kỳ đánh giá đang mở (máy chủ trả 404 cho `GET /okr/tree` không kèm kỳ, đúng hợp đồng). Bộ nạp gọi `listPeriods` rồi `createPeriod` cho quý chứa ngày hôm nay; kỳ mới ở trạng thái đang mở và chạy lại không tạo trùng. Trên server dev không cần tự lấy token: `infra/dev/scripts/seed-ky-hien-hanh.sh` đăng nhập quản trị đơn vị thử rồi gọi bộ nạp qua APISIX, và `deploy-backend.sh` gọi nó sau mỗi lần triển khai lại mission-core. Trang chủ không cần bước nạp: khi tenant chưa phát hành UI Pack, `GET /ui/layouts/home` trả bố cục của nội dung khởi đầu mặc định.
 
 ### Danh mục công việc mẫu theo khối
 
