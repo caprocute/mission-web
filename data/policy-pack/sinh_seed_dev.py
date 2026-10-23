@@ -3,7 +3,7 @@
 Hợp đồng policies.yaml chưa có API tạo gói (chỉ tạo phiên bản cho gói đã có, `importPack` của mission-core chưa
 có nơi gọi), nên tenant dev mới không có gói nào để soạn, kiểm thử và phát hành (QT-15, SCR-1501..SCR-1503).
 Tệp SQL sinh ra làm đúng việc của `importPack` cho tenant thử: tạo gói và phiên bản 2.1.0 ở trạng thái bản
-nháp với manifest là `policy.yaml` đổi sang JSON, rồi thêm ba bảng quyết định từ `dmn/` (rules_json theo dạng
+nháp với manifest là `policy.yaml` đổi sang JSON và quy tắc dựng từ `definitions` (như ManifestRuleImport), rồi thêm ba bảng quyết định từ `dmn/` (rules_json theo dạng
 mà PolicyDecisionTableService lưu) và bộ ca mẫu `tests/bo-ca-mau-gia-lap.yaml` (ghép giá trị mặc định như
 GoldenSuiteYaml) ở trạng thái đã duyệt, không ký số. Chỉ dùng cho dev, không dùng cho môi trường thật.
 
@@ -13,6 +13,7 @@ Cách chạy (từ gốc repo, cần PyYAML), rồi commit tệp SQL:
 import hashlib
 import json
 import os
+import re
 import sys
 import xml.etree.ElementTree as ET
 
@@ -28,6 +29,7 @@ PACK_ID = "d0000000-0000-4000-8000-0000000c0001"
 VERSION_ID = "d0000000-0000-4000-8000-0000000c0021"
 NS = {"d": "https://www.omg.org/spec/DMN/20211108/MODEL/"}
 NGUON_CA = {"KHACH_HANG", "BA", "VAN_BAN"}
+THAM_SO = re.compile(r"tham_so\.([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)")
 
 
 def q(v):
@@ -82,6 +84,40 @@ def bang(meta):
     }
 
 
+def quy_tac(manifest):
+    """Quy tắc của phiên bản dựng từ definitions như ManifestRuleImport của mission-core khi nhập gói."""
+    params = manifest.get("params") or {}
+    out, seen = [], set()
+    for block in ("definitions", "definitions_nam"):
+        for defs in (manifest.get(block) or {}).values():
+            for key, d in (defs or {}).items():
+                if not isinstance(d, dict) or key in seen:
+                    continue
+                seen.add(key)
+                expr = str(d.get("expression")).strip()
+                used = {}
+                for m in THAM_SO.finditer(expr):
+                    path = m.group(1)
+                    while path:
+                        if isinstance(params.get(path), dict):
+                            used.setdefault(path, params[path].get("mac_dinh"))
+                            break
+                        path = path.rpartition(".")[0]
+                out.append(
+                    {
+                        "key": key,
+                        "expr": expr,
+                        "type": str(d.get("result_type")),
+                        "rounding": d.get("rounding") if isinstance(d.get("rounding"), dict) else {},
+                        "legal": str(d.get("legal_ref") or "")[:200],
+                        "order": int(d.get("eval_order") or 0),
+                        "params": used,
+                        "overridable": d.get("overridable") is True,
+                    }
+                )
+    return out
+
+
 def ca_mau(doc):
     """Ghép mặc định theo `loai` và cho từng phần tử `nhiem_vu`, cùng dạng {loai, tham_so, dau_vao}."""
     md = doc.get("mac_dinh") or {}
@@ -117,9 +153,10 @@ def main():
     w(
         "-- SINH TỰ ĐỘNG bởi data/policy-pack/sinh_seed_dev.py từ data/policy-pack/khoi-dang/quy-dinh-moi, không sửa tay.\n"
         "-- Policy Pack giả lập luồng Đảng cho tenant thử (MOD-05, QT-15, SCR-1501..SCR-1503): hợp đồng chưa có API\n"
-        "-- tạo gói nên seed làm việc của importPack (gói + phiên bản nháp 2.1.0, manifest từ policy.yaml), thêm ba\n"
-        "-- bảng quyết định từ dmn/ và bộ ca mẫu đã duyệt, chưa ký số. Chỉ dữ liệu dev. Chạy lại không sinh bản ghi\n"
-        "-- trùng và không đụng phiên bản đã đóng băng (chỉ chèn dòng còn thiếu). Nạp bởi scripts/seed-org.sh.\n"
+        "-- tạo gói nên seed làm việc của importPack (gói + phiên bản nháp 2.1.0, manifest từ policy.yaml, quy tắc từ\n"
+        "-- definitions), thêm ba bảng quyết định từ dmn/ và bộ ca mẫu đã duyệt, chưa ký số. Chỉ dữ liệu dev. Chạy\n"
+        "-- lại không sinh bản ghi trùng và không đụng phiên bản đã đóng băng (chỉ chèn dòng còn thiếu). Nạp bởi\n"
+        "-- scripts/seed-org.sh.\n"
         "BEGIN;\n"
     )
     w(
@@ -140,6 +177,18 @@ def main():
     ver = (
         f"(SELECT id FROM policy.policy_pack_version WHERE policy_pack_id = {pack} AND version = {q(meta['version'])})"
     )
+    for i, r in enumerate(quy_tac(manifest)):
+        w(
+            "INSERT INTO policy.policy_rule (id, tenant_id, created_by, updated_by, policy_pack_version_id, rule_key, expression,\n"
+            "                                result_type, rounding, legal_ref, eval_order, params_json, overridable)\n"
+            f"SELECT '{uid(0xC2001 + i)}', '{TENANT}', '{ACTOR}', '{ACTOR}', v.id, {q(r['key'])}, {q(r['expr'])},\n"
+            f"       {q(r['type'])}, {q(r['rounding'])}::jsonb, {q(r['legal'])}, {r['order']}, {q(r['params'])}::jsonb, "
+            f"{'true' if r['overridable'] else 'false'}\n"
+            f"FROM (SELECT {ver} AS id) v\n"
+            f"WHERE v.id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM policy.policy_rule x WHERE x.policy_pack_version_id = v.id\n"
+            f"                                       AND x.rule_key = {q(r['key'])})\n"
+            "  AND (SELECT status FROM policy.policy_pack_version WHERE id = v.id) = 'NHAP';\n\n"
+        )
     for i, t in enumerate(tables):
         w(
             "INSERT INTO policy.decision_table (id, tenant_id, created_by, updated_by, policy_pack_version_id, table_key,\n"

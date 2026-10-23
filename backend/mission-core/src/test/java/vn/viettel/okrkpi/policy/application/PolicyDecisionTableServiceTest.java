@@ -270,7 +270,7 @@ class PolicyDecisionTableServiceTest {
             "COLLECT",
             "x".repeat(201),
             List.of(new Column("diem", null, "date"), new Column("diem", null, "number")),
-            List.of(new Row(cells, "XUAT_SAC", " ", "y".repeat(201))),
+            List.of(new Row(cells, "Xuất sắc", " ", "y".repeat(201))),
             tooLong);
     assertThatThrownBy(() -> save(p, 0, bad))
         .isInstanceOf(BusinessException.class)
@@ -297,6 +297,41 @@ class PolicyDecisionTableServiceTest {
                 assertThat(((BusinessException) t).errors())
                     .extracting(e -> e.field())
                     .contains("hitPolicy", "inputs", "rules"));
+  }
+
+  @Test
+  void tableWithGeneralOutputIsStoredAndMixedOutputsRejected() {
+    PolicyPack p = pack();
+    version(p, PolicyVersionStatus.NHAP, null);
+    List<Column> cols = List.of(new Column("ty_le", null, "number"));
+    TableEdit tieuChi =
+        new TableEdit(
+            "FIRST",
+            "QĐ Điều 10",
+            cols,
+            List.of(
+                new Row(Map.of("ty_le", ">= 0.9"), "THUC_HIEN_TOT", "Điều 10", "Từ 90%"),
+                new Row(Map.of(), "KHONG_DAM_BAO", "Điều 10", "Còn lại")),
+            null);
+    assertThat(save(p, 0, tieuChi).view().spec().rows())
+        .extracting(Row::ratingLevel)
+        .containsExactly("THUC_HIEN_TOT", "KHONG_DAM_BAO");
+
+    TableEdit mixed =
+        new TableEdit(
+            "FIRST",
+            "QĐ Điều 10",
+            cols,
+            List.of(
+                new Row(Map.of("ty_le", ">= 0.9"), "HTXSNV", "Điều 10", "Từ 90%"),
+                new Row(Map.of(), "KHONG_DAM_BAO", "Điều 10", "Còn lại")),
+            null);
+    assertThatThrownBy(() -> save(p, 0, mixed))
+        .satisfies(
+            t ->
+                assertThat(((BusinessException) t).errors())
+                    .extracting(e -> e.field())
+                    .contains("rules"));
   }
 
   @Test
