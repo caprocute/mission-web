@@ -238,11 +238,17 @@ async function chonPhanCongChinh(page: Page) {
 export async function spaGoto(page: Page, url: string) {
   // So đường dẫn, bỏ tham số: màn hình tự thêm tham số (ví dụ `?period=`) vẫn là cùng một tuyến
   if (new URL(page.url()).pathname === new URL(url, page.url()).pathname) {
+    // Đánh dấu nội dung đang hiện rồi chờ nó bị gỡ: nếu chuyển tiếp ngay, router có thể huỷ lượt về
+    // trang chủ chưa xong và dùng lại component cũ (màn hình không tải lại dữ liệu)
     await page.evaluate(() => {
+      document
+        .querySelectorAll('main#main router-outlet ~ *')
+        .forEach((e) => e.setAttribute('data-e2e-cu', ''));
       history.pushState(null, '', '/');
       dispatchEvent(new PopStateEvent('popstate', { state: null }));
     });
     await page.waitForURL((u) => u.pathname === '/' || u.pathname !== new URL(url, u).pathname);
+    await page.waitForFunction(() => !document.querySelector('main#main [data-e2e-cu]'));
     await main(page).waitFor();
   }
   await page.evaluate((u) => {
