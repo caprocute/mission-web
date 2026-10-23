@@ -83,7 +83,7 @@ with_pass() {
 }
 
 remote() {
-  with_pass ssh "${SSH_OPTS[@]}" "${TARGET}" "$@"
+  with_pass ssh ${SSH_OPTS[@]+"${SSH_OPTS[@]}"} "${TARGET}" "$@"
 }
 
 profile_args() {
@@ -119,7 +119,7 @@ check_env_keys() {
 
 # Trạng thái container trên máy chủ cho sync_preflight.py: mounts và cổng, không có biến môi trường.
 server_state() {
-  with_pass ssh "${SSH_OPTS[@]}" "${TARGET}" 'bash -s' <<'REMOTE'
+  with_pass ssh ${SSH_OPTS[@]+"${SSH_OPTS[@]}"} "${TARGET}" 'bash -s' <<'REMOTE'
 ids="$(docker ps -aq --filter label=com.docker.compose.project=mission-dev)"
 if [ -n "${ids}" ]; then
   # shellcheck disable=SC2086
@@ -177,12 +177,12 @@ copy_files() {
     done
     [[ "${dry}" == "yes" ]] && args+=(--dry-run)
     echo "==> Chép infra/dev (commit ${commit}) bằng rsync$([[ "${dry}" == "yes" ]] && echo ' (thử, không ghi)')"
-    with_pass rsync "${args[@]}" -e "ssh ${SSH_OPTS[*]}" "${INFRA_DIR}/" "${TARGET}:${DEV_SERVER_INFRA_DIR}/"
+    with_pass rsync ${args[@]+"${args[@]}"} -e "ssh ${SSH_OPTS[*]-}" "${INFRA_DIR}/" "${TARGET}:${DEV_SERVER_INFRA_DIR}/"
     local d sib=(-rlptzv)
     [[ "${dry}" == "yes" ]] && sib+=(--dry-run)
-    for d in "${SIBLING_DIRS[@]}"; do
+    for d in ${SIBLING_DIRS[@]+"${SIBLING_DIRS[@]}"}; do
       echo "==> Chép infra/${d} sang $(dirname "${DEV_SERVER_INFRA_DIR}")/${d}"
-      with_pass rsync "${sib[@]}" -e "ssh ${SSH_OPTS[*]}" \
+      with_pass rsync ${sib[@]+"${sib[@]}"} -e "ssh ${SSH_OPTS[*]-}" \
         "${INFRA_DIR}/../${d}/" "${TARGET}:$(dirname "${DEV_SERVER_INFRA_DIR}")/${d}/"
     done
   else
@@ -191,7 +191,7 @@ copy_files() {
     parent="$(dirname "${DEV_SERVER_INFRA_DIR}")"
     if [[ "${dry}" == "yes" ]]; then
       (cd "${INFRA_DIR}" && git ls-files)
-      for d in "${SIBLING_DIRS[@]}"; do
+      for d in ${SIBLING_DIRS[@]+"${SIBLING_DIRS[@]}"}; do
         (cd "${INFRA_DIR}/.." && git ls-files -- "${d}")
       done
       return 0
@@ -199,7 +199,7 @@ copy_files() {
     # git ls-files in đường dẫn tương đối với thư mục hiện tại; tar của macOS và GNU đều nhận --null -T.
     (cd "${INFRA_DIR}" && git ls-files -z | tar --null -T - -cf -) \
       | remote "mkdir -p $(printf '%q' "${DEV_SERVER_INFRA_DIR}") && tar -C $(printf '%q' "${DEV_SERVER_INFRA_DIR}") -xf -"
-    for d in "${SIBLING_DIRS[@]}"; do
+    for d in ${SIBLING_DIRS[@]+"${SIBLING_DIRS[@]}"}; do
       (cd "${INFRA_DIR}/.." && git ls-files -z -- "${d}" | tar --null -T - -cf -) \
         | remote "tar -C $(printf '%q' "${parent}") -xf -"
     done

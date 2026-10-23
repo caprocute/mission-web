@@ -83,7 +83,7 @@ with_pass() {
 }
 
 remote() {
-  with_pass ssh "${SSH_OPTS[@]}" "${TARGET}" "$@"
+  with_pass ssh ${SSH_OPTS[@]+"${SSH_OPTS[@]}"} "${TARGET}" "$@"
 }
 
 # Chạy một script của infra/dev/scripts trên máy chủ, trong bản repo mới.
@@ -136,7 +136,7 @@ check_compose_profiles() {
     return 0
   fi
   local p args=() bad=0
-  for p in "${ALL_PROFILES[@]}"; do
+  for p in ${ALL_PROFILES[@]+"${ALL_PROFILES[@]}"}; do
     if (cd "${INFRA_DIR}" && docker compose -p "${PROJECT}" --env-file .env.example --profile core --profile "${p}" config -q 2>/dev/null); then
       printf '  %-10s hợp lệ\n' "${p}"
     else
@@ -145,7 +145,7 @@ check_compose_profiles() {
     fi
     args+=(--profile "${p}")
   done
-  if (cd "${INFRA_DIR}" && docker compose -p "${PROJECT}" --env-file .env.example "${args[@]}" config -q 2>/dev/null); then
+  if (cd "${INFRA_DIR}" && docker compose -p "${PROJECT}" --env-file .env.example ${args[@]+"${args[@]}"} config -q 2>/dev/null); then
     echo "  mọi profile cùng lúc: hợp lệ"
   else
     echo "  mọi profile cùng lúc: LỖI"
@@ -153,16 +153,16 @@ check_compose_profiles() {
   fi
   [[ ${bad} -eq 0 ]] || die "compose config lỗi; chạy lại lệnh trên không có 2>/dev/null để xem chi tiết"
   local s known
-  known="$(cd "${INFRA_DIR}" && docker compose -p "${PROJECT}" --env-file .env.example "${args[@]}" config --services 2>/dev/null)"
+  known="$(cd "${INFRA_DIR}" && docker compose -p "${PROJECT}" --env-file .env.example ${args[@]+"${args[@]}"} config --services 2>/dev/null)"
   local keep=()
-  for s in "${SERVICES[@]}"; do
+  for s in ${SERVICES[@]+"${SERVICES[@]}"}; do
     if grep -qx "${s}" <<<"${known}"; then
       keep+=("${s}")
     else
       echo "  Cảnh báo: compose chưa có dịch vụ '${s}' ở commit này; bỏ khỏi lần triển khai."
     fi
   done
-  SERVICES=("${keep[@]}")
+  SERVICES=(${keep[@]+"${keep[@]}"})
 }
 
 # Dựng jar trên máy trạm khi có JDK 21 và Node (gộp hợp đồng OpenAPI); jar độc lập kiến trúc nên ảnh vẫn dựng
@@ -178,7 +178,7 @@ jar_mode() {
 }
 
 java_modules() {
-  IN_MO_DUN=1 "${SCRIPT_DIR}/deploy-backend.sh" "${SERVICES[@]}" 2>/dev/null || true
+  IN_MO_DUN=1 "${SCRIPT_DIR}/deploy-backend.sh" ${SERVICES[@]+"${SERVICES[@]}"} 2>/dev/null || true
 }
 
 # --- kiểm trên máy chủ ----------------------------------------------------------
@@ -219,7 +219,7 @@ check_images() {
   fi
   local p args=() images
   for p in ${DEV_SERVER_PROFILES}; do args+=(--profile "${p}"); done
-  images="$(cd "${INFRA_DIR}" && docker compose -p "${PROJECT}" --env-file .env.example "${args[@]}" config --images 2>/dev/null |
+  images="$(cd "${INFRA_DIR}" && docker compose -p "${PROJECT}" --env-file .env.example ${args[@]+"${args[@]}"} config --images 2>/dev/null |
     grep -v '^mission' | sort -u)"
   [[ -n "${images}" ]] || return 0
   # shellcheck disable=SC2016
@@ -264,9 +264,9 @@ build_and_copy_jars() {
   local modules m
   mapfile -t modules < <(java_modules)
   [[ ${#modules[@]} -gt 0 ]] || return 0
-  echo "==> Dựng jar trên máy trạm: ${modules[*]}"
-  (cd "${REPO_ROOT}/backend" && ./mvnw -B -q -pl "$(IFS=,; echo "${modules[*]}")" -am package -DskipTests)
-  for m in "${modules[@]}"; do
+  echo "==> Dựng jar trên máy trạm: ${modules[*]-}"
+  (cd "${REPO_ROOT}/backend" && ./mvnw -B -q -pl "$(IFS=,; echo "${modules[*]-}")" -am package -DskipTests)
+  for m in ${modules[@]+"${modules[@]}"}; do
     echo "  chép backend/${m}/target/*.jar"
     (cd "${REPO_ROOT}/backend/${m}" && tar -cf - target/*.jar) |
       remote "mkdir -p $(printf '%q' "${DEV_SERVER_REPO_DIR}/backend/${m}") && rm -f $(printf '%q' "${DEV_SERVER_REPO_DIR}/backend/${m}")/target/*.jar && tar -C $(printf '%q' "${DEV_SERVER_REPO_DIR}/backend/${m}") -xf -"
@@ -303,8 +303,8 @@ cmd_apply() {
     build_and_copy_jars
     prefix="SKIP_JARS=1"
   fi
-  echo "==> deploy-backend.sh ${SERVICES[*]} trên máy chủ"
-  remote_script "${prefix}" deploy-backend.sh "${SERVICES[@]}"
+  echo "==> deploy-backend.sh ${SERVICES[*]-} trên máy chủ"
+  remote_script "${prefix}" deploy-backend.sh ${SERVICES[@]+"${SERVICES[@]}"}
   echo "==> Dữ liệu thử và kiểm thử khói"
   remote_script "" seed-org.sh || echo "  Cảnh báo: seed-org.sh lỗi (cần schema org của org-service); chạy lại sau khi org-service đã migrate." >&2
   remote_script "" smoke-backend.sh || echo "  Cảnh báo: kiểm thử khói có mục hỏng, xem chi tiết ở trên." >&2

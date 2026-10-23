@@ -62,7 +62,7 @@ ALL_SERVICES=(apisix "${!JAVA_MODULES[@]}" ${GO_SERVICES[@]+"${GO_SERVICES[@]}"}
 if [[ $# -gt 0 ]]; then
   SERVICES=("$@")
   for s in ${SERVICES[@]+"${SERVICES[@]}"}; do
-    [[ " ${ALL_SERVICES[*]} " == *" ${s} "* ]] || die "service lạ: ${s}"
+    [[ " ${ALL_SERVICES[*]-} " == *" ${s} "* ]] || die "service lạ: ${s}"
   done
 else
   SERVICES=(${ALL_SERVICES[@]+"${ALL_SERVICES[@]}"})
@@ -91,8 +91,8 @@ for s in ${SERVICES[@]+"${SERVICES[@]}"}; do
   [[ -n "${JAVA_MODULES[$s]:-}" ]] && modules+=("${JAVA_MODULES[$s]}")
 done
 if [[ ${#modules[@]} -gt 0 && "${SKIP_JARS:-0}" != "1" ]]; then
-  echo "==> Dựng jar: ${modules[*]}"
-  (cd "${REPO_ROOT}/backend" && ./mvnw -B -q -pl "$(IFS=,; echo "${modules[*]}")" -am package -DskipTests)
+  echo "==> Dựng jar: ${modules[*]-}"
+  (cd "${REPO_ROOT}/backend" && ./mvnw -B -q -pl "$(IFS=,; echo "${modules[*]-}")" -am package -DskipTests)
 fi
 
 # --- (2) ảnh -----------------------------------------------------------------

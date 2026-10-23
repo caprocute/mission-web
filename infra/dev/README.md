@@ -132,6 +132,12 @@ Các bước cho phiên trên máy Mac:
 6. Kiểm: `smoke-backend.sh` đạt, mở web qua APISIX và đăng nhập bằng tài khoản thử, so connector với bước 3.
 7. Quay lui: `DEV_SERVER_REPO_DIR` mới có thể bỏ. Đặt lại thư mục cũ bằng `sync-server.sh apply` với `DEV_SERVER_INFRA_DIR` cũ, sau khi `git checkout` commit trước đó.
 
+### 2.3. Kiểm script trước khi đẩy: bash 4.2 của máy chủ (INF-22)
+
+Máy chủ dev chạy CentOS 7 với bash 4.2, còn máy Mac mặc định có bash 3.2. Ở cả hai phiên bản này, `set -u` coi mảng rỗng là biến chưa gán, nên `"${x[@]}"` hay `${x[*]}` của một mảng rỗng làm script dừng với lỗi `unbound variable`, trong khi bash 4.4 trở lên (máy cloud, Linux mới) chạy bình thường và không lộ lỗi. Vì vậy, mọi mở rộng mảng có thể rỗng trong `infra/dev/scripts` phải viết theo dạng `${x[@]+"${x[@]}"}` (giữ nguyên từng phần tử) hoặc `${x[*]-}` (ghép thành chuỗi); `${#x[@]}` và `${!x[@]}` không bị ảnh hưởng.
+
+`infra/dev/scripts/kiem-script.sh` kiểm điều này trước khi đẩy, không cần máy chủ: chạy shellcheck với mọi script, tìm mở rộng mảng chưa theo dạng an toàn, chạy `bash -n` và chạy thật bằng bash 4.2 các nhánh không cần máy chủ (`gen-env.sh` ở chế độ tạo, `--kiem`, `--bo-sung` với từng mảng lần lượt rỗng; `deploy-backend.sh IN_MO_DUN=1`). Bash 4.2 lấy từ ảnh docker `bash:4.2`, hoặc từ biến `BASH42` trỏ tới tệp bash 4.2 dựng từ mã nguồn GNU khi máy không có Docker; shellcheck lấy từ PATH, biến `SHELLCHECK` hoặc ảnh `koalaman/shellcheck:stable`.
+
 ---
 
 ## 3. Cách vận hành các profile
