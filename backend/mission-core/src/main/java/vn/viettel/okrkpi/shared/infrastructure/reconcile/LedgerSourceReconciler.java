@@ -114,8 +114,8 @@ public class LedgerSourceReconciler {
   }
 
   /**
-   * Đối soát ngày {@code day} (cửa sổ {@code [from, to)} của {@code created_at}) cho mọi nguồn,
-   * tenant.
+   * Đối soát ngày {@code day} (cửa sổ từ {@code from} đến trước {@code to} theo {@code created_at})
+   * cho mọi nguồn, tenant.
    */
   public List<Outcome> run(LocalDate day, Instant from, Instant to, List<TenantId> tenants) {
     List<Outcome> out = new ArrayList<>();

@@ -22,7 +22,7 @@ public interface DelegationRepository {
 
   void lockKey(TenantId tenantId, UUID delegatorId, Delegation.Kind kind);
 
-  /** Uỷ quyền chưa kết thúc, giao nhau với khoảng {@code [from, to)}. */
+  /** Uỷ quyền chưa kết thúc, giao nhau với khoảng từ {@code from} đến trước {@code to}. */
   List<Delegation> overlapping(
       TenantId tenantId,
       Delegation.Kind kind,
@@ -31,7 +31,10 @@ public interface DelegationRepository {
       Instant from,
       Instant to);
 
-  /** Uỷ quyền chưa kết thúc mà {@code delegateId} nhận, giao nhau với {@code [from, to)}. */
+  /**
+   * Uỷ quyền chưa kết thúc mà {@code delegateId} nhận, giao nhau với khoảng từ {@code from} đến
+   * trước {@code to}.
+   */
   List<Delegation> receivedDuring(
       TenantId tenantId, Delegation.Kind kind, UUID delegateId, Instant from, Instant to);
 

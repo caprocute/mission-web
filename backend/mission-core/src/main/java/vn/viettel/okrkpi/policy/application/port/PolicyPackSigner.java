@@ -6,8 +6,8 @@ import java.util.UUID;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 
 /**
- * Ký số phê duyệt phát hành trên {@code content_hash} (CORE-05-09, BR-15-09, TL-01 "Phát hành, ký
- * số và vòng đời": CAdES tách rời trên SHA-256 của gói). Hiện thực ký qua SVC-10 cần phiên ký
+ * Ký số phê duyệt phát hành trên {@code content_hash} (CORE-05-09, BR-15-09, TL-01 “Phát hành, ký
+ * số và vòng đời”: CAdES tách rời trên SHA-256 của gói). Hiện thực ký qua SVC-10 cần phiên ký
  * {@code esignSessionId} đã mở; lỗi ký ném {@link SigningFailedException}.
  */
 public interface PolicyPackSigner {

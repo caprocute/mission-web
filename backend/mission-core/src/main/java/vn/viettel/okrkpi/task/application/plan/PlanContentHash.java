@@ -15,8 +15,8 @@ import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.PlanRow;
  * Mã băm SHA-256 của phiên bản kế hoạch khi gửi duyệt (QT-04 bước 5, SCR-0403 trường 5,
  * CORE-02-08), là dữ liệu được ký số ở CORE-02-09.
  *
- * <p>Biểu diễn chuẩn hoá (canonical form), mã hoá UTF-8, mỗi bản ghi một dòng kết thúc bằng {@code
- * \n}:
+ * <p>Biểu diễn chuẩn hoá (canonical form), mã hoá UTF-8, mỗi bản ghi một dòng kết thúc bằng ký tự
+ * xuống dòng LF:
  *
  * <ol>
  *   <li>Dòng đầu: {@code
@@ -30,10 +30,10 @@ import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.PlanRow;
  * <p>Quy ước giá trị: thiếu là chuỗi rỗng; UUID chữ thường có gạch; số thập phân bỏ số 0 thừa,
  * không dùng dạng mũ ({@code 1.50 → 1.5}, {@code 10 → 10}); ngày ISO {@code yyyy-MM-dd}; người chủ
  * trì {@code <kind>:<id>}; người phối hợp là danh sách {@code <kind>:<id>} sắp tăng dần, nối bằng
- * {@code ,}; tên người không vào băm. Trong chuỗi văn bản, {@code \} viết thành {@code \\}, {@code
- * |} thành {@code \|}, xuống dòng thành {@code \n}, về đầu dòng thành {@code \r}; chuỗi giữ nguyên
- * dấu tiếng Việt như đã lưu (không chuẩn hoá Unicode). Bên ký số và công cụ kiểm tra độc lập dựng
- * lại đúng chuỗi này để tính lại băm.
+ * {@code ,}; tên người không vào băm. Trong chuỗi văn bản, dấu gạch ngược viết thành hai dấu gạch
+ * ngược, còn {@code |}, xuống dòng (LF) và về đầu dòng (CR) viết thành dấu gạch ngược theo sau là
+ * {@code |}, {@code n} và {@code r}; chuỗi giữ nguyên dấu tiếng Việt như đã lưu (không chuẩn hoá
+ * Unicode). Bên ký số và công cụ kiểm tra độc lập dựng lại đúng chuỗi này để tính lại băm.
  */
 public final class PlanContentHash {
 

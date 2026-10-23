@@ -24,7 +24,7 @@ public final class DraftDeadline {
   /** Cách đếm mặc định: chỉ ngày làm việc trọn vẹn nằm giữa hai mốc. */
   public static final String METHOD_WORKING_DAYS_BETWEEN = "NGAY_LAM_VIEC";
 
-  /** Đếm ngày làm việc trong nửa khoảng {@code (fromExclusive, toInclusive]}. */
+  /** Đếm ngày làm việc trong khoảng từ sau {@code fromExclusive} đến hết {@code toInclusive}. */
   @FunctionalInterface
   public interface WorkingDayCounter {
     long count(LocalDate fromExclusive, LocalDate toInclusive);

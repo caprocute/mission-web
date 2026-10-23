@@ -54,13 +54,13 @@ import org.bouncycastle.tsp.TimeStampTokenGenerator;
  * bộ, {@code signPolling}, và một TSA RFC 3161. Chứng thư người ký, CA và TSA sinh mới mỗi lần
  * chạy; khoá riêng chỉ nằm trong bộ nhớ kiểm thử. Kịch bản chọn theo {@code userID} (mã người ký).
  */
-final class CscMockServer implements AutoCloseable {
+public final class CscMockServer implements AutoCloseable {
 
-  static final String CLIENT_ID = "mission-esign";
-  static final String CLIENT_SECRET = "bi-mat-kiem-thu";
+  public static final String CLIENT_ID = "mission-esign";
+  public static final String CLIENT_SECRET = "bi-mat-kiem-thu";
 
   /** Kịch bản của một người ký. */
-  enum Scenario {
+  public enum Scenario {
     /** Người ký xác nhận sau {@link #confirmAfter}. */
     SIGN,
     /** Người ký bấm từ chối trên ứng dụng. */
@@ -81,23 +81,40 @@ final class CscMockServer implements AutoCloseable {
   private final AtomicInteger cscCalls = new AtomicInteger();
   private volatile Duration confirmAfter = Duration.ofSeconds(1);
   private volatile Duration delay = Duration.ZERO;
+  private volatile boolean signerRevoked;
+  private volatile boolean certificatePerUser;
+  private volatile Duration signDelayMin = Duration.ZERO;
+  private volatile Duration signDelayMax = Duration.ZERO;
+  private volatile double failRate;
+  private final Map<String, Authorize> authorizations = new ConcurrentHashMap<>();
+  private final Map<String, String> sads = new ConcurrentHashMap<>();
+  private final AtomicInteger sadSignatures = new AtomicInteger();
+  private final java.util.Random random = new java.util.Random(42);
+  private final Map<String, X509Certificate> userCerts = new ConcurrentHashMap<>();
 
-  final KeyPair caKey;
-  final X509Certificate caCert;
-  final KeyPair signerKey;
-  final X509Certificate signerCert;
-  final KeyPair tsaKey;
-  final X509Certificate tsaCert;
+  public final KeyPair caKey;
+  public final X509Certificate caCert;
+  public final KeyPair signerKey;
+  public final X509Certificate signerCert;
+  public final KeyPair tsaKey;
+  public final X509Certificate tsaCert;
+  private final X500Name caName;
   private final List<String> chain;
 
-  CscMockServer() throws Exception {
+  public CscMockServer() throws Exception {
+    this("CN=CA thử nghiệm Mission,O=Mission,C=VN");
+  }
+
+  /** Máy chủ của một CA riêng ({@code caDn}), để kiểm chuỗi gốc khác nhau giữa nhà cung cấp. */
+  public CscMockServer(String caDn) throws Exception {
     KeyPairGenerator rsa = KeyPairGenerator.getInstance("RSA");
     rsa.initialize(2048);
     caKey = rsa.generateKeyPair();
     signerKey = rsa.generateKeyPair();
     tsaKey = rsa.generateKeyPair();
     Instant now = Instant.now();
-    X500Name ca = new X500Name("CN=CA thử nghiệm Mission,O=Mission,C=VN");
+    X500Name ca = new X500Name(caDn);
+    caName = ca;
     caCert =
         cert(
             ca,
@@ -140,26 +157,28 @@ final class CscMockServer implements AutoCloseable {
     server.createContext("/oauth2/token", this::token);
     server.createContext("/csc/v2/", this::csc);
     server.createContext("/tsa", this::tsa);
+    server.createContext("/ocsp", this::ocsp);
+    server.createContext("/crl", this::crl);
     server.start();
   }
 
-  String baseUrl() {
+  public String baseUrl() {
     return "http://127.0.0.1:" + server.getAddress().getPort();
   }
 
-  void scenario(UUID signer, Scenario scenario) {
+  public void scenario(UUID signer, Scenario scenario) {
     scenarios.put(signer.toString(), scenario);
   }
 
-  void confirmAfter(Duration value) {
+  public void confirmAfter(Duration value) {
     confirmAfter = value;
   }
 
-  void delay(Duration value) {
+  public void delay(Duration value) {
     delay = value;
   }
 
-  int cscCalls() {
+  public int cscCalls() {
     return cscCalls.get();
   }
 
@@ -208,17 +227,32 @@ final class CscMockServer implements AutoCloseable {
         }
         send(ex, 200, Map.of("credentialIDs", List.of("cred-" + user)));
       }
-      case "credentials/info" ->
-          send(
-              ex,
-              200,
-              Map.of(
-                  "key",
-                  Map.of("status", "enabled", "algo", List.of("1.2.840.113549.1.1.1"), "len", 2048),
-                  "cert",
-                  Map.of("status", "valid", "certificates", chain)));
+      case "credentials/info" -> {
+        String user = ((String) req.get("credentialID")).substring("cred-".length());
+        List<String> certificates =
+            certificatePerUser ? List.of(encoded(userCert(user)), encoded(caCert)) : chain;
+        send(
+            ex,
+            200,
+            Map.of(
+                "key",
+                Map.of("status", "enabled", "algo", List.of("1.2.840.113549.1.1.1"), "len", 2048),
+                "cert",
+                Map.of("status", "valid", "certificates", certificates)));
+      }
+      case "credentials/authorize" -> {
+        String user = ((String) req.get("credentialID")).substring("cred-".length());
+        String id = UUID.randomUUID().toString();
+        authorizations.put(id, new Authorize(user, Instant.now()));
+        send(ex, 200, Map.of("responseID", id));
+      }
+      case "credentials/authorizeCheck" -> authorizeCheck(ex, (String) req.get("responseID"));
       case "signatures/signHash" -> {
         String user = ((String) req.get("credentialID")).substring("cred-".length());
+        if (req.get("SAD") != null) {
+          signWithSad(ex, user, (String) req.get("SAD"), (List<String>) req.get("hashes"));
+          return;
+        }
         if (!"A".equals(req.get("operationMode"))) {
           send(ex, 400, Map.of("error", "invalid_request"));
           return;
@@ -262,6 +296,65 @@ final class CscMockServer implements AutoCloseable {
     }
   }
 
+  private void authorizeCheck(HttpExchange ex, String responseId) throws IOException {
+    Authorize a = responseId == null ? null : authorizations.get(responseId);
+    if (a == null) {
+      send(ex, 400, Map.of("error", "invalid_request"));
+      return;
+    }
+    if (Instant.now().isBefore(a.startedAt().plus(confirmAfter))) {
+      send(ex, 400, Map.of("error", "authorization_pending"));
+      return;
+    }
+    switch (scenarios.getOrDefault(a.user(), Scenario.SIGN)) {
+      case REJECT -> send(ex, 400, Map.of("error", "access_denied"));
+      case EXPIRE -> send(ex, 400, Map.of("error", "expired_token"));
+      case ERROR -> send(ex, 400, Map.of("error", "invalid_request"));
+      case FAIL_5XX -> send(ex, 503, Map.of("error", "temporarily_unavailable"));
+      default -> {
+        String sad =
+            sads.entrySet().stream()
+                .filter(e -> e.getValue().equals(a.user()))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElseGet(
+                    () -> {
+                      String v = "sad-" + UUID.randomUUID();
+                      sads.put(v, a.user());
+                      return v;
+                    });
+        send(ex, 200, Map.of("SAD", sad, "expiresIn", 3600));
+      }
+    }
+  }
+
+  private void signWithSad(HttpExchange ex, String user, String sad, List<String> hashes)
+      throws IOException {
+    if (!user.equals(sads.get(sad))) {
+      send(ex, 400, Map.of("error", "invalid_request"));
+      return;
+    }
+    long min = signDelayMin.toMillis();
+    long max = Math.max(min, signDelayMax.toMillis());
+    double roll;
+    long wait;
+    synchronized (random) {
+      wait = min + (max > min ? (long) (random.nextDouble() * (max - min)) : 0);
+      roll = random.nextDouble();
+    }
+    sleep(Duration.ofMillis(wait));
+    if (roll < failRate) {
+      send(ex, 503, Map.of("error", "temporarily_unavailable"));
+      return;
+    }
+    List<String> signatures = new ArrayList<>();
+    for (String h : hashes) {
+      signatures.add(b64(sign(signerKey.getPrivate(), Base64.getDecoder().decode(h))));
+    }
+    sadSignatures.addAndGet(signatures.size());
+    send(ex, 200, Map.of("signatures", signatures));
+  }
+
   private boolean fails(String user) {
     return scenarios.getOrDefault(user, Scenario.SIGN) == Scenario.FAIL_5XX;
   }
@@ -283,6 +376,158 @@ final class CscMockServer implements AutoCloseable {
               .generate(request, BigInteger.valueOf(System.nanoTime()), new Date())
               .getEncoded();
       ex.getResponseHeaders().add("Content-Type", "application/timestamp-reply");
+      ex.sendResponseHeaders(200, reply.length);
+      try (OutputStream out = ex.getResponseBody()) {
+        out.write(reply);
+      }
+    } catch (Exception e) {
+      ex.sendResponseHeaders(500, -1);
+      ex.close();
+    }
+  }
+
+  /**
+   * Mỗi người ký có chứng thư riêng (cùng khoá {@link #signerKey}, số hiệu khác nhau) như ở CA
+   * thật, để {@code esign.certificate_ref} không gộp chứng thư của nhiều người (DV-10-04).
+   */
+  /**
+   * Ký lô (DV-10-06): mỗi lần ký đồng bộ bằng SAD chờ ngẫu nhiên trong [{@code min}, {@code max}]
+   * và trả 503 với xác suất {@code failRate}.
+   */
+  public void batchSigning(Duration min, Duration max, double failRate) {
+    this.signDelayMin = min;
+    this.signDelayMax = max;
+    this.failRate = failRate;
+  }
+
+  /** Số chữ ký đã trả bằng SAD (mọi lần gọi thành công). */
+  public int sadSignatures() {
+    return sadSignatures.get();
+  }
+
+  public void certificatePerUser(boolean value) {
+    certificatePerUser = value;
+  }
+
+  /** Chứng thư mà máy chủ trả cho người ký {@code user}. */
+  public X509Certificate signerCert(UUID user) {
+    return certificatePerUser ? userCert(user.toString()) : signerCert;
+  }
+
+  private X509Certificate userCert(String user) {
+    return userCerts.computeIfAbsent(
+        user,
+        u -> {
+          try {
+            Instant now = Instant.now();
+            JcaX509v3CertificateBuilder builder =
+                new JcaX509v3CertificateBuilder(
+                    caName,
+                    new BigInteger(63, new java.security.SecureRandom()),
+                    Date.from(now.minus(Duration.ofDays(1))),
+                    Date.from(now.plus(Duration.ofDays(365))),
+                    new X500Name("CN=Nguyễn Văn Thử " + u.substring(0, 8) + ",O=Mission,C=VN"),
+                    signerKey.getPublic());
+            builder.addExtension(
+                Extension.keyUsage,
+                true,
+                new KeyUsage(KeyUsage.digitalSignature | KeyUsage.nonRepudiation));
+            return new JcaX509CertificateConverter()
+                .getCertificate(
+                    builder.build(
+                        new JcaContentSignerBuilder("SHA256withRSA").build(caKey.getPrivate())));
+          } catch (Exception e) {
+            throw new IllegalStateException(e);
+          }
+        });
+  }
+
+  private static String encoded(X509Certificate cert) {
+    try {
+      return b64(cert.getEncoded());
+    } catch (java.security.cert.CertificateEncodingException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  private boolean isSigner(BigInteger serial) {
+    return serial.equals(signerCert.getSerialNumber())
+        || userCerts.values().stream().anyMatch(c -> c.getSerialNumber().equals(serial));
+  }
+
+  /** OCSP và CRL của CA báo chứng thư người ký đã bị thu hồi (DV-10-04). */
+  public void revokeSigner(boolean revoked) {
+    signerRevoked = revoked;
+  }
+
+  /** Bộ đáp OCSP (RFC 6960) do chính CA ký, có trả lại nonce. */
+  private void ocsp(HttpExchange ex) throws IOException {
+    try {
+      org.bouncycastle.cert.ocsp.OCSPReq request =
+          new org.bouncycastle.cert.ocsp.OCSPReq(ex.getRequestBody().readAllBytes());
+      var builder =
+          new org.bouncycastle.cert.ocsp.jcajce.JcaBasicOCSPRespBuilder(
+              caKey.getPublic(),
+              new JcaDigestCalculatorProviderBuilder()
+                  .build()
+                  .get(org.bouncycastle.cert.ocsp.CertificateID.HASH_SHA1));
+      for (var r : request.getRequestList()) {
+        boolean revoked = signerRevoked && isSigner(r.getCertID().getSerialNumber());
+        builder.addResponse(
+            r.getCertID(),
+            revoked
+                ? new org.bouncycastle.cert.ocsp.RevokedStatus(
+                    new Date(), org.bouncycastle.asn1.x509.CRLReason.keyCompromise)
+                : org.bouncycastle.cert.ocsp.CertificateStatus.GOOD,
+            new Date(),
+            Date.from(Instant.now().plus(Duration.ofHours(1))));
+      }
+      var nonce =
+          request.getExtension(org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers.id_pkix_ocsp_nonce);
+      if (nonce != null) {
+        builder.setResponseExtensions(new org.bouncycastle.asn1.x509.Extensions(nonce));
+      }
+      var basic =
+          builder.build(
+              new JcaContentSignerBuilder("SHA256withRSA").build(caKey.getPrivate()),
+              new org.bouncycastle.cert.X509CertificateHolder[] {
+                new org.bouncycastle.cert.jcajce.JcaX509CertificateHolder(caCert)
+              },
+              new Date());
+      byte[] reply =
+          new org.bouncycastle.cert.ocsp.OCSPRespBuilder()
+              .build(org.bouncycastle.cert.ocsp.OCSPRespBuilder.SUCCESSFUL, basic)
+              .getEncoded();
+      ex.getResponseHeaders().add("Content-Type", "application/ocsp-response");
+      ex.sendResponseHeaders(200, reply.length);
+      try (OutputStream out = ex.getResponseBody()) {
+        out.write(reply);
+      }
+    } catch (Exception e) {
+      ex.sendResponseHeaders(500, -1);
+      ex.close();
+    }
+  }
+
+  /** CRL do CA ký, có chứng thư người ký khi đã thu hồi. */
+  private void crl(HttpExchange ex) throws IOException {
+    try {
+      Date now = new Date();
+      var builder = new org.bouncycastle.cert.X509v2CRLBuilder(caName, now);
+      builder.setNextUpdate(Date.from(Instant.now().plus(Duration.ofDays(1))));
+      if (signerRevoked) {
+        builder.addCRLEntry(
+            signerCert.getSerialNumber(), now, org.bouncycastle.asn1.x509.CRLReason.keyCompromise);
+        for (X509Certificate c : userCerts.values()) {
+          builder.addCRLEntry(
+              c.getSerialNumber(), now, org.bouncycastle.asn1.x509.CRLReason.keyCompromise);
+        }
+      }
+      byte[] reply =
+          builder
+              .build(new JcaContentSignerBuilder("SHA256withRSA").build(caKey.getPrivate()))
+              .getEncoded();
+      ex.getResponseHeaders().add("Content-Type", "application/pkix-crl");
       ex.sendResponseHeaders(200, reply.length);
       try (OutputStream out = ex.getResponseBody()) {
         out.write(reply);
@@ -361,4 +606,6 @@ final class CscMockServer implements AutoCloseable {
   }
 
   private record Session(String user, List<byte[]> hashes, Instant startedAt) {}
+
+  private record Authorize(String user, Instant startedAt) {}
 }

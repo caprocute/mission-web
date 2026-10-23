@@ -304,6 +304,33 @@ public class JdbcComplaintRepository implements ComplaintRepository {
   }
 
   @Override
+  public boolean markResponseSigner(TenantId tenant, Complaint c, UUID signer) {
+    return jdbc.sql(
+                """
+                UPDATE oversight.complaint SET response_signer_id = ?
+                 WHERE period_bucket = ? AND tenant_id = ? AND id = ? AND row_version = ?
+                """)
+            .param(signer)
+            .param(c.periodBucket())
+            .param(tenant.value())
+            .param(c.id())
+            .param(c.rowVersion())
+            .update()
+        == 1;
+  }
+
+  @Override
+  public Optional<UUID> responseSigner(TenantId tenant, UUID id) {
+    return jdbc.sql(
+            "SELECT response_signer_id FROM oversight.complaint WHERE tenant_id = ? AND id = ?")
+        .param(tenant.value())
+        .param(id)
+        .query((rs, row) -> Optional.ofNullable(rs.getObject(1, UUID.class)))
+        .optional()
+        .flatMap(o -> o);
+  }
+
+  @Override
   public Optional<Complaint> bySignRequest(TenantId tenant, UUID signRequestId) {
     return jdbc.sql(
             "SELECT "

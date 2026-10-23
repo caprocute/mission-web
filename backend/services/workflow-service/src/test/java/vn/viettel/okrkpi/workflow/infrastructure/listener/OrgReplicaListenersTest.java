@@ -3,13 +3,20 @@ package vn.viettel.okrkpi.workflow.infrastructure.listener;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.avro.specific.SpecificRecord;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import vn.viettel.okrkpi.events.EventTopics;
 import vn.viettel.okrkpi.shared.inbox.InboxEnvelope;
 import vn.viettel.okrkpi.shared.inbox.InboxListener;
@@ -21,10 +28,12 @@ import vn.viettel.okrkpi.workflow.application.port.OrgUnitReplicaStore;
 import vn.viettel.okrkpi.workflow.application.port.PersonReplicaStore;
 import vn.viettel.okrkpi.workflow.application.replica.AssignmentReplicaService;
 import vn.viettel.okrkpi.workflow.application.replica.OrgReplicaService;
+import vn.viettel.okrkpi.workflow.application.replica.ReplicaCheckpointService;
 import vn.viettel.okrkpi.workflow.domain.replica.AssignmentReplica;
 import vn.viettel.okrkpi.workflow.domain.replica.OrgTree;
 import vn.viettel.okrkpi.workflow.domain.replica.OrgUnitReplica;
 import vn.viettel.okrkpi.workflow.domain.replica.PersonReplica;
+import vn.viettel.okrkpi.workflow.domain.replica.ReplicaEntityType;
 import vn.vtokr.org.v1.DonViDaThayDoi;
 import vn.vtokr.org.v1.NhanSuDaThayDoi;
 import vn.vtokr.org.v1.OrgBootstrap;
@@ -72,9 +81,22 @@ class OrgReplicaListenersTest {
         events.add(event);
         return true;
       };
+  private static final Instant NOW = Instant.parse("2026-10-23T03:00:00Z");
+
+  private final List<ReplicaEntityType> checkpoints = new ArrayList<>();
+  private final MeterRegistry meters = new SimpleMeterRegistry();
   private final OrgReplicaListeners listeners =
       new OrgReplicaListeners(
-          new AssignmentReplicaService(store), new OrgReplicaService(unitStore, personStore));
+          new AssignmentReplicaService(store),
+          new OrgReplicaService(unitStore, personStore),
+          new ReplicaCheckpointService(
+              (tenant, type, event, occurred, applied, lag) -> {
+                assertThat(tenant).isEqualTo(TENANT);
+                checkpoints.add(type);
+              },
+              Clock.fixed(NOW, ZoneOffset.UTC)),
+          new StaticListableBeanFactory(Map.of("meters", meters))
+              .getBeanProvider(MeterRegistry.class));
 
   static DonViDaThayDoi evt14(UUID party, UUID admin, LocalDate to, String code) {
     return DonViDaThayDoi.newBuilder()
@@ -137,7 +159,7 @@ class OrgReplicaListenersTest {
         null,
         null,
         null,
-        Instant.now(),
+        NOW.minusMillis(400),
         0,
         0,
         payload);
@@ -317,5 +339,60 @@ class OrgReplicaListenersTest {
     assertThat(person.topic()).isEqualTo("org.person.changed.v1");
     assertThat(person.aggregateType()).isEqualTo("Person");
     assertThat(person.consumer()).isEqualTo("workflow.org-replica.person");
+  }
+
+  @Test
+  void moiSuKienGhiMocVaSoDoDoTreTheoTenantVaLoai() {
+    listeners.onUnit(
+        envelope(EventTopics.EVT_14_DON_VI_DA_THAY_DOI, evt14(null, null, null, "CB-01")));
+    listeners.onPerson(
+        envelope(EventTopics.EVT_16_NHAN_SU_DA_THAY_DOI, evt16("Nguyễn Văn A", "DANG_CONG_TAC")));
+    listeners.onAssignment(
+        envelope(
+            EventTopics.EVT_15_PHAN_CONG_DA_THAY_DOI, evt15(LocalDate.of(2026, 1, 1), null, 1)));
+    listeners.onBootstrap(
+        envelope(EventTopics.ORG_BOOTSTRAP_V1, bootstrap(evt16("Trần Thị B", "NGHI_HUU"), null)));
+    assertThat(checkpoints)
+        .containsExactly(
+            ReplicaEntityType.ORG_UNIT,
+            ReplicaEntityType.PERSON,
+            ReplicaEntityType.ASSIGNMENT,
+            ReplicaEntityType.PERSON);
+    for (ReplicaEntityType type : ReplicaEntityType.values()) {
+      Gauge g =
+          meters
+              .find(OrgReplicaListeners.LAG_METRIC)
+              .tag("tenant_id", TENANT.toString())
+              .tag("entity_type", type.name())
+              .gauge();
+      assertThat(g).as(type.name()).isNotNull();
+      assertThat(g.value()).isEqualTo(400.0);
+    }
+    assertThat(meters.find(OrgReplicaListeners.LAG_METRIC).gauges()).hasSize(3);
+  }
+
+  @Test
+  void suKienSaiKhongGhiMocDoTre() {
+    DonViDaThayDoi blank = evt14(null, null, null, " ");
+    assertThatThrownBy(
+            () -> listeners.onUnit(envelope(EventTopics.EVT_14_DON_VI_DA_THAY_DOI, blank)))
+        .isInstanceOf(PermanentInboxException.class);
+    listeners.onBootstrap(envelope(EventTopics.ORG_BOOTSTRAP_V1, bootstrap(null, "KET_THUC")));
+    assertThat(checkpoints).isEmpty();
+  }
+
+  @Test
+  void khongCoMeterRegistryVanGhiMoc() {
+    OrgReplicaListeners noMeters =
+        new OrgReplicaListeners(
+            new AssignmentReplicaService(store),
+            new OrgReplicaService(unitStore, personStore),
+            new ReplicaCheckpointService(
+                (tenant, type, event, occurred, applied, lag) -> checkpoints.add(type),
+                Clock.fixed(NOW, ZoneOffset.UTC)),
+            new StaticListableBeanFactory().getBeanProvider(MeterRegistry.class));
+    noMeters.onPerson(
+        envelope(EventTopics.EVT_16_NHAN_SU_DA_THAY_DOI, evt16("Lê Văn C", "THOI_VIEC")));
+    assertThat(checkpoints).containsExactly(ReplicaEntityType.PERSON);
   }
 }

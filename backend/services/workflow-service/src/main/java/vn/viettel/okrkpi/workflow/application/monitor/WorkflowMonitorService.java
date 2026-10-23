@@ -40,6 +40,7 @@ import vn.viettel.okrkpi.workflow.domain.monitor.InstanceSummary;
 import vn.viettel.okrkpi.workflow.domain.monitor.MonitorRules;
 import vn.viettel.okrkpi.workflow.domain.monitor.MonitoredTask;
 import vn.viettel.okrkpi.workflow.domain.monitor.WorkflowDiagram;
+import vn.viettel.okrkpi.workflow.domain.replica.EmploymentStatus;
 
 /**
  * Giám sát tiến trình theo mẫu (BS-01 SCR-1506; QT-15): danh sách đọc bảng chiếu {@code
@@ -231,6 +232,19 @@ public class WorkflowMonitorService {
                 List.of(
                     ProblemFieldError.of(
                         "assigneeId", "Người nhận không thuộc đơn vị xử lý bước.", "eligible")));
+          }
+          // Người đã nghỉ hưu, thôi việc theo org_replica.person_v (EVT-16) không nhận việc; chưa
+          // có dòng nhân sự thì chỉ dựa vào phân công (suy luận, wiki trang 14 mục DV-06-10).
+          if (directory
+              .employmentStatus(task.tenantId(), command.assigneeId())
+              .filter(s -> !EmploymentStatus.allowsAssignment(s))
+              .isPresent()) {
+            throw new BusinessException(
+                NOT_ELIGIBLE,
+                "Người nhận đã nghỉ hưu hoặc thôi việc.",
+                List.of(
+                    ProblemFieldError.of(
+                        "assigneeId", "Người nhận không còn công tác.", "employed")));
           }
           separation.check(task, command.assigneeId());
           int revision = engine.reassign(task, command.assigneeId(), approver.actorId(), reason);

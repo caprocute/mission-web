@@ -65,8 +65,8 @@ public final class WorkingDays {
   }
 
   /**
-   * Số ngày làm việc trong nửa khoảng {@code (fromExclusive, toInclusive]}; bằng 0 khi {@code
-   * fromExclusive >= toInclusive}. Khớp {@code ngay_lam_viec(tu_ngay, den_ngay)}.
+   * Số ngày làm việc trong khoảng từ sau {@code fromExclusive} đến hết {@code toInclusive}; bằng 0
+   * khi {@code fromExclusive >= toInclusive}. Khớp {@code ngay_lam_viec(tu_ngay, den_ngay)}.
    */
   public long countWorkingDays(LocalDate fromExclusive, LocalDate toInclusive) {
     Objects.requireNonNull(fromExclusive, "fromExclusive");

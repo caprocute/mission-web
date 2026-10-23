@@ -1,12 +1,13 @@
-<#-- SCR-0001: đăng nhập bằng tài khoản cơ quan; nút nguồn định danh (VNeID,
+<#-- SCR-0001 vùng 1–2: xác thực danh tính bằng tài khoản cơ quan; nút nguồn định danh (VNeID,
      chứng thư số) chỉ hiện khi realm/tenant bật nguồn đó (TL-02 QT-00 bước 3).
      Giữ mã phần tử username, password, kc-login vì kiểm thử e2e dùng (frontend/e2e/dang-nhap-keycloak.ts). -->
 <#import "template.ftl" as layout>
 <#import "passkeys.ftl" as passkeys>
-<@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled??; section>
+<@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? step=1; section>
     <#if section = "header">
         ${msg("loginAccountTitle")}
     <#elseif section = "form">
+        <p class="mission-lead">${msg("missionLoginSubtitle")}</p>
         <#if realm.password>
             <form id="kc-form-login" class="mission-form" action="${url.loginAction}" method="post" data-once-submit>
                 <#assign hasError = messagesPerField.existsError('username','password')>
@@ -14,6 +15,7 @@
                     <div class="mission-field">
                         <label for="username" class="mission-label">
                             <#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if>
+                            <span class="mission-required" aria-hidden="true">*</span>
                         </label>
                         <input id="username" name="username" type="text" class="mission-input" value="${(login.username!'')}"
                                autofocus autocomplete="username" required maxlength="254" dir="ltr"
@@ -25,7 +27,7 @@
                 </#if>
 
                 <div class="mission-field">
-                    <label for="password" class="mission-label">${msg("password")}</label>
+                    <label for="password" class="mission-label">${msg("password")} <span class="mission-required" aria-hidden="true">*</span></label>
                     <div class="mission-input-group" dir="ltr">
                         <input id="password" name="password" type="password" class="mission-input" autocomplete="current-password" required
                                <#if usernameHidden??>autofocus</#if> aria-invalid="${hasError?then('true','false')}"

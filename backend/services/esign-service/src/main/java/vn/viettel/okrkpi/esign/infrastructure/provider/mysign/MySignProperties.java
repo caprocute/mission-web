@@ -38,12 +38,25 @@ public record MySignProperties(
 
   /** Đường dẫn CSC API v2 (mặc định theo tên thao tác của chuẩn). */
   public record Paths(
-      String credentialsList, String credentialsInfo, String signHash, String signPolling) {
+      String credentialsList,
+      String credentialsInfo,
+      String signHash,
+      String signPolling,
+      String authorize,
+      String authorizeCheck) {
     public Paths {
       credentialsList = credentialsList == null ? "/credentials/list" : credentialsList;
       credentialsInfo = credentialsInfo == null ? "/credentials/info" : credentialsInfo;
       signHash = signHash == null ? "/signatures/signHash" : signHash;
       signPolling = signPolling == null ? "/signatures/signPolling" : signPolling;
+      // DV-10-06: ủy quyền ký lô (SAD) bất đồng bộ, đường dẫn suy luận theo CSC API v2.
+      authorize = authorize == null ? "/credentials/authorize" : authorize;
+      authorizeCheck = authorizeCheck == null ? "/credentials/authorizeCheck" : authorizeCheck;
+    }
+
+    public Paths(
+        String credentialsList, String credentialsInfo, String signHash, String signPolling) {
+      this(credentialsList, credentialsInfo, signHash, signPolling, null, null);
     }
   }
 

@@ -144,7 +144,7 @@ class OrgImportApiIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.type").value("IMPORT")).andReturn();
     long acceptMs = (System.nanoTime() - start) / 1_000_000;
     String location = accepted.getResponse().getHeader(HttpHeaders.LOCATION);
-    assertThat(location).startsWith("/api/v1/jobs/");
+    assertThat(location).startsWith("/api/v1/jobs/org-");
 
     JsonNode job = waitJob(location);
     long totalMs = (System.nanoTime() - start) / 1_000_000;
@@ -182,7 +182,7 @@ class OrgImportApiIT extends IntegrationTestBase {
     assertThat(job.get("status").asText()).isEqualTo("THAT_BAI");
     assertThat(job.at("/problem/code").asText()).isEqualTo("ORG-422-IMPORT-INVALID");
     assertThat(job.at("/problem/errors")).isEmpty();
-    String jobId = location.substring(location.lastIndexOf('/') + 1);
+    String jobId = location.substring(location.lastIndexOf("/org-") + "/org-".length());
     assertThat(job.get("resultLocation").asText()).isEqualTo("/api/v1/org/imports/" + jobId + "/report");
     JsonNode report = report(job);
     assertThat(report.get("status").asText()).isEqualTo("THAT_BAI");

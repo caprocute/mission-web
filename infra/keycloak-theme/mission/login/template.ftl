@@ -1,12 +1,12 @@
 <#--
-  Khung chung của mọi trang trong luồng đăng nhập Mission (QT-00, SCR-0001): một thẻ gọn giữa
-  trang gồm logo, tiêu đề, thông báo và biểu mẫu của bước hiện tại. Trang riêng của theme
-  (login.ftl, login-otp.ftl, info.ftl) và trang kế thừa từ base đều gọi macro này; giữ nguyên các
-  section mà base dùng (header, show-username, form, socialProviders, info) và các mã phần tử
-  Keycloak cần (kc-page-title, kc-content, try-another-way, reset-login).
+  Khung chung của mọi trang trong luồng đăng nhập Mission (QT-00, SCR-0001, TL-02 hình 6.3):
+  vùng trái giới thiệu nền tảng, vùng phải là thẻ của bước hiện tại. Trang riêng của theme
+  (login.ftl, login-otp.ftl) và trang kế thừa từ base đều gọi macro này; giữ nguyên các
+  section mà base dùng (header, show-username, form, socialProviders, info) và các mã
+  phần tử Keycloak cần (kc-page-title, kc-content, try-another-way, reset-login).
   Không có script nội tuyến của theme: hành vi nằm ở resources/js/mission-login.js.
 -->
-<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false>
+<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false step=0>
 <!DOCTYPE html>
 <html class="${properties.kcHtmlClass!}" lang="${lang!'vi'}">
 <head>
@@ -45,56 +45,111 @@
 </head>
 
 <body class="${properties.kcBodyClass!} ${bodyClass}" data-scr="SCR-0001" data-page-id="login-${pageId!''}">
-<main class="mission-page">
-    <section class="mission-card" id="kc-content">
-        <header class="mission-card__header">
+<a class="mission-skip" href="#kc-page-title">${msg("missionSkipLink")}</a>
+<div class="mission-shell">
+    <aside class="mission-hero" aria-label="${msg("missionHeroAria")}">
+        <div class="mission-hero__inner">
             <div class="mission-brand">
-                <img src="${url.resourcesPath}/img/logo-mission.svg" alt="" class="mission-brand__logo" width="44" height="44" />
-                <span class="mission-brand__name">Mission</span>
+                <img src="${url.resourcesPath}/img/logo-mission.svg" alt="" width="48" height="48" />
+                <div>
+                    <p class="mission-brand__name">Mission</p>
+                    <p class="mission-brand__tagline">${msg("missionProductName")}</p>
+                </div>
             </div>
-            <h1 id="kc-page-title" class="mission-card__title"><#nested "header"></h1>
-        </header>
+            <h2 class="mission-hero__title">${msg("missionHeroTitle")}</h2>
+            <p class="mission-hero__lead">${msg("missionHeroLead")}</p>
+            <ul class="mission-hero__points">
+                <li>${msg("missionHeroPoint1")}</li>
+                <li>${msg("missionHeroPoint2")}</li>
+                <li>${msg("missionHeroPoint3")}</li>
+            </ul>
+            <p class="mission-hero__footer">${msg("missionHeroFooter")}</p>
+        </div>
+    </aside>
 
-        <#if auth?has_content && auth.showUsername() && !auth.showResetCredentials()>
-            <#nested "show-username">
-            <div id="kc-username" class="mission-user">
-                <span id="kc-attempted-username" class="mission-user__name">${auth.attemptedUsername}</span>
-                <a id="reset-login" class="mission-link" href="${url.loginRestartFlowUrl}">${msg("missionSwitchAccount")}</a>
+    <main class="mission-main" id="kc-main">
+        <div class="mission-topbar">
+            <div class="mission-context">
+                <p class="mission-context__title">${realm.displayName!msg("missionProductName")}</p>
+                <#-- địa chỉ lấy từ thanh địa chỉ của trình duyệt (mission-login.js) để người dùng nhận ra trang giả mạo -->
+                <p class="mission-context__domain" id="mission-access-domain" hidden>
+                    ${msg("missionAccessDomainLabel")} <strong data-access-host></strong>. ${msg("missionAccessDomainHint")}
+                </p>
             </div>
-        </#if>
-
-        <#-- Việc do ứng dụng khởi tạo không cần thấy cảnh báo nhắc phải hoàn tất việc đó -->
-        <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
-            <div class="mission-alert mission-alert--${message.type}" role="<#if message.type == 'error'>alert<#else>status</#if>">
-                ${kcSanitize(message.summary)?no_esc}
+            <div class="mission-tools">
+                <#if realm.internationalizationEnabled && locale?? && locale.supported?size gt 1>
+                    <nav class="mission-lang" aria-label="${msg("missionLanguage")}">
+                        <#list locale.supported as l>
+                            <a href="${l.url}" class="mission-lang__item" lang="${l.languageTag}"<#if l.languageTag == locale.currentLanguageTag> aria-current="true"</#if>>${l.label}</a>
+                        </#list>
+                    </nav>
+                </#if>
+                <button type="button" class="mission-tool-btn" id="mission-elderly-toggle" aria-pressed="false"
+                        aria-label="${msg("missionElderlyAria")}"
+                        data-label-on="${msg("missionElderlyOn")}" data-label-off="${msg("missionElderlyOff")}">${msg("missionElderlyOn")}</button>
             </div>
-        </#if>
-
-        <div class="mission-card__body">
-            <#nested "form">
         </div>
 
-        <#if auth?has_content && auth.showTryAnotherWayLink()>
-            <form id="kc-select-try-another-way-form" class="mission-another" action="${url.loginAction}" method="post">
-                <input type="hidden" name="tryAnotherWay" value="on"/>
-                <button type="submit" id="try-another-way" class="mission-text-btn">${msg("doTryAnotherWay")}</button>
-            </form>
-        </#if>
-
-        <#nested "socialProviders">
-
-        <#if displayInfo>
-            <div id="kc-info" class="mission-info">
-                <#nested "info">
+        <section class="mission-card" id="kc-content">
+            <div class="mission-card__brand" aria-hidden="true">
+                <img src="${url.resourcesPath}/img/logo-mission.svg" alt="" width="36" height="36" />
+                <span>Mission</span>
             </div>
-        </#if>
 
-        <footer class="mission-card__footer">
-            <button type="button" class="mission-text-btn" id="mission-elderly-toggle" aria-pressed="false"
-                    data-label-on="${msg("missionElderlyOn")}" data-label-off="${msg("missionElderlyOff")}">${msg("missionElderlyOn")}</button>
-        </footer>
-    </section>
-</main>
+            <#if step == 1>
+                <p class="mission-step"><span class="mission-step__num" aria-hidden="true">1</span>${msg("missionStepIdentity")}</p>
+            <#elseif step == 2>
+                <p class="mission-step"><span class="mission-step__num" aria-hidden="true">2</span>${msg("missionStepMfa")}</p>
+            </#if>
+
+            <h1 id="kc-page-title" class="mission-card__title" tabindex="-1"><#nested "header"></h1>
+
+            <#if auth?has_content && auth.showUsername() && !auth.showResetCredentials()>
+                <#nested "show-username">
+                <div id="kc-username" class="mission-user">
+                    <span class="mission-user__label">${msg("missionSignedInAs")}</span>
+                    <span id="kc-attempted-username" class="mission-user__name">${auth.attemptedUsername}</span>
+                    <a id="reset-login" class="mission-link" href="${url.loginRestartFlowUrl}">${msg("missionSwitchAccount")}</a>
+                </div>
+            </#if>
+
+            <#if displayRequiredFields>
+                <p class="mission-required-note"><span class="mission-required" aria-hidden="true">*</span> ${msg("requiredFields")}</p>
+            </#if>
+
+            <#-- Việc do ứng dụng khởi tạo không cần thấy cảnh báo nhắc phải hoàn tất việc đó -->
+            <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
+                <div class="mission-alert mission-alert--${message.type}" role="<#if message.type == 'error'>alert<#else>status</#if>">
+                    <span class="mission-alert__dot" aria-hidden="true"></span>
+                    <span class="mission-alert__text">${kcSanitize(message.summary)?no_esc}</span>
+                </div>
+            </#if>
+
+            <div class="mission-card__body">
+                <#nested "form">
+            </div>
+
+            <#if auth?has_content && auth.showTryAnotherWayLink()>
+                <form id="kc-select-try-another-way-form" class="mission-another" action="${url.loginAction}" method="post">
+                    <input type="hidden" name="tryAnotherWay" value="on"/>
+                    <button type="submit" id="try-another-way" class="mission-link-btn">${msg("doTryAnotherWay")}</button>
+                </form>
+            </#if>
+
+            <#nested "socialProviders">
+
+            <#if displayInfo>
+                <div id="kc-info" class="mission-info">
+                    <div id="kc-info-wrapper" class="mission-info__inner">
+                        <#nested "info">
+                    </div>
+                </div>
+            </#if>
+
+            <p class="mission-card__support">${msg("missionSupport")}</p>
+        </section>
+    </main>
+</div>
 </body>
 </html>
 </#macro>

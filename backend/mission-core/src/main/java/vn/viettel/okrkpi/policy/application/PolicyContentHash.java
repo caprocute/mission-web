@@ -16,8 +16,8 @@ import vn.viettel.okrkpi.policy.domain.DecisionTable;
 import vn.viettel.okrkpi.policy.domain.PolicyRule;
 
 /**
- * {@code content_hash} của phiên bản Policy Pack (CORE-05-09, TL-01 "Phát hành, ký số và vòng
- * đời"): SHA-256 trên dạng chuẩn hoá RFC 8785 của manifest (gồm tham số và tham số luồng duyệt
+ * {@code content_hash} của phiên bản Policy Pack (CORE-05-09, TL-01 “Phát hành, ký số và vòng
+ * đời”): SHA-256 trên dạng chuẩn hoá RFC 8785 của manifest (gồm tham số và tham số luồng duyệt
  * {@code workflow_bindings}), toàn bộ quy tắc sắp theo {@code rule_key} và bảng quyết định sắp theo
  * {@code table_key}. Thứ tự khoá JSON và thứ tự dòng đọc từ CSDL không làm đổi giá trị.
  */

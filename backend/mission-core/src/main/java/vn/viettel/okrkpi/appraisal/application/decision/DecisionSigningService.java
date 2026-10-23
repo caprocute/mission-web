@@ -70,8 +70,10 @@ public class DecisionSigningService {
   }
 
   /**
-   * EVT-18 của lô quyết định. Sự kiện của lô đã đóng, của yêu cầu ký khác hoặc lặp lại bị bỏ qua;
-   * chữ ký nào không khớp băm tài liệu thì hồ sơ đó giữ {@code CHO_QUYET_DINH}.
+   * EVT-18 của lô quyết định, một sự kiện cho cả lô hoặc mỗi phiếu một sự kiện (ký lô DV-10-06). Sự
+   * kiện của lô đã đóng, của yêu cầu ký khác hoặc lặp lại bị bỏ qua; chữ ký nào không khớp băm tài
+   * liệu thì hồ sơ đó giữ {@code CHO_QUYET_DINH}, lô ở {@code LOI_MOT_PHAN} và vẫn nhận sự kiện kế
+   * tiếp của cùng yêu cầu ký.
    *
    * @param signedHashes băm SHA-256 (hex chữ thường) các tài liệu đã ký
    * @return số hồ sơ đã chuyển {@code DA_KY_SO}
@@ -88,9 +90,13 @@ public class DecisionSigningService {
       return 0;
     }
     BatchRow b = found.get();
+    // DV-10-06: SVC-10 phát EVT-18 cho từng phiếu của lô, nên lô đã LOI_MOT_PHAN vẫn nhận tiếp sự
+    // kiện của chính yêu cầu ký đó tới khi đủ phiếu.
     boolean open =
         BatchDecisionService.NHAP.equals(b.status())
-            || BatchDecisionService.CHO_KY.equals(b.status());
+            || BatchDecisionService.CHO_KY.equals(b.status())
+            || (BatchDecisionService.LOI_MOT_PHAN.equals(b.status())
+                && signRequestId.equals(b.signRequestId()));
     if (!open || (b.signRequestId() != null && !b.signRequestId().equals(signRequestId))) {
       return 0;
     }

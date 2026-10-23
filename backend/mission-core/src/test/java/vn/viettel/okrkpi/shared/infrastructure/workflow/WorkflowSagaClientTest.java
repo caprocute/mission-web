@@ -36,7 +36,7 @@ class WorkflowSagaClientTest {
         .andExpect(header("Authorization", "Bearer tok"))
         .andExpect(header("X-Tenant-Id", tenant.value().toString()))
         .andExpect(header("Idempotency-Key", "CK-2026Q4"))
-        .andRespond(withSuccess("{\"id\":\"" + job + "\"}", MediaType.APPLICATION_JSON));
+        .andRespond(withSuccess("{\"id\":\"wf-" + job + "\"}", MediaType.APPLICATION_JSON));
     assertThat(
             client.startPeriodClose(
                 tenant, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "CK-2026Q4"))

@@ -24,11 +24,11 @@ import org.bouncycastle.tsp.TimeStampToken;
 import vn.viettel.okrkpi.esign.application.sign.Hashes;
 
 /** Dựng PDF thử và kiểm chứng PDF đã ký (Bouncy Castle và, nếu có, {@code pdfsig} của Poppler). */
-final class SignedPdfs {
+public final class SignedPdfs {
 
   private SignedPdfs() {}
 
-  static byte[] sample(String title) throws Exception {
+  public static byte[] sample(String title) throws Exception {
     try (PDDocument doc = new PDDocument();
         ByteArrayOutputStream out = new ByteArrayOutputStream()) {
       PDPage page = new PDPage();
@@ -49,7 +49,15 @@ final class SignedPdfs {
    * Chữ ký hợp lệ với {@code signer}, có dấu thời gian của {@code tsa} trên giá trị chữ ký, và tệp
    * gốc là tiền tố nguyên vẹn của tệp đã ký (không sửa ngoài vùng ký).
    */
-  static void assertValid(
+  public static void assertValid(
+      byte[] original, byte[] signed, X509Certificate signer, X509Certificate tsa)
+      throws Exception {
+    assertCms(original, signed, signer, tsa);
+    pdfsig(signed);
+  }
+
+  /** Như {@link #assertValid} nhưng không gọi {@code pdfsig}, để kiểm nhanh cả lô (DV-10-06). */
+  public static void assertCms(
       byte[] original, byte[] signed, X509Certificate signer, X509Certificate tsa)
       throws Exception {
     assertThat(Arrays.copyOf(signed, original.length)).isEqualTo(original);
@@ -77,7 +85,6 @@ final class SignedPdfs {
             .isEqualTo(Hashes.sha256(info.getSignature()));
       }
     }
-    pdfsig(signed);
   }
 
   /** {@code pdfsig -nocert}: công cụ độc lập xác nhận chữ ký toàn vẹn (bỏ qua nếu máy không có). */
@@ -98,6 +105,57 @@ final class SignedPdfs {
       assertThat(out).contains("Signature is Valid").contains("ETSI.CAdES.detached");
     } finally {
       Files.deleteIfExists(file);
+    }
+  }
+
+  /**
+   * {@code openssl cms -verify}: công cụ độc lập xác nhận chữ ký CMS trong PDF hợp lệ theo chuỗi về
+   * {@code root} đã nạp cho nhà cung cấp (DV-10-04).
+   */
+  public static void opensslVerify(byte[] signed, X509Certificate root) throws Exception {
+    Path dir = Files.createTempDirectory("kiem-ky-");
+    try (PDDocument doc = Loader.loadPDF(signed)) {
+      PDSignature sig = doc.getLastSignatureDictionary();
+      Path cms = Files.write(dir.resolve("chu-ky.der"), sig.getContents(signed));
+      Path content = Files.write(dir.resolve("noi-dung.bin"), sig.getSignedContent(signed));
+      Path ca =
+          Files.writeString(
+              dir.resolve("goc.pem"),
+              "-----BEGIN CERTIFICATE-----\n"
+                  + java.util.Base64.getMimeEncoder(64, "\n".getBytes())
+                      .encodeToString(root.getEncoded())
+                  + "\n-----END CERTIFICATE-----\n");
+      Process p =
+          new ProcessBuilder(
+                  "openssl",
+                  "cms",
+                  "-verify",
+                  "-binary",
+                  "-inform",
+                  "DER",
+                  "-in",
+                  cms.toString(),
+                  "-content",
+                  content.toString(),
+                  "-CAfile",
+                  ca.toString(),
+                  "-purpose",
+                  "any",
+                  "-out",
+                  dir.resolve("ra.bin").toString())
+              .redirectErrorStream(true)
+              .start();
+      String out = new String(p.getInputStream().readAllBytes());
+      assertThat(p.waitFor(30, TimeUnit.SECONDS)).isTrue();
+      assertThat(p.exitValue()).as(out).isZero();
+      assertThat(out).contains("Verification successful");
+    } finally {
+      try (var files = Files.list(dir)) {
+        for (Path f : files.toList()) {
+          Files.deleteIfExists(f);
+        }
+      }
+      Files.deleteIfExists(dir);
     }
   }
 }

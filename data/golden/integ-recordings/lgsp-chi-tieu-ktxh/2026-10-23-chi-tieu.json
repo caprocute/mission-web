@@ -1,0 +1,49 @@
+{
+  "provider" : "lgsp-chi-tieu-ktxh",
+  "ghiLuc" : "2026-10-23",
+  "nguon" : "phiên ghi giả lập theo dạng phản hồi LGSP (chưa có môi trường thử thật)",
+  "daChe" : true,
+  "exchanges" : [ {
+    "request" : {
+      "method" : "GET",
+      "path" : "/api/chi-tieu-ktxh",
+      "query" : {
+        "capNhatTu" : [ "1970-01-01T00:00:00Z" ],
+        "gioiHan" : [ "200" ]
+      },
+      "headers" : {
+        "Accept" : "application/json",
+        "Authorization" : "Bearer ma-gia-lap"
+      }
+    },
+    "response" : {
+      "status" : 200,
+      "headers" : {
+        "Content-Type" : "application/json; charset=utf-8"
+      },
+      "body" : {
+        "items" : [ {
+          "maChiTieu" : "GRDP",
+          "kyBaoCao" : "2026-Q3",
+          "maDiaBan" : "T01",
+          "giaTri" : 7.65,
+          "donViTinh" : "%",
+          "daCongBo" : true,
+          "thoiDiemCongBo" : "2026-10-10T09:00:00+07:00",
+          "capNhatLuc" : "2026-10-10T09:00:00+07:00",
+          "nguonSoLieu" : "Cục Thống kê tỉnh"
+        }, {
+          "maChiTieu" : "CPI",
+          "kyBaoCao" : "2026-M09",
+          "maDiaBan" : "T01",
+          "giaTri" : 3.1,
+          "donViTinh" : "%",
+          "daCongBo" : false,
+          "thoiDiemCongBo" : "2026-10-06T09:00:00+07:00",
+          "capNhatLuc" : "2026-10-06T09:00:00+07:00"
+        } ],
+        "next" : "2026-10-10T02:00:00Z"
+      }
+    }
+  } ]
+}

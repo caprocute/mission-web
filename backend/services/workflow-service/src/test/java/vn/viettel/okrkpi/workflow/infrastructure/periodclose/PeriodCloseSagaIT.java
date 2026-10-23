@@ -223,7 +223,7 @@ class PeriodCloseSagaIT {
   void duongChinhDuSauBuocVaTheoDoiDuocNhuTacVu() throws Exception {
     UUID period = UUID.randomUUID();
     String location = start(period, UUID.randomUUID());
-    UUID id = UUID.fromString(location.substring("/api/v1/jobs/".length()));
+    UUID id = UUID.fromString(location.substring("/api/v1/jobs/wf-".length()));
 
     long t0 = System.nanoTime();
     SagaInstance done = drive(id);
@@ -277,7 +277,7 @@ class PeriodCloseSagaIT {
     UUID period = UUID.randomUUID();
     fake.notReady.add(period);
     String location = start(period, UUID.randomUUID());
-    UUID id = UUID.fromString(location.substring("/api/v1/jobs/".length()));
+    UUID id = UUID.fromString(location.substring("/api/v1/jobs/wf-".length()));
 
     SagaInstance undone = drive(id);
 
@@ -488,7 +488,7 @@ class PeriodCloseSagaIT {
                 "reason",
                 "Hồ sơ chuyển công tác, xử lý ở kỳ sau"))
         .andExpect(status().isAccepted())
-        .andExpect(header().string("Location", "/api/v1/jobs/" + id));
+        .andExpect(header().string("Location", "/api/v1/jobs/wf-" + id));
     SagaInstance done = drive(id);
     assertThat(done.status()).isEqualTo(SagaStatus.HOAN_TAT);
     assertThat(done.notes()).containsKey("chapNhanHoSoLoi");
@@ -538,7 +538,7 @@ class PeriodCloseSagaIT {
   }
 
   private static UUID idOf(String location) {
-    return UUID.fromString(location.substring("/api/v1/jobs/".length()));
+    return UUID.fromString(location.substring("/api/v1/jobs/wf-".length()));
   }
 
   private String body(UUID period, UUID order) throws Exception {

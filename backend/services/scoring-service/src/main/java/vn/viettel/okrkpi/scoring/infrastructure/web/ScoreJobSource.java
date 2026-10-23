@@ -9,6 +9,7 @@ import org.springframework.transaction.support.TransactionOperations;
 import vn.viettel.okrkpi.scoring.application.port.ScoreJobStore;
 import vn.viettel.okrkpi.scoring.application.port.ScoreJobStore.JobState;
 import vn.viettel.okrkpi.shared.job.Job;
+import vn.viettel.okrkpi.shared.job.JobIds;
 import vn.viettel.okrkpi.shared.job.JobSource;
 import vn.viettel.okrkpi.shared.job.JobStatus;
 import vn.viettel.okrkpi.shared.job.TrackedJob;
@@ -23,6 +24,9 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
 public class ScoreJobSource implements JobSource {
 
   static final String TYPE = "SCORING";
+
+  /** Tiền tố mã tác vụ của SVC-07: cổng cell định tuyến {@code /api/v1/jobs/score-…} về đây. */
+  static final String JOB_PREFIX = "score";
 
   private final ScoreJobStore jobs;
   private final TransactionOperations tx;
@@ -39,12 +43,11 @@ public class ScoreJobSource implements JobSource {
 
   @Override
   public Optional<TrackedJob> find(TenantId tenant, String jobId) {
-    UUID id;
-    try {
-      id = UUID.fromString(jobId);
-    } catch (IllegalArgumentException e) {
+    Optional<UUID> parsed = JobIds.parse(JOB_PREFIX, jobId);
+    if (parsed.isEmpty()) {
       return Optional.empty();
     }
+    UUID id = parsed.get();
     Optional<JobState> state = tx.execute(t -> jobs.find(id));
     return state == null
         ? Optional.empty()
@@ -68,7 +71,7 @@ public class ScoreJobSource implements JobSource {
                 : Integer.valueOf(Math.min(99, handled * 100 / s.totalItems()));
     Instant at = s.updatedAt();
     return new Job(
-        s.id().toString(),
+        JobIds.format(JOB_PREFIX, s.id()),
         TYPE,
         status,
         status == JobStatus.THAT_BAI ? null : progress,

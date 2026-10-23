@@ -433,6 +433,7 @@ class WorkflowApiIT extends WorkflowIntegrationTest {
             .andReturn();
     assertResponseConforms(accepted, "/workflow/tasks/batch-complete", PathItem.HttpMethod.POST);
     String jobId = body(accepted).path("id").asText();
+    assertThat(jobId).startsWith("wf-");
     assertThat(accepted.getResponse().getHeader("Location")).isEqualTo("/api/v1/jobs/" + jobId);
 
     await()
@@ -451,7 +452,7 @@ class WorkflowApiIT extends WorkflowIntegrationTest {
                     "id", rs.getString("id"),
                     "status", rs.getInt("status"),
                     "code", String.valueOf(rs.getString("code"))),
-            jobId);
+            jobId.substring("wf-".length()));
     assertThat(results).extracting(r -> r.get("status")).containsExactly(200, 409, 200);
     assertThat(results.get(1).get("code")).isEqualTo("WORKFLOW-409-VERSION-CONFLICT");
     assertThat(tasks.createTaskQuery().taskId(b).count()).isEqualTo(1);
