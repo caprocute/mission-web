@@ -33,6 +33,7 @@ final class InMemoryPackages implements DossierPackageRepository {
   final Map<UUID, PackageRow> packages = new LinkedHashMap<>();
   final Map<UUID, FormRow> forms = new LinkedHashMap<>();
   final Map<UUID, String> manifests = new LinkedHashMap<>();
+  final Map<UUID, String> signatures = new LinkedHashMap<>();
   final Set<UUID> settled = new HashSet<>();
   private int sequence;
 
@@ -441,8 +442,16 @@ final class InMemoryPackages implements DossierPackageRepository {
 
   @Override
   public long submit(
-      TenantId tenant, PackageRow row, Instant submittedAt, byte[] packageSha256, UUID actor) {
+      TenantId tenant,
+      PackageRow row,
+      Instant submittedAt,
+      byte[] packageSha256,
+      String signatureKey,
+      UUID actor) {
     guard(row.id());
+    if (signatureKey != null) {
+      signatures.put(row.id(), signatureKey);
+    }
     PackageRow s = packages.get(row.id());
     long version = s.rowVersion() + 1;
     packages.put(
@@ -494,6 +503,41 @@ final class InMemoryPackages implements DossierPackageRepository {
   }
 
   /** Cổng hồ sơ MOD-04 trong bộ nhớ. */
+  @Override
+  public Optional<String> signatureKey(TenantId tenant, int periodBucket, UUID packageId) {
+    return Optional.ofNullable(signatures.get(packageId));
+  }
+
+  @Override
+  public long archive(TenantId tenant, PackageRow row, String transferredTo, UUID actor) {
+    PackageRow s = packages.get(row.id());
+    if (s == null || s.status() != PackageStatus.DA_NOP) {
+      return 0;
+    }
+    long version = s.rowVersion() + 1;
+    packages.put(
+        row.id(),
+        new PackageRow(
+            s.id(),
+            s.periodId(),
+            s.periodBucket(),
+            s.code(),
+            s.orgUnitId(),
+            s.personId(),
+            s.kind(),
+            s.versionNo(),
+            PackageStatus.DA_LUU_TRU,
+            s.deadline(),
+            s.submittedAt(),
+            s.transferredTo() == null ? transferredTo : s.transferredTo(),
+            s.signRequestId(),
+            s.manifestHash(),
+            s.packageSha256(),
+            actor,
+            version));
+    return version;
+  }
+
   static final class Profiles implements DossierProfilesApi {
 
     final Map<UUID, UnitProfile> profiles = new LinkedHashMap<>();

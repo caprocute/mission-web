@@ -537,17 +537,23 @@ public class JdbcDossierPackageRepository implements DossierPackageRepository {
 
   @Override
   public long submit(
-      TenantId tenant, PackageRow row, Instant submittedAt, byte[] packageSha256, UUID actor) {
+      TenantId tenant,
+      PackageRow row,
+      Instant submittedAt,
+      byte[] packageSha256,
+      String signatureKey,
+      UUID actor) {
     return frozen(
         () ->
             jdbc.sql(
                     "UPDATE dossier.dossier_package SET status = 'DA_NOP', submitted_at = ?,"
-                        + " package_sha256 = ?, row_version = row_version + 1, updated_at = now(),"
-                        + " updated_by = ? WHERE period_bucket = ? AND tenant_id = ? AND id = ?"
-                        + " AND status = 'DA_KY' RETURNING row_version")
+                        + " package_sha256 = ?, object_key = ?, row_version = row_version + 1,"
+                        + " updated_at = now(), updated_by = ? WHERE period_bucket = ?"
+                        + " AND tenant_id = ? AND id = ? AND status = 'DA_KY' RETURNING row_version")
                 .params(
                     Timestamp.from(submittedAt),
                     packageSha256,
+                    nullable(signatureKey),
                     actor,
                     row.periodBucket(),
                     tenant.value(),
@@ -581,6 +587,33 @@ public class JdbcDossierPackageRepository implements DossierPackageRepository {
             previous.deadline())
         .update();
     return lock(tenant, previous.periodBucket(), id).orElseThrow();
+  }
+
+  @Override
+  public Optional<String> signatureKey(TenantId tenant, int periodBucket, UUID packageId) {
+    return jdbc.sql(
+            "SELECT object_key FROM dossier.dossier_package WHERE period_bucket = ?"
+                + " AND tenant_id = ? AND id = ? AND object_key IS NOT NULL")
+        .params(periodBucket, tenant.value(), packageId)
+        .query(String.class)
+        .optional();
+  }
+
+  @Override
+  public long archive(TenantId tenant, PackageRow row, String transferredTo, UUID actor) {
+    return frozen(
+        () ->
+            jdbc.sql(
+                    "UPDATE dossier.dossier_package SET status = 'DA_LUU_TRU',"
+                        + " transferred_to = coalesce(transferred_to, ?),"
+                        + " row_version = row_version + 1, updated_at = now(), updated_by = ?"
+                        + " WHERE period_bucket = ? AND tenant_id = ? AND id = ?"
+                        + " AND status = 'DA_NOP' RETURNING row_version")
+                .params(
+                    nullable(transferredTo), actor, row.periodBucket(), tenant.value(), row.id())
+                .query(Long.class)
+                .optional()
+                .orElse(0L));
   }
 
   /**
@@ -661,6 +694,12 @@ public class JdbcDossierPackageRepository implements DossierPackageRepository {
   private static Object nullable(UUID v) {
     return v == null
         ? new org.springframework.jdbc.core.SqlParameterValue(java.sql.Types.OTHER, null)
+        : v;
+  }
+
+  private static Object nullable(String v) {
+    return v == null
+        ? new org.springframework.jdbc.core.SqlParameterValue(java.sql.Types.VARCHAR, null)
         : v;
   }
 

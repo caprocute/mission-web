@@ -32,6 +32,7 @@ import vn.viettel.okrkpi.dossier.application.dossierpackage.port.DossierPackageR
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.FileHashes;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.PackageEvents;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.PackageSigner;
+import vn.viettel.okrkpi.dossier.application.dossierpackage.port.PackageTransferRepository;
 import vn.viettel.okrkpi.dossier.domain.dossierpackage.Checklist;
 import vn.viettel.okrkpi.dossier.domain.dossierpackage.FormStatus;
 import vn.viettel.okrkpi.dossier.domain.dossierpackage.PackageKind;
@@ -86,6 +87,30 @@ class DossierSigningServiceTest {
         public void reopened(TenantId tenant, PackageRow pkg, UUID previousId, UUID actor) {
           events.add("MO_LAI:" + previousId);
         }
+
+        @Override
+        public void exported(TenantId tenant, PackageRow pkg, UUID exportId, UUID actor) {}
+
+        @Override
+        public void transferRequested(
+            TenantId tenant,
+            PackageRow pkg,
+            UUID batchId,
+            String destination,
+            int count,
+            UUID actor) {}
+
+        @Override
+        public void transferAcknowledged(
+            TenantId tenant, PackageRow pkg, PackageTransferRepository.TransferRow transfer) {}
+
+        @Override
+        public void transferFailed(
+            TenantId tenant,
+            PackageRow pkg,
+            PackageTransferRepository.TransferRow transfer,
+            List<UUID> recipients,
+            String message) {}
       };
 
   DossierSigningService service() {
@@ -351,9 +376,17 @@ class DossierSigningServiceTest {
     profiles.failLock = true;
     UUID signer = UUID.randomUUID();
     Instant at = Instant.parse("2027-01-14T00:00:00Z");
-    assertThat(s.onSigned(TENANT, new Signed(request, pkg.id(), signer, List.of(hash), at)))
+    List<String> keys = new java.util.ArrayList<>();
+    keys.add(null);
+    keys.add("ky/goi.p7s");
+    assertThat(
+            s.onSigned(
+                TENANT,
+                new Signed(request, pkg.id(), signer, List.of(new byte[32], hash), at, keys)))
         .isTrue();
     assertThat(repo.packages.get(pkg.id()).submittedAt()).isEqualTo(at);
+    // Tệp chữ ký của phần tử có băm manifest được ghi để xuất ZIP và gửi gói con (CORE-06-08).
+    assertThat(repo.signatures.get(pkg.id())).isEqualTo("ky/goi.p7s");
     assertThat(events).containsExactly("NOP:" + pkg.id() + ":2");
   }
 

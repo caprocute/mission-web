@@ -82,7 +82,10 @@ public class DossierSigningConsumer implements SmartLifecycle {
             payload.getSourceRefId(),
             e.actorId() == null ? null : e.actorId().value(),
             hashes,
-            payload.getSignedAt()));
+            payload.getSignedAt(),
+            payload.getItems().stream()
+                .map(i -> i.getSignedObjectKey() == null ? null : i.getSignedObjectKey().toString())
+                .toList()));
   }
 
   /** EVT-22: kỳ mở lại hậu kiểm. */
