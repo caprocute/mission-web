@@ -6,8 +6,11 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.flowable.common.engine.api.delegate.event.FlowableEventListener;
@@ -18,6 +21,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.RecoverableDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
+import vn.viettel.okrkpi.workflow.application.history.port.HistoryArchiveWatermark;
 
 /**
  * Kiểm thử đơn vị cấu hình tinh chỉnh động cơ Flowable 7 và chỉ số backlog tác vụ bất đồng bộ
@@ -31,9 +36,15 @@ class FlowableEngineTuningTest {
     FlowableEventListener customListener = mock(FlowableEventListener.class);
     FlowableEventListener existingListener = mock(FlowableEventListener.class);
     ObjectProvider<FlowableEventListener> provider = mock(ObjectProvider.class);
-    when(provider.orderedStream()).thenReturn(Stream.of(customListener));
+    when(provider.orderedStream()).thenAnswer(i -> Stream.of(customListener));
 
-    FlowableEngineTuning tuning = new FlowableEngineTuning(provider);
+    ObjectProvider<MeterRegistry> registries = mock(ObjectProvider.class);
+    SimpleMeterRegistry registry = new SimpleMeterRegistry();
+    when(registries.getIfAvailable()).thenReturn(registry);
+    ObjectProvider<HistoryArchiveWatermark> watermarks = mock(ObjectProvider.class);
+    when(watermarks.getIfAvailable()).thenReturn(Optional::empty);
+    FlowableEngineTuning tuning =
+        new FlowableEngineTuning(provider, registries, watermarks, Duration.ofHours(1));
     SpringProcessEngineConfiguration config = new SpringProcessEngineConfiguration();
     config.setEventListeners(List.of(existingListener));
 
@@ -54,6 +65,17 @@ class FlowableEngineTuningTest {
     assertThat(config.getHistoryCleaningTimeCycleConfig())
         .isEqualTo(FlowableEngineTuning.HISTORY_CLEANING_CRON);
     assertThat(config.getEventListeners()).containsExactly(existingListener, customListener);
+    assertThat(config.getProcessDefinitionCache()).isInstanceOf(CountingDeploymentCache.class);
+    assertThat(config.getCustomPreCommandInterceptors())
+        .hasOnlyElementsOfType(CountingCommandInterceptor.class);
+    assertThat(config.getHistoryCleaningManager())
+        .isInstanceOf(ArchiveGuardedHistoryCleaningManager.class);
+
+    // Không có registry (kiểm thử cắt lát) thì giữ cấu hình mặc định của engine.
+    ObjectProvider<MeterRegistry> none = mock(ObjectProvider.class);
+    SpringProcessEngineConfiguration plain = new SpringProcessEngineConfiguration();
+    new FlowableEngineTuning(provider, none, watermarks, Duration.ofHours(1)).configure(plain);
+    assertThat(plain.getHistoryCleaningManager()).isNull();
 
     SpringDmnEngineConfiguration dmnConfig = new SpringDmnEngineConfiguration();
     tuning.dmnEngineTuning().configure(dmnConfig);
@@ -61,22 +83,36 @@ class FlowableEngineTuningTest {
   }
 
   @Test
-  void asyncBacklogMetricsDemSoJobQuaHanChuaKhoaVaAnToanKhiLoiCsdl() {
-    JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-    when(jdbcTemplate.queryForObject(anyString(), eq(Long.class))).thenReturn(42L);
-
+  void chiSoLayMauGiuGiaTriCuKhiLoiVaDemLoi() {
+    JdbcTemplate jdbc = mock(JdbcTemplate.class);
+    when(jdbc.queryForObject(anyString(), eq(Number.class))).thenReturn(42L);
     SimpleMeterRegistry registry = new SimpleMeterRegistry();
-    FlowableAsyncBacklogMetrics metrics = new FlowableAsyncBacklogMetrics(jdbcTemplate, registry);
+    FlowableEngineMetrics metrics = new FlowableEngineMetrics(jdbc, registry);
 
-    assertThat(metrics.countDueUnlockedJobs()).isEqualTo(42.0);
-    assertThat(registry.get(FlowableAsyncBacklogMetrics.METRIC_NAME).gauge().value())
+    metrics.sample();
+    assertThat(metrics.dueUnlockedJobs()).isEqualTo(42.0);
+    assertThat(registry.get(FlowableEngineMetrics.DUE_UNLOCKED).gauge().value()).isEqualTo(42.0);
+    assertThat(registry.get(FlowableEngineMetrics.ACTIVE_DEFINITIONS).gauge().value())
         .isEqualTo(42.0);
+    assertThat(registry.find(FlowableEngineMetrics.HI_ROWS).gauges()).hasSize(5);
 
-    when(jdbcTemplate.queryForObject(anyString(), eq(Long.class))).thenReturn(null);
-    assertThat(metrics.countDueUnlockedJobs()).isZero();
+    when(jdbc.queryForObject(anyString(), eq(Number.class))).thenReturn(null);
+    metrics.sample();
+    assertThat(metrics.dueUnlockedJobs()).isZero();
 
-    when(jdbcTemplate.queryForObject(anyString(), eq(Long.class)))
+    when(jdbc.queryForObject(anyString(), eq(Number.class))).thenReturn(7L);
+    metrics.sample();
+    when(jdbc.queryForObject(anyString(), eq(Number.class)))
         .thenThrow(new RecoverableDataAccessException("db down"));
-    assertThat(metrics.countDueUnlockedJobs()).isZero();
+    org.mockito.Mockito.doThrow(new RecoverableDataAccessException("db down"))
+        .when(jdbc)
+        .query(anyString(), org.mockito.ArgumentMatchers.any(RowCallbackHandler.class));
+    metrics.sample();
+    assertThat(metrics.dueUnlockedJobs()).isEqualTo(7.0);
+    assertThat(registry.get(FlowableEngineMetrics.SAMPLE_FAILURES).counter().count())
+        .isEqualTo(5.0);
+    // Truy vấn đếm luôn có giới hạn.
+    assertThat(FlowableEngineMetrics.DUE_UNLOCKED_SQL).contains("LIMIT 100001");
+    assertThat(FlowableEngineMetrics.RELTUPLES_SQL).contains("'act_hi_taskinst'");
   }
 }
