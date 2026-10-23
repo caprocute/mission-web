@@ -8,40 +8,50 @@ import { defineConfig, devices } from '@playwright/test';
  * - `E2E_MODE=that` (WEB-070): ba luồng chính `that.*.spec.ts` (nhãn `@qa-03`) với máy chủ thật của
  *   môi trường QA-03, đăng nhập Keycloak như chế độ trên; `serve.mjs` dựng `config.json` từ biến môi
  *   trường (`useMockApi: false`, `mockApiModules` từ `MOCK_API_MODULES`).
+ * - `E2E_MODE=he-thong` (QA-03, hoặc `npm run e2e:he-thong`): các hành trình `*.spec.ts` trong `hanh-trinh/` với
+ *   hệ thống thật trên server dev (backend thật qua APISIX ở `E2E_APISIX_URL`, Keycloak realm `mission`),
+ *   chạy tuần tự, không chụp màn hình, báo cáo ở `dist/e2e-ket-qua/bao-cao-he-thong.md`; `serve.mjs`
+ *   chuyển mọi `/api/*` tới APISIX và không rơi về giả lập.
  * Chế độ giả lập không nạp `that.*`, trừ khi đặt `E2E_THAT_GIA_LAP=1` để chạy các luồng đó trên dữ
  * liệu giả lập; khi đó kết quả ghi vào thư mục riêng để không xoá kết quả của bộ giả lập đang chạy.
  * Mọi chế độ chạy trên bản ghép `dist/e2e` (`npm run e2e:prepare`) do `e2e/serve.mjs` phục vụ.
  */
 const keycloak = process.env.E2E_MODE === 'keycloak';
 const that = process.env.E2E_MODE === 'that';
-const thatGiaLap = !keycloak && !that && process.env.E2E_THAT_GIA_LAP === '1';
+if (process.env.npm_lifecycle_event === 'e2e:he-thong') process.env.E2E_MODE = 'he-thong';
+const heThong = process.env.E2E_MODE === 'he-thong';
+const thatGiaLap = !keycloak && !that && !heThong && process.env.E2E_THAT_GIA_LAP === '1';
 /** Đăng nhập Keycloak thật: chạy tuần tự hơn, thời gian chờ dài, không chụp màn hình. */
-const real = keycloak || that;
+const real = keycloak || that || heThong;
 const port = Number(process.env.E2E_PORT ?? 4200);
 
 export default defineConfig({
   testDir: '.',
-  testMatch: keycloak
-    ? /keycloak\..*spec\.ts/
-    : that
-      ? /that\..*spec\.ts/
-      : thatGiaLap
-        ? [/gia-lap\..*spec\.ts/, /that\..*spec\.ts/]
-        : /gia-lap\..*spec\.ts/,
-  outputDir: `../dist/e2e-ket-qua/test-results${that || thatGiaLap ? '-that' : ''}`,
-  fullyParallel: true,
-  workers: real ? 2 : undefined,
+  testMatch: heThong
+    ? /hanh-trinh\/.*\.spec\.ts/
+    : keycloak
+      ? /keycloak\..*spec\.ts/
+      : that
+        ? /that\..*spec\.ts/
+        : thatGiaLap
+          ? [/gia-lap\..*spec\.ts/, /that\..*spec\.ts/]
+          : /gia-lap\..*spec\.ts/,
+  outputDir: `../dist/e2e-ket-qua/test-results${heThong ? '-he-thong' : that || thatGiaLap ? '-that' : ''}`,
+  fullyParallel: !heThong,
+  workers: heThong ? 1 : real ? 2 : undefined,
   retries: 0,
-  timeout: real ? 120_000 : 30_000,
-  reporter: that
-    ? [['list']]
-    : [
-        ['list'],
-        [
-          './ma-tran-reporter.ts',
-          { mode: keycloak ? 'keycloak-dev' : thatGiaLap ? 'gia-lap-that' : 'gia-lap' },
+  timeout: heThong ? 300_000 : real ? 120_000 : 30_000,
+  reporter: heThong
+    ? [['list'], ['./hanh-trinh/ho-tro/bao-cao-reporter.ts']]
+    : that
+      ? [['list']]
+      : [
+          ['list'],
+          [
+            './ma-tran-reporter.ts',
+            { mode: keycloak ? 'keycloak-dev' : thatGiaLap ? 'gia-lap-that' : 'gia-lap' },
+          ],
         ],
-      ],
   use: {
     baseURL: `http://localhost:${port}`,
     // Không chụp ảnh hay trace khi đăng nhập thật để không lưu lại màn hình nhập mật khẩu, OTP
@@ -54,6 +64,8 @@ export default defineConfig({
     cwd: '..',
     url: `http://localhost:${port}/config.json`,
     reuseExistingServer: false,
-    env: { E2E_PORT: String(port), E2E_MODE: process.env.E2E_MODE ?? '' },
+    // Không đặt E2E_MODE thì serve.mjs dựng cấu hình động từ .env (bật đăng nhập, gọi máy chủ thật);
+    // bộ kiểm thử mặc định là giả lập nên truyền rõ `gia-lap`
+    env: { E2E_PORT: String(port), E2E_MODE: process.env.E2E_MODE || 'gia-lap' },
   },
 });
