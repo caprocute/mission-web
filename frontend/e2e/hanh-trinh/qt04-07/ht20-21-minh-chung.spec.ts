@@ -1,6 +1,5 @@
 import { Page, expect, test } from '@playwright/test';
 import { donTheoTienTo, giaoNhiemVu, kyDangMo } from '../ho-tro/du-lieu';
-import { spaGoto } from '../ho-tro/phien';
 import {
   HE_THONG,
   MA_LAN_CHAY,
@@ -31,6 +30,8 @@ import {
  * mình nộp, còn hàng chờ nghiệm thu là minh chứng của người khác, nên bước nộp lại sau yêu cầu bổ sung
  * chỉ kiểm được trên hệ thống thật.
  */
+/** Nhiệm vụ giả lập có sản phẩm chưa nộp và bản nháp minh chứng của người dùng giả lập. */
+const NV_GIA_LAP = 'Báo cáo chuyên đề công tác kiểm tra quý III';
 const MC = seed<{ tenTep: string; yKienBoSung: string; nhanXet: string }>('minhChung');
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
 
@@ -42,34 +43,24 @@ interface MinhChung {
 /** Phiên bản mới nhất của minh chứng và ETag của nó (`getEvidence`, `getEvidenceVersion`). */
 async function phienBanMoi(api: Awaited<ReturnType<PhienQt['apiCua']>>, id: string) {
   const ev = await api.can<MinhChung>('GET', `evidences/${id}`);
-  const v = await api.can<{ rowVersion: number }>('GET', `evidences/${id}/versions/${ev.body.currentVersionNo}`);
-  return { no: ev.body.currentVersionNo, status: ev.body.currentStatus, etag: v.etag ?? `"${v.body.rowVersion}"` };
+  const v = await api.can<{ rowVersion: number }>(
+    'GET',
+    `evidences/${id}/versions/${ev.body.currentVersionNo}`,
+  );
+  return {
+    no: ev.body.currentVersionNo,
+    status: ev.body.currentStatus,
+    etag: v.etag ?? `"${v.body.rowVersion}"`,
+  };
 }
 
 /**
- * Sang trang nộp minh chứng (SCR-0701). Chế độ thường: từ chi tiết nhiệm vụ bấm "Nộp sản phẩm" rồi chọn
- * sản phẩm chưa nộp. Chế độ cao tuổi (`reducedSteps`) ẩn nút đó trên chi tiết nhiệm vụ; giả lập đi qua
- * menu "Minh chứng" mở bản nháp có sẵn, hệ thống thật (nhiệm vụ mới chưa có minh chứng) không còn lối
- * vào trên giao diện nên mở thẳng danh sách sản phẩm của nhiệm vụ và ghi phát hiện vào báo cáo.
+ * Sang trang nộp minh chứng (SCR-0701): từ chi tiết nhiệm vụ bấm "Nộp sản phẩm" rồi chọn sản phẩm chưa
+ * nộp. Chế độ cao tuổi vẫn giữ nút này khi nhiệm vụ còn sản phẩm chưa nộp.
  */
-async function moNop(page: Page, taskId: string | null) {
+async function moNop(page: Page) {
   const m = main(page);
-  const nut = m.getByRole('button', { name: 'Nộp sản phẩm' });
-  if (await nut.isVisible()) {
-    await nut.click();
-  } else if (taskId) {
-    test.info().annotations.push({
-      type: 'phat-hien',
-      description:
-        'chế độ cao tuổi ẩn nút "Nộp sản phẩm" trên chi tiết nhiệm vụ; nhiệm vụ chưa có minh chứng không có lối vào trang nộp từ giao diện',
-    });
-    await spaGoto(page, `/evidence?task=${taskId}`);
-  } else {
-    await page.getByRole('navigation', { name: 'Menu chính' }).getByRole('link', { name: /^Minh chứng/ }).click();
-    await expect(m.getByRole('heading', { level: 1, name: 'Minh chứng của tôi' })).toBeVisible();
-    await m.getByRole('listitem').filter({ hasText: /phiên bản \d+\s*· Nháp/ }).first().getByRole('link', { name: 'Mở' }).click();
-    await expect(m.getByRole('heading', { level: 1, name: 'Nộp sản phẩm, minh chứng' })).toBeVisible();
-  }
+  await m.getByRole('button', { name: 'Nộp sản phẩm' }).click();
   if (!(await m.getByRole('heading', { level: 1, name: 'Nộp sản phẩm, minh chứng' }).isVisible())) {
     await expect(
       m.getByRole('heading', { level: 1, name: 'Sản phẩm, minh chứng của nhiệm vụ' }),
@@ -79,7 +70,9 @@ async function moNop(page: Page, taskId: string | null) {
       .or(m.getByRole('link', { name: 'Tiếp tục nộp' }))
       .first()
       .click();
-    await expect(m.getByRole('heading', { level: 1, name: 'Nộp sản phẩm, minh chứng' })).toBeVisible();
+    await expect(
+      m.getByRole('heading', { level: 1, name: 'Nộp sản phẩm, minh chứng' }),
+    ).toBeVisible();
   }
   const taiLen = m.getByRole('radio', { name: /^Tải tệp lên/ });
   if (!(await taiLen.isChecked())) await taiLen.check();
@@ -88,7 +81,9 @@ async function moNop(page: Page, taskId: string | null) {
 /** Chọn tệp, chờ quét xong và trả dòng của tệp trong bảng. */
 async function taiTep(page: Page, ten: string, noiDung: Buffer, ketQua: 'Sạch' | RegExp) {
   const m = main(page);
-  await m.getByLabel('chọn tệp').setInputFiles({ name: ten, mimeType: 'application/pdf', buffer: noiDung });
+  await m
+    .getByLabel('chọn tệp')
+    .setInputFiles({ name: ten, mimeType: 'application/pdf', buffer: noiDung });
   const dong = m.getByRole('row').filter({ hasText: ten });
   await expect(dong.getByRole('cell', { name: ketQua })).toBeVisible({ timeout: 90_000 });
   return dong;
@@ -106,10 +101,17 @@ async function nop(page: Page): Promise<string> {
 /** Nhiệm vụ đầu vào trên hệ thống thật: `quanly` giao (là người nghiệm thu), `canbo` nhận việc. */
 async function nhiemVuHeThong(s: PhienQt) {
   const ky = await kyDangMo(await s.apiCua('quantri'));
-  const nv = await giaoNhiemVu(await s.apiCua('quanly'), await s.danhTinh('quanly'), await s.danhTinh('canbo'), ky);
+  const nv = await giaoNhiemVu(
+    await s.apiCua('quanly'),
+    await s.danhTinh('quanly'),
+    await s.danhTinh('canbo'),
+    ky,
+  );
   const canBo = await s.apiCua('canbo');
   const ct = await canBo.can<{ rowVersion: number }>('GET', `tasks/${nv.id}`);
-  await canBo.can('POST', `tasks/${nv.id}/accept`, { ifMatch: ct.etag ?? `"${ct.body.rowVersion}"` });
+  await canBo.can('POST', `tasks/${nv.id}/accept`, {
+    ifMatch: ct.etag ?? `"${ct.body.rowVersion}"`,
+  });
   return { id: nv.id, title: nv.title, kyId: ky.id };
 }
 
@@ -146,21 +148,25 @@ test.describe('Minh chứng và nghiệm thu', { tag: '@qa-05' }, () => {
     expect(loi, 'không có lỗi console trên trang của ứng dụng').toEqual([]);
   });
 
-  test('HT-20 cán bộ cao tuổi tải lên và nộp minh chứng sau khi quét mã độc', async ({ browser }) => {
+  test('HT-20 cán bộ cao tuổi tải lên và nộp minh chứng sau khi quét mã độc', async ({
+    browser,
+  }) => {
     test.setTimeout(HE_THONG ? 300_000 : 120_000);
     PhienQt.batDau();
     s = new PhienQt(browser, ['canbo', 'quanly', 'quantri'], true);
     let nv: { id: string; title: string } | null = null;
     if (HE_THONG) ({ kyId, ...nv } = await nhiemVuHeThong(s));
 
-    const page = nv ? await moNhiemVu(s, nv.title) : await s.as('canbo', '/');
-    await moNop(page, nv?.id ?? null);
+    const page = nv ? await moNhiemVu(s, nv.title) : await moNhiemVu(s, NV_GIA_LAP, NV_GIA_LAP);
+    await moNop(page);
     const m = main(page);
 
     // Ca phủ định: tệp thử EICAR bị đánh dấu nhiễm, bị cách ly và không nộp được
     const tenNhiem = `eicar-${MA_LAN_CHAY}.pdf`;
     await taiTep(page, tenNhiem, eicar(), /Nhiễm|Không an toàn|cách ly/i);
-    await expect(m.getByRole('alert').filter({ hasText: `Tệp "${tenNhiem}" không an toàn` })).toBeVisible();
+    await expect(
+      m.getByRole('alert').filter({ hasText: `Tệp "${tenNhiem}" không an toàn` }),
+    ).toBeVisible();
     await m.getByRole('checkbox', { name: /^Tôi xác nhận minh chứng/ }).check();
     await expect(m.getByRole('button', { name: 'Nộp để nghiệm thu' })).toBeDisabled();
     await expect(m.getByText(/gỡ tệp không an toàn và tải tệp khác/)).toBeVisible();
@@ -190,8 +196,8 @@ test.describe('Minh chứng và nghiệm thu', { tag: '@qa-05' }, () => {
     if (HE_THONG) ({ kyId, ...nv } = await nhiemVuHeThong(s));
 
     // Cán bộ nộp minh chứng của mình (như HT-20, chế độ thường)
-    const page = await moNhiemVu(s, nv?.title ?? null);
-    await moNop(page, nv?.id ?? null);
+    const page = nv ? await moNhiemVu(s, nv.title) : await moNhiemVu(s, NV_GIA_LAP, NV_GIA_LAP);
+    await moNop(page);
     await taiTep(page, MC.tenTep, PDF, 'Sạch');
     const evMinh = await nop(page);
 
@@ -206,7 +212,11 @@ test.describe('Minh chứng và nghiệm thu', { tag: '@qa-05' }, () => {
     } else {
       const p = await s.as('canbo', `/evidence/${evMinh}/review`);
       await expect(
-        main(p).getByText(/Người nghiệm thu phải khác người nộp|không phải người nghiệm thu được chỉ định/).first(),
+        main(p)
+          .getByText(
+            /Người nghiệm thu phải khác người nộp|không phải người nghiệm thu được chỉ định/,
+          )
+          .first(),
       ).toBeVisible();
       await expect(main(p).getByRole('button', { name: 'Xác nhận nghiệm thu' })).toHaveCount(0);
     }
@@ -215,13 +225,17 @@ test.describe('Minh chứng và nghiệm thu', { tag: '@qa-05' }, () => {
     const moHangCho = async () => {
       const rp = await s.as('quanly', '/evidence?reviewer=me');
       const rm = main(rp);
-      await expect(rm.getByRole('heading', { level: 1, name: 'Minh chứng chờ tôi nghiệm thu' })).toBeVisible();
+      await expect(
+        rm.getByRole('heading', { level: 1, name: 'Minh chứng chờ tôi nghiệm thu' }),
+      ).toBeVisible();
       const hang = rm.getByRole('listitem');
       await (nv ? hang.filter({ hasText: nv.title }) : hang)
         .first()
         .getByRole('link', { name: 'Nghiệm thu' })
         .click();
-      await expect(rm.getByRole('heading', { level: 1, name: 'Nghiệm thu sản phẩm' })).toBeVisible();
+      await expect(
+        rm.getByRole('heading', { level: 1, name: 'Nghiệm thu sản phẩm' }),
+      ).toBeVisible();
       return rp;
     };
     let rp = await moHangCho();
@@ -232,7 +246,9 @@ test.describe('Minh chứng và nghiệm thu', { tag: '@qa-05' }, () => {
     await rm.getByRole('textbox', { name: 'Nhận xét' }).fill(MC.yKienBoSung);
     await rm.getByRole('button', { name: 'Yêu cầu bổ sung' }).click();
     await expect(thongBao(rp, /^Đã yêu cầu bổ sung/)).toBeVisible();
-    await expect(rm.getByRole('region', { name: 'Kết quả nghiệm thu' }).getByText(MC.yKienBoSung)).toBeVisible();
+    await expect(
+      rm.getByRole('region', { name: 'Kết quả nghiệm thu' }).getByText(MC.yKienBoSung),
+    ).toBeVisible();
 
     // AC-06 nộp phiên bản mới (`createEvidenceVersion`, `submitEvidenceVersion`)
     if (HE_THONG) {
@@ -243,7 +259,9 @@ test.describe('Minh chứng và nghiệm thu', { tag: '@qa-05' }, () => {
       rp = await moHangCho();
       rm = main(rp);
     } else {
-      ghiCho('nộp phiên bản mới sau yêu cầu bổ sung: người dùng giả lập không chủ trì minh chứng trong hàng chờ, kiểm trên hệ thống thật');
+      ghiCho(
+        'nộp phiên bản mới sau yêu cầu bổ sung: người dùng giả lập không chủ trì minh chứng trong hàng chờ, kiểm trên hệ thống thật',
+      );
       // tải lại toàn trang để kho giả lập về trạng thái đầu, minh chứng trong hàng chờ lại ở "Đã nộp"
       await rp.waitForLoadState('networkidle');
       await rp.goto('/evidence?reviewer=me');

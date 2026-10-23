@@ -278,18 +278,7 @@ export async function choTrangThai(
  * Lỗi truy cập đã biết, đã báo để mở task sửa riêng (QA-05 mục 4: không sửa lỗi phát hiện được trong
  * task kiểm thử). Hành trình vẫn chạy tiếp nhưng ghi chú vào báo cáo; gỡ mục khi lỗi được sửa.
  */
-const LOI_DA_BIET: { id: string; vungChon: RegExp; ghiChu: string }[] = [
-  {
-    id: 'color-contrast',
-    vungChon: /\.p-message-text\[data-pc-section="text"\]\[data-p="success"\]/,
-    ghiChu: 'chữ của thông báo thành công (p-message mức success) chưa đủ tương phản 4,5:1',
-  },
-  {
-    id: 'color-contrast',
-    vungChon: /\.p-message-text\[data-pc-section="text"\]\[data-p="error"\]/,
-    ghiChu: 'chữ của cảnh báo lỗi (p-message mức error, ví dụ báo quá hạn) chưa đủ tương phản 4,5:1',
-  },
-];
+const LOI_DA_BIET: { id: string; vungChon: RegExp; ghiChu: string }[] = [];
 
 /** axe-core theo WCAG 2.1 AA trên vùng nội dung chính: không có lỗi mức serious hay critical. */
 export async function kiemTruyCap(page: Page, ten: string) {
@@ -299,7 +288,9 @@ export async function kiemTruyCap(page: Page, ten: string) {
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
       .analyze();
     const loi: string[] = [];
-    for (const v of kq.violations.filter((x) => x.impact === 'serious' || x.impact === 'critical')) {
+    for (const v of kq.violations.filter(
+      (x) => x.impact === 'serious' || x.impact === 'critical',
+    )) {
       for (const n of v.nodes) {
         const chon = n.target.join(' ');
         const biet = LOI_DA_BIET.find((b) => b.id === v.id && b.vungChon.test(chon));
@@ -369,22 +360,31 @@ export const thongBao = (page: Page, noiDung: string | RegExp) =>
 
 /**
  * `canbo` mở chi tiết nhiệm vụ mình chủ trì (SCR-0503 → SCR-0601): trên hệ thống thật tìm theo tên của
- * lần chạy; giả lập lấy việc chủ trì đang làm dở trong dữ liệu giả lập.
+ * lần chạy (`timKiem` đổi chuỗi tìm khi cần mở một nhiệm vụ cố định của dữ liệu giả lập); không có tên
+ * thì lấy việc chủ trì đang làm dở trong dữ liệu giả lập.
  */
-export async function moNhiemVu(s: PhienQt, ten: string | null): Promise<Page> {
+export async function moNhiemVu(
+  s: PhienQt,
+  ten: string | null,
+  timKiem = MA_LAN_CHAY,
+): Promise<Page> {
   const page = await s.as('canbo', '/tasks');
   const m = main(page);
   await expect(m.getByRole('heading', { level: 1, name: 'Việc của tôi' })).toBeVisible();
   const ds = m.getByRole('region', { name: 'Danh sách nhiệm vụ' });
   if (ten) {
-    await m.getByRole('searchbox', { name: 'Tìm nhiệm vụ' }).fill(MA_LAN_CHAY);
+    await m.getByRole('searchbox', { name: 'Tìm nhiệm vụ' }).fill(timKiem);
     await ds.getByRole('link', { name: ten }).click();
   } else {
     // việc chủ trì đang thực hiện, chưa xong: tiến độ lớn hơn 0 và nhỏ hơn 100
     await ds
       .getByRole('row')
       .filter({ hasText: 'Chủ trì' })
-      .filter({ hasNot: page.locator('[role=progressbar][aria-valuenow="0"], [role=progressbar][aria-valuenow="100"]') })
+      .filter({
+        hasNot: page.locator(
+          '[role=progressbar][aria-valuenow="0"], [role=progressbar][aria-valuenow="100"]',
+        ),
+      })
       .last()
       .getByRole('link')
       .first()
