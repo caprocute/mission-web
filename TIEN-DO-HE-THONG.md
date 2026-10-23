@@ -581,7 +581,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 |---|---|:---:|:---:|:---:|---|---|---|
 | [QA-01](docs/tasks/QA-01-chien-luoc-kiem-thu.md) | Chiến lược kiểm thử toàn hệ thống và danh mục khoảng 40 hành trình đầu cuối | S | B9 | 1 | – | **Đang làm** | Giao sau bản phát hành 64952ef6 |
 | [QA-02](docs/tasks/QA-02-pact-hop-dong.md) | Pact Broker và kiểm thử hợp đồng frontend với API, service với service | M | B9 | 4 | NEN-006, INF-05 | **Chưa bắt đầu** |  |
-| [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Đang làm** | Giao sau bản phát hành 64952ef6 |
+| [QA-03](docs/tasks/QA-03-e2e-he-thong-that.md) | Bộ kiểm thử đầu cuối với hệ thống thật trên server dev (backend thật, Keycloak, APISIX) | M | B9 | 11 | INF-22, QA-01 | **Đang làm** | Nhánh claude/project-thread-n43ag0: dựng khung e2e hệ thống thật |
 | [QA-04](docs/tasks/QA-04-hanh-trinh-okr.md) | Hành trình đầu cuối: đăng nhập, khởi tạo tenant, tổ chức, OKR, check-in | M | B9 | 14 | QA-03, CORE-01-08, DV-03-05 | **Chưa bắt đầu** |  |
 | [QA-05](docs/tasks/QA-05-hanh-trinh-giao-viec.md) | Hành trình đầu cuối: kế hoạch, giao việc, tiến độ, minh chứng, nghiệm thu | L | B9 | 20 | QA-03, CORE-03-07, CORE-02-22 | **Chưa bắt đầu** |  |
 | [QA-06](docs/tasks/QA-06-hanh-trinh-danh-gia.md) | Hành trình đầu cuối: khoá kỳ, tự đánh giá, thẩm định, quyết định ký số, xếp loại năm | L | B9 | 21 | QA-05, DV-06-06, CORE-04-10 | **Chưa bắt đầu** |  |
@@ -1001,4 +1001,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 08:50 | Điều phối (main) | `WEB-020`, `CORE-02-16`, `CORE-03-08`, `CORE-06-08`, `CORE-07-09`, `DV-01-01`, `DV-01-02`, `DV-01-03`, `DV-01-04`, `DV-02-04`, `DV-06-09`, `DV-06-10`, `DV-06-11`, `DV-06-12`, `DV-10-03`, `DV-10-04`, `DV-10-05`, `DV-10-06`, `DV-13-04`, `DV-13-07`, `DV-13-09`, `DV-13-10`, `DV-13-11`, `DV-15-11`, `CORE-05-11`, `DV-09-02` | Chuyển trạng thái sang **Đã gộp main** — Đợt gộp 11, bản phát hành v0.11.0; kiểm thử đơn vị 9 module Java và Go xanh |
 | 23/10/2026 08:50 | Điều phối (main) | `WEB-070`, `WEB-071`, `WEB-072` | Chuyển trạng thái sang **Đã gộp main** — Đợt gộp 11; còn ngoại lệ: chạy với backend thật chờ QA-03 |
 | 23/10/2026 10:52 | Điều phối (main) | `INF-22`, `QA-01`, `QA-03`, `INF-24`, `INF-26` | Chuyển trạng thái sang **Đang làm** — Giao sau bản phát hành 64952ef6 |
+| 23/10/2026 10:53 | B2 backend | `QA-03` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-n43ag0: dựng khung e2e hệ thống thật |
 <!-- PROGRESS_LOG_END -->
