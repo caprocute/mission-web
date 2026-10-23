@@ -31,6 +31,7 @@ import vn.viettel.okrkpi.config.api.AccessDirectory;
 import vn.viettel.okrkpi.config.api.FeatureFlagApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.contract.okr.model.CopyOkrObjectivesFromPeriod201Response;
+import vn.viettel.okrkpi.contract.okr.model.OkrApprovalInfo;
 import vn.viettel.okrkpi.contract.okr.model.OkrApproveBatchRequest;
 import vn.viettel.okrkpi.contract.okr.model.OkrApproveRequest;
 import vn.viettel.okrkpi.contract.okr.model.OkrCancelRequest;
@@ -71,6 +72,7 @@ import vn.viettel.okrkpi.okr.application.OkrReviewService.HistoryEntry;
 import vn.viettel.okrkpi.okr.application.OkrRuleChecker.Policy;
 import vn.viettel.okrkpi.okr.application.OkrSubmitService;
 import vn.viettel.okrkpi.okr.application.port.OkrReadRepository.ObjectiveFilter;
+import vn.viettel.okrkpi.okr.application.port.OkrReadRepository.ObjectiveRow;
 import vn.viettel.okrkpi.okr.application.port.OkrWriteRepository.KeyResultData;
 import vn.viettel.okrkpi.replica.api.OrgDirectoryApi;
 import vn.viettel.okrkpi.replica.api.OrgTree;
@@ -771,7 +773,37 @@ public class OkrComposeController {
         .optionalPeriod(tenant, view.row().periodId())
         .ifPresent(
             p -> dto.period(new PeriodRef(p.id().value(), p.name(), p.startDate(), p.endDate())));
+    if ("CHO_DUYET".equals(view.row().status())) {
+      dto.approval(approval(tenant, view.row()));
+    }
     return dto;
+  }
+
+  /**
+   * Thông tin duyệt của mục tiêu chờ duyệt: người duyệt dự kiến là trưởng đơn vị cấp trên trực tiếp
+   * (cùng phạm vi hàng chờ {@code listOkrReviews}), hạn duyệt là hạn duyệt kế hoạch của kỳ.
+   */
+  private OkrApprovalInfo approval(TenantId tenant, ObjectiveRow row) {
+    OkrApprovalInfo info = new OkrApprovalInfo();
+    reads.planDeadline(tenant, row.periodId()).ifPresent(info::dueDate);
+    if (row.updatedAt() != null) {
+      info.submittedAt(row.updatedAt().atOffset(ZoneOffset.UTC));
+    }
+    OrgDirectoryApi directory = org.getIfAvailable();
+    if (directory != null && row.ownerUnitId() != null) {
+      LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+      directory
+          .parentOf(tenant, OrgTree.CHUYEN_MON, row.ownerUnitId())
+          .flatMap(u -> directory.headsOf(tenant, u, today).stream().findFirst())
+          .ifPresent(
+              reviewer -> {
+                AccessDirectory dir = names.getIfAvailable();
+                String name =
+                    dir == null ? "" : dir.personNames(tenant, Set.of(reviewer)).getOrDefault(reviewer, "");
+                info.reviewer(new Ref(reviewer, name));
+              });
+    }
+    return info;
   }
 
   private OkrPolicy policy(TenantId tenant, PeriodSnapshot p, UUID unit) {
