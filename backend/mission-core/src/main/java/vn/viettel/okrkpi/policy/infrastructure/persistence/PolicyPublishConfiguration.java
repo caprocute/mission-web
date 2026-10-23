@@ -23,8 +23,11 @@ import vn.viettel.okrkpi.policy.application.port.PolicyAudit;
 import vn.viettel.okrkpi.policy.application.port.PolicyPackDistribution;
 import vn.viettel.okrkpi.policy.application.port.PolicyPublishedEvents;
 import vn.viettel.okrkpi.policy.application.port.PolicyWorkflowActivation;
+import vn.viettel.okrkpi.policy.application.port.WorkflowBindings;
 import vn.viettel.okrkpi.policy.infrastructure.client.LocalPolicyPackDistribution;
 import vn.viettel.okrkpi.policy.infrastructure.client.PendingPolicyWorkflowActivation;
+import vn.viettel.okrkpi.policy.infrastructure.client.WorkflowBindingActivation;
+import vn.viettel.okrkpi.policy.infrastructure.client.WorkflowBindingClient;
 import vn.viettel.okrkpi.policy.infrastructure.job.JdbcPolicyPublishJobs;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.outbox.ApicurioPayloadSerializer;
@@ -62,9 +65,12 @@ public class PolicyPublishConfiguration {
     return new LocalPolicyPackDistribution();
   }
 
+  /** Có địa chỉ SVC-06 thì gọi API kích hoạt của DV-06-08, chưa có thì chỉ ghi nhật ký. */
   @Bean
-  PendingPolicyWorkflowActivation policyWorkflowActivation() {
-    return new PendingPolicyWorkflowActivation();
+  PolicyWorkflowActivation policyWorkflowActivation(WorkflowBindings workflowBindings) {
+    return workflowBindings instanceof WorkflowBindingClient client
+        ? new WorkflowBindingActivation(client)
+        : new PendingPolicyWorkflowActivation();
   }
 
   @Bean

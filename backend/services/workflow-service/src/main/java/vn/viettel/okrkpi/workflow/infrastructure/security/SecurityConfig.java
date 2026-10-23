@@ -19,7 +19,8 @@ import org.springframework.security.web.SecurityFilterChain;
 /**
  * Token Keycloak (OIDC, ADR-08) kiểm bằng resource server cho {@code /api/**}. Khởi động saga chỉ
  * dành cho client nội bộ có vai trò realm {@code service_client} (hợp đồng {@code
- * startPeriodCloseSaga}); actuator chạy ở cổng quản trị riêng.
+ * startPeriodCloseSaga}), API nội bộ {@code /internal/**} (tham số luồng của DV-06-08) cũng vậy;
+ * actuator chạy ở cổng quản trị riêng.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnWebApplication
@@ -31,11 +32,13 @@ public class SecurityConfig {
   SecurityFilterChain api(
       HttpSecurity http, @Value("${okrkpi.workflow.auth-enabled:true}") boolean authEnabled)
       throws Exception {
-    http.securityMatcher("/api/**")
+    http.securityMatcher("/api/**", "/internal/**")
         .authorizeHttpRequests(
             a -> {
               if (authEnabled) {
                 a.requestMatchers(HttpMethod.POST, "/api/v1/workflow/sagas/**")
+                    .hasRole(SERVICE_CLIENT)
+                    .requestMatchers("/internal/**")
                     .hasRole(SERVICE_CLIENT)
                     .anyRequest()
                     .authenticated();
@@ -46,7 +49,7 @@ public class SecurityConfig {
         .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(realmRoles())))
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         // Chỉ nhận bearer token, không phiên cookie, nên không cần mã chống CSRF cho /api/**.
-        .csrf(c -> c.ignoringRequestMatchers("/api/**"));
+        .csrf(c -> c.ignoringRequestMatchers("/api/**", "/internal/**"));
     return http.build();
   }
 

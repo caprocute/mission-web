@@ -18,6 +18,8 @@ import java.util.Map;
  * @param decisionTests lớp kiểm thử DMN của mẫu
  * @param variableBudget ngân sách byte của từng biến tiến trình
  * @param parallelLimits giới hạn phần tử của từng đa thể hiện song song theo mã phần tử
+ * @param params khai báo tham số cho SCR-1504 (khối {@code thamSo}: tên, khoảng số cấp, cấp bắt
+ *     buộc ký số, cấp được bỏ qua, cấp mặc định), rỗng khi mẫu không khai (DV-06-08)
  */
 public record TemplateDescriptor(
     String templateCode,
@@ -29,7 +31,8 @@ public record TemplateDescriptor(
     List<String> flowTests,
     List<String> decisionTests,
     Map<String, Integer> variableBudget,
-    Map<String, Integer> parallelLimits) {
+    Map<String, Integer> parallelLimits,
+    Map<String, Object> params) {
 
   public TemplateDescriptor {
     decisionTables = decisionTables == null ? List.of() : List.copyOf(decisionTables);
@@ -37,6 +40,7 @@ public record TemplateDescriptor(
     decisionTests = decisionTests == null ? List.of() : List.copyOf(decisionTests);
     variableBudget = variableBudget == null ? Map.of() : Map.copyOf(variableBudget);
     parallelLimits = parallelLimits == null ? Map.of() : Map.copyOf(parallelLimits);
+    params = params == null ? Map.of() : Map.copyOf(params);
   }
 
   /** Tổng ngân sách biến. */

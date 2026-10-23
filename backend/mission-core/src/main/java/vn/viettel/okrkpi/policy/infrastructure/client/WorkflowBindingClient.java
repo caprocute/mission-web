@@ -24,9 +24,8 @@ import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
 import vn.viettel.okrkpi.shared.resilience.ResilientClient;
 
 /**
- * {@link WorkflowBindings} qua API nội bộ của SVC-06 (CORE-05-11). DV-06-08 chưa công bố đường dẫn
- * nên các đường dẫn dưới {@code /internal/v1/workflow} là suy luận, theo tiền lệ {@code
- * /internal/v1/...} của các API nội bộ khác (wiki trang 14). Token dịch vụ client-credentials của
+ * {@link WorkflowBindings} qua API nội bộ của SVC-06 (CORE-05-11), đường dẫn dưới {@code
+ * /internal/v1/workflow} do DV-06-08 công bố (wiki trang 14). Token dịch vụ client-credentials của
  * mission-core; tenant đích gửi trong {@code X-Tenant-Id} vì token dịch vụ không mang claim tenant.
  * Resilience4j instance {@link #INSTANCE} dùng cấu hình chuẩn: timeout 3 s, circuit breaker, retry
  * cho GET và lệnh có {@code Idempotency-Key}.
@@ -198,6 +197,30 @@ public class WorkflowBindingClient implements WorkflowBindings {
       return Optional.of(versioned(body));
     } catch (NotFound e) {
       return Optional.empty();
+    }
+  }
+
+  /**
+   * Saga phát hành bước 4 (CORE-05-10): chép tham số đã lưu của phiên bản vào {@code wf_binding}.
+   * Mỗi lần gọi một {@code Idempotency-Key} mới để lần phát hành lại sau bù trừ không nhận lại kết
+   * quả cũ; SVC-06 tự bỏ qua bản nháp đã hiệu lực nên gọi lặp không đổi gì.
+   */
+  public void activate(TenantId tenant, UUID packVersionId) {
+    post(tenant, BINDINGS + "/activate?policyPackVersionId={v}", packVersionId);
+  }
+
+  /** Bù trừ hoặc thu hồi: SVC-06 trả lại dòng {@code wf_binding} trước khi kích hoạt. */
+  public void deactivate(TenantId tenant, UUID packVersionId) {
+    post(tenant, BINDINGS + "/deactivate?policyPackVersionId={v}", packVersionId);
+  }
+
+  private void post(TenantId tenant, String uri, UUID packVersionId) {
+    HttpHeaders h = headers(tenant);
+    h.set(ResilientClient.IDEMPOTENCY_KEY, UUID.randomUUID().toString());
+    try {
+      call(() -> http.exchange(HttpMethod.POST, uri, null, h, Map.class, packVersionId));
+    } catch (NotFound | Conflict e) {
+      throw unavailable(new RestClientException("workflow-service từ chối kích hoạt", e));
     }
   }
 

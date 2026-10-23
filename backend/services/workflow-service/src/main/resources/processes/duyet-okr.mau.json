@@ -35,5 +35,22 @@
     "nrOfActiveInstances": 24,
     "nrOfCompletedInstances": 28
   },
-  "songSongToiDa": {}
+  "songSongToiDa": {},
+  "thamSo": {
+    "ten": "Duyệt mục tiêu và kết quả then chốt",
+    "soCapToiThieu": 2,
+    "soCapToiDa": 4,
+    "kySoBatBuoc": [],
+    "boQuaDuoc": [],
+    "capMacDinh": [
+      {
+        "vai_tro": "manager",
+        "pham_vi": "DON_VI_TRUC_TIEP"
+      },
+      {
+        "vai_tro": "leader",
+        "pham_vi": "CAP_TREN_TRUC_TIEP"
+      }
+    ]
+  }
 }
