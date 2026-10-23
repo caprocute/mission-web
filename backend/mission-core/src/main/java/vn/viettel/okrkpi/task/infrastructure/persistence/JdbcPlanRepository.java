@@ -395,6 +395,17 @@ public class JdbcPlanRepository implements PlanRepository {
   }
 
   @Override
+  public boolean linkProcessInstance(
+      TenantId tenant, int periodBucket, UUID versionId, String processInstanceId) {
+    return jdbc.sql(
+                "UPDATE task.plan_version SET wf_process_instance_id = ? WHERE period_bucket = ?"
+                    + " AND tenant_id = ? AND id = ? AND status = 'CHO_DUYET'")
+            .params(processInstanceId, periodBucket, tenant.value(), versionId)
+            .update()
+        > 0;
+  }
+
+  @Override
   public Optional<SignedTarget> versionById(TenantId tenant, UUID versionId, boolean forUpdate) {
     Optional<int[]> bucket =
         jdbc.sql("SELECT period_bucket FROM task.plan_version WHERE tenant_id = ? AND id = ?")

@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.workflow.application.port.ApprovalProcesses;
@@ -132,6 +133,20 @@ public class StartApprovalService {
       }
     }
     return v;
+  }
+
+  /**
+   * Kết thúc tiến trình còn chờ người duyệt của đối tượng khi lõi đã quyết định trực tiếp (duyệt có
+   * ký số hoặc trả lại trên màn hình của lõi) hoặc người lập rút lại; trả số tiến trình đã kết
+   * thúc.
+   */
+  @Transactional(timeout = 10)
+  public int cancel(UUID tenantId, ApprovalTemplate template, UUID businessId, String reason) {
+    BusinessKey key = new BusinessKey(template.businessType(), businessId);
+    processes.lockStart(tenantId, template.code(), key);
+    String why = reason == null || reason.isBlank() ? "Lõi đã quyết định" : reason.strip();
+    return processes.cancelWaiting(
+        tenantId, template.code(), key, why.length() > 255 ? why.substring(0, 255) : why);
   }
 
   /**
