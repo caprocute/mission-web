@@ -619,7 +619,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [VH-02](docs/tasks/VH-02-runbook-ops-14-26.md) | Runbook OPS-14..OPS-26 | L | B11 | 4 | INF-17 | **Đã gộp main** | Gộp 07c879b3; chưa chạy thử trên cụm |
 | [VH-03](docs/tasks/VH-03-truc-su-co-cab.md) | Trực vận hành, mức sự cố SEV-1..SEV-4, quy trình thay đổi, đóng băng thay đổi | M | B11 | 5 | VH-01 | **Đã gộp main** | Gộp 8d327008 |
 | [VH-04](docs/tasks/VH-04-dien-tap-onboarding.md) | Diễn tập vòng đời tenant: đưa tenant mới vào vận hành trong một ngày (OPS-07) | M | B11 | 13 | DV-03-05, INF-04 | **Đã gộp main** | Gộp 17bda177 + terminate tenant 5654cbfd + saga dev 4a5c5261 |
-| [VH-05](docs/tasks/VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | B11 | 24 | QA-07 | **Làm một phần** | Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: chụp lại 69 ảnh giả lập trên main 70146573, đối chiếu nhãn nút với màn hình thật và quy tắc ẩn theo quyền YC-PT-21, kiem-tra.py đạt; còn chụp ảnh trên server dev (E2E_MODE=he-thong) và cho người không làm kỹ thuật đọc thử AC-06 |
+| [VH-05](docs/tasks/VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | B11 | 24 | QA-07 | **Làm một phần** | Gộp cc710104; còn ảnh trên dev thật và đọc thử AC-06 |
 | [VH-06](docs/tasks/VH-06-tai-lieu-quan-tri.md) | Tài liệu quản trị, cài đặt cho ba mô hình phân phối | M | B11 | 6 | INF-23 | **Đã gộp main** | Gộp sau bản phát hành; chưa chạy trên cụm thật |
 | [VH-07](docs/tasks/VH-07-ho-so-cap-do-4.md) | Hồ sơ đề xuất cấp độ 4 theo TCVN 11930:2017 | M | B11 | 13 | QA-13, INF-19 | **Đã gộp main** | Gộp e1b6490e |
 | [VH-08](docs/tasks/VH-08-thi-diem-chuyen-tenant.md) | Kế hoạch đưa tenant thí điểm vào sử dụng và mở rộng theo nhóm tenant (hệ thống mới độc lập, không chuyển từ hệ cũ) | M | B11 | 25 | QA-16 | **Đang làm** | Giao B2 |
@@ -1047,4 +1047,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 16:18 | B8 | `INF-27` | Chuyển trạng thái sang **Đã gộp main** — Warpgate, SA kubectl, dba_ops, ghi phiên RGW (895eaaa2); chưa chạy cụm thật |
 | 23/10/2026 16:30 | B2 (luồng B6) | `VH-05` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: B6 tiếp bản nháp 6a174a8a, đối chiếu màn hình và quy tắc ẩn theo quyền |
 | 23/10/2026 16:41 | B2 (luồng B6) | `VH-05` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b6-flowable-so-cai-ky-so-t54jlp: chụp lại 69 ảnh giả lập trên main 70146573, đối chiếu nhãn nút với màn hình thật và quy tắc ẩn theo quyền YC-PT-21, kiem-tra.py đạt; còn chụp ảnh trên server dev (E2E_MODE=he-thong) và cho người không làm kỹ thuật đọc thử AC-06 |
+| 23/10/2026 16:43 | B6 | `VH-05` | Chuyển trạng thái sang **Làm một phần** — Gộp cc710104; còn ảnh trên dev thật và đọc thử AC-06 |
 <!-- PROGRESS_LOG_END -->
