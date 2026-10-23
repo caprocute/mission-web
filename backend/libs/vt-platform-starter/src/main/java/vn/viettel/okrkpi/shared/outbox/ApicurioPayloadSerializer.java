@@ -1,6 +1,8 @@
 package vn.viettel.okrkpi.shared.outbox;
 
 import io.apicurio.registry.resolver.SchemaLookupResult;
+import io.apicurio.registry.resolver.SchemaResolver;
+import io.apicurio.registry.resolver.strategy.ArtifactReference;
 import io.apicurio.registry.serde.avro.AvroSerializer;
 import io.apicurio.registry.serde.config.SerdeConfig;
 import io.apicurio.registry.serde.data.SerdeMetadata;
@@ -13,6 +15,8 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.specific.SpecificRecord;
 import vn.viettel.okrkpi.events.EventContracts;
 
@@ -50,7 +54,7 @@ public final class ApicurioPayloadSerializer implements OutboxPayloadSerializer,
     return config;
   }
 
-  private final AvroSerializer<SpecificRecord> serializer;
+  private final AvroSerializer<IndexedRecord> serializer;
   private final ConcurrentMap<CacheKey, SchemaLookupResult<Schema>> lookups =
       new ConcurrentHashMap<>();
 
@@ -94,11 +98,7 @@ public final class ApicurioPayloadSerializer implements OutboxPayloadSerializer,
     }
     SchemaLookupResult<Schema> found;
     try {
-      found =
-          serializer
-              .getSerdeConfigurer()
-              .getSchemaResolver()
-              .resolveSchema(new SerdeRecord<>(new SerdeMetadata(topic, false), payload));
+      found = resolve(topic, payload);
     } catch (RuntimeException e) {
       throw new OutboxSerializationException(
           "Không tra được lược đồ "
@@ -110,6 +110,51 @@ public final class ApicurioPayloadSerializer implements OutboxPayloadSerializer,
     }
     SchemaLookupResult<Schema> prev = lookups.putIfAbsent(key, found);
     return prev != null ? prev : found;
+  }
+
+  /**
+   * Tra theo nội dung bằng lược đồ dạng tệp hợp đồng; lược đồ đăng ký kèm tham chiếu tới kiểu có
+   * tên ở artifact khác (ví dụ {@code org.bootstrap.v1}, Job {@code apicurio-dang-ky}) không bao
+   * giờ khớp cách tra này vì serde chỉ so dạng không tham chiếu, nên khi đó lấy bản mới nhất của
+   * {@code <topic>-value} và chỉ dùng khi bản đó trùng lược đồ của lớp sinh.
+   */
+  private SchemaLookupResult<Schema> resolve(String topic, SpecificRecord payload) {
+    SchemaResolver<Schema, IndexedRecord> resolver =
+        serializer.getSerdeConfigurer().getSchemaResolver();
+    IndexedRecord form = registryForm(payload);
+    try {
+      return resolver.resolveSchema(new SerdeRecord<>(new SerdeMetadata(topic, false), form));
+    } catch (RuntimeException byContent) {
+      SchemaLookupResult<Schema> latest;
+      try {
+        latest =
+            resolver.resolveSchemaByArtifactReference(
+                ArtifactReference.builder()
+                    .groupId("default")
+                    .artifactId(topic + "-value")
+                    .build());
+      } catch (RuntimeException byArtifact) {
+        byContent.addSuppressed(byArtifact);
+        throw byContent;
+      }
+      Schema registered = EventContracts.registrySchema(latest.getParsedSchema().getParsedSchema());
+      if (!form.getSchema().equals(registered)) {
+        byContent.addSuppressed(
+            new IllegalStateException(
+                "Bản mới nhất của " + topic + "-value khác lược đồ của lớp sinh"));
+        throw byContent;
+      }
+      return latest;
+    }
+  }
+
+  /**
+   * Bản ghi rỗng mang lược đồ dạng tệp hợp đồng ({@link EventContracts#registrySchema}): tra theo
+   * nội dung bằng lược đồ lớp sinh không khớp vì thuộc tính {@code avro.java.string}. Lược đồ trả
+   * về dùng để ghi thân; mã hoá nhị phân như lược đồ lớp sinh.
+   */
+  private static IndexedRecord registryForm(SpecificRecord payload) {
+    return new GenericData.Record(EventContracts.registrySchema(payload.getSchema()));
   }
 
   private static int schemaVersion(String topic, String version) {
