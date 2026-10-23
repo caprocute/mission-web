@@ -50,7 +50,21 @@ public class CloudEventsSenderFactory {
   }
 
   public CloudEventsHttpSender sender(String connectorCode) {
+    return sender(connectorCode, null);
+  }
+
+  /** Adapter với bộ xử lý xác nhận riêng (DV-13-09: giữ biên nhận của đích neo). */
+  public CloudEventsHttpSender sender(
+      String connectorCode, CloudEventsHttpSender.Acknowledger acknowledger) {
     return new CloudEventsHttpSender(
-        policy(connectorCode), mapper, signer, mtls, plain, secrets, json, props.requestTimeout());
+        policy(connectorCode),
+        mapper,
+        signer,
+        mtls,
+        plain,
+        secrets,
+        json,
+        props.requestTimeout(),
+        acknowledger);
   }
 }
