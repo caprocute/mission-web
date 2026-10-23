@@ -16,6 +16,8 @@ COPY ${SERVICE} ./
 RUN CGO_ENABLED=0 GOOS=linux GOTOOLCHAIN=local go build -trimpath -ldflags="-s -w" -o /out/app ./cmd/${CMD}
 
 FROM alpine:3.20
+ARG GIT_REVISION=unknown
+LABEL org.opencontainers.image.revision="${GIT_REVISION}"
 RUN apk add --no-cache ca-certificates tzdata
 COPY --from=build /out/app /app
 USER 65532:65532

@@ -156,6 +156,18 @@ infra/dev/scripts/smoke-backend.sh                     # sức khoẻ, 401 khi k
 
 Token của Keycloak mang `iss` theo địa chỉ dùng để đăng nhập, nên `KEYCLOAK_PUBLIC_URL` (mặc định `http://127.0.0.1:35080`) phải trùng địa chỉ mà trình duyệt và kiểm thử khói dùng; service trong container kiểm `iss` theo giá trị này và lấy JWKS qua đường nội bộ `keycloak:8080`. Kiểm thử khói đăng nhập tài khoản thử (mặc định `canbo`, đổi bằng `SMOKE_USER`) qua client `mission-web` đúng như trình duyệt (Authorization Code + PKCE, mã OTP sinh từ `KC_TEST_OTP_SECRET`, `scripts/lay-token-thu.py`), nên không cần bật direct grant cho client nào. Kiểm sự kiện sau thao tác ghi là tuỳ chọn: đặt `SMOKE_WRITE_PATH`, `SMOKE_EVENT_TOPIC` (và `SMOKE_WRITE_METHOD`, `SMOKE_WRITE_BODY`).
 
+### 3.1. Chẩn đoán tuyến API (`kiem-tuyen.py`)
+
+Khi màn hình hiện trống hay API trả 404, chạy một lệnh trên máy chủ dev (cần Python 3.10 trở lên và PyYAML; thiếu thì cài bằng `python3 -m pip install --user pyyaml`):
+
+```bash
+infra/dev/scripts/kiem-tuyen.py                 # mọi thao tác GET không tham số bắt buộc trong contracts/openapi
+infra/dev/scripts/kiem-tuyen.py --module okr --module config --all   # chỉ hai mô-đun, in mọi dòng
+infra/dev/scripts/kiem-tuyen.py --no-token --json > ket-qua.json
+```
+
+Script gọi mỗi thao tác hai lần: một lần qua APISIX (`APISIX_PORT`), một lần thẳng tới cổng công bố của service mà `apisix/apisix.yaml` chọn cho đường dẫn đó (cổng lấy từ `docker-compose.yml` và `.env`). Token lấy như kiểm thử khói (`SMOKE_TOKEN`, nếu không có thì đăng nhập tài khoản thử bằng `lay-token-thu.py`). Kết quả được xếp vào các nhóm `2xx`, `401/403` (token hoặc OPA), `404-tuyen` (service không có tuyến: ảnh cũ, sai cổng, thiếu mã), `404-problem` (có tuyến nhưng thiếu dữ liệu, ví dụ tenant chưa có kỳ hiện hành hay chưa phát hành UI Pack), `404-chan` (tuyến internal-only chặn có chủ đích), `roi-web` (không tuyến API nào khớp nên APISIX trả trang web), `ket-noi` (service chưa chạy) và `khac`. Script in ảnh, nhãn commit (`org.opencontainers.image.revision`, `deploy-backend.sh` gắn khi dựng ảnh; ảnh dựng trước thay đổi này hiện `-`), thời điểm dựng và trạng thái của các container `mission-dev-*` khi có docker CLI, rồi in bảng tóm tắt theo service và các thao tác có vấn đề. Mã thoát là 1 khi có `404-tuyen`, `roi-web` hay `ket-noi` qua APISIX. Script không in token hay thân phản hồi.
+
 ---
 
 ## 4. Mô hình 4 tài khoản CSDL theo schema và nâng cấp volume `pg_data`

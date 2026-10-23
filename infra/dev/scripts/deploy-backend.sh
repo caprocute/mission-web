@@ -90,7 +90,9 @@ for s in "${SERVICES[@]}"; do
 done
 if [[ ${#build[@]} -gt 0 ]]; then
   echo "==> Dựng ảnh: ${build[*]}"
-  compose build "${build[@]}"
+  # Nhãn commit trên ảnh để kiem-tuyen.py và docker inspect biết container chạy mã nào
+  revision="$(git -C "${SCRIPT_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  compose build --build-arg "GIT_REVISION=${revision}" "${build[@]}"
 fi
 selected apisix && compose pull apisix
 
