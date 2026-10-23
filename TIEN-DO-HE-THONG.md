@@ -14,7 +14,7 @@
 
 - **Tổng tiến độ đã gộp `main`**: **360 / 408 task (88.2%)** — Khối lượng quy đổi đã gộp: **426.5 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **360 / 408 task (88.2%)** (gồm **360** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **18 task** (13 đang làm, 5 làm một phần).
+- **Đang thực hiện / Làm một phần**: **18 task** (12 đang làm, 6 làm một phần).
 - **Chưa bắt đầu**: **30 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
@@ -572,7 +572,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-24](docs/tasks/INF-24-audit-archiver.md) | Dịch vụ `audit-archiver`: chuyển nhật ký kiểm toán sang kho lưu trữ bất biến theo thời hạn lưu giữ | M | B8 | 4 | INF-12, INF-19 | **Đang làm** | Giao sau bản phát hành 64952ef6 |
 | [INF-25](docs/tasks/INF-25-bo-dieu-khien-suy-giam.md) | Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năng phụ, cắt tải theo ưu tiên) | M | B8 | 4 | DV-01-02, INF-15 | **Làm một phần** | Nhánh claude/project-thread-x87cen: degrade-controller Go, chart, ignoreDifferences, vtctl degrade pin; test chức năng xanh; chưa chạy kind với APISIX |
 | [INF-26](docs/tasks/INF-26-cong-cu-vtctl.md) | Công cụ vận hành `vtctl` cho các thao tác trong runbook (tenant, cell, khoá kỳ, phát lại sự kiện) | L | B8 | 9 | INF-04, DV-03-03 | **Làm một phần** | Nhánh claude/project-thread-x87cen: vtctl đủ lệnh (thêm degrade pin, tenant suspend + suspendConfigTenant); outbox-replay nối PG/Kafka thật; còn chạy kind, dòng ma trận phân quyền cho tạm ngừng chờ duyệt |
-| [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Đang làm** | Nhánh claude/b8-ha-tang-g7g48k: quét không cửa sau, mẫu tích hợp PAM trung lập, runbook (mức chart/manifest) |
+| [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Làm một phần** | Nhánh claude/b8-ha-tang-g7g48k: chart pam-integration (quét cửa sau RBAC/CSDL, ValidatingAdmissionPolicy binding có hạn, vai trò dba_ops, OpenBao), runbook; kiểm tĩnh 9/9; chờ chốt sản phẩm PAM (khuyến nghị Warpgate thử nghiệm), chưa chạy kind |
 | [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
 
 ### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (1/16 đã gộp `main`, 0 chờ gộp, 3 đang làm)
@@ -1020,4 +1020,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 12:58 | Điều phối (main) | `VH-01`, `VH-02` | Chuyển trạng thái sang **Đang làm** — Giao B9 |
 | 23/10/2026 13:10 | Luồng B8 hạ tầng | `INF-27` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: quét không cửa sau, mẫu tích hợp PAM trung lập, runbook (mức chart/manifest) |
 | 23/10/2026 13:10 | Luồng B8 hạ tầng | `INF-19` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k (đã gộp main đến f58443cb): security-cell, audit policy, otel-siem, nối Kafka/cell-egress/OpenBao/ApplicationSet; kiểm tĩnh xanh; còn ExternalSecret siem-forwarder-kafka, plugin KMS ảnh node, ảnh otelcol OCB, kiểm thử sống trên kind |
+| 23/10/2026 13:30 | Luồng B8 hạ tầng | `INF-27` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: chart pam-integration (quét cửa sau RBAC/CSDL, ValidatingAdmissionPolicy binding có hạn, vai trò dba_ops, OpenBao), runbook; kiểm tĩnh 9/9; chờ chốt sản phẩm PAM (khuyến nghị Warpgate thử nghiệm), chưa chạy kind |
 <!-- PROGRESS_LOG_END -->

@@ -1,0 +1,166 @@
+{{- if .Values.quetCsdl.enabled }}
+{{- $v := .Values }}
+{{- $q := $v.quetCsdl }}
+{{- $ns := $v.namespace }}
+{{- $vc := $v.vaiTroCsdl }}
+{{- $han := printf "%s 10 minutes" (replace "h" " hours" $vc.thoiHanPhaKinh) }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pam-quet-csdl
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pam-quet-csdl
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+data:
+  quet-csdl.sh: |
+    {{- .Files.Get "files/scripts/quet-csdl.sh" | nindent 4 }}
+  day_chi_so_csdl.py: |
+    {{- .Files.Get "files/scripts/day_chi_so_csdl.py" | nindent 4 }}
+  quet-vai-tro.sql: |
+    {{- .Files.Get "files/sql/quet-vai-tro.sql" | nindent 4 }}
+  ket-noi-quan-tri.sql: |
+    {{- .Files.Get "files/sql/ket-noi-quan-tri.sql" | nindent 4 }}
+{{- if $q.externalSecret.enabled }}
+{{- $e := $q.externalSecret }}
+---
+# Kho bí mật riêng của namespace quét: chỉ đọc database/static-creds/<cụm>-pam-quet (chính sách pam-quet-<cell>).
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: openbao-pam-quet
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+spec:
+  provider:
+    vault:
+      server: {{ $e.server }}
+      path: database
+      version: v1
+      caProvider: { type: ConfigMap, name: {{ $e.caConfigMap }}, key: ca.crt }
+      auth:
+        kubernetes:
+          mountPath: {{ $e.authMount }}
+          role: {{ $e.role }}
+          serviceAccountRef:
+            name: pam-quet-csdl
+            audiences: [openbao]
+{{- end }}
+{{- range $c := $q.clusters }}
+{{- $sec := printf $q.secretRef.nameTemplate $c.name }}
+{{- if $q.externalSecret.enabled }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $sec }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" $ | nindent 4 }}
+spec:
+  refreshInterval: {{ $q.externalSecret.refreshInterval }}
+  secretStoreRef: { kind: SecretStore, name: openbao-pam-quet }
+  target: { name: {{ $sec }}, creationPolicy: Owner }
+  data:
+    - { secretKey: username, remoteRef: { key: static-creds/{{ $c.name }}-pam-quet, property: username } }
+    - { secretKey: password, remoteRef: { key: static-creds/{{ $c.name }}-pam-quet, property: password } }
+{{- end }}
+---
+# Kiểm chứng SEC-58 trên cụm {{ $c.name }}: vai trò đọc được bảng nghiệp vụ ngoài vai trò dịch vụ và phá kính, phá
+# kính quá hạn, dba_ops đọc nghiệp vụ, kết nối quản trị vượt ngân sách {{ $q.nganSachKetNoi }} (TL-04, C_admin).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pam-quet-csdl-{{ $c.name }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pam-quet-csdl
+    vt.io/pg-cluster: {{ $c.name }}
+    {{- include "pam.labels" $ | nindent 4 }}
+spec:
+  schedule: {{ $q.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: pam-quet-csdl
+            vt.io/pam-quet: "true"
+            vt.io/needs-k8s-api: "false"
+            vt.io/pg-cluster: {{ $c.name }}
+        spec:
+          restartPolicy: Never
+          serviceAccountName: pam-quet-csdl
+          automountServiceAccountToken: false
+          securityContext:
+            {{- include "pam.restrictedPod" $ | nindent 12 }}
+          initContainers:
+            - name: quet
+              image: {{ include "pam.image" (dict "root" $ "name" "postgresql") }}
+              imagePullPolicy: IfNotPresent
+              command: ["sh", "/scripts/quet-csdl.sh"]
+              env:
+                - { name: PGHOST, value: "{{ $c.name }}-rw.{{ $c.namespace }}.svc" }
+                - { name: PGUSER, valueFrom: { secretKeyRef: { name: {{ $sec }}, key: username } } }
+                - { name: PGPASSWORD, valueFrom: { secretKeyRef: { name: {{ $sec }}, key: password } } }
+                - { name: PGSSLROOTCERT, value: /ca/ca.crt }
+                - { name: SQL, value: /scripts }
+                - { name: KET_QUA, value: /ket-qua }
+                - { name: SCHEMAS, value: {{ printf "^(%s)$" (join "|" $c.schemas) | quote }} }
+                - { name: DICH_VU, value: {{ $q.vaiTroDichVu | quote }} }
+                - { name: DONG, value: {{ $q.nguoiDungDong | quote }} }
+                - { name: PHA_KINH, value: {{ $vc.phaKinh | quote }} }
+                - { name: DBA, value: {{ $vc.dbaOps | quote }} }
+                - { name: HAN, value: {{ $han | quote }} }
+                - { name: SIEU, value: {{ join "," $q.sieuNguoiDung | quote }} }
+              resources:
+                {{- toYaml $q.resources | nindent 16 }}
+              securityContext:
+                {{- include "pam.restrictedContainer" $ | nindent 16 }}
+              volumeMounts:
+                - { name: scripts, mountPath: /scripts, readOnly: true }
+                - { name: ca, mountPath: /ca, readOnly: true }
+                - { name: ket-qua, mountPath: /ket-qua }
+          containers:
+            - name: bao-cao
+              image: {{ include "pam.image" (dict "root" $ "name" "python") }}
+              imagePullPolicy: IfNotPresent
+              command: ["python3", "-I", "/scripts/day_chi_so_csdl.py"]
+              env:
+                - { name: CUM, value: {{ $c.name | quote }} }
+                - { name: CELL, value: {{ $v.cell | quote }} }
+                - { name: KET_QUA, value: /ket-qua }
+                - { name: NGAN_SACH, value: {{ $q.nganSachKetNoi | quote }} }
+                - { name: NGOAI_LE, value: {{ toJson $q.ngoaiLe | quote }} }
+                - { name: PUSHGATEWAY, value: {{ $v.pushgateway.url | quote }} }
+                - { name: PYTHONDONTWRITEBYTECODE, value: "1" }
+              resources:
+                {{- toYaml $q.resources | nindent 16 }}
+              securityContext:
+                {{- include "pam.restrictedContainer" $ | nindent 16 }}
+              {{- include "pam.probeRong" $ | nindent 14 }}
+              volumeMounts:
+                - { name: scripts, mountPath: /scripts, readOnly: true }
+                - { name: ket-qua, mountPath: /ket-qua, readOnly: true }
+          volumes:
+            - name: scripts
+              configMap: { name: pam-quet-csdl }
+            - name: ca
+              secret: { secretName: {{ printf $q.caSecretTemplate $c.name }}, items: [{ key: ca.crt, path: ca.crt }] }
+            - name: ket-qua
+              emptyDir: { sizeLimit: 8Mi }
+{{- end }}
+{{- end }}
