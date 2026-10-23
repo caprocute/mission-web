@@ -119,8 +119,9 @@ public final class LedgerReconcileHarness {
       TenantId tenant, String topic, UUID aggregate, SpecificRecord payload, boolean inLedger) {
     UUID id = UUID.randomUUID();
     byte[] avro = avro(payload);
-    long version =
-        ((Number) payload.get(payload.getSchema().getField("aggregateVersion").pos())).longValue();
+    // sys.audit.v1 không có aggregateVersion trong payload.
+    var field = payload.getSchema().getField("aggregateVersion");
+    long version = field == null ? 1 : ((Number) payload.get(field.pos())).longValue();
     inTenant(
         tenant,
         () ->
