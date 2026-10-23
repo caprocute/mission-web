@@ -65,11 +65,18 @@ class DevSeedApiIT extends IntegrationTestBase {
     for (TestUser u : users) {
       Map<String, Object> row = admin.queryForMap(
           "SELECT count(*) AS n, min(a.org_unit_id::text) AS unit FROM org.person p JOIN org.assignment a "
-              + "ON a.person_id = p.id AND a.tenant_id = p.tenant_id WHERE p.id = ? AND p.tenant_id = ?",
+              + "ON a.person_id = p.id AND a.tenant_id = p.tenant_id WHERE p.id = ? AND p.tenant_id = ? "
+              + "AND a.kind = 'CHINH'",
           u.id(), u.tenant());
       assertThat(((Number) row.get("n")).intValue()).as(u.username()).isEqualTo(1);
       assertThat(row.get("unit")).as(u.username()).isEqualTo(u.unit().toString());
     }
+    // Chỉ quanly có thêm một phân công kiêm nhiệm (HT-02 chọn phân công khi đăng nhập)
+    Integer kiemNhiem = admin.queryForObject(
+        "SELECT count(*) FROM org.assignment a JOIN org.person p ON p.id = a.person_id AND p.tenant_id = a.tenant_id "
+            + "WHERE a.kind = 'KIEM_NHIEM' AND a.tenant_id = ?",
+        Integer.class, users.get(0).tenant());
+    assertThat(kiemNhiem).isEqualTo(1);
     Integer units = admin.queryForObject("SELECT count(*) FROM org.org_unit WHERE tenant_id = ?", Integer.class,
         users.get(0).tenant());
     assertThat(units).isEqualTo(4);

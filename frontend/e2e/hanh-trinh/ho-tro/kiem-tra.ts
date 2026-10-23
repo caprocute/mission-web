@@ -53,7 +53,11 @@ export async function kiemAxeOnDinh(page: Page, ten: string) {
 /** Bật chế độ Đảng viên cao tuổi bằng nút "Chữ lớn" trên thanh trên. */
 export async function batCaoTuoi(page: Page) {
   const nut = page.getByRole('button', { name: 'Chữ lớn' });
-  await nut.click();
+  // Trên hệ thống thật chế độ hiển thị lưu theo người dùng ở máy chủ (CNH-02), nên lần chạy trước có thể đã
+  // bật sẵn: khi đó nút mang nhãn "Chữ thường" và không bấm lại
+  const daBat = page.getByRole('button', { name: 'Chữ thường', pressed: true });
+  await expect(nut.or(daBat).first()).toBeVisible();
+  if (await nut.isVisible()) await nut.click();
   await expect(page.locator('html')).toHaveAttribute('data-mode', 'elderly');
 }
 

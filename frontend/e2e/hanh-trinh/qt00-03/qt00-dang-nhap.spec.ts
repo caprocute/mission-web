@@ -63,10 +63,12 @@ test.describe('QT-00 Đăng nhập và chọn ngữ cảnh', { tag: '@qa-04' }, 
     const page = await s.trang('quanly', HE_THONG ? '/' : '/?mock-org=kiem-nhiem');
     const hop = page.getByRole('dialog', { name: 'Chọn phân công làm việc' });
     const doi = page.getByRole('button', { name: 'Đổi phân công' });
-    await expect(hop.or(doi).first()).toBeVisible();
-    if (HE_THONG && !(await hop.isVisible()) && !(await doi.isVisible())) {
-      cho('tài khoản quanly trên dev chưa có từ hai phân công (seed hồ sơ cán bộ)');
-    }
+    await expect(hop.or(doi).first())
+      .toBeVisible()
+      .catch((e: unknown) => {
+        if (HE_THONG) cho('tài khoản quanly trên dev chưa có từ hai phân công (seed hồ sơ cán bộ)');
+        throw e;
+      });
     if (!(await hop.isVisible())) await doi.click();
     await expect(hop).toBeVisible();
     const lua = hop.getByRole('radio');

@@ -50,6 +50,7 @@ function setup(
     authEnabled?: boolean;
     meError?: unknown;
     redirectUri?: string;
+    issuer?: string;
   } = {},
 ) {
   sessionStorage.clear();
@@ -76,6 +77,7 @@ function setup(
             ...DEFAULT_RUNTIME_CONFIG.auth,
             enabled: !!opts.authEnabled,
             redirectUri: opts.redirectUri,
+            ...(opts.issuer ? { issuer: opts.issuer } : {}),
           },
         },
       },
@@ -252,6 +254,24 @@ describe('SessionService: OIDC (auth.enabled = true, Keycloak giả lập)', () 
         redirectUri: 'https://cong.example.vn/van-phong/okr',
         postLogoutRedirectUri: 'https://cong.example.vn/van-phong/okr',
       }),
+    );
+  });
+
+  it('Keycloak http ở địa chỉ vòng lặp 127.0.0.1 được nhận như localhost; máy chủ khác vẫn bắt buộc HTTPS', async () => {
+    const hamDev = setup({ authEnabled: true, issuer: 'http://127.0.0.1:35080/realms/mission' });
+    hamDev.oauth.hasValidAccessToken.mockReturnValue(false);
+    void hamDev.session.init();
+    await flush();
+    expect(hamDev.oauth.configure).toHaveBeenCalledWith(
+      expect.objectContaining({ requireHttps: false }),
+    );
+    TestBed.resetTestingModule();
+    const xa = setup({ authEnabled: true, issuer: 'http://127.0.0.1.example.vn/realms/mission' });
+    xa.oauth.hasValidAccessToken.mockReturnValue(false);
+    void xa.session.init();
+    await flush();
+    expect(xa.oauth.configure).toHaveBeenCalledWith(
+      expect.objectContaining({ requireHttps: 'remoteOnly' }),
     );
   });
 

@@ -68,6 +68,8 @@ bootstrap_db() {
 
   psql_exec "${db_name}" <<EOSQL
 CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA public;
+-- btree_gist cho ràng buộc EXCLUDE trộn uuid/varchar với khoảng ngày (như RoleBootstrapPlan của vt-db-migration).
+CREATE EXTENSION IF NOT EXISTS btree_gist SCHEMA public;
 CREATE SCHEMA IF NOT EXISTS partman;
 DO \$\$
 BEGIN

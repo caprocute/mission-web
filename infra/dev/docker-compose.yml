@@ -729,6 +729,12 @@ services:
       ORG_DB_URL: jdbc:postgresql://pgbouncer:6432/${POSTGRES_DB:-mission}?currentSchema=org&prepareThreshold=0
       ORG_DB_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
       ORG_MIG_DB_PASSWORD: ${DB_ROLE_PASSWORD_DEFAULT:-}
+      # org-republish (DV-04-08) dùng serde Apicurio 3, cần API v3 thay cho v2 của khối chung
+      APICURIO_REGISTRY_URL: http://apicurio:8080/apis/registry/v3
+      # setMyContext ghi ngữ cảnh làm việc vào thuộc tính người dùng qua Admin API Keycloak (client org-service,
+      # wiki trang 14 mục 23); thiếu base-url thì PUT /org/me/context trả 503
+      OKRKPI_ORG_KEYCLOAK_BASE_URL: http://keycloak:8080
+      OKRKPI_ORG_KEYCLOAK_CLIENT_SECRET: ${ORG_SERVICE_CLIENT_SECRET:-}
     ports:
       - "${ORG_SERVICE_PORT:-35111}:8080"
 
@@ -913,6 +919,8 @@ services:
       CERT_ISSUER: dev-gia-lap
       CERT_TOKEN_FILE: /run/provision/k8s-token-gia-lap
       PROVISION_BACKOFF: 2s
+      C2_KEY: ${TENANT_REGISTRY_C2_KEY_B64:-}
+      ROUTING_COOKIE_KEY: ${TENANT_REGISTRY_ROUTING_COOKIE_KEY_B64:-}
     volumes:
       - ./provision/k8s-token-gia-lap:/run/provision/k8s-token-gia-lap:ro
     depends_on:
@@ -977,6 +985,7 @@ services:
       READONLY_DATABASE_URL: postgres://ro_notify:${DB_ROLE_PASSWORD_DEFAULT:-}@pgbouncer:6432/${POSTGRES_DB:-mission}?search_path=notify
       KAFKA_BROKERS: kafka:9092
       VALKEY_ADDRS: valkey:6379
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:-}
       TZ: Asia/Ho_Chi_Minh
     ports:
       - "${NOTIFICATION_SERVICE_PORT:-35121}:8080"

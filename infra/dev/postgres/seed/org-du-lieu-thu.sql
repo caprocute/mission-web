@@ -95,4 +95,16 @@ SELECT md5('assignment-version:' || p.id)::uuid, md5('assignment:' || p.id)::uui
 FROM seed_person p
 ON CONFLICT DO NOTHING;
 
+-- Phân công kiêm nhiệm thứ hai của quanly ở Ban Tổ chức, để hành trình HT-02 (QT-00, SCR-0002) chọn được đơn vị
+-- và vai trò khi đăng nhập.
+INSERT INTO org.assignment (version_id, id, tenant_id, person_id, org_unit_id, job_title_id, kind, branch,
+                            valid_from, created_by, updated_by)
+SELECT md5('assignment-version:kiem-nhiem:' || p.id)::uuid, md5('assignment:kiem-nhiem:' || p.id)::uuid,
+       'd0000000-0000-4000-8000-000000000001'::uuid, p.id, 'd0000000-0000-4000-8000-000000000102'::uuid,
+       p.title_id, 'KIEM_NHIEM', 'CHINH_QUYEN', '2000-01-01'::date, '00000000-0000-0000-0000-000000000000'::uuid,
+       '00000000-0000-0000-0000-000000000000'::uuid
+FROM seed_person p
+WHERE p.username = 'quanly'
+ON CONFLICT DO NOTHING;
+
 COMMIT;

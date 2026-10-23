@@ -53,3 +53,43 @@ hành trình sẽ hỏng hoặc ghi "chờ" dù kịch bản đúng:
 - **Biến môi trường.** `E2E_KC_URL` phải trùng từng ký tự với `KEYCLOAK_PUBLIC_URL` của hạ tầng, nếu không
   máy chủ từ chối token vì `iss` khác. Bước kiểm sự kiện cần `E2E_KAFKA_UI_URL`; compose dev hiện chưa có
   kafka-ui.
+
+## Dựng đủ hệ thống thật trên một máy để chạy QA-03, QA-04
+
+Ngày 23/10/2026 (B1) bộ QA-04 (`hanh-trinh/qt00-03/`) và hành trình mẫu QA-03 (`qt04-07/ht17-cap-nhat-tien-do.spec.ts`)
+đã chạy ở chế độ `E2E_MODE=he-thong` trên hạ tầng `infra/dev` dựng trong một container sạch, với mission-core,
+org-service, tenant-registry, integration-gateway, notification-service, OPA (`OPA_ENABLED=true`), Keycloak và
+APISIX thật. Trình tự dưới đây dùng chung cho server dev và máy trạm; các bước nạp dữ liệu đều chạy lại được.
+
+1. `infra/dev/scripts/gen-env.sh` sinh `infra/dev/.env`: khoá bí mật để `<FILL_IN>` được sinh ngẫu nhiên, khoá
+   `*_B64` (khoá AES-256 của tenant-registry) là base64 của 32 byte, địa chỉ và client id của hệ ngoài để rỗng.
+2. Bật hạ tầng `docker compose --profile core --profile security --profile events up -d`, rồi
+   `infra/dev/scripts/dang-ky-luoc-do.sh` đăng ký lược đồ Avro vào Apicurio như Job `apicurio-dang-ky` của cụm.
+   Thiếu bước này thì mọi lệnh ghi có phát sự kiện trả 500 vì producer không tự đăng ký lược đồ.
+3. `infra/dev/scripts/deploy-backend.sh mission-core org-service tenant-registry integration-gateway
+   notification-service apisix` dựng, migrate và bật các service.
+4. `infra/dev/scripts/seed-org.sh` nạp tổ chức thử (kể cả phân công kiêm nhiệm thứ hai của `quanly` cho HT-02) và
+   nơi đặt của tenant thử trong tenant-registry (cell `CELL-DEV` có gốc API rỗng để web giữ APISIX dev), cùng
+   thư viện căn cứ thử `okr.basis` (bản này chưa có API ghi căn cứ, thiếu thì không soạn được mục tiêu). Sau đó
+   chạy `org-republish` của org-service cho tenant thử (`ops/runbooks/org-republish.md`) để mission-core có bản sao
+   tổ chức.
+5. `infra/dev/scripts/tao-phan-vung-ky.sh` tạo phân vùng theo kỳ của năm nay và năm sau cho mọi bảng
+   `period_bucket`; bản này chưa tự tạo phân vùng khi mở kỳ, nên thiếu bước này thì tạo nhiệm vụ, mục tiêu lỗi 500.
+6. Nạp UI Pack mặc định bằng `data/seed/ui-pack/nap_ui_pack.py` với token của `quantri` và `quantri2` (bốn mắt).
+7. Realm `mission` đã nhập trước ngày 23/10/2026 thiếu quyền Admin API của client `org-service` (vai trò
+   `view-users`, `manage-users` của `realm-management`, mapper đưa vai trò đó vào token) và chính sách thuộc tính
+   `ADMIN_EDIT`, nên chọn phân công (`PUT /org/me/context`) trả 503. Keycloak chỉ nhập realm ở lần đầu, nên realm
+   cũ cần thêm ba mục này bằng `kcadm.sh` hoặc dựng lại realm từ `infra/dev/keycloak/realm-mission.json`.
+8. Trong `frontend/`: `npm run e2e:prepare`, rồi chạy với các biến dưới đây.
+
+| Biến | Giá trị | Ghi chú |
+|---|---|---|
+| `E2E_MODE` | `he-thong` | Hoặc chạy `npm run e2e:he-thong` |
+| `E2E_APISIX_URL` | `http://127.0.0.1:35000` | APISIX dev, trực tiếp hoặc qua hầm SSH |
+| `E2E_KC_URL` | trùng từng ký tự `KEYCLOAK_PUBLIC_URL` | Mặc định `http://127.0.0.1:35080`; web nhận Keycloak http ở `127.0.0.1` như `localhost` |
+| `KC_TEST_USER_PASSWORD`, `KC_TEST_OTP_SECRET` | giá trị trong `infra/dev/.env` của chính hạ tầng | Không ghi vào repo |
+| `E2E_KAFKA_UI_URL`, `E2E_KAFKA_CLUSTER` | để trống | Compose dev chưa có kafka-ui, ca kiểm sự kiện ghi "Chờ" |
+
+Mã OTP của một tài khoản không dùng lại được trong cùng bước 30 giây, nên kịch bản đăng nhập chờ sang bước mới khi
+một tài khoản đăng nhập hai lần liền nhau; nhập sai nhiều lần làm Keycloak khoá tạm tài khoản thử dùng chung. Tuỳ
+chọn chữ lớn lưu theo người dùng ở máy chủ, nên một lần chạy có thể bắt đầu ở chế độ cao tuổi do lần trước để lại.

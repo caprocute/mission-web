@@ -70,6 +70,8 @@ export const AAL2_ROLES: readonly VtRole[] = [
 /** TL-02 QT-00: phiên AAL2 hạ về AAL1 sau 15 phút kể từ lần MFA gần nhất. */
 export const AAL2_TTL_MS = 15 * 60_000;
 const CONTEXT_KEY = 'vt.assignment';
+/** Issuer http trên địa chỉ vòng lặp (đường hầm tới Keycloak dev); thư viện OIDC chỉ tự miễn HTTPS cho localhost. */
+const LOOPBACK_HTTP = /^http:\/\/(127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/i;
 
 const DEV_USER: VtUser = {
   id: 'dev-user',
@@ -178,6 +180,9 @@ export class SessionService {
     const back = this.cfg.auth.redirectUri ?? location.origin + '/';
     this.oauth.configure({
       issuer: this.cfg.auth.issuer,
+      // Keycloak dev qua đường hầm ở địa chỉ vòng lặp 127.0.0.1 hay [::1] dùng http như localhost (RFC 8252 mục 8.3);
+      // mọi máy chủ khác vẫn bắt buộc HTTPS
+      requireHttps: LOOPBACK_HTTP.test(this.cfg.auth.issuer ?? '') ? false : 'remoteOnly',
       clientId: this.cfg.auth.clientId,
       responseType: 'code',
       scope: this.cfg.auth.scope,

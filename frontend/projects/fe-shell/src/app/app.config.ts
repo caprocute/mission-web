@@ -159,7 +159,10 @@ export function buildAppConfig(
             void flags.load();
           }
         });
-        return flags.load();
+        // Chỉ gọi khi đã có phiên: trước đăng nhập lời gọi bị 401 và kéo theo làm mới token hỏng (lỗi console)
+        return session.ready.then(() =>
+          cfg.auth.enabled && !session.isAuthenticated() ? undefined : flags.load(),
+        );
       }),
     ],
   };

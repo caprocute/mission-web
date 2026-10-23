@@ -31,4 +31,21 @@
     <module>analytics-api</module>
     <module>integration-gateway</module>
   </modules>
+
+  <build>
+    <plugins>
+      <!-- Jar chạy được (BOOT-INF, tách lớp) cho Dockerfile của từng service và ảnh dev infra/dev/backend/Dockerfile.java;
+           thiếu bước này `java -Djarmode=layertools` báo "no main manifest attribute". Bỏ qua mô-đun packaging pom. -->
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>repackage</id>
+            <goals><goal>repackage</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>
