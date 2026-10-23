@@ -40,7 +40,7 @@ interface NhiemVu {
   title: string;
   dueDate: string;
   rowVersion: number;
-  blockers: { id: string; status: string; rowVersion: number }[];
+  blockers: { id: string; content: string; status: string; rowVersion: number }[];
   changeRequests: { id: string; status: string; rowVersion?: number }[];
 }
 

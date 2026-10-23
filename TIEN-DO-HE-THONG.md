@@ -14,8 +14,8 @@
 
 - **Tổng tiến độ đã gộp `main`**: **377 / 408 task (92.4%)** — Khối lượng quy đổi đã gộp: **451 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **377 / 408 task (92.4%)** (gồm **377** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **17 task** (2 đang làm, 15 làm một phần).
-- **Chưa bắt đầu**: **14 task**.
+- **Đang thực hiện / Làm một phần**: **18 task** (2 đang làm, 16 làm một phần).
+- **Chưa bắt đầu**: **13 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **21 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: `VH-08`).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -28,11 +28,11 @@
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **104** | 0 | 0 | 0 | **100.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **21** | 0 | 7 | 0 | **75.0%** |
-| **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **5** | 0 | 4 | 7 | **31.2%** |
+| **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **5** | 0 | 5 | 6 | **31.2%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 3 | 7 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **7** | 0 | 2 | 0 | **77.8%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **377** | **0** | **17** | **14** | **92.4%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **377** | **0** | **18** | **13** | **92.4%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -44,7 +44,7 @@
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **120** | 0 | 0 | 0 | **100.0%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **25** | 0 | 12 | 5 | **59.5%** |
-| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **11** | 0 | 3 | 9 | **47.8%** |
+| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **11** | 0 | 4 | 8 | **47.8%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **2** | 0 | 2 | 0 | **50.0%** |
 
 ### 1.3. Trạng thái 23 task trên Đường găng
@@ -575,7 +575,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Làm một phần** | Gộp 3f6d867d (Warpgate, thu hồi PG); còn SA kubectl, dba_ops, lưu phiên RGW |
 | [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Đã gộp main** | MM2, walArchive, chế độ chờ, siteRole toàn cục (948aa4cb); chưa chạy cụm thật |
 
-### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (5/16 đã gộp `main`, 0 chờ gộp, 4 đang làm)
+### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (5/16 đã gộp `main`, 0 chờ gộp, 5 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -593,7 +593,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [QA-12](docs/tasks/QA-12-chien-dich-cell-perf.md) | Chiến dịch thử tải trên CELL-PERF và hiệu chuẩn bảng định cỡ theo hồ sơ cell | L | B9 | 16 | QA-09, QA-10, QA-11, INF-21 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần CELL-PERF |
 | [QA-13](docs/tasks/QA-13-asvs-zap.md) | Kiểm thử ATTT: OWASP ASVS 4.0.3 mức 2 (L3 cho xác thực, phiên, mật mã) và OWASP ZAP toàn hệ thống | L | B9 | 12 | QA-03 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 | [QA-14](docs/tasks/QA-14-thu-hong-dr-01-09.md) | Thử hỏng PERF-07 và diễn tập khôi phục DR-01..DR-09 | L | B9 | 15 | INF-17, QA-08 | **Chưa bắt đầu** |  |
-| [QA-15](docs/tasks/QA-15-dr-chuyen-vung.md) | Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu | L | B9 | 16 | QA-14, INF-18, INF-20 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
+| [QA-15](docs/tasks/QA-15-dr-chuyen-vung.md) | Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu | L | B9 | 16 | QA-14, INF-18, INF-20 | **Làm một phần** | Kịch bản, sổ tay DR-10..16 gộp 95a4bffd; chạy thật hoãn (YC-PT-19) |
 | [QA-16](docs/tasks/QA-16-uat-tenant-thi-diem.md) | Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá | L | B9 | 24 | QA-07 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 
 ### MOB · SVC-18 mobile-app (Flutter) (0/10 đã gộp `main`, 0 chờ gộp, 3 đang làm)
@@ -1041,4 +1041,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 14:16 | B4 | `QA-05` | Chuyển trạng thái sang **Làm một phần** — Sửa phát hiện gộp fdc5c81a; giả lập 10/10; chế độ thật chờ env dev |
 | 23/10/2026 14:23 | B1 | `INF-28` | Chuyển trạng thái sang **Đã gộp main** — MM2, walArchive, chế độ chờ, siteRole toàn cục (948aa4cb); chưa chạy cụm thật |
 | 23/10/2026 14:24 | — | `MOB-06` | Chuyển trạng thái sang **Làm một phần** — Hoãn theo YC-PT-22; bản 18c1d58c giữ trên nhánh B6, chưa gộp |
+| 23/10/2026 14:25 | — | `QA-15` | Chuyển trạng thái sang **Làm một phần** — Kịch bản, sổ tay DR-10..16 gộp 95a4bffd; chạy thật hoãn (YC-PT-19) |
+| 23/10/2026 14:26 | B4 | `QA-05` | Chuyển trạng thái sang **Làm một phần** — Sửa phát hiện gộp fdc5c81a; giả lập 10/10; chế độ thật chờ env dev |
 <!-- PROGRESS_LOG_END -->
