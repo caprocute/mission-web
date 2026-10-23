@@ -1,0 +1,87 @@
+{{- $v := .Values }}
+{{- if not $v.cell }}{{ fail "standby-check: cần cell" }}{{ end }}
+{{- if not (regexMatch "^sha256:[a-f0-9]{64}$" (toString $v.image.digest)) }}{{ fail "standby-check: ảnh phải ghim digest (SEC-55)" }}{{ end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kiem-ban-sao-am
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "sc.labels" . | nindent 4 }}
+data:
+  kiem_tra.py: {{ .Files.Get "files/kiem_tra.py" | quote }}
+  kiem-tra.json: {{ include "sc.kiemTra" . | quote }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kiem-ban-sao-am
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "sc.labels" . | nindent 4 }}
+  annotations:
+    ignore-check.kube-linter.io/no-liveness-probe: "Job chạy một lần, tự kết thúc trong activeDeadlineSeconds"
+    ignore-check.kube-linter.io/no-readiness-probe: "Job không nhận lưu lượng"
+spec:
+  schedule: {{ $v.schedule | quote }}
+  timeZone: Asia/Ho_Chi_Minh
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            {{- include "sc.labels" . | nindent 12 }}
+          annotations:
+            checksum/kiem-tra: {{ include "sc.kiemTra" . | sha256sum }}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: kiem-tra
+              image: "{{ $v.image.repository }}:{{ $v.image.tag }}@{{ $v.image.digest }}"
+              command: [python, -I, /etc/kiem-tra/kiem_tra.py]
+              env:
+                - { name: PROMETHEUS_URL, value: {{ $v.prometheusUrl | quote }} }
+                - { name: CELL, value: {{ $v.cell | quote }} }
+                - { name: KIEM_TRA_FILE, value: /etc/kiem-tra/kiem-tra.json }
+              resources:
+                {{- toYaml $v.resources | nindent 16 }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: kiem-tra, mountPath: /etc/kiem-tra, readOnly: true }
+          volumes:
+            - name: kiem-tra
+              configMap: { name: kiem-ban-sao-am }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kiem-ban-sao-am
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "sc.labels" . | nindent 4 }}
+  annotations:
+    ignore-check.kube-linter.io/dangling-networkpolicypeer-podselector: "Pod Prometheus do observability-cell dựng"
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: standby-check }
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: prometheus } }
+      ports: [{ port: 9090, protocol: TCP }]
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]

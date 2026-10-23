@@ -23,8 +23,8 @@ keeperDisk: 20Gi
 
 storageClass: nvme-local
 placement:
-  nodeSelector: { vt.io/pool: data-search }
-  tolerations: [{ key: vt.io/pool, operator: Equal, value: data-search, effect: NoSchedule }]
+  nodeSelector: { vt.io/pool: search }
+  tolerations: [{ key: vt.io/pool, operator: Equal, value: search, effect: NoSchedule }]
 
 tls:
   issuerRef: { kind: ClusterIssuer, name: openbao-pki-cell }

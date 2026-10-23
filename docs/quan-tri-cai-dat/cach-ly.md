@@ -19,10 +19,12 @@ values của mình. Ngăn xếp quan sát trong cell chỉ gồm thành phần A
    `infra/airgap/ke-anh.py --phien-ban okr-lts-2027.1.0` → `deploy/release/okr-lts-2027.1.0/images.yaml`.
    Script dừng nếu còn ảnh theo thẻ hoặc digest giả. Tệp kê được commit cùng thẻ phát hành.
 2. Đóng gói trên máy đóng gói có HSM:
+
    ```bash
    infra/airgap/dong-goi.sh --phien-ban okr-lts-2027.1.0 --ref okr-lts-2027.1.0 \
      --clamav /srv/clamav-mirror --ra /srv/phat-hanh            # khoá mặc định hsm://release-offline
    ```
+
    Gói gồm `images/` (một thư mục OCI, bảng `images/anh.tsv`), `signatures/` (cosign save: chữ ký, SBOM, provenance),
    `charts/` (chỉ `vt-platform`, đã gồm chart con), `gitops.bundle`, `trivy-db/`, `clamav/`, `tools/`, `docs/`,
    `MANIFEST.sha256` và `MANIFEST.sha256.sig`, nén thành `okr-lts-2027.1.0.tar.zst`.

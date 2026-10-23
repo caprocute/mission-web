@@ -1,0 +1,47 @@
+{{- $v := .Values }}
+{{- if $v.canhBao.enabled }}
+# Cảnh báo bản sao ấm (OPS-18). Độ trễ WAL 5 phút, 10 phút đã có ở observability-cell (PgReplicationLag*); ở đây
+# thêm MirrorMaker 2 cùng hai mức, và trạng thái của lần kiểm sẵn sàng hằng ngày.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ban-sao-am
+  namespace: {{ $v.namespace }}
+  labels:
+    {{- include "sc.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: ban-sao-am
+      rules:
+        - record: vt:ban_sao_am_kiem_tra_dat
+          expr: |
+            (time() - max(kube_cronjob_status_last_successful_time{namespace="{{ $v.namespace }}", cronjob="kiem-ban-sao-am"})) < bool 26 * 3600
+        - alert: Mm2ReplicationLagWarning
+          expr: max(kafka_connect_mirror_source_connector_replication_latency_ms_max) > {{ mul $v.nguong.mm2CanhBaoGiay 1000 }}
+          for: 5m
+          labels: { severity: warning, cell: {{ $v.cell | quote }} }
+          annotations:
+            summary: "MirrorMaker 2 của cell {{ $v.cell }} trễ quá {{ div $v.nguong.mm2CanhBaoGiay 60 }} phút"
+            runbook_url: https://runbook.vt.local/okr/ban-sao-am
+        - alert: Mm2ReplicationLagCritical
+          expr: max(kafka_connect_mirror_source_connector_replication_latency_ms_max) > {{ mul $v.nguong.mm2NghiemTrongGiay 1000 }}
+          for: 5m
+          labels: { severity: critical, cell: {{ $v.cell | quote }} }
+          annotations:
+            summary: "MirrorMaker 2 của cell {{ $v.cell }} trễ quá {{ div $v.nguong.mm2NghiemTrongGiay 60 }} phút"
+            runbook_url: https://runbook.vt.local/okr/ban-sao-am
+        - alert: Mm2Absent
+          expr: absent(kafka_connect_mirror_source_connector_replication_latency_ms_max)
+          for: 15m
+          labels: { severity: warning, cell: {{ $v.cell | quote }} }
+          annotations:
+            summary: "Không thấy số liệu MirrorMaker 2 của cell {{ $v.cell }} (nhân bản Kafka có thể đã dừng)"
+            runbook_url: https://runbook.vt.local/okr/ban-sao-am
+        - alert: StandbyCheckFailed
+          expr: vt:ban_sao_am_kiem_tra_dat == 0
+          for: 10m
+          labels: { severity: warning, cell: {{ $v.cell | quote }} }
+          annotations:
+            summary: "Bản sao ấm của cell {{ $v.cell }} không đạt kiểm sẵn sàng trong 26 giờ qua (xem nhật ký Job kiem-ban-sao-am)"
+            runbook_url: https://runbook.vt.local/okr/ban-sao-am
+{{- end }}

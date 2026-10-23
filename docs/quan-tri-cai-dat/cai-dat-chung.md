@@ -49,7 +49,7 @@ Cài các operator ở bảng "Phần mềm nền của cụm" trong [yeu-cau-ha
 
 ## Bước 4: chính sách Kyverno
 
-Áp bộ chính sách `deploy/policies/vt-*.yaml` và các ngoại lệ còn hạn trong `deploy/policies/exceptions/`. Chính sách `vt-require-signed-images` chỉ cho chạy ảnh đã ký bằng khoá `cosign-release` và có chứng thực SLSA từ kho Git và máy dựng của Viettel. Ở bản cách ly, `tools/cai-dat.sh` của gói tự sinh bản chính sách của khách hàng (khoá công khai phát hành thay cho khoá trong OpenBao Transit, registry đổi sang Harbor nội bộ).
+Áp bộ chính sách `deploy/policies/vt-*.yaml` và các ngoại lệ còn hạn trong `deploy/policies/exceptions/`. Chính sách `vt-require-signed-images` chỉ cho chạy ảnh đã ký bằng khoá `cosign-release` và có chứng thực SLSA từ kho Git và máy dựng của Viettel. Ở bản cách ly, `tools/cai-dat.sh` của gói tự sinh bản chính sách của khách hàng (khoá công khai phát hành thay cho khoá trong OpenBao Transit, registry đổi sang Harbor nội bộ). Ở đám mây riêng dùng Harbor nội bộ, bản chính sách trong kho GitOps nhân bản đổi `imageReferences` bằng `doi-khoa-kyverno.py --chi-registry` và giữ khoá trong OpenBao của cell (Bước 2 của [mo-hinh-dam-may-rieng.md](mo-hinh-dam-may-rieng.md)).
 
 Từ bước này trở đi, một ảnh chưa ký hoặc tham chiếu theo thẻ sẽ bị từ chối. Khi gặp lỗi "no signatures found", kiểm tra trước tiên ảnh đã được nạp kèm chữ ký chưa (`cosign load` ở bản cách ly) và Harbor có giữ thẻ `.sig`, `.att` không.
 

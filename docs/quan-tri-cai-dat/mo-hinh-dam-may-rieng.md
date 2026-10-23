@@ -53,7 +53,7 @@ kubeconform -strict -summary \
   /tmp/cell-<mã>.yaml
 ```
 
-Kết quả khi viết tài liệu: 873 đối tượng, `Valid: 873, Invalid: 0`. Ngoài schema, kiểm thêm hai điều bằng mắt trong bản render: mọi `nodeSelector` khớp nhãn node thật của cụm (xem hai khoảng trống ở [yeu-cau-ha-tang.md](yeu-cau-ha-tang.md)), và không còn ảnh nào trỏ tới registry mà cụm không kéo được.
+Kết quả khi viết tài liệu: 874 đối tượng, `Valid: 874, Invalid: 0` (gồm ClusterPolicy `vt-doi-kho-anh` của Bước 2). Ngoài schema, kiểm thêm hai điều bằng mắt trong bản render: mọi `nodeSelector` khớp nhãn node `hoi-tu`, `du-lieu`, `vt.io/zone=secure` của cụm compact (bảng ở [yeu-cau-ha-tang.md](yeu-cau-ha-tang.md)), và mọi tiền tố ảnh trong bản render đều có dòng trong `global.doiKhoAnh`.
 
 Chart cấu hình Argo CD được kiểm tương tự:
 
@@ -70,7 +70,12 @@ Cell không kéo ảnh thẳng từ Internet. Có hai cách cấp ảnh, chọn 
 1. **Kéo qua egress gateway từ Harbor của Viettel.** Đây là cách đơn giản nhất: thêm Harbor của Viettel vào danh sách đích của `cell-egress`, cấp một robot account chỉ kéo cho cell. Không cần đổi tên ảnh, Kyverno kiểm chữ ký như SaaS.
 2. **Harbor nội bộ của khách hàng nhân bản từ Harbor của Viettel.** Dựng Harbor theo `deploy/clusters/mgmt/harbor` (chart chính thức, `existingSecret` từ OpenBao, project và quy tắc nhân bản áp bằng `ap-dung-cau-hinh.sh`), rồi nhân bản theo sự kiện đẩy ảnh như cách INF-18 nhân bản sang Harbor phía Nam.
 
-Với cách thứ hai có một khoảng trống: chart chưa có khoá đổi registry chung, và ảnh bên thứ ba trong values của chart hạ tầng được ghim theo tên Harbor của Viettel. Bản cách ly giải quyết việc này bằng `doi-registry.py` và `doi-khoa-kyverno.py` của gói (render rồi đổi tên ảnh trước khi áp), nhưng đường Argo CD của mô hình 2 không đi qua bước render đó. Cho tới khi chart có khoá đổi registry, dùng cách thứ nhất, hoặc cấu hình gương registry của containerd trên node cho tên Harbor của Viettel (suy luận, chưa chạy thử; Kyverno vẫn phải kéo được chữ ký theo tên gốc).
+Với cách thứ hai, tên ảnh trong chart vẫn là tên Harbor của Viettel và tên registry gốc của ảnh bên thứ ba. Khoá chung `global.doiKhoAnh` trong values của cell (mẫu ở `vi-du/cell-rieng-compact.yaml`) là bảng tiền tố ảnh gốc sang tiền tố ở Harbor nội bộ. Khi bảng có giá trị, `cell-base` sinh ClusterPolicy Kyverno `vt-doi-kho-anh` đổi ảnh của mọi pod lúc tạo, kể cả pod của chart bên thứ ba, operator và hook, nên không chart nào cần khoá registry riêng và đường Argo CD không phải lọc bản render. Đường dẫn và digest giữ nguyên, nên chữ ký cosign nhân bản cùng ảnh vẫn kiểm được. Hai việc đi kèm:
+
+- Bảng có thể sinh từ bảng đối chiếu của gói cách ly hoặc của lần nhân bản: `infra/airgap/goi/tools/doi-registry.py --sinh-doi-kho-anh anh-da-nap.tsv > values-doi-kho-anh.yaml`. Công cụ dừng khi một tiền tố đích bắt đầu bằng một tiền tố gốc, vì các luật đổi sẽ chồng lên nhau.
+- Kyverno chạy luật mutate trước verifyImages, nên `vt-require-signed-images` trong kho GitOps nhân bản phải đổi `imageReferences` sang Harbor nội bộ, giữ khoá `kms` của OpenBao trong cell: `doi-khoa-kyverno.py --chi-registry --registry-goc harbor.vt.local --kho <Harbor nội bộ> --ra <thư mục> deploy/policies/vt-*.yaml`, rồi commit bản đổi vào kho nhân bản. Thiếu bước này thì ảnh đã đổi tên không còn khớp luật kiểm chữ ký, tức là chạy mà không được kiểm.
+
+Khi Kyverno ngừng, pod mới giữ tên ảnh gốc và không kéo được ảnh (an toàn theo hướng đóng), nên Kyverno phải chạy trước mọi thành phần khác, như ở bước 4 của [cai-dat-chung.md](cai-dat-chung.md) (suy luận về thứ tự).
 
 ## Bước 3: cụm, nền và gốc tin cậy
 
@@ -78,7 +83,7 @@ Làm các bước 1 đến 7 của [cai-dat-chung.md](cai-dat-chung.md). Với h
 
 - Cụm có 3 node hội tụ VM-32-128, 3 node dữ liệu PHY-DB-S có HDD, và 3 VM-16-64 cho cụm quản trị (Argo CD, Harbor, quan sát tập trung, `tenant-registry`). Ở mức tối thiểu đến 10.000 tài khoản, cả ba vai trò chạy hội tụ trên 3 máy, và Argo CD quản lý chính cụm nó đang chạy.
 - Chỉ có một vùng sự cố: mọi node mang cùng nhãn `topology.kubernetes.io/zone`, trùng `global.topology.zones` của cell (mẫu dùng `kh01-a`).
-- OpenBao chạy 3 node Raft (mẫu đặt `openbao.replicas: 3`), mỗi node trên một máy dữ liệu, vì vùng bảo mật chạy chung node dữ liệu (TL-05 mục 9.2, ngoại lệ thứ hai). Chỉ node dữ liệu có đường mạng tới HSM.
+- OpenBao chạy 3 node Raft (hồ sơ compact đặt `openbao.replicas: 3`), mỗi node trên một máy dữ liệu, vì vùng bảo mật chạy chung node dữ liệu (TL-05 mục 9.2, ngoại lệ thứ hai). Chỉ node dữ liệu có đường mạng tới HSM.
 - Kho đối tượng là RGW của Rook-Ceph trong cụm trên ổ HDD của node dữ liệu, trừ khi khách hàng có kho S3 đạt yêu cầu Object Lock.
 
 ## Bước 4: Argo CD tại chỗ

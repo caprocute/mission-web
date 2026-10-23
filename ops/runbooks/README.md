@@ -47,7 +47,7 @@ Bảng theo TL-04 mục 11.1. Cột "Sổ tay chi tiết" là sổ tay thành ph
 
 | Tên (`runbook_url`) | Tệp | Cảnh báo | Nội dung |
 |---|---|---|---|
-| `slo-availability` | [canh-bao](canh-bao/slo-availability.md) | SLOAvailabilityFastBurn, SLOAvailabilitySlowBurn | Tiêu ngân sách lỗi khả dụng (SLO-AVL) |
+| `slo-availability` | [canh-bao](canh-bao/slo-availability.md) | SLOAvailabilityFastBurn, SLOAvailabilitySlowBurn, CNPGClusterNotHealthy | Tiêu ngân sách lỗi khả dụng (SLO-AVL); cụm PostgreSQL mất primary |
 | `slo-latency` | [canh-bao](canh-bao/slo-latency.md) | SLOReadLatencyBurn, SLOWriteLatencyBurn | Request đọc, ghi chậm quá ngưỡng (SLO-READ, SLO-WRITE) |
 | `scoring-lag` | [canh-bao](canh-bao/scoring-lag.md) | ScoringLagHigh | Độ trễ tính điểm (SLO-SCORE) |
 | `kafka-lag` | [canh-bao](canh-bao/kafka-lag.md) | KafkaConsumerLagGrowing | Lag consumer Kafka tăng liên tục |
@@ -83,4 +83,4 @@ Bảng theo TL-04 mục 11.1. Cột "Sổ tay chi tiết" là sổ tay thành ph
 
 Sổ tay thành phần khác ở thư mục gốc: `phat-lai-outbox.md` (phát lại sự kiện từ outbox, NEN-022), `suy-giam-ba-muc.md` (bộ điều khiển suy giảm ba mức, INF-25), `org-republish.md`, `luu-tru-xoa-khoi-phuc.md`, `an-ninh-pam-rbac.md`, `an-ninh-soc-quy-tac.md`, `an-ninh-falco.md`, `openbao-hsm.md`.
 
-Sổ tay đã có: `phat-lai-outbox.md` (phát lại sự kiện từ outbox, NEN-022), `degradation.md` (bật, tắt mức suy giảm của cổng API, DV-01-02), `geodns.md` (GeoDNS, chuyển vùng cell và `pg-registry`, INF-20).
+Sổ tay đã có: `phat-lai-outbox.md` (phát lại sự kiện từ outbox, NEN-022), `degradation.md` (bật, tắt mức suy giảm của cổng API, DV-01-02), `geodns.md` (GeoDNS, chuyển vùng cell và `pg-registry`, INF-20), `ban-sao-am.md` (bản sao ấm ở TTDL thứ hai, INF-28).

@@ -117,9 +117,19 @@ releaseManagers:
 # Cửa sổ đóng băng OPS-06 (TL-04 "Đóng băng thay đổi"): chặn đồng bộ tự động, vẫn cho release-manager sync tay
 # khi CAB khẩn duyệt. syncWindowsBoSung do deploy/argocd/lich-dong-bang/sinh_lich.py sinh từ kỳ đánh giá của
 # tenant (config.period, GET /api/v1/periods) qua merge request, người trực duyệt rồi mới gộp.
+# Cửa sổ cuối quý tách theo độ dài tháng để luôn hết lúc 00:00 ngày 11 (đủ "tới hết ngày 10" của TL-04): tháng
+# 3 và 12 có 31 ngày nên cần 18 ngày (432h), tháng 6 và 9 có 30 ngày nên 17 ngày (408h). Một lịch chung 408h cho
+# cả bốn quý làm cửa sổ quý I, IV hết lúc 00:00 ngày 10 (VH-03, diễn tập DT-SEV1-04). sinh_lich.py dựng cùng các
+# cửa sổ này (cua_so_co_dinh_argocd) và kiểm thử đối chiếu với khoá dưới đây.
 syncWindows:
   - kind: deny
-    schedule: "0 0 24 3,6,9,12 *"
+    schedule: "0 0 24 3,12 *"
+    duration: 432h
+    applications: ["*"]
+    manualSync: true
+    timeZone: Asia/Ho_Chi_Minh
+  - kind: deny
+    schedule: "0 0 24 6,9 *"
     duration: 408h
     applications: ["*"]
     manualSync: true

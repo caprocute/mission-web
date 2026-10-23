@@ -1,8 +1,7 @@
-import { Page, test } from '@playwright/test';
+import { test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ApiHeThong, LoiApi } from '../ho-tro/api';
-import { kiemAxe } from '../ho-tro/kiem-tra';
 import { HE_THONG, MA_LAN_CHAY, bienConThieu, cho, ghiCho } from '../ho-tro/moi-truong';
 import { Phien, TenTaiKhoan } from '../ho-tro/phien';
 import { choSuKien, coKafkaUi } from '../ho-tro/su-kien';
@@ -107,32 +106,3 @@ export async function kiemSuKien(ma: string, topic: string, loc: string, tu: Dat
 /** Mã bản ghi ở đoạn cuối đường dẫn chi tiết (`/.../<id>`). */
 export const maTuDuongDan = (url: string) =>
   new URL(url).pathname.split('/').filter(Boolean).pop()!;
-
-async function choHetHieuUng(page: Page) {
-  // Đợi hai khung hình để trình duyệt kịp tính kiểu và khởi động transition, rồi đợi mọi hiệu ứng dừng
-  await page.evaluate(
-    () => new Promise((xong) => requestAnimationFrame(() => requestAnimationFrame(xong))),
-  );
-  await page
-    .waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'), null, {
-      polling: 100,
-      timeout: 5_000,
-    })
-    .catch(() => undefined);
-}
-
-/**
- * Quét axe sau khi các hiệu ứng hiện dần (thông báo PrimeNG, hộp thoại) đã chạy xong: quét giữa lúc mờ dần
- * cho kết quả tương phản màu sai (đã gặp ở thông báo cảnh báo màn hình khiếu nại, khoảng 1/20 lần chạy).
- * Nếu lần quét đầu vẫn báo lỗi thì đợi thêm rồi quét lại một lần: lỗi thật vẫn còn ở lần quét thứ hai.
- */
-export async function kiemAxeOnDinh(page: Page, ten: string) {
-  await choHetHieuUng(page);
-  try {
-    await kiemAxe(page, ten);
-  } catch {
-    await page.waitForTimeout(500);
-    await choHetHieuUng(page);
-    await kiemAxe(page, ten);
-  }
-}

@@ -1,0 +1,24 @@
+# MẪU cụm cell hồ sơ compact (TL-05 mục 3.3, 9.1, 9.2) cho bản cài đám mây riêng hoặc cách ly đơn cell, một vùng sự
+# cố. Sáu node: ba node hội tụ (system, ingress, app-general, app-worker gộp, khớp global.poolMap của
+# deploy/charts/vt-platform/sizing/values-sizing-compact.yaml) và ba node dữ liệu kiêm vùng bảo mật (ngoại lệ thứ hai
+# của TL-05 mục 9.2: chỉ node dữ liệu có đường tới HSM). Cụm quản trị (3 × VM-16-64) là cụm riêng, không ở đây.
+# Đổi mã cell, vùng và tủ máy theo bản cài; thông số provider đặt ở tệp hạ tầng riêng như values-mau-ha-tang.yaml.
+clusterName: cell-kh01-chinh
+cell: kh01
+kubernetesVersion: v1.36.0
+zones: [kh01-a]
+racks: { kh01-a: kh01-a-r01 }
+
+controlPlane:
+  replicas: 3
+
+pools:
+  hoi-tu:
+    enabled: true
+    perZone: [3]
+    labels: { vt.io/pool: hoi-tu }
+  du-lieu:
+    enabled: true
+    perZone: [3]
+    labels: { vt.io/pool: du-lieu, vt.io/zone: secure }
+    taint: { key: vt.io/zone, value: secure, effect: NoSchedule }

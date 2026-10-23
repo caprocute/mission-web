@@ -747,7 +747,7 @@ export interface components {
       createdAt?: components['schemas']['DateTime'];
       updatedAt?: components['schemas']['DateTime'];
       rowVersion: components['schemas']['RowVersion'];
-      /** @description Thao tác của người gọi trên mục tiêu này: `SCR-0202.soan-don-vi`, `SCR-0202.soan-ca-nhan`, `SCR-0202.trinh` khi mục tiêu còn nháp (mục tiêu cá nhân chỉ của chính mình), `SCR-0203.duyet`, `SCR-0203.tra-lai` khi chờ duyệt và người gọi không phải người soạn (BR-02-08). */
+      /** @description Thao tác của người gọi trên mục tiêu này: `SCR-0202.soan-don-vi`, `SCR-0202.soan-ca-nhan`, `SCR-0202.trinh` khi mục tiêu còn nháp (mục tiêu cá nhân chỉ của chính mình), `SCR-0203.duyet` khi chờ duyệt và người gọi không phải người soạn (BR-02-08), `SCR-0203.tra-lai` khi chờ duyệt. */
       permittedActions?: components['schemas']['PermittedActions'];
     };
     OkrObjectivePage: {

@@ -2,6 +2,8 @@
 CSDL và schema theo TL-03 bằng CR Database của CNPG: mỗi schema thuộc vai trò mig_<schema> (chủ sở hữu, chạy
 migration), CSDL thuộc vai trò mig_ của schema đầu tiên. Extension (pgvector cho ai) do CR tạo.
 */}}
+{{- /* INF-28: cụm ở TTDL chờ là bản sao chỉ đọc, CSDL và schema đến từ WAL; CR Database chỉ ở TTDL primary. */}}
+{{- if not (fromYaml (include "data-pg.replica" .)).standby }}
 {{- $root := . }}
 {{- $cums := fromYaml (include "data-pg.clusters" .) }}
 {{- range $ten, $c := $cums }}
@@ -35,5 +37,6 @@ spec:
       ensure: present
     {{- end }}
   {{- end }}
+{{- end }}
 {{- end }}
 {{- end }}

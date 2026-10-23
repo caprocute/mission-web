@@ -72,6 +72,24 @@ groups:
         annotations:
           summary: "Replica cluster {{ $labels.cluster }} trễ {{ $value | humanizeDuration }} (> 10 phút)"
           runbook_url: https://runbook.vt.local/okr/pg-replica-lag
+      # Cụm PostgreSQL ở TTDL chính không còn instance nào nhận ghi: mọi instance còn báo số liệu đều đang ở chế độ
+      # phục hồi (standby) hoặc bộ thu số liệu của mọi instance báo không kết nối được PostgreSQL. Replica cluster
+      # phía Nam (tên kết thúc bằng -sn, TL-04 DR-10) toàn standby theo thiết kế nên bị loại. CNPG thường tự đưa
+      # standby lên primary trong vòng một phút, nên chờ 2 phút để không gọi trực cho một lần chuyển bình thường.
+      # Khi mọi pod của cụm biến mất thì không còn chuỗi số liệu; trường hợp đó do SLOAvailabilityFastBurn bắt.
+      # Quy tắc ức chế OutboxBacklog của Alertmanager dựa trên tên cảnh báo này (VH-03, diễn tập DT-SEV1-02).
+      - alert: CNPGClusterNotHealthy
+        expr: |
+          (
+            count by (cluster) (cnpg_collector_up{cluster!~".*-sn"})
+            unless on (cluster) count by (cluster) (cnpg_pg_replication_in_recovery{cluster!~".*-sn"} == 0)
+          )
+          or on (cluster) (max by (cluster) (cnpg_collector_up{cluster!~".*-sn"}) == 0)
+        for: 2m
+        labels: { severity: critical, doi: dba }
+        annotations:
+          summary: "Cụm PostgreSQL {{ $labels.cluster }} không có primary nhận ghi"
+          runbook_url: https://runbook.vt.local/okr/slo-availability
       - alert: CNPGPrimaryCPUHigh
         expr: |
           sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{container="postgres"}[5m]))

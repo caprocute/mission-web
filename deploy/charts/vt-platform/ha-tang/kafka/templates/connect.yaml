@@ -3,7 +3,8 @@ mỗi CSDL có bảng outbox một connector (gom các schema cùng CSDL), Event
 giữ nguyên byte (ByteArrayConverter), khoá là event_key. Mật khẩu vai trò cdc_<csdl> đọc từ Secret qua
 KubernetesSecretConfigProvider, không nằm trong cấu hình connector. */}}
 {{- $v := .Values }}
-{{- if $v.connect.enabled }}
+{{- /* INF-28: Debezium chỉ chạy ở TTDL primary; ở TTDL chờ CSDL là bản sao, sự kiện đến qua MirrorMaker 2. */}}
+{{- if and $v.connect.enabled (ne (toString $v.global.siteRole) "standby") }}
 {{- $c := $v.connect }}
 {{- $dm := include "kafka.danhMuc" . | fromYaml }}
 {{- $rf := index $v.config "default.replication.factor" }}

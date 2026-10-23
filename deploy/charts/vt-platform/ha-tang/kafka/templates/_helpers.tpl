@@ -24,6 +24,20 @@ vt.io/cell: {{ . | quote }}
 {{- define "kafka.raiNode" -}}
 template:
   pod:
+    {{- with .v.placement.nodeSelector }}
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                {{- range $k, $gt := . }}
+                - { key: {{ $k }}, operator: In, values: [{{ $gt | quote }}] }
+                {{- end }}
+    {{- end }}
+    {{- with .v.placement.tolerations }}
+    tolerations:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
     topologySpreadConstraints:
       {{- if gt (len (uniq .v.global.topology.zones)) 1 }}
       - maxSkew: 1

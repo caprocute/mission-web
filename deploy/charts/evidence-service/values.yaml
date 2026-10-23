@@ -139,12 +139,21 @@ thanhPhan:
         value: https://sso.invalid/realms/mission/protocol/openid-connect/token
       - name: EVIDENCE_OCR_CLIENT_ID
         value: evidence-service
-      - name: EVIDENCE_OCR_CLIENT_SECRET
-        valueFrom:
-          secretKeyRef:
-            name: evidence-scan-worker-secrets
-            key: ocr-client-secret
-            optional: true
+      # Bí mật OCR gắn thành tệp (không qua biến môi trường); configtree lấy tên tệp làm tên thuộc tính
+      # nên placeholder ${EVIDENCE_OCR_CLIENT_SECRET:} trong application.yaml giữ nguyên.
+      - name: SPRING_CONFIG_IMPORT
+        value: optional:configtree:/etc/evidence-ocr/
+    extraVolumes:
+      - name: bi-mat-ocr
+        secret:
+          secretName: evidence-scan-worker-secrets
+          optional: true
+          items:
+            - { key: ocr-client-secret, path: EVIDENCE_OCR_CLIENT_SECRET }
+    extraVolumeMounts:
+      - name: bi-mat-ocr
+        mountPath: /etc/evidence-ocr
+        readOnly: true
     autoscaling:
       keda:
         enabled: true
