@@ -10,12 +10,12 @@ Tải đỉnh của hệ thống tập trung ở cuối kỳ đánh giá, nên t
 
 | Cửa sổ | Từ | Đến hết | Cấu hình sync window |
 |---|---|---|---|
-| Cuối quý | 00:00 ngày 24 của tháng cuối mỗi quý (3, 6, 9, 12) | ngày 10 của tháng đầu quý sau | `schedule: "0 0 24 3,6,9,12 *"`, `duration: 408h` |
+| Cuối quý | 00:00 ngày 24 của tháng cuối mỗi quý (3, 6, 9, 12) | ngày 10 của tháng đầu quý sau | `schedule: "0 0 24 3,12 *"`, `duration: 432h` và `schedule: "0 0 24 6,9 *"`, `duration: 408h` |
 | Cuối năm, trước Tết | 00:00 ngày 20/1 | ngày 04/2, mở lại 00:00 ngày 05/2 | `schedule: "0 0 20 1 *"`, `duration: 384h` |
 
 Hai cửa sổ này khai trong khoá `syncWindows` của `deploy/argocd/values.yaml`, được chart dựng vào AppProject `okr-apps` và `okr-nen-tang` với `kind: deny`, `manualSync: true`, `timeZone: Asia/Ho_Chi_Minh`. Argo CD tự chặn đồng bộ tự động trong cửa sổ, nên quy tắc không phụ thuộc vào trí nhớ của người.
 
-**Lưu ý về cửa sổ cuối quý I và quý IV.** `duration: 408h` là 17 ngày tính từ 00:00 ngày 24. Với tháng 6 và tháng 9 (30 ngày), cửa sổ kết thúc lúc 00:00 ngày 11, đúng "tới hết ngày 10". Với tháng 3 và tháng 12 (31 ngày), cửa sổ kết thúc lúc 00:00 ngày 10, tức ngày 10/4 và 10/1 nằm ngoài cửa sổ của Argo CD (đã kiểm bằng tính toán ngày). Cho tới khi cấu hình được sửa (cần một phiếu thay đổi cho `deploy/argocd/values.yaml`, ví dụ tách thành hai lịch theo độ dài tháng hoặc dùng `duration: 432h` cho tháng 3 và 12), ca trực coi ngày 10/4 và 10/1 là ngày đóng băng theo quy trình: không duyệt đồng bộ thủ công thay đổi chuẩn, thường trong hai ngày này.
+**Vì sao cửa sổ cuối quý tách làm hai.** Argo CD chỉ nhận một lịch cron và một thời lượng cố định cho mỗi cửa sổ. Từ 00:00 ngày 24 tới hết ngày 10 tháng sau là 18 ngày khi tháng bắt đầu có 31 ngày (tháng 3, tháng 12) và 17 ngày khi tháng đó có 30 ngày (tháng 6, tháng 9). Trước đây một lịch chung 408 giờ cho cả bốn quý làm cửa sổ quý I và quý IV hết lúc 00:00 ngày 10, bỏ sót ngày 10/4 và 10/1 (phát hiện DT-SEV1-04 của buổi diễn tập trên bàn). Nay hai cửa sổ được dựng từ ngày cuối bằng hàm `cua_so_co_dinh_argocd` của `sinh_lich.py`, và kiểm thử của tác vụ đối chiếu `values.yaml` với hàm đó, đồng thời mô phỏng lịch cron cộng thời lượng qua nhiều năm để bảo đảm mỗi cửa sổ hết đúng 00:00 ngày 11.
 
 **Cửa sổ bổ sung theo kỳ đánh giá của tenant.** Mỗi khách hàng có thể đặt mốc hạn khác với lịch quý. Tác vụ `deploy/argocd/lich-dong-bang/sinh_lich.py` đọc kỳ đánh giá (`config.period` của MOD-08) qua `GET /api/v1/periods` của từng cell, dựng khoảng đóng băng từ 7 ngày trước mốc hạn nộp tới 3 ngày sau mốc khoá kỳ dự kiến (tham số `--truoc`, `--sau`), gộp khoảng chồng nhau, bỏ khoảng đã nằm trọn trong cửa sổ cố định, rồi ghi `deploy/argocd/values-dong-bang.yaml` (khoá `syncWindowsBoSung`). Với `--mo-yeu-cau`, tác vụ mở merge request và không bao giờ tự gộp.
 

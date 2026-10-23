@@ -35,7 +35,7 @@ a = p["okr-apps"]
 assert a["clusterResourceWhitelist"] == [] and a["signatureKeys"]
 assert {"group": "rbac.authorization.k8s.io", "kind": "*"} in a["namespaceResourceBlacklist"]
 w = {(x["schedule"], x["duration"]) for x in a["syncWindows"] if x["kind"] == "deny" and x["manualSync"]}
-assert w >= {("0 0 24 3,6,9,12 *", "408h"), ("0 0 20 1 *", "384h")}, w
+assert w >= {("0 0 24 3,12 *", "432h"), ("0 0 24 6,9 *", "408h"), ("0 0 20 1 *", "384h")}, w
 assert all(x["timeZone"] == "Asia/Ho_Chi_Minh" for x in a["syncWindows"])
 for ten, s in p.items():
     assert [r["name"] for r in s["roles"]] == ["release-manager"]

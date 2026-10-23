@@ -19,7 +19,7 @@ Mọi sự cố SEV-1 và SEV-2 có bản phân tích sau sự cố không quy l
 
 | Dấu hiệu | Mức gợi ý |
 |---|---|
-| Cell không phục vụ được người dùng; cụm PostgreSQL của cell mất primary mà không tự chuyển được; quyết định chuyển vùng DR-10; chuỗi băm sổ cái đứt (DR-14); nghi xâm nhập có quyền quản trị (DR-11); lộ khoá (DR-12) | SEV-1 |
+| Cell không phục vụ được người dùng; `CNPGClusterNotHealthy` (cụm PostgreSQL của cell không còn primary nhận ghi); quyết định chuyển vùng DR-10; chuỗi băm sổ cái đứt (DR-14); nghi xâm nhập có quyền quản trị (DR-11); lộ khoá (DR-12) | SEV-1 |
 | `SLOAvailabilityFastBurn`; cell ở mức suy giảm ≥ 2 quá 15 phút (thông báo tự động của bộ điều khiển suy giảm); saga khoá kỳ của một tenant lớn dừng ở bước 2..4 gần mốc hạn | SEV-2 |
 | Một tenant không dùng được một chức năng phụ; DLQ có bản ghi mới; `SLOAvailabilitySlowBurn` | SEV-3 |
 | Câu hỏi sử dụng, lỗi hiển thị nhỏ không ảnh hưởng dữ liệu | SEV-4 |
