@@ -34,19 +34,21 @@ class OperationPolicyCatalogTest {
     // DV-04-06 (scim.yaml) + 1 thao tác listAppraisalBatchDecisions của WEB-063 + 20 thao tác của
     // NEN-044 (BS-03: 13 hồ sơ tập khách hàng, 4 đánh giá, 3 mốc KR) + 7 thao tác tuỳ chọn cá nhân
     // của CNH-02 + 4 thao tác dịch vụ định nghĩa dashboard của CORE-08-17
-    // + searchAccessLogs của CORE-07-12 + các thao tác task của CORE-02-14/18/26 = 466 thao tác.
-    assertThat(catalog.size()).isEqualTo(466);
-    assertThat(catalog.all()).hasSize(466);
+    // + searchAccessLogs của CORE-07-12 + các thao tác task của CORE-02-14/18/26 + 8 thao tác danh
+    // bạ
+    // khoá công khai, khoá phục hồi và nhật ký phục hồi của CORE-07-06 = 474 thao tác.
+    assertThat(catalog.size()).isEqualTo(474);
+    assertThat(catalog.all()).hasSize(474);
 
     List<OperationPolicy> aal2 = catalog.aal2Operations();
     // 54 thao tác AAL2 gốc + 7 thao tác của WEB-058 + 12 thao tác của NEN-042/043 + 1 thao tác
-    // approveCustomerProfileVersion của NEN-044 + 1 thao tác searchAccessLogs của CORE-07-12 = 75
+    // approveCustomerProfileVersion của NEN-044 + 1 thao tác searchAccessLogs của CORE-07-12 + 5
     // thao
-    // tác.
-    assertThat(aal2).hasSize(75);
+    // tác ghi khoá và đọc nhật ký phục hồi của CORE-07-06 = 80 thao tác.
+    assertThat(aal2).hasSize(80);
     long nonWeb058Aal2 =
         aal2.stream().filter(p -> !WEB_058_AAL2_OPS.contains(p.operationId())).count();
-    assertThat(nonWeb058Aal2).isEqualTo(68);
+    assertThat(nonWeb058Aal2).isEqualTo(73);
 
     List<OperationPolicy> fourEyes = catalog.fourEyesOperations();
     // 15 thao tác bốn mắt gốc + 2 thao tác của WEB-058 + 1 thao tác của NEN-043 + 1 thao tác

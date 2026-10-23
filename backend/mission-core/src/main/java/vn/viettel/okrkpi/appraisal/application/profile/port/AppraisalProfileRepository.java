@@ -18,6 +18,15 @@ public interface AppraisalProfileRepository {
   Optional<ProfileRow> lock(TenantId tenant, UUID profileId);
 
   /**
+   * Mức hệ thống gợi ý ({@code auto_rating_code}) của một ảnh chụp điểm thuộc hồ sơ (BS-03 DC-05,
+   * ảnh chụp người gọi đã xem); rỗng khi ảnh chụp không thuộc hồ sơ.
+   */
+  default Optional<vn.viettel.okrkpi.appraisal.domain.profile.RatingLevel> snapshotRating(
+      TenantId tenant, int periodBucket, UUID profileId, UUID snapshotId) {
+    return Optional.empty();
+  }
+
+  /**
    * Ghi trạng thái và các trường đi kèm của aggregate, tăng {@code row_version}; trả phiên bản mới.
    * Không khớp {@code expectedVersion} thì trả rỗng.
    */

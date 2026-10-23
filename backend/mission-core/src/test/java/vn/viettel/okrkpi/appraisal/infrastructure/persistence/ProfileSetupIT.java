@@ -1,6 +1,7 @@
 package vn.viettel.okrkpi.appraisal.infrastructure.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -28,11 +29,14 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.appraisal.application.profile.AppraisalProfileService;
+import vn.viettel.okrkpi.appraisal.application.score.ScoreViewService;
+import vn.viettel.okrkpi.appraisal.application.score.ScoreViewService.ScoreView;
 import vn.viettel.okrkpi.appraisal.application.setup.ProfileSetupService;
 import vn.viettel.okrkpi.appraisal.application.setup.ProfileSetupService.Outcome;
 import vn.viettel.okrkpi.appraisal.application.setup.ProfileSetupService.ScoreComputed;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi;
 import vn.viettel.okrkpi.policy.api.PolicyQueryApi.ResolvedPack;
+import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer.SerializedPayload;
@@ -42,7 +46,7 @@ import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
  * Lập hồ sơ quý và ảnh chụp điểm với CSDL thật (CORE-04-02): người điều động sau ngày khoá kỳ vẫn
  * được lập hồ sơ ở đơn vị cũ; đảng viên có thêm hồ sơ luồng Đảng; EVT-09 xử lý hai lần chỉ tạo một
  * bộ hồ sơ; EVT-10 chính thức mở phiếu tự đánh giá và phát EVT-11, EVT-21; EVT-10 cũ hơn ảnh chụp
- * hiện hành bị bỏ qua; ảnh chụp mới thay ảnh chụp cũ hai bước.
+ * hiện hành bị bỏ qua; ảnh chụp mới thay ảnh chụp cũ hai bước. Đọc điểm theo luồng (CORE-04-09).
  */
 class ProfileSetupIT {
 
@@ -197,6 +201,35 @@ class ProfileSetupIT {
                 .single())
         .isTrue();
     assertThat(count("appraisal.outbox_event WHERE aggregate_id = '" + profile + "'")).isEqualTo(2);
+  }
+
+  /** CORE-04-09: đọc điểm hiện hành theo luồng, luồng kia chưa tính thì 409. */
+  @Test
+  void docDiemTheoLuong() {
+    TenantId t = TenantId.of(tenant);
+    tx.execute(x -> service.onPeriodLocked(t, period, BUCKET, LOCKED));
+    UUID dang = profileOf("DANG");
+    Instant at = LOCKED.plusSeconds(600);
+    tx.execute(x -> service.onScoreComputed(t, score(dang, "TAM_TINH", at)));
+    tx.execute(x -> service.onScoreComputed(t, score(dang, "CHOT_KY", at.plusSeconds(60))));
+    JdbcClient jdbc = JdbcClient.create(ds);
+    ScoreViewService scores =
+        new ScoreViewService(
+            new JdbcSelfAssessmentRepository(jdbc), new JdbcScoreSnapshotReader(jdbc));
+
+    ScoreView view = scores.view(t, dang, null, moved, p -> false).orElseThrow();
+    assertThat(view.snapshot().kind()).isEqualTo("CHOT_KY");
+    assertThat(view.snapshot().totalScore()).isEqualByComparingTo("81.25");
+    assertThat(view.snapshot().autoRatingCode()).isEqualTo("HTTNV");
+    assertThat(view.snapshot().snapshotHash()).hasSize(32);
+    assertThat(view.snapshot().ruleChecks()).isEqualTo("[]");
+    assertThat(view.snapshot().supersededById()).isNull();
+    assertThatThrownBy(() -> scores.view(t, dang, "NHA_NUOC", moved, p -> false))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errorCode().code()).isEqualTo("APPRAISAL-409-NOT-COMPUTED"));
+    assertThatThrownBy(() -> scores.view(t, dang, null, UUID.randomUUID(), p -> false))
+        .isInstanceOf(BusinessException.class);
   }
 
   // ---------------------------------------------------------------- hỗ trợ

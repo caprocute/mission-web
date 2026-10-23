@@ -57,6 +57,12 @@ public interface BatchDecisionRepository {
   Set<UUID> outOfScope(TenantId tenant, int bucket, Collection<UUID> profileIds, Scope scope);
 
   /**
+   * Hồ sơ năm ({@code bucket} chia hết cho 10) trong {@code profileIds} có quý cùng người, cùng
+   * luồng của năm đang khiếu nại chưa kết luận ({@code KHIEU_NAI}), CORE-04-10.
+   */
+  Set<UUID> withOpenQuarterComplaint(TenantId tenant, int bucket, Collection<UUID> profileIds);
+
+  /**
    * Số hồ sơ cùng kỳ, cùng luồng ở các đơn vị trực thuộc (độ sâu ≥ 1 trên cây của luồng) của {@code
    * orgUnitId} chưa có mức {@code QUYET_DINH} hiện hành và không nằm trong {@code inBatch}.
    */

@@ -109,7 +109,7 @@ public class ReopenRequestController {
   @GetMapping
   @RequiresPermission(operationId = "listReopenRequests", module = "oversight")
   public ListReopenRequests200Response listReopenRequests(
-      @RequestParam(value = "periodId", required = false) UUID periodId,
+      @RequestParam(value = "period", required = false) UUID periodId,
       @RequestParam(value = "status", required = false) String status,
       @RequestParam(value = "awaitingMyApproval", required = false, defaultValue = "false")
           boolean awaitingMyApproval,

@@ -57,6 +57,8 @@ import vn.viettel.okrkpi.task.domain.catalog.WorkCatalog;
  */
 public class CatalogService {
 
+  static final int PAGE = 200;
+
   static final String TX = "taskTransactionManager";
   static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
@@ -178,6 +180,39 @@ public class CatalogService {
         repository.applicableItems(
             tenant, orgUnit, positions, AccentFold.fold(blankToNull(q)), afterCode, afterId, fetch);
     return describe(tenant, items, null);
+  }
+
+  /**
+   * Mục {@code itemId} nếu đang áp dụng cho vị trí việc làm của người gọi (đăng ký nhiệm vụ,
+   * CORE-02-17); duyệt các trang keyset của {@link #applicableItems}.
+   */
+  @Transactional(value = TX, readOnly = true)
+  public Optional<CatalogItem> applicableItem(TenantId tenant, UUID caller, UUID itemId) {
+    Set<UUID> positions =
+        directory.assignmentsOf(tenant, caller, LocalDate.now(ZONE)).stream()
+            .map(AssignmentView::positionId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    if (positions.isEmpty() || itemId == null) {
+      return Optional.empty();
+    }
+    String afterCode = null;
+    UUID afterId = null;
+    while (true) {
+      List<VisibleItem> page =
+          repository.applicableItems(tenant, null, positions, null, afterCode, afterId, PAGE);
+      for (VisibleItem v : page) {
+        if (v.item().id().equals(itemId)) {
+          return Optional.of(v.item());
+        }
+      }
+      if (page.size() < PAGE) {
+        return Optional.empty();
+      }
+      CatalogItem last = page.get(page.size() - 1).item();
+      afterCode = last.code();
+      afterId = last.id();
+    }
   }
 
   /** {@code listCatalogPositions}: vị trí việc làm có trong các mục nhìn thấy của phiên bản. */

@@ -198,7 +198,12 @@ describe('mock evidence – SCR-0703 (WEB-033)', () => {
     const { ev } = setup();
     const v = await firstValueFrom(ev.openReview(R, await firstValueFrom(ev.version(R, 2))));
     const p = await firstValueFrom(
-      ev.scorePreview({ taskId: v.taskId, qualityLevel: 0.75, revisionCause: 'CHU_QUAN' }),
+      ev.scorePreview({
+        taskId: v.taskId,
+        qualityLevel: 0.75,
+        revisionCause: 'NOI_DUNG_KHONG_COT_LOI',
+        isObjectiveRevision: false,
+      }),
     );
     expect(p).toMatchObject({ a: 1, b: 0.75, c: 0.9, kpi: 0.883 });
     const body = { qualityLevel: 0.75 as const, criteriaResults: criteria };

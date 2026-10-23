@@ -157,6 +157,12 @@ class OkrReadServiceTest {
         .extracting(KeyResultSnapshot::id)
         .containsExactly(s.kr1, s.kr2);
     assertThat(api.listApprovedKeyResults(T, PeriodId.of(UUID.randomUUID()), UNIT)).isEmpty();
+    // Mục tiêu tập thể (không có người sở hữu cá nhân) được giữ; bộ lọc người nằm ở kho đọc.
+    assertThat(api.listResponsibleKeyResults(T, Q1.id(), UUID.randomUUID()))
+        .extracting(KeyResultSnapshot::id)
+        .contains(s.kr1, s.kr2);
+    assertThat(api.listResponsibleKeyResults(T, PeriodId.of(UUID.randomUUID()), UUID.randomUUID()))
+        .isEmpty();
 
     KeyResultSummary registered =
         new KeyResultSummary(UUID.randomUUID(), T, Q1.id(), "KR trong bộ nhớ", 0.5, 10);

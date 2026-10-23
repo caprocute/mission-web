@@ -29,5 +29,6 @@
     <module>scoring-service</module>
     <module>search</module>
     <module>analytics-api</module>
+    <module>integration-gateway</module>
   </modules>
 </project>

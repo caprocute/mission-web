@@ -230,6 +230,24 @@ class PolicyApprovalServiceTest {
   }
 
   @Test
+  void submitRunsPublishGuardBeforeStoring() {
+    PolicyPackVersion v = version(PolicyVersionStatus.DAT_KIEM_THU, HASH, false);
+    stored(v);
+    lastRun(v, true);
+    period(LocalDate.of(2027, 1, 1), PeriodStatus.MO);
+    service.setPublishGuard(
+        (t, p, version) -> {
+          throw new BusinessException("POLICY-422-PARAM-CONSTRAINT", "Ngoài khung");
+        });
+
+    assertThatThrownBy(() -> service.submit(tenant, author, pack.id(), "2.1.0", 4, submit()))
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).errorCode().code())
+        .isEqualTo("POLICY-422-PARAM-CONSTRAINT");
+    verify(publish, never()).storeSubmitted(any(), any(), anyLong());
+  }
+
+  @Test
   void submitRejectsUntestedVersionsAndBadInput() {
     PolicyPackVersion draft = version(PolicyVersionStatus.NHAP, null, false);
     stored(draft);

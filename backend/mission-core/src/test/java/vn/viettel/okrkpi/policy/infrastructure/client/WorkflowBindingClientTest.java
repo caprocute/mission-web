@@ -23,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.web.client.RestClient;
+import vn.viettel.okrkpi.policy.domain.PolicyPackVersion;
 import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.error.ProblemFieldError;
 import vn.viettel.okrkpi.shared.error.VersionConflictException;
@@ -209,6 +210,30 @@ class WorkflowBindingClientTest {
     assertThatThrownBy(() -> client.list(TENANT, VERSION))
         .isInstanceOf(DependencyUnavailableException.class);
     assertThatThrownBy(() -> client.save(TENANT, VERSION, "DANH_GIA", 0, "k", Map.of()))
+        .isInstanceOf(DependencyUnavailableException.class);
+  }
+
+  @Test
+  void kichHoatVaGoKichHoatMoiLanMotKhoaChongGhiTrung() {
+    String on = "POST /internal/v1/workflow/bindings/activate";
+    String off = "POST /internal/v1/workflow/bindings/deactivate";
+    bodies.put(on, "{\"items\":[]}");
+    bodies.put(off, "{\"items\":[]}");
+    client.activate(TENANT, VERSION);
+    String first = seen.get(on + "#idem");
+    assertThat(seen.get(on + "#query")).isEqualTo("policyPackVersionId=" + VERSION);
+    assertThat(seen.get(on + "#tenant")).isEqualTo(TENANT.value().toString());
+    assertThat(seen.get(on + "#auth")).isEqualTo("Bearer svc-token");
+    client.activate(TENANT, VERSION);
+    assertThat(seen.get(on + "#idem")).isNotBlank().isNotEqualTo(first);
+    new WorkflowBindingActivation(client)
+        .deactivate(TENANT, org.mockito.Mockito.mock(PolicyPackVersion.class));
+    assertThat(seen).containsKey(off + "#idem");
+    status.put(on, 409);
+    assertThatThrownBy(() -> client.activate(TENANT, VERSION))
+        .isInstanceOf(DependencyUnavailableException.class);
+    status.put(off, 404);
+    assertThatThrownBy(() -> client.deactivate(TENANT, VERSION))
         .isInstanceOf(DependencyUnavailableException.class);
   }
 }

@@ -21,6 +21,8 @@ import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.transaction.PlatformTransactionManager;
 import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases;
+import vn.viettel.okrkpi.appraisal.application.annual.AnnualSetupService;
+import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRecomputeRequests;
 import vn.viettel.okrkpi.appraisal.application.profile.AppraisalProfileService;
 import vn.viettel.okrkpi.appraisal.application.setup.ProfileSetupService;
 import vn.viettel.okrkpi.appraisal.infrastructure.listener.ProfileSetupListener;
@@ -69,7 +71,9 @@ public class ProfileSetupConfiguration {
       ObjectProvider<ObjectMapper> json,
       ObjectProvider<PolicyQueryApi> policies,
       ObjectProvider<AppraisalSpecialCases> specialCases,
-      ObjectProvider<PeriodApi> periods) {
+      ObjectProvider<PeriodApi> periods,
+      JdbcAnnualRatingRepository annualRatingRepository,
+      AnnualRecomputeRequests annualRecomputeRequests) {
     OutboxWriter outbox =
         new OutboxWriter(
             new JdbcTemplate(dataSource),
@@ -84,7 +88,9 @@ public class ProfileSetupConfiguration {
         policies.getIfAvailable(),
         specialCases.getIfAvailable(),
         periods.getIfAvailable(),
-        Clock.systemUtc());
+        Clock.systemUtc(),
+        annualRatingRepository,
+        annualRecomputeRequests);
   }
 
   /**
@@ -101,8 +107,9 @@ public class ProfileSetupConfiguration {
   static class SetupInbox {
 
     @Bean
-    ProfileSetupListener profileSetupListener(ProfileSetupService profileSetupService) {
-      return new ProfileSetupListener(profileSetupService);
+    ProfileSetupListener profileSetupListener(
+        ProfileSetupService profileSetupService, AnnualSetupService annualSetupService) {
+      return new ProfileSetupListener(profileSetupService, annualSetupService);
     }
 
     @Bean

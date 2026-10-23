@@ -1,5 +1,6 @@
 package vn.viettel.okrkpi.workflow.infrastructure.template;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -33,6 +34,7 @@ public final class TemplateCatalog {
   private static final Pattern DECISION_ID = Pattern.compile("<decision\\s+[^>]*id=\"([^\"]+)\"");
   private static final String BPMN_SUFFIX = ".bpmn20.xml";
   private static final String DESCRIPTOR_SUFFIX = ".mau.json";
+  private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {};
 
   private final List<TemplateSource> templates;
   private final Map<String, String> bpmn;
@@ -97,7 +99,10 @@ public final class TemplateCatalog {
         strings(n.path("kiemThu")),
         strings(n.path("kiemThuDmn")),
         ints(n.path("bien")),
-        ints(n.path("songSongToiDa")));
+        ints(n.path("songSongToiDa")),
+        n.path("thamSo").isObject()
+            ? json.convertValue(n.path("thamSo"), MAP)
+            : Map.<String, Object>of());
   }
 
   private static List<String> strings(JsonNode array) {

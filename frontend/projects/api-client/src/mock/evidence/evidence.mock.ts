@@ -520,11 +520,11 @@ function returnVersion(req: MockRequest, decision: 'YEU_CAU_BO_SUNG' | 'TU_CHOI'
  * C = 1 − 0,05 × số ngày làm việc chậm (chậm do khách quan thì không trừ), KPI = trung bình ba hệ số.
  */
 function scorePreview(req: MockRequest): MockResponse {
-  const b = req.body as { taskId?: string; qualityLevel?: number; revisionCause?: string };
+  const b = req.body as { taskId?: string; qualityLevel?: number; isObjectiveRevision?: boolean };
   if (!b?.taskId || !LEVELS.includes(b.qualityLevel ?? -1))
     return problem(422, 'Dữ liệu không hợp lệ', { code: 'COMMON-422-VALIDATION' });
   const late = extraTasks[b.taskId]?.lateWorkingDays ?? 0;
-  const c = b.revisionCause === 'KHACH_QUAN' ? 1 : Math.max(0, 1 - 0.05 * late);
+  const c = b.isObjectiveRevision ? 1 : Math.max(0, 1 - 0.05 * late);
   const round = (x: number) => Math.round(x * 1000) / 1000;
   return ok({
     a: 1,
