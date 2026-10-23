@@ -47,10 +47,16 @@ export class ApiHeThong {
   async goi<T>(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     path: string,
-    opts: { body?: unknown; ifMatch?: string | null; query?: Record<string, string> } = {},
+    opts: {
+      body?: unknown;
+      ifMatch?: string | null;
+      query?: Record<string, string>;
+      /** Gửi lại đúng khoá chống lặp của một lệnh trước (kiểm idempotency). */
+      idempotencyKey?: string;
+    } = {},
   ): Promise<KetQua<T>> {
     const headers: Record<string, string> = {};
-    if (method !== 'GET') headers['idempotency-key'] = randomUUID();
+    if (method !== 'GET') headers['idempotency-key'] = opts.idempotencyKey ?? randomUUID();
     if (opts.ifMatch) headers['if-match'] = opts.ifMatch;
     const r = await this.ctx.fetch(path.replace(/^\//, ''), {
       method,
