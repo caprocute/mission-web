@@ -17,6 +17,9 @@ public interface ExternalJobQueue {
   /** Báo việc đã xong; tiến trình đi tiếp. */
   void complete(CallbackJob job, String workerId);
 
+  /** Báo việc đã xong kèm biến kết quả (worker chọn người ghi người được giao). */
+  void complete(CallbackJob job, String workerId, Map<String, Object> variables);
+
   /**
    * Báo việc lỗi; {@code retriesLeft = 0} đưa việc vào hàng thư chết để vận hành xử lý.
    *
@@ -57,7 +60,11 @@ public interface ExternalJobQueue {
       Objects.requireNonNull(processInstanceId, "processInstanceId");
       Objects.requireNonNull(elementId, "elementId");
       Objects.requireNonNull(businessKey, "businessKey");
-      variables = variables == null ? Map.of() : Map.copyOf(variables);
+      // Biến có giá trị null (người được giao của việc nhóm) hợp lệ; Map.copyOf không nhận null.
+      variables =
+          variables == null
+              ? Map.of()
+              : java.util.Collections.unmodifiableMap(new java.util.HashMap<>(variables));
     }
   }
 }

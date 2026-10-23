@@ -57,6 +57,23 @@ public class JdbcBindingReader implements BindingReader {
     return rows.stream().findFirst().map(raw -> parse(raw, flow));
   }
 
+  @Override
+  public Optional<String> rawParams(UUID tenantId, String processKind, ApprovalFlow flow) {
+    TenantBinding.bind(jdbc, tenantId);
+    return jdbc
+        .queryForList(
+            "SELECT params_json::text FROM flowable.wf_binding"
+                + " WHERE tenant_id = ? AND process_kind = ? AND (flow = ? OR flow IS NULL)"
+                + " AND subject_group_id IS NULL AND period_type IS NULL"
+                + " ORDER BY (flow IS NULL) LIMIT 1",
+            String.class,
+            tenantId,
+            processKind,
+            flow.name())
+        .stream()
+        .findFirst();
+  }
+
   /** Đọc tham số; khoá thiếu lấy mặc định của khối. */
   ApprovalParams parse(String raw, ApprovalFlow flow) {
     return parse(json, raw, flow);

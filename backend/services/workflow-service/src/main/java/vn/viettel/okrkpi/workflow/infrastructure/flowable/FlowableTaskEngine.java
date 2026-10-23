@@ -28,6 +28,7 @@ import vn.viettel.okrkpi.workflow.domain.BusinessKey;
 import vn.viettel.okrkpi.workflow.domain.CandidateGroup;
 import vn.viettel.okrkpi.workflow.domain.Decision;
 import vn.viettel.okrkpi.workflow.domain.OpenTask;
+import vn.viettel.okrkpi.workflow.domain.dual.DualApproval;
 
 /**
  * {@link TaskEngine} trên API công khai của Flowable 7. Lỗi khoá lạc quan của engine (hai người
@@ -89,7 +90,12 @@ public class FlowableTaskEngine implements TaskEngine {
     if (instance == null) {
       return Optional.empty();
     }
-    Optional<BusinessKey> key = BusinessKey.parse(instance.getBusinessKey());
+    // Việc của tiến trình con gọi qua call activity (duyệt kép): đối tượng và người trình là của
+    // tiến trình gốc.
+    ProcessInstance root = root(instance);
+    Optional<BusinessKey> key =
+        BusinessKey.parse(
+            instance.getBusinessKey() != null ? instance.getBusinessKey() : root.getBusinessKey());
     if (key.isEmpty()) {
       return Optional.empty();
     }
@@ -108,7 +114,43 @@ public class FlowableTaskEngine implements TaskEngine {
             candidates,
             revision(task),
             key.get(),
-            uuid(instance.getStartUserId())));
+            uuid(
+                instance.getStartUserId() != null
+                    ? instance.getStartUserId()
+                    : root.getStartUserId())));
+  }
+
+  private ProcessInstance root(ProcessInstance instance) {
+    String rootId = instance.getRootProcessInstanceId();
+    if (rootId == null || rootId.equals(instance.getId())) {
+      return instance;
+    }
+    ProcessInstance root =
+        runtime.createProcessInstanceQuery().processInstanceId(rootId).singleResult();
+    return root == null ? instance : root;
+  }
+
+  @Override
+  public Optional<List<UUID>> otherBranchApprovers(UUID tenantId, String taskId) {
+    Task task =
+        tasks.createTaskQuery().taskId(taskId).taskTenantId(tenantId.toString()).singleResult();
+    if (task == null
+        || task.getProcessDefinitionId() == null
+        || !task.getProcessDefinitionId().startsWith(DualApproval.TEMPLATE + ":")) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        history
+            .createHistoricTaskInstanceQuery()
+            .processInstanceId(task.getProcessInstanceId())
+            .finished()
+            .list()
+            .stream()
+            .filter(t -> !task.getTaskDefinitionKey().equals(t.getTaskDefinitionKey()))
+            .map(t -> uuid(t.getAssignee()))
+            .filter(java.util.Objects::nonNull)
+            .distinct()
+            .toList());
   }
 
   @Override

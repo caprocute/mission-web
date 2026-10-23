@@ -19,6 +19,8 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:35092}
   lifecycle:
     timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:25s}
   security:
@@ -166,6 +168,12 @@ okrkpi:
       url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
   idempotency:
     schema: flowable
+  # DV-06-04: consumer EVT-11, EVT-13, EVT-18, EVT-25 của bốn mẫu phần 2 qua inbox idempotent
+  # flowable.inbox_processed.
+  inbox:
+    schema: flowable
+    registry:
+      url: ${APICURIO_REGISTRY_URL:http://127.0.0.1:35081/apis/registry/v2}
   # Token client credentials của mission-core không mang claim tenant: tenant đích của saga (chốt
   # kỳ, CORE-08-05) đọc từ header X-Tenant-Id, chỉ với tài khoản dịch vụ của các client này.
   tenant:
