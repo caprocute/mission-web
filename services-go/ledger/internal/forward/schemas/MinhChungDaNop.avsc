@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "MinhChungDaNop",
+  "namespace": "vn.vtokr.product.v1",
+  "doc": "EVT-07 · product.evidence.submitted.v1 · MOD-03 phát khi minh chứng được nộp.",
+  "fields": [
+    {"name": "evidenceId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "product.evidence.id"},
+    {"name": "versionId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "product.evidence_version.id"},
+    {"name": "deliverableId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "product.deliverable.id"},
+    {"name": "taskId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "task.task.id"},
+    {"name": "objectSha256", "type": "bytes", "doc": "SHA-256 của tệp minh chứng (32 byte)"},
+    {"name": "aiConfirmed", "type": "boolean", "doc": "Người dùng đã xác nhận các trường do AI, OCR điền sẵn"},
+    {"name": "submittedBy", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người nộp"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

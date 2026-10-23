@@ -35,5 +35,7 @@
     <module>key-rotation</module>
     <!-- DL-13: lưu trữ, xoá bằng mật mã, khôi phục theo bảy lớp lưu giữ. -->
     <module>retention</module>
+    <!-- DL-12: khung job đối soát R1–R7 (băm bucket, reconcile_run, chỉ số, đếm Kafka). -->
+    <module>reconcile</module>
   </modules>
 </project>

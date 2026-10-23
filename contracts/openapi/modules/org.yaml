@@ -783,6 +783,38 @@ paths:
         aal: 2
         source: 'TL-02a SCR-0103 "Nhập từ Excel"'
 
+  /org/imports/{id}/report:
+    get:
+      tags: [Cây tổ chức]
+      operationId: getOrgImportReport
+      summary: Báo cáo lỗi của một lần nhập cây tổ chức
+      description: >-
+        (bổ sung WEB-072) Đích `resultLocation` của job nhập khi tệp có lỗi: lỗi từng dòng, từng cột kèm lý do
+        tiếng Việt và quy tắc vi phạm. Tệp có lỗi thì không đơn vị nào được ghi.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Mã job nhập.
+          schema: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: Báo cáo nhập.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrgImportReport' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0103, SCR-0102]
+        owner: SVC-04
+        roles: [tenant_admin]
+        scope: Tn
+        source: 'TL-02a SCR-0103 "Nhập từ Excel" (bổ sung WEB-072, suy luận đường dẫn)'
+
   /org/sync-runs:
     get:
       tags: [Đồng bộ nhân sự]
@@ -1294,7 +1326,9 @@ paths:
       summary: Khoá phục hồi của tổ chức đang hiệu lực
       description: >-
         Mỗi khoá nội dung C3 luôn được bọc thêm cho khoá phục hồi của tenant (ADR-27). Người gửi lấy khoá công
-        khai phục hồi ở đây; `id` là mã người nhận đại diện dùng trong bản bọc. Chưa khai báo trả 404.
+        khai phục hồi ở đây; `id` là mã người nhận đại diện dùng trong bản bọc. Chưa khai báo trả 404. Tài khoản
+        dịch vụ (`service_client`, tenant trong `X-Tenant-Id`) của mission-core đọc để đồng bộ cấu hình tenant
+        `e2ee.recovery-key`.
       responses:
         '200':
           description: Khoá phục hồi đang hiệu lực.
@@ -1310,7 +1344,7 @@ paths:
         qt: [QT-05]
         scr: [SCR-0501]
         owner: SVC-04
-        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector]
+        roles: [platform_admin, tenant_admin, policy_author, leader, manager, member, appraiser, decider, second_approver, inspector, service_client]
         scope: Tn
         source: 'TL-01 "Khôi phục khi mất khoá"; TL-04 SEC-25'
 
@@ -1429,6 +1463,35 @@ paths:
         scope: Tn
         aal: 2
         source: 'TL-01 "Khôi phục khi mất khoá"; TL-04 SEC-25'
+
+  /org/e2ee/recoveries/{id}:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    get:
+      tags: [Khoá mã hoá đầu cuối]
+      operationId: getE2eeRecovery
+      summary: Một biên bản khôi phục khoá (đối chiếu nội bộ)
+      description: >-
+        mission-core đọc biên bản khôi phục để đối chiếu trước khi nhận khoá bọc khôi phục
+        (`restoreTaskSecretKeyWrap`, `restoreEvidenceKeyWrap`). Chỉ tài khoản dịch vụ (`service_client`,
+        tenant trong `X-Tenant-Id`); người dùng xem nhật ký qua `listE2eeRecoveries`.
+      responses:
+        '200':
+          description: Biên bản khôi phục.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecoveryRecord' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+      x-mission:
+        qt: [QT-05, QT-07]
+        scr: [SCR-0103]
+        owner: SVC-04
+        roles: [service_client]
+        scope: Tn
+        source: 'TL-01 "Khôi phục khi mất khoá" (mọi lần khôi phục ghi sổ cái)'
 
 components:
   securitySchemes:
@@ -1700,6 +1763,42 @@ components:
         affectedUnitIds:
           type: array
           items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        createdUnitIds:
+          type: array
+          description: Đơn vị mới sinh ra khi hợp nhất hoặc chia tách (bổ sung WEB-072).
+          items: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        movedAssignmentCount:
+          type: integer
+          minimum: 0
+          description: Số phân công đã chuyển sang đơn vị mới, điền {n} của MSG-01-11 (bổ sung WEB-072).
+        lockedPeriodName:
+          type: string
+          description: >-
+            Tên kỳ đã khoá mà ngày hiệu lực rơi vào, điền {kỳ} của MSG-01-10; vắng khi không ghi muộn vào kỳ đã khoá
+            (bổ sung WEB-072).
+    OrgImportReport:
+      description: Báo cáo một lần nhập cây tổ chức từ Excel (bổ sung WEB-072).
+      type: object
+      required: [jobId, status, totalRows, createdUnits, errors]
+      properties:
+        jobId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        status: { type: string, enum: [CHO, DANG_CHAY, HOAN_TAT, THAT_BAI, DA_HUY] }
+        totalRows: { type: integer, minimum: 0 }
+        createdUnits: { type: integer, minimum: 0 }
+        changeOrderId: { $ref: '../common/common.yaml#/components/schemas/Uuid' }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/OrgImportError' }
+    OrgImportError:
+      description: Một lỗi của tệp nhập; `row = 0` là lỗi cả tệp.
+      type: object
+      required: [row, column, message]
+      properties:
+        row: { type: integer, minimum: 0 }
+        column: { type: string, description: 'Tên cột trong mẫu, rỗng khi lỗi cả dòng hoặc cả tệp' }
+        field: { type: string, description: 'Trường tương ứng của `OrgUnitInput`, ví dụ `parentCode`' }
+        message: { type: string, description: 'Lý do tiếng Việt, ghi rõ dòng và cột' }
+        rule: { type: string, description: 'Quy tắc vi phạm, ví dụ BR-01-05' }
     SyncSource:
       description: Nguồn đồng bộ (`integ.connector.code`, suy luận về mã).
       type: string

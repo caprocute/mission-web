@@ -16,6 +16,7 @@ VN = dt.timezone(dt.timedelta(hours=7))
 class Loaded:
     task: Task
     progress_ids: frozenset[str]
+    latest_progress_id: str | None = None   # báo cáo tiến độ mới nhất (basedOnProgressId)
 
 
 # Bí danh cột trả về không trùng tên cột nguồn: ClickHouse cho bí danh có hiệu lực cả trong WHERE.
@@ -48,5 +49,5 @@ def load(ch: ClickHouse, tenant: str, task_ids: Sequence[str]) -> dict[str, Load
             points.append((at, v))
         task = Task(t["ma"], t["status"], dt.date.fromisoformat(t["bat_dau"]), dt.date.fromisoformat(t["han"]),
                     planned, tuple(points))
-        out[t["ma"]] = Loaded(task, frozenset(p["ma"] for p in rows))
+        out[t["ma"]] = Loaded(task, frozenset(p["ma"] for p in rows), rows[-1]["ma"] if rows else None)
     return out

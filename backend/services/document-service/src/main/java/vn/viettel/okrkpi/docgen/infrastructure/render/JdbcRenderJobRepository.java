@@ -55,8 +55,9 @@ public class JdbcRenderJobRepository implements RenderJobRepository {
                 INSERT INTO docgen.render_job
                   (id, tenant_id, template_id, request_event_id, request_id, form_instance_id,
                    input_sha256, status, attempts, error, created_at, created_by, updated_at,
-                   updated_by, row_version, package_id, policy_pack_code, policy_pack_version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+                   updated_by, row_version, package_id, policy_pack_code, policy_pack_version,
+                   is_draft, reopen_request_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
                 ON CONFLICT (request_event_id) DO NOTHING
                 """)
             .param(j.id())
@@ -76,6 +77,8 @@ public class JdbcRenderJobRepository implements RenderJobRepository {
             .param(j.provenance().packageId())
             .param(j.provenance().policyPackCode())
             .param(j.provenance().policyPackVersion())
+            .param(j.variant().draft())
+            .param(j.variant().reopenRequestId())
             .update()
         == 1;
   }
@@ -161,7 +164,10 @@ public class JdbcRenderJobRepository implements RenderJobRepository {
             new RenderJob.Provenance(
                 rs.getObject("package_id", UUID.class),
                 rs.getString("policy_pack_code"),
-                rs.getString("policy_pack_version")));
+                rs.getString("policy_pack_version")))
+        .withVariant(
+            new RenderJob.Variant(
+                rs.getBoolean("is_draft"), rs.getObject("reopen_request_id", UUID.class)));
   }
 
   private static OffsetDateTime ts(Instant instant) {

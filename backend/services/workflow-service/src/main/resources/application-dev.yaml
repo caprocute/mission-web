@@ -24,3 +24,15 @@ mission:
       openbao-url: ${OPENBAO_URL:http://127.0.0.1:35820}
     observability:
       otlp-endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://127.0.0.1:35317}
+
+# Saga chốt kỳ (DV-06-06): các bên tham gia chưa có API nội bộ nên giả lập ở môi trường phát
+# triển để chạy thử SCR-0801; không dùng ở môi trường khác (wiki trang 14).
+okrkpi:
+  saga:
+    period-close:
+      participants:
+        mod-08: ${SAGA_PERIOD_CLOSE_MOD08:GIA_LAP}
+        svc-07: ${SAGA_PERIOD_CLOSE_SVC07:GIA_LAP}
+        svc-11: ${SAGA_PERIOD_CLOSE_SVC11:GIA_LAP}
+        svc-10: ${SAGA_PERIOD_CLOSE_SVC10:GIA_LAP}
+        svc-09: ${SAGA_PERIOD_CLOSE_SVC09:GIA_LAP}

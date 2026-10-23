@@ -26,12 +26,37 @@ public interface RenderInputPort {
   Optional<FormData> data(UUID tenantId, UUID formInstanceId);
 
   /**
+   * Tạo biểu mẫu nháp không gắn gói hồ sơ cho các hồ sơ đang chọn (DV-11-03, {@code
+   * createDossierDraftForms}): MOD-06 kiểm phạm vi người gọi, tạo {@code dossier.form_instance} với
+   * {@code dossier_package_id} rỗng và trả biểu mẫu kèm băm dữ liệu như {@link #forms}; rỗng khi kỳ
+   * hoặc hồ sơ không thuộc phạm vi (suy luận về cổng, wiki trang 14). Mặc định rỗng cho cổng chỉ
+   * phục vụ lệnh sinh theo gói.
+   */
+  default Optional<List<FormRef>> draftForms(
+      UUID tenantId, UUID actor, String formCode, UUID periodId, List<UUID> profileIds) {
+    return Optional.empty();
+  }
+
+  /**
+   * Dữ liệu hiện tại của một bản ghi nguồn để xem trước (DV-11-02, {@code previewDossierForm}):
+   * không tạo {@code form_instance}; rỗng khi bản ghi không có hoặc ngoài phạm vi người gọi.
+   *
+   * @param sourceModule {@code appraisal}, {@code oversight} hoặc {@code dossier}
+   */
+  default Optional<PreviewData> preview(
+      UUID tenantId, UUID actor, String formCode, String sourceModule, UUID sourceRefId) {
+    return Optional.empty();
+  }
+
+  /**
    * Một biểu mẫu cần sinh.
    *
    * @param templateVersion phiên bản mẫu mà Policy Pack gắn với kỳ của gói chỉ định ({@code
    *     policy_binding}); {@code null} thì dùng phiên bản đang hiệu lực mới nhất (DV-11-04)
    * @param policyPackCode mã Policy Pack gắn với kỳ, đóng tem vào tệp (BR-11-03)
    * @param policyPackVersion phiên bản Policy Pack gắn với kỳ, đóng tem vào tệp
+   * @param reopenRequestId yêu cầu mở lại kỳ hậu kiểm khi MOD-06 sinh lại biểu mẫu sau EVT-22
+   *     (QT-13, BR-13-08); {@code null} là lần sinh thường
    */
   record FormRef(
       UUID formInstanceId,
@@ -40,7 +65,27 @@ public interface RenderInputPort {
       byte[] dataSnapshotHash,
       Integer templateVersion,
       String policyPackCode,
-      String policyPackVersion) {
+      String policyPackVersion,
+      UUID reopenRequestId) {
+
+    public FormRef(
+        UUID formInstanceId,
+        String formCode,
+        String subjectGroupCode,
+        byte[] dataSnapshotHash,
+        Integer templateVersion,
+        String policyPackCode,
+        String policyPackVersion) {
+      this(
+          formInstanceId,
+          formCode,
+          subjectGroupCode,
+          dataSnapshotHash,
+          templateVersion,
+          policyPackCode,
+          policyPackVersion,
+          null);
+    }
 
     public FormRef(
         UUID formInstanceId, String formCode, String subjectGroupCode, byte[] dataSnapshotHash) {
@@ -54,4 +99,16 @@ public interface RenderInputPort {
    * @param canonicalJson tài liệu JSON chuẩn tắc đúng như MOD-06 đã băm
    */
   record FormData(UUID formInstanceId, String formCode, byte[] canonicalJson) {}
+
+  /**
+   * Dữ liệu xem trước: tài liệu JSON cùng hình dạng với {@link FormData}, kèm khối đối tượng và
+   * phiên bản mẫu, Policy Pack của kỳ để chọn đúng mẫu.
+   */
+  record PreviewData(
+      String formCode,
+      String subjectGroupCode,
+      Integer templateVersion,
+      String policyPackCode,
+      String policyPackVersion,
+      byte[] canonicalJson) {}
 }

@@ -395,6 +395,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/workflow/sagas/period-close/{sagaId}/commands': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Gửi lệnh điều khiển saga chốt kỳ
+     * @description Client nội bộ MOD-08 chuyển một lệnh trong hộp lệnh `config.period_lock_command` tới saga `CHOT_KY` (QT-08 bước 9, DV-06-07) sau khi giao dịch của MOD-08 đã commit; mỗi dòng hộp lệnh là một lần gọi, với `Idempotency-Key` là mã lệnh nên chuyển lại không làm lệnh có tác dụng hai lần. MOD-08 kiểm vai trò, bốn mắt và MFA; SVC-06 kiểm lại loại saga, trạng thái và người duyệt khác người đề nghị. `BU_TRU` chỉ được trước khi bước ký số lô hoàn tất, sau đó 409 `PERIOD-409-POINT-OF-NO-RETURN` (BR-08-09); bù trừ chạy ngược và kết thúc bằng kỳ trở về `MO` (EVT-26). `CHAY_LAI_LOI` tạo một lô mới chỉ gồm hồ sơ lỗi, mã lô tất định theo mã lệnh (BR-08-11). `CHAP_NHAN_LOI` chấp nhận để lại hồ sơ lỗi kèm lý do để bước tính điểm hoàn tất. Trả 202 với tác vụ của saga.
+     */
+    post: operations['controlPeriodCloseSaga'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/workflow/templates': {
     parameters: {
       query?: never;
@@ -1448,6 +1468,24 @@ export interface components {
       /** @description Danh sách đơn vị; rỗng là toàn tenant. */
       unitIds?: components['schemas']['Uuid'][];
       requestedBy: components['schemas']['Uuid'];
+    };
+    /** @description Một lệnh của hộp lệnh `config.period_lock_command` chuyển tới saga `CHOT_KY`. */
+    PeriodCloseSagaCommand: {
+      /**
+       * @description `TAM_DUNG`, `TIEP_TUC`, `BU_TRU` cùng tên điều khiển của khung saga; `CHAY_LAI_LOI` chạy lại hồ sơ lỗi; `CHAP_NHAN_LOI` chấp nhận để lại hồ sơ lỗi kèm lý do.
+       * @enum {string}
+       */
+      command: 'TAM_DUNG' | 'TIEP_TUC' | 'CHAY_LAI_LOI' | 'CHAP_NHAN_LOI' | 'BU_TRU';
+      /** @description Mã dòng hộp lệnh (`config.period_lock_command.id`). */
+      commandId: components['schemas']['Uuid'];
+      /** @description Người đề nghị; với `BU_TRU` là người lập đề nghị huỷ. */
+      requestedBy: components['schemas']['Uuid'];
+      /** @description Người duyệt thứ hai, bắt buộc với `BU_TRU`. */
+      approvedBy?: components['schemas']['Uuid'];
+      /** @description Hồ sơ cần chạy lại với `CHAY_LAI_LOI`; rỗng là toàn bộ hàng đợi lỗi. */
+      profileIds?: components['schemas']['Uuid'][];
+      /** @description Lý do, bắt buộc với `CHAP_NHAN_LOI`. */
+      reason?: string;
     };
     /**
      * @description Trạng thái `flowable.wf_template.status` mở rộng theo BS-01.
@@ -3202,6 +3240,50 @@ export interface operations {
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       /** @description Kỳ đã có saga chốt kỳ đang chạy hoặc đã hoàn tất (`WORKFLOW-409-SAGA-EXISTS`). */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  controlPeriodCloseSaga: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        /** @description Mã saga do `startPeriodCloseSaga` trả (`config.period_lock_command.saga_id`). */
+        sagaId: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PeriodCloseSagaCommand'];
+      };
+    };
+    responses: {
+      202: components['responses']['Accepted'];
+      401: components['responses']['Unauthorized'];
+      /** @description Người duyệt huỷ trùng người đề nghị (`PERIOD-403-SAME-PERSON`) hoặc không phải client nội bộ. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      404: components['responses']['NotFound'];
+      /** @description Saga đã qua điểm không quay lại (`PERIOD-409-POINT-OF-NO-RETURN`) hoặc không ở trạng thái nhận lệnh (`WORKFLOW-409-VERSION-CONFLICT`). */
       409: {
         headers: {
           [name: string]: unknown;

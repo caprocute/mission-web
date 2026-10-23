@@ -36,6 +36,9 @@ public interface DeadLetters {
 
   Optional<Letter> find(TenantId tenant, UUID id);
 
+  /** Mã lỗi của thư chết chưa xử lý mới nhất cho thông điệp {@code refMessageId}. */
+  Optional<String> openErrorCode(TenantId tenant, UUID refMessageId);
+
   /** Đã có thư chết chưa xử lý cho thông điệp {@code refMessageId}. */
   boolean hasOpen(TenantId tenant, UUID refMessageId);
 

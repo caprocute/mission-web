@@ -8,7 +8,7 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import vn.viettel.okrkpi.config.api.TenantSettingApi;
+import vn.viettel.okrkpi.config.api.RecoveryKeySettingApi;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.task.application.secret.port.RecoveryKeys;
 import vn.viettel.okrkpi.task.domain.secret.SecretContentRules.RecoveryKey;
@@ -18,24 +18,25 @@ import vn.viettel.okrkpi.task.domain.secret.SecretContentRules.RecoveryKey;
  * {"fingerprints":["<sha256 SPKI hex>",…],"recipientId":"<uuid>"}}. {@code fingerprints} nhận nhiều
  * giá trị để xoay vòng khoá phục hồi; {@code recipientId} là mã người nhận đại diện ghi ở {@code
  * recipient_person_id} của bản bọc (suy luận, TL-03 không có cột riêng cho khoá phục hồi). Cấu hình
- * sai dạng coi như chưa khai báo, nên lưu nội dung mật bị từ chối.
+ * sai dạng coi như chưa khai báo, nên lưu nội dung mật bị từ chối. Giá trị được đồng bộ từ SVC-04
+ * qua {@link RecoveryKeySettingApi} khi có client.
  */
 public class TenantSettingRecoveryKeys implements RecoveryKeys {
 
-  public static final String KEY = "e2ee.recovery-key";
+  public static final String KEY = RecoveryKeySettingApi.KEY;
 
   private static final Logger log = LoggerFactory.getLogger(TenantSettingRecoveryKeys.class);
   private static final Pattern HEX64 = Pattern.compile("^[0-9a-f]{64}$");
 
-  private final TenantSettingApi settings;
+  private final RecoveryKeySettingApi settings;
 
-  public TenantSettingRecoveryKeys(TenantSettingApi settings) {
+  public TenantSettingRecoveryKeys(RecoveryKeySettingApi settings) {
     this.settings = settings;
   }
 
   @Override
   public Optional<RecoveryKey> of(TenantId tenant) {
-    return settings.get(tenant, KEY, null).flatMap(TenantSettingRecoveryKeys::parse);
+    return settings.current(tenant).flatMap(TenantSettingRecoveryKeys::parse);
   }
 
   static Optional<RecoveryKey> parse(JsonNode v) {

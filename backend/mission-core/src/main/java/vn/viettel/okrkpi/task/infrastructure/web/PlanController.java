@@ -27,6 +27,7 @@ import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.contract.tasks.model.AssigneeRef;
 import vn.viettel.okrkpi.contract.tasks.model.CheckPlanVersion200Response;
 import vn.viettel.okrkpi.contract.tasks.model.CopyPlanFromPreviousPeriodRequest;
+import vn.viettel.okrkpi.contract.tasks.model.CreatePlanAdjustmentRequest;
 import vn.viettel.okrkpi.contract.tasks.model.CreatePlanRequest;
 import vn.viettel.okrkpi.contract.tasks.model.Flow;
 import vn.viettel.okrkpi.contract.tasks.model.ListApprovedPlanItems200Response;
@@ -36,9 +37,12 @@ import vn.viettel.okrkpi.contract.tasks.model.ListPlans200Response;
 import vn.viettel.okrkpi.contract.tasks.model.PeriodRef;
 import vn.viettel.okrkpi.contract.tasks.model.Plan;
 import vn.viettel.okrkpi.contract.tasks.model.PlanCheck;
+import vn.viettel.okrkpi.contract.tasks.model.PlanDiff;
+import vn.viettel.okrkpi.contract.tasks.model.PlanDiffLine;
 import vn.viettel.okrkpi.contract.tasks.model.PlanItem;
 import vn.viettel.okrkpi.contract.tasks.model.PlanItemInput;
 import vn.viettel.okrkpi.contract.tasks.model.PlanItemRef;
+import vn.viettel.okrkpi.contract.tasks.model.PlanRemovedItem;
 import vn.viettel.okrkpi.contract.tasks.model.PlanVersion;
 import vn.viettel.okrkpi.contract.tasks.model.PlanVersionGroupWeights;
 import vn.viettel.okrkpi.contract.tasks.model.PlanVersionInput;
@@ -58,6 +62,8 @@ import vn.viettel.okrkpi.shared.paging.CursorKey;
 import vn.viettel.okrkpi.shared.paging.CursorPage;
 import vn.viettel.okrkpi.shared.paging.PageRequest;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
+import vn.viettel.okrkpi.task.application.plan.PlanAdjustmentService;
+import vn.viettel.okrkpi.task.application.plan.PlanAdjustments;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker;
 import vn.viettel.okrkpi.task.application.plan.PlanDeadlines;
 import vn.viettel.okrkpi.task.application.plan.PlanReviewService;
@@ -67,6 +73,7 @@ import vn.viettel.okrkpi.task.application.plan.PlanService.PlanView;
 import vn.viettel.okrkpi.task.application.plan.PlanService.VersionView;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.Assignee;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.ItemRow;
+import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.RemovedItem;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.VersionRow;
 
 /**
@@ -84,13 +91,16 @@ public class PlanController {
   private final TaskCallers callers;
   private final PlanDeadlines deadlines;
   private final PlanReviewService reviews;
+  private final PlanAdjustmentService adjustments;
 
   public PlanController(
       PlanService plans,
       CursorCodec cursors,
       TaskCallers callers,
       PlanDeadlines deadlines,
-      PlanReviewService reviews) {
+      PlanReviewService reviews,
+      PlanAdjustmentService adjustments) {
+    this.adjustments = Objects.requireNonNull(adjustments, "adjustments");
     this.plans = Objects.requireNonNull(plans, "plans");
     this.reviews = Objects.requireNonNull(reviews, "reviews");
     this.deadlines = Objects.requireNonNull(deadlines, "deadlines");
@@ -190,6 +200,70 @@ public class PlanController {
         versions.rows().stream().map(v -> summary(v, versions.period())).toList());
   }
 
+  /** Điều chỉnh kế hoạch: phiên bản n+1 {@code NHAP} (BR-04-10, CORE-02-10). */
+  @PostMapping("/{id}/versions")
+  @Idempotent
+  @RequiresPermission(operationId = "createPlanAdjustment", module = "plans", resourceType = "plan")
+  public ResponseEntity<PlanVersion> createPlanAdjustment(
+      @PathVariable("id") UUID id, @RequestBody CreatePlanAdjustmentRequest body) {
+    String reason = body == null ? null : body.getChangeReason();
+    UUID actor = callers.current().personId();
+    VersionView view = found(() -> adjustments.create(TenantContext.require(), id, reason, actor));
+    return ResponseEntity.created(
+            URI.create("/api/v1/plans/" + id + "/versions/" + view.version().versionNo()))
+        .eTag(ETags.of(view.version().rowVersion()))
+        .body(versionDto(view));
+  }
+
+  /** SCR-0403: so sánh thêm, sửa, bỏ giữa hai phiên bản theo {@code origin_item_id}. */
+  @GetMapping("/{id}/versions/{v}/diff")
+  @RequiresPermission(operationId = "diffPlanVersions", module = "plans", resourceType = "plan")
+  public PlanDiff diffPlanVersions(
+      @PathVariable("id") UUID id,
+      @PathVariable("v") int v,
+      @RequestParam("base") int base,
+      @RequestParam(value = "mode", required = false, defaultValue = "changes") String mode) {
+    if (base < 0) {
+      throw invalid("base");
+    }
+    if (!"changes".equals(mode) && !"all".equals(mode)) {
+      throw invalid("mode");
+    }
+    PlanAdjustmentService.DiffView view =
+        found(() -> adjustments.diff(TenantContext.require(), id, v, base));
+    PlanAdjustments.Diff d = view.diff();
+    PlanDiff dto =
+        new PlanDiff(
+            d.baseVersionNo(),
+            d.versionNo(),
+            d.count(PlanAdjustments.Change.THEM),
+            d.count(PlanAdjustments.Change.SUA),
+            d.count(PlanAdjustments.Change.BO),
+            d.lines().stream()
+                .filter(l -> "all".equals(mode) || l.change() != PlanAdjustments.Change.KHONG_DOI)
+                .map(PlanController::diffLine)
+                .toList());
+    dto.setGroupWeightChanged(view.groupWeightChanged());
+    dto.setAdjustmentNo(view.adjustmentNo());
+    dto.setAdjustmentsMax(view.adjustmentsMax());
+    return dto;
+  }
+
+  private static PlanDiffLine diffLine(PlanAdjustments.Line l) {
+    PlanDiffLine dto = new PlanDiffLine(PlanDiffLine.ChangeEnum.fromValue(l.change().name()));
+    if (l.before() != null) {
+      dto.setBefore(item(l.before()));
+    }
+    if (l.after() != null) {
+      dto.setAfter(item(l.after()));
+    }
+    dto.setChangedFields(l.changedFields());
+    if (l.reason() != null && !l.reason().isBlank()) {
+      dto.setReason(l.reason());
+    }
+    return dto;
+  }
+
   @GetMapping("/{id}/versions/{v}")
   @RequiresPermission(operationId = "getPlanVersion", module = "plans", resourceType = "plan")
   public ResponseEntity<PlanVersion> getPlanVersion(
@@ -211,9 +285,13 @@ public class PlanController {
       throw invalid("items");
     }
     List<ItemRow> drafts = body.getItems().stream().map(PlanController::draft).toList();
+    List<RemovedItem> removed = removed(body);
     UUID actor = callers.current().personId();
     VersionView view =
-        found(() -> plans.saveVersion(TenantContext.require(), id, v, expected, drafts, actor));
+        found(
+            () ->
+                plans.saveVersion(
+                    TenantContext.require(), id, v, expected, drafts, removed, actor));
     return ETags.ok(versionDto(view), view.version().rowVersion());
   }
 
@@ -279,8 +357,9 @@ public class PlanController {
       throw invalid("items");
     }
     List<ItemRow> drafts = body.getItems().stream().map(PlanController::draft).toList();
+    List<RemovedItem> removed = removed(body);
     return new CheckPlanVersion200Response(
-        found(() -> plans.check(TenantContext.require(), id, v, drafts)).stream()
+        found(() -> plans.check(TenantContext.require(), id, v, drafts, removed)).stream()
             .map(PlanController::check)
             .toList());
   }
@@ -469,6 +548,14 @@ public class PlanController {
     dto.setCatalogItemId(i.catalogItemId());
     dto.setKeyResultId(i.keyResultId());
     return dto;
+  }
+
+  private static List<RemovedItem> removed(PlanVersionInput body) {
+    return body.getRemovedItems() == null
+        ? List.of()
+        : body.getRemovedItems().stream()
+            .map((PlanRemovedItem r) -> new RemovedItem(r.getOriginItemId(), r.getChangeReason()))
+            .toList();
   }
 
   private static ItemRow draft(PlanItemInput in) {

@@ -1,6 +1,6 @@
 ---
 title: "Triển khai hệ thống: hiệu năng, co giãn, sao lưu dự phòng và an toàn thông tin trên Kubernetes"
-subtitle: "Nền tảng đánh giá cán bộ theo OKR và KPI · Mã tài liệu TL-04 · Phiên bản 1.0 · 10/2026"
+subtitle: "Nền tảng đánh giá cán bộ theo OKR và KPI · Mã tài liệu TL-04 · Phiên bản 1.1 · 10/2026"
 toc-title: "Mục lục"
 ---
 
@@ -13,6 +13,7 @@ toc-title: "Mục lục"
 | 0.1 | 12/10/2026 | Nhóm kiến trúc hạ tầng và vận hành | Dàn ý, mô hình triển khai, định cỡ sơ bộ |
 | 0.5 | 16/10/2026 | Nhóm kiến trúc hạ tầng và vận hành | Bổ sung co giãn, thử tải, sao lưu và khôi phục, an toàn thông tin |
 | 1.0 | 19/10/2026 | Nhóm kiến trúc hạ tầng và vận hành | Hoàn thiện ma trận truy vết, kế hoạch theo lộ trình, trình kiến trúc sư trưởng |
+| 1.1 | 23/10/2026 | Nhóm kiến trúc hạ tầng và vận hành | Cập nhật theo thực tế triển khai đợt 1: phụ lục cuối ghi điểm lệch, bổ sung và quyết định; chỉ tiêu hiệu năng chỉ ghi lại theo YC-PT-19 |
 
 ## Tài liệu liên quan {-}
 
@@ -4127,3 +4128,48 @@ Ba góp ý của lãnh đạo được TL-01 phân tích; TL-04 cung cấp phép
 | NFR-11 Trải nghiệm | OPS-11 (axe-core) | Báo cáo WCAG tự động |
 
 Ma trận này là đầu vào cho lần chấm lại checklist sau mỗi đợt. Một tiêu chí chỉ được chấm "đạt" khi có bằng chứng ở cột cuối, không chỉ khi có thiết kế; tiêu chí đã có thiết kế nhưng chưa có bằng chứng được chấm "một phần".
+
+# Phụ lục. Cập nhật sau triển khai đợt 1 (10/2026) {-}
+
+Phụ lục này ghi lại các điểm mà hạ tầng mẫu trong repo (thư mục `deploy/`, chart `vt-service`, cấu hình Kyverno, NetworkPolicy, ExternalSecret) và môi trường dev đã hiện thực khác với TL-04 phiên bản 1.0, tính đến ngày 23/10/2026. Trong giai đoạn này, theo quyết định ưu tiên ngày 22/10/2026, các task hạ tầng (INF), kiểm thử tải (QA) và vận hành (VH) được hoãn, nên phần lớn điểm dưới đây là lựa chọn ở mức mẫu cấu hình chứ chưa chạy trên cụm production. Theo YC-PT-19, mọi kịch bản PERF chỉ được ghi lại để đo ở giai đoạn sau.
+
+## Đóng gói, chuỗi cung ứng và GitOps {-}
+
+Chuỗi cung ứng giữ đúng ADR-16 (ký image, chỉ cho chạy image đã ký, SBOM, quét lỗ hổng), với các chi tiết hiện thực sau.
+
+| Chủ đề | Hiện thực trong mẫu cấu hình | Quan hệ với TL-04 | Trạng thái |
+|---|---|---|---|
+| Đóng image | Java dùng Jib với ảnh nền distroless Debian 13; Go và Python dùng BuildKit | TL-04 chỉ mô tả BuildKit | Đã chốt |
+| Ký và kiểm chữ ký | cosign với `--use-signing-config=false`, `--new-bundle-format=false`; Kyverno bỏ kiểm transparency log (`ignoreTlog`) | Làm rõ cho mạng cách ly | Theo mã, chờ xác nhận |
+| GitOps | Thư mục `deploy/` trong chính repo mission-web | Làm rõ vị trí | Theo mã |
+| Kubernetes | Môi trường thử bằng kind 1.33; Cluster Autoscaler 1.35 | Production vẫn theo chính sách n-1 của TL-04 | Theo mã |
+| Nhãn vùng an ninh | Kyverno dựa trên nhãn `vt.io/security-zone` | Bổ sung | Theo mã |
+
+## Cụm, mạng và định tuyến {-}
+
+| Chủ đề | Hiện thực trong mẫu cấu hình | Quan hệ với TL-04 | Trạng thái |
+|---|---|---|---|
+| Namespace | mission-core ở `core`; OpenBao ở `secure-data`; thành phần quan sát của `vt-platform` ở `observability`; ApisixRoute đặt cùng namespace `core` | Làm rõ | Theo mã |
+| Co giãn | HPA tăng tối đa 4 bản sao mỗi lần; KEDA theo độ trễ p95 500 ms cho mission-core, theo lag Kafka cho notification, CPU cộng lịch cho document-service | Làm rõ tham số | Theo mã |
+| Phân bố pod | `maxSkew 1`, `DoNotSchedule` theo vùng sự cố | Khớp TL-04 | Đã chốt |
+| Cổng APISIX | Thân 429 theo RFC 9457 bằng `response-rewrite`; CSP không đặt ở cổng mà do nginx của SVC-17 đặt | Làm rõ nơi đặt CSP | Theo mã |
+| Đi ra ngoài | Egress gateway bằng Envoy, chọn bằng nhãn; mission-core chỉ được ra sáu đích | Khác cách hiện thực bằng Cilium | Theo mã, chờ xác nhận |
+| Istio ambient | mTLS `STRICT`, riêng cổng metrics để `PERMISSIVE` | Ngoại lệ có chủ đích | Theo mã |
+| Số node | Theo bảng định cỡ TL-05 | TL-05 thắng khi hai tài liệu khác nhau | Đã chốt (INF-03) |
+
+## Dữ liệu, bí mật và quan sát {-}
+
+| Chủ đề | Hiện thực trong mẫu cấu hình | Quan hệ với TL-04 | Trạng thái |
+|---|---|---|---|
+| Cụm PostgreSQL | Sáu cụm, Pooler `<cụm>-pooler-rw`, xác thực SCRAM (SEC-57) | Khớp TL-04; TL-03 ghi năm cụm | Đã chốt |
+| Bí mật CSDL động | OpenBao sinh tài khoản động `IN ROLE svc_<schema>`; xác thực Kubernetes trong cụm; plugin PKCS#11 cho HSM | Làm rõ | Theo mã |
+| Chứng chỉ nội bộ | cert-manager với ClusterIssuer `openbao-pki-cell` | Làm rõ tên | Theo mã |
+| Operator | Valkey chạy không qua operator; OpenSearch và ClickHouse (Altinity) qua operator; Keeper bật TLS | Làm rõ | Theo mã |
+| Kafka | Cell L, M 24 phân vùng, cell S 12, sổ cái 12; topic thử lại và thư chết theo TL-03 | Khớp TL-04 | Đã chốt |
+| Bucket Ceph | Tên `<tiền tố>-cell-<mã>`; minh chứng Object Lock compliance 10 năm; lưu trữ sổ cái 20 năm; vùng chuyển đổi chế độ GOVERNANCE | Thời hạn theo TL-03 | Đã chốt |
+| Nhật ký kiểm toán | Giữ 10 năm; chỉ audit-writer và Fluent Bit được ghi `sys.audit.v1` | Thời hạn theo quy định lưu trữ | Đã chốt |
+| Lịch sử Flowable | Giữ 400 ngày | Bổ sung | Theo mã |
+
+## Chỉ tiêu hiệu năng chưa đo {-}
+
+Các kịch bản PERF giữ nguyên nội dung trong chương "Hiệu năng". Trong đợt này chưa kịch bản nào được chạy ở tải cao. Một số con số đo trên dữ liệu vàng ở máy phát triển được ghi lại chỉ để tham khảo: Cube p95 khoảng 8 ms khi trúng đệm, 35 ms khi đọc pre-aggregation; document-service khoảng 4,8 phiếu mỗi giây mỗi pod. Kiểm thử tích hợp outbox đã bỏ khẳng định độ trễ 2 giây, chỉ còn chặn treo 30 giây; bài đo 1.000 sự kiện chỉ chạy khi bật cờ `mission.perf`. Các chỉ tiêu cần đo ở giai đoạn sau gồm outbox tới Kafka p99 ≤ 2 giây, 150 user task mỗi giây mỗi cell, tính điểm 8.000 hồ sơ mỗi giây, PERF-24 300 truy vấn mỗi giây và nạp 100 nghìn sự kiện cảnh báo.

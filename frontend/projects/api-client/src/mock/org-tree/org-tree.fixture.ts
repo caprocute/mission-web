@@ -1,7 +1,7 @@
 import { AssignmentKind } from '../../lib/models/org';
 import {
+  OrgChangeType,
   OrgFlow,
-  OrgHistoryKind,
   OrgUnitLevel,
   OrgUnitType,
   SubjectGroup,
@@ -17,7 +17,8 @@ export interface UnitVersion {
   versionId: string;
   id: string;
   code: string;
-  externalCode?: string;
+  /** Mã CSDL CBCCVC (`integ.mapping_xref.external_id`). */
+  nationalCode?: string;
   name: string;
   shortName?: string;
   level: OrgUnitLevel;
@@ -26,36 +27,35 @@ export interface UnitVersion {
   flows: OrgFlow[];
   parentId: string | null;
   predecessorIds: string[];
-  mergedOn?: string;
+  /** Chỉ dùng trong giả lập: đơn vị nhận dữ liệu từ nguồn ngoài, máy chủ từ chối sửa (409). */
   syncedFrom?: 'CBCCVC' | 'DANG_VIEN';
   validFrom: string;
   validTo: string | null;
   recordedFrom: string;
   recordedTo: string | null;
   recordedBy: string;
+  /**
+   * Thời điểm ghi nhận đầu tiên của nội dung khi đoạn hiệu lực được ghi lại (tách phiên bản), để
+   * lịch sử không báo nhầm là ghi muộn. Chỉ dùng trong giả lập.
+   */
+  recordedFirst?: string;
+  /** Quyết định làm phát sinh phiên bản (`OrgUnitVersion.changeType`, `changeOrder`). */
+  changeType?: OrgChangeType;
+  changeOrder?: { id: string; orderNo: string; orderDate?: string };
+  changedFields?: string[];
 }
 
 export interface AssignmentRow {
   id: string;
   unitId: string;
+  personId: string;
   personName: string;
-  jobTitle: string;
+  jobTitleName: string;
   kind: AssignmentKind;
-  direction?: 'DI' | 'DEN';
+  branch?: 'DANG' | 'CHINH_QUYEN';
   validFrom: string;
   validTo: string | null;
   recordedFrom: string;
-}
-
-export interface HistoryRow {
-  id: string;
-  unitId: string;
-  kind: OrgHistoryKind;
-  effectiveOn: string;
-  recordedAt: string;
-  title: string;
-  detail: string;
-  orderNo?: string;
 }
 
 /** Chín khối đối tượng PL 2A; tên khối là suy luận (PL 2A chưa có trong bộ TL). */
@@ -70,9 +70,6 @@ export const SUBJECT_GROUPS: SubjectGroup[] = [
   { id: 'sg-k8', code: 'K8', name: 'Khối 8 · chính quyền cấp xã', flow: 'CA_HAI' },
   { id: 'sg-k9', code: 'K9', name: 'Khối 9 · doanh nghiệp nhà nước', flow: 'CA_HAI' },
 ];
-
-/** Kỳ đã khoá gần nhất: thay đổi hiệu lực trước ngày này nhận MSG-01-10. */
-export const LOCKED_PERIOD = { name: 'Quý II/2026', lockedThrough: '2026-06-30' };
 
 const REORG = '2025-07-01'; // sắp xếp đơn vị hành chính cấp xã, chính quyền hai cấp
 const MERGE = '2025-03-01';
@@ -180,7 +177,7 @@ function seedUnits(): UnitVersion[] {
     v({
       id: 'u-snv',
       code: 'TN-UB-SNV',
-      externalCode: '000.20.21.H56',
+      nationalCode: '000.20.21.H56',
       name: 'Sở Nội vụ',
       shortName: 'Sở Nội vụ tỉnh Thái Nguyên',
       unitType: 'CO_QUAN',
@@ -188,9 +185,10 @@ function seedUnits(): UnitVersion[] {
       flows: ['NHA_NUOC', 'DANG'],
       parentId: 'u-ubnd',
       predecessorIds: ['u-snv-cu', 'u-sldtbxh'],
-      mergedOn: MERGE,
       validFrom: MERGE,
       recordedFrom: '2025-02-28T16:20:00+07:00',
+      changeType: 'HOP_NHAT',
+      changeOrder: { id: 'co-512', orderNo: '512/QĐ-UBND', orderDate: '2025-02-25' },
     }),
     v({
       id: 'u-snv-vp',
@@ -236,6 +234,7 @@ function seedUnits(): UnitVersion[] {
       validFrom: MERGE,
       validTo: '@today-34',
       recordedFrom: '@today-33T09:12:00+07:00',
+      recordedFirst: '2025-02-28T16:20:00+07:00',
     }),
     v({
       id: 'u-snv-ccvc',
@@ -247,6 +246,9 @@ function seedUnits(): UnitVersion[] {
       parentId: 'u-snv',
       validFrom: '@today-34',
       recordedFrom: '@today-33T09:12:00+07:00',
+      changeType: 'DOI_TEN',
+      changeOrder: { id: 'co-96', orderNo: '96/QĐ-SNV', orderDate: '@today-36' },
+      changedFields: ['name'],
     }),
     ...SO.map(([id, code, name]) =>
       v({ id, code, name, unitType: 'CO_QUAN', subjectGroupId: 'sg-k4', parentId: 'u-ubnd' }),
@@ -292,6 +294,8 @@ function seedUnits(): UnitVersion[] {
       predecessorIds: ['u-pb-ks', 'u-pb-lp', 'u-pb-td'],
       validFrom: REORG,
       recordedFrom: '2025-06-27T10:05:00+07:00',
+      changeType: 'HOP_NHAT',
+      changeOrder: { id: 'co-1650', orderNo: '1650/NQ-UBTVQH15', orderDate: '2025-06-16' },
     }),
   ];
   // trường THPT thuộc Sở GD&ĐT, dữ liệu đồng bộ từ CSDL CBCCVC (không sửa trên nền tảng)
@@ -300,7 +304,7 @@ function seedUnits(): UnitVersion[] {
       v({
         id: `u-thpt-${i}`,
         code: `TN-GD-THPT${String(i).padStart(2, '0')}`,
-        externalCode: `000.20.33.H56.${String(i).padStart(3, '0')}`,
+        nationalCode: `000.20.33.H56.${String(i).padStart(3, '0')}`,
         name: `Trường THPT ${XA_A[i % XA_A.length]} ${XA_B[(i * 5) % XA_B.length]}`,
         unitType: 'DON_VI_SU_NGHIEP',
         subjectGroupId: 'sg-k5',
@@ -332,18 +336,18 @@ function seedAssignments(): AssignmentRow[] {
   const a = (
     id: string,
     personName: string,
-    jobTitle: string,
+    jobTitleName: string,
     kind: AssignmentKind,
     validFrom: string,
     validTo: string | null = null,
-    direction?: 'DI' | 'DEN',
   ): AssignmentRow => ({
     id,
     unitId: 'u-snv',
+    personId: `p-${id}`,
     personName,
-    jobTitle,
+    jobTitleName,
     kind,
-    direction,
+    branch: 'CHINH_QUYEN',
     validFrom,
     validTo,
     recordedFrom: '2025-02-28T16:20:00+07:00',
@@ -355,74 +359,8 @@ function seedAssignments(): AssignmentRow[] {
       ...a('as-3', 'Nguyễn Thị Lan', 'Phó Giám đốc', 'CHINH', '@today-7'),
       recordedFrom: '@today-7T10:30:00+07:00',
     },
-    a('as-4', 'Vũ Văn Toàn', 'Chuyên viên P. Công chức', 'DIEU_DONG', MERGE, '@today+13', 'DI'),
+    a('as-4', 'Vũ Văn Toàn', 'Chuyên viên P. Công chức', 'DIEU_DONG', MERGE, '@today+13'),
     a('as-5', 'Bùi Thanh Mai', 'Chuyên viên P. Tổ chức', 'BIET_PHAI', '2026-08-01', '2027-01-01'),
-  ];
-}
-
-function seedHistory(): HistoryRow[] {
-  return [
-    {
-      id: 'h-1',
-      unitId: 'u-snv',
-      kind: 'HOP_NHAT',
-      effectiveOn: MERGE,
-      recordedAt: '2025-02-28T16:20:00+07:00',
-      title: 'Hợp nhất',
-      detail:
-        'Sở Nội vụ và chức năng lao động của Sở Lao động – Thương binh và Xã hội; 214 phân công được chuyển theo',
-      orderNo: '512/QĐ-UBND',
-    },
-    {
-      id: 'h-2',
-      unitId: 'u-snv',
-      kind: 'DOI_TEN',
-      effectiveOn: '@today-34',
-      recordedAt: '@today-33T09:12:00+07:00',
-      title: 'Đổi tên phòng',
-      detail: '"Phòng Công chức" → "Phòng Công chức, viên chức"',
-      orderNo: '96/QĐ-SNV',
-    },
-    {
-      id: 'h-3',
-      unitId: 'u-snv',
-      kind: 'BO_NHIEM',
-      effectiveOn: '@today-7',
-      recordedAt: '@today-7T10:30:00+07:00',
-      title: 'Bổ nhiệm',
-      detail: 'Nguyễn Thị Lan làm Phó Giám đốc · nguồn CSDL CBCCVC',
-      orderNo: '1840/QĐ-UBND',
-    },
-    {
-      id: 'h-4',
-      unitId: 'u-snv',
-      kind: 'DIEU_DONG',
-      effectiveOn: '@today+13',
-      recordedAt: '@today-2T15:00:00+07:00',
-      title: 'Điều động',
-      detail: 'Điều động 3 công chức sang Sở Tài chính (đã duyệt)',
-      orderNo: '1902/QĐ-UBND',
-    },
-    {
-      id: 'h-5',
-      unitId: 'u-dux-pb',
-      kind: 'HOP_NHAT',
-      effectiveOn: REORG,
-      recordedAt: '2025-06-27T10:05:00+07:00',
-      title: 'Hợp nhất',
-      detail: 'Thành lập Đảng uỷ xã Phú Bình từ xã Kha Sơn, Lương Phú, Tân Đức',
-      orderNo: '1650/NQ-UBTVQH15',
-    },
-    {
-      id: 'h-6',
-      unitId: 'u-pb',
-      kind: 'GIAI_THE',
-      effectiveOn: REORG,
-      recordedAt: '2025-06-27T10:05:00+07:00',
-      title: 'Kết thúc hoạt động',
-      detail: 'Không tổ chức cấp huyện theo chính quyền địa phương hai cấp',
-      orderNo: '1650/NQ-UBTVQH15',
-    },
   ];
 }
 
@@ -430,7 +368,6 @@ export function seedOrgTree() {
   return resolveRelativeDates({
     units: seedUnits(),
     assignments: seedAssignments(),
-    history: seedHistory(),
   });
 }
 
@@ -451,9 +388,11 @@ export function generatedAssignments(id: string, from: string): AssignmentRow[] 
   return Array.from({ length: n }, (_, i) => ({
     id: `${id}-as-${i + 1}`,
     unitId: id,
+    personId: `${id}-p-${i + 1}`,
     personName: `${HO[(i * 7) % HO.length]} ${DEM[(i * 5) % DEM.length]} ${TEN[(i * 3 + n) % TEN.length]}`,
-    jobTitle: i === 0 ? 'Thủ trưởng đơn vị' : CHUC_DANH[i % CHUC_DANH.length],
+    jobTitleName: i === 0 ? 'Thủ trưởng đơn vị' : CHUC_DANH[i % CHUC_DANH.length],
     kind: 'CHINH' as AssignmentKind,
+    branch: 'CHINH_QUYEN' as const,
     validFrom: from,
     validTo: null,
     recordedFrom: BASE_REC,

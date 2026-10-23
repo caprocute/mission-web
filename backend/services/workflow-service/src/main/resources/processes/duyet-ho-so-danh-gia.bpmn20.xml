@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DV-06-04 · Mẫu luồng `duyet-ho-so-danh-gia` v3 (QT-09, QT-10 bước 3 đến 12; SCR-0902..SCR-0905) · ADR-04 tầng 2 ·
+  TL-01 G2 "Ví dụ BPMN rút gọn: duyệt hồ sơ đánh giá". Bước theo appraisal_profile: TU_DANH_GIA → CHO_THAM_DINH →
+  DA_THAM_DINH → CHO_QUYET_DINH → DA_QUYET_DINH; đề xuất bỏ qua được theo bo_qua_khi; trả lại tối đa so_lan_tra_lai
+  lần; ba mốc ký (tự đánh giá, thẩm định, quyết định) chờ EVT-18 (BR-09-14, BR-09-15). Dùng chung cho kỳ quý và năm.
+  Một định nghĩa dùng chung cho mọi tenant (không gắn tenantId); tham số theo tenant nằm ở flowable.wf_binding và
+  được chụp vào biến keHoachBuoc lúc khởi tạo. Thao tác nghiệp vụ (có step-up, ký số) diễn ra ở API của lõi; tiến
+  trình giữ hộp việc, hạn theo ngày làm việc, nhắc trước hạn, chuyển cấp khi quá hạn, giao việc có tách vai trò và
+  chờ ký số (EVT-18), rồi đi tiếp khi lõi báo bước đã xong. Listener ${lapLichBuoc} chỉ tính toán trên bản sao cục bộ.
+  Khoá nghiệp vụ: APPRAISAL_PROFILE:<profileId>.
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="urn:vt-okrkpi:wf">
+  <message id="kySoHoanTat" name="ky-so-hoan-tat"/>
+  <process id="duyet-ho-so-danh-gia" name="Duyệt hồ sơ đánh giá" isExecutable="true">
+    <documentation>Tự đánh giá, thẩm định, đề xuất (bỏ qua được) và quyết định mức xếp loại, mỗi bước có hạn theo ngày làm việc, nhắc trước hạn, chuyển cấp khi quá hạn và chờ ký số trước khi chuyển bước.</documentation>
+    <startEvent id="start"/>
+    <sequenceFlow id="f1-start-tuDanhGia" sourceRef="start" targetRef="tuDanhGia"/>
+    <userTask id="tuDanhGia" name="${tieuDe}"
+              flowable:candidateGroups="${nhomBuoc}"
+              flowable:assignee="${nguoiBuoc}"
+              flowable:dueDate="${hanBuoc}">
+      <documentation>Tự đánh giá và tự đề xuất mức xếp loại</documentation>
+      <extensionElements>
+        <flowable:executionListener event="start" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </userTask>
+    <boundaryEvent id="nhac_tuDanhGia" attachedToRef="tuDanhGia" cancelActivity="false">
+      <timerEventDefinition><timeDate>${nhacBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="quaHan_tuDanhGia" attachedToRef="tuDanhGia" cancelActivity="true">
+      <timerEventDefinition><timeDate>${hanBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f2-nhac_tuDanhGia-nhacViec" sourceRef="nhac_tuDanhGia" targetRef="nhacViec"/>
+    <sequenceFlow id="f3-quaHan_tuDanhGia-tuDanhGia" sourceRef="quaHan_tuDanhGia" targetRef="tuDanhGia">
+      <extensionElements>
+        <flowable:executionListener event="take" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="f4-tuDanhGia-kiemKy_tuDanhGia" sourceRef="tuDanhGia" targetRef="kiemKy_tuDanhGia"/>
+    <exclusiveGateway id="kiemKy_tuDanhGia" default="f-kiemKy-tuDanhGia-cho"/>
+    <sequenceFlow id="f5-kiemKy_tuDanhGia-thamDinh" sourceRef="kiemKy_tuDanhGia" targetRef="thamDinh">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${daKy_tuDanhGia}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-kiemKy-tuDanhGia-cho" sourceRef="kiemKy_tuDanhGia" targetRef="choKy_tuDanhGia"/>
+    <intermediateCatchEvent id="choKy_tuDanhGia" name="Chờ ký số hoàn tất">
+      <messageEventDefinition messageRef="kySoHoanTat"/>
+    </intermediateCatchEvent>
+    <sequenceFlow id="f7-choKy_tuDanhGia-thamDinh" sourceRef="choKy_tuDanhGia" targetRef="thamDinh"/>
+    <userTask id="thamDinh" name="${tieuDe}"
+              flowable:candidateGroups="${nhomBuoc}"
+              flowable:assignee="${nguoiBuoc}"
+              flowable:dueDate="${hanBuoc}">
+      <documentation>Thẩm định hồ sơ đánh giá</documentation>
+      <extensionElements>
+        <flowable:executionListener event="start" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </userTask>
+    <boundaryEvent id="nhac_thamDinh" attachedToRef="thamDinh" cancelActivity="false">
+      <timerEventDefinition><timeDate>${nhacBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="quaHan_thamDinh" attachedToRef="thamDinh" cancelActivity="true">
+      <timerEventDefinition><timeDate>${hanBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f8-nhac_thamDinh-nhacViec" sourceRef="nhac_thamDinh" targetRef="nhacViec"/>
+    <sequenceFlow id="f9-quaHan_thamDinh-thamDinh" sourceRef="quaHan_thamDinh" targetRef="thamDinh">
+      <extensionElements>
+        <flowable:executionListener event="take" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="f10-thamDinh-kq_thamDinh" sourceRef="thamDinh" targetRef="kq_thamDinh"/>
+    <exclusiveGateway id="kq_thamDinh" default="f-thamDinh-duyet"/>
+    <sequenceFlow id="f11-kq_thamDinh-tuDanhGia" sourceRef="kq_thamDinh" targetRef="tuDanhGia">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ketQua == 'TRA_LAI'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-thamDinh-duyet" sourceRef="kq_thamDinh" targetRef="kiemKy_thamDinh"/>
+    <exclusiveGateway id="kiemKy_thamDinh" default="f-kiemKy-thamDinh-cho"/>
+    <sequenceFlow id="f13-kiemKy_thamDinh-boQua" sourceRef="kiemKy_thamDinh" targetRef="boQua">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${daKy_thamDinh}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-kiemKy-thamDinh-cho" sourceRef="kiemKy_thamDinh" targetRef="choKy_thamDinh"/>
+    <intermediateCatchEvent id="choKy_thamDinh" name="Chờ ký số hoàn tất">
+      <messageEventDefinition messageRef="kySoHoanTat"/>
+    </intermediateCatchEvent>
+    <sequenceFlow id="f15-choKy_thamDinh-boQua" sourceRef="choKy_thamDinh" targetRef="boQua"/>
+    <exclusiveGateway id="boQua" default="f-boQua-deXuat"/>
+    <sequenceFlow id="f16-boQua-quyetDinh" sourceRef="boQua" targetRef="quyetDinh">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${boQuaDeXuat}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-boQua-deXuat" sourceRef="boQua" targetRef="deXuat"/>
+    <userTask id="deXuat" name="${tieuDe}"
+              flowable:candidateGroups="${nhomBuoc}"
+              flowable:assignee="${nguoiBuoc}"
+              flowable:dueDate="${hanBuoc}">
+      <documentation>Đề xuất mức xếp loại</documentation>
+      <extensionElements>
+        <flowable:executionListener event="start" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </userTask>
+    <boundaryEvent id="nhac_deXuat" attachedToRef="deXuat" cancelActivity="false">
+      <timerEventDefinition><timeDate>${nhacBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="quaHan_deXuat" attachedToRef="deXuat" cancelActivity="true">
+      <timerEventDefinition><timeDate>${hanBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f18-nhac_deXuat-nhacViec" sourceRef="nhac_deXuat" targetRef="nhacViec"/>
+    <sequenceFlow id="f19-quaHan_deXuat-deXuat" sourceRef="quaHan_deXuat" targetRef="deXuat">
+      <extensionElements>
+        <flowable:executionListener event="take" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="f20-deXuat-quyetDinh" sourceRef="deXuat" targetRef="quyetDinh"/>
+    <userTask id="quyetDinh" name="${tieuDe}"
+              flowable:candidateGroups="${nhomBuoc}"
+              flowable:assignee="${nguoiBuoc}"
+              flowable:dueDate="${hanBuoc}">
+      <documentation>Quyết định mức xếp loại</documentation>
+      <extensionElements>
+        <flowable:executionListener event="start" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </userTask>
+    <boundaryEvent id="nhac_quyetDinh" attachedToRef="quyetDinh" cancelActivity="false">
+      <timerEventDefinition><timeDate>${nhacBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="quaHan_quyetDinh" attachedToRef="quyetDinh" cancelActivity="true">
+      <timerEventDefinition><timeDate>${hanBuoc}</timeDate></timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f21-nhac_quyetDinh-nhacViec" sourceRef="nhac_quyetDinh" targetRef="nhacViec"/>
+    <sequenceFlow id="f22-quaHan_quyetDinh-quyetDinh" sourceRef="quaHan_quyetDinh" targetRef="quyetDinh">
+      <extensionElements>
+        <flowable:executionListener event="take" delegateExpression="${lapLichBuoc}"/>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="f23-quyetDinh-kq_quyetDinh" sourceRef="quyetDinh" targetRef="kq_quyetDinh"/>
+    <exclusiveGateway id="kq_quyetDinh" default="f-quyetDinh-duyet"/>
+    <sequenceFlow id="f24-kq_quyetDinh-xemLai" sourceRef="kq_quyetDinh" targetRef="xemLai">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ketQua == 'XEM_LAI'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-quyetDinh-duyet" sourceRef="kq_quyetDinh" targetRef="kiemKy_quyetDinh"/>
+    <exclusiveGateway id="xemLai" default="f-xemLai-deXuat"/>
+    <sequenceFlow id="f26-xemLai-thamDinh" sourceRef="xemLai" targetRef="thamDinh">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${boQuaDeXuat}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-xemLai-deXuat" sourceRef="xemLai" targetRef="deXuat"/>
+    <exclusiveGateway id="kiemKy_quyetDinh" default="f-kiemKy-quyetDinh-cho"/>
+    <sequenceFlow id="f28-kiemKy_quyetDinh-daQuyetDinh" sourceRef="kiemKy_quyetDinh" targetRef="daQuyetDinh">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${daKy_quyetDinh}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f-kiemKy-quyetDinh-cho" sourceRef="kiemKy_quyetDinh" targetRef="choKy_quyetDinh"/>
+    <intermediateCatchEvent id="choKy_quyetDinh" name="Chờ ký số hoàn tất">
+      <messageEventDefinition messageRef="kySoHoanTat"/>
+    </intermediateCatchEvent>
+    <sequenceFlow id="f30-choKy_quyetDinh-daQuyetDinh" sourceRef="choKy_quyetDinh" targetRef="daQuyetDinh"/>
+    <endEvent id="daQuyetDinh" name="Đã quyết định và ký số"/>
+    <serviceTask id="nhacViec" name="Nhắc người làm trước hạn" flowable:type="external-worker" flowable:topic="notify-remind"/>
+    <sequenceFlow id="f31-nhacViec-nhacKetThuc" sourceRef="nhacViec" targetRef="nhacKetThuc"/>
+    <endEvent id="nhacKetThuc" name="Đã nhắc"/>
+  </process>
+</definitions>

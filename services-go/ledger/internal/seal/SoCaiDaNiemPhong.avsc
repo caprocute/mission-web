@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "SoCaiDaNiemPhong",
+  "namespace": "vn.vtokr.ledger.v1",
+  "doc": "EVT-19 · ledger.seal.created.v1 · SVC-09 phát khi niêm phong Merkle một cửa sổ sổ cái.",
+  "fields": [
+    {"name": "sealId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "ledger.merkle_seal.id"},
+    {"name": "sealKind", "type": "string", "doc": "Loại niêm phong (định kỳ, đột xuất khi chốt kỳ)"},
+    {"name": "windowStart", "type": {"type": "long", "logicalType": "timestamp-micros"}, "doc": "Đầu cửa sổ"},
+    {"name": "windowEnd", "type": {"type": "long", "logicalType": "timestamp-micros"}, "doc": "Cuối cửa sổ"},
+    {"name": "merkleRoot", "type": "bytes", "doc": "Gốc Merkle mức tenant"},
+    {"name": "prevSealRoot", "type": ["null", "bytes"], "default": null, "doc": "Gốc của niêm phong trước; null với niêm phong đầu tiên"},
+    {"name": "tsaSerial", "type": "string", "doc": "Số sê-ri token dấu thời gian RFC 3161"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

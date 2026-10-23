@@ -26,7 +26,26 @@ public interface OutboundMessages {
       int attempts,
       String ackRef) {}
 
+  /** Trạng thái theo dõi của một thông điệp ra (DV-13-05: bên gọi hỏi kết quả gửi). */
+  record Tracked(
+      UUID id,
+      UUID connectorId,
+      OutboundStatus status,
+      int attempts,
+      Instant nextAttemptAt,
+      String ackRef,
+      Instant updatedAt) {}
+
   boolean exists(TenantId tenant, UUID connectorId, UUID sourceEventId);
+
+  /** Thông điệp ra mới nhất sinh từ {@code sourceEventId} trên mọi kết nối của tenant. */
+  Optional<Tracked> bySource(TenantId tenant, UUID sourceEventId);
+
+  /**
+   * Việc đến hạn lọc theo mã kết nối: {@code include} chỉ lấy các mã trong {@code codes}, ngược lại
+   * lấy mọi mã trừ {@code codes}.
+   */
+  List<Due> due(int limit, java.util.Set<String> codes, boolean include);
 
   void insert(
       TenantId tenant,

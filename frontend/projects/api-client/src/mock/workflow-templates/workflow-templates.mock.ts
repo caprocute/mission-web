@@ -1,5 +1,6 @@
 import { WorkflowTemplate, WorkflowTemplateRollout } from '../../lib/models/workflow-template';
 import { lintBpmn } from '../../lib/workflow/wf-lint';
+import { startMockJob } from '../mock-jobs';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import { MOCK_ME, mockSession } from '../mock-session';
 
@@ -393,13 +394,14 @@ function lintProblem(xml: string): MockResponse | null {
   });
 }
 
-function job(type: string): MockResponse {
-  const id = uuid(5000 + Math.floor(Math.random() * 9000));
-  return {
-    status: 202,
-    body: { id, type, status: 'DANG_CHAY', progress: 10 },
-    headers: { Location: `/api/v1/jobs/${id}` },
-  };
+/** 202 + `Location` của job dùng chung; job xong thì bước nền của mẫu (kiểm thử, phát hành) cũng xong. */
+function job(type: string, t: Tpl): MockResponse {
+  return startMockJob(type, () => {
+    const p = state.pending.get(t.id);
+    if (!p) return;
+    p.left = 1;
+    settle(t);
+  });
 }
 
 function create(r: MockRequest): MockResponse {
@@ -474,7 +476,7 @@ function runTests(r: MockRequest): MockResponse {
     });
   }
   state.pending.set(t.id, { left: 2, to: 'TESTED' });
-  return job('TEST_RUN');
+  return job('TEST_RUN', t);
 }
 
 function submit(r: MockRequest): MockResponse {
@@ -521,7 +523,7 @@ function approve(r: MockRequest): MockResponse {
     return res;
   }
   state.pending.set(t.id, { left: 2, to: 'PUBLISHED' });
-  return job('ROLLOUT');
+  return job('ROLLOUT', t);
 }
 
 /** Mỗi lần đọc, saga triển khai thêm một cell theo thứ tự cuốn chiếu. */

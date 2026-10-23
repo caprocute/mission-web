@@ -108,6 +108,7 @@ public class UploadService {
   private final TransactionOperations tx;
   private final Settings settings;
   private final Clock clock;
+  private final E2eeFileAccess e2eeAccess;
 
   /**
    * Kết quả hoàn tất: {@code duplicate} cho biết trong tenant đã có minh chứng khác cùng băm
@@ -128,6 +129,26 @@ public class UploadService {
       TransactionOperations tx,
       Settings settings,
       Clock clock) {
+    this(sessions, files, events, names, storage, buckets, guard, tx, settings, clock, null);
+  }
+
+  /**
+   * @param e2eeAccess {@code null} khi không cấu hình cổng MOD-03: chỉ người tải lên mở được bản mã
+   *     C3
+   */
+  public UploadService(
+      UploadSessions sessions,
+      StoredFiles files,
+      FileEvents events,
+      FileNameCipher names,
+      ObjectStorage storage,
+      TenantBucketService buckets,
+      FileAccessGuard guard,
+      TransactionOperations tx,
+      Settings settings,
+      Clock clock,
+      E2eeFileAccess e2eeAccess) {
+    this.e2eeAccess = e2eeAccess;
     this.sessions = sessions;
     this.files = files;
     this.events = events;
@@ -340,13 +361,19 @@ public class UploadService {
   /**
    * {@code getFileDownloadUrl}: OPA kiểm quyền theo bản ghi sở hữu tệp, nhật ký truy cập ghi khi
    * trả về, URL ký trước sống 5 phút cho đúng một phiên bản. Không trả tệp chưa quét sạch (trừ bản
-   * mã C3 không quét ở máy chủ).
+   * mã C3 không quét ở máy chủ). Bản mã C3 chỉ cấp URL cho người đang giữ bản bọc còn hiệu lực ở
+   * MOD-03, hoặc cho người tải lên khi chưa có bản bọc nào; người bị thu hồi nhận 403 (CORE-07-06).
    */
   @C2Access(objectType = "TEP_MINH_CHUNG")
-  public DownloadLink downloadUrl(UUID objectId, Integer versionNo, boolean attachment) {
+  public DownloadLink downloadUrl(
+      UUID objectId, Integer versionNo, boolean attachment, UUID caller) {
     StoredFile f =
         tx.execute(t -> files.find(objectId, versionNo)).orElseThrow(() -> new FileNotFound());
     guard.checkDownload(new FileAccessGuard.FileAccess(f));
+    if (f.e2ee() && !mayOpenCiphertext(f, caller)) {
+      throw new BusinessException(
+          OUT_OF_SCOPE, "Người dùng không còn được cấp khoá của tệp mật này.");
+    }
     if (!f.e2ee() && !"SACH".equals(f.scanStatus())) {
       throw new BusinessException("FILE-409-NOT-CLEAN");
     }
@@ -359,6 +386,18 @@ public class UploadService {
             f.mediaType(),
             attachment ? "attachment" : "inline");
     return new DownloadLink(url, expires, f);
+  }
+
+  private boolean mayOpenCiphertext(StoredFile f, UUID caller) {
+    if (caller == null) {
+      return false;
+    }
+    boolean uploader = caller.equals(f.createdBy());
+    if (e2eeAccess == null) {
+      return uploader;
+    }
+    E2eeFileAccess.Decision d = e2eeAccess.check(f.tenantId(), f.objectId(), caller);
+    return d.active() || (!d.wrapped() && uploader);
   }
 
   /** Job dọn: huỷ multipart dở dang của phiên quá hạn, đặt {@code HUY}. Trả số phiên đã dọn. */

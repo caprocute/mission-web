@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://api.okr.viettel.vn/schemas/cloudevents-ra-ngoai.v1.json",
+  "title": "Phong bì CloudEvents 1.0 gửi ra hệ ngoài qua SVC-13",
+  "description": "DV-13-02. Theo TL-01 'Phong bì sự kiện' và lược đồ CloudEventsHeaders của contracts/asyncapi/mission-events.asyncapi.yaml; policyversion là chuỗi phiên bản Policy Pack như ví dụ TL-01 (wiki trang 14).",
+  "type": "object",
+  "required": ["specversion", "id", "source", "type", "time", "datacontenttype", "tenantid", "classification", "data"],
+  "properties": {
+    "specversion": { "const": "1.0" },
+    "id": { "type": "string", "format": "uuid" },
+    "source": { "type": "string", "pattern": "^urn:vt-okrkpi:[a-z0-9][a-z0-9-]{0,62}:[a-z][a-z0-9-]*$" },
+    "type": { "type": "string", "pattern": "^vn\\.viettel\\.okrkpi\\.[a-z][a-z0-9-]*(\\.[a-z0-9-]+)+\\.v[0-9]+$" },
+    "subject": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "time": { "type": "string", "format": "date-time" },
+    "datacontenttype": { "const": "application/json" },
+    "dataschema": { "type": "string", "format": "uri" },
+    "traceparent": { "type": "string", "pattern": "^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$" },
+    "tenantid": { "type": "string", "format": "uuid" },
+    "classification": { "enum": ["C0", "C1"] },
+    "policyversion": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "data": { "type": "object" }
+  },
+  "additionalProperties": false
+}

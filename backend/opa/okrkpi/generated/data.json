@@ -2265,6 +2265,64 @@
       "scr": "SCR-0001",
       "web": true
     },
+    "SCR-0001.khoa-thiet-bi": {
+      "constraints": [],
+      "grants": {
+        "appraiser": {
+          "inferred": true,
+          "level": "T",
+          "scope": "B"
+        },
+        "decider": {
+          "inferred": true,
+          "level": "T",
+          "scope": "B"
+        },
+        "inspector": {
+          "inferred": true,
+          "level": "T",
+          "scope": "B"
+        },
+        "leader": {
+          "inferred": true,
+          "level": "T",
+          "scope": "B"
+        },
+        "manager": {
+          "inferred": true,
+          "level": "T",
+          "scope": "B"
+        },
+        "member": {
+          "inferred": true,
+          "level": "T",
+          "scope": "B"
+        },
+        "platform_admin": {
+          "inferred": true,
+          "level": "T",
+          "scope": "B"
+        },
+        "policy_author": {
+          "inferred": true,
+          "level": "T",
+          "scope": "B"
+        },
+        "second_approver": {
+          "inferred": true,
+          "level": "T",
+          "scope": "B"
+        },
+        "tenant_admin": {
+          "inferred": true,
+          "level": "T",
+          "scope": "B"
+        }
+      },
+      "qt": "QT-00",
+      "scr": "SCR-0001",
+      "web": true
+    },
     "SCR-0002.cap-nhat-nhanh": {
       "constraints": [],
       "grants": {
@@ -2548,6 +2606,19 @@
       "scr": "SCR-0102",
       "web": true
     },
+    "SCR-0103.khoa-phuc-hoi": {
+      "constraints": [],
+      "grants": {
+        "tenant_admin": {
+          "inferred": true,
+          "level": "X",
+          "scope": "Tn"
+        }
+      },
+      "qt": "QT-01",
+      "scr": "SCR-0103",
+      "web": true
+    },
     "SCR-0103.nhap-excel": {
       "constraints": [],
       "grants": {
@@ -2558,6 +2629,24 @@
         }
       },
       "qt": "QT-01",
+      "scr": "SCR-0103",
+      "web": true
+    },
+    "SCR-0103.nhat-ky-phuc-hoi": {
+      "constraints": [],
+      "grants": {
+        "inspector": {
+          "inferred": true,
+          "level": "R",
+          "scope": "Tn"
+        },
+        "tenant_admin": {
+          "inferred": true,
+          "level": "R",
+          "scope": "Tn"
+        }
+      },
+      "qt": "QT-12",
       "scr": "SCR-0103",
       "web": true
     },
@@ -3273,6 +3362,64 @@
           "inferred": true,
           "level": "T",
           "scope": "Cd"
+        }
+      },
+      "qt": "QT-05",
+      "scr": "SCR-0501",
+      "web": true
+    },
+    "SCR-0501.khoa-nguoi-nhan": {
+      "constraints": [],
+      "grants": {
+        "appraiser": {
+          "inferred": true,
+          "level": "R",
+          "scope": "Tn"
+        },
+        "decider": {
+          "inferred": true,
+          "level": "R",
+          "scope": "Tn"
+        },
+        "inspector": {
+          "inferred": true,
+          "level": "R",
+          "scope": "Tn"
+        },
+        "leader": {
+          "inferred": true,
+          "level": "R",
+          "scope": "Tn"
+        },
+        "manager": {
+          "inferred": true,
+          "level": "R",
+          "scope": "Tn"
+        },
+        "member": {
+          "inferred": true,
+          "level": "R",
+          "scope": "Tn"
+        },
+        "platform_admin": {
+          "inferred": true,
+          "level": "R",
+          "scope": "Tn"
+        },
+        "policy_author": {
+          "inferred": true,
+          "level": "R",
+          "scope": "Tn"
+        },
+        "second_approver": {
+          "inferred": true,
+          "level": "R",
+          "scope": "Tn"
+        },
+        "tenant_admin": {
+          "inferred": true,
+          "level": "R",
+          "scope": "Tn"
         }
       },
       "qt": "QT-05",

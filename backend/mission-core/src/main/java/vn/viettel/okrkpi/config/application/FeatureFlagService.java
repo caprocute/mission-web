@@ -99,10 +99,30 @@ public class FeatureFlagService implements FeatureFlagApi {
   @Override
   public boolean isEnabled(TenantId tenantId, String flagKey, FlagContext context) {
     Objects.requireNonNull(tenantId, "tenantId");
-    FeatureFlag flag =
-        cache.get(tenantId.value(), t -> reads.execute(s -> merged(tenantId))).get(flagKey);
+    FeatureFlag flag = cached(tenantId).get(flagKey);
     FlagContext ctx = context == null ? FlagContext.TENANT : context;
     return flag != null && flag.isOn(clock.instant(), ctx.userId(), ctx.unitAncestry());
+  }
+
+  /**
+   * Bản đồ cờ hiệu lực của một người dùng ({@code getEffectiveFeatureFlags}, OPS-04): mọi cờ nền
+   * tảng của tenant, mỗi cờ tính theo hiệu lực, đơn vị và tỷ lệ bật dần tại cùng một thời điểm.
+   */
+  public Effective effective(TenantId tenantId, FlagContext context) {
+    Objects.requireNonNull(tenantId, "tenantId");
+    FlagContext ctx = context == null ? FlagContext.TENANT : context;
+    Instant now = clock.instant();
+    Map<String, Boolean> result = new LinkedHashMap<>();
+    cached(tenantId)
+        .forEach((key, flag) -> result.put(key, flag.isOn(now, ctx.userId(), ctx.unitAncestry())));
+    return new Effective(Map.copyOf(result), now);
+  }
+
+  /** Kết quả {@link #effective}: mã cờ sang bật hay tắt, kèm thời điểm tính. */
+  public record Effective(Map<String, Boolean> flags, Instant evaluatedAt) {}
+
+  private Map<String, FeatureFlag> cached(TenantId tenantId) {
+    return cache.get(tenantId.value(), t -> reads.execute(s -> merged(tenantId)));
   }
 
   /** Xoá đệm cờ của tenant (khi pod khác đổi cờ). */

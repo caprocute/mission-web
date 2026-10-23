@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import vn.viettel.okrkpi.appraisal.application.decision.BatchDecisionService;
 import vn.viettel.okrkpi.appraisal.application.review.ReviewService;
 import vn.viettel.okrkpi.appraisal.application.selfassessment.SelfAssessmentService;
+import vn.viettel.okrkpi.appraisal.infrastructure.reconcile.ScoreReconcileGate;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
 /**
@@ -44,20 +45,38 @@ public class EsignSourceController {
   private final SelfAssessmentService service;
   private final ObjectProvider<ReviewService> reviews;
   private final ObjectProvider<BatchDecisionService> decisions;
+  private final ObjectProvider<ScoreReconcileGate> gate;
 
   public EsignSourceController(
       SelfAssessmentService service, ObjectProvider<ReviewService> reviews) {
     this(service, reviews, null);
   }
 
-  @Autowired
   public EsignSourceController(
       SelfAssessmentService service,
       ObjectProvider<ReviewService> reviews,
       ObjectProvider<BatchDecisionService> decisions) {
+    this(service, reviews, decisions, null);
+  }
+
+  /**
+   * @param gate R3 của DL-12: hồ sơ có ảnh chụp điểm lệch kết quả tính thì chưa sẵn sàng ký
+   */
+  @Autowired
+  public EsignSourceController(
+      SelfAssessmentService service,
+      ObjectProvider<ReviewService> reviews,
+      ObjectProvider<BatchDecisionService> decisions,
+      ObjectProvider<ScoreReconcileGate> gate) {
     this.service = Objects.requireNonNull(service, "service");
     this.reviews = Objects.requireNonNull(reviews, "reviews");
     this.decisions = decisions;
+    this.gate = gate;
+  }
+
+  private boolean blocked(java.util.Collection<UUID> profiles) {
+    ScoreReconcileGate g = gate == null ? null : gate.getIfAvailable();
+    return g != null && g.anyBlocked(profiles);
   }
 
   /** Thân phản hồi theo {@code HttpSourceDocumentClient} của SVC-10. */
@@ -106,8 +125,9 @@ public class EsignSourceController {
     if (s.proposalId() == null) {
       return ResponseEntity.ok(new Source(false, Set.of(), List.of()));
     }
+    boolean ready = s.ready() && !blocked(List.of(id));
     List<Doc> documents =
-        s.ready()
+        ready
             ? List.of(
                 new Doc(
                     APPRAISAL_KIND,
@@ -115,7 +135,7 @@ public class EsignSourceController {
                     HexFormat.of().formatHex(s.contentHash()),
                     FORMAT))
             : List.of();
-    return ResponseEntity.ok(new Source(s.ready(), Set.of(s.signer()), documents));
+    return ResponseEntity.ok(new Source(ready, Set.of(s.signer()), documents));
   }
 
   /**
@@ -128,6 +148,11 @@ public class EsignSourceController {
             .getObject()
             .signSource(TenantContext.require(), id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    if (s.ready()
+        && blocked(s.documents().stream().map(BatchDecisionService.SignDoc::profileId).toList())) {
+      // Ký cả lô: một hồ sơ lệch điểm thì cả lô chờ xử lý (runbook doi-soat-diem-anh-chup.md).
+      return ResponseEntity.ok(new Source(false, Set.of(s.signer()), List.of()));
+    }
     List<Doc> documents = new ArrayList<>();
     for (BatchDecisionService.SignDoc d : s.documents()) {
       documents.add(

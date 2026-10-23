@@ -270,8 +270,8 @@ public class JdbcEvidenceSubmissionRepository implements EvidenceSubmissionRepos
             "UPDATE product.evidence_version SET source = ?, source_doc_ref = ?,"
                 + " ai_suggestion_id = ?, doc_number = ?, doc_date = ?, doc_summary = ?,"
                 + " size_bytes = ?, media_type = ?, has_e2ee = ?, is_duplicate_suspect = ?,"
-                + " duplicate_of_id = ?, reuse_justification = ? WHERE period_bucket = ? AND"
-                + " tenant_id = ? AND id = ? AND status = 'NHAP'")
+                + " duplicate_of_id = ?, reuse_justification = ?, ai_fields_edited = ?::jsonb"
+                + " WHERE period_bucket = ? AND tenant_id = ? AND id = ? AND status = 'NHAP'")
         .params(
             d.source(),
             d.sourceDocRef(),
@@ -285,10 +285,38 @@ public class JdbcEvidenceSubmissionRepository implements EvidenceSubmissionRepos
             d.duplicateSuspect(),
             d.duplicateOfId(),
             d.reuseJustification(),
+            jsonArray(d.aiFieldsEdited()),
             periodBucket,
             tenant.value(),
             versionId)
         .update();
+  }
+
+  @Override
+  public List<String> aiFieldsEdited(TenantId tenant, int periodBucket, UUID versionId) {
+    return jdbc.sql(
+            "SELECT f FROM product.evidence_version v,"
+                + " jsonb_array_elements_text(coalesce(v.ai_fields_edited, '[]'::jsonb)) AS f"
+                + " WHERE v.period_bucket = ? AND v.tenant_id = ? AND v.id = ?")
+        .params(periodBucket, tenant.value(), versionId)
+        .query(String.class)
+        .list();
+  }
+
+  /** Danh sách tên ô (chỉ chữ cái, đã kiểm ở tầng miền) thành mảng JSON; rỗng là NULL. */
+  static String jsonArray(List<String> names) {
+    if (names == null || names.isEmpty()) {
+      return null;
+    }
+    StringBuilder b = new StringBuilder("[");
+    for (int i = 0; i < names.size(); i++) {
+      String n = names.get(i);
+      if (!n.chars().allMatch(Character::isLetter)) {
+        throw new IllegalArgumentException("Tên ô không hợp lệ");
+      }
+      b.append(i == 0 ? "" : ",").append('"').append(n).append('"');
+    }
+    return b.append(']').toString();
   }
 
   @Override
