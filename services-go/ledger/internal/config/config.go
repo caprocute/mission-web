@@ -31,6 +31,11 @@ type Config struct {
 	SealPeriodEnds []time.Time
 	SealGrace      time.Duration
 	AnchorDir      string
+	// Xác thực API kiểm tra toàn vẹn (Keycloak JWKS, DV-09-04); rỗng thì không mở API.
+	JWKSURL      string
+	Issuers      []string
+	Audience     string
+	VerifyWorker int
 }
 
 // Load đọc cấu hình từ biến môi trường với giá trị mặc định an toàn.
@@ -92,6 +97,25 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("SEAL_GRACE không hợp lệ: %w", err)
 	}
 
+	jwksURL := strings.TrimSpace(os.Getenv("OIDC_JWKS_URL"))
+	if jwksURL == "" {
+		if issuer := strings.TrimSpace(os.Getenv("KEYCLOAK_ISSUER_URI")); issuer != "" {
+			jwksURL = strings.TrimRight(issuer, "/") + "/protocol/openid-connect/certs"
+		}
+	}
+	var issuers []string
+	for _, p := range strings.Split(os.Getenv("OIDC_ISSUERS"), ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			issuers = append(issuers, p)
+		}
+	}
+	workers := 8
+	if v := strings.TrimSpace(os.Getenv("VERIFY_WORKERS")); v != "" {
+		if _, err := fmt.Sscanf(v, "%d", &workers); err != nil || workers < 1 || workers > 64 {
+			return nil, fmt.Errorf("VERIFY_WORKERS không hợp lệ: %q", v)
+		}
+	}
+
 	return &Config{
 		ServiceName:           "ledger",
 		CellCode:              cellCode,
@@ -113,6 +137,10 @@ func Load() (*Config, error) {
 		SealPeriodEnds:        periodEnds,
 		SealGrace:             sealGrace,
 		AnchorDir:             strings.TrimSpace(os.Getenv("ANCHOR_DIR")),
+		JWKSURL:               jwksURL,
+		Issuers:               issuers,
+		Audience:              strings.TrimSpace(os.Getenv("OIDC_AUDIENCE")),
+		VerifyWorker:          workers,
 	}, nil
 }
 

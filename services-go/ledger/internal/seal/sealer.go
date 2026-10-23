@@ -92,9 +92,11 @@ type Sealer struct {
 	Interval time.Duration
 	// Schedule (tuỳ chọn) quyết định độ dài cửa sổ theo thời điểm; nil thì dùng Interval.
 	Schedule *Schedule
-	OTel     *otel.Provider
-	Log      *slog.Logger
-	Now      func() time.Time
+	// AfterSeal (tuỳ chọn) chạy sau mỗi lần niêm phong định kỳ thành công, ví dụ kiểm tra NIEM_PHONG.
+	AfterSeal func(ctx context.Context, res *Result)
+	OTel      *otel.Provider
+	Log       *slog.Logger
+	Now       func() time.Time
 
 	outbox *outbox.Writer
 }

@@ -1508,6 +1508,31 @@ Mã ở `services-go/ledger/internal/seal` (`merkle.go`, `sign.go`, `sealer.go`,
 8. **Bản neo hằng ngày.** Bản neo là `cell_seal` có `window_end` muộn nhất không quá 0 giờ ngày hôm sau theo giờ Việt Nam; job chạy lúc 00:15. Ledger ghi trực tiếp đích `OBJECT_LOCK` (`ObjectLockStore`; bản dev `DirStore` ghi tệp chỉ đọc qua `ANCHOR_DIR`, bucket S3 Object Lock thuộc INF-12) rồi lưu biên nhận vào `anchor_receipt`. Các đích `CELL_KHAC`, `KHO_VPTW`, `TSA_DOC_LAP` do SVC-13 gửi (DV-13-09) và trả biên nhận qua `Anchorer.RecordReceipt`. Vì EVT-19 không có cờ "bản neo trong ngày" và không được sửa lược đồ, SVC-13 nhận ra bản neo bằng cùng quy tắc chọn trên (suy luận, DV-13-09 cần chốt). Đường nhận biên nhận (luồng `sys.` hoặc cổng nội bộ) chưa làm.
 9. **Đo cục bộ (chỉ ghi nhận, YC-PT-19).** Niêm phong 20 tenant × 64 chuỗi mất khoảng 0,4 giây sau khi gộp truy vấn đầu chuỗi thành một câu mỗi tenant; chưa đo ở tải PERF-16 (QA-10).
 
+### Ghi chú và quyết định từ kiểm tra toàn vẹn sổ cái (DV-09-04, 23/10/2026)
+
+Mã ở `services-go/ledger/internal/verify` (`engine.go`, `service.go`, `schedule.go`, `archive.go`), API ở `internal/server/verify_api.go`, migration `V4__ledger_verify_run_ket_qua.sql`.
+
+1. **Khoá ghi phân vùng bằng `chain_head.is_locked` (chốt cách khoá).** TL-02b BR-13-11 ghi "cờ khoá phân vùng trong ledger-service", nên phá vỡ được khoá bằng cờ sẵn có `chain_head.is_locked`, kèm `locked_reason`. Cờ này được đặt trong cùng giao dịch ghi kết quả `verify_run` và EVT-20. Luồng ghi (DV-09-02) từ chối ghi vào chuỗi bị khoá và dừng partition Kafka chứa chuỗi đó; chỉ bản ghi `DANH_DAU_SU_CO` mới mở khoá. Sai lệch chỉ ở niêm phong (gốc tenant, đường đi lên cell, chữ ký, token TSA) không gắn với một chuỗi nên chỉ tạo cảnh báo, không khoá.
+2. **Chỉ ra đúng bản ghi bị sửa.** Mỗi bản ghi được so với `entry_hash` đã lưu của bản ghi liền trước, nên một bản ghi bị sửa không kéo theo các bản ghi sau. Các bước kiểm theo thứ tự: `seq_no` liên tục, `prev_hash`, `metadata_hash` tính lại từ các cột, rồi `entry_hash` tính lại. Sai lệch đầu tiên lấy theo phân vùng rồi `seq_no`, và sai lệch cấp bản ghi đứng trước sai lệch niêm phong.
+3. **EVT-20 do ledger phát qua outbox (lệch danh mục).** `contracts/events/catalog.yaml` ghi EVT-20 chỉ do SVC-15 phát và không qua outbox, còn hợp đồng `createLedgerVerifyRun` và BR-13-11 yêu cầu ledger phát. Ledger ghi EVT-20 vào `ledger.outbox_event` theo đúng lược đồ `DauHieuBatThuong` với các giá trị sau (suy luận):
+   - `signalCode = SUA_SAU_KHOA` (sửa sau khi đã khoá; trong tám mã chưa có mã riêng cho phá chuỗi, không đặt mã mới);
+   - `severity = CAO`, `subjectType = DON_VI`, `subjectId` là mã tenant;
+   - `evidenceChain` có `ledger_chain:<phân vùng>-<seq_no>`, nên MOD-07 luôn giữ mức Cao (CORE-07-10 mục 5), kèm `ledger_entry:`, `merkle_seal:` và `verify_run:`;
+   - mã sự kiện tất định theo `alertKey` (tenant và vị trí hỏng), nên phát hiện lại cùng chỗ hỏng không tạo cảnh báo mới.
+
+   Câu hỏi mở ở CORE-07-10 mục 9 ("ledger chưa phát EVT-20 đúng hợp đồng") nay đã có lời đáp; danh mục sự kiện cần ghi thêm SVC-09 là bên phát.
+4. **Cột bổ sung `verify_run` (V4, suy luận từ hợp đồng).** Gồm `chain_partition`, `seals_checked`, `partitions_total`, `partitions_matched`, `result_json` (các mắt chuỗi quanh vị trí sai), `alert_id`, `status` (giá trị của `JobStatus`), `status_detail` (văn bản MSG-13-05, MSG-13-06), `requested_by`, `idempotency_key` và `request_hash`. Ràng buộc duy nhất theo (tenant, người gọi, khoá).
+5. **Tác vụ dài.** Mỗi lần kiểm tra chính là một tác vụ: ledger tự phục vụ `GET /api/v1/jobs/{id}` từ `verify_run` với `type = LEDGER_VERIFY` (suy luận), giống tenant-registry. Chỉ người tạo xem được; lần chạy theo lịch trả 404. APISIX cần luật định tuyến riêng (đã nêu ở mục định tuyến gateway).
+6. **Quyền.** Xác thực JWT qua JWKS bằng bản sao gói `auth` của tenant-registry (điểm chờ NEN-010/NEN-017). `inspector` được chạy kiểm tra, còn `appraiser` và `inspector` được xem. Phạm vi đơn vị của `appraiser` thuộc OPA và chưa nối; vì lần kiểm tra không gắn đơn vị, `appraiser` xem được các lần kiểm tra của tenant mình (suy luận).
+7. **Kiểm toán.** Mỗi lần gọi ba thao tác ghi thẳng một bản ghi `sys.audit.v1` vào chuỗi của đối tượng (`aggregate_type = KIEM_TRA_SO_CAI`). Nếu chuỗi đó đang bị khoá thì thao tác vẫn chạy và nhật ký vận hành ghi cảnh báo (suy luận).
+8. **Phạm vi mặc định và lịch.**
+   - `DAU_CHUOI` kiểm phần chưa niêm phong (từ đầu chuỗi đã niêm phong tới bản ghi cuối) và so với `chain_head`, chạy mỗi 15 phút.
+   - `NIEM_PHONG` chạy toàn cell (`tenant_id` NULL) ngay sau mỗi lần niêm phong (móc `Sealer.AfterSeal`); khi gọi qua API, mặc định là 2 giờ gần nhất.
+   - `TOAN_BO` mặc định từ bản ghi sớm nhất; job lịch chạy 02:00 Chủ nhật cho một phần tư số tenant (theo tuần ISO mod 4).
+   - `LUU_TRU` chạy ngày đầu quý, chọn 5% tệp qua `ArchiveReader`. Chưa có trình đọc Parquet (DL-12, DL-13) nên lần chạy kết thúc `THAT_BAI` với thông điệp "Chưa đọc được bản lưu trữ để kiểm tra."
+   - Khoảng thời gian quá 2 năm trả `LEDGER-422-RANGE-TOO-LONG`, dùng lại mã đã có.
+9. **Đo cục bộ (chỉ ghi nhận, YC-PT-19).** `TOAN_BO` 64.000 bản ghi trên 64 chuỗi với 8 luồng mất khoảng 0,95 giây (khoảng 67.000 bản ghi/giây), tức 1,28 triệu bản ghi ước khoảng 19 giây, trong mục tiêu tham khảo 48 giây. Chưa chạy thật 1,28 triệu bản ghi vì đĩa máy thử còn dưới 1 GB.
+
 ## Liên quan
 
 - [README của wiki](README.md)

@@ -16,11 +16,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"mission/services-go/ledger/internal/auth"
 	"mission/services-go/ledger/internal/config"
 	"mission/services-go/ledger/internal/ingest"
 	"mission/services-go/ledger/internal/partition"
 	"mission/services-go/ledger/internal/seal"
 	"mission/services-go/ledger/internal/server"
+	"mission/services-go/ledger/internal/verify"
 	"vn.viettel.okrkpi/services-go/vtplatform/otel"
 )
 
@@ -102,23 +104,36 @@ func main() {
 		log.Warn("chưa đặt KAFKA_BROKERS, ledger-ingester không chạy")
 	}
 
+	verifier := &verify.Service{Pool: pool, Cell: cfg.CellCode, OTel: otelProvider, Log: log,
+		Engine: &verify.Engine{Pool: pool, Workers: cfg.VerifyWorker, Certs: sealCerts}}
+	verifySched := &verify.Scheduler{Service: verifier}
 	if cfg.SealEnabled {
 		sealer, anchorer, err := sealers()
 		if err != nil {
 			log.Error("không dựng được job niêm phong", "err", err.Error())
 			os.Exit(1)
 		}
+		sealer.AfterSeal = verifySched.AfterSeal
 		go func() { _ = sealer.Run(ctx, *sealer.Schedule, cfg.SealGrace) }()
 		go anchorer.Run(ctx, func(msg string, args ...any) { log.Error(msg, args...) })
 	}
+	go verifySched.Run(ctx)
 
-	srv := server.New(server.Deps{
+	deps := server.Deps{
 		Pool:         pool,
 		ReadOnlyPool: roPool,
 		Log:          log,
 		OTel:         otelProvider,
 		Stats:        ing.Stats,
-	})
+		Verify:       verifier,
+		Auditor:      ing,
+	}
+	if cfg.JWKSURL != "" || strings.EqualFold(os.Getenv("AUTH_ENABLED"), "false") {
+		deps.Auth = auth.NewJWKSVerifier(auth.JWKSConfig{JWKSURL: cfg.JWKSURL, Issuers: cfg.Issuers, Audience: cfg.Audience})
+	} else {
+		log.Warn("chưa đặt OIDC_JWKS_URL, API kiểm tra toàn vẹn chưa mở")
+	}
+	srv := server.New(deps)
 
 	httpSrv := &http.Server{
 		Addr:              cfg.HTTPAddr,
@@ -138,6 +153,7 @@ func main() {
 	}()
 
 	<-ctx.Done()
+	verifier.Wait()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 	_ = httpSrv.Shutdown(shutdownCtx)

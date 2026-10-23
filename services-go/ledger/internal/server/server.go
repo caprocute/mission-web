@@ -11,6 +11,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"mission/services-go/ledger/internal/auth"
+	"mission/services-go/ledger/internal/verify"
+
 	"vn.viettel.okrkpi/services-go/vtplatform/otel"
 	"vn.viettel.okrkpi/services-go/vtplatform/problem"
 )
@@ -23,6 +26,10 @@ type Deps struct {
 	OTel         *otel.Provider
 	// Stats là số liệu luồng ghi (độ trễ p99, bản ghi/giây theo chuỗi); tuỳ chọn.
 	Stats func() map[string]float64
+	// Verify, Auth, Auditor phục vụ API kiểm tra toàn vẹn (DV-09-04); thiếu Verify hoặc Auth thì không mở tuyến.
+	Verify  *verify.Service
+	Auth    auth.Verifier
+	Auditor Auditor
 }
 
 // Server quản lý các tuyến HTTP của SVC-09.
@@ -45,6 +52,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
 	s.mux.HandleFunc("GET /readyz", s.handleReadyz)
 	s.mux.HandleFunc("GET /metrics", s.handleMetrics)
+	s.registerVerifyRoutes()
 	s.mux.HandleFunc("/", s.handleNotFound)
 }
 
@@ -100,6 +108,9 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 			"ledger.seal.cell_seals_total",
 			"ledger.seal.tsa_failures_total",
 			"ledger.seal.tsa_overdue_total",
+			"ledger.verify.runs_total",
+			"ledger.verify.mismatches_total",
+			"ledger.verify.chain_broken_total",
 		} {
 			metrics[name] = s.deps.OTel.CounterValue(name)
 		}

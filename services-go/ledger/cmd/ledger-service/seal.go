@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
@@ -52,6 +54,10 @@ func buildSealer(cfg *config.Config, pool *pgxpool.Pool, prov *otel.Provider, lo
 		log.Warn("dùng TSA nội bộ tạm thời (chỉ dev)")
 		tsa = local
 	}
+	// Chứng thư khoá niêm phong để kiểm tra NIEM_PHONG kiểm được chữ ký (DV-09-04).
+	if ks, ok := signer.(*seal.KeySigner); ok {
+		sealCerts[sha256.Sum256(ks.Cert.Raw)] = ks.Cert
+	}
 	sched := seal.DefaultSchedule(cfg.SealPeriodEnds)
 	s := &seal.Sealer{Pool: pool, Signer: signer, TSA: tsa, Cell: cfg.CellCode, Schedule: &sched, OTel: prov, Log: log}
 	a := &seal.Anchorer{Pool: pool, Cell: cfg.CellCode}
@@ -60,6 +66,9 @@ func buildSealer(cfg *config.Config, pool *pgxpool.Pool, prov *otel.Provider, lo
 	}
 	return s, a, nil
 }
+
+// sealCerts là chứng thư khoá niêm phong đã nạp, theo SHA-256.
+var sealCerts = map[[32]byte]*x509.Certificate{}
 
 type sealerFactory func() (*seal.Sealer, *seal.Anchorer, error)
 

@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **286 / 408 task (70.1%)** — Khối lượng quy đổi đã gộp: **328 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **288 / 408 task (70.6%)** (gồm **286** đã gộp `main` + **2** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **289 / 408 task (70.8%)** (gồm **286** đã gộp `main` + **3** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **4 task** (0 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **116 task**.
+- **Chưa bắt đầu**: **115 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **18 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-10`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -25,14 +25,14 @@
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **68** | 0 | 1 | 3 | **94.4%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **90** | 0 | 2 | 25 | **76.9%** |
-| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **61** | 2 | 0 | 41 | **58.7%** |
+| **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **61** | 3 | 0 | 40 | **58.7%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **12** | 0 | 1 | 0 | **92.3%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **0** | 0 | 0 | 16 | **0.0%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **286** | **2** | **4** | **116** | **70.1%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **286** | **3** | **4** | **115** | **70.1%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -41,7 +41,7 @@
 | **M0 – Nền móng phát triển & CSDL** | 60 | **60** | 0 | 0 | 0 | **100.0%** |
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **44** | 0 | 0 | 3 | **93.6%** |
-| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **75** | 2 | 1 | 42 | **62.5%** |
+| **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **75** | 3 | 1 | 41 | **62.5%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **54** | 0 | 1 | 17 | **75.0%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 1 | 19 | **13.0%** |
@@ -433,14 +433,14 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DV-08-05](docs/tasks/DV-08-05-ocr-qua-ai.md) | Gọi OCR qua ai-gateway cho minh chứng | S | B3 | 12 | DV-08-02, DV-14-05, DV-08-04 | **Chưa bắt đầu** |  |
 | [DV-08-06](docs/tasks/DV-08-06-xem-truoc-tep-minh-chung.md) | Xem trước tệp minh chứng (`getFilePreview`) qua Gotenberg, chỉ tệp đã quét sạch | S | B3 | 12 | DV-08-04, DV-11-01 | **Đã gộp main** | Gộp main; xem trước minh chứng theo trang, PDFBox đã duyệt (YC-PT-18) |
 
-### DV-09 · SVC-09 ledger-service (Go) (1/5 đã gộp `main`, 2 chờ gộp, 0 đang làm)
+### DV-09 · SVC-09 ledger-service (Go) (1/5 đã gộp `main`, 3 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [DV-09-01](docs/tasks/DV-09-01-khung-ledger-migration.md) | Khung service và migration CSDL `ledger` chỉ ghi thêm | M | B6 | 7 | NEN-017 | **Đã gộp main** | Đã gộp main (40e7b32): khung SVC-09 ledger-service Go, schema sổ cái bất biến và phân vùng 2 tầng |
 | [DV-09-02](docs/tasks/DV-09-02-ghi-chuoi-bam.md) | Consumer ghi chuỗi băm 64 phân vùng theo tenant, chuẩn hoá RFC 8785 | L | B6 | 8 | DV-09-01 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: luồng ghi lô 64 chuỗi, consumer Avro LedgerAppend, thư chết, dừng chuỗi bị khoá, TENANT_MOVED_IN và DANH_DAU_SU_CO; go test xanh (10.000 sự kiện 5% trùng, khởi động lại giữa chừng) |
 | [DV-09-03](docs/tasks/DV-09-03-niem-phong-merkle.md) | Niêm phong Merkle hai cấp mỗi giờ, dấu thời gian RFC 3161, ký qua esign, EVT-19, bản neo | L | B6 | 11 | DV-09-02, DV-10-03 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: niêm phong Merkle hai cấp, ký ECDSA, TSA RFC 3161 (openssl ts -verify), lịch 1 giờ/5 phút, niêm phong đột xuất, gộp khi TSA lỗi, neo hằng ngày Object Lock; go test xanh |
-| [DV-09-04](docs/tasks/DV-09-04-kiem-tra-toan-ven.md) | Kiểm tra toàn vẹn định kỳ, chỉ ra bản ghi bị phá, phát EVT-20 | M | B6 | 12 | DV-09-03 | **Chưa bắt đầu** |  |
+| [DV-09-04](docs/tasks/DV-09-04-kiem-tra-toan-ven.md) | Kiểm tra toàn vẹn định kỳ, chỉ ra bản ghi bị phá, phát EVT-20 | M | B6 | 12 | DV-09-03 | **Xong, chờ gộp** | Nhánh claude/project-thread-x87cen: kiểm tra toàn vẹn 4 loại, quét song song 8 luồng, khoá chuỗi + EVT-20 cùng giao dịch, API 202 khớp oversight.yaml, kiểm toán sys.audit.v1; go test xanh |
 | [DV-09-05](docs/tasks/DV-09-05-tra-cuu-xuat-bang-chung.md) | API tra cứu, xuất bằng chứng có ký và công cụ kiểm chứng độc lập `ledger-verify` | L | B6 | 12 | DV-09-03 | **Chưa bắt đầu** |  |
 
 ### DV-10 · SVC-10 esign-service (2/6 đã gộp `main`, 0 chờ gộp, 0 đang làm)
@@ -987,4 +987,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 00:44 | B7 | `DL-12` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-x87cen: R1, R3, R4, R5, R6, R7 xong, build và IT xanh, chờ gộp; R2 và bốn kiểm tra sổ cái chờ DV-09-02/03/04 |
 | 23/10/2026 01:15 | B7 | `DV-09-02` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: luồng ghi lô 64 chuỗi, consumer Avro LedgerAppend, thư chết, dừng chuỗi bị khoá, TENANT_MOVED_IN và DANH_DAU_SU_CO; go test xanh (10.000 sự kiện 5% trùng, khởi động lại giữa chừng) |
 | 23/10/2026 01:26 | B7 | `DV-09-03` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: niêm phong Merkle hai cấp, ký ECDSA, TSA RFC 3161 (openssl ts -verify), lịch 1 giờ/5 phút, niêm phong đột xuất, gộp khi TSA lỗi, neo hằng ngày Object Lock; go test xanh |
+| 23/10/2026 01:39 | B7 | `DV-09-04` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-x87cen: kiểm tra toàn vẹn 4 loại, quét song song 8 luồng, khoá chuỗi + EVT-20 cùng giao dịch, API 202 khớp oversight.yaml, kiểm toán sys.audit.v1; go test xanh |
 <!-- PROGRESS_LOG_END -->

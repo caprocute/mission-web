@@ -69,6 +69,9 @@ func (s *Sealer) Run(ctx context.Context, sched Schedule, grace time.Duration) e
 		case res != nil && !res.Existing:
 			s.log().Info("đã niêm phong sổ cái", "window_end", next, "tenants", len(res.Tenants),
 				"late", res.Late, "took_ms", time.Since(start).Milliseconds())
+			if s.AfterSeal != nil {
+				s.AfterSeal(ctx, res)
+			}
 		}
 	}
 }
