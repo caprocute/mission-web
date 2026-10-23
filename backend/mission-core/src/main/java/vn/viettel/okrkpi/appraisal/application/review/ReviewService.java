@@ -103,10 +103,19 @@ public class ReviewService {
       RatingLevel rating,
       String comment,
       String reason,
-      List<SelfAssessmentForm.Criterion> criteria) {
+      List<SelfAssessmentForm.Criterion> criteria,
+      UUID seenSnapshotId) {
 
     public AppraisalDraft {
       criteria = criteria == null ? List.of() : List.copyOf(criteria);
+    }
+
+    public AppraisalDraft(
+        RatingLevel rating,
+        String comment,
+        String reason,
+        List<SelfAssessmentForm.Criterion> criteria) {
+      this(rating, comment, reason, criteria, null);
     }
   }
 
@@ -196,7 +205,12 @@ public class ReviewService {
     String reasonText = blank(draft.reason()) ? null : draft.reason();
     RatingLevel previous = rating(row, LevelKind.TU_DE_XUAT).orElse(row.autoRating());
     requireReasons(
-        draft.rating(), previous, reasonText, row.autoRating(), MSG_APPRAISE_REASON, "MSG-09-06");
+        draft.rating(),
+        previous,
+        reasonText,
+        suggested(tenant, row, draft.seenSnapshotId()),
+        MSG_APPRAISE_REASON,
+        "MSG-09-06");
     UUID proposalId = UUID.randomUUID();
     CurrentRating rating =
         steps.recordRating(
@@ -311,6 +325,23 @@ public class ReviewService {
       RatingLevel level,
       String reason,
       String comment) {
+    return propose(tenant, profileId, expectedVersion, actor, level, reason, comment, null);
+  }
+
+  /**
+   * Như {@link #propose(TenantId, UUID, long, UUID, RatingLevel, String, String)}, mức gợi ý so
+   * sánh lấy từ ảnh chụp người gọi đã xem ({@code seenScoreSnapshotId}, BS-03 DC-05).
+   */
+  @Transactional(TX)
+  public Transitioned propose(
+      TenantId tenant,
+      UUID profileId,
+      long expectedVersion,
+      UUID actor,
+      RatingLevel level,
+      String reason,
+      String comment,
+      UUID seenSnapshotId) {
     ProfileRow row = profiles.lock(tenant, profileId).orElseThrow(NoSuchElementException::new);
     if (expectedVersion != row.rowVersion()) {
       throw new VersionConflictException("APPRAISAL", expectedVersion, row.rowVersion());
@@ -324,7 +355,13 @@ public class ReviewService {
     }
     String reasonText = blank(reason) ? null : reason;
     RatingLevel appraised = rating(row, LevelKind.THAM_DINH).orElse(null);
-    requireReasons(level, appraised, reasonText, row.autoRating(), MSG_PROPOSE_REASON, "MSG-09-12");
+    requireReasons(
+        level,
+        appraised,
+        reasonText,
+        suggested(tenant, row, seenSnapshotId),
+        MSG_PROPOSE_REASON,
+        "MSG-09-12");
     UUID proposalId = UUID.randomUUID();
     CurrentRating rating =
         steps.recordRating(
@@ -373,6 +410,20 @@ public class ReviewService {
    * của ảnh chụp hiện hành mà không có lý do thì 422 {@code SUGGESTED-REASON-REQUIRED} (BS-03
    * DC-05). Kiểm trước khi ghi nên không để lại dòng mức nào.
    */
+  /**
+   * Mức hệ thống gợi ý để so (BS-03 DC-05): của ảnh chụp người gọi đã xem khi có, ngược lại của ảnh
+   * chụp hiện hành của hồ sơ.
+   */
+  private RatingLevel suggested(TenantId tenant, ProfileRow row, UUID seenSnapshotId) {
+    if (seenSnapshotId == null) {
+      return row.autoRating();
+    }
+    return profiles
+        .snapshotRating(tenant, row.periodBucket(), row.id(), seenSnapshotId)
+        .orElseThrow(
+            () -> invalid("seenScoreSnapshotId", "Ảnh chụp điểm không thuộc hồ sơ đánh giá này."));
+  }
+
   static void requireReasons(
       RatingLevel level,
       RatingLevel previous,

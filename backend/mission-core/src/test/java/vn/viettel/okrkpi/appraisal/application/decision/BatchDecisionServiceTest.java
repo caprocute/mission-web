@@ -306,6 +306,35 @@ class BatchDecisionServiceTest {
   }
 
   @Test
+  void mucGoiYTheoAnhChupNguoiQuyetDinhDaXem() {
+    lock(p1, AppraisalStatus.CHO_QUYET_DINH, 3, RatingLevel.HTTNV, RatingLevel.HTTNV);
+    UUID older = UUID.randomUUID();
+    when(profiles.snapshotRating(TENANT, BUCKET, p1, older))
+        .thenReturn(Optional.of(RatingLevel.HTXSNV));
+    assertCode(
+        () ->
+            service.prepare(
+                TENANT,
+                decider,
+                command(true, new Item(p1, RatingLevel.HTTNV, null, 3L, older)),
+                Scope.NONE),
+        "APPRAISAL-422-SUGGESTED-REASON-REQUIRED");
+    assertThatThrownBy(
+            () ->
+                service.prepare(
+                    TENANT,
+                    decider,
+                    command(true, new Item(p1, RatingLevel.HTTNV, null, 3L, UUID.randomUUID())),
+                    Scope.NONE))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> {
+              assertThat(e).hasMessage("COMMON-422-VALIDATION");
+              assertThat(e.errors().get(0).field()).endsWith("seenScoreSnapshotId");
+            });
+  }
+
+  @Test
   void nguongHtxsnvCanXacNhanHieuChinh() {
     lock(p1, AppraisalStatus.CHO_QUYET_DINH, 3, RatingLevel.HTXSNV, RatingLevel.HTXSNV);
     Command cmd =

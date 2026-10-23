@@ -225,7 +225,11 @@ public class AppraisalReviewController {
     }
     AppraisalDraft draft =
         new AppraisalDraft(
-            level(body.getRatingCode()), body.getComment(), body.getReason(), criteria);
+            level(body.getRatingCode()),
+            body.getComment(),
+            body.getReason(),
+            criteria,
+            body.getSeenScoreSnapshotId());
     String provider = body.getSignProvider() == null ? null : body.getSignProvider().getValue();
     String key = idempotencyKey == null ? UUID.randomUUID().toString() : idempotencyKey;
     UUID signRequestId;
@@ -261,7 +265,8 @@ public class AppraisalReviewController {
           actor,
           level(body.getRatingCode()),
           body.getReason(),
-          body.getComment());
+          body.getComment(),
+          body.getSeenScoreSnapshotId());
     } catch (NoSuchElementException e) {
       throw notFound();
     }

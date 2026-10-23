@@ -31,6 +31,16 @@ public final class RenderJob {
   private String error;
   private Instant updatedAt;
   private final long rowVersion;
+  private Provenance provenance = Provenance.NONE;
+
+  /**
+   * Nguồn gốc của tệp để đóng tem (DV-11-04, BR-11-03): gói hồ sơ và phiên bản Policy Pack gắn với
+   * kỳ mà MOD-06 gửi trong lệnh sinh. Tác vụ tạo trước DV-11-04 không có, các trường là {@code
+   * null}.
+   */
+  public record Provenance(UUID packageId, String policyPackCode, String policyPackVersion) {
+    public static final Provenance NONE = new Provenance(null, null, null);
+  }
 
   public RenderJob(
       UUID id,
@@ -208,5 +218,15 @@ public final class RenderJob {
 
   public long rowVersion() {
     return rowVersion;
+  }
+
+  public Provenance provenance() {
+    return provenance;
+  }
+
+  /** Gắn nguồn gốc khi tạo hoặc khi đọc lại từ kho; {@code null} là không có. */
+  public RenderJob withProvenance(Provenance value) {
+    this.provenance = value == null ? Provenance.NONE : value;
+    return this;
   }
 }

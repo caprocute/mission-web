@@ -310,6 +310,41 @@ class ReviewServiceTest {
   }
 
   @Test
+  void mucGoiYSoTheoAnhChupNguoiGoiDaXem() {
+    UUID p = UUID.randomUUID();
+    when(profiles.lock(TENANT, id))
+        .thenReturn(
+            Optional.of(
+                row(
+                    AppraisalStatus.DA_THAM_DINH,
+                    6L,
+                    List.of(current(p, LevelKind.THAM_DINH, RatingLevel.HTTNV, false)))));
+    when(forms.summary(TENANT, id)).thenReturn(Optional.of(summary(AppraisalStatus.DA_THAM_DINH)));
+    UUID older = UUID.randomUUID();
+    UUID same = UUID.randomUUID();
+    when(profiles.snapshotRating(TENANT, 20271, id, older))
+        .thenReturn(Optional.of(RatingLevel.HTXSNV));
+    when(profiles.snapshotRating(TENANT, 20271, id, same))
+        .thenReturn(Optional.of(RatingLevel.HTTNV));
+
+    assertThatThrownBy(
+            () -> service.propose(TENANT, id, 6L, manager, RatingLevel.HTTNV, null, null, older))
+        .hasMessage("APPRAISAL-422-SUGGESTED-REASON-REQUIRED");
+    assertThatThrownBy(
+            () ->
+                service.propose(
+                    TENANT, id, 6L, manager, RatingLevel.HTTNV, null, null, UUID.randomUUID()))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errors().get(0).field()).isEqualTo("seenScoreSnapshotId"));
+
+    when(steps.recordRating(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(current(UUID.randomUUID(), LevelKind.DE_XUAT, RatingLevel.HTTNV, false));
+    service.propose(TENANT, id, 6L, manager, RatingLevel.HTTNV, null, null, same);
+    service.propose(TENANT, id, 6L, manager, RatingLevel.HTTNV, null, null, null);
+  }
+
+  @Test
   void deXuatKhacMucThamDinhPhaiCoLyDo() {
     UUID p = UUID.randomUUID();
     when(profiles.lock(TENANT, id))
