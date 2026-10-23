@@ -3,7 +3,9 @@ package vn.viettel.okrkpi.appraisal.infrastructure.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,7 +36,9 @@ import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases;
 import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases.SpecialCase;
 import vn.viettel.okrkpi.appraisal.api.AppraisalSpecialCases.Treatment;
 import vn.viettel.okrkpi.appraisal.application.annual.AnnualRatingService;
+import vn.viettel.okrkpi.appraisal.application.annual.AnnualReassignmentService;
 import vn.viettel.okrkpi.appraisal.application.annual.AnnualSetupService;
+import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualNotices;
 import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRatingRepository.AnnualRow;
 import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRatingRepository.Filter;
 import vn.viettel.okrkpi.appraisal.application.annual.port.AnnualRecomputeRequests;
@@ -46,11 +50,13 @@ import vn.viettel.okrkpi.appraisal.application.setup.ProfileSetupService.ScoreCo
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.PeriodStatus;
+import vn.viettel.okrkpi.shared.error.BusinessException;
 import vn.viettel.okrkpi.shared.kernel.Clock;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.outbox.OutboxPayloadSerializer.SerializedPayload;
 import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
+import vn.viettel.okrkpi.task.api.TaskApi;
 
 /**
  * Xếp loại năm với CSDL thật (CORE-04-10): lập hồ sơ năm khi quý IV khoá theo bốn quý, thiếu quý
@@ -75,6 +81,7 @@ class AnnualRatingIT {
   private final UUID missing = UUID.randomUUID();
   private final UUID special = UUID.randomUUID();
   private final UUID complaint = UUID.randomUUID();
+  private final UUID apart = UUID.randomUUID();
   private final UUID decider = UUID.randomUUID();
   private SingleConnectionDataSource ds;
   private TransactionTemplate tx;
@@ -167,7 +174,7 @@ class AnnualRatingIT {
   void lapHoSoNamTheoBonQuyVaCoLienThong() {
     TenantId t = TenantId.of(tenant);
     assertThat((Integer) tx.execute(x -> setup.onQuarterLocked(t, q4Period, BUCKET + 4, LOCKED)))
-        .isEqualTo(4);
+        .isEqualTo(5);
     assertThat((Integer) tx.execute(x -> setup.onQuarterLocked(t, q4Period, BUCKET + 4, LOCKED)))
         .isZero();
     assertThat(annual.annualProfileOf(t, YEAR, missing, "DANG")).isEmpty();
@@ -176,7 +183,7 @@ class AnnualRatingIT {
     AnnualRatingService service =
         new AnnualRatingService(annual, new JdbcScoreSnapshotReader(JdbcClient.create(ds)));
     List<AnnualRow> all = service.page(t, filter(false), 50).rows();
-    assertThat(all).hasSize(4);
+    assertThat(all).hasSize(5);
     AnnualRow w = row(all, weak);
     assertThat(w.quarterRatings()).containsExactly("HTTNV", "KHTNV", "HTNV", null);
     assertThat(w.hasKhtnvQuarter()).isTrue();
@@ -186,14 +193,18 @@ class AnnualRatingIT {
     assertThat(tw.consecutiveKhtnv()).isTrue();
     assertThat(tw.reassignFlag()).isTrue();
     assertThat(AnnualRatingService.linkageNote(tw)).contains("bố trí lại");
+    AnnualRow ap = row(all, apart);
+    assertThat(ap.hasKhtnvQuarter()).isTrue();
+    assertThat(ap.consecutiveKhtnv()).isFalse();
+    assertThat(ap.reassignFlag()).isFalse();
     assertThat(service.page(t, filter(true), 50).rows())
         .extracting(AnnualRow::personId)
-        .containsExactlyInAnyOrder(weak, twice, complaint);
+        .containsExactlyInAnyOrder(weak, twice, complaint, apart);
     var counts = service.page(t, filter(false), 50).counts();
-    assertThat(counts.profilesTotal()).isEqualTo(4);
-    assertThat(counts.blockedExcellent()).isEqualTo(3);
+    assertThat(counts.profilesTotal()).isEqualTo(5);
+    assertThat(counts.blockedExcellent()).isEqualTo(4);
     assertThat(counts.reassignProposed()).isEqualTo(1);
-    assertThat(counts.awaitingProspectGrouping()).isEqualTo(4);
+    assertThat(counts.awaitingProspectGrouping()).isEqualTo(5);
 
     UUID weakAnnual = annual.annualProfileOf(t, YEAR, weak, "DANG").orElseThrow();
     UUID complaintAnnual = annual.annualProfileOf(t, YEAR, complaint, "DANG").orElseThrow();
@@ -308,6 +319,81 @@ class AnnualRatingIT {
         annualPeriod, null, "DANG", linkageOnly, null, new Scope("true", List.of()), null);
   }
 
+  @Test
+  void canhBaoVaDeXuatBoTriLaiChiTaoMotViec() throws SQLException {
+    TenantId t = TenantId.of(tenant);
+    try (Connection c = admin();
+        Statement st = c.createStatement()) {
+      st.execute(
+          "UPDATE appraisal.appraisal_profile SET decider_id = '"
+              + decider
+              + "' WHERE person_id = '"
+              + twice
+              + "' AND period_bucket = "
+              + (BUCKET + 4));
+    }
+    AnnualNotices notices = mock(AnnualNotices.class);
+    PeriodApi periods = mock(PeriodApi.class);
+    when(periods.findById(t, PeriodId.of(q4Period)))
+        .thenReturn(Optional.of(period(q4Period, "2029-10-01", "2029-12-31")));
+    when(periods.findCovering(t, "NAM", LocalDate.parse("2029-12-31")))
+        .thenReturn(Optional.of(period(annualPeriod, "2029-01-01", "2029-12-31")));
+    UUID taskPeriod = UUID.randomUUID();
+    when(periods.findCovering(eq(t), eq("QUY"), any()))
+        .thenReturn(Optional.of(period(taskPeriod, "2030-01-01", "2030-03-31")));
+    AnnualSetupService flagged = new AnnualSetupService(annual, periods, null, null, notices);
+    tx.execute(x -> flagged.onQuarterLocked(t, q4Period, BUCKET + 4, LOCKED));
+    UUID twiceAnnual = annual.annualProfileOf(t, YEAR, twice, "DANG").orElseThrow();
+    verify(notices).reassignFlagged(t, twiceAnnual, List.of(decider));
+    verify(notices, times(1)).reassignFlagged(any(), any(), any());
+
+    TaskApi tasks = mock(TaskApi.class);
+    UUID task = UUID.randomUUID();
+    when(tasks.openDirectedTask(eq(t), any())).thenReturn(task);
+    AnnualReassignmentService proposals =
+        new AnnualReassignmentService(
+            annual,
+            tasks,
+            periods,
+            null,
+            java.time.Clock.fixed(Instant.parse("2030-01-15T03:00:00Z"), java.time.ZoneOffset.UTC),
+            java.time.ZoneId.of("Asia/Ho_Chi_Minh"),
+            30);
+    AnnualReassignmentService.Caller caller =
+        new AnnualReassignmentService.Caller(UUID.randomUUID(), java.util.Set.of("appraiser"));
+    AnnualRatingService service =
+        new AnnualRatingService(annual, new JdbcScoreSnapshotReader(JdbcClient.create(ds)));
+    AnnualRow tw = row(service.page(t, filter(false), 50).rows(), twice);
+    assertThatThrownBy(
+            () ->
+                tx.execute(
+                    x -> proposals.propose(t, tw.id(), tw.rowVersion() + 1, caller, r -> {})))
+        .hasMessageContaining(AnnualReassignmentService.VERSION_CONFLICT);
+    AnnualReassignmentService.Proposal p =
+        tx.execute(x -> proposals.propose(t, tw.id(), tw.rowVersion(), caller, r -> {}));
+    assertThat(p.taskId()).isEqualTo(task);
+    assertThat(p.rowVersion()).isEqualTo(tw.rowVersion() + 1);
+    assertThatThrownBy(
+            () -> tx.execute(x -> proposals.propose(t, tw.id(), p.rowVersion(), caller, r -> {})))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errorCode().code()).isEqualTo(AnnualReassignmentService.EXISTS));
+    var captor = org.mockito.ArgumentCaptor.forClass(TaskApi.DirectedTask.class);
+    verify(tasks, times(1)).openDirectedTask(eq(t), captor.capture());
+    assertThat(captor.getValue().periodId()).isEqualTo(taskPeriod);
+    assertThat(captor.getValue().dueDate()).isEqualTo(LocalDate.parse("2030-02-14"));
+    assertThat(captor.getValue().acceptorId()).isEqualTo(decider);
+    AnnualRow after = row(service.page(t, filter(false), 50).rows(), twice);
+    assertThat(after.relocationProposed()).isTrue();
+
+    AnnualRow w = row(service.page(t, filter(false), 50).rows(), weak);
+    assertThatThrownBy(
+            () -> tx.execute(x -> proposals.propose(t, w.id(), w.rowVersion(), caller, r -> {})))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.errorCode().code()).isEqualTo(AnnualReassignmentService.NO_FLAG));
+  }
+
   private static AnnualRow row(List<AnnualRow> rows, UUID person) {
     return rows.stream().filter(r -> r.personId().equals(person)).findFirst().orElseThrow();
   }
@@ -321,6 +407,9 @@ class AnnualRatingIT {
       quarters(st, missing, "HTTNV", null, "HTTNV");
       quarters(st, special, "HTTNV", null, "HTTNV");
       quarters(st, complaint, "HTTNV", "KHTNV", "HTTNV");
+      // KHTNV ở quý I và III không liền nhau: có quý KHTNV nhưng không gắn cờ bố trí lại
+      // (BR-10-04).
+      quarters(st, apart, "KHTNV", "HTNV", "KHTNV");
       st.execute(
           "UPDATE appraisal.appraisal_profile SET status = 'KHIEU_NAI' WHERE tenant_id = '"
               + tenant

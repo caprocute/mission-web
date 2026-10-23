@@ -1482,6 +1482,16 @@ Hồ sơ `twd/ban-to-chuc-ueb` gồm gói `data/policy-pack/twd/diem-cong-viec`,
 - **Người được giao (câu hỏi mở).** Phạm vi `Gn` của OPA cần `designated_ids` (người nghiệm thu, người xử lý khiếu nại, người đề nghị mở lại), nhưng SVC-07 không giữ dữ liệu giao việc. Cổng `Designations` hiện trả rỗng, nên chỉ tài khoản dịch vụ qua được OPA; cần MOD-03, MOD-04, MOD-07 cung cấp nguồn (API tra hoặc mang theo khi gọi) trước khi màn hình SCR-0703, SCR-1202 gọi thẳng.
 - **Mô phỏng mở lại cho MOD-07.** `ScoreSimulationService.simulateReopen` tính thử nhiều hồ sơ, mỗi hồ sơ theo phiên bản gói gốc, trả số hồ sơ đổi điểm và đổi mức. Hợp đồng chưa có thao tác nội bộ dạng lô của SVC-07, nên `simulateReopenRequest` (CORE-07) hiện gọi `simulateAppraisalScore` từng hồ sơ; thao tác lô cần bổ sung hợp đồng (câu hỏi mở).
 
+### Ghi chú và quyết định từ đề xuất bố trí lại công việc (CORE-04-11, 23/10/2026)
+
+- `POST /api/v1/appraisals/annual-ratings/{id}/reassignment-proposal` khoá dòng `annual_rating` (`FOR UPDATE`), kiểm quyền OPA `SCR-1001.bo-tri-lai` trên dòng đã khoá, rồi mới so phiên bản, cờ `reassign_flag` và `relocation_proposed`; hai lần gọi đồng thời chỉ tạo một việc. Lần gọi thứ hai trả 409 `APPRAISAL-409-REASSIGN-EXISTS` theo hợp đồng (task ghi "trả về việc đã có"; hợp đồng thắng theo YC-PT-09).
+- `rowVersion` của dòng xếp loại năm (ETag, `If-Match`) nay là `annual_rating.row_version`, không còn là `row_version` của hồ sơ năm, cho khớp hợp đồng "rowVersion của dòng xếp loại năm".
+- Việc được tạo qua `TaskApi.openDirectedTask` (MOD-02 tự phát EVT-04): loại `DOT_XUAT` có căn cứ QĐ 366 khoản 15.6 (BR-05-09), một văn bản đề xuất, hạn 30 ngày (`mission.appraisal.reassign-due-days`). Kỳ của việc là kỳ quý chứa hạn; chưa có thì kỳ quý hiện hành và hạn rút về cuối kỳ (suy luận). Không có kỳ mở thì 409 `TASK-409-PERIOD-LOCKED`.
+- Người chủ trì là người gọi (cơ quan tổ chức cán bộ); người nghiệm thu là người quyết định, trùng người gọi thì người thẩm định (BR-05-02), lấy ở hồ sơ năm, chưa có thì ở hồ sơ quý IV. Việc giao dưới vai trò `manager` vì lệnh ASSIGN của `task_lifecycle.yaml` chỉ cho vai trò này; quyền thật đã kiểm ở OPA trước đó (suy luận).
+- Ghi chú C2 trong thân yêu cầu không được lưu vì các cột của việc là C1; chỉ kiểm độ dài 1.000 ký tự.
+- mission-core chưa có schema sổ cái, nên vết thao tác ghi qua `AuditLogger` (`ADMIN_ACTION`, `createAnnualReassignmentProposal`) kèm mã việc.
+- Khi lập dòng năm có cờ, EVT-21 (MSG-10-02) gửi người thẩm định và người quyết định của hồ sơ quý IV, mẫu `DE_XUAT_BO_TRI_LAI` (tên mẫu là suy luận), liên kết `/appraisal/xep-loai-nam?ho-so=`.
+
 ## Liên quan
 
 - [README của wiki](README.md)

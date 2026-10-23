@@ -90,7 +90,7 @@ public class JdbcAnnualRatingRepository implements AnnualRatingRepository {
       SELECT ar.id, ar.profile_id, ar.person_id, pv.full_name, p.org_unit_id, u.name, ar.flow,
              p.status, ar.annual_score, sp.rating_code, ar.system_level, ar.rating_code,
              ar.has_khtnv_quarter, ar.consecutive_khtnv, ar.block_reason, ar.reassign_flag,
-             ar.relocation_proposed, p.row_version, ar.period_id, ar.period_bucket / 10,
+             ar.relocation_proposed, ar.row_version, ar.period_id, ar.period_bucket / 10,
              p.appraiser_id, p.decider_id,
              ARRAY(SELECT coalesce(q.final_rating_code, '') FROM generate_series(1, 4) g(n)
                      LEFT JOIN appraisal.appraisal_profile q
@@ -163,6 +163,94 @@ public class JdbcAnnualRatingRepository implements AnnualRatingRepository {
       created += (int) (long) (Long) r[1];
     }
     return created;
+  }
+
+  /**
+   * Khoá dòng năm để lập đề xuất; người thẩm định, người quyết định lấy ở hồ sơ năm, chưa có thì ở
+   * hồ sơ quý IV cùng người, cùng luồng.
+   */
+  private static final String LOCK_SQL =
+      """
+      SELECT ar.id, ar.period_bucket, ar.period_id, ar.profile_id, ar.person_id, p.org_unit_id,
+             ar.flow, ar.reassign_flag, ar.relocation_proposed, ar.row_version,
+             COALESCE(p.appraiser_id, q.appraiser_id), COALESCE(p.decider_id, q.decider_id)
+        FROM appraisal.annual_rating ar
+        JOIN appraisal.appraisal_profile p
+          ON p.period_bucket = ar.period_bucket AND p.tenant_id = ar.tenant_id
+         AND p.id = ar.profile_id
+        LEFT JOIN appraisal.appraisal_profile q
+          ON q.period_bucket = ar.period_bucket + 4 AND q.tenant_id = ar.tenant_id
+         AND q.person_id = ar.person_id AND q.flow = ar.flow
+       WHERE ar.tenant_id = ? AND ar.id = ?
+         FOR UPDATE OF ar
+      """;
+
+  /**
+   * Dòng có cờ vừa lập trong giao dịch: {@code created_at} mặc định {@code now()} là thời điểm bắt
+   * đầu giao dịch nên trùng {@code now()} của câu đọc. Người nhận là người thẩm định, người quyết
+   * định của hồ sơ quý IV cùng người, cùng luồng.
+   */
+  private static final String FLAGGED_SQL =
+      """
+      SELECT ar.profile_id, ar.person_id, q.appraiser_id, q.decider_id
+        FROM appraisal.annual_rating ar
+        LEFT JOIN appraisal.appraisal_profile q
+          ON q.period_bucket = ar.period_bucket + 4 AND q.tenant_id = ar.tenant_id
+         AND q.person_id = ar.person_id AND q.flow = ar.flow
+       WHERE ar.period_bucket = ? AND ar.tenant_id = ? AND ar.flow = ?
+         AND ar.reassign_flag AND ar.created_at = now()
+       ORDER BY ar.person_id
+      """;
+
+  @Override
+  public Optional<ProposalTarget> lockForProposal(TenantId tenant, UUID id) {
+    return jdbc.sql(LOCK_SQL)
+        .params(tenant.value(), id)
+        .query(
+            (rs, i) ->
+                new ProposalTarget(
+                    rs.getObject(1, UUID.class),
+                    rs.getInt(2),
+                    rs.getObject(3, UUID.class),
+                    rs.getObject(4, UUID.class),
+                    rs.getObject(5, UUID.class),
+                    rs.getObject(6, UUID.class),
+                    rs.getString(7),
+                    rs.getBoolean(8),
+                    rs.getBoolean(9),
+                    rs.getLong(10),
+                    rs.getObject(11, UUID.class),
+                    rs.getObject(12, UUID.class)))
+        .optional();
+  }
+
+  @Override
+  public long markRelocationProposed(TenantId tenant, int periodBucket, UUID id, UUID actor) {
+    return jdbc.sql(
+            "UPDATE appraisal.annual_rating SET relocation_proposed = true,"
+                + " row_version = row_version + 1, updated_at = now(), updated_by = ?"
+                + " WHERE period_bucket = ? AND tenant_id = ? AND id = ? RETURNING row_version")
+        .params(actor, periodBucket, tenant.value(), id)
+        .query(Long.class)
+        .single();
+  }
+
+  @Override
+  public List<Flagged> flaggedInThisTransaction(TenantId tenant, int year, String flow) {
+    return jdbc.sql(FLAGGED_SQL)
+        .params(year * 10, tenant.value(), flow)
+        .query(
+            (rs, i) -> {
+              List<UUID> to = new ArrayList<>();
+              for (int c = 3; c <= 4; c++) {
+                UUID who = rs.getObject(c, UUID.class);
+                if (who != null && !to.contains(who)) {
+                  to.add(who);
+                }
+              }
+              return new Flagged(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), to);
+            })
+        .list();
   }
 
   @Override

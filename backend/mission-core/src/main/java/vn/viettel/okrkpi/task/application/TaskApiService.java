@@ -1,21 +1,29 @@
 package vn.viettel.okrkpi.task.application;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.shared.kernel.PeriodId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.task.api.TaskApi;
 import vn.viettel.okrkpi.task.api.TaskSummary;
+import vn.viettel.okrkpi.task.application.assign.TaskAssignService;
+import vn.viettel.okrkpi.task.application.assign.TaskDraftService;
+import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.DraftRow;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.AssigneeKind;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.TaskRow;
+import vn.viettel.okrkpi.task.domain.assign.TaskDraftSpec;
 import vn.viettel.okrkpi.task.domain.lifecycle.TaskActor;
 import vn.viettel.okrkpi.task.domain.lifecycle.TaskCommand;
 
@@ -29,12 +37,77 @@ public class TaskApiService implements TaskApi {
 
   private static final String TX = "taskTransactionManager";
 
+  /** Lựa chọn "vẫn tạo mới" khi có việc gần giống, ghi kèm việc do mô-đun khác lập (BR-05-06). */
+  static final String DIRECTED_REASON =
+      "Việc phát sinh theo quy định, lập từ đề xuất của mô-đun khác";
+
+  static final String ASSIGNER_ROLE = "manager";
+
   private final TaskLifecycleRepository tasks;
   private final TaskTransitionService transitions;
+  private final Supplier<TaskDraftService> drafts;
+  private final Supplier<TaskAssignService> assigns;
 
   public TaskApiService(TaskLifecycleRepository tasks, TaskTransitionService transitions) {
+    this(tasks, transitions, () -> null, () -> null);
+  }
+
+  /** Như trên, kèm soạn và giao để lập việc từ mô-đun khác (CORE-04-11); nạp lười. */
+  public TaskApiService(
+      TaskLifecycleRepository tasks,
+      TaskTransitionService transitions,
+      Supplier<TaskDraftService> drafts,
+      Supplier<TaskAssignService> assigns) {
     this.tasks = Objects.requireNonNull(tasks, "tasks");
     this.transitions = Objects.requireNonNull(transitions, "transitions");
+    this.drafts = Objects.requireNonNull(drafts, "drafts");
+    this.assigns = Objects.requireNonNull(assigns, "assigns");
+  }
+
+  /**
+   * Soạn nhiệm vụ đột xuất rồi giao trong cùng giao dịch {@code taskTransactionManager}: quy tắc
+   * giao chặn thì không còn bản nháp sót lại. Nhóm thường xuyên, ưu tiên cao, một sản phẩm văn bản
+   * (suy luận).
+   */
+  @Override
+  @Transactional(TX)
+  public UUID openDirectedTask(TenantId tenant, DirectedTask task) {
+    TaskDraftService draftService = drafts.get();
+    TaskAssignService assignService = assigns.get();
+    if (draftService == null || assignService == null) {
+      return TaskApi.super.openDirectedTask(tenant, task);
+    }
+    // Lệnh ASSIGN của bảng chuyển chỉ cho vai trò người giao việc; mô-đun nguồn đã kiểm quyền người
+    // gọi trên chính đề xuất (OPA), nên việc theo quy định được giao dưới vai trò này (suy luận).
+    Set<String> roles = new HashSet<>(task.actorRoles());
+    roles.add(ASSIGNER_ROLE);
+    TaskActor actor = new TaskActor(task.actorId(), roles);
+    TaskDraftSpec spec =
+        new TaskDraftSpec(
+            task.periodId(),
+            "DOT_XUAT",
+            null,
+            null,
+            task.title(),
+            "THUONG_XUYEN",
+            null,
+            "CAO",
+            task.leadPersonId(),
+            List.of(),
+            task.dueDate(),
+            task.acceptorId(),
+            List.of(),
+            task.productName(),
+            BigDecimal.ONE,
+            "Văn bản",
+            task.evidenceRequired(),
+            task.qualityCriteria(),
+            null,
+            null,
+            task.basis());
+    DraftRow draft = draftService.createDraft(tenant, spec, actor);
+    assignService.assignTask(tenant, draft.id(), draft.rowVersion(), DIRECTED_REASON, null, actor);
+    return draft.id();
   }
 
   @Override

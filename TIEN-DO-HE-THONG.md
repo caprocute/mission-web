@@ -13,9 +13,9 @@
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
 - **Tổng tiến độ đã gộp `main`**: **277 / 408 task (67.9%)** — Khối lượng quy đổi đã gộp: **317 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **284 / 408 task (69.6%)** (gồm **277** đã gộp `main` + **7** đã xong trên nhánh chờ gộp).
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **285 / 408 task (69.9%)** (gồm **277** đã gộp `main` + **8** đã xong trên nhánh chờ gộp).
 - **Đang thực hiện / Làm một phần**: **5 task** (1 đang làm, 4 làm một phần).
-- **Chưa bắt đầu**: **119 task**.
+- **Chưa bắt đầu**: **118 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **18 / 23 task**; nút găng kế tiếp cần mở khoá: **`CORE-04-10`** (đang xử lý trên nhánh: `CORE-04-10`).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -24,7 +24,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **WEB** | Phân hệ giao diện Web (`SVC-17`: `WEB-001..065`, `WEB-070..076`) | 72 | 82.5 | **67** | 0 | 2 | 3 | **93.1%** |
 | **NEN** | Nền móng hệ thống, thư viện nền và CSDL (`NEN-001..043`) | 34 | 36.5 | **34** | 0 | 0 | 0 | **100.0%** |
-| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **85** | 2 | 2 | 28 | **72.6%** |
+| **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **85** | 3 | 2 | 27 | **72.6%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **59** | 5 | 1 | 39 | **56.7%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **11** | 0 | 0 | 2 | **84.6%** |
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 0 | 12 | **57.1%** |
@@ -32,7 +32,7 @@
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
 | **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **277** | **7** | **5** | **119** | **67.9%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **277** | **8** | **5** | **118** | **67.9%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -42,7 +42,7 @@
 | **M1 – Định danh và tổ chức (Đợt 1)** | 40 | **33** | 0 | 0 | 7 | **82.5%** |
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **44** | 0 | 0 | 3 | **93.6%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **72** | 5 | 2 | 41 | **60.0%** |
-| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **50** | 2 | 1 | 19 | **69.4%** |
+| **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **50** | 3 | 1 | 18 | **69.4%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **16** | 0 | 1 | 25 | **38.1%** |
 | **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **3** | 0 | 0 | 20 | **13.0%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **0** | 0 | 0 | 4 | **0.0%** |
@@ -297,7 +297,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-03-07](docs/tasks/CORE-03-07-nghiem-thu-nam-muc.md) | Nghiệm thu năm mức: AAL2, tách vai trò, nhận xét C2, EVT-08 | L | B3 | 19 | CORE-03-06, NEN-014, NEN-015 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [CORE-03-08](docs/tasks/CORE-03-08-nhac-qua-han-nghiem-thu.md) | Nhắc quá hạn nghiệm thu và nghiệm thu thay theo uỷ quyền | S | B3 | 20 | CORE-03-07, CORE-08-04, CORE-08-16 | **Đã gộp main** | Đã gộp main (f74d95f1) |
 
-### CORE-04 · MOD-04 appraisal: đánh giá, xếp loại (8/13 đã gộp `main`, 2 chờ gộp, 0 đang làm)
+### CORE-04 · MOD-04 appraisal: đánh giá, xếp loại (8/13 đã gộp `main`, 3 chờ gộp, 0 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -311,7 +311,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [CORE-04-08](docs/tasks/CORE-04-08-ky-so-khoa-ho-so.md) | Consumer EVT-18 chuyển `DA_KY_SO`, phát EVT-12; timer hạn khiếu nại chuyển `DA_KHOA` | M | B4 | 19 | CORE-04-07, CORE-08-04 | **Đã gộp main** | Đã gộp main (74591707) |
 | [CORE-04-09](docs/tasks/CORE-04-09-vet-tinh-diem.md) | Tra cứu vết tính điểm, điểm theo luồng, xuất XLSX | S | B4 | 16 | CORE-04-02, DV-07-03 | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v: getAppraisalScores theo luồng, ETag snapshot_hash, cột Tổng điểm khi xuất; verify mission-core xanh trừ ConfigTenantIsolationIT (config.period_reopen, có sẵn trên main) |
 | [CORE-04-10](docs/tasks/CORE-04-10-xep-loai-nam.md) | Xếp loại năm: lập từ bốn quý, xử lý thiếu quý, chặn khi còn khiếu nại, tính lại | L | B4 | 20 | CORE-04-08, DV-07-07 | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v: hồ sơ năm khi khoá quý IV, cờ liên thông, danh sách/giải thích năm, chặn khiếu nại quý (409), tính lại năm về bước quyết định; verify xanh (1167 unit, 277 IT) |
-| [CORE-04-11](docs/tasks/CORE-04-11-co-bo-tri-lai.md) | Cờ "không hoàn thành hai năm liền" và đề xuất bố trí lại sang MOD-02 | S | B4 | 21 | CORE-04-10 | **Chưa bắt đầu** |  |
+| [CORE-04-11](docs/tasks/CORE-04-11-co-bo-tri-lai.md) | Cờ "không hoàn thành hai năm liền" và đề xuất bố trí lại sang MOD-02 | S | B4 | 21 | CORE-04-10 | **Xong, chờ gộp** | Nhánh claude/project-thread-uusb7v: đề xuất bố trí lại công việc, cảnh báo EVT-21; verify mission-core xanh (1173 test), AnnualRatingIT xanh; p95 chưa đo (YC-PT-19) |
 | [CORE-04-12](docs/tasks/CORE-04-12-phan-nhom-trien-vong.md) | Phân nhóm triển vọng: lưu nháp, BR-10-07..09, trình tập thể, ký danh sách | M | B4 | 21 | CORE-04-10 | **Chưa bắt đầu** |  |
 | [CORE-04-13](docs/tasks/CORE-04-13-dau-vao-diem-cong-viec-su-viec.md) | Đầu vào `workItems` và `responsibilityScope` trong `inputs`, bảng `appraisal.incident`, bắt buộc lý do khi mức của `rating_proposal` khác mức gợi ý | L | B4 | 18 | NEN-044, CORE-04-06, CORE-02-27, CORE-02-28, CORE-01-14 | **Chưa bắt đầu** | Bổ sung theo BS-03 (22/10/2026), hồ sơ tập khách hàng |
 
@@ -978,4 +978,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 00:38 | B4 | `DV-07-08` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-uusb7v: đang thực hiện |
 | 23/10/2026 00:38 | B4 | `CORE-04-11` | Chuyển trạng thái sang **Chưa bắt đầu** |
 | 23/10/2026 00:55 | B4 | `DV-07-08` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: tính thử, xem trước điểm theo phiên bản gói gốc, không ghi; scoring-service verify xanh (173 unit, 16 IT); p95 chưa đo (YC-PT-19) |
+| 23/10/2026 00:55 | B4 | `CORE-04-11` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-uusb7v: đề xuất bố trí lại (BR-10-04) |
+| 23/10/2026 01:20 | B4 | `CORE-04-11` | Chuyển trạng thái sang **Xong, chờ gộp** — Nhánh claude/project-thread-uusb7v: đề xuất bố trí lại công việc, cảnh báo EVT-21; verify mission-core xanh (1173 test), AnnualRatingIT xanh; p95 chưa đo (YC-PT-19) |
 <!-- PROGRESS_LOG_END -->

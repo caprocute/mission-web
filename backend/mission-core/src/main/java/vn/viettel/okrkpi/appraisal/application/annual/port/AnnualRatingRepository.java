@@ -61,6 +61,43 @@ public interface AnnualRatingRepository {
   /** Một dòng năm theo mã {@code annual_rating.id}. */
   Optional<AnnualRow> find(TenantId tenant, UUID id);
 
+  /**
+   * Dòng năm khoá để lập đề xuất bố trí lại ({@code SELECT ... FOR UPDATE} trong giao dịch của bên
+   * gọi, CORE-04-11), kèm người tham gia hồ sơ năm để kiểm quyền.
+   */
+  Optional<ProposalTarget> lockForProposal(TenantId tenant, UUID id);
+
+  /**
+   * Đặt {@code relocation_proposed = true} và tăng {@code row_version}.
+   *
+   * @return {@code row_version} mới
+   */
+  long markRelocationProposed(TenantId tenant, int periodBucket, UUID id, UUID actor);
+
+  /**
+   * Dòng năm có cờ bố trí lại vừa lập trong giao dịch hiện hành ({@code created_at = now()}) của
+   * năm và luồng, kèm người có thẩm quyền của hồ sơ quý IV cùng người (MSG-10-02).
+   */
+  List<Flagged> flaggedInThisTransaction(TenantId tenant, int year, String flow);
+
+  /** Dòng năm có cờ hai quý liên tiếp KHTNV và người nhận cảnh báo. */
+  record Flagged(UUID annualProfileId, UUID personId, List<UUID> recipients) {}
+
+  /** Dòng năm đã khoá cho đề xuất bố trí lại. */
+  record ProposalTarget(
+      UUID id,
+      int periodBucket,
+      UUID periodId,
+      UUID profileId,
+      UUID personId,
+      UUID orgUnitId,
+      String flow,
+      boolean reassignFlag,
+      boolean relocationProposed,
+      long rowVersion,
+      UUID appraiserId,
+      UUID deciderId) {}
+
   record UnitGroup(UUID orgUnitId, UUID subjectGroupId) {}
 
   /** Một quý: hồ sơ, mức quyết định, ảnh chụp hiện hành (có thể thiếu). */

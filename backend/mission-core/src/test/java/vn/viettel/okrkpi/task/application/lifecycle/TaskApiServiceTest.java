@@ -21,6 +21,11 @@ import vn.viettel.okrkpi.task.api.TaskApi.Outcome;
 import vn.viettel.okrkpi.task.api.TaskApi.TransitionRequest;
 import vn.viettel.okrkpi.task.api.events.TrangThaiNhiemVuDoi;
 import vn.viettel.okrkpi.task.application.TaskApiService;
+import vn.viettel.okrkpi.task.application.assign.TaskAssignService;
+import vn.viettel.okrkpi.task.application.assign.TaskDraftService;
+import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.DraftRow;
+import vn.viettel.okrkpi.task.domain.assign.TaskDraftSpec;
+import vn.viettel.okrkpi.task.domain.lifecycle.TaskActor;
 import vn.viettel.okrkpi.task.domain.lifecycle.TaskStatus;
 import vn.viettel.okrkpi.task.domain.lifecycle.TransitionTables;
 
@@ -215,5 +220,49 @@ class TaskApiServiceTest {
     assertThat(out.outcome()).isEqualTo(Outcome.APPLIED);
     assertThat(out.task().status()).isEqualTo("DANG_THUC_HIEN");
     assertThat(api.listForUnit(TENANT, PeriodId.of(period), UUID.randomUUID(), null, 0)).hasSize(1);
+  }
+
+  @Test
+  void lapViecTheoQuyDinhSoanRoiGiaoDuoiVaiTroNguoiGiao() {
+    assertThatThrownBy(() -> api.openDirectedTask(TENANT, directed()))
+        .isInstanceOf(UnsupportedOperationException.class);
+    TaskDraftService drafts = org.mockito.Mockito.mock(TaskDraftService.class);
+    TaskAssignService assigns = org.mockito.Mockito.mock(TaskAssignService.class);
+    UUID id = UUID.randomUUID();
+    var spec = org.mockito.ArgumentCaptor.forClass(TaskDraftSpec.class);
+    var actor = org.mockito.ArgumentCaptor.forClass(TaskActor.class);
+    org.mockito.Mockito.when(
+            drafts.createDraft(
+                org.mockito.ArgumentMatchers.eq(TENANT), spec.capture(), actor.capture()))
+        .thenReturn(new DraftRow(id, "NV-1", "NHAP", period, 1, null, null, false, null, 2));
+    TaskApi full = new TaskApiService(repo, transitions, () -> drafts, () -> assigns);
+
+    assertThat(full.openDirectedTask(TENANT, directed())).isEqualTo(id);
+    assertThat(spec.getValue().source()).isEqualTo("DOT_XUAT");
+    assertThat(spec.getValue().basis()).isEqualTo("Căn cứ");
+    assertThat(actor.getValue().roles()).contains("manager", "appraiser");
+    org.mockito.Mockito.verify(assigns)
+        .assignTask(
+            org.mockito.ArgumentMatchers.eq(TENANT),
+            org.mockito.ArgumentMatchers.eq(id),
+            org.mockito.ArgumentMatchers.eq(2L),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.isNull(),
+            org.mockito.ArgumentMatchers.eq(actor.getValue()));
+  }
+
+  private TaskApi.DirectedTask directed() {
+    return new TaskApi.DirectedTask(
+        period,
+        "Việc",
+        "Căn cứ",
+        "Văn bản",
+        "Tiêu chí",
+        "Bằng chứng",
+        java.time.LocalDate.parse("2027-04-10"),
+        UUID.randomUUID(),
+        UUID.randomUUID(),
+        UUID.randomUUID(),
+        Set.of("appraiser"));
   }
 }
