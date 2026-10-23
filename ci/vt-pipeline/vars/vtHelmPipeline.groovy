@@ -26,11 +26,16 @@ def call(Map thamSo = [:]) {
     environment {
       DOCKER_CONFIG = "${env.WORKSPACE}@tmp/vt-docker"
       HELM_REGISTRY_CONFIG = "${env.WORKSPACE}@tmp/vt-docker/config.json"
+      // Kyverno CLI và promtool của các bộ kiểm thử chart (INF-28), cài ở stage "Phụ thuộc chart".
+      VT_CONG_CU = "${env.WORKSPACE}@tmp/vt-cong-cu"
     }
     stages {
       stage('Phụ thuộc chart') {
         // Dựng charts/ của mọi chart trước khi quét: thiếu phụ thuộc thì trivy không render được chart con và bỏ qua
-        steps { sh "bash ${vtBuoc.q(cfg.dependencyCmd)}" }
+        steps {
+          sh "bash ${vtBuoc.q(cfg.dependencyCmd)}"
+          sh "bash ${vtBuoc.q(vtBuoc.napTaiNguyen('cai-cong-cu-chart.sh'))} \"\$VT_CONG_CU\""
+        }
       }
       stage('Bí mật và cấu hình sai') {
         parallel {
@@ -40,13 +45,25 @@ def call(Map thamSo = [:]) {
       }
       stage('Chính sách Kyverno') {
         steps {
-          sh "kyverno test ${vtBuoc.q(cfg.policiesDir + '/tests')}"
+          sh "PATH=\"\$VT_CONG_CU:\$PATH\" kyverno test ${vtBuoc.q(cfg.policiesDir + '/tests')}"
           sh "python3 ${vtBuoc.q(cfg.policiesDir + '/kiem-ngoai-le.py')}"
         }
       }
       stage('Ba mô hình phân phối') {
         // helm lint, helm template saas/private/airgap, kubeconform -strict, kube-linter, Kyverno, đối chiếu TL-04
-        steps { sh "BANG_RA=bang-doi-chieu-tl04.md bash ${vtBuoc.q(cfg.platformChart + '/ci/kiem-ba-mo-hinh.sh')}" }
+        steps { sh "PATH=\"\$VT_CONG_CU:\$PATH\" BANG_RA=bang-doi-chieu-tl04.md bash ${vtBuoc.q(cfg.platformChart + '/ci/kiem-ba-mo-hinh.sh')}" }
+      }
+      stage('Kiểm thử chart') {
+        // INF-28: bộ kiểm thử tĩnh từng chart (cfg.chartTests); mọi bộ đều chạy, một bộ đỏ thì stage đỏ.
+        steps {
+          script {
+            List<String> hong = []
+            for (String t : cfg.chartTests) {
+              if (sh(script: "PATH=\"\$VT_CONG_CU:\$PATH\" bash ${vtBuoc.q(t)}", returnStatus: true) != 0) { hong << t }
+            }
+            if (hong) { error("Kiểm thử chart hỏng: ${hong.join(', ')}") }
+          }
+        }
       }
       stage('Ngân sách kết nối') {
         steps {

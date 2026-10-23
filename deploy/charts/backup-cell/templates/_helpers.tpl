@@ -202,3 +202,9 @@ spec:
     {{- end }}
     {{- end }}
 {{- end -}}
+{{/* INF-28: thư mục serverName của cụm trong kho (tên cụm, thêm -<ttdl> ở TTDL không khởi tạo replica cluster). */}}
+{{- define "bk.hauToServer" -}}
+{{- $r := .Values.pg.replica | default dict -}}
+{{- $site := toString (dig "site" "" (.Values.global | default dict)) -}}
+{{- if and $r.enabled $site (ne $site (toString $r.initdbSite)) }}-{{ $site }}{{ end -}}
+{{- end -}}

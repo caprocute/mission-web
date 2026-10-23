@@ -5,7 +5,7 @@
 # dai-han/<thang|nam>/<cụm>/… trong cùng bucket, rồi kéo dài hạn giữ COMPLIANCE từng đối tượng mới. Bản cuối năm
 # của cụm trong CUM_NAM vào dai-han/nam/. Vòng đời bucket dọn dai-han/thang/ sau 367 ngày, dai-han/nam/ sau 3654
 # ngày; khoá của cell không xoá được gì (SEC-44).
-# Biến môi trường: CUMS ("<cụm>:<namespace> …"), CUM_NAM, GIU_THANG, GIU_NAM_NAM, BUCKET, S3_ENDPOINT, S3_REGION,
+# Biến môi trường: CUMS ("<cụm>:<namespace> …"), HAU_TO_SERVER (INF-28, "" hoặc -<ttdl>), CUM_NAM, GIU_THANG, GIU_NAM_NAM, BUCKET, S3_ENDPOINT, S3_REGION,
 # PUSHGATEWAY, CELL.
 set -euo pipefail
 CFG=${CFG:-/cfg}
@@ -43,7 +43,7 @@ for muc in $CUMS; do
   if [ -z "$id" ] || [ -z "$dau" ] || [ -z "$cuoi" ]; then
     echo "LỖI $ten: Backup thiếu backupId, beginWal hoặc endWal" >&2; loi=$((loi + 1)); continue
   fi
-  goc="$ten/$ten"
+  goc="$ten/$ten${HAU_TO_SERVER:-}"
   dich="dai-han/$loai/$ten"
   so=0
   while read -r k; do

@@ -39,6 +39,13 @@ class CauHinhLoai implements Serializable {
       trivyIgnoreFile: 'deploy/.trivyignore.yaml', dependencyCmd: 'deploy/charts/vt-platform/ci/cap-nhat-phu-thuoc.sh',
       capacityCheckCmd: '',            // INF-03: lệnh kiểm ngân sách kết nối; rỗng khi INF-03 chưa gộp (bước báo, không bỏ qua im lặng)
       chartRepo: 'oci://harbor.vt.local/platform/charts', chartPushFlags: '',
+      // INF-28: bộ kiểm thử tĩnh của chart (render, kubeconform, bất biến, promtool); công cụ Kyverno CLI và promtool
+      // do cai-cong-cu-chart.sh cài vào workspace nếu ảnh helm chưa có đúng phiên bản.
+      chartTests: ['deploy/charts/vt-service/tests/chay-kiem-thu.sh',
+                   'deploy/charts/vt-platform/ha-tang/kafka/tests/chay-kiem-thu.sh',
+                   'deploy/charts/standby-check/tests/chay-kiem-thu.sh',
+                   'deploy/charts/backup-cell/tests/chay-kiem-thu.sh',
+                   'deploy/argocd/tests/chay-kiem-thu.sh'],
     ],
     policyPack: [
       service: 'policy-pack', dir: 'data/policy-pack', packs: [],            // ['khoi-chinh-quyen/nd335', ...]; rỗng = mọi gói
