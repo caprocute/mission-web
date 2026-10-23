@@ -267,14 +267,14 @@ func (e *Engine) runChains(ctx context.Context, req Request, rep *Report, head b
 }
 
 type row struct {
-	id                         uuid.UUID
-	seq                        int64
-	eventType, aggType         string
-	aggID                      uuid.UUID
-	actorID                    *uuid.UUID
-	actorKind                  string
-	occurred, recorded         time.Time
-	payload, meta, prev, entry []byte
+	id                                   uuid.UUID
+	seq                                  int64
+	eventType, aggType                   string
+	aggID                                uuid.UUID
+	actorID                              *uuid.UUID
+	actorKind                            string
+	occurred, recorded                   time.Time
+	metadata, payload, meta, prev, entry []byte
 }
 
 func hx(b []byte) string { return hex.EncodeToString(b) }
@@ -295,7 +295,7 @@ func (e *Engine) verifyChain(ctx context.Context, t uuid.UUID, p int16, from, to
 			return err
 		}
 		q := `SELECT id, seq_no, event_type, aggregate_type, aggregate_id, actor_id, actor_kind, occurred_at, recorded_at,
-				payload_hash, metadata_hash, prev_hash, entry_hash
+				metadata, payload_hash, metadata_hash, prev_hash, entry_hash
 			FROM ledger.ledger_entry WHERE tenant_id = $1 AND chain_partition = $2`
 		args := []any{t, p}
 		if head {
@@ -327,7 +327,7 @@ func (e *Engine) verifyChain(ctx context.Context, t uuid.UUID, p int16, from, to
 		for rows.Next() {
 			var r row
 			if err := rows.Scan(&r.id, &r.seq, &r.eventType, &r.aggType, &r.aggID, &r.actorID, &r.actorKind, &r.occurred,
-				&r.recorded, &r.payload, &r.meta, &r.prev, &r.entry); err != nil {
+				&r.recorded, &r.metadata, &r.payload, &r.meta, &r.prev, &r.entry); err != nil {
 				return err
 			}
 			first := next < 0
@@ -389,18 +389,23 @@ func (e *Engine) verifyChain(ctx context.Context, t uuid.UUID, p int16, from, to
 	return count, bad, links, err
 }
 
-// check kiểm một bản ghi: seq_no, prev_hash, metadata_hash tính lại từ cột, entry_hash tính lại.
+// check kiểm một bản ghi: seq_no, prev_hash, metadata_hash tính lại từ cột (kể cả cột metadata), entry_hash tính lại.
 func check(t uuid.UUID, p int16, r row, next int64, expectedPrev []byte) (*Mismatch, Link) {
 	var actor *string
 	if r.actorID != nil {
 		s := r.actorID.String()
 		actor = &s
 	}
-	meta, _, err := canon.MetadataHash(canon.MetadataHeader{
-		TenantID: t.String(), ChainPartition: p, SeqNo: r.seq, EventType: r.eventType, AggregateType: r.aggType,
-		AggregateID: r.aggID.String(), ActorID: actor, ActorKind: r.actorKind,
-		OccurredAt: canon.FormatTimestamp(r.occurred), RecordedAt: canon.FormatTimestamp(r.recorded),
-	})
+	var meta [32]byte
+	digest, err := canon.MetadataDigestJSON(r.metadata)
+	if err == nil {
+		meta, _, err = canon.MetadataHash(canon.MetadataHeader{
+			TenantID: t.String(), ChainPartition: p, SeqNo: r.seq, EventType: r.eventType, AggregateType: r.aggType,
+			AggregateID: r.aggID.String(), ActorID: actor, ActorKind: r.actorKind,
+			OccurredAt: canon.FormatTimestamp(r.occurred), RecordedAt: canon.FormatTimestamp(r.recorded),
+			MetadataSHA256: digest,
+		})
+	}
 	recomputed := canon.EntryHash([32]byte(r.prev), [32]byte(r.payload), meta)
 	link := Link{SeqNo: r.seq, EntryID: r.id, PrevHash: hx(r.prev), StoredHash: hx(r.entry), RecomputedHash: hx(recomputed[:])}
 	seq, pp, id := r.seq, p, r.id

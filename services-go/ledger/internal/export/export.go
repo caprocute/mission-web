@@ -587,6 +587,9 @@ func loadRecords(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, p int16, iv i
 		r.OccurredAt, r.RecordedAt = canon.FormatTimestamp(occ), canon.FormatTimestamp(rec)
 		r.PayloadHash, r.MetadataHash = hex.EncodeToString(ph), hex.EncodeToString(mh)
 		r.PrevHash, r.EntryHash = hex.EncodeToString(prev), hex.EncodeToString(entryHash)
+		if r.MetadataSHA256, err = canon.MetadataDigestJSON(meta); err != nil {
+			return nil, fmt.Errorf("export: băm metadata bản ghi %d: %w", r.SeqNo, err)
+		}
 		r.InScope = scope[r.SeqNo]
 		if r.InScope && len(meta) > 0 {
 			_ = json.Unmarshal(meta, &r.Metadata)

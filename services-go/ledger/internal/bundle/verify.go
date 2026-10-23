@@ -157,6 +157,13 @@ func verifyChains(b *Bundle, r *Report) map[chainTip]string {
 					}
 				}
 				prev = rec.EntryHash
+				if rec.InScope {
+					d, err := canon.MetadataDigest(rec.Metadata)
+					if err != nil || d != rec.MetadataSHA256 {
+						report("%s: metadata của bản ghi không khớp băm metadata (siêu dữ liệu bản ghi đã bị sửa)", where)
+						continue
+					}
+				}
 				meta, err := metadataHash(b.Manifest.TenantID, c.ChainPartition, rec)
 				if err != nil {
 					report("%s: %v", where, err)
@@ -199,7 +206,7 @@ func metadataHash(tenant string, chain int16, rec Record) ([32]byte, error) {
 	h, _, err := canon.MetadataHash(canon.MetadataHeader{
 		TenantID: tenant, ChainPartition: chain, SeqNo: rec.SeqNo, EventType: rec.EventType,
 		AggregateType: rec.AggregateType, AggregateID: rec.AggregateID, ActorID: rec.ActorID, ActorKind: rec.ActorKind,
-		OccurredAt: rec.OccurredAt, RecordedAt: rec.RecordedAt,
+		OccurredAt: rec.OccurredAt, RecordedAt: rec.RecordedAt, MetadataSHA256: rec.MetadataSHA256,
 	})
 	return h, err
 }

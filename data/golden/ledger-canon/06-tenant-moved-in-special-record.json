@@ -2,6 +2,7 @@
   "id": "06-tenant-moved-in-special-record",
   "description": "Bản ghi quản trị đặc biệt TENANT_MOVED_IN nối tiếp entry_hash cuối của cell nguồn kèm mã niêm phong cuối",
   "input_payload_raw": "{\n  \"origin_cell\": \"CELL-SHARED-01\",\n  \"target_cell\": \"CELL-HN\",\n  \"last_seal_id\": \"0192b5ff-0000-7000-8000-000000000088\",\n  \"origin_last_entry_hash\": \"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\"\n}",
+  "input_metadata_raw": "{\"origin_cell\":\"cell-02\",\"origin_last_entry_hash\":\"ab00000000000000000000000000000000000000000000000000000000000000\"}",
   "metadata_header": {
     "tenant_id": "11111111-1111-4111-8111-111111111111",
     "chain_partition": 46,
@@ -12,13 +13,14 @@
     "actor_id": null,
     "actor_kind": "HE_THONG",
     "occurred_at": "2026-10-21T11:00:00.000000Z",
-    "recorded_at": "2026-10-21T11:00:00.005000Z"
+    "recorded_at": "2026-10-21T11:00:00.005000Z",
+    "metadata_sha256": "45dd2b20479213b23640a63173fba370594df087e5d018c6577249b3f1245e74"
   },
   "prev_hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
   "canonical_payload": "{\"last_seal_id\":\"0192b5ff-0000-7000-8000-000000000088\",\"origin_cell\":\"CELL-SHARED-01\",\"origin_last_entry_hash\":\"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\",\"target_cell\":\"CELL-HN\"}",
-  "canonical_metadata": "{\"actor_id\":null,\"actor_kind\":\"HE_THONG\",\"aggregate_id\":\"0192b600-0000-7000-8000-000000000006\",\"aggregate_type\":\"TenantCell\",\"chain_partition\":46,\"event_type\":\"TENANT_MOVED_IN\",\"occurred_at\":\"2026-10-21T11:00:00.000000Z\",\"recorded_at\":\"2026-10-21T11:00:00.005000Z\",\"seq_no\":101,\"tenant_id\":\"11111111-1111-4111-8111-111111111111\"}",
+  "canonical_metadata": "{\"actor_id\":null,\"actor_kind\":\"HE_THONG\",\"aggregate_id\":\"0192b600-0000-7000-8000-000000000006\",\"aggregate_type\":\"TenantCell\",\"chain_partition\":46,\"event_type\":\"TENANT_MOVED_IN\",\"metadata_sha256\":\"45dd2b20479213b23640a63173fba370594df087e5d018c6577249b3f1245e74\",\"occurred_at\":\"2026-10-21T11:00:00.000000Z\",\"recorded_at\":\"2026-10-21T11:00:00.005000Z\",\"seq_no\":101,\"tenant_id\":\"11111111-1111-4111-8111-111111111111\"}",
   "payload_hash": "a67835f4742a759a69e4f683520c54d82668ed73c11278b8618173714162e2cd",
-  "metadata_hash": "0d1efce5bd643c4414d9626a515089a873b619296c6866efe41b9f64f58e68d4",
-  "entry_hash": "f72004ec7ba17328d8dc22b648e226fcbfe726132ecb25aaabe3a70d680527d8",
+  "metadata_hash": "a686b56e8ea8128cd48374637b17ad5b0912298206a342fcc813da97876dee1a",
+  "entry_hash": "621f9930e363f5610ff706ab79843c84fbd2e530a675e106031b7506394c0c09",
   "chain_partition": 46
 }

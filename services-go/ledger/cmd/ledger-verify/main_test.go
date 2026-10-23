@@ -29,7 +29,7 @@ func TestSuaMotByteBiPhatHien(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	re := regexp.MustCompile(`\{"actorId":"[^"]+","actorKind":"[A-Z_]+","aggregateId":"[^"]+","aggregateType":"[A-Z_]+","entryHash":"[0-9a-f]{64}","eventId":"[^"]+","eventType":"[^"]+","id":"[^"]+","inScope":(true|false),(?:"metadata":\{[^}]*\},)?"metadataHash":"[0-9a-f]{64}","occurredAt":"[^"]+","payloadHash":"([0-9a-f])`)
+	re := regexp.MustCompile(`\{"actorId":"[^"]+","actorKind":"[A-Z_]+","aggregateId":"[^"]+","aggregateType":"[A-Z_]+","entryHash":"[0-9a-f]{64}","eventId":"[^"]+","eventType":"[^"]+","id":"[^"]+","inScope":(true|false),(?:"metadata":\{[^}]*\},)?"metadataHash":"[0-9a-f]{64}","metadataSha256":"[0-9a-f]{64}","occurredAt":"[^"]+","payloadHash":"([0-9a-f])`)
 	loc := re.FindSubmatchIndex(raw)
 	if loc == nil {
 		t.Fatal("không tìm thấy bản ghi trong gói mẫu")
@@ -52,6 +52,38 @@ func TestSuaMotByteBiPhatHien(t *testing.T) {
 	var out, errb bytes.Buffer
 	code := run([]string{"--bundle", p}, &out, &errb)
 	want := "Chuỗi " + string(chain[1]) + ", seq_no " + string(seq[1]) + ": entry_hash tính lại không khớp"
+	if code != 1 || !strings.Contains(out.String(), want) || !strings.Contains(out.String(), "Kết luận: KHÔNG HỢP LỆ") {
+		t.Fatalf("mã thoát %d, muốn 1 và %q\n%s%s", code, want, out.String(), errb.String())
+	}
+}
+
+// Sửa trạng thái sau trong metadata của một bản ghi trong phạm vi (cùng độ dài, gói vẫn đọc được): metadata_hash gồm
+// băm cột metadata nên công cụ chỉ đúng bản ghi và thoát mã 1. Kê khai cũng lệch băm entries.json; lỗi đó được báo riêng.
+func TestSuaMetadataBiPhatHien(t *testing.T) {
+	raw, err := os.ReadFile(golden("goi-mau.tar"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	from, to := []byte(`"metadata":{"after_status":"DA_HOAN_THANH"}`), []byte(`"metadata":{"after_status":"DA_HUY_BO_XYZ"}`)
+	i := bytes.Index(raw, from)
+	if i < 0 || len(from) != len(to) {
+		t.Fatal("không tìm thấy metadata trong gói mẫu")
+	}
+	seq := regexp.MustCompile(`"seqNo":(\d+)`).FindSubmatch(raw[i:])
+	chains := regexp.MustCompile(`"chainPartition":(\d+)`).FindAllSubmatch(raw[:i], -1)
+	if seq == nil || len(chains) == 0 {
+		t.Fatal("không xác định được bản ghi bị sửa")
+	}
+	bad := append([]byte(nil), raw...)
+	copy(bad[i:], to)
+	p := filepath.Join(t.TempDir(), "goi-sua-metadata.tar")
+	if err := os.WriteFile(p, bad, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	code := run([]string{"--bundle", p}, &out, &errb)
+	want := "Chuỗi " + string(chains[len(chains)-1][1]) + ", seq_no " + string(seq[1]) +
+		": metadata của bản ghi không khớp băm metadata"
 	if code != 1 || !strings.Contains(out.String(), want) || !strings.Contains(out.String(), "Kết luận: KHÔNG HỢP LỆ") {
 		t.Fatalf("mã thoát %d, muốn 1 và %q\n%s%s", code, want, out.String(), errb.String())
 	}

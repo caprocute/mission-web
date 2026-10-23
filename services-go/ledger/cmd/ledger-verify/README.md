@@ -50,7 +50,7 @@ Gói mẫu dùng cho kiểm thử nằm ở `data/golden/ledger-canon/ledger-ver
 
 Trước tiên, công cụ kiểm phần kê khai. Mỗi tệp trong gói phải có SHA-256 đúng như `manifest.json` ghi, và chữ ký `manifest.sig` phải hợp lệ với chứng thư của khoá ký. Sau đó công cụ chạy năm bước của TL-01:
 
-1. **Tính lại chuỗi băm.** Với từng bản ghi, công cụ tính lại `metadata_hash` theo RFC 8785 và Unicode NFC, rồi tính `entry_hash = SHA-256(prev_hash ‖ payload_hash ‖ metadata_hash)`. Trong mỗi đoạn, `seq_no` phải liên tục và `prev_hash` của bản ghi sau phải bằng `entry_hash` của bản ghi trước.
+1. **Tính lại chuỗi băm.** Với từng bản ghi, công cụ kiểm `metadata` khớp `metadataSha256` (bản ghi trong phạm vi), tính lại `metadata_hash` theo RFC 8785 và Unicode NFC, rồi tính `entry_hash = SHA-256(prev_hash ‖ payload_hash ‖ metadata_hash)`. Trong mỗi đoạn, `seq_no` phải liên tục và `prev_hash` của bản ghi sau phải bằng `entry_hash` của bản ghi trước.
 2. **Dựng lại gốc tenant.** Với mỗi lần niêm phong, công cụ dựng lại gốc tenant từ đầu chuỗi của các phân vùng. Lá là `SHA-256(0x01 ‖ entry_hash cuối)`, nút là `SHA-256(0x02 ‖ trái ‖ phải)`, và cây được chia theo RFC 6962. Đầu chuỗi ghi trong niêm phong phải trùng `entry_hash` của bản ghi tương ứng trong gói. Mỗi đoạn chuỗi phải kết thúc đúng ở một đầu chuỗi đã niêm phong.
 3. **Kiểm đường đi Merkle.** Từ lá `SHA-256(0x01 ‖ gốc tenant)`, đường đi Merkle phải dẫn đúng tới gốc cell.
 4. **Kiểm chữ ký và dấu thời gian.** Chữ ký ECDSA P-256 trên `gốc cell ‖ gốc cell trước ‖ window_end` phải hợp lệ. Token RFC 3161 phải có chữ ký CMS hợp lệ và message imprint bằng `SHA-256(gốc cell)`. Nếu có `--tsa-ca`, chuỗi chứng thư của TSA cũng được kiểm.
@@ -64,7 +64,7 @@ Gói là một tệp tar. Mọi tệp JSON trong gói đều được chuẩn ho
 |---|---|
 | `manifest.json` | Định dạng, tenant, cell, thời điểm xuất, phạm vi lọc, số bản ghi trong phạm vi, số bản ghi chưa niêm phong (không đưa vào gói), khoá ký, danh sách tệp kèm SHA-256 và kích thước. |
 | `manifest.sig` | Chữ ký ECDSA P-256 dạng ASN.1 DER trên SHA-256 của `manifest.json`. |
-| `entries.json` | `chains[]`, mỗi phần tử có `chainPartition` và `segments[]`. Mỗi đoạn là các bản ghi liên tục `seq_no`, đi từ một bản ghi trong phạm vi tới đầu chuỗi của lần niêm phong chứa bản ghi đó. Bản ghi có `inScope: false` chỉ có mặt để nối chuỗi và không mang `metadata`. |
+| `entries.json` | `chains[]`, mỗi phần tử có `chainPartition` và `segments[]`. Mỗi đoạn là các bản ghi liên tục `seq_no`, đi từ một bản ghi trong phạm vi tới đầu chuỗi của lần niêm phong chứa bản ghi đó. Bản ghi có `inScope: false` chỉ có mặt để nối chuỗi và không mang `metadata`. Mọi bản ghi đều có `metadataSha256` (SHA-256 hex của cột `metadata` chuẩn hoá); với bản ghi trong phạm vi, giá trị này phải khớp `metadata` đi kèm. |
 | `seals.json` | Các niêm phong mức tenant, gồm `ranges[]` (`p`, `from`, `to`, `tip`), `tenantRoot`, `cellLeafIndex`, `cellPath[]` (`side` là TRAI hoặc PHAI, `hash`), và `cellSeal` (gốc cell, gốc cell trước, chữ ký, chứng thư, token TSA). |
 | `anchors.json` | Biên nhận neo của các niêm phong cell có trong gói. |
 | `verify-run.json` | Lần kiểm tra toàn vẹn đính kèm. Đó là lần người dùng chỉ định, hoặc lần hoàn tất gần nhất. |
@@ -72,4 +72,4 @@ Gói là một tệp tar. Mọi tệp JSON trong gói đều được chuẩn ho
 
 Băm được ghi dạng hex chữ thường. Chữ ký và token được ghi dạng base64. Thời điểm có dạng `YYYY-MM-DDThh:mm:ss.ffffffZ`.
 
-Một số giới hạn hiện tại cần lưu ý. Thứ nhất, `payload_hash` chỉ được đối chiếu như một giá trị có sẵn, vì tải trọng sự kiện nằm ở module nguồn và không có trong gói. Muốn kiểm tải trọng, người kiểm phải đối chiếu với dữ liệu nguồn. Thứ hai, cột `metadata` (trạng thái trước và sau rút gọn) không nằm trong `metadata_hash` theo TL-03, nên công cụ không chứng minh được rằng cột này chưa bị sửa.
+Một số giới hạn hiện tại cần lưu ý. Thứ nhất, `payload_hash` chỉ được đối chiếu như một giá trị có sẵn, vì tải trọng sự kiện nằm ở module nguồn và không có trong gói. Muốn kiểm tải trọng, người kiểm phải đối chiếu với dữ liệu nguồn. Thứ hai, cột `metadata` (trạng thái trước và sau rút gọn) đi vào `metadata_hash` qua trường `metadata_sha256`, là SHA-256 của cột này đã chuẩn hoá RFC 8785 và NFC. Với bản ghi trong phạm vi, công cụ tính lại băm từ `metadata` đi kèm; với bản ghi ngoài phạm vi, gói chỉ mang `metadataSha256`, nên nội dung metadata của các bản ghi đó không bị lộ mà chuỗi vẫn tính lại được.

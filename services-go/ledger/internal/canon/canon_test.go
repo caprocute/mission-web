@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,7 @@ type GoldenVector struct {
 	Description       string               `json:"description"`
 	EquivalentTo      string               `json:"equivalent_to,omitempty"`
 	InputPayloadRaw   string               `json:"input_payload_raw"`
+	InputMetadataRaw  string               `json:"input_metadata_raw"`
 	MetadataHeader    canon.MetadataHeader `json:"metadata_header"`
 	PrevHashHex       string               `json:"prev_hash"`
 	CanonicalPayload  string               `json:"canonical_payload"`
@@ -91,7 +93,14 @@ func TestGoldenVectorsMatch(t *testing.T) {
 				vec.ID, canon.Hex32(payloadHash), vec.PayloadHashHex)
 		}
 
-		// 3. Kiểm tra chuẩn hoá siêu dữ liệu và metadata_hash
+		// 3. Kiểm tra băm cột metadata và chuẩn hoá siêu dữ liệu, metadata_hash
+		digest, err := canon.MetadataDigestJSON([]byte(vec.InputMetadataRaw))
+		if err != nil {
+			t.Fatalf("[%s] MetadataDigestJSON lỗi: %v", vec.ID, err)
+		}
+		if digest != vec.MetadataHeader.MetadataSHA256 {
+			t.Errorf("[%s] metadata_sha256 lệch: có %s, mong đợi %s", vec.ID, digest, vec.MetadataHeader.MetadataSHA256)
+		}
 		metaHash, canonMeta, err := canon.MetadataHash(vec.MetadataHeader)
 		if err != nil {
 			t.Fatalf("[%s] MetadataHash lỗi: %v", vec.ID, err)
@@ -137,6 +146,9 @@ func TestGoldenVectorsMatch(t *testing.T) {
 		}
 		if vec.PayloadHashHex != target.PayloadHashHex {
 			t.Errorf("[%s vs %s] payload_hash NFC/NFD phải trùng khớp tuyệt đối", vec.ID, target.ID)
+		}
+		if vec.MetadataHeader.MetadataSHA256 != target.MetadataHeader.MetadataSHA256 {
+			t.Errorf("[%s vs %s] metadata_sha256 NFC/NFD phải trùng khớp tuyệt đối", vec.ID, target.ID)
 		}
 		if vec.EntryHashHex != target.EntryHashHex {
 			t.Errorf("[%s vs %s] entry_hash NFC/NFD phải trùng khớp tuyệt đối", vec.ID, target.ID)
@@ -220,12 +232,31 @@ func TestRFC8785EdgeCases(t *testing.T) {
 
 func strPtr(s string) *string { return &s }
 
+// goldenMetadata là cột metadata (trạng thái trước, sau rút gọn) của từng vector; 02 và 03 cùng nội dung tiếng Việt
+// ở dạng NFC và NFD để kiểm metadata_sha256 không phụ thuộc dạng chuẩn hoá Unicode.
+var goldenMetadata = map[string]string{
+	"01-evt01-task-assigned-genesis":   `{"after_status":"DA_GIAO","before_status":null,"schema_version":1}`,
+	"02-vietnamese-nfc-composed":       `{"reason_code":"Hoàn thành","after_status":"DA_DUYET"}`,
+	"03-vietnamese-nfd-decomposed":     norm.NFD.String(`{"after_status":"DA_DUYET","reason_code":"Hoàn thành"}`),
+	"04-utf16-key-order-and-escapes":   `{"ref_id":"a\u00e9\u20ac\ud83d\ude00","classification":"C1"}`,
+	"05-evt18-esign-completed-chained": `{"before_status":"CHO_KY","after_status":"DA_KY","ref_id":"0192b300-0000-7000-8000-000000000003"}`,
+	"06-tenant-moved-in-special-record": `{"origin_cell":"cell-02","origin_last_entry_hash":"` +
+		"ab" + strings.Repeat("0", 62) + `"}`,
+}
+
 func buildGoldenVector(id, desc, eqTo, rawPayload, prevHex string, hdr canon.MetadataHeader) (GoldenVector, error) {
 	part, err := canon.ChainPartitionFromString(hdr.AggregateID)
 	if err != nil {
 		return GoldenVector{}, err
 	}
 	hdr.ChainPartition = part
+	rawMeta, ok := goldenMetadata[id]
+	if !ok {
+		return GoldenVector{}, fmt.Errorf("thiếu metadata cho vector %s", id)
+	}
+	if hdr.MetadataSHA256, err = canon.MetadataDigestJSON([]byte(rawMeta)); err != nil {
+		return GoldenVector{}, err
+	}
 	pHash, pCanon, err := canon.PayloadHash([]byte(rawPayload))
 	if err != nil {
 		return GoldenVector{}, err
@@ -244,6 +275,7 @@ func buildGoldenVector(id, desc, eqTo, rawPayload, prevHex string, hdr canon.Met
 		Description:       desc,
 		EquivalentTo:      eqTo,
 		InputPayloadRaw:   rawPayload,
+		InputMetadataRaw:  rawMeta,
 		MetadataHeader:    hdr,
 		PrevHashHex:       canon.Hex32(prevHash),
 		CanonicalPayload:  string(pCanon),

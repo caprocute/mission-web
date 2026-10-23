@@ -336,7 +336,7 @@ func metadataOf(ev EventInput) map[string]any {
 	return ev.Metadata
 }
 
-// entry tính payload_hash (nếu chưa có), metadata_hash và entry_hash của bản ghi seq trên chuỗi.
+// entry tính payload_hash (nếu chưa có), metadata_hash (gồm băm cột metadata) và entry_hash của bản ghi seq trên chuỗi.
 func (ing *Ingester) entry(ev EventInput, tenantID uuid.UUID, chain int16, seq int64, prev [32]byte, recordedAt time.Time) (AppendedEntry, error) {
 	var payload [32]byte
 	if len(ev.PayloadHash) == 32 {
@@ -356,6 +356,10 @@ func (ing *Ingester) entry(ev EventInput, tenantID uuid.UUID, chain int16, seq i
 		actor = &s
 	}
 	occurred := ev.OccurredAt.UTC().Truncate(time.Microsecond)
+	digest, err := canon.MetadataDigest(metadataOf(ev))
+	if err != nil {
+		return AppendedEntry{}, fmt.Errorf("ingest: chuẩn hoá metadata sự kiện %s: %w", ev.EventID, err)
+	}
 	meta, _, err := canon.MetadataHash(canon.MetadataHeader{
 		TenantID:       tenantID.String(),
 		ChainPartition: chain,
@@ -367,6 +371,7 @@ func (ing *Ingester) entry(ev EventInput, tenantID uuid.UUID, chain int16, seq i
 		ActorKind:      ev.ActorKind,
 		OccurredAt:     canon.FormatTimestamp(occurred),
 		RecordedAt:     canon.FormatTimestamp(recordedAt),
+		MetadataSHA256: digest,
 	})
 	if err != nil {
 		return AppendedEntry{}, fmt.Errorf("ingest: metadata_hash sự kiện %s: %w", ev.EventID, err)

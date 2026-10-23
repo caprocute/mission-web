@@ -125,6 +125,12 @@ func (e *env) count(t *testing.T, sql string, args ...any) int {
 // tamper sửa trực tiếp payload_hash một bản ghi bằng superuser, tắt trigger bất biến cho phiên.
 func (e *env) tamper(t *testing.T, tenant uuid.UUID, p int16, seq int64) {
 	t.Helper()
+	e.tamperSet(t, tenant, p, seq, `payload_hash = sha256(payload_hash)`)
+}
+
+// tamperSet sửa trực tiếp một bản ghi theo mệnh đề SET cho trước.
+func (e *env) tamperSet(t *testing.T, tenant uuid.UUID, p int16, seq int64, set string) {
+	t.Helper()
 	ctx := context.Background()
 	conn, err := e.admin.Acquire(ctx)
 	if err != nil {
@@ -134,7 +140,7 @@ func (e *env) tamper(t *testing.T, tenant uuid.UUID, p int16, seq int64) {
 	if _, err := conn.Exec(ctx, `SET session_replication_role = replica`); err != nil {
 		t.Fatal(err)
 	}
-	ct, err := conn.Exec(ctx, `UPDATE ledger.ledger_entry SET payload_hash = sha256(payload_hash)
+	ct, err := conn.Exec(ctx, `UPDATE ledger.ledger_entry SET `+set+`
 		WHERE tenant_id = $1 AND chain_partition = $2 AND seq_no = $3`, tenant, p, seq)
 	if err != nil || ct.RowsAffected() != 1 {
 		t.Fatalf("sửa bản ghi: %v (%d dòng)", err, ct.RowsAffected())
@@ -229,6 +235,31 @@ func TestSuaTrucTiepBiPhatHien(t *testing.T) {
 		OccurredAt: time.Now(), PayloadHash: h[:], Classification: "C1"}})
 	if !errors.Is(err, ingest.ErrPartitionLocked) {
 		t.Fatalf("ghi vào chuỗi bị khoá: %v", err)
+	}
+}
+
+// Sửa cột metadata (trạng thái trước, sau) mà giữ nguyên mọi cột băm: metadata_hash gồm băm cột metadata nên lần
+// kiểm toàn bộ chỉ đúng bản ghi bị sửa với lý do sai băm siêu dữ liệu.
+func TestSuaMetadataBiPhatHien(t *testing.T) {
+	e := newEnv(t, "IT-VF-META")
+	ctx := context.Background()
+	tn := uuid.New()
+	e.write(t, tn, 300)
+	p, last := e.busiest(t, tn)
+	if last < 4 {
+		t.Fatalf("chuỗi quá ngắn: %d", last)
+	}
+	e.tamperSet(t, tn, p, 3, `metadata = metadata || '{"after_status":"DA_HUY"}'::jsonb`)
+
+	run, err := e.svc.RunNow(ctx, verify.Request{TenantID: tn, Kind: verify.KindFull})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := run.First
+	if run.Mismatches != 1 || f == nil || f.ChainPartition == nil || *f.ChainPartition != p || *f.SeqNo != 3 ||
+		f.Reason != verify.ReasonMetadata {
+		t.Fatalf("phải chỉ đúng chuỗi %d, seq_no 3, lý do %s: mismatches=%d first=%+v", p, verify.ReasonMetadata,
+			run.Mismatches, f)
 	}
 }
 
