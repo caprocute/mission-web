@@ -1,0 +1,86 @@
+# Kho sao lưu phía Nam ceph-sn-bk (INF-17, TL-04 mục 8.1, 8.2, 8.6, 8.9; TL-05 "Kho sao lưu"): bản phát hành thứ hai của
+# chart rgw-cell cho mỗi cell, trỏ tới RGW của cụm sao lưu riêng (miền quản trị riêng, SEC-42) thay vì RGW của cell.
+# Dùng: helm template bk-<mã> deploy/charts/rgw-cell -f deploy/charts/rgw-cell/values-kho-sao-luu.yaml --set cell=<mã>
+# Mỗi cell có ba bucket bk-cell-<mã>-pg, -ch, -k8s bật Object Lock COMPLIANCE; khoá S3 của cell chỉ đọc, ghi, liệt kê
+# (không DeleteObject, không đổi Object Lock, vòng đời hay chính sách); dọn bản quá hạn bằng vòng đời dưới tài khoản
+# quản trị kho sao lưu (SEC-44).
+endpoint: https://s3-bk.sn.vt.local
+region: sn-bk         # zonegroup của ceph-sn-bk (suy luận)
+lopLuuTruHdd: ""
+
+# Bucket và người dùng của RGW cell trong values mặc định được gỡ bằng null (Helm gộp map với values mặc định).
+buckets:
+  evidence: null
+  dossier: null
+  templates: null
+  ledger-archive: null
+  uploads-tmp: null
+  transfer: null
+  # CNPG Barman Cloud (nền + WAL) của mọi cụm PostgreSQL của cell: <cụm>/base, <cụm>/wals giữ 35 ngày (PITR); bản
+  # cuối tháng chép sang dai-han/thang/ giữ 12 tháng, bản cuối năm của pg-ledger, pg-secure sang dai-han/nam/ giữ 10
+  # năm (hạn giữ đặt theo từng đối tượng lúc chép, chỉ kéo dài được ở COMPLIANCE; job giu-dai-han của backup-cell).
+  pg:
+    ten: bk-cell-{cell}-pg
+    theoTenant: false
+    versioning: true
+    khoa: { mode: COMPLIANCE, days: 35 }
+    vongDoi:
+      huyMultipartSauNgay: 1
+      don:
+        - { tienTo: pg-core/, sauNgay: 36 }
+        - { tienTo: pg-flowable/, sauNgay: 36 }
+        - { tienTo: pg-platform/, sauNgay: 36 }
+        - { tienTo: pg-iam/, sauNgay: 36 }
+        - { tienTo: pg-ledger/, sauNgay: 36 }
+        - { tienTo: pg-secure/, sauNgay: 36 }
+        - { tienTo: dai-han/thang/, sauNgay: 367 }
+        - { tienTo: dai-han/nam/, sauNgay: 3654 }
+  # ClickHouse BACKUP ra S3 (TL-04 bảng lịch sao lưu: Object Lock 35 ngày); bản sao lưu do INF-18 ghi.
+  ch:
+    ten: bk-cell-{cell}-ch
+    theoTenant: false
+    versioning: true
+    khoa: { mode: COMPLIANCE, days: 35 }
+    vongDoi: { huyMultipartSauNgay: 1, don: [{ tienTo: "", sauNgay: 36 }] }
+  # Snapshot etcd mã hoá (etcd/) và Velero (velero/): TL-04 bảng lịch sao lưu giữ 30 ngày, Object Lock 30 ngày.
+  k8s:
+    ten: bk-cell-{cell}-k8s
+    theoTenant: false
+    versioning: true
+    khoa: { mode: COMPLIANCE, days: 30 }
+    vongDoi:
+      huyMultipartSauNgay: 1
+      don:
+        - { tienTo: etcd/, sauNgay: 31 }
+        - { tienTo: velero/, sauNgay: 31 }
+
+# Người dùng S3 của cell trên kho sao lưu. namespace rỗng: chart này không tạo Secret; khoá nằm ở OpenBao
+# kv/cell-<mã>/backup/<pg|ch|k8s> và được data-pg, backup-cell nạp qua ESO (SEC-10). "ghi" trên bucket có khoá gồm
+# PutObjectRetention: ở COMPLIANCE chỉ kéo dài được hạn giữ, không rút ngắn.
+nguoiDung:
+  evidence-service: null
+  document-service: null
+  ledger-service: null
+  tenant-registry: null
+  pg:
+    uid: bk-cell-{cell}-pg
+    namespace: ""
+    quyen: { pg: [doc, ghi, liet-ke] }
+  ch:
+    uid: bk-cell-{cell}-ch
+    namespace: ""
+    quyen: { ch: [doc, ghi, liet-ke] }
+  k8s:
+    uid: bk-cell-{cell}-k8s
+    namespace: ""
+    quyen: { k8s: [doc, ghi, liet-ke] }
+
+# Tài khoản quản trị của kho sao lưu (chủ bucket), khác mọi tài khoản quản trị của cụm ứng dụng (SEC-42).
+quanTri:
+  uid: ""             # rỗng: kho-quan-tri-cell-<mã> trên ceph-sn-bk
+externalSecrets:
+  duongDan: kv/ceph-sn-bk
+
+# Không có multisite trên kho sao lưu.
+canhBao:
+  enabled: false

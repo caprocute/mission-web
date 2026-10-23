@@ -1,0 +1,125 @@
+{{- /* Chụp etcd mỗi 6 giờ (files/chup-etcd.sh, TL-04 mục 8.6) trên một master: hostNetwork để tới etcd ở 127.0.0.1:2379,
+đọc chứng thư khách etcd từ thư mục PKI của node (chỉ đọc), chạy bằng root vì khoá chứng thư có quyền 0600 của root
+(namespace kube-system, ngoài phạm vi chính sách vùng). */}}
+{{- $v := .Values }}
+{{- $e := $v.etcd }}
+{{- if $e.enabled }}
+{{- $data := dict "chung.sh" (.Files.Get "files/chung.sh") "chup-etcd.sh" (.Files.Get "files/chup-etcd.sh") }}
+{{- $bam := toJson $data | sha256sum | trunc 10 }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chup-etcd-{{ $bam }}
+  namespace: {{ $e.namespace }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+data:
+  {{- range $k := keys $data | sortAlpha }}
+  {{ $k }}: {{ index $data $k | quote }}
+  {{- end }}
+{{- if $v.externalSecrets.enabled }}
+---
+{{ include "bk.externalSecret" (dict "root" . "ten" $e.credentials.secretName "ns" $e.namespace "khoa" (include "bk.khoa" (dict "root" . "path" $e.credentials.path "loai" "k8s"))) }}
+---
+# Recipient age (khoá công khai) để mã hoá snapshot; khoá bí mật tương ứng chỉ có ở OpenBao, dùng khi khôi phục.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: etcd-age-recipient
+  namespace: {{ $e.namespace }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  refreshInterval: {{ $v.externalSecrets.refreshInterval }}
+  secretStoreRef:
+    kind: {{ $v.externalSecrets.secretStore.kind }}
+    name: {{ $v.externalSecrets.secretStore.name }}
+  target:
+    name: etcd-age-recipient
+    creationPolicy: Owner
+  data:
+    - secretKey: recipient
+      remoteRef: { key: {{ $e.recipient.path }}, property: {{ $e.recipient.property }} }
+{{- end }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: chup-etcd
+  namespace: {{ $e.namespace }}
+  labels:
+    {{- include "bk.labels" . | nindent 4 }}
+spec:
+  schedule: {{ $e.schedule | quote }}
+  timeZone: {{ $v.timeZone }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: {{ $e.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            vt.io/thanh-phan: chup-etcd
+            {{- include "bk.labels" . | nindent 12 }}
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          hostNetwork: true
+          dnsPolicy: ClusterFirstWithHostNet
+          priorityClassName: system-cluster-critical
+          {{- with $e.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $e.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: chup-etcd
+              image: {{ include "bk.anh" . }}
+              imagePullPolicy: {{ $v.image.pullPolicy }}
+              command: [bash, /cfg/chup-etcd.sh]
+              env:
+                {{- include "bk.envS3" . | nindent 16 }}
+                - { name: ETCD_ENDPOINTS, value: {{ $e.endpoints | quote }} }
+                - { name: PKI, value: /pki }
+                - { name: TAM, value: /tam }
+                - { name: BUCKET, value: {{ include "bk.bucketK8s" (dict "root" . "bucket" $e.bucket) | quote }} }
+                - { name: PREFIX, value: {{ $e.prefix | quote }} }
+                - { name: RECIPIENT_FILE, value: /recipient/recipient }
+                - { name: NODE_NAME, valueFrom: { fieldRef: { fieldPath: spec.nodeName } } }
+                - { name: AWS_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: {{ $e.credentials.secretName }}, key: ACCESS_KEY_ID } } }
+                - { name: AWS_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: {{ $e.credentials.secretName }}, key: ACCESS_SECRET_KEY } } }
+              resources:
+                {{- toYaml $e.resources | nindent 16 }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: cfg, mountPath: /cfg }
+                - { name: tam, mountPath: /tam }
+                - { name: tmp, mountPath: /tmp }
+                - { name: pki, mountPath: /pki, readOnly: true }
+                - { name: recipient, mountPath: /recipient, readOnly: true }
+                {{- with $v.khoSaoLuu.caBundle }}
+                - { name: ca, mountPath: /ca, readOnly: true }
+                {{- end }}
+          volumes:
+            - { name: cfg, configMap: { name: chup-etcd-{{ $bam }} } }
+            - { name: tam, emptyDir: { sizeLimit: {{ $e.tamGioiHan }} } }
+            - { name: tmp, emptyDir: { sizeLimit: 64Mi } }
+            - { name: pki, hostPath: { path: {{ $e.pkiDir }}, type: Directory } }
+            - { name: recipient, secret: { secretName: etcd-age-recipient } }
+            {{- with $v.khoSaoLuu.caBundle }}
+            - { name: ca, secret: { secretName: {{ .secret }} } }
+            {{- end }}
+{{- end }}
