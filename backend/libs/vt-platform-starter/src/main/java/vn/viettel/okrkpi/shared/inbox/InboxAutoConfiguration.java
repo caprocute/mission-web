@@ -170,6 +170,7 @@ public class InboxAutoConfiguration {
   @ConditionalOnBean(InboxListenerRegistrar.class)
   public InboxHealthIndicator inboxHealthIndicator(
       InboxProperties properties, InboxListenerRegistrar registrar) {
-    return new InboxHealthIndicator(properties.schema(), registrar);
+    return new InboxHealthIndicator(
+        properties.schema(), registrar, properties.listenerAutoStartup());
   }
 }

@@ -142,6 +142,10 @@ spec:
       {{- $env = append $env (dict "name" (printf "VT_FF_%s" (regexReplaceAll "([a-z])([A-Z])" $k "${1}_${2}" | upper)) "value" (toString $b)) }}
       {{- end }}
       {{- end }}
+      {{- /* INF-28: vai trò TTDL do ApplicationSet suy từ primarySite; ở TTDL chờ thư viện nền dừng consumer, job, migration. */}}
+      {{- with $v.global.siteRole }}
+      {{- $env = concat $env (list (dict "name" "VT_SITE_ROLE" "value" .) (dict "name" "VT_SITE" "value" (toString (default "" $v.global.site)))) }}
+      {{- end }}
       {{- $env = concat $env $v.env }}
       {{- with $env }}
       env:

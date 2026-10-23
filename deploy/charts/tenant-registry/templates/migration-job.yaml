@@ -1,4 +1,5 @@
-{{- if .Values.migration.enabled }}
+{{- /* INF-28: CSDL ở TTDL chờ là bản sao chỉ đọc, migration chỉ chạy ở TTDL primary. */}}
+{{- if and .Values.migration.enabled (ne (toString (dig "global" "siteRole" "" .Values.AsMap)) "standby") }}
 # Job Flyway áp db/migration/registry bằng vai trò mig_registry trước khi cài hoặc nâng cấp. Migration lấy
 # từ ảnh tenant-registry (initContainer chép sang emptyDir) để luôn khớp phiên bản mã.
 apiVersion: batch/v1
