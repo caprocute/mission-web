@@ -1,7 +1,7 @@
 -- DV-06-11 · SVC-06/G2 · TL-01 "Lịch sử ACT_HI_* được Debezium đọc sang ClickHouse trước khi dọn" · TL-03 "CDC phân
 -- tích sang ClickHouse": lịch sử tiến trình Flowable của CSDL flowable (topic {{topic_workflow}}.flowable.act_hi_*) vào
 -- ba bảng sự kiện cho báo cáo thời gian xử lý theo cấp và phát hiện miễn trừ lặp lại. Connector chỉ gửi cột C1 không
--- định danh (phân loại ở backend/services/workflow-service/.../V7__phan_loai_cot_lich_su_cdc.sql); người xử lý, văn bản
+-- định danh (phân loại ở backend/services/workflow-service/.../V8__phan_loai_cot_lich_su_cdc.sql); người xử lý, văn bản
 -- tự do không vào kho.
 -- Job dọn lịch sử của Flowable xoá dòng ACT_HI_* sau 400 ngày; bản ghi xoá đó không được coi là xoá ở kho (view nạp bỏ
 -- __op = 'd'), vì kho là nơi giữ lịch sử dài hạn. Cột thời gian của Flowable là timestamp không múi giờ, Debezium gửi

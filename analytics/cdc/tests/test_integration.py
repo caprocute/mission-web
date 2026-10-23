@@ -282,7 +282,7 @@ def test_cdc_messages_carry_no_c2_and_tenant_salted_person_keys(stack: dict[str,
 
 
 def test_completed_process_history_reaches_topic(stack: dict[str, Any]) -> None:
-    """DV-06-11: CSDL flowable dựng bằng đúng migration của workflow-service (V1..V7, phân loại cột ở V7); một tiến
+    """DV-06-11: CSDL flowable dựng bằng đúng migration của workflow-service (V1..V8, phân loại cột ở V8); một tiến
     trình đã kết thúc ghi vào ACT_HI_* như engine làm tới topic cdc.flowable.flowable.act_hi_* trong 60 s, không mang
     người xử lý hay văn bản tự do."""
     import psycopg
