@@ -18,6 +18,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
@@ -49,6 +50,7 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
     properties = "mission.outbox.relay.enabled=false")
 @AutoConfigureMockMvc(addFilters = false)
 @DirtiesContext
+@Import(FeatureFlagApiIT.CallerConfig.class)
 class FeatureFlagApiIT extends ContractConformanceTest {
 
   static final List<String> AUDITS = new CopyOnWriteArrayList<>();
@@ -67,6 +69,14 @@ class FeatureFlagApiIT extends ContractConformanceTest {
       return (tenant, actor, action, type, objectId, aggregateId, version) ->
           AUDITS.add(action + ":" + objectId + ":" + version);
     }
+  }
+
+  /**
+   * Người gọi riêng của lớp này. Không gắn {@code @TestConfiguration} và không đặt trong {@link
+   * AuditConfig}: quét thành phần nhặt lớp lồng mang chú thích đó vào mọi IT khác, còn một số IT
+   * nạp {@link AuditConfig}; cả hai đường đều làm bean {@code @Primary} này đè người gọi của IT đó.
+   */
+  static class CallerConfig {
 
     @Bean
     @Primary
