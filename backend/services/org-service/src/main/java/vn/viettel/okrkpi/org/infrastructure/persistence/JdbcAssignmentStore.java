@@ -98,6 +98,20 @@ public class JdbcAssignmentStore implements AssignmentStore {
   }
 
   @Override
+  public Map<UUID, String> jobTitleNames(Collection<UUID> jobTitleIds) {
+    if (jobTitleIds.isEmpty()) {
+      return Map.of();
+    }
+    Map<UUID, String> out = new java.util.HashMap<>();
+    jdbc.sql("SELECT id, name FROM org.job_title WHERE tenant_id = :tenant AND id IN (:ids)")
+        .param("tenant", Sql.tenant()).param("ids", jobTitleIds)
+        .query((ResultSet rs) -> {
+          out.put(rs.getObject("id", UUID.class), rs.getString("name"));
+        });
+    return out;
+  }
+
+  @Override
   public List<PersonAssignmentRow> findByPersonAt(UUID personId, TemporalQuery query) {
     String sql = "SELECT a.id, a.org_unit_id, coalesce(u.name, '') AS org_unit_name, "
         + "coalesce(jt.name, 'Chuyên viên') AS job_title_name, a.kind, a.branch, a.is_head, "

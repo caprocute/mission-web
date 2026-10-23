@@ -466,6 +466,7 @@ class OkrComposeApiIT extends ContractConformanceTest {
         .thenReturn(Map.of(UNIT, "Phòng Kế hoạch", OTHER_UNIT, "Sở Nội vụ"));
     when(names.personNames(eq(tenant), any()))
         .thenReturn(Map.of(ACTOR, "Nguyễn Văn An", VERIFIER, "Trần Thị Bình"));
+    when(names.personTitles(eq(tenant), any())).thenReturn(Map.of(VERIFIER, "Giám đốc Sở"));
     MvcResult r = perform(get("/api/v1/okr/compose-context").param("period", period.toString()));
     assertThat(r.getResponse().getStatus()).isEqualTo(200);
     JsonNode body = body(r);
@@ -475,6 +476,7 @@ class OkrComposeApiIT extends ContractConformanceTest {
     assertThat(body.at("/unit/name").asText()).isEqualTo("Phòng Kế hoạch");
     assertThat(body.at("/me/name").asText()).isEqualTo("Nguyễn Văn An");
     assertThat(body.at("/verifiers/0/name").asText()).isEqualTo("Trần Thị Bình");
+    assertThat(body.at("/verifiers/0/title").asText()).isEqualTo("Giám đốc Sở");
     assertThat(body.at("/parentOptions/0/unitName").asText()).isEqualTo("Sở Nội vụ");
     assertThat(body.get("existingCount").asInt()).isPositive();
     assertThat(body.at("/policy/recommendedMax").asInt()).isEqualTo(3);

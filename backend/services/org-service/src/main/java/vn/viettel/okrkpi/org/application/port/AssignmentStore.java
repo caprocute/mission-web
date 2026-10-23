@@ -3,6 +3,7 @@ package vn.viettel.okrkpi.org.application.port;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import vn.viettel.okrkpi.org.application.Actor;
 import vn.viettel.okrkpi.org.application.TemporalQuery;
@@ -34,6 +35,11 @@ public interface AssignmentStore {
   List<PersonSummaryRow> findPersonsInUnitsAt(Collection<UUID> unitIds, TemporalQuery query);
 
   void apply(VersionPlan<AssignmentVersion> plan, UUID changeOrderId, Actor actor);
+
+  /** Tên chức danh theo mã ({@code org.job_title.name}) để kèm vào EVT-15; mã không có thì không có khoá. */
+  default Map<UUID, String> jobTitleNames(Collection<UUID> jobTitleIds) {
+    return Map.of();
+  }
 
   record PersonAssignmentRow(
       UUID id,

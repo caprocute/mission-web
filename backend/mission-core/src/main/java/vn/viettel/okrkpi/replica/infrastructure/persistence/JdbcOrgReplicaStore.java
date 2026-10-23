@@ -81,15 +81,18 @@ public class JdbcOrgReplicaStore implements OrgReplicaStore {
             """
             insert into org_replica.assignment_v as r (id, valid_from, valid_to, person_id,
               org_unit_id, position_id, job_title_id, kind, branch, is_head, source_version,
-              source_event_id, replicated_at)
-            values (?, ?, coalesce(cast(? as date), 'infinity'), ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+              source_event_id, job_title_name, replicated_at)
+            values (?, ?, coalesce(cast(? as date), 'infinity'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
             on conflict (tenant_id, id, valid_from) do update set
               valid_to = excluded.valid_to, person_id = excluded.person_id,
               org_unit_id = excluded.org_unit_id, position_id = excluded.position_id,
               job_title_id = excluded.job_title_id, kind = excluded.kind, branch = excluded.branch,
               is_head = excluded.is_head, source_version = excluded.source_version,
-              source_event_id = excluded.source_event_id, replicated_at = now()
+              source_event_id = excluded.source_event_id,
+              job_title_name = excluded.job_title_name, replicated_at = now()
             where excluded.source_version > r.source_version
+              or (excluded.source_version = r.source_version and r.job_title_name is null
+                and excluded.job_title_name is not null)
             """,
             a.id(),
             date(a.validFrom()),
@@ -102,7 +105,8 @@ public class JdbcOrgReplicaStore implements OrgReplicaStore {
             a.branch(),
             a.head(),
             a.sourceVersion(),
-            e.eventId())
+            e.eventId(),
+            a.jobTitleName())
         > 0;
   }
 

@@ -730,6 +730,7 @@ public class OkrComposeController {
     Set<UUID> people = new LinkedHashSet<>(verifierIds);
     people.add(me);
     Map<UUID, String> personNames = dir == null ? Map.of() : dir.personNames(tenant, people);
+    Map<UUID, String> titles = dir == null ? Map.of() : dir.personTitles(tenant, verifierIds);
     String parentUnitName = parentUnit.map(u -> unitNames.getOrDefault(u, "")).orElse("");
     parents.forEach(o -> o.unitName(parentUnitName));
     OkrPeriodInfo info = OkrReadController.periodInfo(reads.periodView(p));
@@ -749,7 +750,9 @@ public class OkrComposeController {
         parents,
         (int) existing,
         verifierIds.stream()
-            .map(id -> new OkrPersonOption(id, personNames.getOrDefault(id, "")))
+            .map(
+                id ->
+                    new OkrPersonOption(id, personNames.getOrDefault(id, "")).title(titles.get(id)))
             .toList(),
         new Ref(me, personNames.getOrDefault(me, "")),
         ai,
