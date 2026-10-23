@@ -1,0 +1,12 @@
+# Digest ảnh của vùng điều phối toàn cục (INF-20). ApplicationSet okr-toan-cuc-* đọc tệp này (deploy/argocd/templates/
+# toan-cuc.yaml). KHÔNG sửa tay: bước vtGitopsBump của pipeline (INF-05) ghi bằng commit có chữ ký sau khi ảnh được ký
+# (SEC-37, SEC-38); ảnh luôn theo digest (SEC-55), digest rỗng thì chart từ chối dựng.
+images:
+  dns-sync:
+    repository: harbor.vt.local/okr/dns-sync
+    digest: ""
+    commit: ""
+  tenant-registry:
+    repository: harbor.vt.local/okr/tenant-registry
+    digest: ""
+    commit: ""

@@ -77,8 +77,9 @@ func newFixture(t testing.TB, dsn string, opts ...fixtureOpt) *fixture {
 	d := api.Deps{
 		Tenants: tenant.NewService(tenant.DefaultRules(), enc),
 		Pool:    pool, Log: testLog(),
-		Verifier: auth.NewJWKSVerifier(auth.JWKSConfig{JWKSURL: keys.JWKSURL(), Issuers: []string{authtest.Issuer}}),
-		Cookies:  signer,
+		Verifier:          auth.NewJWKSVerifier(auth.JWKSConfig{JWKSURL: keys.JWKSURL(), Issuers: []string{authtest.Issuer}}),
+		Cookies:           signer,
+		CellReaderClients: []string{"dns-sync"},
 	}
 	for _, o := range opts {
 		o(&d, &ro)

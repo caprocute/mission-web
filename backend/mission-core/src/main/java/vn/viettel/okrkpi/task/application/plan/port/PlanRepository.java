@@ -174,6 +174,13 @@ public interface PlanRepository {
   List<ReviewRow> awaitingReview(
       TenantId tenant, java.util.Collection<UUID> unitIds, UUID afterPlanId, int limit);
 
+  /**
+   * Phiên bản {@code CHO_DUYET} của các kế hoạch có mã trong {@code planIds} (lấy từ hộp việc của
+   * SVC-06), theo mã kế hoạch tăng dần sau {@code afterPlanId}.
+   */
+  List<ReviewRow> awaitingReviewOfPlans(
+      TenantId tenant, java.util.Collection<UUID> planIds, UUID afterPlanId, int limit);
+
   /** Người lập và yêu cầu ký đang gắn của một phiên bản (CORE-02-09). */
   record ApprovalRow(UUID createdBy, UUID signRequestId, UUID approvedBy) {}
 
@@ -182,6 +189,14 @@ public interface PlanRepository {
   /** Gắn yêu cầu ký vừa tạo trên SVC-10 vào phiên bản {@code CHO_DUYET}; trả row_version mới. */
   long attachSignRequest(
       TenantId tenant, PlanRow plan, VersionRow version, UUID signRequestId, UUID actor);
+
+  /**
+   * Ghi mã tiến trình {@code duyet-ke-hoach-quy} (CORE-02-08) vào phiên bản còn {@code CHO_DUYET};
+   * không tăng {@code row_version} vì SVC-06 gửi lại phiên bản lúc gửi duyệt trong {@code
+   * If-Match}.
+   */
+  boolean linkProcessInstance(
+      TenantId tenant, int periodBucket, UUID versionId, String processInstanceId);
 
   /** Phiên bản theo mã (không biết kỳ); {@code forUpdate} khoá dòng để chuyển {@code DA_DUYET}. */
   record SignedTarget(PlanRow plan, VersionRow version, ApprovalRow approval) {}

@@ -8,7 +8,12 @@ Kiểm:
   3. Số Application = số cell × số TTDL × số service, tên không trùng, nhãn wave thuộc một bước RollingSync.
   4. digests.yaml của môi trường có mục cho mọi service nhận digest.
   5. Biểu thức goTemplate của từng ApplicationSet dịch được với tham số của mọi cell (missingkey=error).
+  7. Vùng điều phối toàn cục (INF-20, nhãn vt.io/toan-cuc): mỗi thành phần × TTDL một Application, đích theo
+     destinationNameFormat, chart và tệp values của vùng tồn tại, tệp digest có mục cho mọi tham số ảnh.
+  6. Bản staging (INF-21, --values values-staging.yaml): ApplicationSet môi trường tạm theo PR dịch được với tệp
+     digest mẫu, đặt mọi service bật vào namespace pr-<số>, có finalizer để dọn khi PR đóng.
 In ra danh sách tham số Helm cho bước render thử (đối số --xuat).
+Cách gọi: kiem-appset.py <bản render> [--values <tệp chồng sau values.yaml>]... [--xuat <tệp json>]
 """
 import glob
 import json
@@ -20,8 +25,8 @@ import yaml
 
 GOC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 DEPLOY = os.path.join(GOC, "deploy")
-# OPS-02 (TL-04 chương 11): đợt 0 CELL-NB, 1 CELL-G4, 2 CELL-G1..G3 và CELL-SH, 3 CELL-HN và CELL-DTW, 4 CELL-HCM.
-DOT_OPS02 = {"nb": "0", "g4": "1", "g1": "2", "g2": "2", "g3": "2", "sh": "2", "hn": "3", "dtw": "3", "hcm": "4"}
+# OPS-02 (TL-04 chương 11): staging (INF-21) trước mọi đợt, đợt 0 CELL-NB, 1 CELL-G4, 2 CELL-G1..G3 và CELL-SH, 3 CELL-HN và CELL-DTW, 4 CELL-HCM.
+DOT_OPS02 = {"stg": "-1", "nb": "0", "g4": "1", "g1": "2", "g2": "2", "g3": "2", "sh": "2", "hn": "3", "dtw": "3", "hcm": "4"}
 TRUONG_CELL = {"name", "displayName", "sizing", "tenancy", "primarySite", "standbySite", "releaseWave", "argocd", "silos"}
 
 loi = []
@@ -66,10 +71,21 @@ def dich_cay(nut, ts):
     return dich(nut, ts) if isinstance(nut, str) else nut
 
 
+def chong(goc, them):
+    """Chồng values như Helm: map gộp sâu, giá trị khác thay thế."""
+    for k, v in them.items():
+        goc[k] = chong(dict(goc[k]), v) if isinstance(v, dict) and isinstance(goc.get(k), dict) else v
+    return goc
+
+
 def main():
     render = [d for d in yaml.safe_load_all(open(sys.argv[1], encoding="utf-8")) if d]
-    xuat = sys.argv[3] if len(sys.argv) > 3 and sys.argv[2] == "--xuat" else None
+    doi = sys.argv[2:]
+    xuat = doi[doi.index("--xuat") + 1] if "--xuat" in doi else None
     values = yaml.safe_load(open(os.path.join(DEPLOY, "argocd", "values.yaml"), encoding="utf-8"))
+    for i, a in enumerate(doi):
+        if a == "--values":
+            values = chong(values, yaml.safe_load(open(os.path.join(DEPLOY, "argocd", doi[i + 1]), encoding="utf-8")))
 
     # 1. cell.yaml
     cells = {}
@@ -94,30 +110,44 @@ def main():
     chart = yaml.safe_load(open(os.path.join(DEPLOY, "charts", "vt-platform", "Chart.yaml"), encoding="utf-8"))
     deps = {d["name"] for d in chart["dependencies"]}
     svc = [s["name"] for s in values["services"]]
-    if set(svc) != deps or len(svc) != len(deps):
-        sai(f"services khác dependency vt-platform: {sorted(set(svc) ^ deps)}")
+    # Service có khoá chart dùng chart riêng ngoài vt-platform (security-cell, INF-19), không trùng dependency.
+    trong = [s["name"] for s in values["services"] if not s.get("chart")]
+    if set(trong) != deps or len(trong) != len(deps):
+        sai(f"services khác dependency vt-platform: {sorted(set(trong) ^ deps)}")
+    for s in values["services"]:
+        if s.get("chart") and (s["name"] in deps or not os.path.isfile(os.path.join(DEPLOY, s["chart"], "Chart.yaml"))):
+            sai(f"{s['name']}: chart riêng {s['chart']} thiếu Chart.yaml hoặc trùng dependency vt-platform")
+        if s["namespace"] not in values["projects"][s["project"]]["namespaces"]:
+            sai(f"{s['name']}: namespace {s['namespace']} không thuộc project {s['project']}")
     for s in values["services"]:
         if s["project"] not in values["projects"]:
             sai(f"{s['name']}: project {s['project']} chưa khai")
+    if not set(values["servicesTat"]) <= set(svc):
+        sai(f"servicesTat có service lạ: {sorted(set(values['servicesTat']) - set(svc))}")
+    svc_sinh = [s for s in svc if s not in values["servicesTat"]]
+    du_an = {d["metadata"]["name"] for d in render if d["kind"] == "AppProject"}
 
     # 4. digests
     digests = yaml.safe_load(open(os.path.join(DEPLOY, "environments", values["environment"], "digests.yaml"),
                                   encoding="utf-8"))
     for s in values["services"]:
-        if s.get("image") and s["name"] not in digests["images"]:
+        if s.get("image") and s["name"] in svc_sinh and s["name"] not in digests["images"]:
             sai(f"digests.yaml của {values['environment']} thiếu {s['name']}")
 
     # 3, 5. mô phỏng sinh Application
+    appset = [d for d in render if d["kind"] == "ApplicationSet"
+              and d["metadata"]["labels"].get("vt.io/moi-truong") != "pr" and "vt.io/toan-cuc" not in d["metadata"]["labels"]]
     buoc = []
-    for d in render:
-        if d["kind"] == "ApplicationSet":
-            buoc = [st["matchExpressions"][0]["values"] for st in d["spec"]["strategy"]["rollingSync"]["steps"]]
-            break
+    if values["rollingSync"]["enabled"]:
+        buoc = [st["matchExpressions"][0]["values"] for st in appset[0]["spec"]["strategy"]["rollingSync"]["steps"]]
+    elif any("strategy" in d["spec"] or "automated" not in d["spec"]["template"]["spec"]["syncPolicy"] for d in appset):
+        sai("tắt RollingSync thì mọi Application phải đồng bộ tự động, không strategy")
     dot_co_buoc = {w for b in buoc for w in b}
+    mau = "g4" if "g4" in cell_dung else sorted(cell_dung)[0]
     apps, tham_so = [], []
-    for d in render:
-        if d["kind"] != "ApplicationSet":
-            continue
+    for d in appset:
+        if d["spec"]["template"]["spec"]["project"] not in du_an:
+            sai(f"{d['metadata']['name']}: AppProject {d['spec']['template']['spec']['project']} không được sinh")
         gen = d["spec"]["generators"][0]["matrix"]["generators"]
         sites = [e["site"] for e in gen[1]["matrix"]["generators"][0]["list"]["elements"]]
         for t, c in sorted(cell_dung.items()):
@@ -129,11 +159,15 @@ def main():
                     sai(f"{d['metadata']['name']} × {t}-{site}: {e}")
                     continue
                 apps.append(a)
-                if a["metadata"]["labels"]["wave"] not in dot_co_buoc:
+                if buoc and a["metadata"]["labels"]["wave"] not in dot_co_buoc:
                     sai(f"{a['metadata']['name']}: wave {a['metadata']['labels']['wave']} không thuộc bước RollingSync")
-                if site == sites[0] and t == "g4":
-                    tham_so.append({"ten": a["metadata"]["name"], "helm": a["spec"]["source"]["helm"]})
-    mong = len(cell_dung) * len(values["sites"]) * len(svc)
+                if site == sites[0] and t == mau:
+                    tham_so.append({"ten": a["metadata"]["name"], "helm": a["spec"]["source"]["helm"],
+                                    "path": a["spec"]["source"]["path"]})
+    if values["prEnvironments"]["enabled"]:
+        kiem_pr(render, values)
+    so_tc = kiem_toan_cuc(render, values, du_an)
+    mong = len(cell_dung) * len(values["sites"]) * len(svc_sinh)
     ten = [a["metadata"]["name"] for a in apps]
     if len(apps) != mong:
         sai(f"sinh {len(apps)} Application, mong {mong}")
@@ -143,9 +177,91 @@ def main():
         json.dump(tham_so, open(xuat, "w", encoding="utf-8"), ensure_ascii=False)
     for m in loi:
         print("  LỖI:", m)
-    print(f"{len(cell_dung)} cell × {len(values['sites'])} TTDL × {len(svc)} service = {len(apps)} Application"
-          f" (mong {mong}); đợt RollingSync {[b[0] for b in buoc]}")
+    print(f"{len(cell_dung)} cell × {len(values['sites'])} TTDL × {len(svc_sinh)} service = {len(apps)} Application"
+          f" (mong {mong}); đợt RollingSync {[b[0] for b in buoc] or 'tắt'}"
+          + ("; môi trường tạm PR đạt" if values["prEnvironments"]["enabled"] else "")
+          + (f"; vùng toàn cục {so_tc} Application" if so_tc else ""))
     return 1 if loi else 0
+
+
+def kiem_pr(render, values):
+    p = values["prEnvironments"]
+    pr = [d for d in render if d["kind"] == "ApplicationSet" and d["metadata"]["labels"].get("vt.io/moi-truong") == "pr"]
+    if len(pr) != 1:
+        sai(f"cần đúng một ApplicationSet môi trường tạm, có {len(pr)}")
+        return
+    gen = pr[0]["spec"]["generators"][0]["matrix"]["generators"]
+    if "pullRequest" not in gen[0] or p["label"] not in gen[0]["pullRequest"][p["scm"]["provider"]]["labels"]:
+        sai("bộ sinh pullRequest thiếu hoặc không lọc theo nhãn")
+    mau = yaml.safe_load(open(os.path.join(DEPLOY, "environments", "pr", "digests", "mau-pr.yaml"), encoding="utf-8"))
+    ts = {"number": "123", "branch_slug": "feat-thu", "head_short_sha": "abc1234", "images": mau["images"]}
+    try:
+        tep = dich(gen[1]["git"]["files"][0]["path"], ts)
+        a = dich_cay(pr[0]["spec"]["template"], ts)
+    except (KeyError, ValueError, TypeError) as e:
+        sai(f"ApplicationSet môi trường tạm: {e}")
+        return
+    if tep != "deploy/environments/pr/digests/pr-123.yaml":
+        sai(f"đường dẫn digest PR: {tep}")
+    if a["metadata"]["name"] != "pr-123" or a["spec"]["destination"]["namespace"] != "pr-123":
+        sai("Application hoặc namespace môi trường tạm không theo số PR")
+    if "resources-finalizer.argocd.argoproj.io" not in a["metadata"].get("finalizers", []):
+        sai("Application môi trường tạm thiếu finalizer, đóng PR sẽ không dọn tài nguyên")
+    if not a["spec"]["syncPolicy"]["automated"]["prune"]:
+        sai("môi trường tạm phải tự đồng bộ có prune")
+    vo = a["spec"]["sources"][1]["helm"]["valuesObject"]
+    bat = sorted(k for k, v in vo.items() if k != "global" and v["enabled"])
+    if bat != sorted(p["services"]) or any(vo[k]["namespace"] != "pr-123" for k in bat):
+        sai(f"service bật trong môi trường tạm: {bat}")
+    xuat_pr = os.environ.get("KIEM_PR_XUAT")
+    if xuat_pr:
+        json.dump(a["spec"]["sources"], open(xuat_pr, "w", encoding="utf-8"), ensure_ascii=False)
+
+
+def kiem_toan_cuc(render, values, du_an):
+    g = values["toanCuc"]
+    tc = [d for d in render if d["kind"] == "ApplicationSet" and "vt.io/toan-cuc" in d["metadata"]["labels"]]
+    if not g["enabled"]:
+        if tc:
+            sai("toanCuc tắt nhưng vẫn sinh ApplicationSet vùng toàn cục")
+        return 0
+    if len(tc) != len(g["apps"]):
+        sai(f"vùng toàn cục: {len(tc)} ApplicationSet, mong {len(g['apps'])}")
+    digests = yaml.safe_load(open(os.path.join(DEPLOY, g["digests"]), encoding="utf-8"))
+    for a in g["apps"]:
+        for p in a.get("params", []):
+            if p["image"] not in digests["images"]:
+                sai(f"{g['digests']} thiếu ảnh {p['image']} cho {a['name']}")
+    apps, tham_so = [], []
+    for d in tc:
+        if d["spec"]["template"]["spec"]["project"] not in du_an:
+            sai(f"{d['metadata']['name']}: AppProject không được sinh")
+        gen = d["spec"]["generators"][0]["matrix"]["generators"]
+        for site in [e["site"] for e in gen[0]["list"]["elements"]]:
+            try:
+                a = dich_cay(d["spec"]["template"], {"site": site, "images": digests["images"]})
+            except (KeyError, ValueError, TypeError) as e:
+                sai(f"{d['metadata']['name']} × {site}: {e}")
+                continue
+            apps.append(a)
+            src = a["spec"]["source"]
+            if a["spec"]["destination"]["name"] != g["destinationNameFormat"] % site:
+                sai(f"{a['metadata']['name']}: đích {a['spec']['destination']['name']}")
+            chart = os.path.join(GOC, src["path"])
+            if not os.path.isfile(os.path.join(chart, "Chart.yaml")):
+                sai(f"{a['metadata']['name']}: không có chart {src['path']}")
+            tep = [os.path.normpath(os.path.join(chart, f)) for f in src["helm"]["valueFiles"]]
+            if not os.path.isfile(tep[0]):
+                sai(f"{a['metadata']['name']}: thiếu {os.path.relpath(tep[0], GOC)}")
+            tham_so.append({"ten": a["metadata"]["name"], "chart": chart, "namespace": a["spec"]["destination"]["namespace"],
+                            "valueFiles": [f for f in tep if os.path.isfile(f)], "helm": src["helm"]})
+    ten = [a["metadata"]["name"] for a in apps]
+    if len(set(ten)) != len(ten) or len(ten) != len(g["apps"]) * len(g["sites"]):
+        sai(f"vùng toàn cục: {len(ten)} Application, tên trùng hoặc thiếu")
+    xuat = os.environ.get("KIEM_TOAN_CUC_XUAT")
+    if xuat:
+        json.dump(tham_so, open(xuat, "w", encoding="utf-8"), ensure_ascii=False)
+    return len(apps)
 
 
 if __name__ == "__main__":

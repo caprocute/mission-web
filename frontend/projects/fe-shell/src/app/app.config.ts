@@ -136,10 +136,16 @@ export function buildAppConfig(
           });
       }),
       // Khám phá cell sau đăng nhập (WEB-075); dữ liệu giả lập thì giữ gốc API của config.json
+      // Chờ `init()` của phiên có token rồi mới gọi registry, tránh 401 do chạy song song
       provideAppInitializer(() => {
         if (cfg.useMockApi) return;
-        const tenant = inject(SessionService).user()?.tenant ?? cfg.tenant;
-        return firstValueFrom(inject(CellRouter).resolve(tenant)).then(() => undefined);
+        const session = inject(SessionService);
+        const cells = inject(CellRouter);
+        return session.ready.then(() => {
+          if (cfg.auth.enabled && !session.isAuthenticated()) return;
+          const tenant = session.user()?.tenant ?? cfg.tenant;
+          return firstValueFrom(cells.resolve(tenant)).then(() => undefined);
+        });
       }),
       // Cờ tính năng (WEB-076): nạp khi khởi động và nạp lại khi đổi phân công; lỗi thì mọi cờ tắt
       provideAppInitializer(() => {

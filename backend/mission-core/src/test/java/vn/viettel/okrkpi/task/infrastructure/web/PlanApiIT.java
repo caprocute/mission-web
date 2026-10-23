@@ -43,6 +43,7 @@ import vn.viettel.okrkpi.MissionCoreApplication;
 import vn.viettel.okrkpi.MissionCoreTestDatabase;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
+import vn.viettel.okrkpi.shared.infrastructure.workflow.WorkflowApprovalClient;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 import vn.viettel.okrkpi.task.api.PlanVersionReturnedEvent;
@@ -100,6 +101,9 @@ class PlanApiIT extends ContractConformanceTest {
 
   /** EVT-21 cần Apicurio; kiểm thử chỉ xác nhận lời gọi, mã hoá Avro có kiểm thử riêng. */
   @MockitoBean private OutboxPlanNotices planNotices;
+
+  /** CORE-02-08: SVC-06 giả; cầu nối khởi tạo và kết thúc tiến trình duyệt sau commit. */
+  @MockitoBean private WorkflowApprovalClient workflowApprovals;
 
   @Autowired
   @Qualifier("okrDataSource") private DataSource okrDataSource;
@@ -417,6 +421,10 @@ class PlanApiIT extends ContractConformanceTest {
 
     assertThat(perform(save(id, "\"1\"", lines(3))).getResponse().getStatus()).isEqualTo(200);
     String key = UUID.randomUUID().toString();
+    org.mockito.Mockito.when(
+            workflowApprovals.start(
+                org.mockito.ArgumentMatchers.eq(tenant), org.mockito.ArgumentMatchers.anyMap()))
+        .thenReturn(new WorkflowApprovalClient.Started("pid-ke-hoach", true));
     MvcResult submitted = perform(submit(id, "\"2\"", key));
     assertThat(submitted.getResponse().getStatus()).isEqualTo(200);
     assertResponseConforms(submitted, "/plans/{id}/versions/{v}/submit", PathItem.HttpMethod.POST);
@@ -431,6 +439,20 @@ class PlanApiIT extends ContractConformanceTest {
         .singleElement()
         .satisfies(e -> assertThat(e.contentHash()).isEqualTo(hash));
 
+    @SuppressWarnings("unchecked")
+    org.mockito.ArgumentCaptor<Map<String, Object>> started =
+        org.mockito.ArgumentCaptor.forClass(Map.class);
+    org.mockito.Mockito.verify(workflowApprovals, org.mockito.Mockito.timeout(10_000))
+        .start(org.mockito.ArgumentMatchers.eq(tenant), started.capture());
+    assertThat(started.getValue())
+        .containsEntry("template", "duyet-ke-hoach-quy")
+        .containsEntry("businessId", id)
+        .containsEntry("objectVersion", 3L)
+        .containsEntry("planVersionNo", 1)
+        .containsEntry("subjectUnitId", unit2.toString())
+        .containsEntry("title", "Duyệt kế hoạch công tác Quý I năm 2027");
+    assertThat(processInstanceOf(id)).isEqualTo("pid-ke-hoach");
+
     MvcResult locked = perform(save(id, "\"3\"", lines(1)));
     assertThat(locked.getResponse().getStatus()).isEqualTo(409);
 
@@ -439,6 +461,17 @@ class PlanApiIT extends ContractConformanceTest {
     assertThat(body(waiting).get("items"))
         .singleElement()
         .satisfies(n -> assertThat(n.get("planId").asText()).isEqualTo(id));
+    // Nguồn hộp việc SVC-06: lọc theo mã kế hoạch (CORE-02-08).
+    List<PlanRepository.ReviewRow> ofPlans =
+        in(
+            taskDataSource,
+            taskTm,
+            jdbc ->
+                planRepository.awaitingReviewOfPlans(
+                    tenant, List.of(UUID.fromString(id), UUID.randomUUID()), null, 10));
+    assertThat(ofPlans)
+        .singleElement()
+        .satisfies(r -> assertThat(r.plan().id().toString()).isEqualTo(id));
 
     assertThat(perform(giveBack(id, "\"3\"", " ")).getResponse().getStatus()).isEqualTo(422);
     TestTaskCallers.current =
@@ -456,6 +489,8 @@ class PlanApiIT extends ContractConformanceTest {
     assertThat(body(returned).get("status").asText()).isEqualTo("TRA_LAI");
     assertThat(body(returned).get("reviewComment").asText()).isEqualTo("Bổ sung sản phẩm dòng 2");
     assertThat(events.stream(PlanVersionReturnedEvent.class)).hasSize(1);
+    org.mockito.Mockito.verify(workflowApprovals, org.mockito.Mockito.timeout(10_000))
+        .cancel(tenant, "duyet-ke-hoach-quy", id, "Kế hoạch đã được trả lại");
     org.mockito.Mockito.verify(planNotices)
         .returned(
             org.mockito.ArgumentMatchers.eq(tenant),
@@ -528,6 +563,29 @@ class PlanApiIT extends ContractConformanceTest {
 
   private <T> T inTask(Function<JdbcClient, T> work) throws Exception {
     return in(taskDataSource, taskTm, work);
+  }
+
+  /** Mã tiến trình cầu nối ghi sau commit (bất đồng bộ), chờ tối đa 10 giây. */
+  private String processInstanceOf(String planId) throws Exception {
+    for (int i = 0; i < 100; i++) {
+      String pid =
+          in(
+              taskDataSource,
+              taskTm,
+              jdbc ->
+                  jdbc.sql(
+                          "SELECT wf_process_instance_id FROM task.plan_version"
+                              + " WHERE plan_id = ? AND version_no = 1")
+                      .param(UUID.fromString(planId))
+                      .query(String.class)
+                      .optional()
+                      .orElse(null));
+      if (pid != null) {
+        return pid;
+      }
+      Thread.sleep(100);
+    }
+    return null;
   }
 
   private <T> T in(DataSource ds, PlatformTransactionManager tm, Function<JdbcClient, T> work)

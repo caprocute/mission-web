@@ -1,0 +1,14 @@
+# Mã hoá Secret trong etcd (TL-04 mục 9.3, SEC-31, SEC-56): KMS v2 với plugin OpenBao Transit (khoá gốc trong HSM).
+# identity đặt cuối để đọc được Secret cũ chưa mã hoá trong lúc chuyển đổi; sau khi ghi lại toàn bộ Secret
+# (kubectl get secrets -A -o json | kubectl replace -f -) không còn dữ liệu nào dùng nó, kube-bench kiểm tra điều đó.
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+  - resources: ["secrets"]
+    providers:
+      - kms:
+          apiVersion: v2
+          name: openbao-transit
+          endpoint: unix:///var/run/kms/openbao.sock
+          timeout: 3s
+      - identity: {}

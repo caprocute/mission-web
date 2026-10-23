@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Kiểm tĩnh khuôn Cluster API (INF-08): render cell-g4-hl với mẫu hạ tầng, kubeconform -strict theo schema CRD
-# Cluster API và CAPO, đếm control plane, MachineDeployment, taint, nhãn; các ca phải thất bại.
+# Cluster API và CAPO, đếm control plane, MachineDeployment, taint, nhãn; các ca phải thất bại; chính sách kiểm
+# toán API và cờ API server (INF-19, tests/test_kiem_toan_api.py).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 OUT=$(mktemp -d); trap 'rm -rf "$OUT"' EXIT
@@ -84,5 +85,8 @@ phai_hong "pool dữ liệu co giãn tự động" "không được co giãn" "$
 phai_hong "pool lạ" "không có trong bảng" "${V[@]}" --set-json 'pools.abc={"enabled":true,"perZone":[1,1,1]}'
 grep -rqiE 'viettel.*(password|token)|[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}:[0-9]+' cell-cluster/templates cell-cluster/values.yaml cell-g4-hl/values.yaml \
   && hong "khuôn chứa địa chỉ hoặc bí mật" || ok "khuôn và values cell không chứa địa chỉ máy chủ hay bí mật"
+# INF-19: chính sách kiểm toán API đúng TL-04 và cờ API server (anonymous-auth, profiling, KMS v2, TLS ≥ 1.2).
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s cell-cluster/tests -p 'test_*.py' > "$OUT/ut" 2>&1 \
+  && ok "kiểm toán API và cờ API server ($(grep -o 'Ran [0-9]* tests' "$OUT/ut"))" || { hong "test_kiem_toan_api"; tail -20 "$OUT/ut"; }
 echo "Tổng: $dat đạt, $truot hỏng"
 [ "$truot" -eq 0 ]

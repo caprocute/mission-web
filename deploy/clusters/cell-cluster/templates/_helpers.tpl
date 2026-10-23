@@ -13,3 +13,11 @@
 {{- range $k := keys $l | sortAlpha }}{{ $out = append $out (printf "%s=%s" $k (index $l $k)) }}{{ end -}}
 {{- join "," $out -}}
 {{- end -}}
+
+{{/* TLS tối thiểu của API server: TL-04 yêu cầu ≥ 1.2 (INF-19); INF-08 chọn 1.3. */}}
+{{- define "cell-cluster.tlsMin" -}}
+{{- if not (has . (list "VersionTLS12" "VersionTLS13")) -}}
+{{- fail (printf "cell-cluster: apiServer.tlsMinVersion %v không đạt TLS ≥ 1.2 (TL-04 mục 9.3)" .) -}}
+{{- end -}}
+{{- . -}}
+{{- end -}}

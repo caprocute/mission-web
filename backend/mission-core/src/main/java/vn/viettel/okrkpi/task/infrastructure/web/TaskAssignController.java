@@ -66,6 +66,8 @@ import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.DraftR
 import vn.viettel.okrkpi.task.application.assign.port.TaskDraftRepository.UnitTaskRow;
 import vn.viettel.okrkpi.task.application.blocker.TaskBlockerService;
 import vn.viettel.okrkpi.task.application.change.TaskChangeRequestService;
+import vn.viettel.okrkpi.task.application.direct.TaskDirectionService;
+import vn.viettel.okrkpi.task.application.direct.TaskPermittedActions;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskDelayRiskService;
 import vn.viettel.okrkpi.task.application.lifecycle.TaskTransitionService;
 import vn.viettel.okrkpi.task.application.lifecycle.port.TaskLifecycleRepository.TaskRow;
@@ -97,6 +99,8 @@ public class TaskAssignController {
   private final TaskBlockerService blockers;
   private final TaskChangeRequestService changes;
 
+  private final TaskDirectionService directions;
+
   public TaskAssignController(
       TaskDraftService drafts,
       TaskAssignService assign,
@@ -106,7 +110,8 @@ public class TaskAssignController {
       TaskCallers callers,
       CursorCodec cursors,
       TaskBlockerService blockers,
-      TaskChangeRequestService changes) {
+      TaskChangeRequestService changes,
+      TaskDirectionService directions) {
     this.drafts = Objects.requireNonNull(drafts, "drafts");
     this.assign = Objects.requireNonNull(assign, "assign");
     this.queries = Objects.requireNonNull(queries, "queries");
@@ -116,6 +121,7 @@ public class TaskAssignController {
     this.cursors = Objects.requireNonNull(cursors, "cursors");
     this.blockers = Objects.requireNonNull(blockers, "blockers");
     this.changes = Objects.requireNonNull(changes, "changes");
+    this.directions = Objects.requireNonNull(directions, "directions");
   }
 
   @PostMapping
@@ -255,6 +261,10 @@ public class TaskAssignController {
       TaskChangeRequestController.decorate(dto, changes, tenant, t);
     }
     TaskDelayRiskController.view(delayRisks.find(tenant, t)).ifPresent(dto::delayRisk);
+    Set<String> actions =
+        new LinkedHashSet<>(TaskPermittedActions.detail(t.status(), view.callerRole()));
+    actions.addAll(directions.directionActionsOn(tenant, t, callers.current()));
+    dto.setPermittedActions(actions);
     return ETags.ok(dto, t.rowVersion());
   }
 
@@ -302,8 +312,17 @@ public class TaskAssignController {
             page.afterKey().map(k -> k.getUuid(0)).orElse(null),
             page.fetchSize());
     CursorPage<UnitTaskRow> result = cursors.page(rows, page, r -> CursorKey.of(r.task().id()));
+    TaskDirectionService.DirectionActions allowed =
+        directions.directionActions(TenantContext.require(), actor);
     return new TaskSummaryPage(
-        result.items().stream().map(r -> summary(r, actor)).toList(), result.nextCursor());
+        result.items().stream()
+            .map(
+                r ->
+                    summary(r, actor)
+                        .permittedActions(
+                            allowed.on(r.task().assignerId(), r.orgUnitId(), r.task().status())))
+            .toList(),
+        result.nextCursor());
   }
 
   static Set<String> statuses(String csv) {

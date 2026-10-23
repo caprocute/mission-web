@@ -1,0 +1,104 @@
+{{- if .Values.quetRbac.enabled }}
+{{- $v := .Values }}
+{{- $q := $v.quetRbac }}
+{{- $ns := $v.namespace }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pam-quet-rbac
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+---
+# Quét RBAC chỉ đọc binding và vai trò; xoá chỉ dùng để thu hồi binding PAM đã quá hạn (giảm quyền, không cấp quyền).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vt-pam-quet-rbac
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterroles", "clusterrolebindings", "rolebindings"]
+    verbs: ["get", "list"]
+  {{- if $q.thuHoiQuaHan }}
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterrolebindings", "rolebindings"]
+    verbs: ["delete"]
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vt-pam-quet-rbac
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: vt-pam-quet-rbac }
+subjects:
+  - { kind: ServiceAccount, name: pam-quet-rbac, namespace: {{ $ns }} }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pam-quet-rbac
+  namespace: {{ $ns }}
+  labels:
+    {{- include "pam.labels" . | nindent 4 }}
+data:
+  quet_rbac.py: |
+    {{- .Files.Get "files/scripts/quet_rbac.py" | nindent 4 }}
+  cau-hinh.json: |
+    {{- include "pam.cauHinhRbac" . | nindent 4 }}
+---
+# Kiểm chứng "không có cửa sau" (SEC-29, SEC-42): mỗi {{ $q.schedule }} tìm binding đặc quyền không do PAM tạo, binding
+# PAM sai hợp đồng hay quá hạn; cảnh báo PamCuaSauRbac, PamBindingQuaHan.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pam-quet-rbac
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pam-quet-rbac
+    {{- include "pam.labels" . | nindent 4 }}
+spec:
+  schedule: {{ $q.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: pam-quet-rbac
+            vt.io/pam-quet: "true"
+            vt.io/needs-k8s-api: "true"
+        spec:
+          restartPolicy: Never
+          serviceAccountName: pam-quet-rbac
+          automountServiceAccountToken: true
+          securityContext:
+            {{- include "pam.restrictedPod" . | nindent 12 }}
+          containers:
+            - name: quet
+              image: {{ include "pam.image" (dict "root" . "name" "python") }}
+              imagePullPolicy: IfNotPresent
+              command: ["python3", "-I", "/scripts/quet_rbac.py"]
+              env:
+                - { name: CAU_HINH, value: /scripts/cau-hinh.json }
+                - { name: CELL, value: {{ $v.cell | quote }} }
+                - { name: PUSHGATEWAY, value: {{ $v.pushgateway.url | quote }} }
+                - { name: PYTHONDONTWRITEBYTECODE, value: "1" }
+              resources:
+                {{- toYaml $q.resources | nindent 16 }}
+              securityContext:
+                {{- include "pam.restrictedContainer" . | nindent 16 }}
+              {{- include "pam.probeRong" . | nindent 14 }}
+              volumeMounts:
+                - { name: scripts, mountPath: /scripts, readOnly: true }
+          volumes:
+            - name: scripts
+              configMap: { name: pam-quet-rbac }
+{{- end }}

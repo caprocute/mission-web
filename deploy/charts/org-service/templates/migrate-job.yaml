@@ -1,4 +1,5 @@
-{{- if .Values.migration.enabled }}
+{{- /* INF-28: CSDL ở TTDL chờ là bản sao chỉ đọc, migration chỉ chạy ở TTDL primary. */}}
+{{- if and .Values.migration.enabled (ne (toString (dig "global" "siteRole" "" .Values.AsMap)) "standby") }}
 # Flyway chạy bằng mig_org trước khi cài hoặc nâng cấp (expand/contract); pod ứng dụng dùng svc_org không có DDL.
 apiVersion: batch/v1
 kind: Job

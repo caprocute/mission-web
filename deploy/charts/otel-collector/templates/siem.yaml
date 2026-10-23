@@ -1,0 +1,574 @@
+{{- if .Values.siem.enabled }}
+{{- $v := .Values }}
+{{- $s := $v.siem }}
+{{- $t := $s.topics }}
+{{- if or (ne $t.audit "sys.audit.v1") (ne $t.iam "iam.auth.event.v1") (ne $t.runtime "sys.security.runtime.v1") (ne $t.siem "sys.siem.v1") }}
+{{- fail "otel-collector: tên topic SIEM phải giữ đúng sys.audit.v1, iam.auth.event.v1, sys.security.runtime.v1, sys.siem.v1 (TL-04)" }}
+{{- end }}
+{{- $kafkaTls := "{ ca_file: /etc/otel/kafka/ca.crt, cert_file: /etc/otel/kafka/user.crt, key_file: /etc/otel/kafka/user.key, min_version: \"1.2\" }" }}
+{{- $brokers := toJson $s.kafka.brokers }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-siem
+  namespace: observability
+  labels:
+    {{- include "otel.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    # otel-siem (INF-19, SEC-43): chuẩn hoá ECS các luồng an ninh và ghi Kafka {{ $t.siem }}. Trường ECS viết dạng
+    # khoá có dấu chấm (event.module, user.name…), bản ghi gốc giữ dưới khoá riêng của nguồn (kubernetes.audit,
+    # keycloak, falco, openbao, pam). Thẻ vt.phat_hien đánh dấu sự kiện thuộc quy tắc phát hiện tối thiểu của TL-04
+    # (ops/runbooks/an-ninh-soc-quy-tac.md); SIEM của SOC đếm và ngưỡng hoá theo thẻ này.
+    extensions:
+      health_check: { endpoint: 0.0.0.0:13133 }
+      {{- if $s.avro.enabled }}
+      avro_log_encoding:
+        schema: {{ $.Files.Get "files/avro/AuthEvent.avsc" | fromJson | toJson | quote }}
+      {{- end }}
+    receivers:
+      # Nhật ký kiểm toán API Kubernetes, OPA từ chối, WAF, sự kiện kiểm toán và an ninh JSON của ứng dụng (Fluent Bit).
+      kafka/audit:
+        brokers: {{ $brokers }}
+        group_id: {{ $s.kafka.groupId }}
+        client_id: otel-siem
+        initial_offset: earliest
+        logs: { topic: {{ $t.audit }}, encoding: text }
+        tls: {{ $kafkaTls }}
+      {{- if $s.avro.enabled }}
+      # Sự kiện xác thực Keycloak (Avro AuthEvent, phong bì CloudEvents trong header Kafka).
+      kafka/iam:
+        brokers: {{ $brokers }}
+        group_id: {{ $s.kafka.groupId }}
+        client_id: otel-siem
+        initial_offset: earliest
+        logs: { topic: {{ $t.iam }}, encoding: avro_log_encoding }
+        header_extraction: { extract_headers: true, headers: [ce_time, ce_tenantid, ce_source, ce_id] }
+        tls: {{ $kafkaTls }}
+      {{- end }}
+      # Cảnh báo Falco đã ở Kafka (OTLP JSON), đọc lại để chuẩn hoá.
+      kafka/runtime:
+        brokers: {{ $brokers }}
+        group_id: {{ $s.kafka.groupId }}
+        client_id: otel-siem
+        initial_offset: earliest
+        logs: { topic: {{ $t.runtime }}, encoding: otlp_json }
+        tls: {{ $kafkaTls }}
+      # Falcosidekick → OTLP/HTTP mTLS (Falcosidekick 2.31 không gửi chứng thư máy khách tới Kafka).
+      otlp/falco:
+        protocols:
+          http:
+            endpoint: 0.0.0.0:{{ $s.otlp.port }}
+            tls: { cert_file: /etc/otel/tls/tls.crt, key_file: /etc/otel/tls/tls.key, client_ca_file: /etc/otel/tls/ca.crt, min_version: "1.2" }
+      {{- if $s.openbao.enabled }}
+      tcplog/openbao:
+        listen_address: 0.0.0.0:{{ $s.openbao.port }}
+        max_log_size: 1MiB
+      {{- end }}
+      {{- if $s.pam.enabled }}
+      syslog/pam:
+        protocol: rfc5424
+        location: UTC
+        tcp:
+          listen_address: 0.0.0.0:{{ $s.pam.port }}
+          tls: { cert_file: /etc/otel/tls/tls.crt, key_file: /etc/otel/tls/tls.key, client_ca_file: /etc/otel/tls/ca.crt, min_version: "1.2" }
+      {{- end }}
+    processors:
+      memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 20 }
+      batch: { send_batch_size: 2048, timeout: 2s }
+      # Thân dạng chuỗi JSON thành map; chuỗi không phải JSON (Avro nhị phân, văn bản) giữ nguyên.
+      transform/phan-tich:
+        error_mode: ignore
+        log_statements:
+          - context: log
+            statements:
+              - set(body, ParseJSON(body)) where IsString(body) and IsMatch(body, "^\\s*\\{")
+      # Bản ghi không giải mã được thành map (Avro khi avro.enabled tắt) không vào SIEM; đếm bằng chỉ số của filter.
+      filter/khong-phai-json:
+        error_mode: ignore
+        logs:
+          log_record:
+            - not IsMap(body)
+      transform/dau:
+        error_mode: ignore
+        log_statements:
+          - context: log
+            statements:
+              - set(attributes["vt.goc"], body) where IsMap(body)
+              - set(attributes["message"], body) where IsString(body)
+              - set(attributes["ecs.version"], "8.11.0")
+              - set(attributes["event.kind"], "event")
+      transform/ecs-kiem-toan:
+        error_mode: ignore
+        log_statements:
+          # Nhật ký kiểm toán API Kubernetes (SEC-30).
+          - context: log
+            conditions:
+              - attributes["vt.goc"]["apiVersion"] == "audit.k8s.io/v1"
+            statements:
+              - set(attributes["event.module"], "kubernetes")
+              - set(attributes["event.dataset"], "kubernetes.audit")
+              - set(attributes["event.id"], attributes["vt.goc"]["auditID"])
+              - set(attributes["event.action"], attributes["vt.goc"]["verb"])
+              - set(attributes["@timestamp"], attributes["vt.goc"]["requestReceivedTimestamp"])
+              - set(attributes["user.name"], attributes["vt.goc"]["user"]["username"])
+              - set(attributes["user.roles"], attributes["vt.goc"]["user"]["groups"])
+              - set(attributes["source.ip"], attributes["vt.goc"]["sourceIPs"][0])
+              - set(attributes["user_agent.original"], attributes["vt.goc"]["userAgent"])
+              - set(attributes["orchestrator.resource.type"], attributes["vt.goc"]["objectRef"]["resource"])
+              - set(attributes["orchestrator.resource.name"], attributes["vt.goc"]["objectRef"]["name"])
+              - set(attributes["orchestrator.namespace"], attributes["vt.goc"]["objectRef"]["namespace"])
+              - set(attributes["http.response.status_code"], attributes["vt.goc"]["responseStatus"]["code"])
+              - set(attributes["event.outcome"], "success") where attributes["vt.goc"]["responseStatus"]["code"] < 400
+              - set(attributes["event.outcome"], "failure") where attributes["vt.goc"]["responseStatus"]["code"] >= 400
+              - set(attributes["vt.phat_hien"], "dang-nhap-that-bai") where attributes["vt.goc"]["responseStatus"]["code"] == 401
+              - set(attributes["vt.phat_hien"], "doi-rbac") where attributes["vt.goc"]["objectRef"]["apiGroup"] == "rbac.authorization.k8s.io" and IsMatch(attributes["vt.goc"]["verb"], "^(create|update|patch|delete|deletecollection)$")
+              - set(attributes["vt.phat_hien"], "pha-kinh") where IsMatch(attributes["vt.goc"]["objectRef"]["resource"], "^(cluster)?rolebindings$") and attributes["vt.goc"]["verb"] == "create" and attributes["vt.goc"]["requestObject"]["roleRef"]["name"] == "platform-admin"
+              - set(attributes["vt.phat_hien"], "shell-container") where attributes["vt.goc"]["objectRef"]["subresource"] == "exec" and attributes["vt.goc"]["verb"] == "create"
+              - set(attributes["vt.phat_hien"], "anh-khong-ky") where attributes["vt.goc"]["responseStatus"]["code"] >= 400 and IsMatch(attributes["vt.goc"]["responseStatus"]["message"], "vt-require-signed-images")
+              - set(attributes["kubernetes.audit"], attributes["vt.goc"])
+          # Nhật ký ứng dụng dạng ECS (event.dataset audit hoặc security, Fluent Bit tách sang sys.audit.v1).
+          - context: log
+            conditions:
+              - attributes["vt.goc"]["event"]["dataset"] != nil
+            statements:
+              - set(attributes["event.module"], "mission")
+              - set(attributes["event.dataset"], attributes["vt.goc"]["event"]["dataset"])
+              - set(attributes["event.action"], attributes["vt.goc"]["event"]["action"])
+              - set(attributes["event.outcome"], attributes["vt.goc"]["event"]["outcome"])
+              - set(attributes["@timestamp"], attributes["vt.goc"]["@timestamp"])
+              - set(attributes["service.name"], attributes["vt.goc"]["service"]["name"])
+              - set(attributes["user.id"], attributes["vt.goc"]["user"]["id"])
+              - set(attributes["organization.id"], attributes["vt.goc"]["tenant"]["id"])
+              - set(attributes["trace.id"], attributes["vt.goc"]["trace"]["id"])
+              - set(attributes["message"], attributes["vt.goc"]["message"])
+              # Quyết định từ chối của OPA do vt-authz ghi (SEC-18, SEC-22).
+              - set(attributes["event.module"], "opa") where IsMatch(attributes["vt.goc"]["event"]["action"], "^(authz|opa)\\.")
+              - set(attributes["event.category"], ["iam"]) where attributes["event.module"] == "opa"
+              # WAF Coraza trong APISIX (SEC-34).
+              - set(attributes["event.module"], "waf") where attributes["vt.goc"]["service"]["name"] == "apisix"
+              - set(attributes["event.category"], ["network", "intrusion_detection"]) where attributes["event.module"] == "waf"
+              - set(attributes["vt.phat_hien"], "xuat-hang-loat") where IsMatch(attributes["vt.goc"]["event"]["action"], "(?i)(XUAT_HANG_LOAT|export)")
+              - set(attributes["vt.phat_hien"], "chuoi-bam-dut") where IsMatch(attributes["vt.goc"]["event"]["action"], "(?i)(ledger\\.verify\\.failed|chuoi.?bam)")
+              - set(attributes["mission"], attributes["vt.goc"])
+      transform/ecs-iam:
+        error_mode: ignore
+        log_statements:
+          # Sự kiện xác thực Keycloak iam.auth.event.v1 (lược đồ AuthEvent); thời điểm và tenant ở header CloudEvents.
+          - context: log
+            statements:
+              - set(attributes["event.module"], "keycloak")
+              - set(attributes["event.dataset"], "keycloak.event")
+              - set(attributes["event.category"], ["authentication"])
+              - set(attributes["event.action"], attributes["vt.goc"]["eventType"])
+              - set(attributes["event.id"], attributes["kafka.header.ce_id"])
+              - set(attributes["@timestamp"], attributes["kafka.header.ce_time"])
+              - set(attributes["organization.id"], attributes["kafka.header.ce_tenantid"])
+              - set(attributes["user.id"], attributes["vt.goc"]["userId"])
+              - set(attributes["session.id"], attributes["vt.goc"]["sessionId"])
+              - set(attributes["error.code"], attributes["vt.goc"]["error"])
+              - set(attributes["event.outcome"], "success")
+              - set(attributes["event.outcome"], "failure") where attributes["vt.goc"]["error"] != nil or IsMatch(attributes["vt.goc"]["eventType"], "_ERROR$")
+              - set(attributes["vt.phat_hien"], "dang-nhap-that-bai") where attributes["vt.goc"]["eventType"] == "LOGIN_ERROR"
+              - set(attributes["keycloak"], attributes["vt.goc"])
+      transform/ecs-falco:
+        error_mode: ignore
+        log_statements:
+          # Cảnh báo Falco qua Falcosidekick (OTLP): thân là chuỗi output, trường là thuộc tính (suy luận theo 2.31).
+          - context: log
+            statements:
+              - set(attributes["event.module"], "falco")
+              - set(attributes["event.dataset"], "falco.alert")
+              - set(attributes["event.kind"], "alert")
+              - set(attributes["rule.name"], attributes["rule"])
+              - set(attributes["event.severity_name"], attributes["priority"])
+              - set(attributes["orchestrator.namespace"], attributes["k8s.ns.name"])
+              - set(attributes["vt.phat_hien"], "shell-container") where IsMatch(attributes["rule"], "(?i)shell")
+              - set(attributes["falco"], attributes["vt.goc"]) where attributes["vt.goc"] != nil
+      transform/ecs-openbao:
+        error_mode: ignore
+        log_statements:
+          # Thiết bị kiểm toán OpenBao: request.path, auth.display_name; giá trị nhạy cảm đã được OpenBao HMAC.
+          - context: log
+            statements:
+              - set(attributes["event.module"], "openbao")
+              - set(attributes["event.dataset"], "openbao.audit")
+              - set(attributes["event.action"], attributes["vt.goc"]["request"]["operation"])
+              - set(attributes["@timestamp"], attributes["vt.goc"]["time"])
+              - set(attributes["url.path"], attributes["vt.goc"]["request"]["path"])
+              - set(attributes["user.name"], attributes["vt.goc"]["auth"]["display_name"])
+              - set(attributes["source.ip"], attributes["vt.goc"]["request"]["remote_address"])
+              - set(attributes["event.outcome"], "failure") where attributes["vt.goc"]["error"] != nil
+              - set(attributes["vt.phat_hien"], "transit-decrypt") where IsMatch(attributes["vt.goc"]["request"]["path"], "^transit/decrypt/")
+              - set(attributes["openbao"], attributes["vt.goc"])
+      transform/ecs-pam:
+        error_mode: ignore
+        log_statements:
+          # Phiên PAM (SEC-42): syslog RFC 5424, thuộc tính do receiver syslog tách.
+          - context: log
+            statements:
+              - set(attributes["event.module"], "pam")
+              - set(attributes["event.dataset"], "pam.session")
+              - set(attributes["host.name"], attributes["hostname"])
+              - set(attributes["process.name"], attributes["appname"])
+              - set(attributes["vt.phat_hien"], "pha-kinh") where IsMatch(attributes["message"], "(?i)(break.?glass|pha.?kinh)")
+              - set(attributes["pam"], attributes["structured_data"]) where attributes["structured_data"] != nil
+      transform/cuoi:
+        error_mode: ignore
+        log_statements:
+          - context: log
+            statements:
+              - set(attributes["@timestamp"], FormatTime(Now(), "%Y-%m-%dT%H:%M:%S.%LZ")) where attributes["@timestamp"] == nil
+              - set(attributes["observer.name"], "otel-siem")
+              - set(attributes["observer.type"], "log-pipeline")
+              - set(attributes["labels.cell"], {{ $v.cell | quote }})
+              - delete_key(attributes, "vt.goc")
+              - set(body, attributes)
+    exporters:
+      kafka/siem:
+        brokers: {{ $brokers }}
+        client_id: otel-siem
+        logs: { topic: {{ $t.siem }}, encoding: raw }
+        producer: { required_acks: -1, compression: zstd }
+        tls: {{ $kafkaTls }}
+        sending_queue: { enabled: true, queue_size: 10000 }
+        retry_on_failure: { enabled: true, max_elapsed_time: 0 }
+      kafka/runtime:
+        brokers: {{ $brokers }}
+        client_id: otel-siem
+        logs: { topic: {{ $t.runtime }}, encoding: otlp_json }
+        producer: { required_acks: -1, compression: zstd }
+        tls: {{ $kafkaTls }}
+        sending_queue: { enabled: true, queue_size: 10000 }
+        retry_on_failure: { enabled: true, max_elapsed_time: 0 }
+    service:
+      extensions: [health_check{{ if $s.avro.enabled }}, avro_log_encoding{{ end }}]
+      telemetry:
+        metrics:
+          readers:
+            - pull: { exporter: { prometheus: { host: 0.0.0.0, port: 8888 } } }
+      pipelines:
+        logs/runtime-vao:
+          receivers: [otlp/falco]
+          processors: [memory_limiter, batch]
+          exporters: [kafka/runtime]
+        logs/kiem-toan:
+          receivers: [kafka/audit]
+          processors: [memory_limiter, transform/phan-tich, filter/khong-phai-json, transform/dau, transform/ecs-kiem-toan, transform/cuoi, batch]
+          exporters: [kafka/siem]
+        {{- if $s.avro.enabled }}
+        logs/iam:
+          receivers: [kafka/iam]
+          processors: [memory_limiter, transform/dau, transform/ecs-iam, transform/cuoi, batch]
+          exporters: [kafka/siem]
+        {{- end }}
+        logs/falco:
+          receivers: [kafka/runtime]
+          processors: [memory_limiter, transform/dau, transform/ecs-falco, transform/cuoi, batch]
+          exporters: [kafka/siem]
+        {{- if $s.openbao.enabled }}
+        logs/openbao:
+          receivers: [tcplog/openbao]
+          processors: [memory_limiter, transform/phan-tich, filter/khong-phai-json, transform/dau, transform/ecs-openbao, transform/cuoi, batch]
+          exporters: [kafka/siem]
+        {{- end }}
+        {{- if $s.pam.enabled }}
+        logs/pam:
+          receivers: [syslog/pam]
+          processors: [memory_limiter, transform/dau, transform/ecs-pam, transform/cuoi, batch]
+          exporters: [kafka/siem]
+        {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-siem
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: otel-siem
+    {{- include "otel.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $s.replicas | int }}
+  selector:
+    matchLabels: { app.kubernetes.io/name: otel-siem }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: otel-siem
+        vt.io/needs-k8s-api: "false"
+        {{- include "otel.labels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ toJson $s | sha256sum | trunc 16 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "otel.podSecurity" . | nindent 8 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app.kubernetes.io/name: otel-siem }
+      containers:
+        - name: otelcol
+          {{- include "otel.container" (dict "root" . "res" $s.resources) | nindent 10 }}
+          ports:
+            - { name: otlp-http, containerPort: {{ $s.otlp.port | int }} }
+            {{- if $s.openbao.enabled }}
+            - { name: openbao-audit, containerPort: {{ $s.openbao.port | int }} }
+            {{- end }}
+            {{- if $s.pam.enabled }}
+            - { name: pam-syslog, containerPort: {{ $s.pam.port | int }} }
+            {{- end }}
+            - { name: metrics, containerPort: 8888 }
+          volumeMounts:
+            - { name: config, mountPath: /conf }
+            - { name: kafka-tls, mountPath: /etc/otel/kafka, readOnly: true }
+            - { name: tls, mountPath: /etc/otel/tls, readOnly: true }
+      volumes:
+        - name: config
+          configMap: { name: otel-siem }
+        - name: kafka-tls
+          secret: { secretName: {{ $s.kafka.tlsSecret }} }
+        - name: tls
+          secret: { secretName: {{ $s.otlp.tlsSecret }} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-siem
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: otel-siem
+spec:
+  selector: { app.kubernetes.io/name: otel-siem }
+  ports:
+    - { name: otlp-http, port: {{ $s.otlp.port | int }} }
+    {{- if $s.openbao.enabled }}
+    - { name: openbao-audit, port: {{ $s.openbao.port | int }} }
+    {{- end }}
+    {{- if $s.pam.enabled }}
+    - { name: pam-syslog, port: {{ $s.pam.port | int }} }
+    {{- end }}
+---
+# Chứng thư máy chủ của otel-siem (OTLP mTLS từ Falcosidekick, syslog TLS từ PAM), PKI nội bộ của cell (SEC-59).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: otel-siem
+  namespace: observability
+spec:
+  secretName: {{ $s.otlp.tlsSecret }}
+  commonName: otel-siem.observability.svc
+  dnsNames: [otel-siem.observability.svc, otel-siem.observability.svc.cluster.local]
+  usages: [server auth, digital signature, key encipherment]
+  duration: 2160h
+  renewBefore: 720h
+  privateKey: { algorithm: ECDSA, size: 256, rotationPolicy: Always }
+  issuerRef:
+    {{- toYaml $s.otlp.issuerRef | nindent 4 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: otel-siem
+  namespace: observability
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: otel-siem }
+---
+# otel-siem: vào từ Falcosidekick, OpenBao, PAM; ra chỉ tới Kafka của cell (mTLS 9093). Luồng tới SOC không đi từ đây.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: otel-siem
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: otel-siem }
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        {{- range $s.otlp.clientNamespaces }}
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ . }} }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: falcosidekick }
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: {{ $s.otlp.port | int }} }
+    {{- if $s.openbao.enabled }}
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: secure-data }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: openbao }
+      ports:
+        - { protocol: TCP, port: {{ $s.openbao.port | int }} }
+    {{- end }}
+    {{- if and $s.pam.enabled $s.pam.sourceCIDRs }}
+    - from:
+        {{- range $s.pam.sourceCIDRs }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: {{ $s.pam.port | int }} }
+    {{- end }}
+    - from:
+        - podSelector: {}
+      ports:
+        - { protocol: TCP, port: 8888 }
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: data-kafka }
+          podSelector:
+            matchLabels: { strimzi.io/cluster: kafka-cell }
+      ports:
+        - { protocol: TCP, port: 9093 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: otel-siem-to-kafka-ingress
+  namespace: data-kafka
+spec:
+  podSelector:
+    matchLabels: { strimzi.io/cluster: kafka-cell }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: observability }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: otel-siem }
+      ports:
+        - { protocol: TCP, port: 9093 }
+{{- if $s.soc.brokers }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: siem-soc-forwarder
+  namespace: egress
+  labels:
+    {{- include "otel.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    # Chặng ra SOC (SEC-43): đọc {{ $t.siem }} của cell và ghi sang Kafka của SOC bằng mTLS. Chỉ cell mở kết nối ra
+    # (một chiều); không có cổng nhận nào mở cho SOC.
+    extensions:
+      health_check: { endpoint: 0.0.0.0:13133 }
+    receivers:
+      kafka/cell:
+        brokers: {{ $brokers }}
+        # Nhóm tiêu thụ nằm trong tiền tố ACL của KafkaUser siem-forwarder (danh mục Kafka, INF-19).
+        group_id: {{ $s.kafka.groupId }}-soc
+        client_id: siem-soc-forwarder
+        initial_offset: earliest
+        logs: { topic: {{ $t.siem }}, encoding: raw }
+        tls: {{ $kafkaTls }}
+    processors:
+      memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 20 }
+      batch: { send_batch_size: 2048, timeout: 2s }
+    exporters:
+      kafka/soc:
+        brokers: {{ toJson $s.soc.brokers }}
+        client_id: vt-cell-{{ $v.cell }}
+        logs: { topic: {{ $s.soc.topic }}, encoding: raw }
+        producer: { required_acks: -1, compression: zstd }
+        tls: { ca_file: /etc/otel/soc/ca.crt, cert_file: /etc/otel/soc/tls.crt, key_file: /etc/otel/soc/tls.key, min_version: "1.2" }
+        sending_queue: { enabled: true, queue_size: 10000 }
+        retry_on_failure: { enabled: true, max_elapsed_time: 0 }
+    service:
+      extensions: [health_check]
+      telemetry:
+        metrics:
+          readers:
+            - pull: { exporter: { prometheus: { host: 0.0.0.0, port: 8888 } } }
+      pipelines:
+        logs:
+          receivers: [kafka/cell]
+          processors: [memory_limiter, batch]
+          exporters: [kafka/soc]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: siem-soc-forwarder
+  namespace: egress
+  labels:
+    app.kubernetes.io/name: siem-soc-forwarder
+    {{- include "otel.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: siem-soc-forwarder }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: siem-soc-forwarder
+        vt.io/needs-k8s-api: "false"
+        {{- include "otel.labels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "otel.podSecurity" . | nindent 8 }}
+      containers:
+        - name: otelcol
+          {{- include "otel.container" (dict "root" . "res" $s.resources) | nindent 10 }}
+          volumeMounts:
+            - { name: config, mountPath: /conf }
+            - { name: kafka-tls, mountPath: /etc/otel/kafka, readOnly: true }
+            - { name: soc-tls, mountPath: /etc/otel/soc, readOnly: true }
+      volumes:
+        - name: config
+          configMap: { name: siem-soc-forwarder }
+        - name: kafka-tls
+          secret: { secretName: {{ $s.kafka.tlsSecret }} }
+        # Chứng thư máy khách do SOC cấp cho cell, nạp từ OpenBao qua ESO.
+        - name: soc-tls
+          secret: { secretName: {{ $s.soc.tlsSecret }} }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: siem-soc-forwarder-to-kafka-ingress
+  namespace: data-kafka
+spec:
+  podSelector:
+    matchLabels: { strimzi.io/cluster: kafka-cell }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: egress }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: siem-soc-forwarder }
+      ports:
+        - { protocol: TCP, port: 9093 }
+---
+# Chỉ chặng ra SOC trong namespace egress được tới dải Kafka của SOC (SEC-36), và tới Kafka của cell.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: siem-soc-forwarder
+  namespace: egress
+spec:
+  endpointSelector:
+    matchLabels: { app.kubernetes.io/name: siem-soc-forwarder }
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: data-kafka
+            strimzi.io/cluster: kafka-cell
+      toPorts:
+        - ports: [{ port: "9093", protocol: TCP }]
+    {{- with $s.soc.cidrs }}
+    - toCIDR: {{ toJson . }}
+      toPorts:
+        - ports: [{ port: "9093", protocol: TCP }]
+    {{- end }}
+{{- end }}
+{{- end }}

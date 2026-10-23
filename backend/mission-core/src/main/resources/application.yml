@@ -38,6 +38,14 @@ spring:
         schema: modulith
   lifecycle:
     timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:25s}
+  # Token Keycloak realm mission (ADR-08): iss phải khớp issuer-uri; JWKS lấy theo jwk-set-uri (đường nội bộ tới
+  # Keycloak khi khác tên máy công khai), nên khởi động không cần Keycloak sẵn sàng.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://127.0.0.1:35080/realms/mission}
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI:${KEYCLOAK_ISSUER_URI:http://127.0.0.1:35080/realms/mission}/protocol/openid-connect/certs}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -81,6 +89,9 @@ okrkpi:
     listener-auto-startup: ${ORG_REPLICA_CONSUMERS_ENABLED:true}
   opa:
     enabled: ${OPA_ENABLED:false}
+  # /api/** cần bearer token hợp lệ; chỉ tắt cho máy dev không có Keycloak (token gửi kèm vẫn được kiểm).
+  security:
+    auth-enabled: ${AUTH_ENABLED:true}
   tenant:
     claim: ${TENANT_JWT_CLAIM:tenant_id}
     db-setting: ${TENANT_DB_SETTING:app.tenant_id}

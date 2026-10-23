@@ -1,0 +1,31 @@
+# Giá trị security-cell cho cụm kind (INF-19): 1 control plane + 3 worker; Tetragon chưa cài trên kind nên tắt
+# chính sách; kênh SOC tắt (không có webhook thật); tài nguyên nhỏ. Dùng cùng kiem-thu-an-ninh.sh.
+cell: kind
+falco:
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+falcosidekick:
+  replicas: 1
+  soc:
+    enabled: false
+tetragon:
+  enabled: false
+kubeBench:
+  targets:
+    - name: master
+      checks: master,controlplane,etcd,policies
+      count: 1
+      nodeSelector: { node-role.kubernetes.io/control-plane: "" }
+      tolerations:
+        - { key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule }
+    - name: node
+      checks: node
+      count: 3
+      nodeSelector: {}
+      tolerations:
+        - { operator: Exists }
+kured:
+  enabled: false
+egressProbe:
+  schedule: "*/5 * * * *"

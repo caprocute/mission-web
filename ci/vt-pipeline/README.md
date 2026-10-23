@@ -58,7 +58,7 @@ Job là Multibranch Pipeline trên repo Mission, Script Path `backend/Jenkinsfil
 | Bí mật và SAST › Semgrep | `semgrep scan --config p/java --config .semgrep/vt-rules.yml --error --sarif` | có phát hiện | SEC-39, SEC-05, SEC-07, SEC-20 |
 | Bí mật và SAST › Trivy fs | `trivy fs --scanners vuln,misconfig,license --severity HIGH,CRITICAL --exit-code 1` | lỗ hổng, cấu hình sai, giấy phép HIGH/CRITICAL | SEC-23 |
 | Hợp đồng API › openapi-diff | `resources/.../openapi-diff.sh origin/<đích> contracts/openapi` | thay đổi phá vỡ tương thích, xoá tệp module | ADR-32 |
-| Hợp đồng API › Pact can-i-deploy | `pact-broker can-i-deploy` | tắt mặc định, bật `pact: true` khi QA-02 xong | TL-01 ch.18 |
+| Hợp đồng API › Pact can-i-deploy | `pact-broker can-i-deploy` | tắt mặc định; QA-02 chạy Pact bằng tệp trong repo (không dựng Broker), bên cung cấp xác minh bằng các lớp `*PactIT` trong `verify -Pci`, chỉ bật `pact: true` khi có Broker | TL-01 ch.18 |
 | Dựng và kiểm thử | `./mvnw -B -ntp verify -Pci`; `junit`; `recordCoverage` LINE ≥ 80% trên tệp thay đổi | kiểm thử lỗi, ArchUnit, Modulith, độ phủ | J1–J3 |
 | SonarQube | `withSonarQubeEnv` + `waitForQualityGate abortPipeline: true` | quality gate không đạt | TL-01 ch.18 |
 | Ảnh, SBOM, quét | Jib `compile jib:build` → digest; `syft` CycloneDX; `trivy image --ignore-unfixed --exit-code 1`; tải SBOM lên Dependency-Track | lỗ hổng HIGH/CRITICAL đã có bản vá | SEC-23, SEC-49, SEC-55 |

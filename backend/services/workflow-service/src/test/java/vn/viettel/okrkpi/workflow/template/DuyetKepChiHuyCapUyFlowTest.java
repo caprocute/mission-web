@@ -132,7 +132,7 @@ class DuyetKepChiHuyCapUyFlowTest {
     vars.put("donViId", tree.banA().toString());
     vars.put("tieuDe", "Kế hoạch huấn luyện quý I");
     return new FlowableApprovalProcesses(
-            engine.getRuntimeService(), engine.getHistoryService(), null)
+            engine.getRuntimeService(), engine.getHistoryService(), engine.getTaskService(), null)
         .start(tenant, PARENT, new BusinessKey("OKR_OBJECTIVE", objectId), submitter, vars);
   }
 

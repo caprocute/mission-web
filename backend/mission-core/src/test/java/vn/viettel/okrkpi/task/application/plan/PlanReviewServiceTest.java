@@ -212,4 +212,49 @@ class PlanReviewServiceTest {
                 .approvals(TENANT, HEAD, null, 51))
         .isEmpty();
   }
+
+  @Test
+  void choToiDuyetTheoHopViecWorkflow() {
+    VersionRow v = version(PlanVersionStatus.CHO_DUYET, 3);
+    UUID other = UUID.randomUUID();
+    when(repo.awaitingReviewOfPlans(TENANT, List.of(PLAN.id(), other), null, 51))
+        .thenReturn(List.of(new ReviewRow(PLAN, v)));
+    when(periods.findById(TENANT, PeriodId.of(PERIOD))).thenReturn(Optional.of(SNAPSHOT));
+    PlanReviewService withInbox =
+        new PlanReviewService(
+            repo,
+            planService,
+            periods,
+            org,
+            notices,
+            publisher,
+            Clock.systemUTC(),
+            () -> Optional.of(List.of(PLAN.id(), other)));
+    assertThat(withInbox.approvals(TENANT, AUTHOR, null, 51)).hasSize(1);
+
+    PlanReviewService emptyInbox =
+        new PlanReviewService(
+            repo,
+            planService,
+            periods,
+            org,
+            notices,
+            publisher,
+            Clock.systemUTC(),
+            () -> Optional.of(List.of()));
+    assertThat(emptyInbox.approvals(TENANT, AUTHOR, null, 51)).isEmpty();
+    verify(repo, never()).awaitingReview(any(), any(), any(), anyInt());
+
+    PlanReviewService noInbox =
+        new PlanReviewService(
+            repo,
+            planService,
+            periods,
+            org,
+            notices,
+            publisher,
+            Clock.systemUTC(),
+            Optional::empty);
+    assertThat(noInbox.approvals(TENANT, AUTHOR, null, 51)).isEmpty();
+  }
 }

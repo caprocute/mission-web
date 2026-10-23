@@ -1,0 +1,43 @@
+{
+  "$comment": "Dữ liệu nhập của hành trình QT-11..QT-18 (QA-07, frontend/e2e/hanh-trinh/qt11-18). Chỉ là nội dung thử, không có thông tin cá nhân thật. {MA} được thay bằng tiền tố của lần chạy (E2E_RUN_ID) để tra và dọn. Bản ghi cần có sẵn trên hệ thống thật (hội nghị, gói hồ sơ, hồ sơ có thể khiếu nại, kỳ đã khoá, cảnh báo, phiên bản Policy Pack và UI Pack đang soạn) lấy từ seed tổ chức và đánh giá (DL-07), không tạo ở đây; xem README.md.",
+  "kiemDiem": {
+    "gopY": "{MA} Đề nghị đồng chí nêu rõ giải pháp khắc phục hạn chế về tiến độ báo cáo quý.",
+    "yKienHoiNghi": "{MA} Hội nghị thống nhất ghi nhận ưu điểm về chất lượng tham mưu, đề nghị khắc phục chậm tiến độ.",
+    "bieuQuyet": {
+      "Hoàn thành xuất sắc nhiệm vụ": 1,
+      "Hoàn thành tốt nhiệm vụ": 4,
+      "Hoàn thành nhiệm vụ": 0,
+      "Không hoàn thành nhiệm vụ": 0
+    }
+  },
+  "khieuNai": {
+    "lyDo": "{MA} Nhiệm vụ then chốt số 2 đã hoàn thành đúng hạn theo biên bản nghiệm thu, nhưng kết quả đánh giá ghi nhận chậm tiến độ do số liệu chưa được cập nhật kịp thời.",
+    "deNghi": "Đề nghị xem xét lại điểm cấu phần nhiệm vụ then chốt số 2 theo biên bản nghiệm thu.",
+    "yeuCauGiaiTrinh": "{MA} Đề nghị đơn vị giải trình căn cứ ghi nhận chậm tiến độ của nhiệm vụ then chốt số 2.",
+    "giaiTrinh": "{MA} Đơn vị ghi nhận theo số liệu tại thời điểm khoá kỳ; biên bản nghiệm thu được cập nhật sau đó."
+  },
+  "ketLuan": {
+    "noiDung": "{MA} Giữ nguyên kết quả đánh giá vì căn cứ khiếu nại đã được xem xét tại thời điểm khoá kỳ.",
+    "soVanBan": "08-CV/BTC",
+    "ghiChuKhongGiaiTrinh": "{MA} Hồ sơ đủ căn cứ để kết luận, không cần yêu cầu giải trình thêm."
+  },
+  "moLai": {
+    "canCu": "KL-{MA}",
+    "lyDo": "{MA} Kết luận kiểm tra xác định số liệu tiến độ của hồ sơ được nhập sau khi đã biết kết quả, cần mở lại kỳ để điều chỉnh theo minh chứng gốc.",
+    "yKienDuyet1": "Đồng ý mở lại kỳ theo kết luận kiểm tra.",
+    "yKienDuyet2": "Đồng ý, phạm vi mở lại đúng đối tượng của kết luận."
+  },
+  "canhBao": {
+    "ghiChuGiao": "{MA} Đề nghị cơ quan kiểm tra xác minh minh chứng dùng lại giữa hai hồ sơ.",
+    "ghiChuKetLuan": "{MA} Đã đối chiếu nhật ký sửa đổi, xác định không có vi phạm quy định."
+  },
+  "chinhSach": {
+    "yKienPheDuyet": "Đồng ý phát hành phiên bản theo kết quả kiểm thử đạt toàn bộ ca vàng."
+  },
+  "dashboard": {
+    "ten": "{MA} Bảng theo dõi tiến độ mục tiêu"
+  },
+  "troLy": {
+    "cauHoi": "Gợi ý soạn mục tiêu và KR cho chi bộ khối cơ quan bám kế hoạch công tác năm."
+  }
+}

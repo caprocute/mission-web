@@ -11,7 +11,7 @@
   ],
   "defaultLocale": "vi",
   "bruteForceProtected": true,
-  "passwordPolicy": "length(8)",
+  "passwordPolicy": "length(8) and passwordBlacklist(mat-khau-pho-bien.txt)",
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
@@ -263,7 +263,7 @@
     },
     {
       "name": "mission-context",
-      "description": "Ngữ cảnh Mission (WEB-056): vai trò realm, tenant, đơn vị, mức xác thực acr. Claim tenant_id (mặc định okrkpi.tenant.claim) và tenant (SessionService) cùng mang UUID tenant; unit_id là UUID đơn vị; sub là id người dùng, trùng org.person.id của dữ liệu thử (infra/dev/postgres/seed).",
+      "description": "Ngữ cảnh Mission (WEB-056): vai trò realm, acr, tenant_id và tenant (UUID tenant), unit_id (UUID đơn vị); sub trùng org.person.id của dữ liệu thử.",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "false",
@@ -373,12 +373,12 @@
       "redirectUris": [
         "http://localhost:4200/*",
         "http://localhost:35200/*",
-        "${WEB_ORIGIN}/*"
+        "${WEB_ORIGIN:http://localhost:4200}/*"
       ],
       "webOrigins": [
         "http://localhost:4200",
         "http://localhost:35200",
-        "${WEB_ORIGIN}"
+        "${WEB_ORIGIN:http://localhost:4200}"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",

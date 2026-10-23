@@ -1,0 +1,167 @@
+{{- include "pam.kiemHopDong" . }}
+{{- $v := .Values }}
+{{- $ns := $v.namespace }}
+# Namespace của hai CronJob quét PAM (INF-27): Pod Security restricted, mặc định từ chối mọi chiều (SEC-26, SEC-32).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    vt.io/security-zone: secure
+    vt.io/cell: {{ $v.cell | quote }}
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ $ns }}
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: {{ $ns }}
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# Hai CronJob quét chỉ được đẩy chỉ số tới Pushgateway của cell.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pam-quet-to-pushgateway
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+    matchLabels: { vt.io/pam-quet: "true" }
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: observability }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: pushgateway }
+      ports:
+        - { protocol: TCP, port: 9091 }
+---
+# Chiều vào Pushgateway (security-cell chỉ mở cho kube-bench, thăm dò cổng ra, xoay khoá); chính sách cộng dồn.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pam-quet-to-pushgateway-ingress
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: pushgateway }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ $ns }} }
+          podSelector:
+            matchLabels: { vt.io/pam-quet: "true" }
+      ports:
+        - { protocol: TCP, port: 9091 }
+{{- if $v.quetRbac.enabled }}
+---
+# Quét RBAC gọi API server (đọc binding, xoá binding PAM quá hạn).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: pam-quet-rbac-egress
+  namespace: {{ $ns }}
+spec:
+  endpointSelector:
+    matchLabels: { app.kubernetes.io/name: pam-quet-rbac }
+  egress:
+    - toEntities: [kube-apiserver]
+{{- end }}
+{{- if $v.quetCsdl.enabled }}
+{{- $nss := list }}
+{{- range $v.quetCsdl.clusters }}{{ $nss = append $nss .namespace }}{{ end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pam-quet-csdl-to-pg
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: pam-quet-csdl }
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        {{- range uniq $nss }}
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ . }} }
+          podSelector:
+            matchExpressions: [{ key: cnpg.io/cluster, operator: Exists }]
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: 5432 }
+{{- range uniq $nss }}
+---
+# Chiều vào instance CNPG từ CronJob quét (data-pg mở cho Pooler, Job cấp quyền, migration; chính sách cộng dồn).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pam-quet-csdl-ingress
+  namespace: {{ . }}
+spec:
+  podSelector:
+    matchExpressions: [{ key: cnpg.io/cluster, operator: Exists }]
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ $ns }} }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: pam-quet-csdl }
+      ports:
+        - { protocol: TCP, port: 5432 }
+{{- if or $v.pam.proxyCIDRs $v.pam.proxyInCluster.namespace }}
+---
+# Đường duy nhất cho người vào CSDL: proxy ghi phiên của PAM (SEC-42). Không có đường nào khác cho người dùng.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pam-proxy-to-pg
+  namespace: {{ . }}
+spec:
+  podSelector:
+    matchExpressions: [{ key: cnpg.io/cluster, operator: Exists }]
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        {{- range $v.pam.proxyCIDRs }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+        {{- with $v.pam.proxyInCluster.namespace }}
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ . }} }
+          {{- with $v.pam.proxyInCluster.podLabels }}
+          podSelector:
+            matchLabels: {{ toJson . }}
+          {{- end }}
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: 5432 }
+{{- end }}
+{{- end }}
+{{- end }}

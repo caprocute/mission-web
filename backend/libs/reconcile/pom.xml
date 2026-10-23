@@ -5,7 +5,9 @@
       modulo 2^64 tương thích org-service, wiki trang 18), chia 256 bucket;
     - bản ghi reconcile_run theo mẫu org_replica.reconcile_run, có thêm cột job và detail (wiki trang 14);
     - chỉ số Prometheus mission.reconcile.* (số lần chạy, số lệch, thời gian);
-    - đếm thông điệp Kafka theo khoảng thời gian cho R7 (outbox ↔ Kafka).
+    - đếm thông điệp Kafka theo khoảng thời gian cho R7 (outbox ↔ Kafka);
+    - bộ so R1 bản sao tổ chức OrgReplicaReconciler dùng chung cho mission-core và workflow-service
+      (DV-06-10). Phần nhận Avro OrgBootstrap ở phía dịch vụ nên thư viện không phụ thuộc vt-events.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
@@ -32,6 +34,14 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-clients</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>

@@ -1569,6 +1569,8 @@ export interface components {
       openBlockerCount: number;
       /** @description Số ngày làm việc còn lại tới hạn, âm khi đã quá hạn; máy chủ tính theo lịch nghỉ. */
       workingDaysLeft: number;
+      /** @description Thao tác của người gọi trên nhiệm vụ này theo OPA, ví dụ `SCR-1601.giao-lai` chỉ có khi người gọi là người giao việc (BR-16-07); thiếu trường thì giao diện chỉ xét vai trò. */
+      permittedActions?: components['schemas']['PermittedActions'];
     };
     TaskSummaryPage: {
       items: components['schemas']['TaskSummary'][];
@@ -2441,6 +2443,14 @@ export interface components {
      * @example 7
      */
     RowVersion: number;
+    /**
+     * @description Thao tác người gọi được làm trên chính đối tượng này, dạng khoá chức năng của ma trận phân quyền `SCR-qqnn.<khoá>` (docs/phan-quyen/ma-tran.json). Máy chủ tính bằng OPA với cùng đầu vào như khi thực hiện thao tác (vai trò, phạm vi đơn vị, người tham gia, trạng thái, tách vai trò), để giao diện ẩn nút trước thay vì để người dùng bấm rồi nhận 403 (YC-PT-21). Chỉ là gợi ý hiển thị: thao tác vẫn được kiểm lại khi gọi. Không gửi trường này nghĩa là giao diện chỉ xét vai trò.
+     * @example [
+     *       "SCR-1601.nhac",
+     *       "SCR-1601.giao-lai"
+     *     ]
+     */
+    PermittedActions: string[];
     /** @description Con trỏ trang kế tiếp; `null` khi đã hết. */
     NextCursor: string | null;
     /** @description Kỳ đánh giá rút gọn (`config.period`). */

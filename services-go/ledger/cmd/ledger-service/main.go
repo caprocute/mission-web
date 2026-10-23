@@ -27,6 +27,7 @@ import (
 	"mission/services-go/ledger/internal/server"
 	"mission/services-go/ledger/internal/verify"
 	"vn.viettel.okrkpi/services-go/vtplatform/otel"
+	"vn.viettel.okrkpi/services-go/vtplatform/site"
 )
 
 const migrationDir = "/db/migration/ledger"
@@ -43,6 +44,12 @@ func main() {
 	}
 
 	cfg, err := config.Load()
+	if err != nil {
+		log.Error("cấu hình không hợp lệ", "err", err.Error())
+		os.Exit(2)
+	}
+	// INF-28: ở TTDL chờ (VT_SITE_ROLE=standby) không chạy consumer Kafka, job định kỳ hay migration.
+	st, err := site.FromEnv()
 	if err != nil {
 		log.Error("cấu hình không hợp lệ", "err", err.Error())
 		os.Exit(2)
@@ -76,7 +83,7 @@ func main() {
 	}
 	defer roPool.Close()
 
-	if os.Getenv("AUTO_MIGRATE") == "true" || os.Getenv("AUTO_MIGRATE") == "1" {
+	if (os.Getenv("AUTO_MIGRATE") == "true" || os.Getenv("AUTO_MIGRATE") == "1") && st.Active(log, "flyway") {
 		if err := autoMigrateDev(ctx, pool, log); err != nil {
 			log.Error("không chạy được auto-migrate", "err", err.Error())
 			os.Exit(1)
@@ -89,9 +96,13 @@ func main() {
 		os.Exit(runAdmin(ctx, ing, sealers, os.Args[2:], log))
 	}
 
-	go partition.RunPeriodic(ctx, pool, cfg.PartitionSyncInterval, log)
+	if st.Active(log, "scheduler") {
+		go partition.RunPeriodic(ctx, pool, cfg.PartitionSyncInterval, log)
+	}
 
-	if len(cfg.KafkaBrokers) > 0 {
+	if st.Standby() {
+		st.Active(log, "kafka-consumer")
+	} else if len(cfg.KafkaBrokers) > 0 {
 		consumer, err := ingest.NewConsumer(cfg.KafkaBrokers, cfg.KafkaTopic, cfg.KafkaGroupID, ing, log)
 		if err != nil {
 			log.Error("không tạo được consumer ledger-ingester", "err", err.Error())
@@ -129,7 +140,7 @@ func main() {
 	verifySched := &verify.Scheduler{Service: verifier}
 	var lastSeal func() int64
 	var exporter *export.Service
-	if cfg.SealEnabled {
+	if cfg.SealEnabled && st.Active(log, "scheduler") {
 		sealer, anchorer, err := sealers()
 		if err != nil {
 			log.Error("không dựng được job niêm phong", "err", err.Error())
@@ -147,7 +158,9 @@ func main() {
 			log.Warn("chưa có khoá ký trong tiến trình hoặc EXPORT_DIR, API xuất bằng chứng chưa mở")
 		}
 	}
-	go verifySched.Run(ctx)
+	if !st.Standby() {
+		go verifySched.Run(ctx)
+	}
 
 	deps := server.Deps{
 		Pool:              pool,
@@ -179,7 +192,7 @@ func main() {
 
 	httpSrv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           srv.Handler(),
+		Handler:           st.Wrap(srv.Handler()),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

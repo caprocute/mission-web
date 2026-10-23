@@ -14,7 +14,7 @@ const parentOf = (url: string) => SECTIONS.find((s) => url.startsWith(s.path + '
  * Trang đầu `/tasks` theo `myTasksOrFirstAllowed` của `fe-task/src/app/task.routes.ts`: SCR-0503 nếu
  * có, nếu không thì Giao việc (SCR-0501), rồi Thư viện danh mục (SCR-0401), còn lại bị chặn.
  */
-function tasksLanding(roles: string[]): string {
+export function tasksLanding(roles: string[]): string {
   if (canAny(roles, screenKeys(['SCR-0503']))) return '/tasks';
   if (canAny(roles, screenKeys(['SCR-0501']))) return '/tasks/assign';
   if (canAny(roles, screenKeys(['SCR-0401']))) return '/tasks/catalog';

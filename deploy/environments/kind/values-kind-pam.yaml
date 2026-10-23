@@ -1,0 +1,26 @@
+# Giá trị pam-integration cho cụm kind (INF-27), dùng cùng kiem-thu-pam.sh. Ảnh Python lấy thẳng ảnh chính thức theo
+# cùng digest (kind không có Harbor); quét CSDL mặc định tắt, kiem-thu-pam.sh bật khi có cụm pg-core của
+# values-kind-data-pg.yaml và biến PG_ANH; ân hạn thu hồi ngắn để thử tự thu hồi trong vài phút.
+cell: kind
+images:
+  python:
+    repository: docker.io/library/python
+    digest: sha256:1b668429b3511ab407d8e00648891631b0b1a4d7e15e3ca70f38ab5b91ad4ab4
+quetRbac:
+  anHan: 30s
+  choPhep:
+    - { ten: "^cluster-admin$", chuThe: "^Group:/system:masters$" }
+    - { ten: "^system:", chuThe: "^(Group:/system:.*|User:/system:.*|ServiceAccount:kube-system/.*)$" }
+    - { ten: "^kubeadm:", chuThe: "^(Group:/(kubeadm:|system:).*|ServiceAccount:kube-system/.*)$" }
+    # kind: local-path-provisioner và kindnet.
+    - { ten: "^(local-path-provisioner|kindnet)", chuThe: "^ServiceAccount:(local-path-storage|kube-system)/.*$" }
+quetCsdl:
+  enabled: false
+  externalSecret:
+    enabled: false
+  clusters:
+    - { name: pg-core, namespace: data-pg, schemas: [config, policy, okr, task, product, appraisal, dossier, oversight, org_replica] }
+openbao:
+  configMap: false
+alerts:
+  enabled: false

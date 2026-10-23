@@ -372,3 +372,153 @@ export const PERMISSION_TABLE: Readonly<Record<PermissionKey, string>> = {
   'SCR-1802.dung': 'tenant_admin policy_author',
   'SCR-1802.dua-vao-pack': 'tenant_admin',
 };
+
+/** Khoá năng lực nền, không mở màn hình: `screenKeys()` bỏ qua khi gom khoá cho menu và tuyến. */
+export const NON_ENTRY_KEYS: readonly PermissionKey[] = ['SCR-0501.khoa-nguoi-nhan'];
+
+/** Module API của ma trận (`/api/v1/<module>`). */
+export type ApiModule =
+  | 'okr'
+  | 'tasks'
+  | 'plans'
+  | 'catalog'
+  | 'products'
+  | 'evidences'
+  | 'appraisals'
+  | 'policies'
+  | 'dossiers'
+  | 'oversight'
+  | 'config'
+  | 'periods'
+  | 'org'
+  | 'files'
+  | 'ledger'
+  | 'esign'
+  | 'notifications'
+  | 'analytics'
+  | 'ai'
+  | 'ui'
+  | 'registry'
+  | 'workflow'
+  | 'jobs'
+  | 'search';
+
+/**
+ * Vai trò được gọi từng phương thức của module API, cách nhau bởi dấu cách; hậu tố `*` đánh dấu
+ * ô suy luận. Phương thức không có trong bảng: không vai trò người dùng nào được gọi.
+ */
+export const API_PERMISSION_TABLE: Readonly<
+  Record<ApiModule, Readonly<Partial<Record<string, string>>>>
+> = {
+  okr: {
+    GET: 'leader manager member inspector*',
+    POST: 'leader manager member',
+    PUT: 'manager member',
+  },
+  tasks: {
+    GET: 'leader manager member appraiser* inspector*',
+    POST: 'leader manager member',
+    PUT: 'manager',
+    PATCH: 'manager',
+    DELETE: 'manager',
+  },
+  plans: {
+    GET: 'leader manager member* appraiser',
+    POST: 'leader manager',
+    PUT: 'manager',
+  },
+  catalog: {
+    GET: 'policy_author leader* manager member',
+    POST: 'policy_author manager',
+    PUT: 'policy_author* manager',
+  },
+  products: {
+    GET: 'manager* member',
+    POST: 'member',
+  },
+  evidences: {
+    GET: 'leader manager member appraiser inspector',
+    POST: 'manager member',
+    PUT: 'member',
+  },
+  appraisals: {
+    GET: 'leader manager member appraiser decider inspector',
+    POST: 'leader manager member appraiser decider inspector*',
+    PUT: 'leader member',
+  },
+  policies: {
+    GET: 'tenant_admin* policy_author leader* appraiser* decider',
+    POST: 'policy_author decider',
+    PUT: 'policy_author',
+  },
+  dossiers: {
+    GET: 'leader manager member appraiser decider',
+    POST: 'leader* manager* member appraiser decider',
+  },
+  oversight: {
+    GET: 'member appraiser decider second_approver inspector',
+    POST: 'member appraiser decider second_approver inspector',
+    PUT: 'member',
+  },
+  config: {
+    GET: 'platform_admin tenant_admin leader manager member appraiser decider second_approver inspector',
+    POST: 'platform_admin tenant_admin leader',
+    PUT: 'tenant_admin policy_author',
+    PATCH: 'platform_admin tenant_admin',
+    DELETE: 'platform_admin',
+  },
+  periods: {
+    GET: 'tenant_admin leader manager member appraiser decider second_approver inspector',
+    POST: 'tenant_admin leader second_approver',
+  },
+  org: {
+    GET: 'platform_admin* tenant_admin leader manager member appraiser decider second_approver inspector',
+    POST: 'tenant_admin',
+    PUT: 'tenant_admin leader manager member appraiser decider second_approver inspector',
+  },
+  files: {
+    GET: 'leader manager member appraiser decider inspector',
+    POST: 'manager member',
+    PUT: 'member',
+  },
+  ledger: {
+    GET: 'appraiser inspector',
+    POST: 'inspector',
+  },
+  esign: {
+    GET: 'leader member appraiser decider second_approver*',
+    POST: 'leader member appraiser decider second_approver',
+  },
+  notifications: {
+    GET: 'platform_admin tenant_admin policy_author leader manager member appraiser decider second_approver inspector',
+    POST: 'platform_admin* tenant_admin policy_author leader manager member appraiser decider second_approver inspector',
+  },
+  analytics: {
+    GET: 'leader manager appraiser inspector',
+    POST: 'leader manager appraiser inspector',
+    PUT: 'leader manager',
+  },
+  ai: {
+    GET: 'leader manager member',
+    POST: 'manager member',
+  },
+  ui: {
+    GET: 'platform_admin* tenant_admin policy_author leader manager member appraiser decider second_approver inspector',
+    POST: 'tenant_admin',
+    PUT: 'tenant_admin policy_author*',
+  },
+  registry: {
+    GET: 'platform_admin',
+    POST: 'platform_admin',
+  },
+  workflow: {
+    GET: 'tenant_admin policy_author* leader manager member appraiser decider second_approver inspector',
+    POST: 'tenant_admin* leader manager member appraiser decider second_approver inspector',
+  },
+  jobs: {
+    GET: 'platform_admin tenant_admin policy_author leader manager member appraiser decider second_approver inspector',
+  },
+  search: {
+    GET: 'leader manager member appraiser decider second_approver inspector',
+  },
+};

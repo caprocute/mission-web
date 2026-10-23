@@ -1,0 +1,5 @@
+apiVersion: v2
+name: moi-truong-pr-khung
+description: Khung namespace của môi trường tạm theo pull request (INF-21)
+type: application
+version: 0.1.0

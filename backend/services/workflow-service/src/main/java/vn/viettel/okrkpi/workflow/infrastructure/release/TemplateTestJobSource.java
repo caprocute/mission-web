@@ -4,6 +4,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 import vn.viettel.okrkpi.shared.job.Job;
+import vn.viettel.okrkpi.shared.job.JobIds;
 import vn.viettel.okrkpi.shared.job.JobSource;
 import vn.viettel.okrkpi.shared.job.JobStatus;
 import vn.viettel.okrkpi.shared.job.TrackedJob;
@@ -11,10 +12,11 @@ import vn.viettel.okrkpi.shared.kernel.ActorId;
 import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.workflow.application.template.TemplateTestService;
 import vn.viettel.okrkpi.workflow.domain.template.TestRun;
+import vn.viettel.okrkpi.workflow.infrastructure.saga.SagaJobSource;
 
 /**
  * Lần chạy bộ test của mẫu luồng dưới dạng tác vụ dài {@code /api/v1/jobs/{id}} (baseline mục 13):
- * mã tác vụ là mã lần chạy, chỉ người yêu cầu thấy.
+ * mã tác vụ là mã lần chạy mang tiền tố {@code wf-} của SVC-06, chỉ người yêu cầu thấy.
  */
 public class TemplateTestJobSource implements JobSource {
 
@@ -31,14 +33,12 @@ public class TemplateTestJobSource implements JobSource {
 
   @Override
   public Optional<TrackedJob> find(TenantId tenant, String jobId) {
-    UUID id;
-    try {
-      id = UUID.fromString(jobId);
-    } catch (IllegalArgumentException e) {
+    Optional<UUID> id = JobIds.parse(SagaJobSource.JOB_PREFIX, jobId);
+    if (id.isEmpty()) {
       return Optional.empty();
     }
     return tests
-        .find(id)
+        .find(id.get())
         .filter(r -> r.tenantId().equals(tenant.value()))
         .map(r -> new TrackedJob(job(r), ActorId.of(r.requestedBy()), false));
   }
@@ -52,7 +52,7 @@ public class TemplateTestJobSource implements JobSource {
           case THAT_BAI -> JobStatus.THAT_BAI;
         };
     return new Job(
-        run.id().toString(),
+        JobIds.format(SagaJobSource.JOB_PREFIX, run.id()),
         TestRun.JOB_TYPE,
         status,
         run.progress(),

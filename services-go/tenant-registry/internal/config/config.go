@@ -23,6 +23,8 @@ type Config struct {
 	Audience string
 	// StepUpMaxAge: độ tươi AAL2 cho thao tác có x-mission.aal: 2 (TL-01: 5 phút).
 	StepUpMaxAge time.Duration
+	// CellReaderClients: client dịch vụ (azp) được đọc danh sách cell (INF-20: dns-sync).
+	CellReaderClients []string
 
 	// DV-03-02: khoá HMAC cookie định tuyến (OpenBao → External Secrets → biến môi trường hoặc tệp).
 	RoutingKey         []byte
@@ -114,16 +116,17 @@ func Load() (Config, error) {
 	}
 
 	c := Config{
-		HTTPAddr:        httpAddr,
-		DatabaseURL:     dbURL,
-		ShutdownTimeout: dur("SHUTDOWN_TIMEOUT", 20*time.Second),
-		JWKSURL:         jwksURL,
-		Issuers:         list("OIDC_ISSUERS"),
-		Audience:        os.Getenv("OIDC_AUDIENCE"),
-		StepUpMaxAge:    dur("STEP_UP_MAX_AGE", 5*time.Minute),
-		CookieDomain:    os.Getenv("ROUTING_COOKIE_DOMAIN"),
-		ResolveCacheTTL: dur("RESOLVE_CACHE_TTL", 30*time.Second),
-		ResolveStaleMax: dur("RESOLVE_STALE_MAX", 300*time.Second),
+		HTTPAddr:          httpAddr,
+		DatabaseURL:       dbURL,
+		ShutdownTimeout:   dur("SHUTDOWN_TIMEOUT", 20*time.Second),
+		JWKSURL:           jwksURL,
+		Issuers:           list("OIDC_ISSUERS"),
+		Audience:          os.Getenv("OIDC_AUDIENCE"),
+		StepUpMaxAge:      dur("STEP_UP_MAX_AGE", 5*time.Minute),
+		CellReaderClients: listDef("CELL_READER_CLIENTS", []string{"dns-sync"}),
+		CookieDomain:      os.Getenv("ROUTING_COOKIE_DOMAIN"),
+		ResolveCacheTTL:   dur("RESOLVE_CACHE_TTL", 30*time.Second),
+		ResolveStaleMax:   dur("RESOLVE_STALE_MAX", 300*time.Second),
 
 		PoolMax:             intv("TENANT_POOL_MAX", 5000),
 		BridgeMax:           intv("TENANT_BRIDGE_MAX", 1_000_000),

@@ -5,6 +5,7 @@
   "taiKhoanBoSung": {
     "AC-02": ["quantri2"]
   },
+  "kichBanUatNguon": "docs/uat/so-thu-nghiem/kich-ban.md (QA-16); mảng rỗng là hành trình không có kịch bản UAT trong kỳ thí điểm đầu",
   "trangThaiHopLe": ["chua_viet", "dang_viet", "dat", "tam_hoan"],
   "taiKhoanTheoTacNhan": {
     "AC-01": "nentang",
@@ -33,8 +34,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": ["Sai mật khẩu năm lần thì tài khoản bị khoá tạm"],
       "cheDoCaoTuoi": true,
+      "kichBanUat": ["UAT-02"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-02",
@@ -50,8 +52,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": ["Chọn đơn vị không thuộc phân công của mình bị từ chối"],
       "cheDoCaoTuoi": false,
+      "kichBanUat": ["UAT-02"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-03",
@@ -67,8 +70,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": ["Phê duyệt khi chưa xác thực lại bị yêu cầu bậc hai"],
       "cheDoCaoTuoi": false,
+      "kichBanUat": ["UAT-02"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-04",
@@ -84,8 +88,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": ["Tài khoản VNeID mức 1 bị từ chối", "Không khớp hồ sơ thì không tạo tài khoản"],
       "cheDoCaoTuoi": false,
+      "kichBanUat": [],
       "ghiChu": "VNeID dùng bản giả lập trên server dev (YC-PT-13).",
-      "trangThai": "chua_viet"
+      "trangThai": "tam_hoan"
     },
     {
       "ma": "HT-05",
@@ -107,8 +112,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": ["Tài khoản quản trị tenant không mở được danh sách tenant"],
       "cheDoCaoTuoi": true,
+      "kichBanUat": ["UAT-01"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-06",
@@ -124,8 +130,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": ["Cập nhật đơn vị với phiên bản cũ nhận xung đột và được mời tải lại"],
       "cheDoCaoTuoi": false,
+      "kichBanUat": ["UAT-01"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-07",
@@ -141,8 +148,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
+      "kichBanUat": ["UAT-01"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-08",
@@ -151,8 +159,8 @@
       "nenTang": "web",
       "qt": ["QT-02"],
       "scr": ["SCR-0201", "SCR-0202", "SCR-0203"],
-      "tacNhan": ["AC-06", "AC-05"],
-      "taiKhoan": ["canbo", "quanly"],
+      "tacNhan": ["AC-05", "AC-04"],
+      "taiKhoan": ["quanly", "lanhdao"],
       "operationIds": [
         "createOkrObjective",
         "createOkrKeyResult",
@@ -171,8 +179,9 @@
       ],
       "caPhuDinh": ["Tài khoản không có quyền phê duyệt bị máy chủ từ chối"],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-05"],
+      "ghiChu": "Theo ma trận 15a: AC-05 soạn và trình OKR đơn vị, AC-04 phê duyệt và trả lại.",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-09",
@@ -188,8 +197,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": ["Gửi lại cùng khoá chống lặp không tạo check-in thứ hai"],
       "cheDoCaoTuoi": true,
+      "kichBanUat": ["UAT-07"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-10",
@@ -205,6 +215,7 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
+      "kichBanUat": ["UAT-07"],
       "ghiChu": "",
       "trangThai": "chua_viet"
     },
@@ -235,8 +246,9 @@
       ],
       "caPhuDinh": ["Gửi duyệt kế hoạch chưa qua kiểm tra hợp lệ bị chặn"],
       "cheDoCaoTuoi": true,
+      "kichBanUat": ["UAT-04"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-12",
@@ -257,8 +269,9 @@
       ],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
+      "kichBanUat": ["UAT-04"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-13",
@@ -285,8 +298,9 @@
       ],
       "caPhuDinh": ["Giao việc cho người ngoài đơn vị quản lý bị từ chối"],
       "cheDoCaoTuoi": true,
+      "kichBanUat": ["UAT-06"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-14",
@@ -307,8 +321,9 @@
       ],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
+      "kichBanUat": ["UAT-06"],
       "ghiChu": "Văn bản đến nạp bằng dữ liệu khởi tạo (EVT-24 giả lập).",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-15",
@@ -329,8 +344,9 @@
       ],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
+      "kichBanUat": ["UAT-06"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-16",
@@ -346,6 +362,7 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
+      "kichBanUat": ["UAT-07"],
       "ghiChu": "",
       "trangThai": "chua_viet"
     },
@@ -368,8 +385,9 @@
       ],
       "caPhuDinh": ["Cập nhật với phiên bản cũ nhận xung đột"],
       "cheDoCaoTuoi": true,
+      "kichBanUat": ["UAT-07"],
       "ghiChu": "Hành trình mẫu của QA-03.",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-18",
@@ -385,8 +403,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
+      "kichBanUat": ["UAT-07"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-19",
@@ -411,8 +430,9 @@
       ],
       "caPhuDinh": ["Đề nghị vượt ngưỡng đi qua luồng duyệt nhiều bước"],
       "cheDoCaoTuoi": false,
+      "kichBanUat": ["UAT-07"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-20",
@@ -443,8 +463,9 @@
       ],
       "caPhuDinh": ["Tệp thử EICAR bị đánh dấu nhiễm và không nộp được"],
       "cheDoCaoTuoi": true,
+      "kichBanUat": ["UAT-08"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-21",
@@ -479,8 +500,9 @@
         "Xác nhận nghiệm thu khi chưa xác thực bậc hai bị chặn"
       ],
       "cheDoCaoTuoi": false,
+      "kichBanUat": ["UAT-09"],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-22",
@@ -507,6 +529,7 @@
       ],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
+      "kichBanUat": ["UAT-08"],
       "ghiChu": "",
       "trangThai": "chua_viet"
     },
@@ -535,8 +558,9 @@
       ],
       "caPhuDinh": ["Người lập lệnh không tự duyệt lệnh của mình"],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-11"],
+      "ghiChu": "Giả lập: kho coi mọi thao tác là của một người, nên ca phủ định chạy trên lệnh vừa lập, còn duyệt và khởi chạy dùng kỳ giả lập do người khác lập, duyệt. Hệ thống thật: chạy trọn trên kỳ tháng riêng của lần chạy; thời gian saga ghi vào báo cáo.",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-24",
@@ -545,8 +569,8 @@
       "nenTang": "web",
       "qt": ["QT-08"],
       "scr": ["SCR-0801"],
-      "tacNhan": ["AC-02", "AC-09"],
-      "taiKhoan": ["quantri", "duyet2"],
+      "tacNhan": ["AC-02", "AC-04", "AC-09"],
+      "taiKhoan": ["quantri", "lanhdao", "duyet2"],
       "operationIds": ["requestPeriodLockCancel", "approvePeriodLockCancel", "getPeriod"],
       "suKien": ["EVT-26"],
       "trangThaiCuoi": [
@@ -557,8 +581,9 @@
       ],
       "caPhuDinh": ["Sau bước ký lô giao diện chỉ cho thử lại, không cho huỷ"],
       "cheDoCaoTuoi": false,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-11"],
+      "ghiChu": "Tài khoản lanhdao (AC-04) tham gia để duyệt lệnh trước khi khởi chạy trên hệ thống thật. Giả lập: duyệt huỷ trên đề nghị huỷ có sẵn do người khác gửi.",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-25",
@@ -584,8 +609,9 @@
       ],
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-12"],
+      "ghiChu": "Chế độ cao tuổi rút gọn bước: phiếu tự lưu, không có nút Lưu nháp.",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-26",
@@ -593,9 +619,9 @@
       "boKiemThu": "QA-06",
       "nenTang": "web",
       "qt": ["QT-09"],
-      "scr": ["SCR-0902"],
-      "tacNhan": ["AC-07"],
-      "taiKhoan": ["thamdinh"],
+      "scr": ["SCR-0902", "SCR-0903"],
+      "tacNhan": ["AC-07", "AC-05"],
+      "taiKhoan": ["thamdinh", "quanly"],
       "operationIds": [
         "listAppraisalProfiles",
         "getAppraisalProfile",
@@ -611,8 +637,9 @@
       ],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-13"],
+      "ghiChu": "Theo ma trận 15a: AC-07 thẩm định (SCR-0902), AC-05 quản lý trực tiếp ghi mức đề xuất (SCR-0903.de-xuat), không phải AC-07.",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-27",
@@ -639,8 +666,9 @@
       ],
       "caPhuDinh": ["Người đã thẩm định không được quyết định cùng hồ sơ"],
       "cheDoCaoTuoi": false,
-      "ghiChu": "Server dev dùng bộ ký giả lập của esign-service.",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-14"],
+      "ghiChu": "Server dev dùng bộ ký giả lập của esign-service. Ca phủ định: giao diện chặn tuyến quyết định với người thẩm định; máy chủ từ chối người đã thẩm định quyết định cùng hồ sơ (chỉ kiểm trên hệ thống thật).",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-28",
@@ -656,8 +684,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
+      "kichBanUat": [],
       "ghiChu": "Bốn kỳ quý dựng bằng dữ liệu khởi tạo.",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-29",
@@ -677,8 +706,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
+      "kichBanUat": [],
       "ghiChu": "",
-      "trangThai": "chua_viet"
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-30",
@@ -700,8 +730,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-16"],
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-31",
@@ -723,8 +754,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-16"],
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-32",
@@ -745,8 +777,9 @@
       ],
       "caPhuDinh": ["Gửi khiếu nại quá hạn bị từ chối"],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-15"],
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-33",
@@ -768,8 +801,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": ["Người bị khiếu nại không được xử lý khiếu nại của chính mình"],
       "cheDoCaoTuoi": false,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-15"],
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\". Người xử lý khiếu nại theo ma trận 15a là người thẩm định (thamdinh), khác danh mục ghi AC-10; hành trình theo ma trận.",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-34",
@@ -793,8 +827,9 @@
         "Duyệt khi chưa xác thực bậc hai bị yêu cầu xác thực lại"
       ],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-17"],
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-35",
@@ -815,8 +850,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-17"],
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-36",
@@ -832,8 +868,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
-      "ghiChu": "Cảnh báo tạo từ dữ liệu khởi tạo.",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-17"],
+      "ghiChu": "Cảnh báo tạo từ dữ liệu khởi tạo. Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-37",
@@ -861,8 +898,9 @@
       ],
       "caPhuDinh": ["Ca vàng chưa đạt 100% thì không gửi duyệt được"],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-03"],
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\". Lỗi phát hiện: thẻ Test case của SCR-1503 vi phạm axe scrollable-region-focusable, cần task sửa riêng; hành trình ghi chú thay vì dừng.",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-38",
@@ -882,8 +920,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": false,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-03"],
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-39",
@@ -899,8 +938,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-10"],
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-40",
@@ -916,8 +956,9 @@
       "trangThaiCuoi": [],
       "caPhuDinh": ["Trợ lý AI không tự ghi dữ liệu khi người dùng chưa quyết định"],
       "cheDoCaoTuoi": true,
-      "ghiChu": "",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-05"],
+      "ghiChu": "Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-41",
@@ -945,8 +986,9 @@
         "Người soạn không tự phát hành phiên bản của mình"
       ],
       "cheDoCaoTuoi": true,
-      "ghiChu": "Hai quản trị tenant: một người soạn, một người duyệt phát hành (suy luận).",
-      "trangThai": "chua_viet"
+      "kichBanUat": ["UAT-TUY-CHON"],
+      "ghiChu": "Hai quản trị tenant: một người soạn, một người duyệt phát hành (suy luận). Đạt ở chế độ giả lập (QA-07); chế độ he-thong chưa chạy vì môi trường thử thiếu biến, các bước phụ thuộc seed DL-07 báo \"Chờ\".",
+      "trangThai": "dang_viet"
     },
     {
       "ma": "HT-42",
@@ -962,6 +1004,7 @@
       "trangThaiCuoi": [],
       "caPhuDinh": [],
       "cheDoCaoTuoi": true,
+      "kichBanUat": ["UAT-18"],
       "ghiChu": "",
       "trangThai": "chua_viet"
     }

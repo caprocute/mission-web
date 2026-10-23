@@ -47,6 +47,7 @@ import {
   RatingLevel,
   toProblem,
 } from '@vt/api-client';
+import { permittedOn } from '@vt/auth';
 import { ThemeService } from '@vt/design-system';
 import { firstValueFrom } from 'rxjs';
 import { APPRAISAL_CAN } from '../../appraisal-permissions';
@@ -212,13 +213,23 @@ export class ReviewPage {
   protected readonly error = signal<string | null>(null);
   protected readonly exportUrl = signal<string | null>(null);
 
+  /**
+   * Vai trò có quyền và máy chủ cho phép trên hồ sơ (YC-PT-21): người được đánh giá, người đã
+   * nghiệm thu minh chứng và người quyết định không thẩm định (BR-09-14).
+   */
+  protected allowed(key: 'SCR-0902.ky' | 'SCR-0902.tra-lai'): boolean {
+    return this.can(key) && permittedOn(this.profile(), key);
+  }
+
   protected readonly reviewable = computed(
     () => this.profile()?.status === 'CHO_THAM_DINH' && !this.signing(),
   );
   protected readonly canSign = computed(
-    () => this.reviewable() && this.can('SCR-0902.ky') && !!this.auto(),
+    () => this.reviewable() && this.allowed('SCR-0902.ky') && !!this.auto(),
   );
-  protected readonly canReturn = computed(() => this.reviewable() && this.can('SCR-0902.tra-lai'));
+  protected readonly canReturn = computed(
+    () => this.reviewable() && this.allowed('SCR-0902.tra-lai'),
+  );
   /** Kết quả thẩm định đã có (hồ sơ đã qua bước 2). */
   protected readonly appraised = computed(() =>
     this.profile()?.ratingTrail.find((r) => r.levelKind === 'THAM_DINH' && r.isCurrent),

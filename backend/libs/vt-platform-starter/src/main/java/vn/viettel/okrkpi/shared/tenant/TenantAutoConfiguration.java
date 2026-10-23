@@ -70,6 +70,18 @@ public class TenantAutoConfiguration {
     }
   }
 
+  /** 403 Problem Details khi thao tác cần tenant mà ngữ cảnh không có (thay cho 500). */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+  static class TenantProblemConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean
+    TenantProblemHandler tenantProblemHandler(ProblemFactory problems) {
+      return new TenantProblemHandler(problems);
+    }
+  }
+
   /** JPA (mission-core): thay transactionManager của HibernateJpaAutoConfiguration. */
   @Configuration(proxyBeanMethods = false)
   @ConditionalOnClass(

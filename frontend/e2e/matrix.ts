@@ -21,6 +21,8 @@ interface MatrixRole {
 interface MatrixFunction {
   key: string;
   web: boolean;
+  /** `false`: năng lực nền, không tính là vào được màn hình (giống `screenKeys` của `@vt/auth`). */
+  mo_man_hinh?: boolean;
   quyen: Record<string, string>;
   vai_tro_con?: Record<string, string>;
 }
@@ -55,7 +57,7 @@ export const MOCK_ROLES: { ac: string; role: string }[] = [
   ),
 ].filter((r, i, all) => all.findIndex((x) => x.role === r.role) === i);
 
-const ALL_KEYS = MATRIX.chuc_nang.filter((f) => f.web).map((f) => f.key);
+const ALL_KEYS = MATRIX.chuc_nang.filter((f) => f.web && f.mo_man_hinh !== false).map((f) => f.key);
 export const screenKeys = (screens: string[]) =>
   ALL_KEYS.filter((k) => screens.includes(k.slice(0, k.indexOf('.'))));
 const screensIn = (args: string) => [...args.matchAll(/'(SCR-\d{4})'/g)].map((m) => m[1]);

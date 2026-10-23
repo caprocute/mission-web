@@ -1,0 +1,97 @@
+{
+  "consumer": {
+    "name": "mission-core"
+  },
+  "provider": {
+    "name": "org-service"
+  },
+  "interactions": [
+    {
+      "description": "khoá phục hồi hiện hành của tenant",
+      "providerStates": [
+        {
+          "name": "tenant có khoá phục hồi hiện hành",
+          "params": {
+            "tenantId": "01927a02-0000-7000-8000-00000000c601",
+            "keyId": "01927a02-0000-7000-8000-00000000c602"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/org/e2ee/recovery-key",
+        "headers": {
+          "Authorization": "Bearer token-dich-vu-mission-core",
+          "X-Tenant-Id": "01927a02-0000-7000-8000-00000000c601"
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "matchers": [{ "match": "regex", "regex": "^Bearer .+$" }]
+            }
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "id": "01927a02-0000-7000-8000-00000000c602",
+          "fingerprint": "5f0e3b1c2a4d6e8f90123456789abcdef0123456789abcdef0123456789abcde"
+        },
+        "matchingRules": {
+          "body": {
+            "$": { "matchers": [{ "match": "type" }] },
+            "$.id": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            },
+            "$.fingerprint": {
+              "matchers": [{ "match": "regex", "regex": "^[0-9a-f]{64}$" }]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "tenant chưa có khoá phục hồi",
+      "providerStates": [
+        {
+          "name": "tenant chưa có khoá phục hồi",
+          "params": {
+            "tenantId": "01927a02-0000-7000-8000-00000000c603"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/org/e2ee/recovery-key",
+        "headers": {
+          "Authorization": "Bearer token-dich-vu-mission-core",
+          "X-Tenant-Id": "01927a02-0000-7000-8000-00000000c603"
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "matchers": [{ "match": "regex", "regex": "^Bearer .+$" }]
+            }
+          }
+        }
+      },
+      "response": {
+        "status": 404
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  }
+}

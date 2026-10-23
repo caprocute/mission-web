@@ -12,6 +12,8 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.UUID;
 import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -117,6 +119,11 @@ public class DossierFormPreviewController {
     return ResponseEntity.ok()
         .contentType(MediaType.APPLICATION_PDF)
         .cacheControl(CacheControl.noStore())
+        // ASVS 14.4.2: trình duyệt không hiển thị trực tiếp phản hồi API; web đọc thân qua
+        // api-client.
+        .header(
+            HttpHeaders.CONTENT_DISPOSITION,
+            ContentDisposition.attachment().filename("xem-truoc.pdf").build().toString())
         .body(pdf);
   }
 }
