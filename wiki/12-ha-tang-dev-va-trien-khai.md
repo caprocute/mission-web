@@ -360,7 +360,7 @@ Kiểm tra gồm `tests/chay-kiem-thu.sh` (lint, kubeconform, cú pháp Lua, cá
 
 ## Công cụ vận hành `vtctl` (INF-26)
 
-`services-go/vtctl` là CLI một tệp cho người trực, gom các thao tác runbook (TL-04 OPS-14, OPS-24) thành lệnh: `dlq list|inspect|replay|skip`, `consumer lag|restart`, `tenant status|activate`, `cell list` và `cell move request|approve|status|cancel`, `period-lock status|pause|resume|retry-failed`, `outbox replay`, `org republish`, `degrade status|set|pin|clear`. Các quy ước đã chốt khi viết, người viết lệnh mới phải theo:
+`services-go/vtctl` là CLI một tệp cho người trực, gom các thao tác runbook (TL-04 OPS-14, OPS-24) thành lệnh: `dlq list|inspect|replay|skip`, `consumer lag|restart`, `tenant status|activate|suspend`, `cell list` và `cell move request|approve|status|cancel`, `period-lock status|pause|resume|retry-failed`, `outbox replay`, `org republish`, `degrade status|set|pin|clear`. Các quy ước đã chốt khi viết, người viết lệnh mới phải theo:
 
 1. **Chạy thử là mặc định.** Lệnh ghi chỉ thực hiện khi có `--confirm`; `--dry-run` gõ tường minh luôn thắng. Chạy thử được đọc hoặc kiểm phía máy chủ không lưu (`kubectl create --dry-run=server`), không được thay đổi gì.
 2. **Một lệnh ghi đã thực hiện, một bản ghi kiểm toán** JSON một dòng (người chạy lấy từ token Keycloak vận hành, tham số đã che, Idempotency-Key, kết quả), kể cả khi thất bại. Tệp nằm trên máy người chạy hoặc trong pod Job, Fluent Bit chuyển SIEM (suy luận, chốt theo INF-19).
