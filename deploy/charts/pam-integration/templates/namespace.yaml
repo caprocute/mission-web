@@ -135,7 +135,7 @@ spec:
             matchLabels: { app.kubernetes.io/name: pam-quet-csdl }
       ports:
         - { protocol: TCP, port: 5432 }
-{{- if or $v.pam.proxyCIDRs $v.pam.proxyInCluster.namespace }}
+{{- if or $v.pam.proxyCIDRs $v.pam.proxyInCluster.namespace $v.warpgate.enabled }}
 ---
 # Đường duy nhất cho người vào CSDL: proxy ghi phiên của PAM (SEC-42). Không có đường nào khác cho người dùng.
 apiVersion: networking.k8s.io/v1
@@ -159,6 +159,12 @@ spec:
           podSelector:
             matchLabels: {{ toJson . }}
           {{- end }}
+        {{- end }}
+        {{- if $v.warpgate.enabled }}
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ $v.warpgate.namespace }} }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: warpgate }
         {{- end }}
       ports:
         - { protocol: TCP, port: 5432 }

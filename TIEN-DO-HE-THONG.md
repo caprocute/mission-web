@@ -12,10 +12,10 @@
 
 ## 1. Tổng quan tiến độ toàn hệ thống (tự động tính từ 401 task)
 
-- **Tổng tiến độ đã gộp `main`**: **375 / 408 task (91.9%)** — Khối lượng quy đổi đã gộp: **448 / 492.5 đơn vị**.
-- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **375 / 408 task (91.9%)** (gồm **375** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **14 task** (4 đang làm, 10 làm một phần).
-- **Chưa bắt đầu**: **19 task**.
+- **Tổng tiến độ đã gộp `main`**: **376 / 408 task (92.2%)** — Khối lượng quy đổi đã gộp: **449 / 492.5 đơn vị**.
+- **Tổng tiến độ tính cả các task đã xong chờ gộp**: **376 / 408 task (92.2%)** (gồm **376** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
+- **Đang thực hiện / Làm một phần**: **16 task** (3 đang làm, 13 làm một phần).
+- **Chưa bắt đầu**: **16 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **21 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: `VH-08`).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -27,12 +27,12 @@
 | **CORE** | Ứng dụng lõi `mission-core` (`SVC-05`: `CORE-00..08`) | 117 | 131.5 | **117** | 0 | 0 | 0 | **100.0%** |
 | **DV** | Các dịch vụ vệ tinh (`SVC-01..04`, `SVC-06..16`: `DV-01..16`) | 104 | 131 | **104** | 0 | 0 | 0 | **100.0%** |
 | **DL** | Dữ liệu nghiệp vụ, Policy Pack, DMN và đối soát (`DL-01..15`) | 13 | 16 | **13** | 0 | 0 | 0 | **100.0%** |
-| **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **20** | 0 | 7 | 1 | **71.4%** |
+| **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **20** | 0 | 8 | 0 | **71.4%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **5** | 0 | 3 | 8 | **31.2%** |
-| **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
-| **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **6** | 0 | 3 | 0 | **66.7%** |
+| **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 2 | 8 | **0.0%** |
+| **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **7** | 0 | 2 | 0 | **77.8%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **375** | **0** | **14** | **19** | **91.9%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **376** | **0** | **16** | **16** | **92.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -43,8 +43,8 @@
 | **M2 – Cấu hình, Policy Pack & UI Pack** | 47 | **47** | 0 | 0 | 0 | **100.0%** |
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **120** | 0 | 0 | 0 | **100.0%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
-| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **24** | 0 | 11 | 7 | **57.1%** |
-| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **10** | 0 | 1 | 12 | **43.5%** |
+| **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **24** | 0 | 12 | 6 | **57.1%** |
+| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **11** | 0 | 2 | 10 | **47.8%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **2** | 0 | 2 | 0 | **50.0%** |
 
 ### 1.3. Trạng thái 23 task trên Đường găng
@@ -542,7 +542,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [DL-15](docs/tasks/DL-15-an-danh-hoa-phi-san-xuat.md) | Tác vụ ẩn danh hoá dữ liệu cho môi trường phi sản xuất (`anonymize`) | M | B11 | 14 | NEN-015, DL-08, NEN-005, NEN-006 | **Đã gộp main** | Gộp main 2026-10-22 |
 | [DL-16](docs/tasks/DL-16-ho-so-twd.md) | Hồ sơ TWĐ (giả lập theo UEB): Policy Pack điểm công việc, bảng hệ số, chuỗi xếp loại, ca vàng UEB, danh mục dự thảo số 25, chín quy tắc điểm nghẽn, tham số thẩm quyền và hạn | L | B11 | 19 | CORE-05-12, CORE-02-27, CORE-02-28, CORE-01-14, CORE-04-13, DV-07-03, DV-07-05 | **Đã gộp main** | Đã gộp main (6afcdf05) |
 
-### INF · Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng (20/28 đã gộp `main`, 0 chờ gộp, 7 đang làm)
+### INF · Hạ tầng, CI/CD, bảo mật nền, quan sát, dự phòng (20/28 đã gộp `main`, 0 chờ gộp, 8 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -572,8 +572,8 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-24](docs/tasks/INF-24-audit-archiver.md) | Dịch vụ `audit-archiver`: chuyển nhật ký kiểm toán sang kho lưu trữ bất biến theo thời hạn lưu giữ | M | B8 | 4 | INF-12, INF-19 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 | [INF-25](docs/tasks/INF-25-bo-dieu-khien-suy-giam.md) | Bộ điều khiển suy giảm ba mức khi quá tải (tắt tính năng phụ, cắt tải theo ưu tiên) | M | B8 | 4 | DV-01-02, INF-15 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
 | [INF-26](docs/tasks/INF-26-cong-cu-vtctl.md) | Công cụ vận hành `vtctl` cho các thao tác trong runbook (tenant, cell, khoá kỳ, phát lại sự kiện) | L | B8 | 9 | INF-04, DV-03-03 | **Làm một phần** | Đã gộp phần repo; còn chạy thật trên dev/kind |
-| [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần giải pháp PAM |
-| [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Đang làm** | Nhánh claude/b1-nen-mong-backend-8pacfm: bổ sung chế độ chờ ứng dụng (VT_SITE_ROLE; starter Java, Go vtplatform/site, Job migration); đang hợp nhất MM2 với INF-18 |
+| [INF-27](docs/tasks/INF-27-quan-ly-truy-cap-dac-quyen.md) | Quản lý truy cập đặc quyền PAM cho quản trị hạ tầng và CSDL | M | B8 | 3 | INF-13 | **Làm một phần** | Gộp 3f6d867d (Warpgate, thu hồi PG); còn SA kubectl, dba_ops, lưu phiên RGW |
+| [INF-28](docs/tasks/INF-28-cum-cho-am-ttdl-hai.md) | Cụm chờ ấm ở trung tâm dữ liệu thứ hai: CNPG replica cluster, Kafka MirrorMaker, Ceph multisite | L | B8 | 9 | INF-11, INF-18, INF-20, INF-04, INF-08, INF-09, INF-17 | **Đang làm** | Giao sau phát hành |
 
 ### QA · Kiểm thử tích hợp, hiệu năng, an toàn thông tin, dự phòng (5/16 đã gộp `main`, 0 chờ gộp, 3 đang làm)
 
@@ -596,29 +596,29 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [QA-15](docs/tasks/QA-15-dr-chuyen-vung.md) | Diễn tập khôi phục DR-10..DR-16, chuyển vùng giữa hai trung tâm dữ liệu | L | B9 | 16 | QA-14, INF-18, INF-20 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần TTDL thứ hai |
 | [QA-16](docs/tasks/QA-16-uat-tenant-thi-diem.md) | Kiểm thử chấp nhận nghiệp vụ: tenant thí điểm chạy trọn một kỳ đánh giá | L | B9 | 24 | QA-07 | **Đã gộp main** | Gộp sau bản phát hành 64952ef6 |
 
-### MOB · SVC-18 mobile-app (Flutter) (0/10 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### MOB · SVC-18 mobile-app (Flutter) (0/10 đã gộp `main`, 0 chờ gộp, 2 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [MOB-01](docs/tasks/MOB-01-khung-flutter.md) | Khung Flutter: token thiết kế sang ThemeData, đăng nhập OIDC PKCE, client API sinh từ hợp đồng | M | B10 | 4 | NEN-006, DV-02-01 | **Chưa bắt đầu** |  |
-| [MOB-02](docs/tasks/MOB-02-ngoai-tuyen-sqlcipher.md) | Lưu trữ ngoại tuyến SQLCipher, khoá trong Keystore/Keychain, hàng đợi đồng bộ có Idempotency-Key | M | B10 | 5 | MOB-01 | **Chưa bắt đầu** |  |
+| [MOB-02](docs/tasks/MOB-02-ngoai-tuyen-sqlcipher.md) | Lưu trữ ngoại tuyến SQLCipher, khoá trong Keystore/Keychain, hàng đợi đồng bộ có Idempotency-Key | M | B10 | 5 | MOB-01 | **Làm một phần** | Package ngoai_tuyen gộp c3063a30; tích hợp app chờ MOB-01 |
 | [MOB-03](docs/tasks/MOB-03-viec-cua-toi-di-dong.md) | SCR-0504 Việc của tôi và cập nhật tiến độ trên di động | M | B10 | 18 | MOB-02, CORE-02-19, CORE-02-18 | **Chưa bắt đầu** |  |
 | [MOB-04](docs/tasks/MOB-04-check-in-kr-di-dong.md) | SCR-0302 Check-in KR trên di động | M | B10 | 14 | MOB-02, CORE-01-08 | **Chưa bắt đầu** |  |
 | [MOB-05](docs/tasks/MOB-05-nop-minh-chung-ocr.md) | SCR-0702 Nộp minh chứng trên di động có OCR, tải theo khối | M | B10 | 19 | MOB-02, DV-08-02, CORE-03-05 | **Chưa bắt đầu** |  |
 | [MOB-06](docs/tasks/MOB-06-bieu-mau-dong-tu-danh-gia.md) | Bộ dựng biểu mẫu từ JSON Schema và CEL trên Flutter, phiếu tự đánh giá | L | B10 | 17 | MOB-02, CORE-08-13, CORE-04-04 | **Chưa bắt đầu** |  |
 | [MOB-07](docs/tasks/MOB-07-ky-so-mysign.md) | Ký số MySign trên di động | M | B10 | 18 | MOB-06, DV-10-02 | **Chưa bắt đầu** |  |
 | [MOB-08](docs/tasks/MOB-08-che-do-cao-tuoi.md) | SCR-1803 Chế độ Đảng viên cao tuổi trên di động | M | B10 | 19 | MOB-03, MOB-06, DL-06 | **Chưa bắt đầu** |  |
-| [MOB-09](docs/tasks/MOB-09-thong-bao-day.md) | Thông báo đẩy FCM, APNs | S | B10 | 9 | MOB-01, DV-12-03, DV-12-05 | **Chưa bắt đầu** |  |
+| [MOB-09](docs/tasks/MOB-09-thong-bao-day.md) | Thông báo đẩy FCM, APNs | S | B10 | 9 | MOB-01, DV-12-03, DV-12-05 | **Làm một phần** | Máy chủ + giả lập gộp e40a8c1f; Flutter chờ MOB-01 |
 | [MOB-10](docs/tasks/MOB-10-pipeline-phat-hanh.md) | Pipeline build, ký và phát hành ứng dụng; kiểm thử đầu cuối và khả năng truy cập trên di động | M | B10 | 19 | MOB-03, INF-06 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tài khoản cửa hàng ứng dụng |
 
-### VH · Vận hành và đưa vào sử dụng (6/9 đã gộp `main`, 0 chờ gộp, 3 đang làm)
+### VH · Vận hành và đưa vào sử dụng (7/9 đã gộp `main`, 0 chờ gộp, 2 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
 | [VH-01](docs/tasks/VH-01-runbook-ops-01-13.md) | Runbook OPS-01..OPS-13 | L | B11 | 4 | INF-04 | **Đã gộp main** | Gộp 07c879b3; chưa chạy thử trên cụm |
 | [VH-02](docs/tasks/VH-02-runbook-ops-14-26.md) | Runbook OPS-14..OPS-26 | L | B11 | 4 | INF-17 | **Đã gộp main** | Gộp 07c879b3; chưa chạy thử trên cụm |
 | [VH-03](docs/tasks/VH-03-truc-su-co-cab.md) | Trực vận hành, mức sự cố SEV-1..SEV-4, quy trình thay đổi, đóng băng thay đổi | M | B11 | 5 | VH-01 | **Đã gộp main** | Gộp 8d327008 |
-| [VH-04](docs/tasks/VH-04-dien-tap-onboarding.md) | Diễn tập vòng đời tenant: đưa tenant mới vào vận hành trong một ngày (OPS-07) | M | B11 | 13 | DV-03-05, INF-04 | **Đang làm** | Giao B3 |
+| [VH-04](docs/tasks/VH-04-dien-tap-onboarding.md) | Diễn tập vòng đời tenant: đưa tenant mới vào vận hành trong một ngày (OPS-07) | M | B11 | 13 | DV-03-05, INF-04 | **Đã gộp main** | Gộp 17bda177; chưa chạy staging |
 | [VH-05](docs/tasks/VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | B11 | 24 | QA-07 | **Đang làm** | Giao B2 |
 | [VH-06](docs/tasks/VH-06-tai-lieu-quan-tri.md) | Tài liệu quản trị, cài đặt cho ba mô hình phân phối | M | B11 | 6 | INF-23 | **Đã gộp main** | Gộp sau bản phát hành; chưa chạy trên cụm thật |
 | [VH-07](docs/tasks/VH-07-ho-so-cap-do-4.md) | Hồ sơ đề xuất cấp độ 4 theo TCVN 11930:2017 | M | B11 | 13 | QA-13, INF-19 | **Đã gộp main** | Gộp e1b6490e |
@@ -1029,5 +1029,9 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 13:26 | Điều phối (main) | `VH-04` | Chuyển trạng thái sang **Đang làm** — Giao B3 |
 | 23/10/2026 13:29 | Điều phối (main) | `VH-03`, `QA-07` | Chuyển trạng thái sang **Đã gộp main** — Gộp 8d327008 |
 | 23/10/2026 13:45 | Điều phối (main) | `VH-09`, `VH-06` | Chuyển trạng thái sang **Đã gộp main** — Gộp sau bản phát hành; chưa chạy trên cụm thật |
-| 23/10/2026 13:53 | B1 (Claude) | `INF-28` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b1-nen-mong-backend-8pacfm: bổ sung chế độ chờ ứng dụng (VT_SITE_ROLE; starter Java, Go vtplatform/site, Job migration); đang hợp nhất MM2 với INF-18 |
+| 23/10/2026 13:50 | Điều phối (main) | `VH-04` | Chuyển trạng thái sang **Đã gộp main** — Gộp 17bda177; chưa chạy staging |
+| 23/10/2026 13:55 | B9 | `MOB-09` | Chuyển trạng thái sang **Làm một phần** — Máy chủ + giả lập gộp e40a8c1f; Flutter chờ MOB-01 |
+| 23/10/2026 13:58 | B7 | `MOB-02` | Chuyển trạng thái sang **Làm một phần** — Package ngoai_tuyen gộp c3063a30; tích hợp app chờ MOB-01 |
+| 23/10/2026 14:05 | Luồng B8 hạ tầng | `INF-27` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: pam-integration (quét cửa sau, VAP binding có hạn, Warpgate 0.30), sửa thu hồi người dùng động OpenBao, bao_admin chỉ còn ADMIN, otel-siem transform/ecs-pam; kiểm thật trên PG16 và Warpgate; chờ chốt cách cấp quyền kubectl/psql qua Warpgate, chưa chạy kind |
+| 23/10/2026 14:06 | B8 | `INF-27` | Chuyển trạng thái sang **Làm một phần** — Gộp 3f6d867d (Warpgate, thu hồi PG); còn SA kubectl, dba_ops, lưu phiên RGW |
 <!-- PROGRESS_LOG_END -->

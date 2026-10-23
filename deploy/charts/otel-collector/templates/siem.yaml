@@ -95,7 +95,8 @@ data:
           - context: log
             statements:
               - set(attributes["vt.goc"], body) where IsMap(body)
-              - set(attributes["message"], body) where IsString(body)
+              # Receiver syslog đã tách phần thông điệp vào message; thân là cả dòng gốc, không ghi đè.
+              - set(attributes["message"], body) where IsString(body) and attributes["message"] == nil
               - set(attributes["ecs.version"], "8.11.0")
               - set(attributes["event.kind"], "event")
       transform/ecs-kiem-toan:
@@ -204,15 +205,50 @@ data:
       transform/ecs-pam:
         error_mode: ignore
         log_statements:
-          # Phiên PAM (SEC-42): syslog RFC 5424, thuộc tính do receiver syslog tách.
+          # Sự kiện PAM (SEC-42; Warpgate qua sidecar cầu nối của chart pam-integration): syslog RFC 5424, receiver syslog
+          # tách thuộc tính; tham số của SD-ID vtpam@32473 theo hợp đồng ở ops/runbooks/pam-cap-quyen.md. Tham số
+          # đặt dưới khoá pam (pam.request_id, pam.approver...); trường ECS lấy từ đó. Nhóm event.category của phiên
+          # và lệnh (session, process) là suy luận theo ECS 8.11, bảng ánh xạ chỉ ghi event.type.
           - context: log
             statements:
               - set(attributes["event.module"], "pam")
               - set(attributes["event.dataset"], "pam.session")
               - set(attributes["host.name"], attributes["hostname"])
               - set(attributes["process.name"], attributes["appname"])
-              - set(attributes["vt.phat_hien"], "pha-kinh") where IsMatch(attributes["message"], "(?i)(break.?glass|pha.?kinh)")
               - set(attributes["pam"], attributes["structured_data"]) where attributes["structured_data"] != nil
+              - set(attributes["pam"], attributes["structured_data"]["vtpam@32473"]) where attributes["structured_data"] != nil and attributes["structured_data"]["vtpam@32473"] != nil
+              - set(attributes["@timestamp"], FormatTime(time, "%Y-%m-%dT%H:%M:%S.%LZ")) where time_unix_nano > 0
+              - set(attributes["event.action"], attributes["msg_id"]) where attributes["msg_id"] != nil
+              - set(attributes["event.action"], attributes["pam"]["event_action"]) where attributes["pam"]["event_action"] != nil
+              - set(attributes["user.name"], attributes["pam"]["user"]) where attributes["pam"]["user"] != nil
+              - set(attributes["related.user"], Split(attributes["pam"]["approver"], ",")) where attributes["pam"]["approver"] != nil
+              - set(attributes["session.id"], attributes["pam"]["session_id"]) where attributes["pam"]["session_id"] != nil
+              - set(attributes["user.target.name"], attributes["pam"]["role"]) where attributes["pam"]["role"] != nil
+              - set(attributes["orchestrator.namespace"], attributes["pam"]["namespace"]) where attributes["pam"]["namespace"] != nil
+              - set(attributes["event.end"], attributes["pam"]["expires"]) where attributes["pam"]["expires"] != nil
+              - set(attributes["destination.address"], attributes["pam"]["target"]) where attributes["pam"]["target"] != nil
+              - set(attributes["url.full"], attributes["pam"]["recording_uri"]) where attributes["pam"]["recording_uri"] != nil
+              - set(attributes["process.command_line"], attributes["pam"]["command"]) where attributes["pam"]["command"] != nil
+              - set(attributes["event.category"], ["iam"]) where IsMatch(attributes["event.action"], "^pam\\.(yeu-cau|duyet|tu-choi|cap-quyen|thu-hoi|pha-kinh)$")
+              - set(attributes["event.category"], ["session"]) where IsMatch(attributes["event.action"], "^pam\\.phien-")
+              - set(attributes["event.category"], ["process"]) where attributes["event.action"] == "pam.lenh-nhay-cam"
+              - set(attributes["event.category"], ["authentication"]) where IsMatch(attributes["event.action"], "^pam\\.dang-nhap")
+              - set(attributes["event.category"], ["iam"]) where attributes["event.action"] == "pam.quan-tri"
+              - set(attributes["event.type"], ["info"]) where IsMatch(attributes["event.action"], "^pam\\.dang-nhap")
+              - set(attributes["event.type"], ["admin"]) where attributes["event.action"] == "pam.quan-tri"
+              - set(attributes["event.type"], ["creation"]) where attributes["event.action"] == "pam.yeu-cau"
+              - set(attributes["event.type"], ["allowed"]) where attributes["event.action"] == "pam.duyet"
+              - set(attributes["event.type"], ["denied"]) where attributes["event.action"] == "pam.tu-choi"
+              - set(attributes["event.type"], ["change"]) where attributes["event.action"] == "pam.cap-quyen" or attributes["event.action"] == "pam.pha-kinh"
+              - set(attributes["event.type"], ["start"]) where attributes["event.action"] == "pam.phien-bat-dau"
+              - set(attributes["event.type"], ["end"]) where attributes["event.action"] == "pam.phien-ket-thuc"
+              - set(attributes["event.type"], ["deletion"]) where attributes["event.action"] == "pam.thu-hoi"
+              - set(attributes["event.kind"], "alert") where attributes["event.action"] == "pam.lenh-nhay-cam"
+              - set(attributes["event.outcome"], "success") where IsMatch(attributes["event.action"], "^pam\\.")
+              - set(attributes["event.outcome"], "failure") where attributes["event.action"] == "pam.tu-choi" or attributes["event.action"] == "pam.dang-nhap-that-bai" or attributes["pam"]["outcome"] == "failure"
+              - set(attributes["source.ip"], attributes["pam"]["client_ip"]) where attributes["pam"]["client_ip"] != nil
+              - set(attributes["orchestrator.resource.name"], attributes["pam"]["pod"]) where attributes["pam"]["pod"] != nil
+              - set(attributes["vt.phat_hien"], "pha-kinh") where attributes["event.action"] == "pam.pha-kinh" or IsMatch(attributes["message"], "(?i)(break.?glass|pha.?kinh)")
       transform/cuoi:
         error_mode: ignore
         log_statements:
@@ -407,10 +443,16 @@ spec:
       ports:
         - { protocol: TCP, port: {{ $s.openbao.port | int }} }
     {{- end }}
-    {{- if and $s.pam.enabled $s.pam.sourceCIDRs }}
+    {{- if and $s.pam.enabled (or $s.pam.sourceCIDRs $s.pam.clientPods) }}
     - from:
         {{- range $s.pam.sourceCIDRs }}
         - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+        {{- range $s.pam.clientPods }}
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .namespace }} }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: {{ .name }} }
         {{- end }}
       ports:
         - { protocol: TCP, port: {{ $s.pam.port | int }} }

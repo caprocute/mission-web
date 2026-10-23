@@ -1,7 +1,7 @@
 # Cấp quyền đặc quyền qua PAM và kiểm chứng "không có cửa sau"
 
 > Nguồn: TL-04 mục 9.3 "RBAC (SEC-29)" và bảng vai trò, "DBA không đọc được dữ liệu C2 (SEC-58)", mục 9.7 bảng cấp độ 4 (SEC-42 PAM có ghi phiên, lưu 1 năm, báo cáo hằng tháng), "SOC và SIEM (SEC-43)", mục 4 bảng ngân sách kết nối ($C_{\text{admin}}$ = 10 mỗi cụm); INF-19, INF-13, INF-11; INF-27.
-> Thành phần: chart `deploy/charts/pam-integration` (chính sách nhập `vt-pam-binding-co-thoi-han`, CronJob `pam-quet-rbac`, `pam-quet-csdl-<cụm>`, cảnh báo `vt-pam`, ConfigMap `pam-hop-dong`), `files/openbao/cau-hinh-pam.sh`, vai trò RBAC của `deploy/charts/security-cell` (INF-19), runbook `an-ninh-pam-rbac.md`, `pam-pha-kinh.md`.
+> Thành phần: chart `deploy/charts/pam-integration` (chính sách nhập `vt-pam-binding-co-thoi-han`, CronJob `pam-quet-rbac`, `pam-quet-csdl-<cụm>`, cảnh báo `vt-pam`, ConfigMap `pam-hop-dong`, Warpgate 0.30.0 trong namespace `pam` với ConfigMap `warpgate-nhap`), `files/openbao/cau-hinh-pam.sh`, vai trò RBAC của `deploy/charts/security-cell` (INF-19), runbook `an-ninh-pam-rbac.md`, `pam-pha-kinh.md`.
 
 Sản phẩm PAM chưa được chốt (bảng yêu cầu và khuyến nghị ở wiki 14, mục INF-27). Chart không cấp quyền thay PAM: nó ràng buộc hợp đồng mà mọi sản phẩm PAM phải theo, kiểm chứng định kỳ rằng không có đường nào khác vào quyền đặc quyền, và thu hồi dự phòng binding PAM đã quá hạn. Đổi sản phẩm chỉ đổi khối `pam` trong values và cấu hình của sản phẩm theo ConfigMap `pam-hop-dong`.
 
@@ -37,7 +37,7 @@ Kubernetes không có hàm thời gian hiện tại trong CEL, nên chính sách
 
 1. DBA mở yêu cầu `dba_ops` trên PAM (một người duyệt, nhóm `platform-ops-truong-dba`).
 2. Broker PAM đọc `database/creds/<cụm>-dba-ops` từ OpenBao (auth cert `cert-pam`, token 15 phút chỉ dùng được từ dải proxy PAM) và nhận người dùng động `IN ROLE dba_ops`, sống 4 giờ, tối đa 2 kết nối.
-3. PAM mở phiên `psql` qua proxy ghi phiên tới `<cụm>-rw.<namespace>.svc:5432` (NetworkPolicy `pam-proxy-to-pg` chỉ mở cho `pam.proxyCIDRs`).
+3. PAM mở phiên `psql` qua proxy ghi phiên tới `<cụm>-rw.<namespace>.svc:5432` (NetworkPolicy `pam-proxy-to-pg` chỉ mở cho `pam.proxyCIDRs` và pod Warpgate). Với Warpgate 0.30, mục tiêu psql dùng tài khoản trong `kv/warpgate/*` vì kho bí mật của Warpgate chỉ đọc KV; nối với người dùng động 4 giờ là câu hỏi mở ở wiki 14.
 4. Hết phiên: broker thu hồi lease (`sys/leases/revoke`); OpenBao ngắt phiên còn mở rồi xoá người dùng. `dba_ops` không có `SELECT` trên bảng nghiệp vụ; đọc dữ liệu nghiệp vụ chỉ theo `pam-pha-kinh.md`.
 
 Ngân sách kết nối quản trị: 10 mỗi cụm (TL-04 mục 4). Giới hạn cứng ở hai lớp: mỗi người dùng động tối đa 2 kết nối (`CONNECTION LIMIT`), và cấu hình phiên CSDL đồng thời của PAM mỗi cụm không quá 5 người (suy luận: 5 × 2 = 10). Cảnh báo `PamKetNoiQuanTriVuotNganSach` khi tổng kết nối của thành viên `dba_ops` và vai trò phá kính vượt 10 trong 5 phút. PostgreSQL 16 không có giới hạn kết nối theo nhóm vai trò, nên tổng 10 là kiểm chứng, không phải chặn cứng.
@@ -48,7 +48,18 @@ Quản trị khoá (đổi chính sách, cấu hình và xoay khoá Transit) đ�
 
 ## Sự kiện PAM sang SIEM
 
-PAM gửi syslog RFC 5424 qua TLS tới `otel-siem.observability.svc:6514` (bộ nhận `syslog/pam` của INF-19), dữ liệu có cấu trúc SD-ID `vtpam@32473` (32473 là số dành cho tài liệu theo RFC 5612; thay khi có số doanh nghiệp thật). Bộ xử lý `transform/ecs-pam` hiện có của `otel-siem` gắn `event.module: pam`, `event.dataset: pam.session`, giữ toàn bộ dữ liệu có cấu trúc dưới khoá `pam` và gắn thẻ `pha-kinh` khi thông điệp nhắc phá kính. Bảng ánh xạ ECS đầy đủ dưới đây là hợp đồng với sản phẩm PAM; phần đặt `event.action`, `user.name`, `related.user` từ tham số cần bổ sung vào `transform/ecs-pam` của chart `otel-collector` (ngoài phạm vi tệp của INF-27, ghi ở wiki 14).
+PAM gửi syslog RFC 5424 qua TLS tới `otel-siem.observability.svc:6514` (bộ nhận `syslog/pam` của INF-19), dữ liệu có cấu trúc SD-ID `vtpam@32473` (32473 là số dành cho tài liệu theo RFC 5612; thay khi có số doanh nghiệp thật). Bộ xử lý `transform/ecs-pam` của `otel-siem` gắn `event.module: pam`, `event.dataset: pam.session`, giữ tham số SD dưới khoá `pam` và đặt trường ECS theo bảng dưới đây (đã làm ngày 23/10/2026, kiểm bằng `deploy/charts/otel-collector/tests/kiem-thu-siem.py`); thẻ `pha-kinh` theo `event_action` hoặc khi thông điệp nhắc phá kính. Bảng là hợp đồng với sản phẩm PAM.
+
+Với Warpgate (sản phẩm đã chọn), sidecar `cau-noi` của pod Warpgate dựng dòng syslog từ sự kiện kiểm toán JSON của Warpgate. Ngoài các tham số trong bảng, sidecar thêm `warpgate_type` (loại gốc), `user_id`, `client_ip`, `pod`, `reason`, `outcome`. Cách gán loại sự kiện là suy luận:
+- `TargetSessionStarted1`, `TargetSessionEnded1` → bắt đầu, kết thúc phiên; `url.full` là trang phiên trong giao diện quản trị.
+- `AccessRoleGranted1`, `AdminRoleGranted1`, `TicketCreated1` → cấp quyền; `AccessRoleRevoked1`, `AdminRoleRevoked1`, `TicketDeleted1` → thu hồi.
+- `KubernetesExecStarted1`, `KubernetesAttachStarted1`, `KubernetesPortForwardStarted1`, `KubernetesDebugContainerCreated1`, `KubernetesPodCreated1`, `WebApprovalBypassed1` → lệnh nhạy cảm.
+- `KubernetesStreamRejected1` → từ chối.
+- `UserAuthenticated1` → `pam.dang-nhap`; `UserAuthenticationFailed1` → `pam.dang-nhap-that-bai`.
+- `UserCreated1`, `UserDeleted1`, `CredentialCreated1`, `CredentialDeleted1` → `pam.quan-tri`.
+- Loại khác → `pam.khac`.
+
+Warpgate không có bước yêu cầu và duyệt: hai bước đó do broker và chính sách nhập ở tầng Kubernetes làm. Broker cấp vai trò Warpgate cho người được duyệt bằng `POST /@warpgate/admin/api/users/{id}/roles/{role_id}` với `expires_at` bằng `vt.io/het-han`.
 
 | Sự kiện | Tham số SD `event_action` | ECS |
 |---|---|---|
@@ -59,6 +70,8 @@ PAM gửi syslog RFC 5424 qua TLS tới `otel-siem.observability.svc:6514` (bộ
 | Lệnh nhạy cảm | `pam.lenh-nhay-cam` | `event.kind: alert`, `process.command_line` ← `command` |
 | Thu hồi | `pam.thu-hoi` | `event.type: [deletion]` |
 | Phá kính | `pam.pha-kinh` | `vt.phat_hien: pha-kinh` (quy tắc SOC 2) |
+| Đăng nhập PAM, thất bại | `pam.dang-nhap`, `pam.dang-nhap-that-bai` | `event.category: [authentication]`, `event.type: [info]`, `source.ip` ← `client_ip`, thất bại `event.outcome: failure` |
+| Quản trị người dùng, thông tin đăng nhập trong PAM | `pam.quan-tri` | `event.category: [iam]`, `event.type: [admin]` |
 
 Hai CronJob quét của chart ghi mỗi phát hiện một dòng JSON trên stdout có `event.dataset: security` (Fluent Bit đưa vào `sys.audit.v1`, `otel-siem` chuyển sang `sys.siem.v1`), hành động `pam.cua-sau-rbac`, `pam.sai-hop-dong-rbac`, `pam.qua-han-rbac`, `pam.thu-hoi`, `pam.<loại>-csdl`, `pam.vuot-ngan-sach-ket-noi`.
 
@@ -93,7 +106,16 @@ Truy vấn gợi ý: PromQL `max_over_time(vt_pam_cua_sau_rbac[30d])`, `max_over
 2. Chạy `files/sql/vai-tro-dba.sql` trên mỗi cụm (ConfigMap `pam-vai-tro-dba` trong namespace của cụm) theo `pam-pha-kinh.md` mục chuẩn bị.
 3. Đưa CA của OpenBao (ConfigMap `openbao-ca`) và CA của từng cụm CNPG (Secret `<cụm>-ca`, khoá `ca.crt`) vào namespace `pam-kiem-soat` (trust-manager hoặc ExternalSecret); thiếu thì Pod quét CSDL không khởi động.
 4. Tạo client `pam-broker` (service account) và nhóm người duyệt trong realm `platform-ops`; khai `pam.proxyCIDRs`.
-5. Cài chart qua Argo CD; kiểm chứng như mục dưới.
+5. Warpgate:
+   - Tạo client `warpgate` (confidential, claim `groups`) trong realm `platform-ops`. Ghi client secret vào OpenBao để ESO dựng Secret `warpgate-oidc` (khoá `client-secret`) trong namespace `pam`.
+   - Ghi token của mục tiêu kubectl và mật khẩu mục tiêu psql vào `kv/warpgate/<mục tiêu>`.
+   - Khai `warpgate.nguonCIDRs` (máy nhảy, VPN của người vận hành) và `warpgate.dich.*`.
+6. Cài chart qua Argo CD. Sau lần chạy đầu, nhập ConfigMap `warpgate-nhap` vào Warpgate qua API quản trị (`/@warpgate/admin/api`) bằng tài khoản quản trị nhóm `platform-ops-an-ninh`, theo thứ tự:
+   - `vai-tro.json` → `POST /roles`;
+   - `kho-bi-mat.json` → `POST /secret-backends`;
+   - `muc-tieu.json` → `POST /targets` rồi `POST /targets/{id}/roles/{role_id}`.
+
+   Kiểm chứng như mục dưới.
 
 ## Kiểm chứng
 
