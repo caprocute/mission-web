@@ -14,7 +14,7 @@
 
 - **Tổng tiến độ đã gộp `main`**: **360 / 408 task (88.2%)** — Khối lượng quy đổi đã gộp: **426.5 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **360 / 408 task (88.2%)** (gồm **360** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **18 task** (14 đang làm, 4 làm một phần).
+- **Đang thực hiện / Làm một phần**: **18 task** (13 đang làm, 5 làm một phần).
 - **Chưa bắt đầu**: **30 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
@@ -564,7 +564,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [INF-16](docs/tasks/INF-16-co-gian-tu-dong.md) | Co giãn: Prometheus Adapter cho HPA, KEDA theo độ trễ Kafka, KEDA theo lịch hạn, Cluster Autoscaler có pod giữ chỗ | L | B8 | 5 | INF-14, INF-10, INF-01 | **Đã gộp main** | Gộp main; kiểm tĩnh xanh, kịch bản kind bỏ qua theo người dùng; kèm cấu hình clamav 200M và ingress Gotenberg |
 | [INF-17](docs/tasks/INF-17-sao-luu-csdl.md) | Sao lưu phần 1: CNPG Barman Cloud, kho sao lưu bất biến, `restore-check` hằng ngày, Velero và etcd | L | B8 | 3 | INF-11 | **Đang làm** | Giao B7 |
 | [INF-18](docs/tasks/INF-18-sao-luu-du-lieu-khac.md) | Sao lưu phần 2: MirrorMaker 2, Ceph multisite, snapshot OpenSearch, ClickHouse, Valkey, giữ outbox 72 giờ, lịch sao lưu | L | B8 | 8 | INF-17, INF-12, NEN-022 | **Đang làm** | Giao B7 |
-| [INF-19](docs/tasks/INF-19-bao-mat-nen-tang.md) | Bảo mật nền: Falco, nhật ký kiểm toán API Kubernetes và luồng `sys.audit.v1` tới SIEM, Pod Security, chính sách egress | M | B8 | 3 | INF-09 | **Đang làm** | Giao B8 |
+| [INF-19](docs/tasks/INF-19-bao-mat-nen-tang.md) | Bảo mật nền: Falco, nhật ký kiểm toán API Kubernetes và luồng `sys.audit.v1` tới SIEM, Pod Security, chính sách egress | M | B8 | 3 | INF-09 | **Làm một phần** | Nhánh claude/b8-ha-tang-g7g48k (đã gộp main đến f58443cb): security-cell, audit policy, otel-siem, nối Kafka/cell-egress/OpenBao/ApplicationSet; kiểm tĩnh xanh; còn ExternalSecret siem-forwarder-kafka, plugin KMS ảnh node, ảnh otelcol OCB, kiểm thử sống trên kind |
 | [INF-20](docs/tasks/INF-20-vung-dieu-phoi-toan-cuc.md) | Vùng điều phối toàn cục: cụm quản trị, PostgreSQL toàn cục, GeoDNS PowerDNS, `dns-sync`, CDN tài nguyên tĩnh | L | B8 | 4 | INF-04 | **Đang làm** | Giao B1 |
 | [INF-21](docs/tasks/INF-21-moi-truong-phi-san-xuat.md) | Môi trường phi sản xuất: staging, CELL-PERF, cụm sinh tải, môi trường tạm theo nhánh cho E2E | M | B8 | 4 | INF-04 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tài nguyên hạ tầng |
 | [INF-22](docs/tasks/INF-22-backend-tren-server-dev.md) | Triển khai backend lên server dev bằng Docker Compose (profile backend, cổng 35xxx) để kiểm thử tích hợp thật | M | B8 | 10 | CORE-00-01, NEN-020 | **Đang làm** | B1: phần repo xong (profile backend, tuyến APISIX có JWT, deploy-backend.sh, smoke-backend.sh; thử Keycloak + APISIX cục bộ đạt); còn triển khai thật trên server dev |
@@ -1019,4 +1019,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 12:54 | Điều phối (main) | `VH-05` | Chuyển trạng thái sang **Đang làm** — Giao B2 |
 | 23/10/2026 12:58 | Điều phối (main) | `VH-01`, `VH-02` | Chuyển trạng thái sang **Đang làm** — Giao B9 |
 | 23/10/2026 13:10 | Luồng B8 hạ tầng | `INF-27` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/b8-ha-tang-g7g48k: quét không cửa sau, mẫu tích hợp PAM trung lập, runbook (mức chart/manifest) |
+| 23/10/2026 13:10 | Luồng B8 hạ tầng | `INF-19` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k (đã gộp main đến f58443cb): security-cell, audit policy, otel-siem, nối Kafka/cell-egress/OpenBao/ApplicationSet; kiểm tĩnh xanh; còn ExternalSecret siem-forwarder-kafka, plugin KMS ảnh node, ảnh otelcol OCB, kiểm thử sống trên kind |
 <!-- PROGRESS_LOG_END -->
