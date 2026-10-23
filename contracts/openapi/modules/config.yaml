@@ -440,6 +440,53 @@ paths:
         '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
         default: { $ref: '../common/common.yaml#/components/responses/Problem' }
 
+  /config/tenants/{id}/terminate:
+    parameters:
+      - $ref: '../common/common.yaml#/components/parameters/IdPath'
+    post:
+      tags: [Tenant]
+      operationId: terminateConfigTenant
+      summary: Chấm dứt tenant
+      description: >-
+        Chuyển `TAM_NGUNG` → `DA_CHAM_DUT` khi đã xuất trả dữ liệu cho tổ chức và hết thời hạn lưu giữ theo hợp
+        đồng (TL-02a QT-01 "Trạng thái đối tượng"; TL-04 mục 11.4), yêu cầu MFA bước lên. Đây là trạng thái cuối,
+        không quay lại được. Lý do (số văn bản) và số biên bản bàn giao dữ liệu bắt buộc, ghi
+        `registry.tenant_status_log`; phát `registry.tenant.changed.v1` để các service ngừng phục vụ tenant và quy
+        trình huỷ KEK `kek-tenant-<id>` (TL-04 mục 8.4) bắt đầu. Sổ cái của tenant vẫn giữ theo NFR-09. Tenant
+        chưa tạm ngừng trả 409 mã `CONFIG-409-TENANT-STATE`; hồ sơ còn ở `KHOI_TAO` thì huỷ bằng
+        `cancelConfigTenant`.
+      x-mission:
+        qt: [QT-01]
+        scr: [SCR-0101]
+        owner: MOD-08
+        roles: [platform_admin]
+        scope: N
+        aal: 2
+        source: TL-02a QT-01 "Trạng thái đối tượng" (TAM_NGUNG → DA_CHAM_DUT); TL-04 mục 11.4; VH-04 (vtctl tenant terminate)
+      parameters:
+        - $ref: '../common/common.yaml#/components/parameters/IdempotencyKey'
+        - $ref: '../common/common.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfigTenantTerminateRequest' }
+      responses:
+        '200':
+          description: Tenant đã chấm dứt.
+          headers:
+            ETag: { $ref: '../common/common.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfigTenant' }
+        '401': { $ref: '../common/common.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../common/common.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../common/common.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../common/common.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../common/common.yaml#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '../common/common.yaml#/components/responses/PreconditionRequired' }
+        default: { $ref: '../common/common.yaml#/components/responses/Problem' }
+
   # ---------------------------------------------------------------- /config/security
   /config/security/report-suspicious:
     post:
@@ -3513,6 +3560,14 @@ components:
       additionalProperties: false
       properties:
         reason: { type: string, minLength: 1, maxLength: 500, description: 'Lý do, số văn bản (ghi `registry.tenant_status_log.reason`)' }
+    ConfigTenantTerminateRequest:
+      description: Lý do chấm dứt kèm số văn bản và số biên bản bàn giao dữ liệu đã xuất trả cho tổ chức.
+      type: object
+      required: [reason, handoverRef]
+      additionalProperties: false
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500, description: 'Lý do, số văn bản (ghi `registry.tenant_status_log.reason`)' }
+        handoverRef: { type: string, minLength: 1, maxLength: 200, description: 'Số biên bản bàn giao dữ liệu xuất trả (ghi kèm lý do trong nhật ký trạng thái)' }
     ConfigTenantExportRequest:
       description: Bộ lọc và định dạng tệp xuất, cùng bộ lọc với `GET /config/tenants` (định dạng là suy luận).
       type: object
