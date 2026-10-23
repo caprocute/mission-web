@@ -618,7 +618,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [VH-01](docs/tasks/VH-01-runbook-ops-01-13.md) | Runbook OPS-01..OPS-13 | L | B11 | 4 | INF-04 | **Đã gộp main** | Gộp 07c879b3; chưa chạy thử trên cụm |
 | [VH-02](docs/tasks/VH-02-runbook-ops-14-26.md) | Runbook OPS-14..OPS-26 | L | B11 | 4 | INF-17 | **Đã gộp main** | Gộp 07c879b3; chưa chạy thử trên cụm |
 | [VH-03](docs/tasks/VH-03-truc-su-co-cab.md) | Trực vận hành, mức sự cố SEV-1..SEV-4, quy trình thay đổi, đóng băng thay đổi | M | B11 | 5 | VH-01 | **Đã gộp main** | Gộp 8d327008 |
-| [VH-04](docs/tasks/VH-04-dien-tap-onboarding.md) | Diễn tập vòng đời tenant: đưa tenant mới vào vận hành trong một ngày (OPS-07) | M | B11 | 13 | DV-03-05, INF-04 | **Đã gộp main** | Gộp 17bda177; chưa chạy staging |
+| [VH-04](docs/tasks/VH-04-dien-tap-onboarding.md) | Diễn tập vòng đời tenant: đưa tenant mới vào vận hành trong một ngày (OPS-07) | M | B11 | 13 | DV-03-05, INF-04 | **Đã gộp main** | Gộp 17bda177 + terminate tenant 5654cbfd + saga dev 4a5c5261 |
 | [VH-05](docs/tasks/VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | B11 | 24 | QA-07 | **Đang làm** | Giao B2 |
 | [VH-06](docs/tasks/VH-06-tai-lieu-quan-tri.md) | Tài liệu quản trị, cài đặt cho ba mô hình phân phối | M | B11 | 6 | INF-23 | **Đã gộp main** | Gộp sau bản phát hành; chưa chạy trên cụm thật |
 | [VH-07](docs/tasks/VH-07-ho-so-cap-do-4.md) | Hồ sơ đề xuất cấp độ 4 theo TCVN 11930:2017 | M | B11 | 13 | QA-13, INF-19 | **Đã gộp main** | Gộp e1b6490e |
@@ -1034,4 +1034,5 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 13:58 | B7 | `MOB-02` | Chuyển trạng thái sang **Làm một phần** — Package ngoai_tuyen gộp c3063a30; tích hợp app chờ MOB-01 |
 | 23/10/2026 14:05 | Luồng B8 hạ tầng | `INF-27` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/b8-ha-tang-g7g48k: pam-integration (quét cửa sau, VAP binding có hạn, Warpgate 0.30), sửa thu hồi người dùng động OpenBao, bao_admin chỉ còn ADMIN, otel-siem transform/ecs-pam; kiểm thật trên PG16 và Warpgate; chờ chốt cách cấp quyền kubectl/psql qua Warpgate, chưa chạy kind |
 | 23/10/2026 14:06 | B8 | `INF-27` | Chuyển trạng thái sang **Làm một phần** — Gộp 3f6d867d (Warpgate, thu hồi PG); còn SA kubectl, dba_ops, lưu phiên RGW |
+| 23/10/2026 14:12 | B3 | `VH-04` | Chuyển trạng thái sang **Đã gộp main** — Gộp 17bda177 + terminate tenant 5654cbfd + saga dev 4a5c5261 |
 <!-- PROGRESS_LOG_END -->
