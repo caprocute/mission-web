@@ -421,7 +421,8 @@ class ReopenRequestServiceTest {
                     new ReopenBasis(ReopenBasis.Kind.QUYET_DINH, null, "QĐ 5")))
             .request()
             .id();
-    service.simulate(T, inspector(), id, null);
+    service.simulate(T, inspector(), id, null, "Bearer i");
+    assertThat(simulated.authorization()).isEqualTo("Bearer i");
     assertThat(simulated.scope()).isEqualTo(ReopenScope.DON_VI);
     assertThat(simulated.profileIds()).containsExactly(profile);
     assertThat(simulated.adjustments()).isEmpty();

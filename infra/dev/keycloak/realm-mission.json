@@ -72,6 +72,10 @@
       {
         "name": "ai_readonly",
         "description": "AC-12 Trợ lý AI (chỉ đọc)"
+      },
+      {
+        "name": "svc_org_service",
+        "description": "Tài khoản dịch vụ org-service (SVC-03) gọi API nội bộ của integration-gateway: /internal/v1/integ/sync-runs, mapping-xref (DV-13-06)"
       }
     ]
   },
@@ -387,6 +391,22 @@
         "profile",
         "email",
         "web-origins",
+        "mission-context"
+      ]
+    },
+    {
+      "clientId": "org-service",
+      "name": "org-service (tài khoản dịch vụ, SVC-03)",
+      "bearerOnly": false,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${ORG_SERVICE_CLIENT_SECRET}",
+      "defaultClientScopes": [
+        "basic",
         "mission-context"
       ]
     }
@@ -906,6 +926,39 @@
       ]
     },
     {
+      "username": "quantri2",
+      "enabled": true,
+      "firstName": "Hai",
+      "lastName": "Lê Văn",
+      "email": "quantri2@mission.local",
+      "emailVerified": true,
+      "attributes": {
+        "tenant": [
+          "default"
+        ],
+        "unit_id": [
+          "phong-tong-hop"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_TEST_USER_PASSWORD}",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "dev (WEB-056)",
+          "secretData": "{\"value\":\"${KC_TEST_OTP_SECRET}\"}",
+          "credentialData": "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+        }
+      ],
+      "realmRoles": [
+        "tenant_admin",
+        "policy_author"
+      ]
+    },
+    {
       "username": "chinhsach",
       "enabled": true,
       "firstName": "Sách",
@@ -1163,6 +1216,14 @@
       "realmRoles": [
         "member",
         "inspector"
+      ]
+    },
+    {
+      "username": "service-account-org-service",
+      "enabled": true,
+      "serviceAccountClientId": "org-service",
+      "realmRoles": [
+        "svc_org_service"
       ]
     }
   ]

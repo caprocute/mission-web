@@ -29,8 +29,9 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
 
 /**
  * Kho {@code oversight.reopen_request} bằng JDBC (CORE-07-07). {@code scope_json} giữ {@code
- * items}, {@code basis}, {@code units}, {@code openWorkingDays} và {@code cancellation}; {@code
- * scope}, {@code scope_ids} là bản chuẩn hoá để lọc (TL-03).
+ * items}, {@code basis}, {@code units}, {@code openWorkingDays}, {@code cancellation} và {@code
+ * followUp} (CORE-07-09, giữ nguyên khi cập nhật); {@code scope}, {@code scope_ids} là bản chuẩn
+ * hoá để lọc (TL-03).
  */
 public class JdbcReopenRequestRepository implements ReopenRequestRepository {
 
@@ -137,7 +138,9 @@ public class JdbcReopenRequestRepository implements ReopenRequestRepository {
     return jdbc.sql(
                 """
                 UPDATE oversight.reopen_request
-                   SET status = ?, scope_json = ?::jsonb, executed_at = ?, row_version = ?,
+                   SET status = ?, scope_json = ?::jsonb
+                       || jsonb_strip_nulls(jsonb_build_object('followUp', scope_json -> 'followUp')),
+                       executed_at = ?, row_version = ?,
                        updated_at = now(), updated_by = ?
                  WHERE period_bucket = ? AND tenant_id = ? AND id = ? AND row_version = ?
                 """)
@@ -145,6 +148,27 @@ public class JdbcReopenRequestRepository implements ReopenRequestRepository {
             .param(scopeJson(r))
             .param(r.executedAt() == null ? null : Timestamp.from(r.executedAt()))
             .param(r.rowVersion())
+            .param(actorId)
+            .param(r.periodBucket())
+            .param(tenant.value())
+            .param(r.id())
+            .param(expectedVersion)
+            .update()
+        == 1;
+  }
+
+  @Override
+  public boolean relocked(
+      TenantId tenant, ReopenRequest r, Instant at, int expectedVersion, UUID actorId) {
+    return jdbc.sql(
+                """
+                UPDATE oversight.reopen_request
+                   SET status = 'DA_DONG', relocked_at = ?, row_version = row_version + 1,
+                       updated_at = now(), updated_by = ?
+                 WHERE period_bucket = ? AND tenant_id = ? AND id = ? AND row_version = ?
+                   AND status = 'DA_THUC_HIEN' AND relocked_at IS NULL
+                """)
+            .param(Timestamp.from(at))
             .param(actorId)
             .param(r.periodBucket())
             .param(tenant.value())

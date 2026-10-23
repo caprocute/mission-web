@@ -28,12 +28,14 @@ import vn.viettel.okrkpi.shared.kernel.TenantId;
 import vn.viettel.okrkpi.task.application.catalog.CatalogPolicy;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker.Check;
 import vn.viettel.okrkpi.task.application.plan.PlanChecker.GroupWeight;
+import vn.viettel.okrkpi.task.application.plan.port.PlanLineFacts;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.ApprovedItemRow;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.Assignee;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.CatalogRow;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.ItemRow;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.PlanRow;
+import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.RemovedItem;
 import vn.viettel.okrkpi.task.application.plan.port.PlanRepository.VersionRow;
 import vn.viettel.okrkpi.task.domain.plan.PlanCommand;
 import vn.viettel.okrkpi.task.domain.plan.PlanSchedule;
@@ -67,6 +69,7 @@ public class PlanService {
   private final PlanChecker checker;
   private final PolicyQueryApi policies;
   private final CatalogPolicy catalogPolicy;
+  private final PlanLineFacts lineFacts;
   private final Clock clock;
 
   public PlanService(
@@ -78,6 +81,21 @@ public class PlanService {
       PolicyQueryApi policies,
       CatalogPolicy catalogPolicy,
       Clock clock) {
+    this(plans, periods, okr, org, checker, policies, catalogPolicy, PlanLineFacts.none(), clock);
+  }
+
+  /** {@code lineFacts}: tình trạng nhiệm vụ của dòng cho BR-04-11, BR-04-12 (CORE-02-10). */
+  public PlanService(
+      PlanRepository plans,
+      PeriodApi periods,
+      OkrApi okr,
+      OrgDirectoryApi org,
+      PlanChecker checker,
+      PolicyQueryApi policies,
+      CatalogPolicy catalogPolicy,
+      PlanLineFacts lineFacts,
+      Clock clock) {
+    this.lineFacts = lineFacts == null ? PlanLineFacts.none() : lineFacts;
     this.plans = Objects.requireNonNull(plans, "plans");
     this.periods = Objects.requireNonNull(periods, "periods");
     this.okr = Objects.requireNonNull(okr, "okr");
@@ -145,6 +163,24 @@ public class PlanService {
       long expectedVersion,
       List<ItemRow> drafts,
       UUID actor) {
+    periods.assertWritable(tenant, PeriodId.of(plan(tenant, planId).periodId()));
+    return saveVersion(tenant, planId, versionNo, expectedVersion, drafts, List.of(), actor);
+  }
+
+  /**
+   * Lưu nháp; ở phiên bản điều chỉnh ghi kèm dòng bỏ và lý do (SCR-0403 trường 3). Bỏ việc đã có
+   * minh chứng xác nhận (BR-04-11) hay đổi hạn nhiệm vụ đang thực hiện (BR-04-12) bị chặn ngay khi
+   * lưu; thiếu lý do chỉ chặn khi gửi duyệt (BR-04-10).
+   */
+  @Transactional(TX)
+  public VersionView saveVersion(
+      TenantId tenant,
+      UUID planId,
+      int versionNo,
+      long expectedVersion,
+      List<ItemRow> drafts,
+      List<RemovedItem> removed,
+      UUID actor) {
     PlanRow plan = plan(tenant, planId);
     periods.assertWritable(tenant, PeriodId.of(plan.periodId()));
     VersionRow version = editable(tenant, plan, versionNo, expectedVersion, PlanCommand.SAVE);
@@ -152,6 +188,27 @@ public class PlanService {
     List<ItemRow> items = new ArrayList<>(drafts.size());
     for (ItemRow d : drafts) {
       items.add(storable(resolved(d, items.size() + 1, catalog)));
+    }
+    if (versionNo > 1) {
+      List<RemovedItem> kept = removed == null ? List.of() : removed;
+      List<Check> blocked =
+          adjustmentChecks(tenant, plan, versionNo, items, kept).stream()
+              .filter(PlanAdjustments::protectsResults)
+              .toList();
+      if (!blocked.isEmpty()) {
+        throw new BusinessException(
+            VALIDATION,
+            blocked.get(0).message(),
+            blocked.stream()
+                .map(
+                    c ->
+                        new ProblemFieldError(
+                            c.lineNo() == null ? "removedItems" : "items[" + (c.lineNo() - 1) + "]",
+                            c.message(),
+                            c.rule()))
+                .toList());
+      }
+      plans.replaceRemovedItems(tenant, plan, version, kept);
     }
     plans.replaceItems(tenant, plan, version, items, actor);
     return version(tenant, planId, versionNo);
@@ -315,13 +372,18 @@ public class PlanService {
     PeriodSnapshot period = period(tenant, plan.periodId());
     List<ItemRow> items = plans.items(tenant, plan.periodBucket(), v.id());
     Groups groups = groups(tenant, plan);
-    return new VersionView(
-        plan,
-        period,
-        v,
-        items,
-        checker.check(items, context(tenant, plan, period, groups)),
-        groups);
+    List<Check> checks =
+        new ArrayList<>(checker.check(items, context(tenant, plan, period, groups)));
+    if (versionNo > 1) {
+      checks.addAll(
+          adjustmentChecks(
+              tenant,
+              plan,
+              versionNo,
+              items,
+              plans.removedItems(tenant, plan.periodBucket(), v.id())));
+    }
+    return new VersionView(plan, period, v, items, List.copyOf(checks), groups);
   }
 
   /**
@@ -330,6 +392,17 @@ public class PlanService {
    */
   @Transactional(transactionManager = TX, readOnly = true)
   public List<Check> check(TenantId tenant, UUID planId, int versionNo, List<ItemRow> drafts) {
+    return check(tenant, planId, versionNo, drafts, List.of());
+  }
+
+  /** Như {@link #check(TenantId, UUID, int, List)}, kèm kiểm tra điều chỉnh BR-04-10..12. */
+  @Transactional(transactionManager = TX, readOnly = true)
+  public List<Check> check(
+      TenantId tenant,
+      UUID planId,
+      int versionNo,
+      List<ItemRow> drafts,
+      List<RemovedItem> removed) {
     PlanRow plan = plan(tenant, planId);
     plans.versions(tenant, plan.periodBucket(), planId).stream()
         .filter(x -> x.versionNo() == versionNo)
@@ -341,7 +414,56 @@ public class PlanService {
       items.add(resolved(d, items.size() + 1, catalog));
     }
     PeriodSnapshot period = period(tenant, plan.periodId());
-    return checker.check(items, context(tenant, plan, period, groups(tenant, plan)));
+    List<Check> checks =
+        new ArrayList<>(checker.check(items, context(tenant, plan, period, groups(tenant, plan))));
+    if (versionNo > 1) {
+      checks.addAll(
+          adjustmentChecks(tenant, plan, versionNo, items, removed == null ? List.of() : removed));
+    }
+    return List.copyOf(checks);
+  }
+
+  /**
+   * Phiên bản gốc của phiên bản điều chỉnh {@code versionNo}: phiên bản {@code DA_DUYET} có số lớn
+   * nhất nhỏ hơn nó.
+   */
+  Optional<VersionRow> baseOf(TenantId tenant, PlanRow plan, int versionNo) {
+    return plans.versions(tenant, plan.periodBucket(), plan.id()).stream()
+        .filter(x -> x.versionNo() < versionNo && x.status() == PlanVersionStatus.DA_DUYET)
+        .findFirst();
+  }
+
+  private List<Check> adjustmentChecks(
+      TenantId tenant,
+      PlanRow plan,
+      int versionNo,
+      List<ItemRow> items,
+      List<RemovedItem> removed) {
+    Optional<VersionRow> base = baseOf(tenant, plan, versionNo);
+    if (base.isEmpty()) {
+      return List.of();
+    }
+    List<ItemRow> baseItems = plans.items(tenant, plan.periodBucket(), base.get().id());
+    PlanAdjustments.Diff diff =
+        PlanAdjustments.diff(base.get().versionNo(), versionNo, baseItems, items, removed);
+    return PlanAdjustments.checks(
+        diff,
+        lineFacts.of(tenant, plan.periodBucket(), baseItems.stream().map(ItemRow::id).toList()));
+  }
+
+  /** Tham số {@code key} của Policy Pack mà kỳ của kế hoạch đã ghim. */
+  Optional<Object> parameter(TenantId tenant, PlanRow plan, String key) {
+    if (policies == null) {
+      return Optional.empty();
+    }
+    for (String flow : FLOWS) {
+      Optional<ResolvedPack> pack =
+          policies.resolve(tenant, PeriodId.of(plan.periodId()), flow, null, null);
+      if (pack.isPresent()) {
+        return policies.parameter(tenant, pack.get().versionId(), key);
+      }
+    }
+    return Optional.empty();
   }
 
   /** Nhóm điểm từ tham số {@code nhom} của Policy Pack mà kỳ đã ghim, mặc định 30/70. */

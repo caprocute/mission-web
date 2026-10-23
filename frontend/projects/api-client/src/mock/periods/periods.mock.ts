@@ -8,6 +8,7 @@ import {
   PeriodLockStep,
   SAGA_ACTIVE_STATUSES,
 } from '../../lib/models/period';
+import { startMockJob } from '../mock-jobs';
 import { MockModule, MockRequest, MockResponse, ok, problem } from '../mock-router';
 import { MOCK_ME, mockSession } from '../mock-session';
 import {
@@ -221,10 +222,10 @@ function compensateOne(f: PeriodFixture): void {
   log(s, `Đã hoàn tác toàn bộ. Kỳ ${f.period.name} trở về trạng thái Đang mở.`);
 }
 
+/** 202 + `Location` của job dùng chung (`mock-jobs.ts`); tiến độ chi tiết đọc ở `/periods/{id}/lock`. */
 function job(type: string, status: Job['status'], extra: Partial<Job> = {}): MockResponse {
-  const id = crypto.randomUUID();
-  const body: Job = { id, type, status, progress: 0, updatedAt: nowIso(), ...extra };
-  return { status: 202, body, headers: { Location: `/api/v1/jobs/${id}`, 'Retry-After': '1' } };
+  const res = startMockJob(type, undefined, 3, { status, updatedAt: nowIso(), ...extra });
+  return { ...res, headers: { ...res.headers, 'Retry-After': '1' } };
 }
 
 function list(req: MockRequest): MockResponse {

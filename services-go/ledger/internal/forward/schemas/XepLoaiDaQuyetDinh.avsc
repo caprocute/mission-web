@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "XepLoaiDaQuyetDinh",
+  "namespace": "vn.vtokr.appraisal.v1",
+  "doc": "EVT-12 · appraisal.rating.decided.v1 · MOD-04 phát khi mức xếp loại được quyết định.",
+  "fields": [
+    {"name": "profileId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "appraisal.appraisal_profile.id"},
+    {"name": "personId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người được đánh giá"},
+    {"name": "flow", "type": "string", "doc": "Luồng: DANG, NHA_NUOC"},
+    {"name": "ratingCode", "type": "string", "doc": "Mức xếp loại quyết định"},
+    {"name": "scoreSnapshotId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "appraisal.score_snapshot.id làm căn cứ"},
+    {"name": "deciderId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Người quyết định"},
+    {"name": "signRequestId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null, "doc": "esign.sign_request.id của chữ ký tại mốc quyết định"},
+    {"name": "aggregateVersion", "type": "int", "doc": "Phiên bản thực thể gốc (row_version) tại lúc ghi outbox; consumer dùng để bỏ qua sự kiện đến sai thứ tự (inbox_aggregate_version)."}
+  ]
+}

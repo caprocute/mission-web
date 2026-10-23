@@ -10,6 +10,7 @@ export type PermissionKey =
   | 'SCR-0001.dang-nhap'
   | 'SCR-0001.chon-phan-cong'
   | 'SCR-0001.bao-bat-thuong'
+  | 'SCR-0001.khoa-thiet-bi'
   | 'SCR-0002.xem'
   | 'SCR-0002.doi-phan-cong'
   | 'SCR-0002.cap-nhat-nhanh'
@@ -23,6 +24,8 @@ export type PermissionKey =
   | 'SCR-0103.xem'
   | 'SCR-0103.nhap-excel'
   | 'SCR-0103.thay-doi'
+  | 'SCR-0103.khoa-phuc-hoi'
+  | 'SCR-0103.nhat-ky-phuc-hoi'
   | 'SCR-0104.xem'
   | 'SCR-0104.dong-bo'
   | 'SCR-0104.xu-ly-lech'
@@ -63,6 +66,7 @@ export type PermissionKey =
   | 'SCR-0501.giao'
   | 'SCR-0501.giao-dong-loat'
   | 'SCR-0501.trung'
+  | 'SCR-0501.khoa-nguoi-nhan'
   | 'SCR-0502.nhan-van-ban'
   | 'SCR-0502.ai-trich'
   | 'SCR-0502.xac-nhan'
@@ -190,6 +194,8 @@ export const PERMISSION_TABLE: Readonly<Record<PermissionKey, string>> = {
     'platform_admin tenant_admin policy_author leader manager member appraiser decider second_approver inspector',
   'SCR-0001.bao-bat-thuong':
     'platform_admin tenant_admin policy_author leader manager member appraiser decider second_approver inspector',
+  'SCR-0001.khoa-thiet-bi':
+    'platform_admin* tenant_admin* policy_author* leader* manager* member* appraiser* decider* second_approver* inspector*',
   'SCR-0002.xem':
     'platform_admin* tenant_admin* policy_author* leader manager member appraiser decider* second_approver* inspector*',
   'SCR-0002.doi-phan-cong':
@@ -206,6 +212,8 @@ export const PERMISSION_TABLE: Readonly<Record<PermissionKey, string>> = {
   'SCR-0103.xem': 'tenant_admin appraiser* inspector*',
   'SCR-0103.nhap-excel': 'tenant_admin',
   'SCR-0103.thay-doi': 'tenant_admin',
+  'SCR-0103.khoa-phuc-hoi': 'tenant_admin*',
+  'SCR-0103.nhat-ky-phuc-hoi': 'tenant_admin* inspector*',
   'SCR-0104.xem': 'tenant_admin inspector*',
   'SCR-0104.dong-bo': 'tenant_admin',
   'SCR-0104.xu-ly-lech': 'tenant_admin',
@@ -246,6 +254,8 @@ export const PERMISSION_TABLE: Readonly<Record<PermissionKey, string>> = {
   'SCR-0501.giao': 'manager',
   'SCR-0501.giao-dong-loat': 'manager*',
   'SCR-0501.trung': 'manager',
+  'SCR-0501.khoa-nguoi-nhan':
+    'platform_admin* tenant_admin* policy_author* leader* manager* member* appraiser* decider* second_approver* inspector*',
   'SCR-0502.nhan-van-ban': 'manager',
   'SCR-0502.ai-trich': '',
   'SCR-0502.xac-nhan': 'manager',

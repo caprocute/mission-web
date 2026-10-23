@@ -97,13 +97,25 @@ public class JdbcRecoveryKeyStore implements RecoveryKeyStore {
             + "ORDER BY created_at DESC, id DESC LIMIT :limit")
         .param("tenant", Sql.tenant()).param("object", objectId).param("afterAt", utc(afterAt))
         .param("afterId", afterId).param("limit", limit)
-        .query((rs, n) -> new StoredRecovery(Sql.uuid(rs, "id"), Sql.uuid(rs, "recovery_key_id"),
-            rs.getString("object_type"), Sql.uuid(rs, "object_id"), Sql.uuid(rs, "new_recipient_id"),
-            rs.getBytes("new_key_fingerprint"), uuids(rs, "custodian_ids"), rs.getString("reason"),
-            rs.getString("ceremony_ref"), instant(rs, "performed_at"), rs.getInt("sig_key_version"),
-            rs.getBytes("signature"), instant(rs, "signed_at"), Sql.uuid(rs, "created_by"),
-            instant(rs, "created_at")))
+        .query((rs, n) -> recovery(rs))
         .list();
+  }
+
+  @Override
+  public Optional<StoredRecovery> log(UUID id) {
+    return jdbc.sql("SELECT " + LOG_COLUMNS + " FROM org.e2ee_recovery_log WHERE tenant_id = :tenant AND id = :id")
+        .param("tenant", Sql.tenant()).param("id", id)
+        .query((rs, n) -> recovery(rs))
+        .optional();
+  }
+
+  private static StoredRecovery recovery(ResultSet rs) throws SQLException {
+    return new StoredRecovery(Sql.uuid(rs, "id"), Sql.uuid(rs, "recovery_key_id"),
+        rs.getString("object_type"), Sql.uuid(rs, "object_id"), Sql.uuid(rs, "new_recipient_id"),
+        rs.getBytes("new_key_fingerprint"), uuids(rs, "custodian_ids"), rs.getString("reason"),
+        rs.getString("ceremony_ref"), instant(rs, "performed_at"), rs.getInt("sig_key_version"),
+        rs.getBytes("signature"), instant(rs, "signed_at"), Sql.uuid(rs, "created_by"),
+        instant(rs, "created_at"));
   }
 
   private static StoredRecoveryKey key(ResultSet rs) throws SQLException {

@@ -30,6 +30,8 @@ import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRep
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.StoredObject;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.VersionSummary;
 import vn.viettel.okrkpi.product.application.evidence.port.EvidenceSubmissionRepository.VersionView;
+import vn.viettel.okrkpi.product.application.evidence.port.IssuedDocuments;
+import vn.viettel.okrkpi.product.domain.evidence.AiPrefillRules;
 import vn.viettel.okrkpi.product.domain.evidence.EvidenceFile;
 import vn.viettel.okrkpi.product.domain.evidence.EvidenceRuleViolation;
 import vn.viettel.okrkpi.product.domain.evidence.EvidenceStatus;
@@ -60,6 +62,12 @@ public class EvidenceSubmissionService {
   static final String NOT_TASK_OWNER = "PRODUCT-403-NOT-TASK-OWNER";
   static final String TASK_STATE = "PRODUCT-409-TASK-STATE";
   static final String TASK_NOT_OPEN = "PRODUCT-422-TASK-NOT-OPEN";
+
+  /** Nguồn phiên bản lấy từ văn bản đã ban hành (CORE-03-04). */
+  static final String EXTERNAL_SOURCE = "VAN_BAN_HE_THONG";
+
+  /** Quy tắc văn bản đã ban hành làm minh chứng: chữ ký số gốc, không sửa tệp gốc. */
+  static final String EXTERNAL_RULE = "BR-07-13";
 
   /** Nhiệm vụ nhận khai báo sản phẩm. */
   static final Set<String> DECLARE_STATES = Set.of("DA_GIAO", "DANG_THUC_HIEN");
@@ -110,7 +118,14 @@ public class EvidenceSubmissionService {
       String docNumber,
       LocalDate docDate,
       String docSummary,
-      String note) {}
+      String note,
+      List<String> aiFieldsEdited) {}
+
+  /**
+   * Việc cần làm với SVC-14 trước khi nộp (CORE-03-05): ghi quyết định của người nộp cho gợi ý
+   * {@code aiSuggestionId}; {@code edited} rỗng là giữ nguyên mọi ô.
+   */
+  public record AiDecisionPlan(UUID versionId, UUID aiSuggestionId, List<String> edited) {}
 
   /** Minh chứng kèm lịch sử phiên bản. */
   public record EvidenceDetail(
@@ -241,6 +256,9 @@ public class EvidenceSubmissionService {
   @Transactional(TX)
   public VersionDetail createVersion(
       TenantId tenant, UUID evidenceId, DraftInput input, EvidenceActor actor) {
+    if (EXTERNAL_SOURCE.equals(input.source())) {
+      throw invalid("source", "Nguồn văn bản trên hệ thống chỉ được tạo khi chọn văn bản");
+    }
     EvidenceView e =
         repository.lockEvidence(tenant, evidenceId).orElseThrow(NoSuchElementException::new);
     evidenceTask(tenant, e.taskId(), actor);
@@ -249,20 +267,78 @@ public class EvidenceSubmissionService {
     } catch (PeriodLockedException ex) {
       throw periodLocked(e.periodId());
     }
-    Optional<VersionView> latest = repository.latestVersion(tenant, e.periodBucket(), evidenceId);
-    try {
-      SubmissionRules.requireCanOpenNext(
-          latest.map(v -> EvidenceStatus.valueOf(v.status())).orElse(null));
-    } catch (EvidenceRuleViolation ex) {
-      throw new BusinessException(ex.code(), ex.getMessage());
+    return openVersion(tenant, e, input, actor);
+  }
+
+  /**
+   * Phiên bản n+1 từ văn bản đã ban hành (CORE-03-04, BR-07-13): tệp gốc SVC-13 đã chuyển sang
+   * SVC-08 là tệp thứ nhất, nguồn {@code VAN_BAN_HE_THONG}, số ký hiệu, ngày, trích yếu điền từ văn
+   * bản; ghi kết quả kiểm chữ ký số vào sổ cái cùng giao dịch. Chữ ký phải đã được kiểm hợp lệ
+   * trước khi gọi.
+   */
+  @Transactional(TX)
+  public VersionDetail openExternalDocVersion(
+      TenantId tenant,
+      UUID evidenceId,
+      DraftInput input,
+      IssuedDocuments.Transferred original,
+      EvidenceActor actor) {
+    if (!original.signatureValid()) {
+      throw signatureInvalid();
     }
-    int next = latest.map(VersionView::versionNo).orElse(0) + 1;
-    UUID versionId = UUID.randomUUID();
-    repository.insertVersion(
-        tenant, e, versionId, next, input.source(), actor.personId(), clock.instant());
-    VersionView created =
-        repository.findVersion(tenant, e.periodBucket(), evidenceId, next).orElseThrow();
-    return applyDraft(tenant, created, created.rowVersion(), input, actor);
+    EvidenceView e =
+        repository.lockEvidence(tenant, evidenceId).orElseThrow(NoSuchElementException::new);
+    evidenceTask(tenant, e.taskId(), actor);
+    try {
+      periods.assertWritable(tenant, PeriodId.of(e.periodId()));
+    } catch (PeriodLockedException ex) {
+      throw periodLocked(e.periodId());
+    }
+    Instant now = clock.instant();
+    repository.upsertStoredObject(
+        tenant,
+        new StoredObject(
+            original.objectId(),
+            original.objectVersion(),
+            original.sha256(),
+            original.sizeBytes(),
+            original.mediaType(),
+            false,
+            "CHO_QUET",
+            now),
+        actor.personId(),
+        now);
+    List<FileInput> files = new ArrayList<>();
+    files.add(new FileInput(original.objectId(), original.objectVersion(), null));
+    if (input.files() != null) {
+      input.files().stream()
+          .filter(f -> !original.objectId().equals(f.objectId()))
+          .forEach(files::add);
+    }
+    IssuedDocuments.Doc doc = original.doc();
+    DraftInput external =
+        new DraftInput(
+            EXTERNAL_SOURCE,
+            doc.ref(),
+            files,
+            false,
+            null,
+            doc.docNumber(),
+            doc.docDate(),
+            doc.summary(),
+            input.note(),
+            List.of());
+    VersionDetail created = openVersion(tenant, e, external, actor);
+    events.externalDocVerified(
+        new EvidenceEvents.ExternalDocVerified(
+            tenant,
+            created.version().id(),
+            doc.ref(),
+            original.objectId(),
+            doc.signerName(),
+            actor.personId(),
+            created.version().rowVersion()));
+    return created;
   }
 
   /** Sửa phiên bản đang {@code NHAP}. */
@@ -286,7 +362,7 @@ public class EvidenceSubmissionService {
     } catch (PeriodLockedException ex) {
       throw periodLocked(e.periodId());
     }
-    return applyDraft(tenant, v, expectedRowVersion, input, actor);
+    return applyDraft(tenant, v, expectedRowVersion, keepOriginal(tenant, v, input), actor);
   }
 
   /**
@@ -333,6 +409,18 @@ public class EvidenceSubmissionService {
         lifecycle.submitVersion(tenant, v.id(), expectedRowVersion, actor, aiFieldsConfirmed);
 
     EvidenceVersion submitted = result.version();
+    if (v.aiPrefill() && v.userConfirmedAt() == null && submitted.userConfirmedAt() != null) {
+      List<String> edited = repository.aiFieldsEdited(tenant, v.periodBucket(), v.id());
+      events.aiFieldsConfirmed(
+          new EvidenceEvents.AiFieldsConfirmed(
+              tenant,
+              v.id(),
+              v.aiSuggestionId(),
+              AiPrefillRules.kept(edited),
+              edited,
+              actor.personId(),
+              result.rowVersion()));
+    }
     events.submitted(
         new EvidenceEvents.Submitted(
             tenant,
@@ -367,7 +455,104 @@ public class EvidenceSubmissionService {
     return new SubmitOutcome(versionDetail(tenant, after), reviewer, taskStatus);
   }
 
+  /**
+   * Gợi ý AI cần ghi quyết định khi nộp với xác nhận: chỉ khi phiên bản {@code NHAP} có ô AI chưa
+   * xác nhận, có mã gợi ý và không có tệp C3 (tệp C3 không bao giờ tạo lời gọi tới SVC-14).
+   */
+  @Transactional(value = TX, readOnly = true)
+  public Optional<AiDecisionPlan> aiDecisionPlan(
+      TenantId tenant, UUID evidenceId, int versionNo, boolean aiFieldsConfirmed) {
+    if (!aiFieldsConfirmed) {
+      return Optional.empty();
+    }
+    return repository
+        .findEvidence(tenant, evidenceId)
+        .flatMap(e -> repository.findVersion(tenant, e.periodBucket(), evidenceId, versionNo))
+        .filter(v -> EvidenceStatus.NHAP.name().equals(v.status()))
+        .filter(v -> v.aiPrefill() && v.userConfirmedAt() == null)
+        .filter(v -> !v.hasE2ee() && v.aiSuggestionId() != null)
+        .map(
+            v ->
+                new AiDecisionPlan(
+                    v.id(),
+                    v.aiSuggestionId(),
+                    repository.aiFieldsEdited(tenant, v.periodBucket(), v.id())));
+  }
+
   // ---------------------------------------------------------------- nội bộ
+
+  private VersionDetail openVersion(
+      TenantId tenant, EvidenceView e, DraftInput input, EvidenceActor actor) {
+    Optional<VersionView> latest = repository.latestVersion(tenant, e.periodBucket(), e.id());
+    try {
+      SubmissionRules.requireCanOpenNext(
+          latest.map(v -> EvidenceStatus.valueOf(v.status())).orElse(null));
+    } catch (EvidenceRuleViolation ex) {
+      throw new BusinessException(ex.code(), ex.getMessage());
+    }
+    int next = latest.map(VersionView::versionNo).orElse(0) + 1;
+    UUID versionId = UUID.randomUUID();
+    repository.insertVersion(
+        tenant, e, versionId, next, input.source(), actor.personId(), clock.instant());
+    VersionView created =
+        repository.findVersion(tenant, e.periodBucket(), e.id(), next).orElseThrow();
+    return applyDraft(tenant, created, created.rowVersion(), input, actor);
+  }
+
+  /**
+   * Nháp từ văn bản đã ban hành giữ nguyên tệp gốc ở vị trí thứ nhất, nguồn và tham chiếu văn bản
+   * (BR-07-13: không sửa tệp gốc); nháp khác không được tự gán nguồn văn bản trên hệ thống.
+   */
+  private DraftInput keepOriginal(TenantId tenant, VersionView v, DraftInput input) {
+    if (!EXTERNAL_SOURCE.equals(v.source())) {
+      if (EXTERNAL_SOURCE.equals(input.source())) {
+        throw invalid("source", "Nguồn văn bản trên hệ thống chỉ được tạo khi chọn văn bản");
+      }
+      return input;
+    }
+    List<FileView> current = repository.filesOf(tenant, v.periodBucket(), v.id());
+    FileInput first =
+        input.files() == null || input.files().isEmpty() ? null : input.files().get(0);
+    boolean sameFile =
+        !current.isEmpty()
+            && first != null
+            && current.get(0).file().objectId().equals(first.objectId())
+            && (first.objectVersionNo() == null
+                || first.objectVersionNo() == current.get(0).file().objectVersion());
+    if (!sameFile) {
+      throw signatureField("files[0].objectId", "Không được thay hoặc bỏ tệp gốc của văn bản");
+    }
+    if ((input.source() != null && !EXTERNAL_SOURCE.equals(input.source()))
+        || (input.sourceDocRef() != null
+            && !input.sourceDocRef().isBlank()
+            && !input.sourceDocRef().equals(v.sourceDocRef()))) {
+      throw signatureField("sourceDocRef", "Không được đổi văn bản nguồn của phiên bản");
+    }
+    if (input.aiPrefill()) {
+      throw invalid("aiPrefill", "Thông tin văn bản đã lấy từ hệ thống, không dùng AI điền");
+    }
+    return new DraftInput(
+        EXTERNAL_SOURCE,
+        v.sourceDocRef(),
+        input.files(),
+        false,
+        null,
+        input.docNumber(),
+        input.docDate(),
+        input.docSummary(),
+        input.note(),
+        List.of());
+  }
+
+  /** Chữ ký số gốc không hợp lệ (BR-07-13). */
+  static BusinessException signatureInvalid() {
+    return signatureField("externalDocRef", "Chữ ký số của văn bản không hợp lệ");
+  }
+
+  private static BusinessException signatureField(String field, String message) {
+    return new BusinessException(
+        VALIDATION, message, List.of(new ProblemFieldError(field, message, EXTERNAL_RULE)));
+  }
 
   private VersionDetail applyDraft(
       TenantId tenant,
@@ -425,6 +610,15 @@ public class EvidenceSubmissionService {
               duplicateOf,
               blankToNull(f.reuseJustification())));
     }
+    boolean hasE2ee = rows.stream().anyMatch(r -> objects.get(r.objectId()).hasE2ee());
+    List<String> aiEdited;
+    try {
+      aiEdited =
+          AiPrefillRules.check(
+              input.aiPrefill(), input.aiSuggestionId() != null, input.aiFieldsEdited(), hasE2ee);
+    } catch (AiPrefillRules.Violation ex) {
+      throw invalid(ex.field(), ex.getMessage());
+    }
     String scan = SubmissionRules.aggregateScan(rows.stream().map(FileRow::scanStatus).toList());
     StoredObject first = rows.isEmpty() ? null : objects.get(rows.get(0).objectId());
     FileRow firstDuplicate =
@@ -449,7 +643,7 @@ public class EvidenceSubmissionService {
         new DraftDetails(
             input.source() == null ? version.source() : input.source(),
             blankToNull(input.sourceDocRef()),
-            input.aiSuggestionId(),
+            input.aiPrefill() ? input.aiSuggestionId() : null,
             blankToNull(input.docNumber()),
             input.docDate(),
             blankToNull(input.docSummary()),
@@ -458,10 +652,11 @@ public class EvidenceSubmissionService {
                 .reduce(Long::sum)
                 .orElse(null),
             first == null ? null : first.mediaType(),
-            rows.stream().anyMatch(r -> objects.get(r.objectId()).hasE2ee()),
+            hasE2ee,
             firstDuplicate != null,
             firstDuplicate == null ? null : firstDuplicate.duplicateOfVersionId(),
-            firstDuplicate == null ? null : firstDuplicate.reuseJustification()));
+            firstDuplicate == null ? null : firstDuplicate.reuseJustification(),
+            aiEdited));
     VersionView saved =
         repository
             .findVersion(tenant, version.periodBucket(), version.evidenceId(), version.versionNo())

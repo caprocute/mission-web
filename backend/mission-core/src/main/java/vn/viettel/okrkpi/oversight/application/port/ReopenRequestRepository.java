@@ -35,6 +35,17 @@ public interface ReopenRequestRepository {
    */
   boolean update(TenantId tenant, ReopenRequest changed, int expectedVersion, UUID actorId);
 
+  /**
+   * Khoá lại xong (EVT-09): đặt {@code relocked_at}, chuyển {@code DA_DONG}, tăng {@code
+   * row_version}; {@code false} khi {@code row_version} đã khác.
+   */
+  boolean relocked(
+      TenantId tenant,
+      ReopenRequest request,
+      java.time.Instant at,
+      int expectedVersion,
+      UUID actorId);
+
   /** Ghi một dòng {@code oversight.reopen_approval} (chỉ thêm). */
   void insertApproval(TenantId tenant, ReopenRequest request, Approval approval);
 

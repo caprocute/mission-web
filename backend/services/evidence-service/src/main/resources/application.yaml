@@ -101,6 +101,14 @@ okrkpi:
     schema: evidence
   evidence:
     auth-enabled: ${EVIDENCE_AUTH_ENABLED:true}
+    # CORE-07-06: cổng nội bộ MOD-03 kiểm bản bọc khoá trước khi cấp URL tải bản mã C3. Không khai thì
+    # chỉ người tải lên mở được bản mã. mission-core phải có evidence-service trong
+    # okrkpi.tenant.delegating-clients.
+    # e2ee-access:
+    #   base-url: ${MISSION_CORE_URL}
+    #   token-url: ${KEYCLOAK_TOKEN_URL}
+    #   client-id: ${EVIDENCE_CLIENT_ID:evidence-service}
+    #   client-secret: ${EVIDENCE_CLIENT_SECRET:}
     storage:
       endpoint: ${S3_ENDPOINT:http://127.0.0.1:35900}
       region: ${S3_REGION:us-east-1}

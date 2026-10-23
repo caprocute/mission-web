@@ -1,0 +1,6 @@
+{
+  "avroBase64": "SDAxOTBhM2Y0LTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMQJIMDE5MGEzZjQtNTU1NS03MDAwLTgwMDAtMDAwMDAwMDAwMDA1LlJhzIAgc29hzIF0IGhvzILMgCBzb8ybSDAxOTBhM2Y0LTQ0NDQtNzAwMC04MDAwLTAwMDAwMDAwMDAwNAJIMDE5MGEzZjQtNjY2Ni03MDAwLTgwMDAtMDAwMDAwMDAwMDA2AKTFAgIECcQBAAQ=",
+  "canonicalJson": "{\"aggregateVersion\":2,\"assigneeIds\":[\"0190a3f4-6666-7000-8000-000000000006\"],\"dueDate\":20818,\"isKeyTask\":true,\"isSecret\":false,\"leadAssigneeId\":\"0190a3f4-4444-7000-8000-000000000004\",\"planItemId\":{\"string\":\"0190a3f4-5555-7000-8000-000000000005\"},\"taskId\":\"0190a3f4-1111-7000-8000-000000000001\",\"title\":\"Rà soát hồ sơ\",\"weight\":{\"bytes\":\"\\tÄ\"}}",
+  "payloadHash": "8d43c32459cd919fe7455c5db72dc93742b0d4e0fe8517868dae3f29e9f94344",
+  "topic": "task.task.assigned.v1"
+}

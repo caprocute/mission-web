@@ -133,7 +133,9 @@ class ScoreSimulationServiceTest {
         old.pinned().versionId(),
         original.contentHash(),
         policyVersion,
-        input.document().json());
+        input.document().json(),
+        20271,
+        UUID.randomUUID());
   }
 
   private static StoredScores store(StoredScores.Stored row) {
@@ -146,6 +148,26 @@ class ScoreSimulationServiceTest {
       @Override
       public Optional<Stored> latestWithTask(UUID taskId) {
         return row.inputDoc().contains(taskId.toString()) ? Optional.of(row) : Optional.empty();
+      }
+
+      @Override
+      public Optional<Stored> byId(int periodBucket, UUID resultId) {
+        return Optional.empty();
+      }
+
+      @Override
+      public java.util.List<Affected> withTask(UUID taskId) {
+        return java.util.List.of();
+      }
+
+      @Override
+      public Optional<Integer> bucketOf(UUID periodId) {
+        return Optional.empty();
+      }
+
+      @Override
+      public java.util.List<Stored> originals(UUID periodId, int periodBucket) {
+        return java.util.List.of();
       }
     };
   }

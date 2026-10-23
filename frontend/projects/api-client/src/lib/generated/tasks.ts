@@ -595,6 +595,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/tasks/{id}/secret-content/recovery-wraps': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Nạp khoá bọc C3 cho thiết bị mới sau khi khôi phục bằng khoá phục hồi tổ chức
+     * @description Sau buổi khôi phục khi người nhận mất khoá thiết bị (TL-01 "Khôi phục khi mất khoá"), quản trị tenant đã ghi biên bản bằng `recordE2eeRecovery` của SVC-04 và bọc lại khoá nội dung cho khoá thiết bị mới của người đó ở phía client. Máy chủ đối chiếu biên bản `recoveryId` qua SVC-04: `objectType` là `TASK_CONTENT`, `objectId` là nhiệm vụ, `newRecipientId` và `newKeyFingerprint` khớp bản bọc, biên bản ghi trong 24 giờ; sai trả 422. Người nhận phải là người tham gia nhiệm vụ. Không đổi phiên bản nội dung; ghi lại cùng biên bản là thao tác lặp, không tạo bản bọc thứ hai.
+     */
+    post: operations['restoreTaskSecretKeyWrap'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/tasks/{id}/secret-content/shares/{personId}': {
     parameters: {
       query?: never;
@@ -2349,6 +2371,10 @@ export interface components {
     TaskSecretShareRequest: {
       keyWraps: components['schemas']['TaskKeyWrap'][];
     };
+    TaskSecretRecoveryWrapRequest: {
+      recoveryId: components['schemas']['Uuid'];
+      keyWrap: components['schemas']['TaskKeyWrap'];
+    };
     PlanItemScoreRequest: {
       /** @description Mức khó năm mức (BR-04-14) */
       difficulty: number;
@@ -2534,6 +2560,16 @@ export interface components {
     };
     /** @description Vượt giới hạn tốc độ (mặc định 20 request/giây mỗi người dùng, đột biến 40). */
     TooManyRequests: {
+      headers: {
+        'Retry-After': components['headers']['RetryAfter'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetails'];
+      };
+    };
+    /** @description Cắt tải khi cell gần bão hoà; thử lại có giãn cách. */
+    ServiceUnavailable: {
       headers: {
         'Retry-After': components['headers']['RetryAfter'];
         [name: string]: unknown;
@@ -3586,6 +3622,41 @@ export interface operations {
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       422: components['responses']['UnprocessableEntity'];
+      default: components['responses']['Problem'];
+    };
+  };
+  restoreTaskSecretKeyWrap: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Khoá chống ghi trùng cho một ý định ghi (không phải một lần gọi HTTP): lần thử lại phải dùng lại khoá cũ. UUID do client sinh, nên dùng UUIDv7. Máy chủ giữ khoá 48 giờ trong phạm vi (tenant, người gọi) (TL-03 `idempotency_key`); cùng khoá cùng nội dung trả lại phản hồi lần đầu, cùng khoá khác nội dung trả 422 mã `COMMON-422-IDEMPOTENCY-MISMATCH`. */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TaskSecretRecoveryWrapRequest'];
+      };
+    };
+    responses: {
+      /** @description Siêu dữ liệu bản mã C3 sau khi nạp khoá bọc khôi phục. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TaskSecretContentMeta'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      422: components['responses']['UnprocessableEntity'];
+      503: components['responses']['ServiceUnavailable'];
       default: components['responses']['Problem'];
     };
   };

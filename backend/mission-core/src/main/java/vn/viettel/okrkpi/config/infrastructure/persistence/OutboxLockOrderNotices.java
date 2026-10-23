@@ -15,14 +15,16 @@ import vn.viettel.okrkpi.shared.outbox.OutboxWriter;
 import vn.vtokr.notify.v1.YeuCauThongBao;
 
 /**
- * EVT-21 {@code notify.message.requested.v1} cho lệnh khoá kỳ, ghi {@code config.outbox_event}
- * trong giao dịch của bên gọi. Tham số mẫu chỉ có tên kỳ, mã người duyệt và giờ (C1); tên người
- * duyệt do SVC-12 tra theo mã khi ghép MSG-08-01.
+ * EVT-21 {@code notify.message.requested.v1} cho lệnh khoá kỳ và cho huỷ, bù trừ (MSG-08-05,
+ * MSG-08-08), ghi {@code config.outbox_event} trong giao dịch của bên gọi. Tham số mẫu chỉ có tên
+ * kỳ, mã người duyệt và giờ (C1); tên người duyệt do SVC-12 tra theo mã khi ghép MSG-08-01.
  */
 public class OutboxLockOrderNotices implements LockOrderNotices {
 
   static final String TEMPLATE_REQUESTED = "LENH_KHOA_KY_CHO_DUYET";
   static final String TEMPLATE_APPROVED = "LENH_KHOA_KY_DA_DUYET";
+  static final String TEMPLATE_CANCEL_REQUESTED = "KHOA_KY_DE_NGHI_HUY";
+  static final String TEMPLATE_CANCELLED = "KHOA_KY_DA_BU_TRU";
   private static final DateTimeFormatter CLOCK =
       DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy").withZone(ZoneId.of("Asia/Ho_Chi_Minh"));
 
@@ -57,6 +59,28 @@ public class OutboxLockOrderNotices implements LockOrderNotices {
             + quote(from)
             + "}",
         order.approvedBy());
+  }
+
+  /** MSG-08-05: đề nghị huỷ và bù trừ chờ người duyệt thứ hai. */
+  @Override
+  public void cancelRequested(PeriodLockOrder order, String periodName, List<UUID> recipients) {
+    send(
+        order,
+        recipients,
+        TEMPLATE_CANCEL_REQUESTED,
+        "{\"ky\":" + quote(periodName) + "}",
+        order.cancelRequest().requestedBy());
+  }
+
+  /** MSG-08-08: saga đã bù trừ toàn bộ, kỳ trở về trạng thái mở. */
+  @Override
+  public void cancelCompleted(PeriodLockOrder order, String periodName, List<UUID> recipients) {
+    send(
+        order,
+        recipients,
+        TEMPLATE_CANCELLED,
+        "{\"ky\":" + quote(periodName) + "}",
+        order.cancelRequest().approvedBy());
   }
 
   private void send(

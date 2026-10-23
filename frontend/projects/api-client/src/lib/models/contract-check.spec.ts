@@ -9,8 +9,8 @@
  * hàng chờ duyệt, ngữ cảnh soạn, và các kiểu tenant của SCR-0101 `TenantStatus`, `TenancyModel`,
  * `TenantRow`, `CellLoad`, `TenantStats`, `TenantPage`, `ConfigTenant`, `RegistryTenant`) không cần
  * kiểm ở đây. Các kiểu viết tay còn lệch hợp đồng và chưa kiểm (`OrgUnit`, `ProgressBatchResult`, bản
- * nháp soạn OKR `ObjectiveDraft`/`ObjectiveDetail`, kiểu trình khởi tạo tenant SCR-0102 trong
- * `tenant-onboarding.ts` cùng `CellInfo`) được ghi ở báo cáo WEB-064 và wiki/06. Kế hoạch (`plan.ts`)
+ * nháp soạn OKR `ObjectiveDraft`/`ObjectiveDetail`) được ghi ở báo cáo WEB-064 và wiki/06; kiểu trình
+ * khởi tạo tenant SCR-0102 (`tenant-onboarding.ts`) là bí danh hợp đồng từ WEB-072. Kế hoạch (`plan.ts`)
  * theo hợp đồng từ WEB-065; `PlanWorkspace`, `PlanReview` là kiểu ghép phía client, không có trong
  * hợp đồng.
  */

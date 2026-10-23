@@ -180,3 +180,13 @@ okrkpi:
       lock-duration: ${SAGA_WORKER_LOCK:5m}
       poll-interval: ${SAGA_WORKER_POLL:500ms}
       reconcile-interval: ${SAGA_WORKER_RECONCILE:5s}
+    # Saga chốt kỳ (DV-06-06): chế độ từng bên tham gia, CHUA_NOI (mặc định, lệnh thất bại rõ task
+    # còn thiếu) hoặc GIA_LAP (chỉ môi trường phát triển). Xem wiki trang 14.
+    period-close:
+      enabled: ${SAGA_PERIOD_CLOSE_ENABLED:true}
+      participants:
+        mod-08: ${SAGA_PERIOD_CLOSE_MOD08:CHUA_NOI}
+        svc-07: ${SAGA_PERIOD_CLOSE_SVC07:CHUA_NOI}
+        svc-11: ${SAGA_PERIOD_CLOSE_SVC11:CHUA_NOI}
+        svc-10: ${SAGA_PERIOD_CLOSE_SVC10:CHUA_NOI}
+        svc-09: ${SAGA_PERIOD_CLOSE_SVC09:CHUA_NOI}

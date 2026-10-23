@@ -1,3 +1,4 @@
+import { resetMockJobs } from './mock-jobs';
 import { MockModule, MockRequest, MockResponse, matchPath, problem } from './mock-router';
 import { mockSession } from './mock-session';
 
@@ -77,7 +78,7 @@ export const MOCK_PREFIXES: Record<string, MockLoaderKey[]> = {
   registry: ['tenants'],
   search: ['search'],
   tasks: ['sourceDocs', 'tasks', 'analytics'],
-  ui: ['uiForms', 'uiPacks', 'mePreferences'],
+  ui: ['uiForms', 'uiPacks', 'featureFlags', 'mePreferences'],
   workflow: ['workflowTemplates', 'workflowInstances'],
 };
 
@@ -148,5 +149,6 @@ export function resetMockData(): void {
   idempotency.clear();
   // Phiên giả lập (MFA, ký số) dùng chung: đặt lại kể cả khi chưa nạp bộ giả lập nào (nạp lười)
   mockSession.reset();
+  resetMockJobs();
   for (const mod of loaded.values()) mod.reset();
 }

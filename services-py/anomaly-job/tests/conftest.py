@@ -110,9 +110,16 @@ class Stub(http.server.BaseHTTPRequestHandler):
                 or not self.headers.get("Idempotency-Key", "").strip() or not self.headers.get("Authorization"):
             self._send(400, {"status": 400})
             return
+        # Đúng TaskDelayRiskInput của tasks.yaml: thiếu trường bắt buộc hay có trường lạ thì 422.
+        allowed = {"level", "neededWorkingDays", "explanation", "computedAt", "basedOnProgressId"}
+        if not {"level", "neededWorkingDays", "explanation", "computedAt"} <= set(body) or set(body) - allowed \
+                or body["level"] not in ("THAP", "VUA", "CAO") or body["neededWorkingDays"] < 0 \
+                or not 0 < len(body["explanation"]) <= 1000:
+            self._send(422, {"status": 422})
+            return
         key = (tenant, parts[4])
         old = self.delay_risk.get(key)
-        code = 409 if old and old["basedOnReportedAt"] > body["basedOnReportedAt"] else 200
+        code = 409 if old and old["computedAt"] > body["computedAt"] else 200
         if code == 200:
             self.delay_risk[key] = body
         self.delay_calls.append((time.monotonic(), tenant, parts[4], body, code))

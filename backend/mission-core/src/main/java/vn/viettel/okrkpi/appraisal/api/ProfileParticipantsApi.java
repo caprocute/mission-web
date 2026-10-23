@@ -20,6 +20,14 @@ public interface ProfileParticipantsApi {
   /** Người tham gia thẩm định, quyết định hồ sơ của các đơn vị đã cho (hoặc cả kỳ khi rỗng). */
   Set<UUID> reviewersOfUnits(TenantId tenant, PeriodId periodId, Collection<UUID> unitIds);
 
+  /**
+   * Hồ sơ của kỳ thuộc các đơn vị đã cho (cả kỳ khi rỗng), cho MOD-07 theo dõi tính lại, sinh lại,
+   * ký lại trong phạm vi mở lại (CORE-07-09).
+   */
+  default Set<UUID> profilesOfUnits(TenantId tenant, PeriodId periodId, Collection<UUID> unitIds) {
+    return Set.of();
+  }
+
   /** Cán bộ và đơn vị của một hồ sơ đánh giá. */
   record ProfileSubject(UUID personId, UUID unitId) {}
 
