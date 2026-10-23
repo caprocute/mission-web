@@ -183,6 +183,14 @@ public interface PlanRepository {
   long attachSignRequest(
       TenantId tenant, PlanRow plan, VersionRow version, UUID signRequestId, UUID actor);
 
+  /**
+   * Ghi mã tiến trình {@code duyet-ke-hoach-quy} (CORE-02-08) vào phiên bản còn {@code CHO_DUYET};
+   * không tăng {@code row_version} vì SVC-06 gửi lại phiên bản lúc gửi duyệt trong {@code
+   * If-Match}.
+   */
+  boolean linkProcessInstance(
+      TenantId tenant, int periodBucket, UUID versionId, String processInstanceId);
+
   /** Phiên bản theo mã (không biết kỳ); {@code forUpdate} khoá dòng để chuyển {@code DA_DUYET}. */
   record SignedTarget(PlanRow plan, VersionRow version, ApprovalRow approval) {}
 

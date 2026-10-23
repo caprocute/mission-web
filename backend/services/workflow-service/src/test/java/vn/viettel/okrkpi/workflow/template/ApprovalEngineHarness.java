@@ -84,7 +84,7 @@ final class ApprovalEngineHarness implements AutoCloseable {
         .deploy(TemplateCatalog.load(json));
     FlowableApprovalProcesses processes =
         new FlowableApprovalProcesses(
-            engine.getRuntimeService(), engine.getHistoryService(), null) {
+            engine.getRuntimeService(), engine.getHistoryService(), engine.getTaskService(), null) {
           @Override
           public void lockStart(UUID tenantId, String templateCode, BusinessKey businessKey) {
             // Khoá tư vấn chỉ có trên PostgreSQL; kiểm ở ApprovalTemplatesIT.

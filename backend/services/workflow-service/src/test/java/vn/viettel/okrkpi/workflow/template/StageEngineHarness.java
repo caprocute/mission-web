@@ -93,7 +93,7 @@ final class StageEngineHarness implements AutoCloseable {
         .deploy(TemplateCatalog.load(json));
     FlowableApprovalProcesses starter =
         new FlowableApprovalProcesses(
-            engine.getRuntimeService(), engine.getHistoryService(), null) {
+            engine.getRuntimeService(), engine.getHistoryService(), engine.getTaskService(), null) {
           @Override
           public void lockStart(UUID tenantId, String templateCode, BusinessKey businessKey) {
             // Khoá tư vấn chỉ có trên PostgreSQL.

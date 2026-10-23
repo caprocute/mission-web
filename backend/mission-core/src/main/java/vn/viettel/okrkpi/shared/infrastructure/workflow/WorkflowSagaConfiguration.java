@@ -17,21 +17,31 @@ import vn.viettel.okrkpi.shared.resilience.DependencyUnavailableException;
 @ConditionalOnProperty(prefix = "mission.config.workflow", name = "base-url")
 public class WorkflowSagaConfiguration {
 
+  /** CORE-02-08: cầu nối luồng duyệt, cùng địa chỉ và token dịch vụ với client saga. */
+  @Bean
+  WorkflowApprovalClient workflowApprovalClient(
+      ObjectProvider<RestClient.Builder> builder,
+      ObjectProvider<KeycloakAdminClient> keycloak,
+      @Value("${mission.config.workflow.base-url}") String baseUrl) {
+    return new WorkflowApprovalClient(
+        builder.getIfAvailable(RestClient::builder), baseUrl, () -> serviceToken(keycloak));
+  }
+
   @Bean
   WorkflowSagaClient workflowSagaClient(
       ObjectProvider<RestClient.Builder> builder,
       ObjectProvider<KeycloakAdminClient> keycloak,
       @Value("${mission.config.workflow.base-url}") String baseUrl) {
     return new WorkflowSagaClient(
-        builder.getIfAvailable(RestClient::builder),
-        baseUrl,
-        () -> {
-          KeycloakAdminClient k = keycloak.getIfAvailable();
-          if (k == null) {
-            throw new DependencyUnavailableException(
-                "keycloak", DependencyUnavailableException.Reason.IO_ERROR, null, null);
-          }
-          return k.serviceToken();
-        });
+        builder.getIfAvailable(RestClient::builder), baseUrl, () -> serviceToken(keycloak));
+  }
+
+  private static String serviceToken(ObjectProvider<KeycloakAdminClient> keycloak) {
+    KeycloakAdminClient k = keycloak.getIfAvailable();
+    if (k == null) {
+      throw new DependencyUnavailableException(
+          "keycloak", DependencyUnavailableException.Reason.IO_ERROR, null, null);
+    }
+    return k.serviceToken();
   }
 }

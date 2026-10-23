@@ -274,6 +274,15 @@ class ApprovalApplicationTest {
       variables.add(vars);
       return id;
     }
+
+    final List<String> cancelled = new ArrayList<>();
+
+    @Override
+    public int cancelWaiting(
+        UUID tenantId, String templateCode, BusinessKey businessKey, String reason) {
+      cancelled.add(templateCode + "|" + businessKey.value() + "|" + reason);
+      return 1;
+    }
   }
 
   static StartApprovalCommand command(
@@ -339,6 +348,24 @@ class ApprovalApplicationTest {
     assertThat(processes.variables.get(2))
         .containsEntry(ApprovalVariables.NHIEM_VU_ID, task.toString())
         .containsEntry(ApprovalVariables.NGUYEN_NHAN, "CHU_QUAN");
+  }
+
+  @Test
+  void ketThucTienTrinhConChoNguoiDuyet() {
+    Processes processes = new Processes();
+    StartApprovalService service =
+        new StartApprovalService(processes, (t, kind, flow) -> Optional.empty());
+    UUID plan = UUID.fromString("00000000-0000-7000-8000-000000000002");
+    assertThat(service.cancel(TENANT, ApprovalTemplate.DUYET_KE_HOACH_QUY, plan, " Trả lại "))
+        .isEqualTo(1);
+    assertThat(service.cancel(TENANT, ApprovalTemplate.DUYET_KE_HOACH_QUY, plan, null))
+        .isEqualTo(1);
+    service.cancel(TENANT, ApprovalTemplate.DUYET_KE_HOACH_QUY, plan, "x".repeat(300));
+    assertThat(processes.cancelled.get(0))
+        .isEqualTo("duyet-ke-hoach-quy|PLAN:" + plan + "|Trả lại");
+    assertThat(processes.cancelled.get(1)).endsWith("|Lõi đã quyết định");
+    assertThat(processes.cancelled.get(2)).endsWith("|" + "x".repeat(255));
+    assertThat(processes.locks).isEqualTo(3);
   }
 
   @Test

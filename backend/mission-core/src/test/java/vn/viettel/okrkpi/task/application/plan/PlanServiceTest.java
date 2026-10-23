@@ -351,6 +351,12 @@ class PlanServiceTest {
     }
 
     @Override
+    public boolean linkProcessInstance(
+        TenantId tenant, int periodBucket, UUID versionId, String processInstanceId) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Optional<SignedTarget> versionById(TenantId tenant, UUID versionId, boolean forUpdate) {
       throw new UnsupportedOperationException();
     }
