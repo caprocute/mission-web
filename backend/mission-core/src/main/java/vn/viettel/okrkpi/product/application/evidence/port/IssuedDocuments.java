@@ -32,7 +32,8 @@ public interface IssuedDocuments {
 
   /**
    * Tệp gốc đã chuyển sang SVC-08: đối tượng, phiên bản, băm SHA-256 và kết quả kiểm chữ ký số của
-   * chính tệp đã chuyển (tệp bị sửa so với bản ký thì không hợp lệ).
+   * chính tệp đã chuyển (tệp bị sửa so với bản ký thì không hợp lệ). Chữ ký không hợp lệ thì SVC-13
+   * không chuyển tệp: {@code objectId}, {@code sha256} rỗng.
    */
   record Transferred(
       UUID objectId,
@@ -46,11 +47,16 @@ public interface IssuedDocuments {
   Page search(TenantId tenant, UUID orgUnitId, String q, int limit, String cursor);
 
   /**
-   * Chuyển tệp gốc của văn bản {@code ref} thuộc đơn vị sang SVC-08; gọi lại cùng {@code
-   * idempotencyKey} trả cùng đối tượng.
+   * Chuyển tệp gốc của văn bản {@code ref} thuộc đơn vị sang SVC-08 làm tệp của minh chứng {@code
+   * evidenceId}; gọi lại cùng {@code idempotencyKey} trả cùng đối tượng.
    *
    * @return rỗng khi văn bản không có hoặc không thuộc đơn vị
    */
   Optional<Transferred> transfer(
-      TenantId tenant, UUID orgUnitId, String ref, UUID requestedBy, String idempotencyKey);
+      TenantId tenant,
+      UUID orgUnitId,
+      String ref,
+      UUID evidenceId,
+      UUID requestedBy,
+      String idempotencyKey);
 }

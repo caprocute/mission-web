@@ -286,6 +286,71 @@ class FileUploadFlowIT {
     }
   }
 
+  /**
+   * CORE-03-04: integration-gateway chuyển tệp gốc văn bản đã ban hành qua cổng nội bộ: lưu khoá,
+   * một sự kiện lưu, vào hàng đợi quét; gọi lại cùng khoá trả cùng đối tượng; kiểu sai bị từ chối.
+   */
+  @Test
+  void nhanTepGocVanBanQuaCongNoiBo() throws Exception {
+    byte[] file = pdf(3000);
+    UUID evidence = UUID.randomUUID();
+    java.util.function.BiFunction<String, String, HttpResponse<String>> ingest =
+        (key, type) -> {
+          try {
+            return HttpClient.newHttpClient()
+                .send(
+                    HttpRequest.newBuilder(
+                            URI.create(
+                                "http://localhost:"
+                                    + port
+                                    + "/internal/v1/ingested-objects?tenantId="
+                                    + TENANT
+                                    + "&ownerRefId="
+                                    + evidence
+                                    + "&requestedBy="
+                                    + USER
+                                    + "&fileName=47-BC%20%C4%91%C3%A3%20k%C3%BD.pdf"))
+                        .header("Content-Type", type)
+                        .header("Idempotency-Key", key)
+                        .POST(BodyPublishers.ofByteArray(file))
+                        .build(),
+                    BodyHandlers.ofString(StandardCharsets.UTF_8));
+          } catch (Exception e) {
+            throw new IllegalStateException(e);
+          }
+        };
+    HttpResponse<String> r = ingest.apply("chuyen-van-ban-1", PDF);
+    assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
+    JsonNode done = json.readTree(r.body());
+    String objectId = done.get("objectId").asText();
+    assertThat(done.get("objectVersion").asInt()).isEqualTo(1);
+    assertThat(done.get("sha256").asText()).isEqualTo(sha(file));
+    assertThat(done.get("sizeBytes").asLong()).isEqualTo(file.length);
+    assertThat(json.readTree(ingest.apply("chuyen-van-ban-1", PDF).body()).get("objectId").asText())
+        .isEqualTo(objectId);
+    assertThat(ingest.apply("chuyen-van-ban-2", "text/html").statusCode()).isEqualTo(415);
+
+    try (Connection c = admin();
+        var st = c.createStatement()) {
+      var rs =
+          st.executeQuery(
+              "SELECT count(*) FROM evidence.outbox_event WHERE aggregate_id = '"
+                  + objectId
+                  + "' AND topic = 'sys.evidence.object.stored.v1'");
+      rs.next();
+      assertThat(rs.getInt(1)).isEqualTo(1);
+      rs =
+          st.executeQuery(
+              "SELECT m.owner_ref_id::text, v.scan_status FROM evidence.object_meta m"
+                  + " JOIN evidence.object_version v ON v.object_meta_id = m.id WHERE m.id = '"
+                  + objectId
+                  + "'");
+      rs.next();
+      assertThat(rs.getString(1)).isEqualTo(evidence.toString());
+      assertThat(rs.getString(2)).isEqualTo("CHO_QUET");
+    }
+  }
+
   @Test
   void cungTepHaiNguoiMotDoiTuongVatLyKhacTenantKhongTrung() throws Exception {
     byte[] file = pdf(4321);

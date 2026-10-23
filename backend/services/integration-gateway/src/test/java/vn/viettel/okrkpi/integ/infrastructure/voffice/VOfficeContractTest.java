@@ -18,6 +18,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import vn.viettel.okrkpi.integ.application.InboundConnector.Page;
 import vn.viettel.okrkpi.integ.application.IssuedDocumentSource;
+import vn.viettel.okrkpi.integ.application.IssuedDocumentTransfer;
 import vn.viettel.okrkpi.integ.domain.Connector;
 import vn.viettel.okrkpi.integ.domain.Direction;
 import vn.viettel.okrkpi.integ.domain.Protocol;
@@ -97,7 +98,7 @@ class VOfficeContractTest {
 
   @Test
   void traCuuVanBanDaBanHanh() throws IOException {
-    VOfficeIssuedDocuments docs = new VOfficeIssuedDocuments("VOFFICE", client);
+    VOfficeIssuedDocuments docs = new VOfficeIssuedDocuments("VOFFICE", client, 1_000_000);
     assertThat(docs.connectorCode()).isEqualTo("VOFFICE");
     IssuedDocumentSource.Result r =
         docs.search(connector("voffice/token", GIA_LAP.baseUrl()), "DV-01", null, 20, null);
@@ -111,5 +112,29 @@ class VOfficeContractTest {
               assertThat(d.signerName()).isEqualTo("Trần Thị Bình");
               assertThat(d.signatureValid()).isTrue();
             });
+  }
+
+  @Test
+  void taiTepGocVaDoiChieuBanDaKy() throws IOException {
+    VOfficeIssuedDocuments docs = new VOfficeIssuedDocuments("VOFFICE", client, 1_000_000);
+    Connector c = connector("voffice/token", GIA_LAP.baseUrl());
+    IssuedDocumentSource.OriginalFile good = docs.fetch(c, "DV-01", "47-BC/BTCĐUK").orElseThrow();
+    assertThat(good.mediaType()).isEqualTo("application/pdf");
+    assertThat(good.fileName()).isEqualTo("47-BC.pdf");
+    assertThat(good.document().signerName()).isEqualTo("Trần Thị Bình");
+    assertThat(new String(good.content(), java.nio.charset.StandardCharsets.US_ASCII))
+        .startsWith("%PDF-");
+    assertThat(IssuedDocumentTransfer.signatureValid(good)).isTrue();
+
+    IssuedDocumentSource.OriginalFile tampered =
+        docs.fetch(c, "DV-01", "48-BC/BTCĐUK").orElseThrow();
+    assertThat(tampered.document().signatureValid()).isTrue();
+    assertThat(IssuedDocumentTransfer.signatureValid(tampered)).isFalse();
+
+    assertThat(docs.fetch(c, "DV-01", "99-BC/KHONG-CO")).isEmpty();
+    assertThat(docs.fetch(c, "DV-02", "47-BC/BTCĐUK")).isEmpty();
+    VOfficeIssuedDocuments small = new VOfficeIssuedDocuments("VOFFICE", client, 10);
+    assertThatThrownBy(() -> small.fetch(c, "DV-01", "47-BC/BTCĐUK"))
+        .isInstanceOf(IOException.class);
   }
 }

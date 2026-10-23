@@ -49,6 +49,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import vn.viettel.okrkpi.integ.application.MappingXrefService;
+import vn.viettel.okrkpi.integ.application.port.EvidenceObjects;
 import vn.viettel.okrkpi.integ.application.port.PayloadCipher;
 import vn.viettel.okrkpi.integ.domain.EntityType;
 import vn.viettel.okrkpi.platform.db.migration.MigrationCredentials;
@@ -248,8 +249,28 @@ class VOfficeConnectorIT {
     }
   }
 
+  /** Lệnh nhận tệp mà SVC-08 giả đã nhận: khoá chống ghi trùng và mã minh chứng. */
+  static final java.util.List<String> INGESTED = new java.util.concurrent.CopyOnWriteArrayList<>();
+
   @TestConfiguration
   static class Fakes {
+    @Bean
+    EvidenceObjects fakeEvidenceObjects() {
+      return (tenant, key, ownerRefId, requestedBy, fileName, mediaType, content) -> {
+        INGESTED.add(key + " " + ownerRefId + " " + fileName + " " + content.length);
+        try {
+          return new EvidenceObjects.Stored(
+              UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8)),
+              1,
+              java.security.MessageDigest.getInstance("SHA-256").digest(content),
+              content.length,
+              mediaType);
+        } catch (java.security.NoSuchAlgorithmException e) {
+          throw new IllegalStateException(e);
+        }
+      };
+    }
+
     @Bean
     OutboxPayloadSerializer fakeSerializer() {
       return (topic, payload) ->
@@ -414,6 +435,88 @@ class VOfficeConnectorIT {
                 .build(),
             HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     assertThat(bad.statusCode()).isEqualTo(400);
+  }
+
+  @Test
+  @Order(3)
+  void chuyenTepGocSangKhoMinhChungKhiChuKyHopLe() throws Exception {
+    byte[] good = "%PDF-1.4\n% da ky\n%%EOF\n".getBytes(StandardCharsets.US_ASCII);
+    String sha =
+        java.util.HexFormat.of()
+            .formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(good));
+    for (String[] d : new String[][] {{"47-BC", sha}, {"48-BC", "00".repeat(32)}}) {
+      VOFFICE_MOI.stubFor(
+          get(urlPathEqualTo("/api/v2/documents/detail"))
+              .withQueryParam("id", equalTo(d[0]))
+              .withQueryParam("unitId", equalTo("DV-01"))
+              .withHeader("Authorization", equalTo("Bearer " + TOKEN))
+              .willReturn(
+                  okJson(
+                      "{\"id\":\""
+                          + d[0]
+                          + "\",\"docNumber\":\""
+                          + d[0]
+                          + "/BTCĐUK\","
+                          + "\"issuedDate\":\"2026-10-19\",\"summary\":\"Báo cáo chuyên đề\","
+                          + "\"signerName\":\"Trần Thị Bình\",\"signatureValid\":true,"
+                          + "\"unitId\":\"DV-01\",\"fileName\":\""
+                          + d[0]
+                          + ".pdf\","
+                          + "\"mediaType\":\"application/pdf\",\"sha256\":\""
+                          + d[1]
+                          + "\"}")));
+      VOFFICE_MOI.stubFor(
+          get(urlPathEqualTo("/api/v2/documents/content"))
+              .withQueryParam("id", equalTo(d[0]))
+              .willReturn(
+                  com.github.tomakehurst.wiremock.client.WireMock.aResponse()
+                      .withHeader("Content-Type", "application/pdf")
+                      .withBody(good)));
+    }
+    UUID evidence = UUID.randomUUID();
+    HttpClient http = HttpClient.newHttpClient();
+    java.util.function.BiFunction<String, String, HttpResponse<String>> post =
+        (ref, key) -> {
+          try {
+            return http.send(
+                HttpRequest.newBuilder(
+                        URI.create(
+                            "http://localhost:" + port + "/internal/v1/integ/issued-docs/transfer"))
+                    .header("Content-Type", "application/json")
+                    .header("Idempotency-Key", key)
+                    .POST(
+                        HttpRequest.BodyPublishers.ofString(
+                            "{\"tenantId\":\""
+                                + TENANT
+                                + "\",\"orgUnitId\":\""
+                                + UNIT
+                                + "\",\"ref\":\""
+                                + ref
+                                + "\",\"ownerRefId\":\""
+                                + evidence
+                                + "\",\"requestedBy\":\""
+                                + UUID.randomUUID()
+                                + "\"}"))
+                    .build(),
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+          } catch (Exception e) {
+            throw new IllegalStateException(e);
+          }
+        };
+    INGESTED.clear();
+    HttpResponse<String> ok = post.apply("47-BC", "k-47");
+    assertThat(ok.statusCode()).isEqualTo(200);
+    assertThat(ok.body())
+        .contains("\"signatureValid\":true", "\"sha256\":\"" + sha + "\"", "\"objectVersion\":1")
+        .contains("\"docNumber\":\"47-BC/BTCĐUK\"");
+    assertThat(INGESTED).containsExactly("k-47 " + evidence + " 47-BC.pdf " + good.length);
+
+    HttpResponse<String> tampered = post.apply("48-BC", "k-48");
+    assertThat(tampered.statusCode()).isEqualTo(200);
+    assertThat(tampered.body()).contains("\"signatureValid\":false", "\"objectId\":null");
+    assertThat(INGESTED).hasSize(1);
+
+    assertThat(post.apply("99-BC", "k-99").statusCode()).isEqualTo(404);
   }
 
   UUID docId(String externalId) {
