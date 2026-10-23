@@ -363,6 +363,31 @@
   },
   {
    "qt": "QT-00",
+   "scr": "SCR-0001",
+   "key": "SCR-0001.khoa-thiet-bi",
+   "ten": "Đăng ký, thu hồi khoá mã hoá đầu cuối của thiết bị hoặc chứng thư số",
+   "web": true,
+   "quyen": {
+    "AC-01": "T/B*",
+    "AC-02": "T/B*",
+    "AC-03": "T/B*",
+    "AC-04": "T/B*",
+    "AC-05": "T/B*",
+    "AC-06": "T/B*",
+    "AC-07": "T/B*",
+    "AC-08": "T/B*",
+    "AC-09": "T/B*",
+    "AC-10": "T/B*",
+    "AC-11": "-",
+    "AC-12": "-"
+   },
+   "api": "`POST /api/v1/org/persons/me/public-keys`, `POST /api/v1/org/public-keys/{id}/revoke`",
+   "rang_buoc": "MFA (AAL2); ADR-27; SEC-25",
+   "nguon": "TL-01 \"Quản lý khoá người nhận\", \"Khôi phục khi mất khoá\"; `org.yaml` (bổ sung CORE-07-06)",
+   "ghi_chu": "Bổ sung ngoài TL-02 cùng CORE-07-06: thiết bị tự đăng ký khoá sau lần đăng nhập có MFA đầu tiên, không có nút riêng; chỉ thu hồi khoá của chính mình."
+  },
+  {
+   "qt": "QT-00",
    "scr": "SCR-0002",
    "key": "SCR-0002.xem",
    "ten": "Xem trang chủ \"Việc của tôi hôm nay\" (bố cục theo vai trò)",
@@ -685,6 +710,56 @@
    "rang_buoc": "BR-01-06 (không ghi đè lịch sử)",
    "nguon": "SCR-0103",
    "ghi_chu": ""
+  },
+  {
+   "qt": "QT-01",
+   "scr": "SCR-0103",
+   "key": "SCR-0103.khoa-phuc-hoi",
+   "ten": "Thay khoá phục hồi của tổ chức, ghi biên bản khôi phục khi mất khoá",
+   "web": true,
+   "quyen": {
+    "AC-01": "-",
+    "AC-02": "X/Tn*",
+    "AC-03": "-",
+    "AC-04": "-",
+    "AC-05": "-",
+    "AC-06": "-",
+    "AC-07": "-",
+    "AC-08": "-",
+    "AC-09": "-",
+    "AC-10": "-",
+    "AC-11": "-",
+    "AC-12": "-"
+   },
+   "api": "`POST /api/v1/org/e2ee/recovery-keys`, `POST /api/v1/org/e2ee/recoveries`",
+   "rang_buoc": "MFA (AAL2); Shamir 3 trên 5, mảnh khoá giao trực tiếp theo biên bản (SEC-25)",
+   "nguon": "TL-01 \"Khôi phục khi mất khoá\"; TL-04 SEC-25; `org.yaml` (bổ sung CORE-07-06)",
+   "ghi_chu": "Bổ sung cùng CORE-07-06; TL-02 chưa có màn hình riêng, tạm gắn SCR-0103 như hợp đồng."
+  },
+  {
+   "qt": "QT-12",
+   "scr": "SCR-0103",
+   "key": "SCR-0103.nhat-ky-phuc-hoi",
+   "ten": "Xem nhật ký khôi phục khoá mã hoá đầu cuối",
+   "web": true,
+   "quyen": {
+    "AC-01": "-",
+    "AC-02": "R/Tn*",
+    "AC-03": "-",
+    "AC-04": "-",
+    "AC-05": "-",
+    "AC-06": "-",
+    "AC-07": "-",
+    "AC-08": "-",
+    "AC-09": "-",
+    "AC-10": "R/Tn*",
+    "AC-11": "-",
+    "AC-12": "-"
+   },
+   "api": "`GET /api/v1/org/e2ee/recoveries`",
+   "rang_buoc": "MFA (AAL2)",
+   "nguon": "TL-01 \"Khôi phục khi mất khoá\"; TL-04 SEC-25; `org.yaml` (bổ sung CORE-07-06)",
+   "ghi_chu": "Bổ sung cùng CORE-07-06: cơ quan kiểm tra đối chiếu mọi lần khôi phục."
   },
   {
    "qt": "QT-01",
@@ -1710,6 +1785,31 @@
    "rang_buoc": "",
    "nguon": "SCR-0501",
    "ghi_chu": ""
+  },
+  {
+   "qt": "QT-05",
+   "scr": "SCR-0501",
+   "key": "SCR-0501.khoa-nguoi-nhan",
+   "ten": "Tra khoá công khai người nhận, khoá ký danh bạ và khoá phục hồi để mã hoá nội dung mật",
+   "web": true,
+   "quyen": {
+    "AC-01": "R/Tn*",
+    "AC-02": "R/Tn*",
+    "AC-03": "R/Tn*",
+    "AC-04": "R/Tn*",
+    "AC-05": "R/Tn*",
+    "AC-06": "R/Tn*",
+    "AC-07": "R/Tn*",
+    "AC-08": "R/Tn*",
+    "AC-09": "R/Tn*",
+    "AC-10": "R/Tn*",
+    "AC-11": "-",
+    "AC-12": "-"
+   },
+   "api": "`GET /api/v1/org/persons/{id}/public-keys`, `GET /api/v1/org/e2ee/directory-keys`, `GET /api/v1/org/e2ee/recovery-key`",
+   "rang_buoc": "ADR-27; chỉ khoá công khai, không có dữ liệu C3",
+   "nguon": "TL-01 \"Mô hình mã hoá\" bước 1; `org.yaml` (bổ sung CORE-07-06)",
+   "ghi_chu": "Bổ sung cùng CORE-07-06: mọi người dùng soạn hoặc chia sẻ nội dung mật cần đọc khoá công khai của người nhận trong tenant (suy luận)."
   },
   {
    "qt": "QT-05",
