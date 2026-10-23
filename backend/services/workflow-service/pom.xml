@@ -316,6 +316,64 @@
               </configOptions>
             </configuration>
           </execution>
+          <!-- DV-06-09: thư viện mẫu luồng nội bộ (SCR-1505, BS-01). -->
+          <execution>
+            <id>workflow-template-api</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${contract.dir}/modules/platform.yaml</inputSpec>
+              <generatorName>spring</generatorName>
+              <openapiNormalizer>FILTER=operationId:listWorkflowTemplates|createWorkflowTemplate|getWorkflowTemplate|updateWorkflowTemplate|runWorkflowTemplateTests|submitWorkflowTemplate|approveWorkflowTemplate|listWorkflowTemplateRollouts</openapiNormalizer>
+              <apiPackage>vn.viettel.okrkpi.workflow.infrastructure.web.template.api</apiPackage>
+              <modelPackage>vn.viettel.okrkpi.workflow.infrastructure.web.template.model</modelPackage>
+              <generateSupportingFiles>false</generateSupportingFiles>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
+              <generateApiDocumentation>false</generateApiDocumentation>
+              <generateModelDocumentation>false</generateModelDocumentation>
+              <configOptions>
+                <interfaceOnly>true</interfaceOnly>
+                <useSpringBoot3>true</useSpringBoot3>
+                <useTags>false</useTags>
+                <openApiNullable>false</openApiNullable>
+                <annotationLibrary>swagger2</annotationLibrary>
+                <documentationProvider>springdoc</documentationProvider>
+                <useBeanValidation>true</useBeanValidation>
+                <skipDefaultInterface>true</skipDefaultInterface>
+              </configOptions>
+            </configuration>
+          </execution>
+          <!-- DV-06-10: giám sát tiến trình theo mẫu (SCR-1506, BS-01). -->
+          <execution>
+            <id>workflow-monitor-api</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${contract.dir}/modules/platform.yaml</inputSpec>
+              <generatorName>spring</generatorName>
+              <openapiNormalizer>FILTER=operationId:listWorkflowInstances|getWorkflowDiagram|reassignWorkflowTask|extendWorkflowTask</openapiNormalizer>
+              <apiPackage>vn.viettel.okrkpi.workflow.infrastructure.web.monitor.api</apiPackage>
+              <modelPackage>vn.viettel.okrkpi.workflow.infrastructure.web.monitor.model</modelPackage>
+              <generateSupportingFiles>false</generateSupportingFiles>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
+              <generateApiDocumentation>false</generateApiDocumentation>
+              <generateModelDocumentation>false</generateModelDocumentation>
+              <configOptions>
+                <interfaceOnly>true</interfaceOnly>
+                <useSpringBoot3>true</useSpringBoot3>
+                <useTags>false</useTags>
+                <openApiNullable>false</openApiNullable>
+                <annotationLibrary>swagger2</annotationLibrary>
+                <documentationProvider>springdoc</documentationProvider>
+                <useBeanValidation>true</useBeanValidation>
+                <skipDefaultInterface>true</skipDefaultInterface>
+              </configOptions>
+            </configuration>
+          </execution>
           <execution>
             <id>jobs-api</id>
             <goals>
@@ -342,6 +400,29 @@
                 <useBeanValidation>true</useBeanValidation>
                 <skipDefaultInterface>true</skipDefaultInterface>
               </configOptions>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!--
+        DV-06-09: sự kiện "mẫu luồng đã phát hành" là đề xuất của BS-01, chưa có lược đồ trong contracts/events
+        (wiki trang 14). Lược đồ tạm đặt ở src/main/avro, chuyển sang contracts/events khi hợp đồng được duyệt.
+      -->
+      <plugin>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro-maven-plugin</artifactId>
+        <version>${avro.version}</version>
+        <executions>
+          <execution>
+            <id>generate-avro-de-xuat</id>
+            <goals>
+              <goal>schema</goal>
+            </goals>
+            <phase>generate-sources</phase>
+            <configuration>
+              <sourceDirectory>${project.basedir}/src/main/avro</sourceDirectory>
+              <outputDirectory>${project.build.directory}/generated-sources/avro</outputDirectory>
+              <stringType>String</stringType>
             </configuration>
           </execution>
         </executions>

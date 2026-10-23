@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-import vn.viettel.okrkpi.dossier.application.transfer.DossierTransferService;
+import vn.viettel.okrkpi.dossier.application.transfer.CellTransferPartsService;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
 /**
@@ -22,14 +22,14 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
 @RequestMapping("/internal/v1/dossier/transfer-parts/{personId}")
 public class DossierTransferController {
 
-  private final DossierTransferService service;
+  private final CellTransferPartsService service;
 
-  public DossierTransferController(DossierTransferService service) {
+  public DossierTransferController(CellTransferPartsService service) {
     this.service = Objects.requireNonNull(service, "service");
   }
 
   @GetMapping("/signed-dossiers")
-  public DossierTransferService.SignedDossiers signedDossiers(
+  public CellTransferPartsService.SignedDossiers signedDossiers(
       @PathVariable("personId") UUID personId) {
     return service
         .signedDossiers(TenantContext.require(), personId)
@@ -37,7 +37,7 @@ public class DossierTransferController {
   }
 
   @GetMapping("/conclusions")
-  public DossierTransferService.Conclusions conclusions(@PathVariable("personId") UUID personId) {
+  public CellTransferPartsService.Conclusions conclusions(@PathVariable("personId") UUID personId) {
     return service
         .conclusions(TenantContext.require(), personId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));

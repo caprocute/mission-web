@@ -70,6 +70,14 @@ spec:
             - name: APISIX_OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef: { name: {{ $v.oidc.clientSecretRef.name }}, key: {{ $v.oidc.clientSecretRef.key }} }
+          {{- if $v.routingCookie.enabled }}
+            - name: VT_ROUTE_COOKIE_KEY
+              valueFrom:
+                secretKeyRef: { name: {{ $v.routingCookie.secretName }}, key: {{ $v.routingCookie.keyCurrent }} }
+            - name: VT_ROUTE_COOKIE_KEY_PREVIOUS
+              valueFrom:
+                secretKeyRef: { name: {{ $v.routingCookie.secretName }}, key: {{ $v.routingCookie.keyPrevious }}, optional: true }
+          {{- end }}
           {{- if eq $v.mode "controller" }}
             - name: APISIX_ADMIN_KEY
               valueFrom:

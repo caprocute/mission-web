@@ -47,10 +47,29 @@ public final class FormDocuments {
   /** Biểu mẫu của đơn vị (Mẫu 3, Mẫu 2, Mẫu 1A theo Policy Pack): mọi hồ sơ đã quyết định. */
   public static Document unit(
       String formCode, UUID periodId, UUID orgUnitId, Pack pack, List<UnitProfile> profiles) {
+    return rows(
+        formCode,
+        periodId,
+        orgUnitId,
+        pack,
+        profiles.stream().filter(UnitProfile::decided).toList());
+  }
+
+  /**
+   * Biểu mẫu đơn vị trên tập hồ sơ cho trước, kể cả hồ sơ chưa quyết định: bản nháp từ danh sách
+   * đang chọn và bản xem trước theo dữ liệu hiện tại (DV-11-02, DV-11-03). Đơn vị {@code null} khi
+   * các hồ sơ thuộc nhiều đơn vị.
+   */
+  public static Document selection(
+      String formCode, UUID periodId, UUID orgUnitId, Pack pack, List<UnitProfile> profiles) {
+    return rows(formCode, periodId, orgUnitId, pack, profiles);
+  }
+
+  private static Document rows(
+      String formCode, UUID periodId, UUID orgUnitId, Pack pack, List<UnitProfile> profiles) {
     Map<String, Object> doc = head(formCode, periodId, orgUnitId, pack);
     List<Map<String, Object>> rows = new ArrayList<>();
     profiles.stream()
-        .filter(UnitProfile::decided)
         .sorted(Comparator.comparing(UnitProfile::id))
         .forEach(p -> rows.add(profile(p)));
     doc.put("danhSachHoSo", rows);
@@ -63,7 +82,7 @@ public final class FormDocuments {
     doc.put("cauTruc", SCHEMA);
     doc.put("maMau", formCode);
     doc.put("kyId", periodId.toString());
-    doc.put("donViId", orgUnitId.toString());
+    doc.put("donViId", orgUnitId == null ? null : orgUnitId.toString());
     Map<String, Object> rules = new TreeMap<>();
     rules.put("ma", pack == null ? null : pack.code());
     rules.put("phienBan", pack == null ? null : pack.version());

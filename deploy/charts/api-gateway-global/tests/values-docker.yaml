@@ -1,0 +1,20 @@
+# Kiểm thử tích hợp trong Docker (tests/kiem-thu-docker.sh): registry và cell giả lập; đệm ngắn để thử hết hạn.
+apisix:
+  image:
+    ref: mirror.gcr.io/apache/apisix:3.13.0-debian
+  workerProcesses: 1
+commonHosts: ["app.danhgia.vn"]
+registry:
+  url: http://registry.test:8080
+  tokenUrl: http://registry.test:8080/token
+cache:
+  ttlSeconds: 2
+  discoveryTtlSeconds: 2
+  staleSeconds: 60
+  negativeSeconds: 1
+routingCookie:
+  domain: ""
+externalSecrets:
+  enabled: false
+globalRoutes:
+  - { name: registry, paths: ["/api/v1/registry*", "/api/v1/config/tenants*", "/api/v1/jobs*"], service: registry, namespace: test, port: 8080 }

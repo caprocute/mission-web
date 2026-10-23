@@ -180,7 +180,7 @@ Topic nghiệp vụ theo dạng `<miền>.<thực-thể>.<sự-kiện>.v1`, kho�
 
 - Avro 1.12.1 trở đi chỉ nạp lớp sinh trong danh sách tin cậy (vá CVE-2024-47561). Thiếu bước này, `SpecificDatumReader` ném `SecurityException: Forbidden vn.vtokr...`. Gọi `EventContracts.trustContractPackages()` khi khởi động service.
 - Goal `test-update` của apicurio-registry-maven-plugin 3.3 bị đánh dấu lỗi thời (khuyên dùng `register` với `dryRun`) và không gửi kèm tham chiếu, nên `org.bootstrap.v1-value` (tham chiếu EVT-14..EVT-16) chỉ được đăng ký, không test-update.
-- CHECK `ck_outbox_event__topic` của TL-03 chỉ nhận topic bốn đoạn, trong khi `period.drain.marker` và `sys.audit.v1` được TL mô tả là đi qua outbox: điểm lệch đang chờ quyết định (xem trang 14 khi được ghi nhận).
+- CHECK `ck_outbox_event__topic` của TL-03 chỉ nhận topic bốn đoạn, trong khi `period.drain.marker` và `sys.audit.v1` được TL mô tả là đi qua outbox. `V0_24` nới thành ba đến năm đoạn; marker không phiên bản được nhận riêng ở bảng outbox của schema ghi nó (config V13: MOD-08 ghi marker khi kỳ chuyển `MO → DANG_KHOA`, TL v1.1). Xem trang 14.
 
 ## Phát sự kiện trong mã (NEN-011)
 

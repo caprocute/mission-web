@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-import vn.viettel.okrkpi.dossier.application.transfer.DossierTransferService;
+import vn.viettel.okrkpi.dossier.application.transfer.CellTransferPartsService;
 import vn.viettel.okrkpi.dossier.application.transfer.TransferImportService;
 import vn.viettel.okrkpi.shared.tenant.TenantContext;
 
@@ -59,7 +59,7 @@ public class DossierTransferImportController {
                   personId,
                   mediaType,
                   content),
-              DossierTransferService.SYSTEM_ACTOR);
+              CellTransferPartsService.SYSTEM_ACTOR);
       return ResponseEntity.status(r.created() ? HttpStatus.CREATED : HttpStatus.OK).build();
     } catch (TransferImportService.InvalidPartException e) {
       throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());

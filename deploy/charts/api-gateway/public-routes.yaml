@@ -1,0 +1,7 @@
+# TỆP SINH TỰ ĐỘNG bởi scripts/sinh-tuyen-cong-khai.py, không sửa tay (DV-01-03).
+# Tuyến không cần token người dùng, khớp chính xác đường dẫn và phương thức. Nguồn: thao tác security: []
+# của contracts/openapi và tuyen-cong-khai-ngoai-hop-dong.yaml. Quy ước thêm tuyến: wiki 07.
+- path: /.well-known/jwks.json
+  method: GET
+  service: integration-gateway
+  source: 'tuyen-cong-khai-ngoai-hop-dong.yaml: Khoá công khai ký CloudEvents gửi đối tác (quy ước JOSE, wiki 14 mục DV-13-02 ý 7)'

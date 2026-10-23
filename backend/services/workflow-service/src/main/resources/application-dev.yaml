@@ -28,6 +28,10 @@ mission:
 # Saga chốt kỳ (DV-06-06): các bên tham gia chưa có API nội bộ nên giả lập ở môi trường phát
 # triển để chạy thử SCR-0801; không dùng ở môi trường khác (wiki trang 14).
 okrkpi:
+  workflow:
+    history-archive:
+      # Dev không có kho phân tích nối sẵn: coi lịch sử đã chép (DV-06-11).
+      mode: ${WF_HISTORY_ARCHIVE_MODE:GIA_LAP}
   saga:
     period-close:
       participants:

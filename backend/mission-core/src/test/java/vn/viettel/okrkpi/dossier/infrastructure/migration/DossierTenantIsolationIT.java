@@ -79,6 +79,27 @@ class DossierTenantIsolationIT extends TenantIsolationCatalogTest {
           r.put("data_snapshot_hash", new byte[32]);
           return r;
         });
+    // CORE-06-08: tác vụ xuất và gói con không có period_id.
+    f.put(
+        "dossier.package_export",
+        (tenant, seed) -> {
+          Map<String, Object> r = periodRow(tenant, "package_export");
+          r.remove("period_id");
+          r.put("dossier_package_id", id(tenant, "dossier_package"));
+          return r;
+        });
+    f.put(
+        "dossier.package_transfer",
+        (tenant, seed) -> {
+          Map<String, Object> r = periodRow(tenant, "package_transfer");
+          r.remove("period_id");
+          r.put("dossier_package_id", id(tenant, "dossier_package"));
+          r.put("batch_id", id(tenant, "batch"));
+          r.put("profile_id", id(tenant, "profile"));
+          r.put("person_id", id(tenant, "person"));
+          r.put("destination", "BTC_TW");
+          return r;
+        });
     f.put(
         "dossier.special_case",
         (tenant, seed) -> {

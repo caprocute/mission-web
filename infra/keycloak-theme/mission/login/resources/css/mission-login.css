@@ -1,36 +1,44 @@
-/* ==========================================================================
-   MISSION OKR/KPI — KEYCLOAK ENTERPRISE LOGIN THEME (SCR-0001 / WEB-020)
-   Thiết kế chuẩn WCAG 2.1 AA, hỗ trợ chế độ chữ lớn (data-mode="elderly")
-   ========================================================================== */
-
+/*
+ * Theme đăng nhập Mission (QT-00, SCR-0001). Token màu, chữ, bo góc lấy theo UI Pack mặc định của
+ * web (frontend/projects/fe-shell/src/styles.scss): đỏ chủ đạo #EE0033, chữ và nền có chữ trắng dùng
+ * bản đậm #D1002D (đạt 4,5:1), chế độ cao tuổi dùng #A30023 (≥ 7:1, BR-18-09).
+ * Lớp kc* của Keycloak được ánh xạ sang lớp mission-* trong theme.properties.
+ */
 :root {
-  --m-brand-500: #e11d48;
-  --m-brand-600: #c8102e;
-  --m-brand-700: #9f1239;
-  --m-brand-900: #4c0519;
-  --m-gold-400: #facc15;
-  --m-slate-50: #f8fafc;
-  --m-slate-100: #f1f5f9;
-  --m-slate-200: #e2e8f0;
-  --m-slate-300: #cbd5e1;
-  --m-slate-500: #64748b;
-  --m-slate-600: #475569;
-  --m-slate-700: #334155;
-  --m-slate-800: #1e293b;
-  --m-slate-900: #0f172a;
-  --m-danger: #dc2626;
-  --m-danger-bg: #fef2f2;
-  --m-info: #2563eb;
-  --m-info-bg: #eff6ff;
-  --m-radius-lg: 16px;
-  --m-radius-md: 10px;
-  --m-font-base: 16px;
-  --m-touch-min: 44px;
+  --vt-color-primary: #ee0033;
+  --vt-color-primary-strong: #d1002d;
+  --vt-color-primary-deep: #a30023;
+  --vt-color-on-primary: #ffffff;
+  --vt-color-surface: #ffffff;
+  --vt-color-border: #cbd5e1;
+  --vt-color-border-soft: #e2e8f0;
+  --vt-color-text: #0f172a;
+  --vt-color-text-muted: #475569;
+  --vt-color-background: #f1f5f9;
+  --vt-color-danger: #b91c1c;
+  --vt-color-danger-bg: #fef2f2;
+  --vt-color-warning: #92400e;
+  --vt-color-warning-bg: #fffbeb;
+  --vt-color-success: #166534;
+  --vt-color-success-bg: #f0fdf4;
+  --vt-color-info: #1d4ed8;
+  --vt-color-info-bg: #eff6ff;
+  --vt-font-family: 'Be Vietnam Pro', 'Inter', Roboto, 'Segoe UI', Arial, sans-serif;
+  --vt-font-size-body: 16px;
+  --vt-radius-card: 12px;
+  --vt-radius-control: 8px;
+  --vt-min-touch: 44px;
+  --vt-shadow-md: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.05);
 }
 
-html[data-mode='elderly'] {
-  --m-font-base: 19px;
-  --m-touch-min: 52px;
+/* Chế độ Đảng viên cao tuổi (NFR-11): chữ ≥ 19 px, tương phản cao, vùng chạm ≥ 52 px */
+:root[data-mode='elderly'] {
+  --vt-font-size-body: 20px;
+  --vt-color-text: #000000;
+  --vt-color-text-muted: #1e293b;
+  --vt-color-primary-strong: #a30023;
+  --vt-color-border: #64748b;
+  --vt-min-touch: 52px;
 }
 
 *,
@@ -39,464 +47,432 @@ html[data-mode='elderly'] {
   box-sizing: border-box;
 }
 
-html.mission-auth-html,
-body.mission-auth-body {
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: var(--m-font-base);
-  line-height: 1.5;
-  color: var(--m-slate-900);
-  background: var(--m-slate-100);
+html {
+  font-size: var(--vt-font-size-body);
   -webkit-font-smoothing: antialiased;
 }
 
-.mission-shell {
-  display: grid;
-  grid-template-columns: 1.12fr 0.88fr;
+body {
+  margin: 0;
   min-height: 100vh;
+  font-family: var(--vt-font-family);
+  line-height: 1.5;
+  color: var(--vt-color-text);
+  background: var(--vt-color-background);
 }
 
-/* ─── Cột trái: Hero thương hiệu & Giới thiệu nền tảng ─── */
-.mission-hero {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 3.5rem 4rem;
-  color: #ffffff;
-  background:
-    radial-gradient(circle at 15% 15%, rgba(225, 29, 72, 0.38) 0%, transparent 45%),
-    radial-gradient(circle at 85% 85%, rgba(250, 204, 21, 0.16) 0%, transparent 45%),
-    linear-gradient(145deg, #0f172a 0%, #1e1b4b 48%, #4c0519 100%);
-  overflow: hidden;
+:focus-visible {
+  outline: 3px solid var(--vt-color-primary-strong);
+  outline-offset: 2px;
 }
 
-.mission-hero__backdrop {
+a {
+  color: var(--vt-color-primary-strong);
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+.mission-sr-only {
   position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 36px 36px;
-  pointer-events: none;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
-.mission-hero__content {
-  position: relative;
-  z-index: 1;
-  max-width: 580px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2.25rem;
-}
-
-.mission-brand {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.mission-brand__logo {
-  flex-shrink: 0;
-  border-radius: 14px;
-  box-shadow: 0 10px 25px rgba(200, 16, 46, 0.45);
-}
-
-.mission-brand__badge {
-  display: inline-block;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--m-gold-400);
-  background: rgba(250, 204, 21, 0.14);
-  border: 1px solid rgba(250, 204, 21, 0.35);
-  padding: 0.2rem 0.65rem;
-  border-radius: 999px;
-  margin-bottom: 0.25rem;
-}
-
-.mission-brand__title {
-  margin: 0;
-  font-size: 1.45rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #ffffff;
-}
-
-.mission-hero__headline h2 {
-  margin: 0 0 0.75rem;
-  font-size: 2rem;
-  font-weight: 800;
-  line-height: 1.25;
-  letter-spacing: -0.025em;
-  color: #ffffff;
-}
-
-.mission-hero__headline p {
-  margin: 0;
-  font-size: 1rem;
-  line-height: 1.65;
-  color: rgba(241, 245, 249, 0.85);
-}
-
-.mission-pillars {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.mission-pillar {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 1rem 1.15rem;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(8px);
-}
-
-.mission-pillar__icon {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--m-brand-500), var(--m-brand-700));
-  color: var(--m-gold-400);
-  font-weight: 800;
-  font-size: 0.85rem;
+/* ---------- Một thẻ gọn giữa trang ---------- */
+.mission-page {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.mission-pillar__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.mission-pillar__body strong {
-  font-size: 0.96rem;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.mission-pillar__body span {
-  font-size: 0.86rem;
-  color: rgba(226, 232, 240, 0.82);
-}
-
-.mission-hero__footer {
-  padding-top: 1.25rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.mission-hero__stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-
-.mission-hero__stats strong {
-  display: block;
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: var(--m-gold-400);
-}
-
-.mission-hero__stats span {
-  font-size: 0.8rem;
-  color: rgba(226, 232, 240, 0.8);
-}
-
-/* ─── Cột phải: Panel Đăng nhập ─── */
-.mission-panel {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem;
-  background:
-    radial-gradient(circle at 90% 10%, rgba(200, 16, 46, 0.05) 0%, transparent 40%),
-    var(--m-slate-50);
-}
-
-.mission-panel__top {
-  width: 100%;
-  max-width: 460px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.mission-env-pill {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--m-slate-600);
-  background: #ffffff;
-  border: 1px solid var(--m-slate-200);
-  padding: 0.3rem 0.75rem;
-  border-radius: 999px;
-}
-
-.mission-elderly-toggle {
-  min-height: 36px;
-  padding: 0.35rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid var(--m-slate-300);
-  background: #ffffff;
-  color: var(--m-slate-800);
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.mission-elderly-toggle:hover,
-.mission-elderly-toggle[aria-pressed='true'] {
-  border-color: var(--m-brand-600);
-  color: var(--m-brand-600);
-  background: #fff1f2;
+  min-height: 100vh;
+  padding: 24px 16px;
 }
 
 .mission-card {
   width: 100%;
-  max-width: 460px;
-  background: #ffffff;
-  border-radius: var(--m-radius-lg);
-  border: 1px solid var(--m-slate-200);
-  box-shadow:
-    0 20px 25px -5px rgba(15, 23, 42, 0.07),
-    0 8px 10px -6px rgba(15, 23, 42, 0.04);
-  padding: 2.25rem 2.25rem 1.75rem;
+  max-width: 400px;
+  padding: 32px;
+  background: var(--vt-color-surface);
+  border: 1px solid var(--vt-color-border-soft);
+  border-radius: var(--vt-radius-card);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.mission-card__mobile-brand {
-  display: none;
+:root[data-mode='elderly'] .mission-card {
+  max-width: 480px;
+}
+
+.mission-card__header {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.mission-brand {
+  display: inline-flex;
   align-items: center;
-  gap: 0.65rem;
-  margin-bottom: 1rem;
-  font-weight: 800;
-  color: var(--m-brand-600);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.mission-brand__logo {
+  border: 1px solid var(--vt-color-border-soft);
+  border-radius: 10px;
+}
+
+.mission-brand__name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .mission-card__title {
-  margin: 0 0 0.4rem;
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--m-slate-900);
+  font-size: 1.375rem;
+  font-weight: 600;
 }
 
-.mission-card__subtitle {
-  margin: 0 0 1.5rem;
-  font-size: 0.92rem;
-  color: var(--m-slate-600);
+.mission-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-/* ─── Thông báo lỗi / trạng thái ─── */
+.mission-card__body > p,
+.mission-info,
+.mission-lead {
+  color: var(--vt-color-text-muted);
+}
+
+.mission-card__footer {
+  display: flex;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.mission-text-btn {
+  min-height: var(--vt-min-touch);
+  padding: 0 8px;
+  background: none;
+  border: 0;
+  color: var(--vt-color-text-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.mission-text-btn[aria-pressed='true'] {
+  color: var(--vt-color-primary-strong);
+}
+
+.mission-user {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 8px 12px;
+  border-radius: var(--vt-radius-control);
+  background: var(--vt-color-background);
+}
+
+.mission-user__name {
+  font-weight: 700;
+}
+
+/* ---------- Thông báo ---------- */
 .mission-alert {
   display: flex;
+  gap: 10px;
   align-items: flex-start;
-  gap: 0.65rem;
-  padding: 0.85rem 1rem;
-  border-radius: var(--m-radius-md);
-  margin-bottom: 1.25rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.mission-alert--error {
-  background: var(--m-danger-bg);
-  border: 1px solid #fecaca;
-  color: #991b1b;
-}
-
-.mission-alert--info,
-.mission-alert--warning,
-.mission-alert--success {
-  background: var(--m-info-bg);
-  border: 1px solid #bfdbfe;
-  color: #1e40af;
+  padding: 12px 14px;
+  border-radius: var(--vt-radius-control);
+  border-left: 4px solid var(--vt-color-info);
+  background: var(--vt-color-info-bg);
+  color: var(--vt-color-text);
 }
 
 .mission-alert__dot {
-  width: 8px;
-  height: 8px;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-top: 0.45em;
   border-radius: 50%;
-  background: currentColor;
-  margin-top: 0.42rem;
-  flex-shrink: 0;
+  background: var(--vt-color-info);
 }
 
-/* ─── Biểu mẫu ─── */
+.mission-alert--error {
+  border-color: var(--vt-color-danger);
+  background: var(--vt-color-danger-bg);
+}
+
+.mission-alert--error .mission-alert__dot {
+  background: var(--vt-color-danger);
+}
+
+.mission-alert--warning {
+  border-color: #d97706;
+  background: var(--vt-color-warning-bg);
+}
+
+.mission-alert--warning .mission-alert__dot {
+  background: #d97706;
+}
+
+.mission-alert--success {
+  border-color: var(--vt-color-success);
+  background: var(--vt-color-success-bg);
+}
+
+.mission-alert--success .mission-alert__dot {
+  background: var(--vt-color-success);
+}
+
+/* ---------- Biểu mẫu ---------- */
 .mission-form {
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
+  gap: 16px;
 }
 
-.mission-field {
+.mission-field,
+.mission-fieldset {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-}
-
-.mission-label-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  gap: 6px;
+  border: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .mission-label {
-  font-size: 0.9rem;
   font-weight: 600;
-  color: var(--m-slate-800);
+  font-size: 0.9375rem;
 }
 
-.mission-link {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--m-brand-600);
-  text-decoration: none;
+.mission-required {
+  color: var(--vt-color-primary-strong);
 }
 
-.mission-link:hover {
-  text-decoration: underline;
-}
-
-.mission-input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
+.mission-required-note {
+  font-size: 0.875rem;
+  color: var(--vt-color-text-muted);
 }
 
 .mission-input {
   width: 100%;
-  min-height: var(--m-touch-min);
-  padding: 0.65rem 0.95rem;
-  font-size: 0.96rem;
-  color: var(--m-slate-900);
-  background: #ffffff;
-  border: 1.5px solid var(--m-slate-300);
-  border-radius: var(--m-radius-md);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  min-height: var(--vt-min-touch);
+  padding: 10px 14px;
+  font: inherit;
+  color: var(--vt-color-text);
+  background: var(--vt-color-surface);
+  border: 1px solid var(--vt-color-border);
+  border-radius: var(--vt-radius-control);
 }
 
 .mission-input:focus {
   outline: none;
-  border-color: var(--m-brand-600);
-  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.16);
+  border-color: var(--vt-color-primary-strong);
+  box-shadow: 0 0 0 3px rgba(209, 0, 45, 0.18);
 }
 
-.mission-input--error {
-  border-color: var(--m-danger);
-  background: #fffafa;
+.mission-input[aria-invalid='true'] {
+  border-color: var(--vt-color-danger);
+}
+
+.mission-input[readonly],
+.mission-input[disabled] {
+  background: var(--vt-color-background);
 }
 
 .mission-input--otp {
+  font-size: 1.5rem;
+  letter-spacing: 0.5em;
   text-align: center;
-  font-size: 1.35rem;
-  font-weight: 700;
-  letter-spacing: 0.35em;
+  font-variant-numeric: tabular-nums;
 }
 
-.mission-input-wrap--password .mission-input {
-  padding-right: 4.25rem;
+.mission-input-group {
+  display: flex;
+  align-items: stretch;
+}
+
+.mission-input-group .mission-input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .mission-pw-toggle {
-  position: absolute;
-  right: 0.5rem;
-  min-height: 34px;
-  padding: 0.25rem 0.65rem;
-  border: none;
-  border-radius: 6px;
-  background: var(--m-slate-100);
-  color: var(--m-slate-700);
-  font-size: 0.8rem;
-  font-weight: 600;
+  flex: none;
+  min-width: var(--vt-min-touch);
+  border: 1px solid var(--vt-color-border);
+  border-left: 0;
+  border-radius: 0 var(--vt-radius-control) var(--vt-radius-control) 0;
+  background: var(--vt-color-surface);
+  color: var(--vt-color-text-muted);
   cursor: pointer;
+  display: grid;
+  place-items: center;
 }
 
-.mission-pw-toggle:hover {
-  background: var(--m-slate-200);
+.mission-icon-eye,
+.mission-icon-eye-off {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+
+.mission-icon-eye {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E");
+}
+
+.mission-icon-eye-off {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3l18 18'/%3E%3Cpath d='M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6'/%3E%3Cpath d='M9.9 9.9a3 3 0 0 0 4.2 4.2'/%3E%3C/svg%3E");
 }
 
 .mission-field-error {
-  font-size: 0.84rem;
-  font-weight: 500;
-  color: var(--m-danger);
+  color: var(--vt-color-danger);
+  font-size: 0.875rem;
 }
 
-.mission-remember {
+.mission-help {
+  color: var(--vt-color-text-muted);
+  font-size: 0.875rem;
+}
+
+.mission-options,
+.mission-settings {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* trang kế thừa base đặt liên kết "Quay lại" trước nút chính: đảo lại cho nút chính lên trước */
+.mission-settings {
+  flex-direction: column-reverse;
+  align-items: stretch;
+}
+
+.mission-settings .mission-options {
+  justify-content: center;
+}
+
+.mission-choice {
   display: flex;
   align-items: center;
-}
-
-.mission-checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  font-size: 0.88rem;
-  color: var(--m-slate-700);
+  gap: 10px;
+  min-height: var(--vt-min-touch);
   cursor: pointer;
 }
 
-.mission-checkbox input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--m-brand-600);
+.mission-choice__input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--vt-color-primary-strong);
 }
 
-/* ─── Nút bấm ─── */
+.mission-link,
+.mission-card a:not(.mission-btn) {
+  color: var(--vt-color-primary-strong);
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.mission-another {
+  text-align: center;
+}
+
+/* ---------- Nút ---------- */
 .mission-btn {
-  width: 100%;
-  min-height: var(--m-touch-min);
-  padding: 0.75rem 1.25rem;
-  border-radius: var(--m-radius-md);
-  font-size: 0.96rem;
-  font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
-  cursor: pointer;
+  gap: 8px;
+  min-height: var(--vt-min-touch);
+  padding: 10px 20px;
+  border-radius: var(--vt-radius-control);
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 700;
   text-decoration: none;
-  transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease;
+  cursor: pointer;
 }
 
-.mission-btn:focus-visible {
-  outline: 3px solid var(--m-brand-600);
-  outline-offset: 2px;
+.mission-btn--large {
+  min-height: calc(var(--vt-min-touch) + 4px);
+}
+
+.mission-btn--block {
+  width: 100%;
 }
 
 .mission-btn--primary {
-  border: none;
-  color: #ffffff;
-  background: linear-gradient(135deg, var(--m-brand-500) 0%, var(--m-brand-600) 60%, var(--m-brand-700) 100%);
-  box-shadow: 0 8px 16px -4px rgba(200, 16, 46, 0.4);
+  background: var(--vt-color-primary-strong);
+  color: var(--vt-color-on-primary);
 }
 
 .mission-btn--primary:hover {
-  background: linear-gradient(135deg, var(--m-brand-600) 0%, var(--m-brand-700) 100%);
-  box-shadow: 0 12px 20px -4px rgba(200, 16, 46, 0.5);
+  background: var(--vt-color-primary-deep);
 }
 
+.mission-btn--secondary {
+  background: var(--vt-color-surface);
+  color: var(--vt-color-text);
+  border-color: var(--vt-color-border);
+}
+
+.mission-btn--outline {
+  background: var(--vt-color-surface);
+  color: var(--vt-color-primary-strong);
+  border-color: var(--vt-color-primary-strong);
+}
+
+.mission-btn:disabled,
+.mission-btn--disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.mission-actions,
+.mission-actions__inner,
+#kc-form-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* nút đặt cạnh nhau (đăng xuất, xác nhận liên kết, huỷ thiết lập) */
+.mission-actions__inner {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.mission-actions__inner > .mission-btn {
+  flex: 1 1 160px;
+}
+
+/* ---------- Nguồn định danh, lựa chọn ---------- */
 .mission-divider {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin: 1.35rem 0 1.1rem;
-  color: var(--m-slate-500);
-  font-size: 0.8rem;
-  font-weight: 500;
+  gap: 12px;
+  color: var(--vt-color-text-muted);
+  font-size: 0.875rem;
+  margin: 4px 0 12px;
 }
 
 .mission-divider::before,
@@ -504,75 +480,169 @@ body.mission-auth-body {
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--m-slate-200);
+  background: var(--vt-color-border-soft);
 }
 
-.mission-idp-group {
+.mission-idp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 10px;
 }
 
-.mission-btn--vneid {
-  background: #ffffff;
-  color: var(--m-slate-900);
-  border: 1.5px solid #fca5a5;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+.mission-idp h2 {
+  font-size: 0.9375rem;
+  margin-bottom: 8px;
 }
 
-.mission-btn--vneid:hover {
-  background: #fff1f2;
-  border-color: var(--m-brand-600);
+.mission-idp hr {
+  display: none;
 }
 
-.mission-vneid-badge {
-  background: var(--m-brand-600);
-  color: var(--m-gold-400);
-  font-size: 0.72rem;
-  font-weight: 800;
-  padding: 0.2rem 0.5rem;
-  border-radius: 6px;
-  letter-spacing: 0.04em;
+.mission-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.mission-otp-hint {
+.mission-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--vt-min-touch);
+  padding: 10px 14px;
+  border: 1px solid var(--vt-color-border);
+  border-radius: var(--vt-radius-control);
+  cursor: pointer;
+}
+
+.mission-tile:has(input:checked) {
+  border-color: var(--vt-color-primary-strong);
+  background: #fff1f3;
+}
+
+.mission-tile__input {
+  accent-color: var(--vt-color-primary-strong);
+}
+
+/* chọn cách xác thực (select-authenticator) */
+.mission-auth-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mission-auth-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--vt-color-border);
+  border-radius: var(--vt-radius-control);
+  background: var(--vt-color-surface);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mission-auth-item:hover {
+  border-color: var(--vt-color-primary-strong);
+}
+
+.mission-auth-item__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.mission-auth-item__fill {
+  flex: 1;
+}
+
+.mission-auth-item__title {
+  font-weight: 700;
+}
+
+.mission-auth-item__desc {
+  color: var(--vt-color-text-muted);
+  font-size: 0.875rem;
+}
+
+.mission-icon-chevron::before {
+  content: '›';
+  font-size: 1.5rem;
+  color: var(--vt-color-text-muted);
+}
+
+/* ---------- Trang kế thừa từ base ---------- */
+#kc-totp-settings {
   margin: 0;
-  font-size: 0.9rem;
-  color: var(--m-slate-600);
-  background: var(--m-slate-50);
-  padding: 0.75rem 0.9rem;
-  border-radius: var(--m-radius-md);
-  border: 1px solid var(--m-slate-200);
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.mission-card__footer {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--m-slate-100);
-  text-align: center;
-  font-size: 0.78rem;
-  color: var(--m-slate-500);
+#kc-totp-supported-apps {
+  margin: 6px 0 0;
+  padding-left: 1.25rem;
 }
 
-/* ─── Responsive (Tablet & Mobile) ─── */
-@media (max-width: 960px) {
-  .mission-shell {
-    grid-template-columns: 1fr;
-  }
+#kc-totp-secret-qr-code {
+  display: block;
+  margin-top: 8px;
+  width: 180px;
+  height: 180px;
+  border: 1px solid var(--vt-color-border-soft);
+  border-radius: var(--vt-radius-control);
+}
 
-  .mission-hero {
-    display: none;
-  }
+#kc-totp-secret-key {
+  font-family: ui-monospace, Consolas, monospace;
+  font-weight: 700;
+  word-break: break-all;
+}
 
-  .mission-card__mobile-brand {
-    display: flex;
-  }
+.mission-info {
+  font-size: 0.9375rem;
+}
 
-  .mission-panel {
-    padding: 1.25rem;
-  }
+.mission-codes {
+  list-style: none;
+  padding: 12px;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  font-family: ui-monospace, Consolas, monospace;
+  background: var(--vt-color-background);
+  border-radius: var(--vt-radius-control);
+}
 
+.mission-codes-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#kc-error-message,
+#kc-info-message {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ---------- Màn hình hẹp ---------- */
+@media (max-width: 480px) {
   .mission-card {
-    padding: 1.75rem 1.35rem;
+    padding: 24px 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
   }
 }

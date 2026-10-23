@@ -1,0 +1,182 @@
+{{- /*
+Bộ điều khiển suy giảm (DV-01-02; TL-04 "Hành vi khi bão hoà", OPS-14): nhận webhook Alertmanager và lệnh của
+người trực, ghi nhãn vt.io/degrade-level cùng bộ plugin tương ứng vào các ApisixPluginConfig protected-api*.
+Chỉ ở chế độ controller; standalone dùng degrade.level cố định khi dựng.
+*/ -}}
+{{- $v := .Values -}}
+{{- $c := $v.degrade.controller -}}
+{{- if and (eq $v.mode "controller") $c.enabled }}
+# Bộ plugin dựng sẵn cho từng lớp (1..3) ở từng mức (0..3), cùng dạng spec.plugins của ApisixPluginConfig.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apisix-degrade-levels
+  namespace: edge
+  labels:
+    {{- include "api-gateway.labels" . | nindent 4 }}
+data:
+  {{- range $class := list "1" "2" "3" }}
+  {{- range $level := list 0 1 2 3 }}
+  {{- $list := list }}
+  {{- range $name, $conf := fromYaml (include "api-gateway.pluginConfig" (dict "root" $ "class" $class "level" $level)) }}
+  {{- $list = append $list (dict "name" $name "enable" true "config" $conf) }}
+  {{- end }}
+  p{{ $class }}-{{ $level }}.json: {{ $list | toJson | quote }}
+  {{- end }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apisix-degrade-controller
+  namespace: edge
+  labels:
+    {{- include "api-gateway.labels" . | nindent 4 }}
+data:
+  degrade-controller.py: |
+    {{- .Files.Get "files/degrade-controller.py" | nindent 4 }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: apisix-degrade-controller
+  namespace: edge
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: apisix-degrade-controller
+rules:
+  # Chỉ đọc và vá ApisixPluginConfig; không tạo, không xoá.
+  - apiGroups: ["apisix.apache.org"]
+    resources: ["apisixpluginconfigs"]
+    verbs: ["get", "list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: apisix-degrade-controller
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: apisix-degrade-controller }
+subjects:
+  - { kind: ServiceAccount, name: apisix-degrade-controller, namespace: edge }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apisix-degrade-controller
+  namespace: edge
+  labels:
+    app.kubernetes.io/name: apisix-degrade-controller
+    {{- include "api-gateway.labels" . | nindent 4 }}
+spec:
+  # Một bản: trạng thái cảnh báo nằm trong bộ nhớ; mất pod thì Alertmanager gửi lại theo repeat_interval và mức
+  # đã ghi vẫn còn trên ApisixPluginConfig.
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: apisix-degrade-controller }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apisix-degrade-controller
+        {{- include "api-gateway.labels" . | nindent 8 }}
+      annotations:
+        checksum/levels: {{ include "api-gateway.routes" . | cat (toJson $v.rateLimit) (toJson $v.priorityClasses) (toJson $v.degrade) | sha256sum }}
+        checksum/script: {{ .Files.Get "files/degrade-controller.py" | sha256sum }}
+    spec:
+      serviceAccountName: apisix-degrade-controller
+      securityContext:
+        {{- toYaml $v.podSecurityContext | nindent 8 }}
+        runAsUser: 10001
+        runAsGroup: 10001
+      {{- include "api-gateway.scheduling" . | nindent 6 }}
+      containers:
+        - name: controller
+          image: {{ include "api-gateway.image" (list $c.image "degrade.controller") }}
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-I", "/opt/vt/degrade-controller.py"]
+          env:
+            - { name: PORT, value: {{ $c.port | quote }} }
+            - { name: BASE_LEVEL, value: {{ $v.degrade.level | quote }} }
+            - { name: LEVELS_DIR, value: /etc/vt-degrade }
+            - { name: WEBHOOK_TOKEN_FILE, value: /var/run/vt-degrade/token }
+          ports:
+            - { name: http, containerPort: {{ $c.port | int }} }
+          resources:
+            {{- toYaml $c.resources | nindent 12 }}
+          securityContext:
+            {{- include "api-gateway.containerSecurity" . | nindent 12 }}
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+          volumeMounts:
+            - { name: script, mountPath: /opt/vt, readOnly: true }
+            - { name: levels, mountPath: /etc/vt-degrade, readOnly: true }
+            - { name: token, mountPath: /var/run/vt-degrade, readOnly: true }
+      volumes:
+        - name: script
+          configMap: { name: apisix-degrade-controller }
+        - name: levels
+          configMap: { name: apisix-degrade-levels }
+        - name: token
+          secret:
+            secretName: {{ $c.tokenSecretRef.name }}
+            items: [{ key: {{ $c.tokenSecretRef.key }}, path: token }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apisix-degrade-controller
+  namespace: edge
+  labels:
+    {{- include "api-gateway.labels" . | nindent 4 }}
+spec:
+  selector: { app.kubernetes.io/name: apisix-degrade-controller }
+  ports:
+    - { name: http, port: {{ $c.port | int }}, targetPort: http }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apisix-degrade-controller
+  namespace: edge
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: apisix-degrade-controller }
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    # Alertmanager gọi webhook, Prometheus đọc /metrics; người trực gọi qua kubectl port-forward (runbook OPS-14).
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $c.alertmanagerNamespace }} } }
+      ports: [{ protocol: TCP, port: {{ $c.port | int }} }]
+  egress:
+    {{- with $v.ingressController.apiServerCIDRs }}
+    - to:
+        {{- range . }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- end }}
+      ports: [{ protocol: TCP, port: 6443 }, { protocol: TCP, port: 443 }]
+    {{- end }}
+{{- if $v.metrics.podMonitor }}
+---
+# vt_degrade_level cho luật SaturationLevel2 của observability-cell (SEV-2 khi mức 2 trở lên kéo dài, OPS-13).
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: apisix-degrade-controller
+  namespace: edge
+  labels:
+    {{- include "api-gateway.labels" . | nindent 4 }}
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: apisix-degrade-controller } }
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      relabelings:
+        - { targetLabel: cell, replacement: {{ $v.cell | quote }} }
+{{- end }}
+{{- end }}

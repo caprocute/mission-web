@@ -2079,7 +2079,7 @@ export interface components {
       coAssignees?: components['schemas']['AssigneeRef'][];
       /** @description Bỏ trống khi là việc ngoài danh mục (chờ chấm điểm) */
       catalogItemId?: components['schemas']['Uuid'];
-      /** @description Tên sản phẩm. Tên chọn theo TL-02 SCR-0402 trường 11 (`product_name`); TL-03 chưa có cột này trong `task.plan_item` và cần bổ sung. */
+      /** @description Tên sản phẩm theo TL-02 SCR-0402 trường 11, lưu ở `task.plan_item.product_name` (TL-03 bổ sung 23/10/2026). Dòng thuộc danh mục lấy tên sản phẩm của mục danh mục. */
       productName: string;
       quantity: number;
       unit?: string;

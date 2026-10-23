@@ -44,6 +44,12 @@ public interface InboxMessages {
 
   void mark(TenantId tenant, LocalDate day, UUID id, InboxStatus status, UUID emittedEventId);
 
+  /**
+   * Thông điệp đã phát sự kiện mới nhất của một mã ngoài, kể cả các phiên bản ghi dạng {@code
+   * <mã>:<phiên bản>} (CORE-02-16: toàn văn văn bản đến cho MOD-02).
+   */
+  Optional<Raw> latestEmitted(TenantId tenant, UUID connectorId, String externalId);
+
   /** Sự kiện {@code eventId} do chính gateway phát từ thông điệp vào của kết nối này. */
   boolean emitted(TenantId tenant, UUID connectorId, UUID eventId);
 }

@@ -230,6 +230,9 @@ class EvidenceAcceptanceServiceTest {
     verify(acceptances).insertAcceptance(eq(TENANT), row.capture());
     assertThat(row.getValue().comment().dekId()).isEqualTo(dekId);
     assertThat(row.getValue().revisionCause()).isNull();
+    assertThat(row.getValue().onBehalfOf()).isNull();
+    assertThat(row.getValue().delegationId()).isNull();
+    assertThat(d.acceptance().onBehalfOf()).isNull();
     ArgumentCaptor<EvidenceEvents.Accepted> evt =
         ArgumentCaptor.forClass(EvidenceEvents.Accepted.class);
     verify(events).accepted(evt.capture());
@@ -369,6 +372,12 @@ class EvidenceAcceptanceServiceTest {
     when(lifecycle.acceptVersion(TENANT, versionId, 5, sub)).thenReturn(res);
     Decision d = service.acceptVersion(TENANT, evidenceId, 2, 5, input("1", null), sub);
     assertThat(d.acceptance().reviewerId()).isEqualTo(substitute);
+    assertThat(d.acceptance().onBehalfOf()).isEqualTo(ASSIGNER);
+    assertThat(d.acceptance().delegationId()).isEqualTo(grantId);
+    ArgumentCaptor<NewAcceptance> row = ArgumentCaptor.forClass(NewAcceptance.class);
+    verify(acceptances).insertAcceptance(eq(TENANT), row.capture());
+    assertThat(row.getValue().onBehalfOf()).isEqualTo(ASSIGNER);
+    assertThat(row.getValue().delegationId()).isEqualTo(grantId);
     AuditEvent ledger = audits.get(audits.size() - 1);
     assertThat(ledger.attributes())
         .containsEntry("nghiemThuThay", "true")

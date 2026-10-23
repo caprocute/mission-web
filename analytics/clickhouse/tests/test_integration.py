@@ -421,3 +421,50 @@ def test_derived_tables_and_cube_pre_aggregation_grants(analytics: Analytics, cd
                 f"INSERT INTO {db}.dim_period (tenant_id) VALUES ('{TENANT_A}')", f"DROP TABLE {db}.fact_task"):
         with pytest.raises(RuntimeError, match=r"ACCESS_DENIED|Not enough privileges"):
             analytics.query(sql, user=cube, password=pw, SQL_tenant_id=TENANT_A)
+
+
+def test_process_history_kept_after_engine_cleanup(analytics: Analytics, cdc: Cdc) -> None:
+    """DV-06-11: lịch sử tiến trình Flowable đã kết thúc tới bảng sự kiện trong 60 s; bản ghi xoá do job dọn lịch sử
+    của engine sinh ra không xoá dòng ở kho. Thời gian Flowable là timestamp không múi giờ, Debezium gửi micro giây."""
+    db, pid, tid, aid = analytics.db, u(), u(), u()
+    start_us = int((time.time() - 3600) * 1_000_000)
+    end_us = int(time.time() * 1_000_000)
+    base = {"proc_def_id_": "giao-nhiem-vu:3:abc", "tenant_id_": TENANT_A}
+    proc = {**base, "id_": pid, "proc_inst_id_": pid, "business_key_": f"TASK:{u()}", "start_time_": start_us,
+            "end_time_": None, "duration_": None, "start_act_id_": "batDau", "end_act_id_": None,
+            "super_process_instance_id_": None, "business_status_": "DA_GIAO"}
+    task = {**base, "id_": tid, "task_def_key_": "nghiemThu", "proc_inst_id_": pid, "state_": "created",
+            "name_": "Nghiệm thu", "start_time_": start_us, "claim_time_": None, "in_progress_time_": None,
+            "end_time_": None, "duration_": None, "priority_": 50, "due_date_": None, "category_": None}
+    act = {**base, "id_": aid, "proc_inst_id_": pid, "act_id_": "nghiemThu", "task_id_": tid,
+           "call_proc_inst_id_": None, "act_name_": "Nghiệm thu", "act_type_": "userTask", "start_time_": start_us,
+           "end_time_": None, "transaction_order_": 2, "duration_": None}
+    t0 = time.monotonic()
+    for topic, row, done in (
+            ("act_hi_procinst", proc, {"end_time_": end_us, "duration_": 3_600_000, "end_act_id_": "ketThuc",
+                                       "business_status_": "HOAN_THANH"}),
+            ("act_hi_taskinst", task, {"end_time_": end_us, "duration_": 3_600_000, "state_": "completed"}),
+            ("act_hi_actinst", act, {"end_time_": end_us, "duration_": 3_600_000})):
+        t = f"cdc.flowable.flowable.{topic}"
+        cdc.send(t, {**row, "id": row["id_"]}, "c")
+        cdc.send(t, {**row, **done, "id": row["id_"]}, "u")
+        cdc.send(t, {**row, **done, "id": row["id_"]}, "d")
+    cdc.flush()
+    elapsed = wait(lambda: count(analytics, "fact_process_instance", f"id = '{pid}' AND end_time IS NOT NULL") >= 1
+        and count(analytics, "fact_process_activity", f"id = '{aid}' AND end_time IS NOT NULL") >= 1
+        and count(analytics, "fact_process_task", f"id = '{tid}' AND state = 'completed'") >= 1,
+        timeout=60, what="lịch sử tiến trình đã kết thúc")
+    print(f"\nDV-06-11 lịch sử tiến trình tới kho sau {time.monotonic() - t0:.1f}s (chờ {elapsed:.1f}s)")
+    for table, k in (("fact_process_instance", pid), ("fact_process_task", tid), ("fact_process_activity", aid)):
+        analytics.query(f"OPTIMIZE TABLE {db}.{table} FINAL")
+        assert analytics.rows(f"SELECT _is_deleted FROM {db}.{table} FINAL WHERE id = '{k}'") == [
+            {"_is_deleted": 0}], table
+    row = analytics.rows(f"SELECT toString(tenant_id) AS t, process_key AS k, business_type AS b, "
+                         f"toString(duration_ms) AS d, business_status AS s, "
+                         f"dateDiff('second', start_time, end_time) AS sec "
+                         f"FROM {db}.fact_process_instance FINAL WHERE id = '{pid}'")
+    assert len(row) == 1 and int(row[0].pop("sec")) in range(3590, 3611), row
+    assert row == [{"t": TENANT_A, "k": "giao-nhiem-vu", "b": "TASK", "d": "3600000", "s": "HOAN_THANH"}]
+    cols = {r["name"] for r in analytics.rows(
+        f"SELECT name FROM system.columns WHERE database = '{db}' AND table LIKE 'fact\\_process\\_%'")}
+    assert not cols & {"assignee", "owner", "start_user_id", "completed_by", "delete_reason", "description"}

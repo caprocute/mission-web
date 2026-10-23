@@ -1,163 +1,100 @@
+<#--
+  Khung chung của mọi trang trong luồng đăng nhập Mission (QT-00, SCR-0001): một thẻ gọn giữa
+  trang gồm logo, tiêu đề, thông báo và biểu mẫu của bước hiện tại. Trang riêng của theme
+  (login.ftl, login-otp.ftl, info.ftl) và trang kế thừa từ base đều gọi macro này; giữ nguyên các
+  section mà base dùng (header, show-username, form, socialProviders, info) và các mã phần tử
+  Keycloak cần (kc-page-title, kc-content, try-another-way, reset-login).
+  Không có script nội tuyến của theme: hành vi nằm ở resources/js/mission-login.js.
+-->
 <#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false>
 <!DOCTYPE html>
-<html lang="${(locale.currentLanguageTag)!'vi'}" class="mission-auth-html">
+<html class="${properties.kcHtmlClass!}" lang="${lang!'vi'}">
 <head>
     <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="robots" content="noindex, nofollow">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${msg("loginTitle",(realm.displayName!''))}</title>
-    <link rel="icon" type="image/svg+xml" href="${url.resourcesPath}/img/logo-mission.svg" />
-    <#if properties.styles?has_content>
-        <#list properties.styles?split(' ') as style>
-            <link href="${url.resourcesPath}/${style}" rel="stylesheet" />
+    <#if properties.meta?has_content>
+        <#list properties.meta?split(' ') as meta>
+            <meta name="${meta?split('==')[0]}" content="${meta?split('==')[1]}"/>
         </#list>
     </#if>
-</head>
-<body class="mission-auth-body ${bodyClass}" data-scr="SCR-0001">
-    <div class="mission-shell">
-        <!-- Cột trái: Nhận diện thương hiệu & Điểm nhấn nền tảng OKR/KPI -->
-        <aside class="mission-hero" aria-label="Giới thiệu hệ thống Mission">
-            <div class="mission-hero__backdrop"></div>
-            <div class="mission-hero__content">
-                <div class="mission-brand">
-                    <img src="${url.resourcesPath}/img/logo-mission.svg" alt="" class="mission-brand__logo" width="52" height="52" />
-                    <div class="mission-brand__text">
-                        <span class="mission-brand__badge">NỀN TẢNG SỐ QUỐC GIA · QĐ 366-QĐ/TW</span>
-                        <h1 class="mission-brand__title">MISSION OKR / KPI</h1>
-                    </div>
-                </div>
-
-                <div class="mission-hero__headline">
-                    <h2>Điều hành nhiệm vụ thông minh, đánh giá cán bộ minh bạch &amp; thực chất</h2>
-                    <p>
-                        Hệ thống quản trị mục tiêu (OKR), chỉ số hiệu suất (KPI) và giao việc hợp nhất theo
-                        Quyết định 366-QĐ/TW, Nghị định 335/2025 và Nghị định 233/2026.
-                    </p>
-                </div>
-
-                <div class="mission-pillars" role="list">
-                    <div class="mission-pillar" role="listitem">
-                        <div class="mission-pillar__icon" aria-hidden="true">01</div>
-                        <div class="mission-pillar__body">
-                            <strong>Khung nền tảng cấu hình động</strong>
-                            <span>Luồng quy trình BPMN 2.0, gói chính sách điểm và biểu mẫu động theo từng loại hình cơ quan, đơn vị.</span>
-                        </div>
-                    </div>
-                    <div class="mission-pillar" role="listitem">
-                        <div class="mission-pillar__icon" aria-hidden="true">02</div>
-                        <div class="mission-pillar__body">
-                            <strong>Liên thông Giao việc → OKR → KPI tự động</strong>
-                            <span>Tự động kế thừa kết quả nghiệm thu nhiệm vụ hằng ngày vào chỉ số KPI và đánh giá cán bộ cuối kỳ.</span>
-                        </div>
-                    </div>
-                    <div class="mission-pillar" role="listitem">
-                        <div class="mission-pillar__icon" aria-hidden="true">03</div>
-                        <div class="mission-pillar__body">
-                            <strong>An toàn thông tin &amp; Ký số chuyên dùng</strong>
-                            <span>Định danh tập trung SSO, xác thực VNeID mức 2, phân quyền đa đơn vị và ký số Ban Cơ yếu.</span>
-                        </div>
-                    </div>
-                </div>
-
-                <footer class="mission-hero__footer">
-                    <div class="mission-hero__stats">
-                        <div>
-                            <strong>≤ 3 chạm</strong>
-                            <span>Thao tác thường ngày</span>
-                        </div>
-                        <div>
-                            <strong>100%</strong>
-                            <span>Truy vết minh chứng</span>
-                        </div>
-                        <div>
-                            <strong>WCAG AA</strong>
-                            <span>Hỗ trợ chế độ chữ lớn</span>
-                        </div>
-                    </div>
-                </footer>
-            </div>
-        </aside>
-
-        <!-- Cột phải: Khung đăng nhập / xác thực -->
-        <main class="mission-panel" id="kc-content">
-            <div class="mission-panel__top">
-                <span class="mission-env-pill">Cổng xác thực tập trung (SSO)</span>
-                <button type="button" class="mission-elderly-toggle" id="btn-elderly-mode" onclick="toggleElderlyMode()" aria-pressed="false">
-                    Chế độ chữ lớn
-                </button>
-            </div>
-
-            <div class="mission-card" id="kc-content-wrapper">
-                <header class="mission-card__header">
-                    <div class="mission-card__mobile-brand">
-                        <img src="${url.resourcesPath}/img/logo-mission.svg" alt="" width="40" height="40" />
-                        <span>MISSION OKR/KPI</span>
-                    </div>
-                    <h2 class="mission-card__title"><#nested "header"></h2>
-                    <p class="mission-card__subtitle">
-                        Sử dụng tài khoản cán bộ, công chức, viên chức hoặc định danh điện tử để tiếp tục.
-                    </p>
-                </header>
-
-                <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
-                    <div class="mission-alert mission-alert--${message.type}" role="alert" aria-live="polite">
-                        <span class="mission-alert__dot" aria-hidden="true"></span>
-                        <span class="mission-alert__text">${kcSanitize(message.summary)?no_esc}</span>
-                    </div>
-                </#if>
-
-                <div class="mission-card__form">
-                    <#nested "form">
-                </div>
-
-                <#if displayInfo>
-                    <div class="mission-card__info">
-                        <#nested "info">
-                    </div>
-                </#if>
-
-                <footer class="mission-card__footer">
-                    <span>Bảo mật theo tiêu chuẩn ATTT Cấp độ 3 · Hỗ trợ kỹ thuật 24/7</span>
-                </footer>
-            </div>
-        </main>
-    </div>
-
-    <script>
-        function toggleElderlyMode() {
-            var html = document.documentElement;
-            var btn = document.getElementById('btn-elderly-mode');
-            var isElderly = html.getAttribute('data-mode') === 'elderly';
-            if (isElderly) {
-                html.removeAttribute('data-mode');
-                localStorage.setItem('mission_elderly_mode', '0');
-                if (btn) {
-                    btn.setAttribute('aria-pressed', 'false');
-                    btn.textContent = 'Chế độ chữ lớn';
-                }
-            } else {
-                html.setAttribute('data-mode', 'elderly');
-                localStorage.setItem('mission_elderly_mode', '1');
-                if (btn) {
-                    btn.setAttribute('aria-pressed', 'true');
-                    btn.textContent = 'Chế độ chữ thường';
-                }
-            }
-        }
-        (function initElderlyMode() {
-            try {
-                if (localStorage.getItem('mission_elderly_mode') === '1') {
-                    document.documentElement.setAttribute('data-mode', 'elderly');
-                    var btn = document.getElementById('btn-elderly-mode');
-                    if (btn) {
-                        btn.setAttribute('aria-pressed', 'true');
-                        btn.textContent = 'Chế độ chữ thường';
-                    }
-                }
-            } catch (e) {}
-        })();
+    <title>${msg("loginTitle",(realm.displayName!''))}</title>
+    <link rel="icon" type="image/svg+xml" href="${url.resourcesPath}/img/logo-mission.svg" />
+    <#list (properties.styles!'')?split(' ') as style>
+        <#if style?has_content><link href="${url.resourcesPath}/${style}" rel="stylesheet" /></#if>
+    </#list>
+    <#list (properties.scripts!'')?split(' ') as script>
+        <#if script?has_content><script src="${url.resourcesPath}/${script}"></script></#if>
+    </#list>
+    <#if scripts??>
+        <#list scripts as script>
+            <script src="${script}" type="text/javascript"></script>
+        </#list>
+    </#if>
+    <script type="importmap">
+        { "imports": { "rfc4648": "${url.resourcesCommonPath}/vendor/rfc4648/rfc4648.js" } }
     </script>
+    <script type="module">
+        import { startSessionPolling } from "${url.resourcesPath}/js/authChecker.js";
+        startSessionPolling("${url.ssoLoginInOtherTabsUrl?no_esc}");
+    </script>
+    <#if authenticationSession??>
+        <script type="module">
+            import { checkAuthSession } from "${url.resourcesPath}/js/authChecker.js";
+            checkAuthSession("${authenticationSession.authSessionIdHash}");
+        </script>
+    </#if>
+</head>
+
+<body class="${properties.kcBodyClass!} ${bodyClass}" data-scr="SCR-0001" data-page-id="login-${pageId!''}">
+<main class="mission-page">
+    <section class="mission-card" id="kc-content">
+        <header class="mission-card__header">
+            <div class="mission-brand">
+                <img src="${url.resourcesPath}/img/logo-mission.svg" alt="" class="mission-brand__logo" width="44" height="44" />
+                <span class="mission-brand__name">Mission</span>
+            </div>
+            <h1 id="kc-page-title" class="mission-card__title"><#nested "header"></h1>
+        </header>
+
+        <#if auth?has_content && auth.showUsername() && !auth.showResetCredentials()>
+            <#nested "show-username">
+            <div id="kc-username" class="mission-user">
+                <span id="kc-attempted-username" class="mission-user__name">${auth.attemptedUsername}</span>
+                <a id="reset-login" class="mission-link" href="${url.loginRestartFlowUrl}">${msg("missionSwitchAccount")}</a>
+            </div>
+        </#if>
+
+        <#-- Việc do ứng dụng khởi tạo không cần thấy cảnh báo nhắc phải hoàn tất việc đó -->
+        <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
+            <div class="mission-alert mission-alert--${message.type}" role="<#if message.type == 'error'>alert<#else>status</#if>">
+                ${kcSanitize(message.summary)?no_esc}
+            </div>
+        </#if>
+
+        <div class="mission-card__body">
+            <#nested "form">
+        </div>
+
+        <#if auth?has_content && auth.showTryAnotherWayLink()>
+            <form id="kc-select-try-another-way-form" class="mission-another" action="${url.loginAction}" method="post">
+                <input type="hidden" name="tryAnotherWay" value="on"/>
+                <button type="submit" id="try-another-way" class="mission-text-btn">${msg("doTryAnotherWay")}</button>
+            </form>
+        </#if>
+
+        <#nested "socialProviders">
+
+        <#if displayInfo>
+            <div id="kc-info" class="mission-info">
+                <#nested "info">
+            </div>
+        </#if>
+
+        <footer class="mission-card__footer">
+            <button type="button" class="mission-text-btn" id="mission-elderly-toggle" aria-pressed="false"
+                    data-label-on="${msg("missionElderlyOn")}" data-label-off="${msg("missionElderlyOff")}">${msg("missionElderlyOn")}</button>
+        </footer>
+    </section>
+</main>
 </body>
 </html>
 </#macro>

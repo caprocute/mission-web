@@ -1,0 +1,54 @@
+# Kiểm thử cục bộ bằng Docker (kiem-thu-cuc-bo.sh, DV-01-02): APISIX standalone, Keycloak giả lập (keycloak:8080),
+# một Valkey đơn (valkey:6379), upstream giả lập mang bí danh mạng <service>.<namespace>.svc.cluster.local.
+# Ngưỡng hạ thấp để kiểm nhanh; ngưỡng thật nằm ở values.yaml của chart.
+cell: kind
+mode: standalone
+apisix:
+  replicas: 1
+  autoscaling: { enabled: false }
+  nodePool: none
+  workerProcesses: 1
+cellCode: kind
+oidc:
+  baseUrl: http://keycloak:8080
+  # Token kiểm thử ký RS256; vt-claims nhận đúng thuật toán khai ở đây.
+  signingAlg: RS256
+# Không kiểm cookie định tuyến ở kiểm thử này (đã có trong kiem-thu-docker.sh của DV-01-01).
+routingCookie:
+  enabled: false
+rateLimit:
+  policy: redis
+  redisHost: valkey
+  user: { count: 40, timeWindow: 60, group: vt-user }
+  routeTiers:
+    expensive: { count: 3, timeWindow: 60 }
+    ai: { count: 30, timeWindow: 60 }
+    search: { count: 60, timeWindow: 60 }
+    analytics: { count: 30, timeWindow: 60 }
+  tenantQuota:
+    window: 30
+    accountsPerUnit: 100
+    rpsPerUnit: 2
+    minRps: 20
+    # tenant nhỏ: 1 rps → 30 request mỗi cửa sổ 30 s.
+    overrides:
+      - { tenant: t-nho, rps: 1 }
+priorityClasses:
+  classes:
+    "1": { conn: 400, burst: 200 }
+    "2": { conn: 200, burst: 100 }
+    # Lớp 3 chỉ một request đồng thời để kiểm 503 khi quá tải.
+    "3": { conn: 1, burst: 0 }
+coraza:
+  image: { ref: vt-local/coraza-proxy-wasm:0.5.0 }
+# Bảng tuyến của chart (routes, classRoutes) giữ nguyên; thêm một tuyến chỉ có ở kiểm thử: mọi tiền tố còn lại
+# của hợp đồng đi qua Coraza tới upstream giả lập (vẫn cần JWT) để thử ví dụ request của hợp đồng với WAF.
+extraRoutes:
+  - name: waf-thu
+    namespace: core
+    service: mission-core
+    priority: -10
+    paths: ["/api/v1/*"]
+# Không có OTel collector trong kiểm thử cục bộ.
+opentelemetry:
+  enabled: false

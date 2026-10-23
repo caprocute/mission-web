@@ -1,0 +1,13 @@
+# Giá trị chart api-gateway cho môi trường production (DV-01-02). Chỉ biến và tham chiếu bí mật, không có giá trị bí mật.
+# SEC-34: từ staging trở lên Coraza ở chế độ chặn; tuyến mới chạy DetectionOnly 2 tuần qua quy tắc ctl theo tuyến
+# trong coraza.exclusions trước khi chặn (TL-04 SEC-34).
+coraza:
+  ruleEngine: "On"
+# Cắt tải (OPS-14): mức nền 0; bộ điều khiển suy giảm đổi mức lúc chạy theo Alertmanager hoặc người trực.
+degrade:
+  level: 0
+  controller:
+    enabled: true
+    # Secret do ExternalSecret tạo từ OpenBao (đường dẫn production/api-gateway/degrade-webhook), Alertmanager dùng cùng
+    # token trong http_config.authorization của receiver vt-degrade.
+    tokenSecretRef: { name: apisix-degrade-webhook, key: token }

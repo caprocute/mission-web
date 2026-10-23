@@ -29,7 +29,7 @@ import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
 import vn.viettel.okrkpi.config.api.PeriodStatus;
 import vn.viettel.okrkpi.dossier.application.comment.port.CommentSealer;
-import vn.viettel.okrkpi.dossier.application.transfer.DossierTransferService;
+import vn.viettel.okrkpi.dossier.application.transfer.CellTransferPartsService;
 import vn.viettel.okrkpi.dossier.application.transfer.TransferImportService;
 import vn.viettel.okrkpi.shared.audit.AuditEvent;
 import vn.viettel.okrkpi.shared.audit.AuditEventType;
@@ -176,13 +176,13 @@ class TransferPartsIT {
     }
     AuditLogger audit = mock(AuditLogger.class);
     try (Connection c = service("svc_dossier", tenant)) {
-      DossierTransferService svc =
-          new DossierTransferService(
+      CellTransferPartsService svc =
+          new CellTransferPartsService(
               new JdbcDossierHistory(JdbcClient.create(new SingleConnectionDataSource(c, true))),
               sealer,
               null,
               audit);
-      DossierTransferService.SignedDossiers d = svc.signedDossiers(t, person).orElseThrow();
+      CellTransferPartsService.SignedDossiers d = svc.signedDossiers(t, person).orElseThrow();
       assertThat(d.packages())
           .singleElement()
           .satisfies(
@@ -191,7 +191,7 @@ class TransferPartsIT {
                 assertThat(p.packageSha256()).startsWith("ab").hasSize(64);
                 assertThat(p.manifestSha256()).isEqualTo(p.packageSha256());
               });
-      DossierTransferService.Conclusions k = svc.conclusions(t, person).orElseThrow();
+      CellTransferPartsService.Conclusions k = svc.conclusions(t, person).orElseThrow();
       assertThat(k.items())
           .singleElement()
           .satisfies(
@@ -207,8 +207,8 @@ class TransferPartsIT {
       assertThat(e.getValue().classification()).isEqualTo(Classification.C2);
 
       AuditLogger quiet = mock(AuditLogger.class);
-      DossierTransferService none =
-          new DossierTransferService(
+      CellTransferPartsService none =
+          new CellTransferPartsService(
               new JdbcDossierHistory(JdbcClient.create(new SingleConnectionDataSource(c, true))),
               sealer,
               null,
@@ -244,7 +244,7 @@ class TransferPartsIT {
               new JdbcTransferredRecords(
                   JdbcClient.create(new SingleConnectionDataSource(c, true))),
               sealer);
-      UUID actor = DossierTransferService.SYSTEM_ACTOR;
+      UUID actor = CellTransferPartsService.SYSTEM_ACTOR;
       assertThat(svc.importPart(t, part, actor).created()).isTrue();
       assertThat(svc.importPart(t, part, actor).created()).isFalse();
       byte[] other = body.clone();

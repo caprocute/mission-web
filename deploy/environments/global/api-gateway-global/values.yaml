@@ -1,0 +1,20 @@
+# APISIX lớp ngoài của vùng điều phối toàn cục, production (DV-01-04). Ba vùng sẵn sàng ở hai TTDL (TL-04 mục 2):
+# GeoDNS trả VIP đang khoẻ của app.danhgia.vn; bản ghi và kiểm tra sức khoẻ thuộc task INF của vùng toàn cục.
+# Digest ảnh do pipeline ghi (SEC-55); khoá HMAC và bí mật client chỉ nằm trong OpenBao.
+commonHosts: ["app.danhgia.vn"]
+apisix:
+  replicas: 3
+  autoscaling: { enabled: true, minReplicas: 3, maxReplicas: 9, cpuUtilization: 70 }
+registry:
+  url: http://tenant-registry.global.svc.cluster.local:8080
+  tokenUrl: https://sso.global.danhgia.vn/realms/platform/protocol/openid-connect/token
+  clientId: apisix-global
+cache:
+  ttlSeconds: 300
+  discoveryTtlSeconds: 300
+  staleSeconds: 3600
+routingCookie:
+  domain: .danhgia.vn
+externalSecrets:
+  enabled: true
+  secretStoreRef: { kind: ClusterSecretStore, name: openbao-global }

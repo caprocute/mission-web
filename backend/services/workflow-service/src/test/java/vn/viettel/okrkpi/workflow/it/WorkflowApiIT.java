@@ -55,7 +55,21 @@ class WorkflowApiIT extends WorkflowIntegrationTest {
           "batchCompleteWorkflowTasks",
           "getWorkflowHistory",
           "startPeriodCloseSaga",
-          "controlPeriodCloseSaga");
+          "controlPeriodCloseSaga",
+          // Thư viện và vòng đời mẫu luồng nội bộ SCR-1505 (DV-06-09).
+          "listWorkflowTemplates",
+          "createWorkflowTemplate",
+          "getWorkflowTemplate",
+          "updateWorkflowTemplate",
+          "runWorkflowTemplateTests",
+          "submitWorkflowTemplate",
+          "approveWorkflowTemplate",
+          "listWorkflowTemplateRollouts",
+          // Giám sát tiến trình theo mẫu SCR-1506 (DV-06-10).
+          "listWorkflowInstances",
+          "getWorkflowDiagram",
+          "reassignWorkflowTask",
+          "extendWorkflowTask");
 
   @Autowired private ObjectMapper json;
   @Autowired private PlatformTransactionManager transactionManager;
@@ -537,14 +551,14 @@ class WorkflowApiIT extends WorkflowIntegrationTest {
               }
             });
     expected.setPaths(kept);
-    assertThat(kept).hasSize(6);
+    assertThat(kept).hasSize(16);
     OpenAPI actual = OpenApiConformanceEngine.parseSpecContent(actualJson);
     // GET /jobs/{id} thuộc hợp đồng jobs.yaml (mô-đun khác), không so ở đây.
     actual.getPaths().keySet().removeIf(k -> k.endsWith("/jobs/{id}"));
     OpenApiConformanceEngine.verifyConformance(
             ContractModule.PLATFORM, ownerServiceCode(), expected, actual)
         .assertCompliant();
-    assertThat(Set.copyOf(OPERATIONS)).hasSize(6);
+    assertThat(Set.copyOf(OPERATIONS)).hasSize(18);
   }
 
   private JsonNode body(MvcResult result) throws Exception {

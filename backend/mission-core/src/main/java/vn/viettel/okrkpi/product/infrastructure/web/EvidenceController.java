@@ -664,6 +664,8 @@ public class EvidenceController {
             .revisionCount(a.revisionCount())
             .comment(a.comment())
             .reviewer(new Ref().id(a.reviewerId()).name(""))
+            .onBehalfOf(a.onBehalfOf() == null ? null : new Ref().id(a.onBehalfOf()).name(""))
+            .delegationId(a.delegationId())
             .decidedAt(time(a.decidedAt()));
     return new EvidenceDecisionResult()
         .acceptance(dto)

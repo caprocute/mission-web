@@ -1,0 +1,16 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/api/v1/van-ban-den",
+    "queryParameters": {
+      "tuThoiDiem": { "equalTo": "2026-10-20T01:00:00Z" },
+      "soLuong": { "equalTo": "200" }
+    },
+    "headers": { "Authorization": { "equalTo": "Bearer ma-gia-lap" } }
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": { "duLieu": [] }
+  }
+}

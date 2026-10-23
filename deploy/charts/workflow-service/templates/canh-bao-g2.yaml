@@ -1,0 +1,195 @@
+{{- /*
+DV-06-11 · TL-01 bảng "Chỉ số giám sát Flowable" (G2): mỗi chỉ số hai ngưỡng (warning, critical) như bảng. Chỉ số
+do workflow-service xuất (FlowableEngineMetrics lấy mẫu 15 s trên bản sao đọc, FlowableJobMetricsListener,
+CountingCommandInterceptor, CountingDeploymentCache); p95 API complete lấy từ histogram http.server.requests;
+pool từ HikariCP. Tắt bằng monitoring.alerts.enabled=false.
+*/ -}}
+{{- $al := .Values.monitoring.alerts -}}
+{{- if $al.enabled }}
+{{- $t := $al.thresholds -}}
+{{- $s := printf "application=\"workflow-service\",namespace=\"%s\"" $al.namespace -}}
+{{- $rb := $al.runbookBase -}}
+{{- $lag := printf "histogram_quantile(0.95, sum by (le) (rate(flowable_job_acquire_lag_seconds_bucket{%s}[5m])))" $s -}}
+{{- $ol := printf "sum(rate(flowable_optimistic_locking_failures_total{%s}[5m])) / (sum(rate(flowable_commands_total{%s}[5m])) > 0)" $s $s -}}
+{{- $cp := printf "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{%s,method=\"POST\",uri=~\".*/workflow/tasks/[{]taskId[}]/complete\"}[5m])))" $s -}}
+{{- $miss := printf "sum(rate(flowable_definition_cache_requests_total{%s,result=\"miss\"}[15m])) / (sum(rate(flowable_definition_cache_requests_total{%s}[15m])) > 0)" $s $s -}}
+{{- $pool := printf "max(hikaricp_connections_active{%s,pool=\"workflow-service-hikari\"} / hikaricp_connections_max{%s,pool=\"workflow-service-hikari\"})" $s $s -}}
+{{- $grow := printf "sum(delta(flowable_history_rows{%s}[1d]))" $s -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "workflow-service.fullname" . }}-g2
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "workflow-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monitoring
+spec:
+  groups:
+    - name: workflow-g2
+      rules:
+        - alert: FlowableJobDenHanChuaKhoaCao
+          expr: max(flowable_async_jobs_due_unlocked{ {{- $s -}} }) > {{ $t.dueUnlocked.warning }}
+          for: 5m
+          labels: { severity: warning, doi: luong-dong }
+          annotations:
+            summary: "Job Flowable đến hạn chưa được khoá vượt {{ $t.dueUnlocked.warning }} trong 5 phút"
+            description: "Executor không theo kịp; xem KEDA của workflow-executor và độ trễ nhận job."
+            runbook_url: {{ $rb }}/flowable-g2#job-den-han
+        - alert: FlowableJobDenHanChuaKhoaNghiemTrong
+          expr: max(flowable_async_jobs_due_unlocked{ {{- $s -}} }) > {{ $t.dueUnlocked.critical }}
+          for: 5m
+          labels: { severity: critical, doi: luong-dong }
+          annotations:
+            summary: "Job Flowable đến hạn chưa được khoá vượt {{ $t.dueUnlocked.critical }}"
+            runbook_url: {{ $rb }}/flowable-g2#job-den-han
+        - alert: FlowableDoTreNhanJobCao
+          expr: {{ $lag }} > {{ $t.acquireLagP95Seconds.warning }}
+          for: 10m
+          labels: { severity: warning, doi: luong-dong }
+          annotations:
+            summary: "Độ trễ nhận job p95 vượt {{ $t.acquireLagP95Seconds.warning }} giây"
+            runbook_url: {{ $rb }}/flowable-g2#do-tre-nhan-job
+        - alert: FlowableDoTreNhanJobNghiemTrong
+          expr: {{ $lag }} > {{ $t.acquireLagP95Seconds.critical }}
+          for: 5m
+          labels: { severity: critical, doi: luong-dong }
+          annotations:
+            summary: "Độ trễ nhận job p95 vượt {{ $t.acquireLagP95Seconds.critical }} giây"
+            runbook_url: {{ $rb }}/flowable-g2#do-tre-nhan-job
+        - alert: FlowableDeadletterTang
+          expr: sum(increase(flowable_jobs_deadletter_moved_total{ {{- $s -}} }[1h])) > {{ $t.deadletterPerHour.warning }}
+          labels: { severity: warning, doi: luong-dong }
+          annotations:
+            summary: "Hơn {{ $t.deadletterPerHour.warning }} job chuyển sang deadletter trong một giờ"
+            description: "Tra ACT_RU_DEADLETTER_JOB theo loại job; thử lại qua API quản trị sau khi sửa nguyên nhân."
+            runbook_url: {{ $rb }}/flowable-g2#deadletter
+        - alert: FlowableDeadletterNghiemTrong
+          expr: sum(increase(flowable_jobs_deadletter_moved_total{ {{- $s -}} }[1h])) > {{ $t.deadletterPerHour.critical }}
+          labels: { severity: critical, doi: luong-dong }
+          annotations:
+            summary: "Hơn {{ $t.deadletterPerHour.critical }} job chuyển sang deadletter trong một giờ"
+            runbook_url: {{ $rb }}/flowable-g2#deadletter
+        - alert: FlowableXungDotKhoaLacQuanCao
+          expr: {{ $ol }} > {{ $t.optimisticLockingRatio.warning }}
+          for: 10m
+          labels: { severity: warning, doi: luong-dong }
+          annotations:
+            summary: "Tỉ lệ lệnh Flowable gặp OptimisticLocking vượt {{ mulf $t.optimisticLockingRatio.warning 100 }}%"
+            runbook_url: {{ $rb }}/flowable-g2#optimistic-locking
+        - alert: FlowableXungDotKhoaLacQuanNghiemTrong
+          expr: {{ $ol }} > {{ $t.optimisticLockingRatio.critical }}
+          for: 10m
+          labels: { severity: critical, doi: luong-dong }
+          annotations:
+            summary: "Tỉ lệ lệnh Flowable gặp OptimisticLocking vượt {{ mulf $t.optimisticLockingRatio.critical 100 }}%"
+            runbook_url: {{ $rb }}/flowable-g2#optimistic-locking
+        - alert: FlowableHoanThanhViecChamCao
+          expr: {{ $cp }} > {{ $t.completeP95Seconds.warning }}
+          for: 10m
+          labels: { severity: warning, doi: luong-dong }
+          annotations:
+            summary: "p95 API hoàn thành việc vượt {{ mulf $t.completeP95Seconds.warning 1000 }} ms"
+            runbook_url: {{ $rb }}/flowable-g2#complete-api
+        - alert: FlowableHoanThanhViecChamNghiemTrong
+          expr: {{ $cp }} > {{ $t.completeP95Seconds.critical }}
+          for: 5m
+          labels: { severity: critical, doi: luong-dong }
+          annotations:
+            summary: "p95 API hoàn thành việc vượt {{ mulf $t.completeP95Seconds.critical 1000 }} ms"
+            runbook_url: {{ $rb }}/flowable-g2#complete-api
+        - alert: FlowableExternalWorkerChamCao
+          expr: max(flowable_external_worker_job_age_p95_seconds{ {{- $s -}} }) > {{ $t.externalWorkerP95Seconds.warning }}
+          for: 10m
+          labels: { severity: warning, doi: luong-dong }
+          annotations:
+            summary: "Job external worker chờ p95 vượt {{ $t.externalWorkerP95Seconds.warning }} giây"
+            runbook_url: {{ $rb }}/flowable-g2#external-worker
+        - alert: FlowableExternalWorkerChamNghiemTrong
+          expr: max(flowable_external_worker_job_age_p95_seconds{ {{- $s -}} }) > {{ $t.externalWorkerP95Seconds.critical }}
+          for: 10m
+          labels: { severity: critical, doi: luong-dong }
+          annotations:
+            summary: "Job external worker chờ p95 vượt {{ div (int $t.externalWorkerP95Seconds.critical) 60 }} phút"
+            runbook_url: {{ $rb }}/flowable-g2#external-worker
+        - alert: FlowableExecutionNhieu
+          expr: max(flowable_ru_execution_rows{ {{- $s -}} }) > {{ int $t.ruExecutionRows.warning }}
+          for: 30m
+          labels: { severity: warning, doi: luong-dong }
+          annotations:
+            summary: "ACT_RU_EXECUTION vượt {{ int $t.ruExecutionRows.warning }} dòng"
+            description: "Tiến trình treo không kết thúc; rà mẫu luồng có nhánh chờ vô hạn và tiến trình mồ côi."
+            runbook_url: {{ $rb }}/flowable-g2#execution
+        - alert: FlowableExecutionNghiemTrong
+          expr: max(flowable_ru_execution_rows{ {{- $s -}} }) > {{ int $t.ruExecutionRows.critical }}
+          for: 30m
+          labels: { severity: critical, doi: luong-dong }
+          annotations:
+            summary: "ACT_RU_EXECUTION vượt {{ int $t.ruExecutionRows.critical }} dòng"
+            runbook_url: {{ $rb }}/flowable-g2#execution
+        - alert: FlowableLichSuTangNhanh
+          expr: {{ $grow }} > {{ $t.historyGrowthFactor.warning }} * avg_over_time(({{ $grow }})[30d:1d])
+          for: 1h
+          labels: { severity: warning, doi: luong-dong }
+          annotations:
+            summary: "ACT_HI_* tăng trong ngày vượt {{ $t.historyGrowthFactor.warning }} lần trung bình 30 ngày"
+            runbook_url: {{ $rb }}/flowable-g2#lich-su
+        - alert: FlowableDonLichSuLoi
+          expr: >-
+            sum(increase(flowable_history_cleanup_failures_total{ {{- $s -}} }[1d])) > 0
+            or (time() - max(flowable_history_cleanup_last_success_timestamp_seconds{ {{- $s -}} }) > 2 * 86400
+                and max(flowable_history_cleanup_last_success_timestamp_seconds{ {{- $s -}} }) > 0)
+          labels: { severity: critical, doi: luong-dong }
+          annotations:
+            summary: "Job dọn lịch sử Flowable lỗi hoặc hai ngày chưa chạy xong"
+            description: "Job chỉ xoá dòng đã chép sang kho phân tích; mốc chặn ở flowable_history_cleanup_cutoff_timestamp_seconds."
+            runbook_url: {{ $rb }}/flowable-g2#lich-su
+        - alert: FlowableCacheDinhNghiaTruotCao
+          expr: {{ $miss }} > {{ $t.definitionCacheMissRatio.warning }}
+          for: 15m
+          labels: { severity: warning, doi: luong-dong }
+          annotations:
+            summary: "Tỉ lệ trượt cache định nghĩa tiến trình vượt {{ mulf $t.definitionCacheMissRatio.warning 100 }}%"
+            runbook_url: {{ $rb }}/flowable-g2#cache
+        - alert: FlowableCacheDinhNghiaTruotNghiemTrong
+          expr: {{ $miss }} > {{ $t.definitionCacheMissRatio.critical }}
+          for: 15m
+          labels: { severity: critical, doi: luong-dong }
+          annotations:
+            summary: "Tỉ lệ trượt cache định nghĩa tiến trình vượt {{ mulf $t.definitionCacheMissRatio.critical 100 }}%"
+            runbook_url: {{ $rb }}/flowable-g2#cache
+        - alert: FlowablePoolKetNoiCao
+          expr: {{ $pool }} > {{ $t.poolUsageRatio.warning }}
+          for: 10m
+          labels: { severity: warning, doi: luong-dong }
+          annotations:
+            summary: "Pool kết nối workflow-service dùng quá {{ mulf $t.poolUsageRatio.warning 100 }}%"
+            runbook_url: {{ $rb }}/flowable-g2#pool
+        - alert: FlowablePoolKetNoiNghiemTrong
+          expr: {{ $pool }} > {{ $t.poolUsageRatio.critical }}
+          for: 5m
+          labels: { severity: critical, doi: luong-dong }
+          annotations:
+            summary: "Pool kết nối workflow-service dùng quá {{ mulf $t.poolUsageRatio.critical 100 }}%"
+            runbook_url: {{ $rb }}/flowable-g2#pool
+        - alert: FlowableDinhNghiaHoatDongNhieu
+          expr: max(flowable_active_process_definitions{ {{- $s -}} }) > {{ $t.activeDefinitions.warning }}
+          for: 1h
+          labels: { severity: warning, doi: luong-dong }
+          annotations:
+            summary: "Hơn {{ $t.activeDefinitions.warning }} định nghĩa tiến trình đang hoạt động"
+            description: "Rà phiên bản mẫu luồng cũ không còn tiến trình chạy; tạm dừng định nghĩa thừa."
+            runbook_url: {{ $rb }}/flowable-g2#dinh-nghia
+        - alert: FlowableDinhNghiaHoatDongNghiemTrong
+          expr: max(flowable_active_process_definitions{ {{- $s -}} }) > {{ $t.activeDefinitions.critical }}
+          for: 1h
+          labels: { severity: critical, doi: luong-dong }
+          annotations:
+            summary: "Hơn {{ $t.activeDefinitions.critical }} định nghĩa tiến trình đang hoạt động"
+            runbook_url: {{ $rb }}/flowable-g2#dinh-nghia
+        - alert: FlowableLayMauChiSoLoi
+          expr: sum(increase(flowable_metrics_sample_failures_total{ {{- $s -}} }[15m])) > 3
+          labels: { severity: warning, doi: luong-dong }
+          annotations:
+            summary: "Lấy mẫu chỉ số G2 từ bản sao đọc lỗi liên tục; giá trị hiện là lần đọc được gần nhất"
+            runbook_url: {{ $rb }}/flowable-g2#lay-mau
+{{- end }}
