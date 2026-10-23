@@ -37,6 +37,12 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     apply(readMode());
+    var domain = document.getElementById('mission-access-domain');
+    var host = domain ? domain.querySelector('[data-access-host]') : null;
+    if (host && location.host) {
+      host.textContent = location.host;
+      domain.hidden = false;
+    }
     var btn = document.getElementById('mission-elderly-toggle');
     if (btn) {
       btn.addEventListener('click', function () {
