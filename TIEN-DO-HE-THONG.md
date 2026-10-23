@@ -14,8 +14,8 @@
 
 - **Tổng tiến độ đã gộp `main`**: **360 / 408 task (88.2%)** — Khối lượng quy đổi đã gộp: **426.5 / 492.5 đơn vị**.
 - **Tổng tiến độ tính cả các task đã xong chờ gộp**: **360 / 408 task (88.2%)** (gồm **360** đã gộp `main` + **0** đã xong trên nhánh chờ gộp).
-- **Đang thực hiện / Làm một phần**: **11 task** (5 đang làm, 6 làm một phần).
-- **Chưa bắt đầu**: **37 task**.
+- **Đang thực hiện / Làm một phần**: **12 task** (5 đang làm, 7 làm một phần).
+- **Chưa bắt đầu**: **36 task**.
 - **Tiến độ Đường găng (23 task)**: Đã gộp `main` **19 / 23 task**; nút găng kế tiếp cần mở khoá: **`QA-06`** (đang xử lý trên nhánh: không).
 
 ### 1.1. Bảng tổng hợp theo 10 nhóm phân hệ
@@ -30,9 +30,9 @@
 | **INF** | Hạ tầng Kubernetes, CI/CD, bảo mật và dự phòng (`INF-01..28`) | 28 | 44 | **16** | 0 | 6 | 6 | **57.1%** |
 | **QA** | Kiểm thử tích hợp, hiệu năng, ATTT và DR (`QA-01..16`) | 16 | 24.5 | **1** | 0 | 3 | 12 | **6.2%** |
 | **MOB** | Ứng dụng di động Flutter (`SVC-18`: `MOB-01..10`) | 10 | 10.5 | **0** | 0 | 0 | 10 | **0.0%** |
-| **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 0 | 9 | **0.0%** |
+| **VH** | Vận hành, tài liệu hướng dẫn và đưa vào sử dụng (`VH-01..09`) | 9 | 11.5 | **0** | 0 | 1 | 8 | **0.0%** |
 | **CNH** | Cá nhân hoá theo người dùng (`CNH-01..05`) | 5 | 4.5 | **5** | 0 | 0 | 0 | **100.0%** |
-| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **360** | **0** | **11** | **37** | **88.2%** |
+| **TỔNG** | **Toàn bộ hệ thống Mission** | **408** | **492.5** | **360** | **0** | **12** | **36** | **88.2%** |
 
 ### 1.2. Bảng tổng hợp theo 8 Mốc triển khai (M0 – M7)
 
@@ -44,7 +44,7 @@
 | **M3 – Nghiệp vụ lõi OKR, Giao việc, Minh chứng (Đợt 2)** | 120 | **119** | 0 | 1 | 0 | **99.2%** |
 | **M4 – Đánh giá, Hồ sơ số, Giám sát & Phân tích** | 72 | **72** | 0 | 0 | 0 | **100.0%** |
 | **M5 – Hạ tầng Production, Tích hợp E2E, Hiệu năng & ATTT** | 42 | **17** | 0 | 10 | 15 | **40.5%** |
-| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 0 | 0 | 19 | **17.4%** |
+| **M6 – Dự phòng DR, Ứng dụng Di động & Vận hành** | 23 | **4** | 0 | 1 | 18 | **17.4%** |
 | **M7 – Thí điểm và Đưa vào sử dụng (Đợt 3)** | 4 | **1** | 0 | 0 | 3 | **25.0%** |
 
 ### 1.3. Trạng thái 23 task trên Đường găng
@@ -611,7 +611,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [MOB-09](docs/tasks/MOB-09-thong-bao-day.md) | Thông báo đẩy FCM, APNs | S | B10 | 9 | MOB-01, DV-12-03, DV-12-05 | **Chưa bắt đầu** |  |
 | [MOB-10](docs/tasks/MOB-10-pipeline-phat-hanh.md) | Pipeline build, ký và phát hành ứng dụng; kiểm thử đầu cuối và khả năng truy cập trên di động | M | B10 | 19 | MOB-03, INF-06 | **Chưa bắt đầu** | Làm với bản giả lập (quyết định 20/10); nối hệ thật khi có: cần tài khoản cửa hàng ứng dụng |
 
-### VH · Vận hành và đưa vào sử dụng (0/9 đã gộp `main`, 0 chờ gộp, 0 đang làm)
+### VH · Vận hành và đưa vào sử dụng (0/9 đã gộp `main`, 0 chờ gộp, 1 đang làm)
 
 | Mã | Tên task | Cỡ | Luồng | Tầng | Phụ thuộc | Trạng thái | Ghi chú / Nhánh / Kiểm chứng |
 |---|---|:---:|:---:|:---:|---|---|---|
@@ -620,7 +620,7 @@ Mọi thay đổi trạng thái task đều được cập nhật trực tiếp 
 | [VH-03](docs/tasks/VH-03-truc-su-co-cab.md) | Trực vận hành, mức sự cố SEV-1..SEV-4, quy trình thay đổi, đóng băng thay đổi | M | B11 | 5 | VH-01 | **Chưa bắt đầu** |  |
 | [VH-04](docs/tasks/VH-04-dien-tap-onboarding.md) | Diễn tập vòng đời tenant: đưa tenant mới vào vận hành trong một ngày (OPS-07) | M | B11 | 13 | DV-03-05, INF-04 | **Chưa bắt đầu** |  |
 | [VH-05](docs/tasks/VH-05-huong-dan-su-dung.md) | Hướng dẫn sử dụng theo vai trò (AC-01..AC-10) | L | B11 | 24 | QA-07 | **Chưa bắt đầu** |  |
-| [VH-06](docs/tasks/VH-06-tai-lieu-quan-tri.md) | Tài liệu quản trị, cài đặt cho ba mô hình phân phối | M | B11 | 6 | INF-23 | **Chưa bắt đầu** |  |
+| [VH-06](docs/tasks/VH-06-tai-lieu-quan-tri.md) | Tài liệu quản trị, cài đặt cho ba mô hình phân phối | M | B11 | 6 | INF-23 | **Làm một phần** | Nhánh claude/project-thread-x87cen: docs/quan-tri-cai-dat (8 trang, 3 mẫu); render private compact 873/873 kubeconform, Argo tại chỗ 24 ApplicationSet, markdownlint 0 lỗi; chưa cài thử k3d (thiếu đĩa, chưa có gói INF-23 thật); phát hiện 3 lệch chart ghi wiki 14 |
 | [VH-07](docs/tasks/VH-07-ho-so-cap-do-4.md) | Hồ sơ đề xuất cấp độ 4 theo TCVN 11930:2017 | M | B11 | 13 | QA-13, INF-19 | **Chưa bắt đầu** |  |
 | [VH-08](docs/tasks/VH-08-thi-diem-chuyen-tenant.md) | Kế hoạch đưa tenant thí điểm vào sử dụng và mở rộng theo nhóm tenant (hệ thống mới độc lập, không chuyển từ hệ cũ) | M | B11 | 25 | QA-16 | **Chưa bắt đầu** |  |
 | [VH-09](docs/tasks/VH-09-cham-checklist-quy.md) | Chấm lại checklist 110 tiêu chí và bảng chỉ số chuyển đổi mỗi quý | S | B11 | 6 | VH-03 | **Chưa bắt đầu** |  |
@@ -1014,4 +1014,6 @@ Mọi lần cập nhật trạng thái bằng `python3 scripts/cap-nhat-tien-do.
 | 23/10/2026 12:18 | B7 | `INF-17` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-x87cen: bucket kho sao lưu, ObjectStore/ScheduledBackup, restore-check, giữ dài hạn, etcd, Velero, cảnh báo; kiểm tĩnh + script trên PG thật xanh; chưa chạy kind |
 | 23/10/2026 12:20 | B7 | `INF-18` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: chart/manifest sao lưu phần 2 |
 | 23/10/2026 13:01 | B7 | `INF-18` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-x87cen: MM2, outbox-replay điểm an toàn, minh chứng, snapshot OpenSearch, ClickHouse, Raft OpenBao, Git, Harbor, cảnh báo; kiểm tĩnh 43/43 + script 67/67 xanh; chưa chạy kind, thiếu đối soát offset Kafka |
+| 23/10/2026 13:05 | B7 | `VH-06` | Chuyển trạng thái sang **Đang làm** — Nhánh claude/project-thread-x87cen: tài liệu quản trị và cài đặt ba mô hình |
+| 23/10/2026 13:22 | B7 | `VH-06` | Chuyển trạng thái sang **Làm một phần** — Nhánh claude/project-thread-x87cen: docs/quan-tri-cai-dat (8 trang, 3 mẫu); render private compact 873/873 kubeconform, Argo tại chỗ 24 ApplicationSet, markdownlint 0 lỗi; chưa cài thử k3d (thiếu đĩa, chưa có gói INF-23 thật); phát hiện 3 lệch chart ghi wiki 14 |
 <!-- PROGRESS_LOG_END -->
