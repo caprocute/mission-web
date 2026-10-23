@@ -1,0 +1,28 @@
+{
+  "moTa": "Tenant thử mô hình bridge: tỉnh cỡ vừa, CSDL riêng trên cụm của cell (CR Database), KEK riêng kek-tenant-<id>.",
+  "tao": {
+    "code": "thu_bridge_tinh_dong_hoa",
+    "name": "Tỉnh Đông Hòa (tenant thử)",
+    "sector": "CHINH_QUYEN",
+    "contractRef": "HĐ-THU/2026-BRIDGE-01",
+    "contractValidTo": "2029-12-31",
+    "flows": ["DANG", "NHA_NUOC"],
+    "expectedAccounts": 30000,
+    "expectedUnits": 120,
+    "adminContact": { "fullName": "Người quản trị thử bridge", "email": "quantri@{code}.thu-nghiem.gov.vn" }
+  },
+  "buoc3": {
+    "tenancyModel": "bridge",
+    "cellCode": "CELL-G1",
+    "policyBindings": [
+      { "flow": "DANG", "packVersionId": "0192e1c4-5d6e-7f80-9a1b-2c3d4e5f6a70" },
+      { "flow": "NHA_NUOC", "packVersionId": "0192e1c4-5d6e-7f80-9a1b-2c3d4e5f6a71" }
+    ],
+    "uiPackVersionId": "0192e2d5-6e7f-7a81-8b2c-3d4e5f6a7b80"
+  },
+  "buoc4": {
+    "idps": [
+      { "idpAlias": "sso", "protocol": "OIDC", "issuer": "https://sso.{code}.thu-nghiem.gov.vn", "emailDomains": ["{code}.thu-nghiem.gov.vn"] }
+    ]
+  }
+}
