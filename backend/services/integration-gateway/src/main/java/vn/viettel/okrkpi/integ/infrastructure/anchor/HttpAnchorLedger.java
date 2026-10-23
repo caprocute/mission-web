@@ -25,8 +25,9 @@ import vn.viettel.okrkpi.integ.application.anchor.CellAnchor;
  * Gọi cổng nội bộ của ledger-service qua lưới dịch vụ (mTLS của Istio, suy luận, wiki trang 14):
  *
  * <ul>
- *   <li>{@code GET /internal/v1/ledger/cell-anchors?cell=&windowEnd=}: gói neo cấp cell của ngày;
- *       {@code 404} là chưa dựng.
+ *   <li>{@code GET /internal/v1/ledger/cell-anchors?cell=&windowEnd=}: gói neo cấp cell của ngày
+ *       kết thúc ở {@code windowEnd} ({@code AnchorDocument} của {@code seal.Anchorer.DailyAnchor}
+ *       trong {@code services-go/ledger}); {@code 404} là chưa có.
  *   <li>{@code POST /internal/v1/ledger/anchor-receipts} kèm {@code Idempotency-Key} là mã bản neo
  *       của đích: ledger-service ghi {@code ledger.anchor_receipt}; {@code 409} là đã ghi (gửi lại
  *       sau sự cố), coi như xong.
@@ -85,7 +86,7 @@ public class HttpAnchorLedger implements AnchorLedger {
           instant(n.path("windowStart")),
           Instant.parse(n.path("windowEnd").asText()),
           hex.parseHex(n.path("cellRoot").asText()),
-          n.path("prevCellRoot").isTextual() ? hex.parseHex(n.path("prevCellRoot").asText()) : null,
+          optionalHex(n.path("prevCellRoot")),
           b64.decode(n.path("signature").asText()),
           n.path("signerCertSha256").isTextual() ? n.path("signerCertSha256").asText() : null,
           b64.decode(n.path("tsaToken").asText()),
@@ -93,6 +94,11 @@ public class HttpAnchorLedger implements AnchorLedger {
     } catch (RuntimeException e) {
       throw new IOException("Gói neo của ledger-service không hợp lệ", e);
     }
+  }
+
+  /** ledger-service ghi chuỗi rỗng cho gốc ngày trước của niêm phong đầu tiên. */
+  private static byte[] optionalHex(JsonNode n) {
+    return n.isTextual() && !n.asText().isEmpty() ? HexFormat.of().parseHex(n.asText()) : null;
   }
 
   private static Instant instant(JsonNode n) {

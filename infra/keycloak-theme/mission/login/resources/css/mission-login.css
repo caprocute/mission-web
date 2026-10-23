@@ -1,29 +1,25 @@
 /* ==========================================================================
-   MISSION OKR/KPI — KEYCLOAK ENTERPRISE LOGIN THEME (SCR-0001 / WEB-020)
-   Thiết kế chuẩn WCAG 2.1 AA, hỗ trợ chế độ chữ lớn (data-mode="elderly")
+   MISSION — theme đăng nhập Keycloak (SCR-0001 / WEB-020)
+   Một thẻ đăng nhập gọn giữa trang. WCAG 2.1 AA, chế độ chữ lớn data-mode="elderly" (NFR-11).
    ========================================================================== */
 
 :root {
-  --m-brand-500: #e11d48;
-  --m-brand-600: #c8102e;
-  --m-brand-700: #9f1239;
-  --m-brand-900: #4c0519;
-  --m-gold-400: #facc15;
-  --m-slate-50: #f8fafc;
-  --m-slate-100: #f1f5f9;
-  --m-slate-200: #e2e8f0;
-  --m-slate-300: #cbd5e1;
-  --m-slate-500: #64748b;
-  --m-slate-600: #475569;
-  --m-slate-700: #334155;
-  --m-slate-800: #1e293b;
-  --m-slate-900: #0f172a;
-  --m-danger: #dc2626;
+  --m-brand: #c8102e;
+  --m-brand-hover: #a10d25;
+  --m-text: #0f172a;
+  --m-text-muted: #475569;
+  --m-border: #cbd5e1;
+  --m-bg: #f1f5f9;
+  --m-surface: #ffffff;
+  --m-danger: #b91c1c;
   --m-danger-bg: #fef2f2;
-  --m-info: #2563eb;
+  --m-info: #1d4ed8;
   --m-info-bg: #eff6ff;
-  --m-radius-lg: 16px;
-  --m-radius-md: 10px;
+  --m-success: #15803d;
+  --m-success-bg: #f0fdf4;
+  --m-warning: #92400e;
+  --m-warning-bg: #fffbeb;
+  --m-radius: 8px;
   --m-font-base: 16px;
   --m-touch-min: 44px;
 }
@@ -42,328 +38,181 @@ html[data-mode='elderly'] {
 html.mission-auth-html,
 body.mission-auth-body {
   margin: 0;
-  padding: 0;
   min-height: 100vh;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: var(--m-font-base);
   line-height: 1.5;
-  color: var(--m-slate-900);
-  background: var(--m-slate-100);
+  color: var(--m-text);
+  background: var(--m-bg);
   -webkit-font-smoothing: antialiased;
 }
 
-.mission-shell {
-  display: grid;
-  grid-template-columns: 1.12fr 0.88fr;
+.mission-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 100vh;
-}
-
-/* ─── Cột trái: Hero thương hiệu & Giới thiệu nền tảng ─── */
-.mission-hero {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 3.5rem 4rem;
-  color: #ffffff;
-  background:
-    radial-gradient(circle at 15% 15%, rgba(225, 29, 72, 0.38) 0%, transparent 45%),
-    radial-gradient(circle at 85% 85%, rgba(250, 204, 21, 0.16) 0%, transparent 45%),
-    linear-gradient(145deg, #0f172a 0%, #1e1b4b 48%, #4c0519 100%);
-  overflow: hidden;
-}
-
-.mission-hero__backdrop {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 36px 36px;
-  pointer-events: none;
-}
-
-.mission-hero__content {
-  position: relative;
-  z-index: 1;
-  max-width: 580px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2.25rem;
-}
-
-.mission-brand {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.mission-brand__logo {
-  flex-shrink: 0;
-  border-radius: 14px;
-  box-shadow: 0 10px 25px rgba(200, 16, 46, 0.45);
-}
-
-.mission-brand__badge {
-  display: inline-block;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--m-gold-400);
-  background: rgba(250, 204, 21, 0.14);
-  border: 1px solid rgba(250, 204, 21, 0.35);
-  padding: 0.2rem 0.65rem;
-  border-radius: 999px;
-  margin-bottom: 0.25rem;
-}
-
-.mission-brand__title {
-  margin: 0;
-  font-size: 1.45rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #ffffff;
-}
-
-.mission-hero__headline h2 {
-  margin: 0 0 0.75rem;
-  font-size: 2rem;
-  font-weight: 800;
-  line-height: 1.25;
-  letter-spacing: -0.025em;
-  color: #ffffff;
-}
-
-.mission-hero__headline p {
-  margin: 0;
-  font-size: 1rem;
-  line-height: 1.65;
-  color: rgba(241, 245, 249, 0.85);
-}
-
-.mission-pillars {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.mission-pillar {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 1rem 1.15rem;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(8px);
-}
-
-.mission-pillar__icon {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--m-brand-500), var(--m-brand-700));
-  color: var(--m-gold-400);
-  font-weight: 800;
-  font-size: 0.85rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mission-pillar__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.mission-pillar__body strong {
-  font-size: 0.96rem;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.mission-pillar__body span {
-  font-size: 0.86rem;
-  color: rgba(226, 232, 240, 0.82);
-}
-
-.mission-hero__footer {
-  padding-top: 1.25rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.mission-hero__stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-
-.mission-hero__stats strong {
-  display: block;
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: var(--m-gold-400);
-}
-
-.mission-hero__stats span {
-  font-size: 0.8rem;
-  color: rgba(226, 232, 240, 0.8);
-}
-
-/* ─── Cột phải: Panel Đăng nhập ─── */
-.mission-panel {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem;
-  background:
-    radial-gradient(circle at 90% 10%, rgba(200, 16, 46, 0.05) 0%, transparent 40%),
-    var(--m-slate-50);
-}
-
-.mission-panel__top {
-  width: 100%;
-  max-width: 460px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.mission-env-pill {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--m-slate-600);
-  background: #ffffff;
-  border: 1px solid var(--m-slate-200);
-  padding: 0.3rem 0.75rem;
-  border-radius: 999px;
-}
-
-.mission-elderly-toggle {
-  min-height: 36px;
-  padding: 0.35rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid var(--m-slate-300);
-  background: #ffffff;
-  color: var(--m-slate-800);
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.mission-elderly-toggle:hover,
-.mission-elderly-toggle[aria-pressed='true'] {
-  border-color: var(--m-brand-600);
-  color: var(--m-brand-600);
-  background: #fff1f2;
+  padding: 24px 16px;
 }
 
 .mission-card {
   width: 100%;
-  max-width: 460px;
-  background: #ffffff;
-  border-radius: var(--m-radius-lg);
-  border: 1px solid var(--m-slate-200);
-  box-shadow:
-    0 20px 25px -5px rgba(15, 23, 42, 0.07),
-    0 8px 10px -6px rgba(15, 23, 42, 0.04);
-  padding: 2.25rem 2.25rem 1.75rem;
+  max-width: 400px;
+  padding: 32px;
+  background: var(--m-surface);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
-.mission-card__mobile-brand {
-  display: none;
+html[data-mode='elderly'] .mission-card {
+  max-width: 460px;
+}
+
+/* ─── Đầu thẻ ─── */
+.mission-card__header {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.mission-brand {
+  display: inline-flex;
   align-items: center;
-  gap: 0.65rem;
-  margin-bottom: 1rem;
-  font-weight: 800;
-  color: var(--m-brand-600);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.mission-brand__logo {
+  width: 44px;
+  height: 44px;
+}
+
+.mission-brand__name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .mission-card__title {
-  margin: 0 0 0.4rem;
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--m-slate-900);
-}
-
-.mission-card__subtitle {
-  margin: 0 0 1.5rem;
-  font-size: 0.92rem;
-  color: var(--m-slate-600);
-}
-
-/* ─── Thông báo lỗi / trạng thái ─── */
-.mission-alert {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
-  padding: 0.85rem 1rem;
-  border-radius: var(--m-radius-md);
-  margin-bottom: 1.25rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.mission-alert--error {
-  background: var(--m-danger-bg);
-  border: 1px solid #fecaca;
-  color: #991b1b;
-}
-
-.mission-alert--info,
-.mission-alert--warning,
-.mission-alert--success {
-  background: var(--m-info-bg);
-  border: 1px solid #bfdbfe;
-  color: #1e40af;
-}
-
-.mission-alert__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-  margin-top: 0.42rem;
-  flex-shrink: 0;
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 600;
 }
 
 /* ─── Biểu mẫu ─── */
 .mission-form {
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
+  gap: 16px;
 }
 
 .mission-field {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-}
-
-.mission-label-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  gap: 6px;
 }
 
 .mission-label {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  color: var(--m-slate-800);
+}
+
+.mission-input-wrap {
+  position: relative;
+}
+
+.mission-input {
+  width: 100%;
+  min-height: var(--m-touch-min);
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--m-text);
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.mission-input:focus {
+  outline: none;
+  border-color: var(--m-brand);
+  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.15);
+}
+
+.mission-input--error {
+  border-color: var(--m-danger);
+}
+
+.mission-input--otp {
+  font-size: 1.375rem;
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+
+.mission-input-wrap .mission-input {
+  padding-right: 64px;
+}
+
+.mission-pw-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  min-height: 32px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--m-text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.mission-pw-toggle:hover {
+  color: var(--m-text);
+  background: var(--m-bg);
+}
+
+.mission-field-error {
+  font-size: 0.875rem;
+  color: var(--m-danger);
+}
+
+.mission-hint {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--m-text-muted);
+}
+
+.mission-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  font-size: 0.9375rem;
+}
+
+.mission-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--m-touch-min);
+  cursor: pointer;
+}
+
+.mission-checkbox input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--m-brand);
 }
 
 .mission-link {
-  font-size: 0.85rem;
   font-weight: 600;
-  color: var(--m-brand-600);
+  color: var(--m-brand);
   text-decoration: none;
 }
 
@@ -371,132 +220,59 @@ body.mission-auth-body {
   text-decoration: underline;
 }
 
-.mission-input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.mission-input {
-  width: 100%;
-  min-height: var(--m-touch-min);
-  padding: 0.65rem 0.95rem;
-  font-size: 0.96rem;
-  color: var(--m-slate-900);
-  background: #ffffff;
-  border: 1.5px solid var(--m-slate-300);
-  border-radius: var(--m-radius-md);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.mission-input:focus {
-  outline: none;
-  border-color: var(--m-brand-600);
-  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.16);
-}
-
-.mission-input--error {
-  border-color: var(--m-danger);
-  background: #fffafa;
-}
-
-.mission-input--otp {
-  text-align: center;
-  font-size: 1.35rem;
-  font-weight: 700;
-  letter-spacing: 0.35em;
-}
-
-.mission-input-wrap--password .mission-input {
-  padding-right: 4.25rem;
-}
-
-.mission-pw-toggle {
-  position: absolute;
-  right: 0.5rem;
-  min-height: 34px;
-  padding: 0.25rem 0.65rem;
-  border: none;
-  border-radius: 6px;
-  background: var(--m-slate-100);
-  color: var(--m-slate-700);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.mission-pw-toggle:hover {
-  background: var(--m-slate-200);
-}
-
-.mission-field-error {
-  font-size: 0.84rem;
-  font-weight: 500;
-  color: var(--m-danger);
-}
-
-.mission-remember {
-  display: flex;
-  align-items: center;
-}
-
-.mission-checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  font-size: 0.88rem;
-  color: var(--m-slate-700);
-  cursor: pointer;
-}
-
-.mission-checkbox input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--m-brand-600);
-}
-
-/* ─── Nút bấm ─── */
+/* ─── Nút ─── */
 .mission-btn {
-  width: 100%;
-  min-height: var(--m-touch-min);
-  padding: 0.75rem 1.25rem;
-  border-radius: var(--m-radius-md);
-  font-size: 0.96rem;
-  font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
-  cursor: pointer;
+  width: 100%;
+  min-height: var(--m-touch-min);
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 600;
   text-decoration: none;
-  transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease;
+  border-radius: var(--m-radius);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
 }
 
-.mission-btn:focus-visible {
-  outline: 3px solid var(--m-brand-600);
+.mission-btn:focus-visible,
+.mission-pw-toggle:focus-visible,
+.mission-text-btn:focus-visible,
+.mission-link:focus-visible {
+  outline: 3px solid rgba(200, 16, 46, 0.4);
   outline-offset: 2px;
 }
 
 .mission-btn--primary {
-  border: none;
+  margin-top: 4px;
   color: #ffffff;
-  background: linear-gradient(135deg, var(--m-brand-500) 0%, var(--m-brand-600) 60%, var(--m-brand-700) 100%);
-  box-shadow: 0 8px 16px -4px rgba(200, 16, 46, 0.4);
+  background: var(--m-brand);
+  border: 1px solid var(--m-brand);
 }
 
 .mission-btn--primary:hover {
-  background: linear-gradient(135deg, var(--m-brand-600) 0%, var(--m-brand-700) 100%);
-  box-shadow: 0 12px 20px -4px rgba(200, 16, 46, 0.5);
+  background: var(--m-brand-hover);
+  border-color: var(--m-brand-hover);
+}
+
+.mission-btn--secondary {
+  color: var(--m-text);
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+}
+
+.mission-btn--secondary:hover {
+  background: var(--m-bg);
 }
 
 .mission-divider {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin: 1.35rem 0 1.1rem;
-  color: var(--m-slate-500);
-  font-size: 0.8rem;
-  font-weight: 500;
+  gap: 12px;
+  margin: 20px 0;
+  font-size: 0.875rem;
+  color: var(--m-text-muted);
 }
 
 .mission-divider::before,
@@ -504,75 +280,77 @@ body.mission-auth-body {
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--m-slate-200);
+  background: #e2e8f0;
 }
 
 .mission-idp-group {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 10px;
 }
 
-.mission-btn--vneid {
-  background: #ffffff;
-  color: var(--m-slate-900);
-  border: 1.5px solid #fca5a5;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+/* ─── Thông báo ─── */
+.mission-alert {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  font-size: 0.9375rem;
+  border-radius: var(--m-radius);
+  color: var(--m-info);
+  background: var(--m-info-bg);
 }
 
-.mission-btn--vneid:hover {
-  background: #fff1f2;
-  border-color: var(--m-brand-600);
+.mission-alert--error {
+  color: var(--m-danger);
+  background: var(--m-danger-bg);
 }
 
-.mission-vneid-badge {
-  background: var(--m-brand-600);
-  color: var(--m-gold-400);
-  font-size: 0.72rem;
-  font-weight: 800;
-  padding: 0.2rem 0.5rem;
-  border-radius: 6px;
-  letter-spacing: 0.04em;
+.mission-alert--success {
+  color: var(--m-success);
+  background: var(--m-success-bg);
 }
 
-.mission-otp-hint {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--m-slate-600);
-  background: var(--m-slate-50);
-  padding: 0.75rem 0.9rem;
-  border-radius: var(--m-radius-md);
-  border: 1px solid var(--m-slate-200);
+.mission-alert--warning {
+  color: var(--m-warning);
+  background: var(--m-warning-bg);
 }
 
+.mission-card__info {
+  margin-top: 16px;
+  font-size: 0.9375rem;
+  color: var(--m-text-muted);
+}
+
+/* ─── Chân thẻ ─── */
 .mission-card__footer {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--m-slate-100);
-  text-align: center;
-  font-size: 0.78rem;
-  color: var(--m-slate-500);
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
 }
 
-/* ─── Responsive (Tablet & Mobile) ─── */
-@media (max-width: 960px) {
-  .mission-shell {
-    grid-template-columns: 1fr;
-  }
+.mission-text-btn {
+  min-height: 36px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--m-text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
 
-  .mission-hero {
-    display: none;
-  }
+.mission-text-btn:hover {
+  color: var(--m-text);
+  text-decoration: underline;
+}
 
-  .mission-card__mobile-brand {
-    display: flex;
-  }
-
-  .mission-panel {
-    padding: 1.25rem;
+@media (max-width: 480px) {
+  .mission-page {
+    align-items: flex-start;
+    padding: 24px 16px;
   }
 
   .mission-card {
-    padding: 1.75rem 1.35rem;
+    padding: 24px 20px;
   }
 }

@@ -16,14 +16,17 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -68,7 +71,9 @@ import vn.viettel.okrkpi.shared.tenant.TenantContext;
     classes = MissionCoreApplication.class,
     properties = {
       "mission.outbox.relay.enabled=false",
-      "mission.oversight.reopen-execution.enabled=false"
+      "mission.oversight.reopen-execution.enabled=false",
+      // Hai lệnh duyệt đồng thời, mỗi lệnh giữ giao dịch khoá lặp và mở giao dịch riêng.
+      "DB_OVERSIGHT_POOL_MAX=4"
     })
 @AutoConfigureMockMvc(addFilters = false)
 @Import(ReopenApprovalApiIT.Beans.class)
@@ -118,8 +123,24 @@ class ReopenApprovalApiIT extends ContractConformanceTest {
     }
 
     @Bean
-    ApprovalSigner approvalTestSigner() {
+    ApprovalSigner approvalTestSigner(ObjectProvider<ReopenApprovalService> approvals) {
       return (tenant, id, key, authorization) -> {
+        // Như SVC-10 thật: hỏi tài liệu cần ký trên luồng và kết nối khác ngay trong lời gọi, nên
+        // chỉ thấy dữ liệu đã commit (đỏ khi bước chốt chạy lại trong giao dịch khoá lặp).
+        try {
+          CompletableFuture.supplyAsync(
+                  () -> {
+                    try {
+                      return TenantContext.call(
+                          tenant, () -> approvals.getObject().signSource(tenant, id).orElseThrow());
+                    } catch (Exception e) {
+                      throw new IllegalStateException(e);
+                    }
+                  })
+              .get(30, TimeUnit.SECONDS);
+        } catch (Exception e) {
+          throw new IllegalStateException("Tài liệu cần ký chưa sẵn sàng", e);
+        }
         UUID sign = UUID.randomUUID();
         SIGNED.add(sign);
         return sign;
@@ -219,7 +240,8 @@ class ReopenApprovalApiIT extends ContractConformanceTest {
     assertResponseConforms(
         first, "/oversight/reopen-requests/{id}/approvals", PathItem.HttpMethod.POST);
     assertThat(body(first).get("status").asText()).isEqualTo("CHO_DUYET_1");
-    assertThat(first.getResponse().getHeader("ETag")).isEqualTo("\"1\"");
+    // Chốt quyết định chờ ký rồi gắn mã yêu cầu ký (mẫu "chốt trước, gọi sau"): hai lần ghi.
+    assertThat(first.getResponse().getHeader("ETag")).isEqualTo("\"2\"");
     assertThat(Beans.SIGNED).hasSize(1);
     MvcResult source =
         perform(get("/internal/v1/esign-sources/oversight/" + id + "?purpose=PHE_DUYET_MO_LAI"));
@@ -234,7 +256,7 @@ class ReopenApprovalApiIT extends ContractConformanceTest {
 
     // Người duyệt lượt 1 không duyệt tiếp lượt 2.
     as(decider, List.of("decider", "second_approver"), child, "aal2");
-    MvcResult twice = perform(write(post(BASE + "/" + id + "/approvals"), comment(), "\"2\""));
+    MvcResult twice = perform(write(post(BASE + "/" + id + "/approvals"), comment(), "\"3\""));
     assertThat(status(twice)).as(text(twice)).isEqualTo(403);
     assertThat(body(twice).get("code").asText()).isEqualTo("OVERSIGHT-403-FOUR-EYES");
 
@@ -242,8 +264,8 @@ class ReopenApprovalApiIT extends ContractConformanceTest {
     as(second, List.of("second_approver"), parent, "aal2");
     List<Integer> codes =
         parallel(
-            () -> status(perform(write(post(BASE + "/" + id + "/approvals"), comment(), "\"2\""))),
-            () -> status(perform(write(post(BASE + "/" + id + "/approvals"), comment(), "\"2\""))));
+            () -> status(perform(write(post(BASE + "/" + id + "/approvals"), comment(), "\"3\""))),
+            () -> status(perform(write(post(BASE + "/" + id + "/approvals"), comment(), "\"3\""))));
     assertThat(codes).contains(200);
     assertThat(codes).allMatch(s -> s == 200 || s == 409);
     assertThat(Beans.SIGNED).hasSize(2);

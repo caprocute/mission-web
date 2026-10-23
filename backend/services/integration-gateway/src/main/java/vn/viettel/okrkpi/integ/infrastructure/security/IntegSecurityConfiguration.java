@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
@@ -41,6 +42,19 @@ public class IntegSecurityConfiguration {
               if (authEnabled) {
                 // org-service (DV-04-07) chỉ gọi lần đồng bộ và ghi ánh xạ mã ngoài; mọi cổng
                 // còn lại chỉ cho mission-core.
+                // DV-13-10: gateway của cell đối tác không có token của realm cell này; gói và
+                // kết quả nhập được xác thực bằng chữ ký cell theo danh bạ khoá có ký, lưới dịch
+                // vụ chỉ cho cổng ra liên cell gọi hai đường này (mTLS).
+                a.requestMatchers(
+                        HttpMethod.POST,
+                        "/internal/v1/integ/cell-transfers/inbound",
+                        "/internal/v1/integ/cell-transfers/outcomes")
+                    .permitAll();
+                a.requestMatchers(
+                        "/internal/v1/integ/cell-transfers", "/internal/v1/integ/cell-transfers/*")
+                    .hasAnyRole(
+                        InternalSyncRunController.SERVICE_ROLE,
+                        InternalIssuedDocumentController.SERVICE_ROLE);
                 a.requestMatchers(
                         "/internal/v1/integ/sync-runs",
                         "/internal/v1/integ/sync-runs/**",

@@ -4,9 +4,7 @@
         ${msg("updatePasswordTitle")}
     <#elseif section = "form">
         <form id="kc-passwd-update-form" class="mission-form" action="${url.loginAction}" method="post">
-            <p class="mission-otp-hint">
-                Để đảm bảo an toàn thông tin theo quy định, vui lòng thiết lập mật khẩu mới trước khi truy cập hệ thống.
-            </p>
+            <p class="mission-hint">Đặt mật khẩu mới để tiếp tục.</p>
 
             <div class="mission-field">
                 <label for="password-new" class="mission-label">${msg("passwordNew")}</label>
@@ -45,12 +43,7 @@
                 </#if>
             </div>
 
-            <div class="mission-actions">
-                <button class="mission-btn mission-btn--primary" type="submit">
-                    <span>Cập nhật mật khẩu &amp; Tiếp tục</span>
-                    <span aria-hidden="true">→</span>
-                </button>
-            </div>
+            <button class="mission-btn mission-btn--primary" type="submit">Lưu mật khẩu</button>
         </form>
     </#if>
 </@layout.registrationLayout>

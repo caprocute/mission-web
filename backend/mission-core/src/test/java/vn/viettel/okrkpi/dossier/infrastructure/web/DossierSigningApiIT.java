@@ -59,9 +59,13 @@ import vn.viettel.okrkpi.config.api.TenantSettingApi;
 import vn.viettel.okrkpi.contract.domain.ContractModule;
 import vn.viettel.okrkpi.contract.test.ContractConformanceTest;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierSigningService;
+import vn.viettel.okrkpi.dossier.application.dossierpackage.DossierTransferService;
+import vn.viettel.okrkpi.dossier.application.dossierpackage.port.CentralTitles;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.DossierPackageRepository;
+import vn.viettel.okrkpi.dossier.application.dossierpackage.port.EdxmlGateway;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.FileHashes;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.PackageEvents;
+import vn.viettel.okrkpi.dossier.application.dossierpackage.port.PackageFiles;
 import vn.viettel.okrkpi.dossier.application.dossierpackage.port.PackageSigner;
 import vn.viettel.okrkpi.dossier.domain.dossierpackage.PackageStatus;
 import vn.viettel.okrkpi.dossier.infrastructure.listener.DossierSigningConsumer;
@@ -183,7 +187,96 @@ class DossierSigningApiIT extends ContractConformanceTest {
     }
   }
 
+  /** Kho đối tượng giả cho xuất ZIP (CORE-06-08): đọc tệp đã đặt, giữ tệp đã ghi. */
+  static final class FakeFiles implements PackageFiles {
+
+    final Map<String, byte[]> stored = new ConcurrentHashMap<>();
+    final Map<String, byte[]> written = new ConcurrentHashMap<>();
+
+    @Override
+    public java.io.InputStream open(TenantId tenant, String objectKey) throws java.io.IOException {
+      byte[] b = stored.get(objectKey);
+      if (b == null) {
+        throw new java.io.FileNotFoundException(objectKey);
+      }
+      return new java.io.ByteArrayInputStream(b);
+    }
+
+    @Override
+    public long size(TenantId tenant, String objectKey) {
+      byte[] b = stored.get(objectKey);
+      return b == null ? -1 : b.length;
+    }
+
+    @Override
+    public WritableFile create(TenantId tenant, String objectKey, String contentType) {
+      ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+      return new WritableFile() {
+        @Override
+        public void write(int b) {
+          buffer.write(b);
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len) {
+          buffer.write(b, off, len);
+        }
+
+        @Override
+        public void close() {
+          written.put(objectKey, buffer.toByteArray());
+        }
+
+        @Override
+        public void abort() {}
+      };
+    }
+
+    @Override
+    public String downloadUrl(
+        TenantId tenant, String objectKey, String fileName, java.time.Duration ttl) {
+      return "https://kho.example/" + objectKey + "?ten=" + fileName;
+    }
+  }
+
+  /** SVC-13 giả theo hợp đồng DV-13-05: nhận gói con, trạng thái do kiểm thử đặt. */
+  static final class FakeGateway implements EdxmlGateway {
+
+    final List<Outgoing> sent = new CopyOnWriteArrayList<>();
+    final Map<UUID, RemoteState> remote = new ConcurrentHashMap<>();
+
+    @Override
+    public RemoteState send(TenantId tenant, Outgoing outgoing) {
+      sent.add(outgoing);
+      RemoteState s = new RemoteState(outgoing.transferId(), "CHO", 0, null, null, null, null);
+      remote.putIfAbsent(outgoing.transferId(), s);
+      return remote.get(outgoing.transferId());
+    }
+
+    @Override
+    public Optional<RemoteState> state(TenantId tenant, UUID transferId) {
+      return Optional.ofNullable(remote.get(transferId));
+    }
+  }
+
+  /** Diện TW giả: chỉ những người kiểm thử đánh dấu. */
+  static final class FakeCentral implements CentralTitles {
+
+    final java.util.Set<UUID> persons = ConcurrentHashMap.newKeySet();
+
+    @Override
+    public java.util.Set<UUID> centralPersons(
+        TenantId tenant, java.util.Collection<UUID> personIds, java.time.LocalDate on) {
+      java.util.Set<UUID> out = new java.util.HashSet<>(personIds);
+      out.retainAll(persons);
+      return out;
+    }
+  }
+
   static final AtomicInteger STEPS = new AtomicInteger();
+  static final FakeFiles FILES = new FakeFiles();
+  static final FakeGateway GATEWAY = new FakeGateway();
+  static final FakeCentral CENTRAL = new FakeCentral();
   static final FakeSigner SIGNER = new FakeSigner();
   static final FakeSettings SETTINGS = new FakeSettings();
   static final FakeHashes HASHES = new FakeHashes();
@@ -201,6 +294,24 @@ class DossierSigningApiIT extends ContractConformanceTest {
     @Primary
     FileHashes testFileHashes() {
       return HASHES;
+    }
+
+    @Bean
+    @Primary
+    PackageFiles testPackageFiles() {
+      return FILES;
+    }
+
+    @Bean
+    @Primary
+    EdxmlGateway testEdxmlGateway() {
+      return GATEWAY;
+    }
+
+    @Bean
+    @Primary
+    CentralTitles testCentralTitles() {
+      return CENTRAL;
     }
 
     @Bean
@@ -239,6 +350,7 @@ class DossierSigningApiIT extends ContractConformanceTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper json;
   @Autowired private DossierSigningService signing;
+  @Autowired private DossierTransferService transfers;
   @Autowired private DossierPackageRepository repository;
   private DossierSigningConsumer consumer;
   private final AtomicInteger offset = new AtomicInteger();
@@ -499,10 +611,246 @@ class DossierSigningApiIT extends ContractConformanceTest {
     assertThat(versions.get(1).get("version_no")).isEqualTo(2);
     assertThat(versions.get(1).get("status")).isEqualTo("DANG_LAP");
     assertThat(versions.get(1).get("code")).isEqualTo(versions.get(0).get("code"));
+    // DV-11-03: phiên bản lập sau EVT-22 mang mã yêu cầu mở lại cho SVC-11 đóng dấu sinh lại.
+    assertThat(packageColumn((UUID) versions.get(1).get("id"), "reopen_request_id")).isNotNull();
+    assertThat(packageColumn(pkg, "reopen_request_id")).isNull();
 
     // EVT-22 lặp cho cả kỳ: gói cũ đã có phiên bản mới hơn nên không lập thêm.
     assertThat(deliverReopened("TOAN_KY", List.of())).isEqualTo(InboxOutcome.PROCESSED);
     assertThat(versionsOf(unit)).hasSize(2);
+  }
+
+  // ---------------------------------------------------------------- xuất ZIP, gửi gói con
+  // (CORE-06-08)
+
+  @Test
+  void xuatZipVaGuiGoiConDienTwSauKhiNop() throws Exception {
+    UUID unit = UUID.randomUUID();
+    List<UUID> profiles = insertProfiles(unit, List.of("DA_KY_SO", "DA_KY_SO"));
+    UUID pkg = insertPackage(unit, profiles);
+    when(caller.currentUnitId()).thenReturn(Optional.of(unit));
+    for (Map<String, Object> f : forms(pkg)) {
+      FILES.stored.put(f.get("object_key").toString(), f.get("id").toString().getBytes(UTF8));
+    }
+
+    // Gói chưa ký: gửi gói con 409; gói chưa tới CHO_KY: xuất 409.
+    MvcResult unsigned = transfer(pkg, "{\"destination\":\"BTC_TW\"}");
+    assertThat(unsigned.getResponse().getStatus()).isEqualTo(409);
+    assertThat(body(unsigned).get("code").asText()).isEqualTo("DOSSIER-409-PACKAGE-NOT-SIGNED");
+    UUID draft = insertPackage(UUID.randomUUID(), profiles);
+    inDossier(
+        jdbc ->
+            jdbc.sql("UPDATE dossier.dossier_package SET status = 'DANG_LAP' WHERE id = ?")
+                .param(draft)
+                .update());
+    when(caller.currentUnitId()).thenReturn(Optional.of(packageUnit(draft)));
+    MvcResult notReady = export(draft);
+    assertThat(notReady.getResponse().getStatus()).isEqualTo(409);
+    assertThat(body(notReady).get("code").asText()).isEqualTo("DOSSIER-409-PACKAGE-NOT-READY");
+    when(caller.currentUnitId()).thenReturn(Optional.of(unit));
+
+    // Ký và nộp: EVT-18 lưu khoá tệp chữ ký cùng lúc chuyển DA_NOP.
+    UUID request = UUID.fromString(body(sign(pkg, etag(pkg))).get("signRequestId").asText());
+    byte[] manifestHash = (byte[]) packageRow(pkg).get("manifest_hash");
+    assertThat(deliverSigned(request, pkg, manifestHash)).isEqualTo(InboxOutcome.PROCESSED);
+    assertThat(status(pkg)).isEqualTo("DA_NOP");
+    String signatureKey = "esign/signed/" + request + ".p7s";
+    assertThat(packageColumn(pkg, "object_key")).isEqualTo(signatureKey);
+    FILES.stored.put(signatureKey, new byte[] {7, 7});
+
+    // Xuất ZIP: 202, tác vụ nền ghép manifest đã chốt, chữ ký và PDF; job trả URL tải.
+    long audits = audits();
+    MvcResult accepted = export(pkg);
+    assertThat(accepted.getResponse().getStatus()).isEqualTo(202);
+    assertResponseConforms(accepted, "/dossiers/packages/{id}/export", PathItem.HttpMethod.POST);
+    UUID exportId = UUID.fromString(body(accepted).get("id").asText());
+    assertThat(accepted.getResponse().getHeader("Location")).endsWith("/api/v1/jobs/" + exportId);
+    JsonNode job = awaitJob(exportId);
+    assertThat(job.get("status").asText()).isEqualTo("HOAN_TAT");
+    assertThat(job.get("resultLocation").asText()).startsWith("https://kho.example/xuat-goi/");
+    byte[] zip =
+        FILES.written.entrySet().stream()
+            .filter(e -> e.getKey().endsWith(exportId + ".zip"))
+            .findFirst()
+            .orElseThrow()
+            .getValue();
+    Map<String, byte[]> entries = unzip(zip);
+    assertThat(entries).containsKeys("manifest.json", "manifest.json.p7s", "thong-tin-goi.json");
+    assertThat(entries.get("manifest.json.p7s")).containsExactly(7, 7);
+    assertThat(json.readTree(entries.get("manifest.json")))
+        .isEqualTo(json.readTree(packageRow(pkg).get("manifest").toString()));
+    assertThat(entries.keySet().stream().filter(k -> k.startsWith("bieu-mau/"))).hasSize(3);
+    assertThat(audits()).isEqualTo(audits + 1);
+
+    // Gói không có hồ sơ diện TW: 409.
+    MvcResult none = transfer(pkg, "{\"destination\":\"BTC_TW\"}");
+    assertThat(none.getResponse().getStatus()).isEqualTo(409);
+    assertThat(body(none).get("code").asText()).isEqualTo("DOSSIER-409-NO-CENTRAL-PROFILES");
+
+    // Một hồ sơ diện TW: gửi ngay một gói con, ghi sổ nhật ký.
+    UUID person = personOf(profiles.get(0));
+    CENTRAL.persons.add(person);
+    MvcResult sent = transfer(pkg, "{\"destination\":\"BTC_TW\"}");
+    assertThat(sent.getResponse().getStatus()).isEqualTo(202);
+    assertResponseConforms(sent, "/dossiers/packages/{id}/transfers", PathItem.HttpMethod.POST);
+    assertThat(audits()).isEqualTo(audits + 2);
+    EdxmlGateway.Outgoing out =
+        GATEWAY.sent.stream().filter(o -> o.packageId().equals(pkg)).findFirst().orElseThrow();
+    assertThat(out.destination()).isEqualTo("BTC_TW");
+    assertThat(out.attachments().stream().map(EdxmlGateway.Attachment::name))
+        .contains("manifest.json", "manifest.json.p7s", "thong-tin-goi-con.json");
+    assertThat(transferRow(out.transferId()).get("status")).isEqualTo("CHO");
+
+    // Bên nhận chưa phản hồi: SVC-13 hẹn thử lại; MSG-11-06 cho người gửi, gói chính vẫn DA_NOP.
+    long notices = notices(out.transferId());
+    GATEWAY.remote.put(
+        out.transferId(),
+        new EdxmlGateway.RemoteState(
+            out.transferId(),
+            "CHO",
+            1,
+            Instant.now().plusSeconds(600),
+            null,
+            null,
+            "SocketTimeoutException"));
+    poll();
+    assertThat(status(pkg)).isEqualTo("DA_NOP");
+    assertThat(notices(out.transferId())).isEqualTo(notices + 1);
+    poll();
+    assertThat(notices(out.transferId())).isEqualTo(notices + 1);
+
+    // Biên nhận: gói con DA_XAC_NHAN, gói chính chuyển DA_LUU_TRU, ghi nơi nhận, ghi sổ.
+    GATEWAY.remote.put(
+        out.transferId(),
+        new EdxmlGateway.RemoteState(
+            out.transferId(), "DA_XAC_NHAN", 2, null, "BN-1", Instant.now(), null));
+    poll();
+    assertThat(transferRow(out.transferId()).get("status")).isEqualTo("DA_XAC_NHAN");
+    assertThat(status(pkg)).isEqualTo("DA_LUU_TRU");
+    assertThat(packageColumn(pkg, "transferred_to")).isEqualTo("BTC_TW");
+    assertThat(audits()).isEqualTo(audits + 3);
+    assertThat((byte[]) packageRow(pkg).get("package_sha256")).isEqualTo(manifestHash);
+  }
+
+  private static final java.nio.charset.Charset UTF8 = StandardCharsets.UTF_8;
+
+  private MvcResult export(UUID pkg) throws Exception {
+    return perform(
+        post("/api/v1/dossiers/packages/" + pkg + "/export")
+            .header("Idempotency-Key", UUID.randomUUID().toString()));
+  }
+
+  private MvcResult transfer(UUID pkg, String content) throws Exception {
+    return perform(
+        post("/api/v1/dossiers/packages/" + pkg + "/transfers")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(content));
+  }
+
+  /** Lượt theo dõi bỏ qua gói con vừa đổi trong khoảng lặng: lùi mốc cập nhật trước khi hỏi. */
+  private void poll() throws Exception {
+    inDossier(
+        jdbc ->
+            jdbc.sql("UPDATE dossier.package_transfer SET updated_at = now() - interval '1 hour'")
+                .update());
+    TenantContext.call(tenant, () -> transfers.poll(tenant, 50));
+  }
+
+  private JsonNode awaitJob(UUID id) throws Exception {
+    long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
+    while (true) {
+      InMemoryJobRegistry.setActorOverride(ActorId.of(OFFICER));
+      JsonNode job;
+      try {
+        job = body(perform(get("/api/v1/jobs/" + id)));
+      } finally {
+        InMemoryJobRegistry.clearActorOverride();
+      }
+      String s = job.path("status").asText();
+      if (!"DANG_CHAY".equals(s) && !"CHO".equals(s) || System.nanoTime() > deadline) {
+        return job;
+      }
+      java.util.concurrent.locks.LockSupport.parkNanos(50_000_000L);
+    }
+  }
+
+  private static Map<String, byte[]> unzip(byte[] zip) throws java.io.IOException {
+    Map<String, byte[]> out = new java.util.LinkedHashMap<>();
+    try (java.util.zip.ZipInputStream in =
+        new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(zip))) {
+      for (var e = in.getNextEntry(); e != null; e = in.getNextEntry()) {
+        out.put(e.getName(), in.readAllBytes());
+      }
+    }
+    return out;
+  }
+
+  private List<Map<String, Object>> forms(UUID pkg) throws Exception {
+    return inDossier(
+        jdbc ->
+            jdbc.sql(
+                    "SELECT id, object_key FROM dossier.form_instance WHERE dossier_package_id = ?")
+                .param(pkg)
+                .query()
+                .listOfRows());
+  }
+
+  private UUID packageUnit(UUID pkg) throws Exception {
+    return inDossier(
+        jdbc ->
+            jdbc.sql("SELECT org_unit_id FROM dossier.dossier_package WHERE id = ?")
+                .param(pkg)
+                .query(UUID.class)
+                .single());
+  }
+
+  private String packageColumn(UUID pkg, String column) throws Exception {
+    return inDossier(
+        jdbc ->
+            jdbc.sql("SELECT " + column + "::text FROM dossier.dossier_package WHERE id = ?")
+                .param(pkg)
+                .query((rs, i) -> rs.getString(1))
+                .list()
+                .get(0));
+  }
+
+  private Map<String, Object> transferRow(UUID id) throws Exception {
+    return inDossier(
+        jdbc ->
+            jdbc.sql("SELECT status, attempts FROM dossier.package_transfer WHERE id = ?")
+                .param(id)
+                .query()
+                .singleRow());
+  }
+
+  private UUID personOf(UUID profile) {
+    return inAppraisal(
+        jdbc ->
+            jdbc.sql("SELECT person_id FROM appraisal.appraisal_profile WHERE id = ?")
+                .param(profile)
+                .query(UUID.class)
+                .single());
+  }
+
+  private long audits() throws Exception {
+    return inDossier(
+        jdbc ->
+            jdbc.sql("SELECT count(*) FROM dossier.outbox_event WHERE topic = ?")
+                .param(EventTopics.SYS_AUDIT_V1)
+                .query(Long.class)
+                .single());
+  }
+
+  private long notices(UUID transferId) throws Exception {
+    return inDossier(
+        jdbc ->
+            jdbc.sql(
+                    "SELECT count(*) FROM dossier.outbox_event WHERE aggregate_id = ?"
+                        + " AND topic = ?")
+                .params(transferId, EventTopics.EVT_21_YEU_CAU_THONG_BAO)
+                .query(Long.class)
+                .single());
   }
 
   // ---------------------------------------------------------------- tiện ích

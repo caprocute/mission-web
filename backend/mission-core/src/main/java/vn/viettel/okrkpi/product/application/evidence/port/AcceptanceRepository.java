@@ -29,7 +29,9 @@ public interface AcceptanceRepository {
       int revisionCount,
       List<CriterionResult> criteria,
       SealedComment comment,
-      Instant decidedAt) {}
+      Instant decidedAt,
+      UUID onBehalfOf,
+      UUID delegationId) {}
 
   void insertAcceptance(TenantId tenant, NewAcceptance a);
 

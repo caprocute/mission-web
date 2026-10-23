@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.TransactionOperations;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodLockedException;
 import vn.viettel.okrkpi.config.api.PeriodSnapshot;
@@ -64,6 +65,7 @@ class ReopenApprovalServiceTest {
   private List<String> audits;
   private PeriodStatus periodStatus;
   private int signs;
+  private java.util.function.Consumer<UUID> duringSign = id -> {};
   private ReopenApprovalService service;
 
   @BeforeEach
@@ -99,6 +101,7 @@ class ReopenApprovalServiceTest {
         directory,
         withSigner
             ? (t, id, key, auth) -> {
+              duringSign.accept(id);
               signs++;
               return UUID.randomUUID();
             }
@@ -107,6 +110,7 @@ class ReopenApprovalServiceTest {
         e,
         (t, actor, action, type, id, purpose, role) -> audits.add(action + ":" + role),
         new Periods(),
+        TransactionOperations.withoutTransaction(),
         CLOCK);
   }
 
@@ -235,7 +239,8 @@ class ReopenApprovalServiceTest {
     View v = approve(decider, r);
     assertThat(v.request().status()).isEqualTo(ReopenStatus.CHO_DUYET_1);
     assertThat(v.request().workflow().pending().approverId()).isEqualTo(decider);
-    assertThat(v.request().rowVersion()).isEqualTo(1);
+    // Chốt quyết định chờ ký rồi gắn mã yêu cầu ký: hai lần ghi.
+    assertThat(v.request().rowVersion()).isEqualTo(2);
     // Gửi lại khi đang chờ ký trả trạng thái hiện tại, không mở thêm yêu cầu ký.
     approve(decider, r);
     assertThat(signs).isEqualTo(1);
@@ -349,6 +354,78 @@ class ReopenApprovalServiceTest {
                         p.requestedAt())),
             now.rowVersion()));
     assertThat(code(() -> approve(decider, r))).isEqualTo("OVERSIGHT-409-INVALID-STATE");
+  }
+
+  @Test
+  void taiLieuCanKySanSangNgayTrongLoiGoiSvc10() {
+    ReopenRequest r = stored();
+    List<ReopenApprovalService.SignSource> seen = new ArrayList<>();
+    duringSign = id -> seen.add(service.signSource(T, id).orElseThrow());
+    approve(decider, r);
+    assertThat(seen).singleElement().satisfies(s -> assertThat(s.signer()).isEqualTo(decider));
+    ReopenRequest now = current(r.id());
+    assertThat(now.workflow().pending().signRequestId()).isNotNull();
+    assertThat(now.rowVersion()).isEqualTo(r.rowVersion() + 2);
+  }
+
+  @Test
+  void svc10LoiThiGoQuyetDinhVuaChotDeGuiLai() {
+    ReopenRequest r = stored();
+    duringSign =
+        id -> {
+          throw new IllegalStateException("SVC-10 lỗi");
+        };
+    assertThatThrownBy(() -> approve(decider, r)).isInstanceOf(IllegalStateException.class);
+    assertThat(current(r.id()).workflow().pending()).isNull();
+    assertThat(service.signSource(T, r.id())).isEmpty();
+    duringSign = id -> {};
+    approve(decider, r);
+    assertThat(signs).isEqualTo(1);
+    assertThat(sign(r)).isTrue();
+  }
+
+  @Test
+  void lanGuiTruocDungGiuaChungThiChotLaiTheoQuyetDinhMoi() {
+    ReopenRequest r = stored();
+    // Giữ quyết định chưa có mã yêu cầu ký như khi tiến trình dừng trước bước gỡ.
+    ReopenRequest[] kept = new ReopenRequest[1];
+    duringSign =
+        id -> {
+          kept[0] = current(id);
+          throw new IllegalStateException("tiến trình dừng");
+        };
+    assertThatThrownBy(() -> approve(decider, r)).isInstanceOf(IllegalStateException.class);
+    repo.rows.put(r.id(), kept[0]);
+    duringSign = id -> {};
+    service.decide(T, actor(decider), r.id(), etag(kept[0]), false, OK, "k2", null);
+    ReopenWorkflow.Pending p = current(r.id()).workflow().pending();
+    assertThat(p.decision()).isEqualTo(ReopenApprovalService.TU_CHOI);
+    assertThat(p.signRequestId()).isNotNull();
+    assertThat(signs).isEqualTo(1);
+  }
+
+  @Test
+  void yeuCauDoiTrongLucGoiSvc10ThiKhongGanVaKhongGo() {
+    ReopenRequest r = stored();
+    duringSign = id -> bump(id);
+    assertThat(code(() -> approve(decider, r))).isEqualTo("OVERSIGHT-409-VERSION-CONFLICT");
+    duringSign =
+        id -> {
+          bump(id);
+          throw new IllegalStateException("SVC-10 lỗi");
+        };
+    ReopenRequest again = current(r.id());
+    repo.rows.put(
+        r.id(),
+        again.with(
+            again.status(), null, null, again.workflow().withPending(null), again.rowVersion()));
+    assertThatThrownBy(() -> approve(decider, r)).isInstanceOf(IllegalStateException.class);
+    assertThat(current(r.id()).workflow().pending()).isNotNull();
+  }
+
+  private void bump(UUID id) {
+    ReopenRequest now = current(id);
+    repo.rows.put(id, now.with(now.status(), null, null, now.workflow(), now.rowVersion() + 1));
   }
 
   @Test

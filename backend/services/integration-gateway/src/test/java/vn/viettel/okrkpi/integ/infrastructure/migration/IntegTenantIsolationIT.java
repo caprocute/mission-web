@@ -111,6 +111,7 @@ class IntegTenantIsolationIT extends TenantIsolationCatalogTest {
           r.put("direction", "DI");
           r.put("peer_cell_code", "C02");
           r.put("peer_tenant_code", "T02");
+          r.put("peer_tenant_id", id(tenant, "peer-tenant"));
           r.put("manifest", jsonb("{}"));
           r.put("object_key", "tp/" + tenant);
           r.put("package_sha256", new byte[32]);

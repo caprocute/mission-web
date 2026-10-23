@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import vn.viettel.okrkpi.appraisal.application.profile.AppraisalProfileService;
 import vn.viettel.okrkpi.appraisal.application.profile.AppraisalProfileService.Transitioned;
@@ -176,7 +177,7 @@ public class ReviewService {
    * gửi thì chép kết quả tự nhận). Gửi lại khi kết luận của chính người này đang chờ ký thì trả yêu
    * cầu ký cũ.
    */
-  @Transactional(TX)
+  @Transactional(transactionManager = TX, propagation = Propagation.REQUIRES_NEW)
   public Prepared prepareAppraisal(
       TenantId tenant, UUID profileId, long expectedVersion, UUID actor, AppraisalDraft draft) {
     ProfileRow row = profiles.lock(tenant, profileId).orElseThrow(NoSuchElementException::new);
@@ -253,7 +254,7 @@ public class ReviewService {
   }
 
   /** Gắn yêu cầu ký SVC-10 vừa mở vào dòng mức thẩm định. */
-  @Transactional(TX)
+  @Transactional(transactionManager = TX, propagation = Propagation.REQUIRES_NEW)
   public void attachSignRequest(TenantId tenant, Prepared prepared, UUID signRequestId) {
     reviews.attachSignRequest(
         tenant, prepared.periodBucket(), prepared.proposalId(), signRequestId, clock.instant());

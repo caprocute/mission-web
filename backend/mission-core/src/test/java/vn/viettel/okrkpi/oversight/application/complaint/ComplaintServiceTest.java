@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.TransactionOperations;
 import vn.viettel.okrkpi.appraisal.api.ComplaintProfilesApi;
 import vn.viettel.okrkpi.config.api.PeriodApi;
 import vn.viettel.okrkpi.config.api.PeriodLockedException;
@@ -64,6 +65,7 @@ class ComplaintServiceTest {
   private final List<String> events = new ArrayList<>();
   private final List<String> audits = new ArrayList<>();
   private final List<UUID> signed = new ArrayList<>();
+  private java.util.function.Consumer<UUID> duringSign = id -> {};
   private ComplaintService service;
 
   @BeforeEach
@@ -84,6 +86,7 @@ class ComplaintServiceTest {
         s,
         withSigner
             ? (tenant, id, key, auth) -> {
+              duringSign.accept(id);
               UUID sign = UUID.randomUUID();
               signed.add(sign);
               return sign;
@@ -107,6 +110,7 @@ class ComplaintServiceTest {
           }
         },
         (tenant, actor, action, type, id, purpose, role) -> audits.add(action),
+        TransactionOperations.withoutTransaction(),
         Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
@@ -429,6 +433,62 @@ class ComplaintServiceTest {
   }
 
   @Test
+  void taiLieuCanKySanSangNgayTrongLoiGoiSvc10() {
+    UUID p = profiles.add(me, "DA_KY_SO", NOW);
+    Complaint c = service.create(T, member(), withTarget(p, ComplaintKind.KHIEU_NAI)).complaint();
+    assertThat(service.signSource(T, c.id())).isEmpty();
+    List<ComplaintService.SignSource> seen = new ArrayList<>();
+    duringSign = id -> seen.add(service.signSource(T, id).orElseThrow());
+    UUID sign = service.submit(T, member(), c.id(), "\"0\"", "k", null);
+    assertThat(seen).singleElement().satisfies(src -> assertThat(src.signer()).isEqualTo(me));
+    assertThat(repo.signPending).isEmpty();
+    assertThat(repo.rows.get(c.id()).signRequestId()).isEqualTo(sign);
+  }
+
+  @Test
+  void svc10LoiThiGoDauChoKyVaGiuNhap() {
+    UUID p = profiles.add(me, "DA_KY_SO", NOW);
+    Complaint c = service.create(T, member(), withTarget(p, ComplaintKind.KHIEU_NAI)).complaint();
+    duringSign =
+        id -> {
+          throw new IllegalStateException("SVC-10 lỗi");
+        };
+    assertThatThrownBy(() -> service.submit(T, member(), c.id(), "\"0\"", "k", null))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(repo.signPending).isEmpty();
+    assertThat(service.signSource(T, c.id())).isEmpty();
+    assertThat(audits).doesNotContain(ComplaintService.ACTION_SUBMIT);
+    duringSign = id -> {};
+    UUID sign = service.submit(T, member(), c.id(), "\"0\"", "k", null);
+    assertThat(repo.rows.get(c.id()).signRequestId()).isEqualTo(sign);
+  }
+
+  @Test
+  void dauChoKyKhongGhiDuocThiBaoXungDot() {
+    UUID p = profiles.add(me, "DA_KY_SO", NOW);
+    Complaint c = service.create(T, member(), withTarget(p, ComplaintKind.KHIEU_NAI)).complaint();
+    repo.failMark = true;
+    assertThatThrownBy(() -> service.submit(T, member(), c.id(), "\"0\"", "k", null))
+        .satisfies(e -> assertThat(code(e)).isEqualTo("OVERSIGHT-409-VERSION-CONFLICT"));
+    assertThat(signed).isEmpty();
+  }
+
+  @Test
+  void duLieuVanBanTraLoiChiChoNguoiKhieuNaiVaNguoiXuLy() {
+    UUID p = profiles.add(me, "DA_KY_SO", NOW);
+    Complaint c = service.create(T, member(), withTarget(p, ComplaintKind.KHIEU_NAI)).complaint();
+    UUID handler = UUID.randomUUID();
+    Complaint accepted = repo.rows.get(c.id()).filed(NOW, null, unit, null).accepted(handler, NOW);
+    repo.rows.put(c.id(), accepted);
+    assertThat(service.forDocument(T, me, c.id())).isPresent();
+    assertThat(service.forDocument(T, handler, c.id())).isPresent();
+    assertThat(service.forDocument(T, UUID.randomUUID(), c.id())).isEmpty();
+    assertThat(service.forDocument(T, null, c.id())).isEmpty();
+    assertThat(service.forDocument(T, me, null)).isEmpty();
+    assertThat(service.forDocument(T, me, UUID.randomUUID())).isEmpty();
+  }
+
+  @Test
   void suaNhapSauKhiMoYeuCauKyThiChuKyCuBiBo() {
     UUID p = profiles.add(me, "DA_KY_SO", NOW);
     Complaint c = service.create(T, member(), withTarget(p, ComplaintKind.KHIEU_NAI)).complaint();
@@ -676,7 +736,9 @@ class ComplaintServiceTest {
     final Map<UUID, Complaint> rows = new HashMap<>();
     final List<String> codes = new ArrayList<>();
     final List<Integer> lockedYears = new ArrayList<>();
+    final Map<UUID, Instant> signPending = new HashMap<>();
     boolean failUpdate;
+    boolean failMark;
 
     @Override
     public void lockCodes(TenantId tenant, int year) {
@@ -712,7 +774,27 @@ class ComplaintServiceTest {
         return false;
       }
       rows.put(changed.id(), changed);
+      signPending.remove(changed.id());
       return true;
+    }
+
+    @Override
+    public boolean markSignPending(TenantId tenant, Complaint c, Instant at) {
+      Complaint cur = rows.get(c.id());
+      if (failMark || cur == null || cur.rowVersion() != c.rowVersion() || !cur.draft()) {
+        return false;
+      }
+      if (at == null) {
+        signPending.remove(c.id());
+      } else {
+        signPending.put(c.id(), at);
+      }
+      return true;
+    }
+
+    @Override
+    public boolean signPending(TenantId tenant, UUID id) {
+      return signPending.containsKey(id);
     }
 
     @Override

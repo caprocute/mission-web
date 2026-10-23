@@ -59,6 +59,15 @@ public interface ComplaintRepository {
   /** Còn khiếu nại khác (khác {@code exceptId}) giữ hồ sơ ở nhánh {@code KHIEU_NAI}. */
   boolean otherOpenReopening(TenantId tenant, UUID profileId, UUID exceptId);
 
+  /**
+   * Đánh dấu nháp đang mở yêu cầu ký ở SVC-10 ({@code at}), hoặc gỡ dấu khi {@code at} rỗng; chỉ
+   * khi phiên bản dòng vẫn là {@code c.rowVersion()}. {@link #update} luôn gỡ dấu.
+   */
+  boolean markSignPending(TenantId tenant, Complaint c, Instant at);
+
+  /** Nháp đang mở yêu cầu ký (đã đánh dấu, chưa gắn mã yêu cầu ký). */
+  boolean signPending(TenantId tenant, UUID id);
+
   /** Mã khiếu nại theo yêu cầu ký ở SVC-10. */
   Optional<Complaint> bySignRequest(TenantId tenant, UUID signRequestId);
 

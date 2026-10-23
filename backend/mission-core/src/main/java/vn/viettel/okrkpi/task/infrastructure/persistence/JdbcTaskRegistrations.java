@@ -97,13 +97,15 @@ public class JdbcTaskRegistrations implements TaskRegistrations {
             "INSERT INTO task.plan_item (id, created_by, updated_by, period_id, period_bucket,"
                 + " plan_version_id, item_no, catalog_item_id, title, task_group,"
                 + " lead_person_id, planned_quantity, unit, difficulty, standard_score, due_date,"
-                + " change_reason, coefficient_levels, axis_code, created_at, updated_at)"
+                + " change_reason, coefficient_levels, axis_code, product_name, created_at,"
+                + " updated_at)"
                 + " SELECT ?, ?, ?, ?, ?, ?, coalesce((SELECT max(item_no) FROM task.plan_item"
                 + " WHERE period_bucket = ? AND tenant_id = ? AND plan_version_id = ?), 0) + 1,"
                 + " ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, coalesce((SELECT c.coefficient_levels FROM"
                 + " task.catalog_item c WHERE c.tenant_id = ? AND c.id = ?), '{}'),"
                 + " (SELECT c.axis_code FROM task.catalog_item c WHERE c.tenant_id = ?"
-                + " AND c.id = ?), ?, ?")
+                + " AND c.id = ?), (SELECT t.product_name FROM task.task t WHERE"
+                + " t.period_bucket = ? AND t.tenant_id = ? AND t.id = ?), ?, ?")
         .params(
             id,
             actor,
@@ -128,6 +130,9 @@ public class JdbcTaskRegistrations implements TaskRegistrations {
             task.catalogItemId(),
             tenant.value(),
             task.catalogItemId(),
+            periodBucket,
+            tenant.value(),
+            task.taskId(),
             Timestamp.from(at),
             Timestamp.from(at))
         .update();

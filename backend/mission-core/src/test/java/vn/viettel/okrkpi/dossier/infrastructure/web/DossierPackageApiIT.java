@@ -516,6 +516,111 @@ class DossierPackageApiIT extends ContractConformanceTest {
         .isEqualTo(404);
   }
 
+  // ---------------------------------------------------------------- DV-11-02, DV-11-03
+
+  @Test
+  void congNoiBoBieuMauNhapVaXemTruoc() throws Exception {
+    UUID unit = UUID.randomUUID();
+    List<UUID> decided = insertProfiles(unit, 1, "DA_QUYET_DINH");
+    List<UUID> open = insertProfiles(unit, 1, "CHO_QUYET_DINH");
+
+    MvcResult drafts =
+        perform(
+            post("/internal/v1/dossier-draft-forms")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    json.writeValueAsString(
+                        Map.of(
+                            "formCode",
+                            "MAU_3",
+                            "periodId",
+                            year,
+                            "profileIds",
+                            List.of(decided.get(0), open.get(0))))));
+    assertThat(drafts.getResponse().getStatus()).isEqualTo(200);
+    JsonNode forms = body(drafts).get("forms");
+    assertThat(forms).hasSize(1);
+    assertThat(forms.get(0).get("templateVersion").asInt()).isEqualTo(2);
+    assertThat(forms.get(0).get("reopenRequestId").isNull()).isTrue();
+    UUID form = UUID.fromString(forms.get(0).get("formInstanceId").asText());
+    Boolean draftRow =
+        inDossier(
+            jdbc ->
+                jdbc.sql(
+                        "SELECT dossier_package_id IS NULL AND cardinality(source_profile_ids) = 2"
+                            + " FROM dossier.form_instance WHERE id = ?")
+                    .param(form)
+                    .query(Boolean.class)
+                    .single());
+    assertThat(draftRow).isTrue();
+    MvcResult data = perform(get("/internal/v1/dossier-form-instances/" + form + "/render-data"));
+    assertThat(data.getResponse().getStatus()).isEqualTo(200);
+    assertThat(
+            java.util.HexFormat.of()
+                .formatHex(
+                    MessageDigest.getInstance("SHA-256")
+                        .digest(data.getResponse().getContentAsByteArray())))
+        .isEqualTo(forms.get(0).get("dataSnapshotHash").asText());
+    assertThat(json.readTree(data.getResponse().getContentAsByteArray()).get("danhSachHoSo"))
+        .hasSize(2);
+
+    MvcResult invalid =
+        perform(
+            post("/internal/v1/dossier-draft-forms")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    json.writeValueAsString(
+                        Map.of("formCode", "MAU_9", "periodId", year, "profileIds", decided))));
+    assertThat(invalid.getResponse().getStatus()).isEqualTo(422);
+    MvcResult missing =
+        perform(
+            post("/internal/v1/dossier-draft-forms")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    json.writeValueAsString(
+                        Map.of(
+                            "formCode",
+                            "MAU_3",
+                            "periodId",
+                            year,
+                            "profileIds",
+                            List.of(UUID.randomUUID())))));
+    assertThat(missing.getResponse().getStatus()).isEqualTo(404);
+
+    MvcResult preview =
+        perform(
+            post("/internal/v1/dossier-form-previews")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    json.writeValueAsString(
+                        Map.of(
+                            "formCode",
+                            "BANG_CHAM_DIEM",
+                            "sourceModule",
+                            "appraisal",
+                            "sourceRefId",
+                            open.get(0)))));
+    assertThat(preview.getResponse().getStatus()).isEqualTo(200);
+    JsonNode p = body(preview);
+    assertThat(p.get("policyPackCode").asText()).isEqualTo(PACK_CODE);
+    assertThat(json.readTree(p.get("data").asText()).at("/hoSo/hoSoId").asText())
+        .isEqualTo(open.get(0).toString());
+    MvcResult other =
+        perform(
+            post("/internal/v1/dossier-form-previews")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    json.writeValueAsString(
+                        Map.of(
+                            "formCode",
+                            "MAU_3",
+                            "sourceModule",
+                            "oversight",
+                            "sourceRefId",
+                            open.get(0)))));
+    assertThat(other.getResponse().getStatus()).isEqualTo(404);
+  }
+
   // ---------------------------------------------------------------- đo EVT-17
 
   @Test

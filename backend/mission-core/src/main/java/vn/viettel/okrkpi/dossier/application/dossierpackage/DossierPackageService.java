@@ -109,7 +109,10 @@ public class DossierPackageService {
   public record NewPackageCommand(
       UUID periodId, UUID orgUnitId, PackageKind kind, LocalDate deadline) {}
 
-  /** Một biểu mẫu cần sinh trả cho SVC-11 ({@code HttpRenderInputClient.Form}). */
+  /**
+   * Một biểu mẫu cần sinh trả cho SVC-11 ({@code HttpRenderInputClient.Form}); {@code
+   * reopenRequestId} là yêu cầu mở lại kỳ khi gói là phiên bản lập sau EVT-22 (BR-13-08).
+   */
   public record RenderInput(
       UUID formInstanceId,
       String formCode,
@@ -117,7 +120,31 @@ public class DossierPackageService {
       String dataSnapshotHash,
       Integer templateVersion,
       String policyPackCode,
-      String policyPackVersion) {}
+      String policyPackVersion,
+      UUID reopenRequestId) {}
+
+  /**
+   * Dữ liệu xem trước trả SVC-11 ({@code HttpRenderInputClient.Preview}): {@code data} là tài liệu
+   * JSON chuẩn tắc cùng hình dạng với dữ liệu biểu mẫu chính thức.
+   */
+  public record PreviewInput(
+      String subjectGroupCode,
+      Integer templateVersion,
+      String policyPackCode,
+      String policyPackVersion,
+      String data) {}
+
+  /** Mã biểu mẫu hợp lệ ({@code ck_form_instance__form_code}). */
+  static final Set<String> FORM_CODES =
+      Set.of("MAU_1A", "MAU_1B", "MAU_1C", "MAU_1D", "MAU_2", "MAU_3", "BANG_CHAM_DIEM");
+
+  /** Số hồ sơ tối đa của một lệnh sinh nháp (suy luận). */
+  static final int MAX_DRAFT_PROFILES = 500;
+
+  /** Nguồn xem trước: hồ sơ đánh giá của MOD-04 và biểu mẫu đã có của MOD-06. */
+  static final String SOURCE_APPRAISAL = "appraisal";
+
+  static final String SOURCE_DOSSIER = "dossier";
 
   public DossierPackageService(
       DossierPackageRepository packages,
@@ -565,6 +592,7 @@ public class DossierPackageService {
     for (UnitProfile p : api().unitProfiles(tenant, pkg.periodId(), pkg.orgUnitId())) {
       packs.put(p.id(), p.pack());
     }
+    UUID reopen = packages.reopenRequest(tenant, pkg.periodBucket(), pkg.id()).orElse(null);
     List<RenderInput> out = new ArrayList<>();
     for (FormRow f : pending) {
       if (formCodes != null && !formCodes.isEmpty() && !formCodes.contains(f.formCode())) {
@@ -579,7 +607,8 @@ public class DossierPackageService {
               HexFormat.of().formatHex(f.dataSnapshotHash()),
               templateVersion(f.templateVersion()),
               pack == null ? null : pack.code(),
-              pack == null ? null : pack.version()));
+              pack == null ? null : pack.version(),
+              reopen));
     }
     return Optional.of(out);
   }
@@ -587,10 +616,13 @@ public class DossierPackageService {
   /** Tài liệu JSON chuẩn tắc của biểu mẫu, tính lại từ dữ liệu đã quyết định. */
   public Optional<byte[]> renderData(TenantId tenant, UUID formInstanceId) {
     Optional<FormRow> found = packages.findForm(tenant, formInstanceId);
-    if (found.isEmpty() || found.get().packageId() == null) {
+    if (found.isEmpty()) {
       return Optional.empty();
     }
     FormRow f = found.get();
+    if (f.packageId() == null) {
+      return draftData(tenant, f);
+    }
     PackageRow pkg = packages.find(tenant, f.packageId()).orElse(null);
     if (pkg == null) {
       return Optional.empty();
@@ -607,6 +639,185 @@ public class DossierPackageService {
               .canonicalJson());
     }
     return Optional.of(FormDocuments.personal(f.formCode(), p).canonicalJson());
+  }
+
+  // ---------------------------------------------------------------- bản nháp, xem trước
+
+  /**
+   * Biểu mẫu nháp ngoài gói cho các hồ sơ đang chọn (DV-11-03, {@code createDossierDraftForms}):
+   * biểu mẫu đơn vị là một biểu mẫu trên đúng tập đã chọn (lưu {@code source_profile_ids}), biểu
+   * mẫu cá nhân là một biểu mẫu cho mỗi hồ sơ; dữ liệu là dữ liệu hiện tại, kể cả hồ sơ chưa quyết
+   * định. Rỗng khi có hồ sơ không tồn tại, không thuộc kỳ hoặc ngoài đơn vị của người gọi.
+   */
+  public Optional<List<RenderInput>> draftForms(
+      TenantId tenant, UUID actor, String formCode, UUID periodId, List<UUID> profileIds) {
+    if (formCode == null || !FORM_CODES.contains(formCode)) {
+      throw invalid("formCode", "Mã biểu mẫu không hợp lệ.");
+    }
+    if (periodId == null) {
+      throw invalid("periodId", "Chưa chọn kỳ đánh giá.");
+    }
+    List<UUID> ids =
+        profileIds == null ? List.of() : profileIds.stream().distinct().sorted().toList();
+    if (ids.isEmpty() || ids.size() > MAX_DRAFT_PROFILES) {
+      throw invalid(
+          "profileIds", "Chọn từ 1 đến " + MAX_DRAFT_PROFILES + " hồ sơ để sinh biểu mẫu nháp.");
+    }
+    List<UnitProfile> selected = new ArrayList<>();
+    for (UUID id : ids) {
+      Optional<UnitProfile> p = api().find(tenant, id);
+      if (p.isEmpty()
+          || !periodId.equals(p.get().periodId())
+          || outsideUnit(tenant, actor, p.get().orgUnitId())) {
+        return Optional.empty();
+      }
+      selected.add(p.get());
+    }
+    UnitProfile owner =
+        selected.stream().filter(UnitProfile::head).findFirst().orElse(selected.get(0));
+    UUID creator = actor == null ? new UUID(0L, 0L) : actor;
+    List<RenderInput> out = new ArrayList<>();
+    inTx(
+        () -> {
+          if (isUnitForm(owner.pack(), formCode)) {
+            FormDocuments.Document doc =
+                FormDocuments.selection(
+                    formCode, periodId, commonUnit(selected), owner.pack(), selected);
+            out.add(draft(tenant, owner, formCode, doc, ids, creator));
+          } else {
+            for (UnitProfile p : selected) {
+              FormDocuments.Document doc = FormDocuments.personal(formCode, p);
+              out.add(draft(tenant, p, formCode, doc, List.of(), creator));
+            }
+          }
+          return null;
+        });
+    return Optional.of(out);
+  }
+
+  /**
+   * Dữ liệu hiện tại để xem trước (DV-11-02, {@code previewDossierForm}), không ghi gì: nguồn
+   * {@code appraisal} là hồ sơ đánh giá (biểu mẫu đơn vị lấy mọi hồ sơ của đơn vị trong kỳ), nguồn
+   * {@code dossier} là biểu mẫu đã có. Nguồn khác ({@code oversight}) chưa có dữ liệu ở MOD-06 nên
+   * rỗng (suy luận, wiki trang 14).
+   */
+  public Optional<PreviewInput> preview(
+      TenantId tenant, UUID actor, String formCode, String sourceModule, UUID sourceRefId) {
+    if (formCode == null || !FORM_CODES.contains(formCode)) {
+      throw invalid("formCode", "Mã biểu mẫu không hợp lệ.");
+    }
+    if (sourceRefId == null) {
+      return Optional.empty();
+    }
+    if (SOURCE_DOSSIER.equals(sourceModule)) {
+      Optional<FormRow> form = packages.findForm(tenant, sourceRefId);
+      if (form.isEmpty() || !formCode.equals(form.get().formCode())) {
+        return Optional.empty();
+      }
+      Optional<UnitProfile> owner = api().find(tenant, form.get().profileId());
+      if (owner.isEmpty() || outsideUnit(tenant, actor, owner.get().orgUnitId())) {
+        return Optional.empty();
+      }
+      return renderData(tenant, sourceRefId)
+          .map(data -> previewOf(owner.get().pack(), formCode, data));
+    }
+    if (!SOURCE_APPRAISAL.equals(sourceModule)) {
+      return Optional.empty();
+    }
+    Optional<UnitProfile> found = api().find(tenant, sourceRefId);
+    if (found.isEmpty() || outsideUnit(tenant, actor, found.get().orgUnitId())) {
+      return Optional.empty();
+    }
+    UnitProfile p = found.get();
+    FormDocuments.Document doc =
+        isUnitForm(p.pack(), formCode)
+            ? FormDocuments.selection(
+                formCode,
+                p.periodId(),
+                p.orgUnitId(),
+                p.pack(),
+                api().unitProfiles(tenant, p.periodId(), p.orgUnitId()))
+            : FormDocuments.personal(formCode, p);
+    return Optional.of(previewOf(p.pack(), formCode, doc.canonicalJson()));
+  }
+
+  /**
+   * Xem trước văn bản từ dữ liệu module khác (văn bản trả lời khiếu nại của MOD-07, SCR-1202): mã
+   * mẫu theo Policy Pack của hồ sơ nguồn, phiên bản mẫu ghim theo gói nếu có.
+   *
+   * @param profileId hồ sơ đánh giá của bản ghi nguồn, có thể rỗng
+   * @param data dữ liệu JSON chuẩn tắc do module nguồn dựng
+   */
+  public PreviewInput previewFromSource(
+      TenantId tenant, String formCode, UUID profileId, byte[] data) {
+    if (formCode == null || !formCode.matches("[A-Z][A-Z0-9_]{0,15}")) {
+      throw invalid("formCode", "Mã mẫu văn bản không hợp lệ.");
+    }
+    Pack pack =
+        profileId == null
+            ? null
+            : api().find(tenant, profileId).map(UnitProfile::pack).orElse(null);
+    return previewOf(pack, formCode, data);
+  }
+
+  private RenderInput draft(
+      TenantId tenant,
+      UnitProfile owner,
+      String formCode,
+      FormDocuments.Document doc,
+      List<UUID> sources,
+      UUID actor) {
+    String version = pinned(owner.pack(), formCode);
+    NewForm form =
+        new NewForm(
+            Ids.newUuidV7(), owner.id(), formCode, version, doc.sha256(), !sources.isEmpty());
+    packages.insertDraft(tenant, owner.periodId(), owner.periodBucket(), form, sources, actor);
+    return new RenderInput(
+        form.id(),
+        formCode,
+        null,
+        HexFormat.of().formatHex(doc.sha256()),
+        templateVersion(version),
+        owner.pack() == null ? null : owner.pack().code(),
+        owner.pack() == null ? null : owner.pack().version(),
+        null);
+  }
+
+  /** Dữ liệu biểu mẫu nháp: biểu mẫu đơn vị tính lại trên tập hồ sơ đã chọn lúc tạo. */
+  private Optional<byte[]> draftData(TenantId tenant, FormRow f) {
+    Optional<UnitProfile> owner = api().find(tenant, f.profileId());
+    if (owner.isEmpty()) {
+      return Optional.empty();
+    }
+    UnitProfile p = owner.get();
+    List<UUID> sources = packages.sourceProfiles(tenant, f.periodBucket(), f.id());
+    if (sources.isEmpty()) {
+      return Optional.of(FormDocuments.personal(f.formCode(), p).canonicalJson());
+    }
+    List<UnitProfile> selected = new ArrayList<>();
+    for (UUID id : sources) {
+      api().find(tenant, id).ifPresent(selected::add);
+    }
+    return Optional.of(
+        FormDocuments.selection(
+                f.formCode(), p.periodId(), commonUnit(selected), p.pack(), selected)
+            .canonicalJson());
+  }
+
+  private static PreviewInput previewOf(Pack pack, String formCode, byte[] data) {
+    return new PreviewInput(
+        null,
+        templateVersion(pinned(pack, formCode)),
+        pack == null ? null : pack.code(),
+        pack == null ? null : pack.version(),
+        new String(data, java.nio.charset.StandardCharsets.UTF_8));
+  }
+
+  /** Đơn vị chung của các hồ sơ; {@code null} khi thuộc nhiều đơn vị. */
+  private static UUID commonUnit(List<UnitProfile> profiles) {
+    Set<UUID> units = new java.util.HashSet<>();
+    profiles.forEach(p -> units.add(p.orgUnitId()));
+    return units.size() == 1 ? units.iterator().next() : null;
   }
 
   // ---------------------------------------------------------------- nội bộ

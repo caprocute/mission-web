@@ -4,9 +4,7 @@
         ${msg("loginOtpTitle")}
     <#elseif section = "form">
         <form id="kc-otp-login-form" class="mission-form" onsubmit="login.disabled = true; return true;" action="${url.loginAction}" method="post">
-            <p class="mission-otp-hint">
-                Thao tác quan trọng yêu cầu xác thực bảo mật bước 2. Vui lòng nhập mã xác thực 6 chữ số từ ứng dụng định danh của đồng chí.
-            </p>
+            <p class="mission-hint">Nhập mã 6 chữ số trong ứng dụng xác thực.</p>
 
             <#if otpLogin.userOtpCredentials?size gt 1>
                 <div class="mission-field">
@@ -43,12 +41,7 @@
                 </#if>
             </div>
 
-            <div class="mission-actions">
-                <button class="mission-btn mission-btn--primary" name="login" id="kc-login" type="submit">
-                    <span>${msg("doSubmit")}</span>
-                    <span aria-hidden="true">→</span>
-                </button>
-            </div>
+            <button class="mission-btn mission-btn--primary" name="login" id="kc-login" type="submit">${msg("doSubmit")}</button>
         </form>
     </#if>
 </@layout.registrationLayout>
